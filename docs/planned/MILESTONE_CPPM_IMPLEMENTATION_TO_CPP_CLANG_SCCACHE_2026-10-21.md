@@ -1803,4 +1803,5 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 ### Artifact.Widgets.LayerEditor.FrameBackground implementation migration（2026-10-22）
 
 - `Artifact/src/Widgets/LayerEditorFrameBackground.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。public interface と背景描画の既存分岐は変更せず、実装本文は元 blob と byte-for-byte 一致。
-- root CMake 4.4.4 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` に `LayerEditorFrameBackground.cpp` が登録されたことを確認。renderer / QImage / imported module の実 compile・link は未確認のため、本 unit の Clang smoke は未実施。Artifact 実 target も未ビルド。
+- root CMake 4.4.4 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` に `LayerEditorFrameBackground.cpp` が登録されたことを確認。implementation が利用する `QImage::isNull()` 用に `<QImage>` を global module fragment に直接 include した。
+- 実 interface と `.cpp` を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library link が成功。`Core.ArtifactMath`、renderer、context mode、color、math module は型・API を合わせた最小 provider stub、`QImage` は最小 stub のため Artifact 実依存 link/runtime は未確認。sccache 0.18.0 upstream clang++ cold build は5 misses、clean rebuild は5 hits、bypass / errors 0。Artifact 実 target は未ビルド。
