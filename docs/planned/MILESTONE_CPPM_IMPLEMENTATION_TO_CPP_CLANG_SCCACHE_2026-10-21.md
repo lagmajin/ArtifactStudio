@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 7 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 6 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -747,3 +747,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Knob/AbstractKnobEditor.cppm` は `Widgets.Knob` implementation unit で、`include/Knob/AbstractKnobEditor.ixx` が同 module の public interface を宣言する。`W_OBJECT_IMPL`、Impl ownership、drag/drop acceptance と event methods を維持して `.cpp` へ移し、明示 implementation source list に登録した。
 - source が直接使う `QWidget` を global module fragment に追加した。deprecated API と処理は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.VolumeSlider implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Knob/VolumeSlider.cppm` は import-free `VolumeSlider` implementation unit で、`include/Audio/VolumeSlider.ixx` が対応する public interface を宣言する。既存 `W_OBJECT_IMPL` と class / method definitions を維持して `.cpp` に移し、明示 implementation source list に登録した。
+- source が直接使う `QWidget` header を global module fragment に追加した。repository source 内での利用元は見つからなかった。既存の空 method bodies や public API は変更していない。ビルド／依存スキャン／リンクは実行していない。
