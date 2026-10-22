@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 79 | 45 | 395 | 22 | 851 |
+| ArtifactCore | 80 | 45 | 394 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -949,4 +949,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - CMake source-specific IFC / compile-option branches still compared `_artifact_impl_relative` against `.cppm` for 14 files that are already registered as `.cpp`: AnimationDynamics, ColorLuminance, FloatRGBA, XYZColor, FrameSkipTracker, GPUInfo, GPUTextureCacheManager, CompressQuality, RenderStatics, ExplorerUtils, NameGenerator, Path, Tag, and MediaTimeStamp.
 - Each corresponding `.cpp` exists in the source manifest and has a provider row in the module reference map. Updated only the stale CMake conditions so the intended MSVC IFC / ordering settings apply to the actual source path. Clang continues to use its P1689 module map lane.
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.AspectRatio implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Core/AspectRatio.cppm` は `Core.AspectRatio` implementation unit で、公開 interface の constructor / copy-move / ratio / string parse API を実装する。module 宣言、標準 / Qt headers、UniString import と実装本文を保って `.cpp` に移した。
+- Core source manifest、既存の MSVC module reference source condition、provider / UniString imported reference rows を新 path に更新した。decimal parsing のロジックと PImpl ownership は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。

@@ -2,7 +2,7 @@
 
 > 2026-03-20 作成
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-22
 
 ## 2026-08-15 現行コード照合
 
@@ -160,7 +160,7 @@ facade sliceと物理Audio device列挙・選択・設定永続化の公開契�
 - FFmpeg実行環境での生成・再生・失敗時cleanupは未検証
 
 ### M-APP-14 AspectRatio::setFromString() ✅（静的確認 2026-07-30）
-- `ArtifactCore/src/Core/AspectRatio.cppm`
+- `ArtifactCore/src/Core/AspectRatio.cpp`
 - [x] `16:9` / `16/9` / `1920x1080` パース
 - [x] decimal ratioの有理近似と正規化
 - invalid input / runtime利用箇所の確認は未実施
@@ -206,3 +206,8 @@ Phase 5 (データ層) ──→ Phase 6 (拡張)
 | **対象外** | M-APP-9 (Generator::apply) | 旧抽象の直接接続案は撤回済み |
 | **中** | M-APP-10 (DAG eval) | レンダリングの根幹 |
 | **低** | M-APP-15 (OFX) | サードパーティ互換、実装コスト高い |
+
+
+## Update 2026-10-22
+
+`AspectRatio` の implementation unit を `.cppm` から `.cpp` へ移行した。API と座標比率の挙動は変更していない。
