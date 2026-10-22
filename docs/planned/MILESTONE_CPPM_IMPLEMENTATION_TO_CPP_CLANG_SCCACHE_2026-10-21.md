@@ -1820,3 +1820,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Animation/ArtifactLayerEffectEnvelope.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。envelope sampling の計算と public interface は変更せず、Git rename detection で本文変更なし（100% rename）。
 - 実 interface と `.cpp` を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static archive link が成功。`Core.ArtifactMath` は最小 provider stub、`wobjectdefs.h` は実物を使い Qt include path と `/Zc:__cplusplus` を設定。Artifact 実依存 link/runtime は未確認。
 - sccache 0.18.0 upstream clang++ の clean rebuild は全 cacheable compile が hit、bypass / errors 0。
+
+### Artifact.Render.CompositionChangeDetector implementation migration（2026-10-22）
+
+- `Artifact/src/Render/CompositionChangeDetector.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新。mutex 保護された changed-layer 集合、full-redraw 判定、reset / debugInfo の実装は変更せず、Git rename detection は100%。独立実装 unit から使う `QMutexLocker` / `QSet` / `QString` を直接 include。
+- 実 interface と `.cpp`、importer を用いた smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library / executable link が成功。Qt mutex/set/string は最小 stub のため実 Qt link/runtime は未確認。実行ファイルは未実行。
+- sccache 0.18.0 upstream clang++ の clean rebuild は全 compile cacheable calls が hit、bypass / errors 0。
