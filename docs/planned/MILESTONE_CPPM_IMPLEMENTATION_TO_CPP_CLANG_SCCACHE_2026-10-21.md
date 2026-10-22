@@ -1634,3 +1634,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorString.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。同一 `Artifact.Widgets.PropertyEditor` module の他 implementation と公開 interface は維持。
 - string / multiline / font editor の UI と既存 event bus subscription は変更していない。実装 blob の一致を確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
+
+### Artifact.Widgets.PropertyEditor.Color implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorColor.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。同一 `Artifact.Widgets.PropertyEditor` module と承認済み `FloatColorPicker` import は維持。
+- 色選択、表示色の反映、既存 signal 接続は変更していない。CRLF 混在を LF に整え、Git の元 blob と一致することを確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
