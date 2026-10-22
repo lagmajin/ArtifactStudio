@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 114 | 45 | 360 | 22 | 851 |
+| ArtifactCore | 116 | 45 | 358 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1187,4 +1187,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Geometry/ResolutionRemap.cppm` は解像度変更時の位置・bounds・scale・transform remap と影響情報を計算する。既存挙動を保ち `.cpp` に移した。
 - source manifest、provider mapping と MSVC source-specific IFC reference 条件を更新した。Qt / 標準ヘッダーの直接 include は既に揃っており追加変更は不要。実装本文は LF 化以外同一。
+- Clang の `.cpp` module implementation scan 適用対象に含まれる。ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### GenerateTestImage implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Generate/GenerateTestImage.cppm` はカラーバー、グラデーション、チェッカーボード等を呼び出し時に RGBA float buffer へ生成する utility である。描画 frame loop からの参照は見つからず、既存挙動を保って `.cpp` に移した。
+- ArtifactCore の core / Generate source lists、provider mapping と `Core.Parallel` IFC reference の source path を更新した。実装本文は LF 化以外同一。
 - Clang の `.cpp` module implementation scan 適用対象に含まれる。ビルド、依存スキャン、テスト、CMake は実行していない。
