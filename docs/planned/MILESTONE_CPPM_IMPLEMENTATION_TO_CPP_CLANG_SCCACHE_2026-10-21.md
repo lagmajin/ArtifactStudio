@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 14 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 13 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -712,3 +712,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Image/BasicImageViewWidget.cppm` は `BasicImageViewWidget` implementation unit で、`Widgets.Effects.GlowFrame` を import する。module import、`W_OBJECT_IMPL`、既存 image view / file-drop loading implementation を維持して `.cpp` に移し、CMake の明示 implementation list に登録した。
 - 直接使う QDebug / QFocusEvent / QGraphicsPixmapItem / QImage / QObject / QPainter / QPixmap / QPoint / QRectF / QSize / QString / QUrl / QWheelEvent / QWidget / Qt headers を global module fragment に加え、LF 改行へ揃えた。既存 image loading connection と描画動作は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.WinJumpList implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Common/WinJumpList.cppm` は Windows Shell COM を使う import-free `WinJumpList` implementation unit で、対応する public `WinJumpList.ixx` と module 名が一致する。実装と公開 API を維持して `.cpp` に移し、明示 implementation source list に登録した。
+- 既存 Windows 専用 include と Jump List 処理は変更していない。`.cpp` と `.cppm` の LF 属性を `ArtifactWidgets/.gitattributes` に明記した。ビルド／依存スキャン／リンクは実行していない。
