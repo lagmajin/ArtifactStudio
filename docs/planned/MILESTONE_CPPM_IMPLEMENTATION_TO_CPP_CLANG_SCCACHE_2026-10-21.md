@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 160 | 45 | 316 | 20 | 851 |
+| ArtifactCore | 161 | 45 | 315 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1475,4 +1475,10 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `ArtifactCore/src/Transform/ZoomScale.cppm` を `.cpp` に移行し、source manifest、module reference map、MSVC source-specific `/reference` 条件を更新した。公開 `Core.Scale.Zoom` interface と `Core.ArtifactString` provider 参照は維持。
 - 実装ソースの内容は維持し、LF 改行に統一した。Clang / MSVC の scan・compile・link は本ターンでは未実行。
 - ArtifactCore 集計は `.cpp` 160、実装形式 `.cppm` 316、module 宣言のない `.cppm` は20。
+
+### Color.Conversion implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Color/ColorConversion.cppm` を `.cpp` に移行し、source manifest、module reference map、MSVC source-specific `/reference` 条件を更新した。公開 `Color.Conversion` interface と `Color.Float` provider 参照は維持。
+- `ColorBlendMode` の画素単位 blend 分岐から呼ばれるため、変換ロジックは変更せず拡張子と参照先だけ更新した。性能計測および Clang / MSVC の scan・compile・link は本ターンでは未実施。
+- ArtifactCore 集計は `.cpp` 161、実装形式 `.cppm` 315、module 宣言のない `.cppm` は20。
 - Clang P1689 scan / compile、MSVC compile / link は未確認。ビルド・テスト・CMake configure/generate は実行していない。
