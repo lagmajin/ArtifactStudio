@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 26 | 0 | 21 | 4 | 63 |
+| ArtifactWidgets | 27 | 0 | 20 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -677,3 +677,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Dialog/FloatColorPicker.cppm` は `FloatColorPickerDialog` module implementation unit で、Color Palette、Property Editor、Composition Editor、複数の作成／設定 dialog から import される。module 名・公開 interface・color selection UI と既存処理を維持し、implementation source を `.cpp` に移して CMake の明示リストに登録した。
 - 直接使う QChar / QString / QOverload 定義 / QFont / QPalette / QAbstractSpinBox / QWidget headers を global module fragment に追加し、LF 改行へ揃えた。既存 UI 接続と signal 経路は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.AbstractWidget implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/AbstractWidget.cppm` は `AbstractWidget` module implementation unit で、scope widgets、video preview、image viewer の interface から参照される。`Widgets.Effects.GlowFrame` import と implementation body を保って `.cpp` へ移し、CMake の明示 implementation list に登録した。
+- `QFocusEvent` / `QResizeEvent` / `QWidget` の直接 headers を global module fragment に加え、LF 改行へ揃えた。公開 interface・挙動は変更せず、ビルド／依存スキャン／リンクは実行していない。
