@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 134 | 45 | 340 | 22 | 851 |
+| ArtifactCore | 135 | 45 | 339 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1284,4 +1284,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Network/CollaborationWebSocket.cppm` は協調編集 WebSocket の接続状態、heartbeat / reconnect、operation / lock / presence message の送受信を実装する。利用は collaboration session の通信時で、描画 frame path には入らない。既存処理（元ファイルは LF）をそのまま `.cpp` に移した。
 - source manifest、provider map と Network target source list を更新した。追加の import mapping や source-specific MSVC dependency edge はないため、Clang の `.cpp` P1689 scan に依存解決を任せる。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Core.AI.LlamaAgent implementation migration（2026-10-22）
+
+- `ArtifactCore/src/AI/LlamaLocalAgent.cppm` はユーザー操作によるローカル LLM backend 初期化、model load / inference、streaming response を実装する。推論時に計算負荷はあるが playback/render frame path ではない。既存処理を `.cpp` に移した。
+- AI source list、provider / imported-module mappings と source-specific MSVC `/reference` selector を新 path に更新した。Clang lane では `.cpp` P1689 scan が有効になる。実装本文は LF 化以外同一。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
