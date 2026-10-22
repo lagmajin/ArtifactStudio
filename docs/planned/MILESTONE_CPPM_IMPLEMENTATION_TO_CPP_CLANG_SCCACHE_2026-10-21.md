@@ -1796,13 +1796,13 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 ### Artifact.Widgets.LayerEditor.ReleaseController implementation migration（2026-10-22）
 
-- `Artifact/src/Widgets/LayerEditorReleaseController.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。public module interface と release event の既存 state / callback 処理は変更せず、実装本文は元 blob と byte-for-byte 一致。
+- `Artifact/src/Widgets/LayerEditorReleaseController.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。public module interface と release event の既存 state / callback 処理は変更せず、Git rename detection で本文変更なし（100% rename）。
 - 実 interface と `.cpp` を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library link が成功。`Qt` / `QPointF` は最小 stub のため Qt 実依存 link / runtime は未確認。Artifact 実 target は未ビルド。
 - sccache 0.18.0 の upstream clang++ は cold build 2 misses、clean rebuild 2 hits、bypass / errors 0。
 
 ### Artifact.Widgets.LayerEditor.FrameBackground implementation migration（2026-10-22）
 
-- `Artifact/src/Widgets/LayerEditorFrameBackground.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。public interface と背景描画の既存分岐は変更せず、実装本文は元 blob と byte-for-byte 一致。
+- `Artifact/src/Widgets/LayerEditorFrameBackground.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。public interface と背景描画の既存分岐は変更せず、Git rename detection で本文変更なし（100% rename）。
 - root CMake 4.4.4 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` に `LayerEditorFrameBackground.cpp` が登録されたことを確認。implementation が利用する `QImage::isNull()` 用に `<QImage>` を global module fragment に直接 include した。
 - 実 interface と `.cpp` を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library link が成功。`Core.ArtifactMath`、renderer、context mode、color、math module は型・API を合わせた最小 provider stub、`QImage` は最小 stub のため Artifact 実依存 link/runtime は未確認。sccache 0.18.0 upstream clang++ cold build は5 misses、clean rebuild は5 hits、bypass / errors 0。Artifact 実 target は未ビルド。
 ### Artifact.Widgets.LayerEditor.FrameViewState implementation migration（2026-10-22）
@@ -1812,5 +1812,11 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 ### Artifact.Render.Element implementation migration（2026-10-22）
 
-- `Artifact/src/Render/ArtifactRenderElement.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。PImpl の生成・破棄と public module interface は変更せず、実装本文は元 blob と byte-for-byte 一致。
+- `Artifact/src/Render/ArtifactRenderElement.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。PImpl の生成・破棄と public module interface は変更せず、Git rename detection で本文変更なし（100% rename）。
 - 実 interface、実 `.cpp` と importer を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library / executable link が成功。sccache 0.18.0 upstream clang++ の clean rebuild は全 compile hit、bypass / errors 0。smoke executable は未実行。
+
+### Artifact.Animation.LayerEffectEnvelope implementation migration（2026-10-22）
+
+- `Artifact/src/Animation/ArtifactLayerEffectEnvelope.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。envelope sampling の計算と public interface は変更せず、Git rename detection で本文変更なし（100% rename）。
+- 実 interface と `.cpp` を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static archive link が成功。`Core.ArtifactMath` は最小 provider stub、`wobjectdefs.h` は実物を使い Qt include path と `/Zc:__cplusplus` を設定。Artifact 実依存 link/runtime は未確認。
+- sccache 0.18.0 upstream clang++ の clean rebuild は全 cacheable compile が hit、bypass / errors 0。
