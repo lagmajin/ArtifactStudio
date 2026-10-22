@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 58 | 45 | 416 | 22 | 851 |
+| ArtifactCore | 59 | 45 | 415 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -820,3 +820,5 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Transform/StaticTransform3D.cppm` を `Transform._3D` implementation unit のまま `.cpp` に移した。PImpl・copy/move ownership と method definitions を維持し、明示 source manifest と module reference map の provider path を更新した。source-specific CMake 設定・外部 module import はない。ビルド／依存スキャン／リンクは未実行。
 
 - `ArtifactCore/src/Common/Point2D.cppm` を `Core.Point2D` implementation unit のまま `.cpp` に移した。Point2DF / Point2DI の PImpl 定義と accessors を維持し、`int32_t` 用 `<cstdint>` を追加。source manifest、module reference map と MSVC primary IFC reference 条件を新 path に更新した。ビルド／依存スキャン／リンクは未実行。
+
+- `ArtifactCore/src/Channel/Channel.cppm` を `Channel` implementation unit のまま `.cpp` に移した。VideoChannel / VideoFrame の実装と既存 module dependencies を維持し、直接 `size_t` を使っていた箇所を `std::size_t` と `<cstddef>` に明示した。明示 source manifest、module reference map の provider / imported rows、CMake の generated-reference source 条件を更新した。ビルド／依存スキャン／リンクは未実行。
