@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 42 | 45 | 432 | 22 | 851 |
+| ArtifactCore | 43 | 45 | 431 | 22 | 851 |
 | ArtifactWidgets | 35 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -782,3 +782,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Graphics/GraphicsItemFloatImageItem.cppm` は `GraphicsFloatImageItem` module implementation unit として分類されているため `.cpp` に移し、明示 implementation source list に登録した。使用されていなかった `QList` include を削除した。
 - 既存 source は public `GraphicsFloatImageItem` method definitions を含まず、private class stub だけを持つ。この API / implementation mismatch は変更・解決していないため `Insight.md` に記録した。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactCore.Rotate implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Transform/Rotate.cppm` は `module Rotate;` implementation unit で、`include/Transform/Rotate.ixx` の非 inline method definitions を持つ。本文を `.cpp` に移し、明示 manifest `cmake/ArtifactCoreSources.cmake` の source path を更新した。
+- source は追加 module import / source-specific CMake reference / scan-disable rule を持たないため、既存 scanner classification を維持する。public interface と method behavior は変更していない。ビルド／依存スキャン／リンクは実行していない。
