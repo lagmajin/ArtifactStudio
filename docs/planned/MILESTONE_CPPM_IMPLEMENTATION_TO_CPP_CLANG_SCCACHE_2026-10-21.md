@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 93 | 45 | 381 | 22 | 851 |
+| ArtifactCore | 94 | 45 | 380 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1047,4 +1047,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/AI/TieredAIManager.cppm` は `Core.AI.TieredAIManager` implementation unit で、agent configuration、request routing、cloud escalation、background analysis API を実装する。module 宣言、imports、既存 PImpl と request behavior を保って `.cpp` に移した。
 - ArtifactCore source manifest、imported module references、AI split target、initial scan-off / MSVC IFC / interface-object / NamedVector source conditions と AI feature map path を更新した。Clang lane は migrated `.cpp` を implementation source collection から P1689 scan に載せる。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.AI.APIKeyManager implementation migration（2026-10-22）
+
+- `ArtifactCore/src/AI/APIKeyManager.cppm` は `Core.AI.APIKeyManager` implementation unit で、provider key / proxy の設定 load / save / lookup API を実装する。module 宣言、imports と persistence behavior を保って `.cpp` に移した。
+- ArtifactCore source manifest と provider / imported module references、AI split target、MSVC explicit-reference exception と configuration interface object dependency の source path を更新した。Clang lane では implementation source collection を通じて P1689 scan が有効になる。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
