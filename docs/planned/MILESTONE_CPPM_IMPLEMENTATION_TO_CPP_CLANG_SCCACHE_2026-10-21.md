@@ -36,7 +36,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - ルートでは `ARTIFACT_USE_SCCACHE` が既定 ON。本家 clang++ GNU frontend は launcher を使い、clang-cl と MSVC-style frontend は module/PDB 対応が不足するため launcher を無効化する。非対応 module command は sccache が bypass する。
 - `ArtifactCore/cmake/ArtifactCoreSources.cmake` は source manifest を明示管理し、`.cppm` を interface sources と implementation sources に分けている。新しい実装 `.cpp` を登録する規則は別途必要。
 - `ArtifactWidgets/CMakeLists.txt` は `.cpp` / `.cppm` / `.ixx` を glob し、`export module` の有無で module / implementation に分類する。MSVC では実装 `.cppm` に `CompileAsCpp` を付けている。
-- `Artifact/CMakeLists.txt` も manifest に加え、`.cppm` 実装の明示登録と MSVC 固有の実装コンパイル設定を持つ。
+- `Artifact/CMakeLists.txt` は manifest source を宣言内容で分類する。`.cppm` には MSVC `CompileAsCpp` / upstream clang `-x c++` を適用し、移行済み `.cpp` module implementation には clang-cl / upstream clang の P1689 scan を明示する。
 
 ### 外部仕様から分かること
 
@@ -1523,6 +1523,11 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Widgets/FxStudio/ArtifactFxStudioDialog.cppm` を `.cpp` に移行し、Artifact の明示 source manifest を更新した。公開 `Artifact.Widgets.FxStudio.Dialog` interface、`Artifact.FxStudio.Session` / `Artifact.FxStudio.PresetCatalog` / `Core.ArtifactString` imports は維持。
 - dialog UI、既存 event wiring、session 操作の内容は変更していない。LF 改行に統一し、Clang / MSVC の scan・compile・link は本ターンでは未実施。
 - Artifact 集計は `.cpp` 17、実装形式 `.cppm` 619、module 宣言のない `.cppm` は6。
+
+### Artifact CMake compiler scan classification（2026-10-22）
+
+- `Artifact/CMakeLists.txt` の implementation source 判定を `.cppm` に加えて、named module declaration を持つ `.cpp` に拡張した。clang-cl / upstream clang では両形式に `CXX_SCAN_FOR_MODULES` を設定し、`-x c++` は upstream clang の `.cppm` のみ、MSVC `CompileAsCpp` は `.cppm` のみへ適用する。
+- Artifact 子リポジトリの `.gitattributes` に `CMakeLists.txt text eol=lf` を追加し、編集対象の作業ツリー改行を LF に統一した。CMake configure / generate とビルドは未実施。
 
 ### Artifact.Menu.Effect implementation migration（2026-10-22）
 
