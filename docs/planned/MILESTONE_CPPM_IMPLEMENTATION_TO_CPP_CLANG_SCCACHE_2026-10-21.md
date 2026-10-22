@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 158 | 45 | 318 | 20 | 851 |
+| ArtifactCore | 159 | 45 | 317 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1463,4 +1463,10 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `ArtifactCore/src/Image/Cryptomatte/CryptoExrWriter.cppm` を `.cpp` に移行し、明示 source manifest、module reference map、MSVC source-specific `/reference` 条件を更新した。公開 `Image.Cryptomatte.ExrWriter` interface、`Image.Cryptomatte.Pixel` import、既存の `Image.Cryptomatte.Image` / `Image.Cryptomatte.Pixel` provider 参照は維持。
 - 実装ソースの内容は維持し、LF 改行に統一した。Clang / MSVC の scan・compile・link は本ターンでは未実行。
 - ArtifactCore 集計は `.cpp` 158、実装形式 `.cppm` 318、module 宣言のない `.cppm` は20。
+
+### NetworkRPCClient implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Network/NetworkRPCClient.cppm` を `.cpp` に移行し、source manifest、`ArtifactCoreNetwork` 分割 target の実装 source list、module reference map を更新した。公開 `NetworkRPCClient` interface と `NetworkRPCClient.ixx` への module attachment は維持。
+- 実装ソースの内容は維持し、LF 改行に統一した。Clang / MSVC の scan・compile・link は本ターンでは未実行。
+- ArtifactCore 集計は `.cpp` 159、実装形式 `.cppm` 317、module 宣言のない `.cppm` は20。
 - Clang P1689 scan / compile、MSVC compile / link は未確認。ビルド・テスト・CMake configure/generate は実行していない。
