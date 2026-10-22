@@ -943,3 +943,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Color/LUTWriter.cppm` は `Color.LUTWriter` implementation unit で、Cube / 3dl memory export と file write API の定義が公開 interface に揃っている。`Color.LUT` import、Qt Core headers と出力実装を保って `.cpp` に移した。
 - Color source manifest、既存の MSVC module reference source condition、provider / `Color.LUT` imported reference rows を新 path に更新した。Clang frontend は `.cpp` を P1689 scan / module map に載せる。LUT のフォーマット・出力 behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### ArtifactCore stale `.cppm` source conditions repair（2026-10-22）
+
+- CMake source-specific IFC / compile-option branches still compared `_artifact_impl_relative` against `.cppm` for 14 files that are already registered as `.cpp`: AnimationDynamics, ColorLuminance, FloatRGBA, XYZColor, FrameSkipTracker, GPUInfo, GPUTextureCacheManager, CompressQuality, RenderStatics, ExplorerUtils, NameGenerator, Path, Tag, and MediaTimeStamp.
+- Each corresponding `.cpp` exists in the source manifest and has a provider row in the module reference map. Updated only the stale CMake conditions so the intended MSVC IFC / ordering settings apply to the actual source path. Clang continues to use its P1689 module map lane.
+- ビルド、依存スキャン、テスト、CMake は実行していない。
