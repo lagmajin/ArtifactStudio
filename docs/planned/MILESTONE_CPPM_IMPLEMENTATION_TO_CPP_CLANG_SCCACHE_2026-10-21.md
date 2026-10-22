@@ -1698,4 +1698,11 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 ### Artifact.NoiseEffect implementation migration（2026-10-22）
 
 - `Artifact/src/Effects/Glow/NoiseEffect.cppm` を `.cpp` に移行し、`Artifact/CMakeLists.txt` の全 Artifact implementation list と `Artifact/cmake/ArtifactSources.cmake` の manifest を更新した。公開 `NoiseEffect.ixx`、`Artifact.Effect.Abstract` / `Utils.String.UniString` imports、constructor / destructor 実装は維持。
-- 既存 `build` tree の MSVC / Visual Studio 18 で CMake 再構成が完了し、module dependency scan が開始した。ただし `ArtifactEffectsNoise` の対象 translation unit に到達する前に Diligent / OpenUSD / ArtifactCore など依存全体の再ビルドが始まったため中断。CMake 登録と configure は確認済み、`NoiseEffect.cpp` の compile / archive link は未確認。
+- 既存 `build` tree の MSVC / Visual Studio 18 で CMake 再構成が完了し、生成された `ArtifactEffectsNoise.vcxproj` が `NoiseEffect.cpp` を登録することを確認した。実 target build は Diligent / OpenUSD / ArtifactCore など依存全体の再ビルドが始まったため中断し、MSVC での実 compile / archive link は未確認。
+- upstream clang++ 22.1.3（Windows MSVC ABI）/ CMake 4.2 / Ninja の隔離 smoke で、実 `NoiseEffect.cpp` を P1689 scan・compile し static archive を作成した。依存 module は最小 stub interface を使うため Artifact の実依存 link までは検証していない。sccache 0.18 clean rebuild では4 compile requestsすべて hit、0 miss / 0 cache errors。
+
+
+### Artifact.Effect.Field implementation migration（2026-10-22）
+
+- `Artifact/src/Effects/ArtifactAbstractField.cppm` を `.cpp` に移行し、`Artifact/CMakeLists.txt` と `Artifact/cmake/ArtifactSources.cmake` を更新。module interface、module 名、constructor 実装と依存 import は変更していない。
+- root MSVC / Visual Studio 18 の CMake configure / generate 後、`ArtifactEffectContract.vcxproj` が `ArtifactAbstractField.cpp` を登録することを確認した。upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja の隔離 smoke では実 `.cpp` の P1689 scan、compile、static archive link に成功。imported module は最小 stub interface のため Artifact 実 target の compile / link と runtime は未確認。
