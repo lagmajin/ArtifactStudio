@@ -26,7 +26,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 327 | 0 | 27 | 0 | 29 |
-| Artifact | 10 | 55 | 626 | 6 | 700 |
+| Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
 | ArtifactWidgets | 11 | 0 | 36 | 4 | 63 |
 
@@ -596,3 +596,9 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - 実 `LayerLockIndicator.ixx` / `.cpp` と importer の CMake 4.4.4 / Ninja smoke で、upstream clang++ 23.1.4（Windows MSVC ABI）、clang-cl 22.1.3、MSVC 19.51 の全 lane が dependency scan、interface / implementation / importer compile、static library と executable link に成功した。clang-cl は CMake の `-TP` に unused argument 警告を出したが build は成功。
 - upstream clang++ + sccache 0.18.0 の初回 build は3 misses、clean rebuild は3 hits、cache errors 0。後続の同 smoke clean build では既存 cache から6 requestsすべて hitした。
 - `QApplication` を使う executable runtime は Qt platform initialization 中に停止し、widget 生成前に到達しなかったため未確認。移行した `.cpp` と manifest は LF、rename diff は100%。Artifact 全体 target / link は未確認。
+
+### Artifact.Generator.Abstract implementation migration / three compiler lanes（2026-10-22）
+
+- `Artifact/src/Generator/AbstractGenerator.cppm` は module import のない implementation unit で、raw `Impl*` の生成と破棄だけを定義する。本文と `Artifact.Generator.Abstract` module name を維持して `.cpp` に移し、`Artifact/cmake/ArtifactSources.cmake` の explicit implementation manifest を更新した。
+- 実 `AbstractGenerator.ixx` / `.cpp` と importer を使う CMake 4.4.4 / Ninja smoke で、upstream clang++ 23.1.4（Windows MSVC ABI）、clang-cl 22.1.3、MSVC 19.51 の各 lane が module dependency scan、interface / implementation / importer compile、static library / executable link、executable runtime に成功した。clang-cl は unused `-TP` warning を出したが build と run は成功。
+- upstream clang++ + sccache 0.18.0 の clean build / clean rebuild は合計6 requests、3 misses / 3 hits、cache errors 0。`.cpp` と manifest は LF、rename は100%。Artifact 全体 target / link は未確認。
