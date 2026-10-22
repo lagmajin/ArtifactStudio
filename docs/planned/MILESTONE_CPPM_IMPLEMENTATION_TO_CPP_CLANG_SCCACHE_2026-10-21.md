@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 144 | 45 | 330 | 22 | 851 |
+| ArtifactCore | 145 | 45 | 329 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1344,4 +1344,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Codec/FFmpegThumbnailExtractor.cppm` を `.cpp` に移行し、Media split target の source list / `CORE_IMPL` 除外、source manifest、module reference map の参照先を更新した。公開 interface は維持。
 - Asset Browser / Timeline の要求時に非同期サムネイルを抽出する既存経路。通常 playback frame からの呼び出しではない。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 144、実装形式 `.cppm` 330。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Analyze.SmartPalette implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Analyze/SmartPaletteAnalyzer.cppm` を `.cpp` に移行し、analyze split target、source manifest、module reference map、source-specific module references / `NamedVector` compile options を更新した。公開 `Analyze.SmartPalette` interface を維持。
+- Color Palette widget の明示的な画像パレット抽出操作から呼ばれる。module scan は有効で、clang P1689 scan 対象に含まれる。実装本文は LF 改行への正規化以外変更なし。
+- ArtifactCore 集計は `.cpp` 145、実装形式 `.cppm` 329。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
