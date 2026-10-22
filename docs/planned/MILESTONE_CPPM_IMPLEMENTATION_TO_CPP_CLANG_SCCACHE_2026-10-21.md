@@ -21,14 +21,14 @@ C++20 module の境界と公開 API（主に `.ixx`）を維持しながら、mo
 
 ### ソース量の目安
 
-Tracked source file を宣言行で分類した概数。`.cppm` の module 宣言を正規表現で数えており、ビルド対象数そのものではない。
+Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数え、`.cppm` は宣言行で分類している。ビルド対象数そのものではない。
 
-| リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | `.ixx` |
-|---|---:|---:|---:|---:|
-| 親 ArtifactStudio | 323 | 0 | 27 | 28 |
-| Artifact | 6 | 55 | 619 | 700 |
-| ArtifactCore | 5 | 45 | 467 | 851 |
-| ArtifactWidgets | 9 | 0 | 36 | 63 |
+| リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
+|---|---:|---:|---:|---:|---:|
+| 親 ArtifactStudio | 327 | 0 | 27 | 0 | 29 |
+| Artifact | 8 | 55 | 628 | 6 | 700 |
+| ArtifactCore | 42 | 45 | 432 | 22 | 851 |
+| ArtifactWidgets | 11 | 0 | 36 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -575,3 +575,10 @@ Tracked source file を宣言行で分類した概数。`.cppm` の module 宣�
 - upstream clang++ 23.1.4 の CMake 4.4.4 / Ninja 1.13.2 target で実ソースを P1689 scan し、`Artifact.Composition.Setting` provider attachment として認識することを確認。Artifact の既存 build tree にある同 module の実 BMI を指定した CMake 生成 compile command で object を生成した。sccache 0.18.0 で同じ command を2回実行し、2 compile requests / 2 cache hits / 0 errors。
 - clang-cl 22.1.3 と upstream clang++ 23.1.4 の両方で、CMake 4.4.4 の isolated executable に実 `.cpp` を登録し、同名 module の最小 stub interface と importer を用いて P1689 scan、compile、link、実行に成功した。これは拡張子・module attachment・scanner の pilot であり、Artifact の実 `ArtifactCompositionSetting.ixx` 依存を使う clang-cl 統合確認ではない。
 - 各 isolated CMake pilot は clean build を2回実行した。clang-cl は 6 compile requests のうち4 cacheable executions がすべて hit、0 miss / 0 cache errors（2 requests は multiple inputs で non-cacheable）。clang++ は6 requests、3 misses / 3 hits、0 cache errors。Artifact 全体の build / link / runtime は引き続き未確認。
+
+### Artifact.Gui.Manager implementation migration / three compiler lanes（2026-10-22）
+
+- `Artifact/src/GUI/ArtifactGuiManager.cppm` は import-free implementation unit で、constructor / destructor の defaulted definitions のみを持つ。module name と公開 QObject interface を変えず `.cpp` へ移し、`Artifact/cmake/ArtifactSources.cmake` の明示 implementation manifest を更新した。
+- 実 `ArtifactGuiManager.ixx` / `.cpp` を使う CMake 4.4.4 / Ninja smoke で、upstream clang++ 23.1.4（Windows MSVC ABI）、clang-cl 22.1.3、MSVC 19.51 の各 lane が P1689 または MSVC module scan、interface / implementation / importer compile、static library と executable link に成功し、3 executable の実行も成功した。Qt Core をリンクした。
+- upstream clang++ の clean build と clean rebuild は sccache 0.18.0 下で合計6 compile requests、3 misses / 3 hits、0 errors。build tree は隔離 smoke 用で、Artifact 全体の sccache 統計ではない。
+- 実 Artifact target の object-only Ninja build は source manifest の再構成後に6,622 actionsへ依存展開したため約180 actionsで中断した。したがって root target への統合 object build / Artifact 全体 link は今回未確認。`.cpp` と manifest は LF、`git diff --check` は成功。
