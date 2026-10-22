@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 11 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 10 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -727,3 +727,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Common/CommandAction.cppm` は `CommandAction` の import-free implementation unit で、`include/Common/CommandAction.ixx` が同名 module interface を宣言する。`W_OBJECT_IMPL`、PImpl ownership、既存 QAction connection、method bodies を変更せず `.cpp` に移し、明示 implementation source list に登録した。
 - implementation は既存どおり interface module から型宣言を得る。`.cpp` は LF。ビルド／依存スキャン／リンクは実行していない。別途確認候補の既存 `hasCommand()` 実装上の懸念は `Insight.md` に未検証として記録した。
+
+### ArtifactWidgets.ConsoleWidget implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Console/ConsoleWidget.cppm` は `ConsoleWidget` module の implementation unit で、`include/Console/ConsoleWidget.ixx` が対応する public interface を宣言する。既存の `W_OBJECT_IMPL`、Impl ownership、console append / clear 処理を保って `.cpp` に移し、明示 implementation source list に登録した。
+- Qt headers は既存どおり global module fragment にあり、既存 context-menu / action connections を含め動作変更はない。source は LF。ビルド／依存スキャン／リンクは実行していない。
