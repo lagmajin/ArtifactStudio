@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 101 | 45 | 373 | 22 | 851 |
+| ArtifactCore | 102 | 45 | 372 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1103,4 +1103,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Media/MediaInfo.cppm` は `Media.Info` implementation unit で、MediaInfo / MediaInfoBuilder の PImpl と metadata API 定義を実装する。公開 API と既存実装をそのまま `.cpp` に移した。
 - ArtifactCore source manifest、Media split target source list と provider module reference を新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.UniformScale implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Core/UniformScale.cppm` は `Core.UniformScale` implementation unit で、scale 値の PImpl lifecycle と getter を実装する。公開 API と実装内容を保って `.cpp` に移した。
+- source manifest、provider module reference、MSVC の source-specific IFC reference と `UniformScaleStandalone` source path を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。

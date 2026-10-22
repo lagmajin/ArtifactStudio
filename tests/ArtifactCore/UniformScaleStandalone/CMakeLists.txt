@@ -15,7 +15,7 @@ artifact_add_standalone_module_interface(UniformScaleModuleInterface
 )
 
 artifact_add_standalone_module_implementation(UniformScaleUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Core/UniformScale.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Core/UniformScale.cpp"
     LINK_LIBS UniformScaleModuleInterface
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )
