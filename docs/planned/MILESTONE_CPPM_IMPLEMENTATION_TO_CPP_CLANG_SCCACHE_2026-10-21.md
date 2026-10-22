@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 156 | 45 | 320 | 20 | 851 |
+| ArtifactCore | 157 | 45 | 319 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1451,4 +1451,10 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `ArtifactCore/src/Geometry/ShapeExtrude.cppm` を `.cpp` に移行し、source manifest、module provider map、MSVC source-specific compile option / object dependency selector の source 条件を更新した。公開 `Geometry.ShapeExtrude` interface と `Mesh` import は維持。
 - 輪郭の ear clipping と mesh extrusion を実装する。現行呼び出し箇所は `Procedural3DGenerators::generateTextExtrude`。幾何処理・データ構造・戻り値は変更せず、LF 改行へ正規化して末尾の余分な空行を整理した。
 - ArtifactCore 集計は `.cpp` 156、実装形式 `.cppm` 320、module 宣言のない `.cppm` は20。
+
+### Color.Float implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Color/FloatColor.cppm` を `.cpp` に移行し、明示 source manifest、module reference map、MSVC source-specific `/reference` 条件を更新した。公開 `Color.Float` interface と `Color.TransferFunction` import は維持。
+- 実装ソースの内容は保持し、LF 改行に統一した。Clang / MSVC の scan・compile・link は本ターンでは未実行。
+- ArtifactCore 集計は `.cpp` 157、実装形式 `.cppm` 319、module 宣言のない `.cppm` は20。
 - Clang P1689 scan / compile、MSVC compile / link は未確認。ビルド・テスト・CMake configure/generate は実行していない。
