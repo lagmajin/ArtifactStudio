@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 89 | 45 | 385 | 22 | 851 |
+| ArtifactCore | 90 | 45 | 384 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1019,4 +1019,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Light/IESProfile.cppm` は `Light.IESProfile` implementation unit で、IES parse / file load、candela sampling、LUT 構築 API を実装する。module 宣言、imports、既存実装を保って `.cpp` に移した。
 - source manifest、provider module reference、`ArtifactCoreLight` split source と MSVC IFC / object dependency の各 path を更新した。parse / sample / LUT behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Preview.Settings implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Preview/PreviewSettings.cppm` は `Preview.Settings` implementation unit で、preview settings の PImpl lifecycle、getter / setter、reset API を定義する。module 宣言と設定値の挙動を保って `.cpp` に移した。
+- ArtifactCore source manifest、provider module reference、Preview split target source list の path を更新した。preview 設定 API は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
