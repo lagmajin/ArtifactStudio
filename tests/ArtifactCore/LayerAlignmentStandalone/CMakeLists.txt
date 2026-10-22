@@ -19,7 +19,7 @@ artifact_add_standalone_module_interface(LayerAlignmentModuleInterfaces
 
 artifact_add_standalone_module_implementation(LayerAlignmentUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Geometry/LayerBoundsCalculator.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Geometry/LayerBoundsCalculator.cpp"
         "${ARTIFACT_CORE_ROOT}/src/Geometry/LayerAlignment.cppm"
     LINK_LIBS LayerAlignmentModuleInterfaces Qt6::Core
 )

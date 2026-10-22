@@ -16,7 +16,7 @@ artifact_add_standalone_module_interface(LayerBoundsCalculatorModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(LayerBoundsCalculatorUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Geometry/LayerBoundsCalculator.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Geometry/LayerBoundsCalculator.cpp"
     LINK_LIBS LayerBoundsCalculatorModuleInterfaces Qt6::Core
 )
 

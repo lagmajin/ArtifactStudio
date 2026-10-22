@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 60 | 45 | 414 | 22 | 851 |
+| ArtifactCore | 61 | 45 | 413 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -824,3 +824,9 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Channel/Channel.cppm` を `Channel` implementation unit のまま `.cpp` に移した。VideoChannel / VideoFrame の実装と既存 module dependencies を維持し、直接 `size_t` を使っていた箇所を `std::size_t` と `<cstddef>` に明示した。明示 source manifest、module reference map の provider / imported rows、CMake の generated-reference source 条件を更新した。ビルド／依存スキャン／リンクは未実行。
 
 - `ArtifactCore/src/ImageProcessing/AbstractImageEffect.cppm` を `ImageProcessing` implementation unit のまま `.cpp` に移した。public virtual method 群、partition imports の CMake `/reference` list と implementation を維持し、明示 source manifest・module reference map・個別 source 条件の path を更新した。`size_t` を `std::size_t` にし、`<cstddef>` を直接追加。ビルド／依存スキャン／リンクは未実行。
+
+### Geometry.LayerBounds implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Geometry/LayerBoundsCalculator.cppm` は `Geometry.LayerBounds` implementation unit で、対応する `LayerBoundsCalculator.ixx` に `calculate` / `calculateAABB` / `contains` の宣言が揃っている。module 宣言と実装本文を維持して `.cpp` に移した。
+- Core source manifest、module reference map、MSVC generated-reference source 条件、および LayerBounds / LayerAlignment standalone target の source path を更新した。既存 include 群と geometry behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
