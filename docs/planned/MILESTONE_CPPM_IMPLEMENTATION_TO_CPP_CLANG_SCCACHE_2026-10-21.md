@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 61 | 45 | 413 | 22 | 851 |
+| ArtifactCore | 62 | 45 | 412 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -829,4 +829,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Geometry/LayerBoundsCalculator.cppm` は `Geometry.LayerBounds` implementation unit で、対応する `LayerBoundsCalculator.ixx` に `calculate` / `calculateAABB` / `contains` の宣言が揃っている。module 宣言と実装本文を維持して `.cpp` に移した。
 - Core source manifest、module reference map、MSVC generated-reference source 条件、および LayerBounds / LayerAlignment standalone target の source path を更新した。既存 include 群と geometry behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Graphics.GPUAlgorithms implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Graphics/GPUAlgorithms.cppm` は独立した `Graphics.GPUAlgorithms` implementation unit で、`GPUAlgorithms.ixx` の `prefixSum` / `compaction` / `radixSort` と実装が対応する。module 宣言、関数本体、algorithm / limits / DLL export headers を維持して `.cpp` に移した。
+- Core source manifest と module reference map の provider path を更新した。個別 `/reference` 条件や standalone CMake source 参照は存在しないことを確認した。挙動変更はない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
