@@ -579,7 +579,9 @@ public:
 
         const QJsonObject inView = measureAt(480.0f, 270.0f, 0.0f);
         const QJsonObject inViewRepeat = measureAt(480.0f, 270.0f, 0.0f);
-        const QJsonObject outOfView = measureAt(1000480.0f, 270.0f, 0.0f);
+        // Behind the camera but still inside the composition ROI, so the
+        // per-layer ROI/LOD skip cannot hide it before culling runs.
+        const QJsonObject outOfView = measureAt(480.0f, 270.0f, 5000.0f);
 
         probe_->transform3D().setCurrentPosition(480.0f, 270.0f);
         probe_->transform3D().setCurrentPositionZ(0.0f);
