@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 52 | 45 | 422 | 22 | 851 |
+| ArtifactCore | 53 | 45 | 421 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -808,3 +808,5 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Frame/FrameOffset.cppm` を `Frame.Offset` implementation unit のまま `.cpp` に移した。module 宣言、既存 imports と arithmetic / time conversion 実装を保ち、Core source manifest、module reference map の provider・全 imported reference rows、および MSVC source-specific `/reference` 条件を更新した。既存の直接標準 header include は維持。ビルド／依存スキャン／リンクは未実行。
 
 - `ArtifactCore/src/Media/MediaFrame.cppm` を `Media.MediaFrame` implementation unit のまま `.cpp` に移した。module 名、既存 PImpl と constructor / destructor definitions を保ち、明示 source manifest、module reference map、Media source list の path を更新した。`std::make_unique` の直接依存として `<memory>` を追加した。ビルド／依存スキャン／リンクは未実行。
+
+- `ArtifactCore/src/Graphics/Effect/CreativeEffect.cppm` を `Graphics.Effect.Creative` implementation unit のまま `.cpp` に移した。実装本文と標準 header 群を維持し、明示 source manifest と module reference map の provider path を更新した。CMake は Graphics Effect 群の共通 reference 分岐を使い、個別 source path 条件はないことを確認した。ビルド／依存スキャン／リンクは未実行。
