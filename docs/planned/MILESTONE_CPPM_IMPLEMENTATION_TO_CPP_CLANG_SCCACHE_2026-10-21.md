@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 10 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 9 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -732,3 +732,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Console/ConsoleWidget.cppm` は `ConsoleWidget` module の implementation unit で、`include/Console/ConsoleWidget.ixx` が対応する public interface を宣言する。既存の `W_OBJECT_IMPL`、Impl ownership、console append / clear 処理を保って `.cpp` に移し、明示 implementation source list に登録した。
 - Qt headers は既存どおり global module fragment にあり、既存 context-menu / action connections を含め動作変更はない。source は LF。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.KnobSlider implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Knob/KnobSlider.cppm` は `Widget.Knob.Slider` module implementation unit で、`include/Knob/KnobSlider.ixx` が同 module の public interface を宣言する。`W_OBJECT_IMPL` と既存 event / paint method bodies を維持して `.cpp` へ移し、明示 implementation source list に登録した。
+- interface include への依存を避けるため、source が署名に使う `QPaintEvent` / `QPoint` / `QWheelEvent` headers を global module fragment に追加した。deprecated API と実装動作は変更していない。`impl_` 初期化に関する別件の未検証懸念は `Insight.md` に記録した。ビルド／依存スキャン／リンクは実行していない。
