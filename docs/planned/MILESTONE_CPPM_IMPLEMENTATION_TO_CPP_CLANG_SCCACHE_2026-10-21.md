@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 91 | 45 | 383 | 22 | 851 |
+| ArtifactCore | 92 | 45 | 382 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1033,4 +1033,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Database/Database.cppm` は `Core.Database` implementation unit で、Qt SQL connection / prepared query、SQLite transaction、migration runner の API を実装する。module 宣言と database behavior を保って `.cpp` に移し、直接利用する Qt / standard headers を明示した。
 - ArtifactCore source manifest、provider / `Core.Database.Types` references、`ArtifactCoreDatabase` target source と MSVC IFC / object dependency 条件を新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### ArtifactCore.Plugin.Registry implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Plugin/PluginRegistry.cppm` は `ArtifactCore.Plugin.Registry` implementation unit で、plugin register / activate / lookup / enumeration API を実装する。module 宣言、imports と registry behavior を保って `.cpp` に移した。
+- ArtifactCore source manifest、Plugin split target、initial scan-off source list、MSVC の IFC / interface-object dependencies と NamedVector option list の path をすべて更新した。Clang lane は implementation source を再度 scan 対象にし、P1689 依存を生成する。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
