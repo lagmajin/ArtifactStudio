@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 78 | 45 | 396 | 22 | 851 |
+| ArtifactCore | 79 | 45 | 395 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -935,4 +935,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Coordinate/CoordinateProfile.cppm` は `Coordinate.Profile` implementation unit で、value / space / profile / resolver の公開 API と JSON 登録・schema migration を実装する。module 宣言、Qt / standard headers、Serialization imports と実装本文を保って `.cpp` に移した。
 - Coordinate split target source list、明示 source manifest、Serialization IFC options、provider / imported module reference rows を新 path に更新した。Clang frontend は `.cpp` を P1689 scan / module map に載せる。座標変換・serialization behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Color.LUTWriter implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Color/LUTWriter.cppm` は `Color.LUTWriter` implementation unit で、Cube / 3dl memory export と file write API の定義が公開 interface に揃っている。`Color.LUT` import、Qt Core headers と出力実装を保って `.cpp` に移した。
+- Color source manifest、既存の MSVC module reference source condition、provider / `Color.LUT` imported reference rows を新 path に更新した。Clang frontend は `.cpp` を P1689 scan / module map に載せる。LUT のフォーマット・出力 behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。

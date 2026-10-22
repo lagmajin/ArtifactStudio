@@ -1,7 +1,7 @@
 # M-OCIO-1 OpenColorIO 統合 Milestone
 
 作成日: 2026-06-16
-最終更新: 2026-08-15
+**最終更新:** 2026-10-22
 ステータス: OCIO config／manager／project 保存と view transform 基盤は実装済み、render／export 全経路の受入れ待ち
 対象: `Artifact/src/Color/ArtifactColorScienceManager.cppm`,
       `Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`,
@@ -345,7 +345,7 @@ public:
 ### Phase 4: LUT Write (P0, 1 セッション)
 
 - `ArtifactCore/include/Color/LUTWriter.ixx` 新規
-- `Artifact/src/Color/LUTWriter.cppm` 実装
+- `ArtifactCore/src/Color/LUTWriter.cpp` 実装
 - panel の `Export LUT` ボタン
 - `.cube` / `.3dl` 書き出し
 
@@ -460,3 +460,8 @@ OCIOConfig の JSON／built-in ACES・sRGB・Rec.709・Rec.2020 preset、role／
 - ただし、composition／export の全経路での適用順、LUT `.cube`／`.3dl` write、Problem View の `ocio.*` 診断、OCIO 未導入時の mock と実ライブラリの parity、runtime の色差受入れは未検証。
 
 判定: **OCIO の config／manager／project persistence／worker propagation は実装済み。全 render／export 経路、LUT、diagnostics、色精度の受入れは pending。**
+
+
+## Update 2026-10-22
+
+LUTWriter の現行 implementation unit は `ArtifactCore/src/Color/LUTWriter.cpp`。公開 API と出力動作を維持したまま `.cppm` から移行した。
