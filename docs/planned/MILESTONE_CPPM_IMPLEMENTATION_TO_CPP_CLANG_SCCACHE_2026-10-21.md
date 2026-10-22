@@ -1689,3 +1689,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/ArtifactRecoveryWorkspaceWidget.cppm` を `.cpp` に移行した。`Artifact/CMakeLists.txt` の MSVC dyndep 用固定 source 登録を更新。公開 interface と唯一の `W_OBJECT_IMPL` は維持。
 - Recovery workspace の ledger 表示・更新処理は変更していない。実装 blob の一致を確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
+
+### Artifact.Widgets.ProjectMemoWidget implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/ArtifactProjectMemoWidget.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。公開 interface、migrated `ProjectMemoModel` import、唯一の `W_OBJECT_IMPL` は維持。
+- memo list の表示、追加・削除・編集操作は変更していない。実装 blob の一致を確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
