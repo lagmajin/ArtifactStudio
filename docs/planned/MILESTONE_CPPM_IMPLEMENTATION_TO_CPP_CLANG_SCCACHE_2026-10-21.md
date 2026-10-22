@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 149 | 45 | 325 | 22 | 851 |
+| ArtifactCore | 150 | 45 | 324 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1374,4 +1374,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/IO/VectorExport.cppm` を `.cpp` に移行し、IO split target、source manifest、module reference map、source-specific module dependency references を更新した。公開 `IO.VectorExport` interface は維持。
 - Artifact の render queue から SVG sequence export 時に利用される。通常 playback / preview ではなく、ユーザー指定の書き出し経路。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 149、実装形式 `.cppm` 325。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### IO.ImageExporter implementation migration（2026-10-22）
+
+- `ArtifactCore/src/IO/Image/ImageExporter.cppm` を `.cpp` に移行し、IO split target、source manifest、module reference map、source-specific IFC / object dependency 設定を更新した。公開 `IO.ImageExporter` interface と既存 `W_OBJECT_IMPL` は維持。
+- Artifact の offscreen renderer / render queue から静止画を出力する既存経路。実装本文は LF 改行への正規化以外変更なし。
+- ArtifactCore 集計は `.cpp` 150、実装形式 `.cppm` 324。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
