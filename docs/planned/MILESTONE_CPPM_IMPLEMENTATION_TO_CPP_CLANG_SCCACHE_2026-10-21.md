@@ -21,13 +21,13 @@ C++20 module の境界と公開 API（主に `.ixx`）を維持しながら、mo
 
 ### ソース量の目安
 
-Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数え、`.cppm` は宣言行で分類している。ビルド対象数そのものではない。
+Tracked source file を宣言行で分類した数。各移行ログの値は対応する ArtifactCore commit tree を直接集計した。`.cpp` は拡張子で数え、`.cppm` は宣言行で分類している。ビルド対象数そのものではない。
 
 | リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 159 | 45 | 316 | 21 | 851 |
+| ArtifactCore | 154 | 45 | 322 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1301,137 +1301,142 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/ImageProcessing/NoiseImageGenerator.cppm` を `NoiseImageGenerator.cpp` に移行し、source manifest、module reference map、source-specific CMake dependency 条件を更新した。
 - 公開 interface は維持。実装本文は LF 改行へ正規化した以外に変更なし。リポジトリ内に直接の呼び出し元は見つからず、実行頻度は静的検索からは特定できない。
-- ArtifactCore 集計は `.cpp` 137、実装形式 `.cppm` 337。
+- ArtifactCore 集計は `.cpp` 131、実装形式 `.cppm` 343。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Audio.SimpleWav implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Audio/SimpleWav.cppm` を `SimpleWav.cpp` に移行し、Audio split target、source manifest、module reference map の source path を更新した。公開 `Audio.SimpleWav` interface は維持。
 - WAV のファイル読み込み実装で、repo 内の利用箇所は音声レイヤー／Asset Browser 側。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 138、実装形式 `.cppm` 336。
+- ArtifactCore 集計は `.cpp` 132、実装形式 `.cppm` 342。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### File.InfoImpl partition migration（2026-10-22）
 
 - `ArtifactCore/src/File/FileInfo.cppm` を `FileInfo.cpp` に移行した。`module File:InfoImpl` partition と `import :Info` はそのまま維持し、split File target の source lists、module reference map、partition IFC の source-specific compile option selector を更新した。
 - 現在の Core / Artifact ソースから `FileInfo` の呼び出し元は見つからず、実装は PImpl の生成・破棄のみ。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 139、実装形式 `.cppm` 335。
+- ArtifactCore 集計は `.cpp` 133、実装形式 `.cppm` 341。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Codec.Encoder.Setting implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Codec/EncoderSetting.cppm` を `EncoderSetting.cpp` に移行した。source manifest、module reference map、source-specific CMake configuration selector を更新し、`Codec.Encoder.Setting` interface は維持。
 - エンコード出力設定の保存・取得実装であり、フレーム処理本体ではない。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 140、実装形式 `.cppm` 334。
+- ArtifactCore 集計は `.cpp` 134、実装形式 `.cppm` 340。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Color.Lab implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Color/LabColor.cppm` を `LabColor.cpp` に移行し、source manifest、module reference map、source-specific compile option selector を更新した。`Color.Lab` public interface は維持。
 - repo 内の利用箇所は `FloatColorPicker` の色変換。描画・合成 path ではない。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 141、実装形式 `.cppm` 333。
+- ArtifactCore 集計は `.cpp` 135、実装形式 `.cppm` 339。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Audio.LipSyncTrack implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Audio/LipSyncTrack.cppm` を `LipSyncTrack.cpp` に移行し、Audio split target、source manifest、module reference map を更新した。公開 `Audio.LipSyncTrack` interface は維持。
 - 明示操作で音声を解析して口形イベントを生成する経路。`Audio.SimpleWav` を import する既存 `.cppm` importer と移行済み `.cpp` provider の構成を追加した。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 142、実装形式 `.cppm` 332。
+- ArtifactCore 集計は `.cpp` 136、実装形式 `.cppm` 338。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Analyze.ImageAnalyzer implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Analyze/ImageAnalyzer.cppm` を `ImageAnalyzer.cpp` に移行し、analyze split target、source manifest、module reference map、source-specific IFC/object dependency 条件を更新した。公開 `Analyze.Histogram` module interface は維持。
 - repo 内の外部利用は Color Science panel の pixel sample と spatial spectrum 操作。実装本文は LF 改行への正規化以外変更なし。clang GNU frontend の module scan は既存設定のまま有効。
-- ArtifactCore 集計は `.cpp` 143、実装形式 `.cppm` 331。
+- ArtifactCore 集計は `.cpp` 137、実装形式 `.cppm` 337。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Codec.FFmpegThumbnailExtractor implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Codec/FFmpegThumbnailExtractor.cppm` を `.cpp` に移行し、Media split target の source list / `CORE_IMPL` 除外、source manifest、module reference map の参照先を更新した。公開 interface は維持。
 - Asset Browser / Timeline の要求時に非同期サムネイルを抽出する既存経路。通常 playback frame からの呼び出しではない。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 144、実装形式 `.cppm` 330。
+- ArtifactCore 集計は `.cpp` 138、実装形式 `.cppm` 336。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Analyze.SmartPalette implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Analyze/SmartPaletteAnalyzer.cppm` を `.cpp` に移行し、analyze split target、source manifest、module reference map、source-specific module references / `NamedVector` compile options を更新した。公開 `Analyze.SmartPalette` interface を維持。
 - Color Palette widget の明示的な画像パレット抽出操作から呼ばれる。module scan は有効で、clang P1689 scan 対象に含まれる。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 145、実装形式 `.cppm` 329。
+- ArtifactCore 集計は `.cpp` 139、実装形式 `.cppm` 335。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Audio.FormantExtractor implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Audio/FormantExtractor.cppm` を `.cpp` に移行し、Audio split target、source manifest、module reference map を更新した。公開 `Audio.FormantExtractor` interface は維持。
 - 現在の利用箇所は `LipSyncTrack` の明示的な音声解析。先に `.cpp` 化した `LipSyncTrack.cpp` から参照される implementation provider となる。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 146、実装形式 `.cppm` 328。
+- ArtifactCore 集計は `.cpp` 140、実装形式 `.cppm` 334。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Audio.Analyze implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Audio/AudioAnalyzer.cppm` を `.cpp` に移行し、Audio split target、source manifest、module reference map を更新した。公開 `Audio.Analyze` interface は維持。
 - LipSyncTrack / FormantExtractor と Animation menu の明示的な音声分析から利用される。再生 callback 経路ではない。`.cpp` importer から `.cpp` provider を参照する module dependency の一例となる。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 147、実装形式 `.cppm` 327。
+- ArtifactCore 集計は `.cpp` 141、実装形式 `.cppm` 333。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Application.AppSettings implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Application/ArtifactAppSettings.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific CMake compile configuration / dependency selector を更新した。公開 `Application.AppSettings` interface と既存 `W_OBJECT_IMPL` は維持。
 - 起動時設定と設定 UI の変更処理。描画・再生 hot path ではない。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 148、実装形式 `.cppm` 326。
+- ArtifactCore 集計は `.cpp` 142、実装形式 `.cppm` 332。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### IO.VectorExport implementation migration（2026-10-22）
 
 - `ArtifactCore/src/IO/VectorExport.cppm` を `.cpp` に移行し、IO split target、source manifest、module reference map、source-specific module dependency references を更新した。公開 `IO.VectorExport` interface は維持。
 - Artifact の render queue から SVG sequence export 時に利用される。通常 playback / preview ではなく、ユーザー指定の書き出し経路。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 149、実装形式 `.cppm` 325。
+- ArtifactCore 集計は `.cpp` 143、実装形式 `.cppm` 331。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### IO.ImageExporter implementation migration（2026-10-22）
 
 - `ArtifactCore/src/IO/Image/ImageExporter.cppm` を `.cpp` に移行し、IO split target、source manifest、module reference map、source-specific IFC / object dependency 設定を更新した。公開 `IO.ImageExporter` interface と既存 `W_OBJECT_IMPL` は維持。
 - Artifact の offscreen renderer / render queue から静止画を出力する既存経路。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 150、実装形式 `.cppm` 324。
+- ArtifactCore 集計は `.cpp` 144、実装形式 `.cppm` 330。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Image.PSDDocument implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Image/PSDDocument.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific compile references を更新した。公開 `Image.PSDDocument` interface は維持。
 - PSD import/export の静止画経路で、Import PSD dialog、project service、image importer から利用される。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 151、実装形式 `.cppm` 323。
+- ArtifactCore 集計は `.cpp` 145、実装形式 `.cppm` 329。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Image.Raw implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Image/RawImage.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific module dependency references を更新した。公開 `Image.Raw` interface は維持。
 - 広く import される基本画像型の型サイズ判定と validity check の実装。関数本体・データ表現は変更なし。本文は LF 改行への正規化以外同一。
-- ArtifactCore 集計は `.cpp` 152、実装形式 `.cppm` 322。
+- ArtifactCore 集計は `.cpp` 146、実装形式 `.cppm` 328。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Image.DeepImageBuffer implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Image/DeepImageBuffer.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific module dependency references を更新した。公開 `Image.DeepImageBuffer` interface は維持。
 - Artifact render queue の multi-channel / deep export 用 provider。通常 frame rendering 経路ではない。実装本文とデータ表現は変更せず、LF 改行への正規化のみ。
-- ArtifactCore 集計は `.cpp` 153、実装形式 `.cppm` 321。
+- ArtifactCore 集計は `.cpp` 147、実装形式 `.cppm` 327。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Frame.Range implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Frame/FrameRange.cppm` を `.cpp` に移行し、source manifest、module reference map、NLE OTIO の `/reference` 設定、FrameRange の source-specific object dependency 条件を更新した。公開 `Frame.Range` interface と serialization registration は維持。
 - Timeline / composition frame range 操作から広く利用される基盤 provider。実装本文は LF 改行への正規化以外変更なし。
-- ArtifactCore 集計は `.cpp` 154、実装形式 `.cppm` 320。
+- ArtifactCore 集計は `.cpp` 148、実装形式 `.cppm` 326。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### MeshImporter implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Geometry/MeshImporter.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific module references / object dependency selector、OpenUSD 有効時の `CXX.dd` dependency source path を更新した。公開 `MeshImporter` interface は維持。
 - 3D model layer / viewer の明示的 asset import 経路で利用。importer ロジックと third-party dependencies は変更せず、実装本文は LF 改行への正規化以外同一。
-- ArtifactCore 集計は `.cpp` 155、実装形式 `.cppm` 319。
+- ArtifactCore 集計は `.cpp` 149、実装形式 `.cppm` 325。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。OpenUSD 有効構成の compile は未確認。
 ### Preview.Quality implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Preview/PreviewQuality.cppm` を `.cpp` に移行し、source manifest と module reference map を更新した。公開 `Preview.Quality` interface は維持。
 - Artifact composition / render controller の preview quality 設定に使われる provider。renderer 本体・品質選択ロジックは変更せず、実装本文は LF 改行への正規化以外同一。
-- ArtifactCore 集計は `.cpp` 156、実装形式 `.cppm` 318。
+- ArtifactCore 集計は `.cpp` 150、実装形式 `.cppm` 324。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Procedural3DGenerators implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Geometry/Procedural3DGenerators.cppm` を `.cpp` に移行し、source manifest、module reference map、明示 `CORE_IMPL` 登録、source-specific compile option / object dependency selector を更新した。公開 `Procedural3DGenerators` interface は維持。
 - Procedural 3D generator provider から Mesh / ShapeExtrude / Math.Noise などを利用する。実装本文は LF 改行への正規化以外同一。
 - MSVC 用の明示 `/reference` と object ordering は保持した。Clang GNU frontend と clang-cl の `.cpp` scan 有効化経路では P1689 dependency map に切り替わる想定だが、この source の scan / compile / link は未確認。
-- ArtifactCore 集計は `.cpp` 157、実装形式 `.cppm` 317。
+- ArtifactCore 集計は `.cpp` 151、実装形式 `.cppm` 323。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### Math.Bezier.Sampler implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Geometry/BezierPathSampler.cppm` を `.cpp` に移行し、明示 source manifest、module reference map、および source-specific `/reference` selector の参照先を更新した。`Math.Bezier.Sampler` interface と `Math.Bezier` import は維持。
 - Bezier path の標準・等距離・適応サンプリングと tangent sampling を実装する。関数の処理、戻り値、公開 API は変えず、本文は LF 正規化以外同一。
-- ArtifactCore 集計は `.cpp` 158、実装形式 `.cppm` 316。
+- ArtifactCore 集計は `.cpp` 152、実装形式 `.cppm` 322。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
 ### STB image implementation translation unit migration（2026-10-22）
 
 - module 宣言を持たない `ArtifactCore/src/IO/Image/StbImageImplementation.cppm` を `.cpp` に移し、明示 source manifest のみ更新した。`STB_IMAGE_IMPLEMENTATION` と stb header include は維持。
-- `.cppm` の実装 module 数は変わらず316、module 宣言のない `.cppm` は22から21へ減少。`.cpp` は159。
+- ArtifactCore 集計は `.cpp` 153、実装形式 `.cppm` 322、module 宣言のない `.cppm` は21。
 - Clang の P1689 scan / compile を含む実 target は未確認。ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Platform module-free source migration（2026-10-22）
+
+- module 宣言を持たない `ArtifactCore/src/Platform/Platform.cppm` を `.cpp` に移行し、source manifest と Platform target の明示 source path を更新した。`allocConsole` / `allocConsle` の定義は変更していない。
+- ArtifactCore 集計は `.cpp` 154、実装形式 `.cppm` 322、module 宣言のない `.cppm` は20。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
