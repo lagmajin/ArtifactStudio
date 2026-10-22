@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 13 | 0 | 34 | 4 | 63 |
+| ArtifactWidgets | 14 | 0 | 33 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -611,4 +611,9 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 ### ArtifactWidgets.GlowFrame implementation migration（2026-10-22）
 
 - `ArtifactWidgets/src/Effect/WidgetGlowFrame.cppm` は `Widgets.Effects.GlowFrame` の import-free implementation unit で、公開 interface を import する利用箇所は2つ。`.cpp` に移し、`ArtifactWidgets/CMakeLists.txt` の明示 implementation list を更新した。描画・focus 表示の実装は変更していない。
+- `.cpp` は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
+
+### ArtifactWidgets.TimeCodeEditor implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Time/TimeCodeEditor.cppm` は `Widgets.TimeCodeEditor` の空の import-free implementation unit だったため、module 宣言を維持して `.cpp` に移し、明示 implementation list を更新した。公開 `TimeCodeEditor.ixx` は変更していない。
 - `.cpp` は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
