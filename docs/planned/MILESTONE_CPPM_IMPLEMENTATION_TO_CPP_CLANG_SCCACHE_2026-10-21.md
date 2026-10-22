@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 2 | 4 | 63 |
+| ArtifactWidgets | 34 | 0 | 1 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -772,3 +772,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Video/ArtifactBasicVideoPreviewWidget.cppm` は `Widgets.VideoPreview` implementation unit で、`include/Video/ArtifactBasicVideoPreviewWidget.ixx` が同名 public interface を宣言する。FFmpeg decoder / thumbnail / video-frame module imports と既存 implementation を保って `.cpp` へ移し、明示 implementation source list に登録した。
 - source が直接使う `QAudioFormat` / `QByteArray` / `QDragEnterEvent` / `QObject` / `QPixmap` / `QSize` / `QString` headers を global module fragment に追加した。video decode / preview behavior は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.ModelViewer implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Viewer/ModelViewer.cppm` は `Widgets.ModelViewer` implementation unit で、`include/3D/ModelViewer.ixx` が同名 public interface を宣言する。既存 `ModelViewer::Impl` definition と constructor / destructor definitions を保持して `.cpp` に移し、明示 implementation source list に登録した。
+- source 内で使用されていなかった `QList` include を取り除き、不要な Qt header dependency を減らした。stub の挙動や public interface は拡張していない。ビルド／依存スキャン／リンクは実行していない。
