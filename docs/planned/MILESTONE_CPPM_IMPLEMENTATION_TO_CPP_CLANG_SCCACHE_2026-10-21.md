@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 128 | 45 | 346 | 22 | 851 |
+| ArtifactCore | 129 | 45 | 345 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1247,5 +1247,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 ### Composition.TemplateLock implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Composition/TemplateLock.cppm` は protected region / editable field / template lock schema の JSON serialization と schema registration を実装するコールドパスである。module declaration、serialization registration と既存処理を保って `.cpp` に移した。
+- Composition source manifest と provider / imported-module mappings を新 path に更新した。Clang の `.cpp` implementation scan が有効になる。実装本文は LF 化以外同一。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Composition.ExportMatrix implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Composition/ExportMatrix.cppm` は export preset / variant / cell rule の JSON serialization と export cell 設定の解決を行う。ユーザー操作による export setup path であり、画像 frame rendering には入らない。既存 registration と処理を保って `.cpp` に移した。
 - Composition source manifest と provider / imported-module mappings を新 path に更新した。Clang の `.cpp` implementation scan が有効になる。実装本文は LF 化以外同一。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
