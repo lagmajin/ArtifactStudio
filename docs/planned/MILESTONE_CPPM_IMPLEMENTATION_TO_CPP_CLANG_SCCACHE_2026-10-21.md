@@ -1766,3 +1766,11 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - CMake 4.4.4 / Ninja / clang-cl 22.1.3 で、実 `CompositionSettings.ixx`・`.cpp`・importer の dependency scan、compile、static library / executable link が成功した。Qt 型と unused imported module providers は isolated smoke fixture を使用し、Artifact 実依存 link / runtime は未確認。
 - CMake が `-TP` unused argument warning を出したが build は成功。sccache 0.18.0 は 12 requests、うち4件を実行して2 misses / 2 hits、8 calls は `multiple input files` で非 cacheable、cache errors 0。
+
+
+### Artifact.Service.ClipboardManager implementation migration / dual Clang lanes（2026-10-22）
+
+- `Artifact/src/Service/ArtifactClipboardService.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新した。Clipboard API と既存の Qt clipboard / `QImage` 使用は変更せず、実装 blob は LF で 1044 bytes 完全一致。
+- root CMake 4.2 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` が `ArtifactClipboardService.cpp` を登録することを確認。Artifact 実 target は未ビルド。
+- CMake 4.4.4 / Ninja の隔離 smoke で、実 `ArtifactClipboardService.ixx`・`.cpp`・`Utils.String.UniString` provider・importer を upstream clang++ 22.1.3（Windows MSVC ABI）と clang-cl 22.1.3 の両レーンで scan、compile、static library / executable link できた。Qt clipboard / image 型と UniString provider は smoke stub を使い、Qt 実依存 link/runtime は未確認。
+- sccache 0.18.0 の upstream clang++ は初回 4 misses、clean rebuild 4 hits、errors / bypass 0。clang-cl は8 requests中4件が cacheable で2 misses / 2 hits、4 calls は `multiple input files` のため bypass、cache errors 0。clang-cl の CMake `-TP` unused warning は出たが build は成功。
