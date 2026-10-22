@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 136 | 45 | 338 | 22 | 851 |
+| ArtifactCore | 137 | 45 | 337 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1297,3 +1297,9 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/AI/ObjectDetector.cppm` は AI/tool から明示的に呼ばれる detection metadata、bounding box drawing と mask rasterization を実装する。現行 repo 内に playback/render frame path からの呼び出しはない。既存処理を `.cpp` に移した。
 - AI source list、provider / imported-module mappings、MSVC `/reference` / object dependencies、scanner exception と NamedVector compile option selector を新 path に更新した。Clang finalization は migrated `.cpp` を P1689 scan 対象にする。実装本文は LF 化以外同一。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
+### Generator.NoiseImage implementation migration（2026-10-22）
+
+- `ArtifactCore/src/ImageProcessing/NoiseImageGenerator.cppm` を `NoiseImageGenerator.cpp` に移行し、source manifest、module reference map、source-specific CMake dependency 条件を更新した。
+- 公開 interface は維持。実装本文は LF 改行へ正規化した以外に変更なし。リポジトリ内に直接の呼び出し元は見つからず、実行頻度は静的検索からは特定できない。
+- ArtifactCore 集計は `.cpp` 137、実装形式 `.cppm` 337。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
