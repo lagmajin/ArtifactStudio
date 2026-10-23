@@ -23,6 +23,9 @@ module;
 module ArtifactPr.MediaPanel;
 
 import ArtifactPr.MediaThumbnailer;
+import ArtifactPr.Translation;
+
+using ArtifactPr::trText;
 
 namespace {
 
@@ -116,13 +119,13 @@ MediaPanel::MediaPanel(QWidget* parent)
     auto* toolbar = new QHBoxLayout();
     toolbar->setContentsMargins(0, 0, 0, 0);
 
-    auto* importBtn = new QPushButton(QStringLiteral("Import"));
+    auto* importBtn = new QPushButton(trText("pr.media.import", "Import"));
     importBtn->setMaximumWidth(70);
     connect(importBtn, &QPushButton::clicked, this, &MediaPanel::onImportClicked);
     toolbar->addWidget(importBtn);
     toolbar->addStretch();
 
-    auto* label = new QLabel(QStringLiteral("Media"));
+    auto* label = new QLabel(trText("pr.media.title", "Media"));
     QFont titleFont = label->font();
     titleFont.setPointSize(titleFont.pointSize() + 1);
     titleFont.setBold(true);
@@ -148,7 +151,7 @@ MediaPanel::MediaPanel(QWidget* parent)
 
     // 検索バー (PrSearchFilter)
     searchEdit_ = new QLineEdit(this);
-    searchEdit_->setPlaceholderText(QStringLiteral("Search media..."));
+    searchEdit_->setPlaceholderText(trText("pr.media.search", "Search media..."));
     searchEdit_->setClearButtonEnabled(true);
     connect(searchEdit_, &QLineEdit::textChanged,
             this, &MediaPanel::applySearchFilter);
@@ -323,8 +326,9 @@ void MediaPanel::contextMenuEvent(QContextMenuEvent* event)
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
     QMenu menu(this);
-    auto* rescan = menu.addAction(QStringLiteral("Rescan Media"));
-    auto* relink = menu.addAction(QStringLiteral("Relink Selected Media…"));
+    auto* rescan = menu.addAction(trText("pr.media.rescan", "Rescan Media"));
+    auto* relink = menu.addAction(
+        trText("pr.media.relink", "Relink Selected Media…"));
     auto* item = list_->currentItem();
     const auto oldUri = item ? item->data(Qt::UserRole).toString() : QString();
     relink->setEnabled(!oldUri.isEmpty());
@@ -332,7 +336,8 @@ void MediaPanel::contextMenuEvent(QContextMenuEvent* event)
     if (action == rescan) engine->scanOfflineMedia();
     else if (action == relink && !oldUri.isEmpty()) {
         const auto newUri = QFileDialog::getOpenFileName(this,
-            QStringLiteral("Relink Media"), QFileInfo(oldUri).absolutePath());
+            trText("pr.media.relink_dialog", "Relink Media"),
+            QFileInfo(oldUri).absolutePath());
         if (!newUri.isEmpty()) engine->relinkMedia(oldUri, newUri);
     }
     refreshMediaList(engine->currentSequence());

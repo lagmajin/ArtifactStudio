@@ -7,6 +7,10 @@ module;
 
 module ArtifactPr.ProjectPanel;
 
+import ArtifactPr.Translation;
+
+using ArtifactPr::trText;
+
 ProjectPanel::ProjectPanel(QWidget* parent)
     : QWidget(parent)
 {
@@ -14,7 +18,7 @@ ProjectPanel::ProjectPanel(QWidget* parent)
     layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
 
-    auto* label = new QLabel(QStringLiteral("Project"));
+    auto* label = new QLabel(trText("pr.project.title", "Project"));
     QFont titleFont = label->font();
     titleFont.setPointSize(titleFont.pointSize() + 1);
     titleFont.setBold(true);
@@ -30,10 +34,11 @@ ProjectPanel::ProjectPanel(QWidget* parent)
     // Media re-link (conform).  Sources whose files moved become offline
     // until conform re-resolves their available ranges.
     auto* conformRow = new QHBoxLayout();
-    conformButton_ = new QPushButton(QStringLiteral("Conform"));
-    conformButton_->setToolTip(QStringLiteral(
-        "Re-resolve clip source ranges against the currently available media "
-        "and report clips that stay offline."));
+    conformButton_ = new QPushButton(trText("pr.project.conform", "Conform"));
+    conformButton_->setToolTip(
+        trText("pr.project.conform_tooltip",
+               "Re-resolve clip source ranges against the currently available media "
+               "and report clips that stay offline."));
     connect(conformButton_, &QPushButton::clicked, this, &ProjectPanel::runConform);
     conformRow->addWidget(conformButton_);
 
@@ -67,11 +72,12 @@ void ProjectPanel::runConform()
     auto* engine = ArtifactPr::EditorEngine::instance();
     const auto summary = engine->conformCurrentSequenceDetailed();
     if (summary.success) {
-        conformStatusLabel_->setText(QStringLiteral("All clips online"));
+        conformStatusLabel_->setText(trText("pr.project.all_online", "All clips online"));
     }
     else {
         conformStatusLabel_->setText(
-            QStringLiteral("%1 offline").arg(summary.unresolvedClipIds.size()));
+            trText("pr.project.offline_count", "%1 offline")
+                .arg(summary.unresolvedClipIds.size()));
     }
 }
 

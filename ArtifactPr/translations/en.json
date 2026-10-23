@@ -1,0 +1,366 @@
+{
+  "_meta": {
+    "version": 1,
+    "language": "English",
+    "locale": "en",
+    "translators": [
+      "Artifact Team"
+    ],
+    "lastUpdated": "2026-10-20"
+  },
+  "pr": {
+    "viewport": {
+      "tooltip": "Mouse wheel: zoom. Middle-drag: pan. Double-click: fit. Ctrl+double-click: 100%."
+    },
+    "monitor": {
+      "gpu_status": "GPU Preview: %1",
+      "gpu_fallback": "GPU Preview: CPU fallback",
+      "gpu_pending": "GPU Preview: pending",
+      "title": "Program Monitor"
+    },
+    "audio": {
+      "reset_peak": "Reset Peak",
+      "meters": "Audio Meters"
+    },
+    "panel": {
+      "transitions": {
+        "title": "Transitions",
+        "select_type": "Select transition type:",
+        "tip": "Tip: Select a clip and\nposition playhead at\nclip boundary to apply."
+      },
+      "effects": {
+        "title": "Effects",
+        "search": "Search effects...",
+        "select_clip": "Select a clip to edit its effects.",
+        "editing": "Editing effects of the selected clip."
+      },
+      "clip_properties": "Clip Properties"
+    },
+    "transition": {
+      "crossfade": "Crossfade",
+      "dip_to_black": "Dip to Black",
+      "wipe_left": "Wipe Left",
+      "wipe_right": "Wipe Right"
+    },
+    "clip": {
+      "no_selection": "No clip selected",
+      "volume": "Volume:",
+      "speed": "Speed:",
+      "opacity": "Opacity:",
+      "av_link": "AV Link",
+      "unlink_tooltip": "Remove the selected clip from its AV link group.",
+      "link_trim": "Link trim",
+      "link_trim_tooltip": "Propagate trim edits to linked peers.",
+      "link_selection": "Link selection",
+      "link_selection_tooltip": "Select linked peers together with this clip.",
+      "select_to_edit": "Select a clip to\nedit its properties.",
+      "duration_info": "Duration: %1 frames\nStart: %2\nSource: %3-%4",
+      "not_linked": "Not linked",
+      "linked_peers": "Linked to %1 peer(s)",
+      "link_av_tooltip": "Link this clip so trim, slide and selection propagate to peers.",
+      "link_tooltip": "Link the selected clip into an AV link group so trim, slide and selection propagate to its peers."
+    },
+    "action": {
+      "reverse": "Reverse",
+      "link": "Link",
+      "unlink": "Unlink",
+      "save_project": "Save Project",
+      "new_project": "New Project",
+      "open_project": "Open Project...",
+      "save_project_as": "Save Project As...",
+      "import_media": "Import Media...",
+      "export": "Export...",
+      "exit": "Exit",
+      "undo": "Undo",
+      "redo": "Redo",
+      "delete": "Delete",
+      "ripple_delete": "Ripple Delete",
+      "duplicate": "Duplicate",
+      "cut": "Cut",
+      "copy": "Copy",
+      "paste": "Paste",
+      "snap_to_clips": "Snap to Clips",
+      "blade_at_playhead": "Blade at Playhead",
+      "add_transition": "Add Transition",
+      "new_sequence": "New Sequence",
+      "switch_sequence": "Switch Sequence...",
+      "sequence_settings": "Sequence Settings...",
+      "add_marker_at_playhead": "Add Marker at Playhead",
+      "clear_all_markers": "Clear All Markers",
+      "keyboard_shortcuts": "Keyboard Shortcuts...",
+      "rename_marker": "Rename Marker...",
+      "go_to_marker": "Go To Marker",
+      "delete_marker": "Delete Marker",
+      "link_av": "Link AV",
+      "unlink_av": "Unlink AV",
+      "rename_clip": "Rename Clip...",
+      "delete_transition": "Delete Transition",
+      "mute_track": "Mute track",
+      "solo_track": "Solo track"
+    },
+    "app": {
+      "title": "ArtifactPr",
+      "title_modified": "ArtifactPr*"
+    },
+    "dialog": {
+      "unsaved": {
+        "title": "Unsaved Changes",
+        "switch_project": "Save changes before switching projects?",
+        "close": "Save changes before closing?"
+      },
+      "open_project": {
+        "title": "Open Project"
+      },
+      "save_project_as": {
+        "title": "Save Project As"
+      },
+      "import_media": {
+        "title": "Import Media"
+      },
+      "switch_sequence": {
+        "title": "Switch Sequence"
+      },
+      "sequence_settings": {
+        "title": "Sequence Settings"
+      },
+      "rename_marker": {
+        "title": "Rename Marker"
+      },
+      "rename_clip": {
+        "title": "Rename Clip"
+      }
+    },
+    "menu": {
+      "file": "File",
+      "edit": "Edit",
+      "sequence": "Sequence",
+      "marker": "Marker",
+      "help": "Help",
+      "speed": "Speed",
+      "linked_clips": "Linked Clips",
+      "volume": "Volume",
+      "duration": "Duration"
+    },
+    "field": {
+      "name": "Name",
+      "resolution": "Resolution",
+      "frame_rate": "Frame Rate",
+      "marker_name": "Marker Name:",
+      "clip_name": "Clip Name:",
+      "zoom": "Zoom:"
+    },
+    "status": {
+      "ready": "Ready - Keyboard Shortcuts are configurable from Help",
+      "no_sequence": "No sequence"
+    },
+    "label": {
+      "linked_peers": "Linked peers: %1"
+    },
+    "effect": {
+      "brightnessContrast": "olor Correction > Brightness/Contras",
+      "param": {
+        "brightnessContrast": {
+          "brightness": "rightnes",
+          "contrast": "ontras"
+        },
+        "hueSaturation": {
+          "hue": "u",
+          "saturation": "aturatio",
+          "lightness": "ightnes"
+        },
+        "colorWheels": {
+          "shadowsR": "hadows ",
+          "shadowsG": "hadows ",
+          "shadowsB": "hadows ",
+          "midtonesR": "idtones ",
+          "midtonesG": "idtones ",
+          "midtonesB": "idtones ",
+          "highlightsR": "ighlights ",
+          "highlightsG": "ighlights ",
+          "highlightsB": "ighlights "
+        },
+        "gaussianBlur": {
+          "radius": "adius (px"
+        },
+        "boxBlur": {
+          "radius": "adius (px"
+        },
+        "unsharpMask": {
+          "amount": "moun",
+          "radius": "adius (px"
+        },
+        "glow": {
+          "intensity": "ntensit",
+          "radius": "adius (px",
+          "threshold": "hreshol"
+        },
+        "posterize": {
+          "levels": "evel"
+        },
+        "scale": {
+          "percent": "cale (%"
+        },
+        "rotate": {
+          "angle": "ngle (deg"
+        },
+        "audioGain": {
+          "gainDb": "ain (dB"
+        },
+        "audioEqualizer": {
+          "lowDb": "ow (200Hz, dB",
+          "midDb": "id (1kHz, dB",
+          "highDb": "igh (4kHz, dB"
+        }
+      },
+      "hueSaturation": "olor Correction > Hue/Saturatio",
+      "colorWheels": "olor Correction > Color Wheel",
+      "gaussianBlur": "lur > Gaussian Blu",
+      "boxBlur": "lur > Box Blu",
+      "unsharpMask": "harpen > Unsharp Mas",
+      "glow": "tylize > Glo",
+      "posterize": "tylize > Posteriz",
+      "scale": "ransform > Scal",
+      "rotate": "ransform > Rotat",
+      "audioGain": "udio > Gai",
+      "audioEqualizer": "udio > Equalize"
+    },
+    "export": {
+      "title": "Export Settings",
+      "output_path": "Output File:",
+      "browse": "Browse...",
+      "resolution": "Resolution:",
+      "resolution_match": "Match Sequence",
+      "format": "Format:",
+      "codec_h264": "H.264 (MP4)",
+      "codec_h265": "H.265 (HEVC)",
+      "codec_prores": "ProRes",
+      "codec_dnxhd": "DNxHD",
+      "codec_png": "PNG Sequence",
+      "codec_jpeg": "JPEG Sequence",
+      "codec_wav": "Audio Only (WAV)",
+      "codec_mp3": "Audio Only (MP3)",
+      "frame_rate": "Frame Rate:",
+      "frame_rate_match": "Match Sequence",
+      "frame_rate_fps": "%1 fps",
+      "quality": "Quality:",
+      "include_audio": "Include Audio (mixed tracks)",
+      "action": "Export",
+      "cancel": "Cancel",
+      "cancelling": "Cancelling...",
+      "save_dialog": "Save Export",
+      "running": "Exporting...",
+      "complete": "Export complete!",
+      "failed": "Export failed",
+      "error": {
+        "no_output": "Output file is not specified",
+        "no_output_dir": "Cannot create the output directory: %1",
+        "empty_sequence": "The sequence is empty, so there is no frame to export",
+        "no_plan": "Could not create the render plan"
+      }
+    },
+    "marker": {
+      "title": "Edit Marker",
+      "name": "Name:",
+      "frame_suffix": " frame",
+      "position": "Position:",
+      "type": "Type:",
+      "type_comment": "Comment",
+      "type_chapter": "Chapter",
+      "type_in": "In",
+      "type_out": "Out",
+      "pick_color": "Pick Color...",
+      "color": "Color:",
+      "comment": "Comment:"
+    },
+    "shortcuts": {
+      "title": "Keyboard Shortcuts",
+      "editable_hint": "Editable shortcuts (shared with Artifact)",
+      "column_category": "Category",
+      "column_action": "Action",
+      "column_default": "Default",
+      "column_shortcut": "Shortcut",
+      "column_description": "Description",
+      "reset_defaults": "Reset Defaults",
+      "export_preset": "Export Preset...",
+      "import_preset": "Import Preset...",
+      "conflict_title": "Shortcut Conflict",
+      "conflict_message": "%1 is already assigned to %2.",
+      "save_title": "Save Shortcuts",
+      "save_failed": "The shortcuts were applied for this session, but could not be saved.",
+      "restore_failed": "Defaults were restored for this session, but could not be saved.",
+      "export_title": "Export Shortcut Preset",
+      "export_failed": "Could not write the shortcut preset.",
+      "export_incomplete": "The shortcut preset could not be written completely.",
+      "import_title": "Import Shortcut Preset",
+      "import_failed": "Could not read the shortcut preset.",
+      "import_invalid": "The file does not contain valid Artifact shortcut bindings.",
+      "import_not_saved": "The preset was imported for this session, but could not be saved."
+    },
+    "undo": {
+      "move_clip": "Move Clip",
+      "trim_clip": "Trim Clip",
+      "delete_clip": "Delete Clip",
+      "change_video_clips": "Change Video Clips",
+      "change_markers": "Change Markers",
+      "change_video_transition": "Change Video Transition"
+    },
+    "source": {
+      "title": "Source Monitor",
+      "insert": "Insert",
+      "insert_tooltip": "Insert source range at the playhead",
+      "overwrite": "Overwrite",
+      "overwrite_tooltip": "Overwrite the timeline at the playhead",
+      "fit_insert": "Fit Insert",
+      "fit_overwrite": "Fit Overwrite",
+      "fit_tooltip": "Fit source In/Out to timeline In/Out (four-point edit)",
+      "in_initial": "In: 0",
+      "out_initial": "Out: end",
+      "in_frame": "In: %1",
+      "out_frame": "Out: %1",
+      "in_empty": "In: --",
+      "out_empty": "Out: --"
+    },
+    "media": {
+      "loading": "loading...",
+      "import": "Import",
+      "title": "Media",
+      "search": "Search media...",
+      "rescan": "Rescan Media",
+      "relink": "Relink Selected Media…",
+      "relink_dialog": "Relink Media",
+      "placeholder": "No media loaded\n\nDrag a video file here or use Import"
+    },
+    "timeline": {
+      "sequence_info": "%1 | %2 | Duration: %3 | Markers: %4 | Transitions: %5",
+      "mute_level": "0% (Mute)",
+      "duration_frames": "%1 frames"
+    },
+    "proxy": {
+      "title": "Proxy Settings",
+      "description": "Manage proxy files for smoother editing:",
+      "create": "Create Proxy",
+      "use": "Use Proxy",
+      "tip": "Tip: Proxies are lower\nresolution versions for\nsmoother editing."
+    },
+    "color": {
+      "title": "Pick Color",
+      "choose": "Choose a color:"
+    },
+    "project": {
+      "title": "Project",
+      "conform": "Conform",
+      "conform_tooltip": "Re-resolve clip source ranges against the currently available media and report clips that stay offline.",
+      "all_online": "All clips online",
+      "offline_count": "%1 offline"
+    },
+    "transport": {
+      "stop": "Stop",
+      "pause": "Pause",
+      "set_in": "Set Timeline In Here",
+      "set_out": "Set Timeline Out After This Frame",
+      "clear_range": "Clear Playback Range",
+      "goto_start": "Go to Range Start",
+      "goto_end": "Go to Range End"
+    }
+  }
+}

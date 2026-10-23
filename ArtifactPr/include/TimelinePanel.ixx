@@ -42,4 +42,7 @@ private:
     struct Impl;
     Impl* impl_ = nullptr;
     void addTrackRow(const ArtifactPr::DemoTrack& track, const QVector<ArtifactPr::Transition>& transitions);
+    void rebuildTimeline(const ArtifactPr::DemoSequence& seq);
+    void updateTimelineGeometry(const ArtifactPr::DemoSequence& seq);
+    static QString structureSignature(const ArtifactPr::DemoSequence& seq);
 };

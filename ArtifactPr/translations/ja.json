@@ -1,0 +1,366 @@
+{
+  "_meta": {
+    "version": 1,
+    "language": "Japanese",
+    "locale": "ja",
+    "translators": [
+      "Artifact Team"
+    ],
+    "lastUpdated": "2026-10-20"
+  },
+  "pr": {
+    "viewport": {
+      "tooltip": "ホイール: ズーム。中ボタンドラッグ: パン。ダブルクリック: フィット。Ctrl+ダブルクリック: 100%。"
+    },
+    "monitor": {
+      "gpu_status": "GPU プレビュー: %1",
+      "gpu_fallback": "GPU プレビュー: CPU フォールバック",
+      "gpu_pending": "GPU プレビュー: 待機中",
+      "title": "プログラムモニター"
+    },
+    "audio": {
+      "reset_peak": "ピークをリセット",
+      "meters": "オーディオメーター"
+    },
+    "panel": {
+      "transitions": {
+        "title": "トランジション",
+        "select_type": "トランジション種別を選択:",
+        "tip": "ヒント: クリップを選択し、\n再生位置を境界に合わせて\n適用してください。"
+      },
+      "effects": {
+        "title": "エフェクト",
+        "search": "エフェクトを検索...",
+        "select_clip": "クリップを選択してエフェクトを編集します。",
+        "editing": "選択クリップのエフェクトを編集中。"
+      },
+      "clip_properties": "クリッププロパティ"
+    },
+    "transition": {
+      "crossfade": "クロスフェード",
+      "dip_to_black": "黒へフェード",
+      "wipe_left": "左にワイプ",
+      "wipe_right": "右にワイプ"
+    },
+    "clip": {
+      "no_selection": "クリップが選択されていません",
+      "volume": "ボリューム:",
+      "speed": "速度:",
+      "opacity": "不透明度:",
+      "av_link": "V/A リンク",
+      "unlink_tooltip": "選択したクリップを V/A リンクグループから外します。",
+      "link_trim": "trim を連動",
+      "link_trim_tooltip": "trim 編集をリンク先へ伝播させます。",
+      "link_selection": "選択を連動",
+      "link_selection_tooltip": "このクリップと一緒にリンク先も選択します。",
+      "select_to_edit": "クリップを選択して\nプロパティを編集してください。",
+      "duration_info": "長さ: %1 フレーム\n開始: %2\nソース: %3-%4",
+      "not_linked": "リンクなし",
+      "linked_peers": "%1 件のリンク先",
+      "link_av_tooltip": "このクリップをリンクし、trim・slide・選択をリンク先へ伝播させます。",
+      "link_tooltip": "選択したクリップを V/A リンクグループに追加し、trim・slide・選択をリンク先に伝播させます。"
+    },
+    "action": {
+      "reverse": "逆再生",
+      "link": "リンク",
+      "unlink": "リンク解除",
+      "save_project": "プロジェクトを保存",
+      "new_project": "新規プロジェクト",
+      "open_project": "プロジェクトを開く...",
+      "save_project_as": "名前を付けて保存...",
+      "import_media": "素材を読み込む...",
+      "export": "書き出し...",
+      "exit": "終了",
+      "undo": "元に戻す",
+      "redo": "やり直し",
+      "delete": "削除",
+      "ripple_delete": "リップル削除",
+      "duplicate": "複製",
+      "cut": "切り取り",
+      "copy": "コピー",
+      "paste": "貼り付け",
+      "snap_to_clips": "クリップにスナップ",
+      "blade_at_playhead": "再生位置でカット",
+      "add_transition": "トランジションを追加",
+      "new_sequence": "新規シーケンス",
+      "switch_sequence": "シーケンスを切り替え...",
+      "sequence_settings": "シーケンス設定...",
+      "add_marker_at_playhead": "再生位置にマーカー追加",
+      "clear_all_markers": "マーカーをすべて削除",
+      "keyboard_shortcuts": "キーボードショートカット...",
+      "rename_marker": "マーカー名を変更...",
+      "go_to_marker": "マーカーへ移動",
+      "delete_marker": "マーカーを削除",
+      "link_av": "V/A をリンク",
+      "unlink_av": "V/A のリンクを解除",
+      "rename_clip": "クリップ名を変更...",
+      "delete_transition": "トランジションを削除",
+      "mute_track": "トラックをミュート",
+      "solo_track": "トラックをソロ"
+    },
+    "app": {
+      "title": "ArtifactPr",
+      "title_modified": "ArtifactPr*"
+    },
+    "dialog": {
+      "unsaved": {
+        "title": "未保存の変更",
+        "switch_project": "プロジェクトを切り替える前に変更を保存しますか？",
+        "close": "変更を保存して終了しますか？"
+      },
+      "open_project": {
+        "title": "プロジェクトを開く"
+      },
+      "save_project_as": {
+        "title": "名前を付けて保存"
+      },
+      "import_media": {
+        "title": "素材を読み込む"
+      },
+      "switch_sequence": {
+        "title": "シーケンスを切り替え"
+      },
+      "sequence_settings": {
+        "title": "シーケンス設定"
+      },
+      "rename_marker": {
+        "title": "マーカー名を変更"
+      },
+      "rename_clip": {
+        "title": "クリップ名の変更"
+      }
+    },
+    "menu": {
+      "file": "ファイル",
+      "edit": "編集",
+      "sequence": "シーケンス",
+      "marker": "マーカー",
+      "help": "ヘルプ",
+      "speed": "速度",
+      "linked_clips": "リンク先クリップ",
+      "volume": "ボリューム",
+      "duration": "長さ"
+    },
+    "field": {
+      "name": "名前",
+      "resolution": "解像度",
+      "frame_rate": "フレームレート",
+      "marker_name": "マーカー名:",
+      "clip_name": "クリップ名:",
+      "zoom": "ズーム:"
+    },
+    "status": {
+      "ready": "準備完了 - ショートカットはヘルプから変更できます",
+      "no_sequence": "シーケンスがありません"
+    },
+    "label": {
+      "linked_peers": "リンク先: %1"
+    },
+    "effect": {
+      "brightnessContrast": "補正 > 明るさ/コントラス",
+      "param": {
+        "brightnessContrast": {
+          "brightness": "る",
+          "contrast": "ントラス"
+        },
+        "hueSaturation": {
+          "hue": "",
+          "saturation": "",
+          "lightness": ""
+        },
+        "colorWheels": {
+          "shadowsR": "ャドウ ",
+          "shadowsG": "ャドウ ",
+          "shadowsB": "ャドウ ",
+          "midtonesR": "ッドトーン ",
+          "midtonesG": "ッドトーン ",
+          "midtonesB": "ッドトーン ",
+          "highlightsR": "イライト ",
+          "highlightsG": "イライト ",
+          "highlightsB": "イライト "
+        },
+        "gaussianBlur": {
+          "radius": "径 (px"
+        },
+        "boxBlur": {
+          "radius": "径 (px"
+        },
+        "unsharpMask": {
+          "amount": "",
+          "radius": "径 (px"
+        },
+        "glow": {
+          "intensity": "",
+          "radius": "径 (px",
+          "threshold": ""
+        },
+        "posterize": {
+          "levels": "ベル"
+        },
+        "scale": {
+          "percent": "ケール (%"
+        },
+        "rotate": {
+          "angle": "度 (度"
+        },
+        "audioGain": {
+          "gainDb": "イン (dB"
+        },
+        "audioEqualizer": {
+          "lowDb": "ウ (200Hz, dB",
+          "midDb": "ッド (1kHz, dB",
+          "highDb": "イ (4kHz, dB"
+        }
+      },
+      "hueSaturation": "補正 > 色相/彩",
+      "colorWheels": "補正 > カラーホイー",
+      "gaussianBlur": "かし > ガウスぼか",
+      "boxBlur": "かし > ボックスぼか",
+      "unsharpMask": "ャープ > アンシャープマス",
+      "glow": "タイライズ > グロ",
+      "posterize": "タイライズ > ポスタリゼーショ",
+      "scale": "形 > スケー",
+      "rotate": "形 > 回",
+      "audioGain": "ーディオ > ゲイ",
+      "audioEqualizer": "ーディオ > イコライザ"
+    },
+    "export": {
+      "title": "書き出し設定",
+      "output_path": "出力ファイル:",
+      "browse": "参照...",
+      "resolution": "解像度:",
+      "resolution_match": "シーケンスに合わせる",
+      "format": "フォーマット:",
+      "codec_h264": "H.264 (MP4)",
+      "codec_h265": "H.265 (HEVC)",
+      "codec_prores": "ProRes",
+      "codec_dnxhd": "DNxHD",
+      "codec_png": "PNG シーケンス",
+      "codec_jpeg": "JPEG シーケンス",
+      "codec_wav": "音声のみ (WAV)",
+      "codec_mp3": "音声のみ (MP3)",
+      "frame_rate": "フレームレート:",
+      "frame_rate_match": "シーケンスに合わせる",
+      "frame_rate_fps": "%1 fps",
+      "quality": "品質:",
+      "include_audio": "音声を含める (混合トラック)",
+      "action": "書き出し",
+      "cancel": "キャンセル",
+      "cancelling": "キャンセル中...",
+      "save_dialog": "書き出しを保存",
+      "running": "書き出し中...",
+      "complete": "書き出し完了!",
+      "failed": "書き出しに失敗しました",
+      "error": {
+        "no_output": "出力ファイルが指定されていません",
+        "no_output_dir": "出力ディレクトリを作成できません: %1",
+        "empty_sequence": "シーケンスが空のため書き出すフレームがありません",
+        "no_plan": "レンダープランを作成できませんでした"
+      }
+    },
+    "marker": {
+      "title": "マーカーを編集",
+      "name": "名前:",
+      "frame_suffix": " フレーム",
+      "position": "位置:",
+      "type": "種別:",
+      "type_comment": "コメント",
+      "type_chapter": "チャプター",
+      "type_in": "In",
+      "type_out": "Out",
+      "pick_color": "色を選択...",
+      "color": "色:",
+      "comment": "コメント:"
+    },
+    "shortcuts": {
+      "title": "キーボードショートカット",
+      "editable_hint": "編集可能なショートカット (Artifact と共有)",
+      "column_category": "カテゴリ",
+      "column_action": "操作",
+      "column_default": "既定",
+      "column_shortcut": "ショートカット",
+      "column_description": "説明",
+      "reset_defaults": "既定に戻す",
+      "export_preset": "プリセットを書き出す...",
+      "import_preset": "プリセットを読み込む...",
+      "conflict_title": "ショートカットの競合",
+      "conflict_message": "%1 は %2 に割り当て済みです。",
+      "save_title": "ショートカットを保存",
+      "save_failed": "ショートカットはセッションに適用されましたが、保存できませんでした。",
+      "restore_failed": "既定値はセッションに復元されましたが、保存できませんでした。",
+      "export_title": "ショートカットプリセットを書き出す",
+      "export_failed": "ショートカットプリセットを書き出せませんでした。",
+      "export_incomplete": "ショートカットプリセットを完全には書き出せませんでした。",
+      "import_title": "ショートカットプリセットを読み込む",
+      "import_failed": "ショートカットプリセットを読み込めませんでした。",
+      "import_invalid": "ファイルに有効な Artifact のショートカット設定が含まれていません。",
+      "import_not_saved": "プリセットはセッションに読み込まれましたが、保存できませんでした。"
+    },
+    "undo": {
+      "move_clip": "クリップを移動",
+      "trim_clip": "クリップをトリム",
+      "delete_clip": "クリップを削除",
+      "change_video_clips": "映像クリップを変更",
+      "change_markers": "マーカーを変更",
+      "change_video_transition": "映像トランジションを変更"
+    },
+    "source": {
+      "title": "ソースモニター",
+      "insert": "挿入",
+      "insert_tooltip": "再生位置にソース範囲を挿入",
+      "overwrite": "上書き",
+      "overwrite_tooltip": "再生位置でタイムラインを上書き",
+      "fit_insert": "フィット挿入",
+      "fit_overwrite": "フィット上書き",
+      "fit_tooltip": "ソースの In/Out をタイムラインの In/Out に合わせる (4点編集)",
+      "in_initial": "In: 0",
+      "out_initial": "Out: 終端",
+      "in_frame": "In: %1",
+      "out_frame": "Out: %1",
+      "in_empty": "In: --",
+      "out_empty": "Out: --"
+    },
+    "media": {
+      "loading": "読み込み中...",
+      "import": "読み込み",
+      "title": "メディア",
+      "search": "メディアを検索...",
+      "rescan": "メディアを再スキャン",
+      "relink": "選択したメディアを再リンク…",
+      "relink_dialog": "メディアを再リンク",
+      "placeholder": "メディアが読み込まれていません\n\n動画ファイルをここにドロップするか、読み込みを使用してください"
+    },
+    "timeline": {
+      "sequence_info": "%1 | %2 | 長さ: %3 | マーカー: %4 | トランジション: %5",
+      "mute_level": "0% (ミュート)",
+      "duration_frames": "%1 フレーム"
+    },
+    "proxy": {
+      "title": "プロキシ設定",
+      "description": "スムーズな編集のためのプロキシファイルを管理します:",
+      "create": "プロキシを作成",
+      "use": "プロキシを使う",
+      "tip": "ヒント: プロキシはスムーズな編集のための\n低解像度版です。"
+    },
+    "color": {
+      "title": "色を選択",
+      "choose": "色を選んでください:"
+    },
+    "project": {
+      "title": "プロジェクト",
+      "conform": "コンフォーム",
+      "conform_tooltip": "現在利用できるメディアに対してクリップのソース範囲を再解決し、オフラインのままのクリップを報告します。",
+      "all_online": "すべてのクリップがオンラインです",
+      "offline_count": "%1 件オフライン"
+    },
+    "transport": {
+      "stop": "停止",
+      "pause": "一時停止",
+      "set_in": "ここにタイムライン In を設定",
+      "set_out": "このフレームの後にタイムライン Out を設定",
+      "clear_range": "再生範囲を解除",
+      "goto_start": "範囲の開始へ移動",
+      "goto_end": "範囲の終端へ移動"
+    }
+  }
+}

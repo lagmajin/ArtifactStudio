@@ -29,9 +29,11 @@ module;
 
 module ArtifactPr.ShortcutHelpDialog;
 
-import ArtifactPr.ShortcutHelpDialog;
 import ArtifactPr.Shortcut;
+import ArtifactPr.Translation;
 import UI.ShortcutBindings;
+
+using ArtifactPr::trText;
 
 namespace {
 
@@ -283,7 +285,7 @@ private:
 ShortcutHelpDialog::ShortcutHelpDialog(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QStringLiteral("Keyboard Shortcuts"));
+    setWindowTitle(trText("pr.shortcuts.title", "Keyboard Shortcuts"));
     setMinimumSize(780, 680);
 
     auto* layout = new QVBoxLayout(this);
@@ -302,12 +304,18 @@ ShortcutHelpDialog::ShortcutHelpDialog(QWidget* parent)
     textEdit_->setFont(monoFont);
     layout->addWidget(textEdit_, 1);
 
-    auto* editorLabel = new QLabel(QStringLiteral("Editable shortcuts (shared with Artifact)"), this);
+    auto* editorLabel = new QLabel(
+        trText("pr.shortcuts.editable_hint", "Editable shortcuts (shared with Artifact)"), this);
     layout->addWidget(editorLabel);
 
     editorTable_ = new QTableWidget(this);
     editorTable_->setColumnCount(5);
-    editorTable_->setHorizontalHeaderLabels({QStringLiteral("Category"), QStringLiteral("Action"), QStringLiteral("Default"), QStringLiteral("Shortcut"), QStringLiteral("Description")});
+    editorTable_->setHorizontalHeaderLabels({
+        trText("pr.shortcuts.column_category", "Category"),
+        trText("pr.shortcuts.column_action", "Action"),
+        trText("pr.shortcuts.column_default", "Default"),
+        trText("pr.shortcuts.column_shortcut", "Shortcut"),
+        trText("pr.shortcuts.column_description", "Description")});
     editorTable_->horizontalHeader()->setStretchLastSection(true);
     editorTable_->setSelectionMode(QAbstractItemView::NoSelection);
     editorTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -317,17 +325,21 @@ ShortcutHelpDialog::ShortcutHelpDialog(QWidget* parent)
     layout->addWidget(editorTable_);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close | QDialogButtonBox::Apply, this);
-    auto* resetButton = buttons->addButton(QStringLiteral("Reset Defaults"), QDialogButtonBox::ResetRole);
-    auto* exportButton = buttons->addButton(QStringLiteral("Export Preset..."), QDialogButtonBox::ActionRole);
-    auto* importButton = buttons->addButton(QStringLiteral("Import Preset..."), QDialogButtonBox::ActionRole);
+    auto* resetButton = buttons->addButton(trText("pr.shortcuts.reset_defaults", "Reset Defaults"),
+                                            QDialogButtonBox::ResetRole);
+    auto* exportButton = buttons->addButton(trText("pr.shortcuts.export_preset", "Export Preset..."),
+                                             QDialogButtonBox::ActionRole);
+    auto* importButton = buttons->addButton(trText("pr.shortcuts.import_preset", "Import Preset..."),
+                                             QDialogButtonBox::ActionRole);
     connect(buttons->button(QDialogButtonBox::Apply), &QPushButton::clicked, this, [this]() {
         QMap<QString, QString> seen;
         for (auto it = editors_.cbegin(); it != editors_.cend(); ++it) {
             const QString sequence = it.value()->keySequence().toString(QKeySequence::PortableText);
             if (sequence.isEmpty()) continue;
             if (seen.contains(sequence)) {
-                QMessageBox::warning(this, QStringLiteral("Shortcut Conflict"),
-                                     QStringLiteral("%1 is already assigned to %2.")
+                QMessageBox::warning(this, trText("pr.shortcuts.conflict_title", "Shortcut Conflict"),
+                                     trText("pr.shortcuts.conflict_message",
+                                            "%1 is already assigned to %2.")
                                          .arg(it.key(), seen.value(sequence)));
                 return;
             }
@@ -342,8 +354,9 @@ ShortcutHelpDialog::ShortcutHelpDialog(QWidget* parent)
             }
         }
         if (!ArtifactPr::saveSharedShortcuts()) {
-            QMessageBox::warning(this, QStringLiteral("Save Shortcuts"),
-                                 QStringLiteral("The shortcuts were applied for this session, but could not be saved."));
+            QMessageBox::warning(this, trText("pr.shortcuts.save_title", "Save Shortcuts"),
+                                 trText("pr.shortcuts.save_failed",
+                                        "The shortcuts were applied for this session, but could not be saved."));
         }
         if (editorTable_) {
             ArtifactPr::PrShortcutRegistry updated;
@@ -356,8 +369,9 @@ ShortcutHelpDialog::ShortcutHelpDialog(QWidget* parent)
     connect(resetButton, &QPushButton::clicked, this, [this]() {
         ArtifactCore::ShortcutBindings::instance().resetToDefaults();
         if (!ArtifactPr::saveSharedShortcuts()) {
-            QMessageBox::warning(this, QStringLiteral("Save Shortcuts"),
-                                 QStringLiteral("Defaults were restored for this session, but could not be saved."));
+            QMessageBox::warning(this, trText("pr.shortcuts.save_title", "Save Shortcuts"),
+                                 trText("pr.shortcuts.restore_failed",
+                                        "Defaults were restored for this session, but could not be saved."));
         }
         for (auto it = editors_.begin(); it != editors_.end(); ++it) {
             const auto id = ArtifactPr::sharedShortcutId(it.key());
@@ -369,45 +383,51 @@ ShortcutHelpDialog::ShortcutHelpDialog(QWidget* parent)
     });
     connect(exportButton, &QPushButton::clicked, this, [this]() {
         const QString path = QFileDialog::getSaveFileName(
-            this, QStringLiteral("Export Shortcut Preset"), QStringLiteral("artifactpr-shortcuts.json"),
+            this, trText("pr.shortcuts.export_title", "Export Shortcut Preset"),
+            QStringLiteral("artifactpr-shortcuts.json"),
             QStringLiteral("Shortcut Preset (*.json);;All Files (*)"));
         if (path.isEmpty()) return;
 
         QFile file(path);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            QMessageBox::warning(this, QStringLiteral("Export Shortcut Preset"),
-                                 QStringLiteral("Could not write the shortcut preset."));
+            QMessageBox::warning(this, trText("pr.shortcuts.export_title", "Export Shortcut Preset"),
+                                 trText("pr.shortcuts.export_failed",
+                                        "Could not write the shortcut preset."));
             return;
         }
         const QJsonDocument document(ArtifactCore::ShortcutBindings::instance().toJson());
         const QByteArray payload = document.toJson(QJsonDocument::Indented);
         if (file.write(payload) != payload.size()) {
-            QMessageBox::warning(this, QStringLiteral("Export Shortcut Preset"),
-                                 QStringLiteral("The shortcut preset could not be written completely."));
+            QMessageBox::warning(this, trText("pr.shortcuts.export_title", "Export Shortcut Preset"),
+                                 trText("pr.shortcuts.export_incomplete",
+                                        "The shortcut preset could not be written completely."));
         }
     });
     connect(importButton, &QPushButton::clicked, this, [this]() {
         const QString path = QFileDialog::getOpenFileName(
-            this, QStringLiteral("Import Shortcut Preset"), QString(),
+            this, trText("pr.shortcuts.import_title", "Import Shortcut Preset"), QString(),
             QStringLiteral("Shortcut Preset (*.json);;All Files (*)"));
         if (path.isEmpty()) return;
 
         QFile file(path);
         if (!file.open(QIODevice::ReadOnly)) {
-            QMessageBox::warning(this, QStringLiteral("Import Shortcut Preset"),
-                                 QStringLiteral("Could not read the shortcut preset."));
+            QMessageBox::warning(this, trText("pr.shortcuts.import_title", "Import Shortcut Preset"),
+                                 trText("pr.shortcuts.import_failed",
+                                        "Could not read the shortcut preset."));
             return;
         }
         const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
         if (!document.isObject() ||
             !ArtifactCore::ShortcutBindings::instance().loadFromJson(document.object())) {
-            QMessageBox::warning(this, QStringLiteral("Import Shortcut Preset"),
-                                 QStringLiteral("The file does not contain valid Artifact shortcut bindings."));
+            QMessageBox::warning(this, trText("pr.shortcuts.import_title", "Import Shortcut Preset"),
+                                 trText("pr.shortcuts.import_invalid",
+                                        "The file does not contain valid Artifact shortcut bindings."));
             return;
         }
         if (!ArtifactPr::saveSharedShortcuts()) {
-            QMessageBox::warning(this, QStringLiteral("Save Shortcuts"),
-                                 QStringLiteral("The preset was imported for this session, but could not be saved."));
+            QMessageBox::warning(this, trText("pr.shortcuts.save_title", "Save Shortcuts"),
+                                 trText("pr.shortcuts.import_not_saved",
+                                        "The preset was imported for this session, but could not be saved."));
         }
         setRegistry(ArtifactPr::PrShortcutRegistry());
     });

@@ -1,6 +1,6 @@
 # ArtifactPr
 
-**最終更新:** 2026-10-19
+**最終更新:** 2026-10-20
 
 Pr-like editor that reuses `ArtifactCore` as the shared foundation.
 
@@ -25,6 +25,43 @@ in one application's editor modules.
 The NLE sequence / track / clip model remains owned by ArtifactPr. The Timeline widget implementation is separated into `ArtifactPr.TimelinePanel`; `ArtifactPr.MainWindow` owns dock assembly and connects the panel to the program-monitor waveform provider. The module boundary is an initial extraction, not a claim that the whole application shell and every panel have already been split into small modules.
 
 A standalone widget contract executable can be enabled with `ARTIFACT_BUILD_PR_TESTS=ON` together with `ARTIFACT_BUILD_PR=ON`.
+
+## Translations
+
+UI strings live in JSON catalogs under `ArtifactPr/translations/`, one file per
+locale (`en.json`, `ja.json`). The catalog is loaded by
+`ArtifactCore::LocalizationManager` through the `ArtifactPr.Translation` module,
+which is a thin wrapper over the shared Core manager — the same shape as
+`Artifact::TranslationManager` in the sibling app, so both editors agree on
+locale resolution and on the `zh-TW -> zh -> en` fallback chain.
+
+Call sites use a key plus the English text as an inline fallback:
+
+```cpp
+trText("pr.action.save_project", "Save Project")
+```
+
+`trText` returns the fallback when no catalog holds the key, so a missing
+translation degrades to English instead of showing a raw key. The English
+argument stays at the call site on purpose: it is the value the UI shows before
+any catalog is loaded and it keeps each call site readable on its own.
+
+The active locale is chosen at startup, in this order:
+
+1. `--lang <code>` on the command line (`--lang ja`, `--lang en`)
+2. the system locale
+3. `en`
+
+The catalogs are deployed next to the executable by a `POST_BUILD` step in
+`ArtifactPr/CMakeLists.txt`, and are loaded from
+`QCoreApplication::applicationDirPath()/translations`.
+
+Adding a locale means dropping `<code>.json` into `ArtifactPr/translations/`.
+`ArtifactCore::LocalizationManager` already knows `en`, `ja`, `zh`, `zh-TW`,
+`ko`, `fr`, `de`, `es`, `pt`, `ru` and `ar`, and only loads the files it
+recognises. A locale whose catalog stays below the coverage threshold
+(`max(50, translationCount("en") / 10)`) should be kept out of any
+user-facing language selector, the same rule the `Artifact` app follows.
 
 ## Targets
 

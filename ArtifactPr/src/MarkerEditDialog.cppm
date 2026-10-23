@@ -17,33 +17,40 @@ module ArtifactPr.MarkerEditDialog;
 
 import ArtifactPr.EditorEngine;
 import ArtifactPr.AppTheme;
+import ArtifactPr.Translation;
+
+using ArtifactPr::trText;
 
 MarkerEditDialog::MarkerEditDialog(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QStringLiteral("Edit Marker"));
+    setWindowTitle(trText("pr.marker.title", "Edit Marker"));
     setMinimumWidth(420);
 
     auto* layout = new QVBoxLayout(this);
 
     auto* form = new QFormLayout();
     nameEdit_ = new QLineEdit();
-    form->addRow(QStringLiteral("Name:"), nameEdit_);
+    form->addRow(trText("pr.marker.name", "Name:"), nameEdit_);
 
     positionSpin_ = new QSpinBox();
     positionSpin_->setRange(0, 100000);
-    positionSpin_->setSuffix(QStringLiteral(" frame"));
-    form->addRow(QStringLiteral("Position:"), positionSpin_);
+    positionSpin_->setSuffix(trText("pr.marker.frame_suffix", " frame"));
+    form->addRow(trText("pr.marker.position", "Position:"), positionSpin_);
 
     typeCombo_ = new QComboBox();
-    typeCombo_->addItem(QStringLiteral("Comment"), static_cast<int>(ArtifactPr::Marker::Type::Comment));
-    typeCombo_->addItem(QStringLiteral("Chapter"), static_cast<int>(ArtifactPr::Marker::Type::Chapter));
-    typeCombo_->addItem(QStringLiteral("In"),      static_cast<int>(ArtifactPr::Marker::Type::In));
-    typeCombo_->addItem(QStringLiteral("Out"),     static_cast<int>(ArtifactPr::Marker::Type::Out));
-    form->addRow(QStringLiteral("Type:"), typeCombo_);
+    typeCombo_->addItem(trText("pr.marker.type_comment", "Comment"),
+                        static_cast<int>(ArtifactPr::Marker::Type::Comment));
+    typeCombo_->addItem(trText("pr.marker.type_chapter", "Chapter"),
+                        static_cast<int>(ArtifactPr::Marker::Type::Chapter));
+    typeCombo_->addItem(trText("pr.marker.type_in", "In"),
+                        static_cast<int>(ArtifactPr::Marker::Type::In));
+    typeCombo_->addItem(trText("pr.marker.type_out", "Out"),
+                        static_cast<int>(ArtifactPr::Marker::Type::Out));
+    form->addRow(trText("pr.marker.type", "Type:"), typeCombo_);
 
     auto* colorLayout = new QHBoxLayout();
-    colorBtn_ = new QPushButton(QStringLiteral("Pick Color..."));
+    colorBtn_ = new QPushButton(trText("pr.marker.pick_color", "Pick Color..."));
     colorPicker_ = new ArtifactPr::PrColorPickerDialog(this);
     colorPicker_->setInitialColor(color_);
     connect(colorBtn_, &QPushButton::clicked, this, [this]() {
@@ -54,11 +61,11 @@ MarkerEditDialog::MarkerEditDialog(QWidget* parent)
     });
     colorLayout->addWidget(colorBtn_);
     colorLayout->addStretch();
-    form->addRow(QStringLiteral("Color:"), colorLayout);
+    form->addRow(trText("pr.marker.color", "Color:"), colorLayout);
 
     layout->addLayout(form);
 
-    layout->addWidget(new QLabel(QStringLiteral("Comment:")));
+    layout->addWidget(new QLabel(trText("pr.marker.comment", "Comment:")));
     commentEdit_ = new QPlainTextEdit();
     commentEdit_->setMaximumHeight(120);
     layout->addWidget(commentEdit_);

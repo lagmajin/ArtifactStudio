@@ -19,10 +19,10 @@ module;
 #include <QPushButton>
 #include <QRandomGenerator>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QLocale>
 #include <QFrame>
 #include <QHash>
 #include <QEvent>
@@ -30,6 +30,7 @@ module;
 #include <QSizePolicy>
 #include <QWidget>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <algorithm>
 #include <cmath>
@@ -40,7 +41,9 @@ module ArtifactPr.TimelinePanel;
 
 import ArtifactPr.AppTheme;
 import ArtifactPr.EditorEngine;
+import ArtifactPr.Translation;
 
+using ArtifactPr::trText;
 using FramePosition = ArtifactPr::FramePosition;
 
 int FRAME_WIDTH = 2;
@@ -53,18 +56,6 @@ int sequenceFrameRate(const ArtifactPr::DemoSequence& sequence)
     const double parsed = sequence.frameRate.section(QChar(' '), 0, 0).toDouble(&ok);
     if (!ok || parsed <= 0.0) return 30;
     return qMax(1, static_cast<int>(parsed + 0.5));
-}
-
-QString uiText(const char* english, const char* japanese)
-{
-    return QLocale::system().language() == QLocale::Japanese
-        ? QString::fromUtf8(japanese) : QString::fromUtf8(english);
-}
-
-QString trUi(const char* english, const char* japanese)
-{
-    return QLocale::system().language() == QLocale::Japanese
-        ? QString::fromUtf8(japanese) : QString::fromUtf8(english);
 }
 
 class TimelineClipWidget : public QWidget
@@ -89,6 +80,13 @@ public:
 
     void setSpeed(double speed) { speed_ = speed; }
     void setReversed(bool reversed) { reversed_ = reversed; }
+
+    /// 長さ (フレーム)。ズーム時に幅を算出し直すために保持する。
+    void setDuration(int duration) { duration_ = duration; }
+    int duration() const { return duration_; }
+
+    /// 名前変更を既存 widget へ反映するための setter。
+    void setName(const QString& name) { name_ = name; update(); }
 
     /// 実波形 peak envelope を差し替え (AudioPreviewMixer のデコード結果)。
     /// peaks は 0..1 正規化。空ならランダムのまま描画しない。
@@ -260,6 +258,7 @@ private:
     QVector<float> waveform_;
     double speed_ = 1.0;
     bool reversed_ = false;
+    int duration_ = 0;
     QPoint dragStartPos_;
     bool isDragging_;
     bool isTrimmingLeft_;
@@ -562,7 +561,13 @@ struct ArtifactPrTimelinePanel::Impl
     QWidget* timelineHost_ = nullptr;
     QVBoxLayout* timelineLayout_ = nullptr;
     QHash<QString, TimelineClipWidget*> clipWidgets_;
+    QHash<QString, TransitionWidget*> transitionWidgets_;
+    QHash<QString, QWidget*> trackContentWidgets_;
+    QHash<QString, QPushButton*> trackMuteButtons_;
+    QHash<QString, QPushButton*> trackSoloButtons_;
     std::function<const QVector<float>*(const QString&)> waveformProvider_;
+    // 現在の widget 木が表す構造。構造が変わったときだけ作り直す。
+    QString structureSignature_;
 };
 
 W_OBJECT_IMPL(ArtifactPrTimelinePanel)
@@ -581,24 +586,43 @@ bool ArtifactPrTimelinePanel::eventFilter(QObject* obj, QEvent* event)
 
 void ArtifactPrTimelinePanel::refreshTimeline(const ArtifactPr::DemoSequence& seq)
     {
-        // 構造変更時だけ既存 row を破棄する。選択変更は
-        // onClipSelectionChanged() で clip 単位に反映する。
+        // widget 木は構造 (トラック / クリップ / トランジションの集合) が変わった
+        // ときだけ作り直す。ズームやトリムのような見た目だけの変更は、既存
+        // widget の幅と名前だけを更新する。作り直すとスクロール位置が毎回
+        // リセットされ、ズームのたびに全 clip widget が破棄されていた。
+        const QString signature = structureSignature(seq);
+        if (signature != impl_->structureSignature_) {
+            rebuildTimeline(seq);
+            impl_->structureSignature_ = signature;
+        }
+
+        impl_->sequenceInfo_->setText(
+            trText("pr.timeline.sequence_info",
+                   "%1 | %2 | Duration: %3 | Markers: %4 | Transitions: %5")
+                .arg(seq.name).arg(seq.frameRate).arg(seq.duration)
+                .arg(seq.markers.size()).arg(seq.transitions.size()));
+
+        impl_->ruler_->setFrameRate(sequenceFrameRate(seq));
+        impl_->ruler_->setMarkers(seq.markers);
+        impl_->ruler_->setTransitions(seq.transitions);
+        impl_->ruler_->update();
+
+        updateTimelineGeometry(seq);
+    }
+
+void ArtifactPrTimelinePanel::rebuildTimeline(const ArtifactPr::DemoSequence& seq)
+    {
         impl_->clipWidgets_.clear();
+        impl_->transitionWidgets_.clear();
+        impl_->trackContentWidgets_.clear();
+        impl_->trackMuteButtons_.clear();
+        impl_->trackSoloButtons_.clear();
         while (impl_->timelineLayout_->count() > 0) {
             auto* item = impl_->timelineLayout_->takeAt(0);
             if (item->widget())
                 delete item->widget();
             delete item;
         }
-
-        impl_->sequenceInfo_->setText(QStringLiteral("%1 | %2 | Duration: %3 | Markers: %4 | Transitions: %5")
-                                   .arg(seq.name).arg(seq.frameRate).arg(seq.duration)
-                                   .arg(seq.markers.size()).arg(seq.transitions.size()));
-
-        impl_->ruler_->setFrameRate(sequenceFrameRate(seq));
-        impl_->ruler_->setMarkers(seq.markers);
-        impl_->ruler_->setTransitions(seq.transitions);
-        impl_->ruler_->update();
 
         for (const auto& track : seq.videoTracks) {
             addTrackRow(track, seq.transitions);
@@ -608,6 +632,83 @@ void ArtifactPrTimelinePanel::refreshTimeline(const ArtifactPr::DemoSequence& se
         }
 
         impl_->timelineLayout_->addStretch(1);
+    }
+
+void ArtifactPrTimelinePanel::updateTimelineGeometry(const ArtifactPr::DemoSequence& seq)
+    {
+        const auto updateTrack = [this](const ArtifactPr::DemoTrack& track) {
+            for (const auto& clip : track.clips) {
+                auto it = impl_->clipWidgets_.find(clip.id);
+                if (it == impl_->clipWidgets_.end()) continue;
+                TimelineClipWidget* widget = it.value();
+                widget->setDuration(clip.duration);
+                widget->setName(clip.name);
+                widget->setSpeed(clip.speed);
+                widget->setReversed(clip.reversed);
+                if (track.kind == QStringLiteral("audio") && impl_->waveformProvider_) {
+                    const QVector<float>* peaks = impl_->waveformProvider_(clip.sourceFile);
+                    if (peaks) widget->setWaveformPeaks(*peaks);
+                }
+                const int width = qMax(MIN_CLIP_WIDTH, static_cast<int>(clip.duration * FRAME_WIDTH));
+                widget->setMinimumWidth(width);
+                widget->setMaximumWidth(width);
+            }
+        };
+        for (const auto& track : seq.videoTracks) updateTrack(track);
+        for (const auto& track : seq.audioTracks) updateTrack(track);
+
+        for (const auto& trans : seq.transitions) {
+            auto it = impl_->transitionWidgets_.find(trans.id);
+            if (it == impl_->transitionWidgets_.end()) continue;
+            TransitionWidget* widget = it.value();
+            widget->setTransition(trans);
+            const int width = qMax(MIN_CLIP_WIDTH, static_cast<int>(trans.duration * FRAME_WIDTH));
+            widget->setMinimumWidth(width);
+            widget->setMaximumWidth(width);
+        }
+
+        // プログラム側で mute / solo を変えた場合にボタンへ反映する。
+        // setChecked は toggled を発火するため、エンジンへの逆流を防ぐ。
+        const auto updateTrackState = [this](const ArtifactPr::DemoTrack& track) {
+            auto mute = impl_->trackMuteButtons_.find(track.id);
+            if (mute != impl_->trackMuteButtons_.end()) {
+                const QSignalBlocker blocker(mute.value());
+                mute.value()->setChecked(track.muted);
+            }
+            auto solo = impl_->trackSoloButtons_.find(track.id);
+            if (solo != impl_->trackSoloButtons_.end()) {
+                const QSignalBlocker blocker(solo.value());
+                solo.value()->setChecked(track.solo);
+            }
+        };
+        for (const auto& track : seq.videoTracks) updateTrackState(track);
+        for (const auto& track : seq.audioTracks) updateTrackState(track);
+
+        const int totalWidth = qMax(800, static_cast<int>(seq.duration * FRAME_WIDTH) + 100);
+        for (auto it = impl_->trackContentWidgets_.cbegin(); it != impl_->trackContentWidgets_.cend(); ++it) {
+            it.value()->setMinimumWidth(totalWidth);
+        }
+    }
+
+QString ArtifactPrTimelinePanel::structureSignature(const ArtifactPr::DemoSequence& seq)
+    {
+        // 構造が変わったかどうかの判定用。トラック / クリップ / トランジションの
+        // id 集合と、トラックごとの名前と種別だけを見る。
+        QStringList parts;
+        const auto appendTrack = [&parts, &seq](const ArtifactPr::DemoTrack& track) {
+            QStringList clipIds;
+            for (const auto& clip : track.clips) clipIds << clip.id;
+            QStringList transIds;
+            for (const auto& trans : seq.transitions) {
+                if (trans.trackId == track.id) transIds << trans.id;
+            }
+            parts << (track.kind + QLatin1Char(':') + track.id + QLatin1Char(':') + track.name
+                      + QLatin1Char('|') + clipIds.join(QLatin1Char(','))
+                      + QLatin1Char('|') + transIds.join(QLatin1Char(',')));
+        };
+        for (const auto& track : seq.videoTracks) appendTrack(track);
+        for (const auto& track : seq.audioTracks) appendTrack(track);
+        return parts.join(QLatin1Char(';'));
     }
 
 void ArtifactPrTimelinePanel::onFrameChanged(ArtifactPr::FramePosition) { impl_->ruler_->update(); }
@@ -637,13 +738,13 @@ void ArtifactPrTimelinePanel::onMarkerRightClicked(const QString& markerId, cons
 
         auto* menu = new QMenu();
 
-        auto* renameAction = menu->addAction(trUi("Rename Marker...", "マーカー名を変更..."));
+        auto* renameAction = menu->addAction(trText("pr.action.rename_marker", "Rename Marker..."));
         connect(renameAction, &QAction::triggered, [this, engine, markerId]() {
             for (const auto& marker : engine->markers()) {
                 if (marker.id == markerId) {
                     bool ok;
-                    QString newName = QInputDialog::getText(this, trUi("Rename Marker", "マーカー名を変更"),
-                        trUi("Marker Name:", "マーカー名:"), QLineEdit::Normal, marker.name, &ok);
+                    QString newName = QInputDialog::getText(this, trText("pr.dialog.rename_marker.title", "Rename Marker"),
+                        trText("pr.field.marker_name", "Marker Name:"), QLineEdit::Normal, marker.name, &ok);
                     if (ok && !newName.isEmpty()) {
                         engine->setMarkerName(markerId, newName);
                     }
@@ -652,7 +753,7 @@ void ArtifactPrTimelinePanel::onMarkerRightClicked(const QString& markerId, cons
             }
         });
 
-        auto* goToAction = menu->addAction(trUi("Go To Marker", "マーカーへ移動"));
+        auto* goToAction = menu->addAction(trText("pr.action.go_to_marker", "Go To Marker"));
         connect(goToAction, &QAction::triggered, [engine, markerId]() {
             for (const auto& marker : engine->markers()) {
                 if (marker.id == markerId) {
@@ -664,7 +765,7 @@ void ArtifactPrTimelinePanel::onMarkerRightClicked(const QString& markerId, cons
 
         menu->addSeparator();
 
-        auto* deleteAction = menu->addAction(trUi("Delete Marker", "マーカーを削除"));
+        auto* deleteAction = menu->addAction(trText("pr.action.delete_marker", "Delete Marker"));
         connect(deleteAction, &QAction::triggered, [engine, markerId]() {
             engine->deleteMarker(markerId);
         });
@@ -705,7 +806,7 @@ void ArtifactPrTimelinePanel::onClipRightClicked(const QString& clipId, const QP
 
         auto* menu = new QMenu();
 
-        auto* speedMenu = menu->addMenu(trUi("Speed", "速度"));
+        auto* speedMenu = menu->addMenu(trText("pr.menu.speed", "Speed"));
 
         auto* speed100 = speedMenu->addAction(QStringLiteral("100%"));
         connect(speed100, &QAction::triggered, [engine, clipId]() { engine->setClipSpeed(clipId, 1.0); });
@@ -724,7 +825,7 @@ void ArtifactPrTimelinePanel::onClipRightClicked(const QString& clipId, const QP
 
         menu->addSeparator();
 
-        auto* reverseAction = menu->addAction(trUi("Reverse", "逆再生"));
+        auto* reverseAction = menu->addAction(trText("pr.action.reverse", "Reverse"));
         reverseAction->setCheckable(true);
         reverseAction->setChecked(clip->reversed);
         connect(reverseAction, &QAction::triggered, [engine, clipId](bool checked) { engine->setClipReversed(clipId, checked); });
@@ -738,23 +839,20 @@ void ArtifactPrTimelinePanel::onClipRightClicked(const QString& clipId, const QP
             const QVector<QString> peers = engine->linkedPeerClipIds();
 
             if (groupId == 0) {
-                auto* linkAction = menu->addAction(trUi("Link AV", "V/A をリンク"));
-                linkAction->setToolTip(uiText(
-                    "Link this clip so trim, slide and selection propagate to peers.",
-                    "このクリップをリンクし、trim・slide・選択をリンク先へ伝播させます。"));
+                auto* linkAction = menu->addAction(trText("pr.action.link_av", "Link AV"));
+                linkAction->setToolTip(trText("pr.clip.link_av_tooltip", "Link this clip so trim, slide and selection propagate to peers."));
                 connect(linkAction, &QAction::triggered, [engine]() {
                     engine->linkSelectedClips();
                 });
             }
             else {
-                auto* unlinkAction = menu->addAction(trUi("Unlink AV", "V/A のリンクを解除"));
-                unlinkAction->setToolTip(uiText(
-                    "Linked peers: %1", "リンク先: %1").arg(peers.size()));
+                auto* unlinkAction = menu->addAction(trText("pr.action.unlink_av", "Unlink AV"));
+                unlinkAction->setToolTip(trText("pr.label.linked_peers", "Linked peers: %1").arg(peers.size()));
                 connect(unlinkAction, &QAction::triggered, [engine]() {
                     engine->unlinkSelectedClips();
                 });
 
-                auto* clearPeerMenu = menu->addMenu(trUi("Linked Clips", "リンク先クリップ"));
+                auto* clearPeerMenu = menu->addMenu(trText("pr.menu.linked_clips", "Linked Clips"));
                 for (const QString& peerId : peers) {
                     auto* peerAction = clearPeerMenu->addAction(peerId);
                     connect(peerAction, &QAction::triggered, [engine, peerId]() {
@@ -766,7 +864,7 @@ void ArtifactPrTimelinePanel::onClipRightClicked(const QString& clipId, const QP
 
         menu->addSeparator();
 
-        auto* volumeMenu = menu->addMenu(trUi("Volume", "ボリューム"));
+        auto* volumeMenu = menu->addMenu(trText("pr.menu.volume", "Volume"));
 
         auto* vol100 = volumeMenu->addAction(QStringLiteral("100%"));
         connect(vol100, &QAction::triggered, [engine, clipId]() { engine->setClipVolume(clipId, 1.0); });
@@ -780,20 +878,20 @@ void ArtifactPrTimelinePanel::onClipRightClicked(const QString& clipId, const QP
         auto* vol50 = volumeMenu->addAction(QStringLiteral("50%"));
         connect(vol50, &QAction::triggered, [engine, clipId]() { engine->setClipVolume(clipId, 0.5); });
 
-        auto* vol0 = volumeMenu->addAction(QStringLiteral("0% (Mute)"));
+        auto* vol0 = volumeMenu->addAction(trText("pr.timeline.mute_level", "0% (Mute)"));
         connect(vol0, &QAction::triggered, [engine, clipId]() { engine->setClipVolume(clipId, 0.0); });
 
         menu->addSeparator();
 
-        auto* nameAction = menu->addAction(trUi("Rename Clip...", "クリップ名を変更..."));
+        auto* nameAction = menu->addAction(trText("pr.action.rename_clip", "Rename Clip..."));
         connect(nameAction, &QAction::triggered, [this, engine, clipId]() {
             auto* clip = engine->findClip(clipId);
             if (!clip) return;
             bool ok;
             QString newName = QInputDialog::getText(
                 this,
-                uiText("Rename Clip", "クリップ名の変更"),
-                uiText("Clip Name:", "クリップ名:"),
+                trText("pr.dialog.rename_clip.title", "Rename Clip"),
+                trText("pr.field.clip_name", "Clip Name:"),
                 QLineEdit::Normal, clip->name, &ok);
             if (ok && !newName.isEmpty()) {
                 engine->setClipName(clipId, newName);
@@ -803,7 +901,7 @@ void ArtifactPrTimelinePanel::onClipRightClicked(const QString& clipId, const QP
 
         menu->addSeparator();
 
-        auto* deleteAction = menu->addAction(uiText("Delete", "削除"));
+        auto* deleteAction = menu->addAction(trText("pr.action.delete", "Delete"));
         deleteAction->setShortcut(QKeySequence::Delete);
         connect(deleteAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::deleteSelectedClip);
 
@@ -904,7 +1002,7 @@ void ArtifactPrTimelinePanel::onTransitionRightClicked(const QString& transition
 
         auto* menu = new QMenu();
 
-        auto* durationMenu = menu->addMenu(trUi("Duration", "長さ"));
+        auto* durationMenu = menu->addMenu(trText("pr.menu.duration", "Duration"));
 
         auto applyTransitionDuration = [engine, seq, transitionId](int duration) mutable {
             if (engine->setVideoTransitionDuration(transitionId, duration)) {
@@ -920,25 +1018,29 @@ void ArtifactPrTimelinePanel::onTransitionRightClicked(const QString& transition
             Q_EMIT engine->projectModified();
         };
 
-        auto* dur6 = durationMenu->addAction(QStringLiteral("6 frames"));
+        auto* dur6 = durationMenu->addAction(
+            trText("pr.timeline.duration_frames", "%1 frames").arg(6));
         connect(dur6, &QAction::triggered, [this, applyTransitionDuration] {
             applyTransitionDuration(6);
             refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
         });
 
-        auto* dur12 = durationMenu->addAction(QStringLiteral("12 frames"));
+        auto* dur12 = durationMenu->addAction(
+            trText("pr.timeline.duration_frames", "%1 frames").arg(12));
         connect(dur12, &QAction::triggered, [this, applyTransitionDuration] {
             applyTransitionDuration(12);
             refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
         });
 
-        auto* dur24 = durationMenu->addAction(QStringLiteral("24 frames"));
+        auto* dur24 = durationMenu->addAction(
+            trText("pr.timeline.duration_frames", "%1 frames").arg(24));
         connect(dur24, &QAction::triggered, [this, applyTransitionDuration] {
             applyTransitionDuration(24);
             refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
         });
 
-        auto* dur48 = durationMenu->addAction(QStringLiteral("48 frames"));
+        auto* dur48 = durationMenu->addAction(
+            trText("pr.timeline.duration_frames", "%1 frames").arg(48));
         connect(dur48, &QAction::triggered, [this, applyTransitionDuration] {
             applyTransitionDuration(48);
             refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
@@ -946,7 +1048,7 @@ void ArtifactPrTimelinePanel::onTransitionRightClicked(const QString& transition
 
         menu->addSeparator();
 
-        auto* deleteAction = menu->addAction(trUi("Delete Transition", "トランジションを削除"));
+        auto* deleteAction = menu->addAction(trText("pr.action.delete_transition", "Delete Transition"));
         connect(deleteAction, &QAction::triggered, [engine, transitionId]() {
             engine->deleteTransition(transitionId);
         });
@@ -979,22 +1081,24 @@ void ArtifactPrTimelinePanel::addTrackRow(const ArtifactPr::DemoTrack& track, co
         muteButton->setCheckable(true);
         muteButton->setChecked(track.muted);
         muteButton->setFixedSize(20, 20);
-        muteButton->setToolTip(trUi("Mute track", "トラックをミュート"));
+        muteButton->setToolTip(trText("pr.action.mute_track", "Mute track"));
         QObject::connect(muteButton, &QPushButton::toggled, muteButton,
             [trackId](bool checked) {
                 ArtifactPr::EditorEngine::instance()->setTrackMuted(trackId, checked);
             });
+        impl_->trackMuteButtons_.insert(track.id, muteButton);
         trackLayout->addWidget(muteButton);
 
         auto* soloButton = new QPushButton(QStringLiteral("S"));
         soloButton->setCheckable(true);
         soloButton->setChecked(track.solo);
         soloButton->setFixedSize(20, 20);
-        soloButton->setToolTip(trUi("Solo track", "トラックをソロ"));
+        soloButton->setToolTip(trText("pr.action.solo_track", "Solo track"));
         QObject::connect(soloButton, &QPushButton::toggled, soloButton,
             [trackId](bool checked) {
                 ArtifactPr::EditorEngine::instance()->setTrackSolo(trackId, checked);
             });
+        impl_->trackSoloButtons_.insert(track.id, soloButton);
         trackLayout->addWidget(soloButton);
 
         auto* trackContent = new QWidget();
@@ -1013,6 +1117,8 @@ void ArtifactPrTimelinePanel::addTrackRow(const ArtifactPr::DemoTrack& track, co
             auto* clipWidget = new TimelineClipWidget(clip.id, clip.name, trackColor, clip.id == selectedId, isAudio, trackContent);
             clipWidget->setObjectName(QStringLiteral("artifactpr.timeline.clip.%1").arg(clip.id));
             impl_->clipWidgets_.insert(clip.id, clipWidget);
+            // 幅はズーム時に算出し直すため、clip 自身の長さを保持する。
+            clipWidget->setDuration(clip.duration);
             int clipWidth = qMax(MIN_CLIP_WIDTH, static_cast<int>(clip.duration * FRAME_WIDTH));
             clipWidget->setMinimumWidth(clipWidth);
             clipWidget->setMaximumWidth(clipWidth);
@@ -1043,6 +1149,7 @@ void ArtifactPrTimelinePanel::addTrackRow(const ArtifactPr::DemoTrack& track, co
             for (const auto& trans : transitions) {
                 if (trans.trackId == track.id && (trans.rightClipId == clip.id || trans.leftClipId == clip.id)) {
                     auto* transWidget = new TransitionWidget(trans, trackContent);
+                    impl_->transitionWidgets_.insert(trans.id, transWidget);
                     int transWidth = qMax(MIN_CLIP_WIDTH, static_cast<int>(trans.duration * FRAME_WIDTH));
                     transWidget->setMinimumWidth(transWidth);
                     transWidget->setMaximumWidth(transWidth);
@@ -1054,6 +1161,7 @@ void ArtifactPrTimelinePanel::addTrackRow(const ArtifactPr::DemoTrack& track, co
         }
         contentLayout->addStretch(1);
 
+        impl_->trackContentWidgets_.insert(track.id, trackContent);
         int totalWidth = qMax(800, static_cast<int>(engine->currentSequence().duration * FRAME_WIDTH) + 100);
         trackContent->setMinimumWidth(totalWidth);
         trackLayout->addWidget(trackContent, 1);
@@ -1080,7 +1188,7 @@ ArtifactPrTimelinePanel::ArtifactPrTimelinePanel(QWidget* parent)
         toolbarLayout->setContentsMargins(4, 2, 4, 2);
         toolbarLayout->setSpacing(8);
 
-        auto* zoomLabel = new QLabel(trUi("Zoom:", "ズーム:"));
+        auto* zoomLabel = new QLabel(trText("pr.field.zoom", "Zoom:"));
         toolbarLayout->addWidget(zoomLabel);
 
         impl_->zoomSlider_ = new QSlider(Qt::Horizontal);
@@ -1100,7 +1208,7 @@ ArtifactPrTimelinePanel::ArtifactPrTimelinePanel(QWidget* parent)
 
         toolbarLayout->addStretch();
 
-        impl_->sequenceInfo_ = new QLabel(trUi("No sequence", "シーケンスがありません"));
+        impl_->sequenceInfo_ = new QLabel(trText("pr.status.no_sequence", "No sequence"));
         impl_->sequenceInfo_->setObjectName(QStringLiteral("sequenceInfo_"));
         toolbarLayout->addWidget(impl_->sequenceInfo_);
 

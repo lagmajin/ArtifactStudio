@@ -14,6 +14,10 @@ module;
 
 module ArtifactPr.TransportBarWidget;
 
+import ArtifactPr.Translation;
+
+using ArtifactPr::trText;
+
 namespace {
 
 int sequenceFrameRate(const ArtifactPr::DemoSequence& sequence)
@@ -64,7 +68,7 @@ TransportBarWidget::TransportBarWidget(QWidget* parent)
 
     layout->addStretch(1);
 
-    auto* exportButton = new QPushButton(QStringLiteral("Export"));
+    auto* exportButton = new QPushButton(trText("pr.export.action", "Export"));
     connect(exportButton, &QPushButton::clicked, this, &TransportBarWidget::onExportClicked);
     layout->addWidget(exportButton);
 
@@ -167,9 +171,9 @@ void TransportBarWidget::updateSpeedDisplay(ArtifactPr::PlaybackSpeed speed)
 {
     int speedVal = static_cast<int>(speed);
     if (speedVal == 0) {
-        speedLabel_->setText(QStringLiteral("停止"));
+        speedLabel_->setText(trText("pr.transport.stop", "Stop"));
     } else if (speedVal == 1) {
-        speedLabel_->setText(QStringLiteral("一時停止"));
+        speedLabel_->setText(trText("pr.transport.pause", "Pause"));
     } else if (speedVal > 1) {
         speedLabel_->setText(QStringLiteral("%1x").arg(speedVal / 2));
     } else {
@@ -181,11 +185,12 @@ void TransportBarWidget::contextMenuEvent(QContextMenuEvent* event)
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
     QMenu menu(this);
-    auto* markIn = menu.addAction(QStringLiteral("Set Timeline In Here"));
-    auto* markOut = menu.addAction(QStringLiteral("Set Timeline Out After This Frame"));
-    auto* clear = menu.addAction(QStringLiteral("Clear Playback Range"));
-    auto* start = menu.addAction(QStringLiteral("Go to Range Start"));
-    auto* end = menu.addAction(QStringLiteral("Go to Range End"));
+    auto* markIn = menu.addAction(trText("pr.transport.set_in", "Set Timeline In Here"));
+    auto* markOut = menu.addAction(
+        trText("pr.transport.set_out", "Set Timeline Out After This Frame"));
+    auto* clear = menu.addAction(trText("pr.transport.clear_range", "Clear Playback Range"));
+    auto* start = menu.addAction(trText("pr.transport.goto_start", "Go to Range Start"));
+    auto* end = menu.addAction(trText("pr.transport.goto_end", "Go to Range End"));
     const auto* action = menu.exec(event->globalPos());
     if (action == markIn) engine->setPlaybackRange(engine->currentFrame(), engine->outPoint());
     else if (action == markOut) engine->setPlaybackRange(engine->inPoint(), engine->currentFrame() + 1);

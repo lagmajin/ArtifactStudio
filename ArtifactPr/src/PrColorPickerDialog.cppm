@@ -12,6 +12,10 @@ module;
 
 module ArtifactPr.ColorPickerDialog;
 
+import ArtifactPr.Translation;
+
+using ArtifactPr::trText;
+
 namespace ArtifactPr {
 
 namespace {
@@ -38,12 +42,12 @@ const QVector<QColor>& paletteColors() {
 PrColorPickerDialog::PrColorPickerDialog(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QStringLiteral("Pick Color"));
+    setWindowTitle(trText("pr.color.title", "Pick Color"));
     setMinimumWidth(320);
 
     auto* layout = new QVBoxLayout(this);
 
-    layout->addWidget(new QLabel(QStringLiteral("Choose a color:")));
+    layout->addWidget(new QLabel(trText("pr.color.choose", "Choose a color:")));
 
     auto* grid = new QGridLayout();
     grid->setSpacing(6);

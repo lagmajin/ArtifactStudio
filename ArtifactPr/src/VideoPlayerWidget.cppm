@@ -17,6 +17,9 @@ module ArtifactPr.VideoPlayerWidget;
 
 import ArtifactPr.VideoSurface;
 import ArtifactPr.AppTheme;
+import ArtifactPr.Translation;
+
+using ArtifactPr::trText;
 
 namespace ArtifactPr {
 
@@ -68,7 +71,9 @@ VideoPlayerWidget::VideoPlayerWidget(QWidget* parent)
     stackedWidget_ = new QStackedWidget(this);
     layout->addWidget(stackedWidget_);
 
-    placeholderLabel_ = new QLabel(QStringLiteral("No media loaded\n\nDrag a video file here or use Import"));
+    placeholderLabel_ = new QLabel(
+        trText("pr.media.placeholder",
+               "No media loaded\n\nDrag a video file here or use Import"));
     placeholderLabel_->setAlignment(Qt::AlignCenter);
     placeholderLabel_->setProperty(ArtifactPr::kPropSurfaceKind, QString::fromUtf8(ArtifactPr::kSurfaceMediaPlaceholder));
     placeholderLabel_->setAutoFillBackground(true);

@@ -41,6 +41,7 @@ set(ARTIFACT_PR_MODULE_SOURCES
     include/ShortcutHelpDialog.ixx
     include/TimecodeOverlayWidget.ixx
     include/TimelinePanel.ixx
+    include/Translation.ixx
     include/TransportBarWidget.ixx
     include/VideoPlayerWidget.ixx
     include/VideoSurface.ixx
@@ -71,6 +72,7 @@ set(ARTIFACT_PR_IMPL_SOURCES
     src/ShortcutHelpDialog.cppm
     src/TimecodeOverlayWidget.cppm
     src/TimelinePanel.cppm
+    src/Translation.cppm
     src/TransportBarWidget.cppm
     src/VideoPlayerWidget.cppm
     src/VideoSurface.cppm
@@ -128,6 +130,10 @@ target_link_libraries(ArtifactPrApp PUBLIC
     ArtifactCoreAudio
     ArtifactCoreVideo
     ArtifactCoreNLE
+    # Core.Localization の実装 (Localization.cppm) はこのパック側にある。
+    # ArtifactCore は interface (include/Utils/Localization.ixx) しか持たないため、
+    # 翻訳カタログを使う ArtifactPr.Translation は明示的にリンクする必要がある。
+    ArtifactCoreLocalization
     ArtifactWidgets
     ArtifactGpuFoundation
     ArtifactDockFoundation
@@ -147,6 +153,16 @@ artifact_pr_configure_target(ArtifactPr)
 set_target_properties(ArtifactPr PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+
+# Translation catalogs are deployed next to the executable so the runtime can
+# load them from QCoreApplication::applicationDirPath()/translations.
+add_custom_command(TARGET ArtifactPr POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/translations"
+        "$<TARGET_FILE_DIR:ArtifactPr>/translations"
+    COMMENT "Deploying translation files for ArtifactPr"
+    VERBATIM
 )
 
 # Console-only entry point.

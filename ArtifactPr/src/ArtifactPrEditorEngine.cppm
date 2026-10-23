@@ -25,6 +25,9 @@ module ArtifactPr.EditorEngine;
 import ArtifactPr.ClipEffects;
 import ArtifactPr.EditCommand;
 import ArtifactPr.SequenceExporter;
+import ArtifactPr.Translation;
+
+using ArtifactPr::trText;
 
 using namespace Qt::StringLiterals;
 
@@ -2748,7 +2751,7 @@ bool MoveClipCommand::deserialize(const QJsonObject& data)
     clipId_ = data[QStringLiteral("clipId")].toString();
     oldStart_ = data[QStringLiteral("oldStart")].toInteger<qint64>();
     newStart_ = data[QStringLiteral("newStart")].toInteger<qint64>();
-    setText(QStringLiteral("Move Clip"));
+    setText(trText("pr.undo.move_clip", "Move Clip"));
     return !clipId_.isEmpty();
 }
 
@@ -2809,7 +2812,7 @@ bool TrimClipCommand::deserialize(const QJsonObject& data)
     newDuration_ = data[QStringLiteral("newDuration")].toInteger<qint64>();
     newSourceIn_ = data[QStringLiteral("newSourceIn")].toInteger<qint64>();
     newSourceOut_ = data[QStringLiteral("newSourceOut")].toInteger<qint64>();
-    setText(QStringLiteral("Trim Clip"));
+    setText(trText("pr.undo.trim_clip", "Trim Clip"));
     return !clipId_.isEmpty();
 }
 
@@ -2850,7 +2853,7 @@ bool DeleteClipCommand::deserialize(const QJsonObject& data)
     trackId_ = data[QStringLiteral("trackId")].toString();
     clip_ = jsonToClip(data[QStringLiteral("clip")].toObject());
     index_ = data[QStringLiteral("index")].toInt(-1);
-    setText(QStringLiteral("Delete Clip"));
+    setText(trText("pr.undo.delete_clip", "Delete Clip"));
     return !trackId_.isEmpty();
 }
 
@@ -3876,7 +3879,7 @@ bool VideoTracksStateCommand::deserialize(const QJsonObject& data)
     }
     afterDuration_ = data[QStringLiteral("duration")].toInteger<qint64>();
     afterSelection_ = data[QStringLiteral("selection")].toString();
-    setText(QStringLiteral("Change Video Clips"));
+    setText(trText("pr.undo.change_video_clips", "Change Video Clips"));
     return true;
 }
 
@@ -3933,7 +3936,7 @@ bool MarkerStateCommand::deserialize(const QJsonObject& data)
     for (const auto& v : data[QStringLiteral("markers")].toArray()) {
         after_.append(jsonToMarker(v.toObject()));
     }
-    setText(QStringLiteral("Change Markers"));
+    setText(trText("pr.undo.change_markers", "Change Markers"));
     return true;
 }
 
@@ -3952,7 +3955,7 @@ bool TransitionStateCommand::deserialize(const QJsonObject& data)
     for (const auto& v : data[QStringLiteral("transitions")].toArray()) {
         after_.append(jsonToTransition(v.toObject()));
     }
-    setText(QStringLiteral("Change Video Transition"));
+    setText(trText("pr.undo.change_video_transition", "Change Video Transition"));
     return true;
 }
 
