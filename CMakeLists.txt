@@ -1,16 +1,76 @@
 cmake_minimum_required(VERSION 3.30)
 
+# Opt-in parallel COFF linking with LLVM LLD. CMake's MSVC platform expects
+# CMAKE_LINKER_LLD to name lld-link directly; Ninja -j controls build actions,
+# while /threads controls the parallelism inside each LLD link action.
+option(ARTIFACT_USE_LLD "Use lld-link for Windows link steps" OFF)
+set(ARTIFACT_LLD_THREADS "8" CACHE STRING
+    "Maximum worker threads used by each lld-link action")
+if(ARTIFACT_USE_LLD)
+    if(NOT ARTIFACT_LLD_THREADS MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "ARTIFACT_LLD_THREADS must be a positive integer")
+    endif()
+    find_program(ARTIFACT_LLD_LINK_EXECUTABLE
+        NAMES lld-link.exe lld-link
+        HINTS
+            "$ENV{ProgramFiles}/LLVM/bin"
+            "$ENV{ProgramFiles}/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin"
+            "$ENV{ProgramFiles}/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/bin"
+            "$ENV{VCToolsInstallDir}/../Llvm/x64/bin"
+    )
+    if(NOT ARTIFACT_LLD_LINK_EXECUTABLE)
+        message(FATAL_ERROR
+            "ARTIFACT_USE_LLD=ON, but lld-link was not found. Set "
+            "ARTIFACT_LLD_LINK_EXECUTABLE to its full path.")
+    endif()
+    set(CMAKE_LINKER_LLD "${ARTIFACT_LLD_LINK_EXECUTABLE}" CACHE FILEPATH
+        "LLVM COFF linker used by CMAKE_LINKER_TYPE=LLD" FORCE)
+    set(CMAKE_LINKER_TYPE LLD CACHE STRING
+        "Select LLVM LLD for project link steps" FORCE)
+
+    # CMake's MSVC linker wrapper invokes the resource compiler by name.
+    # This shell may not have the Windows SDK bin directory on PATH, so seed
+    # the compiler before project() initializes the MSVC platform rules.
+    if(CMAKE_HOST_WIN32)
+        if(CMAKE_RC_COMPILER AND NOT CMAKE_RC_COMPILER STREQUAL "rc")
+            set(_artifact_rc_compiler "${CMAKE_RC_COMPILER}")
+        else()
+            find_program(_artifact_rc_compiler
+                NAMES rc.exe
+                HINTS
+                    "$ENV{WindowsSdkDir}/bin/$ENV{WindowsSDKVersion}/x64"
+                    "$ENV{WindowsSdkDir}/bin/$ENV{WindowsSDKVersion}/x86"
+                    "$ENV{ProgramFiles(x86)}/Windows Kits/10/bin/$ENV{WindowsSDKVersion}/x64"
+            )
+        endif()
+        if(_artifact_rc_compiler)
+            set(CMAKE_RC_COMPILER "${_artifact_rc_compiler}" CACHE FILEPATH
+                "Windows resource compiler used by CMake's MSVC linker wrapper" FORCE)
+            set(CMAKE_RC_COMPILER "${_artifact_rc_compiler}")
+        endif()
+    endif()
+endif()
+
 # ---------------------------------------------------------------------------
 # import std; サポートの有効化 (project() より前に記述が必須)
 # ---------------------------------------------------------------------------
-# CMake 3.30+ では import std は実験的機能のため、特定の UUID を設定する必要があります
-if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2")
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b" CACHE STRING "Required for import std (CMake 4.2+)" FORCE)
+# CMake 3.30+ gates import std behind a version-specific experimental UUID.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.4.0")
+    set(_artifact_import_std_uuid "f35a9ac6-8463-4d38-8eec-5d6008153e7d")
+elseif(CMAKE_VERSION VERSION_GREATER_EQUAL "4.3.0")
+    set(_artifact_import_std_uuid "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
+elseif(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0.3")
+    set(_artifact_import_std_uuid "d0edc3af-4c50-42ea-a356-e2862fe7a444")
+elseif(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0.0")
+    set(_artifact_import_std_uuid "a9e1cf81-9932-4810-974b-6eccaf14e457")
+elseif(CMAKE_VERSION VERSION_GREATER_EQUAL "3.31.8")
+    set(_artifact_import_std_uuid "d0edc3af-4c50-42ea-a356-e2862fe7a444")
 else()
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std (CMake 3.30-4.1)" FORCE)
+    set(_artifact_import_std_uuid "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")
 endif()
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_uuid}")
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_uuid}" CACHE STRING
+    "Version-specific gate for import std (CMake 3.30+)" FORCE)
 
 # clang-cl / IntelLLVM 系では project() 前の CMAKE_CXX_MODULE_STD ON が
 # try_compile と衝突するため、コンパイラ種別を事前チェックします。
@@ -77,6 +137,15 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
 endif()
 
 project(ArtifactSuite LANGUAGES C CXX)
+
+if(ARTIFACT_USE_LLD)
+    if(NOT WIN32 OR NOT MSVC)
+        message(FATAL_ERROR "ARTIFACT_USE_LLD currently requires the Windows MSVC frontend")
+    endif()
+    enable_language(RC)
+    add_link_options("/threads:${ARTIFACT_LLD_THREADS}")
+    message(STATUS "Using lld-link: ${CMAKE_LINKER_LLD} (/threads:${ARTIFACT_LLD_THREADS})")
+endif()
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
@@ -204,6 +273,14 @@ if(MSVC AND ARTIFACT_MSVC_MODULES_JSON)
     endif()
 endif()
 
+# Only enable CMake's native import-std target when its compiler probe found a
+# standard-library module for C++23. The MSVC path above has its own explicit
+# IFC producer; clang-cl's MSVC ABI alone does not provide CMAKE_CXX23's std.ifc.
+set(ARTIFACT_CXX23_MODULE_STD_AVAILABLE OFF)
+if(TARGET ArtifactStdModule OR "23" IN_LIST CMAKE_CXX_COMPILER_IMPORT_STD)
+    set(ARTIFACT_CXX23_MODULE_STD_AVAILABLE ON)
+endif()
+
 # clang-cl + C++20 modules: ensure clang-scan-deps is configured so CMake can
 # build module import graphs.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
@@ -217,9 +294,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
             "clang-cl C++ modules currently require a Ninja generator in this project.")
     endif()
     if(NOT CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS)
+        get_filename_component(_artifact_clang_compiler_dir
+            "${CMAKE_CXX_COMPILER}" DIRECTORY)
         find_program(ARTIFACT_CLANG_SCAN_DEPS
             NAMES clang-scan-deps.exe clang-scan-deps
             HINTS
+                "${_artifact_clang_compiler_dir}"
                 "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/x64/bin"
                 "C:/Program Files/Microsoft Visual Studio/2022/Professional/VC/Tools/Llvm/x64/bin"
                 "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin"
@@ -245,9 +325,14 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
             "The Windows clang++ lane requires an MSVC ABI target; got '${CMAKE_CXX_COMPILER_TARGET}'.")
     endif()
     if(NOT CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS)
+        get_filename_component(_artifact_clang_compiler_dir
+            "${CMAKE_CXX_COMPILER}" DIRECTORY)
         find_program(ARTIFACT_CLANG_SCAN_DEPS
             NAMES clang-scan-deps.exe clang-scan-deps
-            HINTS "$ENV{VCToolsInstallDir}/../Llvm/x64/bin" "$ENV{ProgramFiles}/LLVM/bin")
+            HINTS
+                "${_artifact_clang_compiler_dir}"
+                "$ENV{VCToolsInstallDir}/../Llvm/x64/bin"
+                "$ENV{ProgramFiles}/LLVM/bin")
         if(ARTIFACT_CLANG_SCAN_DEPS)
             set(CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS "${ARTIFACT_CLANG_SCAN_DEPS}"
                 CACHE FILEPATH "clang-scan-deps executable for C++ modules" FORCE)
@@ -587,7 +672,19 @@ if(MSVC)
     endif()
 endif()
 
-if(WIN32 AND MSVC)
+if(WIN32 AND (MSVC OR ARTIFACT_COMPILER_CLANG_GNU))
+    # The upstream clang++ MSVC-ABI toolchain discovers the same Windows SDK
+    # without setting CMake's MSVC frontend flag. Reuse that discovery for
+    # runtime deployment and Windows SDK metadata used below.
+    if(ARTIFACT_COMPILER_CLANG_GNU)
+        if(_artifact_sdk_root)
+            set(_artifact_windows_sdk_root "${_artifact_sdk_root}")
+        else()
+            set(_artifact_windows_sdk_root "C:/Program Files (x86)/Windows Kits/10")
+        endif()
+    else()
+        set(_artifact_windows_sdk_root "C:/Program Files (x86)/Windows Kits/10")
+    endif()
     list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
         CMAKE_C_FLAGS
         CMAKE_CXX_FLAGS
@@ -595,7 +692,6 @@ if(WIN32 AND MSVC)
         CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION
         CMAKE_GENERATOR_PLATFORM
     )
-    set(_artifact_windows_sdk_root "C:/Program Files (x86)/Windows Kits/10")
     set(_artifact_windows_sdk_include_root "${_artifact_windows_sdk_root}/Include")
     if(EXISTS "${_artifact_windows_sdk_include_root}")
         file(GLOB _artifact_windows_sdk_include_versions LIST_DIRECTORIES true "${_artifact_windows_sdk_include_root}/*")
@@ -604,10 +700,15 @@ if(WIN32 AND MSVC)
         message(STATUS "Windows SDK include: ${_artifact_windows_sdk_include_version_dir}")
     endif()
     if(EXISTS "${_artifact_windows_sdk_root}/Lib")
-        file(GLOB _artifact_windows_sdk_versions LIST_DIRECTORIES true "${_artifact_windows_sdk_root}/Lib/*")
-        list(SORT _artifact_windows_sdk_versions COMPARE NATURAL ORDER DESCENDING)
-        list(GET _artifact_windows_sdk_versions 0 _artifact_windows_sdk_version_dir)
-        get_filename_component(_artifact_windows_sdk_version_name "${_artifact_windows_sdk_version_dir}" NAME)
+        if(ARTIFACT_COMPILER_CLANG_GNU AND _artifact_sdk_version)
+            set(_artifact_windows_sdk_version_name "${_artifact_sdk_version}")
+            set(_artifact_windows_sdk_version_dir "${_artifact_windows_sdk_root}/Lib/${_artifact_windows_sdk_version_name}")
+        else()
+            file(GLOB _artifact_windows_sdk_versions LIST_DIRECTORIES true "${_artifact_windows_sdk_root}/Lib/*")
+            list(SORT _artifact_windows_sdk_versions COMPARE NATURAL ORDER DESCENDING)
+            list(GET _artifact_windows_sdk_versions 0 _artifact_windows_sdk_version_dir)
+            get_filename_component(_artifact_windows_sdk_version_name "${_artifact_windows_sdk_version_dir}" NAME)
+        endif()
         set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION "${_artifact_windows_sdk_version_name}" CACHE STRING "Windows SDK version for DiligentEngine" FORCE)
         set(ENV{WindowsSDKVersion} "${_artifact_windows_sdk_version_name}\\")
         # Source-file try_compile() probes do not inherit link_directories().
@@ -731,13 +832,9 @@ set(CMAKE_CXX_MODULE_STD ${_artifact_cxx_module_std_for_local_targets} CACHE BOO
 # Diligent's nested configure may leave the cache with its older import-std
 # gate value. Reassert the gate used by the active CMake before configuring
 # the remaining third-party and project targets.
-if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.3")
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD
-        "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD
-        "451f2fe2-a8a2-47c3-bc32-94786d8fc91b"
-        CACHE STRING "Required for import std (CMake 4.3)" FORCE)
-endif()
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_uuid}")
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_uuid}"
+    CACHE STRING "Restore the version-specific import std gate" FORCE)
 # ufbx is a non-module third-party target and does not consume import std.
 # Hide the experimental gate while its standalone CMakeLists is evaluated;
 # otherwise CMake 4.3 rejects the older gate value used by that subtree.
@@ -998,6 +1095,48 @@ if(ARTIFACT_COMPILER_CLANG_GNU AND WIN32)
     set(OpenMP_C_FLAGS "-fopenmp" CACHE STRING "OpenMP C flags for upstream Clang" FORCE)
     set(OpenMP_CXX_FLAGS "-fopenmp" CACHE STRING "OpenMP CXX flags for upstream Clang" FORCE)
 endif()
+if(ARTIFACT_COMPILER_CLANG_GNU AND WIN32)
+    # FindOpenMP identifies the -fopenmp compile flag but cannot reliably infer
+    # the MSVC-ABI LLVM runtime library name on Windows. Resolve libomp beside
+    # the selected LLVM toolchain and provide the same explicit runtime mapping
+    # used by the clang-cl lane.
+    get_filename_component(_artifact_clang_gnu_bin
+        "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    find_library(_artifact_clang_gnu_libomp
+        NAMES libomp
+        HINTS "${_artifact_clang_gnu_bin}/../lib"
+        NO_DEFAULT_PATH)
+    if(_artifact_clang_gnu_libomp)
+        set(OpenMP_C_LIB_NAMES libomp CACHE STRING
+            "OpenMP C runtime for upstream Clang" FORCE)
+        set(OpenMP_CXX_LIB_NAMES libomp CACHE STRING
+            "OpenMP CXX runtime for upstream Clang" FORCE)
+        set(OpenMP_libomp_LIBRARY "${_artifact_clang_gnu_libomp}" CACHE FILEPATH
+            "LLVM OpenMP runtime for upstream Clang" FORCE)
+    endif()
+endif()
+if(ARTIFACT_COMPILER_CLANG_CL AND WIN32)
+    # CMake's FindOpenMP does not recognize clang-cl's MSVC-style /openmp
+    # option. Use the compiler's bundled LLVM OpenMP runtime when present.
+    get_filename_component(_artifact_clangcl_bin
+        "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    find_library(_artifact_clangcl_libomp
+        NAMES libomp
+        HINTS "${_artifact_clangcl_bin}/../lib"
+        NO_DEFAULT_PATH)
+    if(_artifact_clangcl_libomp)
+        set(OpenMP_C_FLAGS "/openmp" CACHE STRING
+            "OpenMP C flags for clang-cl" FORCE)
+        set(OpenMP_CXX_FLAGS "/openmp" CACHE STRING
+            "OpenMP CXX flags for clang-cl" FORCE)
+        set(OpenMP_C_LIB_NAMES libomp CACHE STRING
+            "OpenMP C runtime for clang-cl" FORCE)
+        set(OpenMP_CXX_LIB_NAMES libomp CACHE STRING
+            "OpenMP CXX runtime for clang-cl" FORCE)
+        set(OpenMP_libomp_LIBRARY "${_artifact_clangcl_libomp}" CACHE FILEPATH
+            "LLVM OpenMP runtime for clang-cl" FORCE)
+    endif()
+endif()
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
 add_subdirectory(tools/Particle2DPlayground)
@@ -1128,6 +1267,9 @@ option(ARTIFACT_BUILD_LAYER_PERSISTENCE_ROUNDTRIP_TEST
     OFF)
 option(ARTIFACT_BUILD_MPM_SAND_PERSISTENCE_REPLAY_TEST
     "Build the independent MPM sand persistence and deterministic replay test"
+    OFF)
+option(ARTIFACT_BUILD_PLUGIN_HOST_SMOKE_TEST
+    "Build the standalone VST3/CLAP real-plugin host smoke test"
     OFF)
 option(ARTIFACT_BUILD_AUDIO_BUS_VIEWER
     "Build the independent audio bus routing and mixer test executable"
@@ -1718,6 +1860,99 @@ if(ARTIFACT_BUILD_MPM_SAND_PERSISTENCE_REPLAY_TEST)
         LABELS "mpm;constitutive;determinism;persistence"
         TIMEOUT 120
     )
+endif()
+
+if(ARTIFACT_BUILD_PLUGIN_HOST_SMOKE_TEST)
+    add_executable(ArtifactPluginHostSmoke
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/PluginHostSmokeMain.cpp"
+    )
+    target_link_libraries(ArtifactPluginHostSmoke PRIVATE
+        ArtifactCoreAudio ArtifactCoreVST3
+    )
+    if(ARTIFACT_CXX23_MODULE_STD_AVAILABLE AND TARGET __CMAKE::CXX23)
+        set_property(TARGET ArtifactPluginHostSmoke PROPERTY CXX_MODULE_STD ON)
+    else()
+        set_property(TARGET ArtifactPluginHostSmoke PROPERTY CXX_MODULE_STD OFF)
+    endif()
+    set_target_properties(ArtifactPluginHostSmoke PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactPluginHostSmoke POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactPluginHostSmoke>
+                "$<TARGET_FILE_DIR:ArtifactPluginHostSmoke>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+
+    add_library(ArtifactClapHostTestPlugin MODULE
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/FakeClapPlugin.cpp"
+    )
+    set_target_properties(ArtifactClapHostTestPlugin PROPERTIES
+        PREFIX ""
+        SUFFIX ".clap"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/clap-test"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/clap-test"
+    )
+    add_library(ArtifactVst3HostTestPlugin MODULE
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/FakeVst3Plugin.cpp"
+    )
+    target_link_libraries(ArtifactVst3HostTestPlugin PRIVATE ArtifactCoreVST3)
+    set_target_properties(ArtifactVst3HostTestPlugin PROPERTIES
+        PREFIX ""
+        SUFFIX ".vst3"
+        OUTPUT_NAME "ArtifactVst3AudioBus"
+        RUNTIME_OUTPUT_DIRECTORY
+            "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/vst3-test/ArtifactVst3AudioBus/Contents/x86_64-win"
+        LIBRARY_OUTPUT_DIRECTORY
+            "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/vst3-test/ArtifactVst3AudioBus/Contents/x86_64-win"
+    )
+    add_dependencies(ArtifactPluginHostSmoke
+        ArtifactClapHostTestPlugin ArtifactVst3HostTestPlugin)
+    enable_testing()
+    add_test(NAME ArtifactClapPluginHostSmoke
+        COMMAND $<TARGET_FILE:ArtifactPluginHostSmoke> clap
+                $<TARGET_FILE:ArtifactClapHostTestPlugin>
+    )
+    set_tests_properties(ArtifactClapPluginHostSmoke PROPERTIES
+        LABELS "audio;audio-bus;clap;plugin-host;sidechain"
+        TIMEOUT 30
+    )
+    add_test(NAME ArtifactVst3AudioBusHostSmoke
+        COMMAND $<TARGET_FILE:ArtifactPluginHostSmoke> vst3-bus
+                $<TARGET_FILE:ArtifactVst3HostTestPlugin>
+    )
+    set_tests_properties(ArtifactVst3AudioBusHostSmoke PROPERTIES
+        LABELS "audio;vst3;plugin-host;audio-bus;sidechain"
+        TIMEOUT 30
+    )
+    add_test(NAME ArtifactVst3InvalidBusRejected
+        COMMAND $<TARGET_FILE:ArtifactPluginHostSmoke> vst3-invalid-bus
+                $<TARGET_FILE:ArtifactVst3HostTestPlugin>
+    )
+    set_tests_properties(ArtifactVst3InvalidBusRejected PROPERTIES
+        LABELS "audio;vst3;plugin-host;validation"
+        TIMEOUT 30
+    )
+    add_test(NAME ArtifactAudioBusClapVst3ChainSmoke
+        COMMAND $<TARGET_FILE:ArtifactPluginHostSmoke> audio-bus-combined
+                $<TARGET_FILE:ArtifactVst3HostTestPlugin>
+                $<TARGET_FILE:ArtifactClapHostTestPlugin>
+    )
+    set_tests_properties(ArtifactAudioBusClapVst3ChainSmoke PROPERTIES
+        LABELS "audio;audio-bus;clap;vst3;plugin-host;sidechain;integration"
+        TIMEOUT 30
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactPluginHostSmoke PRIVATE
+            /Zf /std:c++latest /experimental:module /Zc:__cplusplus
+            /permissive- /utf-8 /EHsc
+        )
+    endif()
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST
