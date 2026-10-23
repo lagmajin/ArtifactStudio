@@ -50,6 +50,7 @@
             "name": "x64-Debug-ClangCL",
             "displayName": "x64 Debug (clang-cl)",
             "inherits": "default",
+            "toolchainFile": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
@@ -59,7 +60,33 @@
                 "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe",
                 "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe",
                 "CMAKE_CXX_SCAN_FOR_MODULES": "ON",
+                "VCPKG_ROOT": "C:/vcpkg",
+                "VCPKG_TARGET_TRIPLET": "x64-windows",
+                "VCPKG_INSTALLED_DIR": "C:/vcpkg/installed",
+                "VCPKG_MANIFEST_MODE": "OFF",
                 "ARTIFACT_DEPLOY_DIR": "C:/Users/lagma/Desktop/Artifact"
+            },
+            "environment": {
+                "PATH": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin;$penv{PATH}"
+            }
+        },
+        {
+            "name": "x64-Debug-ClangXX-MsvcAbi",
+            "displayName": "x64 Debug (upstream clang++ + MSVC ABI)",
+            "inherits": "default",
+            "toolchainFile": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "_artifact_clangxx_bin": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-clangxx-msvc-abi.cmake",
+                "VCPKG_ROOT": "C:/vcpkg",
+                "VCPKG_TARGET_TRIPLET": "x64-windows",
+                "VCPKG_INSTALLED_DIR": "C:/vcpkg/installed",
+                "VCPKG_MANIFEST_MODE": "OFF",
+                "ARTIFACT_USE_SCCACHE": "ON"
             },
             "environment": {
                 "PATH": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin;$penv{PATH}"

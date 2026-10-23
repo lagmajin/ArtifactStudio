@@ -1,6 +1,8 @@
+**最終更新:** 2026-10-23
+
 # マイルストーン: Module 実装単位の `.cppm` → `.cpp` 段階移行と Clang / sccache 対応
 
-**最終更新:** 2026-10-22
+**最終更新:** 2026-10-23
 **ステータス:** In Progress
 
 ## 目的
@@ -1906,3 +1908,300 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - 実装を `module Artifact.Widgets.ProjectManagerWidget;` の module implementation unit とし、自己 module import と `export` を除去。CMake 登録を `ARTIFACT_APP_MODULE_SOURCES` から `ARTIFACT_APP_IMPL_SOURCES` に移し、`.cpp` の named-module implementation として P1689 scan 対象にした。
 - clang-cl 22.1.3 + 実 Qt 6 headers の隔離 target で provider/interface、implementation unit、importer の compile と static library / executable link が成功。upstream clang++ は未確認。
 - MSVC fixture は空き容量不足で PDB/IFC 書き込み時に失敗。J: が 0 bytes free と確認され、fixture clean 後も約1.1 MB のみ回復したため MSVC compile は未確認。Artifact 全体 build/link も未確認。
+
+## 2026-10-23 実装ログ（本スレッド継続分）
+
+### Clang / sccache fixture と root configure
+
+- CMake 4.4.4 は `J:/dev/tools/cmake-4.4.4-windows-x86_64/bin/cmake.exe` を使用。VS 同梱 CMake 4.3.1 は Clang modules 用 P1689 scan の動作が合わないため fixture に使わない。
+- CMakePresets.json に upstream clang++ MSVC ABI preset を用意し、vcpkg chainload、MSVC ABI target、Windows SDK / DXC runtime discovery を確認。root configure / generate は成功したが、ArtifactCore 全体の build/link は OpenUSD 等の広い prerequisite を含むため未完了。
+- sccache 0.18.0 の clang++ module compile では daemon の TEMP/TMP が重要。V: の専用 temp に向けて server を再起動すると clean/warm fixture が cold miss → warm hit になった。
+
+### 先行 migration の検証
+
+- `Artifact/src/Widgets/LayerEditorMaskPressController.cppm`、`LayerEditorViewMoveController.cppm`、`LayerEditorMaskHoverController.cppm`、`LayerEditorViewKeyInputController.cppm`、`LayerEditorMaskMoveController.cppm` を `.cpp` 化し、Artifact source manifest / explicit CMake registrations を更新。実 public interfaces と移行 source を使う clang-cl / clang++ fixture で P1689 scan・compile (対象によっては link) を確認。sccache の cacheable implementation source は cold miss / warm hit、clang-cl module IFC は multiple input files により bypass。
+- `Artifact/src/Widgets/Render/ViewportColorPipeline.cppm` を `.cpp` 化し、manifest と CMake の明示 source を更新。両 Clang fixture と sccache cold/warm を確認。steady-state QString key 再構築は Insight に記録。
+- `ArtifactCore/src/Plugin/PluginCommon.cppm`、`src/Script/Engine/Syntax/ASTNode.cppm`、`src/Layer/LayerState.cppm` を `.cpp` 化し、ArtifactCore manifests / CMake split targets / IFC mappings を更新。両 Clang fixture の scan・compile・link 成功。root ArtifactCore 全体 build/link は未確認。
+- `LayerState` 後の upstream clang++ root preset reconfigure/generate は成功し、移行 object files が root Ninja graph に登録された。全 build は広域 prerequisite のため実行完了していない。
+- source manifest checker の stale 判定、module hygiene partition ownership check は修正後に検証。ただし workspace source manifest には今回対象外の既存違反が残る。
+
+### 今回の追加 migration
+
+- `ArtifactCore/src/Render/RendererQueueSetting.cppm` → `.cpp`: sources / module-reference manifest / CMake IFC mapping を更新。両 Clang fixture scan・compile・link 成功。clang++ sccache 6 miss → 6 hit、clang-cl implementation 2 miss → 2 hit（IFCは複数入力でbypass）。名前 setter と copy constructor の既存未実装は Insight に分離記録。
+- `ArtifactCore/src/Audio/AudioStereoMixer.cppm` → `.cpp`: CMake / manifests 更新。処理本文は LF 正規化後に元ファイルと一致。両 Clang fixture 成功。clang++ 6 miss → 6 hit、clang-cl implementation 2 miss → 2 hit（IFC 4 calls/batch bypass）。
+- `ArtifactCore/src/Color/Sarturation.cppm` → `.cpp`: compiler-specific IFC source reference を含む CMake と manifests 更新。両 Clang fixture 成功。clang++ 4 miss → 4 hit、clang-cl implementation 2 miss → 2 hit（IFC 2 calls/batch bypass）。
+- `ArtifactCore/src/Audio/AudioWaveform.cppm` → `.cpp`: sources / module refs 更新。両 Clang fixture 成功。clang++ 6 miss → 6 hit、clang-cl implementation 2 miss → 2 hit（IFC 4 calls/batch bypass）。`process()` の `waveformData_.resize()` と repo 内 caller 未発見を既存 Insight に追加。allocation 挙動は変更していない。
+- `ArtifactCore/src/ImageProcessing/BroadcastColors.cppm` → `.cpp`: module partition のcompiler-specific IFC source conditionsを含む CMake / manifests 更新。両 Clang fixture 成功。clang++ 7 miss → 7 hit、clang-cl implementation 2 miss → 2 hit（IFC 5 calls/batch bypass）。
+- `ArtifactCore/src/ImageProcessing/LeaveColor.cppm` → `.cpp`: module partition の IFC mappings と manifests 更新。両 Clang fixture 成功。clang++ 7 miss → 7 hit、clang-cl implementation 2 miss → 2 hit（IFC 5 calls/batch bypass）。
+- これらの実装本文は Git HEAD の元 `.cppm` と LF 正規化後に byte 一致。各回 module hygiene と diff check を実施。fixture の外部依存は最小 provider stubs を使うため、root 実依存 build/link の代替ではない。
+
+
+### upstream clang++ root ArtifactCore build（2026-10-23）
+
+- CMake 4.4.4 で `x64-Debug-ClangXX-MsvcAbi` を V: 上の専用 build directory に configure / generate。Clang 22.1.3 GNU frontend、`--target=x86_64-pc-windows-msvc`、Windows SDK 10.0.26100.0、DXC、sccache 0.18.0 を検出し、構成成功。
+- `ArtifactCore` target を並列3で build し、3,159 actions が全て成功。OpenUSD 依存 build、ArtifactCore の P1689 scan、`.cppm` / `.cpp` module implementation compile、`ArtifactCoreEnvironment.lib` と `ArtifactCore.lib` の link を確認。移行済みの Affine / Blur / ColorTransform / OpenCV sources も root graph からコンパイルされた。実行ファイルは起動していない。
+- Clang / Qt / OpenUSD の既存 warning は出たが error はなく exit code 0。Artifact application 全体の link / runtime は未確認。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は今回の migration paths について未登録を報告しない一方、別の Artifact / ArtifactCore source registrations と focused pack の不一致を報告して全体 fail。対象外の既存 manifest 状態として追跡する。
+- workspace の ArtifactCore で `.cppm` を `.cpp` に移した37件を Git HEAD と比較し、LF 正規化後の本文一致を確認した。今回の変更による処理差分はない。
+
+
+### clang-cl preset の vcpkg 再利用と root build 確認（2026-10-23）
+
+- `x64-Debug-ClangCL` preset は vcpkg root / installed directory / manifest mode を明示していなかったため、CMake 初回 configure が manifest mode で `C:/vcpkg` に追加依存を展開しようとし、C: 空き容量 0 で失敗した。
+- preset に upstream clang++ lane と同じ `C:/vcpkg/scripts/buildsystems/vcpkg.cmake`、`VCPKG_ROOT`、`VCPKG_INSTALLED_DIR`、`x64-windows` triplet、`VCPKG_MANIFEST_MODE=OFF` を追加。新規 build directory で CMake 4.4.4 configure / generate が成功し、既存 installed dependencies を再利用した。clang-cl sccache は既定 OFF のままにした。
+- clang-cl ArtifactCore root target build を試行。OpenUSD prerequisite 群の初回構築が 3,048 actions に展開し、約1,097 action 時点で遅い Sdf parser compile 群に達したため、clang++ 全 target 成功済みの状態で作業時間を制限し中断した。ArtifactCore target link は未確認。移行対象専用 clang-cl fixtures は過去ログで scan / compile / link 済み。
+- 修正後の clang-cl CMake preset configure は成功。全 target clang-cl build は pending verification として残す。
+
+- 追加で `ArtifactCore/src/Audio/AudioWaveform.cpp` の実ソースを使う clang-cl / CMake 4.4.4 fixture を sccache 0.18.0 で clean → build → clean → rebuild。P1689 scan、module compile、executable link が成功。cold は implementation 2 miss・module command 4 bypass、clean rebuild は implementation 2 hit・module command 4 bypass、cache error / compilation failure 0。smoke executable は起動していない。
+
+
+### ArtifactCore.ImageProcessing.SimpleChoker implementation migration（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/SimpleChoker.cppm` を `.cpp` へ移行。module body は LF 正規化後に Git HEAD と byte 一致。`ArtifactCoreSources.cmake`、`ArtifactCoreModuleReferences.cmake`、MSVC /reference source condition の path を更新した。
+- upstream clang++ 22.1.3 / CMake 4.4.4 root build で CMake configure / generate、P1689 scan、`SimpleChoker.cpp` compile、`ArtifactCore.lib` relink が成功。sccache 0.18.0 は compile request 1 miss、cache error / compilation failure 0。最初の試行は server の temporary file が既定 TEMP 上で書けず失敗し、V: temp/cache で server を再起動後に成功した。
+- clang-cl root CMake も再生成成功し、Ninja graph の `SimpleChoker.cpp.obj` input として登録された。clang-cl 全 ArtifactCore build は OpenUSD 依存の初回構築に時間を要するため未完了。AudioWaveform の実ソース clang-cl fixture は以前のログに記録したとおり compile/link と sccache cold / warm を確認済み。
+- 実装本文に `process()` ごとの `new float4[width * height]` / `delete[]` がある。拡張子移行では変更していない。実呼び出し頻度とフレーム上の確保影響は未計測のため Insight に調査事項として記録した。
+
+
+### ArtifactCore.Image.Bitmap implementation migration（2026-10-23）
+
+- `ArtifactCore/src/Image/BitmapImage.cppm` を `.cpp` へ移行。内容は LF 正規化後に Git HEAD と byte 一致。`ArtifactCoreSources.cmake`、`ArtifactCoreModuleReferences.cmake`、MSVC IFC source mapping を更新。
+- upstream clang++ 22.1.3 root build で自動 CMake regenerate、P1689 scan、`.cpp` compile、`ArtifactCore.lib` relink が成功。sccache cache errors / compilation failures は 0。
+- clang-cl 22.1.3 の実 interface + 実 implementation fixture で CMake 4.4.4 P1689 scan、compile、static library link が成功。sccache cold build は implementation 1 miss・interface command 1 bypass、clean rebuild は implementation 1 hit・interface 1 bypass、error / failure 0。
+- clang-cl root CMake も再生成成功。Ninja query で `src/Image/BitmapImage.cpp` を ArtifactCore の scanned object input として確認した。root 全体 clang-cl build は未完了のまま。
+
+- clang-cl root build の再開を試みたが、現行 source graph で1,952 actionsとなり、parallel 6でも約2分で24 actionsまでだった。対象 `.cpp` object だけを Ninja に直接指定した試行も target-level ordering が OpenUSD Sdf prerequisite を含む1,029-action chainを起動し、8 actions後に停止。root clang-cl artifact link は未確認。短い正確な compiler/link evidence は実ソース fixture を基準とする。
+
+
+### ArtifactCore.ImageProcessing.Emboss implementation migration（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/Emboss.cppm` を `.cpp` へ移行。implementation body は LF 正規化後に Git HEAD と byte 一致。`ArtifactCoreSources.cmake`、`ArtifactCoreModuleReferences.cmake`、MSVC IFC source condition を更新。
+- upstream clang++ 22.1.3 の実 ArtifactCore target で CMake auto-regenerate、P1689 scan、`.cpp` compile、`ArtifactCore.lib` relink が成功。sccache request 1 miss、cache error / compilation failure 0。
+- clang-cl 22.1.3 の実 Emboss interface / implementation fixture で P1689 scan、compile、static library link に成功。依存 provider は最小 stub。sccache cold build は implementation 1 miss・module commands 5 bypass、clean rebuild は implementation 1 hit・5 bypass、error / failure 0。
+- 実装には `width * height` 全画素分の `new[]` scratch buffer がある。移行で処理は変更していない。frame evaluation における呼び出し頻度・allocation impact を Insight に記録した。
+
+
+### ArtifactCore.Image.ImageF16x4 implementation migration（2026-10-23）
+
+- `ArtifactCore/src/Image/ImageF16x4.cppm` を `.cpp` へ移行。内容は LF 正規化後に Git HEAD と byte 一致。source manifest、module-reference manifest、MSVC IFC source mapping を更新。
+- upstream clang++ 22.1.3 の root ArtifactCore build で自動 configure / generate、P1689 scan、`.cpp` compile、`ArtifactCore.lib` relink が成功。sccache 1 miss、error / failure 0。
+- clang-cl 22.1.3 の実 ImageF16x4 interface / implementation fixture で P1689 scan、compile、static library link が成功。依存 module providers は最小 stubs。sccache cold build は implementation 1 miss・interface commands 4 bypass、clean rebuild は implementation 1 hit・4 bypass、error / failure 0。
+
+
+### ArtifactCore.Image.Cryptomatte.Pixel implementation migration（2026-10-23）
+
+- `ArtifactCore/src/Image/Cryptomatte/CryptoPixel.cppm` を `.cpp` へ移行。実装本文は LF 正規化後に Git HEAD と byte 一致。source manifest、module-reference manifest、MSVC IFC source mapping を更新。
+- upstream clang++ 22.1.3 root ArtifactCore target で CMake configure / generate、P1689 scan、`.cpp` compile、`ArtifactCore.lib` relink が成功。sccache 1 miss、error / failure 0。
+- clang-cl 22.1.3 の実 CryptoPixel interface / implementation と Qt Core headers を使う fixture で P1689 scan、compile、static library link 成功。sccache cold build は implementation 1 miss・interface command 1 bypass、clean rebuild は implementation 1 hit・1 bypass、error / failure 0。
+
+### ArtifactCore.Image.Cryptomatte.Image and ExrWriter implementation migrations（2026-10-23）
+
+- `ArtifactCore/src/Image/Cryptomatte/CryptoImage.cppm`、`CryptoExrWriter.cppm` をそれぞれ `.cpp` に移行。双方とも実装本文は LF 正規化後に Git HEAD と byte 一致。source manifest / module-reference manifest と CMake IFC source mapping を更新。
+- CryptoImage は upstream clang++ 22.1.3 の root ArtifactCore target で P1689 scan、compile、`ArtifactCore.lib` relink が成功。clang-cl 22.1.3 fixture は CryptoPixel と CryptoImage の実 interface / implementation を使い scan・compile・static link が成功。clean rebuild は実装 2/2 sccache hit、interface compile は複数入力扱いで bypass。
+- CryptoExrWriter は clang-cl 22.1.3 fixture で CryptoPixel / CryptoImage / ExrWriter interfaces と3 implementation units を含め、P1689 scan・compile・static link が成功。cold build は実装3 miss・interface3 bypass、clean rebuild は実装3/3 hit・interface3 bypass。upstream clang++ root target も CMake再構成・scan・CryptoExrWriter compile・ArtifactCore.lib relink が成功し、sccache 1 miss、cache error / compilation failure 0。
+- EXR writer はファイル出力のコールドパス。拡張子移行のみで処理や一時 allocation は変更していない。root app build / runtime と clang-cl root ArtifactCore 全体 link は未確認。
+
+### ArtifactCore.Video.Transitions.BlockDissolve registration migration（2026-10-23）
+
+- `ArtifactCore/src/Video/Transitions/BlockDissolveTransition.cppm` を `.cpp` に移行。実装 unit は遷移 factory への静的登録のみで、処理コードは変更なし。本文は LF 正規化後に Git HEAD と byte 一致。source manifest / module-reference manifest / Video implementation target の登録を更新。
+- upstream clang++ 22.1.3 の `ArtifactCoreVideo` target で CMake 再構成、125 action の依存 scan/build、対象 `.cpp` compile、`ArtifactCoreVideo.lib` link が成功。sccache 60 compile miss、cache errors / compilation failures 0。ArtifactCore 全体 target は別途この候補では実行していない。
+- clang-cl 22.1.3 fixture で実 BlockDissolve interface / implementation を、NLE / Video imported module の最小スタブと組み合わせ P1689 scan、compile、static link まで成功。clean rebuild も成功。module interface compile は複数入力扱いで sccache bypass、cacheable compilation failure / cache error は 0。fixture executable は起動していない。
+
+### ArtifactCore.ImageProcessing.ColorTransform.SelectiveColor implementation migration（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/ColorTransform/SelectiveColor.cppm` を `.cpp` に移行。本文は LF 正規化後に Git HEAD と byte 一致し、QImage 処理を含む実装や allocation / pixel algorithm は変更していない。source manifest、module-reference manifest と CMake 内の compiler-specific IFC mapping / dependency path をすべて更新。
+- upstream clang++ 22.1.3 の root ArtifactCore target で CMake 再構成、P1689 scan、対象 `.cpp` compile、`ArtifactCore.lib` relink に成功。sccache 1 miss、cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実 SelectiveColor interface / implementation と Qt 6 Core/Gui headers、Parallel provider stub を使い scan・compile・static link に成功。cold compile は1 miss、clean rebuild は1 hit、cache errors / compilation failures 0。interface command 2件は複数入力扱いで bypass。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は今回の移行 path を違反として報告しない。
+
+### ArtifactCore.ImageProcessing.ColorTransform.Colorama implementation migration（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/ColorTransform/Colorama.cppm` を `.cpp` に移行。実装本文は LF 正規化後に Git HEAD と byte 一致し、既存の QImage / pixel processing 実装には変更なし。source manifest / module-reference manifest / CMake IFC source mapping を更新。
+- upstream clang++ 22.1.3 の root ArtifactCore target で CMake 再構成、P1689 scan、対象 `.cpp` compile、`ArtifactCore.lib` relink 成功。sccache 1 miss、cache errors / compilation failures 0。
+- clang-cl 22.1.3 fixture は実 Colorama interface / implementation と Qt 6 Core/Gui headers、Parallel provider stub を使い scan・compile・static link 成功。cold compile 1 miss、clean rebuild 1 hit。interface commands 2件は複数入力扱いで bypass、cache errors / compilation failures 0。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は今回の移行 path を違反として報告しない。
+
+### ArtifactCore.ImageProcessing.ColorTransform.LevelsCurves implementation migration（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/ColorTransform/LevelsCurves.cppm` を `.cpp` に移行。本文は LF 正規化後に Git HEAD と byte 一致し、Levels / Curves の処理は変更なし。source manifest / module-reference manifest / CMake IFC source mapping を更新。
+- upstream clang++ 22.1.3 の root ArtifactCore target で CMake 再構成、P1689 scan、対象 `.cpp` compile、`ArtifactCore.lib` relink 成功。sccache 1 miss、cache errors / compilation failures 0。
+- clang-cl 22.1.3 fixture は実 LevelsCurves interface / implementation と Qt 6 Core/Gui headers、Parallel provider stub を使い scan・compile・static link 成功。cold compile 1 miss、clean rebuild 1 hit。interface commands 2件は複数入力扱いで bypass、cache errors / compilation failures 0。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は今回の移行 path を違反として報告しない。
+
+### ArtifactCore.ImageProcessing.ColorTransform.TriChromaticShift implementation migration（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/ColorTransform/TriChromaticShift.cppm` を `.cpp` に移行。本文は LF 正規化後に Git HEAD と byte 一致。pixel processing / allocation は変更せず、source manifest / module-reference manifest / CMake IFC source mapping を更新。
+- upstream clang++ 22.1.3 の root ArtifactCore target で CMake 再構成、P1689 scan、対象 `.cpp` compile、`ArtifactCore.lib` relink 成功。sccache 1 miss、cache errors / compilation failures 0。
+- clang-cl 22.1.3 fixture は実 TriChromaticShift interface / implementation と、Particle / FloatRGBA / ImageF32x4_RGBA / Core.Parallel provider stubs を使用して scan・compile・static link 成功。cold compile 1 miss、clean rebuild 1 hit。interface commands 5件は複数入力扱いで bypass、cache errors / compilation failures 0。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は今回の移行 path を違反として報告しない。
+
+### ArtifactCore.ImageProcessing partition batch migration: Duotone / StrobeLight / TiltShift（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/Duotone.cppm`、`StrobeLight.cppm`、`TiltShift.cppm` を `.cpp` にまとめて移行。3実装本文はいずれも LF 正規化後に Git HEAD と byte 一致。partition interfaces / processing logic は変更していない。source manifest、module-reference manifest と CMake partition implementation / IFC mappings を更新。
+- upstream clang++ 22.1.3 root ArtifactCore target は CMake 再構成後、3ソースの P1689 scan、各 compile、`ArtifactCore.lib` relink に成功。sccache 3 misses、cache errors / compilation failures 0。
+- clang-cl 22.1.3 fixture は3つの実 partition interfaces / implementations と primary ImageProcessing module を含み、Particle / ImageF32x4_RGBA / Core.Parallel をstub providerにして P1689 scan・compile・static link 成功。cold build 3 misses、clean rebuild 3 hits、cache errors / compilation failures 0。7 interface compile commands は複数入力扱いで bypass。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は3つの移行 path を違反として報告しない。
+
+### ArtifactCore.ImageProcessing keying partition batch migration: ChromaKey / DifferenceKey / LumaKey（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/ChromaKey.cppm`、`DifferenceKey.cppm`、`LumaKey.cppm` を `.cpp` にまとめて移行。各本文は LF 正規化後に Git HEAD と byte 一致。画像処理アルゴリズムと allocation は変更せず、source manifest / module-reference manifest / CMake partition / IFC source mappings を更新した。別実装の `src/Image/ChromaKey.cppm` は維持。
+- upstream clang++ 22.1.3 root ArtifactCore target で再構成、3ソースの P1689 scan・compile、`ArtifactCore.lib` relink 成功。sccache 3 misses、cache errors / compilation failures 0。
+- clang-cl 22.1.3 fixture は3つの実 partition interfaces / implementations を含み、Particle / ImageF32x4_RGBA / SurfaceColorContract / Core.Parallel をstub providerにして scan・compile・static link 成功。初回 fixture は Particle stub に必要な `float3` 宣言がなく失敗したが、stub を補い直した後のビルドは成功。clean rebuild 3 hits、cache errors / compilation failures 0。interface commands 8件は複数入力扱いで bypass。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` はこの3 migration paths を違反として報告しない。
+
+### ArtifactCore.ImageProcessing partition batch migration: Median / Scatter / Echo（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/Median.cppm`、`Scatter.cppm`、`Echo.cppm` を `.cpp` にまとめて移行。各実装本文は LF 正規化後に Git HEAD と byte 一致。partition interfaces / processing behavior は変更なし。source manifest、module-reference manifest、CMake partition implementation / IFC mapping を更新。
+- upstream clang++ 22.1.3 root ArtifactCore target で再構成、3ソースの P1689 scan・compile、`ArtifactCore.lib` relink 成功。sccache 3 misses、cache errors / compilation failures 0。
+- clang-cl 22.1.3 fixture は3つの実 partition interfaces / implementations と primary ImageProcessing module を含み、Particle / ImageF32x4_RGBA / Core.Parallel / Math.Random をstub providerにして scan・compile・static link 成功。cold build 3 misses、clean rebuild 3 hits、cache errors / compilation failures 0。8 interface commands は複数入力扱いで bypass。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は今回の3 migration paths を違反として報告しない。
+
+### ArtifactCore.ImageProcessing OpenCV partition batch migration: Monochrome / ChromaSpread / AnisotropicFlowBlur（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/OpenCV/Monochrome.cppm` と `src/ImageProcessing/ChromaSpread.cppm`、`AnisotropicFlowBlur.cppm` を `.cpp` にまとめて移行。各本文は LF 正規化後に Git HEAD と byte 一致。OpenCV / pixel processing logic は変更せず、source manifest / module-reference manifest / CMake partition and IFC mappings を更新。
+- upstream clang++ 22.1.3 root ArtifactCore target で再構成、3ソースの P1689 scan・compile、`ArtifactCore.lib` relink 成功。sccache 3 misses、cache errors / compilation failures 0。
+- clang-cl 22.1.3 fixture は実 Monochrome / ChromaSpread / AnisotropicFlowBlur / StructureTensor interfaces と OpenCV 4 headers を使い scan・compile・static link 成功。OpenCV image / Parallel providers は最小 stub。初回 fixture は directory base overlap と stub の `setFromCVMat` 不足で失敗したが、CMake file set を整理し stub API を補正した後のビルドは成功。clean rebuild 3 hits、cache errors / compilation failures 0。8 interface commands は複数入力扱いで bypass。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は3つの migration paths を違反として報告しない。
+### ArtifactCore.ImageProcessing OpenCV partition batch migration: GlitchCV / LiftCV / Noise（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/OpenCV/GlitchCV.cppm`、`LiftCV.cppm`、`Noise.cppm` を `.cpp` として取り込み。各実装本文は LF 正規化後に Git HEAD と一致。OpenCV / pixel processing logic は変更していない。source manifest、module-reference manifest、MSVC IFC mapping は `.cpp` を参照していることを確認。
+- upstream clang++ 22.1.3 root `ArtifactCore` target は `ninja: no work to do`。既存 build graph に3ソースが登録済みで、前回の統合ビルドで対象を compile / link 済み。今回の変更状態で再ビルドを要求したが対象actionなし。
+- clang-cl 22.1.3 fixture は実3 interface / implementation units と OpenCV headers を使い、P1689 scan、compile、static library link に成功。Math.Random / Core.Parallel は provider stub。sccache clean build 3 misses、clean rebuild 3 hits、cache error / compilation failure 0。interface compile commands 10件は複数入力のため非cacheable。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。manifest / CMake に旧3 `.cppm` パスの残存なし。`BloomCV` / `MergeCV` は元実装自体が空stubであるため、実装移行バッチから除外した。
+### ArtifactCore.ImageProcessing.OpenCV VHS_CV implementation migration（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/OpenCV/VHS_CV.cppm` を `.cpp` へ移行。実装本文は LF 正規化後に Git HEAD と一致。OpenCV / pixel processing behavior は変更せず、source manifest、module-reference manifest、MSVC IFC generation condition を更新。
+- upstream clang++ 22.1.3 root `ArtifactCore` target で CMake configure / generate、P1689 scan、対象 `.cpp` compile、`ArtifactCore.lib` relink に成功。
+- clang-cl 22.1.3 fixture は実 VHS_CV interface / implementation と OpenCV headers を使い scan・compile・static link 成功。Math.Random / Core.Parallel はprovider stubs。sccache cold build はimplementation 1 miss、clean rebuild は1 hit。cache errors / compilation failures 0。interface compile commands 4件は複数入力扱いで非cacheable。fixture executable は起動していない。
+- `check_module_hygiene.py` は pass。`check_source_manifests.py` は対象 migration path を違反として報告しない。
+### ArtifactCore.ImageProcessing.OpenCV face detection and tracking implementation migrations（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/OpenCV/FaceDetectionEngine.cppm` と `FaceTracker.cppm` を `.cpp` に移行。両implementation bodyはLF正規化後にGit HEADと一致。source manifest、module-reference manifest、MSVC IFC source条件、OBJECT_DEPENDS条件を `.cpp` パスへ更新。FaceDetection / FaceTrackerの相互module依存は維持。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetでCMake configure / generate、両ソースP1689 scan・compile、`ArtifactCore.lib` relink成功。
+- clang-cl 22.1.3 fixtureは実両interface / implementation、実CvUtils、Qt Core/Gui・OpenCV headersでscan・compile・static link成功。`Memory.TrackedPtr`は実装では未使用のimportなのでprovider stubを使用。cold build実装2 miss、clean rebuild実装2 hit、cache errors / compilation failures 0。interface commandsは複数入力のためbypass。fixture executableは起動していない。
+- `check_module_hygiene.py` pass。CMake/manifestに旧 `.cppm` pathの残存なし。
+### ArtifactCore.ImageProcessing.OpenCV Puppet / Roto Brush implementation migrations（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/OpenCV/OpenCVPuppetEngine.cppm` と `OpenCVRotoBrushEngine.cppm` を `.cpp` へ移行。各本文はLF正規化後にGit HEADと一致。OpenCV編集処理は変更していない。source manifest、module-reference manifest、MSVC IFC source conditionsとOBJECT_DEPENDSを新拡張子に更新。`ArtifactCore.ImageProcessing.OpenCV.RotoBrushEngine`を参照するAI RotoBrush moduleは維持。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetでCMake configure / generate、両ソースP1689 scan・compile、`ArtifactCore.lib` relink成功。
+- clang-cl 22.1.3 fixtureは実両interface / implementationとOpenCV headers、Core.Parallel provider stubを使いscan・compile・static link成功。sccache clean buildは両実装2 miss、clean rebuildは2 hit。cache errors / compilation failures 0。interface commands 10件は複数入力扱いでbypass。fixture executableは起動していない。
+- `check_module_hygiene.py` pass。CMake / manifestに旧 `.cppm` pathの残存なし。
+### ArtifactCore.ImageProcessing glow and echo implementation migrations（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm` と `EdgeEcho.cppm` を `.cpp` に移行。両本文はLF正規化後にGit HEADと一致。source manifest / module-reference manifest、MSVC IFC mappingとEdgeEcho固有OBJECT_DEPENDSを更新。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetで両ソースP1689 scan・compile、`ArtifactCore.lib` relink成功。
+- clang-cl 22.1.3 fixtureは実ChromaSpreadGlow / ChromaSpread interfacesとprovider modulesでscan・compile・static link成功。sccache初回1 miss、clean rebuild 1 hit、errors / compilation failures 0。module interface commands 16件は複数入力のためbypass。EdgeEchoを含むfixtureでは、HEADの旧 `.cppm` と現`.cpp`の双方に存在する `FloatRGBA` 未宣言で実装compileが停止。拡張子変更によるエラーではない。EdgeEchoはupstream clang++でcompile・link成功。
+- `check_module_hygiene.py` pass。両pathの旧`.cppm`参照なし。
+### ArtifactCore.ImageProcessing motion and vector glitch implementation migrations（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/MotionTrail.cppm` と `VectorFlowGlitch.cppm` を `.cpp` へ移行。両本文はLF正規化後にGit HEADと一致。source manifest / module-reference manifestとMSVC IFC mappingを更新。VectorFlowGlitchの既存StructureTensor partition依存を維持。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetで対象両ソースのP1689 scan・compile、`ArtifactCore.lib` relink成功。依存変更による前回移行EdgeEcho再compileも通過。
+- clang-cl 22.1.3 fixtureは実MotionTrail / VectorFlowGlitch / StructureTensor interfacesとImage / Particle / Core.Parallel provider stubsでscan・compile・static link成功。sccache cold build 2 misses、clean rebuild 2 hits、cache errors / compilation failures 0。interface commands 16件は複数入力扱いでbypass。fixture executableは起動していない。
+- `check_module_hygiene.py` pass。対象pathに旧`.cppm`参照なし。
+### ArtifactCore.ImageProcessing repair and halftone implementation migrations（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/FilmRepair.cppm`、`Halftone.cppm`、`WireRemove.cppm`を `.cpp`へ移行。3本文はLF正規化後にGit HEADと一致。source manifest / module-reference manifestとCMake内MSVC IFC referencesを更新。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetで3ソースP1689 scan・compile、`ArtifactCore.lib` relink成功。
+- clang-cl 22.1.3 fixtureは実3 interfaces / implementationとOpenCV headers、Image / Particle / Core.Parallel provider stubsでscan・compile・static link成功。sccache cold build 3 misses、clean rebuild 3 hits、cache errors / compilation failures 0。interface commands 14件は複数入力扱いでbypass。fixture executableは起動していない。
+- `check_module_hygiene.py` pass。対象3 pathに旧`.cppm`参照なし。
+### ArtifactCore.ImageProcessing neuromorphic displacement and structure tensor migrations（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/NeuromorphicDisplace.cppm` と `StructureTensor.cppm` を `.cpp`へ移行。各本文はLF正規化後にGit HEADと一致。source manifest / module-reference manifestとMSVC IFC conditionsを更新。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetで両ソースP1689 scan・compile、`ArtifactCore.lib` relink成功。
+- clang-cl 22.1.3 fixtureは実両interface / implementationとOpenCV headers、Image / Particle / FloatRGBA / Core.Parallel provider stubsでscan・compile・static link成功。sccache cold build 2 misses、clean rebuild 2 hits、cache errors / compilation failures 0。interface commands 14件は複数入力扱いでbypass。fixture executableは起動していない。
+- `check_module_hygiene.py` pass。対象2 pathに旧`.cppm`参照なし。
+
+### ArtifactCore.ImageProcessing distortion and directional blur implementation migrations（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/Distortion.cppm` と `SharpenDirectionalBlur.cppm` を `.cpp` に移行。両本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest、MSVC IFC mapping 条件を新拡張子に更新。module interface と実装内容は変更していない。
+- upstream clang++ 22.1.3 の root `ArtifactCore` targetで両ソースの P1689 scan・compile、`ArtifactCore.lib` relink 成功。
+- clang-cl 22.1.3 の隔離 fixture で `SharpenDirectionalBlur.cpp` は実 interface / implementation と `Core.Parallel` provider stub を使い scan・compile・static link 成功。Qt include path が不足した初回 fixture はスキャンで停止し、include path を加えた再実行で通過。`Distortion.cpp` の clang-cl fixture は未実施。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+### ArtifactCore OpenCV Draw / Glow implementation migrations（2026-10-23）
+
+- `ArtifactCore/src/ImageProcessing/OpenCV/Draw.cppm` と `Glow.cppm` を `.cpp` に移行。両本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest、MSVC IFC mapping と Glow の OBJECT_DEPENDS を更新。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetで両ソースの P1689 scan・compile、`ArtifactCore.lib` relink 成功。sccache cold rebuild は2 miss、warm rebuild は2 hit。cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実 Draw / Glow interfaces と両実装、OpenCV headers、`Core.Parallel` / `Image` / `Math.Random` provider stubsで scan・compile・static link 成功。初回 fixture は Math.Random stub に不足した `makeRandomStream` があり失敗したため、API を補って再実行した。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+### ArtifactCore DirectCompute shader wrapper batch: BroadcastColors / ChromaKey / Emboss（2026-10-23）
+
+- `BroadcastColorsCS.cppm` / `ChromaKeyCS.cppm` / `EmbossCS.cppm` を `.cpp` に移行。3本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest と共通 MSVC IFC mapping 条件を更新。Diligent wrapper の実装と依存内容は変更していない。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetで3ソースの P1689 scan・compile、`ArtifactCore.lib` relink 成功。sccache cold rebuild は3 miss、warm rebuild は3 hit。cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実3 interfaces / implementationと Diligent / Qt / OpenCV headers、Image provider stubsで scan・compile・static link 成功。初期 fixture の不足を補うため `PLATFORM_WIN32=1` と Image cache provider 型を追加した。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+### ArtifactCore DirectCompute wrapper batch: LeaveColor / LumaKey / Median（2026-10-23）
+
+- `LeaveColorCS.cppm` / `LumaKeyCS.cppm` / `MedianCS.cppm` を `.cpp` に移行。3本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest と共通 MSVC IFC mapping 条件を更新。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetで3ソースの P1689 scan・compile、`ArtifactCore.lib` relink 成功。sccache cold rebuild は3 miss、warm rebuild は3 hit。cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実3 interfaces / implementation、Diligent / Qt / OpenCV headers、Image provider stubsで scan・compile・static link 成功。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+### ArtifactCore DirectCompute wrapper batch: Scatter / SimpleChoker / Threshold（2026-10-23）
+
+- `ScatterCS.cppm` / `SimpleChokerCS.cppm` / `ThresholdCS.cppm` を `.cpp` に移行。3本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest と共通 MSVC IFC mapping 条件を更新。
+- upstream clang++ 22.1.3 root `ArtifactCore` targetで3ソースの P1689 scan・compile、`ArtifactCore.lib` relink 成功。sccache cold rebuild は3 miss、warm rebuild は3 hit。cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実3 interfaces / implementation、Diligent / Qt / OpenCV headers、Image provider stubsで scan・compile・static link 成功。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+### ArtifactCore Audio DSP implementation batch: BassTreble / BitCrusher / DCBlocker（2026-10-23）
+
+- `AudioBassTreble.cppm` / `AudioBitCrusher.cppm` / `AudioDCBlocker.cppm` を `.cpp` に移行。3本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest と CMake audio-source registration を更新。DSP処理、interface、module importsは変更していない。
+- upstream clang++ 22.1.3 の `ArtifactCoreAudio` targetで3ソースの P1689 scan・compile、`ArtifactCoreAudio.lib` relink 成功。sccache cold rebuild は3 miss、warm rebuild は3 hit。cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実3 interfaces / implementation、`Audio.Effect` / `Audio.Segment` / `Core.ArtifactString` の実module群と Qt headers で scan・compile・static link 成功。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+### ArtifactCore Audio dynamics batch: Compressor / DeEsser / Expander（2026-10-23）
+
+- `AudioCompressor.cppm` / `AudioDeEsser.cppm` / `AudioExpander.cppm` を `.cpp` に移行。3本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest と CMake audio-source registration を更新。DSP処理、interface、module importsは変更していない。
+- upstream clang++ 22.1.3 の `ArtifactCoreAudio` targetで3ソースの P1689 scan・compile、`ArtifactCoreAudio.lib` relink 成功。sccache cold rebuild は3 miss、warm rebuild は3 hit。cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実3 interfaces / implementation、`Audio.Effect` / `Audio.Segment` / `Core.ArtifactString` の実module群と Qt headers で scan・compile・static link 成功。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+### ArtifactCore Audio reverb family batch: Reverb / PlateReverb / SpringReverb（2026-10-23）
+
+- `AudioReverb.cppm` / `AudioPlateReverb.cppm` / `AudioSpringReverb.cppm` を `.cpp` に移行。3本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest と CMake audio-source registration を更新。DSP処理、interface、module importsは変更していない。
+- upstream clang++ 22.1.3 の `ArtifactCoreAudio` targetで3ソースの P1689 scan・compile、`ArtifactCoreAudio.lib` relink 成功。sccache cold rebuild は3 miss、warm rebuild は3 hit。cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実3 interfaces / implementation、`Audio.Effect` / `Audio.Segment` / `Core.ArtifactString` の実module群と Qt headers で scan・compile・static link 成功。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+### ArtifactCore Audio modulation batch: Chorus / Phaser / Vibrato（2026-10-23）
+
+- `AudioChorus.cppm` / `AudioPhaser.cppm` / `AudioVibrato.cppm` を `.cpp` に移行。3本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest と CMake audio-source registration を更新。DSP処理、interface、module importsは変更していない。
+- upstream clang++ 22.1.3 の `ArtifactCoreAudio` targetで3ソースの P1689 scan・compile、`ArtifactCoreAudio.lib` relink 成功。sccache cold rebuild は3 miss、warm rebuild は3 hit。cache error / compilation failure 0。
+- clang-cl 22.1.3 fixture は実3 interfaces / implementation、`Audio.Effect` / `Audio.Segment` / `Core.ArtifactString` の実module群と Qt headers で scan・compile・static link 成功。
+- `check_module_hygiene.py` pass。対象 CMake / manifests に旧 `.cppm` path の残存なし。
+
+
+### ArtifactCore Audio filter and EQ implementation batch: HighLowPass / ParametricEQ（2026-10-23）
+
+- `AudioHighLowPass.cppm` と `AudioParametricEQ.cppm` を `.cpp` に移行。両本文は LF 正規化後に Git HEAD と一致。source manifest / module-reference manifest と CMake audio-source registration を更新。DSP処理、interface、module importsは変更していない。
+- upstream clang++ 22.1.3 root `ArtifactCoreAudio` targetで両ソースの P1689 scan・compile、`ArtifactCoreAudio.lib` relink 成功。
+- clang-cl 22.1.3 fixture は実両 interfaces / implementations、`Container.NamedVector` と Debug / Registry providers を含め scan・compile・static link 成功。sccache cold compilation 14 misses、2回目は対象実装2件がhit。interface等の複数入力扱い22件はbypass。cache errors / compilation failures 0。
+- `check_module_hygiene.py` pass。対象2 pathに旧 `.cppm` 参照なし。
+
+
+### ArtifactCore Audio character processing batch: TapeSaturation / Tone / TransientShaper（2026-10-23）
+
+- `AudioTapeSaturation.cppm` / `AudioTone.cppm` / `AudioTransientShaper.cppm` を `.cpp` に移行。3本文はLF正規化後にGit HEADと一致。source manifest / module-reference manifest とCMake audio-source registrationを更新。DSP処理、interface、module importsは変更していない。
+- upstream clang++ 22.1.3 root `ArtifactCoreAudio` targetで3ソースのP1689 scan・compile、`ArtifactCoreAudio.lib` relink成功。
+- clang-cl 22.1.3 fixtureは実3 interfaces / implementationsでscan・compile・static link成功。sccache cold build 3 misses、warm build 3 hits。cache errors / compilation failures 0。
+- `check_module_hygiene.py` pass。対象3 pathに旧`.cppm`参照なし。
+
+
+### ArtifactCore Audio delay implementation batch: Delay / PingPongDelay（2026-10-23）
+
+- `AudioDelay.cppm` と `AudioPingPongDelay.cppm` を `.cpp` に移行。本文はLF正規化後にGit HEADと一致。source manifest / module-reference manifest とCMake audio-source registrationを更新。DSP処理、interface、module importsは変更していない。
+- upstream clang++ 22.1.3 root `ArtifactCoreAudio` targetでP1689 scan・compile、`ArtifactCoreAudio.lib` relink成功。
+- clang-cl 22.1.3 fixtureは両実interface / implementationと `Audio.RingBuffer` interfaceを含めscan・compile・static link成功。sccache cold build 2 misses、warm build 2 hits。cache errors / compilation failures 0。
+- `check_module_hygiene.py` pass。対象2 pathに旧`.cppm`参照なし。
+
+
+### ArtifactCore Audio channel utility batch: DownMixer / Panner（2026-10-23）
+
+- `AudioDownMixer.cppm` と `AudioPanner.cppm` を `.cpp` に移行。本文はLF正規化後にGit HEADと一致。source manifest / module-reference manifest とCMake audio-source registrationを更新。アルゴリズム、interface、module importsは変更していない。
+- upstream clang++ 22.1.3 root `ArtifactCoreAudio` targetでP1689 scan・compile、`ArtifactCoreAudio.lib` relink成功。
+- clang-cl 22.1.3 fixtureは実両interfaces / implementationsでscan・compile・static link成功。sccache cold build 2 misses、warm build 2 hits。cache errors / compilation failures 0。
+- `check_module_hygiene.py` pass。対象2 pathに旧`.cppm`参照なし。

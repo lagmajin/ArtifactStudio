@@ -30,6 +30,21 @@ def normalize_module_name(name: str) -> str:
     return name.replace(":", ".")
 
 
+def implementation_attaches_to_module(
+    implementation_module: str, expected_module: str
+) -> bool:
+    """Accept an implementation partition attached to the expected primary."""
+    if normalize_module_name(implementation_module) == normalize_module_name(
+        expected_module
+    ):
+        return True
+    return (
+        ":" in implementation_module
+        and implementation_module.split(":", 1)[0]
+        == expected_module.split(":", 1)[0]
+    )
+
+
 def cmake_reference_entries(table_name: str) -> list[tuple[str, ...]]:
     if not CORE_MODULE_REFERENCE_TABLE.is_file():
         return []
@@ -88,8 +103,9 @@ def check_artifactcore_module_reference_tables() -> list[str]:
             )
         if (
             implementation_module
-            and normalize_module_name(implementation_module)
-            != normalize_module_name(module_name)
+            and not implementation_attaches_to_module(
+                implementation_module, module_name
+            )
         ):
             problems.append(
                 f"ArtifactCore IFC map: {implementation_relative} attaches to "

@@ -519,7 +519,11 @@ def main() -> int:
             path for path, count in Counter(listed_paths).items() if count > 1
         )
         missing = sorted(on_disk - listed)
-        stale = sorted(listed - on_disk)
+        # Exclusions limit which on-disk sources must be registered; they do
+        # not make an explicitly listed manifest source cease to exist.
+        stale = sorted(
+            path for path in listed if not (spec.root / path).is_file()
+        )
         for path in duplicate_paths:
             problems.append(f"{spec.name}: duplicate manifest source {path}")
         for path in missing:
