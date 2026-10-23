@@ -1,7 +1,7 @@
 # MILESTONE_CLAP_HOST_COMPLETION_2026-07-25
 
-**最終更新:** 2026-08-15
-**ステータス:** CLAP DLL 読み込み、PluginInstance、params、process 変換、host callback、ClapEffect 接続基盤を実装済み。GUI、実プラグイン互換性、runtime 検証は未完了。
+**最終更新:** 2026-10-21
+**ステータス:** In Progress — loader、params、GUI、state stream API、複数バス／sidechain音声処理、thread-check host extension、要求元別host request callbackとmain-thread callback dispatch、AudioMixer結合スモークを実装。restart/process要求の実サービス処理と実プラグイン互換を含むruntime受入が残る。
 **対象:** `ArtifactCore/include/CLAP/CLAPHost.ixx`, `ArtifactCore/src/CLAP/CLAPHost.cppm`
 **位置づけ:** CLAP (CLever Audio Plugin) ホストのインスタンス生成を実装。
 **作成日:** 2026-07-25
@@ -15,6 +15,31 @@
 ## Update 2026-08-15
 
 上記の現行コード監査を、実装行まで再照合した。`clap.params` の列挙・値取得・値設定・表示文字列変換、`ClapEffect` の `AudioSegment` 接続、`Host::scanPlugins()`／`loadPlugin()`／`unloadPlugin()` はコード上で確認できるため、旧「未統合」タスク表は履歴として扱う。現在の残課題は UI 拡張、イベント／複数バス／レイアウト／レイテンシ契約、runtime 受入とする。
+
+## Update 2026-10-20
+
+- `clap.state` の `save`／`load` を CLAP stream ABI に沿って `Plugin`／`PluginInstance` へ公開し、短い read/write に対応する vector stream を実装した。Effect JSON には plugin path／descriptor ID／parameter 値も保存し、state extension 非対応プラグインでも再ロード時に parameter を復元する。状態保存はメインスレッド上のコールドパスで呼ぶこと。
+- `Host::loadPlugin()` が1つ目の有効なdescriptorの後でループを終了し、ライブラリ内の残りのプラグインを作らない不具合を修正した。
+- `Host::createEffect(nullptr)` で JSON 復元用の空の `ClapEffect` を作れるようにした。従来は `nullptr` を返し、復元テストが null オブジェクトを呼び出していた。
+- `tests/Artifact/PluginHostSmokeMain.cpp` と `tests/Artifact/FakeClapPlugin.cpp` を追加し、ホスト単体の再現可能なテスト環境を用意した。fixtureで複数入力bus（stereo main + mono sidechain）、stereo output、direct process、AudioSegment変換、state round-trip、Effect JSON復元を確認する。
+- CLAP audio port のbus数とbus内channel数を分離して `clap_process` に渡す。最大8 bus、各bus最大2 channelを初期化時に検査・確保し、フレーム処理では補助入力busへsidechainまたはゼロを供給する。
+- `clap_output_events` の core parameter-value event を bounded lock-free queue に転送し、ホスト側から取り出せるようにした。smoke fixture が ID／値／sample time を出力し、ホストが受信内容を検証する。
+- production `AudioBus` のFX rackへ実際の `ClapEffect` を挿入し、bus main inputとsidechain inputからプラグインを処理する結合スモークを追加した。
+- 同一 `AudioBus` のFX rackにCLAPとVST3を連続挿入し、両プラグインがsidechainを受けながらCLAP→VST3の順で処理される結合スモーク `ArtifactAudioBusClapVst3ChainSmoke` を追加した。期待サンプル値まで確認する。
+- `clap_host` をプラグインごとのcontextに分け、`request_restart`／`request_process`／`request_callback` を要求元別atomic flagsへ保存する。`Host::dispatchMainThreadCallbacks()` はHost生成スレッド上で要求元プラグインの `on_main_thread` を一度 dispatchし、`Host::takeRequests()` はrestart／process／callback要求を集約して消費する。fixtureのcallback dispatch確認を追加する。restart/process要求を実際のaudio runtimeへ反映する統合は残る。
+- `ARTIFACT_USE_LLD=ON` と `ARTIFACT_LLD_THREADS=8` で smoke target をビルドし、リンク規則に `lld-link /threads:8` が指定されることを確認した。現在の Windows 環境では SDK `rc.exe` と LLVM `lld-link.exe` のディレクトリを PATH に加える必要があった。
+- 同じMSVC Debugビルド、同じ既存オブジェクトで `ArtifactPluginHostSmoke.exe` のincremental relinkを各3回計測した。Ninjaコマンド全体の中央値は `link.exe` 6.043秒、`lld-link /threads:8` 4.698秒（この測定条件で約22%短縮）。Ninja／CMake linker wrapperの時間を含むため、clean linkやArtifact本体全体の代表値とはしない。
+- host GUI／params/audio-port拡張、request_restart／request_processのruntime反映、異常pluginのprocess isolation、第三者プラグインとの複数bus／state互換検証は未完了。各busは現在最大2 channelに制限する。
+- CLAP state契約は公式 [state extension](https://github.com/free-audio/clap/blob/main/include/clap/ext/state.h) と [stream ABI](https://github.com/free-audio/clap/blob/main/include/clap/stream.h) に合わせた。
+
+## Update 2026-10-21
+
+- official [CLAP thread-check extension](https://github.com/free-audio/clap/blob/main/include/clap/ext/thread-check.h) を実装した。Host作成スレッドをmain-threadとして報告し、plugin `process()` の呼び出し中だけthread-local markerで現在のOS threadをaudio-threadとして報告する。fixtureは初期化時のmain/audio判定と、worker thread上でprocessした際のmain=false／audio=trueを検証する。
+- Audio Mixer の既存メーター更新タイマーから `Host::dispatchMainThreadCallbacks()` を呼び、CLAP `request_callback` をプラグインの `on_main_thread()` へ渡す実アプリ経路を接続した。`request_restart` と `request_process` はフラグ収集までで、Playback／audio runtimeへの反映は引き続き未実装。
+- 標準MSVC／link.exe build treeで `AudioMixerWidget.cppm` のmodule compileが成功した。`ArtifactAppRuntime` 全体は、既存の変更中 `AudioEffectsInit.cppm` でEffect factory型のC2664により停止した。別のMSVC+LLD build treeでは `ArtifactWidgets.dll` のlink時に `RayTrace::Interval::empty`／`universe` が未解決になったが、同じresponse fileをlink.exeで診断リンクすると成功した。LLDとC++ modulesの相互作用が疑われるものの原因は未検証である。
+- CLAP→VST3 fixture chainを直接AudioBus処理からproduction `AudioMixer::process()` 経由へ拡張した。main busのFX rackでCLAP→VST3、別busからpre-fader sidechain sendを実行し、そのsidechain sourceはMaster出力から切り離している。
+- MSVC Debugでsmoke targetを再ビルドし、CLAP thread-check／単体処理、VST3 AudioBus、invalid bus拒否、AudioMixer経由CLAP→VST3連鎖のCTest 4件が成功した。
+- clang-cl比較用の隔離configureでは、clang-cl 22.1.3にCMake 4.2.2のclang-scan-deps ruleを一時設定し、LLVM付属`libomp.lib`を指定するとconfigure／generateまで成功した。MSVCの `std.ixx` をClang driver modeでClang PCMへ変換し、隔離build dirで欠落したstandard-module artifactを補うとbuildがOpenUSDのPCHまで進んだが、OpenUSDのCMake helperがclang-clへ `/wddeprecated`／`/wddeprecated-declarations`／`/wdunused-local-typedefs` を渡して停止した。ArtifactCoreのCLAP module compileにはまだ到達せず、clang-clのコンパイル安定性・リンク速度は未評価である。
 
 ## 1. 目的
 

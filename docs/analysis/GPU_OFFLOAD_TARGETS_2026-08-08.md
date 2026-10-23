@@ -76,7 +76,7 @@
 
 #### 5. TiltShift + Distortion — ピクセル単位変位
 
-**ファイル**: `ArtifactCore/src/ImageProcessing/TiltShift.cppm`, `ArtifactCore/src/ImageProcessing/Distortion.cppm`
+**ファイル**: `ArtifactCore/src/ImageProcessing/TiltShift.cppm`, `ArtifactCore/src/ImageProcessing/Distortion.cpp`
 **現状**: TiltShift は 2-pass box blur（`Parallel::For`）、Distortion は bilinear sample with displacement（`Parallel::For`）
 **GPU 化**: 分離可能ブラー（TiltShift）＋ピクセル変位（Distortion）。どちらもコンピュートシェーダーの基本パターン
 **期待効果**: 中程度
@@ -176,6 +176,6 @@
 | `Artifact/src/Effects/TimeDisplacement/TimeDisplacementEffect.cppm` | 8 | 改変 |
 | `Artifact/App/shaders/time_displace_cs.hlsl` | 8 | 新規 |
 | `ArtifactCore/src/ImageProcessing/TiltShift.cppm` | 9 | 改変 |
-| `ArtifactCore/src/ImageProcessing/Distortion.cppm` | 9 | 改変 |
+| `ArtifactCore/src/ImageProcessing/Distortion.cpp` | 9 | 改変 |
 | `Artifact/App/shaders/tiltshift_cs.hlsl` | 9 | 新規 |
 | `Artifact/App/shaders/distortion_cs.hlsl` | 9 | 新規 |

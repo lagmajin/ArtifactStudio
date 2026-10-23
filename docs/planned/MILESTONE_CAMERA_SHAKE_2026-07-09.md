@@ -1,5 +1,7 @@
 > **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_CAMERA_PROJECTION_2026-03-31.md](MILESTONE_CAMERA_PROJECTION_2026-03-31.md)
 
+**最終更新:** 2026-10-23
+
 **ステータス:** In Progress（ワークストリーム A: 3D カメラシェイク実装済み / B: 未着手）
 
 # M-CS-1: Camera Shake System - 設計マイルストーン
@@ -18,7 +20,7 @@
   - `ArtifactAbstractEffect` は `ImageF32x4RGBA` をチェーン処理する 2D 画像フィルタ（`Rasterizer` ステージ）。「画面全体をピクセルオフセットで揺らす」なら作れるが、それは 3D 空間でカメラ自身が揺れるのとは別物。2D エフェクト化すると DOF / 3D ジオメトリの正しい投影が崩れる。
 - **採る形**
   - **3D カメラシェイク** = `ArtifactCameraLayer` に transient offset プロパティを持たせ、`viewMatrix()` の出口で加算（階層 transform を汚さない）。
-  - **2D ポスト揺れ** = `Distortion.cppm` の `makeOffset` を使った `Rasterizer` エフェクトとして、既存パイプラインに乗せる。
+  - **2D ポスト揺れ** = `Distortion.cpp` の `makeOffset` を使った `Rasterizer` エフェクトとして、既存パイプラインに乗せる。
 
 ## ワークストリーム A: 3D カメラシェイク
 
@@ -43,7 +45,7 @@
 - パラメータ候補:
   - `trauma`（0..1、加算減衰）、`traumaDecay`、`shakeFrequency`
   - `positionAmplitude`、`rotationAmplitude`（deg）、`seed`
-  - ノイズ: `PerlinNoise` / `ValueNoise` による時間変化（既存 `Distortion.cppm` の `makeTurbulentDisplace` / `makeNoiseDisplace` を参照）
+  - ノイズ: `PerlinNoise` / `ValueNoise` による時間変化（既存 `Distortion.cpp` の `makeTurbulentDisplace` / `makeNoiseDisplace` を参照）
 - 完了条件:
   - `addTrauma(amount)` で trauma を加算し、毎フレーム `trauma *= decay` で減衰
   - 実オフセット = `trauma^2 * amplitude * noise(t)`（二乗で小揺れが強調されにくくなる classic trauma モデル）
@@ -68,7 +70,7 @@
 - 対象:
   - `Artifact/src/Effects/Rasterizer/` 配下に新規エフェクト（`ScreenShakeEffect`）
   - ベース: `ArtifactAbstractEffect`（`Artifact/include/Effects/ArtifactAbstractEffect.ixx`）、`ComputeMode::CPU`
-  - オフセット生成: `ArtifactCore/src/ImageProcessing/Distortion.cppm` の `makeOffset` を利用
+  - オフセット生成: `ArtifactCore/src/ImageProcessing/Distortion.cpp` の `makeOffset` を利用
 - 完了条件:
   - `applyConfigured(src, dst)` で `ImageF32x4RGBAWithCache` をオフセット変換
   - `EffectPipelineStage::Rasterizer` として `buildRasterizedSurfaceBuffer`（`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`）のチェーンに乗る

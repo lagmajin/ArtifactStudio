@@ -1,8 +1,8 @@
 # M-VST3-1 VST3 + CLAP Host Integration Milestone
 
 **作成日:** 2026-07-03
-**最終更新:** 2026-08-15
-**ステータス:** Partial implementation — VST3／CLAP ローダーと CLAP 実処理基盤は存在するが、VST3 audio/editor 統合は未完了
+**最終更新:** 2026-10-21
+**ステータス:** In Progress — VST3／CLAP host 経路、AudioBus連鎖を含むfixtureテスト基盤を実装。第三者プラグイン互換とruntime受入が未完了。
 **ライセンス:** VST3 SDK (MIT), CLAP (MIT)
 
 ## Update 2026-08-15
@@ -204,3 +204,19 @@ class VST3Loader {
 ただし VST3 側は SDK の実 ABI と完全に一致する実 processor／controller／bus／editor 接続を確認できず、`VSTHost::process()` は VST3 を処理対象外としている。VST3 parameter／editor／Undo、CLAP の実プラグイン受入れ、sandbox／crash isolation、runtime ABI 検証は未完了である。
 
 判定: **VST3／CLAP の loader と CLAP host 基盤は部分実装。VST3 の実 audio／editor 統合と実プラグイン受入れは pending。**
+
+## Update 2026-10-20
+
+- 2026-08-15時点の「VST3 audio/editor統合は未完了」という記述は古くなっている。`VST3EffectHost` にComponent／Processor／Controller、bus、float/double process、parameter queue、latency/tail、state stream、native editorの実装がある。`VSTEffect` からもVST3経路を利用している。
+- CLAPにも `ClapEffect`、audio processing、parameter event、GUI、latency/tailがある。CLAP state streamと複数descriptor列挙の修正を追加した。
+- VST3 factory `createInstance` にCID／IIDの16-byte TUID値を渡すよう修正した。32文字の表示用hex文字列を渡していたため複数の第三者プラグインが `kNoInterface` を返していた。公式ホスト例と同じく `IComponent::iid` を要求し、ReversideでComponent／Processor生成と音声処理を確認した。
+- VST3 の Component／Controller 復元で同一読み取りストリームを使い回していた問題を修正し、processing／active を一時停止して独立した stream で `setState`／`setComponentState` を呼び、状態を戻す。state header のmagic endian不一致も修正し、Reversideでsave/load round-tripが成功することを確認した。state stream write は256 MiB上限を持つ。
+- `VSTEffect` は plugin path／parameter 値／VST3 component・controller state を JSON に保存・復元する。`ClapEffect` は library path／CLAP descriptor ID／parameter 値／CLAP state を JSON に保存し、同じ descriptor を再ロードして復元する。CLAP smoke test はこの effect JSON 往復も実行する。
+- 残りは、第三者プラグインでのABI／lifecycle／state／GUI互換受入、CLAP host callback拡張の拡充とrestart/processのruntime反映、host process隔離、effect JSON復元失敗の利用者向け診断とUndo接続確認である。AudioBus内でのCLAP／VST3連鎖はfixtureテストで確認した。以上から現時点では完了扱いにしない。
+- smoke target は `ARTIFACT_USE_LLD=ON`、`ARTIFACT_LLD_THREADS=8` でビルドでき、生成されたリンク規則に `lld-link /threads:8` が含まれる。現環境では Windows SDK の `rc.exe` と LLVM `lld-link.exe` の PATH 設定が必要。
+- Reversideはinstantiate／process／state round-tripまで確認した。プラグイン自身はstate適用を無効化した旨をログに出すため、実状態値が変化するstate互換は別途確認が必要。Vienna Instruments系はfactory instantiate検証が残る。
+
+## Update 2026-10-21
+
+- CLAP hostのthread-check extensionを追加し、fixtureの初期化main-thread判定とworker-thread processでのaudio-thread判定を確認した。CLAP→VST3 fixture chainもproduction `AudioMixer::process()` のrouting／sidechain send graph経由へ拡張し、MSVC Debugで関連CTest 4件が成功した。
+- clang-cl 22.1.3の隔離configureは一時的なclang-scan-deps ruleとLLVM OpenMP libraryを指定して成功した。MSVC `std.ixx` をClang PCMへ変換してbuildを進めると、OpenUSD PCH compileがMSVC形式の `/wd...` warning flagsで失敗し、ArtifactCore module compileには未到達。コンパイラ本体の比較は未完了。

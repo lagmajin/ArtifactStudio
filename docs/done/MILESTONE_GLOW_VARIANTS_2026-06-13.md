@@ -1,5 +1,7 @@
 # Milestone: Glow Variants Pack (発光亜種の実験群)
 
+**最終更新:** 2026-10-23
+
 > 2026-06-13
 
 Status: ✅ Complete (All five variants implemented; static audit completed 2026-06-28)
@@ -36,7 +38,7 @@ Current implementation:
 - `Artifact/src/Effects/DirectionalGlowEffect.cppm` に方向性のある streak 系がある
 - `ArtifactCore/include/ImageProcessing/ChromaSpreadGlow.ixx` と `src/ImageProcessing/ChromaSpreadGlow.cppm` に色散り込み型の glow がある
 - `ArtifactCore/include/ImageProcessing/Halation.ixx` にフィルム的な滲みと残光がある
-- `ArtifactCore/src/ImageProcessing/OpenCV/Glow.cppm` に複数の OpenCV glow path がある
+- `ArtifactCore/src/ImageProcessing/OpenCV/Glow.cpp` に複数の OpenCV glow path がある
 - `ArtifactCore/src/ImageProcessing/OpenCV/SpectralGlowCV.cppm` にスペクトル寄りの glow 実装がある
 - `Artifact\App\shaders\bloomseparateCS.hlsl` に bloom 分離系のシェーダ資産がある
 
@@ -133,7 +135,7 @@ Current implementation:
 - [ArtifactCore/include/ImageProcessing/ChromaSpreadGlow.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/ChromaSpreadGlow.ixx)
 - [ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm)
 - [ArtifactCore/include/ImageProcessing/Halation.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/Halation.ixx)
-- [ArtifactCore/src/ImageProcessing/OpenCV/Glow.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/OpenCV/Glow.cppm)
+- [ArtifactCore/src/ImageProcessing/OpenCV/Glow.cpp](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/OpenCV/Glow.cpp)
 - [ArtifactCore/src/ImageProcessing/OpenCV/SpectralGlowCV.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/OpenCV/SpectralGlowCV.cppm)
 - [Artifact/App/shaders/bloomseparateCS.hlsl](X:/Dev/ArtifactStudio/Artifact/App/shaders/bloomseparateCS.hlsl)
 

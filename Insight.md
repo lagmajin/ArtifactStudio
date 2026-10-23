@@ -1,6 +1,73 @@
-**最終更新:** 2026-10-20
+**最終更新:** 2026-10-22
 
 # Insight Register
+
+## 2026-10-22: 実 ArtifactCore module target でも sccache が Clang cache hit を返す
+
+- **関連:** upstream clang++ 22.1.3 / MSVC ABI、`ArtifactCoreEnvironment`、sccache 0.18.0、`.cppm` → `.cpp` migration
+- **確認できた事実:** vcpkg `FindStb.cmake` の directory を `CMAKE_MODULE_PATH` に明示して root configure/generate が成功。sccache launcher 下で `ArtifactCoreEnvironment` を2回 clean/build し、1回目は3 compile miss、2回目は3 compile hit、0 non-cacheable calls。2回とも `.ixx` / `.cpp` compile と static archive link が成功した。
+- **価値／懸念:** isolated smoke だけでなく実ソースの CMake module target に cache が適用されることを確認できた。全 ArtifactCore / ArtifactWidgets / アプリ全体の cache hit・成果物一致は未確認。
+- **次に確認:** 別 split target で Clang P1689 / module map の依存順と sccache hit を検証し、clang-cl root 側の third-party option 問題と切り分けて全体対応を進める。- **追加確認（2026-10-23）:** ImageProcessing partition implementations `ChromaSpreadGlow.cppm` / `EdgeEcho.cppm` を `.cpp` へ移し、両本文がHEADと一致すること、upstream clang++でscan・compile・ArtifactCore.lib link成功を確認。clang-clではChromaSpreadGlowの実interface/implementationとOpenCV headersを使ったfixture compile/link、sccache 1 miss→1 hitが成功した。EdgeEchoのclang-cl fixtureは元HEADにもある `FloatRGBA` 未宣言で停止し、拡張子移行と独立した既存可視性問題と判断。**未検証:** root clang-cl全体target。
+
+## 2026-10-22: upstream clang++ の広い target 検証は OpenUSD Windows min macro で停止
+
+- **関連:** `ArtifactCoreColorCollection` target、`libs/openusd/pxr/base/arch/stackTrace.cpp:1653`、Windows SDK `min` macro
+- **確認できた事実:** root CMake configure/generate 後に ColorCollection target を開始したところ、依存 OpenUSD の `std::min(frameCount, maxdepth)` が Windows `min` macro 展開で compile error となり、target の自ソースに到達しなかった。
+- **変更・確認:** `arch` target だけに親 CMake から `NOMINMAX` を追加すると `stackTrace.cpp` は compile できた。続いて `demangle.cpp` の `cxxabi.h`、`errno.cpp` の `strerror_r`、`attributes.cpp` の platform/compiler branch mismatch で止まることを確認。OpenUSD submodule の source は変更していない。`-U__clang__` を arch target 全体へ適用する案は MSVC STL の builtin math detection を壊したため撤回。
+- **価値／懸念:** Core split target の P1689 / cache integration はこの試行では判定できない。GNU frontend と MSVC ABI を別軸にするには OpenUSD の compiler feature test が `__clang__` と `_MSC_VER` の両方を区別する必要がある。
+- **次に確認:** OpenUSD 側に用意済みの CMake option / feature override で Clang MSVC ABI を構成できるか調べる。無ければ dependency patch 運用が必要かユーザー判断を仰ぐ。
+
+## 2026-10-22: Verdigris 実装を含む Widget module の `.cpp` 移行と cache hit
+
+- **関連:** `ArtifactWidgets/src/Common/ClickableLabel.cpp`、`include/Common/ClickableLabel.ixx`、Qt6、Verdigris、clang-cl / upstream clang++、sccache
+- **確認できた事実:** `ClickableLabel.cppm` は Verdigris の `W_OBJECT_IMPL` と mouse event 実装を含む。`.cpp` へ拡張子のみ移し、両ファイルの Git blob hash が元 `.cppm` と一致することを確認。CMake 4.4.4 / Ninja で clang-cl と upstream clang++ + MSVC ABI の両方が module scan、compile、Qt6 DLL link に成功。Upstream clang++ / sccache launcher 下で同 target の clean/build 2回から4 compile cache hit を確認した。
+- **価値／懸念:** 実装が単純な no-op ではない UI module でも、両 Clang frontend で `.cpp` source extension と module interface の組み合わせが成立する。Widget 全体の link は未確認。
+- **次に確認:** UI module の次候補を依存と責務から選び、ArtifactWidgets target の実際の module dependency graph へ移行を広げる。
+
+## 2026-10-22: DialogPlacement module を両 Clang frontend で `.cpp` として構築
+
+- **関連:** `ArtifactWidgets/src/Common/DialogPlacement.cpp`、`include/Common/DialogPlacement.ixx`、Qt6、clang-cl / upstream clang++、sccache
+- **確認できた事実:** `DialogPlacement.cppm` は Qt event filter と dialog centering を実装する。`.cpp` への移行後、CMake 4.4.4 / Ninja の clang-cl と upstream clang++ + MSVC ABI で module scan、interface / implementation compile、Qt6 DLL link が通った。upstream clang++ sccache 下で同 target の2回の clean/build に対して累計4 compile hits、0 non-cacheable calls。初回 pilot build で cache が温まっていたため miss は含まない。
+- **価値／懸念:** Verdigris macro に依存しない Qt utility module でも同じ拡張子移行経路を確認できた。これは isolated target の検証で、ArtifactWidgets 全体 target の構築ではない。
+- **次に確認:** source manifest と module graph を保ちつつ Widgets の移行候補を広げる。全体ビルドは OpenUSD ABI 分岐と clang-cl の third-party flags の解消後に検証する。
+
+
+## 2026-10-21: CMake 4.4 で clang-cl と `.cpp` implementation unit を分離検証できる
+
+- **関連:** ルート `CMakeLists.txt` clang-cl scanner gate、`ArtifactWidgets/src/Dock/Pane.cpp`、CMake 4.4.4、sccache v0.18.0
+- **確認できた事実:** CMake 4.4.4 / Ninja / clang-cl 22.1.3 で実 Pane `.cpp` と `.ixx` を compile し、Qt6 Core / Widgets を link できた。CMake 4.2.2 では clang-cl module rule がなく、CMake 4.4 では追加される。sccache では clang-cl importer / implementation `.cpp` が cache hit、interface `.ixx` は `multiple input files` で bypass した。
+- **価値／懸念:** 拡張子移行の実現可能性と root 全体の toolchain 互換を分けて評価でき、clang-cl の `.cpp` module implementation をキャッシュ対象にできる可能性が実測できた。Root target は OpenUSD の clang-cl 非互換 warning flags で停止し、全体対応は未完了。
+- **次に確認:** clang-cl 用 OpenMP 自動検出と OpenUSD warning option の責務を依存側で分離し、root target の段階的 build を再開する。sccache cache hit は固定版・隔離 target で確認し続ける。
+
+## 2026-10-21: Windows upstream clang++ は GNU frontend と MSVC ABI を別々に成立させる必要がある
+
+- **関連:** `CMakeLists.txt` の `ARTIFACT_FRONTEND_MSVC` / MSVC SDK setup / std.ifc、`cmake/toolchain-msvc-v143.cmake`、`.cppm` 実装移行
+- **確認できた事実:** 現行ビルド構成は clang-cl を `Clang` + MSVC frontend として扱い、Windows SDK / ATL 探索や `/reference`・MSVC `std.ifc` 供給の一部は `MSVC` 変数または MSVC frontend に結び付く。Windows upstream `clang++` は通常 GNU frontend として検出されるため、既存 clang-cl レーンに compiler path だけ差し替えてもこれらの設定に入らない。Visual Studio LLVM 配下には `clang++.exe` と `clang-scan-deps.exe` が存在する。
+- **未検証の仮説:** clang++ `--target=x86_64-pc-windows-msvc`、MSVC STL、Windows SDK、vcpkg `x64-windows`、COFF linker を組み合わせれば、まず portable な C++ module subset を作れる可能性がある。Qt / Diligent / OpenUSD 等を含む全体ビルド成立は確認していない。
+- **価値／懸念:** compiler frontend と object / library ABI を独立した軸として扱い、GNU frontend + MSVC ABI のための明示 toolchain を設計できる。既存の cl.exe 前提 v143 toolchain や MSVC IFC をそのまま流用すると、誤った configure 成功や module format の混在につながる。
+- **次に確認:** upstream clang の配布元・版・driver options、CMake / Ninja scanner 対応版を固定し、最小 module provider/importer と `.cpp` implementation unit の configure・build feasibility を確認後、Windows SDK / vcpkg / Qt / Diligent を段階追加する。
+
+## 2026-10-21: upstream clang++ の P1689 と ArtifactCore 既存依存設定
+
+- **関連:** `tools/clang-msvc-abi-smoke/implementation.cpp`、CMake Ninja P1689 dyndep、ArtifactCore `.cppm` 実装スキャン
+- **確認できた事実:** Clang 22.1.3 の `clang-scan-deps -format=p1689` が `module Smoke.Greeting;` 実装に `requires: Smoke.Greeting` を出すのは正しい P1689 attachment 情報であり、CMake 4.4.4 の最小 Ninja smoke はこの形を処理できる。ArtifactCore の分割 target では、既存 MSVC 用 `OBJECT_DEPENDS` が interface object を実装 object の前提にしながら、P1689 dyndep 側も実装 object を PCM producer の前提にしていたため cycle が発生していた。
+- **変更・検証:** upstream GNU frontend では module implementation scan を維持し、MSVC 固有の `/reference` と `CMakeFiles/...ifc/.obj/.dd` 手動依存を除外。`-x c++` で `.cppm` を Clang に実装単位として認識させた。実際の `ArtifactCoreEnvironment` target を CMake 4.4.4 / Ninja で構成・ビルドし、`EnvironmentVariable.cppm` を `.cpp` に移した後も scan、compile、static archive 作成が成功した。
+- **価値／懸念:** P1689 の正規依存情報を使いつつ、MSVC IFC 固有の source-level ordering から GNU Clang lane を分離できる。今回の root target 検証は ArtifactCoreEnvironment に限り、他の split target とアプリ全体の link は未確認。
+- **次に確認:** 同様の分割 target を追加検証し、sccache 有効時の実 compile cache hit を計測する。Clang lane の source property 除外が他 target に波及しないか確認する。
+
+## 2026-10-21: GNU frontend の Windows module smoke は P1689 と COFF link の設定境界を分ける
+
+- **関連:** `cmake/toolchain-clangxx-msvc-abi.cmake`、`cmake/clangxx-msvc-abi-rules.cmake`、`tools/clang-msvc-abi-smoke/`
+- **確認できた事実:** CMake 4.2.2 / Ninja 1.12.1 / clang++ 22.1.3 の Windows x64 smoke では `clang-scan-deps` P1689 と dyndep が `.cpp` module implementation unit を interface provider へ依存させ、Clang GNU frontend + `x86_64-pc-windows-msvc` で link / 実行まで成功した。stock Windows-Clang link command の MinGW 用 `-nostartfiles` / `-nostdlib` はこの ABI とは衝突した。
+- **価値／懸念:** scanner / module map を Clang 標準経路に保ちながら、MSVC ABI の runtime library と linker defaults を個別調整できる。smoke の成功だけではプロジェクト全体の MSVC `/reference`・`std.ifc`・vcpkg / Qt / Diligent 整合を示さない。
+- **次に確認:** 現在の rules override が CMake の対応版間で安定するか確認し、ArtifactCore / Widgets の小さな実際の target に段階適用する。sccache と CMake 3.30 / clang-cl は別レーンで実測する。
+
+## 2026-10-21: `.cpp` module implementation unit は MSVC / Ninja でコンパイル可能
+
+- **関連:** `ArtifactWidgets/src/Dock/Pane.cpp`、`ArtifactWidgets/include/Dock/Pane.ixx`、`ArtifactWidgets/CMakeLists.txt`
+- **確認できた事実:** 既存 MSVC / Ninja ビルドで interface の module dependency scan 後に `Pane.cpp.obj` が成功した。`ArtifactWidgets.dll` は CMake が実行する manifest resource compile の `no such file or directory` でリンク停止したが、同一 `rc.exe` を手動実行すると成功した。
+- **価値／懸念:** `.cpp` 拡張子は既存 MSVC module implementation として成立するが、compile 成功だけでは DLL link / runtime 完了を意味しない。
+- **次に確認:** CMake `vs_link_dll` manifest step の失敗を既存 build environment で切り分けたうえで、clang++ / clang-cl 各 lane の `.cpp` pilot と sccache cache stats を独立に実測する。
 
 ## 2026-10-19: レイヤー流体の動作確認はタイムラインフレームを進めてキャプチャする
 
@@ -926,6 +993,9 @@
 - **仮説／未検証:** `frames`が`resolution`で割り切れない場合、末尾frameがどのbinにも入らない可能性がある。現suiteは割り切れる寸法を使っており、この境界を実行確認していない。
 - **価値／懸念:** preview waveformの末尾にあるtransientが欠落する可能性がある。
 - **次に確認:** 端数のあるframe数と最終sampleだけに信号を置く独立caseで、全frameがbinningされるか確認する。
+- **追加確認（2026-10-23）:** AudioWaveform::process() は毎回 waveformData_.resize(resolution) を呼ぶ。ソース検索では ArtifactCore / Artifact 内の呼び出し元が見つからず、実行頻度は未確認。
+- **追加懸念:** audio process callback から呼ばれる経路なら、resolution変更時の再確保が処理時間へ影響する可能性がある。今回の拡張子移行ではこの挙動を変更していない。
+- **次に確認:** 呼び出し元／実行コンテキストを確認し、callback内で呼ばれるなら capacity再利用可否とallocation計測を独立して評価する。
 
 ### 2026-10-11 — AudioSpectrumのDFT binはcosine投影の絶対値合計
 
@@ -1129,7 +1199,7 @@
 
 ### 2026-10-11 — AspectRatio decimal approximation skips positive minimum
 
-- **関連:** `ArtifactCore/src/Core/AspectRatio.cppm`、`tests/ArtifactCore/AspectRatioContractTest.cpp`。
+- **関連:** `ArtifactCore/src/Core/AspectRatio.cpp`、`tests/ArtifactCore/AspectRatioContractTest.cpp`。
 - **確認できた事実:** decimal近似ループは分母を1〜100で探索する一方、`round(ratio * denom) <= 0`の候補をすべて飛ばす。`0.004`では最大分母でも丸めた分子が0となり、初期値の`1:1`が残る。
 - **仮説／未検証:** 正の入力は許容分母内で最も近い正の分数へ近似するのが望ましいと考え、`0.004`に対する`1:100`を契約テストに追加した。テスト未実行。
 - **価値／懸念:** 1/200より小さい正のratioが1:1へ化ける境界を見つける。ArtifactCore子repoの実装は変更していない。
@@ -4956,3 +5026,336 @@
 - **次に確認:** `cmake --preset <preset> -DARTIFACT_BUILD_PR=ON -DARTIFACT_BUILD_PR_TESTS=ON` で configure し、`ArtifactPrApp` / `ArtifactPr` / `ArtifactPrCLI` と 3 テスト target のビルド、続いて `ctest -L artifactpr` を実行する。IFC 伝播が不足する場合は明示 `/reference` を足す。あわせて EditorEngine の編集操作 (`moveClip` / `splitClipAtPlayhead` / `rippleDeleteClipAt` と undo/redo) と `ArtifactPrCLI` の別プロセス契約を次のバッチとして追加する。
 
 \n
+
+## 2026-10-21: CMake 4.2 clang-cl module scan は GNU frontend rule を流用できない
+
+- **関連:** `CMakeLists.txt` clang-cl scanner setup、CMake 4.2.2 `Compiler/Clang-CXX.cmake`、`ArtifactWidgets/CMakeLists.txt` OpenMP discovery
+- **確認できた事実:** clang-cl root configure で OpenMP compiler flags を `-Xclang -fopenmp` として与え、MSVC `libomp.lib` および spec date を指定すると Qt / OpenMP の configure-time checks は越えた。generate は clang-cl 用 CXX scan rule 不在で停止した。CMake 4.2.2 Clang P1689 rule は GNU frontend 分岐内でのみ定義される。
+- **価値／懸念:** GNU frontend の P1689 scanner command を clang-cl にそのまま渡すのは不適合で、dependency scanning、module map、BMI 出力の MSVC driver syntax を分けて実装する必要がある。より新しい CMake が clang-cl 対応を追加していても、最小 CMake 3.30 を維持する場合の backport / version gate を決める必要がある。
+- **次に確認:** CMake clang-cl module scan 対応版の最小要件と、P1689 scanner invocation が `clang-cl` の MSVC style arguments を扱うか一次資料・隔離 smoke で照合する。その後で root scan override と OpenMP / Qt try_compile の適用境界を最小化する。
+
+
+## 2026-10-22: clang-cl で移行済み .cpp の実 target module scan を確認
+
+- **関連:** ArtifactCore/CMakeLists.txt、ArtifactCore/src/EnvironmentVariable/EnvironmentVariable.cpp、CMake 4.4.4 / Ninja / clang-cl
+- **確認できた事実:** MSVC frontend 用 /reference と OBJECT_DEPENDS を Clang module map に適用すると競合するため、Clang lane ではこれらの手動依存を除き、移行済み .cpp にのみ P1689 scan を有効化した。GNU frontend の既存 .cppm scan は維持。ArtifactCoreEnvironment の scan、dyndep、compile、static archive が成功した。ArtifactCore/CMakeLists.txt は tracked child repository 側の未コミット変更であり、親から submodule commit/push はしていない。
+
+- **価値:** Qt 隔離 smoke のみでなく、実際の split target で clang-cl の CMake module map 経路を確認できた。
+- **次に確認すること:** 他 split target と Clang interface compilation の依存解決、OpenUSD を含む root 全体 build、OpenMP 検出を段階的に検証する。
+
+
+## 2026-10-22: ToggleGlyphButton module implementation を `.cpp` に移行
+
+- **関連:** `ArtifactWidgets/src/Common/ToggleGlyphButton.cpp`、`ArtifactWidgets/include/Common/ToggleGlyphButton.ixx`、CMake 4.4.4 / Ninja、Qt6、clang-cl / upstream clang++ / sccache
+- **確認できた事実:** source body を LF 化して `.cpp` に移し、Widget implementation source list に明示登録した。両 Clang frontend で P1689 scan、module interface / implementation compile、Qt6 DLL link が成功。upstream clang++ + sccache 0.18 では初回2 compile miss、clean build 再実行時に2 hit、bypass なし。
+- **価値:** QWidget 系 implementation を `.cpp` に移す経路が両 Clang frontend で継続して使える。sccache も module interface を含むこの pilot で再現可能な hit を確認した。
+- **次に確認すること:** Widget 全体 target の依存関係と MSVC の最終 DLL link を確認し、同じ manifest 手順で次の候補を段階移行する。
+
+
+## 2026-10-22: ContentViewer implementation を両 Clang frontend で `.cpp` 検証
+
+- **関連:** `ArtifactWidgets/src/Viewer/ContentViewer.cpp`、`ArtifactWidgets/include/Viewer/ContentViewer.ixx`、CMake 4.4.4 / Ninja、Qt6、clang-cl / upstream clang++
+- **確認できた事実:** `ContentViewer.cppm` の本文を変更せず、LF 化して `.cpp` へ移し、CMake の明示 implementation source list に追加した。clang-cl と upstream clang++ + Windows MSVC ABI の両方で P1689 scan、interface / implementation compile、Qt6 DLL link が成功した。
+- **価値:** Common widget と異なる Viewer 領域でも、現在の `.cpp` source 登録・module scan 経路が成立することを確認できた。
+- **次に確認すること:** ArtifactWidgets 全体 DLL の MSVC / Clang link と、より広い依存を含む implementation の段階移行を確認する。
+
+
+## 2026-10-22: MSVC module implementation の sccache 判定
+
+- **関連:** root `CMakeLists.txt` の sccache launcher、MSVC 19.51、sccache 0.18、`ContentViewer.cpp` / `.ixx`
+- **確認できた事実:** MSVC module interface compile は `-interface`、implementation compile は `/reference` を含み、sccache 0.18 は両方を非 cacheable として bypass した。同 toolchain の通常非 module `.cpp` は単独 compile で miss→hit。root `ArtifactCoreEnvironment` は launcher 下で成功したが、`ArtifactWidgets` 依存の OpenUSD `tf` target は parallel compile 時に PDB C1041/C1090 で停止。同じ source は sccache 単独実行と直接 cl.exe で成功し、MSVC opt-in launcher の並列相互作用が疑われる。
+- **価値／懸念:** 普通の `.cpp` は cacheable だが、module source は bypass される。PDB を使う並列 root build の失敗を解決できるまで、MSVC-style frontend の CMake launcher は無効に保つ。
+- **追加確認:** MSVC option ON の root configure と `ArtifactCoreEnvironment` build を実行。6 module compile command (interface 4 / IFC-reference implementation 2) は sccache 0.18 が全て bypass し、static archive は成功した。通常 `.cpp` の miss→hit は同環境の直接 compile で確認済み。
+- **次に確認すること:** ArtifactWidgets 全体 link と、実アプリ build で通常 `.cpp` の cache hit が出るか確認する。
+
+
+## 2026-10-22: MSVC Widgets 全体 link と TimeCodeLabel pilot
+
+- **関連:** `ArtifactWidgets/src/Time/TimeCodeLabel.cpp`、`ArtifactWidgets/CMakeLists.txt`、MSVC 19.51 / CMake 4.4.4 / Ninja
+- **確認できた事実:** launcher 無効の dedicated MSVC build tree で `ArtifactWidgets` target が576 actionを完了し、`ArtifactWidgets.dll` を link した。その後 `TimeCodeLabel.cppm` を本文を保って `.cpp` に移し、明示 implementation source list に登録した。MSVC 本体 target はCMake再生成後に436 actionを実行し、新 source をscan・compileしてDLLを再linkした。独立 Qt6 pilot では upstream clang++ + MSVC ABI と clang-cl の双方で同じ source / interface をscan・compile・linkした。
+- **境界:** 独立 Clang pilot は未使用 import `Frame.Position` をテスト用BMI stubで補った。MSVC 本体 target は実依存 graph を通る。Clang pilot の個別 sccache hit/miss 数は未採取。既存 interface が宣言する `setFrame` / `setDisplayMode` は現行 implementation に定義がなく、`impl_` も初期化されていない。拡張子移行だけの今回の変更ではruntime動作を確認していない。
+- **価値:** MSVC では compiler cache launcher を外すと実際の Widgets DLL link が通り、次の小さい implementation unit でも両 Clang frontend の `.cpp` module scan とlinkが成立した。
+- **次に確認すること:** TimeCodeLabel の既存runtime/API欠落を別途扱うか判断し、より機能が揃った小さな module pair を選びながら移行と compiler/sccache 測定を続ける。
+
+
+## 2026-10-22: ColorViewLabel migration と Clang sccache 実測
+
+- **関連:** `ArtifactWidgets/src/Color/ColorViewLabel.cpp` / `include/Color/ColorViewLabel.ixx`、CMake 4.4.4、upstream clang++ / clang-cl、sccache 0.18.0
+- **確認できた事実:** source本文を保持して `.cppm` から `.cpp` へ移し、Widget implementation list に明示登録した。MSVC本体 `ArtifactWidgets` target は436 action後に当該sourceをscan・compileし、DLLをlinkした。両Clang frontendの隔離Qt6 targetでもP1689 scan・compile・linkが成功した。`Color.Float` は最小テストBMI stubで補った。
+- **sccache 実測:** upstream clang++ は2 clean buildで6 requests / 3 misses / 3 hits / 0 bypass / 0 failure。clang-cl は6 requestsのうちcacheable compileが1 miss→1 hit、`multiple input files` bypassが4、0 failure。
+- **価値:** widget implementation の拡張子変更を3 compiler laneで成立させ、本家 clang++ と clang-cl の実 source cache behaviorを別々に計測できた。
+- **次に確認すること:** Clang root targetでCore moduleとQtの実依存を結合した際のscan / link、MSVC parallel compiler cacheのPDB競合、さらに低fan-inな implementation候補を継続確認する。
+
+
+## 2026-10-22: CollapsibleSection implementation unit を3 compiler laneで検証
+
+- **関連:** `ArtifactWidgets/src/Common/CollapsibleSection.cpp` / `include/Common/CollapsibleSection.ixx`、MSVC 19.51、upstream clang++ + MSVC ABI、clang-cl、sccache 0.18.0
+- **確認できた事実:** `CollapsibleSection.cppm` を本文保持で `.cpp` に移し、Widgets implementation list に登録した。MSVC本体 `ArtifactWidgets` target、両Clang frontendの独立Qt6 targetでscan・compile・DLL linkに成功した。Clang pilotはCore module stubなしで成立した。
+- **sccache 実測:** upstream clang++ は2 clean buildで4 requests / 2 misses / 2 hits / 0 bypass / 0 failure。clang-cl は4 requests中1 miss→1 hit、module interface `multiple input files` bypass 2件、0 failure。
+- **価値:** Widgets内の独立module implementationを3 compiler laneで確認し、source module graphを増やさず拡張子移行とcache再利用を再現した。
+- **次に確認すること:** ArtifactCoreの低fan-in implementation候補をmanifest/reference-map依存まで確認して選び、Clang root target側の実依存とsccacheを拡大検証する。
+## 2026-10-22: OpenUSD arch の upstream clang++ / MSVC ABI 判定
+
+- **関連:** root `CMakeLists.txt`、`libs/openusd/pxr/base/arch/defines.h` / `attributes.h` / `demangle.cpp` / `errno.cpp`
+- **確認できた事実:** Windows clang++ が MSVC ABI target を使っても OpenUSD `defines.h` は `__clang__` により Clang/GNU compiler kind を選ぶ。`arch` target で `cxxabi.h`、`strerror_r`、Windows constructor-entry declarations の不足がコンパイルエラーとして現れる。親 CMake の source property は child directory の OpenUSD target に伝播せず、compiler-kind macro 上書きも `defines.h` が再定義する。試験 workaround は取り除き、OpenUSD submodule は変更していない。
+- **推測・未検証:** 上流 OpenUSD が clang-cl/MSVC ABI lane を正式に扱う場合、compiler detection または arch implementation の条件修正が必要になる可能性が高い。upstream の現在版に修正があるかは未検証。
+- **価値または懸念:** isolated Qt module pilots の成功と root OpenUSD 統合の失敗を区別できる。広域 macro spoofing は STL ヘッダや別の OpenUSD source を壊すため、親から全ターゲットへ適用する workaround は避けるべき。
+- **次に確認すること:** OpenUSD の更新候補を精査する際、Windows Clang MSVC ABI の `arch` 対応を upstream で確認する。submodule を変える場合はユーザーの明示指示を得る。
+## 2026-10-22: Analyze.OpticalFlow の末端 implementation 移行
+
+- **関連:** `ArtifactCore/src/Analyze/OpenCV/OptifalFlowResult.cppm`、`ArtifactCore/include/Analyze/OpenCV/OptifalFlowResult.ixx`、Analyze source manifest / BMI reference map
+- **確認できた事実:** implementation unit は module 宣言と空の実装コメントだけを持ち、実機能は interface の inline 定義にある。本文を保持した `.cpp` 化後、MSVC の専用 target compile、upstream clang++ MSVC ABI、clang-cl の各 compile が成功し、Clang 両 lane は OpenCV 付き isolated DLL link まで成功した。
+- **推測・未検証:** interface に inline 実装を多く置く他 module も移行候補になり得るが、各 interface の依存と split target ownership は個別確認が必要。
+- **価値または懸念:** source manifest、module reference map、専用 split target を一緒に更新する移行例となった。OpenUSD root blocker は独立して残るため、pilot 成功を full Clang build 成功とは扱わない。
+- **次に確認すること:** 次候補では manifest 所有 target、MSVC reference map、importer object dependency、sccache cacheability を先に照合する。
+## 2026-10-22: Utils.Tag module implementation を `.cpp` に移行
+
+- **関連:** `ArtifactCore/src/Utils/Tag.cppm` / `.cpp`、`include/Utils/Tag.ixx`、ArtifactCore source manifest と module reference map
+- **確認できた事実:** Tag implementation は `Utils.String.UniString` を import し、interface は `UniString` と `StringLike` を import する。MSVC root `ArtifactCore` target で Tag `.cpp` object と archive が生成された。upstream clang++ MSVC ABI と clang-cl の isolated pilots でも P1689 scan / compile / DLL link が成功した。
+- **推測・未検証:** 依存 BMI を stub に置き換えた pilot は Tag の Clang 実 dependency graph を証明しない。sccache の cacheability も未計測。
+- **価値または懸念:** Core module implementation と reference map の migration をもう一件通したが、Clang root target は OpenUSD blocker により未完了のまま。
+- **次に確認すること:** 次の移行は module reference 数だけでなく MSVC object dependency、importing consumers、split target ownership を確認してから選定する。
+
+
+## 2026-10-22: ArtifactCore 単一 module object の検証範囲が target order dependency に広がる
+
+- **関連:** `ArtifactCore/CMakeLists.txt`、`cmake/ArtifactCoreSources.cmake`、`cmake/ArtifactCoreModuleReferences.cmake`、`src/Utils/NameGenerator.cpp`
+- **確認できた事実:** `NameGenerator.cpp` の単一 object を Ninja に直接指定しても、`cmake_object_order_depends_target_ArtifactCore` を通じて OpenUSD / DiligentEngine の多数の依存 build が order-only dependency として選択された。最初の `ArtifactCore` target は5,054 actionを提示し、object 直接指定でも依存更新後に752 actionを実行した。SDK `fxc.exe` を build shell の PATH に追加した後、必要 module interface の scan / compile と `NameGenerator.cpp.obj` の compile は成功した。
+- **推測・未検証:** 低 fan-in module の検証を頻繁に行う場合、実装 object ごとの短い検証 lane または provider subset を持つ split target が build feedback を短縮できる可能性がある。target ownership や link / ABI 条件への影響は未調査。
+- **価値または懸念:** module 1件の変更でも第三者依存の再構築が検証時間と環境依存ツール（例: `fxc.exe` PATH）を持ち込む。今回の object compile 成功を全 ArtifactCore archive の link 成功とは扱わない。
+- **次に確認すること:** Core split target の既存構造を保ったまま、selected implementation と importer / provider BMI だけを検証できる正式 target が作れるかを調べる。必要なら target-order dependency の発生元を生成 Ninja graph と CMake target property で追跡する。
+
+
+## 2026-10-22: Qt `QStringLiteral` と Clang module interface の TU-local warning
+
+- **関連:** `ArtifactCore/include/Utils/Path.ixx:43`、Qt `qstring.h` の `QStringLiteral` macro、Windows upstream clang++ / clang-cl module build
+- **確認できた事実:** `Path.ixx` を実 `Utils.String.Like` dependency と Qt6 Core 付きで isolated module build した際、upstream clang++ と clang-cl の両方が `QStringLiteral(":/icons")` から `qMakeStringPrivate` の TU-local entity exposure warning を出した。`Path.cppm` → `.cpp` の拡張子移行前後で interface 内容は変えていない。compile と DLL link は成功した。
+- **推測・未検証:** C++ modules で Qt inline API が内部 TU-local helper を露出する警告は、実行時不具合ではなく module linkage / compiler diagnostic 上の注意である可能性がある。実 consumer での ABI・ODR 影響や Qt 側の既知対応は未確認。
+- **価値または懸念:** Clang の Qt module pilot で移行以前から存在する warning を検出した。現時点で警告抑制や Qt interface 改変は行わず、root build の warning 整理と混同しない。
+- **次に確認すること:** Qt module support の公式説明・該当 helper の linkage 属性を調べ、実際の consumer module compile が可能になった段階で再現性と影響を確認する。
+
+
+## 2026-10-22: Module partition implementation は primary-module migration と別扱いが必要
+
+- **関連:** `ArtifactCore/src/File/FileInfo.cppm`、`ArtifactCore/include/File/FileInfo.ixx`、`ArtifactCore/CMakeLists.txt`、CMake 4.4.4 / upstream clang++
+- **確認できた事実:** FileInfo の interface と implementation はともに `File:Info` partition を宣言する。root CMake はこの implementation の module scan を既に無効化している。isolated `.cpp` pilot を scan すると CMake Ninja dyndep がその object を `CXX_MODULES` file set にない `File:Info` provider と判定して停止した。scan を無効化し interface BMI を明示参照する compile では、partition declarations が implementation source から見えず `FileInfo` が未宣言となった。
+- **推測・未検証:** この二重ユニットを standard-conforming に扱うには、同じ partition 名を再提供する形を解消し、partition interface を primary module implementation unit から importする構成などへ整理する必要がある可能性がある。正しいMSVC / Clang共通形は未検証。
+- **価値または懸念:** `.cppm` を機械的に `.cpp` に変えると、module partition は primary module implementation より異なる CMake provider / BMI attachment 問題を露呈する。FileInfo と root scan 除外が同型の `Image/OpenEXR.cppm` は移行例外として扱う。
+- **次に確認すること:** OpenEXR source の module declarations と CMake target ownership を比較し、FileInfo と共通の partition pattern か確認する。両 compiler frontend と CMake module file set に適合する構成を別マイルストーンで検証する。
+
+
+## 2026-10-22: `export namespace` 内の二重 `export` が Clang module compile を阻止
+
+- **関連:** `ArtifactCore/include/Animation/AnimationDynamics.ixx`、`AnimationDynamics` module implementation migration
+- **確認できた事実:** `export namespace ArtifactCore { ... }` 内の関数宣言2件に内側の `export` があり、Clang 22.1.3 は `export declaration appears within another export declaration` で interface module compile を拒否した。内側の指定だけを削除した後、upstream clang++ MSVC ABI / clang-cl の双方で実 interface と実 dependency modules の compile、implementation の compile、DLL link が成功した。
+- **推測・未検証:** 同じ記述が他の interfaces にも残っている場合、Clang root build の次の blockers となり得る。全 repository の同型記述の頻度と MSVC compile への影響は未調査。
+- **価値または懸念:** namespace export block の中で宣言を維持すれば内側の `export` は不要で、API export visibility を保ったまま Clang parser error を除ける実例を得た。
+- **次に確認すること:** ArtifactCore / Artifact / ArtifactWidgets interfaces を狭い検索で監査し、同じ構文があれば個別に宣言の所属と export visibility を確認する。
+
+## 2026-10-22: Clang named-module BMI graph source-location 上限
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/include/Composition/ArtifactAbstractComposition.ixx`、Clang 22.1.3 / Windows upstream clang++。
+- **確認できた事実:** Artifact の実 target で Preview / Project / LayerFactory implementation compile が `ran out of source locations` で失敗。Clang 22.1.3 では Preview 診断が約2.15 GB・99%、modmap は154 BMIだった。LLVM 23.1.4 でも Preview は1,260 files / 約964.86 MB、LayerFactory は1,160 files / 約976.44 MB、Project は1,490 files / 約966.30 MBを読み込んだ後に同じ内部エラーで停止した。Preview の未使用 GMF header 整理および video frame access の独立 module interface 化だけでは解消しなかった。診断内では `qcompilerdetection.h` が1,433回・約75.13 MB分の source-location entries を占める記録があり、同一の Qt compiler-detection header が複数 BMI 経由で重複する仮説を補強する。Clang の公式 named-modules 文書は BMI が AST を保存し、module imports を推移的に扱う構造を記述している。
+- **上流状況:** LLVM PR [#209795](https://github.com/llvm/llvm-project/pull/209795) は、複数 module が同じ textual header を取り込むと各 BMI に重複して source location が保存され、ロード時に source-location address space を消費する問題と、その重複を再利用する修正を明記している。2026-10-22 時点で PR は open であり、[LLVM 23.1.4 のリリース変更一覧](https://discourse.llvm.org/t/llvm-23-1-4-released/92564) にも含まれていない。今回の現象と原因仮説が強く一致するが、このパッチを Artifact で適用・検証したわけではない。
+- **仮説・未検証:** `ArtifactAbstractLayer` と `ArtifactAbstractComposition` の公開 interface が大量の依存 module をimportしているため、多数のQt/MSVC標準ヘッダー source locations が複数 BMIに保存され、consumerで合算されている可能性がある。公開型の所有境界を維持した interface closure の縮小、または新しい Clang での再現が解決候補。
+- **価値または懸念:** この上限を回避できない限り、Artifact 全体の Windows upstream clang++ ビルドは成立しない。大規模interface変更はMSVC module graphとABIにも影響するため、まずimport閉包と最小consumerで測定する。
+- **次に確認すること:** `ArtifactAbstractLayer` / `ArtifactAbstractComposition` それぞれの宣言で値型・継承・関数引数に必要な依存と実装専用依存を分類し、分割可能な境界を探る。PR #209795 の merge / LLVM 23.x への backport と、修正を含む Clang での再検証を追う。clang-cl でも同じ大規模 module closure による制限が出るか、Artifact target で確認する。
+
+## 2026-10-22: Artifact object-only Ninja build の依存範囲
+
+- **関連:** `Artifact/cmake/ArtifactSources.cmake`、`ArtifactGuiManager.cpp`、ArtifactAppRuntime / CMake 4.2.2 / Ninja。
+- **確認できた事実:** Artifact source manifest を更新した後、既存 upstream clang++ build tree で対象 `ArtifactGuiManager.cpp.obj` だけを指定した。Ninja は CMake 再構成後に6,622 actionsを提示し、約180 actionsで停止した。再構成出力と action 数は確認したが、対象 object の compile には到達していない。
+- **推測・未検証:** C++ modules の dyndep/provider closure と stale build tree の再生成が重なり、object 指定でも広い target graph が要求された可能性がある。専用 isolated target は拡張子・attachment の検証には有効だが、root target の統合確認を代替しない。
+- **価値または懸念:** 拡張子移行の局所検証と app target 統合検証のコストを区別する必要がある。対象 object のみを狙ったつもりの build が third-party を含む大規模再構築へ広がることがある。
+- **次に確認すること:** build tree の Ninja query / dyndep を調べ、対象 implementation の最小必要 provider closure と、root target の広域依存を引き起こす条件を特定する。
+## 2026-10-22: `.gitattributes` と実ファイルの改行状態
+
+- **関連:** `Artifact/.gitattributes`、`Artifact/src/Core/SystemStats.cppm`、`.cppm` → `.cpp` の rename。
+- **確認できた事実:** `git check-attr text eol` は対象 `.cppm` に `text=set` / `eol=lf` を返したが、`git ls-files --eol` は `i/lf w/crlf attr/text eol=lf` を示した。rename 時に worktree を LF に揃えた後、index へ追加し直すと Git は内容100%同一の rename として判定した。
+- **価値または懸念:** attribute 設定だけでは現在の worktree の改行コードが LF である証拠にならない。拡張子移行時は `git ls-files --eol` と rename diff を併用すると、不要な全行変更と既存の改行不整合を区別できる。
+- **次に確認すること:** 今後移行する `.cppm` でも source と manifest の worktree 改行状態を確認し、必要な場合だけ正規化後に rename 判定と diff を確認する。
+## 2026-10-22: Live scope widgets は paintEvent 内で画像分析を実行
+
+- **関連:** `ArtifactWidgets/src/Color/VectorScopeWidget.cppm`、`ArtifactWidgets/src/Color/HistgramWidget.cppm`、`Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。
+- **確認できた事実:** Color Science panel は accepted scope frame ごとに visible な vectorscope と histogram へ `updateFrame(frame)` を呼び、composition editor の scope readback completion も両 widget を更新する。VectorScope は dirty な `paintEvent` で同期 `rebuildScopeImage` を呼び、新しい `QImage` の確保、`convertToFormat` と pixel loop を行う。Histogram も dirty な `paintEvent` で同期 `computeHistogram` を呼び、`convertToFormat` 後に pixel を走査する。
+- **推測・未検証:** live playback で更新頻度が高い場合、GUI paint 内の CPU 処理と画像確保が UI 応答や frame presentation に影響する可能性がある。実際の呼び出し頻度、allocation 量、遅延は未計測。
+- **価値または懸念:** module 移行とは別に、live scope の CPU work が UI paint boundary に置かれている点を性能計測対象として記録する。今回の拡張子移行では描画経路を変更しない。
+- **次に確認すること:** 両 scope が表示された状態で代表的な frame size / playback を計測し、paint duration と allocation frequency を確認する。必要なら bounded reusable buffer と stale-frame rejection を含めて再設計を検討する。
+## 2026-10-22: WaveformScope / ParadeScope の再計算ごとに completion handler が追加される
+
+- **関連:** `ArtifactWidgets/src/Color/WaveformScopeWidget.cppm`、`ArtifactWidgets/src/Color/ParadeScopeWidget.cppm`、`Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。
+- **確認できた事実:** visible WaveformScope は accepted frame を受けると `updateFrame` が dirty 化し、`paintEvent` から `rebuildScopeImageAsync` が呼ばれる。同関数は各計算開始時に `QFutureWatcher<QImage>::finished` へ lambda を接続しているが、その接続を開始ごとに解除する処理は見当たらない。ParadeScope の `rebuildScopeImagesAsync` も `computing_` が false の各計算開始時に `QFutureWatcher<std::vector<QImage>>::finished` へ lambda を接続し、再利用前に解除する処理は見当たらない。
+- **推測・未検証:** watcher の再利用後、finished signal ごとに過去の completion lambda も実行され、同じ result の反映や redraw が重複する可能性がある。実際の handler 数、画面負荷、終了時の lifetime 影響は未計測。ParadeScope でも finished 時に過去の callback が再実行される可能性があるが未検証。
+- **価値または懸念:** frame 更新のたびに watcher callback が累積しないかを、extension migration と分けて確認する必要がある。今回の `.cpp` 移行では async / signal 経路を変更しない。
+- **次に確認すること:** WaveformScope と ParadeScope の連続 frame 更新・dialog close を含めて completion callback 数・paint duration・allocation を計測し、単一 completion registration と stale-frame rejection の設計を検討する。
+## 2026-10-22: CommandAction command state is not reflected by hasCommand()
+
+- **関連:** `ArtifactWidgets/src/Common/CommandAction.cppm`、`ArtifactWidgets/include/Common/CommandAction.ixx`。
+- **確認できた事実:** `CommandActionPrivate::hasCommand()` は `hasCommand_` を返さず常に `true` を返す。`CommandAction(const QString&, QObject*)` は受け取った command を private state に設定していないように見える。
+- **推測・未検証:** これは既存の挙動不整合の可能性があるが、利用時の期待値や歴史的理由は未確認。現在の移行では処理を変更しない。
+- **価値または懸念:** コマンド設定状態の問い合わせが正確でない可能性があり、呼び出し側が `hasCommand()` を分岐に使う場合に誤動作し得る。
+- **次に確認すること:** `CommandAction` の全利用箇所とコンストラクタ呼び出しを調べ、`setCommand()` 前後に期待される状態を確認してから別途修正範囲を決める。
+## 2026-10-22: Deprecated KnobSlider impl_ may be read before initialization
+
+- **関連:** `ArtifactWidgets/src/Knob/KnobSlider.cppm`、`ArtifactWidgets/include/Knob/KnobSlider.ixx`。
+- **確認できた事実:** public class は `Impl* impl_` を保持する。constructor initializer は `QWidget(parent)` のみで、implementation body 内に `impl_` への代入が見当たらない。一方 `mousePressEvent` は `impl_->dragStartPos` に書き込む。
+- **推測・未検証:** `impl_` が初期化されない状態で mouse press を受けると不正アクセスになる可能性がある。deprecated widget の実生成有無、ゼロ初期化や別の定義経路の影響は未確認。
+- **価値または懸念:** 廃止予定 UI でも外部利用可能な public class のイベント経路に危険が残る可能性がある。今回の拡張子移行では挙動を変更しない。
+- **次に確認すること:** repository 全体で module import と `KnobSlider` の生成を追跡し、実利用・互換要件を確認してから削除／修正方針を別途決める。
+## 2026-10-22: GraphicsFloatImageItem interface and implementation do not match
+
+- **関連:** `ArtifactWidgets/include/Graphics/GraphicsItemFloatImageItem.ixx`、`ArtifactWidgets/src/Graphics/GraphicsItemFloatImageItem.cppm`。
+- **確認できた事実:** interface は `ArtifactCore::GraphicsFloatImageItem` の constructor と destructor を宣言する。実装単位は同じ module 名だが、定義しているのは interface に宣言されていない `GraphicsFloatImageItemPrivate` だけで、public class の constructor / destructor definitions は見当たらない。repository source 内での利用元も見つからなかった。
+- **推測・未検証:** public class を実際に生成する経路があれば未解決 symbol になる可能性がある。CMake / compiler で現行状態を再現したわけではない。
+- **価値または懸念:** 拡張子を `.cpp` へ移すだけでは API / implementation mismatch は解決しない。今回の migration は宣言・実装の責務を変更しない。
+- **次に確認すること:** interface の利用履歴、生成・除去された graphics item 経路、`GraphicsItemFloatImageItem.Temp.axt` の役割を調べ、API の完成・削除・再接続を別途判断する。
+
+## 2026-10-22: TimeCode implementation の標準ヘッダー依存
+
+- **関連:** `ArtifactCore/src/Time/TimeCode.cppm` / `TimeCodeRange.cppm` から `.cpp` への拡張子移行。
+- **確認できた事実:** `TimeCode` implementation は `std::max` と `int64_t` を使っていたが、global module fragment に `<algorithm>` と `<cstdint>` がなかった。`TimeCodeRange` も `int64_t` に `<cstdint>` を直接含めず依存していた。各移行で必要な標準 header を source に直接追加した。
+- **推測・未検証:** 以前は Qt または imported module の実装詳細から推移的に見えていた可能性があるが、実際の Clang diagnostic は未取得。
+- **価値または懸念:** implementation source ごとの direct header dependency を明示すると、compiler / module boundary の違いに左右されにくくなる。
+- **次に確認すること:** ビルド・依存スキャンを許可された後、MSVC・clang-cl・upstream clang++ の module scan と TimeCode / TimeCodeRange compile を確認する。
+
+## 2026-10-22: 拡張子移行時の補助スクリプト参照
+
+- **関連:** `ArtifactCore/check_remaining.py` と `TimeCodeRange.cppm` から `TimeCodeRange.cpp` への移行。
+- **確認できた事実:** tracked checker script の固定対象リストに移行対象の絶対 Windows path が含まれていた。source / CMake manifest 以外の参照も検索し、対象 path を新拡張子へ更新した。
+- **推測・未検証:** script は `X:\dev\ArtifactStudio` を固定しているため、他環境での再利用性は低い可能性がある。script の用途と実行結果は未確認。
+- **価値または懸念:** 拡張子移行では補助 script、IDE 設定、生成 source list も旧 path を保持することがある。
+- **次に確認すること:** 今後の移行でも tracked references を検索し、script の一般化は別作業として扱う。
+
+## 2026-10-22: DepthMask implementation の Qt 直接依存
+
+- **関連:** `ArtifactCore/src/Mask/DepthMask.cppm` から `DepthMask.cpp` への移行。
+- **確認できた事実:** implementation は `Q_UNUSED` と `QVector4D` を使うが、global module fragment では `QVector3D` / `QMatrix4x4` だけを include していた。移行時に `QtGlobal` と `QVector4D` を直接追加した。
+- **推測・未検証:** 以前の compile は別 Qt header の推移的 include に依存していた可能性がある。compiler diagnostic は未取得。
+- **価値または懸念:** named module import だけでは Qt header 内の全宣言が通常 header include のように伝播するとは限らない。使用する Qt 型・macro の直接依存を source 側に明示する。
+- **次に確認すること:** ビルド・依存スキャン許可後、MSVC・clang-cl・upstream clang++ で DepthMask implementation compile と module scan を確認する。
+
+## 2026-10-22: Saturation の interface / implementation 宣言差
+
+- **関連:** `ArtifactCore/include/Image/Sarturation.ixx` と `ArtifactCore/src/Color/Sarturation.cppm`。
+- **確認できた事実:** public interface は `Saturation(float)` を宣言するが、対応 implementation source にその constructor definition は見当たらない。default constructor、destructor、saturation getter/setter、comparison definitions はある。
+- **推測・未検証:** parameterized constructor の利用があれば unresolved symbol になる可能性があるが、link で再現した事実はない。
+- **価値または懸念:** 拡張子だけ移すと宣言／定義の不一致は残るため、移行前に public API と method definitions を照合する必要がある。
+- **次に確認すること:** usage を調査し、constructor の補完・削除を別途判断する。今回の移行では変更しない。
+
+## 2026-10-22: ColorSwatch interface uses unique_ptr PImpl
+
+- **関連:** `ArtifactCore/include/Color/ColorSwatch.ixx`、`ArtifactCore/src/Color/ColorSwatch.cpp`
+- **確認できた事実:** `ColorSwatch` public module interface stores `std::unique_ptr<Impl>` and declares copy / move operations; implementation defines them out-of-line.
+- **推測・未検証:** DLL / module boundaryでのallocatorおよびdestructor ABIに影響するか、現行 toolchain の export configuration 下では評価していない。
+- **価値または懸念:** 現行のPImpl所有ルールに照らして、将来この型を変更する場合に所有権境界とABIを先に照合する手掛かりとなる。
+- **次に確認すること:** 実際のDLL export境界・consumer側の生成コード・copy/move利用を調査し、独立した変更として扱うか判断する。
+
+## 2026-10-22: RendererQueueSetting template definition is implementation-only
+
+- **関連:** `ArtifactCore/include/Render/RendererQueueSetting.ixx`、`ArtifactCore/src/Render/RendererQueueSetting.cppm`
+- **確認できた事実:** public interface declares `template<StringLike T> setRendererQueueName(const T&)`; the matching template definition is in the module implementation unit.
+- **推測・未検証:** consumers may need the definition reachable from the imported interface to instantiate this member template. Current MSVC and Clang compile/link behavior has not been checked.
+- **価値または懸念:** this can be a compiler-specific module boundary issue and should be checked before migrating the implementation file.
+- **次に確認すること:** search call sites and inspect BMI/IFC visibility; then reproduce with MSVC, clang-cl and upstream clang++ in an isolated consumer before deciding on a code change.
+
+## 2026-10-22: CoordinateResolver expression evaluator precedence
+
+- **関連:** `ArtifactCore/src/Coordinate/CoordinateProfile.cpp`、`CoordinateResolver::resolveExpression`。
+- **確認できた事実:** expression parser は演算子に遭遇するたびに現在の term を直前の演算子で累積値へ適用し、括弧を特別扱いしない。
+- **推測・未検証:** `2+3*4` のような入力は通常の算術優先順位ではなく左から逐次評価される可能性がある。式の正式な文法や既存利用者がこの挙動を前提としているかは未確認。
+- **価値または懸念:** 座標式を拡張する前に、後方互換を含めて演算子優先順位と括弧の契約を定義する必要がある。
+- **次に確認すること:** expression の実際の利用箇所・設定例を調べ、現在の式文法を仕様化して runtime 例を確認する。
+
+
+## 2026-10-22: AspectRatio PImpl ownership boundary
+
+- **関連:** `ArtifactCore/include/Core/AspectRatio.ixx`、`ArtifactCore/src/Core/AspectRatio.cpp`。
+- **確認できた事実:** exported `AspectRatio` interface owns `std::unique_ptr<Impl>` and declares copy / move operations; the implementation defines those operations out of line.
+- **推測・未検証:** DLL / module consumer boundaries may make allocator and incomplete-type ownership behavior worth checking. No ABI or consumer build was run for this note.
+- **価値または懸念:** current repository guidance prefers raw-pointer PImpl ownership for new types, while existing smart-pointer PImpl must not be mechanically replaced without compatibility review. This migration intentionally preserved the existing ownership model.
+- **次に確認すること:** when next changing this type's ownership, inspect DLL export boundaries, consumers, and copy / move generation before proposing a separate change.
+
+## 2026-10-22: LayerState copy/move and solo toggle definitions
+
+- **関連:** `ArtifactCore/include/Layer/LayerState.ixx`、`ArtifactCore/src/Layer/LayerState.cppm`。
+- **確認できた事実:** `LayerState` の copy / move constructor は新しい `Impl` を作るだけで、source の state をコピー・移譲しない。`toggleSolo()` の実装は空で、`Impl::solo_` を変更しない。
+- **推測・未検証:** call site がこれらの操作を利用する場合、コピー後・move 後に visible / locked / solo / guide / adjustment state が意図せず失われる可能性がある。実際の利用箇所で問題が再現するかは未検証。
+- **価値または懸念:** 拡張子移行ではこの既存挙動を変更せず、LayerState 自体の移行前に API 実装と呼び出し側の契約を別途精査する必要がある。
+- **次に確認すること:** `LayerState` の生成・copy/move・`toggleSolo()` call site を調査し、期待する state transition を確認して独立した修正として判断する。
+
+
+## 2026-10-22: ValidationRules provider が source manifest に未登録の可能性
+
+- **関連:** `ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`、`ArtifactCore/cmake/ArtifactCoreSources.cmake`、`ArtifactCore/src/Diagnostics/ValidationRules.cppm`。
+- **確認できた事実:** provider mapping には `src/Diagnostics/ValidationRules.cppm|Core.Diagnostics.ValidationRules|...` がある一方、CMake が再帰 discovery を行わないと宣言する source manifest と `ArtifactCore/CMakeLists.txt` の source registration には、この実装パスが見つからなかった。
+- **推測・未検証:** `ValidationRules.cppm` は現行 ArtifactCore target で compile されていない可能性がある。意図的に無効化された旧 implementation かは未確認。
+- **価値または懸念:** source manifest を前提に `.cppm` migration を進めると、provider table だけに残った未使用実装を誤って build target に追加する恐れがある。
+- **次に確認すること:** CMake target source evaluation と呼び出し／link 利用を調べ、意図的な除外か manifest 漏れかを判断してから、別変更として修正する。
+
+
+## 2026-10-22: Artifact.Composition._2D module name warning in Clang
+
+- **関連:** `Artifact/include/Composition/ArtifactComposition2D.ixx`、`Artifact/src/Composition/ArtifactComposition2D.cpp`。
+- **確認できた事実:** upstream clang++ 22.1.3 の module scan / compile smoke で、既存の public module 名 `Artifact.Composition._2D` の `_2D` segment に reserved module name warning が出た。拡張子移行では module 名を変更していない。
+- **推測・未検証:** module 名変更が既存 import / BMI / MSVC 利用者に与える影響と、将来の標準・compiler interoperability 上の実害は未評価。
+- **価値または懸念:** public module rename は依存全体へ波及するため、警告だけを理由に移行範囲へ含めない。別の互換性調査として扱う。
+- **次に確認すること:** 全 consumer と cross-compiler module import を洗い出し、変更が必要と判断した場合は独立した移行計画を作る。
+
+## 2026-10-22: AudioLimiter の条件付き delay buffer 再確保
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioLimiter.cpp`。
+- **確認できた事実:** `AudioLimiter::process()` は sample rate の変化時に delay buffer を clear し、delay buffer が有効で channel count が異なる場合は `delayBuf_.assign(...)` で channel ごとの領域を再確保する。
+- **推測・未検証:** この関数がリアルタイム audio callback から呼ばれる経路では、format change 時の allocator 呼び出しが deadline を乱す可能性がある。実際の呼び出し経路、変更頻度、buffer reuse の可否は未確認。
+- **価値または懸念:** `.cppm` から `.cpp` への拡張子移行では動作を変えず、この既存 allocation behavior を別途調べる価値がある。
+- **次に確認すること:** Audio processing の呼び出し元と format change の境界を追い、再確保が callback 内で起きるか、準備済み capacity を保持できるかを確認する。
+
+## 2026-10-23: FluidVisualizer のフレームごとの source copy
+
+- **関連:** `ArtifactCore/src/ImageProcessing/FluidVisualizer.cpp`、`ArtifactCore/include/ImageProcessing/FluidVisualizer.ixx`。
+- **確認できた事実:** `FluidVisualizer::render()` は出力画素数分の `std::vector<float4>` を生成し、呼び出しごとに入力 buffer 全体をコピーしてから `ForPixels` 処理を行う。ArtifactCore / Artifact のソース検索では呼び出し元が見つからなかった。
+- **推測・未検証:** クラス名と API から描画経路で使う可能性はあるが、外部利用を含む実呼び出し頻度、vector allocation の実コスト、copy を除去できる安全な設計は未確認。
+- **価値または懸念:** render 呼び出しが反復される経路なら、大きな一時確保と全画素 copy が frame cost に影響しうる。今回の拡張子移行では挙動を変えず、調査項目として記録する。
+- **次に確認すること:** module consumer と call site を追跡し、buffer aliasing の必要性、容量再利用の可否、呼び出し頻度を特定してから別変更として評価する。
+\n## 2026-10-23: Viewport color key generation in the render path\n\n- **Related:** Artifact/src/Widgets/Render/ViewportColorPipeline.cpp; Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm.\n- **Confirmed:** ViewportColorPipeline::prepare() constructs a QString key through multiple QString::arg() calls before checking whether the key changed. The composition render controller calls prepare() from applyDisplayColorTransform().\n- **Inference / unverified:** This call may run once per displayed composition frame; exact call frequency, heap allocation count, and user-visible cost have not been profiled.\n- **Value or concern:** If repeated in steady-state rendering, rebuilding the unchanged key may add avoidable string work and allocations. The current extension migration preserves behavior and does not address this.\n- **Next check:** Measure prepare() call frequency and allocations, then consider a revision-based or cached key in a separate performance change if confirmed.\n
+## 2026-10-23: RendererQueueSetting の既存未実装 setter / copy constructor
+
+- **関連:** `ArtifactCore/src/Render/RendererQueueSetting.cpp`、`ArtifactCore/include/Render/RendererQueueSetting.ixx`
+- **確認できた事実:** `RendererQueueSetting::Impl::setRendererQueueName()` の本体は空で、copy constructor は引数 `settings` を使わず新しい `Impl` を確保する。ArtifactCore / Artifact のソース検索では consumer は `RendererQueueManager.ixx` の import 以外に見つからなかった。
+- **推測・未検証:** 現在の呼び出し元で名前設定や copy が必要な場面があるか、外部 consumer が存在するかは未確認。
+- **価値または懸念:** API 利用時に設定値が失われる可能性がある。拡張子移行では挙動を変更しておらず、独立した修正候補として扱う。
+- **次に確認すること:** manager の construction / copy / name setter 経路と公開 API consumer を確認し、必要なら挙動修正を別変更として評価する。
+
+## 2026-10-23: clang-cl preset の vcpkg manifest mode
+
+- **関連:** `CMakePresets.json` の `x64-Debug-ClangCL`、root configure。
+- **確認できた事実:** preset が `VCPKG_INSTALLED_DIR` と `VCPKG_MANIFEST_MODE=OFF` を指定していない状態で configure すると、CMake / vcpkg が build dir 内へ manifest dependencies を新規展開しようとした。C: の空きがない環境では configure が失敗した。既存 `C:/vcpkg/installed` の利用を明示した preset では configure / generate が成功した。
+- **推測・未検証:** 新規 clone / clean machine でこの固定 installed tree を使う運用が常に適切かは未評価。
+- **価値または懸念:** Windows の clang-cl と upstream clang++ で dependency provisioning を揃えると、意図しない vcpkg restore の大規模なディスク消費を避けられる。preset に既存 vcpkg root、installed tree、triplet、manifest mode を記録した。
+- **次に確認すること:** 別の clean vcpkg installation / manifest mode を使う contributor workflow が必要か、既存 preset 利用者の環境を確認して判断する。
+
+
+## 2026-10-23: SimpleChoker の per-call full-frame scratch allocation
+
+- **関連:** `ArtifactCore/src/ImageProcessing/SimpleChoker.cpp`、`ArtifactCore/include/ImageProcessing/SimpleChoker.ixx`。
+- **確認できた事実:** `SimpleChoker::process(float4*, int, int, ...)` は `width * height` 個の `float4` を `new[]` し、入力 buffer 全体をコピーしてから pixel loop を実行し、最後に `delete[]` する。
+- **推測・未検証:** effect evaluation から高頻度に呼ばれる場合、大きな allocation と全 pixel copy が処理時間・allocator contention に影響する可能性がある。実 caller、call frequency、allocation profile は確認していない。
+- **価値または懸念:** 画素処理の意味を保ったまま再利用 workspace 化できるかを別途評価する価値がある。今回の `.cppm` → `.cpp` 移行では挙動を変更していない。
+- **次に確認すること:** `SimpleChoker` の consumer と process callsite を特定し、呼び出し頻度と必要な buffer lifetime を確認してから hot-path allocation の別変更として検討する。
+
+
+## 2026-10-23: ArtifactCore Ninja object target inherits wide ordering dependencies
+
+- **関連:** `ArtifactCore/CMakeLists.txt` の `ArtifactCore` target、clang-cl / Ninja root build graph。
+- **確認できた事実:** `ninja -t query` で単体 `BitmapImage.cpp.obj` の command を確認できたが、その object target を build すると `cmake_object_order_depends_target_ArtifactCore` と target dyndep を経由して OpenUSD Sdf prerequisites が起動した。全 ArtifactCore target build も OpenUSD を含む広い initial dependency build に展開した。
+- **推測・未検証:** target-level ordering dependency がどの `add_dependencies` / object library relationship で広がるか、module ordering に必要な最小境界は未特定。
+- **価値または懸念:** root clang-cl の個別 source 検証でも依存群全体を再コンパイルする可能性があり、試験所要時間が source 本体の複雑さを反映しない。
+- **次に確認すること:** ArtifactCore target dependencies と generated Ninja order-only edges を追い、必要性を損なわず clang-cl の対象限定 build が可能な fixture / object boundary を設計する。
+
+
+## 2026-10-23: Emboss CPU effect allocates a full-frame temporary buffer
+
+- **関連:** `ArtifactCore/src/ImageProcessing/Emboss.cpp`、`ArtifactCore/include/ImageProcessing/Emboss.ixx`。
+- **確認できた事実:** `Emboss::process(float4*, int, int, ...)` は全画素数分の `float4` scratch buffer を `new[]` し、入力全体を copy して parallel tile evaluation 後に `delete[]` する。
+- **推測・未検証:** effect evaluation から繰り返し呼ばれる場合、全画素 allocation / copy が frame cost に影響する可能性がある。consumer、呼び出し頻度、allocation profile は未確認。
+- **価値または懸念:** workspace 再利用などの余地を実 call path と hot-path contract に沿って評価する価値がある。今回の `.cppm` → `.cpp` 移行では挙動を変更していない。
+- **次に確認すること:** Emboss の consumer と process callsite を調べ、頻度と workspace lifetime を特定してから allocation を別変更として検討する。
