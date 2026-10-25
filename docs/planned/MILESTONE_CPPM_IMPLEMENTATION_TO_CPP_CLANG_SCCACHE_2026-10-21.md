@@ -4082,6 +4082,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 - Migrated the existing `Artifact.Test.CommandLine` module to `.cpp` and updated `ArtifactSources.cmake`; test cases and its `Artifact.Application.CommandLine` import are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded. The test executable was not built or run.
 - Migrated the existing `Artifact.Test.PreCompose` module to `.cpp` and updated `ArtifactSources.cmake`; test implementation and all 20 imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with matching requirements. No test executable was built or run.
 - Migrated the existing `Artifact.Test.PropertyKeyframe` module to `.cpp` and updated `ArtifactSources.cmake`; keyframe test behavior and all 16 imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with identical dependencies. No tests were built or run.
+- Migrated the existing `Artifact.Test.AIToolBridge` module to `.cpp` and updated `ArtifactSources.cmake`; AI bridge test logic and all nine imports are unchanged, with LF line endings. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with matching dependencies. No test executable was built or run.
 
 
 ### Current-source GNU Clang scan follow-up (2026-10-25)
