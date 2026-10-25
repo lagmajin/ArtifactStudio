@@ -4076,6 +4076,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 - Migrated `Artifact.Widgets.CompositionTrackerSessionUndoCommands` to `.cpp` and updated `ArtifactSources.cmake`; tracker/session command behavior and all five imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with identical five-module requirements. Compilation, target link, and tracker runtime remain unverified.
 - Migrated `Artifact.Widgets.InspectorEffectRackPresentation` to `.cpp` and updated `ArtifactSources.cmake`; delegate rendering/presentation and its three imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with the same requirements. Compilation, link, and UI runtime were not run.
 - Migrated the existing `Artifact.Test.AdjustmentLayer` module to `.cpp` and updated `ArtifactSources.cmake`; test cases and the three imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with matching requirements. The test executable was not built or run.
+- Migrated the existing `Artifact.Test.SolidLayer` module to `.cpp` and updated `ArtifactSources.cmake`; test contents and the five imports are unchanged, with LF line endings. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with identical dependency names. No test executable was built or run.
 
 
 ### Current-source GNU Clang scan follow-up (2026-10-25)
