@@ -2,6 +2,8 @@
 
 **ステータス:** In Progress
 
+- 2026-10-25 log chronology: a clang-cl configure log from 11:08 predates Artifact commit `77b24e8d` (11:14), which restricted DockFoundation `/Zf` to the MSVC compiler ID; the 11:26 clang-cl build reused that older generated tree and therefore its `/Zf` scan error is stale evidence, not a failure reproduced against current CMake sources. A later GNU Clang application build log records 26 sccache compile failures, with server socket resets (`os error 10054`) / response-read failures; this is a cache-server transport failure, not a compiler diagnostic. No reconfigure or build was run in this audit.
+
 - 2026-10-25 tracked-file re-audit (using each child repository’s `git ls-files`): Artifact has 42 remaining `.cppm` module providers and one `module X;` source snapshot (`composition_codex_original.cppm`) outside the active CMake manifest; two frozen-area `.cppm` files were excluded from content inspection. ArtifactCore has 45 remaining `.cppm` module providers; its two frozen-area files were excluded. ArtifactWidgets has no tracked `.cppm` files. Static CMake inspection confirms Artifact classifies collected `_IMPL` `.cppm`/`.cpp` sources for Clang scans, ArtifactCore builds its implementation-source list from `_IMPL` manifests with frontend-specific scan handling, and ArtifactWidgets scans migrated module-aware `.cpp` sources. This does not verify generated P1689 output or compile/link behavior.
 
 - Static module-hygiene audit of 22 `.cpp` units touched by recent Clang fixes and implementation migrations found no `#include` after the named `module` declaration; every checked file uses LF and ends with LF. This confirms source layout/line endings only, not Clang compilation.
