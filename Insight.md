@@ -2,11 +2,11 @@
 
 # Insight Register
 
-## 2026-10-25: DockFoundation leaked an MSVC-only flag into clang-cl scanning
-- **関連:** `Artifact/DockFoundation/CMakeLists.txt`, clang-cl P1689 scan, `DockManager.ixx`
-- **確認できた事実:** The generated `clang-scan-deps` command for `DockManager.ixx` contained `/Zf`, and the scan reported `no such file or directory: '/Zf'`. The source option block used `if(MSVC)`, which is also true for clang-cl. It now additionally requires `CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"`, preserving the option for cl.exe only. A direct rerun of the generated scanner command with only `/Zf` removed succeeded and emitted a P1689 `provides` rule for interface module `Dock.Manager`.
-- **価値または懸念:** Dedicated library CMake files can bypass root/compiler-family guards and inject flags into dependency scanning. One target was corrected; a repository-wide audit of other standalone `if(MSVC)` blocks may find similar cases.
-- **次に確認すべきこと:** Complete a fresh CMake 4.4.4 configure and run the focused scanner through Ninja so generated target integration also confirms `/Zf` is absent; then expand clang-cl compilation.
+## 2026-10-25: clang-cl must not inherit MSVC-only flags
+- **関連:** `Artifact/DockFoundation/CMakeLists.txt`, root `CMakeLists.txt`, clang-cl P1689 scans
+- **確認できた事実:** The old generated `DockManager.ixx` scan command contained `/Zf` and failed with `no such file or directory: '/Zf'`; its standalone CMake used broad `if(MSVC)`. The guard now requires compiler ID `MSVC`. A direct run of its generated scan command with `/Zf` removed succeeded and emitted `Dock.Manager`. A second audit found root optional test/viewer targets placed `/Zf` unconditionally under `ARTIFACT_FRONTEND_MSVC`; these now use a compiler-ID generator expression. With the Plugin Host target enabled, fresh CMake 4.4.4 output omits `/Zf` and MSVC-only standard flags from both scan and compile commands, keeps `-std=c++23`, and its direct P1689 scan emitted seven module requirements. The root clang-cl tree also built `ArtifactCoreEnvironment` (including migrated `EnvironmentVariable.cpp`) and the full `ArtifactDockFoundation` static library.
+- **価値または懸念:** Dedicated library conditions and root optional-target flags can both bypass compiler-family gates and inject MSVC-only options into Clang scanning. The identified production-library and optional-root cases are now gated, but broad compile coverage is still incomplete.
+- **次に確認すべきこと:** Build the optional Plugin Host object after its imported module BMIs are available; a Ninja target request currently expands to a multi-thousand-action OpenUSD dependency graph.
 
 ## 2026-10-25: clang-cl module units cannot inherit the MSVC Qt forced include
 - **関連:** `ArtifactCore/CMakeLists.txt`, `include/Compat/QtListForward.h`, clang-cl module compilation

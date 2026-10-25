@@ -1508,7 +1508,7 @@ if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCompositionMotionPathTest PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1549,7 +1549,7 @@ if(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_GRID_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCompositionViewportGridTest PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1583,7 +1583,7 @@ if(ARTIFACT_BUILD_COMPOSITION_PLAYBACK_STRESS_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCompositionPlaybackStressTest PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1618,7 +1618,7 @@ if(ARTIFACT_BUILD_COMPOSITION_LAYER_SURFACE_CACHE_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCompositionLayerSurfaceCacheTest PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1656,7 +1656,7 @@ if(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_CHANNEL_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCompositionViewportChannelTest PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1729,7 +1729,7 @@ if(ARTIFACT_BUILD_AUDIO_BUS_VIEWER)
     endif()
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactAudioBusViewer PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1761,7 +1761,7 @@ if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
     endif()
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactFbxAnimationViewer PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1793,7 +1793,7 @@ if(ARTIFACT_BUILD_CAMERA_FRUSTUM_VIEWER)
     endif()
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCameraFrustumViewer PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1825,7 +1825,7 @@ if(ARTIFACT_BUILD_LAYER_PERSISTENCE_ROUNDTRIP_TEST)
     endif()
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactLayerPersistenceRoundTripTest PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
 endif()
@@ -1858,7 +1858,7 @@ if(ARTIFACT_BUILD_MPM_SAND_PERSISTENCE_REPLAY_TEST)
     endif()
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactMpmSandPersistenceReplayTest PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /EHsc
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
     add_test(NAME ArtifactMpmSandPersistenceReplayTest
@@ -1957,7 +1957,7 @@ if(ARTIFACT_BUILD_PLUGIN_HOST_SMOKE_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactPluginHostSmoke PRIVATE
-            /Zf $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/std:c++latest> $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/experimental:module> /Zc:__cplusplus
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/std:c++latest> $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/experimental:module> /Zc:__cplusplus
             /permissive- /utf-8 /EHsc
         )
     endif()
