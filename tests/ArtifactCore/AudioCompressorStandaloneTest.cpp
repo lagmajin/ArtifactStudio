@@ -141,6 +141,20 @@ TEST(AudioCompressorStandaloneTest, ReducesAboveThresholdAndLeavesBelowThreshold
     EXPECT_FLOAT_EQ(belowThreshold.getGainReduction(), 1.0f);
 }
 
+TEST(AudioCompressorStandaloneTest, GainReductionReflectsTheCurrentQuietBlock)
+{
+    AudioCompressor compressor;
+    configureFastCompressor(compressor);
+    auto loud = makeMono(1000, QVector<float>{1.0f});
+    compressor.process(loud);
+    ASSERT_LT(compressor.getGainReduction(), 1.0f);
+
+    auto quiet = makeMono(1000, QVector<float>{0.0f});
+    compressor.process(quiet);
+
+    EXPECT_FLOAT_EQ(compressor.getGainReduction(), 1.0f);
+}
+
 TEST(AudioCompressorStandaloneTest, ProcessingInBlocksMatchesContinuousEnvelope)
 {
     const QVector<float> input{1.0f, 1.0f, 0.2f, 0.2f, 0.0f, 0.0f,
@@ -186,6 +200,30 @@ TEST(AudioCompressorStandaloneTest, SampleRateChangeResetsPreviousEnvelopeHistor
 
     EXPECT_EQ(afterRateChange.channelData[0], freshOutput.channelData[0]);
     EXPECT_FLOAT_EQ(withHistory.getGainReduction(), freshAtNewRate.getGainReduction());
+}
+
+TEST(AudioCompressorStandaloneTest, InvalidSampleRateAndEmptyFramesResetReportedGainReduction)
+{
+    AudioCompressor invalidRateCompressor;
+    configureFastCompressor(invalidRateCompressor);
+    auto loud = makeMono(1000, QVector<float>{1.0f});
+    invalidRateCompressor.process(loud);
+    ASSERT_LT(invalidRateCompressor.getGainReduction(), 1.0f);
+
+    auto invalidRate = makeMono(0, QVector<float>{0.25f, -0.5f});
+    invalidRateCompressor.process(invalidRate);
+    EXPECT_EQ(invalidRate.channelData[0], (QVector<float>{0.25f, -0.5f}));
+    EXPECT_FLOAT_EQ(invalidRateCompressor.getGainReduction(), 1.0f);
+
+    AudioCompressor emptyFramesCompressor;
+    configureFastCompressor(emptyFramesCompressor);
+    auto loudAtValidRate = makeMono(1000, QVector<float>{1.0f});
+    emptyFramesCompressor.process(loudAtValidRate);
+    ASSERT_LT(emptyFramesCompressor.getGainReduction(), 1.0f);
+
+    auto emptyFrames = makeMono(1000, QVector<float>{});
+    emptyFramesCompressor.process(emptyFrames);
+    EXPECT_FLOAT_EQ(emptyFramesCompressor.getGainReduction(), 1.0f);
 }
 
 TEST(AudioCompressorStandaloneTest, LoudestStereoChannelControlsGainForBothChannels)

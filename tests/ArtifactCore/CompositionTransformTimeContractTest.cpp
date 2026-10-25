@@ -96,6 +96,23 @@ TEST(CompositionRegistryTest, GuardsAndNameNormalization)
     EXPECT_TRUE(registry.registeredNames().isEmpty());
 }
 
+TEST(CompositionRegistryTest, ClearRemovesEveryRegisteredLookup)
+{
+    RegistryGuard guard;
+    CompositionRegistry& registry = CompositionRegistry::global();
+    int first = 1;
+    int second = 2;
+    registry.registerComposition(QStringLiteral("First"), &first);
+    registry.registerComposition(QStringLiteral("Second"), &second);
+
+    ASSERT_EQ(registry.registeredNames().size(), 2);
+    registry.clear();
+
+    EXPECT_EQ(registry.findComposition(QStringLiteral("First")), nullptr);
+    EXPECT_EQ(registry.findComposition(QStringLiteral("Second")), nullptr);
+    EXPECT_TRUE(registry.registeredNames().isEmpty());
+}
+
 TEST(LayerBlendMatteContractTest, MatteModeStringsAndPredicates)
 {
     EXPECT_EQ(MatteModeUtils::toString(MatteMode::None), QStringLiteral("None"));

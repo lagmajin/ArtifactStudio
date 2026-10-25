@@ -85,6 +85,32 @@ TEST(CameraGuideStandaloneTest, BodyDepthHasMinimumExtent)
     EXPECT_FLOAT_EQ(guide.vertices[7].z(), -0.01f);
 }
 
+TEST(CameraGuideStandaloneTest, NegativeBodyDepthUsesMinimumExtent)
+{
+    const auto guide = makeNukeStyleCameraGuidePrimitive(
+        0.55f, 0.36f, -2.0f);
+
+    EXPECT_FLOAT_EQ(guide.vertices[4].z(), -0.01f);
+    EXPECT_FLOAT_EQ(guide.vertices[7].z(), -0.01f);
+}
+
+TEST(CameraGuideStandaloneTest, ZeroBodyDepthClampKeepsEveryTriangleNonDegenerate)
+{
+    const auto guide = makeNukeStyleCameraGuidePrimitive(
+        0.55f, 0.36f, 0.0f);
+    ASSERT_EQ(guide.triangleIndices.size() % 3u, 0u);
+
+    for (std::size_t index = 0; index < guide.triangleIndices.size(); index += 3) {
+        const auto& first = guide.vertices[guide.triangleIndices[index]];
+        const auto& second = guide.vertices[guide.triangleIndices[index + 1]];
+        const auto& third = guide.vertices[guide.triangleIndices[index + 2]];
+        const QVector3D edgeA = second - first;
+        const QVector3D edgeB = third - first;
+        const float doubledArea = QVector3D::crossProduct(edgeA, edgeB).length();
+        EXPECT_GT(doubledArea, 0.0f) << "Triangle starting at index " << index;
+    }
+}
+
 TEST(CameraGuideStandaloneTest, CustomDimensionsChangeOnlyTheirCorrespondingExtents)
 {
     const auto guide = makeNukeStyleCameraGuidePrimitive(

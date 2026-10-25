@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QFile>
 #include <QIODevice>
+#include <QCborValue>
 #include <QTemporaryDir>
 #include <QString>
 #include <QStringList>
@@ -10,11 +11,17 @@
 
 #include <array>
 #include <thread>
+#include <type_traits>
 #include <utility>
 
 import Core.FastSettingsStore;
 
 using ArtifactCore::FastSettingsStore;
+
+static_assert(!std::is_copy_constructible_v<FastSettingsStore>);
+static_assert(!std::is_copy_assignable_v<FastSettingsStore>);
+static_assert(!std::is_move_constructible_v<FastSettingsStore>);
+static_assert(!std::is_move_assignable_v<FastSettingsStore>);
 
 TEST(FastSettingsStoreContractTest, OpeningMissingFileStartsEmptyWithoutCreatingIt)
 {
@@ -41,6 +48,25 @@ TEST(FastSettingsStoreContractTest, OpeningMalformedCborReportsFailure)
     file.close();
 
     FastSettingsStore store;
+    EXPECT_FALSE(store.open(path));
+    EXPECT_EQ(store.filePath(), path);
+    EXPECT_EQ(store.size(), 0);
+    EXPECT_FALSE(store.isDirty());
+}
+
+TEST(FastSettingsStoreContractTest, OpeningValidNonMapCborReportsFailure)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("scalar.cbor"));
+    const QByteArray payload = QCborValue(qint64(42)).toCbor();
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+    ASSERT_EQ(file.write(payload), payload.size());
+    file.close();
+
+    FastSettingsStore store;
+
     EXPECT_FALSE(store.open(path));
     EXPECT_EQ(store.filePath(), path);
     EXPECT_EQ(store.size(), 0);
@@ -160,6 +186,22 @@ TEST(FastSettingsStoreContractTest, TypedAccessorsReturnStoredValuesAndCallerDef
     EXPECT_EQ(store.valueInt64(QStringLiteral("absent"), -17), -17);
     EXPECT_EQ(store.valueString(QStringLiteral("absent"), QStringLiteral("fallback")),
               QStringLiteral("fallback"));
+}
+
+TEST(FastSettingsStoreContractTest, TypedAccessorsConvertQtConvertibleStoredValues)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    FastSettingsStore store(directory.filePath(QStringLiteral("settings.cbor")));
+    store.setValue(QStringLiteral("enabled-text"), QStringLiteral("true"));
+    store.setValue(QStringLiteral("enabled-number"), 1);
+    store.setValue(QStringLiteral("count-text"), QStringLiteral("42"));
+    store.setValue(QStringLiteral("label-number"), 42);
+
+    EXPECT_TRUE(store.valueBool(QStringLiteral("enabled-text")));
+    EXPECT_TRUE(store.valueBool(QStringLiteral("enabled-number")));
+    EXPECT_EQ(store.valueInt64(QStringLiteral("count-text")), 42);
+    EXPECT_EQ(store.valueString(QStringLiteral("label-number")), QStringLiteral("42"));
 }
 
 TEST(FastSettingsStoreContractTest, SyncAndReloadPreserveNestedVariantValues)

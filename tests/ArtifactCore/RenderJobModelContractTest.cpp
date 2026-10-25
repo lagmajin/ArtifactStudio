@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QAbstractItemModel>
+#include <QPersistentModelIndex>
 #include <QString>
 
 #include <limits>
@@ -291,6 +292,44 @@ TEST(RenderJobModelContractTest, MfrSettingsAcceptZeroLimitsAndCanBeDisabled)
     EXPECT_EQ(job->mfrConcurrentFrames, 0);
     EXPECT_EQ(job->mfrMemoryLimitMB, 0u);
     EXPECT_EQ(job->mfrRetryBackoffMs, 0);
+}
+
+TEST(RenderJobModelContractTest,
+     PersistentIndexesTrackJobsAcrossInsertionAndRemoval)
+{
+    RenderJobModel model;
+    model.addJob(Id::Nil(), QStringLiteral("first"));
+    model.addJob(Id::Nil(), QStringLiteral("second"));
+
+    QPersistentModelIndex secondJob(model.index(1, 0));
+    ASSERT_TRUE(secondJob.isValid());
+    EXPECT_EQ(secondJob.data().toString(), QStringLiteral("second"));
+
+    model.removeJob(-1);
+    model.removeJob(model.rowCount());
+    EXPECT_TRUE(secondJob.isValid());
+    EXPECT_EQ(secondJob.row(), 1);
+    EXPECT_EQ(secondJob.data().toString(), QStringLiteral("second"));
+
+    model.addJob(Id::Nil(), QStringLiteral("third"));
+    EXPECT_TRUE(secondJob.isValid());
+    EXPECT_EQ(secondJob.row(), 1);
+    EXPECT_EQ(secondJob.data().toString(), QStringLiteral("second"));
+
+    model.removeJob(0);
+    ASSERT_TRUE(secondJob.isValid());
+    EXPECT_EQ(secondJob.row(), 0);
+    EXPECT_EQ(secondJob.data().toString(), QStringLiteral("second"));
+
+    model.removeJob(0);
+    EXPECT_FALSE(secondJob.isValid());
+
+    model.addJob(Id::Nil(), QStringLiteral("reset target"));
+    QPersistentModelIndex resetTarget(model.index(0, 0));
+    ASSERT_TRUE(resetTarget.isValid());
+    model.clearJobs();
+    EXPECT_EQ(model.rowCount(), 0);
+    EXPECT_FALSE(resetTarget.isValid());
 }
 
 TEST(RenderJobModelContractTest, RemoveAndClearMaintainRowCountsAndBounds)

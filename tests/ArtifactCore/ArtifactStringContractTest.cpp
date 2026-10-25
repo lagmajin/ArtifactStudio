@@ -45,6 +45,23 @@ TEST(ArtifactStringContractTest, SmallBufferBoundaryKeepsInlineCapacityUntilExce
     EXPECT_EQ(heapString.length(), String::kSmallCapacity + 1);
 }
 
+TEST(ArtifactStringContractTest, ReservePreservesContentsAndNeverShrinksCapacity)
+{
+    String value("reserved");
+    const std::size_t inlineCapacity = value.capacity();
+
+    value.reserve(inlineCapacity + 1);
+    const std::size_t expandedCapacity = value.capacity();
+    EXPECT_GE(expandedCapacity, inlineCapacity + 1);
+    EXPECT_EQ(value, "reserved");
+    EXPECT_EQ(value.data()[value.length()], '\0');
+
+    value.reserve(1);
+    EXPECT_EQ(value.capacity(), expandedCapacity);
+    EXPECT_EQ(value, "reserved");
+    EXPECT_EQ(value.data()[value.length()], '\0');
+}
+
 TEST(ArtifactStringContractTest, CopyAndMovePreserveContentsAcrossStorageModes)
 {
     String small("short");
@@ -196,6 +213,19 @@ TEST(ArtifactStringContractTest, ReplaceClampsRemovedLengthAndIgnoresOutOfRangeP
     EXPECT_EQ(value, "XY!");
 }
 
+TEST(ArtifactStringContractTest, ReplaceWithZeroCountInsertsAtBeginningMiddleAndEnd)
+{
+    String value("abcd");
+
+    value.replace(0, 0, "^");
+    value.replace(3, 0, "-");
+    value.replace(value.length(), 0, "$");
+
+    EXPECT_EQ(value, "^ab-cd$");
+    EXPECT_EQ(value.length(), 8u);
+    EXPECT_EQ(value.data()[value.length()], '\0');
+}
+
 TEST(ArtifactStringContractTest, NullReplacementPointerDeletesSelectedRange)
 {
     String value("abcdef");
@@ -218,6 +248,42 @@ TEST(ArtifactStringContractTest, NumericConversionReportsSuccessAndInvalidInput)
     EXPECT_FALSE(integerOk);
     EXPECT_DOUBLE_EQ(String("invalid").toDouble(&doubleOk), 0.0);
     EXPECT_FALSE(doubleOk);
+}
+
+TEST(ArtifactStringContractTest, NumericConversionReportsOutOfRangeInputAsFailure)
+{
+    bool integerOk = true;
+    bool doubleOk = true;
+
+    static_cast<void>(String("999999999999999999999999999999999999999999")
+                          .toInt(&integerOk));
+    static_cast<void>(String("1e9999").toDouble(&doubleOk));
+
+    EXPECT_FALSE(integerOk);
+    EXPECT_FALSE(doubleOk);
+}
+
+TEST(ArtifactStringContractTest, NumericConversionOfNullInputReportsFailure)
+{
+    const String nullInput(static_cast<const char*>(nullptr));
+    bool integerOk = true;
+    bool doubleOk = true;
+
+    EXPECT_EQ(nullInput.toInt(&integerOk), 0);
+    EXPECT_FALSE(integerOk);
+    EXPECT_DOUBLE_EQ(nullInput.toDouble(&doubleOk), 0.0);
+    EXPECT_FALSE(doubleOk);
+}
+
+TEST(ArtifactStringContractTest, NumericConversionAcceptsLeadingWhitespaceAndPlusSign)
+{
+    bool integerOk = false;
+    bool doubleOk = false;
+
+    EXPECT_EQ(String(" \t+42tail").toInt(&integerOk), 42);
+    EXPECT_TRUE(integerOk);
+    EXPECT_DOUBLE_EQ(String(" \t+3.5e1tail").toDouble(&doubleOk), 35.0);
+    EXPECT_TRUE(doubleOk);
 }
 
 TEST(ArtifactStringContractTest, NumberFormattingUsesRequestedPrecision)
@@ -309,6 +375,16 @@ TEST(ArtifactStringContractTest, StringViewExplicitLengthPreservesNullBytes)
     EXPECT_NE(view, StringView("a"));
 }
 
+TEST(ArtifactStringContractTest, StringViewIterationCoversExplicitLengthIncludingNullBytes)
+{
+    constexpr char bytes[] = {'a', '\0', 'b'};
+    const StringView view(bytes, sizeof(bytes));
+
+    EXPECT_EQ(view.begin(), bytes);
+    EXPECT_EQ(view.end() - view.begin(), 3);
+    EXPECT_EQ(std::string(view.begin(), view.end()), std::string(bytes, sizeof(bytes)));
+}
+
 TEST(ArtifactStringContractTest, AssignmentAndSelfAssignmentPreserveStorageInvariants)
 {
     String value(std::string(64, 'x'));
@@ -371,5 +447,19 @@ TEST(ArtifactStringContractTest, AsciiCaseHelpersLeaveHighBitBytesUnchanged)
               String(lowerExpected, sizeof(lowerExpected)));
     EXPECT_EQ(asciiUpper(StringView(bytes, sizeof(bytes))),
               String(upperExpected, sizeof(upperExpected)));
+}
+
+TEST(ArtifactStringContractTest, AsciiTrimPreservesUtf8NonBreakingSpaces)
+{
+    const char text[] = {
+        static_cast<char>(0xC2), static_cast<char>(0xA0), 'x',
+        static_cast<char>(0xC2), static_cast<char>(0xA0)};
+
+    const String trimmed = asciiTrimmed(StringView(text, sizeof(text)));
+
+    ASSERT_EQ(trimmed.length(), sizeof(text));
+    for (std::size_t index = 0; index < sizeof(text); ++index) {
+        EXPECT_EQ(trimmed.at(index), text[index]);
+    }
 }
 

@@ -25,6 +25,17 @@ AudioSegment makeMono(int sampleRate, QVector<float> samples)
     return segment;
 }
 
+AudioSegment makeStereo(int sampleRate, QVector<float> left, QVector<float> right)
+{
+    AudioSegment segment;
+    segment.sampleRate = sampleRate;
+    segment.layout = AudioChannelLayout::Stereo;
+    segment.startFrame = 0;
+    segment.channelData.push_back(std::move(left));
+    segment.channelData.push_back(std::move(right));
+    return segment;
+}
+
 QVector<float> makeSine(float freq, int sampleRate, int frames, float amp)
 {
     QVector<float> data(frames);
@@ -88,6 +99,53 @@ TEST(AudioDeEsserStandaloneTest, AttenuatesLoudHighFrequencyContent)
         differs = differs || (segment.channelData[0][i] != before[i]);
     }
     EXPECT_TRUE(differs);
+}
+
+TEST(AudioDeEsserStandaloneTest, PreservesLowFrequencyContentBelowCrossover)
+{
+    AudioDeEsser deesser;
+    deesser.setFrequency(12000.0f);
+    deesser.setThresholdDb(-30.0f);
+    deesser.setReduction(1.0f);
+    auto segment = makeMono(48000, makeSine(1000.0f, 48000, 4800, 0.5f));
+    const QVector<float> before = segment.channelData[0];
+
+    deesser.process(segment);
+
+    ASSERT_EQ(segment.channelData[0].size(), before.size());
+    for (qsizetype frame = 0; frame < before.size(); ++frame)
+        EXPECT_NEAR(segment.channelData[0][frame], before[frame], 1e-5f) << frame;
+}
+
+TEST(AudioDeEsserStandaloneTest, KeepsFilterAndDetectorStateIndependentPerChannel)
+{
+    AudioDeEsser stereoProcessor;
+    AudioDeEsser leftReference;
+    AudioDeEsser rightReference;
+
+    const QVector<float> leftBlockOne = makeSine(1000.0f, 48000, 2048, 0.4f);
+    const QVector<float> rightBlockOne = makeSine(8000.0f, 48000, 2048, 1.0f);
+    auto stereoOne = makeStereo(48000, leftBlockOne, rightBlockOne);
+    auto leftOne = makeMono(48000, leftBlockOne);
+    auto rightOne = makeMono(48000, rightBlockOne);
+    stereoProcessor.process(stereoOne);
+    leftReference.process(leftOne);
+    rightReference.process(rightOne);
+
+    EXPECT_EQ(stereoOne.channelData[0], leftOne.channelData[0]);
+    EXPECT_EQ(stereoOne.channelData[1], rightOne.channelData[0]);
+
+    const QVector<float> leftBlockTwo = makeSine(1000.0f, 48000, 2048, 0.2f);
+    const QVector<float> rightBlockTwo = makeSine(8000.0f, 48000, 2048, 0.5f);
+    auto stereoTwo = makeStereo(48000, leftBlockTwo, rightBlockTwo);
+    auto leftTwo = makeMono(48000, leftBlockTwo);
+    auto rightTwo = makeMono(48000, rightBlockTwo);
+    stereoProcessor.process(stereoTwo);
+    leftReference.process(leftTwo);
+    rightReference.process(rightTwo);
+
+    EXPECT_EQ(stereoTwo.channelData[0], leftTwo.channelData[0]);
+    EXPECT_EQ(stereoTwo.channelData[1], rightTwo.channelData[0]);
 }
 
 TEST(AudioDeEsserStandaloneTest, BypassPreservesInputSamples)

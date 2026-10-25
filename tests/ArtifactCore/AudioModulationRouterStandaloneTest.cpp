@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <memory>
 
@@ -167,6 +168,10 @@ TEST(AudioModulationRouterStandaloneTest, AssignmentControlsCanBeChangedAndRemov
     EXPECT_FLOAT_EQ(router.targetModulation(target), 1.0f);
     router.removeAssignment(source, target);
     EXPECT_TRUE(router.empty());
+    router.process(1);
+    EXPECT_FALSE(router.hasTarget(target));
+    EXPECT_FLOAT_EQ(router.targetModulation(target), 0.0f);
+    EXPECT_FLOAT_EQ(router.targetValue(target, 0.6f), 0.6f);
 }
 
 TEST(AudioModulationRouterStandaloneTest, RemovingSourceAlsoRemovesItsAssignments)
@@ -276,6 +281,182 @@ TEST(AudioModulationRouterStandaloneTest, SnapshotPreservesAssignmentModesAndEna
     restored.process(1);
     EXPECT_FLOAT_EQ(restored.targetModulation(target), 0.0f);
     EXPECT_FLOAT_EQ(restored.targetValue(target, 4.0f), 5.0f);
+}
+
+TEST(AudioModulationRouterStandaloneTest, SnapshotRestoresLfoConfigurationAndDeterministicOutput)
+{
+    ModulationRouter original;
+    original.setSmoothingTime(0.0f);
+    auto lfo = std::make_unique<LfoSource>(LfoWaveform::Square);
+    lfo->setFrequency(1.0f);
+    lfo->setPhase(0.25f);
+    lfo->setPulseWidth(0.4f);
+    lfo->setUnipolar(true);
+    const auto source = original.addSource(std::move(lfo));
+    const auto target = modulationTargetId("effect.amount");
+    ASSERT_TRUE(original.addAssignment({source, target, "effect.amount", 0.5f, true,
+                                      ModulationMixMode::Add}));
+
+    ModulationRouter restored;
+    restored.restoreSnapshot(original.snapshot());
+
+    const auto definitions = restored.sourceDefinitions();
+    ASSERT_EQ(definitions.size(), 1u);
+    EXPECT_EQ(definitions[0].id, source);
+    EXPECT_EQ(definitions[0].type, ModulatorSourceType::Lfo);
+    EXPECT_EQ(definitions[0].waveform, LfoWaveform::Square);
+    EXPECT_FLOAT_EQ(definitions[0].frequency, 1.0f);
+    EXPECT_FLOAT_EQ(definitions[0].phaseOffset, 0.25f);
+    EXPECT_FLOAT_EQ(definitions[0].pulseWidth, 0.4f);
+    EXPECT_TRUE(definitions[0].unipolar);
+
+    restored.process(0);
+    EXPECT_FLOAT_EQ(restored.targetModulation(target), 0.5f);
+}
+
+TEST(AudioModulationRouterStandaloneTest, SnapshotRestoresAdsrParametersButResetsGateState)
+{
+    ModulationRouter original;
+    original.setSmoothingTime(0.0f);
+    auto adsr = std::make_unique<AdsrSource>();
+    adsr->setAttack(0.2f);
+    adsr->setDecay(0.4f);
+    adsr->setSustain(0.3f);
+    adsr->setRelease(0.6f);
+    const auto source = original.addSource(std::move(adsr));
+    const auto target = modulationTargetId("effect.amount");
+    ASSERT_TRUE(original.addAssignment({source, target, "effect.amount", 1.0f, true,
+                                      ModulationMixMode::Add}));
+    auto* originalAdsr = dynamic_cast<AdsrSource*>(original.source(source));
+    ASSERT_NE(originalAdsr, nullptr);
+    originalAdsr->gate(true);
+    original.process(2400);
+
+    ModulationRouter restored;
+    restored.restoreSnapshot(original.snapshot());
+
+    const auto definitions = restored.sourceDefinitions();
+    ASSERT_EQ(definitions.size(), 1u);
+    EXPECT_EQ(definitions[0].type, ModulatorSourceType::Adsr);
+    EXPECT_FLOAT_EQ(definitions[0].attack, 0.2f);
+    EXPECT_FLOAT_EQ(definitions[0].decay, 0.4f);
+    EXPECT_FLOAT_EQ(definitions[0].sustain, 0.3f);
+    EXPECT_FLOAT_EQ(definitions[0].release, 0.6f);
+    auto* restoredAdsr = dynamic_cast<AdsrSource*>(restored.source(source));
+    ASSERT_NE(restoredAdsr, nullptr);
+    EXPECT_EQ(restoredAdsr->stage(), AdsrSource::Stage::Idle);
+
+    restoredAdsr->gate(true);
+    restored.process(2400);
+    EXPECT_NEAR(restored.targetModulation(target), 0.25f, 1.0e-6f);
+}
+
+TEST(AudioModulationRouterStandaloneTest, SnapshotRestoresRandomConfigurationAndSeededSequence)
+{
+    ModulationRouter original;
+    original.setSmoothingTime(0.0f);
+    auto random = std::make_unique<RandomSource>();
+    random->setRate(7.0f);
+    random->setSmoothing(0.0f);
+    random->setSeed(1234u);
+    random->setUnipolar(true);
+    const auto source = original.addSource(std::move(random));
+    const auto target = modulationTargetId("effect.amount");
+    ASSERT_TRUE(original.addAssignment({source, target, "effect.amount", 1.0f, true,
+                                      ModulationMixMode::Add}));
+    const auto snapshot = original.snapshot();
+
+    ModulationRouter firstRestore;
+    ModulationRouter secondRestore;
+    firstRestore.restoreSnapshot(snapshot);
+    secondRestore.restoreSnapshot(snapshot);
+
+    const auto definitions = firstRestore.sourceDefinitions();
+    ASSERT_EQ(definitions.size(), 1u);
+    EXPECT_EQ(definitions[0].type, ModulatorSourceType::Random);
+    EXPECT_FLOAT_EQ(definitions[0].rate, 7.0f);
+    EXPECT_FLOAT_EQ(definitions[0].smoothing, 0.0f);
+    EXPECT_EQ(definitions[0].seed, 1234u);
+    EXPECT_TRUE(definitions[0].unipolar);
+
+    firstRestore.process(1);
+    secondRestore.process(1);
+    const float firstValue = firstRestore.targetModulation(target);
+    EXPECT_FLOAT_EQ(firstValue, secondRestore.targetModulation(target));
+    EXPECT_GE(firstValue, 0.0f);
+    EXPECT_LE(firstValue, 1.0f);
+}
+
+TEST(AudioModulationRouterStandaloneTest, SnapshotRestoresNoiseConfigurationAndSeededSequence)
+{
+    ModulationRouter original;
+    original.setSmoothingTime(0.0f);
+    auto noise = std::make_unique<NoiseSource>();
+    noise->setRate(5.0f);
+    noise->setSeed(9876u);
+    noise->setUnipolar(true);
+    const auto source = original.addSource(std::move(noise));
+    const auto target = modulationTargetId("effect.amount");
+    ASSERT_TRUE(original.addAssignment({source, target, "effect.amount", 1.0f, true,
+                                      ModulationMixMode::Add}));
+    const auto snapshot = original.snapshot();
+
+    ModulationRouter firstRestore;
+    ModulationRouter secondRestore;
+    firstRestore.restoreSnapshot(snapshot);
+    secondRestore.restoreSnapshot(snapshot);
+
+    const auto definitions = firstRestore.sourceDefinitions();
+    ASSERT_EQ(definitions.size(), 1u);
+    EXPECT_EQ(definitions[0].type, ModulatorSourceType::Noise);
+    EXPECT_FLOAT_EQ(definitions[0].rate, 5.0f);
+    EXPECT_EQ(definitions[0].seed, 9876u);
+    EXPECT_TRUE(definitions[0].unipolar);
+
+    firstRestore.process(10000);
+    secondRestore.process(10000);
+    const float firstValue = firstRestore.targetModulation(target);
+    EXPECT_FLOAT_EQ(firstValue, secondRestore.targetModulation(target));
+    EXPECT_GE(firstValue, 0.0f);
+    EXPECT_LE(firstValue, 1.0f);
+}
+
+TEST(AudioModulationRouterStandaloneTest, SnapshotRestoresStepsConfigurationAndSeededSequence)
+{
+    ModulationRouter original;
+    original.setSmoothingTime(0.0f);
+    auto steps = std::make_unique<StepsSource>();
+    steps->setStepCount(7u);
+    steps->setRate(12.0f);
+    steps->setSeed(4321u);
+    steps->setUnipolar(true);
+    const auto source = original.addSource(std::move(steps));
+    const auto target = modulationTargetId("effect.amount");
+    ASSERT_TRUE(original.addAssignment({source, target, "effect.amount", 1.0f, true,
+                                      ModulationMixMode::Add}));
+    const auto snapshot = original.snapshot();
+
+    ModulationRouter firstRestore;
+    ModulationRouter secondRestore;
+    firstRestore.restoreSnapshot(snapshot);
+    secondRestore.restoreSnapshot(snapshot);
+
+    const auto definitions = firstRestore.sourceDefinitions();
+    ASSERT_EQ(definitions.size(), 1u);
+    EXPECT_EQ(definitions[0].type, ModulatorSourceType::Steps);
+    EXPECT_EQ(definitions[0].stepCount, 7u);
+    EXPECT_FLOAT_EQ(definitions[0].rate, 12.0f);
+    EXPECT_EQ(definitions[0].seed, 4321u);
+    EXPECT_TRUE(definitions[0].unipolar);
+
+    for (const std::uint32_t frames : {0u, 4000u, 4000u, 8000u}) {
+        firstRestore.process(frames);
+        secondRestore.process(frames);
+        const float value = firstRestore.targetModulation(target);
+        EXPECT_FLOAT_EQ(value, secondRestore.targetModulation(target));
+        EXPECT_GE(value, 0.0f);
+        EXPECT_LE(value, 1.0f);
+    }
 }
 
 TEST(AudioModulationRouterStandaloneTest, TargetValueReturnsBaseForUnknownTargets)

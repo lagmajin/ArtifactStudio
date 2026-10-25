@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
+#include <QColor>
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
@@ -13,6 +14,7 @@
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QPointF>
+#include <QPoint>
 #include <QRegularExpression>
 #include <QSize>
 #include <QStandardPaths>
@@ -486,6 +488,110 @@ TEST(RenderQueueLayerImageIntegrationTest,
         width, height, &failure, 0, 48, &eventLoopProbe))
         << failure.toStdString();
     EXPECT_TRUE(eventLoopProbe.servicedWhileRendering());
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     LargeSurfaceEffectQueueWritesEveryFrameAndAppliesEffect)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 1280;
+    constexpr int height = 720;
+    constexpr int frameCount = 4;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("LargeEffectRenderQueueTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("LargeEffectQueue")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(frameCount + 1);
+    params.setBackgroundColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("LargeSolid"));
+    layerParams.setWidth(width);
+    layerParams.setHeight(height);
+    layerParams.setColor(ArtifactCore::FloatColor(0.18f, 0.28f, 0.38f, 1.0f));
+    const auto created = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(created.success);
+    ASSERT_NE(created.layer.get(), nullptr);
+
+    QString failure;
+    const QString baselineOutput = isolatedOutputPath(
+        QStringLiteral("large_effect_queue_baseline.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("LargeEffectQueue"),
+        baselineOutput, width, height,
+        [](const QImage& image) {
+            return image.pixelColor(image.width() / 2, image.height() / 2).alpha() > 0;
+        }, &failure, frameCount, QStringLiteral("gpu"), 1))
+        << failure.toStdString();
+
+    auto brightness = ArtifactCore::makeShared<Artifact::BrightnessEffect>();
+    ASSERT_NE(brightness, nullptr);
+    brightness->setBrightness(0.18f);
+    created.layer->addEffect(brightness);
+    created.layer->clearFrameCache();
+
+    const QString effectedOutput = isolatedOutputPath(
+        QStringLiteral("large_effect_queue_brightness.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("LargeEffectQueue"),
+        effectedOutput, width, height,
+        [](const QImage& image) {
+            return image.pixelColor(image.width() / 2, image.height() / 2).alpha() > 0;
+        }, &failure, frameCount, QStringLiteral("gpu"), 1))
+        << failure.toStdString();
+
+    const QFileInfo baselineInfo(baselineOutput);
+    const QFileInfo effectedInfo(effectedOutput);
+    for (int frame = 1; frame <= frameCount; ++frame) {
+        const auto framePath = [frame](const QFileInfo& outputInfo) {
+            return QDir(outputInfo.absolutePath()).filePath(
+                QStringLiteral("%1_%2.png")
+                    .arg(outputInfo.completeBaseName())
+                    .arg(frame, 4, 10, QLatin1Char('0')));
+        };
+        const QImage baseline(framePath(baselineInfo));
+        const QImage effected(framePath(effectedInfo));
+        ASSERT_FALSE(baseline.isNull()) << "missing baseline frame " << frame;
+        ASSERT_FALSE(effected.isNull()) << "missing effected frame " << frame;
+        ASSERT_EQ(baseline.size(), QSize(width, height));
+        ASSERT_EQ(effected.size(), QSize(width, height));
+
+        const QPoint sample(width / 2, height / 2);
+        const QColor baselinePixel = baseline.pixelColor(sample);
+        const QColor effectedPixel = effected.pixelColor(sample);
+        EXPECT_GT(effectedPixel.red(), baselinePixel.red()) << "frame " << frame;
+        EXPECT_GT(effectedPixel.green(), baselinePixel.green()) << "frame " << frame;
+        EXPECT_GT(effectedPixel.blue(), baselinePixel.blue()) << "frame " << frame;
+    }
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,

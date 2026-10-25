@@ -8,6 +8,22 @@ import Audio.Backend;
 
 using namespace ArtifactCore;
 
+namespace {
+class MinimalAudioBackend final : public AudioBackend {
+public:
+    bool open(const AudioDeviceInfo&, const AudioBackendFormat&) override { return true; }
+    void close() override {}
+    void start(AudioCallback) override { active = true; }
+    void stop() override { active = false; }
+    bool isActive() const override { return active; }
+    AudioBackendFormat currentFormat() const override { return {}; }
+    QString backendName() const override { return QStringLiteral("test"); }
+
+private:
+    bool active = false;
+};
+}
+
 TEST(AudioBackendStandaloneTest, EmptyDeviceDescriptionIsInvalid)
 {
     const AudioDeviceInfo device{};
@@ -81,5 +97,14 @@ TEST(AudioBackendStandaloneTest, BackendRemainsAnAbstractInterface)
 {
     EXPECT_TRUE(std::is_abstract_v<AudioBackend>);
     EXPECT_TRUE(std::has_virtual_destructor_v<AudioBackend>);
+}
+
+TEST(AudioBackendStandaloneTest, DefaultRequestStopLeavesBackendStateUnchanged)
+{
+    MinimalAudioBackend backend;
+    backend.start({});
+    ASSERT_TRUE(backend.isActive());
+    backend.requestStop();
+    EXPECT_TRUE(backend.isActive());
 }
 

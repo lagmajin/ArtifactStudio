@@ -8,6 +8,7 @@
 #include <QGuiApplication>
 #include <QIODevice>
 #include <QJsonObject>
+#include <QPointF>
 #include <QStandardPaths>
 #include <QString>
 #include <QTemporaryDir>
@@ -18,6 +19,8 @@ import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.Matte;
 import Artifact.Layer.Result;
+import Artifact.Mask.LayerMask;
+import Artifact.Mask.Path;
 import Artifact.Project.Exporter;
 import Artifact.Project.Health;
 import Artifact.Project.Importer;
@@ -203,6 +206,121 @@ TEST(ArtifactProjectRoundTripTest, CreateSaveLoadPreservesProject)
     EXPECT_EQ(Artifact::ArtifactProjectHealthChecker::check(reloaded.get()).issues.size(),
               healthIssuesBefore);
     EXPECT_EQ(reloaded->validateProjectTree(nullptr), treeValidBefore);
+}
+
+TEST(ArtifactProjectRoundTripTest, LayerMaskStateAndPathRoundTrip)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("MaskRoundTripProbe"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto composition = projects.createComposition(
+        makeCompParams(QStringLiteral("MaskComp"), 96, 72));
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactLayerInitParams layerParams(
+        QStringLiteral("MaskedSolid"), Artifact::LayerType::Solid);
+    const auto created = projects.addLayerToComposition(composition.id, layerParams);
+    ASSERT_TRUE(created.success);
+    ASSERT_NE(created.layer.get(), nullptr);
+
+    Artifact::LayerMask mask;
+    mask.setEnabled(false);
+    mask.setLocked(true);
+    mask.setColor(ArtifactCore::FloatColor(0.17f, 0.38f, 0.64f, 0.82f));
+
+    Artifact::MaskPath path;
+    path.addVertex({QPointF(12.0, 14.0), QPointF(-1.0, 0.5), QPointF(2.0, 0.0)});
+    path.addVertex({QPointF(68.0, 14.0), {}, {}});
+    path.addVertex({QPointF(68.0, 55.0), {}, {}});
+    path.addVertex({QPointF(12.0, 55.0), {}, {}});
+    path.setClosed(true);
+    path.setName(ArtifactCore::UniString(QStringLiteral("persisted-path")));
+    path.setMode(Artifact::MaskMode::Difference);
+    path.setOpacity(0.63f);
+    path.setFeather({2.25f});
+    path.setFeatherHorizontal({1.5f});
+    path.setFeatherVertical({0.75f});
+    path.setFeatherInner({0.5f});
+    path.setFeatherOuter({1.25f});
+    path.setFalloff(Artifact::MaskFeatherFalloff::Smooth);
+    path.setExpansion({-1.75f});
+    path.setInverted(true);
+    Artifact::MaskPathKeyframeSnapshot animated;
+    animated.frame = 24;
+    animated.vertices = {
+        {QPointF(14.0, 16.0), {}, {}},
+        {QPointF(70.0, 16.0), {}, {}},
+        {QPointF(70.0, 57.0), {}, {}},
+        {QPointF(14.0, 57.0), {}, {}},
+    };
+    animated.closed = true;
+    animated.opacity = 0.42f;
+    animated.mode = Artifact::MaskMode::Subtract;
+    animated.name = ArtifactCore::UniString(QStringLiteral("animated-state"));
+    path.setAnimationKeyframe(animated.frame, animated);
+    mask.addMaskPath(path);
+    created.layer->addMask(mask);
+
+    const QString savePath = dir.filePath(QStringLiteral("mask-roundtrip.artifact"));
+    ASSERT_TRUE(projects.saveToFile(savePath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(savePath));
+
+    const auto found = projects.findComposition(composition.id);
+    ASSERT_TRUE(found.success);
+    const auto reloadedComposition = found.ptr.lock();
+    ASSERT_TRUE(reloadedComposition);
+    const auto reloadedLayer = reloadedComposition->frontMostLayer();
+    ASSERT_NE(reloadedLayer.get(), nullptr);
+    ASSERT_EQ(reloadedLayer->maskCount(), 1);
+
+    const Artifact::LayerMask restored = reloadedLayer->mask(0);
+    EXPECT_FALSE(restored.isEnabled());
+    EXPECT_TRUE(restored.isLocked());
+    EXPECT_FLOAT_EQ(restored.color().r(), 0.17f);
+    EXPECT_FLOAT_EQ(restored.color().g(), 0.38f);
+    EXPECT_FLOAT_EQ(restored.color().b(), 0.64f);
+    EXPECT_FLOAT_EQ(restored.color().a(), 0.82f);
+    ASSERT_EQ(restored.maskPathCount(), 1);
+
+    const Artifact::MaskPath restoredPath = restored.maskPath(0);
+    ASSERT_EQ(restoredPath.vertexCount(), 4);
+    EXPECT_TRUE(restoredPath.isClosed());
+    EXPECT_EQ(restoredPath.name().toQString(), QStringLiteral("persisted-path"));
+    EXPECT_EQ(restoredPath.mode(), Artifact::MaskMode::Difference);
+    EXPECT_FLOAT_EQ(restoredPath.opacity(), 0.63f);
+    EXPECT_FLOAT_EQ(restoredPath.feather().value, 2.25f);
+    EXPECT_FLOAT_EQ(restoredPath.featherHorizontal().value, 1.5f);
+    EXPECT_FLOAT_EQ(restoredPath.featherVertical().value, 0.75f);
+    EXPECT_FLOAT_EQ(restoredPath.featherInner().value, 0.5f);
+    EXPECT_FLOAT_EQ(restoredPath.featherOuter().value, 1.25f);
+    EXPECT_EQ(restoredPath.falloff(), Artifact::MaskFeatherFalloff::Smooth);
+    EXPECT_FLOAT_EQ(restoredPath.expansion().value, -1.75f);
+    EXPECT_TRUE(restoredPath.isInverted());
+    const auto firstVertex = restoredPath.vertex(0);
+    EXPECT_DOUBLE_EQ(firstVertex.position.x(), 12.0);
+    EXPECT_DOUBLE_EQ(firstVertex.position.y(), 14.0);
+    EXPECT_DOUBLE_EQ(firstVertex.inTangent.x(), -1.0);
+    EXPECT_DOUBLE_EQ(firstVertex.inTangent.y(), 0.5);
+    EXPECT_DOUBLE_EQ(firstVertex.outTangent.x(), 2.0);
+    EXPECT_DOUBLE_EQ(firstVertex.outTangent.y(), 0.0);
+    ASSERT_TRUE(restoredPath.hasAnimationKeyframes());
+    const auto keyframes = restoredPath.animationKeyframes();
+    ASSERT_EQ(keyframes.size(), 1u);
+    EXPECT_EQ(keyframes.front().frame, 24);
+    EXPECT_EQ(keyframes.front().mode, Artifact::MaskMode::Subtract);
+    EXPECT_FLOAT_EQ(keyframes.front().opacity, 0.42f);
+    EXPECT_EQ(keyframes.front().name.toQString(), QStringLiteral("animated-state"));
+    ASSERT_EQ(keyframes.front().vertices.size(), 4u);
+    EXPECT_DOUBLE_EQ(keyframes.front().vertices.front().position.x(), 14.0);
+    EXPECT_DOUBLE_EQ(keyframes.front().vertices.front().position.y(), 16.0);
 }
 
 TEST(ArtifactProjectRoundTripTest, SaveLoadGuardsRejectBadInput)

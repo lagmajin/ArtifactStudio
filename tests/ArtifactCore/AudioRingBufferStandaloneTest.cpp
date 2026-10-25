@@ -82,6 +82,54 @@ TEST(AudioRingBufferStandaloneTest, ReadsFramesCorrectlyAcrossPhysicalWrapAround
     EXPECT_TRUE(buffer.isEmpty());
 }
 
+TEST(AudioRingBufferStandaloneTest, RepeatedPartialReadsAndWritesPreserveOrderAcrossWraps)
+{
+    AudioRingBuffer buffer(5);
+    const auto writeSequence = [&buffer](int firstFrame, int frameCount) {
+        AudioSegment segment;
+        segment.layout = AudioChannelLayout::Stereo;
+        QVector<float> left;
+        QVector<float> right;
+        left.reserve(frameCount);
+        right.reserve(frameCount);
+        for (int frame = 0; frame < frameCount; ++frame) {
+            left.push_back(static_cast<float>(firstFrame + frame));
+            right.push_back(static_cast<float>(-firstFrame - frame));
+        }
+        segment.channelData.push_back(std::move(left));
+        segment.channelData.push_back(std::move(right));
+        return buffer.write(segment);
+    };
+
+    AudioSegment output;
+    int nextFrame = 0;
+    for (int cycle = 0; cycle < 12; ++cycle) {
+        ASSERT_TRUE(writeSequence(nextFrame, 4));
+        ASSERT_TRUE(buffer.read(output, 3));
+        EXPECT_EQ(output.channelData[0], (QVector<float>{
+            static_cast<float>(nextFrame), static_cast<float>(nextFrame + 1),
+            static_cast<float>(nextFrame + 2)}));
+        EXPECT_EQ(output.channelData[1], (QVector<float>{
+            static_cast<float>(-nextFrame), static_cast<float>(-nextFrame - 1),
+            static_cast<float>(-nextFrame - 2)}));
+        nextFrame += 4;
+
+        ASSERT_TRUE(writeSequence(nextFrame, 4));
+        ASSERT_TRUE(buffer.read(output, 5));
+        EXPECT_EQ(output.channelData[0], (QVector<float>{
+            static_cast<float>(nextFrame - 1), static_cast<float>(nextFrame),
+            static_cast<float>(nextFrame + 1), static_cast<float>(nextFrame + 2),
+            static_cast<float>(nextFrame + 3)}));
+        EXPECT_EQ(output.channelData[1], (QVector<float>{
+            static_cast<float>(-nextFrame + 1), static_cast<float>(-nextFrame),
+            static_cast<float>(-nextFrame - 1), static_cast<float>(-nextFrame - 2),
+            static_cast<float>(-nextFrame - 3)}));
+        nextFrame += 4;
+        EXPECT_TRUE(buffer.isEmpty());
+        EXPECT_EQ(buffer.freeSpace(), buffer.capacity());
+    }
+}
+
 TEST(AudioRingBufferStandaloneTest, CapacityRejectionLeavesPreviouslyWrittenFramesIntact)
 {
     AudioRingBuffer buffer(4);
@@ -127,6 +175,25 @@ TEST(AudioRingBufferStandaloneTest, CapacityChangeClearsBufferedFramesAndClampsT
     EXPECT_TRUE(buffer.isEmpty());
     EXPECT_TRUE(buffer.write(makeStereo({3.0f}, {-3.0f})));
     EXPECT_TRUE(buffer.isFull());
+}
+
+TEST(AudioRingBufferStandaloneTest, CapacityChangeAcknowledgementPreservesSubsequentWrites)
+{
+    AudioRingBuffer buffer(4);
+    ASSERT_TRUE(buffer.write(makeStereo({1.0f, 2.0f}, {-1.0f, -2.0f})));
+
+    buffer.setCapacity(3);
+    ASSERT_TRUE(buffer.write(makeStereo({7.0f}, {-7.0f})));
+
+    AudioSegment output;
+    EXPECT_FALSE(buffer.read(output, 1));
+    EXPECT_TRUE(output.channelData.isEmpty());
+    EXPECT_EQ(buffer.available(), 1u);
+
+    ASSERT_TRUE(buffer.read(output, 1));
+    ASSERT_EQ(output.channelData.size(), 2);
+    EXPECT_EQ(output.channelData[0], (QVector<float>{7.0f}));
+    EXPECT_EQ(output.channelData[1], (QVector<float>{-7.0f}));
 }
 
 TEST(AudioRingBufferStandaloneTest, EmptyWritesAndZeroFrameReadsDoNotChangeBufferedData)
@@ -236,4 +303,47 @@ TEST(AudioRingBufferStandaloneTest, PreservesEightChannelSurround71Segments)
         EXPECT_FLOAT_EQ(output.channelData[channel][0],
                         static_cast<float>(channel - 3));
     }
+}
+
+TEST(AudioRingBufferStandaloneTest, PreservesTenChannelCustomSegments)
+{
+    AudioRingBuffer buffer(2);
+    AudioSegment custom;
+    custom.layout = AudioChannelLayout::Custom10ch;
+    for (int channel = 0; channel < 10; ++channel) {
+        custom.channelData.push_back(
+            QVector<float>{static_cast<float>(channel) + 0.25f});
+    }
+
+    ASSERT_TRUE(buffer.write(custom));
+    AudioSegment output;
+    ASSERT_TRUE(buffer.read(output, 1));
+    EXPECT_EQ(output.layout, AudioChannelLayout::Custom10ch);
+    ASSERT_EQ(output.channelData.size(), 10);
+    for (int channel = 0; channel < 10; ++channel) {
+        ASSERT_EQ(output.channelData[channel].size(), 1);
+        EXPECT_FLOAT_EQ(output.channelData[channel][0],
+                        static_cast<float>(channel) + 0.25f);
+    }
+}
+
+TEST(AudioRingBufferStandaloneTest, RejectsMoreThanTenChannelsWithoutChangingBufferedFrames)
+{
+    AudioRingBuffer buffer(4);
+    ASSERT_TRUE(buffer.write(makeStereo({1.0f, 2.0f}, {-1.0f, -2.0f})));
+
+    AudioSegment elevenChannel;
+    elevenChannel.layout = AudioChannelLayout::Custom10ch;
+    for (int channel = 0; channel < 11; ++channel) {
+        elevenChannel.channelData.push_back(
+            QVector<float>{static_cast<float>(channel + 1)});
+    }
+
+    EXPECT_FALSE(buffer.write(elevenChannel));
+    EXPECT_EQ(buffer.available(), 2u);
+
+    AudioSegment output;
+    ASSERT_TRUE(buffer.read(output, 2));
+    EXPECT_EQ(output.channelData[0], (QVector<float>{1.0f, 2.0f}));
+    EXPECT_EQ(output.channelData[1], (QVector<float>{-1.0f, -2.0f}));
 }

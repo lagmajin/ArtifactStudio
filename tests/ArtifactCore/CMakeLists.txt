@@ -237,6 +237,16 @@ set_tests_properties(ArtifactCoreColorConversionTest PROPERTIES
     LABELS "color;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreFloatColorStandaloneTest
+    SOURCES
+        FloatColorStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreFloatColorStandaloneTest PROPERTIES
+    LABELS "color;standalone;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorLUTContractTest
     SOURCES
         ColorLUTContractTest.cpp

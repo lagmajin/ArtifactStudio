@@ -174,11 +174,14 @@ endif()
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
    OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_LAYER_TEST
    OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
+   OR ARTIFACT_ENABLE_LAYER_MASK_TEST
+   OR ARTIFACT_ENABLE_COMPOSITION_LAYER_MASK_GPU_TEST
+   OR ARTIFACT_BUILD_EFFECT_SEQUENCE_STANDALONE_TEST
    OR ARTIFACT_BUILD_FX_STUDIO_TEST)
     add_subdirectory(Artifact)
 endif()
 
-if(ARTIFACT_BUILD_TESTS)
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_MASK_TEST)
     # Standalone visual contract (own main(), no GTest): link the runtime
     # OBJECT library, never the Artifact executable.
     add_executable(ArtifactMaskVisualTest
@@ -201,7 +204,9 @@ if(ARTIFACT_BUILD_TESTS)
         COMMAND ArtifactMaskVisualTest "${CMAKE_BINARY_DIR}/mask-visual-output/$<CONFIG>"
     )
     set_tests_properties(ArtifactMaskVisualTest PROPERTIES
-        LABELS "mask;image;cpu;visual;contract"
+        LABELS "mask;image;cpu;visual;contract;standalone"
+        RUN_SERIAL TRUE
+        TIMEOUT 60
     )
 endif()
 

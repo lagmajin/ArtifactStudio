@@ -382,4 +382,59 @@ TEST(ImageIoContractTest, RejectsMissingInputFile)
     EXPECT_FALSE(importer.readImage().isValid());
 }
 
+TEST(ImageIoContractTest, CloseClearsOpenedSourceAndImporterCanBeReused)
+{
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+    const QString imagePath = temporaryDirectory.filePath(
+        QStringLiteral("reusable-import.png"));
+    QImage source(1, 1, QImage::Format_RGBA8888);
+    ASSERT_FALSE(source.isNull());
+    source.setPixelColor(0, 0, QColor(12, 34, 56, 255));
+
+    ImageExporter exporter;
+    const ImageExportResult writeResult =
+        exporter.write(source, imagePath, ImageExportOptions{});
+    ASSERT_TRUE(writeResult.success) << writeResult.errorStage.toStdString()
+                                     << ": " << writeResult.errorMessage.toStdString();
+
+    ImageImporter importer;
+    ASSERT_TRUE(importer.open(imagePath));
+    ASSERT_TRUE(importer.readImage().isValid());
+
+    importer.close();
+    EXPECT_FALSE(importer.readImage().isValid());
+
+    ASSERT_TRUE(importer.open(imagePath));
+    const RawImage reopened = importer.readImage();
+    EXPECT_TRUE(reopened.isValid());
+    EXPECT_EQ(reopened.width, 1);
+    EXPECT_EQ(reopened.height, 1);
+}
+
+TEST(ImageIoContractTest, FailedOpenClearsPreviouslyOpenedSource)
+{
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+    const QString imagePath = temporaryDirectory.filePath(
+        QStringLiteral("source-before-failed-open.png"));
+    QImage source(1, 1, QImage::Format_RGBA8888);
+    ASSERT_FALSE(source.isNull());
+    source.setPixelColor(0, 0, QColor(80, 120, 160, 255));
+
+    ImageExporter exporter;
+    const ImageExportResult writeResult =
+        exporter.write(source, imagePath, ImageExportOptions{});
+    ASSERT_TRUE(writeResult.success) << writeResult.errorStage.toStdString()
+                                     << ": " << writeResult.errorMessage.toStdString();
+
+    ImageImporter importer;
+    ASSERT_TRUE(importer.open(imagePath));
+    ASSERT_TRUE(importer.readImage().isValid());
+
+    EXPECT_FALSE(importer.open(
+        temporaryDirectory.filePath(QStringLiteral("missing-after-open.png"))));
+    EXPECT_FALSE(importer.readImage().isValid());
+}
+
 } // namespace

@@ -10,6 +10,8 @@ using namespace ArtifactCore;
 
 static_assert(!std::is_copy_constructible_v<PatternNameGenerator>);
 static_assert(!std::is_copy_assignable_v<PatternNameGenerator>);
+static_assert(!std::is_move_constructible_v<PatternNameGenerator>);
+static_assert(!std::is_move_assignable_v<PatternNameGenerator>);
 
 TEST(NameGeneratorContractTest, ReplacesNameAndNumbersFirstSequence)
 {

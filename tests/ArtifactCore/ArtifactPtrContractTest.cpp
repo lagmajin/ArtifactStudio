@@ -157,6 +157,22 @@ TEST(ArtifactPtrContractTest, WeakPtrCopyKeepsControlBlockUntilLastWeakOwner)
     EXPECT_TRUE(first.isExpired());
 }
 
+TEST(ArtifactPtrContractTest, CopyingExpiredWeakPtrRemainsExpiredAndCannotLock)
+{
+    int destructionCount = 0;
+    Ptr<Value> owner(new Value(18, &destructionCount));
+    WeakPtr<Value> expired(owner);
+    owner.reset();
+    ASSERT_EQ(destructionCount, 1);
+    ASSERT_TRUE(expired.isExpired());
+
+    WeakPtr<Value> copy(expired);
+
+    EXPECT_TRUE(copy.isExpired());
+    EXPECT_FALSE(copy.lock().isValid());
+    EXPECT_EQ(destructionCount, 1);
+}
+
 TEST(ArtifactPtrContractTest, DefaultWeakPtrIsExpiredAndCannotLock)
 {
     WeakPtr<int> weak;
@@ -350,6 +366,19 @@ TEST(ArtifactPtrContractTest, MoveAssignmentDeletesPreviousValueAndTakesSource)
     EXPECT_EQ(destination->value, 2);
 }
 
+TEST(ArtifactPtrContractTest, MoveAssignmentFromEmptyReleasesDestination)
+{
+    int destructionCount = 0;
+    UniquePtr<Value> destination(new Value(3, &destructionCount));
+    UniquePtr<Value> empty;
+
+    destination = std::move(empty);
+
+    EXPECT_EQ(destructionCount, 1);
+    EXPECT_FALSE(destination);
+    EXPECT_FALSE(empty);
+}
+
 TEST(ArtifactPtrContractTest, TakeReleasesPointerWithoutDeletingIt)
 {
     int destructionCount = 0;
@@ -393,6 +422,22 @@ TEST(ArtifactPtrContractTest, SwapExchangesOwnedValues)
     first.swap(second);
     EXPECT_EQ(*first, 10);
     EXPECT_EQ(*second, 9);
+}
+
+TEST(ArtifactPtrContractTest, SwapTransfersOwnershipToAndFromEmptyPointer)
+{
+    auto owner = makeUnique<int>(21);
+    UniquePtr<int> empty;
+
+    owner.swap(empty);
+    EXPECT_FALSE(owner);
+    ASSERT_TRUE(empty);
+    EXPECT_EQ(*empty, 21);
+
+    empty.swap(owner);
+    EXPECT_FALSE(empty);
+    ASSERT_TRUE(owner);
+    EXPECT_EQ(*owner, 21);
 }
 
 TEST(ArtifactPtrContractTest, SelfMoveAssignmentPreservesOwnership)

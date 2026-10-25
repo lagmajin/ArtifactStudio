@@ -227,6 +227,112 @@ TEST(AssetDatabaseContractTest, JsonLoadFiltersDuplicateAndMalformedEntries)
     EXPECT_EQ(database.getAssetInfo(id).absolutePath, loaded.absolutePath);
 }
 
+TEST(AssetDatabaseContractTest, JsonLoadKeepsOnlyStringMetadataValues)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("metadata.png"));
+    ASSERT_TRUE(createSourceFile(path));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    const QUuid id = QUuid::createUuid();
+    const QJsonObject metadata{
+        {QStringLiteral("string"), QStringLiteral("kept")},
+        {QStringLiteral("boolean"), true},
+        {QStringLiteral("array"), QJsonArray{QStringLiteral("nested")}},
+        {QStringLiteral("object"), QJsonObject{{QStringLiteral("nested"), 1}}},
+    };
+    const QJsonObject entry{
+        {QStringLiteral("id"), id.toString()},
+        {QStringLiteral("path"), path},
+        {QStringLiteral("type"), static_cast<int>(AssetType::Image)},
+        {QStringLiteral("metadata"), metadata},
+    };
+
+    ASSERT_TRUE(database.fromJson(
+        QJsonDocument(QJsonArray{entry}).toJson(QJsonDocument::Compact)));
+
+    const AssetInfo loaded = database.getAssetInfo(id);
+    ASSERT_EQ(loaded.metadata.size(), 1);
+    EXPECT_EQ(loaded.metadata.value(QStringLiteral("string")), QStringLiteral("kept"));
+    EXPECT_FALSE(loaded.metadata.contains(QStringLiteral("boolean")));
+    EXPECT_FALSE(loaded.metadata.contains(QStringLiteral("array")));
+    EXPECT_FALSE(loaded.metadata.contains(QStringLiteral("object")));
+}
+
+TEST(AssetDatabaseContractTest, JsonLoadRejectsCanonicalPathAliasesAsDuplicates)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    ASSERT_TRUE(QDir(directory.path()).mkpath(QStringLiteral("nested")));
+    const QString path = directory.filePath(QStringLiteral("same.png"));
+    const QString alias = directory.filePath(QStringLiteral("nested/../same.png"));
+    ASSERT_TRUE(createSourceFile(path));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid firstId = QUuid::createUuid();
+    const QUuid aliasId = QUuid::createUuid();
+    const QJsonObject firstEntry{
+        {QStringLiteral("id"), firstId.toString()},
+        {QStringLiteral("path"), path},
+        {QStringLiteral("type"), static_cast<int>(AssetType::Image)},
+    };
+    const QJsonObject aliasEntry{
+        {QStringLiteral("id"), aliasId.toString()},
+        {QStringLiteral("path"), alias},
+        {QStringLiteral("type"), static_cast<int>(AssetType::Image)},
+    };
+
+    ASSERT_TRUE(database.fromJson(QJsonDocument(QJsonArray{
+        firstEntry, aliasEntry
+    }).toJson(QJsonDocument::Compact)));
+
+    ASSERT_EQ(database.allAssets().size(), 1);
+    EXPECT_EQ(database.findAssetByPath(path), firstId);
+    EXPECT_EQ(database.findAssetByPath(alias), firstId);
+    EXPECT_TRUE(database.getAssetInfo(aliasId).id.isNull());
+}
+
+TEST(AssetDatabaseContractTest, JsonLoadSkipsEntriesWithoutValidIdentityOrPath)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString validPath = directory.filePath(QStringLiteral("valid.png"));
+    ASSERT_TRUE(createSourceFile(validPath));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    const QUuid validId = QUuid::createUuid();
+    const QJsonObject validEntry{
+        {QStringLiteral("id"), validId.toString()},
+        {QStringLiteral("path"), validPath},
+        {QStringLiteral("type"), static_cast<int>(AssetType::Image)},
+    };
+    const QJsonObject invalidUuidEntry{
+        {QStringLiteral("id"), QStringLiteral("not-a-uuid")},
+        {QStringLiteral("path"), directory.filePath(QStringLiteral("invalid-id.png"))},
+        {QStringLiteral("type"), static_cast<int>(AssetType::Image)},
+    };
+    const QJsonObject emptyPathEntry{
+        {QStringLiteral("id"), QUuid::createUuid().toString()},
+        {QStringLiteral("path"), QStringLiteral(" \t ")},
+        {QStringLiteral("type"), static_cast<int>(AssetType::Audio)},
+    };
+
+    ASSERT_TRUE(database.fromJson(QJsonDocument(QJsonArray{
+        validEntry, invalidUuidEntry, emptyPathEntry
+    }).toJson(QJsonDocument::Compact)));
+
+    ASSERT_EQ(database.allAssets().size(), 1);
+    EXPECT_EQ(database.findAssetByPath(validPath), validId);
+    EXPECT_TRUE(database.findAssetByPath(
+        directory.filePath(QStringLiteral("invalid-id.png"))).isNull());
+    EXPECT_TRUE(database.findAssetByPath(QStringLiteral(" \t ")).isNull());
+}
+
 TEST(AssetDatabaseContractTest, JsonSnapshotRoundTripPreservesIdentityAndStringMetadata)
 {
     QTemporaryDir directory;
@@ -427,6 +533,101 @@ TEST(AssetDatabaseContractTest, WhitespaceOnlyPathsAreRejectedWithoutChangingInd
     EXPECT_TRUE(database.registerAsset(QStringLiteral(" \t\n "), AssetType::Image).isNull());
     EXPECT_TRUE(database.allAssets().isEmpty());
     EXPECT_TRUE(database.findAssetByPath(QStringLiteral(" \t\n ")).isNull());
+}
+
+TEST(AssetDatabaseContractTest, PathLookupTrimsSurroundingWhitespace)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("trimmed.png"));
+    ASSERT_TRUE(createSourceFile(path));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid id = database.registerAsset(path, AssetType::Image);
+    ASSERT_FALSE(id.isNull());
+
+    EXPECT_EQ(database.findAssetByPath(QStringLiteral("  ") + path +
+                                       QStringLiteral(" \t ")), id);
+    EXPECT_EQ(database.getAssetInfo(id).absolutePath,
+              QFileInfo(path).canonicalFilePath());
+}
+
+TEST(AssetDatabaseContractTest, MissingPathIdentityUsesPlatformCaseSemantics)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path =
+        directory.filePath(QStringLiteral("OfflineFolder/ShotFrame.exr"));
+    const QString differentlyCased =
+        directory.filePath(QStringLiteral("offlinefolder/shotframe.EXR"));
+    ASSERT_FALSE(QFileInfo::exists(path));
+    ASSERT_FALSE(QFileInfo::exists(differentlyCased));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid id = database.registerAsset(path, AssetType::Image);
+    ASSERT_FALSE(id.isNull());
+
+#ifdef Q_OS_WIN
+    EXPECT_EQ(database.findAssetByPath(differentlyCased), id);
+#else
+    EXPECT_TRUE(database.findAssetByPath(differentlyCased).isNull());
+#endif
+}
+
+TEST(AssetDatabaseContractTest, OutOfRangeAssetTypeIsRejectedWithoutChangingIndexes)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString validPath = directory.filePath(QStringLiteral("valid.png"));
+    const QString rejectedPath = directory.filePath(QStringLiteral("invalid.png"));
+    ASSERT_TRUE(createSourceFile(validPath));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid validId = database.registerAsset(validPath, AssetType::Image);
+    ASSERT_FALSE(validId.isNull());
+
+    const auto outOfRangeType = static_cast<AssetType>(999);
+    EXPECT_TRUE(database.registerAsset(rejectedPath, outOfRangeType).isNull());
+    EXPECT_EQ(database.allAssets().size(), 1);
+    EXPECT_EQ(database.findAssetByPath(validPath), validId);
+    EXPECT_TRUE(database.findAssetByPath(rejectedPath).isNull());
+}
+
+TEST(AssetDatabaseContractTest, JsonLoadSkipsOutOfRangeAssetTypes)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QString validPath = directory.filePath(QStringLiteral("valid.png"));
+    const QString invalidPath = directory.filePath(QStringLiteral("invalid.png"));
+    const QUuid validId = QUuid::createUuid();
+    const QJsonObject validEntry{
+        {QStringLiteral("id"), validId.toString()},
+        {QStringLiteral("path"), validPath},
+        {QStringLiteral("type"), static_cast<int>(AssetType::Image)},
+    };
+    const QJsonObject invalidEntry{
+        {QStringLiteral("id"), QUuid::createUuid().toString()},
+        {QStringLiteral("path"), invalidPath},
+        {QStringLiteral("type"), 999},
+    };
+
+    ASSERT_TRUE(database.fromJson(QJsonDocument(QJsonArray{
+        validEntry, invalidEntry
+    }).toJson(QJsonDocument::Compact)));
+
+    ASSERT_EQ(database.allAssets().size(), 1);
+    EXPECT_EQ(database.findAssetByPath(validPath), validId);
+    EXPECT_TRUE(database.findAssetByPath(invalidPath).isNull());
 }
 
 TEST(AssetDatabaseContractTest, InvalidJsonDoesNotReplaceExistingDatabase)

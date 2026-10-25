@@ -151,3 +151,19 @@ TEST(FormantExtractorStandaloneTest, AnalyzeTrackDoesNotEmitPartialTrailingWindo
     EXPECT_EQ(events.size(), 1u);
 }
 
+TEST(FormantExtractorStandaloneTest, TrackWindowsStopAtShortestChannel)
+{
+    FormantExtractor extractor;
+    AudioSegment segment;
+    segment.sampleRate = 8000;
+    segment.layout = AudioChannelLayout::Stereo;
+    segment.channelData.push_back(QVector<float>(24, 0.25f));
+    segment.channelData.push_back(QVector<float>(10, 0.25f));
+
+    const auto events = extractor.analyzeTrack(segment, 1000.0, 90);
+
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events.front().frame, 90);
+    EXPECT_FLOAT_EQ(events.front().intensity, 0.25f);
+}
+

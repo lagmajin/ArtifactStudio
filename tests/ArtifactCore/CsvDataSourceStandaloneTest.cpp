@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -104,6 +105,8 @@ TEST(CsvDataSourceStandaloneTest, ReloadReadsUpdatedFileContents)
     EXPECT_EQ(source.table().rowCount(), 2);
     EXPECT_EQ(source.table().getString(0, String("value")), "second");
     EXPECT_EQ(source.table().getString(1, String("value")), "third");
+    EXPECT_EQ(source.info().fileSize,
+              static_cast<std::int64_t>(std::filesystem::file_size(file.path())));
 }
 
 TEST(CsvDataSourceStandaloneTest, ReloadFailureClearsPreviouslyLoadedTable)
@@ -171,4 +174,21 @@ TEST(CsvDataSourceStandaloneTest, CsvRegistrationOpensUppercaseExtension)
     ASSERT_TRUE(static_cast<bool>(source));
     ASSERT_TRUE(source->isValid());
     EXPECT_EQ(source->table().getString(0, String("name")), "registered");
+}
+
+TEST(CsvDataSourceStandaloneTest, TsvRegistrationOpensTabSeparatedFile)
+{
+    TemporaryCsv file;
+    file.write("name\tcount\nwidget\t3\n");
+    file.changeExtension(".tsv");
+    csvDataSourceAutoRegister();
+
+    const auto source = DataSourceRegistry::instance().open(file.path());
+
+    ASSERT_TRUE(static_cast<bool>(source));
+    ASSERT_TRUE(source->isValid());
+    ASSERT_EQ(source->table().columnCount(), 2);
+    ASSERT_EQ(source->table().rowCount(), 1);
+    EXPECT_EQ(source->table().getString(0, String("name")), "widget");
+    EXPECT_EQ(source->table().getInt(0, String("count")), 3);
 }

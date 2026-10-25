@@ -4,6 +4,8 @@
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <memory>
+#include <type_traits>
 #include <vector>
 
 import Core.ArtifactArray;
@@ -90,6 +92,23 @@ TEST(ArtifactAlgorithmsContractTest, AccumulateSupportsDefaultAndCustomOperation
     EXPECT_EQ(artifactAccumulate(empty.begin(), empty.end(), 17), 17);
 }
 
+TEST(ArtifactAlgorithmsContractTest, AccumulateAppliesCustomOperationFromLeftToRight)
+{
+    constexpr std::array values{1, 2, 3};
+    std::array<int, 3> leftOperands{};
+    std::size_t operationCount = 0;
+
+    const int result = artifactAccumulate(values.begin(), values.end(), 10,
+        [&](int accumulated, int value) {
+            leftOperands[operationCount++] = accumulated;
+            return accumulated - value;
+        });
+
+    EXPECT_EQ(result, 4);
+    EXPECT_EQ(operationCount, 3u);
+    EXPECT_EQ(leftOperands, (std::array<int, 3>{10, 9, 7}));
+}
+
 TEST(ArtifactAlgorithmsContractTest, IotaCountAndCountIfCoverEmptyAndPopulatedRanges)
 {
     std::array<int, 5> values{};
@@ -156,6 +175,22 @@ TEST(ArtifactAlgorithmsContractTest, SortHandlesDuplicatesAndComparatorDirection
     artifactSort(values, [](int left, int right) { return left > right; });
     EXPECT_EQ(values[0], 4);
     EXPECT_EQ(values[5], 1);
+}
+
+TEST(ArtifactAlgorithmsContractTest, SortHandlesEmptyAndSingleElementRangesWithoutComparisons)
+{
+    Array<int> empty;
+    artifactSort(empty);
+    EXPECT_TRUE(empty.isEmpty());
+
+    Array<int> single{42};
+    int comparisons = 0;
+    artifactSort(single, [&](int left, int right) {
+        ++comparisons;
+        return left < right;
+    });
+    EXPECT_EQ(single, (Array<int>{42}));
+    EXPECT_EQ(comparisons, 0);
 }
 
 TEST(ArtifactAlgorithmsContractTest, RemoveIfCompactsAndErasesMatchingElements)
@@ -277,6 +312,23 @@ TEST(ArtifactAlgorithmsContractTest, ReverseHandlesTwoElementsAndOddMiddle)
     EXPECT_EQ(values, (std::array<int, 5>{5, 4, 3, 2, 1}));
 }
 
+TEST(ArtifactAlgorithmsContractTest, ReverseMovesMoveOnlyElementsWithoutLosingOwnership)
+{
+    std::array<std::unique_ptr<int>, 3> values{
+        std::make_unique<int>(4),
+        std::make_unique<int>(8),
+        std::make_unique<int>(15)};
+
+    artifactReverse(values.begin(), values.end());
+
+    ASSERT_NE(values[0], nullptr);
+    ASSERT_NE(values[1], nullptr);
+    ASSERT_NE(values[2], nullptr);
+    EXPECT_EQ(*values[0], 15);
+    EXPECT_EQ(*values[1], 8);
+    EXPECT_EQ(*values[2], 4);
+}
+
 TEST(ArtifactAlgorithmsContractTest, LowerBoundReturnsInsertionPositionBetweenValues)
 {
     constexpr std::array values{1, 3, 5, 7};
@@ -341,6 +393,25 @@ TEST(ArtifactAlgorithmsContractTest, ContainerSortSupportsCustomComparator)
     EXPECT_TRUE(std::is_sorted(values.begin(), values.end(), std::greater<int>{}));
 }
 
+TEST(ArtifactAlgorithmsContractTest, SortMovesMoveOnlyValuesWithCustomComparator)
+{
+    std::array<std::unique_ptr<int>, 4> values{
+        std::make_unique<int>(7),
+        std::make_unique<int>(2),
+        std::make_unique<int>(9),
+        std::make_unique<int>(4)};
+
+    artifactSort(values.begin(), values.end(), [](const auto& left, const auto& right) {
+        return *left < *right;
+    });
+
+    constexpr std::array<int, 4> expected{2, 4, 7, 9};
+    for (std::size_t index = 0; index < values.size(); ++index) {
+        ASSERT_TRUE(values[index]);
+        EXPECT_EQ(*values[index], expected[index]);
+    }
+}
+
 TEST(ArtifactAlgorithmsContractTest, FindInReturnsMutableIteratorIntoContainer)
 {
     std::vector<int> values{4, 8, 12};
@@ -351,11 +422,36 @@ TEST(ArtifactAlgorithmsContractTest, FindInReturnsMutableIteratorIntoContainer)
     EXPECT_EQ(artifactFindIn(values, 99), values.end());
 }
 
+TEST(ArtifactAlgorithmsContractTest, FindInPreservesConstContainerElementAccess)
+{
+    const std::vector<int> values{4, 8, 12};
+    const auto found = artifactFindIn(values, 8);
+    static_assert(std::is_same_v<decltype(*found), const int&>);
+    ASSERT_NE(found, values.end());
+    EXPECT_EQ(*found, 8);
+    EXPECT_EQ(artifactFindIn(values, 99), values.end());
+}
+
 TEST(ArtifactAlgorithmsContractTest, RemoveIfRetainsRelativeOrderAfterAdjacentMatches)
 {
     EraseAtArray values{Array<int>{1, 2, 4, 6, 3, 8, 5}};
     EXPECT_EQ(artifactRemoveIf(values, [](int value) { return value % 2 == 0; }), 3u);
     EXPECT_EQ(values.values, (Array<int>{1, 3, 5}));
+}
+
+TEST(ArtifactAlgorithmsContractTest, RemoveIfEvaluatesPredicateOncePerOriginalElement)
+{
+    EraseAtArray values{Array<int>{2, 1, 4, 3}};
+    std::array<int, 5> callsByValue{};
+
+    const std::size_t remaining = artifactRemoveIf(values, [&](int value) {
+        ++callsByValue[static_cast<std::size_t>(value)];
+        return value % 2 == 0;
+    });
+
+    EXPECT_EQ(remaining, 2u);
+    EXPECT_EQ(callsByValue, (std::array<int, 5>{0, 1, 1, 1, 1}));
+    EXPECT_EQ(values.values, (Array<int>{1, 3}));
 }
 
 TEST(ArtifactAlgorithmsContractTest, ReverseIsAnInvolutionAcrossLengths)

@@ -5,12 +5,19 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
 import Core.ArtifactHashMap;
 
 using namespace ArtifactCore;
+
+static_assert(!std::is_copy_constructible_v<ArtifactHashMap<int, int>>);
+static_assert(!std::is_copy_assignable_v<ArtifactHashMap<int, int>>);
+static_assert(std::is_same_v<
+    decltype(*std::declval<const ArtifactHashMap<int, int>&>().begin()),
+    const ArtifactHashMap<int, int>::value_type&>);
 
 namespace {
 
@@ -59,6 +66,13 @@ TEST(ArtifactHashMapContractTest, EmptyMapReportsMissingKeysAndSupportsReuse)
     EXPECT_EQ(map.find(5), map.end());
     EXPECT_EQ(map.findValue(5), nullptr);
     EXPECT_FALSE(map.at(5).has_value());
+}
+
+TEST(ArtifactHashMapContractTest, ZeroRequestedBucketCountStillCreatesUsableBucketStorage)
+{
+    const ArtifactHashMap<int, int> map(0);
+
+    EXPECT_GT(map.bucket_count(), 0u);
 }
 
 TEST(ArtifactHashMapContractTest, TryEmplaceAndFindExposeInsertedEntry)
@@ -171,6 +185,26 @@ TEST(ArtifactHashMapContractTest, RehashPreservesAllEntriesAndUpdates)
     EXPECT_EQ(map.at(137).value(), -1);
 }
 
+TEST(ArtifactHashMapContractTest, CustomInitialBucketCountRehashesAtLoadFactorBoundary)
+{
+    ArtifactHashMap<int, int> map(4);
+    ASSERT_EQ(map.bucket_count(), 4u);
+
+    for (int key = 0; key < 3; ++key) {
+        ASSERT_TRUE(map.tryEmplace(key, key * 10).second);
+    }
+    EXPECT_EQ(map.bucket_count(), 4u);
+
+    ASSERT_TRUE(map.tryEmplace(3, 30).second);
+
+    EXPECT_GT(map.bucket_count(), 4u);
+    ASSERT_EQ(map.size(), 4u);
+    for (int key = 0; key < 4; ++key) {
+        ASSERT_TRUE(map.contains(key));
+        EXPECT_EQ(map.at(key).value(), key * 10);
+    }
+}
+
 TEST(ArtifactHashMapContractTest, EraseAfterRehashKeepsRemainingEntriesReachable)
 {
     ArtifactHashMap<int, int> map;
@@ -264,6 +298,29 @@ TEST(ArtifactHashMapContractTest, TryEmplaceMovesMoveOnlyMappedValue)
     EXPECT_EQ(*entry->second, 42);
 }
 
+TEST(ArtifactHashMapContractTest, MoveOnlyMappedValuesSurviveMapMoves)
+{
+    ArtifactHashMap<int, std::unique_ptr<int>> source;
+    ASSERT_TRUE(source.tryEmplace(7, std::make_unique<int>(73)).second);
+
+    ArtifactHashMap<int, std::unique_ptr<int>> moved(std::move(source));
+
+    EXPECT_TRUE(source.empty());
+    ASSERT_TRUE(moved.contains(7));
+    ASSERT_NE(moved.at(7).value(), nullptr);
+    EXPECT_EQ(*moved.at(7).value(), 73);
+
+    ArtifactHashMap<int, std::unique_ptr<int>> destination;
+    ASSERT_TRUE(destination.tryEmplace(9, std::make_unique<int>(99)).second);
+    destination = std::move(moved);
+
+    EXPECT_TRUE(moved.empty());
+    EXPECT_FALSE(destination.contains(9));
+    ASSERT_TRUE(destination.contains(7));
+    ASSERT_NE(destination.at(7).value(), nullptr);
+    EXPECT_EQ(*destination.at(7).value(), 73);
+}
+
 TEST(ArtifactHashMapContractTest, SelfMoveAssignmentPreservesEntries)
 {
     ArtifactHashMap<int, std::string> map;
@@ -347,6 +404,22 @@ TEST(ArtifactHashMapContractTest, IteratorPostIncrementReturnsPreviousEntry)
     ASSERT_NE(iterator, map.end());
     const auto previous = iterator++;
     EXPECT_EQ(previous->first, 1);
+    ASSERT_NE(iterator, map.end());
+    EXPECT_EQ(iterator->first, 3);
+}
+
+TEST(ArtifactHashMapContractTest, IteratorPreIncrementReturnsSelfAndAdvances)
+{
+    ArtifactHashMap<int, int> map;
+    map.tryEmplace(1, 10);
+    map.tryEmplace(3, 30);
+    auto iterator = map.find(1);
+    ASSERT_NE(iterator, map.end());
+    auto* const iteratorAddress = &iterator;
+
+    auto& incremented = ++iterator;
+
+    EXPECT_EQ(&incremented, iteratorAddress);
     ASSERT_NE(iterator, map.end());
     EXPECT_EQ(iterator->first, 3);
 }

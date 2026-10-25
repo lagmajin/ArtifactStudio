@@ -111,6 +111,15 @@ TEST(ResolutionRemapStandaloneTest, ScaleRemainsUnchangedForIdenticalResolution)
         2.75, kOldSize, kOldSize, RemapPolicy::CenterLocked), 2.75);
 }
 
+TEST(ResolutionRemapStandaloneTest, ScaleRemainsUnchangedWhenEitherSizeIsEmpty)
+{
+    constexpr double original = 4.25;
+    EXPECT_DOUBLE_EQ(ResolutionRemap::remapScale(
+        original, kOldSize, QSize(), RemapPolicy::StretchToFit), original);
+    EXPECT_DOUBLE_EQ(ResolutionRemap::remapScale(
+        original, QSize(), QSize(400, 300), RemapPolicy::FitWithPadding), original);
+}
+
 TEST(ResolutionRemapStandaloneTest, ImpactWithoutContentFlagsIsFalse)
 {
     const auto impact = ResolutionRemap::calculateImpact(
@@ -133,6 +142,33 @@ TEST(ResolutionRemapStandaloneTest, ImpactFlagsReportMaskKeyframeAndAnchorPresen
     EXPECT_EQ(impact.keyframeCount, 1);
     EXPECT_DOUBLE_EQ(impact.oldAspectRatio, 16.0 / 9.0);
     EXPECT_DOUBLE_EQ(impact.newAspectRatio, 9.0 / 16.0);
+}
+
+TEST(ResolutionRemapStandaloneTest, EachContentFlagIndependentlyReportsImpact)
+{
+    const auto masksOnly = ResolutionRemap::calculateImpact(
+        QSize(1920, 1080), QSize(1280, 720), true, false, false);
+    EXPECT_TRUE(masksOnly.hasImpact());
+    EXPECT_TRUE(masksOnly.hasMaskPaths);
+    EXPECT_EQ(masksOnly.maskVertexCount, 1);
+    EXPECT_EQ(masksOnly.keyframeCount, 0);
+    EXPECT_FALSE(masksOnly.hasAnchorPoints);
+
+    const auto keyframesOnly = ResolutionRemap::calculateImpact(
+        QSize(1920, 1080), QSize(1280, 720), false, true, false);
+    EXPECT_TRUE(keyframesOnly.hasImpact());
+    EXPECT_FALSE(keyframesOnly.hasMaskPaths);
+    EXPECT_EQ(keyframesOnly.maskVertexCount, 0);
+    EXPECT_EQ(keyframesOnly.keyframeCount, 1);
+    EXPECT_FALSE(keyframesOnly.hasAnchorPoints);
+
+    const auto anchorsOnly = ResolutionRemap::calculateImpact(
+        QSize(1920, 1080), QSize(1280, 720), false, false, true);
+    EXPECT_TRUE(anchorsOnly.hasImpact());
+    EXPECT_FALSE(anchorsOnly.hasMaskPaths);
+    EXPECT_EQ(anchorsOnly.maskVertexCount, 0);
+    EXPECT_EQ(anchorsOnly.keyframeCount, 0);
+    EXPECT_TRUE(anchorsOnly.hasAnchorPoints);
 }
 
 TEST(ResolutionRemapStandaloneTest, ImpactUsesSafeAspectForZeroHeight)

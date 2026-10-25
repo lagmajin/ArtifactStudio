@@ -66,6 +66,16 @@ TEST(AudioModulatorsStandaloneTest, LfoWrapsPhaseAndIgnoresNonFinitePhaseInput)
     EXPECT_NEAR(lfo.phaseOffset(), 0.75f, 1e-6f);
 }
 
+TEST(AudioModulatorsStandaloneTest, LfoWrapsNegativeFinitePhaseIntoUnitInterval)
+{
+    LfoSource lfo;
+    lfo.setPhase(-0.25f);
+
+    EXPECT_FLOAT_EQ(lfo.phase(), 0.75f);
+    EXPECT_FLOAT_EQ(lfo.phaseOffset(), 0.75f);
+    EXPECT_NEAR(lfo.process(0), -1.0f, 1e-6f);
+}
+
 TEST(AudioModulatorsStandaloneTest, LfoClampsFrequencyAndSanitizesSampleRate)
 {
     LfoSource lfo;
@@ -117,6 +127,17 @@ TEST(AudioModulatorsStandaloneTest, AdsrZeroFramesDoNotAdvanceEnvelope)
     adsr.setSampleRate(1000.0f);
     adsr.gate(true);
     EXPECT_FLOAT_EQ(adsr.process(0), 0.0f);
+    EXPECT_EQ(adsr.stage(), AdsrSource::Stage::Attack);
+}
+
+TEST(AudioModulatorsStandaloneTest, AdsrInvalidSampleRateUsesFortyEightKilohertzFallback)
+{
+    AdsrSource adsr;
+    adsr.setAttack(0.1f);
+    adsr.setSampleRate(std::numeric_limits<float>::quiet_NaN());
+    adsr.gate(true);
+
+    EXPECT_NEAR(adsr.process(480), 0.1f, 1.0e-6f);
     EXPECT_EQ(adsr.stage(), AdsrSource::Stage::Attack);
 }
 

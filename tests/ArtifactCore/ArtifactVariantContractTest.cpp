@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <random>
 #include <string>
 #include <type_traits>
@@ -38,6 +39,12 @@ struct alignas(64) OverAlignedValue {
 
 static_assert(std::is_copy_constructible_v<TestVariant>);
 static_assert(std::is_move_constructible_v<TestVariant>);
+static_assert(std::is_same_v<decltype(std::declval<TestVariant&>().get<int>()), int&>);
+static_assert(std::is_same_v<decltype(std::declval<const TestVariant&>().get<int>()),
+                             const int&>);
+static_assert(std::is_same_v<decltype(std::declval<TestVariant&>().getIf<int>()), int*>);
+static_assert(std::is_same_v<decltype(std::declval<const TestVariant&>().getIf<int>()),
+                             const int*>);
 
 TEST(ArtifactVariantContractTest, ConstructionRecordsFirstAlternative)
 {
@@ -63,6 +70,15 @@ TEST(ArtifactVariantContractTest, DefaultConstructionStartsUnset)
     const TestVariant value;
     EXPECT_FALSE(value.isSet());
     EXPECT_FALSE(static_cast<bool>(value));
+}
+
+TEST(ArtifactVariantContractTest, UnsetIndexDoesNotClaimAnyAlternative)
+{
+    const TestVariant value;
+
+    EXPECT_EQ(value.index(), 0u);
+    EXPECT_FALSE(value.holdsAlternative<int>());
+    EXPECT_FALSE(value.holdsAlternative<std::string>());
 }
 
 TEST(ArtifactVariantContractTest, CopyAndMoveConstructionPreserveUnsetState)
@@ -137,6 +153,23 @@ TEST(ArtifactVariantContractTest, MoveConstructionTransfersStringValue)
     TestVariant moved(std::move(original));
     ASSERT_TRUE(moved.holdsAlternative<std::string>());
     EXPECT_EQ(moved.get<std::string>(), "move");
+}
+
+TEST(ArtifactVariantContractTest, MoveOnlyAlternativeCanBeMovedAndAssigned)
+{
+    using MoveOnlyVariant = ArtifactVariant<std::unique_ptr<int>, int>;
+    MoveOnlyVariant source(std::make_unique<int>(73));
+
+    MoveOnlyVariant moved(std::move(source));
+    ASSERT_TRUE(moved.holdsAlternative<std::unique_ptr<int>>());
+    ASSERT_NE(moved.get<std::unique_ptr<int>>(), nullptr);
+    EXPECT_EQ(*moved.get<std::unique_ptr<int>>(), 73);
+
+    MoveOnlyVariant destination(5);
+    destination = std::move(moved);
+    ASSERT_TRUE(destination.holdsAlternative<std::unique_ptr<int>>());
+    ASSERT_NE(destination.get<std::unique_ptr<int>>(), nullptr);
+    EXPECT_EQ(*destination.get<std::unique_ptr<int>>(), 73);
 }
 
 TEST(ArtifactVariantContractTest, MovedFromStringKeepsAValidActiveAlternative)

@@ -79,6 +79,13 @@ TEST(Size2DStandaloneTest, ConvertsXAndYCoordinates)
     EXPECT_EQ(size.height, 7);
 }
 
+TEST(Size2DStandaloneTest, ConvertsFloatingDimensionsByTruncatingTowardZero)
+{
+    const Size_2D size(XYFields{12.75f, -7.9});
+    EXPECT_EQ(size.width, 12);
+    EXPECT_EQ(size.height, -7);
+}
+
 TEST(Size2DStandaloneTest, ConvertsPascalCaseDimensions)
 {
     const Size_2D size(PascalCaseFields{1024, 768});
@@ -119,5 +126,19 @@ TEST(Size2DStandaloneTest, AreaAndAspectRatioHandleOrdinaryAndZeroHeightSizes)
     EXPECT_EQ(Size_2D(1920, 1080).area(), 1920 * 1080);
     EXPECT_FLOAT_EQ(Size_2D(16, 9).aspectRatio(), 16.0f / 9.0f);
     EXPECT_FLOAT_EQ(Size_2D(4, 0).aspectRatio(), 0.0f);
+}
+
+TEST(Size2DStandaloneTest, AspectRatioIsZeroWhenWidthIsZero)
+{
+    const Size_2D size(0, 9);
+
+    EXPECT_TRUE(size.isEmpty());
+    EXPECT_FLOAT_EQ(size.aspectRatio(), 0.0f);
+}
+
+TEST(Size2DStandaloneTest, DegenerateDimensionsHaveZeroArea)
+{
+    EXPECT_EQ(Size_2D(0, 9).area(), 0);
+    EXPECT_EQ(Size_2D(9, 0).area(), 0);
 }
 

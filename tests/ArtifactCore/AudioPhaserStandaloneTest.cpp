@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <cstddef>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -55,6 +56,45 @@ TEST(AudioPhaserStandaloneTest, SettersClampAndRestoreDefaultsForNonFinite)
     EXPECT_FLOAT_EQ(phaser.getCenter(), 800.0f);
 }
 
+TEST(AudioPhaserStandaloneTest, ParameterApiExposesRangesAndUpdatesCurrentValues)
+{
+    AudioPhaser phaser;
+    phaser.setParameterValue(String("rate"), 2.5f);
+    phaser.setParameterValue(String("depth"), 0.9f);
+    phaser.setParameterValue(String("center"), 1200.0f);
+    phaser.setParameterValue(String("feedback"), 0.7f);
+    phaser.setParameterValue(String("stages"), 6.0f);
+    phaser.setParameterValue(String("mix"), 0.8f);
+
+    const auto parameters = phaser.getParameters();
+    ASSERT_EQ(parameters.size(), 6u);
+    struct ExpectedParameter {
+        const char* id;
+        float minimum;
+        float maximum;
+        float defaultValue;
+        float currentValue;
+    };
+    constexpr ExpectedParameter expected[] = {
+        {"rate", 0.05f, 10.0f, 0.5f, 2.5f},
+        {"depth", 0.0f, 1.0f, 0.6f, 0.9f},
+        {"center", 200.0f, 4000.0f, 800.0f, 1200.0f},
+        {"feedback", 0.0f, 0.9f, 0.4f, 0.7f},
+        {"stages", 2.0f, 8.0f, 4.0f, 6.0f},
+        {"mix", 0.0f, 1.0f, 0.5f, 0.8f},
+    };
+
+    for (std::size_t index = 0; index < parameters.size(); ++index) {
+        EXPECT_EQ(toStdString(parameters[index].id), expected[index].id);
+        EXPECT_FLOAT_EQ(parameters[index].minValue, expected[index].minimum);
+        EXPECT_FLOAT_EQ(parameters[index].maxValue, expected[index].maximum);
+        EXPECT_FLOAT_EQ(parameters[index].defaultValue, expected[index].defaultValue);
+        EXPECT_FLOAT_EQ(parameters[index].value, expected[index].currentValue);
+        EXPECT_FLOAT_EQ(phaser.getParameterValue(String(expected[index].id)),
+                        expected[index].currentValue);
+    }
+}
+
 TEST(AudioPhaserStandaloneTest, ZeroMixPreservesDrySignalExactly)
 {
     AudioPhaser phaser;
@@ -80,6 +120,56 @@ TEST(AudioPhaserStandaloneTest, FullWetProcessingAudiblyChangesSignal)
         EXPECT_TRUE(std::isfinite(sample));
     }
     EXPECT_TRUE(differs);
+}
+
+TEST(AudioPhaserStandaloneTest, FeedbackSettingChangesWetResponse)
+{
+    AudioPhaser noFeedback;
+    AudioPhaser strongFeedback;
+    noFeedback.setRate(5.0f);
+    strongFeedback.setRate(5.0f);
+    noFeedback.setDepth(0.8f);
+    strongFeedback.setDepth(0.8f);
+    noFeedback.setCenter(800.0f);
+    strongFeedback.setCenter(800.0f);
+    noFeedback.setStages(4.0f);
+    strongFeedback.setStages(4.0f);
+    noFeedback.setMix(1.0f);
+    strongFeedback.setMix(1.0f);
+    noFeedback.setFeedback(0.0f);
+    strongFeedback.setFeedback(0.9f);
+
+    auto withoutFeedback = makeMono(48000, QVector<float>(2048, 0.5f));
+    auto withFeedback = makeMono(48000, QVector<float>(2048, 0.5f));
+    noFeedback.process(withoutFeedback);
+    strongFeedback.process(withFeedback);
+
+    bool differs = false;
+    for (qsizetype frame = 0; frame < withoutFeedback.channelData[0].size(); ++frame) {
+        differs = differs || withoutFeedback.channelData[0][frame]
+            != withFeedback.channelData[0][frame];
+    }
+    EXPECT_TRUE(differs);
+}
+
+TEST(AudioPhaserStandaloneTest, StereoChannelStateDoesNotLeakAcrossChannels)
+{
+    AudioPhaser phaser;
+    phaser.setMix(1.0f);
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Stereo;
+    segment.channelData = {
+        QVector<float>{1.0f, 0.0f, 0.0f, 0.0f},
+        QVector<float>{0.0f, 0.0f, 0.0f, 0.0f}};
+
+    phaser.process(segment);
+
+    bool leftResponded = false;
+    for (const float sample : segment.channelData[0])
+        leftResponded = leftResponded || sample != 0.0f;
+    EXPECT_TRUE(leftResponded);
+    EXPECT_EQ(segment.channelData[1], (QVector<float>{0.0f, 0.0f, 0.0f, 0.0f}));
 }
 
 TEST(AudioPhaserStandaloneTest, BypassPreservesInputSamples)

@@ -5,6 +5,7 @@
 #include <QtGlobal>
 
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <utility>
 
@@ -76,6 +77,87 @@ TEST(AudioTransientShaperStandaloneTest, FullAttackBoostsImpulseTransient)
     EXPECT_GT(segment.channelData[0][0], 1.0f);
     for (const float sample : segment.channelData[0])
         EXPECT_TRUE(std::isfinite(sample));
+}
+
+TEST(AudioTransientShaperStandaloneTest, StereoChannelsKeepIndependentEnvelopeState)
+{
+    AudioTransientShaper stereoShaper;
+    AudioTransientShaper leftReference;
+    AudioTransientShaper rightReference;
+    for (auto* shaper : {&stereoShaper, &leftReference, &rightReference}) {
+        shaper->setAttack(1.0f);
+        shaper->setSustain(-0.5f);
+        shaper->setSpeedMs(5.0f);
+    }
+
+    const QVector<float> leftInput{1.0f, 0.0f, 0.0f, 0.25f, 0.0f};
+    const QVector<float> rightInput{0.0f, 0.5f, 0.0f, 0.0f, 0.75f};
+    AudioSegment stereo;
+    stereo.sampleRate = 1000;
+    stereo.layout = AudioChannelLayout::Stereo;
+    stereo.channelData = {leftInput, rightInput};
+    auto left = makeMono(1000, leftInput);
+    auto right = makeMono(1000, rightInput);
+
+    stereoShaper.process(stereo);
+    leftReference.process(left);
+    rightReference.process(right);
+
+    EXPECT_EQ(stereo.channelData[0], left.channelData[0]);
+    EXPECT_EQ(stereo.channelData[1], right.channelData[0]);
+}
+
+TEST(AudioTransientShaperStandaloneTest, ProcessingInBlocksPreservesEnvelopeStateContinuity)
+{
+    AudioTransientShaper contiguous;
+    AudioTransientShaper blocked;
+    for (auto* shaper : {&contiguous, &blocked}) {
+        shaper->setAttack(0.8f);
+        shaper->setSustain(-0.4f);
+        shaper->setSpeedMs(8.0f);
+    }
+
+    const QVector<float> input{1.0f, 0.0f, 0.0f, -0.25f, 0.5f, 0.0f, 0.75f};
+    auto whole = makeMono(1000, input);
+    auto first = makeMono(1000, input.mid(0, 2));
+    auto second = makeMono(1000, input.mid(2, 3));
+    auto third = makeMono(1000, input.mid(5, 2));
+    contiguous.process(whole);
+    blocked.process(first);
+    blocked.process(second);
+    blocked.process(third);
+
+    EXPECT_EQ(first.channelData[0], whole.channelData[0].mid(0, 2));
+    EXPECT_EQ(second.channelData[0], whole.channelData[0].mid(2, 3));
+    EXPECT_EQ(third.channelData[0], whole.channelData[0].mid(5, 2));
+}
+
+TEST(AudioTransientShaperStandaloneTest, ChannelsBeyondStereoRemainUnchanged)
+{
+    AudioTransientShaper shaper;
+    shaper.setAttack(1.0f);
+    shaper.setSustain(-0.5f);
+    AudioSegment segment;
+    segment.sampleRate = 1000;
+    segment.layout = AudioChannelLayout::Surround51;
+    segment.channelData = {
+        QVector<float>{1.0f, 0.0f},
+        QVector<float>{0.0f, 0.5f},
+        QVector<float>{0.125f, -0.25f},
+        QVector<float>{0.0f, 0.25f},
+        QVector<float>{-0.5f, 0.75f},
+        QVector<float>{0.875f, -1.0f}};
+    const QVector<float> untouchedChannel = segment.channelData[2];
+    const QVector<float> untouchedLfe = segment.channelData[3];
+    const QVector<float> untouchedLeftSurround = segment.channelData[4];
+    const QVector<float> untouchedRightSurround = segment.channelData[5];
+
+    shaper.process(segment);
+
+    EXPECT_EQ(segment.channelData[2], untouchedChannel);
+    EXPECT_EQ(segment.channelData[3], untouchedLfe);
+    EXPECT_EQ(segment.channelData[4], untouchedLeftSurround);
+    EXPECT_EQ(segment.channelData[5], untouchedRightSurround);
 }
 
 TEST(AudioTransientShaperStandaloneTest, BypassPreservesInputSamples)

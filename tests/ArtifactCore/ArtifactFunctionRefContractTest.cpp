@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <memory>
+#include <stdexcept>
 #include <type_traits>
 
 import Core.ArtifactFunctionRef;
@@ -9,6 +11,8 @@ using ArtifactCore::ArtifactFunctionRef;
 
 namespace {
 int addThree(int value) { return value + 3; }
+void assignThroughPointer(int value, int* output) { *output = value; }
+int& forwardReference(int& value) { return value; }
 }
 
 static_assert(std::is_default_constructible_v<ArtifactFunctionRef<int(int)>>);
@@ -43,6 +47,27 @@ TEST(ArtifactFunctionRefContractTest, FunctionPointerInvokesThroughCallOperator)
     EXPECT_EQ(ref(9), 12);
 }
 
+TEST(ArtifactFunctionRefContractTest, VoidFunctionPointerInvokesThroughCallOperator)
+{
+    const ArtifactFunctionRef<void(int, int*)> ref(&assignThroughPointer);
+    int output = 0;
+
+    ref(37, &output);
+
+    EXPECT_EQ(output, 37);
+}
+
+TEST(ArtifactFunctionRefContractTest, FunctionPointerReferenceReturnPreservesAliasing)
+{
+    const ArtifactFunctionRef<int&(int&)> ref(&forwardReference);
+    int value = 18;
+
+    int& result = ref(value);
+    result = 42;
+
+    EXPECT_EQ(value, 42);
+}
+
 TEST(ArtifactFunctionRefContractTest, CallableReferenceIsBorrowed)
 {
     int offset = 4;
@@ -51,6 +76,17 @@ TEST(ArtifactFunctionRefContractTest, CallableReferenceIsBorrowed)
     EXPECT_EQ(ref.invoke(2), 6);
     offset = 10;
     EXPECT_EQ(ref(2), 12);
+}
+
+TEST(ArtifactFunctionRefContractTest, ReassignedCallableObjectRemainsVisibleThroughBorrowedReference)
+{
+    std::function<int(int)> callable = [](int value) { return value + 2; };
+    const ArtifactFunctionRef<int(int)> ref(callable);
+    EXPECT_EQ(ref(5), 7);
+
+    callable = [](int value) { return value * 4; };
+
+    EXPECT_EQ(ref(5), 20);
 }
 
 TEST(ArtifactFunctionRefContractTest, ConstCallableLvalueCanBeBorrowed)
@@ -115,6 +151,19 @@ TEST(ArtifactFunctionRefContractTest, CopyKeepsCallableBinding)
     EXPECT_EQ(second(8), 7);
 }
 
+TEST(ArtifactFunctionRefContractTest, CopiedBindingSurvivesClearingOriginalWrapper)
+{
+    auto callable = [](int value) { return value * 5; };
+    ArtifactFunctionRef<int(int)> original(callable);
+    ArtifactFunctionRef<int(int)> copy(original);
+
+    original.clear();
+
+    EXPECT_FALSE(original.isValid());
+    ASSERT_TRUE(copy.isValid());
+    EXPECT_EQ(copy(9), 45);
+}
+
 TEST(ArtifactFunctionRefContractTest, CopyAssignmentRebindsToOtherBorrowedCallable)
 {
     auto firstCallable = [](int value) { return value + 1; };
@@ -126,6 +175,27 @@ TEST(ArtifactFunctionRefContractTest, CopyAssignmentRebindsToOtherBorrowedCallab
 
     EXPECT_EQ(first(5), 15);
     EXPECT_EQ(second(5), 15);
+}
+
+TEST(ArtifactFunctionRefContractTest, CopyAssignmentRebindsToFunctionPointer)
+{
+    auto callable = [](int value) { return value * 3; };
+    ArtifactFunctionRef<int(int)> ref(callable);
+    const ArtifactFunctionRef<int(int)> functionPointer(&addThree);
+
+    ref = functionPointer;
+
+    EXPECT_EQ(ref(9), 12);
+}
+
+TEST(ArtifactFunctionRefContractTest, DirectFunctionPointerAssignmentRebindsNullReference)
+{
+    ArtifactFunctionRef<int(int)> ref(nullptr);
+
+    ref = &addThree;
+
+    ASSERT_TRUE(ref.isValid());
+    EXPECT_EQ(ref(9), 12);
 }
 
 TEST(ArtifactFunctionRefContractTest, NullptrAssignmentInvalidatesReference)
@@ -175,6 +245,17 @@ TEST(ArtifactFunctionRefContractTest, MoveOnlyValueArgumentIsForwarded)
     EXPECT_EQ(calls, 1);
 }
 
+TEST(ArtifactFunctionRefContractTest, MoveOnlyReturnValueIsForwarded)
+{
+    auto callable = [](int value) { return std::make_unique<int>(value + 1); };
+    const ArtifactFunctionRef<std::unique_ptr<int>(int)> ref(callable);
+
+    std::unique_ptr<int> result = ref(41);
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(*result, 42);
+}
+
 TEST(ArtifactFunctionRefContractTest, ReferenceArgumentMutatesCallerValue)
 {
     auto callable = [](int& value) { value += 5; };
@@ -183,4 +264,20 @@ TEST(ArtifactFunctionRefContractTest, ReferenceArgumentMutatesCallerValue)
 
     ref(value);
     EXPECT_EQ(value, 13);
+}
+
+TEST(ArtifactFunctionRefContractTest, CallableReturnConvertsToRequestedSignature)
+{
+    auto callable = [] { return 42; };
+    const ArtifactFunctionRef<double()> ref(callable);
+
+    EXPECT_DOUBLE_EQ(ref(), 42.0);
+}
+
+TEST(ArtifactFunctionRefContractTest, CallableExceptionPropagatesToCaller)
+{
+    auto callable = [] { throw std::runtime_error("function ref failure"); };
+    const ArtifactFunctionRef<void()> ref(callable);
+
+    EXPECT_THROW(ref(), std::runtime_error);
 }

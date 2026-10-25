@@ -177,3 +177,39 @@ TEST(NamedListStandaloneTest, ClearRemovesEveryValue)
   values.clear();
   EXPECT_TRUE(values.isEmpty());
 }
+
+TEST(NamedListStandaloneTest, WatchSinceIgnoresReadsAndDetectsMutationAndFailedAccess)
+{
+  NamedList<int> values(ContainerName{"watch-since"});
+  const auto checkpoint = values.debugCheckpoint();
+  int callbackCount = 0;
+
+  EXPECT_FALSE(values.contains(1));
+  EXPECT_FALSE(values.watchSince(checkpoint, [&](const auto&) { ++callbackCount; }));
+  EXPECT_EQ(values.first(), nullptr);
+  EXPECT_TRUE(values.watchSince(checkpoint, [&](const auto& hit) {
+    ++callbackCount;
+    EXPECT_STREQ(hit.reason, "list-changed-since-checkpoint");
+  }));
+  EXPECT_EQ(callbackCount, 1);
+
+  const auto refreshedCheckpoint = values.debugCheckpoint();
+  values.append(2);
+  EXPECT_TRUE(values.watchSince(refreshedCheckpoint, [&](const auto&) { ++callbackCount; }));
+  EXPECT_EQ(callbackCount, 2);
+}
+
+TEST(NamedListStandaloneTest, DebugSamplesRespectLimitAndPointToElements)
+{
+  NamedList<int> values(ContainerName{"samples"}, {10, 20, 30, 40, 50});
+
+  const auto samples = values.debugSample(2);
+  ASSERT_EQ(samples.size(), 2u);
+  EXPECT_EQ(samples[0].index, 0u);
+  EXPECT_EQ(samples[0].address, static_cast<const void*>(values.begin()));
+  EXPECT_EQ(samples[1].index, 1u);
+  EXPECT_EQ(samples[1].address, static_cast<const void*>(values.begin() + 1));
+  EXPECT_STREQ(samples[0].note, "sample");
+  EXPECT_STREQ(samples[1].note, "sample");
+  EXPECT_TRUE(values.debugSample(0).isEmpty());
+}

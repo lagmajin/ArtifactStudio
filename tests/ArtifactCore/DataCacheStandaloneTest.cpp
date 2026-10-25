@@ -120,6 +120,42 @@ TEST(DataCacheStandaloneTest, UpdatingExistingKeyReplacesSourceAndTimestamp)
     EXPECT_FALSE(cache.isStale(String("same.csv"), 2));
 }
 
+TEST(DataCacheStandaloneTest, ReplacingEntryAtCapacityDoesNotEvictUnrelatedKey)
+{
+    auto& cache = DataCache::instance();
+    resetCache(cache);
+    cache.setMaxEntries(2);
+    const auto unrelated = makeSource("unrelated.csv");
+    const auto replacement = makeSource("replacement.csv");
+    cache.put(String("unrelated.csv"), unrelated, 1);
+    cache.put(String("replace.csv"), makeSource("old-replacement.csv"), 2);
+
+    cache.put(String("replace.csv"), replacement, 3);
+
+    EXPECT_EQ(cache.size(), 2);
+    EXPECT_EQ(cache.get(String("unrelated.csv")), unrelated);
+    EXPECT_EQ(cache.get(String("replace.csv")), replacement);
+    resetCache(cache);
+}
+
+TEST(DataCacheStandaloneTest, ReplacingKeyStartsANewTtlWindow)
+{
+    auto& cache = DataCache::instance();
+    resetCache(cache);
+    cache.setTtlMs(100);
+    const auto oldSource = makeSource("old-ttl.csv");
+    const auto newSource = makeSource("new-ttl.csv");
+    cache.put(String("same-ttl.csv"), oldSource, 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(70));
+
+    cache.put(String("same-ttl.csv"), newSource, 2);
+    std::this_thread::sleep_for(std::chrono::milliseconds(70));
+    EXPECT_EQ(cache.get(String("same-ttl.csv")), newSource);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_EQ(cache.get(String("same-ttl.csv")), nullptr);
+    resetCache(cache);
+}
+
 TEST(DataCacheStandaloneTest, MaximumEntryLimitEvictsBeforeAddingNextEntry)
 {
     auto& cache = DataCache::instance();
@@ -133,6 +169,27 @@ TEST(DataCacheStandaloneTest, MaximumEntryLimitEvictsBeforeAddingNextEntry)
     EXPECT_EQ(cache.get(String("second.csv")) != nullptr, true);
     EXPECT_TRUE(cache.isStale(String("first.csv"), 1));
     cache.setMaxEntries(64);
+}
+
+TEST(DataCacheStandaloneTest, EvictionKeepsMostRecentlyAccessedEntry)
+{
+    auto& cache = DataCache::instance();
+    resetCache(cache);
+    cache.setMaxEntries(2);
+    cache.put(String("older-but-hit.csv"), makeSource("older-but-hit.csv"), 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    cache.put(String("least-recent.csv"), makeSource("least-recent.csv"), 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_NE(cache.get(String("older-but-hit.csv")), nullptr);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    cache.put(String("new-entry.csv"), makeSource("new-entry.csv"), 1);
+
+    EXPECT_NE(cache.get(String("older-but-hit.csv")), nullptr);
+    EXPECT_EQ(cache.get(String("least-recent.csv")), nullptr);
+    EXPECT_NE(cache.get(String("new-entry.csv")), nullptr);
+    EXPECT_EQ(cache.size(), 2);
+    resetCache(cache);
 }
 
 TEST(DataCacheStandaloneTest, MaxEntriesAndTtlConfigurationRoundTrip)

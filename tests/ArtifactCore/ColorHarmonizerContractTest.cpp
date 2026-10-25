@@ -49,6 +49,24 @@ TEST(ColorHarmonizerContractTest, AnalogousColorsAreSymmetricAroundBaseHue)
     EXPECT_FLOAT_EQ(colors[1].a(), input.a());
 }
 
+TEST(ColorHarmonizerContractTest, AnalogousColorsUseThirtyDegreeDefaultAngle)
+{
+    const FloatColor input(0.8f, 0.2f, 0.1f, 0.53f);
+    const auto implicitDefault = ColorHarmonizer::getAnalogous(input);
+    const auto explicitDefault = ColorHarmonizer::getAnalogous(input, 30.0f);
+
+    ASSERT_EQ(implicitDefault.size(), 2);
+    ASSERT_EQ(explicitDefault.size(), 2);
+    for (int index = 0; index < 2; ++index) {
+        EXPECT_FLOAT_EQ(implicitDefault[index].r(), explicitDefault[index].r());
+        EXPECT_FLOAT_EQ(implicitDefault[index].g(), explicitDefault[index].g());
+        EXPECT_FLOAT_EQ(implicitDefault[index].b(), explicitDefault[index].b());
+        EXPECT_FLOAT_EQ(implicitDefault[index].a(), explicitDefault[index].a());
+    }
+    expectHueNear(implicitDefault[0], hueOf(input) + 30.0f);
+    expectHueNear(implicitDefault[1], hueOf(input) - 30.0f);
+}
+
 TEST(ColorHarmonizerContractTest, TriadicAndTetradicColorsUseExpectedHueIntervals)
 {
     const FloatColor input(1.0f, 0.0f, 0.0f, 1.0f);

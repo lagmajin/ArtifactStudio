@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <utility>
 
@@ -225,6 +226,36 @@ TEST(AudioPlateReverbStandaloneTest, StereoImpulseProducesDifferentTailsPerChann
     EXPECT_TRUE(differs);
 }
 
+TEST(AudioPlateReverbStandaloneTest, ModulationDepthChangesTheWetImpulseResponse)
+{
+    AudioPlateReverb unmodulated;
+    AudioPlateReverb modulated;
+    for (auto* plate : {&unmodulated, &modulated}) {
+        plate->setPreDelayMs(0.0f);
+        plate->setDecay(0.95f);
+        plate->setDamping(0.2f);
+        plate->setDiffusion(0.7f);
+        plate->setModRate(5.0f);
+        plate->setMix(1.0f);
+    }
+    unmodulated.setModDepth(0.0f);
+    modulated.setModDepth(1.0f);
+
+    QVector<float> impulse(16000, 0.0f);
+    impulse[0] = 1.0f;
+    auto withoutModulation = makeMono(48000, impulse);
+    auto withModulation = makeMono(48000, impulse);
+    unmodulated.process(withoutModulation);
+    modulated.process(withModulation);
+
+    bool differs = false;
+    for (qsizetype frame = 0; frame < impulse.size(); ++frame) {
+        differs = differs || withoutModulation.channelData[0][frame]
+            != withModulation.channelData[0][frame];
+    }
+    EXPECT_TRUE(differs);
+}
+
 TEST(AudioPlateReverbStandaloneTest, LeavesChannelsBeyondStereoUntouched)
 {
     AudioSegment segment;
@@ -255,6 +286,31 @@ TEST(AudioPlateReverbStandaloneTest, TailGrowsWithDecay)
     const qint64 longTail = plate.tailSamples();
     EXPECT_GT(shortTail, 0);
     EXPECT_GT(longTail, shortTail);
+}
+
+TEST(AudioPlateReverbStandaloneTest, ChangingSizeRebuildsAndClearsDelayHistory)
+{
+    AudioPlateReverb reconfigured;
+    reconfigured.setDecay(0.95f);
+    reconfigured.setMix(1.0f);
+    QVector<float> impulse(6000, 0.0f);
+    impulse[0] = 1.0f;
+    auto excited = makeMono(48000, std::move(impulse));
+    reconfigured.process(excited);
+    ASSERT_TRUE(hasTail(excited.channelData[0], 1));
+
+    reconfigured.setSize(0.5f);
+    auto afterChange = makeMono(48000, QVector<float>(6000, 0.0f));
+    reconfigured.process(afterChange);
+
+    AudioPlateReverb fresh;
+    fresh.setDecay(0.95f);
+    fresh.setMix(1.0f);
+    fresh.setSize(0.5f);
+    auto freshSilence = makeMono(48000, QVector<float>(6000, 0.0f));
+    fresh.process(freshSilence);
+
+    EXPECT_EQ(afterChange.channelData[0], freshSilence.channelData[0]);
 }
 
 TEST(AudioPlateReverbStandaloneTest, BypassPreservesWetAndDryInputSamples)

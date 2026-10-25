@@ -98,6 +98,13 @@ TEST(AspectRatioContractTest, SmallPositiveDecimalUsesBestBoundedPositiveApproxi
     expectAspect(aspect, QStringLiteral("1:100"), 0.01);
 }
 
+TEST(AspectRatioContractTest, DecimalBelowSmallestPositiveApproximationUsesOneToHundred)
+{
+    AspectRatio aspect(16, 9);
+    aspect.setFromString(UniString(QStringLiteral("0.0001")));
+    expectAspect(aspect, QStringLiteral("1:100"), 0.01);
+}
+
 TEST(AspectRatioContractTest, TrimsWhitespaceAroundInput)
 {
     AspectRatio aspect;
@@ -135,6 +142,17 @@ TEST(AspectRatioContractTest, MalformedPairComponentPreservesCurrentValue)
     expectAspect(aspect, QStringLiteral("16:9"), 16.0 / 9.0);
 
     aspect.setFromString(UniString(QStringLiteral("not-a-width/3")));
+    expectAspect(aspect, QStringLiteral("16:9"), 16.0 / 9.0);
+}
+
+TEST(AspectRatioContractTest, OutOfRangeIntegerPairComponentPreservesCurrentValue)
+{
+    AspectRatio aspect(16, 9);
+
+    aspect.setFromString(UniString(QStringLiteral("2147483648:9")));
+    expectAspect(aspect, QStringLiteral("16:9"), 16.0 / 9.0);
+
+    aspect.setFromString(UniString(QStringLiteral("16:2147483648")));
     expectAspect(aspect, QStringLiteral("16:9"), 16.0 / 9.0);
 }
 

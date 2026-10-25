@@ -20,6 +20,13 @@ TEST(ArtifactCallbackContractTest, DefaultCallbackIsInvalid)
     EXPECT_FALSE(static_cast<bool>(callback));
 }
 
+TEST(ArtifactCallbackContractTest, InvokingEmptyCallbackThrowsBadFunctionCall)
+{
+    Callback<void()> callback;
+
+    EXPECT_THROW(callback.invoke(), std::bad_function_call);
+}
+
 TEST(ArtifactCallbackContractTest, InvokesCallableWithArguments)
 {
     Callback<int(int, int)> callback([](int left, int right) { return left + right; });
@@ -204,4 +211,70 @@ TEST(ArtifactCallbackContractTest, CopyAssignmentFromEmptyClearsExistingTarget)
 
     EXPECT_FALSE(destination.isValid());
     EXPECT_FALSE(static_cast<bool>(destination));
+}
+
+TEST(ArtifactCallbackContractTest, MoveAssignmentReplacesAndTransfersTargetCapture)
+{
+    auto oldTarget = std::make_shared<int>(1);
+    std::weak_ptr<int> oldObserved = oldTarget;
+    Callback<void()> destination([owned = std::move(oldTarget)] { (void)owned; });
+
+    auto newTarget = std::make_shared<int>(2);
+    std::weak_ptr<int> newObserved = newTarget;
+    Callback<void()> source([owned = std::move(newTarget)] { (void)owned; });
+
+    destination = std::move(source);
+
+    EXPECT_TRUE(oldObserved.expired());
+    EXPECT_FALSE(newObserved.expired());
+    destination.invoke();
+    source.clear();
+    EXPECT_FALSE(newObserved.expired());
+    destination.clear();
+    EXPECT_TRUE(newObserved.expired());
+}
+
+TEST(ArtifactCallbackContractTest, MoveAssignmentFromEmptyClearsExistingTarget)
+{
+    auto target = std::make_shared<int>(42);
+    std::weak_ptr<int> observed = target;
+    Callback<void()> destination([owned = std::move(target)] { (void)owned; });
+    Callback<void()> empty;
+
+    destination = std::move(empty);
+
+    EXPECT_TRUE(observed.expired());
+    EXPECT_FALSE(destination.isValid());
+    EXPECT_FALSE(static_cast<bool>(destination));
+}
+
+TEST(ArtifactCallbackContractTest, MoveConstructionTransfersTargetCapture)
+{
+    auto target = std::make_shared<int>(73);
+    std::weak_ptr<int> observed = target;
+    Callback<int()> source([owned = std::move(target)] { return *owned; });
+
+    Callback<int()> destination(std::move(source));
+
+    ASSERT_TRUE(destination);
+    EXPECT_FALSE(observed.expired());
+    EXPECT_EQ(destination.invoke(), 73);
+    source.clear();
+    EXPECT_FALSE(observed.expired());
+    destination.clear();
+    EXPECT_TRUE(observed.expired());
+}
+
+TEST(ArtifactCallbackContractTest, MoveConstructionLeavesSourceEmptyAndReusable)
+{
+    Callback<int()> source([] { return 73; });
+
+    Callback<int()> destination(std::move(source));
+
+    EXPECT_FALSE(source.isValid());
+    EXPECT_EQ(destination.invoke(), 73);
+    source.reset([] { return 84; });
+    ASSERT_TRUE(source.isValid());
+    EXPECT_EQ(source.invoke(), 84);
+    EXPECT_EQ(destination.invoke(), 73);
 }

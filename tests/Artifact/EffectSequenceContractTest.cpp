@@ -117,32 +117,6 @@ TEST(EffectSequenceContractTest, EffectMixSetterClampsAndResetsNonFiniteValues)
     EXPECT_FLOAT_EQ(effect.mix(), 1.0f);
 }
 
-TEST(EffectSequenceContractTest, SortsEffectsByPipelineStageAndKeepsSameStageOrder)
-{
-    auto brightness = makeShared<BrightnessEffect>();
-    auto invert = makeShared<InvertEffect>();
-    brightness->setPipelineStage(EffectPipelineStage::Rasterizer);
-    invert->setPipelineStage(EffectPipelineStage::PreProcess);
-    const std::vector<ArtifactAbstractEffectPtr> unsorted{brightness, invert};
-
-    EXPECT_FALSE(ArtifactAbstractEffect::isStageOrderValid(unsorted));
-
-    const auto sorted = ArtifactAbstractEffect::sortedByStage(unsorted);
-    ASSERT_EQ(sorted.size(), 2u);
-    EXPECT_EQ(sorted[0].get(), invert.get());
-    EXPECT_EQ(sorted[1].get(), brightness.get());
-    EXPECT_TRUE(ArtifactAbstractEffect::isStageOrderValid(sorted));
-
-    auto secondRasterizer = makeShared<InvertEffect>();
-    secondRasterizer->setPipelineStage(EffectPipelineStage::Rasterizer);
-    const std::vector<ArtifactAbstractEffectPtr> sameStage{
-        brightness, secondRasterizer};
-    const auto stable = ArtifactAbstractEffect::sortedByStage(sameStage);
-    ASSERT_EQ(stable.size(), 2u);
-    EXPECT_EQ(stable[0].get(), brightness.get());
-    EXPECT_EQ(stable[1].get(), secondRasterizer.get());
-}
-
 TEST(EffectSequenceContractTest, SortedStagesProduceTheExpectedCpuImage)
 {
     const float pixels[] = {0.20f, 0.40f, 0.80f, 0.35f};

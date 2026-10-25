@@ -125,6 +125,26 @@ TEST(AssetMetaFileContractTest, InvalidImportedTimestampRemainsInvalidAfterRound
                     .value(QStringLiteral("importedAt")).toString().isEmpty());
 }
 
+TEST(AssetMetaFileContractTest, MalformedImportedTimestampDoesNotInvalidateMetadata)
+{
+    const QString sourcePath = QStringLiteral("/project/media/undated.png");
+    const QJsonObject document{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("asset"), QJsonObject{
+            {QStringLiteral("sourcePath"), sourcePath},
+            {QStringLiteral("importedAt"), QStringLiteral("yesterday-ish")}}}};
+
+    const auto meta = ArtifactAssetMetaFile::fromJson(
+        QJsonDocument(document).toJson(QJsonDocument::Compact));
+
+    EXPECT_TRUE(meta.isValid());
+    EXPECT_EQ(meta.sourcePath(), sourcePath);
+    EXPECT_FALSE(meta.importedAt().isValid());
+    EXPECT_EQ(meta.toJson().value(QStringLiteral("asset")).toObject()
+                  .value(QStringLiteral("importedAt")).toString(),
+              QStringLiteral("yesterday-ish"));
+}
+
 TEST(AssetMetaFileContractTest, ProxiesTagsAndCustomValuesRoundTrip)
 {
     ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::fromJson(QByteArrayLiteral("{}"));
@@ -177,6 +197,30 @@ TEST(AssetMetaFileContractTest, SavesAndLoadsTheSidecarBesideItsSource)
     EXPECT_EQ(loaded.proxyPath(QStringLiteral("720p")),
               QStringLiteral("shot_720.png"));
     EXPECT_EQ(loaded.tags(), (QStringList{QStringLiteral("approved")}));
+}
+
+TEST(AssetMetaFileContractTest, SaveReplacesExistingSidecarContents)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("replace.png"));
+    const QUuid originalId = QUuid::createUuid();
+    const QUuid replacementId = QUuid::createUuid();
+
+    auto original = ArtifactAssetMetaFile::fromJson(QByteArrayLiteral("{}"), sourcePath);
+    original.setUuid(originalId);
+    original.setType(AssetType::Image);
+    ASSERT_TRUE(original.save());
+    ASSERT_EQ(ArtifactAssetMetaFile::load(sourcePath).uuid(), originalId);
+
+    auto replacement = ArtifactAssetMetaFile::fromJson(QByteArrayLiteral("{}"), sourcePath);
+    replacement.setUuid(replacementId);
+    replacement.setType(AssetType::Data);
+    ASSERT_TRUE(replacement.save());
+
+    const auto loaded = ArtifactAssetMetaFile::load(sourcePath);
+    EXPECT_EQ(loaded.uuid(), replacementId);
+    EXPECT_EQ(loaded.type(), AssetType::Data);
 }
 
 TEST(AssetMetaFileContractTest, InvalidJsonAndMissingVersionRemainInvalid)
@@ -237,6 +281,27 @@ TEST(AssetMetaFileContractTest, MissingAssetFieldsReturnEmptyValuesAndUnknownTyp
     EXPECT_FALSE(meta.importedAt().isValid());
 }
 
+TEST(AssetMetaFileContractTest, WrongTypedAssetFieldsReturnSafeDefaults)
+{
+    const QJsonObject document{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("asset"), QJsonObject{
+            {QStringLiteral("sourcePath"), 17},
+            {QStringLiteral("uuid"), true},
+            {QStringLiteral("type"), QJsonObject{{QStringLiteral("name"),
+                                                   QStringLiteral("Image")}}},
+            {QStringLiteral("importedAt"), QJsonArray{QStringLiteral("2026-10-08")}}}}};
+
+    const auto meta = ArtifactAssetMetaFile::fromJson(
+        QJsonDocument(document).toJson(QJsonDocument::Compact));
+
+    EXPECT_TRUE(meta.isValid());
+    EXPECT_TRUE(meta.sourcePath().isEmpty());
+    EXPECT_TRUE(meta.uuid().isNull());
+    EXPECT_EQ(meta.type(), AssetType::Unknown);
+    EXPECT_FALSE(meta.importedAt().isValid());
+}
+
 TEST(AssetMetaFileContractTest, ProxyUpdateReplacesExistingResolution)
 {
     ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::fromJson(QByteArrayLiteral("{}"));
@@ -245,6 +310,22 @@ TEST(AssetMetaFileContractTest, ProxyUpdateReplacesExistingResolution)
 
     EXPECT_EQ(meta.proxyPath(QStringLiteral("720p")), QStringLiteral("proxy/new.png"));
     EXPECT_EQ(meta.proxyResolutions(), (QStringList{QStringLiteral("720p")}));
+}
+
+TEST(AssetMetaFileContractTest, ProxyUpdatePreservesOtherResolutions)
+{
+    ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::fromJson(QByteArrayLiteral("{}"));
+    meta.addProxy(QStringLiteral("720p"), QStringLiteral("proxy/old-720.png"));
+    meta.addProxy(QStringLiteral("1080p"), QStringLiteral("proxy/1080.png"));
+
+    meta.addProxy(QStringLiteral("720p"), QStringLiteral("proxy/new-720.png"));
+
+    EXPECT_EQ(meta.proxyPath(QStringLiteral("720p")),
+              QStringLiteral("proxy/new-720.png"));
+    EXPECT_EQ(meta.proxyPath(QStringLiteral("1080p")),
+              QStringLiteral("proxy/1080.png"));
+    EXPECT_EQ(meta.proxyResolutions(),
+              (QStringList{QStringLiteral("1080p"), QStringLiteral("720p")}));
 }
 
 TEST(AssetMetaFileContractTest, RemovingUnknownOrRepeatedTagIsSafe)
@@ -259,6 +340,26 @@ TEST(AssetMetaFileContractTest, RemovingUnknownOrRepeatedTagIsSafe)
     EXPECT_TRUE(meta.tags().isEmpty());
 }
 
+TEST(AssetMetaFileContractTest, RemovingUnknownTagLeavesMetadataUnchanged)
+{
+    ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::fromJson(QByteArrayLiteral("{}"));
+    const QJsonObject before = meta.toJson();
+
+    meta.removeTag(QStringLiteral("missing"));
+
+    EXPECT_EQ(meta.toJson(), before);
+}
+
+TEST(AssetMetaFileContractTest, AddingBlankTagLeavesMetadataUnchanged)
+{
+    ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::fromJson(QByteArrayLiteral("{}"));
+    const QJsonObject before = meta.toJson();
+
+    meta.addTag(QStringLiteral(" \t "));
+
+    EXPECT_EQ(meta.toJson(), before);
+}
+
 TEST(AssetMetaFileContractTest, RemovingTagClearsAllLegacyDuplicateEntries)
 {
     const QJsonObject document{
@@ -271,6 +372,31 @@ TEST(AssetMetaFileContractTest, RemovingTagClearsAllLegacyDuplicateEntries)
 
     meta.removeTag(QStringLiteral("review"));
 
+    EXPECT_EQ(meta.tags(), (QStringList{QStringLiteral("keep")}));
+}
+
+TEST(AssetMetaFileContractTest, RemovingTagPreservesOtherMetadata)
+{
+    const QJsonObject document{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("futureSection"),
+         QJsonObject{{QStringLiteral("enabled"), true}}},
+        {QStringLiteral("custom"),
+         QJsonObject{{QStringLiteral("colorSpace"), QStringLiteral("ACEScg")}}},
+        {QStringLiteral("tags"),
+         QJsonArray{QStringLiteral("review"), QStringLiteral("keep")}}};
+    auto meta = ArtifactAssetMetaFile::fromJson(
+        QJsonDocument(document).toJson(QJsonDocument::Compact));
+
+    meta.removeTag(QStringLiteral("review"));
+
+    const QJsonObject result = meta.toJson();
+    EXPECT_EQ(result.value(QStringLiteral("version")).toInt(), 1);
+    EXPECT_EQ(result.value(QStringLiteral("futureSection")).toObject()
+                  .value(QStringLiteral("enabled")).toBool(), true);
+    EXPECT_EQ(result.value(QStringLiteral("custom")).toObject()
+                  .value(QStringLiteral("colorSpace")).toString(),
+              QStringLiteral("ACEScg"));
     EXPECT_EQ(meta.tags(), (QStringList{QStringLiteral("keep")}));
 }
 

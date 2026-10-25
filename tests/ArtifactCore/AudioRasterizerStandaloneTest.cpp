@@ -96,6 +96,33 @@ TEST(AudioRasterizerStandaloneTest, InterleavedUnevenBinsCoverAllCompleteFrames)
     EXPECT_FLOAT_EQ(result.maxValues[1], 0.8f);
 }
 
+TEST(AudioRasterizerStandaloneTest, InterleavedThreeChannelUnevenBinsIncludeEveryChannel)
+{
+    const QVector<float> samples{
+        0.1f, -0.2f, 0.3f,
+        -0.4f, 0.5f, -0.6f,
+        0.7f, -0.8f, 0.9f,
+        -1.0f, 1.1f, -1.2f,
+        1.3f, -1.4f, 1.5f};
+
+    const auto result = AudioRasterizer::rasterizeInterleaved(samples, 3, 2);
+
+    ASSERT_EQ(result.binCount(), 2);
+    EXPECT_EQ(result.minValues, (QVector<float>{-0.6f, -1.4f}));
+    EXPECT_EQ(result.maxValues, (QVector<float>{0.5f, 1.5f}));
+}
+
+TEST(AudioRasterizerStandaloneTest, InterleavedBinCountAboveFrameCountProducesOneBinPerFrame)
+{
+    const QVector<float> samples{0.25f, -0.5f, 0.75f, -1.0f};
+
+    const auto result = AudioRasterizer::rasterizeInterleaved(samples, 2, 8);
+
+    ASSERT_EQ(result.binCount(), 2);
+    EXPECT_EQ(result.minValues, (QVector<float>{-0.5f, -1.0f}));
+    EXPECT_EQ(result.maxValues, (QVector<float>{0.25f, 0.75f}));
+}
+
 TEST(AudioRasterizerStandaloneTest, InvalidChannelOrBinCountReturnsEmptyData)
 {
     const QVector<float> samples{0.1f, -0.2f, 0.3f, -0.4f};

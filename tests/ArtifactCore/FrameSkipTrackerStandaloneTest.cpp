@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <limits>
+
 #include <QString>
 
 import Frame.SkipTracker;
@@ -28,6 +31,20 @@ TEST_F(FrameSkipTrackerStandaloneTest, ResetClearsCountersAndHistory)
     EXPECT_TRUE(tracker->skippedFrames().isEmpty());
 }
 
+TEST_F(FrameSkipTrackerStandaloneTest, ResetPreservesDisabledTrackingConfiguration)
+{
+    tracker->recordSkip(10, 9, FrameSkipReason::CacheMiss);
+    tracker->setTrackingEnabled(false);
+
+    tracker->reset();
+    tracker->recordSkip(20, 19, FrameSkipReason::TooHeavy);
+
+    EXPECT_FALSE(tracker->trackingEnabled());
+    EXPECT_EQ(tracker->totalSkips(), 0);
+    EXPECT_EQ(tracker->consecutiveSkips(), 0);
+    EXPECT_TRUE(tracker->recentEvents().isEmpty());
+}
+
 TEST_F(FrameSkipTrackerStandaloneTest, SuccessfulDispatchStoresRequestCommitAndDisplay)
 {
     tracker->beginDispatch(120);
@@ -41,6 +58,21 @@ TEST_F(FrameSkipTrackerStandaloneTest, SuccessfulDispatchStoresRequestCommitAndD
     EXPECT_EQ(event.skipReason, FrameSkipReason::None);
     EXPECT_EQ(tracker->totalSkips(), 0);
     EXPECT_EQ(tracker->consecutiveSkips(), 0);
+}
+
+TEST_F(FrameSkipTrackerStandaloneTest, CommitFrameIsRecordedIndependentlyFromDisplayedFrame)
+{
+    tracker->beginDispatch(120);
+    tracker->commitFrame(119);
+    tracker->displayFrame(120);
+
+    const FrameDispatchEvent event = tracker->lastEvent();
+    EXPECT_EQ(event.requestedFrame, 120);
+    EXPECT_EQ(event.committedFrame, 119);
+    EXPECT_EQ(event.displayedFrame, 120);
+    EXPECT_FALSE(event.skipped);
+    EXPECT_EQ(event.skipReason, FrameSkipReason::None);
+    EXPECT_EQ(tracker->totalSkips(), 0);
 }
 
 TEST_F(FrameSkipTrackerStandaloneTest, DisplayingDifferentFrameRecordsUnknownSkip)
@@ -147,6 +179,26 @@ TEST_F(FrameSkipTrackerStandaloneTest, TrackingDisabledSuppressesDispatchAndExpl
     EXPECT_TRUE(tracker->recentEvents().isEmpty());
 }
 
+TEST_F(FrameSkipTrackerStandaloneTest, DisablingTrackingPreservesExistingHistory)
+{
+    tracker->recordSkip(10, 9, FrameSkipReason::CacheMiss);
+    const auto priorHistory = tracker->recentEvents();
+    ASSERT_EQ(priorHistory.size(), 1);
+
+    tracker->setTrackingEnabled(false);
+    tracker->beginDispatch(20);
+    tracker->commitFrame(19);
+    tracker->displayFrame(19);
+    tracker->recordSkip(21, 19, FrameSkipReason::TooHeavy);
+
+    EXPECT_EQ(tracker->totalSkips(), 1);
+    EXPECT_EQ(tracker->consecutiveSkips(), 1);
+    const auto history = tracker->recentEvents();
+    ASSERT_EQ(history.size(), 1);
+    EXPECT_EQ(history[0].requestedFrame, priorHistory[0].requestedFrame);
+    EXPECT_EQ(history[0].skipReason, priorHistory[0].skipReason);
+}
+
 TEST_F(FrameSkipTrackerStandaloneTest, ExplicitSkipReasonDoesNotGetReplacedByDisplayLogic)
 {
     tracker->recordSkip(30, 29, FrameSkipReason::CacheMiss);
@@ -180,6 +232,23 @@ TEST_F(FrameSkipTrackerStandaloneTest, SummaryReportsTotalAndConsecutiveCounts)
     tracker->recordSkip(5, 4, FrameSkipReason::TooHeavy);
     tracker->recordSkip(6, 4, FrameSkipReason::TooHeavy);
     EXPECT_EQ(tracker->summary(), QStringLiteral("FrameSkipTracker: 2 skips (2 consecutive)"));
+}
+
+TEST_F(FrameSkipTrackerStandaloneTest, DispatchPreservesInt64FrameBoundaries)
+{
+    constexpr auto minimum = std::numeric_limits<std::int64_t>::min();
+    constexpr auto maximum = std::numeric_limits<std::int64_t>::max();
+
+    tracker->beginDispatch(minimum);
+    tracker->commitFrame(maximum);
+    tracker->displayFrame(maximum);
+
+    const FrameDispatchEvent event = tracker->lastEvent();
+    EXPECT_EQ(event.requestedFrame, minimum);
+    EXPECT_EQ(event.committedFrame, maximum);
+    EXPECT_EQ(event.displayedFrame, maximum);
+    EXPECT_TRUE(event.skipped);
+    EXPECT_EQ(event.skipReason, FrameSkipReason::Unknown);
 }
 
 TEST_F(FrameSkipTrackerStandaloneTest, EmptyLastEventIsDefaultInitialized)

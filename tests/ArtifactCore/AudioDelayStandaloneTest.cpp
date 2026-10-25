@@ -4,6 +4,7 @@
 #include <QVector>
 
 #include <cstddef>
+#include <cmath>
 #include <limits>
 #include <utility>
 
@@ -111,6 +112,42 @@ TEST(AudioDelayStandaloneTest, ImpulseAppearsAfterConfiguredDelayInFrames)
     EXPECT_FLOAT_EQ(segment.channelData[0][2], 0.0f);
 }
 
+TEST(AudioDelayStandaloneTest, StereoDelayHistoryRemainsIndependentPerChannel)
+{
+    AudioDelay delay;
+    delay.setDelayTimeMs(1.0f);
+    delay.setFeedback(0.0f);
+    delay.setMix(1.0f);
+    auto segment = makeStereo(1000, QVector<float>{1.0f, 0.0f, 0.0f},
+                             QVector<float>{0.0f, 2.0f, 0.0f});
+
+    delay.process(segment);
+
+    EXPECT_EQ(segment.channelData[0], (QVector<float>{0.0f, 1.0f, 0.0f}));
+    EXPECT_EQ(segment.channelData[1], (QVector<float>{0.0f, 2.0f, 0.0f}));
+}
+
+TEST(AudioDelayStandaloneTest, NonFiniteInputDoesNotContaminateDelayHistory)
+{
+    AudioDelay delay;
+    delay.setDelayTimeMs(1.0f);
+    delay.setFeedback(0.5f);
+    delay.setMix(0.5f);
+    auto segment = makeMono(1000, QVector<float>{
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(),
+        0.25f});
+
+    delay.process(segment);
+
+    ASSERT_EQ(segment.channelData[0].size(), 3);
+    EXPECT_FLOAT_EQ(segment.channelData[0][0], 0.0f);
+    EXPECT_FLOAT_EQ(segment.channelData[0][1], 0.0f);
+    EXPECT_FLOAT_EQ(segment.channelData[0][2], 0.125f);
+    for (const float sample : segment.channelData[0])
+        EXPECT_TRUE(std::isfinite(sample));
+}
+
 TEST(AudioDelayStandaloneTest, ZeroMixKeepsTheDrySignalUnchanged)
 {
     AudioDelay delay;
@@ -122,6 +159,34 @@ TEST(AudioDelayStandaloneTest, ZeroMixKeepsTheDrySignalUnchanged)
     delay.process(segment);
 
     EXPECT_EQ(segment.channelData[0], (QVector<float>{0.25f, -0.5f, 0.75f}));
+}
+
+TEST(AudioDelayStandaloneTest, ZeroMixStillAccumulatesDelayHistory)
+{
+    AudioDelay mutedWet;
+    AudioDelay audibleWet;
+    for (auto* delay : {&mutedWet, &audibleWet}) {
+        delay->setDelayTimeMs(1.0f);
+        delay->setFeedback(0.5f);
+    }
+    mutedWet.setMix(0.0f);
+    audibleWet.setMix(1.0f);
+
+    auto mutedImpulse = makeMono(1000, QVector<float>{1.0f});
+    auto audibleImpulse = mutedImpulse;
+    mutedWet.process(mutedImpulse);
+    audibleWet.process(audibleImpulse);
+    EXPECT_FLOAT_EQ(mutedImpulse.channelData[0][0], 1.0f);
+    EXPECT_FLOAT_EQ(audibleImpulse.channelData[0][0], 0.0f);
+
+    mutedWet.setMix(1.0f);
+    auto mutedTail = makeMono(1000, QVector<float>{0.0f});
+    auto audibleTail = makeMono(1000, QVector<float>{0.0f});
+    mutedWet.process(mutedTail);
+    audibleWet.process(audibleTail);
+
+    EXPECT_FLOAT_EQ(mutedTail.channelData[0][0], 1.0f);
+    EXPECT_EQ(mutedTail.channelData[0], audibleTail.channelData[0]);
 }
 
 TEST(AudioDelayStandaloneTest, BypassLeavesSamplesUnchanged)

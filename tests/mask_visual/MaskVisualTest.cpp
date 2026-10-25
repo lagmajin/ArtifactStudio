@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <string>
 #include <opencv2/imgcodecs.hpp>
 
 import Artifact.Mask.LayerMask;
@@ -92,6 +93,14 @@ int main(int argc, char** argv)
     bool passed = true;
 
     LayerMask base;
+    cv::Mat alpha;
+    base.compositeAlphaMask(kWidth, kHeight, &alpha);
+    passed &= expectNear("empty mask is opaque", at(alpha, 80, 80), 1.0f);
+    if (alpha.type() != CV_32FC1 || alpha.cols != kWidth || alpha.rows != kHeight) {
+        std::cerr << "empty mask: compositor returned an invalid alpha plane\n";
+        passed = false;
+    }
+
     base.addMaskPath(rectangle(32, 28, 150, 156));
     cv::Mat baseline;
     base.compositeAlphaMask(kWidth, kHeight, &baseline);
@@ -99,9 +108,49 @@ int main(int argc, char** argv)
     passed &= expectNear("single mask outside", at(baseline, 12, 12), 0.0f);
     renderCase(outputDirectory, "01_single_base", base, passed);
 
+    LayerMask disabled = base;
+    disabled.setEnabled(false);
+    disabled.compositeAlphaMask(kWidth, kHeight, &alpha);
+    passed &= expectNear("disabled mask is opaque", at(alpha, 12, 12), 1.0f);
+    renderCase(outputDirectory, "11_disabled", disabled, passed);
+
+    LayerMask copied = base;
+    copied.removeMaskPath(0);
+    copied.compositeAlphaMask(kWidth, kHeight, &alpha);
+    passed &= expectNear("copy edit clears copied mask", at(alpha, 12, 12), 1.0f);
+    base.compositeAlphaMask(kWidth, kHeight, &alpha);
+    passed &= expectNear("copy edit preserves source mask", at(alpha, 12, 12), 0.0f);
+
+    LayerMask pathManagement;
+    pathManagement.addMaskPath(rectangle(16, 24, 72, 80));
+    pathManagement.setMaskPath(0, rectangle(120, 96, 184, 160));
+    passed &= pathManagement.maskPathCount() == 1;
+    pathManagement.compositeAlphaMask(kWidth, kHeight, &alpha);
+    passed &= expectNear("set path clears previous location", at(alpha, 40, 50), 0.0f);
+    passed &= expectNear("set path draws updated location", at(alpha, 140, 120), 1.0f);
+
+    pathManagement.setMaskPath(-1, rectangle(16, 24, 72, 80));
+    pathManagement.setMaskPath(1, rectangle(16, 24, 72, 80));
+    pathManagement.removeMaskPath(-1);
+    pathManagement.removeMaskPath(1);
+    passed &= pathManagement.maskPathCount() == 1;
+    pathManagement.removeMaskPath(0);
+    passed &= pathManagement.maskPathCount() == 0;
+    pathManagement.addMaskPath(rectangle(16, 24, 72, 80));
+    pathManagement.clearMaskPaths();
+    passed &= pathManagement.maskPathCount() == 0;
+    pathManagement.compositeAlphaMask(kWidth, kHeight, &alpha);
+    passed &= expectNear("cleared paths restore opaque result", at(alpha, 40, 50), 1.0f);
+
+    LayerMask invalidPath;
+    auto openPath = rectangle(32, 28, 150, 156);
+    openPath.setClosed(false);
+    invalidPath.addMaskPath(openPath);
+    invalidPath.compositeAlphaMask(kWidth, kHeight, &alpha);
+    passed &= expectNear("open path is ignored", at(alpha, 12, 12), 1.0f);
+
     LayerMask opacity = base;
     opacity.addMaskPath(rectangle(96, 44, 218, 168, MaskMode::Add, 0.35f));
-    cv::Mat alpha;
     opacity.compositeAlphaMask(kWidth, kHeight, &alpha);
     passed &= expectNear("add opacity only", at(alpha, 188, 100), 0.35f);
     passed &= expectNear("add union overlap", at(alpha, 120, 100), 1.0f);
@@ -174,6 +223,20 @@ int main(int argc, char** argv)
         passed = false;
     }
     renderCase(outputDirectory, "10_stack_parameter_matrix", matrix, passed);
+
+    cv::Mat rgba(kHeight, kWidth, CV_32FC4, cv::Scalar(0.8f, 0.6f, 0.4f, 0.5f));
+    base.applyToImage(kWidth, kHeight, &rgba);
+    const auto inside = rgba.at<cv::Vec4f>(80, 80);
+    const auto outside = rgba.at<cv::Vec4f>(12, 12);
+    passed &= expectNear("image mask keeps interior alpha", inside[3], 0.5f);
+    passed &= expectNear("image mask clears exterior alpha", outside[3], 0.0f);
+    passed &= expectNear("image mask scales premultiplied color", outside[0], 0.0f);
+
+    cv::Mat disabledRgba(kHeight, kWidth, CV_32FC4,
+                         cv::Scalar(0.8f, 0.6f, 0.4f, 0.5f));
+    disabled.applyToImage(kWidth, kHeight, &disabledRgba);
+    passed &= expectNear("disabled image mask is a no-op",
+                         disabledRgba.at<cv::Vec4f>(12, 12)[3], 0.5f);
 
     std::cout << (passed ? "Mask visual contract passed" : "Mask visual contract failed")
               << "; outputs: " << outputDirectory.string() << '\n';

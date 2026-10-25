@@ -5,6 +5,7 @@
 #include <QtGlobal>
 
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <utility>
 
@@ -53,6 +54,40 @@ TEST(AudioVibratoStandaloneTest, SettersClampAndRestoreDefaultsForNonFinite)
     EXPECT_FLOAT_EQ(vibrato.getMix(), 1.0f);
 }
 
+TEST(AudioVibratoStandaloneTest, ParameterApiExposesAndUpdatesEveryControl)
+{
+    AudioVibrato vibrato;
+    const auto parameters = vibrato.getParameters();
+    ASSERT_EQ(parameters.size(), 4u);
+    EXPECT_EQ(toStdString(parameters[0].id), "rate");
+    EXPECT_FLOAT_EQ(parameters[0].minValue, 1.0f);
+    EXPECT_FLOAT_EQ(parameters[0].maxValue, 15.0f);
+    EXPECT_FLOAT_EQ(parameters[0].defaultValue, 6.0f);
+    EXPECT_EQ(toStdString(parameters[1].id), "depth_ms");
+    EXPECT_FLOAT_EQ(parameters[1].minValue, 0.0f);
+    EXPECT_FLOAT_EQ(parameters[1].maxValue, 10.0f);
+    EXPECT_FLOAT_EQ(parameters[1].defaultValue, 2.0f);
+    EXPECT_EQ(toStdString(parameters[2].id), "base_ms");
+    EXPECT_FLOAT_EQ(parameters[2].minValue, 3.0f);
+    EXPECT_FLOAT_EQ(parameters[2].maxValue, 10.0f);
+    EXPECT_FLOAT_EQ(parameters[2].defaultValue, 5.0f);
+    EXPECT_EQ(toStdString(parameters[3].id), "mix");
+    EXPECT_FLOAT_EQ(parameters[3].minValue, 0.0f);
+    EXPECT_FLOAT_EQ(parameters[3].maxValue, 1.0f);
+    EXPECT_FLOAT_EQ(parameters[3].defaultValue, 1.0f);
+
+    vibrato.setParameterValue(String("rate"), 12.0f);
+    vibrato.setParameterValue(String("depth_ms"), 4.0f);
+    vibrato.setParameterValue(String("base_ms"), 8.0f);
+    vibrato.setParameterValue(String("mix"), 0.25f);
+    vibrato.setParameterValue(String("unknown"), 99.0f);
+    EXPECT_FLOAT_EQ(vibrato.getParameterValue(String("rate")), 12.0f);
+    EXPECT_FLOAT_EQ(vibrato.getParameterValue(String("depth_ms")), 4.0f);
+    EXPECT_FLOAT_EQ(vibrato.getParameterValue(String("base_ms")), 8.0f);
+    EXPECT_FLOAT_EQ(vibrato.getParameterValue(String("mix")), 0.25f);
+    EXPECT_FLOAT_EQ(vibrato.getParameterValue(String("unknown")), 0.0f);
+}
+
 TEST(AudioVibratoStandaloneTest, ZeroMixPreservesDrySignalExactly)
 {
     AudioVibrato vibrato;
@@ -79,6 +114,37 @@ TEST(AudioVibratoStandaloneTest, FullWetImpulseStartsSilentDueToDelay)
     for (const float sample : segment.channelData[0])
         hasWet = hasWet || (sample != 0.0f);
     EXPECT_TRUE(hasWet);
+}
+
+TEST(AudioVibratoStandaloneTest, LfoPhaseContinuesAcrossAdjacentSegments)
+{
+    AudioVibrato contiguous;
+    AudioVibrato segmented;
+    for (auto* vibrato : {&contiguous, &segmented}) {
+        vibrato->setRate(12.0f);
+        vibrato->setDepthMs(4.0f);
+        vibrato->setBaseMs(5.0f);
+        vibrato->setMix(1.0f);
+    }
+
+    QVector<float> input;
+    input.reserve(64);
+    for (int frame = 0; frame < 64; ++frame)
+        input.push_back(std::sin(2.0f * 3.14159265f * 37.0f * frame / 1000.0f));
+
+    auto whole = makeMono(1000, input);
+    contiguous.process(whole);
+
+    QVector<float> segmentedOutput;
+    segmentedOutput.reserve(input.size());
+    for (int start = 0; start < input.size(); start += 8) {
+        auto block = makeMono(1000, input.mid(start, 8));
+        segmented.process(block);
+        segmentedOutput += block.channelData[0];
+    }
+
+    ASSERT_EQ(segmentedOutput.size(), whole.channelData[0].size());
+    EXPECT_EQ(segmentedOutput, whole.channelData[0]);
 }
 
 TEST(AudioVibratoStandaloneTest, BypassPreservesInputSamples)

@@ -162,9 +162,11 @@ TEST(AudioSpatialParamsStandaloneTest, ReplacesNonFiniteLfeValues)
 TEST(AudioSpatialParamsStandaloneTest, ReplacesUnsupportedEnumsWithSafeDefaults)
 {
     SpatialParams params;
+    params.model = static_cast<DistanceModel>(255);
     params.outputLayout = static_cast<AudioChannelLayout>(255);
     params.renderMode = static_cast<SpatialRenderMode>(255);
     const auto result = sanitizedSpatialParams(params);
+    EXPECT_EQ(result.model, DistanceModel::Inverse);
     EXPECT_EQ(result.outputLayout, AudioChannelLayout::Stereo);
     EXPECT_EQ(result.renderMode, SpatialRenderMode::Speaker);
 }
@@ -177,4 +179,30 @@ TEST(AudioSpatialParamsStandaloneTest, PreservesSupportedLayoutAndRenderMode)
     const auto result = sanitizedSpatialParams(params);
     EXPECT_EQ(result.outputLayout, AudioChannelLayout::Surround714);
     EXPECT_EQ(result.renderMode, SpatialRenderMode::Headphone);
+}
+
+TEST(AudioSpatialParamsStandaloneTest, SanitizationIsIdempotentForMalformedParameters)
+{
+    SpatialParams params;
+    params.minDistance = kNaN;
+    params.maxDistance = std::numeric_limits<float>::infinity();
+    params.rolloff = -1.0f;
+    params.spread = kNaN;
+    params.stereoWidthDegrees = -std::numeric_limits<float>::infinity();
+    params.coneInnerAngle = 400.0f;
+    params.coneOuterAngle = kNaN;
+    params.coneOuterGain = 2.0f;
+    params.dopplerFactor = kNaN;
+    params.airAbsorption = -2.0f;
+    params.roomSend = 3.0f;
+    params.roomTailSeconds = -1.0f;
+    params.lfeSend = kNaN;
+    params.lfeCutoffHz = std::numeric_limits<float>::infinity();
+    params.outputLayout = static_cast<AudioChannelLayout>(255);
+    params.renderMode = static_cast<SpatialRenderMode>(255);
+
+    const auto once = sanitizedSpatialParams(params);
+    const auto twice = sanitizedSpatialParams(once);
+
+    EXPECT_EQ(twice, once);
 }

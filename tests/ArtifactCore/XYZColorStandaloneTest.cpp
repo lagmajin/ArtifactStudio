@@ -107,6 +107,15 @@ TEST(XYZColorStandaloneTest, EqualityUsesSmallComponentTolerance)
     EXPECT_TRUE(a != far);
 }
 
+TEST(XYZColorStandaloneTest, EqualityToleranceExcludesExactThreshold)
+{
+    const XYZColor origin(0.0f, 0.0f, 0.0f);
+    const XYZColor atThreshold(1e-6f, 0.0f, 0.0f);
+
+    EXPECT_FALSE(origin == atThreshold);
+    EXPECT_TRUE(origin != atThreshold);
+}
+
 TEST(XYZColorStandaloneTest, LerpInterpolatesAndClampsT)
 {
     const XYZColor a(0.0f, 0.2f, 0.4f);
@@ -145,6 +154,17 @@ TEST(XYZColorStandaloneTest, StringRoundTripPreservesOrdinaryPositiveComponents)
     EXPECT_NEAR(parsed.Z(), original.Z(), 1e-5f);
 }
 
+TEST(XYZColorStandaloneTest, StringRoundTripPreservesScientificNotationComponents)
+{
+    const XYZColor original(1.0e-7f, 3.0e8f, -2.0e-7f);
+
+    const XYZColor parsed = XYZColor::fromString(original.toString());
+
+    EXPECT_FLOAT_EQ(parsed.X(), original.X());
+    EXPECT_FLOAT_EQ(parsed.Y(), original.Y());
+    EXPECT_FLOAT_EQ(parsed.Z(), original.Z());
+}
+
 TEST(XYZColorStandaloneTest, StringParserAcceptsSignedValues)
 {
     const XYZColor parsed = XYZColor::fromString(UniString("X:-0.5,Y:+0.25,Z:1.5"));
@@ -159,4 +179,17 @@ TEST(XYZColorStandaloneTest, MalformedStringFallsBackToZeroComponents)
     EXPECT_FLOAT_EQ(parsed.X(), 0.0f);
     EXPECT_FLOAT_EQ(parsed.Y(), 0.0f);
     EXPECT_FLOAT_EQ(parsed.Z(), 0.0f);
+}
+
+TEST(XYZColorStandaloneTest, IncompleteOrInvalidTripleFallsBackToZeroComponents)
+{
+    const XYZColor missingComponent = XYZColor::fromString(UniString("X:0.1,Y:0.2"));
+    EXPECT_FLOAT_EQ(missingComponent.X(), 0.0f);
+    EXPECT_FLOAT_EQ(missingComponent.Y(), 0.0f);
+    EXPECT_FLOAT_EQ(missingComponent.Z(), 0.0f);
+
+    const XYZColor invalidMiddleComponent = XYZColor::fromString(UniString("X:0.1,Y:bad,Z:0.3"));
+    EXPECT_FLOAT_EQ(invalidMiddleComponent.X(), 0.0f);
+    EXPECT_FLOAT_EQ(invalidMiddleComponent.Y(), 0.0f);
+    EXPECT_FLOAT_EQ(invalidMiddleComponent.Z(), 0.0f);
 }

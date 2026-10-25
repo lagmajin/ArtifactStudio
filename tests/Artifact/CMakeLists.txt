@@ -70,6 +70,19 @@ if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
+artifact_add_test(ArtifactVariationSystemContractTest
+    SOURCES
+        VariationSystemContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactVariationSystemContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "layer;composition;variant;responsive-layout;serialization;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactLODManagerContractTest
     SOURCES
         LODManagerContractTest.cpp
@@ -360,6 +373,29 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
     )
     set_tests_properties(ArtifactSpatialImageEffectContractTest PROPERTIES
         LABELS "effect;image-effect;cpu;contract;spatial"
+    )
+endif()
+
+if(ARTIFACT_BUILD_EFFECT_SEQUENCE_STANDALONE_TEST)
+    artifact_add_test(ArtifactEffectSequenceOrderingStandaloneTest
+        SOURCES
+            EffectSequenceOrderingStandaloneTest.cpp
+        LIBS
+            ArtifactEffectContract
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactEffectSequenceOrderingStandaloneTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactEffectSequenceOrderingStandaloneTest>
+                "$<TARGET_FILE_DIR:ArtifactEffectSequenceOrderingStandaloneTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    set_tests_properties(ArtifactEffectSequenceOrderingStandaloneTest PROPERTIES
+        LABELS "effect;sequence;stage;cpu;contract;standalone"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
     )
 endif()
 
@@ -682,6 +718,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     set_tests_properties(ArtifactRenderQueueExrImageIntegrationTest PROPERTIES
         LABELS "render-queue;renderer;gpu;gui;responsiveness;image;openexr;integration"
         TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueLargeSurfaceEffectStressIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.LargeSurfaceEffectQueueWritesEveryFrameAndAppliesEffect
+    )
+    set_tests_properties(ArtifactRenderQueueLargeSurfaceEffectStressIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;large-surface;effect;stress;image;integration"
+        TIMEOUT 300
         RUN_SERIAL TRUE
     )
     add_test(NAME ArtifactRenderQueueAnimatedTransformGpuIntegrationTest
@@ -1013,7 +1058,13 @@ endif()
 # GPU image contract in its own process. Captures are written under the build
 # tree so a reviewer can inspect the production layer output without launching
 # the editor or reusing its renderer/device state.
-if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
+if(ARTIFACT_ENABLE_COMPOSITION_LAYER_MASK_GPU_TEST
+   AND NOT VULKAN_SUPPORTED AND NOT D3D12_SUPPORTED)
+    message(FATAL_ERROR
+        "ARTIFACT_ENABLE_COMPOSITION_LAYER_MASK_GPU_TEST requires a supported Vulkan or D3D12 backend")
+endif()
+if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST
+    OR ARTIFACT_ENABLE_COMPOSITION_LAYER_MASK_GPU_TEST)
    AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
     artifact_add_test(ArtifactModel3DAndLightLayerImageTest
         SOURCES
@@ -1211,6 +1262,17 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
         ENVIRONMENT
             "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
         LABELS "layer;lod;effect;blur;renderer;gpu;composition;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactCompositionLayerMaskGpuIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerAppliesLayerMaskToPresentedFrame"
+    )
+    set_tests_properties(ArtifactCompositionLayerMaskGpuIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;mask;renderer;gpu;composition;image;integration;contract"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )

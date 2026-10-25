@@ -15,6 +15,7 @@
 #include <QJsonObject>
 #include <QMetaObject>
 #include <QMatrix4x4>
+#include <QPointF>
 #include <QRect>
 #include <QSize>
 #include <QStandardPaths>
@@ -65,6 +66,8 @@ import Artifact.Effect.Rasterizer.TurbulentDisplace;
 import Artifact.Effect.Glow.ChromaticGlow;
 import Artifact.Effect.Glow.EdgeBloom;
 import Composition3D;
+import Artifact.Mask.LayerMask;
+import Artifact.Mask.Path;
 import Artifact.Layer.Light;
 import Artifact.Layer.Camera;
 import Artifact.Layer.AdjustableLayer;
@@ -1549,6 +1552,122 @@ void exerciseCompositionLight(Artifact::LightType type,
 
 
 } // namespace
+
+TEST(Model3DLightCompositionIntegrationTest,
+     CompositionControllerAppliesLayerMaskToPresentedFrame)
+{
+    auto& app = application();
+    QWidget host;
+    host.resize(320, 240);
+    host.show();
+    app.processEvents();
+
+    Artifact::CompositionRenderController controller;
+    controller.initialize(&host);
+    ASSERT_TRUE(controller.isInitialized());
+    ASSERT_NE(controller.renderer(), nullptr);
+    struct ControllerCleanup final {
+        Artifact::CompositionRenderController& controller;
+        ~ControllerCleanup()
+        {
+            controller.stop();
+            controller.destroy();
+        }
+    } cleanup{controller};
+    controller.setShowOriginOverlay(false);
+    controller.setShowAnchorCenterOverlay(false);
+    controller.setShowGizmoOverlay(false);
+
+    Artifact::ArtifactCompositionInitParams params(
+        ArtifactCore::UniString(QStringLiteral("LayerMaskViewport")),
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 1.0f));
+    params.setResolution(320, 240);
+    params.setDurationFrames(2);
+    auto composition = ArtifactCore::makeShared<Artifact::ArtifactComposition3D>(
+        ArtifactCore::CompositionID(QStringLiteral("layer-mask-viewport")),
+        params);
+    ASSERT_TRUE(composition);
+
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactSolid2DLayer>();
+    ASSERT_TRUE(layer);
+    layer->setLayerName(QStringLiteral("Masked solid"));
+    layer->setSize(320, 240);
+    layer->setColor(ArtifactCore::FloatColor(0.95f, 0.12f, 0.08f, 1.0f));
+
+    Artifact::MaskPath path;
+    path.setClosed(true);
+    path.addVertex({QPointF(0.0, 0.0), {}, {}});
+    path.addVertex({QPointF(160.0, 0.0), {}, {}});
+    path.addVertex({QPointF(160.0, 240.0), {}, {}});
+    path.addVertex({QPointF(0.0, 240.0), {}, {}});
+    Artifact::LayerMask mask;
+    mask.addMaskPath(path);
+    layer->addMask(mask);
+    ASSERT_TRUE(composition->appendLayerTop(layer).success);
+
+    controller.setComposition(composition);
+    controller.start();
+    const auto renderFrame = [&]() {
+        const quint64 previousPresent =
+            controller.renderer()->presentSuccessCount();
+        controller.markRenderDirty();
+        controller.renderOneFrame();
+        QElapsedTimer timeout;
+        timeout.start();
+        while (controller.renderer()->presentSuccessCount() <= previousPresent &&
+               timeout.elapsed() < 5000) {
+            app.processEvents(QEventLoop::AllEvents, 10);
+        }
+        if (controller.renderer()->presentSuccessCount() <= previousPresent)
+            return QImage();
+        QImage frame;
+        while (frame.isNull() && timeout.elapsed() < 5000) {
+            app.processEvents(QEventLoop::AllEvents, 10);
+            frame = controller.readbackPresentedFrameImage();
+        }
+        return frame;
+    };
+
+    const QImage enabledFrame = renderFrame();
+    ASSERT_FALSE(enabledFrame.isNull());
+    ASSERT_EQ(enabledFrame.size(), QSize(320, 240));
+    const QColor enabledInside = enabledFrame.pixelColor(80, 120);
+    const QColor enabledOutside = enabledFrame.pixelColor(240, 120);
+    EXPECT_GT(enabledInside.red(), 100)
+        << "the enabled mask must retain the layer inside its path";
+    EXPECT_LT(enabledOutside.red(), 40)
+        << "the enabled mask must remove the layer outside its path";
+
+    mask.setEnabled(false);
+    layer->setMask(0, mask);
+    const QImage disabledFrame = renderFrame();
+    ASSERT_FALSE(disabledFrame.isNull());
+    EXPECT_GT(disabledFrame.pixelColor(240, 120).red(), 100)
+        << "disabling the mask must restore the layer outside the path";
+
+    mask.setEnabled(true);
+    path.setInverted(true);
+    mask.setMaskPath(0, path);
+    layer->setMask(0, mask);
+    const QImage invertedFrame = renderFrame();
+    ASSERT_FALSE(invertedFrame.isNull());
+    EXPECT_LT(invertedFrame.pixelColor(80, 120).red(), 40)
+        << "the inverted mask must remove the layer inside the path";
+    EXPECT_GT(invertedFrame.pixelColor(240, 120).red(), 100)
+        << "the inverted mask must retain the layer outside the path";
+
+    const QString captureRoot = qEnvironmentVariable(
+        "ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR");
+    if (!captureRoot.isEmpty()) {
+        ASSERT_TRUE(QDir().mkpath(captureRoot));
+        EXPECT_TRUE(enabledFrame.save(QDir(captureRoot).filePath(
+            QStringLiteral("composition_layer_mask_enabled.png"))));
+        EXPECT_TRUE(disabledFrame.save(QDir(captureRoot).filePath(
+            QStringLiteral("composition_layer_mask_disabled.png"))));
+        EXPECT_TRUE(invertedFrame.save(QDir(captureRoot).filePath(
+            QStringLiteral("composition_layer_mask_inverted.png"))));
+    }
+}
 
 TEST(Model3DLightCompositionIntegrationTest,
      CompositionHostSnapshotCapturesWorkerCameraWithoutRendererAccess)

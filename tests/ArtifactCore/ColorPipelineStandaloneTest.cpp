@@ -274,3 +274,163 @@ TEST(ColorPipelineStandaloneTest, Rec2020PqEncodeAndDecodeMatchIndependentRefere
     EXPECT_FLOAT_EQ(ColorTransferFunction::decode(-0.25f, TransferFunction::Rec2084_PQ), 0.0f);
     EXPECT_FLOAT_EQ(ColorTransferFunction::encode(-0.25f, TransferFunction::Rec2084_PQ), 0.0f);
 }
+
+TEST(ColorPipelineStandaloneTest, HlgEncodeAndDecodeMatchIndependentBranchReference)
+{
+    constexpr double a = 0.17883277;
+    constexpr double b = 0.28466892;
+    constexpr double c = 0.55991073;
+    const auto encodeReference = [=](const double input) {
+        const double linear = std::max(input, 0.0);
+        return linear <= 1.0 / 12.0
+            ? std::sqrt(3.0 * linear)
+            : a * std::log(12.0 * linear - b) + c;
+    };
+    const auto decodeReference = [=](const double input) {
+        const double encoded = std::max(input, 0.0);
+        return encoded <= 0.5
+            ? (encoded * encoded) / 3.0
+            : (std::exp((encoded - c) / a) + b) / 12.0;
+    };
+    constexpr std::array<double, 7> linearSamples = {
+        -0.25, 0.0, 1.0 / 12.0 - 1.0e-6, 1.0 / 12.0,
+        1.0 / 12.0 + 1.0e-6, 0.18, 1.0,
+    };
+    constexpr std::array<double, 7> encodedSamples = {
+        -0.25, 0.0, 0.5 - 1.0e-6, 0.5,
+        0.5 + 1.0e-6, 0.75, 1.0,
+    };
+
+    for (const double linear : linearSamples) {
+        const float actual = ColorTransferFunction::encode(
+            static_cast<float>(linear), TransferFunction::HLG);
+        const double expected = encodeReference(linear);
+        SCOPED_TRACE(::testing::Message() << "linear HLG input=" << linear);
+        EXPECT_NEAR(actual, expected, 3.0e-6);
+        if (linear >= 0.0) {
+            EXPECT_NEAR(ColorTransferFunction::decode(actual, TransferFunction::HLG),
+                        linear, 3.0e-6);
+        }
+    }
+
+    for (const double encoded : encodedSamples) {
+        const float actual = ColorTransferFunction::decode(
+            static_cast<float>(encoded), TransferFunction::HLG);
+        const double expected = decodeReference(encoded);
+        SCOPED_TRACE(::testing::Message() << "encoded HLG input=" << encoded);
+        EXPECT_NEAR(actual, expected, 3.0e-6);
+    }
+}
+
+namespace {
+float encodeGamma22(const float value) { return ColorTransferFunction::linearToGamma(value, 2.2f); }
+float decodeGamma22(const float value) { return ColorTransferFunction::gammaToLinear(value, 2.2f); }
+float encodeGamma24(const float value) { return ColorTransferFunction::linearToGamma(value, 2.4f); }
+float decodeGamma24(const float value) { return ColorTransferFunction::gammaToLinear(value, 2.4f); }
+float encodeGamma26(const float value) { return ColorTransferFunction::linearToGamma(value, 2.6f); }
+float decodeGamma26(const float value) { return ColorTransferFunction::gammaToLinear(value, 2.6f); }
+} // namespace
+
+TEST(ColorPipelineStandaloneTest, GenericTransferDispatchMatchesPublicCurveFunctions)
+{
+    using Curve = float (*)(float);
+    struct TransferCase {
+        TransferFunction transfer;
+        Curve encode;
+        Curve decode;
+    };
+    const std::array<TransferCase, 16> cases = {{
+        {TransferFunction::Linear, +[](float value) { return value; }, +[](float value) { return value; }},
+        {TransferFunction::sRGB, ColorTransferFunction::linearToSRGB, ColorTransferFunction::srgbToLinear},
+        {TransferFunction::Gamma22, encodeGamma22, decodeGamma22},
+        {TransferFunction::Gamma24, encodeGamma24, decodeGamma24},
+        {TransferFunction::Gamma26, encodeGamma26, decodeGamma26},
+        {TransferFunction::Rec709, ColorTransferFunction::linearToRec709, ColorTransferFunction::rec709ToLinear},
+        {TransferFunction::Rec2020_10, ColorTransferFunction::linearToRec2020, ColorTransferFunction::rec2020ToLinear},
+        {TransferFunction::Rec2084_PQ, ColorTransferFunction::linearToPQ, ColorTransferFunction::pqToLinear},
+        {TransferFunction::HLG, ColorTransferFunction::linearToHLG, ColorTransferFunction::hlgToLinear},
+        {TransferFunction::ACEScc, ColorTransferFunction::linearToACEScc, ColorTransferFunction::acesccToLinear},
+        {TransferFunction::ACEScct, ColorTransferFunction::linearToACEScct, ColorTransferFunction::acescctToLinear},
+        {TransferFunction::DaVinciIntermediate, ColorTransferFunction::linearToDaVinciIntermediate, ColorTransferFunction::daVinciIntermediateToLinear},
+        {TransferFunction::SonySLog3, ColorTransferFunction::linearToSLog3, ColorTransferFunction::sLog3ToLinear},
+        {TransferFunction::Cineon, ColorTransferFunction::linearToCineon, ColorTransferFunction::cineonToLinear},
+        {TransferFunction::CanonLog2, ColorTransferFunction::linearToCanonLog2, ColorTransferFunction::canonLog2ToLinear},
+        {TransferFunction::CanonLog3, ColorTransferFunction::linearToCanonLog3, ColorTransferFunction::canonLog3ToLinear},
+    }};
+    constexpr float linearInput = 0.18f;
+    constexpr float encodedInput = 0.42f;
+
+    for (const auto& testCase : cases) {
+        SCOPED_TRACE(static_cast<int>(testCase.transfer));
+        EXPECT_FLOAT_EQ(ColorTransferFunction::encode(linearInput, testCase.transfer),
+                        testCase.encode(linearInput));
+        EXPECT_FLOAT_EQ(ColorTransferFunction::decode(encodedInput, testCase.transfer),
+                        testCase.decode(encodedInput));
+    }
+
+    constexpr auto unknown = static_cast<TransferFunction>(255);
+    EXPECT_FLOAT_EQ(ColorTransferFunction::encode(linearInput, unknown), linearInput);
+    EXPECT_FLOAT_EQ(ColorTransferFunction::decode(encodedInput, unknown), encodedInput);
+}
+
+TEST(ColorPipelineStandaloneTest, D60D65WhitePointAdaptationPreservesNeutralWhite)
+{
+    const auto checkNeutralWhite = [](const Gamut source, const Gamut target) {
+        float red = 0.0f;
+        float green = 0.0f;
+        float blue = 0.0f;
+        ColorGamutConversion::convert(1.0f, 1.0f, 1.0f, source, target,
+                                      red, green, blue);
+        EXPECT_NEAR(red, 1.0f, 2.0e-4f);
+        EXPECT_NEAR(green, 1.0f, 2.0e-4f);
+        EXPECT_NEAR(blue, 1.0f, 2.0e-4f);
+    };
+
+    checkNeutralWhite(Gamut::ACES_AP1, Gamut::sRGB);
+    checkNeutralWhite(Gamut::sRGB, Gamut::ACES_AP1);
+}
+
+TEST(ColorPipelineStandaloneTest, SameGamutConversionUsesIdentityMatrix)
+{
+    const auto matrix = ColorGamutConversion::getConversionMatrix(
+        Gamut::ACES_AP1, Gamut::ACES_AP1);
+
+    for (int row = 0; row < 3; ++row) {
+        for (int column = 0; column < 3; ++column) {
+            EXPECT_FLOAT_EQ(matrix[row][column], row == column ? 1.0f : 0.0f);
+        }
+    }
+}
+
+TEST(ColorPipelineStandaloneTest, Rec709TransferMatchesIndependentBreakpointReference)
+{
+    const auto encodeReference = [](const double input) {
+        const double linear = std::max(input, 0.0);
+        return linear < 0.018
+            ? 4.5 * linear
+            : 1.099 * std::pow(linear, 0.45) - 0.099;
+    };
+    const auto decodeReference = [](const double input) {
+        const double encoded = std::max(input, 0.0);
+        return encoded < 0.081
+            ? encoded / 4.5
+            : std::pow((encoded + 0.099) / 1.099, 1.0 / 0.45);
+    };
+    constexpr std::array<double, 7> linearSamples = {
+        -0.1, 0.0, 0.018 - 1.0e-6, 0.018, 0.018 + 1.0e-6, 0.18, 1.0,
+    };
+    constexpr std::array<double, 7> encodedSamples = {
+        -0.1, 0.0, 0.081 - 1.0e-6, 0.081, 0.081 + 1.0e-6, 0.5, 1.0,
+    };
+
+    for (const double linear : linearSamples) {
+        const float actual = ColorTransferFunction::encode(
+            static_cast<float>(linear), TransferFunction::Rec709);
+        EXPECT_NEAR(actual, encodeReference(linear), 3.0e-6);
+    }
+    for (const double encoded : encodedSamples) {
+        const float actual = ColorTransferFunction::decode(
+            static_cast<float>(encoded), TransferFunction::Rec709);
+        EXPECT_NEAR(actual, decodeReference(encoded), 3.0e-6);
+    }
+}

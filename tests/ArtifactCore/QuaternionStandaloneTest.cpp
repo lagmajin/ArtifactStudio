@@ -156,6 +156,17 @@ TEST(QuaternionStandaloneTest, EulerConversionRoundTripsAwayFromGimbalLock)
     EXPECT_NEAR(std::abs(original.dot(restored)), 1.0f, 1e-6f);
 }
 
+TEST(QuaternionStandaloneTest, EulerConversionPreservesRotationAtGimbalLock)
+{
+    const Quaternion original = Quaternion::fromEuler(0.3f, kPi * 0.5f, -0.7f);
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    original.toEuler(x, y, z);
+    const Quaternion restored = Quaternion::fromEuler(x, y, z);
+    EXPECT_NEAR(std::abs(original.dot(restored)), 1.0f, 1e-6f);
+}
+
 TEST(QuaternionStandaloneTest, AxisAngleConversionReturnsNormalizedAxis)
 {
     const Quaternion original = Quaternion::fromAxisAngle(
@@ -213,6 +224,27 @@ TEST(QuaternionStandaloneTest, SlerpReturnsEndpointsAndGreatCircleMidpoint)
     EXPECT_NEAR(std::abs(slerp(a, b, 1.0f).dot(b)), 1.0f, 1e-6f);
     EXPECT_NEAR(middle.length(), 1.0f, 1e-6f);
     EXPECT_NEAR(angleBetween(a, middle), kPi * 0.5f, 1e-5f);
+}
+
+TEST(QuaternionStandaloneTest, SlerpQuarterProgressAdvancesQuarterOfArcAngle)
+{
+    const Quaternion start = Quaternion::identity();
+    const Quaternion end = Quaternion::fromAxisAngle(0.0f, 1.0f, 0.0f, kPi * 0.5f);
+
+    const Quaternion quarter = slerp(start, end, 0.25f);
+
+    EXPECT_NEAR(quarter.length(), 1.0f, 1e-6f);
+    EXPECT_NEAR(angleBetween(start, quarter), kPi / 8.0f, 1e-6f);
+}
+
+TEST(QuaternionStandaloneTest, SlerpIsSymmetricWhenEndpointsAndProgressAreReversed)
+{
+    const Quaternion start = Quaternion::fromAxisAngle(1.0f, 0.0f, 0.0f, 0.35f);
+    const Quaternion end = Quaternion::fromAxisAngle(0.0f, 1.0f, 0.0f, 1.1f);
+    const Quaternion forward = slerp(start, end, 0.3f);
+    const Quaternion reversed = slerp(end, start, 0.7f);
+
+    EXPECT_NEAR(std::abs(forward.dot(reversed)), 1.0f, 1e-6f);
 }
 
 TEST(QuaternionStandaloneTest, SlerpUsesShortestPathForNegatedEquivalentQuaternion)

@@ -81,6 +81,15 @@ TEST(ArtifactMathContractTest, FiniteAndNanChecksCoverFloatingAndIntegralValues)
     EXPECT_FALSE(artifactIsNaN(infinity));
 }
 
+TEST(ArtifactMathContractTest, FiniteCheckHandlesLongDoubleExtremes)
+{
+    const long double infinity = std::numeric_limits<long double>::infinity();
+
+    EXPECT_TRUE(artifactIsFinite(1.0L));
+    EXPECT_TRUE(artifactIsFinite(std::numeric_limits<long double>::max()));
+    EXPECT_FALSE(artifactIsFinite(infinity));
+}
+
 TEST(ArtifactMathContractTest, SqrtAndPowPreserveFloatAndPromoteIntegralArguments)
 {
     static_assert(std::is_same_v<decltype(artifactSqrt(4)), double>);
@@ -93,6 +102,22 @@ TEST(ArtifactMathContractTest, SqrtAndPowPreserveFloatAndPromoteIntegralArgument
     EXPECT_FLOAT_EQ(artifactPow(3.0f, 2.0f), 9.0f);
     EXPECT_DOUBLE_EQ(artifactPow(2, -3), 0.125);
     EXPECT_DOUBLE_EQ(artifactPow(-2, 3), -8.0);
+}
+
+TEST(ArtifactMathContractTest, SqrtPreservesNegativeZeroSign)
+{
+    const double result = artifactSqrt(-0.0);
+
+    EXPECT_DOUBLE_EQ(result, 0.0);
+    EXPECT_TRUE(std::signbit(result));
+}
+
+TEST(ArtifactMathContractTest, PowZeroExponentReturnsOneForZeroAndNanBases)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    EXPECT_DOUBLE_EQ(artifactPow(0.0, 0.0), 1.0);
+    EXPECT_DOUBLE_EQ(artifactPow(nan, 0.0), 1.0);
 }
 
 TEST(ArtifactMathContractTest, MixedArithmeticOverloadsPromoteToDouble)
@@ -127,6 +152,14 @@ TEST(ArtifactMathContractTest, Atan2ReturnsExpectedQuadrantAngles)
     EXPECT_NEAR(artifactAtan2(-1.0, 1.0), -quarterPi, 1e-12);
 }
 
+TEST(ArtifactMathContractTest, Atan2UsesSignedZeroToSelectNegativeXAxisBranch)
+{
+    const double pi = std::acos(-1.0);
+
+    EXPECT_DOUBLE_EQ(artifactAtan2(0.0, -1.0), pi);
+    EXPECT_DOUBLE_EQ(artifactAtan2(-0.0, -1.0), -pi);
+}
+
 TEST(ArtifactMathContractTest, FloorCeilAndRoundHandleNegativeFractions)
 {
     EXPECT_DOUBLE_EQ(artifactFloor(-1.2), -2.0);
@@ -140,6 +173,14 @@ TEST(ArtifactMathContractTest, FloorCeilAndRoundHandleNegativeFractions)
     EXPECT_DOUBLE_EQ(artifactFloor(1.2), 1.0);
     EXPECT_DOUBLE_EQ(artifactCeil(1.2), 2.0);
     EXPECT_DOUBLE_EQ(artifactRound(2.49), 2.0);
+}
+
+TEST(ArtifactMathContractTest, RoundPreservesNegativeZeroForSmallNegativeFractions)
+{
+    const double rounded = artifactRound(-0.25);
+
+    EXPECT_DOUBLE_EQ(rounded, 0.0);
+    EXPECT_TRUE(std::signbit(rounded));
 }
 
 TEST(ArtifactMathContractTest, FmodUsesTruncatedQuotientRemainderSign)
@@ -157,6 +198,15 @@ TEST(ArtifactMathContractTest, HypotAvoidsIntermediateOverflowForLargeInputs)
     EXPECT_FLOAT_EQ(artifactHypot(5.0f, 12.0f), 13.0f);
     const double large = std::numeric_limits<double>::max() / 2.0;
     EXPECT_TRUE(artifactIsFinite(artifactHypot(large, large)));
+}
+
+TEST(ArtifactMathContractTest, HypotPrefersInfinityOverNanAndPropagatesNanOtherwise)
+{
+    const double infinity = std::numeric_limits<double>::infinity();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    EXPECT_EQ(artifactHypot(infinity, nan), infinity);
+    EXPECT_TRUE(std::isnan(artifactHypot(nan, 3.0)));
 }
 
 TEST(ArtifactMathContractTest, SwapExchangesValuesAndSupportsSelfSwap)

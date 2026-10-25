@@ -107,6 +107,29 @@ TEST(SourceResolutionContractTest, MissingCandidateAdoptedForEmptyStoredPath)
               QDir::cleanPath(dir.filePath(QStringLiteral("assets/recovered.png"))));
 }
 
+TEST(SourceResolutionContractTest, MissingCandidateAdoptedForWhitespaceStoredPath)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString relativeCandidate = QStringLiteral("assets/recovered.png");
+    ASSERT_FALSE(QFileInfo::exists(dir.filePath(relativeCandidate)));
+    const QString whitespacePath = QStringLiteral(" \t\n ");
+
+    const auto resolution = resolveProjectRelativeSource(
+        dir.path(), SourceResolutionCandidateKind::ProjectRelativePath,
+        whitespacePath, relativeCandidate, true);
+
+    EXPECT_EQ(resolution.kind,
+              SourceResolutionCandidateKind::ProjectRelativePath);
+    EXPECT_EQ(resolution.originalPath, whitespacePath);
+    EXPECT_EQ(resolution.candidatePath, dir.filePath(relativeCandidate));
+    EXPECT_TRUE(resolution.adopted);
+    EXPECT_EQ(resolution.outcome,
+              SourceCandidateOutcome::AdoptedCandidateForEmptyOriginal);
+    EXPECT_EQ(resolution.resolvedPath,
+              QDir::cleanPath(dir.filePath(relativeCandidate)));
+}
+
 TEST(SourceResolutionContractTest, ExistingCandidateUsesExistingFileOutcomeForEmptyStoredPath)
 {
     QTemporaryDir dir;
@@ -119,6 +142,28 @@ TEST(SourceResolutionContractTest, ExistingCandidateUsesExistingFileOutcomeForEm
         dir.path(), SourceResolutionCandidateKind::RegistryRelativePath,
         QString(), QStringLiteral("assets/recovered.png"), true);
 
+    EXPECT_TRUE(resolution.adopted);
+    EXPECT_EQ(resolution.outcome, SourceCandidateOutcome::AdoptedExistingCandidate);
+    EXPECT_EQ(resolution.resolvedPath, QDir::cleanPath(candidate));
+}
+
+TEST(SourceResolutionContractTest, TrimsWhitespaceAroundExistingRelativeCandidate)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    ASSERT_TRUE(QDir(dir.path()).mkpath(QStringLiteral("assets")));
+    const QString candidate = dir.filePath(QStringLiteral("assets/shot 01.png"));
+    ASSERT_TRUE(writeTextFile(candidate));
+
+    const auto resolution = resolveProjectRelativeSource(
+        dir.path(), SourceResolutionCandidateKind::ProjectRelativePath,
+        QStringLiteral("D:/stored/shot.png"),
+        QStringLiteral("  assets/shot 01.png  "), false);
+
+    EXPECT_EQ(resolution.kind,
+              SourceResolutionCandidateKind::ProjectRelativePath);
+    EXPECT_EQ(resolution.originalPath, QStringLiteral("D:/stored/shot.png"));
+    EXPECT_EQ(resolution.candidatePath, candidate);
     EXPECT_TRUE(resolution.adopted);
     EXPECT_EQ(resolution.outcome, SourceCandidateOutcome::AdoptedExistingCandidate);
     EXPECT_EQ(resolution.resolvedPath, QDir::cleanPath(candidate));
@@ -190,6 +235,60 @@ TEST(SourceResolutionContractTest, ProjectRelativeCandidateRoundTrip)
     EXPECT_TRUE(resolution.adopted);
     EXPECT_EQ(resolution.outcome, SourceCandidateOutcome::AdoptedExistingCandidate);
     EXPECT_EQ(resolution.resolvedPath, QDir::cleanPath(absolute));
+}
+
+TEST(SourceResolutionContractTest, RelativeSourcePathIsResolvedAgainstCurrentDirectory)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString projectDirectory = dir.filePath(QStringLiteral("project"));
+    const QString absoluteSource = dir.filePath(QStringLiteral("media/shot.png"));
+    ASSERT_TRUE(QDir().mkpath(projectDirectory));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(absoluteSource).absolutePath()));
+    ASSERT_TRUE(writeTextFile(absoluteSource));
+    const QString relativeSource = QDir::current().relativeFilePath(absoluteSource);
+
+    const QString candidate =
+        projectRelativeSourceCandidate(projectDirectory, relativeSource);
+    const QString expectedCandidate = QDir(projectDirectory).relativeFilePath(
+        QFileInfo(absoluteSource).absoluteFilePath());
+
+    EXPECT_EQ(candidate, expectedCandidate);
+    const auto resolution = resolveProjectRelativeSource(
+        projectDirectory, SourceResolutionCandidateKind::ProjectRelativePath,
+        QString(), candidate, true);
+    EXPECT_TRUE(resolution.adopted);
+    EXPECT_EQ(resolution.outcome, SourceCandidateOutcome::AdoptedExistingCandidate);
+    EXPECT_EQ(resolution.resolvedPath, QDir::cleanPath(absoluteSource));
+}
+
+TEST(SourceResolutionContractTest, MissingRelativeSourceCandidateKeepsStoredPath)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString projectDirectory = dir.filePath(QStringLiteral("project"));
+    const QString missingSource = dir.filePath(QStringLiteral("media/missing.png"));
+    ASSERT_TRUE(QDir().mkpath(projectDirectory));
+    ASSERT_FALSE(QFileInfo::exists(missingSource));
+    const QString relativeSource = QDir::current().relativeFilePath(missingSource);
+
+    const QString relativeCandidate =
+        projectRelativeSourceCandidate(projectDirectory, relativeSource);
+    const QString expectedCandidate = QDir(projectDirectory).relativeFilePath(
+        QFileInfo(missingSource).absoluteFilePath());
+    EXPECT_EQ(relativeCandidate, expectedCandidate);
+
+    const QString storedPath = QStringLiteral("D:/archived/original.png");
+    const auto resolution = resolveProjectRelativeSource(
+        projectDirectory, SourceResolutionCandidateKind::ProjectRelativePath,
+        storedPath, relativeCandidate, true);
+
+    EXPECT_EQ(resolution.candidatePath,
+              QDir(projectDirectory).absoluteFilePath(expectedCandidate));
+    EXPECT_FALSE(resolution.adopted);
+    EXPECT_EQ(resolution.outcome,
+              SourceCandidateOutcome::KeptOriginalMissingCandidate);
+    EXPECT_EQ(resolution.resolvedPath, storedPath);
 }
 
 TEST(SourceResolutionContractTest, ProjectRelativePathsPreserveUnicodeAndSpaces)

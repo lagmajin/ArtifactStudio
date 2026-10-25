@@ -108,6 +108,22 @@ TEST(AudioParametricEQStandaloneTest, ParameterIdsUpdateOnlyTheirBandProperty)
     EXPECT_FLOAT_EQ(eq.getBand(1).gainDb, 48.0f);
 }
 
+TEST(AudioParametricEQStandaloneTest, MalformedParameterIdsDoNotMutateBands)
+{
+    AudioParametricEQ eq;
+    const auto original = eq.getBand(1);
+
+    eq.setParameterValue(String("band1x.frequency"), 900.0f);
+    eq.setParameterValue(String("band.frequency"), 900.0f);
+    eq.setParameterValue(String("band1.unknown"), 900.0f);
+
+    const auto unchanged = eq.getBand(1);
+    EXPECT_FLOAT_EQ(unchanged.frequency, original.frequency);
+    EXPECT_FLOAT_EQ(unchanged.gainDb, original.gainDb);
+    EXPECT_FLOAT_EQ(unchanged.qFactor, original.qFactor);
+    EXPECT_EQ(unchanged.enabled, original.enabled);
+}
+
 TEST(AudioParametricEQStandaloneTest, ParameterMetadataContainsThreeEntriesPerBand)
 {
     const AudioParametricEQ eq;
@@ -118,6 +134,23 @@ TEST(AudioParametricEQStandaloneTest, ParameterMetadataContainsThreeEntriesPerBa
     EXPECT_EQ(toStdString(parameters[2].id), "band0.qFactor");
     EXPECT_FLOAT_EQ(parameters[1].minValue, -48.0f);
     EXPECT_FLOAT_EQ(parameters[1].maxValue, 48.0f);
+}
+
+TEST(AudioParametricEQStandaloneTest, ParameterMetadataTracksChangedBandCount)
+{
+    AudioParametricEQ eq;
+    eq.setBandCount(2);
+    eq.setBand(1, {6400.0f, -3.0f, 2.0f, true});
+
+    const auto parameters = eq.getParameters();
+
+    ASSERT_EQ(parameters.size(), 6u);
+    EXPECT_EQ(toStdString(parameters[3].id), "band1.frequency");
+    EXPECT_FLOAT_EQ(parameters[3].value, 6400.0f);
+    EXPECT_EQ(toStdString(parameters[4].id), "band1.gainDb");
+    EXPECT_FLOAT_EQ(parameters[4].value, -3.0f);
+    EXPECT_EQ(toStdString(parameters[5].id), "band1.qFactor");
+    EXPECT_FLOAT_EQ(parameters[5].value, 2.0f);
 }
 
 TEST(AudioParametricEQStandaloneTest, ZeroGainBandPreservesConstantSignal)

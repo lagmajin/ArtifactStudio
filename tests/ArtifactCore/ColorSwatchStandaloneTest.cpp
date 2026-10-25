@@ -172,6 +172,18 @@ TEST(ColorSwatchStandaloneTest, SortOrdersEntriesByAverageRgbBrightness)
     EXPECT_EQ(toStdString(palette.at(2).name), "white");
 }
 
+TEST(ColorSwatchStandaloneTest, SortUsesRgbBrightnessAndIgnoresAlpha)
+{
+    ColorSwatch palette;
+    palette.addColor(FloatColor(0.8f, 0.8f, 0.8f, 0.0f), String("bright-transparent"));
+    palette.addColor(FloatColor(0.2f, 0.2f, 0.2f, 1.0f), String("dim-opaque"));
+
+    palette.sort();
+
+    EXPECT_EQ(toStdString(palette.at(0).name), "dim-opaque");
+    EXPECT_EQ(toStdString(palette.at(1).name), "bright-transparent");
+}
+
 TEST(ColorSwatchStandaloneTest, CopyConstructionCopiesNameAndEntriesIndependently)
 {
     ColorSwatch original(String("Original"));
@@ -209,6 +221,26 @@ TEST(ColorSwatchStandaloneTest, SelfCopyAssignmentPreservesPalette)
     EXPECT_EQ(toStdString(palette.at(0).name), "entry");
 }
 
+TEST(ColorSwatchStandaloneTest, MoveConstructionAndAssignmentTransferPaletteContents)
+{
+    ColorSwatch source(String("Moved palette"));
+    source.addColor(FloatColor(0.2f, 0.4f, 0.6f, 0.8f), String("moved entry"));
+
+    ColorSwatch moved(std::move(source));
+    EXPECT_EQ(toStdString(moved.getName()), "Moved palette");
+    ASSERT_EQ(moved.count(), 1);
+    EXPECT_EQ(toStdString(moved.at(0).name), "moved entry");
+    EXPECT_FLOAT_EQ(moved.at(0).color.b(), 0.6f);
+
+    ColorSwatch destination(String("Old palette"));
+    destination.addColor(FloatColor(1.0f, 0.0f, 0.0f, 1.0f), String("old entry"));
+    destination = std::move(moved);
+    EXPECT_EQ(toStdString(destination.getName()), "Moved palette");
+    ASSERT_EQ(destination.count(), 1);
+    EXPECT_EQ(toStdString(destination.at(0).name), "moved entry");
+    EXPECT_FLOAT_EQ(destination.at(0).color.a(), 0.8f);
+}
+
 TEST(ColorSwatchStandaloneTest, ImportGplReadsNameColorsAndSkipsComments)
 {
     TemporaryGpl file;
@@ -223,6 +255,20 @@ TEST(ColorSwatchStandaloneTest, ImportGplReadsNameColorsAndSkipsComments)
     EXPECT_EQ(toStdString(palette.at(1).name), "Sky");
 }
 
+TEST(ColorSwatchStandaloneTest, ImportGplHandlesCarriageReturnLineEndings)
+{
+    TemporaryGpl file;
+    file.write("GIMP Palette\r\nName:CRLF Palette\r\nColumns: 2\r\n"
+               "255 0 0 Red\r\n0 128 255 Sky\r\n");
+    ColorSwatch palette;
+
+    ASSERT_TRUE(palette.importGPL(file.path()));
+    EXPECT_EQ(toStdString(palette.getName()), "CRLF Palette");
+    ASSERT_EQ(palette.count(), 2);
+    EXPECT_EQ(toStdString(palette.at(0).name), "Red");
+    EXPECT_EQ(toStdString(palette.at(1).name), "Sky");
+}
+
 TEST(ColorSwatchStandaloneTest, ImportGplIgnoresMalformedColorRows)
 {
     TemporaryGpl file;
@@ -232,6 +278,20 @@ TEST(ColorSwatchStandaloneTest, ImportGplIgnoresMalformedColorRows)
     ASSERT_EQ(palette.count(), 2);
     EXPECT_EQ(toStdString(palette.at(0).name), "Black");
     EXPECT_EQ(toStdString(palette.at(1).name), "White");
+}
+
+TEST(ColorSwatchStandaloneTest, ImportGplSkipsIntegerOverflowRowsAndContinues)
+{
+    TemporaryGpl file;
+    file.write("GIMP Palette\n999999999999999999999 0 0 Overflow\n0 128 255 Sky\n");
+    ColorSwatch palette;
+
+    ASSERT_TRUE(palette.importGPL(file.path()));
+    ASSERT_EQ(palette.count(), 1);
+    EXPECT_EQ(toStdString(palette.at(0).name), "Sky");
+    EXPECT_FLOAT_EQ(palette.at(0).color.r(), 0.0f);
+    EXPECT_FLOAT_EQ(palette.at(0).color.g(), 128.0f / 255.0f);
+    EXPECT_FLOAT_EQ(palette.at(0).color.b(), 1.0f);
 }
 
 TEST(ColorSwatchStandaloneTest, ValidHeaderOnlyPaletteReplacesPreviousEntries)
@@ -291,6 +351,20 @@ TEST(ColorSwatchStandaloneTest, GplExportCanBeLoadedAndPreservesRgbEntries)
     ASSERT_EQ(restored.count(), 2);
     EXPECT_EQ(toStdString(restored.at(0).name), "Red");
     EXPECT_NEAR(restored.at(1).color.g(), 128.0f / 255.0f, 1e-6f);
+}
+
+TEST(ColorSwatchStandaloneTest, SaveDispatchesGplToExporter)
+{
+    TemporaryGpl file;
+    ColorSwatch source(String("Saved Palette"));
+    source.addColor(FloatColor(0.0f, 1.0f, 0.0f, 1.0f), String("Green"));
+
+    ASSERT_TRUE(source.save(file.path()));
+    ColorSwatch restored;
+    ASSERT_TRUE(restored.load(file.path()));
+    ASSERT_EQ(restored.count(), 1);
+    EXPECT_EQ(toStdString(restored.at(0).name), "Green");
+    EXPECT_FLOAT_EQ(restored.at(0).color.g(), 1.0f);
 }
 
 TEST(ColorSwatchStandaloneTest, GplExportClampsRgbChannelsToByteRange)

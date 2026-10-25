@@ -94,6 +94,22 @@ TEST(AudioWriterStandaloneTest, WritesValidSixteenBitPcmHeaderAndPayload)
     EXPECT_EQ(static_cast<qint16>(readU16(bytes, 48)), 32767);
 }
 
+TEST(AudioWriterStandaloneTest, QuantizesPositiveAndNegativeHalfScaleToSixteenBitPcm)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString path = dir.filePath("half-scale.wav");
+    AudioWriter writer;
+    writer.openFile(path);
+    writer.write(mono(QVector<float>{0.5f, -0.5f}));
+    writer.closeFile();
+
+    const QByteArray bytes = readFile(path);
+    ASSERT_TRUE(hasRiffHeader(bytes));
+    EXPECT_EQ(static_cast<qint16>(readU16(bytes, 44)), 16384);
+    EXPECT_EQ(static_cast<qint16>(readU16(bytes, 46)), -16384);
+}
+
 TEST(AudioWriterStandaloneTest, WritesTwentyFourBitPcmWithSignExtensionLayout)
 {
     QTemporaryDir dir;
@@ -272,6 +288,62 @@ TEST(AudioWriterStandaloneTest, CloseAndDestructorBothFinalizeRiffHeader)
     EXPECT_TRUE(hasRiffHeader(readFile(explicitPath)));
     EXPECT_TRUE(hasRiffHeader(readFile(destructorPath)));
     EXPECT_EQ(readU32(readFile(destructorPath), 40), 2u);
+}
+
+TEST(AudioWriterStandaloneTest, RepeatedClosePreservesFinalizedWaveFile)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString path = dir.filePath("repeated-close.wav");
+    AudioWriter writer;
+    writer.openFile(path);
+    writer.write(mono(QVector<float>{0.25f, -0.25f}));
+    writer.closeFile();
+
+    const QByteArray finalized = readFile(path);
+    ASSERT_TRUE(hasRiffHeader(finalized));
+    writer.closeFile();
+
+    EXPECT_EQ(readFile(path), finalized);
+}
+
+TEST(AudioWriterStandaloneTest, ReopeningSameWriterResetsFileSpecificHeaderAndPayloadState)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString firstPath = dir.filePath("first.wav");
+    const QString secondPath = dir.filePath("second.wav");
+    AudioWriter writer;
+
+    writer.openFile(firstPath);
+    writer.write(mono(QVector<float>{0.25f}, 48000));
+    writer.closeFile();
+
+    writer.setBitDepth(24);
+    writer.openFile(secondPath);
+    AudioSegment stereo;
+    stereo.sampleRate = 44100;
+    stereo.layout = AudioChannelLayout::Stereo;
+    stereo.channelData = {QVector<float>{0.5f, -0.5f},
+                          QVector<float>{0.25f, -0.25f}};
+    writer.write(stereo);
+    writer.closeFile();
+
+    const QByteArray first = readFile(firstPath);
+    const QByteArray second = readFile(secondPath);
+    ASSERT_TRUE(hasRiffHeader(first));
+    ASSERT_TRUE(hasRiffHeader(second));
+    EXPECT_EQ(readU32(second, 4), 48u);
+    EXPECT_EQ(readU16(first, 22), 1u);
+    EXPECT_EQ(readU32(first, 24), 48000u);
+    EXPECT_EQ(readU32(first, 40), 2u);
+    EXPECT_EQ(readU16(second, 22), 2u);
+    EXPECT_EQ(readU32(second, 24), 44100u);
+    EXPECT_EQ(readU32(second, 28), 264600u);
+    EXPECT_EQ(readU16(second, 32), 6u);
+    EXPECT_EQ(readU16(second, 34), 24u);
+    EXPECT_EQ(readU32(second, 40), 12u);
+    EXPECT_EQ(second.size(), 56);
 }
 
 TEST(AudioWriterStandaloneTest, EmptyOrInvalidSegmentsDoNotCreateDataPayload)

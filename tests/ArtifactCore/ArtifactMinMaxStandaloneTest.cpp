@@ -8,6 +8,11 @@ import Math.ArtifactMinMax;
 
 using namespace ArtifactCore;
 
+static_assert(artifactMin(4, -2) == -2);
+static_assert(artifactMax(4, -2) == 4);
+static_assert(clamp(12, 0, 10) == 10);
+static_assert(artifactLerp(2, 8, 1) == 8);
+
 TEST(ArtifactMinMaxStandaloneTest, IntegerMinimumAndMaximumSelectExpectedOperand)
 {
     EXPECT_EQ(artifactMin(4, -2), -2);
@@ -91,6 +96,26 @@ TEST(ArtifactMinMaxStandaloneTest, SafeNormalizeRangeFallsBackForNanInputs)
         EXPECT_DOUBLE_EQ(result.min, 0.0);
         EXPECT_DOUBLE_EQ(result.max, 1.0);
     }
+}
+
+TEST(ArtifactMinMaxStandaloneTest, SafeNormalizeRangeOrdersInfiniteEndpoints)
+{
+    const double infinity = std::numeric_limits<double>::infinity();
+
+    const auto result = safeNormalizeRange(5.0, infinity, -infinity);
+
+    EXPECT_EQ(result.min, -infinity);
+    EXPECT_EQ(result.max, infinity);
+}
+
+TEST(ArtifactMinMaxStandaloneTest, SafeNormalizeRangeKeepsFiniteExtremeEndpointsDistinct)
+{
+    const double largest = std::numeric_limits<double>::max();
+
+    const auto result = safeNormalizeRange(0.0, largest, -largest);
+
+    EXPECT_EQ(result.min, -largest);
+    EXPECT_EQ(result.max, largest);
 }
 
 TEST(ArtifactMinMaxStandaloneTest, SafeNormalizeRangePreservesDegenerateValue)

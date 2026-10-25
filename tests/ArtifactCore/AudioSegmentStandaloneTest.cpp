@@ -20,6 +20,32 @@ TEST(AudioSegmentStandaloneTest, DefaultSegmentHasNoChannelsOrFrames)
     EXPECT_EQ(segment.constData(0), nullptr);
 }
 
+TEST(AudioSegmentStandaloneTest, CopyKeepsIndependentSamplesAndMetadata)
+{
+    AudioSegment source;
+    source.sampleRate = 48000;
+    source.layout = AudioChannelLayout::Stereo;
+    source.startFrame = 120;
+    source.channelData = {
+        QVector<float>{0.25f, -0.5f},
+        QVector<float>{0.75f, 1.0f}};
+
+    AudioSegment copy = source;
+    source.startFrame = 240;
+    source.channelData[0][0] = -0.25f;
+    copy.sampleRate = 96000;
+    copy.channelData[1][1] = -1.0f;
+
+    EXPECT_EQ(source.sampleRate, 48000);
+    EXPECT_EQ(source.startFrame, 240);
+    EXPECT_EQ(source.channelData[0], (QVector<float>{-0.25f, -0.5f}));
+    EXPECT_EQ(source.channelData[1], (QVector<float>{0.75f, 1.0f}));
+    EXPECT_EQ(copy.sampleRate, 96000);
+    EXPECT_EQ(copy.startFrame, 120);
+    EXPECT_EQ(copy.channelData[0], (QVector<float>{0.25f, -0.5f}));
+    EXPECT_EQ(copy.channelData[1], (QVector<float>{0.75f, -1.0f}));
+}
+
 TEST(AudioSegmentStandaloneTest, FrameCountUsesShortestChannel)
 {
     AudioSegment segment;
@@ -30,6 +56,18 @@ TEST(AudioSegmentStandaloneTest, FrameCountUsesShortestChannel)
 
     EXPECT_EQ(segment.channelCount(), 3);
     EXPECT_EQ(segment.frameCount(), 2);
+}
+
+TEST(AudioSegmentStandaloneTest, FrameCountIsZeroWhenAnyChannelIsEmpty)
+{
+    AudioSegment segment;
+    segment.channelData = {
+        QVector<float>{1.0f, 2.0f},
+        QVector<float>{},
+        QVector<float>{3.0f}};
+
+    EXPECT_EQ(segment.channelCount(), 3);
+    EXPECT_EQ(segment.frameCount(), 0);
 }
 
 TEST(AudioSegmentStandaloneTest, SetFrameCountResizesEveryChannel)
@@ -45,6 +83,37 @@ TEST(AudioSegmentStandaloneTest, SetFrameCountResizesEveryChannel)
     EXPECT_EQ(segment.channelData[0], (QVector<float>{1.0f, 2.0f, 0.0f}));
     EXPECT_EQ(segment.channelData[1], (QVector<float>{3.0f, 4.0f, 5.0f}));
     EXPECT_EQ(segment.frameCount(), 3);
+}
+
+TEST(AudioSegmentStandaloneTest, SetFrameCountTruncatesEveryLongerChannel)
+{
+    AudioSegment segment;
+    segment.channelData = {
+        QVector<float>{1.0f, 2.0f, 3.0f},
+        QVector<float>{4.0f, 5.0f, 6.0f, 7.0f}};
+
+    segment.setFrameCount(2);
+
+    ASSERT_EQ(segment.channelData.size(), 2);
+    EXPECT_EQ(segment.channelData[0], (QVector<float>{1.0f, 2.0f}));
+    EXPECT_EQ(segment.channelData[1], (QVector<float>{4.0f, 5.0f}));
+    EXPECT_EQ(segment.frameCount(), 2);
+}
+
+TEST(AudioSegmentStandaloneTest, SetFrameCountDoesNotCreateMissingChannels)
+{
+    AudioSegment segment;
+    segment.sampleRate = 96000;
+    segment.layout = AudioChannelLayout::Surround51;
+    segment.startFrame = 321;
+
+    segment.setFrameCount(5);
+
+    EXPECT_EQ(segment.channelCount(), 0);
+    EXPECT_EQ(segment.frameCount(), 0);
+    EXPECT_EQ(segment.sampleRate, 96000);
+    EXPECT_EQ(segment.layout, AudioChannelLayout::Surround51);
+    EXPECT_EQ(segment.startFrame, 321);
 }
 
 TEST(AudioSegmentStandaloneTest, NegativeFrameCountClampsAllChannelsToEmpty)

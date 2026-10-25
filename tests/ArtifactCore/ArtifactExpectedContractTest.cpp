@@ -112,6 +112,18 @@ TEST(ArtifactExpectedContractTest, ToOptionalPreservesValueAndDropsError)
     EXPECT_FALSE(failure.toOptional().has_value());
 }
 
+TEST(ArtifactExpectedContractTest, ToOptionalCopiesValueIndependently)
+{
+    ArtifactExpected<std::string> success(std::string("before"));
+
+    auto optional = success.toOptional();
+    success.value() = "after";
+
+    ASSERT_TRUE(optional.has_value());
+    EXPECT_EQ(optional.value(), "before");
+    EXPECT_EQ(success.value(), "after");
+}
+
 TEST(ArtifactExpectedContractTest, AndThenInvokesOnlyForValue)
 {
     const ArtifactExpected<int> success(6);
@@ -140,6 +152,24 @@ TEST(ArtifactExpectedContractTest, OrElseInvokesOnlyForError)
     EXPECT_EQ(success.orElse(recover).value(), 8);
     EXPECT_EQ(failure.orElse(recover).value(), 13);
     EXPECT_EQ(calls, 1);
+}
+
+TEST(ArtifactExpectedContractTest, OrElseCallbackReceivesDefaultErrorMessage)
+{
+    const ArtifactExpected<int> failure(
+        ArtifactExpectedError{ArtifactExpectedErrorCode::NotFound,
+                              "source file was removed"});
+    std::string receivedMessage;
+
+    const auto recovered = failure.orElse([&receivedMessage](
+        const ArtifactExpectedError& error) {
+        receivedMessage = error.message.data();
+        return ArtifactExpected<int>(17);
+    });
+
+    ASSERT_TRUE(recovered.hasValue());
+    EXPECT_EQ(recovered.value(), 17);
+    EXPECT_EQ(receivedMessage, "source file was removed");
 }
 
 TEST(ArtifactExpectedContractTest, TransformMapsValuesAndPreservesErrors)
@@ -178,6 +208,21 @@ TEST(ArtifactExpectedContractTest, TransformCallbacksRunOnlyForTheirActiveAltern
     EXPECT_EQ(stillSuccess.value(), 7);
 }
 
+TEST(ArtifactExpectedContractTest, TransformDecaysCallbackReferenceIntoOwnedValue)
+{
+    ArtifactExpected<int> success(3);
+    std::string mappedValue = "mapped";
+
+    const auto transformed = success.transform([&mappedValue](const int&) -> const std::string& {
+        return mappedValue;
+    });
+    mappedValue = "changed";
+
+    static_assert(std::is_same_v<decltype(transformed), const ArtifactExpected<std::string>>);
+    ASSERT_TRUE(transformed.hasValue());
+    EXPECT_EQ(transformed.value(), "mapped");
+}
+
 TEST(ArtifactExpectedContractTest, TransformErrorMapsOnlyErrors)
 {
     const ArtifactExpected<int> success(7);
@@ -186,6 +231,37 @@ TEST(ArtifactExpectedContractTest, TransformErrorMapsOnlyErrors)
     const auto mappedFailure = failure.transformError([](const ArtifactExpectedError&) { return NumericError{42}; });
     EXPECT_EQ(mappedSuccess.value(), 7);
     EXPECT_EQ(mappedFailure.error().code, 42);
+}
+
+TEST(ArtifactExpectedContractTest, TransformErrorDecaysCallbackReferenceIntoOwnedError)
+{
+    ArtifactExpected<int, std::string> failure(std::string("original"));
+    std::string mappedError = "mapped";
+
+    const auto transformed = failure.transformError([&mappedError](const std::string&) -> const std::string& {
+        return mappedError;
+    });
+    mappedError = "changed";
+
+    static_assert(std::is_same_v<decltype(transformed),
+                                 const ArtifactExpected<int, std::string>>);
+    ASSERT_TRUE(transformed.hasError());
+    EXPECT_EQ(transformed.error(), "mapped");
+}
+
+TEST(ArtifactExpectedContractTest, TransformErrorCallbackReceivesDefaultErrorMessage)
+{
+    const ArtifactExpected<int> failure(
+        ArtifactExpectedError{ArtifactExpectedErrorCode::Failed,
+                              "decoder rejected the image"});
+
+    const auto transformed = failure.transformError([](
+        const ArtifactExpectedError& error) {
+        return std::string(error.message.data());
+    });
+
+    ASSERT_TRUE(transformed.hasError());
+    EXPECT_EQ(transformed.error(), "decoder rejected the image");
 }
 
 TEST(ArtifactExpectedContractTest, SupportsCustomErrorTypes)
@@ -230,6 +306,35 @@ TEST(ArtifactExpectedContractTest, AndThenPreservesCustomErrorTypeOnFailure)
     EXPECT_EQ(result.error().code, 27);
 }
 
+TEST(ArtifactExpectedContractTest, AndThenPreservesDefaultErrorMessageOnFailure)
+{
+    const ArtifactExpected<int> failure(
+        ArtifactExpectedError{ArtifactExpectedErrorCode::NotFound,
+                              "asset metadata is missing"});
+    int calls = 0;
+
+    const auto result = failure.andThen([&calls](const int value) {
+        ++calls;
+        return ArtifactExpected<long>(value * 2L);
+    });
+
+    EXPECT_EQ(calls, 0);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code, ArtifactExpectedErrorCode::NotFound);
+    EXPECT_STREQ(result.error().message.data(), "asset metadata is missing");
+}
+
+TEST(ArtifactExpectedContractTest, AndThenPropagatesErrorReturnedByCallback)
+{
+    const ArtifactExpected<int, NumericError> success(12);
+    const auto result = success.andThen([](const int value) {
+        return ArtifactExpected<long, NumericError>(NumericError{value + 5});
+    });
+
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code, 17);
+}
+
 TEST(ArtifactExpectedContractTest, OrElsePreservesExistingCustomErrorWhenReturningError)
 {
     ArtifactExpected<int, NumericError> failure(NumericError{8});
@@ -240,6 +345,20 @@ TEST(ArtifactExpectedContractTest, OrElsePreservesExistingCustomErrorWhenReturni
     });
     EXPECT_EQ(calls, 1);
     EXPECT_EQ(result.error().code, 8);
+}
+
+TEST(ArtifactExpectedContractTest, OrElseCanReplaceFailureWithDifferentError)
+{
+    const ArtifactExpected<int, NumericError> failure(NumericError{8});
+    int calls = 0;
+    const auto result = failure.orElse([&calls](const NumericError&) {
+        ++calls;
+        return ArtifactExpected<int, NumericError>(NumericError{99});
+    });
+
+    EXPECT_EQ(calls, 1);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code, 99);
 }
 
 TEST(ArtifactExpectedContractTest, TransformErrorChangesErrorTypeAndKeepsValueOnSuccess)

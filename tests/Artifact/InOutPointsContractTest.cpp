@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>
+#include <QtGlobal>
 
 import Artifact.Composition.InOutPoints;
 import Frame.Position;
@@ -48,6 +49,33 @@ TEST(InOutPointsContractTest, ClearingOnePointRestoresOnlyThatCompositionBoundar
                                     ArtifactCore::FramePosition(100)),
               ArtifactCore::FrameRange(0, 100));
     EXPECT_FALSE(points.isRangeLimited());
+}
+
+TEST(InOutPointsContractTest, SetAtCurrentUsesCurrentFrameForEachPoint)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPointAtCurrent(ArtifactCore::FramePosition(12));
+    points.setOutPointAtCurrent(ArtifactCore::FramePosition(88));
+
+    ASSERT_TRUE(points.inPoint().has_value());
+    ASSERT_TRUE(points.outPoint().has_value());
+    EXPECT_EQ(points.inPoint()->framePosition(), 12);
+    EXPECT_EQ(points.outPoint()->framePosition(), 88);
+    EXPECT_EQ(points.effectiveRange(ArtifactCore::FramePosition(0),
+                                   ArtifactCore::FramePosition(100)),
+              ArtifactCore::FrameRange(12, 88));
+}
+
+TEST(InOutPointsContractTest, EqualInOutPointsProduceSingleFrameRange)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPoint(ArtifactCore::FramePosition(42));
+    points.setOutPoint(ArtifactCore::FramePosition(42));
+
+    EXPECT_EQ(points.effectiveRange(ArtifactCore::FramePosition(0),
+                                    ArtifactCore::FramePosition(100)),
+              ArtifactCore::FrameRange(42, 42));
+    EXPECT_TRUE(points.isRangeLimited());
 }
 
 TEST(InOutPointsContractTest, ReversedPointsAreOrderedByEffectiveRange)
@@ -114,6 +142,77 @@ TEST(InOutPointsContractTest, MarkerNavigationAndChapterQueriesUseStrictOrderedP
     EXPECT_FALSE(points.previousChapter(ArtifactCore::FramePosition(10)).has_value());
 }
 
+TEST(InOutPointsContractTest, MarkersByTypeFiltersAndSortsMultipleMatches)
+{
+    Artifact::ArtifactInOutPoints points;
+    auto* laterChapter = points.addMarker(ArtifactCore::FramePosition(40),
+                                          QStringLiteral("Later"),
+                                          Artifact::MarkerType::Chapter);
+    auto* comment = points.addMarker(ArtifactCore::FramePosition(20),
+                                     QStringLiteral("Comment"),
+                                     Artifact::MarkerType::Comment);
+    auto* earlierChapter = points.addMarker(ArtifactCore::FramePosition(10),
+                                            QStringLiteral("Earlier"),
+                                            Artifact::MarkerType::Chapter);
+    ASSERT_NE(laterChapter, nullptr);
+    ASSERT_NE(comment, nullptr);
+    ASSERT_NE(earlierChapter, nullptr);
+
+    const auto chapters = points.markersByType(Artifact::MarkerType::Chapter);
+
+    ASSERT_EQ(chapters.size(), 2u);
+    EXPECT_EQ(chapters[0], earlierChapter);
+    EXPECT_EQ(chapters[1], laterChapter);
+}
+
+TEST(InOutPointsContractTest, MarkersByTagFiltersCaseInsensitivelyAndSorts)
+{
+    Artifact::ArtifactInOutPoints points;
+    auto* later = points.addMarker(ArtifactCore::FramePosition(40),
+                                   QStringLiteral("Later"));
+    auto* other = points.addMarker(ArtifactCore::FramePosition(20),
+                                   QStringLiteral("Other"));
+    auto* earlier = points.addMarker(ArtifactCore::FramePosition(10),
+                                     QStringLiteral("Earlier"));
+    ASSERT_NE(later, nullptr);
+    ASSERT_NE(other, nullptr);
+    ASSERT_NE(earlier, nullptr);
+    later->addTag(QStringLiteral("Review"));
+    earlier->addTag(QStringLiteral("review"));
+
+    const auto matches = points.markersByTag(QStringLiteral(" REVIEW "));
+
+    ASSERT_EQ(matches.size(), 2u);
+    EXPECT_EQ(matches[0], earlier);
+    EXPECT_EQ(matches[1], later);
+}
+
+TEST(InOutPointsContractTest, MovingManagedMarkerUpdatesPositionLookup)
+{
+    Artifact::ArtifactInOutPoints points;
+    auto* marker = points.addMarker(ArtifactCore::FramePosition(10),
+                                    QStringLiteral("Move me"));
+    ASSERT_NE(marker, nullptr);
+
+    marker->setPosition(ArtifactCore::FramePosition(30));
+
+    EXPECT_EQ(marker->position().framePosition(), 30);
+    EXPECT_EQ(points.getMarkerAt(ArtifactCore::FramePosition(10)), nullptr);
+    EXPECT_EQ(points.getMarkerAt(ArtifactCore::FramePosition(30)), marker);
+}
+
+TEST(InOutPointsContractTest, EmptyTagQueryReturnsNoMarkers)
+{
+    Artifact::ArtifactInOutPoints points;
+    auto* marker = points.addMarker(ArtifactCore::FramePosition(10),
+                                    QStringLiteral("Tagged"));
+    ASSERT_NE(marker, nullptr);
+    marker->addTag(QStringLiteral("existing"));
+
+    EXPECT_TRUE(points.markersByTag(QString()).empty());
+    EXPECT_TRUE(points.markersByTag(QStringLiteral(" \t ")).empty());
+}
+
 TEST(InOutPointsContractTest, InvalidJsonImportPreservesExistingRangeAndMarkers)
 {
     Artifact::ArtifactInOutPoints points;
@@ -131,6 +230,54 @@ TEST(InOutPointsContractTest, InvalidJsonImportPreservesExistingRangeAndMarkers)
     auto invalidInPoint = original;
     invalidInPoint.insert(QStringLiteral("inPoint"), QStringLiteral("not a frame"));
     EXPECT_FALSE(points.fromJson(invalidInPoint));
+    EXPECT_EQ(points.toJson(), original);
+}
+
+TEST(InOutPointsContractTest, SuccessfulPartialJsonImportClearsOmittedFields)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPoint(ArtifactCore::FramePosition(5));
+    points.setOutPoint(ArtifactCore::FramePosition(75));
+    ASSERT_NE(points.addMarker(ArtifactCore::FramePosition(20),
+                               QStringLiteral("Old marker")), nullptr);
+
+    ASSERT_TRUE(points.fromJson(QJsonObject{
+        {QStringLiteral("inPoint"), 30}}));
+
+    ASSERT_TRUE(points.inPoint().has_value());
+    EXPECT_EQ(points.inPoint()->framePosition(), 30);
+    EXPECT_FALSE(points.outPoint().has_value());
+    EXPECT_EQ(points.markerCount(), 0u);
+}
+
+TEST(InOutPointsContractTest, FractionalFrameJsonIsRejectedWithoutChangingState)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPoint(ArtifactCore::FramePosition(5));
+    points.setOutPoint(ArtifactCore::FramePosition(75));
+    ASSERT_NE(points.addMarker(ArtifactCore::FramePosition(20),
+                               QStringLiteral("Keep me")), nullptr);
+    const auto original = points.toJson();
+
+    EXPECT_FALSE(points.fromJson(QJsonObject{
+        {QStringLiteral("inPoint"), 10.5},
+        {QStringLiteral("markers"), QJsonArray{QJsonObject{
+            {QStringLiteral("position"), 30.25},
+            {QStringLiteral("comment"), QStringLiteral("Fractional")}}}}}));
+    EXPECT_EQ(points.toJson(), original);
+}
+
+TEST(InOutPointsContractTest, OutOfRangeFrameJsonIsRejectedWithoutChangingState)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPoint(ArtifactCore::FramePosition(5));
+    points.setOutPoint(ArtifactCore::FramePosition(75));
+    ASSERT_NE(points.addMarker(ArtifactCore::FramePosition(20),
+                               QStringLiteral("Keep me")), nullptr);
+    const auto original = points.toJson();
+
+    EXPECT_FALSE(points.fromJson(QJsonObject{
+        {QStringLiteral("outPoint"), 1.0e30}}));
     EXPECT_EQ(points.toJson(), original);
 }
 
@@ -172,6 +319,131 @@ TEST(InOutPointsContractTest, MarkerUpdateKeepsIdentityAndSearchesCommentLinkAnd
     EXPECT_EQ(later->tags().size(), 1);
 }
 
+TEST(InOutPointsContractTest, ReplacingMarkerAtSamePositionPreservesOtherMetadata)
+{
+    Artifact::ArtifactInOutPoints points;
+    auto* marker = points.addMarker(ArtifactCore::FramePosition(40),
+                                    QStringLiteral("Original"),
+                                    Artifact::MarkerType::Comment);
+    ASSERT_NE(marker, nullptr);
+    marker->setColor(QColor(12, 34, 56, 78));
+    marker->setWebLink(QStringLiteral("https://example.test/original"));
+    marker->setTags(QStringList{QStringLiteral("keep"), QStringLiteral("also keep")});
+
+    auto* updated = points.addMarker(ArtifactCore::FramePosition(40),
+                                     QStringLiteral("Updated"),
+                                     Artifact::MarkerType::Chapter);
+
+    ASSERT_EQ(updated, marker);
+    EXPECT_EQ(updated->comment(), QStringLiteral("Updated"));
+    EXPECT_EQ(updated->type(), Artifact::MarkerType::Chapter);
+    EXPECT_EQ(updated->color(), QColor(12, 34, 56, 78));
+    EXPECT_EQ(updated->webLink(), QStringLiteral("https://example.test/original"));
+    EXPECT_EQ(updated->tags(), (QStringList{QStringLiteral("keep"),
+                                           QStringLiteral("also keep")}));
+}
+
+TEST(InOutPointsContractTest, MarkerTagRemovalIsCaseInsensitiveAndPreservesOtherTags)
+{
+    Artifact::ArtifactMarker marker(ArtifactCore::FramePosition(10),
+                                    QStringLiteral("Tagged"));
+    marker.setTags(QStringList{QStringLiteral("Review"),
+                               QStringLiteral("Keep"),
+                               QStringLiteral("review")});
+
+    marker.removeTag(QStringLiteral(" REVIEW "));
+    EXPECT_EQ(marker.tags(), (QStringList{QStringLiteral("Keep")}));
+
+    marker.removeTag(QStringLiteral("missing"));
+    EXPECT_EQ(marker.tags(), (QStringList{QStringLiteral("Keep")}));
+}
+
+TEST(InOutPointsContractTest, SettingMarkerTagsTrimsValuesAndDropsEmptyEntries)
+{
+    Artifact::ArtifactMarker marker(ArtifactCore::FramePosition(10),
+                                    QStringLiteral("Tagged"));
+
+    marker.setTags(QStringList{QStringLiteral(" first "),
+                               QStringLiteral(""),
+                               QStringLiteral(" \t "),
+                               QStringLiteral("second ")});
+
+    EXPECT_EQ(marker.tags(), (QStringList{QStringLiteral("first"),
+                                          QStringLiteral("second")}));
+}
+
+TEST(InOutPointsContractTest, SettingMarkerTagsDeduplicatesAfterTrimming)
+{
+    Artifact::ArtifactMarker marker(ArtifactCore::FramePosition(10),
+                                    QStringLiteral("Tagged"));
+
+    marker.setTags(QStringList{QStringLiteral("topic"),
+                               QStringLiteral(" topic ")});
+
+    EXPECT_EQ(marker.tags(), (QStringList{QStringLiteral("topic")}));
+}
+
+TEST(InOutPointsContractTest, SettingEmptyMarkerTagsClearsExistingTags)
+{
+    Artifact::ArtifactMarker marker(ArtifactCore::FramePosition(10),
+                                    QStringLiteral("Tagged"));
+    marker.setTags(QStringList{QStringLiteral("review"),
+                               QStringLiteral("approved")});
+
+    marker.setTags({});
+
+    EXPECT_TRUE(marker.tags().isEmpty());
+}
+
+TEST(InOutPointsContractTest, MarkerComparisonUsesFramePosition)
+{
+    const Artifact::ArtifactMarker earlier(
+        ArtifactCore::FramePosition(10), QStringLiteral("Earlier"));
+    const Artifact::ArtifactMarker samePositionDifferentMetadata(
+        ArtifactCore::FramePosition(10), QStringLiteral("Different"),
+        Artifact::MarkerType::Chapter);
+    const Artifact::ArtifactMarker later(
+        ArtifactCore::FramePosition(20), QStringLiteral("Later"));
+
+    EXPECT_TRUE(earlier == samePositionDifferentMetadata);
+    EXPECT_FALSE(earlier < samePositionDifferentMetadata);
+    EXPECT_TRUE(earlier < later);
+    EXPECT_FALSE(later < earlier);
+}
+
+TEST(InOutPointsContractTest, AddingBlankMarkerTagsLeavesExistingTagsUnchanged)
+{
+    Artifact::ArtifactMarker marker(ArtifactCore::FramePosition(10),
+                                    QStringLiteral("Tagged"));
+    marker.setTags(QStringList{QStringLiteral("keep")});
+
+    marker.addTag(QString());
+    marker.addTag(QStringLiteral(" \t "));
+
+    EXPECT_EQ(marker.tags(), (QStringList{QStringLiteral("keep")}));
+}
+
+TEST(InOutPointsContractTest, EmptySearchReturnsAllMarkersInFrameOrder)
+{
+    Artifact::ArtifactInOutPoints points;
+    auto* later = points.addMarker(ArtifactCore::FramePosition(40),
+                                   QStringLiteral("Later"));
+    auto* earlier = points.addMarker(ArtifactCore::FramePosition(10),
+                                     QStringLiteral("Earlier"));
+    ASSERT_NE(later, nullptr);
+    ASSERT_NE(earlier, nullptr);
+
+    const auto emptySearch = points.searchMarkers(QString());
+    ASSERT_EQ(emptySearch.size(), 2u);
+    EXPECT_EQ(emptySearch[0], earlier);
+    EXPECT_EQ(emptySearch[1], later);
+
+    const auto whitespaceSearch = points.searchMarkers(QStringLiteral(" \t "));
+    ASSERT_EQ(whitespaceSearch.size(), 2u);
+    EXPECT_EQ(whitespaceSearch[0], earlier);
+    EXPECT_EQ(whitespaceSearch[1], later);
+}
+
 TEST(InOutPointsContractTest, ValidJsonRoundTripPreservesMarkerMetadata)
 {
     Artifact::ArtifactInOutPoints source;
@@ -202,6 +474,28 @@ TEST(InOutPointsContractTest, ValidJsonRoundTripPreservesMarkerMetadata)
     ASSERT_TRUE(restored.outPoint().has_value());
     EXPECT_EQ(restored.inPoint()->framePosition(), -12);
     EXPECT_EQ(restored.outPoint()->framePosition(), 144);
+}
+
+TEST(InOutPointsContractTest, JsonRoundTripPreservesFramePositionsAboveInt32Range)
+{
+    constexpr qint64 largeFrame = 3'000'000'000LL;
+    Artifact::ArtifactInOutPoints source;
+    source.setInPoint(ArtifactCore::FramePosition(largeFrame));
+    source.setOutPoint(ArtifactCore::FramePosition(largeFrame + 10));
+    ASSERT_NE(source.addMarker(ArtifactCore::FramePosition(largeFrame + 5),
+                               QStringLiteral("Large frame")), nullptr);
+
+    Artifact::ArtifactInOutPoints restored;
+    ASSERT_TRUE(restored.fromJson(source.toJson()));
+
+    ASSERT_TRUE(restored.inPoint().has_value());
+    ASSERT_TRUE(restored.outPoint().has_value());
+    EXPECT_EQ(restored.inPoint()->framePosition(), largeFrame);
+    EXPECT_EQ(restored.outPoint()->framePosition(), largeFrame + 10);
+    const auto* marker = restored.getMarkerAt(
+        ArtifactCore::FramePosition(largeFrame + 5));
+    ASSERT_NE(marker, nullptr);
+    EXPECT_EQ(marker->comment(), QStringLiteral("Large frame"));
 }
 
 TEST(InOutPointsContractTest, MarkerRangeIsInclusiveAndRemovalRefreshesChapterIndex)
@@ -251,6 +545,48 @@ TEST(InOutPointsContractTest, MarkerRangeIsInclusiveAndRemovalRefreshesChapterIn
     EXPECT_EQ(points.markerCount(), 2u);
 }
 
+TEST(InOutPointsContractTest, ClearingMarkersPreservesInOutPoints)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPoint(ArtifactCore::FramePosition(5));
+    points.setOutPoint(ArtifactCore::FramePosition(75));
+    ASSERT_NE(points.addMarker(ArtifactCore::FramePosition(20),
+                               QStringLiteral("Comment")), nullptr);
+    ASSERT_NE(points.addMarker(ArtifactCore::FramePosition(40),
+                               QStringLiteral("Chapter"),
+                               Artifact::MarkerType::Chapter), nullptr);
+
+    points.clearAllMarkers();
+
+    EXPECT_EQ(points.markerCount(), 0u);
+    EXPECT_TRUE(points.chapterMarkers().empty());
+    ASSERT_TRUE(points.inPoint().has_value());
+    ASSERT_TRUE(points.outPoint().has_value());
+    EXPECT_EQ(points.inPoint()->framePosition(), 5);
+    EXPECT_EQ(points.outPoint()->framePosition(), 75);
+}
+
+TEST(InOutPointsContractTest, ClearingInOutPointsPreservesMarkers)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPoint(ArtifactCore::FramePosition(5));
+    points.setOutPoint(ArtifactCore::FramePosition(75));
+    auto* marker = points.addMarker(ArtifactCore::FramePosition(20),
+                                    QStringLiteral("Keep marker"),
+                                    Artifact::MarkerType::Chapter);
+    ASSERT_NE(marker, nullptr);
+
+    points.clearAllPoints();
+
+    EXPECT_FALSE(points.inPoint().has_value());
+    EXPECT_FALSE(points.outPoint().has_value());
+    EXPECT_FALSE(points.isRangeLimited());
+    EXPECT_EQ(points.markerCount(), 1u);
+    EXPECT_EQ(points.getMarkerAt(ArtifactCore::FramePosition(20)), marker);
+    ASSERT_EQ(points.chapterMarkers().size(), 1u);
+    EXPECT_EQ(points.chapterMarkers().front(), marker);
+}
+
 TEST(InOutPointsContractTest, JsonImportSkipsMalformedMarkersAndDefaultsUnknownTypes)
 {
     QJsonArray markers;
@@ -284,6 +620,54 @@ TEST(InOutPointsContractTest, JsonImportSkipsMalformedMarkersAndDefaultsUnknownT
     ASSERT_NE(valid, nullptr);
     EXPECT_EQ(valid->comment(), QStringLiteral("Valid marker"));
     EXPECT_EQ(valid->type(), Artifact::MarkerType::Flash);
+}
+
+TEST(InOutPointsContractTest, JsonImportMergesDuplicateMarkerPositionsInArrayOrder)
+{
+    const QJsonArray markers{
+        QJsonObject{
+            {QStringLiteral("position"), 12},
+            {QStringLiteral("comment"), QStringLiteral("First")},
+            {QStringLiteral("type"), static_cast<int>(Artifact::MarkerType::Comment)}},
+        QJsonObject{
+            {QStringLiteral("position"), 12},
+            {QStringLiteral("comment"), QStringLiteral("Last")},
+            {QStringLiteral("type"), static_cast<int>(Artifact::MarkerType::Chapter)}}
+    };
+
+    Artifact::ArtifactInOutPoints points;
+    ASSERT_TRUE(points.fromJson(QJsonObject{{QStringLiteral("markers"), markers}}));
+
+    ASSERT_EQ(points.markerCount(), 1u);
+    const auto* marker = points.getMarkerAt(ArtifactCore::FramePosition(12));
+    ASSERT_NE(marker, nullptr);
+    EXPECT_EQ(marker->comment(), QStringLiteral("Last"));
+    EXPECT_EQ(marker->type(), Artifact::MarkerType::Chapter);
+}
+
+TEST(InOutPointsContractTest, JsonImportDefaultsMalformedOptionalMarkerMetadata)
+{
+    const QJsonObject malformedMarker{
+        {QStringLiteral("position"), 16},
+        {QStringLiteral("comment"), 42},
+        {QStringLiteral("type"), QStringLiteral("Chapter")},
+        {QStringLiteral("color"), 123},
+        {QStringLiteral("webLink"), false},
+        {QStringLiteral("tags"), QStringLiteral("not an array")}
+    };
+    Artifact::ArtifactInOutPoints points;
+
+    ASSERT_TRUE(points.fromJson(QJsonObject{
+        {QStringLiteral("markers"), QJsonArray{malformedMarker}}}));
+
+    ASSERT_EQ(points.markerCount(), 1u);
+    const auto* marker = points.getMarkerAt(ArtifactCore::FramePosition(16));
+    ASSERT_NE(marker, nullptr);
+    EXPECT_TRUE(marker->comment().isEmpty());
+    EXPECT_EQ(marker->type(), Artifact::MarkerType::Comment);
+    EXPECT_EQ(marker->color(), QColor(QStringLiteral("#FFFF00")));
+    EXPECT_TRUE(marker->webLink().isEmpty());
+    EXPECT_TRUE(marker->tags().isEmpty());
 }
 
 TEST(InOutPointsContractTest, XmlRoundTripPreservesRangeAndSupportedMarkerFields)
@@ -324,6 +708,116 @@ TEST(InOutPointsContractTest, XmlRoundTripPreservesRangeAndSupportedMarkerFields
                                                    QStringLiteral("review")}));
 }
 
+TEST(InOutPointsContractTest, EmptyStateXmlRoundTripRemainsEmpty)
+{
+    Artifact::ArtifactInOutPoints source;
+    const QString xml = source.exportToXML();
+    ASSERT_FALSE(xml.isEmpty());
+
+    Artifact::ArtifactInOutPoints restored;
+    ASSERT_TRUE(restored.importFromXML(xml));
+
+    EXPECT_FALSE(restored.inPoint().has_value());
+    EXPECT_FALSE(restored.outPoint().has_value());
+    EXPECT_FALSE(restored.isRangeLimited());
+    EXPECT_EQ(restored.markerCount(), 0u);
+    EXPECT_TRUE(restored.allMarkers().empty());
+}
+
+TEST(InOutPointsContractTest, XmlRoundTripPreservesEmptyCommentAndOmitsEmptyTags)
+{
+    Artifact::ArtifactInOutPoints source;
+    ASSERT_NE(source.addMarker(ArtifactCore::FramePosition(18)),
+              nullptr);
+
+    const QString xml = source.exportToXML();
+    EXPECT_NE(xml.indexOf(QStringLiteral("comment=\"\"")), -1);
+    EXPECT_EQ(xml.indexOf(QStringLiteral("tags=")), -1);
+
+    Artifact::ArtifactInOutPoints restored;
+    ASSERT_TRUE(restored.importFromXML(xml));
+    const auto* marker = restored.getMarkerAt(ArtifactCore::FramePosition(18));
+    ASSERT_NE(marker, nullptr);
+    EXPECT_TRUE(marker->comment().isEmpty());
+    EXPECT_TRUE(marker->tags().isEmpty());
+}
+
+TEST(InOutPointsContractTest, XmlRoundTripEscapesSpecialCharactersInTags)
+{
+    Artifact::ArtifactInOutPoints source;
+    auto* marker = source.addMarker(ArtifactCore::FramePosition(18),
+                                    QStringLiteral("Tagged"));
+    ASSERT_NE(marker, nullptr);
+    marker->setTags(QStringList{QStringLiteral("review & approve"),
+                                QStringLiteral("<urgent>")});
+
+    const QString xml = source.exportToXML();
+    EXPECT_NE(xml.indexOf(QStringLiteral("&amp;")), -1);
+    EXPECT_NE(xml.indexOf(QStringLiteral("&lt;urgent&gt;")), -1);
+
+    Artifact::ArtifactInOutPoints restored;
+    ASSERT_TRUE(restored.importFromXML(xml));
+    const auto* restoredMarker =
+        restored.getMarkerAt(ArtifactCore::FramePosition(18));
+    ASSERT_NE(restoredMarker, nullptr);
+    EXPECT_EQ(restoredMarker->tags(), (QStringList{
+        QStringLiteral("review & approve"), QStringLiteral("<urgent>")}));
+}
+
+TEST(InOutPointsContractTest, XmlRoundTripPreservesFramePositionsAboveInt32Range)
+{
+    constexpr qint64 largeFrame = 3'000'000'000LL;
+    Artifact::ArtifactInOutPoints source;
+    source.setInPoint(ArtifactCore::FramePosition(largeFrame));
+    source.setOutPoint(ArtifactCore::FramePosition(largeFrame + 10));
+    ASSERT_NE(source.addMarker(ArtifactCore::FramePosition(largeFrame + 5),
+                               QStringLiteral("Large frame")), nullptr);
+
+    Artifact::ArtifactInOutPoints restored;
+    ASSERT_TRUE(restored.importFromXML(source.exportToXML()));
+
+    ASSERT_TRUE(restored.inPoint().has_value());
+    ASSERT_TRUE(restored.outPoint().has_value());
+    EXPECT_EQ(restored.inPoint()->framePosition(), largeFrame);
+    EXPECT_EQ(restored.outPoint()->framePosition(), largeFrame + 10);
+    const auto* marker = restored.getMarkerAt(
+        ArtifactCore::FramePosition(largeFrame + 5));
+    ASSERT_NE(marker, nullptr);
+    EXPECT_EQ(marker->comment(), QStringLiteral("Large frame"));
+}
+
+TEST(InOutPointsContractTest, XmlRoundTripPreservesSemicolonsInsideTags)
+{
+    Artifact::ArtifactInOutPoints source;
+    auto* marker = source.addMarker(ArtifactCore::FramePosition(18),
+                                    QStringLiteral("Tagged"));
+    ASSERT_NE(marker, nullptr);
+    marker->setTags(QStringList{QStringLiteral("phase;review"),
+                                QStringLiteral("keep")});
+
+    Artifact::ArtifactInOutPoints restored;
+    ASSERT_TRUE(restored.importFromXML(source.exportToXML()));
+    const auto* restoredMarker =
+        restored.getMarkerAt(ArtifactCore::FramePosition(18));
+    ASSERT_NE(restoredMarker, nullptr);
+    EXPECT_EQ(restoredMarker->tags(), (QStringList{
+        QStringLiteral("phase;review"), QStringLiteral("keep")}));
+}
+
+TEST(InOutPointsContractTest, XmlImportSkipsEmptyTagSegmentsAndPreservesOrder)
+{
+    const QString xml = QStringLiteral(
+        "<InOutPoints><Marker frame=\"18\" comment=\"Tagged\" "
+        "tags=\"alpha;; beta;\" type=\"Comment\"/></InOutPoints>");
+    Artifact::ArtifactInOutPoints points;
+
+    ASSERT_TRUE(points.importFromXML(xml));
+    const auto* marker = points.getMarkerAt(ArtifactCore::FramePosition(18));
+    ASSERT_NE(marker, nullptr);
+    EXPECT_EQ(marker->tags(), (QStringList{
+        QStringLiteral("alpha"), QStringLiteral("beta")}));
+}
+
 TEST(InOutPointsContractTest, MalformedXmlImportPreservesExistingState)
 {
     Artifact::ArtifactInOutPoints points;
@@ -341,4 +835,62 @@ TEST(InOutPointsContractTest, MalformedXmlImportPreservesExistingState)
 
     EXPECT_FALSE(points.importFromXML(malformedXml));
     EXPECT_EQ(points.toJson(), before);
+}
+
+TEST(InOutPointsContractTest, XmlImportRejectsUnexpectedRootWithoutChangingState)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPoint(ArtifactCore::FramePosition(-12));
+    points.setOutPoint(ArtifactCore::FramePosition(144));
+    ASSERT_NE(points.addMarker(ArtifactCore::FramePosition(32),
+                               QStringLiteral("Keep this marker"),
+                               Artifact::MarkerType::Chapter), nullptr);
+    const QJsonObject before = points.toJson();
+
+    EXPECT_FALSE(points.importFromXML(QStringLiteral("<OtherRoot/>")));
+    EXPECT_EQ(points.toJson(), before);
+}
+
+TEST(InOutPointsContractTest, XmlImportSkipsInvalidFrameAttributesAndKeepsValidRecords)
+{
+    const QString xml = QStringLiteral(
+        "<InOutPoints>"
+        "<InPoint frame=\"not-a-frame\"/>"
+        "<OutPoint frame=\"24\"/>"
+        "<Marker frame=\"invalid\" comment=\"Skip\" type=\"Chapter\"/>"
+        "<Marker frame=\"36\" comment=\"Keep\" type=\"Comment\"/>"
+        "</InOutPoints>");
+    Artifact::ArtifactInOutPoints points;
+
+    ASSERT_TRUE(points.importFromXML(xml));
+
+    EXPECT_FALSE(points.inPoint().has_value());
+    ASSERT_TRUE(points.outPoint().has_value());
+    EXPECT_EQ(points.outPoint()->framePosition(), 24);
+    ASSERT_EQ(points.markerCount(), 1u);
+    const auto* marker = points.getMarkerAt(ArtifactCore::FramePosition(36));
+    ASSERT_NE(marker, nullptr);
+    EXPECT_EQ(marker->comment(), QStringLiteral("Keep"));
+}
+
+TEST(InOutPointsContractTest, XmlImportSkipsUnknownNestedElementsAndContinues)
+{
+    const QString xml = QStringLiteral(
+        "<InOutPoints>"
+        "<FutureExtension><InPoint frame=\"900\"/>"
+        "<Marker frame=\"901\" comment=\"Nested\"/></FutureExtension>"
+        "<InPoint frame=\"12\"/>"
+        "<Marker frame=\"24\" comment=\"Current\" type=\"Comment\"/>"
+        "</InOutPoints>");
+    Artifact::ArtifactInOutPoints points;
+
+    ASSERT_TRUE(points.importFromXML(xml));
+
+    ASSERT_TRUE(points.inPoint().has_value());
+    EXPECT_EQ(points.inPoint()->framePosition(), 12);
+    EXPECT_EQ(points.markerCount(), 1u);
+    EXPECT_EQ(points.getMarkerAt(ArtifactCore::FramePosition(901)), nullptr);
+    const auto* marker = points.getMarkerAt(ArtifactCore::FramePosition(24));
+    ASSERT_NE(marker, nullptr);
+    EXPECT_EQ(marker->comment(), QStringLiteral("Current"));
 }

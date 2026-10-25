@@ -75,6 +75,16 @@ TEST(AudioDelayLineStandaloneTest, ExcessiveDelayClampsToAvailableHistory)
     EXPECT_FLOAT_EQ(line.read(std::numeric_limits<float>::max()), 3.0f);
 }
 
+TEST(AudioDelayLineStandaloneTest, HugeFiniteSecondsDelayClampsToAvailableHistory)
+{
+    FractionalDelayLine line;
+    line.initialize(0.25f, 4.0f);
+    for (float sample = 1.0f; sample <= 5.0f; sample += 1.0f)
+        line.write(sample);
+
+    EXPECT_FLOAT_EQ(line.readSeconds(std::numeric_limits<float>::max()), 3.0f);
+}
+
 TEST(AudioDelayLineStandaloneTest, ClearErasesHistoryAndResetsWritePosition)
 {
     FractionalDelayLine line;
@@ -107,6 +117,18 @@ TEST(AudioDelayLineStandaloneTest, NonFiniteDelayIsTreatedAsZero)
     EXPECT_FLOAT_EQ(line.read(std::numeric_limits<float>::infinity()), 0.0f);
 }
 
+TEST(AudioDelayLineStandaloneTest, NonFiniteSecondsDelayReadsAtZeroDelay)
+{
+    FractionalDelayLine line;
+    line.initialize(1.0f, 4.0f); // Eight slots including guard space.
+    for (float sample = 1.0f; sample <= 8.0f; sample += 1.0f)
+        line.write(sample);
+
+    EXPECT_FLOAT_EQ(line.readSeconds(std::numeric_limits<float>::quiet_NaN()), 8.0f);
+    EXPECT_FLOAT_EQ(line.readSeconds(std::numeric_limits<float>::infinity()), 8.0f);
+    EXPECT_FLOAT_EQ(line.readSeconds(-std::numeric_limits<float>::infinity()), 8.0f);
+}
+
 TEST(AudioDelayLineStandaloneTest, NegativeDelayClampsToZero)
 {
     FractionalDelayLine line;
@@ -116,6 +138,16 @@ TEST(AudioDelayLineStandaloneTest, NegativeDelayClampsToZero)
     EXPECT_FLOAT_EQ(line.read(-2.0f), 0.0f);
 }
 
+TEST(AudioDelayLineStandaloneTest, NegativeSecondsDelayClampsToZeroDelay)
+{
+    FractionalDelayLine line;
+    line.initialize(1.0f, 4.0f);
+    for (float sample = 1.0f; sample <= 8.0f; sample += 1.0f)
+        line.write(sample);
+
+    EXPECT_FLOAT_EQ(line.readSeconds(-0.25f), 8.0f);
+}
+
 TEST(AudioDelayLineStandaloneTest, InvalidInitializationUsesSafeFallbackSampleRate)
 {
     FractionalDelayLine line;
@@ -123,5 +155,15 @@ TEST(AudioDelayLineStandaloneTest, InvalidInitializationUsesSafeFallbackSampleRa
     line.write(4.0f);
 
     EXPECT_FLOAT_EQ(line.readSeconds(1.0f / 48000.0f), 4.0f);
+}
+
+TEST(AudioDelayLineStandaloneTest, OversizedInitializationRemainsEmptyWithoutAllocating)
+{
+    FractionalDelayLine line;
+    line.initialize(std::numeric_limits<float>::max(), 48000.0f);
+
+    line.write(4.0f);
+    EXPECT_FLOAT_EQ(line.read(0.0f), 0.0f);
+    EXPECT_FLOAT_EQ(line.readSeconds(1.0f), 0.0f);
 }
 

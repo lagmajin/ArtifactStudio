@@ -199,6 +199,20 @@ TEST(ArtifactTupleContractTest, ConstReferenceElementRemainsReadOnlyAlias)
     EXPECT_EQ(artifactGet<0>(reference), 35);
 }
 
+TEST(ArtifactTupleContractTest, ReferenceElementAssignmentWritesThroughExistingAlias)
+{
+    int destinationValue = 12;
+    int sourceValue = 38;
+    Tuple<int&> destination(destinationValue);
+    const Tuple<int&> source(sourceValue);
+
+    destination = source;
+
+    EXPECT_EQ(destinationValue, 38);
+    EXPECT_EQ(&artifactGet<0>(destination), &destinationValue);
+    EXPECT_EQ(artifactGet<0>(source), 38);
+}
+
 TEST(ArtifactTupleContractTest, HighArityTupleAccessesEveryRecursiveTailPosition)
 {
     Tuple<int, char, short, long, float, double, bool, std::string> values(

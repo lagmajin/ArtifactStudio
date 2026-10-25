@@ -122,3 +122,19 @@ TEST(DataSourceStandaloneTest, FactoryReceivesOriginalUri)
     ASSERT_NE(source, nullptr);
     EXPECT_EQ(toStdString(source->info().uri), "C:/assets/My File.standalone-uri");
 }
+
+TEST(DataSourceStandaloneTest, DispatchUsesOnlyFinalExtensionAfterMultipleDots)
+{
+    auto& registry = DataSourceRegistry::instance();
+    registry.registerFormat(String(".standalone-final"), sourceFactory());
+    registry.registerFormat(String(".part.standalone-final"), [](const String&) {
+        return DataSourcePtr{};
+    });
+
+    const auto source = registry.open(
+        String("folder.with.dots/archive.part.standalone-final"));
+
+    ASSERT_NE(source, nullptr);
+    EXPECT_EQ(toStdString(source->info().uri),
+              "folder.with.dots/archive.part.standalone-final");
+}

@@ -55,6 +55,14 @@ TEST(TypeInferenceStandaloneTest, SignedIntegerValuesInferInteger)
               ColumnType::Int);
 }
 
+TEST(TypeInferenceStandaloneTest, IntegersOutsideInt64RangeDoNotInferInt)
+{
+    EXPECT_EQ(TypeInference::inferFromValues(values({"9223372036854775808"})),
+              ColumnType::Float);
+    EXPECT_EQ(TypeInference::inferFromValues(values({"-9223372036854775809"})),
+              ColumnType::Float);
+}
+
 TEST(TypeInferenceStandaloneTest, DecimalValuesInferFloat)
 {
     EXPECT_EQ(TypeInference::inferFromValues(values({"1.25", "-0.5", ".75", "3."})),

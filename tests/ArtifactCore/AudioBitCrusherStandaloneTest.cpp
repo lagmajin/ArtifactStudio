@@ -59,6 +59,36 @@ TEST(AudioBitCrusherStandaloneTest, SettersClampAndRestoreDefaultsForNonFinite)
     EXPECT_FLOAT_EQ(crusher.getMix(), 1.0f);
 }
 
+TEST(AudioBitCrusherStandaloneTest, ParameterApiExposesRangesAndUpdatesCurrentValues)
+{
+    AudioBitCrusher crusher;
+    crusher.setParameterValue(String("bits"), 4.0f);
+    crusher.setParameterValue(String("downsample"), 8.0f);
+    crusher.setParameterValue(String("mix"), 0.25f);
+
+    const auto parameters = crusher.getParameters();
+    ASSERT_EQ(parameters.size(), 3u);
+    EXPECT_EQ(toStdString(parameters[0].id), "bits");
+    EXPECT_FLOAT_EQ(parameters[0].minValue, 2.0f);
+    EXPECT_FLOAT_EQ(parameters[0].maxValue, 16.0f);
+    EXPECT_FLOAT_EQ(parameters[0].defaultValue, 8.0f);
+    EXPECT_FLOAT_EQ(parameters[0].value, 4.0f);
+    EXPECT_EQ(toStdString(parameters[1].id), "downsample");
+    EXPECT_FLOAT_EQ(parameters[1].minValue, 1.0f);
+    EXPECT_FLOAT_EQ(parameters[1].maxValue, 40.0f);
+    EXPECT_FLOAT_EQ(parameters[1].defaultValue, 1.0f);
+    EXPECT_FLOAT_EQ(parameters[1].value, 8.0f);
+    EXPECT_EQ(toStdString(parameters[2].id), "mix");
+    EXPECT_FLOAT_EQ(parameters[2].minValue, 0.0f);
+    EXPECT_FLOAT_EQ(parameters[2].maxValue, 1.0f);
+    EXPECT_FLOAT_EQ(parameters[2].defaultValue, 1.0f);
+    EXPECT_FLOAT_EQ(parameters[2].value, 0.25f);
+
+    EXPECT_FLOAT_EQ(crusher.getParameterValue(String("bits")), 4.0f);
+    EXPECT_FLOAT_EQ(crusher.getParameterValue(String("downsample")), 8.0f);
+    EXPECT_FLOAT_EQ(crusher.getParameterValue(String("mix")), 0.25f);
+}
+
 TEST(AudioBitCrusherStandaloneTest, TransparentSettingsLeaveSignalUnchanged)
 {
     AudioBitCrusher crusher;
@@ -88,6 +118,47 @@ TEST(AudioBitCrusherStandaloneTest, LowBitDepthQuantizesSignal)
         differs = differs || (segment.channelData[0][i] != before[i]);
     }
     EXPECT_TRUE(differs);
+}
+
+TEST(AudioBitCrusherStandaloneTest, MixInterpolatesBetweenDryAndQuantizedSamples)
+{
+    AudioBitCrusher crusher;
+    crusher.setBits(2.0f);
+    crusher.setDownsample(1.0f);
+    crusher.setMix(0.5f);
+    auto segment = makeMono(48000, QVector<float>{0.8f, -0.3f, 0.6f});
+
+    crusher.process(segment);
+
+    EXPECT_NEAR(segment.channelData[0][0], 0.9f, 1e-6f);
+    EXPECT_NEAR(segment.channelData[0][1], -0.4f, 1e-6f);
+    EXPECT_NEAR(segment.channelData[0][2], 0.55f, 1e-6f);
+}
+
+TEST(AudioBitCrusherStandaloneTest, ZeroMixBlockDoesNotAdvanceSampleHoldState)
+{
+    AudioBitCrusher withMutedBlock;
+    AudioBitCrusher uninterrupted;
+    for (auto* crusher : {&withMutedBlock, &uninterrupted}) {
+        crusher->setBits(16.0f);
+        crusher->setDownsample(3.0f);
+        crusher->setMix(0.0f);
+    }
+
+    auto mutedBlock = makeMono(48000, QVector<float>{0.7f});
+    withMutedBlock.process(mutedBlock);
+    EXPECT_FLOAT_EQ(mutedBlock.channelData[0][0], 0.7f);
+    withMutedBlock.setMix(1.0f);
+    uninterrupted.setMix(1.0f);
+
+    auto nextWithMutedBlock = makeMono(
+        48000, QVector<float>{0.1f, 0.3f, 0.6f, 0.9f});
+    auto nextWithoutMutedBlock = nextWithMutedBlock;
+    withMutedBlock.process(nextWithMutedBlock);
+    uninterrupted.process(nextWithoutMutedBlock);
+
+    EXPECT_EQ(nextWithMutedBlock.channelData[0],
+              nextWithoutMutedBlock.channelData[0]);
 }
 
 TEST(AudioBitCrusherStandaloneTest,
@@ -127,6 +198,33 @@ TEST(AudioBitCrusherStandaloneTest,
               wholeBuffer.channelData[0][3]);
 }
 
+TEST(AudioBitCrusherStandaloneTest, FractionalDownsampleFactorRoundsAtHalfStep)
+{
+    AudioBitCrusher belowHalf;
+    belowHalf.setBits(16.0f);
+    belowHalf.setDownsample(2.49f);
+    auto twoSampleHold = makeMono(48000,
+        QVector<float>{0.1f, 0.3f, 0.5f, 0.7f});
+    belowHalf.process(twoSampleHold);
+    EXPECT_FLOAT_EQ(twoSampleHold.channelData[0][0],
+                    twoSampleHold.channelData[0][1]);
+    EXPECT_NE(twoSampleHold.channelData[0][1],
+              twoSampleHold.channelData[0][2]);
+
+    AudioBitCrusher atHalf;
+    atHalf.setBits(16.0f);
+    atHalf.setDownsample(2.5f);
+    auto threeSampleHold = makeMono(48000,
+        QVector<float>{0.1f, 0.3f, 0.5f, 0.7f});
+    atHalf.process(threeSampleHold);
+    EXPECT_FLOAT_EQ(threeSampleHold.channelData[0][0],
+                    threeSampleHold.channelData[0][1]);
+    EXPECT_FLOAT_EQ(threeSampleHold.channelData[0][1],
+                    threeSampleHold.channelData[0][2]);
+    EXPECT_NE(threeSampleHold.channelData[0][2],
+              threeSampleHold.channelData[0][3]);
+}
+
 TEST(AudioBitCrusherStandaloneTest,
      DownsampleHoldStateIsIndependentForStereoChannels)
 {
@@ -152,6 +250,35 @@ TEST(AudioBitCrusherStandaloneTest,
     EXPECT_NE(segment.channelData[0][2], segment.channelData[1][2]);
 }
 
+TEST(AudioBitCrusherStandaloneTest, ChannelsBeyondStereoRemainUntouched)
+{
+    AudioBitCrusher crusher;
+    crusher.setBits(2.0f);
+    crusher.setMix(1.0f);
+
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Surround51;
+    segment.channelData = {
+        QVector<float>{0.3f, 0.7f},
+        QVector<float>{-0.3f, -0.7f},
+        QVector<float>{0.11f, 0.22f},
+        QVector<float>{0.33f, 0.44f},
+        QVector<float>{0.55f, 0.66f},
+        QVector<float>{0.77f, 0.88f}};
+    const QVector<QVector<float>> extraChannels{
+        segment.channelData[2], segment.channelData[3],
+        segment.channelData[4], segment.channelData[5]};
+
+    crusher.process(segment);
+
+    ASSERT_EQ(segment.channelData.size(), 6);
+    for (int channel = 0; channel < 4; ++channel) {
+        EXPECT_EQ(segment.channelData[channel + 2], extraChannels[channel]);
+    }
+    EXPECT_NE(segment.channelData[0], (QVector<float>{0.3f, 0.7f}));
+}
+
 TEST(AudioBitCrusherStandaloneTest, BypassPreservesInputSamples)
 {
     AudioBitCrusher crusher;
@@ -173,6 +300,20 @@ TEST(AudioBitCrusherStandaloneTest, NonFiniteInputSamplesAreReplacedWithSilence)
 
     for (const float sample : segment.channelData[0])
         EXPECT_TRUE(std::isfinite(sample));
+}
+
+TEST(AudioBitCrusherStandaloneTest, DeserializationUsesDefaultsForMissingParameters)
+{
+    AudioBitCrusher crusher;
+    crusher.setBits(3.0f);
+    crusher.setDownsample(12.0f);
+    crusher.setMix(0.25f);
+
+    crusher.fromJson(QJsonObject{});
+
+    EXPECT_FLOAT_EQ(crusher.getBits(), 8.0f);
+    EXPECT_FLOAT_EQ(crusher.getDownsample(), 1.0f);
+    EXPECT_FLOAT_EQ(crusher.getMix(), 1.0f);
 }
 
 TEST(AudioBitCrusherStandaloneTest, JsonRoundTripPreservesSettingsAndBypass)

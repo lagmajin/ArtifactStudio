@@ -5,6 +5,7 @@
 #include <QtGlobal>
 
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <utility>
 
@@ -91,6 +92,37 @@ TEST(AudioTapeSaturationStandaloneTest, DriveAudiblyChangesSine)
     EXPECT_TRUE(differs);
 }
 
+TEST(AudioTapeSaturationStandaloneTest, WarmthReducesHighFrequencyOutputLevel)
+{
+    AudioTapeSaturation cool;
+    AudioTapeSaturation warm;
+    for (auto* tape : {&cool, &warm}) {
+        tape->setDriveDb(0.0f);
+        tape->setOutputDb(0.0f);
+        tape->setMix(1.0f);
+    }
+    cool.setWarmth(0.0f);
+    warm.setWarmth(1.0f);
+
+    const QVector<float> input = makeSine(10000.0f, 48000, 4800, 0.8f);
+    auto coolSegment = makeMono(48000, input);
+    auto warmSegment = makeMono(48000, input);
+    cool.process(coolSegment);
+    warm.process(warmSegment);
+
+    double coolEnergy = 0.0;
+    double warmEnergy = 0.0;
+    for (qsizetype frame = 256; frame < input.size(); ++frame) {
+        const double coolSample = coolSegment.channelData[0][frame];
+        const double warmSample = warmSegment.channelData[0][frame];
+        coolEnergy += coolSample * coolSample;
+        warmEnergy += warmSample * warmSample;
+    }
+
+    EXPECT_GT(coolEnergy, 0.0);
+    EXPECT_LT(warmEnergy, coolEnergy);
+}
+
 TEST(AudioTapeSaturationStandaloneTest, BypassPreservesInputSamples)
 {
     AudioTapeSaturation tape;
@@ -122,6 +154,41 @@ TEST(AudioTapeSaturationStandaloneTest, InvalidSampleRateLeavesInputUnchanged)
     tape.process(segment);
 
     EXPECT_EQ(segment.channelData[0], (QVector<float>{0.25f, -0.5f}));
+}
+
+TEST(AudioTapeSaturationStandaloneTest, ExposesParameterMetadataAndIdBasedControls)
+{
+    AudioTapeSaturation tape;
+    const auto parameters = tape.getParameters();
+    ASSERT_EQ(parameters.size(), 4u);
+    EXPECT_EQ(toStdString(parameters[0].id), "drive_db");
+    EXPECT_EQ(toStdString(parameters[1].id), "warmth");
+    EXPECT_EQ(toStdString(parameters[2].id), "output_db");
+    EXPECT_EQ(toStdString(parameters[3].id), "mix");
+    EXPECT_FLOAT_EQ(parameters[0].minValue, 0.0f);
+    EXPECT_FLOAT_EQ(parameters[0].maxValue, 24.0f);
+    EXPECT_FLOAT_EQ(parameters[0].defaultValue, 6.0f);
+    EXPECT_FLOAT_EQ(parameters[1].minValue, 0.0f);
+    EXPECT_FLOAT_EQ(parameters[1].maxValue, 1.0f);
+    EXPECT_FLOAT_EQ(parameters[1].defaultValue, 0.4f);
+    EXPECT_FLOAT_EQ(parameters[2].minValue, -12.0f);
+    EXPECT_FLOAT_EQ(parameters[2].maxValue, 12.0f);
+    EXPECT_FLOAT_EQ(parameters[2].defaultValue, -6.0f);
+    EXPECT_FLOAT_EQ(parameters[3].minValue, 0.0f);
+    EXPECT_FLOAT_EQ(parameters[3].maxValue, 1.0f);
+    EXPECT_FLOAT_EQ(parameters[3].defaultValue, 1.0f);
+
+    tape.setParameterValue("drive_db", 18.0f);
+    tape.setParameterValue("warmth", 0.8f);
+    tape.setParameterValue("output_db", 3.0f);
+    tape.setParameterValue("mix", 0.25f);
+    EXPECT_FLOAT_EQ(tape.getParameterValue("drive_db"), 18.0f);
+    EXPECT_FLOAT_EQ(tape.getParameterValue("warmth"), 0.8f);
+    EXPECT_FLOAT_EQ(tape.getParameterValue("output_db"), 3.0f);
+    EXPECT_FLOAT_EQ(tape.getParameterValue("mix"), 0.25f);
+    tape.setParameterValue("unknown", 9.0f);
+    EXPECT_FLOAT_EQ(tape.getParameterValue("unknown"), 0.0f);
+    EXPECT_FLOAT_EQ(tape.getDriveDb(), 18.0f);
 }
 
 TEST(AudioTapeSaturationStandaloneTest, JsonRoundTripPreservesSettingsAndBypass)

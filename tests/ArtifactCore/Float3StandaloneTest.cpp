@@ -1,10 +1,20 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <limits>
 #include <sstream>
 
 import Float3;
 
 using ArtifactCore::float3;
+
+static_assert(ArtifactCore::Float<float>);
+static_assert(ArtifactCore::Float<double>);
+static_assert(!ArtifactCore::Float<int>);
+
+constexpr float3<double> kConstexprFloat3A{1.0, 2.0, 3.0};
+constexpr float3<double> kConstexprFloat3B{4.0, 5.0, 6.0};
+static_assert((kConstexprFloat3A + kConstexprFloat3B).dot(kConstexprFloat3A) == 46.0);
 
 TEST(Float3StandaloneTest, DefaultAndExplicitConstructionPreserveComponents)
 {
@@ -73,6 +83,47 @@ TEST(Float3StandaloneTest, SupportsDoublePrecisionComponents)
     EXPECT_DOUBLE_EQ(doubled.y, 0.4);
     EXPECT_DOUBLE_EQ(doubled.z, 0.6);
     EXPECT_NEAR(value.dot(value), 0.14, 1e-15);
+}
+
+TEST(Float3StandaloneTest, DoublePrecisionNormalizationProducesUnitLength)
+{
+    const float3<double> value(1.0, 2.0, 2.0);
+
+    const float3<double> normalized = value.normalized();
+
+    EXPECT_DOUBLE_EQ(normalized.x, 1.0 / 3.0);
+    EXPECT_DOUBLE_EQ(normalized.y, 2.0 / 3.0);
+    EXPECT_DOUBLE_EQ(normalized.z, 2.0 / 3.0);
+    EXPECT_NEAR(normalized.length(), 1.0, 1e-15);
+}
+
+TEST(Float3StandaloneTest, NormalizationOfLargeFiniteComponentsProducesUnitVector)
+{
+    const float component = 1.2e19f;
+    ASSERT_TRUE(std::isfinite(component));
+    ASSERT_TRUE(std::isfinite(component * component));
+
+    const float3<float> normalized =
+        float3<float>(component, component, component).normalized();
+    const float expectedComponent = 1.0f / std::sqrt(3.0f);
+
+    EXPECT_NEAR(normalized.x, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.y, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.z, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.length(), 1.0f, 1e-6f);
+}
+
+TEST(Float3StandaloneTest, NormalizationOfMaximumFiniteComponentsAvoidsOverflow)
+{
+    const float component = std::numeric_limits<float>::max();
+    const float3<float> normalized =
+        float3<float>(component, component, component).normalized();
+    const float expectedComponent = 1.0f / std::sqrt(3.0f);
+
+    EXPECT_NEAR(normalized.x, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.y, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.z, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.length(), 1.0f, 1e-6f);
 }
 
 TEST(Float3StandaloneTest, StreamOutputUsesTupleFormatting)

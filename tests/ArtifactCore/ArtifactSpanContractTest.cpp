@@ -13,6 +13,18 @@ static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<int>&>()[0
 static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<const int>&>()[0]), const int&>);
 static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<int>&>().data()), int*>);
 static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<const int>&>().data()), const int*>);
+static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<int>&>().begin()), int*>);
+static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<int>&>().end()), int*>);
+static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<const int>&>().begin()),
+                             const int*>);
+static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<const int>&>().end()),
+                             const int*>);
+static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<int>&>().front()), int&>);
+static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<int>&>().back()), int&>);
+static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<const int>&>().front()),
+                             const int&>);
+static_assert(std::is_same_v<decltype(std::declval<const ArtifactSpan<const int>&>().back()),
+                             const int&>);
 static_assert(std::is_constructible_v<ArtifactSpan<const int>, std::array<int, 3>&>);
 static_assert(!std::is_constructible_v<ArtifactSpan<int>, const std::array<int, 3>&>);
 
@@ -188,6 +200,21 @@ TEST(ArtifactSpanContractTest, FullRangeSubspanPreservesAllElements)
     EXPECT_EQ(whole.size(), 3u);
     EXPECT_EQ(whole.front(), 14);
     EXPECT_EQ(whole.back(), 16);
+}
+
+TEST(ArtifactSpanContractTest, FirstAndLastFullCountsPreserveOriginalRange)
+{
+    int values[] = {21, 34, 55};
+    const ArtifactSpan<int> source(values, 3);
+    const auto prefix = source.first(source.size());
+    const auto suffix = source.last(source.size());
+
+    EXPECT_EQ(prefix.data(), source.data());
+    EXPECT_EQ(prefix.size(), source.size());
+    EXPECT_EQ(suffix.data(), source.data());
+    EXPECT_EQ(suffix.size(), source.size());
+    EXPECT_EQ(prefix.back(), 55);
+    EXPECT_EQ(suffix.front(), 21);
 }
 
 TEST(ArtifactSpanContractTest, LastRangeMutationAliasesOriginalStorage)

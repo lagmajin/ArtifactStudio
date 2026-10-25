@@ -67,6 +67,15 @@ TEST(Matrix4x4StandaloneTest, RotationZZeroEqualsIdentity)
     EXPECT_EQ(Matrix4x4::rotationZ(0.0f), Matrix4x4::identity());
 }
 
+TEST(Matrix4x4StandaloneTest, NegativeRotationZMapsPositiveXToNegativeY)
+{
+    const Matrix4x4 value = Matrix4x4::rotationZ(-90.0f);
+    EXPECT_NEAR(value.m[0], 0.0f, kTolerance);
+    EXPECT_NEAR(value.m[1], 1.0f, kTolerance);
+    EXPECT_NEAR(value.m[4], -1.0f, kTolerance);
+    EXPECT_NEAR(value.m[5], 0.0f, kTolerance);
+}
+
 TEST(Matrix4x4StandaloneTest, MultiplicationByIdentityPreservesBothOperands)
 {
     const Matrix4x4 value = Matrix4x4::translation(1.0f, 2.0f, 3.0f)
@@ -99,6 +108,16 @@ TEST(Matrix4x4StandaloneTest, CompositionOrderAppliesRightHandTransformFirst)
     EXPECT_FLOAT_EQ(y, 23.0f);
 }
 
+TEST(Matrix4x4StandaloneTest, CompositionOrderAlsoAppliesToZCoordinate)
+{
+    const Matrix4x4 composed = Matrix4x4::translation(10.0f, 20.0f, 30.0f)
+        * Matrix4x4::scale(2.0f, 3.0f, 4.0f);
+    const float z = composed.m[8] + composed.m[9] + composed.m[10]
+        + composed.m[11];
+
+    EXPECT_FLOAT_EQ(z, 34.0f);
+}
+
 TEST(Matrix4x4StandaloneTest, MultiplyAssignMatchesBinaryMultiplication)
 {
     Matrix4x4 assigned = Matrix4x4::translation(3.0f, -2.0f, 5.0f);
@@ -106,6 +125,15 @@ TEST(Matrix4x4StandaloneTest, MultiplyAssignMatchesBinaryMultiplication)
     const Matrix4x4 expected = assigned * rhs;
     assigned *= rhs;
     EXPECT_EQ(assigned, expected);
+}
+
+TEST(Matrix4x4StandaloneTest, MultiplyAssignSupportsSelfAliasing)
+{
+    Matrix4x4 value = Matrix4x4::translation(2.0f, -3.0f, 4.0f);
+
+    value *= value;
+
+    EXPECT_EQ(value, Matrix4x4::translation(4.0f, -6.0f, 8.0f));
 }
 
 TEST(Matrix4x4StandaloneTest, EqualityAndInequalityCompareAllElements)

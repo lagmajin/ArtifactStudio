@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -87,6 +88,19 @@ TEST(DataTableStandaloneTest, IntegerGetterParsesIntegerText)
     EXPECT_EQ(table.getInt(0, 0), -27);
 }
 
+TEST(DataTableStandaloneTest, IntegerGetterAcceptsInt64BoundariesAndFallsBackOutsideRange)
+{
+    const DataTable table(parse(
+        "value\n9223372036854775807\n-9223372036854775808\n"
+        "9223372036854775808\n-9223372036854775809"));
+    constexpr int64_t fallback = 17;
+
+    EXPECT_EQ(table.getInt(0, 0, fallback), std::numeric_limits<int64_t>::max());
+    EXPECT_EQ(table.getInt(1, 0, fallback), std::numeric_limits<int64_t>::min());
+    EXPECT_EQ(table.getInt(2, 0, fallback), fallback);
+    EXPECT_EQ(table.getInt(3, 0, fallback), fallback);
+}
+
 TEST(DataTableStandaloneTest, IntegerGetterTruncatesStoredFloatingValue)
 {
     DataTable table(parse("value\n0"));
@@ -98,6 +112,16 @@ TEST(DataTableStandaloneTest, FloatGetterParsesNumericText)
 {
     const DataTable table(parse("value\n-1.25e2"));
     EXPECT_DOUBLE_EQ(table.getFloat(0, 0), -125.0);
+}
+
+TEST(DataTableStandaloneTest, FloatGetterPreservesStoredDoubleValue)
+{
+    DataTable table(parse("value\n0"));
+    constexpr double stored = 1.0 / 3.0;
+    table.set(0, 0, stored);
+
+    EXPECT_DOUBLE_EQ(table.getFloat(0, 0), stored);
+    EXPECT_DOUBLE_EQ(table.getFloat(0, String("value")), stored);
 }
 
 TEST(DataTableStandaloneTest, FloatGetterConvertsStoredInteger)
@@ -118,6 +142,16 @@ TEST(DataTableStandaloneTest, BoolGetterRecognizesSupportedStringTokens)
     EXPECT_FALSE(table.getBool(5, 0, true));
 }
 
+TEST(DataTableStandaloneTest, BoolGetterReturnsStoredBooleanValues)
+{
+    DataTable table(parse("flag\n0\n0"));
+    table.set(0, 0, true);
+    table.set(1, 0, false);
+
+    EXPECT_TRUE(table.getBool(0, 0));
+    EXPECT_FALSE(table.getBool(1, 0, true));
+}
+
 TEST(DataTableStandaloneTest, BoolGetterConvertsStoredInteger)
 {
     DataTable table(parse("flag\n0"));
@@ -127,12 +161,34 @@ TEST(DataTableStandaloneTest, BoolGetterConvertsStoredInteger)
     EXPECT_FALSE(table.getBool(0, 0, true));
 }
 
+TEST(DataTableStandaloneTest, BoolGetterUsesFallbackForStoredFloatingValues)
+{
+    DataTable table(parse("flag\n1"));
+    table.set(0, 0, 1.0);
+    EXPECT_FALSE(table.getBool(0, 0, false));
+    EXPECT_TRUE(table.getBool(0, 0, true));
+}
+
 TEST(DataTableStandaloneTest, CallerFallbackSurvivesUnconvertibleText)
 {
     const DataTable table(parse("text\nhello"));
     EXPECT_EQ(table.getInt(0, 0, 77), 77);
     EXPECT_DOUBLE_EQ(table.getFloat(0, 0, 1.25), 1.25);
     EXPECT_TRUE(table.getBool(0, 0, true));
+}
+
+TEST(DataTableStandaloneTest, FloatGetterUsesFallbackForOutOfRangeNumericText)
+{
+    const DataTable table(parse("value\n1e9999"));
+    EXPECT_DOUBLE_EQ(table.getFloat(0, 0, 2.75), 2.75);
+}
+
+TEST(DataTableStandaloneTest, NumericGettersRejectNumericPrefixesFollowedByText)
+{
+    const DataTable table(parse("integer,float\n42widgets,1.5gain"));
+
+    EXPECT_EQ(table.getInt(0, String("integer"), 77), 77);
+    EXPECT_DOUBLE_EQ(table.getFloat(0, String("float"), 3.25), 3.25);
 }
 
 TEST(DataTableStandaloneTest, UnknownColumnNameReturnsFallbackOrEmptyString)
@@ -227,6 +283,20 @@ TEST(DataTableStandaloneTest, ClearRemovesSchemaLookupAndRows)
     EXPECT_EQ(table.rowCount(), 0);
     EXPECT_EQ(table.columnCount(), 0);
     EXPECT_EQ(table.columnIndexByName(String("name")), -1);
+}
+
+TEST(DataTableStandaloneTest, ClearedTableCanBeReusedWithNewSchemaAndRows)
+{
+    DataTable table(parse("old\nvalue"));
+    table.clear();
+    table.addColumn(String("new"));
+    table.addRow(rowValues({String("reused")}));
+
+    ASSERT_EQ(table.columnCount(), 1);
+    ASSERT_EQ(table.rowCount(), 1);
+    EXPECT_EQ(table.columnIndexByName(String("old")), -1);
+    EXPECT_EQ(table.columnIndexByName(String("new")), 0);
+    EXPECT_EQ(table.getString(0, String("new")), "reused");
 }
 
 TEST(DataTableStandaloneTest, InvalidCsvCreatesEmptyTable)

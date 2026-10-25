@@ -77,6 +77,24 @@ TEST(ImageAssetMetadataContractTest, RefreshesDimensionsAndBasicImageMetadata)
     EXPECT_FALSE(image.isLoaded());
 }
 
+TEST(ImageAssetMetadataContractTest, MetadataRefreshDoesNotChangeLoadState)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("refresh-state.png"));
+    ASSERT_TRUE(writeFile(path, checkerPng()));
+
+    ImageAssetFile image(path);
+    ASSERT_FALSE(image.isLoaded());
+    ASSERT_TRUE(image.refreshMetadata());
+    EXPECT_FALSE(image.isLoaded());
+
+    ASSERT_TRUE(image.load());
+    ASSERT_TRUE(image.isLoaded());
+    ASSERT_TRUE(image.refreshMetadata());
+    EXPECT_TRUE(image.isLoaded());
+}
+
 TEST(ImageAssetMetadataContractTest, RejectsMissingAndUndecodableImages)
 {
     QTemporaryDir directory;
@@ -92,6 +110,34 @@ TEST(ImageAssetMetadataContractTest, RejectsMissingAndUndecodableImages)
     EXPECT_FALSE(invalid.load());
     EXPECT_FALSE(invalid.isLoaded());
     EXPECT_FALSE(invalid.isImageMetadataValid());
+}
+
+TEST(ImageAssetMetadataContractTest, FailedRefreshPreservesPreviouslyDecodedMetadata)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("refreshable.png"));
+    ASSERT_TRUE(writeFile(path, checkerPng()));
+
+    ImageAssetFile image(path);
+    ASSERT_TRUE(image.refreshMetadata());
+    const auto previous = image.imageMeta();
+    ASSERT_EQ(previous.width, 128);
+    ASSERT_EQ(previous.height, 128);
+    const QString previousWidth = image.meta().getValue(UniString("width")).toQString();
+    const QString previousHeight = image.meta().getValue(UniString("height")).toQString();
+    ASSERT_TRUE(writeFile(path, QByteArrayLiteral("not an image anymore")));
+
+    EXPECT_FALSE(image.refreshMetadata());
+    EXPECT_EQ(image.imageMeta().width, previous.width);
+    EXPECT_EQ(image.imageMeta().height, previous.height);
+    EXPECT_EQ(image.imageMeta().channelCount, previous.channelCount);
+    EXPECT_EQ(image.imageMeta().bitDepth, previous.bitDepth);
+    EXPECT_EQ(image.imageMeta().pixelType, previous.pixelType);
+    EXPECT_EQ(image.imageMeta().colorSpace, previous.colorSpace);
+    EXPECT_EQ(image.imageMeta().hdr, previous.hdr);
+    EXPECT_EQ(image.meta().getValue(UniString("width")).toQString(), previousWidth);
+    EXPECT_EQ(image.meta().getValue(UniString("height")).toQString(), previousHeight);
 }
 
 TEST(ImageImporterContractTest, ReadsImageAndResetsAfterClose)

@@ -47,6 +47,13 @@ TEST(InterpolatorFactoryStandaloneTest, CubicInterpolatorUsesSmoothstepMidpoint)
     EXPECT_FLOAT_EQ(interpolator.interpolate(-2.0f, 6.0f, 0.5f), 2.0f);
 }
 
+TEST(InterpolatorFactoryStandaloneTest, CubicInterpolatorHandlesDescendingValues)
+{
+    const CubicInterpolator<float> interpolator;
+
+    EXPECT_FLOAT_EQ(interpolator.interpolate(10.0f, 2.0f, 0.25f), 8.75f);
+}
+
 TEST(InterpolatorFactoryStandaloneTest, CubicInterpolatorHasZeroEndpointSlope)
 {
     const CubicInterpolator<float> interpolator;

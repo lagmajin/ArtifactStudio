@@ -47,6 +47,27 @@ TEST(AudioAnalyzerStandaloneTest, SetterNormalizesFFTSizeAndKeepsValidPowerOfTwo
     EXPECT_EQ(analyzer.getFFTSize(), 32);
 }
 
+TEST(AudioAnalyzerStandaloneTest, ResizingFFTRebuildsWindowUsedByNextAnalysis)
+{
+    AudioAnalyzer analyzer(8);
+    const auto segment = makeMono(QVector<float>{
+        0.0f, 0.25f, 0.5f, 0.75f, 1.0f, 0.75f, 0.5f, 0.25f});
+
+    const auto initial = analyzer.analyze(segment);
+    ASSERT_EQ(initial.spectrum.size(), 5u);
+
+    analyzer.setFFTSize(16);
+    const auto expanded = analyzer.analyze(segment);
+    EXPECT_EQ(expanded.spectrum.size(), 9u);
+    EXPECT_FLOAT_EQ(expanded.rms, initial.rms);
+    EXPECT_FLOAT_EQ(expanded.peak, initial.peak);
+
+    analyzer.setFFTSize(8);
+    const auto restored = analyzer.analyze(segment);
+    EXPECT_EQ(restored.spectrum.size(), 5u);
+    EXPECT_EQ(restored.spectrum, initial.spectrum);
+}
+
 TEST(AudioAnalyzerStandaloneTest, EmptySegmentReturnsZeroMetricsAndNoSpectrum)
 {
     AudioAnalyzer analyzer(8);
@@ -116,6 +137,21 @@ TEST(AudioAnalyzerStandaloneTest, NonFiniteInputIsExcludedFromPeakAndSanitizedFo
         EXPECT_TRUE(std::isfinite(bin));
 }
 
+TEST(AudioAnalyzerStandaloneTest, MaximumFiniteInputKeepsAnalysisMetricsFinite)
+{
+    AudioAnalyzer analyzer(8);
+    const float maximum = std::numeric_limits<float>::max();
+    const auto result = analyzer.analyze(makeMono(QVector<float>{maximum, maximum}));
+
+    EXPECT_TRUE(std::isfinite(result.rms));
+    EXPECT_FLOAT_EQ(result.rms, maximum);
+    EXPECT_TRUE(std::isfinite(result.peak));
+    EXPECT_FLOAT_EQ(result.peak, maximum);
+    ASSERT_EQ(result.spectrum.size(), 5u);
+    for (const float bin : result.spectrum)
+        EXPECT_TRUE(std::isfinite(bin));
+}
+
 TEST(AudioAnalyzerStandaloneTest, InvalidSampleRateKeepsBandIntensitiesAtZero)
 {
     AudioAnalyzer analyzer(8);
@@ -146,6 +182,21 @@ TEST(AudioAnalyzerStandaloneTest, RMSAndPeakUseAllFramesWhenFFTTruncatesInput)
     EXPECT_FLOAT_EQ(result.rms, std::sqrt(0.5f));
     EXPECT_FLOAT_EQ(result.peak, 1.0f);
     EXPECT_EQ(result.spectrum.size(), 2u);
+}
+
+TEST(AudioAnalyzerStandaloneTest, BandIntensitiesAverageBinsClampedToNyquist)
+{
+    AudioAnalyzer analyzer(8);
+    const auto result = analyzer.analyze(makeMono(QVector<float>{
+        0.0f, 1.0f, -0.5f, 0.25f, -0.75f, 0.5f, -0.25f, 0.125f}, 8000));
+
+    ASSERT_EQ(result.spectrum.size(), 5u);
+    const float expectedLow = result.spectrum[0];
+    const float expectedMid = (result.spectrum[0] + result.spectrum[1] + result.spectrum[2]) / 3.0f;
+    const float expectedHigh = (result.spectrum[2] + result.spectrum[3] + result.spectrum[4]) / 3.0f;
+    EXPECT_FLOAT_EQ(result.lowIntensity, expectedLow);
+    EXPECT_FLOAT_EQ(result.midIntensity, expectedMid);
+    EXPECT_FLOAT_EQ(result.highIntensity, expectedHigh);
 }
 
 TEST(AudioAnalyzerStandaloneTest, AllEmptyChannelsReturnEmptyAnalysis)

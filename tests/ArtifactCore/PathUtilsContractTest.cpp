@@ -212,6 +212,20 @@ TEST(PathUtilsContractTest, AbsolutePathAndRelativePathResolveAgainstSuppliedBas
     EXPECT_EQ(QDir::fromNativeSeparators(relative), QStringLiteral("sub/file.txt"));
 }
 
+TEST(PathUtilsContractTest, AbsolutePathResolvesRelativeInputAgainstCurrentDirectory)
+{
+    const QString relative = QStringLiteral("folder with spaces/shot 01.exr");
+    const QString expected =
+        QDir::cleanPath(QDir::current().absoluteFilePath(relative));
+
+    const QString resolved = absolutePath(relative);
+
+    EXPECT_TRUE(QFileInfo(resolved).isAbsolute());
+    EXPECT_EQ(QDir::cleanPath(resolved), expected);
+    EXPECT_TRUE(QDir::fromNativeSeparators(resolved).endsWith(
+        QStringLiteral("folder with spaces/shot 01.exr")));
+}
+
 TEST(PathUtilsContractTest, RelativePathToItsBaseIsCurrentDirectory)
 {
     QTemporaryDir directory;

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cmath>
 #include <limits>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -14,6 +15,7 @@ import Frame.Rate;
 import Frame.Offset;
 import Time.Code;
 import Time.Rational;
+import Core.ArtifactString;
 
 using namespace ArtifactCore;
 
@@ -291,6 +293,18 @@ TEST(TimeCodeTest, DropFrameUsesSemicolonSeparator)
     // Non-drop output keeps ':'.
     TimeCode plain(900, 30.0);
     EXPECT_EQ(plain.toString(), QStringLiteral("00:00:30:00"));
+}
+
+TEST(TimeCodeTest, ParsesColonSeparatedHoursMinutesSecondsAndFrames)
+{
+    TimeCode parsed(0, 24.0);
+
+    parsed.setFromQString(QStringLiteral("01:02:03:04"));
+
+    EXPECT_EQ(parsed.frame(), ((1 * 60 + 2) * 60 + 3) * 24 + 4);
+    EXPECT_DOUBLE_EQ(parsed.fps(), 24.0);
+    EXPECT_FALSE(parsed.isDropFrame());
+    EXPECT_EQ(parsed.toString(), QStringLiteral("01:02:03:04"));
 }
 
 TEST(TimeCodeTest, TrailingDotMeansZeroFrameField)
@@ -625,6 +639,59 @@ TEST(FrameOffsetTest, ArithmeticAndTimeConversion)
     EXPECT_NEAR(offset.toTimeSeconds(FrameRate(24.0f)), 0.5, kAbsError);
 }
 
+TEST(FrameOffsetTest, ArithmeticOverloadsComparisonsAndSignPredicates)
+{
+    const FrameOffset base(20);
+    const FrameOffset delta(6);
+
+    EXPECT_EQ((base + delta).value(), 26);
+    EXPECT_EQ((base - delta).value(), 14);
+    EXPECT_EQ((base + 3).value(), 23);
+    EXPECT_EQ((base - 3).value(), 17);
+
+    FrameOffset compound(20);
+    compound += delta;
+    EXPECT_EQ(compound.value(), 26);
+    compound -= delta;
+    EXPECT_EQ(compound.value(), 20);
+    compound += 3;
+    EXPECT_EQ(compound.value(), 23);
+    compound -= 3;
+    EXPECT_EQ(compound.value(), 20);
+    compound *= 2;
+    EXPECT_EQ(compound.value(), 40);
+    compound /= 2;
+    EXPECT_EQ(compound.value(), 20);
+
+    EXPECT_TRUE(FrameOffset(6) > FrameOffset(5));
+    EXPECT_TRUE(FrameOffset(6) >= FrameOffset(6));
+    EXPECT_TRUE(FrameOffset(5) < FrameOffset(6));
+    EXPECT_TRUE(FrameOffset(6) <= FrameOffset(6));
+    EXPECT_TRUE(FrameOffset(6) != FrameOffset(5));
+    EXPECT_TRUE(FrameOffset(6) == FrameOffset(6));
+
+    EXPECT_TRUE(FrameOffset(1).isPositive());
+    EXPECT_TRUE(FrameOffset(0).isZero());
+    EXPECT_TRUE(FrameOffset(-1).isNegative());
+}
+
+TEST(FrameOffsetTest, CopyAssignmentAndSetValueKeepInstancesIndependent)
+{
+    FrameOffset source(-12);
+    FrameOffset destination(4);
+
+    destination = source;
+    EXPECT_EQ(source.value(), -12);
+    EXPECT_EQ(destination.value(), -12);
+
+    destination.setValue(8);
+    EXPECT_EQ(destination.value(), 8);
+    EXPECT_EQ(source.value(), -12);
+
+    destination = destination;
+    EXPECT_EQ(destination.value(), 8);
+}
+
 TEST(FrameOffsetTest, DivisionByZeroReturnsZeroAndCompoundDivisionPreservesValue)
 {
     const FrameOffset offset(12);
@@ -633,4 +700,57 @@ TEST(FrameOffsetTest, DivisionByZeroReturnsZeroAndCompoundDivisionPreservesValue
     FrameOffset adjusted(12);
     adjusted /= 0;
     EXPECT_EQ(adjusted.value(), 12);
+}
+
+TEST(FrameOffsetTest, StringParsingHandlesSignedValuesAndInvalidInput)
+{
+    EXPECT_EQ(FrameOffset::fromString(std::string("-42")).value(), -42);
+    EXPECT_EQ(FrameOffset::fromString(std::string("0")).value(), 0);
+    EXPECT_EQ(FrameOffset::fromString(std::string("not-an-offset")).value(), 0);
+}
+
+TEST(FrameOffsetTest, NegateAndAbsoluteValueHandleBothSignsAndZero)
+{
+    EXPECT_EQ(FrameOffset(12).negate().value(), -12);
+    EXPECT_EQ(FrameOffset(-12).negate().value(), 12);
+    EXPECT_EQ(FrameOffset(0).negate().value(), 0);
+    EXPECT_EQ(FrameOffset(-12).abs().value(), 12);
+    EXPECT_EQ(FrameOffset(0).abs().value(), 0);
+}
+
+TEST(FrameOffsetTest, TimeCodeRelationsComputeDifferenceAndClampAppliedFrame)
+{
+    const TimeCode from(10, 24.0);
+    const TimeCode to(35, 24.0);
+
+    EXPECT_EQ(FrameOffset::between(from, to).value(), 25);
+    const TimeCode advanced = FrameOffset(5).applyToTimeCode(from);
+    EXPECT_EQ(advanced.frame(), 15);
+    EXPECT_DOUBLE_EQ(advanced.fps(), from.fps());
+
+    const TimeCode clamped = FrameOffset(-15).applyToTimeCode(from);
+    EXPECT_EQ(clamped.frame(), 0);
+    EXPECT_DOUBLE_EQ(clamped.fps(), from.fps());
+}
+
+TEST(FrameOffsetTest, ConvertsBetweenSecondsFramesAndRationalTime)
+{
+    const FrameRate rate(24.0f);
+    const FrameOffset fromSeconds = FrameOffset::fromTimeSeconds(1.5, rate);
+    ASSERT_EQ(fromSeconds.value(), 36);
+
+    const RationalTime rational = fromSeconds.toRationalTime(rate);
+    EXPECT_DOUBLE_EQ(rational.toSeconds(), 1.5);
+    EXPECT_EQ(rational.toFrameCount(24), 36);
+
+    const FrameOffset fromRational =
+        FrameOffset::fromRationalTime(RationalTime(3, 2), rate);
+    EXPECT_EQ(fromRational.value(), 36);
+}
+
+TEST(FrameOffsetTest, StringFormattingPreservesOffsetSignAndDigits)
+{
+    EXPECT_EQ(toStdString(FrameOffset(-123).toString()), "-123");
+    EXPECT_EQ(toStdString(FrameOffset(0).toString()), "0");
+    EXPECT_EQ(toStdString(FrameOffset(456).toString()), "456");
 }

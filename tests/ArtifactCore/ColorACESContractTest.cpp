@@ -343,3 +343,55 @@ TEST(ColorACESContractTest, OutputPresetNamesCoverAllValuesAndUnknownFallback)
                      testCase.expected);
     }
 }
+
+TEST(ColorACESContractTest, MatrixGettersMatchPresetGamutConversions)
+{
+    const struct InputCase {
+        ACESInputTransform transform;
+        Gamut source;
+    } inputCases[] = {
+        {ACESInputTransform::sRGB_Linear, Gamut::sRGB},
+        {ACESInputTransform::sRGB_Encoded, Gamut::sRGB},
+        {ACESInputTransform::Rec709_Encoded, Gamut::Rec709},
+        {ACESInputTransform::Rec2020_Encoded, Gamut::Rec2020},
+        {ACESInputTransform::P3_Encoded, Gamut::DCI_P3},
+        {ACESInputTransform::Linear_sRGB_Primaries, Gamut::sRGB},
+    };
+    for (const auto& testCase : inputCases) {
+        const Matrix3x3 actual =
+            ACESColorManager::getInputConversionMatrix(testCase.transform);
+        const Matrix3x3 expected = ColorGamutConversion::getConversionMatrix(
+            testCase.source, Gamut::ACES_AP1);
+        for (int row = 0; row < 3; ++row) {
+            for (int column = 0; column < 3; ++column) {
+                EXPECT_NEAR(actual[row][column], expected[row][column], 1.0e-6f)
+                    << "input transform index " << static_cast<int>(testCase.transform)
+                    << " at [" << row << "][" << column << "]";
+            }
+        }
+    }
+
+    const struct OutputCase {
+        ACESOutputTransform transform;
+        Gamut destination;
+    } outputCases[] = {
+        {ACESOutputTransform::SDR_sRGB, Gamut::Rec709},
+        {ACESOutputTransform::SDR_Rec709, Gamut::Rec709},
+        {ACESOutputTransform::SDR_P3_D65, Gamut::DCI_P3},
+        {ACESOutputTransform::HDR_Rec2020_PQ, Gamut::Rec2020},
+        {ACESOutputTransform::HDR_P3_D65_HLG, Gamut::Rec2020},
+    };
+    for (const auto& testCase : outputCases) {
+        const Matrix3x3 actual =
+            ACESColorManager::getOutputConversionMatrix(testCase.transform);
+        const Matrix3x3 expected = ColorGamutConversion::getConversionMatrix(
+            Gamut::ACES_AP1, testCase.destination);
+        for (int row = 0; row < 3; ++row) {
+            for (int column = 0; column < 3; ++column) {
+                EXPECT_NEAR(actual[row][column], expected[row][column], 1.0e-6f)
+                    << "output transform index " << static_cast<int>(testCase.transform)
+                    << " at [" << row << "][" << column << "]";
+            }
+        }
+    }
+}

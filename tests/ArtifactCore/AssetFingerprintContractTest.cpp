@@ -167,6 +167,21 @@ TEST(AssetFingerprintContractTest, FastHashDetectsContentChangeInSameSizeSmallFi
               AssetFingerprint::calculateFastHash(secondPath));
 }
 
+TEST(AssetFingerprintContractTest, RecomputesHashAfterSamePathContentChanges)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("mutable.bin"));
+    ASSERT_TRUE(writeFile(path, QByteArrayLiteral("state-a")));
+    const QString before = AssetFingerprint::calculateFastHash(path);
+    ASSERT_FALSE(before.isEmpty());
+
+    ASSERT_TRUE(writeFile(path, QByteArrayLiteral("state-b")));
+
+    EXPECT_EQ(QFileInfo(path).size(), 7);
+    EXPECT_NE(AssetFingerprint::calculateFastHash(path), before);
+}
+
 TEST(AssetFingerprintContractTest, MiddleSampleStartsOnlyAboveThreeMebibytes)
 {
     QTemporaryDir directory;

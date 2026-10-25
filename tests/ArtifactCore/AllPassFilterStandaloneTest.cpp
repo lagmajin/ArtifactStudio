@@ -25,6 +25,21 @@ TEST(AllPassFilterStandaloneTest, ZeroFeedbackProducesOneSampleDelayedImpulse)
     EXPECT_FLOAT_EQ(filter.process(0.0f), 0.0f);
 }
 
+TEST(AllPassFilterStandaloneTest, ImpulseResponseHasUnitEnergy)
+{
+    AllPassFilter filter;
+    filter.initialize(0.01f, 48000.0f);
+    filter.setParametersSamples(3.0f, 0.5f);
+
+    double outputEnergy = 0.0;
+    for (int frame = 0; frame < 2048; ++frame) {
+        const float output = filter.process(frame == 0 ? 1.0f : 0.0f);
+        outputEnergy += static_cast<double>(output) * output;
+    }
+
+    EXPECT_NEAR(outputEnergy, 1.0, 1e-3);
+}
+
 TEST(AllPassFilterStandaloneTest, FeedbackIsClampedToStableRange)
 {
     AllPassFilter positive;
@@ -84,6 +99,21 @@ TEST(AllPassFilterStandaloneTest, ModulationChangesTheDelayTap)
     EXPECT_FLOAT_EQ(modulatedDelay.process(0.0f, 1.0f), 0.0f);
 }
 
+TEST(AllPassFilterStandaloneTest, NonFiniteModulationKeepsOutputFinite)
+{
+    for (const float modulation : {
+             std::numeric_limits<float>::quiet_NaN(),
+             std::numeric_limits<float>::infinity(),
+             -std::numeric_limits<float>::infinity()}) {
+        AllPassFilter filter;
+        filter.initialize(1.0f, 48000.0f);
+        filter.setParametersSamples(1.0f, 0.5f);
+
+        EXPECT_TRUE(std::isfinite(filter.process(0.25f, modulation)))
+            << modulation;
+    }
+}
+
 TEST(AllPassFilterStandaloneTest, ClearRemovesTheStoredDelayHistory)
 {
     AllPassFilter filter;
@@ -95,6 +125,18 @@ TEST(AllPassFilterStandaloneTest, ClearRemovesTheStoredDelayHistory)
     EXPECT_FLOAT_EQ(filter.process(0.0f), 0.0f);
 }
 
+TEST(AllPassFilterStandaloneTest, ClearPreservesDelayAndFeedbackConfiguration)
+{
+    AllPassFilter filter;
+    filter.initialize(1.0f, 4.0f);
+    filter.setParametersSamples(1.0f, 0.0f);
+    filter.process(0.25f);
+    filter.clear();
+
+    EXPECT_FLOAT_EQ(filter.process(1.0f), 0.0f);
+    EXPECT_FLOAT_EQ(filter.process(0.0f), 1.0f);
+}
+
 TEST(AllPassFilterStandaloneTest, InvalidSecondsParametersSelectZeroDelay)
 {
     AllPassFilter filter;
@@ -102,5 +144,18 @@ TEST(AllPassFilterStandaloneTest, InvalidSecondsParametersSelectZeroDelay)
     filter.setParameters(-0.25f, 0.0f, 4.0f);
 
     EXPECT_FLOAT_EQ(filter.process(1.0f), 0.0f);
+}
+
+TEST(AllPassFilterStandaloneTest, NonPositiveOrNonFiniteSampleRateSelectsZeroDelay)
+{
+    for (const float sampleRate : {0.0f, -4.0f,
+                                   std::numeric_limits<float>::quiet_NaN()}) {
+        AllPassFilter filter;
+        filter.initialize(1.0f, 4.0f);
+        filter.setParameters(1.0f, 0.0f, sampleRate);
+
+        EXPECT_FLOAT_EQ(filter.process(1.0f), 0.0f) << sampleRate;
+        EXPECT_FLOAT_EQ(filter.process(0.0f), 0.0f) << sampleRate;
+    }
 }
 

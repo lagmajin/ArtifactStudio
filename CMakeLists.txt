@@ -1294,6 +1294,9 @@ option(ARTIFACT_BUILD_COMPOSITION_LAYER_SURFACE_CACHE_TEST
 option(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_CHANNEL_TEST
     "Build the independent Composition Viewport channel display test executable"
     OFF)
+option(ARTIFACT_BUILD_COMPOSITION_LAYER_MASK_TEST
+    "Build the independent Composition layer-mask GUI and MCP test executable"
+    OFF)
 
 option(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST
     "Build the independent Composition motion path and Transform integration test executable"
@@ -1310,6 +1313,15 @@ option(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
     OFF)
 option(ARTIFACT_ENABLE_IMAGE_IO_TEST
     "Build the standalone image import/export contract test"
+    OFF)
+option(ARTIFACT_ENABLE_LAYER_MASK_TEST
+    "Build the standalone CPU layer-mask visual contract test"
+    OFF)
+option(ARTIFACT_ENABLE_COMPOSITION_LAYER_MASK_GPU_TEST
+    "Build and register the isolated GPU Composition layer-mask integration test"
+    OFF)
+option(ARTIFACT_BUILD_EFFECT_SEQUENCE_STANDALONE_TEST
+    "Build the standalone CPU effect pipeline ordering contract test"
     OFF)
 set(ARTIFACT_FBX_TEST_FILE "" CACHE FILEPATH
     "FBX fixture containing animation and embedded base-color/normal image textures")
@@ -1661,6 +1673,41 @@ if(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_CHANNEL_TEST)
     endif()
 endif()
 
+if(ARTIFACT_BUILD_COMPOSITION_LAYER_MASK_TEST)
+    if(NOT WIN32)
+        message(FATAL_ERROR
+            "ArtifactCompositionLayerMaskTest currently requires Windows window capture")
+    endif()
+    add_executable(ArtifactCompositionLayerMaskTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/CompositionLayerMaskTestMain.cpp"
+    )
+    target_link_libraries(ArtifactCompositionLayerMaskTest PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactCompositionLayerMaskTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    )
+    artifact_add_cppwinrt_include(ArtifactCompositionLayerMaskTest)
+    set_target_properties(ArtifactCompositionLayerMaskTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    add_custom_command(TARGET ArtifactCompositionLayerMaskTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactCompositionLayerMaskTest>
+            "$<TARGET_FILE_DIR:ArtifactCompositionLayerMaskTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactCompositionLayerMaskTest PRIVATE
+            $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/Zf> /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+endif()
+
 if(ARTIFACT_BUILD_AUDIO_BUS_VIEWER)
     add_executable(ArtifactAudioBusViewer
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/AudioBusViewerMain.cpp"
@@ -1967,7 +2014,9 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST
    OR ARTIFACT_ENABLE_LAYER_TEST OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST
    OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST
    OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST OR ARTIFACT_ENABLE_RAY_TRACING_TEST
-   OR ARTIFACT_ENABLE_IMAGE_IO_TEST)
+   OR ARTIFACT_ENABLE_IMAGE_IO_TEST OR ARTIFACT_ENABLE_LAYER_MASK_TEST
+   OR ARTIFACT_ENABLE_COMPOSITION_LAYER_MASK_GPU_TEST
+   OR ARTIFACT_BUILD_EFFECT_SEQUENCE_STANDALONE_TEST)
     enable_testing()
 
     if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST)
@@ -2038,16 +2087,21 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
    OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_RAY_TRACING_TEST
    OR ARTIFACT_ENABLE_FBX_IMPORT_TEST OR ARTIFACT_ENABLE_LAYER_TEST
    OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
-   OR ARTIFACT_ENABLE_IMAGE_IO_TEST OR ARTIFACT_BUILD_PR_TESTS
+   OR ARTIFACT_ENABLE_IMAGE_IO_TEST OR ARTIFACT_ENABLE_LAYER_MASK_TEST
+   OR ARTIFACT_ENABLE_COMPOSITION_LAYER_MASK_GPU_TEST
+   OR ARTIFACT_BUILD_EFFECT_SEQUENCE_STANDALONE_TEST
+   OR ARTIFACT_BUILD_PR_TESTS
    OR ARTIFACT_BUILD_FX_STUDIO_TEST)
     find_package(GTest CONFIG QUIET)
-    if(GTest_FOUND)
+    if(GTest_FOUND OR ARTIFACT_ENABLE_LAYER_MASK_TEST)
         add_subdirectory(tests)
     elseif(ARTIFACT_ENABLE_FBX_IMPORT_TEST OR ARTIFACT_ENABLE_IMAGE_IO_TEST
+           OR ARTIFACT_ENABLE_COMPOSITION_LAYER_MASK_GPU_TEST
+           OR ARTIFACT_BUILD_EFFECT_SEQUENCE_STANDALONE_TEST
            OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
            OR ARTIFACT_BUILD_PR_TESTS OR ARTIFACT_BUILD_FX_STUDIO_TEST)
         message(FATAL_ERROR
-            "An explicitly enabled standalone image/FBX/script-layer/ArtifactPr/FxStudio test requires GTest, but GTest was not found.")
+            "An explicitly enabled standalone image/FBX/script-layer/effect-sequence/ArtifactPr/FxStudio test requires GTest, but GTest was not found.")
     else()
         message(WARNING "GTest was not found; skipping GTest-based tests.")
     endif()

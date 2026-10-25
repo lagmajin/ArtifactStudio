@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -68,6 +69,27 @@ TEST(ArtifactArrayContractTest, AppendAllAndConcatenationKeepSourcesIndependent)
     EXPECT_EQ(toVector(right), (std::vector<int>{3, 4}));
 }
 
+TEST(ArtifactArrayContractTest, AppendAllCanAppendArrayToItselfAcrossCapacityGrowth)
+{
+    Array<int> values{1, 2, 3};
+    ASSERT_EQ(values.capacity(), values.size());
+
+    values.appendAll(values);
+
+    EXPECT_EQ(values, (Array<int>{1, 2, 3, 1, 2, 3}));
+}
+
+TEST(ArtifactArrayContractTest, AppendCanReadAliasedElementAcrossCapacityGrowth)
+{
+    Array<std::string> values{"first", "last"};
+    ASSERT_EQ(values.capacity(), values.size());
+    const std::string& appended = values[0];
+
+    values.append(appended);
+
+    EXPECT_EQ(values, (Array<std::string>{"first", "last", "first"}));
+}
+
 TEST(ArtifactArrayContractTest, CopyAndMoveOperationsPreserveElements)
 {
     const Array<std::string> original{"alpha", "beta"};
@@ -85,6 +107,57 @@ TEST(ArtifactArrayContractTest, CopyAndMoveOperationsPreserveElements)
     moveAssigned = std::move(moved);
     EXPECT_TRUE(moved.isEmpty());
     EXPECT_EQ(moveAssigned[1], "beta");
+}
+
+TEST(ArtifactArrayContractTest, MoveAssignmentReleasesReplacedElementsExactlyOnce)
+{
+    const int baseline = TrackedValue::liveCount;
+    {
+        Array<TrackedValue> destination;
+        destination.append(TrackedValue{1});
+        Array<TrackedValue> source;
+        source.append(TrackedValue{7});
+        source.append(TrackedValue{9});
+        ASSERT_EQ(TrackedValue::liveCount, baseline + 3);
+
+        destination = std::move(source);
+
+        ASSERT_TRUE(source.isEmpty());
+        ASSERT_EQ(destination.size(), 2u);
+        EXPECT_EQ(destination[0].value, 7);
+        EXPECT_EQ(destination[1].value, 9);
+        EXPECT_EQ(TrackedValue::liveCount, baseline + 2);
+    }
+    EXPECT_EQ(TrackedValue::liveCount, baseline);
+}
+
+TEST(ArtifactArrayContractTest, MoveOnlyElementsSupportInsertionExtractionAndArrayMove)
+{
+    Array<std::unique_ptr<int>> values;
+    values.append(std::make_unique<int>(1));
+    values.append(std::make_unique<int>(3));
+    values.insert(1, std::make_unique<int>(2));
+
+    ASSERT_EQ(values.size(), 3u);
+    ASSERT_NE(values[0], nullptr);
+    ASSERT_NE(values[1], nullptr);
+    ASSERT_NE(values[2], nullptr);
+    EXPECT_EQ(*values[0], 1);
+    EXPECT_EQ(*values[1], 2);
+    EXPECT_EQ(*values[2], 3);
+
+    auto extracted = values.takeAt(1);
+    ASSERT_NE(extracted, nullptr);
+    EXPECT_EQ(*extracted, 2);
+    ASSERT_EQ(values.size(), 2u);
+    EXPECT_EQ(*values[0], 1);
+    EXPECT_EQ(*values[1], 3);
+
+    Array<std::unique_ptr<int>> moved(std::move(values));
+    EXPECT_TRUE(values.isEmpty());
+    ASSERT_EQ(moved.size(), 2u);
+    EXPECT_EQ(*moved[0], 1);
+    EXPECT_EQ(*moved[1], 3);
 }
 
 TEST(ArtifactArrayContractTest, AtFirstAndLastExposeMutableAndConstReferences)
@@ -153,6 +226,18 @@ TEST(ArtifactArrayContractTest, SlicesAndReverseReturnIndependentArrays)
     EXPECT_EQ(values[1], 2);
 }
 
+TEST(ArtifactArrayContractTest, SliceBoundariesHandleZeroAndOversizedLengths)
+{
+    const Array<int> values{4, 5, 6};
+
+    EXPECT_TRUE(values.mid(0, 0).isEmpty());
+    EXPECT_TRUE(values.mid(values.size(), 0).isEmpty());
+    EXPECT_TRUE(values.left(0).isEmpty());
+    EXPECT_EQ(values.left(values.size() + 2), values);
+    EXPECT_TRUE(values.right(0).isEmpty());
+    EXPECT_EQ(values.right(values.size() + 2), values);
+}
+
 TEST(ArtifactArrayContractTest, ResizeAndFillRespectGrowthAndShrink)
 {
     Array<int> values{1, 2, 3};
@@ -188,6 +273,14 @@ TEST(ArtifactArrayContractTest, ComparisonsAndPrefixSuffixHandleEmptyArrays)
     EXPECT_FALSE(values.endsWith(Array<int>{2}));
     EXPECT_TRUE(values.startsWith(Array<int>{}));
     EXPECT_TRUE(values.endsWith(Array<int>{}));
+}
+
+TEST(ArtifactArrayContractTest, PrefixAndSuffixLongerThanArrayAreRejected)
+{
+    const Array<int> values{1, 2};
+
+    EXPECT_FALSE(values.startsWith(Array<int>{1, 2, 3}));
+    EXPECT_FALSE(values.endsWith(Array<int>{0, 1, 2}));
 }
 
 TEST(ArtifactArrayContractTest, StaticArraySupportsConstexprAccessAndFill)
@@ -287,6 +380,43 @@ TEST(ArtifactArrayContractTest, ReplaceUpdatesOnlyAnExistingIndex)
     EXPECT_EQ(values[2], "last");
 }
 
+TEST(ArtifactArrayContractTest, ReplaceKeepsArrayStorageAndElementAddressStable)
+{
+    Array<std::string> values{"first", "middle", "last"};
+    values.reserve(12);
+    std::string* const storage = values.data();
+    std::string* const element = &values[1];
+
+    values.replace(1, "updated");
+
+    EXPECT_EQ(values.data(), storage);
+    EXPECT_EQ(&values[1], element);
+    EXPECT_EQ(*element, "updated");
+    EXPECT_EQ(values.capacity(), 12u);
+}
+
+TEST(ArtifactArrayContractTest, ReplaceCanReadReplacementValueFromSameElement)
+{
+    Array<std::string> values{"first", "middle", "last"};
+    const std::string& replacement = values[1];
+
+    values.replace(1, replacement);
+
+    EXPECT_EQ(values[1], "middle");
+    EXPECT_EQ(values.size(), 3u);
+}
+
+TEST(ArtifactArrayContractTest, InsertCanReadAliasedElementAfterShifting)
+{
+    Array<std::string> values{"first", "middle", "last"};
+    values.reserve(8);
+    const std::string& inserted = values[2];
+
+    values.insert(1, inserted);
+
+    EXPECT_EQ(values, (Array<std::string>{"first", "last", "middle", "last"}));
+}
+
 TEST(ArtifactArrayContractTest, InsertAtBeginningAndEndAcceptsBoundaryIndices)
 {
     Array<int> values{2, 3};
@@ -307,6 +437,27 @@ TEST(ArtifactArrayContractTest, ReserveDoesNotChangeSizeOrElements)
     EXPECT_EQ(values.capacity(), reservedCapacity);
 }
 
+TEST(ArtifactArrayContractTest, RemoveAllRetainsCapacityForSubsequentAppends)
+{
+    Array<int> values{4, 5, 6};
+    values.reserve(16);
+    ASSERT_GE(values.capacity(), 16u);
+    const auto reservedCapacity = values.capacity();
+    const int* const storage = values.data();
+
+    values.removeAll();
+
+    EXPECT_TRUE(values.isEmpty());
+    EXPECT_EQ(values.capacity(), reservedCapacity);
+    EXPECT_EQ(values.data(), storage);
+
+    values.append(9);
+    values.append(12);
+
+    EXPECT_EQ(values.data(), storage);
+    EXPECT_EQ(toVector(values), (std::vector<int>{9, 12}));
+}
+
 TEST(ArtifactArrayContractTest, SqueezeReleasesExcessCapacityWithoutChangingElements)
 {
     Array<int> values{4, 5, 6};
@@ -317,6 +468,20 @@ TEST(ArtifactArrayContractTest, SqueezeReleasesExcessCapacityWithoutChangingElem
 
     EXPECT_EQ(values.capacity(), values.size());
     EXPECT_EQ(toVector(values), (std::vector<int>{4, 5, 6}));
+}
+
+TEST(ArtifactArrayContractTest, SqueezeReleasesCapacityOfEmptyArray)
+{
+    Array<int> values;
+    values.reserve(16);
+    ASSERT_GE(values.capacity(), 16u);
+    values.removeAll();
+
+    values.squeeze();
+
+    EXPECT_TRUE(values.isEmpty());
+    EXPECT_EQ(values.capacity(), 0u);
+    EXPECT_EQ(values.data(), nullptr);
 }
 
 TEST(ArtifactArrayContractTest, FindReturnsMutableReferenceToStoredElement)

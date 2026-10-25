@@ -93,6 +93,20 @@ TEST(AudioWaveformStandaloneTest, NonFiniteSamplesAreExcludedFromRms)
     EXPECT_FLOAT_EQ(waveform.getWaveformData()[1], 0.0f);
 }
 
+TEST(AudioWaveformStandaloneTest, MaximumFiniteSamplesProduceFiniteClampedRms)
+{
+    AudioWaveform waveform;
+    waveform.setResolution(1);
+    const float maximum = std::numeric_limits<float>::max();
+    auto segment = makeMono(48000, QVector<float>{maximum, maximum});
+
+    waveform.process(segment);
+
+    ASSERT_EQ(waveform.getWaveformData().size(), 1u);
+    EXPECT_TRUE(std::isfinite(waveform.getWaveformData()[0]));
+    EXPECT_FLOAT_EQ(waveform.getWaveformData()[0], maximum);
+}
+
 TEST(AudioWaveformStandaloneTest, EmptyBlockClearsPreviouslyCapturedWaveform)
 {
     AudioWaveform waveform;
@@ -121,6 +135,34 @@ TEST(AudioWaveformStandaloneTest, ResolutionAboveFrameCountProducesOneBinPerFram
     EXPECT_FLOAT_EQ(waveform.getWaveformData()[0], 0.25f);
     EXPECT_FLOAT_EQ(waveform.getWaveformData()[1], 0.5f);
     EXPECT_FLOAT_EQ(waveform.getWaveformData()[2], 0.75f);
+}
+
+TEST(AudioWaveformStandaloneTest, NonDivisibleFrameCountIncludesTrailingSamples)
+{
+    AudioWaveform waveform;
+    waveform.setResolution(2);
+    auto segment = makeMono(48000,
+                            QVector<float>{1.0f, 1.0f, 0.0f, 0.0f, 3.0f});
+
+    waveform.process(segment);
+
+    ASSERT_EQ(waveform.getWaveformData().size(), 2u);
+    EXPECT_FLOAT_EQ(waveform.getWaveformData()[0], 1.0f);
+    EXPECT_NEAR(waveform.getWaveformData()[1], std::sqrt(3.0f), 1e-6f);
+}
+
+TEST(AudioWaveformStandaloneTest, TrailingRemainderFramesContributeToLastBin)
+{
+    AudioWaveform waveform;
+    waveform.setResolution(4);
+    auto segment = makeMono(48000, QVector<float>{
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 2.0f});
+
+    waveform.process(segment);
+
+    ASSERT_EQ(waveform.getWaveformData().size(), 4u);
+    EXPECT_GT(waveform.getWaveformData().back(), 0.0f);
 }
 
 TEST(AudioWaveformStandaloneTest, BypassPreservesInputAndPreviousWaveform)

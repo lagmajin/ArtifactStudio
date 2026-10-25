@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -23,11 +24,26 @@ struct LifetimeProbe {
     LifetimeProbe& operator=(LifetimeProbe&&) noexcept = default;
     ~LifetimeProbe() { --liveCount; }
 };
+
+struct CountingIntFallback {
+    int* conversionCount;
+    int value;
+
+    operator int() const {
+        ++*conversionCount;
+        return value;
+    }
+};
 }
 
 static_assert(std::is_same_v<decltype(std::declval<ArtifactOptional<int>&>().value()), int&>);
 static_assert(std::is_same_v<decltype(std::declval<const ArtifactOptional<int>&>().value()), const int&>);
 static_assert(std::is_same_v<decltype(std::declval<ArtifactOptional<int>&&>().value()), int&&>);
+static_assert(std::is_same_v<decltype(*std::declval<ArtifactOptional<int>&>()), int&>);
+static_assert(std::is_same_v<decltype(*std::declval<const ArtifactOptional<int>&>()), const int&>);
+static_assert(std::is_same_v<decltype(*std::declval<ArtifactOptional<int>&&>()), int&&>);
+static_assert(std::is_same_v<decltype(*std::declval<const ArtifactOptional<int>&&>()),
+                             const int&&>);
 static_assert(std::is_same_v<decltype(*std::declval<ArtifactOptional<int&>&>()), int&>);
 static_assert(std::is_same_v<decltype(*std::declval<ArtifactOptional<const int&>&>()), const int&>);
 
@@ -63,11 +79,38 @@ TEST(ArtifactOptionalContractTest, ValueOrSelectsPresentValueOrFallback)
     EXPECT_EQ(empty.value_or(9), 9);
 }
 
+TEST(ArtifactOptionalContractTest, LvalueValueOrConvertsFallbackOnlyWhenEmpty)
+{
+    const ArtifactOptional<int> present(5);
+    const ArtifactOptional<int> empty;
+    int conversions = 0;
+
+    EXPECT_EQ(present.value_or(CountingIntFallback{&conversions, 9}), 5);
+    EXPECT_EQ(conversions, 0);
+    EXPECT_EQ(empty.value_or(CountingIntFallback{&conversions, 9}), 9);
+    EXPECT_EQ(conversions, 1);
+}
+
 TEST(ArtifactOptionalContractTest, RvalueValueOrMovesPresentOwningValue)
 {
     ArtifactOptional<std::string> present(std::string("stored"));
     std::string extracted = std::move(present).value_or(std::string("fallback"));
     EXPECT_EQ(extracted, "stored");
+}
+
+TEST(ArtifactOptionalContractTest, RvalueValueOrDoesNotConsumeFallbackWhenPresent)
+{
+    ArtifactOptional<std::unique_ptr<int>> present(std::make_unique<int>(73));
+    auto fallback = std::make_unique<int>(91);
+
+    auto extracted = std::move(present).value_or(std::move(fallback));
+
+    ASSERT_NE(extracted, nullptr);
+    EXPECT_EQ(*extracted, 73);
+    ASSERT_NE(fallback, nullptr);
+    EXPECT_EQ(*fallback, 91);
+    ASSERT_TRUE(present.has_value());
+    EXPECT_EQ(present.value(), nullptr);
 }
 
 TEST(ArtifactOptionalContractTest, RvalueValueOrMovesMoveOnlyFallbackForEmptyOptional)
@@ -137,6 +180,20 @@ TEST(ArtifactOptionalContractTest, MoveConstructionLeavesSourceEngagedAndReusabl
     EXPECT_TRUE(source.has_value());
     source = std::string("reused");
     EXPECT_EQ(source.value(), "reused");
+}
+
+TEST(ArtifactOptionalContractTest, MoveConstructionPreservesEmptyStateAndBothInstancesAreReusable)
+{
+    ArtifactOptional<std::string> source;
+
+    ArtifactOptional<std::string> moved(std::move(source));
+
+    EXPECT_FALSE(source.has_value());
+    EXPECT_FALSE(moved.has_value());
+    source = std::string("source reused");
+    moved = std::string("destination reused");
+    EXPECT_EQ(source.value(), "source reused");
+    EXPECT_EQ(moved.value(), "destination reused");
 }
 
 TEST(ArtifactOptionalContractTest, CopyAssignmentHandlesAllPresenceTransitions)
@@ -268,6 +325,67 @@ TEST(ArtifactOptionalContractTest, ReferenceOptionalAliasesAndRebindsTarget)
     EXPECT_FALSE(reference.has_value());
 }
 
+TEST(ArtifactOptionalContractTest, ReferenceOptionalCopyAssignmentCopiesAlias)
+{
+    int sourceTarget = 17;
+    int previousTarget = 4;
+    ArtifactOptional<int&> source(sourceTarget);
+    ArtifactOptional<int&> destination(previousTarget);
+
+    destination = source;
+
+    ASSERT_TRUE(destination.has_value());
+    EXPECT_EQ(&destination.value(), &sourceTarget);
+    destination.value() = 29;
+    EXPECT_EQ(sourceTarget, 29);
+    EXPECT_EQ(previousTarget, 4);
+}
+
+TEST(ArtifactOptionalContractTest, ReferenceOptionalMoveAssignmentKeepsBothAliases)
+{
+    int sourceTarget = 17;
+    int previousTarget = 4;
+    ArtifactOptional<int&> source(sourceTarget);
+    ArtifactOptional<int&> destination(previousTarget);
+
+    destination = std::move(source);
+
+    ASSERT_TRUE(destination.has_value());
+    ASSERT_TRUE(source.has_value());
+    EXPECT_EQ(&destination.value(), &sourceTarget);
+    EXPECT_EQ(&source.value(), &sourceTarget);
+    *destination = 29;
+    EXPECT_EQ(sourceTarget, 29);
+    EXPECT_EQ(previousTarget, 4);
+}
+
+TEST(ArtifactOptionalContractTest, ReferenceOptionalMoveConstructionKeepsBothAliases)
+{
+    int target = 17;
+    ArtifactOptional<int&> source(target);
+
+    ArtifactOptional<int&> destination(std::move(source));
+
+    ASSERT_TRUE(source.has_value());
+    ASSERT_TRUE(destination.has_value());
+    EXPECT_EQ(&source.value(), &target);
+    EXPECT_EQ(&destination.value(), &target);
+    destination.value() = 29;
+    EXPECT_EQ(target, 29);
+    EXPECT_EQ(source.value(), 29);
+}
+
+TEST(ArtifactOptionalContractTest, ReferenceOptionalNulloptAssignmentClearsAlias)
+{
+    int target = 23;
+    ArtifactOptional<int&> reference(target);
+
+    reference = ArtifactNullopt;
+
+    EXPECT_FALSE(reference.has_value());
+    EXPECT_EQ(target, 23);
+}
+
 TEST(ArtifactOptionalContractTest, EmptyReferenceOptionalValueThrows)
 {
     const ArtifactOptional<int&> empty;
@@ -283,6 +401,31 @@ TEST(ArtifactOptionalContractTest, EmptyReferenceOptionalValueOrReturnsFallbackA
     selected = 29;
 
     EXPECT_EQ(fallback, 29);
+    EXPECT_EQ(&selected, &fallback);
+}
+
+TEST(ArtifactOptionalContractTest, PresentReferenceOptionalValueOrReturnsStoredAlias)
+{
+    int stored = 7;
+    int fallback = 13;
+    const ArtifactOptional<int&> present(stored);
+
+    int& selected = present.value_or(fallback);
+    selected = 29;
+
+    EXPECT_EQ(stored, 29);
+    EXPECT_EQ(fallback, 13);
+    EXPECT_EQ(&selected, &stored);
+}
+
+TEST(ArtifactOptionalContractTest, EmptyConstReferenceOptionalValueOrReturnsFallbackAlias)
+{
+    const int fallback = 37;
+    const ArtifactOptional<const int&> empty;
+
+    const int& selected = empty.value_or(fallback);
+
+    EXPECT_EQ(selected, 37);
     EXPECT_EQ(&selected, &fallback);
 }
 

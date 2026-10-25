@@ -172,6 +172,79 @@ TEST(SoftBodyFallTest, AirDragReducesFreeFallVelocity)
     EXPECT_LT(withDrag.point(0).y, withoutDrag.point(0).y);
 }
 
+TEST(SoftBodySnapshotTest, RejectsOutOfRangeConstraintWithoutMutatingState)
+{
+    SoftBodySolver solver;
+    solver.addPoint(2.0f, 3.0f, 1.0f, true);
+    const SoftBodySnapshot before = solver.snapshot();
+
+    SoftBodySnapshot invalid = before;
+    invalid.points[0].x = 99.0f;
+    invalid.constraints.push_back({0, 1, 1.0f, 1.0f});
+
+    EXPECT_FALSE(solver.canRestoreSnapshot(invalid));
+    EXPECT_FALSE(solver.restoreSnapshot(invalid));
+    const SoftBodySnapshot after = solver.snapshot();
+    ASSERT_EQ(after.points.size(), before.points.size());
+    EXPECT_FLOAT_EQ(after.points[0].x, before.points[0].x);
+    EXPECT_FLOAT_EQ(after.points[0].y, before.points[0].y);
+    EXPECT_TRUE(after.points[0].isPinned);
+    EXPECT_TRUE(after.constraints.empty());
+}
+
+TEST(SoftBodySnapshotTest, RejectsInvalidGridShapeWithoutMutatingState)
+{
+    SoftBodySolver solver;
+    solver.addPoint(2.0f, 3.0f, 1.0f, true);
+    const SoftBodySnapshot before = solver.snapshot();
+
+    SoftBodySnapshot negativeDimension = before;
+    negativeDimension.gridColumns = -1;
+    EXPECT_FALSE(solver.canRestoreSnapshot(negativeDimension));
+    EXPECT_FALSE(solver.restoreSnapshot(negativeDimension));
+
+    SoftBodySnapshot mismatchedPointCount = before;
+    mismatchedPointCount.gridColumns = 2;
+    mismatchedPointCount.gridRows = 2;
+    EXPECT_FALSE(solver.canRestoreSnapshot(mismatchedPointCount));
+    EXPECT_FALSE(solver.restoreSnapshot(mismatchedPointCount));
+
+    const SoftBodySnapshot after = solver.snapshot();
+    ASSERT_EQ(after.points.size(), before.points.size());
+    EXPECT_FLOAT_EQ(after.points[0].x, before.points[0].x);
+    EXPECT_FLOAT_EQ(after.points[0].y, before.points[0].y);
+    EXPECT_TRUE(after.points[0].isPinned);
+    EXPECT_EQ(after.gridColumns, before.gridColumns);
+    EXPECT_EQ(after.gridRows, before.gridRows);
+}
+
+TEST(SoftBodySnapshotTest, RestoresGridAndWindStateAndClampsAccumulatedTime)
+{
+    SoftBodySolver source;
+    source.buildGrid(1.0f, 2.0f, 6.0f, 8.0f, 3, 2);
+    SoftBodySnapshot checkpoint = source.snapshot();
+    checkpoint.wind.directionX = -0.25f;
+    checkpoint.wind.directionY = 0.75f;
+    checkpoint.turbulenceTime = 2.5f;
+    checkpoint.accumulatedTime = 1.0f;
+
+    SoftBodySolver restored;
+    restored.setFixedTimeStep(0.02f);
+    restored.setMaxSubsteps(3);
+    ASSERT_TRUE(restored.canRestoreSnapshot(checkpoint));
+    ASSERT_TRUE(restored.restoreSnapshot(checkpoint));
+
+    const SoftBodySnapshot result = restored.snapshot();
+    EXPECT_EQ(result.gridColumns, checkpoint.gridColumns);
+    EXPECT_EQ(result.gridRows, checkpoint.gridRows);
+    EXPECT_EQ(result.points.size(), checkpoint.points.size());
+    EXPECT_EQ(result.constraints.size(), checkpoint.constraints.size());
+    EXPECT_FLOAT_EQ(result.wind.directionX, checkpoint.wind.directionX);
+    EXPECT_FLOAT_EQ(result.wind.directionY, checkpoint.wind.directionY);
+    EXPECT_FLOAT_EQ(result.turbulenceTime, checkpoint.turbulenceTime);
+    EXPECT_FLOAT_EQ(result.accumulatedTime, 0.06f);
+}
+
 TEST(FluidDeterminismTest, IdenticalInputsProduceIdenticalDensity)
 {
     FluidSolver2D a(32, 32);

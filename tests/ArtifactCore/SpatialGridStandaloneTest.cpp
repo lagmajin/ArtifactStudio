@@ -50,6 +50,15 @@ TEST(SpatialGridStandaloneTest, QueryRadiusAcrossCornerIncludesAllThreeAxisCells
               (std::vector<size_t>{0, 1}));
 }
 
+TEST(SpatialGridStandaloneTest, QueryRadiusSpanningMultipleCellsFindsDistantCellEntries)
+{
+    SpatialGrid grid(1.0f);
+    grid.build({float3(0.1f, 0.0f, 0.0f), float3(2.1f, 0.0f, 0.0f)});
+
+    EXPECT_EQ(queryIndices(grid, float3(0.1f, 0.0f, 0.0f), 2.0f),
+              (std::vector<size_t>{0, 1}));
+}
+
 TEST(SpatialGridStandaloneTest, CellCoordinatesUseFloorForNegativePositions)
 {
     SpatialGrid grid(1.0f);
@@ -88,6 +97,16 @@ TEST(SpatialGridStandaloneTest, RebuildReplacesAllPreviousEntries)
     EXPECT_TRUE(queryIndices(grid, float3(0.0f), 0.0f).empty());
     EXPECT_EQ(queryIndices(grid, float3(-3.0f), 0.0f),
               (std::vector<size_t>{0}));
+}
+
+TEST(SpatialGridStandaloneTest, BuildingFromEmptyPositionsClearsPreviousEntries)
+{
+    SpatialGrid grid(1.0f);
+    grid.build({float3(2.0f, 3.0f, 4.0f)});
+
+    grid.build({});
+
+    EXPECT_TRUE(queryIndices(grid, float3(2.0f, 3.0f, 4.0f), 0.0f).empty());
 }
 
 TEST(SpatialGridStandaloneTest, ClearMakesPreviouslyOccupiedCellsUnqueryable)

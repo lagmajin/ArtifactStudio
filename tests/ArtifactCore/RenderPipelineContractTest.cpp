@@ -87,6 +87,47 @@ TEST(RenderPipelineContractTest, RejectsInvalidSnapshotAndIncompleteColorContrac
     EXPECT_EQ(gpu.failureReason(invalidFrame), RenderFallbackReason::InvalidSnapshot);
 }
 
+TEST(RenderPipelineContractTest, CpuImageLayoutCanBeKnownBeforeColorSemantics)
+{
+    const auto unknownBgra = SurfaceColorDescriptor::unknownBgra32Float();
+    EXPECT_FALSE(unknownBgra.isFullySpecified());
+    EXPECT_FALSE(unknownBgra.isCanonical());
+    EXPECT_TRUE(unknownBgra.isCanonicalCpuImage());
+
+    const auto canonicalBgra =
+        SurfaceColorDescriptor::canonicalLinearPremultipliedBgra(
+            SurfaceColorPrimaries::Rec2020_D65);
+    EXPECT_TRUE(canonicalBgra.isFullySpecified());
+    EXPECT_FALSE(canonicalBgra.isCanonical());
+    EXPECT_TRUE(canonicalBgra.isCanonicalCpuImage());
+    EXPECT_EQ(canonicalBgra.primaries, SurfaceColorPrimaries::Rec2020_D65);
+    EXPECT_EQ(canonicalBgra.alphaMode, SurfaceAlphaMode::Premultiplied);
+    EXPECT_EQ(canonicalBgra.range, SurfaceColorRange::SceneReferred);
+}
+
+TEST(RenderPipelineContractTest, SrgbBgraAndLinearBgra16FactoriesKeepTheirFormats)
+{
+    const auto encoded = SurfaceColorDescriptor::encodedSrgbBgra8Straight();
+    EXPECT_TRUE(encoded.isFullySpecified());
+    EXPECT_FALSE(encoded.isCanonicalCpuImage());
+    EXPECT_EQ(encoded.storage, SurfacePixelStorage::RGBA8UNormSrgb);
+    EXPECT_EQ(encoded.channelOrder, SurfaceChannelOrder::BGRA);
+    EXPECT_EQ(encoded.transfer, TransferFunction::sRGB);
+    EXPECT_EQ(encoded.alphaMode, SurfaceAlphaMode::Straight);
+    EXPECT_EQ(encoded.range, SurfaceColorRange::DisplayReferred);
+
+    const auto linear = SurfaceColorDescriptor::linearStraightBgra16Float(
+        SurfaceColorPrimaries::DisplayP3_D65);
+    EXPECT_TRUE(linear.isFullySpecified());
+    EXPECT_FALSE(linear.isCanonical());
+    EXPECT_TRUE(linear.isCanonicalCpuImage());
+    EXPECT_EQ(linear.storage, SurfacePixelStorage::RGBA16Float);
+    EXPECT_EQ(linear.channelOrder, SurfaceChannelOrder::BGRA);
+    EXPECT_EQ(linear.transfer, TransferFunction::Linear);
+    EXPECT_EQ(linear.primaries, SurfaceColorPrimaries::DisplayP3_D65);
+    EXPECT_EQ(linear.alphaMode, SurfaceAlphaMode::Straight);
+}
+
 TEST(RenderPipelineContractTest, RejectsMissingIdentityInvalidRateAndSchemaVersion)
 {
     const auto snapshot = makeSnapshot();
@@ -198,6 +239,19 @@ TEST(RenderPipelineContractTest, TextureDimensionLimitIsInclusivePerAxis)
               RenderFallbackReason::ResolutionExceeded);
 }
 
+TEST(RenderPipelineContractTest, ZeroTextureDimensionLimitIsUnbounded)
+{
+    auto snapshot = makeSnapshot();
+    snapshot.width = std::numeric_limits<std::uint32_t>::max();
+    snapshot.height = std::numeric_limits<std::uint32_t>::max();
+    auto capabilities = gpuCapabilities();
+    capabilities.supported |= capabilityMask(RenderCapability::HDR);
+    capabilities.maxTextureDimension = 0;
+
+    EXPECT_EQ(capabilities.failureReason(snapshot), RenderFallbackReason::None);
+    EXPECT_TRUE(capabilities.canRender(snapshot));
+}
+
 TEST(RenderPipelineContractTest, ReportsMissingFloat16TargetCapability)
 {
     auto snapshot = makeSnapshot();
@@ -236,6 +290,24 @@ TEST(RenderPipelineContractTest, KeepsRequestedGpuWhenBothCandidatesCanRender)
     EXPECT_EQ(selection.selected, RenderBackendKind::DiligentGPU);
     EXPECT_FALSE(selection.usedFallback());
     EXPECT_EQ(selection.fallbackReason, RenderFallbackReason::None);
+}
+
+TEST(RenderPipelineContractTest, CacheKeyUsesResolvedBackendAfterFallback)
+{
+    const auto snapshot = makeSnapshot();
+    EXPECT_EQ(snapshot.cacheKey().backend, RenderBackendKind::DiligentGPU);
+
+    auto gpu = gpuCapabilities();
+    gpu.supported &= ~capabilityMask(RenderCapability::HDR);
+    const auto selection = RenderPipelineContract::selectBackend(
+        snapshot, gpu, softwareCapabilities());
+
+    ASSERT_TRUE(selection.resolved());
+    EXPECT_EQ(selection.selected, RenderBackendKind::Software);
+    EXPECT_TRUE(selection.usedFallback());
+    EXPECT_EQ(selection.cacheKey(snapshot).backend, RenderBackendKind::Software);
+    EXPECT_NE(snapshot.cacheKey().stableHash(),
+              selection.cacheKey(snapshot).stableHash());
 }
 
 TEST(RenderPipelineContractTest, AutoSelectsGpuAndFallsBackOnlyWhenNeeded)
@@ -410,6 +482,20 @@ TEST(RenderPipelineContractTest,
         << "invalidating a low-resolution history must preserve full resolution";
 }
 
+TEST(RenderPipelineContractTest,
+     TemporalHistoryDoesNotTreatSignedFrameWraparoundAsReusable)
+{
+    const TemporalHistoryKey key{
+        101, 7, "gi.diffuse", 960, 540,
+        static_cast<std::uint32_t>(RenderQuality::Preview)};
+    TemporalHistoryRegistry registry;
+    registry.store(key, 401,
+                   std::numeric_limits<std::int64_t>::max());
+
+    EXPECT_FALSE(registry.isReusable(
+        key, std::numeric_limits<std::int64_t>::min()));
+}
+
 TEST(RenderPipelineContractTest, CacheKeyTracksRemainingIdentityColorAndFeatureFields)
 {
     const auto snapshot = makeSnapshot();
@@ -455,6 +541,39 @@ TEST(RenderPipelineContractTest, RenderIndexSnapshotSortsByProxyId)
     EXPECT_EQ(snapshot.proxies[0].descriptor.id, 3u);
     EXPECT_EQ(snapshot.proxies[1].descriptor.id, 11u);
     EXPECT_EQ(snapshot.proxies[2].descriptor.id, 20u);
+}
+
+TEST(RenderPipelineContractTest,
+     SnapshotRemainsStableAfterIndexMutation)
+{
+    RenderIndex index;
+    RenderProxyDescriptor first{};
+    first.id = 5;
+    first.kind = RenderProxyKind::Mesh;
+    first.geometryKey = "geometry-before";
+    first.materialKey = "material-before";
+    ASSERT_TRUE(index.upsert(first));
+    ASSERT_TRUE(index.upsert(RenderProxyDescriptor{8}));
+
+    const RenderIndexSnapshot snapshot = index.snapshot();
+    ASSERT_EQ(snapshot.proxies.size(), 2u);
+    const auto snapshotGeneration = snapshot.generation;
+
+    RenderProxyDescriptor updated = first;
+    updated.geometryKey = "geometry-after";
+    updated.visible = false;
+    ASSERT_TRUE(index.upsert(updated, RenderDirty::Geometry));
+    ASSERT_TRUE(index.erase(8));
+    ASSERT_TRUE(index.upsert(RenderProxyDescriptor{13}));
+
+    EXPECT_NE(index.generation(), snapshotGeneration);
+    ASSERT_EQ(snapshot.proxies.size(), 2u);
+    EXPECT_EQ(snapshot.generation, snapshotGeneration);
+    EXPECT_EQ(snapshot.proxies[0].descriptor.id, 5u);
+    EXPECT_EQ(snapshot.proxies[0].descriptor.geometryKey, "geometry-before");
+    EXPECT_EQ(snapshot.proxies[0].descriptor.materialKey, "material-before");
+    EXPECT_TRUE(snapshot.proxies[0].descriptor.visible);
+    EXPECT_EQ(snapshot.proxies[1].descriptor.id, 8u);
 }
 
 TEST(RenderPipelineContractTest, DirtyOnlySnapshotFiltersCleanRecordsAndKeepsGeneration)
@@ -534,6 +653,53 @@ TEST(RenderPipelineContractTest, MarkDirtyAndClearDirtyHaveBoundedEffects)
     EXPECT_EQ(index.generation(), generationAfterClear + 1u);
 }
 
+TEST(RenderPipelineContractTest,
+     ClearingOneDirtyFlagPreservesOtherFlagsAndRevision)
+{
+    RenderIndex index;
+    ASSERT_TRUE(index.upsert(RenderProxyDescriptor{13}));
+    index.clearDirty(13);
+    ASSERT_TRUE(index.markDirty(13, RenderDirty::Transform));
+    ASSERT_TRUE(index.markDirty(13, RenderDirty::Material));
+
+    const auto generationBeforeClear = index.generation();
+    const auto revisionBeforeClear = index.find(13)->revision;
+    index.clearDirty(13, RenderDirty::Transform);
+
+    const RenderProxyRecord* record = index.find(13);
+    ASSERT_NE(record, nullptr);
+    EXPECT_EQ(record->dirty, RenderDirty::Material);
+    EXPECT_EQ(record->revision, revisionBeforeClear);
+    EXPECT_EQ(index.generation(), generationBeforeClear);
+
+    const auto dirtySnapshot = index.snapshot(true);
+    ASSERT_EQ(dirtySnapshot.proxies.size(), 1u);
+    EXPECT_EQ(dirtySnapshot.proxies.front().descriptor.id, 13u);
+    EXPECT_EQ(dirtySnapshot.proxies.front().dirty, RenderDirty::Material);
+}
+
+TEST(RenderPipelineContractTest,
+     ClearDirtyIgnoresMissingProxyAndEmptyMask)
+{
+    RenderIndex index;
+    ASSERT_TRUE(index.upsert(RenderProxyDescriptor{17}));
+    const RenderProxyRecord* original = index.find(17);
+    ASSERT_NE(original, nullptr);
+    const auto originalDirty = original->dirty;
+    const auto originalRevision = original->revision;
+    const auto originalGeneration = index.generation();
+
+    index.clearDirty(99, RenderDirty::Material);
+    index.clearDirty(17, RenderDirty::None);
+
+    const RenderProxyRecord* unchanged = index.find(17);
+    ASSERT_NE(unchanged, nullptr);
+    EXPECT_EQ(unchanged->dirty, originalDirty);
+    EXPECT_EQ(unchanged->revision, originalRevision);
+    EXPECT_EQ(index.generation(), originalGeneration);
+    EXPECT_EQ(index.size(), 1u);
+}
+
 TEST(RenderPipelineContractTest, EraseChangesGenerationOnlyForExistingProxy)
 {
     RenderIndex index;
@@ -565,6 +731,38 @@ TEST(RenderPipelineContractTest, GIFrameResourceResizeAdvancesResourceGeneration
     EXPECT_EQ(resources.generation(), 2u);
     EXPECT_EQ(resources.width(), 1280u);
     EXPECT_EQ(resources.height(), 720u);
+}
+
+TEST(RenderPipelineContractTest,
+     GIFrameContextResizeOnlyInvalidatesResourcesWhenDimensionsChange)
+{
+    GIFrameContext context(GISettings::fast());
+    context.resize(640, 360);
+    context.beginFrame(1);
+    context.commitHistory();
+    ASSERT_TRUE(context.historyReady());
+
+    const auto resourceGeneration = context.resources().generation();
+    const auto historyGeneration = context.accumulation().generation();
+    context.resize(640, 360);
+    EXPECT_EQ(context.resources().generation(), resourceGeneration);
+    EXPECT_EQ(context.accumulation().generation(), historyGeneration);
+    EXPECT_TRUE(context.historyReady())
+        << "a duplicate resize must preserve valid temporal history";
+
+    context.resize(800, 450);
+    EXPECT_EQ(context.resources().generation(), resourceGeneration + 1u);
+    EXPECT_EQ(context.resources().width(), 800u);
+    EXPECT_EQ(context.resources().height(), 450u);
+    EXPECT_FALSE(context.historyReady())
+        << "a real size change must invalidate temporal history";
+    EXPECT_EQ(context.accumulation().generation(), historyGeneration + 1u);
+
+    const auto changedResourceGeneration = context.resources().generation();
+    const auto changedHistoryGeneration = context.accumulation().generation();
+    context.resize(800, 450);
+    EXPECT_EQ(context.resources().generation(), changedResourceGeneration);
+    EXPECT_EQ(context.accumulation().generation(), changedHistoryGeneration);
 }
 
 TEST(RenderPipelineContractTest, GIWorkingResolutionFollowsQualityScale)
@@ -743,23 +941,29 @@ TEST(RenderPipelineContractTest, GIQualityTransitionsReplacePlanAndInvalidateHis
     context.beginFrame(1);
     context.commitHistory();
     ASSERT_TRUE(context.historyReady());
+    const auto resourceGeneration = context.resources().generation();
 
     context.configure(GISettings::quality());
     EXPECT_EQ(context.plan().gatherSampleCount(), 24u);
     EXPECT_TRUE(context.plan().contains(GIPassKind::DepthPyramid));
     EXPECT_FALSE(context.historyReady());
+    EXPECT_EQ(context.resources().generation(), resourceGeneration);
+    EXPECT_EQ(context.resources().width(), 1280u);
+    EXPECT_EQ(context.resources().height(), 720u);
 
     context.commitHistory();
     ASSERT_TRUE(context.historyReady());
     context.configure(GISettings::disabled());
     EXPECT_TRUE(context.plan().empty());
     EXPECT_FALSE(context.historyReady());
+    EXPECT_EQ(context.resources().generation(), resourceGeneration);
 
     context.configure(GISettings::fast());
     EXPECT_EQ(context.plan().gatherSampleCount(), 4u);
     EXPECT_FALSE(context.plan().contains(GIPassKind::DepthPyramid));
     EXPECT_FALSE(context.plan().contains(GIPassKind::BilateralDenoise));
     EXPECT_FALSE(context.historyReady());
+    EXPECT_EQ(context.resources().generation(), resourceGeneration);
 }
 
 TEST(RenderPipelineContractTest, GIFrameResourceDescriptorsMatchEveryResourceLayout)

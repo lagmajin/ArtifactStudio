@@ -4,6 +4,7 @@
 #include <QVector>
 
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <utility>
 
@@ -71,6 +72,104 @@ TEST(AudioChorusStandaloneTest, ShortBlockContainsOnlyTheDocumentedDryBlendBefor
     EXPECT_FLOAT_EQ(segment.channelData[0][0], 0.7f);
     EXPECT_FLOAT_EQ(segment.channelData[0][1], -0.35f);
     EXPECT_FLOAT_EQ(segment.channelData[0][2], 0.175f);
+}
+
+TEST(AudioChorusStandaloneTest, LfoPhaseRemainsContinuousAcrossSegmentBoundaries)
+{
+    AudioChorus wholeBlockChorus;
+    AudioChorus segmentedChorus;
+    for (auto* chorus : {&wholeBlockChorus, &segmentedChorus}) {
+        chorus->setDelayMs(1.0f);
+        chorus->setRate(10.0f);
+        chorus->setDepth(1.0f);
+    }
+
+    QVector<float> input;
+    input.reserve(80);
+    for (int frame = 0; frame < 80; ++frame) {
+        input.push_back(std::sin(2.0f * 3.14159265f * 7.0f * frame / 1000.0f));
+    }
+
+    auto wholeBlock = makeMono(1000, input);
+    wholeBlockChorus.process(wholeBlock);
+
+    QVector<float> segmentedOutput;
+    segmentedOutput.reserve(input.size());
+    for (int start = 0; start < input.size(); start += 20) {
+        auto block = makeMono(1000, input.mid(start, 20));
+        segmentedChorus.process(block);
+        segmentedOutput += block.channelData[0];
+    }
+
+    ASSERT_EQ(segmentedOutput.size(), wholeBlock.channelData[0].size());
+    EXPECT_EQ(segmentedOutput, wholeBlock.channelData[0]);
+}
+
+TEST(AudioChorusStandaloneTest, StereoChannelsKeepIndependentDelayHistory)
+{
+    AudioChorus chorus;
+    chorus.setDelayMs(1.0f);
+    chorus.setDepth(0.0f);
+    AudioSegment segment;
+    segment.sampleRate = 1000;
+    segment.layout = AudioChannelLayout::Stereo;
+    segment.channelData.push_back(QVector<float>{1.0f, 0.0f, 0.0f, 0.0f});
+    segment.channelData.push_back(QVector<float>{0.0f, 0.0f, 0.0f, 0.0f});
+
+    chorus.process(segment);
+
+    EXPECT_NEAR(segment.channelData[0][1], 0.3f, 1e-6f);
+    for (const float sample : segment.channelData[1])
+        EXPECT_FLOAT_EQ(sample, 0.0f);
+}
+
+TEST(AudioChorusStandaloneTest, FeedbackSettingChangesWetResponse)
+{
+    AudioChorus noFeedback;
+    AudioChorus strongFeedback;
+    for (auto* chorus : {&noFeedback, &strongFeedback}) {
+        chorus->setDelayMs(1.0f);
+        chorus->setRate(10.0f);
+        chorus->setDepth(0.5f);
+    }
+    noFeedback.setFeedback(0.0f);
+    strongFeedback.setFeedback(0.9f);
+
+    QVector<float> impulse(4096, 0.0f);
+    impulse[0] = 1.0f;
+    auto withoutFeedback = makeMono(4000, impulse);
+    auto withFeedback = makeMono(4000, impulse);
+    noFeedback.process(withoutFeedback);
+    strongFeedback.process(withFeedback);
+
+    bool differs = false;
+    for (qsizetype frame = 0; frame < impulse.size(); ++frame) {
+        differs = differs || withoutFeedback.channelData[0][frame]
+            != withFeedback.channelData[0][frame];
+    }
+    EXPECT_TRUE(differs);
+}
+
+TEST(AudioChorusStandaloneTest, ChorusAndFlangerModesProduceDifferentResponses)
+{
+    AudioChorus chorusMode;
+    AudioChorus flangerMode;
+    for (auto* chorus : {&chorusMode, &flangerMode}) {
+        chorus->setDelayMs(4.0f);
+        chorus->setRate(8.0f);
+        chorus->setDepth(0.8f);
+        chorus->setMix(1.0f);
+    }
+    chorusMode.setMode(AudioChorus::Mode::Chorus);
+    flangerMode.setMode(AudioChorus::Mode::Flanger);
+
+    const QVector<float> input(256, 0.5f);
+    auto chorusInput = makeMono(4000, input);
+    auto flangerInput = makeMono(4000, input);
+    chorusMode.process(chorusInput);
+    flangerMode.process(flangerInput);
+
+    EXPECT_NE(chorusInput.channelData[0], flangerInput.channelData[0]);
 }
 
 TEST(AudioChorusStandaloneTest, BypassPreservesInputSamplesExactly)

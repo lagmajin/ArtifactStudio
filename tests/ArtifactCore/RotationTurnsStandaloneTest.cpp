@@ -102,6 +102,21 @@ TEST(RotationTurnsStandaloneTest, MoveConstructionTransfersValue)
     EXPECT_DOUBLE_EQ(moved.getTotalDegrees(), 5.0);
 }
 
+TEST(RotationTurnsStandaloneTest, MovedFromObjectCanReceiveMoveAssignment)
+{
+    RotationTurns original(1, 45.0);
+    RotationTurns moved(std::move(original));
+    RotationTurns replacement(2, 90.0);
+
+    original = std::move(replacement);
+
+    EXPECT_EQ(original.rotations(), 2);
+    EXPECT_DOUBLE_EQ(original.degrees(), 90.0);
+    EXPECT_DOUBLE_EQ(original.getTotalDegrees(), 810.0);
+    EXPECT_EQ(moved.rotations(), 1);
+    EXPECT_DOUBLE_EQ(moved.degrees(), 45.0);
+}
+
 TEST(RotationTurnsStandaloneTest, MoveAssignmentReplacesDestinationValue)
 {
     RotationTurns source(3, -45.0);

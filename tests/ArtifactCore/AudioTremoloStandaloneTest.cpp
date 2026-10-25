@@ -5,6 +5,7 @@
 #include <QtGlobal>
 
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <utility>
 
@@ -63,6 +64,33 @@ TEST(AudioTremoloStandaloneTest, ZeroDepthLeavesSignalUnchanged)
     EXPECT_EQ(segment.channelData[0], (QVector<float>{1.0f, -0.5f, 0.25f, 0.0f}));
 }
 
+TEST(AudioTremoloStandaloneTest, MixLinearlyBlendsDryAndModulatedSignal)
+{
+    AudioTremolo dry;
+    AudioTremolo halfMix;
+    AudioTremolo wet;
+    for (auto* tremolo : {&dry, &halfMix, &wet}) {
+        tremolo->setRate(1.0f);
+        tremolo->setDepth(1.0f);
+    }
+    dry.setMix(0.0f);
+    halfMix.setMix(0.5f);
+    wet.setMix(1.0f);
+
+    auto dryInput = makeMono(1000, QVector<float>{0.8f});
+    auto halfInput = makeMono(1000, QVector<float>{0.8f});
+    auto wetInput = makeMono(1000, QVector<float>{0.8f});
+    dry.process(dryInput);
+    halfMix.process(halfInput);
+    wet.process(wetInput);
+
+    EXPECT_FLOAT_EQ(dryInput.channelData[0][0], 0.8f);
+    EXPECT_FLOAT_EQ(wetInput.channelData[0][0], 0.4f);
+    EXPECT_NEAR(halfInput.channelData[0][0],
+                (dryInput.channelData[0][0] + wetInput.channelData[0][0]) * 0.5f,
+                1e-6f);
+}
+
 TEST(AudioTremoloStandaloneTest, DepthModulatesConstantSignal)
 {
     AudioTremolo tremolo;
@@ -80,6 +108,60 @@ TEST(AudioTremoloStandaloneTest, DepthModulatesConstantSignal)
         EXPECT_LE(sample, 1.0f);
     }
     EXPECT_TRUE(differs);
+}
+
+TEST(AudioTremoloStandaloneTest, LfoPhaseRemainsContinuousAcrossSegmentBoundaries)
+{
+    AudioTremolo wholeBlockTremolo;
+    AudioTremolo segmentedTremolo;
+    for (auto* tremolo : {&wholeBlockTremolo, &segmentedTremolo}) {
+        tremolo->setRate(17.0f);
+        tremolo->setDepth(0.85f);
+        tremolo->setShape(0.3f);
+    }
+
+    QVector<float> input;
+    input.reserve(83);
+    for (int frame = 0; frame < 83; ++frame)
+        input.push_back((frame % 5 == 0) ? -0.75f : 0.5f);
+
+    auto wholeBlock = makeMono(1000, input);
+    wholeBlockTremolo.process(wholeBlock);
+
+    QVector<float> segmentedOutput;
+    segmentedOutput.reserve(input.size());
+    constexpr int blockSizes[] = {7, 19, 3, 31, 23};
+    int start = 0;
+    for (const int blockSize : blockSizes) {
+        auto block = makeMono(1000, input.mid(start, blockSize));
+        segmentedTremolo.process(block);
+        segmentedOutput += block.channelData[0];
+        start += blockSize;
+    }
+
+    ASSERT_EQ(start, input.size());
+    EXPECT_EQ(segmentedOutput, wholeBlock.channelData[0]);
+}
+
+TEST(AudioTremoloStandaloneTest, FullWidthStereoAutoPanUsesOppositeLfoPhases)
+{
+    AudioTremolo tremolo;
+    tremolo.setRate(5.0f);
+    tremolo.setDepth(1.0f);
+    tremolo.setShape(0.0f);
+    tremolo.setWidth(1.0f);
+    tremolo.setMix(1.0f);
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Stereo;
+    segment.channelData.push_back(QVector<float>(4800, 1.0f));
+    segment.channelData.push_back(QVector<float>(4800, 1.0f));
+
+    tremolo.process(segment);
+
+    // At 2400 samples the left LFO is at +1 and the width=1 right LFO at -1.
+    EXPECT_NEAR(segment.channelData[0][2400], 1.0f, 1e-4f);
+    EXPECT_NEAR(segment.channelData[1][2400], 0.0f, 1e-4f);
 }
 
 TEST(AudioTremoloStandaloneTest, BypassPreservesInputSamples)

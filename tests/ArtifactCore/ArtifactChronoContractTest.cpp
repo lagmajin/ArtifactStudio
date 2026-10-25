@@ -80,6 +80,14 @@ TEST(ArtifactChronoContractTest, FloatingFactoriesRoundHalfAwayFromZero)
     EXPECT_EQ(Duration::fromMicros(-0.0005).nanos(), -1);
 }
 
+TEST(ArtifactChronoContractTest, MillisecondAndSecondFactoriesRoundFractionalNanoseconds)
+{
+    EXPECT_EQ(Duration::fromMillis(0.00000075).nanos(), 1);
+    EXPECT_EQ(Duration::fromMillis(-0.00000075).nanos(), -1);
+    EXPECT_EQ(Duration::fromSeconds(0.00000000075).nanos(), 1);
+    EXPECT_EQ(Duration::fromSeconds(-0.00000000075).nanos(), -1);
+}
+
 TEST(ArtifactChronoContractTest, AdditionAndSubtractionPreserveSignedValues)
 {
     constexpr auto a = Duration::fromNanos(19);
@@ -100,6 +108,12 @@ TEST(ArtifactChronoContractTest, ScalarMultiplicationTruncatesTowardZero)
 {
     EXPECT_EQ((Duration::fromNanos(5) * 1.5).nanos(), 7);
     EXPECT_EQ((Duration::fromNanos(-5) * 1.5).nanos(), -7);
+}
+
+TEST(ArtifactChronoContractTest, NegativeScalarMultiplicationReversesDurationSign)
+{
+    EXPECT_EQ((Duration::fromNanos(8) * -1.5).nanos(), -12);
+    EXPECT_EQ((Duration::fromNanos(-8) * -1.5).nanos(), 12);
 }
 
 TEST(ArtifactChronoContractTest, DivisionTruncatesTowardZero)

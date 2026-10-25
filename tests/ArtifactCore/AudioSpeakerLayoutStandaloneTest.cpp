@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
+#include <limits>
 
 import Audio.Spatial.SpeakerLayout;
 
@@ -152,4 +154,54 @@ TEST(AudioSpeakerLayoutStandaloneTest, OppositeDirectionFallbackStillReturnsUnit
     EXPECT_NEAR(gainEnergy(gains), 1.0f, 1e-6f);
     EXPECT_FLOAT_EQ(gains.values[0], 1.0f);
     EXPECT_FLOAT_EQ(gains.values[1], 0.0f);
+}
+
+TEST(AudioSpeakerLayoutStandaloneTest, UnknownLayoutEnumUsesSafeStereoFallback)
+{
+    const auto invalidLayout = static_cast<AudioChannelLayout>(255);
+    const auto descriptor = speakerLayout(invalidLayout);
+    EXPECT_EQ(descriptor.channelCount, 2);
+    EXPECT_EQ(descriptor.speakers[0].channelIndex, 0);
+    EXPECT_EQ(descriptor.speakers[1].channelIndex, 1);
+
+    const auto gains = calculateSpeakerGains(invalidLayout, {0.2f, 0.3f, -0.9f});
+    ASSERT_EQ(gains.channelCount, 2);
+    EXPECT_TRUE(gains.usedFallback);
+    EXPECT_NEAR(gainEnergy(gains), 1.0f, 1e-6f);
+    EXPECT_TRUE(std::isfinite(gains.values[0]));
+    EXPECT_TRUE(std::isfinite(gains.values[1]));
+}
+
+TEST(AudioSpeakerLayoutStandaloneTest, NonFiniteDirectionNeverProducesInvalidGains)
+{
+    const float infinity = std::numeric_limits<float>::infinity();
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const std::array<Vec3, 3> directions{{
+        {nan, 0.0f, -1.0f},
+        {infinity, 1.0f, 0.0f},
+        {0.0f, -infinity, 1.0f}}};
+    for (const Vec3 direction : directions) {
+        const auto gains = calculateSpeakerGains(AudioChannelLayout::Surround714,
+                                                 direction);
+        ASSERT_EQ(gains.channelCount, 12);
+        EXPECT_NEAR(gainEnergy(gains), 1.0f, 1e-5f);
+        for (int i = 0; i < gains.channelCount; ++i) {
+            EXPECT_TRUE(std::isfinite(gains.values[i]));
+            EXPECT_GE(gains.values[i], 0.0f);
+        }
+    }
+}
+
+TEST(AudioSpeakerLayoutStandaloneTest, VeryLargeFiniteDirectionKeepsGainsFiniteAndNormalized)
+{
+    const float largest = std::numeric_limits<float>::max();
+    const auto gains = calculateSpeakerGains(
+        AudioChannelLayout::Surround714, {largest, largest, -largest});
+
+    ASSERT_EQ(gains.channelCount, 12);
+    EXPECT_NEAR(gainEnergy(gains), 1.0f, 1e-5f);
+    for (int i = 0; i < gains.channelCount; ++i) {
+        EXPECT_TRUE(std::isfinite(gains.values[i]));
+        EXPECT_GE(gains.values[i], 0.0f);
+    }
 }

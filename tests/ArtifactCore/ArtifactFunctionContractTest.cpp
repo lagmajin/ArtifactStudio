@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstddef>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
@@ -25,6 +26,14 @@ struct CountedCallable {
     int operator()() const { return 73; }
     int* destroyCount;
 };
+
+struct alignas(32) OverAlignedSmallCallable {
+    int operator()() const { return value; }
+
+    int value = 0;
+};
+
+static_assert(sizeof(OverAlignedSmallCallable) <= 32);
 }
 
 TEST(ArtifactFunctionContractTest, DefaultFunctionIsEmpty)
@@ -73,6 +82,29 @@ TEST(ArtifactFunctionContractTest, StoresAndInvokesMoveOnlyHeapCallable)
     EXPECT_FALSE(value);
     ASSERT_TRUE(function);
     EXPECT_EQ(function(), 70);
+}
+
+TEST(ArtifactFunctionContractTest, OverAlignedSmallCallableUsesSupportedStorage)
+{
+    if constexpr (alignof(OverAlignedSmallCallable) <= alignof(std::max_align_t)) {
+        GTEST_SKIP() << "This platform's max_align_t supports the fixture alignment";
+    }
+
+    ArtifactFunction<int()> function(OverAlignedSmallCallable{91});
+
+    ASSERT_TRUE(function);
+    EXPECT_EQ(function(), 91);
+}
+
+TEST(ArtifactFunctionContractTest, ForwardsMoveOnlyReturnValue)
+{
+    ArtifactFunction<std::unique_ptr<int>(int)> function(
+        [](int value) { return std::make_unique<int>(value + 1); });
+
+    std::unique_ptr<int> result = function(41);
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(*result, 42);
 }
 
 TEST(ArtifactFunctionContractTest, MutableCallableRetainsStateAcrossCalls)
@@ -141,6 +173,39 @@ TEST(ArtifactFunctionContractTest, MoveConstructionTransfersSmallCallable)
     EXPECT_EQ(destination(), 29);
 }
 
+TEST(ArtifactFunctionContractTest, MoveConstructedFromFunctionCanBeReused)
+{
+    ArtifactFunction<int()> source([value = 29] { return value; });
+    ArtifactFunction<int()> destination(std::move(source));
+
+    ASSERT_FALSE(source);
+    source = ArtifactFunction<int()>([value = 47] { return value; });
+
+    ASSERT_TRUE(source);
+    ASSERT_TRUE(destination);
+    EXPECT_EQ(source(), 47);
+    EXPECT_EQ(destination(), 29);
+}
+
+TEST(ArtifactFunctionContractTest, MoveConstructionTransfersHeapCallableAndCaptureLifetime)
+{
+    auto target = std::make_shared<int>(61);
+    std::weak_ptr<int> observed = target;
+    std::array<int, 64> padding{};
+    padding[47] = 5;
+    ArtifactFunction<int()> source(
+        [owned = std::move(target), padding] { return *owned + padding[47]; });
+
+    ArtifactFunction<int()> destination(std::move(source));
+
+    EXPECT_FALSE(source);
+    EXPECT_FALSE(observed.expired());
+    ASSERT_TRUE(destination);
+    EXPECT_EQ(destination(), 66);
+    destination = ArtifactFunction<int()>();
+    EXPECT_TRUE(observed.expired());
+}
+
 TEST(ArtifactFunctionContractTest, MoveAssignmentClearsPreviousTarget)
 {
     int destroyCount = 0;
@@ -151,6 +216,53 @@ TEST(ArtifactFunctionContractTest, MoveAssignmentClearsPreviousTarget)
     EXPECT_FALSE(source);
     ASSERT_TRUE(destination);
     EXPECT_EQ(destination(), 31);
+}
+
+TEST(ArtifactFunctionContractTest, MoveAssignmentTransfersHeapStoredCallable)
+{
+    ArtifactFunction<int()> destination([value = 11] { return value; });
+    std::array<int, 64> payload{};
+    payload[53] = 79;
+    ArtifactFunction<int()> source([payload] { return payload[53]; });
+
+    destination = std::move(source);
+
+    EXPECT_FALSE(source);
+    ASSERT_TRUE(destination);
+    EXPECT_EQ(destination(), 79);
+}
+
+TEST(ArtifactFunctionContractTest, MoveAssignedFromFunctionCanBeReused)
+{
+    ArtifactFunction<int()> source([value = 23] { return value; });
+    ArtifactFunction<int()> destination([value = 5] { return value; });
+
+    destination = std::move(source);
+    ASSERT_FALSE(source);
+    source = ArtifactFunction<int()>([value = 61] { return value; });
+
+    ASSERT_TRUE(source);
+    ASSERT_TRUE(destination);
+    EXPECT_EQ(source(), 61);
+    EXPECT_EQ(destination(), 23);
+}
+
+TEST(ArtifactFunctionContractTest, MoveAssignmentPreservesHeapCaptureLifetime)
+{
+    auto target = std::make_shared<int>(83);
+    std::weak_ptr<int> observed = target;
+    std::array<int, 64> padding{};
+    ArtifactFunction<int()> source(
+        [owned = std::move(target), padding] { return *owned + padding[0]; });
+    ArtifactFunction<int()> destination([value = 1] { return value; });
+
+    destination = std::move(source);
+
+    EXPECT_FALSE(source);
+    EXPECT_FALSE(observed.expired());
+    EXPECT_EQ(destination(), 83);
+    destination = ArtifactFunction<int()>();
+    EXPECT_TRUE(observed.expired());
 }
 
 TEST(ArtifactFunctionContractTest, MoveAssignmentFromEmptyClearsTarget)
@@ -228,4 +340,21 @@ TEST(ArtifactFunctionContractTest, SwapWithEmptyFunctionTransfersCallable)
     EXPECT_FALSE(function);
     ASSERT_TRUE(empty);
     EXPECT_EQ(empty(), 52);
+}
+
+TEST(ArtifactFunctionContractTest, SelfSwapPreservesHeapCallableAndCaptureLifetime)
+{
+    auto target = std::make_shared<int>(97);
+    std::weak_ptr<int> observed = target;
+    std::array<int, 64> padding{};
+    ArtifactFunction<int()> function(
+        [owned = std::move(target), padding] { return *owned + padding[0]; });
+
+    function.swap(function);
+
+    ASSERT_TRUE(function);
+    EXPECT_FALSE(observed.expired());
+    EXPECT_EQ(function(), 97);
+    function = ArtifactFunction<int()>();
+    EXPECT_TRUE(observed.expired());
 }

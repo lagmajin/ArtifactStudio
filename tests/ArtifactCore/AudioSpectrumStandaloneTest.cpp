@@ -105,6 +105,24 @@ TEST(AudioSpectrumStandaloneTest, StereoLoudnessUsesMeanChannelEnergy)
     EXPECT_FLOAT_EQ(spectrum.getWaveform()[0], 0.25f);
 }
 
+TEST(AudioSpectrumStandaloneTest, SurroundLfeChannelDoesNotContributeToLoudness)
+{
+    AudioSpectrum spectrum;
+    spectrum.setBins(4);
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Surround51;
+    for (int channel = 0; channel < 6; ++channel) {
+        segment.channelData.push_back(
+            constantSamples(channel == 3 ? 1.0f : 0.25f, 8));
+    }
+
+    spectrum.process(segment);
+
+    const float expected = static_cast<float>(-0.691 + 20.0 * std::log10(0.25));
+    EXPECT_NEAR(spectrum.getMomentaryLufs(), expected, 1e-4f);
+}
+
 TEST(AudioSpectrumStandaloneTest, NonFiniteSamplesDoNotContaminateMeasurements)
 {
     AudioSpectrum spectrum;
@@ -158,6 +176,39 @@ TEST(AudioSpectrumStandaloneTest, ResetClearsLoudnessWithoutChangingBinCount)
     EXPECT_FLOAT_EQ(spectrum.getLoudnessRangeLufs(), 0.0f);
 }
 
+TEST(AudioSpectrumStandaloneTest, ContiguousBlocksMatchWholeSegmentLoudness)
+{
+    AudioSpectrum wholeSpectrum;
+    AudioSpectrum splitSpectrum;
+    auto whole = makeMono(48000, constantSamples(0.25f, 16), 200);
+    wholeSpectrum.process(whole);
+
+    auto first = makeMono(48000, constantSamples(0.25f, 8), 200);
+    auto second = makeMono(48000, constantSamples(0.25f, 8), 208);
+    splitSpectrum.process(first);
+    splitSpectrum.process(second);
+
+    EXPECT_NEAR(splitSpectrum.getIntegratedLufs(),
+                wholeSpectrum.getIntegratedLufs(), 1e-5f);
+    EXPECT_NEAR(splitSpectrum.getShortTermLufs(),
+                wholeSpectrum.getShortTermLufs(), 1e-5f);
+}
+
+TEST(AudioSpectrumStandaloneTest, IntegratedWindowContinuesAcrossInt64FrameBoundary)
+{
+    AudioSpectrum spectrum;
+    constexpr qint64 maximumFrame = std::numeric_limits<qint64>::max();
+    auto first = makeMono(48000, constantSamples(0.25f, 8), maximumFrame - 4);
+    auto second = makeMono(48000, constantSamples(0.5f, 8), maximumFrame);
+
+    spectrum.process(first);
+    spectrum.process(second);
+
+    const float meanSquare = (0.25f * 0.25f + 0.5f * 0.5f) * 0.5f;
+    const float expected = static_cast<float>(-0.691 + 10.0 * std::log10(meanSquare));
+    EXPECT_NEAR(spectrum.getIntegratedLufs(), expected, 1e-4f);
+}
+
 TEST(AudioSpectrumStandaloneTest, DiscontinuousSegmentsRestartIntegratedWindow)
 {
     AudioSpectrum spectrum;
@@ -195,6 +246,23 @@ TEST(AudioSpectrumStandaloneTest, NonFiniteNormalizationTargetUsesUnityGain)
     EXPECT_TRUE(spectrum.normalizeToTargetLufs(segment,
                                               std::numeric_limits<float>::quiet_NaN()));
     EXPECT_EQ(segment.channelData[0], (QVector<float>{0.25f, -0.5f, 0.75f}));
+}
+
+TEST(AudioSpectrumStandaloneTest, NormalizationReplacesNonFiniteSamplesWithSilence)
+{
+    AudioSpectrum spectrum;
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float infinity = std::numeric_limits<float>::infinity();
+    auto segment = makeMono(48000, QVector<float>{0.25f, nan, infinity, -0.25f});
+
+    ASSERT_TRUE(spectrum.normalizeToTargetLufs(segment, -18.0f));
+
+    ASSERT_EQ(segment.channelData.size(), 1);
+    ASSERT_EQ(segment.channelData[0].size(), 4);
+    EXPECT_TRUE(std::isfinite(segment.channelData[0][0]));
+    EXPECT_FLOAT_EQ(segment.channelData[0][1], 0.0f);
+    EXPECT_FLOAT_EQ(segment.channelData[0][2], 0.0f);
+    EXPECT_TRUE(std::isfinite(segment.channelData[0][3]));
 }
 
 TEST(AudioSpectrumStandaloneTest, BypassLeavesInputAndPreviousMeasurementsUnchanged)

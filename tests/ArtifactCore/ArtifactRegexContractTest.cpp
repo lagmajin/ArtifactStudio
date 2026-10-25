@@ -138,6 +138,16 @@ TEST(ArtifactRegexContractTest, EmbeddedNulIsMatchedAsAByteWithinExplicitLength)
     EXPECT_EQ(match.groups[0].position, 2u);
 }
 
+TEST(ArtifactRegexContractTest, ReplaceAllPreservesEmbeddedNulOutsideMatch)
+{
+    constexpr char bytes[] = {'a', '\0', 'b'};
+    const StringView text(bytes, sizeof(bytes));
+
+    const String replaced = ArtifactRegex("b").replaceAll(text, "X");
+
+    EXPECT_EQ(toStdString(replaced), std::string("a\0X", 3));
+}
+
 TEST(ArtifactRegexContractTest, ReplaceAllExpandsCapturesAndEscapesDollar)
 {
     const ArtifactRegex regex("(\\w+)=(\\w+)");
@@ -155,6 +165,19 @@ TEST(ArtifactRegexContractTest, ZeroWidthMatchesAdvanceDuringFindAllAndReplaceme
     EXPECT_EQ(matches[2].groups[0].position, 2u);
     EXPECT_EQ(matches[3].groups[0].position, 3u);
     EXPECT_EQ(regex.replaceAll("a b", "|"), "|a| |b|");
+}
+
+TEST(ArtifactRegexContractTest, ZeroWidthMatchOnEmptyInputTerminatesAfterOneMatch)
+{
+    const ArtifactRegex regex("^");
+
+    const auto matches = regex.findAll("");
+
+    ASSERT_EQ(matches.size(), 1u);
+    ASSERT_TRUE(matches[0].groups[0].matched());
+    EXPECT_EQ(matches[0].groups[0].position, 0u);
+    EXPECT_EQ(matches[0].groups[0].length, 0u);
+    EXPECT_EQ(regex.replaceAll("", "|"), "|");
 }
 
 TEST(ArtifactRegexContractTest, InvalidCompileClearsPreviouslyCompiledProgram)

@@ -25,6 +25,28 @@ struct ModuloTenEqual {
     }
 };
 
+struct InstanceSaltedHash {
+    InstanceSaltedHash() : salt(nextSalt++) {}
+
+    std::size_t operator()(int value) const noexcept {
+        return static_cast<std::size_t>(value) + salt;
+    }
+
+    std::size_t salt;
+    static inline std::size_t nextSalt = 0;
+};
+
+struct InstanceModeEqual {
+    InstanceModeEqual() : tensEquivalent(nextMode++ != 0) {}
+
+    bool operator()(int left, int right) const noexcept {
+        return tensEquivalent ? left % 10 == right % 10 : left == right;
+    }
+
+    bool tensEquivalent;
+    static inline int nextMode = 0;
+};
+
 struct TrackedValue {
     static inline int liveCount = 0;
     int value;
@@ -76,6 +98,18 @@ TEST(ArtifactSetContractTest, AddAndInsertRejectDuplicatesWithoutChangingSize)
     EXPECT_TRUE(values.insert(8));
     EXPECT_FALSE(values.add(8));
     EXPECT_EQ(values.size(), 2u);
+}
+
+TEST(ArtifactSetContractTest, DuplicateInsertionPreservesOriginalValueOrder)
+{
+    HashSet<int> values;
+    ASSERT_TRUE(values.add(4));
+    ASSERT_TRUE(values.add(8));
+    ASSERT_TRUE(values.add(12));
+
+    EXPECT_FALSE(values.add(8));
+
+    EXPECT_EQ(values.values(), (Array<int>{4, 8, 12}));
 }
 
 TEST(ArtifactSetContractTest, FindReturnsAReferenceToTheStoredValue)
@@ -288,6 +322,35 @@ TEST(ArtifactSetContractTest, SwapExchangesTwoPopulatedSets)
     EXPECT_TRUE(right.contains(1));
     EXPECT_TRUE(right.contains(2));
     EXPECT_FALSE(right.contains(8));
+}
+
+TEST(ArtifactSetContractTest, SwapKeepsStatefulHashersWithTheirBuckets)
+{
+    HashSet<int, InstanceSaltedHash> first;
+    HashSet<int, InstanceSaltedHash> second;
+    ASSERT_TRUE(first.add(5));
+    ASSERT_TRUE(second.add(13));
+
+    first.swap(second);
+
+    EXPECT_TRUE(first.contains(13));
+    EXPECT_TRUE(second.contains(5));
+}
+
+TEST(ArtifactSetContractTest, SwapKeepsStatefulEqualityWithItsMembership)
+{
+    InstanceModeEqual::nextMode = 0;
+    HashSet<int, ConstantHash, InstanceModeEqual> exact;
+    HashSet<int, ConstantHash, InstanceModeEqual> tensEquivalent;
+    ASSERT_TRUE(exact.add(12));
+    ASSERT_TRUE(tensEquivalent.add(2));
+
+    exact.swap(tensEquivalent);
+
+    EXPECT_TRUE(exact.contains(12));
+    EXPECT_TRUE(exact.contains(22));
+    EXPECT_TRUE(tensEquivalent.contains(12));
+    EXPECT_FALSE(tensEquivalent.contains(2));
 }
 
 TEST(ArtifactSetContractTest, SelfMoveAssignmentPreservesMembership)

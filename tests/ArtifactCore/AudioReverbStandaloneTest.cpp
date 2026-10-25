@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <utility>
 
@@ -103,6 +104,32 @@ TEST(AudioReverbStandaloneTest, ZeroMixPreservesDrySignalExactly)
     EXPECT_EQ(segment.channelData[0], (QVector<float>{1.0f, -0.5f, 0.25f, 0.0f}));
 }
 
+TEST(AudioReverbStandaloneTest, ZeroMixStillAccumulatesWetHistory)
+{
+    AudioReverb mutedWet;
+    AudioReverb audibleWet;
+    for (auto* reverb : {&mutedWet, &audibleWet})
+        reverb->setDecay(0.9f);
+    mutedWet.setMix(0.0f);
+    audibleWet.setMix(1.0f);
+
+    QVector<float> impulse(1500, 0.0f);
+    impulse[0] = 1.0f;
+    auto mutedExcitation = makeMono(48000, impulse);
+    auto audibleExcitation = makeMono(48000, impulse);
+    mutedWet.process(mutedExcitation);
+    audibleWet.process(audibleExcitation);
+    EXPECT_EQ(mutedExcitation.channelData[0], impulse);
+
+    mutedWet.setMix(1.0f);
+    auto mutedTail = makeMono(48000, QVector<float>(1500, 0.0f));
+    auto audibleTail = makeMono(48000, QVector<float>(1500, 0.0f));
+    mutedWet.process(mutedTail);
+    audibleWet.process(audibleTail);
+
+    EXPECT_EQ(mutedTail.channelData[0], audibleTail.channelData[0]);
+}
+
 TEST(AudioReverbStandaloneTest, FullWetImpulseProducesAReverbTail)
 {
     AudioReverb reverb;
@@ -119,6 +146,32 @@ TEST(AudioReverbStandaloneTest, FullWetImpulseProducesAReverbTail)
     for (qsizetype frame = 1; frame < segment.channelData[0].size(); ++frame)
         hasTail = hasTail || segment.channelData[0][frame] != 0.0f;
     EXPECT_TRUE(hasTail);
+}
+
+TEST(AudioReverbStandaloneTest, ProcessingInBlocksPreservesDelayHistory)
+{
+    QVector<float> input(1500, 0.0f);
+    input[0] = 1.0f;
+
+    AudioReverb wholeBlockReverb;
+    wholeBlockReverb.setDecay(0.9f);
+    wholeBlockReverb.setMix(1.0f);
+    auto wholeBlock = makeMono(48000, input);
+    wholeBlockReverb.process(wholeBlock);
+
+    AudioReverb segmentedReverb;
+    segmentedReverb.setDecay(0.9f);
+    segmentedReverb.setMix(1.0f);
+    QVector<float> segmentedOutput;
+    segmentedOutput.reserve(input.size());
+    for (int start = 0; start < input.size(); start += 300) {
+        auto block = makeMono(48000, input.mid(start, 300));
+        segmentedReverb.process(block);
+        segmentedOutput += block.channelData[0];
+    }
+
+    ASSERT_EQ(segmentedOutput.size(), wholeBlock.channelData[0].size());
+    EXPECT_EQ(segmentedOutput, wholeBlock.channelData[0]);
 }
 
 TEST(AudioReverbStandaloneTest, StereoChannelsDoNotLeakReverbIntoEachOther)
@@ -138,6 +191,31 @@ TEST(AudioReverbStandaloneTest, StereoChannelsDoNotLeakReverbIntoEachOther)
     EXPECT_TRUE(leftHasTail);
     for (const float sample : segment.channelData[1])
         EXPECT_FLOAT_EQ(sample, 0.0f);
+}
+
+TEST(AudioReverbStandaloneTest, ChannelsBeyondStereoRemainUntouched)
+{
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Surround51;
+    segment.channelData = {
+        QVector<float>(1300, 0.0f), QVector<float>(1300, 0.0f),
+        QVector<float>(1300, 0.125f), QVector<float>(1300, -0.25f),
+        QVector<float>(1300, 0.375f), QVector<float>(1300, -0.5f)};
+    segment.channelData[0][0] = 1.0f;
+    segment.channelData[1][0] = -1.0f;
+    const auto untouchedChannels = QVector<QVector<float>>{
+        segment.channelData[2], segment.channelData[3],
+        segment.channelData[4], segment.channelData[5]};
+
+    AudioReverb reverb;
+    reverb.setDecay(0.9f);
+    reverb.setMix(1.0f);
+    reverb.process(segment);
+
+    ASSERT_EQ(segment.channelData.size(), 6);
+    for (int channel = 0; channel < 4; ++channel)
+        EXPECT_EQ(segment.channelData[channel + 2], untouchedChannels[channel]);
 }
 
 TEST(AudioReverbStandaloneTest, SizeParameterChangesWetImpulseResponse)

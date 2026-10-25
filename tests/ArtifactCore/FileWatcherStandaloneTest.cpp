@@ -125,6 +125,28 @@ TEST(FileWatcherStandaloneTest, UnwatchAllClearsEveryRegisteredPath)
     EXPECT_FALSE(watcher.isWatching(secondPath));
 }
 
+TEST(FileWatcherStandaloneTest, WatchingResumesAfterUnwatchAllInvalidatesOldPoller)
+{
+    TemporaryFile previousFile;
+    TemporaryFile nextFile;
+    WatchCleanup cleanup;
+    auto& watcher = FileWatcher::instance();
+    auto callbackCount = std::make_shared<std::atomic_int>(0);
+    const String previousPath(previousFile.path().string());
+    const String nextPath(nextFile.path().string());
+
+    watcher.watch(previousPath, [](const String&) {}, 50);
+    watcher.unwatchAll();
+    watcher.watch(nextPath, [callbackCount](const String&) {
+        callbackCount->fetch_add(1);
+    }, 5);
+    nextFile.changeTimestamp();
+
+    ASSERT_TRUE(waitForCount(callbackCount, 1));
+    EXPECT_FALSE(watcher.isWatching(previousPath));
+    EXPECT_TRUE(watcher.isWatching(nextPath));
+}
+
 TEST(FileWatcherStandaloneTest, TimestampChangeDispatchesCallbackWithWatchedPath)
 {
     TemporaryFile file;
@@ -225,5 +247,29 @@ TEST(FileWatcherStandaloneTest, DeletedPathDoesNotTriggerOnTimestampPolling)
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
     EXPECT_EQ(callbackCount->load(), 0);
+    EXPECT_TRUE(watcher.isWatching(path));
+}
+
+TEST(FileWatcherStandaloneTest, RecreatedWatchedPathDispatchesWhenItsTimestampChanges)
+{
+    TemporaryFile file;
+    WatchCleanup cleanup;
+    auto& watcher = FileWatcher::instance();
+    auto callbackCount = std::make_shared<std::atomic_int>(0);
+    const String path(file.path().string());
+    watcher.watch(path, [callbackCount](const String&) {
+        callbackCount->fetch_add(1);
+    }, 5);
+
+    ASSERT_TRUE(std::filesystem::remove(file.path()));
+    {
+        std::ofstream replacement(file.path(), std::ios::binary);
+        ASSERT_TRUE(replacement.is_open());
+        replacement << "recreated";
+    }
+    ASSERT_TRUE(std::filesystem::exists(file.path()));
+    file.changeTimestamp();
+
+    ASSERT_TRUE(waitForCount(callbackCount, 1));
     EXPECT_TRUE(watcher.isWatching(path));
 }

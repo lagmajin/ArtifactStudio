@@ -3,6 +3,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <type_traits>
 #include <vector>
 
 import Math.Random;
@@ -42,6 +46,18 @@ TEST(RandomStreamStandaloneTest, IntegerWidthsAreDeterministicAndConsistent)
     RandomStream b(9u);
     for (int i = 0; i < 16; ++i) {
         EXPECT_EQ(a.nextU32(), b.nextU32());
+    }
+}
+
+TEST(RandomStreamStandaloneTest, NextU32UsesUpperHalfOfOneNextU64Draw)
+{
+    RandomStream wide(0xACEDu);
+    RandomStream narrow(0xACEDu);
+
+    for (int i = 0; i < 16; ++i) {
+        const uint64_t value = wide.nextU64();
+        EXPECT_EQ(narrow.nextU32(), static_cast<uint32_t>(value >> 32));
+        EXPECT_EQ(narrow.state(), wide.state());
     }
 }
 
@@ -86,15 +102,38 @@ TEST(RandomStreamStandaloneTest, IntegerSingletonRangeReturnsItsOnlyValue)
     }
 }
 
+TEST(RandomStreamStandaloneTest, InclusiveRangeSupportsTheEntireIntDomain)
+{
+    RandomStream first(0xA55Au);
+    RandomStream second(0xA55Au);
+    constexpr int minValue = std::numeric_limits<int>::min();
+    constexpr int maxValue = std::numeric_limits<int>::max();
+
+    for (int i = 0; i < 64; ++i) {
+        const int value = first.rangeInclusive(minValue, maxValue);
+        EXPECT_GE(value, minValue);
+        EXPECT_LE(value, maxValue);
+        EXPECT_EQ(value, second.rangeInclusive(minValue, maxValue));
+    }
+}
+
 TEST(RandomStreamStandaloneTest, ChanceBoundaryProbabilitiesAreCertain)
 {
     RandomStream stream(2u);
     const auto state = stream.state();
     EXPECT_FALSE(stream.chance(0.0f));
     EXPECT_FALSE(stream.chance(-1.0f));
+    EXPECT_FALSE(stream.chance(-std::numeric_limits<float>::infinity()));
     EXPECT_TRUE(stream.chance(1.0f));
     EXPECT_TRUE(stream.chance(2.0f));
+    EXPECT_TRUE(stream.chance(std::numeric_limits<float>::infinity()));
     EXPECT_EQ(stream.state(), state);
+}
+
+TEST(RandomStreamStandaloneTest, ChanceRejectsNaNProbability)
+{
+    RandomStream stream(2u);
+    EXPECT_FALSE(stream.chance(std::numeric_limits<float>::quiet_NaN()));
 }
 
 TEST(RandomStreamStandaloneTest, ForksAreRepeatableAndDoNotAdvanceParent)
@@ -141,6 +180,20 @@ TEST(RandomStreamStandaloneTest, GaussianParametersApplyMeanAndDeviation)
     EXPECT_FLOAT_EQ(stream.gaussian(4.0f, 0.0f), 4.0f);
 }
 
+TEST(RandomStreamStandaloneTest, GaussianNegativeDeviationMirrorsAroundTheMean)
+{
+    RandomStream positiveDeviation(0x51A7u);
+    RandomStream negativeDeviation(0x51A7u);
+    constexpr float mean = 3.25f;
+    constexpr float deviation = 1.75f;
+
+    for (int i = 0; i < 16; ++i) {
+        const float positive = positiveDeviation.gaussian(mean, deviation);
+        const float negative = negativeDeviation.gaussian(mean, -deviation);
+        EXPECT_FLOAT_EQ(positive + negative, 2.0f * mean);
+    }
+}
+
 TEST(RandomStreamStandaloneTest, JitterComponentsStayWithinMagnitude)
 {
     RandomStream stream(99u);
@@ -173,6 +226,32 @@ TEST(RandomStreamStandaloneTest, PickSelectsOnlyAnExistingElement)
     }
 }
 
+TEST(RandomStreamStandaloneTest, PickReturnsReferencesToMoveOnlyElements)
+{
+    RandomStream stream(15u);
+    std::vector<std::unique_ptr<int>> vectorValues;
+    vectorValues.push_back(std::make_unique<int>(11));
+    vectorValues.push_back(std::make_unique<int>(22));
+    vectorValues.push_back(std::make_unique<int>(33));
+    std::array<std::unique_ptr<int>, 2> arrayValues{
+        std::make_unique<int>(44), std::make_unique<int>(55)};
+
+    static_assert(std::is_same_v<decltype(stream.pick(vectorValues)),
+                                 const std::unique_ptr<int>&>);
+    static_assert(std::is_same_v<decltype(stream.pick(arrayValues)),
+                                 const std::unique_ptr<int>&>);
+    const auto& fromVector = stream.pick(vectorValues);
+    const auto& fromArray = stream.pick(arrayValues);
+
+    EXPECT_TRUE(&fromVector == &vectorValues[0] ||
+                &fromVector == &vectorValues[1] ||
+                &fromVector == &vectorValues[2]);
+    EXPECT_TRUE(&fromArray == &arrayValues[0] ||
+                &fromArray == &arrayValues[1]);
+    EXPECT_NE(fromVector, nullptr);
+    EXPECT_NE(fromArray, nullptr);
+}
+
 TEST(RandomStreamStandaloneTest, ShufflePreservesElementsAndSingletons)
 {
     RandomStream stream(21u);
@@ -184,4 +263,32 @@ TEST(RandomStreamStandaloneTest, ShufflePreservesElementsAndSingletons)
     std::vector<int> singleton{42};
     stream.shuffle(singleton);
     EXPECT_EQ(singleton, (std::vector<int>{42}));
+}
+
+TEST(RandomStreamStandaloneTest, ShuffleDoesNotAdvanceStateForZeroOrOneElement)
+{
+    RandomStream stream(21u);
+    std::vector<int> empty;
+    std::vector<int> singleton{42};
+    const auto initialState = stream.state();
+
+    stream.shuffle(empty);
+    EXPECT_EQ(stream.state(), initialState);
+    stream.shuffle(singleton);
+    EXPECT_EQ(stream.state(), initialState);
+}
+
+TEST(RandomStreamStandaloneTest, ShuffleIsReproducibleForEqualSeeds)
+{
+    RandomStream first(0xC0FFEEu);
+    RandomStream second(0xC0FFEEu);
+    const std::vector<int> original{0, 1, 2, 3, 4, 5, 6, 7};
+    auto firstValues = original;
+    auto secondValues = original;
+
+    first.shuffle(firstValues);
+    second.shuffle(secondValues);
+
+    EXPECT_EQ(firstValues, secondValues);
+    EXPECT_EQ(first.state(), second.state());
 }

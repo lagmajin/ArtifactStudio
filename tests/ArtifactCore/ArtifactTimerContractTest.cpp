@@ -2,7 +2,9 @@
 
 #include <QElapsedTimer>
 
+#include <chrono>
 #include <limits>
+#include <thread>
 
 import Core.ArtifactTimer;
 
@@ -114,6 +116,18 @@ TEST(ArtifactTimerContractTest, RestartKeepsTimerValid)
     EXPECT_TRUE(timer.isValid());
     EXPECT_GE(timer.elapsedNs(), 0);
     EXPECT_GE(beforeRestart, 0);
+}
+
+TEST(ArtifactTimerContractTest, RestartResetsElapsedOrigin)
+{
+    ArtifactTimer timer;
+    timer.start();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    const qint64 beforeRestart = timer.elapsedNs();
+
+    timer.restart();
+
+    EXPECT_LT(timer.elapsedNs(), beforeRestart);
 }
 
 TEST(ArtifactTimerContractTest, RestartOnInvalidTimerStartsIt)

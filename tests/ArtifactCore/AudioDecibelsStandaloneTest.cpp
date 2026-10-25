@@ -1,7 +1,13 @@
 #include <gtest/gtest.h>
 
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QString>
+
+#include <array>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 import Audio.Decibels;
 
@@ -61,6 +67,20 @@ TEST(AudioDecibelsStandaloneTest, ConvertsLinearValuesAndClampsResult)
                         std::numeric_limits<float>::quiet_NaN()).decibels(), 0.0f);
 }
 
+TEST(AudioDecibelsStandaloneTest, LinearConversionClampsAtSupportedGainBoundaries)
+{
+    const float minimumGain = 0.001f;
+    const float justBelowMinimum = std::nextafter(minimumGain, 0.0f);
+    const float maximumGain = 10.0f;
+    const float justAboveMaximum = std::nextafter(
+        maximumGain, std::numeric_limits<float>::infinity());
+
+    EXPECT_FLOAT_EQ(AudioDecibels::fromLinearValue(justBelowMinimum).decibels(), -60.0f);
+    EXPECT_NEAR(AudioDecibels::fromLinearValue(minimumGain).decibels(), -60.0f, 1.0e-4f);
+    EXPECT_NEAR(AudioDecibels::fromLinearValue(maximumGain).decibels(), 20.0f, 1.0e-4f);
+    EXPECT_FLOAT_EQ(AudioDecibels::fromLinearValue(justAboveMaximum).decibels(), 20.0f);
+}
+
 TEST(AudioDecibelsStandaloneTest, InterpolationClampsFractionAndDefaultsNonFiniteToStart)
 {
     const AudioDecibels start(-20.0f);
@@ -93,6 +113,25 @@ TEST(AudioDecibelsStandaloneTest, PresetsMatchDocumentedLevels)
     EXPECT_FLOAT_EQ(AudioDecibels::createPreset(AudioDecibels::Preset::Maximum).decibels(), 20.0f);
 }
 
+TEST(AudioDecibelsStandaloneTest, PresetNamesCoverAllValuesAndUnknownFallback)
+{
+    using Preset = AudioDecibels::Preset;
+    const std::array<std::pair<Preset, QString>, 7> expected{{
+        {Preset::Mute, QStringLiteral("Mute (- dB)")},
+        {Preset::VeryQuiet, QStringLiteral("Very Quiet (-40 dB)")},
+        {Preset::Quiet, QStringLiteral("Quiet (-20 dB)")},
+        {Preset::Normal, QStringLiteral("Normal (0 dB)")},
+        {Preset::Loud, QStringLiteral("Loud (+6 dB)")},
+        {Preset::VeryLoud, QStringLiteral("Very Loud (+12 dB)")},
+        {Preset::Maximum, QStringLiteral("Maximum (+20 dB)")}}};
+
+    for (const auto& [preset, name] : expected) {
+        EXPECT_EQ(AudioDecibels::getPresetName(preset).toQString(), name);
+    }
+    EXPECT_EQ(AudioDecibels::getPresetName(static_cast<Preset>(255)).toQString(),
+              QStringLiteral("Unknown"));
+}
+
 TEST(AudioDecibelsStandaloneTest, SerializeDeserializePreservesNonDefaultLevel)
 {
     const AudioDecibels source(-12.75f);
@@ -100,6 +139,18 @@ TEST(AudioDecibelsStandaloneTest, SerializeDeserializePreservesNonDefaultLevel)
     const AudioDecibels restored = AudioDecibels::deserialize(source.serialize());
 
     EXPECT_FLOAT_EQ(restored.decibels(), -12.75f);
+}
+
+TEST(AudioDecibelsStandaloneTest, SerializeEmitsDecibelsFieldAsJson)
+{
+    const AudioDecibels source(-12.75f);
+    const QJsonDocument serialized = QJsonDocument::fromJson(
+        source.serialize().toQString().toUtf8());
+
+    ASSERT_TRUE(serialized.isObject());
+    const QJsonObject object = serialized.object();
+    ASSERT_TRUE(object.contains(QStringLiteral("dB")));
+    EXPECT_DOUBLE_EQ(object.value(QStringLiteral("dB")).toDouble(), -12.75);
 }
 
 TEST(AudioDecibelsStandaloneTest, MuteSilentAndNormalizedPredicatesUseTheirThresholds)
@@ -110,6 +161,34 @@ TEST(AudioDecibelsStandaloneTest, MuteSilentAndNormalizedPredicatesUseTheirThres
     EXPECT_TRUE(AudioDecibels(0.0f).isNormalized());
     EXPECT_FALSE(AudioDecibels(0.01f).isNormalized());
     EXPECT_TRUE(AudioDecibels(-30.0f).isValid());
+}
+
+TEST(AudioDecibelsStandaloneTest, NormalizedPredicateUsesExclusiveEpsilonBoundary)
+{
+    constexpr float threshold = 1.0e-6f;
+    const float justInside = std::nextafter(threshold, 0.0f);
+    const float justOutside = std::nextafter(
+        threshold, std::numeric_limits<float>::infinity());
+
+    EXPECT_TRUE(AudioDecibels(justInside).isNormalized());
+    EXPECT_FALSE(AudioDecibels(threshold).isNormalized());
+    EXPECT_FALSE(AudioDecibels(justOutside).isNormalized());
+    EXPECT_TRUE(AudioDecibels(-justInside).isNormalized());
+    EXPECT_FALSE(AudioDecibels(-threshold).isNormalized());
+    EXPECT_FALSE(AudioDecibels(-justOutside).isNormalized());
+}
+
+TEST(AudioDecibelsStandaloneTest, SilentPredicateUsesInclusiveMinusFortyDecibelBoundary)
+{
+    const float threshold = -40.0f;
+    const float justBelow = std::nextafter(threshold,
+                                           -std::numeric_limits<float>::infinity());
+    const float justAbove = std::nextafter(threshold,
+                                           std::numeric_limits<float>::infinity());
+
+    EXPECT_TRUE(AudioDecibels(justBelow).isSilent());
+    EXPECT_TRUE(AudioDecibels(threshold).isSilent());
+    EXPECT_FALSE(AudioDecibels(justAbove).isSilent());
 }
 
 TEST(AudioDecibelsStandaloneTest, ArithmeticOperatorsClampResults)
@@ -135,6 +214,47 @@ TEST(AudioDecibelsStandaloneTest, CompoundArithmeticMutatesAndClamps)
     EXPECT_FLOAT_EQ(value.decibels(), -30.0f);
 }
 
+TEST(AudioDecibelsStandaloneTest, NegativeDivisorsReverseDecibelSign)
+{
+    const AudioDecibels base(-12.0f);
+    EXPECT_FLOAT_EQ((base / -2.0f).decibels(), 6.0f);
+
+    AudioDecibels compound(-12.0f);
+    compound /= -2.0f;
+    EXPECT_FLOAT_EQ(compound.decibels(), 6.0f);
+}
+
+TEST(AudioDecibelsStandaloneTest, InvalidDivisionOperandsUseDefinedFallbacks)
+{
+    const AudioDecibels base(8.0f);
+    EXPECT_FLOAT_EQ((base / 0.5e-6f).decibels(), 0.0f);
+    EXPECT_FLOAT_EQ((base / std::numeric_limits<float>::infinity()).decibels(), 0.0f);
+    EXPECT_FLOAT_EQ((base / std::numeric_limits<float>::quiet_NaN()).decibels(), 0.0f);
+
+    AudioDecibels compound(8.0f);
+    compound /= 0.5e-6f;
+    EXPECT_FLOAT_EQ(compound.decibels(), 8.0f);
+    compound /= std::numeric_limits<float>::infinity();
+    EXPECT_FLOAT_EQ(compound.decibels(), 8.0f);
+    compound /= std::numeric_limits<float>::quiet_NaN();
+    EXPECT_FLOAT_EQ(compound.decibels(), 8.0f);
+}
+
+TEST(AudioDecibelsStandaloneTest, CompoundMultiplicationSanitizesNonFiniteResultsToUnity)
+{
+    AudioDecibels value(5.0f);
+    value *= std::numeric_limits<float>::infinity();
+    EXPECT_FLOAT_EQ(value.decibels(), 0.0f);
+
+    value.setDecibels(5.0f);
+    value *= -std::numeric_limits<float>::infinity();
+    EXPECT_FLOAT_EQ(value.decibels(), 0.0f);
+
+    value.setDecibels(5.0f);
+    value *= std::numeric_limits<float>::quiet_NaN();
+    EXPECT_FLOAT_EQ(value.decibels(), 0.0f);
+}
+
 TEST(AudioDecibelsStandaloneTest, ComparisonsRespectEpsilonEquality)
 {
     const AudioDecibels a(0.0f);
@@ -148,6 +268,24 @@ TEST(AudioDecibelsStandaloneTest, ComparisonsRespectEpsilonEquality)
     EXPECT_TRUE(greater >= a);
 }
 
+TEST(AudioDecibelsStandaloneTest, ComparisonsSeparateValuesOutsideEpsilon)
+{
+    const AudioDecibels baseline(0.0f);
+    const AudioDecibels inside(0.75e-6f);
+    const AudioDecibels outside(1.25e-6f);
+
+    EXPECT_TRUE(baseline == inside);
+    EXPECT_FALSE(baseline < inside);
+    EXPECT_FALSE(inside > baseline);
+
+    EXPECT_FALSE(baseline == outside);
+    EXPECT_TRUE(baseline != outside);
+    EXPECT_TRUE(baseline < outside);
+    EXPECT_TRUE(outside > baseline);
+    EXPECT_FALSE(outside <= baseline);
+    EXPECT_FALSE(baseline >= outside);
+}
+
 TEST(AudioDecibelsStandaloneTest, CopyConstructionAndAssignmentAreIndependent)
 {
     AudioDecibels source(-12.0f);
@@ -159,5 +297,20 @@ TEST(AudioDecibelsStandaloneTest, CopyConstructionAndAssignmentAreIndependent)
     EXPECT_FLOAT_EQ(copied.decibels(), -12.0f);
     EXPECT_FLOAT_EQ(assigned.decibels(), -12.0f);
     EXPECT_FLOAT_EQ(source.decibels(), 3.0f);
+}
+
+TEST(AudioDecibelsStandaloneTest, MoveConstructionAndAssignmentTransferOwnership)
+{
+    AudioDecibels source(-12.5f);
+    AudioDecibels moved(std::move(source));
+    EXPECT_FLOAT_EQ(moved.decibels(), -12.5f);
+
+    AudioDecibels destination(6.0f);
+    AudioDecibels incoming(3.25f);
+    destination = std::move(incoming);
+    EXPECT_FLOAT_EQ(destination.decibels(), 3.25f);
+
+    destination = std::move(destination);
+    EXPECT_FLOAT_EQ(destination.decibels(), 3.25f);
 }
 

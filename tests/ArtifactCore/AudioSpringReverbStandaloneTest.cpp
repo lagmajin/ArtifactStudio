@@ -39,6 +39,26 @@ TEST(AudioSpringReverbStandaloneTest, ExposesExpectedDefaults)
     EXPECT_GT(spring.tailSamples(), 0);
 }
 
+TEST(AudioSpringReverbStandaloneTest, TailEstimateTracksDecayAndTension)
+{
+    AudioSpringReverb spring;
+    spring.setDecay(0.0f);
+    EXPECT_EQ(spring.tailSamples(), 0);
+
+    spring.setDecay(0.8f);
+    spring.setTension(0.5f);
+    const qint64 shortTail = spring.tailSamples();
+    spring.setTension(1.5f);
+    const qint64 longTensionTail = spring.tailSamples();
+    spring.setTension(1.0f);
+    spring.setDecay(0.9f);
+    const qint64 longerDecayTail = spring.tailSamples();
+
+    EXPECT_GT(shortTail, 0);
+    EXPECT_GT(longTensionTail, shortTail);
+    EXPECT_GT(longerDecayTail, shortTail * 2);
+}
+
 TEST(AudioSpringReverbStandaloneTest, SettersClampAndRestoreDefaultsForNonFinite)
 {
     AudioSpringReverb spring;
@@ -86,6 +106,56 @@ TEST(AudioSpringReverbStandaloneTest, FullWetImpulseProducesAReverbTail)
     EXPECT_TRUE(hasTail);
 }
 
+TEST(AudioSpringReverbStandaloneTest, SampleRateChangeRebuildsDelayState)
+{
+    AudioSpringReverb reconfigured;
+    AudioSpringReverb freshAtNewRate;
+    for (auto* spring : {&reconfigured, &freshAtNewRate}) {
+        spring->setDecay(0.9f);
+        spring->setBrightness(0.7f);
+        spring->setTension(1.2f);
+        spring->setMix(1.0f);
+    }
+
+    auto priorRateSignal = makeMono(48000, QVector<float>(6000, 0.25f));
+    reconfigured.process(priorRateSignal);
+
+    QVector<float> newRateInput(4096, 0.0f);
+    newRateInput[0] = 1.0f;
+    auto afterRateChange = makeMono(44100, newRateInput);
+    auto freshInput = makeMono(44100, newRateInput);
+    reconfigured.process(afterRateChange);
+    freshAtNewRate.process(freshInput);
+
+    EXPECT_EQ(afterRateChange.channelData[0], freshInput.channelData[0]);
+}
+
+TEST(AudioSpringReverbStandaloneTest, TensionChangeRebuildsDelayState)
+{
+    AudioSpringReverb reconfigured;
+    AudioSpringReverb freshAtNewTension;
+    for (auto* spring : {&reconfigured, &freshAtNewTension}) {
+        spring->setDecay(0.9f);
+        spring->setBrightness(0.7f);
+        spring->setMix(1.0f);
+    }
+    reconfigured.setTension(0.5f);
+    freshAtNewTension.setTension(1.5f);
+
+    auto priorTensionSignal = makeMono(48000, QVector<float>(6000, 0.25f));
+    reconfigured.process(priorTensionSignal);
+    reconfigured.setTension(1.5f);
+
+    QVector<float> nextInput(4096, 0.0f);
+    nextInput[0] = 1.0f;
+    auto afterTensionChange = makeMono(48000, nextInput);
+    auto freshInput = makeMono(48000, nextInput);
+    reconfigured.process(afterTensionChange);
+    freshAtNewTension.process(freshInput);
+
+    EXPECT_EQ(afterTensionChange.channelData[0], freshInput.channelData[0]);
+}
+
 TEST(AudioSpringReverbStandaloneTest, BypassPreservesInputSamples)
 {
     AudioSpringReverb spring;
@@ -95,6 +165,36 @@ TEST(AudioSpringReverbStandaloneTest, BypassPreservesInputSamples)
     spring.process(segment);
 
     EXPECT_EQ(segment.channelData[0], (QVector<float>{0.25f, -0.5f, 0.75f}));
+}
+
+TEST(AudioSpringReverbStandaloneTest, BypassDoesNotAdvanceReverbHistory)
+{
+    AudioSpringReverb afterBypass;
+    AudioSpringReverb uninterrupted;
+    for (auto* spring : {&afterBypass, &uninterrupted}) {
+        spring->setDecay(0.9f);
+        spring->setBrightness(0.7f);
+        spring->setMix(1.0f);
+    }
+
+    QVector<float> excitation(6000, 0.0f);
+    excitation[0] = 1.0f;
+    auto firstForBypass = makeMono(48000, excitation);
+    auto firstUninterrupted = makeMono(48000, excitation);
+    afterBypass.process(firstForBypass);
+    uninterrupted.process(firstUninterrupted);
+
+    afterBypass.setBypass(true);
+    auto bypassed = makeMono(48000, QVector<float>(256, 0.25f));
+    afterBypass.process(bypassed);
+    afterBypass.setBypass(false);
+
+    auto resumed = makeMono(48000, QVector<float>(4096, 0.0f));
+    auto control = makeMono(48000, QVector<float>(4096, 0.0f));
+    afterBypass.process(resumed);
+    uninterrupted.process(control);
+
+    EXPECT_EQ(resumed.channelData[0], control.channelData[0]);
 }
 
 TEST(AudioSpringReverbStandaloneTest, NonFiniteInputSamplesAreReplacedWithSilence)

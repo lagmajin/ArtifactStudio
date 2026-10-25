@@ -84,6 +84,17 @@ TEST(AudioPannerStandaloneTest, StereoBalanceClampsFiniteAzimuthAndCentersNonFin
     EXPECT_EQ(infinity.channelGains, (std::vector<float>{1.0f, 1.0f}));
 }
 
+TEST(AudioPannerStandaloneTest, StereoBalanceIgnoresElevation)
+{
+    const AudioPanner panner;
+    const auto horizontal = panner.calculateGain(45.0f, 0.0f);
+
+    for (const float elevation : {-90.0f, 45.0f, 90.0f}) {
+        const auto elevated = panner.calculateGain(45.0f, elevation);
+        EXPECT_EQ(elevated.channelGains, horizontal.channelGains) << elevation;
+    }
+}
+
 TEST(AudioPannerStandaloneTest, ConstantPowerGainsStayOnTheUnitPowerCircle)
 {
     constexpr float tolerance = 1e-6f;
@@ -112,6 +123,21 @@ TEST(AudioPannerStandaloneTest, ConstantPowerFunctionClampsOutOfRangeAndNonFinit
     EXPECT_NEAR(nan.channelGains[1], std::sqrt(0.5f), 1e-6f);
 }
 
+TEST(AudioPannerStandaloneTest, EqualPowerModeUsesNormalizedAzimuthForConstantPowerGains)
+{
+    AudioPanner panner;
+    panner.setMode(PanningMode::EqualPower);
+
+    for (const float azimuth : {-180.0f, -90.0f, 0.0f, 90.0f, 180.0f}) {
+        const auto actual = panner.calculateGain(azimuth);
+        const auto expected = AudioPanner::calculateConstantPowerGains(azimuth / 180.0f);
+
+        ASSERT_EQ(actual.channelGains.size(), 2u) << azimuth;
+        EXPECT_NEAR(actual.channelGains[0], expected.channelGains[0], 1e-6f) << azimuth;
+        EXPECT_NEAR(actual.channelGains[1], expected.channelGains[1], 1e-6f) << azimuth;
+    }
+}
+
 TEST(AudioPannerStandaloneTest, ApplyPanningTouchesOnlyMappedChannelsAndSharedFrames)
 {
     AudioPanner panner;
@@ -125,6 +151,32 @@ TEST(AudioPannerStandaloneTest, ApplyPanningTouchesOnlyMappedChannelsAndSharedFr
     EXPECT_EQ(segment.startFrame, 321);
     EXPECT_EQ(segment.channelData[0], (QVector<float>{1.0f, 2.0f, 6.0f}));
     EXPECT_EQ(segment.channelData[1], (QVector<float>{3.0f, 5.0f}));
+}
+
+TEST(AudioPannerStandaloneTest, ApplyPanningPreservesUnmappedMultichannelData)
+{
+    AudioPanner panner;
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Surround51;
+    segment.startFrame = 17;
+    segment.channelData = {
+        QVector<float>{2.0f, 4.0f},
+        QVector<float>{6.0f, 8.0f},
+        QVector<float>{10.0f, std::numeric_limits<float>::infinity(), 12.0f},
+        QVector<float>{14.0f, 16.0f, 18.0f},
+    };
+
+    panner.applyPanning(segment, PanningGain{{0.5f, 0.25f}});
+
+    EXPECT_EQ(segment.channelData[0], (QVector<float>{1.0f, 2.0f}));
+    EXPECT_EQ(segment.channelData[1], (QVector<float>{1.5f, 2.0f}));
+    ASSERT_EQ(segment.channelData[2].size(), 3);
+    EXPECT_EQ(segment.channelData[2][0], 10.0f);
+    EXPECT_TRUE(std::isinf(segment.channelData[2][1]));
+    EXPECT_EQ(segment.channelData[2][2], 12.0f);
+    EXPECT_EQ(segment.channelData[3], (QVector<float>{14.0f, 16.0f, 18.0f}));
+    EXPECT_EQ(segment.startFrame, 17);
 }
 
 TEST(AudioPannerStandaloneTest, ApplyPanningSanitizesNonFiniteSamplesAndGains)

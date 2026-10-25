@@ -119,6 +119,57 @@ TEST(AudioMixerFxPersistenceStandaloneTest, RoundTripRestoresRacksWithParameters
     EXPECT_EQ(toStdString(master->getEffect(0)->effectType()), "ping_pong_delay");
 }
 
+TEST(AudioMixerFxPersistenceStandaloneTest, RoundTripPreservesEffectChainOrder)
+{
+    AudioMixer source;
+    const auto bus = source.createBus(String("Ordered effects"), AudioBusKind::Group);
+    ASSERT_TRUE(bus);
+    addTremolo(bus);
+    addPingPong(bus);
+    const QJsonObject document = source.serialize();
+
+    AudioMixer restored;
+    restored.setEffectFactoryHook(&testEffectFactory);
+    ASSERT_TRUE(restored.deserialize(document));
+    const auto restoredBus = restored.findBusByName(String("Ordered effects"));
+    ASSERT_TRUE(restoredBus);
+    ASSERT_EQ(restoredBus->getEffectCount(), 2);
+    EXPECT_EQ(toStdString(restoredBus->getEffect(0)->effectType()), "tremolo");
+    EXPECT_EQ(toStdString(restoredBus->getEffect(1)->effectType()), "ping_pong_delay");
+    EXPECT_FLOAT_EQ(restoredBus->getEffect(0)->getParameterValue(String("rate")), 8.0f);
+    EXPECT_FLOAT_EQ(restoredBus->getEffect(1)->getParameterValue(String("time_ms")), 250.0f);
+}
+
+TEST(AudioMixerFxPersistenceStandaloneTest, UnknownMiddleEntryDoesNotReorderKnownEffects)
+{
+    AudioMixer source;
+    const auto bus = source.createBus(String("Mixed effects"), AudioBusKind::Group);
+    ASSERT_TRUE(bus);
+    addTremolo(bus);
+    addPingPong(bus);
+    QJsonObject document = source.serialize();
+    QJsonArray buses = document.value(QStringLiteral("buses")).toArray();
+    ASSERT_EQ(buses.size(), 1);
+    QJsonObject serializedBus = buses[0].toObject();
+    QJsonArray effects = serializedBus.value(QStringLiteral("effects")).toArray();
+    ASSERT_EQ(effects.size(), 2);
+    QJsonObject unknown;
+    unknown[QStringLiteral("type")] = QStringLiteral("not-installed");
+    effects.insert(1, unknown);
+    serializedBus[QStringLiteral("effects")] = effects;
+    buses[0] = serializedBus;
+    document[QStringLiteral("buses")] = buses;
+
+    AudioMixer restored;
+    restored.setEffectFactoryHook(&testEffectFactory);
+    ASSERT_TRUE(restored.deserialize(document));
+    const auto restoredBus = restored.findBusByName(String("Mixed effects"));
+    ASSERT_TRUE(restoredBus);
+    ASSERT_EQ(restoredBus->getEffectCount(), 2);
+    EXPECT_EQ(toStdString(restoredBus->getEffect(0)->effectType()), "tremolo");
+    EXPECT_EQ(toStdString(restoredBus->getEffect(1)->effectType()), "ping_pong_delay");
+}
+
 TEST(AudioMixerFxPersistenceStandaloneTest, RestoredEffectsSoundIdentical)
 {
     const QJsonObject document = buildDocumentWithRacks();
@@ -162,6 +213,49 @@ TEST(AudioMixerFxPersistenceStandaloneTest, DeserializeIsIdempotent)
     EXPECT_EQ(restored.getMasterBus()->getEffectCount(), 1);
 }
 
+TEST(AudioMixerFxPersistenceStandaloneTest, ExplicitEmptyMasterRackClearsPreviouslyRestoredEffects)
+{
+    QJsonObject document = buildDocumentWithRacks();
+    AudioMixer restored;
+    restored.setEffectFactoryHook(&testEffectFactory);
+    ASSERT_TRUE(restored.deserialize(document));
+    ASSERT_EQ(restored.getMasterBus()->getEffectCount(), 1);
+
+    QJsonObject master = document.value(QStringLiteral("master")).toObject();
+    master[QStringLiteral("effects")] = QJsonArray();
+    document[QStringLiteral("master")] = master;
+
+    ASSERT_TRUE(restored.deserialize(document));
+    EXPECT_EQ(restored.getMasterBus()->getEffectCount(), 0);
+}
+
+TEST(AudioMixerFxPersistenceStandaloneTest, ExplicitEmptyBusRackClearsPreviouslyRestoredEffects)
+{
+    QJsonObject document = buildDocumentWithRacks();
+    AudioMixer restored;
+    restored.setEffectFactoryHook(&testEffectFactory);
+    ASSERT_TRUE(restored.deserialize(document));
+    const auto keys = restored.findBusByName(String("Keys"));
+    ASSERT_TRUE(keys);
+    ASSERT_EQ(keys->getEffectCount(), 1);
+
+    QJsonArray buses = document.value(QStringLiteral("buses")).toArray();
+    for (qsizetype index = 0; index < buses.size(); ++index) {
+        QJsonObject bus = buses[index].toObject();
+        if (bus.value(QStringLiteral("name")).toString() != QStringLiteral("Keys"))
+            continue;
+        bus[QStringLiteral("effects")] = QJsonArray();
+        buses[index] = bus;
+        break;
+    }
+    document[QStringLiteral("buses")] = buses;
+
+    ASSERT_TRUE(restored.deserialize(document));
+    const auto clearedKeys = restored.findBusByName(String("Keys"));
+    ASSERT_TRUE(clearedKeys);
+    EXPECT_EQ(clearedKeys->getEffectCount(), 0);
+}
+
 TEST(AudioMixerFxPersistenceStandaloneTest, UnknownEffectTypeIsSkipped)
 {
     QJsonObject document = buildDocumentWithRacks();
@@ -198,4 +292,29 @@ TEST(AudioMixerFxPersistenceStandaloneTest, DocumentWithoutRacksKeepsEmptyMixer)
     AudioMixer reference;
     EXPECT_EQ(restored.busCount(), reference.busCount());
     EXPECT_EQ(restored.getMasterBus()->getEffectCount(), 0);
+}
+
+TEST(AudioMixerFxPersistenceStandaloneTest, InvalidDocumentPreservesExistingMixerState)
+{
+    AudioMixer mixer;
+    mixer.setEffectFactoryHook(&testEffectFactory);
+    ASSERT_TRUE(mixer.deserialize(buildDocumentWithRacks()));
+    const int originalBusCount = mixer.busCount();
+    const auto keys = mixer.findBusByName(String("Keys"));
+    ASSERT_TRUE(keys);
+    ASSERT_EQ(keys->getEffectCount(), 1);
+    ASSERT_EQ(mixer.getMasterBus()->getEffectCount(), 1);
+
+    QJsonObject invalidDocument;
+    invalidDocument[QStringLiteral("buses")] = QStringLiteral("not-an-array");
+    EXPECT_FALSE(mixer.deserialize(invalidDocument));
+
+    EXPECT_EQ(mixer.busCount(), originalBusCount);
+    const auto preservedKeys = mixer.findBusByName(String("Keys"));
+    ASSERT_TRUE(preservedKeys);
+    ASSERT_EQ(preservedKeys->getEffectCount(), 1);
+    EXPECT_EQ(toStdString(preservedKeys->getEffect(0)->effectType()), "tremolo");
+    ASSERT_EQ(mixer.getMasterBus()->getEffectCount(), 1);
+    EXPECT_EQ(toStdString(mixer.getMasterBus()->getEffect(0)->effectType()),
+              "ping_pong_delay");
 }

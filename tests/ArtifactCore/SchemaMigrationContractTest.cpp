@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <stdexcept>
+#include <vector>
 
 #include <QJsonObject>
 #include <QString>
@@ -75,6 +76,83 @@ TEST(SchemaMigrationContractTest, MissingOrReversePathLeavesInputUnchanged)
     EXPECT_EQ(data, original);
 }
 
+TEST(SchemaMigrationContractTest, NegativeVersionRequestsAreRejectedWithoutMutation)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.NegativeVersion");
+    registry.registerMigration(typeName, 0, 1, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("migrated"), true);
+        return output;
+    });
+
+    const QJsonObject original{{QStringLiteral("payload"), QStringLiteral("stable")}};
+    QJsonObject data = original;
+    EXPECT_FALSE(registry.hasMigrationPath(typeName, -1, 1));
+    EXPECT_FALSE(registry.hasMigrationPath(typeName, 0, -1));
+    EXPECT_FALSE(registry.migrate(typeName, -1, 1, data));
+    EXPECT_EQ(data, original);
+    EXPECT_FALSE(registry.migrate(typeName, 0, -1, data));
+    EXPECT_EQ(data, original);
+}
+
+TEST(SchemaMigrationContractTest, SameVersionRequestSucceedsAsNoOp)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.Identity");
+    const QJsonObject original{{QStringLiteral("payload"), QStringLiteral("unchanged")},
+                               {QStringLiteral("revision"), 3}};
+    QJsonObject data = original;
+
+    EXPECT_TRUE(registry.hasMigrationPath(typeName, 3, 3));
+    EXPECT_TRUE(registry.migrate(typeName, 3, 3, data));
+    EXPECT_EQ(data, original);
+}
+
+TEST(SchemaMigrationContractTest, ReRegisteringMigrationEdgeReplacesCallback)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.ReplaceEdge");
+    registry.registerMigration(typeName, 2, 5, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("revision"), 1);
+        return output;
+    });
+    registry.registerMigration(typeName, 2, 5, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("revision"), 2);
+        return output;
+    });
+
+    QJsonObject data;
+    ASSERT_TRUE(registry.migrate(typeName, 2, 5, data));
+    EXPECT_EQ(data.value(QStringLiteral("revision")).toInt(), 2);
+}
+
+TEST(SchemaMigrationContractTest, InvalidReregistrationPreservesExistingEdge)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.InvalidReplacement");
+    registry.registerMigration(typeName, 1, 3, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("revision"), 7);
+        return output;
+    });
+
+    registry.registerMigration(typeName, 1, 3, {});
+    registry.registerMigration(typeName, -1, 3, [](const QJsonObject& input) {
+        return input;
+    });
+    registry.registerMigration(typeName, 3, 3, [](const QJsonObject& input) {
+        return input;
+    });
+
+    QJsonObject data;
+    ASSERT_TRUE(registry.migrate(typeName, 1, 3, data));
+    EXPECT_EQ(data.value(QStringLiteral("revision")).toInt(), 7);
+    EXPECT_EQ(registry.availableVersions(typeName), (std::vector<int>{1, 3}));
+}
+
 TEST(SchemaMigrationContractTest, ChoosesTheShortestAvailableForwardPath)
 {
     auto& registry = SchemaMigrationRegistry::instance();
@@ -108,6 +186,20 @@ TEST(SchemaMigrationContractTest, ChoosesTheShortestAvailableForwardPath)
     EXPECT_EQ(data.value(QStringLiteral("path")).toString(),
               QStringLiteral("short"));
     EXPECT_EQ(data.value(QStringLiteral("steps")).toInt(), 2);
+}
+
+TEST(SchemaMigrationContractTest, AvailableVersionsAreSortedAndDeduplicated)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.Versions");
+    const auto identity = [](const QJsonObject& input) { return input; };
+    registry.registerMigration(typeName, 4, 9, identity);
+    registry.registerMigration(typeName, 1, 4, identity);
+    registry.registerMigration(typeName, 1, 7, identity);
+
+    EXPECT_EQ(registry.availableVersions(typeName), (std::vector<int>{1, 4, 7, 9}));
+    EXPECT_EQ(registry.availableVersions(QStringLiteral("  ") + typeName + QStringLiteral("  ")),
+              (std::vector<int>{1, 4, 7, 9}));
 }
 
 TEST(SchemaMigrationContractTest, FailedCallbackLeavesInputUnchanged)

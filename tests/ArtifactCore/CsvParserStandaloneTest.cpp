@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <cstddef>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <string_view>
 
@@ -10,6 +14,38 @@ import Core.ArtifactString;
 using namespace ArtifactCore;
 
 namespace {
+class TemporaryCsvParserFile {
+public:
+    TemporaryCsvParserFile()
+    {
+        static std::atomic_uint64_t nextId{0};
+        const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+        path_ = std::filesystem::temp_directory_path() /
+            ("artifact-csv-parser-" + std::to_string(stamp) + "-" +
+             std::to_string(nextId.fetch_add(1)) + ".csv");
+    }
+
+    ~TemporaryCsvParserFile()
+    {
+        std::error_code error;
+        std::filesystem::remove(path_, error);
+    }
+
+    const std::filesystem::path& path() const { return path_; }
+
+    bool write(const std::string& contents) const
+    {
+        std::ofstream file(path_, std::ios::binary | std::ios::trunc);
+        if (!file.is_open()) return false;
+        file << contents;
+        file.close();
+        return file.good();
+    }
+
+private:
+    std::filesystem::path path_;
+};
+
 std::string cell(const CsvParseResult& result, int row, int column)
 {
     return toStdString(result.rows[static_cast<size_t>(row)][static_cast<size_t>(column)]);
@@ -23,6 +59,63 @@ TEST(CsvParserStandaloneTest, EmptyInputReturnsEmptyFileError)
     EXPECT_EQ(result.error, CsvParseError::EmptyFile);
     EXPECT_EQ(result.rowCount, 0);
     EXPECT_EQ(result.columnCount, 0);
+}
+
+TEST(CsvParserStandaloneTest, ParseFileReadsHeaderAndDataRows)
+{
+    TemporaryCsvParserFile file;
+    ASSERT_TRUE(file.write("name,count\nwidget,3\n"));
+
+    const auto result = CsvParser::parseFile(file.path());
+
+    ASSERT_TRUE(result.ok());
+    ASSERT_EQ(result.headers.size(), 2);
+    ASSERT_EQ(result.rows.size(), 1);
+    EXPECT_EQ(toStdString(result.headers[0]), "name");
+    EXPECT_EQ(toStdString(result.headers[1]), "count");
+    EXPECT_EQ(cell(result, 0, 0), "widget");
+    EXPECT_EQ(cell(result, 0, 1), "3");
+}
+
+TEST(CsvParserStandaloneTest, ParseFileReportsMissingPathWithoutPartialRows)
+{
+    TemporaryCsvParserFile file;
+
+    const auto result = CsvParser::parseFile(file.path());
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_EQ(result.error, CsvParseError::FileNotFound);
+    EXPECT_TRUE(result.headers.empty());
+    EXPECT_TRUE(result.rows.empty());
+    EXPECT_EQ(result.rowCount, 0);
+    EXPECT_EQ(result.columnCount, 0);
+}
+
+TEST(CsvParserStandaloneTest, ParseFileReportsEmptyFile)
+{
+    TemporaryCsvParserFile file;
+    ASSERT_TRUE(file.write(""));
+
+    const auto result = CsvParser::parseFile(file.path());
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_EQ(result.error, CsvParseError::EmptyFile);
+    EXPECT_TRUE(result.headers.empty());
+    EXPECT_TRUE(result.rows.empty());
+    EXPECT_EQ(result.rowCount, 0);
+    EXPECT_EQ(result.columnCount, 0);
+}
+
+TEST(CsvParserStandaloneTest, ParseFilePreservesUtf8FieldBytes)
+{
+    TemporaryCsvParserFile file;
+    ASSERT_TRUE(file.write("name\nレイヤー\n"));
+
+    const auto result = CsvParser::parseFile(file.path());
+
+    ASSERT_TRUE(result.ok());
+    ASSERT_EQ(result.rows.size(), 1);
+    EXPECT_EQ(cell(result, 0, 0), "レイヤー");
 }
 
 TEST(CsvParserStandaloneTest, DefaultOptionsParseHeaderAndRows)
@@ -127,6 +220,16 @@ TEST(CsvParserStandaloneTest, QuotedFieldsMayContainNewlines)
     EXPECT_EQ(cell(result, 0, 1), "first line\nsecond line");
 }
 
+TEST(CsvParserStandaloneTest, QuotedFieldsPreserveCarriageReturnLineFeed)
+{
+    const auto result = CsvParser::parseString(
+        "name,note\nAda,\"first line\r\nsecond line\"");
+
+    ASSERT_TRUE(result.ok());
+    ASSERT_EQ(result.rows.size(), 1u);
+    EXPECT_EQ(cell(result, 0, 1), "first line\r\nsecond line");
+}
+
 TEST(CsvParserStandaloneTest, CustomQuoteCharacterIsSupported)
 {
     CsvParseOptions options;
@@ -198,6 +301,14 @@ TEST(CsvParserStandaloneTest, InconsistentColumnCountReturnsSpecificError)
     EXPECT_FALSE(result.ok());
     EXPECT_EQ(result.error, CsvParseError::InconsistentColumnCount);
     EXPECT_NE(result.errorMessage.find("expected 2"), std::string::npos);
+}
+
+TEST(CsvParserStandaloneTest, UnterminatedQuotedFieldReturnsMalformedRow)
+{
+    const auto result = CsvParser::parseString("name,note\nAda,\"unfinished");
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_EQ(result.error, CsvParseError::MalformedRow);
 }
 
 TEST(CsvParserStandaloneTest, SingleColumnAndSingleRowInputIsValid)
@@ -281,6 +392,18 @@ TEST(CsvParserStandaloneTest, CarriageReturnOnlySeparatesRecords)
     EXPECT_EQ(cell(result, 2, 1), "4");
 }
 
+TEST(CsvParserStandaloneTest, CarriageReturnLineFeedSeparatesRecords)
+{
+    CsvParseOptions options;
+    options.hasHeader = false;
+    const auto result = CsvParser::parseString("a,b\r\n1,2\r\n3,4", options);
+    ASSERT_TRUE(result.ok());
+    ASSERT_EQ(result.rows.size(), 3);
+    EXPECT_EQ(cell(result, 0, 0), "a");
+    EXPECT_EQ(cell(result, 1, 1), "2");
+    EXPECT_EQ(cell(result, 2, 0), "3");
+}
+
 TEST(CsvParserStandaloneTest, TrimmingAlsoAppliesToQuotedFieldEdges)
 {
     const auto result = CsvParser::parseString("name\n\"  Ada Lovelace  \"");
@@ -295,6 +418,15 @@ TEST(CsvParserStandaloneTest, EqualDelimiterCountsPreferComma)
     ASSERT_TRUE(result.ok());
     ASSERT_EQ(result.columnCount, 2);
     EXPECT_EQ(cell(result, 0, 1), "2;3");
+}
+
+TEST(CsvParserStandaloneTest, EqualNonCommaDelimiterCountsPreferSemicolon)
+{
+    EXPECT_EQ(CsvParser::detectDelimiter("a;b\tc|d"), ';');
+    const auto result = CsvParser::parseString("a;b\tc|d\n1;2\t3|4");
+    ASSERT_TRUE(result.ok());
+    ASSERT_EQ(result.columnCount, 2);
+    EXPECT_EQ(cell(result, 0, 1), "2\t3|4");
 }
 
 TEST(CsvParserStandaloneTest, DelimiterDetectionDefaultsToCommaWhenOnlyQuotedSeparatorsExist)

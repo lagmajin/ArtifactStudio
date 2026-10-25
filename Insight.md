@@ -2,6 +2,12 @@
 
 # Insight Register
 
+## 2026-10-25: IdMap standalone suite called a nonexistent erase API
+- **関連:** `tests/ArtifactCore/IdMapStandaloneTest.cpp`, `ArtifactCore/include/Container/IdMap.ixx`
+- **確認できた事実:** The standalone test had `EraseReturnsNumberOfRemovedEntries` calling `IdMap::erase()`, but the current public `IdMap` interface has no `erase()` member. The suite already has separate `remove()` success and missing-key tests, so the invalid test was removed instead of changing the product API.
+- **価値または懸念:** The stale call would prevent that standalone test source from compiling and could conceal the distinction between `NameMap::erase()` and `IdMap::remove()`.
+- **次に確認すべきこと:** When build/test execution is authorized, build the `IdMapStandalone` target to confirm no other stale API calls remain.
+
 ## 2026-10-25: clang-cl must not inherit MSVC-only flags
 - **関連:** `Artifact/DockFoundation/CMakeLists.txt`, root `CMakeLists.txt`, clang-cl P1689 scans
 - **確認できた事実:** The old generated `DockManager.ixx` scan command contained `/Zf` and failed with `no such file or directory: '/Zf'`; its standalone CMake used broad `if(MSVC)`. The guard now requires compiler ID `MSVC`. A fresh CMake 4.4.4 Ninja scanner run succeeded and emitted `Dock.Manager`, then the full `ArtifactDockFoundation` static library linked. Root optional target `/Zf` flags now use a compiler-ID generator expression, and the always-configured VideoPreviewBench plus standalone GPU smoke target also require actual MSVC. With Plugin Host enabled, fresh clang-cl output omits `/Zf` and MSVC-only standard flags from scan and compile commands, keeps `-std=c++23`, and its direct P1689 scan emitted seven module requirements. Both clang-cl and upstream Clang 22 GNU frontend cleanly built `ArtifactCoreEnvironment`, including migrated `EnvironmentVariable.cpp`. Current-tree P1689 scanner commands for EnvironmentVariable, DockManager, AudioMiniWidget, ApplicationManager, and PreviewCompositionPipeline succeeded under both GNU-frontend Clang and clang-cl; their `.ddi` dependency names match for all five commands.
@@ -6106,3 +6112,52 @@
 - **仮説（未検証）:** The remaining four may be dormant or legacy files; the source search does not prove their intended ownership. `ArtifactTextRenderTarget.cpp` may be an obsolete duplicate implementation, but this also remains unverified.
 - **価値または懸念:** Filename-only scans produce false positives when CMake constructs paths from variables. Registering candidate files without tracing their target and interface could expand the build or duplicate definitions.
 - **次に確認すべきこと:** When configure/build execution is authorized, compare the four candidates with generated target membership and module dependency data before changing any registration.
+
+## 2026-10-25: Spatial parameter sanitizer omits the distance model enum
+- **関連:** `ArtifactCore/include/Audio/Spatial/SpatialParams.ixx`, `tests/ArtifactCore/AudioSpatialParamsStandaloneTest.cpp`
+- **確認できた事実:** `sanitizedSpatialParams()` validates `outputLayout` and `renderMode`, but does not validate `DistanceModel`. `distanceAttenuation()` has a default return path for unknown model values.
+- **仮説（未検証）:** An invalid serialized or externally supplied model may silently behave as unity attenuation for distances inside the configured range, unlike the other sanitized enum fields. The new standalone assertion expects fallback to the struct's default `Inverse` model; it has not been built or run.
+- **価値または懸念:** Consistent enum validation would avoid silently accepting invalid spatial attenuation configuration. Changing the sanitizer belongs to a later implementation decision; this test-only task leaves ArtifactCore unchanged.
+- **次に確認すべきこと:** Confirm expected invalid-model fallback with the audio spatial contract owner, then repair the sanitizer and run the independent suite when builds/tests are authorized.
+
+## 2026-10-25: Equal-power panning mode is not wired to its gain function
+- **関連:** `ArtifactCore/src/Audio/AudioPanner.cpp`, `tests/ArtifactCore/AudioPannerStandaloneTest.cpp`
+- **確認できた事実:** `PanningMode::EqualPower` is publicly described as constant-power panning and `AudioPanner::calculateConstantPowerGains()` implements that curve. `AudioPanner::Impl::calculateGain()` currently returns unity gains for every mode except `StereoBalance`.
+- **価値または懸念:** Selecting EqualPower currently has no audible panning effect; the new standalone assertion captures the missing connection without changing the child repository.
+- **次に確認すべきこと:** Confirm whether `VBAP`, `Ambisonics`, and `Binaural` are intentionally placeholders or have separate implementation contracts before adding mode-specific expectations.
+
+## 2026-10-25: Chorus LFO phase restarts at every audio segment
+- **関連:** `ArtifactCore/src/Audio/AudioChorus.cpp`, `tests/ArtifactCore/AudioChorusStandaloneTest.cpp`
+- **確認できた事実:** `AudioChorus::process()` computes the LFO from the local loop index `i` and has no persistent phase accumulator. The new independent test compares one 80-frame block with four 20-frame blocks using the same input/settings; static inspection predicts different modulation after each boundary. The test has not been built or run.
+- **仮説（未検証）:** Treating `AudioSegment` boundaries as implementation details implies that a continuous chorus modulation should be independent of block partitioning. If confirmed as the intended DSP contract, phase state should persist across calls.
+- **価値または懸念:** A phase restart can make modulation periodic at the host block length and create audible discontinuities or timing changes when buffer size changes.
+- **次に確認すべきこと:** Confirm the intended block-invariance contract, then repair chorus phase accumulation and verify with the independent suite when test execution is authorized.
+
+## 2026-10-25: Reverb circular-buffer period depends on block length
+- **関連:** `ArtifactCore/src/Audio/AudioReverb.cpp`, `tests/ArtifactCore/AudioReverbStandaloneTest.cpp`
+- **確認できた事実:** `AudioReverb::process()` sets `needed` to `max(frames, 1225) + 64`; the comb delay reads `(idx + combDelays[c]) % needed`, while write positions advance modulo the same `needed`. The added 1500-frame whole-block versus 300-frame-block contract test is expected to detect differing delay positions because the ring modulus is 1564 versus 1289. The test has not been built or run.
+- **仮説（未検証）:** An audio segment boundary should not change the reverb time profile, so the storage period should be stable for a given instance/sample rate and delay configuration, independent of the caller's block size.
+- **価値または懸念:** The current sizing may change the effective comb tap timing with host block size, so buffer partitioning can alter the effect response.
+- **次に確認すべきこと:** Confirm the intended block-invariance contract, then redesign the reverb ring sizing/state to keep tap delays stable and verify with the independent suite when tests are authorized.
+
+## 2026-10-25: Stereo tone channels start at different oscillator phases
+- **関連:** `ArtifactCore/src/Audio/AudioTone.cpp`, `tests/ArtifactCore/AudioToneStandaloneTest.cpp`
+- **確認できた事実:** `AudioTone::process()` increments the shared `phase_` inside the channel-0 sample loop only. The subsequent channel-1 loop begins from the phase after channel 0's entire block. The new test uses a three-frame stereo sine block and expects identical left/right samples; static inspection predicts a mismatch. It has not been built or run.
+- **仮説（未検証）:** A generated stereo tone should be phase-coherent across channels; processing channel-major with a shared phase accumulator violates that contract for blocks that do not end on a full cycle.
+- **価値または懸念:** The phase offset can cause unintended stereo movement or cancellation when the generated tone is mixed downstream.
+- **次に確認すべきこと:** Confirm the intended stereo generator behavior, then advance phase once per frame and write the same generated sample to both channels before verifying the independent suite when tests are authorized.
+
+## 2026-10-25: ArtifactHashMap move-from cleanup may dereference null storage
+- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm`, `tests/ArtifactCore/ArtifactHashMapContractTest.cpp`
+- **確認できた事実:** Move constructor and move assignment set the source `buckets_` to null but restore `bucketCount_` to `kInitialBucketCount`; `clear()` iterates `bucketCount_` and accesses `buckets_[i]`. Static inspection therefore indicates moved-from destruction or reuse may dereference null. ArtifactCore is a child repository and was not changed.
+- **仮説（未検証）:** This sequence can crash when a moved-from map is destroyed; existing move contract tests may encounter it at teardown.
+- **価値または懸念:** A moved-from container should remain safely destructible, and reusable if that is its documented contract.
+- **次に確認すべきこと:** When child-repository work is explicitly in scope, verify this behavior with a focused runtime reproducer and correct bucket storage state or clear semantics.
+
+
+## 2026-10-25: ACESlog is declared but has no transfer-function dispatch
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, `tests/ArtifactCore/ColorPipelineStandaloneTest.cpp`
+- **確認できた事実:** `TransferFunction::ACESlog` is declared, but `ColorTransferFunction::encode()` and `decode()` contain no `ACESlog` case and no corresponding direct curve functions; it currently follows the identity fallback. The new dispatch test covers the other 16 supported modes and unknown-value fallback, but deliberately makes no assumption about ACESlog.
+- **仮説（未検証）:** ACESlog may be an unfinished enum entry or an intentionally reserved compatibility value; the intended curve and decode domain are unclear from the local implementation.
+- **価値または懸念:** A caller selecting ACESlog receives unmodified values without a visible error, which can silently bypass the requested color encoding.
+- **次に確認すべきこと:** Confirm whether ACESlog should be implemented or explicitly treated as unsupported, then add a dedicated behavior contract before changing its dispatch.

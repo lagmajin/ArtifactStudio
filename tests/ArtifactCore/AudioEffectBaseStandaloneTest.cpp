@@ -85,6 +85,19 @@ TEST(AudioEffectBaseStandaloneTest, FromJsonRestoresBypassAndDefaultsMissingValu
     EXPECT_FALSE(effect.isBypassed());
 }
 
+TEST(AudioEffectBaseStandaloneTest, WronglyTypedBypassValueDefaultsToFalse)
+{
+    BasicEffect effect;
+    effect.setBypass(true);
+
+    effect.fromJson(QJsonObject{{QStringLiteral("bypass"), QStringLiteral("true")}});
+    EXPECT_FALSE(effect.isBypassed());
+
+    effect.setBypass(true);
+    effect.fromJson(QJsonObject{{QStringLiteral("bypass"), 1}});
+    EXPECT_FALSE(effect.isBypassed());
+}
+
 TEST(AudioEffectBaseStandaloneTest, ParameterLookupReadsCurrentDerivedParameterValue)
 {
     ParameterizedEffect effect;
@@ -95,6 +108,16 @@ TEST(AudioEffectBaseStandaloneTest, ParameterLookupReadsCurrentDerivedParameterV
     effect.gain = 1.25f;
     EXPECT_FLOAT_EQ(effect.getParameterValue(String("gain")), 1.25f);
     EXPECT_FLOAT_EQ(effect.getParameterValue(String("unknown")), 0.0f);
+}
+
+TEST(AudioEffectBaseStandaloneTest, DefaultParameterSetterLeavesDerivedStateUnchanged)
+{
+    ParameterizedEffect effect;
+    effect.setParameterValue(String("gain"), 1.5f);
+    effect.setParameterValue(String("unknown"), 1.5f);
+
+    EXPECT_FLOAT_EQ(effect.gain, 0.75f);
+    EXPECT_FLOAT_EQ(effect.getParameterValue(String("gain")), 0.75f);
 }
 
 TEST(AudioEffectBaseStandaloneTest, ProcessVirtualDispatchReceivesSegmentAndSidechain)
