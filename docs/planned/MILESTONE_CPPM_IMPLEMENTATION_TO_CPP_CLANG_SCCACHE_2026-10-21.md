@@ -4089,6 +4089,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 - Migrated `Artifact.Widgets.AssetBrowserPresentation` to `.cpp` and updated `ArtifactSources.cmake`; the existing item presentation/painting and both imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans succeeded with identical requirements. Compilation and Asset Browser runtime remain unverified.
 - Migrated the active `Artifact.TestRunner` provider from `Test.cppm` to `Test.cpp` and updated `ArtifactSources.cmake`; its test orchestration and 32 imports are unchanged. Direct GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with identical requirements. No test executable was built or run.
 - Migrated `Artifact.AI.CommandIRExecutor` to `.cpp` and updated `ArtifactSources.cmake`; command validation/execution behavior and both imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with matching requirements. Object compilation and command execution runtime remain unverified.
+- Migrated `Artifact.Application.ProjectBundleIpc` to `.cpp` and updated `ArtifactSources.cmake`; local IPC behavior and all ten imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with matching requirements. Object compilation, link, and IPC runtime remain unverified.
 
 
 ### Current-source GNU Clang scan follow-up (2026-10-25)
