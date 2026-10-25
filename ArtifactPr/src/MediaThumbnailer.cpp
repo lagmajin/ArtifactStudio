@@ -1,6 +1,8 @@
 module;
 
 #include <QDebug>
+#include <QCoreApplication>
+#include <QEventLoop>
 #include <QElapsedTimer>
 #include <QImage>
 #include <QMediaPlayer>

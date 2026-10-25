@@ -13,9 +13,9 @@ cmake_minimum_required(VERSION 3.30)
 #
 # Module declaration convention (same as ArtifactCore):
 #   include/*.ixx   -> module interface unit      ("export module ArtifactPr.X;")
-#   src/*.cppm      -> module implementation unit ("module ArtifactPr.X;")
-# A .cppm must not redeclare its module as an interface, and must not import
-# the module it implements (self-import breaks Ninja dyndep).
+#   src/*.cpp       -> module implementation unit ("module ArtifactPr.X;")
+# A module implementation must not redeclare its module as an interface, and
+# must not import the module it implements (self-import breaks Ninja dyndep).
 set(ARTIFACT_PR_MODULE_SOURCES
     include/AppTheme.ixx
     include/ArtifactPrCLI.ixx
@@ -48,35 +48,83 @@ set(ARTIFACT_PR_MODULE_SOURCES
 )
 
 set(ARTIFACT_PR_IMPL_SOURCES
-    src/AppTheme.cppm
-    src/ArtifactPrCLI.cppm
-    src/ArtifactPrDemoData.cppm
-    src/ArtifactPrEditorEngine.cppm
-    src/ArtifactPrMainWindow.cppm
-    src/AudioPreviewMixer.cppm
-    src/ClipEffects.cppm
-    src/EditCommand.cppm
-    src/ExportDialog.cppm
-    src/GpuProgramMonitor.cppm
-    src/MarkerEditDialog.cppm
-    src/MediaFrameDecoder.cppm
-    src/MediaPanel.cppm
-    src/MediaThumbnailer.cppm
-    src/PrColorPickerDialog.cppm
-    src/ProjectPanel.cppm
-    src/PrShortcut.cppm
-    src/PrStatusNotifier.cppm
-    src/SequenceAudioRenderer.cppm
-    src/SequenceCompositor.cppm
-    src/SequenceExporter.cppm
-    src/ShortcutHelpDialog.cppm
-    src/TimecodeOverlayWidget.cppm
-    src/TimelinePanel.cppm
-    src/Translation.cppm
-    src/TransportBarWidget.cppm
-    src/VideoPlayerWidget.cppm
-    src/VideoSurface.cppm
+    src/AppTheme.cpp
+    src/ArtifactPrCLI.cpp
+    src/ArtifactPrDemoData.cpp
+    src/ArtifactPrEditorEngine.cpp
+    src/ArtifactPrMainWindow.cpp
+    src/AudioPreviewMixer.cpp
+    src/ClipEffects.cpp
+    src/EditCommand.cpp
+    src/ExportDialog.cpp
+    src/GpuProgramMonitor.cpp
+    src/MarkerEditDialog.cpp
+    src/MediaFrameDecoder.cpp
+    src/MediaPanel.cpp
+    src/MediaThumbnailer.cpp
+    src/PrColorPickerDialog.cpp
+    src/ProjectPanel.cpp
+    src/PrShortcut.cpp
+    src/PrStatusNotifier.cpp
+    src/SequenceAudioRenderer.cpp
+    src/SequenceCompositor.cpp
+    src/SequenceExporter.cpp
+    src/ShortcutHelpDialog.cpp
+    src/TimecodeOverlayWidget.cpp
+    src/TimelinePanel.cpp
+    src/Translation.cpp
+    src/TransportBarWidget.cpp
+    src/VideoPlayerWidget.cpp
+    src/VideoSurface.cpp
 )
+
+# Keep module implementation units distinct from importable module interfaces
+# for MSVC and Clang. Upstream clang++ otherwise treats .cppm as a module
+# interface; migrated .cpp implementations use ordinary C++ language handling.
+if(MSVC OR ARTIFACT_COMPILER_CLANG_GNU OR ARTIFACT_COMPILER_CLANG_CL)
+    foreach(_artifact_pr_impl IN LISTS ARTIFACT_PR_IMPL_SOURCES)
+        get_filename_component(_artifact_pr_impl_path "${_artifact_pr_impl}"
+            ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+        if(_artifact_pr_impl_path MATCHES "[.]cppm$")
+            if(MSVC)
+                set_property(SOURCE "${_artifact_pr_impl_path}" APPEND PROPERTY
+                    VS_SETTINGS "CompileAs=CompileAsCpp")
+            endif()
+            if(ARTIFACT_COMPILER_CLANG_GNU OR ARTIFACT_COMPILER_CLANG_CL)
+                set_source_files_properties("${_artifact_pr_impl_path}" PROPERTIES
+                    CXX_SCAN_FOR_MODULES ON)
+                if(ARTIFACT_COMPILER_CLANG_GNU)
+                    set_property(SOURCE "${_artifact_pr_impl_path}" APPEND PROPERTY
+                        COMPILE_OPTIONS -x c++)
+                endif()
+            endif()
+        elseif(_artifact_pr_impl_path MATCHES "[.]cpp$" AND
+               (ARTIFACT_COMPILER_CLANG_GNU OR ARTIFACT_COMPILER_CLANG_CL))
+            file(STRINGS "${_artifact_pr_impl_path}" _artifact_pr_module_declarations
+                REGEX "^[ \t]*module[ \t]+[A-Za-z_][A-Za-z0-9_.]*(:[A-Za-z_][A-Za-z0-9_.]*)?[ \t]*;")
+            if(_artifact_pr_module_declarations)
+                set_source_files_properties("${_artifact_pr_impl_path}" PROPERTIES
+                    CXX_SCAN_FOR_MODULES ON)
+            endif()
+        endif()
+    endforeach()
+endif()
+
+# These executable entry points are attached directly to their targets and
+# import modules without defining one. Keep their Clang P1689 scan explicit;
+# they do not pass through ARTIFACT_PR_IMPL_SOURCES above.
+if(ARTIFACT_COMPILER_CLANG_GNU OR ARTIFACT_COMPILER_CLANG_CL)
+    foreach(_artifact_pr_entry IN ITEMS
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/main_cli.cpp")
+        file(STRINGS "${_artifact_pr_entry}" _artifact_pr_entry_imports
+            REGEX "^[ \t]*import[ \t]+")
+        if(_artifact_pr_entry_imports)
+            set_source_files_properties("${_artifact_pr_entry}" PROPERTIES
+                CXX_SCAN_FOR_MODULES ON)
+        endif()
+    endforeach()
+endif()
 
 # MOC disabled - causes issues with drive paths
 # qt6_wrap_cpp(ARTIFACT_PR_MOC_SOURCES

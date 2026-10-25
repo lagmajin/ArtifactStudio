@@ -172,12 +172,12 @@ set(ARTIFACT_FX_STUDIO_MODULE_SOURCES
     "${PROJECT_SOURCE_DIR}/Artifact/include/FxStudio/ArtifactFxViewportModel.ixx"
 )
 set(ARTIFACT_FX_STUDIO_IMPL_SOURCES
-    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxEventTrack.cppm"
-    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxPresetCatalog.cppm"
-    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxSequence.cppm"
-    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxSerialization.cppm"
-    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxStudioSession.cppm"
-    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxViewportModel.cppm"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxEventTrack.cpp"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxPresetCatalog.cpp"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxSequence.cpp"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxSerialization.cpp"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxStudioSession.cpp"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxViewportModel.cpp"
 )
 
 function(artifact_fx_studio_sources target)

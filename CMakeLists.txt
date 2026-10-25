@@ -85,6 +85,14 @@ if(CMAKE_CXX_COMPILER)
     endif()
 endif()
 
+# CMake 4.2's compiler feature probe needs the clang-cl P1689 command before
+# project() enables CXX. Load the override at top-level scope so its rule
+# variables are available while CMake initializes the language.
+if(ARTIFACT_USING_CLANG_LIKE_PREPROJECT AND
+   _artifact_cxx_compiler_lower MATCHES "clang-cl(\\.exe)?$")
+    include("${CMAKE_CURRENT_LIST_DIR}/cmake/clangcl-p1689-override.cmake")
+endif()
+
 # NOTE: std.ixx の検出と CMAKE_CXX_STDLIB_MODULES_JSON の設定は
 #       project() の後（toolchain 処理後）に行います。
 #       pre-project フェーズでは CMAKE_CXX_COMPILER が未設定のため、
@@ -340,10 +348,10 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
             message(FATAL_ERROR "Windows upstream clang++ requires clang-scan-deps for C++ modules.")
         endif()
     endif()
-    # Clang 22's P1689 scanner misreports `module Name;` implementation
-    # attachments as ordinary imports, causing a Ninja dyndep cycle. Keep
-    # scanning enabled for module interfaces/importers, but disable it for
-    # module implementation units through the source manifest policy.
+    # Clang 22's P1689 scanner can misreport `module Name;` attachments.
+    # Keep scanning enabled globally, then let each project source manifest
+    # opt implementation units in or out where dependency ordering requires it.
+    # Upstream Clang lanes classify legacy .cppm implementations per source.
     set(CMAKE_CXX_SCAN_FOR_MODULES ON CACHE BOOL "Enable upstream Clang P1689 module scanning" FORCE)
 endif()
 
@@ -1359,12 +1367,12 @@ endif()
 
 if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST AND ARTIFACT_FRONTEND_MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/EnvironmentVariable/EnvironmentVariable.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/EnvironmentVariable/EnvironmentVariable.cpp"
         TARGET_DIRECTORY ArtifactCoreEnvironment
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;EnvironmentVariable=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCoreEnvironment.dir/EnvironmentVariable.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform2D.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform2D.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Animation.Transform2D=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Animation.Transform2D.ifc"
@@ -1374,7 +1382,7 @@ if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST AND ARTIFACT_FRONTEND_MSVC AND CM
         "/reference;Math.Interpolate=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Math.Interpolate.ifc"
         "/reference;Time.Rational=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Time.Rational.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform3D.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform3D.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Animation.Transform3D=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Animation.Transform3D.ifc"
@@ -1394,13 +1402,13 @@ if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST AND ARTIFACT_FRONTEND_MSVC AND CM
         "/reference;Script.Expression.Evaluator=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Script.Expression.Evaluator.ifc"
         "/reference;Utils.String.UniString=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Utils.String.UniString.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimationDynamics.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimationDynamics.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Animation.Dynamics=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Animation.Dynamics.ifc"
         "/reference;Core.ArtifactString=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactString.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Image/ImageF32x4_With_Cache.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Image/ImageF32x4_With_Cache.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Image.GpuImageUpload=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Image.GpuImageUpload.ifc")
@@ -1413,30 +1421,30 @@ if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST AND ARTIFACT_FRONTEND_MSVC AND CM
         list(GET _artifact_motionpath_gpu_fields 0 _artifact_motionpath_gpu_name)
         list(GET _artifact_motionpath_gpu_fields 1 _artifact_motionpath_gpu_logical)
         set_property(SOURCE
-            "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Graphics/${_artifact_motionpath_gpu_name}.cppm"
+            "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Graphics/${_artifact_motionpath_gpu_name}.cpp"
             TARGET_DIRECTORY ArtifactCore
             PROPERTY COMPILE_OPTIONS
             "/reference;${_artifact_motionpath_gpu_logical}=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/${_artifact_motionpath_gpu_logical}.ifc")
     endforeach()
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/ImageProcessing/AbstractImageEffect.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/ImageProcessing/AbstractImageEffect.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Graphics.SurfaceColorContract=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Graphics.SurfaceColorContract.ifc"
         "/reference;Color.TransferFunction=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Color.TransferFunction.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/GStreamerDecoder.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/GStreamerDecoder.cpp"
         TARGET_DIRECTORY ArtifactCoreVideo
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Video.GStreamerDecoder=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCoreVideo.dir/Video.GStreamerDecoder.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/EncoderSetting.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/EncoderSetting.cpp"
         TARGET_DIRECTORY ArtifactCoreVideo
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Codec.Encoder.Setting=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCoreVideo.dir/Codec.Encoder.Setting.ifc"
         "/reference;Utils.String.UniString=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Utils.String.UniString.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform2D.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform2D.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Container.NamedVector=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.NamedVector.ifc"
@@ -1445,27 +1453,27 @@ if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST AND ARTIFACT_FRONTEND_MSVC AND CM
         "/reference;Core.ArtifactArray=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactArray.ifc"
         "/reference;Core.ArtifactOptional=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactOptional.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFFrameExtractor.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFFrameExtractor.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Container.Debug=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.Debug.ifc"
         "/reference;Container.Debug.Registry=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.Debug.Registry.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFFrameExtractor.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFFrameExtractor.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Codec.MFFrameExtractor=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Codec.MFFrameExtractor.ifc"
         "/reference;Core.Parallel=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.Parallel.ifc"
         "/reference;Memory.TrackedPtr=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Memory.TrackedPtr.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Channel/Channel.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Channel/Channel.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Channel=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Channel.ifc"
         "/reference;Core.ArtifactString=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactString.ifc"
         "/reference;Memory.SharedPtr=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Memory.SharedPtr.ifc")
     set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFEncoder.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFEncoder.cpp"
         TARGET_DIRECTORY ArtifactCore
         APPEND PROPERTY COMPILE_OPTIONS
         "/reference;Codec.MFEncoder=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Codec.MFEncoder.ifc")
@@ -1949,7 +1957,7 @@ if(ARTIFACT_BUILD_PLUGIN_HOST_SMOKE_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactPluginHostSmoke PRIVATE
-            /Zf /std:c++latest /experimental:module /Zc:__cplusplus
+            /Zf $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/std:c++latest> $<$<BOOL:${ARTIFACT_COMPILER_MSVC_CL}>:/experimental:module> /Zc:__cplusplus
             /permissive- /utf-8 /EHsc
         )
     endif()

@@ -1,6 +1,242 @@
-**最終更新:** 2026-10-22
+**最終更新:** 2026-10-25
 
 # Insight Register
+
+## 2026-10-25: clang-cl module units cannot inherit the MSVC Qt forced include
+- **関連:** `ArtifactCore/CMakeLists.txt`, `include/Compat/QtListForward.h`, clang-cl module compilation
+- **確認できた事実:** In the clang-cl build, the target-wide `/FI.../QtListForward.h` was applied before module interfaces and produced `module; ... can appear only at the start of the translation unit`. Restricting this forced include to `ARTIFACT_COMPILER_MSVC_CL` allowed clang-cl to compile the migrated `src/Animation/AnimatableTransform2D.cpp` and its module prerequisites. The compiler still warns that `/std:c++latest` and `/experimental:module` are unused under this lane.
+- **価値または懸念:** Other clang-cl module source units may rely on declarations currently supplied only by the forced include, so one successful target does not prove the full ArtifactCore or application build. Clang 22 P1689 scan succeeded across the selected dependency set after excluding `/FI`.
+- **次に確認すべきこと:** Expand clang-cl builds across the remaining ArtifactCore and Artifact targets; then replace any newly exposed implicit Qt declarations with direct includes in the affected source units and remove MSVC-only switches from the clang-cl option branch.
+
+## 2026-10-25: GNU Clang 22 repeatedly fails reading a large module PCM
+- **関連:** `Artifact/src/Preview/ArtifactPreviewCompositionPipeline.cpp`, GNU Clang 22.1.3, generated Artifact module PCMs
+- **確認できた事実:** The source's P1689 scan succeeds and records 21 imported modules. Compilation failed twice with `malformed or corrupted precompiled file: ran out of source locations`, including once after reconfiguring with sccache disabled. The unit was not part of the `.cppm` migration. The generated diagnostic identifies a Clang frontend crash; the exact imported PCM or compiler defect is not yet isolated.
+- **価値または懸念:** The remaining GNU Clang build gap is not explained by sccache or parallel execution alone. Treating the partial build as fully passing would hide an unresolved compiler/module artifact issue.
+- **次に確認すべきこと:** Isolate the failing imported PCM or reproduce with a newer/alternate upstream Clang build, then resume the GNU Clang app build and verify the final link.
+
+## 2026-10-25: Preview pipeline import set reaches Clang source-location limit
+- **関連:** `Artifact/src/Preview/ArtifactPreviewCompositionPipeline.cpp`, `Artifact/src/Preview/ArtifactPreviewCloneSelectionOverlay.cpp`
+- **確認できた事実:** Direct compilation after removing imports already provided transitively by the primary interface still fails while importing the concrete `Solid2D` layer module. A reduced import probe reported about 2.13 GB of source locations loaded from AST files (99% of available space). Moving clone selection overlay into a second implementation unit did not resolve the main unit's failure. A standalone compile of the new unit could not be evaluated because its generated `.modmap` is absent from the partially built tree.
+- **価値または懸念:** The failure is cumulative across the translation unit's imported AST graph; removing one direct import is insufficient. Any further splitting needs dependency-graph evidence and a fresh generated build tree.
+- **次に確認すべきこと:** The temporary helper split did not reduce the main unit's source-location failure and was reverted because no module map or compile evidence was available. Measure import subsets in a generated tree before attempting another split; prefer compiler-supported source-location growth or a partition that demonstrably lowers cumulative AST imports.
+
+## 2026-10-25: Clone layer implementation uses the existing renderer abstraction
+- **関連:** `Artifact/src/Layer/ArtifactCloneLayer.cppm` → `.cpp`、`Artifact/include/Layer/ArtifactCloneLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Layer.Clone;`, matching the public interface, and imports clone effect, mesh, composition, layer, and renderer modules. It includes `Graphics/InstanceData.h` but has no direct Diligent interface calls; the source path was migrated without changing clone generation or rendering behavior. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** The migration retains the current renderer abstraction and module API while allowing standard `.cpp` dependency scanning.
+- **次に確認すべきこと:** Verify P1689 scanning and object compilation with Clone effect and Mesh module artifacts available.
+
+## 2026-10-25: Content gizmo compile evidence was limited by missing provider PCMs
+- **関連:** `Artifact/src/Widgets/Render/ArtifactContentGizmo.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactContentGizmo.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.ContentGizmo;` and imports CompositionGizmoUndoCommands and Undo.UndoManager. A prior standalone compile could not proceed because those provider PCMs were absent; this was not a source diagnostic. The implementation path and manifest were moved to `.cpp`, with behavior unchanged and LF endings.
+- **価値または懸念:** The normal Clang `.cpp` scan path should expose the imports to the generated target dependency graph, but full provider ordering remains unverified until the generated build graph is inspected.
+- **次に確認すべきこと:** Verify a fresh P1689 scan and ensure the generated target schedules both provider interfaces before compiling the implementation.
+
+## 2026-10-25: Composition audio mixer has two implementation units in one module
+- **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerPresentation.cppm` → `.cpp`、`Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cpp`、`Artifact/include/Widgets/ArtifactCompositionAudioMixerWidget.ixx`
+- **確認できた事実:** Both source units declare `module Artifact.Widgets.CompositionAudioMixer;`; the presentation unit imports the existing audio mixer, service, event, playback, and undo modules. Its path was migrated without changing the shared module declaration, imports, presentation, or service calls. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** CMake module dependency scanning must treat both `.cpp` files as implementation units belonging to the same named module; only the `.ixx` remains the importable interface.
+- **次に確認すべきこと:** Verify both implementation scans and target compilation together when build execution is authorized.
+
+## 2026-10-25: Audio mixer widget stays behind its established module interface
+- **関連:** `Artifact/src/Widgets/AudioMixerWidget.cppm` → `.cpp`、`Artifact/include/Widgets/AudioMixerWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.AudioMixer;`, matching its public interface, and imports existing audio buses/effects/mixer plus VST and CLAP host modules. The source path was migrated; plugin editor UI, mixer behavior, and service calls were not edited. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This puts the existing widget under normal `.cpp` Clang classification without changing audio functionality.
+- **次に確認すべきこと:** Verify P1689 scanning and compile with the VST/CLAP and audio provider module artifacts available.
+
+## 2026-10-25: Software render inspectors remain a UI adapter over the existing compositor
+- **関連:** `Artifact/src/Widgets/Render/ArtifactSoftwareRenderInspectors.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactSoftwareRenderInspectors.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.SoftwareRenderInspectors;`, matching its interface, and imports the existing SoftwareCompositor and layer/project modules. The implementation path was migrated; no inspector or rendering behavior was edited. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This moves the existing inspector implementation to standard `.cpp` classification without adding software rendering features.
+- **次に確認すべきこと:** Verify P1689 scanning and compilation when build execution is authorized.
+
+## 2026-10-25: Playback control test widget keeps its existing service usage
+- **関連:** `Artifact/src/Widgets/Control/ArtifactPlaybackControlTestWidget.cppm` → `.cpp`、`Artifact/include/Widgets/Control/ArtifactPlaybackControlTestWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.PlaybackControlTestWidget;`, matching the public interface. Its source path was moved to `.cpp`; playback service calls, test/widget behavior, and Verdigris implementation were not changed. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** The implementation will now use the standard Clang `.cpp` scanning path while retaining the established service API boundary.
+- **次に確認すべきこと:** Verify dependency scanning and object compilation when build execution is authorized.
+
+## 2026-10-25: Composition audio mixer remains a view over existing service APIs
+- **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm` → `.cpp`、`Artifact/include/Widgets/ArtifactCompositionAudioMixerWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.CompositionAudioMixer;`, matching the public interface, and imports the existing mixer, project, playback, audio service, event, and undo modules. Its path was migrated; no service calls, transport behavior, or audio feature logic were edited. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** The module boundary is preserved while Clang gets the implementation through the `.cpp` classification path.
+- **次に確認すべきこと:** Verify P1689 scanning and compile after the mixer and service provider module artifacts are available.
+
+## 2026-10-25: Procedural 3D layer keeps its existing public module boundary
+- **関連:** `Artifact/src/Layer/ArtifactProcedural3DLayer.cppm` → `.cpp`、`Artifact/include/Layer/ArtifactProcedural3DLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Layer.Procedural3D;`, matching its `.ixx`, and imports renderer, composition, shape/mask, material/mesh, image, frame/time, and ID modules. The source and manifest path were migrated; 3D layer behavior and rendering code were not changed. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This aligns a 3D layer implementation with the standard `.cpp` compiler classification while preserving its module API.
+- **次に確認すべきこと:** Verify P1689 scanning and implementation compilation when the module dependency artifacts are available.
+
+## 2026-10-25: Noise layer implementation preserves its existing GPU and image path
+- **関連:** `Artifact/src/Layer/ArtifactNoiseLayer.cppm` → `.cpp`、`Artifact/include/Layer/ArtifactNoiseLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Layers.Noise;`, matching its public interface, and imports layer, image, procedural texture, GPU compute, property, and expression modules. The source path was migrated; procedural generation and GPU behavior were not edited. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This brings a static-image-related layer implementation under normal `.cpp` Clang classification without changing its render path.
+- **次に確認すべきこと:** Verify P1689 scanning and object compilation with the procedural texture and GPU compute providers available.
+
+## 2026-10-25: Text gizmo implementation preserves the approved module boundary
+- **関連:** `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactTextGizmo.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.TextGizmo;`, matching the public `.ixx`, and imports text/layer/composition, renderer, layout, expression, undo, and frame-rate modules. The source path was moved to `.cpp`; gizmo behavior, rendering/input logic, and public API were not edited. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** Clang can classify the existing implementation through the standard `.cpp` path without changing the approved gizmo design.
+- **次に確認すべきこと:** Verify fresh P1689 scan and compile when dependency artifacts are available.
+
+## 2026-10-25: Animation menu keeps its existing module and audio binding behavior
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm` → `.cpp`、`Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Menu.Animation;`, matching its interface, and imports timeline, audio analysis/segment, property, event, and undo modules. The source path was migrated; its W_OBJECT implementation, menu actions, audio-reactive binding commands, and behavior were not changed. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** Standard `.cpp` classification can cover this module implementation without changing the menu API or transport ownership.
+- **次に確認すべきこと:** Verify P1689 scanning and implementation compilation with its UI/audio provider modules available.
+
+## 2026-10-25: Composition menu remains paired with the Menu.Composition interface
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cppm` → `.cpp`、`Artifact/include/Widgets/Menu/ArtifactCompositionMenu.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Menu.Composition;`, matching its public interface, and imports project, playback, render queue, composition, dialog, and property modules. Its source path was migrated without changing imports, `W_OBJECT_IMPL`, actions, or UI behavior; LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** The implementation now uses standard `.cpp` classification while preserving menu responsibilities and APIs. The large dependency set may still make standalone Clang compilation costly.
+- **次に確認すべきこと:** Verify P1689 scanning and compile after dependency module artifacts are available.
+
+## 2026-10-25: Software render test widget has a separate implementation unit
+- **関連:** `Artifact/src/Widgets/Render/ArtifactSoftwareRenderTestWidget.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactSoftwareRenderTestWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.SoftwareRenderTest;`, matching its public interface, and imports SoftwareCompositor, Layer.Blend, Project service, and Application manager. The implementation path was changed to `.cpp`; the widget and software rendering code were not changed. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This is a test-facing adapter and changes no renderer capability. It is now eligible for the normal `.cpp` Clang source classification.
+- **次に確認すべきこと:** Verify its dependency scan and compile when build execution is authorized.
+
+## 2026-10-25: Project manager implementation preserves its dedicated module interface
+- **関連:** `Artifact/src/Project/ArtifactProjectManager.cppm` → `.cpp`、`Artifact/include/Project/ArtifactProjectManager.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Project.Manager;`, matching the existing interface, and imports project, settings, event, diagnostics, and asset modules. The source path was moved to `.cpp`; imports, `W_OBJECT_IMPL`, and project behavior were not edited. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This keeps project management APIs behind their current module boundary while using the Clang `.cpp` dependency scan path. Its 24-module closure may still have a high compile cost.
+- **次に確認すべきこと:** Verify fresh P1689 scanning and implementation compilation when the required dependency artifacts are available.
+
+## 2026-10-25: File menu implementation remains paired with the approved File Menu interface
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm` → `.cpp`、`Artifact/include/Widgets/Menu/ArtifactFileMenu.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Menu.File;`, matching its public `.ixx`, and imports project, export, dialog, layer, and render queue modules. Existing `filemenu_*.svg` references were left untouched. The source path was migrated with only LF normalization; module imports and menu behavior were unchanged. Clang scan/compile remain unverified.
+- **価値または懸念:** This preserves the existing menu and icon approval boundary while allowing the implementation to use the standard `.cpp` classification.
+- **次に確認すべきこと:** Verify fresh Clang P1689 scanning and compile/link when build execution is authorized.
+
+## 2026-10-25: AI client implementation keeps its AI.Client module boundary
+- **関連:** `Artifact/src/AI/AIClient.cppm` → `.cpp`、`Artifact/include/AI/AIClient.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module AI.Client;`, matching the existing public interface, and contains AI agent setup, provider selection, and asynchronous request state. The source and manifest path were migrated without changing module imports or implementation logic; LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This lets Clang classify the implementation through its standard `.cpp` extension while retaining the current API boundary. Its broad provider imports may require a large PCM dependency closure.
+- **次に確認すべきこと:** Verify P1689 scanning and compile with the required AI provider module artifacts available.
+
+## 2026-10-25: Tool options remain behind the existing Widgets.ToolOptionsBar interface
+- **関連:** `Artifact/src/Widgets/ArtifactToolOptionsBar.cppm` → `.cpp`、`Artifact/include/Widgets/ArtifactToolOptionsBar.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Widgets.ToolOptionsBar;`, matching its public interface, and has 12 direct module imports. Its implementation path was changed to `.cpp`; imports, `W_OBJECT_IMPL`, event routing, and option behavior were left unchanged. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** Migrating the existing source preserves the module API while bringing this UI implementation under ordinary `.cpp` compiler classification. Verdigris and dependency closure still require Clang verification.
+- **次に確認すべきこと:** Verify fresh P1689 scanning and implementation compilation when the build restriction is lifted.
+
+## 2026-10-25: Toolbar behavior stays behind the existing Widgets.ToolBar module
+- **関連:** `Artifact/src/Widgets/ArtifactToolBar.cppm` → `.cpp`、`Artifact/include/Widgets/ArtifactToolBar.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Widgets.ToolBar;`, matching its existing interface, and imports the current tool, settings, workspace, event, and toolbar modules. The implementation path was changed to `.cpp`; imports, `W_OBJECT_IMPL`, and toolbar behavior were not edited. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This removes one UI implementation from the legacy extension while preserving its public module boundary. Verdigris compatibility with the selected Clang generator still needs compile verification.
+- **次に確認すべきこと:** Verify its P1689 scan and object compilation after the provider module artifacts are available.
+
+## 2026-10-25: Shader graph widget has a narrow named-module dependency boundary
+- **関連:** `Artifact/src/Widgets/ArtifactShaderGraphWidget.cppm` → `.cpp`、`Artifact/include/Widgets/ArtifactShaderGraphWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.ShaderGraphWidget;` and imports ShaderNode.Core, CompositionEditor, and CompositionRenderController. Its public `.ixx` remains unchanged. The implementation and manifest path were moved to `.cpp`; widget behavior and module imports were not edited. LF endings are enforced. Clang scan/compile remain unverified.
+- **価値または懸念:** This reduces reliance on `.cppm` extension classification while preserving the existing named-module interface. Clang compilation may still depend on large upstream module interfaces.
+- **次に確認すべきこと:** Verify a fresh Clang dependency scan and implementation compile with required provider module artifacts available.
+
+## 2026-10-25: ArtifactWidgets Clang source scan covered only legacy `.cppm` implementations
+- **関連:** `ArtifactWidgets/CMakeLists.txt`、`ARTIFACT_COMPILER_CLANG_GNU`、`ARTIFACT_COMPILER_CLANG_CL`
+- **確認できた事実:** The source-specific Clang loop previously ran only for `ARTIFACT_COMPILER_CLANG_GNU` and only applied `CXX_SCAN_FOR_MODULES` plus `-x c++` to non-interface `.cppm` files. It had no explicit `.cpp` module/import scan branch and no clang-cl source-specific branch. The loop now includes both Clang compiler lanes, applies `-x c++` only to GNU-style `.cppm`, and enables module scanning on `.cpp` files with a module declaration or import. No configure/build was run.
+- **価値または懸念:** This aligns dependency scanning with the `.cpp` migration path and avoids passing the GNU driver option to clang-cl. The CMake behavior on each generator still requires an authorized configure/scan verification.
+- **次に確認すべきこと:** Configure clang-cl and upstream Clang separately, then inspect generated dependency scan rules for module implementations and import consumers in ArtifactWidgets.
+
+## 2026-10-25: Motion sketch remains an implementation behind its existing tool interface
+- **関連:** `Artifact/src/Tool/ArtifactMotionSketchTool.cppm` → `.cpp`、`Artifact/include/Tool/ArtifactMotionSketchTool.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Tool.MotionSketchTool;`, matching the public `.ixx`. It imports existing layer, composition, event, property, time, and undo modules. The file was migrated with its source content unchanged and LF endings; no event or tool behavior was changed. Clang scanning/compilation remain unverified.
+- **価値または懸念:** The existing source-only module boundary can be retained while allowing Clang's `.cpp` source classification to scan the named module implementation.
+- **次に確認すべきこと:** Verify fresh P1689 scanning and object compilation when build execution is authorized.
+
+## 2026-10-25: Rasterizer Glow has an established named-module implementation boundary
+- **関連:** `Artifact/src/Effects/Rasterizer/GlowEffect.cppm` → `.cpp`、`Artifact/cmake/ArtifactSources.cmake`、`Artifact.Effect.Rasterizer.Glow`
+- **確認できた事実:** The source declares `module Artifact.Effect.Rasterizer.Glow;`, and the implementation manifest is its only active CMake source reference. The source was moved to `.cpp` with LF endings; shader code and CPU/GPU effect behavior were not edited. A `.cppm` string in `Artifact/CMakeLists.txt` belongs to an old history comment, not an active target path.
+- **価値または懸念:** Upstream Clang can use the existing `.cpp` named-module scan classification without a special per-file source pin. Actual Clang compilation remains unverified.
+- **次に確認すべきこと:** Verify fresh P1689 scanning and implementation compilation when build execution is authorized.
+
+## 2026-10-25: Layer panel presentation is a source-only module implementation
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelPresentation.cppm` → `.cpp`、`Artifact/include/Widgets/Timeline/ArtifactLayerPanelWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The implementation declares `module Artifact.Widgets.LayerPanelWidget;`, matching the existing public `.ixx` interface, and contains presentation descriptor functions. The extension and manifest path were updated without changing the module declaration, imports, or UI behavior. LF endings were preserved. No compiler scan or build was run.
+- **価値または懸念:** Keeping this logic in the existing module implementation preserves the interface boundary and lets the Clang `.cpp` scan path handle the named module declaration.
+- **次に確認すべきこと:** Verify fresh Clang P1689 scanning and implementation compilation when build execution is authorized.
+
+## 2026-10-25: ArtifactPr implementation manifest no longer depends on the `.cppm` extension
+- **関連:** `ArtifactPr/CMakeLists.txt`、`ArtifactPr/src/GpuProgramMonitor.cppm` → `.cpp`、Clang source scanning
+- **確認できた事実:** After the final implementation source was moved to `.cpp`, the 28-entry `ARTIFACT_PR_IMPL_SOURCES` manifest uses `.cpp` for each entry. The CMake source-classification loop detects named `module X;` declarations in `.cpp` files and enables `CXX_SCAN_FOR_MODULES` for Clang GNU and clang-cl; the legacy `.cppm` path is retained only as a compatibility branch for other future entries. Configuration and compilation were not run.
+- **価値または懸念:** This removes ArtifactPr's current reliance on compiler-specific interpretation of implementation `.cppm` files. The new source classification still needs verification on supported Clang generators.
+- **次に確認すべきこと:** When build execution is authorized, configure Clang GNU and clang-cl separately, inspect generated P1689 dependency rules for the module implementation `.cpp` sources, and compile/link ArtifactPr targets.
+
+## 2026-10-25: ArtifactPr editor engine implementation remains behind a module interface
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm` → `.cpp`、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/CMakeLists.txt`
+- **確認できた事実:** The source declares `module ArtifactPr.EditorEngine;` and imports ClipEffects, EditCommand, SequenceExporter, and Translation. Its public interface remains the `.ixx`; the implementation path was changed to `.cpp`. LF endings are preserved. No compilation or dependency scan was run.
+- **価値または懸念:** The implementation contains serialization and editor operations, but this migration does not alter those behaviors. Compiler compatibility is still unverified.
+- **次に確認すべきこと:** When build/scan execution is authorized, verify its P1689 dependency record and compile after required provider module artifacts are available.
+
+## 2026-10-25: ArtifactPr main window implementation uses a complete module interface boundary
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm` → `.cpp`、`ArtifactPr/include/ArtifactPrMainWindow.ixx`、`ArtifactPr/CMakeLists.txt`
+- **確認できた事実:** implementation unit declares `module ArtifactPr.MainWindow;` and imports sibling modules; its public interface remains the `.ixx`. The source was moved to `.cpp` and the implementation manifest path updated. LF endings were preserved. Compilation and module dependency scanning were not run.
+- **価値または懸念:** This is a large UI implementation (about 2,700 lines), so static path and module-boundary checks alone do not establish compiler compatibility.
+- **次に確認すべきこと:** When builds are authorized, verify fresh Clang P1689 scanning and compilation for the migrated implementation with its provider modules available.
+
+## 2026-10-24: Verdigris QWidget implementation may expose Clang module ownership ambiguity
+
+- **関連:** `Artifact/src/Widgets/ArtifactSecondaryPreviewWindow.cppm`、`Artifact/include/Widgets/ArtifactSecondaryPreviewWindow.ixx`、Clang 23.1.4 / Windows MSVC ABI
+- **確認できた事実:** Fresh P1689 scan succeeded, but the implementation compile failed while expanding `W_OBJECT_IMPL(ArtifactSecondaryPreviewWindow)`: Clang reported ambiguous `operator->` lookup at `QObject::d_ptr` with `QScopedPointer<QObjectData>` candidates, then the frontend terminated by signal. The `.cpp` migration was reverted and the manifest returned to `.cppm`. No source diagnostic outside this macro expansion was established.
+- **価値または懸念:** A clean module scan and available PCM do not establish that Verdigris implementation macros are valid across the named-module boundary. The exact cause is unverified and should not be classified as a simple missing include or extension-only issue.
+- **次に確認すべきこと:** Before retrying this widget, inspect its Verdigris macro expansion and Qt declarations as imported through its interface module; keep the implementation on `.cppm` until a source-level fix is justified and compiled.
+
+## 2026-10-24: A module source migration may need both the manifest and a direct APP_IMPL registration updated
+
+- **関連:** `Artifact/cmake/ArtifactSources.cmake`、`Artifact/CMakeLists.txt`、`ArtifactSwitchLayer.cppm`、`ArtifactPaintLayer.cppm`
+- **確認できた事実:** SwitchLayerとPaintLayerはsource manifestのsource pathを `.cpp` に変更した後も、Artifact/CMakeLists.txt内の明示 `APP_IMPL` entryが `.cppm` を参照していた。CMake configureは `file(STRINGS)` で旧pathを読み込もうとして失敗した。2つの明示entryを `.cpp` に更新するとconfigure / generateが成功した。
+- **価値または懸念:** source manifestのpath置換だけでは足りず、CMakeLists.txtの明示target pinや直接ファイル参照が残ることがある。拡張子移行ではsource pathをrepository-wide検索し、manifestと明示登録の両方を整合させる。
+- **次に確認すべきこと:** 将来の `.cppm` → `.cpp` 移行前後に `rg` で旧basenameをCMakeLists / cmake directory全体から検索し、file read / target pinの参照漏れを確認する。
+
+## 2026-10-24: Event payloads should not redeclare widget classes owned by another module
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Widgets/Render/Artifact3DModelViewer.ixx`、`Artifact/src/Widgets/Render/Artifact3DModelViewer.cpp`
+- **確認できた事実:** Event.Typesが `Artifact3DModelViewer*` を持つためmodule purview内で同名classをforward-declareし、ModelViewer interfaceが同名classを定義していた。Clang implementation compileは、同じ宣言が異なるnamed moduleに所属するとして拒否した。payload sourceを `QObject*` にしてglobal module fragmentへ直接includeを加えた後、Event.Types PCMとModelViewer implementation object compileが成功した。既存consumerは `event.source != modelViewer` でsource identityを比較し、producerは `{this, mode}` で初期化している。
+- **価値または懸念:** event identityにwidget派生型を露出しない設計はnamed-module ownershipの重複を避け、event busのpayloadを利用側の具象widgetから疎結合にできる。ただし変更後の全target link / runtimeは未検証。
+- **次に確認すべきこと:** 他のevent payloadにwidget具象型のpointerがあり、別interface moduleでもforward declaration / 定義されていないか調べる。変更を広げる際は利用側比較とaggregate constructionを確認する。
+
+## 2026-10-24: PCM file presence alone does not guarantee a source is safe to compile in the current Clang session
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactLayerCompositeTestWidget.cppm`、`ArtifactCompositionRenderOverlay.cppm`、Clang 23.1.4 / Windows MSVC ABI
+- **確認できた事実:** LayerCompositeTestWidget の全direct required PCMが存在し、fresh P1689 scanとpublic interface PCM compileも成功したが、implementation compileはAST source-location使用量約2.13 GB（診断上99%）でfrontend exit 70となった。別batchのCompositionRenderOverlayでも約2.15 GBでcrashしている。
+- **価値または懸念:** 欠落PCMを解消しても、import closure全体のsource-location tableがClang frontendの上限に達する可能性がある。PCM存在チェックだけで対象sourceのcompile可能性を予測できない。
+- **次に確認すべきこと:** 再試行前にmodule closureの大きさを評価し、frontend RAMを監視する。上限に達した候補はsource error扱いせず、根拠ある依存縮小まで `.cppm` に残す。
+
+## 2026-10-24: A dialog's public interface can be the high-memory step even when its implementation module has few imports
+
+- **関連:** `Artifact/include/Widgets/Dialog/QuickLayerCreationDialog.ixx`、`Artifact.Menu.Layer`、Clang 23.1.4 / Windows MSVC ABI
+- **確認できた事実:** QuickLayerCreationDialog implementation fresh P1689 scanは成功した。interfaceがimportする `Artifact.Menu.Layer` のPCMを生成した後、QuickLayerCreationDialog interface PCM compile中にClang working setは約5.5 GiBとなり、空きRAMが約0.6 GiBまで下がったためcompileを中断し、source migrationを戻した。別候補のCreatePlaneLayerDialogもfresh implementation scan後のinterface PCM compileがworking set約4.9 GiB / 空きRAM約0.7 GiBまで達したため中断した。いずれもimplementation import数が少ないことはinterface closure全体のメモリコストを示さなかった。
+- **価値または懸念:** implementation import数やsource byte数だけでなく、public interfaceが再export/importするmodule closureを見てClang適合候補を選ぶ必要がある。interface PCM compileもメモリ監視対象にする。
+- **次に確認すべきこと:** QuickLayerCreationDialogを再試行する前に `Artifact.Menu.Layer` interfaceの公開依存closureを確認し、既存PCM再利用または依存境界を狭める根拠があるか調べる。
+
+## 2026-10-24: Module implementation consumers need direct imports for owner-defined value types
+
+- **関連:** `Artifact/src/Layer/ArtifactSwitchLayer.cpp`、`Utils.Id`、Clang 23.1.4 / Windows MSVC ABI
+- **確認できた事実:** SwitchLayer implementationは `LayerID` を `Artifact.Layer.Abstract` 経由で使っていたが、Clangはowner module `Utils.Id` の直接importを要求した。implementationに `import Utils.Id;` を追加するとfresh P1689 scanと個別object compileが成功した。
+- **価値または懸念:** あるmoduleのinterfaceから別module型が見えていても、implementationの利用箇所で所有元moduleを明示importする必要がある場合がある。拡張子を変えるだけで診断を終わらせず、型のmodule ownerに沿って依存を直す。
+- **次に確認すべきこと:** Clangが未移行 `.cppm` の型可視性エラーを出した場合、型定義moduleを特定し、implementation単位に直接importを加えて再scan / compileする。
+
+## 2026-10-24: `_2D` module componentはClangの予約名warningを発生させる
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstract2DLayer.cpp`、`Artifact.Layers.Abstract._2D`、Clang 23.1.4 / Windows MSVC ABI
+- **確認できた事実:** `ArtifactAbstract2DLayer` implementation objectはcompile成功したが、既存named module component `_2D` に対してClangが `-Wreserved-module-identifier` warningを出した。
+- **価値または懸念:** source filenameの拡張子移行ではこのidentifier warningは解消しない。logical module名を変更するにはpublic interfaceと全importerの協調更新が必要なため、今回の拡張子移行の範囲外である。
+- **次に確認すべきこと:** module名の診断対応を別途行う場合は、全 `_2D` 宣言とimportを調査し、`.cppm` → `.cpp` とは分離したatomicなmodule名移行を計画する。
+
+## 2026-10-24: Clang source-location limit affects some implementation module closures
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderOverlay.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionViewerFooter.cpp`、`Artifact/src/Widgets/Dialog/CreateCameraLayerDialog.cpp`、`Artifact/src/Diagnostics/AppValidationRules.cpp`、`Artifact/src/Render/Software/ArtifactSoftwareImageCompositor.cpp`、`Artifact/src/Layer/ArtifactFormParticleLayer.cpp`、`Artifact/src/Layer/ArtifactSolidImageLayer.cpp`、`Artifact/src/Layer/ArtifactGroupLayer.cpp`、`Artifact/src/Layer/ArtifactLightLayer.cpp`、Clang 23.1.4 / Windows MSVC ABI
+- **確認できた事実:** CompositionRenderOverlayのimplementation compileはAST内source locations約2.15 GB（診断上99%）でfrontend exit 70となった。CompositionViewerFooter、CreateCameraLayerDialog、ArtifactSolidImageLayerはfresh P1689 scan後のcompileでそれぞれ約2.13 GB / 99%に達してexit 70。一方、同じ作業のAppValidationRules、ArtifactSoftwareImageCompositor、ArtifactFormParticleLayer、ArtifactGroupLayer、ArtifactLightLayerはfresh scanとimplementation compileに成功した。NLETransitionBridgeも単独compile成功。
+- **価値または懸念:** 直接import数やsource byte数だけでClangのcompile可否は予測できない。module closureのAST負荷がtranslation unitごとに異なるため、fresh scanとimplementation compileを分けて確認する必要がある。
+- **次に確認すべきこと:** source-location上限に達したUI translation unitは、import closureを具体的に縮小できる根拠が得られるまで再試行しない。AppValidationRules成功を根拠に他のclosureへ一般化しない。
+## 2026-10-24: Clang module implementation では所有元 module の型を直接 import する
+
+- **関連:** `Artifact/src/Widgets/Diagnostics/FramePipelineViewWidget.cpp`、`Graphics.RenderGraph`、Clang 22.1.3 / P1689
+- **確認できた事実:** `FramePipelineViewWidget.cpp` は interface がimportした `Graphics.RenderGraph` の `ArtifactCore::RenderResourceHandle` を実装内で使っていた。`ProfilerOverlayWidget.cpp` / `ProfilerPanelWidget.cpp` でも `ArtifactCore::toStdString` の所有元 `Core.ArtifactString` が間接的にしか可視でなかった。Clang compileは直接import不足を報告し、implementationだけに所有moduleのimportを追加すると各fresh scanとcompileが成功した。
+- **価値／懸念:** 既存interface越しに見える型であっても、implementationの利用moduleを直接importするとClang frontend間の可視性差を早期に検出できる。依存追加は実装側に閉じ、公開interfaceのimport集合を不必要に広げない。
+- **次に確認:** 他の移行sourceで同様のtransitive visibility依存が出るか、Clang compile結果に基づき個別に確認する。
 
 ## 2026-10-22: 実 ArtifactCore module target でも sccache が Clang cache hit を返す
 
@@ -1318,6 +1554,12 @@
 - **次に確認:** `fps > int64_t max`判定を`llround`より先に行う実装へ直し、独立FrameRate suiteで極大値と境界近傍を実行確認する。
 
 # Insight Register
+## 2026-10-24: Verdigris QWidget implementation may expose Clang module ownership ambiguity
+
+- **関連:** `Artifact/src/Widgets/ArtifactSecondaryPreviewWindow.cppm`、`Artifact/include/Widgets/ArtifactSecondaryPreviewWindow.ixx`、Clang 23.1.4 / Windows MSVC ABI
+- **確認できた事実:** Fresh P1689 scan succeeded, but the implementation compile failed while expanding `W_OBJECT_IMPL(ArtifactSecondaryPreviewWindow)`: Clang reported ambiguous `operator->` lookup at `QObject::d_ptr` with `QScopedPointer<QObjectData>` candidates, then the frontend terminated by signal. The `.cpp` migration was reverted and the manifest returned to `.cppm`. No source diagnostic outside this macro expansion was established.
+- **価値または懸念:** A clean module scan and available PCM do not establish that Verdigris implementation macros are valid across the named-module boundary. The exact cause is unverified and should not be classified as a simple missing include or extension-only issue.
+- **次に確認すべきこと:** Before retrying this widget, inspect its Verdigris macro expansion and Qt declarations as imported through its interface module; keep the implementation on `.cppm` until a source-level fix is justified and compiled.
 
 ### 2026-10-11 — FastSettingsStore failed reload clears existing cache
 
@@ -5018,12 +5260,13 @@
 
 ## 2026-10-19: ArtifactPr module set could not have compiled
 
-- **関連:** `ArtifactPr/src/{AppTheme,AudioPreviewMixer,GpuProgramMonitor,MediaFrameDecoder,MediaThumbnailer,SequenceCompositor,SequenceExporter,VideoSurface}.cppm`、`ArtifactPr/src/{MarkerEditDialog,PrColorPickerDialog,PrShortcut,PrStatusNotifier,TimecodeOverlayWidget}.cppm`、`ArtifactPr/CMakeLists.txt`、`tests/ArtifactPr/`、ルート `CMakeLists.txt:269`。
+- **関連:** `ArtifactPr/src/{AppTheme,AudioPreviewMixer,GpuProgramMonitor,MediaFrameDecoder,MediaThumbnailer,SequenceCompositor,SequenceExporter}.cppm`、`ArtifactPr/src/VideoSurface.cpp`、`ArtifactPr/src/{MarkerEditDialog,PrColorPickerDialog,PrShortcut,PrStatusNotifier,TimecodeOverlayWidget}.cppm`、`ArtifactPr/CMakeLists.txt`、`tests/ArtifactPr/`、ルート `CMakeLists.txt:269`。
 - **確認できた事実:** 8 個の `.cppm` が `export module ArtifactPr.X;` を宣言し、同名の `include/X.ixx` も同じモジュールを `export module` していた。二重の module interface unit になり、どのビルドでも成立しない。加えて同じ 8 個と他 5 個の `.cppm` が `import ArtifactPr.X;` で自分のモジュールを自己 import していた (AGENTS.md が dyndep 破壊要因として禁止している形)。`ArtifactCore/src` の実装ユニットは `module X;` + 自己 import なしが正準であることを grep で確認した。この状態は、`ARTIFACT_BUILD_PR` が既定 OFF であること、ルート `CMakeLists.txt:265` の「ArtifactPr disabled in build」、`insights/2026/ISO-W39.md:103` の「configure が通るか未確認」と整合する。つまり ArtifactPr のモジュール集合は一度も configure 検証されていない。
 - **変更:** 8 個を `module ArtifactPr.X;` へ変え、13 個の自己 import を削除した。`ArtifactPr` は実行ファイル 2 本から `ArtifactPrApp` (STATIC) + 薄い `ArtifactPr` / `ArtifactPrCLI` へ分割し、module interface を `PUBLIC FILE_SET CXX_MODULES` で公開した。`tests/ArtifactPr/` に gtest 一式 (`ArtifactPrContractTest` / `ArtifactPrEditorEngineTest` / `ArtifactPrTimelinePanelTest`) を新設し、`ARTIFACT_BUILD_PR_STANDALONE_TESTS` を `ARTIFACT_BUILD_PR_TESTS` に置き換えた。旧 standalone test の実行ファイルは削除し、内容は gtest へ移植した。
 - **価値／懸念:** テスト 1 本あたりの費用が「モジュール集合の再コンパイル」から「.cpp 1 枚 + CMake 2 行」になった。ただし今回の suite は **未ビルド・未実行** であり、静的確認だけである。特に、`ArtifactCore` は一部コンシューマに `/reference;NLE.Core=...ifc` を明示している (`ArtifactCore/CMakeLists.txt:2914`) ため、`FILE_SET CXX_MODULES` の IFC 伝播だけで ArtifactPr のテスト target が import を解決できるかは未確認。
-- **仮説・未検証:** `MediaThumbnailer.cppm` が `QCoreApplication::processEvents` を `<QCoreApplication>` の直接 include なしで使っている点は、推移 include に依存している可能性がある (今回の変更対象外、未確認)。
-- **次に確認:** `cmake --preset <preset> -DARTIFACT_BUILD_PR=ON -DARTIFACT_BUILD_PR_TESTS=ON` で configure し、`ArtifactPrApp` / `ArtifactPr` / `ArtifactPrCLI` と 3 テスト target のビルド、続いて `ctest -L artifactpr` を実行する。IFC 伝播が不足する場合は明示 `/reference` を足す。あわせて EditorEngine の編集操作 (`moveClip` / `splitClipAtPlayhead` / `rippleDeleteClipAt` と undo/redo) と `ArtifactPrCLI` の別プロセス契約を次のバッチとして追加する。
+- **確認・修正（2026-10-25）:** `MediaThumbnailer` は `QCoreApplication::processEvents` と `QEventLoop::AllEvents` を使う一方、対応する直接 include がなかったため、`.cppm` → `.cpp` 移行時に global module fragment へ `<QCoreApplication>` / `<QEventLoop>` を追加した。Clang compile による検証は未実施。
+- **仮説・未検証:** `VideoSurface.ixx` は `Q_OBJECT` / `Q_SIGNALS` を宣言する一方、リポジトリ内の CMake 検索では `AUTOMOC` 設定や有効な `qt6_wrap_cpp` が見つからず、Qt meta-object 実装が生成されない可能性がある。実際のリンク状態は configure/build 未実施のため未確認。
+- **次に確認:** build を許可された後、`ArtifactPrApp` で `VideoSurface.ixx` に対する Qt MOC 出力が生成・リンクされるか確認する。あわせて IFC 伝播、EditorEngine の編集操作 (`moveClip` / `splitClipAtPlayhead` / `rippleDeleteClipAt` と undo/redo)、`ArtifactPrCLI` の別プロセス契約を確認する。
 
 \n
 
@@ -5137,11 +5380,13 @@
 
 ## 2026-10-22: Module partition implementation は primary-module migration と別扱いが必要
 
-- **関連:** `ArtifactCore/src/File/FileInfo.cppm`、`ArtifactCore/include/File/FileInfo.ixx`、`ArtifactCore/CMakeLists.txt`、CMake 4.4.4 / upstream clang++
-- **確認できた事実:** FileInfo の interface と implementation はともに `File:Info` partition を宣言する。root CMake はこの implementation の module scan を既に無効化している。isolated `.cpp` pilot を scan すると CMake Ninja dyndep がその object を `CXX_MODULES` file set にない `File:Info` provider と判定して停止した。scan を無効化し interface BMI を明示参照する compile では、partition declarations が implementation source から見えず `FileInfo` が未宣言となった。
+- **関連:** `ArtifactCore/src/File/FileInfo.cpp`、`ArtifactCore/include/File/FileInfo.ixx`、`ArtifactCore/CMakeLists.txt`、CMake 4.4.4 / upstream clang++
+- **確認できた事実:** 現在のimplementationは `module File:InfoImpl; import :Info;`、interfaceは `export module File:Info;` を宣言する。root CMake はこのimplementationのmodule scanを無効化し、File targetのpartition IFC / object orderingを明示している。過去のisolated `.cpp` pilotでは、partition sourceをP1689 scan対象に含めるとCMake Ninja dyndepがimplementation objectをfile set外providerと判定した。
+- **関連する別経路:** `ArtifactCore/src/Image/OpenEXR.cpp` は `module Image.OpenEXR;` のprimary implementationで、同じ初期scanner-off設定を使うが、Clang用の後段分類ではP1689 scanへ戻る。FileInfoと同一扱いにしない。
 - **推測・未検証:** この二重ユニットを standard-conforming に扱うには、同じ partition 名を再提供する形を解消し、partition interface を primary module implementation unit から importする構成などへ整理する必要がある可能性がある。正しいMSVC / Clang共通形は未検証。
-- **価値または懸念:** `.cppm` を機械的に `.cpp` に変えると、module partition は primary module implementation より異なる CMake provider / BMI attachment 問題を露呈する。FileInfo と root scan 除外が同型の `Image/OpenEXR.cppm` は移行例外として扱う。
-- **次に確認すること:** OpenEXR source の module declarations と CMake target ownership を比較し、FileInfo と共通の partition pattern か確認する。両 compiler frontend と CMake module file set に適合する構成を別マイルストーンで検証する。
+- **価値または懸念:** `.cppm` から `.cpp` への移行後も、module partition sourceは通常のimplementation scanに載せられない場合があり、Clang固有の明示PCM参照と依存順序が必要になる。
+- **更新（2026-10-25）:** ArtifactCoreの最終Clang分類に残っていた除外パスは `FileInfo.cppm` で、現行 `FileInfo.cpp` に一致していなかった。CMake例外を `.cpp` に更新し、GNU/clang-cl共通でP1689 scanを無効のまま明示 `/reference` を `-fmodule-file` PCM参照へ変換する処理を追加した。CMake configure / compile は未実行。
+- **次に確認すること:** Clang configure後にFileInfoのcompile commandがpartition interface PCMを参照し、重複dyndep ruleを生成しないことを確認する。今回は実行禁止のため未検証。
 
 
 ## 2026-10-22: `export namespace` 内の二重 `export` が Clang module compile を阻止
@@ -5150,6 +5395,7 @@
 - **確認できた事実:** `export namespace ArtifactCore { ... }` 内の関数宣言2件に内側の `export` があり、Clang 22.1.3 は `export declaration appears within another export declaration` で interface module compile を拒否した。内側の指定だけを削除した後、upstream clang++ MSVC ABI / clang-cl の双方で実 interface と実 dependency modules の compile、implementation の compile、DLL link が成功した。
 - **推測・未検証:** 同じ記述が他の interfaces にも残っている場合、Clang root build の次の blockers となり得る。全 repository の同型記述の頻度と MSVC compile への影響は未調査。
 - **価値または懸念:** namespace export block の中で宣言を維持すれば内側の `export` は不要で、API export visibility を保ったまま Clang parser error を除ける実例を得た。
+- **追加確認（2026-10-24）:** 同じnested exportが `Artifact/include/Widgets/Render/TransformGizmo.ixx` と `Artifact/include/Core/Guides/ArtifactSmartGuidesManager.ixx` にもあった。両export namespace内のclassから内側の `export` だけを除き、各interface compileに成功。SmartGuides implementation compileも成功した。TransformGizmo implementationのfresh scanは成功したが、object compileはAST約2.14GB（診断上99%）でfrontend crashし、実装側は未確認。`TransformGizmo` API exportが広がった・狭まったとの兆候はinterfaceとSmartGuides compileでは見られないが、全consumer linkは未確認。
 - **次に確認すること:** ArtifactCore / Artifact / ArtifactWidgets interfaces を狭い検索で監査し、同じ構文があれば個別に宣言の所属と export visibility を確認する。
 
 ## 2026-10-22: Clang named-module BMI graph source-location 上限
@@ -5165,15 +5411,17 @@
 
 - **関連:** `Artifact/cmake/ArtifactSources.cmake`、`ArtifactGuiManager.cpp`、ArtifactAppRuntime / CMake 4.2.2 / Ninja。
 - **確認できた事実:** Artifact source manifest を更新した後、既存 upstream clang++ build tree で対象 `ArtifactGuiManager.cpp.obj` だけを指定した。Ninja は CMake 再構成後に6,622 actionsを提示し、約180 actionsで停止した。再構成出力と action 数は確認したが、対象 object の compile には到達していない。
+- **追加確認（2026-10-24）:** Render Queue の `.ddi` object target 2件を指定したところ、Ninja は4,449 actionsへ展開し、Diligent/SPIR-Vのcompileを開始したため245 actions時点で停止した。別途 `ArtifactBatchRenderer.ixx` を Clang/sccache commandでcompileすると、AST address-space約2.13GB（clang診断上99%）でfrontendがcrashしたため、その未検証の実装拡張子変更は元に戻した。一方、同じ Render 領域の `ArtifactAccumulatorPass.cppm` と `ArtifactRenderScheduler.cppm` はfresh P1689 scanが通り、全PCM providerを確認した既存module mapsを使うNinja生成sccache commandで個別object compileに成功した。warm repeatでsccache hitが2件増えた。
 - **推測・未検証:** C++ modules の dyndep/provider closure と stale build tree の再生成が重なり、object 指定でも広い target graph が要求された可能性がある。専用 isolated target は拡張子・attachment の検証には有効だが、root target の統合確認を代替しない。
 - **価値または懸念:** 拡張子移行の局所検証と app target 統合検証のコストを区別する必要がある。対象 object のみを狙ったつもりの build が third-party を含む大規模再構築へ広がることがある。
-- **次に確認すること:** build tree の Ninja query / dyndep を調べ、対象 implementation の最小必要 provider closure と、root target の広域依存を引き起こす条件を特定する。
+- **次に確認すること:** build tree の Ninja query / dyndep を調べ、対象 implementation の最小必要 provider closure と、root target の広域依存を引き起こす条件を特定する。`ArtifactBatchRenderer.ixx` のClang memory使用は依存BMI数・source-location共有・Clang build差を分けて再現する。
 ## 2026-10-22: `.gitattributes` と実ファイルの改行状態
 
 - **関連:** `Artifact/.gitattributes`、`Artifact/src/Core/SystemStats.cppm`、`.cppm` → `.cpp` の rename。
 - **確認できた事実:** `git check-attr text eol` は対象 `.cppm` に `text=set` / `eol=lf` を返したが、`git ls-files --eol` は `i/lf w/crlf attr/text eol=lf` を示した。rename 時に worktree を LF に揃えた後、index へ追加し直すと Git は内容100%同一の rename として判定した。
 - **価値または懸念:** attribute 設定だけでは現在の worktree の改行コードが LF である証拠にならない。拡張子移行時は `git ls-files --eol` と rename diff を併用すると、不要な全行変更と既存の改行不整合を区別できる。
 - **次に確認すること:** 今後移行する `.cppm` でも source と manifest の worktree 改行状態を確認し、必要な場合だけ正規化後に rename 判定と diff を確認する。
+- **追加確認（2026-10-24）:** `Artifact/src/Mask/LayerMask.cppm` も作業ツリーbytesはCRLF、Git HEAD blobはLFだったが、Git statusではclean扱いだった。移行時にLFへ正規化すると `.cpp` はGit HEAD本文と一致した。ユーザー設定の `core.autocrlf` は `false` であり、`.gitattributes eol=lf` とGitのclean判定だけでは作業ファイルの実bytesを保証しないことを再確認した。
 ## 2026-10-22: Live scope widgets は paintEvent 内で画像分析を実行
 
 - **関連:** `ArtifactWidgets/src/Color/VectorScopeWidget.cppm`、`ArtifactWidgets/src/Color/HistgramWidget.cppm`、`Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。
@@ -5228,8 +5476,9 @@
 
 ## 2026-10-22: DepthMask implementation の Qt 直接依存
 
-- **関連:** `ArtifactCore/src/Mask/DepthMask.cppm` から `DepthMask.cpp` への移行。
+- **関連:** `ArtifactCore/src/Mask/DepthMask.cppm` から `DepthMask.cpp` への移行、および `Artifact/src/Widgets/LayerEditorMaskPressInteractionController.cpp`。
 - **確認できた事実:** implementation は `Q_UNUSED` と `QVector4D` を使うが、global module fragment では `QVector3D` / `QMatrix4x4` だけを include していた。移行時に `QtGlobal` と `QVector4D` を直接追加した。
+- **2026-10-24 追加確認:** `LayerEditorMaskPressInteractionController.cpp` が `QPointF` を使う一方、global module fragment にそのheaderを含めていなかった。Clangのmissing `qpoint.h` diagnosticに従い `#include <QPointF>` をmodule declaration前へ追加し、fresh scan / object compileが成功した。
 - **推測・未検証:** 以前の compile は別 Qt header の推移的 include に依存していた可能性がある。compiler diagnostic は未取得。
 - **価値または懸念:** named module import だけでは Qt header 内の全宣言が通常 header include のように伝播するとは限らない。使用する Qt 型・macro の直接依存を source 側に明示する。
 - **次に確認すること:** ビルド・依存スキャン許可後、MSVC・clang-cl・upstream clang++ で DepthMask implementation compile と module scan を確認する。
@@ -5359,3 +5608,469 @@
 - **推測・未検証:** effect evaluation から繰り返し呼ばれる場合、全画素 allocation / copy が frame cost に影響する可能性がある。consumer、呼び出し頻度、allocation profile は未確認。
 - **価値または懸念:** workspace 再利用などの余地を実 call path と hot-path contract に沿って評価する価値がある。今回の `.cppm` → `.cpp` 移行では挙動を変更していない。
 - **次に確認すること:** Emboss の consumer と process callsite を調べ、頻度と workspace lifetime を特定してから allocation を別変更として検討する。
+
+
+## 2026-10-23: SpinTransition implementation is absent from explicit source registration
+
+- **関連:** `ArtifactCore/src/Video/Transitions/SpinTransition.cppm`、`ArtifactCore/cmake/ArtifactCoreSources.cmake`、`ArtifactCore/CMakeLists.txt`、`ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`。
+- **確認できた事実:** module-reference manifest は `Video.Transitions.SpinTransition` とその `.cppm` implementation path を列挙する一方、ArtifactCore の explicit implementation source list と Video implementation list に `SpinTransition.cppm` がなく、root `ArtifactCoreVideo` buildでもimplementation objectは生成されなかった。
+- **推測・未検証:** omission が意図的か、遷移 registrar の runtime reachability に影響するか、別経路でリンクされる利用者があるかは未確認。
+- **価値または懸念:** 移行対象として登録済み implementation と誤認すると、拡張子移動で未ビルドコードを新たに有効化する変更になる。今回は scope を保つため `SpinTransition` を `.cppm` のまま残し、移行には含めなかった。
+- **次に確認すること:** Spin transition の product behavior / registrar consumer と、explicit manifest から外れている設計意図を確認し、別作業で source registration が必要か判断する。
+
+
+## 2026-10-23: Creative effects copy full color channels per render
+
+- **関連:** `ArtifactCore/src/Graphics/Effect/FisheyeEffect.cpp`、`MirrorEffect.cpp`、`KaleidoscopeEffect.cpp`、`EdgeEchoEffect.cpp`、`LightPressureEffect.cpp`、`TemporalFossilEffect.cpp`、`DepthMeltEffect.cpp`、`GlitchCreativeEffect.cpp`、`OldTVEffect.cpp`、`PigmentSeparationEffect.cpp`、`SurfaceMemoryEffect.cpp`。
+- **確認できた事実:** 各 `process()` は Red / Green / Blue channel の全要素を、それぞれの入力 `VideoChannel` からローカル `std::vector<float>` 3個へコピーしてから画素処理する。追加した EdgeEcho / LightPressure / TemporalFossil / DepthMelt / GlitchCreative / OldTV / PigmentSeparation / SurfaceMemory でも同じ3チャンネル全コピーを確認した。
+- **推測・未検証:** 実 caller、呼び出し頻度、対象解像度、frame cost / allocation 数は未計測。
+- **価値または懸念:** 繰返し評価時に複数の全画素 allocation と copy が発生し得る。今回の拡張子移行では処理を変更しない。
+- **次に確認すること:** effect 呼び出し経路と頻度を確認し、入力と出力の aliasing / 読み取り一貫性を保てる bounded workspace または再利用 buffer の可否を評価する。
+
+
+## 2026-10-23: Chromatic aberration effect allocates full-frame channel temporaries
+
+- **関連:** `ArtifactCore/src/Graphics/Effect/ChromaticAberrationEffect.cpp`。
+- **確認できた事実:** `process()` は Red / Blue channel の全要素数ぶんの `std::vector<float>` を2個確保し、各チャンネルを一時配列へコピーしてから色ずらし処理を行う。
+- **推測・未検証:** effect の呼び出し頻度、解像度別の確保量、frame cost は未計測。
+- **価値または懸念:** 高解像度・反復適用時に大きな一時確保と copy が生じ得る。今回の拡張子移行では処理を変更していない。
+- **次に確認すること:** caller と buffer aliasing 条件を確認し、再利用領域で処理できるか別途評価する。
+
+## 2026-10-23 — SpinTransition implementation registration gap
+
+- **関連:** `ArtifactCore/src/Video/Transitions/SpinTransition.cppm`, `ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`, `ArtifactCore/cmake/ArtifactCoreSources.cmake`, `ArtifactCore/CMakeLists.txt`
+- **確認できた事実:** `Video.Transitions.SpinTransition` は module-reference manifest に記載されている一方、実装ソースは `ArtifactCoreSources.cmake` と `ARTIFACTCORE_VIDEO_IMPL` に登録されていない。今回の CMake target scan にも同実装は現れなかった。
+- **価値／懸念:** 現状では Clang / MSVC のいずれでもこの実装単位の compile 検証・リンクはされない。ソース登録を補うと遷移実装が有効化される可能性があり、単なる拡張子移行の範囲を越える。
+- **次に確認すること:** transition 実装の登録漏れが意図的か確認し、挙動を有効化してよい判断が得られた後に、ソース登録・ビルド順・拡張子移行を一緒に扱う。
+
+
+## 2026-10-23: Acoustic split target requires direct Clang verification
+
+- **関連:** `ArtifactCore/CMakeLists.txt` の `ARTIFACTCORE_ACOUSTIC_MODULES` / `ArtifactCoreAcoustic` target、7つの `src/Acoustic` 実装。
+- **確認できた事実:** 7実装は `ArtifactCore` の通常targetから除外され、`ArtifactCoreAcoustic` に登録されている。今回 `ArtifactCore` だけをbuildした時点では各実装のcompileを確認できず、専用targetのbuildで初めて全7実装のP1689 scan・compile・archive linkを確認できた。
+- **価値または懸念:** split target を持つ領域では親の主要target成功だけでは移行対象のClang対応を証明できない。
+- **次に確認すること:** 今後も変更した実装が所属する実際のtargetを source registration から特定し、そのtargetをbuildして確認する。
+
+
+## 2026-10-23: Explicit CXX_MODULES file set accepts `.cpp` module interfaces under upstream Clang
+
+- **関連:** `ArtifactCore/cmake/ArtifactCoreSources.cmake` の `ARTIFACTCORE_MODULE_SOURCES`、`ArtifactCore/CMakeLists.txt` の `ARTIFACTCORE_AI_MODULES`、16個の `Core.AI.*Descriptions` module interfaces。
+- **確認できた事実:** 16個の exported module source を `.cppm` から `.cpp` に変更し、両明示 module source lists を更新した。upstream clang++ 22.1.3 / CMake 4.4.4 / Ninja の `ArtifactCoreAI` target が module scan、全16 compile、static archive link に成功し、warm rebuild は16 sccache hits、0 missesだった。
+- **価値または懸念:** 拡張子ヒューリスティックとは別に、明示 `CXX_MODULES` file set が `.cpp` の exported interface を module source として扱えることを、この実 target で検証できた。これは明示 file set に含まれない一般の `.cpp` が module interface になることを意味しない。
+- **次に確認すること:** 同じ登録方式を使う他の split target で小さな module group を移行し、upstream clang++ の scan / link と cache behavior を検証する。
+
+
+## 2026-10-23: Core utility module rename fans out but remains fully cacheable
+
+- **関連:** `ArtifactAtomic` / `ArtifactOptional` / `ArtifactHashMap` module interfaces、ArtifactArray / ArtifactDict / NamedVector consumers、upstream clang++ 22.1.3、sccache 0.18.0。
+- **確認できた事実:** 3 module interface implementation paths を `.cppm` から `.cpp` に移し、手動 object-order references を更新した後、`ArtifactCore` target の初回ビルドと archive link に成功。module provider 変更により初回 build は271 Ninja steps、warm rebuild は268 stepsとなったが compile requests は262 hits / 0 misses、cache errors 0 だった。
+- **価値または懸念:** ArtifactCore の汎用型 module interface は多くの consumer を再ビルドへ巻き込む。sccache はこの波及範囲を compile cache hit で吸収できる。
+- **次に確認すること:** 今後 provider interface を移行する場合、直接ファイルだけでなく依存 consumer の object ordering と全 target build の範囲を確認する。
+- **追加確認（2026-10-23）:** `Memory.SharedPtr` / `TrackedPtr` / `UniquePtr` の3 provider を `.cpp` に移し、source manifest、29 module-reference entries、CMake object dependencies を更新。`ArtifactCore` compile / link と NamedVector を含むconsumer graphが成功し、warm rebuildは203 Ninja steps中197 compile hits / 0 misses。
+
+
+## 2026-10-23: ArtifactCore に未登録の `.cppm` 実装が複数残る
+
+- **関連:** `ArtifactCore/src/**/*.cppm`、`ArtifactCore/cmake/ArtifactCoreSources.cmake`、`ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`、`ArtifactCore/CMakeLists.txt`。
+- **確認できた事実:** 現在 `ArtifactCore/src` に物理 `.cppm` が18件ある。source manifest / CMake source registration に現れるのは `Reactive/ReactiveEvents.cppm` と `Render/RendererQueue.cppm` の2件で、残り10件は module-reference manifest のみに記載、6件は source registration と module-reference のどちらにも記載がない。`ArtifactCore` は再帰 source discovery を行わないと CMakeLists に明記している。
+- **推測・未検証:** reference-only / unregistered の16実装が意図的に無効化された旧コードか、登録漏れかは未確認。
+- **価値または懸念:** これらを `.cpp` にrenameしても現行 target の Clang compile 検証にはならない。source registration を足すと未使用機能を build graph に再導入し、link / dependency graph を変える可能性がある。
+- **次に確認すること:** 各 public `.ixx` の consumer と git history、target 構成を照合し、意図的な除外か登録漏れかを分類してから個別に移行判断する。
+
+## 2026-10-23: Ofx source extensions hide export-module interfaces
+
+- **関連:** `Artifact/src/Effects/Ofx/ArtifactOfxEffectImpl.cppm`, `ArtifactOfxHost.cppm`。
+- **確認できた事実:** 両 `.cppm` は `module;` のglobal module fragmentに続いて `export module Artifact.Effect.Ofx.*;` を宣言し、exportされた型の宣言を含む。拡張子だけを見て実装単位と分類できない。
+- **推測・未検証:** source manifest上で `.cppm` としてどのCMake target / file setに配置するのが意図された構成か、再整理が必要かは今回の移行調査では未検証。
+- **価値または懸念:** `.cpp` への変更で既存PCM依存が欠落し、sccache compileがHost PCM不足で失敗した。またOfxHost単独compileではexport redeclarationが発生した。interface形式のソースを拡張子移行対象として扱わず、CMakeのmodule classification / provider registrationを別途監査する必要がある。
+- **次に確認すること:** CMake生成file setとP1689 provider scanを照合し、二つのexport module providerの正しいinterface登録状態を調べる。
+
+
+## 2026-10-23: upstream Clang module PCM generation can approach source-location capacity
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Export/ArtifactExportSession.cpp` / `ArtifactExportPreRenderPipeline.cpp`、upstream clang++ 23.1.4、Ninja module map。
+- **確認できた事実:** Export implementation の個別compileで不足していた `Artifact.Render.CompositionViewDrawing.pcm` を得るため、依存interface sourceを単独compileしたところ clang frontend が exit 70 でクラッシュした。診断は source manager location usage 2.14 GB、available space の99%を示した。同じ試行で `Artifact.Render.OffscreenComposition.pcm` の生成は成功した。
+- **推測・未検証:** クラッシュの直接原因がlocation address-space上限、反復読み込みによる module graph膨張、または別の compiler defect かは未特定。Ninja全target build時にも再現するか未確認。
+- **価値または懸念:** 大規模 module mapを持つ1 translation unitの単独検証でもclang frontendのメモリ／source-location上限に達し得る。依存PCM不足を無視したobject compile結果は source compatibility の証拠にできない。
+- **次に確認すること:** 可能なら最小の再現コマンドと clang crash reproducerを保持し、同moduleのimport集合・PCM再利用状況・clangの修正版で比較する。広域ビルドに拡張する前にメモリ余裕と出力先容量を確認する。
+
+
+## 2026-10-23: Clang split-target build may fan out through stale dependency state
+
+- **関連:** `ArtifactColorNode` target、CMake 4.4.4 / Ninja、upstream clang++ build tree `V:\ArtifactStudioBuilds\x64-Debug-ClangXX23-MsvcAbi`。
+- **確認できた事実:** targetをNinja経由でビルドした際、再configure後も既存 depfile / command-log の再構築が発生し、OpenUSDを含む3,179 stepsが列挙された。550 stepsで止め、対象2 `.cpp` implementationのP1689 scan / compileと、既存2 interface objectを含む `ArtifactColorNode.lib` archive commandを直接実行して成功させた。
+- **推測・未検証:** 広域fan-outの直接原因がbuild treeの古いdepfile、missing command log、verify-globsの再走査、またはそれらの組合せかは未確定。クリーンな専用build treeでも再現するか未検証。
+- **価値または懸念:** 特定split targetの短い検証を意図しても、既存build treeでは大量のthird-party actionに波及し得る。target全体のcompile/linkを成功したと誤報せず、個別objectとarchiveの検証範囲を分けて記録する。
+- **次に確認すること:** Clang laneの専用build treeを一度クリーンに構成し、module scan / dyndep生成後のtarget action数と依存順を比較する。大規模依存再構築が不要な状態を確認してからtarget全体の検証を再開する。
+
+## 2026-10-23: ArtifactCore 残存 `.cppm` の登録監査と Distort 移行 manifest
+
+- **関連:** `ArtifactCore/src/**/*.cppm`、`ArtifactCore/cmake/ArtifactCoreSources.cmake`、`ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`、`Artifact/CMakeLists.txt`、`ArtifactEffectsDistort`。
+- **確認できた事実:** 現在の ArtifactCore 作業ツリーには12個の `.cppm` が残る。うち2件 (`ReactiveEvents`, `RendererQueue`) はsource登録済み、10件は未登録。未登録10件のうち4件はmodule-reference manifestだけに記載され、6件は両manifestに記載されない。`AnamorphicFlare` と `MonochromeHalide` はpartition interface / 実装 / reference mappingが揃う登録候補。`EasingCurveUtil` の公開interfaceは同等機能をinline実装し、`ValidationRules` は現行ソースでconsumerを確認できない。残り6件はtest専用2件、module宣言のない旧stub/旧実装4件で、通常target登録の根拠がない。ArtifactCoreの登録は変更していない。
+- **10件の個別判定:** `AnamorphicFlare` はpublic partitionと集約interfaceからの再export、implementation/reference mappingが揃い登録候補。ただし `process()` は画像全体の複製と2つの大容量 `std::vector` 確保を行うため、runtime接続前に hot-path contract のレビューが必要。`MonochromeHalide` は `ImageProcessing:Halide` interfaceと実装が揃う登録候補だが、Halide/OpenCV依存と有効化条件をtarget側で先に確認する。`EasingCurveUtil` はTimeline consumerがある一方、public `.ixx` が主要APIをinline定義しており、sourceにも重複実装があるため現状のままsource登録しない。`ValidationRules` はconsumerを見つけられず、実装がArtifact層moduleをimportしてCore→Artifact依存を逆流させるので登録しない。`FFmpegEncoder.Test` / `SoftwareRayTracer.Test` はtest専用で通常library targetには追加しない。`HalideImageF32x4RGBA` は空stub、`Affin` はコメント化されたincludeと空namespace、`Glow` はmodule宣言なしの旧Halide helper、`FilmGrain` はmodule宣言なしのOpenCV G-API kernel定義で、いずれも現在のmodule implementation sourceとして登録する根拠がない。
+- **変更・確認:** Distort source pinning が移行済み `TimeDisplacementEffect.cpp` ではなく旧 `.cppm` をAPP_IMPLへ追加していた。`.cpp` 優先・未移行時 `.cppm` fallbackへ修正し、CMake 4.2 / Ninja / upstream clang++ 23.1.4 + MSVC ABI でroot configure/generate成功。ArtifactEffectsDistort targetのbuildは未実施。
+- **価値／懸念:** 拡張子移行ではsource manifestだけでなく、追加の明示target pinningも追跡する必要がある。画像処理2候補も現状ではtarget未登録であり、登録するとbuild graphを変えるため別判断を要する。
+- **追加確認（2026-10-23）:** upstream clang++で3件のP1689 scan / object compileが成功。cold 3 miss、warm 3 hit。通常のdyndep targetはthird-partyを含む2,430 actionsへ広がり、486で停止した後、対象の既存DDI群とCMake dyndepを直接生成して3 objectをcompile、既存objectと合わせて`ArtifactEffectsDistort.lib`を再アーカイブした。ArtifactCore候補2件は引き続き登録意図が確認できるまで保留する。
+
+
+## 2026-10-23: CMake Ninja dyndep から実装targetを限定検証できる
+
+- **関連:** `ArtifactEffectsDistort`、`ArtifactEffectsWave`、`ArtifactEffectsSurfaceFX`、upstream clang++ 23.1.4 / Ninja / CMake 4.2。
+- **確認できた事実:** 通常のDistort dyndep target buildはOpenUSD等を含む2,430 actionsへ展開した。一方、targetの既存P1689 `.ddi` 群、`CXXDependInfo.json`、`cmake_ninja_dyndep` を使って対象の `.obj.modmap` を生成し、変更対象だけをsccache付きcompile、既存objectを合わせてtarget archiveへ再格納できた。3つのtargetで実装source scan / compile、合計3 target archivesが成功した。
+- **価値／懸念:** 既存build treeの広いorder dependencyを実行せず、CMakeが生成したmodule mappingでextension migrationのcompileとarchiveを確かめられる。ただし生成済み依存PCM / interface objectsの存在を前提とし、clean buildや通常Ninja targetの成功を証明しない。
+- **次に確認すること:** clean build treeまたは更新済み依存が揃った環境で通常target buildを再評価し、P1689 scanからarchiveまでNinja管理下で完了する依存範囲を比較する。
+
+
+## 2026-10-24: Spatial specialty effects also compile from `.cpp`
+
+- **関連:** `Artifact/src/Effects/DirectionalGlowEffect.cpp`、`AutoMosaicEffect.cpp`、`ArtifactEffectsGlow`、`ArtifactEffectsAutoMosaic`。
+- **確認できた事実:** 両 implementation source はそれぞれ専用 module interface / CMake target と結び付き、`.cpp` 化後も upstream clang++ 23.1.4 / Windows MSVC ABI で P1689 scan、object compile、static archive生成に成功した。sccache cold 2 miss / warm 2 hitで、累積のcache error / compilation failureは増えなかった。実装本文はGit HEADと一致しLF。
+- **価値または懸念:** specialized effect targetでも同じ明示manifest / module map経路が成立する。Ninja管理下のtarget全体 build とArtifactアプリ統合linkは未検証。
+- **次に確認すること:** Wave / SurfaceFX、DirectionalGlow / AutoMosaicの小targetで得た結果を踏まえ、残る implementation-only `.cppm` を登録済みtargetごとにまとめて移行し、target archiveと必要なconsumer linkを段階確認する。
+
+
+## 2026-10-24: 同一primary moduleの複数implementationを `.cpp` に移行できる
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cpp`、`ParticleEmitterDescription.cpp`、`Artifact.Generator.Particle`、`ArtifactAppRuntime`。
+- **確認できた事実:** 両sourceは同じ `module Artifact.Generator.Particle;` を宣言する別implementation unitである。両方を `.cpp` へ移し、explicit source manifestを更新後、upstream clang++ 23.1.4 / Windows MSVC ABI のP1689 scanとobject compileが成功した。sccache cold 2 miss / warm 2 hit。source bodyはGit HEADと一致しLF。
+- **価値または懸念:** 同一primary moduleに属する複数implementationをひとまとまりで移行しても、生成済み interface PCMを使う限定compileではClangが扱える。`ArtifactAppRuntime` の全dyndep / link成功を意味しない。
+- **次に確認すること:** 同targetに残るimplementation-only sourceをCMake scan / PCMの状態で分類し、小グループごとのcompileと必要なtarget linkを進める。
+
+## 2026-10-24: Generator implementation pair has different dependency verification outcomes
+
+- **関連:** `Artifact/src/Generator/CloneGenerator.cpp`, `AbstractGeneratorEffector.cpp`, `ArtifactAppRuntime`。
+- **確認できた事実:** 両 implementation source を `.cppm` から `.cpp` に移し、Artifact explicit source manifestを更新。CloneGenerator は通常CMake生成 module mapで upstream clang++ 23.1.4 / Windows MSVC ABI object compileに成功した。AbstractGeneratorEffector はP1689 scan成功したが、局所module map compileは `Artifact.Layer.Abstract.pcm` の間接依存PCM不足（`Utils.Result` 等）とstale PCMで停止。public interfaceには必要な `Memory.SharedPtr` と `Artifact.Layer.Abstract` のimportが存在する。
+- **推測・未検証:** AbstractGeneratorEffector の停止がclean/更新済み ArtifactAppRuntime dyndep buildで解消するかは未検証。現在のエラーはsource互換性不良の証拠ではない。
+- **価値または懸念:** 対象ソースの限定compileでも、直接DDIだけで生成したmodule mapはCMakeの既存PCM依存閉包を完全に再現しない場合がある。通常のtarget dyndep compileとの結果を分けて報告する必要がある。
+- **次に確認すること:** cleanまたは依存PCMを更新したClang build treeで対象interface dependency closureを含む通常dyndep buildを再試行し、AbstractGeneratorEffector のcompile結果を確定する。
+
+## 2026-10-24: Color management and grading compile after `.cppm` migration
+
+- **関連:** `Artifact/src/Color/ArtifactColorManagement.cpp`, `ArtifactColorGradingEngine.cpp`, `ArtifactColorManagement`, `ArtifactColorGrading`。
+- **確認できた事実:** 対応する専用targetへ登録済みの2 implementation unitを `.cpp` に移し、common manifestとtarget source pathsを更新。upstream clang++ 23.1.4 / Windows MSVC ABIで両方のP1689 scan、object compile、static archive再生成が成功した。最終warm sccacheは2 hits / 0 missesで、既存cache errors / compilation failures集計は増加しなかった。実装本文はGit HEADと一致しLF-only。
+- **価値または懸念:** 小さいColor専用targetでも既存Ninja build treeがOpenUSDを含む3,181 actionsへ膨らむ。対象だけの正規CMake module map compileとarchive確認はできるが、target全体の依存build / app linkの証拠にはならない。
+- **次に確認すること:** CMake/Ninjaが全依存を管理するclean build treeでtarget全体の最小依存buildを実行し、直接object/archive検証との差を確かめる。
+## 2026-10-24: Playback service pair compiles with generated module maps
+
+- **関連:** `Artifact/src/Service/ArtifactPlaybackService.cpp`、`ArtifactPlaybackShortcuts.cpp`、upstream clang++ 23.1.4 / Windows MSVC ABI。
+- **確認できた事実:** 2つの implementation unitを `.cppm` から `.cpp` に移し、source manifestを更新した。両public interfaceと両implementationを個別にコンパイルできた。CMake configure / generateも成功。
+- **価値または懸念:** 直接DDIだけで作った限定dyndep mapはimport依存閉包が足りず失敗したが、実装の問題ではなく検証mapの不備だった。通常生成されたCMake module mapでは4件成功。sccache warm hit、clean build、アプリ統合linkは未確認。
+- **次に確認すること:** 次のsccache記録時にwarm compile結果を取得し、対象2 sourceの本文一致・LFを監査する。
+
+## 2026-10-24: Composition PlaybackController migration is blocked by a module cycle
+
+- **関連:** `Artifact/src/Composition/ArtifactCompositionPlaybackController.cppm`、`Artifact/include/Playback/ArtifactPlaybackEngine.ixx`、`ArtifactPlaybackAudioDiagnostics`。
+- **確認できた事実:** 現行ツリーには `ArtifactCompositionPlaybackController.cppm` が残り、対応する `.cpp` は存在しない。`ArtifactPlaybackAudioDiagnostics` は `Artifact.Playback.Engine` interfaceで定義され、同interfaceは `Artifact.Composition.PlaybackController` をimportする。ImplementationからEngineをimportする案は循環依存になる。
+- **推測・未検証:** Diagnostics型の所有moduleを分ければ依存を解ける可能性があるが、分離先・利用範囲・API影響は未検証。
+- **価値または懸念:** Clang移行時に出た直接import不足を単純に追加すると module cycleを作るため、このunitを `.cpp` 化済みとして数えない。現行の変更差分は先頭BOM除去だけで、module importは追加されていない。
+- **次に確認すること:** Transport APIの責務と型の利用箇所を調べ、共有診断型のmodule分離が適切か別途判断してから再移行する。
+
+## 2026-10-24: ColorScience and OCIO implementation pair compile as `.cpp`
+
+- **関連:** `Artifact/src/Color/ArtifactColorScienceManager.cpp`, `ArtifactOCIOManager.cpp`, `Artifact.Event.Types`, upstream clang++ 23.1.4。
+- **確認できた事実:** 2つの登録済み implementation unitを `.cppm` から `.cpp` に移し、Artifact source manifestとCMake cycle-pinning pathsを更新。public interfaceのcompileでPCMを作成後、両sourceのP1689 scanとobject compileが成功した。限定CMake dyndep mapには `Artifact.Event.Types` providerを含め、OCIOがColorScience interfaceに依存する順序も確認した。sccache warm compileは2 hits / 0 missesで、累積errors/failuresは増えなかった。source bodiesはHEADと一致しLF-only。
+- **価値または懸念:** cycle ownershipを保ったまま、実装拡張子だけを移せることをClangで確認できた。これはArtifactAppRuntime全体のdyndep build / app link成功を示さない。
+- **次に確認すること:** clean Clang build treeでArtifactAppRuntimeの通常Ninja buildを再開し、この pair を含むmodule graphからリンクまで通す。
+
+## 2026-10-24: Artifact source manifest membership does not prove final target membership
+
+- **関連:** `Artifact/cmake/ArtifactSources.cmake`、`Artifact/CMakeLists.txt`、`Artifact/src/Effects/Rasterizer/{GlowEffect,KaleidoscopeEffect}.cppm`。
+- **確認できた事実:** 2つのlegacy Rasterizer sourceは共通manifestに記載されているが、CMakeLists側でcanonical Glow / Kaleidoscope unitsとmodule nameが重複すると明記され、最終target listsから除外されている。
+- **推測・未検証:** 同じ形式の除外・再配分が他source familyにも存在する範囲は未監査。
+- **価値または懸念:** 拡張子移行の候補はmanifest登録だけで選ばず、変数の再配分と `list(REMOVE_ITEM)` 適用後の最終target所属まで追う必要がある。除外されたlegacy fileを移してもClangの実際のbuild path改善にならない。
+- **次に確認すること:** 次の候補選定で各implementationの最終target所属と専用target pinningを確認し、buildされるtranslation unitだけを移行する。
+
+
+## 2026-10-24: Project module implementation uses an indirectly exposed item type
+
+- **関連:** `Artifact/src/Project/ArtifactProjectStatistics.cpp`、`Artifact.Project.Items`、Clang module map。
+- **確認できた事実:** Statistics implementation traverses `ProjectItem` and invokes its members, while its imports omitted the owning module `Artifact.Project.Items`. A preexisting module map happened to contain that provider; Clang direct-import checking still rejected the source. Adding the direct implementation import compiled successfully and the Items interface did not import Statistics.
+- **価値または懸念:** Existing module maps can conceal missing direct imports, so compile success against a stale or broad map is weaker evidence than fresh P1689 scanning plus a real compile. In addition, a PCM may retain a deleted `.cppm` path after a source rename; regenerating that provider's build-tree DDI/map can validate the current source without changing child repository files.
+- **次に確認すべきこと:** Continue migration verification with fresh source scans and check direct ownership imports; when stale PCM blocks a compile, establish whether its provider moved and rebuild only that provider before judging the candidate.
+
+
+## 2026-10-24: Project importer module-map closure can exceed Clang memory
+
+- **関連:** `Artifact/src/Project/ArtifactProjectImporter.cppm`、Project source modules、Clang 22.1.3 GNU frontend / Windows MSVC ABI。
+- **確認できた事実:** Project Importer の実装sourceを一時的に `.cpp` としてスキャンした後、既存のCMake module mapには149件のPCM providerがあり、その不足PCMを揃えてからコンパイルを試した。ClangはAST読込約2.13GB（報告上99%）の後にfrontend crashし、objectを生成できなかった。この候補は `.cppm` と manifest登録へ戻した。
+- **価値または懸念:** import countだけでなく、module mapの依存閉包とClang frontendの実メモリ負荷を候補選択に含める必要がある。クラッシュは拡張子変更のsource errorと断定できず、コンパイル成功とも扱えない。
+- **次に確認すべきこと:** Project importer / managerの分割・依存閉包を別途切り分け、メモリを抑えた再現条件またはより小さい翻訳単位で再評価する。
+
+
+## 2026-10-24: Missing module-map providers can be validated through interface compiles
+
+- **関連:** Render Queue Widget implementation units、CMake/Ninja Clang module maps、P1689。
+- **確認できた事実:** Render Queue Widget `.cppm` implementations had fresh maps that referenced their paired public interfaces plus Queue Job / Service providers. The existing PCM set was incomplete, but compiling those registered `.ixx` interfaces with their own generated maps produced the missing PCMs; the implementations then passed fresh P1689 scans and object compiles.
+- **価値または懸念:** A missing PCM in a copied/stale implementation map does not by itself show a source incompatibility. Compile the owning public interface with its own provider map when the missing module is an interface, then verify the implementation against the complete closure. This avoids invoking the much larger application target for a narrow migration check.
+- **次に確認すべきこと:** Prefer regenerating a complete CMake dyndep map from fresh DDIs when practical; use individual interface compiles only when provider ownership is clear and all its own imports are present.
+
+
+## 2026-10-24: Frame cache entry retains two image representations
+
+- **関連:** `Artifact/include/Render/ArtifactFrameCache.ixx`、`FrameCacheEntry`。
+- **確認できた事実:** `FrameCacheEntry` declares both a `QImage image` and `std::vector<float> pixels` with width/height metadata. The implementation unit was moved to `.cpp` without changing the declaration or cache behavior.
+- **推測・未検証:** If producers populate both representations for the same frame, this could duplicate memory use; whether both are simultaneously populated, needed by callers, or touched on the hot path has not been traced.
+- **価値または懸念:** The hot-path rules discourage repeated image allocation/conversion, so any future cache cleanup needs caller/producer evidence and must preserve explicit CPU/GPU transfer boundaries.
+- **次に確認すべきこと:** Trace FrameCache producers and consumers, determine whether `QImage` and float storage coexist per entry and at what frequency, then profile memory and allocation before proposing a representation change.
+
+
+## 2026-10-24: Migrated module providers leave stale source paths in downstream PCMs
+
+- **関連:** ArtifactCore Physics modules and Artifact Layer PhysicsBridge compilation under Clang 22.1.3.
+- **確認できた事実:** Current ArtifactCore source manifest lists Physics providers such as `SoftBodySolver.cpp`, `ClothSolver3D.cpp`, `FluidSolver2D.cpp`, `Physics2D.cpp`, `MpmSolver2D.cpp`, and `PhysicsSystem.cpp`, while preexisting PCMs still attempted to open former `.cppm` paths. Fresh scans of current `.cpp` sources succeeded. Rebuilding the affected provider objects/PCMs in dependency order allowed Layer PhysicsBridge and FluidRuntimeState objects to compile; no ArtifactCore source or manifest was changed in this work.
+- **価値または懸念:** A complete file-based PCM map does not prove its serialized dependency state matches current source paths. When a module provider was renamed, refresh the provider and its migrated prerequisites before attributing downstream failures to the consumer source.
+- **次に確認すべきこと:** For broader validation, regenerate dyndep maps from fresh DDIs in a clean build tree, then compare with this targeted provider refresh workflow.
+
+## 2026-10-24: Large module implementations reach Clang frontend memory ceiling
+- **関連:** `Artifact/src/Project/{ArtifactProject,ArtifactProjectImporter,ArtifactProjectManager}.cppm`、ArtifactAppRuntime、Clang 22.1.3 GNU frontend / Windows MSVC ABI、`Artifact/src/Widgets/LayerEditorContextMenu.cppm`。
+- **確認できた事実:** 3実装を一時的に `.cpp` としてfresh scanした結果、CMake configure / generateとP1689 scanは成功したが、各個別compileがAST読込約2.1GB（診断上99%）でfrontend crashしobjectを生成できなかった。3ファイルとmanifestは `.cppm` に復元した。 LayerEditorContextMenuも一時 `.cpp` としてfresh P1689 scan後にobject compileを試したが、同じくAST読込約2.13GB（99%）でfrontend crashしたためmanifestとsource pathを `.cppm` に戻した。実装には `Memory.SharedPtr` の直接importを追加したが、crash前にこの修正を含むcompile成立は確認できていない。
+- **価値または懸念:** source scanの成立だけでは実用的なcompile互換性を示せない。Projectの大きいmodule dependency closureがfrontend memoryを消費している可能性があるが、正確な原因は未確定。
+- **次に確認すべきこと:** Project importer / managerのimport閉包とPCM再利用を調べ、小さな依存単位または修正版Clangで再評価する。
+
+## 2026-10-24: VST module implementations expose a missing direct String import under Clang
+- **関連:** `Artifact/src/VST/VSTHost.cpp`、`Core.ArtifactString`、Clang 22.1.3 / Windows MSVC ABI。
+- **確認できた事実:** `VSTHost.cpp` が `ArtifactCore::String` を使う一方で直接importしていなかったため、implementation object compileでClangが不足を報告した。実装 `.cpp` に `import Core.ArtifactString;` を追加すると fresh P1689 scanとobject compileが成功した。
+- **価値または懸念:** VST module pairでも、既存module mapにPCMが含まれているだけでは直接import要件を満たさない。所有module importを実装側に置くことでpublic interfaceを広げずに済む。
+- **次に確認すべきこと:** 他の移行sourceも実compileで不足が示された場合に限り、実装側の直接importを追加して検証する。
+## 2026-10-24: Asset Browser undo helper needs its owning Project.Items module
+- **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowserUndoCommands.cpp`、`Artifact.Project.Items`、Clang 22.1.3 / Windows MSVC ABI。
+- **確認できた事実:** Undo helper implementation uses `ProjectItem*` while importing `Artifact.Project`; Clang rejected the indirect visibility and required `Artifact.Project.Items`. Adding that direct import to the implementation source allowed fresh P1689 scan and object compilation to succeed.
+- **価値または懸念:** Project type ownership remains clear when implementation imports the module that declares the type; this avoids widening the widget interface.
+- **次に確認すべきこと:** Add direct imports only when the compiler identifies a missing owning module, then verify no cycle and recompile.
+## 2026-10-24: Color Science Panel compile is gated by a separate interface error
+- **関連:** `Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`、`Artifact/include/Widgets/Render/Artifact3DGizmo.ixx`、Clang 22.1.3 / Windows MSVC ABI。
+- **確認できた事実:** Science Panelを一時的に `.cpp` としてfresh P1689 scanしたが、implementation objectに必要な `Artifact.Widgets.CompositionEditor.pcm` が欠けていた。依存PCM生成のため既存interfaceを個別compileしたところ、`Artifact3DGizmo.ixx` のline 70でnested `export` declaration errorが発生し、その上流PCM chainを揃えられなかった。Panelは `.cppm` とsource manifest entryへ戻した。
+- **価値または懸念:** この検証結果はScience Panel implementationのClang非互換を示すものではなく、source scanだけでmigration成功とも判断できない。依存interface側の独立したClang errorがobject-level検証を止めている。
+- **次に確認すべきこと:** `Artifact3DGizmo.ixx` のexport nestingを独立して精査し、修正後にScience Panelのmodule closureを再compileする。
+## 2026-10-24: OFX module required exported forward declarations and a direct EffectContext import
+- **関連:** `Artifact/src/Effects/Ofx/ArtifactOfxHost.cpp`、`ArtifactOfxEffectImpl.cpp`、Clang 22.1.3 / Windows MSVC ABI。
+- **確認できた事実:** OFX Host compile rejected `OfxPluginDescriptor` and `ArtifactOfxHost` because non-exported forward declarations preceded exported definitions in the same module. Marking those forward declarations `export` made the host implementation compile. EffectImpl then required a direct import of the owning module `Artifact.Effect.Context` for `EffectContext`; adding it to the implementation allowed fresh scan and compile.
+- **価値または懸念:** Module implementation migration can expose declaration linkage inconsistencies and transitive type visibility hidden by existing build state. Both fixes are confined to the OFX module sources.
+- **次に確認すべきこと:** Continue verifying exported declaration consistency and direct owning-module imports through fresh scan and individual object compilation.
+## 2026-10-24: Clang implementations need direct owners and current provider PCMs
+- **関連:** `Artifact/src/Tool/{ArtifactCameraTrackerTool,ArtifactPointTrackerTool}.cpp`、`Artifact/src/Widgets/LayerEditorShapeInputController.cpp`、`LayerEditorShapeHoverController.cpp`、`LayerEditorShapePressInteractionController.cpp`、`LayerEditorShapeCommands.cpp`、`LayerEditorShapeEditSession.cpp`、`LayerEditorShapeParameterController.cpp`、`Tracking.CameraTracker`、`Artifact.Layer.InitParams`、`Memory.SharedPtr`、`Artifact/src/Widgets/LayerEditorShapeOverlay.cpp`。
+- **確認できた事実:** CameraTracker implementationが `ArtifactLayerInitParams` を間接可視のまま使っていたためClangが `Artifact.Layer.InitParams` を要求した。PointTrackerでは `makeShared` の所有元 `Memory.SharedPtr` が不足していた。両implementationへの直接import追加でfresh scan / object compileが成功した。また古いArtifactCore CameraTracker PCMは削除済み `.cppm` sourceを参照していたため、ArtifactCoreの現在の `.cpp` sourceをbuild tree内で個別scan / compileしPCMを更新してから利用した。ArtifactCoreソースは変更していない。LayerEditorShapeInputControllerでも `ArtifactCore::dynamicPointerCast` の所有元 `Memory.SharedPtr` を直接importしておらず、implementationへのimport追加後にfresh scan / compileが成功した。 ShapeCommands、ShapeEditSession、ShapeParameterControllerでも `ArtifactCore::SharedPtr` / `dynamicPointerCast` の所有元 `Memory.SharedPtr` を実装からimportしておらず、直接importを足した後にそれぞれfresh scan / compileが通った。 続くLayer Editor hover / press interaction群では、ShapeHoverControllerに `Memory.SharedPtr` の直接import、ShapePressInteractionControllerにglobal module fragment側の `#include <QPointF>` が必要とClangが指摘し、追加後にfresh scan / compileが成功した。 ShapeOverlayでは `ArtifactCore::Collider2DShape` のowner `Physics.Collider2DEdit` をimportしておらず、implementationに直接importを追加してfresh scan / compileが成功した。
+- **価値または懸念:** module-mapの古さとClangのsource import不足は別の問題であり、どちらも個別に解消してからcompile結果を判断する必要がある。
+- **次に確認すべきこと:** 同様のmissing source pathでは所有sourceの現在pathとtargetを照合してPCMをbuild tree内で更新し、missing declarationは直接importで明示する。
+
+## 2026-10-24: Playback ControlWidget verification reaches Application Manager memory ceiling
+- **関連:** `Artifact/src/Widgets/Control/ArtifactPlaybackControlWidget.cppm`、`Artifact/include/Application/ArtifactApplicationManager.ixx`、Clang 22.1.3 / Windows MSVC ABI。
+- **確認できた事実:** Playback ControlWidgetのsourceを一時 `.cpp` としてfresh scanできたが、個別compileに必要な `Artifact.Application.Manager.pcm` を作るためApplicationManager interfaceを個別compileした際、Clang frontendはAST約2.15GB（診断上99%）でcrashした。ControlWidgetは `.cppm` とmanifest entryへ戻した。Playback Engine implementation単体は別途 `.cpp` 化後にfresh scan / object compileに成功している。
+- **価値または懸念:** UI implementation sourceのcompile可否は、依存interface自身のfrontend memory上限に制約される場合がある。今回ControlWidget本文はcompile到達前で、Clang互換性を判定できていない。
+- **次に確認すべきこと:** Application Managerのmodule closure / memory負荷を独立に分割評価し、必要PCMが揃う条件を確認後に再試行する。
+## 2026-10-24: Artifact primary module interfaces must stay `.cppm` under the current source classifier
+- **関連:** `Artifact/src/Widgets/ArtifactProjectResponsiveLayout.cppm`、`ArtifactProjectItemPresentation.cppm`、`Artifact/cmake/ArtifactSources.cmake`。
+- **確認できた事実:** 2 sourceは `export module ...;` を宣言し、対応する別 `.ixx` interfaceを持たないprimary module interfaceだった。Artifactの現在のCMake source分類は `.cppm` を内容走査してinterface / implementationを判別する一方、`.cpp` はimplementationとして扱う。拡張子変更とmanifest更新だけではinterfaceを維持できないため、両sourceをコンパイル前に元の `.cppm` pathへ戻し、CMakeを再生成した。
+- **価値または懸念:** `.cppm` → `.cpp` の候補はファイル名やtarget登録だけでなく、module declarationとinterface ownershipで判定する。`export module` を持つsourceを現在の規則下で単純移動するとimporter向けinterfaceを失わせる可能性がある。
+- **次に確認すべきこと:** 各候補のsource declarationが `module X;` のimplementation unitで、public interfaceが別に登録されていることを確認してから移行する。
+
+## 2026-10-24: Ninja object target can expand into a large stale module dependency graph
+- **関連:** `Artifact/src/Widgets/LayerEditorInteractionStateController.cpp`、`out/build/x64-Debug-ClangXX-MsvcAbi`、Ninja / Clang modules。
+- **確認できた事実:** CMake再生成後に当該object pathをNinjaへ指定すると5267件の依存buildが計画され、40件進んだ時点で停止した。既存の `LayerEditorInteractionStateController.cppm.obj.modmap` をbuild tree内で新しい拡張子pathへコピーして行った直接compileは、import対象の `Artifact.Widgets.LayerEditor.MaskMoveController.pcm` が欠落していたためsccacheが拒否した。fresh P1689 scan自体は成功した。 また、`ArtifactTextGlyphShaderSources.cpp` のfocused runtime targetでdyndepだけを要求した場合も985件を計画したため116件で停止したが、対象source/interfaceのP1689 scanと、import closureに合わせてbuild tree内で生成したmodule mapによるinterface PCM / implementation objectの直接compileは成功した。warm compileでsccache hitが1件増えた。その後sourceをLFへ正規化して再compileした際は入力hash変更によるmissが1件増え、直後のrepeatではhitが1件増加、errorsは不変だった。 さらに `GridRenderer.cpp` と `ViewportOverlay.cpp` でも、既存module mapの全PCMが存在することを確認後、GridRenderer interface PCMと両implementation objectを直接Clang compileできた。fresh P1689 scanも両sourceで成功し、warm repeatはsccache hit +2 / misses不変だった。
+- **価値または懸念:** object path指定だけではmodule provider群や外部targetの再buildを避けられない場合がある。依存PCMが揃っているかを確認せずにNinja target buildを行うと、意図した単体検証を超える大きな再buildが始まる。
+- **次に確認すべきこと:** 既存build treeで対象module providersのPCMとmodmapを確認し、必要依存を限定してからobject compileする。全target buildを単体compileの代わりに使わない。
+
+## 2026-10-24: Qt pointer forward declarations belong to the global module fragment
+- **関連:** `Artifact/include/Widgets/ArtifactObjectPickerDialog.ixx`、`Artifact/src/Widgets/ArtifactObjectPickerDialog.cpp`、Clang 22.1.3。
+- **確認できた事実:** Clangでinterface compileした際、`QDialog` headerがglobal moduleに宣言済みの `QPushButton` をmodule purviewでも再宣言しておりエラーになった。またmodule purviewの `QTreeWidget` / `QLineEdit` forward declarationsは、implementation global module fragmentのQt headersが定義する型と同一視されず、implementationのメンバーアクセスがincomplete typeで失敗した。重複 `QPushButton` 宣言を除き、pointer-only forward declarationsをglobal module fragmentへ移した後にinterface PCMとimplementation objectがcompile成功した。
+- **価値または懸念:** public module interfaceでのみポインタ保持するQt型は、module purviewで独自宣言せずglobal module fragmentの宣言を共有すると、implementation側の直接Qt includeと同じ型宣言に揃う。
+- **次に確認すべきこと:** 他のpublic `.ixx` にmodule purview内のQt forward declarationsがあれば、該当型がmodule境界を越えてimplementationで使われる場合にClangで確認する。
+
+## 2026-10-24: AnimationTimeline implementation Clang crash identifies an unresolved PCM/source-location failure
+- **関連:** `Artifact/src/Widgets/ArtifactAnimationTimelineWidget.cppm`、Clang 22.1.3、`out/build/x64-Debug-ClangXX-MsvcAbi`。
+- **確認できた事実:** sourceのfresh P1689 scanとpublic interface PCM compileは成功した一方、implementation compileは2回とも `malformed or corrupted precompiled file: 'ran out of source locations'` を報告してClang frontend crashした。対象sourceの `.cpp` 移行は取り消した。build mapが参照するPCMファイルの存在は事前確認済みだが、どのPCMの内容 / source-location tableが原因かは特定できていない。
+- **価値または懸念:** PCMファイルが存在することだけではClang frontendが正常に読み込める保証にならない。sourceのcompile診断や拡張子起因と断定せず、imported PCMの個別整合性を分けて調査する必要がある。
+- **次に確認すべきこと:** import closureを限定し、AnimationTimelineが読むPCMを個別再生成 / 読み込み検証してから、Clang compileを再試行する。
+
+## 2026-10-24: Clang module interface PCM size varies substantially by UI surface
+- **関連:** `Artifact/include/Widgets/ArtifactUndoHistoryWidget.ixx`、`Artifact.Widgets.UndoHistoryWidget.pcm`、Clang 22.1.3。
+- **確認できた事実:** interfaceの個別compileは成功し、Clang build treeに生成されたPCMは86,293,516 bytesだった。対応するimplementation objectもcompile成功した。
+- **価値または懸念:** source行数からmodule PCM容量を推測できない。Clang build容量を整理するときは一部の小sourceだけで全モジュールのPCM規模を代表させない。
+- **次に確認すべきこと:** build tree容量を整理する場合、対象構成を特定した上でPCM / object / dependency cacheの実サイズを区別して集計する。
+
+## 2026-10-24: Project Manager interface PCM compile has a high Clang memory peak
+- **関連:** `Artifact/include/Project/ArtifactProjectManager.ixx`、`Artifact.Project.Manager.pcm`、Clang 23.1.4 / Windows MSVC ABI。
+- **確認できた事実:** PCM欠落を補うためinterfaceを個別fresh scan / compileしたところ、Clang processのworking setは約7.2 GiB、空き物理RAMは約3.7 GiBまで下がったためcompileを中断した。`Artifact.Project.Manager.pcm` は出力されず、候補のHierarchy implementation sourceは未変更である。
+- **価値または懸念:** 依存interfaceが存在しない場合の単体検証は、少数の対象sourceだけでも大きなRAMを要することがある。作業機全体の空きメモリを見ずに続けると、周辺プロセスまでメモリ圧迫を受ける。
+- **次に確認すべきこと:** 大きなUI interfaceのPCMが欠落した場合は、先にメモリ上限と空きRAMを確認し、既存PCMを再利用できる候補を優先する。
+
+## 2026-10-24: ProjectImporter implementation hits Clang's AST source-location limit
+- **関連:** `Artifact/src/Project/ArtifactProjectImporter.cppm`、Clang 23.1.4 / Windows MSVC ABI。
+- **確認できた事実:** sourceを一時 `.cpp` に移した後、fresh P1689 scanは成功したが、implementation compileがAST file読み込み時に約2.13 GiB（診断上99%）でfrontend crash / exit 70した。extensionとmanifest entryは `.cppm` へ戻した。失敗はimplementationのsource diagnosticではなく、個別compile・リンク・runtimeには到達していない。
+- **価値または懸念:** ProjectImporterの現状module closureはClang 23のAST source-location容量上限に達し、拡張子移行の検証が成立しない。問題PCMや依存を絞らず再試行しても同じ失敗を繰り返す可能性が高い。
+- **次に確認すべきこと:** ASTを膨らませているPCM依存を個別に調べ、import closureまたはmodule partitioningを見直せる根拠が得られるまで `.cppm` のままにする。
+
+## 2026-10-24: Inspector effect catalog leaves a stage enumerator unhandled
+- **関連:** `Artifact/src/Widgets/InspectorEffectCatalog.cpp`、`ArtifactEffectStage`。
+- **確認できた事実:** Clang 23.1.4でInspectorEffectCatalog implementationを個別compileした際、`switch (stage)` に `ArtifactEffectStage::PreProcess` caseがないという `-Wswitch` warningが出た。拡張子移行ではこのコードを変更しておらず、warningが実行時の欠落動作に結び付くかは未検証。
+- **価値または懸念:** effect stage一覧とcatalogの分類がずれている可能性を確認できる。安易にcaseを追加するとUI分類を変えるため、現状の責務・表示方針を調べず修正しない。
+- **次に確認すべきこと:** `ArtifactEffectStage::PreProcess` の利用元とInspectorのstage表示要件を確認し、意図的な除外か欠落かを判定する。
+
+## 2026-10-24: UI source migrations need per-source validation and provider ordering
+
+- **関連:** `Artifact/src/Widgets/Dialog/ArtifactScreenshotExportDialog.cpp`、`ArtifactResolutionRemapDialog.cpp`、`CreateNoiseLayerDialog.cpp`、`FloatColorPickerHooks.cpp`、`CreateLightLayerDialog.cpp`、`ArtifactImportAssetsDialog.cpp`、`Artifact/src/Widgets/AssetThumbnailPipeline.cpp`、`CreateCameraLayerDialog.cppm`、各 `.ixx` interface、Clang 23.1.4 / P1689 / sccache。
+- **確認できた事実:** ScreenshotExport / ResolutionRemap / CreateNoise / FloatColorPickerHooks / CreateLight / AssetThumbnailPipeline / ImportAssetsの7 implementationは、public interfaceとimplementationのfresh P1689 scan、interface PCM compile、implementation object compileが成功した。Hooksを先にcompileした後、Hooks PCMをimportするCreateLightが成功し、AssetThumbnailPipelineを先にcompileした後、同PCMをimportするImportAssetsも成功した。CreateCameraはscanとinterface PCM compile後のimplementation compileでClang frontendがexit 70のcrashとなり、sourceとmanifestを `.cppm` に戻した。
+- **価値または懸念:** UI近接機能を一群として監査しても、成立性はsource単位で異なる。consumerのrequiresにproviderが現れる場合、provider PCMを個別に先行生成すると不足依存を特定して段階検証できる。crashした候補は成功群に含めず `.cppm` に戻す。
+- **次に確認すべきこと:** 各public interfaceと直接module importを確認し、依存PCMが欠ける候補はproviderを含む個別評価に回す。Camera crashの原因は未特定のため、原因調査なしに再試行を繰り返さない。
+
+## 2026-10-24: Qt event types used by module implementations need direct global-fragment includes
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactLayerEditorPanel.cpp`、`Artifact/include/Widgets/Render/ArtifactLayerEditorPanel.ixx`、`Artifact/src/Widgets/StyleSurface.cpp`、Clang 23.1.4 / Windows MSVC ABI。
+- **確認できた事実:** ArtifactLayerEditorPanel implementationでは`QCloseEvent*`、StyleSurface implementationでは`QPaintEvent*`を使っていたが、各sourceのglobal module fragmentに該当headerがなく、Clang compileがunknown typeで失敗した。それぞれglobal module fragmentへ`#include <QCloseEvent>` / `#include <QPaintEvent>`を追加した後、fresh P1689 scanとimplementation compileが成功した。
+- **価値または懸念:** Qtイベント型は他Qt headers経由で見えていると推測せず、実装が使う型をsource側で直接includeするとClangのmodule境界で依存漏れを検出できる。追加includeはglobal module fragmentに置き、module purviewには置かない。
+- **次に確認すべきこと:** 移行候補のmodule implementationでイベント型のメンバー参照や完全型利用があれば、Clang診断に基づいて直接includeを確認する。
+## 2026-10-24: Camera layer implementation has a self-contained public module boundary
+
+- **関連:** `Artifact/src/Layer/ArtifactCameraLayer.cppm` → `.cpp`、`Artifact/include/Layer/ArtifactCameraLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** CameraLayer interfaceは `Artifact.Layer.Abstract` をimportして公開APIを定義している。実装単位は同じmoduleのimplementation unitで、追加の直接CMake APP_IMPL entryはなく、source manifestにだけ登録されていた。`.cppm` を `.cpp` に変更しmanifestも同期した。ビルドは禁止されていたためコンパイルと生成後のtarget分類は未確認。
+- **価値または懸念:** 追加のpublic importやCMake pinを増やさず一実装単位ずつ拡張子移行できる候補だった。実ビルドまでは安全性が確定していない。
+- **次に確認すべきこと:** CMake configure後のsource分類とClang MSVC-ABIでのimplementation compileを確認する。
+## 2026-10-24: A narrow Ninja object target can still trigger a large regenerated dependency graph
+
+- **関連:** `Artifact/src/Layer/ArtifactNLETransitionBridge.cpp`、`Artifact/cmake/ArtifactSources.cmake`、`V:\ArtifactStudioBuilds\x64-Debug-ClangXX23-MsvcAbi`
+- **確認できた事実:** CMake configure/generate succeeded after migrating the NLE bridge source path. A direct Clang 23.1.4 GNU frontend compile using the existing module map completed successfully. Running Ninja for only the bridge object then reported 6632 actions because of regenerated transitive dependencies and began OpenUSD generation/compilation; it was interrupted after roughly 112 actions to limit additional disk/build work.
+- **価値または懸念:** A one-object Ninja target is not necessarily a low-cost verification after CMake regeneration. Inspect its planned action count before executing; isolated compile with an existing module map provides narrower evidence but does not validate a fresh dependency scan or complete build-graph closure.
+- **次に確認すべきこと:** For future migrations, use fresh scan and compile-only checks where module maps exist, and inspect Ninja's dry-run/plan before starting a target that may fan out. Confirm whether regenerated dependency artifacts are expected before another broad build.
+## 2026-10-24: Fresh P1689 scans can validate migrated sources without running their build closure
+
+- **関連:** `Artifact/src/Layer/ArtifactNLETransitionBridge.cpp`、`Artifact/src/Effects/ImageMorph/ImageMorphEffect.cpp`、`Artifact/src/Widgets/Coordinate/ArtifactPerformanceHUD.cpp`、`Artifact/src/Widgets/WebUI/ArtifactReportDashboard.cpp`
+- **確認できた事実:** After CMake regeneration, invoking each generated `clang-scan-deps -format=p1689` rule directly succeeded and emitted the `.cpp.obj.ddi` dependency record. The isolated implementation compile succeeded for NLETransitionBridge. The other three compile attempts stopped before Clang compilation because their module maps referenced missing interface PCM files. Running the Ninja object target expanded to 6632 actions and was interrupted after about 112 actions.
+- **価値または懸念:** Fresh dependency scanning is a useful narrow check of module source classification, while it does not prove implementation compilation. A direct object target can fan out into a much larger generated dependency graph.
+- **次に確認すべきこと:** Build only the required interface PCM/module dependencies in a bounded way before retrying the three isolated implementation compiles; inspect Ninja's planned action count first.
+## 2026-10-24: Interface PCM preparation can isolate source migration, but interface cost is not predicted by import count
+
+- **関連:** `Artifact/include/Widgets/CollabPresenceWidget.ixx`、`Artifact/include/Widgets/ArtifactLooksPresetBrowser.ixx`、`Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`、`Artifact/include/Widgets/ArtifactExpressionCopilotWidget.ixx`、`Artifact/include/Widgets/Render/ArtifactPointTrackerGizmo.ixx`、`Artifact/include/Service/ArtifactAudioService.ixx`、Clang 23.1.4 / Windows MSVC ABI
+- **確認できた事実:** CollabPresenceWidget、ArtifactLooksPresetBrowser、AIChatWidget、ArtifactColorPaletteWidget、CurveEditorWidgetではinterface PCMを単独compile後、implementation fresh scan / compileまで進められた（ExpressionCopilotWidgetはinterfaceは成功したがimplementation frontendはsignal終了）。ArtifactAudioServiceはinterface importが3件でもfrontend signal終了。PointTrackerGizmoはinterface compile中にClang working setが約4.2 GiBとなり、空きメモリ約1.48 GiBで中断した。
+- **価値または懸念:** interface import数だけではPCM生成コストやimplementation compile成功を予測できない。各段階を別々に測定し、メモリ圧迫時は依存を広げず停止する必要がある。
+- **次に確認すべきこと:** interfaceのimport closureと実測memoryを候補ごとに確認し、frontend signal/crashしたsourceは原因を理解するまで拡張子を戻す。
+## 2026-10-25: Point tracker gizmo migration remains unvalidated at interface boundary
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactPointTrackerGizmo.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactPointTrackerGizmo.ixx`
+- **確認できた事実:** 実装単位のmodule declaration/import群を保ったまま拡張子とsource manifest entryだけを変更した。以前のClang試行はimplementationではなくinterface PCM生成中、working set約4.2 GiB・空き約1.48 GiBで中断されている。
+- **価値または懸念:** 描画用scratch bufferの挙動は変更していないが、現在の変更だけではClang source分類・compile成立性は検証されていない。
+- **次に確認すべきこと:** 利用可能なメモリに余裕がある環境でinterface PCMを作成した後、fresh scanとimplementation compileを個別に行う。ビルド実行は禁止中のため今回は実施しない。
+## 2026-10-25: Render module-reference inventory has its own implementation paths
+
+- **関連:** `Artifact/cmake/ArtifactRenderModuleReferences.cmake`、`Artifact/cmake/ArtifactSources.cmake`、`Artifact/src/Render/DiligentBindlessSubmitter.cpp`
+- **確認できた事実:** Render module reference inventory records implementation paths separately from the main Artifact source manifest. The BindlessSubmitter extension migration required updating both records; its named module declaration and imports remained unchanged.
+- **価値または懸念:** Future renderer implementation migrations can leave the dependency inventory stale even when the main source list is correct. This inventory is an additional static consistency surface.
+- **次に確認すべきこと:** For each renderer migration, check both source manifest and render reference map, then use the project's reference checker when an authorized build/verification is available.
+## 2026-10-25: Some registered .cppm files are ordinary C++ translation units
+
+- **関連:** `Artifact/src/Render/DiligentUploadCoordinator.cppm` → `.cpp`、`Artifact/src/Render/DiligentUploadCoordinator.hpp`、`Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** このmanifest登録sourceにはmodule declaration/importがなく、implementationは通常のC++翻訳単位だった。拡張子とsource manifestだけを変更し、upload queue / synchronization本文を保持した。
+- **価値または懸念:** `.cppm` inventoryをmodule declarationの有無で分類すると、通常sourceにmodule compiler modeを課しているケースも識別できる。GPU upload pathなので動作・性能検証は行っていない。
+- **次に確認すべきこと:** 他のmanifest登録`.cppm`も、exported interface / named module implementation / module-free translation unitに分け、分類に沿ったscan設定を確認する。
+## 2026-10-25: Artifact CMakeLists was replaced by migration notes in the working tree
+
+- **関連:** root `CMakeLists.txt` (`add_subdirectory(Artifact)`), `Artifact/CMakeLists.txt`, `Artifact/cmake/ArtifactSources.cmake`, `docs/planned/MILESTONE_CPPM_IMPLEMENTATION_TO_CPP_CLANG_SCCACHE_2026-10-21.md`
+- **確認できた事実:** Artifact working-tree `CMakeLists.txt` began with Markdown and held a migration log, while the root CMake adds that directory as a subdirectory. The repository version is executable CMake and contains compiler-specific module source classification. The migration log was already preserved in the planned milestone; its one distinct manifest-comment note was semantically covered there. Restored the repository CMake script and updated 148 distinct active CMake path references to current migrated sources.
+- **価値または懸念:** With Markdown at this path, root CMake could not evaluate the Artifact subdirectory, so the Clang source scan rule was not reachable. The restored script statically identifies implementation `.cpp` module sources and enables Clang P1689 scanning; this is not proof that configure or compile succeeds.
+- **次に確認すべきこと:** Once CMake execution is explicitly authorized, configure/generate and inspect the generated scan rules for both upstream clang++ and clang-cl; no such commands were run in this change.
+## 2026-10-25: Artifact `.cpp` Clang classification must include import-only consumers
+
+- **関連:** `Artifact/CMakeLists.txt` source-classification loop、`Artifact/cmake/ArtifactSources.cmake`、six import-only sources in `Artifact/src`
+- **確認できた事実:** The restored classifier selected migrated `.cpp` sources only when they had a named `module` declaration. Static inspection found six `ARTIFACT_APP_IMPL_SOURCES` `.cpp` files with `import` statements and no named module declaration.
+- **価値または懸念:** These translation units need dependency scanning despite not defining a named module. The classifier now includes either named module declarations or import declarations; CMake configure and generated scan rules are unverified.
+- **次に確認すべきこと:** With explicit authorization, configure under GNU-style Clang and clang-cl and inspect generated scan rules for all six import-only sources.
+
+## 2026-10-25: Extension migrations must normalize inherited CRLF
+- **Related:** `Artifact/src/Layer/ArtifactAbstractLayerLayoutRouting.cppm` → `.cpp` and `Artifact/cmake/ArtifactSources.cmake`
+- **Confirmed fact:** The migrated source retained CRLF when its text was copied to the new `.cpp`; a follow-up check detected and normalized it to LF. The module declaration and source manifest path were otherwise preserved.
+- **Value or concern:** A text-preserving rename alone does not guarantee the repository's LF rule when a source has pre-existing CRLF. Each migration should explicitly normalize and verify line endings.
+- **Next check:** Keep the CRLF scan in the static migration checklist; Clang scanning and compilation remain unverified.
+## 2026-10-25: Clang scan classification must include direct-target module implementations
+- **Related:** `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`, its private runtime targets in `Artifact/CMakeLists.txt`, and the Clang source-classification loop
+- **Confirmed fact:** `ArtifactTextGlyphSubmitter.cppm` was added directly with `target_sources()` rather than through `ArtifactSources.cmake` or an `_IMPL` variable, so the generic Clang scan loop did not include it.
+- **Value or concern:** Migrating this implementation to `.cpp` requires an explicit classifier entry; otherwise Clang may compile the import without the intended CMake P1689 scan/dependency ordering.
+- **Next check:** When CMake execution is authorized, verify both private targets receive module dependency scans under GNU-style Clang and clang-cl.
+## 2026-10-25: Source-tree `.cppm` inventory includes unregistered implementation files
+- **Related:** `Artifact/src/Color/ArtifactColorWheels.cppm`, `Effect/ArtifactStabilizer.cppm`, `Preview/ArtifactTimelineClock.cppm`, `Render/ArtifactTextRenderTarget.cppm`
+- **Confirmed fact:** Static source-tree inventory found these four named implementation units without entries in `Artifact/cmake/ArtifactSources.cmake` or references in `Artifact/CMakeLists.txt` / `Artifact/cmake/*.cmake`. `ArtifactTextRenderTarget.ixx` has inline method definitions, and its dedicated excluded runtime target intentionally registers only the interface; adding its `.cppm` could create duplicate definitions.
+- **Value or concern:** Three files have no import sites or target registration; the TextRenderTarget source duplicates inline interface definitions. Renaming alone does not improve a compiled target, and registering them may change build scope or violate ODR.
+- **Follow-up evidence:** Recent history shows `ArtifactStabilizer.cppm` was changed on 2026-10-10. The Command Palette was separately found behind `ARTIFACT_FEATURE_COMMAND_PALETTE`; its interface and implementation are now conditionally registered, and the option macro reaches `ArtifactAppRuntime`.
+- **Next check:** Inspect module import sites and feature-specific target ownership for the three remaining unreferenced files to determine whether they are intentionally dormant, superseded, or missing an intended target registration.
+## 2026-10-25: ArtifactWidgets still compiles unregistered `.cppm` files through its source glob
+- **Related:** `ArtifactWidgets/CMakeLists.txt`, `src/Render/BackendSettingWidget.cppm`, `src/Common/AbstractWidget.cppm`, `src/Knob/KnobEditorWidget/KnobEditorWidget.cppm`, `src/Graphics/NodeWireGraphicItem.cppm`
+- **Confirmed fact:** Unlike ArtifactCore's explicit source manifest, ArtifactWidgets uses `file(GLOB_RECURSE)` over `.cppm`; these four files had no literal CMake path references but were added to `WIDGETS_IMPL` through the glob. Their contents have no module declarations or imports.
+- **Value or concern:** A filename-only CMake search would incorrectly classify these as inactive. Moving them to `.cpp` removes unnecessary module-extension handling while retaining them in the library source list through the explicit migrated-source list.
+- **Next check:** When CMake execution is authorized, confirm the refreshed glob and explicit list produce each `.cpp` exactly once under both GNU-style Clang and clang-cl.## 2026-10-25: Remaining Artifact source-tree `.cppm` files are interfaces or unregistered
+- **関連:** `Artifact/src` の `.cppm` inventory、`Artifact/cmake/ArtifactSources.cmake`、Clang source classifier
+- **確認できた事実:** 現在の静的分類では Artifact の `.cppm` 47件のうち45件が `export module` の interface、残る2件は凍結対象。登録済み実装 `ArtifactAbstractLayerUtilities` と `ArtifactCompositionHostFrameSnapshot` は `.cpp` へ移行し、manifestを更新した。別途残る `ArtifactColorWheels` / `ArtifactTimelineClock` / `ArtifactStabilizer` / `ArtifactTextRenderTarget` はmanifest外であり、前3件は参照・登録なし、TextRenderTargetはinterfaceにinline定義が重複する。
+- **価値または懸念:** source-tree上の `.cppm` 件数だけを移行残件数として扱うと、interfaceや未使用sourceを誤って実装対象に含める。登録状態と宣言種別を合わせて分類する必要がある。
+- **次に確認すべきこと:** ArtifactCoreの残る凍結外 `.cppm` は同様にsource manifest、module map、CMake source propertyを照合し、Clang configure / P1689 scan / compileは実行許可後に確認する。
+## 2026-10-25: Direct executable entry points with imports need explicit Clang scans
+- **関連:** `Artifact/src/AppMainEntry.cpp`, `Artifact/CMakeLists.txt`, `ArtifactPr/src/main.cpp`, `ArtifactPr/src/main_cli.cpp`, `ArtifactPr/CMakeLists.txt`
+- **確認できた事実:** Artifact main entry and ArtifactPr GUI/CLI entries import named modules but are attached directly to executable targets, outside their implementation source lists. The source classifiers therefore did not include them in their P1689 scan sets. Added these direct entries to the Clang scanning configuration without changing source behavior.
+- **価値または懸念:** A migrated implementation can have correct scan configuration while its directly attached executable consumer still lacks dependency ordering. Direct target sources need separate static inventory from source manifests.
+- **次に確認すべきこと:** When CMake execution is authorized, inspect generated P1689 rules for all three entry points and verify Ninja schedules their providers first.
+## 2026-10-25: Module-aware sources may be owned outside explicit source manifests
+- **関連:** `Artifact/CMakeLists.txt`, `ArtifactCore/CMakeLists.txt`, `Artifact/cmake/ArtifactSources.cmake`, `ArtifactCore/cmake/ArtifactCoreSources.cmake`
+- **確認できた事実:** A static comparison found several module/import-aware `.cpp` files outside the primary manifests. Active examples are held by domain lists ending in `_IMPL` or `_MODULES`, while directly attached executable or smoke-target sources require explicit Clang scan classification. Other unregistered candidates have no active target reference.
+- **価値または懸念:** Manifest-only audits can misclassify active split-target sources as dormant, while direct target sources may evade generic scanner collection. Clang scan audits must compare filesystem sources, manifest lists, split target lists, and direct `target_sources()` registrations.
+- **次に確認すべきこと:** After authorized configure, inspect generated P1689 rules against the static source ownership map; do not infer scanner coverage only from manifest membership.
+## 2026-10-25: Historical Clang logs must be reconciled with current source and dependency closure
+- **関連:** `ArtifactCore/src/Time/RationalTime.cpp`, `include/Utils/ExplorerUtils.ixx`, `include/Frame/FrameSkipTracker.ixx`, existing `temp/*clang*.log`
+- **確認できた事実:** Old diagnostics reported RationalTime being parsed as a module interface, nested exports in two interfaces, and a missing GPUCapabilities IFC. The current RationalTime source is `.cpp` with `module Time.Rational;`, the two interfaces no longer contain nested export declarations, and the IFC error came from an isolated compile log whose provider was not part of that command.
+- **価値または懸念:** Historical log errors can identify useful failure modes but do not establish current Clang status after migration or after dependency-isolated experiments. Tie each diagnostic to the current source revision and actual provider set before changing code.
+- **次に確認すべきこと:** Use authorized GNU Clang and clang-cl configure/scan/compile outputs for current status; keep isolated missing-provider diagnostics separate from source failures.
+## 2026-10-25: Clang scan classification order is part of CMake behavior
+- **関連:** `Artifact/CMakeLists.txt`、`ArtifactCore/CMakeLists.txt`、`ArtifactWidgets/CMakeLists.txt`、`ArtifactPr/CMakeLists.txt`
+- **確認できた事実:** Artifact と ArtifactCore は複数の MSVC 向け `CXX_SCAN_FOR_MODULES OFF` / manual IFC property blocksを先に設定し、ファイル末尾のClang分類で通常のimplementation scanを再設定している。FileInfoはpartition例外としてscan disabledと明示PCM参照を維持する。ArtifactWidgetsとArtifactPrはtarget source登録前にClang scan propertyを設定する。
+- **価値または懸念:** 新しいsource-local `OFF` をClang分類より後へ追加すると、ClangのP1689依存順序を静かに無効化する可能性がある。反対にFileInfoのような例外は最終分類から明示して除外する必要がある。
+- **次に確認すべきこと:** CMake configure後のsource-specific scan rulesとcompile commandsをGNU Clang / clang-cl双方で比較する。現状は静的確認のみで生成結果は未検証。
+## 2026-10-25: Artifact render module reference map had a stale submitter name
+- **関連:** `Artifact/cmake/ArtifactRenderModuleReferences.cmake`, `Artifact/src/Render/Artifact3DPrimitiveSubmitter.cpp`, `Artifact/include/Render/Artifact3DPrimitiveSubmitter.ixx`
+- **確認できた事実:** The implementation and exported interface both declare `Artifact.Render.ThreeDPrimitiveSubmitter.Contract`, while the explicit reference table had omitted `.Contract`. The table is included from `Artifact/CMakeLists.txt`; a static search found no consumer of the table variable.
+- **価値または懸念:** Keeping the reference metadata aligned avoids future source-map tooling or CMake consumers resolving the implementation against the wrong module name. Current Clang build behavior is not known to depend on this table.
+- **次に確認すべきこと:** If the render module-reference table becomes active in source classification or BMI wiring, validate its rows against actual declarations during an authorized CMake configure/scan.
+## 2026-10-25: Active implementation migration inventory is exhausted
+- **関連:** `Artifact`, `ArtifactCore`, `ArtifactWidgets`, `ArtifactPr` の `.cppm` inventory、Artifact Clang source classifier、各 repository の CMake source manifests
+- **確認できた事実:** Static inventory found no active in-scope implementation unit remaining to migrate from `.cppm` to `.cpp`. Module-aware `.cpp` files outside the central Artifact source manifest were reconciled with split-target `_IMPL` lists or the explicit Clang scan list. The Artifact render module-reference table has 17 rows with existing files and matching source/interface module declarations.
+- **価値または懸念:** Source extension migration and scanner registration have reached the point where the remaining confidence gap is compiler-generated P1689 rules and actual Clang compilation, which source inspection cannot prove.
+- **次に確認すべきこと:** After CMake/build execution is authorized, validate both upstream Clang and clang-cl from fresh generated trees, inspect module scan outputs and compile commands, then address only current reproducible diagnostics.
+## 2026-10-25: Existing Clang Ninja tree predates current Artifact CMake changes
+- **関連:** `out/build/x64-Debug-ClangXX-MsvcAbi/build.ninja`, `Artifact/CMakeLists.txt`, `Artifact/cmake/ArtifactSources.cmake`
+- **確認できた事実:** The old generated Ninja file was timestamped 2026-10-24 04:28 and lacked the newly registered preview helper rules. Current GNU-style Clang and clang-cl trees have since been reconfigured with CMake 4.4.4; their fresh rules include the six preview implementation sources, and P1689 scans pass for all six in both frontends. Direct compilation still requires current module BMIs; old PCMs report stale/out-of-date or missing transitive modules.
+- **価値または懸念:** Generated source classification and scan coverage are now confirmed, while compile/link coverage remains open until the module dependency graph can rebuild without triggering the entire 7,737-action target graph.
+- **次に確認すべきこと:** Identify a bounded way to regenerate the preview module BMI dependency closure and compile/link these sources on both Clang frontends.
+## 2026-10-25: Workspace-root `.cppm` search includes a separate review checkout and scratch files
+- **関連:** `Artifact_dev_review` worktree (`codex/review-artifact-fixes`)、root `temp*.cppm` files、active project CMake manifests
+- **確認できた事実:** A root-wide `.cppm` search found additional files under the separate `Artifact_dev_review` git checkout and three root-level `temp*.cppm` files. The active project CMake files do not reference these paths.
+- **価値または懸念:** Counting every filesystem hit as an active migration candidate would mix a separate review branch and scratch artifacts into the current project scope.
+- **次に確認すべきこと:** Keep future migration inventories rooted in active project source manifests and distinguish other worktrees or scratch files from configured build sources.
+## 2026-10-25: Unregistered Artifact `.cppm` files are not implementation migration candidates
+- **関連:** `Artifact/src/Test/ArtifactTestRenderQueue.cppm`, `Artifact/composition_codex_original.cppm`, Artifact CMake source manifests
+- **確認できた事実:** These are the two Artifact `.cppm` files absent from active CMake references. `ArtifactTestRenderQueue.cppm` declares `export module Artifact.Test.RenderQueue`; `composition_codex_original.cppm` is an unregistered source snapshot.
+- **価値または懸念:** A missing CMake reference alone is insufficient to classify a `.cppm` as a module implementation; exported interfaces and source snapshots must remain distinct from active implementation units.
+- **次に確認すべきこと:** Preserve this distinction when refreshing `.cppm` inventories; migrate only files confirmed as implementation units in the active source scope.
+## 2026-10-25: Rename audit caught line-ending drift and mojibake
+- **関連:** 682 `.cppm` → `.cpp` sibling pairs across `Artifact`, `ArtifactCore`, `ArtifactWidgets`, and `ArtifactPr`; `ArtifactCore/src/ImageProcessing/Halide/Glow.cpp`
+- **確認できた事実:** Byte comparison against HEAD found 645 pairs identical after line-ending/final-LF normalization. The other 37 pairs contain 26 direct include/import or narrow API-name corrections and 11 BOM/blank-line changes; all 16 added imports have an in-scope exported provider. Three Japanese comment lines in `Glow.cpp` had been re-encoded with replacement characters and were restored byte-for-byte. Migration had also introduced CRLF in 53 files and omitted final LF in 29; all migrated `.cpp` files now use LF and end with LF. No migration-introduced U+FFFD remains.
+- **価値または懸念:** Extension migration needs a byte-level pass because PowerShell/encoding transformations can silently alter comments and line endings even when module declarations and behavior are intended to stay unchanged.
+- **次に確認すべきこと:** Configure and P1689 scanning are now confirmed for both Clang frontends. Continue with current BMI regeneration, object compilation, and link validation.
+
+## 2026-10-25: clang-cl module flags must stay separate from frontend compatibility flags
+- **関連:** `CMakeLists.txt`, `ArtifactCore/CMakeLists.txt`, `ArtifactWidgets/CMakeLists.txt`, `Artifact/CMakeLists.txt`
+- **確認できた事実:** clang-cl identifies as Clang with the MSVC frontend, so `ARTIFACT_FRONTEND_MSVC` is true while `ARTIFACT_COMPILER_MSVC_CL` is false. A fresh CMake 4.4.4 configure generated clang-cl commands with `-std=c++23`; after gating `/std:c++latest` and `/experimental:module` on actual MSVC, these switches are absent from the generated CoreAudio compile command.
+- **価値または懸念:** Frontend compatibility does not imply MSVC module flags are valid for clang-cl; keeping these controls separate avoids unused-option diagnostics without changing C++ standard selection or Clang module scanning.
+- **次に確認すべきこと:** Compile the representative CoreAudio/Core implementation targets and inspect diagnostics, then continue a full clang-cl build to expose source-level compatibility issues.
+## 2026-10-25: Preview pipeline module import size exceeded Clang source-location capacity
+- **関連:** `Artifact/src/Preview/ArtifactPreviewCompositionPipeline.cpp`, its layer draw branches, and Artifact source manifest
+- **確認できた事実:** A GNU-style Clang 22.1.3 build failed repeatedly while importing the pipeline's large set of layer PCMs with `malformed or corrupted precompiled file: ran out of source locations`. Incremental direct probes showed that the module primary interface and five imports fit, while adding another large layer PCM crossed the limit. Each of the layer modules also compiled alone with the module interface.
+- **提案（未検証）:** Keep the public pipeline module and move layer-specific draw implementations into separate implementation translation units that share the module declaration; this should reduce the cumulative imported PCM set per translation unit while keeping branch order and rendering behavior intact.
+- **価値または懸念:** Splitting can lower front-end memory pressure without reducing module coverage, but cross-translation-unit linkage and final module build integration must be verified with fresh generated scan outputs.
+- **確認できた事実:** The six current implementation units passed GNU-style Clang and clang-cl 22.1.3 P1689 scans after fresh CMake generation. An anonymous-namespace mismatch in pipeline forward declarations was caught by symbol inspection and corrected. A partial `lld-link /force:unresolved` probe showed no unresolved `tryDraw*Preview` helper symbols, but did not prove full module or application linkage. A direct compile against old PCMs failed because the primary module's transitive imports were missing and several referenced module PCMs were out of date. Invoking Ninja for one object expanded to 7,737 actions, so the run was interrupted after 113 actions.
+- **次に確認すべきこと:** Find a bounded path to regenerate the required module BMI closure and compile/link the six translation units, then repeat the validation for the full ArtifactAppRuntime target if feasible.
+## 2026-10-25: Clang production compile is exposing module ownership and import-boundary errors
+- **関連:** `Artifact/include/Widgets/Dialog/ApplicationSettingDialog.ixx`, `Artifact/src/Tool/AIDSL/`, `Artifact/src/Layer/ArtifactAbstractLayerRuntimeSnapshot.cpp`, and directly imported module/header dependencies
+- **確認できた事実:** Current Clang compilation reported a module-purview redeclaration of Qt's `QEvent`, nested `export` declarations inside exported namespaces, AIDSL member definitions attached to `AIToolDSL.Parser` although declared in `AIToolDSL.Types`, and member definitions of `ArtifactAbstractLayer` emitted from the global module. The corresponding narrow fixes have been applied; the current incremental target compiled `ArtifactAbstractLayerRuntimeSnapshot.cpp` after making it an implementation unit of `Artifact.Layer.Abstract`.
+- **提案（未検証）:** These errors suggest MSVC has accepted some module ownership and transitive-import patterns that Clang diagnoses more strictly. Further repairs should follow explicit owning-module and direct-import boundaries rather than broadening exports.
+- **価値または懸念:** Correcting ownership at the source boundary improves portability while keeping interface dependencies narrow. The complete GNU Clang target and clang-cl production compilation remain unverified.
+- **次に確認すべきこと:** Continue the current GNU Clang application build and address subsequent concrete diagnostics; then perform a full clang-cl production build and inspect final link results.
+
+## 2026-10-25: Clang source-location limits can be reduced by splitting independent service access
+- **関連:** `ArtifactRenderMenu.cpp`, `ArtifactRenderMenuQueueSupport.cpp`, `ArtifactRenderMenuProjectAccess.cpp`, `ArtifactCompositionViewerFooter.cpp`, `ArtifactRenderQueueService.ixx`, `ArtifactApplicationManager.cpp`
+- **確認できた事実:** GNU Clang 22.1.3 exceeded its source-location capacity when Render Menu combined Project/Composition and Render Queue imports. Separating Project access from queue access allowed the three Render Menu objects to compile. Separating Project and Playback reads likewise allowed the Composition Footer objects to compile. Removing declaration-irrelevant implementation headers from `ArtifactRenderQueueService.ixx` also reduced its interface surface. The full application target previously exceeded the same Clang limit in `ArtifactApplicationManager.cpp` after several service/manager imports. Its `projectService()` definition now lives in a new same-module access unit so that import is removed from the main implementation TU. This partition is not compile-verified yet: the fresh Ninja object dependency closure includes 1,397 actions, and an earlier broad build attempt encountered sccache server disconnects. The forward-declaration move experiment remains reverted.
+- **価値または懸念:** Splitting an implementation along independent dependency sets can keep Clang module imports below the per-translation-unit source-location ceiling without changing behavior. The Application Manager case needs a module-correct way to keep implementation dependencies bounded while preserving the public type identities.
+- **次に確認すべきこと:** Compile the isolated `ArtifactApplicationManagerProjectAccess.cpp` unit first, then continue reducing the main TU imports only where a bounded, type-safe same-module split can be verified.
