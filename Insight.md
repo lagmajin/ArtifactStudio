@@ -2,6 +2,12 @@
 
 # Insight Register
 
+## 2026-10-25: DockFoundation leaked an MSVC-only flag into clang-cl scanning
+- **関連:** `Artifact/DockFoundation/CMakeLists.txt`, clang-cl P1689 scan, `DockManager.ixx`
+- **確認できた事実:** The generated `clang-scan-deps` command for `DockManager.ixx` contained `/Zf`, and the scan reported `no such file or directory: '/Zf'`. The source option block used `if(MSVC)`, which is also true for clang-cl. It now additionally requires `CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"`, preserving the option for cl.exe only.
+- **価値または懸念:** Dedicated library CMake files can bypass root/compiler-family guards and inject flags into dependency scanning. One target was corrected; a repository-wide audit of other standalone `if(MSVC)` blocks may find similar cases.
+- **次に確認すべきこと:** Reconfigure with CMake 4.4.4 and confirm the generated DockFoundation scan command omits `/Zf`, then run that focused scan before expanding clang-cl compilation.
+
 ## 2026-10-25: clang-cl module units cannot inherit the MSVC Qt forced include
 - **関連:** `ArtifactCore/CMakeLists.txt`, `include/Compat/QtListForward.h`, clang-cl module compilation
 - **確認できた事実:** In the clang-cl build, the target-wide `/FI.../QtListForward.h` was applied before module interfaces and produced `module; ... can appear only at the start of the translation unit`. Restricting this forced include to `ARTIFACT_COMPILER_MSVC_CL` allowed clang-cl to compile the migrated `src/Animation/AnimatableTransform2D.cpp` and its module prerequisites. The compiler still warns that `/std:c++latest` and `/experimental:module` are unused under this lane.
@@ -1554,6 +1560,12 @@
 - **次に確認:** `fps > int64_t max`判定を`llround`より先に行う実装へ直し、独立FrameRate suiteで極大値と境界近傍を実行確認する。
 
 # Insight Register
+
+## 2026-10-25: DockFoundation leaked an MSVC-only flag into clang-cl scanning
+- **関連:** `Artifact/DockFoundation/CMakeLists.txt`, clang-cl P1689 scan, `DockManager.ixx`
+- **確認できた事実:** The generated `clang-scan-deps` command for `DockManager.ixx` contained `/Zf`, and the scan reported `no such file or directory: '/Zf'`. The source option block used `if(MSVC)`, which is also true for clang-cl. It now additionally requires `CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"`, preserving the option for cl.exe only.
+- **価値または懸念:** Dedicated library CMake files can bypass root/compiler-family guards and inject flags into dependency scanning. One target was corrected; a repository-wide audit of other standalone `if(MSVC)` blocks may find similar cases.
+- **次に確認すべきこと:** Reconfigure with CMake 4.4.4 and confirm the generated DockFoundation scan command omits `/Zf`, then run that focused scan before expanding clang-cl compilation.
 ## 2026-10-24: Verdigris QWidget implementation may expose Clang module ownership ambiguity
 
 - **関連:** `Artifact/src/Widgets/ArtifactSecondaryPreviewWindow.cppm`、`Artifact/include/Widgets/ArtifactSecondaryPreviewWindow.ixx`、Clang 23.1.4 / Windows MSVC ABI
