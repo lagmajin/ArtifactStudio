@@ -6099,3 +6099,10 @@
 - **確認できた事実:** These four existing implementation units spell `ArtifactCore::LayerID` directly and now import `Utils.Id`; previously their module interface imports provided the type transitively. No Clang P1689 scan or compile was run after this source change.
 - **価値または懸念:** An explicit owning-module dependency can make Clang module attachment more predictable, while still leaving the reported ownership/source-location failure unresolved until compiler evidence exists.
 - **次に確認すべきこと:** After build/CMake execution is authorized, regenerate the relevant module dependency closure and check these four units with GNU-style Clang and clang-cl.
+
+## 2026-10-25: Module-aware Artifact sources lack visible CMake registration
+- **関連:** `Artifact/src/Color/ArtifactColorWheels.cpp`, `Artifact/src/Effect/ArtifactStabilizer.cpp`, `Artifact/src/Effects/ImageMorph/ImageMorphEffect.cpp`, `Artifact/src/Preview/ArtifactTimelineClock.cpp`, `Artifact/src/Render/ArtifactTextRenderTarget.cpp`
+- **確認できた事実:** A read-only scan of tracked `Artifact/src/*.cpp` found these five files contain named-module or import declarations. Their paths do not appear in `Artifact/cmake/ArtifactSources.cmake` or any tracked `CMakeLists.txt` / `.cmake` file. No CMake configure or build was run.
+- **仮説（未検証）:** They may be dormant/legacy sources, or may be registered indirectly through a path assembled from CMake variables; the source search alone cannot establish that they should become target members.
+- **価値または懸念:** Enabling them without confirming ownership could silently expand build scope or duplicate an implementation. Keep source registration and Clang scan coverage as separate questions.
+- **次に確認すべきこと:** Trace each file to its intended interface and owning target before changing manifests; only register a file if the project’s current target graph requires it.
