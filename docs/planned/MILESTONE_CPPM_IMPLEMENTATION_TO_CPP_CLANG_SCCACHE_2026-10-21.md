@@ -4165,3 +4165,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 ### Migrated `.cppm` source-path hygiene audit (2026-10-25)
 
 - Resolved quoted `.cppm` source paths in Artifact and ArtifactCore CMake files against their repository roots and tracked files. All 2 Artifact and 77 ArtifactCore exact source-path references resolve to tracked files; no stale exact `.cppm` source path was found. Wildcard patterns were excluded. This checks reference hygiene only, not current target generation, compilation, or linking.
+
+### Correction to the legacy Artifact inventory (2026-10-25)
+
+- The earlier inventory notes above predate Artifact commit `a36b9e46`. That commit renamed `ArtifactColorWheels.cppm`, `ArtifactStabilizer.cppm`, `ArtifactTimelineClock.cppm`, and `ArtifactTextRenderTarget.cppm` to `.cpp` (Git rename similarity 100%, 99%, 99%, and 100%). These legacy sources remain unregistered; this was an extension-only migration and does not establish compile or runtime support. The current tracked `.cppm` inventory under `Artifact/src` is the three files listed in “Remaining `.cppm` inventory audit”: two frozen ReactiveEvents sources and the unregistered test module.
