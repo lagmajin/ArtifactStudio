@@ -4078,6 +4078,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 - Migrated the existing `Artifact.Test.AdjustmentLayer` module to `.cpp` and updated `ArtifactSources.cmake`; test cases and the three imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with matching requirements. The test executable was not built or run.
 - Migrated the existing `Artifact.Test.SolidLayer` module to `.cpp` and updated `ArtifactSources.cmake`; test contents and the five imports are unchanged, with LF line endings. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with identical dependency names. No test executable was built or run.
 - Migrated the existing `Artifact.Test.ShapePath` module to `.cpp` and updated `ArtifactSources.cmake`; test behavior and its three imports are unchanged, with LF line endings. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with matching requirements. No test executable was built or run.
+- Migrated the existing `Artifact.Test.LayerGroup` module to `.cpp` and updated `ArtifactSources.cmake`; test cases and all eight imports are unchanged, with LF line endings. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with identical dependency sets. No test executable was built or run.
 
 
 ### Current-source GNU Clang scan follow-up (2026-10-25)
