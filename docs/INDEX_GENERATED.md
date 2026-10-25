@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-25 12:12
+> Generated: 2026-10-25 13:44
 > Total documents: 1469
 
 ---
@@ -845,7 +845,7 @@
 | 244 | `docs/planned/MILESTONE_CORE_LAYER_SAFE_IMPLEMENTATIONS_2026-04-08.md` | ArtifactCore 層 安全実装リスト | 2026-08-15 | --- | 2026-08-16 | 6.8 KB | CORE, LAYER, SAFE, IMPLEMENTATIONS |
 | 245 | `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_2026-04-21.md` | マイルストーン: Core Module Hygiene / Build Stabilization | 2026-04-21 | --- | 2026-08-16 | 5.6 KB | CORE, MODULE, HYGIENE, BUILD, STABILIZATION |
 | 246 | `docs/planned/MILESTONE_CPP_HPP_ELIMINATION_2026-06-12.md` | マイルストーン: CPP/HPP 段階削減と Module 移行 | 2026-06-12 | --- | 2026-08-16 | 4.9 KB | CPP, HPP, ELIMINATION |
-| 247 | `docs/planned/MILESTONE_CPPM_IMPLEMENTATION_TO_CPP_CLANG_SCCACHE_2026-10-21.md` | マイルストーン: Module 実装単位の `.cppm` → `.cpp` 段階移行と Clang / sccache 対応 | 2026-10-25 | In Progress | 2026-10-25 | 595.1 KB | CPPM, IMPLEMENTATION, CPP, CLANG |
+| 247 | `docs/planned/MILESTONE_CPPM_IMPLEMENTATION_TO_CPP_CLANG_SCCACHE_2026-10-21.md` | マイルストーン: Module 実装単位の `.cppm` → `.cpp` 段階移行と Clang / sccache 対応 | 2026-10-25 | In Progress | 2026-10-25 | 602.0 KB | CPPM, IMPLEMENTATION, CPP, CLANG |
 | 248 | `docs/planned/MILESTONE_CRASH_DIAGNOSTICS_RECOVERY_2026-03-15.md` | M-DEV-1 Crash Diagnostics & Recovery (2026-03-15) | 2026-03-15 | --- | 2026-08-16 | 3.6 KB | CRASH, DIAGNOSTICS, RECOVERY |
 | 249 | `docs/planned/MILESTONE_CRASH_SAFE_SAVE_2026-06-16.md` | M-CRASH-1 Crash-safe Save Foundation Milestone | 2026-06-16 | --- | 2026-08-16 | 13.4 KB | CRASH, SAFE, SAVE |
 | 250 | `docs/planned/MILESTONE_CREATIVE_EFFECT_CPU_HLSL_DUAL_BACKEND_2026-03-25.md` | Creative Effect CPU/HLSL Dual Backend | 2026-08-15 | --- | 2026-08-16 | 6.3 KB | CREATIVE, EFFECT, CPU, HLSL, DUAL |
@@ -1417,7 +1417,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-25 | --- | 2026-10-25 | 312.4 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-25 | --- | 2026-10-25 | 314.0 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
