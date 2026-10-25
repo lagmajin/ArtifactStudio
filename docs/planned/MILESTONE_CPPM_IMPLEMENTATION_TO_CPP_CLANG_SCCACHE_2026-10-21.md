@@ -1,5 +1,7 @@
 **最終更新:** 2026-10-25
 
+**Clang scan 対象の直接登録補完 (2026-10-25):** `ArtifactTextGlyphShaderSources.cpp` は `ArtifactTextGlyphSubmitterRuntime` と smoke target に直接登録され、対応する public `.ixx` を実装する module unit だが、Artifact の Clang P1689 明示対象リストから漏れていた。`Artifact/CMakeLists.txt` の明示対象へ追加し、module declaration と import を scan する説明に修正した。既存 Ninja tree の再生成・target integration・compile/link は未確認（禁止中のため未実行）。
+
 **ステータス:** In Progress
 
 - Current-source manifest/scanner audit: `ArtifactSources.cmake` registers the AudioMiniWidget main TU plus both access helper TUs and all six Preview pipeline implementation TUs. Artifact CMake collects module-declaring/importing `.cpp` files from the `_IMPL` manifests and enables `CXX_SCAN_FOR_MODULES` for both upstream GNU Clang and clang-cl; none of these sources is on the explicit scan-off list. Fresh GNU-frontend Clang P1689 scans have now succeeded for the AudioMiniWidget main TU and both access helpers, plus the Preview pipeline main TU and four drawing helper TUs. `ArtifactPreviewLayerEffects.cpp` retains an older `.ddi` than its source; clang-cl outputs for the changed sources also predate their current sources. The generated CXX dyndep/PCM outputs are not current-source verification; object compilation and target linking remain required. This is manifest inspection and direct scanner execution only.
