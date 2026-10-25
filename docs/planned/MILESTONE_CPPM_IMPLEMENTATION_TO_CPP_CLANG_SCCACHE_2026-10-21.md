@@ -4144,3 +4144,8 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 ### Static module-purview include audit (2026-10-25)
 
 - Read-only scan of 2,828 Artifact and ArtifactCore `.ixx`, `.cppm`, and `.cpp` files found zero `#include` directives after a named module declaration, excluding the explicitly frozen module sources. The scan checked source placement only; no build, CMake, or tests were run.
+### Current-source Clang scan refresh for migrated providers (2026-10-25)
+
+- Corrected a prior inventory matcher that treated `.cppm` as a `.cpp` prefix. Both existing Ninja trees still contain the old `.cppm` rules for these 13 migrated providers; the generated commands are stale and must not be counted as current `.cpp` target integration.
+- Reused only each old rule's P1689 scanner arguments, replacing the source and DDI output filenames with the current `.cpp` / `.cpp.obj` names. All 13 current sources scanned successfully with GNU-frontend Clang 22.1.3 and clang-cl. JSON dependency records use `.cpp.obj` primary outputs; per-source `requires` sets match across the two frontends. Requirement counts: ProjectItemPresentation 15, PointTrackerTool 13, PropertyPresentation 4, AssetBrowserUndoCommands 5, ViewOrientationWidget 1, CompositionMotionPathCommands 9, TimelinePresentation 10, CompositionSpaceGpuCache 1, OfxEffectImpl 11, OfxHost 5, OffscreenCompositionRenderer 11, CompositionViewDrawing 38, CameraTrackerTool 11.
+- This validates scanner acceptance and current-source dependency discovery only. The existing build trees still need CMake regeneration before their `.cpp` target integration, dyndep, object compilation, linking, or runtime can be verified. No build, configure, or tests were run.
