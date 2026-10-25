@@ -2,6 +2,8 @@
 
 **ステータス:** In Progress
 
+- The same generated `build.ninja` maps all three migrated `.cpp` files above to `CXX_COMPILER__ArtifactAppRuntime_scanned_Debug` and assigns `Artifact/CMakeFiles/ArtifactAppRuntime.dir/CXX.dd` as their dyndep file; their P1689 `.ddi` scan outputs exist and parse. At inspection time the target `CXX.dd` and all three object files were absent, so Ninja dyndep materialization, object compilation, and link remain unverified.
+
 - Existing clang-cl 22.1.3 P1689 scan outputs under `out/build/x64-Debug-ClangCL-CMake444` contain valid JSON dependency rules for the migrated `ArtifactAudioMiniWidget.cpp`, `ArtifactApplicationManager.cpp`, and `ArtifactPreviewCompositionPipeline.cpp`. Their `requires` lists include the expected audio/composition/project/undo modules, application manager access modules, and preview layer/render modules respectively. This confirms dependency scanning/classification for these three `.cpp` implementation units; the `.ddi` files do not prove object compilation or final linkage.
 
 - Existing clang-cl 22.1.3 / CMake 4.4.4 log at 11:21 shows ArtifactDockFoundation scanned three imported interfaces, generated CXX dyndep, and compiled `DockManager.ixx.obj`; the resulting `Dock.Manager.pcm` exists with a matching timestamp. The log ends with 67 warnings and no compiler error or Ninja stop marker. This validates one module provider and its import ordering on the refreshed clang-cl tree, not a full target or application build.
