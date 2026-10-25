@@ -4137,3 +4137,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 
 - Re-ran only the existing Ninja P1689 scanner commands for `Artifact/src/AppMainEntry.cpp` and `Artifact/src/Render/ArtifactRenderQueueEncoder.cpp`; both completed successfully against current source and refreshed their `.ddi` outputs. The dependency records contain one and eight module requirements respectively. This is scanner evidence only, not object compilation or linking.
 - The existing `x64-Debug-ClangCL-CMake444` Ninja metadata contains no command for either current source, so it cannot refresh those clang-cl records without CMake regeneration. No configure, build, or tests were run.
+### Clang scan inventory freshness interpretation (2026-10-25)
+
+- Static source/CMake inspection confirms `Artifact/CMakeLists.txt` classifies module-importing `.cpp` implementation sources from variables ending in `_IMPL`, and explicitly adds the three dedicated-target sources `AppMainEntry.cpp`, `ArtifactTextGlyphSubmitter.cpp`, and `FarmWorkerMain.cpp` to Clang P1689 scanning. This includes the `.cpp` extension produced by the migration.
+- The existing GNU Clang and clang-cl `build.ninja` files predate the current `Artifact/CMakeLists.txt` and `ArtifactSources.cmake` timestamps (GNU: 04:25 vs. 05:01/05:02 UTC; clang-cl: 02:28 vs. 05:01/05:02 UTC on 2026-10-25). Missing commands in those generated trees therefore cannot establish a current manifest/classifier omission. CMake regeneration and object compilation remain unverified and were not run.
