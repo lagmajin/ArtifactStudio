@@ -4087,6 +4087,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 - Migrated the source-only `Artifact.Widgets.AudioMixerControls` provider to `.cpp` and updated `ArtifactSources.cmake`; the control definitions and tracked LF contents are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans succeeded with zero module requirements. Compilation and audio UI runtime were not run.
 - Migrated `Artifact.Widgets.RenderQueuePresentation` to `.cpp` and updated `ArtifactSources.cmake`; presentation code and its three imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans succeeded with matching requirements. Object compilation, link, and UI runtime remain unverified.
 - Migrated `Artifact.Widgets.AssetBrowserPresentation` to `.cpp` and updated `ArtifactSources.cmake`; the existing item presentation/painting and both imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans succeeded with identical requirements. Compilation and Asset Browser runtime remain unverified.
+- Migrated the active `Artifact.TestRunner` provider from `Test.cppm` to `Test.cpp` and updated `ArtifactSources.cmake`; its test orchestration and 32 imports are unchanged. Direct GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with identical requirements. No test executable was built or run.
 
 
 ### Current-source GNU Clang scan follow-up (2026-10-25)
