@@ -1,6 +1,6 @@
 # 独立機能テスト拡充マイルストーン
 
-**最終更新:** 2026-10-16
+**最終更新:** 2026-10-25
 **ステータス:** In Progress
 
 ## 目的
@@ -125,4 +125,486 @@
 
 ## 完了条件
 
-38項目すべてについて、既存カバレッジまたは追加したケースを具体的に確認し、重複のないテスト配置を決める。実装対象はテストコードと必要最小限のtest-only fixtureに限る。ユーザー方針でビルド・実行できない間は、runtime検証を未完了として明示し、完了扱いにしない。
+追跡中の全項目について、既存カバレッジまたは追加したケースを具体的に確認し、重複のないテスト配置を決める。実装対象はテストコードと必要最小限のtest-only fixtureに限る。ユーザー方針でビルド・実行できない間は、runtime検証を未完了として明示し、完了扱いにしない。
+
+- #470 Tuple<T&>のcopy assignmentが参照先を再bindせず、destinationが元から参照している値へsourceの値を書き込む契約を追加。既存テストは参照要素の構築・アクセスのみを確認。
+
+- #471 ArtifactVariant未設定時のindex()==0は先頭alternativeを意味せず、全holdsAlternative<T>()がfalseとなる契約を追加。既存テストは未設定状態のみ確認。
+
+- #472 ArtifactTimer::restart()が経過時間の起点をリセットする契約を追加。既存testはrestart後の有効性と非負値のみ確認。
+
+- #473 UniquePtr::swap()がempty/non-empty両方向で所有権を移し、値とempty状態を保つ契約を追加。既存swap testは両側が所有中のケースのみ。
+
+- #474 artifactIsFinite(long double)の有限値・最大有限値・正の無限大に対する契約を追加。既存有限性テストはfloat/doubleと整数のみを確認。
+
+- #475 Durationの負のscalar乗算がdurationの符号を反転する契約を追加。既存testは正のscalarのみを確認。
+
+- #476 ArtifactArrayのzero-length sliceと、left/rightへの全範囲以上の要求が空配列または全体コピーを返す境界を追加。既存slice testは一部区間・midの末尾・短いleft/rightのみ。
+
+- #477 ArtifactSpan::first(size)とlast(size)が元のdata pointerおよび全要素範囲を保つ契約を追加。既存境界testはzero countとfull subspanのみ。
+
+- #478 ArtifactArray::squeeze()が空配列の余剰storageを解放してcapacityを0にする契約を追加。現行実装はreserve(0)がcapacity以下で早期returnするため、静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #479 ArtifactHashMapがraw bucket storageの所有権を持つため、copy construction/assignment不可であることをcompile-time contractとして追加。既存suiteはmove ownershipのみを確認。
+
+- #480 ArtifactHashMapのconst begin()がconst value_type referenceを公開するcompile-time contractを追加。現行const_iteratorはmutable iterator aliasのため、静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #481 ArtifactHashMap iteratorのprefix incrementが同じiteratorへのreferenceを返し、次entryへ進む契約を追加。既存iterator testはpost-incrementのみを確認。
+
+- #482 HashSetへの重複追加がfalseを返すだけでなく、既存要素のinsertion-order snapshotを変えない契約を追加。既存testは重複後のsizeのみと、通常挿入順を別々に確認。
+
+- #483 HashSet::swap()がstateful hasherを対応bucket storageと一緒に交換し、swap後lookupを保つ契約を追加。現行swapはfunctorを交換しないため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #484 Callbackのmove constructionでsourceがemptyになり、そのsourceへ再bindできる契約を追加。既存testは移動先captureの保持とsource.clear()後の独立性のみ確認。
+
+- #485 rtifactSortがcopy不能なunique_ptr要素をcustom comparatorで並べ替え、全所有値を保持する契約を追加。既存sort testはcopy可能なscalar要素のみ。
+
+- #486 HashSet::swap()がstateful KeyEqualの同値性規則をmembershipと一緒に交換する契約を追加。exact/tens equalityを使い、現行swapでは規則が入れ替わらないことを検出する。ArtifactCore childは未変更。
+
+- #487 String::toInt/toDoubleがstrtol/strtodのrange errorを変換失敗として報告する契約を追加。現行実装はerrnoを参照せずdigit prefixだけでokを立てるため、静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #488 ASCII trimが端のUTF-8 non-breaking space bytes (C2 A0) をASCII空白扱いせず保持する契約を追加。既存testはASCII whitespaceとhigh-bit case変換を個別確認。
+
+- #489 String numeric conversionが先頭ASCII空白・明示的plus符号・数値prefix後のsuffixを受理する契約を追加。既存positive parseは負符号または空白なしの値のみ。
+
+- #490 ArtifactExpected::transform callbackのreference returnをdecayして元参照先から独立したowned valueにする契約を追加。既存callbackはvalue returnのみ。
+
+- #491 ArtifactExpected::transformError callbackのreference returnをdecayして元参照先から独立したowned errorにする契約を追加。既存callbackはvalue returnのみ。
+
+- #492 ArtifactOptionalのlvalue value_orがpresent時にはfallback変換を行わず、empty時だけ一度変換する契約を追加。既存testは通常値の選択のみ。
+
+- #493 ArtifactOptional<T&>のmove construction後にsource/destination双方が元参照先をaliasし続ける契約を追加。既存testはmove assignment後の両aliasのみ確認。
+
+- #494 ArtifactVariant::get<T>()がmutable variantからT&、const variantからconst T&を返す型契約を追加。既存suiteはvalueの読み書きとconst getIf pointerのみ確認。
+
+- #495 ArtifactSpanのbegin/endがT*またはconst T*を返すconstness契約を追加。既存static_assertはoperator[]とdata()のみ確認。
+
+- #496 null C-stringから構築したempty StringのtoInt/toDoubleが0とok=falseを返す契約を追加。既存testはnull constructionと非数値入力を別々に確認。
+
+- #497 ArtifactExpected::toOptional()がsuccess payloadの独立copyを返し、元Expectedの後続変更に影響されない契約を追加。既存testはintのvalue存在とerror dropのみ確認。
+
+- #498 ArtifactArray::replace()が有効indexのvalue置換時にdata pointer、element address、capacityを保持する契約を追加。既存testは値とsizeのみ確認。
+
+- #499 ArtifactArray::replace()がreplacement argumentとして同じindexの既存要素を受けても値とsizeを保つself-alias契約を追加。現行実装はdestroy後に参照からcopyするため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #500 ArtifactArray::insert()がshift対象要素をreplacement argumentとして参照していても正しい値を挿入する契約を追加。capacityを事前確保して再配置を除外。現行実装はshift後に参照を読むため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #501 ArtifactArray::append()がcapacity growth時にsourceとして同じArray内要素を参照しても値を保つ契約を追加。現行実装はensureCapacity後に参照を読むため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #502 ArtifactArray::appendAll()がArray自身をsourceとしcapacity growthを伴っても元の要素列を一度だけ追加する契約を追加。現行range-forはgrowthでsource iteratorを無効化するため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #503 SmallVector::add()がgrowth時に内部要素をsource参照として渡されても値を保持する独立Standalone回帰testを追加。現行実装はgrowth後に参照を読むため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #504 SmallVector::insert()がshift対象要素をsource参照として渡されても元の値を挿入する独立Standalone回帰testを追加。現行実装はshift後に参照を読むため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #505 SmallVectorのmove-only unique_ptr要素がinline capacityを超えるgrowth、middle insert、takeAtを通して全所有値を保持する独立Standalone testを追加。既存testsはcopyable value typeのみ。ArtifactCore childは未変更。
+
+- #506 ArtifactMinMaxの整数artifactMin/artifactMax/clamp/artifactLerpがconstexpr contextから利用可能である契約をstatic_assertで追加。既存testはruntime結果のみ確認。
+
+- #507 artifactFindInがconst containerからconst element referenceを指すiteratorを返し、未検出時にend()を返す契約を追加。既存testはmutable containerだけ確認。
+
+- #508 RandomStream::shuffleが同一seedと同一入力に対して同じ並びと最終stateを生成する再現性契約を追加。既存testはshuffle後の要素保持と0/1要素時のstate維持を確認。
+
+- #509 Matrix4x4::operator*=が右辺に自身を渡す自己別名時も正しい積を保持する契約を追加。既存testは独立した右辺matrixだけを確認。
+
+- #510 Size_2Dのwidthが0かつheightが非0のとき、emptyでaspectRatioが0となる契約を追加。既存aspect ratio境界はheight==0のみ確認。
+
+- #511 XYZColor::operator==の差分が許容値1e-6fと等しい場合は不一致になる厳密境界契約を追加。既存testは許容差内外のみ確認。
+
+- #512 SmallVectorのself move assignmentがinline/heap-backed双方で要素列とcapacityを保持する契約を追加。既存suiteは別instance間のmoveのみ確認。
+
+- #513 safeNormalizeRangeが逆順の無限端点を[-infinity,+infinity]へ正規化し、有限範囲へ縮退させない契約を追加。既存testはNaNと有限区間のみ。
+
+- #514 RandomStream::pick(vector/array)が選択要素をconst T&で返し、呼出側から変更できない型契約を追加。既存move-only testは元要素へのaliasを検査するが戻り値のconstnessは明示確認しない。
+
+- #515 ArtifactSpan::front/backがconst span wrapperでも要素型に応じてT&またはconst T&を返す型契約をstatic_assertで追加。既存constness検査はoperator[]/data()/iteratorのみ。
+
+- #516 owning ArtifactOptionalのoperator*がmutable/const lvalueとmutable/const rvalueでT&/const T&/T&&/const T&&を返す型契約を追加。既存static_assertはvalue()のみ確認。
+
+- #517 ArtifactVariant::getIf<T>()がmutable variantからT*、const variantからconst T*を返す型契約を追加。既存runtime testはポインタ値を確認するが戻り値型を明示しない。
+
+- #518 ColorTransferFunctionのHLG encode/decodeを独立参照式で比較し、線形1/12とencoded 0.5の分岐点および両側を検査するケースを追加。既存ColorPipeline suiteはsRGB/Rec.2020/PQを対象としHLGなし。
+
+- #519 ColorTransferFunction::encode/decodeのgeneric switchを16対応modeそれぞれの公開curve functionと照合し、未知enumのidentity fallbackも確認するdispatch contractを追加。直接curveの一部は個別数式test未整備のためdispatch coverageとして記録。
+
+- #520 ColorGamutConversionのACES_AP1↔sRGB D60/D65 adaptationがneutral whiteを維持する契約と、同一gamut matrixがidentityとなる契約を追加。既存独立参照比較はsRGB/Rec.2020間のみ。
+
+- #521 Rec.709 encode/decodeを独立piecewise参照式と比較し、linear 0.018/encoded 0.081の閾値とその前後、負入力clampを確認するtestを追加。既存suiteはgeneric dispatchのみを対象。
+
+- #522 Quaternion SLERPがidentityから90度回転までのarcのt=0.25地点で22.5度進み、単位長を保つ契約を追加。既存testは端点とπ回転の中点のみ確認。
+
+- #523 NamedListのwatchSinceが読み取りでは発火せず、failed accessと以後のmutationでcheckpoint通知を行う契約、およびdebugSampleのlimit/element address対応を追加。既存NamedList suiteは監視とサンプリングを確認していない。
+
+- #524 ImageF32x4_RGBA::setFromGpuRGBA32Fのpadding付き2行RGBA readbackがstrideを尊重してBGRA backingと論理RGBA pixelを復元し、不足stride時は既存画像を維持する契約を追加。既存pixel channel order testは1×1転送bufferのみでreadback APIを未確認。
+
+- #525 ImageF32x4_RGBA::setFromGpuBGRA32Fがpadding付き複数行のBGRA入力をstrideどおりに読み、BGRA backingを保ちつつ論理RGBA pixel APIへ正しく反映する契約を追加。既存testに同readback経路なし。
+
+- #526 AudioMixer::deserializeが`buses`の型不正を拒否した場合、先にロード済みのbus構成とeffect rackを変更しない原子性契約を追加。既存persistence suiteは成功documentの再読込/idempotencyを確認するが、不正入力時の既存state保持は未確認。
+
+- #527 CameraGuideのbody depthが0の入力で最小厚みにclampされた後、生成meshの全triangleが非退化（cross-product area > 0）である契約を追加。既存geometry suiteはindex範囲とdepth座標を確認するがtriangle面積は未確認。
+
+- #528 AudioEffect派生fixtureがparameter setterをoverrideしない場合、base `setParameterValue()`は既知/未知IDどちらでも派生parameter状態を変更しない契約を追加。既存base suiteはgetter既定値とderived getterのみ確認。
+
+- #529 DataSourceRegistryがディレクトリ名とbasenameに複数のdotを含むURIでも最終suffixのみでfactoryを選び、compound suffixでは誤dispatchしない契約を追加。既存suiteは単一dotのURI/pathだけを確認。
+
+- #530 DataCacheの上限超過時、途中でcache hitした古いentryを保持し、未アクセスのentryをLRU evictionする契約を追加。既存testはmax entry上限と新entry挿入時の単純evictionのみ確認。
+
+- #531 AudioMixerの同一bus effect rackを異種2段でserialize/deserializeした後もeffect chain順と各段parameterが保持される契約を追加。既存roundtripはbusごとに単一effectのみ。
+
+- #532 AudioMixerがeffect chain途中の未対応type entryをskipしても、その前後の認識済みeffect順を保持する契約を追加。既存unknown type testは末尾entryのみをskip。
+
+- #533 CsvParserがEOFまで閉じないquoted fieldを`MalformedRow`として拒否するケースを追加。enumは存在するが未閉じquote testがなく、現実装はEOF時の`inQuotes`を検査しないため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #534 DataTableの整数/浮動小数getterが数値prefix後に余分な文字を含む値を拒否し、caller fallbackを返す契約を追加。既存fallback testは全体が非数値の文字列のみ。現行`std::stoll`/`std::stod`呼び出しはparse endを確認しないため静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #535 FormantExtractor::analyzeTrackがchannelごとに異なるサンプル長を持つstereo segmentでも最短channelまでの完全windowだけを解析し、短いchannel末尾を超えてeventを生成しない契約を追加。既存track window testはmonoのみ。
+
+- #536 AudioSpectrumの5.1 layout loudnessがLFE channel (index 3)を除外し、残る5 channelのmean-squareからLUFSを算出する契約を追加。既存loudness testはmono/stereoのみ。
+
+- #537 DataCacheの既存keyを再putするとsource/timestampだけでなくloadedAtも更新され、新source起点でTTL期間が始まる契約を追加。既存TTL suiteは初回put期限とhit非延長のみ確認。
+
+- #538 AudioVibratoの公開parameter introspectionが4 controlsのID/range/default値を返し、ID setter/getterが全controlへ反映し未知IDを変更しない契約を追加。既存suiteは直接setterのみ確認。
+
+- #539 AudioTremoloの`width=1` stereo auto-panで同一sampleの左右が逆相LFOになる独立audio contractを追加。現行processはchannel outer loop内でphaseを全block進めた後にrightを処理するため、静的にはright LFOがblock内で固定され期待fail見込み。ArtifactCore childは未変更。
+
+- #540 AudioWaveformのframe数がresolutionで割り切れない場合もすべての入力sampleをbucket RMSへ含める契約を追加。現行`step = frames / resolution`固定分割は余りsampleを落とすため、静的には期待fail見込み。ArtifactCore childは未変更。
+
+- #541 AudioCache::clearExpiredが古いentryを削除し、直近getでlastAccess更新されたentryを保持する契約を追加。既存cache suiteはclearとLRU容量cleanupのみでage cleanup未確認。
+
+- #542 AudioTapeSaturationのparameter introspectionが4 controlsのID/range/default値を公開し、ID setter/getterが反映され未知IDでは状態を変えない契約を追加。既存suiteは直接setterとJSON roundtripのみ確認。
+
+- #543 AudioParametricEQ::setParameterValueが不正なband ID（数値indexの後ろに文字が続く形式、index欠落、未知property）を無視し既存bandを変更しない契約を追加。既存testは有効ID、未知band index、非有限値を確認するがmalformed ID形式を未確認。現行std::stoiはparse endを検証せず、`band1x.frequency`はband1として誤受理する静的fail見込み。ArtifactCore childは未変更。
+
+- #544 FractionalDelayLine::readSecondsが有限だがsample-rate乗算でoverflowする大きな正の秒数を、read(sample)同様に利用可能な最大履歴へclampする契約を追加。既存testは大きなdelay sample数のclampと非有限秒数のzero-delay扱いを別々に確認。現行readSecondsは乗算overflow後のinfinityをread()へ渡しzero delayに変換するため静的fail見込み。ArtifactCore childは未変更。
+
+- #545 AllPassFilter::clearがdelay historyだけを消去し、設定済みdelay tapとfeedbackを保持する契約を追加。既存clear testは履歴消去のみ確認し、clear後の動作に設定が保持されるかは未確認。
+
+- #546 AudioChorusのstereo各channelが独立したdelay historyを保持し、片側のimpulseが反対側出力へ漏れない契約を追加。実装コメントはL/R別履歴を明記するが、既存standalone testはmono segmentのみ。
+
+- #547 AudioExpanderのparameter introspectionが4 controlsのID/range/defaultを公開し、ID setter/getterが反映され未知IDでは既存値を変更しない契約を追加。既存suiteは直接setterとJSON roundtripのみ確認。
+
+- #548 AudioBufferQueueがchannel vectorは存在するが最短channelのframe数が0のsegmentを拒否し、既存queued segmentを変更しない契約を追加。既存invalid push suiteはchannel無しとinvalid sample rateを確認。
+
+- #549 AudioDownMixerの5.1→7.1 promotionが既存6-channel bedの順序・内容を保持し、新しいback pairをsilenceで初期化してsample rate/startFrameも保つ契約を追加。既存suiteはstereo/mono→7.1級layout、7.1→5.1を確認するが5.1→7.1を未確認。
+
+- #550 AudioPhaserのstereo内部filter/feedback stateがchannel間で独立し、left-only impulseがright outputへ漏れない契約を追加。既存suiteのprocessing testsはmonoのみ。
+
+- #551 AudioCompressorが圧縮されたloud blockの次にquiet blockを処理した際、gain-reduction meterをそのblockの非圧縮値へ更新する契約を追加。既存suiteは圧縮時の値とinvalid/empty block後のresetを確認するが、通常のquiet blockでの回復を未確認。
+
+- #552 AudioBassTrebleがsample rate変更時にlow/high shelf filter historyを初期化し、新rateでの出力が新規instanceと一致する契約を追加。既存suiteはblock continuityを確認するがrate切替後の状態を未確認。
+
+- #553 AudioPlateReverbの稼働中size変更でdelay buffersが再構築され旧sizeのtail stateが消去され、新設定の動作がfresh instanceと一致する契約を追加。既存suiteは異なるsizeの別instance impulse response差のみ確認。
+
+- #554 AudioDCBlockerがSurround51 segmentでも先頭2 channelだけ処理し、center/LFE/surroundの残り4 channelを保持する契約を追加。既存suiteはmono/stereoのchannel state分離を確認するが多chの非対象channelは未確認。
+
+- #555 LfoSource::setPhaseが負の有限phaseを[0,1)へ正規化し、phaseOffset・current phase・sample出力で3/4周期として扱う契約を追加。既存suiteは正のfractional phase、phase advance wrap、非有限phase無視を確認するが負値wrapを未確認。
+
+- #556 AudioSpectrumが連続する隣接segmentを処理した時のintegrated/short-term loudnessが、同じサンプルを1 segmentで処理した結果と一致する契約を追加。既存suiteはdiscontinuous segmentによるintegrated window resetを確認するが連続block等価性は未確認。
+
+- #557 AudioDownMixerの7.1.4→7.1変換が標準7.1 bedの前8 channelを順序・内容・タイミングmetadataごと保持し、height channelを出力しない契約を追加。既存suiteは7.1.4→stereoと7.1→5.1を確認するが7.1.4→7.1を未確認。
+
+- #558 AudioEffect::fromJsonがbypass値の型不正（文字列/数値）をfalseへfallbackする契約を追加。既存suiteは欠損値のfalse fallbackと正しいboolean復元を確認するが型不一致を未確認。
+
+- #559 AudioRasterizer::rasterizeInterleavedが3-channel入力をuneven 2-binへ分割する際、各frameの全channelからmin/maxを集約し全frameを覆う契約を追加。既存interleaved suiteはstereoのみ確認。
+
+- #560 ModulationRouter::removeAssignment後の次processでruntime target indexが再構築され、削除済みtarget modulationが0になりtargetValueがbaseへ戻る契約を追加。既存testはassignment削除後のempty状態だけ確認。
+
+- #561 AudioCache::prefetchのproviderがfalseを返したframeをcacheせず、後続frame要求を継続する契約を追加。既存suiteは全成功・範囲無効・provider例外時継続を確認するがfalse応答を未確認。
+
+- #562 AudioExpanderが同じ絶対値の正負入力へ同一gainを適用し、出力が符号反転対称になる契約を追加。既存suiteは極性を揃えた信号のattenuation/continuityを確認するが正負対称性を未確認。
+
+- #563 AudioExpanderがpeak後の長いrelease中は小信号をthreshold以上のenvelopeとして通し、fresh instanceでは同じ小信号をattenuateする契約を追加。既存suiteはblock continuityとstereo envelope分離を確認するがpeak後のrelease保持を比較していない。
+
+- #564 AudioExpanderがpeak後に十分なrelease時間を経ると小信号を再びthreshold未満としてattenuateする契約を追加。#563のrelease中の保持確認に対し、release完了側の遷移は既存suiteで未確認。
+
+- #565 AudioSpringReverbの処理中にsample rateを変更するとdelay/filter stateが再構築され、新rateで開始したfresh instanceと出力が一致する契約を追加。既存suiteは単一rateのimpulse tailのみ確認し、再構築境界を確認していない。
+
+- #566 AudioSpringReverb::tailSamplesがdecay=0で0を返し、tension増加・decay延長に従って推定tail長を増加させる契約を追加。既存suiteはtailが正であることだけ確認し、設定値への単調応答を未確認。
+
+- #567 AudioSpringReverbの処理中にtensionを変更するとdelay/filter stateが再構築され、変更後tensionで開始したfresh instanceと出力が一致する契約を追加。既存suiteはtension設定値のみ確認し、処理中の再構成境界を未確認。
+
+- #568 AudioSpringReverbのbypass中に入力を処理してもreverb履歴が進まず、解除後の出力がbypass区間を挟まなかった同等instanceと一致する契約を追加。既存suiteはbypass時の入力保持のみ確認し、state不変を未確認。
+
+- #569 AllPassFilterの固定整数遅延・feedback=0.5のimpulse応答がunit energyとなるall-pass特性を追加。既存suiteはdelay tap等を確認するが周波数非着色特性を未確認。未実行。静的に現行出力式へ代入すると出力エネルギーは概算7/3となり期待値と不一致の見込み。現行式がAllPassの契約を満たすか、実行による確認が必要。
+
+- #570 AllPassFilter::processへNaN/±Inf modulationSamplesを渡しても有限入力に対する出力が有限となる契約を追加。既存suiteはsetParameters経由の非有限delay/feedbackを確認するが、sample単位modulationの非有限値を未確認。
+
+- #571 FrameSkipTrackerがrequested/committed/displayed frameを独立して保持し、commit frameがrequestと異なってもrequested frameをdisplayした場合はskip扱いしない契約を追加。既存suiteは3値が一致する成功dispatchとdisplay/request不一致によるskipを確認するが、commit値のみ異なるケースを未確認。
+
+- #572 FrameSkipTrackerのtrackingを無効化しても既存history・skip counterは保持し、その後のdispatch/explicit skipを記録しない契約を追加。既存suiteは空stateから無効化して新規記録を抑制するが、蓄積済みhistory保持を未確認。
+
+- #573 AudioTransientShaperのstereo各channelがenvelope stateを独立保持し、同じ入力を処理するmono instanceの出力とそれぞれ一致する契約を追加。既存suiteはmonoのattack応答のみ確認し、stereo channel間の状態干渉を未確認。
+
+- #574 AudioVibratoを連続blockまたは隣接segmentへ分けて処理した時に、delay履歴とLFO phaseを保持して全出力sampleが一致する契約を追加。既存suiteは単一segment内のdelay応答を確認するが、process呼び出し境界を跨ぐ状態継続を未確認。
+
+- #575 AudioTremoloのmix=0.5出力がdry信号とmix=1変調信号の中点となる線形mix契約を追加。既存suiteはmix default/JSONとmix=0 dryのみ確認するが、中間mixのblendを未確認。
+
+- #576 StereoBalance modeのAudioPanner::calculateGainがelevation値に影響されず、同じazimuthで同一gainを返す契約を追加。既存suiteはazimuthの端点・center・clampのみ確認し、elevationの非関与を未確認。
+
+- #577 AudioDeEsserがcrossoverより十分低いtoneをほぼ変化させず保持する契約を追加。既存suiteは高域toneのattenuationを確認するが、帯域分割後のlow-band preservationを未確認。
+
+- #578 AudioPingPongDelayのstereo cross-feed echoがsegment分割後も履歴を保ち、連続処理と全出力が一致する契約を追加。既存suiteは単一block内の左右交互echoを確認するが、block境界を跨ぐfeedback echo継続を未確認。
+
+- #579 AudioTapeSaturationのwarmthを最大にすると高域toneの定常出力energyがwarmth=0より低下するtone-shaping契約を追加。既存suiteはwarmth=0のdrive効果と設定値を確認するが、warmthの処理効果を未確認。
+
+- #580 AudioBassTrebleで12dB bass boostを適用した時、50Hz toneの定常energyが12kHz toneより大きくなる低域選択性の契約を追加。既存suiteはconstant signalへのbass gainを確認するが、周波数依存の処理効果を未確認。
+
+- #581 AudioPlateReverbのmodDepth=1と0で同じwet impulseを処理した応答が異なる、modulation depthがtank delayへ反映される契約を追加。既存suiteはdefault modulation下のstereo tailを確認するが、modDepth controlの処理効果を未確認。
+
+- #582 AudioChorusのfeedback=0と0.9でwet impulse responseが異なるfeedback control契約を追加。既存suiteはfeedbackのsetter/metadata/JSONのみ確認。未実行。静的確認では`AudioChorus::process`内に`feedback_`参照がなく、現行sourceでは同じresponseとなる見込み。feedback controlの処理経路が必要か実行・設計確認が必要。
+
+- #583 AudioReverbのmix=0でdry impulseを処理してもwet comb historyを蓄積し、次blockでmix=1へ戻した時のwet出力が最初からmix=1だったinstanceと一致する契約を追加。既存suiteはmix=0時のdry出力のみ確認し、wet state蓄積を未確認。
+
+- #584 AudioPhaserのfeedback=0と0.9で同じwet signalを処理した出力が異なる、feedback loopがparameter値を反映する契約を追加。既存suiteはparameter routingとdefault settingsでのsignal変化を確認するが、feedback controlの処理効果は未確認。
+
+- #585 AudioChorusとFlanger modeが同一入力に対して異なるresponseを生成する契約を追加。既存suiteはmode選択とJSON往復のみ確認。未実行。静的確認では`AudioChorus::process`に`mode_`参照がなく、現行sourceは両modeで同じ処理となる見込み。mode別動作仕様または実装経路の確認が必要。
+
+- #586 DiskSizeのsuccessful queryがavailable ≤ free ≤ totalを満たし、usedBytesをtotal-freeとして返す契約を追加。既存suiteは有効queryの成功状態のみ確認し、容量値の相互関係を未確認。
+
+- #587 ArtifactCore::String::reserveが要求容量以上を確保し、既存内容と終端文字を維持し、小さい要求ではcapacityを縮めない契約を追加。既存suiteは初期inline capacityとappend時の成長を確認するが、reserve API自体の保持・非縮小性を未確認。
+
+- #588 ArtifactCore::String::replaceで削除数0を指定した場合、先頭・中間・末尾へreplacementを挿入し、lengthと終端文字を正しく更新する契約を追加。既存suiteは非ゼロ削除の置換と範囲外positionを確認するが、挿入動作を未確認。
+
+- #589 artifactRemoveIfがpredicateを元の各要素にちょうど1回評価し、stableな残存順序と返却要素数を保つ契約を追加。既存suiteは除去結果・相対順を確認するが、predicate呼出し回数を未確認。
+
+- #590 artifactAccumulateがcustom operationを初期値から要素順に左畳み込みし、range内の各要素に1回適用する契約を、非結合な減算と呼出し時の累積値で追加。既存suiteの加算・乗算は結合的で、走査順を区別できない。
+
+- #591 artifactRound(-0.25)が数値上0でありながら負のzero sign bitを保持するIEEE浮動小数点契約を追加。既存suiteは負数の丸め方向を確認するが、負のゼロ符号を未確認。
+
+- #592 ArtifactCore::StringViewのbegin/end反復範囲が明示長の全byteを含み、埋め込みNULを保持する契約を追加。既存suiteはat()/length()/equalityでNUL保持を確認するが、iterator境界を未確認。
+
+- #593 artifactAtan2が負のX軸上でY=+0を+π、Y=-0を-πへ写像するIEEE signed-zero branch契約を追加。既存suiteは非軸上の四象限のみ確認。
+
+- #594 safeNormalizeRangeが有限の±double最大値を端点に受け取っても、差分オーバーフローで退化レンジにせず順序付けて保持する契約を追加。既存suiteは無限端点を確認するが、有限極値の差分オーバーフロー境界は未確認。
+
+- #595 Duration::fromMillis/fromSecondsが±0.75ns相当の浮動小数入力を±1nsへ丸める契約を追加。既存half-away-from-zero testはfromMicrosのみを確認。
+
+- #596 artifactReverseがmove-onlyなunique_ptr要素を反転し、全所有値を失わず保持する契約を追加。既存reverse suiteは整数配列だけを確認。
+
+- #597 SmallVector::removeIfでpredicateに一致する要素がない場合、内容だけでなくmutation count/historyとdebug checkpointのversionも変えない契約を追加。既存suiteは実際に削除するケースのみ確認。
+
+- #598 SmallVectorのmutation historyが最新8 recordだけを保持し、先頭・末尾のversionと件数情報が履歴打ち切り後も正しい契約を追加。既存suiteにbounded historyの検査なし。
+
+- #599 Asset.Sequenceがフレーム番号風の数字で終わっても拡張子のないfilenameをsequence化せずsingleとして返す契約を追加。既存suiteは非数値名・過大桁トークンを確認するが、拡張子欠落境界を未確認。
+
+- #600 SmallVector::watchSinceがreadCountのみの変化では通知せず、checkpoint後の失敗アクセスをsnapshot付きで通知する契約を追加。既存suiteにcheckpoint watcherの検査なし。
+
+- #601 ArtifactRegexのzero-width `^` matchが空入力で1件だけ返り、findAll/replacementが無限進行せず終了する契約を追加。既存suiteは非空入力のzero-width進行のみ確認。
+
+- #602 ArtifactRegex::replaceAllが埋め込みNULより後ろのmatchを置換しても、NUL byteを含むmatch外の入力範囲を出力に保持する契約を追加。既存suiteはregex searchでの明示長NULを確認するが、replacement outputでは未確認。
+
+- #603 ColorSwatch::sortがRGB平均輝度で順序付けし、透明度alphaに影響されない契約を追加。既存sort testは全entryのalphaが1.0でalpha非関与を未確認。
+
+- #604 artifactHypotが一方に∞、他方にNaNを受けた時は∞を返し、NaNと有限値の組み合わせはNaNを伝播する契約を追加。既存suiteは有限値と大入力のoverflow回避のみ確認。
+
+- #605 artifactSqrt(-0.0)が数値上0を返しつつ負のzero sign bitを保つIEEE契約を追加。既存suiteは正数の平方根とartifactAbsの負zero処理を確認するが、sqrt単体は未確認。
+
+- #606 artifactPowが0^0およびNaN^0に対し1を返す指数0の標準浮動小数点特殊ケースを追加。既存suiteは正負整数指数と型昇格を確認するが、zero exponentは未確認。
+
+- #607 CsvDataSourceの`.tsv` registry factoryがtab区切りファイルを2列のtableとして開き、文字列/整数値を返す契約を追加。既存registry integration testはuppercase `.CSV`のみ確認。
+
+- #608 CsvParserがCRLF (`\r\n`) を1つのrecord separatorとして扱い、余分な空行を作らず3レコードを返す契約を追加。既存suiteはLF、CR単独、末尾LFを確認するがCRLFの組み合わせは未確認。
+
+- #609 CsvParserの自動delimiter検出でcommaがない場合の同数候補はsemicolonを優先し、tab/pipeを値内に保持する契約を追加。既存suiteはcommaを含む同数候補のみ確認。
+
+- #610 FloatColorの4チャンネル版`setColor`がRGBに加えてalphaも置き換える契約を追加。既存suiteは個別setterとalphaを維持する3チャンネル版`setColor`を確認するが、4チャンネル一括setterを直接確認していない。
+
+- #611 DiskSizeが無効pathによるquery失敗後に有効pathで再queryするとvalid状態へ復帰し、容量値の整合性を取り戻す契約を追加。既存suiteはvalid→invalidと初回valid queryを別々に確認するが、invalid→valid遷移は未確認。
+
+- #612 AudioCache::prefetchが`int64_t`最大frameを跨がず、開始frameが上限直前の場合は到達可能な2 frameだけproviderへ要求する契約を追加。既存suiteは負値・zero countと通常連番を確認するが、整数上限のoverflow回避は未確認。
+
+- #613 AudioCacheで既存frame keyをサンプル数の異なるsegmentに置換すると、memoryUsageが新segment分だけを数え、旧容量を二重計上しない契約を追加。既存replace testは格納sample更新とentry数のみ確認。
+
+- #614 Matrix4x4::rotationZが負の90度で正X方向を負Y方向へ回す符号規約を確認するケースを追加。既存suiteは正90度と0度のみ確認。
+
+- #615 AudioCache::prefetchのproviderがfalseを返したframeに既存cache entryがある場合、古いsegmentを維持しentryを削除・空置換しない契約を追加。既存suiteは未cache frameのfalse応答をskipする動作のみ確認。
+
+- #616 SpatialGrid::queryの半径がcellSizeを超えて複数cell幅に及ぶ場合も、離れたcellにある範囲内候補を列挙する契約を追加。既存suiteは隣接cell境界の小半径queryのみ確認。
+
+- #617 Size_2Dの汎用`x/y`座標変換が小数の正負値をintへ0方向に切り詰める契約を追加。既存suiteの浮動小数座標は整数値相当のみ。
+
+- #618 AudioWriterのstereo 24-bit WAVヘッダーでbyteRateがsampleRate×channels×3、blockAlignがchannels×3になるassertを追加。既存round-trip reopen caseはchannels/sampleRate/bitDepth/data sizeを確認するが、この2 header fieldは未確認。
+
+- #619 AudioWriterの再オープン後stereo WAVでRIFF chunk sizeがfile sizeから8 byteを引いた値に更新されるassertを追加。既存suiteは16-bit monoのRIFF sizeと2ファイル目のbyte sizeを別々に確認するが、再オープン時のRIFF fieldは未確認。
+
+- #620 AudioWriterが16-bit PCMの正負0.5 sampleをそれぞれ+16384/-16384へ量子化する独立payloadケースを追加。既存suiteは0と±1およびclamp後の±2を確認するが、符号付き中間振幅は未確認。
+
+- #621 AudioMixer FX persistenceで再読込時にmaster `effects: []`を明示すると、以前復元済みrackを空に置き換える状態遷移testを追加。既存idempotence testは同じ非空rackの重複防止のみ確認。
+
+- #622 AudioMixer FX persistenceで通常busの再読込時に`effects: []`を指定し、以前復元済みのrackが空へ置き換わる分岐testを追加。#621は別実装経路のmaster rackのみ対象。
+
+- #623 AudioSegment::frameCountが複数channel中1つでも空なら0を返しつつ、channelCountは保持する契約を追加。既存suiteは正の異なるchannel長の最小値のみ確認。
+
+- #624 CsvDataSourceのreload後に`info().fileSize`が更新済みCSVの実ファイルbyte数へ追随するassertを追加。既存reload testはtable内容のみ確認し、file metadataを再検査しない。
+
+- #625 AudioTransientShaperのfast/slow envelope状態が同一sample rateの複数process blockを跨いで連続し、単一block処理と各sampleが一致するケースを追加。既存suiteはsingle-block processingとchannel別stateを確認。
+
+- #626 AudioTransientShaperがSurround 5.1 segmentでも先頭2chのみを処理し、center/LFE/surroundの4chを未変更で保つ契約を追加。既存suiteはmono/stereoのみ確認。
+
+- #627 AudioRasterizer::rasterizeInterleavedでbinCountがcomplete frame数を上回る場合、1 frameごとのbinへ縮退し、各frameの全channel min/maxを保つ契約を追加。既存suiteはinterleaved uneven binsと不足frame境界を確認するが過剰bin数は未確認。
+
+- #628 RandomStream::gaussianへ同じseedと正負の標準偏差を渡した場合、同じ標準正規サンプルを平均値の両側へ反転して返す契約を追加。既存suiteはseed再現性と標準偏差0のみ確認し、負の標準偏差が符号反転として扱われることは未確認。
+
+- #629 ColorSwatch::saveの`.gpl`拡張子dispatchがexport経路を通し、保存した色entryをloadで復元できる契約を追加。既存suiteはexportGPL直呼びとloadによるround-trip、およびunsupported extension時のsave失敗のみ確認。
+
+- #630 AudioWriter::closeFileを確定済みWAVに対して再度呼んでも、保存済みヘッダー・payloadを含むファイル全体が変化しないidempotent close契約を追加。既存suiteはcloseとdestructorによるfinalizeを確認するが、close後の再呼び出しによる内容保持は未確認。
+
+- #631 AudioCache::getCachedで取得したsegmentのサンプル変更・拡張がcache内の保存segmentへ影響しないcopy-isolation契約を追加。既存suiteは取得時の値保持を確認するが、取得後の出力mutationからの独立性は未確認。
+
+- #632 AudioCacheのcapacity超過cleanupでgetCachedによるcache hitがlastAccessを更新し、未アクセスの古いframeが先にLRU evictionされる契約を追加。既存suiteはsize上限のみ確認し、eviction victim選択は未確認。
+
+- #633 AudioDownMixerのsame-layout sanitizeで非有限sampleをoutput側だけ置き換え、const source segment内のNaN/Infを変更しない入力独立契約を追加。既存suiteは出力値のsanitizeを確認するが、処理後のsource保持は未確認。
+
+- #634 AudioSpectrum::normalizeToTargetLufsが正規化対象segment内のNaN/Inf sampleをsilenceへ置き換え、残りの出力値をfiniteに保つ契約を追加。既存suiteは有限入力のgain適用と非有限target時のunity保持を確認するが、非有限入力sampleのsanitizationは未確認。
+
+- #635 AudioWaveformのRMSが最大有限float sampleでoverflowしてinfinityにならず、float表現可能上限の有限値へ収まる契約を追加。既存suiteは通常振幅とNaN/Inf除外を確認するが、最大有限値境界は未確認。
+
+- #636 AudioSpectrumのintegrated loudness frame endが`int64_t`最大値で飽和した後、次blockのstartFrameが最大値なら連続windowとして両blockのenergyを統合する契約を追加。既存suiteは通常frame位置での連続／不連続のみ確認。
+
+- #637 AudioAnalyzerへ最大有限float sampleを入力した場合もRMS/peakが最大有限値を保ち、FFT spectrum全binが有限値となるoverflow境界契約を追加。既存suiteは通常振幅と非有限入力のsanitizationを確認するが、最大有限入力は未確認。
+
+- #638 AudioDelayがNaN/Inf入力をsilenceとして遅延bufferへ格納し、後続のfinite sampleにも非有限値をfeedback経由で伝播させない契約を追加。既存suiteはdelay timing、channel分離、bypass等を確認するが、非有限入力とbuffer状態の健全性は未確認。
+
+- #639 AudioReverbがSurround 5.1入力の先頭2chだけを処理し、center/LFE/surroundの残り4chを入力値のまま保持するchannel-scope契約を追加。既存suiteはstereo間のhistory分離のみ確認し、stereo超過chは未確認。
+
+- #640 AudioStereoWidenerがmono segmentをpass-throughする際、stereo bass-mono filter stateを進めず、次のstereo blockの出力をmono blockなしの場合と一致させるstate-isolation契約を追加。既存suiteはmono pass-throughと隣接stereo block continuityを個別に確認。
+
+- #641 AudioBitCrusherでmix=0のblockを処理してもsample-hold downsample stateを消費せず、その後mixを有効化したblock出力が未処理時と一致する契約を追加。既存suiteはmix補間とdownsample state continuityを確認するが、zero-mix中のstate扱いは未確認。
+
+- #642 AudioTremoloのLFO phaseが複数segmentを跨いで保持され、block分割処理の全sample出力が連続処理と一致する契約を追加。既存suiteは長block modulationとstereo phase offsetを確認するが、segment境界連続性は未確認。
+
+- #643 AudioExpanderをratio=1で処理したblockがsignalとenvelope stateの双方を変更せず、後続の再有効化出力がそのblockを処理しなかった個体と一致する契約を追加。既存suiteはratio=1中のsignal保持のみ確認。
+
+- #644 AudioDelayがmix=0の間もdelay bufferへ入力履歴を蓄積し、後からwet mixを有効化すると同じtailが現れる契約を追加。既存suiteはzero mixのdry出力保持のみ確認。
+
+- #645 AudioPingPongDelay::tailSamplesがfeedback=0では0を返し、既知のdelay sample数とfeedback decay式に一致し、feedback増加で推定tailが長くなる契約を追加。既存suiteはdefault時の正値のみ確認。
+
+- #646 AudioCache::prefetchの大きな要求を1回4096 frameへ制限し、provider呼び出し数と最終要求frameが上限に一致するbounded-work契約を追加。既存suiteは逐次要求とint64終端の安全停止を確認するが、通常時の上限値は未確認。
+
+- #647 AudioCache::clearExpiredへ負のmaxAgeMsを渡した場合も0msへsanitizationされ、前回access時刻より後の時点で古いentryが期限切れとなりmemory usageも0へ戻る契約を追加。既存suiteは正のage閾値のみ確認。
+
+- #648 `float3<float>::normalized()`が各成分は有限でも内積和がfloat上限を超える大きさのvectorを単位vectorへ正規化する境界契約を追加。現行のfloat dot/length先行計算では静的にoverflowが見込まれ、期待fail候補。ArtifactCore childは変更せず。
+
+- #649 XYZColorのtoString/fromString往復でQtが科学表記する微小・大成分も維持する契約を追加。現行parser regexは指数部を受け付けないため静的には期待fail見込み。ArtifactCore childは変更せず。
+
+- #650 QuaternionのEuler変換でY軸角が±90度のジンバルロック位置でも、toEuler/fromEuler往復後の回転が元と等価になる契約を追加。通常角度のround-tripは既存suiteで確認済みだが、asinの端点と角度の縮退ケースは未確認。
+
+- #651 FrameSkipTracker::reset()が履歴・skip集計を初期化してもtracking無効設定を保持し、reset後もイベント記録を抑止する契約を追加。既存suiteはreset後にtrackingを有効化するが、disabled設定の保持は未確認。
+
+- #652 RotationTurnsのmove constructor後、null implになった元オブジェクトが再度move assignmentを受けて通常利用可能になる契約を追加。既存suiteはmove元の破棄とlive destinationへのmove assignmentを確認するが、moved-from objectの再利用は未確認。
+
+- #653 CsvParser::parseFile()が一時CSVファイルを開き、parseStringと同様にheader/data rowsを返す公開ファイル経路の契約を追加。既存suiteはparseStringのみを確認しており、parseFileの正常読み込みを一度も呼び出していなかった。
+
+- #654 Audio Spatial distanceAttenuationの各モデルが距離の負／正の無限大を近／遠距離境界として扱い、linearは0、inverse/exponentialはmaxDistanceでの係数に収束する契約を追加。既存suiteは有限値での境界・補間のみ確認。
+
+- #655 CsvParser::parseFile()が存在しないパスに対してFileNotFoundを返し、header/rows/countを空のままにするエラー契約を追加。parseFileの成功経路は#653で確認済み、欠損パス経路は未確認。
+
+- #656 CsvParser::parseFile()が開ける空ファイルをEmptyFileとして返し、parse resultにheader/rowsを作らない契約を追加。parseStringの空入力とparseFileの欠損パスは既存／追加suiteで確認するが、実ファイルのempty-content分岐は未確認。
+
+- #657 Audio Spatial distanceAttenuationへNaN距離を渡しても各モデルのattenuationが有限値に保たれる契約を追加。現行のlinear/inverse/exponential計算はいずれもNaNを伝播するため静的な期待fail候補。ArtifactCore childは変更せず。
+
+- #658 CsvParser::parseFile()がUTF-8日本語fieldを読み込み時に保持する契約を追加。parseFile成功経路はASCII値のみ、parseString suiteにも日本語fieldのcoverageがなかった。
+
+- #659 ResolutionRemap::calculateImpact()のmask/keyframe/anchor各入力が単独でimpactを立て、それ以外の個別flag/countを汚さない契約を追加。既存testは3要因を同時に有効化しており、単一要因の寄与を分離していなかった。
+
+- #660 AudioPanner::applyPanning()がstereo gainで指定されないSurround 5.1後続channelを変更・短縮せず、non-finite値を含む元sampleも保持する契約を追加。既存suiteは有限値の未対応2ch目のみ確認。
+
+- #661 AspectRatio::setFromString()がint範囲を超えるwidthまたはheightのpairを拒否し、事前設定値を保つ契約を追加。既存suiteは不正形式・非正値・int最大値のconstructorを確認するが、parserの数値overflowは未確認。
+
+- #662 ResolutionRemap::remapScale()がold/newのどちらかがempty sizeの場合に元scaleを維持する契約を追加。positionとtransformはempty-size identityを既存suiteで確認する一方、scaleの同等境界は未確認。現実装はsize検査がなくscaleを0へ落とすため静的期待fail候補。ArtifactCore childは変更せず。
+
+- #663 SimpleWavのUniString版loadFromFile/saveToFileがUnicodeパスをQString版へ正しく委譲し、音声内容を維持する契約を追加。既存suiteはQString版のみ使用し、UniString overloadは未呼び出し。
+
+- #664 SimpleWav::loadFromFile()が明示的な負のmaxFramesを無制限 sentinelとして扱い、全interleaved frameを読み込む契約を追加。既存suiteはdefault引数と0を確認するが、負数引数は未確認。
+
+- #665 DataTable::clear()後も同一instanceが新しいschemaとrowを受け入れ、旧column lookupを復活させない再利用契約を追加。既存suiteはclear直後の空状態のみ確認。
+
+- #666 AudioBufferQueue::clear()が満杯時の全100 slotを解放し、empty/not-full状態へ戻して新規segmentを受け入れる契約を追加。既存suiteは満杯拒否と少数segmentのclearを個別に確認するが、満杯からのclearは未確認。
+
+- #667 RandomStream::nextU32()がnextU64()と同じ1 draw分だけstateを進め、64bit drawの上位32bitを返す幅間整合契約を追加。既存suiteは同じ幅同士の再現性のみ確認。
+
+- #668 TimeCode::setFromQString()が通常のcolon-separated `HH:MM:SS:FF` を現在fpsでフレームへ変換し、non-drop `:` 表記のままround-tripする契約を追加。既存suiteはdrop-frame parseと末尾dotのみ直接確認。
+
+- #669 AudioRingBuffer::write()が内部上限の10chを超える入力を拒否し、拒否時に既存のbuffered frameを保持する契約を追加。既存suiteは10chまでの正常系を確認するが、11ch rejectionとfailure後のdata preservationは未確認。
+
+- #670 calculateSpeakerGains()が有限だが二乗和でfloat overflowする極大方向入力を受けても、全gainを有限・非負に保ち単位energyへ正規化する契約を追加。既存suiteはNaN/Infと通常サイズの方向を確認するが、有限値の演算overflow境界は未確認。
+
+- #671 Size_2D::area()が幅または高さ0のdegenerate sizeで0を返す契約を追加。既存suiteは通常のareaと高さ0のaspect ratioを確認するが、両軸のゼロ寸法に対するareaは未確認。
+
+- #672 makeNukeStyleCameraGuidePrimitive()が負のbody depthを最小厚み0.01へclampする契約を追加。既存suiteはゼロdepth clampを確認するが、負値入力の下限動作は未確認。
+
+- #673 ColorSwatch::importGPL()がCRLF改行のpalette nameとentry nameを末尾CRなしで読み込む契約を追加。既存suiteはLFデータのみ確認。現状はgetline後のCRを除去しないためPOSIX環境で失敗する見込み。
+
+- #674 AudioBassTreble::process()がチャンネルごとに長さの異なるsegmentで共通frame数のみ処理し、長いチャンネルの余剰末尾sampleを保持する契約を追加。既存suiteは各channelが同じframe数の入力のみ確認。
+
+- #675 AudioBitCrusher::process()がStereoを超えるSurround 5.1入力で先頭2 channelだけを処理し、center/LFE/surround channelのPCM値を保持する契約を追加。既存suiteはstereo channel間のhold state分離を確認するが、追加channelの保持は未確認。
+
+- #676 AudioParametricEQ::getParameters()がsetBandCount()後のband数に合わせて3項目ずつmetadataを返し、最後のbandのID/valueを反映する契約を追加。既存suiteは初期4 bandのmetadataのみ確認。
+
+- #677 Matrix4x4のtranslation×scale合成順序がz座標にも適用され、translation後にz scaleされず期待位置を保つ契約を追加。既存suiteは合成順序のx/yのみ確認し、z合成は未確認。
+
+- #678 AudioStereoWidener::process()がSurround 5.1入力を処理する際、先頭L/R channelだけを変更しcenter/LFE/surroundの追加channelを保持する契約を追加。既存suiteはmono passthroughとstereo widener処理を確認するが、多channel入力は未確認。
+
+- #679 float3::normalized()が各成分float最大有限値の有限非ゼロvectorをoverflowさせずunit vectorへ正規化する契約を追加。既存suiteは二乗しても有限の大きな成分まで確認。現在のdot-based lengthは二乗和でoverflowするため静的期待fail候補。実行未確認。
+
+- #680 SmallVector::front()/back()がempty時にnullptrを返し、要素がある場合に先頭／末尾要素へのpointerを返す契約を追加。既存suiteはprefix/suffix値検索を確認するが、pointer accessorは未確認。
+
+- #681 slerp(a,b,t)とslerp(b,a,1-t)が同一orientation（quaternion符号を除く）を返す対称性契約を追加。既存suiteはendpoint・中間arc・shortest pathを確認するが、endpoint/progress reversal invariantは未確認。
+
+- #682 ColorSwatchのmove構築とmove代入がpalette nameおよびentriesを移し、代入先の旧paletteを置換する契約を追加。既存suiteはcopy構築・代入のみ確認。
+
+- #683 DataCacheがmaxEntries満杯時に既存keyを置換しても無関係なkeyをevictしない契約を追加。既存suiteは容量未満での同一key置換と、新規key追加時のLRU evictionを個別に確認。現実装はput前に無条件evictするため静的期待fail候補。実行未確認。
+
+- #684 TypeInferenceがint64範囲外の数値文字列をIntに分類せずFloatとして扱う契約を追加。既存suiteは通常のsigned integerのみ確認。TypedColumnのInt変換先はint64_tだがTypeInference::isInt()は数字列かのみ見るため静的期待fail候補。実行未確認。
+
+- #685 DataTable::getInt()がint64最大／最小文字列を正確に読み、各方向の範囲外入力ではcaller fallbackを返す契約を追加。既存suiteは小さなintegerとmalformed suffixのみ確認。
+
+
+- #686 AudioAnalyzer::analyze()が低／中／高帯域強度をスペクトルの対応bin平均として算出し、ナイキスト上限を越えるhigh帯域終端を最後のbinへclampする契約を追加。既存suiteは解析指標・スペクトル形状は確認するが、帯域平均のbin対応は未確認。
+
+- #687 AudioWaveform::process()がフレーム数10・resolution4の端数区間で末尾フレームを落とさず最終binへ反映する契約を追加。既存の端数テストは5/2だけだが、現実装のstep=frames/resolutionと固定長区間では一般の余りを処理できず、本ケースは静的期待fail候補。実行未確認。
+
+- #688 AudioDecibelsの除算演算子と複合除算が負の除数でdB値の符号を反転する契約を追加。既存suiteは正の除数、ゼロ近傍、非有限除数を確認するが、負の有限除数は未確認。
+
+- #689 AudioBitCrusher::fromJson()がパラメーターキー欠落時にbits=8、downsample=1、mix=1の既定値を適用する契約を追加。既存suiteは全キーを含むtoJson()/fromJson()往復のみ確認。
+
+- #690 AudioBitCrusher::process()がfloat downsample値を最近整数へ丸め、2.49では2 sample、2.5では3 sampleのhold周期を使う契約を追加。既存suiteは整数downsample倍率のみ確認。
+
+- #691 Asset Sequenceの18桁frame-number境界でもSequenceGroup::pathPattern()がpadding幅を保持して`%018lld`を生成する契約を追加。既存の18桁検出テストはframe値・filenameのみ確認し、pattern幅は未確認。
+
+- #692 DataTable::getBool()がdouble格納値をboolへ暗黙変換せず、caller fallbackを返す契約を追加。既存suiteはstring token、int64、monostateの変換／fallbackのみ確認。
+
+- #693 DataTable::getFloat()がdouble格納値を列番号版・列名版の双方で精度を保って返す契約を追加。既存suiteは数値文字列とint64格納値からの変換のみ確認し、double variant直接取得は未確認。
+
+- #694 DiskSize::formatBytes()が1 MiBの1 byte手前を小数1桁丸め後の単位境界に従って`1.0 MB`と正規化する契約を追加。現実装はunit選択後に丸めるため`1024.0 KB`となる静的期待fail候補。実行未確認。
+
+- #695 FrameSkipTrackerのdispatch eventがrequested/committed/displayed frame番号のint64最小値・最大値を保持し、不一致をUnknown skipとして記録する契約を追加。既存suiteは通常のframe indexのみ確認。
+
+- #696 AspectRatio::setFromString()が探索上限denominator=100より小さい正のdecimal比を最小の正の有界近似`1:100`へ写す契約を追加。現実装は全候補numeratorが0となり初期候補`1:1`を残す静的期待fail候補。実行未確認。
+
+- #697 DataTable::getBool()がDataValueに直接格納されたtrue/falseをそれぞれ正しく返す契約を追加。既存suiteはstring token、int64変換、double/monostate fallbackを確認するがbool variant分岐は未確認。
+
+- #698 DataTable::getFloat()がdouble範囲外となる指数形式文字列を変換失敗として扱いcaller fallbackを返す契約を追加。既存suiteは非数値文字列とnumeric-prefix後続文字を確認するが、`std::stod`のrange errorは未確認。
+
+- #699 artifactSort()が空・単一要素rangeを安全に処理し、単一要素でcomparatorを呼ばない境界契約を追加。既存suiteは複数要素のduplicate/sort方向を確認するが、要素数0/1は未確認。
+
+- #700 RandomStream::chance()が±infinity確率をfalse/trueへ決定し、0/1外の確定結果と同様に乱数stateを進めない契約を追加。既存suiteは有限の範囲外確率とNaNを確認するが、無限大は未確認。
+
+- #701 ImageAnalyzer::percentile()のp=0がhistogram内の最小占有binを返す契約を追加。現実装はtarget=0で空のbin 0を最初に選ぶため静的期待fail候補。実行未確認。
+
+
+- #702 CsvParserが引用フィールド内のCRLFをレコード区切りとして分割せず、CRとLFの両方をfield contentとして保持する契約を追加。既存suiteは引用フィールド内LFと引用外CR/CRLFレコード区切りを個別確認するが、引用内CRLFは未確認。
+
+- #703 mulSat()が符号付き乗算の`lowest * -1`と正負両方向のoverflowを飽和し、負数同士の通常積を保持する契約を追加。既存suiteは正のoverflow例のみ確認。
+
+- #704 saturateCast()がint64/uint64間の符号と上限境界を正しく飽和する契約を追加。既存suiteはsigned negativeからunsignedへのunderflowのみ確認。
+
+- #705 addSat/subSat/mulSatのunsigned型で加算overflow・減算underflow・乗算overflowを飽和し、範囲内計算を保持する契約を追加。既存suiteはsigned演算のみ確認。
+
+- #706 saturateCast()が狭いsigned/unsigned targetへの上限・下限変換をclampし、範囲内値を保持する契約を追加。既存suiteはunsigned charへの負値変換とint64/uint64境界のみ確認。
+
+- #707 saturateCast()のsame-sign narrowing（signed→signed、unsigned→unsigned）がtarget最小/最大を越える値をclampし、端点を保持する契約を追加。既存suiteは符号を跨ぐcastのみ確認。
+
+- #708 ArtifactFunctionRefが`int`戻りcallableを`double()` signatureでborrowし、呼び出し時に戻り値を変換する契約を追加。既存suiteは同型戻り値とreference returnを確認するが、戻り型変換は未確認。
+
+- #709 AbstractPropertyのInteger modulation結果が小数部分を最近接整数へ丸める契約を追加。既存のmodulation testはFloatの範囲clampを確認するが、Integer専用のrounding分岐は未確認。
