@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-25 11:35
+> Generated: 2026-10-25 11:38
 > Total documents: 1469
 
 ---
@@ -845,7 +845,7 @@
 | 244 | `docs/planned/MILESTONE_CORE_LAYER_SAFE_IMPLEMENTATIONS_2026-04-08.md` | ArtifactCore 層 安全実装リスト | 2026-08-15 | --- | 2026-08-16 | 6.8 KB | CORE, LAYER, SAFE, IMPLEMENTATIONS |
 | 245 | `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_2026-04-21.md` | マイルストーン: Core Module Hygiene / Build Stabilization | 2026-04-21 | --- | 2026-08-16 | 5.6 KB | CORE, MODULE, HYGIENE, BUILD, STABILIZATION |
 | 246 | `docs/planned/MILESTONE_CPP_HPP_ELIMINATION_2026-06-12.md` | マイルストーン: CPP/HPP 段階削減と Module 移行 | 2026-06-12 | --- | 2026-08-16 | 4.9 KB | CPP, HPP, ELIMINATION |
-| 247 | `docs/planned/MILESTONE_CPPM_IMPLEMENTATION_TO_CPP_CLANG_SCCACHE_2026-10-21.md` | マイルストーン: Module 実装単位の `.cppm` → `.cpp` 段階移行と Clang / sccache 対応 | 2026-10-25 | In Progress | 2026-10-25 | 582.2 KB | CPPM, IMPLEMENTATION, CPP, CLANG |
+| 247 | `docs/planned/MILESTONE_CPPM_IMPLEMENTATION_TO_CPP_CLANG_SCCACHE_2026-10-21.md` | マイルストーン: Module 実装単位の `.cppm` → `.cpp` 段階移行と Clang / sccache 対応 | 2026-10-25 | In Progress | 2026-10-25 | 582.8 KB | CPPM, IMPLEMENTATION, CPP, CLANG |
 | 248 | `docs/planned/MILESTONE_CRASH_DIAGNOSTICS_RECOVERY_2026-03-15.md` | M-DEV-1 Crash Diagnostics & Recovery (2026-03-15) | 2026-03-15 | --- | 2026-08-16 | 3.6 KB | CRASH, DIAGNOSTICS, RECOVERY |
 | 249 | `docs/planned/MILESTONE_CRASH_SAFE_SAVE_2026-06-16.md` | M-CRASH-1 Crash-safe Save Foundation Milestone | 2026-06-16 | --- | 2026-08-16 | 13.4 KB | CRASH, SAFE, SAVE |
 | 250 | `docs/planned/MILESTONE_CREATIVE_EFFECT_CPU_HLSL_DUAL_BACKEND_2026-03-25.md` | Creative Effect CPU/HLSL Dual Backend | 2026-08-15 | --- | 2026-08-16 | 6.3 KB | CREATIVE, EFFECT, CPU, HLSL, DUAL |
@@ -974,7 +974,7 @@
 | 373 | `docs/planned/MILESTONE_IMPLEMENTATION_PRIORITY_DEEP_AUDIT_2026-04-08.md` | 実装優先順位 ディープオーディットレポート | 2026-04-08 | 優先順位の基準を整理済み（実装完了を示すマイルストーンではない） | 2026-08-16 | 7.0 KB | IMPLEMENTATION, PRIORITY, DEEP, AUDIT |
 | 374 | `docs/planned/MILESTONE_IN_APP_LLM_INTEGRATION_2026-04-08.md` | MILESTONE: アプリ内 LLM 統合フェーズ1 | 2026-08-04 | 提案中 | 2026-08-06 | 3.6 KB | APP, LLM, INTEGRATION |
 | 375 | `docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md` | 独自ドッキングウィジェットマネージャ移行マイルストーン | 2026-10-16 | Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、外部再利用境界を整備中。runtime verification pending。floating lifecycle と backend switch pending | 2026-10-16 | 13.7 KB | INDEPENDENT, DOCK, MANAGER |
-| 376 | `docs/planned/MILESTONE_INDEPENDENT_FUNCTION_TESTS_2026-10-16.md` | 独立機能テスト拡充マイルストーン | 2026-10-25 | In Progress | 2026-10-16 | 51.9 KB | INDEPENDENT, FUNCTION, TESTS |
+| 376 | `docs/planned/MILESTONE_INDEPENDENT_FUNCTION_TESTS_2026-10-16.md` | 独立機能テスト拡充マイルストーン | 2026-10-25 | In Progress | 2026-10-16 | 57.8 KB | INDEPENDENT, FUNCTION, TESTS |
 | 377 | `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` | Inline Interaction Surfaces Milestone (2026-03-31) | 2026-03-31 | --- | 2026-08-16 | 6.6 KB | INLINE, INTERACTION, SURFACES |
 | 378 | `docs/planned/MILESTONE_INSPECTOR_PROPERTY_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Inspector / PropertyEditor 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-08-16 | 8.2 KB | INSPECTOR, PROPERTY, EDITOR, DESIGN, AUDIT |
 | 379 | `docs/planned/MILESTONE_INTEGRATED_RENDERING_ENGINE_2026-03-28.md` | マイルストーン: Integrated Rendering Engine | 2026-08-04 | --- | 2026-08-06 | 3.9 KB | INTEGRATED, RENDERING, ENGINE |
@@ -1417,7 +1417,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-25 | --- | 2026-10-25 | 314.0 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-25 | --- | 2026-10-25 | 312.4 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
