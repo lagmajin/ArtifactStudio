@@ -4073,6 +4073,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 - Migrated `Artifact.Widgets.CompositionLayerUndoCommands` to `.cpp` and updated `ArtifactSources.cmake`; command behavior and all nine imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans succeeded with identical nine-module requirement sets. Compilation, link, and interactive undo/redo remain unverified.
 - Migrated `Artifact.Widgets.CompositionOnionSkinHistory` to `.cpp` and updated `ArtifactSources.cmake`; its history/capture behavior and `QImage` boundary were left unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with the single requirement `Artifact.Render.IRenderer`. Object compilation, link, and viewport history runtime remain unverified.
 - Migrated `Artifact.Widgets.CompositionTextPuppetUndoCommands` to `.cpp` and updated `ArtifactSources.cmake`; text/puppet undo logic and all 10 imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with the same 10-module dependency set. Object compilation, link, and interactive puppet editing remain unverified.
+- Migrated `Artifact.Widgets.CompositionTrackerSessionUndoCommands` to `.cpp` and updated `ArtifactSources.cmake`; tracker/session command behavior and all five imports are unchanged. GNU-frontend Clang 22.1.3 and clang-cl P1689 scans both succeeded with identical five-module requirements. Compilation, target link, and tracker runtime remain unverified.
 
 
 ### Current-source GNU Clang scan follow-up (2026-10-25)
