@@ -13,7 +13,7 @@ set_target_properties(ArtifactVideoPreviewBench PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
 
-if(MSVC)
+if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(ArtifactVideoPreviewBench PRIVATE /Zf /Zc:__cplusplus /utf-8 /MP)
 endif()
 

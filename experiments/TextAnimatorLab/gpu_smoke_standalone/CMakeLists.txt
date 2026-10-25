@@ -35,7 +35,7 @@ target_compile_definitions(ArtifactRenderTextSmokeStandalone PRIVATE
     _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
 )
 
-if(MSVC)
+if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(ArtifactRenderTextSmokeStandalone PRIVATE
         /Zf /Zc:__cplusplus /utf-8 /openmp /wd5050 /permissive-
         "/ifcSearchDir${PREBUILT_ARTIFACT_IFC}"
