@@ -4133,3 +4133,7 @@ For all three, interface PCM compile, fresh P1689 dependency scan, and isolated 
 
 - Refreshed direct P1689 scans for `Artifact/src/AppMainEntry.cpp`, `ArtifactRenderQueueEncoder.cpp`, `ArtifactTextGlyphShaderSources.cpp`, and `ArtifactTextGlyphSubmitter.cpp` using the existing generated commands in both GNU-frontend Clang 22.1.3 and clang-cl trees. All eight scans emitted valid dependency records, and each source had identical `requires` names across frontends (1, 8, 1, and 4 requirements respectively). This confirms scanner acceptance and dependency discovery for current source; generated clang-cl target integration, dyndep materialization, object compilation, linking, and runtime remain unverified.
 - Refreshed the stale GNU `.ddi` evidence for `ArtifactPreviewLayerEffects.cpp` with direct P1689 scans in both frontends. Both emitted the same nine requirements. No configure, build, or tests were run.
+### GNU Clang stale scan refresh (2026-10-25)
+
+- Re-ran only the existing Ninja P1689 scanner commands for `Artifact/src/AppMainEntry.cpp` and `Artifact/src/Render/ArtifactRenderQueueEncoder.cpp`; both completed successfully against current source and refreshed their `.ddi` outputs. The dependency records contain one and eight module requirements respectively. This is scanner evidence only, not object compilation or linking.
+- The existing `x64-Debug-ClangCL-CMake444` Ninja metadata contains no command for either current source, so it cannot refresh those clang-cl records without CMake regeneration. No configure, build, or tests were run.
