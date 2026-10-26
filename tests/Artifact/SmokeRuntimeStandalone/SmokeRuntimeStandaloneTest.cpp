@@ -9260,6 +9260,49 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ProductionRuntimeMapsTemperatureToFireColor) {
+  Artifact::LayerFluidRuntimeState coldState;
+  Artifact::LayerFluidRuntimeState hotState;
+  Artifact::LayerSmokeRuntimeSettings coldSettings;
+  coldSettings.gridWidth = kGridWidth;
+  coldSettings.gridHeight = kGridHeight;
+  coldSettings.emitterX = 0.5f;
+  coldSettings.emitterY = 0.84f;
+  coldSettings.emitterRadius = 0.08f;
+  coldSettings.emitterDensity = 0.8f;
+  coldSettings.buoyancy = 0.0f;
+  auto hotSettings = coldSettings;
+  hotSettings.emitterTemperature = 5.0f;
+
+  for (int frame = 0; frame < 5; ++frame) {
+    Artifact::advanceLayerSmokeRuntime(
+        coldState, frame, 30.0, coldSettings);
+    Artifact::advanceLayerSmokeRuntime(
+        hotState, frame, 30.0, hotSettings);
+  }
+
+  QMatrix4x4 identity;
+  identity.setToIdentity();
+  const QRectF bounds(0.0, 0.0, 256.0, 256.0);
+  const auto& coldParticles = Artifact::prepareLayerSmokeRenderData(
+      coldState, bounds, identity, 1.0f, 4, coldSettings).particles;
+  const auto& hotParticles = Artifact::prepareLayerSmokeRenderData(
+      hotState, bounds, identity, 1.0f, 4, hotSettings).particles;
+  ASSERT_FALSE(coldParticles.empty());
+  ASSERT_FALSE(hotParticles.empty());
+
+  const auto meanChannel = [](const auto& particles, const auto channel) {
+    double sum = 0.0;
+    for (const auto& particle : particles) sum += particle.*channel;
+    return sum / static_cast<double>(particles.size());
+  };
+  EXPECT_GT(meanChannel(hotParticles, &ArtifactCore::ParticleVertex::r),
+            meanChannel(coldParticles, &ArtifactCore::ParticleVertex::r));
+  EXPECT_LT(meanChannel(hotParticles, &ArtifactCore::ParticleVertex::b),
+            meanChannel(coldParticles, &ArtifactCore::ParticleVertex::b));
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ComparesResolutionScaledThreeDimensionalSmoke) {
   using namespace ArtifactCore;
   using namespace ArtifactCore::RayTrace;
