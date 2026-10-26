@@ -1,5 +1,19 @@
 **最終更新:** 2026-10-26
 
+## 2026-10-27: 煙の解像度ドリフトは初期emitよりsolver進化に出る
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::SeparatesSmokeResolutionDriftByInjectionAndSolverStage`、`::MeasuresSmokeProjectionResolutionAndIterationConvergence`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::project`。
+- **確認できた事実:** 96×72 / 128×96 / 192×144のnormalized source injectionはmass 0.006045 / 0.006034 / 0.006031、重心Y 0.8406 / 0.8387 / 0.8369と近い。独立したsmooth normalized density/vortex fixtureの1-step輸送でもmass差は0.03%未満。一方、固定emit fieldへ適用したbuoyancy kickはdensity-weighted deltaVy約-0.0093で揃うが、production solverの1-step update後は+0.1114 / +0.08135 / +0.04869に変わる。これはvelocity projection/advectionの寄与を示唆するが、診断で測ったsigned vertical deltaとsolver内部演算の離散単位はまだ十分対応付いていない。
+- **価値または懸念:** 28-frame plumeのcentroid差をemitter kernelだけで説明できない可能性が高い。ただし現`project()`はscaled grid divergence、定数係数Jacobi pressure、grid幅・高さを掛けたgradient、反復境界条件を組み合わせている。単純な物理空間divergenceを前後比較した最初の試験はsolver内部のscaled divergenceと一致しないため、projectionを直す証拠にはならない。FluidSolver2Dはsmoke以外でも共有されるため、投影方式変更は液体などへ広く影響する。
+- **仮説（未検証）:** divergence operatorとpressure-gradient operatorを同じ非正方格子計量から導けば、解像度・aspect ratioによる速度応答の揺れが減る可能性がある。既存の係数は単位正方形格子用のStable Fluids discretizationと異なる可能性がある。
+- **次に確認すべきこと:** solver内部の離散divergence定義を再構成し、固定速度場をupdate中にproject前後でsnapshotできる専用Core probeまたはtest hookを用意する。正方形・非正方形gridの複数aspect ratioでmatched operator residual、速度場の発散とエネルギーを測り、Jacobi反復収束を確認する。成立すればFluidSolver2D共通影響のレビューと液体回帰実験を行ってからCoreへ反映する。
+
+## 2026-10-27: 煙vorticity係数のgrid scalingは解像度差を補正しない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresResolutionScalingForProductionVorticityConfinement`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::vorticityConfinement`。
+- **確認できた事実:** production runtimeを同じnormalized emitter条件・frame 28・8 solver iterations・2 swirl seedで96×72、128×96、192×144比較した。vorticity 0.1一定のcross-grid density RMSEは0.101570/0.107418、係数をgrid比で線形にした場合0.101824/0.107777、grid比二乗では0.102368/0.108514だった。係数増加はphysical gradient RMSを少し上げたが一致度は悪化した。キャプチャは全条件で滑らかな柱と上部の傘状capに留まり、折り畳まれたbillowは確認できなかった。
+- **価値または懸念:** grid resolutionに比例する係数補正を採用すると、設定値の意味を変えたうえ解像度間の形状整合性もわずかに損なう。したがって現時点では本番solverのvorticity設定へ係数スケーリングを追加する根拠はない。また解像度変更でcentroidとnormalized massが大きく変化するため、vorticity以外に注入カーネル・境界・輸送の離散化差がありそうだが、原因はまだ分離していない。
+- **仮説（未検証）:** injection kernelの正規化やvelocity/density advectionの境界条件を単独要因として切り分ければ、解像度間のプルーム形状差を縮められる可能性がある。
+- **次に確認すべきこと:** emitter injection直後、1 frame輸送後、28 frame後を別々に採取し、cell-area normalized density mass・centroid・profileを比較する。source injection、buoyancy、advection、vorticityを一要因ずつ無効化し、どの段で解像度依存性が発生するか独立harnessで特定してから形態改善を検討する。
+
 # Insight Register
 
 ## 2026-10-26: Gaussian particle kernel smooths plume grains but not its large-scale shape
