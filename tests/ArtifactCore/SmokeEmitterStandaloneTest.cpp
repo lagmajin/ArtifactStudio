@@ -1049,6 +1049,206 @@ TEST(SmokeEmitterStandaloneTest,
 }
 
 TEST(SmokeEmitterStandaloneTest,
+     MeasuresFixedVelocityScalarDiffusionAcrossSubstepCounts) {
+  constexpr int gridWidth = 72;
+  constexpr int gridHeight = 88;
+  constexpr int totalFrames = 60;
+  constexpr float frameDt = 1.0f / 30.0f;
+  constexpr int imageScale = 4;
+  constexpr int cellWidth = gridWidth * imageScale;
+  constexpr int cellHeight = gridHeight * imageScale;
+  constexpr std::array<int, 4> captureFrames{12, 24, 36, 60};
+  constexpr std::array<int, 4> substepCounts{1, 2, 4, 8};
+  const auto index = [](const int x, const int y) {
+    return static_cast<std::size_t>(x + y * gridWidth);
+  };
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_OUTPUT_DIR");
+  ASSERT_FALSE(outputDirectory.isEmpty())
+      << "Set ARTIFACT_SMOKE_OUTPUT_DIR to an absolute output directory";
+  ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+
+  ArtifactCore::NamedVector<float> velocityX;
+  ArtifactCore::NamedVector<float> velocityY;
+  ArtifactCore::NamedVector<float> streamFunction;
+  const std::size_t cellCount =
+      static_cast<std::size_t>(gridWidth * gridHeight);
+  velocityX.resize(cellCount);
+  velocityY.resize(cellCount);
+  streamFunction.resize(cellCount);
+  std::fill(velocityX.begin(), velocityX.end(), 0.0f);
+  std::fill(velocityY.begin(), velocityY.end(), 0.0f);
+  std::fill(streamFunction.begin(), streamFunction.end(), 0.0f);
+  constexpr float kPi = 3.14159265358979323846f;
+  constexpr float streamAmplitude = 28.0f;
+  for (int y = 0; y < gridHeight; ++y) {
+    for (int x = 0; x < gridWidth; ++x) {
+      const float sx = std::sin(kPi * static_cast<float>(x) /
+                                static_cast<float>(gridWidth - 1));
+      const float sy = std::sin(kPi * static_cast<float>(y) /
+                                static_cast<float>(gridHeight - 1));
+      streamFunction[index(x, y)] =
+          streamAmplitude * sx * sx * sy * sy;
+    }
+  }
+  for (int y = 0; y < gridHeight; ++y) {
+    for (int x = 0; x < gridWidth; ++x) {
+      const int x0 = std::max(0, x - 1);
+      const int x1 = std::min(gridWidth - 1, x + 1);
+      const int y0 = std::max(0, y - 1);
+      const int y1 = std::min(gridHeight - 1, y + 1);
+      velocityX[index(x, y)] = 0.5f * (
+          streamFunction[index(x, y1)] - streamFunction[index(x, y0)]);
+      velocityY[index(x, y)] = -0.5f * (
+          streamFunction[index(x1, y)] - streamFunction[index(x0, y)]);
+    }
+  }
+  double maximumFrameCfl = 0.0;
+  for (std::size_t cell = 0; cell < cellCount; ++cell) {
+    maximumFrameCfl = std::max(maximumFrameCfl, std::hypot(
+        static_cast<double>(velocityX[cell]) * frameDt * (gridWidth - 2),
+        static_cast<double>(velocityY[cell]) * frameDt * (gridHeight - 2)));
+  }
+
+  const auto sampleBilinear = [&](const ArtifactCore::NamedVector<float>& field,
+                                  float x, float y) {
+    x = std::clamp(x, 0.5f, static_cast<float>(gridWidth) - 1.5f);
+    y = std::clamp(y, 0.5f, static_cast<float>(gridHeight) - 1.5f);
+    const int x0 = static_cast<int>(std::floor(x));
+    const int y0 = static_cast<int>(std::floor(y));
+    const int x1 = std::min(x0 + 1, gridWidth - 1);
+    const int y1 = std::min(y0 + 1, gridHeight - 1);
+    const float tx = x - static_cast<float>(x0);
+    const float ty = y - static_cast<float>(y0);
+    return std::lerp(
+        std::lerp(field[index(x0, y0)], field[index(x1, y0)], tx),
+        std::lerp(field[index(x0, y1)], field[index(x1, y1)], tx), ty);
+  };
+  for (int seedIndex = 0; seedIndex < 2; ++seedIndex) {
+    const int seed = seedIndex == 0 ? 17 : 71;
+    const float sourceX = seedIndex == 0 ? 0.40f : 0.60f;
+    QImage contact(cellWidth * 4, cellHeight * 4, QImage::Format_ARGB32);
+    contact.fill(qRgba(8, 12, 18, 255));
+    std::array<std::array<double, 4>, 4> masses{};
+    std::array<std::array<double, 4>, 4> gradients{};
+    std::array<std::array<double, 4>, 4> peaks{};
+
+    for (std::size_t condition = 0; condition < substepCounts.size(); ++condition) {
+      const int substeps = substepCounts[condition];
+      ArtifactCore::NamedVector<float> density;
+      ArtifactCore::NamedVector<float> next;
+      density.resize(cellCount);
+      next.resize(cellCount);
+      const float centerX = sourceX * static_cast<float>(gridWidth - 2) + 1.0f;
+      const float centerY = 0.79f * static_cast<float>(gridHeight - 2) + 1.0f;
+      for (int y = 0; y < gridHeight; ++y) {
+        for (int x = 0; x < gridWidth; ++x) {
+          const float dx = (static_cast<float>(x) - centerX) / 5.0f;
+          const float dy = (static_cast<float>(y) - centerY) / 7.0f;
+          density[index(x, y)] = std::exp(-0.5f * (dx * dx + dy * dy));
+        }
+      }
+
+      int captureIndex = 0;
+      const float substepDt = frameDt / static_cast<float>(substeps);
+      for (int frame = 1; frame <= totalFrames; ++frame) {
+        for (int substep = 0; substep < substeps; ++substep) {
+          for (int y = 1; y < gridHeight - 1; ++y) {
+            for (int x = 1; x < gridWidth - 1; ++x) {
+              const auto cell = index(x, y);
+              const float backX = static_cast<float>(x) -
+                  velocityX[cell] * substepDt * (gridWidth - 2);
+              const float backY = static_cast<float>(y) -
+                  velocityY[cell] * substepDt * (gridHeight - 2);
+              next[cell] = sampleBilinear(density, backX, backY);
+            }
+          }
+          for (int x = 0; x < gridWidth; ++x) {
+            next[index(x, 0)] = next[index(x, 1)];
+            next[index(x, gridHeight - 1)] =
+                next[index(x, gridHeight - 2)];
+          }
+          for (int y = 0; y < gridHeight; ++y) {
+            next[index(0, y)] = next[index(1, y)];
+            next[index(gridWidth - 1, y)] =
+                next[index(gridWidth - 2, y)];
+          }
+          std::copy(next.begin(), next.end(), density.begin());
+        }
+
+        if (captureIndex >= static_cast<int>(captureFrames.size()) ||
+            frame != captureFrames[static_cast<std::size_t>(captureIndex)]) {
+          continue;
+        }
+        double mass = 0.0;
+        double gradientSquared = 0.0;
+        float peak = 0.0f;
+        for (int y = 1; y < gridHeight - 1; ++y) {
+          for (int x = 1; x < gridWidth - 1; ++x) {
+            const float value = density[index(x, y)];
+            mass += std::max(0.0f, value);
+            peak = std::max(peak, value);
+            const double gx = 0.5 * (density[index(x + 1, y)] -
+                                     density[index(x - 1, y)]);
+            const double gy = 0.5 * (density[index(x, y + 1)] -
+                                     density[index(x, y - 1)]);
+            gradientSquared += gx * gx + gy * gy;
+          }
+        }
+        const double interiorCells =
+            static_cast<double>((gridWidth - 2) * (gridHeight - 2));
+        masses[condition][static_cast<std::size_t>(captureIndex)] = mass;
+        gradients[condition][static_cast<std::size_t>(captureIndex)] =
+            std::sqrt(gradientSquared / interiorCells);
+        peaks[condition][static_cast<std::size_t>(captureIndex)] = peak;
+        QImage sample(cellWidth, cellHeight, QImage::Format_ARGB32);
+        sample.fill(qRgba(8, 12, 18, 255));
+        for (int y = 1; y < gridHeight - 1; ++y) {
+          auto* row = reinterpret_cast<QRgb*>(
+              sample.scanLine(y * imageScale));
+          for (int x = 1; x < gridWidth - 1; ++x) {
+            const float value = peak > 0.0f ? density[index(x, y)] / peak : 0.0f;
+            const int intensity = static_cast<int>(std::lround(
+                std::clamp(value, 0.0f, 1.0f) * 220.0f));
+            const QRgb pixel = qRgba(8, 12 + intensity, 18, 255);
+            for (int oy = 0; oy < imageScale; ++oy) {
+              auto* dst = reinterpret_cast<QRgb*>(
+                  sample.scanLine(y * imageScale + oy)) + x * imageScale;
+              std::fill(dst, dst + imageScale, pixel);
+            }
+          }
+        }
+        const int offsetX = captureIndex * cellWidth;
+        const int offsetY = static_cast<int>(condition) * cellHeight;
+        for (int y = 0; y < cellHeight; ++y) {
+          auto* dst = reinterpret_cast<QRgb*>(
+              contact.scanLine(offsetY + y)) + offsetX;
+          const auto* src = reinterpret_cast<const QRgb*>(sample.constScanLine(y));
+          std::copy(src, src + cellWidth, dst);
+        }
+        ++captureIndex;
+      }
+      ASSERT_EQ(captureIndex, static_cast<int>(captureFrames.size()));
+    }
+
+    for (std::size_t condition = 0; condition < substepCounts.size(); ++condition) {
+      for (std::size_t capture = 0; capture < captureFrames.size(); ++capture) {
+        GTEST_LOG_(INFO) << "fixed scalar substeps seed=" << seed
+            << " count=" << substepCounts[condition]
+            << " frame=" << captureFrames[capture]
+            << " mass=" << masses[condition][capture]
+            << " gradientRms=" << gradients[condition][capture]
+            << " peak=" << peaks[condition][capture]
+            << " maxFrameCflCells=" << maximumFrameCfl;
+      }
+    }
+    const QString path = QDir(outputDirectory).filePath(
+        QStringLiteral("fixed_velocity_scalar_substeps_seed_%1.png").arg(seed));
+    ASSERT_TRUE(contact.save(path, "PNG")) << path.toStdString();
+  }
+}
+
+TEST(SmokeEmitterStandaloneTest,
      TemperatureMaskedCurlNoiseAddsDivergenceFreeVelocity) {
   constexpr int width = 80;
   constexpr int height = 64;

@@ -7273,6 +7273,13 @@
 - **仮説（未検証）:** 高CFL由来の誤差と繰返しprojection/diffusionの影響を分けるには、同じframe速度場を凍結したpassive-scalar移流比較と、動的velocityの全solver substep比較を別々に保つ必要がある。Houdini PyroはCFLを用いてtrajectory tracingを分割し、別機能として低周波Turbulence・高周波Disturbance/Shreddingを公開しているため、Artifact側でもCFL移流と形状forceの効果を混同しないのが妥当。[SideFX Pyro Solver (Sparse)](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html)
 - **次に確認すべきこと:** fixed velocity fieldで1/2/4/8 substepのdensity-only輸送を比較し、mass・extrema・gradient保持を測って時間積分とsolver feedbackを切り分ける。その結果が安定して改善する場合だけdynamic solverとGPU renderで再評価する。
 
+## 2026-10-27: 固定velocity場での2D scalar substep数と巻き込み
+- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarDiffusionAcrossSubstepCounts`。解析的streamfunctionから作った同じ2D velocity fieldで、Gaussian scalarだけを60 frames移流。
+- **確認できた事実:** 72×88 grid、2秒、最大CFL 3.55 cells/frame、substeps 1/2/4/8、source positionに相当する初期scalar位置2条件を比較。frame60で1→8 substepsによりdensity-gradient RMSはseed17 .02587→.00951、seed71 .02682→.00992へ低下し、massは223.78→219.73 / 228.79→218.48。contact sheetでは8分割のscalarが一定方向へより長く巻き込まれるが、かなり薄く広がる。独立Core target rebuild成功、focused test 1/1 pass。出力 `build/smoke-emitter-rnd/captures/fixed-scalar-substeps-rnd/`、log `build/smoke-emitter-rnd/fixed-scalar-substeps-rnd.log`。
+- **価値または懸念:** fixed flowでもsubstep数はsimple semi-Lagrangianの反復補間回数を増やし、渦への追従を改善する一方で細部・peak密度を強く落とす。dynamic solverのsubstep sweepで見えた密度低下の一部はdensity transport由来と整合するが、pressure/vorticity/diffusion feedbackの寄与はこのscalar-only fixtureでは判定できない。単一Gaussianの巻き込みは確認できてもsmokeのmulti-scale billowの証明ではない。
+- **仮説（未検証）:** low-CFL substepとlimited conservative flux transportを合わせると、渦形状を追いながら密度を保持できる可能性がある。先行するMUSCL replayではmassが保たれる一方、細く明るいstreakへ偏ったため、単に輸送法を変えるだけではplume volumeの見え方を保てない。
+- **次に確認すべきこと:** 同一固定velocity場・同一substep数でsemi-Lagrangianとlimited MUSCLを露出・mass-matched比較した後、source-coupled runtime velocity historyへ戻してdensity support / peak / silhouette / temporal coherenceを測る。production Coreの移流演算子はその前に変えない。
+
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
 - **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。
