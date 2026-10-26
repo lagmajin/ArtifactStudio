@@ -7032,3 +7032,11 @@
 - **仮説（未検証）:** 密度界面を横切るだけの局所curlでは巻き込みが維持されず、渦の寿命と密度界面の変形を結びつける時間発展（同一渦の移流・伸長・合体）が必要かもしれない。
 - **次に確認すべきこと:** 同じ3D source/seedで時間相関を短/中/長に変え、各frameの密度界面曲率・渦度軸整列・front/side/topの連続画像を測る。瞬間的な細かさではなく、連続した巻き帯の形成を判定基準にする。
 - **再検証:** `ArtifactCorePyroVolumeSmokeTest.ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` build + focused test pass (26 conditions, 8.62s)。
+
+## 2026-10-26: 3D curl disturbanceの時間周波数を上げても渦構造は見えず、発散だけが一部低下
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` / `applyMatchedCurlTurbulenceOrShredding()`。
+- **確認できた事実:** 前回の空間波長scale .75/1/2と速度変更fraction .05/.15を維持し、vector-potential phase速度を.5/1/2倍に追加sweep。合計74条件（2 seed）pass (24.45秒)。同じ空間波長scale1・fraction .15の速度保持shreddingで、time scale .5/1/2のdensity massはseed17 111.168/111.062/110.941、seed71 111.338/111.295/111.303。high-frequency RMSはseed17 .004100/.004080/.003995、seed71 .003960/.004004/.003983。隣接frame density cosineはseed17 .997646/.997651/.997646、seed71 .997921/.997926/.997889でほぼ同じ。divergence RMSはseed17 .00761/.00696/.00673、seed71 .01090/.00948/.00703と高frequency側で低下したが、画像はfront/side/topいずれも滑らかなpuffのままでfolded billowはなし。curl injectionも一貫したquality gainを示さない。capturesは `build/smoke-pyro-volume-rnd/captures/wavelength-time-sweep-rnd/`。
+- **価値または懸念:** 時間周波数を変えても本fixtureで煙の視覚構造は変わらず、発散の低下はbillow形成の指標にならない。より頻繁な位相変化は別seedでhigh-frequency RMSをわずかに上下させるが、massやframe coherenceを改善しない。
+- **仮説（未検証）:** 局所curlを速度へ継ぎ足すだけでなく、渦の輸送に合わせて渦度方向が伸長・回転し、密度の巻き帯を長く維持する必要がある可能性がある。
+- **次に確認すべきこと:** 上昇plume中の局所渦度ベクトルとdensity-gradientを時系列で追跡し、渦軸整列と界面曲率を計測する。連続した巻き帯が出ない条件では空間／時間noise parameter sweepを終了し、3D renderer・simulation couplingの不足を別評価する。
+- **再検証:** Pyro standalone target rebuild succeeded; 74-condition focused GTest passed (24.45s); front/side/top representative captures inspected。
