@@ -7285,6 +7285,212 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesSmokeFireAndCombinedLooksFromTheSamePyroEmitter) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+  PyroDomain domain;
+  domain.min = {-0.625f, 0.0f, -0.625f};
+  domain.max = {0.625f, 1.75f, 0.625f};
+  domain.voxelSize = 0.03125f;
+  domain.fixedTimeStep = 1.0 / 60.0;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 64u * 1024u * 1024u;
+  PyroSimulationSettings simulationSettings;
+  simulationSettings.dissipation = 0.035f;
+  simulationSettings.coolingRate = 0.12f;
+  simulationSettings.buoyancy = 0.45f;
+  simulationSettings.vorticity = 0.65f;
+  simulationSettings.pressureIterations = 12.0f;
+  PyroSimulation simulation(domain);
+  simulation.setSettings(simulationSettings);
+  PyroSourceState source;
+  source.position = {0.0f, 0.20f, 0.0f};
+  source.extent = {0.15f, 0.12f, 0.15f};
+  source.velocity = {0.0f, 120.0f, 0.0f};
+  source.density = 0.5f;
+  source.temperature = 4.5f;
+  source.fuel = 5.5f;
+  for (int step = 0; step < 120; ++step) {
+    simulation.setSources(std::span<const PyroSourceState>(&source, 1));
+    simulation.step(1.0 / 60.0);
+  }
+
+  const auto resolution3d = domain.resolution();
+  const VolumeResolution resolution{resolution3d.width, resolution3d.height,
+      resolution3d.depth};
+  auto& density = simulation.fields().densityStorage();
+  auto& temperature = simulation.fields().temperatureStorage();
+  auto& fuel = simulation.fields().fuelStorage();
+  ASSERT_EQ(density.size(), resolution.cellCount());
+  ASSERT_EQ(temperature.size(), resolution.cellCount());
+  ASSERT_EQ(fuel.size(), resolution.cellCount());
+  const double densityMass = std::accumulate(density.begin(), density.end(), 0.0);
+  const double temperatureMass = std::accumulate(
+      temperature.begin(), temperature.end(), 0.0);
+  const double fuelMass = std::accumulate(fuel.begin(), fuel.end(), 0.0);
+  const float maxDensity = *std::max_element(density.begin(), density.end());
+  const auto maxDensityCell = static_cast<std::size_t>(
+      std::distance(density.begin(), std::max_element(
+          density.begin(), density.end())));
+  const int maxDensityX = static_cast<int>(maxDensityCell % resolution.width);
+  const int maxDensityY = static_cast<int>(
+      (maxDensityCell / resolution.width) % resolution.height);
+  const int maxDensityZ = static_cast<int>(
+      maxDensityCell / (resolution.width * resolution.height));
+  const float maxTemperature = *std::max_element(
+      temperature.begin(), temperature.end());
+  const float maxFuel = *std::max_element(fuel.begin(), fuel.end());
+  ASSERT_GT(densityMass, 0.0);
+  ASSERT_GT(temperatureMass, 0.0);
+  ASSERT_GT(fuelMass, 0.0);
+
+  TransferFunction combined;
+  combined.kind = TransferFunctionKind::Custom;
+  const auto smokeTransfer = TransferFunction::makeSmoke();
+  const auto fireTransfer = TransferFunction::makeFire();
+  combined.customCallback = [smokeTransfer, fireTransfer](
+      const float d, const float t) {
+    const auto smoke = smokeTransfer.evaluate(d, t);
+    const auto fire = fireTransfer.evaluate(d, t);
+    const float heatGate = std::clamp((t - 0.12f) / 0.45f, 0.0f, 1.0f);
+    constexpr float smokeWeight = 0.8f;
+    constexpr float flameWeight = 0.8f;
+    return TransferFunctionSample{
+        d,
+        {smoke.emission.x * smokeWeight + fire.emission.x * flameWeight * heatGate,
+         smoke.emission.y * smokeWeight + fire.emission.y * flameWeight * heatGate,
+         smoke.emission.z * smokeWeight + fire.emission.z * flameWeight * heatGate},
+        smoke.absorption + fire.absorption * heatGate * 0.25f};
+  };
+
+  const auto render = [&](TransferFunction transfer, const bool sideView) {
+    CPUVolumeRenderer renderer;
+    VolumeAABB bounds;
+    bounds.min = {domain.min.x, domain.min.y, domain.min.z};
+    bounds.max = {domain.max.x, domain.max.y, domain.max.z};
+    VolumeFieldSet fields;
+    fields.density = {density.data(), resolution};
+    fields.temperature = {temperature.data(), resolution};
+    renderer.setVolumeData(bounds, fields);
+    renderer.setTransferFunction(transfer);
+    renderer.settings.stepSize = 0.022f;
+    renderer.settings.maxSteps = 128;
+    renderer.settings.densityScale = 7.2f;
+    renderer.settings.useTemperatureEmission = true;
+    renderer.settings.backgroundColor = {0.004f, 0.006f, 0.01f};
+    renderer.settings.lightIntensity = 0.0f;
+    renderer.settings.shadowIntensity = 0.0f;
+    renderer.settings.multipleScatteringStrength = 0.0f;
+    const Point3 lookAt{0.0f, 0.78f, 0.0f};
+    const Point3 lookFrom = sideView ? Point3{2.9f, 0.78f, 0.0f}
+                                     : Point3{0.0f, 0.78f, 2.9f};
+    // Camera rays are not normalized; a unit focus distance keeps this
+    // renderer's ray-parameter step close to world-space voxel scale.
+    renderer.camera = Camera(1.0f, 36.0f, 1.0f, 0.0f,
+        lookFrom, lookAt, {0.0f, 1.0f, 0.0f});
+    return renderer.render(96, 128);
+  };
+  struct RenderStats final {
+    double lumaSum = 0.0;
+    double warmth = 0.0;
+    std::size_t visible = 0;
+    double maxLuma = 0.0;
+  };
+  const auto measure = [](const ImageBuffer& image) {
+    RenderStats result;
+    double totalRgb = 0.0;
+    double redMinusBlue = 0.0;
+    for (int y = 0; y < image.height; ++y)
+      for (int x = 0; x < image.width; ++x) {
+        const auto offset = static_cast<std::size_t>((y * image.width + x) * 3);
+        const double r = image.pixels[offset];
+        const double g = image.pixels[offset + 1];
+        const double b = image.pixels[offset + 2];
+        const double luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        result.lumaSum += luma;
+        totalRgb += r + g + b;
+        redMinusBlue += r - b;
+        result.maxLuma = std::max(result.maxLuma, luma);
+        if (luma > 12.0) ++result.visible;
+      }
+    result.warmth = totalRgb > 0.0
+        ? std::max(0.0, redMinusBlue) / totalRgb : 0.0;
+    return result;
+  };
+  const auto smokeFront = render(TransferFunction::makeSmoke(), false);
+  const auto fireFront = render(TransferFunction::makeFire(), false);
+  const auto combinedFront = render(combined, false);
+  const auto smokeSide = render(TransferFunction::makeSmoke(), true);
+  const auto fireSide = render(TransferFunction::makeFire(), true);
+  const auto combinedSide = render(combined, true);
+  const auto smokeStats = measure(smokeFront);
+  const auto fireStats = measure(fireFront);
+  const auto combinedStats = measure(combinedFront);
+  const auto scaleExposure = [](const ImageBuffer& source,
+                                const double targetLuma,
+                                const double sourceLuma) {
+    ImageBuffer matched = source;
+    const double scale = targetLuma / std::max(sourceLuma, 1.0e-9);
+    for (auto& channel : matched.pixels) {
+      channel = static_cast<std::uint8_t>(std::clamp(
+          std::lround(channel * scale), 0l, 255l));
+    }
+    return matched;
+  };
+  const auto fireMatched = scaleExposure(
+      fireFront, smokeStats.lumaSum, fireStats.lumaSum);
+  const auto combinedMatched = scaleExposure(
+      combinedFront, smokeStats.lumaSum, combinedStats.lumaSum);
+  const auto fireMatchedStats = measure(fireMatched);
+  const auto combinedMatchedStats = measure(combinedMatched);
+  GTEST_LOG_(INFO) << "same Pyro emitter smoke/fire/mixed density-temp-fuel mass="
+      << densityMass << '/' << temperatureMass << '/' << fuelMass
+      << " max=" << maxDensity << '/' << maxTemperature << '/' << maxFuel
+      << " maxCell=" << maxDensityX << ',' << maxDensityY << ','
+      << maxDensityZ
+      << " front luma/visible/warmth=" << smokeStats.lumaSum << '/'
+      << smokeStats.visible << '/' << smokeStats.warmth << ';'
+      << fireStats.lumaSum << '/' << fireStats.visible << '/'
+      << fireStats.warmth << ';' << combinedStats.lumaSum << '/'
+      << combinedStats.visible << '/' << combinedStats.warmth
+      << " maxLuma=" << smokeStats.maxLuma << '/' << fireStats.maxLuma
+      << '/' << combinedStats.maxLuma << " matchedExposureScale="
+      << smokeStats.lumaSum / fireStats.lumaSum << '/'
+      << smokeStats.lumaSum / combinedStats.lumaSum
+      << " matchedVisible=" << smokeStats.visible << '/'
+      << fireMatchedStats.visible << '/' << combinedMatchedStats.visible;
+
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory));
+    const std::array<std::pair<const char*, const ImageBuffer*>, 8> captures{{
+        {"pyro_smoke_front.png", &smokeFront},
+        {"pyro_fire_front.png", &fireFront},
+        {"pyro_smoke_fire_front.png", &combinedFront},
+        {"pyro_smoke_side.png", &smokeSide},
+        {"pyro_fire_side.png", &fireSide},
+        {"pyro_smoke_fire_side.png", &combinedSide},
+        {"pyro_fire_front_exposure_matched.png", &fireMatched},
+        {"pyro_smoke_fire_front_exposure_matched.png", &combinedMatched}}};
+    for (const auto& [name, buffer] : captures) {
+      QImage image(buffer->width, buffer->height, QImage::Format_RGB888);
+      for (int y = 0; y < buffer->height; ++y)
+        std::copy_n(buffer->pixels.data() +
+            static_cast<std::size_t>(y * buffer->width * 3),
+            buffer->width * 3, image.scanLine(y));
+      ASSERT_TRUE(image.save(QDir(outputDirectory).filePath(
+          QString::fromLatin1(name)), "PNG"));
+    }
+  }
+  EXPECT_GT(smokeStats.visible, 0u);
+  EXPECT_GT(fireStats.visible, 0u);
+  EXPECT_GT(combinedStats.visible, 0u);
+  EXPECT_GT(fireStats.warmth, smokeStats.warmth);
+  EXPECT_GT(combinedStats.warmth, smokeStats.warmth);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ComparesFixedDensityOpticalDepthAndDirectionalSelfShadowRendering) {
   constexpr int width = kGridWidth;
   constexpr int height = kGridHeight;
