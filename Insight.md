@@ -2,6 +2,13 @@
 
 # Insight Register
 
+## 2026-10-26: D3D12 velocity-aligned sprite stretch smooths grain but does not form billows
+- **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`、`ArtifactCore/src/Graphics/ParticleRenderer.cpp` のVelocityAligned billboard。
+- **確認できた事実:** 同じproduction frame 44の40×40粒子列をRTX 4070 Ti / D3D12 / 768×576で描き、green exposureを一致させた。通常版のhigh-pass RMS .001723に対し、粒子stretch 1.5x/2xは.004608/.003851。露出合わせalphaScaleは.453/.304。画像では円形spriteの継ぎ目が弱まる一方、細く直線的な煙柱になり、巻き上がるbillowは生じない。Focused GTest 1/1 pass、captures `build/smoke-runtime-rnd/captures/diligent-flow-stretch-corrected-rnd/`。
+- **価値または懸念:** velocity方向へ見た目の長軸を合わせるtest-only角度補正を使った。伸長で高周波指標は上がるが、粒子輪郭自体も指標に含むため画質向上とは言い切れない。既存の `VelocityAlignedBillboardFollowsViewSpaceVelocity` 契約は現状と異なる軸向きを期待するので、この比較だけを理由にCore挙動を変更しない。
+- **仮説（未検証）:** production 2D煙をDCC風に近づける主要課題はspriteの縁の滑らかさより、速度場に沿って時間持続する渦度・密度の大域的roll構造である。
+- **次に確認すべきこと:** stretchはproductionへ採用せず、複数seed・連続frameの独立流体試験で渦構造の移流持続と密度形状を評価する。伸長を再検討する場合は方向契約と複数frameのGPUキャプチャを同時に更新する。
+
 ## 2026-10-25: IdMap standalone suite called a nonexistent erase API
 - **関連:** `tests/ArtifactCore/IdMapStandaloneTest.cpp`, `ArtifactCore/include/Container/IdMap.ixx`
 - **確認できた事実:** The standalone test had `EraseReturnsNumberOfRemovedEntries` calling `IdMap::erase()`, but the current public `IdMap` interface has no `erase()` member. The suite already has separate `remove()` success and missing-key tests, so the invalid test was removed instead of changing the product API.

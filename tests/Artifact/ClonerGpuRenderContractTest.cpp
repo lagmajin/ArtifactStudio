@@ -1271,17 +1271,31 @@ TEST(ClonerGpuRenderContractTest,
         double alphaScale = 1.0;
         ArtifactCore::ImageF32x4_RGBA image;
     };
-    std::array<Variant, 3> variants{{
+    std::array<Variant, 5> variants{{
         {"current-40x40", productionData},
         {"resample-64x48", makeStream(64, 48)},
         {"resample-96x72", makeStream(96, 72)},
+        {"flow-stretch-1p5-40x40", productionData},
+        {"flow-stretch-2x-40x40", productionData},
     }};
-    for (auto& particle : variants[0].data.particles) {
-        particle.px *= static_cast<float>(scale);
-        particle.py *= static_cast<float>(scale);
-        particle.ppx *= static_cast<float>(scale);
-        particle.ppy *= static_cast<float>(scale);
-        particle.size *= static_cast<float>(scale);
+    for (std::size_t index = 0; index < variants.size(); ++index) {
+        if (index == 1 || index == 2) continue;
+        for (auto& particle : variants[index].data.particles) {
+            particle.px *= static_cast<float>(scale);
+            particle.py *= static_cast<float>(scale);
+            particle.ppx *= static_cast<float>(scale);
+            particle.ppy *= static_cast<float>(scale);
+            particle.size *= static_cast<float>(scale);
+        }
+    }
+    for (auto& variant : {&variants[3], &variants[4]}) {
+        variant->data.options.billboard =
+            ArtifactCore::ParticleBillboardPolicy::VelocityAligned;
+        const float stretch = variant == &variants[3] ? 1.5f : 2.0f;
+        for (auto& particle : variant->data.particles) {
+            particle.stretch = stretch;
+            particle.rotation = 90.0f;
+        }
     }
 
     ArtifactTest::HeadlessRenderer renderer;
