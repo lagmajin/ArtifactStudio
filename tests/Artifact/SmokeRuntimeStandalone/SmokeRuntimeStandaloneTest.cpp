@@ -7382,14 +7382,39 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         smoke.absorption + fire.absorption * heatGate * 0.25f};
   };
 
-  const auto render = [&](TransferFunction transfer, const bool sideView) {
+  const auto render = [&](const PyroSimulation& fieldSimulation,
+                          TransferFunction transfer, const bool sideView,
+                          const bool includeTemperature,
+                          const bool useFuelGate = false) {
     CPUVolumeRenderer renderer;
     VolumeAABB bounds;
     bounds.min = {domain.min.x, domain.min.y, domain.min.z};
     bounds.max = {domain.max.x, domain.max.y, domain.max.z};
+    const auto& densityStorage = fieldSimulation.fields().densityStorage();
+    const auto& temperatureStorage =
+        fieldSimulation.fields().temperatureStorage();
+    const auto& fuelStorage = fieldSimulation.fields().fuelStorage();
+    std::vector<float> gatedDensity;
+    std::vector<float> gatedTemperature;
+    if (useFuelGate) {
+      gatedDensity.resize(densityStorage.size());
+      gatedTemperature.resize(temperatureStorage.size());
+      for (std::size_t index = 0; index < densityStorage.size(); ++index) {
+        const float gate = std::clamp(fuelStorage[index] * 2.0f, 0.0f, 1.0f);
+        gatedDensity[index] = densityStorage[index] * gate;
+        gatedTemperature[index] = temperatureStorage[index] * gate;
+      }
+    }
     VolumeFieldSet fields;
-    fields.density = {density.data(), resolution};
-    fields.temperature = {temperature.data(), resolution};
+    fields.density = {useFuelGate ? gatedDensity.data()
+        : const_cast<float*>(densityStorage.data()), resolution};
+    if (includeTemperature || useFuelGate) {
+      fields.temperature = {const_cast<float*>(
+          useFuelGate ? gatedTemperature.data() : temperatureStorage.data()),
+          resolution};
+    }
+    fields.fuel = {const_cast<float*>(
+        fuelStorage.data()), resolution};
     renderer.setVolumeData(bounds, fields);
     renderer.setTransferFunction(transfer);
     renderer.settings.stepSize = 0.022f;
@@ -7436,15 +7461,44 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         ? std::max(0.0, redMinusBlue) / totalRgb : 0.0;
     return result;
   };
-  const auto smokeFront = render(TransferFunction::makeSmoke(), false);
-  const auto fireFront = render(TransferFunction::makeFire(), false);
-  const auto combinedFront = render(combined, false);
-  const auto smokeSide = render(TransferFunction::makeSmoke(), true);
-  const auto fireSide = render(TransferFunction::makeFire(), true);
-  const auto combinedSide = render(combined, true);
+  const auto meanAbsoluteRgbDifference = [](
+      const ImageBuffer& lhs, const ImageBuffer& rhs) {
+    if (lhs.width != rhs.width || lhs.height != rhs.height ||
+        lhs.pixels.size() != rhs.pixels.size() || lhs.pixels.empty())
+      return 0.0;
+    double sum = 0.0;
+    for (std::size_t index = 0; index < lhs.pixels.size(); ++index)
+      sum += std::abs(static_cast<int>(lhs.pixels[index]) -
+          static_cast<int>(rhs.pixels[index]));
+    return sum / (255.0 * static_cast<double>(lhs.pixels.size()));
+  };
+  const auto smokeFront = render(
+      simulation, TransferFunction::makeSmoke(), false, true);
+  const auto fireFront = render(
+      simulation, TransferFunction::makeFire(), false, true);
+  const auto fireDensityOnlyFront = render(
+      simulation, TransferFunction::makeFire(), false, false);
+  const auto fuelGatedFireFront = render(
+      simulation, TransferFunction::makeFire(), false, true, true);
+  const auto noFuelFireFront = render(
+      noFuelControl, TransferFunction::makeFire(), false, true);
+  const auto noFuelFuelGatedFireFront = render(
+      noFuelControl, TransferFunction::makeFire(), false, true, true);
+  const auto combinedFront = render(simulation, combined, false, true);
+  const auto smokeSide = render(
+      simulation, TransferFunction::makeSmoke(), true, true);
+  const auto fireSide = render(
+      simulation, TransferFunction::makeFire(), true, true);
+  const auto combinedSide = render(simulation, combined, true, true);
   const auto smokeStats = measure(smokeFront);
   const auto fireStats = measure(fireFront);
+  const auto fireDensityOnlyStats = measure(fireDensityOnlyFront);
+  const auto fuelGatedFireStats = measure(fuelGatedFireFront);
+  const auto noFuelFireStats = measure(noFuelFireFront);
+  const auto noFuelFuelGatedFireStats = measure(noFuelFuelGatedFireFront);
   const auto combinedStats = measure(combinedFront);
+  const double fireTemperatureContribution = meanAbsoluteRgbDifference(
+      fireFront, fireDensityOnlyFront);
   const auto scaleExposure = [](const ImageBuffer& source,
                                 const double targetLuma,
                                 const double sourceLuma) {
@@ -7469,6 +7523,19 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       << " combustion delta density/temp="
       << densityMass - noFuelDensityMass << '/'
       << temperatureMass - noFuelTemperatureMass
+      << " noFuel fire luma/visible/warmth=" << noFuelFireStats.lumaSum
+      << '/' << noFuelFireStats.visible << '/' << noFuelFireStats.warmth
+      << " fire densityOnly luma/visible/warmth="
+      << fireDensityOnlyStats.lumaSum << '/'
+      << fireDensityOnlyStats.visible << '/'
+      << fireDensityOnlyStats.warmth
+      << " temperatureContributionMae=" << fireTemperatureContribution
+      << " fuelGated fire luma/visible/warmth="
+      << fuelGatedFireStats.lumaSum << '/' << fuelGatedFireStats.visible
+      << '/' << fuelGatedFireStats.warmth
+      << " noFuel fuelGated fire luma/visible="
+      << noFuelFuelGatedFireStats.lumaSum << '/'
+      << noFuelFuelGatedFireStats.visible
       << " max=" << maxDensity << '/' << maxTemperature << '/' << maxFuel
       << " maxCell=" << maxDensityX << ',' << maxDensityY << ','
       << maxDensityZ
@@ -7488,9 +7555,14 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
   if (!outputDirectory.isEmpty()) {
     ASSERT_TRUE(QDir().mkpath(outputDirectory));
-    const std::array<std::pair<const char*, const ImageBuffer*>, 8> captures{{
+    const std::array<std::pair<const char*, const ImageBuffer*>, 12> captures{{
         {"pyro_smoke_front.png", &smokeFront},
         {"pyro_fire_front.png", &fireFront},
+        {"pyro_fire_front_density_only.png", &fireDensityOnlyFront},
+        {"pyro_fire_front_fuel_gated.png", &fuelGatedFireFront},
+        {"pyro_fire_front_no_fuel.png", &noFuelFireFront},
+        {"pyro_fire_front_no_fuel_fuel_gated.png",
+            &noFuelFuelGatedFireFront},
         {"pyro_smoke_fire_front.png", &combinedFront},
         {"pyro_smoke_side.png", &smokeSide},
         {"pyro_fire_side.png", &fireSide},
@@ -7509,8 +7581,13 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   }
   EXPECT_GT(smokeStats.visible, 0u);
   EXPECT_GT(fireStats.visible, 0u);
+  EXPECT_GT(fireTemperatureContribution, 0.0);
+  EXPECT_GT(fuelGatedFireStats.visible, 0u);
+  EXPECT_GT(noFuelFireStats.visible, 0u);
+  EXPECT_LT(noFuelFuelGatedFireStats.visible, noFuelFireStats.visible);
   EXPECT_GT(combinedStats.visible, 0u);
   EXPECT_GT(fireStats.warmth, smokeStats.warmth);
+  EXPECT_GT(noFuelFireStats.warmth, smokeStats.warmth);
   EXPECT_GT(combinedStats.warmth, smokeStats.warmth);
 }
 
