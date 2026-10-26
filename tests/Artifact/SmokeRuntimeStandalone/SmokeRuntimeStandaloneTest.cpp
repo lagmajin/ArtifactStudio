@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <numeric>
+#include <numbers>
 #include <utility>
 #include <vector>
 
@@ -3912,104 +3913,6 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         << " centroidY=" << initial[2] << "->" << after[2]
         << " sigma=" << after[3] << ',' << after[4]
         << " gradientRms=" << after[5];
-  }
-}
-
-TEST(ArtifactSmokeRuntimeStandaloneTest,
-     MeasuresSmokeProjectionResolutionAndIterationConvergence) {
-  constexpr std::array<std::pair<int, int>, 3> resolutions{{
-      {96, 72}, {128, 96}, {192, 144}}};
-  constexpr std::array<int, 4> iterationCounts{8, 16, 32, 64};
-  constexpr float dt = 1.0f / 30.0f;
-  for (const auto& [width, height] : resolutions) {
-    ArtifactCore::FluidSolver2D seedSolver(width, height);
-    seedSolver.setSolverIterations(8);
-    seedSolver.setAdaptiveIterations(false);
-    seedSolver.setBuoyancy(0.0f);
-    seedSolver.setVorticity(0.0f);
-    seedSolver.setDiffusion(0.0f);
-    seedSolver.setViscosity(0.0f);
-    auto seeded = seedSolver.snapshot();
-    double densityMass = 0.0;
-    double velocityEnergy = 0.0;
-    for (int y = 1; y < height - 1; ++y) {
-      for (int x = 1; x < width - 1; ++x) {
-        const double nx = static_cast<double>(x - 1) / (width - 3);
-        const double ny = static_cast<double>(y - 1) / (height - 3);
-        const double dx = (nx - 0.5) / 0.12;
-        const double dy = (ny - 0.65) / 0.15;
-        const auto index = static_cast<std::size_t>(x + y * width);
-        const float density = static_cast<float>(
-            0.8 * std::exp(-0.5 * (dx * dx + dy * dy)));
-        const double vortexRadius2 = (nx - 0.5) * (nx - 0.5) +
-            (ny - 0.65) * (ny - 0.65);
-        const double envelope = std::exp(-vortexRadius2 / (2.0 * 0.15 * 0.15));
-        const float vx = static_cast<float>(-(ny - 0.65) * 1.2 * envelope);
-        const float vy = static_cast<float>((nx - 0.5) * 1.2 * envelope);
-        seeded.density[index] = density;
-        seeded.velocityX[index] = vx;
-        seeded.velocityY[index] = vy;
-        densityMass += density;
-        velocityEnergy += static_cast<double>(vx) * vx +
-                          static_cast<double>(vy) * vy;
-      }
-    }
-    for (const int iterations : iterationCounts) {
-      ArtifactCore::FluidSolver2D solver(width, height);
-      solver.setSolverIterations(iterations);
-      solver.setAdaptiveIterations(false);
-      solver.setBuoyancy(0.0f);
-      solver.setVorticity(0.0f);
-      solver.setDiffusion(0.0f);
-      solver.setViscosity(0.0f);
-      ASSERT_TRUE(solver.restoreSnapshot(seeded));
-      solver.setSolverIterations(iterations);
-      solver.setAdaptiveIterations(false);
-      solver.update(dt);
-      const auto projected = solver.snapshot();
-      double divergenceSquared = 0.0;
-      double divergenceBeforeSquared = 0.0;
-      double verticalMomentumChange = 0.0;
-      double weightedRise = 0.0;
-      for (int y = 2; y < height - 2; ++y) {
-        for (int x = 2; x < width - 2; ++x) {
-          const auto index = static_cast<std::size_t>(x + y * width);
-          const double divergenceBefore = 0.5 * (
-              (seeded.velocityX[index + 1] -
-               seeded.velocityX[index - 1]) * (width - 3) +
-              (seeded.velocityY[index + width] -
-               seeded.velocityY[index - width]) * (height - 3));
-          divergenceBeforeSquared += divergenceBefore * divergenceBefore;
-          const double divergence = 0.5 * (
-              (projected.velocityX[index + 1] -
-               projected.velocityX[index - 1]) * (width - 3) +
-              (projected.velocityY[index + width] -
-               projected.velocityY[index - width]) * (height - 3));
-          divergenceSquared += divergence * divergence;
-          const double deltaY = projected.velocityY[index] -
-                                seeded.velocityY[index];
-          verticalMomentumChange += seeded.density[index] * deltaY;
-          weightedRise += seeded.density[index] *
-                          (projected.velocityY[index] - seeded.velocityY[index]);
-        }
-      }
-      const double samples = static_cast<double>((width - 5) * (height - 5));
-      const double deltaMass = std::accumulate(
-          projected.density.begin(), projected.density.end(), 0.0);
-      GTEST_LOG_(INFO) << "smoke-projection-resolution grid=" << width << 'x'
-          << height << " iterations=" << iterations
-          << " configuredIterations=" << solver.solverIterations()
-          << " adaptive=" << solver.adaptiveIterations()
-          << " divergenceBeforeAfter=" << std::sqrt(
-              divergenceBeforeSquared / samples) << '/'
-              << std::sqrt(divergenceSquared / samples)
-          << " normalizedDivergenceRms=" << std::sqrt(divergenceSquared / samples)
-          << " densityWeightedDeltaVy=" <<
-              (densityMass > 0.0 ? verticalMomentumChange / densityMass : 0.0)
-          << " rmsSeedVelocity=" << std::sqrt(velocityEnergy /
-              static_cast<double>(seeded.density.size()))
-          << " finalDensityMass=" << deltaMass;
-    }
   }
 }
 

@@ -3,9 +3,9 @@
 ## 2026-10-27: 煙の短期解像度差は注入だけでは説明できない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::SeparatesSmokeResolutionDriftByInjectionAndSolverStage`、`::MeasuresSmokeProjectionResolutionAndIterationConvergence`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::project`。
 - **確認できた事実:** 96×72 / 128×96 / 192×144のnormalized source injectionはmass 0.006045 / 0.006034 / 0.006031、重心Y 0.8406 / 0.8387 / 0.8369と近い。独立したsmooth normalized density/vortex fixtureの1-step輸送でもmass変化は0.03%未満。固定emit fieldへ適用したraw buoyancy kickはdensity-weighted deltaVy約-0.0093で揃い、weak buoyancyのfull update後のdensity transportはadvection-onlyとほぼ同じ。
-- **価値または懸念:** 28-frame plumeの差は初期emitter rasterization単独では説明しにくいが、どのsolver段階が原因かは未特定。`update()`後のvelocityを使ってprojection residualを推測した予備試験は、update内の速度移流と診断operatorの不一致があり無効だった。試験コードを撤去し、結果をprojectionの不具合根拠として扱わない。共有`FluidSolver2D`を変える証拠はまだない。
+- **価値または懸念:** 28-frame plumeの差は初期emitter rasterization単独では説明しにくいが、どのsolver段階が原因かは未特定。projection式を手書き再現したtest adaptersは境界条件・divergence単位・速度場の単位系に敏感で、production implementationとの同一性を保証できないため撤去した。これらの数値をprojection不具合の根拠には扱わない。共有`FluidSolver2D`を変える証拠はまだない。
 - **仮説（未検証）:** 長時間積分でsource pulseの格子丸め、投影・移流・境界条件の小さな差が蓄積し、centroid差を生じる可能性がある。
-- **次に確認すべきこと:** `FluidSolver2D::update()`内のvelocity projection直後にだけ見えるtest-only probeを用意し、solverが実際に使うdivergence/gradient discretizationでbefore/afterを測る。投影前後と移流後を区別して複数解像度・aspect ratioで比較し、projectionが原因と確認できてからCore修正と液体回帰を検討する。
+- **次に確認すべきこと:** production `FluidSolver2D::update()`へR&D限定のdiagnostic callbackを足す前に、既存の独立targetがCoreのtest-only compile definitionを受けられるか確認する。可能なら投影直後の同一実装状態をcallbackで記録し、after projectionとafter velocity advectionを複数解像度・aspect ratioで比較する。成立して原因がprojectionと確認できてからCore修正と液体回帰を検討する。
 
 ## 2026-10-27: 煙vorticity係数のgrid scalingは解像度差を補正しない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresResolutionScalingForProductionVorticityConfinement`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::vorticityConfinement`。
