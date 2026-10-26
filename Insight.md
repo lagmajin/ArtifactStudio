@@ -7056,3 +7056,9 @@
 - **限界:** この後段速度は`integrateStep`の投影後velocityであり、密度semi-Lagrangian advectionに使うのはforce適用後・projection前の速度である。さらに2 substepを終端速度1回で近似している。したがって逆追跡一致率は本番advectionの再現検証ではなく、特徴と終端速度の整合を見る診断に留まる。curvature sign mask自体も密度移流で保存されるスカラーではない。
 - **次に確認すべきこと:** 渦の材質移流を評価するには、solver内部のforce後・projection前速度をテストから観測する経路を設け、各substepの逆追跡を合成して密度界面特徴との一致を測る必要がある。新しい公開Core APIは追加せず、既存standalone testで再現できる観測手段があるか先に確認する。
 - **再検証:** 独立Pyro target rebuild成功、74条件pass (24.9s)。`build/smoke-pyro-volume-rnd/curvature-advection-rnd.log`。
+
+## 2026-10-26: DCC煙の形状づくりは大／小スケールの別制御と時間分解能を組み合わせる
+- **関連:** Houdini PyroのShape controls、Cinema 4D Pyro SceneのTurbulence / Vorticity / Advection settings、ArtifactCore `PyroSimulation`。
+- **確認できた事実:** SideFXの公式look-development guideは、Turbulenceを大きなswirling/churning motion、Shreddingを小さな高周波detailとして役割分担し、両者を過剰に重ねるとhash状になると説明する。また、noiseの時間変化に対してsubstepsが足りないと高速変化へ追従できない。Maxonの公式Pyro Scene guideも、Vorticity Strengthと構造scale/frequency/octaves/smoothingを持つTurbulenceを別設定にし、高周波ほどsubstepsを増やす必要を説明する。参照: [SideFX Pyro look development](https://www.sidefx.com/docs/houdini/pyro/pyro_look.html), [Maxon Cinema 4D Pyro Scene](https://help.maxon.net/c4d/2025/en-us/Content/html/OPBDSCENE-PBDSCENE_GROUP_PYROPROPERTIES.html)。
+- **価値または懸念:** これまでの独立sweepは単一のcurl operatorまたはspeed-preserving shredを同じ速度変更率で比較しており、DCCにある「長寿命の大きなswirl + 独立した小スケールbreakup + 十分な時間サンプル」の組み合わせを評価していない。一方、追加curl強度だけではcurvatureの連続性が改善しなかったため、noiseを重ねるだけの実装は避ける。
+- **次に確認すべきこと:** test-only R&Dで、時間相関を固定したmulti-scale divergence-free large-swirlと、小振幅・短波長shreddingを別々に測り、frame substepsを合わせて比較する。密度/温度制御fieldの有無も分離し、mass・divergence・advection-compensated image detail・signed-curvature persistenceを同時に評価する。改善が再現した場合だけCoreへのAPI設計を検討する。
