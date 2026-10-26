@@ -364,6 +364,24 @@ set_tests_properties(ArtifactEffectSequenceContractTest PROPERTIES
 )
 endif()
 
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_KEYING_EFFECT_TEST)
+    artifact_add_test(ArtifactKeyingEffectContractTest
+        SOURCES
+            KeyingEffectContractTest.cpp
+        LIBS
+            ArtifactEffectsKeying
+    )
+    set_tests_properties(ArtifactKeyingEffectContractTest PROPERTIES
+        LABELS "effect;keying;cpu;contract;standalone"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        ENVIRONMENT
+            "ARTIFACT_KEYING_REAL_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/fixtures/keying/voa-green-screen-frame-2s.jpg"
+    )
+endif()
+
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
     artifact_add_test(ArtifactSpatialImageEffectContractTest
         SOURCES
@@ -963,7 +981,10 @@ if(ARTIFACT_BUILD_TESTS)
             ArtifactAppRuntime
     )
     set_tests_properties(ArtifactProjectRoundTripTest PROPERTIES
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=offscreen;ARTIFACT_KEYING_REAL_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/fixtures/keying/voa-green-screen-frame-2s.jpg"
         LABELS "project;serialization;cpu;contract;integration"
         TIMEOUT 180
         RUN_SERIAL TRUE

@@ -1,13 +1,20 @@
 # IBKキーヤー 実装マイルストーン
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-27
+**ステータス:** In Progress
 **日付**: 2026-08-01
 **ベース**: Nuke IBK (Image-Based Keyer) の基本アルゴリズム
-**現状**: `ChromaKeyEffect` に加えて、`ArtifactCore::Keying::IBKKeyer` のCPUコア実装が存在する。clean plate差分、core／edge matte、despill、gamma、erode／dilate、RGBA出力まで実装済み。ただしArtifact effect wrapper、GPU compute、clean plate自動生成、通常のUI／Render Queue接続は未確認。
+**現状**: Core CPU処理、自動clean plate生成、Artifact effect wrapper、GPU compute、Effect Service登録、Composition復元は実装済み。clean plateのパス指定は通常のプロパティUIから画像選択できるようになった。GPU／CPU品質・性能の実フッテージ比較は未完了。
 
-## 現行コード監査 (2026-08-15)
+## 現行コード監査 (2026-10-26)
 
-`ArtifactCore/include/ImageProcessing/Keying/IBKKeyer.ixx` と `ArtifactCore/src/ImageProcessing/Keying/IBKKeyer.cppm` を確認した。`processIBK()` は入力バッファの妥当性確認、screen correction、foreground／clean plate差分、core／edge合成、despill、gamma、morphology、premultiplied RGBA出力を実装している。一方、`Artifact/include/Effects/Keying/IBKKeyerEffect.ixx`／対応wrapper、GPU HLSL／pipeline、clean plate生成、エフェクト選択UI、Render Queueの通常処理への接続はコード上確認できない。したがってPhase 1のCore実装は部分的に前進、製品workflowは未完と判定する。
+`ArtifactCore/include/ImageProcessing/Keying/IBKKeyer.ixx` と実装、Artifact wrapper、HLSL、Effect ServiceとCompositionの復元経路を確認した。CPU morphologyは半径0〜64、GPU shaderは固定17×17サンプリング窓のため実効半径0〜8であり、9以上の設定時に不一致があった。Artifact側でGPU適用前に範囲を判定し、範囲外は既存CPU実装にフォールバックするようにした。cleanPlatePathは効果プロパティに保存されるが、汎用パスUIの判定から漏れていたため、画像ファイル選択に接続した。
+
+GPU実装は呼び出しごとに画像テクスチャ、出力、定数バッファ、Compute pipeline、staging textureを作成し、readbackで`Flush()`／`WaitForIdle()`を行っている。これは同期的なCPU readbackを含むため、再生・フレーム更新の性能経路として受け入れる前に構造見直しと計測が必要。今回の変更では大規模なGPU資源ライフサイクル変更は行っていない。
+
+キー品質の受入れ基準として、実フッテージ上のマット（背景、被写体、髪／半透明部）、spill、RGB／alphaの合成整合性、CPU／GPU差分、フレーム時間の記録が残っている。詳細なR&D結果とドナー参照は `docs/analysis/KEYING_EFFECTS_RD_2026-10-26.md` を参照する。
+
+2026-10-27のDebug確認では、Artifactのキーイング契約テスト39件とCoreの動画入力テスト1件が通過。プロジェクト往復テストに追加したComposition-level IBKの保存・再読込ケースも通過した。GPU実機出力と性能比較はまだ行っていない。
 
 ---
 

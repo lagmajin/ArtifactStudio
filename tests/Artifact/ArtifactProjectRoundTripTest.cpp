@@ -12,6 +12,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <QTemporaryDir>
+#include <QVariant>
 
 import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
@@ -25,8 +26,12 @@ import Artifact.Project.Exporter;
 import Artifact.Project.Health;
 import Artifact.Project.Importer;
 import Artifact.Project.Manager;
+import Artifact.Effect.Abstract;
+import Artifact.Effect.Keying.IBKKeyer;
 import BrightnessEffect;
 import Color.Float;
+import Image.ImageF32x4RGBAWithCache;
+import Image.ImageF32x4_RGBA;
 import InvertEffect;
 import Memory.SharedPtr;
 import Undo.UndoManager;
@@ -206,6 +211,103 @@ TEST(ArtifactProjectRoundTripTest, CreateSaveLoadPreservesProject)
     EXPECT_EQ(Artifact::ArtifactProjectHealthChecker::check(reloaded.get()).issues.size(),
               healthIssuesBefore);
     EXPECT_EQ(reloaded->validateProjectTree(nullptr), treeValidBefore);
+}
+
+TEST(ArtifactProjectRoundTripTest, CompositionIBKPropertiesSurviveProjectReload)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString cleanPlatePath =
+        qEnvironmentVariable("ARTIFACT_KEYING_REAL_FIXTURE");
+    ASSERT_FALSE(cleanPlatePath.isEmpty())
+        << "CMake must provide the bundled keying fixture path";
+    ASSERT_TRUE(QFileInfo::exists(cleanPlatePath))
+        << "The bundled keying fixture path must exist";
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("IBKCompositionRoundTrip"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto created = projects.createComposition(
+        makeCompParams(QStringLiteral("IBKComposition"), 96, 72));
+    ASSERT_TRUE(created.success);
+    auto composition = projects.findComposition(created.id).ptr.lock();
+    ASSERT_TRUE(composition);
+
+    auto effect = ArtifactCore::makeShared<Artifact::IBKKeyerEffect>();
+    effect->setPropertyValue(ArtifactCore::UniString("screenCorrection"),
+                             QVariant(2.25));
+    effect->setPropertyValue(ArtifactCore::UniString("previewMode"), QVariant(1));
+    effect->setPropertyValue(ArtifactCore::UniString("erodePixels"), QVariant(0));
+    effect->setPropertyValue(ArtifactCore::UniString("dilatePixels"), QVariant(0));
+    effect->setPropertyValue(ArtifactCore::UniString("cleanPlatePath"),
+                             QVariant(cleanPlatePath));
+    composition->addEffect(effect);
+    ASSERT_EQ(composition->effectCount(), 1);
+
+    const QString projectPath = dir.filePath(QStringLiteral("ibk-roundtrip.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    auto restoredComposition = projects.findComposition(created.id).ptr.lock();
+    ASSERT_TRUE(restoredComposition);
+    const auto restoredEffects = restoredComposition->getEffects();
+    ASSERT_EQ(restoredEffects.size(), 1u);
+    auto* restored =
+        dynamic_cast<Artifact::IBKKeyerEffect*>(restoredEffects.front().get());
+    ASSERT_NE(restored, nullptr);
+    EXPECT_EQ(restored->effectID().toQString(),
+              QStringLiteral("Effect.Keying.IBKKeyer"));
+
+    bool foundScreenCorrection = false;
+    bool foundPreviewMode = false;
+    bool foundErodePixels = false;
+    bool foundDilatePixels = false;
+    bool foundCleanPlatePath = false;
+    for (const auto& property : restored->getProperties()) {
+        if (property.getName() == QStringLiteral("screenCorrection")) {
+            foundScreenCorrection = true;
+            EXPECT_DOUBLE_EQ(property.getValue().toDouble(), 2.25);
+        } else if (property.getName() == QStringLiteral("previewMode")) {
+            foundPreviewMode = true;
+            EXPECT_EQ(property.getValue().toInt(), 1);
+        } else if (property.getName() == QStringLiteral("erodePixels")) {
+            foundErodePixels = true;
+            EXPECT_EQ(property.getValue().toInt(), 0);
+        } else if (property.getName() == QStringLiteral("dilatePixels")) {
+            foundDilatePixels = true;
+            EXPECT_EQ(property.getValue().toInt(), 0);
+        } else if (property.getName() == QStringLiteral("cleanPlatePath")) {
+            foundCleanPlatePath = true;
+            EXPECT_EQ(property.getValue().toString(), cleanPlatePath);
+        }
+    }
+    EXPECT_TRUE(foundScreenCorrection);
+    EXPECT_TRUE(foundPreviewMode);
+    EXPECT_TRUE(foundErodePixels);
+    EXPECT_TRUE(foundDilatePixels);
+    EXPECT_TRUE(foundCleanPlatePath);
+
+    // Normalize the correction after verifying its serialized value so the
+    // identical source and clean plate produce a zero matte in this check.
+    restored->setPropertyValue(ArtifactCore::UniString("screenCorrection"),
+                               QVariant(1.0));
+    ArtifactCore::ImageF32x4_RGBA sourceImage;
+    ASSERT_TRUE(sourceImage.load(cleanPlatePath));
+    ArtifactCore::ImageF32x4RGBAWithCache keyedOutput;
+    restored->applyCPUOnly(ArtifactCore::ImageF32x4RGBAWithCache(sourceImage),
+                           keyedOutput);
+    const auto restoredMatte = keyedOutput.image().getPixel(270, 480);
+    EXPECT_LT(restoredMatte.r(), 0.01f)
+        << "the restored clean plate must be loaded and used by the keyer";
+    EXPECT_FLOAT_EQ(restoredMatte.a(), 1.0f)
+        << "the serialized Matte preview should remain active after reload";
 }
 
 TEST(ArtifactProjectRoundTripTest, LayerMaskStateAndPathRoundTrip)
