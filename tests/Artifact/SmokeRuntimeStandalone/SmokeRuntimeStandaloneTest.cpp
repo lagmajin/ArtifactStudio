@@ -3237,15 +3237,20 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     ASSERT_GT(at24.particleCount, 20) << label.toStdString();
     ASSERT_GT(at30.particleCount, 20) << label.toStdString();
     ASSERT_GT(at60.particleCount, 20) << label.toStdString();
-    EXPECT_NEAR(at24.meanParticleY, at30.meanParticleY, 12.0)
+    GTEST_LOG_(INFO) << "Smoke elapsed-time comparison " << label.toStdString()
+        << " particleMeanY 24/30/60=" << at24.meanParticleY << '/'
+        << at30.meanParticleY << '/' << at60.meanParticleY
+        << " totalAlpha=" << at24.totalParticleAlpha << '/'
+        << at30.totalParticleAlpha << '/' << at60.totalParticleAlpha;
+    EXPECT_NEAR(at24.meanParticleY, at30.meanParticleY, 4.0)
         << label.toStdString();
-    EXPECT_NEAR(at30.meanParticleY, at60.meanParticleY, 12.0)
+    EXPECT_NEAR(at30.meanParticleY, at60.meanParticleY, 4.0)
         << label.toStdString();
     EXPECT_NEAR(at24.totalParticleAlpha, at30.totalParticleAlpha,
-                at30.totalParticleAlpha * 0.3)
+                at30.totalParticleAlpha * 0.1)
         << label.toStdString();
     EXPECT_NEAR(at30.totalParticleAlpha, at60.totalParticleAlpha,
-                at30.totalParticleAlpha * 0.3)
+                at30.totalParticleAlpha * 0.1)
         << label.toStdString();
 
     if (!outputDirectory.isEmpty()) {
