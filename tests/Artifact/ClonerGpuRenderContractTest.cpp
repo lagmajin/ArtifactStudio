@@ -2,6 +2,12 @@
 
 #include <Texture.h>
 #include <TextureView.h>
+#include <Buffer.h>
+#include <DeviceContext.h>
+#include <PipelineState.h>
+#include <RenderDevice.h>
+#include <Sampler.h>
+#include <Shader.h>
 #include <QColor>
 #include <QCoreApplication>
 #include <QDir>
@@ -1415,6 +1421,395 @@ TEST(ClonerGpuRenderContractTest,
                 QDir(output).filePath(QStringLiteral("%1.png").arg(
                     QString::fromLatin1(variant.name))), "PNG"));
         }
+    }
+}
+
+TEST(ClonerGpuRenderContractTest,
+     SmokeDepthVaryingVolumeRaymarchOnDiligentRenderer)
+{
+    using namespace Diligent;
+    constexpr int gridWidth = 96;
+    constexpr int gridHeight = 72;
+    constexpr int volumeDepth = 32;
+    constexpr int outputWidth = 384;
+    constexpr int outputHeight = 288;
+    constexpr int captureFrame = 22;
+
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(outputWidth, outputHeight)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    auto device = renderer.device();
+    auto context = renderer.immediateContext();
+    ASSERT_NE(device, nullptr);
+    ASSERT_NE(context, nullptr);
+
+    Artifact::LayerSmokeRuntimeSettings settings;
+    settings.gridWidth = gridWidth;
+    settings.gridHeight = gridHeight;
+    settings.solverIterations = 20;
+    settings.emitterX = 0.5f;
+    settings.emitterY = 0.84f;
+    settings.emitterRadius = 0.08f;
+    settings.emitterDensity = 0.6f;
+    settings.emitterVelocityY = -1.2f;
+    settings.emitterSwirl = 0.15f;
+    settings.vorticity = 0.1f;
+    settings.buoyancy = 0.0f;
+    Artifact::LayerFluidRuntimeState runtime;
+    for (int frame = 0; frame <= captureFrame; ++frame)
+        Artifact::advanceLayerSmokeRuntime(runtime, frame, 30.0, settings);
+    ASSERT_NE(runtime.fluidSolver_, nullptr);
+    const auto snapshot = runtime.fluidSolver_->snapshot();
+
+    const auto sampleDensity = [&](const float sampleX, const float sampleY) {
+        const float x = std::clamp(sampleX, 0.0f,
+                                   static_cast<float>(gridWidth - 1));
+        const float y = std::clamp(sampleY, 0.0f,
+                                   static_cast<float>(gridHeight - 1));
+        const int x0 = static_cast<int>(std::floor(x));
+        const int y0 = static_cast<int>(std::floor(y));
+        const int x1 = std::min(x0 + 1, gridWidth - 1);
+        const int y1 = std::min(y0 + 1, gridHeight - 1);
+        const float tx = x - static_cast<float>(x0);
+        const float ty = y - static_cast<float>(y0);
+        const auto at = [&](const int px, const int py) {
+            return snapshot.density[static_cast<std::size_t>(
+                py * gridWidth + px)];
+        };
+        return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
+                         std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+    };
+
+    const auto valueNoise = [](const float x, const float y) {
+        const float cellX = std::floor(x);
+        const float cellY = std::floor(y);
+        const float localX = x - cellX;
+        const float localY = y - cellY;
+        const auto hash = [](const float px, const float py) {
+            const float value = std::sin(px * 127.1f + py * 311.7f) *
+                43758.5453f;
+            return value - std::floor(value);
+        };
+        const float smoothX = localX * localX * (3.0f - 2.0f * localX);
+        const float smoothY = localY * localY * (3.0f - 2.0f * localY);
+        return std::lerp(
+            std::lerp(hash(cellX, cellY), hash(cellX + 1.0f, cellY), smoothX),
+            std::lerp(hash(cellX, cellY + 1.0f),
+                      hash(cellX + 1.0f, cellY + 1.0f), smoothX),
+            smoothY);
+    };
+
+    const auto makeVolume = [&](const bool depthWarped) {
+        std::vector<float> density(
+            static_cast<std::size_t>(gridWidth * gridHeight * volumeDepth),
+            0.0f);
+        const auto index = [](const int x, const int y, const int z) {
+            return static_cast<std::size_t>(x + gridWidth *
+                (y + gridHeight * z));
+        };
+        for (int y = 0; y < gridHeight; ++y) {
+            for (int x = 0; x < gridWidth; ++x) {
+                const float baseDensity = sampleDensity(
+                    static_cast<float>(x), static_cast<float>(y));
+                double columnSum = 0.0;
+                for (int z = 0; z < volumeDepth; ++z) {
+                    const float zNorm = (static_cast<float>(z) + 0.5f) /
+                        static_cast<float>(volumeDepth) * 2.0f - 1.0f;
+                    const float envelope = std::exp(-2.5f * zNorm * zNorm);
+                    float warped = baseDensity;
+                    if (depthWarped) {
+                        const float warpX = 2.5f * valueNoise(
+                            0.13f * x + 4.0f * zNorm,
+                            0.13f * y - 2.0f * zNorm + 7.0f) +
+                            0.8f * valueNoise(
+                                0.4f * x - 7.0f * zNorm,
+                                0.4f * y + 3.0f * zNorm);
+                        const float warpY = 2.5f * valueNoise(
+                            0.13f * x - 2.0f * zNorm + 21.0f,
+                            0.13f * y + 4.0f * zNorm - 17.0f) +
+                            0.8f * valueNoise(
+                                0.4f * x + 3.0f * zNorm,
+                                0.4f * y - 7.0f * zNorm);
+                        warped = std::max(0.0f, sampleDensity(
+                            static_cast<float>(x) + warpX,
+                            static_cast<float>(y) + warpY));
+                    }
+                    const float value = warped * envelope;
+                    density[index(x, y, z)] = value;
+                    columnSum += value;
+                }
+                const float normalization = columnSum > 1.0e-8
+                    ? static_cast<float>(volumeDepth * baseDensity / columnSum)
+                    : 0.0f;
+                for (int z = 0; z < volumeDepth; ++z)
+                    density[index(x, y, z)] *= normalization;
+            }
+        }
+        return density;
+    };
+
+    std::vector<float> density = makeVolume(true);
+    TextureDesc densityDesc;
+    densityDesc.Name = "Smoke R&D depth-warped density volume";
+    densityDesc.Type = RESOURCE_DIM_TEX_3D;
+    densityDesc.Width = gridWidth;
+    densityDesc.Height = gridHeight;
+    densityDesc.Depth = volumeDepth;
+    densityDesc.Format = TEX_FORMAT_R32_FLOAT;
+    densityDesc.MipLevels = 1;
+    densityDesc.Usage = USAGE_IMMUTABLE;
+    densityDesc.BindFlags = BIND_SHADER_RESOURCE;
+    TextureSubResData densitySubresource;
+    densitySubresource.pData = density.data();
+    densitySubresource.Stride = gridWidth * sizeof(float);
+    densitySubresource.DepthStride = gridWidth * gridHeight * sizeof(float);
+    TextureData densityInitialData;
+    densityInitialData.pSubResources = &densitySubresource;
+    densityInitialData.NumSubresources = 1;
+    RefCntAutoPtr<ITexture> densityTexture;
+    device->CreateTexture(densityDesc, &densityInitialData, &densityTexture);
+    ASSERT_NE(densityTexture, nullptr);
+    auto* densitySRV = densityTexture->GetDefaultView(
+        TEXTURE_VIEW_SHADER_RESOURCE);
+    ASSERT_NE(densitySRV, nullptr);
+
+    TextureDesc outputDesc;
+    outputDesc.Name = "Smoke R&D volume raymarch output";
+    outputDesc.Type = RESOURCE_DIM_TEX_2D;
+    outputDesc.Width = outputWidth;
+    outputDesc.Height = outputHeight;
+    outputDesc.MipLevels = 1;
+    outputDesc.Format = TEX_FORMAT_RGBA8_UNORM;
+    outputDesc.Usage = USAGE_DEFAULT;
+    outputDesc.BindFlags = BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE;
+    RefCntAutoPtr<ITexture> outputTexture;
+    device->CreateTexture(outputDesc, nullptr, &outputTexture);
+    ASSERT_NE(outputTexture, nullptr);
+    auto* outputUAV = outputTexture->GetDefaultView(
+        TEXTURE_VIEW_UNORDERED_ACCESS);
+    auto* outputSRV = outputTexture->GetDefaultView(
+        TEXTURE_VIEW_SHADER_RESOURCE);
+    ASSERT_NE(outputUAV, nullptr);
+    ASSERT_NE(outputSRV, nullptr);
+
+    static constexpr char volumeShader[] = R"(
+Texture3D<float> g_Density : register(t0);
+RWTexture2D<float4> g_Output : register(u0);
+SamplerState g_Sampler : register(s0);
+
+cbuffer g_Params : register(b0) {
+    uint Width;
+    uint Height;
+    uint Depth;
+    uint ViewAxis;
+    float DensityScale;
+    float Extinction;
+    float ShadowDensity;
+    float AmbientFill;
+    float LightX;
+    float LightY;
+    float LightZ;
+    float PhaseG;
+};
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= Width || id.y >= Height) return;
+    float2 uv = (float2(id.xy) + 0.5) / float2(Width, Height);
+    float screenY = 1.0 - uv.y;
+    float3 viewDir = ViewAxis == 0 ? float3(1.0, 0.0, 0.0)
+                                   : float3(0.0, 0.0, 1.0);
+    float3 lightDir = normalize(float3(LightX, LightY, LightZ));
+    float g = clamp(PhaseG, -0.85, 0.85);
+    float cosTheta = dot(-viewDir, -lightDir);
+    float phaseDenom = max(1.0e-3, 1.0 + g * g - 2.0 * g * cosTheta);
+    float phase = (1.0 - g * g) / pow(phaseDenom, 1.5);
+    phase = clamp(phase * 0.5, 0.2, 1.4);
+    float transmittance = 1.0;
+    float3 radiance = 0.0;
+    const uint shadowSteps = 8;
+    const float shadowStep = 0.035;
+    const float rayStep = 1.0 / float(Depth);
+    [loop]
+    for (uint step = 0; step < Depth; ++step) {
+        float rayT = (float(step) + 0.5) * rayStep;
+        float3 position = ViewAxis == 0
+            ? float3(rayT, screenY, uv.x)
+            : float3(uv.x, screenY, rayT);
+        float density = g_Density.SampleLevel(g_Sampler, position, 0);
+        density *= DensityScale;
+        if (density > 1.0e-5) {
+            float opticalDepth = 0.0;
+            [unroll]
+            for (uint shadowStepIndex = 1;
+                 shadowStepIndex <= shadowSteps; ++shadowStepIndex) {
+                float3 shadowPosition = position + lightDir *
+                    (float(shadowStepIndex) * shadowStep);
+                if (any(shadowPosition < 0.0) ||
+                    any(shadowPosition > 1.0)) break;
+                opticalDepth += g_Density.SampleLevel(
+                    g_Sampler, shadowPosition, 0) * ShadowDensity * shadowStep;
+            }
+            float lightTransmittance = exp(-opticalDepth);
+            float illumination = AmbientFill +
+                (1.0 - AmbientFill) * lightTransmittance * phase;
+            float alpha = 1.0 - exp(-density * Extinction * rayStep);
+            radiance += transmittance * alpha * illumination *
+                float3(0.78, 0.84, 0.92);
+            transmittance *= 1.0 - alpha;
+            if (transmittance < 0.01) break;
+        }
+    }
+    g_Output[id.xy] = float4(radiance, 1.0 - transmittance);
+}
+)";
+
+    ShaderCreateInfo shaderInfo;
+    shaderInfo.Desc.Name = "Smoke R&D depth-varying volume raymarch";
+    shaderInfo.Desc.ShaderType = SHADER_TYPE_COMPUTE;
+    shaderInfo.EntryPoint = "CSMain";
+    shaderInfo.Source = volumeShader;
+    shaderInfo.SourceLanguage = SHADER_SOURCE_LANGUAGE_HLSL;
+    RefCntAutoPtr<IShader> computeShader;
+    device->CreateShader(shaderInfo, &computeShader);
+    ASSERT_NE(computeShader, nullptr);
+
+    ComputePipelineStateCreateInfo pipelineInfo;
+    pipelineInfo.PSODesc.Name = "Smoke R&D depth-varying volume PSO";
+    pipelineInfo.PSODesc.ResourceLayout.DefaultVariableType =
+        SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
+    pipelineInfo.pCS = computeShader;
+    RefCntAutoPtr<IPipelineState> pipeline;
+    device->CreateComputePipelineState(pipelineInfo, &pipeline);
+    ASSERT_NE(pipeline, nullptr);
+
+    struct alignas(16) VolumeParameters final {
+        Uint32 width = outputWidth;
+        Uint32 height = outputHeight;
+        Uint32 depth = volumeDepth;
+        Uint32 viewAxis = 1;
+        float densityScale = 6.0f;
+        float extinction = 2.0f;
+        float shadowDensity = 1.0f;
+        float ambientFill = 0.28f;
+        float lightX = -0.42f;
+        float lightY = 0.62f;
+        float lightZ = 0.66f;
+        float phaseG = 0.25f;
+    };
+    static_assert(sizeof(VolumeParameters) == 48);
+    VolumeParameters parameters;
+    BufferDesc parameterDesc;
+    parameterDesc.Name = "Smoke R&D volume raymarch parameters";
+    parameterDesc.Size = sizeof(VolumeParameters);
+    parameterDesc.Usage = USAGE_DEFAULT;
+    parameterDesc.BindFlags = BIND_UNIFORM_BUFFER;
+    RefCntAutoPtr<IBuffer> parameterBuffer;
+    BufferData parameterInitialData{&parameters, sizeof(parameters)};
+    device->CreateBuffer(parameterDesc, &parameterInitialData, &parameterBuffer);
+    ASSERT_NE(parameterBuffer, nullptr);
+
+    SamplerDesc samplerDesc;
+    samplerDesc.MinFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.MagFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.MipFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.AddressU = TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.AddressW = TEXTURE_ADDRESS_CLAMP;
+    RefCntAutoPtr<ISampler> sampler;
+    device->CreateSampler(samplerDesc, &sampler);
+    ASSERT_NE(sampler, nullptr);
+
+    RefCntAutoPtr<IShaderResourceBinding> srb;
+    pipeline->CreateShaderResourceBinding(&srb, true);
+    ASSERT_NE(srb, nullptr);
+    auto* densityVariable = srb->GetVariableByName(
+        SHADER_TYPE_COMPUTE, "g_Density");
+    auto* outputVariable = srb->GetVariableByName(
+        SHADER_TYPE_COMPUTE, "g_Output");
+    auto* samplerVariable = srb->GetVariableByName(
+        SHADER_TYPE_COMPUTE, "g_Sampler");
+    auto* parameterVariable = srb->GetVariableByName(
+        SHADER_TYPE_COMPUTE, "g_Params");
+    ASSERT_NE(densityVariable, nullptr);
+    ASSERT_NE(outputVariable, nullptr);
+    ASSERT_NE(samplerVariable, nullptr);
+    ASSERT_NE(parameterVariable, nullptr);
+    densityVariable->Set(densitySRV);
+    outputVariable->Set(outputUAV);
+    samplerVariable->Set(sampler);
+    parameterVariable->Set(parameterBuffer);
+
+    const auto render = [&](const Uint32 viewAxis, const float ambientFill,
+                            const float phaseG) {
+        parameters.viewAxis = viewAxis;
+        parameters.ambientFill = ambientFill;
+        parameters.phaseG = phaseG;
+        context->UpdateBuffer(parameterBuffer, 0, sizeof(parameters),
+            &parameters, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        context->SetPipelineState(pipeline);
+        context->CommitShaderResources(
+            srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        DispatchComputeAttribs dispatch;
+        dispatch.ThreadGroupCountX = (outputWidth + 7) / 8;
+        dispatch.ThreadGroupCountY = (outputHeight + 7) / 8;
+        dispatch.ThreadGroupCountZ = 1;
+        context->DispatchCompute(dispatch);
+        renderer.flushAndWait();
+        return renderer.readbackTextureViewToImage(outputSRV);
+    };
+
+    const auto frontLit = render(1, 0.28f, 0.25f);
+    const auto frontAmbient = render(1, 0.55f, 0.0f);
+    const auto sideLit = render(0, 0.28f, 0.25f);
+    ASSERT_FALSE(frontLit.isNull());
+    ASSERT_FALSE(frontAmbient.isNull());
+    ASSERT_FALSE(sideLit.isNull());
+    ASSERT_EQ(frontLit.size(), QSize(outputWidth, outputHeight));
+    const auto imageMetrics = [](const QImage& image) {
+        double lumaSum = 0.0;
+        double lumaSquared = 0.0;
+        std::size_t covered = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                const QColor color = image.pixelColor(x, y);
+                const double luma = 0.2126 * color.red() +
+                    0.7152 * color.green() + 0.0722 * color.blue();
+                lumaSum += luma;
+                lumaSquared += luma * luma;
+                if (color.alpha() > 8) ++covered;
+            }
+        }
+        const double count = static_cast<double>(image.width()) * image.height();
+        const double mean = lumaSum / count;
+        return std::array<double, 3>{mean,
+            std::sqrt(std::max(0.0, lumaSquared / count - mean * mean)),
+            static_cast<double>(covered)};
+    };
+    const auto litMetrics = imageMetrics(frontLit);
+    const auto ambientMetrics = imageMetrics(frontAmbient);
+    const auto sideMetrics = imageMetrics(sideLit);
+    GTEST_LOG_(INFO) << "GPU smoke 2.5D raymarch frame=" << captureFrame
+        << " front-lit mean/std/covered=" << litMetrics[0] << '/'
+        << litMetrics[1] << '/' << litMetrics[2]
+        << " front-ambient=" << ambientMetrics[0] << '/'
+        << ambientMetrics[1] << '/' << ambientMetrics[2]
+        << " side-lit=" << sideMetrics[0] << '/' << sideMetrics[1] << '/'
+        << sideMetrics[2];
+    EXPECT_GT(litMetrics[2], 100.0);
+    EXPECT_GT(sideMetrics[2], 100.0);
+
+    const QString outputDirectory =
+        qEnvironmentVariable("ARTIFACT_SMOKE_GPU_OUTPUT_DIR");
+    if (!outputDirectory.isEmpty()) {
+        ASSERT_TRUE(QDir().mkpath(outputDirectory));
+        EXPECT_TRUE(frontLit.save(QDir(outputDirectory).filePath(
+            QStringLiteral("volume-2p5d-front-lit.png")), "PNG"));
+        EXPECT_TRUE(frontAmbient.save(QDir(outputDirectory).filePath(
+            QStringLiteral("volume-2p5d-front-ambient.png")), "PNG"));
+        EXPECT_TRUE(sideLit.save(QDir(outputDirectory).filePath(
+            QStringLiteral("volume-2p5d-side-lit.png")), "PNG"));
     }
 }
 

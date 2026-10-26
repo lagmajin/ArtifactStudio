@@ -7153,3 +7153,11 @@
 - **仮説（未検証）:** sample densityはsprite粒感を減らす補助策だが、Houdini/C4D風の巻き上がりには速度場・密度場のcoherentな大スケール渦構造が不足している。rendererだけの高密度化は煙柱の輪郭改善までに留まる。
 - **次に確認すべきこと:** production capは現状維持。次はroot standalone R&Dでproduction 2D velocity/densityから時間持続するconnected roll/fold構造をseed・複数frameで探索し、GPU粒子化の改善とsolverの形状改善を分けて判断する。テスト側はproduction emitter stateのままvelocity-aligned/resampled sample layoutsを比較し、GPU imageのmulti-frame stabilityも取る。
 - **再検証:** `ArtifactClonerGpuRenderContractTest` build成功。D3D12 focused test 1/1 pass。意図的に失敗した前段実験はtest-only手作りsampleに本番ジッター/座標スケールを揃えていなかったため、最終報告値から除外した。
+
+## 2026-10-26: D3D12 2.5D volume raymarchは厚みと自己遮蔽を出すが、2D場の対称渦を引き継ぐ
+- **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeDepthVaryingVolumeRaymarchOnDiligentRenderer` と `SmokeSamplingDensityQualityOnDiligentRenderer`。
+- **確認できた事実:** production `FluidSolver2D` のframe 22 densityを32層のGaussian depth envelopeへ押し出し、同じ2D列massへ正規化したR32F Texture3DをD3D12 compute shaderからBeer–Lambert積分し、8サンプルの有界なshadow attenuationとphase項を加えた。RTX 4070 Tiでvolume front ambient/lit/sideの3画像を出力し、sampling比較と合わせたfocused GPU testsは2/2 pass。side viewでは奥行き方向の厚みが明瞭だが、front viewは入力場が持つ左右対称の二重渦に似た形状を保ち、ambient/litも視覚的にほぼ同じ。既存production Gaussian particle画像は細かな乱れを含む縦長plumeで、どちらも目標の時間変化する折れbillowには未達。volume test全体は約1.9秒、粒子sampling testは約6.6秒（Debug、shader/renderer初期化とreadbackを含むため本番frame costではない）。
+- **価値または懸念:** 真の3D density samplingと透過積分は従来spriteとは違う厚み・view依存を提供するが、depth extrusionは2D solverの運動・front silhouetteを改善しない。出力画像は独立したテストcaptureで、production UI/rendererへの統合候補としてまだ不十分。8点shadow経路の照明差も小さく、phase/light方向の較正が必要。
+- **仮説（未検証）:** 独立深度層にseed/frame相関を保つdivergence-free 3D velocityを与え、density advectionを行えば、2D対称渦を破りつつtime-coherent billowを作れる可能性がある。一方、現2D flowから同じ層を単純押し出すだけでは奥行き見えの追加に留まる。
+- **次に確認すべきこと:** 本番コードへ移植せず、standalone R&Dでdepth-resolved flowを作り、front/side/topの複数frame・複数seedを評価する。露出一致、方向別silhouette変化、時間相関、divergence、密度質量、GPU render時間を併記し、見た目のbillowが揃うまで統合判断を保留する。
+- **再検証:** `ArtifactClonerGpuRenderContractTest` target build成功。focused D3D12 GTests 2/2 pass (8.537s total); captures `build/smoke-runtime-rnd/captures/diligent-volume-smoke-rnd-20261026/`。
