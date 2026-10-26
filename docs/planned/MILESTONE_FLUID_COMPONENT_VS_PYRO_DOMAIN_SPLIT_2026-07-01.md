@@ -354,3 +354,11 @@
 - 同じ 12-frame smoke pulse を 30 fps、96×72 grid、frame 60 まで進める独立 runtime test で、`0.5/s` は density mass `611.047`、既定 `2.5/s` は `17.3242`（約35倍）となった。focused test 1/1 pass。
 - 減衰を弱めると放出停止後も煙が残ることは確認できたが、2D plume に巻き込み billow は生じない。これは寿命の artist control であり、Houdini/C4D相当の形状を達成したものではない。
 - Core/app build は成功。煙の見た目 R&D は継続し、次は production 2D velocity/density から時間持続する connected roll/fold を作れる solver-side method を独立比較する。
+
+## 2026-10-26 — 2D smoke roll and density transport R&D
+
+- production velocity runtime上の独立実験で、2 seedの単一追従渦と左右逆回転渦ペアを比較した。高強度ではplumeが大きく曲がる／割れるが、時間持続するbillowは得られなかった。
+- MUSCL flux-form density transportはtest-only実装で、同一production velocity履歴に対しsemi-Lagrangianよりmassとfield high-pass値を保った。ただしmass-match後のproduction 40×40 particle extractionではsemi-Lagrangianよりvisible pixelsが182,100対112,274、image high-pass RMSが1.113対0.894。green exposureを近づけてもMUSCLは113,571 pixels / 0.995に留まった。
+- 目視ではMUSCLが煙上端を左右に広げるが、明瞭な巻き込みではない。field-onlyの輸送指標を最終画質と同一視できないため、production solverには採用しない。
+- 既存のproduction samplingを使う同一露出test-only比較では、40×40 / 150 particlesから96×72 / 672 particlesへ増やすとimage high-pass RMSが0.236から0.624へ上がり、粒子の粒度は細かくなった。ただしplumeは直線的なままでbillowは生じず、抽出密度だけでは形状課題を解けない。
+- 次はdensity-to-particle抽出密度の律速を切り分け、低周波の持続rollを速度場へ作る方法を独立比較する。既存captureは `build/smoke-runtime-rnd/paired-vortex-rnd-20261026/` と `build/smoke-runtime-rnd/transport-visual-rnd/`。

@@ -10,6 +10,14 @@
 - **次に確認すべきこと:** production 2D velocity/density field上で、時間持続するconnected roll/foldを作る速度場／渦度手法を、2 seed以上・複数frame・同一発生源で比較する。減衰率は既定値を変えず、寿命軸として保持する。
 - **再検証:** `cmake --build build/smoke-runtime-rnd --target ArtifactSmokeRuntimeStandaloneTest --parallel 8` 成功、focused runtime test 1/1 pass（density mass値は上記）。`cmake --build build --target Artifact --parallel 8` 成功。
 
+## 2026-10-26: 密度輸送の改善は粒子描画で再評価する
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes` と `ComparesIndependentRollAndFineDisturbanceOperators`。
+- **確認できた事実:** 2 seedで追従単一渦・左右逆回転ペアを比較したが、強度を上げても持続するbillowではなくplume全体の屈曲・分裂が主だった。production速度履歴を固定したtest-only MUSCL density transportはsemi-Lagrangianより質量を保ち、density fieldの高域指標も高かった。しかしmass-matchとgreen exposure-match後のproduction 40×40 particle rasterでは、MUSCLの可視pixelが少なく、画像高域指標も低かった。既存のproduction samplingを使った同一露出比較では40×40から96×72へ増やすと画像high-pass RMSが0.236から0.624へ上がったが、見た目は粒子粒度の改善であり、巻き上がる煙には至っていない。
+- **価値または懸念:** field-onlyの質量・勾配指標を画質改善と同一視できない。輸送法変更をCoreへ採用する前に、density-to-particle sampling／reconstructionを含む最終出力で同一露出比較が必要。今回のMUSCLはtest-onlyでありproduction solverは変更していない。
+- **仮説（未検証）:** 40×40の粒子抽出がdensityの追加細部を捨てている可能性はあるが、96×72化で形状が変わらないため、細部保持だけではbillowに届かない。粒子へ変換する前に低周波roll構造を速度場へ作る方法が必要かもしれない。
+- **次に確認すべきこと:** 本番の密度→粒子抽出について、サンプル密度とgrid解像度を分離して評価する。その後、渦度閉じ込め等の速度場構築を複数seed・連続frame・粒子描画込みで比較する。MUSCLを本番採用せず、roll/fold目標を保つ。
+- **再検証:** focused standalone `ComparesIndependentRollAndFineDisturbanceOperators` pass（paired vortex 2 seedsを含む）、`ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes` pass（runtime particle capturesを含む）。captures: `build/smoke-runtime-rnd/paired-vortex-rnd-20261026/`, `build/smoke-runtime-rnd/transport-visual-rnd/`。
+
 ## 2026-10-26: 2D vorticity confinement must preserve signed curl
 - **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp` の `FluidSolver2D::vorticityConfinement()`、`tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `ComparesSignedVorticityConfinementAcrossSeedsAndFrames`。
 - **確認できた事実:** 旧実装は `ω = ∂v/∂x - ∂u/∂y` を `abs(ω)` に置き換え、その値を勾配方向だけでなく confinement force の符号にも使っていた。2D標準式では方向場 `N = ∇|ω|/|∇|ω||` とsigned `ω` を分け、forceは `(N_y ω, -N_x ω)` とする。Coreをこの形へ修正し、同じ煙源2条件を45 frameずつ、旧式比較とCore対standalone参照で実行した。変更前の旧式対参照画像MAEはframe15/30/45でseed17 `.000191/.001111/.002984`、seed71 `.000162/.001055/.001968`。変更後Core対参照は両seed・全capture frameで画素完全一致し、密度massも一致した。反対回転渦対2条件の30 frame画像も比較したが、大きなbillowは確認できない。全standalone 8 tests pass。Captures: `build/smoke-emitter-rnd/captures/vorticity-sign-rnd/` と `vorticity-signed-fixed-rnd/`。

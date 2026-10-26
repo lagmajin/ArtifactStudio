@@ -2330,22 +2330,27 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   struct Condition final {
     const char* name; float roll; float fine;
     bool redirectVelocity; bool boundedCirculation; bool normalizeFinalMass;
-    float trackedVortex; bool scaleVortexByFrameDt;
+    float trackedVortex; bool scaleVortexByFrameDt; bool pairedVortices;
   };
-  constexpr std::array<Condition, 13> conditions{{
-      {"baseline", 0.0f, 0.0f, false, false, false, 0.0f, false},
-      {"roll-only", 0.24f, 0.0f, false, false, false, 0.0f, false},
-      {"fine-only", 0.0f, 0.24f, false, false, false, 0.0f, false},
-      {"roll-plus-fine", 0.24f, 0.24f, false, false, false, 0.0f, false},
-      {"roll-redirect", 0.24f, 0.0f, true, false, false, 0.0f, false},
-      {"bounded-circulation", 0.24f, 0.0f, false, true, false, 0.0f, false},
-      {"bounded-circulation-normalized", 0.24f, 0.0f, false, true, true, 0.0f, false},
-      {"tracked-vortex-012", 0.0f, 0.0f, false, false, false, 0.12f, false},
-      {"tracked-vortex-024", 0.0f, 0.0f, false, false, false, 0.24f, false},
-      {"tracked-vortex-024-normalized", 0.0f, 0.0f, false, false, true, 0.24f, false},
-      {"tracked-vortex-accel-12", 0.0f, 0.0f, false, false, false, 1.2f, true},
-      {"tracked-vortex-accel-36", 0.0f, 0.0f, false, false, false, 3.6f, true},
-      {"tracked-vortex-accel-36-normalized", 0.0f, 0.0f, false, false, true, 3.6f, true}}};
+  constexpr std::array<Condition, 18> conditions{{
+      {"baseline", 0.0f, 0.0f, false, false, false, 0.0f, false, false},
+      {"roll-only", 0.24f, 0.0f, false, false, false, 0.0f, false, false},
+      {"fine-only", 0.0f, 0.24f, false, false, false, 0.0f, false, false},
+      {"roll-plus-fine", 0.24f, 0.24f, false, false, false, 0.0f, false, false},
+      {"roll-redirect", 0.24f, 0.0f, true, false, false, 0.0f, false, false},
+      {"bounded-circulation", 0.24f, 0.0f, false, true, false, 0.0f, false, false},
+      {"bounded-circulation-normalized", 0.24f, 0.0f, false, true, true, 0.0f, false, false},
+      {"tracked-vortex-012", 0.0f, 0.0f, false, false, false, 0.12f, false, false},
+      {"tracked-vortex-024", 0.0f, 0.0f, false, false, false, 0.24f, false, false},
+      {"tracked-vortex-024-normalized", 0.0f, 0.0f, false, false, true, 0.24f, false, false},
+      {"tracked-vortex-accel-12", 0.0f, 0.0f, false, false, false, 1.2f, true, false},
+      {"tracked-vortex-accel-36", 0.0f, 0.0f, false, false, false, 3.6f, true, false},
+      {"tracked-vortex-accel-36-normalized", 0.0f, 0.0f, false, false, true, 3.6f, true, false},
+      {"paired-vortex-accel-18", 0.0f, 0.0f, false, false, false, 1.8f, true, true},
+      {"paired-vortex-accel-36", 0.0f, 0.0f, false, false, false, 3.6f, true, true},
+      {"paired-vortex-accel-36-normalized", 0.0f, 0.0f, false, false, true, 3.6f, true, true},
+      {"paired-vortex-accel-60", 0.0f, 0.0f, false, false, false, 6.0f, true, true},
+      {"paired-vortex-accel-60-normalized", 0.0f, 0.0f, false, false, true, 6.0f, true, true}}};
   const auto index = [](const int x, const int y) {
     return static_cast<std::size_t>(x + width * y);
   };
@@ -2361,12 +2366,14 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       settings.gridWidth = width;
       settings.gridHeight = height;
       settings.solverIterations = 20;
-      settings.emitterX = 0.5f;
+      const bool alternateSeed = seed == 71U;
+      settings.emitterX = alternateSeed ? 0.52f : 0.48f;
       settings.emitterY = 0.84f;
       settings.emitterRadius = 0.08f;
       settings.emitterDensity = 0.6f;
+      settings.emitterVelocityX = alternateSeed ? 0.08f : -0.08f;
       settings.emitterVelocityY = -1.2f;
-      settings.emitterSwirl = 0.15f;
+      settings.emitterSwirl = alternateSeed ? -0.15f : 0.15f;
       settings.vorticity = 0.1f;
       QImage finalImage;
       std::array<QImage, 3> tailImages;
@@ -2477,14 +2484,23 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
                 (condition.scaleVortexByFrameDt ? 1.0f / 30.0f : 1.0f);
             for (int y = 2; y < height - 2; ++y) {
               for (int x = 2; x < width - 2; ++x) {
-                const float dx = static_cast<float>(x) - centerX;
-                const float dy = static_cast<float>(y) - centerY;
-                const float radialWeight = std::exp(
-                    -0.5f * (dx * dx + dy * dy) * inverseRadiusSquared);
-                field.velocityX[index(x, y)] -= frameScaledStrength *
-                    dy * inverseRadius * radialWeight;
-                field.velocityY[index(x, y)] += frameScaledStrength *
-                    dx * inverseRadius * radialWeight;
+                const int vortexCount = condition.pairedVortices ? 2 : 1;
+                for (int vortex = 0; vortex < vortexCount; ++vortex) {
+                  const float side = vortex == 0 ? -1.0f : 1.0f;
+                  const float centerOffset = condition.pairedVortices
+                      ? side * 6.0f : 0.0f;
+                  const float circulationSign = condition.pairedVortices
+                      ? side : 1.0f;
+                  const float dx = static_cast<float>(x) -
+                      (centerX + centerOffset);
+                  const float dy = static_cast<float>(y) - centerY;
+                  const float radialWeight = std::exp(
+                      -0.5f * (dx * dx + dy * dy) * inverseRadiusSquared);
+                  field.velocityX[index(x, y)] -= circulationSign *
+                      frameScaledStrength * dy * inverseRadius * radialWeight;
+                  field.velocityY[index(x, y)] += circulationSign *
+                      frameScaledStrength * dx * inverseRadius * radialWeight;
+                }
               }
             }
             ASSERT_TRUE(state.fluidSolver_->restoreSnapshot(field));
@@ -2539,6 +2555,12 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         EXPECT_TRUE(finalImage.save(QDir(outputDirectory).filePath(
             QStringLiteral("smoke_operator_seed%1_%2.png")
                 .arg(seed).arg(QString::fromLatin1(condition.name))), "PNG"));
+        for (std::size_t tail = 0; tail < tailImages.size(); ++tail) {
+          EXPECT_TRUE(tailImages[tail].save(QDir(outputDirectory).filePath(
+              QStringLiteral("smoke_operator_seed%1_%2_tail%3.png")
+                  .arg(seed).arg(QString::fromLatin1(condition.name))
+                  .arg(tail)), "PNG"));
+        }
       }
     }
   }
@@ -3253,6 +3275,72 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   EXPECT_GE(*std::min_element(flux.begin(), flux.end()), 0.0f);
   EXPECT_LT(maxCenterFaceDivergenceDifference, 1.0e-5);
   EXPECT_LT(projectedMaxCenterFaceDifference, 1.0e-5);
+
+  const QRectF smokeBounds(0.0, 0.0, width, height);
+  QMatrix4x4 smokeTransform;
+  smokeTransform.setToIdentity();
+  const auto& productionParticles = Artifact::prepareLayerSmokeRenderData(
+      runtime, smokeBounds, smokeTransform, 1.0f, finalFrame, settings);
+  const QImage productionParticleImage = rasterizeParticles(productionParticles);
+  auto musclSnapshot = runtime.fluidSolver_->snapshot();
+  const float massMatchScale = productionMass > 0.0 && fluxStats[0] > 0.0
+      ? static_cast<float>(productionMass / fluxStats[0]) : 1.0f;
+  for (std::size_t cell = 0; cell < flux.size(); ++cell)
+    musclSnapshot.density[cell] = flux[cell] * massMatchScale;
+  ASSERT_TRUE(runtime.fluidSolver_->restoreSnapshot(musclSnapshot));
+  const auto& musclParticles = Artifact::prepareLayerSmokeRenderData(
+      runtime, smokeBounds, smokeTransform, 1.0f, finalFrame, settings);
+  const QImage musclParticleImage = rasterizeParticles(musclParticles);
+  const auto productionParticleMetrics = measureSmokeImage(productionParticleImage);
+  const auto musclParticleMetrics = measureSmokeImage(musclParticleImage);
+  const float musclExposureScale = musclParticleMetrics.greenExcess > 0
+      ? std::clamp(static_cast<float>(productionParticleMetrics.greenExcess) /
+          static_cast<float>(musclParticleMetrics.greenExcess), 1.0f, 2.0f)
+      : 1.0f;
+  const QImage musclExposureMatchedImage = rasterizeParticles(
+      musclParticles, musclExposureScale);
+  const auto musclExposureMatchedMetrics =
+      measureSmokeImage(musclExposureMatchedImage);
+  const auto imageHighPassRms = [](const QImage& image) {
+    double squaredSum = 0.0;
+    std::size_t sampleCount = 0;
+    for (int y = 1; y < image.height() - 1; ++y)
+      for (int x = 1; x < image.width() - 1; ++x) {
+        const auto luma = [&image](const int px, const int py) {
+          const QRgb pixel = image.pixel(px, py);
+          return 0.2126 * qRed(pixel) + 0.7152 * qGreen(pixel) +
+              0.0722 * qBlue(pixel);
+        };
+        const double laplacian = 4.0 * luma(x, y) - luma(x - 1, y) -
+            luma(x + 1, y) - luma(x, y - 1) - luma(x, y + 1);
+        squaredSum += laplacian * laplacian;
+        ++sampleCount;
+      }
+    return sampleCount > 0
+        ? std::sqrt(squaredSum / static_cast<double>(sampleCount)) : 0.0;
+  };
+  GTEST_LOG_(INFO) << "Mass-matched production smoke particle extraction: semiLagrangian visible/highPass="
+      << productionParticleMetrics.visiblePixels << '/'
+      << imageHighPassRms(productionParticleImage)
+      << " MUSCL=" << musclParticleMetrics.visiblePixels << '/'
+      << imageHighPassRms(musclParticleImage)
+      << " exposure-green=" << productionParticleMetrics.greenExcess << '/'
+      << musclParticleMetrics.greenExcess
+      << " MUSCL exposureMatchedScale=" << musclExposureScale
+      << " visible/highPass/green=" << musclExposureMatchedMetrics.visiblePixels
+      << '/' << imageHighPassRms(musclExposureMatchedImage) << '/'
+      << musclExposureMatchedMetrics.greenExcess;
+  EXPECT_GT(productionParticleMetrics.visiblePixels, 100);
+  EXPECT_GT(musclParticleMetrics.visiblePixels, 100);
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+    EXPECT_TRUE(productionParticleImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("runtime_velocity_particles_semilagrangian.png")), "PNG"));
+    EXPECT_TRUE(musclParticleImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("runtime_velocity_particles_muscl_massmatched.png")), "PNG"));
+    EXPECT_TRUE(musclExposureMatchedImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("runtime_velocity_particles_muscl_exposurematched.png")), "PNG"));
+  }
   saveField(sl, QStringLiteral("runtime_velocity_semilagrangian.png"));
   saveField(slProductionStep,
             QStringLiteral("runtime_velocity_semilagrangian_production_step.png"));
