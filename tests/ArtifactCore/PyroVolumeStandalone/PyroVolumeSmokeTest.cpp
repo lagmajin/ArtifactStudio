@@ -596,7 +596,8 @@ struct MatchedCurlAdapterStats {
 MatchedCurlAdapterStats applyMatchedCurlTurbulenceOrShredding(
     ArtifactCore::PyroSimulation& simulation,
     const ArtifactCore::PyroDomain& domain, float timeSeconds,
-    std::uint32_t seed, float targetSpeedFraction, bool preserveSpeed) {
+    std::uint32_t seed, float targetSpeedFraction, bool preserveSpeed,
+    float wavelengthScale = 1.0f) {
   using ArtifactCore::PyroVec3;
   const auto resolution = domain.resolution();
   auto velocity = simulation.fields().velocityView();
@@ -605,7 +606,7 @@ MatchedCurlAdapterStats applyMatchedCurlTurbulenceOrShredding(
     return static_cast<std::size_t>(x + resolution.width * (y + resolution.height * z));
   };
   constexpr float twoPi = 6.28318530718f;
-  constexpr float wavelengths[] = {0.36f, 0.18f, 0.09f};
+  constexpr float baseWavelengths[] = {0.36f, 0.18f, 0.09f};
   constexpr float weights[] = {1.0f, 0.55f, 0.25f};
   const float seedPhase = static_cast<float>(seed) * 0.173f;
   const auto potential = [&](int x, int y, int z) {
@@ -617,7 +618,7 @@ MatchedCurlAdapterStats applyMatchedCurlTurbulenceOrShredding(
     const float zw = domain.min.z + (z + 0.5f) * domain.voxelSize;
     PyroVec3 result{};
     for (int band = 0; band < 3; ++band) {
-      const float k = twoPi / wavelengths[band];
+      const float k = twoPi / (baseWavelengths[band] * wavelengthScale);
       const float phase = seedPhase + timeSeconds * (0.55f + band * 0.3f);
       result.x += weights[band] * std::sin(k * (0.31f * xw + yw + 0.19f * zw) + phase);
       result.y += weights[band] * std::sin(k * (0.23f * xw + 0.37f * yw + zw) - phase * 0.7f);
@@ -2816,6 +2817,7 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
   domain.memoryBudgetBytes = 24u * 1024u * 1024u;
   constexpr std::array<std::uint32_t, 2> seeds{17, 71};
   constexpr std::array<float, 3> strengths{0.0f, 0.05f, 0.15f};
+  constexpr std::array<float, 3> wavelengthScales{0.75f, 1.0f, 2.0f};
   constexpr int frames = 16;
   PyroSimulationSettings settings;
   settings.dissipation = 0.035f;
@@ -2833,6 +2835,9 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
   for (const auto seed : seeds) {
     for (int strengthIndex = 0; strengthIndex < 3; ++strengthIndex) {
       for (int method = 0; method < (strengthIndex == 0 ? 1 : 2); ++method) {
+        for (int wavelengthIndex = 0;
+             wavelengthIndex < (strengthIndex == 0 ? 1 : 3);
+             ++wavelengthIndex) {
         PyroSimulation simulation(domain);
         simulation.setSettings(settings);
         double densityMass = 0.0;
@@ -2847,7 +2852,8 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
             if (strengthIndex > 0) {
               const float time = static_cast<float>(frame * 2 + substep) / 60.0f;
               adapterStats = applyMatchedCurlTurbulenceOrShredding(simulation, domain,
-                  time, seed, strengths[strengthIndex], method == 1);
+                  time, seed, strengths[strengthIndex], method == 1,
+                  wavelengthScales[wavelengthIndex]);
             }
             simulation.setSources(std::span<const PyroSourceState>(&source, 1));
             simulation.step(1.0 / 60.0);
@@ -2890,13 +2896,19 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
         const int methodIndex = strengthIndex == 0 ? 0 : method + 1;
         const std::string methodName = methodIndex == 0 ? "control" :
             methodIndex == 1 ? "curl" : "shred";
+        const float wavelengthScale = strengthIndex == 0 ? 1.0f :
+            wavelengthScales[wavelengthIndex];
         const std::string tag = "matched_seed" + std::to_string(seed) + "_" +
             methodName + "_" + std::to_string(static_cast<int>(strengths[strengthIndex] * 100.0f));
-        saveIfRequested(frontFrames[2], (tag + "_front.ppm").c_str());
-        saveIfRequested(sideImage, (tag + "_side.ppm").c_str());
-        saveIfRequested(topImage, (tag + "_top.ppm").c_str());
+        const std::string wavelengthTag = strengthIndex == 0 ? "_wl100" :
+            "_wl" + std::to_string(static_cast<int>(
+                wavelengthScale * 100.0f));
+        saveIfRequested(frontFrames[2], (tag + wavelengthTag + "_front.ppm").c_str());
+        saveIfRequested(sideImage, (tag + wavelengthTag + "_side.ppm").c_str());
+        saveIfRequested(topImage, (tag + wavelengthTag + "_top.ppm").c_str());
         GTEST_LOG_(INFO) << "matched curl adapter seed=" << seed
             << " method=" << methodName << " fraction=" << strengths[strengthIndex]
+            << " wavelengthScale=" << wavelengthScale
             << " affectedCells=" << adapterStats.affectedCells
             << " inputDeltaFraction=" << adapterStats.meanDeltaFraction
             << " inputSpeedChange=" << adapterStats.meanSpeedChangeFraction
@@ -2913,6 +2925,7 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
         }
         if (method == 1 && strengthIndex > 0)
           EXPECT_NEAR(adapterStats.meanSpeedChangeFraction, 0.0, 1e-5);
+        }
       }
     }
   }

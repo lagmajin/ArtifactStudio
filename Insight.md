@@ -7024,3 +7024,11 @@
 - **仮説（未検証）:** 高品質煙へ向けた次の進展には、advection次数の変更やforce増幅より、3D plume interfaceに沿う時間相関のある渦構造と、projection前後を分離測定する圧力diagnosticが要る。
 - **次に確認すべきこと:** 既存3D Pyro fieldを初期状態とする test-only multi-scale divergence-free perturbationを少数の世界単位振幅で比較し、pressure projection直後のdivergence、mass、front/side/top時系列と局所巻き込み指標を計測する。source移動とmass lossを分離し、見た目の折り返しがなければforce系の振幅掃引を終了する。
 - **再検証:** resolution focused GTest 1/1 pass (23.07s); canonical vorticity/projection focused tests 3/3 pass (2.86s); scalar advection fixed-flow GTest 1/1 pass (12.79s); matched curl/shred GTest 1/1 pass (3.20s)。
+
+## 2026-10-26: 3D curl-based smoke細分化は短波長で密度高周波を増やすがbillowを作らない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` と `applyMatchedCurlTurbulenceOrShredding()`。
+- **確認できた事実:** 既存3D Pyro source/forces/projection/transportを保ち、密度依存vector potentialから作るcurl摂動を固定時間ステップ前に加えた。速度変更fractionを.15に揃え、全3 band波長を0.75/1/2倍（基準.36/.18/.09m）に変更、seed17/71で比較。速度長を保つshreddingのdensity high-frequency RMSは短/中/長波長でseed17 `.004323/.004080/.003780`、seed71 `.004093/.004004/.003805`。最短波長は両seedで質量もやや高い（113.77/113.91 vs 基準波長111.06/111.30）。長波長はseed17/71で108.13/112.90。時間cosineと発散には一貫した波長優位がなく、全画像は滑らかなpuff、折れたbillowなし。curl injectionでは短波長のRMSは.003527/.003281に留まり、長波長はseed71 divergence .0545、temporal cosine .9807まで悪化。GTest 26条件 pass (8.62s)。
+- **価値または懸念:** 波長を短くすると画像場の高周波指標を両seedで少し増やせるが、目視の煙構造形成へはつながらず、質量・coverage・時間変化を同時に安定させる明確な波長は見つからなかった。高周波RMSだけで採用判断しない。これはstandaloneのtest-only operatorでありCore/appは変更していない。
+- **仮説（未検証）:** 密度界面を横切るだけの局所curlでは巻き込みが維持されず、渦の寿命と密度界面の変形を結びつける時間発展（同一渦の移流・伸長・合体）が必要かもしれない。
+- **次に確認すべきこと:** 同じ3D source/seedで時間相関を短/中/長に変え、各frameの密度界面曲率・渦度軸整列・front/side/topの連続画像を測る。瞬間的な細かさではなく、連続した巻き帯の形成を判定基準にする。
+- **再検証:** `ArtifactCorePyroVolumeSmokeTest.ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` build + focused test pass (26 conditions, 8.62s)。
