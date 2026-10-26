@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-27 04:05
+> Generated: 2026-10-27 04:13
 > Total documents: 1470
 
 ---
@@ -208,7 +208,7 @@
 | 31 | `docs/analysis/IMAGE_PIPELINE_AUDIT_2026-08-02.md` | Image / ImageProcessing 詳細監査 | 2026-08-02 | --- | 2026-09-14 | 14.9 KB | IMAGE, PIPELINE, AUDIT |
 | 32 | `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` | Insight Archive (through 2026-08-11) | 2026-08-11 | --- | 2026-08-13 | 1132.9 KB | INSIGHT, ARCHIVE |
 | 33 | `docs/analysis/INSIGHT_ARCHIVE_2026-09-01.md` | Insight Archive (through 2026-09-01) | 2026-09-01 | --- | 2026-09-03 | 1014.6 KB | INSIGHT, ARCHIVE |
-| 34 | `docs/analysis/KEYING_EFFECTS_RD_2026-10-26.md` | Keying Effects R&D | 2026-10-27 | --- | --- | 33.4 KB | KEYING, EFFECTS |
+| 34 | `docs/analysis/KEYING_EFFECTS_RD_2026-10-26.md` | Keying Effects R&D | 2026-10-27 | --- | 2026-10-27 | 34.0 KB | KEYING, EFFECTS |
 | 35 | `docs/analysis/LAYER_COMPONENT_CANDIDATES_2026-08-13.md` | レイヤーコンポーネント 追加候補 | 2026-08-24 | --- | 2026-08-24 | 4.3 KB | LAYER, COMPONENT, CANDIDATES |
 | 36 | `docs/analysis/LAYER_COMPONENT_PIPELINE_INTEGRITY_2026-08-13.md` | レイヤーコンポーネント パイプライン整合性検証 | 2026-08-13 | --- | 2026-08-14 | 16.4 KB | LAYER, COMPONENT, PIPELINE, INTEGRITY |
 | 37 | `docs/analysis/LAYER_KEYFRAME_AND_COMPOSITION_CREATE_INVESTIGATION_2026-09-07.md` | 左ペインのキー追加とコンポジション作成待ちの調査 | 2026-09-07 | --- | 2026-09-08 | 9.3 KB | LAYER, KEYFRAME, AND, COMPOSITION, CREATE |
@@ -965,7 +965,7 @@
 | 363 | `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE7_EXECUTION_2026-04-20.md` | Phase 7 実行メモ: Network / Script / Headless Integration | 2026-08-04 | --- | 2026-08-06 | 3.6 KB | HOST, CONTEXT, ROI, PROPERTY, CORE |
 | 364 | `docs/planned/MILESTONE_I18N_HARDENING_2026-09-16.md` | MILESTONE: 翻訳システム作り込み (i18n Hardening) | 2026-09-18 | --- | 2026-09-21 | 19.5 KB | I18N, HARDENING |
 | 365 | `docs/planned/MILESTONE_I18N_IMPLEMENTATION.md` | MILESTONE: Internationalization (i18n) Implementation | 2026-08-04 | --- | 2026-08-16 | 16.7 KB | I18N, IMPLEMENTATION |
-| 366 | `docs/planned/MILESTONE_IBK_KEYER_2026-08-01.md` | IBKキーヤー 実装マイルストーン | 2026-10-26 | In Progress | 2026-08-16 | 7.2 KB | IBK, KEYER |
+| 366 | `docs/planned/MILESTONE_IBK_KEYER_2026-08-01.md` | IBKキーヤー 実装マイルストーン | 2026-10-27 | In Progress | 2026-10-27 | 7.5 KB | IBK, KEYER |
 | 367 | `docs/planned/MILESTONE_IK_FK_VIEWPORT_2026-07-07.md` | M-RIG-2 IK/FK Switch + Pole Vector Viewport Milestone | 2026-07-07 | --- | 2026-08-16 | 12.4 KB | VIEWPORT |
 | 368 | `docs/planned/MILESTONE_ILLUSTRATOR_FILE_IMPORT_2026-04-18.md` | マイルストーン: Illustrator AI Transfer / Import Bridge | 2026-08-15 | --- | 2026-08-16 | 11.5 KB | ILLUSTRATOR, FILE, IMPORT |
 | 369 | `docs/planned/MILESTONE_IMAGE_EFFECT_AI_GAP_2026-08-18.md` | MILESTONE: 画像エフェクト 次世代ギャップ実装 | 2026-08-18 | Planned | 2026-08-20 | 9.7 KB | IMAGE, EFFECT, GAP |
@@ -1418,7 +1418,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-27 | --- | 2026-10-25 | 313.0 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-27 | --- | 2026-10-27 | 313.0 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
