@@ -36,8 +36,10 @@ or App code and does not establish GPU viewport parity or DCC-level quality.
 
 `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup` creates a true
 3D density/temperature/velocity field from the Pyro source, clones its
-12-step pulse-end state and advances fifteen branches for another 1.2 s while
-continuing the same emitter source on every branch.
+12-step pulse-end state into the original control / curl / timestep / gate
+branches, and advances those for another 1.2 s while continuing the emitter.
+Four additional source-shape / low-jet thermal branches each generate their
+own 12-step initial state and continue for the same 1.2 s.
 The current branches compare source velocity, initial divergence-free curl at
 two amplitudes, half velocity, 1/120 s fixed steps, and equal-strength
 large-scale curl acceleration gated to smoke interior, density interface, or
@@ -92,6 +94,22 @@ Temperature changes the low-jet plume more than buoyancy in this setup, but
 the low-jet CPU volume captures contain a dark shadow artifact; they are not
 used as evidence of visual quality. Focused GTest passed 1/1 (56.06 s), with
 captures in `build/smoke-runtime-rnd/captures/3d-source-shape-thermal-20261026/3d-source-rollup-rnd/`.
+
+`RechecksPyroSourceShapeAcrossSeedsAtHigherResolution` repeats control / wide /
+tall source shapes at 72x54x48 voxels, with 96 pressure iterations in every
+branch and two phases (17 / 71) of a bounded height-varying lateral shear.
+At step 60, mass-matched side occupied pixels are 3,976 / 6,172 / 5,476 for
+control / wide / tall at phase 17, and 3,982 / 6,195 / 5,557 at phase 71.
+The broad source effect therefore persists across both phases at higher
+resolution. Y centroids are 15.95 / 16.74 / 18.08 and 15.91 / 16.71 / 18.06;
+images remain smooth caps/columns without folded billows. Terminal divergence
+RMS ranges .024-.046; full-plume residuals are not monotonic as iteration
+count changes because each pressure setting produces a different evolving
+trajectory. The separate one-step projection diagnostic holds the input state
+fixed: divergence RMS drops from .72898 before projection to .60667 / .54278 /
+.44738 / .31718 at 12 / 24 / 48 / 96 iterations. Both focused tests passed
+(28.38 s for the shape sweep at 96 iterations; 0.35 s for the one-step sweep).
+Captures are under `build/smoke-runtime-rnd/captures/3d-source-highres-20261026-96iter/`.
 
 An earlier value-noise scale sweep of this same case compared deterministic,
 smooth 3D value-noise vector potentials applied as density-gated curl
