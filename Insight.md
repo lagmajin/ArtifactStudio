@@ -7249,6 +7249,7 @@
 - **仮説（未検証）:** 64x48前後の密度に、source連結性を改善する低周波・時間一貫性のある速度fieldを合わせる方が、sample上限を96x72へ引き上げるより少ない描画負荷で自然な輪郭を得られる可能性がある。
 - **次に確認すべきこと:** 同じDiligent経路で実solver由来の複数frameを評価し、billowの時間一貫性・露出・画面occupancyを測る。64x48相当の抽出をproductionに反映する前に、異なるemitter位置・seedで実測し、sample countとGPU timingをRelease計測する。
 - **再検証:** `cmake --build build --config Debug --target ArtifactClonerGpuRenderContractTest --parallel 8` 成功。focused GPU実行はvcpkg DLLディレクトリをPATHへ追加してVulkanで実施。出力 `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-rnd.log`、画像 `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-rnd/`。
+- **D3D12照合:** 同じfocused GPU testをRTX 4070 Ti / D3D12でも1/1 pass。全9 variantのPNGはVulkan captureとSHA-256が各々一致し、露出・normalized HF RMS・tile指標も同値だった（GPU submit時間はrunごとに変動）。D3D12 log/captures: `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-d3d12-rnd.log`, `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-d3d12-rnd/`。
 
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
@@ -7256,3 +7257,10 @@
 - **価値または懸念:** 将来旧APIへ呼び出しを戻すと、現行Luma Keyと異なるmatteになり、premultiplied画像ではRGB/alphaの関係が崩れる可能性がある。現在の利用実績がないため、直ちに挙動を変えるよりAPIの役割を確認する必要がある。
 - **仮説（未検証）:** 旧APIは初期のimage processing facadeとして残存し、現行Artifact effectからは置き換えられている可能性がある。
 - **次に確認すべきこと:** 互換性と外部利用の有無を確認したうえで、非推奨化・削除、または新しいKeying APIへの転送のいずれかを決める。どの案でもstraight/premultipliedとRGB係数の契約をテストで明示する。
+
+## 2026-10-26: IBK Keyerにforeground alpha-mode契約がない
+- **関連:** `ArtifactCore/include/ImageProcessing/Keying/IBKKeyer.ixx`、`ArtifactCore/src/ImageProcessing/Keying/IBKKeyer.cpp`、`Artifact/src/Effects/Keying/IBKKeyerEffect.cpp`、`tests/Artifact/KeyingEffectContractTest.cpp`。
+- **確認できた事実:** `IBKBuffers` はforeground/clean-plateのchannel orderのみを受け取り、alpha modeを持たない。Core CPUとArtifact GPU shaderはforeground RGBをalphaでunassociateせずにkey計算し、出力色にkey後alphaを乗算する。Artifact CPU wrapperは入力image descriptorをコピーして保持する。Chroma/Luma/Differenceに追加したalpha-mode-aware契約と異なり、IBKにはstraight/premultiplied同値テストがない。
+- **価値または懸念:** canonical premultiplied入力では半透明foregroundのRGBを暗いstraight色として評価し、さらに出力時にalphaをもう一度乗算する可能性がある。straight入力ではpremultiplied RGBを作ってもdescriptorがstraightのままになり得る。clean plateのalpha conventionもAPIにない。
+- **仮説（未検証）:** 実際のComposition入力が常にpremultipliedであるなら、IBKの現行CPU/GPU双方で半透明境界の色・matteが不整合になる可能性が高い。opaque-only fixturesでは露呈しない。
+- **次に確認すべきこと:** `IBKBuffers`へforeground alpha modeを導入し、CPUとGPUでstraight colorによるmatte/despill計算と入力表現に合わせた出力を行う。IBK GPU constant-buffer ABIを更新し、half-alpha straight/premultiplied等価性をCoreおよびArtifact wrapper契約で確認する。clean plateはopaque RGBとして扱うのか独立alpha modeを持たせるのかを先に固定する。
