@@ -2,6 +2,13 @@
 
 # Insight Register
 
+## 2026-10-26: 2D vorticity confinement must preserve signed curl
+- **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp` の `FluidSolver2D::vorticityConfinement()`、`tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `ComparesSignedVorticityConfinementAcrossSeedsAndFrames`。
+- **確認できた事実:** 旧実装は `ω = ∂v/∂x - ∂u/∂y` を `abs(ω)` に置き換え、その値を勾配方向だけでなく confinement force の符号にも使っていた。2D標準式では方向場 `N = ∇|ω|/|∇|ω||` とsigned `ω` を分け、forceは `(N_y ω, -N_x ω)` とする。Coreをこの形へ修正し、同じ煙源2条件を45 frameずつ、旧式比較とCore対standalone参照で実行した。変更前の旧式対参照画像MAEはframe15/30/45でseed17 `.000191/.001111/.002984`、seed71 `.000162/.001055/.001968`。変更後Core対参照は両seed・全capture frameで画素完全一致し、密度massも一致した。反対回転渦対2条件の30 frame画像も比較したが、大きなbillowは確認できない。全standalone 8 tests pass。Captures: `build/smoke-emitter-rnd/captures/vorticity-sign-rnd/` と `vorticity-signed-fixed-rnd/`。
+- **価値または懸念:** Core修正は反対向き渦へ符号を正しく反映する数値上の修正で、現行の単一source画像への効果は小さい。Houdini/C4D級のbillow達成や描画品質の大幅改善を示す結果ではない。snapshotの`curl`値も従来の絶対値から符号付き値になるため、将来それを読むconsumerが追加される場合は意味を確認する。
+- **仮説（未検証）:** 渦度符号の保持はcounter-rotating flowの進展を物理的に妥当化するが、billow形成の十分条件ではない。密度・温度の制御場、渦の初期条件、またはより高次の流体solverがなお必要となる可能性がある。
+- **次に確認すべきこと:** 子リポジトリではFluidSolver2D実装の対象hunkのみをcommitし、親側の独立回帰テストとR&D文書を合わせて同期する。品質R&Dでは、符号修正を固定したうえで煙源profileとsolver解像度／substepを露出一致・複数時点・複数seedで再評価する。
+
 ## 2026-10-26: D3D12 velocity-aligned sprite stretch smooths grain but does not form billows
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`、`ArtifactCore/src/Graphics/ParticleRenderer.cpp` のVelocityAligned billboard。
 - **確認できた事実:** 同じproduction frame 44の40×40粒子列をRTX 4070 Ti / D3D12 / 768×576で描き、green exposureを一致させた。通常版のhigh-pass RMS .001723に対し、粒子stretch 1.5x/2xは.004608/.003851。露出合わせalphaScaleは.453/.304。画像では円形spriteの継ぎ目が弱まる一方、細く直線的な煙柱になり、巻き上がるbillowは生じない。Focused GTest 1/1 pass、captures `build/smoke-runtime-rnd/captures/diligent-flow-stretch-corrected-rnd/`。
