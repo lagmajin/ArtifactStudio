@@ -2438,6 +2438,159 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesParticleReconstructionWithMatchedExposureDensityIntegration) {
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = kGridWidth;
+  settings.gridHeight = kGridHeight;
+  settings.solverIterations = 1;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.78f;
+  settings.emitterRadius = 0.08f;
+  settings.emitterDensity = 0.8f;
+  settings.emitterVelocityY = -1.2f;
+  settings.vorticity = 1.5f;
+  settings.emitterSwirl = 0.6f;
+  settings.colorR = 0.12f;
+  settings.colorG = 0.76f;
+  settings.colorB = 0.28f;
+
+  constexpr int finalFrame = 44;
+  Artifact::LayerFluidRuntimeState state;
+  for (int frame = 0; frame <= finalFrame; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+  ASSERT_NE(state.fluidSolver_, nullptr);
+
+  std::vector<float> density(
+      static_cast<std::size_t>(kGridWidth * kGridHeight));
+  for (int y = 0; y < kGridHeight; ++y)
+    for (int x = 0; x < kGridWidth; ++x)
+      density[static_cast<std::size_t>(y * kGridWidth + x)] =
+          state.fluidSolver_->getDensity(x, y);
+
+  QMatrix4x4 transform;
+  transform.setToIdentity();
+  const QRectF bounds(0.0, 0.0, kGridWidth, kGridHeight);
+  const auto& particles = Artifact::prepareLayerSmokeRenderData(
+      state, bounds, transform, 1.0f, finalFrame, settings);
+  const QImage particleImage = rasterizeParticles(particles);
+  const auto particleMetrics = measureSmokeImage(particleImage);
+  ASSERT_GT(particleMetrics.greenExcess, 0u);
+
+  // Match total visible green exposure so the comparison measures spatial
+  // reconstruction rather than an arbitrary opacity/exposure difference.
+  float lowExtinction = 0.01f;
+  float highExtinction = 8.0f;
+  QImage integratedImage;
+  for (int iteration = 0; iteration < 12; ++iteration) {
+    const float extinction = 0.5f * (lowExtinction + highExtinction);
+    integratedImage = rasterizeSolverDensity(
+        density, kGridWidth, kGridHeight, extinction, -0.6f, -0.8f, 0.0f,
+        settings.colorR, settings.colorG, settings.colorB);
+    const auto metrics = measureSmokeImage(integratedImage);
+    if (metrics.greenExcess < particleMetrics.greenExcess)
+      lowExtinction = extinction;
+    else
+      highExtinction = extinction;
+  }
+  const float matchedExtinction = 0.5f * (lowExtinction + highExtinction);
+  integratedImage = rasterizeSolverDensity(
+      density, kGridWidth, kGridHeight, matchedExtinction, -0.6f, -0.8f, 0.0f,
+      settings.colorR, settings.colorG, settings.colorB);
+  const auto integratedMetrics = measureSmokeImage(integratedImage);
+  ASSERT_EQ(particleImage.size(), integratedImage.size());
+  EXPECT_NEAR(static_cast<double>(integratedMetrics.greenExcess),
+      static_cast<double>(particleMetrics.greenExcess),
+      static_cast<double>(particleMetrics.greenExcess) * 0.02);
+
+  struct ShapeMetrics final {
+    int visible = 0;
+    double centroidX = 0.0;
+    double centroidY = 0.0;
+    double highPassRms = 0.0;
+  };
+  const auto measureShape = [](const QImage& image) {
+    ShapeMetrics result;
+    double weightedX = 0.0;
+    double weightedY = 0.0;
+    double highPassSquared = 0.0;
+    std::size_t highPassCount = 0;
+    for (int y = 0; y < image.height(); ++y) {
+      for (int x = 0; x < image.width(); ++x) {
+        const int excess = std::max(0, qGreen(image.pixel(x, y)) -
+            qGreen(kBackground));
+        if (excess <= 2) continue;
+        ++result.visible;
+        weightedX += static_cast<double>(x) * excess;
+        weightedY += static_cast<double>(y) * excess;
+      }
+    }
+    if (result.visible > 0) {
+      double exposure = 0.0;
+      for (int y = 0; y < image.height(); ++y)
+        for (int x = 0; x < image.width(); ++x)
+          exposure += std::max(0, qGreen(image.pixel(x, y)) -
+              qGreen(kBackground));
+      result.centroidX = weightedX / exposure;
+      result.centroidY = weightedY / exposure;
+    }
+    for (int y = 1; y + 1 < image.height(); ++y) {
+      for (int x = 1; x + 1 < image.width(); ++x) {
+        const double center = qGreen(image.pixel(x, y));
+        const double cross = 0.25 * (qGreen(image.pixel(x - 1, y)) +
+            qGreen(image.pixel(x + 1, y)) + qGreen(image.pixel(x, y - 1)) +
+            qGreen(image.pixel(x, y + 1)));
+        const double residual = center - cross;
+        highPassSquared += residual * residual;
+        ++highPassCount;
+      }
+    }
+    result.highPassRms = highPassCount > 0
+        ? std::sqrt(highPassSquared / highPassCount) : 0.0;
+    return result;
+  };
+  const auto particleShape = measureShape(particleImage);
+  const auto integratedShape = measureShape(integratedImage);
+  int unionPixels = 0;
+  int intersectionPixels = 0;
+  for (int y = 0; y < particleImage.height(); ++y) {
+    for (int x = 0; x < particleImage.width(); ++x) {
+      const bool particleVisible = qGreen(particleImage.pixel(x, y)) >
+          qGreen(kBackground) + 2;
+      const bool integratedVisible = qGreen(integratedImage.pixel(x, y)) >
+          qGreen(kBackground) + 2;
+      unionPixels += particleVisible || integratedVisible;
+      intersectionPixels += particleVisible && integratedVisible;
+    }
+  }
+  const double maskIoU = unionPixels > 0
+      ? static_cast<double>(intersectionPixels) / unionPixels : 1.0;
+  GTEST_LOG_(INFO) << "Matched-exposure smoke reconstruction frame="
+      << finalFrame << " particles=" << particles.particles.size()
+      << " extinction=" << matchedExtinction << " visible="
+      << particleShape.visible << '/' << integratedShape.visible
+      << " centroid=" << particleShape.centroidX << ','
+      << particleShape.centroidY << '/' << integratedShape.centroidX << ','
+      << integratedShape.centroidY << " highPass="
+      << particleShape.highPassRms << '/' << integratedShape.highPassRms
+      << " maskIoU=" << maskIoU;
+  EXPECT_GT(particleShape.visible, 100);
+  EXPECT_GT(integratedShape.visible, 100);
+  EXPECT_LT(particleMetrics.saturatedPixels, 1);
+  EXPECT_LT(integratedMetrics.saturatedPixels, 1);
+  EXPECT_GT(countDifferentPixels(particleImage, integratedImage), 100);
+
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+    EXPECT_TRUE(particleImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_matched_exposure_particles.png")), "PNG"));
+    EXPECT_TRUE(integratedImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_matched_exposure_density_integration.png")), "PNG"));
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ReportsDensityResolutionQualityAndCostTradeoff) {
   constexpr int kFrameCountForResolution = 44;
   const std::array<SmokeResolutionCapture, 3> captures{{
