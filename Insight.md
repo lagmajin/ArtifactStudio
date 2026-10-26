@@ -7069,3 +7069,11 @@
 - **価値または懸念:** 大小scaleを分けても現fixtureでは十分条件にならず、density high-frequency増加のみを見た目品質向上と扱えない。高substep化も本条件では差を出さず、低周波curlの効果はseed間で一貫しない。test-onlyなのでCore/app既定には反映しない。
 - **次に確認すべきこと:** 見た目差が弱い主因を分けるため、2D Fluid smokeの粒子表現ではなくproduction 3D volume rendererへ渡す密度解像度・transfer curve・extinction/scattering/lightingのどれがdetailを潰すかを、同一density fieldのrender-only sweepで測る。solver側ではdensity/temperature control fieldと発生source profileを独立させる。
 - **再検証:** `ArtifactCorePyroVolumeSmokeTest.ComparesSeparatedDccStyleSwirlAndShredding` target build成功、focused test 1/1 pass (10 variants, 2 seeds, 10.887s)。
+
+## 2026-10-26: Smoke転送応答は薄い煙の明るさを大きく左右する
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `ComparesFixedDensitySmokeTransferResponses`、`ArtifactCore/src/Render/VolumeRenderer.cpp` のSmoke transfer function / raymarch。
+- **確認できた事実:** 固定 synthetic 48×72×48密度を同じカメラで描画し、既定Smoke、constant-albedo（`emission=.55`, `absorption=30d`）、thin-density-lift（`emission=.42*sqrt(clamp(5d))`, 同じabsorption）を比較した。occupancyは5457/7094/5608 pixel、輝度合計154295/303936/205597、画像high-pass RMS .1558/.1792/.1603。定数アルベドのHP増加は輝度の約2倍と同時で、露出一致前はディテール改善と判断できない。constant-albedoでray step .04/.02/.01はluma 260924/305258/303822、HP RMS .1714/.1801/.1799。粗いstep .04には差があるが、.02と.01はこの場でほぼ一致した。focused独立test 1/1 passed (0.285s)、画像 `build/smoke-pyro-volume-rnd/captures/render-response-rnd/transfer_contact.png`。
+- **価値または懸念:** 組み込みSmoke応答は薄密度寄与を抑え、constant albedoは煙をかなり明るく広く見せる。しかし同じ輝度・視野・tone mappingに正規化していないうえ、transfer callbackはCPU rendererをserial化するため、見た目や性能の製品候補とは扱えない。step-size変更だけでは.02以下に顕著な改善が見えなかった。
+- **仮説（未検証）:** 既定Smokeのemissionがopacityに比例し、raymarchの寄与がさらにalphaと乗算されるため、薄い領域では寄与が概ね密度の二乗に近くなり、煙の薄い縁が落ちている可能性がある。これはlightingが無効な当該renderer式の推論であり、GPU pathや実アプリの表示では未検証。
+- **次に確認すべきこと:** 3応答をforeground lumaまたは平均optical depthで合わせ、同じ固定場を複数カメラと異なる密度seedで再比較する。render-onlyでは転送関数を露出較正しても巻き帯が出ないなら、原因をsolver density detailへ戻す。production `VolumeRenderer` は変更しない。
+- **再検証:** `ArtifactCorePyroVolumeSmokeTest` target build成功。focused test 1/1 pass、capturesとlogは `build/smoke-pyro-volume-rnd/captures/render-response-rnd/` および `build/smoke-pyro-volume-rnd/render-response-rnd.log`。

@@ -1424,6 +1424,141 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
 }
 
 TEST(ArtifactCorePyroVolumeSmokeTest,
+     ComparesFixedDensitySmokeTransferResponses) {
+  using namespace ArtifactCore::RayTrace;
+
+  constexpr int width = 48;
+  constexpr int height = 72;
+  constexpr int depth = 48;
+  constexpr float voxel = 1.0f / 48.0f;
+  std::vector<float> density(static_cast<std::size_t>(width * height * depth), 0.0f);
+  for (int z = 0; z < depth; ++z) {
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        const float wx = -0.5f + (static_cast<float>(x) + 0.5f) * voxel;
+        const float wy = (static_cast<float>(y) + 0.5f) * voxel;
+        const float wz = -0.5f + (static_cast<float>(z) + 0.5f) * voxel;
+        const float centerX = 0.055f * std::sin(6.0f * wy) +
+            0.025f * std::sin(17.0f * wy + 2.0f * wz);
+        const float radius = 0.115f + 0.035f * std::sin(11.0f * wy + 4.0f * wz);
+        const float radial = ((wx - centerX) * (wx - centerX) + wz * wz) /
+            (radius * radius);
+        const float cap = (wy - 0.82f) / 0.28f;
+        const float envelope = std::exp(-1.7f * radial - 1.4f * cap * cap) *
+            std::clamp((wy - 0.12f) / 0.16f, 0.0f, 1.0f);
+        const float billow = 0.62f + 0.38f * std::sin(19.0f * wx + 9.0f * wy) *
+            std::sin(16.0f * wz - 7.0f * wy);
+        density[static_cast<std::size_t>(x + width * (y + height * z))] =
+            envelope * billow;
+      }
+    }
+  }
+
+  VolumeFieldSet fields;
+  fields.density = {density.data(), {width, height, depth}};
+  VolumeAABB bounds;
+  bounds.min = {-0.5f, 0.0f, -0.5f};
+  bounds.max = {0.5f, 1.5f, 0.5f};
+  const auto render = [&](int response, float stepSize) {
+    CPUVolumeRenderer renderer;
+    renderer.setVolumeData(bounds, fields);
+    renderer.settings.stepSize = stepSize;
+    renderer.settings.maxSteps = 512;
+    renderer.settings.densityScale = 1.8f;
+    renderer.settings.lightIntensity = 0.0f;
+    renderer.settings.multipleScatteringStrength = 0.0f;
+    renderer.settings.backgroundColor = {0.015f, 0.02f, 0.03f};
+    renderer.camera = Camera(1.0f, 36.0f, 2.2f, 0.0f,
+        {0.0f, 0.75f, 2.4f}, {0.0f, 0.65f, 0.0f}, {0.0f, 1.0f, 0.0f});
+    if (response == 1) {
+      TransferFunction tf;
+      tf.kind = TransferFunctionKind::Custom;
+      tf.customCallback = [](float d, float) {
+        TransferFunctionSample sample;
+        sample.densityValue = d;
+        sample.emission = {0.55f, 0.55f, 0.55f};
+        sample.absorption = d * 30.0f;
+        return sample;
+      };
+      renderer.setTransferFunction(tf);
+    } else if (response == 2) {
+      TransferFunction tf;
+      tf.kind = TransferFunctionKind::Custom;
+      tf.customCallback = [](float d, float) {
+        TransferFunctionSample sample;
+        sample.densityValue = d;
+        const float lowDensityLift = std::sqrt(std::clamp(d * 5.0f, 0.0f, 1.0f));
+        sample.emission = {0.42f * lowDensityLift, 0.42f * lowDensityLift,
+                           0.42f * lowDensityLift};
+        sample.absorption = d * 30.0f;
+        return sample;
+      };
+      renderer.setTransferFunction(tf);
+    }
+    return renderer.render(144, 144);
+  };
+  const auto imageStats = [](const ImageBuffer& image) {
+    std::array<double, 2> stats{}; // high-pass RMS and highlight fraction
+    double highPassSquared = 0.0;
+    std::size_t count = 0;
+    std::size_t highlights = 0;
+    const auto luma = [&](int x, int y) {
+      const auto i = static_cast<std::size_t>((y * image.width + x) * 3);
+      return 0.2126 * image.pixels[i] + 0.7152 * image.pixels[i + 1] +
+          0.0722 * image.pixels[i + 2];
+    };
+    for (int y = 1; y + 1 < image.height; ++y) {
+      for (int x = 1; x + 1 < image.width; ++x) {
+        const double center = luma(x, y);
+        const double cross = 0.25 * (luma(x - 1, y) + luma(x + 1, y) +
+                                      luma(x, y - 1) + luma(x, y + 1));
+        const double residual = center - cross;
+        highPassSquared += residual * residual;
+        highlights += center >= 220.0;
+        ++count;
+      }
+    }
+    stats[0] = count ? std::sqrt(highPassSquared / count) : 0.0;
+    stats[1] = count ? static_cast<double>(highlights) / count : 0.0;
+    return stats;
+  };
+
+  const std::array<const char*, 3> names{"builtin", "constant-albedo", "thin-smoke-lift"};
+  std::array<ImageBuffer, 3> images;
+  std::array<std::array<double, 2>, 3> stats{};
+  for (int response = 0; response < 3; ++response) {
+    images[response] = render(response, 0.018f);
+    stats[response] = imageStats(images[response]);
+    const auto appearance = measure(images[response]);
+    GTEST_LOG_(INFO) << "fixed-density transfer " << names[response]
+        << " hp-rms=" << stats[response][0]
+        << " highlight-fraction=" << stats[response][1]
+        << " occupied=" << appearance.occupiedPixels
+        << " luma-sum=" << appearance.luminanceSum
+        << " luma-stddev=" << appearance.luminanceStdDev;
+    saveIfRequested(images[response], (std::string("pyro_transfer_") +
+        names[response] + ".ppm").c_str());
+  }
+
+  const auto coarse = render(1, 0.04f);
+  const auto medium = render(1, 0.02f);
+  const auto fine = render(1, 0.01f);
+  const auto coarseStats = measure(coarse);
+  const auto mediumStats = measure(medium);
+  const auto fineStats = measure(fine);
+  GTEST_LOG_(INFO) << "fixed-density ray step 0.04/0.02/0.01 luma="
+      << coarseStats.luminanceSum << '/' << mediumStats.luminanceSum << '/'
+      << fineStats.luminanceSum << " hp-rms=" << imageStats(coarse)[0] << '/'
+      << imageStats(medium)[0] << '/' << imageStats(fine)[0];
+  EXPECT_GT(coarseStats.occupiedPixels, 100u);
+  EXPECT_GT(mediumStats.occupiedPixels, 100u);
+  EXPECT_GT(fineStats.occupiedPixels, 100u);
+  EXPECT_GT(stats[0][0], 0.0);
+  EXPECT_GT(stats[1][0], 0.0);
+  EXPECT_GT(stats[2][0], 0.0);
+}
+
+TEST(ArtifactCorePyroVolumeSmokeTest,
      ComparesMultiscaleCurlOnRepeatedThreeDimensionalEmitter) {
   using namespace ArtifactCore;
   using namespace ArtifactCore::RayTrace;
