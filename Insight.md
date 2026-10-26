@@ -7418,3 +7418,10 @@
 - **価値または懸念:** 炎を別solverで二重化せず既存Pyroのtemperature / fuelと同一density fieldを共有できる。ただしmixed transferはtest-only callbackであり、production presetではない。画像は滑らかな細いplumeで、自然なbillow / fine-scale breakupは不足する。燃焼側のignition threshold、burn rate、heat release、smoke yieldは現在solver内の固定値で、art direction controlsにはなっていない。
 - **仮説（未検証）:** product向けの炎はsolverの基本燃焼を再利用し、art-direction設定とdensity/temperature/fuelに応じたtransfer controlsを分離して作るべきである。billow不足にはsource velocity調整だけでなくscale-separated turbulenceとdensity shreddingが必要と思われる。
 - **次に確認すべきこと:** exposure matched front/side画像で煙と炎の体積占有・時間変化を比較し、継続emitterとpulse emitterのburnoutを計測する。次にmultiscale velocity disturbanceとdensity detailを別々に投入し、mass retention、temporal coherence、silhouette/high-passを記録する。production codeへfire controlsを昇格するのはこのCPU look-devを反復し、Pyro domain/App rendering pathとの接続設計が明確になってから判断する。
+
+## 2026-10-27: Pyro火炎比較にfuel-off対照を追加
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesSmokeFireAndCombinedLooksFromTheSamePyroEmitter`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::applyCombustion`、`ArtifactCore/src/Render/VolumeRenderer.cpp::TransferFunction::evaluate`。
+- **確認できた事実:** 同じ40×56×40 domain、同じsource density / temperature / velocity、同じ120 stepsでfuel=5.5とfuel=0だけを切り替えた。燃料ありでは終了field合計がdensity / temperature / fuel = 526.105 / 1419.51 / 422.641、燃料なしではdensity / temperature = 39.8767 / 650.206。したがって燃焼経路はこの条件でdensityを486.229、temperatureを769.301増やした。両ケースともsource temperatureがあるため、燃料なしでもFire transferの可視pixelは存在する。focused standalone testを再ビルドし、該当ケース1件が1.133秒で成功した。
+- **価値または懸念:** 「煙と炎を同じPyro emitterから出す」方針は燃料の燃焼による発熱・煙生成まで含めて妥当。ただし現行Fire transferはdensity / temperatureを参照し、fuelや反応率を直接参照しないため、単に温度のある煙も炎色になり得る。燃料場・燃焼状態と炎の見た目を分離制御したい場合、現在のvolume transfer APIではその関連付けを表現できない。ここでいうテストはCPU reference rendererであり、Artifact AppのPyro描画接続を示さない。
+- **仮説（未検証）:** 同時出力を保ちつつ炎を燃焼域へ限定するには、熱だけでなくfuel消費量またはreaction/emission fieldをrendererへ渡す設計が役立つ可能性がある。一方、燃料が燃え尽きた後に温度fieldを残して余熱を描く表現との分離も必要になる。
+- **次に確認すべきこと:** 継続emitterとpulse emitterを同じ条件で比較し、fuel burnout、熱の減衰、炎・煙の可視寿命を時系列で計測する。その結果を見て、reaction field追加が現行temperature/density transferを上回るか、test-only rendererで比較する。

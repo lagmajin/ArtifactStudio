@@ -7315,6 +7315,16 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     simulation.step(1.0 / 60.0);
   }
 
+  PyroSimulation noFuelControl(domain);
+  noFuelControl.setSettings(simulationSettings);
+  auto noFuelSource = source;
+  noFuelSource.fuel = 0.0f;
+  for (int step = 0; step < 120; ++step) {
+    noFuelControl.setSources(
+        std::span<const PyroSourceState>(&noFuelSource, 1));
+    noFuelControl.step(1.0 / 60.0);
+  }
+
   const auto resolution3d = domain.resolution();
   const VolumeResolution resolution{resolution3d.width, resolution3d.height,
       resolution3d.depth};
@@ -7328,6 +7338,13 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   const double temperatureMass = std::accumulate(
       temperature.begin(), temperature.end(), 0.0);
   const double fuelMass = std::accumulate(fuel.begin(), fuel.end(), 0.0);
+  const auto& noFuelDensity = noFuelControl.fields().densityStorage();
+  const auto& noFuelTemperature =
+      noFuelControl.fields().temperatureStorage();
+  const double noFuelDensityMass = std::accumulate(
+      noFuelDensity.begin(), noFuelDensity.end(), 0.0);
+  const double noFuelTemperatureMass = std::accumulate(
+      noFuelTemperature.begin(), noFuelTemperature.end(), 0.0);
   const float maxDensity = *std::max_element(density.begin(), density.end());
   const auto maxDensityCell = static_cast<std::size_t>(
       std::distance(density.begin(), std::max_element(
@@ -7343,6 +7360,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   ASSERT_GT(densityMass, 0.0);
   ASSERT_GT(temperatureMass, 0.0);
   ASSERT_GT(fuelMass, 0.0);
+  EXPECT_GT(densityMass, noFuelDensityMass);
+  EXPECT_GT(temperatureMass, noFuelTemperatureMass);
 
   TransferFunction combined;
   combined.kind = TransferFunctionKind::Custom;
@@ -7445,6 +7464,11 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   const auto combinedMatchedStats = measure(combinedMatched);
   GTEST_LOG_(INFO) << "same Pyro emitter smoke/fire/mixed density-temp-fuel mass="
       << densityMass << '/' << temperatureMass << '/' << fuelMass
+      << " noFuel density/temp mass=" << noFuelDensityMass << '/'
+      << noFuelTemperatureMass
+      << " combustion delta density/temp="
+      << densityMass - noFuelDensityMass << '/'
+      << temperatureMass - noFuelTemperatureMass
       << " max=" << maxDensity << '/' << maxTemperature << '/' << maxFuel
       << " maxCell=" << maxDensityX << ',' << maxDensityY << ','
       << maxDensityZ
