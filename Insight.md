@@ -7335,3 +7335,10 @@
 - **価値または懸念:** UIに表示される「Target Neutral」をeffect使用者が選んでも有効にならず、GPUとCoreにある処理へ到達しない。現状のキーイング契約テストはGPU/Core mode 3値は見るが、Artifact wrapperのround-tripを確認していない。
 - **仮説（未検証）:** setter clampは旧来3モードからの値が残る想定で2に据え置かれた可能性があるが、現在の公開option listとtooltipからは根拠を確認できない。
 - **次に確認すべきこと:** Artifact child repoでsetter上限を3へそろえ、wrapper propertyを3に設定・取得するテストを追加する。CPU/GPU両経路でTarget Neutral modeの出力を比較する。変更時は親の子gitlink運用手順に従う。
+
+## 2026-10-27: FluidSnapshot2D sparse checkpointの精度とコスト
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresSmokeCheckpointCopyAndSparseReplayCost`、`ArtifactCore::FluidSnapshot2D`、`Artifact/src/Composition/ArtifactAbstractComposition.cpp::evaluateLayerComponentSimulation`。
+- **確認できた事実:** FluidSnapshot2Dは7つのfloat gridを値コピーする。96×72 / 128×96 / 192×144で1 snapshotは193,536 / 344,064 / 774,144 bytes。120-frame履歴のinterval 8 / 16 / 32では、15 / 8 / 4 checkpointsとなり容量は各解像度で2.90 / 1.55 / 0.77 MiB、5.16 / 2.75 / 1.38 MiB、11.61 / 6.19 / 3.10 MiB。Debugの64回平均snapshot+restoreは0.225 / 0.388 / 0.859 ms。target frame117へのcheckpoint replayでdensity RMSEは全条件0。192×144の6 / 22 replay framesは約0.71 / 2.64秒かかった。
+- **価値または懸念:** checkpointはsimulation stateを正確に再現できるが、grid解像度とlayer数に比例してメモリを使い、nearest checkpoint距離に比例する再生時間も高解像度で大きい。単一layer予算、実アプリのseek hitch、Bake serializationへ無条件に含める設計は避け、checkpoint budget・非永続runtime state・再生中更新との調停が要る。現計測はDebug standaloneで、production性能値ではない。
+- **仮説（未検証）:** Compositionの既存Component checkpointは煙solver stateを持たないため、煙用checkpointを同じseek判断点に結び付ければRender Queueのrange warmupやViewport seekを短縮できる。ただしcurrent Component Bake形式へ煙snapshotを入れる必要はなく、runtime-only checkpoint cacheとして別に持つ方が保存互換を保てる可能性がある。
+- **次に確認すべきこと:** runtime-only per-layer checkpoint APIをCompositionのframe evaluation順へ安全に統合できるか確認する。frame start / layer activation start、settings/FPS/stir revision changes、same-frame authoring edits、reset/bake/import、複数layer total byte budgetを含むinvalidation contractを先に決め、Composition View seekとRender Queue range renderが同一stateへ収束する独立テストを作る。Debug値だけでintervalやrelease performanceを決めない。

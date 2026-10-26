@@ -3417,6 +3417,95 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresSmokeCheckpointCopyAndSparseReplayCost) {
+  using ArtifactCore::FluidSolver2D;
+  constexpr std::array<std::pair<int, int>, 3> resolutions{{
+      {96, 72}, {128, 96}, {192, 144}}};
+  constexpr int kWarmupIterations = 8;
+  constexpr int kMeasureIterations = 64;
+  for (const auto [width, height] : resolutions) {
+    FluidSolver2D source(width, height);
+    ArtifactCore::SmokeEmitter2D emitter;
+    emitter.x = 0.5f;
+    emitter.y = 0.84f;
+    emitter.radius = 0.08f;
+    emitter.density = 0.6f;
+    emitter.velocityY = -1.2f;
+    for (int frame = 0; frame < 120; ++frame) {
+      ArtifactCore::injectSmokeEmitter2D(source, emitter, 1.0f);
+      source.update(1.0f / 30.0f);
+    }
+    for (int iteration = 0; iteration < kWarmupIterations; ++iteration) {
+      auto warm = source.snapshot();
+      ASSERT_TRUE(source.restoreSnapshot(warm));
+    }
+    const auto copyStart = std::chrono::steady_clock::now();
+    for (int iteration = 0; iteration < kMeasureIterations; ++iteration) {
+      auto snapshot = source.snapshot();
+      ASSERT_TRUE(source.restoreSnapshot(snapshot));
+    }
+    const double copyMicroseconds =
+        std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - copyStart).count() /
+        static_cast<double>(kMeasureIterations);
+    const std::size_t bytesPerSnapshot =
+        source.snapshot().density.size() * sizeof(float) * 7;
+    FluidSolver2D sequential(width, height);
+    for (int frame = 0; frame <= 117; ++frame) {
+      ArtifactCore::injectSmokeEmitter2D(sequential, emitter, 1.0f);
+      sequential.update(1.0f / 30.0f);
+    }
+    const auto expected = sequential.snapshot();
+
+    for (const int interval : {8, 16, 32}) {
+      FluidSolver2D replay(width, height);
+      std::vector<ArtifactCore::FluidSnapshot2D> checkpoints;
+      checkpoints.reserve(121 / interval + 1);
+      const auto replayStart = std::chrono::steady_clock::now();
+      constexpr int target = 117;
+      for (int frame = 0; frame <= target; ++frame) {
+        if (frame % interval == 0) checkpoints.push_back(replay.snapshot());
+        ArtifactCore::injectSmokeEmitter2D(replay, emitter, 1.0f);
+        replay.update(1.0f / 30.0f);
+      }
+      const auto checkpoint = checkpoints.back();
+      ASSERT_TRUE(replay.restoreSnapshot(checkpoint));
+      // Checkpoints are captured before the update for their loop frame.
+      const int checkpointFrame = static_cast<int>(
+          (checkpoints.size() - 1) * static_cast<std::size_t>(interval)) - 1;
+      const auto checkpointEnd = std::chrono::steady_clock::now();
+      const auto checkpointBytes = bytesPerSnapshot * checkpoints.size();
+      const int replayFrames = target - checkpointFrame;
+      for (int frame = checkpointFrame + 1; frame <= target; ++frame) {
+        ArtifactCore::injectSmokeEmitter2D(replay, emitter, 1.0f);
+        replay.update(1.0f / 30.0f);
+      }
+      const auto replayed = replay.snapshot();
+      double squaredDensityError = 0.0;
+      for (std::size_t cell = 0; cell < expected.density.size(); ++cell) {
+        const double difference = expected.density[cell] - replayed.density[cell];
+        squaredDensityError += difference * difference;
+      }
+      const double densityRmse = std::sqrt(
+          squaredDensityError / static_cast<double>(expected.density.size()));
+      EXPECT_LE(densityRmse, 1.0e-7);
+      const double replayMicroseconds =
+          std::chrono::duration<double, std::micro>(
+              std::chrono::steady_clock::now() - checkpointEnd).count();
+      GTEST_LOG_(INFO) << "smoke checkpoint resolution=" << width << 'x'
+          << height << " interval=" << interval
+          << " bytesPerSnapshot=" << bytesPerSnapshot
+          << " checkpointCount=" << checkpoints.size()
+          << " checkpointBytes=" << checkpointBytes
+          << " copyRestoreUs=" << copyMicroseconds
+          << " replayFrames=" << replayFrames
+          << " replayUs=" << replayMicroseconds
+          << " densityRmse=" << densityRmse;
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      VorticityStrengthChangesTheSmokePlume) {
   const SmokeRun low = runProductionSmokeRuntime(
       0.5f, false, false, 30.0, 44, 0.1f);
