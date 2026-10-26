@@ -7425,3 +7425,10 @@
 - **価値または懸念:** 「煙と炎を同じPyro emitterから出す」方針は燃料の燃焼による発熱・煙生成まで含めて妥当。ただし現行Fire transferはdensity / temperatureを参照し、fuelや反応率を直接参照しないため、単に温度のある煙も炎色になり得る。燃料場・燃焼状態と炎の見た目を分離制御したい場合、現在のvolume transfer APIではその関連付けを表現できない。ここでいうテストはCPU reference rendererであり、Artifact AppのPyro描画接続を示さない。
 - **仮説（未検証）:** 同時出力を保ちつつ炎を燃焼域へ限定するには、熱だけでなくfuel消費量またはreaction/emission fieldをrendererへ渡す設計が役立つ可能性がある。一方、燃料が燃え尽きた後に温度fieldを残して余熱を描く表現との分離も必要になる。
 - **次に確認すべきこと:** 継続emitterとpulse emitterを同じ条件で比較し、fuel burnout、熱の減衰、炎・煙の可視寿命を時系列で計測する。その結果を見て、reaction field追加が現行temperature/density transferを上回るか、test-only rendererで比較する。
+
+## 2026-10-27: Pyro pulse / continuous放出の煙・炎寿命を計測
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesPulseAndContinuousPyroSmokeFireLifetime`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::integrateStep/applyCombustion`、`ArtifactCore/src/Render/VolumeRenderer.cpp`。
+- **確認できた事実:** 同じ40×56×40 CPU Pyro field、同じsourceを使い、6 frames（0.1秒）だけ出すpulseと、3秒間出し続けるcontinuousを比較。time 0.1 / 0.5 / 1 / 2 / 3秒の各field mass density/temp/fuelはpulseで`4.849/47.671/60.488`、`3.727/30.957/43.573`、`2.188/14.268/27.200`、`0.0356/0.2777/5.909`、`0/0/0`。continuousは同じ初期値の後、t=3で`915.485/2217.84/414.166`。luma>12のfront表示pixelはpulseのSmoke/Fireが72/78→44/48→32/32→0/0、continuousはt=3で905/895。PNGを`build/smoke-runtime-rnd/captures/pyro-lifetime-20261027/pyro-lifetime-rnd/`に保存して確認。focused standalone testをRelWithDebInfoでbuildし1件pass。
+- **価値または懸念:** 同一Pyro solverから短い炎と煙の尾を出し、その後消える経路と、継続噴出の炎柱／煙柱を再現できる。今回のsource doseはpulse 0.1秒とcontinuous 3秒で大きく異なるため、画像面積や輝度の差を寿命だけの因果として比較できない。可視pixelは固定thresholdのCPU参照render指標で、実製品の露出・GPU parity・視覚品質を示さない。pulseはおよそ1秒時点でも少数の表示pixelを残すが、2秒では消え、3秒でfuel/temp/densityが全て0になった。
+- **仮説（未検証）:** 同一の積算source doseに揃えたうえで、放出時間・fuel/temperature比・coolingを振れば、炎の継続と煙尾の寿命を独立に調整できる領域が見つかる可能性がある。rendererへのreaction field追加要否もこの比較で評価できる。
+- **次に確認すべきこと:** pulse長とsource rateを相互補償して積算density / temperature / fuel injectionを揃え、停止後のfield lifetime、fire warmth、smoke occupancyを比較する。必要ならfuelなし高温source controlを追加し、温度由来の炎色と実燃焼由来の炎を分ける。

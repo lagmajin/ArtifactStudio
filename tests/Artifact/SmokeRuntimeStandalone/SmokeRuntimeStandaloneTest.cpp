@@ -7515,6 +7515,198 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesPulseAndContinuousPyroSmokeFireLifetime) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+  PyroDomain domain;
+  domain.min = {-0.625f, 0.0f, -0.625f};
+  domain.max = {0.625f, 1.75f, 0.625f};
+  domain.voxelSize = 0.03125f;
+  domain.fixedTimeStep = 1.0 / 60.0;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 64u * 1024u * 1024u;
+  PyroSimulationSettings settings;
+  settings.dissipation = 0.035f;
+  settings.coolingRate = 0.12f;
+  settings.buoyancy = 0.45f;
+  settings.vorticity = 0.65f;
+  settings.pressureIterations = 12.0f;
+  PyroSourceState source;
+  source.position = {0.0f, 0.20f, 0.0f};
+  source.extent = {0.15f, 0.12f, 0.15f};
+  source.velocity = {0.0f, 120.0f, 0.0f};
+  source.density = 0.5f;
+  source.temperature = 4.5f;
+  source.fuel = 5.5f;
+  const auto resolution3d = domain.resolution();
+  const VolumeResolution resolution{resolution3d.width, resolution3d.height,
+      resolution3d.depth};
+  constexpr std::array<int, 5> captureFrames{6, 30, 60, 120, 180};
+  constexpr int frameCount = 180;
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  const auto captureDirectory = outputDirectory.isEmpty() ? QString{}
+      : QDir(outputDirectory).filePath(QStringLiteral("pyro-lifetime-rnd"));
+  if (!captureDirectory.isEmpty())
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+
+  struct FieldStats final {
+    double densityMass = 0.0;
+    double temperatureMass = 0.0;
+    double fuelMass = 0.0;
+    float maxTemperature = 0.0f;
+    float maxFuel = 0.0f;
+  };
+  struct ImageStats final {
+    double luma = 0.0;
+    std::size_t visiblePixels = 0;
+    double warmth = 0.0;
+  };
+  const auto measureFields = [](const PyroSimulation& simulation) {
+    const auto& density = simulation.fields().densityStorage();
+    const auto& temperature = simulation.fields().temperatureStorage();
+    const auto& fuel = simulation.fields().fuelStorage();
+    FieldStats stats;
+    stats.densityMass = std::accumulate(density.begin(), density.end(), 0.0);
+    stats.temperatureMass = std::accumulate(
+        temperature.begin(), temperature.end(), 0.0);
+    stats.fuelMass = std::accumulate(fuel.begin(), fuel.end(), 0.0);
+    stats.maxTemperature = *std::max_element(
+        temperature.begin(), temperature.end());
+    stats.maxFuel = *std::max_element(fuel.begin(), fuel.end());
+    return stats;
+  };
+  const auto render = [&](const PyroSimulation& simulation,
+                          const TransferFunction& transfer) {
+    CPUVolumeRenderer renderer;
+    VolumeAABB bounds;
+    bounds.min = {domain.min.x, domain.min.y, domain.min.z};
+    bounds.max = {domain.max.x, domain.max.y, domain.max.z};
+    VolumeFieldSet fields;
+    fields.density = {const_cast<float*>(
+        simulation.fields().densityStorage().data()), resolution};
+    fields.temperature = {
+        const_cast<float*>(
+            simulation.fields().temperatureStorage().data()), resolution};
+    fields.fuel = {const_cast<float*>(
+        simulation.fields().fuelStorage().data()), resolution};
+    renderer.setVolumeData(bounds, fields);
+    renderer.setTransferFunction(transfer);
+    renderer.settings.stepSize = 0.022f;
+    renderer.settings.maxSteps = 128;
+    renderer.settings.densityScale = 7.2f;
+    renderer.settings.useTemperatureEmission = true;
+    renderer.settings.backgroundColor = {0.004f, 0.006f, 0.01f};
+    renderer.settings.lightIntensity = 0.0f;
+    renderer.settings.shadowIntensity = 0.0f;
+    renderer.settings.multipleScatteringStrength = 0.0f;
+    // Use a unit focus distance because camera rays are not normalized and
+    // raymarch stepSize is applied directly to the ray parameter.
+    renderer.camera = Camera(1.0f, 36.0f, 1.0f, 0.0f,
+        {0.0f, 0.78f, 2.9f}, {0.0f, 0.78f, 0.0f}, {0.0f, 1.0f, 0.0f});
+    return renderer.render(72, 96);
+  };
+  const auto measureImage = [](const ImageBuffer& image) {
+    ImageStats stats;
+    double rgbSum = 0.0;
+    double redMinusBlue = 0.0;
+    for (int y = 0; y < image.height; ++y)
+      for (int x = 0; x < image.width; ++x) {
+        const auto offset = static_cast<std::size_t>(
+            (y * image.width + x) * 3);
+        const double red = image.pixels[offset];
+        const double green = image.pixels[offset + 1];
+        const double blue = image.pixels[offset + 2];
+        const double luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+        stats.luma += luma;
+        rgbSum += red + green + blue;
+        redMinusBlue += red - blue;
+        if (luma > 12.0) ++stats.visiblePixels;
+      }
+    stats.warmth = rgbSum > 0.0
+        ? std::max(0.0, redMinusBlue) / rgbSum : 0.0;
+    return stats;
+  };
+  const auto saveImage = [](const ImageBuffer& buffer, const QString& path) {
+    QImage image(buffer.width, buffer.height, QImage::Format_RGB888);
+    for (int y = 0; y < buffer.height; ++y)
+      std::copy_n(buffer.pixels.data() +
+          static_cast<std::size_t>(y * buffer.width * 3),
+          buffer.width * 3, image.scanLine(y));
+    return image.save(path, "PNG");
+  };
+
+  struct Run final {
+    const char* name;
+    PyroSimulation simulation;
+    explicit Run(const char* label, const PyroDomain& runDomain)
+        : name(label), simulation(runDomain) {}
+  };
+  std::array<Run, 2> runs{{Run("pulse", domain), Run("continuous", domain)}};
+  std::array<FieldStats, 2> finalFields{};
+  std::array<ImageStats, 2> finalSmoke{};
+  std::array<ImageStats, 2> finalFire{};
+  std::size_t runIndex = 0;
+  for (auto& run : runs) {
+    run.simulation.setSettings(settings);
+    for (int frame = 1; frame <= frameCount; ++frame) {
+      const bool shouldEmit = run.name[0] == 'c' || frame <= 6;
+      if (shouldEmit)
+        run.simulation.setSources(
+            std::span<const PyroSourceState>(&source, 1));
+      else
+        run.simulation.setSources(std::span<const PyroSourceState>{});
+      run.simulation.step(1.0 / 60.0);
+      if (!std::binary_search(captureFrames.begin(), captureFrames.end(),
+              frame))
+        continue;
+
+      const auto fields = measureFields(run.simulation);
+      const auto smoke = render(run.simulation, TransferFunction::makeSmoke());
+      const auto fire = render(run.simulation, TransferFunction::makeFire());
+      const auto smokeStats = measureImage(smoke);
+      const auto fireStats = measureImage(fire);
+      if (frame == frameCount) {
+        finalFields[runIndex] = fields;
+        finalSmoke[runIndex] = smokeStats;
+        finalFire[runIndex] = fireStats;
+      }
+      GTEST_LOG_(INFO) << "Pyro lifetime mode=" << run.name
+          << " time=" << frame / 60.0
+          << " density/temp/fuel=" << fields.densityMass << '/'
+          << fields.temperatureMass << '/' << fields.fuelMass
+          << " maxTemp/fuel=" << fields.maxTemperature << '/'
+          << fields.maxFuel
+          << " smoke luma/visible=" << smokeStats.luma << '/'
+          << smokeStats.visiblePixels
+          << " fire luma/visible/warmth=" << fireStats.luma << '/'
+          << fireStats.visiblePixels << '/' << fireStats.warmth;
+      if (frame == captureFrames.front()) {
+        EXPECT_GT(fields.densityMass, 0.0);
+        EXPECT_GT(fields.temperatureMass, 0.0);
+        EXPECT_GT(fields.fuelMass, 0.0);
+        EXPECT_GT(smokeStats.visiblePixels, 0u);
+        EXPECT_GT(fireStats.visiblePixels, 0u);
+      }
+      if (!captureDirectory.isEmpty()) {
+        const auto prefix = QStringLiteral("pyro_%1_frame%2_")
+            .arg(QString::fromLatin1(run.name)).arg(frame);
+        ASSERT_TRUE(saveImage(smoke,
+            QDir(captureDirectory).filePath(prefix + "smoke.png")));
+        ASSERT_TRUE(saveImage(fire,
+            QDir(captureDirectory).filePath(prefix + "fire.png")));
+      }
+    }
+    ++runIndex;
+  }
+  EXPECT_GT(finalFields[1].densityMass, finalFields[0].densityMass);
+  EXPECT_GT(finalFields[1].temperatureMass, finalFields[0].temperatureMass);
+  EXPECT_GT(finalFields[1].fuelMass, finalFields[0].fuelMass);
+  EXPECT_GT(finalSmoke[1].visiblePixels, finalSmoke[0].visiblePixels);
+  EXPECT_GT(finalFire[1].visiblePixels, finalFire[0].visiblePixels);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ComparesFixedDensityOpticalDepthAndDirectionalSelfShadowRendering) {
   constexpr int width = kGridWidth;
   constexpr int height = kGridHeight;
