@@ -435,6 +435,96 @@ TEST(SmokeEmitterStandaloneTest, InjectsDensityAtNormalizedSourcePosition) {
   EXPECT_FLOAT_EQ(solver.getDensity(16, 12), 0.0f);
 }
 
+TEST(SmokeEmitterStandaloneTest,
+     EmitsIndependentTemperatureAndCarriesItThroughSnapshots) {
+  constexpr int width = 56;
+  constexpr int height = 72;
+  constexpr int emissionFrames = 10;
+  constexpr int totalFrames = 40;
+  constexpr float dt = 1.0f / 30.0f;
+  ArtifactCore::FluidSolver2D cold(width, height);
+  ArtifactCore::FluidSolver2D hot(width, height);
+  for (auto* solver : {&cold, &hot}) {
+    solver->setViscosity(0.0f);
+    solver->setDiffusion(0.0f);
+    solver->setBuoyancy(0.0f);
+    solver->setVorticity(0.0f);
+  }
+  hot.setThermalBuoyancy(2.0f);
+  hot.setTemperatureDissipationPerSecond(0.6f);
+
+  ArtifactCore::SmokeEmitter2D coldEmitter;
+  coldEmitter.x = 0.5f;
+  coldEmitter.y = 0.82f;
+  coldEmitter.radius = 0.07f;
+  coldEmitter.density = 0.4f;
+  coldEmitter.velocityY = -0.2f;
+  auto hotEmitter = coldEmitter;
+  hotEmitter.temperature = 1.0f;
+
+  double initialHotTemperatureMass = 0.0;
+  for (int frame = 1; frame <= totalFrames; ++frame) {
+    if (frame <= emissionFrames) {
+      ArtifactCore::injectSmokeEmitter2D(cold, coldEmitter);
+      ArtifactCore::injectSmokeEmitter2D(hot, hotEmitter);
+      if (frame == emissionFrames) {
+        initialHotTemperatureMass = scalarMass(hot.snapshot().temperature);
+      }
+    }
+    cold.update(dt);
+    hot.update(dt);
+  }
+
+  const auto hotSnapshot = hot.snapshot();
+  const double finalHotTemperatureMass = scalarMass(hotSnapshot.temperature);
+  double temperatureWeightedY = 0.0;
+  for (int y = 1; y < height - 1; ++y) {
+    for (int x = 1; x < width - 1; ++x) {
+      const auto cell = static_cast<std::size_t>(x + y * width);
+      temperatureWeightedY += hotSnapshot.temperature[cell] * y;
+    }
+  }
+  ASSERT_GT(finalHotTemperatureMass, 0.0);
+  const double temperatureCentroidY =
+      temperatureWeightedY / finalHotTemperatureMass;
+  GTEST_LOG_(INFO) << "independent smoke temperature final density centroid-y="
+                   << smokeCentroidY(hot) << " vs cold="
+                   << smokeCentroidY(cold) << " temperature centroid-y="
+                   << temperatureCentroidY << " temperature mass="
+                   << initialHotTemperatureMass << " -> "
+                   << finalHotTemperatureMass;
+  EXPECT_LT(smokeCentroidY(hot), smokeCentroidY(cold));
+  EXPECT_LT(temperatureCentroidY,
+            coldEmitter.y * static_cast<double>(height - 3) + 1.0);
+  EXPECT_LT(finalHotTemperatureMass, initialHotTemperatureMass);
+  EXPECT_FLOAT_EQ(hotSnapshot.thermalBuoyancy, 2.0f);
+  EXPECT_FLOAT_EQ(hotSnapshot.temperatureDissipationPerSecond, 0.6f);
+  EXPECT_EQ(scalarMass(cold.snapshot().temperature), 0.0);
+
+  ArtifactCore::FluidSolver2D restored(width, height);
+  ASSERT_TRUE(restored.restoreSnapshot(hotSnapshot));
+  const auto restoredSnapshot = restored.snapshot();
+  ASSERT_EQ(restoredSnapshot.temperature.size(), hotSnapshot.temperature.size());
+  for (std::size_t cell = 0; cell < hotSnapshot.temperature.size(); ++cell) {
+    EXPECT_EQ(restoredSnapshot.temperature[cell], hotSnapshot.temperature[cell]);
+    EXPECT_EQ(restoredSnapshot.temperaturePrev[cell],
+              hotSnapshot.temperaturePrev[cell]);
+  }
+  for (int frame = 0; frame < 12; ++frame) {
+    hot.update(dt);
+    restored.update(dt);
+  }
+  const auto continuedHot = hot.snapshot();
+  const auto continuedRestored = restored.snapshot();
+  for (std::size_t cell = 0; cell < continuedHot.temperature.size(); ++cell) {
+    EXPECT_EQ(continuedHot.temperature[cell],
+              continuedRestored.temperature[cell]);
+    EXPECT_EQ(continuedHot.density[cell], continuedRestored.density[cell]);
+    EXPECT_EQ(continuedHot.velocityX[cell], continuedRestored.velocityX[cell]);
+    EXPECT_EQ(continuedHot.velocityY[cell], continuedRestored.velocityY[cell]);
+  }
+}
+
 TEST(SmokeEmitterStandaloneTest, VelocityFollowsEmitterDirectionAndScale) {
   ArtifactCore::FluidSolver2D solver(32, 32);
   ArtifactCore::SmokeEmitter2D emitter;
