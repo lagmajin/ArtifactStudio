@@ -4873,6 +4873,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       pyroResolution.height, pyroResolution.depth};
   PyroSimulation baselineSimulation(domain);
   PyroSimulation depthRollSimulation(domain);
+  PyroSimulation buoyantSimulation(domain);
+  PyroSimulation highProjectionSimulation(domain);
   PyroSimulationSettings settings;
   settings.dissipation = 0.035f;
   settings.coolingRate = 0.0f;
@@ -4881,6 +4883,12 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   settings.pressureIterations = 24.0f;
   baselineSimulation.setSettings(settings);
   depthRollSimulation.setSettings(settings);
+  auto highProjectionSettings = settings;
+  highProjectionSettings.pressureIterations = 72.0f;
+  highProjectionSimulation.setSettings(highProjectionSettings);
+  auto buoyantSettings = settings;
+  buoyantSettings.buoyancy = 0.7f;
+  buoyantSimulation.setSettings(buoyantSettings);
 
   const auto sourceIndex = [](const int x, const int y) {
     return static_cast<std::size_t>(x + sourceWidth * y);
@@ -4941,7 +4949,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   initializeFromProduction2D(baselineSimulation);
   initializeFromProduction2D(depthRollSimulation);
 
-  const auto projectInitialVelocity = [&](PyroSimulation& target) {
+  const auto projectInitialVelocity = [&](PyroSimulation& target,
+                                          const int projectionIterations) {
     auto velocity = target.fields().velocityView();
     auto pressure = target.fields().pressureView();
     auto divergence = target.fields().divergenceView();
@@ -4965,7 +4974,6 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
                                     (vzp.z - vzm.z)) * 0.5f;
           pressure.at(x, y, z) = 0.0f;
         }
-    constexpr int projectionIterations = 24;
     for (int iteration = 0; iteration < projectionIterations; ++iteration) {
       for (int z = 0; z < pyroResolution.depth; ++z)
         for (int y = 0; y < pyroResolution.height; ++y)
@@ -5006,8 +5014,55 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
               (pressure.at(x, y, zp) - pressure.at(x, y, zm));
         }
   };
-  projectInitialVelocity(baselineSimulation);
-  projectInitialVelocity(depthRollSimulation);
+  const auto measureProjectionDivergence = [&](const PyroSimulation& target) {
+    const auto velocity = target.fields().velocityView();
+    const auto density = target.fields().densityView();
+    double divergenceSquared = 0.0;
+    double densityWeight = 0.0;
+    for (int z = 1; z + 1 < pyroResolution.depth; ++z)
+      for (int y = 1; y + 1 < pyroResolution.height; ++y)
+        for (int x = 1; x + 1 < pyroResolution.width; ++x) {
+          const double rho = std::max(0.0f, density.at(x, y, z));
+          if (rho <= 1.0e-5) continue;
+          const auto xp = velocity.at(x + 1, y, z);
+          const auto xm = velocity.at(x - 1, y, z);
+          const auto yp = velocity.at(x, y + 1, z);
+          const auto ym = velocity.at(x, y - 1, z);
+          const auto zp = velocity.at(x, y, z + 1);
+          const auto zm = velocity.at(x, y, z - 1);
+          const double divergence = 0.5 * ((xp.x - xm.x) +
+              (yp.y - ym.y) + (zp.z - zm.z));
+          divergenceSquared += rho * divergence * divergence;
+          densityWeight += rho;
+        }
+    return densityWeight > 0.0
+        ? std::sqrt(divergenceSquared / densityWeight) : 0.0;
+  };
+  constexpr std::array<int, 7> projectionSweepIterations{
+      4, 8, 16, 24, 36, 48, 72};
+  for (const int iterations : projectionSweepIterations) {
+    PyroSimulation sweepSimulation(domain);
+    sweepSimulation.setSettings(settings);
+    initializeFromProduction2D(sweepSimulation);
+    const double before = measureProjectionDivergence(sweepSimulation);
+    projectInitialVelocity(sweepSimulation, iterations);
+    const double after = measureProjectionDivergence(sweepSimulation);
+    GTEST_LOG_(INFO) << "depth-projection sweep iterations=" << iterations
+        << " density-weighted divergence RMS=" << before << " -> " << after
+        << " ratio=" << after / std::max(1.0e-12, before);
+    EXPECT_TRUE(std::isfinite(after));
+    EXPECT_LT(after, before);
+  }
+  projectInitialVelocity(baselineSimulation, 24);
+  projectInitialVelocity(depthRollSimulation, 24);
+  initializeFromProduction2D(highProjectionSimulation);
+  projectInitialVelocity(highProjectionSimulation, 72);
+  initializeFromProduction2D(buoyantSimulation);
+  auto buoyantDensity = buoyantSimulation.fields().densityView();
+  auto buoyantTemperature = buoyantSimulation.fields().temperatureView();
+  for (std::size_t i = 0; i < buoyantDensity.values.size(); ++i)
+    buoyantTemperature.values[i] = buoyantDensity.values[i] * 1.5f;
+  projectInitialVelocity(buoyantSimulation, 24);
 
   const auto outputDirectory = qEnvironmentVariable(
       "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
@@ -5275,7 +5330,9 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
               baseVelocityRms * 0.15, baseVelocityRms * 0.001 + 1.0e-5);
   EXPECT_LT(curlDivergenceRms, 1.0e-5);
   runBranch("base", baselineSimulation);
+  runBranch("projection-72", highProjectionSimulation);
   runBranch("depth-roll", depthRollSimulation);
+  runBranch("temperature-buoyant", buoyantSimulation);
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,

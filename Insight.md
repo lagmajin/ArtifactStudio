@@ -7177,3 +7177,11 @@
 - **仮説（未検証）:** この中〜大スケールanalytic curl familyは現条件では視覚品質へ寄与しにくく、追加周波数/強度を広く掃引する価値は低い。目標へ進むには、solverの発散をさらに抑えた上で、方向性forceよりsourceの熱浮力・密度/温度差から自然に生じる界面変形を可視化する比較が必要かもしれない。
 - **次に確認すべきこと:** 現行curlはCore/Appへ移植しない。追加curl振幅の拡大は止め、source-free初期場で圧力反復を増やしてprojection residualを評価した後、同じ密度を温度に結合した buoyancy-only / density-only / no-force branchesを揃え、front/side/topの界面変形がbillowへ繋がるか確認する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功。focused GTest 1/1 pass; output `build/smoke-runtime-rnd/captures/depth-roll-projected-comparison-20261026/depth-evolved-2d-state-rnd/`。
+
+## 2026-10-26: 圧力残差を下げても2D由来volumeにbillowは生じず、熱浮力も形を変えない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `EvolvesProductionTwoDimensionalSmokeStateInsideDepthResolvedPyro`。
+- **確認できた事実:** 同じproduction 2D由来の初期速度へcentered divergence / Jacobi pressure / centered gradient adapterを適用し、density-weighted divergence RMSは反復4/8/16/24/36/48/72で1.43771から1.06866/0.900949/0.703922/0.588447/0.480442/0.410336/0.322955へ低下。24反復と72反復で作った初期場を各自のsolver pressure iteration設定で24 step進化すると、終端発散RMSは.363914/.152773、massは2248.86/2324.01、Y centroidは27.343/26.483 voxel。高反復枝は発散が小さい一方でmassと上昇量が小さく、両方とも画像上に折れbillowは現れない。densityの1.5倍をtemperatureにしbuoyancy=.7を適用した枝は、24 step Y centroid 27.3408、mass 2281.13でcontrolの27.343、2248.86に近く、明確な渦巻き形状を作らない。focused standalone GTest 1/1 pass (8.78s)。front/side capturesは`build/smoke-runtime-rnd/captures/projection-buoyancy-20261026/depth-evolved-2d-state-rnd/`。
+- **価値または懸念:** 圧力反復増加は投影残差を改善するが、この写像fixtureでは単純な視覚改善につながらず、mass / liftも動くため反復数だけで採否を決められない。温度を密度へ比例させる単純初期条件も強い熱対流を作らない。いずれもtest-only mirror adapterであり、production Core solverやGPU viewport品質の評価ではない。
+- **仮説（未検証）:** 2D snapshot由来の密度と速度が3D熱対流の整合した初期状態でない可能性があり、billow評価には3D sourceから同時生成した温度・密度・速度の初期場、または高次圧力solverを独立条件にする必要がある。
+- **次に確認すべきこと:** 本比較はCore/Appへ移植しない。3D Pyro sourceが温度・密度を同時注入する既存standalone fixtureの同一時刻snapshotを複製し、速度場のみに関する変更と時間解像度を比較し、複数視点・複数時刻でfolded interfaceを確認する。
+- **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功、focused GTest 1/1 pass (8.78s)。

@@ -18,6 +18,22 @@ It writes `smoke_runtime.png`, `smoke_runtime_repeat.png`, and
 Configure and build this directory as its own CMake project, then run the test
 with `ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR` set to an absolute output directory.
 
+`EvolvesProductionTwoDimensionalSmokeStateInsideDepthResolvedPyro` is a
+test-only 3D Pyro bridge probe. It maps an unchanged production 96x72 2D smoke
+snapshot into a 48x36x32 volume, sweeps the mirrored centered-divergence /
+Jacobi-pressure / centered-gradient projection over 4 to 72 iterations, and
+evolves control, depth-curl, and density-coupled buoyancy branches for 24
+steps. The projection sweep reduces density-weighted divergence RMS from
+1.43771 to 0.58845 at 24 iterations and 0.32296 at 72. The 72-iteration
+branch ends with lower divergence (0.15277 vs 0.36391) but also lower density
+mass (2324 vs 2249) and a lower Y centroid (26.48 vs 27.34 voxels); neither
+branch develops a visible folded billow. Initial temperature set to 1.5x
+density with buoyancy 0.7 similarly leaves the 24-step centroid effectively
+unchanged (27.34 vs 27.34). This focused standalone test passed 1/1 (8.78 s).
+Front and side PNGs are written under the configured capture directory in
+`depth-evolved-2d-state-rnd/`. This experiment does not change production Core
+or App code and does not establish GPU viewport parity or DCC-level quality.
+
 The `ReportsSteadyStateRenderDataPreparationCost` case is an R&D microbenchmark.
 It advances 32x32, 79x79, 128x128, and 512x512 smoke states for 24 frames,
 warms render-data preparation 12 times, then reports mean and p95 over 100
