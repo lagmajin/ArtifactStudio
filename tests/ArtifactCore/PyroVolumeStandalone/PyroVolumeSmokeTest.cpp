@@ -590,6 +590,7 @@ void applyCanonicalVorticityConfinement(
 struct MatchedCurlAdapterStats {
   double meanDeltaFraction = 0.0;
   double meanSpeedChangeFraction = 0.0;
+  double discreteCurlDivergenceRms = 0.0;
   std::size_t affectedCells = 0;
 };
 
@@ -597,7 +598,8 @@ MatchedCurlAdapterStats applyMatchedCurlTurbulenceOrShredding(
     ArtifactCore::PyroSimulation& simulation,
     const ArtifactCore::PyroDomain& domain, float timeSeconds,
     std::uint32_t seed, float targetSpeedFraction, bool preserveSpeed,
-    float wavelengthScale = 1.0f, float temporalFrequencyScale = 1.0f) {
+    float wavelengthScale = 1.0f, float temporalFrequencyScale = 1.0f,
+    int firstBand = 0, int bandEnd = 3) {
   using ArtifactCore::PyroVec3;
   const auto resolution = domain.resolution();
   auto velocity = simulation.fields().velocityView();
@@ -617,7 +619,7 @@ MatchedCurlAdapterStats applyMatchedCurlTurbulenceOrShredding(
     const float yw = domain.min.y + (y + 0.5f) * domain.voxelSize;
     const float zw = domain.min.z + (z + 0.5f) * domain.voxelSize;
     PyroVec3 result{};
-    for (int band = 0; band < 3; ++band) {
+    for (int band = firstBand; band < std::min(3, bandEnd); ++band) {
       const float k = twoPi / (baseWavelengths[band] * wavelengthScale);
       const float phase = seedPhase + timeSeconds * temporalFrequencyScale *
           (0.55f + band * 0.3f);
@@ -696,6 +698,139 @@ MatchedCurlAdapterStats applyMatchedCurlTurbulenceOrShredding(
     stats.meanDeltaFraction = deltaFractionSum / stats.affectedCells;
     stats.meanSpeedChangeFraction = speedChangeFractionSum / stats.affectedCells;
   }
+  return stats;
+}
+
+MatchedCurlAdapterStats applyDivergenceFreeCurlTurbulence(
+    ArtifactCore::PyroSimulation& simulation,
+    const ArtifactCore::PyroDomain& domain, float timeSeconds,
+    std::uint32_t seed, float targetSpeedFraction,
+    float wavelengthScale, float temporalFrequencyScale) {
+  using ArtifactCore::PyroVec3;
+  const auto resolution = domain.resolution();
+  auto velocity = simulation.fields().velocityView();
+  const auto density = simulation.fields().densityView();
+  const auto index = [resolution](int x, int y, int z) {
+    return static_cast<std::size_t>(x + resolution.width *
+        (y + resolution.height * z));
+  };
+  constexpr float twoPi = 6.28318530718f;
+  constexpr std::array<float, 3> wavelengths{0.36f, 0.18f, 0.09f};
+  constexpr std::array<float, 3> weights{1.0f, 0.55f, 0.25f};
+  const float seedPhase = static_cast<float>(seed) * 0.173f;
+  const auto potential = [&](int x, int y, int z) {
+    x = std::clamp(x, 0, resolution.width - 1);
+    y = std::clamp(y, 0, resolution.height - 1);
+    z = std::clamp(z, 0, resolution.depth - 1);
+    const float xw = domain.min.x + (x + 0.5f) * domain.voxelSize;
+    const float yw = domain.min.y + (y + 0.5f) * domain.voxelSize;
+    const float zw = domain.min.z + (z + 0.5f) * domain.voxelSize;
+    PyroVec3 result{};
+    for (int band = 0; band < 2; ++band) {
+      const float k = twoPi / (wavelengths[band] * wavelengthScale);
+      const float phase = seedPhase + timeSeconds * temporalFrequencyScale *
+          (0.55f + band * 0.3f);
+      result.x += weights[band] * std::sin(
+          k * (0.31f * xw + yw + 0.19f * zw) + phase);
+      result.y += weights[band] * std::sin(
+          k * (0.23f * xw + 0.37f * yw + zw) - phase * 0.7f);
+      result.z += weights[band] * std::sin(
+          k * (xw - 0.29f * yw + 0.41f * zw) + phase * 0.43f);
+    }
+    const float rho = std::max(0.0f, density.at(x, y, z));
+    const float envelope = rho / (rho + 0.12f);
+    result.x *= envelope;
+    result.y *= envelope;
+    result.z *= envelope;
+    return result;
+  };
+  const float derivativeScale = 0.5f / domain.voxelSize;
+  const auto cellCount = static_cast<std::size_t>(resolution.width) *
+      resolution.height * resolution.depth;
+  std::vector<PyroVec3> curlField(cellCount);
+  MatchedCurlAdapterStats stats{};
+  for (int z = 1; z + 1 < resolution.depth; ++z)
+    for (int y = 1; y + 1 < resolution.height; ++y)
+      for (int x = 1; x + 1 < resolution.width; ++x) {
+        const auto axp = potential(x + 1, y, z);
+        const auto axm = potential(x - 1, y, z);
+        const auto ayp = potential(x, y + 1, z);
+        const auto aym = potential(x, y - 1, z);
+        const auto azp = potential(x, y, z + 1);
+        const auto azm = potential(x, y, z - 1);
+        curlField[index(x, y, z)] = {
+            (ayp.z - aym.z - azp.y + azm.y) * derivativeScale,
+            (azp.x - azm.x - axp.z + axm.z) * derivativeScale,
+            (axp.y - axm.y - ayp.x + aym.x) * derivativeScale};
+      }
+
+  double divergenceSquaredSum = 0.0;
+  std::size_t divergenceSampleCount = 0;
+  for (int z = 2; z + 2 < resolution.depth; ++z)
+    for (int y = 2; y + 2 < resolution.height; ++y)
+      for (int x = 2; x + 2 < resolution.width; ++x) {
+        const auto xp = curlField[index(x + 1, y, z)];
+        const auto xm = curlField[index(x - 1, y, z)];
+        const auto yp = curlField[index(x, y + 1, z)];
+        const auto ym = curlField[index(x, y - 1, z)];
+        const auto zp = curlField[index(x, y, z + 1)];
+        const auto zm = curlField[index(x, y, z - 1)];
+        const double divergence = (xp.x - xm.x + yp.y - ym.y +
+            zp.z - zm.z) * derivativeScale;
+        divergenceSquaredSum += divergence * divergence;
+        ++divergenceSampleCount;
+      }
+  if (divergenceSampleCount > 0)
+    stats.discreteCurlDivergenceRms = std::sqrt(divergenceSquaredSum /
+        static_cast<double>(divergenceSampleCount));
+
+  double curlToSpeedSum = 0.0;
+  for (int z = 1; z + 1 < resolution.depth; ++z)
+    for (int y = 1; y + 1 < resolution.height; ++y)
+      for (int x = 1; x + 1 < resolution.width; ++x) {
+        if (density.at(x, y, z) < 0.015f) continue;
+        const auto cell = index(x, y, z);
+        const auto curl = curlField[cell];
+        const auto before = velocity.values[cell];
+        const float curlLength = std::sqrt(curl.x * curl.x + curl.y * curl.y +
+            curl.z * curl.z);
+        const float speed = std::sqrt(before.x * before.x + before.y * before.y +
+            before.z * before.z);
+        if (curlLength < 1e-6f || speed < 1e-4f) continue;
+        curlToSpeedSum += curlLength / speed;
+        ++stats.affectedCells;
+      }
+  if (stats.affectedCells == 0 || curlToSpeedSum <= 1e-9) return stats;
+
+  const double curlScale = targetSpeedFraction * stats.affectedCells /
+      curlToSpeedSum;
+  double deltaFractionSum = 0.0;
+  double speedChangeFractionSum = 0.0;
+  for (int z = 1; z + 1 < resolution.depth; ++z)
+    for (int y = 1; y + 1 < resolution.height; ++y)
+      for (int x = 1; x + 1 < resolution.width; ++x) {
+        if (density.at(x, y, z) < 0.015f) continue;
+        const auto cell = index(x, y, z);
+        const auto curl = curlField[cell];
+        const auto before = velocity.values[cell];
+        const float speed = std::sqrt(before.x * before.x + before.y * before.y +
+            before.z * before.z);
+        if (speed < 1e-4f) continue;
+        const PyroVec3 delta{
+            static_cast<float>(curl.x * curlScale),
+            static_cast<float>(curl.y * curlScale),
+            static_cast<float>(curl.z * curlScale)};
+        const PyroVec3 after{before.x + delta.x, before.y + delta.y,
+            before.z + delta.z};
+        const float newSpeed = std::sqrt(after.x * after.x + after.y * after.y +
+            after.z * after.z);
+        deltaFractionSum += std::sqrt(delta.x * delta.x + delta.y * delta.y +
+            delta.z * delta.z) / speed;
+        speedChangeFractionSum += std::abs(newSpeed - speed) / speed;
+        velocity.values[cell] = after;
+      }
+  stats.meanDeltaFraction = deltaFractionSum / stats.affectedCells;
+  stats.meanSpeedChangeFraction = speedChangeFractionSum / stats.affectedCells;
   return stats;
 }
 
@@ -3385,6 +3520,156 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
               EXPECT_NEAR(adapterStats.meanSpeedChangeFraction, 0.0, 1e-5);
           }
         }
+      }
+    }
+  }
+}
+
+TEST(ArtifactCorePyroVolumeSmokeTest,
+     ComparesSeparatedDccStyleSwirlAndShredding) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+  struct Variant {
+    const char* name;
+    bool largeSwirl;
+    bool fineShredding;
+    int substepsPerFrame;
+  };
+  constexpr std::array<Variant, 5> variants{{
+      {"baseline", false, false, 2},
+      {"large_swirl", true, false, 2},
+      {"fine_shred", false, true, 2},
+      {"combined", true, true, 2},
+      {"combined_substeps4", true, true, 4}}};
+  constexpr std::array<std::uint32_t, 2> seeds{17, 71};
+  constexpr int frames = 16;
+  constexpr double frameDeltaSeconds = 1.0 / 30.0;
+  PyroSimulationSettings settings;
+  settings.dissipation = 0.035f;
+  settings.coolingRate = 0.18f;
+  settings.buoyancy = 0.7f;
+  settings.vorticity = 0.0f;
+  settings.pressureIterations = 12.0f;
+  PyroSourceState source;
+  source.position = {0.0f, 0.24f, 0.0f};
+  source.extent = {0.13f, 0.09f, 0.13f};
+  source.velocity = {0.0f, 240.0f, 0.0f};
+  source.density = 4.0f;
+  source.temperature = 1.5f;
+  source.enabled = true;
+
+  for (const auto seed : seeds) {
+    for (const auto& variant : variants) {
+      PyroDomain domain;
+      domain.min = {-0.5f, 0.0f, -0.5f};
+      domain.max = {0.5f, 1.5f, 0.5f};
+      domain.voxelSize = 1.0f / 32.0f;
+      domain.fixedTimeStep = frameDeltaSeconds / variant.substepsPerFrame;
+      domain.boundaryMode = PyroBoundaryMode::Open;
+      domain.memoryBudgetBytes = 24u * 1024u * 1024u;
+      PyroSimulation simulation(domain);
+      simulation.setSettings(settings);
+      FieldTemporalStats temporal{};
+      std::vector<float> previousDensity;
+      MatchedCurlAdapterStats largeSwirlStats{};
+      MatchedCurlAdapterStats shreddingStats{};
+      double densityMass = 0.0;
+      double densityHighFrequency = 0.0;
+
+      for (int frame = 0; frame < frames; ++frame) {
+        for (int substep = 0; substep < variant.substepsPerFrame; ++substep) {
+          const double deltaSeconds =
+              frameDeltaSeconds / variant.substepsPerFrame;
+          const float timeSeconds = static_cast<float>(
+              frame * frameDeltaSeconds + substep * deltaSeconds);
+          const float stepScale = static_cast<float>(deltaSeconds / (1.0 / 60.0));
+          if (variant.largeSwirl) {
+            largeSwirlStats = applyDivergenceFreeCurlTurbulence(simulation,
+                domain, timeSeconds, seed, 0.08f * stepScale, 1.5f, 0.5f);
+          }
+          if (variant.fineShredding) {
+            shreddingStats = applyMatchedCurlTurbulenceOrShredding(simulation,
+                domain, timeSeconds, seed, 0.04f * stepScale, true, 0.75f,
+                6.0f, 2, 3);
+          }
+          simulation.setSources(std::span<const PyroSourceState>(&source, 1));
+          simulation.step(deltaSeconds);
+        }
+        const auto densityStorage = simulation.fields().densityStorage();
+        updateTemporalStats(densityStorage, previousDensity, temporal);
+        if (frame == frames - 1) {
+          densityMass = std::accumulate(densityStorage.begin(),
+              densityStorage.end(), 0.0);
+          const auto resolution = domain.resolution();
+          densityHighFrequency = densityHighFrequencyRms(densityStorage,
+              resolution.width, resolution.height, resolution.depth);
+        }
+      }
+
+      const auto snapshot = simulation.snapshot();
+      auto frontRenderer = makeRenderer(snapshot, domain, {2.4f, 0.8f, 2.4f});
+      frontRenderer.camera = Camera(1.0f, 36.0f, 2.1f, 0.0f,
+          {0.0f, 0.8f, 2.4f}, {0.0f, 0.55f, 0.0f}, {0.0f, 1.0f, 0.0f});
+      frontRenderer.settings.stepSize = 0.025f;
+      frontRenderer.settings.maxSteps = 96;
+      frontRenderer.settings.densityScale = 2.2f;
+      frontRenderer.settings.lightIntensity = 5.0f;
+      frontRenderer.settings.phaseAnisotropy = 0.35f;
+      frontRenderer.settings.multipleScatteringStrength = 0.12f;
+      frontRenderer.settings.shadowIntensity = 0.0f;
+      const auto frontImage = frontRenderer.render(144, 144);
+      auto sideRenderer = makeRenderer(snapshot, domain, {2.4f, 0.8f, 2.4f});
+      sideRenderer.camera = Camera(1.0f, 36.0f, 2.1f, 0.0f,
+          {2.4f, 0.8f, 0.0f}, {0.0f, 0.55f, 0.0f}, {0.0f, 1.0f, 0.0f});
+      sideRenderer.settings = frontRenderer.settings;
+      const auto sideImage = sideRenderer.render(144, 144);
+      auto topRenderer = makeRenderer(snapshot, domain, {2.4f, 0.8f, 2.4f});
+      topRenderer.camera = Camera(1.0f, 36.0f, 2.1f, 0.0f,
+          {0.0f, 2.4f, 0.0f}, {0.0f, 0.55f, 0.0f}, {0.0f, 0.0f, 1.0f});
+      topRenderer.settings = frontRenderer.settings;
+      const auto topImage = topRenderer.render(144, 144);
+      const auto interfaceStats = measureDensityInterfaceVorticity(
+          simulation, domain);
+      const double densityCosine = temporal.cosineSum /
+          std::max<std::size_t>(1, temporal.comparisons);
+      const std::string prefix = "dcc_shaping_seed" + std::to_string(seed) +
+          "_" + variant.name;
+      saveIfRequested(frontImage, (prefix + "_front.ppm").c_str());
+      saveIfRequested(sideImage, (prefix + "_side.ppm").c_str());
+      saveIfRequested(topImage, (prefix + "_top.ppm").c_str());
+      GTEST_LOG_(INFO) << "DCC-shaping seed=" << seed
+          << " variant=" << variant.name
+          << " substeps=" << variant.substepsPerFrame
+          << " mass=" << densityMass
+          << " densityHighFrequency=" << densityHighFrequency
+          << " temporalCosine=" << densityCosine
+          << " curvatureRms=" << interfaceStats.curvatureRms
+          << " front/side/topCoverage=" << measure(frontImage).occupiedPixels
+          << '/' << measure(sideImage).occupiedPixels
+          << '/' << measure(topImage).occupiedPixels
+          << " divergence=" << velocityDivergenceRms(simulation)
+          << " largeSwirlCells/delta/speedChange/curlDiv="
+          << largeSwirlStats.affectedCells << '/'
+          << largeSwirlStats.meanDeltaFraction << '/'
+          << largeSwirlStats.meanSpeedChangeFraction << '/'
+          << largeSwirlStats.discreteCurlDivergenceRms
+          << " fineShredCells/delta/speedChange="
+          << shreddingStats.affectedCells << '/'
+          << shreddingStats.meanDeltaFraction << '/'
+          << shreddingStats.meanSpeedChangeFraction;
+      EXPECT_GT(densityMass, 1.0);
+      EXPECT_GT(interfaceStats.sampleCount, 100u);
+      if (variant.largeSwirl) {
+        EXPECT_GT(largeSwirlStats.affectedCells, 100u);
+        EXPECT_NEAR(largeSwirlStats.meanDeltaFraction,
+            0.08 * (2.0 / variant.substepsPerFrame), 1e-4);
+        EXPECT_LT(largeSwirlStats.discreteCurlDivergenceRms, 1e-4);
+      }
+      if (variant.fineShredding) {
+        EXPECT_GT(shreddingStats.affectedCells, 100u);
+        EXPECT_NEAR(shreddingStats.meanDeltaFraction,
+            0.04 * (2.0 / variant.substepsPerFrame), 1e-4);
+        EXPECT_NEAR(shreddingStats.meanSpeedChangeFraction, 0.0, 1e-5);
       }
     }
   }
