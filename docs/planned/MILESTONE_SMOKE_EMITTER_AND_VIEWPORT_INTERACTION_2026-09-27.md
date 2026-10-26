@@ -535,6 +535,7 @@
 ## 2026-10-27 火炎fieldのsource-stop減衰 R&D
 
 - `ArtifactSmokeRuntimeStandaloneTest.ComparesTemperatureTintWithFuelReactionFirePrototype` を延長し、24 frameの燃料供給後、30 frame（1秒）供給を止めた状態で、production `FluidSolver2D` の速度によるtest-only fuel移流・温度閾値燃焼を継続した。source停止時の反応量合計254.932、5/15/30 frame後は129.144 / 18.0954 / 0.614738。30 frame後の反応量は停止時の約0.24%、未燃fuelは1.13045残る。テスト用rasterizerの消火後fire画像は可視pixel 0。focused test pass (2.30s)。capture: `build/smoke-runtime-rnd/captures/2d-smoke-fire-rnd/smoke_fire_2d_fuel_reaction_after_source_stop.png`。
+- この比較で停止したのはtest-only fuel injectionのみで、production runtimeのsmoke / temperature emitterは有効なまま継続している。したがって「火種fuelを止め、熱源は維持したとき」の反応tailであり、全emitter停止後の挙動とは区別する。
 - これは煙の見た目や実GPU fire画質を測った結果ではなく、1つのsynthetic fuel / ignition条件で反応量が減衰することの確認。燃料は既存温度が閾値を超えれば燃えるため、最終時点で少量の未燃fuelがあることは、温度再上昇による再着火可能性を残す。供給はこのprototypeでは加算であり、ソースmode比較やframe-rate収束は未確認。
 - SideFXのPyro `flame` fieldは流れに運ばれる残存反応物寿命で、lifespan秒数により減衰する。source値は`Maximum`合成でrefreshし、Addによる蓄積を避ける推奨がある（[Flames](https://www.sidefx.com/docs/houdini/pyro/flames.html)、[Pyro Solver SOP](https://www.sidefx.com/docs/houdini/nodes/sop/pyrosolver.html)）。今回のfuel burn-rate modelとは異なる表現なので、製品fieldへ直輸入せず、test-only flame-lifetime branchを追加してsource-stop curve、soot/temperature emission ramp、frame-rate安定性を同一条件比較する。
 - 製品Core/Appは未変更。次段階はAdditive fuel burnとremaining-lifetime flameを同じsolver velocity/source historyで比較し、field容量・checkpoint量・画像の時間連続性を計測してからCore snapshot/cache設計へ進む。
