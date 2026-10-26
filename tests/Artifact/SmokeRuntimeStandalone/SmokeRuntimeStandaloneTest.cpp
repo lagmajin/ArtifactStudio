@@ -9556,6 +9556,99 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     EXPECT_TRUE(reactionMixedImage.save(QDir(outputDirectory).filePath(
         QStringLiteral("smoke_fire_2d_smoke_reaction_mixed_rnd.png"))));
   }
+
+  const auto sumField = [](const std::vector<float>& field) {
+    double sum = 0.0;
+    for (const float value : field) sum += value;
+    return sum;
+  };
+  const double activityAtShutdown = sumField(reactionRate);
+  std::array<double, 30> postShutdownActivity{};
+  for (int postShutdownFrame = 0; postShutdownFrame < 30;
+       ++postShutdownFrame) {
+    const int frame = 24 + postShutdownFrame;
+    Artifact::advanceLayerSmokeRuntime(
+        state, frame, kFramesPerSecond, settings);
+    std::fill(advectedFuel.begin(), advectedFuel.end(), 0.0f);
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        float vx = 0.0f;
+        float vy = 0.0f;
+        state.fluidSolver_->getVelocity(x, y, vx, vy);
+        const float backX = static_cast<float>(x) -
+            kDt * static_cast<float>(width - 2) * vx;
+        const float backY = static_cast<float>(y) -
+            kDt * static_cast<float>(height - 2) * vy;
+        advectedFuel[static_cast<std::size_t>(y * width + x)] =
+            sampleFuel(backX, backY);
+      }
+    }
+    fuel.swap(advectedFuel);
+    std::fill(reactionRate.begin(), reactionRate.end(), 0.0f);
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        const float temperature = state.fluidSolver_->getTemperature(x, y);
+        if (temperature <= kIgnitionTemperature) continue;
+        const auto index = static_cast<std::size_t>(y * width + x);
+        const float burned = std::min(
+            fuel[index], fuel[index] * kBurnRate * kDt);
+        if (burned <= 0.0f) continue;
+        fuel[index] -= burned;
+        reactionRate[index] = burned / kDt;
+        burnedFuelMass += burned;
+        state.fluidSolver_->addTemperature(x, y, burned * 1.5f);
+        state.fluidSolver_->addDensity(x, y, burned * 0.65f);
+      }
+    }
+    postShutdownActivity[static_cast<std::size_t>(postShutdownFrame)] =
+        sumField(reactionRate);
+  }
+  const double finalFuelAfterShutdown = sumField(fuel);
+  GTEST_LOG_(INFO) << "2D fire source-stop prototype: activity at stop="
+                   << activityAtShutdown
+                   << " after 5/15/30 frames="
+                   << postShutdownActivity[4] << '/'
+                   << postShutdownActivity[14] << '/'
+                   << postShutdownActivity[29]
+                   << " final fuel=" << finalFuelAfterShutdown;
+  EXPECT_GT(activityAtShutdown, 0.0);
+  EXPECT_LT(postShutdownActivity[29], activityAtShutdown);
+
+  ArtifactCore::ParticleRenderData extinguishedFireData;
+  extinguishedFireData.options.blend =
+      ArtifactCore::ParticleBlendPolicy::Additive;
+  extinguishedFireData.options.falloff =
+      ArtifactCore::ParticleFalloffMode::GaussianDensity;
+  extinguishedFireData.particles.reserve(cellCount);
+  for (int y = 1; y < height - 1; ++y) {
+    for (int x = 1; x < width - 1; ++x) {
+      const auto index = static_cast<std::size_t>(y * width + x);
+      const float rate = reactionRate[index];
+      if (rate <= 0.015f) continue;
+      const float temperature = state.fluidSolver_->getTemperature(x, y);
+      const float heat = std::clamp(
+          (temperature - kIgnitionTemperature) / 4.0f, 0.0f, 1.0f);
+      ArtifactCore::ParticleVertex particle{};
+      particle.px = static_cast<float>(x);
+      particle.py = static_cast<float>(y);
+      particle.ppx = particle.px;
+      particle.ppy = particle.py;
+      particle.r = 1.0f;
+      particle.g = std::lerp(0.08f, 0.82f, heat);
+      particle.b = std::lerp(0.002f, 0.13f, heat);
+      particle.a = std::clamp(rate * 0.28f, 0.0f, 0.28f);
+      particle.size = 0.10f;
+      extinguishedFireData.particles.push_back(particle);
+    }
+  }
+  const QImage extinguishedFireImage = rasterizeParticles(
+      extinguishedFireData, kGaussianParticleAlphaGain);
+  const auto extinguishedMetrics = measureSmokeImage(extinguishedFireImage);
+  if (!outputDirectory.isEmpty()) {
+    EXPECT_TRUE(extinguishedFireImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_fire_2d_fuel_reaction_after_source_stop.png"))));
+  }
+  EXPECT_EQ(extinguishedMetrics.visiblePixels, 0U);
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
