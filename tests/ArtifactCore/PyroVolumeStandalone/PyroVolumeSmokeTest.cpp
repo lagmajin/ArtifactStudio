@@ -720,6 +720,102 @@ double densityWorldGradientRms(const std::vector<float>& density,
   return count ? std::sqrt(squaredSum / count) : 0.0;
 }
 
+struct DensityInterfaceVorticityStats {
+  double meanTangentAlignment = 0.0;
+  double meanNormalAlignment = 0.0;
+  double curvatureRms = 0.0;
+  std::size_t sampleCount = 0;
+};
+
+DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
+    const ArtifactCore::PyroSimulation& simulation,
+    const ArtifactCore::PyroDomain& domain) {
+  using ArtifactCore::PyroVec3;
+  const auto density = simulation.fields().densityView();
+  const auto velocity = simulation.fields().velocityView();
+  const auto resolution = domain.resolution();
+  const auto index = [resolution](int x, int y, int z) {
+    return static_cast<std::size_t>(x + resolution.width *
+        (y + resolution.height * z));
+  };
+  const auto gradientAt = [&](int x, int y, int z) {
+    constexpr float inverseTwo = 0.5f;
+    return PyroVec3{
+        (density.at(x + 1, y, z) - density.at(x - 1, y, z)) * inverseTwo,
+        (density.at(x, y + 1, z) - density.at(x, y - 1, z)) * inverseTwo,
+        (density.at(x, y, z + 1) - density.at(x, y, z - 1)) * inverseTwo};
+  };
+  const auto normalizedGradientAt = [&](int x, int y, int z) {
+    auto normal = gradientAt(x, y, z);
+    const float length = std::sqrt(normal.x * normal.x + normal.y * normal.y +
+        normal.z * normal.z);
+    if (length <= 1e-6f) return PyroVec3{};
+    normal.x /= length;
+    normal.y /= length;
+    normal.z /= length;
+    return normal;
+  };
+  DensityInterfaceVorticityStats stats{};
+  double tangentAlignmentSum = 0.0;
+  double normalAlignmentSum = 0.0;
+  double alignmentWeightSum = 0.0;
+  double curvatureSquaredSum = 0.0;
+  for (int z = 2; z + 2 < resolution.depth; ++z)
+    for (int y = 2; y + 2 < resolution.height; ++y)
+      for (int x = 2; x + 2 < resolution.width; ++x) {
+        if (density.at(x, y, z) < 0.015f) continue;
+        const auto gradient = gradientAt(x, y, z);
+        const double gradientLength = std::sqrt(
+            gradient.x * gradient.x + gradient.y * gradient.y +
+            gradient.z * gradient.z);
+        if (gradientLength < 1e-4) continue;
+        const auto xp = velocity.values[index(x + 1, y, z)];
+        const auto xm = velocity.values[index(x - 1, y, z)];
+        const auto yp = velocity.values[index(x, y + 1, z)];
+        const auto ym = velocity.values[index(x, y - 1, z)];
+        const auto zp = velocity.values[index(x, y, z + 1)];
+        const auto zm = velocity.values[index(x, y, z - 1)];
+        const PyroVec3 curl{
+            0.5f * ((yp.z - ym.z) - (zp.y - zm.y)),
+            0.5f * ((zp.x - zm.x) - (xp.z - xm.z)),
+            0.5f * ((xp.y - xm.y) - (yp.x - ym.x))};
+        const double curlLength = std::sqrt(curl.x * curl.x + curl.y * curl.y +
+            curl.z * curl.z);
+        if (curlLength < 1e-5) continue;
+        const double cosine = std::clamp(
+            (curl.x * gradient.x + curl.y * gradient.y +
+             curl.z * gradient.z) / (curlLength * gradientLength), -1.0, 1.0);
+        const double normalAlignment = std::abs(cosine);
+        const double tangentAlignment = std::sqrt(
+            std::max(0.0, 1.0 - cosine * cosine));
+        const double alignmentWeight = curlLength * gradientLength;
+        tangentAlignmentSum += tangentAlignment * alignmentWeight;
+        normalAlignmentSum += normalAlignment * alignmentWeight;
+        alignmentWeightSum += alignmentWeight;
+
+        const auto nxp = normalizedGradientAt(x + 1, y, z);
+        const auto nxm = normalizedGradientAt(x - 1, y, z);
+        const auto nyp = normalizedGradientAt(x, y + 1, z);
+        const auto nym = normalizedGradientAt(x, y - 1, z);
+        const auto nzp = normalizedGradientAt(x, y, z + 1);
+        const auto nzm = normalizedGradientAt(x, y, z - 1);
+        const double curvature = (
+            nxp.x - nxm.x + nyp.y - nym.y + nzp.z - nzm.z) /
+            (2.0 * domain.voxelSize);
+        curvatureSquaredSum += curvature * curvature;
+        ++stats.sampleCount;
+      }
+  if (stats.sampleCount > 0) {
+    if (alignmentWeightSum > 0.0) {
+      stats.meanTangentAlignment = tangentAlignmentSum / alignmentWeightSum;
+      stats.meanNormalAlignment = normalAlignmentSum / alignmentWeightSum;
+    }
+    stats.curvatureRms = std::sqrt(curvatureSquaredSum /
+        static_cast<double>(stats.sampleCount));
+  }
+  return stats;
+}
+
 void saveIfRequested(const ArtifactCore::RayTrace::ImageBuffer& image,
                      const char* filename) {
   const char* outputDirectory = std::getenv("ARTIFACT_PYRO_VOLUME_OUTPUT_DIR");
@@ -2896,6 +2992,8 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
               top.settings = renderer.settings;
               topImage = top.render(144, 144);
             }
+            const auto interfaceStats = measureDensityInterfaceVorticity(
+                simulation, domain);
             const double cosine = temporal.cosineSum /
                 std::max<std::size_t>(1, temporal.comparisons);
             const double highFrequency = densityHighFrequency;
@@ -2929,8 +3027,17 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
                 << " front/side/topCoverage=" << measure(frontFrames[2]).occupiedPixels
                 << '/' << measure(sideImage).occupiedPixels
                 << '/' << measure(topImage).occupiedPixels
+                << " interfaceSamples=" << interfaceStats.sampleCount
+                << " vorticityTangent/normal=" << interfaceStats.meanTangentAlignment
+                << '/' << interfaceStats.meanNormalAlignment
+                << " interfaceCurvatureRms=" << interfaceStats.curvatureRms
                 << " divergence=" << velocityDivergenceRms(simulation);
             EXPECT_GT(densityMass, 1.0);
+            EXPECT_GT(interfaceStats.sampleCount, 100u);
+            EXPECT_GE(interfaceStats.meanTangentAlignment, 0.0);
+            EXPECT_LE(interfaceStats.meanTangentAlignment, 1.0);
+            EXPECT_GE(interfaceStats.meanNormalAlignment, 0.0);
+            EXPECT_LE(interfaceStats.meanNormalAlignment, 1.0);
             if (strengthIndex > 0) {
               EXPECT_GT(adapterStats.affectedCells, 100u);
               EXPECT_NEAR(adapterStats.meanDeltaFraction, strengths[strengthIndex], 1e-5);

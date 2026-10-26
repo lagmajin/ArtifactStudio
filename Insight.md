@@ -7040,3 +7040,11 @@
 - **仮説（未検証）:** 局所curlを速度へ継ぎ足すだけでなく、渦の輸送に合わせて渦度方向が伸長・回転し、密度の巻き帯を長く維持する必要がある可能性がある。
 - **次に確認すべきこと:** 上昇plume中の局所渦度ベクトルとdensity-gradientを時系列で追跡し、渦軸整列と界面曲率を計測する。連続した巻き帯が出ない条件では空間／時間noise parameter sweepを終了し、3D renderer・simulation couplingの不足を別評価する。
 - **再検証:** Pyro standalone target rebuild succeeded; 74-condition focused GTest passed (24.45s); front/side/top representative captures inspected。
+
+## 2026-10-26: 密度界面に沿う渦度は既に強いが、追加curl/shredは整列を崩しbillow化しない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `measureDensityInterfaceVorticity()` と `ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding`。
+- **確認できた事実:** 74条件の各終端場で、active density gradient cellsにおけるcurl vectorと密度界面法線の絶対cosineをcurl×gradient重み付きで測り、接線alignment `sqrt(1-cos²)`、法線alignment、`div(grad(rho)/|grad(rho)|)` curvature RMSを記録。control両seedは接線/法線整列 .999725/.017559、曲率RMS20.813。spatial/time baselineで15% curl injectionはseed17/71の接線整列 .908895/.913849、法線 .302291/.300469、曲率25.701/24.352。speed-preserving shredは接線 .871464/.857898、法線 .386533/.392666、曲率23.163/22.735。摂動は局所高周波・曲率を上げても基準の強い接線整列を崩し、連続画像にbillow foldは見えない。focused 74-condition GTest pass (24.617s)。
+- **価値または懸念:** 単純なvorticity/interface tangent alignmentはbillow形成の十分条件ではない。少なくとも現fixtureでは既に渦度が界面接線方向へ揃っているため、追加curl magnitudeを上げる方向は解決策でない可能性が高い。curvature RMSは面の粗さと大規模な巻き込みを区別せず、終端1時点の平均値なので、空間構造・持続性を追加判定する必要がある。
+- **仮説（未検証）:** DCC的billowには接線方向の整列だけでなく、渦度符号が反転する連続した巻き帯、界面法線速度と渦伸長の同期、複数時点で維持される曲率極大が必要かもしれない。
+- **次に確認すべきこと:** 1.2秒の同一fixtureで各frameのinterface curvature distributionとsigned vorticity/normal velocityを記録し、空間connected foldとその持続フレーム数を抽出する。control、curl、speed-preserving shredのfront/side/top時系列を比較し、mean RMSではなく構造の連結性と持続性で判定する。
+- **再検証:** `ArtifactCorePyroVolumeSmokeTest` target build succeeded; focused wavelength/time/interface-alignment sweep passed (74 conditions, 24.617s)。
