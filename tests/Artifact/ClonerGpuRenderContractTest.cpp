@@ -1219,10 +1219,18 @@ TEST(ClonerGpuRenderContractTest,
         state, bounds, transform, 1.0f, 44, settings);
 
     const auto makeStream = [&](const Artifact::LayerFluidRuntimeState& sampleState,
-                                const int countX, const int countY) {
+                                const int countX, const int countY,
+                                const float minimumDensity = 0.025f,
+                                const bool smoothLowDensityAlpha = false,
+                                const bool linearDensityAlpha = false,
+                                const float velocityFollow = 0.0f,
+                                std::vector<std::uint8_t>* activeMask = nullptr) {
         ArtifactCore::ParticleRenderData data;
         data.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
         data.options.billboard = ArtifactCore::ParticleBillboardPolicy::ScreenAligned;
+        if (activeMask)
+            activeMask->assign(
+                static_cast<std::size_t>(countX * countY), 0u);
         const float stepX = static_cast<float>(gridWidth - 1) / (countX - 1);
         const float stepY = static_cast<float>(gridHeight - 1) / (countY - 1);
         const float spacing = std::max(
@@ -1240,10 +1248,38 @@ TEST(ClonerGpuRenderContractTest,
                     (2.0f / 65535.0f) - 1.0f;
                 const float jitterY = static_cast<float>(hash >> 16u) *
                     (2.0f / 65535.0f) - 1.0f;
-                const float gx = std::clamp(sx * stepX + jitterX * stepX * 0.30f,
+                float gx = std::clamp(sx * stepX + jitterX * stepX * 0.30f,
                                              0.0f, static_cast<float>(gridWidth - 1));
-                const float gy = std::clamp(sy * stepY + jitterY * stepY * 0.30f,
+                float gy = std::clamp(sy * stepY + jitterY * stepY * 0.30f,
                                              0.0f, static_cast<float>(gridHeight - 1));
+                if (velocityFollow > 0.0f) {
+                    const int vx0 = static_cast<int>(gx);
+                    const int vy0 = static_cast<int>(gy);
+                    const int vx1 = std::min(vx0 + 1, gridWidth - 1);
+                    const int vy1 = std::min(vy0 + 1, gridHeight - 1);
+                    const float vtx = gx - vx0;
+                    const float vty = gy - vy0;
+                    const auto velocityAt = [&](const int x, const int y,
+                                                float& vx, float& vy) {
+                        sampleState.fluidSolver_->getVelocity(x, y, vx, vy);
+                    };
+                    float vx00 = 0.0f, vy00 = 0.0f;
+                    float vx10 = 0.0f, vy10 = 0.0f;
+                    float vx01 = 0.0f, vy01 = 0.0f;
+                    float vx11 = 0.0f, vy11 = 0.0f;
+                    velocityAt(vx0, vy0, vx00, vy00);
+                    velocityAt(vx1, vy0, vx10, vy10);
+                    velocityAt(vx0, vy1, vx01, vy01);
+                    velocityAt(vx1, vy1, vx11, vy11);
+                    const float vx = std::lerp(std::lerp(vx00, vx10, vtx),
+                                               std::lerp(vx01, vx11, vtx), vty);
+                    const float vy = std::lerp(std::lerp(vy00, vy10, vtx),
+                                               std::lerp(vy01, vy11, vtx), vty);
+                    gx = std::clamp(gx - vx * velocityFollow,
+                                    0.0f, static_cast<float>(gridWidth - 1));
+                    gy = std::clamp(gy - vy * velocityFollow,
+                                    0.0f, static_cast<float>(gridHeight - 1));
+                }
                 const int x0 = static_cast<int>(gx);
                 const int y0 = static_cast<int>(gy);
                 const int x1 = std::min(x0 + 1, gridWidth - 1);
@@ -1256,7 +1292,8 @@ TEST(ClonerGpuRenderContractTest,
                 const float density = std::lerp(
                     std::lerp(densityAt(x0, y0), densityAt(x1, y0), tx),
                     std::lerp(densityAt(x0, y1), densityAt(x1, y1), tx), ty);
-                if (density < 0.025f) continue;
+                if ((minimumDensity > 0.0f && density < minimumDensity) ||
+                    (smoothLowDensityAlpha && density <= 1.0e-6f)) continue;
                 ArtifactCore::ParticleVertex p{};
                 p.px = gx * scale;
                 p.py = gy * scale;
@@ -1265,9 +1302,16 @@ TEST(ClonerGpuRenderContractTest,
                 p.r = 0.12f;
                 p.g = 0.76f;
                 p.b = 0.28f;
-                p.a = std::clamp(std::sqrt(density) * 0.18f, 0.01f, 0.18f) * 0.79f;
+                p.a = linearDensityAlpha
+                    ? std::clamp(density * 0.36f, 0.0f, 0.18f) * 0.79f
+                    : smoothLowDensityAlpha
+                        ? std::clamp(std::sqrt(density) * 0.18f, 0.0f, 0.18f) * 0.79f
+                        : std::clamp(std::sqrt(density) * 0.18f, 0.01f, 0.18f) * 0.79f;
                 p.size = spacing * scale * (0.118f + density * 0.02f) * 1.125f;
                 data.particles.push_back(p);
+                if (activeMask)
+                    (*activeMask)[static_cast<std::size_t>(
+                        sy * countX + sx)] = 1u;
             }
         }
         return data;
@@ -1477,21 +1521,47 @@ TEST(ClonerGpuRenderContractTest,
 
     if (!output.isEmpty()) {
         constexpr std::array<int, 3> temporalFrames{20, 32, 44};
-        constexpr std::array<std::array<int, 2>, 3> temporalSamples{{
-            {40, 40}, {64, 48}, {96, 72}}};
+        struct TemporalSample final {
+            int countX;
+            int countY;
+            float minimumDensity;
+            bool smoothLowDensityAlpha;
+            bool linearDensityAlpha;
+            float velocityFollow;
+            const char* label;
+        };
+        constexpr std::array<TemporalSample, 7> temporalSamples{{
+            {40, 40, 0.025f, false, false, 0.0f, "baseline-40x40"},
+            {64, 48, 0.025f, false, false, 0.0f, "production-64x48"},
+            {64, 48, 0.005f, true, false, 0.0f, "soft-tail-64x48"},
+            {64, 48, 0.0f, true, false, 0.0f, "sqrt-alpha-no-cutoff-64x48"},
+            {64, 48, 0.0f, true, true, 0.0f, "linear-alpha-no-cutoff-64x48"},
+            {64, 48, 0.025f, false, false, 1.0f, "velocity-follow-1x-64x48"},
+            {96, 72, 0.025f, false, false, 0.0f, "resample-96x72"}}};
         Artifact::LayerFluidRuntimeState temporalState;
+        std::array<std::vector<std::uint8_t>, 7> previousMasks;
         for (int frame = 0; frame <= temporalFrames.back(); ++frame) {
             Artifact::advanceLayerSmokeRuntime(
                 temporalState, frame, 30.0, settings);
             if (frame != temporalFrames[0] &&
                 frame != temporalFrames[1] &&
                 frame != temporalFrames[2]) continue;
-            std::array<ArtifactCore::ImageF32x4_RGBA, 3> temporalImages;
-            std::array<double, 3> temporalAlphaScale{};
+            std::array<ArtifactCore::ImageF32x4_RGBA, 7> temporalImages;
+            std::array<double, 7> temporalAlphaScale{};
+            std::array<std::size_t, 7> birthCounts{};
+            std::array<std::size_t, 7> deathCounts{};
+            std::array<double, 7> persistence{};
             for (std::size_t sample = 0; sample < temporalSamples.size();
                  ++sample) {
+                std::vector<std::uint8_t> activeMask;
                 auto data = makeStream(temporalState,
-                    temporalSamples[sample][0], temporalSamples[sample][1]);
+                    temporalSamples[sample].countX,
+                    temporalSamples[sample].countY,
+                    temporalSamples[sample].minimumDensity,
+                    temporalSamples[sample].smoothLowDensityAlpha,
+                    temporalSamples[sample].linearDensityAlpha,
+                    temporalSamples[sample].velocityFollow,
+                    &activeMask);
                 data.options.falloff =
                     ArtifactCore::ParticleFalloffMode::GaussianDensity;
                 temporalAlphaScale[sample] = 1.0;
@@ -1523,20 +1593,37 @@ TEST(ClonerGpuRenderContractTest,
                     EXPECT_NEAR(exposure(temporalImages[sample]),
                         targetFrameExposure, targetFrameExposure * 0.01);
                 }
+                const auto& previousMask = previousMasks[sample];
+                if (previousMask.size() == activeMask.size()) {
+                    std::size_t intersection = 0;
+                    std::size_t unionCount = 0;
+                    for (std::size_t index = 0; index < activeMask.size(); ++index) {
+                        const bool wasActive = previousMask[index] != 0u;
+                        const bool isActive = activeMask[index] != 0u;
+                        if (wasActive && isActive) ++intersection;
+                        if (wasActive || isActive) ++unionCount;
+                        if (!wasActive && isActive) ++birthCounts[sample];
+                        if (wasActive && !isActive) ++deathCounts[sample];
+                    }
+                    persistence[sample] = unionCount > 0
+                        ? static_cast<double>(intersection) / unionCount : 1.0;
+                }
+                previousMasks[sample] = std::move(activeMask);
                 const auto quality = imageQuality(temporalImages[sample]);
                 GTEST_LOG_(INFO) << "Diligent smoke temporal frame=" << frame
-                    << " sampling=" << temporalSamples[sample][0] << 'x'
-                    << temporalSamples[sample][1]
+                    << " sampling=" << temporalSamples[sample].label
                     << " particles=" << data.particles.size()
                     << " alphaScale=" << temporalAlphaScale[sample]
                     << " exposure=" << exposure(temporalImages[sample])
                     << " normalizedHf/components/tileBoundary="
-                    << quality[3] << '/' << quality[2] << '/' << quality[1];
+                    << quality[3] << '/' << quality[2] << '/' << quality[1]
+                    << " activeBirths/deaths/jaccard="
+                    << birthCounts[sample] << '/' << deathCounts[sample] << '/'
+                    << persistence[sample];
                 const auto captureName = QStringLiteral(
-                    "temporal-frame-%1-sampling-%2x%3.png")
+                    "temporal-frame-%1-sampling-%2.png")
                     .arg(frame, 2, 10, QLatin1Char('0'))
-                    .arg(temporalSamples[sample][0])
-                    .arg(temporalSamples[sample][1]);
+                    .arg(QString::fromLatin1(temporalSamples[sample].label));
                 EXPECT_TRUE(temporalImages[sample].toQImage().save(
                     QDir(output).filePath(captureName), "PNG"));
             }

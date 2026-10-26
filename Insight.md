@@ -7252,6 +7252,20 @@
 - **D3D12照合:** 同じfocused GPU testをRTX 4070 Ti / D3D12でも1/1 pass。全9 variantのPNGはVulkan captureとSHA-256が各々一致し、露出・normalized HF RMS・tile指標も同値だった（GPU submit時間はrunごとに変動）。D3D12 log/captures: `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-d3d12-rnd.log`, `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-d3d12-rnd/`。
 - **時間方向の確認:** production solverを独立に再実行し、frame20/32/44の各点でmanual 40x40 / 64x48 / 96x72を同一露出に正規化したD3D12画像を保存。露出は各frame内で約25264 / 30140 / 34515、particle countは40x40=119/144/163、64x48=241/290/325、96x72=542/649/734。各frameで3 samplingは可視成分1つを保ち、目視上はstemからcapへ少し非対称な変化が続くが、折り返しbillowはない。frame間露出変化はsourceの連続注入を含むため、sampling間の露出差ではない。追加captureは `build/smoke-runtime-rnd/gpu-smoke-temporal-sampling-rnd/`、focused test 1/1 pass。現在の簡易component/tile指標は時間コヒーレンスを測らない。
 
+## 2026-10-27: 2D smoke低密度tailのサイト継続性と粒状感
+- **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`。production solverのframe20/32/44をD3D12でレンダリング。
+- **確認できた事実:** production相当64x48・density cutoff .025と、64x48・cutoff .005かつalpha下限0のsoft-tailを比較した。各frame露出は約25264/30140/34515へ1%以内に一致。active-site Jaccard（frame20→32）はproduction .548、soft-tail .628、resample 96x72 .541で、frame32→44はそれぞれ .658/.671/.631。soft-tailは粒子数がframe44で325から443へ36%増えた一方、normalized HF RMSは.00596から.00763へ28%増えた。focused Diligent testは1/1 pass。画像とログは `build/smoke-runtime-rnd/gpu-smoke-threshold-rnd/` と同名の `.log` に保存。
+- **価値または懸念:** cutoffを下げるとactive-siteの連続性は改善したが、同じ露出で粒状・拡散感が増す。frame44の目視では広い低コントラストのhalo/capが見える一方、折り返すbillowはまだ確認できない。active-site Jaccardは閾値上の格子サンプル継続率であり、速度場や知覚上の時間安定性を直接測る値ではない。この実験だけではsoft-tailをproduction採用する根拠にならない。
+- **仮説（未検証）:** 密度を低い閾値で切らず、連続的なdensity-to-alpha写像とmass補正を併用すると、格子点の出入りを抑えながら露出と輪郭を保てる可能性がある。
+- **次に確認すべきこと:** cutoffなしのalpha連続写像を、露出・silhouette・active-site churn・GPU submit時間を揃えて比較する。結果が一貫した視覚改善を示すまではproduction cutoff .025を維持する。
+
+## 2026-10-27: 2D smoke連続alphaと速度追従サンプルの比較
+- **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`。production solverのframe20/32/44を同じD3D12 particle rendererへ入力。
+- **確認できた事実:** 64x48のdensity cutoff .025条件（alpha下限 .01）に対し、cutoffなしのsqrt alpha、cutoffなしのlinear alpha、density×1.0の速度オフセットでsample位置をずらす条件を比較した。露出は各frame内で±1%にそろえた。cutoffなし2条件はframe44で705粒子（production 325）、normalized HF RMSはsqrt .01054 / linear .00939（production .00596）、frame32→44のactive-site Jaccardはともに.748（production .658）。速度追従条件はframe44で328粒子、HF .00602、Jaccard .638でproduction同等以下。focused D3D12 testは1/1 pass。captures/logは `build/smoke-runtime-rnd/gpu-smoke-continuous-alpha-rnd/` と同名の `.log`、速度追従比較は `build/smoke-runtime-rnd/gpu-smoke-velocity-follow-rnd/` と同名の `.log`。
+- **価値または懸念:** cutoffなしのalpha写像は閾値上のサイト継続性を高めるが、粒子数が2.17倍となり高周波成分も増える。サイト継続率だけでは視覚品質を代表せず、静的格子の粒状感が目立つ可能性がある。速度場でsample gridを単純にずらす案は、現条件では時間継続性にも高周波指標にも明確な改善を示さなかった。いずれもproductionへ反映する根拠は不足している。
+- **仮説（未検証）:** fixed-gridの微細粒状感は個々の格子点の存続より、点状kernelの重なり分布に支配される可能性がある。低周波の大きなdensity structuresを強調するには、2Dソルバーのscalar advection/diffusion、vorticity confinement、dissipation、発生sourceの空間・時間分布を順に分離して評価する方が有望。
+- **次に確認すべきこと:** emitter入力とsolver各段のfieldを固定seed・複数frameで保存し、注入、移流、curl/vorticity、dissipationの寄与を一因子ずつ比較する。粒子表示からvoxel/field shadingへ移る場合は別の実験レーンとして品質・GPU負荷を測り、production変更は視覚的なbillow改善が再現した場合に限る。
+
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
 - **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。
