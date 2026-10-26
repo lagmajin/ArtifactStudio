@@ -384,13 +384,36 @@ TEST(SmokeEmitterStandaloneTest,
     }
     const double centerY = densityMass > 0.0
         ? densityWeightedY / densityMass : 0.0;
+    ArtifactCore::FluidSolver2D sourceOnlySolver(gridWidth, gridHeight);
+    for (int frame = 0; frame < static_cast<int>(durationSeconds * frameRate);
+         ++frame) {
+      const ArtifactCore::SmokeEmitter2D emitter{
+          0.5f, 0.86f, 0.06f, 0.25f * emissionTimeScale,
+          0.0f, -0.12f, 0.25f};
+      ArtifactCore::injectSmokeEmitter2D(
+          sourceOnlySolver, emitter, emissionTimeScale);
+    }
+    const auto sourceSnapshot = sourceOnlySolver.snapshot();
+    double sourceVelocityImpulseL1 = 0.0;
+    double sourceDensityMass = 0.0;
+    for (const float component : sourceSnapshot.velocityX) {
+      sourceVelocityImpulseL1 += std::abs(component);
+    }
+    for (const float component : sourceSnapshot.velocityY) {
+      sourceVelocityImpulseL1 += std::abs(component);
+    }
+    for (const float density : sourceSnapshot.density) {
+      sourceDensityMass += density;
+    }
     GTEST_LOG_(INFO) << "production smoke emitter rate frameRate=" << frameRate
         << " frames=" << static_cast<int>(durationSeconds * frameRate)
         << " requestedSeconds=" << durationSeconds
         << " solverAdvancedSeconds=" << solverAdvancedSeconds
         << " densityMass=" << densityMass
         << " densityCenterY=" << centerY << " peakDensity=" << peakDensity
-        << " minDensity=" << minDensity << " maxVelocity=" << maxVelocity;
+        << " minDensity=" << minDensity << " maxVelocity=" << maxVelocity
+        << " sourceOnlyDensityMass=" << sourceDensityMass
+        << " sourceOnlyVelocityImpulseL1=" << sourceVelocityImpulseL1;
     EXPECT_TRUE(std::isfinite(densityMass));
     EXPECT_TRUE(std::isfinite(centerY));
     EXPECT_TRUE(std::isfinite(peakDensity));
