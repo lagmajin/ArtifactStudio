@@ -7432,3 +7432,17 @@
 - **価値または懸念:** 同一Pyro solverから短い炎と煙の尾を出し、その後消える経路と、継続噴出の炎柱／煙柱を再現できる。今回のsource doseはpulse 0.1秒とcontinuous 3秒で大きく異なるため、画像面積や輝度の差を寿命だけの因果として比較できない。可視pixelは固定thresholdのCPU参照render指標で、実製品の露出・GPU parity・視覚品質を示さない。pulseはおよそ1秒時点でも少数の表示pixelを残すが、2秒では消え、3秒でfuel/temp/densityが全て0になった。
 - **仮説（未検証）:** 同一の積算source doseに揃えたうえで、放出時間・fuel/temperature比・coolingを振れば、炎の継続と煙尾の寿命を独立に調整できる領域が見つかる可能性がある。rendererへのreaction field追加要否もこの比較で評価できる。
 - **次に確認すべきこと:** pulse長とsource rateを相互補償して積算density / temperature / fuel injectionを揃え、停止後のfield lifetime、fire warmth、smoke occupancyを比較する。必要ならfuelなし高温source controlを追加し、温度由来の炎色と実燃焼由来の炎を分ける。
+
+## 2026-10-27: Pyro放出スケジュールをscalar・velocityの積算入力量で比較
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesPulseAndContinuousPyroSmokeFireLifetime`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::integrateStep/applyCombustion`。
+- **確認できた事実:** 0.1秒pulse（rate 1）、1秒pulse（rate 3）、3秒continuous（rate 1）を比較し、sourceのdensity / temperature / fuel / velocity各値×放出frame数が nominal 180 frame-unitsとなる1秒pulseとcontinuousを対照化した。3秒終了時の1秒pulseはdensity/temp/fuel mass `806.469/1665.82/2.895`、continuousは`915.485/2217.84/414.166`。1秒pulseはfuelをほぼ使い切り、より高いtemperature / fuelの一時ピークを通った。frontのluma>12 pixel数はSmoke/Fire `977/948` 対 `905/895`、luma合計`71208/72599` 対 `67757/76143`、fire warmth`0.469/0.456`。画像ではpulse側が細長い炎・煙柱、continuous側は先端の広い形に見える。velocityを含む全source入力の積算を合わせた後も、燃焼・移流の非線形応答で最終fieldは一致しない。RelWithDebInfo focused test 1件pass。PNGは`build/smoke-runtime-rnd/captures/pyro-equal-dose-velocity-matched-20261027/pyro-lifetime-rnd/`。
+- **価値または懸念:** 単純なsource rate×duration一致は、燃焼を含むPyro結果の質量保存や画面露出の一致を意味しない。1秒pulseは最終fuelがほぼゼロでも、残留温度と密度により煙・炎pixelを連続条件と同程度に保った。見た目を調整する時は、発生量、反応率、冷却、速度場、転送関数を別々に記録する必要がある。
+- **仮説（未検証）:** source scheduleだけでも短く強い爆発的な火炎と、長く安定した炎柱を作り分けられる可能性があるが、source値を3倍にする瞬間入力は高温ピークを作り、品質・安定性・解像度依存性に注意が必要。renderer側のfuel/reaction gatingはまだ検証していない。
+- **次に確認すべきこと:** equal-integral条件のsource velocityだけを固定する補助比較を加え、細長さ・重心・occupancyが速度積算と燃焼ピークのどちらに支配されるかを分離する。続けてreaction-driven fire transfer候補をtest-onlyで比較し、現行temperature-only transferより燃焼域を明瞭に示せるか評価する。
+
+## 2026-10-27: Pyro scalar doseを保ったvelocity impulseの形状差を分離
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesPulseAndContinuousPyroSmokeFireLifetime`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::integrateStep`。
+- **確認できた事実:** 同じ1秒pulse・scalar rate 3でvelocity rateだけを1 / 3に変えたtest-only比較を追加した。3秒時点、velocity dose 60のscalar-only pulseはdensity/temp/fuel`1105.26/2396.74/0.4149`、Smoke/Fire visible pixel `751/741`、luma`58002/69076`。velocity doseも180へ合わせたpulseは`806.469/1665.82/2.8952`、visible`977/948`、luma`71208/72599`。continuous referenceは`915.485/2217.84/414.166`、visible`905/895`、luma`67757/76143`。保存画像ではvelocity-dose-matched pulseがscalar-only pulseより背が高く細長い。RelWithDebInfo build後にfocused test 1件pass。画像は`build/smoke-runtime-rnd/captures/pyro-velocity-dose-control-20261027/pyro-lifetime-rnd/`。
+- **価値または懸念:** velocity source integralはtrajectory / silhouetteへ大きく影響し、scalar mass・温度だけを揃えた比較では公平な見た目評価にならない。velocity doseを増やしたpulseは残留massが下がる一方、可視pixelは増え、massと画像面積の単調関係も成立しなかった。これは同一voxel/domain/CPU transfer functionでの測定で、GPU/Appの品質保証ではない。
+- **仮説（未検証）:** source velocityをdurationに反比例させるだけでは時間変化する移流場・圧力projectionを等価にできないため、DCC風のアート方向性にはsource emissionとsubstep forceを別パラメータとして調整する方が扱いやすい可能性がある。
+- **次に確認すべきこと:** 同じ初期pulse場を分岐してsource emissionを停止し、post-emission velocity / buoyancy / coolingを一つずつ固定・無効化する。こうして停止後のshape / mass / fire warmth変化を分離し、現行の燃焼係数をAPI化する前に必要な制御軸を絞る。

@@ -7638,24 +7638,40 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 
   struct Run final {
     const char* name;
+    int emissionFrames;
+    float scalarRateScale;
+    float velocityRateScale;
     PyroSimulation simulation;
-    explicit Run(const char* label, const PyroDomain& runDomain)
-        : name(label), simulation(runDomain) {}
+    Run(const char* label, const int frames, const float scalarScale,
+        const float velocityScale, const PyroDomain& runDomain)
+        : name(label), emissionFrames(frames), scalarRateScale(scalarScale),
+          velocityRateScale(velocityScale), simulation(runDomain) {}
   };
-  std::array<Run, 2> runs{{Run("pulse", domain), Run("continuous", domain)}};
-  std::array<FieldStats, 2> finalFields{};
-  std::array<ImageStats, 2> finalSmoke{};
-  std::array<ImageStats, 2> finalFire{};
+  std::array<Run, 4> runs{{
+      Run("pulse_0p1s", 6, 1.0f, 1.0f, domain),
+      Run("equal_scalar_dose_pulse_1s", 60, 3.0f, 1.0f, domain),
+      Run("equal_dose_pulse_1s", 60, 3.0f, 3.0f, domain),
+      Run("continuous_3s", frameCount, 1.0f, 1.0f, domain)}};
+  std::array<FieldStats, 4> finalFields{};
+  std::array<ImageStats, 4> finalSmoke{};
+  std::array<ImageStats, 4> finalFire{};
   std::size_t runIndex = 0;
   for (auto& run : runs) {
     run.simulation.setSettings(settings);
     for (int frame = 1; frame <= frameCount; ++frame) {
-      const bool shouldEmit = run.name[0] == 'c' || frame <= 6;
-      if (shouldEmit)
+      if (frame <= run.emissionFrames) {
+        auto frameSource = source;
+        frameSource.density *= run.scalarRateScale;
+        frameSource.temperature *= run.scalarRateScale;
+        frameSource.fuel *= run.scalarRateScale;
+        frameSource.velocity.x *= run.velocityRateScale;
+        frameSource.velocity.y *= run.velocityRateScale;
+        frameSource.velocity.z *= run.velocityRateScale;
         run.simulation.setSources(
-            std::span<const PyroSourceState>(&source, 1));
-      else
+            std::span<const PyroSourceState>(&frameSource, 1));
+      } else {
         run.simulation.setSources(std::span<const PyroSourceState>{});
+      }
       run.simulation.step(1.0 / 60.0);
       if (!std::binary_search(captureFrames.begin(), captureFrames.end(),
               frame))
@@ -7673,6 +7689,10 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       }
       GTEST_LOG_(INFO) << "Pyro lifetime mode=" << run.name
           << " time=" << frame / 60.0
+          << " nominalDoseFrames=" << run.emissionFrames *
+              run.scalarRateScale
+          << " velocityDoseFrames=" << run.emissionFrames *
+              run.velocityRateScale
           << " density/temp/fuel=" << fields.densityMass << '/'
           << fields.temperatureMass << '/' << fields.fuelMass
           << " maxTemp/fuel=" << fields.maxTemperature << '/'
@@ -7699,11 +7719,19 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     }
     ++runIndex;
   }
+  EXPECT_GT(finalFields[3].densityMass, finalFields[0].densityMass);
+  EXPECT_GT(finalFields[3].temperatureMass, finalFields[0].temperatureMass);
+  EXPECT_GT(finalFields[3].fuelMass, finalFields[0].fuelMass);
+  EXPECT_GT(finalSmoke[3].visiblePixels, finalSmoke[0].visiblePixels);
+  EXPECT_GT(finalFire[3].visiblePixels, finalFire[0].visiblePixels);
   EXPECT_GT(finalFields[1].densityMass, finalFields[0].densityMass);
   EXPECT_GT(finalFields[1].temperatureMass, finalFields[0].temperatureMass);
-  EXPECT_GT(finalFields[1].fuelMass, finalFields[0].fuelMass);
   EXPECT_GT(finalSmoke[1].visiblePixels, finalSmoke[0].visiblePixels);
   EXPECT_GT(finalFire[1].visiblePixels, finalFire[0].visiblePixels);
+  EXPECT_GT(finalFields[2].densityMass, finalFields[0].densityMass);
+  EXPECT_GT(finalFields[2].temperatureMass, finalFields[0].temperatureMass);
+  EXPECT_GT(finalSmoke[2].visiblePixels, finalSmoke[0].visiblePixels);
+  EXPECT_GT(finalFire[2].visiblePixels, finalFire[0].visiblePixels);
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
