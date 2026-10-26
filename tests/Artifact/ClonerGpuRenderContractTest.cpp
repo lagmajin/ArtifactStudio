@@ -1373,20 +1373,68 @@ TEST(ClonerGpuRenderContractTest,
     }
     EXPECT_NEAR(variants[7].alphaScale, 1.0, 0.05)
         << "the production sampling compensation should preserve exposure";
-    const auto highPass = [](const ArtifactCore::ImageF32x4_RGBA& image) {
-        double sum = 0.0;
-        std::size_t count = 0;
-        for (int y = 1; y + 1 < image.height(); ++y)
-            for (int x = 1; x + 1 < image.width(); ++x) {
+    const auto imageQuality = [](const ArtifactCore::ImageF32x4_RGBA& image) {
+        constexpr int tileSize = 8;
+        const int tileColumns = image.width() / tileSize;
+        const int tileRows = image.height() / tileSize;
+        std::vector<double> tileMeans(static_cast<std::size_t>(
+            tileColumns * tileRows), 0.0);
+        double highFrequencySquared = 0.0;
+        double energy = 0.0;
+        std::size_t pixelCount = 0;
+        std::size_t highFrequencyCount = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
                 const double center = image.getPixel(x, y).g();
-                const double neighbors = 0.25 * (
-                    image.getPixel(x - 1, y).g() + image.getPixel(x + 1, y).g() +
-                    image.getPixel(x, y - 1).g() + image.getPixel(x, y + 1).g());
-                const double residual = center - neighbors;
-                sum += residual * residual;
-                ++count;
+                energy += center;
+                ++pixelCount;
+                const auto tile = static_cast<std::size_t>(
+                    (y / tileSize) * tileColumns + x / tileSize);
+                tileMeans[tile] += center;
+                if (x > 0 && y > 0 && x + 1 < image.width() &&
+                    y + 1 < image.height()) {
+                    const double neighbors = 0.25 * (
+                        image.getPixel(x - 1, y).g() +
+                        image.getPixel(x + 1, y).g() +
+                        image.getPixel(x, y - 1).g() +
+                        image.getPixel(x, y + 1).g());
+                    const double residual = center - neighbors;
+                    highFrequencySquared += residual * residual;
+                    ++highFrequencyCount;
+                }
             }
-        return count ? std::sqrt(sum / count) : 0.0;
+        }
+        for (auto& mean : tileMeans)
+            mean /= static_cast<double>(tileSize * tileSize);
+        std::size_t activeTiles = 0;
+        std::size_t activeTileEdges = 0;
+        for (int y = 0; y < tileRows; ++y)
+            for (int x = 0; x < tileColumns; ++x) {
+                const auto tile = static_cast<std::size_t>(y * tileColumns + x);
+                if (tileMeans[tile] < 0.01) continue;
+                ++activeTiles;
+                if (x + 1 < tileColumns &&
+                    tileMeans[tile + 1] >= 0.01)
+                    ++activeTileEdges;
+                if (y + 1 < tileRows &&
+                    tileMeans[tile + tileColumns] >= 0.01)
+                    ++activeTileEdges;
+            }
+        const double componentCount = static_cast<double>(
+            findVisibleComponents(image).size());
+        const double normalizedBoundary = activeTiles > 0
+            ? static_cast<double>(activeTileEdges) /
+                static_cast<double>(activeTiles) : 0.0;
+        return std::array<double, 4>{
+            highFrequencyCount > 0
+                ? std::sqrt(highFrequencySquared / highFrequencyCount) : 0.0,
+            activeTiles > 0
+                ? static_cast<double>(activeTileEdges) /
+                    static_cast<double>(activeTiles) : 0.0,
+            componentCount,
+            energy > 0.0 && pixelCount > 0
+                ? std::sqrt(highFrequencySquared / highFrequencyCount) /
+                    std::sqrt(energy / static_cast<double>(pixelCount)) : 0.0};
     };
     const auto meanGpuSubmitMs = [&](const ArtifactCore::ParticleRenderData& data) {
         constexpr int warmup = 3;
@@ -1408,11 +1456,14 @@ TEST(ClonerGpuRenderContractTest,
     };
     const QString output = qEnvironmentVariable("ARTIFACT_SMOKE_GPU_OUTPUT_DIR");
     for (const auto& variant : variants) {
+        const auto quality = imageQuality(variant.image);
         GTEST_LOG_(INFO) << "Diligent smoke sampling " << variant.name
             << " particles=" << variant.data.particles.size()
             << " alphaScale=" << variant.alphaScale
             << " exposure=" << exposure(variant.image)
-            << " hp-rms=" << highPass(variant.image)
+            << " hf-rms/normalizedHf/activeComponents/tileBoundary="
+            << quality[0] << '/' << quality[3] << '/' << quality[2] << '/'
+            << quality[1]
             << " mean-gpu-submit-ms=" << meanGpuSubmitMs(variant.data);
         EXPECT_NEAR(exposure(variant.image), targetExposure, targetExposure * 0.01);
         if (!output.isEmpty()) {

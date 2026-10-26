@@ -7233,3 +7233,26 @@
 - **仮説（未検証）:** 再現性のあるlobesは煙の輪郭に渦を作る足掛かりだが、Houdini/C4D級の細かな巻き込みには、より大きなscale separation、解像度・移流精度、あるいは障害物との相互作用が必要かもしれない。
 - **次に確認すべきこと:** strength 8の更新を別domain scaleとsource geometryでstress testし、mass/界面面積/divergenceとfront/side/top captureの安定性を調べる。描画品質が再現した後にGPU viewportとのparityを確認する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功。高解像度Core confinement + projection check 2/2 pass (91.01s)、existing 3D source / continuous emission regression 1/1 pass (59.62s)。captures `build/smoke-runtime-rnd/captures/3d-source-production-curlconf-20261026-optimized/`。
+
+## 2026-10-26: 高周波shearは表面複雑度を上げるが見た目の巻き込みは未確認
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `RechecksPyroSourceShapeAcrossSeedsAtHigherResolution`。
+- **確認できた事実:** 72x54x48 / pressure 96 / 60 steps / seed 17・71で、wide source・density-gated vorticity strength 8に高周波shear（frequency multiplier 2.75）と低高周波の重ね合わせを加えた。step 60のnormalized surface complexityは低周波strength8の4.132/4.133に対し、高周波4.269/4.270、multiscale 4.178/4.228。mass-matched side occupancyは基準vorticity0の6122/6149に対し高周波6326/6380、multiscale 6342/6387。高周波seed17/71のdivergence RMSは.03975/.03053。side PNGの144x144表示では高周波とmultiscaleの差が明瞭に判別できず、全条件の水平slice peak指標は0。
+- **価値または懸念:** 高周波入力は界面の格子複雑度を増やすが、現行の指標と低解像度CPU参照画像では、細かな複雑さがDCC品質の渦巻くbillowへ転じた証拠がない。高周波seed17では発散誤差も増えている。production設定へ反映する根拠として不十分。
+- **仮説（未検証）:** slice面積の単純なpeak判定は輪郭の局所的な巻き込みを捉えず、画像差が小さいのは解像度と可視化の不足も影響している可能性がある。
+- **次に確認すべきこと:** slice-peak指標を捨て、各高さの断面幅・界面曲率の連続プロファイルや高解像度画像を用いて、seed間で再現するbillowを評価する。高周波forcingはCoreに追加せず、独立R&D条件のまま保持する。
+- **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功、focused `RechecksPyroSourceShapeAcrossSeedsAtHigherResolution` 1/1 pass (121.786s)。captures `build/smoke-runtime-rnd/captures/3d-source-curl-frequency-20261026/3d-source-shape-highres-rnd/`。
+
+## 2026-10-26: 2D smoke GPU samplingの密度とkernelを露出一致で比較
+- **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer` とProduction `LayerFluidRuntimeState` / Diligent particle shader。
+- **確認できた事実:** 同一frame44 solver stateをRTX 4070 Ti / Vulkan / 768x576でrenderし、各画像のgreen総露出を±0.01%以内に合わせた。current 40x40 samplingは163粒子・normalized high-frequency RMS .00623。64x48は325粒子・.00923、96x72は734粒子・.01421。96x72は丸い粒状感が弱まり、plume outlineに細かく追従したが、上端はまだcolumn/cap形状で大きなbillowはない。CPU側のGPU submit平均はcurrent/64x48/96x72で.421/.417/.445ms（単一Debug実行）。Gaussian density kernelの現行40x40はnormalized HF .00718、小kernelは.00597、wide kernelは.00786。小kernel画像は丸い粒子形状がより明確に見えた。全条件で可視画像成分数は1、8px tile境界/active tileは概ね1.89–1.93。focused Diligent testは1/1 pass (7.35s)。
+- **価値または懸念:** sampling密度を上げるとGPU上でも粒状感が下がる一方、particlesは4.5倍となる。短いDebug計測では提出時間差を測定誤差から分離できない。局所kernel縮小は改善せず、現行Gaussian profileを変える根拠は得られなかった。高frequency RMSはsampling grainの診断値で、渦巻くbillowの知覚指標ではない。
+- **仮説（未検証）:** 64x48前後の密度に、source連結性を改善する低周波・時間一貫性のある速度fieldを合わせる方が、sample上限を96x72へ引き上げるより少ない描画負荷で自然な輪郭を得られる可能性がある。
+- **次に確認すべきこと:** 同じDiligent経路で実solver由来の複数frameを評価し、billowの時間一貫性・露出・画面occupancyを測る。64x48相当の抽出をproductionに反映する前に、異なるemitter位置・seedで実測し、sample countとGPU timingをRelease計測する。
+- **再検証:** `cmake --build build --config Debug --target ArtifactClonerGpuRenderContractTest --parallel 8` 成功。focused GPU実行はvcpkg DLLディレクトリをPATHへ追加してVulkanで実施。出力 `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-rnd.log`、画像 `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-rnd/`。
+
+## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
+- **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
+- **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。
+- **価値または懸念:** 将来旧APIへ呼び出しを戻すと、現行Luma Keyと異なるmatteになり、premultiplied画像ではRGB/alphaの関係が崩れる可能性がある。現在の利用実績がないため、直ちに挙動を変えるよりAPIの役割を確認する必要がある。
+- **仮説（未検証）:** 旧APIは初期のimage processing facadeとして残存し、現行Artifact effectからは置き換えられている可能性がある。
+- **次に確認すべきこと:** 互換性と外部利用の有無を確認したうえで、非推奨化・削除、または新しいKeying APIへの転送のいずれかを決める。どの案でもstraight/premultipliedとRGB係数の契約をテストで明示する。

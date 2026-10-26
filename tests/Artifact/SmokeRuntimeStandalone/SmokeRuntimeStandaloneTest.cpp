@@ -1111,17 +1111,22 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     const char* label;
     std::uint32_t seed;
     float vorticityStrength;
+    float shearFrequencyScale;
+    bool multiscaleShear;
     PyroSimulation simulation;
     PyroSourceState source;
     Branch(const char* name, const std::uint32_t branchSeed,
            const PyroDomain& branchDomain, const PyroSourceState& branchSource,
-           const float strength = 0.0f)
+           const float strength = 0.0f, const float frequencyScale = 1.0f,
+           const bool useMultiscaleShear = false)
         : label(name), seed(branchSeed),
           vorticityStrength(strength),
+          shearFrequencyScale(frequencyScale),
+          multiscaleShear(useMultiscaleShear),
           simulation(branchDomain),
           source(branchSource) {}
   };
-  std::array<Branch, 10> branches{{
+  std::array<Branch, 14> branches{{
       Branch("highres-control-seed17", 17u, domain, source),
       Branch("highres-wide-seed17", 17u, domain, source),
       Branch("highres-tall-seed17", 17u, domain, source),
@@ -1135,7 +1140,15 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       Branch("highres-wide-curlconfinement3-seed71", 71u, domain,
           source, 3.0f),
       Branch("highres-wide-curlconfinement8-seed71", 71u, domain,
-          source, 8.0f)}};
+          source, 8.0f),
+      Branch("highres-wide-curlconfinement8-highfreq-seed17", 17u, domain,
+          source, 8.0f, 2.75f),
+      Branch("highres-wide-curlconfinement8-highfreq-seed71", 71u, domain,
+          source, 8.0f, 2.75f),
+      Branch("highres-wide-curlconfinement8-multiscale-seed17", 17u, domain,
+          source, 8.0f, 1.0f, true),
+      Branch("highres-wide-curlconfinement8-multiscale-seed71", 71u, domain,
+          source, 8.0f, 1.0f, true)}};
   for (std::size_t i = 0; i < branches.size(); ++i) {
     auto& branch = branches[i];
     auto branchSettings = settings;
@@ -1149,19 +1162,39 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           sourceWeight(branch.source.extent));
   }
 
-  const auto measure = [&](const PyroSimulation& simulation) {
+  const auto measure = [&](const PyroSimulation& simulation,
+                           const double densityScale = 1.0) {
     const auto density = simulation.fields().densityView();
     const auto velocity = simulation.fields().velocityView();
     double mass = 0.0;
     double weightedY = 0.0;
     double divergenceSquared = 0.0;
     std::size_t divergenceCount = 0;
+    std::size_t occupiedCells = 0;
+    std::size_t surfaceFaces = 0;
+    std::vector<std::size_t> sliceOccupancy(
+        static_cast<std::size_t>(resolution.height), 0);
     for (int z = 1; z + 1 < resolution.depth; ++z)
       for (int y = 1; y + 1 < resolution.height; ++y)
         for (int x = 1; x + 1 < resolution.width; ++x) {
-          const float rho = std::max(0.0f, density.at(x, y, z));
+          const float rho = static_cast<float>(
+              std::max(0.0f, density.at(x, y, z)) * densityScale);
           mass += rho;
           weightedY += rho * y;
+          const bool occupied = rho > 0.05f;
+          if (occupied) {
+            ++occupiedCells;
+            ++sliceOccupancy[static_cast<std::size_t>(y)];
+            if (x + 1 < resolution.width - 1 &&
+                !(density.at(x + 1, y, z) * densityScale > 0.05f))
+              ++surfaceFaces;
+            if (y + 1 < resolution.height - 1 &&
+                !(density.at(x, y + 1, z) * densityScale > 0.05f))
+              ++surfaceFaces;
+            if (z + 1 < resolution.depth - 1 &&
+                !(density.at(x, y, z + 1) * densityScale > 0.05f))
+              ++surfaceFaces;
+          }
           const auto xp = velocity.at(x + 1, y, z);
           const auto xm = velocity.at(x - 1, y, z);
           const auto yp = velocity.at(x, y + 1, z);
@@ -1173,9 +1206,23 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           divergenceSquared += div * div;
           ++divergenceCount;
         }
-    return std::array<double, 3>{mass, mass > 0.0 ? weightedY / mass : 0.0,
+    std::size_t slicePeaks = 0;
+    for (int y = 2; y + 2 < resolution.height; ++y) {
+      const auto previous = sliceOccupancy[static_cast<std::size_t>(y - 1)];
+      const auto current = sliceOccupancy[static_cast<std::size_t>(y)];
+      const auto next = sliceOccupancy[static_cast<std::size_t>(y + 1)];
+      if (current > previous * 1.05 && current > next * 1.05)
+        ++slicePeaks;
+    }
+    const double normalizedSurface = occupiedCells > 0
+        ? static_cast<double>(surfaceFaces) /
+            std::pow(static_cast<double>(occupiedCells), 2.0 / 3.0)
+        : 0.0;
+    return std::array<double, 6>{mass, mass > 0.0 ? weightedY / mass : 0.0,
         divergenceCount > 0
-            ? std::sqrt(divergenceSquared / divergenceCount) : 0.0};
+            ? std::sqrt(divergenceSquared / divergenceCount) : 0.0,
+        static_cast<double>(occupiedCells), normalizedSurface,
+        static_cast<double>(slicePeaks)};
   };
 
   const auto outputDirectory = qEnvironmentVariable(
@@ -1195,9 +1242,20 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           const float gate = std::clamp(
               density.at(resolution.width / 2, y, resolution.depth / 2) /
                   0.2f, 0.0f, 1.0f);
-          const float wave = std::sin(static_cast<float>(y) * 0.31f + phase);
-          const float waveZ = std::cos(static_cast<float>(y) * 0.23f +
-                                       phase * 1.7f);
+          const float frequencyScale = branch.shearFrequencyScale;
+          float wave = std::sin(static_cast<float>(y) *
+              0.31f * frequencyScale + phase);
+          float waveZ = std::cos(static_cast<float>(y) *
+              0.23f * frequencyScale + phase * 1.7f);
+          if (branch.multiscaleShear) {
+            constexpr float kInvSqrtTwo = 0.70710678f;
+            wave = (wave + kInvSqrtTwo * std::sin(
+                static_cast<float>(y) * 0.86f + phase * 0.71f)) /
+                (1.0f + kInvSqrtTwo);
+            waveZ = (waveZ + kInvSqrtTwo * std::cos(
+                static_cast<float>(y) * 0.67f + phase * 1.19f)) /
+                (1.0f + kInvSqrtTwo);
+          }
           for (int x = 1; x + 1 < resolution.width; ++x) {
             auto& v = velocity.at(x, y, z);
             v.x += 4.0f * wave * gate / 60.0f;
@@ -1212,8 +1270,10 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       for (const auto& branch : branches) {
         const auto metrics = measure(branch.simulation);
         GTEST_LOG_(INFO) << "3d-source highres branch=" << branch.label
-            << " step=" << step + 1 << " mass/Ycentroid/divergenceRms="
-            << metrics[0] << '/' << metrics[1] << '/' << metrics[2];
+            << " step=" << step + 1
+            << " mass/Ycentroid/divergenceRms/occupied/surfaceComplexity/slicePeaks="
+            << metrics[0] << '/' << metrics[1] << '/' << metrics[2] << '/'
+            << metrics[3] << '/' << metrics[4] << '/' << metrics[5];
       }
     }
   }
@@ -1271,8 +1331,11 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   };
   for (const auto& branch : branches) {
     const auto metrics = measure(branch.simulation);
+    const auto matchedMetrics = measure(branch.simulation,
+        metrics[0] > 0.0 ? controlMass / metrics[0] : 1.0);
     EXPECT_GT(metrics[0], 0.0);
     EXPECT_TRUE(std::isfinite(metrics[2]));
+    EXPECT_TRUE(std::isfinite(matchedMetrics[4]));
     auto matchedDensity = branch.simulation.fields().densityStorage();
     const float scale = metrics[0] > 0.0
         ? static_cast<float>(controlMass / metrics[0]) : 1.0f;
@@ -1283,7 +1346,9 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     const auto sideStats = imageStats(side);
     GTEST_LOG_(INFO) << "3d-source highres mass-matched image=" << branch.label
         << " frontOccupied/luma=" << frontStats[0] << '/' << frontStats[1]
-        << " sideOccupied/luma=" << sideStats[0] << '/' << sideStats[1];
+        << " sideOccupied/luma=" << sideStats[0] << '/' << sideStats[1]
+        << " normalizedSurface/slicePeaks=" << matchedMetrics[4] << '/'
+        << matchedMetrics[5];
     const auto stem = QString::fromLatin1(branch.label);
     EXPECT_TRUE(savePng(front, QDir(captureDirectory).filePath(
         stem + QStringLiteral("_front.png"))));
