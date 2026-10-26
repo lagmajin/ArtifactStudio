@@ -3414,6 +3414,27 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   report("gap11-vs-sequential11", sequentialAt11, gap11);
   report("direct20-vs-sequential20", sequentialAt20, directAt20);
   report("backward20to10-vs-sequential10", sequentialAt10, backwardSeek);
+  EXPECT_LE(densityRmse(sequentialAt9.fluidSolver_->snapshot(),
+                        gap9.fluidSolver_->snapshot()), 1.0e-7);
+  EXPECT_LE(densityRmse(sequentialAt10.fluidSolver_->snapshot(),
+                        gap10.fluidSolver_->snapshot()), 1.0e-7);
+  EXPECT_LE(densityRmse(sequentialAt11.fluidSolver_->snapshot(),
+                        gap11.fluidSolver_->snapshot()), 1.0e-7);
+  EXPECT_LE(densityRmse(sequentialAt10.fluidSolver_->snapshot(),
+                        backwardSeek.fluidSolver_->snapshot()), 1.0e-7);
+  EXPECT_LE(densityRmse(sequentialAt20.fluidSolver_->snapshot(),
+                        directAt20.fluidSolver_->snapshot()), 1.0e-7);
+  EXPECT_EQ(sequentialAt20.smokeCheckpoints_.size(), 3U);
+  EXPECT_EQ(backwardSeek.smokeCheckpoints_.size(), 2U);
+
+  Artifact::LayerFluidRuntimeState changedSettings;
+  advanceThrough(changedSettings, 20);
+  ASSERT_EQ(changedSettings.smokeCheckpoints_.size(), 3U);
+  settings.emitterX = 0.65f;
+  Artifact::advanceLayerSmokeRuntime(
+      changedSettings, 20, frameRate, settings);
+  ASSERT_EQ(changedSettings.smokeCheckpoints_.size(), 1U);
+  EXPECT_EQ(changedSettings.smokeCheckpoints_[0].frame, 20);
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
