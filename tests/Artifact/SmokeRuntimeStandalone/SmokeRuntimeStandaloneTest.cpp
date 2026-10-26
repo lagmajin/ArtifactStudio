@@ -3917,6 +3917,159 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     TracksSmokeMorphologyDriftAcrossFramesAndResolutions) {
+  constexpr std::array<std::pair<int, int>, 3> resolutions{{
+      {96, 72}, {128, 96}, {192, 144}}};
+  constexpr int finalFrame = 28;
+  constexpr float emitterX = 0.5f;
+  constexpr float emitterY = 0.84f;
+  constexpr float emitterRadius = 0.08f;
+  constexpr float emitterDensity = 0.6f;
+  constexpr float emitterVelocityY = -1.2f;
+  constexpr float buoyancy = 0.7f;
+  constexpr float vorticity = 0.1f;
+  constexpr int solverIterations = 8;
+  struct Measurement final {
+    double mass = 0.0;
+    double centroidX = 0.0;
+    double centroidY = 0.0;
+    double sigmaX = 0.0;
+    double sigmaY = 0.0;
+    double gradientRms = 0.0;
+  };
+  const auto measure = [](const ArtifactCore::FluidSnapshot2D& field) {
+    Measurement result;
+    double weightedX2 = 0.0;
+    double weightedY2 = 0.0;
+    double squaredGradient = 0.0;
+    double densitySum = 0.0;
+    for (int y = 1; y < field.height - 1; ++y) {
+      for (int x = 1; x < field.width - 1; ++x) {
+        const auto index = static_cast<std::size_t>(x + y * field.width);
+        const double density = field.density[index];
+        const double nx = static_cast<double>(x - 1) / (field.width - 3);
+        const double ny = static_cast<double>(y - 1) / (field.height - 3);
+        densitySum += density;
+        result.centroidX += density * nx;
+        result.centroidY += density * ny;
+        weightedX2 += density * nx * nx;
+        weightedY2 += density * ny * ny;
+        const double dx = (field.density[index + 1] -
+                           field.density[index - 1]) *
+            static_cast<double>(field.width - 3) * 0.5;
+        const double dy = (field.density[index + field.width] -
+                           field.density[index - field.width]) *
+            static_cast<double>(field.height - 3) * 0.5;
+        squaredGradient += dx * dx + dy * dy;
+      }
+    }
+    const double area = static_cast<double>(
+        (field.width - 2) * (field.height - 2));
+    result.mass = densitySum / area;
+    if (densitySum > 0.0) {
+      result.centroidX /= densitySum;
+      result.centroidY /= densitySum;
+      result.sigmaX = std::sqrt(std::max(0.0,
+          weightedX2 / densitySum - result.centroidX * result.centroidX));
+      result.sigmaY = std::sqrt(std::max(0.0,
+          weightedY2 / densitySum - result.centroidY * result.centroidY));
+    }
+    result.gradientRms = std::sqrt(squaredGradient / area);
+    return result;
+  };
+  std::array<Artifact::LayerFluidRuntimeState, 3> states;
+  std::array<Artifact::LayerSmokeRuntimeSettings, 3> settings;
+  for (std::size_t grid = 0; grid < resolutions.size(); ++grid) {
+    settings[grid].gridWidth = resolutions[grid].first;
+    settings[grid].gridHeight = resolutions[grid].second;
+    settings[grid].solverIterations = solverIterations;
+    settings[grid].emitterX = emitterX;
+    settings[grid].emitterY = emitterY;
+    settings[grid].emitterRadius = emitterRadius;
+    settings[grid].emitterDensity = emitterDensity;
+    settings[grid].emitterVelocityY = emitterVelocityY;
+    settings[grid].emitterSwirl = 0.15f;
+    settings[grid].buoyancy = buoyancy;
+    settings[grid].vorticity = vorticity;
+  }
+  std::array<Measurement, 3> previous{};
+  for (int frame = 0; frame <= finalFrame; ++frame) {
+    for (std::size_t grid = 0; grid < resolutions.size(); ++grid) {
+      Artifact::advanceLayerSmokeRuntime(
+          states[grid], frame, 30.0, settings[grid]);
+      const auto current = measure(states[grid].fluidSolver_->snapshot());
+      const auto [width, height] = resolutions[grid];
+      if (frame == 0 || frame == 1 || frame == 2 || frame == 4 ||
+          frame == 8 || frame == 16 || frame == 28) {
+        GTEST_LOG_(INFO) << "smoke-framewise-resolution frame=" << frame
+            << " grid=" << width << 'x' << height
+            << " mass=" << current.mass
+            << " centroid=" << current.centroidX << ',' << current.centroidY
+            << " sigma=" << current.sigmaX << ',' << current.sigmaY
+            << " gradientRms=" << current.gradientRms
+            << " deltaCentroidY=" << current.centroidY - previous[grid].centroidY
+            << " deltaMass=" << current.mass - previous[grid].mass;
+      }
+      previous[grid] = current;
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresResolutionDriftForStationaryContinuousSmokeSource) {
+  constexpr std::array<std::pair<int, int>, 3> resolutions{{
+      {96, 72}, {128, 96}, {192, 144}}};
+  constexpr int finalFrame = 28;
+  constexpr int solverIterations = 8;
+  constexpr float emitterX = 0.5f;
+  constexpr float emitterY = 0.84f;
+  constexpr float emitterRadius = 0.08f;
+  constexpr float emitterDensity = 0.6f;
+  for (const auto& [width, height] : resolutions) {
+    Artifact::LayerFluidRuntimeState state;
+    Artifact::LayerSmokeRuntimeSettings settings;
+    settings.gridWidth = width;
+    settings.gridHeight = height;
+    settings.solverIterations = solverIterations;
+    settings.emitterX = emitterX;
+    settings.emitterY = emitterY;
+    settings.emitterRadius = emitterRadius;
+    settings.emitterDensity = emitterDensity;
+    settings.emitterVelocityX = 0.0f;
+    settings.emitterVelocityY = 0.0f;
+    settings.emitterSwirl = 0.0f;
+    settings.buoyancy = 0.0f;
+    settings.vorticity = 0.0f;
+    for (int frame = 0; frame <= finalFrame; ++frame) {
+      Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+    }
+    const auto field = state.fluidSolver_->snapshot();
+    double mass = 0.0;
+    double weightedY = 0.0;
+    double weightedY2 = 0.0;
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        const double density = field.density[
+            static_cast<std::size_t>(x + y * width)];
+        const double ny = static_cast<double>(y - 1) / (height - 3);
+        mass += density;
+        weightedY += density * ny;
+        weightedY2 += density * ny * ny;
+      }
+    }
+    const double densityMass = mass / static_cast<double>(
+        (width - 2) * (height - 2));
+    const double centroidY = mass > 0.0 ? weightedY / mass : 0.0;
+    const double sigmaY = mass > 0.0
+        ? std::sqrt(std::max(0.0,
+            weightedY2 / mass - centroidY * centroidY)) : 0.0;
+    GTEST_LOG_(INFO) << "smoke-stationary-source grid=" << width << 'x'
+        << height << " normalizedMass=" << densityMass
+        << " centroidY=" << centroidY << " sigmaY=" << sigmaY;
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      EmitterSwirlCreatesPlumeVariation) {
   const SmokeRun none = runProductionSmokeRuntime(
       0.5f, false, false, 30.0, 44, 0.1f, 0.0f);

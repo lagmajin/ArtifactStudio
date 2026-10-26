@@ -7,6 +7,13 @@
 - **仮説（未検証）:** 長時間積分でsource pulseの格子丸め、投影・移流・境界条件の小さな差が蓄積し、centroid差を生じる可能性がある。
 - **次に確認すべきこと:** production `FluidSolver2D::update()`へR&D限定のdiagnostic callbackを足す前に、既存の独立targetがCoreのtest-only compile definitionを受けられるか確認する。可能なら投影直後の同一実装状態をcallbackで記録し、after projectionとafter velocity advectionを複数解像度・aspect ratioで比較する。成立して原因がprojectionと確認できてからCore修正と液体回帰を検討する。
 
+## 2026-10-27: smoke plumeの長期解像度ドリフトはvelocity有効時に増える
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::TracksSmokeMorphologyDriftAcrossFramesAndResolutions`、`::MeasuresResolutionDriftForStationaryContinuousSmokeSource`。
+- **確認できた事実:** production runtimeの30fps/frame28、8 solver iterations、emitter density 0.6・radius 0.08・Y 0.84、buoyancy 0.7、vorticity 0.1、dissipation既定2.5/sでは、96×72 / 128×96 / 192×144のnormalized density massが0.06890 / 0.05835 / 0.04786、centroidYが0.4642 / 0.5110 / 0.5815、sigmaYが0.2311 / 0.2159 / 0.1929。framewiseでは差が連続して広がる。全velocity/swirl/buoyancy/vorticityを0にした連続sourceではmass 0.06220 / 0.06219 / 0.06194、centroidY 0.8406 / 0.8388 / 0.8370、sigmaY 0.03540 / 0.03468 / 0.03379で、格子間差は小さい。
+- **価値または懸念:** 注入カーネルとdissipationだけでは通常plumeの大きなmass/centroid差を説明しにくい。velocity-dependent solver evolutionが有力だが、現テストは実際のpressure projectionとvelocity advectionを個別に観測していないため、どちらかを原因と断定できない。Core/Appへの補正はまだ行わない。
+- **仮説（未検証）:** backward semi-Lagrangian velocity/density transportの数値dissipationやgrid-unit scalingの小差が、連続注入と非圧縮projectionを経て蓄積し、上昇速度・残存質量・billow形状の解像度差になる可能性がある。
+- **次に確認すべきこと:** production実装そのもののintermediate stateを取得し、velocity projection直後・velocity advection後・density advection後のfield divergence、energy、massをframe 0/1/2/4/8/16/28で比較する。変更候補は同一初期場のgrid convergenceと見た目画像の双方で改善することを確認してから採用する。
+
 ## 2026-10-27: 煙vorticity係数のgrid scalingは解像度差を補正しない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresResolutionScalingForProductionVorticityConfinement`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::vorticityConfinement`。
 - **確認できた事実:** production runtimeを同じnormalized emitter条件・frame 28・8 solver iterations・2 swirl seedで96×72、128×96、192×144比較した。vorticity 0.1一定のcross-grid density RMSEは0.101570/0.107418、係数をgrid比で線形にした場合0.101824/0.107777、grid比二乗では0.102368/0.108514だった。係数増加はphysical gradient RMSを少し上げたが一致度は悪化した。キャプチャは全条件で滑らかな柱と上部の傘状capに留まり、折り畳まれたbillowは確認できなかった。
