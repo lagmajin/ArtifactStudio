@@ -4702,6 +4702,10 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
   renderer.settings.multipleScatteringStrength = 0.0f;
   const auto fueledFire = measure(renderer.render(80, 80));
   EXPECT_GT(fueledFire.occupiedPixels, 0u);
+  auto brighterFireRenderer = renderer;
+  brighterFireRenderer.settings.fireIntensityScale = 4.0f;
+  EXPECT_GT(measure(brighterFireRenderer.render(80, 80)).luminanceSum,
+            fueledFire.luminanceSum);
 
   source.fuel = 0.0f;
   std::fill(simulation.fields().fuelView().values.begin(),

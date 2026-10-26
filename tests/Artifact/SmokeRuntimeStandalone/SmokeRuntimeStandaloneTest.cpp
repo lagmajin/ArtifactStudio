@@ -7654,7 +7654,10 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     return stats;
   };
   const auto render = [&](const PyroSimulation& simulation,
-                          const TransferFunction& transfer) {
+                          const TransferFunction& transfer,
+                          const std::vector<float>* fireField,
+                          const float fireFieldScale,
+                          const float fireIntensityScale = 1.0f) {
     CPUVolumeRenderer renderer;
     VolumeAABB bounds;
     bounds.min = {domain.min.x, domain.min.y, domain.min.z};
@@ -7667,11 +7670,16 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
             simulation.fields().temperatureStorage().data()), resolution};
     fields.fuel = {const_cast<float*>(
         simulation.fields().fuelStorage().data()), resolution};
+    if (fireField != nullptr) {
+      fields.reaction = {const_cast<float*>(fireField->data()), resolution};
+    }
     renderer.setVolumeData(bounds, fields);
     renderer.setTransferFunction(transfer);
     renderer.settings.stepSize = 0.022f;
     renderer.settings.maxSteps = 128;
     renderer.settings.densityScale = 7.2f;
+    renderer.settings.fireReactionScale = fireFieldScale;
+    renderer.settings.fireIntensityScale = fireIntensityScale;
     renderer.settings.useTemperatureEmission = true;
     renderer.settings.backgroundColor = {0.004f, 0.006f, 0.01f};
     renderer.settings.lightIntensity = 0.0f;
@@ -7719,10 +7727,19 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     float scalarRateScale;
     float velocityRateScale;
     PyroSimulation simulation;
+    std::vector<float> flameLife;
+    std::vector<float> flameLifeScratch;
     Run(const char* label, const int frames, const float scalarScale,
         const float velocityScale, const PyroDomain& runDomain)
         : name(label), emissionFrames(frames), scalarRateScale(scalarScale),
-          velocityRateScale(velocityScale), simulation(runDomain) {}
+          velocityRateScale(velocityScale), simulation(runDomain) {
+      const auto resolution = runDomain.resolution();
+      const auto count = static_cast<std::size_t>(resolution.width) *
+          static_cast<std::size_t>(resolution.height) *
+          static_cast<std::size_t>(resolution.depth);
+      flameLife.assign(count, 0.0f);
+      flameLifeScratch.assign(count, 0.0f);
+    }
   };
   std::array<Run, 4> runs{{
       Run("pulse_0p1s", 6, 1.0f, 1.0f, domain),
@@ -7735,6 +7752,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   std::size_t runIndex = 0;
   for (auto& run : runs) {
     run.simulation.setSettings(settings);
+    const bool trackFlameLife = run.emissionFrames == 6 ||
+        (run.emissionFrames == 60 && run.velocityRateScale == 3.0f);
     for (int frame = 1; frame <= frameCount; ++frame) {
       if (frame <= run.emissionFrames) {
         auto frameSource = source;
@@ -7750,15 +7769,59 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         run.simulation.setSources(std::span<const PyroSourceState>{});
       }
       run.simulation.step(1.0 / 60.0);
+      // Test-only DCC-inspired flame-life field: burn intensity refreshes a
+      // short-lived emissive field, which is then advected and cooled.
+      if (trackFlameLife) {
+        const auto py = run.simulation.fields().resolution();
+        const auto reaction = run.simulation.fields().reactionView();
+        const auto velocity = run.simulation.fields().velocityView();
+        const PyroConstScalarFieldView previousLife{
+            std::span<const float>(run.flameLife), py};
+        const float decay = std::exp(-(1.0f / 60.0f) / 0.8f);
+        for (int z = 0; z < py.depth; ++z)
+          for (int y = 0; y < py.height; ++y)
+            for (int x = 0; x < py.width; ++x) {
+              const auto index = static_cast<std::size_t>(x) +
+                  static_cast<std::size_t>(py.width) *
+                      (static_cast<std::size_t>(y) +
+                       static_cast<std::size_t>(py.height) *
+                           static_cast<std::size_t>(z));
+              const auto v = velocity.at(x, y, z);
+              const PyroVec3 backtrace{
+                  static_cast<float>(x) - v.x / 60.0f,
+                  static_cast<float>(y) - v.y / 60.0f,
+                  static_cast<float>(z) - v.z / 60.0f};
+              const float advectedLife = run.simulation.fields().sampleScalar(
+                  previousLife, backtrace, domain.boundaryMode);
+              run.flameLifeScratch[index] = std::clamp(std::max(
+                  advectedLife * decay, reaction.at(x, y, z) * 2.0f),
+                  0.0f, 1.0f);
+            }
+        run.flameLife.swap(run.flameLifeScratch);
+      }
       if (!std::binary_search(captureFrames.begin(), captureFrames.end(),
               frame))
         continue;
 
       const auto fields = measureFields(run.simulation);
-      const auto smoke = render(run.simulation, TransferFunction::makeSmoke());
-      const auto fire = render(run.simulation, TransferFunction::makeFire());
+      const auto smoke = render(run.simulation, TransferFunction::makeSmoke(),
+          nullptr, 1.5f);
+      const auto fire = render(run.simulation, TransferFunction::makeFire(),
+          nullptr, 1.5f);
       const auto smokeStats = measureImage(smoke);
       const auto fireStats = measureImage(fire);
+      ImageStats reactionFireStats{};
+      ImageStats flameLifeFireStats{};
+      ImageBuffer reactionFire;
+      ImageBuffer flameLifeFire;
+      if (trackFlameLife) {
+        reactionFire = render(run.simulation, TransferFunction::makeFire(),
+            &run.simulation.fields().reactionStorage(), 2.0f, 12.0f);
+        flameLifeFire = render(run.simulation, TransferFunction::makeFire(),
+            &run.flameLife, 1.0f, 12.0f);
+        reactionFireStats = measureImage(reactionFire);
+        flameLifeFireStats = measureImage(flameLifeFire);
+      }
       if (frame == frameCount) {
         finalFields[runIndex] = fields;
         finalSmoke[runIndex] = smokeStats;
@@ -7778,6 +7841,28 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           << smokeStats.visiblePixels
           << " fire luma/visible/warmth=" << fireStats.luma << '/'
           << fireStats.visiblePixels << '/' << fireStats.warmth;
+      if (trackFlameLife) {
+        GTEST_LOG_(INFO) << " test-only reaction/lifetime fire visible/luma="
+            << reactionFireStats.visiblePixels << '/' << reactionFireStats.luma
+            << "; " << flameLifeFireStats.visiblePixels << '/'
+            << flameLifeFireStats.luma;
+        if (run.emissionFrames == 6 && frame == 60) {
+          EXPECT_GT(flameLifeFireStats.visiblePixels,
+                    reactionFireStats.visiblePixels);
+        }
+        if (run.emissionFrames == 6 && frame == 120) {
+          EXPECT_GT(flameLifeFireStats.luma, reactionFireStats.luma);
+        }
+        if (run.emissionFrames == 60 && run.velocityRateScale == 3.0f &&
+            frame == 120) {
+          EXPECT_GT(flameLifeFireStats.visiblePixels,
+                    reactionFireStats.visiblePixels);
+        }
+        if (run.emissionFrames == 60 && run.velocityRateScale == 3.0f &&
+            frame == frameCount) {
+          EXPECT_GT(flameLifeFireStats.visiblePixels, 0u);
+        }
+      }
       if (frame == captureFrames.front()) {
         EXPECT_GT(fields.densityMass, 0.0);
         EXPECT_GT(fields.temperatureMass, 0.0);
@@ -7792,6 +7877,12 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
             QDir(captureDirectory).filePath(prefix + "smoke.png")));
         ASSERT_TRUE(saveImage(fire,
             QDir(captureDirectory).filePath(prefix + "fire.png")));
+        if (trackFlameLife) {
+          ASSERT_TRUE(saveImage(reactionFire,
+              QDir(captureDirectory).filePath(prefix + "reaction_fire.png")));
+          ASSERT_TRUE(saveImage(flameLifeFire,
+              QDir(captureDirectory).filePath(prefix + "flame_life_fire.png")));
+        }
       }
     }
     ++runIndex;
