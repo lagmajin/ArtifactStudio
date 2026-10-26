@@ -7201,3 +7201,19 @@
 - **仮説（未検証）:** Houdini資料の「large-scale turbulence」と「small-scale disturbance/shredding」の役割分離は参考になるが、目標に要る大きなbillowは速度場noiseだけでなく、source geometry、buoyancyによる密度差、境界・障害物との相互作用、移流schemeの組み合わせから生まれる可能性がある。現状のisolated puffから単純forceを足すだけでは不足かもしれない。
 - **次に確認すべきこと:** 今回のforceはCore/Appへ移植しない。連続emissionまたは浮力 plumeを使い、同じnoiseを「全density内」「密度界面の狭いgradient band」「界面外ambient」の各領域へ作用させる比較を行う。密度massに加えて界面の折り返し数／curvature proxy、front/side/top captureを評価し、force増加で単なるmass lossやcap変位になっていないことを確認する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (39.0s、値ノイズ場の隣接再利用後)。
+
+## 2026-10-26: 密度界面やambientへ力を寄せてもsingle puffのbillowは現れない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
+- **確認できた事実:** 同一3D source pulse-end stateから、同じ大スケール・時間相関value-noise curl accelerationをsmoke interior、density interface、ambient-side interfaceへgateした3枝とno-force controlを1.2秒比較。初期supportは342/308/399 cell、mask内のforce RMSは6.92063/7.29034/5.75843で、毎stepのRMS normalizationによりtarget accelerationは同一とした。終端controlのmass / Y centroid / Z centroid / divergence RMSは15.8958 / 13.0075 / 15.5346 / .0292257。interiorは15.4125 / 12.9594 / 15.6853 / .0349287、interfaceは15.6480 / 12.9470 / 15.6801 / .034901、ambientは15.8346 / 12.8955 / 15.5964 / .0386691。front occupied/lumaはcontrol 2540/156886、interior 2476/155024、interface 2492/155574、ambient 2543/157068。ambient gateではside occupied/lumaが2555/155256から2542/154986でほぼ同じ一方、画像上でわずかな左右非対称cap変位が見える。折れbillowはどのbranchにもない。focused GTest 1/1 pass (30.44s); captures `build/smoke-runtime-rnd/captures/3d-source-interface-gates-20261026/3d-source-rollup-rnd/`。
+- **価値または懸念:** 今回のmetric差は小さく、ambient gateは質量減少を抑える代わりに密度重心を少し下げ、発散を上げた。いずれも単一puff・固定3D domain・test-only forceであり、billow品質の改善やproduction adoptionを支持しない。
+- **仮説（未検証）:** source-freeの短いpuffでは、force gatingだけでは密度界面が十分に伸長／圧縮されず、Houdini風折り返し形状へ進みにくい。継続sourceと障害物／加熱境界の相互作用を含む plume 条件での界面gateが、次に区別力を持つ可能性がある。
+- **次に確認すべきこと:** forceはCore/Appに反映しない。連続source plumeに対してemitter injection・ambient noise・interface-only noiseを同じseed、物理時間、支配速度で比較する。front/side/topに加え、密度等値面の曲率符号反転数またはinterface area、mass retention、divergence、CPU test runtimeを計測し、構造形成が再現する場合だけ統合候補にする。
+- **再検証:** standalone target rebuild成功、focused GTest 1/1 pass (30.44s)。
+
+## 2026-10-26: 連続emissionではambient curlがside coverageを増やすが煙柱は滑らかなまま
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
+- **確認できた事実:** pulse-end snapshotから同じPyro sourceを再投入し続け、interior / density-interface / ambient-interface noise gateを1.2秒進化させた。control terminal mass / Y centroid / divergence RMSは253.058 / 15.6979 / .0344183。interior gate 240.484 / 15.2663 / .033149、interface gate 241.277 / 15.2788 / .0307785、ambient gate 249.095 / 15.5247 / .0364839。raw side occupied pixelsはcontrol/interior/interface/ambientで8091/8088/8170/8456。さらにterminal density massをcontrol値へ揃えてrenderするとside occupiedは8091/8016/8113/8429となり、ambientの広がり+4.2%はmass差を除いても残る。front/side capturesはいずれも上昇する滑らかな柱／puffで、明瞭なfolded billowは見えない。focused GTest 1/1 pass (30.68s); captures `build/smoke-runtime-rnd/captures/3d-source-interface-massmatch-20261026/3d-source-rollup-rnd/`。
+- **価値または懸念:** source-free試験ではsmall cap shiftしか見えなかったが、continuously sourced plumeではgate locationによりside coverageが数%動くことが確認できた。これは形状方向への限定的な感度であり、billow品質改善とは異なる。ambient gateは面積を広げるが発散RMSもcontrolより高い。CPU reference volume renderの160x160画像であり、GPU viewport・異なるseedやdomainへの一般化は未確認。
+- **仮説（未検証）:** plume界面近傍でのshear/ambient curlは輪郭を広げるが、roll-upへ進むには継続的な剪断層の形成・不安定化、より高い空間解像度、または移流／pressure projectionの改善が必要かもしれない。Coverageのみを追うと単なるpuff肥大化を採用する恐れがある。
+- **次に確認すべきこと:** forceをproductionへ反映しない。mass-matched ambient gateのside coverage増加が複数seed・時間で再現し、等値面曲率・連結性にroll-upを示す変化を伴うか調べる。構造形成が見えない場合は、異なるsource geometryや密度に加え熱浮力のある初期条件を試す。
+- **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功、focused GTest 1/1 pass (30.68s)。

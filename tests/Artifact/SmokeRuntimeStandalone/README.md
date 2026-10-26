@@ -36,35 +36,43 @@ or App code and does not establish GPU viewport parity or DCC-level quality.
 
 `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup` creates a true
 3D density/temperature/velocity field from the Pyro source, clones its
-12-step pulse-end state, and advances seven source-free branches for 1.2 s.
-The branches compare source velocity, initial divergence-free curl at two
-amplitudes, half velocity, 1/120 s fixed steps, and density-gated large-scale
-curl acceleration with 0.45 s / 0.08 s temporal pulses. At 1.2 s, the control
-mass / Y centroid / divergence RMS are 15.90 / 13.01 voxels / 0.0292. The
-large-scale slow and pulsed branches are 16.23 / 12.71 / 0.0383 and 15.94 /
-12.98 / 0.0355; captured front views show only a slight cap tilt, not folded
-billows. The 1/120 s branch retains more mass (17.00) but has higher divergence
-RMS (0.170) and slightly lower centroid (12.50). Halving the initial velocity
-reduces rise (centroid 10.31) and increases remaining mass (21.37). Focused
-GTest passed 1/1 (15.36 s); front/side captures are in
-`build/smoke-runtime-rnd/captures/3d-source-rollup-sweep-20261026/3d-source-rollup-rnd/`.
+12-step pulse-end state and advances eight branches for another 1.2 s while
+continuing the same emitter source on every branch.
+The current branches compare source velocity, initial divergence-free curl at
+two amplitudes, half velocity, 1/120 s fixed steps, and equal-strength
+large-scale curl acceleration gated to smoke interior, density interface, or
+ambient air near the interface. In the preceding source-free pulse test, the
+control mass / Y centroid / divergence RMS were 15.8958 / 13.0075 / 0.02923;
+the interior / interface / ambient gates yielded 15.4125 / 12.9594 / 0.03493,
+15.6480 / 12.9470 / 0.03490, and 15.8346 / 12.8955 / 0.03867. Under
+continuous emission, control mass / Y centroid / divergence RMS are 253.058 /
+15.6979 / 0.03442. Smoke-interior, interface, and ambient gates yield
+240.484 / 15.2663 / 0.03315, 241.277 / 15.2788 / 0.03078, and 249.095 /
+15.5247 / 0.03648. Ambient gating increases side occupied pixels from 8,091
+to 8,456 (4.5%); interface gating raises them to 8,170 (1.0%) while reducing
+mass by 4.7%. After scaling each terminal density field to the control mass,
+side occupied pixels are control 8,091, interior 8,016 (-0.9%), interface
+8,113 (+0.3%), and ambient 8,429 (+4.2%). Ambient widening persists after
+mass matching, but visual review still reads as a broader smooth puff, not a
+folded billow.
+The initial force support counts are 342 / 308 / 399 cells for interior /
+interface / ambient masks; force RMS is normalized inside each support.
+Focused GTest passed 1/1 (30.68 s); raw and mass-matched front/side captures
+are in `build/smoke-runtime-rnd/captures/3d-source-interface-massmatch-20261026/3d-source-rollup-rnd/`.
 This test-only comparison does not justify a production force or timestep
 change and does not demonstrate DCC-level smoke quality.
 
-The same test also compares deterministically seeded, smooth 3D value-noise
-vector potentials instead of periodic sine potentials. It applies their
-discrete curl as density-gated acceleration, with equal density-weighted force
-RMS for large (0.75/0.48/0.30 world unit), fine (0.30/0.20/0.14), and
-multiscale (0.75/0.40/0.22/0.13) bands; the large bands use 0.45 s and 0.08 s
-pattern pulse lengths. At 1.2 s, the control has mass / Y centroid /
-divergence RMS 15.8958 / 13.0075 / 0.02923. Large-slow, large-pulsed,
-fine-slow, and multiscale-slow yield 15.0566 / 12.8817 / 0.03792, 15.6777 /
-13.0178 / 0.03735, 15.7103 / 12.8637 / 0.03512, and 15.0465 / 12.8511 /
-0.03358 respectively. None creates visible folded billows; image changes are
-small cap shifts and coverage variations. Focused test passes 1/1 in 39.0 s
-after computing each vector-potential voxel once per step (an earlier repeated
-sampling implementation took 142.7 s with the same numeric result). Captures
-are written to `3d-source-rollup-rnd/` under the configured output directory.
+An earlier value-noise scale sweep of this same case compared deterministic,
+smooth 3D value-noise vector potentials applied as density-gated curl
+acceleration, with equal density-weighted force RMS for large
+(0.75/0.48/0.30 world unit), fine (0.30/0.20/0.14), and multiscale
+(0.75/0.40/0.22/0.13) bands. At 1.2 s, large-slow, large-pulsed, fine-slow,
+and multiscale-slow yield mass / Y centroid / divergence RMS 15.0566 /
+12.8817 / 0.03792, 15.6777 / 13.0178 / 0.03735, 15.7103 / 12.8637 / 0.03512,
+and 15.0465 / 12.8511 / 0.03358 respectively. None creates folded billows;
+image changes are small cap shifts and coverage variations. That focused run
+passed 1/1 in 39.0 s after computing each vector-potential voxel once per step
+(the initial repeated-sampling version took 142.7 s with identical metrics).
 
 The `ReportsSteadyStateRenderDataPreparationCost` case is an R&D microbenchmark.
 It advances 32x32, 79x79, 128x128, and 512x512 smoke states for 24 frames,

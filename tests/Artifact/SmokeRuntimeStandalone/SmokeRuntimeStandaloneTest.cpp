@@ -457,16 +457,15 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     explicit Branch(const char* branchLabel, const PyroDomain& branchDomain)
         : label(branchLabel), simulation(branchDomain) {}
   };
-  std::array<Branch, 9> branches{{
+  std::array<Branch, 8> branches{{
       Branch("source-velocity", domain),
       Branch("curl-augmented", domain),
       Branch("curl-strong", domain),
       Branch("velocity-attenuated", domain),
       Branch("fine-timestep", domain),
-      Branch("noise-large-slow", domain),
-      Branch("noise-large-pulsed", domain),
-      Branch("noise-fine-slow", domain),
-      Branch("noise-multiscale-slow", domain)}};
+      Branch("gate-smoke-interior", domain),
+      Branch("gate-density-interface", domain),
+      Branch("gate-ambient-interface", domain)}};
   for (auto& branch : branches) {
     branch.simulation.setSettings(settings);
     branch.simulation.fields().densityStorage() = initialDensity;
@@ -589,7 +588,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 
   const auto applyCoherentTurbulence = [&](PyroSimulation& simulation,
       const double timeSeconds, const float pulseLength,
-      const std::array<float, 4>& wavelengths, const int bandCount) {
+      const std::array<float, 4>& wavelengths, const int bandCount,
+      const int gateMode) {
     auto velocity = simulation.fields().velocityView();
     const auto density = simulation.fields().densityView();
     const float pulse = std::max(0.01f, pulseLength);
@@ -629,6 +629,36 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           hash(x0 + 1, y0 + 1, z0 + 1), tx), ty);
       return lerp(z0y0, z0y1, tz);
     };
+    const auto densityGradientMagnitude = [&](const int x, const int y,
+                                               const int z) {
+      const float dx = density.at(std::min(x + 1, resolution.width - 1), y, z) -
+          density.at(std::max(x - 1, 0), y, z);
+      const float dy = density.at(x, std::min(y + 1, resolution.height - 1), z) -
+          density.at(x, std::max(y - 1, 0), z);
+      const float dz = density.at(x, y, std::min(z + 1, resolution.depth - 1)) -
+          density.at(x, y, std::max(z - 1, 0));
+      return 0.5f * std::sqrt(dx * dx + dy * dy + dz * dz);
+    };
+    const auto gateAt = [&](const int x, const int y, const int z) {
+      const float rho = std::max(0.0f, density.at(x, y, z));
+      if (gateMode == 1) {
+        const float inSmoke = std::clamp((rho - 0.005f) / 0.025f,
+                                         0.0f, 1.0f);
+        const float belowCore = std::clamp((0.75f - rho) / 0.25f,
+                                           0.0f, 1.0f);
+        const float interface = std::clamp(
+            densityGradientMagnitude(x, y, z) / 0.055f, 0.0f, 1.0f);
+        return inSmoke * belowCore * interface;
+      }
+      if (gateMode == 2) {
+        const float ambient = std::clamp((0.08f - rho) / 0.08f,
+                                         0.0f, 1.0f);
+        const float nearInterface = std::clamp(
+            densityGradientMagnitude(x, y, z) / 0.055f, 0.0f, 1.0f);
+        return ambient * nearInterface;
+      }
+      return std::clamp(rho / 0.06f, 0.0f, 1.0f);
+    };
     const auto potentialAt = [&](int sampleX, int sampleY, int sampleZ) {
       const int x = std::clamp(sampleX, 0, resolution.width - 1);
       const int y = std::clamp(sampleY, 0, resolution.height - 1);
@@ -639,7 +669,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           domain.voxelSize;
       const float wz = domain.min.z + (static_cast<float>(z) + 0.5f) *
           domain.voxelSize;
-      const float gate = std::clamp(density.at(x, y, z) / 0.06f, 0.0f, 1.0f);
+      const float gate = gateAt(x, y, z);
       PyroVec3 result{};
       for (int band = 0; band < bandCount; ++band) {
         const float wavelength = wavelengths[static_cast<std::size_t>(band)];
@@ -677,7 +707,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     };
     std::vector<PyroVec3> acceleration(resolution.cellCount());
     double weightedSquared = 0.0;
-    double densityWeight = 0.0;
+    double supportWeight = 0.0;
     const float inverseTwoVoxel = 0.5f / domain.voxelSize;
     for (int z = 0; z < resolution.depth; ++z)
       for (int y = 0; y < resolution.height; ++y)
@@ -694,13 +724,13 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
               (axp.y - axm.y - ayp.x + aym.x) * inverseTwoVoxel};
           const auto cell = resolution.indexOf(x, y, z);
           acceleration[cell] = curl;
-          const double rho = std::max(0.0f, density.values[cell]);
-          weightedSquared += rho * (curl.x * curl.x + curl.y * curl.y +
-                                     curl.z * curl.z);
-          densityWeight += rho;
+          const double support = gateAt(x, y, z) > 0.01f ? 1.0 : 0.0;
+          weightedSquared += support * (curl.x * curl.x + curl.y * curl.y +
+                                         curl.z * curl.z);
+          supportWeight += support;
         }
-    const double rawRms = densityWeight > 0.0
-        ? std::sqrt(weightedSquared / densityWeight) : 0.0;
+    const double rawRms = supportWeight > 0.0
+        ? std::sqrt(weightedSquared / supportWeight) : 0.0;
     const double referenceSpeed = measureVelocity(branches[0].simulation)[0];
     const float scale = rawRms > 1.0e-12
         ? static_cast<float>((0.45 * referenceSpeed / 1.2) / rawRms) : 0.0f;
@@ -709,6 +739,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       velocity.values[i].y += acceleration[i].y * scale / 60.0f;
       velocity.values[i].z += acceleration[i].z * scale / 60.0f;
     }
+    return std::array<double, 2>{rawRms, supportWeight};
   };
 
   const auto outputDirectory = qEnvironmentVariable(
@@ -810,12 +841,10 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   if (!outputDirectory.isEmpty())
     ASSERT_TRUE(QDir().mkpath(captureDirectory));
   constexpr std::array<int, 4> captureSteps{0, 24, 48, 72};
-  std::array<PreviousImage, 9> previousFront;
-  std::array<PreviousImage, 9> previousSide;
+  std::array<PreviousImage, 8> previousFront;
+  std::array<PreviousImage, 8> previousSide;
   std::size_t nextCapture = 0;
   constexpr std::array<float, 4> largeWavelengths{0.75f, 0.48f, 0.30f, 0.0f};
-  constexpr std::array<float, 4> fineWavelengths{0.30f, 0.20f, 0.14f, 0.0f};
-  constexpr std::array<float, 4> multiWavelengths{0.75f, 0.40f, 0.22f, 0.13f};
   for (int step = 0; step <= captureSteps.back(); ++step) {
     if (step == captureSteps[nextCapture]) {
       for (std::size_t branchIndex = 0; branchIndex < branches.size();
@@ -840,6 +869,37 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
             << frontMetrics[2] << " sideOccupied/luma/delta="
             << sideMetrics[0] << '/' << sideMetrics[1] << '/'
             << sideMetrics[2];
+        if (step == captureSteps.back()) {
+          const double controlMass = measureDensity(
+              branches[0].simulation)[0];
+          const double currentMass = densityMetrics[0];
+          const float massScale = currentMass > 0.0
+              ? static_cast<float>(controlMass / currentMass) : 1.0f;
+          std::vector<float> massMatchedDensity(
+              branch.simulation.fields().densityStorage().begin(),
+              branch.simulation.fields().densityStorage().end());
+          for (auto& value : massMatchedDensity) value *= massScale;
+          const auto matchedFront = render(massMatchedDensity.data(), false);
+          const auto matchedSide = render(massMatchedDensity.data(), true);
+          const auto matchedFrontMetrics = measureImage(
+              matchedFront, PreviousImage{});
+          const auto matchedSideMetrics = measureImage(
+              matchedSide, PreviousImage{});
+          GTEST_LOG_(INFO) << "3d-source mass-matched branch=" << branch.label
+              << " scale=" << massScale << " frontOccupied/luma="
+              << matchedFrontMetrics[0] << '/' << matchedFrontMetrics[1]
+              << " sideOccupied/luma=" << matchedSideMetrics[0] << '/'
+              << matchedSideMetrics[1];
+          if (!outputDirectory.isEmpty()) {
+            const auto stem = QStringLiteral("%1_step_%2_mass_matched")
+                .arg(QString::fromLatin1(branch.label))
+                .arg(step, 3, 10, QLatin1Char('0'));
+            EXPECT_TRUE(savePng(matchedFront, QDir(captureDirectory).filePath(
+                stem + QStringLiteral("_front.png"))));
+            EXPECT_TRUE(savePng(matchedSide, QDir(captureDirectory).filePath(
+                stem + QStringLiteral("_side.png"))));
+          }
+        }
         if (!outputDirectory.isEmpty()) {
           const auto stem = QStringLiteral("%1_step_%2")
               .arg(QString::fromLatin1(branch.label))
@@ -857,14 +917,26 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       if (nextCapture + 1 < captureSteps.size()) ++nextCapture;
     }
     if (step == captureSteps.back()) break;
-    applyCoherentTurbulence(branches[5].simulation,
-        static_cast<double>(step) / 60.0, 0.45f, largeWavelengths, 3);
-    applyCoherentTurbulence(branches[6].simulation,
-        static_cast<double>(step) / 60.0, 0.08f, largeWavelengths, 3);
-    applyCoherentTurbulence(branches[7].simulation,
-        static_cast<double>(step) / 60.0, 0.45f, fineWavelengths, 3);
-    applyCoherentTurbulence(branches[8].simulation,
-        static_cast<double>(step) / 60.0, 0.45f, multiWavelengths, 4);
+    for (auto& branch : branches)
+      branch.simulation.setSources(
+          std::span<const PyroSourceState>(&source, 1));
+    const auto smokeForce = applyCoherentTurbulence(branches[5].simulation,
+        static_cast<double>(step) / 60.0, 0.45f, largeWavelengths, 3, 0);
+    const auto interfaceForce = applyCoherentTurbulence(
+        branches[6].simulation, static_cast<double>(step) / 60.0,
+        0.45f, largeWavelengths, 3, 1);
+    const auto ambientForce = applyCoherentTurbulence(
+        branches[7].simulation, static_cast<double>(step) / 60.0,
+        0.45f, largeWavelengths, 3, 2);
+    if (step == 0) {
+      GTEST_LOG_(INFO) << "3d-source gate force rawRms/support interior/interface/ambient="
+          << smokeForce[0] << '/' << smokeForce[1] << ' '
+          << interfaceForce[0] << '/' << interfaceForce[1] << ' '
+          << ambientForce[0] << '/' << ambientForce[1];
+      EXPECT_GT(smokeForce[1], 0.0);
+      EXPECT_GT(interfaceForce[1], 0.0);
+      EXPECT_GT(ambientForce[1], 0.0);
+    }
     for (auto& branch : branches) branch.simulation.step(1.0 / 60.0);
   }
   for (const auto& branch : branches) {
