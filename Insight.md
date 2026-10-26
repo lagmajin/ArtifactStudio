@@ -1,4 +1,4 @@
-**最終更新:** 2026-10-25
+**最終更新:** 2026-10-26
 
 # Insight Register
 
@@ -6161,3 +6161,856 @@
 - **仮説（未検証）:** ACESlog may be an unfinished enum entry or an intentionally reserved compatibility value; the intended curve and decode domain are unclear from the local implementation.
 - **価値または懸念:** A caller selecting ACESlog receives unmodified values without a visible error, which can silently bypass the requested color encoding.
 - **次に確認すべきこと:** Confirm whether ACESlog should be implemented or explicitly treated as unsupported, then add a dedicated behavior contract before changing its dispatch.
+
+
+## 2026-10-26: Guard Diligent BasicMath hash support at module boundaries
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `libs/DiligentEngine/DiligentCore/Common/interface/BasicMath.hpp`, production smoke-render test build
+- **確認できた事実:** The `Artifact.Layer.Abstract` interface needs `Diligent::float4x4` but not Diligent hashing. Its unguarded `BasicMath.hpp` include pulled `HashUtils.hpp`, `GraphicsTypes.h`, `ThreadPool.h`, and MSVC `stop_token` into the IFC. Wrapping the include with `DILIGENT_BASICMATH_DISABLE_HASH_SUPPORT` removed those IFC dependencies and production C1116 disappeared. Adding `<TextureView.h>` makes the previously transitive `ITextureView` dependency explicit; the physics support implementation also needs `<compare>` in its own global module fragment for Qt's `QList` requirements.
+- **価値または懸念:** Narrowing third-party header features at the consuming module boundary reduced IFC pollution, while keeping BasicMath types available. The nested Diligent header change is part of this local work and remains uncommitted.
+- **追加確認:** `<compare>` and `FramePosition` registration repairs let the full target proceed farther; an unexported forward declaration in `Artifact.Application.Manager` also produced module-local incomplete types in consumers. Moving those forward declarations into the global module fragment and adding the owner module imports fixed the affected consumers. Removing `CvUtils` from the huge render-controller importer and using a local explicit QImage/OpenCV format adapter eliminated its C1116. `ArtifactAppRuntime` and the production render-test source compile; linking the test executable now fails on 11 unresolved application service symbols. This is a test target integration/link issue, so no production PNG or GPU capture is available yet.
+- **価値または懸念:** Production code compilation confirms the smoke runtime and brush wiring are type-correct in the main app target. The local QImage/OpenCV adapter must stay behaviorally aligned with the original utility formats; the current test executable cannot validate it until the existing service link closure is repaired.
+- **次に確認すべきこと:** Reconcile the actual runtime's header contract with a future upstream-compatible BasicMath hash opt-out, inspect the test target's service implementation link closure, and complete production render / GPU capture. The independent Core and production-runtime suites both pass with the deterministic stir injection contract.
+
+## 2026-10-26: Smoke production capture exposed particle overlap saturation
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`
+- **確認できた事実:** The production smoke render test originally treated any nontransparent pixel as visible, which allowed an all-white saturated frame to pass. Tightening the frame-area and deterministic redraw assertions caught it. Once the production test link closure was repaired, D3D12 capture on an RTX 4070 Ti showed large overlapping particles forming an opaque mound. Reducing per-particle alpha/size and selecting Alpha blend produced a softer, smaller smoke cloud; production capture and the independent runtime suite pass. The smoke still looks stylized and needs viewport-scale review.
+- **価値または懸念:** A passing headless render test alone does not establish useful smoke appearance; inspect actual captures and assert bounded image coverage to catch saturation. Current evidence is from offscreen D3D12 capture, not the interactive app viewport or brush interaction.
+- **次に確認すべきこと:** Review the emitter controls and brush stirring in the normal application viewport, then compare preview and render-queue output. Consider a density-based soft sprite or volumetric shading path only after establishing the current particle renderer's supported appearance controls.
+
+## 2026-10-26: Fluid smoke color used the wrong Qt property type
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerPhysicsRouting.cpp`, production smoke render test
+- **確認できた事実:** `component.fluid.smokeColor` is a `PropertyType::Color`, whose editor and `AbstractProperty` contract use `QColor`. Its component group and routed getter exposed `FloatColor`, while the setter expected a `FloatColor` QVariant. Setting the property from the UI therefore emitted an incompatible-value diagnostic and left the smoke color at its previous value. Aligning the group/getter to `ArtifactCore::toQColor` and converting `QColor` to `FloatColor` in the setter fixed the contract. The D3D12 production test sets a green `QColor`, asserts green-dominant output pixels, and now round-trips emitter X and smoke RGB through `toJson()` / `fromJsonProperties()` before rendering. The persistence assertions use tolerance for QColor's 8-bit channel quantization; the test passes without the prior type-rejection diagnostic.
+- **価値または懸念:** The type mismatch prevented a visible smoke control from applying despite the property being present. The same property boundary now follows the already-working liquid color pattern. Normal application UI operation remains unobserved.
+- **次に確認すべきこと:** Exercise the color picker and smoke preview in the running app, then compare the same project/frame through preview and render queue.
+
+## 2026-10-26: Production brush stirring can be tested through frame replay
+- **関連:** `Artifact/src/Tool/ArtifactBrushTool.cpp`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`
+- **確認できた事実:** A production D3D12 render test can drive `ArtifactBrushTool` with a fixed press/move/release sequence while evaluating successive composition frames. The stirred frame differed from the no-input frame in 6,247 RGB pixels; after release, a further move was rejected. This exercises the actual tool-to-layer-to-runtime path without synthesizing OS mouse messages.
+- **気づき:** Explicit frame-sequence input makes viewport interaction deterministic and GPU-image-testable. This is useful for other simulation tools whose input enters through tool APIs.
+- **価値または懸念:** The test confirms the production Brush path on D3D12, but not the on-screen Components editor or renderer/caching parity with render queue.
+- **次に確認すべきこと:** Add an equivalent preview-versus-render-queue image comparison, and validate the UI controls in the normal application once desktop Computer Use is available.
+
+## 2026-10-26: Recycle smoke particle submission storage across frames
+- **関連:** `Artifact/include/Layer/ArtifactLayerFluidRuntimeState.ixx`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `Artifact/src/Render/ArtifactIRenderer.cpp`
+- **確認できた事実:** The smoke runtime created a fresh `ParticleRenderData` vector and copied each sampled particle into it on every frame. `ArtifactIRenderer::drawParticles(ParticleRenderData&&)` already returns a recycled particle vector to the submitted object. Keeping that object in `LayerFluidRuntimeState` allows the returned capacity to persist. Sampling is bounded to at most 41×41 entries for supported grid sizes and capacity is reserved at solver initialization. Independent runtime and production D3D12 smoke/brush tests pass after this change.
+- **価値または懸念:** The steady-state draw path avoids the previous per-frame temporary vector allocation and duplicate particle copy. GPU/CPU allocation profiling has not been run, and unrelated renderer queue packet allocations remain outside this focused change.
+- **次に確認すべきこと:** Measure steady-state allocation counts through a representative interactive playback session and check preview/render-queue parity.
+
+## 2026-10-26: Smoke preview parity requires a renderer-independent simulation step
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`, `Artifact/src/Render/ArtifactRenderQueueService.cpp`
+- **確認できた事実:** GPU Render Queue draws layers through `drawLayerForCompositionView()`, while software/XPU rendering uses `renderSingleFrameComposition()` and `renderLayerSurface()`. The software path now composites shared solver samples into its output surface. The Composition View drawing wrapper adds the same smoke overlay after surface-based drawing, and skips it when the ordinary layer draw already handles fracture overlays. A D3D12 integration test renders CPU/GPU full ranges, repeats the CPU job, and compares frame-range warmup output; configured-color smoke visibility passes in each path. Queue jobs containing smoke are warmed sequentially from the composition start and excluded from CPU MFR, because the fluid solver buffer is not in the serialized component bake. Repeated CPU jobs are stable by plume centroid and pixel count within the test tolerance, not pixel-exact.
+- **実装・確認:** `advanceLayerSmokeRuntime()` を `LayerFluidRuntimeState` に追加し、`evaluateLayerComponentSimulation()` から各レイヤーの固定frameを更新する。レイヤーが不活性またはsmoke component無効ならstateをinvalidateする。独立runtime suiteでrenderer描画前のadvanceと描画時advanceが同じPNGになることを確認し、production Vulkan smoke testも通過した。
+- **価値または懸念:** Composition evaluation、CPU surface出力、GPU direct-layer drawのsmoke表示とframe-range warmupを確認した。CPU/GPU画像のpixel完全一致およびinteractive previewとの比較はまだ実証していない。Fluid solver state自体はcomponent bakeに保存されないため、queueは既知状態から再生する方式を使う。
+- **次に確認すべきこと:** 同じcomposition/frameのinteractive GPU previewとGPU Render Queueを比較し、必要ならsolver snapshotをbakeへ含める設計を別途評価する。
+
+## 2026-10-26: Smoke density must dissipate during continuous emission
+- **関連:** `ArtifactCore/include/Physics/FluidSolver2D.ixx`, `ArtifactCore/src/Physics/FluidSolver2D.cpp`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`
+- **確認できた事実:** The solver previously advected density without removing it, while the smoke emitter injected density on every frame. A D3D12 production capture showed the plume accumulating as a compact opaque-looking blob. Adding bounded `FluidSolver2D::scaleDensity()` and applying `exp(-2.5 * dt)` after each smoke solver step visibly narrowed the production plume. Emission density and velocity are now scaled by `dt * 30`. The independent runtime suite compares 1.5/3-second simulations at 24/30/60 fps; its 5 tests and the Core suite's 7 tests pass. Latest production D3D12 smoke test and CPU/GPU Render Queue comparison also pass.
+- **確認できた事実:** The fluid smoke component now stores `component.fluid.emitterCount` independently from the legacy particle emitter count. Runtime clamps it to 1–64 and distributes multiple injection centers deterministically with a sunflower/golden-angle pattern inside the configured emitter radius; count 1 keeps the original center. Standalone runtime tests confirm count 1 and count 9 produce measurably different images, while count 9 reruns pixel-identically. Production JSON round-trip restores count and D3D12 rendering passes with four emitters. **未検証:** the per-frame bounded source loop performs square-root and trigonometric calculations, and its CPU cost has not been profiled. Next, profile representative counts and confirm the control in the running Inspector before deciding whether source offsets should be cached on cold-path settings changes.
+- **仮説（未検証）:** Latest capture's fixed 0.22Hz lateral sway and 0.15 amplitude produce a changing hooked plume, but may look too regular over long compositions or at other grid sizes and emitter settings. The CPU image still uses discrete particle sprites, and runtime profiling has not measured the added density pass.
+- **価値または懸念:** Density now has a bounded lifetime, and emission amount is approximately time-scaled instead of directly tied to frame count. Test tolerances cover plume centroid and alpha mass, not pixel equality across frame rates. Production D3D12 is verified; live viewport appearance remains unobserved.
+- **次に確認すべきこと:** Review interactive viewport controls and brush stirring, compare preview to queue on the same frame, and assess plume appearance across larger compositions before exposing dissipation or sway controls.
+
+## 2026-10-26: Smoke particle appearance depends on renderer scale and sample spacing
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `ArtifactCore/src/Graphics/ParticleRenderer.cpp`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`
+- **確認できた事実:** The production particle vertex shader converts `ParticleVertex::size` to a world-space radius with `size * 10`, while the standalone smoke PNG rasterizer had used `(0.5 + size * 0.3) * imageScale` and additive color accumulation. That made its screenshots far smaller and more dotted than the real renderer. The standalone rasterizer now follows the shader radius, soft-circle edge, and alpha compositing. Production smoke sprite size is derived from the screen-space sampling interval, uses a screen-aligned circular sprite, and no longer adds a second velocity rotation. A deterministic hash of each sample's `(gx, gy)` offsets sprite positions by at most 30% of the local sample interval. Particle alpha now follows `sqrt(density) * 0.15` with a 0.18 cap, lifting the low-density edge. The five runtime tests, D3D12 production capture test, and CPU/GPU Render Queue smoke comparison pass. Updated standalone and production captures show a fuller plume and less regular rows; the production image has no full-frame saturation.
+- **仮説（未検証）:** Matching the radius and blend law makes standalone captures a more useful visual proxy, but it still does not reproduce GPU rasterization, layer transforms, or the interactive viewport. Deterministic jitter and lifted low-density alpha reduce regular grid appearance without adding samples, but the sprite texture still reads as particles at some capture sizes.
+- **価値または懸念:** The independent R&D image now reflects the production particle size contract instead of an unrelated dot size, and stable coordinates preserve exact repeatability. The per-particle hash adds bounded arithmetic to the frame loop; performance profiling has not measured its cost. Higher alpha can thicken the plume if a composition has stronger density than the current test setup.
+- **次に確認すべきこと:** Inspect the smoke at viewport zoom levels and compare GPU preview with Render Queue. If particle texture remains too visible, prototype density interpolation within the existing renderer budget before introducing another full image-processing pass.
+
+## 2026-10-26: Smoke Composition View wrapper matches direct GPU layer output
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cpp`, `Artifact/src/Render/ArtifactRenderQueueService.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`
+- **確認できた事実:** The D3D12 smoke test renders one frame through `ArtifactAbstractLayer::draw()` and through `drawLayerForCompositionView()` using the same renderer, solver state, frame, transparent clear color, and output size. The images are pixel-identical. The Render Queue integration test also renders frame 24 from a separate D3D12 device through the same wrapper; its decoded 320×180 RGBA image is pixel-identical to the GPU Render Queue export.
+- **価値または懸念:** The smoke overlay wrapper preserves direct layer output and produces the same tested frame as the GPU Render Queue under the tested composition and color settings. This verifies the production drawing paths headlessly; it does not capture the running interactive viewport's final framebuffer or test mouse interaction in the real app.
+- **次に確認すべきこと:** Capture the same composition/frame from the running UI viewport to check canvas zoom, pan, and color-pipeline integration. Keep that live capture distinct from headless path parity.
+
+## 2026-10-26: Smoke plume shape changes with source velocity and layer transform
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`
+- **確認できた事実:** D3D12 production captures at particle-size factors 0.30 and 0.15 merge into broad blobs. A first intermediate step from 0.08 to 0.10 increased visible alpha>8 area from 5,673 to 6,548 pixels (+15.4%) on the same upright single-source fixture, with no alpha>240 pixels and the column/cap silhouette intact; particle texture is slightly less separated. Isolated upright vorticity 0 / 0.5 / 1.5 captures measured alpha>8 coverage of 6,827 / 6,675 / 7,208 pixels and alpha-weighted X centroids of 164.7 / 169.4 / 178.0; 0.5 produced a modest lateral tilt and 1.5 a clear hook while retaining the central column and avoiding alpha>240. Vorticity is a shared Fluid setting used by liquid behavior too, so these measurements do not justify a global default change. Setting runtime emitter swirl to 0 and periodic horizontal sway to 0.04 preserves the production smoke and Brush test. A centered, untransformed one-source capture produces an upright column and cap; the transformed four-source scene has a wide curl. With vorticity 0 and buoyancy 0.5, changing upward velocity from -0.4 to -1.2 changes plume height and cap width but preserves the column-and-cap silhouette. Source radius 0.025 yields 1,720 visible pixels and a narrow, weak column; radius 0.15 yields 15,050 visible pixels and clips to the full 320x180 frame; the existing radius 0.05 baseline yields 5,673 visible pixels. The filtered production D3D12 tests pass.
+- **価値または懸念:** Increasing sprite overlap alone hides the particle pattern by sacrificing plume detail; 0.10 is a measured modest change between the dotted 0.08 and detail-losing 0.15. Narrowing or broadening the injection radius alone also misses the target, so the current 0.05 default remains a measured midpoint. The transformed scene exaggerated the apparent curling; velocity scales plume proportions but does not change the basic silhouette.
+- **次に確認すべきこと:** Inspect density advection and particle reconstruction on the untransformed fixture; track plume bounds and alpha mass before changing production defaults. Check whether moderate vorticity values can be recommended for smoke without changing shared Fluid defaults, then inspect the result at interactive viewport scale.
+
+## 2026-10-26: Jittered smoke particles should sample density at their rendered positions
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`
+- **確認できた事実:** Smoke particle positions are offset deterministically by up to 0.3 grid-sample intervals to break visible regular rows. Bilinear density and velocity sampling now use the same jittered fractional coordinate as the rendered particle. On the D3D12 upright fixture, density interpolation changed alpha>8 coverage by +1.2% and alpha sum by +1.1%; bounds stayed nearly unchanged and alpha>240 remained zero. The independent runtime suite now also asserts particle positions match the jitter coordinates and both particle density (encoded in alpha) and velocity differ from old integer-cell reads; it passes. The production D3D12 smoke test and CPU/GPU Render Queue integration test pass; queue frame 24 remains pixel-identical to the Composition View wrapper. Capture `build/smoke-runtime-rnd/production-bilinear-density-velocity/smoke_final.png` retains the green plume and curled cap. Velocity affects CPU software particle orientation; the D3D12 smoke shader uses screen-aligned sprites and does not consume it.
+- **価値または懸念:** This keeps particle attributes spatially aligned without adding particles or a blur pass. Floor stride previously made `kSmokeRenderSamplesPerAxis=40` a target rather than a cap, reaching 79×79 samples for a 79² grid and causing a sharp count change at 80². The runtime now chooses at most 40 evenly spaced samples per axis and jitters by the corresponding fractional grid spacing. At 79², reserve capacity fell 6,241→1,600, CPU preparation 387.8→99.3 µs, and velocity-free submit with the test renderer 167.5→42.9 µs. At 128², preparation fell 117.7→100.0 µs and velocity-free submit 45.1→38.7 µs. Initial production D3D12 alpha mass fell about 29% with alpha>8 area nearly unchanged. A particle alpha gain of 1.20 in the independent rasterizer raised green channel excess by 18% without saturation and barely changed coverage. Production `sqrt(density)` alpha coefficient is now 0.18 (from 0.15, existing maximum still 0.18): latest capture recovers 17.7% alpha mass versus capped 0.15, with alpha>8 area 6,969 and alpha>240 count 0. CPU/GPU Render Queue parity is being rerun after this alpha change. Timings exclude solver stepping and actual GPU upload/render.
+- **次に確認すべきこと:** Inspect the running viewport at editor zoom levels and measure full interactive frame time; the smoke remains sprite-based and its in-app appearance is not yet verified.
+
+## 2026-10-25: Module IFC failures need dependency-boundary isolation before header cleanup
+- **関連:** `ArtifactCore/include/Math/Random.ixx`, `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`, smoke production-render test build
+- **確認できた事実:** Splitting `RandomStream` from the mutex-backed `Random` module removed the original `Math.Random` C1116, but a later production build failed while importing `Animation.Transform3D` with MSVC `std::_Stop_callback_base::_Do_attach`. Removing unused `<random>` from nearby module interfaces and adding `<stop_token>` explicitly did not resolve it. A standalone module importing `Animation.Transform3D` with its five direct IFC references compiled successfully, so the failure is not reproducible in that minimal context. Independent solver and production-runtime tests pass; the runtime test now also verifies configured RGB reaches submitted smoke particles.
+- **仮説（未検証）:** The remaining C1116 depends on an import active in the real consuming module or on the large ArtifactAppRuntime compilation environment rather than importing Transform3D alone.
+- **価値または懸念:** Reproducing the failure with the real consuming module closure can identify the responsible interaction without speculative standard-header cleanup.
+- **次に確認すべきこと:** Build focused importers for `Artifact.Effect.Abstract` and `Artifact.Render.ROI` using their actual transitive IFC closures, then compare with the successful Transform3D-only probe.
+
+## 2026-10-26: Smoke sprite reconstruction size trades spacing for overlap
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`
+- **確認できた事実:** At runtime size 0.118, an independent rasterizer measured 48.7k visible pixels / 2.98M green excess for the 129-particle baseline. Reproducing the production sample hash and reducing jitter from 0.30 to 0.10 yielded 49.0k / 2.98M. A 1.25x larger kernel with 0.64x alpha produced 53.2k / 2.97M; a 1.40x kernel with 0.51x alpha gave 55.3k / 2.97M. Production uses 1.25x / 0.64x: D3D12 green coverage rose 7,860→8,736 pixels (+11.1%) and green-region alpha sum 439,351→444,216 (+1.1%), with zero pixels above alpha 240. The smoke Render Queue test passes and GPU Queue frame24 exactly matches the 320×180 Composition View wrapper image.
+- **仮説（未検証）:** Area-compensated wider kernels reduce the visible gaps between particle sprites while retaining total smoke mass. They may still look too soft at higher canvas zooms; the standalone rasterizer does not model D3D12 rasterization exactly.
+- **価値または懸念:** The adjustment keeps particle count and upload size unchanged and needs no blur pass. Larger bounds increase fragment fill and software pixel-loop work; full frame-time cost has not been profiled. Live viewport appearance remains unverified.
+- **次に確認すべきこと:** Inspect the result at multiple live viewport zoom levels and profile GPU particle overdraw plus software compositing cost at 320×180 and a larger composition before settling the default.
+
+## 2026-10-26: 2D smoke can be rendered from solver density instead of particle sprites
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** An independent test captures the actual 96×72 `FluidSolver2D` density field and bilinearly resamples it into a continuous 768×576 plume. Beer–Lambert opacity and a bounded 2D directional optical-depth estimate remove the visible circular particle marks. At frame 44, visible pixels / green-channel excess were 34,508 / 3,722,022 without shadow attenuation, 33,545 / 2,337,707 with it, and 37,267 / 3,322,893 with stronger extinction plus attenuation; all variants had zero saturated pixels. The render remains a flat 2D sheet approximation, and density rendering time has not been measured.
+- **補足:** Earlier in this file, the 1.25× kernel / 0.64× alpha is recorded as a production experiment. After measuring the independent software pixel-visit proxy, production was reduced to 1.125× / 0.79×; 1.25× remains a comparison variant, not the current setting.
+- **仮説（未検証）:** Better plume detail likely depends on field resolution and small-scale velocity shaping as much as on the final density-to-opacity mapping. A true 3D volume would permit depth-aware scattering and self-shadowing, but its memory and frame cost may not fit this 2D application path.
+- **価値または懸念:** Direct density rendering removes sprite texture without increasing sample count or per-sprite overdraw. Current field still appears as a broad column with a rounded cap; higher vorticity and emitter swirl did not add fine curls. This is evidence to investigate density reconstruction, not yet a production adoption recommendation.
+- **次に確認すべきこと:** Compare a higher-resolution 2D density field with bounded curl/detail shaping, record CPU/GPU cost at viewport resolutions, and decide whether a 2D sheet is adequate before considering a third spatial dimension.
+
+## 2026-10-26: Density resolution tightens the plume; domain warp adds irregularity but not curls
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** With the frame-44 source held constant, 96×72 / 128×96 / 192×144 solver grids took 0.52 / 1.06 / 3.07 ms per frame in the Release standalone runtime. The same 768×576 CPU reference volume pass took about 265 / 200 / 145 ms for the three resulting fields; the active smoke coverage differs, so these are not a monotonic resolution benchmark. Higher resolution narrowed the image and reduced visible output from 34.4k to 27.7k pixels instead of creating curls. A deterministic multiscale domain warp at strength 0.45 / 0.90 increased visible pixels to 37.6k / 41.0k; visual inspection found 0.45 mildly irregular and 0.90 noisy, without fluid-looking curls.
+- **仮説（未検証）:** GPU execution may make bounded domain warping practical, but coherent curling likely requires the warp to follow the velocity field or to advect a secondary detail field; independent value noise alone only bends the density lookup.
+- **価値または懸念:** The CPU reference shader is a quality and parameter experiment, not a viable real-time renderer at the tested 768×576 output. Raising solver resolution increases simulation cost substantially and does not itself improve the target shape. Current production code still uses particle sprites with size 1.125× and alpha 0.79×; the density pass and warp exist only in the standalone test.
+- **次に確認すべきこと:** Prototype density sampling and a modest velocity-directed domain warp in a Diligent shader, then profile GPU time and compare against the current production smoke at the same composition/frame.
+
+## 2026-10-26: Diligent density pass is viable as a GPU smoke R&D path
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** A test-only Diligent fullscreen HLSL pass reads the actual `FluidSolver2D` density texture on D3D12 and renders a 384×288 continuous sheet with Beer–Lambert opacity, bounded directional optical depth, and deterministic domain warp. After matching the immutable sampler descriptor to the declared sampler name, Diligent validation is clean. Visible pixels at warp strengths 0 / 0.45 / 0.90 are 13,741 / 14,260 / 14,934. Captures in `build/smoke-runtime-rnd/gpu-density-shader-rnd-fixed/` show a smooth column; moderate warp adds mild waviness, while strong warp bends/noises it without fine fluid curls.
+- **仮説（未検証）:** The next quality gain likely needs detail that follows or is advected by the velocity field; static value-noise warping cannot make coherent billows. GPU timestamps should distinguish shader execution from readback and synchronization cost.
+- **価値または懸念:** D3D12 submit+wait+readback wall times were 3.73 / 0.87 / 0.67 ms; first-use work affects the first sample and these are not GPU-only timings. The pass is confined to a test and establishes a path for volumetric-style density shading without changing production behavior. It does not establish live viewport performance or visual parity with C4D/Houdini.
+- **次に確認すべきこと:** Add a small velocity-guided or advected detail field to the test shader, capture the output, and use Diligent timestamp queries to measure warm GPU cost before deciding whether this should replace particle sprites in production.
+
+## 2026-10-26: Velocity-backtraced smoke detail creates streaks before billows
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** The Diligent prototype now uploads solver density and velocity in RGBA32_FLOAT and midpoint-backtraces detail coordinates through the velocity field. On the 384×288 D3D12 test, no detail / static warp 0.45 / velocity backtrace 4f / 10f yielded 13,741 / 14,260 / 13,901 / 13,394 visible pixels. Inspection shows 4f creates soft directional wisps; 10f creates narrow ribbons. Neither creates small billows. Diligent timestamp queries report 10.24 / 8.192 / 9.216 / 9.216 µs GPU draw time, while submit+wait+readback measures 4.88 / 0.90 / 1.16 / 0.60 ms on an RTX 4070 Ti.
+- **仮説（未検証）:** A transported noise texture follows bulk velocity and stretches into filaments, while billows likely require a divergence-free/curl-noise perturbation or a separately advected scalar with controlled dissipation and injection.
+- **価値または懸念:** Backtrace distance is a useful bounded visual control, but 10f is too streaky and timestamp granularity is about 1.024 µs, so one-shot differences do not establish a shader cost delta. The pass remains test-only and does not change production behavior.
+- **次に確認すべきこと:** Prototype a small curl-noise perturbation derived from the velocity field or advect a secondary low-amplitude detail scalar, compare it against the 4f wisps, and use repeated/batched GPU timestamp queries or a profiler before any production decision.
+
+## 2026-10-26: Direct procedural curl displacement breaks the smoke silhouette
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** A test shader computed a divergence-free-style 2D vector by rotating the finite-difference gradient of value noise and displaced the solver density sample. High-frequency scale 0.65 at strengths 0.7/1.4 produced jagged edges; broad scale 0.20 at strengths 3.5/7.0 produced hollow rings and detached wisps. Visible pixels were 13,746 / 13,713 and 14,033 / 14,023 respectively, against 14,260 for static warp 0.45. Images are retained in `build/smoke-runtime-rnd/gpu-density-curl-noise-rnd/`. The filtered D3D12 test passes and captured each variant.
+- **仮説（未検証）:** A transported secondary density field with low-amplitude injection/dissipation may create scale separation and billows more naturally than warping the primary density, whose topology is easily broken by displacement.
+- **価値または懸念:** The curl vector construction is divergence-free in the continuous-noise idealization, but applying it as an unbounded density-coordinate warp does not preserve the plume silhouette in practice. GPU timestamps of 7.168 / 8.192 µs are within the RTX 4070 Ti query granularity and do not establish comparative cost.
+- **次に確認すべきこと:** Prototype a second advected detail scalar at lower amplitude and limited lifetime on the test path; evaluate whether it adds billows while preserving the base plume and profile it with repeated timestamp batches.
+
+## 2026-10-26: Advected secondary smoke density adds measurable but faint mottling
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** The test fixture injects signed deterministic detail around the emitter each frame, semi-Lagrangian advects it through the primary solver velocity, and damps it by `exp(-2 dt)`. The RGBA32_FLOAT alpha channel carries that scalar to a Diligent density shader, which applies `primaryDensity * exp(strength * detail)`. At strengths 1.5 / 2.4, the 384×288 output differs from baseline in 6,863 / 7,483 pixels with mean absolute channel differences 0.127 / 0.203 and maxima 13 / 21 of 255. Images show faint mottling, strongest near the source, not convincing billows. The filtered D3D12 test passes; captures are in `build/smoke-runtime-rnd/gpu-density-secondary-field-strong-rnd/`.
+- **仮説（未検証）:** Increasing scalar residence time or injecting at plume boundaries may distribute the secondary structure farther upward; simply raising density response risks speckling rather than coherent smoke.
+- **価値または懸念:** The detail scalar is spatially aligned with solver velocity and does not displace the main plume. The simulation is only an independent test fixture using two 96×72 CPU buffers, so no production hot-path or UI behavior is proven. Draw-only timing was 8.192 µs in both variants, below useful one-shot comparison precision.
+- **次に確認すべきこと:** Sweep secondary-field lifetime, injection spatial scale, and advection distance while measuring visible mottling and preserving a continuous plume; only then consider a reusable GPU detail-state design.
+
+## 2026-10-26: Secondary smoke detail survives better with longer lifetime and broader injection
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** Four signed detail fields were advanced in lockstep with the same primary 96×72 smoke solver and rendered through separate R32_FLOAT GPU textures. At shader response 2.4, short lifetime (6/s), standard (2/s), long lifetime (0.5/s), and 2× source radius changed 6,045 / 7,483 / 8,253 / 9,630 pixels; mean absolute RGB difference was 0.123 / 0.203 / 0.265 / 0.345, maxima 17 / 21 / 24 / 34 of 255, and upper-half mean difference 0.034 / 0.116 / 0.195 / 0.214. Longer-lived detail remains visible farther up; broader injection produces the strongest overall pattern. Capture review still sees faint wisps on a column, not convincing billows. All 11 filtered D3D12 variants pass.
+- **仮説（未検証）:** The remaining lack of plume-scale structures is constrained by the detail field's 96×72 spatial resolution as well as its amplitude; a higher-resolution scalar field sampled with the coarse solver velocity may retain finer eddies.
+- **価値または懸念:** Profile changes improve measurable texture without altering the primary plume coordinates, but current visual impact is weak and CPU fixture simulation plus GPU readback timings do not represent a production renderer. GPU timestamps stay around 8.192 µs and cannot resolve this sweep's cost differences.
+- **次に確認すべきこと:** Advect the secondary scalar on a 2× or 4× grid using bilinear velocity from the base solver; compare detail texture coherence, plume silhouette, and actual GPU timestamp batches before settling a representation.
+
+## 2026-10-26: A 2× advected detail field adds finer wisps without changing the plume silhouette
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** A 192×144 signed secondary density was injected and advected using bilinearly interpolated velocity from the same 96×72 primary solver. At equal lifetime, source radius, and density response, its 384×288 output differed from the 96×72 detail render in 7,667 pixels, mean absolute RGB 0.315, maximum 39/255, with upper/lower-half means 0.177 / 0.453. Visual inspection shows finer wisps across the plume and a stable broad silhouette. The filtered 12-variant D3D12 test passes. Capture: `build/smoke-runtime-rnd/gpu-density-detail-highres-rnd/smoke_gpu_density_detail_highres_2x.png`.
+- **仮説（未検証）:** A 4× detail field may add finer billows, but the 2× field already reveals a large CPU-side advection cost in this debug fixture: one high-resolution field took 362.4 ms across 45 steps, versus 112.8 ms for four base-resolution fields combined. This includes CPU test-fixture work and does not predict production GPU cost.
+- **価値または懸念:** Higher detail resolution appears to improve texture without directly warping the main density. GPU draw time remained 8.192 µs (within query granularity); field simulation/update, uploads, and live playback cost are separate and unmeasured. Any production path would need bounded preallocated state and likely GPU-side transport.
+- **次に確認すべきこと:** Compare 4× against 2× for visual saturation, then prototype the secondary-field update on the GPU and measure repeated GPU timestamps, memory, and viewport-frame impact before proposing adoption.
+
+## 2026-10-26: Correlated 4× smoke detail removes grain but loses the 2× wisps
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** At 384×288, independent per-cell signed noise made the secondary-field output visibly grainy. Bilinear value noise sampled at quarter-cell spacing (correlated across four detail cells) removed much of the grain, but visual inspection returned to a soft narrow column without improving the 2× coherent wisps. The filtered D3D12 test passes. Captures: `build/smoke-runtime-rnd/gpu-density-detail-highres-4x-rnd/` and `build/smoke-runtime-rnd/gpu-density-detail-highres-4x-correlated-rnd/`.
+- **価値または懸念:** In this Debug CPU fixture, one 384×288 field took about 1.47 s across 45 steps, vs. 362 ms for 192×144 and 113 ms for four 96×72 fields together. GPU draw timestamps ranged roughly 25.6–56.3 µs across variants, with warm renders mostly 25.6–40.96 µs; this is a one-shot test and not a product benchmark. More resolution alone is not producing convincing billows and carries steep CPU fixture cost.
+- **次に確認すべきこと:** Test a low-frequency plume-scale correlated scalar with multi-scale structure, or move secondary advection to GPU; assess coherent billow shape and repeated GPU timings before considering product integration.
+
+## 2026-10-26: Multi-scale long-lived 4× injection still does not form smoke billows
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** The 4× scalar injection was changed to 75% broad value noise (scale 0.055) plus 25% fine noise (scale 0.22), with fixed spatial noise transported by the base velocity. Two filtered D3D12 runs passed: one with 2/s decay and another with 0.5/s. Both rendered as a smooth narrow column at frame 44; the longer lifetime did not restore the wisps or generate large billows. The latter capture is `build/smoke-runtime-rnd/gpu-density-detail-multiscale-4x-longlife-rnd/smoke_gpu_density_detail_highres_4x_multiscale_longlife.png`.
+- **価値または懸念:** Detail-only injection does not seem to be the primary missing mechanism. The fixture still uses the production 96×72 velocity/density solver, then adds an independent scalar; increasing its scale/residence time cannot create convincing mesoscale velocity rolls when the base plume lacks them. Captures are headless test output, not viewport evidence.
+- **次に確認すべきこと:** Separate solver-flow quality from shader shading: inspect matched base solver density/velocity captures across vorticity settings, then hold the flow fixed and compare density-only shading against shadowed Beer–Lambert projection. Use the result to decide whether the next prototype belongs in the velocity solver or the renderer.
+
+## 2026-10-26: Smoke density R&D at one solver iteration understated the product plume
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerImpl.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp`
+- **確認できた事実:** The fullscreen smoke density fixture had set `solverIterations=1`, but the product layer default is 20. Re-running the same 96×72 solver settings and Diligent shader at 20 passed the filtered test. Against the 1-iteration base capture at 384×288, 43,708 pixels changed, mean absolute RGB difference was 12.20/255, and pixels above channel value 2 rose from 13,954 to 43,466. At 20 iterations a twisted rising plume and broad cap appear; the top edge also shows a bright horizontal band. Capture: `build/smoke-runtime-rnd/gpu-density-detail-production-iterations-rnd/smoke_gpu_density_base.png`. Earlier secondary-resolution conclusions were measured with the under-iterated solver and do not characterize the default product dynamics.
+- **確認できた事実:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::setBoundary()` copies scalar values to the top edge and reflects vertical velocity there. This closed boundary can retain the rising smoke at the top; whether that alone causes the visible band is an inference from source plus image, not an isolated proof. Child repository code was read only and not edited.
+- **価値または懸念:** Solver fidelity was the hidden variable behind the previous low-detail column result. At product iterations, the base velocity/density field already creates a broad cap, so adding more scalar resolution is not the next priority. Renderer readback is still a headless prototype and the top-edge artifact needs a controlled comparison.
+- **次に確認すべきこと:** Add a test-only soft fade over the top few field cells, compare cap preservation and edge continuity against the baseline, then decide whether product implementation needs a configurable outflow boundary rather than a render mask.
+
+## 2026-10-26: Top-edge density fade trades boundary band against billow cap
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp::setBoundary()`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** A test-only `smoothstep` fade was applied in density sampling over the upper 2.5 and 5 solver cells, with the production-iteration (20) velocity/density field held fixed. The filtered D3D12 test passes. Mean green intensity in the top 8 output rows dropped from 56.92/255 to 28.70 and 10.37; whole-frame visible pixels dropped from 43,466 to 43,066 and 42,646. The 2.5-cell fade retains more of the cap but leaves an edge band; 5 cells hides more of the upper center and trims/dims the billow, while side-edge residue remains. Captures are in `build/smoke-runtime-rnd/gpu-density-top-fade-sweep-rnd/`.
+- **価値または懸念:** A render mask can improve edge appearance, but it clips a physically trapped plume and does not change reflected top velocity or scalar retention. The image evidence supports only symptom reduction, not a solver fix; do not promote the mask as the smoke solution.
+- **次に確認すべきこと:** The all-edge fade adds almost no improvement over top-only fade because side edges contain little smoke. Design and measure a real outflow/open-top boundary separately before product integration; keep shader fade only as a diagnostic comparison.
+
+## 2026-10-26: All-edge fade confirms smoke boundary artifact is concentrated at the top
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp::setBoundary()`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** A 5-cell smooth fade using distance to the nearest of all four density-domain edges was compared against the same 5-cell top-only fade. The D3D12 test passes. Top 8-row mean green was 10.33/255 vs 10.37 for top-only; whole-frame visible pixels were 42,423 vs 42,646. Left 36-column mean was already only 1.33/255 before fade and became 0.84, so side fading adds little. Capture: `build/smoke-runtime-rnd/gpu-density-all-edge-fade-rnd/smoke_gpu_density_all_edge_fade_5cells.png`.
+- **価値または懸念:** This confirms the visible band is concentrated near the top, and general edge masking is not a useful quality lever. Top-only fade dims the billow; neither mask changes the closed solver boundary.
+- **次に確認すべきこと:** Evaluate outflow/open-top boundary behavior as a separate solver experiment, with the current closed-boundary field and 20-iteration default as controls; do not infer product behavior from a render mask.
+
+## 2026-10-26: Per-step density sponge clears the top band while preserving an S-shaped plume
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp::update()`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** Two test-only simulations apply a smooth density retention ramp after each solver step over the top 6 or 12 cells. Velocity remains the production solver's closed-boundary result. At 20 iterations, the 12-cell sponge reduces top-8-row mean green from 56.92 to 0.00/255 and top-20-row mean from 45.59 to 0.30; visible pixels fall 43,466→29,092. The 6-cell sponge leaves top-8 mean 0.225 and top-20 mean 3.899, with 35,993 visible pixels. Both retain a recognizable rising S-shaped plume; the 12-cell image has the cleanest edge while the 6-cell image retains more density. Filtered D3D12 test passes. Captures are in `build/smoke-runtime-rnd/gpu-density-top-sponge-depth-sweep-rnd/`.
+- **価値または懸念:** A per-step density sponge addresses accumulated edge density without a post-render mask and is a tunable presentation/simulation-boundary compromise. It is not an open boundary: velocity and pressure still use the closed solver boundary, and density mass is deliberately removed. It may erase legitimate billow detail and must not be presented as physically correct outflow.
+- **次に確認すべきこと:** Measure integrated density and plume centroid/mass loss across the timeline for 6/12-cell sponge controls; then prototype top-normal velocity outflow in a separate test-only solver implementation and compare against these controls before any product-code proposal.
+
+## 2026-10-26: Top sponge visibly improves the boundary by removing plume mass
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
+- **確認できた事実:** Final solver-field sums and density-weighted centroids at frame 44: closed baseline 699.513 at (0.5449, 0.3644), 6-cell density sponge 603.571 at (0.5334, 0.4158), 12-cell sponge 562.489 at (0.5343, 0.4379). Cumulative density removed across 45 steps is 297.801 and 500.293 for the 6/12-cell sponges. D3D12 test passes. Values are grid-density units, not physical mass.
+- **価値または懸念:** The increasingly clean top edge directly costs 13.7% / 19.6% of final integrated density and shifts the plume centroid downward. This is expected for a sponge and shows the visual fix is mass removal, not a free renderer improvement.
+- **次に確認すべきこと:** Record intermediate-frame density/centroid curves and compare a larger simulation domain whose closed boundary lies above the visible crop. That control can show whether added headroom preserves plume mass before attempting a test-only one-way velocity boundary.
+
+
+## 2026-10-26: Sponge density loss begins when smoke reaches the top band
+
+- **関連:** 	ests/Artifact/ArtifactFractureLayerRenderTest.cpp, planned smoke-emitter milestone.
+- **確認できた事実:** The D3D12 experiment records integrated density and normalized density centroid at frames 0, 11, 22, 33, and 44. Base and 6/12-cell sponge match through frame 11. At frame 22, base/6-cell mass is 744.929 and 12-cell is 743.984. At frame 33 masses are 692.590 / 613.441 / 544.448 (base/6/12); at frame 44 they are 699.513 / 603.571 / 562.489. The 12-cell y centroid is .4434 at frame 33 and .4379 at frame 44, compared with baseline .3614 and .3644. Filtered D3D12 test passes.
+- **価値または懸念:** Sponge impact begins only after the plume reaches the upper band, not from emitter initialization. It also quantifies substantial late-stage plume loss; values are grid-density units, not physical mass.
+- **次に確認すべきこと:** Add a test-only extended-domain run and crop the same visible region, keeping solver resolution and emitter mapping explicit, then compare top-edge intensity and density retained inside the crop. Do not integrate sponge behavior into product code based on this test.
+
+
+## 2026-10-26: Extended closed domain reduces the top band by moving smoke outside the crop
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, planned smoke-emitter milestone.
+- **確認できた事実:** A D3D12 test runs the production smoke runtime on a 128×96 domain, maps the emitter and scales its cell-space settings to match a centered 96×72 crop, then renders that crop with the existing density shader. At frame 44, crop density sum is 629.925 (centroid .5459/.3982) versus the baseline 699.513 (.5449/.3644); full extended-domain sum is 825.927. Top-8 output-row mean green drops from 56.92 to 15.39/255, and visible pixels from 43,346 to 36,985. The filtered test passes. Visual capture: `build/smoke-runtime-rnd/gpu-density-extended-domain-rnd/smoke_gpu_density_extended_domain_crop.png`. The reflected horizontal band is greatly reduced, but the plume cap leaves the visible crop at the top.
+- **価値または懸念:** Unlike a sponge, the extended run does not intentionally erase density near the visible edge; smoke continues into the halo. Density-grid sums are not physical mass, and the changed total reflects the larger domain and altered pressure solution. The crop still loses visible plume as it advects above the frame.
+- **次に確認すべきこと:** Compare top-only headroom while keeping horizontal domain and cell scale fixed, sampling crop and halo density over time. Use that to distinguish top-boundary influence from the natural loss of plume through the crop.
+
+
+## 2026-10-26: Extended-domain plume begins leaving the crop between frames 22 and 33
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, smoke-emitter milestone.
+- **確認できた事実:** The 128×96 D3D12 runtime experiment samples the matched 96×72 crop and the upper halo at frames 0/11/22/33/44. Upper-halo density is zero through frame 22, then 173.624 at frame 33 and 196.002 at frame 44. Crop density is 635.678 at frame 33 and 629.925 at frame 44; the whole extended field is 809.302 and 825.927. Crop y-centroid shifts to .3873/.3982 versus baseline frame-44 .3644. The filtered GPU render test passes.
+- **価値または懸念:** The extended domain prevents the reflected top band inside the crop by allowing the plume to travel beyond view; it does not retain the whole plume in a fixed viewport. Symmetric expansion keeps the current single scalar emitter radius approximately matched in both axes. A top-only expansion changes the domain aspect ratio and would distort that circular cell-space source unless the experiment uses anisotropic injection.
+- **次に確認すべきこと:** Keep boundary testing separate from detail-generation R&D. Compare curl/vorticity-driven billow breakup at matched domain and crop, using independent deterministic captures, after this trajectory baseline is preserved.
+
+
+## 2026-10-26: Render-space curl adds detail gradually, but strong displacement distorts the plume
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, Diligent smoke density prototype.
+- **確認できた事実:** At 20 solver iterations, the same frame-44 density/velocity field was rendered with different shader-only detail. In 384×288 PNGs, high-pass energy was computed as mean squared grayscale difference from a Gaussian blur of radius 2 (diagnostic, not perceptual). Base is .0000231. Curl displacement .35/.7/1.4 cells gives .0000264/.0000304/.0000460 (+14%/+32%/+99%) while visible pixels above gray 10/255 remain 31,538/31,532/31,596 versus base 31,525. Four-cell velocity backtrace gives .0000572 (+148%); combining it with curl .35/.7 gives .0000608/.0000692 (+6%/+21% over backtrace). Strong curl 3.5/7 produces .0001635/.0005438 but visible holes/loops and edge spread. Filtered D3D12 test passes; captures are in `build/smoke-runtime-rnd/gpu-density-production-curl-sweep-rnd/`.
+- **価値または懸念:** Sub-cell curl displacement modestly increases edge detail without changing visible occupancy, while stronger displacement creates stylized liquid-like holes. Velocity backtrace modifies overall plume structure and leaves the top band; adding a little curl only adds a small high-frequency increment. A static frame comparison says nothing about temporal shimmer or motion coherence.
+- **次に確認すべきこと:** Capture the same shader variants at frames 22/33/44 from one deterministic simulation, then measure inter-frame high-pass change and compare it with solver-field change. Keep boundary and detail quality as separate axes; do not promote the one-frame prototype to product rendering.
+
+
+## 2026-10-26: Static render curl and combined warping differ in short-term image-space stability
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, Diligent smoke density prototype.
+- **確認できた事実:** One deterministic 20-iteration run stored frames 11/12/13 and 33/34/35, then rendered each field with base shading, curl displacement .7, and static warp .35 + velocity backtrace 4 + curl .7. For late frames 33/34/35, mean-squared high-pass energy (grayscale minus Gaussian blur radius 2) is .0000160/.0000158/.0000155 base, .0000222/.0000224/.0000222 curl-only, and .0000465/.0000463/.0000478 combined. The RMS difference between adjacent high-pass images at frames 33→34 / 34→35 is .00305/.00323 base, .00341/.00356 curl-only, .00602/.00638 combined. The filtered D3D12 test passes; individual images and contact sheet are in `build/smoke-runtime-rnd/gpu-density-temporal-curl-rnd/`.
+- **価値または懸念:** Curl-only keeps high-pass energy and its frame-to-frame change fairly even. The combined static warp/flow/curl condition produces about 1.9–2.0× the base high-pass change late. These are unregistered screen-space deltas, so plume motion contributes; they do not prove visible shimmer. This is insufficient evidence to promote the combined shader.
+- **次に確認すべきこと:** Compare velocity-advected secondary detail at controlled amplitude and decay against static curl over these same frame samples. If deciding between them by temporal coherence, add motion compensation using the captured velocity field rather than raw image-space deltas.
+
+
+## 2026-10-26: Advected smoke detail strength and decay trade temporal stability for texture
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, planned smoke emitter milestone, Diligent density shader prototype.
+- **確認できた事実:** In the filtered D3D12 temporal test, three 4× detail fields use identical source noise and solver velocity with decay 0.25/0.5/2.0 s^-1. At frame 33 their high-pass energy at strength 2.4 is .0000305/.0000275/.0000191, versus .0000160 base and .0000222 curl .7; decay .5 at strength 1.2/4.0 is .0000177/.0000510. Visual inspection shows fine layered modulation but regular upper-plume ripples at decay .5 strength 2.4, more pronounced at strength 4.0. The filtered test passes; captures are under `build/smoke-runtime-rnd/gpu-density-temporal-advected-rnd/`.
+- **価値または懸念:** Lower decay and stronger shading preserve more high-frequency structure, but also increase frame-to-frame image change and expose grid-like ripples. The medium/strong version does not yet resemble natural turbulent smoke. Raw frame deltas include plume motion and are not motion-compensated. Simulating three 4× fields took about 2.40 s in the test, so this configuration is suitable only for offline R&D in its current CPU form.
+- **次に確認すべきこと:** Measure motion-compensated detail coherence and test a disturbance field with less grid correlation. Keep this test-only and do not change production defaults until the texture and runtime cost are understood.
+
+
+## 2026-10-26: Solver-velocity compensation separates plume travel from detail change
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, temporal D3D12 smoke captures.
+- **確認できた事実:** The filtered test exports velocity for frames 11/12/13 and 33/34/35. A post-run analysis resamples frame-n velocity to the render grid, computes one-frame displacement using `dt × (cell count - 2)`, and forward-warps frame n+1 high-pass grayscale into frame-n coordinates. The fixed velocity sign lowers baseline residual. Across four transitions, mean raw→aligned high-pass RMS is .01163→.00813 for base, .01481→.01125 for advected detail decay .5 strength 2.4, .01272→.00923 for decay 2 strength 2.4, .01241→.00872 for decay .5 strength 1.2, and .01891→.01550 for strength 4. The filtered D3D12 test rebuild and run pass; outputs are in `build/smoke-runtime-rnd/gpu-density-temporal-advected-velocity-rnd/`.
+- **価値または懸念:** Correcting bulk plume transport lowers the residual, but medium detail remains about 38% above base and high strength about 91% above. This indicates extra temporal change in the detail field; it does not prove perceptual shimmer because the analysis is grayscale high-pass residual over a baseline smoke mask. One-step velocity sampling is also an approximation.
+- **次に確認すべきこと:** Test integrated particle trajectories or a passive marker field for motion compensation, then inspect short playback for perceived shimmer.
+
+
+## 2026-10-26: Midpoint trajectory integration does not remove advected-detail residual
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, temporal smoke velocity dumps.
+- **確認できた事実:** Reintegrated output-pixel paths through the captured frame-n velocity field using midpoint steps 1/2/4/8/16. Across frame pairs 11→12, 12→13, 33→34, 34→35, mean high-pass residual changes 1→8 steps from .00763 to .00741 for base and .01028 to .01007 for advected decay .5 / strength 2.4. The residual ratio is 1.348× at one step and 1.359× at eight. By 4–8 steps the values are nearly converged.
+- **価値または懸念:** The earlier one-step warp slightly overestimated correspondence residual, but higher integration accuracy does not remove the secondary-detail excess. This test freezes the velocity at frame n, so it checks spatial integration convergence rather than temporal acceleration or perceived shimmer.
+- **次に確認すべきこと:** To verify appearance, evaluate a short frame sequence in playback or use velocity at multiple simulation substeps; do not interpret this metric alone as visual acceptance.
+
+
+## 2026-10-26: Repeated fixed source noise contributes to late smoke ripples
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, high-resolution secondary detail injection.
+- **確認できた事実:** The high-resolution source noise uses hash seed 0, so each frame adds the same spatially correlated pattern. A test-only field that matches continuous injection through frame 22 and then stops injecting was compared against continued injection with the same .5 s^-1 decay and solver velocity. At frames 33→34 / 34→35, eight-substep velocity-aligned high-pass residual is .00597/.00615 continuous versus .00561/.00569 stopped, with base .00472/.00484. Stopping late injection reduces residual excess above base by ~32%; frame-34 high-pass energy falls from 2.90e-5 to 2.29e-5. Visual capture shows regular upper-plume ripples in the continuing version and a smoother stopped version. D3D12 filtered test passes; captures at `build/smoke-runtime-rnd/gpu-density-temporal-injection-stop-rnd/`.
+- **価値または懸念:** Repeated injection of a fixed pattern is a contributor to visible ripple and time residual, but stopping injection also reduces the amount of detail; residual remains ~18% above base. This does not establish that all source injection should stop.
+- **次に確認すべきこと:** Test smooth temporal translation of the source noise against fixed noise and the stop-injection ablation, tracking both high-pass amplitude and motion-aligned temporal residual.
+
+
+## 2026-10-26: Smoothly drifting source noise weakens fixed-pattern smoke ripples
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, high-resolution smoke source detail.
+- **確認できた事実:** A test-only .5 s^-1 field translates the repeated correlated source pattern by (0.04, 0.025) solver cells per frame. At frame 34, high-pass energy is 2.84e-5, compared with 2.90e-5 for the fixed repeated pattern and 2.29e-5 when injection stops after frame 22. With 8-substep velocity compensation, late residual at 33→34 / 34→35 is .00582/.00596 for moving noise, .00597/.00615 fixed, and .00561/.00569 stopped. Visual inspection shows less regular upper rippling than fixed injection, while retaining more detail than the stop control. D3D12 filtered test passes; captures are at `build/smoke-runtime-rnd/gpu-density-temporal-moving-noise-rnd/`.
+- **価値または懸念:** Coherent temporal translation appears to reduce a regular pattern without removing as much texture as stopping injection, but quantitative residual improvement is small and one drift rate is not enough to select a setting.
+- **次に確認すべきこと:** Sweep half, nominal, and double drift speed with fixed and stop controls. Judge shape and detail retention alongside motion-aligned temporal residual; do not use high-pass energy alone.
+
+
+## 2026-10-26: Faster coherent source-noise drift weakens banding with small detail loss
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, temporal D3D12 smoke captures.
+- **確認できた事実:** Compared moving correlated source noise at half/nominal/double drift: (0.02,0.0125)/(0.04,0.025)/(0.08,0.05) solver cells per frame, holding .5 s^-1 decay and strength 2.4. Eight-step velocity-aligned residual averaged over late pairs is .00597/.00589/.00574 versus .00606 fixed and .00565 injection-stop. Frame-34 high-pass energy is 2.867e-5/2.839e-5/2.790e-5 versus 2.900e-5 fixed and 2.293e-5 stopped. D3D12 filtered test passes; output is in `build/smoke-runtime-rnd/gpu-density-temporal-noise-drift-sweep-rnd/`. Visual inspection rates double drift least banded, with stop injection smoother still.
+- **価値または懸念:** Double drift reduces visible regularity while preserving ~96% of the fixed condition's high-pass energy; stopping injection reduces energy more. Numerical residual improvements are modest and the visual judgement comes from one small grayscale scene, so this is not enough to set a runtime default.
+- **次に確認すべきこと:** Validate double drift over more emitter positions, plume phases, and short playback; then compare the GPU cost of the eventual detail reconstruction path.
+
+
+## 2026-10-26: Uniform source-noise drift changes sign of benefit with emitter position
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, experimental GPU smoke density captures.
+- **確認できた事実:** With all solver settings fixed except source X, the same filtered test passed at X=.35 and X=.65. For 8-step velocity-aligned late residual, fixed/half/nominal/double/stop conditions are .00734/.00725/.00717/.00699/.00624 at X=.35, but .00768/.00772/.00776/.00793/.00724 at X=.65. Frame-34 high-pass energy for fixed versus double is 3.957e-5 vs 3.551e-5 at X=.35, and 5.406e-5 vs 5.684e-5 at X=.65. Captures are in `build/smoke-runtime-rnd/gpu-density-drift-sweep-emitter-x0p35/` and `...x0p65/`.
+- **価値または懸念:** One uniform world-space temporal drift improves the plume at one emitter placement and worsens it at another. Its effect depends on local flow direction and plume shape, so the centered-fixture speed result is not robust enough to promote.
+- **次に確認すべきこと:** Compare positive, negative, and local-velocity-aligned noise drift at both emitter positions and early/late plume phases; evaluate visible banding alongside high-pass residual.
+
+
+## 2026-10-26: Emitter-center velocity does not make global noise drift robust
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only temporal smoke detail fields.
+- **確認できた事実:** A candidate translates source noise in the direction of normalized velocity sampled at the emitter center, at 0.08 solver cells per frame. At emitter X=.35/.65, late aligned residual is .00717/.00774 versus fixed .00734/.00768; frame-34 high-pass energy is 3.758e-5/5.654e-5 versus fixed 3.957e-5/5.406e-5. Both filtered D3D12 runs pass. Captures: `build/smoke-runtime-rnd/gpu-density-flow-drift-emitter-x0p35/` and `...x0p65/`.
+- **価値または懸念:** Emitter-center velocity direction has a small benefit at one position and slight cost at another, so a single source velocity vector does not model the plume's local flow. It is not equivalent to advecting a texture or scalar with the per-cell velocity field.
+- **次に確認すべきこと:** Test per-cell semi-Lagrangian advection of the procedural detail field or a passive scalar/material-coordinate field, preserving temporal coherence and measuring source-to-plume texture transport.
+
+
+## 2026-10-26: Bounded MacCormack correction sharpens but destabilizes the smoke detail
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, 4× smoke secondary detail transport.
+- **確認できた事実:** Source review confirms the existing secondary detail is already transported with per-cell solver velocity using first-order semi-Lagrangian backtracing. A test-only bounded MacCormack/BFECC-style correction was compared at the same .5 s^-1 decay, source injection, and render strength 2.4. It clamps corrected values to the departure-cell donor range. The filtered D3D12 test passes; captures are in `build/smoke-runtime-rnd/gpu-density-advection-maccormack-rnd/`. At frame 34 high-pass energy is 6.004e-5 vs 2.900e-5 first-order. Late velocity-aligned residual is .00855/.00924 at 33→34/34→35 (mean .00890), compared with .00597/.00615 (mean .00606) for first-order.
+- **価値または懸念:** Higher order retains sharper detail but more than doubles the static high-pass energy and raises late temporal residual by ~47%; visual inspection shows stronger regular ripples. This straightforward correction is not a quality win for the current signed scalar field.
+- **次に確認すべきこと:** Do not add another duplicate local-advection path. Focus on source-injection correlation and oscillation-resistant transport; any improved scheme must be compared for detail retention, temporal residual, and visible banding.
+
+## 2026-10-26: Higher smoke vorticity bends the plume but does not create stable billows
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`, independent Diligent smoke density R&D.
+- **確認できた事実:** A test-only `ARTIFACT_TEST_SMOKE_DENSITY_VORTICITY` override (range 0–8) swept 0 / 1.5 / 3 / 6 while holding the 96×72 solver, source, and 384×288 D3D12 shader fixed. All four filtered runs pass. Frame-44 high-pass energy (grayscale minus Gaussian blur radius 2, mean square) is 2.153e-5 / 2.296e-5 / 2.186e-5 / 2.333e-5; pixels above gray 10 are 30,166 / 30,375 / 30,185 / 29,127; density centroid X is 201.9 / 206.2 / 211.9 / 220.8. Eight-substep frozen-velocity-aligned late residual is .00407 / .00478 / .00545 / .00658. Visual capture shows a growing sideways S-bend and raggedness at 6, without coherent layered billows. Contact sheet: `build/smoke-runtime-rnd/vorticity-contact-sheet.png`; source captures under matching `gpu-vorticity-sweep-*` folders.
+- **価値または懸念:** Increasing the existing shared fluid vorticity parameter mainly changes plume trajectory and increases late temporal residual; a small high-pass increase is not evidence of improved natural smoke. Do not promote a default or treat this as the full Houdini/C4D quality path. The separate shaping controls described in official SideFX Pyro documentation (disturbance and velocity turbulence) are research context only: https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html .
+- **次に確認すべきこと:** Prototype a test-only, band-limited velocity-disturbance field injected at substeps and compare low/mid/high spatial scales at identical vorticity. Track plume occupancy, centroid/bounds, detail energy, and motion-aligned temporal residual, then inspect short frame sequences for coherent billows versus noisy breakup.
+
+## 2026-10-26: Single-band curl forces create periodic eddies, not coherent smoke billows
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, smoke density D3D12 R&D.
+- **確認できた事実:** A test-only curl of a single sinusoidal streamfunction is added after each runtime frame through public `FluidSolver2D::addVelocity`, only in cells with density >0.01. Sweeps at wavelengths 24 / 12 / 6 solver cells and an equal-energy three-band combination all pass the filtered D3D12 test. Frame-44 normalized grayscale high-pass energy is 2.296e-5 base, then 2.148e-5 / 2.106e-5 / 2.383e-5 / 2.134e-5 low/mid/high/multi. Visible pixel counts >10 gray are 30,375 / 28,009 / 30,292 / 31,229 / 29,070, and X centroids are 206.2 / 219.3 / 214.6 / 209.0 / 217.3 px. Images show periodic curled streaks; low/mid/multi shift the plume right, and high mainly roughens it. Captures are under `build/smoke-runtime-rnd/gpu-vorticity-turbulence-{low,mid,high,multi}/` with contact sheets nearby.
+- **確認できた事実:** An exploratory 8-step frozen-frame velocity warp on late high-pass images gives 33→34 / 34→35 residual means: base .00539, low .00554, mid .00579, high .00543, multi .00579. It uses one captured velocity field and is only a spatial correspondence proxy. It does not prove perceived flicker or true substep behavior.
+- **価値または懸念:** Spectral curl forcing can produce eddy-like shapes, but these coherent sinusoids create detached or repetitive trails instead of layered, transported billows; multi-scale blending did not improve the temporal residual. This is not evidence for a production control or default.
+- **次に確認すべきこと:** Replace periodic modes with a deterministic multi-directional curl-noise field, use a smooth bounded envelope tied to density/plume regions, and compare it against this spectral baseline at matched force RMS. Keep simulation fields and renderer details separate, and inspect both early/late frame sequences.
+
+## 2026-10-26: Curl-noise forces add texture but cause strong bulk drift
+
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, smoke density field and D3D12 rendering R&D.
+- **確認できた事実:** Test-only 24/12/6-cell smooth value-noise streamfunctions were differentiated into a curl field and slowly translated per frame. At impulse strength .0125/.025/.035, frame-44 normalized grayscale high-pass energy is 2.098e-5/2.243e-5/2.542e-5; visible pixels above gray 10 are 30,437/31,454/32,630; X centroid is 213.6/218.3/223.0 px. Base is 2.296e-5, 30,375, and 206.2 px. The D3D12 filtered tests pass. Visuals show fewer periodic loops than sine modes, but higher force shifts the plume strongly right.
+- **確認できた事実:** A test-only correction subtracts the density-weighted mean curl impulse each frame. It passes at .0125/.035, but the centroid moves left to 189.4/157.3 px and visible pixels are 30,280/25,886; high-pass energy is 2.496e-5/2.895e-5. The instantaneous weighted kick is centered by construction, yet the nonlinear solver and changing density still yield a large trajectory change.
+- **価値または懸念:** Increasing small-scale energy alone is not a quality win: this force perturbs plume transport, and simple mean subtraction does not stabilize the evolving flow. Do not use either mode as a runtime default. Contact sheet: `build/smoke-runtime-rnd/vorticity-curlnoise-strength-contact-sheet.png`.
+- **次に確認すべきこと:** Hold the solver field fixed and prototype directional transmittance/self-shadow in the Diligent density shader to test whether volume lighting adds depth without changing plume motion. After that, revisit solver-side disturbance with an explicitly bounded, divergence-aware envelope and track momentum over multiple simulation steps rather than one-frame force balance.
+
+
+## 2026-10-26: Stronger 2D self-shadowing suppresses contrast without shaping smoke
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, GPU smoke density prototype, planned smoke emitter milestone.
+- **確認できた事実:** The Diligent test shader already had a bounded 10-step Beer–Lambert optical-depth estimate. A fixed solver field was rendered at shadow strengths 0 / .18 / .45 / .9; visible occupancy stayed 32,434 pixels while visible-region mean gray fell 64.27 / 47.61 / 37.43 / 31.43 and high-pass energy fell 1.136e-4 / 6.668e-5 / 4.903e-5 / 3.872e-5. Changing light direction had a smaller effect. The D3D12 filtered test passed; captures/contact sheet are under `build/smoke-runtime-rnd/gpu-volume-lighting-sweep/`.
+- **価値または懸念:** In this low-resolution 2D sheet, stronger attenuation mostly removes luminance contrast while leaving alpha silhouette unchanged; it does not add volumetric structure. The result is qualitative and specific to this density field and lighting model.
+- **仮説（未検証）:** A nonzero ambient/transmitted fill term and a depth-aware local gradient may retain readable form better than multiplying the entire shadow term.
+- **次に確認すべきこと:** Hold the field and opacity fixed; independently sweep shadow distance, density weighting, and ambient floor, then compare perceptual contrast and draw timing. Keep the shader test-only.
+
+
+## 2026-10-26: Shadow distance and ambient fill mainly remap global contrast in 2D smoke
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`, test-only Diligent density pass.
+- **確認できた事実:** With the same solver field, shadow march lengths 2.75 / 5.5 / 11 cells at strength .18 produce mean visible gray 41.37 / 37.17 / 33.46 and high-pass energy 6.844e-5 / 5.563e-5 / 4.648e-5. Ambient fill .18 / .30 / .42 / .55 at distance 5.5 and strength .18 gives mean gray 27.12 / 32.17 / 37.17 / 42.54; high-pass energy rises 3.147e-5 / 4.253e-5 / 5.563e-5 / 7.217e-5. A .45 shadow with .55 fill yields mean 35.01 and high-pass 5.445e-5. D3D12 filtered test passes 1/1; contact sheet is at `build/smoke-runtime-rnd/gpu-volume-lighting-distance-ambient-sweep/lighting_distance_ambient_contact_sheet.png`.
+- **価値または懸念:** Visually, parameter changes mainly remap brightness while leaving the broad plume and top-boundary structure. These global grayscale metrics do not measure volume perception; no setting is promoted. HLSL constant-buffer packing required two explicit CPU padding floats before the color vector, found through a failed transparent-image assertion and fixed before the passing rerun.
+- **次に確認すべきこと:** Keep mean luminance matched and compare bounded density-gradient shading against density-normalized transmittance. That can test local shape cues without mistaking an overall brightness change for added depth.
+
+
+## 2026-10-26: Mean-matched density-gradient lighting reads as a rim on a 2D smoke sheet
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only Diligent smoke shader, smoke emitter milestone.
+- **確認できた事実:** Central-difference density normals (±0.75 cells) at gradient strengths .25/.5/1.0 were rendered with ambient fill tuned to keep alpha>2 mask mean gray within .02 of the base 36.96. Their standard deviations are 38.47/39.45/41.52 versus 37.56 base; high-pass energy is 5.689e-5/6.117e-5/8.039e-5 versus 5.611e-5. The D3D12 filtered test passes. Visuals show progressively narrower contour highlights; strength 1 introduces a hard rim rather than natural internal billows. Contact sheet: `build/smoke-runtime-rnd/gpu-volume-lighting-gradient-matched-rnd/gradient_matched_contact_sheet.png`.
+- **価値または懸念:** Equal mean luminance isolates the local contrast change, but confirms this gradient-as-normal model makes the planar density field look like a surface. The high-pass rise is not a quality score. Keep it test-only; do not select a product default.
+- **仮説（未検証）:** Density-aware scattering with local transmittance should preserve a soft volumetric appearance better than Lambert-like gradient normals.
+- **次に確認すべきこと:** Compare a bounded single-scattering approximation against the current directional shadow using the same field, alpha mask, and matched mean luminance; inspect whether it gives broad internal shading without edge rims.
+
+
+## 2026-10-26: Layered rendering cannot recover depth variation absent from the 2D smoke field
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only Diligent smoke shader, smoke emitter milestone.
+- **確認できた事実:** A test-only shader integrates eight synthetic depth slices from the same 2D density field, with small curl warp, four local light-transmittance samples per slice, and front-to-back Beer–Lambert compositing. The tuned condition matches alpha-mask mean gray 36.97 vs 36.96 baseline and integrated alpha within +0.64%; high-pass energy is 5.337e-5 vs 5.611e-5. Visuals remain a broad S-shaped column with no convincing new billows. D3D12 test passes 1/1. GPU timestamp is 329.7–333.8 µs at 384×288, about 2.8× the warm baseline variant from the same single run. Captures are under `build/smoke-runtime-rnd/gpu-volume-integration-final-confirm-rnd/`.
+- **価値または懸念:** Procedural extrusion of one planar density slice adds cost without creating independent depth structure; it is not a substitute for true volumetric density. Keep this shader test-only and reject it as a production path.
+- **確認した外部仕様:** Maxon describes volume rendering as ray marching multiple positions with density-based scatter/absorption and anisotropy; SideFX exposes separate volume and volume-shadow sampling controls: https://help.maxon.net/c4d/2027/en-us/Content/html/What_is_Volumetric_Rendering.html and https://www.sidefx.com/docs/houdini/render/volumes .
+- **次に確認すべきこと:** If DCC-level smoke remains the target, research a real 3D density source/cache and a bounded GPU volume ray marcher. Keep it separate from the current 2D emitter until memory, resolution, and viewport cost are measured.
+
+## 2026-10-26: Windowing curl noise before differentiation reduces plume drift
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only `ExperimentalGpuSmokeDensityShaderUsesSolverField`, smoke emitter milestone.
+- **確認できた事実:** Density-weighted mean subtraction applied to a density-windowed curl-noise force does not preserve the plume centroid after solver integration. At strengths .01/.02/.05/.075, frame-44 normalized density centroid moves from (.5449,.3644) control to (.4959,.3657)/(.4505,.3640)/(.3717,.4085)/(.3440,.4859). A test-only alternative multiplies the streamfunction by a smooth density envelope first, then computes the curl from that windowed scalar field. This restores an approximately divergence-free compact field without subtracting a global mean. Four D3D12 filtered runs (strengths .01/.02/.05/.075) and three isolated-band runs (24/12/6 solver cells at .035) pass. At strength .02 frame-44 density mass/centroid is 739.389/(.5592,.3767), versus control 699.513/(.5449,.3644); the cap develops a modest extra curl. At .05 the plume bends substantially; .075 reduces visible coverage and breaks the column. At .035, the 24-cell band creates strong large-scale shape changes (output high-pass energy 2.554 vs 1.502 control); 12/6-cell variants are 1.463/1.325. These energy values are image diagnostics, not quality scores. Captures: `build/smoke-runtime-rnd/gpu-curlnoise-windowed-valid-rnd/` and `build/smoke-runtime-rnd/gpu-curlnoise-windowed-bands-rnd/`.
+- **確認した外部仕様:** SideFX documents Disturbance for higher-frequency cap breakup, Turbulence for powerful large-scale churning, and Shredding for changing flow direction without changing velocity magnitude: https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html .
+- **価値または懸念:** Windowing the potential before differentiation is a more coherent local-force construction than masking a curl afterward or subtracting its global mean. However, current multi-band values share a deterministic smooth-noise field translated slowly each frame; this is not a matched reproduction of Houdini's distinct operators. At strength .02, frame-33→35 unregistered high-pass change is about 37% above control. No production code/default was changed.
+- **仮説（未検証）:** A small stochastic rotation of the existing velocity vectors can add curl-like turns while preserving local speed, offering a cleaner test of SideFX's Shredding behavior than adding more force magnitude.
+- **次に確認すべきこと:** Add a test-only bounded local velocity rotation at matched wavelength and force strength, capture adjacent frames, and compare plume centroid, density mass, cap breakup, and velocity-compensated temporal residual against windowed curl.
+
+## 2026-10-26: Speed-preserving local rotation still biases smoke transport
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only `ExperimentalGpuSmokeDensityShaderUsesSolverField`, smoke emitter milestone.
+- **確認できた事実:** A test-only Shredding analogue rotates the local solver velocity by a smooth seedable angle field, using single 24/12/6-cell bands or all three. Ten filtered D3D12 runs pass: multi-band scales .05/.15/.30; each single band at .15; and seeds 1/29/71 at .15 (default seed 17 also passed). The local velocity magnitude changes by only 2.3e-7–2.5e-7 relative during the rotation operation. Yet after repeated solver integration, frame-44 centroid changes substantially. At multi-band .05/.15/.30 it is (.5239,.3684)/(.4866,.3783)/(.4515,.3902) vs (.5449,.3644) control. Single 24/12/6 bands at .15 yield (.5777,.3698)/(.6123,.3760)/(.6023,.3762). Seeds 1/17/29/71 at .15 yield (.6113,.3912)/(.4866,.3783)/(.6346,.3645)/(.5679,.3658). Images remain broad plumes and the cap/trajectory changes by band and seed; no fine wisps emerge. Contact sheets are under `build/smoke-runtime-rnd/gpu-shredding-{strength,bands,seed}-rnd/`.
+- **価値または懸念:** Local speed preservation is not equivalent to global momentum preservation, and one deterministic noise field can steer the entire plume. This direct velocity-rotation prototype is not suitable for integration at these settings.
+- **仮説（未検証）:** Density- and speed-weighted mean-angle removal might reduce net steering, but because vector rotation is nonlinear and the solver subsequently advects/projects the field, it may still drift. Pairing local opposite rotations could constrain transport more directly.
+- **次に確認すべきこと:** Compare corrected and uncorrected angle fields across multiple seeds at a matched wavelength/angle. Measure frame-44 centroid, density mass, cap breakup, and short-sequence flow-aligned residual before judging visual quality.
+
+## 2026-10-26: Local angle pairing stabilizes a test-only smoke shred field
+- **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only `ExperimentalGpuSmokeDensityShaderUsesSolverField`, smoke emitter milestone.
+- **確認できた事実:** Added global density×speed-weighted mean-angle subtraction and local 8×8-cell weighted mean subtraction to the test-only speed-preserving velocity rotation. At scale .15, both pass seeds 1/17/29, with local speed error below 2.4e-7 and mean-angle residual below 1.5e-8. Global centroids still vary by .121 in normalized X (.4805/.6014/.5512). Local correction narrows the range to .0281 (.5295/.5575/.5478), centered on the .5449 control; mass is 681.9/685.2/705.8 vs 699.5. At scale .30, local correction centroids are .5180/.5669/.5491, but mass falls to 635.1/656.0 for seeds 1/17. Nine D3D12 filtered runs pass across both correction methods, three seeds at .15, and local pairing at .30.
+- **価値または懸念:** Local opposite-angle balancing is more robust to noise seed and preserves the broad plume better than global centering. Image high-pass energy is not consistently higher than control (1.365/1.369/1.584 vs 1.502 at .15; 1.317/1.176/1.462 at .30), and visual inspection shows no reliable fine-billow gain. It is a useful transport-stability technique in this prototype, not a DCC-quality smoke solution. Keep it test-only.
+- **次に確認すべきこと:** Test a higher-frequency disturbance with solver resolution held as an explicit independent variable, or build a separate 3D density-source experiment. Evaluate multiple seeds and adjacent frames, and require both detail gain and plume-shape stability before considering integration.
+
+## 2026-10-26: Higher smoke solver resolution adds variation but changes the plume trajectory
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` (`ReportsDensityResolutionQualityAndCostTradeoff`), smoke emitter milestone.
+- **確認できた事実:** Rebuilt the current standalone runtime test and ran the resolution/detail experiment successfully (1/1). At frame 44, 96×72 / 128×96 / 192×144 cost 4.69 / 8.28 / 19.38 ms/frame in this Debug run, with integrated density 476 / 887 / 2329, gradient-energy sums 242 / 334 / 505, and visible pixels 34,369 / 30,100 / 27,740 at fixed 768×576 output. A Gaussian-radius-2 rendered high-pass proxy is 3.70e-5 / 5.94e-5 / 1.15e-4. Captures/contact sheet are in `build/smoke-runtime-rnd/continued-resolution-rnd/`.
+- **価値または懸念:** Higher resolution increases short-scale image variation but also makes the plume narrower/taller and reduces visible occupancy; it measures a different solver trajectory, so it does not isolate reconstruction quality. The stronger procedural-detail variants at 96×72 also raise this proxy but shift the plume upward. Neither metric proves coherent smoke billows; the Debug timings are not a production benchmark.
+- **仮説（未検証）:** Resampling one identical saved density field to the common output grid will reveal whether higher field resolution itself adds useful structure, independent of dynamics. A temporal comparison should then advect detail using the captured velocity and check mass, centroid, and seed stability.
+- **次に確認すべきこと:** Add a standalone, test-only common-field resampling comparison on the existing isolated smoke fixture, followed by a velocity-aligned temporal sequence. Keep product code and defaults unchanged until stable detail gain is demonstrated.
+
+## 2026-10-26: Common-field upsampling smooths smoke instead of adding billows
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, test-only `ComparesCommonFieldReconstructionAcrossDensityResolutions`, smoke emitter milestone.
+- **確認できた事実:** Added and built an isolated comparison that bilinearly upsamples one exact 96×72 frame-44 density field to 192×144, renders it at the same 768×576 output, and compares it with both native rendering and an independently simulated 192×144 field. The test passes 1/1. Native / upsampled / independent-high-resolution renders have 34,369 / 35,126 / 27,740 visible pixels, green excess 2,371,004 / 2,202,882 / 1,985,743, and radius-2 rendered high-pass energy 3.70e-5 / 2.24e-5 / 1.15e-4. Native vs upsampled centroids differ by <1 output pixel; independent high-resolution centroid is ~62 px lower. Captures: `build/smoke-runtime-rnd/common-field-reconstruction-rnd/`.
+- **価値または懸念:** Interpolation alone preserves the broad shape but smooths it and reduces high-frequency energy by ~39%; it does not make coherent billows. The high-frequency increase in the separate high-resolution simulation is tied to its changed field/trajectory and may contain grid-scale texture. The image metrics are diagnostics rather than perception scores.
+- **仮説（未検証）:** Detail gain that survives a fixed common field will require explicit temporally advected density variation or genuinely independent depth-varying density, rather than merely increasing reconstruction resolution.
+- **次に確認すべきこと:** Compare a bounded conservative density perturbation transported by the captured velocity across adjacent frames and multiple seeds; report density mass, centroid, high-pass structure, and flow-aligned temporal residual. Keep it test-only.
+
+## 2026-10-26: Conservative MacCormack smoke detail remains visually suppressed
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, `ReportsVelocityAdvectedSmokeDetailAcrossFramesAndSeeds`, smoke emitter milestone.
+- **確認できた事実:** Added a test-only velocity-advected scalar detail field with bounded MacCormack correction and a 4-neighbor limiter. A zero-mean multiplicative modulation (2.5-cell noise wavelength, amplitude 1.0, positive multiplier floor 0.1) was evaluated on frames 33–35 for seeds 17/29/71. The filtered test passes 1/1. Relative density-mass error is below 0.002%; normalized X-centroid movement is under 0.012 cells. Visible coverage varies by seed by at most about 1.2%; logged 4-neighbor Laplacian energy varies inconsistently within ±1.7% of base. Image inspection shows no convincing new billows. A weaker 6-cell / 0.16 semi-Lagrangian trial was similarly inconclusive. Captures: `build/smoke-runtime-rnd/velocity-advected-maccormack-strong-rnd/` and `build/smoke-runtime-rnd/velocity-advected-detail-rnd/`.
+- **価値または懸念:** Conserved mass and bounded transport can preserve the broad plume, but these do not guarantee perceptible detail. In the current 96×72 reconstruction, the advected scalar pattern is largely smoothed or visually suppressed; this offline CPU test does not establish viewport cost or GPU parity. Do not promote the scalar overlay.
+- **仮説（未検証）:** Visible billows require perturbing the flow or adding independently evolving density structure, not just transporting a weak scalar modulation through the current coarse field.
+- **次に確認すべきこと:** Test a bounded solver-coupled curl disturbance at product solver iterations, or move the isolated renderer experiment to a genuinely depth-varying density field. Require multi-seed trajectory stability and consecutive-frame coherence before product integration.
+
+## 2026-10-26: Production-iteration 2D vorticity makes broad rolls, not fine billows
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, production-iteration vorticity sweep and velocity-advected detail case.
+- **確認できた事実:** Added a test-only resolution capture option and compared 96×72 at the production default of 20 solver iterations. At frame 22, vorticity strengths 0.1/0.8/1.5 give density mass 739.6/742.0/744.9, visible pixels 94,548/94,447/94,165, and radius-2 rendered high-pass energy 7.28e-6/6.98e-6/6.76e-6. The contact sheet shows the same pair of broad symmetric cap vortices; higher strength slightly bends the stem and reduces the high-frequency proxy. The bounded MacCormack detail test at 20 iterations (frames 20–22, seeds 17/29/71) conserves displayed mass and keeps centroid changes ≤0.14 cells, but high-pass gain ranges 0.2–4.5% by seed/frame and visual billows remain imperceptible. Both tests pass. Captures: `build/smoke-runtime-rnd/product-iteration-vorticity-frame22-rnd/` and `build/smoke-runtime-rnd/velocity-advected-product-iterations-rnd/`.
+- **価値または懸念:** A one-iteration smoke capture can misrepresent the product field: 20 iterations expose the large-scale cap rolls and reveal that confinement strength is not a direct fine-detail control. The Debug 96×72 simulation measured ~27 ms/frame; this is not a Release benchmark. Frame 44 is boundary-dominated, so frame 22 was used to inspect cap formation before top-edge contact. The test-only sweep changes no product implementation.
+- **仮説（未検証）:** In 2D, vorticity confinement preserves/enhances existing rolls but lacks 3D vortex stretching; a small scale-space noise force may be needed to create finer curling without steering the plume, or 3D density could provide depth cues.
+- **次に確認すべきこと:** Compare controlled multi-scale curl forces at 20 iterations and measure both mass/centroid and seed variance; if they cannot create stable smaller rolls, prototype a true 3D volume render path separately instead of increasing 2D vorticity strength.
+
+## 2026-10-26: 3D Pyro fields reach CPU volume rendering, but source injection is overwritten
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, `ArtifactCore/src/Simulation/PyroSimulation.cpp`, `ArtifactCore/src/Render/VolumeRenderer.cpp`.
+- **確認できた事実:** An isolated CMake/GTest target advances a 32×48×32 depth-varying field through 48 fixed Pyro steps and renders the resulting snapshot through the existing CPU volume ray marcher from two views. Density mass/max are 1704.84/0.357794; front/side occupied pixels are 24,118/17,927 at luminance threshold 10. Enabling directional lighting and multiple-scattering approximation raises front luminance sum from 970,616 to 1,358,280 and occupied pixels from 24,118 to 24,530. Visual inspection still shows a broad soft cloud, without clear smaller billows. The standalone fixture writes PPM captures under `build/smoke-pyro-volume-rnd/captures/`.
+- **確認できたコード上の事実:** `PyroSimulation::integrateStep()` copies density, temperature, fuel, and velocity snapshots before source injection, then the later advection pass writes these fields by sampling those prior snapshots. A source-only experiment produced zero density, consistent with the ordering overwriting freshly injected values. This finding is code-inspection plus a failed isolated source experiment, not a corrected production regression test. `ArtifactCore` is a child repository and remains unchanged.
+- **価値または懸念:** The CPU reference renderer can consume genuine 3D Pyro fields and gives view-dependent projections, but current output is visually diffuse and says nothing about GPU/viewport performance or parity. The suspected source-order defect blocks evaluating the normal emitter path reliably.
+- **仮説（未検証）:** Correct source accumulation before advection, plus a stronger turbulence/disturbance model and better volume lighting, may be needed to approach DCC-quality billows; this experiment does not identify which is the main visual bottleneck.
+- **次に確認すべきこと:** Obtain explicit authorization before changing `ArtifactCore`, then add a source persistence regression test and correct the integration order. Separately compare higher voxel resolution and multi-scale rotational velocity fields using fixed seeds, adjacent-frame captures, density mass/centroid, and render cost. Keep the standalone renderer results as CPU-reference only until a GPU path exists.
+
+## 2026-10-26: Test-only 3D emitter inputs still produce soft puffs
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, `CPUVolumeRenderer`, Pyro source injection investigation.
+- **確認できた事実:** A test-only adapter injects fields after each step to bypass the observed source overwrite. Review caught an analytic derivative typo in the test's curl x-component (`cos(x)` had been used where `cos(y)` is required). All curl runs were rebuilt after correction; previous curl metrics are invalid and superseded. In the corrected four-run comparison at 48×72×48 (36 frames), baseline / source-scale swirl / two-band density-windowed curl at 1× / 16× have density masses 825.799 / 806.461 / 858.210 / 870.825. Baseline / 1× / 16× curl centroids are (23.384,17.641,23.492) / (23.501,17.624,23.499) / (23.663,18.054,23.471). Front coverage is 6,298 / 6,351 / 6,345 / 6,312 pixels, luminance 198,262 / 194,550 / 202,843 / 203,123, and image Laplacian RMS is 0.6333 / 0.6251 / 0.6453 / 0.6551. Mean adjacent-frame density cosine is 0.995391 baseline vs 0.994507 at 16×; relative L1 change is 0.1340 vs 0.1406. At 16×, mass rises 5.5% and luminance 2.4%, coverage is essentially unchanged (-0.2%), and the centroid shifts 0.41 cells. Contact-sheet inspection still shows broad lobes, not coherent fine billows. The high cosine mainly reflects the broad moving plume and is not evidence of detail coherence. Standalone CTest passes both cases. The moving source is only an appearance fixture, not evidence of natural buoyant rise.
+- **追加検証:** Halved both curl wavelengths (to approximately 10 / 5 voxels) at 1× force. Density mass/max is 832.554/0.8407, centroid (23.507,17.713,23.501), front coverage/luminance 6,378/200,178, Laplacian RMS 0.6307, and adjacent-frame cosine/L1 0.995392/0.1340. The contact sheet shows no visible increase in billowing; Laplacian RMS is slightly below baseline 0.6333. This reduces confidence that simply adding a finer procedural curl band will solve the visual softness.
+- **価値または懸念:** The 3D CPU ray marcher distinguishes view-dependent density projections and responds to lighting, but increased resolution and a synthetic source path do not create Houdini/C4D-like turbulent detail. Pixel coverage and brightness are diagnostics, not perceptual quality scores.
+- **価値または懸念:** Corrected curl still changes density mass more than it changes coverage, with no visible fine-scale appearance gain. Coverage, luminance and Laplacian RMS are diagnostics, not perceptual quality scores; the CPU renderer has no GPU/viewport parity evidence.
+- **仮説（未検証）:** The curl force is currently applied by a test adapter once per outer frame and is then altered by solver advection/projection. Its weak visual response may reflect force placement and solver coupling as much as the potential-field design.
+- **次に確認すべきこと:** Once child-repository edits are explicitly authorized, first add a regression for source persistence and correct injection/advection ordering. Then apply the curl force inside the solver's velocity-update sequence and save adjacent frames while tracking density centroid, frame-to-frame coherence, image structure and CPU cost. Keep this test adapter out of production.
+
+## 2026-10-26: CPU volume shadows need step-calibrated density and restrained scattering
+- **関連:** `ArtifactCore/src/Render/VolumeRenderer.cpp`, `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, fixed 32×48×32 Pyro field.
+- **確認できた事実:** On a fixed density field, unlit/direct/shadow/low-scatter/high-scatter luminance sums are 970,616/833,603/629,578/1,226,878/2,524,252, with smoke-pixel luminance standard deviation 15.74/12.92/8.52/20.28/45.90. Settings are light intensity 5; shadow intensity 0.8, step 0.5, max steps 96; low scattering uses g=.35 and strength .12, high uses g=.55 and strength .45. Default shadow density scale 1.0 nearly blackens the result (sum 65,682), while .08 avoids the collapse. The high-scattering case pushes all 25,600 output pixels over the smoke threshold and visibly washes out the volume. `sampleLight()` accumulates one raw sampled density per shadow step without multiplying by the step length, so `shadowDensityScale` must compensate for sample spacing in this implementation.
+- **価値または懸念:** Moderate scattering raises tonal spread, but lighting does not create missing 3D density detail; high scattering saturates the image. Isotropic direct illumination at intensity 5 is dimmer than the unlit smoke transfer because the normalized phase value scales the lighting term. These are CPU-reference observations only, not GPU/product settings.
+- **仮説（未検証）:** The shadow integration's dependence on sample count may make shadow appearance unstable when shadowStepSize or volume resolution changes; a path-length-weighted integral may be more predictable, but would alter the existing renderer contract and needs a separate review.
+- **次に確認すべきこと:** Compare shadow brightness at fixed physical ray distance while varying step size and resolution; inspect normalized phase response and test a lower scattering range on a density field with coherent fine structure. Do not promote the current values as defaults.
+
+## 2026-10-26: Shadow step stability requires density-scale compensation
+- **関連:** `ArtifactCore/src/Render/VolumeRenderer.cpp` (`CPUVolumeRenderer::sampleLight()`), `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`.
+- **確認できた事実:** The same 32×48×32 density was rendered directly and after trilinear resampling to 48×72×48 with the same world bounds. Both tests held physical shadow distance at 1.5 world units. At 32³-ish resolution, step widths 0.25/0.5/1.0 voxel, sample counts 192/96/48 and `shadowDensityScale` .04/.08/.16 produce luma sums 626,963/629,577/634,904, occupied pixels 22,693/22,698/22,719 and luminance stddev 8.465/8.524/8.645. At 48×72×48, physically matched steps .375/.75/1.5 give luma 628,951/631,496/636,733, occupancy 22,769/22,776/22,803 and stddev 8.214/8.271/8.394. The per-resolution luma range is about 1.3%; matching resolutions differ under 0.4% in luma. This required scaling densityScale linearly with voxel step, since sampleLight adds raw density once per sample without path-length weighting.
+- **価値または懸念:** Explicitly calibrating scale/step can make this CPU shadow approximation stable across sample rates and a moderate resolution increase. The shadow values remain diffuse and do not create density billows; this does not establish GPU parity or product defaults. The separate high-scattering setting can still saturate the frame.
+- **仮説（未検証）:** For anisotropic voxel spacing, applying a world-space light direction directly to voxel coordinates may change the physical shadow ray direction; current validation uses isotropic cells only.
+- **次に確認すべきこと:** Validate anisotropic cell spacing and a denser field, then decide whether a path-length-weighted shadow integral merits a separately reviewed renderer change. Keep tuning values local to standalone research until there is an agreed renderer contract.
+
+## 2026-10-26: Static density noise adds grain, not volumetric billows
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, `CPUVolumeRenderer`, 48×72×48 resampled Pyro snapshot.
+- **確認できた事実:** Added fixed three-direction sine bands at 0.25 m and 0.125 m wavelengths with amplitude 0.45. Density-weighted mean noise is removed and each field is renormalized to base mass 5923.9. Base / broad / fine max density is 0.3578 / 0.4874 / 0.5075, and weighted centroids stay within 0.08 voxels. Field Laplacian RMS rises 0.03446 → 0.03560 / 0.03952; rendered occupied pixels rise 24,819 → 24,857 / 24,964 while luma is within 0.2%. Contact sheet inspection shows no convincing billows; the fine band mostly extends faint edge coverage. The filtered standalone GTest case passes.
+- **価値または懸念:** Static detail modulation is a renderer visibility probe, not turbulence: it is not advected and produces extra grain/coverage without coherent internal rolls. Keep it test-only.
+- **仮説（未検証）:** To gain convincing billows, temporal coherence likely needs to come from a velocity-coupled evolving 3D field; current measurements do not establish the appropriate model or cost.
+- **次に確認すべきこと:** Continue with a solver-coupled 3D disturbance experiment after the source integration order can be safely exercised; compare short sequences and multiple fixed seeds using density mass, centroid, image structure, and render time.
+
+## 2026-10-26: Pyro pressure projection and source persistence block turbulence R&D
+- **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp` (`integrateStep`, `solvePressure`, `projectVelocity`), `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`.
+- **確認できた事実:** A test-only adapter adds a time-varying, density-windowed discrete curl field before each fixed step. At three seeds, strength 0.125 gives 24-frame final density masses 298.3 / 274.0 / 279.6 versus no-curl controls 159.0 / 164.3 / 163.4; strength 0.5 gives 318.9 / 276.6 / 276.3. Density Laplacian RMS rises about 5.8–6.2×, but final images show mottling rather than coherent rolls. The standalone test reports stored pre-projection divergence RMS around 43 and independently recomputed post-projection RMS around 73 for curl runs. In code, `solvePressure()` at line 819 uses `(divergence + neighborSum) / 6`, while `projectVelocity()` at lines 852–854 subtracts the pressure gradient. Given `computeDivergence()` uses the conventional positive velocity divergence, the Jacobi RHS sign appears inconsistent with the projection. Also, `integrateStep()` copies scalar fields at lines 655–658, injects sources afterward, and overwrites density/temperature/fuel from those pre-injection snapshots at line 735; this is consistent with the earlier source-only experiment yielding no persistent density.
+- **価値または懸念:** Turbulence art-direction numbers are not meaningful while source injection is discarded and pressure projection increases the measured divergence. The smoke experiment remains in root standalone tests; ArtifactCore child repository was not edited. These code observations warrant regression tests before proposing production fixes.
+- **仮説（未検証）:** Making the pressure operator/RHS sign/projection stencils consistent and applying source values in the transported state may reduce divergence and improve mass behavior, allowing stable temporal curl comparison. Verify with isolated divergence-reduction and source-persistence tests; do not infer the exact fix solely from this appearance fixture.
+- **次に確認すべきこと:** With explicit authorization to modify the child repository, fix/add targeted Pyro tests for source persistence, projection divergence reduction, mass drift under bounded curl, then rerun the identical 3-seed strength sweep and inspect adjacent frames.
+
+## 2026-10-26: Focused Pyro projection and scalar-persistence probes
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, `ArtifactCore/src/Simulation/PyroSimulation.cpp`.
+- **確認できた事実:** On a deterministic 24³ compressible velocity field, input divergence RMS is 0.157845. A test-only copy of the current Jacobi pressure formula and projection yields 0.188262 / 0.241493 / 0.294179 after 8 / 32 / 96 iterations. A test-only Jacobi operator matched to the central-difference divergence and gradient yields 0.067230 / 0.007853 / 0.000247. The matched operator is a numerical diagnostic, not a production change. A Pyro scalar probe with density mass 64 and dissipation 0.6/s leaves mass 64 after one 1/60 s step; source-only emission produces density mass 0. This supports that the pre-step scalar snapshot overwrites decay and injected values during advection.
+- **価値または懸念:** The pressure operator mismatch is directly reproducible in a reduced reference, and the scalar ordering observation covers both source loss and disabled density dissipation. `ArtifactCore` remains untouched. Prior curl mass measurements used as visual exploration are not a production-quality baseline.
+- **仮説（未検証）:** Updating source/decay on the transported scalar and solving the pressure equation with the exact discrete divergence-gradient composition should enable stable curl evaluation, but production boundary conditions and multi-grid behavior still require separate tests.
+- **次に確認すべきこと:** With authorization to modify the child repository, add failing-before/fixed-after regression tests for nonzero source persistence, density dissipation, and divergence reduction across representative resolutions and boundary modes, then implement the solver correction and repeat the multi-seed volume comparison.
+## 2026-10-26: Pyro修正後のR&D再測定
+- **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp`、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`。
+- **確認できた事実:** 独立CMake/GTestを最新コードでビルドし、CTest 1/1が34.72秒で成功。実際の `PyroSimulation::step()` で24³場を測ると発散RMSは8/20/32反復で0.157845から0.067299/0.0224104/0.00786073へ減少。スカラー減衰は64から63.36、単独ソースの質量は2.2265となり、両方とも以前の失敗を解消した。`solvePressure()` は中心差分の発散・勾配合成に対応した2セル幅Jacobi stencilへ変更し、`integrateStep()` はソース/浮力/渦度適用後に移流元フィールドを取得する順へ変更した。これらはArtifactCore子リポジトリの変更。
+- **確認できた事実:** 修正後の3D独立R&Dは固定エミッタの `setSources()` 経路で実行。curlノイズ強度0.03125/0.0625/0.125は無curlより質量損失をおよそ4.6–4.7%/約8%/14–15%増やし、密度Laplacian RMSを約11–24%/32–51%/55–76%上げる。最終画像は非対称と斑点が増えるが、Houdini/C4Dのようなまとまった層状ビロウには至らない。これはCPU参照レンダラーとテスト用curl入力の知見であり、GPU経路や知覚品質の同等性を示さない。
+- **価値または懸念:** ソルバー回帰は改善し、弱いcurl帯域なら比較可能になった。一方、curlを強めるほど質量と形状を壊し、見た目の利得は限定的。CPUボリュームレンダラーの照明/散乱調整だけでは密度場にない細部は生成できない。
+- **仮説（未検証）:** よりよい次候補は、安定した速度場に追従する限定的な速度回転/渦度閉じ込めを独立比較し、単純外力curlとの短い連番を同じ発生量と描画条件で測ること。
+- **次に確認すべきこと:** まず同一設定の接触シートと密度軌跡を再確認し、弱いcurl域と速度方向回転方式を比較する。速度質量、重心、連続フレーム差、画像高周波成分、CPU時間を併記し、知覚上の改善が確認できるまで本番の既定値にはしない。
+## 2026-10-26: 渦度軸回転は煙を広げるがビロウを作らない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、修正済みPyro solver、CPU volume renderer。
+- **確認できた事実:** 2シードで同じ固定 `setSources()` エミッタ・24フレームの無追加、窓付き離散curl (.02)、既存速度curl方向へのRodrigues局所回転 (.15 rad) を比較。両seedで局所回転後の速度長誤差は約5e-8未満。seed17の密度質量は196.86→192.11、ラプラシアンRMS .0206438→.0221306、高周波RMS .00344064→.00368843、投影カバレッジ4276→3895。両seedの接触シートで上昇プルームが低く広い形へ崩れ、細いビロウや層状巻き込みは確認できない。curl外力(.02)では高周波成分の増加はなく、画像も対照に近い。全独立CTest 1/1 passed。
+- **価値または懸念:** 離散渦度に沿う回転で速度長を保っても、圧力投影と浮力を経た煙の形は保たれず、現方式は明確な品質改善に失敗した。接触シート `build/smoke-pyro-volume-rnd/captures/vorticity_compare_contact.png` は対照的な形崩れを記録する。CPUコスト数値は異なるセルマスクのテスト実装であり比較不公平なので性能証拠ではない。
+- **仮説（未検証）:** いま不足しているのは単純な回転量ではなく、密度等値面や温度勾配へ整列した渦生成、かつsolverの投影/移流後にも保持される小スケール構造かもしれない。レンダラー側の低解像度・照明で構造が消えている可能性も別に検証が必要。
+- **次に確認すべきこと:** 回転強度を上げ続けず、まず格子上の密度高周波構造がsolver後も残るかを時間方向で測る。必要なら密度勾配に沿う渦方向をテスト比較するが、形状/質量の安定と接触シートの改善が両seedで出ない限り本番へ移さない。
+## 2026-10-26: サブセル移流は小スケール密度を位相依存で消す
+- **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp` (`integrateStep`, `PyroFieldSet::sampleScalar`)、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`。
+- **確認できた事実:** 圧力・速度更新・レンダリングを除外したテストで3D周期密度を同じ変位で8回線形/製品三線形サンプルした。変位0.25セルで波長16/8/4/2セルの振幅保持は.880/.628/.153/.00379、0.5セルは.833/.521/.0622/.0000048、1セルは.959/.945/.952/.947。線形参照と製品 `sampleScalar()` は全条件で測定精度内に一致し、全独立CTest 1/1が42.70秒で成功。
+- **価値または懸念:** 移流補間のみでも高周波ほど危ういが、減衰は速度変位の小数部と波長/位相に依存する。整数セル移流が格子波を保持することから、単一の高周波減衰率で実煙の損失を説明できない。これは三線形サンプルの診断のみで、solverの散逸・圧力投影・速度進化・CPUレンダラーを含まない。
+- **仮説（未検証）:** 煙の微細構造には、サブセル移流で消えるより速く小スケール密度を作り直す項が必要な可能性がある。MacCormack/BFECC型補正や速度随伴詳細場を候補とできるが、形状のオーバーシュート、負密度、質量誤差を避けられるか未確認。
+- **次に確認すべきこと:** 同じ初期波形と速度変位で前進補正サンプルを試し、振幅保持、最大値/最小値、質量、非物理リンギングを計測する。その後、実際のPyro短系列と描画解像度で効果が残るかを評価し、性能予算も測る。
+## 2026-10-26: 試験用BFECC補正は固定移流で高周波を回復しない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、Pyro密度の三線形移流診断。
+- **確認できた事実:** 0.25セル/stepの平行移流を8回、密度正弦波の波長8/4/2セルで一次三線形とテスト用BFECCを比較。線形振幅保持62.8/15.3/0.38%、制限付き60.7/11.5/0.12%、制限なし60.9/12.0/0.14%。制限付きの最小密度は非負だが質量変化は波長8で+9.57、波長4で-4.36。制限なしは+4.23/-12.05。独立CTest 1/1成功。
+- **価値または懸念:** この一様移流・有限窓ではBFECC補正に明確な利点がなく、制限が高周波を追加で抑え、質量誤差も残る。テスト補正コードだけの結果であり、非一様速度や流入/流出境界におけるBFECC一般の性能を否定するものではない。製品solverは変更していない。
+- **仮説（未検証）:** 条件依存の減衰が強いため、方法を採るなら実際の変化する速度場と境界を含め、逆追跡精度・補正リミッター・質量補正の組合せを評価する必要がある。対してvelocity-carried detail fieldは密度移流品質を変えずに細部を描く可能性があるが、粒子/場の一貫性やレンダリング費用は未評価。
+- **次に確認すべきこと:** 簡易BFECCを製品導入しない。以降の候補を比較する際は、一様移流と実Pyro連番の双方で振幅・重心・質量・局所最大最小を測り、どちらか一方だけの成功で採用判断しない。
+## 2026-10-26: 速度随伴の2倍detail場は残るが煙状の巻きを作らない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、Pyroの3D密度/速度、CPU volume renderer。
+- **確認できた事実:** 本番 `setSources()` / `step()` 固定エミッタ16フレームの粗速度で64×96×64の独立detail場を移流し、32×48×32密度を高解像度再構成。無detail・静的detail・移流detail強度1.5/2.5の総密度はすべて1070.25。detail RMS .439→.427、高周波RMS .0732→.0665。画像high-pass RMSは.1194/.1410/.1265/.1441。目視は静的粒、移流縦筋、強度2.5の局所暗穴で、自然なビロウや層状の煙にはならない。補助detail 3配列は4.5 MiB、Debug移流処理は16フレーム3.94秒（この独立テストでの値）。製品CPU/GPU性能を示す値ではない。solver/renderer本体に変更なし。
+- **価値または懸念:** coarse densityと別の細部場は移流後も高周波を保てるが、密度変調とCPUボリューム積分は視覚上ストリーク/穴を作りやすい。現在の2倍解像度、密度乗算、固定ノイズではHoudini/C4D品質への有効な道筋としてまだ不十分。高コストも別途解決が必要。
+- **仮説（未検証）:** ノイズのスカラー値を密度へ直接乗算するより、密度等値面に沿った3D curl変位・細部の異方性・multiple-scatteringの組合せが丸いビロウを作れる可能性がある。ただし現在のCPU renderer設定では証拠がない。
+- **次に確認すべきこと:** まず今回のdetail場の位相/速度随伴方法を別シードでも再現し、密度断面も可視化する。次候補を試す場合は振幅を増やすだけにせず、ストリーク・暗穴・質量誤差を採用拒否条件に含める。見た目の改善がなければ細部場ルートを止め、solver密度自体を高解像度化するコスト対品質比較へ戻る。
+## 2026-10-26: 密度法線変位は乗算ノイズより滑らかだが細部を足さない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× CPUボリューム再構成、移流detail場。
+- **確認できた事実:** 同一Pyro density・advected detailを density modulation と密度勾配法線方向の座標変位で比較。静的倍率detailの画像high-pass RMSは.1410、移流倍率は.1265、baseは.1194。法線変位0.02/0.04 mは.1181/.1246。質量補正前は+0.4/+3.0%、補正係数.996/.971で総質量1070.25へ戻した。0.04mでは投影占有画素+7%だが画像高周波は+4%だけで、視覚上は煙下部を少し広げる。静的ノイズは斑点、倍率detailは縦筋、法線変位は比較的滑らかだが層状巻き込みを作らない。solver/renderer製品コードの変更なし。
+- **価値または懸念:** 法線変位は点/穴状ノイズを避けやすい反面、detail周波数を視覚に変換しにくく、強度を上げるとプルーム輪郭の広がりに変わる。現在のCPU ray marcherおよび単一視点の実験では、DCC品質の根拠にならない。
+- **仮説（未検証）:** 法線変位の単一スカラー値ではなく、接線方向にも相関した空間ワープやcurlベクトル変位を使えば、表面を局所的に巻き込めるかもしれない。これは影/散乱応答やカメラ視点依存も含め別検証が必要。
+- **次に確認すべきこと:** この再構成方式は現段階で採用しない。継続するならcurlベクトルによる座標warpを弱い振幅から試し、複数視点、質量、occupancy、image high-pass、人工的な筋/穴を同時評価する。大きな形状拡大だけなら方法を打ち切る。
+
+
+## 2026-10-26: 法線変位detailは複数視点で輪郭依存が見える
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× CPUボリューム再構成。
+- **確認できた事実:** 同一の基準/0.04m法線変位を正面・側面・上面から描画。占有画素は正面3897→4169、側面3889→4208、上面4728→4730。接触シートでは正面・側面の輪郭が広がり、上面は概ね同じ面積。独立CTest 1/1 passed (48.33 s)。
+- **価値または懸念:** この方法の見かけのdetail増加には視点依存の輪郭変形が含まれ、立体的な煙巻き込みの根拠にはならない。changed-pixel数は画像差分量であり品質指標ではない。
+- **仮説（未検証）:** 密度場そのものに細部を生成するか、3D座標warpで相関した体積構造を作る必要がある可能性がある。
+- **次に確認すべきこと:** 今回の法線変位は採用候補にしない。次は3D curlベクトルwarpをテスト専用で複数視点・連続フレーム・質量重心込みで比較する。
+
+
+## 2026-10-26: 3D curl warpは輪郭を細かくするがビロウを作らない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× CPU volume reconstruction。
+- **確認できた事実:** 同じ移流detailと密度を用い、解析的な発散ゼロcurl場で座標warp。0.75 cell低周波warpの画像high-pass RMSは0.1194→0.1195。周波数2倍・1.5 cell warpでは0.1666 (+39.6%)、mass correction 0.9969、占有画素は正面3897→4147/側面3889→3971/上面4728→5131。目視では輪郭の小突起が増えるが層状ビロウにはならない。独立CTest 1/1 passed (48.16 s)。接触シート `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_fine_curl_warp_contact.png`。
+- **価値または懸念:** Curl場のwarpはmulti-viewで輪郭変化を作れるが、単純な変位は密度内部に渦巻く構造を生まず、high-passだけでは品質を判定できない。今回の実装はテスト用再構成で製品solver/rendererに変更なし。
+- **仮説（未検証）:** 高品質化にはシミュレーション中に渦度/浮力/温度と結び付けた細部密度を作り、時間とともに形状を進化させる必要がありそうだが、描画解像度と散乱も結果に影響する。
+- **次に確認すべきこと:** 座標warpの振幅増加を続けない。次は時間発展する密度構造を短い連番で比較し、同一カメラ/照明で形状コヒーレンス、mass、重心、複数seedを測る。
+
+
+## 2026-10-26: 時間変化curl warpは差分を増やすが煙形状を流さない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2×密度再構成、連続3フレーム。
+- **確認できた事実:** base/速度随伴detail/位相0.18/0.9 rad per frameの隣接画像平均正規化絶対差は0.002320/0.002305/0.002398/0.002971。0.9 radではbase比+28%だが目視は同じ小突起が軽く揺れる。移流detailの差分もbaseよりわずかに小さい。接触シート `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_temporal_contact.png`。独立CTest 1/1 passed (49.12 s)。
+- **価値または懸念:** 画素差分が増えても渦の移動や形状コヒーレンスを示さず、位相速度だけの調整は目標の煙らしさに到達しない。
+- **仮説（未検証）:** 構造が時間変化するにはdensity transportとvelocity/vorticity feedbackを同じ3D場で扱う必要がある。既存solverのcurl外力は質量/安定性の悪化が報告されているため、そのまま強化せず、密度面に限定した局所細部生成の比較が必要。
+- **次に確認すべきこと:** 次の研究では見た目だけの位相変更を止め、固定流れ場に対して3D detail密度場を同じ速度で移流しながら、渦度軸または密度等値面へ局所的に生成する案をテストし、質量・重心・連続フレームの巻き込みを評価する。
+
+
+## 2026-10-26: 速度curlにgateした局所detail生成で巻き帯が現れる
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× detail場の移流/局所生成。
+- **確認できた事実:** 各substepで速度curl magnitudeと密度面の局所勾配からdetail sourceを作り、別スカラー場に加算後、同じvelocityで随伴移流。画像high-pass RMSはbase .1194、速度随伴detail .1265、局所生成 .1915。密度合計は1088.55 (+1.71%)、mass correction .9832。front/side/top占有画素3980/3987/4620 (base 3897/3889/4728)。視覚上front/sideに巻き帯、topにリング状の崩れ。3frame画像差分.002432、重心移動2.02px/pair (base .002320/1.94px)。5配列7.5MiB、Debug standalone detail更新約11.75s/16frame。独立CTest 1/1 passed (58.87 s)。接触シート `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_vorticity_generated_multiview.png`。
+- **価値または懸念:** Curl + density-gradient gatingは静的ノイズ/単純warpより煙状の巻き帯に近い形を初めて生んだが、上面は破綻し、時間変化の指標改善は小さい。単一seed・CPU再構成限定で、high-pass指標のみでは採用根拠にならない。計算費用もDebug test adapterの値であり、製品実装性能ではない。
+- **仮説（未検証）:** 生成を速度curlの絶対値だけでなく符号付き渦度軸/密度面接線へ整列し、細部sourceの正負ペアまたは平均ゼロ化を行えば、リング状の不整合を抑えて局所巻き込みを保てる可能性がある。
+- **次に確認すべきこと:** 独立seedで再現し、局所生成強度を低/中/高の3段階比較。各seedでfront/side/top、時間連番、mass/centroid、生成detailの積算量を確認する。形状巻き込みが複数seedで安定するまで本番solverへ移さない。
+
+
+## 2026-10-26: 局所生成の巻き帯はnoise seedを変えても再現し、上面の崩れも固定
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× vorticity-gated detail source。
+- **確認できた事実:** 同一Pyro速度/密度履歴・同一初期detailで生成source noise phaseのみseed 29/83へ変更。両方でfront/sideの巻き帯とtopのring breakupを確認。画像high-pass RMS .1915/.1876、front/side/top occupancy 3980/3987/4620 vs 3986/3983/4577。隣接画像差分.002432/.002417、重心移動2.022/2.029px/pair。raw density +1.71/+1.99%。比較シート `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_vorticity_seed_comparison.png`、独立CTest 1/1 passed (62.86 s)。7 high-res scalar arrays=10.5MiB、combined detail update 16.67s/16frames (Debug test only)。
+- **価値または懸念:** 形状の特徴はノイズseed偶然ではないが、上面breakupも安定再現してしまうため、3Dの望ましい煙巻きと生成則由来の異方性/aliasingを分離する必要がある。実Pyro solver自体の複数seed安定性は未確認。
+- **仮説（未検証）:** Curl magnitude gateがスカラー細部を局所強度だけで生成するため、渦度軸/密度面接線への方向性を与えると正面・側面の巻き帯を保ちつつtopの輪状模様を減らせる可能性がある。
+- **次に確認すべきこと:** Pyro simulation seedも変えた複数trajectoryで再現するか確認し、生成方向を渦度軸に揃えた案とスカラーgateを比較。高周波画像指標だけで採用しない。
+
+
+## 2026-10-26: detail sourceのnoise seed変更では巻き帯と上面ringが再現
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、vorticity-gated 2× detail field。
+- **確認できた事実:** 同じPyro source/速度密度履歴/初期detailを共有し、生成source noise phaseだけ29/83に変更。画像high-pass RMS .1915/.1876、front/side/top coverage3980/3987/4620 vs3986/3983/4577。raw mass1088.55/1091.59 (補正後1070.25)、adjacent image residual.002432/.002417、centroid motion2.022/2.029px/pair。front/side curl bandsとtop ring breakupは両方に再現。接触sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_vorticity_seed_comparison.png`。full standalone CTest1/1 passed (62.48s)。
+- **価値または懸念:** detail noise phaseへの依存は小さいが、同一solver trajectoryでの比較なのでPyro simulation seed/流れが変わる場合のロバスト性は何も示さない。top-view artifactも再現し、修正対象はseed noiseではない。
+- **仮説（未検証）:** density-gradient gateと渦度ベクトルの方向整列を分けて評価すると、リング状模様がスカラーsourceに起因するか方向成分に起因するか切り分けられる。
+- **次に確認すべきこと:** 次回は生成式のアブレーション（curl magnitudeのみ、density-gradientのみ、両方）を同じ場で比べ、必要ならその後にPyro source位置/速度を変えた異なる流れで再現性を見る。
+
+
+## 2026-10-26: Curl/gradient gateの積は単独gateの方向性ringを弱める
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、vorticity-gated 2× detail source。
+- **確認できた事実:** 同じ密度/速度履歴でcombined density×gradient×curl gate、density×curl only、density×gradient onlyを比較。image high-pass RMS .1915/.2032/.1775。front/side/top coverage combined3980/3987/4620、curl-only3874/3851/4703、gradient-only3875/3863/4705。単独gateは両方top/frontに平行ring band、combinedはringを弱めて不規則なfront/side巻きを保つがtop breakupは残る。raw mass偏差+1.71/+1.79/+0.81%をrender前補正。contact sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_generation_ablation.png`。11 scalar buffers16.5MiB、Debug update23.06s/16frames。独立CTest1/1 passed (68.82s)。
+- **価値または懸念:** curlだけで高周波値は最大になるが形状はリングに寄るため、scalar high-passを品質代理にできない。両gate相互作用は形状を改善する一方、top-viewの異方性と物理的時間コヒーレンスは未解決。
+- **仮説（未検証）:** curlベクトル方向/密度面接線へ生成ノイズを射影すれば、scalar gateの面内リングを分散できるかもしれない。
+- **次に確認すべきこと:** vector-aligned sourceを既存combined gateと同一seed/flowで比較し、top-view ring、連続フレーム、mass/centroidを同時に採点する。
+
+
+## 2026-10-26: Curl方向にphaseを揃えるとringが放射状spokeへ変わる
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、density/gradient/curl-gated detail generation。
+- **確認できた事実:** combined scalar gateに局所normalized curl方向でnoise位相を揃えるvariantを追加。image high-pass RMS .2211、front/side/top occupancy4033/4048/4824 (combined3980/3987/4620)、raw mass+2.70% (correction .9734)。front/sideで縦筋、上面で放射spokeが現れ、combinedのringより異方性artifactが強い。contact sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_generation_vector_alignment.png`。full CTest1/1 passed (72.12s)。13 scalar arrays19.5MiB、Debug update26.76s/16frames。
+- **価値または懸念:** Curl方向の局所整列は構造を増やすが、密度等値面の接線/曲率や渦の空間相関を表さず、画像high-pass最大でも視覚品質は悪化。
+- **仮説（未検証）:** 局所curl軸を直接使うより、密度面接線面上のanisotropic noiseか、渦度ベクトルポテンシャルから作る連続な発散ゼロdisplacementの方が方向の切替を滑らかにできる可能性。
+- **次に確認すべきこと:** 今回のcurl-aligned phase案は採用しない。次は局所noiseの向きを面接線へ投影して、方向の空間連続性・top view・時間連番を評価する。
+
+
+## 2026-10-26: 密度面接線へのnoise射影はspokeを弱めるが画質を滑らかにする
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、vorticity-gated detail generation。
+- **確認できた事実:** wavevectorを密度勾配接平面に射影したtest-only source。image high-pass RMS .1561 (scalar combined .1915)。Front/side coverage3980/3987→3860/3856で縦筋、top coverage4620→4691 (base4728)、radial spokeは弱いmottlingへ変化。top luma246235 vs combined243289/base246591。raw mass+0.05%、mass correction .99954。temporal residual.002581/centroid2.025px pair。接触sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_tangent_alignment.png`。full standalone CTest1/1 passed (77.76s)。15 arrays22.5MiB、Debug update31.57s/16frames。
+- **価値または懸念:** 質量保持と上面のspoke低減は改善するが、detailの高周波が落ち、正面/側面の筋も残る。全体的な煙質改善・時間コヒーレンスとは言えない。
+- **仮説（未検証）:** 局所接線方向の場が格子単位で変化し、単一平面波を投影するため縦筋が残る。複数の位相非相関波または接線curl potentialなら異方性を崩せる可能性。
+- **次に確認すべきこと:** この単一wavevector投影は不採用。次は複数帯域・位相を持つ接線場、または接線面上でのcurl potentialを比較し、3視点・時間連番・質量を同時評価する。
+
+
+## 2026-10-26: 複数帯域の接線noiseは上面模様を散らすが細部も弱める
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、surface-tangent detail generation。
+- **確認できた事実:** wavevectorを密度接平面に射影した3帯域(.55/.30/.15)をsingle tangentと比較。image high-pass RMS .1561→.1359、front/side/top coverage3878/3866/4700 vs3860/3856/4691。top模様は拡散、front/side縦筋継続、細部はさらにsoft。mass correction1.0、temporal residual.002456、centroid motion2.012px/pair。接触sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_multiband_tangent.png`。full CTest1/1 passed (81.32s)。17 arrays25.5MiB、Debug update35.44s/16frames。
+- **価値または懸念:** 接線面への多帯域化だけでは巻き込みが生まれず、top模様を散らすことと細部低下の交換になった。
+- **仮説（未検証）:** Detail場をsource injectionで蓄積するより、局所接線curl potentialの発散ゼロ変位として密度場を歪ませれば、筋/spotを避けつつ連続した巻きを作れる可能性がある。
+- **次に確認すべきこと:** 接線multi-bandを品質候補から外す。次はcurl potentialから得る連続な接線ベクトルwarpを、同じ密度/flowで比較し、top-viewと複数フレームで巻きの連続性を判定する。
+
+
+## 2026-10-26: 接線curl potential warpは輪郭を保つが細部を消す
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× detail reconstruction。
+- **確認できた事実:** test-only変位 `∇density × ∇potential` を3帯域potentialから生成。画像high-pass RMS .1196でbase .1194とほぼ同じ。front/side/top coverage3898/3869/4710 (base3897/3889/4728)。raw massは-1.35%で、render前補正1.0137。3frame residual .002322、centroid motion1.948px/pair (base .002320/1.945)。接触sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_surface_curl_potential.png` は全視点で過度にsmooth、巻き込みなし。full standalone CTest1/1 passed (82.21s)。
+- **価値または懸念:** 連続な接線変位はsingle/multiband tangent noiseの筋・模様を弱めるが、細部まで消え、global mass correctionも必要。製品化する品質根拠なし。
+- **仮説（未検証）:** 変位を単純に強めるより、potentialを密度帯域・局所曲率で制限し、複数スケールで低振幅に合成すると、輪郭の局所変形と細部の両立余地がある。
+- **次に確認すべきこと:** 本variantは不採用。続ける場合はmass correction前の誤差を含め、局所変位振幅と帯域を小さなfactorial sweepにし、3視点と時間連番で評価する。
+
+
+## 2026-10-26: vorticity confinementの強度増加だけでは煙の巻き込みにならない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、`ArtifactCore/src/Simulation/PyroSimulation.cpp` の現行vorticity設定、Pyro volume rendering。
+- **確認できた事実:** fixtureに標準形 `ε h dt (N × ω)` (`ω=curl(u)`, `N=grad(|ω|)/|grad(|ω|)|`) のtest-only adapterを作り、同じ固定emitterでepsilon 1/2/4/8/16、現行実装、無効を比較。epsilon 1-4の3視点画像に明確なroll差はなく、mass 133.68→125.60。epsilon8/16ではmass118.84/116.42へ減少、divergence RMSは .01414→.03437。現行実装も滑らかなplume。contact sheet `build/smoke-pyro-volume-rnd/captures/pyro_vorticity_confinement_contact.png`。独立CTest1/1 passed (85.83s)。SideFX docsはdisturbance/shredding/turbulence/confinementを個別operatorとして説明し、Maxon docsはvoxel/substep依存のVorticityと空間scale/octave/frequencyを持つTurbulenceを分ける。出典: [SideFX](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html), [Maxon](https://help.maxon.net/c4d/2024/en-us/Content/html/OPBDSCENE-PBDSCENE_GROUP_PYROPROPERTIES.html), [Fedkiw et al.](https://physbam.stanford.edu/papers/stanford2001-01.pdf)。
+- **価値または懸念:** 単一の渦保持項はsmoke capの分解や複数スケール構造を代替しない。現行コードではcurl magnitudeのspatial gradientを作らず別の近似vectorで速度を変えているが、本fixtureの見た目だけから製品挙動全体を断定しない。
+- **仮説（未検証）:** Houdini/C4Dに近い見た目には、persistent なmulti-scale curl-noise turbulenceと、速度長を維持して流向を曲げるshreddingを別々に調整し、その後にvolume lighting/phaseを整える必要がある可能性が高い。
+- **次に確認すべきこと:** 次回は同じdensity mask・時間周波数・質量条件でcurl-noise turbulenceとspeed-preserving shreddingを比較し、低・高周波の寄与を分離する。現行solverへ移植しない。
+
+
+## 2026-10-26: curl turbulenceとshreddingを同じ入力速度変化率で比較
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、Pyro velocity shaping adapter。
+- **確認できた事実:** 同じ3帯域の時変vector potential、density envelope、固定source、seedで、curl accelerationとcurl方向に沿うspeed-preserving rotationを各cellの速度に対するstep毎5%/15%変化へ正規化して比較。2seed。5%では両方とも目視rollなし、mass約5%低下。15% curl turbulenceはmass約19%低下・divergence .0264/.0378、shreddingは入力speed error<4e-8・divergence .00696/.00948だがmass約17%低下。接触sheet `build/smoke-pyro-volume-rnd/captures/pyro_matched_curl_turbulence_shredding.png` は15%でcurlの局所塊とshreddingのblob変位を示すが、どちらもcoherent billowなし。density high-frequency上昇はseed依存。full standalone CTest1/1 passed (86.57s)。
+- **価値または懸念:** 同一noise scale/envelope/入力速度変化に揃えた比較でも単一追加operatorはHoudini/C4D級の煙構造へ近づかず、強度を上げると質量と輪郭が崩れる。step単位で正規化したため固定時間刻み以外の振る舞いは未検証。
+- **仮説（未検証）:** 32×48×32の格子が0.09m帯域を十分に保持できず、rollより密度塊としてレンダリングされる可能性がある。substep増加と解像度増加のどちらが構造を回復するか、world-space sourceを固定して比較すべき。
+- **次に確認すべきこと:** 次回はvoxel resolutionとsubstep数を独立に変え、同じworld-space emitter、周波数、simulated timeで3視点とfield/mass/divergenceを測る。
+
+
+## 2026-10-26: 解像度とsubstepは別に効くが高密度格子だけではbillowを作らない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、3D Pyro sourceとCPU volume render。
+- **確認できた事実:** world-space domain/emitter/settings/simulated timeを揃えて32×48×32と48×72×48を60/120Hz fixed stepで比較。pressure iterationsは12/24へgrid幅に応じて増やした。substep倍増時のworldMass差は約2%/1.2%、divergence RMSは.01324→.00791、.01022→.00651で約40%/36%低下。resolution増加時はworldMass+5〜6%、world-space density gradient RMS+28%だが3-view contact sheet `build/smoke-pyro-volume-rnd/captures/pyro_grid_substep_contact.png` でrollは現れず、front/top pixel coverageは減少。voxel high-frequency metricはresolution間で非比較。全CTest1/1 passed (92.25s)。
+- **価値または懸念:** 120Hzはこのsolverのprojection安定性を改善したが、短いplumeの見た目はほぼ変わらない。高解像度はvisual detailと同義でなく、solver shapingとrenderer light transport双方の不足が残る。
+- **仮説（未検証）:** 0.4sの固定source plumeは層状rollが発達する前に撮影されている可能性がある。一方で単純にsimulation timeを延ばすとsourceが積み上がるため、emit durationとpost-emission evolutionを独立に振る必要がある。
+- **次に確認すべきこと:** source pulseを固定時間だけ放出後に停止し、同じemitted massを静止/上昇させて複数秒追跡する。substepと解像度は比較結果のよかった条件に固定し、post-emissionでroll生成とmass dissipationを観察する。
+
+
+## 2026-10-26: 短い高rate pulseは高く上がるが、停止後は大きなdensity損失が出る
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、Pyro emitter source lifetime/advection。
+- **確認できた事実:** 0.1/0.2/0.4s emitter pulseでdensity/temperature/velocity ratesを2/1/.5倍にし、公称積算source strengthを揃えてからsource spanを空にし、1.2sまで追跡。worldMass final .000776/.000813/.000892、centroidY .476/.467/.448m。短いpulseほど少し高く上がる。front/side/topはsmooth single blobでrollなし。pulse終端から1.2sでmass低下55/52/43%、設定density dissipation .035/sのみでは説明できない。時間sheet `build/smoke-pyro-volume-rnd/captures/pyro_emitter_pulse_evolution_front.png`。full CTest1/1 passed (94.88s)。
+- **価値または懸念:** plume形状にsource時間profileが影響するが、放出停止はrollを生まず、sim全体でmassが顕著に減る。現時点でadvection leakage、open boundary outflow、投影との相互作用を分離できていない。公称source積算量一致は最終density mass一致ではない。
+- **仮説（未検証）:** high velocity sourceでSemi-Lagrangian移流がvoxelあたり複数cellを通ると、短いpulseほど早い高速度・大きな勾配となり、数値拡散/境界フラックスが増えている可能性。
+- **次に確認すべきこと:** 同一pulseでsource停止後、velocity CFLと境界通過fluxをframeごと測り、開境界の箱を広げたcaseと移流step制限caseを比較してmass lossを切り分ける。shape改善に進む前に基礎mass behaviorを説明する。
+
+
+## 2026-10-26: pulse後のmass lossは境界流出ではなく速度条件に追従
+- **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp` の`integrateStep()`、`PyroSimulationSettings::advectionClamp`、Pyro standalone pulse diagnostic。
+- **確認できた事実:** 0.2s pulse後1.2sまで追い、source speed 60/120/240 × Open/Closed boundaryを比較。Openのmass retention67.9/59.7/48.4%、Closed67.6/59.2/47.6%。2 voxel boundary shellのdensity massは全条件ゼロ。pulse-end backtrace距離はdensity weighted .054/.104/.196 cell/step、最大<.38 cell。divergence RMSは.0027/.0054/.0107へ上昇。contact `build/smoke-pyro-volume-rnd/captures/pyro_trace_boundary_contact.png`、full CTest1/1 passed (97.18s)。コード上`integrateStep`は`position - velocity*dt`を直接sampleし、settingsの`advectionClamp`参照なし。
+- **価値または懸念:** 境界外へのflowを避けても大きなmass lossが残り、高速度ほど悪化する。境界漏出説はこの設定で棄却されるが、強流とdivergenceが同時変化するため、trilinear interpolation単独の寄与は分離されていない。advectionClampは名前に反しこのpathで効いていない。
+- **仮説（未検証）:** solver projection後に残る速度場の圧縮/膨張とtrilinear scalar backtraceの非保存性が重なり、密度を系統的に失う可能性がある。
+- **次に確認すべきこと:** 同じ速度サンプルを固定してscalar-only trilinear backtraceを行い、1) uniform translation, 2) measured projected Pyro velocity, 3) divergence-free projected velocityを比較する。次にprojection前後のdensity mass差を記録し、advection / projection / boundaryを定量分離する。
+
+
+## 2026-10-26: 固定速度でのscalar移流だけでも約10%の密度massを失う
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、`PyroSimulation::integrateStep()` のtrilinear backtrace / pressure projection。
+- **確認できた事実:** 0.2s pulse終端のvelocityを固定し、source/temperature/fuel/forcesを使わずscalar densityだけ60 step移流。raw velocity保持率88.90%、pressure projectionを一度適用したvelocityで89.83/90.00/89.97% (12/24/48 iter)、full Pyro evolution 87.41%。divergence RMSはraw .010734から48 iter .004015へ低下。独立比較テストは2.12sでpass。
+- **価値または懸念:** productionのmass lossは境界外流だけではなくscalar advectionにも存在し、projectionは約1 percentage point改善する。ただしrawと投影後velocityではtrilinear interpolationの非保存性と残留divergenceを完全分離できず、投影fieldも60 step固定である。
+- **仮説（未検証）:** velocityごとにdivergenceを除いても一様移動以外ではtrilinear sampling自体がmassを失い、別途mass-conserving remapが必要になる可能性。
+- **次に確認すべきこと:** 既知のanalytic divergence-free vortexと一様translationでscalar-only移流を比較し、次にproduction velocityでstepごとのdivergenceとmass fluxを記録する。mass補正やBFECCは独立に評価してから採否を判断する。
+
+## 2026-10-26: 発散ゼロの非一様流れでsemi-Lagrangian移流が密度massを失う
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、`PyroFieldSet::sampleScalar()`、固定流速のbacktrace。
+- **確認できた事実:** 64³ closed domain内のGaussian densityを60 step移流。constant x translation (0.2 cell/step)でmass retention 99.9917%、離散streamfunctionのcurlで構成した渦場で93.1485%。centered discrete divergence RMSは0 / 4.18e-8。広いdomainにしplumeを境界から離すと、一様移流ではmassが保たれる。独立テストpass (2.69s)。
+- **価値または懸念:** 以前の32セル幅条件で一様移流77.5%だったのは境界近接が大きく混入していた。今回の条件では、速度が空間変化する場合にdeparture coordinate mapとtrilinear remapが組み合わさってmassを失う証拠が得られた。ただしこれを補間単独の誤差とは断定できない。
+- **仮説（未検証）:** limited BFECCは一様移流の形状を改善しても、variable-flowのmassを回復しきらず、局所clampが峰/谷やmassに別の偏りを作る可能性がある。
+- **次に確認すべきこと:** BFECCで得たmass/high-frequency改善がdensity renderと時間変化でも見た目の煙を改善するか、solverへ持ち込まず固定場の複数seed・渦強度で確認する。
+
+## 2026-10-26: BFECCは固定発散ゼロ渦場でmassと細部を回復する
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の`MeasuresScalarMassLossForUniformAndAnalyticDivergenceFreeFlows`。
+- **確認できた事実:** 64³ Gaussianを同一の離散発散ゼロ渦場で60 step移流。semi-Lagrangian / unlimited BFECC / donor-cell-extrema-limited BFECCのmass retentionは93.1485 / 99.9840 / 99.9742%。high-frequency RMSは.00067697 / .00077107 / .00077115 (約+13.9%)。unlimitedのmin/maxは約-5e-15/.999616 (負値は丸め誤差程度)、limitedは2e-42/.990607で非負性を維持しpeakをわずかに下げる。focused testは12.98sでpass。
+- **価値または懸念:** 固定流ではBFECCが三線形semi-Lagrangianの質量損失と細部減衰を大幅に抑える。ただし固定速度のみのテストで、dynamic solverの安定性やrendered smokeの見栄えを証明せず、BFECCは移流サンプル回数を増やす。
+- **仮説（未検証）:** 複数seed・渦強度でもlimited BFECCがmass retentionと高周波を安定して上げる一方、画面上では過剰に尖った煙や振動を作らない可能性がある。
+- **次に確認すべきこと:** test-only field adapterで渦強度とseedを振り、連続frameのdensity render、mass、高周波、min/maxを同時に採取する。見た目と時間安定性を確認してからproduction solverへの移植可否を決める。
+
+## 2026-10-26: BFECCの高周波改善だけでは煙のbillowは生まれない
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、CPUVolumeRenderer、fixed analytic vortex transport。
+- **確認できた事実:** 同一の60-step固定渦場をsemi-Lagrangian / unlimited / limited BFECCで移流し、共通CPU volume設定で128²描画。coverageは3927/3496/3496、luminance sum 205700/201937/201937、luma stddev 29.57/31.21/31.21。contact `build/smoke-pyro-volume-rnd/captures/transport-bfecc-rnd/transport_bfecc_contact.png`。三画像とも滑らかな単塊で、BFECCは少しsharpだがroll/billowは生成しない。
+- **価値または懸念:** high-frequency RMS +13.9%という数値改善は目視上の煙形状改善と同じではない。移流精度の補正のみではHoudini/C4D級の巻き上がる煙にならず、燃料・温度浮力・vorticity/turbulenceからの形状形成が別に必要。
+- **仮説（未検証）:** 初期密度を単塊Gaussianではなく複数scaleの連続curl変形と熱上昇で生成し、BFECC移流を組み合わせると小scaleの減衰を抑えつつ連続billowへ発展する可能性。
+- **次に確認すべきこと:** 複数seedと渦強度で時間変化するテスト専用vortex/advectionを可視化し、現行curl/turbulence probeとの違いを調べる。BFECCはsolver側の長期効果とコストを測るまではproduction採用しない。
+
+## 2026-10-26: 2D runtime curl-noise kickはseed依存の横流れを増やしbillowを作らない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の`MeasuresSeededCurlDisturbanceAcrossPlumeAndFrames`、production `LayerFluidRuntimeState` test harness。
+- **確認できた事実:** 96×72 production runtime、45 frame、seed17/71、追加curl strength 0/.5/1を比較。strength .5のmass増加は13.6/18.8%、1.0は15.1/14.3%。image high-passはseed17で+3.6〜4.5%、seed71で+5.2〜11.0%。adjacent frame差分はbaseline .376/.377から.390〜.441、velocity divergence RMSは.01554から.02135〜.03007へ上昇。contact `build/smoke-runtime-rnd/curl-disturbance-rnd/curl_disturbance_contact.png` は横曲がり・斑点が増えるがcoherent layered billowなし。focused test pass (12.51s)。
+- **価値または懸念:** curlキックの高周波増加はmass drift、残留divergence、時間差分、seed依存の形状崩れを伴う。重ねたcurl forceだけでDCC品質の煙になる仮説はこのruntime条件では支持されない。実装・追加snapshot allocationはtest-only。
+- **仮説（未検証）:** SideFXが分けている大scale turbulenceと小scale disturbance/shreddingのように、同じノイズ場を強めるのではなく、スケール別の力・control mask・速度長制約を分離しなければ煙らしいbillowが保てない可能性。
+- **次に確認すべきこと:** 現行2D solverのtop closed-boundary bandとmass lossを切り分け、renderer補正で隠すのではなく、outflow/headroomをtest-only adapterで比較する。その後に形状力を試す場合は各scaleの速度偏りとdivergenceを制御し、mass・centroid・temporal residual・目視を同時に合格条件にする。
+
+## Donor behavior note: shaping operators should remain distinct
+- **確認できた事実:** SideFX Pyro Solver docs separate large-scale turbulence/churning from disturbance and shredding; shredding redirects velocity, and each operator supports its own control field. Maxon exposes turbulence and vorticity separately.
+- **価値または懸念:** Current test-only 2D adapter combines 3 frequency bands into one curl impulse. Its seed drift and divergence response should not be mistaken for the result of an individual Houdini/C4D operator.
+- **次に確認すべきこと:** Keep the simulation Core unchanged and compare independently masked low-frequency curl, high-frequency disturbance, and speed-preserving local rotation; track mass, centroid, divergence, temporal residual, and visible roll structure together.
+
+## 2026-10-26: snapshot後の速度outflow補正は閉境界投影を変えられない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の`ComparesClosedTopDensitySpongeAndVelocityOutflowAdapters`、`FluidSolver2D::setBoundary()`。
+- **確認できた事実:** 96×72・45frameでclosed / 12-cell density sponge / snapshot-only velocity outflowを比較。frame44 density sum 472.485 / 382.327 / 461.187、top8 mean density .11818 / .00898 / .10319、adapter累積削除mass 0 / 223.804 / 29.029。spongeは端の帯を抑えるが密度を約19%失う。velocity外挿＋top-cell Courant sinkは閉境界比のmass差2.4%、上端density低下12.7%に留まり、可視画素180690→180682でほぼ同じ。contact `build/smoke-runtime-rnd/captures/top-outflow-rnd/top_boundary_contact.png`。test単体pass (4.23s)。
+- **価値または懸念:** runtime後のsnapshot変更はそのframeの圧力投影を置き換えず、`setBoundary()`は閉じたまま。従ってこのadapterを「open boundary」と呼べず、弱い変化は方式の限界を示す。
+- **仮説（未検証）:** 上端の圧力条件・法線速度処理をprojection内で一貫してone-wayにするtest-only kernelなら、massを保持しつつ反射バンドを低減できる可能性がある。
+- **次に確認すべきこと:** 子repoを変更せず、standalone内に限定したprojection-boundary kernelまたは小さなsolver copyを作り、closed / density sponge / true one-way projectionを比較する。pressure residual、normal velocity、mass flux、centroid、render imageを同時に測る。
+
+## 2026-10-26: test-only open-top projectionは発散を下げるが煙質を変えない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesClosedTopDensitySpongeAndVelocityOutflowAdapters`。
+- **確認できた事実:** 96×72、45frameでclosed / density sponge / snapshot velocity-only / 簡易open-top projectionを比較。frame44のclosed対projectionはmass 472.485/469.524、top8 mean density .118184/.111269、発散RMS .0155404/.00953461、上端フラックス指標 1.76132/.655216、visible pixels 180690/186686。投影試作は発散RMSを下げ、上部の描画広がりをわずかに変えたが、接触画像 `build/smoke-runtime-rnd/captures/top-open-projection-rnd/top_boundary_contact.png` では平滑なcapが残り、coherent billowは生成しない。focused GTest pass (5.63s)。
+- **価値または懸念:** 密度spongeは上部帯を大幅に消す代わりに質量を失い、投影境界変更は質量を保つが見た目への効きが弱い。試験カーネルは20 Jacobi iterationの簡易離散化で、保存的fluxやproduction solverとの等価性は未検証。数値上の発散改善だけを品質改善とみなさず、製品コードへ移さない。
+- **仮説（未検証）:** DCC級の巻き上がりには境界処理より、大きな渦を作る低周波churningと細部disturbanceを別の制御場・速度意味で組み合わせることが有効な可能性がある。
+- **次に確認すべきこと:** 2D runtime上で低周波のroll forcingと高周波disturbanceを独立にmask・強度制御し、seed複数・時系列・mass・divergence・描画を並列評価する。境界研究は、実装同値なpressure residual/flux検査ができる小型solver fixtureが必要になった場合に再開する。
+
+## 2026-10-26: 低周波rollと高周波disturbanceの直接速度操作は質量・発散を崩す
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesIndependentRollAndFineDisturbanceOperators`。
+- **確認できた事実:** 96×72 runtime、45frame、seed17/71でbaseline / 低周波curl / 密度面gate付き高周波curl / 両者 / セルごとの速度角度redirectを比較。frame44 massはseed17で472.5/528.7/478.8/536.1/674.1、seed71で472.5/494.0/491.9/499.0/512.4。いずれもbaselineより画像差分が増え、redirectはseed17で発散RMS .01694 (baseline .01554)・mass +42.7%。接触シート `build/smoke-runtime-rnd/captures/separated-operators-rnd/operators_contact.png` では横曲がり・縁のbreakupは増すが、安定した渦巻きではなくseed依存の偏りが残る。focused test pass (15.20s)。
+- **価値または懸念:** 周波数帯とmaskを分けるだけでは効果を制御できない。局所速度の大きさを回転で保っても、空間変化する角度fieldは速度場の発散・密度分布・移流質量を変える。high-frequencyや時間差分の増加はDCC品質の証拠ではない。test-onlyのこれら直接速度操作は採用しない。
+- **仮説（未検証）:** 粗いstreamfunctionで低周波循環を作り、solverのprojection/速度制限と組み合わせる、あるいは各substepでforce量を速度エネルギー・質量基準に正規化すれば、plume形状を動かしつつdriftを抑えられる可能性がある。
+- **次に確認すべきこと:** 低解像度の滑らかな循環potentialを速度加算ではなくbounded circulation constraintとして適用し、同じmass/centroidの条件でもbillowが残るか試験する。projection後の発散、速度RMS、質量保持、複数seed画像・3frame連番を必須評価にする。
+
+## 2026-10-26: セル速度上限付き循環は発散を抑えるが質量正規化後の形状利得がない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesIndependentRollAndFineDisturbanceOperators`。
+- **確認できた事実:** 低周波curl kick後に各セルの速度長を元の速度長以下へ制限。baseline / bounded circulationのframe44 massはseed17で472.485/514.799、seed71で472.485/506.431。発散RMSはbaseline .0155404に対し.0153657/.0152601、隣接画像差分はbaseline .3763に対し.3819/.3872。描画時だけ密度をbaseline mass 472.485へ正規化するとvisible pixelsは178900/180563でbaseline180690と同程度以下。Focused test pass (23.69s)、画像 `build/smoke-runtime-rnd/captures/bounded-circulation-rnd/`。
+- **価値または懸念:** 上限処理で発散増加を抑えられる兆候はあるが密度mass driftは約+9%/+7%残り、mass normalizationは最終フレームだけの診断処理で保存性を証明しない。等質量描画で占有面積が増えず、billowの視覚的根拠もない。製品候補にはしない。
+- **仮説（未検証）:** 同じ速度上限に加え、simulation各frameで基準massを保つ保存的density transportを使えば、速度形状操作単独の輪郭効果を公平に比較できる可能性。ただし全体mass scalingは濃度を一様に変えるため、これだけを実solver解決策としない。
+- **次に確認すべきこと:** smoke densityをmass-conserving flux-form scalar advectionへ移すtest-only variantとsemi-Lagrangian baselineを同じvelocity history上で比較し、その後、循環制約が等質量条件でも渦構造を増やすか判定する。
+
+## 2026-10-26: 重心追従の解析渦はcapを押し広げるがbillowを作らない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesIndependentRollAndFineDisturbanceOperators`、`build/smoke-runtime-rnd/captures/tracked-vortex-rnd/`。
+- **確認できた事実:** density centroidの5 cell上に中心を追従させる半径7 cellのGaussian vortexをframeごとに加え、seed17/71で比較。strength 1.2 units/sをdt=1/30で適用した弱条件はmass 495.993（baseline 472.485）、divergence RMS .0164264（.0155404）、visible pixels 180844（180690）、adjacent image delta .374903（.376309）。3.6 units/sはmass 593.904、divergence .0189435。最終表示だけbaseline massへnormalizeしたときのcoverageは181560、adjacent delta .400127。非dt-scaled .24/frameはmass 701.328、divergence .0246548、delta .488417。final-mass-normalized imageもcapの横移動・拡大が残るが、どちらのseedもfolded billowは見えない。Focused GTest 13 conditions × 2 seeds passed (45.21s)。
+- **価値または懸念:** 解析渦の各フレーム場は連続式ではdivergence-freeだが、centroidに追従して時間更新し、source/solverに再投入すると離散発散・mass driftが生じる。見た目のcoverage増加は主にcapの横移動と膨張で、強条件ほど時間差分も増える。render時のみのmass normalizationはsimulation conservationの証明ではない。単純な渦キックは製品候補にしない。
+- **仮説（未検証）:** 今の2D solverでは深さ方向のvortex stretchingと複数渦の相互作用がないため、低周波の一個渦を与えても巻き帯にはならない可能性がある。密度界面の大きさに合わせた速度場の空間解像度・3D depth evolutionが、noise振幅調整より品質を左右するかもしれない。
+- **次に確認すべきこと:** 48×36×32の時間発展3D Pyro baselineを、sourceのworld-space寸法・単位体積あたりの投入量・時間刻みを一致させて複数解像度で比較し、renderer transferを固定してfront/sideのbillow曲率、density gradient、temporal coherence、CPU時間を測る。解像度と発生源をスケールしない比較はaliasingとsource-volume変化を混同するので避ける。
+- **参考:** SideFXはPyroのturbulenceを大規模なchurning、disturbance/shreddingを異なる役割の小規模形状制御として説明している。また解像度を上げると細部が増え、voxelより小さいshredding/turbulenceは見えないと明記している。[Pyro Solver (Sparse)](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html)、[Pyro look development](https://www.sidefx.com/docs/houdini/pyro/pyro_look.html)。
+
+## 2026-10-26: 2D固定渦場でMUSCL flux-formは質量と螺旋detailを保つ
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesSemiLagrangianAndConservativeVortexTransport`。
+- **確認できた事実:** 96×72・固定解析streamfunction vortex・Gaussian scalar plume・60step・closed zero-flux境界を比較。semi-LagrangianとMUSCL双方に同じCFL substep=6を適用。first-order semi-Lagrangianはdensity sum 364.406、初期/保守法439.675に対し82.9%保持。minmod MUSCL flux-formはmass 439.675で相対誤差1e-4以下。peak正規化画像のhigh-pass RMSは.005479対.016089、gradient RMS .01567対.03127、最大密度 .6632対.9194。contact `build/smoke-runtime-rnd/captures/transport-2d-rnd/` ではsemi-Lagrangianは広い平滑塊、MUSCLは明瞭な螺旋を残す。focused test pass (.44s)。
+- **価値または懸念:** 固定渦場でbacktrace interpolationのmass lossを抑えながらscalar detailを保つtest-only証拠。ただし一次SLとminmod MUSCLは空間次数・数値拡散も異なるため、差を質量保存単独に帰せない。dynamic velocity、buoyancy/source、複数seed、性能は未検証。単一2D spiralをDCC級品質と判断しない。
+- **仮説（未検証）:** velocity limiterと小さなcell CFLを組み合わせたMUSCL scalar transportをdynamic plumeに使えば、時間発展時の渦の筋を残しながらmass driftを抑える可能性がある。
+- **次に確認すべきこと:** 同じruntime velocity snapshotsをsemi-Lagrangianとtest-only MUSCLに適用し、frameごとのmass、非負性、centroid、発散、複数seed・連番画像とDebug計算量を評価する。source injectionとdissipation量は別記録し、flux boundary accountingと区別する。
+
+## 2026-10-26: production runtimeの速度履歴を再生するとSL mass増加とMUSCL筋状集中が出る
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
+- **確認できた事実:** production smoke runtime 96×72から45 frameの速度スナップショットを採り、同じGaussian scalarをsemi-Lagrangianとminmod MUSCLでsourceなし再生。最大CFL分割は11、速度発散RMSは平均.0154807、frame最大.0193612。初期mass207.254に対しSLは614.335、MUSCLは207.254を保ち、peak density .3910/3.7368、high-pass RMS .04231/.06985。画像 `build/smoke-runtime-rnd/captures/runtime-velocity-replay-rnd/` はSLで広いcap、MUSCLで細い高輝度streakを示す。focused test pass (1.74s)。runtime velocity fieldを固定記録しscalar transportだけを比較した結果で、追加source/diffusionやalternate densityによるvelocity feedbackは含まない。負方向flow用MUSCL slope符号誤りをこのテストで発見・修正してからpassを確認。
+- **価値または懸念:** 実runtime由来の速度履歴でもMUSCLの離散flux mass conservationは働くが、非ゼロdivergenceを持つ固定速度と非圧縮仮定の差によりscalarが圧縮され、visual smokeが筋状に崩れる。SLの+196% massも実runtime emissionを含むmass結果ではなく、このreplayでscalar backtraceがcompressible fixed fieldに対して非保存であることを示す。いずれの画像も単純なdensity rasterで、製品renderer品質とは異なる。
+- **仮説（未検証）:** 記録速度場を同じ境界離散化で再projectionして発散を抑え、runtime相当のsource injectionを両branchへ同量適用すると、MUSCLのmass保持が有用な煙の渦筋になる可能性がある。逆にprojection後もstreakが残れば、limiter/face fluxの設計が悪い可能性。
+- **次に確認すべきこと:** この同一velocity historyでtest-only pressure projection前後を比較し、velocity divergenceとmass、nonnegative、peak/clumping、視覚パターンを調べる。次段階でsourceを正確に分離・再生するまではdynamic plume候補として評価しない。
+
+## 2026-10-26: runtime速度履歴の20回projectionは密度再生の問題を解消しない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
+- **確認できた事実:** 45frame記録velocityを各frameごとtest-onlyでclosed-boundary Jacobi projection (20 iterations) した後、同一scalarをSL/MUSCLで再生。divergence RMS mean/peakは未投影 .0154807/.0193612から.0127812/.0168891へ低下。初期mass207.254に対してSL502.255 (+142%)、MUSCL207.254。peak density .3583/3.664、high-pass RMS .04018/.05424。画像 `build/smoke-runtime-rnd/captures/runtime-velocity-projected-rnd/` ではSLの広いcapとMUSCLの集中したstreakが残り、質感は改善しない。focused test pass (1.97s)。
+- **価値または懸念:** 20 iteration pressure projection後もSL scalar mass増加とMUSCLのvisual clumpingは残った。画像はscalar replayなので製品runtime結果とは区別する。
+- **仮説（未検証）:** 20回で未解消のpressure residual、compressible runtime velocity、source欠落などのどれがscalar replayの差を支配するか未特定。
+- **次に確認すべきこと:** projection反復数と同一単位でのdivergence/residual評価を比較し、sourceを分離再生する。face/centered発散値を単位変換せず比較しない。
+
+## 2026-10-26: pressure反復を80回に増やすとface divergenceとSL mass増加は下がるがstreakは残る
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
+- **確認できた事実:** runtime速度履歴のcentered/face-flux発散RMSは未投影.01548/.03762、20 iteration投影後.01278/.03194、80 iteration後.00950/.02578。80回projection後のscalar再生は初期mass207.254に対しSL373.119 (+80%)、MUSCL207.254。peak .3285/3.5683、high-pass .03657/.04536。画像 `build/smoke-runtime-rnd/captures/runtime-velocity-projected80-rnd/` はMUSCLの筋が弱まるが集中残留。focused test pass (2.12s)。
+- **価値または懸念:** projection反復は数値を改善し、MUSCLのplume qualityも依然低い。ただしface-flux divergenceは速度をgrid-cell/frameへ変換した量、centered RMSはsolver velocity unit/frameであり、両者の約2.7倍は単位が違うためprojection discretization mismatchの根拠にはできない。standalone snapshot projectorもproduction pressure solverの完全検証ではない。
+- **仮説（未検証）:** source injectionやcompressibilityによりMUSCL scalarが局所集中する可能性はあるが、face/centered比較からは原因を特定できていない。
+- **次に確認すべきこと:** 同一単位に変換した速度発散とpressure residualを評価し、production velocityのcompressibilityとsource再生を分ける。face velocity/projector不整合は現時点で未立証として扱う。
+
+## 2026-10-26: 同じ単位にしたface-flux発散とcentered発散は一致
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
+- **確認できた事実:** centered velocity差分にruntime backtraceと同じ `(width-2)/frameRate`, `(height-2)/frameRate` を掛けたcell/frame単位の発散と、左右上下のface-normal fluxから計算した発散を比較。未投影RMS .037615/.037615、80iteration投影後 .0257793/.0257793、各cellの最大差は約9e-7未満。focused test pass (2.40s)。
+- **価値または懸念:** 以前の.01548対.03762は異なる単位を比較していた。face velocity/projector離散化の不整合という推測は今回の証拠で支持されず、production変更の根拠にしない。
+- **仮説（未検証）:** scalar replayで見えたSL mass増加とMUSCL streakは、圧縮性、sourceを省いたreplay、limiterの局所集中などが関係し得るが原因寄与は未分離。
+- **次に確認すべきこと:** 同じvelocity history・同じ単位で各frameのemissionを両advection branchへ再生し、source積算量と移流後massを個別に測る。production相当sourceを含むMUSCL plumeが見た目を改善するか確認する。
+
+## 2026-10-26: runtime source mapを両方式へ再生するとMUSCLは質量を保つが実plumeより細い
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
+- **確認できた事実:** 45 frameのproduction runtime velocity historyを記録し、source injectionの中心sway、円形二次falloff、`emitterDensity * emissionTimeScale`、毎frame `exp(-2.5/30)` retentionをtest-onlyで両scalar branchへ再生。total source=1789.99、source+dissipation予測最終mass=446.953。raw velocity historyでproduction timestep 1-backtrace SL mass444.710 (-.5%)、CFL-substep SL427.067 (-4.4%)、MUSCL446.953。actual coupled runtime snapshot mass489.758。Production-step SL/MUSCL peak 2.106/2.459、high-pass .0850/.1624。画像 `build/smoke-runtime-rnd/captures/runtime-source-replay-rnd/` はMUSCLが細い縦筋、実runtimeはより広い首元を示す。focused test pass (2.18s)。
+- **価値または懸念:** source mass/dissipationの再生はscalar transportを比較する基準として機能する。しかしactual runtimeとscalar replayのmass差は+9.6%。recorded velocityはdensity update後のsnapshotであり、source velocity/buoyancyのstep内時系列、alternate densityからvelocityへのfeedbackが一致しないため、runtimeと完全同等ではない。MUSCLの高周波と質量保持を見た目改善と同一視できず、production導入しない。
+- **仮説（未検証）:** 実runtimeの質量増加/首の太さの一部は、source injection前後のvelocity timingと、そのdensityに依存するbuoyancy feedbackがscalar-only replayで欠落するためかもしれない。
+- **次に確認すべきこと:** density buoyancyを無効にしたruntimeからvelocity-only historyを採り、正確に一致するsource replayと比較する。その後、full coupled runtimeのdensity snapshotsとの差分をsource・transport・feedbackへ切り分ける。production solver本体は触らずtest fixtureで調べる。
+
+## 2026-10-26: buoyancy無効とsource sway位相ずらしでもruntime再生mass差が残る
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
+- **確認できた事実:** `settings.buoyancy=0` のproduction velocity historyをsource replay。source+dissipation期待mass446.953、actual runtime mass490.139。same-frame 1-backtrace SL445.332、1frame-lag SL450.942、source swayだけ15frameずらしたSL437.637、MUSCL446.953。focused test pass (2.41s)。source-phaseずらし画像でもplumeは線状、actual runtimeは首元が少し広い。
+- **価値または懸念:** buoyancy単独では+43.2 mass差を説明せず、1frame timing shiftでも一致しない。sourceの空間分布・積算とmass conservationは保つtest replayだが、velocity snapshotsはupdate後である。sway phase variantはsourceだけの位相変更で別runtime trajectoryではない。
+- **仮説（未検証）:** runtimeの速度source injectionはdensity weightingを伴い、そのframe内でprojection/advection/velocity updateと絡むため、post-update velocityで後からsource付きscalarを運ぶことが一致しない可能性。ほかにstep内部のsolver density diffusionとadvection順の作用も残る。
+- **次に確認すべきこと:** density-only/velocity-only componentの更新順を変更せず、solver snapshotからpre-density-advection fieldを取得できる既存hookがあるか調査する。なければ必要な観測をtest-only wrapperで再現し、density diffusion・velocity source・scalar backtraceの寄与を分離する。source/noise phase違いの2 runtime trajectoryも追加する。
+
+## 2026-10-26: smoke runtime replayのsource位置とdensity step順序を修正
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`、`ArtifactCore/src/Physics/FluidSolver2D.cpp`。
+- **確認できた事実:** runtime swayはsource位置でなく注入水平速度に掛かる。先行test replayはこれをsource X移動として再現していた。density solverは拡散、ghost-cell mirror境界、半セル下限付きbacktrace、境界更新、retentionの順。これらを独立fixtureで再現すると、buoyancy無効のruntimeとreplayの最終mass/peakは表示精度内で一致する（490.139 / 1.6122）。source位置を固定したMUSCL massは446.953。
+- **価値または懸念:** solver trajectoryの最終densityを独立fixtureで再現でき、輸送法比較の基準になった。446.953との差は閉境界ghost cellsを含めた全格子massと先行interior-only source+dissipation bookkeepingとの差。MUSCLは別方式の診断比較でありproduction runtimeとの同一挙動を示さない。
+- **仮説（未検証）:** ghost-cellに複製された密度が全格子sumの増加に寄与している。寄与量は未分解。
+- **次に確認すべきこと:** ghost-cellとinterior-only massを分けて追跡し、品質評価をmass/centroid/時間連続性と画像で再実施する。solver本体は変更せずfixtureに限定する。
+- **追加検証:** 独立 smoke suite全20件を `ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR` 設定下で再実行し、20/20 passed。初回の環境変数なし実行はcapture directory前提の1件のみ失敗し、同testを変数設定後に単独再実行してpass、その後suite全体もpass。exact replayにはfieldwise assertを追加し、最大absolute density error 9.54e-7、RMS 3.83e-8。
+
+## 2026-10-26: fixed-density 2D self-shadowだけでは煙の立体感が増えない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesFixedDensityOpticalDepthAndDirectionalSelfShadowRendering`。
+- **確認できた事実:** frame-34の同じproduction densityを使い、unlit optical depth、2D面内のdirectional self-shadow、ambient fill、density-gradient normalを比較。mean luminance excess / luma standard deviationは7.60/17.79、3.77/8.62、4.84/10.78、5.98/13.97。画像は `build/smoke-runtime-rnd/captures/fixed-field-light-rnd/`。direct shadowは露出とコントラストを下げ、ambient/gradient fillも無照明より立体的なbillowを増やさない。focused GTest pass。
+- **価値または懸念:** solver fieldを固定したままrenderingだけを比較し、照明モデルだけでは現在の滑らかな2D密度fieldをDCC風に変えられないことを示す。ただしshadow rayが画面平面内を進む診断用2D proxyであり、物理的なvolume raymarchの代替ではない。
+- **仮説（未検証）:** 2D密度を奥行き方向に変化させて2.5D volumeへ持ち上げ、既存CPU volume rendererで積分すると、単純な画面平面照明より奥行き情報に由来するシェーディングが得られる可能性がある。
+- **次に確認すべきこと:** 同じ2D emitter plumeをdepth varying 2.5D densityに展開し、CPU volume rendererのfront/side viewでdepth extrusion、shadow、scatteringを比較する。production runtimeとchild repoは変更しない。
+- **再検証:** optical-depth/self-shadow/gradient testを含め、独立runtime GTest 21件が環境変数設定下で全件pass（134.2秒）。docs日付監査と`git diff --check`もpass。
+
+## 2026-10-26: 2D smoke densityを2.5D volumeへ展開してCPU volume render
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `RendersDepthVaryingVolumeFromTheSameTwoDimensionalSmokePlume` と standalone CMake設定。
+- **確認できた事実:** frame-34のproduction `FluidSolver2D` 96×72 densityを、均一押し出し、Gaussian depth envelope、noise-warped depthの各32層volumeへ展開し、既存`CPUVolumeRenderer`で160×160前面/側面を出力。warped fieldは各画面列の積算densityを元の2D値に一致させる。linear-image occupied/lumaSum/stdDevはuniform front 13494/238854/2.96、side 14062/223115/2.30; Gaussian front 13663/205051/3.14、side 12226/181391/2.61; warped front 13705/201543/2.78、side 12034/178030/3.14。focused test pass。gamma変換した確認画像と線形出力画像を両方保存。
+- **価値または懸念:** 既存volume rendererで2D runtime密度から3D viewを作れることを独立fixtureで確認したが、単一断面の押し出しは側面で薄いsheetに見え、noise warpは穴・むらを作り、coherent billowには至らない。frontは元の2D形状に近い。CPU rendererの8bit linear値をtest captureだけdisplay gamma補正したため、実アプリの色管理/parityは未検証。
+- **仮説（未検証）:** 見た目の改善には静的depth warpより、3D velocityに沿って時間発展するdepth-resolved density/turbulenceが必要。2D emitterはsource footprintとして活かせるが、単一2D densityを奥行き複製するだけでは足りない。
+- **次に確認すべきこと:** existing Pyro volume testとの組み合わせで3D emitter plumeをmulti-frame/front-side captureし、単一2D source footprintで初期化した真正3D simulationと静的2.5D extrusionを比較する。mass、centroid、adjacent-frame change、front/side imageを並べ、production solverは変更しない。
+- **再検証:** 2.5D volume testを含むstandalone GTest 22件すべてpass（140.95秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
+
+## 2026-10-26: 2D emitter footprintから動的3D Pyroを生成して比較
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesStaticTwoPointFiveDWithTimeEvolvingThreeDimensionalEmitter`、standalone CMake。
+- **確認できた事実:** 2D runtime emitterと同じworld-space center/radius/heightを持つ3D Pyro sourceを48×36×32 open domainに置き、36 frame×2 fixed step=1.2秒を進めた。2D runtimeも同時間進め、終端densityをGaussian depth envelopeで静的2.5D化し、同一CPU volume rendererでfront/sideを比較。Pyro baseline final mass/centroidY,Z=225.1/(14.14,15.50)、隣接field cosine/L1=0.9938/0.1473。既存方式のdensity-gated temporal curl (.0625)では捕捉frame mass213.7/219.4/217.1、cosine/L1=0.9944/0.1436、final Laplacian RMS=.02185（baseline .02341）。renderer densityScale7.2時のfront/side occupied pixelsはbaseline6423/6824、curl6207/6670。default scale1.8ではbaseline1204/1611でかなり暗い。画像は `build/smoke-runtime-rnd/captures/3d-emitter-rnd/`。
+- **価値または懸念:** 同一volume renderer上で2D-static sheetとtime-evolving 3D Pyro puffを目視できるようになった。3Dは上昇するが丸く平滑で、弱いcurl forceは質量・高周波・coverageを改善せず、少し抑えた。renderer densityScaleで露出感が大きく変わる。2D-volumeと3D field massの単位/奥行き積算は同じでなく、mass直接比較には使えない。
+- **仮説（未検証）:** DCC風の巻き込みにはvelocity curlの単純追加より、密度面に沿ったmulti-scale detailの時間移流/再生成、またはturbulenceの時間・空間スケール設計が必要。
+- **次に確認すべきこと:** Pyro source plumeを同じseed/frameで複数noise scale・strengthに対して密度mass、Laplacian、高周波energy、temporal L1とfront/side画像で比較する。質感が改善しない条件は見切り、production変更は保留。
+- **再検証:** 3D Pyro source/curl比較を含むstandalone smoke GTest 23件すべてpass（159.1秒）。docs日付監査と`git diff --check` pass。
+
+## 2026-10-26: 3D smoke emitter footprint tradeoff
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `MeasuresMassNormalizedThreeDimensionalEmitterFootprintSweep`。
+- **確認できた事実:** 48×36×32 open Pyro domainを72×1/60秒進め、楕円source半径0.075/0.12/0.18を比較。source box volumeに反比例するdensity設定を行ったが、終端massは222.66/225.06/201.31で完全一致しない。voxel-Y centroidは11.39/14.14/16.54、X/Z spreadは1.35,1.37 / 1.83,1.85 / 2.40,2.41、density Laplacian RMSは.05841/.02341/.00993。focused testはpass (0.39s)。
+- **価値または懸念:** 大きなsource footprintはより高く広がる一方、密度勾配が平滑化する。狭いsourceは高周波指標が高いが上昇が低い。source離散サンプリングと移流後massが異なるため、逆体積補正は投入総量の厳密一致ではない。描画キャプチャを含まず、指標のみから画質を断定できない。
+- **仮説（未検証）:** 複数の離れたsource lobeが相互作用すれば、広い単一sourceの滑らかさを避けながら上昇時の渦巻きが生まれる可能性がある。
+- **次に確認すべきこと:** 同じPyro domain・同じ名目source volumeで単一sourceと二〜三個のoffset lobeを比較し、front/side volume render、密度mass、centroid、Laplacian、時間差分を記録する。
+- **再検証:** source footprint sweepを含むstandalone smoke GTest 24件すべてpass（54.5秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
+
+## 2026-10-26: 3D smoke source間隔は形状を分離するがbillowを作らない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesSingleAndThreeLobedPyroEmitterAtMatchedNominalSourceVolume`。
+- **確認できた事実:** 半径.12の単一Pyro emitterと、半径.0832の3ローブを三角形配置し、中心間隔.10/.14/.22、72×1/60秒で比較。production radial source-kernelをvoxel上で積分して名目投入量を合わせると終端massは225.06/200.91/199.93/205.34。volume render densityScale7.2でfront/side occupied pixelsはsingle 6423/6824、tight 6909/6990、.14 7142/8027、wide 6973/10652。PNGは `build/smoke-runtime-rnd/captures/3d-emitter-topology-rnd/`。 focused test pass。
+- **価値または懸念:** tight配置は広いpuffに融合、.14は上部lobeを分け、.22は特に側面で独立columnを保つ。多点sourceでcoverageは増えるが、画像では滑らかな複数puff/columnのままでcoherent billow foldsは確認できない。terminal massは投入積分を揃えても移流や境界流出で約-11%〜-13%変化。occupied pixelsは露出・形状の代理値で、知覚的画質の単独判定には使えない。
+- **仮説（未検証）:** 既存Pyroのsource-only plumeはsource topologyを変えるだけではrollを生みにくく、密度に連動する渦輸送・熱浮力またはdetailの時間発展が必要。
+- **次に確認すべきこと:** 間隔.14のfront/side時系列を確認し、lobe間で速度・vorticityが強くなる領域と密度界面の移動が対応するか計測する。続けてsource pulsingか既存velocity field由来のtest-only vorticity confinementを一因子ずつ加え、mass/centroid/temporal changeと同じレンダー画像を比較する。
+- **再検証:** このテストを含むstandalone smoke suite 25件すべてpass（54.98秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
+
+## 2026-10-26: 周期放出は上昇とpuff分離を増やすが巻き込みは作らない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesSingleAndThreeLobedPyroEmitterAtMatchedNominalSourceVolume`。
+- **確認できた事実:** spacing .14の3ローブについて、density/temperature/velocity sourceを.2秒間2倍、その後.2秒停止する周期を3回適用し、連続放出と0.2秒ごとに質量・重心・front/side renderを比較。総名目source integralは0.4秒単位で一致。連続/pulseの各checkpoint mass/centroidY: .2秒 41.11/5.92 vs 78.19/6.43、.4秒 74.67/7.09 vs 66.81/8.44、.6秒 108.47/8.29 vs 142.07/8.38、.8秒 141.25/9.46 vs 129.90/10.95、1.0秒 171.79/10.62 vs 199.62/10.58、1.2秒 199.94/11.76 vs 182.25/13.11。終端massはpulseが8.8%低いが、重心は1.35 voxel高く、front/side occupied pixelsは7140/8024から8629/9014へ増加。PNG時系列は `build/smoke-runtime-rnd/captures/3d-emitter-topology-rnd/`。
+- **価値または懸念:** pulsing creates distinct but smooth puffs and changes vertical spacing; visible folds/rolls are not observed. Source integral equality does not imply final density mass equality because pulse timing changes buoyancy, transport, dissipation, and outflow. Capture interval is 0.2 s; finer temporal motion is unresolved.
+- **仮説（未検証）:** pulse frequency/duty cycleとrising plume turnoverの関係がpuffの重なり・分離を決めるが、形状の局所巻き込みには別の渦／密度界面輸送機構が要る。
+- **次に確認すべきこと:** 周期を0.1/0.2/0.4秒で振り、同じ平均入力に揃えて重心速度・周期ごとのmass残存率・時間隣接画像差分を比べる。続けてPyro velocityから計算するtest-only vorticity confinementを一因子として追加し、渦度とdensity interface curlが同期するか確認する。
+- **再検証:** cadence/capture変更後を含むstandalone smoke suite 25件すべてpass（54.56秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
+
+## 2026-10-26: pulse periodは上昇高さとmass retentionを交換する
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の3-lobe pulse period sweep。
+- **確認できた事実:** spacing .14、50% duty、density/temperature/velocityをon中2倍・off中0にして周期.2/.4/.6秒を比較。全runは1.2秒で整数cycle数、nominal source integralは連続条件と同じ。終端mass/voxel-Y centroid/front-side occupied: continuous 199.94/11.76/7140,8024; .2 s 193.15/12.41/7969,8574; .4 s 182.25/13.11/8629,9014; .6 s 176.24/14.05/8526,8833。画像は `build/smoke-runtime-rnd/captures/3d-emitter-topology-rnd/` に噴出・休止の半周期ごと保存。focused GTest pass。
+- **価値または懸念:** 長周期burstほど最終重心は上がるがmass retentionが減る。最大coverageは.4秒周期で、最大重心は.6秒周期。どの周期も滑らかなpuffの分離に留まり、billow foldは見えない。occupied pixelsは知覚品質指標ではなく、capture temporal samplingは半周期単位である。
+- **仮説（未検証）:** 長いsource-off時間で浮力だけが残る期間が上昇を増し、同時にopen boundaryへの移動とdissipationがmassを減らす。
+- **次に確認すべきこと:** source-free buoyancy-only / velocity-decay-only controlでmass流出と重心を分け、次いでtest-only vorticity confinementをpulse phaseへ同期／非同期してbillow形成差を確認する。
+- **再検証:** cadence sweepを含むstandalone smoke suite 25件すべてpass（55.82秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
+
+## 2026-10-26: Pyro post-pulse mass loss is flow-driven, while buoyancy response is weak
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `SeparatesBuoyancyAdvectionAndDensityDecayAfterEmitterPulse`。
+- **確認できた事実:** pulse-end temperature sum/max/supportは10.184/.1601/320 cells、source-free初回のactive temperature cellsは180。buoyancy=.7,p8でtemperature-weighted vertical velocity/curl=.000697/.000475。pressure 1→32でcurlは一定だが縦速度は.000844→.000658へ低下。buoyancy20では同値が.01990/.01358。previous mass/centroid and boundary-shell metrics remain as recorded above. PNGは `build/smoke-runtime-rnd/captures/3d-emitter-decay-rnd/`。
+- **価値または懸念:** このケースの主なmass lossはboundary outflowではなくsource-driven advectionとdensity dissipation。圧力反復数増加は発散を減らすがplume centroidを変えず、buoyancy増加も係数20までliftをわずかにしか増やさない。active-support計測では縦速度よりcurl成分が相対的に残りやすく、pressure iterationの増加でcurl RMSはほぼ不変。curlの大きさだけでは煙らしいrollや視覚品質を証明しない。
+- **仮説（未検証）:** buoyancy kickの大部分は空間gradient成分としてprojectionに吸収される一方、温度場の横gradientから生じるcurlは残る。この小さなcurlを増幅・維持する渦度閉じ込めやdensity-surface detail transportが、上昇とbillowの両立に必要かもしれない。
+- **次に確認すべきこと:** 同じactive temperature support上でcurl vectorの向き・発散・density-gradientとの位置関係を計測し、test-only vorticity confinementを係数別に追加する。mass、重心、curl、front/side renderを並べ、単に横へ散らす条件を除外する。
+- **再検証:** active-cell temperature/velocity/curl計測とpressure iteration/buoyancy sweepを含むstandalone smoke suite 26件すべてpass（57.21秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
+
+## 2026-10-26: 標準vorticity confinementは残留curlをbillowへ変えずmass lossを増やす
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `SeparatesBuoyancyAdvectionAndDensityDecayAfterEmitterPulse`。
+- **確認できた事実:** 本番solverを変更せず、同じpulse-end velocityを引き継ぐsource-free branchへtest-onlyの物理単位標準式 `epsilon*h*dt*(N×curl(u))` を毎step適用した。全体適用epsilon2/8、温度supportかつ相対density-gradientで重み付けしたepsilon8を比較。無追加forceのmass retention/重心Yは47.05%/.396m、epsilon2は36.41%/.395m、epsilon8は26.94%/.320m、界面gate epsilon8は37.18%/.376m。画像ではどの条件も滑らかなpuffで折れたbillowは見えず、係数増加でmassが減り、界面gateはその損失をやや緩和した。focused test pass (1.80s)。
+- **価値または懸念:** 「curlが残る」ことは「confinementで煙らしい巻き込みができる」ことを意味しない。このfixtureでは強度増加が上昇 plume を締めてmassを減らしたため、単純な係数増加を導入根拠にしない。適用速度・格子spacingは独立adapterの設定で、本番Pyroとの等価性や一般的無効性は示さない。
+- **仮説（未検証）:** billow形成には既存curl強化より、複数スケールで時間相関を持つ発散ゼロ速度摂動、または速度長を保つdensity shreddingが有効かもしれない。
+- **次に確認すべきこと:** test-only multi-scale divergence-free noiseとdensity-only shreddingを別因子で比較し、density mass、重心、隣接frame coherence、front/side画像を同時評価する。
+- **再検証:** focused test 1件pass (1.80秒)、standalone smoke suite 26/26 pass (57.69秒)。文書日付監査と`git diff --check` pass。
+
+## 2026-10-26: 密度だけの多帯域shreddingは輪郭を粗くするがbillowを作らない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `SeparatesBuoyancyAdvectionAndDensityDecayAfterEmitterPulse`。
+- **確認できた事実:** 同一pulse後の3D Pyro source-free branchesに、8-cell low-bandまたは8/4/2.5-cell multi-bandのsmooth 3D value noiseを、相対density-gradient gateと密度加重平均補正付きで毎step適用。振幅.12/.28。各step適用直後のmass誤差は最大6.8e-9以下で、branchのvelocity metricsは完全に一致。1秒後のcontrol / low.12 / multi.12 / multi.28 mass=20.19/22.86/20.93/22.06、density Laplacian RMS=.00595/.00957/.00645/.01016、centroidY=.396/.370/.394/.372m。0.5秒から1秒のnormalized density L1 change=.496/.479/.499/.489。画像は高振幅で内部と輪郭の粗さが増えるが、折れたbillowは現れない。focused test passed。
+- **価値または懸念:** 密度の局所shreddingだけで周波数成分を増やせるが、細部の増加はmass-neutralなまま保たれず、その後の輸送で終端massと重心が変わる。Laplacian増加は見た目品質の証拠にならず、強振幅は画素の粗さを増やすだけ。これは test-only 3D Pyro fieldであり、既存2D emitterへの製品統合根拠ではない。
+- **仮説（未検証）:** 構造的な巻き帯には無相関のscalar textureではなく、velocity curl軸や密度界面接線に向きを合わせ、正負の密度transferを近傍で対にした局所detail生成が必要かもしれない。既存のPyro volume R&Dではcurl-gated detailにfront/side巻き帯が見られる一方、top ring artifactが出ているため、次はその方向整列とmass/temporal coherenceを独立fixtureで検証する価値がある。
+- **次に確認すべきこと:** 本番/child repositoryは触らず、root standalone内で界面法線方向と接線方向のdetail sourceを正負対にして比較し、front/side/top時系列、密度mass、centroid、視点間artifactを測る。
+- **再検証:** focused test pass; standalone smoke suite 26/26 pass (57.15秒)。文書日付監査と`git diff --check` pass。
+
+## 2026-10-26: 2D density界面方向のscalar detailは強くしてもbillow化しない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReportsVelocityAdvectedSmokeDetailAcrossFramesAndSeeds`。
+- **確認できた事実:** production `FluidSolver2D` のframe20-22、20 iterations、seed17/29/71の実density/velocity captureを固定して、6/3.5-cell smooth multi-scale noise勾配をdensity界面法線/接線へ射影したrender-only density modulationを比較。density加重meanを引いてmass-neutral化し、solver velocityには触れない。強度.8ではbaseline比のimage high-pass差はnormal/tangentとも-0.44〜+0.47%。強度4、modulation clamp±.2ではそれぞれ+0.58〜+2.45% / +0.99〜+2.34%、mass誤差最大0.0477%、X重心shift最大.349 grid cell。画像はcap/stemに弱い粗さが見えるがfolded billowはない。方向差はseed/frameで変わり、一定の優位性は確認できない。Full standalone suite 26/26 pass (65.65s)。
+- **価値または懸念:** 実2D runtime densityを使って局所界面方向を検証したが、scaleとamplitudeを上げても主な渦構造を細分化できず、mass-neutral scalar detailは補助的な微細粗さに留まる。2D solver/shaderの製品変更の根拠にはしない。現測定は空間high-passとframe別renderの比較で、centroid補正後の時間コヒーレンスを直接示していない。
+- **仮説（未検証）:** 画像上の変化の一部はplumeの平行移動/brightnessではなくtexture roughnessかもしれないため、frame 20-22を重心整列して高周波残差と方向variantの連続性を比べると、scalar detail経路を打ち切るか判断しやすい。
+- **確認できた事実（追加）:** solver density advectionと同じ`dt*(gridDimension-2)`を用い、current captured velocityで高周波画像を1step backtrace整列した。対照残差は.002124/.002174（20→21/21→22）となりcentroid-only residualより約19%小さい。normal detailの対照比は-0.61..+1.84%、tangentは+0.60..+2.11%。したがって強度4のnormal variantは時間残差をseed/frame一貫に増やさず、tangentは小さく一貫して増やす。ただしcurrent frameの単段Euler backtraceで、frame内source additionは未分離。
+- **確認できた事実（上部ROI）:** emitter center y=.78とその直近を除くnormalized grid y<.68 ROIで同じflow-backtrace residualを測った。対照ROI residualは.00232189/.00239107でfull-frameより9.3%/10.0%高い。normal detailの対照比は-0.96..+2.09%、tangentは+0.33..+2.27%。Emitter領域を空間除外してもtangent residual増加は残る。ROIは過去emissionが移流した煙を含み、直接source mapの数学的減算ではない。
+- **価値または懸念:** 最も不安定な高周波変化はsource footprintよりcap/stem側にあり、scalar detailが既存の高周波変化へ小さな残差を加えている可能性が高い。しかしresidual metricからbillowの有無は判断できず、画像には折れたbillowは依然見えない。
+- **次に確認すべきこと:** render-only density scalarの強度掃引を続けない。次は別系統として、2D solverが作る既存curl/大スケールrollの実density fieldを同じsource/seedで比較し、形状の曲率・cap巻き込み・上部ROIのdensity-gradientを追う。そこでも構造が増えなければ2D-only表現の限界を認識し、depth-resolved volume evolutionを品質目標に含める必要性を整理する。
+- **再検証:** source-excluded ROI付きfocused test 1件pass (19.02秒)、standalone smoke suite 26/26 pass (69.08秒)。文書日付監査と`git diff --check` pass。
+
+## 2026-10-26: 3D Pyro 解像度上昇は細部と質量保持を増すが、固定圧力反復では非圧縮性が悪化
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesResolutionScaledThreeDimensionalSmoke`、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の圧力投影回帰。
+- **確認できた事実:** 固定world domain/source/durationでvoxel step 1/24→1/48を比較すると、最終world density massは.00649→.00743、retentionは.750→.858、centroidYは.430→.495m、界面gradient RMSは3.30→4.73へ増加。front/side画像high-passは約.00249→.00265と小幅増加したが、目視ではどちらも滑らかなpuffで、C4D/Houdini風billowは現れない。固定pressure 8反復のdivergence RMSは.05395→.19231へ悪化。voxel48で反復を8→36にするとdivergence .19231→.06664まで改善する一方、mass retention .858→.810と可視coverageも低下し、72反復でも36から有意な改善はなかった。独立resolution testは7条件でpass (20.36s)。別の4つのPyro回帰もpassし、整合Jacobi operatorは8/32/96反復でRMS .06723/.00785/.000247、旧式は.1883/.2415/.2942。source/dissipation persistenceも通過。
+- **価値または懸念:** 解像度だけでは煙の巻き込み品質は上がらず、圧力反復を固定した比較はresolutionとprojection誤差を混同する。反復を増やすと非圧縮性は改善するが、このfixtureでは質量保持・coverageが変わるため、解像度の採否を画素の細かさだけで決められない。GPU volume renderingや製品DCCとの品質同等性を検証した結果ではない。
+- **仮説（未検証）:** 解像度間で同程度のpressure residualを揃え、密度advect・buoyancy・vorticityを個別因子化した比較が必要。現状のPyro fieldに追加forceを足すだけでは構造的なbillow生成につながらない可能性がある。
+- **次に確認すべきこと:** pressure収束許容値を揃えたresolution sweepを行い、front/side/top時系列、world mass、重心、divergence、レンダリング指標を同時比較する。製品統合の判断は独立研究画像だけで行わない。
+- **再検証:** focused pressure/source regressions 4/4 passed (0.624s); resolution sweep 7条件は既存buildでpass (20.36s)。
