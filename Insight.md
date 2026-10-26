@@ -7274,18 +7274,18 @@
 - **次に確認すべきこと:** fixed velocity fieldで1/2/4/8 substepのdensity-only輸送を比較し、mass・extrema・gradient保持を測って時間積分とsolver feedbackを切り分ける。その結果が安定して改善する場合だけdynamic solverとGPU renderで再評価する。
 
 ## 2026-10-27: 固定velocity場での2D scalar substep数と巻き込み
-- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarDiffusionAcrossSubstepCounts`。解析的streamfunctionから作った同じ2D velocity fieldで、Gaussian scalarだけを60 frames移流。
+- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`。解析的streamfunctionから作った同じ2D velocity fieldで、Gaussian scalarだけを60 frames移流。
 - **確認できた事実:** 72×88 grid、2秒、最大CFL 3.55 cells/frame、substeps 1/2/4/8、source positionに相当する初期scalar位置2条件を比較。frame60で1→8 substepsによりdensity-gradient RMSはseed17 .02587→.00951、seed71 .02682→.00992へ低下し、massは223.78→219.73 / 228.79→218.48。contact sheetでは8分割のscalarが一定方向へより長く巻き込まれるが、かなり薄く広がる。独立Core target rebuild成功、focused test 1/1 pass。出力 `build/smoke-emitter-rnd/captures/fixed-scalar-substeps-rnd/`、log `build/smoke-emitter-rnd/fixed-scalar-substeps-rnd.log`。
 - **価値または懸念:** fixed flowでもsubstep数はsimple semi-Lagrangianの反復補間回数を増やし、渦への追従を改善する一方で細部・peak密度を強く落とす。dynamic solverのsubstep sweepで見えた密度低下の一部はdensity transport由来と整合するが、pressure/vorticity/diffusion feedbackの寄与はこのscalar-only fixtureでは判定できない。単一Gaussianの巻き込みは確認できてもsmokeのmulti-scale billowの証明ではない。
 - **仮説（未検証）:** low-CFL substepとlimited conservative flux transportを合わせると、渦形状を追いながら密度を保持できる可能性がある。先行するMUSCL replayではmassが保たれる一方、細く明るいstreakへ偏ったため、単に輸送法を変えるだけではplume volumeの見え方を保てない。
 - **次に確認すべきこと:** 同一固定velocity場・同一substep数でsemi-Lagrangianとlimited MUSCLを露出・mass-matched比較した後、source-coupled runtime velocity historyへ戻してdensity support / peak / silhouette / temporal coherenceを測る。production Coreの移流演算子はその前に変えない。
 
 ## 2026-10-27: 固定渦scalar輸送でMUSCLは質量を保つが今回の比較では有意な見た目改善なし
-- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarDiffusionAcrossSubstepCounts`、72×88固定velocity scalar fixture。
-- **確認できた事実:** 既存のsemi-Lagrangian 1/2/4/8条件へ、同じ速度場・初期Gaussian・時間長のfirst-order upwindとtest-only limited MUSCLの4/8 substep条件を追加した。focused standalone testは1/1 pass。MUSCL 8-stepのframe60 massはseed17/71で218.586/218.555でほぼ保存し、scalarは同じ渦へ巻き込まれる。一方MUSCL 4-stepはseed17でmassが326.536へ増え安定しなかった。first-order upwindはsource位置依存の極端な質量変動を示した（seed17:132.985、seed71:470.936）。MUSCL 8-stepでも低いpeak/gradientの滑らかな帯で、billowや明瞭な品質改善は見られない。比較画像とlogは `build/smoke-emitter-rnd/captures/fixed-scalar-transport-sweep-rnd/` と `build/smoke-emitter-rnd/fixed-scalar-transport-sweep-rnd.log`。
-- **価値または懸念:** これは固定速度場の小さな診断fixtureであり、first-order upwindはMUSCLの一部ではなく低精度の基準条件。今回の簡易MUSCLは4 substepsで質量増加を出し、8 substepsでの質量保存も視覚的な煙質感にはつながらないため、本番移流への採用根拠にはならない。
-- **仮説（未検証）:** 高解像度またはCFLに応じたsubstep数、境界上の速度整合を加えればMUSCLの安定域が広がる可能性がある。ただし保守性だけで密度peakやplume volumeの見え方は保証されない。
-- **次に確認すべきこと:** flux updateのpositivity/CFL制約と離散velocity divergenceを検査し、MUSCLを安定化できた場合に限り露出を合わせた画像比較へ進む。その後source-coupled solverでdensity support、peak、silhouette、時間一貫性を検証する。
+- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`、72×88固定velocity scalar fixture。
+- **確認できた事実:** 先行記録のMUSCL/Upwind集計にはmethod row→substep indexの誤りがあり、追加2行の計測では4/8両方に8/16 substepsを使っていた。修正後に独立テストを再実行して1/1 pass。semi-Lagrangianのframe60 massはseed17/71で223.778/228.791 (1 step)、219.732/218.479 (8 steps)。MUSCL 8-stepは218.586/218.555とほぼ一定。MUSCL 4-stepは326.536/298.158へ増える。first-order upwind 4/8-stepは132.985/133.038 (seed17)、470.514/470.936 (seed71)で強いsource位置依存を示す。MUSCL 8-stepでも滑らかな帯で、billowや明瞭な品質改善は確認できない。修正後の画像とlogは `build/smoke-emitter-rnd/captures/fixed-scalar-transport-cfl-rnd/` と `build/smoke-emitter-rnd/fixed-scalar-transport-cfl-rnd.log`。
+- **価値または懸念:** 先行コミット/報告の診断値およびその不安定性の解釈は無効として扱う。現在の再計測でも4-step MUSCLの質量増加は残るが、その原因を離散発散・境界条件・CFLのいずれかと断定できる検証にはなっていない。first-order upwindは低精度の参考条件。製品solverへ採用する根拠はない。
+- **仮説（未検証）:** セル中心から面へ平均した速度の離散発散と、テストが使う境界flux設定の整合が質量変動へ関係している可能性がある。
+- **次に確認すべきこと:** 固定流の面速度発散と境界通量を明示計測し、まず一stepの密度mass balanceをCFL別に検証する。安定条件を確定後にだけ露出を合わせた画像比較とsource-coupled再生へ進む。
 
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。

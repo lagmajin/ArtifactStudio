@@ -1049,7 +1049,7 @@ TEST(SmokeEmitterStandaloneTest,
 }
 
 TEST(SmokeEmitterStandaloneTest,
-     MeasuresFixedVelocityScalarDiffusionAcrossSubstepCounts) {
+     MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts) {
   constexpr int gridWidth = 72;
   constexpr int gridHeight = 88;
   constexpr int totalFrames = 60;
@@ -1275,11 +1275,11 @@ TEST(SmokeEmitterStandaloneTest,
                   (velocityY[cell] + velocityY[index(x, y + 1)]) *
                       static_cast<float>(gridHeight - 2);
               const float leftState = useLimitedMuscl && uLeft >= 0.0f
-                  ? (x == 0 ? density[cell] : std::max(0.0f,
+                  ? std::max(0.0f,
                       density[index(x - 1, y)] + 0.5f * minmod(
                           density[index(x - 1, y)] -
                               density[index(std::max(0, x - 2), y)],
-                          density[cell] - density[index(x - 1, y)])))
+                          density[cell] - density[index(x - 1, y)]))
                   : (useLimitedMuscl ? std::max(0.0f, density[cell] - 0.5f * minmod(
                         density[cell] - density[index(std::max(0, x - 1), y)],
                         density[index(std::min(gridWidth - 1, x + 1), y)] -
@@ -1295,11 +1295,11 @@ TEST(SmokeEmitterStandaloneTest,
                           density[index(std::min(gridWidth - 1, x + 2), y)] -
                               density[index(x + 1, y)])));
               const float topState = useLimitedMuscl && vTop >= 0.0f
-                  ? (y == 0 ? density[cell] : std::max(0.0f,
+                  ? std::max(0.0f,
                       density[index(x, y - 1)] + 0.5f * minmod(
                           density[index(x, y - 1)] -
                               density[index(x, std::max(0, y - 2))],
-                          density[cell] - density[index(x, y - 1)])))
+                          density[cell] - density[index(x, y - 1)]))
                   : (useLimitedMuscl ? std::max(0.0f, density[cell] - 0.5f * minmod(
                         density[cell] - density[index(x, std::max(0, y - 1))],
                         density[index(x, std::min(gridHeight - 1, y + 1))] -
