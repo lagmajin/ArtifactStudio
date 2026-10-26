@@ -4318,6 +4318,40 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ProductionRuntimeHonorsSmokeDensityDissipationRate) {
+  const auto runPulse = [](const float dissipationPerSecond) {
+    Artifact::LayerFluidRuntimeState state;
+    Artifact::LayerSmokeRuntimeSettings settings;
+    settings.gridWidth = kGridWidth;
+    settings.gridHeight = kGridHeight;
+    settings.emitterX = 0.5f;
+    settings.emitterY = 0.84f;
+    settings.emitterRadius = 0.08f;
+    settings.emitterDensity = 0.6f;
+    settings.emitterVelocityY = -1.2f;
+    settings.buoyancy = 0.0f;
+    settings.densityDissipationPerSecond = dissipationPerSecond;
+    for (int frame = 0; frame < 60; ++frame) {
+      settings.emitterDensity = frame < 12 ? 0.6f : 0.0f;
+      Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+    }
+    double densityMass = 0.0;
+    for (int y = 0; y < state.fluidSolver_->height(); ++y) {
+      for (int x = 0; x < state.fluidSolver_->width(); ++x) {
+        densityMass += state.fluidSolver_->getDensity(x, y);
+      }
+    }
+    return densityMass;
+  };
+
+  const double slowDecayMass = runPulse(0.5f);
+  const double defaultDecayMass = runPulse(2.5f);
+  GTEST_LOG_(INFO) << "Production 2D smoke pulse density mass at frame 60: 0.5/s="
+                   << slowDecayMass << " 2.5/s=" << defaultDecayMass;
+  EXPECT_GT(slowDecayMass, defaultDecayMass * 10.0);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ComparesResolutionScaledThreeDimensionalSmoke) {
   using namespace ArtifactCore;
   using namespace ArtifactCore::RayTrace;

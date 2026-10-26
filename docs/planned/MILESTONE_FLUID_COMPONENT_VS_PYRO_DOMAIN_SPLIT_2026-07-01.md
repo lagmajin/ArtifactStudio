@@ -1,6 +1,6 @@
 # Fluid Component vs Pyro Domain Split (2026-07-01)
 
-**最終更新:** 2026-08-30
+**最終更新:** 2026-10-26
 
 ## 現行コード監査 (2026-08-15)
 
@@ -347,3 +347,10 @@
 - 旧`Particle` JSONで`is3D=true`だったレイヤーはfactory読込時に3D専用種別へ移行する。既存数値IDは並べ替えず、2Dプロジェクトの互換性を維持する。
 - Fluid componentはParticle layerへ統合せず独立を維持し、描画snapshot／ParticleRendererだけを共有する。
 - 新しいGPU resource／PSO／shader／同期、backend固有コード、signal／slot、QImage／QPainter経路は追加していない。build／runtime確認は未実施。
+
+## 2026-10-26 — 2D smoke density lifetime control
+
+- 2D Fluid smoke の density dissipation を `component.fluid.densityDissipationPerSecond` として Component 専用設定面に追加した。既定値は従来の `2.5/s` を維持し、範囲は `0–10/s`。JSON 保存／読込と本番 `LayerFluidRuntimeState` に接続する。
+- 同じ 12-frame smoke pulse を 30 fps、96×72 grid、frame 60 まで進める独立 runtime test で、`0.5/s` は density mass `611.047`、既定 `2.5/s` は `17.3242`（約35倍）となった。focused test 1/1 pass。
+- 減衰を弱めると放出停止後も煙が残ることは確認できたが、2D plume に巻き込み billow は生じない。これは寿命の artist control であり、Houdini/C4D相当の形状を達成したものではない。
+- Core/app build は成功。煙の見た目 R&D は継続し、次は production 2D velocity/density から時間持続する connected roll/fold を作れる solver-side method を独立比較する。

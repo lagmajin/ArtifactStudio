@@ -2,6 +2,14 @@
 
 # Insight Register
 
+## 2026-10-26: 2D smoke density lifetimeは視覚形状と分けて制御できる
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の density retention、`Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp` の Fluid Component properties、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ProductionRuntimeHonorsSmokeDensityDissipationRate`。
+- **確認できた事実:** 現行既定 `2.5/s` を保ちつつ減衰率を `0–10/s` で設定できるようにし、Component専用 Fluid設定・JSON保存復元・production runtimeへ接続した。同じ12-frame pulseを30fps / 96×72でframe60まで進めたfocused testで、`0.5/s` のdensity massは611.047、`2.5/s` は17.3242で約35倍だった。focused standalone test 1/1 pass、Artifact target build成功。
+- **価値または懸念:** lower decayで放出停止後の煙が長く残るartist controlは得られるが、密度減衰だけでは2D plumeのroll/fold/billowは作れない。2.5/s defaultは互換性維持のため変えておらず、細部品質やHoudini/C4D相当を主張する結果ではない。
+- **仮説（未検証）:** 寿命制御と巻き込み構造制御は別軸であり、decayを弱めてもcoherentな大スケール渦がない限り、長く残るだけでDCC的な形には近づかない。
+- **次に確認すべきこと:** production 2D velocity/density field上で、時間持続するconnected roll/foldを作る速度場／渦度手法を、2 seed以上・複数frame・同一発生源で比較する。減衰率は既定値を変えず、寿命軸として保持する。
+- **再検証:** `cmake --build build/smoke-runtime-rnd --target ArtifactSmokeRuntimeStandaloneTest --parallel 8` 成功、focused runtime test 1/1 pass（density mass値は上記）。`cmake --build build --target Artifact --parallel 8` 成功。
+
 ## 2026-10-26: 2D vorticity confinement must preserve signed curl
 - **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp` の `FluidSolver2D::vorticityConfinement()`、`tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `ComparesSignedVorticityConfinementAcrossSeedsAndFrames`。
 - **確認できた事実:** 旧実装は `ω = ∂v/∂x - ∂u/∂y` を `abs(ω)` に置き換え、その値を勾配方向だけでなく confinement force の符号にも使っていた。2D標準式では方向場 `N = ∇|ω|/|∇|ω||` とsigned `ω` を分け、forceは `(N_y ω, -N_x ω)` とする。Coreをこの形へ修正し、同じ煙源2条件を45 frameずつ、旧式比較とCore対standalone参照で実行した。変更前の旧式対参照画像MAEはframe15/30/45でseed17 `.000191/.001111/.002984`、seed71 `.000162/.001055/.001968`。変更後Core対参照は両seed・全capture frameで画素完全一致し、密度massも一致した。反対回転渦対2条件の30 frame画像も比較したが、大きなbillowは確認できない。全standalone 8 tests pass。Captures: `build/smoke-emitter-rnd/captures/vorticity-sign-rnd/` と `vorticity-signed-fixed-rnd/`。
