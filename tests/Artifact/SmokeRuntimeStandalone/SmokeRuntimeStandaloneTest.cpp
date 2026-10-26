@@ -3301,6 +3301,122 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresSmokeStateAcrossFrameGapsAndSeeks) {
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = kGridWidth;
+  settings.gridHeight = kGridHeight;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.84f;
+  settings.emitterRadius = 0.08f;
+  settings.emitterDensity = 0.6f;
+  settings.emitterVelocityY = -1.2f;
+  settings.vorticity = 0.1f;
+  constexpr double frameRate = 30.0;
+  const auto advanceThrough = [&](Artifact::LayerFluidRuntimeState& state,
+                                  const int frame) {
+    for (int current = 0; current <= frame; ++current) {
+      Artifact::advanceLayerSmokeRuntime(
+          state, current, frameRate, settings);
+    }
+  };
+  const auto summarize = [](const Artifact::LayerFluidRuntimeState& state) {
+    const auto snapshot = state.fluidSolver_->snapshot();
+    double mass = 0.0;
+    double weightedY = 0.0;
+    double squaredDensity = 0.0;
+    float peak = 0.0f;
+    float maxVelocity = 0.0f;
+    for (int y = 1; y < snapshot.height - 1; ++y) {
+      for (int x = 1; x < snapshot.width - 1; ++x) {
+        const auto cell = static_cast<std::size_t>(x + y * snapshot.width);
+        const float density = snapshot.density[cell];
+        mass += density;
+        weightedY += density * static_cast<double>(y);
+        squaredDensity += static_cast<double>(density) * density;
+        peak = std::max(peak, density);
+        maxVelocity = std::max(maxVelocity, std::hypot(
+            snapshot.velocityX[cell], snapshot.velocityY[cell]));
+      }
+    }
+    const double centerY = mass > 0.0 ? weightedY / mass : 0.0;
+    return std::array<double, 5>{mass, centerY, peak, maxVelocity,
+        std::sqrt(squaredDensity / static_cast<double>(
+            (snapshot.width - 2) * (snapshot.height - 2)))};
+  };
+  const auto densityRmse = [](const ArtifactCore::FluidSnapshot2D& a,
+                              const ArtifactCore::FluidSnapshot2D& b) {
+    EXPECT_EQ(a.width, b.width);
+    EXPECT_EQ(a.height, b.height);
+    double squaredDifference = 0.0;
+    for (std::size_t cell = 0; cell < a.density.size(); ++cell) {
+      const double difference = a.density[cell] - b.density[cell];
+      squaredDifference += difference * difference;
+    }
+    return std::sqrt(squaredDifference /
+                     static_cast<double>(a.density.size()));
+  };
+
+  Artifact::LayerFluidRuntimeState sequentialAt8;
+  advanceThrough(sequentialAt8, 8);
+  Artifact::LayerFluidRuntimeState gap8;
+  Artifact::advanceLayerSmokeRuntime(gap8, 0, frameRate, settings);
+  Artifact::advanceLayerSmokeRuntime(gap8, 8, frameRate, settings);
+  EXPECT_NEAR(densityRmse(sequentialAt8.fluidSolver_->snapshot(),
+                          gap8.fluidSolver_->snapshot()), 0.0, 1.0e-7);
+
+  Artifact::LayerFluidRuntimeState sequentialAt9;
+  advanceThrough(sequentialAt9, 9);
+  Artifact::LayerFluidRuntimeState gap9;
+  Artifact::advanceLayerSmokeRuntime(gap9, 0, frameRate, settings);
+  Artifact::advanceLayerSmokeRuntime(gap9, 9, frameRate, settings);
+
+  Artifact::LayerFluidRuntimeState sequentialAt10;
+  advanceThrough(sequentialAt10, 10);
+  Artifact::LayerFluidRuntimeState gap10;
+  Artifact::advanceLayerSmokeRuntime(gap10, 0, frameRate, settings);
+  Artifact::advanceLayerSmokeRuntime(gap10, 10, frameRate, settings);
+
+  Artifact::LayerFluidRuntimeState sequentialAt11;
+  advanceThrough(sequentialAt11, 11);
+  Artifact::LayerFluidRuntimeState gap11;
+  Artifact::advanceLayerSmokeRuntime(gap11, 0, frameRate, settings);
+  Artifact::advanceLayerSmokeRuntime(gap11, 11, frameRate, settings);
+
+  Artifact::LayerFluidRuntimeState sequentialAt20;
+  advanceThrough(sequentialAt20, 20);
+  Artifact::LayerFluidRuntimeState directAt20;
+  Artifact::advanceLayerSmokeRuntime(directAt20, 20, frameRate, settings);
+  Artifact::LayerFluidRuntimeState backwardSeek;
+  advanceThrough(backwardSeek, 20);
+  Artifact::advanceLayerSmokeRuntime(backwardSeek, 10, frameRate, settings);
+
+  const auto report = [&](const char* label,
+                          const Artifact::LayerFluidRuntimeState& reference,
+                          const Artifact::LayerFluidRuntimeState& candidate) {
+    const auto referenceSummary = summarize(reference);
+    const auto candidateSummary = summarize(candidate);
+    const double rmse = densityRmse(reference.fluidSolver_->snapshot(),
+                                    candidate.fluidSolver_->snapshot());
+    GTEST_LOG_(INFO) << "smoke frame-gap " << label << " densityRmse=" << rmse
+        << " mass/reference=" << referenceSummary[0]
+        << " mass/candidate=" << candidateSummary[0]
+        << " centerY/reference=" << referenceSummary[1]
+        << " centerY/candidate=" << candidateSummary[1]
+        << " peak/reference=" << referenceSummary[2]
+        << " peak/candidate=" << candidateSummary[2]
+        << " maxVelocity/reference=" << referenceSummary[3]
+        << " maxVelocity/candidate=" << candidateSummary[3]
+        << " densityRms/reference=" << referenceSummary[4]
+        << " densityRms/candidate=" << candidateSummary[4];
+  };
+  report("gap9-vs-sequential9", sequentialAt9, gap9);
+  report("gap10-vs-sequential10", sequentialAt10, gap10);
+  report("gap11-vs-sequential11", sequentialAt11, gap11);
+  report("direct20-vs-sequential20", sequentialAt20, directAt20);
+  report("backward20to10-vs-sequential10", sequentialAt10, backwardSeek);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      VorticityStrengthChangesTheSmokePlume) {
   const SmokeRun low = runProductionSmokeRuntime(
       0.5f, false, false, 30.0, 44, 0.1f);

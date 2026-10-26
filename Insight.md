@@ -7301,6 +7301,13 @@
 - **仮説（未検証）:** GPU preview/Render Queueで10fps時のsubstep追加負荷は許容範囲に収まる可能性があるが、実測はない。またframe seek/checkpoint replayは逐次renderと同じsolver stateを再現できていない可能性が高い。
 - **次に確認すべきこと:** GPU preview/Render Queueの低fps steady-state CPU/GPU costを計測する。別のruntime fixtureでは連続frame、9/10 frame gap、11+ frame jump、backward seekを比較し、現行の最大8-frame catch-up/reset behaviorの画質・再現性を記録する。`fluidLastFrame_`の履歴欠落を直す場合は、checkpoint/memory/performanceを含めて設計する。
 
+## 2026-10-27: smoke runtimeのframe gap/seekでsimulation stateが欠落
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp::advanceLayerSmokeRuntime` と `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresSmokeStateAcrossFrameGapsAndSeeks`。
+- **確認できた事実:** 96×72、30fps、同一emitterで連続frameと非連続frameを比較。0→8 gapはcatch-up 8更新となりsequential frame8とdensity RMSE <1e-7で一致する。0→9/10では実装の`stepCount=min(gap,8)`がframe1..8だけを進めてtargetを`fluidLastFrame_`へ記録するため、末尾1/2 source stepを失う。density RMSEは0.0728/0.1162、massはsequential 320.25/348.28に対し290.98。0→11はreset後target frameだけ注入し、sequential frame11とのRMSE .2139、mass 374.96対36.86。0→20直接指定ではRMSE .2296、mass 539.83対36.85、centerY 38.24対58.34、peak1.62対.55。frame20からbackward seekで10へ戻したfieldも、sequential frame10に対しRMSE .2089、mass348.28対36.86。focused runtime test pass。
+- **価値または懸念:** 連続renderでは問題が出ないが、playhead seek/大きなframe jumpを直接描画する時、過去のemission・velocity・vorticity historyが復元されない。jump後のviewport/単一frame renderはplumeの始まりだけに近い状態を表示し、連続再生と大きく違う。単にcatch-up上限を増やすだけでは長尺seekの計算コストが伸びるため、すぐに無制限replayへ変更しない。
+- **仮説（未検証）:** bounded sparse checkpointsとnearest-checkpoint replayを使えば、連続再生のfieldを保ちつつseek計算を抑えられる可能性がある。ただしFluidSnapshot2Dは複数grid bufferを持つため、checkpoint interval/countによるlayerごとのmemory costとsettings/FPS変更時の無効化が必要。
+- **次に確認すべきこと:** 1 frame snapshotの実メモリ量・copy cost、複数smoke layer時の保持量、checkpointのsettings identity/invalidation条件を確認する。先にRender Queueの連続frame保証とViewportが実際にどのjump経路を使うか確認し、仕様に必要なseek精度を決めてからcheckpoint案を試験する。
+
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
 - **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。
