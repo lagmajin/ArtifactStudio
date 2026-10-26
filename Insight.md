@@ -7092,3 +7092,11 @@
 - **仮説（未検証）:** sample capを上げるならsolver grid aspect ratioを維持したsample countと、実GPUの同一pixel resolutionでのspatial-frequency/temporal-coherenceを組にして測ると、円形spriteの粒感と細い煙輪郭のtradeoffを正しく分離できる。
 - **次に確認すべきこと:** production capは維持。次は実際のparticle vertex streamを同じGPU rendererで描画し、40×40/64×48/96×72を同一field・同一exposureで比較し、GPU instance count・frame time・画面pixelのgrain/billow有無を記録する。実GPU条件に繋げられない場合はsimulation field/detail側の検証へ進む。
 - **再検証:** smoke runtime standalone target build成功、`ComparesSmokeParticleSamplingResolutionAtMatchedExposure` 1/1 pass。captures `build/smoke-runtime-rnd/captures/sampling-resolution-rnd/`、log `build/smoke-runtime-rnd/sampling-resolution-rnd.log`。
+
+## 2026-10-26: 本番D3D12粒子描画でも高密度sampleは輪郭を滑らかにするがbillowは生まれない
+- **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の本番smoke runtime。
+- **確認できた事実:** 同一production `LayerFluidRuntimeState` frame 44の96×72 solver fieldから本番40×40 particle streamとtest-only 64×48/96×72 resamplingを生成し、RTX 4070 Ti / D3D12 `ArtifactIRenderer` で768×576へ描画した。green exposureを約±1%に揃えると粒子数は150/295/672、image high-pass RMSは.001723/.002626/.004045、GPU draw + flush/wait平均は.292/.290/.301 ms（12回、Debug build、readback除外）。GPU画像では粒状の円境界が弱まり、plume輪郭と内部の連続性が上がるが、形状は直線的な煙柱のままで渦巻くbillowは出ない。focused GTest 1/1 pass (3.0s)、captures `build/smoke-runtime-rnd/captures/diligent-production-sampling-rnd/`。
+- **価値または懸念:** 本番GPU経路でもサンプル増加の視覚差は確認できた。ただし粒子は4.48倍になる。今回のGPU待ち時間はDebug・単一解像度・単一GPUの短いmicrobenchmarkで、測定分散と他シーン負荷を含まず、frame cost全体の保証ではない。HP-RMSは細かいsprite境界も数えるため画質単独の尺度ではない。production sample capを変える根拠としてはまだ不十分。
+- **仮説（未検証）:** sample densityはsprite粒感を減らす補助策だが、Houdini/C4D風の巻き上がりには速度場・密度場のcoherentな大スケール渦構造が不足している。rendererだけの高密度化は煙柱の輪郭改善までに留まる。
+- **次に確認すべきこと:** production capは現状維持。次はroot standalone R&Dでproduction 2D velocity/densityから時間持続するconnected roll/fold構造をseed・複数frameで探索し、GPU粒子化の改善とsolverの形状改善を分けて判断する。テスト側はproduction emitter stateのままvelocity-aligned/resampled sample layoutsを比較し、GPU imageのmulti-frame stabilityも取る。
+- **再検証:** `ArtifactClonerGpuRenderContractTest` build成功。D3D12 focused test 1/1 pass。意図的に失敗した前段実験はtest-only手作りsampleに本番ジッター/座標スケールを揃えていなかったため、最終報告値から除外した。

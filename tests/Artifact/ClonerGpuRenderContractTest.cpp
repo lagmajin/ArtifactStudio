@@ -11,6 +11,7 @@
 #include <QImage>
 #include <QMatrix4x4>
 #include <QRawFont>
+#include <QRectF>
 #include <QSize>
 #include <QUuid>
 #include <QVector3D>
@@ -35,6 +36,7 @@ import Artifact.Render.DiligentImmediateSubmitter;
 import Artifact.Render.ShaderManager;
 import Artifact.Render.Config;
 import Artifact.Render.Pipeline;
+import Artifact.Layer.FluidRuntimeState;
 
 namespace {
 
@@ -1177,6 +1179,195 @@ TEST(ClonerGpuRenderContractTest,
         QStringLiteral("artifact_renderer_async_deferred_cloner_sprites_particle_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     SmokeSamplingDensityQualityOnDiligentRenderer)
+{
+    constexpr int gridWidth = 96;
+    constexpr int gridHeight = 72;
+    constexpr int scale = 8;
+    Artifact::LayerSmokeRuntimeSettings settings;
+    settings.gridWidth = gridWidth;
+    settings.gridHeight = gridHeight;
+    settings.solverIterations = 1;
+    settings.emitterX = 0.5f;
+    settings.emitterY = 0.78f;
+    settings.emitterRadius = 0.08f;
+    settings.emitterDensity = 0.8f;
+    settings.emitterVelocityY = -1.2f;
+    settings.vorticity = 1.5f;
+    settings.emitterSwirl = 0.6f;
+    settings.colorR = 0.12f;
+    settings.colorG = 0.76f;
+    settings.colorB = 0.28f;
+    Artifact::LayerFluidRuntimeState state;
+    for (int frame = 0; frame <= 44; ++frame) {
+        Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+    }
+    ASSERT_NE(state.fluidSolver_, nullptr);
+    QMatrix4x4 transform;
+    transform.setToIdentity();
+    const QRectF bounds(0.0, 0.0, gridWidth, gridHeight);
+    const auto& productionData = Artifact::prepareLayerSmokeRenderData(
+        state, bounds, transform, 1.0f, 44, settings);
+
+    const auto makeStream = [&](const int countX, const int countY) {
+        ArtifactCore::ParticleRenderData data;
+        data.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
+        data.options.billboard = ArtifactCore::ParticleBillboardPolicy::ScreenAligned;
+        const float stepX = static_cast<float>(gridWidth - 1) / (countX - 1);
+        const float stepY = static_cast<float>(gridHeight - 1) / (countY - 1);
+        const float spacing = std::max(
+            static_cast<float>(gridWidth) / (countX - 1),
+            static_cast<float>(gridHeight) / (countY - 1));
+        data.particles.reserve(static_cast<std::size_t>(countX * countY));
+        for (int sy = 0; sy < countY; ++sy) {
+            for (int sx = 0; sx < countX; ++sx) {
+                std::uint32_t hash = static_cast<std::uint32_t>(sx) * 0x9E3779B9u ^
+                    static_cast<std::uint32_t>(sy) * 0x85EBCA6Bu;
+                hash ^= hash >> 16u;
+                hash *= 0x7FEB352Du;
+                hash ^= hash >> 15u;
+                const float jitterX = static_cast<float>(hash & 0xFFFFu) *
+                    (2.0f / 65535.0f) - 1.0f;
+                const float jitterY = static_cast<float>(hash >> 16u) *
+                    (2.0f / 65535.0f) - 1.0f;
+                const float gx = std::clamp(sx * stepX + jitterX * stepX * 0.30f,
+                                             0.0f, static_cast<float>(gridWidth - 1));
+                const float gy = std::clamp(sy * stepY + jitterY * stepY * 0.30f,
+                                             0.0f, static_cast<float>(gridHeight - 1));
+                const int x0 = static_cast<int>(gx);
+                const int y0 = static_cast<int>(gy);
+                const int x1 = std::min(x0 + 1, gridWidth - 1);
+                const int y1 = std::min(y0 + 1, gridHeight - 1);
+                const float tx = gx - x0;
+                const float ty = gy - y0;
+                const auto densityAt = [&](const int x, const int y) {
+                    return state.fluidSolver_->getDensity(x, y);
+                };
+                const float density = std::lerp(
+                    std::lerp(densityAt(x0, y0), densityAt(x1, y0), tx),
+                    std::lerp(densityAt(x0, y1), densityAt(x1, y1), tx), ty);
+                if (density < 0.025f) continue;
+                ArtifactCore::ParticleVertex p{};
+                p.px = gx * scale;
+                p.py = gy * scale;
+                p.ppx = p.px;
+                p.ppy = p.py;
+                p.r = 0.12f;
+                p.g = 0.76f;
+                p.b = 0.28f;
+                p.a = std::clamp(std::sqrt(density) * 0.18f, 0.01f, 0.18f) * 0.79f;
+                p.size = spacing * scale * (0.118f + density * 0.02f) * 1.125f;
+                data.particles.push_back(p);
+            }
+        }
+        return data;
+    };
+    struct Variant {
+        const char* name;
+        ArtifactCore::ParticleRenderData data;
+        double alphaScale = 1.0;
+        ArtifactCore::ImageF32x4_RGBA image;
+    };
+    std::array<Variant, 3> variants{{
+        {"current-40x40", productionData},
+        {"resample-64x48", makeStream(64, 48)},
+        {"resample-96x72", makeStream(96, 72)},
+    }};
+    for (auto& particle : variants[0].data.particles) {
+        particle.px *= static_cast<float>(scale);
+        particle.py *= static_cast<float>(scale);
+        particle.ppx *= static_cast<float>(scale);
+        particle.ppy *= static_cast<float>(scale);
+        particle.size *= static_cast<float>(scale);
+    }
+
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(gridWidth * scale, gridHeight * scale))
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    renderer.setCanvasSize(gridWidth * scale, gridHeight * scale);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 1.0f));
+    const auto render = [&](const ArtifactCore::ParticleRenderData& data) {
+        renderer.clear();
+        renderer.drawParticles(data);
+        renderer.flushAndWait();
+        return renderer.readbackToImageF32();
+    };
+    variants[0].image = render(variants[0].data);
+    const auto exposure = [](const ArtifactCore::ImageF32x4_RGBA& image) {
+        double sum = 0.0;
+        for (int y = 0; y < image.height(); ++y)
+            for (int x = 0; x < image.width(); ++x)
+                sum += image.getPixel(x, y).g();
+        return sum;
+    };
+    const double targetExposure = exposure(variants[0].image);
+    for (std::size_t i = 1; i < variants.size(); ++i) {
+        float low = 0.0f;
+        float high = 8.0f;
+        for (int iteration = 0; iteration < 14; ++iteration) {
+            const float mid = (low + high) * 0.5f;
+            auto candidate = variants[i].data;
+            for (auto& p : candidate.particles) p.a *= mid;
+            if (exposure(render(candidate)) < targetExposure) low = mid;
+            else high = mid;
+        }
+        variants[i].alphaScale = (low + high) * 0.5f;
+        for (auto& p : variants[i].data.particles)
+            p.a *= static_cast<float>(variants[i].alphaScale);
+        variants[i].image = render(variants[i].data);
+    }
+    const auto highPass = [](const ArtifactCore::ImageF32x4_RGBA& image) {
+        double sum = 0.0;
+        std::size_t count = 0;
+        for (int y = 1; y + 1 < image.height(); ++y)
+            for (int x = 1; x + 1 < image.width(); ++x) {
+                const double center = image.getPixel(x, y).g();
+                const double neighbors = 0.25 * (
+                    image.getPixel(x - 1, y).g() + image.getPixel(x + 1, y).g() +
+                    image.getPixel(x, y - 1).g() + image.getPixel(x, y + 1).g());
+                const double residual = center - neighbors;
+                sum += residual * residual;
+                ++count;
+            }
+        return count ? std::sqrt(sum / count) : 0.0;
+    };
+    const auto meanGpuSubmitMs = [&](const ArtifactCore::ParticleRenderData& data) {
+        constexpr int warmup = 3;
+        constexpr int measured = 12;
+        for (int i = 0; i < warmup; ++i) {
+            renderer.clear();
+            renderer.drawParticles(data);
+            renderer.flushAndWait();
+        }
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < measured; ++i) {
+            renderer.clear();
+            renderer.drawParticles(data);
+            renderer.flushAndWait();
+        }
+        const auto end = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(end - start).count() /
+            static_cast<double>(measured);
+    };
+    const QString output = qEnvironmentVariable("ARTIFACT_SMOKE_GPU_OUTPUT_DIR");
+    for (const auto& variant : variants) {
+        GTEST_LOG_(INFO) << "Diligent smoke sampling " << variant.name
+            << " particles=" << variant.data.particles.size()
+            << " alphaScale=" << variant.alphaScale
+            << " exposure=" << exposure(variant.image)
+            << " hp-rms=" << highPass(variant.image)
+            << " mean-gpu-submit-ms=" << meanGpuSubmitMs(variant.data);
+        EXPECT_NEAR(exposure(variant.image), targetExposure, targetExposure * 0.01);
+        if (!output.isEmpty()) {
+            ASSERT_TRUE(QDir().mkpath(output));
+            EXPECT_TRUE(variant.image.toQImage().save(
+                QDir(output).filePath(QStringLiteral("%1.png").arg(
+                    QString::fromLatin1(variant.name))), "PNG"));
+        }
+    }
 }
 
 TEST(ClonerGpuRenderContractTest,
