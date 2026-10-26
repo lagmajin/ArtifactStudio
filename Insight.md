@@ -7280,6 +7280,13 @@
 - **仮説（未検証）:** low-CFL substepとlimited conservative flux transportを合わせると、渦形状を追いながら密度を保持できる可能性がある。先行するMUSCL replayではmassが保たれる一方、細く明るいstreakへ偏ったため、単に輸送法を変えるだけではplume volumeの見え方を保てない。
 - **次に確認すべきこと:** 同一固定velocity場・同一substep数でsemi-Lagrangianとlimited MUSCLを露出・mass-matched比較した後、source-coupled runtime velocity historyへ戻してdensity support / peak / silhouette / temporal coherenceを測る。production Coreの移流演算子はその前に変えない。
 
+## 2026-10-27: 固定渦scalar輸送でMUSCLは質量を保つが今回の比較では有意な見た目改善なし
+- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarDiffusionAcrossSubstepCounts`、72×88固定velocity scalar fixture。
+- **確認できた事実:** 既存のsemi-Lagrangian 1/2/4/8条件へ、同じ速度場・初期Gaussian・時間長のfirst-order upwindとtest-only limited MUSCLの4/8 substep条件を追加した。focused standalone testは1/1 pass。MUSCL 8-stepのframe60 massはseed17/71で218.586/218.555でほぼ保存し、scalarは同じ渦へ巻き込まれる。一方MUSCL 4-stepはseed17でmassが326.536へ増え安定しなかった。first-order upwindはsource位置依存の極端な質量変動を示した（seed17:132.985、seed71:470.936）。MUSCL 8-stepでも低いpeak/gradientの滑らかな帯で、billowや明瞭な品質改善は見られない。比較画像とlogは `build/smoke-emitter-rnd/captures/fixed-scalar-transport-sweep-rnd/` と `build/smoke-emitter-rnd/fixed-scalar-transport-sweep-rnd.log`。
+- **価値または懸念:** これは固定速度場の小さな診断fixtureであり、first-order upwindはMUSCLの一部ではなく低精度の基準条件。今回の簡易MUSCLは4 substepsで質量増加を出し、8 substepsでの質量保存も視覚的な煙質感にはつながらないため、本番移流への採用根拠にはならない。
+- **仮説（未検証）:** 高解像度またはCFLに応じたsubstep数、境界上の速度整合を加えればMUSCLの安定域が広がる可能性がある。ただし保守性だけで密度peakやplume volumeの見え方は保証されない。
+- **次に確認すべきこと:** flux updateのpositivity/CFL制約と離散velocity divergenceを検査し、MUSCLを安定化できた場合に限り露出を合わせた画像比較へ進む。その後source-coupled solverでdensity support、peak、silhouette、時間一貫性を検証する。
+
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
 - **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。

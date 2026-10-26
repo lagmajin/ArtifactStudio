@@ -1127,11 +1127,11 @@ TEST(SmokeEmitterStandaloneTest,
   for (int seedIndex = 0; seedIndex < 2; ++seedIndex) {
     const int seed = seedIndex == 0 ? 17 : 71;
     const float sourceX = seedIndex == 0 ? 0.40f : 0.60f;
-    QImage contact(cellWidth * 4, cellHeight * 4, QImage::Format_ARGB32);
+    QImage contact(cellWidth * 4, cellHeight * 8, QImage::Format_ARGB32);
     contact.fill(qRgba(8, 12, 18, 255));
-    std::array<std::array<double, 4>, 4> masses{};
-    std::array<std::array<double, 4>, 4> gradients{};
-    std::array<std::array<double, 4>, 4> peaks{};
+    std::array<std::array<double, 4>, 8> masses{};
+    std::array<std::array<double, 4>, 8> gradients{};
+    std::array<std::array<double, 4>, 8> peaks{};
 
     for (std::size_t condition = 0; condition < substepCounts.size(); ++condition) {
       const int substeps = substepCounts[condition];
@@ -1231,6 +1231,153 @@ TEST(SmokeEmitterStandaloneTest,
       ASSERT_EQ(captureIndex, static_cast<int>(captureFrames.size()));
     }
 
+    const auto minmod = [](const float a, const float b) {
+      if (a * b <= 0.0f) return 0.0f;
+      return std::copysign(std::min(std::abs(a), std::abs(b)), a);
+    };
+    for (std::size_t methodIndex = 0; methodIndex < 4; ++methodIndex) {
+      const std::size_t substepIndex = methodIndex % 2 + 2;
+      const int substeps = substepCounts[substepIndex];
+      const std::size_t outputRow = methodIndex + 4;
+      const bool useLimitedMuscl = methodIndex >= 2;
+      ArtifactCore::NamedVector<float> density;
+      ArtifactCore::NamedVector<float> next;
+      density.resize(cellCount);
+      next.resize(cellCount);
+      const float centerX = sourceX * static_cast<float>(gridWidth - 2) + 1.0f;
+      const float centerY = 0.79f * static_cast<float>(gridHeight - 2) + 1.0f;
+      for (int y = 0; y < gridHeight; ++y) {
+        for (int x = 0; x < gridWidth; ++x) {
+          const float dx = (static_cast<float>(x) - centerX) / 5.0f;
+          const float dy = (static_cast<float>(y) - centerY) / 7.0f;
+          density[index(x, y)] = std::exp(-0.5f * (dx * dx + dy * dy));
+        }
+      }
+
+      int captureIndex = 0;
+      const float substepDt = frameDt / static_cast<float>(substeps);
+      for (int frame = 1; frame <= totalFrames; ++frame) {
+        for (int substep = 0; substep < substeps; ++substep) {
+          std::fill(next.begin(), next.end(), 0.0f);
+          for (int y = 1; y < gridHeight - 1; ++y) {
+            for (int x = 1; x < gridWidth - 1; ++x) {
+              const auto cell = index(x, y);
+              const float uLeft = 0.5f *
+                  (velocityX[index(x - 1, y)] + velocityX[cell]) *
+                      static_cast<float>(gridWidth - 2);
+              const float uRight = 0.5f *
+                  (velocityX[cell] + velocityX[index(x + 1, y)]) *
+                      static_cast<float>(gridWidth - 2);
+              const float vTop = 0.5f *
+                  (velocityY[index(x, y - 1)] + velocityY[cell]) *
+                      static_cast<float>(gridHeight - 2);
+              const float vBottom = 0.5f *
+                  (velocityY[cell] + velocityY[index(x, y + 1)]) *
+                      static_cast<float>(gridHeight - 2);
+              const float leftState = useLimitedMuscl && uLeft >= 0.0f
+                  ? (x == 0 ? density[cell] : std::max(0.0f,
+                      density[index(x - 1, y)] + 0.5f * minmod(
+                          density[index(x - 1, y)] -
+                              density[index(std::max(0, x - 2), y)],
+                          density[cell] - density[index(x - 1, y)])))
+                  : (useLimitedMuscl ? std::max(0.0f, density[cell] - 0.5f * minmod(
+                        density[cell] - density[index(std::max(0, x - 1), y)],
+                        density[index(std::min(gridWidth - 1, x + 1), y)] -
+                            density[cell])) : density[cell]);
+              const float rightState = useLimitedMuscl && uRight >= 0.0f
+                  ? std::max(0.0f, density[cell] + 0.5f * minmod(
+                        density[cell] - density[index(std::max(0, x - 1), y)],
+                        density[index(std::min(gridWidth - 1, x + 1), y)] -
+                            density[cell]))
+                  : (!useLimitedMuscl || x == gridWidth - 1 ? density[cell] : std::max(0.0f,
+                      density[index(x + 1, y)] - 0.5f * minmod(
+                          density[index(x + 1, y)] - density[cell],
+                          density[index(std::min(gridWidth - 1, x + 2), y)] -
+                              density[index(x + 1, y)])));
+              const float topState = useLimitedMuscl && vTop >= 0.0f
+                  ? (y == 0 ? density[cell] : std::max(0.0f,
+                      density[index(x, y - 1)] + 0.5f * minmod(
+                          density[index(x, y - 1)] -
+                              density[index(x, std::max(0, y - 2))],
+                          density[cell] - density[index(x, y - 1)])))
+                  : (useLimitedMuscl ? std::max(0.0f, density[cell] - 0.5f * minmod(
+                        density[cell] - density[index(x, std::max(0, y - 1))],
+                        density[index(x, std::min(gridHeight - 1, y + 1))] -
+                            density[cell])) : density[cell]);
+              const float bottomState = useLimitedMuscl && vBottom >= 0.0f
+                  ? std::max(0.0f, density[cell] + 0.5f * minmod(
+                        density[cell] - density[index(x, std::max(0, y - 1))],
+                        density[index(x, std::min(gridHeight - 1, y + 1))] -
+                            density[cell]))
+                  : (!useLimitedMuscl || y == gridHeight - 1 ? density[cell] : std::max(0.0f,
+                      density[index(x, y + 1)] - 0.5f * minmod(
+                          density[index(x, y + 1)] - density[cell],
+                          density[index(x, std::min(gridHeight - 1, y + 2))] -
+                              density[index(x, y + 1)])));
+              const float fluxDivergence =
+                  uRight * rightState - uLeft * leftState +
+                  vBottom * bottomState - vTop * topState;
+              next[cell] = useLimitedMuscl
+                  ? std::max(0.0f, density[cell] - substepDt * fluxDivergence)
+                  : density[cell] - substepDt * fluxDivergence;
+            }
+          }
+          std::copy(next.begin(), next.end(), density.begin());
+        }
+
+        if (captureIndex >= static_cast<int>(captureFrames.size()) ||
+            frame != captureFrames[static_cast<std::size_t>(captureIndex)]) {
+          continue;
+        }
+        double mass = 0.0;
+        double gradientSquared = 0.0;
+        float peak = 0.0f;
+        for (int y = 1; y < gridHeight - 1; ++y) {
+          for (int x = 1; x < gridWidth - 1; ++x) {
+            const float value = density[index(x, y)];
+            mass += std::max(0.0f, value);
+            peak = std::max(peak, value);
+            const double gx = 0.5 * (density[index(x + 1, y)] -
+                                     density[index(x - 1, y)]);
+            const double gy = 0.5 * (density[index(x, y + 1)] -
+                                     density[index(x, y - 1)]);
+            gradientSquared += gx * gx + gy * gy;
+          }
+        }
+        const double interiorCells =
+            static_cast<double>((gridWidth - 2) * (gridHeight - 2));
+        masses[outputRow][static_cast<std::size_t>(captureIndex)] = mass;
+        gradients[outputRow][static_cast<std::size_t>(captureIndex)] =
+            std::sqrt(gradientSquared / interiorCells);
+        peaks[outputRow][static_cast<std::size_t>(captureIndex)] = peak;
+        QImage sample(cellWidth, cellHeight, QImage::Format_ARGB32);
+        sample.fill(qRgba(8, 12, 18, 255));
+        for (int y = 1; y < gridHeight - 1; ++y) {
+          for (int x = 1; x < gridWidth - 1; ++x) {
+            const float value = peak > 0.0f ? density[index(x, y)] / peak : 0.0f;
+            const int intensity = static_cast<int>(std::lround(
+                std::clamp(value, 0.0f, 1.0f) * 220.0f));
+            const QRgb pixel = qRgba(8, 12 + intensity, 18, 255);
+            for (int oy = 0; oy < imageScale; ++oy) {
+              auto* dst = reinterpret_cast<QRgb*>(
+                  sample.scanLine(y * imageScale + oy)) + x * imageScale;
+              std::fill(dst, dst + imageScale, pixel);
+            }
+          }
+        }
+        const int offsetX = captureIndex * cellWidth;
+        const int offsetY = static_cast<int>(outputRow) * cellHeight;
+        for (int y = 0; y < cellHeight; ++y) {
+          auto* dst = reinterpret_cast<QRgb*>(
+              contact.scanLine(offsetY + y)) + offsetX;
+          const auto* src = reinterpret_cast<const QRgb*>(sample.constScanLine(y));
+          std::copy(src, src + cellWidth, dst);
+        }
+        ++captureIndex;
+      }
+      ASSERT_EQ(captureIndex, static_cast<int>(captureFrames.size()));
+    }
+
     for (std::size_t condition = 0; condition < substepCounts.size(); ++condition) {
       for (std::size_t capture = 0; capture < captureFrames.size(); ++capture) {
         GTEST_LOG_(INFO) << "fixed scalar substeps seed=" << seed
@@ -1239,6 +1386,19 @@ TEST(SmokeEmitterStandaloneTest,
             << " mass=" << masses[condition][capture]
             << " gradientRms=" << gradients[condition][capture]
             << " peak=" << peaks[condition][capture]
+            << " maxFrameCflCells=" << maximumFrameCfl;
+      }
+    }
+    for (std::size_t method = 0; method < 4; ++method) {
+      const std::size_t row = method + 4;
+      for (std::size_t capture = 0; capture < captureFrames.size(); ++capture) {
+        GTEST_LOG_(INFO) << "fixed scalar " << (method < 2 ? "upwind" : "limited-MUSCL")
+            << " seed=" << seed
+            << " count=" << substepCounts[method % 2 + 2]
+            << " frame=" << captureFrames[capture]
+            << " mass=" << masses[row][capture]
+            << " gradientRms=" << gradients[row][capture]
+            << " peak=" << peaks[row][capture]
             << " maxFrameCflCells=" << maximumFrameCfl;
       }
     }
