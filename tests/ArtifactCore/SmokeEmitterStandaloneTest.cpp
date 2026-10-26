@@ -11,9 +11,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 import Physics.Fluid;
+import Container.NamedVector;
 
 namespace {
 
@@ -69,13 +71,15 @@ void applySmokeBuoyancy(ArtifactCore::FluidSolver2D& solver,
 }
 
 QImage renderSmokeDensity(const ArtifactCore::FluidSolver2D& solver,
-                          const int scale = 4) {
+                          const int scale = 4,
+                          const float exposureScale = 1.0f) {
   QImage image(solver.width() * scale, solver.height() * scale,
                QImage::Format_ARGB32);
   image.fill(qRgba(8, 12, 18, 255));
   for (int y = 1; y < solver.height() - 1; ++y) {
     for (int x = 1; x < solver.width() - 1; ++x) {
-      const float density = std::clamp(solver.getDensity(x, y), 0.0f, 1.0f);
+      const float density = std::clamp(
+          solver.getDensity(x, y) * exposureScale, 0.0f, 1.0f);
       const int red = static_cast<int>(8.0f + density * 120.0f);
       const int green = static_cast<int>(12.0f + density * 220.0f);
       const int blue = static_cast<int>(18.0f + density * 150.0f);
@@ -97,6 +101,200 @@ double smokeMass(const ArtifactCore::FluidSolver2D& solver) {
     }
   }
   return mass;
+}
+
+void injectSmokeTemperature(
+    ArtifactCore::NamedVector<float>& temperature, const int width,
+    const int height, const ArtifactCore::SmokeEmitter2D& emitter) {
+  const float x = std::clamp(emitter.x, 0.0f, 1.0f);
+  const float y = std::clamp(emitter.y, 0.0f, 1.0f);
+  const float radius = std::clamp(emitter.radius, 0.0f, 1.0f);
+  const int centerX = 1 + static_cast<int>(
+      std::round(x * static_cast<float>(width - 3)));
+  const int centerY = 1 + static_cast<int>(
+      std::round(y * static_cast<float>(height - 3)));
+  const float radiusX = std::max(radius * static_cast<float>(width - 2), 0.5f);
+  const float radiusY = std::max(radius * static_cast<float>(height - 2), 0.5f);
+  const int extentX = static_cast<int>(std::ceil(radiusX));
+  const int extentY = static_cast<int>(std::ceil(radiusY));
+  for (int yCell = std::max(1, centerY - extentY);
+       yCell <= std::min(height - 2, centerY + extentY); ++yCell) {
+    for (int xCell = std::max(1, centerX - extentX);
+         xCell <= std::min(width - 2, centerX + extentX); ++xCell) {
+      const float dx = static_cast<float>(xCell - centerX) / radiusX;
+      const float dy = static_cast<float>(yCell - centerY) / radiusY;
+      const float distanceSquared = dx * dx + dy * dy;
+      if (distanceSquared > 1.0f) continue;
+      temperature[static_cast<std::size_t>(xCell + yCell * width)] +=
+          (1.0f - distanceSquared) * std::max(0.0f, emitter.density);
+    }
+  }
+}
+
+void applyTemperatureBuoyancy(ArtifactCore::FluidSolver2D& solver,
+                              const ArtifactCore::NamedVector<float>& temperature,
+                              const float buoyancy, const float dt) {
+  for (int y = 1; y < solver.height() - 1; ++y) {
+    for (int x = 1; x < solver.width() - 1; ++x) {
+      const float heat = temperature[
+          static_cast<std::size_t>(x + y * solver.width())];
+      solver.addVelocity(x, y, 0.0f, -heat * buoyancy * dt);
+    }
+  }
+}
+
+float smokeSmoothValueNoise(float x, float y, std::uint32_t seed);
+
+// Test-only low/mid frequency forcing built as the curl of a scalar stream
+// function, so each mode adds rotational motion without directly injecting
+// divergent velocity. Temperature masks the force to the hot plume.
+void applyTemperatureCurlTurbulence(
+    ArtifactCore::FluidSolver2D& solver,
+    const ArtifactCore::NamedVector<float>& temperature, const float dt,
+    const float simulationTime, const float lowFrequencyStrength,
+    const float midFrequencyStrength, const float phaseOffset,
+    const bool useNonPeriodicNoise,
+    ArtifactCore::NamedVector<float>& streamFunction) {
+  const int width = solver.width();
+  const int height = solver.height();
+  const auto index = [width](const int x, const int y) {
+    return static_cast<std::size_t>(x + y * width);
+  };
+  constexpr float twoPi = 6.2831853071795864769f;
+  struct Mode final {
+    float wavelengthX;
+    float wavelengthY;
+    float temporalRate;
+    float strength;
+    float phase;
+  };
+  const std::array<Mode, 3> modes{{
+      {25.0f, 21.0f, 0.65f, lowFrequencyStrength, 0.3f},
+      {19.0f, 28.0f, -0.47f, lowFrequencyStrength * 0.63f, 2.1f},
+      {10.0f, 13.0f, 0.91f, midFrequencyStrength, 1.4f},
+  }};
+  std::fill(streamFunction.begin(), streamFunction.end(), 0.0f);
+  for (const Mode& mode : modes) {
+    if (mode.strength == 0.0f) continue;
+    const float kx = twoPi / mode.wavelengthX;
+    const float ky = twoPi / mode.wavelengthY;
+    const float phase = mode.phase + phaseOffset +
+        simulationTime * mode.temporalRate;
+    const std::uint32_t noiseSeed = 0xB5297A4Du ^
+        static_cast<std::uint32_t>(std::lround((mode.phase + 1.0f) * 1000.0f)) ^
+        static_cast<std::uint32_t>(std::lround(phaseOffset * 997.0f));
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        const auto cell = index(x, y);
+        const float envelope = std::clamp(temperature[cell] * 3.0f,
+                                          0.0f, 1.0f);
+        if (envelope <= 0.0f) continue;
+        const float fieldValue = useNonPeriodicNoise
+            ? smokeSmoothValueNoise(
+                  static_cast<float>(x) / mode.wavelengthX +
+                      simulationTime * mode.temporalRate * 0.11f,
+                  static_cast<float>(y) / mode.wavelengthY -
+                      simulationTime * mode.temporalRate * 0.07f,
+                  noiseSeed)
+            : std::sin(kx * static_cast<float>(x) + phase) *
+                  std::sin(ky * static_cast<float>(y) - phase * 0.73f);
+        streamFunction[cell] += mode.strength * envelope * fieldValue;
+      }
+    }
+  }
+  for (int y = 2; y < height - 2; ++y) {
+    for (int x = 2; x < width - 2; ++x) {
+      const float streamX = (streamFunction[index(x + 1, y)] -
+                             streamFunction[index(x - 1, y)]) * 0.5f;
+      const float streamY = (streamFunction[index(x, y + 1)] -
+                             streamFunction[index(x, y - 1)]) * 0.5f;
+      solver.addVelocity(x, y, streamY * dt, -streamX * dt);
+    }
+  }
+}
+
+void advectSmokeTemperature(ArtifactCore::NamedVector<float>& temperature,
+                            ArtifactCore::NamedVector<float>& next,
+                            const ArtifactCore::FluidSolver2D& solver,
+                            const float dt, const float coolingRate) {
+  const auto velocity = solver.snapshot();
+  const int width = solver.width();
+  const int height = solver.height();
+  const float dtx = dt * static_cast<float>(width - 2);
+  const float dty = dt * static_cast<float>(height - 2);
+  const float retention = std::exp(-std::max(0.0f, coolingRate) * dt);
+  std::fill(next.begin(), next.end(), 0.0f);
+  const auto index = [width](const int x, const int y) {
+    return static_cast<std::size_t>(x + y * width);
+  };
+  for (int y = 1; y < height - 1; ++y) {
+    for (int x = 1; x < width - 1; ++x) {
+      const auto cell = index(x, y);
+      float backX = static_cast<float>(x) -
+                    dtx * velocity.velocityX[cell];
+      float backY = static_cast<float>(y) -
+                    dty * velocity.velocityY[cell];
+      backX = std::clamp(backX, 0.5f, static_cast<float>(width) - 1.5f);
+      backY = std::clamp(backY, 0.5f, static_cast<float>(height) - 1.5f);
+      const int x0 = static_cast<int>(std::floor(backX));
+      const int y0 = static_cast<int>(std::floor(backY));
+      const int x1 = x0 + 1;
+      const int y1 = y0 + 1;
+      const float tx = backX - static_cast<float>(x0);
+      const float ty = backY - static_cast<float>(y0);
+      const float top = std::lerp(temperature[index(x0, y0)],
+                                  temperature[index(x1, y0)], tx);
+      const float bottom = std::lerp(temperature[index(x0, y1)],
+                                     temperature[index(x1, y1)], tx);
+      next[cell] = std::lerp(top, bottom, ty) * retention;
+    }
+  }
+  temperature = next;
+}
+
+double smokeCentroidY(const ArtifactCore::FluidSolver2D& solver) {
+  double weightedY = 0.0;
+  double mass = 0.0;
+  for (int y = 1; y < solver.height() - 1; ++y) {
+    for (int x = 1; x < solver.width() - 1; ++x) {
+      const double density = std::max(0.0f, solver.getDensity(x, y));
+      weightedY += density * static_cast<double>(y);
+      mass += density;
+    }
+  }
+  return mass > 0.0 ? weightedY / mass : 0.0;
+}
+
+double scalarMass(const ArtifactCore::NamedVector<float>& field) {
+  double mass = 0.0;
+  for (const float value : field) mass += std::max(0.0f, value);
+  return mass;
+}
+
+float smokeHashValue(const int x, const int y, const std::uint32_t seed) {
+  std::uint32_t hash = seed ^ static_cast<std::uint32_t>(x) * 0x9E3779B9u ^
+      static_cast<std::uint32_t>(y) * 0x85EBCA6Bu;
+  hash ^= hash >> 16u;
+  hash *= 0x7FEB352Du;
+  hash ^= hash >> 15u;
+  hash *= 0x846CA68Bu;
+  hash ^= hash >> 16u;
+  return static_cast<float>(hash & 0x00FFFFFFu) / 8388607.5f - 1.0f;
+}
+
+float smokeSmoothValueNoise(const float x, const float y,
+                            const std::uint32_t seed) {
+  const int x0 = static_cast<int>(std::floor(x));
+  const int y0 = static_cast<int>(std::floor(y));
+  const float rawX = x - static_cast<float>(x0);
+  const float rawY = y - static_cast<float>(y0);
+  const float tx = rawX * rawX * (3.0f - 2.0f * rawX);
+  const float ty = rawY * rawY * (3.0f - 2.0f * rawY);
+  const float top = std::lerp(smokeHashValue(x0, y0, seed),
+                              smokeHashValue(x0 + 1, y0, seed), tx);
+  const float bottom = std::lerp(smokeHashValue(x0, y0 + 1, seed),
+                                 smokeHashValue(x0 + 1, y0 + 1, seed), tx);
+  return std::lerp(top, bottom, ty);
 }
 
 }  // namespace
@@ -529,6 +727,332 @@ TEST(SmokeEmitterStandaloneTest,
     }
     const QString imagePath = QDir(outputDirectory).filePath(
         QStringLiteral("smoke_vorticity_pair_seed_%1.png").arg(seed));
+    ASSERT_TRUE(contact.save(imagePath, "PNG")) << imagePath.toStdString();
+  }
+}
+
+TEST(SmokeEmitterStandaloneTest,
+     ComparesSeparatedThermalMemoryAfterEqualSmokePulse) {
+  constexpr int gridWidth = 72;
+  constexpr int gridHeight = 88;
+  constexpr int totalFrames = 60;
+  constexpr int emissionFrames = 12;
+  constexpr float dt = 1.0f / 30.0f;
+  constexpr float densityDissipation = 2.5f;
+  constexpr float densityRetention =
+      0.9200444146293233f;  // exp(-densityDissipation / 30)
+  constexpr int imageScale = 4;
+  constexpr int cellWidth = gridWidth * imageScale;
+  constexpr int cellHeight = gridHeight * imageScale;
+  constexpr std::array<int, 4> captureFrames{12, 24, 36, 60};
+  struct ThermalCondition {
+    const char* name;
+    float coolingRate;
+    float buoyancy;
+    float lowFrequencyStrength;
+    float midFrequencyStrength;
+    bool useNonPeriodicNoise;
+  };
+  constexpr std::array<ThermalCondition, 8> conditions{{
+      {"density-as-heat", 0.0f, 0.05f, 0.0f, 0.0f, false},
+      {"separate-matched-cooling", densityDissipation, 0.05f, 0.0f, 0.0f, false},
+      {"separate-slow-cooling", 0.5f, 0.01f, 0.0f, 0.0f, false},
+      {"temperature-low-frequency-curl", 0.5f, 0.01f, 5.0f, 0.0f, false},
+      {"temperature-low-mid-frequency-curl", 0.5f, 0.01f, 5.0f, 2.5f, false},
+      {"temperature-strong-low-frequency-curl", 0.5f, 0.01f, 8.0f, 0.0f, false},
+      {"temperature-low-frequency-noise-curl", 0.5f, 0.01f, 5.0f, 0.0f, true},
+      {"temperature-low-mid-frequency-noise-curl", 0.5f, 0.01f, 5.0f, 2.5f, true},
+  }};
+  constexpr std::array<float, 4> captureExposure{1.0f, 4.0f, 12.0f, 32.0f};
+
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_OUTPUT_DIR");
+  ASSERT_FALSE(outputDirectory.isEmpty())
+      << "Set ARTIFACT_SMOKE_OUTPUT_DIR to an absolute output directory";
+  ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+
+  for (int seedIndex = 0; seedIndex < 2; ++seedIndex) {
+    const int seed = seedIndex == 0 ? 17 : 71;
+    QImage contact(cellWidth * 4, cellHeight * 8, QImage::Format_ARGB32);
+    contact.fill(qRgba(8, 12, 18, 255));
+    std::array<std::array<double, 4>, 8> masses{};
+    std::array<std::array<double, 4>, 8> centroids{};
+    std::array<std::array<double, 4>, 8> thermalMasses{};
+
+    for (std::size_t conditionIndex = 0;
+         conditionIndex < conditions.size(); ++conditionIndex) {
+      const auto& condition = conditions[conditionIndex];
+      ArtifactCore::FluidSolver2D solver(gridWidth, gridHeight);
+      solver.setViscosity(0.00001f);
+      solver.setDiffusion(0.00001f);
+      solver.setBuoyancy(conditionIndex == 0 ? condition.buoyancy : 0.0f);
+      solver.setVorticity(0.1f);
+      solver.setSolverIterations(20);
+
+      ArtifactCore::SmokeEmitter2D emitter;
+      emitter.x = seedIndex == 0 ? 0.47f : 0.53f;
+      emitter.y = 0.82f;
+      emitter.radius = 0.07f;
+      emitter.density = 0.45f;
+      emitter.velocityX = seedIndex == 0 ? -0.04f : 0.04f;
+      emitter.velocityY = -0.55f;
+      emitter.swirl = seedIndex == 0 ? 0.55f : -0.55f;
+
+      ArtifactCore::NamedVector<float> temperature;
+      ArtifactCore::NamedVector<float> temperatureNext;
+      ArtifactCore::NamedVector<float> streamFunction;
+      temperature.resize(static_cast<std::size_t>(gridWidth * gridHeight));
+      temperatureNext.resize(static_cast<std::size_t>(gridWidth * gridHeight));
+      streamFunction.resize(static_cast<std::size_t>(gridWidth * gridHeight));
+      std::fill(temperature.begin(), temperature.end(), 0.0f);
+      std::fill(temperatureNext.begin(), temperatureNext.end(), 0.0f);
+      int captureIndex = 0;
+
+      for (int frame = 1; frame <= totalFrames; ++frame) {
+        if (frame <= emissionFrames) {
+          ArtifactCore::injectSmokeEmitter2D(solver, emitter);
+          if (conditionIndex > 0) {
+            injectSmokeTemperature(temperature, gridWidth, gridHeight, emitter);
+          }
+        }
+        if (conditionIndex > 0) {
+          applyTemperatureBuoyancy(solver, temperature, condition.buoyancy, dt);
+          applyTemperatureCurlTurbulence(
+              solver, temperature, dt, static_cast<float>(frame) * dt,
+              condition.lowFrequencyStrength, condition.midFrequencyStrength,
+              static_cast<float>(seedIndex) * 1.73f,
+              condition.useNonPeriodicNoise, streamFunction);
+        }
+
+        solver.update(dt);
+        solver.scaleDensity(densityRetention);
+        if (conditionIndex > 0) {
+          advectSmokeTemperature(temperature, temperatureNext, solver, dt,
+                                 condition.coolingRate);
+        }
+
+        if (captureIndex >= static_cast<int>(captureFrames.size()) ||
+            frame != captureFrames[static_cast<std::size_t>(captureIndex)]) {
+          continue;
+        }
+        const QImage sample = renderSmokeDensity(
+            solver, imageScale,
+            captureExposure[static_cast<std::size_t>(captureIndex)]);
+        const int offsetX = captureIndex * cellWidth;
+        const int offsetY = static_cast<int>(conditionIndex) * cellHeight;
+        for (int y = 0; y < cellHeight; ++y) {
+          auto* dst = reinterpret_cast<QRgb*>(
+              contact.scanLine(offsetY + y)) + offsetX;
+          const auto* src = reinterpret_cast<const QRgb*>(sample.constScanLine(y));
+          std::copy(src, src + cellWidth, dst);
+        }
+        masses[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            smokeMass(solver);
+        centroids[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            smokeCentroidY(solver);
+        thermalMasses[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            conditionIndex == 0 ? 0.0 : scalarMass(temperature);
+        ++captureIndex;
+      }
+      ASSERT_EQ(captureIndex, static_cast<int>(captureFrames.size()));
+      EXPECT_GT(masses[conditionIndex][3], 1.0)
+          << "smoke density vanished for " << condition.name << " seed " << seed;
+      if (conditionIndex > 0) {
+        EXPECT_GT(thermalMasses[conditionIndex][3], 0.01)
+            << "separate thermal field vanished for " << condition.name
+            << " seed " << seed;
+      }
+    }
+
+    EXPECT_GT(thermalMasses[2][3], thermalMasses[1][3])
+        << "slow cooling should retain more temperature after the same pulse";
+    for (std::size_t turbulenceCondition = 6;
+         turbulenceCondition < conditions.size(); ++turbulenceCondition) {
+      EXPECT_GT(std::abs(centroids[turbulenceCondition][3] - centroids[2][3]),
+                1.0)
+          << "temperature-masked curl noise should move the smoke mass for "
+          << conditions[turbulenceCondition].name << " seed " << seed;
+    }
+    for (std::size_t frameIndex = 0; frameIndex < captureFrames.size();
+         ++frameIndex) {
+      const double densityHeatMass = masses[0][frameIndex];
+      const double matchedTemperatureMass = masses[1][frameIndex];
+      EXPECT_NEAR(densityHeatMass, matchedTemperatureMass,
+                  densityHeatMass * 0.01 + 1.0e-4)
+          << "equal density/temperature cooling should stay close at frame "
+          << captureFrames[frameIndex];
+    }
+    for (std::size_t conditionIndex = 0;
+         conditionIndex < conditions.size(); ++conditionIndex) {
+      for (std::size_t frameIndex = 0; frameIndex < captureFrames.size();
+           ++frameIndex) {
+        GTEST_LOG_(INFO) << "smoke thermal seed=" << seed
+                         << " mode=" << conditions[conditionIndex].name
+                         << " frame=" << captureFrames[frameIndex]
+                         << " density-mass="
+                         << masses[conditionIndex][frameIndex]
+                         << " density-centroid-y="
+                         << centroids[conditionIndex][frameIndex]
+                         << " temperature-mass="
+                         << thermalMasses[conditionIndex][frameIndex];
+      }
+    }
+
+    const QString imagePath = QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_thermal_response_seed_%1.png").arg(seed));
+    ASSERT_TRUE(contact.save(imagePath, "PNG")) << imagePath.toStdString();
+  }
+}
+
+TEST(SmokeEmitterStandaloneTest,
+     TemperatureMaskedCurlNoiseAddsDivergenceFreeVelocity) {
+  constexpr int width = 80;
+  constexpr int height = 64;
+  ArtifactCore::FluidSolver2D solver(width, height);
+  ArtifactCore::NamedVector<float> temperature;
+  ArtifactCore::NamedVector<float> streamFunction;
+  temperature.resize(static_cast<std::size_t>(width * height));
+  streamFunction.resize(static_cast<std::size_t>(width * height));
+  for (int y = 1; y < height - 1; ++y) {
+    for (int x = 1; x < width - 1; ++x) {
+      const float dx = static_cast<float>(x - 40) / 11.0f;
+      const float dy = static_cast<float>(y - 40) / 9.0f;
+      temperature[static_cast<std::size_t>(x + y * width)] =
+          std::exp(-0.5f * (dx * dx + dy * dy));
+    }
+  }
+
+  applyTemperatureCurlTurbulence(solver, temperature, 1.0f / 30.0f, 0.5f,
+                                 5.0f, 2.5f, 1.73f, true,
+                                 streamFunction);
+  const auto velocity = solver.snapshot();
+  double divergenceSquared = 0.0;
+  double maximumAbsoluteDivergence = 0.0;
+  std::size_t sampleCount = 0;
+  double velocityEnergy = 0.0;
+  for (int y = 3; y < height - 3; ++y) {
+    for (int x = 3; x < width - 3; ++x) {
+      const auto index = [width](const int px, const int py) {
+        return static_cast<std::size_t>(px + py * width);
+      };
+      const float divergence = 0.5f * (
+          velocity.velocityX[index(x + 1, y)] -
+              velocity.velocityX[index(x - 1, y)] +
+          velocity.velocityY[index(x, y + 1)] -
+              velocity.velocityY[index(x, y - 1)]);
+      divergenceSquared += static_cast<double>(divergence) * divergence;
+      maximumAbsoluteDivergence = std::max(
+          maximumAbsoluteDivergence, std::abs(static_cast<double>(divergence)));
+      const auto cell = index(x, y);
+      velocityEnergy += static_cast<double>(velocity.velocityX[cell]) *
+              velocity.velocityX[cell] +
+          static_cast<double>(velocity.velocityY[cell]) *
+              velocity.velocityY[cell];
+      ++sampleCount;
+    }
+  }
+  const double divergenceRms = std::sqrt(
+      divergenceSquared / static_cast<double>(sampleCount));
+  EXPECT_GT(velocityEnergy, 1.0e-8);
+  EXPECT_LT(divergenceRms, 1.0e-7);
+  EXPECT_LT(maximumAbsoluteDivergence, 1.0e-6);
+}
+
+TEST(SmokeEmitterStandaloneTest,
+     ComparesDensityDissipationAfterEqualSmokePulse) {
+  constexpr int gridWidth = 72;
+  constexpr int gridHeight = 88;
+  constexpr int totalFrames = 60;
+  constexpr int emissionFrames = 12;
+  constexpr float dt = 1.0f / 30.0f;
+  constexpr int imageScale = 4;
+  constexpr int cellWidth = gridWidth * imageScale;
+  constexpr int cellHeight = gridHeight * imageScale;
+  constexpr std::array<int, 4> captureFrames{12, 24, 36, 60};
+  constexpr std::array<float, 4> dissipationRates{0.1f, 0.5f, 1.0f, 2.5f};
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_OUTPUT_DIR");
+  ASSERT_FALSE(outputDirectory.isEmpty())
+      << "Set ARTIFACT_SMOKE_OUTPUT_DIR to an absolute output directory";
+  ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+
+  for (int seedIndex = 0; seedIndex < 2; ++seedIndex) {
+    const int seed = seedIndex == 0 ? 17 : 71;
+    QImage contact(cellWidth * 4, cellHeight * 4, QImage::Format_ARGB32);
+    contact.fill(qRgba(8, 12, 18, 255));
+    std::array<std::array<double, 4>, 4> masses{};
+    std::array<std::array<double, 4>, 4> centroids{};
+
+    for (std::size_t conditionIndex = 0;
+         conditionIndex < dissipationRates.size(); ++conditionIndex) {
+      ArtifactCore::FluidSolver2D solver(gridWidth, gridHeight);
+      solver.setViscosity(0.00001f);
+      solver.setDiffusion(0.00001f);
+      solver.setBuoyancy(0.05f);
+      solver.setVorticity(0.1f);
+      ArtifactCore::SmokeEmitter2D emitter;
+      emitter.x = seedIndex == 0 ? 0.47f : 0.53f;
+      emitter.y = 0.82f;
+      emitter.radius = 0.07f;
+      emitter.density = 0.45f;
+      emitter.velocityX = seedIndex == 0 ? -0.04f : 0.04f;
+      emitter.velocityY = -0.55f;
+      emitter.swirl = seedIndex == 0 ? 0.55f : -0.55f;
+
+      int captureIndex = 0;
+      for (int frame = 1; frame <= totalFrames; ++frame) {
+        if (frame <= emissionFrames) {
+          ArtifactCore::injectSmokeEmitter2D(solver, emitter);
+        }
+        solver.update(dt);
+        solver.scaleDensity(std::exp(-dissipationRates[conditionIndex] * dt));
+        if (captureIndex >= static_cast<int>(captureFrames.size()) ||
+            frame != captureFrames[static_cast<std::size_t>(captureIndex)]) {
+          continue;
+        }
+        const QImage sample = renderSmokeDensity(solver, imageScale);
+        const int offsetX = captureIndex * cellWidth;
+        const int offsetY = static_cast<int>(conditionIndex) * cellHeight;
+        for (int y = 0; y < cellHeight; ++y) {
+          auto* dst = reinterpret_cast<QRgb*>(
+              contact.scanLine(offsetY + y)) + offsetX;
+          const auto* src = reinterpret_cast<const QRgb*>(sample.constScanLine(y));
+          std::copy(src, src + cellWidth, dst);
+        }
+        masses[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            smokeMass(solver);
+        centroids[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            smokeCentroidY(solver);
+        ++captureIndex;
+      }
+      ASSERT_EQ(captureIndex, static_cast<int>(captureFrames.size()));
+      EXPECT_GT(masses[conditionIndex][3], 0.1)
+          << "smoke vanished for dissipation rate "
+          << dissipationRates[conditionIndex] << " seed " << seed;
+    }
+
+    for (std::size_t conditionIndex = 0;
+         conditionIndex < dissipationRates.size(); ++conditionIndex) {
+      for (std::size_t frameIndex = 0; frameIndex < captureFrames.size();
+           ++frameIndex) {
+        GTEST_LOG_(INFO) << "smoke dissipation seed=" << seed
+                         << " rate-per-second="
+                         << dissipationRates[conditionIndex]
+                         << " frame=" << captureFrames[frameIndex]
+                         << " density-mass="
+                         << masses[conditionIndex][frameIndex]
+                         << " density-centroid-y="
+                         << centroids[conditionIndex][frameIndex];
+      }
+    }
+    for (std::size_t conditionIndex = 0;
+         conditionIndex + 1 < dissipationRates.size(); ++conditionIndex) {
+      EXPECT_GT(masses[conditionIndex][3], masses[conditionIndex + 1][3])
+          << "a lower dissipation rate should retain more smoke at frame 60";
+    }
+
+    const QString imagePath = QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_dissipation_response_seed_%1.png").arg(seed));
     ASSERT_TRUE(contact.save(imagePath, "PNG")) << imagePath.toStdString();
   }
 }

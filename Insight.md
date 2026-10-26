@@ -2,6 +2,14 @@
 
 # Insight Register
 
+## 2026-10-26: 温度マスク付きcurl turbulenceは2D plumeを巻くが、DCC smokeには未到達
+- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `ComparesSeparatedThermalMemoryAfterEqualSmokePulse` と test-only `applyTemperatureCurlTurbulence()`。
+- **確認できた事実:** 72×88 grid、30 fps、12 frame emission、seed 17/71、60 frameの比較で、温度場マスク付きの発散ゼロstream-function curlを適用すると、frame 36〜60に煙上端のフック／複数curlが現れた。low-frequency strength 5のみ、low 5 + mid 2.5、low 8を比較し、さらに滑らかなhash value-noiseへ置き換えた非周期版2条件も評価した。non-periodic low5のframe60 density centroid Yはseed17 46.58、seed71 46.70（baseline 40.16 / 40.28）。複数の形状は出るが、seed差が残る。
+- **価値または懸念:** 後付けの単一Gaussian vortexより継続したカール形状を作る候補が得られた。非周期版は正弦モードの規則的な反復を弱める一方、長いフック／ひも状になり、滑らかなbillowやHoudini/C4D品質には未到達。test-only operatorでありCore／appには未導入。density massも変化するため数値比較だけで品質向上とは判定しない。
+- **仮説（未検証）:** curl potentialをadvected temperatureだけでなく、可視density形状に連動するマスクでも調整し、周波数を密度スケールへ適応させると、細いフックから厚みのあるrollへ移せる可能性がある。
+- **次に確認すべきこと:** 同じ非周期curl-noiseを本番particle extraction／renderer出力で露出合わせ比較する。優位性が安定したら、別温度fieldを含むCore runtime snapshot/checkpoint/scrubと設定導線を設計し、hot pathの確保を避けて段階統合する。
+- **再検証:** `ArtifactCoreSmokeEmitterStandaloneTest` build成功。`ComparesSeparatedThermalMemoryAfterEqualSmokePulse` 2 seed / 8条件 / 4 capture frames pass。`TemperatureMaskedCurlNoiseAddsDivergenceFreeVelocity` pass（RMS divergence <1e-7、最大絶対値 <1e-6）。captures: `build/smoke-emitter-rnd/captures/nonperiodic-curl-turbulence-rnd-20261026/`。
+
 ## 2026-10-26: 2D smoke density lifetimeは視覚形状と分けて制御できる
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の density retention、`Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp` の Fluid Component properties、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ProductionRuntimeHonorsSmokeDensityDissipationRate`。
 - **確認できた事実:** 現行既定 `2.5/s` を保ちつつ減衰率を `0–10/s` で設定できるようにし、Component専用 Fluid設定・JSON保存復元・production runtimeへ接続した。同じ12-frame pulseを30fps / 96×72でframe60まで進めたfocused testで、`0.5/s` のdensity massは611.047、`2.5/s` は17.3242で約35倍だった。focused standalone test 1/1 pass、Artifact target build成功。

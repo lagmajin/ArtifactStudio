@@ -1,5 +1,7 @@
 # Fluid Component vs Pyro Domain Split (2026-07-01)
 
+**ステータス:** In Progress
+
 **最終更新:** 2026-10-26
 
 ## 現行コード監査 (2026-08-15)
@@ -362,3 +364,12 @@
 - 目視ではMUSCLが煙上端を左右に広げるが、明瞭な巻き込みではない。field-onlyの輸送指標を最終画質と同一視できないため、production solverには採用しない。
 - 既存のproduction samplingを使う同一露出test-only比較では、40×40 / 150 particlesから96×72 / 672 particlesへ増やすとimage high-pass RMSが0.236から0.624へ上がり、粒子の粒度は細かくなった。ただしplumeは直線的なままでbillowは生じず、抽出密度だけでは形状課題を解けない。
 - 次はdensity-to-particle抽出密度の律速を切り分け、低周波の持続rollを速度場へ作る方法を独立比較する。既存captureは `build/smoke-runtime-rnd/paired-vortex-rnd-20261026/` と `build/smoke-runtime-rnd/transport-visual-rnd/`。
+
+## 2026-10-26 — Temperature-masked curl turbulence R&D
+
+- SideFX Pyro documentation describes temperature as a buoyancy driver, density as visible soot, and low-frequency turbulence as rolling/churning motion, separate from high-frequency shredding ([Pyro background](https://www.sidefx.com/docs/houdini/pyro/background.html), [Pyro Solver](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver.html)).
+- Standalone-only experiment adds low/mid-frequency velocity modes as the curl of a temperature-masked stream function. This keeps the injected forcing divergence-free before solver projection. Across seeds 17/71, 72×88, 30 fps and 60 frames, periodic low-frequency strengths 5/8 and low 5 + mid 2.5 produced hooked/curling smoke ends in frames 36/60; baseline and temperature-only remained mostly straight.
+- A smooth hash value-noise potential reduced the periodic repetition while preserving curled/hooked ends across both seeds. At frame60, non-periodic low5 density centroid Y was 46.58/46.70 for seed17/71 versus baseline 40.16/40.28. The result remains stringy and seed-dependent, not smooth billowing smoke.
+- Density mass also changed, so centroid and captures are shape evidence only, not a controlled final-render quality win. The operator is test-only and has not changed Core/app runtime.
+- Focused `ArtifactCoreSmokeEmitterStandaloneTest` build succeeded. `ComparesSeparatedThermalMemoryAfterEqualSmokePulse` passed for two seeds, eight conditions and four capture frames. `TemperatureMaskedCurlNoiseAddsDivergenceFreeVelocity` passed with RMS divergence below `1e-7` and max below `1e-6`. Captures: `build/smoke-emitter-rnd/captures/nonperiodic-curl-turbulence-rnd-20261026/`.
+- Next: compare the non-periodic curl result through production particle extraction and renderer at matched exposure. Integrate only after multi-seed visual improvement is repeatable; a separate temperature field would need runtime snapshot/checkpoint/seek support and bounded storage.
