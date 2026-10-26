@@ -335,6 +335,69 @@ float smokeSmoothValueNoise(const float x, const float y,
 
 }  // namespace
 
+TEST(SmokeEmitterStandaloneTest,
+     MeasuresSmokeEmitterRateAcrossCompositionFrameRates) {
+  constexpr int gridWidth = 64;
+  constexpr int gridHeight = 96;
+  constexpr float durationSeconds = 2.0f;
+  constexpr std::array<int, 5> frameRates{10, 15, 20, 30, 60};
+  for (const int frameRate : frameRates) {
+    ArtifactCore::FluidSolver2D solver(gridWidth, gridHeight);
+    solver.setViscosity(0.00001f);
+    solver.setDiffusion(0.00001f);
+    solver.setBuoyancy(0.05f);
+    solver.setVorticity(0.1f);
+    solver.setSolverIterations(20);
+    const float frameDt = 1.0f / static_cast<float>(frameRate);
+    const float emissionTimeScale = frameDt * 30.0f;
+    const float densityRetention = std::exp(-1.0f * frameDt);
+    double solverAdvancedSeconds = 0.0;
+    for (int frame = 0; frame < static_cast<int>(durationSeconds * frameRate);
+         ++frame) {
+      const ArtifactCore::SmokeEmitter2D emitter{
+          0.5f, 0.86f, 0.06f, 0.25f * emissionTimeScale,
+          0.0f, -0.12f, 0.25f};
+      ArtifactCore::injectSmokeEmitter2D(
+          solver, emitter, emissionTimeScale);
+      solver.update(frameDt);
+      solverAdvancedSeconds += std::min(frameDt, 0.05f);
+      solver.scaleDensity(densityRetention);
+    }
+
+    const auto snapshot = solver.snapshot();
+    double densityMass = 0.0;
+    double densityWeightedY = 0.0;
+    float peakDensity = 0.0f;
+    float minDensity = std::numeric_limits<float>::infinity();
+    float maxVelocity = 0.0f;
+    for (int y = 1; y < gridHeight - 1; ++y) {
+      for (int x = 1; x < gridWidth - 1; ++x) {
+        const auto cell = static_cast<std::size_t>(x + y * gridWidth);
+        const float density = snapshot.density[cell];
+        densityMass += density;
+        densityWeightedY += density * static_cast<double>(y);
+        peakDensity = std::max(peakDensity, density);
+        minDensity = std::min(minDensity, density);
+        maxVelocity = std::max(maxVelocity, std::hypot(
+            snapshot.velocityX[cell], snapshot.velocityY[cell]));
+      }
+    }
+    const double centerY = densityMass > 0.0
+        ? densityWeightedY / densityMass : 0.0;
+    GTEST_LOG_(INFO) << "production smoke emitter rate frameRate=" << frameRate
+        << " frames=" << static_cast<int>(durationSeconds * frameRate)
+        << " requestedSeconds=" << durationSeconds
+        << " solverAdvancedSeconds=" << solverAdvancedSeconds
+        << " densityMass=" << densityMass
+        << " densityCenterY=" << centerY << " peakDensity=" << peakDensity
+        << " minDensity=" << minDensity << " maxVelocity=" << maxVelocity;
+    EXPECT_TRUE(std::isfinite(densityMass));
+    EXPECT_TRUE(std::isfinite(centerY));
+    EXPECT_TRUE(std::isfinite(peakDensity));
+    EXPECT_TRUE(std::isfinite(maxVelocity));
+  }
+}
+
 TEST(SmokeEmitterStandaloneTest, InjectsDensityAtNormalizedSourcePosition) {
   ArtifactCore::FluidSolver2D solver(32, 24);
   ArtifactCore::SmokeEmitter2D emitter;

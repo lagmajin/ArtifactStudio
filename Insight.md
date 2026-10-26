@@ -7294,6 +7294,13 @@
 - **仮説（未検証）:** 変動するsource、浮力、渦度閉じ込めを持つproduction smokeで、face-CFL計測に基づくbounded substepと密度の正値性制御を組み合わせると、mass driftと視覚的streakを抑えられる可能性がある。ただし拡散を抑えながらroll-upを保てるかは別に評価が必要。
 - **次に確認すべきこと:** production `FluidSolver2D` の実際のface/cell velocity、source injection、境界条件を追い、更新順の中でCFLがどの速度fieldを使って計算されているか調べる。次の独立比較は速度fieldごとのCFLを正しく揃えた低CFL/MAC対照に加え、mass/positivity-preserving flux correctionまたはBFECC/MacCormack再構成を1因子ずつ評価し、production captureを同じ時間・解像度で比較する。乱流らしい形が得られるまでは反映しない。
 
+## 2026-10-27: production smokeのframe-rate/source coupling
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp::advanceLayerSmokeRuntime`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::FluidSolver2D::update`、`tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp::MeasuresSmokeEmitterRateAcrossCompositionFrameRates`。
+- **確認できた事実:** Runtimeは各simulation frameで `emissionTimeScale = dt * 30` を計算し、source densityと`injectSmokeEmitter2D`のvelocityScaleへ渡してから`update(dt)`、`exp(-dissipation*dt)`を適用する。Core solverは`dt = min(dt, .05)`に上限を設けるが内部substep/CFL判定はない。更新順はbuoyancy、vorticity confinement、velocity diffusion/projection/advection/projection、density diffusion/advection、finite guard。速度・密度ともcell-centered gridのsemi-Lagrangian backtraceを使う。これと同じsource/runtime式を独立testで2秒走らせた結果、10/15/20/30/60fpsのsolver積算時間は1/1.5/2/2/2秒、density massは248.102/234.944/232.717/220.670/205.267、density center Yは68.07/67.61/67.03/69.52/73.06だった（64×96、指定した単一sourceと固定solver設定）。focused test 1/1 pass。
+- **価値または懸念:** 10/15fpsではCoreのdt capによりsolverが要求された2秒の半分/75%だけ進む一方、source injectionとdensity retentionは要求dtで進むためsimulation clockがずれる。20/30/60fps間にも密度量・重心の差があり、frame-rate依存はdt capだけでは説明できない。Runtimeではsource density自体をdt比例にしたうえでvelocityScaleにも同じdt比例値を渡すため、helper内の速度加算がdensity weightとの積になることも時間スケーリングを変える。現行値が不正と断定するにはsource/velocity APIの意図とdensity unitを確認する必要があり、このtestだけで数値を変更しない。
+- **仮説（未検証）:** source densityが単位時間あたり注入率なら、density増分はdtに対し一次、velocity impulseも意図した物理量に合わせて一次となる必要がある可能性がある。frame-rate invariantなruntimeは、dt capとsource scalingを一緒に扱う固定simulation tickまたは内部substepで実現できるかもしれない。
+- **次に確認すべきこと:** `SmokeEmitter2D`のdensity/velocity各フィールドの契約とUI値の単位を追い、fps 10/15のtime cap、velocity scalingの積算、差分フレーム/seek時のreplayを別々の独立比較に分ける。30fps基準でmass、centroid、peak、velocity、画像を比較し、ユーザー編集時のemission応答が変わらないか確認してから、必要ならCore/App runtimeへ変更を反映する。
+
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
 - **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。
