@@ -7266,6 +7266,13 @@
 - **仮説（未検証）:** fixed-gridの微細粒状感は個々の格子点の存続より、点状kernelの重なり分布に支配される可能性がある。低周波の大きなdensity structuresを強調するには、2Dソルバーのscalar advection/diffusion、vorticity confinement、dissipation、発生sourceの空間・時間分布を順に分離して評価する方が有望。
 - **次に確認すべきこと:** emitter入力とsolver各段のfieldを固定seed・複数frameで保存し、注入、移流、curl/vorticity、dissipationの寄与を一因子ずつ比較する。粒子表示からvoxel/field shadingへ移る場合は別の実験レーンとして品質・GPU負荷を測り、production変更は視覚的なbillow改善が再現した場合に限る。
 
+## 2026-10-27: 2D smoke solverの時間サブステップ比較
+- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresSmokeEmitterAdvectionSubstepTradeoff`、production `ArtifactCore::FluidSolver2D::update` と同じ更新演算子。
+- **確認できた事実:** 72×88 grid、同一emitter pulse（12/60 frames）、総時間2秒、solver設定と2 seedsをそろえ、frame updateを1/2/4/8等分して比較した。frame12の最大移流速度は約3.06–3.55 grid cells/frame、frame60は約1.10–1.38。frame60 density massは1 substepで280–285、2で228–231、4で184–185、8で158–159となり、density-gradient RMSも約.0415から.0264へ低下。capture contact sheetでは全条件とも滑らかな単一plumeで、4/8分割がbillowを加えたとは確認できない。独立standalone target rebuild成功、focused test 1/1 pass。captures/logは `build/smoke-emitter-rnd/captures/advection-substeps-rnd/` と `build/smoke-emitter-rnd/advection-substeps-rnd.log`。
+- **価値または懸念:** 2D solverはframe内のCFLが3を越える初期区間でも単一 `update(dt)` を行う。一方で単純なsubstep増加は同じ総注入・総時間でも密度保持と勾配を下げ、projection・vorticity・diffusionも多く実行するので、単なるadvection精度改善ではなく別の全演算子軌跡になる。画像と指標に視覚改善はなく、本番に固定substepを増やす根拠はない。
+- **仮説（未検証）:** 高CFL由来の誤差と繰返しprojection/diffusionの影響を分けるには、同じframe速度場を凍結したpassive-scalar移流比較と、動的velocityの全solver substep比較を別々に保つ必要がある。Houdini PyroはCFLを用いてtrajectory tracingを分割し、別機能として低周波Turbulence・高周波Disturbance/Shreddingを公開しているため、Artifact側でもCFL移流と形状forceの効果を混同しないのが妥当。[SideFX Pyro Solver (Sparse)](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html)
+- **次に確認すべきこと:** fixed velocity fieldで1/2/4/8 substepのdensity-only輸送を比較し、mass・extrema・gradient保持を測って時間積分とsolver feedbackを切り分ける。その結果が安定して改善する場合だけdynamic solverとGPU renderで再評価する。
+
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
 - **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。

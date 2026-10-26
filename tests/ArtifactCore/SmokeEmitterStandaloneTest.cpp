@@ -265,6 +265,42 @@ double smokeCentroidY(const ArtifactCore::FluidSolver2D& solver) {
   return mass > 0.0 ? weightedY / mass : 0.0;
 }
 
+double smokeDensityGradientRms(const ArtifactCore::FluidSolver2D& solver) {
+  double squaredGradientSum = 0.0;
+  std::size_t sampleCount = 0;
+  for (int y = 1; y < solver.height() - 1; ++y) {
+    for (int x = 1; x < solver.width() - 1; ++x) {
+      const double gradientX = 0.5 * (solver.getDensity(x + 1, y) -
+                                      solver.getDensity(x - 1, y));
+      const double gradientY = 0.5 * (solver.getDensity(x, y + 1) -
+                                      solver.getDensity(x, y - 1));
+      squaredGradientSum += gradientX * gradientX + gradientY * gradientY;
+      ++sampleCount;
+    }
+  }
+  return sampleCount > 0
+      ? std::sqrt(squaredGradientSum / static_cast<double>(sampleCount))
+      : 0.0;
+}
+
+double smokeMaximumCflCells(const ArtifactCore::FluidSolver2D& solver,
+                            const float dt) {
+  double maximum = 0.0;
+  const double scaleX = static_cast<double>(solver.width() - 2) * dt;
+  const double scaleY = static_cast<double>(solver.height() - 2) * dt;
+  for (int y = 1; y < solver.height() - 1; ++y) {
+    for (int x = 1; x < solver.width() - 1; ++x) {
+      float velocityX = 0.0f;
+      float velocityY = 0.0f;
+      solver.getVelocity(x, y, velocityX, velocityY);
+      maximum = std::max(maximum, std::hypot(
+          static_cast<double>(velocityX) * scaleX,
+          static_cast<double>(velocityY) * scaleY));
+    }
+  }
+  return maximum;
+}
+
 double scalarMass(const ArtifactCore::NamedVector<float>& field) {
   double mass = 0.0;
   for (const float value : field) mass += std::max(0.0f, value);
@@ -900,6 +936,114 @@ TEST(SmokeEmitterStandaloneTest,
 
     const QString imagePath = QDir(outputDirectory).filePath(
         QStringLiteral("smoke_thermal_response_seed_%1.png").arg(seed));
+    ASSERT_TRUE(contact.save(imagePath, "PNG")) << imagePath.toStdString();
+  }
+}
+
+TEST(SmokeEmitterStandaloneTest,
+     MeasuresSmokeEmitterAdvectionSubstepTradeoff) {
+  constexpr int gridWidth = 72;
+  constexpr int gridHeight = 88;
+  constexpr int totalFrames = 60;
+  constexpr int emissionFrames = 12;
+  constexpr float frameDt = 1.0f / 30.0f;
+  constexpr int imageScale = 4;
+  constexpr int cellWidth = gridWidth * imageScale;
+  constexpr int cellHeight = gridHeight * imageScale;
+  constexpr std::array<int, 4> captureFrames{12, 24, 36, 60};
+  constexpr std::array<int, 4> substepCounts{1, 2, 4, 8};
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_OUTPUT_DIR");
+  ASSERT_FALSE(outputDirectory.isEmpty())
+      << "Set ARTIFACT_SMOKE_OUTPUT_DIR to an absolute output directory";
+  ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+
+  for (int seedIndex = 0; seedIndex < 2; ++seedIndex) {
+    const int seed = seedIndex == 0 ? 17 : 71;
+    QImage contact(cellWidth * 4, cellHeight * 4, QImage::Format_ARGB32);
+    contact.fill(qRgba(8, 12, 18, 255));
+    std::array<std::array<double, 4>, 4> masses{};
+    std::array<std::array<double, 4>, 4> centroids{};
+    std::array<std::array<double, 4>, 4> gradients{};
+    std::array<std::array<double, 4>, 4> cflCells{};
+
+    for (std::size_t conditionIndex = 0;
+         conditionIndex < substepCounts.size(); ++conditionIndex) {
+      const int substeps = substepCounts[conditionIndex];
+      ArtifactCore::FluidSolver2D solver(gridWidth, gridHeight);
+      solver.setViscosity(0.00001f);
+      solver.setDiffusion(0.00001f);
+      solver.setBuoyancy(0.05f);
+      solver.setVorticity(0.1f);
+      solver.setSolverIterations(20);
+      ArtifactCore::SmokeEmitter2D emitter;
+      emitter.x = seedIndex == 0 ? 0.47f : 0.53f;
+      emitter.y = 0.82f;
+      emitter.radius = 0.07f;
+      emitter.density = 0.45f;
+      emitter.velocityX = seedIndex == 0 ? -0.04f : 0.04f;
+      emitter.velocityY = -0.55f;
+      emitter.swirl = seedIndex == 0 ? 0.55f : -0.55f;
+
+      int captureIndex = 0;
+      for (int frame = 1; frame <= totalFrames; ++frame) {
+        if (frame <= emissionFrames) {
+          ArtifactCore::injectSmokeEmitter2D(solver, emitter);
+        }
+        const float substepDt = frameDt / static_cast<float>(substeps);
+        for (int substep = 0; substep < substeps; ++substep) {
+          solver.update(substepDt);
+        }
+        if (captureIndex >= static_cast<int>(captureFrames.size()) ||
+            frame != captureFrames[static_cast<std::size_t>(captureIndex)]) {
+          continue;
+        }
+        const QImage sample = renderSmokeDensity(solver, imageScale);
+        const int offsetX = captureIndex * cellWidth;
+        const int offsetY = static_cast<int>(conditionIndex) * cellHeight;
+        for (int y = 0; y < cellHeight; ++y) {
+          auto* dst = reinterpret_cast<QRgb*>(
+              contact.scanLine(offsetY + y)) + offsetX;
+          const auto* src = reinterpret_cast<const QRgb*>(
+              sample.constScanLine(y));
+          std::copy(src, src + cellWidth, dst);
+        }
+        masses[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            smokeMass(solver);
+        centroids[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            smokeCentroidY(solver);
+        gradients[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            smokeDensityGradientRms(solver);
+        cflCells[conditionIndex][static_cast<std::size_t>(captureIndex)] =
+            smokeMaximumCflCells(solver, frameDt);
+        ++captureIndex;
+      }
+      ASSERT_EQ(captureIndex, static_cast<int>(captureFrames.size()));
+      EXPECT_GT(masses[conditionIndex][3], 1.0)
+          << "smoke vanished for substep count " << substeps
+          << " and seed " << seed;
+    }
+
+    for (std::size_t conditionIndex = 0;
+         conditionIndex < substepCounts.size(); ++conditionIndex) {
+      for (std::size_t frameIndex = 0; frameIndex < captureFrames.size();
+           ++frameIndex) {
+        GTEST_LOG_(INFO) << "smoke substeps seed=" << seed
+                         << " count=" << substepCounts[conditionIndex]
+                         << " frame=" << captureFrames[frameIndex]
+                         << " density-mass="
+                         << masses[conditionIndex][frameIndex]
+                         << " density-centroid-y="
+                         << centroids[conditionIndex][frameIndex]
+                         << " density-gradient-rms="
+                         << gradients[conditionIndex][frameIndex]
+                         << " max-frame-cfl-cells="
+                         << cflCells[conditionIndex][frameIndex];
+      }
+    }
+
+    const QString imagePath = QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_advection_substeps_seed_%1.png").arg(seed));
     ASSERT_TRUE(contact.save(imagePath, "PNG")) << imagePath.toStdString();
   }
 }
