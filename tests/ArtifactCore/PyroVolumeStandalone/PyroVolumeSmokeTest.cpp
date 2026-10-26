@@ -725,6 +725,10 @@ struct DensityInterfaceVorticityStats {
   double meanNormalAlignment = 0.0;
   double curvatureRms = 0.0;
   std::size_t sampleCount = 0;
+  std::size_t positiveCurvatureCells = 0;
+  std::size_t negativeCurvatureCells = 0;
+  std::size_t largestPositiveCurvatureRegion = 0;
+  std::size_t largestNegativeCurvatureRegion = 0;
 };
 
 DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
@@ -760,6 +764,10 @@ DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
   double normalAlignmentSum = 0.0;
   double alignmentWeightSum = 0.0;
   double curvatureSquaredSum = 0.0;
+  constexpr double foldCurvatureThreshold = 24.0;
+  const auto cellCount = static_cast<std::size_t>(resolution.width) *
+      resolution.height * resolution.depth;
+  std::vector<std::int8_t> curvatureSign(cellCount, 0);
   for (int z = 2; z + 2 < resolution.depth; ++z)
     for (int y = 2; y + 2 < resolution.height; ++y)
       for (int x = 2; x + 2 < resolution.width; ++x) {
@@ -803,7 +811,60 @@ DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
             nxp.x - nxm.x + nyp.y - nym.y + nzp.z - nzm.z) /
             (2.0 * domain.voxelSize);
         curvatureSquaredSum += curvature * curvature;
+        const auto cell = index(x, y, z);
+        if (curvature >= foldCurvatureThreshold) {
+          curvatureSign[cell] = 1;
+          ++stats.positiveCurvatureCells;
+        } else if (curvature <= -foldCurvatureThreshold) {
+          curvatureSign[cell] = -1;
+          ++stats.negativeCurvatureCells;
+        }
         ++stats.sampleCount;
+      }
+  std::vector<std::uint8_t> visited(cellCount, 0);
+  std::vector<std::size_t> pending;
+  pending.reserve(cellCount / 8);
+  for (int z = 2; z + 2 < resolution.depth; ++z)
+    for (int y = 2; y + 2 < resolution.height; ++y)
+      for (int x = 2; x + 2 < resolution.width; ++x) {
+        const auto first = index(x, y, z);
+        if (curvatureSign[first] == 0 || visited[first] != 0) continue;
+        const auto sign = curvatureSign[first];
+        visited[first] = 1;
+        pending.clear();
+        pending.push_back(first);
+        std::size_t cursor = 0;
+        while (cursor < pending.size()) {
+          const auto cell = pending[cursor++];
+          const int cx = static_cast<int>(cell % resolution.width);
+          const int cy = static_cast<int>(
+              (cell / resolution.width) % resolution.height);
+          const int cz = static_cast<int>(cell /
+              (static_cast<std::size_t>(resolution.width) * resolution.height));
+          constexpr std::array<std::array<int, 3>, 6> offsets{{
+              {{-1, 0, 0}}, {{1, 0, 0}}, {{0, -1, 0}},
+              {{0, 1, 0}}, {{0, 0, -1}}, {{0, 0, 1}}}};
+          for (const auto& offset : offsets) {
+            const int nx = cx + offset[0];
+            const int ny = cy + offset[1];
+            const int nz = cz + offset[2];
+            if (nx < 2 || nx + 2 >= resolution.width ||
+                ny < 2 || ny + 2 >= resolution.height ||
+                nz < 2 || nz + 2 >= resolution.depth)
+              continue;
+            const auto neighbor = index(nx, ny, nz);
+            if (visited[neighbor] != 0 || curvatureSign[neighbor] != sign)
+              continue;
+            visited[neighbor] = 1;
+            pending.push_back(neighbor);
+          }
+        }
+        if (sign > 0)
+          stats.largestPositiveCurvatureRegion = std::max(
+              stats.largestPositiveCurvatureRegion, pending.size());
+        else
+          stats.largestNegativeCurvatureRegion = std::max(
+              stats.largestNegativeCurvatureRegion, pending.size());
       }
   if (stats.sampleCount > 0) {
     if (alignmentWeightSum > 0.0) {
@@ -2946,8 +3007,14 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
             FieldTemporalStats temporal{};
             std::vector<float> previousDensity;
             std::array<ImageBuffer, 3> frontFrames{};
+            std::array<ImageBuffer, 3> sideFrames{};
+            std::array<ImageBuffer, 3> topFrames{};
+            std::array<std::size_t, frames> positiveFoldRegions{};
+            std::array<std::size_t, frames> negativeFoldRegions{};
             ImageBuffer sideImage{}, topImage{};
             MatchedCurlAdapterStats adapterStats{};
+            const bool trackTemporalStructure = strengthIndex == 0 ||
+                (strengthIndex == 2 && wavelengthIndex == 1 && temporalIndex == 1);
             for (int frame = 0; frame < frames; ++frame) {
               for (int substep = 0; substep < 2; ++substep) {
                 if (strengthIndex > 0) {
@@ -2962,6 +3029,14 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
               }
               const auto densityStorage = simulation.fields().densityStorage();
               updateTemporalStats(densityStorage, previousDensity, temporal);
+              if (trackTemporalStructure) {
+                const auto frameInterface = measureDensityInterfaceVorticity(
+                    simulation, domain);
+                positiveFoldRegions[static_cast<std::size_t>(frame)] =
+                    frameInterface.largestPositiveCurvatureRegion;
+                negativeFoldRegions[static_cast<std::size_t>(frame)] =
+                    frameInterface.largestNegativeCurvatureRegion;
+              }
               if (frame < frames - 3) continue;
               const int capture = frame - (frames - 3);
               const auto snapshot = simulation.snapshot();
@@ -2976,27 +3051,55 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
               renderer.settings.multipleScatteringStrength = 0.12f;
               renderer.settings.shadowIntensity = 0.0f;
               frontFrames[capture] = renderer.render(144, 144);
-              if (capture != 2) continue;
-              densityMass = std::accumulate(densityStorage.begin(), densityStorage.end(), 0.0);
-              const auto resolution = domain.resolution();
-              densityHighFrequency = densityHighFrequencyRms(densityStorage,
-                  resolution.width, resolution.height, resolution.depth);
+              if (capture == 2) {
+                densityMass = std::accumulate(
+                    densityStorage.begin(), densityStorage.end(), 0.0);
+                const auto resolution = domain.resolution();
+                densityHighFrequency = densityHighFrequencyRms(densityStorage,
+                    resolution.width, resolution.height, resolution.depth);
+              }
+              if (capture != 2 && !trackTemporalStructure) continue;
               auto side = makeRenderer(snapshot, domain, {2.4f, 0.8f, 2.4f});
               side.camera = Camera(1.0f, 36.0f, 2.1f, 0.0f,
                   {2.4f, 0.8f, 0.0f}, {0.0f, 0.55f, 0.0f}, {0.0f, 1.0f, 0.0f});
               side.settings = renderer.settings;
-              sideImage = side.render(144, 144);
+              sideFrames[capture] = side.render(144, 144);
+              if (capture == 2) sideImage = sideFrames[capture];
               auto top = makeRenderer(snapshot, domain, {2.4f, 0.8f, 2.4f});
               top.camera = Camera(1.0f, 36.0f, 2.1f, 0.0f,
                   {0.0f, 2.4f, 0.0f}, {0.0f, 0.55f, 0.0f}, {0.0f, 0.0f, 1.0f});
               top.settings = renderer.settings;
-              topImage = top.render(144, 144);
+              topFrames[capture] = top.render(144, 144);
+              if (capture == 2) topImage = topFrames[capture];
             }
             const auto interfaceStats = measureDensityInterfaceVorticity(
                 simulation, domain);
             const double cosine = temporal.cosineSum /
                 std::max<std::size_t>(1, temporal.comparisons);
             const double highFrequency = densityHighFrequency;
+            std::size_t coexistingFoldFrames = 0;
+            std::size_t longestCoexistingFoldRun = 0;
+            std::size_t currentCoexistingFoldRun = 0;
+            std::uint32_t coexistingFoldFrameMask = 0;
+            std::size_t maxPositiveFoldRegion = 0;
+            std::size_t maxNegativeFoldRegion = 0;
+            for (int frame = 0; frame < frames; ++frame) {
+              const auto frameIndex = static_cast<std::size_t>(frame);
+              maxPositiveFoldRegion = std::max(maxPositiveFoldRegion,
+                  positiveFoldRegions[frameIndex]);
+              maxNegativeFoldRegion = std::max(maxNegativeFoldRegion,
+                  negativeFoldRegions[frameIndex]);
+              if (trackTemporalStructure && positiveFoldRegions[frameIndex] >= 4 &&
+                  negativeFoldRegions[frameIndex] >= 4) {
+                ++coexistingFoldFrames;
+                coexistingFoldFrameMask |= 1u << frame;
+                ++currentCoexistingFoldRun;
+                longestCoexistingFoldRun = std::max(longestCoexistingFoldRun,
+                    currentCoexistingFoldRun);
+              } else {
+                currentCoexistingFoldRun = 0;
+              }
+            }
             const int methodIndex = strengthIndex == 0 ? 0 : method + 1;
             const std::string methodName = methodIndex == 0 ? "control" :
                 methodIndex == 1 ? "curl" : "shred";
@@ -3015,6 +3118,18 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
             saveIfRequested(frontFrames[2], (tag + wavelengthTag + temporalTag + "_front.ppm").c_str());
             saveIfRequested(sideImage, (tag + wavelengthTag + temporalTag + "_side.ppm").c_str());
             saveIfRequested(topImage, (tag + wavelengthTag + temporalTag + "_top.ppm").c_str());
+            if (trackTemporalStructure) {
+              for (int capture = 0; capture < 3; ++capture) {
+                const auto frameTag = "_frame" + std::to_string(
+                    frames - 3 + capture);
+                saveIfRequested(frontFrames[capture], (tag + wavelengthTag +
+                    temporalTag + frameTag + "_front.ppm").c_str());
+                saveIfRequested(sideFrames[capture], (tag + wavelengthTag +
+                    temporalTag + frameTag + "_side.ppm").c_str());
+                saveIfRequested(topFrames[capture], (tag + wavelengthTag +
+                    temporalTag + frameTag + "_top.ppm").c_str());
+              }
+            }
             GTEST_LOG_(INFO) << "matched curl adapter seed=" << seed
                 << " method=" << methodName << " fraction=" << strengths[strengthIndex]
                 << " wavelengthScale=" << wavelengthScale
@@ -3031,6 +3146,15 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
                 << " vorticityTangent/normal=" << interfaceStats.meanTangentAlignment
                 << '/' << interfaceStats.meanNormalAlignment
                 << " interfaceCurvatureRms=" << interfaceStats.curvatureRms
+                << " foldCurvatureCells+/-=" << interfaceStats.positiveCurvatureCells
+                << '/' << interfaceStats.negativeCurvatureCells
+                << " largestFoldRegion+/-=" << interfaceStats.largestPositiveCurvatureRegion
+                << '/' << interfaceStats.largestNegativeCurvatureRegion
+                << " temporalFoldRegionMax+/-=" << maxPositiveFoldRegion
+                << '/' << maxNegativeFoldRegion
+                << " coexistingFoldFrames/run=" << coexistingFoldFrames
+                << '/' << longestCoexistingFoldRun
+                << " coexistingFoldFrameMask=" << coexistingFoldFrameMask
                 << " divergence=" << velocityDivergenceRms(simulation);
             EXPECT_GT(densityMass, 1.0);
             EXPECT_GT(interfaceStats.sampleCount, 100u);

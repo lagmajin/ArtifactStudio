@@ -7048,3 +7048,7 @@
 - **仮説（未検証）:** DCC的billowには接線方向の整列だけでなく、渦度符号が反転する連続した巻き帯、界面法線速度と渦伸長の同期、複数時点で維持される曲率極大が必要かもしれない。
 - **次に確認すべきこと:** 1.2秒の同一fixtureで各frameのinterface curvature distributionとsigned vorticity/normal velocityを記録し、空間connected foldとその持続フレーム数を抽出する。control、curl、speed-preserving shredのfront/side/top時系列を比較し、mean RMSではなく構造の連結性と持続性で判定する。
 - **再検証:** `ArtifactCorePyroVolumeSmokeTest` target build succeeded; focused wavelength/time/interface-alignment sweep passed (74 conditions, 24.617s)。
+- **追跡結果（2026-10-26）:** 閾値 |mean curvature| ≥24 m⁻¹ の符号別6近傍連結領域を全16 frameで数え、最大領域4 voxel以上の正負領域が同時に存在するframeを記録した。controlでは発生なし。baseline curl injectionではseed17がframe14–15の2連続frame（最大正/負領域5/207 voxel）、seed71がframe15のみ（4/219 voxel）。同じ最終3 frameをfront/side/topで並べて目視したが、両seedとも輪郭は滑らかなpuffで、連続した巻き込みは確認できない。speed-preserving shredでは正曲率の連結領域が閾値へ届かず、共存frameなし。
+- **価値または懸念:** 小さな符号反転領域の一時出現をbillow形成とみなせない。|curvature|閾値24 m⁻¹、6近傍、4 voxelという運用定義は格子・fixture依存で、画像上の大規模渦を直接表さない。現状ではcurl/shredのnoise sweepは見た目改善の根拠にならず、Core/appへは反映しない。
+- **次に確認すべきこと:** 次の候補はcurl量の追加掃引でなく、密度界面上の速度法線成分と渦度符号を物質点追跡し、渦伸長・移流後も同じ曲率帯が残るかを計測する。画像上の巻き込みと構造追跡の双方が揃わない限り採用判定しない。
+- **再検証:** `ArtifactCorePyroVolumeSmokeTest.ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` target rebuild成功、74条件pass (24.224s); seed17 frame14/15とseed71 frame14/15のfront/side/topを目視確認。
