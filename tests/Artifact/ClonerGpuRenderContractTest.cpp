@@ -1218,7 +1218,8 @@ TEST(ClonerGpuRenderContractTest,
     const auto& productionData = Artifact::prepareLayerSmokeRenderData(
         state, bounds, transform, 1.0f, 44, settings);
 
-    const auto makeStream = [&](const int countX, const int countY) {
+    const auto makeStream = [&](const Artifact::LayerFluidRuntimeState& sampleState,
+                                const int countX, const int countY) {
         ArtifactCore::ParticleRenderData data;
         data.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
         data.options.billboard = ArtifactCore::ParticleBillboardPolicy::ScreenAligned;
@@ -1250,7 +1251,7 @@ TEST(ClonerGpuRenderContractTest,
                 const float tx = gx - x0;
                 const float ty = gy - y0;
                 const auto densityAt = [&](const int x, const int y) {
-                    return state.fluidSolver_->getDensity(x, y);
+                    return sampleState.fluidSolver_->getDensity(x, y);
                 };
                 const float density = std::lerp(
                     std::lerp(densityAt(x0, y0), densityAt(x1, y0), tx),
@@ -1278,15 +1279,15 @@ TEST(ClonerGpuRenderContractTest,
         ArtifactCore::ImageF32x4_RGBA image;
     };
     std::array<Variant, 9> variants{{
-        {"current-40x40", makeStream(40, 40)},
-        {"resample-64x48", makeStream(64, 48)},
-        {"resample-96x72", makeStream(96, 72)},
-        {"soft-multikernel-40x40", makeStream(40, 40)},
-        {"gaussian-density-40x40", makeStream(40, 40)},
-        {"gaussian-density-tight-40x40", makeStream(40, 40)},
-        {"gaussian-density-wide-40x40", makeStream(40, 40)},
+        {"current-40x40", makeStream(state, 40, 40)},
+        {"resample-64x48", makeStream(state, 64, 48)},
+        {"resample-96x72", makeStream(state, 96, 72)},
+        {"soft-multikernel-40x40", makeStream(state, 40, 40)},
+        {"gaussian-density-40x40", makeStream(state, 40, 40)},
+        {"gaussian-density-tight-40x40", makeStream(state, 40, 40)},
+        {"gaussian-density-wide-40x40", makeStream(state, 40, 40)},
         {"production-gaussian-64x48", productionData},
-        {"gaussian-density-96x72", makeStream(96, 72)},
+        {"gaussian-density-96x72", makeStream(state, 96, 72)},
     }};
     for (std::size_t index = 0; index < variants.size(); ++index) {
         if (index != 7) continue;
@@ -1471,6 +1472,74 @@ TEST(ClonerGpuRenderContractTest,
             EXPECT_TRUE(variant.image.toQImage().save(
                 QDir(output).filePath(QStringLiteral("%1.png").arg(
                     QString::fromLatin1(variant.name))), "PNG"));
+        }
+    }
+
+    if (!output.isEmpty()) {
+        constexpr std::array<int, 3> temporalFrames{20, 32, 44};
+        constexpr std::array<std::array<int, 2>, 3> temporalSamples{{
+            {40, 40}, {64, 48}, {96, 72}}};
+        Artifact::LayerFluidRuntimeState temporalState;
+        for (int frame = 0; frame <= temporalFrames.back(); ++frame) {
+            Artifact::advanceLayerSmokeRuntime(
+                temporalState, frame, 30.0, settings);
+            if (frame != temporalFrames[0] &&
+                frame != temporalFrames[1] &&
+                frame != temporalFrames[2]) continue;
+            std::array<ArtifactCore::ImageF32x4_RGBA, 3> temporalImages;
+            std::array<double, 3> temporalAlphaScale{};
+            for (std::size_t sample = 0; sample < temporalSamples.size();
+                 ++sample) {
+                auto data = makeStream(temporalState,
+                    temporalSamples[sample][0], temporalSamples[sample][1]);
+                data.options.falloff =
+                    ArtifactCore::ParticleFalloffMode::GaussianDensity;
+                temporalAlphaScale[sample] = 1.0;
+                if (sample == 0) {
+                    temporalImages[sample] = render(data);
+                    ASSERT_GT(exposure(temporalImages[sample]), 1.0)
+                        << "temporal smoke frame must produce visible GPU pixels";
+                } else {
+                    const double targetFrameExposure =
+                        exposure(temporalImages[0]);
+                    ASSERT_GT(targetFrameExposure, 1.0);
+                    float low = 0.0f;
+                    float high = 8.0f;
+                    for (int iteration = 0; iteration < 14; ++iteration) {
+                        const float mid = (low + high) * 0.5f;
+                        auto candidate = data;
+                        for (auto& particle : candidate.particles)
+                            particle.a *= mid;
+                        if (exposure(render(candidate)) < targetFrameExposure)
+                            low = mid;
+                        else
+                            high = mid;
+                    }
+                    temporalAlphaScale[sample] = (low + high) * 0.5f;
+                    for (auto& particle : data.particles)
+                        particle.a *= static_cast<float>(
+                            temporalAlphaScale[sample]);
+                    temporalImages[sample] = render(data);
+                    EXPECT_NEAR(exposure(temporalImages[sample]),
+                        targetFrameExposure, targetFrameExposure * 0.01);
+                }
+                const auto quality = imageQuality(temporalImages[sample]);
+                GTEST_LOG_(INFO) << "Diligent smoke temporal frame=" << frame
+                    << " sampling=" << temporalSamples[sample][0] << 'x'
+                    << temporalSamples[sample][1]
+                    << " particles=" << data.particles.size()
+                    << " alphaScale=" << temporalAlphaScale[sample]
+                    << " exposure=" << exposure(temporalImages[sample])
+                    << " normalizedHf/components/tileBoundary="
+                    << quality[3] << '/' << quality[2] << '/' << quality[1];
+                const auto captureName = QStringLiteral(
+                    "temporal-frame-%1-sampling-%2x%3.png")
+                    .arg(frame, 2, 10, QLatin1Char('0'))
+                    .arg(temporalSamples[sample][0])
+                    .arg(temporalSamples[sample][1]);
+                EXPECT_TRUE(temporalImages[sample].toQImage().save(
+                    QDir(output).filePath(captureName), "PNG"));
+            }
         }
     }
 }

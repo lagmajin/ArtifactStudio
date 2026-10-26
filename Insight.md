@@ -7244,12 +7244,13 @@
 
 ## 2026-10-26: 2D smoke GPU samplingの密度とkernelを露出一致で比較
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer` とProduction `LayerFluidRuntimeState` / Diligent particle shader。
-- **確認できた事実:** 同一frame44 solver stateをRTX 4070 Ti / Vulkan / 768x576でrenderし、各画像のgreen総露出を±0.01%以内に合わせた。current 40x40 samplingは163粒子・normalized high-frequency RMS .00623。64x48は325粒子・.00923、96x72は734粒子・.01421。96x72は丸い粒状感が弱まり、plume outlineに細かく追従したが、上端はまだcolumn/cap形状で大きなbillowはない。CPU側のGPU submit平均はcurrent/64x48/96x72で.421/.417/.445ms（単一Debug実行）。Gaussian density kernelの現行40x40はnormalized HF .00718、小kernelは.00597、wide kernelは.00786。小kernel画像は丸い粒子形状がより明確に見えた。全条件で可視画像成分数は1、8px tile境界/active tileは概ね1.89–1.93。focused Diligent testは1/1 pass (7.35s)。
+- **確認できた事実:** 同一frame44 solver stateをRTX 4070 Ti / Vulkan / 768x576でrenderし、各画像のgreen総露出を±0.01%以内に合わせた。40x40は独立比較用の低密度baselineで163粒子・normalized high-frequency RMS .00623。production `prepareLayerSmokeRenderData` の64x48は325粒子・.00620で同露出時の画素像もcurrent-40x40と異なり、96x72は734粒子・.01421。96x72は丸い粒状感が弱まり、plume outlineに細かく追従したが、上端はまだcolumn/cap形状で大きなbillowはない。CPU側のGPU submit平均はmanual 40x40 / production 64x48 / 96x72で.421/.648/.445ms（単一Debug実行、timing varianceが大きく順位は判定不能）。Gaussian density kernelのmanual 40x40はnormalized HF .00718、小kernelは.00597、wide kernelは.00786。小kernel画像は丸い粒子形状がより明確に見えた。全条件で可視画像成分数は1、8px tile境界/active tileは概ね1.89–1.93。focused Diligent testは1/1 pass (7.35s)。
 - **価値または懸念:** sampling密度を上げるとGPU上でも粒状感が下がる一方、particlesは4.5倍となる。短いDebug計測では提出時間差を測定誤差から分離できない。局所kernel縮小は改善せず、現行Gaussian profileを変える根拠は得られなかった。高frequency RMSはsampling grainの診断値で、渦巻くbillowの知覚指標ではない。
-- **仮説（未検証）:** 64x48前後の密度に、source連結性を改善する低周波・時間一貫性のある速度fieldを合わせる方が、sample上限を96x72へ引き上げるより少ない描画負荷で自然な輪郭を得られる可能性がある。
-- **次に確認すべきこと:** 同じDiligent経路で実solver由来の複数frameを評価し、billowの時間一貫性・露出・画面occupancyを測る。64x48相当の抽出をproductionに反映する前に、異なるemitter位置・seedで実測し、sample countとGPU timingをRelease計測する。
+- **仮説（未検証）:** production 64x48 samplingのparticle layoutを速度追従させれば、sample上限を96x72へ上げずに隣接frame間の粒状motionと輪郭安定性を改善できる可能性がある。
+- **次に確認すべきこと:** 同じDiligent経路で実solver由来の複数frameを評価し、billowの時間一貫性・露出・画面occupancyを測る。96x72 resamplingは描画負荷のRelease計測と複数emitter位置での確認が済むまでproductionに反映しない。
 - **再検証:** `cmake --build build --config Debug --target ArtifactClonerGpuRenderContractTest --parallel 8` 成功。focused GPU実行はvcpkg DLLディレクトリをPATHへ追加してVulkanで実施。出力 `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-rnd.log`、画像 `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-rnd/`。
 - **D3D12照合:** 同じfocused GPU testをRTX 4070 Ti / D3D12でも1/1 pass。全9 variantのPNGはVulkan captureとSHA-256が各々一致し、露出・normalized HF RMS・tile指標も同値だった（GPU submit時間はrunごとに変動）。D3D12 log/captures: `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-d3d12-rnd.log`, `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-d3d12-rnd/`。
+- **時間方向の確認:** production solverを独立に再実行し、frame20/32/44の各点でmanual 40x40 / 64x48 / 96x72を同一露出に正規化したD3D12画像を保存。露出は各frame内で約25264 / 30140 / 34515、particle countは40x40=119/144/163、64x48=241/290/325、96x72=542/649/734。各frameで3 samplingは可視成分1つを保ち、目視上はstemからcapへ少し非対称な変化が続くが、折り返しbillowはない。frame間露出変化はsourceの連続注入を含むため、sampling間の露出差ではない。追加captureは `build/smoke-runtime-rnd/gpu-smoke-temporal-sampling-rnd/`、focused test 1/1 pass。現在の簡易component/tile指標は時間コヒーレンスを測らない。
 
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
@@ -7264,3 +7265,17 @@
 - **価値または懸念:** canonical premultiplied入力では半透明foregroundのRGBを暗いstraight色として評価し、さらに出力時にalphaをもう一度乗算する可能性がある。straight入力ではpremultiplied RGBを作ってもdescriptorがstraightのままになり得る。clean plateのalpha conventionもAPIにない。
 - **仮説（未検証）:** 実際のComposition入力が常にpremultipliedであるなら、IBKの現行CPU/GPU双方で半透明境界の色・matteが不整合になる可能性が高い。opaque-only fixturesでは露呈しない。
 - **次に確認すべきこと:** `IBKBuffers`へforeground alpha modeを導入し、CPUとGPUでstraight colorによるmatte/despill計算と入力表現に合わせた出力を行う。IBK GPU constant-buffer ABIを更新し、half-alpha straight/premultiplied等価性をCoreおよびArtifact wrapper契約で確認する。clean plateはopaque RGBとして扱うのか独立alpha modeを持たせるのかを先に固定する。
+
+## 2026-10-26: IBKのPremultiplied RGB previewはalphaを二重適用するように見える
+- **関連:** `Artifact/src/Effects/Keying/IBKKeyerEffect.cpp` の `applyIBKPreview` mode 2 と `ArtifactCore/src/ImageProcessing/Keying/IBKKeyer.cpp`。
+- **確認できた事実:** `processIBK` は `outRGB = despilledRGB * keyedAlpha` を出力する。その後、preview mode 2は同じ出力RGBへもう一度 `pixel.rgb *= alpha` を適用し、alphaを1にする。property tooltipはmode 2を「Premultiplied RGB」と説明している。
+- **価値または懸念:** 透明領域の色を黒へ合成したような表示になるが、既にpremultipliedされた値へalphaを二重に掛けるため、soft edgeのRGBが期待より暗くなる可能性がある。
+- **仮説（未検証）:** mode 2の目的がalpha=1にしたpremultiplied RGB表示なら、追加乗算は不要かもしれない。逆に内部計算をstraight RGBへ変えるなら現在の乗算が正しい可能性があるため、IBK alpha convention確定後に判断する。
+- **次に確認すべきこと:** CPU/GPU双方で同じ半透明キー画素を作り、Finalのpremultiplied RGBとmode 2のRGBを比較する。alpha conventionを先に統一し、mode 2がFinal RGBを保ったalpha=1表示なのか、別のdark composite表示なのか仕様を決めてから修正する。
+
+## 2026-10-26: Chroma KeyのDespill Mode 3がArtifact wrapperで選べない
+- **関連:** `Artifact/include/Effects/Keying/ChromaKeyEffect.ixx`、`Artifact/src/Effects/Keying/ChromaKeyEffect.cpp`、`ArtifactCore/src/ImageProcessing/ChromaKey.cpp`。
+- **確認できた事実:** ChromaKeyEffectのDespill Mode UIは0–3を公開し、`setPropertyValue`も0–3へclampする。Coreの`despillPixel`とGPU params正規化もmode 3 (Target Neutral)を実装して受け付ける。一方、Artifactの`ChromaKeyEffectCPUImpl::setDespillMode`だけは0–2にclampし、Property setterはこの型付きsetterを通るため、値3が2へ落ちる。
+- **価値または懸念:** UIに表示される「Target Neutral」をeffect使用者が選んでも有効にならず、GPUとCoreにある処理へ到達しない。現状のキーイング契約テストはGPU/Core mode 3値は見るが、Artifact wrapperのround-tripを確認していない。
+- **仮説（未検証）:** setter clampは旧来3モードからの値が残る想定で2に据え置かれた可能性があるが、現在の公開option listとtooltipからは根拠を確認できない。
+- **次に確認すべきこと:** Artifact child repoでsetter上限を3へそろえ、wrapper propertyを3に設定・取得するテストを追加する。CPU/GPU両経路でTarget Neutral modeの出力を比較する。変更時は親の子gitlink運用手順に従う。
