@@ -36,7 +36,7 @@ or App code and does not establish GPU viewport parity or DCC-level quality.
 
 `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup` creates a true
 3D density/temperature/velocity field from the Pyro source, clones its
-12-step pulse-end state and advances ten branches for another 1.2 s while
+12-step pulse-end state and advances fifteen branches for another 1.2 s while
 continuing the same emitter source on every branch.
 The current branches compare source velocity, initial divergence-free curl at
 two amplitudes, half velocity, 1/120 s fixed steps, and equal-strength
@@ -72,6 +72,26 @@ contracts; this is not a seed-robust effect. Visual inspection of the step-72
 control and seed-71 side views shows only a slightly broader smooth puff, with
 no folded billow. The focused test passed 1/1 (47.95 s); captures are in
 `build/smoke-runtime-rnd/captures/3d-source-gate-seeds-20261026/3d-source-rollup-rnd/`.
+
+The current follow-up initializes wide and tall source shapes independently
+from step 0, then continues each for 1.2 s. Their density injection rates are
+normalized by numerically integrating the same voxel-center falloff used by
+`PyroSimulation`, before independently scaling terminal images to control
+density mass. At step 72, mass-matched side occupancy is 14,118 pixels for the
+wide source and 12,212 for the tall source, versus 8,091 for control; their Y
+centroids are 17.20 and 18.70 versus 15.70. Both also increase divergence RMS
+to 0.0577 / 0.0686 from 0.0344, and visual review shows smooth broad columns
+without folded billows. This is a source-shape effect, not evidence of a more
+realistic smoke solver.
+
+For a thermal sensitivity check, three independently initialized branches use
+the same low source velocity (30 versus the control jet's 240): baseline,
+8x buoyancy, or 12x source temperature. At step 72, mass-matched side
+occupancy is 823 / 897 / 1,144 pixels, and Y centroids are 8.18 / 8.36 / 8.61.
+Temperature changes the low-jet plume more than buoyancy in this setup, but
+the low-jet CPU volume captures contain a dark shadow artifact; they are not
+used as evidence of visual quality. Focused GTest passed 1/1 (56.06 s), with
+captures in `build/smoke-runtime-rnd/captures/3d-source-shape-thermal-20261026/3d-source-rollup-rnd/`.
 
 An earlier value-noise scale sweep of this same case compared deterministic,
 smooth 3D value-noise vector potentials applied as density-gated curl

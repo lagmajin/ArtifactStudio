@@ -7217,3 +7217,11 @@
 - **仮説（未検証）:** 単純なcurl accelerationの細かな位相差が plume外形を動かすだけで、連続する不安定剪断や渦の巻き込みは作れていない可能性がある。source geometry、温度浮力、境界との相互作用が形状形成により強く寄与するかもしれない。
 - **次に確認すべきこと:** ambient curlはproductionへ反映しない。異なるsource geometryと温度・浮力を持つplume初期条件を比較し、front/side/top像と界面形状指標でroll-upがseedをまたいで再現するか調べる。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (47.95s)。
+
+## 2026-10-26: source形状はplume幅を変えるが、温度差は低jetでより効く
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
+- **確認できた事実:** wide / tall source条件をPyroSimulationと同じvoxel-center falloffを数値積分して注入密度rateを近づけ、各条件を12-step初期pulseから独立に開始した。step72でterminal density massをcontrolにそろえたside occupied pixelsはcontrol/wide/tall=8091/14118/12212、Y centroidは15.70/17.20/18.70 voxel。divergence RMSは.0344/.0577/.0686となり、画像は広い滑らかな煙柱だが巻き込みは見えない。別のlow-jet三条件（velocity.y=30）では、base / buoyancy 8倍 / source temperature 12倍のstep72 mass-matched side occupancy=823/897/1144、Y centroid=8.18/8.36/8.61。温度増加の差はbuoyancy増加より大きいが、low-jet captureには暗いshadow artifactが出ており、視覚品質の証拠にはできない。focused GTest 1/1 pass (56.06s); captures `build/smoke-runtime-rnd/captures/3d-source-shape-thermal-20261026/3d-source-rollup-rnd/`。
+- **価値または懸念:** source geometryは乱流を追加せずにplumeの輪郭・広がりを大きく変えたため、emitter shapeは明確なart-direction入力になり得る。一方でdivergenceも上がり、形状効果とprojection errorが交絡している。熱条件のテストも低解像度CPU volume rendererのshadow artifactに制約される。productionへ移す根拠はまだない。
+- **仮説（未検証）:** 広いsourceが作る初期shear/interface areaと、温度により加速する上昇速度を組み合わせ、divergenceを抑えた高解像度volumeで試すと広い輪郭からcurl roll-upへ進む可能性がある。現行pressure projectionの固定反復数が広いsource時のdivergence増加を抑えられていない可能性もある。
+- **次に確認すべきこと:** current source-size sweepを別seedで再現し、domain/voxel resolutionを上げてprojection residualを一定水準へそろえた比較を行う。volume render shadow条件も校正し、front/side/topで巻き込みと時間安定性を確認する。source geometry APIやsolver変更は、そのあと結果が再現した場合にだけproduction候補にする。
+- **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (56.06s)。

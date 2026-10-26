@@ -457,7 +457,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     explicit Branch(const char* branchLabel, const PyroDomain& branchDomain)
         : label(branchLabel), simulation(branchDomain) {}
   };
-  std::array<Branch, 10> branches{{
+  std::array<Branch, 15> branches{{
       Branch("source-velocity", domain),
       Branch("curl-augmented", domain),
       Branch("curl-strong", domain),
@@ -467,7 +467,12 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       Branch("gate-density-interface", domain),
       Branch("gate-ambient-interface-seed17", domain),
       Branch("gate-ambient-interface-seed29", domain),
-      Branch("gate-ambient-interface-seed71", domain)}};
+      Branch("gate-ambient-interface-seed71", domain),
+      Branch("source-wide", domain),
+      Branch("source-tall", domain),
+      Branch("source-low-jet", domain),
+      Branch("source-low-jet-high-buoyancy", domain),
+      Branch("source-low-jet-hot", domain)}};
   for (auto& branch : branches) {
     branch.simulation.setSettings(settings);
     branch.simulation.fields().densityStorage() = initialDensity;
@@ -476,6 +481,83 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     branch.simulation.fields().velocityStorage() = initialVelocity;
   }
   branches[4].simulation.setFixedTimeStep(1.0 / 120.0);
+  branches[13].simulation.setSettings(PyroSimulationSettings{
+      .sourceDensity = settings.sourceDensity,
+      .sourceTemperature = settings.sourceTemperature,
+      .sourceFuel = settings.sourceFuel,
+      .dissipation = settings.dissipation,
+      .coolingRate = settings.coolingRate,
+      .buoyancy = 5.6f,
+      .vorticity = settings.vorticity,
+      .pressureIterations = settings.pressureIterations,
+      .advectionClamp = settings.advectionClamp});
+  const auto integratedSourceWeight = [&](const PyroVec3 extent) {
+    const int centerX = static_cast<int>(
+        (source.position.x - domain.min.x) / domain.voxelSize);
+    const int centerY = static_cast<int>(
+        (source.position.y - domain.min.y) / domain.voxelSize);
+    const int centerZ = static_cast<int>(
+        (source.position.z - domain.min.z) / domain.voxelSize);
+    const int radiusX = static_cast<int>(std::ceil(extent.x / domain.voxelSize));
+    const int radiusY = static_cast<int>(std::ceil(extent.y / domain.voxelSize));
+    const int radiusZ = static_cast<int>(std::ceil(extent.z / domain.voxelSize));
+    const float extentMax = std::max({extent.x, extent.y, extent.z, 1.0e-6f});
+    double sum = 0.0;
+    for (int z = std::max(0, centerZ - radiusZ);
+         z <= std::min(resolution.depth - 1, centerZ + radiusZ); ++z)
+      for (int y = std::max(0, centerY - radiusY);
+           y <= std::min(resolution.height - 1, centerY + radiusY); ++y)
+        for (int x = std::max(0, centerX - radiusX);
+             x <= std::min(resolution.width - 1, centerX + radiusX); ++x) {
+          const float dx = (static_cast<float>(x) + 0.5f) * domain.voxelSize +
+              domain.min.x - source.position.x;
+          const float dy = (static_cast<float>(y) + 0.5f) * domain.voxelSize +
+              domain.min.y - source.position.y;
+          const float dz = (static_cast<float>(z) + 0.5f) * domain.voxelSize +
+              domain.min.z - source.position.z;
+          sum += std::clamp(1.0f - std::sqrt(dx * dx + dy * dy + dz * dz) /
+              extentMax, 0.0f, 1.0f);
+        }
+    return sum;
+  };
+  const double baseSourceWeight = integratedSourceWeight(source.extent);
+  const auto sourceForBranch = [&](const std::size_t branchIndex) {
+    auto branchSource = source;
+    if (branchIndex == 10) {
+      branchSource.extent = {0.20f, 0.09f, 0.20f};
+      branchSource.density *= static_cast<float>(baseSourceWeight /
+          integratedSourceWeight(branchSource.extent));
+    } else if (branchIndex == 11) {
+      branchSource.extent = {0.07f, 0.18f, 0.07f};
+      branchSource.density *= static_cast<float>(baseSourceWeight /
+          integratedSourceWeight(branchSource.extent));
+    } else if (branchIndex >= 12) {
+      branchSource.velocity.y = 30.0f;
+    }
+    if (branchIndex == 14) {
+      branchSource.temperature *= 12.0f;
+    }
+    return branchSource;
+  };
+  for (std::size_t branchIndex = 10; branchIndex < branches.size();
+       ++branchIndex) {
+    PyroSimulation variant(domain);
+    variant.setSettings(branches[branchIndex].simulation.settings());
+    const auto variantSource = sourceForBranch(branchIndex);
+    for (int step = 0; step < 12; ++step) {
+      variant.setSources(
+          std::span<const PyroSourceState>(&variantSource, 1));
+      variant.step(1.0 / 60.0);
+    }
+    branches[branchIndex].simulation.fields().densityStorage() =
+        variant.fields().densityStorage();
+    branches[branchIndex].simulation.fields().temperatureStorage() =
+        variant.fields().temperatureStorage();
+    branches[branchIndex].simulation.fields().fuelStorage() =
+        variant.fields().fuelStorage();
+    branches[branchIndex].simulation.fields().velocityStorage() =
+        variant.fields().velocityStorage();
+  }
 
   const auto measureVelocity = [&](const PyroSimulation& simulation) {
     const auto density = simulation.fields().densityView();
@@ -846,8 +928,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   if (!outputDirectory.isEmpty())
     ASSERT_TRUE(QDir().mkpath(captureDirectory));
   constexpr std::array<int, 4> captureSteps{0, 24, 48, 72};
-  std::array<PreviousImage, 10> previousFront;
-  std::array<PreviousImage, 10> previousSide;
+  std::array<PreviousImage, 15> previousFront;
+  std::array<PreviousImage, 15> previousSide;
   std::size_t nextCapture = 0;
   constexpr std::array<float, 4> largeWavelengths{0.75f, 0.48f, 0.30f, 0.0f};
   for (int step = 0; step <= captureSteps.back(); ++step) {
@@ -924,9 +1006,12 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       if (nextCapture + 1 < captureSteps.size()) ++nextCapture;
     }
     if (step == captureSteps.back()) break;
-    for (auto& branch : branches)
-      branch.simulation.setSources(
-          std::span<const PyroSourceState>(&source, 1));
+    for (std::size_t branchIndex = 0; branchIndex < branches.size();
+         ++branchIndex) {
+      const auto branchSource = sourceForBranch(branchIndex);
+      branches[branchIndex].simulation.setSources(
+          std::span<const PyroSourceState>(&branchSource, 1));
+    }
     const auto smokeForce = applyCoherentTurbulence(branches[5].simulation,
         static_cast<double>(step) / 60.0, 0.45f, largeWavelengths, 3, 0,
         0x17u);
