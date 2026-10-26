@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-27 04:13
+> Generated: 2026-10-27 05:53
 > Total documents: 1470
 
 ---
@@ -1218,7 +1218,7 @@
 | 616 | `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md` | MILESTONE: 単一画像レイヤー化（Single Image Layerization） | 2026-08-17 | In Progress（standalone prototype implemented; app integration not started） | 2026-08-18 | 12.5 KB | SINGLE, IMAGE, LAYERIZATION |
 | 617 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | --- | 2026-10-02 | 7.5 KB | SMART, FALLBACKS |
 | 618 | `docs/planned/MILESTONE_SMART_GUIDES_2026-04-10.md` | スマートガイドシステムの実装 | 2026-08-15 | --- | 2026-08-16 | 2.8 KB | SMART, GUIDES |
-| 619 | `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` | M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ | 2026-10-27 | In Progress（煙エミッタのCore API・Inspector設定・永続化・Brushによるビューポートstirringを実装。エミッタ数1〜64を追加。独立Core/runtime、D3D12 production、CPU/GPU Render Queueとheadless Composition View描画wrapperの同一frame画像比較は通過。Composition View wrapperとGPU Render Queue frameは画素完全一致。実アプリUI操作とライブviewport captureは未確認） | 2026-10-27 | 204.0 KB | SMOKE, EMITTER, AND, VIEWPORT, INTERACTION |
+| 619 | `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` | M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ | 2026-10-27 | In Progress（煙エミッタのCore API・Inspector設定・永続化・Brushによるビューポートstirringを実装。エミッタ数1〜64を追加。独立Core/runtime、D3D12 production、CPU/GPU Render Queueとheadless Composition View描画wrapperの同一frame画像比較は通過。Composition View wrapperとGPU Render Queue frameは画素完全一致。煙＋炎のtest-only同一raymarchはD3D12 / Vulkanで通過したが、温度field由来の炎形状は平坦で製品品質に不足。実アプリUI操作、ライブviewport capture、production volume rendererは未確認） | 2026-10-27 | 215.6 KB | SMOKE, EMITTER, AND, VIEWPORT, INTERACTION |
 | 620 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-08-15 | --- | 2026-08-16 | 2.9 KB | SNAP, ADVANCED |
 | 621 | `docs/planned/MILESTONE_SOLID_LAYER_NOISE_FILL_2026-08-18.md` | MILESTONE: 平面レイヤー Noise Fill | 2026-08-24 | Superseded（2026-08-24: 独立ノイズレイヤー方式へ方針変更。平面 Fill 拡張は実装断念） | 2026-08-24 | 16.9 KB | SOLID, LAYER, NOISE, FILL |
 | 622 | `docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md` | マイルストーン: Source Relocation Contract（Image / Image Sequence） | 2026-10-02 | In Progress | 2026-10-02 | 11.6 KB | SOURCE, RELOCATION, CONTRACT |

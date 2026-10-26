@@ -1661,6 +1661,7 @@ TEST(ClonerGpuRenderContractTest,
     settings.emitterDensity = 0.6f;
     settings.emitterVelocityY = -1.2f;
     settings.emitterSwirl = 0.15f;
+    settings.emitterTemperature = 2.0f;
     settings.vorticity = 0.1f;
     settings.buoyancy = 0.0f;
     Artifact::LayerFluidRuntimeState runtime;
@@ -1686,6 +1687,26 @@ TEST(ClonerGpuRenderContractTest,
         };
         return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
                          std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+    };
+    const auto sampleTemperature = [&](const float sampleX,
+                                       const float sampleY) {
+        const float x = std::clamp(sampleX, 0.0f,
+                                   static_cast<float>(gridWidth - 1));
+        const float y = std::clamp(sampleY, 0.0f,
+                                   static_cast<float>(gridHeight - 1));
+        const int x0 = static_cast<int>(std::floor(x));
+        const int y0 = static_cast<int>(std::floor(y));
+        const int x1 = std::min(x0 + 1, gridWidth - 1);
+        const int y1 = std::min(y0 + 1, gridHeight - 1);
+        const float tx = x - static_cast<float>(x0);
+        const float ty = y - static_cast<float>(y0);
+        const auto at = [&](const int px, const int py) {
+            return snapshot.temperature[static_cast<std::size_t>(
+                py * gridWidth + px)];
+        };
+        return std::lerp(
+            std::lerp(at(x0, y0), at(x1, y0), tx),
+            std::lerp(at(x0, y1), at(x1, y1), tx), ty);
     };
 
     const auto valueNoise = [](const float x, const float y) {
@@ -1756,7 +1777,46 @@ TEST(ClonerGpuRenderContractTest,
         return density;
     };
 
+    const auto makeFlameVolume = [&] {
+        std::vector<float> flame(
+            static_cast<std::size_t>(gridWidth * gridHeight * volumeDepth),
+            0.0f);
+        const auto index = [](const int x, const int y, const int z) {
+            return static_cast<std::size_t>(x + gridWidth *
+                (y + gridHeight * z));
+        };
+        for (int z = 0; z < volumeDepth; ++z) {
+            const float zNorm = (static_cast<float>(z) + 0.5f) /
+                static_cast<float>(volumeDepth) * 2.0f - 1.0f;
+            const float envelope = std::exp(-2.5f * zNorm * zNorm);
+            for (int y = 0; y < gridHeight; ++y) {
+                for (int x = 0; x < gridWidth; ++x) {
+                    const float warpX = 2.5f * valueNoise(
+                        0.13f * x + 4.0f * zNorm,
+                        0.13f * y - 2.0f * zNorm + 7.0f) +
+                        0.8f * valueNoise(
+                            0.4f * x - 7.0f * zNorm,
+                            0.4f * y + 3.0f * zNorm);
+                    const float warpY = 2.5f * valueNoise(
+                        0.13f * x - 2.0f * zNorm + 21.0f,
+                        0.13f * y + 4.0f * zNorm - 17.0f) +
+                        0.8f * valueNoise(
+                            0.4f * x + 3.0f * zNorm,
+                            0.4f * y - 7.0f * zNorm);
+                    const float temperature = sampleTemperature(
+                        static_cast<float>(x) + warpX,
+                        static_cast<float>(y) + warpY);
+                    flame[index(x, y, z)] =
+                        std::clamp((temperature - 0.35f) * 0.6f,
+                                   0.0f, 1.0f) * envelope;
+                }
+            }
+        }
+        return flame;
+    };
+
     std::vector<float> density = makeVolume(true);
+    std::vector<float> flame = makeFlameVolume();
     TextureDesc densityDesc;
     densityDesc.Name = "Smoke R&D depth-warped density volume";
     densityDesc.Type = RESOURCE_DIM_TEX_3D;
@@ -1781,6 +1841,30 @@ TEST(ClonerGpuRenderContractTest,
         TEXTURE_VIEW_SHADER_RESOURCE);
     ASSERT_NE(densitySRV, nullptr);
 
+    TextureDesc flameDesc;
+    flameDesc.Name = "Smoke R&D depth-warped flame emission volume";
+    flameDesc.Type = RESOURCE_DIM_TEX_3D;
+    flameDesc.Width = gridWidth;
+    flameDesc.Height = gridHeight;
+    flameDesc.Depth = volumeDepth;
+    flameDesc.Format = TEX_FORMAT_R32_FLOAT;
+    flameDesc.MipLevels = 1;
+    flameDesc.Usage = USAGE_IMMUTABLE;
+    flameDesc.BindFlags = BIND_SHADER_RESOURCE;
+    TextureSubResData flameSubresource;
+    flameSubresource.pData = flame.data();
+    flameSubresource.Stride = gridWidth * sizeof(float);
+    flameSubresource.DepthStride = gridWidth * gridHeight * sizeof(float);
+    TextureData flameInitialData;
+    flameInitialData.pSubResources = &flameSubresource;
+    flameInitialData.NumSubresources = 1;
+    RefCntAutoPtr<ITexture> flameTexture;
+    device->CreateTexture(flameDesc, &flameInitialData, &flameTexture);
+    ASSERT_NE(flameTexture, nullptr);
+    auto* flameSRV = flameTexture->GetDefaultView(
+        TEXTURE_VIEW_SHADER_RESOURCE);
+    ASSERT_NE(flameSRV, nullptr);
+
     TextureDesc outputDesc;
     outputDesc.Name = "Smoke R&D volume raymarch output";
     outputDesc.Type = RESOURCE_DIM_TEX_2D;
@@ -1802,6 +1886,7 @@ TEST(ClonerGpuRenderContractTest,
 
     static constexpr char volumeShader[] = R"(
 Texture3D<float> g_Density : register(t0);
+Texture3D<float> g_Flame : register(t1);
 RWTexture2D<float4> g_Output : register(u0);
 SamplerState g_Sampler : register(s0);
 
@@ -1818,6 +1903,10 @@ cbuffer g_Params : register(b0) {
     float LightY;
     float LightZ;
     float PhaseG;
+    float SmokeEnabled;
+    float FlameEnabled;
+    float FlameScale;
+    float FlamePadding;
 };
 
 [numthreads(8, 8, 1)]
@@ -1834,6 +1923,7 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     float phase = (1.0 - g * g) / pow(phaseDenom, 1.5);
     phase = clamp(phase * 0.5, 0.2, 1.4);
     float transmittance = 1.0;
+    float flameTransmittance = 1.0;
     float3 radiance = 0.0;
     const uint shadowSteps = 8;
     const float shadowStep = 0.035;
@@ -1844,8 +1934,16 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
         float3 position = ViewAxis == 0
             ? float3(rayT, screenY, uv.x)
             : float3(uv.x, screenY, rayT);
-        float density = g_Density.SampleLevel(g_Sampler, position, 0);
-        density *= DensityScale;
+        float density = SmokeEnabled > 0.5
+            ? g_Density.SampleLevel(g_Sampler, position, 0) * DensityScale
+            : 0.0;
+        float flameValue = FlameEnabled > 0.5
+            ? g_Flame.SampleLevel(g_Sampler, position, 0) * FlameScale
+            : 0.0;
+        float flameAlpha = 1.0 - exp(-flameValue * rayStep);
+        radiance += transmittance * flameAlpha *
+            float3(1.0, 0.24, 0.025) * 2.5;
+        flameTransmittance *= 1.0 - flameAlpha;
         if (density > 1.0e-5) {
             float opticalDepth = 0.0;
             [unroll]
@@ -1868,7 +1966,8 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
             if (transmittance < 0.01) break;
         }
     }
-    g_Output[id.xy] = float4(radiance, 1.0 - transmittance);
+    g_Output[id.xy] = float4(
+        radiance, 1.0 - transmittance * flameTransmittance);
 }
 )";
 
@@ -1904,8 +2003,12 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
         float lightY = 0.62f;
         float lightZ = 0.66f;
         float phaseG = 0.25f;
+        float smokeEnabled = 1.0f;
+        float flameEnabled = 0.0f;
+        float flameScale = 3.0f;
+        float padding = 0.0f;
     };
-    static_assert(sizeof(VolumeParameters) == 48);
+    static_assert(sizeof(VolumeParameters) == 64);
     VolumeParameters parameters;
     BufferDesc parameterDesc;
     parameterDesc.Name = "Smoke R&D volume raymarch parameters";
@@ -1933,6 +2036,8 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     ASSERT_NE(srb, nullptr);
     auto* densityVariable = srb->GetVariableByName(
         SHADER_TYPE_COMPUTE, "g_Density");
+    auto* flameVariable = srb->GetVariableByName(
+        SHADER_TYPE_COMPUTE, "g_Flame");
     auto* outputVariable = srb->GetVariableByName(
         SHADER_TYPE_COMPUTE, "g_Output");
     auto* samplerVariable = srb->GetVariableByName(
@@ -1940,19 +2045,24 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     auto* parameterVariable = srb->GetVariableByName(
         SHADER_TYPE_COMPUTE, "g_Params");
     ASSERT_NE(densityVariable, nullptr);
+    ASSERT_NE(flameVariable, nullptr);
     ASSERT_NE(outputVariable, nullptr);
     ASSERT_NE(samplerVariable, nullptr);
     ASSERT_NE(parameterVariable, nullptr);
     densityVariable->Set(densitySRV);
+    flameVariable->Set(flameSRV);
     outputVariable->Set(outputUAV);
     samplerVariable->Set(sampler);
     parameterVariable->Set(parameterBuffer);
 
     const auto render = [&](const Uint32 viewAxis, const float ambientFill,
-                            const float phaseG) {
+                            const float phaseG, const bool smokeEnabled,
+                            const bool flameEnabled) {
         parameters.viewAxis = viewAxis;
         parameters.ambientFill = ambientFill;
         parameters.phaseG = phaseG;
+        parameters.smokeEnabled = smokeEnabled ? 1.0f : 0.0f;
+        parameters.flameEnabled = flameEnabled ? 1.0f : 0.0f;
         context->UpdateBuffer(parameterBuffer, 0, sizeof(parameters),
             &parameters, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         context->SetPipelineState(pipeline);
@@ -1967,16 +2077,22 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
         return renderer.readbackTextureViewToImage(outputSRV);
     };
 
-    const auto frontLit = render(1, 0.28f, 0.25f);
-    const auto frontAmbient = render(1, 0.55f, 0.0f);
-    const auto sideLit = render(0, 0.28f, 0.25f);
+    const auto frontLit = render(1, 0.28f, 0.25f, true, false);
+    const auto frontAmbient = render(1, 0.55f, 0.0f, true, false);
+    const auto sideLit = render(0, 0.28f, 0.25f, true, false);
+    const auto flameOnly = render(1, 0.28f, 0.25f, false, true);
+    const auto combined = render(1, 0.28f, 0.25f, true, true);
     ASSERT_FALSE(frontLit.isNull());
     ASSERT_FALSE(frontAmbient.isNull());
     ASSERT_FALSE(sideLit.isNull());
+    ASSERT_FALSE(flameOnly.isNull());
+    ASSERT_FALSE(combined.isNull());
     ASSERT_EQ(frontLit.size(), QSize(outputWidth, outputHeight));
     const auto imageMetrics = [](const QImage& image) {
         double lumaSum = 0.0;
         double lumaSquared = 0.0;
+        double redSum = 0.0;
+        double blueSum = 0.0;
         std::size_t covered = 0;
         for (int y = 0; y < image.height(); ++y) {
             for (int x = 0; x < image.width(); ++x) {
@@ -1985,27 +2101,40 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
                     0.7152 * color.green() + 0.0722 * color.blue();
                 lumaSum += luma;
                 lumaSquared += luma * luma;
+                redSum += color.red();
+                blueSum += color.blue();
                 if (color.alpha() > 8) ++covered;
             }
         }
         const double count = static_cast<double>(image.width()) * image.height();
         const double mean = lumaSum / count;
-        return std::array<double, 3>{mean,
+        return std::array<double, 5>{mean,
             std::sqrt(std::max(0.0, lumaSquared / count - mean * mean)),
-            static_cast<double>(covered)};
+            static_cast<double>(covered), redSum / count, blueSum / count};
     };
     const auto litMetrics = imageMetrics(frontLit);
     const auto ambientMetrics = imageMetrics(frontAmbient);
     const auto sideMetrics = imageMetrics(sideLit);
+    const auto flameMetrics = imageMetrics(flameOnly);
+    const auto combinedMetrics = imageMetrics(combined);
     GTEST_LOG_(INFO) << "GPU smoke 2.5D raymarch frame=" << captureFrame
         << " front-lit mean/std/covered=" << litMetrics[0] << '/'
         << litMetrics[1] << '/' << litMetrics[2]
         << " front-ambient=" << ambientMetrics[0] << '/'
         << ambientMetrics[1] << '/' << ambientMetrics[2]
         << " side-lit=" << sideMetrics[0] << '/' << sideMetrics[1] << '/'
-        << sideMetrics[2];
+        << sideMetrics[2]
+        << " flame-only mean/std/covered/red/blue=" << flameMetrics[0] << '/'
+        << flameMetrics[1] << '/' << flameMetrics[2] << '/'
+        << flameMetrics[3] << '/' << flameMetrics[4]
+        << " combined=" << combinedMetrics[0] << '/' << combinedMetrics[1]
+        << '/' << combinedMetrics[2];
     EXPECT_GT(litMetrics[2], 100.0);
     EXPECT_GT(sideMetrics[2], 100.0);
+    EXPECT_GT(flameMetrics[2], 100.0);
+    EXPECT_GT(flameMetrics[3], flameMetrics[4]);
+    EXPECT_GT(combinedMetrics[2], 100.0);
+    EXPECT_NE(combined, frontLit);
 
     const QString outputDirectory =
         qEnvironmentVariable("ARTIFACT_SMOKE_GPU_OUTPUT_DIR");
@@ -2017,6 +2146,10 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
             QStringLiteral("volume-2p5d-front-ambient.png")), "PNG"));
         EXPECT_TRUE(sideLit.save(QDir(outputDirectory).filePath(
             QStringLiteral("volume-2p5d-side-lit.png")), "PNG"));
+        EXPECT_TRUE(flameOnly.save(QDir(outputDirectory).filePath(
+            QStringLiteral("volume-2p5d-flame-only.png")), "PNG"));
+        EXPECT_TRUE(combined.save(QDir(outputDirectory).filePath(
+            QStringLiteral("volume-2p5d-smoke-and-flame.png")), "PNG"));
     }
 }
 
