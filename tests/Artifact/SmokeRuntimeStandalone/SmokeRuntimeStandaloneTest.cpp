@@ -26,6 +26,41 @@ import Graphics.ParticleData;
 import Render.VolumeRenderer;
 
 namespace {
+struct SmokeProjectionStageCapture final {
+  int stage = 0;
+  int width = 0;
+  int height = 0;
+  int solverIterations = 0;
+  std::vector<float> density;
+  std::vector<float> velocityX;
+  std::vector<float> velocityY;
+};
+
+std::vector<SmokeProjectionStageCapture>* gSmokeProjectionCaptures = nullptr;
+}
+
+extern "C" void artifactSmokeRuntimeRndObserve(
+    const int stage, const int width, const int height,
+    const int solverIterations, const float* density,
+    const float* velocityX, const float* velocityY) {
+  if (!gSmokeProjectionCaptures || width <= 0 || height <= 0 ||
+      !density || !velocityX || !velocityY) {
+    return;
+  }
+  SmokeProjectionStageCapture capture;
+  capture.stage = stage;
+  capture.width = width;
+  capture.height = height;
+  capture.solverIterations = solverIterations;
+  const auto count = static_cast<std::size_t>(width) *
+                     static_cast<std::size_t>(height);
+  capture.density.assign(density, density + count);
+  capture.velocityX.assign(velocityX, velocityX + count);
+  capture.velocityY.assign(velocityY, velocityY + count);
+  gSmokeProjectionCaptures->push_back(std::move(capture));
+}
+
+namespace {
 
 constexpr int kGridWidth = 96;
 constexpr int kGridHeight = 72;
@@ -4067,6 +4102,347 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         << height << " normalizedMass=" << densityMass
         << " centroidY=" << centroidY << " sigmaY=" << sigmaY;
   }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresProductionSmokeSolverStageEvolutionAcrossResolutions) {
+  constexpr std::array<std::pair<int, int>, 3> resolutions{{
+      {96, 72}, {128, 96}, {192, 144}}};
+  constexpr std::array<int, 4> reportedFrames{0, 1, 4, 28};
+  constexpr std::array<const char*, 5> stageNames{
+      "pre-update", "after-projection-1", "after-velocity-advection",
+      "after-projection-2", "after-density-advection"};
+  constexpr int solverIterations = 8;
+  struct Metrics final {
+    double mass = 0.0;
+    double centroidY = 0.0;
+    double velocityRms = 0.0;
+    double divergenceRms = 0.0;
+  };
+  const auto measure = [](const SmokeProjectionStageCapture& field) {
+    Metrics result;
+    double densitySum = 0.0;
+    double weightedY = 0.0;
+    double velocityEnergy = 0.0;
+    double divergenceEnergy = 0.0;
+    std::size_t velocitySamples = 0;
+    for (int y = 1; y < field.height - 1; ++y) {
+      for (int x = 1; x < field.width - 1; ++x) {
+        const auto index = static_cast<std::size_t>(x + y * field.width);
+        const double density = field.density[index];
+        densitySum += density;
+        weightedY += density * static_cast<double>(y - 1) /
+                     static_cast<double>(field.height - 3);
+        const double vx = field.velocityX[index];
+        const double vy = field.velocityY[index];
+        velocityEnergy += vx * vx + vy * vy;
+        ++velocitySamples;
+        if (x >= 2 && x < field.width - 2 &&
+            y >= 2 && y < field.height - 2) {
+          const double divergence = 0.5 * (
+              (field.velocityX[index + 1] - field.velocityX[index - 1]) *
+                  (field.width - 3) +
+              (field.velocityY[index + field.width] -
+               field.velocityY[index - field.width]) * (field.height - 3));
+          divergenceEnergy += divergence * divergence;
+        }
+      }
+    }
+    const double area = static_cast<double>(
+        (field.width - 2) * (field.height - 2));
+    result.mass = densitySum / area;
+    result.centroidY = densitySum > 0.0 ? weightedY / densitySum : 0.0;
+    result.velocityRms = velocitySamples > 0
+        ? std::sqrt(velocityEnergy / static_cast<double>(velocitySamples)) : 0.0;
+    const double divergenceSamples = static_cast<double>(
+        (field.width - 5) * (field.height - 5));
+    result.divergenceRms = divergenceSamples > 0
+        ? std::sqrt(divergenceEnergy / divergenceSamples) : 0.0;
+    return result;
+  };
+
+  for (const auto& [width, height] : resolutions) {
+    Artifact::LayerFluidRuntimeState state;
+    Artifact::LayerSmokeRuntimeSettings settings;
+    settings.gridWidth = width;
+    settings.gridHeight = height;
+    settings.solverIterations = solverIterations;
+    settings.emitterX = 0.5f;
+    settings.emitterY = 0.84f;
+    settings.emitterRadius = 0.08f;
+    settings.emitterDensity = 0.6f;
+    settings.emitterVelocityY = -1.2f;
+    settings.emitterSwirl = 0.15f;
+    settings.buoyancy = 0.7f;
+    settings.vorticity = 0.1f;
+    std::vector<SmokeProjectionStageCapture> captures;
+    for (int frame = 0; frame <= 28; ++frame) {
+      captures.clear();
+      gSmokeProjectionCaptures = &captures;
+      Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+      gSmokeProjectionCaptures = nullptr;
+      ASSERT_EQ(captures.size(), 4U);
+      const bool report = std::find(reportedFrames.begin(), reportedFrames.end(),
+                                    frame) != reportedFrames.end();
+      if (report) {
+        for (const auto& capture : captures) {
+          const int blocks = width * height / 4608;
+          const int expectedIterations = std::min(
+              40, solverIterations + std::max(0, blocks - 1) * 4);
+          EXPECT_EQ(capture.solverIterations, expectedIterations);
+          const auto metrics = measure(capture);
+          GTEST_LOG_(INFO) << "production-smoke-stage frame=" << frame
+              << " grid=" << width << 'x' << height
+              << " stage=" << stageNames[static_cast<std::size_t>(capture.stage)]
+              << " effectiveIterations=" << capture.solverIterations
+              << " mass=" << metrics.mass
+              << " centroidY=" << metrics.centroidY
+              << " velocityRms=" << metrics.velocityRms
+              << " divergenceRms=" << metrics.divergenceRms;
+        }
+      }
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresProductionProjectionResponseToIterationCount) {
+  constexpr std::array<std::pair<int, int>, 3> resolutions{{
+      {96, 72}, {128, 96}, {192, 144}}};
+  constexpr std::array<int, 4> iterationCounts{8, 20, 40, 80};
+  constexpr float dt = 1.0f / 30.0f;
+  const auto divergenceRms = [](const SmokeProjectionStageCapture& field) {
+    double squared = 0.0;
+    std::size_t samples = 0;
+    for (int y = 2; y < field.height - 2; ++y) {
+      for (int x = 2; x < field.width - 2; ++x) {
+        const auto index = static_cast<std::size_t>(x + y * field.width);
+        const double divergence = 0.5 * (
+            (field.velocityX[index + 1] - field.velocityX[index - 1]) *
+                (field.width - 3) +
+            (field.velocityY[index + field.width] -
+             field.velocityY[index - field.width]) * (field.height - 3));
+        squared += divergence * divergence;
+        ++samples;
+      }
+    }
+    return samples > 0 ? std::sqrt(squared / static_cast<double>(samples)) : 0.0;
+  };
+  for (const auto& [width, height] : resolutions) {
+    ArtifactCore::FluidSolver2D seedSolver(width, height);
+    auto seed = seedSolver.snapshot();
+    seed.viscosity = 0.0f;
+    seed.diffusion = 0.0f;
+    seed.buoyancy = 0.0f;
+    seed.vorticity = 0.0f;
+    seed.adaptiveIterations = false;
+    seed.solverIterations = 8;
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        const double nx = static_cast<double>(x - 1) / (width - 3);
+        const double ny = static_cast<double>(y - 1) / (height - 3);
+        const double dx = nx - 0.5;
+        const double dy = ny - 0.65;
+        const double radius2 = dx * dx + dy * dy;
+        const double envelope = std::exp(-radius2 / (2.0 * 0.18 * 0.18));
+        const auto index = static_cast<std::size_t>(x + y * width);
+        seed.density[index] = static_cast<float>(
+            0.8 * std::exp(-0.5 *
+                (dx * dx / (0.12 * 0.12) + dy * dy / (0.15 * 0.15))));
+        seed.velocityX[index] = static_cast<float>(
+            dx * 0.8 * envelope - dy * 1.2 * envelope);
+        seed.velocityY[index] = static_cast<float>(
+            dy * 0.8 * envelope + dx * 1.2 * envelope);
+      }
+    }
+    SmokeProjectionStageCapture before;
+    before.width = width;
+    before.height = height;
+    before.density.assign(seed.density.begin(), seed.density.end());
+    before.velocityX.assign(seed.velocityX.begin(), seed.velocityX.end());
+    before.velocityY.assign(seed.velocityY.begin(), seed.velocityY.end());
+    const double initialDivergence = divergenceRms(before);
+    for (const int iterations : iterationCounts) {
+      ArtifactCore::FluidSolver2D solver(width, height);
+      ASSERT_TRUE(solver.restoreSnapshot(seed));
+      solver.setSolverIterations(iterations);
+      solver.setAdaptiveIterations(false);
+      solver.setViscosity(0.0f);
+      solver.setDiffusion(0.0f);
+      solver.setBuoyancy(0.0f);
+      solver.setVorticity(0.0f);
+      std::vector<SmokeProjectionStageCapture> captures;
+      gSmokeProjectionCaptures = &captures;
+      solver.update(dt);
+      gSmokeProjectionCaptures = nullptr;
+      ASSERT_EQ(captures.size(), 4U);
+      GTEST_LOG_(INFO) << "production-projection-iterations grid=" << width
+          << 'x' << height << " iterations=" << iterations
+          << " divergenceBefore=" << initialDivergence
+          << " afterProjection1=" << divergenceRms(captures[0])
+          << " afterVelocityAdvection=" << divergenceRms(captures[1])
+          << " afterProjection2=" << divergenceRms(captures[2]);
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesProductionSmokeMorphologyAtProjectionIterationCounts) {
+  constexpr std::array<std::pair<int, int>, 3> resolutions{{
+      {96, 72}, {128, 96}, {192, 144}}};
+  constexpr std::array<int, 4> iterationCounts{8, 20, 24, 40};
+  constexpr int finalFrame = 28;
+  struct Result final {
+    double mass = 0.0;
+    double centroidY = 0.0;
+    double sigmaY = 0.0;
+    std::vector<float> normalizedDensity;
+  };
+  std::array<std::array<Result, 4>, 3> results;
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory));
+  }
+  const auto resample = [](const ArtifactCore::FluidSnapshot2D& field) {
+    std::vector<float> values(static_cast<std::size_t>(kGridWidth * kGridHeight));
+    for (int y = 0; y < kGridHeight; ++y) {
+      for (int x = 0; x < kGridWidth; ++x) {
+        const float sourceX = 1.0f + static_cast<float>(x) *
+            static_cast<float>(field.width - 3) /
+            static_cast<float>(kGridWidth - 1);
+        const float sourceY = 1.0f + static_cast<float>(y) *
+            static_cast<float>(field.height - 3) /
+            static_cast<float>(kGridHeight - 1);
+        const int x0 = std::clamp(static_cast<int>(std::floor(sourceX)),
+                                  0, field.width - 1);
+        const int y0 = std::clamp(static_cast<int>(std::floor(sourceY)),
+                                  0, field.height - 1);
+        const int x1 = std::min(field.width - 1, x0 + 1);
+        const int y1 = std::min(field.height - 1, y0 + 1);
+        const float tx = sourceX - static_cast<float>(x0);
+        const float ty = sourceY - static_cast<float>(y0);
+        const auto at = [&field](const int px, const int py) {
+          return field.density[static_cast<std::size_t>(px + py * field.width)];
+        };
+        const float top = at(x0, y0) * (1.0f - tx) + at(x1, y0) * tx;
+        const float bottom = at(x0, y1) * (1.0f - tx) + at(x1, y1) * tx;
+        values[static_cast<std::size_t>(x + y * kGridWidth)] =
+            top * (1.0f - ty) + bottom * ty;
+      }
+    }
+    return values;
+  };
+  for (std::size_t grid = 0; grid < resolutions.size(); ++grid) {
+    const auto [width, height] = resolutions[grid];
+    for (std::size_t count = 0; count < iterationCounts.size(); ++count) {
+      Artifact::LayerFluidRuntimeState state;
+      Artifact::LayerSmokeRuntimeSettings settings;
+      settings.gridWidth = width;
+      settings.gridHeight = height;
+      settings.solverIterations = iterationCounts[count];
+      settings.emitterX = 0.5f;
+      settings.emitterY = 0.84f;
+      settings.emitterRadius = 0.08f;
+      settings.emitterDensity = 0.6f;
+      settings.emitterVelocityY = -1.2f;
+      settings.emitterSwirl = 0.15f;
+      settings.buoyancy = 0.7f;
+      settings.vorticity = 0.1f;
+      const auto startTime = std::chrono::steady_clock::now();
+      for (int frame = 0; frame <= finalFrame; ++frame) {
+        Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+      }
+      const double elapsedMilliseconds = std::chrono::duration<double,
+          std::milli>(std::chrono::steady_clock::now() - startTime).count();
+      const auto field = state.fluidSolver_->snapshot();
+      auto& result = results[grid][count];
+      double densitySum = 0.0;
+      double weightedY = 0.0;
+      double weightedY2 = 0.0;
+      for (int y = 1; y < height - 1; ++y) {
+        for (int x = 1; x < width - 1; ++x) {
+          const double density = field.density[
+              static_cast<std::size_t>(x + y * width)];
+          const double ny = static_cast<double>(y - 1) / (height - 3);
+          densitySum += density;
+          weightedY += density * ny;
+          weightedY2 += density * ny * ny;
+        }
+      }
+      result.mass = densitySum /
+          static_cast<double>((width - 2) * (height - 2));
+      result.centroidY = densitySum > 0.0 ? weightedY / densitySum : 0.0;
+      result.sigmaY = densitySum > 0.0 ? std::sqrt(std::max(0.0,
+          weightedY2 / densitySum - result.centroidY * result.centroidY)) : 0.0;
+      result.normalizedDensity = resample(field);
+      double resampledSum = std::accumulate(result.normalizedDensity.begin(),
+          result.normalizedDensity.end(), 0.0);
+      if (resampledSum > 0.0) {
+        const double scale = result.mass *
+            static_cast<double>(result.normalizedDensity.size()) / resampledSum;
+        for (auto& value : result.normalizedDensity)
+          value = static_cast<float>(value * scale);
+      }
+      GTEST_LOG_(INFO) << "smoke-iteration-morphology grid=" << width << 'x'
+          << height << " baseIterations=" << iterationCounts[count]
+          << " mass=" << result.mass << " centroidY=" << result.centroidY
+          << " sigmaY=" << result.sigmaY
+          << " debugElapsedMs=" << elapsedMilliseconds;
+      if (!outputDirectory.isEmpty()) {
+        QImage image(kGridWidth * kImageScale, kGridHeight * kImageScale,
+                     QImage::Format_ARGB32);
+        image.fill(kBackground);
+        const float peak = *std::max_element(result.normalizedDensity.begin(),
+                                             result.normalizedDensity.end());
+        for (int y = 0; y < kGridHeight; ++y) {
+          for (int x = 0; x < kGridWidth; ++x) {
+            const float density = result.normalizedDensity[
+                static_cast<std::size_t>(x + y * kGridWidth)];
+            const int value = static_cast<int>(std::lround(255.0f *
+                std::sqrt(std::clamp(density / std::max(peak, 1.0e-6f),
+                                     0.0f, 1.0f))));
+            for (int sy = 0; sy < kImageScale; ++sy) {
+              auto* row = reinterpret_cast<QRgb*>(
+                  image.scanLine(y * kImageScale + sy));
+              std::fill_n(row + x * kImageScale, kImageScale,
+                          qRgba(value, value, value, 255));
+            }
+          }
+        }
+        const QString fileName = QStringLiteral(
+            "smoke_iteration_%1_grid%2.png")
+            .arg(iterationCounts[count]).arg(width);
+        EXPECT_TRUE(image.save(QDir(outputDirectory).filePath(fileName), "PNG"));
+      }
+    }
+  }
+  const auto reportRmse = [&](const std::size_t lowGrid,
+                              const std::size_t lowCount,
+                              const std::size_t highGrid,
+                              const std::size_t highCount,
+                              const char* label) {
+    const auto& low = results[lowGrid][lowCount].normalizedDensity;
+    const auto& high = results[highGrid][highCount].normalizedDensity;
+    double squaredError = 0.0;
+    for (std::size_t index = 0; index < low.size(); ++index) {
+      const double difference = low[index] - high[index];
+      squaredError += difference * difference;
+    }
+    const double rmse = std::sqrt(squaredError / static_cast<double>(low.size()));
+    GTEST_LOG_(INFO) << "smoke-iteration-cross-grid mode=" << label
+        << " iterations=" << iterationCounts[lowCount] << "->"
+        << iterationCounts[highCount] << " grids="
+        << resolutions[lowGrid].first << "->" << resolutions[highGrid].first
+        << " densityRmse=" << rmse;
+    EXPECT_GT(rmse, 0.0);
+    return rmse;
+  };
+  const double base20to40 = reportRmse(0, 1, 2, 3, "same-default-low-high");
+  const double scaled20to24 = reportRmse(0, 1, 1, 2, "scaled-low-medium");
+  const double scaled24to40 = reportRmse(1, 2, 2, 3, "scaled-medium-high");
+  EXPECT_LT(scaled20to24, base20to40);
+  EXPECT_LT(scaled24to40, base20to40);
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,

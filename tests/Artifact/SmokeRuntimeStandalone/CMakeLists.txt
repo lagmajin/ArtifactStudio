@@ -51,6 +51,10 @@ artifact_add_standalone_module_implementation(SmokeRuntimeCoreImplementation
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )
 
+target_compile_definitions(SmokeRuntimeCoreImplementation PRIVATE
+    ARTIFACT_SMOKE_RUNTIME_RND=1
+)
+
 artifact_add_standalone_module_implementation(SmokeRuntimeImplementation
     SOURCES "${ARTIFACT_ROOT}/src/Layer/ArtifactLayerFluidRuntimeState.cpp"
     LINK_LIBS SmokeRuntimeModuleInterfaces SmokeRuntimeCoreImplementation Qt6::Gui
