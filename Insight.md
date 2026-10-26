@@ -10,6 +10,14 @@
 - **次に確認すべきこと:** 同じ非周期curl-noiseを本番particle extraction／renderer出力で露出合わせ比較する。優位性が安定したら、別温度fieldを含むCore runtime snapshot/checkpoint/scrubと設定導線を設計し、hot pathの確保を避けて段階統合する。
 - **再検証:** `ArtifactCoreSmokeEmitterStandaloneTest` build成功。`ComparesSeparatedThermalMemoryAfterEqualSmokePulse` 2 seed / 8条件 / 4 capture frames pass。`TemperatureMaskedCurlNoiseAddsDivergenceFreeVelocity` pass（RMS divergence <1e-7、最大絶対値 <1e-6）。captures: `build/smoke-emitter-rnd/captures/nonperiodic-curl-turbulence-rnd-20261026/`。
 
+## 2026-10-26: temperature curl候補はproduction particle出力でリング状に崩れる
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesTemperatureCurlNoiseThroughProductionParticleExtraction`。
+- **確認できた事実:** 12-frame pulse、seed 17/71、frame 24/36/44、production `LayerFluidRuntimeState` と40×40 particle extractionを比較し、green exposureを一致させた。curl候補のframe44 particle数は73→96 / 70→79、density massは18.90→23.79 / 18.82→23.72に増えた。画像では後半が煙のrollより穴のあるリング／void状に見え、mass増加もあるため品質改善とは判定できない。test-only 96×72再サンプリングは粒子隙間を減らすが、リング形状を残した。これはCPU reference rasterizerによる画像でありDiligent GPU比較ではない。
+- **価値または懸念:** Solver fieldのフック状変形が、粒子抽出・描画後にも望ましいbillowとして維持されるとは限らない。高域RMSやparticle countの上昇だけで見た目改善を採択しない根拠になった。
+- **仮説（未検証）:** 固定density fieldのtransfer curve、extinction、lightingをproduction Diligent rendererで露出合わせ比較すれば、solver形状とvolume/sprite描画品質を切り分けられる。
+- **次に確認すべきこと:** 同じproduction densityをGPU描画し、seed／複数時点の連続性と穴の有無を評価する。curl noiseおよび96×72 resamplingはGPU画像でroll改善が再現するまでtest-onlyに留める。
+- **再検証:** `cmake --build build/smoke-runtime-rnd --target ArtifactSmokeRuntimeStandaloneTest --parallel 8` 成功。focused `ComparesTemperatureCurlNoiseThroughProductionParticleExtraction` 1/1 pass（2 seed、6 frame比較）。captures: `build/smoke-runtime-rnd/captures/temperature-curl-production-pulse-particles-rnd-20261026/`。
+
 ## 2026-10-26: 2D smoke density lifetimeは視覚形状と分けて制御できる
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の density retention、`Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp` の Fluid Component properties、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ProductionRuntimeHonorsSmokeDensityDissipationRate`。
 - **確認できた事実:** 現行既定 `2.5/s` を保ちつつ減衰率を `0–10/s` で設定できるようにし、Component専用 Fluid設定・JSON保存復元・production runtimeへ接続した。同じ12-frame pulseを30fps / 96×72でframe60まで進めたfocused testで、`0.5/s` のdensity massは611.047、`2.5/s` は17.3242で約35倍だった。focused standalone test 1/1 pass、Artifact target build成功。

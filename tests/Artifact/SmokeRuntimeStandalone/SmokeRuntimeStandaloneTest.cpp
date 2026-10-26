@@ -19,6 +19,7 @@
 
 import Artifact.Layer.FluidRuntimeState;
 import Artifact.Render.IRenderer;
+import Container.NamedVector;
 import Core.Simulation.Pyro;
 import Graphics.ParticleData;
 import Render.VolumeRenderer;
@@ -358,6 +359,125 @@ float smokeSeededValueNoise(const float x, const float y,
   return std::lerp(
       std::lerp(hashValue(x0, y0), hashValue(x0 + 1, y0), sx),
       std::lerp(hashValue(x0, y0 + 1), hashValue(x0 + 1, y0 + 1), sx), sy);
+}
+
+void injectTestSmokeTemperature(
+    ArtifactCore::NamedVector<float>& temperature, const int width,
+    const int height, const Artifact::LayerSmokeRuntimeSettings& settings) {
+  const int centerX = 1 + static_cast<int>(
+      std::round(std::clamp(settings.emitterX, 0.0f, 1.0f) * (width - 3)));
+  const int centerY = 1 + static_cast<int>(
+      std::round(std::clamp(settings.emitterY, 0.0f, 1.0f) * (height - 3)));
+  const float radiusX = std::max(settings.emitterRadius * (width - 2), 0.5f);
+  const float radiusY = std::max(settings.emitterRadius * (height - 2), 0.5f);
+  const int extentX = static_cast<int>(std::ceil(radiusX));
+  const int extentY = static_cast<int>(std::ceil(radiusY));
+  for (int y = std::max(1, centerY - extentY);
+       y <= std::min(height - 2, centerY + extentY); ++y) {
+    for (int x = std::max(1, centerX - extentX);
+         x <= std::min(width - 2, centerX + extentX); ++x) {
+      const float dx = static_cast<float>(x - centerX) / radiusX;
+      const float dy = static_cast<float>(y - centerY) / radiusY;
+      const float radiusSquared = dx * dx + dy * dy;
+      if (radiusSquared > 1.0f) continue;
+      temperature[static_cast<std::size_t>(x + y * width)] +=
+          (1.0f - radiusSquared) * settings.emitterDensity;
+    }
+  }
+}
+
+void advectTestSmokeTemperature(
+    ArtifactCore::NamedVector<float>& temperature,
+    ArtifactCore::NamedVector<float>& nextTemperature,
+    const ArtifactCore::FluidSolver2D& solver, const float dt,
+    const float coolingRate) {
+  const int width = solver.width();
+  const int height = solver.height();
+  const auto index = [width](const int x, const int y) {
+    return static_cast<std::size_t>(x + y * width);
+  };
+  const float dtx = dt * static_cast<float>(width - 2);
+  const float dty = dt * static_cast<float>(height - 2);
+  const float retention = std::exp(-std::max(0.0f, coolingRate) * dt);
+  std::fill(nextTemperature.begin(), nextTemperature.end(), 0.0f);
+  for (int y = 1; y < height - 1; ++y) {
+    for (int x = 1; x < width - 1; ++x) {
+      float velocityX = 0.0f;
+      float velocityY = 0.0f;
+      solver.getVelocity(x, y, velocityX, velocityY);
+      const float backX = std::clamp(
+          static_cast<float>(x) - dtx * velocityX, 0.5f,
+          static_cast<float>(width) - 1.5f);
+      const float backY = std::clamp(
+          static_cast<float>(y) - dty * velocityY, 0.5f,
+          static_cast<float>(height) - 1.5f);
+      const int x0 = static_cast<int>(std::floor(backX));
+      const int y0 = static_cast<int>(std::floor(backY));
+      const int x1 = x0 + 1;
+      const int y1 = y0 + 1;
+      const float tx = backX - static_cast<float>(x0);
+      const float ty = backY - static_cast<float>(y0);
+      const float top = std::lerp(temperature[index(x0, y0)],
+                                  temperature[index(x1, y0)], tx);
+      const float bottom = std::lerp(temperature[index(x0, y1)],
+                                     temperature[index(x1, y1)], tx);
+      nextTemperature[index(x, y)] = std::lerp(top, bottom, ty) * retention;
+    }
+  }
+  std::copy(nextTemperature.begin(), nextTemperature.end(), temperature.begin());
+}
+
+void applyTestSmokeTemperatureCurlNoise(
+    ArtifactCore::FluidSolver2D& solver,
+    const ArtifactCore::NamedVector<float>& temperature,
+    ArtifactCore::NamedVector<float>& streamFunction, const float dt,
+    const float simulationTime, const std::uint32_t seed) {
+  const int width = solver.width();
+  const int height = solver.height();
+  const auto index = [width](const int x, const int y) {
+    return static_cast<std::size_t>(x + y * width);
+  };
+  struct Mode final {
+    float wavelengthX;
+    float wavelengthY;
+    float temporalRate;
+    float strength;
+    std::uint32_t seedOffset;
+  };
+  constexpr std::array<Mode, 3> modes{{
+      {25.0f, 21.0f, 0.65f, 5.0f, 0xB5297A4Du},
+      {19.0f, 28.0f, -0.47f, 3.15f, 0x68E31DA4u},
+      {10.0f, 13.0f, 0.91f, 2.5f, 0x1B56C4E9u},
+  }};
+  std::fill(streamFunction.begin(), streamFunction.end(), 0.0f);
+  for (const Mode& mode : modes) {
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        const auto cell = index(x, y);
+        const float envelope = std::clamp(temperature[cell] * 3.0f,
+                                          0.0f, 1.0f);
+        if (envelope <= 0.0f) continue;
+        const float noise = smokeSeededValueNoise(
+            static_cast<float>(x) / mode.wavelengthX +
+                simulationTime * mode.temporalRate * 0.11f,
+            static_cast<float>(y) / mode.wavelengthY -
+                simulationTime * mode.temporalRate * 0.07f,
+            seed ^ mode.seedOffset);
+        streamFunction[cell] += mode.strength * envelope * noise;
+      }
+    }
+  }
+  for (int y = 2; y < height - 2; ++y) {
+    for (int x = 2; x < width - 2; ++x) {
+      const float derivativeX = 0.5f * (
+          streamFunction[index(x + 1, y)] -
+          streamFunction[index(x - 1, y)]);
+      const float derivativeY = 0.5f * (
+          streamFunction[index(x, y + 1)] -
+          streamFunction[index(x, y - 1)]);
+      solver.addVelocity(x, y, derivativeY * dt, -derivativeX * dt);
+    }
+  }
 }
 
 SmokeFieldFrame captureSmokeFieldFrame(
@@ -2562,6 +2682,289 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
                   .arg(tail)), "PNG"));
         }
       }
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesTemperatureCurlNoiseThroughProductionParticleExtraction) {
+  constexpr int finalFrame = 44;
+  constexpr int emissionFrames = 12;
+  constexpr float framesPerSecond = 30.0f;
+  constexpr float dt = 1.0f / framesPerSecond;
+  constexpr std::array<int, 3> captureFrames{24, 36, 44};
+  constexpr std::array<std::uint32_t, 2> seeds{17U, 71U};
+  const auto index = [](const int x, const int y) {
+    return static_cast<std::size_t>(x + y * kGridWidth);
+  };
+  QMatrix4x4 transform;
+  transform.setToIdentity();
+  const QRectF bounds(0.0, 0.0, kGridWidth, kGridHeight);
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  const auto imageHighPassRms = [](const QImage& image) {
+    double squaredSum = 0.0;
+    std::size_t sampleCount = 0;
+    for (int y = 1; y < image.height() - 1; ++y) {
+      for (int x = 1; x < image.width() - 1; ++x) {
+        const auto luma = [&image](const int px, const int py) {
+          const QRgb pixel = image.pixel(px, py);
+          return 0.2126 * qRed(pixel) + 0.7152 * qGreen(pixel) +
+              0.0722 * qBlue(pixel);
+        };
+        const double laplacian = 4.0 * luma(x, y) - luma(x - 1, y) -
+            luma(x + 1, y) - luma(x, y - 1) - luma(x, y + 1);
+        squaredSum += laplacian * laplacian;
+        ++sampleCount;
+      }
+    }
+    return sampleCount > 0
+        ? std::sqrt(squaredSum / static_cast<double>(sampleCount)) : 0.0;
+  };
+  const auto resampleProductionSmokeParticles = [&](
+      const ArtifactCore::FluidSolver2D& solver,
+      const Artifact::LayerSmokeRuntimeSettings& settings,
+      const int sampleCountX, const int sampleCountY) {
+    ArtifactCore::ParticleRenderData data;
+    data.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
+    data.options.billboard = ArtifactCore::ParticleBillboardPolicy::ScreenAligned;
+    const float sampleStepX = static_cast<float>(settings.gridWidth - 1) /
+        static_cast<float>(std::max(1, sampleCountX - 1));
+    const float sampleStepY = static_cast<float>(settings.gridHeight - 1) /
+        static_cast<float>(std::max(1, sampleCountY - 1));
+    const float spacingX = static_cast<float>(bounds.width()) /
+        static_cast<float>(std::max(1, sampleCountX - 1));
+    const float spacingY = static_cast<float>(bounds.height()) /
+        static_cast<float>(std::max(1, sampleCountY - 1));
+    const float sampleSpacing = std::max(spacingX, spacingY);
+    data.particles.reserve(static_cast<std::size_t>(sampleCountX * sampleCountY));
+    for (int sampleY = 0; sampleY < sampleCountY; ++sampleY) {
+      for (int sampleX = 0; sampleX < sampleCountX; ++sampleX) {
+        std::uint32_t sampleHash =
+            static_cast<std::uint32_t>(sampleX) * 0x9E3779B9u ^
+            static_cast<std::uint32_t>(sampleY) * 0x85EBCA6Bu;
+        sampleHash ^= sampleHash >> 16u;
+        sampleHash *= 0x7FEB352Du;
+        sampleHash ^= sampleHash >> 15u;
+        const float jitterX = static_cast<float>(sampleHash & 0xFFFFu) *
+            (2.0f / 65535.0f) - 1.0f;
+        const float jitterY = static_cast<float>(sampleHash >> 16u) *
+            (2.0f / 65535.0f) - 1.0f;
+        const float gridX = std::clamp(
+            static_cast<float>(sampleX) * sampleStepX +
+                jitterX * sampleStepX * 0.30f,
+            0.0f, static_cast<float>(settings.gridWidth - 1));
+        const float gridY = std::clamp(
+            static_cast<float>(sampleY) * sampleStepY +
+                jitterY * sampleStepY * 0.30f,
+            0.0f, static_cast<float>(settings.gridHeight - 1));
+        const int x0 = static_cast<int>(std::floor(gridX));
+        const int y0 = static_cast<int>(std::floor(gridY));
+        const int x1 = std::min(x0 + 1, settings.gridWidth - 1);
+        const int y1 = std::min(y0 + 1, settings.gridHeight - 1);
+        const float tx = gridX - static_cast<float>(x0);
+        const float ty = gridY - static_cast<float>(y0);
+        const float top = std::lerp(
+            solver.getDensity(x0, y0), solver.getDensity(x1, y0), tx);
+        const float bottom = std::lerp(
+            solver.getDensity(x0, y1), solver.getDensity(x1, y1), tx);
+        const float density = std::lerp(top, bottom, ty);
+        if (density < 0.025f) continue;
+        ArtifactCore::ParticleVertex particle{};
+        particle.px = static_cast<float>(bounds.left()) + gridX /
+            static_cast<float>(settings.gridWidth - 1) *
+                static_cast<float>(bounds.width());
+        particle.py = static_cast<float>(bounds.top()) + gridY /
+            static_cast<float>(settings.gridHeight - 1) *
+                static_cast<float>(bounds.height());
+        particle.ppx = particle.px;
+        particle.ppy = particle.py;
+        particle.r = settings.colorR;
+        particle.g = settings.colorG;
+        particle.b = settings.colorB;
+        particle.a = std::clamp(std::sqrt(density) * 0.18f,
+                                0.01f, 0.18f) * 0.79f;
+        particle.size = sampleSpacing * (0.118f + density * 0.02f) * 1.125f;
+        data.particles.push_back(particle);
+      }
+    }
+    return data;
+  };
+
+  for (std::size_t seedIndex = 0; seedIndex < seeds.size(); ++seedIndex) {
+    std::array<std::array<ArtifactCore::ParticleRenderData, 3>, 2> particleData;
+    std::array<ArtifactCore::ParticleRenderData, 3> highResolutionCurlData;
+    std::array<double, 2> finalMass{};
+    std::array<double, 2> finalCentroidY{};
+    for (int variant = 0; variant < 2; ++variant) {
+      Artifact::LayerSmokeRuntimeSettings settings;
+      settings.gridWidth = kGridWidth;
+      settings.gridHeight = kGridHeight;
+      settings.solverIterations = 20;
+      settings.buoyancy = 0.0f;
+      settings.vorticity = 0.1f;
+      settings.emitterX = seedIndex == 0 ? 0.47f : 0.53f;
+      settings.emitterY = 0.82f;
+      settings.emitterRadius = 0.07f;
+      settings.emitterDensity = 0.45f;
+      settings.emitterVelocityX = seedIndex == 0 ? -0.04f : 0.04f;
+      settings.emitterVelocityY = -0.55f;
+      settings.emitterSwirl = seedIndex == 0 ? 0.55f : -0.55f;
+
+      Artifact::LayerFluidRuntimeState state;
+      ArtifactCore::NamedVector<float> temperature;
+      ArtifactCore::NamedVector<float> nextTemperature;
+      ArtifactCore::NamedVector<float> streamFunction;
+      const std::size_t cellCount =
+          static_cast<std::size_t>(kGridWidth * kGridHeight);
+      temperature.resize(cellCount);
+      nextTemperature.resize(cellCount);
+      streamFunction.resize(cellCount);
+      std::fill(temperature.begin(), temperature.end(), 0.0f);
+      std::fill(nextTemperature.begin(), nextTemperature.end(), 0.0f);
+      std::fill(streamFunction.begin(), streamFunction.end(), 0.0f);
+      std::size_t captureIndex = 0;
+
+      for (int frame = 0; frame <= finalFrame; ++frame) {
+        settings.emitterDensity = frame < emissionFrames ? 0.45f : 0.0f;
+        Artifact::advanceLayerSmokeRuntime(
+            state, frame, framesPerSecond, settings);
+        ASSERT_NE(state.fluidSolver_, nullptr);
+        advectTestSmokeTemperature(temperature, nextTemperature,
+                                   *state.fluidSolver_, dt, 0.5f);
+        if (frame < emissionFrames)
+          injectTestSmokeTemperature(temperature, kGridWidth, kGridHeight,
+                                     settings);
+        for (int y = 1; y < kGridHeight - 1; ++y) {
+          for (int x = 1; x < kGridWidth - 1; ++x) {
+            const float heat = temperature[index(x, y)];
+            state.fluidSolver_->addVelocity(x, y, 0.0f,
+                                             -heat * 0.01f * dt);
+          }
+        }
+        if (variant == 1) {
+          applyTestSmokeTemperatureCurlNoise(
+              *state.fluidSolver_, temperature, streamFunction, dt,
+              static_cast<float>(frame) * dt, seeds[seedIndex]);
+        }
+        if (captureIndex < captureFrames.size() &&
+            frame == captureFrames[captureIndex]) {
+          particleData[static_cast<std::size_t>(variant)][captureIndex] =
+              Artifact::prepareLayerSmokeRenderData(
+                  state, bounds, transform, 1.0f, frame, settings);
+          if (variant == 1) {
+            highResolutionCurlData[captureIndex] =
+                resampleProductionSmokeParticles(
+                    *state.fluidSolver_, settings, 96, 72);
+          }
+          ++captureIndex;
+        }
+      }
+      ASSERT_EQ(captureIndex, captureFrames.size());
+      const auto field = state.fluidSolver_->snapshot();
+      double densityMass = 0.0;
+      double weightedY = 0.0;
+      for (int y = 1; y < kGridHeight - 1; ++y) {
+        for (int x = 1; x < kGridWidth - 1; ++x) {
+          const double density = std::max(0.0f, field.density[index(x, y)]);
+          densityMass += density;
+          weightedY += density * y;
+        }
+      }
+      finalMass[static_cast<std::size_t>(variant)] = densityMass;
+      finalCentroidY[static_cast<std::size_t>(variant)] =
+          densityMass > 0.0 ? weightedY / densityMass : 0.0;
+    }
+
+    QImage contact(kGridWidth * kImageScale * 3,
+                   kGridHeight * kImageScale * 3, QImage::Format_ARGB32);
+    contact.fill(kBackground);
+    for (std::size_t capture = 0; capture < captureFrames.size(); ++capture) {
+      const QImage baseline = rasterizeParticles(
+          particleData[0][capture]);
+      const auto baselineMetrics = measureSmokeImage(baseline);
+      float lowerScale = 0.1f;
+      float upperScale = 4.0f;
+      for (int iteration = 0; iteration < 16; ++iteration) {
+        const float scale = (lowerScale + upperScale) * 0.5f;
+        const auto candidateMetrics = measureSmokeImage(rasterizeParticles(
+            particleData[1][capture], scale));
+        if (candidateMetrics.greenExcess < baselineMetrics.greenExcess)
+          lowerScale = scale;
+        else
+          upperScale = scale;
+      }
+      const float exposureScale = (lowerScale + upperScale) * 0.5f;
+      const QImage candidate = rasterizeParticles(
+          particleData[1][capture], exposureScale);
+      const auto candidateMetrics = measureSmokeImage(candidate);
+      float highResolutionLowerScale = 0.1f;
+      float highResolutionUpperScale = 4.0f;
+      for (int iteration = 0; iteration < 16; ++iteration) {
+        const float scale =
+            (highResolutionLowerScale + highResolutionUpperScale) * 0.5f;
+        const auto highResolutionMetrics = measureSmokeImage(
+            rasterizeParticles(highResolutionCurlData[capture], scale));
+        if (highResolutionMetrics.greenExcess < baselineMetrics.greenExcess)
+          highResolutionLowerScale = scale;
+        else
+          highResolutionUpperScale = scale;
+      }
+      const float highResolutionExposureScale =
+          (highResolutionLowerScale + highResolutionUpperScale) * 0.5f;
+      const QImage highResolutionCandidate = rasterizeParticles(
+          highResolutionCurlData[capture], highResolutionExposureScale);
+      const auto highResolutionMetrics =
+          measureSmokeImage(highResolutionCandidate);
+      EXPECT_GT(baselineMetrics.visiblePixels, 100);
+      EXPECT_GT(candidateMetrics.visiblePixels, 100);
+      EXPECT_GT(highResolutionMetrics.visiblePixels, 100);
+      EXPECT_GT(countDifferentPixels(baseline, candidate), 100)
+          << "temperature curl noise should alter production-extracted particle output";
+      EXPECT_NEAR(static_cast<double>(candidateMetrics.greenExcess),
+                  static_cast<double>(baselineMetrics.greenExcess),
+                  static_cast<double>(baselineMetrics.greenExcess) * 0.04 + 100.0);
+      GTEST_LOG_(INFO) << "production particle extraction temperature-curl seed="
+          << seeds[seedIndex] << " frame=" << captureFrames[capture]
+          << " baseline/curl particles="
+          << particleData[0][capture].particles.size() << '/'
+          << particleData[1][capture].particles.size()
+          << " exposureScale=" << exposureScale
+          << " highResParticles="
+          << highResolutionCurlData[capture].particles.size()
+          << " highResExposure=" << highResolutionExposureScale
+          << " visible=" << baselineMetrics.visiblePixels << '/'
+          << candidateMetrics.visiblePixels << '/'
+          << highResolutionMetrics.visiblePixels
+          << " highPass=" << imageHighPassRms(baseline) << '/'
+          << imageHighPassRms(candidate) << '/'
+          << imageHighPassRms(highResolutionCandidate)
+          << " green=" << baselineMetrics.greenExcess << '/'
+          << candidateMetrics.greenExcess;
+      for (int row = 0; row < 3; ++row) {
+        const QImage& source = row == 0 ? baseline
+            : row == 1 ? candidate : highResolutionCandidate;
+        const int offsetY = static_cast<int>(capture) * source.height();
+        const int offsetX = row * source.width();
+        for (int y = 0; y < source.height(); ++y) {
+          auto* destination = reinterpret_cast<QRgb*>(
+              contact.scanLine(offsetY + y)) + offsetX;
+          const auto* sourceRow = reinterpret_cast<const QRgb*>(
+              source.constScanLine(y));
+          std::copy(sourceRow, sourceRow + source.width(), destination);
+        }
+      }
+    }
+    GTEST_LOG_(INFO) << "production particle extraction final field seed="
+        << seeds[seedIndex] << " densityMass=" << finalMass[0] << '/'
+        << finalMass[1] << " centroidY=" << finalCentroidY[0] << '/'
+        << finalCentroidY[1];
+    if (!outputDirectory.isEmpty()) {
+      ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+      const QString imagePath = QDir(outputDirectory).filePath(
+          QStringLiteral("runtime_temperature_curl_particles_seed_%1.png")
+              .arg(seeds[seedIndex]));
+      EXPECT_TRUE(contact.save(imagePath, "PNG")) << imagePath.toStdString();
     }
   }
 }
