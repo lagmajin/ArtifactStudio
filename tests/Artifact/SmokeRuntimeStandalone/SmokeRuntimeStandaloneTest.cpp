@@ -4834,6 +4834,237 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     EvolvesProductionTwoDimensionalSmokeStateInsideDepthResolvedPyro) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+  constexpr int sourceWidth = 96;
+  constexpr int sourceHeight = 72;
+  constexpr int sourceFrames = 28;
+  constexpr int captureEverySteps = 8;
+
+  Artifact::LayerFluidRuntimeState sourceRuntime;
+  Artifact::LayerSmokeRuntimeSettings sourceSettings;
+  sourceSettings.gridWidth = sourceWidth;
+  sourceSettings.gridHeight = sourceHeight;
+  sourceSettings.solverIterations = 20;
+  sourceSettings.emitterX = 0.5f;
+  sourceSettings.emitterY = 0.84f;
+  sourceSettings.emitterRadius = 0.08f;
+  sourceSettings.emitterDensity = 0.6f;
+  sourceSettings.emitterVelocityY = -1.2f;
+  sourceSettings.emitterSwirl = 0.15f;
+  sourceSettings.buoyancy = 0.0f;
+  sourceSettings.vorticity = 0.1f;
+  for (int frame = 0; frame <= sourceFrames; ++frame)
+    Artifact::advanceLayerSmokeRuntime(sourceRuntime, frame, 30.0,
+                                       sourceSettings);
+  ASSERT_NE(sourceRuntime.fluidSolver_, nullptr);
+  const auto source = sourceRuntime.fluidSolver_->snapshot();
+
+  PyroDomain domain;
+  domain.min = {-0.75f, 0.0f, -0.5f};
+  domain.max = {0.75f, 1.125f, 0.5f};
+  domain.voxelSize = 1.0f / 32.0f;
+  domain.fixedTimeStep = 1.0 / 60.0;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 32u * 1024u * 1024u;
+  const auto pyroResolution = domain.resolution();
+  const VolumeResolution volumeResolution{pyroResolution.width,
+      pyroResolution.height, pyroResolution.depth};
+  PyroSimulation simulation(domain);
+  PyroSimulationSettings settings;
+  settings.dissipation = 0.035f;
+  settings.coolingRate = 0.0f;
+  settings.buoyancy = 0.0f;
+  settings.vorticity = 0.0f;
+  settings.pressureIterations = 24.0f;
+  simulation.setSettings(settings);
+
+  const auto sourceIndex = [](const int x, const int y) {
+    return static_cast<std::size_t>(x + sourceWidth * y);
+  };
+  const auto sampleSource = [&](const NamedVector<float>& field,
+                                const float x, const float y) {
+    const float sx = std::clamp(x, 0.0f,
+                                static_cast<float>(sourceWidth - 1));
+    const float sy = std::clamp(y, 0.0f,
+                                static_cast<float>(sourceHeight - 1));
+    const int x0 = static_cast<int>(sx);
+    const int y0 = static_cast<int>(sy);
+    const int x1 = std::min(x0 + 1, sourceWidth - 1);
+    const int y1 = std::min(y0 + 1, sourceHeight - 1);
+    const float tx = sx - static_cast<float>(x0);
+    const float ty = sy - static_cast<float>(y0);
+    return std::lerp(std::lerp(field[sourceIndex(x0, y0)],
+                               field[sourceIndex(x1, y0)], tx),
+                     std::lerp(field[sourceIndex(x0, y1)],
+                               field[sourceIndex(x1, y1)], tx), ty);
+  };
+
+  auto density = simulation.fields().densityView();
+  auto velocity = simulation.fields().velocityView();
+  std::vector<float> depthWeights(
+      static_cast<std::size_t>(pyroResolution.depth), 0.0f);
+  for (int z = 0; z < pyroResolution.depth; ++z) {
+    const float zNorm = (static_cast<float>(z) + 0.5f) /
+        static_cast<float>(pyroResolution.depth) * 2.0f - 1.0f;
+    depthWeights[static_cast<std::size_t>(z)] =
+        std::exp(-2.5f * zNorm * zNorm);
+  }
+  for (int z = 0; z < pyroResolution.depth; ++z)
+    for (int y = 0; y < pyroResolution.height; ++y)
+      for (int x = 0; x < pyroResolution.width; ++x) {
+        const float sourceX = static_cast<float>(x) *
+            static_cast<float>(sourceWidth - 1) /
+            static_cast<float>(pyroResolution.width - 1);
+        const float sourceY = static_cast<float>(sourceHeight - 1) -
+            static_cast<float>(y) *
+            static_cast<float>(sourceHeight - 1) /
+            static_cast<float>(pyroResolution.height - 1);
+        const float layerDensity = sampleSource(source.density, sourceX,
+                                                sourceY);
+        const auto cell = static_cast<std::size_t>(
+            volumeResolution.indexOf(x, y, z));
+        density.values[cell] = layerDensity *
+            depthWeights[static_cast<std::size_t>(z)];
+        velocity.values[cell] = {
+            sampleSource(source.velocityX, sourceX, sourceY) *
+                static_cast<float>(pyroResolution.width - 2),
+            -sampleSource(source.velocityY, sourceX, sourceY) *
+                static_cast<float>(pyroResolution.height - 2),
+            0.0f};
+      }
+
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  const auto renderView = [&](const bool sideView) {
+    CPUVolumeRenderer renderer;
+    VolumeAABB bounds;
+    bounds.min = {domain.min.x, domain.min.y, domain.min.z};
+    bounds.max = {domain.max.x, domain.max.y, domain.max.z};
+    renderer.bounds = bounds;
+    VolumeFieldSet fields;
+    fields.density = {density.values.data(), volumeResolution};
+    renderer.setVolumeData(bounds, fields);
+    renderer.settings.stepSize = 0.018f;
+    renderer.settings.maxSteps = 256;
+    renderer.settings.densityScale = 7.2f;
+    renderer.settings.useTemperatureEmission = false;
+    renderer.settings.backgroundColor = {0.015f, 0.02f, 0.03f};
+    renderer.settings.lightIntensity = 3.0f;
+    renderer.settings.phaseAnisotropy = 0.25f;
+    renderer.settings.multipleScatteringStrength = 0.18f;
+    renderer.settings.shadowIntensity = 0.25f;
+    renderer.settings.shadowStepSize = 0.04f;
+    renderer.settings.shadowMaxSteps = 96;
+    renderer.settings.shadowDensityScale = 0.08f;
+    const Point3 lookAt{0.0f, 0.56f, 0.0f};
+    const Point3 lookFrom = sideView ? Point3{2.4f, 0.56f, 0.0f}
+                                     : Point3{0.0f, 0.56f, 2.4f};
+    renderer.camera = Camera(1.0f, 36.0f, 2.4f, 0.0f, lookFrom,
+                             lookAt, {0.0f, 1.0f, 0.0f});
+    return renderer.render(160, 160);
+  };
+  const auto savePng = [](const ImageBuffer& buffer, const QString& path) {
+    QImage image(buffer.width, buffer.height, QImage::Format_ARGB32);
+    for (int y = 0; y < buffer.height; ++y) {
+      auto* row = reinterpret_cast<QRgb*>(image.scanLine(y));
+      for (int x = 0; x < buffer.width; ++x) {
+        const auto offset = static_cast<std::size_t>(
+            (y * buffer.width + x) * 3);
+        const auto encode = [](const std::uint8_t channel) {
+          const float linear = static_cast<float>(channel) / 255.0f;
+          return static_cast<int>(std::lround(
+              std::pow(linear, 1.0f / 2.2f) * 255.0f));
+        };
+        row[x] = qRgba(encode(buffer.pixels[offset]),
+                       encode(buffer.pixels[offset + 1]),
+                       encode(buffer.pixels[offset + 2]), 255);
+      }
+    }
+    return image.save(path, "PNG");
+  };
+  const auto capture = [&](const int step) {
+    const auto front = renderView(false);
+    const auto side = renderView(true);
+    if (outputDirectory.isEmpty()) return;
+    const auto captureDirectory = QDir(outputDirectory).filePath(
+        QStringLiteral("depth-evolved-2d-state-rnd"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto label = QStringLiteral("step_%1").arg(step, 3, 10,
+                                                       QLatin1Char('0'));
+    EXPECT_TRUE(savePng(front, QDir(captureDirectory).filePath(
+        label + QStringLiteral("_front.png"))));
+    EXPECT_TRUE(savePng(side, QDir(captureDirectory).filePath(
+        label + QStringLiteral("_side.png"))));
+  };
+  const auto measureField = [&]() {
+    double mass = 0.0;
+    double weightedY = 0.0;
+    double weightedZ = 0.0;
+    for (int z = 0; z < pyroResolution.depth; ++z)
+      for (int y = 0; y < pyroResolution.height; ++y)
+        for (int x = 0; x < pyroResolution.width; ++x) {
+          const double value = density.at(x, y, z);
+          mass += value;
+          weightedY += value * y;
+          weightedZ += value * z;
+        }
+    return std::array<double, 3>{mass,
+        mass > 0.0 ? weightedY / mass : 0.0,
+        mass > 0.0 ? weightedZ / mass : 0.0};
+  };
+
+  auto previous = std::vector<float>(density.values.begin(),
+                                     density.values.end());
+  auto initialMetrics = measureField();
+  ASSERT_GT(initialMetrics[0], 0.0);
+  double initialMaximumSpeed = 0.0;
+  for (const auto& sample : velocity.values)
+    initialMaximumSpeed = std::max(initialMaximumSpeed,
+        std::sqrt(static_cast<double>(sample.x) * sample.x +
+                  static_cast<double>(sample.y) * sample.y +
+                  static_cast<double>(sample.z) * sample.z));
+  GTEST_LOG_(INFO) << "depth-evolved production 2D state initial mass="
+      << initialMetrics[0] << " centroidY/Z=" << initialMetrics[1] << '/'
+      << initialMetrics[2] << " maxVoxelVelocity=" << initialMaximumSpeed;
+  capture(0);
+  for (int step = 1; step <= captureEverySteps * 3; ++step) {
+    simulation.step(1.0 / 60.0);
+    if (step % captureEverySteps != 0) continue;
+    const auto current = density.values;
+    double dot = 0.0;
+    double previousSquared = 0.0;
+    double currentSquared = 0.0;
+    double absoluteDelta = 0.0;
+    double previousMass = 0.0;
+    for (std::size_t i = 0; i < current.size(); ++i) {
+      const double a = previous[i];
+      const double b = current[i];
+      dot += a * b;
+      previousSquared += a * a;
+      currentSquared += b * b;
+      absoluteDelta += std::abs(a - b);
+      previousMass += std::abs(a);
+    }
+    const auto metrics = measureField();
+    const double cosine = dot / std::max(1.0e-12,
+        std::sqrt(previousSquared * currentSquared));
+    const double relativeL1 = absoluteDelta /
+        std::max(1.0e-12, previousMass);
+    GTEST_LOG_(INFO) << "depth-evolved production 2D state step=" << step
+        << " mass=" << metrics[0] << " centroidY/Z=" << metrics[1] << '/'
+        << metrics[2] << " intervalCosine/L1=" << cosine << '/'
+        << relativeL1;
+    EXPECT_GT(metrics[0], 0.0);
+    EXPECT_TRUE(std::isfinite(cosine));
+    EXPECT_TRUE(std::isfinite(relativeL1));
+    capture(step);
+    previous.assign(current.begin(), current.end());
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ProductionRuntimeHonorsSmokeDensityDissipationRate) {
   const auto runPulse = [](const float dissipationPerSecond) {
     Artifact::LayerFluidRuntimeState state;
