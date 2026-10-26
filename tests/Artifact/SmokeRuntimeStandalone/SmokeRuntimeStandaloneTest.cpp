@@ -4431,7 +4431,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     }
     const double rmse = std::sqrt(squaredError / static_cast<double>(low.size()));
     GTEST_LOG_(INFO) << "smoke-iteration-cross-grid mode=" << label
-        << " iterations=" << iterationCounts[lowCount] << "->"
+        << " baseIterations=" << iterationCounts[lowCount] << "->"
         << iterationCounts[highCount] << " grids="
         << resolutions[lowGrid].first << "->" << resolutions[highGrid].first
         << " densityRmse=" << rmse;
@@ -4441,8 +4441,91 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   const double base20to40 = reportRmse(0, 1, 2, 3, "same-default-low-high");
   const double scaled20to24 = reportRmse(0, 1, 1, 2, "scaled-low-medium");
   const double scaled24to40 = reportRmse(1, 2, 2, 3, "scaled-medium-high");
+  const double defaultAdaptive = reportRmse(
+      0, 1, 2, 1, "default-20-to-adaptive-28");
   EXPECT_LT(scaled20to24, base20to40);
   EXPECT_LT(scaled24to40, base20to40);
+  EXPECT_LT(defaultAdaptive, 0.102325);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresSmokeAdaptiveProjectionIterationCost) {
+  constexpr std::array<std::pair<int, int>, 3> resolutions{{
+      {96, 72}, {128, 96}, {192, 144}}};
+  constexpr int baseIterations = 20;
+  constexpr int warmupUpdates = 5;
+  constexpr int measuredUpdates = 30;
+  constexpr int repetitions = 5;
+  constexpr int thresholdCells = 4608;
+  constexpr int maxAdaptiveIterations = 28;
+
+  for (const auto [width, height] : resolutions) {
+    Artifact::LayerFluidRuntimeState seedState;
+    Artifact::LayerSmokeRuntimeSettings settings;
+    settings.gridWidth = width;
+    settings.gridHeight = height;
+    settings.solverIterations = baseIterations;
+    settings.emitterX = 0.5f;
+    settings.emitterY = 0.84f;
+    settings.emitterRadius = 0.08f;
+    settings.emitterDensity = 0.6f;
+    settings.emitterVelocityY = -1.2f;
+    settings.emitterSwirl = 0.15f;
+    settings.buoyancy = 0.7f;
+    settings.vorticity = 0.1f;
+    for (int frame = 0; frame <= 28; ++frame)
+      Artifact::advanceLayerSmokeRuntime(seedState, frame, 30.0, settings);
+    const auto seed = seedState.fluidSolver_->snapshot();
+
+    std::array<std::array<double, repetitions>, 2> samples{};
+    std::array<int, 2> effectiveIterations{};
+    for (int mode = 0; mode < 2; ++mode) {
+      for (int repetition = 0; repetition < repetitions; ++repetition) {
+        ArtifactCore::FluidSolver2D solver(width, height);
+        ASSERT_TRUE(solver.restoreSnapshot(seed));
+        solver.setSolverIterations(baseIterations);
+        solver.setAdaptiveIterations(mode == 1);
+        solver.setHighResThresholdCells(thresholdCells);
+        solver.setMaxAdaptiveIterations(maxAdaptiveIterations);
+        solver.setViscosity(settings.viscosity);
+        solver.setDiffusion(settings.diffusion);
+        solver.setBuoyancy(settings.buoyancy);
+        solver.setVorticity(settings.vorticity);
+        for (int update = 0; update < warmupUpdates; ++update)
+          solver.update(1.0f / 30.0f);
+        const auto start = std::chrono::steady_clock::now();
+        for (int update = 0; update < measuredUpdates; ++update)
+          solver.update(1.0f / 30.0f);
+        const double elapsed = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - start).count();
+        samples[mode][repetition] = elapsed / measuredUpdates;
+        if (repetition == 0) {
+          std::vector<SmokeProjectionStageCapture> observed;
+          gSmokeProjectionCaptures = &observed;
+          solver.update(1.0f / 30.0f);
+          gSmokeProjectionCaptures = nullptr;
+          ASSERT_EQ(observed.size(), 4U);
+          effectiveIterations[mode] = observed.front().solverIterations;
+        }
+      }
+    }
+    for (auto& modeSamples : samples)
+      std::sort(modeSamples.begin(), modeSamples.end());
+    const double fixedMedian = samples[0][repetitions / 2];
+    const double adaptiveMedian = samples[1][repetitions / 2];
+    GTEST_LOG_(INFO) << "smoke-adaptive-iteration-cost grid=" << width << 'x'
+        << height << " iterations=" << effectiveIterations[0] << "->"
+        << effectiveIterations[1] << " fixedMedianMs=" << fixedMedian
+        << " adaptiveMedianMs=" << adaptiveMedian << " ratio="
+        << (fixedMedian > 0.0 ? adaptiveMedian / fixedMedian : 0.0);
+    EXPECT_EQ(effectiveIterations[0], baseIterations);
+    const int blocks = width * height / thresholdCells;
+    const int expectedAdaptive = std::min(maxAdaptiveIterations,
+        baseIterations + std::max(0, blocks - 1) * 4);
+    EXPECT_EQ(effectiveIterations[1], expectedAdaptive);
+    EXPECT_GT(fixedMedian, 0.0);
+    EXPECT_GT(adaptiveMedian, 0.0);
+  }
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,

@@ -7377,3 +7377,10 @@
 - **価値または懸念:** smoke runtimeだけで既存adaptive solverを有効化し、grid areaに応じて4,608 cellsごとに4反復を追加、40を上限とする候補を反映した。ユーザー指定base iterationが40超なら減らさない。共通FluidSolver既定や他クライアントは変更しない。解像度間のplume形状ドリフトは縮小するが、見た目はまだ滑らかなcolumn/capで、DCC級billowではない。Debug frame costの適応前後比較は未実施で、性能影響は未確認。
 - **仮説（未検証）:** 同一の目標projection residualに基づく適応反復が、固定iterationより解像度間のtrajectoryをさらに揃えられるかもしれないが、iteration数だけ揃えてもgrid依存の圧力演算子・移流誤差は残る。
 - **次に確認すべきこと:** DebugとRelease相当でframe costをgrid / base iteration別に計測し、既定96×72と高解像度での増分を確認する。GPU volume rendererと合わせた連続frame画像でcurl・mass・centroid・temporal coherenceを評価し、煙らしいbillowを作る次の候補は別因子で研究する。
+
+## 2026-10-27: smoke adaptive iteration capを性能計測で28へ調整
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の `kSmokeMaximumAdaptiveSolverIterations`、独立runtime tests `MeasuresSmokeAdaptiveProjectionIterationCost` / `ComparesProductionSmokeMorphologyAtProjectionIterationCounts`。
+- **確認できた事実:** 同じframe-28 solver state、warm-up 5 updates後に30 updatesを5回測り中央値を比較。Debug CPU時間は96×72固定20/adaptive20で28.91/28.67ms、128×96の20/24で52.10/60.96ms（+17.0%）、192×144の20/28で118.25/159.30ms（+34.7%）。前候補の20/40は112.58/211.70ms（+88.0%）だった。frame-28の96↔192 normalized density RMSEはeffective 20→28で.08972、fixed20比較.102325、effective20→40で.07554。28上限の高grid morphologyはmass .06744、centroidY .47105、sigmaY .22582。Debug CPU-onlyであり実アプリ/GPU総合frame costではない。focused tests pass。
+- **価値または懸念:** 当初候補の40上限は形状一致をより良くする一方、192×144 solver CPU時間を約88%増加させる。既定base20では28上限がRMSEを改善しながら増加を約35%に抑えたため、煙runtime capを28に調整した。煙はなお滑らかなcolumn/capで、billow品質は未達。
+- **仮説（未検証）:** 圧力residualを停止条件として反復数を早期終了する方が、解像度ごとの固定capより同等の形態収束を低コストで得られる可能性がある。ただしresidual評価の追加走査コストと密度軌跡への影響は未計測。
+- **次に確認すべきこと:** DCC billowに向けてsolverの空間解像度とprojection精度だけに頼らず、production velocityへ局所的・seedableなcurl forceを結合する候補を一つずつ比較する。mass・centroid・時間連続性・画像を並べ、CPU/GPU costも別々に記録する。停止条件候補は既定solverと切り離したtest-only試作から評価する。
