@@ -2929,7 +2929,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     float low = 0.05f;
     float high = 32.0f;
     ImageBuffer rendered;
-    for (int iteration = 0; iteration < 8; ++iteration) {
+    for (int iteration = 0; iteration < 14; ++iteration) {
       const float scale = 0.5f * (low + high);
       rendered = renderVolume(density, scale);
       const auto metrics = measureShape(toSrgbImage(rendered));
@@ -7155,6 +7155,131 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       const QString filename = QStringLiteral("smoke_top_boundary_%1.png")
           .arg(QString::fromLatin1(condition.name));
       EXPECT_TRUE(finalImage.save(QDir(outputDirectory).filePath(filename), "PNG"));
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     SweepsVolumeSmokeShadowAmbientAndScatteringOnAFixedField) {
+  using namespace ArtifactCore::RayTrace;
+  constexpr VolumeResolution resolution{40, 40, 32};
+  constexpr int imageSize = 96;
+  std::vector<float> density(resolution.cellCount());
+  for (int z = 0; z < resolution.depth; ++z)
+    for (int y = 0; y < resolution.height; ++y)
+      for (int x = 0; x < resolution.width; ++x) {
+        const float nx = 2.0f * (x + 0.5f) / resolution.width - 1.0f;
+        const float ny = 2.0f * (y + 0.5f) / resolution.height - 1.0f;
+        const float nz = 2.0f * (z + 0.5f) / resolution.depth - 1.0f;
+        const float shape = std::exp(-2.0f * (nx * nx / 0.28f +
+            ny * ny / 0.62f + nz * nz / 0.28f));
+        const float billow = 0.72f + 0.28f * (0.5f + 0.5f *
+            std::sin(9.0f * nx + 5.0f * ny) *
+            std::sin(7.0f * nz - 3.0f * ny));
+        density[resolution.indexOf(x, y, z)] = shape * billow;
+      }
+
+  const auto render = [&](const float shadowIntensity,
+                          const float ambient,
+                          const float multipleScattering) {
+    CPUVolumeRenderer renderer;
+    VolumeAABB bounds;
+    bounds.min = {-1.0f, -1.0f, -1.0f};
+    bounds.max = {1.0f, 1.0f, 1.0f};
+    VolumeFieldSet fields;
+    fields.density = {density.data(), resolution};
+    renderer.setVolumeData(bounds, fields);
+    renderer.settings.stepSize = 0.025f;
+    renderer.settings.maxSteps = 128;
+    renderer.settings.densityScale = 1.0f;
+    renderer.settings.backgroundColor = {0.012f, 0.016f, 0.024f};
+    renderer.settings.useTemperatureEmission = false;
+    renderer.settings.lightDirection = {0.55f, -1.0f, 0.25f};
+    renderer.settings.lightIntensity = 2.2f;
+    renderer.settings.shadowIntensity = shadowIntensity;
+    renderer.settings.shadowStepSize = 0.045f;
+    renderer.settings.shadowMaxSteps = 48;
+    renderer.settings.shadowDensityScale = 0.06f;
+    renderer.settings.ambientLightIntensity = ambient;
+    renderer.settings.multipleScatteringStrength = multipleScattering;
+    renderer.settings.multipleScatteringSpread = 0.65f;
+    renderer.settings.multipleScatteringOctaves = 3;
+    renderer.camera = Camera(1.0f, 34.0f, 3.4f, 0.0f,
+        {0.0f, 0.0f, 3.2f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+    return renderer.render(imageSize, imageSize);
+  };
+  struct Stats final {
+    double meanLuma = 0.0;
+    double lumaStdDev = 0.0;
+  };
+  const auto stats = [](const ImageBuffer& image) {
+    double sum = 0.0;
+    double squared = 0.0;
+    const double count = static_cast<double>(image.width) * image.height;
+    for (int y = 0; y < image.height; ++y)
+      for (int x = 0; x < image.width; ++x) {
+        const auto offset = static_cast<std::size_t>((y * image.width + x) * 3);
+        const double luma = 0.2126 * image.pixels[offset] +
+            0.7152 * image.pixels[offset + 1] +
+            0.0722 * image.pixels[offset + 2];
+        sum += luma;
+        squared += luma * luma;
+      }
+    const double mean = sum / count;
+    return Stats{mean, std::sqrt(std::max(0.0, squared / count - mean * mean))};
+  };
+  const auto meanAbsDifference = [](const ImageBuffer& a, const ImageBuffer& b) {
+    double total = 0.0;
+    for (std::size_t i = 0; i < a.pixels.size(); ++i)
+      total += std::abs(static_cast<int>(a.pixels[i]) -
+          static_cast<int>(b.pixels[i]));
+    return total / static_cast<double>(a.pixels.size());
+  };
+  const auto baseline = render(0.0f, 0.0f, 0.0f);
+  const auto halfShadow = render(0.5f, 0.0f, 0.0f);
+  const auto fullShadow = render(1.0f, 0.0f, 0.0f);
+  const auto ambientFill = render(1.0f, 0.25f, 0.0f);
+  const auto scattering = render(1.0f, 0.0f, 0.5f);
+  const auto baselineStats = stats(baseline);
+  const auto halfShadowStats = stats(halfShadow);
+  const auto fullShadowStats = stats(fullShadow);
+  const auto ambientStats = stats(ambientFill);
+  const auto scatteringStats = stats(scattering);
+  const double halfShadowDelta = meanAbsDifference(baseline, halfShadow);
+  const double fullShadowDelta = meanAbsDifference(baseline, fullShadow);
+  const double ambientDelta = meanAbsDifference(fullShadow, ambientFill);
+  const double scatteringDelta = meanAbsDifference(fullShadow, scattering);
+  GTEST_LOG_(INFO) << "fixed-volume look-dev shadow/ambient/scattering: meanLuma "
+      << baselineStats.meanLuma << '/' << halfShadowStats.meanLuma << '/'
+      << fullShadowStats.meanLuma << '/' << ambientStats.meanLuma << '/'
+      << scatteringStats.meanLuma << " shadowDelta=" << halfShadowDelta << '/'
+      << fullShadowDelta << " ambientDelta=" << ambientDelta
+      << " scatteringDelta=" << scatteringDelta << " lumaStd="
+      << baselineStats.lumaStdDev << '/' << fullShadowStats.lumaStdDev << '/'
+      << ambientStats.lumaStdDev << '/' << scatteringStats.lumaStdDev;
+  EXPECT_GT(halfShadowDelta, 0.1);
+  EXPECT_GT(fullShadowDelta, halfShadowDelta);
+  EXPECT_GT(ambientDelta, 0.1);
+  EXPECT_GT(scatteringDelta, 0.1);
+
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory));
+    const std::array<std::pair<const char*, const ImageBuffer*>, 5> captures{{
+        {"lookdev_unshadowed.png", &baseline},
+        {"lookdev_half_shadow.png", &halfShadow},
+        {"lookdev_full_shadow.png", &fullShadow},
+        {"lookdev_ambient_fill.png", &ambientFill},
+        {"lookdev_multiple_scattering.png", &scattering}}};
+    for (const auto& [name, buffer] : captures) {
+      QImage image(buffer->width, buffer->height, QImage::Format_RGB888);
+      for (int y = 0; y < buffer->height; ++y)
+        std::copy_n(buffer->pixels.data() +
+            static_cast<std::size_t>(y * buffer->width * 3),
+            buffer->width * 3, image.scanLine(y));
+      ASSERT_TRUE(image.save(QDir(outputDirectory).filePath(
+          QString::fromLatin1(name)), "PNG"));
     }
   }
 }
