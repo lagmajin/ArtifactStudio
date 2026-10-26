@@ -971,6 +971,176 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesSmokeParticleSamplingResolutionAtMatchedExposure) {
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = kGridWidth;
+  settings.gridHeight = kGridHeight;
+  settings.solverIterations = 1;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.78f;
+  settings.emitterRadius = 0.08f;
+  settings.emitterDensity = 0.8f;
+  settings.emitterVelocityY = -1.2f;
+  settings.vorticity = 1.5f;
+  settings.emitterSwirl = 0.6f;
+  settings.colorR = 0.12f;
+  settings.colorG = 0.76f;
+  settings.colorB = 0.28f;
+
+  Artifact::LayerFluidRuntimeState state;
+  constexpr int finalFrame = 44;
+  for (int frame = 0; frame <= finalFrame; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+  ASSERT_NE(state.fluidSolver_, nullptr);
+
+  QMatrix4x4 transform;
+  transform.setToIdentity();
+  const QRectF bounds(0.0, 0.0, kGridWidth, kGridHeight);
+  const auto& productionData = Artifact::prepareLayerSmokeRenderData(
+      state, bounds, transform, 1.0f, finalFrame, settings);
+  const QImage baseline = rasterizeParticles(productionData);
+
+  const auto makeResampledParticles = [&](const int sampleCountX,
+                                           const int sampleCountY) {
+    ArtifactCore::ParticleRenderData data;
+    data.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
+    data.options.billboard = ArtifactCore::ParticleBillboardPolicy::ScreenAligned;
+    const float stepX = static_cast<float>(kGridWidth - 1) /
+        static_cast<float>(std::max(1, sampleCountX - 1));
+    const float stepY = static_cast<float>(kGridHeight - 1) /
+        static_cast<float>(std::max(1, sampleCountY - 1));
+    const float spacingX = static_cast<float>(bounds.width()) /
+        static_cast<float>(std::max(1, sampleCountX - 1));
+    const float spacingY = static_cast<float>(bounds.height()) /
+        static_cast<float>(std::max(1, sampleCountY - 1));
+    const float sampleSpacing = std::max(spacingX, spacingY);
+    data.particles.reserve(static_cast<std::size_t>(sampleCountX * sampleCountY));
+    for (int sy = 0; sy < sampleCountY; ++sy) {
+      for (int sx = 0; sx < sampleCountX; ++sx) {
+        std::uint32_t hash = static_cast<std::uint32_t>(sx) * 0x9E3779B9u ^
+            static_cast<std::uint32_t>(sy) * 0x85EBCA6Bu;
+        hash ^= hash >> 16u;
+        hash *= 0x7FEB352Du;
+        hash ^= hash >> 15u;
+        const float jitterX = static_cast<float>(hash & 0xFFFFu) *
+            (2.0f / 65535.0f) - 1.0f;
+        const float jitterY = static_cast<float>(hash >> 16u) *
+            (2.0f / 65535.0f) - 1.0f;
+        const float gx = std::clamp(static_cast<float>(sx) * stepX +
+            jitterX * stepX * 0.30f, 0.0f,
+            static_cast<float>(kGridWidth - 1));
+        const float gy = std::clamp(static_cast<float>(sy) * stepY +
+            jitterY * stepY * 0.30f, 0.0f,
+            static_cast<float>(kGridHeight - 1));
+        const int x0 = static_cast<int>(std::floor(gx));
+        const int y0 = static_cast<int>(std::floor(gy));
+        const int x1 = std::min(x0 + 1, kGridWidth - 1);
+        const int y1 = std::min(y0 + 1, kGridHeight - 1);
+        const float tx = gx - static_cast<float>(x0);
+        const float ty = gy - static_cast<float>(y0);
+        const auto densityAt = [&](const int x, const int y) {
+          return state.fluidSolver_->getDensity(x, y);
+        };
+        const float density = std::lerp(
+            std::lerp(densityAt(x0, y0), densityAt(x1, y0), tx),
+            std::lerp(densityAt(x0, y1), densityAt(x1, y1), tx), ty);
+        if (density < 0.025f) continue;
+        ArtifactCore::ParticleVertex particle{};
+        particle.px = static_cast<float>(bounds.left()) +
+            gx / static_cast<float>(kGridWidth - 1) *
+                static_cast<float>(bounds.width());
+        particle.py = static_cast<float>(bounds.top()) +
+            gy / static_cast<float>(kGridHeight - 1) *
+                static_cast<float>(bounds.height());
+        particle.ppx = particle.px;
+        particle.ppy = particle.py;
+        particle.r = settings.colorR;
+        particle.g = settings.colorG;
+        particle.b = settings.colorB;
+        particle.a = std::clamp(std::sqrt(density) * 0.18f,
+            0.01f, 0.18f) * 0.79f;
+        particle.size = sampleSpacing * (0.118f + density * 0.02f) * 1.125f;
+        data.particles.push_back(particle);
+      }
+    }
+    return data;
+  };
+
+  struct Variant final {
+    const char* name;
+    int samplesX;
+    int samplesY;
+    ArtifactCore::ParticleRenderData data;
+    QImage image;
+    SmokeImageMetrics metrics;
+    double alphaScale = 1.0;
+  };
+  std::array<Variant, 3> variants{{
+      {"current-40x40", 40, 40, productionData, baseline,
+       measureSmokeImage(baseline), 1.0},
+      {"resample-64x48", 64, 48, makeResampledParticles(64, 48), {}, {}, 1.0},
+      {"resample-96x72", 96, 72, makeResampledParticles(96, 72), {}, {}, 1.0},
+  }};
+  ASSERT_GT(variants[0].data.particles.size(), 20u);
+  EXPECT_EQ(variants[0].data.particles.size(),
+            productionData.particles.size());
+
+  for (std::size_t index = 1; index < variants.size(); ++index) {
+    float low = 0.0f;
+    float high = 2.0f;
+    for (int iteration = 0; iteration < 18; ++iteration) {
+      const float mid = 0.5f * (low + high);
+      const auto candidate = measureSmokeImage(
+          rasterizeParticles(variants[index].data, mid));
+      if (candidate.greenExcess < variants[0].metrics.greenExcess) low = mid;
+      else high = mid;
+    }
+    variants[index].alphaScale = 0.5f * (low + high);
+    variants[index].image = rasterizeParticles(
+        variants[index].data, static_cast<float>(variants[index].alphaScale));
+    variants[index].metrics = measureSmokeImage(variants[index].image);
+  }
+
+  const auto highPassRms = [](const QImage& image) {
+    double squared = 0.0;
+    std::size_t count = 0;
+    for (int y = 1; y + 1 < image.height(); ++y)
+      for (int x = 1; x + 1 < image.width(); ++x) {
+        const double center = qGreen(image.pixel(x, y));
+        const double cross = 0.25 * (qGreen(image.pixel(x - 1, y)) +
+            qGreen(image.pixel(x + 1, y)) + qGreen(image.pixel(x, y - 1)) +
+            qGreen(image.pixel(x, y + 1)));
+        const double residual = center - cross;
+        squared += residual * residual;
+        ++count;
+      }
+    return count ? std::sqrt(squared / count) : 0.0;
+  };
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  for (auto& variant : variants) {
+    const double hp = highPassRms(variant.image);
+    GTEST_LOG_(INFO) << "Smoke reconstruction sampling " << variant.name
+        << " particles=" << variant.data.particles.size()
+        << " alphaScale=" << variant.alphaScale
+        << " visible=" << variant.metrics.visiblePixels
+        << " greenExcess=" << variant.metrics.greenExcess
+        << " hp-rms=" << hp
+        << " saturated=" << variant.metrics.saturatedPixels;
+    EXPECT_EQ(variant.metrics.saturatedPixels, 0);
+    EXPECT_NEAR(static_cast<double>(variant.metrics.greenExcess),
+        static_cast<double>(variants[0].metrics.greenExcess),
+        static_cast<double>(variants[0].metrics.greenExcess) * 0.01);
+    if (!outputDirectory.isEmpty()) {
+      ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+      EXPECT_TRUE(variant.image.save(QDir(outputDirectory).filePath(
+          QStringLiteral("smoke_sampling_%1.png").arg(
+              QString::fromLatin1(variant.name))), "PNG"));
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ReportsDensityResolutionQualityAndCostTradeoff) {
   constexpr int kFrameCountForResolution = 44;
   const std::array<SmokeResolutionCapture, 3> captures{{

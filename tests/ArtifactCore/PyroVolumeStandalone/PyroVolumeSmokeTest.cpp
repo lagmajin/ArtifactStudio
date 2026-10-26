@@ -1191,6 +1191,112 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
   softScatterRenderer.settings.shadowDensityScale = 0.08f;
   const auto softScatterImage = softScatterRenderer.render(160, 160);
 
+  auto topRenderer = makeRenderer(snapshot, domain, {0.0f, 2.4f, 0.0f});
+  topRenderer.camera = Camera(1.0f, 36.0f, 2.2f, 0.0f,
+      {0.0f, 2.4f, 0.0f}, {0.0f, 0.65f, 0.0f}, {0.0f, 0.0f, 1.0f});
+  const std::array<Point3, 3> responseCameraPositions{{
+      {0.0f, 0.75f, 2.4f}, {2.4f, 0.75f, 0.0f}, {0.0f, 2.4f, 0.0f}}};
+  const std::array<const char*, 3> responseViewNames{"front", "side", "top"};
+  std::array<ImageBuffer, 3> responseBaselineImages{
+      frontImage, sideImage, topRenderer.render(160, 160)};
+  const auto foregroundLuma = [](const ImageBuffer& image) {
+    constexpr double backgroundLuma = 0.2126 * 3.0 + 0.7152 * 5.0 + 0.0722 * 7.0;
+    double sum = 0.0;
+    for (std::size_t i = 0; i + 2 < image.pixels.size(); i += 3) {
+      const double luma = 0.2126 * image.pixels[i] +
+          0.7152 * image.pixels[i + 1] + 0.0722 * image.pixels[i + 2];
+      sum += std::max(0.0, luma - backgroundLuma);
+    }
+    return sum;
+  };
+  const auto highPassRms = [](const ImageBuffer& image) {
+    double squared = 0.0;
+    std::size_t count = 0;
+    const auto luma = [&](int x, int y) {
+      const auto i = static_cast<std::size_t>((y * image.width + x) * 3);
+      return 0.2126 * image.pixels[i] + 0.7152 * image.pixels[i + 1] +
+          0.0722 * image.pixels[i + 2];
+    };
+    for (int y = 1; y + 1 < image.height; ++y)
+      for (int x = 1; x + 1 < image.width; ++x) {
+        const double residual = luma(x, y) - 0.25 * (luma(x - 1, y) +
+            luma(x + 1, y) + luma(x, y - 1) + luma(x, y + 1));
+        squared += residual * residual;
+        ++count;
+      }
+    return count ? std::sqrt(squared / count) : 0.0;
+  };
+  for (std::size_t view = 0; view < responseViewNames.size(); ++view) {
+    const auto baselineStats = measure(responseBaselineImages[view]);
+    GTEST_LOG_(INFO) << "Pyro fixed-field exposure-matched baseline view="
+        << responseViewNames[view]
+        << " foregroundLuma=" << foregroundLuma(responseBaselineImages[view])
+        << " occupied/luma/stddev/hp=" << baselineStats.occupiedPixels << '/'
+        << baselineStats.luminanceSum << '/' << baselineStats.luminanceStdDev
+        << '/' << highPassRms(responseBaselineImages[view]);
+    const std::string filename = std::string("pyro_transfer_exposure_baseline_") +
+        responseViewNames[view] + ".ppm";
+    saveIfRequested(responseBaselineImages[view], filename.c_str());
+  }
+  for (int response = 1; response <= 2; ++response) {
+    for (std::size_t view = 0; view < responseViewNames.size(); ++view) {
+      auto renderer = makeRenderer(snapshot, domain, responseCameraPositions[view]);
+      if (view == 2) {
+        renderer.camera = Camera(1.0f, 36.0f, 2.2f, 0.0f,
+            responseCameraPositions[view], {0.0f, 0.65f, 0.0f},
+            {0.0f, 0.0f, 1.0f});
+      }
+      TransferFunction transfer;
+      transfer.kind = TransferFunctionKind::Custom;
+      if (response == 1) {
+        transfer.customCallback = [](float d, float) {
+          TransferFunctionSample sample;
+          sample.densityValue = d;
+          sample.emission = {0.55f, 0.55f, 0.55f};
+          sample.absorption = d * 30.0f;
+          return sample;
+        };
+      } else {
+        transfer.customCallback = [](float d, float) {
+          TransferFunctionSample sample;
+          sample.densityValue = d;
+          const float lift = std::sqrt(std::clamp(d * 5.0f, 0.0f, 1.0f));
+          sample.emission = {0.42f * lift, 0.42f * lift, 0.42f * lift};
+          sample.absorption = d * 30.0f;
+          return sample;
+        };
+      }
+      renderer.setTransferFunction(transfer);
+      auto image = renderer.render(160, 160);
+      const double sourceLuma = foregroundLuma(image);
+      const double targetLuma = foregroundLuma(responseBaselineImages[view]);
+      const double exposureScale = sourceLuma > 0.0 ? targetLuma / sourceLuma : 1.0;
+      constexpr std::array<double, 3> background{3.0, 5.0, 7.0};
+      for (std::size_t i = 0; i + 2 < image.pixels.size(); i += 3)
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+          const double contribution = std::max(
+              0.0, static_cast<double>(image.pixels[i + channel]) - background[channel]);
+          image.pixels[i + channel] = static_cast<std::uint8_t>(std::clamp(
+              std::lround(background[channel] + contribution * exposureScale),
+              0l, 255l));
+        }
+      const auto stats = measure(image);
+      GTEST_LOG_(INFO) << "Pyro fixed-field exposure-matched response="
+          << (response == 1 ? "constant-albedo" : "thin-smoke-lift")
+          << " view=" << responseViewNames[view]
+          << " exposureScale=" << exposureScale
+          << " foregroundLuma=" << foregroundLuma(image)
+          << " occupied/luma/stddev/hp=" << stats.occupiedPixels << '/'
+          << stats.luminanceSum << '/' << stats.luminanceStdDev << '/'
+          << highPassRms(image);
+      const std::string filename = std::string("pyro_transfer_exposure_matched_") +
+          (response == 1 ? "constant_albedo_" : "thin_smoke_lift_") +
+          responseViewNames[view] + ".ppm";
+      saveIfRequested(image, filename.c_str());
+      EXPECT_GT(stats.occupiedPixels, 100u);
+    }
+  }
+
   std::vector<float> resampledDensity(48u * 72u * 48u, 0.0f);
   VolumeScalarField sourceDensityField{
       const_cast<float*>(snapshot.density.values.data()),
@@ -1522,6 +1628,32 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
     stats[1] = count ? static_cast<double>(highlights) / count : 0.0;
     return stats;
   };
+  const auto volumeLuminance = [](const ImageBuffer& image) {
+    constexpr double backgroundLuma =
+        0.2126 * 3.0 + 0.7152 * 5.0 + 0.0722 * 7.0;
+    double sum = 0.0;
+    for (std::size_t i = 0; i + 2 < image.pixels.size(); i += 3) {
+      const double luma = 0.2126 * image.pixels[i] +
+          0.7152 * image.pixels[i + 1] + 0.0722 * image.pixels[i + 2];
+      sum += std::max(0.0, luma - backgroundLuma);
+    }
+    return sum;
+  };
+  const auto matchVolumeExposure = [&](ImageBuffer& image, double target) {
+    constexpr std::array<double, 3> background{3.0, 5.0, 7.0};
+    const double source = volumeLuminance(image);
+    if (source <= 0.0) return 1.0;
+    const double scale = target / source;
+    for (std::size_t i = 0; i + 2 < image.pixels.size(); i += 3) {
+      for (std::size_t channel = 0; channel < 3; ++channel) {
+        const double contribution = std::max(
+            0.0, static_cast<double>(image.pixels[i + channel]) - background[channel]);
+        image.pixels[i + channel] = static_cast<std::uint8_t>(std::clamp(
+            std::lround(background[channel] + contribution * scale), 0l, 255l));
+      }
+    }
+    return scale;
+  };
 
   const std::array<const char*, 3> names{"builtin", "constant-albedo", "thin-smoke-lift"};
   std::array<ImageBuffer, 3> images;
@@ -1537,6 +1669,20 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
         << " luma-sum=" << appearance.luminanceSum
         << " luma-stddev=" << appearance.luminanceStdDev;
     saveIfRequested(images[response], (std::string("pyro_transfer_") +
+        names[response] + ".ppm").c_str());
+  }
+
+  const double targetVolumeLuminance = volumeLuminance(images[0]);
+  for (int response = 0; response < 3; ++response) {
+    auto matched = images[response];
+    const double exposureScale = matchVolumeExposure(matched, targetVolumeLuminance);
+    const auto matchedStats = imageStats(matched);
+    GTEST_LOG_(INFO) << "exposure-matched transfer " << names[response]
+        << " scale=" << exposureScale
+        << " volume-luma=" << volumeLuminance(matched)
+        << " hp-rms=" << matchedStats[0]
+        << " highlight-fraction=" << matchedStats[1];
+    saveIfRequested(matched, (std::string("pyro_transfer_exposure_matched_") +
         names[response] + ".ppm").c_str());
   }
 

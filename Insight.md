@@ -7077,3 +7077,18 @@
 - **仮説（未検証）:** 既定Smokeのemissionがopacityに比例し、raymarchの寄与がさらにalphaと乗算されるため、薄い領域では寄与が概ね密度の二乗に近くなり、煙の薄い縁が落ちている可能性がある。これはlightingが無効な当該renderer式の推論であり、GPU pathや実アプリの表示では未検証。
 - **次に確認すべきこと:** 3応答をforeground lumaまたは平均optical depthで合わせ、同じ固定場を複数カメラと異なる密度seedで再比較する。render-onlyでは転送関数を露出較正しても巻き帯が出ないなら、原因をsolver density detailへ戻す。production `VolumeRenderer` は変更しない。
 - **再検証:** `ArtifactCorePyroVolumeSmokeTest` target build成功。focused test 1/1 pass、capturesとlogは `build/smoke-pyro-volume-rnd/captures/render-response-rnd/` および `build/smoke-pyro-volume-rnd/render-response-rnd.log`。
+
+## 2026-10-26: 露出一致では薄煙応答に小さな高周波差が残る
+- **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `RendersProductionPyroDensityThroughCpuVolumeRenderer`、Core `CPUVolumeRenderer`。
+- **確認できた事実:** 同じPyro solver densityを使い、Core `CPUVolumeRenderer` のforeground lumaを合わせてfront/side/topを比較。組み込みSmokeの画像high-pass RMSは.1882/.1596/.2260、constant-albedoは.1891/.1621/.2298 (+0.5/1.6/6.1%)、thin-density-liftは.2169/.1727/.2505 (+15.3/8.2/10.8%)。薄煙liftは3視点で高周波指標が一貫して増えたが、contact sheetでも巻き込み/billowはなく、同一seed/時刻の単一densityに限る。Focused GTest 1/1 pass (2.36s)。capture `build/smoke-pyro-volume-rnd/captures/render-response-rnd/pyro/pyro_transfer_exposure_matched_contact.png`。
+- **価値または懸念:** `VolumeRenderer` は現Artifact 2D煙の描画経路ではなく、`CPUVolumeRenderer::render()` はcustom transfer callbackがあるとserial row loopへ切り替わる。したがってcallbackを製品設定へ接続する根拠も、CPU速度を主張する根拠もない。視覚的なbillow目標には達しない。
+- **仮説（未検証）:** thin-density-liftで閾値直近の密度寄与が増えた結果、固定露出でも輪郭の輝度勾配が強まった可能性がある。GPU/app経路と別Pyro seedでは未検証。
+- **次に確認すべきこと:** Core既定は変えない。App側の2D sprite drawと3D volume renderを混同せず、同一2D solver fieldから出すGPU particle densityの解像度上限を独立評価する。
+
+## 2026-10-26: 2D smoke particleの40×40上限は円形spriteを粗く見せる
+- **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の `kSmokeRenderSamplesPerAxis=40` と `prepareLayerSmokeRenderDataImpl()`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesSmokeParticleSamplingResolutionAtMatchedExposure`。
+- **確認できた事実:** 96×72 fixed solver fieldから、現40×40 samplingとtest-only 64×48/96×72 samplingを再構成し、green excessを一致させた。particle count 150/295/672、visible pixel 64488/55498/52014、high-pass RMS .236/.370/.624、saturationなし。96×72のcontact sheetは40×40より大粒の円形sprite境界が弱く、細いplume contourが滑らかに続く一方、まだ真っすぐなcolumnで渦巻きbillowは出ない。Focused standalone test 1/1 pass (1.31s)。
+- **価値または懸念:** 全格子sample化は粒子数を4.48倍にする。画像high-pass上昇は細かい粒子境界も拾うため品質改善とは同義でなく、この試験の`rasterizeParticles()`はsoftware preview adapterで実GPU viewport raster/timeを測っていない。現在の40上限変更はまだ根拠不足。
+- **仮説（未検証）:** sample capを上げるならsolver grid aspect ratioを維持したsample countと、実GPUの同一pixel resolutionでのspatial-frequency/temporal-coherenceを組にして測ると、円形spriteの粒感と細い煙輪郭のtradeoffを正しく分離できる。
+- **次に確認すべきこと:** production capは維持。次は実際のparticle vertex streamを同じGPU rendererで描画し、40×40/64×48/96×72を同一field・同一exposureで比較し、GPU instance count・frame time・画面pixelのgrain/billow有無を記録する。実GPU条件に繋げられない場合はsimulation field/detail側の検証へ進む。
+- **再検証:** smoke runtime standalone target build成功、`ComparesSmokeParticleSamplingResolutionAtMatchedExposure` 1/1 pass。captures `build/smoke-runtime-rnd/captures/sampling-resolution-rnd/`、log `build/smoke-runtime-rnd/sampling-resolution-rnd.log`。
