@@ -3224,6 +3224,12 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   }
   const auto compareDuration = [&](const double seconds,
                                    const QString& label) {
+    const SmokeRun at10 = runProductionSmokeRuntime(
+        0.5f, false, false, 10.0,
+        static_cast<int>(std::round(seconds * 10.0)) - 1);
+    const SmokeRun at15 = runProductionSmokeRuntime(
+        0.5f, false, false, 15.0,
+        static_cast<int>(std::round(seconds * 15.0)) - 1);
     const SmokeRun at24 = runProductionSmokeRuntime(
         0.5f, false, false, 24.0,
         static_cast<int>(std::round(seconds * 24.0)) - 1);
@@ -3234,9 +3240,32 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         0.5f, false, false, 60.0,
         static_cast<int>(std::round(seconds * 60.0)) - 1);
 
+    ASSERT_GT(at10.particleCount, 20) << label.toStdString();
+    ASSERT_GT(at15.particleCount, 20) << label.toStdString();
     ASSERT_GT(at24.particleCount, 20) << label.toStdString();
     ASSERT_GT(at30.particleCount, 20) << label.toStdString();
     ASSERT_GT(at60.particleCount, 20) << label.toStdString();
+    EXPECT_NEAR(at10.meanParticleY, at30.meanParticleY, 4.0)
+        << label.toStdString();
+    EXPECT_NEAR(at15.meanParticleY, at30.meanParticleY, 4.0)
+        << label.toStdString();
+    EXPECT_NEAR(at10.totalParticleAlpha, at30.totalParticleAlpha,
+                at30.totalParticleAlpha * 0.2)
+        << label.toStdString();
+    EXPECT_NEAR(at15.totalParticleAlpha, at30.totalParticleAlpha,
+                at30.totalParticleAlpha * 0.2)
+        << label.toStdString();
+    GTEST_LOG_(INFO) << "Smoke elapsed-time comparison " << label.toStdString()
+        << " particleMeanY 10/15/24/30/60=" << at10.meanParticleY << '/'
+        << at15.meanParticleY << '/'
+        << at24.meanParticleY << '/'
+        << at30.meanParticleY << '/' << at60.meanParticleY
+        << " totalAlpha10/15=" << at10.totalParticleAlpha << '/'
+        << at15.totalParticleAlpha
+        << " totalAlpha24/30/60="
+        << at24.totalParticleAlpha << '/'
+        << at30.totalParticleAlpha << '/'
+        << at60.totalParticleAlpha;
     GTEST_LOG_(INFO) << "Smoke elapsed-time comparison " << label.toStdString()
         << " particleMeanY 24/30/60=" << at24.meanParticleY << '/'
         << at30.meanParticleY << '/' << at60.meanParticleY
@@ -3254,6 +3283,10 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         << label.toStdString();
 
     if (!outputDirectory.isEmpty()) {
+      EXPECT_TRUE(at10.image.save(QDir(outputDirectory).filePath(
+          QStringLiteral("smoke_%1_10fps.png").arg(label)), "PNG"));
+      EXPECT_TRUE(at15.image.save(QDir(outputDirectory).filePath(
+          QStringLiteral("smoke_%1_15fps.png").arg(label)), "PNG"));
       EXPECT_TRUE(at24.image.save(QDir(outputDirectory).filePath(
           QStringLiteral("smoke_%1_24fps.png").arg(label)), "PNG"));
       EXPECT_TRUE(at30.image.save(QDir(outputDirectory).filePath(
