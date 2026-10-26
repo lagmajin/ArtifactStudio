@@ -4636,3 +4636,131 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
   EXPECT_TRUE(std::isfinite(vortexBfecc[0]));
   EXPECT_TRUE(std::isfinite(vortexLimitedBfecc[0]));
 }
+
+TEST(ArtifactCorePyroVolumeSmokeTest,
+     CarriesCombustionReactionIntoFireLookAndVersionedCheckpoints) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+
+  PyroDomain domain;
+  domain.min = {0.0f, 0.0f, 0.0f};
+  domain.max = {1.0f, 1.0f, 1.0f};
+  domain.voxelSize = 0.2f;
+  domain.fixedTimeStep = 1.0f / 60.0f;
+  domain.boundaryMode = PyroBoundaryMode::Closed;
+  PyroSimulation simulation(domain);
+  PyroSimulationSettings settings;
+  settings.dissipation = 0.0f;
+  settings.coolingRate = 0.0f;
+  settings.buoyancy = 0.0f;
+  settings.pressureIterations = 1.0f;
+  simulation.setSettings(settings);
+  PyroSourceState source;
+  source.position = {0.5f, 0.5f, 0.5f};
+  source.extent = {0.5f, 0.5f, 0.5f};
+  source.density = 50.0f;
+  source.temperature = 50.0f;
+  source.fuel = 50.0f;
+  simulation.setSources(std::span<const PyroSourceState>(&source, 1));
+
+  const auto cacheDirectory = std::filesystem::temp_directory_path() /
+      ("ArtifactPyroReactionCache-" + std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  simulation.setCacheDirectory(cacheDirectory);
+  simulation.setCacheInterval(1);
+  simulation.step(domain.fixedTimeStep);
+  const auto fueled = simulation.snapshot();
+  ASSERT_FALSE(fueled.reaction.empty());
+  const auto reactionMass = std::accumulate(
+      fueled.reaction.values.begin(), fueled.reaction.values.end(), 0.0);
+  EXPECT_GT(reactionMass, 0.0);
+  EXPECT_EQ(fueled.availableFields & PyroFieldMask::Reaction,
+            PyroFieldMask::Reaction);
+  EXPECT_EQ(simulation.estimateMemory().reactionBytes,
+            simulation.fields().cellCount() * sizeof(float));
+
+  PyroSimulation restored(domain);
+  restored.setCacheDirectory(cacheDirectory);
+  ASSERT_TRUE(restored.loadCheckpointFromDisk(fueled.frameIndex).loaded);
+  EXPECT_EQ(restored.snapshot().reaction.values.size(), fueled.reaction.values.size());
+  for (std::size_t i = 0; i < fueled.reaction.values.size(); ++i) {
+    EXPECT_FLOAT_EQ(restored.snapshot().reaction.values[i], fueled.reaction.values[i]);
+  }
+
+  auto renderer = makeRenderer(fueled, domain, {0.5f, 0.5f, 2.5f});
+  renderer.fields.reaction = {
+      const_cast<float*>(fueled.reaction.values.data()),
+      {fueled.resolution.width, fueled.resolution.height,
+       fueled.resolution.depth}};
+  renderer.setTransferFunction(TransferFunction::makeFire());
+  renderer.settings.stepSize = 0.025f;
+  renderer.settings.maxSteps = 128;
+  renderer.settings.densityScale = 1.0f;
+  renderer.settings.fireReactionScale = 2.0f;
+  renderer.settings.lightIntensity = 0.0f;
+  renderer.settings.backgroundColor = {0.0f, 0.0f, 0.0f};
+  renderer.settings.multipleScatteringStrength = 0.0f;
+  const auto fueledFire = measure(renderer.render(80, 80));
+  EXPECT_GT(fueledFire.occupiedPixels, 0u);
+
+  source.fuel = 0.0f;
+  std::fill(simulation.fields().fuelView().values.begin(),
+            simulation.fields().fuelView().values.end(), 0.0f);
+  simulation.setSources(std::span<const PyroSourceState>(&source, 1));
+  simulation.step(domain.fixedTimeStep);
+  const auto unburnedHotGas = simulation.snapshot();
+  const auto noReaction = std::accumulate(
+      unburnedHotGas.reaction.values.begin(),
+      unburnedHotGas.reaction.values.end(), 0.0);
+  EXPECT_DOUBLE_EQ(noReaction, 0.0);
+  auto gatedHotGasRenderer = makeRenderer(
+      unburnedHotGas, domain, {0.5f, 0.5f, 2.5f});
+  gatedHotGasRenderer.fields.reaction = {
+      const_cast<float*>(unburnedHotGas.reaction.values.data()),
+      {unburnedHotGas.resolution.width, unburnedHotGas.resolution.height,
+       unburnedHotGas.resolution.depth}};
+  gatedHotGasRenderer.setTransferFunction(TransferFunction::makeFire());
+  gatedHotGasRenderer.settings = renderer.settings;
+  EXPECT_EQ(measure(gatedHotGasRenderer.render(80, 80)).occupiedPixels, 0u);
+
+  auto legacyHotGasRenderer = makeRenderer(
+      unburnedHotGas, domain, {0.5f, 0.5f, 2.5f});
+  legacyHotGasRenderer.setTransferFunction(TransferFunction::makeFire());
+  legacyHotGasRenderer.settings = renderer.settings;
+  EXPECT_GT(measure(legacyHotGasRenderer.render(80, 80)).occupiedPixels, 0u);
+
+  // Version 1 checkpoints predate the reaction field; they remain readable
+  // and restore reaction as zero.
+  const auto legacyPath = cacheDirectory / "99.pyroc";
+  {
+    std::ofstream out(legacyPath, std::ios::binary);
+    ASSERT_TRUE(out.good());
+    const std::uint32_t magic = 0x5059524Fu;
+    const std::uint32_t version = 1;
+    const PyroResolution resolution{1, 1, 1};
+    out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+    out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    out.write(reinterpret_cast<const char*>(&resolution), sizeof(resolution));
+    const auto writeVector = [&out](const auto& values) {
+      const std::uint64_t size = values.size();
+      out.write(reinterpret_cast<const char*>(&size), sizeof(size));
+      out.write(reinterpret_cast<const char*>(values.data()),
+                static_cast<std::streamsize>(values.size() * sizeof(values[0])));
+    };
+    const std::vector<float> scalar{0.25f};
+    const std::vector<PyroVec3> velocity{{}};
+    writeVector(scalar);
+    writeVector(scalar);
+    writeVector(scalar);
+    writeVector(scalar);
+    writeVector(scalar);
+    writeVector(velocity);
+  }
+  ASSERT_TRUE(restored.loadCheckpointFromDisk(99).loaded);
+  ASSERT_EQ(restored.snapshot().reaction.size(), 1u);
+  EXPECT_FLOAT_EQ(restored.snapshot().reaction.values[0], 0.0f);
+
+  std::error_code cleanupError;
+  std::filesystem::remove_all(cacheDirectory, cleanupError);
+  EXPECT_FALSE(cleanupError);
+}
