@@ -36,12 +36,13 @@ or App code and does not establish GPU viewport parity or DCC-level quality.
 
 `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup` creates a true
 3D density/temperature/velocity field from the Pyro source, clones its
-12-step pulse-end state and advances eight branches for another 1.2 s while
+12-step pulse-end state and advances ten branches for another 1.2 s while
 continuing the same emitter source on every branch.
 The current branches compare source velocity, initial divergence-free curl at
 two amplitudes, half velocity, 1/120 s fixed steps, and equal-strength
 large-scale curl acceleration gated to smoke interior, density interface, or
-ambient air near the interface. In the preceding source-free pulse test, the
+ambient air near the interface. The ambient-interface gate is repeated with
+noise seeds 17, 29, and 71. In the preceding source-free pulse test, the
 control mass / Y centroid / divergence RMS were 15.8958 / 13.0075 / 0.02923;
 the interior / interface / ambient gates yielded 15.4125 / 12.9594 / 0.03493,
 15.6480 / 12.9470 / 0.03490, and 15.8346 / 12.8955 / 0.03867. Under
@@ -61,6 +62,16 @@ Focused GTest passed 1/1 (30.68 s); raw and mass-matched front/side captures
 are in `build/smoke-runtime-rnd/captures/3d-source-interface-massmatch-20261026/3d-source-rollup-rnd/`.
 This test-only comparison does not justify a production force or timestep
 change and does not demonstrate DCC-level smoke quality.
+
+The follow-up repeats only the ambient-interface gate with noise seeds 17, 29,
+and 71. At mass-matched captures, side occupied-pixel deltas against control
+at steps 24 / 48 / 72 are +0.46% / +1.83% / +3.10% for seed 17,
+-1.80% / -2.15% / -2.52% for seed 29, and +0.37% / +4.03% / +4.31% for
+seed 71. Thus two seeds widen later in the plume while one consistently
+contracts; this is not a seed-robust effect. Visual inspection of the step-72
+control and seed-71 side views shows only a slightly broader smooth puff, with
+no folded billow. The focused test passed 1/1 (47.95 s); captures are in
+`build/smoke-runtime-rnd/captures/3d-source-gate-seeds-20261026/3d-source-rollup-rnd/`.
 
 An earlier value-noise scale sweep of this same case compared deterministic,
 smooth 3D value-noise vector potentials applied as density-gated curl

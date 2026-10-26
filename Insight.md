@@ -7210,10 +7210,10 @@
 - **次に確認すべきこと:** forceはCore/Appに反映しない。連続source plumeに対してemitter injection・ambient noise・interface-only noiseを同じseed、物理時間、支配速度で比較する。front/side/topに加え、密度等値面の曲率符号反転数またはinterface area、mass retention、divergence、CPU test runtimeを計測し、構造形成が再現する場合だけ統合候補にする。
 - **再検証:** standalone target rebuild成功、focused GTest 1/1 pass (30.44s)。
 
-## 2026-10-26: 連続emissionではambient curlがside coverageを増やすが煙柱は滑らかなまま
+## 2026-10-26: 連続emissionのambient curlはseed依存で、折り返しを作らない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
-- **確認できた事実:** pulse-end snapshotから同じPyro sourceを再投入し続け、interior / density-interface / ambient-interface noise gateを1.2秒進化させた。control terminal mass / Y centroid / divergence RMSは253.058 / 15.6979 / .0344183。interior gate 240.484 / 15.2663 / .033149、interface gate 241.277 / 15.2788 / .0307785、ambient gate 249.095 / 15.5247 / .0364839。raw side occupied pixelsはcontrol/interior/interface/ambientで8091/8088/8170/8456。さらにterminal density massをcontrol値へ揃えてrenderするとside occupiedは8091/8016/8113/8429となり、ambientの広がり+4.2%はmass差を除いても残る。front/side capturesはいずれも上昇する滑らかな柱／puffで、明瞭なfolded billowは見えない。focused GTest 1/1 pass (30.68s); captures `build/smoke-runtime-rnd/captures/3d-source-interface-massmatch-20261026/3d-source-rollup-rnd/`。
-- **価値または懸念:** source-free試験ではsmall cap shiftしか見えなかったが、continuously sourced plumeではgate locationによりside coverageが数%動くことが確認できた。これは形状方向への限定的な感度であり、billow品質改善とは異なる。ambient gateは面積を広げるが発散RMSもcontrolより高い。CPU reference volume renderの160x160画像であり、GPU viewport・異なるseedやdomainへの一般化は未確認。
-- **仮説（未検証）:** plume界面近傍でのshear/ambient curlは輪郭を広げるが、roll-upへ進むには継続的な剪断層の形成・不安定化、より高い空間解像度、または移流／pressure projectionの改善が必要かもしれない。Coverageのみを追うと単なるpuff肥大化を採用する恐れがある。
-- **次に確認すべきこと:** forceをproductionへ反映しない。mass-matched ambient gateのside coverage増加が複数seed・時間で再現し、等値面曲率・連結性にroll-upを示す変化を伴うか調べる。構造形成が見えない場合は、異なるsource geometryや密度に加え熱浮力のある初期条件を試す。
-- **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功、focused GTest 1/1 pass (30.68s)。
+- **確認できた事実:** pulse-end snapshotから同じPyro sourceを再投入し続ける1.2秒のplume比較を、noise seed 17/29/71で繰り返した。side occupied pixelのmass-matched control差はstep 24/48/72で、seed17が+0.46%/+1.83%/+3.10%、seed29が-1.80%/-2.15%/-2.52%、seed71が+0.37%/+4.03%/+4.31%。2 seedは後半に広がり1 seedは一貫して狭くなるため、先の単一seedで見た+4.2%を再現性のある効果とは見なせない。step72のcontrolとseed71 side imageは少し幅が違う程度の滑らかなpuffで、folded billowはない。focused GTest 1/1 pass (47.95s); captures `build/smoke-runtime-rnd/captures/3d-source-gate-seeds-20261026/3d-source-rollup-rnd/`。
+- **価値または懸念:** mass matchingと時間列を追加したことで、coverageの差が質量差由来ではない一方、方向はseed依存と分かった。CPU reference volume renderの160x160像でGPU viewportの見た目やDCC品質を示すものではない。
+- **仮説（未検証）:** 単純なcurl accelerationの細かな位相差が plume外形を動かすだけで、連続する不安定剪断や渦の巻き込みは作れていない可能性がある。source geometry、温度浮力、境界との相互作用が形状形成により強く寄与するかもしれない。
+- **次に確認すべきこと:** ambient curlはproductionへ反映しない。異なるsource geometryと温度・浮力を持つplume初期条件を比較し、front/side/top像と界面形状指標でroll-upがseedをまたいで再現するか調べる。
+- **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (47.95s)。

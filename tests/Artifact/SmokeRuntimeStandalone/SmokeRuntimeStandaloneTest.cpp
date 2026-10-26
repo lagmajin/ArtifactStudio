@@ -457,7 +457,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     explicit Branch(const char* branchLabel, const PyroDomain& branchDomain)
         : label(branchLabel), simulation(branchDomain) {}
   };
-  std::array<Branch, 8> branches{{
+  std::array<Branch, 10> branches{{
       Branch("source-velocity", domain),
       Branch("curl-augmented", domain),
       Branch("curl-strong", domain),
@@ -465,7 +465,9 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       Branch("fine-timestep", domain),
       Branch("gate-smoke-interior", domain),
       Branch("gate-density-interface", domain),
-      Branch("gate-ambient-interface", domain)}};
+      Branch("gate-ambient-interface-seed17", domain),
+      Branch("gate-ambient-interface-seed29", domain),
+      Branch("gate-ambient-interface-seed71", domain)}};
   for (auto& branch : branches) {
     branch.simulation.setSettings(settings);
     branch.simulation.fields().densityStorage() = initialDensity;
@@ -589,7 +591,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   const auto applyCoherentTurbulence = [&](PyroSimulation& simulation,
       const double timeSeconds, const float pulseLength,
       const std::array<float, 4>& wavelengths, const int bandCount,
-      const int gateMode) {
+      const int gateMode, const std::uint32_t noiseSeed) {
     auto velocity = simulation.fields().velocityView();
     const auto density = simulation.fields().densityView();
     const float pulse = std::max(0.01f, pulseLength);
@@ -680,13 +682,16 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
             static_cast<float>(band + 1);
         result.x += amplitude * valueNoise(wx * inverseScale + drift,
             wy * inverseScale - drift * 0.43f,
-            wz * inverseScale + drift * 0.19f, 0x1234u + band * 3u);
+            wz * inverseScale + drift * 0.19f,
+            (0x1234u + band * 3u) ^ noiseSeed);
         result.y += amplitude * valueNoise(wx * inverseScale - drift * 0.23f,
             wy * inverseScale + drift * 0.61f,
-            wz * inverseScale - drift, 0x5678u + band * 3u);
+            wz * inverseScale - drift,
+            (0x5678u + band * 3u) ^ noiseSeed);
         result.z += amplitude * valueNoise(wx * inverseScale + drift * 0.47f,
             wy * inverseScale + drift * 0.13f,
-            wz * inverseScale + drift * 0.73f, 0x9abcu + band * 3u);
+            wz * inverseScale + drift * 0.73f,
+            (0x9abcu + band * 3u) ^ noiseSeed);
       }
       result.x *= gate;
       result.y *= gate;
@@ -841,8 +846,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   if (!outputDirectory.isEmpty())
     ASSERT_TRUE(QDir().mkpath(captureDirectory));
   constexpr std::array<int, 4> captureSteps{0, 24, 48, 72};
-  std::array<PreviousImage, 8> previousFront;
-  std::array<PreviousImage, 8> previousSide;
+  std::array<PreviousImage, 10> previousFront;
+  std::array<PreviousImage, 10> previousSide;
   std::size_t nextCapture = 0;
   constexpr std::array<float, 4> largeWavelengths{0.75f, 0.48f, 0.30f, 0.0f};
   for (int step = 0; step <= captureSteps.back(); ++step) {
@@ -869,7 +874,9 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
             << frontMetrics[2] << " sideOccupied/luma/delta="
             << sideMetrics[0] << '/' << sideMetrics[1] << '/'
             << sideMetrics[2];
-        if (step == captureSteps.back()) {
+        const bool compareMassMatched = step > 0 &&
+            (branchIndex == 0 || branchIndex == 6 || branchIndex >= 7);
+        if (compareMassMatched) {
           const double controlMass = measureDensity(
               branches[0].simulation)[0];
           const double currentMass = densityMetrics[0];
@@ -921,21 +928,32 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       branch.simulation.setSources(
           std::span<const PyroSourceState>(&source, 1));
     const auto smokeForce = applyCoherentTurbulence(branches[5].simulation,
-        static_cast<double>(step) / 60.0, 0.45f, largeWavelengths, 3, 0);
+        static_cast<double>(step) / 60.0, 0.45f, largeWavelengths, 3, 0,
+        0x17u);
     const auto interfaceForce = applyCoherentTurbulence(
         branches[6].simulation, static_cast<double>(step) / 60.0,
-        0.45f, largeWavelengths, 3, 1);
+        0.45f, largeWavelengths, 3, 1, 0x17u);
     const auto ambientForce = applyCoherentTurbulence(
         branches[7].simulation, static_cast<double>(step) / 60.0,
-        0.45f, largeWavelengths, 3, 2);
+        0.45f, largeWavelengths, 3, 2, 0x17u);
+    const auto ambientSeed29Force = applyCoherentTurbulence(
+        branches[8].simulation, static_cast<double>(step) / 60.0,
+        0.45f, largeWavelengths, 3, 2, 0x29u);
+    const auto ambientSeed71Force = applyCoherentTurbulence(
+        branches[9].simulation, static_cast<double>(step) / 60.0,
+        0.45f, largeWavelengths, 3, 2, 0x71u);
     if (step == 0) {
       GTEST_LOG_(INFO) << "3d-source gate force rawRms/support interior/interface/ambient="
           << smokeForce[0] << '/' << smokeForce[1] << ' '
           << interfaceForce[0] << '/' << interfaceForce[1] << ' '
-          << ambientForce[0] << '/' << ambientForce[1];
+          << ambientForce[0] << '/' << ambientForce[1] << " seeds29/71="
+          << ambientSeed29Force[0] << '/' << ambientSeed29Force[1] << ' '
+          << ambientSeed71Force[0] << '/' << ambientSeed71Force[1];
       EXPECT_GT(smokeForce[1], 0.0);
       EXPECT_GT(interfaceForce[1], 0.0);
       EXPECT_GT(ambientForce[1], 0.0);
+      EXPECT_GT(ambientSeed29Force[1], 0.0);
+      EXPECT_GT(ambientSeed71Force[1], 0.0);
     }
     for (auto& branch : branches) branch.simulation.step(1.0 / 60.0);
   }
