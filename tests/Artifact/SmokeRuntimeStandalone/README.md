@@ -34,6 +34,23 @@ Front and side PNGs are written under the configured capture directory in
 `depth-evolved-2d-state-rnd/`. This experiment does not change production Core
 or App code and does not establish GPU viewport parity or DCC-level quality.
 
+`ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup` creates a true
+3D density/temperature/velocity field from the Pyro source, clones its
+12-step pulse-end state, and advances seven source-free branches for 1.2 s.
+The branches compare source velocity, initial divergence-free curl at two
+amplitudes, half velocity, 1/120 s fixed steps, and density-gated large-scale
+curl acceleration with 0.45 s / 0.08 s temporal pulses. At 1.2 s, the control
+mass / Y centroid / divergence RMS are 15.90 / 13.01 voxels / 0.0292. The
+large-scale slow and pulsed branches are 16.23 / 12.71 / 0.0383 and 15.94 /
+12.98 / 0.0355; captured front views show only a slight cap tilt, not folded
+billows. The 1/120 s branch retains more mass (17.00) but has higher divergence
+RMS (0.170) and slightly lower centroid (12.50). Halving the initial velocity
+reduces rise (centroid 10.31) and increases remaining mass (21.37). Focused
+GTest passed 1/1 (15.36 s); front/side captures are in
+`build/smoke-runtime-rnd/captures/3d-source-rollup-sweep-20261026/3d-source-rollup-rnd/`.
+This test-only comparison does not justify a production force or timestep
+change and does not demonstrate DCC-level smoke quality.
+
 The `ReportsSteadyStateRenderDataPreparationCost` case is an R&D microbenchmark.
 It advances 32x32, 79x79, 128x128, and 512x512 smoke states for 24 frames,
 warms render-data preparation 12 times, then reports mean and p95 over 100

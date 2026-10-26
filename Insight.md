@@ -7185,3 +7185,11 @@
 - **仮説（未検証）:** 2D snapshot由来の密度と速度が3D熱対流の整合した初期状態でない可能性があり、billow評価には3D sourceから同時生成した温度・密度・速度の初期場、または高次圧力solverを独立条件にする必要がある。
 - **次に確認すべきこと:** 本比較はCore/Appへ移植しない。3D Pyro sourceが温度・密度を同時注入する既存standalone fixtureの同一時刻snapshotを複製し、速度場のみに関する変更と時間解像度を比較し、複数視点・複数時刻でfolded interfaceを確認する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功、focused GTest 1/1 pass (8.78s)。
+
+## 2026-10-26: 3D source由来のpuffへ大スケールcurl forceを加えてもbillowは現れない
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
+- **確認できた事実:** 同じ3D Pyro sourceから密度・温度・速度を同時生成した12-step pulse-end state（density mass 43.0188）を7枝へ複製し、source-freeで1.2秒進化した。対照はterminal mass / Y centroid / divergence RMS = 15.8958 / 13.0075 voxel / .0292257。初期の発散ゼロcurlを1倍/2倍追加した枝はterminal mass 16.0026/15.5045、centroid 12.9705/12.8789、どちらも視覚的billowなし。velocityを半減するとmass 21.369、centroid 10.312となり上昇が遅れた。1/120秒固定刻み枝はmass 16.9984と少し保持するが、centroid 12.5011、divergence RMS .170357で、1/60秒枝より発散が大きかった。密度support gate付きの発散ゼロlarge-scale curl accelerationを継続追加し、同じ空間スケールでtemporal pulse .45s/.08sを比較した結果はmass 16.2270/15.9439、centroid 12.7136/12.9827、divergence .0383056/.0354725。front captureは低速条件に若干のcap傾斜を示すだけで折れbillowは見えず、短pulseと対照の差も小さい。focused GTest 1/1 pass (15.36s); capture `build/smoke-runtime-rnd/captures/3d-source-rollup-sweep-20261026/3d-source-rollup-rnd/`。
+- **価値または懸念:** 3D sourceが整合した温度・密度を生成しても、現行Pyroのsource-free puffとtest-only curl forceだけでは目的の煙形状に進まなかった。1/120秒条件で発散が大きくなった理由は、固定圧力反復数を倍のsubstepへそのまま適用した影響などが考えられるが、原因は未特定。renderer画像指標の変化は小さく、画質改善とは扱えない。
+- **仮説（未検証）:** Houdiniの資料は大きなSwirl SizeのTurbulenceを低周波churning、Disturbance/Shreddingを別の小スケール形状操作として分けている（[Sparse Pyro Solver documentation](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html)）。今回のforceはその概念を部分的に試したが、既知の乱流noiseではなく単純な周期関数であり、空間周波数・pulse長・force量の範囲も限定している。さらにR&Dするなら、非周期の時間相関ノイズ、大スケールの渦対、密度界面制御を独立比較する必要がある。
+- **次に確認すべきこと:** 今回のcurlやfixed timestepはCore/Appへ反映しない。次の比較ではHoudiniのscale分離をヒントに、coherent low-frequency forceとhigh-frequency interface disturbanceを別々に生成し、同一solver・seed・物理時間でfront/side/top画像、密度mass、curl/divergence、速度RMS、時間相関を評価する。rendererのCPU referenceだけではなく、成果候補が現れた後に同じfieldでGPU viewport経路も照合する。
+- **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (15.36s)。

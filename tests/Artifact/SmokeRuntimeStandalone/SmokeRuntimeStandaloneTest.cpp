@@ -409,6 +409,411 @@ void injectTestSmokeTemperature(
   }
 }
 
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+  PyroDomain domain;
+  domain.min = {-0.75f, 0.0f, -0.5f};
+  domain.max = {0.75f, 1.125f, 0.5f};
+  domain.voxelSize = 1.0f / 32.0f;
+  domain.fixedTimeStep = 1.0 / 60.0;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 32u * 1024u * 1024u;
+  const auto pyroResolution = domain.resolution();
+  const VolumeResolution resolution{pyroResolution.width,
+      pyroResolution.height, pyroResolution.depth};
+  PyroSimulationSettings settings;
+  settings.dissipation = 0.035f;
+  settings.coolingRate = 0.18f;
+  settings.buoyancy = 0.7f;
+  settings.vorticity = 0.45f;
+  settings.pressureIterations = 16.0f;
+  PyroSimulation pulse(domain);
+  pulse.setSettings(settings);
+  PyroSourceState source;
+  source.position = {0.0f, 0.18f, 0.0f};
+  source.extent = {0.12f, 0.09f, 0.12f};
+  source.velocity = {0.0f, 240.0f, 0.0f};
+  source.density = 4.0f;
+  source.temperature = 1.5f;
+  source.enabled = true;
+  for (int step = 0; step < 12; ++step) {
+    pulse.setSources(std::span<const PyroSourceState>(&source, 1));
+    pulse.step(1.0 / 60.0);
+  }
+
+  const auto initialDensity = pulse.fields().densityStorage();
+  const auto initialTemperature = pulse.fields().temperatureStorage();
+  const auto initialFuel = pulse.fields().fuelStorage();
+  const auto initialVelocity = pulse.fields().velocityStorage();
+  const double initialMass = std::accumulate(
+      initialDensity.begin(), initialDensity.end(), 0.0);
+  ASSERT_GT(initialMass, 0.0);
+
+  struct Branch final {
+    const char* label;
+    PyroSimulation simulation;
+    explicit Branch(const char* branchLabel, const PyroDomain& branchDomain)
+        : label(branchLabel), simulation(branchDomain) {}
+  };
+  std::array<Branch, 7> branches{{
+      Branch("source-velocity", domain),
+      Branch("curl-augmented", domain),
+      Branch("curl-strong", domain),
+      Branch("velocity-attenuated", domain),
+      Branch("fine-timestep", domain),
+      Branch("turbulence-large-slow", domain),
+      Branch("turbulence-large-pulsed", domain)}};
+  for (auto& branch : branches) {
+    branch.simulation.setSettings(settings);
+    branch.simulation.fields().densityStorage() = initialDensity;
+    branch.simulation.fields().temperatureStorage() = initialTemperature;
+    branch.simulation.fields().fuelStorage() = initialFuel;
+    branch.simulation.fields().velocityStorage() = initialVelocity;
+  }
+  branches[4].simulation.setFixedTimeStep(1.0 / 120.0);
+
+  const auto measureVelocity = [&](const PyroSimulation& simulation) {
+    const auto density = simulation.fields().densityView();
+    const auto velocity = simulation.fields().velocityView();
+    double weightedSpeedSquared = 0.0;
+    double weight = 0.0;
+    for (std::size_t i = 0; i < density.values.size(); ++i) {
+      const double rho = std::max(0.0f, density.values[i]);
+      const auto v = velocity.values[i];
+      weightedSpeedSquared += rho * (v.x * v.x + v.y * v.y + v.z * v.z);
+      weight += rho;
+    }
+    double divergenceSquared = 0.0;
+    std::size_t divergenceCount = 0;
+    for (int z = 1; z + 1 < resolution.depth; ++z)
+      for (int y = 1; y + 1 < resolution.height; ++y)
+        for (int x = 1; x + 1 < resolution.width; ++x) {
+          const auto xp = velocity.at(x + 1, y, z);
+          const auto xm = velocity.at(x - 1, y, z);
+          const auto yp = velocity.at(x, y + 1, z);
+          const auto ym = velocity.at(x, y - 1, z);
+          const auto zp = velocity.at(x, y, z + 1);
+          const auto zm = velocity.at(x, y, z - 1);
+          const double div = 0.5 * ((xp.x - xm.x) + (yp.y - ym.y) +
+                                     (zp.z - zm.z));
+          divergenceSquared += div * div;
+          ++divergenceCount;
+        }
+    return std::array<double, 2>{weight > 0.0
+        ? std::sqrt(weightedSpeedSquared / weight) : 0.0,
+        divergenceCount > 0
+            ? std::sqrt(divergenceSquared / divergenceCount) : 0.0};
+  };
+
+  auto& curlBranch = branches[1].simulation;
+  auto curlVelocity = curlBranch.fields().velocityView();
+  auto strongCurlVelocity = branches[2].simulation.fields().velocityView();
+  const float inverseTwoVoxel = 0.5f / domain.voxelSize;
+  const auto potential = [&](const int sampleX, const int sampleY,
+                             const int sampleZ) {
+    const int x = std::clamp(sampleX, 0, resolution.width - 1);
+    const int y = std::clamp(sampleY, 0, resolution.height - 1);
+    const int z = std::clamp(sampleZ, 0, resolution.depth - 1);
+    const float wx = domain.min.x + (static_cast<float>(x) + 0.5f) *
+        domain.voxelSize;
+    const float wy = domain.min.y + (static_cast<float>(y) + 0.5f) *
+        domain.voxelSize;
+    const float wz = domain.min.z + (static_cast<float>(z) + 0.5f) *
+        domain.voxelSize;
+    const double rho = std::max(0.0f,
+        curlBranch.fields().densityView().at(x, y, z));
+    const float gate = static_cast<float>(rho / (rho + 0.06));
+    constexpr float twoPi = 6.28318530718f;
+    constexpr std::array<float, 3> wavelengths{0.32f, 0.16f, 0.08f};
+    constexpr std::array<float, 3> amplitudes{0.055f, 0.026f, 0.012f};
+    PyroVec3 result{};
+    for (std::size_t band = 0; band < wavelengths.size(); ++band) {
+      const float k = twoPi / wavelengths[band];
+      const float phase = static_cast<float>(band) * 1.71f + 0.37f;
+      result.x += amplitudes[band] * std::sin(k * (0.31f * wx + wy +
+          0.19f * wz) + phase);
+      result.y += amplitudes[band] * std::sin(k * (0.23f * wx +
+          0.37f * wy + wz) - phase * 0.7f);
+      result.z += amplitudes[band] * std::sin(k * (wx - 0.29f * wy +
+          0.41f * wz) + phase * 0.43f);
+    }
+    result.x *= gate;
+    result.y *= gate;
+    result.z *= gate;
+    return result;
+  };
+  for (int z = 0; z < resolution.depth; ++z)
+    for (int y = 0; y < resolution.height; ++y)
+      for (int x = 0; x < resolution.width; ++x) {
+        const auto axp = potential(x + 1, y, z);
+        const auto axm = potential(x - 1, y, z);
+        const auto ayp = potential(x, y + 1, z);
+        const auto aym = potential(x, y - 1, z);
+        const auto azp = potential(x, y, z + 1);
+        const auto azm = potential(x, y, z - 1);
+        const PyroVec3 curl{
+            (ayp.z - aym.z - azp.y + azm.y) * inverseTwoVoxel,
+            (azp.x - azm.x - axp.z + axm.z) * inverseTwoVoxel,
+            (axp.y - axm.y - ayp.x + aym.x) * inverseTwoVoxel};
+        auto& velocity = curlVelocity.at(x, y, z);
+        velocity.x += curl.x;
+        velocity.y += curl.y;
+        velocity.z += curl.z;
+        strongCurlVelocity.at(x, y, z).x += 2.0f * curl.x;
+        strongCurlVelocity.at(x, y, z).y += 2.0f * curl.y;
+        strongCurlVelocity.at(x, y, z).z += 2.0f * curl.z;
+      }
+  auto attenuatedVelocity = branches[3].simulation.fields().velocityView();
+  for (auto& velocity : attenuatedVelocity.values) {
+    velocity.x *= 0.5f;
+    velocity.y *= 0.5f;
+    velocity.z *= 0.5f;
+  }
+  GTEST_LOG_(INFO) << "3d-source pulse mass=" << initialMass
+      << " initial velocityRms source/curl/curlStrong/half/fine="
+      << measureVelocity(branches[0].simulation)[0] << '/'
+      << measureVelocity(branches[1].simulation)[0] << '/'
+      << measureVelocity(branches[2].simulation)[0] << '/'
+      << measureVelocity(branches[3].simulation)[0] << '/'
+      << measureVelocity(branches[4].simulation)[0] << " divergence="
+      << measureVelocity(branches[0].simulation)[1] << '/'
+      << measureVelocity(branches[1].simulation)[1] << '/'
+      << measureVelocity(branches[2].simulation)[1] << '/'
+      << measureVelocity(branches[3].simulation)[1] << '/'
+      << measureVelocity(branches[4].simulation)[1] << " fineDt="
+      << branches[4].simulation.fixedTimeStep();
+
+  const auto applyCoherentTurbulence = [&](PyroSimulation& simulation,
+      const double timeSeconds, const float pulseLength,
+      const std::array<float, 3>& wavelengths) {
+    auto velocity = simulation.fields().velocityView();
+    const auto density = simulation.fields().densityView();
+    constexpr float twoPi = 6.28318530718f;
+    const float timePhase = twoPi * static_cast<float>(timeSeconds) /
+        std::max(0.01f, pulseLength);
+    const auto potential = [&](int sampleX, int sampleY, int sampleZ) {
+      const int x = std::clamp(sampleX, 0, resolution.width - 1);
+      const int y = std::clamp(sampleY, 0, resolution.height - 1);
+      const int z = std::clamp(sampleZ, 0, resolution.depth - 1);
+      const float wx = domain.min.x + (static_cast<float>(x) + 0.5f) *
+          domain.voxelSize;
+      const float wy = domain.min.y + (static_cast<float>(y) + 0.5f) *
+          domain.voxelSize;
+      const float wz = domain.min.z + (static_cast<float>(z) + 0.5f) *
+          domain.voxelSize;
+      const float gate = std::clamp(density.at(x, y, z) / 0.06f, 0.0f, 1.0f);
+      PyroVec3 result{};
+      for (std::size_t band = 0; band < wavelengths.size(); ++band) {
+        const float k = twoPi / wavelengths[band];
+        const float phase = timePhase * (0.45f + 0.3f *
+            static_cast<float>(band)) + static_cast<float>(band) * 1.91f;
+        const float amplitude = 1.0f / (k * static_cast<float>(band + 1));
+        result.x += amplitude * std::sin(k * (0.31f * wx + wy +
+            0.19f * wz) + phase);
+        result.y += amplitude * std::sin(k * (0.23f * wx +
+            0.37f * wy + wz) - phase * 0.73f);
+        result.z += amplitude * std::sin(k * (wx - 0.29f * wy +
+            0.41f * wz) + phase * 0.51f);
+      }
+      result.x *= gate;
+      result.y *= gate;
+      result.z *= gate;
+      return result;
+    };
+    std::vector<PyroVec3> acceleration(resolution.cellCount());
+    double weightedSquared = 0.0;
+    double densityWeight = 0.0;
+    const float inverseTwoVoxel = 0.5f / domain.voxelSize;
+    for (int z = 0; z < resolution.depth; ++z)
+      for (int y = 0; y < resolution.height; ++y)
+        for (int x = 0; x < resolution.width; ++x) {
+          const auto axp = potential(x + 1, y, z);
+          const auto axm = potential(x - 1, y, z);
+          const auto ayp = potential(x, y + 1, z);
+          const auto aym = potential(x, y - 1, z);
+          const auto azp = potential(x, y, z + 1);
+          const auto azm = potential(x, y, z - 1);
+          const PyroVec3 curl{
+              (ayp.z - aym.z - azp.y + azm.y) * inverseTwoVoxel,
+              (azp.x - azm.x - axp.z + axm.z) * inverseTwoVoxel,
+              (axp.y - axm.y - ayp.x + aym.x) * inverseTwoVoxel};
+          const auto cell = resolution.indexOf(x, y, z);
+          acceleration[cell] = curl;
+          const double rho = std::max(0.0f, density.values[cell]);
+          weightedSquared += rho * (curl.x * curl.x + curl.y * curl.y +
+                                     curl.z * curl.z);
+          densityWeight += rho;
+        }
+    const double rawRms = densityWeight > 0.0
+        ? std::sqrt(weightedSquared / densityWeight) : 0.0;
+    const double referenceSpeed = measureVelocity(branches[0].simulation)[0];
+    const float scale = rawRms > 1.0e-12
+        ? static_cast<float>((0.45 * referenceSpeed / 1.2) / rawRms) : 0.0f;
+    for (std::size_t i = 0; i < acceleration.size(); ++i) {
+      velocity.values[i].x += acceleration[i].x * scale / 60.0f;
+      velocity.values[i].y += acceleration[i].y * scale / 60.0f;
+      velocity.values[i].z += acceleration[i].z * scale / 60.0f;
+    }
+  };
+
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  const auto render = [&](float* density, const bool sideView) {
+    CPUVolumeRenderer renderer;
+    VolumeAABB bounds;
+    bounds.min = {domain.min.x, domain.min.y, domain.min.z};
+    bounds.max = {domain.max.x, domain.max.y, domain.max.z};
+    renderer.bounds = bounds;
+    VolumeFieldSet fields;
+    fields.density = {density, resolution};
+    renderer.setVolumeData(bounds, fields);
+    renderer.settings.stepSize = 0.018f;
+    renderer.settings.maxSteps = 256;
+    renderer.settings.densityScale = 7.2f;
+    renderer.settings.useTemperatureEmission = false;
+    renderer.settings.backgroundColor = {0.015f, 0.02f, 0.03f};
+    renderer.settings.lightIntensity = 3.0f;
+    renderer.settings.phaseAnisotropy = 0.25f;
+    renderer.settings.multipleScatteringStrength = 0.18f;
+    renderer.settings.shadowIntensity = 0.25f;
+    renderer.settings.shadowStepSize = 0.04f;
+    renderer.settings.shadowMaxSteps = 96;
+    renderer.settings.shadowDensityScale = 0.08f;
+    const Point3 lookAt{0.0f, 0.56f, 0.0f};
+    const Point3 lookFrom = sideView ? Point3{2.4f, 0.56f, 0.0f}
+                                     : Point3{0.0f, 0.56f, 2.4f};
+    renderer.camera = Camera(1.0f, 36.0f, 2.4f, 0.0f, lookFrom,
+        lookAt, {0.0f, 1.0f, 0.0f});
+    return renderer.render(160, 160);
+  };
+  const auto savePng = [](const ImageBuffer& buffer, const QString& path) {
+    QImage image(buffer.width, buffer.height, QImage::Format_ARGB32);
+    for (int y = 0; y < buffer.height; ++y) {
+      auto* row = reinterpret_cast<QRgb*>(image.scanLine(y));
+      for (int x = 0; x < buffer.width; ++x) {
+        const auto offset = static_cast<std::size_t>(
+            (y * buffer.width + x) * 3);
+        const auto encode = [](const std::uint8_t channel) {
+          const float linear = static_cast<float>(channel) / 255.0f;
+          return static_cast<int>(std::lround(
+              std::pow(linear, 1.0f / 2.2f) * 255.0f));
+        };
+        row[x] = qRgba(encode(buffer.pixels[offset]),
+            encode(buffer.pixels[offset + 1]),
+            encode(buffer.pixels[offset + 2]), 255);
+      }
+    }
+    return image.save(path, "PNG");
+  };
+  const auto measureDensity = [&](const PyroSimulation& simulation) {
+    const auto density = simulation.fields().densityView();
+    double mass = 0.0;
+    double weightedY = 0.0;
+    double weightedZ = 0.0;
+    for (int z = 0; z < resolution.depth; ++z)
+      for (int y = 0; y < resolution.height; ++y)
+        for (int x = 0; x < resolution.width; ++x) {
+          const double rho = std::max(0.0f, density.at(x, y, z));
+          mass += rho;
+          weightedY += rho * y;
+          weightedZ += rho * z;
+        }
+    return std::array<double, 3>{mass,
+        mass > 0.0 ? weightedY / mass : 0.0,
+        mass > 0.0 ? weightedZ / mass : 0.0};
+  };
+  struct PreviousImage final { std::vector<float> pixels; };
+  const auto measureImage = [](const ImageBuffer& image,
+                               const PreviousImage& previous) {
+    std::size_t occupied = 0;
+    double luminance = 0.0;
+    double delta = 0.0;
+    for (int y = 0; y < image.height; ++y)
+      for (int x = 0; x < image.width; ++x) {
+        const auto offset = static_cast<std::size_t>(
+            (y * image.width + x) * 3);
+        const double luma = 0.2126 * image.pixels[offset] +
+            0.7152 * image.pixels[offset + 1] +
+            0.0722 * image.pixels[offset + 2];
+        if (luma > 10.0) ++occupied;
+        luminance += luma;
+        if (previous.pixels.size() == image.pixels.size())
+          delta += std::abs(static_cast<double>(image.pixels[offset]) -
+              previous.pixels[offset]) +
+              std::abs(static_cast<double>(image.pixels[offset + 1]) -
+              previous.pixels[offset + 1]) +
+              std::abs(static_cast<double>(image.pixels[offset + 2]) -
+              previous.pixels[offset + 2]);
+      }
+    const double meanDelta = previous.pixels.size() == image.pixels.size()
+        ? delta / (image.width * image.height * 3.0) : 0.0;
+    return std::array<double, 3>{static_cast<double>(occupied), luminance,
+                                  meanDelta};
+  };
+  const auto captureDirectory = QDir(outputDirectory).filePath(
+      QStringLiteral("3d-source-rollup-rnd"));
+  if (!outputDirectory.isEmpty())
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+  constexpr std::array<int, 4> captureSteps{0, 24, 48, 72};
+  std::array<PreviousImage, 7> previousFront;
+  std::array<PreviousImage, 7> previousSide;
+  std::size_t nextCapture = 0;
+  constexpr std::array<float, 3> largeWavelengths{0.75f, 0.48f, 0.30f};
+  for (int step = 0; step <= captureSteps.back(); ++step) {
+    if (step == captureSteps[nextCapture]) {
+      for (std::size_t branchIndex = 0; branchIndex < branches.size();
+           ++branchIndex) {
+        auto& branch = branches[branchIndex];
+        const auto densityMetrics = measureDensity(branch.simulation);
+        const auto velocityMetrics = measureVelocity(branch.simulation);
+        const auto front = render(
+            branch.simulation.fields().densityStorage().data(), false);
+        const auto side = render(
+            branch.simulation.fields().densityStorage().data(), true);
+        const auto frontMetrics = measureImage(front,
+                                               previousFront[branchIndex]);
+        const auto sideMetrics = measureImage(side,
+                                              previousSide[branchIndex]);
+        GTEST_LOG_(INFO) << "3d-source branch=" << branch.label << " step="
+            << step << " mass=" << densityMetrics[0] << " centroidY/Z="
+            << densityMetrics[1] << '/' << densityMetrics[2]
+            << " velocityRms/divergenceRms=" << velocityMetrics[0] << '/'
+            << velocityMetrics[1] << " frontOccupied/luma/delta="
+            << frontMetrics[0] << '/' << frontMetrics[1] << '/'
+            << frontMetrics[2] << " sideOccupied/luma/delta="
+            << sideMetrics[0] << '/' << sideMetrics[1] << '/'
+            << sideMetrics[2];
+        if (!outputDirectory.isEmpty()) {
+          const auto stem = QStringLiteral("%1_step_%2")
+              .arg(QString::fromLatin1(branch.label))
+              .arg(step, 3, 10, QLatin1Char('0'));
+          EXPECT_TRUE(savePng(front, QDir(captureDirectory).filePath(
+              stem + QStringLiteral("_front.png"))));
+          EXPECT_TRUE(savePng(side, QDir(captureDirectory).filePath(
+              stem + QStringLiteral("_side.png"))));
+        }
+        previousFront[branchIndex].pixels.assign(front.pixels.begin(),
+                                                 front.pixels.end());
+        previousSide[branchIndex].pixels.assign(side.pixels.begin(),
+                                                side.pixels.end());
+      }
+      if (nextCapture + 1 < captureSteps.size()) ++nextCapture;
+    }
+    if (step == captureSteps.back()) break;
+    applyCoherentTurbulence(branches[5].simulation,
+        static_cast<double>(step) / 60.0, 0.45f, largeWavelengths);
+    applyCoherentTurbulence(branches[6].simulation,
+        static_cast<double>(step) / 60.0, 0.08f, largeWavelengths);
+    for (auto& branch : branches) branch.simulation.step(1.0 / 60.0);
+  }
+  for (const auto& branch : branches) {
+    EXPECT_GT(measureDensity(branch.simulation)[0], 0.0);
+    EXPECT_TRUE(std::isfinite(measureVelocity(branch.simulation)[1]));
+  }
+}
+
 void advectTestSmokeTemperature(
     ArtifactCore::NamedVector<float>& temperature,
     ArtifactCore::NamedVector<float>& nextTemperature,
