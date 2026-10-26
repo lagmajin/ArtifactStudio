@@ -109,13 +109,9 @@ std::pair<int, int> expectedSmokeRenderSampleCounts(
 
 float smokeValueNoise(float x, float y);
 
-QImage rasterizeParticles(
-    const ArtifactCore::ParticleRenderData& renderData,
+void rasterizeParticlesInto(
+    QImage& image, const ArtifactCore::ParticleRenderData& renderData,
     const float alphaScale = 1.0f) {
-  QImage image(kGridWidth * kImageScale, kGridHeight * kImageScale,
-               QImage::Format_ARGB32);
-  image.fill(kBackground);
-
   for (const auto& particle : renderData.particles) {
     const int centerX = static_cast<int>(
         std::lround(particle.px * kImageScale));
@@ -146,17 +142,31 @@ QImage rasterizeParticles(
         const float opacity = std::clamp(
             particle.a * alphaScale * falloff, 0.0f, 1.0f);
         const QRgb destination = row[x];
-        const float inverseOpacity = 1.0f - opacity;
-        const int red = static_cast<int>(
-            particle.r * 255.0f * opacity + qRed(destination) * inverseOpacity);
-        const int green = static_cast<int>(
-            particle.g * 255.0f * opacity + qGreen(destination) * inverseOpacity);
-        const int blue = static_cast<int>(
-            particle.b * 255.0f * opacity + qBlue(destination) * inverseOpacity);
+        const bool additive = renderData.options.blend ==
+            ArtifactCore::ParticleBlendPolicy::Additive;
+        const float destinationScale = additive ? 1.0f : 1.0f - opacity;
+        const int red = std::clamp(static_cast<int>(
+            particle.r * 255.0f * opacity +
+            qRed(destination) * destinationScale), 0, 255);
+        const int green = std::clamp(static_cast<int>(
+            particle.g * 255.0f * opacity +
+            qGreen(destination) * destinationScale), 0, 255);
+        const int blue = std::clamp(static_cast<int>(
+            particle.b * 255.0f * opacity +
+            qBlue(destination) * destinationScale), 0, 255);
         row[x] = qRgba(red, green, blue, 255);
       }
     }
   }
+}
+
+QImage rasterizeParticles(
+    const ArtifactCore::ParticleRenderData& renderData,
+    const float alphaScale = 1.0f) {
+  QImage image(kGridWidth * kImageScale, kGridHeight * kImageScale,
+               QImage::Format_ARGB32);
+  image.fill(kBackground);
+  rasterizeParticlesInto(image, renderData, alphaScale);
   return image;
 }
 
@@ -9268,13 +9278,14 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   coldSettings.gridHeight = kGridHeight;
   coldSettings.emitterX = 0.5f;
   coldSettings.emitterY = 0.84f;
-  coldSettings.emitterRadius = 0.08f;
+  coldSettings.emitterRadius = 0.055f;
   coldSettings.emitterDensity = 0.8f;
   coldSettings.buoyancy = 0.0f;
   auto hotSettings = coldSettings;
   hotSettings.emitterTemperature = 5.0f;
+  hotSettings.thermalBuoyancy = 0.6f;
 
-  for (int frame = 0; frame < 5; ++frame) {
+  for (int frame = 0; frame < 24; ++frame) {
     Artifact::advanceLayerSmokeRuntime(
         coldState, frame, 30.0, coldSettings);
     Artifact::advanceLayerSmokeRuntime(
@@ -9283,23 +9294,268 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 
   QMatrix4x4 identity;
   identity.setToIdentity();
-  const QRectF bounds(0.0, 0.0, 256.0, 256.0);
+  const QRectF bounds(0.0, 0.0, kGridWidth, kGridHeight);
   const auto& coldParticles = Artifact::prepareLayerSmokeRenderData(
-      coldState, bounds, identity, 1.0f, 4, coldSettings).particles;
+      coldState, bounds, identity, 1.0f, 23, coldSettings).particles;
   const auto& hotParticles = Artifact::prepareLayerSmokeRenderData(
-      hotState, bounds, identity, 1.0f, 4, hotSettings).particles;
+      hotState, bounds, identity, 1.0f, 23, hotSettings).particles;
+  const auto& fireParticles = Artifact::prepareLayerFireRenderData(
+      hotState, bounds, identity, 1.0f, 23, hotSettings).particles;
   ASSERT_FALSE(coldParticles.empty());
   ASSERT_FALSE(hotParticles.empty());
+  ASSERT_FALSE(fireParticles.empty());
+  EXPECT_EQ(hotState.fluidFireRenderData_.options.blend,
+            ArtifactCore::ParticleBlendPolicy::Alpha);
 
   const auto meanChannel = [](const auto& particles, const auto channel) {
     double sum = 0.0;
     for (const auto& particle : particles) sum += particle.*channel;
     return sum / static_cast<double>(particles.size());
   };
-  EXPECT_GT(meanChannel(hotParticles, &ArtifactCore::ParticleVertex::r),
-            meanChannel(coldParticles, &ArtifactCore::ParticleVertex::r));
-  EXPECT_LT(meanChannel(hotParticles, &ArtifactCore::ParticleVertex::b),
-            meanChannel(coldParticles, &ArtifactCore::ParticleVertex::b));
+  EXPECT_NEAR(meanChannel(hotParticles, &ArtifactCore::ParticleVertex::r),
+              meanChannel(coldParticles, &ArtifactCore::ParticleVertex::r),
+              1.0e-6);
+  EXPECT_NEAR(meanChannel(hotParticles, &ArtifactCore::ParticleVertex::g),
+              meanChannel(coldParticles, &ArtifactCore::ParticleVertex::g),
+              1.0e-6);
+  EXPECT_NEAR(meanChannel(hotParticles, &ArtifactCore::ParticleVertex::b),
+              meanChannel(coldParticles, &ArtifactCore::ParticleVertex::b),
+              1.0e-6);
+  EXPECT_GT(meanChannel(fireParticles, &ArtifactCore::ParticleVertex::r),
+            meanChannel(fireParticles, &ArtifactCore::ParticleVertex::g));
+  EXPECT_GT(meanChannel(fireParticles, &ArtifactCore::ParticleVertex::g),
+            meanChannel(fireParticles, &ArtifactCore::ParticleVertex::b));
+
+  QImage mixed(kGridWidth * kImageScale, kGridHeight * kImageScale,
+               QImage::Format_ARGB32);
+  mixed.fill(kBackground);
+  constexpr float kGaussianParticleAlphaGain = 4.25f;
+  rasterizeParticlesInto(
+      mixed, hotState.fluidRenderData_, kGaussianParticleAlphaGain);
+  rasterizeParticlesInto(
+      mixed, hotState.fluidFireRenderData_, kGaussianParticleAlphaGain);
+  const QImage smokeImage = rasterizeParticles(
+      coldState.fluidRenderData_, kGaussianParticleAlphaGain);
+  const QImage fireImage = rasterizeParticles(
+      hotState.fluidFireRenderData_, kGaussianParticleAlphaGain);
+  const auto warmDifference = [](const QImage& image) {
+    std::uint64_t value = 0;
+    for (int y = 0; y < image.height(); ++y) {
+      for (int x = 0; x < image.width(); ++x) {
+        const QRgb pixel = image.pixel(x, y);
+        value += static_cast<std::uint64_t>(std::max(
+            0, (qRed(pixel) - qRed(kBackground)) -
+                   (qBlue(pixel) - qBlue(kBackground))));
+      }
+    }
+    return value;
+  };
+  EXPECT_GT(warmDifference(fireImage), 0U);
+  EXPECT_GT(warmDifference(mixed), warmDifference(smokeImage));
+  EXPECT_GT(countDifferentPixels(mixed, smokeImage), 0);
+
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+    EXPECT_TRUE(smokeImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_fire_2d_smoke_only.png"))));
+    EXPECT_TRUE(fireImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_fire_2d_fire_only.png"))));
+    EXPECT_TRUE(mixed.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_fire_2d_mixed.png"))));
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesTemperatureTintWithFuelReactionFirePrototype) {
+  Artifact::LayerFluidRuntimeState state;
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = kGridWidth;
+  settings.gridHeight = kGridHeight;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.84f;
+  settings.emitterRadius = 0.055f;
+  settings.emitterDensity = 0.8f;
+  settings.buoyancy = 0.0f;
+  settings.emitterTemperature = 5.0f;
+  settings.thermalBuoyancy = 0.6f;
+
+  const int width = settings.gridWidth;
+  const int height = settings.gridHeight;
+  const auto cellCount = static_cast<std::size_t>(width * height);
+  std::vector<float> fuel(cellCount, 0.0f);
+  std::vector<float> advectedFuel(cellCount, 0.0f);
+  std::vector<float> reactionRate(cellCount, 0.0f);
+  constexpr float kFramesPerSecond = 30.0f;
+  constexpr float kDt = 1.0f / kFramesPerSecond;
+  constexpr float kFuelPerFrame = 0.22f;
+  constexpr float kBurnRate = 4.0f;
+  constexpr float kIgnitionTemperature = 0.65f;
+  double burnedFuelMass = 0.0;
+
+  const auto sampleFuel = [&](const float gridX, const float gridY) {
+    const float x = std::clamp(gridX, 0.0f, static_cast<float>(width - 1));
+    const float y = std::clamp(gridY, 0.0f, static_cast<float>(height - 1));
+    const int x0 = static_cast<int>(std::floor(x));
+    const int y0 = static_cast<int>(std::floor(y));
+    const int x1 = std::min(x0 + 1, width - 1);
+    const int y1 = std::min(y0 + 1, height - 1);
+    const float tx = x - static_cast<float>(x0);
+    const float ty = y - static_cast<float>(y0);
+    const auto at = [&](const int px, const int py) {
+      return fuel[static_cast<std::size_t>(py * width + px)];
+    };
+    return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
+                     std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+  };
+
+  for (int frame = 0; frame < 24; ++frame) {
+    Artifact::advanceLayerSmokeRuntime(
+        state, frame, kFramesPerSecond, settings);
+    std::fill(advectedFuel.begin(), advectedFuel.end(), 0.0f);
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        float vx = 0.0f;
+        float vy = 0.0f;
+        state.fluidSolver_->getVelocity(x, y, vx, vy);
+        const float backX = static_cast<float>(x) -
+            kDt * static_cast<float>(width - 2) * vx;
+        const float backY = static_cast<float>(y) -
+            kDt * static_cast<float>(height - 2) * vy;
+        advectedFuel[static_cast<std::size_t>(y * width + x)] =
+            sampleFuel(backX, backY);
+      }
+    }
+    fuel.swap(advectedFuel);
+
+    const int sourceX = 1 + static_cast<int>(std::round(
+        settings.emitterX * static_cast<float>(width - 3)));
+    const int sourceY = 1 + static_cast<int>(std::round(
+        settings.emitterY * static_cast<float>(height - 3)));
+    const float radiusX = settings.emitterRadius *
+        static_cast<float>(width - 2);
+    const float radiusY = settings.emitterRadius *
+        static_cast<float>(height - 2);
+    const int extentX = static_cast<int>(std::ceil(radiusX));
+    const int extentY = static_cast<int>(std::ceil(radiusY));
+    for (int dy = -extentY; dy <= extentY; ++dy) {
+      for (int dx = -extentX; dx <= extentX; ++dx) {
+        const int x = sourceX + dx;
+        const int y = sourceY + dy;
+        if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1)
+          continue;
+        const float nx = static_cast<float>(dx) / std::max(0.5f, radiusX);
+        const float ny = static_cast<float>(dy) / std::max(0.5f, radiusY);
+        const float radial = nx * nx + ny * ny;
+        if (radial > 1.0f) continue;
+        fuel[static_cast<std::size_t>(y * width + x)] +=
+            kFuelPerFrame * (1.0f - radial);
+      }
+    }
+
+    std::fill(reactionRate.begin(), reactionRate.end(), 0.0f);
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        const float temperature = state.fluidSolver_->getTemperature(x, y);
+        if (temperature <= kIgnitionTemperature) continue;
+        const auto index = static_cast<std::size_t>(y * width + x);
+        const float burned = std::min(
+            fuel[index], fuel[index] * kBurnRate * kDt);
+        if (burned <= 0.0f) continue;
+        fuel[index] -= burned;
+        reactionRate[index] = burned / kDt;
+        burnedFuelMass += burned;
+        state.fluidSolver_->addTemperature(x, y, burned * 1.5f);
+        state.fluidSolver_->addDensity(x, y, burned * 0.65f);
+      }
+    }
+  }
+
+  QMatrix4x4 identity;
+  identity.setToIdentity();
+  const QRectF bounds(0.0, 0.0, kGridWidth, kGridHeight);
+  const auto& smokeData = Artifact::prepareLayerSmokeRenderData(
+      state, bounds, identity, 1.0f, 23, settings);
+  const auto& temperatureFireData = Artifact::prepareLayerFireRenderData(
+      state, bounds, identity, 1.0f, 23, settings);
+  ArtifactCore::ParticleRenderData reactionFireData;
+  reactionFireData.options.blend =
+      ArtifactCore::ParticleBlendPolicy::Additive;
+  reactionFireData.options.falloff =
+      ArtifactCore::ParticleFalloffMode::GaussianDensity;
+  reactionFireData.particles.reserve(cellCount);
+  double finalFuelMass = 0.0;
+  for (std::size_t index = 0; index < cellCount; ++index) {
+    finalFuelMass += fuel[index];
+  }
+  for (int y = 1; y < height - 1; ++y) {
+    for (int x = 1; x < width - 1; ++x) {
+      const auto index = static_cast<std::size_t>(y * width + x);
+      const float rate = reactionRate[index];
+      if (rate <= 0.015f) continue;
+      const float temperature = state.fluidSolver_->getTemperature(x, y);
+      const float heat = std::clamp(
+          (temperature - kIgnitionTemperature) / 4.0f, 0.0f, 1.0f);
+      ArtifactCore::ParticleVertex particle{};
+      particle.px = static_cast<float>(x);
+      particle.py = static_cast<float>(y);
+      particle.ppx = particle.px;
+      particle.ppy = particle.py;
+      particle.r = 1.0f;
+      particle.g = std::lerp(0.08f, 0.82f, heat);
+      particle.b = std::lerp(0.002f, 0.13f, heat);
+      particle.a = std::clamp(rate * 0.28f, 0.0f, 0.28f);
+      particle.size = 0.10f;
+      reactionFireData.particles.push_back(particle);
+    }
+  }
+
+  constexpr float kGaussianParticleAlphaGain = 4.25f;
+  const QImage smokeImage = rasterizeParticles(
+      smokeData, kGaussianParticleAlphaGain);
+  const QImage temperatureFireImage = rasterizeParticles(
+      temperatureFireData, kGaussianParticleAlphaGain);
+  const QImage reactionFireImage = rasterizeParticles(
+      reactionFireData, kGaussianParticleAlphaGain);
+  QImage reactionMixedImage(kGridWidth * kImageScale,
+                            kGridHeight * kImageScale,
+                            QImage::Format_ARGB32);
+  reactionMixedImage.fill(kBackground);
+  rasterizeParticlesInto(
+      reactionMixedImage, smokeData, kGaussianParticleAlphaGain);
+  rasterizeParticlesInto(
+      reactionMixedImage, reactionFireData, kGaussianParticleAlphaGain);
+  const auto temperatureFireMetrics = measureSmokeImage(temperatureFireImage);
+  const auto reactionFireMetrics = measureSmokeImage(reactionFireImage);
+  const auto mixedMetrics = measureSmokeImage(reactionMixedImage);
+  GTEST_LOG_(INFO) << "2D fire look prototype: temperature pixels/greenExcess="
+                   << temperatureFireMetrics.visiblePixels << '/'
+                   << temperatureFireMetrics.greenExcess
+                   << " reaction pixels/greenExcess="
+                   << reactionFireMetrics.visiblePixels << '/'
+                   << reactionFireMetrics.greenExcess
+                   << " mixed visible=" << mixedMetrics.visiblePixels
+                   << " fireParticles=" << reactionFireData.particles.size()
+                   << " burnedFuel/finalFuel=" << burnedFuelMass << '/'
+                   << finalFuelMass;
+  EXPECT_GT(burnedFuelMass, 0.0);
+  EXPECT_GT(finalFuelMass, 0.0);
+  EXPECT_GT(reactionFireData.particles.size(), 0U);
+  EXPECT_GT(reactionFireMetrics.visiblePixels, 0);
+  EXPECT_NE(countDifferentPixels(reactionFireImage, temperatureFireImage), 0);
+
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+    EXPECT_TRUE(temperatureFireImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_fire_2d_temperature_only_rnd.png"))));
+    EXPECT_TRUE(reactionFireImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_fire_2d_fuel_reaction_rnd.png"))));
+    EXPECT_TRUE(reactionMixedImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_fire_2d_smoke_reaction_mixed_rnd.png"))));
+  }
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
