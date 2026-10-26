@@ -14,6 +14,28 @@
 今の `LayerComponentPhase` / generator / field / modifier / simulation contract に沿って
 役割を分離するための方針。
 
+## 2026-10-26 GPU particle smoke sampling R&D
+
+`ArtifactCore::ParticleRenderOptions` に `ParticleFalloffMode` を追加し、既定の
+`SoftCircle` を維持したまま、GPU particle renderer に opt-in の
+`GaussianDensity` falloff を追加した。Gaussian kernel は有限半径内で0へ落とし、
+積分alphaを概ね保つよう密度profileを補正する。本番2D smoke extraction では
+長辺64 samples、アスペクト比を保った格子（96×72 solverなら64×48）を使い、
+particle vectorはsolver初期化時に同じ上限でreserveする。
+
+RTX 4070 Ti / D3D12 / 768×576 / production frame 44の露出一致比較では、
+現行40×40相当の163粒子から64×48の325粒子へ増やした。高周波RMSは
+0.00172524から0.00171760、露出合わせscaleは0.998291だった。キャプチャ上は
+円形particleの境界が滑らかになった。GPU submit時間はDebug測定で変動が大きく、
+代表性能値としては扱わない。独立runtime suiteは全30件passし、jitter座標、
+再構成条件、sample容量、steady-stateの非再確保も確認した。
+
+この変更はkernel境界の改善であり、煙の大域形状を巻き上げるものではない。
+キャプチャにはまだ直線的なplumeが残る。GPU particle描画へ適用し、既存の
+software smoke surface rasterizerは変更していないため、両経路の形状差は残る。
+次は独立solver R&Dで得た非周期curl turbulenceと、温度／密度連動の渦構造を
+連続frame・複数seedで評価し、流れの形が安定してから統合候補を判断する。
+
 ## Decision
 
 ### 1. `fluid` は layer component に入れる

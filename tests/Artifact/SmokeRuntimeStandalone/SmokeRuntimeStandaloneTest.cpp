@@ -30,7 +30,30 @@ constexpr int kGridWidth = 96;
 constexpr int kGridHeight = 72;
 constexpr int kImageScale = 8;
 constexpr int kFrameCount = 24;
+constexpr int kSmokeRenderSamplesPerAxis = 64;
 constexpr QRgb kBackground = qRgba(12, 16, 24, 255);
+
+std::pair<int, int> expectedSmokeRenderSampleCounts(
+    const int width, const int height) {
+  const int safeWidth = std::max(1, width);
+  const int safeHeight = std::max(1, height);
+  const int longestAxis = std::max(safeWidth, safeHeight);
+  if (longestAxis <= kSmokeRenderSamplesPerAxis)
+    return {safeWidth, safeHeight};
+  const float scale = static_cast<float>(kSmokeRenderSamplesPerAxis - 1) /
+      static_cast<float>(longestAxis - 1);
+  const int sampleCountX = safeWidth <= kSmokeRenderSamplesPerAxis
+      ? safeWidth
+      : std::clamp(static_cast<int>(std::round(
+            static_cast<float>(safeWidth - 1) * scale)) + 1,
+            1, kSmokeRenderSamplesPerAxis);
+  const int sampleCountY = safeHeight <= kSmokeRenderSamplesPerAxis
+      ? safeHeight
+      : std::clamp(static_cast<int>(std::round(
+            static_cast<float>(safeHeight - 1) * scale)) + 1,
+            1, kSmokeRenderSamplesPerAxis);
+  return {sampleCountX, sampleCountY};
+}
 
 float smokeValueNoise(float x, float y);
 
@@ -698,8 +721,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
                               static_cast<float>(kGridWidth);
     const float sampleGridY = particle.py * static_cast<float>(kGridHeight - 1) /
                               static_cast<float>(kGridHeight);
-    const int sampleCountX = std::min(kGridWidth, 40);
-    const int sampleCountY = std::min(kGridHeight, 40);
+    const auto [sampleCountX, sampleCountY] =
+        expectedSmokeRenderSampleCounts(kGridWidth, kGridHeight);
     const float sampleStepX = static_cast<float>(kGridWidth - 1) /
                               static_cast<float>(sampleCountX - 1);
     const float sampleStepY = static_cast<float>(kGridHeight - 1) /
@@ -909,8 +932,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           static_cast<float>(kGridWidth) * static_cast<float>(kGridWidth - 1);
       const float gridY = particle.py /
           static_cast<float>(kGridHeight) * static_cast<float>(kGridHeight - 1);
-      constexpr int sampleCountX = std::min(kGridWidth, 40);
-      constexpr int sampleCountY = std::min(kGridHeight, 40);
+      const auto [sampleCountX, sampleCountY] =
+          expectedSmokeRenderSampleCounts(kGridWidth, kGridHeight);
       const float sampleStepX = static_cast<float>(kGridWidth - 1) /
                                 static_cast<float>(sampleCountX - 1);
       const float sampleStepY = static_cast<float>(kGridHeight - 1) /
@@ -1990,7 +2013,9 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     }
     const int reservedCapacity = static_cast<int>(
         state.fluidRenderData_.particles.capacity());
-    const int expectedSampleCount = std::min(width, 40) * std::min(height, 40);
+    const auto [sampleCountX, sampleCountY] =
+        expectedSmokeRenderSampleCounts(width, height);
+    const int expectedSampleCount = sampleCountX * sampleCountY;
     EXPECT_EQ(reservedCapacity, expectedSampleCount);
 
     std::array<double, kMeasuredIterations> samples{};
@@ -2012,8 +2037,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     const auto measureFieldKernel = [&]<bool Bilinear, bool SampleVelocity>() {
       const auto runKernel = [&]() {
         double valueSum = 0.0;
-        const int sampleCountX = std::min(width, 40);
-        const int sampleCountY = std::min(height, 40);
+        const auto [sampleCountX, sampleCountY] =
+            expectedSmokeRenderSampleCounts(width, height);
         const float sampleStepX = static_cast<float>(width - 1) /
                                   static_cast<float>(sampleCountX - 1);
         const float sampleStepY = static_cast<float>(height - 1) /

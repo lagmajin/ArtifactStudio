@@ -1271,15 +1271,19 @@ TEST(ClonerGpuRenderContractTest,
         double alphaScale = 1.0;
         ArtifactCore::ImageF32x4_RGBA image;
     };
-    std::array<Variant, 5> variants{{
-        {"current-40x40", productionData},
+    std::array<Variant, 9> variants{{
+        {"current-40x40", makeStream(40, 40)},
         {"resample-64x48", makeStream(64, 48)},
         {"resample-96x72", makeStream(96, 72)},
-        {"flow-stretch-1p5-40x40", productionData},
-        {"flow-stretch-2x-40x40", productionData},
+        {"soft-multikernel-40x40", makeStream(40, 40)},
+        {"gaussian-density-40x40", makeStream(40, 40)},
+        {"gaussian-density-tight-40x40", makeStream(40, 40)},
+        {"gaussian-density-wide-40x40", makeStream(40, 40)},
+        {"production-gaussian-64x48", productionData},
+        {"gaussian-density-96x72", makeStream(96, 72)},
     }};
     for (std::size_t index = 0; index < variants.size(); ++index) {
-        if (index == 1 || index == 2) continue;
+        if (index != 7) continue;
         for (auto& particle : variants[index].data.particles) {
             particle.px *= static_cast<float>(scale);
             particle.py *= static_cast<float>(scale);
@@ -1288,15 +1292,41 @@ TEST(ClonerGpuRenderContractTest,
             particle.size *= static_cast<float>(scale);
         }
     }
-    for (auto& variant : {&variants[3], &variants[4]}) {
-        variant->data.options.billboard =
-            ArtifactCore::ParticleBillboardPolicy::VelocityAligned;
-        const float stretch = variant == &variants[3] ? 1.5f : 2.0f;
-        for (auto& particle : variant->data.particles) {
-            particle.stretch = stretch;
-            particle.rotation = 90.0f;
+    {
+        auto& layered = variants[3].data;
+        layered.particles.clear();
+        layered.particles.reserve(productionData.particles.size() * 3);
+        for (const auto& source : variants[0].data.particles) {
+            auto outer = source;
+            outer.size *= 1.65f;
+            outer.a *= 0.045f;
+            layered.particles.push_back(outer);
+
+            auto middle = source;
+            middle.size *= 1.20f;
+            middle.a *= 0.075f;
+            layered.particles.push_back(middle);
+
+            auto inner = source;
+            inner.size *= 0.72f;
+            inner.a *= 0.12f;
+            layered.particles.push_back(inner);
         }
     }
+    variants[4].data.options.falloff =
+        ArtifactCore::ParticleFalloffMode::GaussianDensity;
+    variants[5].data.options.falloff =
+        ArtifactCore::ParticleFalloffMode::GaussianDensity;
+    variants[6].data.options.falloff =
+        ArtifactCore::ParticleFalloffMode::GaussianDensity;
+    variants[7].data.options.falloff =
+        ArtifactCore::ParticleFalloffMode::GaussianDensity;
+    variants[8].data.options.falloff =
+        ArtifactCore::ParticleFalloffMode::GaussianDensity;
+    for (auto& particle : variants[5].data.particles)
+        particle.size *= 0.78f;
+    for (auto& particle : variants[6].data.particles)
+        particle.size *= 1.18f;
 
     ArtifactTest::HeadlessRenderer renderer;
     if (!renderer.initialize(gridWidth * scale, gridHeight * scale))
@@ -1318,6 +1348,8 @@ TEST(ClonerGpuRenderContractTest,
         return sum;
     };
     const double targetExposure = exposure(variants[0].image);
+    ASSERT_GT(targetExposure, 1.0)
+        << "the production smoke fixture must produce visible GPU pixels";
     for (std::size_t i = 1; i < variants.size(); ++i) {
         float low = 0.0f;
         float high = 8.0f;
@@ -1333,6 +1365,8 @@ TEST(ClonerGpuRenderContractTest,
             p.a *= static_cast<float>(variants[i].alphaScale);
         variants[i].image = render(variants[i].data);
     }
+    EXPECT_NEAR(variants[7].alphaScale, 1.0, 0.05)
+        << "the production sampling compensation should preserve exposure";
     const auto highPass = [](const ArtifactCore::ImageF32x4_RGBA& image) {
         double sum = 0.0;
         std::size_t count = 0;

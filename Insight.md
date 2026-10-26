@@ -2,6 +2,13 @@
 
 # Insight Register
 
+## 2026-10-26: Gaussian particle kernel smooths plume grains but not its large-scale shape
+- **関連:** `ArtifactCore/include/Graphics/ParticleData.ixx`, `ArtifactCore/src/Graphics/ParticleRenderer.cpp`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, standalone smoke runtime/GPU tests.
+- **確認できた事実:** D3D12 comparison at production frame 44 on RTX 4070 Ti, 768×576 matched exposure: opt-in GaussianDensity with aspect-preserving 64×48 sampling (325 particles) produced exposure scale 0.998291 and high-pass RMS 0.00171760 versus 0.00172524 for the 163-particle baseline. GPU screenshot shows smoother particle boundaries, while the plume remains mostly straight. The complete independent runtime suite passed all 30 tests, including jitter mapping, reconstruction parameters, matched-exposure sampling, and steady-state vector capacity (up to 4096 reserved entries without growth).
+- **価値または懸念:** A bounded Gaussian profile improves the visible particle kernel without changing the default renderer mode. Production smoke now opts into it. The GPU sampling count roughly doubles from 40×40 to 64×48 for a 96×72 solver; debug submit timings varied, so performance needs release/profiler measurement. The software smoke surface path remains unchanged.
+- **仮説（未検証）:** DCC-like billows depend more on persistent coherent roll structures in the velocity/density field than on further radial kernel tuning.
+- **次に確認すべきこと:** Compare non-periodic temperature/density-masked curl turbulence through production extraction over multiple frames and seeds; measure release GPU cost and CPU/GPU appearance before expanding beyond this kernel change.
+
 ## 2026-10-26: 温度マスク付きcurl turbulenceは2D plumeを巻くが、DCC smokeには未到達
 - **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `ComparesSeparatedThermalMemoryAfterEqualSmokePulse` と test-only `applyTemperatureCurlTurbulence()`。
 - **確認できた事実:** 72×88 grid、30 fps、12 frame emission、seed 17/71、60 frameの比較で、温度場マスク付きの発散ゼロstream-function curlを適用すると、frame 36〜60に煙上端のフック／複数curlが現れた。low-frequency strength 5のみ、low 5 + mid 2.5、low 8を比較し、さらに滑らかなhash value-noiseへ置き換えた非周期版2条件も評価した。non-periodic low5のframe60 density centroid Yはseed17 46.58、seed71 46.70（baseline 40.16 / 40.28）。複数の形状は出るが、seed差が残る。
