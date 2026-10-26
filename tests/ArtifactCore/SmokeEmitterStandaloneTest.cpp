@@ -1178,6 +1178,57 @@ TEST(SmokeEmitterStandaloneTest,
     return a * b <= 0.0f ? 0.0f
         : std::copysign(std::min(std::abs(a), std::abs(b)), a);
   };
+  const auto advanceLimitedFlux = [&](
+      const ArtifactCore::NamedVector<float>& density,
+      ArtifactCore::NamedVector<float>& next, const float dt) {
+    for (int y = 1; y < gridHeight - 1; ++y) {
+      for (int x = 1; x < gridWidth - 1; ++x) {
+        const auto cell = index(x, y);
+        const auto rho = [&](const int px, const int py) {
+          return density[index(px, py)];
+        };
+        const float uLeft = leftFaceVelocity[cell];
+        const float uRight = rightFaceVelocity[cell];
+        const float vTop = topFaceVelocity[cell];
+        const float vBottom = bottomFaceVelocity[cell];
+        const float leftState = uLeft >= 0.0f
+            ? rho(x - 1, y) + 0.5f * diagnosticMinmod(
+                  rho(x - 1, y) - rho(std::max(0, x - 2), y),
+                  rho(x, y) - rho(x - 1, y))
+            : rho(x, y) - 0.5f * diagnosticMinmod(
+                  rho(x, y) - rho(std::max(0, x - 1), y),
+                  rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y));
+        const float rightState = uRight >= 0.0f
+            ? rho(x, y) + 0.5f * diagnosticMinmod(
+                  rho(x, y) - rho(std::max(0, x - 1), y),
+                  rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y))
+            : rho(std::min(gridWidth - 1, x + 1), y) - 0.5f *
+                  diagnosticMinmod(
+                      rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y),
+                      rho(std::min(gridWidth - 1, x + 2), y) -
+                          rho(std::min(gridWidth - 1, x + 1), y));
+        const float topState = vTop >= 0.0f
+            ? rho(x, y - 1) + 0.5f * diagnosticMinmod(
+                  rho(x, y - 1) - rho(x, std::max(0, y - 2)),
+                  rho(x, y) - rho(x, y - 1))
+            : rho(x, y) - 0.5f * diagnosticMinmod(
+                  rho(x, y) - rho(x, std::max(0, y - 1)),
+                  rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y));
+        const float bottomState = vBottom >= 0.0f
+            ? rho(x, y) + 0.5f * diagnosticMinmod(
+                  rho(x, y) - rho(x, std::max(0, y - 1)),
+                  rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y))
+            : rho(x, std::min(gridHeight - 1, y + 1)) - 0.5f *
+                  diagnosticMinmod(
+                      rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y),
+                      rho(x, std::min(gridHeight - 1, y + 2)) -
+                          rho(x, std::min(gridHeight - 1, y + 1)));
+        next[cell] = density[cell] - dt * (
+            uRight * rightState - uLeft * leftState +
+            vBottom * bottomState - vTop * topState);
+      }
+    }
+  };
   for (int y = 1; y < gridHeight - 1; ++y) {
     for (int x = 1; x < gridWidth - 1; ++x) {
       const auto cell = index(x, y);
@@ -1276,55 +1327,15 @@ TEST(SmokeEmitterStandaloneTest,
     double minimumBeforeClamp = 0.0;
     double clampedMassAdded = 0.0;
     double massAfter = 0.0;
+    double maximumSubstepCfl = 0.0;
     const float dt = frameDt / static_cast<float>(frameSubsteps);
+    for (std::size_t cell = 0; cell < cellCount; ++cell) {
+      maximumSubstepCfl = std::max(maximumSubstepCfl, std::hypot(
+          static_cast<double>(velocityX[cell]) * dt * (gridWidth - 2),
+          static_cast<double>(velocityY[cell]) * dt * (gridHeight - 2)));
+    }
     for (int substep = 0; substep < frameSubsteps; ++substep) {
-      for (int y = 1; y < gridHeight - 1; ++y) {
-        for (int x = 1; x < gridWidth - 1; ++x) {
-          const auto cell = index(x, y);
-          const auto rho = [&](const int px, const int py) {
-            return density[index(px, py)];
-          };
-          const float uLeft = leftFaceVelocity[cell];
-          const float uRight = rightFaceVelocity[cell];
-          const float vTop = topFaceVelocity[cell];
-          const float vBottom = bottomFaceVelocity[cell];
-          const float leftState = uLeft >= 0.0f
-              ? rho(x - 1, y) + 0.5f * diagnosticMinmod(
-                    rho(x - 1, y) - rho(std::max(0, x - 2), y),
-                    rho(x, y) - rho(x - 1, y))
-              : rho(x, y) - 0.5f * diagnosticMinmod(
-                    rho(x, y) - rho(std::max(0, x - 1), y),
-                    rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y));
-          const float rightState = uRight >= 0.0f
-              ? rho(x, y) + 0.5f * diagnosticMinmod(
-                    rho(x, y) - rho(std::max(0, x - 1), y),
-                    rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y))
-              : rho(std::min(gridWidth - 1, x + 1), y) - 0.5f *
-                    diagnosticMinmod(
-                        rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y),
-                        rho(std::min(gridWidth - 1, x + 2), y) -
-                            rho(std::min(gridWidth - 1, x + 1), y));
-          const float topState = vTop >= 0.0f
-              ? rho(x, y - 1) + 0.5f * diagnosticMinmod(
-                    rho(x, y - 1) - rho(x, std::max(0, y - 2)),
-                    rho(x, y) - rho(x, y - 1))
-              : rho(x, y) - 0.5f * diagnosticMinmod(
-                    rho(x, y) - rho(x, std::max(0, y - 1)),
-                    rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y));
-          const float bottomState = vBottom >= 0.0f
-              ? rho(x, y) + 0.5f * diagnosticMinmod(
-                    rho(x, y) - rho(x, std::max(0, y - 1)),
-                    rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y))
-              : rho(x, std::min(gridHeight - 1, y + 1)) - 0.5f *
-                    diagnosticMinmod(
-                        rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y),
-                        rho(x, std::min(gridHeight - 1, y + 2)) -
-                            rho(x, std::min(gridHeight - 1, y + 1)));
-          next[cell] = density[cell] - dt * (
-              uRight * rightState - uLeft * leftState +
-              vBottom * bottomState - vTop * topState);
-        }
-      }
+      advanceLimitedFlux(density, next, dt);
       std::swap(density, next);
       if (substep + 1 < frameSubsteps) {
         for (int x = 0; x < gridWidth; ++x) {
@@ -1351,6 +1362,7 @@ TEST(SmokeEmitterStandaloneTest,
       }
     }
     GTEST_LOG_(INFO) << "fixed scalar MUSCL frame-CFL split=" << frameSubsteps
+        << " maxSubstepCfl=" << maximumSubstepCfl
         << " dt=" << dt << " minimum-before-clamp=" << minimumBeforeClamp
         << " clamp-added-mass=" << clampedMassAdded
         << " final-mass=" << massAfter;
@@ -1373,11 +1385,11 @@ TEST(SmokeEmitterStandaloneTest,
   for (int seedIndex = 0; seedIndex < 2; ++seedIndex) {
     const int seed = seedIndex == 0 ? 17 : 71;
     const float sourceX = seedIndex == 0 ? 0.40f : 0.60f;
-    QImage contact(cellWidth * 4, cellHeight * 8, QImage::Format_ARGB32);
+    QImage contact(cellWidth * 4, cellHeight * 10, QImage::Format_ARGB32);
     contact.fill(qRgba(8, 12, 18, 255));
-    std::array<std::array<double, 4>, 8> masses{};
-    std::array<std::array<double, 4>, 8> gradients{};
-    std::array<std::array<double, 4>, 8> peaks{};
+  std::array<std::array<double, 4>, 12> masses{};
+  std::array<std::array<double, 4>, 12> gradients{};
+  std::array<std::array<double, 4>, 12> peaks{};
 
     for (std::size_t condition = 0; condition < substepCounts.size(); ++condition) {
       const int substeps = substepCounts[condition];
@@ -1624,6 +1636,110 @@ TEST(SmokeEmitterStandaloneTest,
       ASSERT_EQ(captureIndex, static_cast<int>(captureFrames.size()));
     }
 
+    const int cflLimitedSteps = std::max(1, static_cast<int>(std::ceil(
+        maximumFrameCfl)));
+    ArtifactCore::NamedVector<float> cflLimitedDensity;
+    ArtifactCore::NamedVector<float> cflLimitedNext;
+    cflLimitedDensity.resize(cellCount);
+    cflLimitedNext.resize(cellCount);
+    const float cflLimitedCenterX =
+        sourceX * static_cast<float>(gridWidth - 2) + 1.0f;
+    const float cflLimitedCenterY =
+        0.79f * static_cast<float>(gridHeight - 2) + 1.0f;
+    for (int y = 0; y < gridHeight; ++y) {
+      for (int x = 0; x < gridWidth; ++x) {
+        const float dx = (static_cast<float>(x) - cflLimitedCenterX) / 5.0f;
+        const float dy = (static_cast<float>(y) - cflLimitedCenterY) / 7.0f;
+        cflLimitedDensity[index(x, y)] = std::exp(-0.5f *
+            (dx * dx + dy * dy));
+      }
+    }
+    int cflLimitedCapture = 0;
+    double cflLimitedMaximumFrameCfl = 0.0;
+    const float cflLimitedDt = frameDt / static_cast<float>(cflLimitedSteps);
+    for (int frame = 1; frame <= totalFrames; ++frame) {
+      for (int substep = 0; substep < cflLimitedSteps; ++substep) {
+        advanceLimitedFlux(cflLimitedDensity, cflLimitedNext, cflLimitedDt);
+        std::swap(cflLimitedDensity, cflLimitedNext);
+        for (int x = 0; x < gridWidth; ++x) {
+          cflLimitedDensity[index(x, 0)] = cflLimitedDensity[index(x, 1)];
+          cflLimitedDensity[index(x, gridHeight - 1)] =
+              cflLimitedDensity[index(x, gridHeight - 2)];
+        }
+        for (int y = 0; y < gridHeight; ++y) {
+          cflLimitedDensity[index(0, y)] = cflLimitedDensity[index(1, y)];
+          cflLimitedDensity[index(gridWidth - 1, y)] =
+              cflLimitedDensity[index(gridWidth - 2, y)];
+        }
+      }
+
+      if (cflLimitedCapture >= static_cast<int>(captureFrames.size()) ||
+          frame != captureFrames[static_cast<std::size_t>(cflLimitedCapture)]) {
+        continue;
+      }
+      double mass = 0.0;
+      double boundaryShellMass = 0.0;
+      double gradientSquared = 0.0;
+      float peak = 0.0f;
+      for (int y = 1; y < gridHeight - 1; ++y) {
+        for (int x = 1; x < gridWidth - 1; ++x) {
+          const float value = cflLimitedDensity[index(x, y)];
+          mass += std::max(0.0f, value);
+          if (x == 1 || x == gridWidth - 2 || y == 1 ||
+              y == gridHeight - 2) {
+            boundaryShellMass += std::max(0.0f, value);
+          }
+          peak = std::max(peak, value);
+          const double gx = 0.5 * (cflLimitedDensity[index(x + 1, y)] -
+                                    cflLimitedDensity[index(x - 1, y)]);
+          const double gy = 0.5 * (cflLimitedDensity[index(x, y + 1)] -
+                                    cflLimitedDensity[index(x, y - 1)]);
+          gradientSquared += gx * gx + gy * gy;
+        }
+      }
+      const double interiorCells =
+          static_cast<double>((gridWidth - 2) * (gridHeight - 2));
+      constexpr std::size_t outputRow = 8;
+      masses[outputRow][static_cast<std::size_t>(cflLimitedCapture)] = mass;
+      gradients[outputRow][static_cast<std::size_t>(cflLimitedCapture)] =
+          std::sqrt(gradientSquared / interiorCells);
+      peaks[outputRow][static_cast<std::size_t>(cflLimitedCapture)] = peak;
+      QImage sample(cellWidth, cellHeight, QImage::Format_ARGB32);
+      sample.fill(qRgba(8, 12, 18, 255));
+      for (int y = 1; y < gridHeight - 1; ++y) {
+        for (int x = 1; x < gridWidth - 1; ++x) {
+          const float value = peak > 0.0f
+              ? cflLimitedDensity[index(x, y)] / peak : 0.0f;
+          const int intensity = static_cast<int>(std::lround(
+              std::clamp(value, 0.0f, 1.0f) * 220.0f));
+          const QRgb pixel = qRgba(8, 12 + intensity, 18, 255);
+          for (int oy = 0; oy < imageScale; ++oy) {
+            auto* dst = reinterpret_cast<QRgb*>(
+                sample.scanLine(y * imageScale + oy)) + x * imageScale;
+            std::fill(dst, dst + imageScale, pixel);
+          }
+        }
+      }
+      const int offsetX = cflLimitedCapture * cellWidth;
+      const int offsetY = static_cast<int>(outputRow) * cellHeight;
+      for (int y = 0; y < cellHeight; ++y) {
+        auto* dst = reinterpret_cast<QRgb*>(
+            contact.scanLine(offsetY + y)) + offsetX;
+        const auto* src = reinterpret_cast<const QRgb*>(sample.constScanLine(y));
+        std::copy(src, src + cellWidth, dst);
+      }
+      GTEST_LOG_(INFO) << "fixed scalar MUSCL frame-CFL-capped seed=" << seed
+          << " substeps=" << cflLimitedSteps
+          << " maxSubstepCfl=" << maximumFrameCfl / cflLimitedSteps
+          << " frame=" << frame << " mass=" << mass
+          << " boundaryShellMass=" << boundaryShellMass
+          << " gradientRms=" << gradients[outputRow][
+                 static_cast<std::size_t>(cflLimitedCapture)]
+          << " peak=" << peak;
+      ++cflLimitedCapture;
+    }
+    ASSERT_EQ(cflLimitedCapture, static_cast<int>(captureFrames.size()));
+
     for (std::size_t condition = 0; condition < substepCounts.size(); ++condition) {
       for (std::size_t capture = 0; capture < captureFrames.size(); ++capture) {
         GTEST_LOG_(INFO) << "fixed scalar substeps seed=" << seed
@@ -1647,6 +1763,14 @@ TEST(SmokeEmitterStandaloneTest,
             << " peak=" << peaks[row][capture]
             << " maxFrameCflCells=" << maximumFrameCfl;
       }
+    }
+    for (std::size_t capture = 0; capture < captureFrames.size(); ++capture) {
+      GTEST_LOG_(INFO) << "fixed scalar MUSCL frame-CFL-capped seed=" << seed
+          << " substeps=" << cflLimitedSteps
+          << " frame=" << captureFrames[capture]
+          << " mass=" << masses[8][capture]
+          << " gradientRms=" << gradients[8][capture]
+          << " peak=" << peaks[8][capture];
     }
     const QString path = QDir(outputDirectory).filePath(
         QStringLiteral("fixed_velocity_scalar_substeps_seed_%1.png").arg(seed));

@@ -7287,6 +7287,13 @@
 - **仮説（未検証）:** MUSCLは最大セルCFLをおよそ1以下に制限すればpositivity clampによる過剰な質量が減り、保守性を維持しやすい可能性がある。
 - **次に確認すべきこと:** MUSCLをsubstepごとの最大CFL≤1へ制限し、同じ60-frame固定渦で質量保存・peak・gradient・画像を再比較する。改善が出てもsource-coupled solverとGPU renderでplume volume、billow、時間一貫性を確認するまでは製品経路へ移さない。
 
+## 2026-10-27: CFL-capped MUSCLでも長時間mass growthが残る
+- **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`。同じanalytic vortex、Gaussian scalar、60 framesでMUSCLだけframe CFLを制約。
+- **確認できた事実:** 1 frameの最大CFL3.545をceilして4 substeps/frame（最大substep CFL0.88631）にしたtest-only MUSCL条件を両source位置で追加。focused test 1/1 pass。frame60 interior massはseed17/71で269.81/255.42（initial218.587）まで増加し、8-step MUSCLの218.586/218.555と異なる。peakは1.45193/1.77877、gradient RMS .1482/.1310で、captureは細いstreak/筋状の輪郭を含み、billowらしい塊にはなっていない。frame60 boundary shell massは.431/.721で全mass増分より小さく、ghost bandだけでは増加を説明しない。CFL capは1-frameの大きなnegative clampを除くが、長時間mass conservationを保証しない。capture/log: `build/smoke-emitter-rnd/captures/fixed-scalar-cfl-capped-rnd/`、`build/smoke-emitter-rnd/fixed-scalar-cfl-capped-rnd.log`。
+- **価値または懸念:** 前回の「CFL≤1なら長時間massを保ちやすい」という仮説はこのfixtureでは支持されなかった。CFL≤1のMUSCLはむしろ長時間massとhigh-gradient streakを増やし、8-step MUSCLよりplumeの見た目が不安定。boundary shell massは診断値に過ぎず、全境界fluxの時間積算とmass balanceの一致は未確認。production solverにCFL/MUSCL変更を反映しない。
+- **仮説（未検証）:** interior mass増加には、divergenceを持つcell-centeredからfaceへの速度補間、ghost-cell boundary、reconstruction fluxの離散整合が複合して寄与する可能性がある。単一要因とはまだ断定できない。
+- **次に確認すべきこと:** MUSCL updateと同じsubstep状態から全boundary face fluxを積算し、interior/all-grid mass差と比較する。収支が閉じない場合はtest operator/boundary実装を修正し、閉じる場合に限って速度場と境界の物理寄与を分ける。
+
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
 - **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。
