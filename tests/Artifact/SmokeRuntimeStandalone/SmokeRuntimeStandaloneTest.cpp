@@ -4156,9 +4156,13 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     int pressureIterations;
     const char* label;
   };
-  constexpr std::array<ResolutionCondition, 7> conditions{{
+  constexpr std::array<ResolutionCondition, 11> conditions{{
       {1.0f / 24.0f, 8, "voxel24-p8"},
+      {1.0f / 24.0f, 18, "voxel24-p18"},
+      {1.0f / 24.0f, 36, "voxel24-p36"},
       {1.0f / 32.0f, 8, "voxel32-p8"},
+      {1.0f / 32.0f, 18, "voxel32-p18"},
+      {1.0f / 32.0f, 36, "voxel32-p36"},
       {1.0f / 40.0f, 8, "voxel40-p8"},
       {1.0f / 48.0f, 8, "voxel48-p8"},
       {1.0f / 48.0f, 18, "voxel48-p18"},
