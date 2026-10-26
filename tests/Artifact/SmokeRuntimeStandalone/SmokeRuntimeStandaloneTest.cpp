@@ -37,6 +37,22 @@ struct SmokeProjectionStageCapture final {
 };
 
 std::vector<SmokeProjectionStageCapture>* gSmokeProjectionCaptures = nullptr;
+
+struct SmokeRuntimePreProjectionCurlConfig final {
+  bool enabled = false;
+  std::uint32_t seed = 17U;
+  float strength = 0.0f;
+  float elapsedSeconds = 0.0f;
+  double forceDivergenceSquared = 0.0;
+  std::size_t forceDivergenceSamples = 0;
+  double densityWeightedForceSquared = 0.0;
+  double densityWeight = 0.0;
+};
+
+SmokeRuntimePreProjectionCurlConfig* gPreProjectionCurlConfig = nullptr;
+std::vector<float> gPreProjectionStreamFunction;
+std::vector<float> gPreProjectionCurlX;
+std::vector<float> gPreProjectionCurlY;
 }
 
 extern "C" void artifactSmokeRuntimeRndObserve(
@@ -418,6 +434,85 @@ float smokeSeededValueNoise(const float x, const float y,
   return std::lerp(
       std::lerp(hashValue(x0, y0), hashValue(x0 + 1, y0), sx),
       std::lerp(hashValue(x0, y0 + 1), hashValue(x0 + 1, y0 + 1), sx), sy);
+}
+
+extern "C" void artifactSmokeRuntimeRndApplyPreUpdate(
+    const int width, const int height, const float dt, const float* density,
+    float* velocityX, float* velocityY) {
+  auto* config = gPreProjectionCurlConfig;
+  if (!config || !config->enabled || config->strength == 0.0f ||
+      width < 5 || height < 5 || !density || !velocityX || !velocityY)
+    return;
+
+  const auto index = [width](const int x, const int y) {
+    return static_cast<std::size_t>(x + y * width);
+  };
+  const auto count = static_cast<std::size_t>(width) *
+                     static_cast<std::size_t>(height);
+  if (gPreProjectionStreamFunction.size() != count) {
+    gPreProjectionStreamFunction.resize(count);
+    gPreProjectionCurlX.resize(count);
+    gPreProjectionCurlY.resize(count);
+  }
+  std::fill(gPreProjectionStreamFunction.begin(),
+            gPreProjectionStreamFunction.end(), 0.0f);
+  std::fill(gPreProjectionCurlX.begin(), gPreProjectionCurlX.end(), 0.0f);
+  std::fill(gPreProjectionCurlY.begin(), gPreProjectionCurlY.end(), 0.0f);
+
+  config->elapsedSeconds += dt;
+  const float time = config->elapsedSeconds;
+  for (int y = 1; y < height - 1; ++y) {
+    for (int x = 1; x < width - 1; ++x) {
+      const float smoke = std::max(0.0f, density[index(x, y)]);
+      const float control = std::clamp((smoke - 0.015f) / 0.22f, 0.0f, 1.0f);
+      const float envelope = control * control * (3.0f - 2.0f * control);
+      if (envelope <= 0.0f) continue;
+      const float broad = smokeSeededValueNoise(
+          x * 0.09f + time * 0.17f, y * 0.09f - time * 0.11f,
+          config->seed);
+      const float middle = smokeSeededValueNoise(
+          x * 0.18f - time * 0.23f, y * 0.18f + time * 0.15f,
+          config->seed ^ 0x9E3779B9U);
+      const float fine = smokeSeededValueNoise(
+          x * 0.36f + time * 0.31f, y * 0.36f + time * 0.27f,
+          config->seed ^ 0x85EBCA6BU);
+      gPreProjectionStreamFunction[index(x, y)] = envelope *
+          (0.65f * broad + 0.25f * middle + 0.10f * fine) * config->strength;
+    }
+  }
+
+  for (int y = 2; y < height - 2; ++y) {
+    for (int x = 2; x < width - 2; ++x) {
+      const float curlX = 0.5f * (
+          gPreProjectionStreamFunction[index(x, y + 1)] -
+          gPreProjectionStreamFunction[index(x, y - 1)]);
+      const float curlY = -0.5f * (
+          gPreProjectionStreamFunction[index(x + 1, y)] -
+          gPreProjectionStreamFunction[index(x - 1, y)]);
+      gPreProjectionCurlX[index(x, y)] = curlX;
+      gPreProjectionCurlY[index(x, y)] = curlY;
+      velocityX[index(x, y)] += curlX;
+      velocityY[index(x, y)] += curlY;
+      const double smoke = std::max(0.0f, density[index(x, y)]);
+      config->densityWeightedForceSquared += smoke *
+          (static_cast<double>(curlX) * curlX +
+           static_cast<double>(curlY) * curlY);
+      config->densityWeight += smoke;
+    }
+  }
+
+  for (int y = 3; y < height - 3; ++y) {
+    for (int x = 3; x < width - 3; ++x) {
+      const float divergence = 0.5f * (
+          gPreProjectionCurlX[index(x + 1, y)] -
+          gPreProjectionCurlX[index(x - 1, y)] +
+          gPreProjectionCurlY[index(x, y + 1)] -
+          gPreProjectionCurlY[index(x, y - 1)]);
+      config->forceDivergenceSquared +=
+          static_cast<double>(divergence) * divergence;
+      ++config->forceDivergenceSamples;
+    }
+  }
 }
 
 void injectTestSmokeTemperature(
@@ -4726,6 +4821,156 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           EXPECT_TRUE(image.save(QDir(outputDirectory).filePath(filename), "PNG"));
         }
       }
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresPreProjectionDensitySupportedCurlInjection) {
+  constexpr int width = kGridWidth;
+  constexpr int height = kGridHeight;
+  constexpr int finalFrame = 44;
+  constexpr std::array<std::uint32_t, 2> seeds{17U, 71U};
+  constexpr std::array<float, 3> strengths{0.0f, 0.5f, 1.0f};
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  const auto index = [](const int x, const int y) {
+    return static_cast<std::size_t>(x + y * width);
+  };
+  QMatrix4x4 transform;
+  transform.setToIdentity();
+
+  for (const auto seed : seeds) {
+    std::vector<float> baselineDensity;
+    for (const float strength : strengths) {
+      Artifact::LayerFluidRuntimeState state;
+      Artifact::LayerSmokeRuntimeSettings settings;
+      settings.gridWidth = width;
+      settings.gridHeight = height;
+      settings.solverIterations = 20;
+      settings.emitterX = 0.5f;
+      settings.emitterY = 0.84f;
+      settings.emitterRadius = 0.08f;
+      settings.emitterDensity = 0.6f;
+      settings.emitterVelocityY = -1.2f;
+      settings.emitterSwirl = 0.15f;
+      settings.vorticity = 0.1f;
+
+      SmokeRuntimePreProjectionCurlConfig curlConfig;
+      curlConfig.enabled = strength > 0.0f;
+      curlConfig.seed = seed;
+      curlConfig.strength = strength;
+      curlConfig.elapsedSeconds = -1.0f / 30.0f;
+      gPreProjectionCurlConfig = &curlConfig;
+      std::array<QImage, 3> images;
+      for (int frame = 0; frame <= finalFrame; ++frame) {
+        if (frame == 0) curlConfig.enabled = false;
+        Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+        if (frame == 0) curlConfig.enabled = strength > 0.0f;
+        if (frame < finalFrame - 2) continue;
+        const int capture = frame - (finalFrame - 2);
+        const auto field = state.fluidSolver_->snapshot();
+        const std::vector<float> density(field.density.begin(),
+                                         field.density.end());
+        const auto& renderData = Artifact::prepareLayerSmokeRenderData(
+            state, QRectF(0.0, 0.0, width, height), transform, 1.0f,
+            frame, settings);
+        images[static_cast<std::size_t>(capture)] =
+            rasterizeParticles(renderData);
+        double highPassSquared = 0.0;
+        std::size_t highPassCount = 0;
+        for (int y = 1; y < images[capture].height() - 1; ++y) {
+          for (int x = 1; x < images[capture].width() - 1; ++x) {
+            const auto gray = [&](const int px, const int py) {
+              const QRgb pixel = images[capture].pixel(px, py);
+              return 0.2126 * qRed(pixel) + 0.7152 * qGreen(pixel) +
+                  0.0722 * qBlue(pixel);
+            };
+            const double laplacian = 4.0 * gray(x, y) - gray(x - 1, y) -
+                gray(x + 1, y) - gray(x, y - 1) - gray(x, y + 1);
+            highPassSquared += laplacian * laplacian;
+            ++highPassCount;
+          }
+        }
+        const double highPass = highPassCount
+            ? highPassSquared / highPassCount : 0.0;
+        if (capture == 2) {
+          double mass = 0.0;
+          double weightedX = 0.0;
+          double weightedY = 0.0;
+          double gradientSquared = 0.0;
+          double velocityDivergenceSquared = 0.0;
+          for (int y = 1; y < height - 1; ++y) {
+            for (int x = 1; x < width - 1; ++x) {
+              const auto cell = index(x, y);
+              const double density = std::max(0.0f, field.density[cell]);
+              mass += density;
+              weightedX += density * x;
+              weightedY += density * y;
+              const double dx = 0.5 * (field.density[index(x + 1, y)] -
+                                       field.density[index(x - 1, y)]);
+              const double dy = 0.5 * (field.density[index(x, y + 1)] -
+                                       field.density[index(x, y - 1)]);
+              gradientSquared += dx * dx + dy * dy;
+              const double divergence = 0.5 * (
+                  field.velocityX[index(x + 1, y)] -
+                  field.velocityX[index(x - 1, y)] +
+                  field.velocityY[index(x, y + 1)] -
+                  field.velocityY[index(x, y - 1)]);
+              velocityDivergenceSquared += divergence * divergence;
+            }
+          }
+          const double cellCount = static_cast<double>((width - 2) * (height - 2));
+          const double centroidX = mass > 0.0 ? weightedX / mass : 0.0;
+          const double centroidY = mass > 0.0 ? weightedY / mass : 0.0;
+          double densityRmse = 0.0;
+          if (strength == 0.0f) {
+            baselineDensity = density;
+          } else {
+            double squaredError = 0.0;
+            for (std::size_t cell = 0; cell < field.density.size(); ++cell) {
+              const double difference = field.density[cell] - baselineDensity[cell];
+              squaredError += difference * difference;
+            }
+            densityRmse = std::sqrt(squaredError / field.density.size());
+          }
+          const double generatedCurlDivergence =
+              curlConfig.forceDivergenceSamples > 0
+              ? std::sqrt(curlConfig.forceDivergenceSquared /
+                  curlConfig.forceDivergenceSamples) : 0.0;
+          const double generatedCurlRms = curlConfig.densityWeight > 0.0
+              ? std::sqrt(curlConfig.densityWeightedForceSquared /
+                  curlConfig.densityWeight) : 0.0;
+          const double temporalA = countDifferentPixels(images[0], images[1]) /
+              static_cast<double>(images[0].width() * images[0].height());
+          const double temporalB = countDifferentPixels(images[1], images[2]) /
+              static_cast<double>(images[0].width() * images[0].height());
+          GTEST_LOG_(INFO) << "pre-projection-curl seed=" << seed
+              << " strength=" << strength << " mass=" << mass
+              << " centroid=" << centroidX << ',' << centroidY
+              << " densityGradientRms=" << std::sqrt(gradientSquared / cellCount)
+              << " imageHighPass=" << highPass
+              << " densityRmseVsBaseline=" << densityRmse
+              << " forceRms=" << generatedCurlRms
+              << " injectedDivergenceRms=" << generatedCurlDivergence
+              << " finalVelocityDivergenceRms="
+              << std::sqrt(velocityDivergenceSquared / cellCount)
+              << " adjacentImageDelta=" << temporalA << '/' << temporalB;
+          EXPECT_GT(mass, 0.0);
+          if (strength > 0.0f) {
+            EXPECT_GT(generatedCurlRms, 0.0);
+            EXPECT_LT(generatedCurlDivergence, 1.0e-5);
+          }
+          if (!outputDirectory.isEmpty()) {
+            ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+            EXPECT_TRUE(images[2].save(QDir(outputDirectory).filePath(
+                QStringLiteral("preprojection_curl_seed%1_strength%2.png")
+                    .arg(seed).arg(static_cast<int>(strength * 100.0f))), "PNG"));
+          }
+        }
+      }
+      curlConfig.enabled = false;
+      gPreProjectionCurlConfig = nullptr;
     }
   }
 }

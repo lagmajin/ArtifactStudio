@@ -7384,3 +7384,10 @@
 - **価値または懸念:** 当初候補の40上限は形状一致をより良くする一方、192×144 solver CPU時間を約88%増加させる。既定base20では28上限がRMSEを改善しながら増加を約35%に抑えたため、煙runtime capを28に調整した。煙はなお滑らかなcolumn/capで、billow品質は未達。
 - **仮説（未検証）:** 圧力residualを停止条件として反復数を早期終了する方が、解像度ごとの固定capより同等の形態収束を低コストで得られる可能性がある。ただしresidual評価の追加走査コストと密度軌跡への影響は未計測。
 - **次に確認すべきこと:** DCC billowに向けてsolverの空間解像度とprojection精度だけに頼らず、production velocityへ局所的・seedableなcurl forceを結合する候補を一つずつ比較する。mass・centroid・時間連続性・画像を並べ、CPU/GPU costも別々に記録する。停止条件候補は既定solverと切り離したtest-only試作から評価する。
+
+## 2026-10-27: divergence-free curl kickをprojection前へ移して比較
+- **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::FluidSolver2D::update` のstandalone-only pre-update hook、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresPreProjectionDensitySupportedCurlInjection`。
+- **確認できた事実:** 既存post-frame curl adapterとnoise bands/seed/strength/emitterをそろえ、production solverのbuoyancy/vorticity/projection前にdensity-windowed streamfunction curlを加えた。生成force自体のcentered divergence RMSは3.5e-10〜8.1e-10。frame44 baseline mass 475.65、velocity divergence RMS .01562に対し、pre-projection strength .5のmassはseed17/71で544.81/552.77、strength1は559.33/548.87、final divergenceは.02198〜.03075。粒子再構成high-passはbaseline 3.921に対しstrength .5で4.200/4.265、strength1で4.286/4.109。post-frame側も同程度以上の一部条件があり、seed間で効果が反転する。2つのmatched standalone tests pass、captureは`build/smoke-runtime-rnd/captures/curl-injection-order-compare/`。
+- **価値または懸念:** 注入forceは数値上ほぼ発散ゼロだが、projection後の速度場divergenceは増え、mass driftも約14〜18%。目視はS字の横曲がりが増えるだけで連続billowには至らない。high-passの増加はseedにより4.8〜9.3%程度で、post-frame版への一貫した優位なし。callbackと作業領域はstandalone専用define下だけでありproduction経路には入れない。
+- **仮説（未検証）:** curl forceの単純加算ではなく、現行solver velocityからのenstrophy transferやsubgrid stressを近似するvorticity-confinement/residual operatorなら、速度energyを上げ過ぎずにroll-upを補える可能性がある。ただし現在の2D stable-fluids operatorとGPU particle reconstructionの制約下で実用的かは不明。
+- **次に確認すべきこと:** seed varianceを含めて既存post-frame testを基準として残し、curl kick案は品質候補から外す。次は大scale trajectoryと小scale detailを切り分けた2D residual/vorticity-force実験か、既存3D Pyro fieldを煙emitterへ接続する価値・統合コスト調査を行う。
