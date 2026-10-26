@@ -720,6 +720,13 @@ double densityWorldGradientRms(const std::vector<float>& density,
   return count ? std::sqrt(squaredSum / count) : 0.0;
 }
 
+struct SignedCurvatureRegion {
+  int sign = 0;
+  std::size_t cellCount = 0;
+  ArtifactCore::PyroVec3 centroid{};
+  ArtifactCore::PyroVec3 meanVelocity{};
+};
+
 struct DensityInterfaceVorticityStats {
   double meanTangentAlignment = 0.0;
   double meanNormalAlignment = 0.0;
@@ -729,6 +736,8 @@ struct DensityInterfaceVorticityStats {
   std::size_t negativeCurvatureCells = 0;
   std::size_t largestPositiveCurvatureRegion = 0;
   std::size_t largestNegativeCurvatureRegion = 0;
+  std::vector<SignedCurvatureRegion> curvatureRegions;
+  std::vector<std::int8_t> qualifyingCurvatureSignMask;
 };
 
 DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
@@ -767,6 +776,7 @@ DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
   constexpr double foldCurvatureThreshold = 24.0;
   const auto cellCount = static_cast<std::size_t>(resolution.width) *
       resolution.height * resolution.depth;
+  stats.qualifyingCurvatureSignMask.assign(cellCount, 0);
   std::vector<std::int8_t> curvatureSign(cellCount, 0);
   for (int z = 2; z + 2 < resolution.depth; ++z)
     for (int y = 2; y + 2 < resolution.height; ++y)
@@ -834,6 +844,12 @@ DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
         pending.clear();
         pending.push_back(first);
         std::size_t cursor = 0;
+        double sumX = 0.0;
+        double sumY = 0.0;
+        double sumZ = 0.0;
+        double sumVelocityX = 0.0;
+        double sumVelocityY = 0.0;
+        double sumVelocityZ = 0.0;
         while (cursor < pending.size()) {
           const auto cell = pending[cursor++];
           const int cx = static_cast<int>(cell % resolution.width);
@@ -841,6 +857,13 @@ DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
               (cell / resolution.width) % resolution.height);
           const int cz = static_cast<int>(cell /
               (static_cast<std::size_t>(resolution.width) * resolution.height));
+          const auto cellVelocity = velocity.values[cell];
+          sumX += cx;
+          sumY += cy;
+          sumZ += cz;
+          sumVelocityX += cellVelocity.x;
+          sumVelocityY += cellVelocity.y;
+          sumVelocityZ += cellVelocity.z;
           constexpr std::array<std::array<int, 3>, 6> offsets{{
               {{-1, 0, 0}}, {{1, 0, 0}}, {{0, -1, 0}},
               {{0, 1, 0}}, {{0, 0, -1}}, {{0, 0, 1}}}};
@@ -865,6 +888,20 @@ DensityInterfaceVorticityStats measureDensityInterfaceVorticity(
         else
           stats.largestNegativeCurvatureRegion = std::max(
               stats.largestNegativeCurvatureRegion, pending.size());
+        const double inverseCount = 1.0 / static_cast<double>(pending.size());
+        if (pending.size() >= 4) {
+          for (const auto cell : pending)
+            stats.qualifyingCurvatureSignMask[cell] = sign;
+        }
+        stats.curvatureRegions.push_back({
+            sign,
+            pending.size(),
+            {static_cast<float>(sumX * inverseCount),
+             static_cast<float>(sumY * inverseCount),
+             static_cast<float>(sumZ * inverseCount)},
+            {static_cast<float>(sumVelocityX * inverseCount),
+             static_cast<float>(sumVelocityY * inverseCount),
+             static_cast<float>(sumVelocityZ * inverseCount)}});
       }
   if (stats.sampleCount > 0) {
     if (alignmentWeightSum > 0.0) {
@@ -3011,6 +3048,12 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
             std::array<ImageBuffer, 3> topFrames{};
             std::array<std::size_t, frames> positiveFoldRegions{};
             std::array<std::size_t, frames> negativeFoldRegions{};
+            std::array<std::vector<SignedCurvatureRegion>, frames>
+                curvatureRegionsPerFrame{};
+            std::vector<std::int8_t> previousCurvatureSignMask;
+            std::array<std::size_t, 2> curvatureMaskSamplesBySign{};
+            std::array<double, 2> backtracedCurvatureMatchesBySign{};
+            std::array<double, 2> stationaryCurvatureMatchesBySign{};
             ImageBuffer sideImage{}, topImage{};
             MatchedCurlAdapterStats adapterStats{};
             const bool trackTemporalStructure = strengthIndex == 0 ||
@@ -3032,10 +3075,78 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
               if (trackTemporalStructure) {
                 const auto frameInterface = measureDensityInterfaceVorticity(
                     simulation, domain);
+                if (!previousCurvatureSignMask.empty()) {
+                  const auto velocityView = simulation.fields().velocityView();
+                  const auto resolution = domain.resolution();
+                  const auto index = [resolution](int x, int y, int z) {
+                    return static_cast<std::size_t>(x + resolution.width *
+                        (y + resolution.height * z));
+                  };
+                  const auto samplePreviousSign = [&](double sampleX,
+                                                       double sampleY,
+                                                       double sampleZ,
+                                                       std::int8_t sign) {
+                    const int x0 = static_cast<int>(std::floor(sampleX));
+                    const int y0 = static_cast<int>(std::floor(sampleY));
+                    const int z0 = static_cast<int>(std::floor(sampleZ));
+                    const int x1 = x0 + 1;
+                    const int y1 = y0 + 1;
+                    const int z1 = z0 + 1;
+                    if (x0 < 2 || x1 + 2 >= resolution.width ||
+                        y0 < 2 || y1 + 2 >= resolution.height ||
+                        z0 < 2 || z1 + 2 >= resolution.depth)
+                      return -1.0;
+                    const double tx = sampleX - x0;
+                    const double ty = sampleY - y0;
+                    const double tz = sampleZ - z0;
+                    double occupancy = 0.0;
+                    for (int dz = 0; dz <= 1; ++dz)
+                      for (int dy = 0; dy <= 1; ++dy)
+                        for (int dx = 0; dx <= 1; ++dx) {
+                          const double weight = (dx == 0 ? 1.0 - tx : tx) *
+                              (dy == 0 ? 1.0 - ty : ty) *
+                              (dz == 0 ? 1.0 - tz : tz);
+                          if (previousCurvatureSignMask[index(
+                                  dx == 0 ? x0 : x1,
+                                  dy == 0 ? y0 : y1,
+                                  dz == 0 ? z0 : z1)] == sign)
+                            occupancy += weight;
+                        }
+                    return occupancy;
+                  };
+                  constexpr double frameDeltaSeconds = 2.0 / 60.0;
+                  for (int z = 2; z + 2 < resolution.depth; ++z)
+                    for (int y = 2; y + 2 < resolution.height; ++y)
+                      for (int x = 2; x + 2 < resolution.width; ++x) {
+                        const auto currentCell = index(x, y, z);
+                        const auto sign =
+                            frameInterface.qualifyingCurvatureSignMask[currentCell];
+                        if (sign == 0) continue;
+                        const auto signIndex = sign > 0 ? 1u : 0u;
+                        const auto velocity = velocityView.values[currentCell];
+                        const double previousOccupancy = samplePreviousSign(
+                            x - velocity.x * frameDeltaSeconds,
+                            y - velocity.y * frameDeltaSeconds,
+                            z - velocity.z * frameDeltaSeconds, sign);
+                        const double stationaryOccupancy = samplePreviousSign(
+                            x, y, z, sign);
+                        if (previousOccupancy < 0.0 || stationaryOccupancy < 0.0)
+                          continue;
+                        ++curvatureMaskSamplesBySign[signIndex];
+                        backtracedCurvatureMatchesBySign[signIndex] +=
+                            previousOccupancy;
+                        stationaryCurvatureMatchesBySign[signIndex] +=
+                            stationaryOccupancy;
+                      }
+                }
+                previousCurvatureSignMask =
+                    frameInterface.qualifyingCurvatureSignMask;
                 positiveFoldRegions[static_cast<std::size_t>(frame)] =
                     frameInterface.largestPositiveCurvatureRegion;
                 negativeFoldRegions[static_cast<std::size_t>(frame)] =
                     frameInterface.largestNegativeCurvatureRegion;
+                curvatureRegionsPerFrame[static_cast<std::size_t>(frame)] =
+                    frameInterface.curvatureRegions;
               }
               if (frame < frames - 3) continue;
               const int capture = frame - (frames - 3);
@@ -3083,6 +3194,12 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
             std::uint32_t coexistingFoldFrameMask = 0;
             std::size_t maxPositiveFoldRegion = 0;
             std::size_t maxNegativeFoldRegion = 0;
+            std::size_t advectedRegionPairs = 0;
+            double advectedCentroidErrorSum = 0.0;
+            double stationaryCentroidErrorSum = 0.0;
+            std::array<std::size_t, 2> advectedRegionPairsBySign{};
+            std::array<double, 2> advectedCentroidErrorBySign{};
+            std::array<double, 2> stationaryCentroidErrorBySign{};
             for (int frame = 0; frame < frames; ++frame) {
               const auto frameIndex = static_cast<std::size_t>(frame);
               maxPositiveFoldRegion = std::max(maxPositiveFoldRegion,
@@ -3100,6 +3217,86 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
                 currentCoexistingFoldRun = 0;
               }
             }
+            if (trackTemporalStructure) {
+              const double frameDeltaSeconds = 2.0 / 60.0;
+              for (int frame = 0; frame + 1 < frames; ++frame) {
+                const auto& previousRegions =
+                    curvatureRegionsPerFrame[static_cast<std::size_t>(frame)];
+                const auto& currentRegions =
+                    curvatureRegionsPerFrame[static_cast<std::size_t>(frame + 1)];
+                std::vector<std::uint8_t> matchedCurrent(currentRegions.size(), 0);
+                for (const auto& previousRegion : previousRegions) {
+                  if (previousRegion.cellCount < 4) continue;
+                  const auto predictedX = previousRegion.centroid.x +
+                      previousRegion.meanVelocity.x * frameDeltaSeconds;
+                  const auto predictedY = previousRegion.centroid.y +
+                      previousRegion.meanVelocity.y * frameDeltaSeconds;
+                  const auto predictedZ = previousRegion.centroid.z +
+                      previousRegion.meanVelocity.z * frameDeltaSeconds;
+                  std::size_t closestIndex = currentRegions.size();
+                  double closestDistance = std::numeric_limits<double>::max();
+                  for (std::size_t candidateIndex = 0;
+                       candidateIndex < currentRegions.size(); ++candidateIndex) {
+                    const auto& candidate = currentRegions[candidateIndex];
+                    if (matchedCurrent[candidateIndex] != 0 ||
+                        candidate.sign != previousRegion.sign ||
+                        candidate.cellCount < 4)
+                      continue;
+                    const double dx = candidate.centroid.x - predictedX;
+                    const double dy = candidate.centroid.y - predictedY;
+                    const double dz = candidate.centroid.z - predictedZ;
+                    const double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+                    if (distance < closestDistance) {
+                      closestDistance = distance;
+                      closestIndex = candidateIndex;
+                    }
+                  }
+                  if (closestIndex == currentRegions.size() ||
+                      closestDistance > 5.0)
+                    continue;
+                  matchedCurrent[closestIndex] = 1;
+                  const auto& matchedRegion = currentRegions[closestIndex];
+                  const double stationaryX = matchedRegion.centroid.x -
+                      previousRegion.centroid.x;
+                  const double stationaryY = matchedRegion.centroid.y -
+                      previousRegion.centroid.y;
+                  const double stationaryZ = matchedRegion.centroid.z -
+                      previousRegion.centroid.z;
+                  const double predictedXError = matchedRegion.centroid.x - predictedX;
+                  const double predictedYError = matchedRegion.centroid.y - predictedY;
+                  const double predictedZError = matchedRegion.centroid.z - predictedZ;
+                  stationaryCentroidErrorSum += std::sqrt(
+                      stationaryX * stationaryX + stationaryY * stationaryY +
+                      stationaryZ * stationaryZ);
+                  advectedCentroidErrorSum += std::sqrt(
+                      predictedXError * predictedXError +
+                      predictedYError * predictedYError +
+                      predictedZError * predictedZError);
+                  ++advectedRegionPairs;
+                  const auto signIndex = previousRegion.sign > 0 ? 1u : 0u;
+                  advectedCentroidErrorBySign[signIndex] += std::sqrt(
+                      predictedXError * predictedXError +
+                      predictedYError * predictedYError +
+                      predictedZError * predictedZError);
+                  stationaryCentroidErrorBySign[signIndex] += std::sqrt(
+                      stationaryX * stationaryX + stationaryY * stationaryY +
+                      stationaryZ * stationaryZ);
+                  ++advectedRegionPairsBySign[signIndex];
+                }
+              }
+            }
+            const double inverseAdvectedPairs = advectedRegionPairs > 0
+                ? 1.0 / static_cast<double>(advectedRegionPairs) : 0.0;
+            const double inverseNegativePairs = advectedRegionPairsBySign[0] > 0
+                ? 1.0 / static_cast<double>(advectedRegionPairsBySign[0]) : 0.0;
+            const double inversePositivePairs = advectedRegionPairsBySign[1] > 0
+                ? 1.0 / static_cast<double>(advectedRegionPairsBySign[1]) : 0.0;
+            const double inverseNegativeMaskSamples =
+                curvatureMaskSamplesBySign[0] > 0
+                ? 1.0 / static_cast<double>(curvatureMaskSamplesBySign[0]) : 0.0;
+            const double inversePositiveMaskSamples =
+                curvatureMaskSamplesBySign[1] > 0
+                ? 1.0 / static_cast<double>(curvatureMaskSamplesBySign[1]) : 0.0;
             const int methodIndex = strengthIndex == 0 ? 0 : method + 1;
             const std::string methodName = methodIndex == 0 ? "control" :
                 methodIndex == 1 ? "curl" : "shred";
@@ -3155,6 +3352,24 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
                 << " coexistingFoldFrames/run=" << coexistingFoldFrames
                 << '/' << longestCoexistingFoldRun
                 << " coexistingFoldFrameMask=" << coexistingFoldFrameMask
+                << " trackedCurvatureRegions=" << advectedRegionPairs
+                << " centroidErrorAdvected/stationary="
+                << advectedCentroidErrorSum * inverseAdvectedPairs << '/'
+                << stationaryCentroidErrorSum * inverseAdvectedPairs
+                << " negativeCentroidErrorAdvected/stationary="
+                << advectedCentroidErrorBySign[0] * inverseNegativePairs << '/'
+                << stationaryCentroidErrorBySign[0] * inverseNegativePairs
+                << " positiveCentroidErrorAdvected/stationary="
+                << advectedCentroidErrorBySign[1] * inversePositivePairs << '/'
+                << stationaryCentroidErrorBySign[1] * inversePositivePairs
+                << " negativeMaskMatchAdvected/stationary="
+                << backtracedCurvatureMatchesBySign[0] * inverseNegativeMaskSamples
+                << '/' << stationaryCurvatureMatchesBySign[0] *
+                    inverseNegativeMaskSamples
+                << " positiveMaskMatchAdvected/stationary="
+                << backtracedCurvatureMatchesBySign[1] * inversePositiveMaskSamples
+                << '/' << stationaryCurvatureMatchesBySign[1] *
+                    inversePositiveMaskSamples
                 << " divergence=" << velocityDivergenceRms(simulation);
             EXPECT_GT(densityMass, 1.0);
             EXPECT_GT(interfaceStats.sampleCount, 100u);
