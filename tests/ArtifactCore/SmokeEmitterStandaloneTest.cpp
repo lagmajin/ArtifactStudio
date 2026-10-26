@@ -1153,6 +1153,10 @@ TEST(SmokeEmitterStandaloneTest,
   ArtifactCore::NamedVector<float> rightFaceVelocity;
   ArtifactCore::NamedVector<float> topFaceVelocity;
   ArtifactCore::NamedVector<float> bottomFaceVelocity;
+  ArtifactCore::NamedVector<float> macLeftFaceVelocity;
+  ArtifactCore::NamedVector<float> macRightFaceVelocity;
+  ArtifactCore::NamedVector<float> macTopFaceVelocity;
+  ArtifactCore::NamedVector<float> macBottomFaceVelocity;
   ArtifactCore::NamedVector<float> initialDensity;
   ArtifactCore::NamedVector<float> firstOrderNext;
   ArtifactCore::NamedVector<float> limitedNext;
@@ -1163,6 +1167,10 @@ TEST(SmokeEmitterStandaloneTest,
   rightFaceVelocity.resize(cellCount);
   topFaceVelocity.resize(cellCount);
   bottomFaceVelocity.resize(cellCount);
+  macLeftFaceVelocity.resize(cellCount);
+  macRightFaceVelocity.resize(cellCount);
+  macTopFaceVelocity.resize(cellCount);
+  macBottomFaceVelocity.resize(cellCount);
   const float diagnosticCenterX =
       0.4f * static_cast<float>(gridWidth - 2) + 1.0f;
   const float diagnosticCenterY =
@@ -1180,25 +1188,34 @@ TEST(SmokeEmitterStandaloneTest,
   };
   const auto advanceLimitedFlux = [&](
       const ArtifactCore::NamedVector<float>& density,
-      ArtifactCore::NamedVector<float>& next, const float dt) {
+      ArtifactCore::NamedVector<float>& next, const float dt,
+      const ArtifactCore::NamedVector<float>& uLeftField,
+      const ArtifactCore::NamedVector<float>& uRightField,
+      const ArtifactCore::NamedVector<float>& vTopField,
+      const ArtifactCore::NamedVector<float>& vBottomField,
+      const bool clampReconstructedStates,
+      double* cumulativeBoundaryMassDelta,
+      double* cumulativeCellFluxMassDelta) {
+    double netOutwardBoundaryFlux = 0.0;
+    double summedCellFluxDivergence = 0.0;
     for (int y = 1; y < gridHeight - 1; ++y) {
       for (int x = 1; x < gridWidth - 1; ++x) {
         const auto cell = index(x, y);
         const auto rho = [&](const int px, const int py) {
           return density[index(px, py)];
         };
-        const float uLeft = leftFaceVelocity[cell];
-        const float uRight = rightFaceVelocity[cell];
-        const float vTop = topFaceVelocity[cell];
-        const float vBottom = bottomFaceVelocity[cell];
-        const float leftState = uLeft >= 0.0f
+        const float uLeft = uLeftField[cell];
+        const float uRight = uRightField[cell];
+        const float vTop = vTopField[cell];
+        const float vBottom = vBottomField[cell];
+        float leftState = uLeft >= 0.0f
             ? rho(x - 1, y) + 0.5f * diagnosticMinmod(
                   rho(x - 1, y) - rho(std::max(0, x - 2), y),
                   rho(x, y) - rho(x - 1, y))
             : rho(x, y) - 0.5f * diagnosticMinmod(
                   rho(x, y) - rho(std::max(0, x - 1), y),
                   rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y));
-        const float rightState = uRight >= 0.0f
+        float rightState = uRight >= 0.0f
             ? rho(x, y) + 0.5f * diagnosticMinmod(
                   rho(x, y) - rho(std::max(0, x - 1), y),
                   rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y))
@@ -1207,14 +1224,14 @@ TEST(SmokeEmitterStandaloneTest,
                       rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y),
                       rho(std::min(gridWidth - 1, x + 2), y) -
                           rho(std::min(gridWidth - 1, x + 1), y));
-        const float topState = vTop >= 0.0f
+        float topState = vTop >= 0.0f
             ? rho(x, y - 1) + 0.5f * diagnosticMinmod(
                   rho(x, y - 1) - rho(x, std::max(0, y - 2)),
                   rho(x, y) - rho(x, y - 1))
             : rho(x, y) - 0.5f * diagnosticMinmod(
                   rho(x, y) - rho(x, std::max(0, y - 1)),
                   rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y));
-        const float bottomState = vBottom >= 0.0f
+        float bottomState = vBottom >= 0.0f
             ? rho(x, y) + 0.5f * diagnosticMinmod(
                   rho(x, y) - rho(x, std::max(0, y - 1)),
                   rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y))
@@ -1223,10 +1240,29 @@ TEST(SmokeEmitterStandaloneTest,
                       rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y),
                       rho(x, std::min(gridHeight - 1, y + 2)) -
                           rho(x, std::min(gridHeight - 1, y + 1)));
-        next[cell] = density[cell] - dt * (
+        if (clampReconstructedStates) {
+          leftState = std::max(leftState, std::min(rho(x - 1, y), rho(x, y)));
+          rightState = std::max(rightState, std::min(rho(x, y), rho(x + 1, y)));
+          topState = std::max(topState, std::min(rho(x, y - 1), rho(x, y)));
+          bottomState = std::max(bottomState, std::min(rho(x, y), rho(x, y + 1)));
+        }
+        const float fluxDivergence =
             uRight * rightState - uLeft * leftState +
-            vBottom * bottomState - vTop * topState);
+            vBottom * bottomState - vTop * topState;
+        next[cell] = density[cell] - dt * fluxDivergence;
+        summedCellFluxDivergence += fluxDivergence;
+        if (x == 1) netOutwardBoundaryFlux -= uLeft * leftState;
+        if (x == gridWidth - 2) netOutwardBoundaryFlux += uRight * rightState;
+        if (y == 1) netOutwardBoundaryFlux -= vTop * topState;
+        if (y == gridHeight - 2) netOutwardBoundaryFlux +=
+            vBottom * bottomState;
       }
+    }
+    if (cumulativeBoundaryMassDelta != nullptr) {
+      *cumulativeBoundaryMassDelta -= dt * netOutwardBoundaryFlux;
+    }
+    if (cumulativeCellFluxMassDelta != nullptr) {
+      *cumulativeCellFluxMassDelta -= dt * summedCellFluxDivergence;
     }
   };
   for (int y = 1; y < gridHeight - 1; ++y) {
@@ -1248,6 +1284,16 @@ TEST(SmokeEmitterStandaloneTest,
       rightFaceVelocity[cell] = uRight;
       topFaceVelocity[cell] = vTop;
       bottomFaceVelocity[cell] = vBottom;
+      macLeftFaceVelocity[cell] = streamFunction[index(x - 1, y)] -
+          streamFunction[index(x - 1, y - 1)];
+      macRightFaceVelocity[cell] = streamFunction[index(x, y)] -
+          streamFunction[index(x, y - 1)];
+      macTopFaceVelocity[cell] = -(
+          streamFunction[index(x, y - 1)] -
+          streamFunction[index(x - 1, y - 1)]);
+      macBottomFaceVelocity[cell] = -(
+          streamFunction[index(x, y)] -
+          streamFunction[index(x - 1, y)]);
       const auto rho = [&](const int px, const int py) {
         return initialDensity[index(px, py)];
       };
@@ -1299,6 +1345,63 @@ TEST(SmokeEmitterStandaloneTest,
           (rho(x, y) * divergence + limitedDerivative);
     }
   }
+  double averagedFaceSpeedSquared = 0.0;
+  double macFaceSpeedSquared = 0.0;
+  for (int y = 1; y < gridHeight - 1; ++y) {
+    for (int x = 1; x < gridWidth - 1; ++x) {
+      const auto cell = index(x, y);
+      averagedFaceSpeedSquared +=
+          leftFaceVelocity[cell] * leftFaceVelocity[cell] +
+          rightFaceVelocity[cell] * rightFaceVelocity[cell] +
+          topFaceVelocity[cell] * topFaceVelocity[cell] +
+          bottomFaceVelocity[cell] * bottomFaceVelocity[cell];
+      macFaceSpeedSquared +=
+          macLeftFaceVelocity[cell] * macLeftFaceVelocity[cell] +
+          macRightFaceVelocity[cell] * macRightFaceVelocity[cell] +
+          macTopFaceVelocity[cell] * macTopFaceVelocity[cell] +
+          macBottomFaceVelocity[cell] * macBottomFaceVelocity[cell];
+    }
+  }
+  const float macVelocityScale = macFaceSpeedSquared > 0.0
+      ? static_cast<float>(std::sqrt(averagedFaceSpeedSquared /
+                                     macFaceSpeedSquared))
+      : 1.0f;
+  double macFaceDivergenceSquared = 0.0;
+  double macMaximumFaceDivergence = 0.0;
+  double macMaximumFrameCfl = 0.0;
+  std::size_t macFaceDivergenceCount = 0;
+  for (int y = 1; y < gridHeight - 1; ++y) {
+    for (int x = 1; x < gridWidth - 1; ++x) {
+      const auto cell = index(x, y);
+      macLeftFaceVelocity[cell] *= macVelocityScale;
+      macRightFaceVelocity[cell] *= macVelocityScale;
+      macTopFaceVelocity[cell] *= macVelocityScale;
+      macBottomFaceVelocity[cell] *= macVelocityScale;
+      const double divergence = macRightFaceVelocity[cell] -
+          macLeftFaceVelocity[cell] + macBottomFaceVelocity[cell] -
+          macTopFaceVelocity[cell];
+      macFaceDivergenceSquared += divergence * divergence;
+      macMaximumFaceDivergence = std::max(
+          macMaximumFaceDivergence, std::abs(divergence));
+      const double horizontalCfl = std::max(
+          std::abs(static_cast<double>(macLeftFaceVelocity[cell])),
+          std::abs(static_cast<double>(macRightFaceVelocity[cell])));
+      const double verticalCfl = std::max(
+          std::abs(static_cast<double>(macTopFaceVelocity[cell])),
+          std::abs(static_cast<double>(macBottomFaceVelocity[cell])));
+      macMaximumFrameCfl = std::max(macMaximumFrameCfl,
+                                    (horizontalCfl + verticalCfl) * frameDt);
+      ++macFaceDivergenceCount;
+    }
+  }
+  const double macFaceDivergenceRms = std::sqrt(
+      macFaceDivergenceSquared / static_cast<double>(macFaceDivergenceCount));
+  EXPECT_LT(macFaceDivergenceRms, 1.0e-4);
+  EXPECT_LT(macMaximumFaceDivergence, 1.0e-4);
+  GTEST_LOG_(INFO) << "fixed scalar streamfunction MAC face field scale="
+      << macVelocityScale << " rms-divergence=" << macFaceDivergenceRms
+      << " max-divergence=" << macMaximumFaceDivergence
+      << " max-frame-CFL=" << macMaximumFrameCfl;
   double firstOrderMassDelta = 0.0;
   double limitedMassDelta = 0.0;
   double limitedMassDeltaClamped = 0.0;
@@ -1335,7 +1438,9 @@ TEST(SmokeEmitterStandaloneTest,
           static_cast<double>(velocityY[cell]) * dt * (gridHeight - 2)));
     }
     for (int substep = 0; substep < frameSubsteps; ++substep) {
-      advanceLimitedFlux(density, next, dt);
+      advanceLimitedFlux(density, next, dt, leftFaceVelocity,
+                         rightFaceVelocity, topFaceVelocity,
+                         bottomFaceVelocity, false, nullptr, nullptr);
       std::swap(density, next);
       if (substep + 1 < frameSubsteps) {
         for (int x = 0; x < gridWidth; ++x) {
@@ -1638,6 +1743,8 @@ TEST(SmokeEmitterStandaloneTest,
 
     const int cflLimitedSteps = std::max(1, static_cast<int>(std::ceil(
         maximumFrameCfl)));
+    const int macCflLimitedSteps = std::max(1, static_cast<int>(std::ceil(
+        macMaximumFrameCfl)));
     ArtifactCore::NamedVector<float> cflLimitedDensity;
     ArtifactCore::NamedVector<float> cflLimitedNext;
     cflLimitedDensity.resize(cellCount);
@@ -1656,10 +1763,24 @@ TEST(SmokeEmitterStandaloneTest,
     }
     int cflLimitedCapture = 0;
     double cflLimitedMaximumFrameCfl = 0.0;
+    double cflLimitedInitialMass = 0.0;
+    double cflLimitedCumulativeBoundaryMassDelta = 0.0;
+    double cflLimitedCumulativeCellFluxMassDelta = 0.0;
+    for (int y = 1; y < gridHeight - 1; ++y) {
+      for (int x = 1; x < gridWidth - 1; ++x) {
+        cflLimitedInitialMass += cflLimitedDensity[index(x, y)];
+      }
+    }
     const float cflLimitedDt = frameDt / static_cast<float>(cflLimitedSteps);
+    const float macCflLimitedDt = frameDt /
+        static_cast<float>(macCflLimitedSteps);
     for (int frame = 1; frame <= totalFrames; ++frame) {
       for (int substep = 0; substep < cflLimitedSteps; ++substep) {
-        advanceLimitedFlux(cflLimitedDensity, cflLimitedNext, cflLimitedDt);
+        advanceLimitedFlux(cflLimitedDensity, cflLimitedNext, cflLimitedDt,
+                           leftFaceVelocity, rightFaceVelocity,
+                           topFaceVelocity, bottomFaceVelocity, false,
+                           &cflLimitedCumulativeBoundaryMassDelta,
+                           &cflLimitedCumulativeCellFluxMassDelta);
         std::swap(cflLimitedDensity, cflLimitedNext);
         for (int x = 0; x < gridWidth; ++x) {
           cflLimitedDensity[index(x, 0)] = cflLimitedDensity[index(x, 1)];
@@ -1678,13 +1799,20 @@ TEST(SmokeEmitterStandaloneTest,
         continue;
       }
       double mass = 0.0;
+      double signedInteriorMass = 0.0;
+      double negativeDensityMass = 0.0;
+      double allGridMass = 0.0;
       double boundaryShellMass = 0.0;
       double gradientSquared = 0.0;
       float peak = 0.0f;
+      float minimumDensity = std::numeric_limits<float>::infinity();
       for (int y = 1; y < gridHeight - 1; ++y) {
         for (int x = 1; x < gridWidth - 1; ++x) {
           const float value = cflLimitedDensity[index(x, y)];
           mass += std::max(0.0f, value);
+          signedInteriorMass += value;
+          negativeDensityMass += std::min(0.0f, value);
+          minimumDensity = std::min(minimumDensity, value);
           if (x == 1 || x == gridWidth - 2 || y == 1 ||
               y == gridHeight - 2) {
             boundaryShellMass += std::max(0.0f, value);
@@ -1696,6 +1824,9 @@ TEST(SmokeEmitterStandaloneTest,
                                     cflLimitedDensity[index(x, y - 1)]);
           gradientSquared += gx * gx + gy * gy;
         }
+      }
+      for (const float value : cflLimitedDensity) {
+        allGridMass += std::max(0.0f, value);
       }
       const double interiorCells =
           static_cast<double>((gridWidth - 2) * (gridHeight - 2));
@@ -1732,6 +1863,20 @@ TEST(SmokeEmitterStandaloneTest,
           << " substeps=" << cflLimitedSteps
           << " maxSubstepCfl=" << maximumFrameCfl / cflLimitedSteps
           << " frame=" << frame << " mass=" << mass
+          << " signedInteriorMass=" << signedInteriorMass
+          << " negativeDensityMass=" << negativeDensityMass
+          << " minimumDensity=" << minimumDensity
+          << " expectedBoundaryMassDelta="
+          << cflLimitedCumulativeBoundaryMassDelta
+          << " measuredInteriorMassDelta=" << mass - cflLimitedInitialMass
+          << " summedCellFluxMassDelta="
+          << cflLimitedCumulativeCellFluxMassDelta
+          << " fluxAggregationResidual=" << cflLimitedCumulativeCellFluxMassDelta -
+                 cflLimitedCumulativeBoundaryMassDelta
+          << " signedInteriorBalanceResidual=" << signedInteriorMass -
+                 cflLimitedInitialMass -
+                 cflLimitedCumulativeBoundaryMassDelta
+          << " allGridMass=" << allGridMass
           << " boundaryShellMass=" << boundaryShellMass
           << " gradientRms=" << gradients[outputRow][
                  static_cast<std::size_t>(cflLimitedCapture)]
@@ -1739,6 +1884,154 @@ TEST(SmokeEmitterStandaloneTest,
       ++cflLimitedCapture;
     }
     ASSERT_EQ(cflLimitedCapture, static_cast<int>(captureFrames.size()));
+
+    ArtifactCore::NamedVector<float> macDensity;
+    ArtifactCore::NamedVector<float> macNext;
+    ArtifactCore::NamedVector<float> macClampedDensity;
+    ArtifactCore::NamedVector<float> macClampedNext;
+    macDensity.resize(cellCount);
+    macNext.resize(cellCount);
+    macClampedDensity.resize(cellCount);
+    macClampedNext.resize(cellCount);
+    for (int y = 0; y < gridHeight; ++y) {
+      for (int x = 0; x < gridWidth; ++x) {
+        const float dx = (static_cast<float>(x) - cflLimitedCenterX) / 5.0f;
+        const float dy = (static_cast<float>(y) - cflLimitedCenterY) / 7.0f;
+        macDensity[index(x, y)] = std::exp(-0.5f * (dx * dx + dy * dy));
+        macClampedDensity[index(x, y)] = macDensity[index(x, y)];
+      }
+    }
+    double macInitialMass = 0.0;
+    double macBoundaryMassDelta = 0.0;
+    double macCellFluxMassDelta = 0.0;
+    double macClampedBoundaryMassDelta = 0.0;
+    int macCapture = 0;
+    for (int y = 1; y < gridHeight - 1; ++y) {
+      for (int x = 1; x < gridWidth - 1; ++x) {
+        macInitialMass += macDensity[index(x, y)];
+      }
+    }
+    for (int frame = 1; frame <= totalFrames; ++frame) {
+      for (int substep = 0; substep < macCflLimitedSteps; ++substep) {
+        advanceLimitedFlux(macDensity, macNext, macCflLimitedDt,
+                           macLeftFaceVelocity, macRightFaceVelocity,
+                           macTopFaceVelocity, macBottomFaceVelocity, false,
+                           &macBoundaryMassDelta, &macCellFluxMassDelta);
+        advanceLimitedFlux(macClampedDensity, macClampedNext, macCflLimitedDt,
+                           macLeftFaceVelocity, macRightFaceVelocity,
+                           macTopFaceVelocity, macBottomFaceVelocity, true,
+                           &macClampedBoundaryMassDelta, nullptr);
+        std::swap(macDensity, macNext);
+        std::swap(macClampedDensity, macClampedNext);
+        for (int x = 0; x < gridWidth; ++x) {
+          macDensity[index(x, 0)] = macDensity[index(x, 1)];
+          macDensity[index(x, gridHeight - 1)] =
+              macDensity[index(x, gridHeight - 2)];
+          macClampedDensity[index(x, 0)] = macClampedDensity[index(x, 1)];
+          macClampedDensity[index(x, gridHeight - 1)] =
+              macClampedDensity[index(x, gridHeight - 2)];
+        }
+        for (int y = 0; y < gridHeight; ++y) {
+          macDensity[index(0, y)] = macDensity[index(1, y)];
+          macDensity[index(gridWidth - 1, y)] =
+              macDensity[index(gridWidth - 2, y)];
+          macClampedDensity[index(0, y)] = macClampedDensity[index(1, y)];
+          macClampedDensity[index(gridWidth - 1, y)] =
+              macClampedDensity[index(gridWidth - 2, y)];
+        }
+      }
+      if (macCapture >= static_cast<int>(captureFrames.size()) ||
+          frame != captureFrames[static_cast<std::size_t>(macCapture)]) {
+        continue;
+      }
+      double positiveMass = 0.0;
+      double signedMass = 0.0;
+      double negativeMass = 0.0;
+      double gradientSquared = 0.0;
+      float peak = 0.0f;
+      float minimum = std::numeric_limits<float>::infinity();
+      double clampedPositiveMass = 0.0;
+      double clampedSignedMass = 0.0;
+      double clampedNegativeMass = 0.0;
+      float clampedMinimum = std::numeric_limits<float>::infinity();
+      float clampedPeak = 0.0f;
+      for (int y = 1; y < gridHeight - 1; ++y) {
+        for (int x = 1; x < gridWidth - 1; ++x) {
+          const float value = macDensity[index(x, y)];
+          positiveMass += std::max(0.0f, value);
+          signedMass += value;
+          negativeMass += std::min(0.0f, value);
+          minimum = std::min(minimum, value);
+          peak = std::max(peak, value);
+          const double gx = 0.5 * (macDensity[index(x + 1, y)] -
+                                    macDensity[index(x - 1, y)]);
+          const double gy = 0.5 * (macDensity[index(x, y + 1)] -
+                                    macDensity[index(x, y - 1)]);
+          gradientSquared += gx * gx + gy * gy;
+          const float clampedValue = macClampedDensity[index(x, y)];
+          clampedPositiveMass += std::max(0.0f, clampedValue);
+          clampedSignedMass += clampedValue;
+          clampedNegativeMass += std::min(0.0f, clampedValue);
+          clampedMinimum = std::min(clampedMinimum, clampedValue);
+          clampedPeak = std::max(clampedPeak, clampedValue);
+        }
+      }
+      const double interiorCells =
+          static_cast<double>((gridWidth - 2) * (gridHeight - 2));
+      const double gradientRms = std::sqrt(gradientSquared / interiorCells);
+      EXPECT_GE(minimum, -1.0e-6);
+      EXPECT_LT(std::abs(signedMass - macInitialMass - macBoundaryMassDelta),
+                2.0e-5);
+      constexpr std::size_t macOutputRow = 9;
+      masses[macOutputRow][static_cast<std::size_t>(macCapture)] = positiveMass;
+      gradients[macOutputRow][static_cast<std::size_t>(macCapture)] = gradientRms;
+      peaks[macOutputRow][static_cast<std::size_t>(macCapture)] = peak;
+      QImage sample(cellWidth, cellHeight, QImage::Format_ARGB32);
+      sample.fill(qRgba(8, 12, 18, 255));
+      for (int y = 1; y < gridHeight - 1; ++y) {
+        for (int x = 1; x < gridWidth - 1; ++x) {
+          const float value = peak > 0.0f
+              ? macDensity[index(x, y)] / peak : 0.0f;
+          const int intensity = static_cast<int>(std::lround(
+              std::clamp(value, 0.0f, 1.0f) * 220.0f));
+          const QRgb pixel = qRgba(8, 12 + intensity, 18, 255);
+          for (int oy = 0; oy < imageScale; ++oy) {
+            auto* dst = reinterpret_cast<QRgb*>(
+                sample.scanLine(y * imageScale + oy)) + x * imageScale;
+            std::fill(dst, dst + imageScale, pixel);
+          }
+        }
+      }
+      const int offsetX = macCapture * cellWidth;
+      const int offsetY = static_cast<int>(macOutputRow) * cellHeight;
+      for (int y = 0; y < cellHeight; ++y) {
+        auto* dst = reinterpret_cast<QRgb*>(
+            contact.scanLine(offsetY + y)) + offsetX;
+        const auto* src = reinterpret_cast<const QRgb*>(sample.constScanLine(y));
+        std::copy(src, src + cellWidth, dst);
+      }
+      GTEST_LOG_(INFO) << "fixed scalar MUSCL MAC-curl seed=" << seed
+          << " substeps=" << macCflLimitedSteps
+          << " maxSubstepCfl=" << macMaximumFrameCfl / macCflLimitedSteps
+          << " frame=" << frame << " positiveMass=" << positiveMass
+          << " signedMass=" << signedMass << " negativeMass=" << negativeMass
+          << " minimumDensity=" << minimum
+          << " boundaryMassDelta=" << macBoundaryMassDelta
+          << " signedBalanceResidual=" << signedMass - macInitialMass -
+                 macBoundaryMassDelta
+          << " gradientRms=" << gradientRms << " peak=" << peak;
+      GTEST_LOG_(INFO) << "fixed scalar MUSCL MAC-state-clamped seed=" << seed
+          << " substeps=" << macCflLimitedSteps
+          << " frame=" << frame << " positiveMass=" << clampedPositiveMass
+          << " signedMass=" << clampedSignedMass
+          << " negativeMass=" << clampedNegativeMass
+          << " minimumDensity=" << clampedMinimum
+          << " boundaryMassDelta=" << macClampedBoundaryMassDelta
+          << " signedBalanceResidual=" << clampedSignedMass - macInitialMass -
+                 macClampedBoundaryMassDelta << " peak=" << clampedPeak;
+      ++macCapture;
+    }
+    ASSERT_EQ(macCapture, static_cast<int>(captureFrames.size()));
 
     for (std::size_t condition = 0; condition < substepCounts.size(); ++condition) {
       for (std::size_t capture = 0; capture < captureFrames.size(); ++capture) {
@@ -1771,10 +2064,19 @@ TEST(SmokeEmitterStandaloneTest,
           << " mass=" << masses[8][capture]
           << " gradientRms=" << gradients[8][capture]
           << " peak=" << peaks[8][capture];
+      GTEST_LOG_(INFO) << "fixed scalar MUSCL MAC-curl seed=" << seed
+          << " substeps=" << macCflLimitedSteps
+          << " frame=" << captureFrames[capture]
+          << " mass=" << masses[9][capture]
+          << " gradientRms=" << gradients[9][capture]
+          << " peak=" << peaks[9][capture];
     }
     const QString path = QDir(outputDirectory).filePath(
         QStringLiteral("fixed_velocity_scalar_substeps_seed_%1.png").arg(seed));
     ASSERT_TRUE(contact.save(path, "PNG")) << path.toStdString();
+    const QString macPath = QDir(outputDirectory).filePath(
+        QStringLiteral("fixed_velocity_scalar_mac_seed_%1.png").arg(seed));
+    ASSERT_TRUE(contact.save(macPath, "PNG")) << macPath.toStdString();
   }
 }
 

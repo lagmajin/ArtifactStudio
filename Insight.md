@@ -7287,12 +7287,12 @@
 - **仮説（未検証）:** MUSCLは最大セルCFLをおよそ1以下に制限すればpositivity clampによる過剰な質量が減り、保守性を維持しやすい可能性がある。
 - **次に確認すべきこと:** MUSCLをsubstepごとの最大CFL≤1へ制限し、同じ60-frame固定渦で質量保存・peak・gradient・画像を再比較する。改善が出てもsource-coupled solverとGPU renderでplume volume、billow、時間一貫性を確認するまでは製品経路へ移さない。
 
-## 2026-10-27: CFL-capped MUSCLでも長時間mass growthが残る
+## 2026-10-27: MAC face速度のCFLを個別に制約してscalarの正値性を確認
 - **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`。同じanalytic vortex、Gaussian scalar、60 framesでMUSCLだけframe CFLを制約。
-- **確認できた事実:** 1 frameの最大CFL3.545をceilして4 substeps/frame（最大substep CFL0.88631）にしたtest-only MUSCL条件を両source位置で追加。focused test 1/1 pass。frame60 interior massはseed17/71で269.81/255.42（initial218.587）まで増加し、8-step MUSCLの218.586/218.555と異なる。peakは1.45193/1.77877、gradient RMS .1482/.1310で、captureは細いstreak/筋状の輪郭を含み、billowらしい塊にはなっていない。frame60 boundary shell massは.431/.721で全mass増分より小さく、ghost bandだけでは増加を説明しない。CFL capは1-frameの大きなnegative clampを除くが、長時間mass conservationを保証しない。capture/log: `build/smoke-emitter-rnd/captures/fixed-scalar-cfl-capped-rnd/`、`build/smoke-emitter-rnd/fixed-scalar-cfl-capped-rnd.log`。
-- **価値または懸念:** 前回の「CFL≤1なら長時間massを保ちやすい」という仮説はこのfixtureでは支持されなかった。CFL≤1のMUSCLはむしろ長時間massとhigh-gradient streakを増やし、8-step MUSCLよりplumeの見た目が不安定。boundary shell massは診断値に過ぎず、全境界fluxの時間積算とmass balanceの一致は未確認。production solverにCFL/MUSCL変更を反映しない。
-- **仮説（未検証）:** interior mass増加には、divergenceを持つcell-centeredからfaceへの速度補間、ghost-cell boundary、reconstruction fluxの離散整合が複合して寄与する可能性がある。単一要因とはまだ断定できない。
-- **次に確認すべきこと:** MUSCL updateと同じsubstep状態から全boundary face fluxを積算し、interior/all-grid mass差と比較する。収支が閉じない場合はtest operator/boundary実装を修正し、閉じる場合に限って速度場と境界の物理寄与を分ける。
+- **確認できた事実:** 前段のCFL-capped平均face速度field（seed17/71）はframe60 positive-only mass 269.81/255.42、signed mass 218.640/218.562、negative mass -51.170/-36.858、最小密度 -1.086/-1.430であり、符号付きmass budgetは境界fluxと1e-5以内で一致。今回、streamfunctionの格子頂点差分からtest-only MAC face速度を直接作り、RMS face speedを既存平均fieldに合わせた。face divergence RMSは2.35e-6、最大7.63e-6だが、MAC fieldの最大frame CFLは4.01385で、平均fieldの4-substep条件（CFL .886）を流用すると正値性が壊れた。速度fieldごとにCFLを測り直し5 substeps（最大substep CFL .80277）にすると、seed17/71ともframe60のnegative massは0、minimum densityは約1.1e-35/1.7e-36、signed massは218.688/218.590、境界flux収支残差は4.95e-6/5.39e-6。positive-only massとsigned massが一致し、gradient RMSは.02183/.02264、peakは.20469/.21873まで滑らかに減衰。MAC画像は規則的な渦巻scalarで、CFL違反時の縞状artifactは消えるがbillowや煙らしいvolumeはない。試した隣接状態下限制約は出力に変化を与えず、負値の直接原因ではなかった。focused standalone test 1/1 pass。capture/log: `build/smoke-emitter-rnd/captures/mac-cfl-rnd/`、`build/smoke-emitter-rnd/mac-cfl-rnd.log`。
+- **価値または懸念:** MAC構成は離散発散を抑えたが、それだけでなくfieldごとに測ったCFL上限が必要だった。誤ったfield由来のsubstep数を使うと、MAC自体が発散ゼロでもCFL超過し、強い負densityが生じる。十分細かく分割すると保存性・正値性は改善する一方、この固定渦scalarはframe60で強く拡散し、煙の見た目の改善には直結しない。これは独立test内の解析的速度場実験でありproduction solverの速度格子・浮力・圧力投影を検証していないため、Core/Appへの変更根拠にはまだならない。
+- **仮説（未検証）:** 変動するsource、浮力、渦度閉じ込めを持つproduction smokeで、face-CFL計測に基づくbounded substepと密度の正値性制御を組み合わせると、mass driftと視覚的streakを抑えられる可能性がある。ただし拡散を抑えながらroll-upを保てるかは別に評価が必要。
+- **次に確認すべきこと:** production `FluidSolver2D` の実際のface/cell velocity、source injection、境界条件を追い、更新順の中でCFLがどの速度fieldを使って計算されているか調べる。次の独立比較は速度fieldごとのCFLを正しく揃えた低CFL/MAC対照に加え、mass/positivity-preserving flux correctionまたはBFECC/MacCormack再構成を1因子ずつ評価し、production captureを同じ時間・解像度で比較する。乱流らしい形が得られるまでは反映しない。
 
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
