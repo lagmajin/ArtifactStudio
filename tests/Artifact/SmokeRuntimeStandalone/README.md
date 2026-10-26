@@ -51,6 +51,21 @@ GTest passed 1/1 (15.36 s); front/side captures are in
 This test-only comparison does not justify a production force or timestep
 change and does not demonstrate DCC-level smoke quality.
 
+The same test also compares deterministically seeded, smooth 3D value-noise
+vector potentials instead of periodic sine potentials. It applies their
+discrete curl as density-gated acceleration, with equal density-weighted force
+RMS for large (0.75/0.48/0.30 world unit), fine (0.30/0.20/0.14), and
+multiscale (0.75/0.40/0.22/0.13) bands; the large bands use 0.45 s and 0.08 s
+pattern pulse lengths. At 1.2 s, the control has mass / Y centroid /
+divergence RMS 15.8958 / 13.0075 / 0.02923. Large-slow, large-pulsed,
+fine-slow, and multiscale-slow yield 15.0566 / 12.8817 / 0.03792, 15.6777 /
+13.0178 / 0.03735, 15.7103 / 12.8637 / 0.03512, and 15.0465 / 12.8511 /
+0.03358 respectively. None creates visible folded billows; image changes are
+small cap shifts and coverage variations. Focused test passes 1/1 in 39.0 s
+after computing each vector-potential voxel once per step (an earlier repeated
+sampling implementation took 142.7 s with the same numeric result). Captures
+are written to `3d-source-rollup-rnd/` under the configured output directory.
+
 The `ReportsSteadyStateRenderDataPreparationCost` case is an R&D microbenchmark.
 It advances 32x32, 79x79, 128x128, and 512x512 smoke states for 24 frames,
 warms render-data preparation 12 times, then reports mean and p95 over 100

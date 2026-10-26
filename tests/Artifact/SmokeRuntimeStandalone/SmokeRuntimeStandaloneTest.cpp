@@ -457,14 +457,16 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     explicit Branch(const char* branchLabel, const PyroDomain& branchDomain)
         : label(branchLabel), simulation(branchDomain) {}
   };
-  std::array<Branch, 7> branches{{
+  std::array<Branch, 9> branches{{
       Branch("source-velocity", domain),
       Branch("curl-augmented", domain),
       Branch("curl-strong", domain),
       Branch("velocity-attenuated", domain),
       Branch("fine-timestep", domain),
-      Branch("turbulence-large-slow", domain),
-      Branch("turbulence-large-pulsed", domain)}};
+      Branch("noise-large-slow", domain),
+      Branch("noise-large-pulsed", domain),
+      Branch("noise-fine-slow", domain),
+      Branch("noise-multiscale-slow", domain)}};
   for (auto& branch : branches) {
     branch.simulation.setSettings(settings);
     branch.simulation.fields().densityStorage() = initialDensity;
@@ -587,13 +589,47 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 
   const auto applyCoherentTurbulence = [&](PyroSimulation& simulation,
       const double timeSeconds, const float pulseLength,
-      const std::array<float, 3>& wavelengths) {
+      const std::array<float, 4>& wavelengths, const int bandCount) {
     auto velocity = simulation.fields().velocityView();
     const auto density = simulation.fields().densityView();
-    constexpr float twoPi = 6.28318530718f;
-    const float timePhase = twoPi * static_cast<float>(timeSeconds) /
-        std::max(0.01f, pulseLength);
-    const auto potential = [&](int sampleX, int sampleY, int sampleZ) {
+    const float pulse = std::max(0.01f, pulseLength);
+    const auto valueNoise = [](const float x, const float y, const float z,
+                               const std::uint32_t channel) {
+      const int x0 = static_cast<int>(std::floor(x));
+      const int y0 = static_cast<int>(std::floor(y));
+      const int z0 = static_cast<int>(std::floor(z));
+      const float fx = x - static_cast<float>(x0);
+      const float fy = y - static_cast<float>(y0);
+      const float fz = z - static_cast<float>(z0);
+      const auto fade = [](const float t) {
+        return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+      };
+      const float tx = fade(fx);
+      const float ty = fade(fy);
+      const float tz = fade(fz);
+      const auto hash = [channel](const int ix, const int iy, const int iz) {
+        std::uint32_t value = 0x9e3779b9u ^ channel;
+        value ^= static_cast<std::uint32_t>(ix) * 0x85ebca6bu;
+        value = (value ^ (value >> 13)) * 0xc2b2ae35u;
+        value ^= static_cast<std::uint32_t>(iy) * 0x27d4eb2fu;
+        value = (value ^ (value >> 15)) * 0x165667b1u;
+        value ^= static_cast<std::uint32_t>(iz) * 0xd3a2646cu;
+        value ^= value >> 16;
+        return static_cast<float>(value & 0x00ffffffu) /
+            8388607.5f - 1.0f;
+      };
+      const auto lerp = [](const float a, const float b, const float t) {
+        return std::lerp(a, b, t);
+      };
+      const float z0y0 = lerp(lerp(hash(x0, y0, z0),
+          hash(x0 + 1, y0, z0), tx), lerp(hash(x0, y0 + 1, z0),
+          hash(x0 + 1, y0 + 1, z0), tx), ty);
+      const float z0y1 = lerp(lerp(hash(x0, y0, z0 + 1),
+          hash(x0 + 1, y0, z0 + 1), tx), lerp(hash(x0, y0 + 1, z0 + 1),
+          hash(x0 + 1, y0 + 1, z0 + 1), tx), ty);
+      return lerp(z0y0, z0y1, tz);
+    };
+    const auto potentialAt = [&](int sampleX, int sampleY, int sampleZ) {
       const int x = std::clamp(sampleX, 0, resolution.width - 1);
       const int y = std::clamp(sampleY, 0, resolution.height - 1);
       const int z = std::clamp(sampleZ, 0, resolution.depth - 1);
@@ -605,22 +641,39 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           domain.voxelSize;
       const float gate = std::clamp(density.at(x, y, z) / 0.06f, 0.0f, 1.0f);
       PyroVec3 result{};
-      for (std::size_t band = 0; band < wavelengths.size(); ++band) {
-        const float k = twoPi / wavelengths[band];
-        const float phase = timePhase * (0.45f + 0.3f *
-            static_cast<float>(band)) + static_cast<float>(band) * 1.91f;
-        const float amplitude = 1.0f / (k * static_cast<float>(band + 1));
-        result.x += amplitude * std::sin(k * (0.31f * wx + wy +
-            0.19f * wz) + phase);
-        result.y += amplitude * std::sin(k * (0.23f * wx +
-            0.37f * wy + wz) - phase * 0.73f);
-        result.z += amplitude * std::sin(k * (wx - 0.29f * wy +
-            0.41f * wz) + phase * 0.51f);
+      for (int band = 0; band < bandCount; ++band) {
+        const float wavelength = wavelengths[static_cast<std::size_t>(band)];
+        const float inverseScale = 1.0f / wavelength;
+        const float drift = static_cast<float>(timeSeconds) / pulse *
+            (0.31f + 0.17f * static_cast<float>(band));
+        const float amplitude = wavelength /
+            static_cast<float>(band + 1);
+        result.x += amplitude * valueNoise(wx * inverseScale + drift,
+            wy * inverseScale - drift * 0.43f,
+            wz * inverseScale + drift * 0.19f, 0x1234u + band * 3u);
+        result.y += amplitude * valueNoise(wx * inverseScale - drift * 0.23f,
+            wy * inverseScale + drift * 0.61f,
+            wz * inverseScale - drift, 0x5678u + band * 3u);
+        result.z += amplitude * valueNoise(wx * inverseScale + drift * 0.47f,
+            wy * inverseScale + drift * 0.13f,
+            wz * inverseScale + drift * 0.73f, 0x9abcu + band * 3u);
       }
       result.x *= gate;
       result.y *= gate;
       result.z *= gate;
       return result;
+    };
+    std::vector<PyroVec3> vectorPotential(resolution.cellCount());
+    for (int z = 0; z < resolution.depth; ++z)
+      for (int y = 0; y < resolution.height; ++y)
+        for (int x = 0; x < resolution.width; ++x)
+          vectorPotential[resolution.indexOf(x, y, z)] =
+              potentialAt(x, y, z);
+    const auto potential = [&](const int x, const int y, const int z) {
+      return vectorPotential[resolution.indexOf(
+          std::clamp(x, 0, resolution.width - 1),
+          std::clamp(y, 0, resolution.height - 1),
+          std::clamp(z, 0, resolution.depth - 1))];
     };
     std::vector<PyroVec3> acceleration(resolution.cellCount());
     double weightedSquared = 0.0;
@@ -757,10 +810,12 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   if (!outputDirectory.isEmpty())
     ASSERT_TRUE(QDir().mkpath(captureDirectory));
   constexpr std::array<int, 4> captureSteps{0, 24, 48, 72};
-  std::array<PreviousImage, 7> previousFront;
-  std::array<PreviousImage, 7> previousSide;
+  std::array<PreviousImage, 9> previousFront;
+  std::array<PreviousImage, 9> previousSide;
   std::size_t nextCapture = 0;
-  constexpr std::array<float, 3> largeWavelengths{0.75f, 0.48f, 0.30f};
+  constexpr std::array<float, 4> largeWavelengths{0.75f, 0.48f, 0.30f, 0.0f};
+  constexpr std::array<float, 4> fineWavelengths{0.30f, 0.20f, 0.14f, 0.0f};
+  constexpr std::array<float, 4> multiWavelengths{0.75f, 0.40f, 0.22f, 0.13f};
   for (int step = 0; step <= captureSteps.back(); ++step) {
     if (step == captureSteps[nextCapture]) {
       for (std::size_t branchIndex = 0; branchIndex < branches.size();
@@ -803,9 +858,13 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     }
     if (step == captureSteps.back()) break;
     applyCoherentTurbulence(branches[5].simulation,
-        static_cast<double>(step) / 60.0, 0.45f, largeWavelengths);
+        static_cast<double>(step) / 60.0, 0.45f, largeWavelengths, 3);
     applyCoherentTurbulence(branches[6].simulation,
-        static_cast<double>(step) / 60.0, 0.08f, largeWavelengths);
+        static_cast<double>(step) / 60.0, 0.08f, largeWavelengths, 3);
+    applyCoherentTurbulence(branches[7].simulation,
+        static_cast<double>(step) / 60.0, 0.45f, fineWavelengths, 3);
+    applyCoherentTurbulence(branches[8].simulation,
+        static_cast<double>(step) / 60.0, 0.45f, multiWavelengths, 4);
     for (auto& branch : branches) branch.simulation.step(1.0 / 60.0);
   }
   for (const auto& branch : branches) {
