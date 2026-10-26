@@ -1109,6 +1109,252 @@ TEST(SmokeEmitterStandaloneTest,
         static_cast<double>(velocityX[cell]) * frameDt * (gridWidth - 2),
         static_cast<double>(velocityY[cell]) * frameDt * (gridHeight - 2)));
   }
+  double faceDivergenceSquared = 0.0;
+  double maximumFaceDivergence = 0.0;
+  double outwardBoundaryFlux = 0.0;
+  std::size_t faceDivergenceCount = 0;
+  for (int y = 1; y < gridHeight - 1; ++y) {
+    for (int x = 1; x < gridWidth - 1; ++x) {
+      const auto cell = index(x, y);
+      const float uLeft = 0.5f *
+          (velocityX[index(x - 1, y)] + velocityX[cell]) *
+          static_cast<float>(gridWidth - 2);
+      const float uRight = 0.5f *
+          (velocityX[cell] + velocityX[index(x + 1, y)]) *
+          static_cast<float>(gridWidth - 2);
+      const float vTop = 0.5f *
+          (velocityY[index(x, y - 1)] + velocityY[cell]) *
+          static_cast<float>(gridHeight - 2);
+      const float vBottom = 0.5f *
+          (velocityY[cell] + velocityY[index(x, y + 1)]) *
+          static_cast<float>(gridHeight - 2);
+      const double divergence = (uRight - uLeft) + (vBottom - vTop);
+      faceDivergenceSquared += divergence * divergence;
+      maximumFaceDivergence = std::max(
+          maximumFaceDivergence, std::abs(divergence));
+      ++faceDivergenceCount;
+      if (x == 1) outwardBoundaryFlux -= uLeft;
+      if (x == gridWidth - 2) outwardBoundaryFlux += uRight;
+      if (y == 1) outwardBoundaryFlux -= vTop;
+      if (y == gridHeight - 2) outwardBoundaryFlux += vBottom;
+    }
+  }
+  const double faceDivergenceRms = std::sqrt(
+      faceDivergenceSquared / static_cast<double>(faceDivergenceCount));
+  GTEST_LOG_(INFO) << "fixed scalar discrete face flow rms-divergence="
+      << faceDivergenceRms << " max-divergence=" << maximumFaceDivergence
+      << " outward-domain-boundary-flux=" << outwardBoundaryFlux;
+
+  double initialInteriorMass = 0.0;
+  double firstOrderFluxSum = 0.0;
+  double limitedFluxSum = 0.0;
+  double initialLimitedReconstructionDerivative = 0.0;
+  ArtifactCore::NamedVector<float> leftFaceVelocity;
+  ArtifactCore::NamedVector<float> rightFaceVelocity;
+  ArtifactCore::NamedVector<float> topFaceVelocity;
+  ArtifactCore::NamedVector<float> bottomFaceVelocity;
+  ArtifactCore::NamedVector<float> initialDensity;
+  ArtifactCore::NamedVector<float> firstOrderNext;
+  ArtifactCore::NamedVector<float> limitedNext;
+  initialDensity.resize(cellCount);
+  firstOrderNext.resize(cellCount);
+  limitedNext.resize(cellCount);
+  leftFaceVelocity.resize(cellCount);
+  rightFaceVelocity.resize(cellCount);
+  topFaceVelocity.resize(cellCount);
+  bottomFaceVelocity.resize(cellCount);
+  const float diagnosticCenterX =
+      0.4f * static_cast<float>(gridWidth - 2) + 1.0f;
+  const float diagnosticCenterY =
+      0.79f * static_cast<float>(gridHeight - 2) + 1.0f;
+  for (int y = 0; y < gridHeight; ++y) {
+    for (int x = 0; x < gridWidth; ++x) {
+      const float dx = (static_cast<float>(x) - diagnosticCenterX) / 5.0f;
+      const float dy = (static_cast<float>(y) - diagnosticCenterY) / 7.0f;
+      initialDensity[index(x, y)] = std::exp(-0.5f * (dx * dx + dy * dy));
+    }
+  }
+  const auto diagnosticMinmod = [](const float a, const float b) {
+    return a * b <= 0.0f ? 0.0f
+        : std::copysign(std::min(std::abs(a), std::abs(b)), a);
+  };
+  for (int y = 1; y < gridHeight - 1; ++y) {
+    for (int x = 1; x < gridWidth - 1; ++x) {
+      const auto cell = index(x, y);
+      const float uLeft = 0.5f *
+          (velocityX[index(x - 1, y)] + velocityX[cell]) *
+          static_cast<float>(gridWidth - 2);
+      const float uRight = 0.5f *
+          (velocityX[cell] + velocityX[index(x + 1, y)]) *
+          static_cast<float>(gridWidth - 2);
+      const float vTop = 0.5f *
+          (velocityY[index(x, y - 1)] + velocityY[cell]) *
+          static_cast<float>(gridHeight - 2);
+      const float vBottom = 0.5f *
+          (velocityY[cell] + velocityY[index(x, y + 1)]) *
+          static_cast<float>(gridHeight - 2);
+      leftFaceVelocity[cell] = uLeft;
+      rightFaceVelocity[cell] = uRight;
+      topFaceVelocity[cell] = vTop;
+      bottomFaceVelocity[cell] = vBottom;
+      const auto rho = [&](const int px, const int py) {
+        return initialDensity[index(px, py)];
+      };
+      const float leftState = uLeft >= 0.0f
+          ? rho(x - 1, y) + 0.5f * diagnosticMinmod(
+                rho(x - 1, y) - rho(std::max(0, x - 2), y),
+                rho(x, y) - rho(x - 1, y))
+          : rho(x, y) - 0.5f * diagnosticMinmod(
+                rho(x, y) - rho(std::max(0, x - 1), y),
+                rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y));
+      const float rightState = uRight >= 0.0f
+          ? rho(x, y) + 0.5f * diagnosticMinmod(
+                rho(x, y) - rho(std::max(0, x - 1), y),
+                rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y))
+          : rho(std::min(gridWidth - 1, x + 1), y) - 0.5f *
+                diagnosticMinmod(
+                    rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y),
+                    rho(std::min(gridWidth - 1, x + 2), y) -
+                        rho(std::min(gridWidth - 1, x + 1), y));
+      const float topState = vTop >= 0.0f
+          ? rho(x, y - 1) + 0.5f * diagnosticMinmod(
+                rho(x, y - 1) - rho(x, std::max(0, y - 2)),
+                rho(x, y) - rho(x, y - 1))
+          : rho(x, y) - 0.5f * diagnosticMinmod(
+                rho(x, y) - rho(x, std::max(0, y - 1)),
+                rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y));
+      const float bottomState = vBottom >= 0.0f
+          ? rho(x, y) + 0.5f * diagnosticMinmod(
+                rho(x, y) - rho(x, std::max(0, y - 1)),
+                rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y))
+          : rho(x, std::min(gridHeight - 1, y + 1)) - 0.5f *
+                diagnosticMinmod(
+                    rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y),
+                    rho(x, std::min(gridHeight - 1, y + 2)) -
+                        rho(x, std::min(gridHeight - 1, y + 1)));
+      const float divergence = (uRight - uLeft) + (vBottom - vTop);
+      const float limitedDerivative =
+          uRight * (rightState - rho(x, y)) -
+          uLeft * (leftState - rho(x, y)) +
+          vBottom * (bottomState - rho(x, y)) -
+          vTop * (topState - rho(x, y));
+      firstOrderFluxSum -= static_cast<double>(rho(x, y)) * divergence;
+      limitedFluxSum -= static_cast<double>(rho(x, y)) * divergence +
+          static_cast<double>(limitedDerivative);
+      initialLimitedReconstructionDerivative -= limitedDerivative;
+      initialInteriorMass += rho(x, y);
+      firstOrderNext[cell] = rho(x, y) - frameDt * rho(x, y) * divergence;
+      limitedNext[cell] = rho(x, y) - frameDt *
+          (rho(x, y) * divergence + limitedDerivative);
+    }
+  }
+  double firstOrderMassDelta = 0.0;
+  double limitedMassDelta = 0.0;
+  double limitedMassDeltaClamped = 0.0;
+  for (int y = 1; y < gridHeight - 1; ++y) {
+    for (int x = 1; x < gridWidth - 1; ++x) {
+      const auto cell = index(x, y);
+      firstOrderMassDelta += firstOrderNext[cell] - initialDensity[cell];
+      limitedMassDelta += limitedNext[cell] - initialDensity[cell];
+      limitedMassDeltaClamped +=
+          std::max(0.0f, limitedNext[cell]) - initialDensity[cell];
+    }
+  }
+  GTEST_LOG_(INFO) << "fixed scalar one-step frameDt=" << frameDt
+      << " mass=" << initialInteriorMass
+      << " upwind-flux-sum=" << firstOrderFluxSum
+      << " upwind-mass-delta=" << firstOrderMassDelta
+      << " MUSCL-flux-sum=" << limitedFluxSum
+      << " MUSCL-mass-delta=" << limitedMassDelta
+      << " MUSCL-clamped-mass-delta=" << limitedMassDeltaClamped
+      << " MUSCL-reconstruction-derivative="
+      << initialLimitedReconstructionDerivative;
+
+  for (const int frameSubsteps : {1, 2, 4, 8, 16, 32}) {
+    auto density = initialDensity;
+    auto next = initialDensity;
+    double minimumBeforeClamp = 0.0;
+    double clampedMassAdded = 0.0;
+    double massAfter = 0.0;
+    const float dt = frameDt / static_cast<float>(frameSubsteps);
+    for (int substep = 0; substep < frameSubsteps; ++substep) {
+      for (int y = 1; y < gridHeight - 1; ++y) {
+        for (int x = 1; x < gridWidth - 1; ++x) {
+          const auto cell = index(x, y);
+          const auto rho = [&](const int px, const int py) {
+            return density[index(px, py)];
+          };
+          const float uLeft = leftFaceVelocity[cell];
+          const float uRight = rightFaceVelocity[cell];
+          const float vTop = topFaceVelocity[cell];
+          const float vBottom = bottomFaceVelocity[cell];
+          const float leftState = uLeft >= 0.0f
+              ? rho(x - 1, y) + 0.5f * diagnosticMinmod(
+                    rho(x - 1, y) - rho(std::max(0, x - 2), y),
+                    rho(x, y) - rho(x - 1, y))
+              : rho(x, y) - 0.5f * diagnosticMinmod(
+                    rho(x, y) - rho(std::max(0, x - 1), y),
+                    rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y));
+          const float rightState = uRight >= 0.0f
+              ? rho(x, y) + 0.5f * diagnosticMinmod(
+                    rho(x, y) - rho(std::max(0, x - 1), y),
+                    rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y))
+              : rho(std::min(gridWidth - 1, x + 1), y) - 0.5f *
+                    diagnosticMinmod(
+                        rho(std::min(gridWidth - 1, x + 1), y) - rho(x, y),
+                        rho(std::min(gridWidth - 1, x + 2), y) -
+                            rho(std::min(gridWidth - 1, x + 1), y));
+          const float topState = vTop >= 0.0f
+              ? rho(x, y - 1) + 0.5f * diagnosticMinmod(
+                    rho(x, y - 1) - rho(x, std::max(0, y - 2)),
+                    rho(x, y) - rho(x, y - 1))
+              : rho(x, y) - 0.5f * diagnosticMinmod(
+                    rho(x, y) - rho(x, std::max(0, y - 1)),
+                    rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y));
+          const float bottomState = vBottom >= 0.0f
+              ? rho(x, y) + 0.5f * diagnosticMinmod(
+                    rho(x, y) - rho(x, std::max(0, y - 1)),
+                    rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y))
+              : rho(x, std::min(gridHeight - 1, y + 1)) - 0.5f *
+                    diagnosticMinmod(
+                        rho(x, std::min(gridHeight - 1, y + 1)) - rho(x, y),
+                        rho(x, std::min(gridHeight - 1, y + 2)) -
+                            rho(x, std::min(gridHeight - 1, y + 1)));
+          next[cell] = density[cell] - dt * (
+              uRight * rightState - uLeft * leftState +
+              vBottom * bottomState - vTop * topState);
+        }
+      }
+      std::swap(density, next);
+      if (substep + 1 < frameSubsteps) {
+        for (int x = 0; x < gridWidth; ++x) {
+          density[index(x, 0)] = density[index(x, 1)];
+          density[index(x, gridHeight - 1)] = density[index(x, gridHeight - 2)];
+        }
+        for (int y = 0; y < gridHeight; ++y) {
+          density[index(0, y)] = density[index(1, y)];
+          density[index(gridWidth - 1, y)] = density[index(gridWidth - 2, y)];
+        }
+      }
+    }
+    minimumBeforeClamp = std::numeric_limits<double>::infinity();
+    for (int y = 1; y < gridHeight - 1; ++y) {
+      for (int x = 1; x < gridWidth - 1; ++x) {
+        const auto cell = index(x, y);
+        minimumBeforeClamp = std::min(minimumBeforeClamp,
+                                      static_cast<double>(density[cell]));
+        if (density[cell] < 0.0f) {
+          clampedMassAdded -= density[cell];
+          density[cell] = 0.0f;
+        }
+        massAfter += density[cell];
+      }
+    }
+    GTEST_LOG_(INFO) << "fixed scalar MUSCL frame-CFL split=" << frameSubsteps
+        << " dt=" << dt << " minimum-before-clamp=" << minimumBeforeClamp
+        << " clamp-added-mass=" << clampedMassAdded
+        << " final-mass=" << massAfter;
+  }
 
   const auto sampleBilinear = [&](const ArtifactCore::NamedVector<float>& field,
                                   float x, float y) {

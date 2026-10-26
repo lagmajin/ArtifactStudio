@@ -7282,10 +7282,10 @@
 
 ## 2026-10-27: 固定渦scalar輸送でMUSCLは質量を保つが今回の比較では有意な見た目改善なし
 - **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`、72×88固定velocity scalar fixture。
-- **確認できた事実:** 先行記録のMUSCL/Upwind集計にはmethod row→substep indexの誤りがあり、追加2行の計測では4/8両方に8/16 substepsを使っていた。修正後に独立テストを再実行して1/1 pass。semi-Lagrangianのframe60 massはseed17/71で223.778/228.791 (1 step)、219.732/218.479 (8 steps)。MUSCL 8-stepは218.586/218.555とほぼ一定。MUSCL 4-stepは326.536/298.158へ増える。first-order upwind 4/8-stepは132.985/133.038 (seed17)、470.514/470.936 (seed71)で強いsource位置依存を示す。MUSCL 8-stepでも滑らかな帯で、billowや明瞭な品質改善は確認できない。修正後の画像とlogは `build/smoke-emitter-rnd/captures/fixed-scalar-transport-cfl-rnd/` と `build/smoke-emitter-rnd/fixed-scalar-transport-cfl-rnd.log`。
-- **価値または懸念:** 先行コミット/報告の診断値およびその不安定性の解釈は無効として扱う。現在の再計測でも4-step MUSCLの質量増加は残るが、その原因を離散発散・境界条件・CFLのいずれかと断定できる検証にはなっていない。first-order upwindは低精度の参考条件。製品solverへ採用する根拠はない。
-- **仮説（未検証）:** セル中心から面へ平均した速度の離散発散と、テストが使う境界flux設定の整合が質量変動へ関係している可能性がある。
-- **次に確認すべきこと:** 固定流の面速度発散と境界通量を明示計測し、まず一stepの密度mass balanceをCFL別に検証する。安定条件を確定後にだけ露出を合わせた画像比較とsource-coupled再生へ進む。
+- **確認できた事実:** 先行記録のMUSCL/Upwind集計にはmethod row→substep indexの誤りがあり、追加2行の計測では4/8両方に8/16 substepsを使っていた。修正後、fixture名も`MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`として独立テスト1/1 pass。semi-Lagrangianのframe60 massはseed17/71で223.778/228.791 (1 step)、219.732/218.479 (8 steps)。MUSCL 8-stepは218.586/218.555、4-stepは326.536/298.158。first-order upwind 4/8-stepは132.985/133.038 (seed17)、470.514/470.936 (seed71)。追加の一step収支では初期mass218.587、MUSCL raw flux和+0.01524、予測mass delta+0.00051だが、positivity clamp後は+0.20637。frameを2分割するとclamp-added massは0、final massは218.587で保存。1分割(CFL 3.55)の最小密度は-.00463、2分割(CFL約1.77)以上は負値なし。MUSCL 4-step branchのframe60質量増加はこのclamp機構と整合し、これが主因と考えられる。面速度divergence RMS .3618、総境界fluxはほぼ0。Coreのcentered projectionをこの別離散速度場へ使うと発散は改善しなかったので因果根拠に使わない。ログは`build/smoke-emitter-rnd/fixed-scalar-face-flux-rnd.log`。
+- **価値または懸念:** 以前のmass-growthを離散速度発散や境界条件へ帰属した記録は撤回する。確認したfixtureでは高CFL時の負密度clampが明示的な質量非保存要因だが、4-step長時間増加の全量をclampだけが説明するかはまだ比較が必要。first-order upwindは低精度の参考条件であり、MUSCL結果を代表しない。MUSCL 8-stepでもbillowや明瞭な品質改善はなく、製品solverへ採用する根拠はない。
+- **仮説（未検証）:** MUSCLは最大セルCFLをおよそ1以下に制限すればpositivity clampによる過剰な質量が減り、保守性を維持しやすい可能性がある。
+- **次に確認すべきこと:** MUSCLをsubstepごとの最大CFL≤1へ制限し、同じ60-frame固定渦で質量保存・peak・gradient・画像を再比較する。改善が出てもsource-coupled solverとGPU renderでplume volume、billow、時間一貫性を確認するまでは製品経路へ移さない。
 
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
