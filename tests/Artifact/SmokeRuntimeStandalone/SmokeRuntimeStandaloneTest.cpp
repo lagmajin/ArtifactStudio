@@ -1066,7 +1066,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   settings.dissipation = 0.035f;
   settings.coolingRate = 0.18f;
   settings.buoyancy = 0.7f;
-  settings.vorticity = 0.45f;
+  settings.vorticity = 0.0f;
   settings.pressureIterations = 96.0f;
   PyroSourceState source;
   source.position = {0.0f, 0.18f, 0.0f};
@@ -1110,26 +1110,41 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   struct Branch final {
     const char* label;
     std::uint32_t seed;
+    float vorticityStrength;
     PyroSimulation simulation;
     PyroSourceState source;
     Branch(const char* name, const std::uint32_t branchSeed,
-           const PyroDomain& branchDomain, const PyroSourceState& branchSource)
-        : label(name), seed(branchSeed), simulation(branchDomain),
+           const PyroDomain& branchDomain, const PyroSourceState& branchSource,
+           const float strength = 0.0f)
+        : label(name), seed(branchSeed),
+          vorticityStrength(strength),
+          simulation(branchDomain),
           source(branchSource) {}
   };
-  std::array<Branch, 6> branches{{
+  std::array<Branch, 10> branches{{
       Branch("highres-control-seed17", 17u, domain, source),
       Branch("highres-wide-seed17", 17u, domain, source),
       Branch("highres-tall-seed17", 17u, domain, source),
       Branch("highres-control-seed71", 71u, domain, source),
       Branch("highres-wide-seed71", 71u, domain, source),
-      Branch("highres-tall-seed71", 71u, domain, source)}};
+      Branch("highres-tall-seed71", 71u, domain, source),
+      Branch("highres-wide-curlconfinement3-seed17", 17u, domain,
+          source, 3.0f),
+      Branch("highres-wide-curlconfinement8-seed17", 17u, domain,
+          source, 8.0f),
+      Branch("highres-wide-curlconfinement3-seed71", 71u, domain,
+          source, 3.0f),
+      Branch("highres-wide-curlconfinement8-seed71", 71u, domain,
+          source, 8.0f)}};
   for (std::size_t i = 0; i < branches.size(); ++i) {
     auto& branch = branches[i];
-    branch.simulation.setSettings(settings);
-    if (i % 3 == 1) branch.source.extent = {0.20f, 0.09f, 0.20f};
-    if (i % 3 == 2) branch.source.extent = {0.07f, 0.18f, 0.07f};
-    if (i % 3 != 0)
+    auto branchSettings = settings;
+    const std::size_t shapeIndex = i < 6 ? i % 3 : 1;
+    branchSettings.vorticity = branch.vorticityStrength;
+    branch.simulation.setSettings(branchSettings);
+    if (shapeIndex == 1) branch.source.extent = {0.20f, 0.09f, 0.20f};
+    if (shapeIndex == 2) branch.source.extent = {0.07f, 0.18f, 0.07f};
+    if (shapeIndex != 0)
       branch.source.density *= static_cast<float>(baseWeight /
           sourceWeight(branch.source.extent));
   }

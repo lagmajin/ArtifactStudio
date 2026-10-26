@@ -95,9 +95,13 @@ the low-jet CPU volume captures contain a dark shadow artifact; they are not
 used as evidence of visual quality. Focused GTest passed 1/1 (56.06 s), with
 captures in `build/smoke-runtime-rnd/captures/3d-source-shape-thermal-20261026/3d-source-rollup-rnd/`.
 
-`RechecksPyroSourceShapeAcrossSeedsAtHigherResolution` repeats control / wide /
+`RechecksPyroSourceShapeAcrossSeedsAtHigherResolution` compares control / wide /
 tall source shapes at 72x54x48 voxels, with 96 pressure iterations in every
 branch and two phases (17 / 71) of a bounded height-varying lateral shear.
+The production confinement applies only in smoke density, using a smooth gate.
+Removing that gate in an exploratory run raises strength-8 divergence to
+.111 / .151 for the two phases and lowers the mass-matched image luma, so the
+unlocalized force is not used.
 At step 60, mass-matched side occupied pixels are 3,976 / 6,172 / 5,476 for
 control / wide / tall at phase 17, and 3,982 / 6,195 / 5,557 at phase 71.
 The broad source effect therefore persists across both phases at higher
@@ -107,9 +111,15 @@ RMS ranges .024-.046; full-plume residuals are not monotonic as iteration
 count changes because each pressure setting produces a different evolving
 trajectory. The separate one-step projection diagnostic holds the input state
 fixed: divergence RMS drops from .72898 before projection to .60667 / .54278 /
-.44738 / .31718 at 12 / 24 / 48 / 96 iterations. Both focused tests passed
-(28.38 s for the shape sweep at 96 iterations; 0.35 s for the one-step sweep).
-Captures are under `build/smoke-runtime-rnd/captures/3d-source-highres-20261026-96iter/`.
+.44738 / .31718 at 12 / 24 / 48 / 96 iterations. In the same high-resolution
+fixture, the Core vorticity implementation is exercised at strengths 0 / 3 / 8.
+At strength 8, side occupancy is 6,350 / 6,360 versus 6,122 / 6,149 for the
+wide-source control at phases 17 / 71; divergence RMS is .0272 / .0377 versus
+.0264 / .0260. Captures show mild stacked lobes in both phases, but no clear
+folded billows. Focused tests passed: 28.38 s for source shape, 0.35 s for
+projection, and 91.01 s for the Core confinement sweep plus projection check.
+Captures are under
+`build/smoke-runtime-rnd/captures/3d-source-production-curlconf-20261026-optimized/`.
 
 An earlier value-noise scale sweep of this same case compared deterministic,
 smooth 3D value-noise vector potentials applied as density-gated curl
