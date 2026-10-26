@@ -2591,6 +2591,483 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesTwoDimensionalSmokeWithMatchedExposureDepthEvolvedPyro) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+  constexpr int sourceWidth = 96;
+  constexpr int sourceHeight = 72;
+  constexpr int sourceFrame = 44;
+  constexpr int volumeImageWidth = 160;
+  constexpr int volumeImageHeight = 120;
+
+  Artifact::LayerSmokeRuntimeSettings smokeSettings;
+  smokeSettings.gridWidth = sourceWidth;
+  smokeSettings.gridHeight = sourceHeight;
+  smokeSettings.solverIterations = 20;
+  smokeSettings.emitterX = 0.5f;
+  smokeSettings.emitterY = 0.78f;
+  smokeSettings.emitterRadius = 0.08f;
+  smokeSettings.emitterDensity = 0.8f;
+  smokeSettings.emitterVelocityY = -1.2f;
+  smokeSettings.vorticity = 1.5f;
+  smokeSettings.emitterSwirl = 0.6f;
+  smokeSettings.colorR = 0.12f;
+  smokeSettings.colorG = 0.76f;
+  smokeSettings.colorB = 0.28f;
+
+  Artifact::LayerFluidRuntimeState sourceRuntime;
+  for (int frame = 0; frame <= sourceFrame; ++frame)
+    Artifact::advanceLayerSmokeRuntime(
+        sourceRuntime, frame, 30.0, smokeSettings);
+  ASSERT_NE(sourceRuntime.fluidSolver_, nullptr);
+  QMatrix4x4 transform;
+  transform.setToIdentity();
+  const QRectF sourceBounds(0.0, 0.0, sourceWidth, sourceHeight);
+  const auto& particleData = Artifact::prepareLayerSmokeRenderData(
+      sourceRuntime, sourceBounds, transform, 1.0f, sourceFrame, smokeSettings);
+  ASSERT_GT(particleData.particles.size(), 20u);
+  const QImage particleImage = rasterizeParticles(particleData).scaled(
+      volumeImageWidth, volumeImageHeight, Qt::IgnoreAspectRatio,
+      Qt::SmoothTransformation);
+
+  PyroDomain domain;
+  domain.min = {-0.75f, 0.0f, -0.5f};
+  domain.max = {0.75f, 1.125f, 0.5f};
+  domain.voxelSize = 1.0f / 32.0f;
+  domain.fixedTimeStep = 1.0 / 60.0;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 32u * 1024u * 1024u;
+  const auto pyroResolution = domain.resolution();
+  const VolumeResolution volumeResolution{pyroResolution.width,
+      pyroResolution.height, pyroResolution.depth};
+  const auto volumeIndex = [volumeResolution](const int x, const int y,
+                                               const int z) {
+    return volumeResolution.indexOf(x, y, z);
+  };
+  PyroSimulation evolvedSimulation(domain);
+  PyroSimulationSettings pyroSettings;
+  pyroSettings.dissipation = 0.035f;
+  pyroSettings.coolingRate = 0.18f;
+  pyroSettings.buoyancy = 0.7f;
+  pyroSettings.vorticity = 0.45f;
+  pyroSettings.pressureIterations = 8.0f;
+  evolvedSimulation.setSettings(pyroSettings);
+  PyroSimulation curlEvolvedSimulation(domain);
+  curlEvolvedSimulation.setSettings(pyroSettings);
+
+  const auto sourceDensity = sourceRuntime.fluidSolver_->snapshot().density;
+  const auto sampleSourceDensity = [&](const float x, const float y) {
+    const float sx = std::clamp(x, 0.0f, static_cast<float>(sourceWidth - 1));
+    const float sy = std::clamp(y, 0.0f, static_cast<float>(sourceHeight - 1));
+    const int x0 = static_cast<int>(std::floor(sx));
+    const int y0 = static_cast<int>(std::floor(sy));
+    const int x1 = std::min(x0 + 1, sourceWidth - 1);
+    const int y1 = std::min(y0 + 1, sourceHeight - 1);
+    const float tx = sx - static_cast<float>(x0);
+    const float ty = sy - static_cast<float>(y0);
+    const auto at = [&](const int px, const int py) {
+      return sourceDensity[static_cast<std::size_t>(py * sourceWidth + px)];
+    };
+    return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
+                     std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+  };
+  std::vector<float> staticDepthDensity(volumeResolution.cellCount(), 0.0f);
+  std::vector<float> depthSeededDensity(volumeResolution.cellCount(), 0.0f);
+  for (int y = 0; y < pyroResolution.height; ++y) {
+    const float sourceY = static_cast<float>(sourceHeight - 1) -
+        static_cast<float>(y) * static_cast<float>(sourceHeight - 1) /
+            static_cast<float>(pyroResolution.height - 1);
+    for (int x = 0; x < pyroResolution.width; ++x) {
+      const float sourceX = static_cast<float>(x) *
+          static_cast<float>(sourceWidth - 1) /
+          static_cast<float>(pyroResolution.width - 1);
+      const float baseDensity = sampleSourceDensity(sourceX, sourceY);
+      double envelopeSum = 0.0;
+      double warpedDensitySum = 0.0;
+      for (int z = 0; z < pyroResolution.depth; ++z) {
+        const float zNorm = (static_cast<float>(z) + 0.5f) /
+            static_cast<float>(pyroResolution.depth) * 2.0f - 1.0f;
+        const float envelope = std::exp(-2.5f * zNorm * zNorm);
+        staticDepthDensity[volumeIndex(x, y, z)] = baseDensity * envelope;
+        envelopeSum += envelope;
+        const float warpX = 2.5f * smokeValueNoise(
+            0.13f * sourceX + 4.0f * zNorm,
+            0.13f * sourceY - 2.0f * zNorm + 7.0f) +
+            0.8f * smokeValueNoise(
+                0.4f * sourceX - 7.0f * zNorm,
+                0.4f * sourceY + 3.0f * zNorm);
+        const float warpY = 2.5f * smokeValueNoise(
+            0.13f * sourceX - 2.0f * zNorm + 21.0f,
+            0.13f * sourceY + 4.0f * zNorm - 17.0f) +
+            0.8f * smokeValueNoise(
+                0.4f * sourceX + 3.0f * zNorm,
+                0.4f * sourceY - 7.0f * zNorm);
+        depthSeededDensity[volumeIndex(x, y, z)] =
+            sampleSourceDensity(sourceX + warpX, sourceY + warpY) * envelope;
+        warpedDensitySum += depthSeededDensity[volumeIndex(x, y, z)];
+      }
+      const float normalization = static_cast<float>(
+          static_cast<double>(pyroResolution.depth) / envelopeSum);
+      const float warpedNormalization = warpedDensitySum > 1.0e-8
+          ? static_cast<float>(static_cast<double>(pyroResolution.depth) *
+              baseDensity / warpedDensitySum) : 0.0f;
+      for (int z = 0; z < pyroResolution.depth; ++z) {
+        const auto index = volumeIndex(x, y, z);
+        staticDepthDensity[index] *= normalization;
+        depthSeededDensity[index] *= warpedNormalization;
+      }
+    }
+  }
+  const auto initializePyroFields = [&](PyroSimulation& simulation,
+                                       const std::vector<float>& density) {
+    auto densityView = simulation.fields().densityView();
+    auto temperatureView = simulation.fields().temperatureView();
+    for (std::size_t index = 0; index < density.size(); ++index) {
+      densityView.values[index] = density[index];
+      temperatureView.values[index] = density[index] * 1.5f;
+    }
+  };
+  initializePyroFields(evolvedSimulation, staticDepthDensity);
+  initializePyroFields(curlEvolvedSimulation, staticDepthDensity);
+
+  // Seed the second run with a multi-scale curl field. Taking the curl of a
+  // density-supported vector potential adds 3D motion without prescribing a
+  // compressive push or changing the initial density field.
+  std::vector<PyroVec3> vectorPotential(volumeResolution.cellCount());
+  std::vector<PyroVec3> curlVelocity(volumeResolution.cellCount());
+  const auto samplePotential = [&](const int sampleX, const int sampleY,
+                                   const int sampleZ) {
+    const int x = std::clamp(sampleX, 0, pyroResolution.width - 1);
+    const int y = std::clamp(sampleY, 0, pyroResolution.height - 1);
+    const int z = std::clamp(sampleZ, 0, pyroResolution.depth - 1);
+    const float rho = staticDepthDensity[volumeIndex(x, y, z)];
+    const float gate = rho / (rho + 0.08f);
+    const float worldX = domain.min.x + (static_cast<float>(x) + 0.5f) *
+        domain.voxelSize;
+    const float worldY = domain.min.y + (static_cast<float>(y) + 0.5f) *
+        domain.voxelSize;
+    const float worldZ = domain.min.z + (static_cast<float>(z) + 0.5f) *
+        domain.voxelSize;
+    constexpr float twoPi = 6.28318530718f;
+    return PyroVec3{
+        gate * std::sin(twoPi * (worldY / 0.34f + worldZ / 0.41f) + 0.37f),
+        gate * std::sin(twoPi * (worldZ / 0.29f + worldX / 0.47f) - 0.81f),
+        gate * std::sin(twoPi * (worldX / 0.38f - worldY / 0.52f) + 1.13f)};
+  };
+  const auto potentialAt = [&](const int x, const int y, const int z) -> const PyroVec3& {
+    return vectorPotential[volumeIndex(
+        std::clamp(x, 0, pyroResolution.width - 1),
+        std::clamp(y, 0, pyroResolution.height - 1),
+        std::clamp(z, 0, pyroResolution.depth - 1))];
+  };
+  for (int z = 0; z < pyroResolution.depth; ++z)
+    for (int y = 0; y < pyroResolution.height; ++y)
+      for (int x = 0; x < pyroResolution.width; ++x)
+        vectorPotential[volumeIndex(x, y, z)] = samplePotential(x, y, z);
+  auto turbulenceVelocity = curlEvolvedSimulation.fields().velocityView();
+  double curlSpeedSquared = 0.0;
+  double curlDivergenceSquared = 0.0;
+  double densityWeight = 0.0;
+  const float inverseTwoVoxel = 0.5f / domain.voxelSize;
+  for (int z = 0; z < pyroResolution.depth; ++z)
+    for (int y = 0; y < pyroResolution.height; ++y)
+      for (int x = 0; x < pyroResolution.width; ++x) {
+        const auto& axp = potentialAt(x + 1, y, z);
+        const auto& axm = potentialAt(x - 1, y, z);
+        const auto& ayp = potentialAt(x, y + 1, z);
+        const auto& aym = potentialAt(x, y - 1, z);
+        const auto& azp = potentialAt(x, y, z + 1);
+        const auto& azm = potentialAt(x, y, z - 1);
+        const PyroVec3 curl{
+            ((ayp.z - aym.z) - (azp.y - azm.y)) * inverseTwoVoxel,
+            ((azp.x - azm.x) - (axp.z - axm.z)) * inverseTwoVoxel,
+            ((axp.y - axm.y) - (ayp.x - aym.x)) * inverseTwoVoxel};
+        curlVelocity[volumeIndex(x, y, z)] = curl;
+        const double rho = staticDepthDensity[volumeIndex(x, y, z)];
+        if (rho <= 1.0e-5) continue;
+        curlSpeedSquared += rho * (curl.x * curl.x + curl.y * curl.y +
+            curl.z * curl.z);
+        densityWeight += rho;
+      }
+  const double unscaledCurlRms = densityWeight > 0.0
+      ? std::sqrt(curlSpeedSquared / densityWeight) : 0.0;
+  constexpr float targetCurlRms = 8.0f;
+  const float curlScale = unscaledCurlRms > 1.0e-8
+      ? targetCurlRms / static_cast<float>(unscaledCurlRms) : 0.0f;
+  double curlDivergenceWeight = 0.0;
+  for (int z = 0; z < pyroResolution.depth; ++z)
+    for (int y = 0; y < pyroResolution.height; ++y)
+      for (int x = 0; x < pyroResolution.width; ++x) {
+        const auto& xp = curlVelocity[volumeIndex(
+            std::min(x + 1, pyroResolution.width - 1), y, z)];
+        const auto& xm = curlVelocity[volumeIndex(std::max(x - 1, 0), y, z)];
+        const auto& yp = curlVelocity[volumeIndex(
+            x, std::min(y + 1, pyroResolution.height - 1), z)];
+        const auto& ym = curlVelocity[volumeIndex(x, std::max(y - 1, 0), z)];
+        const auto& zp = curlVelocity[volumeIndex(
+            x, y, std::min(z + 1, pyroResolution.depth - 1))];
+        const auto& zm = curlVelocity[volumeIndex(x, y, std::max(z - 1, 0))];
+        const double divergence = 0.5 * ((xp.x - xm.x) + (yp.y - ym.y) +
+                                           (zp.z - zm.z)) * curlScale;
+        const double rho = staticDepthDensity[volumeIndex(x, y, z)];
+        curlDivergenceSquared += rho * divergence * divergence;
+        curlDivergenceWeight += rho;
+        auto& velocity = turbulenceVelocity.at(x, y, z);
+        velocity.x += curlVelocity[volumeIndex(x, y, z)].x * curlScale;
+        velocity.y += curlVelocity[volumeIndex(x, y, z)].y * curlScale;
+        velocity.z += curlVelocity[volumeIndex(x, y, z)].z * curlScale;
+      }
+  const double curlDivergenceRms = curlDivergenceWeight > 0.0
+      ? std::sqrt(curlDivergenceSquared / curlDivergenceWeight) : 0.0;
+  EXPECT_NEAR(unscaledCurlRms * curlScale, targetCurlRms,
+      static_cast<double>(targetCurlRms) * 0.001);
+  EXPECT_LT(curlDivergenceRms, 1.0e-4);
+
+  const auto renderVolume = [&](float* density, const float densityScale,
+                                const bool sideView = false) {
+    CPUVolumeRenderer renderer;
+    VolumeAABB bounds;
+    bounds.min = {domain.min.x, domain.min.y, domain.min.z};
+    bounds.max = {domain.max.x, domain.max.y, domain.max.z};
+    renderer.bounds = bounds;
+    VolumeFieldSet fields;
+    fields.density = {density, volumeResolution};
+    renderer.setVolumeData(bounds, fields);
+    renderer.settings.stepSize = 0.018f;
+    renderer.settings.maxSteps = 256;
+    renderer.settings.densityScale = densityScale;
+    renderer.settings.useTemperatureEmission = false;
+    renderer.settings.backgroundColor = {0.0012f, 0.0025f, 0.0060f};
+    renderer.settings.lightIntensity = 3.0f;
+    renderer.settings.phaseAnisotropy = 0.25f;
+    renderer.settings.multipleScatteringStrength = 0.18f;
+    renderer.settings.shadowIntensity = 0.25f;
+    renderer.settings.shadowStepSize = 0.04f;
+    renderer.settings.shadowMaxSteps = 96;
+    renderer.settings.shadowDensityScale = 0.08f;
+    const Point3 lookAt{0.0f, 0.56f, 0.0f};
+    const Point3 lookFrom = sideView ? Point3{2.4f, 0.56f, 0.0f}
+                                     : Point3{0.0f, 0.56f, 2.4f};
+    renderer.camera = Camera(sideView ? 1.0f : 4.0f / 3.0f,
+        36.0f, 2.4f, 0.0f,
+        lookFrom, lookAt, {0.0f, 1.0f, 0.0f});
+    return sideView ? renderer.render(120, 120)
+                    : renderer.render(volumeImageWidth, volumeImageHeight);
+  };
+  const auto toSrgbImage = [](const ImageBuffer& buffer) {
+    QImage image(buffer.width, buffer.height, QImage::Format_ARGB32);
+    for (int y = 0; y < buffer.height; ++y) {
+      auto* row = reinterpret_cast<QRgb*>(image.scanLine(y));
+      for (int x = 0; x < buffer.width; ++x) {
+        const auto offset = static_cast<std::size_t>((y * buffer.width + x) * 3);
+        const auto encode = [](const std::uint8_t channel) {
+          const float linear = static_cast<float>(channel) / 255.0f;
+          return static_cast<int>(std::lround(
+              std::pow(linear, 1.0f / 2.2f) * 255.0f));
+        };
+        row[x] = qRgb(encode(buffer.pixels[offset]),
+                      encode(buffer.pixels[offset + 1]),
+                      encode(buffer.pixels[offset + 2]));
+      }
+    }
+    // CPU ray tracing emits row zero at the camera's lower edge; composition
+    // and particle captures use a top-left image origin.
+    return image.mirrored(false, true);
+  };
+  struct ShapeMetrics final {
+    int visible = 0;
+    double exposure = 0.0;
+    double centroidX = 0.0;
+    double centroidY = 0.0;
+    double highPassRms = 0.0;
+  };
+  const auto measureShape = [](const QImage& image) {
+    ShapeMetrics metrics;
+    constexpr double backgroundLuma =
+        0.2126 * 12.0 + 0.7152 * 16.0 + 0.0722 * 24.0;
+    double weightedX = 0.0;
+    double weightedY = 0.0;
+    for (int y = 0; y < image.height(); ++y)
+      for (int x = 0; x < image.width(); ++x) {
+        const QRgb pixel = image.pixel(x, y);
+        const double luma = 0.2126 * qRed(pixel) + 0.7152 * qGreen(pixel) +
+            0.0722 * qBlue(pixel);
+        const double excess = std::max(0.0, luma - backgroundLuma);
+        if (excess <= 2.0) continue;
+        ++metrics.visible;
+        metrics.exposure += excess;
+        weightedX += excess * x;
+        weightedY += excess * y;
+      }
+    if (metrics.exposure > 0.0) {
+      metrics.centroidX = weightedX / metrics.exposure;
+      metrics.centroidY = weightedY / metrics.exposure;
+    }
+    double highPassSquared = 0.0;
+    std::size_t highPassCount = 0;
+    for (int y = 1; y + 1 < image.height(); ++y)
+      for (int x = 1; x + 1 < image.width(); ++x) {
+        const auto excessAt = [&](const int px, const int py) {
+          const QRgb pixel = image.pixel(px, py);
+          const double luma = 0.2126 * qRed(pixel) + 0.7152 * qGreen(pixel) +
+              0.0722 * qBlue(pixel);
+          return std::max(0.0, luma - backgroundLuma);
+        };
+        const double residual = excessAt(x, y) - 0.25 * (
+            excessAt(x - 1, y) + excessAt(x + 1, y) +
+            excessAt(x, y - 1) + excessAt(x, y + 1));
+        highPassSquared += residual * residual;
+        ++highPassCount;
+      }
+    metrics.highPassRms = highPassCount > 0
+        ? std::sqrt(highPassSquared / highPassCount) : 0.0;
+    return metrics;
+  };
+  const ShapeMetrics particleShape = measureShape(particleImage);
+  ASSERT_GT(particleShape.exposure, 0.0);
+  const auto renderExposureMatched = [&](float* density) {
+    float low = 0.05f;
+    float high = 32.0f;
+    ImageBuffer rendered;
+    for (int iteration = 0; iteration < 8; ++iteration) {
+      const float scale = 0.5f * (low + high);
+      rendered = renderVolume(density, scale);
+      const auto metrics = measureShape(toSrgbImage(rendered));
+      if (metrics.exposure < particleShape.exposure) low = scale;
+      else high = scale;
+    }
+    const float scale = 0.5f * (low + high);
+    rendered = renderVolume(density, scale);
+    return std::pair<float, QImage>{scale, toSrgbImage(rendered)};
+  };
+  const auto staticResult = renderExposureMatched(staticDepthDensity.data());
+  const auto staticShape = measureShape(staticResult.second);
+  const auto staticDepthSeededResult = renderExposureMatched(
+      depthSeededDensity.data());
+  const auto staticDepthSeededShape = measureShape(
+      staticDepthSeededResult.second);
+
+  const auto simulationStart = std::chrono::steady_clock::now();
+  for (int step = 0; step < 24; ++step) {
+    evolvedSimulation.step(1.0 / 60.0);
+    curlEvolvedSimulation.step(1.0 / 60.0);
+  }
+  const auto simulationEnd = std::chrono::steady_clock::now();
+  const double evolvedSimulationMs = std::chrono::duration<double, std::milli>(
+      simulationEnd - simulationStart).count();
+  const auto evolvedResult = renderExposureMatched(
+      evolvedSimulation.fields().densityStorage().data());
+  const auto evolvedShape = measureShape(evolvedResult.second);
+  const auto curlEvolvedResult = renderExposureMatched(
+      curlEvolvedSimulation.fields().densityStorage().data());
+  const auto curlEvolvedShape = measureShape(
+      curlEvolvedResult.second);
+  const auto staticSideImage = toSrgbImage(renderVolume(
+      staticDepthDensity.data(), staticResult.first, true));
+  const auto staticDepthSideImage = toSrgbImage(renderVolume(
+      depthSeededDensity.data(), staticDepthSeededResult.first, true));
+  const auto evolvedSideImage = toSrgbImage(renderVolume(
+      evolvedSimulation.fields().densityStorage().data(),
+      evolvedResult.first, true));
+  const auto evolvedCurlSideImage = toSrgbImage(renderVolume(
+      curlEvolvedSimulation.fields().densityStorage().data(),
+      curlEvolvedResult.first, true));
+  const auto staticSideShape = measureShape(staticSideImage);
+  const auto staticDepthSideShape = measureShape(staticDepthSideImage);
+  const auto evolvedSideShape = measureShape(evolvedSideImage);
+  const auto evolvedCurlSideShape = measureShape(evolvedCurlSideImage);
+
+  const auto maskIoU = [](const QImage& left, const QImage& right) {
+    int intersection = 0;
+    int unionCount = 0;
+    for (int y = 0; y < left.height(); ++y)
+      for (int x = 0; x < left.width(); ++x) {
+        const bool leftVisible = qRed(left.pixel(x, y)) > 18 ||
+            qGreen(left.pixel(x, y)) > 22 || qBlue(left.pixel(x, y)) > 30;
+        const bool rightVisible = qRed(right.pixel(x, y)) > 18 ||
+            qGreen(right.pixel(x, y)) > 22 || qBlue(right.pixel(x, y)) > 30;
+        intersection += leftVisible && rightVisible;
+        unionCount += leftVisible || rightVisible;
+      }
+    return unionCount > 0
+        ? static_cast<double>(intersection) / unionCount : 1.0;
+  };
+  EXPECT_NEAR(staticResult.second.width(), particleImage.width(), 0);
+  EXPECT_NEAR(staticResult.second.height(), particleImage.height(), 0);
+  EXPECT_NEAR(staticShape.exposure, particleShape.exposure,
+      particleShape.exposure * 0.08);
+  EXPECT_NEAR(staticDepthSeededShape.exposure, particleShape.exposure,
+      particleShape.exposure * 0.08);
+  EXPECT_NEAR(evolvedShape.exposure, particleShape.exposure,
+      particleShape.exposure * 0.08);
+  EXPECT_NEAR(curlEvolvedShape.exposure, particleShape.exposure,
+      particleShape.exposure * 0.08);
+  EXPECT_GT(staticShape.visible, 100);
+  EXPECT_GT(staticDepthSeededShape.visible, 100);
+  EXPECT_GT(evolvedShape.visible, 100);
+  EXPECT_GT(curlEvolvedShape.visible, 100);
+  GTEST_LOG_(INFO) << "2D/2.5D/3D-curl matched-exposure frame=" << sourceFrame
+      << " particles=" << particleData.particles.size()
+      << " exposure2D/static/staticDepth/evolved/evolvedCurl="
+      << particleShape.exposure << '/' << staticShape.exposure << '/'
+      << staticDepthSeededShape.exposure << '/' << evolvedShape.exposure << '/'
+      << curlEvolvedShape.exposure
+      << " visible2D/static/staticDepth/evolved/evolvedCurl="
+      << particleShape.visible << '/' << staticShape.visible << '/'
+      << staticDepthSeededShape.visible << '/' << evolvedShape.visible << '/'
+      << curlEvolvedShape.visible
+      << " centroidY2D/static/staticDepth/evolved/evolvedCurl="
+      << particleShape.centroidY << '/' << staticShape.centroidY << '/'
+      << staticDepthSeededShape.centroidY << '/' << evolvedShape.centroidY << '/'
+      << curlEvolvedShape.centroidY
+      << " highPass2D/static/staticDepth/evolved/evolvedCurl="
+      << particleShape.highPassRms << '/' << staticShape.highPassRms << '/'
+      << staticDepthSeededShape.highPassRms << '/' << evolvedShape.highPassRms
+      << '/' << curlEvolvedShape.highPassRms
+      << " maskIoU2D/static/staticDepth/evolved/evolvedCurl="
+      << maskIoU(particleImage, staticResult.second) << '/'
+      << maskIoU(particleImage, staticDepthSeededResult.second) << '/'
+      << maskIoU(particleImage, evolvedResult.second) << '/'
+      << maskIoU(particleImage, curlEvolvedResult.second)
+      << " densityScaleStatic/staticDepth/evolved/evolvedCurl="
+      << staticResult.first << '/' << staticDepthSeededResult.first << '/'
+      << evolvedResult.first << '/' << curlEvolvedResult.first
+      << " curlRms=" << unscaledCurlRms * curlScale
+      << " curlDivergenceRms=" << curlDivergenceRms
+      << " sideVisibleStatic/staticDepth/evolved/evolvedCurl="
+      << staticSideShape.visible << '/' << staticDepthSideShape.visible << '/'
+      << evolvedSideShape.visible << '/' << evolvedCurlSideShape.visible
+      << " sideHighPass=" << staticSideShape.highPassRms << '/'
+      << staticDepthSideShape.highPassRms << '/' << evolvedSideShape.highPassRms
+      << '/' << evolvedCurlSideShape.highPassRms
+      << " pyro24StepsMs=" << evolvedSimulationMs;
+
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+    EXPECT_TRUE(particleImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_2d_matched_camera.png")), "PNG"));
+    EXPECT_TRUE(staticResult.second.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_2p5d_matched_exposure.png")), "PNG"));
+    EXPECT_TRUE(staticDepthSeededResult.second.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_2p5d_depth_seeded_matched_exposure.png")), "PNG"));
+    EXPECT_TRUE(evolvedResult.second.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_3d_pyro_matched_exposure.png")), "PNG"));
+    EXPECT_TRUE(curlEvolvedResult.second.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_3d_pyro_curl_matched_exposure.png")), "PNG"));
+    EXPECT_TRUE(staticSideImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_2p5d_side.png")), "PNG"));
+    EXPECT_TRUE(staticDepthSideImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_2p5d_depth_seeded_side.png")), "PNG"));
+    EXPECT_TRUE(evolvedSideImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_3d_pyro_side.png")), "PNG"));
+    EXPECT_TRUE(evolvedCurlSideImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke_3d_pyro_curl_side.png")), "PNG"));
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ReportsDensityResolutionQualityAndCostTradeoff) {
   constexpr int kFrameCountForResolution = 44;
   const std::array<SmokeResolutionCapture, 3> captures{{
