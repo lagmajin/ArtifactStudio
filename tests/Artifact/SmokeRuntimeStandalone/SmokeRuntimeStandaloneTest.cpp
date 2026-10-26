@@ -4871,14 +4871,16 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   const auto pyroResolution = domain.resolution();
   const VolumeResolution volumeResolution{pyroResolution.width,
       pyroResolution.height, pyroResolution.depth};
-  PyroSimulation simulation(domain);
+  PyroSimulation baselineSimulation(domain);
+  PyroSimulation depthRollSimulation(domain);
   PyroSimulationSettings settings;
   settings.dissipation = 0.035f;
   settings.coolingRate = 0.0f;
   settings.buoyancy = 0.0f;
   settings.vorticity = 0.0f;
   settings.pressureIterations = 24.0f;
-  simulation.setSettings(settings);
+  baselineSimulation.setSettings(settings);
+  depthRollSimulation.setSettings(settings);
 
   const auto sourceIndex = [](const int x, const int y) {
     return static_cast<std::size_t>(x + sourceWidth * y);
@@ -4901,8 +4903,6 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
                                field[sourceIndex(x1, y1)], tx), ty);
   };
 
-  auto density = simulation.fields().densityView();
-  auto velocity = simulation.fields().velocityView();
   std::vector<float> depthWeights(
       static_cast<std::size_t>(pyroResolution.depth), 0.0f);
   for (int z = 0; z < pyroResolution.depth; ++z) {
@@ -4911,9 +4911,12 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     depthWeights[static_cast<std::size_t>(z)] =
         std::exp(-2.5f * zNorm * zNorm);
   }
-  for (int z = 0; z < pyroResolution.depth; ++z)
-    for (int y = 0; y < pyroResolution.height; ++y)
-      for (int x = 0; x < pyroResolution.width; ++x) {
+  const auto initializeFromProduction2D = [&](PyroSimulation& target) {
+    auto density = target.fields().densityView();
+    auto velocity = target.fields().velocityView();
+    for (int z = 0; z < pyroResolution.depth; ++z)
+      for (int y = 0; y < pyroResolution.height; ++y)
+        for (int x = 0; x < pyroResolution.width; ++x) {
         const float sourceX = static_cast<float>(x) *
             static_cast<float>(sourceWidth - 1) /
             static_cast<float>(pyroResolution.width - 1);
@@ -4934,17 +4937,90 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
                 static_cast<float>(pyroResolution.height - 2),
             0.0f};
       }
+  };
+  initializeFromProduction2D(baselineSimulation);
+  initializeFromProduction2D(depthRollSimulation);
+
+  const auto projectInitialVelocity = [&](PyroSimulation& target) {
+    auto velocity = target.fields().velocityView();
+    auto pressure = target.fields().pressureView();
+    auto divergence = target.fields().divergenceView();
+    std::vector<float> nextPressure(volumeResolution.cellCount(), 0.0f);
+    for (int z = 0; z < pyroResolution.depth; ++z)
+      for (int y = 0; y < pyroResolution.height; ++y)
+        for (int x = 0; x < pyroResolution.width; ++x) {
+          const int xm = std::max(0, x - 1);
+          const int xp = std::min(pyroResolution.width - 1, x + 1);
+          const int ym = std::max(0, y - 1);
+          const int yp = std::min(pyroResolution.height - 1, y + 1);
+          const int zm = std::max(0, z - 1);
+          const int zp = std::min(pyroResolution.depth - 1, z + 1);
+          const auto vxm = velocity.at(xm, y, z);
+          const auto vxp = velocity.at(xp, y, z);
+          const auto vym = velocity.at(x, ym, z);
+          const auto vyp = velocity.at(x, yp, z);
+          const auto vzm = velocity.at(x, y, zm);
+          const auto vzp = velocity.at(x, y, zp);
+          divergence.at(x, y, z) = ((vxp.x - vxm.x) + (vyp.y - vym.y) +
+                                    (vzp.z - vzm.z)) * 0.5f;
+          pressure.at(x, y, z) = 0.0f;
+        }
+    constexpr int projectionIterations = 24;
+    for (int iteration = 0; iteration < projectionIterations; ++iteration) {
+      for (int z = 0; z < pyroResolution.depth; ++z)
+        for (int y = 0; y < pyroResolution.height; ++y)
+          for (int x = 0; x < pyroResolution.width; ++x) {
+            const int xm = std::max(0, x - 2);
+            const int xp = std::min(pyroResolution.width - 1, x + 2);
+            const int ym = std::max(0, y - 2);
+            const int yp = std::min(pyroResolution.height - 1, y + 2);
+            const int zm = std::max(0, z - 2);
+            const int zp = std::min(pyroResolution.depth - 1, z + 2);
+            const float neighborSum = pressure.at(xm, y, z) +
+                pressure.at(xp, y, z) + pressure.at(x, ym, z) +
+                pressure.at(x, yp, z) + pressure.at(x, y, zm) +
+                pressure.at(x, y, zp);
+            nextPressure[volumeResolution.indexOf(x, y, z)] =
+                (neighborSum - 4.0f * divergence.at(x, y, z)) / 6.0f;
+          }
+      for (int z = 0; z < pyroResolution.depth; ++z)
+        for (int y = 0; y < pyroResolution.height; ++y)
+          for (int x = 0; x < pyroResolution.width; ++x)
+            pressure.at(x, y, z) =
+                nextPressure[volumeResolution.indexOf(x, y, z)];
+    }
+    for (int z = 0; z < pyroResolution.depth; ++z)
+      for (int y = 0; y < pyroResolution.height; ++y)
+        for (int x = 0; x < pyroResolution.width; ++x) {
+          const int xm = std::max(0, x - 1);
+          const int xp = std::min(pyroResolution.width - 1, x + 1);
+          const int ym = std::max(0, y - 1);
+          const int yp = std::min(pyroResolution.height - 1, y + 1);
+          const int zm = std::max(0, z - 1);
+          const int zp = std::min(pyroResolution.depth - 1, z + 1);
+          velocity.at(x, y, z).x -= 0.5f *
+              (pressure.at(xp, y, z) - pressure.at(xm, y, z));
+          velocity.at(x, y, z).y -= 0.5f *
+              (pressure.at(x, yp, z) - pressure.at(x, ym, z));
+          velocity.at(x, y, z).z -= 0.5f *
+              (pressure.at(x, y, zp) - pressure.at(x, y, zm));
+        }
+  };
+  projectInitialVelocity(baselineSimulation);
+  projectInitialVelocity(depthRollSimulation);
 
   const auto outputDirectory = qEnvironmentVariable(
       "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
-  const auto renderView = [&](const bool sideView) {
+  const auto renderView = [&](const PyroScalarFieldView density,
+                              const bool sideView) {
     CPUVolumeRenderer renderer;
     VolumeAABB bounds;
     bounds.min = {domain.min.x, domain.min.y, domain.min.z};
     bounds.max = {domain.max.x, domain.max.y, domain.max.z};
     renderer.bounds = bounds;
     VolumeFieldSet fields;
-    fields.density = {density.values.data(), volumeResolution};
+    fields.density = {const_cast<float*>(density.values.data()),
+                      volumeResolution};
     renderer.setVolumeData(bounds, fields);
     renderer.settings.stepSize = 0.018f;
     renderer.settings.maxSteps = 256;
@@ -4984,21 +5060,22 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     }
     return image.save(path, "PNG");
   };
-  const auto capture = [&](const int step) {
-    const auto front = renderView(false);
-    const auto side = renderView(true);
+  const auto capture = [&](const PyroScalarFieldView density,
+                           const char* branch, const int step) {
+    const auto front = renderView(density, false);
+    const auto side = renderView(density, true);
     if (outputDirectory.isEmpty()) return;
     const auto captureDirectory = QDir(outputDirectory).filePath(
         QStringLiteral("depth-evolved-2d-state-rnd"));
     ASSERT_TRUE(QDir().mkpath(captureDirectory));
-    const auto label = QStringLiteral("step_%1").arg(step, 3, 10,
-                                                       QLatin1Char('0'));
+    const auto label = QStringLiteral("%1_step_%2").arg(
+        QString::fromLatin1(branch)).arg(step, 3, 10, QLatin1Char('0'));
     EXPECT_TRUE(savePng(front, QDir(captureDirectory).filePath(
         label + QStringLiteral("_front.png"))));
     EXPECT_TRUE(savePng(side, QDir(captureDirectory).filePath(
         label + QStringLiteral("_side.png"))));
   };
-  const auto measureField = [&]() {
+  const auto measureField = [&](const PyroScalarFieldView density) {
     double mass = 0.0;
     double weightedY = 0.0;
     double weightedZ = 0.0;
@@ -5015,53 +5092,190 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         mass > 0.0 ? weightedZ / mass : 0.0};
   };
 
-  auto previous = std::vector<float>(density.values.begin(),
-                                     density.values.end());
-  auto initialMetrics = measureField();
-  ASSERT_GT(initialMetrics[0], 0.0);
-  double initialMaximumSpeed = 0.0;
-  for (const auto& sample : velocity.values)
-    initialMaximumSpeed = std::max(initialMaximumSpeed,
-        std::sqrt(static_cast<double>(sample.x) * sample.x +
-                  static_cast<double>(sample.y) * sample.y +
-                  static_cast<double>(sample.z) * sample.z));
-  GTEST_LOG_(INFO) << "depth-evolved production 2D state initial mass="
-      << initialMetrics[0] << " centroidY/Z=" << initialMetrics[1] << '/'
-      << initialMetrics[2] << " maxVoxelVelocity=" << initialMaximumSpeed;
-  capture(0);
-  for (int step = 1; step <= captureEverySteps * 3; ++step) {
-    simulation.step(1.0 / 60.0);
-    if (step % captureEverySteps != 0) continue;
-    const auto current = density.values;
-    double dot = 0.0;
-    double previousSquared = 0.0;
-    double currentSquared = 0.0;
-    double absoluteDelta = 0.0;
-    double previousMass = 0.0;
-    for (std::size_t i = 0; i < current.size(); ++i) {
-      const double a = previous[i];
-      const double b = current[i];
-      dot += a * b;
-      previousSquared += a * a;
-      currentSquared += b * b;
-      absoluteDelta += std::abs(a - b);
-      previousMass += std::abs(a);
+  const auto measureVelocity = [&](const PyroSimulation& target) {
+    const auto velocity = target.fields().velocityView();
+    const auto density = target.fields().densityView();
+    double weightedSpeedSquared = 0.0;
+    double densityWeight = 0.0;
+    double divergenceSquared = 0.0;
+    std::size_t divergenceCount = 0;
+    for (int z = 1; z + 1 < pyroResolution.depth; ++z)
+      for (int y = 1; y + 1 < pyroResolution.height; ++y)
+        for (int x = 1; x + 1 < pyroResolution.width; ++x) {
+          const double rho = std::max(0.0f, density.at(x, y, z));
+          if (rho <= 1.0e-5) continue;
+          const auto center = velocity.at(x, y, z);
+          weightedSpeedSquared += rho * (center.x * center.x +
+              center.y * center.y + center.z * center.z);
+          densityWeight += rho;
+          const auto xp = velocity.at(x + 1, y, z);
+          const auto xm = velocity.at(x - 1, y, z);
+          const auto yp = velocity.at(x, y + 1, z);
+          const auto ym = velocity.at(x, y - 1, z);
+          const auto zp = velocity.at(x, y, z + 1);
+          const auto zm = velocity.at(x, y, z - 1);
+          const double divergence = 0.5 * ((xp.x - xm.x) +
+              (yp.y - ym.y) + (zp.z - zm.z));
+          divergenceSquared += divergence * divergence;
+          ++divergenceCount;
+        }
+    return std::array<double, 2>{
+        densityWeight > 0.0
+            ? std::sqrt(weightedSpeedSquared / densityWeight) : 0.0,
+        divergenceCount > 0
+            ? std::sqrt(divergenceSquared / divergenceCount) : 0.0};
+  };
+
+  // Add a deterministic, density-supported curl field. Its velocity RMS is
+  // matched to a fraction of the 2D-derived base flow so this is not merely a
+  // speed increase. The curl is evaluated with the same centered differences
+  // used by the discrete divergence diagnostic below.
+  auto rollDensity = depthRollSimulation.fields().densityView();
+  auto rollVelocity = depthRollSimulation.fields().velocityView();
+  const auto potential = [&](const int sampleX, const int sampleY,
+                             const int sampleZ) {
+    const int x = std::clamp(sampleX, 0, pyroResolution.width - 1);
+    const int y = std::clamp(sampleY, 0, pyroResolution.height - 1);
+    const int z = std::clamp(sampleZ, 0, pyroResolution.depth - 1);
+    const double rho = std::max(0.0f, rollDensity.at(x, y, z));
+    const float gate = static_cast<float>(rho / (rho + 0.08));
+    constexpr float twoPi = 6.28318530718f;
+    return PyroVec3{
+        gate * std::sin(twoPi * (static_cast<float>(y) / 17.0f +
+                                 static_cast<float>(z) / 23.0f) + 0.37f),
+        gate * std::sin(twoPi * (static_cast<float>(z) / 19.0f +
+                                 static_cast<float>(x) / 29.0f) - 0.81f),
+        gate * std::sin(twoPi * (static_cast<float>(x) / 23.0f -
+                                 static_cast<float>(y) / 31.0f) + 1.13f)};
+  };
+  std::vector<PyroVec3> curlVelocity(volumeResolution.cellCount());
+  double baseWeightedSpeedSquared = 0.0;
+  double curlWeightedSpeedSquared = 0.0;
+  double densityWeight = 0.0;
+  constexpr float inverseTwo = 0.5f;
+  for (int z = 0; z < pyroResolution.depth; ++z)
+    for (int y = 0; y < pyroResolution.height; ++y)
+      for (int x = 0; x < pyroResolution.width; ++x) {
+        const auto cell = volumeResolution.indexOf(x, y, z);
+        const double rho = std::max(0.0f, rollDensity.at(x, y, z));
+        const auto axp = potential(x + 1, y, z);
+        const auto axm = potential(x - 1, y, z);
+        const auto ayp = potential(x, y + 1, z);
+        const auto aym = potential(x, y - 1, z);
+        const auto azp = potential(x, y, z + 1);
+        const auto azm = potential(x, y, z - 1);
+        const PyroVec3 curl{
+            ((ayp.z - aym.z) - (azp.y - azm.y)) * inverseTwo,
+            ((azp.x - azm.x) - (axp.z - axm.z)) * inverseTwo,
+            ((axp.y - axm.y) - (ayp.x - aym.x)) * inverseTwo};
+        curlVelocity[cell] = curl;
+        if (x <= 0 || x + 1 >= pyroResolution.width ||
+            y <= 0 || y + 1 >= pyroResolution.height ||
+            z <= 0 || z + 1 >= pyroResolution.depth || rho <= 1.0e-5)
+          continue;
+        const auto base = rollVelocity.at(x, y, z);
+        baseWeightedSpeedSquared += rho * (base.x * base.x + base.y * base.y +
+                                            base.z * base.z);
+        curlWeightedSpeedSquared += rho * (curl.x * curl.x + curl.y * curl.y +
+                                            curl.z * curl.z);
+        densityWeight += rho;
+      }
+  const double baseVelocityRms = densityWeight > 0.0
+      ? std::sqrt(baseWeightedSpeedSquared / densityWeight) : 0.0;
+  const double curlVelocityRms = densityWeight > 0.0
+      ? std::sqrt(curlWeightedSpeedSquared / densityWeight) : 0.0;
+  const float curlScale = curlVelocityRms > 1.0e-12
+      ? static_cast<float>(0.15 * baseVelocityRms / curlVelocityRms) : 0.0f;
+  double curlDivergenceSquared = 0.0;
+  double curlDivergenceWeight = 0.0;
+  for (int z = 1; z + 1 < pyroResolution.depth; ++z)
+    for (int y = 1; y + 1 < pyroResolution.height; ++y)
+      for (int x = 1; x + 1 < pyroResolution.width; ++x) {
+        const double rho = std::max(0.0f, rollDensity.at(x, y, z));
+        if (rho <= 1.0e-5) continue;
+        const auto xp = curlVelocity[volumeResolution.indexOf(x + 1, y, z)];
+        const auto xm = curlVelocity[volumeResolution.indexOf(x - 1, y, z)];
+        const auto yp = curlVelocity[volumeResolution.indexOf(x, y + 1, z)];
+        const auto ym = curlVelocity[volumeResolution.indexOf(x, y - 1, z)];
+        const auto zp = curlVelocity[volumeResolution.indexOf(x, y, z + 1)];
+        const auto zm = curlVelocity[volumeResolution.indexOf(x, y, z - 1)];
+        const double divergence = 0.5 * ((xp.x - xm.x) + (yp.y - ym.y) +
+                                          (zp.z - zm.z));
+        curlDivergenceSquared += rho * divergence * divergence;
+        curlDivergenceWeight += rho;
+      }
+  const double curlDivergenceRms = curlDivergenceWeight > 0.0
+      ? std::sqrt(curlDivergenceSquared / curlDivergenceWeight) : 0.0;
+  for (int z = 0; z < pyroResolution.depth; ++z)
+    for (int y = 0; y < pyroResolution.height; ++y)
+      for (int x = 0; x < pyroResolution.width; ++x) {
+        const auto cell = volumeResolution.indexOf(x, y, z);
+        rollVelocity.at(x, y, z).x += curlVelocity[cell].x * curlScale;
+        rollVelocity.at(x, y, z).y += curlVelocity[cell].y * curlScale;
+        rollVelocity.at(x, y, z).z += curlVelocity[cell].z * curlScale;
+      }
+
+  const auto runBranch = [&](const char* label, PyroSimulation& target) {
+    auto density = target.fields().densityView();
+    auto previous = std::vector<float>(density.values.begin(),
+                                       density.values.end());
+    const auto initialMetrics = measureField(density);
+    ASSERT_GT(initialMetrics[0], 0.0);
+    const auto initialVelocity = measureVelocity(target);
+    GTEST_LOG_(INFO) << "depth-evolved branch=" << label
+        << " initial mass=" << initialMetrics[0] << " centroidY/Z="
+        << initialMetrics[1] << '/' << initialMetrics[2]
+        << " velocityRms/divergenceRms=" << initialVelocity[0] << '/'
+        << initialVelocity[1];
+    capture(density, label, 0);
+    for (int step = 1; step <= captureEverySteps * 3; ++step) {
+      target.step(1.0 / 60.0);
+      if (step % captureEverySteps != 0) continue;
+      const auto current = density.values;
+      double dot = 0.0;
+      double previousSquared = 0.0;
+      double currentSquared = 0.0;
+      double absoluteDelta = 0.0;
+      double previousMass = 0.0;
+      for (std::size_t i = 0; i < current.size(); ++i) {
+        const double a = previous[i];
+        const double b = current[i];
+        dot += a * b;
+        previousSquared += a * a;
+        currentSquared += b * b;
+        absoluteDelta += std::abs(a - b);
+        previousMass += std::abs(a);
+      }
+      const auto metrics = measureField(density);
+      const auto velocityMetrics = measureVelocity(target);
+      const double cosine = dot / std::max(1.0e-12,
+          std::sqrt(previousSquared * currentSquared));
+      const double relativeL1 = absoluteDelta /
+          std::max(1.0e-12, previousMass);
+      GTEST_LOG_(INFO) << "depth-evolved branch=" << label << " step="
+          << step << " mass=" << metrics[0] << " centroidY/Z="
+          << metrics[1] << '/' << metrics[2] << " intervalCosine/L1="
+          << cosine << '/' << relativeL1 << " velocityRms/divergenceRms="
+          << velocityMetrics[0] << '/' << velocityMetrics[1];
+      EXPECT_GT(metrics[0], 0.0);
+      EXPECT_TRUE(std::isfinite(cosine));
+      EXPECT_TRUE(std::isfinite(relativeL1));
+      capture(density, label, step);
+      previous.assign(current.begin(), current.end());
     }
-    const auto metrics = measureField();
-    const double cosine = dot / std::max(1.0e-12,
-        std::sqrt(previousSquared * currentSquared));
-    const double relativeL1 = absoluteDelta /
-        std::max(1.0e-12, previousMass);
-    GTEST_LOG_(INFO) << "depth-evolved production 2D state step=" << step
-        << " mass=" << metrics[0] << " centroidY/Z=" << metrics[1] << '/'
-        << metrics[2] << " intervalCosine/L1=" << cosine << '/'
-        << relativeL1;
-    EXPECT_GT(metrics[0], 0.0);
-    EXPECT_TRUE(std::isfinite(cosine));
-    EXPECT_TRUE(std::isfinite(relativeL1));
-    capture(step);
-    previous.assign(current.begin(), current.end());
-  }
+  };
+  const auto baselineVelocity = measureVelocity(baselineSimulation);
+  const auto depthRollVelocity = measureVelocity(depthRollSimulation);
+  GTEST_LOG_(INFO) << "depth-roll calibration base/curlRms="
+      << baseVelocityRms << '/' << curlVelocityRms
+      << " scale=" << curlScale << " curl-divergenceRms="
+      << curlDivergenceRms << " initial divergence base/roll="
+      << baselineVelocity[1] << '/' << depthRollVelocity[1];
+  EXPECT_NEAR(curlVelocityRms * curlScale,
+              baseVelocityRms * 0.15, baseVelocityRms * 0.001 + 1.0e-5);
+  EXPECT_LT(curlDivergenceRms, 1.0e-5);
+  runBranch("base", baselineSimulation);
+  runBranch("depth-roll", depthRollSimulation);
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
