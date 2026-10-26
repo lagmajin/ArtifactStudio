@@ -9652,6 +9652,187 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     SweepsFlameLifetimeWithMaximumSourceMerge) {
+  Artifact::LayerFluidRuntimeState state;
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = kGridWidth;
+  settings.gridHeight = kGridHeight;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.84f;
+  settings.emitterRadius = 0.055f;
+  settings.emitterDensity = 0.8f;
+  settings.buoyancy = 0.0f;
+  settings.emitterTemperature = 5.0f;
+  settings.thermalBuoyancy = 0.6f;
+
+  constexpr std::array<float, 3> lifespans{0.5f, 1.0f, 2.0f};
+  constexpr int emissionFrameCount = 24;
+  constexpr int postEmissionFrameCount = 60;
+  constexpr int totalFrameCount = emissionFrameCount + postEmissionFrameCount;
+  constexpr int snapshotFrame = emissionFrameCount + 14;
+  constexpr float framesPerSecond = 30.0f;
+  constexpr float dt = 1.0f / framesPerSecond;
+  constexpr float gaussianParticleAlphaGain = 4.25f;
+  const int width = settings.gridWidth;
+  const int height = settings.gridHeight;
+  const auto cellCount = static_cast<std::size_t>(width * height);
+  std::array<std::vector<float>, lifespans.size()> flameFields;
+  std::array<std::vector<float>, lifespans.size()> advectedFields;
+  std::array<std::vector<float>, lifespans.size()> snapshotFields;
+  for (auto& field : flameFields) field.assign(cellCount, 0.0f);
+  for (auto& field : advectedFields) field.assign(cellCount, 0.0f);
+  for (auto& field : snapshotFields) field.assign(cellCount, 0.0f);
+  std::array<std::array<double, 3>, lifespans.size()> activityAtCheckpoints{};
+
+  const auto sampleField = [width, height](
+      const std::vector<float>& field, const float gridX, const float gridY) {
+    const float x = std::clamp(gridX, 0.0f, static_cast<float>(width - 1));
+    const float y = std::clamp(gridY, 0.0f, static_cast<float>(height - 1));
+    const int x0 = static_cast<int>(std::floor(x));
+    const int y0 = static_cast<int>(std::floor(y));
+    const int x1 = std::min(x0 + 1, width - 1);
+    const int y1 = std::min(y0 + 1, height - 1);
+    const float tx = x - static_cast<float>(x0);
+    const float ty = y - static_cast<float>(y0);
+    const auto at = [&](const int px, const int py) {
+      return field[static_cast<std::size_t>(py * width + px)];
+    };
+    return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
+                     std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+  };
+  const auto sumField = [](const std::vector<float>& field) {
+    double sum = 0.0;
+    for (const float value : field) sum += value;
+    return sum;
+  };
+
+  for (int frame = 0; frame < totalFrameCount; ++frame) {
+    Artifact::advanceLayerSmokeRuntime(state, frame, framesPerSecond, settings);
+    for (std::size_t lifespanIndex = 0;
+         lifespanIndex < lifespans.size(); ++lifespanIndex) {
+      auto& sourceField = flameFields[lifespanIndex];
+      auto& advectedField = advectedFields[lifespanIndex];
+      std::fill(advectedField.begin(), advectedField.end(), 0.0f);
+      for (int y = 1; y < height - 1; ++y) {
+        for (int x = 1; x < width - 1; ++x) {
+          float vx = 0.0f;
+          float vy = 0.0f;
+          state.fluidSolver_->getVelocity(x, y, vx, vy);
+          const float backX = static_cast<float>(x) -
+              dt * static_cast<float>(width - 2) * vx;
+          const float backY = static_cast<float>(y) -
+              dt * static_cast<float>(height - 2) * vy;
+          advectedField[static_cast<std::size_t>(y * width + x)] =
+              sampleField(sourceField, backX, backY);
+        }
+      }
+      sourceField.swap(advectedField);
+
+      if (frame < emissionFrameCount) {
+        const int sourceX = 1 + static_cast<int>(std::round(
+            settings.emitterX * static_cast<float>(width - 3)));
+        const int sourceY = 1 + static_cast<int>(std::round(
+            settings.emitterY * static_cast<float>(height - 3)));
+        const float radiusX = settings.emitterRadius *
+            static_cast<float>(width - 2);
+        const float radiusY = settings.emitterRadius *
+            static_cast<float>(height - 2);
+        const int extentX = static_cast<int>(std::ceil(radiusX));
+        const int extentY = static_cast<int>(std::ceil(radiusY));
+        for (int dy = -extentY; dy <= extentY; ++dy) {
+          for (int dx = -extentX; dx <= extentX; ++dx) {
+            const int x = sourceX + dx;
+            const int y = sourceY + dy;
+            if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1)
+              continue;
+            const float nx = static_cast<float>(dx) / std::max(0.5f, radiusX);
+            const float ny = static_cast<float>(dy) / std::max(0.5f, radiusY);
+            const float sourceValue = std::clamp(
+                1.0f - nx * nx - ny * ny, 0.0f, 1.0f);
+            const auto index = static_cast<std::size_t>(y * width + x);
+            sourceField[index] = std::max(sourceField[index], sourceValue);
+          }
+        }
+      }
+
+      const float decay = dt / lifespans[lifespanIndex];
+      for (float& value : sourceField)
+        value = std::max(0.0f, value - decay);
+
+      if (frame == emissionFrameCount - 1 ||
+          frame == snapshotFrame || frame + 1 == totalFrameCount) {
+        const int checkpoint = frame == emissionFrameCount - 1 ? 0 :
+            (frame == snapshotFrame ? 1 : 2);
+        activityAtCheckpoints[lifespanIndex]
+                             [static_cast<std::size_t>(checkpoint)] =
+            sumField(sourceField);
+        if (frame == snapshotFrame)
+          snapshotFields[lifespanIndex] = sourceField;
+      }
+    }
+  }
+
+  GTEST_LOG_(INFO) << "2D flame lifetime max-source sweep: after source / "
+                      "15 post-source frames / 60 post-source frames; "
+                      "lifespan 0.5="
+                   << activityAtCheckpoints[0][0] << '/'
+                   << activityAtCheckpoints[0][1] << '/'
+                   << activityAtCheckpoints[0][2] << " 1.0="
+                   << activityAtCheckpoints[1][0] << '/'
+                   << activityAtCheckpoints[1][1] << '/'
+                   << activityAtCheckpoints[1][2] << " 2.0="
+                   << activityAtCheckpoints[2][0] << '/'
+                   << activityAtCheckpoints[2][1] << '/'
+                   << activityAtCheckpoints[2][2];
+  for (std::size_t lifespanIndex = 0;
+       lifespanIndex < lifespans.size(); ++lifespanIndex) {
+    EXPECT_GT(activityAtCheckpoints[lifespanIndex][0], 0.0);
+    EXPECT_LT(activityAtCheckpoints[lifespanIndex][2], 1.0e-5);
+  }
+  EXPECT_EQ(activityAtCheckpoints[0][1], 0.0);
+  EXPECT_GT(activityAtCheckpoints[1][1], 0.0);
+  EXPECT_GT(activityAtCheckpoints[2][1], activityAtCheckpoints[1][1]);
+
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+    for (std::size_t lifespanIndex = 0;
+         lifespanIndex < lifespans.size(); ++lifespanIndex) {
+      ArtifactCore::ParticleRenderData flameRenderData;
+      flameRenderData.options.blend =
+          ArtifactCore::ParticleBlendPolicy::Alpha;
+      flameRenderData.options.falloff =
+          ArtifactCore::ParticleFalloffMode::GaussianDensity;
+      flameRenderData.particles.reserve(cellCount);
+      for (int y = 1; y < height - 1; ++y) {
+        for (int x = 1; x < width - 1; ++x) {
+          const float value = snapshotFields[lifespanIndex][
+              static_cast<std::size_t>(y * width + x)];
+          if (value <= 0.01f) continue;
+          ArtifactCore::ParticleVertex particle{};
+          particle.px = static_cast<float>(x);
+          particle.py = static_cast<float>(y);
+          particle.ppx = particle.px;
+          particle.ppy = particle.py;
+          particle.r = 1.0f;
+          particle.g = 0.12f + 0.55f * value;
+          particle.b = 0.01f;
+          particle.a = value * 0.45f;
+          particle.size = 0.10f;
+          flameRenderData.particles.push_back(particle);
+        }
+      }
+      const QImage image = rasterizeParticles(
+          flameRenderData, gaussianParticleAlphaGain);
+      EXPECT_TRUE(image.save(QDir(outputDirectory).filePath(
+          QStringLiteral("smoke_fire_2d_flame_lifetime_%1s_15f_after_source.png")
+              .arg(lifespans[lifespanIndex], 0, 'f', 1))));
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ComparesResolutionScaledThreeDimensionalSmoke) {
   using namespace ArtifactCore;
   using namespace ArtifactCore::RayTrace;
