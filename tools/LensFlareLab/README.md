@@ -154,7 +154,9 @@ PFM renders.
 `make_multilobe_source.py` generates an asymmetric three-lobe HDR emitter with
 optional color-separated spectra and adjustable lobe spacing;
 `measure_rgb_error.py` reports flare-only RGB and per-channel L1 against a PFM
-reference.
+reference. `make_source_diffraction_comparison.py` plates direct-source PSF
+on/off and frame-crop differences, while `make_aperture_diffraction_sweep.py`
+compares blade-count PSFs at a selected crop.
 `python tools/LensFlareLab/make_ray_grid_comparison.py` compares the same
 source-sample mode across 64/96/128 pupil ray grids and reports in-frame
 flux, peak, centroid, and image differences. Its `--source-samples` accepts

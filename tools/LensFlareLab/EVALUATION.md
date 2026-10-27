@@ -913,6 +913,49 @@ comparison.
 
 ![Diffraction-only aperture sweep for 5, 6, 8, and 12 blades; warm is positive and blue is negative](examples/diffraction-aperture-blade-sweep.png)
 
+#### Point-source versus finite-source PSF and frame clipping
+
+To inspect the direct-source PSF separately from reflected ghosts, the renderer
+was run with `--ghosts off` on neutral Gaussian sources with radii 1 px
+(near-point) and 7 px (extended), at the frame center and near the left edge.
+The 512² aperture FFT produces the expected five/six/eight/ten-blade star
+patterns for the near-point source. The extended source retains a broader,
+smoother highlight and suppresses the long visible spikes because each
+incoherent source point contributes a shifted PSF. The RGB PSFs are sampled at
+610/550/460 nm, producing small wavelength-dependent edge colors. This follows
+the aperture Fourier-power model in [Hullin et al. (2011)](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf),
+but does not constitute a measured camera match.
+
+For centered sources, total frame luminance changed by less than 0.0001% when
+diffraction was enabled: `7.025735→7.025740` for radius 1 px and
+`332.506152→332.506323` for radius 7 px. Near the left edge, PSF energy
+propagates out of the finite image: visible frame luminance changes by
+`7.025735→7.022879` (-0.0407%) for radius 1 px and
+`323.005342→322.840697` (-0.0510%) for radius 7 px. The PSF kernel is unit
+normalized before convolution; the residual edge loss is cropping at the
+sensor boundary, not energy normalization of each clipped output.
+
+![Direct-source diffraction for near-point and extended emitters at the frame center and edge, with signed on-minus-off differences](examples/diffraction-source-center-point.png)
+
+![Direct-source diffraction for a 7 px extended emitter at the frame center](examples/diffraction-source-center-extended.png)
+
+![Direct-source diffraction for a near-point emitter at the left frame edge](examples/diffraction-source-edge-point.png)
+
+![Direct-source diffraction for a 7 px extended emitter at the left frame edge; the diffraction halo is cropped by the sensor](examples/diffraction-source-edge-extended.png)
+
+![Five, six, eight, and ten-blade Fraunhofer PSFs for a near-point source](examples/diffraction-aperture-blade-sweep-point.png)
+
+![Five, six, eight, and ten-blade PSFs after convolution with an extended source](examples/diffraction-aperture-blade-sweep-extended.png)
+
+Regenerate source PFM inputs with `make_evaluation_chart.py --source-only
+--single-light-position U V --single-light-neutral --source-radius 1|7`, render
+each with `--ghosts off --diffraction on|off`, and create plates with
+`make_source_diffraction_comparison.py`. Use
+`make_aperture_diffraction_sweep.py` for the blade-count plates. These
+measurements check source-shape and frame-crop behavior in the Lab's sampled
+model; they do not establish coherence, measured PSF accuracy, or optical
+energy beyond the image bounds.
+
 Reproduce the blade sweep with:
 
 ```powershell
