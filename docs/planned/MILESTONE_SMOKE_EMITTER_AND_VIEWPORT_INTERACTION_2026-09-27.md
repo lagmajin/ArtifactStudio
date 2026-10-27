@@ -1,7 +1,7 @@
 # M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ
 
 **最終更新:** 2026-10-27
-**ステータス:** In Progress（煙エミッタのCore API・Inspector設定・永続化・Brushによるビューポートstirringを実装。エミッタ数1〜64を追加。独立Core/runtime、D3D12 production、CPU/GPU Render Queueとheadless Composition View描画wrapperの同一frame画像比較は通過。Composition View wrapperとGPU Render Queue frameは画素完全一致。煙＋炎のtest-only同一raymarchはD3D12 / Vulkanで通過したが、温度field由来の炎形状は平坦で製品品質に不足。実アプリUI操作、ライブviewport capture、production volume rendererは未確認）
+**ステータス:** In Progress（煙エミッタのCore API・Inspector設定・永続化・Brushによるビューポートstirringを実装。エミッタ数1〜64を追加。独立Core/runtime、D3D12 production、CPU/GPU Render Queueとheadless Composition View描画wrapperの同一frame画像比較は通過。Composition View wrapperとGPU Render Queue frameは画素完全一致。test-only煙＋炎同一raymarchをD3D12 / Vulkanで検証し、独立寿命fieldは温度proxyより発光範囲を縮小、backend間で合成画像が画素完全一致。炎形状はなお滑らかで製品品質に不足。実アプリUI操作、ライブviewport capture、production volume rendererは未確認）
 **識別子:** M-FLUID-SMOKE-1
 **対象:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cppm`、`Artifact/include/Layer/ArtifactLayerFluidRuntimeState.ixx`、`Artifact/src/Tool/ArtifactBrushTool.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 **関連:** `docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md`（SUPERSEDED）、`docs/planned/MILESTONE_PYRO_DOMAIN_LAYER_INTEGRATION_2026-09-27.md`
@@ -567,3 +567,10 @@
 - Debug D3D12（RTX 4070 Ti）focused run pass (4.16 s)、Vulkan focused run pass (3.42 s)。両方で表示pixelはsmoke 24,255、flame-only 21,503、combined 25,519。D3D12 flame-only mean / stddev / red mean / blue meanは31.78 / 71.18 / 45.07 / 3.18、combined mean / stddevは39.48 / 78.54。Diligent HLSL・texture bindingと二系統の同一depth integrationが両backendで実行できることを確認した。全画像は`build/smoke-runtime-rnd/gpu-smoke-fire-combined-rnd/`および`.../gpu-smoke-fire-combined-vulkan-rnd/`。
 - 目視評価: flame-onlyは見分けられるが、current plume maskに沿った平坦な明るい形で炎の細い tongues / turbulent detailを示さない。combinedは煙が赤みのある薄い面に広がり、炎が広すぎる。したがって「同時レンダリング経路の技術的成立」は確認したが、C4D/Houdini相当の品質や物理的な燃焼fieldは確認していない。現状はtemperature thresholdから作ったtest proxyで、別々にadvectされたfuel/reaction/flame lifetime fieldではない。
 - 初回CTestターゲット全体の起動は180秒timeoutしたため、GTest名を明示した実行ファイルのfiltered runでD3D12 / Vulkanを個別確認した。focused testは両方pass。今後の品質実験では、flame-onlyのsaturated broad maskを解消するためemissionをtemperatureそのものから独立したreactionまたはremaining-lifetime fieldへ移し、flame source-stop tailとsmoke occlusionを同じcapture seriesで評価する。GPU resource/dispatch時間および実アプリ描画経路との一致は未計測。
+
+## 2026-10-27 独立flame-lifetime fieldのGPU描画比較
+
+- 上記GPU test-only fixtureを変更し、温度閾値proxyを独立2D flame-lifetime fieldへ置き換えた。各frameでproduction `FluidSolver2D` の速度を使い半ラグランジュ移流し、sourceを`max`合成、1.0秒で線形減衰。煙runtimeと同じframe-22 solver履歴だが、温度fieldは使わず、flameは煙／温度へfeedbackしない。残存field mass 351.216、max 0.966667。
+- D3D12 focused test pass (3.37 s)、Vulkan focused test pass (2.89 s)。flame-only visible pixelはtemperature proxyの21,503から17,033へ減り、mean luma 31.78から15.18へ低下。combined mean luma / stddevは39.48 / 78.54から32.96 / 66.29へ、coverageは25,519から25,239へ変化。煙単独画像の測定値は不変。D3D12とVulkanの寿命field combined PNGは384×288でRGBA全画素一致（max channel diff 0）。captures: `build/smoke-runtime-rnd/gpu-smoke-fire-lifetime-d3d12-rnd/`、`.../gpu-smoke-fire-lifetime-vulkan-rnd/`。
+- 目視では温度proxyより炎の面積・輝度が下がり、煙全体をピンクに染める度合いは軽くなった。一方で輪郭は大きく滑らかな渦状のままで、炎の細い舌・乱流細部はまだ出ない。独立した寿命fieldはtransfer controlの改善になるが、fieldの形状品質は解決していない。これは連続sourceがframe 22まで動く1つのtest fixtureであり、source-stop後tailのGPU画像や時間刻み収束を測定した結果ではない。
+- 次のtest-only比較では同じlifetime fieldに対して(1) lifetime remap ramp / emission threshold、(2) centered multi-scale curl warpと非周期disturbance、(3)深度方向のemission profileを一度に一要因ずつ振り、brightness / alphaを合わせた画像と時間連続性を比較する。D3D12 / Vulkan完全一致を維持する。製品Core/App変更はまだ行わない。

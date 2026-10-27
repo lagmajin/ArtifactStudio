@@ -1661,12 +1661,87 @@ TEST(ClonerGpuRenderContractTest,
     settings.emitterDensity = 0.6f;
     settings.emitterVelocityY = -1.2f;
     settings.emitterSwirl = 0.15f;
-    settings.emitterTemperature = 2.0f;
     settings.vorticity = 0.1f;
     settings.buoyancy = 0.0f;
     Artifact::LayerFluidRuntimeState runtime;
-    for (int frame = 0; frame <= captureFrame; ++frame)
+    constexpr float simulationFps = 30.0f;
+    constexpr float flameLifetimeSeconds = 1.0f;
+    constexpr float simulationDt = 1.0f / simulationFps;
+    const auto fieldCellCount = static_cast<std::size_t>(
+        gridWidth * gridHeight);
+    std::vector<float> flameField(fieldCellCount, 0.0f);
+    std::vector<float> advectedFlameField(fieldCellCount, 0.0f);
+    const auto sampleGridField = [&](const std::vector<float>& field,
+                                     const float gridX,
+                                     const float gridY) {
+        const float x = std::clamp(gridX, 0.0f,
+                                   static_cast<float>(gridWidth - 1));
+        const float y = std::clamp(gridY, 0.0f,
+                                   static_cast<float>(gridHeight - 1));
+        const int x0 = static_cast<int>(std::floor(x));
+        const int y0 = static_cast<int>(std::floor(y));
+        const int x1 = std::min(x0 + 1, gridWidth - 1);
+        const int y1 = std::min(y0 + 1, gridHeight - 1);
+        const float tx = x - static_cast<float>(x0);
+        const float ty = y - static_cast<float>(y0);
+        const auto at = [&](const int px, const int py) {
+            return field[static_cast<std::size_t>(py * gridWidth + px)];
+        };
+        return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
+                         std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+    };
+    for (int frame = 0; frame <= captureFrame; ++frame) {
         Artifact::advanceLayerSmokeRuntime(runtime, frame, 30.0, settings);
+        ASSERT_NE(runtime.fluidSolver_, nullptr);
+        std::fill(advectedFlameField.begin(), advectedFlameField.end(), 0.0f);
+        for (int y = 1; y < gridHeight - 1; ++y) {
+            for (int x = 1; x < gridWidth - 1; ++x) {
+                float velocityX = 0.0f;
+                float velocityY = 0.0f;
+                runtime.fluidSolver_->getVelocity(
+                    x, y, velocityX, velocityY);
+                const float backX = static_cast<float>(x) - simulationDt *
+                    static_cast<float>(gridWidth - 2) * velocityX;
+                const float backY = static_cast<float>(y) - simulationDt *
+                    static_cast<float>(gridHeight - 2) * velocityY;
+                advectedFlameField[static_cast<std::size_t>(
+                    y * gridWidth + x)] = sampleGridField(
+                        flameField, backX, backY);
+            }
+        }
+        flameField.swap(advectedFlameField);
+
+        const int sourceX = 1 + static_cast<int>(std::round(
+            settings.emitterX * static_cast<float>(gridWidth - 3)));
+        const int sourceY = 1 + static_cast<int>(std::round(
+            settings.emitterY * static_cast<float>(gridHeight - 3)));
+        const float radiusX = settings.emitterRadius *
+            static_cast<float>(gridWidth - 2);
+        const float radiusY = settings.emitterRadius *
+            static_cast<float>(gridHeight - 2);
+        const int extentX = static_cast<int>(std::ceil(radiusX));
+        const int extentY = static_cast<int>(std::ceil(radiusY));
+        for (int dy = -extentY; dy <= extentY; ++dy) {
+            for (int dx = -extentX; dx <= extentX; ++dx) {
+                const int x = sourceX + dx;
+                const int y = sourceY + dy;
+                if (x <= 0 || x >= gridWidth - 1 ||
+                    y <= 0 || y >= gridHeight - 1) continue;
+                const float nx = static_cast<float>(dx) /
+                    std::max(0.5f, radiusX);
+                const float ny = static_cast<float>(dy) /
+                    std::max(0.5f, radiusY);
+                const float sourceValue = std::clamp(
+                    1.0f - nx * nx - ny * ny, 0.0f, 1.0f);
+                const auto index = static_cast<std::size_t>(
+                    y * gridWidth + x);
+                flameField[index] = std::max(flameField[index], sourceValue);
+            }
+        }
+        const float lifetimeDecay = simulationDt / flameLifetimeSeconds;
+        for (float& value : flameField)
+            value = std::max(0.0f, value - lifetimeDecay);
+    }
     ASSERT_NE(runtime.fluidSolver_, nullptr);
     const auto snapshot = runtime.fluidSolver_->snapshot();
 
@@ -1688,25 +1763,8 @@ TEST(ClonerGpuRenderContractTest,
         return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
                          std::lerp(at(x0, y1), at(x1, y1), tx), ty);
     };
-    const auto sampleTemperature = [&](const float sampleX,
-                                       const float sampleY) {
-        const float x = std::clamp(sampleX, 0.0f,
-                                   static_cast<float>(gridWidth - 1));
-        const float y = std::clamp(sampleY, 0.0f,
-                                   static_cast<float>(gridHeight - 1));
-        const int x0 = static_cast<int>(std::floor(x));
-        const int y0 = static_cast<int>(std::floor(y));
-        const int x1 = std::min(x0 + 1, gridWidth - 1);
-        const int y1 = std::min(y0 + 1, gridHeight - 1);
-        const float tx = x - static_cast<float>(x0);
-        const float ty = y - static_cast<float>(y0);
-        const auto at = [&](const int px, const int py) {
-            return snapshot.temperature[static_cast<std::size_t>(
-                py * gridWidth + px)];
-        };
-        return std::lerp(
-            std::lerp(at(x0, y0), at(x1, y0), tx),
-            std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+    const auto sampleFlameField = [&](const float gridX, const float gridY) {
+        return sampleGridField(flameField, gridX, gridY);
     };
 
     const auto valueNoise = [](const float x, const float y) {
@@ -1803,12 +1861,10 @@ TEST(ClonerGpuRenderContractTest,
                         0.8f * valueNoise(
                             0.4f * x + 3.0f * zNorm,
                             0.4f * y - 7.0f * zNorm);
-                    const float temperature = sampleTemperature(
+                    const float flameLifetime = sampleFlameField(
                         static_cast<float>(x) + warpX,
                         static_cast<float>(y) + warpY);
-                    flame[index(x, y, z)] =
-                        std::clamp((temperature - 0.35f) * 0.6f,
-                                   0.0f, 1.0f) * envelope;
+                    flame[index(x, y, z)] = flameLifetime * envelope;
                 }
             }
         }
@@ -1817,6 +1873,17 @@ TEST(ClonerGpuRenderContractTest,
 
     std::vector<float> density = makeVolume(true);
     std::vector<float> flame = makeFlameVolume();
+    double flameMass = 0.0;
+    float maximumFlameLifetime = 0.0f;
+    for (const float value : flameField) {
+        flameMass += value;
+        maximumFlameLifetime = std::max(maximumFlameLifetime, value);
+    }
+    GTEST_LOG_(INFO) << "GPU flame lifetime field frame=" << captureFrame
+        << " lifespan=" << flameLifetimeSeconds
+        << " mass=" << flameMass << " max=" << maximumFlameLifetime;
+    EXPECT_GT(flameMass, 0.0);
+    EXPECT_GT(maximumFlameLifetime, 0.0f);
     TextureDesc densityDesc;
     densityDesc.Name = "Smoke R&D depth-warped density volume";
     densityDesc.Type = RESOURCE_DIM_TEX_3D;
