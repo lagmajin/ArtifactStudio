@@ -3,6 +3,7 @@
 import argparse
 import csv
 import math
+import re
 import subprocess
 import sys
 import time
@@ -15,6 +16,7 @@ import evaluate_adaptive_field_convergence as shared
 
 FIELDS = shared.FIELDS
 GHOST_PAIRS = ((13, 9), (6, 5), (5, 0), (12, 9), (10, 7))
+REFINEMENT_COUNTS = re.compile(r"centerRays=(\d+) edgeRays=(\d+) refinedCells=(\d+).*?screenErrorThreshold=([\d.]+)px, relativeEnergyThreshold=[\deE.+-]+% maxMappingError=[\deE.+-]+px maxEnergyRelativeError=[\deE.+-]+% triggers\(mapping=(\d+), energy=(\d+), validity=(\d+), foldover=(\d+)\)")
 
 
 def main():
@@ -81,6 +83,16 @@ def main():
                              "threshold_px": args.threshold if adaptive else "", "render_seconds": elapsed,
                              "rgb_flux": summary["rgb_flux"], "luma_flux": summary["luma_flux"],
                              "peak_luma": summary["peak_luma"]})
+                if adaptive:
+                    match = REFINEMENT_COUNTS.search(result.stdout)
+                    if not match:
+                        raise RuntimeError(f"adaptive reason counters missing for {field}/{pair_name}:\n{result.stdout}")
+                    rows[-1].update({"center_rays": int(match.group(1)), "edge_rays": int(match.group(2)),
+                                     "refined_cells": int(match.group(3)),
+                                     "mapping_error_triggers": int(match.group(6)),
+                                     "energy_error_triggers": int(match.group(7)),
+                                     "validity_boundary_triggers": int(match.group(8)),
+                                     "foldover_triggers": int(match.group(9))})
                 print(f"field={field} path={first}->{second} mode={mode} seconds={elapsed:.3f} "
                       f"Y={summary['luma_flux']:.7g}", flush=True)
 
@@ -137,7 +149,8 @@ def main():
 
     args.csv_output.parent.mkdir(parents=True, exist_ok=True)
     with args.csv_output.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        fieldnames = list(dict.fromkeys(key for row in rows for key in row))
+        writer = csv.DictWriter(stream, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
     args.image_dir.mkdir(parents=True, exist_ok=True)

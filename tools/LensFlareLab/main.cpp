@@ -119,6 +119,7 @@ struct Settings {
     int spectralSamples = 3;
     bool adaptiveRayRefinementEnabled = false;
     float adaptiveRayRefinementThreshold = 0.75f;
+    float adaptiveRayRefinementEnergyThreshold = 0.25f;
     bool useCauchyDispersion = true;
     bool usePixelAreaRasterization = true;
     float apertureRadius = 4.545f;
@@ -1607,6 +1608,12 @@ Image render(const Image& source, const Settings& settings) {
     std::uint64_t adaptiveCenterRays = 0;
     std::uint64_t adaptiveEdgeRays = 0;
     std::uint64_t adaptiveRefinedCells = 0;
+    std::uint64_t adaptiveMappingErrorTriggers = 0;
+    std::uint64_t adaptiveEnergyErrorTriggers = 0;
+    std::uint64_t adaptiveValidityBoundaryTriggers = 0;
+    std::uint64_t adaptiveFoldoverTriggers = 0;
+    double adaptiveMaximumMappingErrorPx = 0.0;
+    double adaptiveMaximumEnergyErrorFraction = 0.0;
     double ghostDiffractionInputEnergy = 0.0;
     double ghostDiffractionOutputEnergy = 0.0;
     double ghostDiffractionRawOutputEnergy = 0.0;
@@ -1885,6 +1892,7 @@ Image render(const Image& source, const Settings& settings) {
                                 averageEnergy += corner->unweightedEnergy;
                             }
                             bool refine = validCorners >= 2 && validCorners < 4;
+                            if (refine) ++adaptiveValidityBoundaryTriggers;
                             if (validCorners == 4) {
                                 averageX *= 0.25f;
                                 averageY *= 0.25f;
@@ -1896,21 +1904,32 @@ Image render(const Image& source, const Settings& settings) {
                                                                     std::abs(averageEnergy), 1e-6f});
                                 const float energyError = std::abs(center.unweightedEnergy - averageEnergy) /
                                                           energyScale;
-                                refine = mappingError > settings.adaptiveRayRefinementThreshold ||
-                                         energyError > 0.25f;
+                                adaptiveMaximumMappingErrorPx = std::max(
+                                    adaptiveMaximumMappingErrorPx, static_cast<double>(mappingError));
+                                adaptiveMaximumEnergyErrorFraction = std::max(
+                                    adaptiveMaximumEnergyErrorFraction, static_cast<double>(energyError));
+                                const bool mappingErrorRequiresRefinement =
+                                    mappingError > settings.adaptiveRayRefinementThreshold;
+                                const bool energyErrorRequiresRefinement =
+                                    energyError > settings.adaptiveRayRefinementEnergyThreshold;
+                                if (mappingErrorRequiresRefinement) ++adaptiveMappingErrorTriggers;
+                                if (energyErrorRequiresRefinement) ++adaptiveEnergyErrorTriggers;
+                                refine = mappingErrorRequiresRefinement || energyErrorRequiresRefinement;
                                 const float parentAreaA = (b.x - a.x) * (d.y - a.y) -
                                                           (b.y - a.y) * (d.x - a.x);
                                 const float parentAreaB = (d.x - a.x) * (c.y - a.y) -
                                                           (d.y - a.y) * (c.x - a.x);
-                                if (parentAreaA * parentAreaB < 0.0f) refine = true;
+                                bool foldover = parentAreaA * parentAreaB < 0.0f;
                                 for (std::size_t edge = 0; edge < corners.size(); ++edge) {
                                     const RayVertex& p = *corners[edge];
                                     const RayVertex& q = *corners[(edge + 1) % corners.size()];
                                     const float area = (q.x - p.x) * (center.y - p.y) -
                                                        (q.y - p.y) * (center.x - p.x);
                                     if ((parentAreaA * area < 0.0f) || (parentAreaB * area < 0.0f))
-                                        refine = true;
+                                        foldover = true;
                                 }
+                                if (foldover) ++adaptiveFoldoverTriggers;
+                                refine = refine || foldover;
                             }
                             return refine;
                         };
@@ -2270,7 +2289,16 @@ Image render(const Image& source, const Settings& settings) {
                   << " refinedCells=" << adaptiveRefinedCells << " ("
                   << std::fixed << std::setprecision(2) << refinedPercent
                   << "%), screenErrorThreshold=" << settings.adaptiveRayRefinementThreshold
-                  << "px, relativeEnergyThreshold=25%\n";
+                  << "px, relativeEnergyThreshold=" << std::scientific << std::setprecision(3)
+                  << settings.adaptiveRayRefinementEnergyThreshold * 100.0f
+                  << "% maxMappingError=" << std::setprecision(3)
+                  << adaptiveMaximumMappingErrorPx << "px maxEnergyRelativeError="
+                  << adaptiveMaximumEnergyErrorFraction * 100.0
+                  << "% triggers(mapping=" << adaptiveMappingErrorTriggers
+                  << ", energy=" << adaptiveEnergyErrorTriggers
+                  << ", validity=" << adaptiveValidityBoundaryTriggers
+                  << ", foldover=" << adaptiveFoldoverTriggers << ")"
+                  << std::defaultfloat << std::setprecision(6) << '\n';
     }
     if (settings.reportGhostDiffraction) {
         std::cout << "Ghost Fresnel propagation: " << ghostDiffractionPatches
@@ -2354,6 +2382,7 @@ void printSettings(const Settings& s) {
               << " threshold=" << s.threshold << " gain=" << s.gain << " rayGrid=" << s.rayGrid
               << " adaptiveRayRefinement=" << s.adaptiveRayRefinementEnabled
               << " adaptiveRayRefinementThreshold=" << s.adaptiveRayRefinementThreshold
+              << " adaptiveRayRefinementEnergyThreshold=" << s.adaptiveRayRefinementEnergyThreshold
               << " jacobianCap=" << s.jacobianCap << " sourceSamples=" << s.sourceSamples
               << " sourceSampling=" << (s.useWeightedSourceQuantiles ? "weighted-quantile" : "equal-grid")
               << " spectralSamples=" << s.spectralSamples
@@ -2383,11 +2412,11 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7|15|31|61) dispersionModel rasterizerModel apertureRadius apertureBlades apertureRotationDegrees centralObstructionRatio diffractionResolution(128|256|512|1024|2048|4096) diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold adaptiveRayRefinementEnergyThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7|15|31|61) dispersionModel rasterizerModel apertureRadius apertureBlades apertureRotationDegrees centralObstructionRatio diffractionResolution(128|256|512|1024|2048|4096) diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
-              << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
+              << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX | --adaptive-ray-refinement-energy-threshold FRACTION\n"
               << "               --spectral-samples 3|7|15|31|61 (reflected ghosts; RGB-basis spectrum, trapezoidal 430-610 nm integration)\n"
               << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default tent)\n"
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
@@ -2403,7 +2432,9 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "rayGrid") s.rayGrid = static_cast<int>(std::lround(finiteClamp(value, 8.0f, 512.0f)));
     else if (name == "adaptiveRayRefinement") s.adaptiveRayRefinementEnabled = value >= 0.5f;
     else if (name == "adaptiveRayRefinementThreshold")
-        s.adaptiveRayRefinementThreshold = finiteClamp(value, 0.05f, 8.0f);
+        s.adaptiveRayRefinementThreshold = finiteClamp(value, 0.001f, 8.0f);
+    else if (name == "adaptiveRayRefinementEnergyThreshold")
+        s.adaptiveRayRefinementEnergyThreshold = finiteClamp(value, 1e-6f, 4.0f);
     else if (name == "sourceSamples") {
         if (!std::isfinite(value) || value < 1.0f || value > 225.0f)
             throw std::runtime_error("sourceSamples must be 1 or an odd square from 9 to 225");
@@ -2479,6 +2510,8 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     }
     else if (option == "--adaptive-ray-refinement-threshold")
         setValue(settings, "adaptiveRayRefinementThreshold", value());
+    else if (option == "--adaptive-ray-refinement-energy-threshold")
+        setValue(settings, "adaptiveRayRefinementEnergyThreshold", value());
     else if (option == "--source-samples") setValue(settings, "sourceSamples", value());
     else if (option == "--source-sampling") {
         if (++i >= argc) throw std::runtime_error("missing value for --source-sampling");

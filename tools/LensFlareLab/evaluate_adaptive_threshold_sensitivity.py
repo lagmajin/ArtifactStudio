@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw
 import evaluate_adaptive_field_convergence as shared
 
 
-COUNTS = re.compile(r"centerRays=(\d+) edgeRays=(\d+) refinedCells=(\d+).*?screenErrorThreshold=([\d.]+)px, relativeEnergyThreshold=([\d.]+)%")
+COUNTS = re.compile(r"centerRays=(\d+) edgeRays=(\d+) refinedCells=(\d+).*?screenErrorThreshold=([\d.]+)px, relativeEnergyThreshold=([\deE.+-]+)% maxMappingError=([\deE.+-]+)px maxEnergyRelativeError=([\deE.+-]+)% triggers\(mapping=(\d+), energy=(\d+), validity=(\d+), foldover=(\d+)\)")
 
 
 def main():
@@ -24,15 +24,18 @@ def main():
     parser.add_argument("--ghost-pair", type=int, nargs=2, default=(6, 5), metavar=("FIRST", "SECOND"))
     parser.add_argument("--ray-grid", type=int, default=64)
     parser.add_argument("--reference-grid", type=int, default=128)
-    parser.add_argument("--thresholds", type=float, nargs="+", default=(0.05, 0.375, 0.75, 2.0, 4.0, 8.0))
+    parser.add_argument("--thresholds", type=float, nargs="+", default=(0.001, 0.005, 0.01, 0.025, 0.05, 0.75))
+    parser.add_argument("--energy-thresholds", type=float, nargs="+", default=(0.05, 0.25, 0.5, 1.0))
     parser.add_argument("--output-dir", type=Path, default=Path("build/tools/LensFlareLab/adaptive-threshold-study"))
     parser.add_argument("--csv-output", type=Path, default=Path("tools/LensFlareLab/examples/adaptive-threshold-sensitivity.csv"))
     parser.add_argument("--image-output", type=Path, default=Path("tools/LensFlareLab/examples/adaptive-threshold-sensitivity.png"))
     args = parser.parse_args()
     if not (8 <= args.ray_grid < args.reference_grid <= 512):
         parser.error("require 8 <= --ray-grid < --reference-grid <= 512")
-    if any(not (math.isfinite(t) and 0.05 <= t <= 8) for t in args.thresholds):
-        parser.error("all --thresholds values must be finite and in [0.05, 8]")
+    if any(not (math.isfinite(t) and 0.001 <= t <= 8) for t in args.thresholds):
+        parser.error("all --thresholds values must be finite and in [0.001, 8]")
+    if any(not (math.isfinite(t) and 1e-6 <= t <= 4) for t in args.energy_thresholds):
+        parser.error("all --energy-thresholds values must be finite and in [0.000001, 4]")
     u, v = args.field
     first, second = args.ghost_pair
     if not (0 <= u <= 1 and 0 <= v <= 1 and 0 <= second < first < 14):
@@ -46,18 +49,22 @@ def main():
                    check=True, capture_output=True, text=True)
     width, height, source = shared.read_pfm(source_path)
 
-    cases = [("uniform", args.ray_grid, None), ("reference", args.reference_grid, None)]
-    cases.extend((f"adaptive-{threshold:g}px", args.ray_grid, threshold)
+    cases = [("uniform", args.ray_grid, None, None),
+             ("reference", args.reference_grid, None, None)]
+    cases.extend((f"screen-{threshold:g}px", args.ray_grid, threshold, 0.25)
                  for threshold in sorted(set(args.thresholds)))
+    cases.extend((f"energy-{threshold:g}", args.ray_grid, 0.75, threshold)
+                 for threshold in sorted(set(args.energy_thresholds)))
     records, rows = {}, []
-    for label, grid, threshold in cases:
+    for label, grid, threshold, energy_threshold in cases:
         output = args.output_dir / f"{label}.pfm"
         command = [str(args.executable.resolve()), str(source_path.resolve()), str(output.resolve()),
                    "--position", str(u), str(v), "--source-samples", "1", "--ray-grid", str(grid),
                    "--gain", "1", "--diffraction", "off", "--ghost-diffraction", "off",
                    "--ghost-pair", str(first), str(second), "--ghost-report"]
         if threshold is not None:
-            command += ["--adaptive-ray-refinement", "on", "--adaptive-ray-refinement-threshold", str(threshold)]
+            command += ["--adaptive-ray-refinement", "on", "--adaptive-ray-refinement-threshold", str(threshold),
+                        "--adaptive-ray-refinement-energy-threshold", str(energy_threshold)]
         started = time.perf_counter()
         result = subprocess.run(command, capture_output=True, text=True)
         elapsed = time.perf_counter() - started
@@ -70,6 +77,7 @@ def main():
         records[label] = values
         row = {"field_u": u, "field_v": v, "first_surface": first, "second_surface": second,
                "mode": label, "ray_grid": grid, "screen_error_threshold_px": threshold or "",
+               "relative_energy_threshold_fraction": energy_threshold or "",
                "render_seconds": elapsed}
         row.update(shared.metrics(values, values, width, height))
         if threshold is not None:
@@ -78,7 +86,11 @@ def main():
                 raise RuntimeError(f"adaptive diagnostic counts missing for {label}:\n{result.stdout}")
             row.update({"center_rays": int(match.group(1)), "edge_rays": int(match.group(2)),
                         "refined_cells": int(match.group(3)), "reported_screen_threshold_px": float(match.group(4)),
-                        "fixed_relative_energy_threshold_percent": float(match.group(5))})
+                        "reported_relative_energy_threshold_percent": float(match.group(5)),
+                        "max_mapping_error_px": float(match.group(6)),
+                        "max_energy_relative_error_percent": float(match.group(7)),
+                        "mapping_error_triggers": int(match.group(8)), "energy_error_triggers": int(match.group(9)),
+                        "validity_boundary_triggers": int(match.group(10)), "foldover_triggers": int(match.group(11))})
         rows.append(row)
         print(f"mode={label} seconds={elapsed:.3f} Y={row['luma_flux']:.7g} "
               f"refined={row.get('refined_cells', '')}", flush=True)
@@ -98,7 +110,8 @@ def main():
     positive = sorted(value for value in reference if value > 0)
     white = positive[min(len(positive) - 1, int(.999 * (len(positive) - 1)))] if positive else 1.0
     labels = [row["mode"] for row in rows]
-    sheet = Image.new("RGB", (320 * len(labels), 204), "#12161e")
+    columns = min(4, len(labels))
+    sheet = Image.new("RGB", (320 * columns, 204 * ((len(labels) + columns - 1) // columns)), "#12161e")
     draw = ImageDraw.Draw(sheet)
     for i, label in enumerate(labels):
         panel = Image.new("RGB", (320, 180))
@@ -115,8 +128,9 @@ def main():
                     rgb.append(round(min(1.0, max(0.0, srgb)) * 255))
                 pixels.append(tuple(rgb))
         panel.putdata(pixels)
-        sheet.paste(panel, (i * 320, 24))
-        draw.text((i * 320 + 6, 5), label, fill="#e2e7ef")
+        x, y = (i % columns) * 320, (i // columns) * 204
+        sheet.paste(panel, (x, y + 24))
+        draw.text((x + 6, y + 5), label, fill="#e2e7ef")
     args.image_output.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(args.image_output)
     print(args.csv_output)

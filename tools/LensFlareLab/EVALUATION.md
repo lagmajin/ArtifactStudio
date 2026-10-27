@@ -55,13 +55,29 @@ the weighted-centroid error from 0.302 px to 1.362 px even while normalized
 shape L1 fell from 12.42% to 4.72%. A single shape metric is therefore not a
 sufficient acceptance measure for small, asymmetric ghosts.
 
-I then swept the advertised screen-error threshold from 0.05 to 8 px on the
-upper-left 6→5 path. All six adaptive renders were byte-identical and refined
-the same 139 of 3,969 center cells; each reported a fixed 25% relative-energy
-threshold. This is evidence that the fixed energy/topology criteria dominate
-the screen-error threshold in this selected case, so changing that setting
-alone did not change quality or sample count. It should not be interpreted as
-proof that the screen-error setting is inactive on every lens or field.
+To identify why a cell refines, the standalone renderer now reports separate
+mapping-error, energy-error, partial-validity, and foldover trigger counts and
+the maximum measured errors. The relative energy threshold is independently
+configurable with `--adaptive-ray-refinement-energy-threshold` (default 0.25,
+range 0.000001–4). A 42-path × four-field scan at 64² found 138 nonempty
+path-field maps and 27,497 refined cells; every one came from the partial-
+validity boundary rule. Maximum mapping error was 0.03422 px and maximum
+relative energy error was 0.01463%; mapping, energy, and foldover triggers were
+zero at the defaults. Repeating at energy threshold 0.01 produced identical
+counts. An extreme 0.000001 threshold produced 377,796 energy triggers, while
+the tested image quality changed negligibly. These results characterize the
+sampled fields, not the entire optical field.
+
+On upper-left 6→5, lowering the screen threshold to 0.005 px adds only two
+mapping-error cells (139→141 total); at 0.001 px it adds 969 (1,108 total).
+Against the 128² reference, RGB L1 improves from 4.106% to 4.098%, normalized
+shape L1 stays about 4.720%, and centroid error stays about 1.362 px. For
+13→7, 0.001 px adds 4,507 mapping cells but improves RGB L1 by only 0.016
+percentage points over 0.005 px. The energy-only stress on 6→5 adds 129 cells
+at 0.000001 without a material image-metric change. In these cases, denser
+interior sampling offers little benefit; the remaining centroid shift is
+consistent with clipped-boundary quadrature, but that attribution remains a
+hypothesis requiring a targeted experiment.
 
 ![Uniform, adaptive, reference, and signed luminance error panels for the 6→5 ghost at four fields](examples/adaptive-path-convergence/ghost-6-5.png)
 
@@ -70,11 +86,18 @@ The per-path measurements and signed-difference plates are in
 [`adaptive-path-convergence`](examples/adaptive-path-convergence/). The
 threshold sweep is in [`adaptive-threshold-sensitivity.csv`](examples/adaptive-threshold-sensitivity.csv)
 and [its comparison image](examples/adaptive-threshold-sensitivity.png).
-Reproduce both studies with:
+The complete trigger map is in [`adaptive-trigger-map.csv`](examples/adaptive-trigger-map.csv)
+and [its heatmap](examples/adaptive-trigger-map.png); the 0.01 energy-threshold
+repeat and 0.000001 stress run are in
+[`adaptive-trigger-map-energy001.csv`](examples/adaptive-trigger-map-energy001.csv)
+and [`adaptive-trigger-map-energy1e6.csv`](examples/adaptive-trigger-map-energy1e6.csv).
+The 13→7 comparison is in [`adaptive-threshold-13-7.csv`](examples/adaptive-threshold-13-7.csv).
+Reproduce the studies with:
 
 ```powershell
 python tools/LensFlareLab/evaluate_adaptive_ghost_paths.py build/tools/LensFlareLab/LensFlareLab.exe
 python tools/LensFlareLab/evaluate_adaptive_threshold_sensitivity.py build/tools/LensFlareLab/LensFlareLab.exe
+python tools/LensFlareLab/scan_adaptive_refinement_triggers.py build/tools/LensFlareLab/LensFlareLab.exe
 ```
 
 ## Full-field coverage of reflected paths

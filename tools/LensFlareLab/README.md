@@ -59,6 +59,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|odd square <=225]
                [--source-sampling equal-grid|weighted-quantile]
                [--adaptive-ray-refinement on|off] [--adaptive-ray-refinement-threshold PX]
+               [--adaptive-ray-refinement-energy-threshold FRACTION]
                [--dispersion cauchy|linear] [--spectral-samples 3|7|15|31|61]
                [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
@@ -258,10 +259,12 @@ for adaptive grid 64 at corner/center sources. The reference itself changes
 or a general quality guarantee. This standalone quality experiment costs
 extra ray traces and remains off by default.
 Use `--adaptive-ray-refinement-threshold PX` to tune the screen-space center
-deviation trigger (default 0.75 px); the relative energy trigger is fixed at
-25%. The refinement-energy test uses unweighted optical-trace energy, so the
-optional aperture FrFT does not alter the selected mesh. See [EVALUATION.md](EVALUATION.md)
-for off-axis and automatic multi-source comparisons against uniform ray grids.
+deviation trigger (default 0.75 px, range 0.001–8 px), and
+`--adaptive-ray-refinement-energy-threshold FRACTION` to tune relative
+unweighted optical-trace energy deviation (default 0.25, range 0.000001–4). The
+report lists mapping, energy, validity-boundary, and foldover refinement
+triggers separately. See [EVALUATION.md](EVALUATION.md) for off-axis and
+per-path comparisons against uniform ray grids.
 `--optical-path-report` requires `--ghost-pair FIRST SECOND` and reports five
 pupil-ray optical paths at each RGB wavelength, referenced to a common plane
 100 mm before the front surface. It is a ray-path diagnostic; coating phase,
