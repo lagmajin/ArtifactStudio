@@ -761,7 +761,7 @@ TEST(LiquidCollisionTest, HighSpeedParticleCannotTunnelThroughClosedPolygonEdge)
     const auto& particle = solver.particles().front();
     EXPECT_LT(particle.x, 0.9f);
     EXPECT_GE(particle.x, 0.9f - solver.particleSpacing() * 0.5f - 1.0e-4f);
-    EXPECT_LT(particle.vx, 0.0f);
+    EXPECT_NEAR(particle.vx, -16.8f, 1.0e-3f);
 }
 
 TEST(LiquidCollisionTest, HighSpeedParticleCanExitThroughPolygonOpening)
