@@ -60,7 +60,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM]
                [--ghost-diffraction-report]
                [--ghost-frft on|off] [--ghost-frft-resolution N] [--ghost-frft-report]
-               [--ghost-frft-mask polygon|transport]
+               [--ghost-frft-mask polygon|transport] [--ghost-frft-normalization triangle|vertex]
                [--fresnel-frft-order N] [--diffraction-report] [--ghost-report]
                [--ghost-pair FIRST SECOND] [--optical-path-report]
                [--optical-path-map CSV]
@@ -158,6 +158,12 @@ precompute time. `--ghost-frft-resolution` sets the square texture resolution
 0.01 also use that bypass because the 256² texture cannot resolve their narrow
 kernel without aliasing. This is a CPU reference implementation for the
 standalone lab, not an editor frame path or a measured-camera match.
+`--ghost-frft-normalization triangle` is the default: it normalizes each
+path/source/wavelength map with the same valid ray triangles and vertex
+quadrature used by pixel-area rasterization. `vertex` selects the earlier
+valid-node sum for A/B comparison. When adaptive ray refinement is enabled,
+the report identifies that triangle mode falls back to vertex normalization,
+because refined cells use a different triangle set.
 The report also estimates the integrated RGB-luminance contribution over all
 mapped ghost triangles before sensor clipping and the remainder outside the
 sensor. Use the default `pixel-area` rasterizer for this estimate; it helps
@@ -173,6 +179,9 @@ resolutions against a dense reference and reports crop flux and image error.
 `make_transport_mask_path_sweep.py` compares polygon and transport-mask
 FrFT across selected isolated ghost paths, including signed differences and
 per-crop flux/error metrics.
+`make_frft_field_path_sweep.py` composes geometric-versus-FrFT PFM renders
+across repeated field/path cases and reports frame luminance, relative image
+L1, and centroid movement on one shared exposure scale.
 Use `make_evaluation_chart.py --source-only --single-light-position U V
 --source-radius R` to create a size-controlled isolated emitter, and
 `make_ghost_flux_linearity_chart.py` to compare normalized flare output across

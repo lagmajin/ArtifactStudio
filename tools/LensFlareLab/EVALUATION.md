@@ -282,15 +282,15 @@ look-dev evaluation, not calibrated physical accuracy.
 
 #### Sensor-window versus whole-map energy
 
-The earlier comparisons established that a large frame Y increase can coexist
-with nearly unchanged ray-map energy, but did not quantify where the cropped
-energy went. `--ghost-frft-report` now also estimates the summed luminance over
-all mapped triangles before sensor clipping, then subtracts the deposits inside
-the frame to estimate the off-sensor remainder. On the same Fig. 10 source A
-and all 42 paths, the sensor Y sum increases by 9–10% with FrFT, while the
-whole-map triangle estimate converges toward a sub-1% change as the pupil ray
-grid gets denser. The off-sensor remainder decreases, showing that much of the
-apparent frame gain is redistribution onto the sensor.
+The first whole-map experiment used the original vertex-sum normalization.
+`--ghost-frft-report` estimates the summed luminance over all mapped triangles
+before sensor clipping, then subtracts the deposits inside the frame to estimate
+the off-sensor remainder. On Fig. 10 source A with all 42 paths, the sensor Y
+sum increases by 9–10% with FrFT, while the whole-map triangle estimate
+converges toward a sub-1% change as the pupil ray grid gets denser. The
+off-sensor remainder decreases, showing that much of the apparent frame gain
+is redistribution onto the sensor. This initial vertex-normalized result is
+retained below as the baseline for the quadrature-matching experiment.
 
 | Ray grid | Whole-map estimated Y, geometric → FrFT | Whole-map change | Sensor Y, geometric → FrFT | Sensor change |
 |---:|---:|---:|---:|---:|
@@ -308,15 +308,59 @@ wave-optics result; the off-sensor remainder is meaningful only with the
 pixel-area rasterizer. Do not treat the frame-only Y change as created optical
 energy or hide it by normalizing the final image.
 
-![All-path Fig. 10 source A: geometric versus FrFT ghost fields at ray grid 192 with signed image difference](examples/ghost-frft-energy-conservation-eval.png)
+![All-path Fig. 10 source A: geometry versus vertex-normalized FrFT at ray grid 192 with signed image difference](examples/ghost-frft-energy-conservation-eval.png)
 
 Reproduce the energy diagnostic by rendering the same input at ray grids 64,
 96, 128, and 192 with `--ghost-frft off` and `--ghost-frft on`, keeping
 `--position 0.246 0.356 --source-samples 1 --gain 1 --diffraction off
---ghost-frft-resolution 256 --ghost-frft-report` fixed. The report emits
+--ghost-frft-normalization vertex --ghost-frft-resolution 256
+--ghost-frft-report` fixed. The report emits
 `allMapsRasterY` and `allMapsEstimatedOutsideSensorY`; subtract the latter
 from the former for the sensor-window estimate and compare with the saved PFM
 Y sum. Use `--rasterizer pixel-area` for this accounting.
+
+#### Match FrFT normalization to rasterization quadrature
+
+The first diagnostic exposed a systematic mismatch: FrFT weights were
+normalized by summing valid pupil-ray vertices, but the image renderer
+integrates valid ray triangles. `--ghost-frft-normalization triangle` now
+normalizes each path/source-sample/wavelength map using the same complete
+two-triangle cells, triangle energy average, degeneracy threshold, and ray
+weights used by the pixel-area rasterizer. It is the default when FrFT is on;
+`vertex` retains the earlier method for direct comparison. Adaptive refinement
+currently falls back to vertex normalization because it replaces some base
+cells with a different triangle set.
+
+Across 12 isolated cases (paths 9→8, 10→8, 5→4, and 10→9 at the estimated
+Fig. 10 source A, center, and right-of-center fields; grid 96), vertex
+normalization changed full-map Y by -0.17% to +3.05%. Triangle normalization
+matched the geometry-only triangle integral to the report's 0.0001 precision in
+all 12 cases. Its frame Y still changes when a ghost is clipped: source A's
+9→8 path changes by +21.00% after triangle normalization, compared with
++22.55% under vertex normalization. The corresponding right-of-center 10→9
+path changes by +2.51% versus +3.28%; at center, fully contained paths remain
+within 0.04% frame Y. This separates finite-grid normalization drift from
+actual redistribution across the sensor boundary.
+
+The equality is by construction because the normalizer and report share the
+same finite triangle quadrature; it is not an independent proof that the
+prescription or FrFT matches a physical lens. It removes the mismatch between
+two numerical integration rules and makes frame cropping easier to interpret.
+
+The 12-case plate shows geometry, the default triangle-normalized FrFT, and
+signed luminance change at a shared exposure. Relative image L1 remains
+20.95–46.59% for the visible cases: the normalization fixes integrated
+triangle energy without suppressing the aperture texture or field-dependent
+ghost movement. The remaining sensor-window change is expected from clipping,
+not an additional normalization target.
+
+![Triangle-normalized FrFT comparison across three fields and four isolated ghost paths](examples/ghost-frft-field-path-sweep-triangle.png)
+
+Recreate this plate with `make_frft_field_path_sweep.py` after rendering each
+field/path with `--ghost-frft off` and `--ghost-frft on
+--ghost-frft-normalization triangle`; keep ray grid, source, texture size, and
+other options identical. The script reports per-case frame Y, relative L1,
+and luminance-centroid movement.
 
 Recreate the isolated path measurement with the same generated input. Run both
 render commands with identical settings except `--ghost-frft`, retain
@@ -325,7 +369,7 @@ render commands with identical settings except `--ghost-frft`, retain
 ```powershell
 python tools/LensFlareLab/make_fig10_comparison_chart.py --output build/tools/LensFlareLab/fig10-two-light-input-current.pfm
 LensFlareLab.exe build/tools/LensFlareLab/fig10-two-light-input-current.pfm build/tools/LensFlareLab/ghost-9-8-geo-192.pfm --position 0.246 0.356 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft off --ghost-pair 9 8 --ghost-report
-LensFlareLab.exe build/tools/LensFlareLab/fig10-two-light-input-current.pfm build/tools/LensFlareLab/ghost-9-8-frft-192.pfm --position 0.246 0.356 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft on --ghost-pair 9 8 --ghost-report
+LensFlareLab.exe build/tools/LensFlareLab/fig10-two-light-input-current.pfm build/tools/LensFlareLab/ghost-9-8-frft-192.pfm --position 0.246 0.356 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft on --ghost-frft-normalization vertex --ghost-pair 9 8 --ghost-report
 python tools/LensFlareLab/make_ghost_frft_comparison.py build/tools/LensFlareLab/fig10-two-light-input-current.pfm build/tools/LensFlareLab/ghost-9-8-geo-192.pfm build/tools/LensFlareLab/ghost-9-8-frft-192.pfm tools/LensFlareLab/examples/ghost-9-8-flux-diagnostic-crop.png --crop 520 140 640 360 --gain 900 --difference-gain 1000
 ```
 
@@ -333,7 +377,7 @@ python tools/LensFlareLab/make_ghost_frft_comparison.py build/tools/LensFlareLab
 L1, peak Y and centroid movement for each case in addition to creating the
 plate. Reproduce it by generating the input as above, rendering each source
 with `--ghost-frft off` and `--ghost-frft on` at the same `--ray-grid 64` and
-`--ghost-frft-resolution 256`, then passing the input and both renders for each
+`--ghost-frft-normalization vertex --ghost-frft-resolution 256`, then passing the input and both renders for each
 source through the script's repeated `--case LABEL INPUT GEOMETRIC FRFT`
 arguments. Keep the ray grid and every other render setting fixed when
 comparing the modes.
@@ -435,7 +479,7 @@ of image error and must be converged independently.
 
 Reproduce with the 4096-scale single-light chart, render the same isolated
 path at `--source-samples 1 9 25 49 81 121 169 225` and identical
-`--ray-grid 64 --ghost-frft on --diffraction off --ghost-pair 9 8`, then pass
+`--ray-grid 64 --ghost-frft on --ghost-frft-normalization vertex --diffraction off --ghost-pair 9 8`, then pass
 each render as a `--case COUNT FILE` to
 `make_finite_source_convergence_chart.py`. A separate pupil-ray sweep uses the
 same 225-bin source at `--ray-grid 64`, `96`, and `128`, compared with
@@ -616,7 +660,7 @@ the 2024 reference implementation, while the alternative linear estimate is a
 legacy approximation. Hullin et al. evaluate rays per wavelength: three bands
 represent most ghosts, but their paper notes that a few cases need many more
 samples and describes interpolation with up to seven bands for high quality.
-LensFlareLab currently evaluates only three wavelengths, so this test does not
+This specific comparison uses the default three wavelengths, so it does not
 prove that 610/550/460 nm adequately resolve this ghost's continuous spectrum.
 See [Hullin et al. (2011)](https://resources.mpi-inf.mpg.de/lensflareRendering/pdf/flare.pdf)
 and [Bodonyi et al. (2025)](https://link.springer.com/article/10.1007/s00371-024-03625-7).
@@ -963,7 +1007,8 @@ Reproduce this plate with `make_ghost_transport_resolution_chart.py`; render
 the same source and ray grid at each `--ghost-frft-resolution` value.
 
 Reproduce with `--position 0.3834 0.3844 --ray-grid 128 --source-samples 1
---diffraction off --ghost-pair 9 8 --ghost-frft on --ghost-frft-mask transport`.
+--diffraction off --ghost-pair 9 8 --ghost-frft on --ghost-frft-normalization vertex
+--ghost-frft-mask transport`.
 The comparison plate can be generated with
 `make_ghost_transport_mask_comparison.py` using the geometric, polygon, and
 transport PFM renders.
@@ -985,7 +1030,8 @@ full-frame photometric comparison.
 The signed difference is shown at display gain 1,000,000; the two render
 columns use gain 300,000. Reproduce the renders with `--position 0.3834 0.3844
 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair FIRST SECOND
---ghost-frft on --ghost-frft-mask MODE --ghost-frft-resolution 256`, then use
+--ghost-frft on --ghost-frft-normalization vertex --ghost-frft-mask MODE
+--ghost-frft-resolution 256`, then use
 `make_transport_mask_path_sweep.py` with the matching path crops. This sweep
 checks path sensitivity only. It does not validate physical accuracy; a weak
 path's larger relative discrepancy may come from sparse sampling and
@@ -1139,6 +1185,6 @@ Reproduce the isolated comparison and its image plate with:
 
 ```powershell
 LensFlareLab.exe build/finite-source-convergence-input.pfm build/ghost-geometric.pfm --position 0.3834 0.3844 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8
-LensFlareLab.exe build/finite-source-convergence-input.pfm build/ghost-frft-eq5.pfm --position 0.3834 0.3844 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8 --ghost-frft on --ghost-frft-report
+LensFlareLab.exe build/finite-source-convergence-input.pfm build/ghost-frft-eq5.pfm --position 0.3834 0.3844 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8 --ghost-frft on --ghost-frft-normalization vertex --ghost-frft-report
 python tools/LensFlareLab/make_ghost_frft_comparison.py build/finite-source-convergence-input.pfm build/ghost-geometric.pfm build/ghost-frft-eq5.pfm tools/LensFlareLab/examples/ghost-aperture-frft-x300.png --gain 300
 ```

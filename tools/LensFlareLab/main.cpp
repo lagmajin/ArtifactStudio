@@ -124,6 +124,7 @@ struct Settings {
     bool ghostDiffractionEnabled = false;
     bool ghostFrftEnabled = false;
     bool ghostFrftTransportMask = false;
+    bool ghostFrftTriangleNormalization = true;
     int ghostFrftResolution = 256;
     bool reportGhostPaths = false;
     bool reportJacobianCap = false;
@@ -1553,11 +1554,44 @@ Image render(const Image& source, const Settings& settings) {
                             ghostApertureTextures[band].fractionalOrder > 1e-6f) {
                             double geometricRayEnergy = 0.0;
                             double texturedRayEnergy = 0.0;
-                            for (RayVertex& vertex : rayGridData) {
-                                if (!vertex.valid) continue;
-                                geometricRayEnergy += vertex.energy;
-                                const float weight = apertureWeight(vertex);
-                                texturedRayEnergy += vertex.energy * weight;
+                            const bool useTriangleNormalization =
+                                settings.ghostFrftTriangleNormalization &&
+                                !settings.adaptiveRayRefinementEnabled;
+                            if (useTriangleNormalization) {
+                                // Match the exact complete-cell triangle set used by the image rasterizer.
+                                for (int gy = 0; gy + 1 < grid; ++gy) {
+                                    for (int gx = 0; gx + 1 < grid; ++gx) {
+                                        const RayVertex& a = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
+                                        const RayVertex& b = rayGridData[static_cast<std::size_t>(gy) * grid + gx + 1];
+                                        const RayVertex& c = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx];
+                                        const RayVertex& d = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx + 1];
+                                        if (!a.valid || !b.valid || !c.valid || !d.valid) continue;
+                                        const std::array<std::array<const RayVertex*, 3>, 2> triangles{{
+                                            {{&a, &b, &d}}, {{&a, &d, &c}}}};
+                                        for (const auto& triangle : triangles) {
+                                            const RayVertex& p = *triangle[0];
+                                            const RayVertex& q = *triangle[1];
+                                            const RayVertex& r = *triangle[2];
+                                            const float area = (q.x - p.x) * (r.y - p.y) -
+                                                               (q.y - p.y) * (r.x - p.x);
+                                            if (std::abs(area) < (settings.usePixelAreaRasterization ?
+                                                                  1e-12f : 1e-5f)) continue;
+                                            geometricRayEnergy +=
+                                                (static_cast<double>(p.energy) + q.energy + r.energy) / 3.0;
+                                            texturedRayEnergy += (
+                                                static_cast<double>(p.energy) * apertureWeight(p) +
+                                                static_cast<double>(q.energy) * apertureWeight(q) +
+                                                static_cast<double>(r.energy) * apertureWeight(r)) / 3.0;
+                                        }
+                                    }
+                                }
+                            } else {
+                                for (RayVertex& vertex : rayGridData) {
+                                    if (!vertex.valid) continue;
+                                    geometricRayEnergy += vertex.energy;
+                                    const float weight = apertureWeight(vertex);
+                                    texturedRayEnergy += vertex.energy * weight;
+                                }
                             }
                             if (geometricRayEnergy > 1e-20 && texturedRayEnergy > 1e-20) {
                                 rayMapNormalization = geometricRayEnergy / texturedRayEnergy;
@@ -1888,6 +1922,9 @@ Image render(const Image& source, const Settings& settings) {
                   << ghostFrftEstimatedOutsideSensorEnergy
                   << " allMapsRasterY=" << ghostFrftRasterLuminance
                   << " allMapsEstimatedOutsideSensorY=" << ghostFrftEstimatedOutsideSensorLuminance
+                  << " normalization="
+                  << (settings.ghostFrftTriangleNormalization &&
+                      !settings.adaptiveRayRefinementEnabled ? "triangle" : "vertex")
                   << " rasterizer=" << (settings.usePixelAreaRasterization ? "pixel-area" : "point-sample")
                   << " (outside-sensor estimate is meaningful only with pixel-area rasterization)\n";
     }
@@ -1942,6 +1979,9 @@ void printSettings(const Settings& s) {
               << " fresnelFrftOrderOverride=" << s.fresnelFrftOrderOverride
               << " ghostFrft=" << s.ghostFrftEnabled
               << " ghostFrftMask=" << (s.ghostFrftTransportMask ? "transport" : "polygon")
+              << " ghostFrftNormalization="
+              << (s.ghostFrftTriangleNormalization && !s.adaptiveRayRefinementEnabled
+                      ? "triangle" : "vertex")
               << " ghostFrftResolution=" << s.ghostFrftResolution
               << " ghostDiffraction=" << s.ghostDiffractionEnabled
               << " ghostDiffractionDistanceMm=" << s.ghostDiffractionDistanceMm
@@ -1957,7 +1997,7 @@ void printHelp() {
               << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
-              << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-resolution N | --ghost-frft-report\n"
+              << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
               << "               --spectral-samples 3|7 (reflected ghosts; 7 uses piecewise-linear RGB spectrum)\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
@@ -2056,6 +2096,13 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
         if (mode == "polygon") settings.ghostFrftTransportMask = false;
         else if (mode == "transport") settings.ghostFrftTransportMask = true;
         else throw std::runtime_error("--ghost-frft-mask expects polygon or transport");
+    }
+    else if (option == "--ghost-frft-normalization") {
+        if (++i >= argc) throw std::runtime_error("missing value for --ghost-frft-normalization");
+        const std::string mode = argv[i];
+        if (mode == "vertex") settings.ghostFrftTriangleNormalization = false;
+        else if (mode == "triangle") settings.ghostFrftTriangleNormalization = true;
+        else throw std::runtime_error("--ghost-frft-normalization expects vertex or triangle");
     }
     else if (option == "--ghost-diffraction-distance-mm")
         setValue(settings, "ghostDiffractionDistanceMm", value());
