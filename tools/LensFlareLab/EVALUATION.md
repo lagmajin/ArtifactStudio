@@ -956,6 +956,39 @@ measurements check source-shape and frame-crop behavior in the Lab's sampled
 model; they do not establish coherence, measured PSF accuracy, or optical
 energy beyond the image bounds.
 
+#### Aperture-radius and wavelength scaling
+
+The near-point source was rerendered with six blades at aperture radii
+2.5/4.545/8/12.5 mm, corresponding to approximately f/20/f/11/f/6.25/f/4 for
+the 100 mm lens. The measured 99.9%-encircled-energy radii shrink as the
+aperture opens, and red stays wider than blue as expected from the
+Fraunhofer scale `r ∝ λ f / D`:
+
+| Approx. f-number | Aperture radius | Red r99.9 | Green r99.9 | Blue r99.9 |
+|---:|---:|---:|---:|---:|
+| f/20 | 2.5 mm | 26.42 px | 24.00 px | 20.00 px |
+| f/11 | 4.545 mm | 14.42 px | 13.00 px | 11.00 px |
+| f/6.25 | 8 mm | 8.06 px | 7.21 px | 6.00 px |
+| f/4 | 12.5 mm | 5.00 px | 5.00 px | 4.00 px |
+
+Recovered per-channel PSF energy was within 0.002% of the extracted source
+energy at all four radii. The r50/r80 core is still contained in the central
+pixel for most bands, so the sensor-resolution image does not resolve the
+physical diffraction core; the 99.9% radius mostly measures the faint wings
+and starburst. The visible scaling and conservation support the model's
+parameter dependence, but do not validate its pixel-integration filter or
+calibrate the PSF against a real sensor.
+
+![Six-blade point-source PSF as aperture radius changes from 2.5 mm to 12.5 mm](examples/diffraction-aperture-radius-sweep.png)
+
+Reproduce with `python tools/LensFlareLab/make_evaluation_chart.py --source-only
+--single-light-position 0.5 0.5 --single-light-neutral --source-radius 1 --output
+build/aperture-radius-input.pfm`, then render it with
+`--ghosts off --diffraction on --aperture-blades 6` and
+`--aperture-radius 2.5|4.545|8|12.5`. Use
+`measure_source_psf.py INPUT RENDER` for per-channel encircled radii and
+`make_aperture_diffraction_sweep.py` for the crop plate.
+
 Reproduce the blade sweep with:
 
 ```powershell
