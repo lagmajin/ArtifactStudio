@@ -108,6 +108,7 @@ struct Settings {
     float jacobianCap = 512.0f;
     int rayGrid = 64;
     int sourceSamples = 9;
+    bool useWeightedSourceQuantiles = false;
     int spectralSamples = 3;
     bool adaptiveRayRefinementEnabled = false;
     float adaptiveRayRefinementThreshold = 0.75f;
@@ -1007,13 +1008,14 @@ float finiteClamp(float value, float minimum, float maximum) {
 }
 
 DetectedLight estimateLight(const Image& image, int centerX, int centerY, float threshold,
-                            int sourceSamples) {
+                            int sourceSamples, bool useWeightedQuantiles) {
     const int binsPerAxis = static_cast<int>(std::sqrt(static_cast<double>(sourceSamples)));
     double totalFlux = 0.0;
     double red = 0.0, green = 0.0, blue = 0.0;
     std::array<double, 225> flux{};
     std::array<double, 225> weightedX{}, weightedY{};
     std::array<double, 225> sampleRed{}, sampleGreen{}, sampleBlue{};
+    std::array<double, 49> columnFlux{}, rowFlux{};
     for (int y = std::max(0, centerY - 24); y <= std::min(image.height - 1, centerY + 24); ++y) {
         for (int x = std::max(0, centerX - 24); x <= std::min(image.width - 1, centerX + 24); ++x) {
             const float dx = static_cast<float>(x - centerX);
@@ -1024,13 +1026,44 @@ DetectedLight estimateLight(const Image& image, int centerX, int centerY, float 
             const float excess = std::max(0.0f, luminance - threshold);
             if (excess <= 0.0f || luminance <= 1e-8f) continue;
             const double chromaWeight = static_cast<double>(excess / luminance);
-            const int binX = std::clamp((x - (centerX - 24)) * binsPerAxis / 48, 0, binsPerAxis - 1);
-            const int binY = std::clamp((y - (centerY - 24)) * binsPerAxis / 48, 0, binsPerAxis - 1);
-            const std::size_t bin = static_cast<std::size_t>(binY * binsPerAxis + binX);
+            columnFlux[static_cast<std::size_t>(x - centerX + 24)] += excess;
+            rowFlux[static_cast<std::size_t>(y - centerY + 24)] += excess;
             totalFlux += excess;
             red += pixel.r * chromaWeight;
             green += pixel.g * chromaWeight;
             blue += pixel.b * chromaWeight;
+        }
+    }
+    std::array<int, 49> columnBin{}, rowBin{};
+    double cumulativeColumnFlux = 0.0;
+    double cumulativeRowFlux = 0.0;
+    for (std::size_t coordinate = 0; coordinate < columnFlux.size(); ++coordinate) {
+        const double columnQuantile = totalFlux > 0.0
+            ? (cumulativeColumnFlux + columnFlux[coordinate] * 0.5) / totalFlux : 0.0;
+        const double rowQuantile = totalFlux > 0.0
+            ? (cumulativeRowFlux + rowFlux[coordinate] * 0.5) / totalFlux : 0.0;
+        columnBin[coordinate] = useWeightedQuantiles
+            ? std::min(binsPerAxis - 1, static_cast<int>(columnQuantile * binsPerAxis))
+            : std::min(binsPerAxis - 1, static_cast<int>(coordinate) * binsPerAxis / 48);
+        rowBin[coordinate] = useWeightedQuantiles
+            ? std::min(binsPerAxis - 1, static_cast<int>(rowQuantile * binsPerAxis))
+            : std::min(binsPerAxis - 1, static_cast<int>(coordinate) * binsPerAxis / 48);
+        cumulativeColumnFlux += columnFlux[coordinate];
+        cumulativeRowFlux += rowFlux[coordinate];
+    }
+    for (int y = std::max(0, centerY - 24); y <= std::min(image.height - 1, centerY + 24); ++y) {
+        for (int x = std::max(0, centerX - 24); x <= std::min(image.width - 1, centerX + 24); ++x) {
+            const float dx = static_cast<float>(x - centerX);
+            const float dy = static_cast<float>(y - centerY);
+            if (dx * dx + dy * dy > 24.0f * 24.0f) continue;
+            const Pixel& pixel = image.pixels[static_cast<std::size_t>(y) * image.width + x];
+            const float luminance = pixel.r * 0.2126f + pixel.g * 0.7152f + pixel.b * 0.0722f;
+            const float excess = std::max(0.0f, luminance - threshold);
+            if (excess <= 0.0f || luminance <= 1e-8f) continue;
+            const double chromaWeight = static_cast<double>(excess / luminance);
+            const int binX = columnBin[static_cast<std::size_t>(x - centerX + 24)];
+            const int binY = rowBin[static_cast<std::size_t>(y - centerY + 24)];
+            const std::size_t bin = static_cast<std::size_t>(binY * binsPerAxis + binX);
             flux[bin] += excess;
             weightedX[bin] += static_cast<double>(x) * excess;
             weightedY[bin] += static_cast<double>(y) * excess;
@@ -1181,7 +1214,8 @@ Image render(const Image& source, const Settings& settings) {
             const int centerY = std::clamp(static_cast<int>(std::lround(
                 weightSum > 0.000001 ? weightedY / weightSum : peakY)), 0, height - 1);
             DetectedLight light = estimateLight(source, centerX, centerY, settings.threshold,
-                                                settings.sourceSamples);
+                                                settings.sourceSamples,
+                                                settings.useWeightedSourceQuantiles);
             light.u = static_cast<float>(centerX) / std::max(1, width - 1);
             light.v = static_cast<float>(centerY) / std::max(1, height - 1);
             light.centerX = centerX;
@@ -1194,7 +1228,8 @@ Image render(const Image& source, const Settings& settings) {
         light.v = settings.positionY;
         const int sx = std::clamp(static_cast<int>(std::lround(light.u * (width - 1))), 0, width - 1);
         const int sy = std::clamp(static_cast<int>(std::lround(light.v * (height - 1))), 0, height - 1);
-        light = estimateLight(source, sx, sy, settings.threshold, settings.sourceSamples);
+        light = estimateLight(source, sx, sy, settings.threshold, settings.sourceSamples,
+                              settings.useWeightedSourceQuantiles);
         const float shiftU = settings.positionX - static_cast<float>(sx) / std::max(1, width - 1);
         const float shiftV = settings.positionY - static_cast<float>(sy) / std::max(1, height - 1);
         for (SourceSample& sample : light.samples) {
@@ -2103,6 +2138,7 @@ void printSettings(const Settings& s) {
               << " adaptiveRayRefinement=" << s.adaptiveRayRefinementEnabled
               << " adaptiveRayRefinementThreshold=" << s.adaptiveRayRefinementThreshold
               << " jacobianCap=" << s.jacobianCap << " sourceSamples=" << s.sourceSamples
+              << " sourceSampling=" << (s.useWeightedSourceQuantiles ? "weighted-quantile" : "equal-grid")
               << " spectralSamples=" << s.spectralSamples
               << " dispersion=" << (s.useCauchyDispersion ? "cauchy" : "linear-abbe")
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
@@ -2125,12 +2161,13 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
               << "               --spectral-samples 3|7 (reflected ghosts; 7 uses piecewise-linear RGB spectrum)\n"
+              << "               --source-sampling equal-grid|weighted-quantile (experimental footprint-aware binning)\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
@@ -2152,6 +2189,7 @@ void setValue(Settings& s, const std::string& name, float value) {
             throw std::runtime_error("sourceSamples must be 1 or an odd square from 9 to 225");
         s.sourceSamples = sampleCount;
     }
+    else if (name == "sourceSamplingQuantiles") s.useWeightedSourceQuantiles = value >= 0.5f;
     else if (name == "spectralSamples") {
         if (!std::isfinite(value) || (value != 3.0f && value != 7.0f))
             throw std::runtime_error("spectralSamples must be 3 or 7");
@@ -2201,6 +2239,13 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--adaptive-ray-refinement-threshold")
         setValue(settings, "adaptiveRayRefinementThreshold", value());
     else if (option == "--source-samples") setValue(settings, "sourceSamples", value());
+    else if (option == "--source-sampling") {
+        if (++i >= argc) throw std::runtime_error("missing value for --source-sampling");
+        const std::string mode = argv[i];
+        if (mode == "equal-grid") settings.useWeightedSourceQuantiles = false;
+        else if (mode == "weighted-quantile") settings.useWeightedSourceQuantiles = true;
+        else throw std::runtime_error("--source-sampling expects equal-grid or weighted-quantile");
+    }
     else if (option == "--spectral-samples") setValue(settings, "spectralSamples", value());
     else if (option == "--rasterizer") {
         if (++i >= argc) throw std::runtime_error("missing value for --rasterizer");

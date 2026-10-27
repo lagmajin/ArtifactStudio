@@ -22,12 +22,18 @@ selects the point-source baseline, `--source-samples 9` selects the default
 3x3 finite-source ghost mode, and odd-square counts through `225` select grids
 up to 15x15 for sampling-convergence comparisons (for example, `49`, `81`,
 `121`). The larger grids are offline quality references because each occupied
-bin traces the complete selected ghost path. Rays are sampled over the physical stop and
-traced backwards through the front group to the entrance pupil, which gives
-coarse grids useful coverage at the stated f-number. Reflected ghost paths and
-diffraction can be rendered independently for evaluation. Paths that cross the
-aperture stop three times are omitted; the Angenieux prescription then has 42
-remaining surface pairs, matching the paper's single-stop-crossing model.
+bin traces the complete selected ghost path. `--source-sampling equal-grid`
+preserves the default spatial grid. The experimental `weighted-quantile` mode
+partitions each source footprint at cumulative luminance quantiles before
+forming the requested source bins; this can activate more directions for a
+small emitter, at a higher ray-tracing cost. The interactive equivalent is
+`set sourceSamplingQuantiles 1` (or `0` for equal-grid). Rays are sampled over
+the physical stop and traced backwards through the front group to the entrance
+pupil, which gives coarse grids useful coverage at the stated f-number.
+Reflected ghost paths and diffraction can be rendered independently for
+evaluation. Paths that cross the aperture stop three times are omitted; the
+Angenieux prescription then has 42 remaining surface pairs, matching the
+paper's single-stop-crossing model.
 
 ## Build
 
@@ -51,6 +57,7 @@ PFM preserves values above 1.0. Output alpha is not stored.
 ```text
 LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|odd square <=225]
+               [--source-sampling equal-grid|weighted-quantile]
                [--adaptive-ray-refinement on|off] [--adaptive-ray-refinement-threshold PX]
                [--dispersion cauchy|linear] [--spectral-samples 3|7]
                [--rasterizer pixel-area|point-sample]

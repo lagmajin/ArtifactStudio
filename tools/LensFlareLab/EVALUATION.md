@@ -2,6 +2,52 @@
 
 **最終更新:** 2026-10-27
 
+### Radiance-weighted source-bin placement
+
+The experimental `--source-sampling weighted-quantile` option places source
+bin boundaries at weighted luminance quantiles of the detected footprint;
+`equal-grid` remains the default. The implementation applies the quantiles to
+the horizontal and vertical luminance marginals, then retains the existing
+2D-bin flux, centroid, and chromaticity accumulation. This is a deterministic
+footprint-aware partition, not a Monte Carlo estimator or a claim of unbiased
+importance sampling. The motivation is consistent with the general sampling
+principle of distributing strata over a contribution domain, while the precise
+quantile-binning scheme here is an experimental LensFlareLab heuristic; see
+[pbrt's discussion of careful sample placement](https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/Careful_Sample_Placement).
+
+In a synthetic four-light HDR chart, isolated path 10→8, ray grid 96, and
+threshold-default settings, weighted quantiles populated substantially more
+bins for both the small off-axis blue source and the larger center source.
+For the small blue source, equal-grid 9 bins populated only 1 direction and
+weighted-quantile populated 9; at 25 requested bins, weighted mode populated
+25 while equal-grid populated 9. Against the weighted 49-bin render, weighted
+9/25-bin image L1 was 1.064%/0.494%, compared with 4.928%/4.451% for
+equal-grid 9/25. Weighted mode reached its 49-bin image at 49 requested bins;
+225 requested bins did not add occupied directions. For the larger center
+source, weighted 9/25/49 bins produced 1.475%/0.822%/0.515% L1 against the
+weighted 225-bin reference, compared with 7.105%/3.650%/2.387% for equal-grid
+9/25/49. Weighted 49 took about 1.96 s versus 2.26 s for equal-grid 169 in
+this run, while weighted 225 took 4.73 s and equal-grid 225 took 2.72 s.
+
+The weighted 225-bin image is only a denser comparison reference, not ground
+truth: changing pupil ray grid 64→128 at fixed source sampling 225 changed
+image L1 by 2.28% in this same optical path. These results cover two sources,
+one synthetic prescription and one ghost path; they do not establish a general
+quality threshold. The mode stays opt-in because additional occupied bins can
+increase render time, and footprint-aware placement changes the look of finite
+source integration. The equal-grid default was checked against prior PFM
+renders and remained byte-identical.
+
+![Weighted-quantile and equal-grid source sampling for a centered emitter, compared with a weighted 225-bin reference](examples/source-layout-fullcenter.png)
+
+![Weighted-quantile and equal-grid source sampling for a sparse off-axis blue emitter](examples/source-layout-sparseblue.png)
+
+Reproduce the comparisons using the four-light PFM fixture and
+`--source-sampling equal-grid|weighted-quantile`, keeping `--ray-grid 96`,
+`--position` fixed to the source under study, and `--ghost-pair 10 8`. The
+chart generator takes the resulting PFM images and reports the shared-reference
+L1 and centroid metrics.
+
 ### Optical path length diagnostic
 
 The optional `--optical-path-report` traces the selected ghost pair at the
