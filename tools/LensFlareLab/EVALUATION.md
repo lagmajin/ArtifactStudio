@@ -2,7 +2,7 @@
 
 **最終更新:** 2026-10-28
 
-## Prescription-based direct-transmission geometric PSF
+## Prescription-based direct-transmission geometric image evaluation
 
 `evaluate_direct_transmission_raytrace.py` independently traces a collimated
 ray bundle through the 14 spherical surfaces in the bundled Angenieux
@@ -21,6 +21,17 @@ change is visible in the plate. Doubling the launch grid from 256² to 512²
 changes r90 by at most 0.44% across these cases, so the geometric sampling is
 numerically stable at this scale. This is still a geometric ray image, not a
 wave-optical or measured production PSF.
+
+The spot map is a location view. A second view bins equal-weight transmitted
+rays by sensor area to estimate geometric irradiance density:
+
+![Area-binned geometric irradiance for the same field and wavelength cases](examples/direct-transmission-geometric-irradiance.png)
+
+The density image uses 256² sensor bins, a two-bin Gaussian display blur, and
+per-wavelength peak normalization before mapping 610/550/460 nm to red/green/blue.
+These choices reveal the spatial shape and suppress the launch-grid lattice;
+they do not preserve relative spectral power or model a physical sensor. The
+CSV spot radii are computed from the unblurred ray coordinates.
 
 ![Prescription-based direct-transmission geometric ray bundles at three field angles and wavelengths](examples/direct-transmission-geometric-psf.png)
 

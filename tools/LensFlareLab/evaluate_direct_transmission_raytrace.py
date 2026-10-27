@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw
+from scipy.ndimage import gaussian_filter
 
 
 SURFACE_DATA = (
@@ -167,6 +168,8 @@ def main():
         "tools/LensFlareLab/examples/direct-transmission-geometric-psf.png"))
     parser.add_argument("--csv", type=Path, default=Path(
         "tools/LensFlareLab/examples/direct-transmission-geometric-psf.csv"))
+    parser.add_argument("--density-output", type=Path, default=Path(
+        "tools/LensFlareLab/examples/direct-transmission-geometric-irradiance.png"))
     args = parser.parse_args()
     fields = (("on_axis", 0.0), ("field_5deg", math.radians(5.0)),
               ("field_10deg", math.radians(10.0)))
@@ -213,12 +216,57 @@ def main():
             draw.text((left + 8 + i * 130, 540), f"{wavelength:.0f} nm", fill=colors[wavelength])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     image.save(args.output)
+
+    # Push the equally weighted object-plane samples into sensor-plane bins.
+    # This is a geometric irradiance estimate (a ray-count density), not a
+    # coherent or calibrated spectral PSF. Per-band normalization is for shape
+    # inspection only; a small display blur suppresses the launch-grid lattice.
+    density = Image.new("RGB", (width, height), (18, 21, 26))
+    density_draw = ImageDraw.Draw(density)
+    spectral_channel = {610.0: 0, 550.0: 1, 460.0: 2}
+    for col, (name, angle) in enumerate(fields):
+        left = col * 490 + 6
+        data = [clouds[(name, wavelength)] for wavelength in colors]
+        nonempty = [points for points in data if len(points)]
+        density_draw.text((left + 4, 5), f"{name} ({math.degrees(angle):.1f} deg)",
+                          fill=(235, 238, 244))
+        density_draw.rectangle((left, 28, left + pane, 508), outline=(62, 68, 78))
+        if not nonempty:
+            density_draw.text((left + 20, 250), "No transmitted rays", fill=(255, 128, 128))
+            continue
+        all_points = np.concatenate(nonempty)
+        center = np.median(all_points, axis=0)
+        radius = max(float(np.quantile(np.linalg.norm(all_points - center, axis=1), .999)),
+                     1e-6)
+        half_span = radius * 1.08
+        panel_size = 256
+        rgb = np.zeros((panel_size, panel_size, 3), dtype=np.float64)
+        for wavelength, points in zip(colors, data):
+            if not len(points):
+                continue
+            hist, _, _ = np.histogram2d(
+                points[:, 1] - center[1], points[:, 0] - center[0], bins=panel_size,
+                range=((-half_span, half_span), (-half_span, half_span)))
+            hist = np.flipud(hist)
+            values = gaussian_filter(hist / max(float(hist.max()), 1.0), sigma=2.0)
+            values /= max(float(values.max()), 1e-12)
+            rgb[:, :, spectral_channel[wavelength]] = np.sqrt(values)
+        panel = Image.fromarray(np.clip(rgb * 235, 0, 255).astype(np.uint8)).resize(
+            (448, 448), Image.Resampling.BILINEAR)
+        density.paste(panel, (left + 16, 44))
+        density_draw.text((left + 4, 516), f"equal-energy ray density; +/-{half_span*1000:.1f} um",
+                          fill=(190, 198, 210))
+        for i, wavelength in enumerate(colors):
+            density_draw.text((left + 8 + i * 130, 540), f"{wavelength:.0f} nm",
+                              fill=colors[wavelength])
+    args.density_output.parent.mkdir(parents=True, exist_ok=True)
+    density.save(args.density_output)
     for row in records:
         print(f"{row['field']:14s} {row['wavelength_nm']:.0f}nm: "
               f"rms={row['rms_radius_um']:.2f}um r90={row['r90_um']:.2f}um "
               f"centroid=({row['centroid_x_um']:.2f},{row['centroid_y_um']:.2f})um "
               f"rays={row['valid_rays']}")
-    print(f"saved {args.csv} and {args.output}")
+    print(f"saved {args.csv}, {args.output}, and {args.density_output}")
 
 
 if __name__ == "__main__":
