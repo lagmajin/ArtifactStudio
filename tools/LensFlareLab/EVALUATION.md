@@ -1650,12 +1650,58 @@ uses the same triangular basis and trapezoidal wavelength weights. This is a
 bounded RGB interpolation experiment, not a CIE standard-observer conversion,
 a measured emitter spectrum, or a full visible-spectrum reconstruction. Glass
 dispersion still comes from the prescription's d-line index and Abbe number.
-Source Fraunhofer diffraction remains on the original three-band path; the
-option changes reflected ghosts only. Hullin et al. use three bands for
+Source Fraunhofer diffraction and reflected ghosts both use the selected
+band count. The default three-band output is unchanged; higher counts also
+integrate the direct-source PSF over the same RGB-basis wavelengths. Hullin et al. use three bands for
 standard quality and discuss up to seven interpolated bands for higher quality,
 while noting that brute-force smooth results can require around 60 wavelength
 samples. LensFlareLab exposes 15/31/61 as offline integration probes for its
 own RGB-basis model.
+
+### Optional spectral integration of direct-source diffraction
+
+The same `--spectral-samples 3|7|15|31|61` option now builds and integrates a
+Fraunhofer PSF at each selected wavelength. At 3 bands it uses the existing
+610/550/460 nm channel-to-channel mapping, which remains byte-identical to the
+prior direct-source output. Higher counts use the existing 430–610 nm
+piecewise-linear RGB-basis model and trapezoidal integration.
+
+The image evaluation uses neutral, red, green, and blue Gaussian point sources,
+a six-blade 4.545 mm pupil, 512² aperture FFT, and pixel-area detector sampling.
+Each row is compared with its 61-band render. RGB L1 errors were:
+
+| Source | 3 bands | 7 bands | 15 bands | 31 bands |
+|---|---:|---:|---:|---:|
+| Neutral | 0.051% | 0.010% | 0.001% | 0.00034% |
+| Red | 58.152% | 14.429% | 1.136% | 0.437% |
+| Green | 72.118% | 13.297% | 0.879% | 0.403% |
+| Blue | 39.958% | 4.400% | 0.399% | 0.133% |
+
+The primary-color differences expose a limitation of the current RGB spectral
+reconstruction: the 3-band special case assigns one wavelength directly to
+each channel, while higher counts reconstruct broad, overlapping wavelength
+bases. Thus, this convergence table measures numerical agreement with the
+61-band version of that model, not measured spectral or camera accuracy. The
+higher-band render can shift channel energy and hue; keep 3 bands as the
+default until the RGB-to-spectrum and sensor response are calibrated. Render
+time and cold-path kernel storage increase with the selected band count.
+Median 512² render times across three process runs, including launch and PFM
+I/O, ranged from 55–66 ms at 3 bands, 108–112 ms at 7, 214–242 ms at 15,
+424–471 ms at 31, and 822–858 ms at 61. Treat these as standalone CPU
+measurements from this machine, not a frame-time benchmark.
+
+![Neutral and primary-color diffraction at 3–61 spectral samples, compared against the 61-band reference](examples/direct-diffraction-spectral-convergence.png)
+
+The raw metrics are in
+[`direct-diffraction-spectral-convergence.csv`](examples/direct-diffraction-spectral-convergence.csv).
+Recreate with:
+
+```powershell
+python tools/LensFlareLab/evaluate_direct_diffraction_spectral.py build/tools/LensFlareLab/LensFlareLab-dev.exe --output-dir build/tools/LensFlareLab/direct-diffraction-spectral --resolution 512
+```
+
+The script needs NumPy and Pillow. The 61-band case is a dense reference for
+this RGB-basis model and is not an empirical ground truth.
 
 The 3-band default was compared byte-for-byte against the preceding build for
 geometric ghost rasterization, aperture-FrFT ghost rendering, and scalar ghost
@@ -1694,8 +1740,9 @@ Reproduce the isolated comparison by rendering the neutral source twice with
 identical settings, changing only `--spectral-samples 3` to `7`, then passing
 both results to `make_dispersion_comparison.py` with
 `--model-labels "3 bands" "7 bands"`. Use the same option with
-`--ghost-frft on` or `--ghost-diffraction on` to exercise the spectral ghost
-layers. The source diffraction result is intentionally unchanged.
+`--ghost-frft on` or `--ghost-diffraction on` to exercise spectral ghost
+layers; the direct-source Fraunhofer PSF uses the selected wavelength count as
+well (see the primary-color convergence study above).
 
 Recreate the plate by generating neutral point inputs at both fields, rendering
 each with the same path/settings except `--dispersion`, and passing the two

@@ -1271,29 +1271,33 @@ void removeDetectedSourceExcess(Image& image, const Image& source, int centerX, 
 }
 
 void convolveSourceWithDiffraction(Image& image, const std::vector<Pixel>& sourceEnergy,
-                                   const std::array<DiffractionKernel, 3>& kernels,
+                                   const std::array<DiffractionKernel, kMaxSpectralBands>& kernels,
+                                   const std::array<SpectralBand, kMaxSpectralBands>& bands,
+                                   std::size_t bandCount,
                                    float gain) {
     const int width = image.width;
     const int height = image.height;
     for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
         const Pixel& sourcePixel = sourceEnergy[static_cast<std::size_t>(y) * width + x];
-        const std::array<float, 3> channels{sourcePixel.r, sourcePixel.g, sourcePixel.b};
-        if (channels[0] <= 0.0f && channels[1] <= 0.0f && channels[2] <= 0.0f) continue;
-        for (std::size_t band = 0; band < kernels.size(); ++band) {
+        if (sourcePixel.r <= 0.0f && sourcePixel.g <= 0.0f && sourcePixel.b <= 0.0f) continue;
+        for (std::size_t band = 0; band < bandCount; ++band) {
             const DiffractionKernel& kernel = kernels[band];
-            const float channel = channels[band];
-            if (channel <= 0.0f || kernel.intensity.empty()) continue;
+            const SpectralBand& spectralBand = bands[band];
+            const float spectralEnergy = sourcePixel.r * spectralBand.sourceWeights.r +
+                sourcePixel.g * spectralBand.sourceWeights.g +
+                sourcePixel.b * spectralBand.sourceWeights.b;
+            if (spectralEnergy <= 0.0f || kernel.intensity.empty()) continue;
             const int half = kernel.size / 2;
             for (int ky = 0; ky < kernel.size; ++ky) for (int kx = 0; kx < kernel.size; ++kx) {
                 const int px = x + kx - half;
                 const int py = y + ky - half;
                 if (px < 0 || py < 0 || px >= width || py >= height) continue;
                 Pixel& destination = image.pixels[static_cast<std::size_t>(py) * width + px];
-                const float addition = channel * kernel.intensity[
+                const float addition = spectralEnergy * kernel.intensity[
                     static_cast<std::size_t>(ky) * kernel.size + kx] * gain;
-                if (band == 0) destination.r += addition;
-                else if (band == 1) destination.g += addition;
-                else destination.b += addition;
+                destination.r += addition * spectralBand.outputWeights.r;
+                destination.g += addition * spectralBand.outputWeights.g;
+                destination.b += addition * spectralBand.outputWeights.b;
             }
         }
     }
@@ -1634,12 +1638,12 @@ Image render(const Image& source, const Settings& settings) {
     double ghostFrftRasterLuminance = 0.0;
     double ghostFrftEstimatedOutsideSensorLuminance = 0.0;
     double ghostFrftTransportMaskMs = 0.0;
-    std::array<DiffractionKernel, 3> diffraction;
+    std::array<DiffractionKernel, kMaxSpectralBands> diffraction;
     if (settings.diffractionEnabled) {
-        for (std::size_t band = 0; band < diffraction.size(); ++band) {
+        for (std::size_t band = 0; band < spectralBandCount; ++band) {
             diffraction[band] = makeDiffractionKernel(settings.diffractionResolution,
                 settings.apertureBlades,
-                wavelengths[band], lens, lens.irisRadius, width,
+                spectralBands[band].wavelengthNm, lens, lens.irisRadius, width,
                 settings.diffractionPixelAreaResampling, apertureRotationRadians,
                 settings.centralObstructionRatio);
         }
@@ -1652,7 +1656,8 @@ Image render(const Image& source, const Settings& settings) {
             removeDetectedSourceExcess(output, source, light.centerX, light.centerY,
                 settings.threshold, removedSourceEnergy, processedSourcePixels, settings.gain);
         }
-        convolveSourceWithDiffraction(output, removedSourceEnergy, diffraction, settings.gain);
+        convolveSourceWithDiffraction(output, removedSourceEnergy, diffraction,
+                                      spectralBands, spectralBandCount, settings.gain);
     }
     for (std::size_t lightIndex = 0; lightIndex < lights.count; ++lightIndex) {
         const DetectedLight& light = lights.lights[lightIndex];
@@ -2417,7 +2422,7 @@ void printHelp() {
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX | --adaptive-ray-refinement-energy-threshold FRACTION\n"
-              << "               --spectral-samples 3|7|15|31|61 (reflected ghosts; RGB-basis spectrum, trapezoidal 430-610 nm integration)\n"
+              << "               --spectral-samples 3|7|15|31|61 (direct diffraction and reflected ghosts; RGB-basis 430-610 nm integration)\n"
               << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default pixel-area)\n"
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"

@@ -133,13 +133,14 @@ render times. This setting does not change the separate ghost-diffraction or
 ghost-FrFT texture resolutions.
 Reflected ghosts use the original three wavelength samples by default.
 `--spectral-samples 7|15|31|61` selects trapezoidal integration over 430–610 nm
-with a piecewise-linear reconstruction from input RGB. The 7-band option
-preserves its original wavelengths exactly; higher counts are offline
-convergence probes (61 bands at 3 nm spacing). This is an exploratory
-interpolation between the three existing RGB primaries, not a CIE
-standard-observer conversion or measured source spectrum. Higher counts
-increase CPU time roughly in proportion to the band count and do not change the
-source Fraunhofer starburst, which remains three-band.
+with a piecewise-linear reconstruction from input RGB for both reflected
+ghosts and direct-source Fraunhofer diffraction. The 7-band option preserves
+its original wavelengths exactly; higher counts are offline convergence
+probes (61 bands at 3 nm spacing). This is an exploratory interpolation
+between the three existing RGB primaries, not a CIE standard-observer
+conversion or measured source spectrum. Higher counts increase CPU time
+roughly in proportion to the band count; the default 3-band mode retains the
+original RGB wavelengths and output.
 `--rasterizer pixel-area` is the default. It clips each mapped ray triangle to
 unit-area sensor pixels and integrates the linearly interpolated ray energy
 inside each overlap. This conserves sampled ray flux when a triangle is smaller
@@ -198,9 +199,13 @@ per-channel encircled-energy radii from the PFM outputs.
 sources at eight subpixel phases, compares tent and pixel-area PSF resampling,
 and records throughput, centroid, and encircled-radius sensitivity.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
-an independent 4096² pupil FFT and 9× sensor-pixel integration reference. The
-two diffraction evaluation scripts require Python packages NumPy, SciPy, and
-Pillow; the renderer itself has no Python runtime dependency.
+an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
+Pixel-phase evaluation requires Pillow; the supersampled reference requires
+NumPy, SciPy, and Pillow; spectral evaluation requires NumPy and Pillow. The
+renderer itself has no Python runtime dependency.
+`evaluate_direct_diffraction_spectral.py` compares 3/7/15/31/61 wavelength
+sampling for neutral and primary-color point sources against its 61-band
+numerical reference, using NumPy and Pillow.
 `python tools/LensFlareLab/make_ray_grid_comparison.py` compares the same
 source-sample mode across 64/96/128 pupil ray grids and reports in-frame
 flux, peak, centroid, and image differences. Its `--source-samples` accepts
