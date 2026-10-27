@@ -1083,6 +1083,33 @@ Reproduce by rendering the same source with
 against the 4096² PFM with `compare_diffraction_resampling.py` and create the
 plate with `make_diffraction_resolution_chart.py`.
 
+To check whether that result depended on the f/11 six-blade case, the sweep was
+repeated at f/20 and f/4 with six blades, and at five and ten blades with the
+f/11 stop. The 1024² and 2048² PSFs remain close to their same-condition
+4096² references:
+
+| Condition | 1024² RGB-channel L1 | 2048² RGB-channel L1 |
+|---|---:|---:|
+| 2.5 mm, 6 blades (f/20) | 0.093–0.106% | 0.031–0.035% |
+| 4.545 mm, 6 blades (f/11) | 0.099–0.103% | 0.038% |
+| 12.5 mm, 6 blades (f/4) | 0.081–0.085% | 0.037% |
+| 4.545 mm, 5 blades | 0.090–0.091% | 0.043% |
+| 4.545 mm, 10 blades | 0.080% | 0.036% |
+
+Thus 1024² stayed below 0.11% channel L1 in all five tested setups; the
+2048² result stayed below 0.043%. This supports the 1024² default for these
+parameters, but does not bound other pupil obstructions, blade rotations,
+sensor sizes, or lenses. The reference remains a sampled binary aperture, not
+a measured optical PSF.
+
+![Resolution convergence for six blades at f/20](examples/diffraction-resolution-radius-2.5.png)
+
+![Resolution convergence for six blades at f/4](examples/diffraction-resolution-radius-12.5.png)
+
+![Resolution convergence for a five-blade aperture at f/11](examples/diffraction-resolution-blades-5.png)
+
+![Resolution convergence for a ten-blade aperture at f/11](examples/diffraction-resolution-blades-10.png)
+
 Reproduce the blade sweep with:
 
 ```powershell

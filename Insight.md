@@ -7625,3 +7625,9 @@
 - **確認できた事実:** For a centered radius-1 neutral source, six-blade f/11 aperture, and 640x360 output, RGB PSF L1 against a 4096² reference fell from 0.67–0.77% at 128² to 0.18% at 512², 0.099–0.103% at 1024², and 0.038% at 2048². A 4096² render took about 4.2 s; 1024² took about 0.19 s in a single timing run. The 512² tent path remains byte-identical when selected explicitly.
 - **価値または懸念:** 128² visibly aliases the core; 1024² is a useful quality/speed default for this fixture. The 4096² reference is a denser discretization, not optical ground truth, and the result covers only one stop, aperture radius, source, and sensor size.
 - **次に確認すべきこと:** Repeat resolution convergence across blade counts, aperture radii, source field positions, and image sizes; compare the PSF to measured lens/sensor captures before treating the default as a physical calibration.
+
+## 2026-10-27: Extend diffraction-resolution convergence across apertures
+- **関連:** `tools/LensFlareLab/main.cpp` (`--diffraction-resolution`), `tools/LensFlareLab/compare_diffraction_resampling.py`, `tools/LensFlareLab/make_diffraction_resolution_chart.py`, `tools/LensFlareLab/EVALUATION.md`.
+- **確認できた事実:** At aperture radii 2.5/4.545/12.5 mm with six blades and at five/ten blades with the 4.545 mm stop, 1024² produced <=0.106% RGB-channel PSF L1 against each same-condition 4096² reference; 2048² produced <=0.043%.
+- **価値または懸念:** The 1024² default's measured error stayed bounded across five synthetic conditions, but the dense binary-pupil reference is not measured optical truth and the sweep omits rotations, obscurations, field dependence, and sensor-size changes.
+- **次に確認すべきこと:** Add aperture rotation and central obstruction cases, then compare selected outputs against measured or independently generated high-quality PSF data.
