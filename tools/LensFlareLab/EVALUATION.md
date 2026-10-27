@@ -19,10 +19,21 @@ path-band patches at 100 mm propagation distance. The common log white was
 10.0469971 radiance at p99.9. The log view reveals faint polygonal ghost
 structures that are largely hidden by the legacy Reinhard view. They are useful
 to inspect, but their visibility in this display is not evidence of extra
-physical energy: logarithmic contrast intentionally lifts the low end, and
-polygon edges may expose ray-map or patch-rasterization structure. The render's
-Fresnel integrated input/output ratio stayed near unity (1847.42022 / the
-reported normalization), which is a separate numerical conservation check.
+physical energy: logarithmic contrast intentionally lifts the low end. A
+separate ray-grid convergence study below shows that the large polygonal faces
+are also present in the geometric baseline and remain recognizable through
+512² sampling, so they are not unique to the Fresnel pass; residual discretizing
+error still remains. The Fresnel integrated input and normalized output both
+measured 1847.42022, while the uncorrected cropped output was 1847.4055.
+
+Hullin et al. describe photographic flare from lens interreflections and model
+ghost structure through the actual lens, with wavelength-dependent coatings
+and aberrations ([SIGGRAPH 2011 paper](https://resources.mpi-inf.mpg.de/lensflareRendering/)).
+Abd El-Maksoud and Sasian likewise describe ghost images as structured images
+whose nonparaxial form depends on the optical system, rather than generic spots
+([Applied Optics 2011](https://doi.org/10.1364/AO.50.002305)). Those results make
+the mapped polygonal ghost footprints plausible, but do not validate this
+synthetic prescription or its phase model against a real lens.
 
 ![Full-field geometric and Fresnel ghost comparison using legacy Reinhard and shared-percentile logarithmic display](examples/ghost-fresnel-tone-map-compare.png)
 
@@ -37,6 +48,59 @@ Use the same command with `--tone-map reinhard` to reproduce the legacy
 comparison. For an isolated bright ghost, the same logarithmic settings can
 compress highlights heavily; choose crop and contrast for the diagnostic and
 do not interpret either display transform as exposure-calibrated output.
+
+## Ghost ray-grid convergence and adaptive sampling
+
+To test whether the large polygonal ghost structure was created by the Fresnel
+display path, I rendered the same isolated neutral 1 px source at `(0.3834,
+0.3844)` with 3 spectral bands, 42 eligible paths, and ray grids 32, 64, 128,
+256, and 512. Each geometric render is compared with its own 512² result, and
+each Fresnel render is compared with its matching 512² result; 512² is a finite
+reference, not ground truth. RGB shape error first scales each render to the
+reference's channel-summed flux, so it separates shape changes from the slower
+flux quadrature convergence.
+
+| Sampling | Runtime (geometric / Fresnel) | Geometric flux error / shape L1 | Fresnel flux error / shape L1 | Centroid error, geometric / Fresnel |
+| --- | ---: | ---: | ---: | ---: |
+| Uniform 64² | 0.80 / 2.78 s | 4.11% / 6.34% | 4.17% / 6.47% | 0.302 / 0.287 px |
+| Adaptive 64², 0.75 px threshold | 1.35 / 3.53 s | 1.44% / 2.40% | 1.50% / 2.57% | 0.044 / 0.032 px |
+| Uniform 128² | 2.46 / 4.67 s | 2.30% / 3.64% | 2.35% / 3.83% | 0.077 / 0.070 px |
+| Uniform 256² | 9.27 / 11.93 s | 0.63% / 1.14% | 0.66% / 1.28% | 0.024 / 0.021 px |
+| Uniform 512² | 35.88 / 38.16 s | reference | reference | reference |
+
+The 32² uniform grid classified 41/42 paths as visible; 64² and higher found
+all 42. At adaptive 64², 10,292 cells were refined (2.06%), with 500,094 center
+rays and 41,168 edge rays. Against the 512² reference, adaptive 64² lowered
+shape L1 about 62% relative to uniform 64² and reduced flux error by roughly
+2.7 percentage points, while taking 1.35 s geometric / 3.53 s Fresnel in this
+run. Uniform 256² is more accurate, but took about 7–9 times longer. This makes
+the existing adaptive option a strong Lab quality/performance candidate for
+these settings, not a universal default: the sweep uses one point-like source,
+one field, one prescription, and only 3 spectral bands.
+
+At matching grid sizes, the Fresnel-to-geometric RGB image difference stays
+near 9.2% from 64² through 512². This confirms that the propagated result is
+not merely a coarse-grid residual in this fixture. The polygonal faces persist
+in both models as resolution increases, consistent with the lens-mapped ghost
+images discussed in the cited optics literature. Fine edge convergence and
+phase realism still need a broader field/path sweep and real-lens reference
+images.
+
+![Geometric and Fresnel ghost radiance, plus signed residuals to the 512² references, across five pupil-ray grids](examples/ghost-raygrid-convergence.png)
+
+The per-grid flux, runtime, centroid, RGB L1, and flux-normalized shape L1
+measurements are in
+[`ghost-raygrid-convergence.csv`](examples/ghost-raygrid-convergence.csv).
+The first and third rows of the contact sheet use a shared log-display white;
+the residual rows use a shared p99.9 absolute-luma scale within each model, with
+red for added and blue for missing radiance relative to grid 512.
+Recreate them with:
+
+```text
+python tools/LensFlareLab/make_evaluation_chart.py --output build/tools/LensFlareLab/raygrid-input.pfm --source-only --light-scale 4096 --single-light-position 0.3834 0.3844 --source-radius 1 --single-light-neutral
+python tools/LensFlareLab/evaluate_ghost_raygrid_convergence.py build/tools/LensFlareLab/LensFlareLab.exe build/tools/LensFlareLab/raygrid-input.pfm --output-dir build/tools/LensFlareLab/raygrid-study --grids 32 64 128 256 512
+python tools/LensFlareLab/evaluate_ghost_raygrid_convergence.py build/tools/LensFlareLab/LensFlareLab.exe build/tools/LensFlareLab/raygrid-input.pfm --output-dir build/tools/LensFlareLab/raygrid-adaptive-study --grids 64 --extra-arg=--adaptive-ray-refinement --extra-arg=on
+```
 
 ### Radiance-weighted source-bin placement
 
