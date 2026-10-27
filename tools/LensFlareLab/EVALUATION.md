@@ -2,6 +2,45 @@
 
 **最終更新:** 2026-10-28
 
+## Adaptive pupil sampling across source fields
+
+I compared uniform 64² pupil sampling, adaptive 64² sampling at a 0.75 px
+screen-error threshold, and uniform 128² reference sampling. The four neutral
+1 px source fields are center `(0.50,0.50)`, upper-left `(0.26,0.26)`, top edge
+`(0.50,0.02)`, and lower-right `(0.74,0.74)`. Each isolated render includes all
+eligible ghost paths, uses three spectral bands, and disables direct and ghost
+diffraction so the comparison measures geometric ray-map sampling.
+
+| Field | Mode | Render time | RGB L1 vs 128² | Flux-normalized shape L1 | Centroid error |
+|---|---|---:|---:|---:|---:|
+| Center | Uniform 64² | 1.004 s | 4.09% | 4.13% | 0.044 px |
+| Center | Adaptive 64² | 1.576 s | 2.90% | 4.18% | 0.032 px |
+| Upper-left | Uniform 64² | 0.564 s | 3.99% | 5.51% | 0.065 px |
+| Upper-left | Adaptive 64² | 1.030 s | 2.13% | 2.72% | 0.038 px |
+| Top edge | Uniform 64² | 0.534 s | 3.88% | 5.45% | 0.067 px |
+| Top edge | Adaptive 64² | 0.993 s | 1.75% | 2.30% | 0.036 px |
+| Lower-right | Uniform 64² | 0.566 s | 3.99% | 5.51% | 0.065 px |
+| Lower-right | Adaptive 64² | 1.009 s | 2.13% | 2.72% | 0.038 px |
+
+Adaptive sampling lowers absolute RGB L1 at every tested field, by 29% at
+center and 47–55% off-axis. It substantially improves normalized shape and
+centroid away from center; at center, shape error is essentially unchanged
+(4.18% versus 4.13%). It costs 1.6–1.9× the uniform-64 render time in this CPU
+standalone run, while remaining faster than the 128² reference (about 0.57×).
+The four positions are not a complete field validation, and the 128² output is
+itself sampled rather than ground truth; this evidence supports adaptive
+sampling as a useful quality/performance option, not a universal default.
+
+![Uniform 64², adaptive 64², and uniform 128² reflected flare at four fields, displayed on a shared reference exposure](examples/adaptive-field-convergence.png)
+
+Per-field measurements are in
+[`adaptive-field-convergence.csv`](examples/adaptive-field-convergence.csv).
+Reproduce with:
+
+```powershell
+python tools/LensFlareLab/evaluate_adaptive_field_convergence.py build/tools/LensFlareLab/LensFlareLab.exe
+```
+
 ## Full-field coverage of reflected paths
 
 The 42 eligible surface-pair paths were measured over a 5×5 source grid
