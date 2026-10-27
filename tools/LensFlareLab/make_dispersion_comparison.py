@@ -113,7 +113,7 @@ def main():
         for column, (panel, title) in enumerate(zip(
                 (cauchy_image, linear_image, difference_image),
                 (args.model_labels[0], args.model_labels[1],
-                 f"{args.model_labels[0]} − {args.model_labels[1]} (signed RGB)"))):
+                f"{args.model_labels[0]} minus {args.model_labels[1]} (signed RGB)"))):
             x = column * width
             sheet.paste(panel, (x, y + label_height))
             draw.text((x + 6, y + 5), f"{label} | {title}", fill=(225, 230, 238))

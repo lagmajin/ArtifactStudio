@@ -139,6 +139,7 @@ struct Settings {
     bool reportGhostDiffraction = false;
     bool reportGhostFrft = false;
     bool reportOpticalPath = false;
+    bool reportCoating = false;
     std::string opticalPathMapFile;
     int selectedFirstReflection = -1;
     int selectedSecondReflection = -1;
@@ -224,6 +225,22 @@ struct LensPrescription {
     float irisZ;
     float irisRadius;
     std::array<Surface, 14> surfaces;
+};
+
+struct CoatingInterfaceEvent {
+    int surfaceIndex = -1;
+    bool reflection = false;
+    bool airSide = false;
+    float incidenceDegrees = 0.0f;
+    float incidentIndex = 1.0f;
+    float transmittedIndex = 1.0f;
+    float uncoatedReflectance = 0.0f;
+    float coatedReflectance = 0.0f;
+};
+
+struct CoatingRayReport {
+    std::array<CoatingInterfaceEvent, 32> events{};
+    std::size_t count = 0;
 };
 
 struct RayVertex {
@@ -851,6 +868,12 @@ float fresnelReflectance(float n1, float n2, Vec3 direction, Vec3 normal,
     return std::clamp(0.5f * (rs * rs + rp * rp), 0.0f, 1.0f);
 }
 
+bool isAirGlassInterface(float n1, float n2) {
+    constexpr float airIndexTolerance = 1e-3f;
+    return std::abs(n1 - 1.0f) < airIndexTolerance ||
+           std::abs(n2 - 1.0f) < airIndexTolerance;
+}
+
 bool refractRay(Vec3& direction, Vec3 normal, float n1, float n2) {
     if (dot(direction, normal) > 0.0f) normal = normal * -1.0f;
     const float cos1 = std::clamp(-dot(normal, direction), 0.0f, 1.0f);
@@ -907,7 +930,8 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
                    Vec3& sensorPoint, Vec3& aperturePoint, int bladeCount,
                    float apertureRotationRadians, float obstructionRatio,
                    bool antiReflectCoating,
-                   bool useCauchyDispersion, double* opticalPathMm = nullptr) {
+                   bool useCauchyDispersion, double* opticalPathMm = nullptr,
+                   CoatingRayReport* coatingReport = nullptr) {
     energy = 1.0f;
     double opticalPath = 0.0;
     Vec3 previousPoint = origin;
@@ -917,6 +941,22 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
         const Vec3 delta = point - previousPoint;
         opticalPath += static_cast<double>(segmentIndex) * length(delta);
         previousPoint = point;
+    };
+    auto recordInterface = [&](int surfaceIndex, bool reflection, float nIncident,
+                               float nTransmitted, Vec3 rayDirection, Vec3 normal) {
+        if (!coatingReport || coatingReport->count >= coatingReport->events.size()) return;
+        if (dot(rayDirection, normal) > 0.0f) normal = normal * -1.0f;
+        const float cosine = std::clamp(-dot(normal, rayDirection), 0.0f, 1.0f);
+        constexpr float radiansToDegrees = 57.29577951308232f;
+        const bool airSide = isAirGlassInterface(nIncident, nTransmitted);
+        const float uncoatedReflectance = fresnelReflectance(
+            nIncident, nTransmitted, rayDirection, normal, wavelengthNm, false);
+        coatingReport->events[coatingReport->count++] = {
+            surfaceIndex, reflection, airSide, std::acos(cosine) * radiansToDegrees,
+            nIncident, nTransmitted, uncoatedReflectance,
+            airSide ? fresnelReflectance(nIncident, nTransmitted, rayDirection, normal,
+                                         wavelengthNm, true)
+                    : uncoatedReflectance};
     };
     for (int i = 0; i <= firstReflection; ++i) {
         if (i == 7) {
@@ -933,16 +973,19 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
             refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
                             useCauchyDispersion);
         const float nAfter = refractiveIndex(surface, wavelengthNm, useCauchyDispersion);
+        recordInterface(i, i == firstReflection, nBefore, nAfter, direction, normal);
         if (i == firstReflection) {
             const float r = fresnelReflectance(nBefore, nAfter, direction, normal,
-                                                wavelengthNm, antiReflectCoating);
+                                                wavelengthNm,
+                                                antiReflectCoating && isAirGlassInterface(nBefore, nAfter));
             if (r <= 1e-9f) return false;
             energy *= r;
             reflectRay(direction, normal);
             segmentIndex = nBefore;
         } else {
             const float r = fresnelReflectance(nBefore, nAfter, direction, normal,
-                                                wavelengthNm, antiReflectCoating);
+                                                wavelengthNm,
+                                                antiReflectCoating && isAirGlassInterface(nBefore, nAfter));
             if (!refractRay(direction, normal, nBefore, nAfter)) return false;
             energy *= 1.0f - r;
             segmentIndex = nAfter;
@@ -964,16 +1007,19 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
         const float nTo = i == 0 ? 1.0f :
             refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
                             useCauchyDispersion);
+        recordInterface(i, i == secondReflection, nFrom, nTo, direction, normal);
         if (i == secondReflection) {
             const float r = fresnelReflectance(nFrom, nTo, direction, normal,
-                                                wavelengthNm, antiReflectCoating);
+                                                wavelengthNm,
+                                                antiReflectCoating && isAirGlassInterface(nFrom, nTo));
             if (r <= 1e-9f) return false;
             energy *= r;
             reflectRay(direction, normal);
             segmentIndex = nFrom;
         } else {
             const float r = fresnelReflectance(nFrom, nTo, direction, normal,
-                                                wavelengthNm, antiReflectCoating);
+                                                wavelengthNm,
+                                                antiReflectCoating && isAirGlassInterface(nFrom, nTo));
             if (!refractRay(direction, normal, nFrom, nTo)) return false;
             energy *= 1.0f - r;
             segmentIndex = nTo;
@@ -992,8 +1038,10 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
             refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
                             useCauchyDispersion);
         const float nAfter = refractiveIndex(surface, wavelengthNm, useCauchyDispersion);
+        recordInterface(i, false, nBefore, nAfter, direction, normal);
         const float r = fresnelReflectance(nBefore, nAfter, direction, normal,
-                                            wavelengthNm, antiReflectCoating);
+                                            wavelengthNm,
+                                            antiReflectCoating && isAirGlassInterface(nBefore, nAfter));
         if (!refractRay(direction, normal, nBefore, nAfter)) return false;
         energy *= 1.0f - r;
         segmentIndex = nAfter;
@@ -1366,6 +1414,8 @@ Image render(const Image& source, const Settings& settings) {
         throw std::runtime_error("--ghost-frft-mask transport requires --ghost-pair FIRST SECOND");
     if (settings.reportOpticalPath && settings.selectedFirstReflection < 0)
         throw std::runtime_error("--optical-path-report requires --ghost-pair FIRST SECOND");
+    if (settings.reportCoating && settings.selectedFirstReflection < 0)
+        throw std::runtime_error("--coating-report requires --ghost-pair FIRST SECOND");
     if (!settings.opticalPathMapFile.empty() && settings.selectedFirstReflection < 0)
         throw std::runtime_error("--optical-path-map requires --ghost-pair FIRST SECOND");
     if (!settings.opticalPathMapFile.empty()) {
@@ -1420,11 +1470,14 @@ Image render(const Image& source, const Settings& settings) {
         std::cout << "Optical path map: " << settings.opticalPathMapFile << " ("
                   << grid << "x" << grid << " pupil rays, 3 wavelengths)\n";
     }
-    if (settings.reportOpticalPath) {
+    if (settings.reportOpticalPath || settings.reportCoating) {
         constexpr std::array<Point2, 5> pupilSamples{{
             {0.0f, 0.0f}, {-0.5f, 0.0f}, {0.5f, 0.0f}, {0.0f, -0.5f}, {0.0f, 0.5f}}};
         const double referencePlaneZ = static_cast<double>(lens.surfaces.front().z) - 100.0;
-        std::cout << "Optical path report (5 pupil rays; common plane 100mm before front surface; coating phase omitted):\n";
+        if (settings.reportOpticalPath)
+            std::cout << "Optical path report (5 pupil rays; common plane 100mm before front surface; coating phase omitted):\n";
+        if (settings.reportCoating)
+            std::cout << "Thin-film report (chief pupil ray; 1.38 index, 550nm quarter-wave layer on air/glass surfaces; glass/glass interfaces uncoated):\n";
         for (std::size_t band = 0; band < wavelengths.size(); ++band) {
             const float thetaX = std::atan((settings.positionX - 0.5f) * lens.sensorWidth /
                                            lens.effectiveFocalLength);
@@ -1432,7 +1485,9 @@ Image render(const Image& source, const Settings& settings) {
                 static_cast<float>(height) / (width * lens.effectiveFocalLength));
             const Vec3 direction = normalized({std::sin(thetaX), std::sin(thetaY),
                                                 std::cos(thetaX) * std::cos(thetaY)});
-            for (const Point2 pupil : pupilSamples) {
+            const std::size_t sampleCount = settings.reportCoating ? 1 : pupilSamples.size();
+            for (std::size_t sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex) {
+                const Point2 pupil = pupilSamples[sampleIndex];
                 const float stopX = pupil.x * lens.irisRadius;
                 const float stopY = pupil.y * lens.irisRadius;
                 Vec3 entranceOrigin{};
@@ -1446,20 +1501,46 @@ Image render(const Image& source, const Settings& settings) {
                 float energy = 0.0f;
                 Vec3 sensorPoint{};
                 Vec3 aperturePoint{};
+                CoatingRayReport coatingReport;
                 if (!traceGhostRay(lens, settings.selectedFirstReflection,
                                    settings.selectedSecondReflection, wavelengths[band],
                                    entranceOrigin, direction, energy, sensorPoint, aperturePoint,
                                    settings.apertureBlades, apertureRotationRadians,
                                    settings.centralObstructionRatio,
                                    settings.antiReflectCoating,
-                                   settings.useCauchyDispersion, &opticalPathMm)) {
+                                   settings.useCauchyDispersion, &opticalPathMm,
+                                   settings.reportCoating ? &coatingReport : nullptr)) {
                     std::cout << wavelengths[band] << "nm pupil=(" << pupil.x << ',' << pupil.y
                               << "): blocked on ghost path\n";
                     continue;
                 }
+                if (settings.reportCoating) {
+                    double uncoatedPathFactor = 1.0;
+                    double coatedPathFactor = 1.0;
+                    for (std::size_t eventIndex = 0; eventIndex < coatingReport.count; ++eventIndex) {
+                        const CoatingInterfaceEvent& event = coatingReport.events[eventIndex];
+                        const double uncoatedFactor = event.reflection ? event.uncoatedReflectance
+                            : 1.0 - event.uncoatedReflectance;
+                        const double coatedFactor = event.reflection ? event.coatedReflectance
+                            : 1.0 - event.coatedReflectance;
+                        uncoatedPathFactor *= uncoatedFactor;
+                        coatedPathFactor *= coatedFactor;
+                        std::cout << std::fixed << std::setprecision(1) << wavelengths[band]
+                                  << "nm surface=" << event.surfaceIndex << ' '
+                                  << (event.reflection ? "reflect" : "transmit")
+                                  << " incidence=" << event.incidenceDegrees << "deg n="
+                                  << std::setprecision(4) << event.incidentIndex << "->"
+                                  << event.transmittedIndex << " R(uncoated/coated)="
+                                  << event.uncoatedReflectance << '/' << event.coatedReflectance
+                                  << (event.airSide ? " layer=air-side" : " layer=bypassed-glass-glass")
+                                  << std::scientific << " path-factor(uncoated/coated)="
+                                  << uncoatedPathFactor << '/' << coatedPathFactor << '\n';
+                    }
+                }
                 opticalPathMm += (entranceOrigin.z - referencePlaneZ) / direction.z;
                 const double wavelengthMm = wavelengths[band] * 1e-6;
-                std::cout << std::fixed << std::setprecision(3) << wavelengths[band] << "nm"
+                if (settings.reportOpticalPath)
+                    std::cout << std::fixed << std::setprecision(3) << wavelengths[band] << "nm"
                           << " pupil=(" << pupil.x << ',' << pupil.y << ')'
                           << " OPL=" << std::setprecision(9) << opticalPathMm << "mm"
                           << " phaseCycles=" << std::setprecision(3) << opticalPathMm / wavelengthMm
@@ -2275,7 +2356,7 @@ void printHelp() {
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"
               << "               --source-sampling equal-grid|weighted-quantile (experimental footprint-aware binning)\n"
-              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
+              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --coating-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
 void setValue(Settings& s, const std::string& name, float value) {
@@ -2439,6 +2520,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     }
     else if (option == "--ghost-report") settings.reportGhostPaths = true;
     else if (option == "--optical-path-report") settings.reportOpticalPath = true;
+    else if (option == "--coating-report") settings.reportCoating = true;
     else if (option == "--optical-path-map") {
         if (++i >= argc) throw std::runtime_error("missing value for --optical-path-map");
         settings.opticalPathMapFile = argv[i];

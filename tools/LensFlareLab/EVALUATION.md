@@ -1806,47 +1806,76 @@ For reflected ghosts, use a 4096-scale source at `(0.3834,0.3844)`, select
 
 ### Thin-film coating sensitivity
 
-The coating option is a single ideal MgF2-like quarter-wave layer (index 1.38,
-550 nm design wavelength) applied uniformly at every refracting interface. It
-is not the Angenieux prescription's measured coating stack. Thin-film
-interference depends on incident angle, polarization, wavelength, and both
-adjacent media; therefore a coating can lower reflectance on one interface and
-raise it on another. Hullin et al. use this wavelength- and angle-dependent
-reflectance to produce both ghost intensity and color, while later work
-accumulates reflectance and transmittance along each path ([Hullin et al.,
-2011](https://resources.mpi-inf.mpg.de/lensflareRendering/pdf/flare.pdf),
+The coating option is an ideal MgF2-like quarter-wave layer (index 1.38,
+550 nm design wavelength) on air/glass interfaces only. Interfaces whose two
+modeled media are glass remain uncoated and use the bare Fresnel reflectance;
+these correspond to cemented glass boundaries in the tabulated prescription.
+The layer parameters are illustrative, not the Angenieux lens's measured stack.
+Thin-film interference depends on incident angle, polarization, wavelength,
+and both adjacent media. Hullin et al. use wavelength- and angle-dependent
+reflectance to produce ghost intensity and color; later work accumulates
+reflectance and transmittance along each path ([Hullin et al., 2011](https://resources.mpi-inf.mpg.de/lensflareRendering/pdf/flare.pdf),
 [Bodonyi et al., 2025](https://link.springer.com/article/10.1007/s00371-024-03625-7)).
 
+An interface-level chief-ray diagnostic exposed a modeling error in the prior
+version, which applied the air/MgF2/glass layer even at glass/glass cemented
+interfaces. For the isolated off-axis 9→8 path, chief ray at 550 nm reaches
+surface 9 (air/glass reflection) at 0.4°; its reflectance falls from 0.0564
+uncoated to 0.0064 coated. The returning reflection at surface 8 is a glass to
+glass interface at 6.0°; its physical bare reflectance is 0.0006. Applying the
+air-optimized MgF2 layer there had incorrectly raised it to 0.0340 and made
+the isolated ghost brighter. The corrected model bypasses the layer on this
+interface.
+
 For a neutral 1 px synthetic source at `(0.4,0.5)`, path 9→8, ray-grid 64,
-pixel-area rasterizer, Cauchy dispersion, and no direct diffraction or aperture
-FrFT, the illustrative coated render changed integrated ghost radiance and
-chromatic spread as follows. A single shared display exposure is used in the
-image plate; metrics use HDR values before display mapping.
+pixel-area rasterizer, Cauchy dispersion, and direct diffraction/FrFT off, the
+corrected coated render changes integrated ghost radiance as follows. Metrics
+use HDR values before display mapping.
 
 | Coating model | Red ghost sum | Green ghost sum | Blue ghost sum | Max RGB centroid separation |
 |---|---:|---:|---:|---:|
 | Uncoated Fresnel | 0.05567 | 0.06139 | 0.07539 | 1.7637 px |
-| Ideal MgF2-like layer on all interfaces | 0.87540 | 0.77629 | 1.24186 | 2.4790 px |
+| Air/glass surfaces coated | 0.01600 | 0.01479 | 0.02917 | 1.8380 px |
+| Change | −71.25% | −75.90% | −61.30% | +0.0743 px |
 
-Relative to the uncoated render, per-channel absolute ghost-field differences
-are 1472.41% / 1164.43% / 1547.34%. This counterintuitive increase is allowed
-by the deliberately uniform, non-prescription coating assumption; it is not
-evidence that a real AR coating increases flare by these amounts. The plate
-shows the same bright ghost across all three RGB channels, with a larger blue
-component and a measurable centroid spread. No material dispersion for the
-coating, multilayer stack, absorption, surface-specific coating assignment, or
-polarization state is available. Do not use the current `--coating on` result
-as a quantitative camera prediction.
+![Uncoated versus air-surface single-layer coating for the isolated off-axis 9→8 ghost](examples/coating-9-8-field-04.png)
 
-![Uncoated versus ideal single-layer coating for the isolated off-axis 9→8 ghost](examples/coating-9-8-field-04.png)
+The earlier standard-chart result is also reproducible in direction. At source
+`(0.3834,0.3844)`, ray-grid 64, one source sample, and diffraction off, the
+uncoated/coated RGB ghost sums were `(2.787, 2.339, 1.676)` and
+`(0.0529, 0.0217, 0.0805)`; the coated values changed by −98.10%, −99.07%, and
+−95.20%. Its strongest blue shift raises the maximum RGB centroid spread from
+1.66 to 7.30 px. For this same field but isolated to path 9→8, RGB sums are
+`(0.00110,0.00101,0.00086)` uncoated and
+`(0.000315,0.000242,0.000339)` coated (−71.28%, −76.09%, −60.57%); the
+inter-channel centroid spread changes from 2.32 to 2.43 px. This confirms that
+the earlier uncoated-brighter result at this field came from summing many paths,
+while the former isolated `(0.4,0.5)` increase was caused by applying the layer
+at the glass/glass reflection.
 
-The comparison plate can be regenerated with
-`make_coating_comparison.py INPUT UNCOATED COATED OUTPUT --gain 200000
---difference-gain 12000`. The renderer options used were
-`--position 0.4 0.5 --ray-grid 64 --source-samples 1 --diffraction off
---ghost-pair 9 8` with `--coating off` and `--coating on`. The standard-chart
-plate was also checked with the default nine source bins, `--auto`, ray-grid 64,
-and gain 1; its coated/uncoated flare-only absolute RGB changes were 67.77%,
-70.32%, and 67.15%. The integrated behavior depends on which ghost paths and
-surface incidence conditions are present, so coating cannot be summarized by
-one global gain.
+![Historical off-axis source ghost field with uncoated and corrected air-surface coating](examples/coating-historical-standard.png)
+
+The second check uses the four-source chart, `--auto`, ray-grid 64, nine source
+bins, and diffraction off. Its combined flare field has RGB sums
+`(32642,27789,20450)` uncoated and `(620,256,969)` coated; individual paths and
+source colors therefore produce a different aggregate spectrum. Coating is
+not one global gain. The coating parameters are not calibrated optical data;
+coating-layer dispersion, multilayer stacks, absorption, surface-specific
+manufacturing details, and polarization state are not modeled.
+
+`--coating-report --ghost-pair 9 8` prints the chief-pupil interface incidence,
+uncoated/coated Fresnel reflectance, and cumulative path factor at 610/550/460
+nm. Reproduce the isolated comparison with:
+
+```powershell
+python tools/LensFlareLab/make_evaluation_chart.py --output build/coating-9-8-input.pfm --source-only --single-light-position 0.4 0.5 --single-light-neutral --source-radius 1 --light-scale 1024
+LensFlareLab.exe build/coating-9-8-input.pfm build/coating-9-8-uncoated.pfm --position 0.4 0.5 --ray-grid 64 --source-samples 1 --diffraction off --ghost-pair 9 8 --coating off
+LensFlareLab.exe build/coating-9-8-input.pfm build/coating-9-8-coated.pfm --position 0.4 0.5 --ray-grid 64 --source-samples 1 --diffraction off --ghost-pair 9 8 --coating on
+python tools/LensFlareLab/make_dispersion_comparison.py tools/LensFlareLab/examples/coating-9-8-field-04.png --gain 200000 --difference-gain 800000 --model-labels Uncoated Air-surface-MgF2-like --case 9-to-8 build/coating-9-8-input.pfm build/coating-9-8-uncoated.pfm build/coating-9-8-coated.pfm
+```
+
+The historical source comparison uses the default four-light chart, then
+`--position 0.3834 0.3844 --ray-grid 64 --source-samples 1 --diffraction off`
+with all paths enabled. `make_dispersion_comparison.py` creates the shared-
+exposure plates and reports channel sums/centroids. These synthetic comparisons
+are not predictions of a particular coated camera lens.

@@ -93,11 +93,14 @@ Abbe number, following the coefficient form used by the 2024 reference
 implementation. `--dispersion linear` selects the prior linear Abbe
 approximation for A/B comparisons. Neither model replaces measured Sellmeier
 glass data. `--coating on` applies a
-single MgF2-like quarter-wave layer at every refracting interface. Its index
-and 550 nm design wavelength are illustrative, not prescription or manufacturer
-data. Thin-film interference can reduce reflectance at some interfaces, angles,
-and wavelengths while increasing it at others; this is a spectral sensitivity
-experiment, not a blanket ghost-reduction switch. Gain is an exposure/look-
+single MgF2-like quarter-wave layer only at air/glass boundaries (either side
+within 0.001 of n=1); glass/glass cemented interfaces retain bare Fresnel
+reflectance. Its index and 550 nm design wavelength are illustrative, not
+prescription or manufacturer data. Thin-film interference varies with angle
+and wavelength; it is a spectral sensitivity experiment, not a blanket
+ghost-reduction switch. `--coating-report --ghost-pair FIRST SECOND` reports
+incidence angle, per-interface Fresnel reflectance with and without the layer,
+and the accumulated path factor for a chief pupil ray at 610/550/460 nm. Gain is an exposure/look-
 development control and is not a calibrated camera response. `--diffraction
 off` isolates reflected ghost paths for image evaluation; `--coating off`
 provides an uncoated comparison.

@@ -16,7 +16,8 @@ def main():
     parser.add_argument("output", type=Path, help="comparison PNG")
     parser.add_argument("--gain", type=float, default=2400.0)
     parser.add_argument("--difference-gain", type=float, default=12000.0)
-    parser.add_argument("--labels", nargs=2, default=("Uncoated", "Ideal MgF2-like single layer"))
+    parser.add_argument("--labels", nargs=2,
+                        default=("Uncoated", "Air-surface MgF2-like layer"))
     args = parser.parse_args()
 
     source, uncoated, coated = (read_pfm(path) for path in
@@ -50,7 +51,8 @@ def main():
             panels[2].append(tuple(max(pixel[c] for pixel in diff) for c in range(3)))
     for index, image in enumerate(images):
         image.putdata(panels[index])
-    labels = (args.labels[0], args.labels[1], f"{args.labels[1]} − {args.labels[0]} (signed RGB)")
+    labels = (args.labels[0], args.labels[1],
+              f"{args.labels[1]} minus {args.labels[0]} (signed RGB)")
     for column, (image, label) in enumerate(zip(images, labels)):
         x = column * width
         sheet.paste(image, (x, title_height))
