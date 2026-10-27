@@ -11,6 +11,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, help="PFM output path")
     parser.add_argument("--light-scale", type=float, default=1.0,
                         help="multiply light-source radiance only (default: 1)")
+    parser.add_argument("--source-only", action="store_true",
+                        help="omit the constant background for isolated source-response studies")
     parser.add_argument("--single-light-position", type=float, nargs=2, metavar=("U", "V"),
                         help="replace the chart lights with one warm source at normalized image coordinates")
     args = parser.parse_args()
@@ -23,17 +25,18 @@ def main() -> None:
         parser.error("--single-light-position coordinates must be in the range 0..1")
 
     width, height = 640, 360
-    pixels = []
-    for y in range(height):
-        for x in range(width):
-            u = (x - (width - 1) * 0.5) / ((width - 1) * 0.5)
-            v = (y - (height - 1) * 0.5) / ((height - 1) * 0.5)
-            vignette = max(0.78, 1.0 - 0.18 * (u * u + v * v))
-            pixels.append([
-                vignette * 0.012,
-                vignette * 0.016,
-                vignette * 0.022,
-            ])
+    pixels = [[0.0, 0.0, 0.0] for _ in range(width * height)]
+    if not args.source_only:
+        for y in range(height):
+            for x in range(width):
+                u = (x - (width - 1) * 0.5) / ((width - 1) * 0.5)
+                v = (y - (height - 1) * 0.5) / ((height - 1) * 0.5)
+                vignette = max(0.78, 1.0 - 0.18 * (u * u + v * v))
+                pixels[y * width + x] = [
+                    vignette * 0.012,
+                    vignette * 0.016,
+                    vignette * 0.022,
+                ]
 
     lights = (
         (245, 138, 7, (1.0, 0.83, 0.58), 4.5),

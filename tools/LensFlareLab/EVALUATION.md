@@ -705,6 +705,39 @@ checks path sensitivity only. It does not validate physical accuracy; a weak
 path's larger relative discrepancy may come from sparse sampling and
 per-path normalization rather than a better optical model.
 
+### Source-radiance scaling and extraction threshold
+
+To separate optical transport from source extraction, the isolated 9→8 ghost
+was rendered from a source-only input at radiance scales 0.25/1/4, fixed
+position `(0.3834,0.3844)`, ray grid 128, one source sample, and no source
+diffraction. With `--threshold 0`, dividing the output flare by its input
+scale gives identical crop pixels in both polygon and transport-mask modes:
+relative L1 is 0% and crop Y is exactly 1.00000× the scale-1 result. Thus the
+rendering and per-path FrFT weighting are homogeneous for this case when the
+source extraction floor is removed.
+
+With the default absolute threshold 0.85, the same normalized crop falls to
+1.6909% (polygon) and 1.6704% (transport) at source scale 0.25; at scale 4 it
+rises to 1.75316× and 1.75315× the scale-1 crop Y. This is caused upstream by
+`estimateLight` accumulating `max(luminance - threshold, 0)`, which clips dim
+source samples before optical transport. It is therefore an exposure-dependent
+source extraction behavior, not a transport-mask energy leak. Keep the
+threshold as an explicit artistic detection control; use zero only for
+controlled linearity measurements, and retune the threshold when the input
+exposure changes.
+
+![Source-scale-normalized isolated ghost output with threshold 0 and the default 0.85](examples/ghost-flux-linearity.png)
+
+![The same source-scale sweep showing the default threshold response](examples/ghost-flux-threshold-response.png)
+
+The comparison uses crop `(300,100)..(590,360)`, display gain 300,000, and
+reports the normalized flare crop against the scale-1 render. Generate the
+source-only inputs with `make_evaluation_chart.py --source-only
+--single-light-position 0.3834 0.3844 --light-scale N`; render with
+`--ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8`, and
+select `--threshold 0` for the linearity control. Use
+`make_ghost_flux_linearity_chart.py` to produce the two plates.
+
 ### Texture-resolution convergence
 
 The resolution is now selectable from 64 to 512 with

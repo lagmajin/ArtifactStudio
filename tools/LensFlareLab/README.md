@@ -152,6 +152,9 @@ resolutions against a dense reference and reports crop flux and image error.
 `make_transport_mask_path_sweep.py` compares polygon and transport-mask
 FrFT across selected isolated ghost paths, including signed differences and
 per-crop flux/error metrics.
+Use `make_evaluation_chart.py --source-only` to create radiance-scaled isolated
+emitters, and `make_ghost_flux_linearity_chart.py` to compare normalized flare
+output across source scales and extraction thresholds.
 `--ray-grid` accepts values from 8 to 512; the upper range is intended for
 offline convergence checks and can be substantially slower than the default.
 The opt-in adaptive refinement probes cell centers and refines cells whose
