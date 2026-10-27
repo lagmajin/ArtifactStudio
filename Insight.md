@@ -7613,3 +7613,9 @@
 - **確認できた事実:** Across 2.5/4.545/12.5 mm aperture radii, pixel-area binning changed reconstructed per-channel PSFs by 4.16–11.74% normalized L1 while changing total channel energy by less than 0.00025%; r99 mostly stayed fixed. Existing tent output remained byte-identical when the option defaulted to tent.
 - **価値または懸念:** Sample-to-pixel binning exposes meaningful subpixel redistribution while preserving energy, but it is a discrete area-bin estimate rather than continuous integration through a measured sensor pixel response. Neither variant is yet validated against a real camera PSF.
 - **次に確認すべきこと:** Compare a true pixel-response integral and both sampling modes against calibrated point-source captures at multiple wavelengths, aperture settings, and sensor resolutions.
+
+## 2026-10-27: Integrate sampled diffraction cells over detector pixels
+- **関連:** `tools/LensFlareLab/main.cpp` (`makeDiffractionKernel`), `tools/LensFlareLab/make_evaluation_chart.py`, `tools/LensFlareLab/compare_diffraction_resampling.py`.
+- **確認できた事実:** Replacing nearest-pixel accumulation with overlap-area integration preserved the tent default byte-for-byte. Across four source pixel phases, area-integrated and tent PSF energy differed by at most 0.00023%, while channel-wise normalized PSF L1 remained 3.85–5.51%. The radius-1 synthetic source itself varied in sampled flux with phase, so each A/B is paired within its own phase.
+- **価値または懸念:** Explicit cell overlap implements a clearer uniform-pixel-response model than point binning, but the FFT intensity is treated piecewise-constant and real intrapixel sensitivity is unknown. The source fixture generator now preserves fractional centers, which enables phase-sensitive comparisons without changing existing integer-center fixtures.
+- **次に確認すべきこと:** Compare against calibrated detector PSFs and a measured intrapixel response; separately converge the sampled FFT cell reconstruction under denser aperture sampling.

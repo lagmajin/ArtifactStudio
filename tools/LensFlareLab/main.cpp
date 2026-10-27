@@ -639,19 +639,41 @@ DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm
     for (int y = 0; y < fftSize; ++y) for (int x = 0; x < fftSize; ++x) {
         const float fx = (x - fftSize / 2) * kernel.pixelScale + kernelCenter;
         const float fy = (y - fftSize / 2) * kernel.pixelScale + kernelCenter;
+        const float intensity = sampledIntensity[static_cast<std::size_t>(y) * fftSize + x] /
+                                sampledEnergySum;
+        if (pixelAreaResampling) {
+            // Treat each FFT sample as a constant cell in sensor space and
+            // integrate its overlap with unit-area sensor pixels. This is an
+            // area integral of the sampled PSF, unlike nearest-pixel binning.
+            const float halfCell = kernel.pixelScale * 0.5f;
+            const float left = fx - halfCell;
+            const float right = fx + halfCell;
+            const float top = fy - halfCell;
+            const float bottom = fy + halfCell;
+            const int firstX = std::max(0, static_cast<int>(std::floor(left + 0.5f)));
+            const int lastX = std::min(kernel.size - 1,
+                static_cast<int>(std::ceil(right + 0.5f)) - 1);
+            const int firstY = std::max(0, static_cast<int>(std::floor(top + 0.5f)));
+            const int lastY = std::min(kernel.size - 1,
+                static_cast<int>(std::ceil(bottom + 0.5f)) - 1);
+            for (int py = firstY; py <= lastY; ++py) {
+                const float overlapY = std::max(0.0f,
+                    std::min(bottom, py + 0.5f) - std::max(top, py - 0.5f));
+                for (int px = firstX; px <= lastX; ++px) {
+                    const float overlapX = std::max(0.0f,
+                        std::min(right, px + 0.5f) - std::max(left, px - 0.5f));
+                    const float weight = (overlapX * overlapY) /
+                        (kernel.pixelScale * kernel.pixelScale);
+                    kernel.intensity[static_cast<std::size_t>(py) * kernel.size + px] +=
+                        intensity * weight;
+                }
+            }
+            continue;
+        }
         const int x0 = static_cast<int>(std::floor(fx));
         const int y0 = static_cast<int>(std::floor(fy));
         const float tx = fx - x0;
         const float ty = fy - y0;
-        const float intensity = sampledIntensity[static_cast<std::size_t>(y) * fftSize + x] /
-                                sampledEnergySum;
-        if (pixelAreaResampling) {
-            const int px = static_cast<int>(std::floor(fx + 0.5f));
-            const int py = static_cast<int>(std::floor(fy + 0.5f));
-            if (px >= 0 && py >= 0 && px < kernel.size && py < kernel.size)
-                kernel.intensity[static_cast<std::size_t>(py) * kernel.size + px] += intensity;
-            continue;
-        }
         for (int oy = 0; oy <= 1; ++oy) for (int ox = 0; ox <= 1; ++ox) {
             const int px = x0 + ox;
             const int py = y0 + oy;

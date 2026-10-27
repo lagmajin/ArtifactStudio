@@ -52,13 +52,13 @@ def main() -> None:
     )
     if args.single_light_position is not None:
         u, v = args.single_light_position
-        lights = ((round(u * (width - 1)), round(v * (height - 1)), args.source_radius,
+        lights = ((u * (width - 1), v * (height - 1), args.source_radius,
                    (1.0, 1.0, 1.0) if args.single_light_neutral else (1.0, 0.83, 0.58), 4.5),)
     elif args.single_light_neutral:
         parser.error("--single-light-neutral requires --single-light-position")
     for cx, cy, radius, color, peak in lights:
-        for y in range(max(0, cy - 20), min(height, cy + 21)):
-            for x in range(max(0, cx - 20), min(width, cx + 21)):
+        for y in range(max(0, math.floor(cy - 20)), min(height, math.ceil(cy + 20) + 1)):
+            for x in range(max(0, math.floor(cx - 20)), min(width, math.ceil(cx + 20) + 1)):
                 distance2 = (x - cx) ** 2 + (y - cy) ** 2
                 if distance2 > 400:
                     continue
