@@ -259,13 +259,38 @@ Both rows use the same source-subtracted logarithmic display mapping (`gain
 900`). At ray-grid 64 and texture resolution 256, source A's ghost Y sum changes
 from 9.97742 to 10.98809 (+10.13%), with 25.20% relative L1 and an 8.54 px
 luminance-centroid shift. Source B changes from 20.49858 to 21.33169 (+4.06%),
-with 18.87% relative L1 and a 0.32 px centroid shift. This shows that the
-current aperture transform can alter integrated radiance as well as appearance;
-the per-path normalization is not a guarantee of scene-wide energy
-conservation. These figures are tied to this low-resolution look-dev setup and
-do not establish calibrated physical accuracy.
+with 18.87% relative L1 and a 0.32 px centroid shift. These figures measure
+only the finite sensor image, not all light leaving the exit pupil. To separate
+the two, the 9→8 path was rendered by itself at source A and ray-grid 192. The
+renderer reported that path's visible bounds reaching the sensor edges
+`(639,359)` in the 640x360 frame. Its pupil-map normalization range was
+0.9276–0.9438; for the reported maximum map, geometric ray energy 4.75883
+divided by textured energy 5.04221 gives the applied 0.9438 scale. After that
+per-map correction, the on-sensor Y sum still changes from 1.22161 to 1.50040
+(+22.82%), with a 0.94 px centroid shift. The edge-touching ghost is cropped by
+the sensor, so the visible-window integral changes as the aperture weighting
+redistributes rays across sensor coordinates. This is not evidence of a 22.82%
+full-path energy gain; the standalone renderer does not currently sum the
+off-sensor part of the ghost. Do not renormalize the final frame to hide that
+crop-dependent change. Ray-grid 96 gives the same clipped bounds
+`(551,175)..(639,359)` and a +22.55% on-sensor Y change (1.22126 to 1.49668),
+so this result is not a ray-grid-64 artifact. The numbers remain a low-resolution
+look-dev evaluation, not calibrated physical accuracy.
 
 ![Geometric ghosts (top) and aperture-FrFT ghosts (bottom) for the two estimated Fig. 10 source positions](examples/fig10-source-position-aperture-frft-review.png)
+
+![Cropped 9→8 ghost: geometry, aperture FrFT, and the per-pixel change (red adds, blue removes)](examples/ghost-9-8-flux-diagnostic-crop.png)
+
+Recreate the isolated path measurement with the same generated input. Run both
+render commands with identical settings except `--ghost-frft`, retain
+`--ghost-report` to inspect the clipped sensor bounds, then create the crop:
+
+```powershell
+python tools/LensFlareLab/make_fig10_comparison_chart.py --output build/tools/LensFlareLab/fig10-two-light-input-current.pfm
+LensFlareLab.exe build/tools/LensFlareLab/fig10-two-light-input-current.pfm build/tools/LensFlareLab/ghost-9-8-geo-192.pfm --position 0.246 0.356 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft off --ghost-pair 9 8 --ghost-report
+LensFlareLab.exe build/tools/LensFlareLab/fig10-two-light-input-current.pfm build/tools/LensFlareLab/ghost-9-8-frft-192.pfm --position 0.246 0.356 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft on --ghost-pair 9 8 --ghost-report
+python tools/LensFlareLab/make_ghost_frft_comparison.py build/tools/LensFlareLab/fig10-two-light-input-current.pfm build/tools/LensFlareLab/ghost-9-8-geo-192.pfm build/tools/LensFlareLab/ghost-9-8-frft-192.pfm tools/LensFlareLab/examples/ghost-9-8-flux-diagnostic-crop.png --crop 520 140 640 360 --gain 900 --difference-gain 1000
+```
 
 `make_ghost_frft_sweep_chart.py` now reports integrated Y, flux change, relative
 L1, peak Y and centroid movement for each case in addition to creating the

@@ -95,15 +95,28 @@ def main():
     geo_sum = sum(geometric_luma)
     frft_sum = sum(frft_luma)
     absolute_delta = sum(abs(a - b) for a, b in zip(geometric_luma, frft_luma))
-    peak = max(frft_luma, default=0.0)
-    centroid_x = sum((left + i % (right - left)) * value
-                     for i, value in enumerate(frft_luma)) / max(frft_sum, 1e-30)
-    centroid_y = sum((top + i // (right - left)) * value
-                     for i, value in enumerate(frft_luma)) / max(frft_sum, 1e-30)
+    geometric_peak = max(geometric_luma, default=0.0)
+    frft_peak = max(frft_luma, default=0.0)
+
+    def centroid(values, total):
+        x = sum((left + i % (right - left)) * value
+                for i, value in enumerate(values)) / max(total, 1e-30)
+        y = sum((top + i // (right - left)) * value
+                for i, value in enumerate(values)) / max(total, 1e-30)
+        return x, y
+
+    geo_centroid = centroid(geometric_luma, geo_sum)
+    frft_centroid = centroid(frft_luma, frft_sum)
+    centroid_shift = ((geo_centroid[0] - frft_centroid[0]) ** 2
+                      + (geo_centroid[1] - frft_centroid[1]) ** 2) ** 0.5
     print(f"saved {args.output}")
     print(f"geometricY={geo_sum:.9g} frftY={frft_sum:.9g} "
+          f"fluxChange={(frft_sum / max(geo_sum, 1e-30) - 1):+.6%} "
           f"relativeL1={absolute_delta / max(geo_sum, 1e-30):.6%} "
-          f"frftPeakY={peak:.9g} frftCentroid=({centroid_x:.4f},{centroid_y:.4f})")
+          f"peakY={geometric_peak:.9g}->{frft_peak:.9g} "
+          f"centroidShift={centroid_shift:.4f}px "
+          f"geometricCentroid=({geo_centroid[0]:.4f},{geo_centroid[1]:.4f}) "
+          f"frftCentroid=({frft_centroid[0]:.4f},{frft_centroid[1]:.4f})")
 
 
 if __name__ == "__main__":
