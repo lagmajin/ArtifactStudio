@@ -54,55 +54,57 @@ Reproduce with `LensFlareLab input.pfm output.pfm --position 0.3834 0.3844
 
 ### Adaptive off-axis ray refinement
 
-At source position `(0.1,0.1)`, adaptive refinement at base grid 64 was
-compared with uniform grids 64, 96, 192, and 512. It probes each pupil-cell
-center, and refines cells when the mapped center departs from the corner-ray
-interpolation, relative ray energy changes by more than 25%, or the map folds.
-Four edge-midpoint rays then form an eight-triangle center fan; each child gets
-one quarter of the parent pupil-cell ray weight. Refinement is one level deep.
+Adaptive refinement probes every pupil-cell center and refines cells when the
+mapped center departs from corner interpolation by more than 0.75 px, raw
+ray energy changes by more than 25%, or the map folds. Four traced edge
+midpoints form an eight-triangle center fan; each child keeps one quarter of
+the parent pupil-cell ray weight. Refinement is one level deep. The energy
+criterion uses unweighted optical-trace energy, so enabling the optional FrFT
+aperture texture cannot change the selected mesh.
 
-Against uniform grid 512, geometric relative image L1 error is 3.76% for
-adaptive grid 64, versus 9.15% at uniform 64 and 5.86% at uniform 96. With
-FrFT, adaptive grid 64 is 3.45%, versus 5.36% at uniform 64 and 3.06% at
-uniform 96. Adaptive improves on the coarse grid, but uniform 96 remains
-slightly closer by FrFT image L1. Sensor Y flux errors are 3.66% geometric
-and 1.46% FrFT for adaptive 64, versus 5.84% and 2.08% for uniform 96.
-Adaptive traced 500,094 center probes, 3,280 geometric edge rays / 820 cells,
-and 3,564 FrFT edge rays / 891 cells; refined cells are about 0.16%/0.18% of
-the probed cells. The extra tracing therefore targets a small subset, though
-center probes still cost one additional ray per base cell.
+The updated multi-field comparison uses neutral point sources at `(0.1,0.1)`
+and `(0.5,0.5)`, ray grid 64 adaptive and uniform, source sampling 1, and the
+same triangle-normalized FrFT settings. Uniform grid 512 is the densest available
+reference, but it is not converged ground truth: uniform 192→512 image L1 is
+2.23% at the corner and 4.12% at center; frame Y changes +2.26% and -1.76%.
 
-This demonstrates a useful coarse-grid quality option for the tested corner
-field, not a general speed-quality win: grid 512 is a dense reference rather
-than ground truth, refinement is currently one level, and no measured lens
-capture is available. It stays opt-in and off by default.
+Against the grid-512 render, adaptive-64 FrFT relative image L1 is 4.52% at
+the corner and 5.52% at center, compared with 9.25%/7.58% for uniform 64.
+Adaptive does not always beat an intermediate uniform grid: at the corner,
+uniform 128 gives 3.97%; at center adaptive is slightly better than uniform
+128 (5.52% vs 5.94%). Frame Y for adaptive is `9.67245` / `396.83152`,
+versus `10.03722` / `387.34909` for grid 512. Centroid shifts from the
+reference are 0.074 px / 0.017 px. The adaptive mesh refines 820 cells (0.16%
+of all probes) at the corner and 10,148 (2.03%) at center, across all paths
+and spectral maps. The central field therefore triggers substantially more
+work despite the source being on-axis.
 
-![Adaptive off-axis geometric and FrFT comparison against uniform ray grids](examples/ghost-aperture-adaptive-refinement-offaxis.png)
+One-shot process wall times on the same machine, including image I/O, were
+0.875 s adaptive-64 vs 0.915 s uniform-96 at the corner, and 1.680 s vs 1.879 s
+at center. Adaptive was 1.56–1.81x slower than uniform 64, while slightly
+faster than uniform 96 in these runs. These single measurements show a possible
+quality/runtime tradeoff around grid 96, not a stable performance guarantee.
 
-![Adaptive triangle-normalized FrFT at an off-axis field compared with the uniform-192 reference](examples/adaptive-field-upper-left.png)
+![Corner-field adaptive and uniform FrFT renders, with signed differences from grid 512](examples/adaptive-quality-upper-left.png)
 
-A second field sweep used neutral point sources at `(0.1,0.1)` and `(0.5,0.5)`,
-base grid 64 with adaptive triangle normalization, and uniform triangle-normalized
-grid 192 as the dense reference. Adaptive FrFT relative image L1 is 3.06% in the
-corner field and 1.67% at center; its isolated output centroid shifts 0.020 px
-and 0.005 px respectively. At the corner, adaptive frame Y is `9.67245` versus
-`9.81544` for uniform 192 (-1.46%); at center it is `396.83087` versus
-`394.30885` (+0.64%). Uniform 96 is closer in corner FrFT L1 (3.06% vs 3.45%
-for adaptive 64 in the existing sweep), while adaptive beats uniform 64. In the
-center case adaptive traces 10,292 refined cells (2.06%), compared with 891
-(0.18%) at the corner. This confirms field-dependent work and residual shape
-error; grid 192 is a dense reference, not ground truth.
+![Center-field adaptive and uniform FrFT renders, with signed differences from grid 512](examples/adaptive-quality-center.png)
+
+The comparison plates show the isolated flare and signed luminance difference
+(red adds, blue removes) at a shared exposure. Recreate them with
+`make_adaptive_refinement_comparison.py` after rendering adaptive grid 64 and
+uniform grids 64/96/128/192/512 from identical source PFMs and render settings.
+The tool reports frame Y, relative L1, peak, and centroid for every candidate.
 
 ![Adaptive FrFT vertex versus triangle-quadrature normalization](examples/adaptive-frft-normalization-triangle.png)
 
 For a separate isolated neutral source at `(0.1,0.1)`, base grid 64, adaptive
-refinement selected 891 of 63² cells and traced 3,564 edge rays in both modes.
+refinement selected 820 of 63² cells and traced 3,280 edge rays in both modes.
 Triangle quadrature makes the reported all-map Y (`83.3918`) match the geometric
-mesh integral, while vertex mode reports `86.2131` (+3.38%). After sensor
-clipping, triangle mode gives Y `9.67245` versus `9.99158` for vertex mode
-(-3.19%), relative image L1 3.19%, and centroid shift 0.083 px. The full-plane
+mesh integral, while vertex mode reports `86.2618` (+3.44%). After sensor
+clipping, triangle mode gives Y `9.67245` versus `10.00667` for vertex mode
+(-3.34%), with normalization-mode relative image L1 3.34%. The full-plane
 equality is by construction; adaptive topology still follows the established
-preliminary vertex-weight probe rule. This is a numerical consistency result,
+unweighted optical-trace energy probe rule. This is a numerical consistency result,
 not a physical-camera validation.
 
 
@@ -356,10 +358,9 @@ two-triangle cells, triangle energy average, degeneracy threshold, and ray
 weights used by the pixel-area rasterizer. It is the default when FrFT is on;
 `vertex` retains the earlier method for direct comparison. Adaptive refinement now uses the same selected mesh for normalization and
 rasterization: unrefined cells use the two-triangle split; refined cells trace
-four edge midpoints and use the eight-triangle center fan. Refinement decisions
-remain based on preliminary vertex-normalized probe energies, preserving the
-existing topology rule; final FrFT weights are then normalized against that
-mesh.
+four edge midpoints and use the eight-triangle center fan. Refinement decisions use the raw, unweighted optical-trace energy and
+therefore select the same topology with FrFT enabled or disabled; final FrFT
+weights are normalized against that exact mesh.
 
 Across 12 isolated cases (paths 9→8, 10→8, 5→4, and 10→9 at the estimated
 Fig. 10 source A, center, and right-of-center fields; grid 96), vertex

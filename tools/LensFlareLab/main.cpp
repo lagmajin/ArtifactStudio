@@ -1657,7 +1657,7 @@ Image render(const Image& source, const Settings& settings) {
                                 ++validCorners;
                                 averageX += corner->x;
                                 averageY += corner->y;
-                                averageEnergy += corner->energy;
+                                averageEnergy += corner->unweightedEnergy;
                             }
                             bool refine = validCorners >= 2 && validCorners < 4;
                             if (validCorners == 4) {
@@ -1666,9 +1666,10 @@ Image render(const Image& source, const Settings& settings) {
                                 averageEnergy *= 0.25f;
                                 const float mappingError = std::hypot(center.x - averageX,
                                                                       center.y - averageY);
-                                const float energyScale = std::max({std::abs(center.energy),
+                                // Keep the refinement topology independent of the optional FrFT texture.
+                                const float energyScale = std::max({std::abs(center.unweightedEnergy),
                                                                     std::abs(averageEnergy), 1e-6f});
-                                const float energyError = std::abs(center.energy - averageEnergy) /
+                                const float energyError = std::abs(center.unweightedEnergy - averageEnergy) /
                                                           energyScale;
                                 refine = mappingError > settings.adaptiveRayRefinementThreshold ||
                                          energyError > 0.25f;

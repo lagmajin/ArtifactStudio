@@ -161,7 +161,11 @@ standalone lab, not an editor frame path or a measured-camera match.
 `--ghost-frft-normalization triangle` is the default: it normalizes each
 path/source/wavelength map with the same valid ray triangles and vertex
 quadrature used by pixel-area rasterization. `vertex` selects the earlier
-valid-node sum for A/B comparison. With adaptive ray refinement, triangle normalization uses the selected cells' eight-triangle center fan and the same four edge-midpoint rays as rasterization; non-refined cells keep the two-triangle split. Adaptive topology is selected from the existing preliminary vertex-normalized probes, then the final FrFT weights are normalized over that exact mesh.
+valid-node sum for A/B comparison. With adaptive ray refinement, triangle
+normalization uses the selected cells’ eight-triangle center fan and the same
+four edge-midpoint rays as rasterization; non-refined cells keep the two-triangle
+split. Adaptive topology uses the same unweighted optical-trace energy probes
+with FrFT on or off, then final FrFT weights are normalized over that mesh.
 The report also estimates the integrated RGB-luminance contribution over all
 mapped ghost triangles before sensor clipping and the remainder outside the
 sensor. Use the default `pixel-area` rasterizer for this estimate; it helps
@@ -198,10 +202,11 @@ mapped center deviates from interpolation, whose ray energy changes sharply,
 or whose mapping folds. It reports probe/refinement counts and preserves the
 parent pupil-cell ray weight across child triangles. For FrFT, triangle
 normalization follows this selected mesh, including each refined cell’s
-edge-midpoint rays and center fan. Refinement decisions still use preliminary
-vertex-normalized probe energies. Field evaluation found 3.06%/1.67% FrFT image
-L1 versus uniform grid 192 at corner/center sources; these are tested cases,
-not a general quality guarantee. This standalone quality experiment costs
+edge-midpoint rays and center fan. Refinement decisions use raw optical-trace energy, independent of FrFT
+texture weighting. Against uniform grid 512, field evaluation found 4.52%/5.52% FrFT image L1
+for adaptive grid 64 at corner/center sources. The reference itself changes
+2.23%/4.12% from grid 192 to 512, so these are comparisons, not convergence
+or a general quality guarantee. This standalone quality experiment costs
 extra ray traces and remains off by default.
 Use `--adaptive-ray-refinement-threshold PX` to tune the screen-space center
 deviation trigger (default 0.75 px); the relative energy trigger is fixed at
