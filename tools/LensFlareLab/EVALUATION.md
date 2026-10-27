@@ -589,6 +589,35 @@ this technique is used as a calibrated model.
 
 ![All-path field comparison at upper-left, center, and lower-right source positions](examples/ghost-aperture-field-sweep.png)
 
+The upper-left all-path image was also rendered at ray grids 64/96/128/192.
+Relative to grid 192, geometric Y flux differs by 7.08%/3.71%/1.76%, and
+image L1 by 7.09%/4.22%/2.50%. With FrFT, Y flux differs by
+2.65%/1.41%/0.60%, and image L1 by 4.50%/2.39%/1.31%. Grid 192 is only the
+highest available reference, not a converged ground truth. This field case
+needs denser rays than the centered example; a fixed grid-96 setting should
+not be treated as a general quality guarantee.
+
+![Off-axis geometric and FrFT field outputs at ray grids 64, 96, 128, and 192](examples/ghost-aperture-offaxis-ray-grid-convergence.png)
+
+### Finite-source averaging
+
+At ray grid 48 with diffraction off, source sampling 1/9/25 changes the
+geometric ghost peak from `4.420/4.043/2.932` while Y flux stays within 0.08%
+(`892.36/892.19/891.72`). With aperture FrFT, peaks are
+`4.584/4.121/3.034`, Y flux is `916.30/916.27/915.48`, and the 9-to-25-bin
+image difference is 4.22% relative L1. Thus finite-source angular averaging
+reduces the caustic peak by about one third without materially changing the
+integrated flux in this chart; it also softens the aperture-ring detail.
+
+![Geometric and FrFT output for point, 3×3, and 5×5 source sampling](examples/ghost-aperture-finite-source-sweep.png)
+
+With the normal source diffraction enabled and the 3×3 source sampling, the
+integrated output difference between geometric and FrFT modes is 2.91% relative
+L1. The shared direct-source PSF dominates that aggregate; the ghost-only
+comparison above is more sensitive to the aperture texture.
+
+![Full flare with source diffraction and 3×3 finite-source sampling](examples/ghost-aperture-full-default.png)
+
 Reproduce the texture resolution sweep by rendering the same isolated path at
 `--ghost-frft-resolution 128`, `256`, and `512`, then passing each result as a
 separate `--case` to `make_ghost_frft_sweep_chart.py`. The aperture sweep uses
