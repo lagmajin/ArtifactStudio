@@ -1798,6 +1798,53 @@ python tools/LensFlareLab/evaluate_direct_diffraction_spectral.py build/tools/Le
 The script needs NumPy and Pillow. The 61-band case is a dense reference for
 this RGB-basis model and is not an empirical ground truth.
 
+#### Spectral PSF shape across source color, size, and field
+
+The centered primary-color convergence above did not measure partial-frame
+clipping or whether the dominant channel's starburst changes with emitter size.
+I extended the image evaluation to red, green, and blue Gaussian sources
+(σ=0.7 and 7 px), at frame center and 4 px from the left edge, using 3, 15,
+and 61 wavelength integrations and the default 1024² pupil FFT. The 61-band
+result is a dense reference for this same RGB-basis model, not measured spectral
+truth. The wavelength-dependent aperture PSF follows the formulation in
+[Hullin et al. (2011)](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf);
+RGB source primaries still do not define real source spectra or a camera's
+spectral sensitivity.
+
+| Measurement | Result |
+|---|---:|
+| σ=7 px source energy visible at left edge | 74.0% |
+| 61-band dominant-channel PSF throughput / visible input | 99.82–100.00% |
+| Maximum 3-band dominant-channel shape L1 vs 61 bands | 0.089% |
+| Maximum 15-band dominant-channel shape L1 vs 61 bands | 0.0086% |
+| Maximum positive output in non-primary channels at 61 bands | 0.067% of output energy |
+| Maximum negative linear-RGB mass at 61 bands | 0.066% of visible input energy |
+
+The visible-source fraction measures emitter clipping before diffraction; the
+dominant-channel throughput measures PSF spill after that clipping. In the
+tested cases the dominant channel's r90 is unchanged at the reported pixel
+precision between 3 and 61 bands, because the subpixel diffraction core is
+unresolved by this sensor grid and σ=7 px source width dominates the image.
+The small cross-channel and negative components come from the RGB-basis
+spectral reconstruction, not a physical color filter. The plate uses a
+logarithmic display and individually scaled difference panels to reveal these
+small changes; panel brightness is not a radiometric comparison.
+
+![Primary-color direct diffraction at 3 and 61 wavelength samples for centered and edge emitters; the difference panel is enhanced independently per row](examples/spectral-field-psf.png)
+
+Per-channel energy, centroids, encircled radii, shape errors, and clipping
+fractions are in [`spectral-field-psf.csv`](examples/spectral-field-psf.csv).
+Recreate the 1024² study with:
+
+```powershell
+python tools/LensFlareLab/evaluate_spectral_field_psf.py build/tools/LensFlareLab/LensFlareLab.exe --resolution 1024
+```
+
+The experiment checks internal color/field consistency and numerical spectral
+sampling only. Realistic colored flare still requires a selected or measured
+emitter spectrum and camera response, plus comparison with calibrated RAW
+captures; the primary-color fixtures are not such calibration data.
+
 The 3-band default was compared byte-for-byte against the preceding build for
 geometric ghost rasterization, aperture-FrFT ghost rendering, and scalar ghost
 Fresnel propagation. All three outputs were identical. The 7-band option is

@@ -141,6 +141,10 @@ at the frame center and both horizontal edges against a linear convolution of
 the measured point PSF. It records source clipping, PSF throughput, centroid,
 encircled radii, and image error; results and limits are in
 [EVALUATION.md](EVALUATION.md).
+`evaluate_spectral_field_psf.py` extends direct-diffraction color evaluation
+to primary-color near-point and extended emitters at center and frame edge. It
+compares 3/15/61 wavelength integrations and records per-channel throughput,
+PSF radii, RGB-basis cross-channel energy, and negative linear-RGB mass.
 Reflected ghosts use the original three wavelength samples by default.
 `--spectral-samples 7|15|31|61` selects trapezoidal integration over 430–610 nm
 with a piecewise-linear reconstruction from input RGB for both reflected
