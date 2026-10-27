@@ -149,6 +149,10 @@ Cauchy versus linear Abbe.
 `python tools/LensFlareLab/make_source_sampling_comparison.py` creates an
 image comparison plate and radiometric summary from the 1/9/25 source-sample
 PFM renders.
+`make_multilobe_source.py` generates an asymmetric three-lobe HDR emitter with
+optional color-separated spectra and adjustable lobe spacing;
+`measure_rgb_error.py` reports flare-only RGB and per-channel L1 against a PFM
+reference.
 `python tools/LensFlareLab/make_ray_grid_comparison.py` compares the same
 source-sample mode across 64/96/128 pupil ray grids and reports in-frame
 flux, peak, centroid, and image differences. Its `--source-samples` accepts

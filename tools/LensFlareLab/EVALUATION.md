@@ -117,6 +117,35 @@ sampling-layout dependence at high counts.
 
 ![Source-bin comparison after increasing the three-lobe emitter spacing by 1.8×](examples/source-layout-multilobe-spread.png)
 
+#### Color-separated source lobes
+
+The generator's `--color-separated` mode assigns warm, blue, and red spectra
+to the three lobes. On path 10→8 at ray grid 96, the weighted 225-bin render
+is again only a denser comparison reference. RGB L1 is measured on the flare
+after subtracting the original input, so the bright emitter itself does not
+dilute the metric.
+
+| Sampling | RGB L1 | Red L1 | Green L1 | Blue L1 |
+| --- | ---: | ---: | ---: | ---: |
+| Equal grid, 9 | 7.55% | 6.93% | 6.94% | 8.52% |
+| Weighted quantile, 9 | 2.92% | 2.90% | 2.70% | 3.05% |
+| Equal grid, 49 | 2.69% | 2.67% | 2.68% | 2.71% |
+| Weighted quantile, 49 | 1.16% | 1.10% | 1.09% | 1.25% |
+| Equal grid, 225 | 1.25% | 1.23% | 1.22% | 1.29% |
+
+Blue has the largest residual at low sampling, but weighted quantiles reduce
+the per-channel error along with the combined RGB error. The source's
+integrated luminance flux is preserved within 0.00003% by the binning. This
+does not imply spectral accuracy: the three source colors are synthetic RGB
+triplets and the comparison still uses this model's path optics.
+
+![Color-separated warm, blue, and red lobes rendered with equal-grid and weighted-quantile bins](examples/source-layout-multilobe-color.png)
+
+Reproduce with `python tools/LensFlareLab/make_multilobe_source.py
+--color-separated`, render 9/49/225 bins in both modes on path 10→8, then run
+`measure_rgb_error.py INPUT WEIGHTED_225 --case LABEL RENDER ...`. The utility
+subtracts the unprocessed input and reports flare-only RGB and per-channel L1.
+
 ### Optical path length diagnostic
 
 The optional `--optical-path-report` traces the selected ghost pair at the

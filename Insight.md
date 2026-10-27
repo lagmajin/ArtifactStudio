@@ -7587,3 +7587,8 @@
 - **確認できた事実:** For the synthetic three-lobe source on path 10→8, thresholds 0.85/2/4 kept weighted-49 L1 against weighted-225 at 0.694%/0.738%/0.726%, versus equal-grid-49 at 1.963%/1.963%/1.964%. Widening lobe offsets by 1.8× retained an advantage: weighted-49 L1 1.07% and weighted-9 2.59%, versus equal-grid 1.89% and 5.39%. At widened spacing, active bins at requested 49/225 were 49/194 weighted and 27/110 equal-grid.
 - **価値または懸念:** Results are stable across this limited threshold and emitter-spacing sweep, but high-count images remain layout-dependent; thresholds and profiles are synthetic, not captured optics.
 - **次に確認すべきこと:** Evaluate colored, clipped, and real lens-source captures; consider a faster weighted partition or bounded quality control if the measured cost remains too high.
+## 2026-10-27: Weighted source bins retain RGB improvement on separated-color emitters
+- **関連:** `tools/LensFlareLab/make_multilobe_source.py` (`--color-separated`), `tools/LensFlareLab/measure_rgb_error.py`, `tools/LensFlareLab/EVALUATION.md`.
+- **確認できた事実:** On a warm/blue/red synthetic three-lobe source, path 10→8, ray grid 96, weighted 49 versus weighted 225 flare-only RGB L1 was 1.16% (R/G/B 1.10/1.09/1.25%). Equal-grid 49 measured 2.69% (2.67/2.68/2.71%); equal-grid 9 measured 7.55% and weighted 9 2.92%. Source bin flux remained within 0.00003% of extracted flux.
+- **価値または懸念:** The lower-resolution benefit persists by channel, including blue, but synthetic RGB spectra do not validate real glass/sensor spectral response. The 225-bin layout remains sampling-dependent.
+- **次に確認すべきこと:** Add clipped field positions and evaluate against calibrated flare captures with known lens, aperture, coating, and exposure metadata.
