@@ -44,6 +44,8 @@ def make_surfaces():
 SURFACES = make_surfaces()
 IRIS_Z = SURFACES[6][1] + SURFACE_DATA[6][1]
 SENSOR_Z = SURFACES[-1][1] + SURFACE_DATA[-1][1]
+FIELD_CASES = (("on_axis", 0.0), ("field_5deg", 5.0),
+               ("field_10deg", 10.0), ("field_12deg", 12.0))
 
 
 def refractive_index(surface, wavelength_nm):
@@ -108,42 +110,106 @@ def in_hexagon(x, y, radius):
     return math.hypot(x, y) * math.cos(local) <= radius * math.cos(math.pi / 6.0)
 
 
-def trace_field(field_angle, wavelength_nm, samples):
-    # Collimated source rays start on a square grid at an object-side plane.
-    # The grid spans the entrance pupil footprint at surface zero.
+def trace_front_to_stop(origin, direction, wavelength_nm):
+    """Trace through the front group and return the physical stop intercept."""
+    origin = np.asarray(origin, dtype=np.float64).copy()
+    direction = direction.copy()
+    for i, surface in enumerate(SURFACES[:7]):
+        point = intersect(origin, direction, surface)
+        if point is None:
+            return None
+        n1 = 1.0 if i == 0 else refractive_index(SURFACES[i - 1], wavelength_nm)
+        n2 = refractive_index(surface, wavelength_nm)
+        direction = refract(direction, point, surface, n1, n2)
+        if direction is None:
+            return None
+        origin = point
+    t = (IRIS_Z - origin[2]) / direction[2]
+    if t <= 0.0:
+        return None
+    return origin + t * direction
+
+
+def chief_ray(field_angle, wavelength_nm):
+    """Solve for the ray through the stop center and return its image direction."""
     direction = np.array((math.sin(field_angle), 0.0, math.cos(field_angle)))
+    launch_xy = np.array((-(IRIS_Z + 100.0) * math.tan(field_angle), 0.0))
+
+    def hit(candidate):
+        return trace_front_to_stop((candidate[0], candidate[1], -100.0),
+                                   direction, wavelength_nm)
+
+    for _ in range(12):
+        iris = hit(launch_xy)
+        if iris is None:
+            raise RuntimeError(f"chief ray blocked before stop at {math.degrees(field_angle):.2f} deg")
+        error = iris[:2]
+        if np.linalg.norm(error) < 1e-7:
+            break
+        step = 1e-3
+        plus_x = hit(launch_xy + (step, 0.0))
+        plus_y = hit(launch_xy + (0.0, step))
+        if plus_x is None or plus_y is None:
+            raise RuntimeError("chief-ray finite-difference trace was vignetted")
+        jx = (plus_x[:2] - iris[:2]) / step
+        jy = (plus_y[:2] - iris[:2]) / step
+        jacobian = np.column_stack((jx, jy))
+        launch_xy -= np.linalg.solve(jacobian, error)
+    if np.linalg.norm(hit(launch_xy)[:2]) > 1e-5:
+        raise RuntimeError(f"chief ray failed to converge at {math.degrees(field_angle):.2f} deg")
+    return np.array((launch_xy[0], launch_xy[1], -100.0)), direction
+
+
+def trace_transmission(launch_origin, direction, wavelength_nm):
+    """Trace one parallel ray through the full prescription and stop."""
+    origin = np.asarray(launch_origin, dtype=np.float64).copy()
+    direction = direction.copy()
+    for i, surface in enumerate(SURFACES):
+        if i == 7:
+            t = (IRIS_Z - origin[2]) / direction[2]
+            iris = origin + t * direction
+            if t <= 0.0 or not in_hexagon(iris[0], iris[1], STOP_RADIUS):
+                return None
+            origin = iris
+        point = intersect(origin, direction, surface)
+        if point is None:
+            return None
+        n1 = 1.0 if i == 0 else refractive_index(SURFACES[i - 1], wavelength_nm)
+        n2 = refractive_index(surface, wavelength_nm)
+        direction = refract(direction, point, surface, n1, n2)
+        if direction is None:
+            return None
+        origin = point
+    if direction[2] <= 1e-10:
+        return None
+    sensor = origin + ((SENSOR_Z - origin[2]) / direction[2]) * direction
+    return sensor[:2], direction
+
+
+def trace_field(field_angle, wavelength_nm, samples):
+    direction = np.array((math.sin(field_angle), 0.0, math.cos(field_angle)))
+    chief_origin, _ = chief_ray(field_angle, wavelength_nm)
+    chief_trace = trace_transmission(chief_origin, direction, wavelength_nm)
+    if chief_trace is None:
+        raise RuntimeError("chief ray is blocked by the physical stop")
+    chief_angle = math.acos(float(np.clip(chief_trace[1][2], -1.0, 1.0)))
+    # Sample equal areas on a plane perpendicular to the collimated bundle so
+    # pupil clipping is measured separately from cos^4 radiometric roll-off.
+    transverse_x = np.array((math.cos(field_angle), 0.0, -math.sin(field_angle)))
+    transverse_y = np.array((0.0, 1.0, 0.0))
     extent = 35.0
-    grid_offset_x = -(IRIS_Z + 100.0) * math.tan(field_angle)
     grid = np.linspace(-extent, extent, samples, endpoint=False) + extent / samples
     spots = []
     for y in grid:
         for x in grid:
-            origin = np.array((x + grid_offset_x, y, -100.0))
-            d = direction.copy()
-            alive = True
-            for i, surface in enumerate(SURFACES):
-                if i == 7:
-                    t = (IRIS_Z - origin[2]) / d[2]
-                    iris = origin + t * d
-                    if t <= 0.0 or not in_hexagon(iris[0], iris[1], STOP_RADIUS):
-                        alive = False
-                        break
-                    origin = iris
-                point = intersect(origin, d, surface)
-                if point is None:
-                    alive = False
-                    break
-                n1 = 1.0 if i == 0 else refractive_index(SURFACES[i - 1], wavelength_nm)
-                n2 = refractive_index(surface, wavelength_nm)
-                d = refract(d, point, surface, n1, n2)
-                if d is None:
-                    alive = False
-                    break
-                origin = point
-            if alive and d[2] > 1e-10:
-                sensor = origin + ((SENSOR_Z - origin[2]) / d[2]) * d
-                spots.append(sensor[:2])
-    return np.asarray(spots, dtype=np.float64).reshape(-1, 2)
+            origin = chief_origin + x * transverse_x + y * transverse_y
+            traced = trace_transmission(origin, direction, wavelength_nm)
+            if traced is None:
+                continue
+            sensor, _ = traced
+            spots.append(sensor)
+    spot_array = np.asarray(spots, dtype=np.float64).reshape(-1, 2)
+    return spot_array, chief_angle
 
 
 def metrics(points):
@@ -161,6 +227,86 @@ def metrics(points):
     }
 
 
+def make_illumination_chart(records, output):
+    width, height = 1000, 560
+    image = Image.new("RGB", (width, height), (18, 21, 26))
+    draw = ImageDraw.Draw(image)
+    left, top, plot_w, plot_h = 92, 48, 850, 360
+    y_min, y_max = 0.45, 1.02
+    draw.text((left, 12), "Relative field illumination estimate (normalized on axis)",
+              fill=(235, 238, 244))
+    def xy(angle, value):
+        return (left + angle / 12.0 * plot_w,
+                top + (y_max - value) / (y_max - y_min) * plot_h)
+    for value in (0.50, 0.60, 0.70, 0.80, 0.90, 1.00):
+        y = xy(0.0, value)[1]
+        draw.line((left, y, left + plot_w, y), fill=(54, 61, 72), width=1)
+        draw.text((30, y - 7), f"{value:.2f}", fill=(180, 188, 200))
+    for angle in (0, 4, 8, 12):
+        x = xy(angle, y_min)[0]
+        draw.line((x, top, x, top + plot_h), fill=(42, 48, 58), width=1)
+        draw.text((x - 6, top + plot_h + 8), str(angle), fill=(190, 198, 210))
+    draw.text((left + plot_w // 2 - 35, top + plot_h + 28),
+              "Object field angle (deg)", fill=(190, 198, 210))
+    by_case = {(row["field"], row["wavelength_nm"]): row for row in records}
+    field_names = tuple(name for name, _ in FIELD_CASES)
+    angle_values = tuple(angle for _, angle in FIELD_CASES)
+    wavelengths = (610.0, 550.0, 460.0)
+    band_colors = {610.0: (255, 112, 89), 550.0: (132, 222, 255),
+                   460.0: (175, 255, 137)}
+    def draw_segments(points, color, width=2, dashed=False):
+        for start, end in zip(points, points[1:]):
+            if not dashed:
+                draw.line((start, end), fill=color, width=width)
+                continue
+            dx, dy = end[0] - start[0], end[1] - start[1]
+            for fraction in np.arange(0.0, 1.0, 0.18):
+                a = (start[0] + dx * fraction, start[1] + dy * fraction)
+                b_fraction = min(fraction + 0.09, 1.0)
+                b = (start[0] + dx * b_fraction, start[1] + dy * b_fraction)
+                draw.line((a, b), fill=color, width=width)
+
+    for wavelength in wavelengths:
+        points = []
+        for name, angle in zip(field_names, angle_values):
+            row = by_case[(name, wavelength)]
+            points.append(xy(angle, row["relative_illumination_proxy"]))
+        draw_segments(points, band_colors[wavelength], width=3)
+        for px, py in points:
+            draw.ellipse((px - 4, py - 4, px + 4, py + 4), fill=band_colors[wavelength])
+    cosine_points = []
+    for angle in np.linspace(0.0, 12.0, 121):
+        chief = np.interp(angle, angle_values,
+                          [by_case[(name, 550.0)]["chief_ray_angle_image_deg"]
+                           for name in field_names])
+        value = math.cos(math.radians(chief)) ** 4
+        cosine_points.append(xy(float(angle), value))
+    draw_segments(cosine_points, (230, 230, 235), width=2, dashed=True)
+    pupil_points = [xy(angle, by_case[(name, 550.0)]["relative_transmitted_pupil_area_ratio"])
+                    for name, angle in zip(field_names, angle_values)]
+    draw_segments(pupil_points, band_colors[550.0], width=2, dashed=True)
+    for px, py in pupil_points:
+        draw.rectangle((px - 3, py - 3, px + 3, py + 3), outline=band_colors[550.0])
+    legend_y = top + plot_h + 48
+    draw_segments([(left, legend_y + 7), (left + 26, legend_y + 7)],
+                  (230, 230, 235), width=2, dashed=True)
+    draw.text((left + 34, legend_y), "cos^4 rolloff (550 nm chief ray)",
+              fill=(215, 220, 228))
+    draw_segments([(left + 360, legend_y + 7), (left + 386, legend_y + 7)],
+                  band_colors[550.0], width=2, dashed=True)
+    draw.text((left + 394, legend_y), "relative pupil area (550 nm)",
+              fill=band_colors[550.0])
+    legend_y += 25
+    draw.text((left, legend_y), "Combined pupil x cos^4 proxy:", fill=(215, 220, 228))
+    for i, wavelength in enumerate(wavelengths):
+        x = left + 220 + i * 180
+        draw.line((x, legend_y + 7, x + 24, legend_y + 7),
+                  fill=band_colors[wavelength], width=3)
+        draw.text((x + 30, legend_y), f"{wavelength:.0f} nm", fill=band_colors[wavelength])
+    output.parent.mkdir(parents=True, exist_ok=True)
+    image.save(output)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=512)
@@ -170,29 +316,46 @@ def main():
         "tools/LensFlareLab/examples/direct-transmission-geometric-psf.csv"))
     parser.add_argument("--density-output", type=Path, default=Path(
         "tools/LensFlareLab/examples/direct-transmission-geometric-irradiance.png"))
+    parser.add_argument("--illumination-output", type=Path, default=Path(
+        "tools/LensFlareLab/examples/direct-transmission-relative-illumination.png"))
     args = parser.parse_args()
-    fields = (("on_axis", 0.0), ("field_5deg", math.radians(5.0)),
-              ("field_10deg", math.radians(10.0)))
     records = []
     clouds = {}
-    for name, angle in fields:
+    chief_angles = {}
+    for name, angle_deg in FIELD_CASES:
+        angle = math.radians(angle_deg)
         for wavelength in (610.0, 550.0, 460.0):
-            points = trace_field(angle, wavelength, args.samples)
+            points, chief_angle = trace_field(angle, wavelength, args.samples)
             clouds[(name, wavelength)] = points
-            records.append({"field": name, "field_angle_deg": math.degrees(angle),
+            chief_angles[(name, wavelength)] = math.degrees(chief_angle)
+            records.append({"field": name, "field_angle_deg": angle_deg,
+                            "chief_ray_angle_image_deg": chief_angles[(name, wavelength)],
                             "wavelength_nm": wavelength, "launch_grid": args.samples,
                             "valid_rays": len(points), **metrics(points)})
+    on_axis_counts = {wavelength: next(
+        row["valid_rays"] for row in records
+        if row["field"] == "on_axis" and row["wavelength_nm"] == wavelength)
+        for wavelength in (610.0, 550.0, 460.0)}
+    for row in records:
+        wavelength = row["wavelength_nm"]
+        pupil_ratio = row["valid_rays"] / max(on_axis_counts[wavelength], 1)
+        cos4 = math.cos(math.radians(row["chief_ray_angle_image_deg"])) ** 4
+        row["relative_transmitted_pupil_area_ratio"] = pupil_ratio
+        row["cos4_image_space_rolloff"] = cos4
+        row["relative_illumination_proxy"] = pupil_ratio * cos4
     args.csv.parent.mkdir(parents=True, exist_ok=True)
     with args.csv.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(records[0]))
         writer.writeheader()
         writer.writerows(records)
+    make_illumination_chart(records, args.illumination_output)
 
-    width, height, pane = 1470, 590, 480
+    width, height, pane = len(FIELD_CASES) * 490, 590, 480
     image = Image.new("RGB", (width, height), (18, 21, 26))
     draw = ImageDraw.Draw(image)
     colors = {610.0: (255, 112, 89), 550.0: (132, 222, 255), 460.0: (175, 255, 137)}
-    for col, (name, angle) in enumerate(fields):
+    for col, (name, angle) in enumerate((name, math.radians(degrees))
+                                        for name, degrees in FIELD_CASES):
         left = col * 490 + 6
         data = [clouds[(name, wavelength)] for wavelength in colors]
         nonempty = [p for p in data if len(p)]
@@ -224,7 +387,8 @@ def main():
     density = Image.new("RGB", (width, height), (18, 21, 26))
     density_draw = ImageDraw.Draw(density)
     spectral_channel = {610.0: 0, 550.0: 1, 460.0: 2}
-    for col, (name, angle) in enumerate(fields):
+    for col, (name, angle) in enumerate((name, math.radians(degrees))
+                                        for name, degrees in FIELD_CASES):
         left = col * 490 + 6
         data = [clouds[(name, wavelength)] for wavelength in colors]
         nonempty = [points for points in data if len(points)]
@@ -266,7 +430,8 @@ def main():
               f"rms={row['rms_radius_um']:.2f}um r90={row['r90_um']:.2f}um "
               f"centroid=({row['centroid_x_um']:.2f},{row['centroid_y_um']:.2f})um "
               f"rays={row['valid_rays']}")
-    print(f"saved {args.csv}, {args.output}, and {args.density_output}")
+    print(f"saved {args.csv}, {args.output}, {args.density_output}, "
+          f"and {args.illumination_output}")
 
 
 if __name__ == "__main__":

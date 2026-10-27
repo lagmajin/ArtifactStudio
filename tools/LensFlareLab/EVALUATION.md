@@ -7,20 +7,36 @@
 `evaluate_direct_transmission_raytrace.py` independently traces a collimated
 ray bundle through the 14 spherical surfaces in the bundled Angenieux
 prescription, clips it at the six-blade f/11 stop, and plots sensor-plane ray
-intercepts at 610/550/460 nm and 0/5/10 degree fields. The script matches the
+intercepts at 610/550/460 nm and 0/5/10/12 degree fields. The script matches the
 LensFlareLab surface table, Cauchy dispersion approximation, and 15 mm rear
 group spacing. This gives the standalone lab its first prescription-dependent
 direct-transmission image evaluation rather than another synthetic Zernike
 fixture.
 
-The 512² launch grid transmits about 8,516–8,744 rays per field/wavelength
-case. Median-centered 90% spot radii range from 5.24 to 19.92 µm over the
-nine cases. The 10 degree blue case is the broadest (r90=19.92 µm), while the
+The 512² launch grid transmits about 4,578–8,744 rays per field/wavelength
+case. Median-centered 90% spot radii range from 0.23 to 23.17 µm over the
+twelve cases. The 12 degree blue case is the broadest (r90=23.17 µm), while the
 on-axis blue geometric bundle is much tighter (r90=0.23 µm); the large spectral
-change is visible in the plate. Doubling the launch grid from 256² to 512²
-changes r90 by at most 0.44% across these cases, so the geometric sampling is
-numerically stable at this scale. This is still a geometric ray image, not a
-wave-optical or measured production PSF.
+change is visible in the plate. Comparing 256² and 512² launch grids changes
+r90 by at most 0.76% across the four fields and three wavelengths. The center
+through 10 degree cases retain
+97.6–100.2% of the on-axis ray-count area, while at 12 degrees the relative
+transmitted pupil area is 52.9–56.3%. The 550 nm chief ray's image-space cos⁴
+factor there is 0.990, giving a combined geometric relative-illumination proxy
+of 0.546. Thus this assumed prescription's edge falloff at 12 degrees is driven
+mainly by pupil clipping, not by natural cos⁴ roll-off. The approximation
+follows the separated pupil and cos⁴ terms discussed by [Reiss (1948)](https://doi.org/10.1364/JOSA.38.000980).
+
+![Relative field illumination proxy with pupil area and image-space cos-fourth terms](examples/direct-transmission-relative-illumination.png)
+
+The illumination proxy is
+`relative transmitted pupil area × cos⁴(image-space chief-ray angle)`. Rays
+are sampled with equal area on planes perpendicular to each input bundle, so
+the pupil-area comparison does not also count the bundle's projected area.
+CSV includes the pupil ratio, chief-ray angle, cos⁴ factor, and product per
+wavelength. This simplified estimate omits pupil-distortion Jacobian, Fresnel
+transmission, coating losses, and sensor response; it is not calibrated relative
+illumination for a physical lens.
 
 The spot map is a location view. A second view bins equal-weight transmitted
 rays by sensor area to estimate geometric irradiance density:
@@ -33,7 +49,7 @@ These choices reveal the spatial shape and suppress the launch-grid lattice;
 they do not preserve relative spectral power or model a physical sensor. The
 CSV spot radii are computed from the unblurred ray coordinates.
 
-![Prescription-based direct-transmission geometric ray bundles at three field angles and wavelengths](examples/direct-transmission-geometric-psf.png)
+![Prescription-based direct-transmission geometric ray bundles at four field angles and wavelengths](examples/direct-transmission-geometric-psf.png)
 
 Reproduce the numerical table and plate with:
 
