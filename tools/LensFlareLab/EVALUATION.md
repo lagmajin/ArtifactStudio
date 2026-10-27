@@ -22,6 +22,7 @@ References: [Hullin et al., Physically-Based Real-Time Lens Flare Rendering
 [TUDelft Advanced Optical Imaging, Fourier analysis](https://qiweb.tudelft.nl/aoi/fourieranalysis/fourieranalysis/);
 [Takaki, implementation notes and CPU prototype](https://qiita.com/AngularSpectrumMTD/items/aeea1046c0ec5d4dd1d5);
 [Bodonyi et al., 2024 real-time lens flare rendering paper](https://link.springer.com/article/10.1007/s00371-024-03625-7);
+[Carbajal-Domínguez et al., numerical near-field scalar diffraction with angular spectrum and FFT](https://rmf.smf.mx/ojs/index.php/rmf-e/article/view/4636);
 [reference implementation dispersion model](https://github.com/bodonyiandi94/LensFlareFramework/blob/4136459dffa1ed582f199a9a43950730b4ddcd66/Source/Scene/Components/LensFlare/PhysicalCamera.cpp).
 
 Historical evaluation images and measurements in this document were rendered
@@ -305,6 +306,69 @@ LensFlareLab.exe build/off-axis.pfm off-axis-flare.pfm --auto --ray-grid 64 --ga
 The tracked PNGs are display-mapped previews. The PFM chart is generated on
 demand and is not stored in the source tree.
 
+## Scalar Fresnel propagation on ray-mapped ghost layers
+
+The lab now has a separate, opt-in wave-optics look-development path. For each
+source bin, two-reflection path, and RGB wavelength, it first produces the
+usual ray-mapped irradiance layer. It uses the square root as a real,
+zero-phase scalar field, pads the local image-space layer, and applies the
+paraxial free-space transfer function
+`H(fx,fy)=exp(-i π λ z (fx²+fy²))` between a 2D FFT and inverse FFT. Squared
+amplitude replaces that path-band's geometric irradiance. The physical pixel
+pitch comes from sensor width and image width; default `z=100 mm` is the lens
+effective focal length. This creates wavelength-dependent Fresnel-scale edge
+ripples, while each source bin/path remains mutually incoherent with the next.
+
+This is not a full diffraction model of the compound lens. The geometry pass
+does not track optical path length or complex phase through refractive and
+reflective surfaces, and the effective propagation plane/distance is only a
+proxy. A four-Fresnel-scale local ROI captures the visible near-edge structure;
+small numerical flux correction is applied to the full padded ROI, then light
+outside the sensor is clipped. `--ghost-diffraction-distance-mm` is exposed to
+measure sensitivity rather than imply a calibrated path distance. The option
+defaults off, so the geometric baseline remains bit-identical. This path is
+not promoted to Core/App.
+
+On the isolated 9→8 reflection (source `(0.3834, 0.3844)`, ray grid 128,
+point source, Fraunhofer source diffraction off), the geometric ghost has
+integrated luminance `128.328`, peak `0.003364`, and centroid `(465.157,
+257.015)`. With `z=100 mm`, the result is `128.235`, `0.005375`, and `(465.164,
+256.938)`. The small integrated loss is light clipped beyond the sensor edge
+(the ghost reaches the bottom boundary); centroid movement is 0.08 px. At 50
+and 200 mm, the integrated luminances are `128.269` and `128.190`, and the
+peak values are `0.004714` and `0.005295`. This confirms distance-sensitive
+ring redistribution, not agreement with a physical camera capture.
+
+![Isolated 9-to-8 reflection before and after scalar Fresnel propagation; difference panel shows added red and removed blue luminance at display gain 300](examples/ghost-fresnel-propagation-x300.png)
+
+With all 42 eligible paths enabled on the same one-source chart (ray grid 96,
+source diffraction off), geometric and propagated integrated luminance are
+`931.474` and `931.004`; centroid shifts from `(353.413, 199.140)` to
+`(353.463, 199.162)`. The peak falls from `4.659` to `1.227`, because the
+propagation spreads overlapping caustic peaks across neighboring pixels. The
+absolute sum of the signed difference is `38.243` luminance, so this is a
+material shape change even though total flux is close. The full default mode
+(ray grid 64, nine finite-source bins, Fraunhofer source diffraction on) gives
+ghost-only luminance `911.115` (geometric) and `911.309` (propagated), peak
+`13.397` and `13.253`, respectively, and centroid motion below `0.06 px`.
+This is an integrated default-path
+measurement in addition to the source-diffraction-off image comparison below.
+
+![All 42 path comparison for a point source with source diffraction off, rendered at display gain 40](examples/all-ghosts-fresnel-comparison-x40.png)
+
+Reproduce an isolated path comparison and its preview with:
+
+```powershell
+LensFlareLab.exe build/ghost-diffraction-input.pfm build/ghost-geometric.pfm --position 0.3834 0.3844 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8
+LensFlareLab.exe build/ghost-diffraction-input.pfm build/ghost-fresnel.pfm --position 0.3834 0.3844 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8 --ghost-diffraction on --ghost-diffraction-distance-mm 100 --ghost-diffraction-report
+python tools/LensFlareLab/make_ghost_diffraction_comparison.py build/ghost-diffraction-input.pfm build/ghost-geometric.pfm build/ghost-fresnel.pfm tools/LensFlareLab/examples/ghost-fresnel-propagation-x300.png --gain 300
+```
+
+To regenerate the all-path comparison, use the same input with `--ghost-pair`
+omitted, ray grid 96, and `--ghost-diffraction on`; render the baseline with
+the flag omitted, then run the comparison script with `--crop 0 0 639 359
+--gain 40`.
+
 ## Limits and next evaluation gates
 
 Hullin et al. distinguish Fraunhofer starburst from near-field ringing in
@@ -312,10 +376,10 @@ ghost elements. Their pipeline builds an aperture-transmission texture for
 each ghost path and applies a fractional Fourier transform (FrFT), with the
 heuristic order `α = 0.15 × (λ / 400 nm) × (f/# / 18)` (Eq. 5). The lab now
 exposes `--diffraction-report` and `--fresnel-frft-order` to inspect and sweep
-that RGB order. This is diagnostic only: current ray tracing accumulates
-irradiance and does not retain a per-path aperture-visibility texture, so the
-FrFT ringing is not yet rendered. The Fraunhofer source PSF must not be treated
-as a substitute for this per-ghost near-field treatment.
+that RGB order. The paper's FrFT ringing texture is not implemented. The
+separate scalar Fresnel propagation prototype above does not substitute for
+that per-path aperture texture, and the Fraunhofer source PSF is not a ghost
+diffraction model.
 
 For the default 100 mm, f/11 setup, Eq. (5) gives RGB orders approximately
 `0.140, 0.126, 0.106` for 610, 550, and 460 nm. These are the paper's

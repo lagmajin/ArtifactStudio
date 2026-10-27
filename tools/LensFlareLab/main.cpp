@@ -64,13 +64,16 @@ struct Settings {
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
     float fresnelFrftOrder = 0.0f;
+    float ghostDiffractionDistanceMm = 0.0f;
     bool antiReflectCoating = true;
     bool ghostsEnabled = true;
     bool diffractionEnabled = true;
+    bool ghostDiffractionEnabled = false;
     bool reportGhostPaths = false;
     bool reportJacobianCap = false;
     bool reportSourceSamples = false;
     bool reportDiffractionModel = false;
+    bool reportGhostDiffraction = false;
     int selectedFirstReflection = -1;
     int selectedSecondReflection = -1;
 };
@@ -250,6 +253,114 @@ void fft1D(std::vector<std::complex<float>>& values) {
                 factor *= root;
             }
         }
+    }
+}
+
+void fft2D(std::vector<std::complex<float>>& values, int size, bool inverse) {
+    std::vector<std::complex<float>> line(static_cast<std::size_t>(size));
+    for (int y = 0; y < size; ++y) {
+        const std::size_t offset = static_cast<std::size_t>(y) * size;
+        std::copy_n(values.begin() + static_cast<std::ptrdiff_t>(offset), size, line.begin());
+        if (inverse) for (auto& value : line) value = std::conj(value);
+        fft1D(line);
+        if (inverse) for (auto& value : line) value = std::conj(value) / static_cast<float>(size);
+        std::copy(line.begin(), line.end(), values.begin() + static_cast<std::ptrdiff_t>(offset));
+    }
+    for (int x = 0; x < size; ++x) {
+        for (int y = 0; y < size; ++y)
+            line[static_cast<std::size_t>(y)] = values[static_cast<std::size_t>(y) * size + x];
+        if (inverse) for (auto& value : line) value = std::conj(value);
+        fft1D(line);
+        if (inverse) for (auto& value : line) value = std::conj(value) / static_cast<float>(size);
+        for (int y = 0; y < size; ++y)
+            values[static_cast<std::size_t>(y) * size + x] = line[static_cast<std::size_t>(y)];
+    }
+}
+
+struct PropagatedPatch {
+    int left = 0;
+    int top = 0;
+    int width = 0;
+    int height = 0;
+    std::vector<float> intensity;
+    float inputEnergy = 0.0f;
+    float outputEnergy = 0.0f;
+    float normalizationScale = 1.0f;
+};
+
+PropagatedPatch propagateFresnelPatch(const std::vector<float>& layer, int imageWidth,
+                                      int imageHeight, int boundsLeft, int boundsTop,
+                                      int boundsRight, int boundsBottom, float wavelengthNm,
+                                      float sensorPixelPitchMm, float distanceMm) {
+    PropagatedPatch patch;
+    const float lambdaMm = wavelengthNm * 1e-6f;
+    const float fresnelScalePixels = std::sqrt(lambdaMm * distanceMm) / sensorPixelPitchMm;
+    const int halo = std::clamp(static_cast<int>(std::ceil(4.0f * fresnelScalePixels)), 4, 48);
+    patch.left = boundsLeft - halo;
+    patch.top = boundsTop - halo;
+    const int right = boundsRight + halo;
+    const int bottom = boundsBottom + halo;
+    patch.width = right - patch.left + 1;
+    patch.height = bottom - patch.top + 1;
+    patch.intensity.assign(static_cast<std::size_t>(patch.width) * patch.height, 0.0f);
+    if (patch.width <= 0 || patch.height <= 0) return patch;
+
+    int fftSize = 1;
+    const int requiredSize = std::max(patch.width, patch.height) * 2;
+    while (fftSize < requiredSize) fftSize <<= 1;
+    std::vector<std::complex<float>> field(static_cast<std::size_t>(fftSize) * fftSize);
+    const int offsetX = (fftSize - patch.width) / 2;
+    const int offsetY = (fftSize - patch.height) / 2;
+    for (int y = 0; y < patch.height; ++y) for (int x = 0; x < patch.width; ++x) {
+        const int imageX = patch.left + x;
+        const int imageY = patch.top + y;
+        const float irradiance = imageX >= 0 && imageY >= 0 && imageX < imageWidth && imageY < imageHeight
+            ? std::max(0.0f, layer[static_cast<std::size_t>(imageY) * imageWidth + imageX])
+            : 0.0f;
+        patch.inputEnergy += irradiance;
+        field[static_cast<std::size_t>(offsetY + y) * fftSize + offsetX + x] =
+            {std::sqrt(irradiance), 0.0f};
+    }
+    if (patch.inputEnergy <= 1e-20f) return patch;
+
+    fft2D(field, fftSize, false);
+    constexpr float pi = 3.14159265358979323846f;
+    const float frequencyStep = 1.0f / (fftSize * sensorPixelPitchMm);
+    for (int y = 0; y < fftSize; ++y) for (int x = 0; x < fftSize; ++x) {
+        const int signedX = x <= fftSize / 2 ? x : x - fftSize;
+        const int signedY = y <= fftSize / 2 ? y : y - fftSize;
+        const float fx = signedX * frequencyStep;
+        const float fy = signedY * frequencyStep;
+        const float phase = -pi * lambdaMm * distanceMm * (fx * fx + fy * fy);
+        const std::complex<float> transfer(std::cos(phase), std::sin(phase));
+        field[static_cast<std::size_t>(y) * fftSize + x] *= transfer;
+    }
+    fft2D(field, fftSize, true);
+
+    for (int y = 0; y < patch.height; ++y) for (int x = 0; x < patch.width; ++x) {
+        const auto amplitude = field[static_cast<std::size_t>(offsetY + y) * fftSize + offsetX + x];
+        const float intensity = std::norm(amplitude);
+        patch.intensity[static_cast<std::size_t>(y) * patch.width + x] = intensity;
+        patch.outputEnergy += intensity;
+    }
+    if (patch.outputEnergy > 1e-20f) {
+        patch.normalizationScale = patch.inputEnergy / patch.outputEnergy;
+        for (float& intensity : patch.intensity) intensity *= patch.normalizationScale;
+        patch.outputEnergy = patch.inputEnergy;
+    }
+    return patch;
+}
+
+void addPropagatedPatch(Image& output, const PropagatedPatch& patch, std::size_t band) {
+    for (int y = 0; y < patch.height; ++y) for (int x = 0; x < patch.width; ++x) {
+        const int imageX = patch.left + x;
+        const int imageY = patch.top + y;
+        if (imageX < 0 || imageY < 0 || imageX >= output.width || imageY >= output.height) continue;
+        const float value = patch.intensity[static_cast<std::size_t>(y) * patch.width + x];
+        Pixel& pixel = output.pixels[static_cast<std::size_t>(imageY) * output.width + imageX];
+        if (band == 0) pixel.r += value;
+        else if (band == 1) pixel.g += value;
+        else pixel.b += value;
     }
 }
 
@@ -778,7 +889,7 @@ Image render(const Image& source, const Settings& settings) {
             std::cout << applyFrftOrderOverride(reportWavelengths[band], fNumber,
                                                  settings.fresnelFrftOrder);
         }
-        std::cout << " (diagnostic only; aperture FrFT texture not applied to ray-mapped ghost layers)\n";
+        std::cout << " (FrFT heuristic parameter; use --ghost-diffraction on for the separate scalar Fresnel model)\n";
     }
     DetectedLightSet lights;
     if (settings.autoPosition) {
@@ -866,6 +977,12 @@ Image render(const Image& source, const Settings& settings) {
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
     std::uint64_t rasterizedTriangles = 0;
     std::uint64_t jacobianClampedTriangles = 0;
+    double ghostDiffractionInputEnergy = 0.0;
+    double ghostDiffractionOutputEnergy = 0.0;
+    double ghostDiffractionRawOutputEnergy = 0.0;
+    float ghostDiffractionMinNormalization = std::numeric_limits<float>::infinity();
+    float ghostDiffractionMaxNormalization = 0.0f;
+    std::uint64_t ghostDiffractionPatches = 0;
     std::array<DiffractionKernel, 3> diffraction;
     if (settings.diffractionEnabled) {
         for (std::size_t band = 0; band < diffraction.size(); ++band) {
@@ -941,6 +1058,9 @@ Image render(const Image& source, const Settings& settings) {
                     for (std::size_t band = 0; band < wavelengths.size(); ++band) {
                         if (sourceBands[band] <= 1e-6f) continue;
                         std::vector<RayVertex> rayGridData(static_cast<std::size_t>(grid) * grid);
+                        std::vector<float> ghostLayer;
+                        if (settings.ghostDiffractionEnabled)
+                            ghostLayer.assign(source.pixels.size(), 0.0f);
                         for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
                             const float stopX = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
                             const float stopY = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
@@ -990,10 +1110,14 @@ Image render(const Image& source, const Settings& settings) {
                                 pathDiagnostic.minY = std::min(pathDiagnostic.minY, static_cast<float>(y));
                                 pathDiagnostic.maxX = std::max(pathDiagnostic.maxX, static_cast<float>(x));
                                 pathDiagnostic.maxY = std::max(pathDiagnostic.maxY, static_cast<float>(y));
-                                Pixel& dst = output.pixels[static_cast<std::size_t>(y) * width + x];
-                                if (band == 0) dst.r += value;
-                                else if (band == 1) dst.g += value;
-                                else dst.b += value;
+                                if (settings.ghostDiffractionEnabled) {
+                                    ghostLayer[static_cast<std::size_t>(y) * width + x] += value;
+                                } else {
+                                    Pixel& dst = output.pixels[static_cast<std::size_t>(y) * width + x];
+                                    if (band == 0) dst.r += value;
+                                    else if (band == 1) dst.g += value;
+                                    else dst.b += value;
+                                }
                             };
                             if (settings.usePixelAreaRasterization) {
                                 // Integrate the mapped ray triangle over each unit-area sensor pixel.
@@ -1040,6 +1164,33 @@ Image render(const Image& source, const Settings& settings) {
                                 rasterizeTriangle(a, d, c);
                             }
                         }
+                        if (settings.ghostDiffractionEnabled &&
+                            std::isfinite(pathDiagnostic.minX) &&
+                            std::isfinite(pathDiagnostic.minY) &&
+                            std::isfinite(pathDiagnostic.maxX) &&
+                            std::isfinite(pathDiagnostic.maxY)) {
+                            const int left = std::clamp(static_cast<int>(std::floor(pathDiagnostic.minX)), 0, width - 1);
+                            const int top = std::clamp(static_cast<int>(std::floor(pathDiagnostic.minY)), 0, height - 1);
+                            const int right = std::clamp(static_cast<int>(std::ceil(pathDiagnostic.maxX)), 0, width - 1);
+                            const int bottom = std::clamp(static_cast<int>(std::ceil(pathDiagnostic.maxY)), 0, height - 1);
+                            const float sensorPixelPitchMm = lens.sensorWidth / width;
+                            const float distanceMm = settings.ghostDiffractionDistanceMm > 0.0f
+                                ? settings.ghostDiffractionDistanceMm : lens.effectiveFocalLength;
+                            PropagatedPatch patch = propagateFresnelPatch(ghostLayer, width, height,
+                                left, top, right, bottom, wavelengths[band], sensorPixelPitchMm,
+                                distanceMm);
+                            ghostDiffractionInputEnergy += patch.inputEnergy;
+                            ghostDiffractionOutputEnergy += patch.outputEnergy;
+                            ghostDiffractionRawOutputEnergy += patch.outputEnergy / patch.normalizationScale;
+                            ghostDiffractionMinNormalization = std::min(ghostDiffractionMinNormalization,
+                                                                         patch.normalizationScale);
+                            ghostDiffractionMaxNormalization = std::max(ghostDiffractionMaxNormalization,
+                                                                         patch.normalizationScale);
+                            if (patch.inputEnergy > 0.0f) {
+                                ++ghostDiffractionPatches;
+                                addPropagatedPatch(output, patch, band);
+                            }
+                        }
                     }
                 }
             }
@@ -1079,6 +1230,17 @@ Image render(const Image& source, const Settings& settings) {
         std::cout << "Jacobian cap=" << settings.jacobianCap << " clipped "
                   << jacobianClampedTriangles << '/' << rasterizedTriangles << " ray triangles ("
                   << std::fixed << std::setprecision(2) << clampedPercent << "%)\n";
+    }
+    if (settings.reportGhostDiffraction) {
+        std::cout << "Ghost Fresnel propagation: " << ghostDiffractionPatches
+                  << " path-band patches, integrated input=" << std::setprecision(9)
+                  << ghostDiffractionInputEnergy << " normalizedOutput=" << ghostDiffractionOutputEnergy
+                  << " rawCropOutput=" << ghostDiffractionRawOutputEnergy
+                  << " normalizationScaleRange=[" << ghostDiffractionMinNormalization << ','
+                  << ghostDiffractionMaxNormalization << ']'
+                  << " distanceMm=" << (settings.ghostDiffractionDistanceMm > 0.0f
+                      ? settings.ghostDiffractionDistanceMm : lens.effectiveFocalLength)
+                  << " (per-patch intensity normalized; scalar paraxial approximation)\n";
     }
     return output;
 }
@@ -1125,6 +1287,8 @@ void printSettings(const Settings& s) {
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
               << " fresnelFrftOrder=" << s.fresnelFrftOrder
+              << " ghostDiffraction=" << s.ghostDiffractionEnabled
+              << " ghostDiffractionDistanceMm=" << s.ghostDiffractionDistanceMm
               << " antiReflectCoating=" << s.antiReflectCoating
               << " ghosts=" << s.ghostsEnabled
               << " diffraction=" << s.diffractionEnabled
@@ -1134,10 +1298,10 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
-              << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --fresnel-frft-order N (0=paper heuristic)\n"
-              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report | --diffraction-report\n";
+              << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
+              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
 void setValue(Settings& s, const std::string& name, float value) {
@@ -1155,6 +1319,8 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
     else if (name == "fresnelFrftOrder") s.fresnelFrftOrder = finiteClamp(value, 0.0f, 1.0f);
+    else if (name == "ghostDiffraction") s.ghostDiffractionEnabled = value >= 0.5f;
+    else if (name == "ghostDiffractionDistanceMm") s.ghostDiffractionDistanceMm = finiteClamp(value, 0.0f, 500.0f);
     else if (name == "antiReflectCoating") s.antiReflectCoating = value >= 0.5f;
     else if (name == "ghostsEnabled") s.ghostsEnabled = value >= 0.5f;
     else if (name == "diffractionEnabled") s.diffractionEnabled = value >= 0.5f;
@@ -1194,6 +1360,8 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--aperture-radius") setValue(settings, "apertureRadius", value());
     else if (option == "--aperture-blades") setValue(settings, "apertureBlades", value());
     else if (option == "--fresnel-frft-order") setValue(settings, "fresnelFrftOrder", value());
+    else if (option == "--ghost-diffraction-distance-mm")
+        setValue(settings, "ghostDiffractionDistanceMm", value());
     else if (option == "--coating") {
         if (++i >= argc) throw std::runtime_error("missing value for --coating");
         const std::string enabled = argv[i];
@@ -1218,6 +1386,14 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--ghost-report") settings.reportGhostPaths = true;
     else if (option == "--source-report") settings.reportSourceSamples = true;
     else if (option == "--diffraction-report") settings.reportDiffractionModel = true;
+    else if (option == "--ghost-diffraction-report") settings.reportGhostDiffraction = true;
+    else if (option == "--ghost-diffraction") {
+        if (++i >= argc) throw std::runtime_error("missing value for --ghost-diffraction");
+        const std::string enabled = argv[i];
+        if (enabled == "on") settings.ghostDiffractionEnabled = true;
+        else if (enabled == "off") settings.ghostDiffractionEnabled = false;
+        else throw std::runtime_error("--ghost-diffraction expects on or off");
+    }
     else if (option == "--jacobian-report") settings.reportJacobianCap = true;
     else if (option == "--ghost-pair") {
         if (i + 2 >= argc) throw std::runtime_error("--ghost-pair expects FIRST SECOND surface indices");
@@ -1236,7 +1412,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample] [--ghosts on|off] [--diffraction on|off] [options]\n";
+        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample] [--ghosts on|off] [--diffraction on|off] [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM] [options]\n";
         return 2;
     }
     try {

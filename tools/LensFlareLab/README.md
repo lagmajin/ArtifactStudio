@@ -52,6 +52,8 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
                [--ghosts on|off] [--diffraction on|off]
+               [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM]
+               [--ghost-diffraction-report]
                [--fresnel-frft-order N] [--diffraction-report] [--ghost-report]
                [--ghost-pair FIRST SECOND] [--jacobian-report] [--source-report]
 ```
@@ -99,8 +101,17 @@ See [EVALUATION.md](EVALUATION.md) for paper-grounded evaluation images and
 current model limits. `--diffraction-report` prints the RGB Fresnel/FrFT order
 from Hullin et al.'s Eq. (5), using the current f-number and wavelengths.
 The default order is the paper's heuristic; `--fresnel-frft-order N` overrides
-it for A/B experiments. This reports the parameter only: the FrFT aperture
-texture is not yet applied to individual ray-mapped ghost layers. The two-source Angenieux Fig. 10 approximation can be
+it for A/B experiments. The separate `--ghost-diffraction on` option enables
+scalar Fresnel propagation of each source-bin/path/wavelength ghost layer.
+It converts the ray-rasterized irradiance to a zero-phase amplitude, applies
+the paraxial transfer function
+`exp(-i π λ z (fx² + fy²))` with a padded 2D FFT, then squares the propagated
+amplitude. `--ghost-diffraction-distance-mm` sets the effective propagation
+distance; zero (the default) uses the 100 mm effective focal length. A local
+ROI extending four Fresnel scales is energy-normalized before clipping at the
+sensor boundary. This is a look-development approximation: ray tracing does
+not provide per-ray optical phase or a path-specific exit-pupil plane, and
+this is not Hullin et al.'s FrFT implementation. The two-source Angenieux Fig. 10 approximation can be
 regenerated with `python tools/LensFlareLab/make_fig10_comparison_chart.py`.
 Regenerate the general evaluation chart with
 `python tools/LensFlareLab/make_evaluation_chart.py`. To raise only the source
