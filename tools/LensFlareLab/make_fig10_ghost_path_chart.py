@@ -38,8 +38,10 @@ def main() -> None:
             draw.rectangle(box, outline=color, width=2 if rank < 8 else 1)
             if rank < 6:
                 pair = f"{row['first_surface']}→{row['second_surface']}"
-                draw.text((x0 + left + 2, y0 + top + 2), pair, fill=color, font=font)
-    draw.text((margin, image.height - 16), "Bounds are sensor-space raster extents; labels show the six brightest paths per source by integrated luminance.", fill="#aeb8c7", font=font)
+                cx, cy = float(row["centroid_x"]), float(row["centroid_y"])
+                draw.ellipse((x0 + cx - 2, y0 + cy - 2, x0 + cx + 2, y0 + cy + 2), fill="#ffffff", outline=color)
+                draw.text((x0 + cx + 4, y0 + cy + 2), pair, fill=color, font=font)
+    draw.text((margin, image.height - 16), "Rectangles show sensor bounds; dots mark luminance centroids. Six brightest paths per source are labeled.", fill="#aeb8c7", font=font)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     image.save(args.output)
     print(args.output)

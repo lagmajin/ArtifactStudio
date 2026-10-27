@@ -159,6 +159,8 @@ struct GhostPathDiagnostic {
     int firstReflection = -1;
     int secondReflection = -1;
     double luminance = 0.0;
+    double luminanceWeightedX = 0.0;
+    double luminanceWeightedY = 0.0;
     float minX = std::numeric_limits<float>::infinity();
     float minY = std::numeric_limits<float>::infinity();
     float maxX = -std::numeric_limits<float>::infinity();
@@ -2046,10 +2048,13 @@ Image render(const Image& source, const Settings& settings) {
                             const float inverseArea = 1.0f / area;
                             auto accumulatePixel = [&](int x, int y, float value) {
                                 if (value <= 0.0f) return;
-                                pathDiagnostic.luminance += value *
+                                const double luminance = value *
                                     (0.2126 * spectralBand.outputWeights.r +
                                      0.7152 * spectralBand.outputWeights.g +
                                      0.0722 * spectralBand.outputWeights.b);
+                                pathDiagnostic.luminance += luminance;
+                                pathDiagnostic.luminanceWeightedX += luminance * x;
+                                pathDiagnostic.luminanceWeightedY += luminance * y;
                                 pathDiagnostic.minX = std::min(pathDiagnostic.minX, static_cast<float>(x));
                                 pathDiagnostic.minY = std::min(pathDiagnostic.minY, static_cast<float>(y));
                                 pathDiagnostic.maxX = std::max(pathDiagnostic.maxX, static_cast<float>(x));
@@ -2230,18 +2235,18 @@ Image render(const Image& source, const Settings& settings) {
                     std::filesystem::create_directories(csvPath.parent_path());
                 ghostCsv.open(csvPath, std::ios::out | std::ios::trunc);
                 if (!ghostCsv) throw std::runtime_error("cannot create ghost report CSV: " + settings.ghostReportCsvFile);
-                ghostCsv << "source_u,source_v,first_surface,second_surface,integrated_luminance,bounds_center_x,bounds_center_y,min_x,min_y,max_x,max_y\n";
+                ghostCsv << "source_u,source_v,first_surface,second_surface,integrated_luminance,centroid_x,centroid_y,min_x,min_y,max_x,max_y\n";
             }
             for (const GhostPathDiagnostic& path : pathDiagnostics) {
                 if (path.luminance <= 0.0 || !std::isfinite(path.minX) ||
                     !std::isfinite(path.minY) || !std::isfinite(path.maxX) ||
                     !std::isfinite(path.maxY)) continue;
-                const double boundsCenterX = (path.minX + path.maxX) * 0.5;
-                const double boundsCenterY = (path.minY + path.maxY) * 0.5;
+                const double centroidX = path.luminanceWeightedX / path.luminance;
+                const double centroidY = path.luminanceWeightedY / path.luminance;
                 ghostCsv << std::fixed << std::setprecision(6) << light.u << ',' << light.v << ','
                          << path.firstReflection << ',' << path.secondReflection << ','
                          << std::setprecision(10) << path.luminance << ','
-                         << std::setprecision(3) << boundsCenterX << ',' << boundsCenterY << ','
+                         << std::setprecision(3) << centroidX << ',' << centroidY << ','
                          << path.minX << ',' << path.minY << ',' << path.maxX << ',' << path.maxY << '\n';
             }
             ghostCsv.flush();

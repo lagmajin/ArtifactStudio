@@ -9,23 +9,25 @@ but it does not publish the source coordinates, coating stack, sensor mapping,
 or radiometric calibration needed for absolute image error. To make the
 qualitative comparison inspectable, LensFlareLab now exports every visible
 reflected path's integrated luminance and sensor-space bounds for each
-estimated source marker. The bounds center is a geometric bounding-box center,
-not an irradiance centroid. Surface indices are zero-based. Reproduce the
-diagnostic with:
+estimated source marker. The bounds are geometric extents, while
+`centroid_x/y` is the per-path pixel-luminance-weighted centroid. Surface
+indices are zero-based. Reproduce the diagnostic with:
 
 ```powershell
 python tools/LensFlareLab/make_fig10_comparison_chart.py
-LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-source-a.pfm --position 0.246 0.356 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-report-csv tools/LensFlareLab/examples/fig10-ghost-paths.csv
-LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-source-b.pfm --position 0.390 0.693 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-report-csv build/tools/LensFlareLab/fig10-source-b.csv
+LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-two-light-diagnostic.pfm --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-report-csv tools/LensFlareLab/examples/fig10-ghost-paths.csv
+python tools/LensFlareLab/make_fig10_ghost_path_chart.py
 ```
 
-The CSV output option truncates its destination for each invocation; combine
-the two files under one header before charting. In this evaluation, source A
-has 31 visible paths and summed in-frame ghost luminance 3.92859; source B has
-40 and 6.97047. The strongest paths are surfaces 13→9 for A and 11→9 for B.
-These sums depend on the synthetic source radiance and approximate coatings;
-they are diagnostic, not paper measurements. The plotted rectangles show
-sensor-space bounds for all visible paths, with the six brightest labeled.
+Both highlights are detected from the same image in one invocation, avoiding
+per-source rerendering; measured centers are `(0.245696,0.356546)` and
+`(0.389671,0.693593)`, close to the estimated marker centers. Source A has 31
+visible paths and summed in-frame ghost luminance 3.92259; source B has 40 and
+6.94671. The strongest paths are surfaces 13→9 for A and 11→9 for B. These
+sums depend on the synthetic source radiance and approximate coatings; they
+are diagnostic, not paper measurements. The plotted rectangles show
+sensor-space bounds for all visible paths; the six brightest are labeled and
+marked with white centroid dots.
 
 ![Sensor-space bounds of reflected paths for the two estimated Fig. 10 light positions](examples/fig10-ghost-path-layout.png)
 
@@ -34,6 +36,32 @@ changes both the number of sensor-visible paths and their spatial arrangement.
 This makes the Lab useful for tracing discrepancies against the analytical
 reference, while avoiding unsupported pixel-error claims. The published
 reference is [Bodonyi et al., Fig. 10](https://doi.org/10.1007/s00371-024-03625-7).
+
+### Ray-grid convergence at the same two detected sources
+
+To check whether the polygon patches are only a coarse-grid artifact, the
+combined two-source fixture was rendered at ray grids 192 and 512 with all
+other settings fixed. The 512 result raises integrated in-frame Y by 1.10%,
+raises peak Y by 1.99%, and shifts the combined luminance centroid by 0.22 px.
+The shared-display relative Y image L1 is 1.99%. The 512 image retains the
+same broad polygon boundaries visible at 192, so pupil-grid density alone does
+not remove their faceted appearance. This points to an image-formation or
+display-calibration gap, though the tiny paper panel and its unpublished tone
+curve prevent assigning that difference to a specific optical cause.
+
+![Shared-log comparison of the two-source Fig. 10 render at ray grids 192 and 512, with signed luminance difference](examples/fig10-grid192-vs-512.png)
+
+Reproduce the two renders and plate with:
+
+```powershell
+LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-two-light-grid192.pfm --source-samples 1 --ray-grid 192 --gain 1 --diffraction off
+LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-two-light-grid512.pfm --source-samples 1 --ray-grid 512 --gain 1 --diffraction off
+python tools/LensFlareLab/compare_fig10_raygrids.py build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-two-light-grid192.pfm build/tools/LensFlareLab/fig10-two-light-grid512.pfm
+```
+
+Its positive-channel p99.9 white point is shared across both display panels;
+signed difference is linear. These are sampled model convergence
+measurements, not validation against calibrated camera data.
 
 ## Display-only logarithmic view for full-field ghost comparison
 
@@ -664,10 +692,11 @@ LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm bu
 ```
 
 The visualization separates the two point-source contributions and shows their
-combined result using one shared logarithmic display mapping. The ghost field
-layout is qualitatively plausible relative to the paper's Angenieux reference,
-with aperture-shaped patches and source-dependent field changes. This is not a
-pixel-matched validation: the paper does not publish exact source coordinates,
+combined result using one shared logarithmic display mapping. The broad ghost
+field placement is qualitatively comparable to the paper's Angenieux reference,
+with aperture-shaped patches and source-dependent field changes, but our patch
+boundaries remain more visibly faceted than the smooth reference blobs. This is
+not a pixel-matched validation: the paper does not publish exact source coordinates,
 radiance, sensor mapping, tone curve, or the per-surface coating data needed to
 recreate its rendering setup. Our coatings and d-line/Abbe-derived dispersion
 remain approximations.
