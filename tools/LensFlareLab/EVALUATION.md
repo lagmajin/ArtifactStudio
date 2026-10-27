@@ -1736,3 +1736,53 @@ LensFlareLab.exe build/finite-source-convergence-input.pfm build/ghost-geometric
 LensFlareLab.exe build/finite-source-convergence-input.pfm build/ghost-frft-eq5.pfm --position 0.3834 0.3844 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8 --ghost-frft on --ghost-frft-normalization vertex --ghost-frft-report
 python tools/LensFlareLab/make_ghost_frft_comparison.py build/finite-source-convergence-input.pfm build/ghost-geometric.pfm build/ghost-frft-eq5.pfm tools/LensFlareLab/examples/ghost-aperture-frft-x300.png --gain 300
 ```
+
+### Central pupil obstruction
+
+`--central-obstruction-ratio ε` subtracts a centered opaque disk from the
+regular polygon pupil, where ε is the obstruction radius divided by the outer
+pupil radius (the same linear ratio as obstruction diameter divided by pupil
+diameter). The resulting annular polygon transmission is Fourier transformed
+as a complex pupil for direct Fraunhofer diffraction. The same blocked region
+clips geometric ghost rays and is included in the polygon mask used by ghost
+FrFT. This follows the standard pupil-to-PSF relation; aperture studies also
+account explicitly for central obscuration and show that PSF performance
+depends on pupil shape ([Hakobyan, 2020, MNRAS](https://academic.oup.com/mnras/article/496/4/5414/5874233),
+especially their Fourier-integral definition and central-obscuration parameter).
+
+In a synthetic, neutral, near-point source at image center, the 1024² six-blade
+PSF changes visibly as ε increases. Against the clear-pupil render, the
+whole-frame flare-only RGB L1 was 18.23%, 48.29%, and 93.47% at ε=0.15, 0.30,
+and 0.45 respectively. After unit-energy PSF reconstruction, the corresponding
+shape-only RGB L1 was much smaller: mean per-channel 0.76%, 2.01%, and 3.89%.
+These are complementary measurements: the full-frame metric includes source
+replacement and the sensor crop, while the normalized PSF metric compares
+distribution shape. The clear-pupil render was byte-identical to the earlier
+unobstructed executable. In the off-axis 9→8 ghost at `(0.3834,0.3844)` and ray
+grid 128, ε=0.30 changed isolated geometric ghost RGB L1 by 29.55%; with the
+aperture FrFT path it changed by 51.09%. Zero obstruction was also byte-exact
+against the previous geometric and FrFT outputs. The direct PSF remains
+unit-energy normalized, so this experiment measures shape and ray clipping;
+it does not yet reduce total direct transmission by the blocked pupil area.
+
+![Six-blade diffraction PSF with a 0.30-radius central obstruction](examples/diffraction-central-obstruction-30.png)
+
+![Off-axis geometric ghost aperture FrFT with a 0.30-radius central obstruction](examples/ghost-frft-central-obstruction-30.png)
+
+The geometric ghost alone shows the pupil's outer clipping boundary; its
+obstruction effect is primarily a flux change and is less distinct in a small
+crop. The FrFT plate makes the annular mask's inner boundary visible. These are
+synthetic pupil tests, not measurements of a specific camera. The disk does not
+model support spiders, decenter, edge bevels, phase errors, or wavelength-
+dependent coating losses. The aperture is a cold-path CPU FFT model and is not
+ready to move into a real-time core/app render path.
+
+Reproduce the direct comparison with a source fixture from
+`make_evaluation_chart.py --source-only --single-light-position 0.5 0.5
+--single-light-neutral --source-radius 1`, then render at
+`--central-obstruction-ratio 0|0.15|0.30|0.45 --ghosts off` and compare using
+`compare_diffraction_resampling.py` and `make_diffraction_resampling_chart.py`.
+For reflected ghosts, use a 4096-scale source at `(0.3834,0.3844)`, select
+`--ghost-pair 9 8 --diffraction off --ray-grid 128`, and compare geometric and
+`--ghost-frft on --ghost-frft-resolution 128` renders with
+`measure_rgb_error.py`.

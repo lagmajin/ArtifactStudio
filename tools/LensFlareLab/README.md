@@ -63,6 +63,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
                [--aperture-rotation-degrees DEG]
+               [--central-obstruction-ratio 0..0.8]
                [--diffraction-resolution 128|256|512|1024|2048|4096]
                [--aperture-blades N] [--coating on|off]
                [--ghosts on|off] [--diffraction on|off]
@@ -103,6 +104,9 @@ ghosts.
 pupil plane. The angle is applied to direct Fraunhofer diffraction, geometric
 ghost clipping, and polygon-based ghost FrFT textures so those paths use the
 same stop orientation. The polygon repeats every `360 / blade count` degrees.
+`--central-obstruction-ratio` models an opaque, concentric circular obstruction
+as a fraction of the outer pupil radius. It affects direct Fraunhofer PSFs and
+both reflected-ghost aperture paths; zero preserves the unobstructed pupil.
 The direct-source Fraunhofer PSF defaults to `--diffraction-resampling tent`,
 which bilinearly splats each FFT intensity sample onto neighboring sensor
 pixels. `--diffraction-resampling pixel-area` treats each mapped FFT intensity
