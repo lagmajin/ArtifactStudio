@@ -6,8 +6,9 @@
 
 `evaluate_direct_transmission_raytrace.py` independently traces a collimated
 ray bundle through the 14 spherical surfaces in the bundled Angenieux
-prescription, clips it at the six-blade f/11 stop, and plots sensor-plane ray
-intercepts at 610/550/460 nm and 0/5/10/12 degree fields. The script matches the
+prescription, clips it at the physical six-blade stop (semidiameter EFL/22),
+and plots sensor-plane ray intercepts at 610/550/460 nm and 0/5/10/12 degree
+fields. The script matches the
 LensFlareLab surface table, Cauchy dispersion approximation, and 15 mm rear
 group spacing. This gives the standalone lab its first prescription-dependent
 direct-transmission image evaluation rather than another synthetic Zernike
@@ -73,37 +74,72 @@ python tools/LensFlareLab/evaluate_direct_transmission_raytrace.py --samples 512
 This is geometric optics: it deposits rays at their sensor-plane intercepts.
 It does not itself calculate a complex pupil, phase, diffraction, coating
 phase, polarization, calibrated glass dispersion, or camera response. The
-prescription and f/11 stop are the Lab's assumed model, not a measured
+prescription and physical stop are the Lab's assumed model, not a measured
 serial-number-specific Angenieux lens.
 
 ## Prescription-derived optical path and reference-sphere diagnostic
 
-`evaluate_prescription_wavefront.py` accumulates optical path length as
-`n × segment length` from the field's equal-phase incident plane, through all
-14 surfaces, and to a shared plane 1 mm beyond the last surface vertex. It then
-adds the air distance from each plane sample to the chief ray's image point on
-the assumed sensor plane and subtracts the chief-ray path. This forms an
-image-centered reference sphere on the chosen exit-side plane and removes
-piston at the chief ray. It is an explicit path-length correction, not a claim
-that this convenient plane is the system's true exit pupil.
+`evaluate_prescription_wavefront.py` reverse-traces the front group and
+forwards the rear group from the stop to estimate both paraxial pupils using
+81-ray, ±0.001-slope pencils. The virtual entrance pupil is at z = 82.95261 mm
+with 1.72368× lateral magnification; the virtual exit pupil is at z =
+−56.47356 mm with 4.12397× magnification. For the assumed 100 mm EFL, the
+entrance pupil gives an object-space effective f-number of f/6.3817. The exit
+pupil diameter and image distance give f/6.3719 on axis, a 0.154% difference;
+the four-field image-side estimates span f/6.372–f/6.397. This paraxial
+consistency check shows that the physical stop size EFL/22 does not make the
+complete prescription an f/11 imaging system. Changing the probe cone from
+±0.0005 to ±0.003 shifts the fitted exit pupil plane by only 0.0031 mm. These
+remain estimates from the Lab's assumed prescription, not an independent
+optical-design verification.
 
-At a 512² launch grid, the 550 nm reference-sphere OPD RMS is 0.145–0.273 µm
-(0.264–0.496 waves); doubling from 256² changes these RMS values by at most
-0.20%. The 12° field transmits 4,734 rays, consistent with the separate pupil
-clipping estimate. As an internal ray/eikonal check, OPL differences between
-adjacent valid launch samples are compared with the mean outgoing direction
-cosines dotted into their exit-plane displacement; the RMS relative error is
-0.000042–0.000058% across the four fields. This checks path accumulation and
-plane phase sampling, but does not independently validate the prescription.
+This pupil magnification matters for interpreting the older `f/11` diffraction
+fixtures: they describe an isolated six-blade pupil with radius EFL/22, but do
+not use the prescription-derived entrance/exit pupil magnification. Their
+kernel scale should not be read as this full lens prescription's diffraction
+scale until the pupil model is independently verified.
+
+For each field, the evaluator accumulates optical path as `n × segment length`
+from an equal-phase incident plane through all 14 surfaces to a shared plane
+1 mm beyond the last vertex. It checks that plane's eikonal gradient against
+the outgoing ray direction, then back-projects each ray in image-space air to
+the virtual exit-pupil plane. The path is corrected by the distance from each
+pupil sample to the chief-ray image point on the assumed sensor plane; the
+chief path removes piston. This yields an image-centered reference-sphere OPD
+map in exit-pupil coordinates. At 512², the 550 nm OPD RMS is 0.145–0.273 µm
+(0.264–0.496 waves); doubling from 256² changes RMS by at most 0.20%. The 12°
+field transmits 4,734 rays. The chief-ray pupil coordinate moves 0.258 mm at
+5°, 2.213 mm at 10°, and 3.989 mm at 12° relative to the paraxial pupil center,
+so field-dependent pupil mapping matters in the clipped edge field.
+
+The equal-area incident grid also provides a finite-triangle estimate of the
+ray-map Jacobian from the launch plane to the virtual exit pupil. At 512², no
+folded triangles were found. The mapped areas are 899, 897, 865, and 478 mm²
+for 0/5/10/12 degrees, or 98.5%, 98.2%, 94.8%, and 52.4% of the paraxial
+on-axis hex-pupil area. The local Jacobian median declines from 5.75 on axis
+to 5.60 at 12 degrees; a relative geometric amplitude proxy
+`1/sqrt(J × cos(theta))` spans about 0.416–0.426 over the sampled fields.
+This is a launch-grid area-density estimate, not a normalized complex pupil
+amplitude: it excludes Fresnel transmission, coating phase, polarization,
+vignetting-edge diffraction, and coherent multi-path effects.
+
+The same ray/eikonal check gives 0.000042–0.000058% RMS-relative error for
+adjacent launch-grid pairs. The prior arbitrary exit-side-plane reference and
+the exit-pupil reference change OPD RMS by at most 0.36% in these four cases;
+this RMS comparison does not imply their phase maps are identical. It checks
+path accumulation and plane phase sampling, but does not independently
+validate the assumed prescription.
 
 ![Prescription-derived reference-sphere OPD at 550 nm for four fields](examples/prescription-wavefront.png)
 
-The CSV records each chief image point, reference-sphere radius, OPD RMS, and
-eikonal residual. Samples have equal incident-plane area; no pupil Jacobian,
-Fresnel amplitude, coating phase, polarization, edge diffraction, or calibrated
-sensor response is applied. A physically correct exit-pupil coordinate map
-and its field-dependent reference sphere remain necessary before forming a
-prescription-derived coherent PSF. This next step follows the exit-pupil OPD
+The CSV records the paraxial pupil plane and magnification, chief-ray pupil
+decenter, image point, reference-sphere radius, OPD RMS, eikonal residual,
+mapped pupil area, local Jacobian percentiles, and a relative geometric
+amplitude proxy. The ray-map Jacobian is now measured, but the derived proxy is
+not used to form a complex pupil. Fresnel amplitude, coating phase,
+polarization, edge diffraction, coherent multi-path effects, and calibrated
+sensor response are still missing from a physical prescription-derived
+coherent PSF. This next step follows the exit-pupil OPD
 definition in [OpticStudio's documentation](https://ansyshelp.ansys.com/public/Views/Secured/Zemax/v252/en/OpticStudio_User_Guide/OpticStudio_Help/topics/Exit_Pupil.html)
 and the reference-sphere path-length treatment validated against Zemax by
 [Lin (2024), DOI 10.1364/JOSAA.529814](https://doi.org/10.1364/JOSAA.529814).
@@ -132,7 +168,7 @@ mode family follows [Noll (1976)](https://doi.org/10.1364/JOSA.66.000207).
 This is a controlled experiment, not a fitted measurement of the Angenieux
 prescription or a claim of camera-specific aberration.
 
-The fixture uses the Lab's Angenieux f/11 focal length/aperture scale and a
+The fixture uses the Lab's nominal f/11 stop-radius/focal-length scale and a
 640×360 detector. Its 610/550/460 nm channels are a diagnostic RGB mapping,
 not a calibrated source spectrum or sensor response. At this pixel pitch the
 diffraction core is much smaller than one detector pixel, so detector-area

@@ -87,8 +87,12 @@ When options are supplied, the program renders once and exits; the CLI and
 interactive paths support the same settings.
 
 The default lens is the Angenieux 100 mm double-Gauss prescription tabulated
-by Hullin et al. The f/11 stop radius is derived from focal length and f-number;
-the 15 mm air gap between the stop and rear group is applied once. RGB dispersion defaults
+by Hullin et al. Its physical stop semidiameter is set to EFL/22 (the nominal
+f/11 opening before pupil imaging); the 15 mm air gap between the stop and rear
+group is applied once. Paraxial tracing currently estimates the complete
+prescription at f/6.38 because the entrance pupil is magnified; treat the old
+f/11 diffraction fixtures as isolated aperture baselines until this model is
+validated against an optical-design package. RGB dispersion defaults
 to a Cauchy approximation parameterized by the prescription d-line index and
 Abbe number, following the coefficient form used by the 2024 reference
 implementation. `--dispersion linear` selects the prior linear Abbe
@@ -226,11 +230,15 @@ six-blade pupil with controlled Zernike-style wavefront modes, integrates them
 over detector pixels, and cross-checks the zero-aberration kernel against the
 existing renderer.
 `evaluate_prescription_wavefront.py --samples 512` accumulates optical path
-length through the direct-transmission prescription, applies a chief-image-
-centered reference-sphere correction at an exit-side reference plane, and
-checks adjacent-ray OPL increments against the eikonal direction relation.
-This map is an intermediate diagnostic: the plane is not yet the true exit
-pupil, and the output is not a coherent PSF.
+length through the direct-transmission prescription, estimates the paraxial
+virtual entrance/exit pupils by reverse/forward tracing ray pencils from the
+stop through the front/rear groups, maps phase to an image-centered reference
+sphere, and checks adjacent-ray OPL increments against the eikonal relation.
+It reports the effective f-number from both pupil magnifications; for the
+current assumed prescription they agree near f/6.38 even though the physical
+stop semidiameter is EFL/22. This is an intermediate wavefront diagnostic, not
+a coherent PSF; the ray-map Jacobian is measured, but its geometric amplitude
+proxy is not yet applied to a complex pupil.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
