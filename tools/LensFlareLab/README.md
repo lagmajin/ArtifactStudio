@@ -147,7 +147,8 @@ experimental `transport` mode requires `--ghost-pair FIRST SECOND`; it builds a
 binary visibility mask from that ghost path's ray grid before applying FrFT.
 Use it for isolated path comparisons. It costs one direct 2D FrFT per active
 path, source sample, and wavelength, and has no calibrated photographic
-reference yet.
+reference yet. `make_ghost_transport_resolution_chart.py` compares texture
+resolutions against a dense reference and reports crop flux and image error.
 `--ray-grid` accepts values from 8 to 512; the upper range is intended for
 offline convergence checks and can be substantially slower than the default.
 The opt-in adaptive refinement probes cell centers and refines cells whose

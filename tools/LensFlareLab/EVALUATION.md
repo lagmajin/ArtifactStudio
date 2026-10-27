@@ -663,6 +663,19 @@ is only a denser comparison, not ground truth. The mask FrFT cost at grid 128
 and texture 256 was 81 ms for the three wavelength maps on the evaluation
 machine, excluding base ray tracing.
 
+At fixed ray grid 128, transport-mask textures at 64²/128²/256²/512² were
+compared against 512². Crop relative L1 is 3.846%/0.117%/0.054%; crop Y is
+`0.0140206/0.0140102/0.0140101/0.0140102`, and the 128²/256²/512² centroids
+agree within 0.001 px. Mask-build plus direct-FrFT time was 1.4/10.4/82/706 ms
+for the three RGB bands (excluding ray tracing and mask resampling). For this
+path, 256² is visually close to the 512² reference at much lower transform
+cost; 64² shows measurable texture loss.
+
+![Transport-mask FrFT texture resolution comparison and signed differences](examples/ghost-aperture-transport-mask-texture-convergence.png)
+
+Reproduce this plate with `make_ghost_transport_resolution_chart.py`; render
+the same source and ray grid at each `--ghost-frft-resolution` value.
+
 Reproduce with `--position 0.3834 0.3844 --ray-grid 128 --source-samples 1
 --diffraction off --ghost-pair 9 8 --ghost-frft on --ghost-frft-mask transport`.
 The comparison plate can be generated with
