@@ -1320,6 +1320,50 @@ measurements check source-shape and frame-crop behavior in the Lab's sampled
 model; they do not establish coherence, measured PSF accuracy, or optical
 energy beyond the image bounds.
 
+#### Subpixel phase of the sampled PSF
+
+Detector-pixel integration matters when the diffraction core is narrower than
+one pixel. The PSF source was therefore sampled at eight horizontal phases
+from 0 to 0.875 px, while its vertical phase stayed at 0.375 px. Each neutral
+R=1 px Gaussian was integrated analytically over source-pixel areas, so its
+total input luminance stayed constant. The same six-blade, 4.545 mm pupil,
+1024² aperture FFT, and source-subtracted diffraction render were used for
+both tent and pixel-area resampling. This follows the optical-PSF-plus-pixel-
+response detector model discussed by
+[Bickerton & Lupton (2013)](https://doi.org/10.1093/mnras/stt244), while
+remaining a synthetic, uniform-pixel experiment.
+
+The recovered throughput ratio varied only from 1.0000248 to 1.0000249, and
+the output centroid followed the specified emitter center to within 0.000001
+px. However, the 50%-encircled radius varied from 1.179 to 1.463 px across
+phases for both resampling modes. The 99% radius varied 3.412–3.555 px with
+tent and 3.375–3.520 px with pixel-area resampling. Thus, total energy and
+centroid are stable, but the sampled core profile is phase-dependent; changing
+the FFT-to-pixel resampler does not remove it. A four-phase repeat at FFT size
+4096² produced identical r50 and r99 values to the 1024² run at the reported
+precision. This rules out coarse aperture-FFT sampling as the cause in those
+cases. Pixel-phase sensitivity is expected when a narrow optical PSF is
+sampled on a coarser detector grid, but an independently oversampled,
+sensor-integrated reference is still needed to verify the implementation's
+pixel response.
+
+![Eight horizontal source pixel phases comparing tent and pixel-area diffraction PSFs at a shared display scale](examples/diffraction-pixel-phase.png)
+
+Per-phase flux, centroid, and encircled-radius values are in
+[`diffraction-pixel-phase.csv`](examples/diffraction-pixel-phase.csv). Recreate
+the study with:
+
+```powershell
+python tools/LensFlareLab/evaluate_diffraction_pixel_phase.py build/tools/LensFlareLab/LensFlareLab-dev.exe
+```
+
+To repeat the four diagnostic phases against the denser aperture-FFT sample,
+add `--phases 0 0.25 0.5 0.75 --diffraction-resolution 4096` and select
+build-directory CSV/image outputs. The next useful check is an independently
+oversampled PSF integrated into detector pixels at each fractional source
+phase before deciding whether phase-specific kernels would improve the Lab's
+image model.
+
 #### Aperture-radius and wavelength scaling
 
 The near-point source was rerendered with six blades at aperture radii

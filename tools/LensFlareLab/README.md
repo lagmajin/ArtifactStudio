@@ -1,6 +1,6 @@
 # Lens Flare Lab
 
-**最終更新:** 2026-10-27
+**最終更新:** 2026-10-28
 
 Standalone CPU look-development program for testing a prescription-based lens
 flare model without launching ArtifactStudio. It has no Qt, Diligent, or
@@ -192,6 +192,9 @@ reference. `make_source_diffraction_comparison.py` plates direct-source PSF
 on/off and frame-crop differences, while `make_aperture_diffraction_sweep.py`
 compares blade-count PSFs at a selected crop. `measure_source_psf.py` measures
 per-channel encircled-energy radii from the PFM outputs.
+`evaluate_diffraction_pixel_phase.py` creates pixel-area-integrated Gaussian
+sources at eight subpixel phases, compares tent and pixel-area PSF resampling,
+and records throughput, centroid, and encircled-radius sensitivity.
 `python tools/LensFlareLab/make_ray_grid_comparison.py` compares the same
 source-sample mode across 64/96/128 pupil ray grids and reports in-frame
 flux, peak, centroid, and image differences. Its `--source-samples` accepts
