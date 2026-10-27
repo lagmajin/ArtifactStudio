@@ -2,6 +2,39 @@
 
 **最終更新:** 2026-10-28
 
+## Fig. 10 analytical-reference path-layout diagnostic
+
+The paper's Angenieux `Ref.` image is an analytical ray-tracing reference,
+but it does not publish the source coordinates, coating stack, sensor mapping,
+or radiometric calibration needed for absolute image error. To make the
+qualitative comparison inspectable, LensFlareLab now exports every visible
+reflected path's integrated luminance and sensor-space bounds for each
+estimated source marker. The bounds center is a geometric bounding-box center,
+not an irradiance centroid. Surface indices are zero-based. Reproduce the
+diagnostic with:
+
+```powershell
+python tools/LensFlareLab/make_fig10_comparison_chart.py
+LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-source-a.pfm --position 0.246 0.356 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-report-csv tools/LensFlareLab/examples/fig10-ghost-paths.csv
+LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-source-b.pfm --position 0.390 0.693 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-report-csv build/tools/LensFlareLab/fig10-source-b.csv
+```
+
+The CSV output option truncates its destination for each invocation; combine
+the two files under one header before charting. In this evaluation, source A
+has 31 visible paths and summed in-frame ghost luminance 3.92859; source B has
+40 and 6.97047. The strongest paths are surfaces 13→9 for A and 11→9 for B.
+These sums depend on the synthetic source radiance and approximate coatings;
+they are diagnostic, not paper measurements. The plotted rectangles show
+sensor-space bounds for all visible paths, with the six brightest labeled.
+
+![Sensor-space bounds of reflected paths for the two estimated Fig. 10 light positions](examples/fig10-ghost-path-layout.png)
+
+The qualitative evidence is that moving between the two marker positions
+changes both the number of sensor-visible paths and their spatial arrangement.
+This makes the Lab useful for tracing discrepancies against the analytical
+reference, while avoiding unsupported pixel-error claims. The published
+reference is [Bodonyi et al., Fig. 10](https://doi.org/10.1007/s00371-024-03625-7).
+
 ## Display-only logarithmic view for full-field ghost comparison
 
 `make_ghost_diffraction_comparison.py` keeps the legacy Reinhard view as its

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstring>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -138,6 +139,7 @@ struct Settings {
     bool ghostFrftTriangleNormalization = true;
     int ghostFrftResolution = 256;
     bool reportGhostPaths = false;
+    std::string ghostReportCsvFile;
     bool reportJacobianCap = false;
     bool reportSourceSamples = false;
     bool reportDiffractionModel = false;
@@ -2220,6 +2222,30 @@ Image render(const Image& source, const Settings& settings) {
                 ++printed;
             }
         }
+        if (!settings.ghostReportCsvFile.empty()) {
+            static std::ofstream ghostCsv;
+            if (!ghostCsv.is_open()) {
+                const std::filesystem::path csvPath(settings.ghostReportCsvFile);
+                if (!csvPath.parent_path().empty())
+                    std::filesystem::create_directories(csvPath.parent_path());
+                ghostCsv.open(csvPath, std::ios::out | std::ios::trunc);
+                if (!ghostCsv) throw std::runtime_error("cannot create ghost report CSV: " + settings.ghostReportCsvFile);
+                ghostCsv << "source_u,source_v,first_surface,second_surface,integrated_luminance,bounds_center_x,bounds_center_y,min_x,min_y,max_x,max_y\n";
+            }
+            for (const GhostPathDiagnostic& path : pathDiagnostics) {
+                if (path.luminance <= 0.0 || !std::isfinite(path.minX) ||
+                    !std::isfinite(path.minY) || !std::isfinite(path.maxX) ||
+                    !std::isfinite(path.maxY)) continue;
+                const double boundsCenterX = (path.minX + path.maxX) * 0.5;
+                const double boundsCenterY = (path.minY + path.maxY) * 0.5;
+                ghostCsv << std::fixed << std::setprecision(6) << light.u << ',' << light.v << ','
+                         << path.firstReflection << ',' << path.secondReflection << ','
+                         << std::setprecision(10) << path.luminance << ','
+                         << std::setprecision(3) << boundsCenterX << ',' << boundsCenterY << ','
+                         << path.minX << ',' << path.minY << ',' << path.maxX << ',' << path.maxY << '\n';
+            }
+            ghostCsv.flush();
+        }
     }
     if (settings.reportJacobianCap && settings.usePixelAreaRasterization && rasterizedTriangles > 0) {
         std::cout << "Rasterizer=pixel-area; each mapped triangle is integrated over pixel coverage; "
@@ -2362,7 +2388,7 @@ void printHelp() {
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"
               << "               --source-sampling equal-grid|weighted-quantile (experimental footprint-aware binning)\n"
-              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --coating-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
+              << "CLI diagnostics: --ghost-report | --ghost-report-csv PATH | --ghost-pair FIRST SECOND | --optical-path-report | --coating-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
 void setValue(Settings& s, const std::string& name, float value) {
@@ -2526,6 +2552,10 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
         else throw std::runtime_error("--diffraction expects on or off");
     }
     else if (option == "--ghost-report") settings.reportGhostPaths = true;
+    else if (option == "--ghost-report-csv") {
+        if (++i >= argc) throw std::runtime_error("--ghost-report-csv requires a path");
+        settings.ghostReportCsvFile = argv[i];
+    }
     else if (option == "--optical-path-report") settings.reportOpticalPath = true;
     else if (option == "--coating-report") settings.reportCoating = true;
     else if (option == "--optical-path-map") {
