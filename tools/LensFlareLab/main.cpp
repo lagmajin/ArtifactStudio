@@ -81,6 +81,7 @@ struct Settings {
     bool reportDiffractionModel = false;
     bool reportGhostDiffraction = false;
     bool reportGhostFrft = false;
+    bool reportOpticalPath = false;
     int selectedFirstReflection = -1;
     int selectedSecondReflection = -1;
 };
@@ -742,12 +743,25 @@ bool clipIris(Vec3& origin, Vec3 direction, const LensPrescription& lens,
 bool traceGhostRay(const LensPrescription& lens, int firstReflection, int secondReflection,
                    float wavelengthNm, Vec3 origin, Vec3 direction, float& energy,
                    Vec3& sensorPoint, Vec3& aperturePoint, int bladeCount, bool antiReflectCoating,
-                   bool useCauchyDispersion) {
+                   bool useCauchyDispersion, double* opticalPathMm = nullptr) {
     energy = 1.0f;
+    double opticalPath = 0.0;
+    Vec3 previousPoint = origin;
+    float segmentIndex = 1.0f;
+    auto accumulateSegment = [&](Vec3 point) {
+        if (!opticalPathMm) return;
+        const Vec3 delta = point - previousPoint;
+        opticalPath += static_cast<double>(segmentIndex) * length(delta);
+        previousPoint = point;
+    };
     for (int i = 0; i <= firstReflection; ++i) {
-        if (i == 7 && !clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
+        if (i == 7) {
+            if (!clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
+            accumulateSegment(origin);
+        }
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
+        accumulateSegment(origin);
         const Vec3 normal = surfaceNormal(surface, origin);
         const float nBefore = i == 0 ? 1.0f :
             refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
@@ -759,18 +773,24 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
             if (r <= 1e-9f) return false;
             energy *= r;
             reflectRay(direction, normal);
+            segmentIndex = nBefore;
         } else {
             const float r = fresnelReflectance(nBefore, nAfter, direction, normal,
                                                 wavelengthNm, antiReflectCoating);
             if (!refractRay(direction, normal, nBefore, nAfter)) return false;
             energy *= 1.0f - r;
+            segmentIndex = nAfter;
         }
     }
 
     for (int i = firstReflection - 1; i >= secondReflection; --i) {
-        if (i == 6 && !clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
+        if (i == 6) {
+            if (!clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
+            accumulateSegment(origin);
+        }
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
+        accumulateSegment(origin);
         const Vec3 normal = surfaceNormal(surface, origin);
         const float nFrom = refractiveIndex(surface, wavelengthNm, useCauchyDispersion);
         const float nTo = i == 0 ? 1.0f :
@@ -782,11 +802,13 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
             if (r <= 1e-9f) return false;
             energy *= r;
             reflectRay(direction, normal);
+            segmentIndex = nFrom;
         } else {
             const float r = fresnelReflectance(nFrom, nTo, direction, normal,
                                                 wavelengthNm, antiReflectCoating);
             if (!refractRay(direction, normal, nFrom, nTo)) return false;
             energy *= 1.0f - r;
+            segmentIndex = nTo;
         }
     }
 
@@ -794,6 +816,7 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
         if (i == 7 && !clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
+        accumulateSegment(origin);
         const Vec3 normal = surfaceNormal(surface, origin);
         const float nBefore = i == 0 ? 1.0f :
             refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
@@ -803,12 +826,15 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
                                             wavelengthNm, antiReflectCoating);
         if (!refractRay(direction, normal, nBefore, nAfter)) return false;
         energy *= 1.0f - r;
+        segmentIndex = nAfter;
     }
     const float sensorZ = lens.surfaces.back().z + lens.surfaces.back().thickness;
     if (direction.z <= 1e-6f) return false;
     const float t = (sensorZ - origin.z) / direction.z;
     if (!(t > 0.0f)) return false;
     sensorPoint = origin + direction * t;
+    accumulateSegment(sensorPoint);
+    if (opticalPathMm) *opticalPathMm = opticalPath;
     return std::isfinite(sensorPoint.x) && std::isfinite(sensorPoint.y) && energy > 1e-10f;
 }
 
@@ -1118,6 +1144,55 @@ Image render(const Image& source, const Settings& settings) {
     const int rayCount = grid * grid;
     const float sensorHeight = lens.sensorWidth * static_cast<float>(height) / width;
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
+    if (settings.reportOpticalPath && settings.selectedFirstReflection < 0)
+        throw std::runtime_error("--optical-path-report requires --ghost-pair FIRST SECOND");
+    if (settings.reportOpticalPath) {
+        constexpr std::array<Point2, 5> pupilSamples{{
+            {0.0f, 0.0f}, {-0.5f, 0.0f}, {0.5f, 0.0f}, {0.0f, -0.5f}, {0.0f, 0.5f}}};
+        const double referencePlaneZ = static_cast<double>(lens.surfaces.front().z) - 100.0;
+        std::cout << "Optical path report (5 pupil rays; common plane 100mm before front surface; coating phase omitted):\n";
+        for (std::size_t band = 0; band < wavelengths.size(); ++band) {
+            const float thetaX = std::atan((settings.positionX - 0.5f) * lens.sensorWidth /
+                                           lens.effectiveFocalLength);
+            const float thetaY = std::atan((0.5f - settings.positionY) * lens.sensorWidth *
+                static_cast<float>(height) / (width * lens.effectiveFocalLength));
+            const Vec3 direction = normalized({std::sin(thetaX), std::sin(thetaY),
+                                                std::cos(thetaX) * std::cos(thetaY)});
+            for (const Point2 pupil : pupilSamples) {
+                const float stopX = pupil.x * lens.irisRadius;
+                const float stopY = pupil.y * lens.irisRadius;
+                Vec3 entranceOrigin{};
+                if (!traceEntrancePupilRay(lens, wavelengths[band], stopX, stopY, direction,
+                                           entranceOrigin, settings.useCauchyDispersion)) {
+                    std::cout << wavelengths[band] << "nm pupil=(" << pupil.x << ',' << pupil.y
+                              << "): blocked before entrance pupil\n";
+                    continue;
+                }
+                double opticalPathMm = 0.0;
+                float energy = 0.0f;
+                Vec3 sensorPoint{};
+                Vec3 aperturePoint{};
+                if (!traceGhostRay(lens, settings.selectedFirstReflection,
+                                   settings.selectedSecondReflection, wavelengths[band],
+                                   entranceOrigin, direction, energy, sensorPoint, aperturePoint,
+                                   settings.apertureBlades, settings.antiReflectCoating,
+                                   settings.useCauchyDispersion, &opticalPathMm)) {
+                    std::cout << wavelengths[band] << "nm pupil=(" << pupil.x << ',' << pupil.y
+                              << "): blocked on ghost path\n";
+                    continue;
+                }
+                opticalPathMm += (entranceOrigin.z - referencePlaneZ) / direction.z;
+                const double wavelengthMm = wavelengths[band] * 1e-6;
+                std::cout << std::fixed << std::setprecision(3) << wavelengths[band] << "nm"
+                          << " pupil=(" << pupil.x << ',' << pupil.y << ')'
+                          << " OPL=" << std::setprecision(9) << opticalPathMm << "mm"
+                          << " phaseCycles=" << std::setprecision(3) << opticalPathMm / wavelengthMm
+                          << " exit=" << std::setprecision(6) << sensorPoint.x << ',' << sensorPoint.y
+                          << "mm energy=" << std::scientific << energy << '\n';
+            }
+        }
+        std::cout << std::defaultfloat << std::setprecision(6);
+    }
     std::array<GhostApertureTexture, 3> ghostApertureTextures;
     if (settings.ghostFrftEnabled) {
         const auto precomputeStart = std::chrono::steady_clock::now();
@@ -1646,7 +1721,7 @@ void printHelp() {
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
-              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
+              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
 void setValue(Settings& s, const std::string& name, float value) {
@@ -1749,6 +1824,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
         else throw std::runtime_error("--diffraction expects on or off");
     }
     else if (option == "--ghost-report") settings.reportGhostPaths = true;
+    else if (option == "--optical-path-report") settings.reportOpticalPath = true;
     else if (option == "--source-report") settings.reportSourceSamples = true;
     else if (option == "--diffraction-report") settings.reportDiffractionModel = true;
     else if (option == "--ghost-diffraction-report") settings.reportGhostDiffraction = true;

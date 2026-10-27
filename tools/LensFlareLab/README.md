@@ -58,7 +58,8 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--ghost-diffraction-report]
                [--ghost-frft on|off] [--ghost-frft-resolution N] [--ghost-frft-report]
                [--fresnel-frft-order N] [--diffraction-report] [--ghost-report]
-               [--ghost-pair FIRST SECOND] [--jacobian-report] [--source-report]
+               [--ghost-pair FIRST SECOND] [--optical-path-report]
+               [--jacobian-report] [--source-report]
 ```
 
 With no options, an interactive command loop allows parameter changes, render,
@@ -150,6 +151,11 @@ Use `--adaptive-ray-refinement-threshold PX` to tune the screen-space center
 deviation trigger (default 0.75 px); the relative energy trigger is fixed at
 25%. See [EVALUATION.md](EVALUATION.md) for an off-axis comparison against
 uniform ray grids.
+`--optical-path-report` requires `--ghost-pair FIRST SECOND` and reports five
+pupil-ray optical paths at each RGB wavelength, referenced to a common plane
+100 mm before the front surface. It is a ray-path diagnostic; coating phase,
+complex Fresnel amplitudes, phase unwrapping, and coherent image formation are
+not yet modeled.
 
 ## Core/app integration path
 

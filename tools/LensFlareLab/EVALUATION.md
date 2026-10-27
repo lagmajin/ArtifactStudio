@@ -2,6 +2,28 @@
 
 **最終更新:** 2026-10-27
 
+### Optical path length diagnostic
+
+The optional `--optical-path-report` traces the selected ghost pair at the
+central and four half-radius pupil coordinates for 610/550/460 nm. Optical
+path accumulates `n × segment length` through the actual reflected and
+refracted ray sequence, including air travel to the iris. A common incident
+reference plane 100 mm before the first surface is used so the entrance-pupil
+origin shift is included. Coating phase is omitted.
+
+For the Angenieux 9→8 path at source `(0.3834,0.3844)`, the x half-radius pupil
+rays differ in OPL by 1.516/1.523/1.538 mm at 610/550/460 nm (about 2,485/
+2,769/3,344 phase cycles). This confirms that a future coherent model must
+retain dense pupil sampling and handle phase modulo wavelength carefully.
+The diagnostic does not yet model complex Fresnel amplitudes, thin-film
+reflection phase, phase unwrapping, or coherent propagation, and therefore
+does not alter or validate the rendered flare image. Enabling the report leaves
+the PFM byte-identical to the same render without the report.
+
+Reproduce with `LensFlareLab input.pfm output.pfm --position 0.3834 0.3844
+--ray-grid 32 --source-samples 1 --diffraction off --ghost-pair 9 8
+--optical-path-report`.
+
 ### Adaptive off-axis ray refinement
 
 At source position `(0.1,0.1)`, adaptive refinement at base grid 64 was
