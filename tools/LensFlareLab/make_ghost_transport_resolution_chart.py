@@ -1,4 +1,4 @@
-"""Compare transport-mask FrFT texture resolutions against a dense reference."""
+"""Compare aperture FrFT texture resolutions against a dense reference."""
 
 import argparse
 from pathlib import Path

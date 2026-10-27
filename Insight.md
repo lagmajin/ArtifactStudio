@@ -7533,3 +7533,10 @@
 - **価値または懸念:** Matching quadrature removes a renderer-induced full-field normalization mismatch without normalizing away clipping or texture. Equality is by construction and is not independent validation of the optical prescription or FrFT physics. Adaptive refinement uses a different triangle set and currently falls back to vertex normalization.
 - **仮説（未検証）:** A refinement-aware triangle quadrature could preserve the same whole-map consistency when adaptive cells are subdivided, provided edge-invalid cells and partial aperture coverage are integrated consistently.
 - **次に確認すべきこと:** Extend the normalization integral to adaptive center fans and partial-valid cells, compare whole-map/frame-window Y over multiple grids and source fields, then retain it only if image shape converges without introducing aperture-edge bias.
+
+## 2026-10-27: 256-square aperture FrFT texture converges for the tested ghost
+- **関連:** Hullin et al. (2011) aperture FrFT, `tools/LensFlareLab/main.cpp` (`--ghost-frft-resolution`), `tools/LensFlareLab/make_ghost_frft_resolution_chart.py`, `tools/LensFlareLab/EVALUATION.md`.
+- **確認できた事実:** For the 9→8 path at source `(0.3834,0.3844)` and ray grid 128, crop-relative L1 against 512² is 2.06%/1.62%/0.067% for 64²/128²/256². From 256² to 512², crop Y changes +0.00046%, peak +0.11%, and centroid 0.0027 px; three-band FrFT precompute rises from 90.57 ms to 744.75 ms.
+- **価値または懸念:** 256² is a useful offline cost/quality point for this polygon-aperture path. This does not establish convergence for transport masks, other paths, or measured optics, and 512² has roughly 8.2× precompute cost for negligible image change here.
+- **仮説（未検証）:** Texture-resolution requirements may be driven more by aperture-mask topology and ghost path than by field position alone; one shared default may be inefficient for weak or heavily clipped paths.
+- **次に確認すべきこと:** Repeat the same fixed-exposure/resolution comparison on transport masks, weak paths, and clipped off-axis paths before considering any per-path quality policy.

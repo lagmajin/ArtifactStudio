@@ -1081,17 +1081,31 @@ threshold sweep. Use `make_ghost_flux_linearity_chart.py` to produce the plates.
 
 ### Texture-resolution convergence
 
-The resolution is now selectable from 64 to 512 with
-`--ghost-frft-resolution`. On the isolated 9→8 path (ray grid 128), increasing
-the texture from 128² to 256² changes the image by 1.63% relative L1 and moves
-the ghost centroid by about 0.50 px. From 256² to 512², relative L1 falls to
-0.068%; Y flux changes from `131.49943` to `131.48870`, peak from `0.0059537`
-to `0.0059595`, and centroid by less than 0.001 px. The measured RGB
-precompute times were 12, 90, and 723 ms for 128², 256², and 512². This
-supports 256² as the current standalone compromise for this path, not a
-universal convergence guarantee for every ghost.
+Texture resolution can be selected from 64 to 512. The same isolated 9→8 path
+at source `(0.3834,0.3844)` and ray grid 128 was re-rendered with the default
+triangle normalization. In crop `(360,165)..(560,345)`, the 128² image differs
+from 512² by 1.62% relative L1 and its centroid is 0.47 px away. At 256², the
+difference falls to 0.067% and the centroid is 0.0027 px away. The 256² to
+512² change in crop Y is +0.00046%; peak changes from `0.0059133` to
+`0.0059195` (+0.11%). This supports 256² as the current standalone quality
+setting for this path; 64² has 2.06% relative L1 against 512².
 
-![Isolated path comparison using 128², 256², and 512² aperture textures](examples/ghost-aperture-frft-resolution-sweep.png)
+| Texture | Crop Y | Peak Y | Centroid | Relative L1 vs 512² | Precompute time |
+|---:|---:|---:|---:|---:|---:|
+| 64² | 119.45968 | 0.00590958 | (457.245,255.898) | 2.06% | 1.96 ms |
+| 128² | 119.53104 | 0.00603869 | (456.337,256.015) | 1.62% | 12.26 ms |
+| 256² | 119.48611 | 0.00591327 | (456.807,255.976) | 0.067% | 90.57 ms |
+| 512² | 119.48665 | 0.00591952 | (456.806,255.978) | reference | 744.75 ms |
+
+![Isolated 9-to-8 ghost at 64², 128², 256², and 512² aperture texture resolution, with signed differences from 512²](examples/ghost-frft-resolution-triangle.png)
+
+Precompute time is the three-band direct FrFT texture build from
+`--ghost-frft-report`; full render time additionally includes ray tracing and
+PFM I/O. This is one polygon-aperture path and not a convergence guarantee for
+transport masks, other ghost paths, or measured lenses. Reproduce with the
+same input and render settings, changing only
+`--ghost-frft-resolution 64|128|256|512`, then pass the four renders to
+`make_ghost_frft_resolution_chart.py` with crop `360 165 560 345`.
 
 ### Aperture shape and field sweep
 

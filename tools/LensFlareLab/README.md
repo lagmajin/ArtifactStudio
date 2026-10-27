@@ -182,6 +182,8 @@ per-crop flux/error metrics.
 `make_frft_field_path_sweep.py` composes geometric-versus-FrFT PFM renders
 across repeated field/path cases and reports frame luminance, relative image
 L1, and centroid movement on one shared exposure scale.
+`make_ghost_frft_resolution_chart.py` compares 64²/128²/256²/512² polygon or
+transport-mask texture renders against the dense 512² reference.
 Use `make_evaluation_chart.py --source-only --single-light-position U V
 --source-radius R` to create a size-controlled isolated emitter, and
 `make_ghost_flux_linearity_chart.py` to compare normalized flare output across
