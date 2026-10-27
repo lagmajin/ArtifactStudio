@@ -682,6 +682,29 @@ The comparison plate can be generated with
 `make_ghost_transport_mask_comparison.py` using the geometric, polygon, and
 transport PFM renders.
 
+### Transport-mask sensitivity across ghost paths
+
+The same source `(0.3834,0.3844)`, ray grid 128, texture 256, and isolated
+transport/polygon comparison was repeated for four paths. In each selected
+crop, transport-mask vs polygon-mask relative L1 was 37.52% for 9→8, 36.89%
+for 10→8, 37.28% for 5→4, and 59.59% for the weaker 8→7 path. Transport to
+polygon crop-Y ratios were 1.0140, 1.0108, 1.0134, and 1.1030 respectively.
+The first three paths therefore show a similar texture change and modest
+integrated crop-flux change, while the weak path is more sensitive to the
+same ray-grid mask approximation. These are per-crop metrics, not a common
+full-frame photometric comparison.
+
+![Four-path polygon versus transport-mask comparison with signed luminance differences](examples/ghost-transport-mask-path-sweep.png)
+
+The signed difference is shown at display gain 1,000,000; the two render
+columns use gain 300,000. Reproduce the renders with `--position 0.3834 0.3844
+--ray-grid 128 --source-samples 1 --diffraction off --ghost-pair FIRST SECOND
+--ghost-frft on --ghost-frft-mask MODE --ghost-frft-resolution 256`, then use
+`make_transport_mask_path_sweep.py` with the matching path crops. This sweep
+checks path sensitivity only. It does not validate physical accuracy; a weak
+path's larger relative discrepancy may come from sparse sampling and
+per-path normalization rather than a better optical model.
+
 ### Texture-resolution convergence
 
 The resolution is now selectable from 64 to 512 with

@@ -149,6 +149,9 @@ Use it for isolated path comparisons. It costs one direct 2D FrFT per active
 path, source sample, and wavelength, and has no calibrated photographic
 reference yet. `make_ghost_transport_resolution_chart.py` compares texture
 resolutions against a dense reference and reports crop flux and image error.
+`make_transport_mask_path_sweep.py` compares polygon and transport-mask
+FrFT across selected isolated ghost paths, including signed differences and
+per-crop flux/error metrics.
 `--ray-grid` accepts values from 8 to 512; the upper range is intended for
 offline convergence checks and can be substantially slower than the default.
 The opt-in adaptive refinement probes cell centers and refines cells whose
