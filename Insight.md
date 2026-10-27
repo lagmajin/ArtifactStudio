@@ -7576,3 +7576,9 @@
 - **確認できた事実:** At the two synthetic emitters tested, weighted quantile partitioning activates more source directions than equal-grid at the same requested count and lowers image L1 against the denser weighted reference. The equal-grid default remains byte-identical to prior PFM output. Weighted 49 was faster than equal-grid 169 in the centered sample, but weighted 225 cost more than equal-grid 225.
 - **価値または懸念:** Flux-weighted coordinate marginals place bins more usefully across sparse support, but this is a deterministic heuristic tested on only two emitters and one ghost path; denser output is not ground truth, and increased active-bin counts can raise render cost.
 - **次に確認すべきこと:** Test asymmetric multi-lobed sources, different extraction thresholds and paths, and measured lens/source captures before considering app or core integration.
+
+## 2026-10-27: Weighted bins improve asymmetric multi-lobe source coverage
+- **関連:** `tools/LensFlareLab/main.cpp` (`estimateLight`), `tools/LensFlareLab/make_multilobe_source.py`, `tools/LensFlareLab/EVALUATION.md`.
+- **確認できた事実:** On an asymmetric three-lobe synthetic emitter, paths 9→8 and 10→8, ray grid 96, weighted 9/49/225 bins activate 9/49/182 directions versus equal-grid 9/27/93. Against the weighted 225 reference, weighted 9/49 L1 is 3.08%/1.02% (9→8) and 2.14%/0.69% (10→8); equal-grid 9/49 is 7.70%/2.70% and 6.62%/1.96%. Equal-grid 225 differs from weighted 225 by 0.80–1.34%. A single 10→8 timing was 0.351–6.772 s weighted and 0.365–3.469 s equal-grid across 9–225 bins.
+- **価値または懸念:** The improvement repeats across a multi-lobe footprint and a second optical path, but weighted 49 is about 1.8× the equal-grid time for this case. Each dense layout remains a sampling-dependent reference rather than physical truth.
+- **次に確認すべきこと:** Sweep threshold and lobe separation, then compare against measured source/lens captures before promoting this mode beyond LensFlareLab.

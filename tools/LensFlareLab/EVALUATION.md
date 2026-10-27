@@ -48,6 +48,43 @@ Reproduce the comparisons using the four-light PFM fixture and
 chart generator takes the resulting PFM images and reports the shared-reference
 L1 and centroid metrics.
 
+### Asymmetric multi-lobe source and a second ghost path
+
+To see whether the result depended on a single Gaussian emitter, a reproducible
+neutral source was built from three overlapping Gaussian lobes at unequal
+offsets and strengths. Both source modes used the same source center, threshold,
+ray grid 96, and only the requested path. Source flux was preserved within
+0.00003% by the bin accumulation. The following relative L1 values use the
+weighted 225-bin image of each path as the comparison reference; they measure
+agreement with that sampling layout rather than error against physical truth.
+
+| Path | Sampling layout | Active bins at requested 9 / 49 / 225 | Relative L1 at 9 / 49 / 225 |
+| --- | --- | ---: | ---: |
+| 9→8 | Equal grid | 9 / 27 / 93 | 7.70% / 2.70% / 1.34% |
+| 9→8 | Weighted quantile | 9 / 49 / 182 | 3.08% / 1.02% / reference |
+| 10→8 | Equal grid | 9 / 27 / 93 | 6.62% / 1.96% / 0.80% |
+| 10→8 | Weighted quantile | 9 / 49 / 182 | 2.14% / 0.69% / reference |
+
+The equal-grid 225-bin images differ from weighted 225 by 1.34% on 9→8 and
+0.80% on 10→8. This is a visible sampling-layout effect and prevents treating
+either mode's densest image as an unbiased reference. A single wall-clock run
+of path 10→8 took 0.365/1.022/3.469 s for equal-grid 9/49/225 and
+0.351/1.832/6.772 s for weighted quantiles. Timings are machine- and load-
+dependent; the larger weighted cases are slower because they trace more active
+directions. The 49-bin comparison gains substantial image agreement at about
+1.8× the equal-grid time for this emitter.
+
+![Asymmetric three-lobe source, 9→8 path: equal-grid and weighted-quantile sampling against the weighted 225-bin image](examples/source-layout-multilobe-9-8.png)
+
+![Asymmetric three-lobe source, 10→8 path: equal-grid and weighted-quantile sampling against the weighted 225-bin image](examples/source-layout-multilobe-10-8.png)
+
+Regenerate the source with `python tools/LensFlareLab/make_multilobe_source.py`.
+For both paths, render with `--position 0.383 0.384 --ray-grid 96
+--ghost-pair FIRST SECOND --diffraction off`, source counts 9/49/225, and both
+`--source-sampling equal-grid` and `weighted-quantile`. The charts use the same
+shared exposure and display the 225-bin weighted image as an explicitly
+sampling-dependent comparison reference.
+
 ### Optical path length diagnostic
 
 The optional `--optical-path-report` traces the selected ghost pair at the
