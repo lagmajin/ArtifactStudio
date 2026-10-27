@@ -77,6 +77,36 @@ source flux over the sampled pupil rays once. Sampling the physical stop
 backwards through the front lens group maps rays to the entrance pupil instead
 of wasting samples over the full front-element diameter.
 
+The detector now retains the spatial radiance distribution inside each
+highlight footprint. In default mode it accumulates energy and chromaticity in
+3x3 bins and traces each occupied bin from its own field direction, applying
+the same source samples to reflected ghosts and aperture diffraction. This is
+an image-space proxy for a finite emitter: it assumes the thresholded input
+footprint represents emitter extent, so sensor bloom or an existing point
+spread function can be mistaken for source size. It does not infer a 3D emitter
+or separate emitter size from camera blur. `--source-samples 1` collapses the
+same integrated flux and chromaticity to a single point source for comparison.
+With `--source-report`, the four-chart input preserved a combined integrated
+flux of 2,202,271.78 versus 2,202,271.69 summed across the bins (less than
+0.00001% numerical difference). The four highlights occupied 9, 3, 5, and 8
+of the nine bins.
+
+![Finite-source comparison: one direction per highlight on the left, nine radiance bins on the right](examples/finite-source-comparison-x256.png)
+
+For the high-radiance chart at ray-grid 64, the 9-bin full flare changed the
+summed added luminance from 74,164.02 to 74,158.06 (-0.008%) and reduced its
+maximum pixel from 4,983.38 to 4,759.99 (-4.48%). With diffraction disabled,
+reflected-ghost luminance changed from 1,066.54 to 1,067.74 (+0.11%) and its
+peak from 3.203 to 3.076 (-3.98%). One measured pass took 4.44 s for the point-source render and 18.25 s for the
+finite-source render on the evaluation machine. CPU load and timing noise affect
+these standalone measurements. Only 3-9 bins per
+source were occupied, so cost scales with the active bins rather than always
+multiplying by nine. These measurements show a modest spread and peak reduction
+at a notable CPU look-development cost; they do not demonstrate physical
+validation against an emitter with known angular size.
+
+![Reflected ghosts only, point-source baseline on the left and finite-source sampling on the right](examples/finite-source-ghost-comparison-x256.png)
+
 The rasterizer uses a 1-pixel reference area and exposes a cap for local
 caustic gain; the default is 512 and the supported maximum is 4096. This is a
 numerical guard, not a paper-derived physical parameter. At ray-grid 192, cap
@@ -88,7 +118,7 @@ so the surrounding ghost field is easier to compare.
 
 ![Jacobian cap comparison at ray-grid 192](examples/jacobian-cap-comparison.png)
 
-At gain 1, the standard chart has `192.52` integrated luminance above the
+At gain 1, the standard chart with 1 source sample has `192.52` integrated luminance above the
 source threshold. Total added luminance is `6.49057` at ray-grid 64 and
 `6.49163` at 128, a `0.0163%` change. At ray-grid 128, the flare adds `6.492` luminance:
 `6.3795` from diffraction and `0.1121` from reflected ghosts. The ghost transfer

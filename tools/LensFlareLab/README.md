@@ -11,7 +11,12 @@ dispersion from Abbe numbers, rasterizes the ray grid, and adds a
 Fraunhofer-diffraction kernel for the aperture.
 
 The detector integrates positive luminance above the threshold over each
-highlight and keeps its RGB chromaticity separate from that flux. Rays are
+highlight and keeps its RGB chromaticity separate from that flux. By default,
+that footprint is divided into 3x3 radiance bins; each occupied bin contributes
+its own source direction to the ghost and diffraction calculations. This gives
+an image-space finite-source approximation while preserving integrated source
+flux. `--source-samples 1` selects the point-source baseline and
+`--source-samples 9` selects the default finite-source mode. Rays are
 sampled over the physical stop and traced backwards through the front group to
 the entrance pupil, which gives coarse grids useful coverage at the stated
 f-number. Reflected ghost paths and diffraction can be rendered independently
@@ -40,10 +45,11 @@ PFM preserves values above 1.0. Output alpha is not stored.
 
 ```text
 LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
-               [--gain N] [--jacobian-cap N] [--ray-grid N] [--aperture-radius MM]
+               [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|9]
+               [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
                [--diffraction on|off] [--ghost-report]
-               [--ghost-pair FIRST SECOND] [--jacobian-report]
+               [--ghost-pair FIRST SECOND] [--jacobian-report] [--source-report]
 ```
 
 With no options, an interactive command loop allows parameter changes, render,
@@ -69,7 +75,9 @@ only paths eligible under the single-stop-crossing rule. `--ghost-pair 9 8`
 renders only the path that reflects at surface 9 and then surface 8, making a
 single ghost easy to inspect. `--jacobian-cap` sets the maximum ray-grid
 irradiance amplification (default 512, maximum 4096); `--jacobian-report`
-reports how many triangles hit that cap.
+reports how many triangles hit that cap. `--source-report` compares the
+integrated highlight flux with the sum of the nine bin fluxes and reports how
+many bins contain energy.
 
 See [EVALUATION.md](EVALUATION.md) for paper-grounded evaluation images and
 current model limits. Regenerate the chart with

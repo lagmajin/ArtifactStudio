@@ -28,11 +28,19 @@ struct Image {
     std::vector<Pixel> pixels;
 };
 
+struct SourceSample {
+    float u = 0.5f;
+    float v = 0.5f;
+    float energy = 0.0f;
+    Pixel color{};
+};
+
 struct DetectedLight {
     float u = 0.5f;
     float v = 0.5f;
     float energy = 0.0f;
     Pixel color{};
+    std::array<SourceSample, 9> samples{};
 };
 
 struct DetectedLightSet {
@@ -48,12 +56,14 @@ struct Settings {
     float gain = 1.0f;
     float jacobianCap = 512.0f;
     int rayGrid = 64;
+    int sourceSamples = 9;
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
     bool antiReflectCoating = true;
     bool diffractionEnabled = true;
     bool reportGhostPaths = false;
     bool reportJacobianCap = false;
+    bool reportSourceSamples = false;
     int selectedFirstReflection = -1;
     int selectedSecondReflection = -1;
 };
@@ -501,6 +511,9 @@ float finiteClamp(float value, float minimum, float maximum) {
 DetectedLight estimateLight(const Image& image, int centerX, int centerY, float threshold) {
     double totalFlux = 0.0;
     double red = 0.0, green = 0.0, blue = 0.0;
+    std::array<double, 9> flux{};
+    std::array<double, 9> weightedX{}, weightedY{};
+    std::array<double, 9> sampleRed{}, sampleGreen{}, sampleBlue{};
     for (int y = std::max(0, centerY - 24); y <= std::min(image.height - 1, centerY + 24); ++y) {
         for (int x = std::max(0, centerX - 24); x <= std::min(image.width - 1, centerX + 24); ++x) {
             const float dx = static_cast<float>(x - centerX);
@@ -511,10 +524,19 @@ DetectedLight estimateLight(const Image& image, int centerX, int centerY, float 
             const float excess = std::max(0.0f, luminance - threshold);
             if (excess <= 0.0f || luminance <= 1e-8f) continue;
             const double chromaWeight = static_cast<double>(excess / luminance);
+            const int binX = std::clamp((x - (centerX - 24)) / 16, 0, 2);
+            const int binY = std::clamp((y - (centerY - 24)) / 16, 0, 2);
+            const std::size_t bin = static_cast<std::size_t>(binY * 3 + binX);
             totalFlux += excess;
             red += pixel.r * chromaWeight;
             green += pixel.g * chromaWeight;
             blue += pixel.b * chromaWeight;
+            flux[bin] += excess;
+            weightedX[bin] += static_cast<double>(x) * excess;
+            weightedY[bin] += static_cast<double>(y) * excess;
+            sampleRed[bin] += pixel.r * chromaWeight;
+            sampleGreen[bin] += pixel.g * chromaWeight;
+            sampleBlue[bin] += pixel.b * chromaWeight;
         }
     }
     DetectedLight light;
@@ -525,6 +547,16 @@ DetectedLight estimateLight(const Image& image, int centerX, int centerY, float 
         light.color = {static_cast<float>(red / totalFlux),
                        static_cast<float>(green / totalFlux),
                        static_cast<float>(blue / totalFlux)};
+        for (std::size_t i = 0; i < light.samples.size(); ++i) {
+            SourceSample& sample = light.samples[i];
+            sample.energy = static_cast<float>(flux[i]);
+            if (flux[i] <= 1e-8) continue;
+            sample.u = static_cast<float>(weightedX[i] / flux[i]) / std::max(1, image.width - 1);
+            sample.v = static_cast<float>(weightedY[i] / flux[i]) / std::max(1, image.height - 1);
+            sample.color = {static_cast<float>(sampleRed[i] / flux[i]),
+                            static_cast<float>(sampleGreen[i] / flux[i]),
+                            static_cast<float>(sampleBlue[i] / flux[i])};
+        }
     }
     return light;
 }
@@ -585,9 +617,30 @@ Image render(const Image& source, const Settings& settings) {
         const int sx = std::clamp(static_cast<int>(std::lround(light.u * (width - 1))), 0, width - 1);
         const int sy = std::clamp(static_cast<int>(std::lround(light.v * (height - 1))), 0, height - 1);
         light = estimateLight(source, sx, sy, settings.threshold);
+        const float shiftU = settings.positionX - static_cast<float>(sx) / std::max(1, width - 1);
+        const float shiftV = settings.positionY - static_cast<float>(sy) / std::max(1, height - 1);
+        for (SourceSample& sample : light.samples) {
+            if (sample.energy <= 0.0f) continue;
+            sample.u += shiftU;
+            sample.v += shiftV;
+        }
         light.u = settings.positionX;
         light.v = settings.positionY;
         if (light.energy > 0.0f) lights.lights[lights.count++] = light;
+    }
+    if (settings.reportSourceSamples) {
+        for (std::size_t i = 0; i < lights.count; ++i) {
+            const DetectedLight& light = lights.lights[i];
+            float sampledFlux = 0.0f;
+            std::size_t activeSamples = 0;
+            for (const SourceSample& sample : light.samples) {
+                sampledFlux += sample.energy;
+                if (sample.energy > 0.0f) ++activeSamples;
+            }
+            std::cout << "Source (" << std::fixed << std::setprecision(3) << light.u << ',' << light.v
+                      << ") integratedFlux=" << std::setprecision(6) << light.energy
+                      << " sampledFlux=" << sampledFlux << " activeBins=" << activeSamples << "/9\n";
+        }
     }
     if (lights.count == 0) return output;
 
@@ -595,16 +648,8 @@ Image render(const Image& source, const Settings& settings) {
     const int rayCount = grid * grid;
     const float sensorHeight = lens.sensorWidth * static_cast<float>(height) / width;
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
-    std::array<GhostPathDiagnostic, kGhostPathCount> pathDiagnostics{};
     std::uint64_t rasterizedTriangles = 0;
     std::uint64_t jacobianClampedTriangles = 0;
-    for (int first = 1; first < static_cast<int>(kLensSurfaceCount); ++first) {
-        for (int second = 0; second < first; ++second) {
-            const std::size_t index = static_cast<std::size_t>(first * (first - 1) / 2 + second);
-            pathDiagnostics[index].firstReflection = first;
-            pathDiagnostics[index].secondReflection = second;
-        }
-    }
     std::array<DiffractionKernel, 3> diffraction;
     if (settings.diffractionEnabled) {
         for (std::size_t band = 0; band < diffraction.size(); ++band) {
@@ -613,139 +658,198 @@ Image render(const Image& source, const Settings& settings) {
         }
     }
     for (std::size_t lightIndex = 0; lightIndex < lights.count; ++lightIndex) {
-    const float sourceU = lights.lights[lightIndex].u;
-    const float sourceV = lights.lights[lightIndex].v;
-    const float sourceEnergy = lights.lights[lightIndex].energy;
-    const Pixel sourceColor = lights.lights[lightIndex].color;
-    const float thetaX = std::atan((sourceU - 0.5f) * lens.sensorWidth / lens.effectiveFocalLength);
-    const float thetaY = std::atan((0.5f - sourceV) * lens.sensorWidth *
-                                   static_cast<float>(height) / (width * lens.effectiveFocalLength));
-    const Vec3 direction = normalized({std::sin(thetaX), std::sin(thetaY),
-                                        std::cos(thetaX) * std::cos(thetaY)});
-    const float rayGain = settings.gain * sourceEnergy / rayCount;
-    const std::array<float, 3> sourceBands{sourceColor.r, sourceColor.g, sourceColor.b};
-    std::size_t consideredPathCount = 0;
+        const DetectedLight& light = lights.lights[lightIndex];
+        std::array<GhostPathDiagnostic, kGhostPathCount> pathDiagnostics{};
+        for (int first = 1; first < static_cast<int>(kLensSurfaceCount); ++first) {
+            for (int second = 0; second < first; ++second) {
+                const std::size_t index = static_cast<std::size_t>(first * (first - 1) / 2 + second);
+                pathDiagnostics[index].firstReflection = first;
+                pathDiagnostics[index].secondReflection = second;
+            }
+        }
+        std::size_t consideredPathCount = 0;
+        for (int first = 1; first < static_cast<int>(lens.surfaces.size()); ++first) {
+            for (int second = 0; second < first; ++second) {
+                if (first >= 7 && second <= 6) continue;
+                if (settings.selectedFirstReflection >= 0 &&
+                    (first != settings.selectedFirstReflection || second != settings.selectedSecondReflection)) continue;
+                ++consideredPathCount;
+            }
+        }
+        for (std::size_t sampleIndex = 0; sampleIndex <
+             static_cast<std::size_t>(settings.sourceSamples == 1 ? 1 : 9); ++sampleIndex) {
+            SourceSample sample;
+            if (settings.sourceSamples == 1) {
+                sample = {light.u, light.v, light.energy, light.color};
+            } else {
+                sample = light.samples[sampleIndex];
+                if (sample.energy <= 0.0f) continue;
+            }
+            const float sourceU = sample.u;
+            const float sourceV = sample.v;
+            const float sourceEnergy = sample.energy;
+            const Pixel sourceColor = sample.color;
+            const float thetaX = std::atan((sourceU - 0.5f) * lens.sensorWidth / lens.effectiveFocalLength);
+            const float thetaY = std::atan((0.5f - sourceV) * lens.sensorWidth *
+                                           static_cast<float>(height) / (width * lens.effectiveFocalLength));
+            const Vec3 direction = normalized({std::sin(thetaX), std::sin(thetaY),
+                                                std::cos(thetaX) * std::cos(thetaY)});
+            const float rayGain = settings.gain * sourceEnergy / rayCount;
+            const std::array<float, 3> sourceBands{sourceColor.r, sourceColor.g, sourceColor.b};
 
-    for (int firstReflection = 1; firstReflection < static_cast<int>(lens.surfaces.size()); ++firstReflection) {
-        for (int secondReflection = 0; secondReflection < firstReflection; ++secondReflection) {
-            // A pair straddling the stop sends the ray through the iris on
-            // the way in, back through it after the first reflection, and
-            // through it a third time on the way to the sensor. The paper's
-            // 42-path Angenieux setup omits these heavily blocked paths and
-            // retains only paths with a single aperture crossing.
-            if (firstReflection >= 7 && secondReflection <= 6) continue;
-            if (settings.selectedFirstReflection >= 0 &&
-                (firstReflection != settings.selectedFirstReflection ||
-                 secondReflection != settings.selectedSecondReflection)) continue;
-            ++consideredPathCount;
-            const std::size_t pathIndex = static_cast<std::size_t>(
-                firstReflection * (firstReflection - 1) / 2 + secondReflection);
-            GhostPathDiagnostic& pathDiagnostic = pathDiagnostics[pathIndex];
-            for (std::size_t band = 0; band < wavelengths.size(); ++band) {
-                if (sourceBands[band] <= 1e-6f) continue;
-                std::vector<RayVertex> rayGridData(static_cast<std::size_t>(grid) * grid);
-                for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
-                    const float stopX = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
-                    const float stopY = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
-                    const float apertureStep = 2.0f * 3.14159265358979323846f /
-                                               settings.apertureBlades;
-                    const float apertureSector = std::remainder(std::atan2(stopY, stopX), apertureStep);
-                    const float aperturePolygonRadius = lens.irisRadius *
-                        std::cos(3.14159265358979323846f / settings.apertureBlades) /
-                        std::cos(apertureSector);
-                    if (std::hypot(stopX, stopY) > aperturePolygonRadius) continue;
-                    Vec3 origin{};
-                    if (!traceEntrancePupilRay(lens, wavelengths[band], stopX, stopY,
-                                               direction, origin)) continue;
-                    float energy = 0.0f;
-                    Vec3 sensorPoint{};
-                    if (!traceGhostRay(lens, firstReflection, secondReflection,
-                                       wavelengths[band], origin, direction, energy,
-                                       sensorPoint, settings.apertureBlades,
-                                       settings.antiReflectCoating)) continue;
-                    const float screenX = width * 0.5f + sensorPoint.x / lens.sensorWidth * width;
-                    const float screenY = height * 0.5f - sensorPoint.y / sensorHeight * height;
-                    RayVertex& vertex = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
-                    vertex = {screenX, screenY, energy * sourceBands[band], true};
-                }
-
-                auto rasterizeTriangle = [&](const RayVertex& a, const RayVertex& b,
-                                             const RayVertex& c) {
-                    const float area = (b.x - a.x) * (c.y - a.y) -
-                                       (b.y - a.y) * (c.x - a.x);
-                    if (std::abs(area) < 1e-5f) return;
-                    ++rasterizedTriangles;
-                    const float rawIrradiance = 1.0f / std::abs(area);
-                    if (rawIrradiance > settings.jacobianCap) ++jacobianClampedTriangles;
-                    const int left = std::max(0, static_cast<int>(std::floor(
-                        std::min({a.x, b.x, c.x}))));
-                    const int right = std::min(width - 1, static_cast<int>(std::ceil(
-                        std::max({a.x, b.x, c.x}))));
-                    const int top = std::max(0, static_cast<int>(std::floor(
-                        std::min({a.y, b.y, c.y}))));
-                    const int bottom = std::min(height - 1, static_cast<int>(std::ceil(
-                        std::max({a.y, b.y, c.y}))));
-                    const float inverseArea = 1.0f / area;
-                    const float irradiance = std::min(rawIrradiance, settings.jacobianCap);
-                    for (int y = top; y <= bottom; ++y) for (int x = left; x <= right; ++x) {
-                        const float px = x + 0.5f, py = y + 0.5f;
-                        const float wa = ((b.x - px) * (c.y - py) - (b.y - py) * (c.x - px)) * inverseArea;
-                        const float wb = ((c.x - px) * (a.y - py) - (c.y - py) * (a.x - px)) * inverseArea;
-                        const float wc = 1.0f - wa - wb;
-                        if (wa < -1e-4f || wb < -1e-4f || wc < -1e-4f) continue;
-                        const float value = std::max(0.0f,
-                            wa * a.energy + wb * b.energy + wc * c.energy) * rayGain * irradiance;
-                        if (value > 0.0f) {
-                            pathDiagnostic.luminance += value *
-                                (band == 0 ? 0.2126 : (band == 1 ? 0.7152 : 0.0722));
-                            pathDiagnostic.minX = std::min(pathDiagnostic.minX, static_cast<float>(x));
-                            pathDiagnostic.minY = std::min(pathDiagnostic.minY, static_cast<float>(y));
-                            pathDiagnostic.maxX = std::max(pathDiagnostic.maxX, static_cast<float>(x));
-                            pathDiagnostic.maxY = std::max(pathDiagnostic.maxY, static_cast<float>(y));
+            for (int firstReflection = 1; firstReflection < static_cast<int>(lens.surfaces.size()); ++firstReflection) {
+                for (int secondReflection = 0; secondReflection < firstReflection; ++secondReflection) {
+                    // A pair straddling the stop sends the ray through the iris on
+                    // the way in, back through it after the first reflection, and
+                    // through it a third time on the way to the sensor. The paper's
+                    // 42-path Angenieux setup omits these heavily blocked paths and
+                    // retains only paths with a single aperture crossing.
+                    if (firstReflection >= 7 && secondReflection <= 6) continue;
+                    if (settings.selectedFirstReflection >= 0 &&
+                        (firstReflection != settings.selectedFirstReflection ||
+                         secondReflection != settings.selectedSecondReflection)) continue;
+                    const std::size_t pathIndex = static_cast<std::size_t>(
+                        firstReflection * (firstReflection - 1) / 2 + secondReflection);
+                    GhostPathDiagnostic& pathDiagnostic = pathDiagnostics[pathIndex];
+                    for (std::size_t band = 0; band < wavelengths.size(); ++band) {
+                        if (sourceBands[band] <= 1e-6f) continue;
+                        std::vector<RayVertex> rayGridData(static_cast<std::size_t>(grid) * grid);
+                        for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
+                            const float stopX = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                            const float stopY = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                            const float apertureStep = 2.0f * 3.14159265358979323846f /
+                                                       settings.apertureBlades;
+                            const float apertureSector = std::remainder(std::atan2(stopY, stopX), apertureStep);
+                            const float aperturePolygonRadius = lens.irisRadius *
+                                std::cos(3.14159265358979323846f / settings.apertureBlades) /
+                                std::cos(apertureSector);
+                            if (std::hypot(stopX, stopY) > aperturePolygonRadius) continue;
+                            Vec3 origin{};
+                            if (!traceEntrancePupilRay(lens, wavelengths[band], stopX, stopY,
+                                                       direction, origin)) continue;
+                            float energy = 0.0f;
+                            Vec3 sensorPoint{};
+                            if (!traceGhostRay(lens, firstReflection, secondReflection,
+                                               wavelengths[band], origin, direction, energy,
+                                               sensorPoint, settings.apertureBlades,
+                                               settings.antiReflectCoating)) continue;
+                            const float screenX = width * 0.5f + sensorPoint.x / lens.sensorWidth * width;
+                            const float screenY = height * 0.5f - sensorPoint.y / sensorHeight * height;
+                            RayVertex& vertex = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
+                            vertex = {screenX, screenY, energy * sourceBands[band], true};
                         }
-                        Pixel& dst = output.pixels[static_cast<std::size_t>(y) * width + x];
-                        if (band == 0) dst.r += value;
-                        else if (band == 1) dst.g += value;
-                        else dst.b += value;
-                    }
-                };
 
-                for (int gy = 0; gy + 1 < grid; ++gy) for (int gx = 0; gx + 1 < grid; ++gx) {
-                    const RayVertex& a = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
-                    const RayVertex& b = rayGridData[static_cast<std::size_t>(gy) * grid + gx + 1];
-                    const RayVertex& c = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx];
-                    const RayVertex& d = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx + 1];
-                    if (a.valid && b.valid && c.valid && d.valid) {
-                        rasterizeTriangle(a, b, d);
-                        rasterizeTriangle(a, d, c);
+                        auto rasterizeTriangle = [&](const RayVertex& a, const RayVertex& b,
+                                                     const RayVertex& c) {
+                            const float area = (b.x - a.x) * (c.y - a.y) -
+                                               (b.y - a.y) * (c.x - a.x);
+                            if (std::abs(area) < 1e-5f) return;
+                            ++rasterizedTriangles;
+                            const float rawIrradiance = 1.0f / std::abs(area);
+                            if (rawIrradiance > settings.jacobianCap) ++jacobianClampedTriangles;
+                            const int left = std::max(0, static_cast<int>(std::floor(
+                                std::min({a.x, b.x, c.x}))));
+                            const int right = std::min(width - 1, static_cast<int>(std::ceil(
+                                std::max({a.x, b.x, c.x}))));
+                            const int top = std::max(0, static_cast<int>(std::floor(
+                                std::min({a.y, b.y, c.y}))));
+                            const int bottom = std::min(height - 1, static_cast<int>(std::ceil(
+                                std::max({a.y, b.y, c.y}))));
+                            const float inverseArea = 1.0f / area;
+                            const float irradiance = std::min(rawIrradiance, settings.jacobianCap);
+                            for (int y = top; y <= bottom; ++y) for (int x = left; x <= right; ++x) {
+                                const float px = x + 0.5f, py = y + 0.5f;
+                                const float wa = ((b.x - px) * (c.y - py) - (b.y - py) * (c.x - px)) * inverseArea;
+                                const float wb = ((c.x - px) * (a.y - py) - (c.y - py) * (a.x - px)) * inverseArea;
+                                const float wc = 1.0f - wa - wb;
+                                if (wa < -1e-4f || wb < -1e-4f || wc < -1e-4f) continue;
+                                const float value = std::max(0.0f,
+                                    wa * a.energy + wb * b.energy + wc * c.energy) * rayGain * irradiance;
+                                if (value > 0.0f) {
+                                    pathDiagnostic.luminance += value *
+                                        (band == 0 ? 0.2126 : (band == 1 ? 0.7152 : 0.0722));
+                                    pathDiagnostic.minX = std::min(pathDiagnostic.minX, static_cast<float>(x));
+                                    pathDiagnostic.minY = std::min(pathDiagnostic.minY, static_cast<float>(y));
+                                    pathDiagnostic.maxX = std::max(pathDiagnostic.maxX, static_cast<float>(x));
+                                    pathDiagnostic.maxY = std::max(pathDiagnostic.maxY, static_cast<float>(y));
+                                }
+                                Pixel& dst = output.pixels[static_cast<std::size_t>(y) * width + x];
+                                if (band == 0) dst.r += value;
+                                else if (band == 1) dst.g += value;
+                                else dst.b += value;
+                            }
+                        };
+
+                        for (int gy = 0; gy + 1 < grid; ++gy) for (int gx = 0; gx + 1 < grid; ++gx) {
+                            const RayVertex& a = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
+                            const RayVertex& b = rayGridData[static_cast<std::size_t>(gy) * grid + gx + 1];
+                            const RayVertex& c = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx];
+                            const RayVertex& d = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx + 1];
+                            if (a.valid && b.valid && c.valid && d.valid) {
+                                rasterizeTriangle(a, b, d);
+                                rasterizeTriangle(a, d, c);
+                            }
+                        }
+                    }
+                }
+            }
+
+            const float centerX = sourceU * (width - 1);
+            const float centerY = sourceV * (height - 1);
+            for (std::size_t band = 0; band < diffraction.size(); ++band) {
+                const float sourceBand = sourceBands[band];
+                const DiffractionKernel& kernel = diffraction[band];
+                if (sourceBand <= 1e-6f || kernel.intensity.empty()) continue;
+                const int half = kernel.size / 2;
+                for (int ky = 0; ky < kernel.size; ++ky) for (int kx = 0; kx < kernel.size; ++kx) {
+                    const int fx = kx - half;
+                    const int fy = ky - half;
+                    const float offsetX = fx * kernel.pixelScale;
+                    const float offsetY = fy * kernel.pixelScale;
+                    if (offsetX * offsetX + offsetY * offsetY < 0.25f) continue;
+                    const float x = centerX + offsetX;
+                    const float y = centerY - offsetY;
+                    const int x0 = static_cast<int>(std::floor(x));
+                    const int y0 = static_cast<int>(std::floor(y));
+                    const float tx = x - x0, ty = y - y0;
+                    const float value = kernel.intensity[static_cast<std::size_t>(ky) * kernel.size + kx] *
+                                        sourceBand * sourceEnergy * settings.gain;
+                    for (int oy = 0; oy <= 1; ++oy) for (int ox = 0; ox <= 1; ++ox) {
+                        const int px = x0 + ox, py = y0 + oy;
+                        if (px < 0 || py < 0 || px >= width || py >= height) continue;
+                        const float weight = (ox ? tx : 1.0f - tx) * (oy ? ty : 1.0f - ty);
+                        Pixel& dst = output.pixels[static_cast<std::size_t>(py) * width + px];
+                        const float addition = value * weight;
+                        if (band == 0) dst.r += addition;
+                        else if (band == 1) dst.g += addition;
+                        else dst.b += addition;
                     }
                 }
             }
         }
-    }
-
-    if (settings.reportGhostPaths) {
-        std::array<std::size_t, kGhostPathCount> order{};
-        for (std::size_t i = 0; i < order.size(); ++i) order[i] = i;
-        const std::size_t visiblePathCount = static_cast<std::size_t>(std::count_if(
-            pathDiagnostics.begin(), pathDiagnostics.end(),
-            [](const GhostPathDiagnostic& path) { return path.luminance > 0.0; }));
-        std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
-            return pathDiagnostics[a].luminance > pathDiagnostics[b].luminance;
-        });
-        std::cout << "Top reflected ghost paths for source (" << std::fixed
-                  << std::setprecision(3) << sourceU << ',' << sourceV
-                  << "); " << visiblePathCount << '/' << consideredPathCount
-                  << " paths visible, surface indices are zero-based:\n";
-        std::size_t printed = 0;
-        for (std::size_t index : order) {
-            const GhostPathDiagnostic& path = pathDiagnostics[index];
-            if (path.luminance <= 0.0 || printed == 16) break;
-            std::cout << "  " << path.firstReflection << " -> " << path.secondReflection
-                      << "  luminance=" << std::scientific << path.luminance
-                      << "  bounds=(" << std::fixed << std::setprecision(1)
-                      << path.minX << ',' << path.minY << ")..(" << path.maxX << ',' << path.maxY << ")\n";
-            ++printed;
+        if (settings.reportGhostPaths) {
+            std::array<std::size_t, kGhostPathCount> order{};
+            for (std::size_t i = 0; i < order.size(); ++i) order[i] = i;
+            const std::size_t visiblePathCount = static_cast<std::size_t>(std::count_if(
+                pathDiagnostics.begin(), pathDiagnostics.end(),
+                [](const GhostPathDiagnostic& path) { return path.luminance > 0.0; }));
+            std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
+                return pathDiagnostics[a].luminance > pathDiagnostics[b].luminance;
+            });
+            std::cout << "Top reflected ghost paths for source (" << std::fixed
+                      << std::setprecision(3) << light.u << ',' << light.v
+                      << "); " << visiblePathCount << '/' << consideredPathCount
+                      << " paths visible, surface indices are zero-based:\n";
+            std::size_t printed = 0;
+            for (std::size_t index : order) {
+                const GhostPathDiagnostic& path = pathDiagnostics[index];
+                if (path.luminance <= 0.0 || printed == 16) break;
+                std::cout << "  " << path.firstReflection << " -> " << path.secondReflection
+                          << "  luminance=" << std::scientific << path.luminance
+                          << "  bounds=(" << std::fixed << std::setprecision(1)
+                          << path.minX << ',' << path.minY << ")..(" << path.maxX << ',' << path.maxY << ")\n";
+                ++printed;
+            }
         }
     }
     if (settings.reportJacobianCap && rasterizedTriangles > 0) {
@@ -754,40 +858,6 @@ Image render(const Image& source, const Settings& settings) {
         std::cout << "Jacobian cap=" << settings.jacobianCap << " clipped "
                   << jacobianClampedTriangles << '/' << rasterizedTriangles << " ray triangles ("
                   << std::fixed << std::setprecision(2) << clampedPercent << "%)\n";
-    }
-
-    const float centerX = sourceU * (width - 1);
-    const float centerY = sourceV * (height - 1);
-    for (std::size_t band = 0; band < diffraction.size(); ++band) {
-        const float sourceBand = sourceBands[band];
-        const DiffractionKernel& kernel = diffraction[band];
-        if (sourceBand <= 1e-6f || kernel.intensity.empty()) continue;
-        const int half = kernel.size / 2;
-        for (int ky = 0; ky < kernel.size; ++ky) for (int kx = 0; kx < kernel.size; ++kx) {
-            const int fx = kx - half;
-            const int fy = ky - half;
-            const float offsetX = fx * kernel.pixelScale;
-            const float offsetY = fy * kernel.pixelScale;
-            if (offsetX * offsetX + offsetY * offsetY < 0.25f) continue;
-            const float x = centerX + offsetX;
-            const float y = centerY - offsetY;
-            const int x0 = static_cast<int>(std::floor(x));
-            const int y0 = static_cast<int>(std::floor(y));
-            const float tx = x - x0, ty = y - y0;
-            const float value = kernel.intensity[static_cast<std::size_t>(ky) * kernel.size + kx] *
-                                sourceBand * sourceEnergy * settings.gain;
-            for (int oy = 0; oy <= 1; ++oy) for (int ox = 0; ox <= 1; ++ox) {
-                const int px = x0 + ox, py = y0 + oy;
-                if (px < 0 || py < 0 || px >= width || py >= height) continue;
-                const float weight = (ox ? tx : 1.0f - tx) * (oy ? ty : 1.0f - ty);
-                Pixel& dst = output.pixels[static_cast<std::size_t>(py) * width + px];
-                const float addition = value * weight;
-                if (band == 0) dst.r += addition;
-                else if (band == 1) dst.g += addition;
-                else dst.b += addition;
-            }
-        }
-    }
     }
     return output;
 }
@@ -829,7 +899,7 @@ void saveImage(const Image& image, const std::string& path) {
 void printSettings(const Settings& s) {
     std::cout << std::boolalpha << "auto=" << s.autoPosition << " position=" << s.positionX << ',' << s.positionY
               << " threshold=" << s.threshold << " gain=" << s.gain << " rayGrid=" << s.rayGrid
-              << " jacobianCap=" << s.jacobianCap
+              << " jacobianCap=" << s.jacobianCap << " sourceSamples=" << s.sourceSamples
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
               << " antiReflectCoating=" << s.antiReflectCoating
               << " diffraction=" << s.diffractionEnabled
@@ -839,8 +909,8 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid apertureRadius apertureBlades antiReflectCoating diffractionEnabled\n"
-              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report\n";
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples apertureRadius apertureBlades antiReflectCoating diffractionEnabled\n"
+              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report\n";
 }
 
 void setValue(Settings& s, const std::string& name, float value) {
@@ -848,6 +918,11 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "gain") s.gain = finiteClamp(value, 0.0f, 10000.0f);
     else if (name == "jacobianCap") s.jacobianCap = finiteClamp(value, 0.01f, 4096.0f);
     else if (name == "rayGrid") s.rayGrid = static_cast<int>(std::lround(finiteClamp(value, 8.0f, 192.0f)));
+    else if (name == "sourceSamples") {
+        if (value != 1.0f && value != 9.0f)
+            throw std::runtime_error("sourceSamples must be 1 or 9");
+        s.sourceSamples = static_cast<int>(value);
+    }
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
     else if (name == "antiReflectCoating") s.antiReflectCoating = value >= 0.5f;
@@ -870,6 +945,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--gain") setValue(settings, "gain", value());
     else if (option == "--jacobian-cap") setValue(settings, "jacobianCap", value());
     else if (option == "--ray-grid") setValue(settings, "rayGrid", value());
+    else if (option == "--source-samples") setValue(settings, "sourceSamples", value());
     else if (option == "--aperture-radius") setValue(settings, "apertureRadius", value());
     else if (option == "--aperture-blades") setValue(settings, "apertureBlades", value());
     else if (option == "--coating") {
@@ -887,6 +963,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
         else throw std::runtime_error("--diffraction expects on or off");
     }
     else if (option == "--ghost-report") settings.reportGhostPaths = true;
+    else if (option == "--source-report") settings.reportSourceSamples = true;
     else if (option == "--jacobian-report") settings.reportJacobianCap = true;
     else if (option == "--ghost-pair") {
         if (i + 2 >= argc) throw std::runtime_error("--ghost-pair expects FIRST SECOND surface indices");
