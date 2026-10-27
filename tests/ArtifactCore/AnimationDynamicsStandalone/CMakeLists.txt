@@ -13,7 +13,7 @@ artifact_add_standalone_module_interface(AnimationDynamicsModuleInterfaces
     MODULES "${ARTIFACT_CORE_ROOT}/include/Animation/AnimationDynamics.ixx"
         "${ARTIFACT_CORE_ROOT}/include/Core/ArtifactString.ixx"
         "${ARTIFACT_CORE_ROOT}/include/Core/ArtifactArray.ixx"
-        "${ARTIFACT_CORE_ROOT}/src/Core/ArtifactOptional.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Core/ArtifactOptional.cppm"
 )
 
 artifact_add_standalone_gtest(ArtifactCoreAnimationDynamicsStandaloneTest

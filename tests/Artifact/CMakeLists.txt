@@ -892,6 +892,19 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
 endif()
 
 if(ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactCurveEditorWidgetContractTest
+        SOURCES
+            CurveEditorWidgetContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactCurveEditorWidgetContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "timeline;curve-editor;ui;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+
     # Playback range service contract runs in its own process with a Core
     # event loop; it does not start playback or initialize a graphics device.
     artifact_add_test(ArtifactPlaybackRangeServiceContractTest
