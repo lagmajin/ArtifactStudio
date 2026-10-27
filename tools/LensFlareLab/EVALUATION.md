@@ -329,6 +329,37 @@ measure sensitivity rather than imply a calibrated path distance. The option
 defaults off, so the geometric baseline remains bit-identical. This path is
 not promoted to Core/App.
 
+### Numerical check of the Fresnel propagator
+
+The production FFT and propagation helper were exercised directly by a
+temporary standalone probe that includes `main.cpp`; the probe did not alter
+the application source. The forward/inverse radix-2 FFT round-trip maximum
+absolute complex error was `3.21e-7`, `2.43e-6`, and `6.04e-6` for square
+arrays of 8, 32, and 128 samples per side.
+
+For a 550 nm Gaussian beam with a 0.30 mm 1/e field-radius waist, 100 mm
+propagation, and 0.01 mm sample pitch, the propagated intensity RMS radius was
+`0.216108236 mm`; the paraxial Gaussian-beam solution
+`w(z)/sqrt(2)`, with `zR=πw0²/λ`, gives `0.216108219 mm`. The relative
+difference is `7.8e-8` and the measured centroid error is below
+`2.1e-7 mm`. The raw ROI energy scale was `1.0000017`, so this case did not
+depend materially on the flux correction. This checks FFT normalization,
+frequency indexing, and the sign-insensitive beam-width evolution for a smooth
+field; it does not validate phase-sensitive output, hard aperture edges, or
+the ghost exit-pupil approximation.
+
+References for the scalar model and analytic check:
+[Carbajal-Domínguez et al., near-field scalar diffraction with angular
+spectrum and FFT](https://rmf.smf.mx/ojs/index.php/rmf-e/article/view/4636);
+[Goodman, *Introduction to Fourier Optics*, Fresnel transfer function](https://djvu.online/file/ej4aFH0hNKFsF);
+[University of Oxford, Gaussian-beam diffraction](https://academic.oup.com/book/25444/chapter-abstract/192619632).
+
+The image comparisons above remain diagnostic: an isolated hexagonal ghost
+shows edge redistribution, but the 42-path and default nine-source-bin images
+change much less visibly. Without path optical phase and a calibrated
+exit-pupil plane, the current scalar propagation is a numerically checked
+look-development experiment rather than evidence of camera-realistic flare.
+
 On the isolated 9→8 reflection (source `(0.3834, 0.3844)`, ray grid 128,
 point source, Fraunhofer source diffraction off), the geometric ghost has
 integrated luminance `128.328`, peak `0.003364`, and centroid `(465.157,
