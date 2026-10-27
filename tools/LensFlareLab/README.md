@@ -122,6 +122,9 @@ Use `--single-light-position U V` to generate off-axis charts for field sweeps.
 `python tools/LensFlareLab/make_source_sampling_comparison.py` creates an
 image comparison plate and radiometric summary from the 1/9/25 source-sample
 PFM renders.
+`python tools/LensFlareLab/make_ray_grid_comparison.py` compares the same
+source-sample mode across 64/96/128 pupil ray grids and reports in-frame
+flux, peak, centroid, and image differences.
 
 ## Core/app integration path
 

@@ -223,6 +223,39 @@ LensFlareLab.exe build/tools/LensFlareLab/finite-source-convergence-input.pfm bu
 python tools/LensFlareLab/make_source_sampling_comparison.py build/tools/LensFlareLab/finite-source-convergence-input.pfm build/tools/LensFlareLab/finite-source-1-convergence.pfm build/tools/LensFlareLab/finite-source-9-convergence.pfm build/tools/LensFlareLab/finite-source-25-convergence.pfm tools/LensFlareLab/examples/finite-source-sampling-convergence-x256.png
 ```
 
+### Pupil ray-grid convergence with finite-source bins
+
+Using that same warm source and the pixel-area rasterizer, the 3x3 and 5x5
+source-bin renders were also swept at pupil ray grids 64, 96, and 128. The
+integrated in-frame ghost luminance and peak were:
+
+| Source bins | Ray grid | Integrated Y | Peak Y | Centroid (px) |
+| --- | ---: | ---: | ---: | ---: |
+| 3x3 | 64 | 910.728 | 4.096 | (353.328, 199.238) |
+| 3x3 | 96 | 931.031 | 4.233 | (353.467, 199.168) |
+| 3x3 | 128 | 928.495 | 4.280 | (353.223, 199.263) |
+| 5x5 | 64 | 908.465 | 2.833 | (353.592, 199.379) |
+| 5x5 | 96 | 926.547 | 2.818 | (353.856, 199.397) |
+| 5x5 | 128 | 924.095 | 2.522 | (353.709, 199.521) |
+
+The 64-to-128 image L1 difference is about 3.00% of the 128-grid in-frame
+flare energy for both bin counts. The 96-to-128 L1 differences are 2.07% for
+3x3 and 1.97% for 5x5. Integrated luminance at 96 and 128 differs by only
+0.27% and 0.26%, while peaks and subpixel ghost edges still change. The 9-bin
+grid-64 render took 6.72 s and grid-128 took 20.70 s on the evaluation
+machine. This sweep supports 96 as a reasonable look-development compromise
+for this chart, but does not establish optical accuracy or convergence for
+other fields, prescriptions, or source shapes.
+
+![Ray-grid 64, 96, and 128 comparison for a 3x3 source-bin render](examples/finite-source-ray-grid-convergence-x256.png)
+
+![Ray-grid 64, 96, and 128 comparison for a 5x5 source-bin render](examples/finite-source-ray-grid-25bins-convergence-x256.png)
+
+The plate generator is `make_ray_grid_comparison.py`; pass the same input and
+three output PFMs in grid order, then set `--source-samples 9` or `25` to label
+the plate. The 5x5 render is appreciably more expensive, so use it as an
+offline convergence reference rather than the interactive default.
+
 ## Diffraction PSF and source-energy conservation
 
 The aperture transmission mask is Fourier transformed and its squared
