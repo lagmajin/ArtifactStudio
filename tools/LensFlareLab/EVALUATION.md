@@ -20,7 +20,8 @@ surfaces 6 and 7.
 References: [Hullin et al., Physically-Based Real-Time Lens Flare Rendering
 (2011)](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf);
 [Takaki, implementation notes and CPU prototype](https://qiita.com/AngularSpectrumMTD/items/aeea1046c0ec5d4dd1d5);
-[2024 real-time lens flare rendering paper](https://link.springer.com/article/10.1007/s00371-024-03625-7).
+[Bodonyi et al., 2024 real-time lens flare rendering paper](https://link.springer.com/article/10.1007/s00371-024-03625-7);
+[reference implementation dispersion model](https://github.com/bodonyiandi94/LensFlareFramework/blob/4136459dffa1ed582f199a9a43950730b4ddcd66/Source/Scene/Components/LensFlare/PhysicalCamera.cpp).
 
 The included 640x360 HDR chart has four similarly bright colored point lights.
 The strongest warm source is at `(245, 138)`.
@@ -107,6 +108,20 @@ validation against an emitter with known angular size.
 
 ![Reflected ghosts only, point-source baseline on the left and finite-source sampling on the right](examples/finite-source-ghost-comparison-x256.png)
 
+The 2024 reference implementation derives a Cauchy dispersion curve from the
+prescription d-line index and Abbe number. LensFlareLab now uses that
+parameterization by default; `--dispersion linear` keeps the previous linear
+Abbe estimate available for direct comparison. The comparison below uses the
+high-radiance four-light chart, ray-grid 64, nine source samples, gain 1, and
+diffraction disabled. After subtracting the unchanged input chart, the ghost
+luminance sum is 1,067.74 for linear Abbe and 1,057.46 for Cauchy (-0.96%);
+peak luminance is 3.076 and 2.664 respectively. The luminance centroid moves
+from `(342.36, 200.03)` to `(343.31, 200.73)`. These are modest changes and do
+not establish which model better matches physical glass: both are estimates
+from d-line index and Abbe number, not measured Sellmeier coefficients.
+
+![Ghost-only A/B comparison of linear Abbe and Cauchy dispersion](examples/dispersion-cauchy-vs-linear-x256.png)
+
 The rasterizer uses a 1-pixel reference area and exposes a cap for local
 caustic gain; the default is 512 and the supported maximum is 4096. This is a
 numerical guard, not a paper-derived physical parameter. At ray-grid 192, cap
@@ -156,8 +171,9 @@ demand and is not stored in the source tree.
 ## Limits and next evaluation gates
 
 The prescription table gives d-line refractive indices and Abbe numbers, not
-full Sellmeier coefficients. The lab approximates RGB dispersion with those
-Abbe values and uses one idealized coating layer; the real coating stack and
+full Sellmeier coefficients. The lab approximates RGB dispersion with a Cauchy
+approximation derived from those Abbe values and uses one idealized coating
+layer; the real coating stack and
 manufacturing scatter are unknown. The aperture diffraction is a discrete FFT
 approximation, and source visibility/occlusion is not modeled. The CPU ray
 tracing takes about 1.6 seconds at 640x360 and ray-grid 64, and about 7 seconds
@@ -165,6 +181,6 @@ at ray-grid 128 on the development machine after excluding the multi-stop
 paths and correcting the rear-group placement. It remains a look-development reference, not an editor frame path.
 
 Next: compare ghost coordinates against Fig. 10's analytical ray-traced reference in the [2024 paper](https://link.springer.com/article/10.1007/s00371-024-03625-7)
-and real lens captures, replace the Abbe/coating approximations with
-measured optical data, and precompute ray-transfer maps before an
+and real lens captures, replace the Abbe-derived Cauchy/coating approximations
+with measured optical data, and precompute ray-transfer maps before an
 allocation-bounded GPU integration.

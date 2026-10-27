@@ -46,6 +46,7 @@ PFM preserves values above 1.0. Output alpha is not stored.
 ```text
 LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|9]
+               [--dispersion cauchy|linear]
                [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
                [--diffraction on|off] [--ghost-report]
@@ -61,9 +62,13 @@ When options are supplied, the program renders once and exits; the CLI and
 interactive paths support the same settings.
 
 The default lens is the Angenieux 100 mm double-Gauss prescription tabulated
-by Hullin et al. The f/11 stop radius is derived from focal length and f-number;
-the 15 mm air gap between the stop and rear group is applied once. RGB
-dispersion is a linear Abbe-number approximation. `--coating on` applies a
+by Hullin et al. The f/11 stop radius is derived from focal length and f-number; the 15 mm air
+gap between the stop and rear group is applied once. RGB dispersion defaults
+to a Cauchy approximation parameterized by the prescription d-line index and
+Abbe number, following the coefficient form used by the 2024 reference
+implementation. `--dispersion linear` selects the prior linear Abbe
+approximation for A/B comparisons. Neither model replaces measured Sellmeier
+glass data. `--coating on` applies a
 single MgF2-like quarter-wave layer at every refracting interface. These are
 explicit model assumptions, not a claim that the original lens had that exact
 coating stack. Gain is an exposure/look-development control and is not a

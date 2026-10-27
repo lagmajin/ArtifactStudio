@@ -57,6 +57,7 @@ struct Settings {
     float jacobianCap = 512.0f;
     int rayGrid = 64;
     int sourceSamples = 9;
+    bool useCauchyDispersion = true;
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
     bool antiReflectCoating = true;
@@ -227,8 +228,14 @@ LensPrescription makeAngenieuxPrescription() {
     return lens;
 }
 
-float refractiveIndex(const Surface& surface, float wavelengthNm) {
+float refractiveIndex(const Surface& surface, float wavelengthNm, bool useCauchyDispersion) {
     if (surface.abbe <= 0.0f) return 1.0f;
+    if (useCauchyDispersion) {
+        const float slope = ((surface.refractiveIndexD - 1.0f) / surface.abbe) * 0.52345f;
+        const float offset = surface.refractiveIndexD - slope * 2.897f;
+        const float wavelengthMicrometers = wavelengthNm * 1e-3f;
+        return offset + slope / (wavelengthMicrometers * wavelengthMicrometers);
+    }
     constexpr float dLine = 587.56f;
     const float slope = (surface.refractiveIndexD - 1.0f) / surface.abbe;
     return surface.refractiveIndexD + slope * (dLine / wavelengthNm - 1.0f);
@@ -319,7 +326,7 @@ bool refractRay(Vec3& direction, Vec3 normal, float n1, float n2) {
 
 bool traceEntrancePupilRay(const LensPrescription& lens, float wavelengthNm,
                            float stopX, float stopY, Vec3 incidentDirection,
-                           Vec3& entranceOrigin) {
+                           Vec3& entranceOrigin, bool useCauchyDispersion) {
     // Trace the ray backwards from the physical stop through the front group.
     // Sampling the entrance pupil this way avoids spending most of a coarse
     // ray grid on rays that the f/11 stop immediately rejects.
@@ -329,8 +336,9 @@ bool traceEntrancePupilRay(const LensPrescription& lens, float wavelengthNm,
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
         const float forwardBefore = i == 0 ? 1.0f :
-            refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm);
-        const float forwardAfter = refractiveIndex(surface, wavelengthNm);
+            refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
+                            useCauchyDispersion);
+        const float forwardAfter = refractiveIndex(surface, wavelengthNm, useCauchyDispersion);
         if (!refractRay(direction, surfaceNormal(surface, origin), forwardAfter, forwardBefore))
             return false;
     }
@@ -360,15 +368,18 @@ bool clipIris(Vec3& origin, Vec3 direction, const LensPrescription& lens,
 
 bool traceGhostRay(const LensPrescription& lens, int firstReflection, int secondReflection,
                    float wavelengthNm, Vec3 origin, Vec3 direction, float& energy,
-                   Vec3& sensorPoint, int bladeCount, bool antiReflectCoating) {
+                   Vec3& sensorPoint, int bladeCount, bool antiReflectCoating,
+                   bool useCauchyDispersion) {
     energy = 1.0f;
     for (int i = 0; i <= firstReflection; ++i) {
         if (i == 7 && !clipIris(origin, direction, lens, bladeCount)) return false;
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
         const Vec3 normal = surfaceNormal(surface, origin);
-        const float nBefore = i == 0 ? 1.0f : refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm);
-        const float nAfter = refractiveIndex(surface, wavelengthNm);
+        const float nBefore = i == 0 ? 1.0f :
+            refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
+                            useCauchyDispersion);
+        const float nAfter = refractiveIndex(surface, wavelengthNm, useCauchyDispersion);
         if (i == firstReflection) {
             const float r = fresnelReflectance(nBefore, nAfter, direction, normal,
                                                 wavelengthNm, antiReflectCoating);
@@ -388,8 +399,10 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
         const Vec3 normal = surfaceNormal(surface, origin);
-        const float nFrom = refractiveIndex(surface, wavelengthNm);
-        const float nTo = i == 0 ? 1.0f : refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm);
+        const float nFrom = refractiveIndex(surface, wavelengthNm, useCauchyDispersion);
+        const float nTo = i == 0 ? 1.0f :
+            refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
+                            useCauchyDispersion);
         if (i == secondReflection) {
             const float r = fresnelReflectance(nFrom, nTo, direction, normal,
                                                 wavelengthNm, antiReflectCoating);
@@ -409,8 +422,10 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
         const Vec3 normal = surfaceNormal(surface, origin);
-        const float nBefore = i == 0 ? 1.0f : refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm);
-        const float nAfter = refractiveIndex(surface, wavelengthNm);
+        const float nBefore = i == 0 ? 1.0f :
+            refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
+                            useCauchyDispersion);
+        const float nAfter = refractiveIndex(surface, wavelengthNm, useCauchyDispersion);
         const float r = fresnelReflectance(nBefore, nAfter, direction, normal,
                                             wavelengthNm, antiReflectCoating);
         if (!refractRay(direction, normal, nBefore, nAfter)) return false;
@@ -726,13 +741,14 @@ Image render(const Image& source, const Settings& settings) {
                             if (std::hypot(stopX, stopY) > aperturePolygonRadius) continue;
                             Vec3 origin{};
                             if (!traceEntrancePupilRay(lens, wavelengths[band], stopX, stopY,
-                                                       direction, origin)) continue;
+                                                       direction, origin, settings.useCauchyDispersion)) continue;
                             float energy = 0.0f;
                             Vec3 sensorPoint{};
                             if (!traceGhostRay(lens, firstReflection, secondReflection,
                                                wavelengths[band], origin, direction, energy,
-                                               sensorPoint, settings.apertureBlades,
-                                               settings.antiReflectCoating)) continue;
+                                       sensorPoint, settings.apertureBlades,
+                                       settings.antiReflectCoating,
+                                       settings.useCauchyDispersion)) continue;
                             const float screenX = width * 0.5f + sensorPoint.x / lens.sensorWidth * width;
                             const float screenY = height * 0.5f - sensorPoint.y / sensorHeight * height;
                             RayVertex& vertex = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
@@ -900,6 +916,7 @@ void printSettings(const Settings& s) {
     std::cout << std::boolalpha << "auto=" << s.autoPosition << " position=" << s.positionX << ',' << s.positionY
               << " threshold=" << s.threshold << " gain=" << s.gain << " rayGrid=" << s.rayGrid
               << " jacobianCap=" << s.jacobianCap << " sourceSamples=" << s.sourceSamples
+              << " dispersion=" << (s.useCauchyDispersion ? "cauchy" : "linear-abbe")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
               << " antiReflectCoating=" << s.antiReflectCoating
               << " diffraction=" << s.diffractionEnabled
@@ -909,7 +926,7 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples apertureRadius apertureBlades antiReflectCoating diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel apertureRadius apertureBlades antiReflectCoating diffractionEnabled\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report\n";
 }
 
@@ -923,6 +940,7 @@ void setValue(Settings& s, const std::string& name, float value) {
             throw std::runtime_error("sourceSamples must be 1 or 9");
         s.sourceSamples = static_cast<int>(value);
     }
+    else if (name == "dispersionModel") s.useCauchyDispersion = value >= 0.5f;
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
     else if (name == "antiReflectCoating") s.antiReflectCoating = value >= 0.5f;
@@ -946,6 +964,13 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--jacobian-cap") setValue(settings, "jacobianCap", value());
     else if (option == "--ray-grid") setValue(settings, "rayGrid", value());
     else if (option == "--source-samples") setValue(settings, "sourceSamples", value());
+    else if (option == "--dispersion") {
+        if (++i >= argc) throw std::runtime_error("missing value for --dispersion");
+        const std::string model = argv[i];
+        if (model == "cauchy") settings.useCauchyDispersion = true;
+        else if (model == "linear") settings.useCauchyDispersion = false;
+        else throw std::runtime_error("--dispersion expects cauchy or linear");
+    }
     else if (option == "--aperture-radius") setValue(settings, "apertureRadius", value());
     else if (option == "--aperture-blades") setValue(settings, "apertureBlades", value());
     else if (option == "--coating") {
@@ -982,7 +1007,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [options]\n";
+        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [options]\n";
         return 2;
     }
     try {
