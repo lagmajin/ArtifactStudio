@@ -296,6 +296,57 @@ sample, not a proven converged result; more bins can change clipping and cost.
 
 ![Single-source point, 3x3, 5x5 ghost renders and the 3x3-to-5x5 signed image difference](examples/finite-source-sampling-convergence-x256.png)
 
+### Dense finite-source FrFT convergence
+
+The source-bin control now accepts any odd square count through 225 (15x15),
+and the fixed storage holds all 225 radiance bins. For the isolated 9→8 ghost
+at `(0.3834,0.3844)`, a 4096-scaled warm source, pupil grid 64, polygon-mask
+FrFT on, and source diffraction off, the 225-bin render is used as a dense
+comparison reference. Relative image L1 falls from 4.39% at 25 bins to 3.10%
+at 49, 2.12% at 81, 1.96% at 121, and 0.83% at 169. Crop Y stays within
+0.3% of the 225-bin result from 25 bins upward. Peak luminance decreases from
+0.00574 at 25 bins to 0.00565 at 225; centroid movement from 25 to 225 is
+about 0.30 px. The broad caustic placement is stable, while finer aperture
+structure and edges continue to average out as more source directions are
+integrated.
+
+| Source bins | Relative L1 vs 225 | Crop Y / 225 | Peak Y | Centroid (px) |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 9.50% | 0.99842 | 0.005920 | (457.588, 255.486) |
+| 9 | 8.62% | 0.99818 | 0.005889 | (457.583, 255.454) |
+| 25 | 4.39% | 0.99742 | 0.005743 | (457.557, 255.346) |
+| 49 | 3.10% | 0.99710 | 0.005690 | (457.541, 255.311) |
+| 81 | 2.12% | 0.99744 | 0.005664 | (457.537, 255.291) |
+| 121 | 1.96% | 0.99945 | 0.005669 | (457.602, 255.284) |
+| 169 | 0.83% | 1.00073 | 0.005651 | (457.640, 255.266) |
+| 225 | reference | 1.00000 | 0.005648 | (457.611, 255.262) |
+
+![FrFT ghost averaging across source grids from 1 to 225 bins, with signed differences from 225](examples/finite-source-frft-convergence-1-9-25-49-81-121-169-225.png)
+
+The `--source-report` check at 225 bins found 89 occupied bins and sampled
+flux `1,154,385.625` against integrated flux `1,154,385.750` (about
+0.000011% difference). This supports correct flux partitioning, not optical
+ground truth. The 225-bin grid is a denser numerical reference and the finite
+source is still an image-space thresholded footprint; neither alone proves
+convergence for other source shapes, fields, or prescriptions.
+
+At 225 source bins, raising the pupil grid from 64 to 96/128 changes crop Y
+from `130.438` to `131.706/131.322`; image L1 against pupil grid 128 is
+1.83%/1.38%. The peak stays near `0.00565`, but the centroid shifts by up to
+about 0.8 px. Thus source-angle sampling improves smoothly against the fixed
+64-ray reference, while pupil-ray sampling remains a similarly sized source
+of image error and must be converged independently.
+
+![Pupil-grid comparison with 225 source bins and signed differences from ray grid 128](examples/finite-source-frft-pupil-grid-225-bins.png)
+
+Reproduce with the 4096-scale single-light chart, render the same isolated
+path at `--source-samples 1 9 25 49 81 121 169 225` and identical
+`--ray-grid 64 --ghost-frft on --diffraction off --ghost-pair 9 8`, then pass
+each render as a `--case COUNT FILE` to
+`make_finite_source_convergence_chart.py`. A separate pupil-ray sweep uses the
+same 225-bin source at `--ray-grid 64`, `96`, and `128`, compared with
+`make_ray_grid_comparison.py --source-samples 225`.
+
 Reproduce the input and three renders with:
 
 ```powershell

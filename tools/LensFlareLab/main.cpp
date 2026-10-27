@@ -43,7 +43,7 @@ struct DetectedLight {
     Pixel color{};
     int centerX = 0;
     int centerY = 0;
-    std::array<SourceSample, 25> samples{};
+    std::array<SourceSample, 225> samples{};
 };
 
 struct DetectedLightSet {
@@ -957,12 +957,12 @@ float finiteClamp(float value, float minimum, float maximum) {
 
 DetectedLight estimateLight(const Image& image, int centerX, int centerY, float threshold,
                             int sourceSamples) {
-    const int binsPerAxis = sourceSamples == 25 ? 5 : 3;
+    const int binsPerAxis = static_cast<int>(std::sqrt(static_cast<double>(sourceSamples)));
     double totalFlux = 0.0;
     double red = 0.0, green = 0.0, blue = 0.0;
-    std::array<double, 25> flux{};
-    std::array<double, 25> weightedX{}, weightedY{};
-    std::array<double, 25> sampleRed{}, sampleGreen{}, sampleBlue{};
+    std::array<double, 225> flux{};
+    std::array<double, 225> weightedX{}, weightedY{};
+    std::array<double, 225> sampleRed{}, sampleGreen{}, sampleBlue{};
     for (int y = std::max(0, centerY - 24); y <= std::min(image.height - 1, centerY + 24); ++y) {
         for (int x = std::max(0, centerX - 24); x <= std::min(image.width - 1, centerX + 24); ++x) {
             const float dx = static_cast<float>(x - centerX);
@@ -1848,7 +1848,7 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-resolution N | --ghost-frft-report\n"
@@ -1865,9 +1865,14 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "adaptiveRayRefinementThreshold")
         s.adaptiveRayRefinementThreshold = finiteClamp(value, 0.05f, 8.0f);
     else if (name == "sourceSamples") {
-        if (value != 1.0f && value != 9.0f && value != 25.0f)
-            throw std::runtime_error("sourceSamples must be 1, 9, or 25");
-        s.sourceSamples = static_cast<int>(value);
+        if (!std::isfinite(value) || value < 1.0f || value > 225.0f)
+            throw std::runtime_error("sourceSamples must be 1 or an odd square from 9 to 225");
+        const int sampleCount = static_cast<int>(value);
+        const int binsPerAxis = static_cast<int>(std::lround(std::sqrt(value)));
+        if (value != static_cast<float>(sampleCount) || binsPerAxis % 2 == 0 ||
+            binsPerAxis * binsPerAxis != sampleCount)
+            throw std::runtime_error("sourceSamples must be 1 or an odd square from 9 to 225");
+        s.sourceSamples = sampleCount;
     }
     else if (name == "dispersionModel") s.useCauchyDispersion = value >= 0.5f;
     else if (name == "rasterizerModel") s.usePixelAreaRasterization = value >= 0.5f;

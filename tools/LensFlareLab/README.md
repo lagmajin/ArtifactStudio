@@ -19,8 +19,10 @@ convolves the original threshold-excess radiance footprint with the aperture
 PSF, replacing that source energy rather than adding a second copy. This keeps
 the finite source's shape in the diffraction result. `--source-samples 1`
 selects the point-source baseline, `--source-samples 9` selects the default
-3x3 finite-source ghost mode, and `--source-samples 25` selects a 5x5 grid for
-sampling-convergence comparisons. Rays are sampled over the physical stop and
+3x3 finite-source ghost mode, and odd-square counts through `225` select grids
+up to 15x15 for sampling-convergence comparisons (for example, `49`, `81`,
+`121`). The larger grids are offline quality references because each occupied
+bin traces the complete selected ghost path. Rays are sampled over the physical stop and
 traced backwards through the front group to the entrance pupil, which gives
 coarse grids useful coverage at the stated f-number. Reflected ghost paths and
 diffraction can be rendered independently for evaluation. Paths that cross the
@@ -48,7 +50,7 @@ PFM preserves values above 1.0. Output alpha is not stored.
 
 ```text
 LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
-               [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|9|25]
+               [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|odd square <=225]
                [--adaptive-ray-refinement on|off] [--adaptive-ray-refinement-threshold PX]
                [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
@@ -129,7 +131,8 @@ image comparison plate and radiometric summary from the 1/9/25 source-sample
 PFM renders.
 `python tools/LensFlareLab/make_ray_grid_comparison.py` compares the same
 source-sample mode across 64/96/128 pupil ray grids and reports in-frame
-flux, peak, centroid, and image differences.
+flux, peak, centroid, and image differences. Its `--source-samples` accepts
+the same odd-square counts through 225.
 
 `--ghost-frft on` is a separate look-development switch for the Hullin-style
 aperture-coordinate texture. It records each successful ghost ray's stop
@@ -155,6 +158,9 @@ per-crop flux/error metrics.
 Use `make_evaluation_chart.py --source-only` to create radiance-scaled isolated
 emitters, and `make_ghost_flux_linearity_chart.py` to compare normalized flare
 output across source scales and extraction thresholds.
+`make_finite_source_convergence_chart.py` compares odd-square source grids up
+to 15x15 and reports crop flux, peak, centroid, and image error against the
+dense source-bin render.
 `--ray-grid` accepts values from 8 to 512; the upper range is intended for
 offline convergence checks and can be substantially slower than the default.
 The opt-in adaptive refinement probes cell centers and refines cells whose

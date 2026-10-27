@@ -1,6 +1,7 @@
 """Compare reflected-ghost images rendered at different pupil ray-grid sizes."""
 
 import argparse
+import math
 import struct
 from pathlib import Path
 
@@ -38,6 +39,17 @@ def display(rgb, gain):
     return tuple(result)
 
 
+def parse_source_samples(value):
+    try:
+        count = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("expected an integer sample count") from error
+    axis = math.isqrt(count) if count > 0 else 0
+    if count == 1 or (9 <= count <= 225 and axis % 2 == 1 and axis * axis == count):
+        return count
+    raise argparse.ArgumentTypeError("expected 1 or an odd square sample count from 9 to 225")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
@@ -48,7 +60,9 @@ def main():
     parser.add_argument("--crop", type=int, nargs=4, metavar=("LEFT", "TOP", "RIGHT", "BOTTOM"),
                         default=(0, 0, 640, 360))
     parser.add_argument("--gain", type=float, default=256.0)
-    parser.add_argument("--source-samples", type=int, choices=(1, 9, 25), default=9,
+    parser.add_argument("--difference-gain", type=float, default=256.0,
+                        help="display gain used only for signed image differences")
+    parser.add_argument("--source-samples", type=parse_source_samples, default=9,
                         help="source-angle bin count used for all three renders")
     args = parser.parse_args()
 
@@ -90,7 +104,7 @@ def main():
             for index, source_index in enumerate((0, 1)):
                 delta = values[source_index] - values[2]
                 absolute_difference[index] += abs(delta)
-                strength = min(1.0, abs(delta) * args.gain)
+                strength = min(1.0, abs(delta) * args.difference_gain)
                 value = round(strength * 255)
                 panels[3 + index].putpixel(
                     (x - left, y - top),
