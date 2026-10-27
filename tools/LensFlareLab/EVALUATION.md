@@ -2,6 +2,58 @@
 
 **最終更新:** 2026-10-28
 
+## Controlled wavefront-aberration PSFs
+
+`evaluate_wavefront_aberration_psf.py` extends the ideal six-blade pupil with
+controlled wavefront error. It computes `PSF = |FFT(T · exp(i 2πW/λ))|²`,
+then integrates the sampled irradiance cells over detector pixels. The modes
+are Noll-style primary defocus, astigmatism, coma, and spherical aberration;
+each single-mode case is scaled to 0.25 waves RMS optical path difference at
+550 nm over the sampled open hexagonal pupil. The mixed case's actual RMS is
+measured and written to the CSV. The PSF uses the complex pupil Fourier
+formulation described for computed wavefronts by
+[Chen et al. (2024)](https://doi.org/10.1038/s41598-024-84790-6); the Zernike
+mode family follows [Noll (1976)](https://doi.org/10.1364/JOSA.66.000207).
+This is a controlled experiment, not a fitted measurement of the Angenieux
+prescription or a claim of camera-specific aberration.
+
+The fixture uses the Lab's Angenieux f/11 focal length/aperture scale and a
+640×360 detector. Its 610/550/460 nm channels are a diagnostic RGB mapping,
+not a calibrated source spectrum or sensor response. At this pixel pitch the
+diffraction core is much smaller than one detector pixel, so detector-area
+integration visibly moderates the response to these fairly strong wavefront
+errors. The full PSFs retain the six-blade starburst; the zoomed center and
+absolute-difference views expose the subtler core changes.
+
+The zero-aberration NumPy result agrees with the existing LensFlareLab render
+to 0.00237% RGB L1 and 0.00003% relative peak error for the same pixel-area
+kernel and Gaussian source. Across all six cases, the 2048² pupil results
+differ from 1024² by at most 0.1073% RGB L1 in a centered 97×97 detector crop.
+At 0.25 waves RMS, average detector-pixel peak ratios versus the ideal case
+are 0.9912 defocus, 0.9981 astigmatism, 0.9653 coma, and 0.9541 spherical;
+these are pixel-integrated peak ratios, not optical Strehl ratios. Shape L1
+versus the ideal RGB PSF is 1.72%, 0.50%, 7.59%, and 8.94%, respectively.
+The asymmetric coma response is especially visible in the core-difference
+view.
+
+![Ideal and controlled wavefront-aberration PSFs, sensor-core zoom, and absolute differences](examples/wavefront-aberration-psf.png)
+
+Linear RGB PSFs and per-wavelength metrics are in
+[`wavefront-aberration-psf.csv`](examples/wavefront-aberration-psf.csv); the
+script also writes per-case PFM kernels under its build output directory.
+Reproduce against an existing LensFlareLab executable with:
+
+```powershell
+python tools/LensFlareLab/evaluate_wavefront_aberration_psf.py build/tools/LensFlareLab/LensFlareLab.exe
+```
+
+The controlled wavefront modes establish a coherent-PSF prototype and test
+its sampled output. The Lab still needs prescription-derived exit-pupil
+wavefronts or measured lens data before this path can claim real-lens
+aberration fidelity. Hullin et al. describe both lens-specific aberrations
+and wave-optical flare effects in [Physically-Based Real-Time Lens Flare
+Rendering (2011)](https://resources.mpi-inf.mpg.de/lensflareRendering/).
+
 ## Pupil diffraction image quality: symmetry and FFT convergence
 
 I added `evaluate_pupil_psf.py` to inspect both the rendered image and numeric
