@@ -544,6 +544,59 @@ not a calibrated optical-energy solution.
 
 ![The α=1 Fourier limit compared with the geometric ghost](examples/ghost-aperture-frft-fourier-limit-x300.png)
 
+### Texture-resolution convergence
+
+The resolution is now selectable from 64 to 512 with
+`--ghost-frft-resolution`. On the isolated 9→8 path (ray grid 128), increasing
+the texture from 128² to 256² changes the image by 1.63% relative L1 and moves
+the ghost centroid by about 0.50 px. From 256² to 512², relative L1 falls to
+0.068%; Y flux changes from `131.49943` to `131.48870`, peak from `0.0059537`
+to `0.0059595`, and centroid by less than 0.001 px. The measured RGB
+precompute times were 12, 90, and 723 ms for 128², 256², and 512². This
+supports 256² as the current standalone compromise for this path, not a
+universal convergence guarantee for every ghost.
+
+![Isolated path comparison using 128², 256², and 512² aperture textures](examples/ghost-aperture-frft-resolution-sweep.png)
+
+### Aperture shape and field sweep
+
+For the same point source and 9→8 path at ray grid 96, 5/6/8/10-blade
+apertures produce geometric-to-FrFT Y fluxes of `117.931→121.056`,
+`128.967→132.305`, `138.052→143.871`, and `145.234→151.369`. Relative L1
+changes are 34.48%, 31.73%, 30.12%, and 30.27%. The ring pattern tracks the
+blade count, although its radiometry still includes the per-map normalization
+described above.
+
+![Geometric and FrFT ghost shapes for 5, 6, 8, and 10 aperture blades](examples/ghost-aperture-blade-sweep.png)
+
+An all-path field sweep used source positions `(0.1,0.1)`, `(0.5,0.5)`, and
+`(0.9,0.9)` with a ray grid of 64. The center source yields 42/42 visible
+paths and geometric-to-FrFT Y flux `1288.998→1321.126` (11.996% relative
+L1). Each corner source yields 7/42 visible paths and `30.660→32.951`
+(30.07% relative L1); the two corners agree closely by symmetry. A 9→8-only
+comparison at those corners is empty because that path is clipped, so the
+all-path comparison is required for field coverage.
+
+At `(0.1,0.1)` with ray grid 128, the largest per-map normalization is 8.15
+on the weak 6→2 path (unweighted valid-ray energy `1.05e-4`); the corner
+image's total Y is only `30.66`. Repeating the same field with 512² texture
+leaves the max factor at 14.55 at ray grid 64 but changes corner-image flux by
+only 0.02% and relative image L1 by 0.05%. This points to sparse path sampling
+and low-energy outlier maps, rather than texture resolution, as the source of
+the large diagnostic factor. It has little effect on this image's aggregate
+flux, but deserves a future adaptive-sampling or low-energy-map policy before
+this technique is used as a calibrated model.
+
+![All-path field comparison at upper-left, center, and lower-right source positions](examples/ghost-aperture-field-sweep.png)
+
+Reproduce the texture resolution sweep by rendering the same isolated path at
+`--ghost-frft-resolution 128`, `256`, and `512`, then passing each result as a
+separate `--case` to `make_ghost_frft_sweep_chart.py`. The aperture sweep uses
+the same workflow with `--aperture-blades 5|6|8|10`. For the field sweep,
+regenerate the input chart with `make_evaluation_chart.py
+--single-light-position U V`, render all eligible paths, then compare the
+geometric and FrFT outputs at each field point.
+
 The implementation follows the aperture-coordinate and FrFT look-development
 approach in [Hullin et al., 2011](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf)
 and the continuous FrFT kernel described by

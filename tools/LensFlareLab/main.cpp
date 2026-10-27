@@ -72,6 +72,7 @@ struct Settings {
     bool diffractionEnabled = true;
     bool ghostDiffractionEnabled = false;
     bool ghostFrftEnabled = false;
+    int ghostFrftResolution = 256;
     bool reportGhostPaths = false;
     bool reportJacobianCap = false;
     bool reportSourceSamples = false;
@@ -1124,12 +1125,13 @@ Image render(const Image& source, const Settings& settings) {
                                                        settings.fresnelFrftOrder,
                                                        settings.fresnelFrftOrderOverride);
             ghostApertureTextures[band] = makeGhostApertureTexture(
-                256, settings.apertureBlades, lens.irisRadius, order);
+                settings.ghostFrftResolution, settings.apertureBlades, lens.irisRadius, order);
         }
         if (settings.reportGhostFrft) {
             const auto elapsed = std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - precomputeStart).count();
-            std::cout << "Ghost aperture FrFT: 256x256 samples, Hullin Eq. 5 alpha RGB="
+            std::cout << "Ghost aperture FrFT: " << settings.ghostFrftResolution << 'x'
+                      << settings.ghostFrftResolution << " samples, Hullin Eq. 5 alpha RGB="
                       << ghostApertureTextures[0].fractionalOrder << ','
                       << ghostApertureTextures[1].fractionalOrder << ','
                       << ghostApertureTextures[2].fractionalOrder << " fluxNormalization RGB="
@@ -1150,6 +1152,12 @@ Image render(const Image& source, const Settings& settings) {
     double ghostFrftMinRayNormalization = std::numeric_limits<double>::infinity();
     double ghostFrftMaxRayNormalization = 0.0;
     std::uint64_t ghostFrftRayMaps = 0;
+    int ghostFrftMaxPathFirst = -1;
+    int ghostFrftMaxPathSecond = -1;
+    std::size_t ghostFrftMaxBand = 0;
+    std::size_t ghostFrftMaxSample = 0;
+    double ghostFrftMaxGeometricEnergy = 0.0;
+    double ghostFrftMaxTexturedEnergy = 0.0;
     std::array<DiffractionKernel, 3> diffraction;
     if (settings.diffractionEnabled) {
         for (std::size_t band = 0; band < diffraction.size(); ++band) {
@@ -1270,10 +1278,17 @@ Image render(const Image& source, const Settings& settings) {
                             }
                             if (geometricRayEnergy > 1e-20 && texturedRayEnergy > 1e-20) {
                                 const double normalization = geometricRayEnergy / texturedRayEnergy;
+                                if (normalization > ghostFrftMaxRayNormalization) {
+                                    ghostFrftMaxRayNormalization = normalization;
+                                    ghostFrftMaxPathFirst = firstReflection;
+                                    ghostFrftMaxPathSecond = secondReflection;
+                                    ghostFrftMaxBand = band;
+                                    ghostFrftMaxSample = sampleIndex;
+                                    ghostFrftMaxGeometricEnergy = geometricRayEnergy;
+                                    ghostFrftMaxTexturedEnergy = texturedRayEnergy;
+                                }
                                 ghostFrftMinRayNormalization = std::min(
                                     ghostFrftMinRayNormalization, normalization);
-                                ghostFrftMaxRayNormalization = std::max(
-                                    ghostFrftMaxRayNormalization, normalization);
                                 ++ghostFrftRayMaps;
                                 for (RayVertex& vertex : rayGridData) {
                                     if (!vertex.valid) continue;
@@ -1444,6 +1459,10 @@ Image render(const Image& source, const Settings& settings) {
         std::cout << "Ghost aperture FrFT ray-map flux normalization range=["
                   << ghostFrftMinRayNormalization << ',' << ghostFrftMaxRayNormalization
                   << "] maps=" << ghostFrftRayMaps
+                  << " maxMap=" << ghostFrftMaxPathFirst << "->" << ghostFrftMaxPathSecond
+                  << " band=" << ghostFrftMaxBand << " sourceSample=" << ghostFrftMaxSample
+                  << " geometricRayEnergy=" << ghostFrftMaxGeometricEnergy
+                  << " texturedRayEnergy=" << ghostFrftMaxTexturedEnergy
                   << " (per path/source-sample/wavelength map)\n";
     }
     return output;
@@ -1493,6 +1512,7 @@ void printSettings(const Settings& s) {
               << " fresnelFrftOrder=" << s.fresnelFrftOrder
               << " fresnelFrftOrderOverride=" << s.fresnelFrftOrderOverride
               << " ghostFrft=" << s.ghostFrftEnabled
+              << " ghostFrftResolution=" << s.ghostFrftResolution
               << " ghostDiffraction=" << s.ghostDiffractionEnabled
               << " ghostDiffractionDistanceMm=" << s.ghostDiffractionDistanceMm
               << " antiReflectCoating=" << s.antiReflectCoating
@@ -1504,10 +1524,10 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
-              << "               --ghost-frft on|off | --ghost-frft-report\n"
+              << "               --ghost-frft on|off | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
@@ -1530,6 +1550,8 @@ void setValue(Settings& s, const std::string& name, float value) {
         s.fresnelFrftOrderOverride = true;
     }
     else if (name == "ghostFrft") s.ghostFrftEnabled = value >= 0.5f;
+    else if (name == "ghostFrftResolution")
+        s.ghostFrftResolution = static_cast<int>(std::lround(finiteClamp(value, 64.0f, 512.0f)));
     else if (name == "ghostDiffraction") s.ghostDiffractionEnabled = value >= 0.5f;
     else if (name == "ghostDiffractionDistanceMm") s.ghostDiffractionDistanceMm = finiteClamp(value, 0.0f, 500.0f);
     else if (name == "antiReflectCoating") s.antiReflectCoating = value >= 0.5f;
@@ -1571,6 +1593,8 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--aperture-radius") setValue(settings, "apertureRadius", value());
     else if (option == "--aperture-blades") setValue(settings, "apertureBlades", value());
     else if (option == "--fresnel-frft-order") setValue(settings, "fresnelFrftOrder", value());
+    else if (option == "--ghost-frft-resolution")
+        setValue(settings, "ghostFrftResolution", value());
     else if (option == "--ghost-diffraction-distance-mm")
         setValue(settings, "ghostDiffractionDistanceMm", value());
     else if (option == "--coating") {
