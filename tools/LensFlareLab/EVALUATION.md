@@ -2003,3 +2003,47 @@ variants add `--ghost-diffraction on --ghost-diffraction-distance-mm 50|100|200`
 Use `--source-samples 1` with source radius 1, then `--source-samples 9` with
 source radius 3 for the finite-source row. This remains a scalar, zero-phase
 approximation, not wave-optical propagation through the compound lens.
+
+### Color separation and source-size edge profiles
+
+To separate wavelength-integration error from actual source-size and
+propagation effects, I measured the right vertical edge in source-subtracted
+PFM renders at row range `[249,266)`. The profile averages 21 interior columns
+for its plateau and records the first descending 90%, 50%, and 10% crossings.
+The 10–90% width includes any Fresnel side-lobes and should not be read as a
+Gaussian blur radius. At 100 mm, the point and radius-3 px source use one and
+3×3 angular samples; the radius-8 px source uses 5×5 samples.
+
+| Edge case | RGB 50% edge separation | R/G/B 10–90% width |
+|---|---:|---:|
+| Geometric point source, 31 bands | 1.591 px | 1.57 / 1.61 / 1.72 px |
+| Fresnel point, 50 mm, 31 bands | 1.850 px | 1.71 / 2.10 / 1.87 px |
+| Fresnel point, 100 mm, 7 bands | 1.929 px | 2.36 / 2.47 / 2.36 px |
+| Fresnel point, 100 mm, 61 bands | 1.861 px | 2.38 / 2.52 / 2.34 px |
+| Fresnel point, 200 mm, 31 bands | 1.835 px | 7.06 / 3.39 / 3.05 px |
+| Geometric radius-8 px source, 5×5 samples | 1.584 px | 17.73 / 17.73 / 18.09 px |
+| Fresnel radius-8 px source, 100 mm, 31 bands | 1.855 px | 16.77 / 17.25 / 17.62 px |
+
+The wave model increases the measured RGB edge separation from 1.59 to about
+1.86 px at 100 mm. Changing spectral integration from 7 to 61 bands moves this
+measurement by only 0.07 px; the blue outer-fringe peak changes from 10.57% to
+9.66% of the interior blue plateau. This indicates that, in this modeled path,
+propagation and the source spectrum create the visible colored rim, while the
+remaining 7-band error is small for edge position but still visible in fringe
+amplitude. At 200 mm the red 10–90% span grows to 7.06 px because the threshold
+crossings include a separated Fresnel lobe, rather than because the core edge
+simply becomes a broad blur.
+
+The radius-8 px source widens the geometric transition to about 18 px, much
+more than wavelength-count changes. In this synthetic source model, finite
+source angular extent therefore dominates the visible edge softness. The
+radius-3 px source is too small to show that effect at this field point.
+
+![Zoomed point and extended-source geometric/Fresnel edge crops](examples/ghost-fresnel-edge-finite-source-zoom.png)
+
+The per-channel crossings and outer-fringe measurements are in
+[`ghost-fresnel-edge-profile-study.csv`](examples/ghost-fresnel-edge-profile-study.csv).
+Reproduce them with `measure_ghost_edge_profiles.py`, supplying the source and
+render PFM for each `--case`. The defaults average rows 249–265, use columns
+540–560 as the interior plateau, and search columns 540–598 for the falling
+edge. These coordinates apply to the 640×360 fixture used here.
