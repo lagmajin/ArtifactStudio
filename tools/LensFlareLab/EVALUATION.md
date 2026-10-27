@@ -70,13 +70,17 @@ offsets different physical field angles.
 
 ![Visibility and near-boundary contact for all 42 eligible paths across 20 edge fields](examples/field-edge-visibility.png)
 
-The five recurring paths were then sampled at five vertical source positions
-near the top and bottom edges. All 50 path/field samples remained visible. For
+The five recurring paths were then sampled at nine vertical source positions
+from each edge to the center. All 90 path/field samples remained visible. For
 path 6→5, the top-edge band flag cleared between source `v=0.04` and `v=0.06`;
-the mirrored bottom-edge flag appeared between `v=0.94` and `v=0.96`. Its
-centroid and in-frame luminance changed gradually through the transition.
-Other tested paths remained near the opposite edge over this small sweep, so
-their eventual exit positions are not established here.
+the mirrored bottom-edge flag appeared between `v=0.94` and `v=0.96`. The four
+other paths also moved away from the opposite edge: 11→10, 13→12, and 10→8
+cleared the bottom band between `v=0.20` and `v=0.30`, while 13→7 cleared it
+between `v=0.30` and `v=0.40`. The mirrored top-band flags cleared between
+`v=0.70` and `v=0.80` for 11→10, 13→12, and 10→8, and between `v=0.60` and
+`v=0.70` for 13→7. Bounds and weighted centroids moved continuously through
+these sampled transitions; none of these paths disappeared before the source
+reached the center.
 
 ![Boundary-band transitions for the five recurring paths near the top and bottom](examples/sensor-edge-path-motion.png)
 

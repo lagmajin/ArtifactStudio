@@ -11,9 +11,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 PAIRS = ((6, 5), (11, 10), (13, 7), (13, 12), (10, 8))
+TOP_V = (0.01, 0.02, 0.04, 0.06, 0.10, 0.20, 0.30, 0.40, 0.50)
+BOTTOM_V = tuple(1.0 - value for value in reversed(TOP_V))
 FIELDS = {
-    "top": ((0.50, 0.01), (0.50, 0.02), (0.50, 0.04), (0.50, 0.06), (0.50, 0.10)),
-    "bottom": ((0.50, 0.90), (0.50, 0.94), (0.50, 0.96), (0.50, 0.98), (0.50, 0.99)),
+    "top": tuple((0.50, v) for v in TOP_V),
+    "bottom": tuple((0.50, v) for v in BOTTOM_V),
 }
 
 
@@ -76,14 +78,16 @@ def main() -> None:
         writer.writerows(rows)
 
     cell_w, cell_h, left_w, top_h, panel_gap = 58, 24, 84, 38, 26
-    bottom_top = top_h + 5 * cell_h + panel_gap
-    image = Image.new("RGB", (left_w + 5 * cell_w + 10, bottom_top + 5 * cell_h + 22), "#11151d")
+    sample_count = len(TOP_V)
+    bottom_top = top_h + sample_count * cell_h + panel_gap
+    image = Image.new("RGB", (left_w + sample_count * cell_w + 10,
+                               bottom_top + sample_count * cell_h + 22), "#11151d")
     draw = ImageDraw.Draw(image)
     font = ImageFont.load_default()
-    for col, v in enumerate((0.01, 0.02, 0.04, 0.06, 0.10)):
+    for col, v in enumerate(TOP_V):
         draw.text((left_w + col * cell_w + 5, 8), f"top {v:.2f}", fill="#cbd3df", font=font)
-    for col, v in enumerate((0.90, 0.94, 0.96, 0.98, 0.99)):
-        draw.text((left_w + col * cell_w + 5, top_h + 5 * cell_h + 6), f"{v:.2f}", fill="#cbd3df", font=font)
+    for col, v in enumerate(BOTTOM_V):
+        draw.text((left_w + col * cell_w + 5, top_h + sample_count * cell_h + 6), f"{v:.2f}", fill="#cbd3df", font=font)
     color_for_mask = {0: (61, 116, 158), 1: (238, 191, 83), 2: (239, 112, 77),
                       4: (190, 123, 234), 8: (76, 193, 148)}
     visible_luma = [math.log1p(row["integrated_luminance"]) for row in rows if row["visible"]]
