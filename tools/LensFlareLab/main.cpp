@@ -40,6 +40,8 @@ struct DetectedLight {
     float v = 0.5f;
     float energy = 0.0f;
     Pixel color{};
+    int centerX = 0;
+    int centerY = 0;
     std::array<SourceSample, 9> samples{};
 };
 
@@ -62,6 +64,7 @@ struct Settings {
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
     bool antiReflectCoating = true;
+    bool ghostsEnabled = true;
     bool diffractionEnabled = true;
     bool reportGhostPaths = false;
     bool reportJacobianCap = false;
@@ -242,16 +245,19 @@ DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm
                                         const LensPrescription& lens, float apertureRadius,
                                         int imageWidth) {
     DiffractionKernel kernel;
-    kernel.size = size;
     const float diameter = apertureRadius * 2.0f;
     kernel.pixelScale = wavelengthNm * 1e-6f * lens.effectiveFocalLength * imageWidth /
                        (diameter * lens.sensorWidth);
-    std::vector<std::complex<float>> field(static_cast<std::size_t>(size) * size);
+    const int fftSize = size;
+    const int supportRadius = static_cast<int>(std::ceil(fftSize * 0.5f * kernel.pixelScale)) + 1;
+    kernel.size = supportRadius * 2 + 1;
+    std::vector<float> sampledIntensity(static_cast<std::size_t>(fftSize) * fftSize);
+    std::vector<std::complex<float>> field(static_cast<std::size_t>(fftSize) * fftSize);
     const float sector = 2.0f * 3.14159265358979323846f / blades;
     std::size_t openSamples = 0;
-    for (int y = 0; y < size; ++y) for (int x = 0; x < size; ++x) {
-        const float px = ((x + 0.5f) / size * 2.0f - 1.0f) * apertureRadius;
-        const float py = ((y + 0.5f) / size * 2.0f - 1.0f) * apertureRadius;
+    for (int y = 0; y < fftSize; ++y) for (int x = 0; x < fftSize; ++x) {
+        const float px = ((x + 0.5f) / fftSize * 2.0f - 1.0f) * apertureRadius;
+        const float py = ((y + 0.5f) / fftSize * 2.0f - 1.0f) * apertureRadius;
         const float angle = std::atan2(py, px);
         const float polygonRadius = apertureRadius * std::cos(0.5f * sector) /
                                     std::cos(std::remainder(angle, sector));
@@ -261,29 +267,50 @@ DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm
         }
     }
     if (openSamples == 0) return kernel;
-    std::vector<std::complex<float>> line(static_cast<std::size_t>(size));
-    for (int y = 0; y < size; ++y) {
-        const std::size_t offset = static_cast<std::size_t>(y) * size;
-        std::copy_n(field.begin() + static_cast<std::ptrdiff_t>(offset), size, line.begin());
+    std::vector<std::complex<float>> line(static_cast<std::size_t>(fftSize));
+    for (int y = 0; y < fftSize; ++y) {
+        const std::size_t offset = static_cast<std::size_t>(y) * fftSize;
+        std::copy_n(field.begin() + static_cast<std::ptrdiff_t>(offset), fftSize, line.begin());
         fft1D(line);
         std::copy(line.begin(), line.end(), field.begin() + static_cast<std::ptrdiff_t>(offset));
     }
-    for (int x = 0; x < size; ++x) {
-        for (int y = 0; y < size; ++y) line[static_cast<std::size_t>(y)] = field[static_cast<std::size_t>(y) * size + x];
+    for (int x = 0; x < fftSize; ++x) {
+        for (int y = 0; y < fftSize; ++y) line[static_cast<std::size_t>(y)] = field[static_cast<std::size_t>(y) * fftSize + x];
         fft1D(line);
-        for (int y = 0; y < size; ++y) field[static_cast<std::size_t>(y) * size + x] = line[static_cast<std::size_t>(y)];
+        for (int y = 0; y < fftSize; ++y) field[static_cast<std::size_t>(y) * fftSize + x] = line[static_cast<std::size_t>(y)];
     }
-    kernel.intensity.resize(field.size());
+    kernel.intensity.assign(static_cast<std::size_t>(kernel.size) * kernel.size, 0.0f);
     const float normalization = 1.0f / static_cast<float>(openSamples * openSamples);
-    float energySum = 0.0f;
-    for (int y = 0; y < size; ++y) for (int x = 0; x < size; ++x) {
-        const int shiftedX = (x + size / 2) % size;
-        const int shiftedY = (y + size / 2) % size;
-        const float intensity = std::norm(field[static_cast<std::size_t>(y) * size + x]) * normalization;
-        kernel.intensity[static_cast<std::size_t>(shiftedY) * size + shiftedX] = intensity;
-        energySum += intensity;
+    float sampledEnergySum = 0.0f;
+    for (int y = 0; y < fftSize; ++y) for (int x = 0; x < fftSize; ++x) {
+        const int shiftedX = (x + fftSize / 2) % fftSize;
+        const int shiftedY = (y + fftSize / 2) % fftSize;
+        const float intensity = std::norm(field[static_cast<std::size_t>(y) * fftSize + x]) * normalization;
+        sampledIntensity[static_cast<std::size_t>(shiftedY) * fftSize + shiftedX] = intensity;
+        sampledEnergySum += intensity;
     }
-    if (energySum > 1e-12f) for (float& value : kernel.intensity) value /= energySum;
+    if (sampledEnergySum <= 1e-12f) return kernel;
+    const int kernelCenter = kernel.size / 2;
+    for (int y = 0; y < fftSize; ++y) for (int x = 0; x < fftSize; ++x) {
+        const float fx = (x - fftSize / 2) * kernel.pixelScale + kernelCenter;
+        const float fy = (y - fftSize / 2) * kernel.pixelScale + kernelCenter;
+        const int x0 = static_cast<int>(std::floor(fx));
+        const int y0 = static_cast<int>(std::floor(fy));
+        const float tx = fx - x0;
+        const float ty = fy - y0;
+        const float intensity = sampledIntensity[static_cast<std::size_t>(y) * fftSize + x] /
+                                sampledEnergySum;
+        for (int oy = 0; oy <= 1; ++oy) for (int ox = 0; ox <= 1; ++ox) {
+            const int px = x0 + ox;
+            const int py = y0 + oy;
+            if (px < 0 || py < 0 || px >= kernel.size || py >= kernel.size) continue;
+            const float weight = (ox ? tx : 1.0f - tx) * (oy ? ty : 1.0f - ty);
+            kernel.intensity[static_cast<std::size_t>(py) * kernel.size + px] += intensity * weight;
+        }
+    }
+    float pixelEnergySum = 0.0f;
+    for (float value : kernel.intensity) pixelEnergySum += value;
+    if (pixelEnergySum > 1e-12f) for (float& value : kernel.intensity) value /= pixelEnergySum;
     return kernel;
 }
 
@@ -664,6 +691,64 @@ DetectedLight estimateLight(const Image& image, int centerX, int centerY, float 
     return light;
 }
 
+void removeDetectedSourceExcess(Image& image, const Image& source, int centerX, int centerY,
+                                float threshold, std::vector<Pixel>& removedSource,
+                                std::vector<unsigned char>& processedPixels, float gain) {
+    for (int y = std::max(0, centerY - 24); y <= std::min(source.height - 1, centerY + 24); ++y) {
+        for (int x = std::max(0, centerX - 24); x <= std::min(source.width - 1, centerX + 24); ++x) {
+            const float dx = static_cast<float>(x - centerX);
+            const float dy = static_cast<float>(y - centerY);
+            if (dx * dx + dy * dy > 24.0f * 24.0f) continue;
+            const std::size_t index = static_cast<std::size_t>(y) * source.width + x;
+            if (processedPixels[index]) continue;
+            const Pixel& inputPixel = source.pixels[index];
+            const float luminance = inputPixel.r * 0.2126f + inputPixel.g * 0.7152f +
+                                    inputPixel.b * 0.0722f;
+            const float excess = std::max(0.0f, luminance - threshold);
+            if (excess <= 0.0f || luminance <= 1e-8f) continue;
+            processedPixels[index] = 1;
+            const float sourceFraction = excess / luminance;
+            const Pixel removed{inputPixel.r * sourceFraction, inputPixel.g * sourceFraction,
+                                inputPixel.b * sourceFraction};
+            removedSource[index] = removed;
+            Pixel& outputPixel = image.pixels[index];
+            const float replacementFraction = std::min(gain, 1.0f);
+            outputPixel.r -= removed.r * replacementFraction;
+            outputPixel.g -= removed.g * replacementFraction;
+            outputPixel.b -= removed.b * replacementFraction;
+        }
+    }
+}
+
+void convolveSourceWithDiffraction(Image& image, const std::vector<Pixel>& sourceEnergy,
+                                   const std::array<DiffractionKernel, 3>& kernels,
+                                   float gain) {
+    const int width = image.width;
+    const int height = image.height;
+    for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
+        const Pixel& sourcePixel = sourceEnergy[static_cast<std::size_t>(y) * width + x];
+        const std::array<float, 3> channels{sourcePixel.r, sourcePixel.g, sourcePixel.b};
+        if (channels[0] <= 0.0f && channels[1] <= 0.0f && channels[2] <= 0.0f) continue;
+        for (std::size_t band = 0; band < kernels.size(); ++band) {
+            const DiffractionKernel& kernel = kernels[band];
+            const float channel = channels[band];
+            if (channel <= 0.0f || kernel.intensity.empty()) continue;
+            const int half = kernel.size / 2;
+            for (int ky = 0; ky < kernel.size; ++ky) for (int kx = 0; kx < kernel.size; ++kx) {
+                const int px = x + kx - half;
+                const int py = y + ky - half;
+                if (px < 0 || py < 0 || px >= width || py >= height) continue;
+                Pixel& destination = image.pixels[static_cast<std::size_t>(py) * width + px];
+                const float addition = channel * kernel.intensity[
+                    static_cast<std::size_t>(ky) * kernel.size + kx] * gain;
+                if (band == 0) destination.r += addition;
+                else if (band == 1) destination.g += addition;
+                else destination.b += addition;
+            }
+        }
+    }
+}
+
 Image render(const Image& source, const Settings& settings) {
     Image output = source;
     const int width = source.width;
@@ -711,6 +796,8 @@ Image render(const Image& source, const Settings& settings) {
             DetectedLight light = estimateLight(source, centerX, centerY, settings.threshold);
             light.u = static_cast<float>(centerX) / std::max(1, width - 1);
             light.v = static_cast<float>(centerY) / std::max(1, height - 1);
+            light.centerX = centerX;
+            light.centerY = centerY;
             if (light.energy > 0.0f) lights.lights[lights.count++] = light;
         }
     } else {
@@ -729,6 +816,8 @@ Image render(const Image& source, const Settings& settings) {
         }
         light.u = settings.positionX;
         light.v = settings.positionY;
+        light.centerX = sx;
+        light.centerY = sy;
         if (light.energy > 0.0f) lights.lights[lights.count++] = light;
     }
     if (settings.reportSourceSamples) {
@@ -746,7 +835,6 @@ Image render(const Image& source, const Settings& settings) {
         }
     }
     if (lights.count == 0) return output;
-
     const int grid = std::clamp(settings.rayGrid, 8, 192);
     const int rayCount = grid * grid;
     const float sensorHeight = lens.sensorWidth * static_cast<float>(height) / width;
@@ -756,9 +844,19 @@ Image render(const Image& source, const Settings& settings) {
     std::array<DiffractionKernel, 3> diffraction;
     if (settings.diffractionEnabled) {
         for (std::size_t band = 0; band < diffraction.size(); ++band) {
-            diffraction[band] = makeDiffractionKernel(256, settings.apertureBlades,
+            diffraction[band] = makeDiffractionKernel(512, settings.apertureBlades,
                 wavelengths[band], lens, lens.irisRadius, width);
         }
+        // Separate source removal from convolution so overlapping highlights
+        // cannot remove PSF energy deposited by an earlier highlight.
+        std::vector<unsigned char> processedSourcePixels(source.pixels.size(), 0);
+        std::vector<Pixel> removedSourceEnergy(source.pixels.size());
+        for (std::size_t i = 0; i < lights.count; ++i) {
+            const DetectedLight& light = lights.lights[i];
+            removeDetectedSourceExcess(output, source, light.centerX, light.centerY,
+                settings.threshold, removedSourceEnergy, processedSourcePixels, settings.gain);
+        }
+        convolveSourceWithDiffraction(output, removedSourceEnergy, diffraction, settings.gain);
     }
     for (std::size_t lightIndex = 0; lightIndex < lights.count; ++lightIndex) {
         const DetectedLight& light = lights.lights[lightIndex];
@@ -800,6 +898,7 @@ Image render(const Image& source, const Settings& settings) {
             const float rayGain = settings.gain * sourceEnergy / rayCount;
             const std::array<float, 3> sourceBands{sourceColor.r, sourceColor.g, sourceColor.b};
 
+            if (settings.ghostsEnabled)
             for (int firstReflection = 1; firstReflection < static_cast<int>(lens.surfaces.size()); ++firstReflection) {
                 for (int secondReflection = 0; secondReflection < firstReflection; ++secondReflection) {
                     // A pair straddling the stop sends the ray through the iris on
@@ -920,38 +1019,6 @@ Image render(const Image& source, const Settings& settings) {
                 }
             }
 
-            const float centerX = sourceU * (width - 1);
-            const float centerY = sourceV * (height - 1);
-            for (std::size_t band = 0; band < diffraction.size(); ++band) {
-                const float sourceBand = sourceBands[band];
-                const DiffractionKernel& kernel = diffraction[band];
-                if (sourceBand <= 1e-6f || kernel.intensity.empty()) continue;
-                const int half = kernel.size / 2;
-                for (int ky = 0; ky < kernel.size; ++ky) for (int kx = 0; kx < kernel.size; ++kx) {
-                    const int fx = kx - half;
-                    const int fy = ky - half;
-                    const float offsetX = fx * kernel.pixelScale;
-                    const float offsetY = fy * kernel.pixelScale;
-                    if (offsetX * offsetX + offsetY * offsetY < 0.25f) continue;
-                    const float x = centerX + offsetX;
-                    const float y = centerY - offsetY;
-                    const int x0 = static_cast<int>(std::floor(x));
-                    const int y0 = static_cast<int>(std::floor(y));
-                    const float tx = x - x0, ty = y - y0;
-                    const float value = kernel.intensity[static_cast<std::size_t>(ky) * kernel.size + kx] *
-                                        sourceBand * sourceEnergy * settings.gain;
-                    for (int oy = 0; oy <= 1; ++oy) for (int ox = 0; ox <= 1; ++ox) {
-                        const int px = x0 + ox, py = y0 + oy;
-                        if (px < 0 || py < 0 || px >= width || py >= height) continue;
-                        const float weight = (ox ? tx : 1.0f - tx) * (oy ? ty : 1.0f - ty);
-                        Pixel& dst = output.pixels[static_cast<std::size_t>(py) * width + px];
-                        const float addition = value * weight;
-                        if (band == 0) dst.r += addition;
-                        else if (band == 1) dst.g += addition;
-                        else dst.b += addition;
-                    }
-                }
-            }
         }
         if (settings.reportGhostPaths) {
             std::array<std::size_t, kGhostPathCount> order{};
@@ -1033,6 +1100,7 @@ void printSettings(const Settings& s) {
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
               << " antiReflectCoating=" << s.antiReflectCoating
+              << " ghosts=" << s.ghostsEnabled
               << " diffraction=" << s.diffractionEnabled
               << " ghostPair=" << s.selectedFirstReflection << ',' << s.selectedSecondReflection
               << " lens=Angenieux-Double-Gauss-100mm\n";
@@ -1040,8 +1108,9 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel rasterizerModel apertureRadius apertureBlades antiReflectCoating diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel rasterizerModel apertureRadius apertureBlades antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
+              << "CLI effect toggles: --ghosts on|off | --diffraction on|off\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report\n";
 }
 
@@ -1060,6 +1129,7 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
     else if (name == "antiReflectCoating") s.antiReflectCoating = value >= 0.5f;
+    else if (name == "ghostsEnabled") s.ghostsEnabled = value >= 0.5f;
     else if (name == "diffractionEnabled") s.diffractionEnabled = value >= 0.5f;
     else throw std::runtime_error("unknown parameter: " + name);
 }
@@ -1103,6 +1173,13 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
         else if (enabled == "off") settings.antiReflectCoating = false;
         else throw std::runtime_error("--coating expects on or off");
     }
+    else if (option == "--ghosts") {
+        if (++i >= argc) throw std::runtime_error("missing value for --ghosts");
+        const std::string enabled = argv[i];
+        if (enabled == "on") settings.ghostsEnabled = true;
+        else if (enabled == "off") settings.ghostsEnabled = false;
+        else throw std::runtime_error("--ghosts expects on or off");
+    }
     else if (option == "--diffraction") {
         if (++i >= argc) throw std::runtime_error("missing value for --diffraction");
         const std::string enabled = argv[i];
@@ -1130,7 +1207,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample] [options]\n";
+        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample] [--ghosts on|off] [--diffraction on|off] [options]\n";
         return 2;
     }
     try {

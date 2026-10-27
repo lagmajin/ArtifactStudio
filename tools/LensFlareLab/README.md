@@ -8,22 +8,23 @@ ArtifactCore runtime dependency. It traces two-reflection ghost paths through
 the paper's Angenieux double-Gauss prescription, evaluates Fresnel reflection
 and refraction, clips the aperture and lens housing, approximates RGB glass
 dispersion from Abbe numbers, integrates mapped ray triangles over sensor-pixel
-areas, and adds a
-Fraunhofer-diffraction kernel for the aperture.
+areas, and convolves detected highlights with a Fraunhofer-diffraction PSF for
+the aperture.
 
 The detector integrates positive luminance above the threshold over each
 highlight and keeps its RGB chromaticity separate from that flux. By default,
 that footprint is divided into 3x3 radiance bins; each occupied bin contributes
-its own source direction to the ghost and diffraction calculations. This gives
-an image-space finite-source approximation while preserving integrated source
-flux. `--source-samples 1` selects the point-source baseline and
-`--source-samples 9` selects the default finite-source mode. Rays are
-sampled over the physical stop and traced backwards through the front group to
-the entrance pupil, which gives coarse grids useful coverage at the stated
-f-number. Reflected ghost paths and diffraction can be rendered independently
-for evaluation. Paths that cross the aperture stop three times are omitted;
-the Angenieux prescription then has 42 remaining surface pairs, matching the
-paper's single-stop-crossing model.
+its own source direction to the reflected-ghost calculation. Diffraction instead
+convolves the original threshold-excess radiance footprint with the aperture
+PSF, replacing that source energy rather than adding a second copy. This keeps
+the finite source's shape in the diffraction result. `--source-samples 1`
+selects the point-source baseline and `--source-samples 9` selects the default
+finite-source ghost mode. Rays are sampled over the physical stop and traced
+backwards through the front group to the entrance pupil, which gives coarse
+grids useful coverage at the stated f-number. Reflected ghost paths and
+diffraction can be rendered independently for evaluation. Paths that cross the
+aperture stop three times are omitted; the Angenieux prescription then has 42
+remaining surface pairs, matching the paper's single-stop-crossing model.
 
 ## Build
 
@@ -50,7 +51,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
-               [--diffraction on|off] [--ghost-report]
+               [--ghosts on|off] [--diffraction on|off] [--ghost-report]
                [--ghost-pair FIRST SECOND] [--jacobian-report] [--source-report]
 ```
 
@@ -75,6 +76,8 @@ explicit model assumptions, not a claim that the original lens had that exact
 coating stack. Gain is an exposure/look-development control and is not a
 calibrated camera response. `--diffraction off` isolates reflected ghost paths
 for image evaluation; `--coating off` provides an uncoated comparison.
+`--ghosts off` isolates diffraction, and `--diffraction off` isolates reflected
+ghosts.
 `--rasterizer pixel-area` is the default. It clips each mapped ray triangle to
 unit-area sensor pixels and integrates the linearly interpolated ray energy
 inside each overlap. This conserves sampled ray flux when a triangle is smaller

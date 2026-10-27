@@ -19,6 +19,7 @@ surfaces 6 and 7.
 
 References: [Hullin et al., Physically-Based Real-Time Lens Flare Rendering
 (2011)](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf);
+[TUDelft Advanced Optical Imaging, Fourier analysis](https://qiweb.tudelft.nl/aoi/fourieranalysis/fourieranalysis/);
 [Takaki, implementation notes and CPU prototype](https://qiita.com/AngularSpectrumMTD/items/aeea1046c0ec5d4dd1d5);
 [Bodonyi et al., 2024 real-time lens flare rendering paper](https://link.springer.com/article/10.1007/s00371-024-03625-7);
 [reference implementation dispersion model](https://github.com/bodonyiandi94/LensFlareFramework/blob/4136459dffa1ed582f199a9a43950730b4ddcd66/Source/Scene/Components/LensFlare/PhysicalCamera.cpp).
@@ -181,19 +182,66 @@ of the nine bins.
 
 ![Finite-source comparison: one direction per highlight on the left, nine radiance bins on the right](examples/finite-source-comparison-x256.png)
 
-For the high-radiance chart at ray-grid 64, the 9-bin full flare changed the
-summed added luminance from 74,164.02 to 74,158.06 (-0.008%) and reduced its
-maximum pixel from 4,983.38 to 4,759.99 (-4.48%). With diffraction disabled,
-reflected-ghost luminance changed from 1,066.54 to 1,067.74 (+0.11%) and its
-peak from 3.203 to 3.076 (-3.98%). One measured pass took 4.44 s for the point-source render and 18.25 s for the
-finite-source render on the evaluation machine. CPU load and timing noise affect
-these standalone measurements. Only 3-9 bins per
-source were occupied, so cost scales with the active bins rather than always
-multiplying by nine. These measurements show a modest spread and peak reduction
-at a notable CPU look-development cost; they do not demonstrate physical
-validation against an emitter with known angular size.
+`--source-samples` controls the directions traced for reflected ghosts. The
+diffraction calculation uses the original spatial highlight radiance directly,
+so changing the ghost sampling count does not collapse the source footprint to
+one or nine diffraction points.
 
 ![Reflected ghosts only, point-source baseline on the left and finite-source sampling on the right](examples/finite-source-ghost-comparison-x256.png)
+
+## Diffraction PSF and source-energy conservation
+
+The aperture transmission mask is Fourier transformed and its squared
+magnitude forms a Fraunhofer point-spread function. The sampled PSF is
+integrated onto sensor-pixel offsets, normalized to unit energy, then
+convolved with the detected source footprint. A 512x512 pupil FFT is resampled
+to the pixel grid before convolution. The threshold-excess source radiance is
+replaced by its PSF-blurred version, avoiding the previous double addition of
+an unchanged source core and a second diffraction copy. At gain 0 the source
+is unchanged; gain 1 performs the full replacement, and higher values amplify
+the PSF after removing the core once. RGB channels use wavelength-specific
+PSFs. Finite-source bins remain in use for ghost ray tracing; diffraction
+preserves the input source's full pixel-space shape. The source detector still
+treats threshold excess as emitter radiance, so existing bloom or camera blur
+can be interpreted as emitter extent.
+
+For the standard chart's warm source at `(0.3834, 0.3844)`, ray-grid 64 and one
+ghost source sample, the input integrated luminance is 3712.266. With
+diffraction enabled it is 3712.366; with diffraction disabled it is 3712.366.
+The reflected ghosts contribute about 0.0999 luminance, while the net
+diffraction replacement changes the full-frame sum by only 0.00011. On the
+high-radiance four-source chart at grid 64 and nine ghost bins, diffraction-on
+versus diffraction-off changes the frame sum by +1.054 luminance (0.000048% of
+the 2.21-million input luminance; 0.099% of the 1,060.56 ghost contribution).
+Source peak luminance falls from 15,632.08 to 15,504.77. The small frame-sum
+residual is from float accumulation against the bright HDR source. These checks
+support energy-preserving convolution of the assumed source radiance, not
+validation against a measured camera PSF.
+
+One high-radiance chart render took 2.25 s with one ghost direction and about
+14.0 s with nine directions at ray-grid 64 on the evaluation machine. Both
+include the diffraction FFT and source convolution; timing varies with system
+load.
+
+![Diffraction PSF source replacement and on/off difference on a four-light HDR chart](examples/diffraction-energy-conservation-x32.png)
+
+An aperture-blade sweep isolates diffraction with a single centered source.
+Five, six, eight, and twelve blades produce visibly different PSF footprints;
+the six-blade result retains the corresponding sixfold structure. Across the
+sweep, positive and negative luminance changes nearly cancel (net frame change
+is below 0.05% of the absolute redistributed luminance), and their centroids
+remain within 0.02 pixels of the source center. This checks aperture-dependent
+shape and energy accounting in the sampled model; it is not a camera capture
+comparison.
+
+![Diffraction-only aperture sweep for 5, 6, 8, and 12 blades; warm is positive and blue is negative](examples/diffraction-aperture-blade-sweep.png)
+
+Reproduce the blade sweep with:
+
+```powershell
+python tools/LensFlareLab/make_evaluation_chart.py --output build/diffraction-single-source.pfm --light-scale 4096 --single-light-position 0.5 0.5
+LensFlareLab.exe build/diffraction-single-source.pfm diffraction-6-blades.pfm --position 0.5 0.5 --source-samples 1 --ray-grid 16 --gain 1 --diffraction on --ghosts off --aperture-blades 6
+```
 
 The 2024 reference implementation derives a Cauchy dispersion curve from the
 prescription d-line index and Abbe number. LensFlareLab now uses that
@@ -220,14 +268,14 @@ so the surrounding ghost field is easier to compare.
 
 ![Legacy point-sample Jacobian cap comparison at ray-grid 192](examples/jacobian-cap-comparison.png)
 
-At gain 1, the standard chart with 1 source sample has `192.52` integrated luminance above the
-source threshold. Total added luminance is `6.49057` at ray-grid 64 and
-`6.49163` at 128, a `0.0163%` change. At ray-grid 128, the flare adds `6.492` luminance:
-`6.3795` from diffraction and `0.1121` from reflected ghosts. The ghost transfer
-is about `0.058%` of the chart's above-threshold source flux for the assumed
-single-layer coating. Turning that coating off at ray-grid 64 raises ghost
-energy from about `0.1121` to `2.779`, around 24.8 times. These are synthetic
-measurements, not a match validated against a captured lens.
+At gain 1, the standard chart with one source sample has `192.52` integrated
+luminance above the source threshold. With the updated pixel-area rasterizer,
+ray-grid 64, and diffraction on, total added luminance is `0.09998`, almost
+all of it the `0.09987` reflected-ghost contribution. The earlier additive
+diffraction overlay reported `6.38` luminance here; that was a second copy of
+the source radiance and has been removed. Turning the coating off at ray-grid
+64 raises ghost energy from about `0.0999` to `2.78`, around 27.8 times. These
+are synthetic measurements, not a match validated against a captured lens.
 
 For the harder on-axis single-light case with diffraction disabled in legacy
 point-sample mode, ghost-only energy at cap 512 was `1312.15`, `1316.72`, and
@@ -247,6 +295,8 @@ LensFlareLab.exe tools/LensFlareLab/evaluation-chart.pfm output.pfm --auto --ray
 LensFlareLab.exe tools/LensFlareLab/evaluation-chart.pfm ghosts.pfm --auto --ray-grid 128 --gain 1 --diffraction off --ghost-report
 python tools/LensFlareLab/make_evaluation_chart.py --output build/high-exposure.pfm --light-scale 4096
 LensFlareLab.exe build/high-exposure.pfm high-exposure-output.pfm --auto --ray-grid 128 --gain 1
+LensFlareLab.exe build/high-exposure.pfm diffraction-only.pfm --auto --ray-grid 64 --gain 1 --ghosts off --diffraction on
+LensFlareLab.exe build/high-exposure.pfm diffraction-off.pfm --auto --ray-grid 64 --gain 1 --ghosts off --diffraction off
 LensFlareLab.exe build/high-exposure.pfm one-ghost.pfm --position 0.3834 0.3844 --ray-grid 128 --gain 1 --diffraction off --ghost-pair 9 8 --ghost-report
 python tools/LensFlareLab/make_evaluation_chart.py --output build/off-axis.pfm --light-scale 4096 --single-light-position 0.1 0.1
 LensFlareLab.exe build/off-axis.pfm off-axis-flare.pfm --auto --ray-grid 64 --gain 1 --diffraction off --ghost-report
