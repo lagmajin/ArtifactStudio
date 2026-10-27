@@ -1112,7 +1112,7 @@ Image render(const Image& source, const Settings& settings) {
         }
     }
     if (lights.count == 0) return output;
-    const int grid = std::clamp(settings.rayGrid, 8, 192);
+    const int grid = std::clamp(settings.rayGrid, 8, 512);
     const int rayCount = grid * grid;
     const float sensorHeight = lens.sensorWidth * static_cast<float>(height) / width;
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
@@ -1535,7 +1535,7 @@ void setValue(Settings& s, const std::string& name, float value) {
     if (name == "threshold") s.threshold = finiteClamp(value, 0.0f, 4.0f);
     else if (name == "gain") s.gain = finiteClamp(value, 0.0f, 10000.0f);
     else if (name == "jacobianCap") s.jacobianCap = finiteClamp(value, 0.01f, 4096.0f);
-    else if (name == "rayGrid") s.rayGrid = static_cast<int>(std::lround(finiteClamp(value, 8.0f, 192.0f)));
+    else if (name == "rayGrid") s.rayGrid = static_cast<int>(std::lround(finiteClamp(value, 8.0f, 512.0f)));
     else if (name == "sourceSamples") {
         if (value != 1.0f && value != 9.0f && value != 25.0f)
             throw std::runtime_error("sourceSamples must be 1, 9, or 25");

@@ -589,15 +589,26 @@ this technique is used as a calibrated model.
 
 ![All-path field comparison at upper-left, center, and lower-right source positions](examples/ghost-aperture-field-sweep.png)
 
-The upper-left all-path image was also rendered at ray grids 64/96/128/192.
-Relative to grid 192, geometric Y flux differs by 7.08%/3.71%/1.76%, and
-image L1 by 7.09%/4.22%/2.50%. With FrFT, Y flux differs by
-2.65%/1.41%/0.60%, and image L1 by 4.50%/2.39%/1.31%. Grid 192 is only the
-highest available reference, not a converged ground truth. This field case
-needs denser rays than the centered example; a fixed grid-96 setting should
-not be treated as a general quality guarantee.
+The initial upper-left all-path sweep at ray grids 64/96/128/192 showed
+geometric Y-flux differences of 7.08%/3.71%/1.76% against grid 192 and FrFT
+differences of 2.65%/1.41%/0.60%. The ray-grid ceiling was then raised to 512
+to continue the convergence check; the first image plate below records that
+initial sweep. This field case needs denser rays than the centered example, so
+a fixed grid-96 setting is not a general quality guarantee.
 
-![Off-axis geometric and FrFT field outputs at ray grids 64, 96, 128, and 192](examples/ghost-aperture-offaxis-ray-grid-convergence.png)
+![Initial off-axis geometric and FrFT outputs at ray grids 64, 96, 128, and 192](examples/ghost-aperture-offaxis-ray-grid-convergence.png)
+
+The same field was rerendered through the new 512 ceiling. Relative to grid
+512, geometric image L1 is 2.31%/1.49%/0.73% at grids 192/256/384; with
+FrFT it is 1.03%/0.59%/0.28%. From grid 384 to 512, in-frame Y flux changes
+by 0.52% geometrically and 0.20% with FrFT. Grid 512 raises the measured Y
+flux from `32.995` to `33.741` (geometric) and `33.848` to `34.079` (FrFT)
+relative to grid 192. The centroid changes only about 0.1 px, but peak values
+continue to rise as caustics become better sampled. Thus the lower-resolution
+images are visually similar in placement while still underestimating flux and
+peak brightness. Grid 512 is a stronger reference, not proven convergence.
+
+![Higher-density off-axis geometric and FrFT outputs at ray grids 192, 256, 384, and 512](examples/ghost-aperture-offaxis-ray-grid-convergence-high.png)
 
 ### Finite-source averaging
 

@@ -138,6 +138,8 @@ precompute time. `--ghost-frft-resolution` sets the square texture resolution
 0.01 also use that bypass because the 256² texture cannot resolve their narrow
 kernel without aliasing. This is a CPU reference implementation for the
 standalone lab, not an editor frame path or a measured-camera match.
+`--ray-grid` accepts values from 8 to 512; the upper range is intended for
+offline convergence checks and can be substantially slower than the default.
 
 ## Core/app integration path
 
