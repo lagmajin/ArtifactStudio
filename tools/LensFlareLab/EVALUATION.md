@@ -79,6 +79,20 @@ capture is available. It stays opt-in and off by default.
 
 ![Adaptive off-axis geometric and FrFT comparison against uniform ray grids](examples/ghost-aperture-adaptive-refinement-offaxis.png)
 
+![Adaptive triangle-normalized FrFT at an off-axis field compared with the uniform-192 reference](examples/adaptive-field-upper-left.png)
+
+A second field sweep used neutral point sources at `(0.1,0.1)` and `(0.5,0.5)`,
+base grid 64 with adaptive triangle normalization, and uniform triangle-normalized
+grid 192 as the dense reference. Adaptive FrFT relative image L1 is 3.06% in the
+corner field and 1.67% at center; its isolated output centroid shifts 0.020 px
+and 0.005 px respectively. At the corner, adaptive frame Y is `9.67245` versus
+`9.81544` for uniform 192 (-1.46%); at center it is `396.83087` versus
+`394.30885` (+0.64%). Uniform 96 is closer in corner FrFT L1 (3.06% vs 3.45%
+for adaptive 64 in the existing sweep), while adaptive beats uniform 64. In the
+center case adaptive traces 10,292 refined cells (2.06%), compared with 891
+(0.18%) at the corner. This confirms field-dependent work and residual shape
+error; grid 192 is a dense reference, not ground truth.
+
 ![Adaptive FrFT vertex versus triangle-quadrature normalization](examples/adaptive-frft-normalization-triangle.png)
 
 For a separate isolated neutral source at `(0.1,0.1)`, base grid 64, adaptive

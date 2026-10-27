@@ -196,8 +196,13 @@ offline convergence checks and can be substantially slower than the default.
 The opt-in adaptive refinement probes cell centers and refines cells whose
 mapped center deviates from interpolation, whose ray energy changes sharply,
 or whose mapping folds. It reports probe/refinement counts and preserves the
-parent pupil-cell ray weight across child triangles. This standalone quality
-experiment costs extra ray traces and remains off by default.
+parent pupil-cell ray weight across child triangles. For FrFT, triangle
+normalization follows this selected mesh, including each refined cell’s
+edge-midpoint rays and center fan. Refinement decisions still use preliminary
+vertex-normalized probe energies. Field evaluation found 3.06%/1.67% FrFT image
+L1 versus uniform grid 192 at corner/center sources; these are tested cases,
+not a general quality guarantee. This standalone quality experiment costs
+extra ray traces and remains off by default.
 Use `--adaptive-ray-refinement-threshold PX` to tune the screen-space center
 deviation trigger (default 0.75 px); the relative energy trigger is fixed at
 25%. See [EVALUATION.md](EVALUATION.md) for an off-axis comparison against
