@@ -146,6 +146,54 @@ and with `--ray-grid 64|96`. Use
 `make_adaptive_refinement_comparison.py` to create the shared-exposure plates
 and report frame Y, image L1, peak, and centroid.
 
+### Source-bin convergence on the automatic multi-light chart
+
+To separate source-angle sampling from pupil-ray sampling, the four-light HDR
+chart at scale 1024 was rendered with only path `10→8`, fixed `--position`,
+triangle FrFT normalization, and pupil ray grid 96. The detected emitter near
+`(0.383,0.384)` has integrated flux `288180.09`; across requested source grids
+1, 9, 25, 49, 81, 121, 169, and 225, the report activates 1, 9, 9, 21, 29,
+45, 57, and 69 bins. The sum of input energy stays within about 0.0001% of the
+same total, while the sampled angular distribution changes.
+
+| Requested bins | Active bins | FrFT crop Y | Relative L1 vs 225 | One-shot time |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 1 | 19.4685 | 7.46% | 0.150 s |
+| 9 | 9 | 19.4702 | 6.74% | 0.447 s |
+| 25 | 9 | 19.4520 | 3.30% | 0.447 s |
+| 49 | 21 | 19.4442 | 2.12% | 0.938 s |
+| 81 | 29 | 19.4677 | 1.31% | 1.204 s |
+| 121 | 45 | 19.4600 | 1.20% | 1.809 s |
+| 169 | 57 | 19.4110 | 0.45% | 2.261 s |
+| 225 | 69 | 19.4127 | reference | 2.718 s |
+
+The point source and 3×3 render are nearly identical because thresholding leaves
+only one active spatial bin at this emitter size. By 169 bins the measured
+image is within 0.45% L1 of 225, but this is not a universal sample-count
+recommendation: peak Y is non-monotonic, and ray-grid 64/96 differ by 2.28%
+L1 at 225 source bins (grid 96/128 differ by 1.41%). Pupil sampling is therefore
+still a larger uncertainty than the 169→225 source-bin residual in this case.
+
+The weaker blue emitter at `(0.657,0.217)` has only 1/9 active bins at requested
+9, but 9/25 and 9/49 at higher counts. Its one- and nine-bin images are
+pixel-identical; 25 vs 49 differs by 0.92% L1 and frame Y changes only 0.004%.
+Adding requested bins helps expose the finite source until the support and
+threshold stop populating new bins; the requested count is not the number of
+actual ray directions.
+
+![Source-bin convergence for the brighter automatic emitter at fixed pupil grid 96](examples/source-bins-full-center.png)
+
+![Source-bin convergence for the sparse blue emitter at fixed pupil grid 96](examples/source-bins-sparse-blue.png)
+
+![Pupil-grid sensitivity with source-bin count fixed at 225](examples/sourcebins-pupil-grid-check.png)
+
+These are single-path synthetic-chart measurements with the fixed 10→8 ghost,
+not a real camera capture. Reproduce by rendering the same four-light PFM at
+`--position 0.383 0.384 --ray-grid 96 --ghost-pair 10 8 --ghost-frft on
+--ghost-frft-normalization triangle --diffraction off` for each source-sample
+count, then use `make_finite_source_convergence_chart.py` with full-frame crop.
+Use `--source-report` to verify active bins and source-flux preservation.
+
 ![Adaptive FrFT vertex versus triangle-quadrature normalization](examples/adaptive-frft-normalization-triangle.png)
 
 For a separate isolated neutral source at `(0.1,0.1)`, base grid 64, adaptive
