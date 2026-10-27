@@ -135,23 +135,74 @@ validate the assumed prescription.
 The CSV records the paraxial pupil plane and magnification, chief-ray pupil
 decenter, image point, reference-sphere radius, OPD RMS, eikonal residual,
 mapped pupil area, local Jacobian percentiles, and a relative geometric
-amplitude proxy. The ray-map Jacobian is now measured, but the derived proxy is
-not used to form a complex pupil. Fresnel amplitude, coating phase,
-polarization, edge diffraction, coherent multi-path effects, and calibrated
-sensor response are still missing from a physical prescription-derived
-coherent PSF. This next step follows the exit-pupil OPD
+amplitude proxy. A separate evaluator now applies that proxy to a scalar
+complex pupil. Fresnel amplitude, coating phase, polarization, edge diffraction,
+coherent multi-path effects, and calibrated sensor response are still missing
+from a physical prescription-derived coherent PSF. This next step follows the exit-pupil OPD
 definition in [OpticStudio's documentation](https://ansyshelp.ansys.com/public/Views/Secured/Zemax/v252/en/OpticStudio_User_Guide/OpticStudio_Help/topics/Exit_Pupil.html)
 and the reference-sphere path-length treatment validated against Zemax by
 [Lin (2024), DOI 10.1364/JOSAA.529814](https://doi.org/10.1364/JOSAA.529814).
-Keep this work in LensFlareLab until pupil coordinates, complex amplitude,
-diffraction, and measured-camera comparisons are validated before any Core/App
-integration.
+Keep this work in LensFlareLab until the pupil map, amplitude normalization,
+full-frame diffraction, and measured-camera comparisons are validated before
+any Core/App integration.
 
 Reproduce the OPD map and CSV with:
 
 ```powershell
 python tools/LensFlareLab/evaluate_prescription_wavefront.py --samples 512
 ```
+
+## Prescription-derived monochromatic coherent PSF prototype
+
+`evaluate_prescription_coherent_psf.py` rasterizes the direct-transmission
+reference-sphere OPD and geometric pupil-amplitude proxy onto a regular exit
+pupil. It interpolates only through Delaunay triangles whose launch-grid
+vertices are local neighbors, avoiding interpolation across disconnected or
+clipped pupil regions. The pupil amplitude uses
+`1/sqrt(J × cos(theta_exit))`, where `J` is the measured exit-pupil/incident
+area Jacobian. A scalar Fraunhofer FFT produces the 550 nm PSF, following the
+aperture-transform formulation in [Hullin et al. (2011)](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf).
+A matched ideal paraxial hex pupil provides a shape baseline. Both are
+integrated over the assumed 84.3 µm sensor pixels, then compared in a shared
+central crop.
+
+At a 512² incident-ray grid and 2048² pupil grid, the ray-mapped pupil retains
+98.5%, 98.2%, 94.8%, and 52.4% of the paraxial on-axis hex area at 0/5/10/12°.
+Within the ±12 px crop, after normalizing each crop to unit energy, the
+pixel-integrated PSF L1 difference from the ideal pupil is 0.31%, 0.30%,
+0.34%, and 184.58%, respectively. The 12° crop retains 98.18% of the sampled
+PSF energy, 1.82% less than the ideal-pupil crop. The edge-field result reflects
+strong off-axis clipping: its pupil area is nearly halved and its encircled radii are
+r50=2.24 px and r90=8.00 px, while the near-axis core remains inside one pixel.
+The central PSF image changes by less than 0.08% normalized L1 from 1024² to
+2048² pupil sampling for 0/5/10° over the common ±6 px region.
+
+The 12° field is not converged yet. On that same common crop, normalized image
+L1 changes by 24.47% from 1024² to 2048², 7.17% from 2048² to 4096², and
+4.66% from 4096² to 8192². Do not use that edge-field image to tune production
+rendering. The 2048² final plate has a finite sampled angular support of only
+±13.7 sensor pixels; it shows the central PSF and is not a full-frame flare
+reference. The evaluator remains a monochromatic scalar prototype with the
+assumed prescription, paraxial Fraunhofer propagation, and geometric amplitude
+proxy. Its 550 nm phase does not include the wavelength-dependent pupil and OPD
+needed for RGB PSFs.
+
+![Prescription-derived 550 nm scalar PSFs at four fields compared in a shared crop](examples/prescription-coherent-psf.png)
+
+The field metrics are in
+[`prescription-coherent-psf.csv`](examples/prescription-coherent-psf.csv), and
+the per-pixel values are in
+[`prescription-coherent-psf-pixels.csv`](examples/prescription-coherent-psf-pixels.csv).
+Reproduce the higher quality plate with:
+
+```powershell
+python tools/LensFlareLab/evaluate_prescription_coherent_psf.py --ray-samples 512 --pupil-samples 2048
+```
+
+Use `--field field_12deg --ray-samples 512 --pupil-samples 4096` or `8192`
+for the slower edge-field convergence study. Validate the edge pupil and wavelength-dependent
+wavefront against an optical design package or measured RAW point-source data
+before considering RGB reconstruction or Core/App integration.
 
 ## Controlled wavefront-aberration PSFs
 
