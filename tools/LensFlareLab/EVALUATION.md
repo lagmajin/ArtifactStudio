@@ -1920,3 +1920,48 @@ with `--spectral-samples 3|7|15|31|61` and `--coating off|on`, keeping
 flux; compare each count with 61-band and use `make_dispersion_comparison.py`
 to generate the convergence plate. The RGB-to-spectrum interpolation and its
 limits are described in the spectral ghost section above.
+
+### Spectral error across ghost paths and field positions
+
+The previous result was one path at one field point. To see whether it
+generalizes, the standalone `evaluate_spectral_convergence.py` driver renders
+paths 9→8, 10→9, and 12→11 at fields `(0.5,0.5)`, `(0.4,0.5)`, and `(0.2,0.5)`,
+with coating on and off. It uses a neutral 1 px source, pupil grid 64, and the
+same five integration counts; every render is compared with the matching
+61-band output after subtracting the source image.
+
+| Integration bands | Maximum RGB L1 error, uncoated | Maximum RGB L1 error, coated |
+|---:|---:|---:|
+| 3 | 2.66% | 14.48% |
+| 7 | 0.47% | 8.27% |
+| 15 | 0.06% | 1.13% |
+| 31 | 0.01% | 0.27% |
+
+The maxima cover seven path/field cases with nonzero in-frame ghost flux; six
+off-axis 10→9 and 12→11 cases had no detected in-frame energy and are excluded.
+The large coated errors are not limited to the earlier 9→8 example: at
+midfield, coated 10→9 and 12→11 have 7-band RGB L1 errors of 6.17% and 8.27%,
+falling to 0.78% and 1.10% at 15 bands, and 0.19% and 0.25% at 31 bands. This
+shows why the single-path 7-band result cannot set a global accuracy claim.
+
+For this synthetic thin-film model, 31 bands are needed to keep the worst
+tested coated path below 0.3% against the dense reference; 15 bands are a
+faster intermediate with about 1.1% worst-case error. Keep the 3-band default
+for speed and use 31/61 only for offline color-sensitive look development.
+These thresholds are numerical integration errors within the RGB-basis model;
+they do not validate actual lens coatings, source spectra, or camera color.
+
+![Spectral integration counts across ghost paths and fields with coating off/on](examples/coating-spectrum-field-path-convergence.png)
+
+The matching per-render flux, centroid, and reference-error results are in
+[`coating-spectrum-field-path-convergence.csv`](examples/coating-spectrum-field-path-convergence.csv).
+Reproduce the full sweep with:
+
+```text
+python tools/LensFlareLab/evaluate_spectral_convergence.py build/tools/LensFlareLab/LensFlareLab.exe --output-dir build/spectral-study
+```
+
+The driver creates neutral source fixtures, invokes the standalone executable
+for each path/field/coating/sample combination, and writes the CSV and contact
+sheet. Its 61-band values remain a dense numerical reference, not measured
+spectral truth.
