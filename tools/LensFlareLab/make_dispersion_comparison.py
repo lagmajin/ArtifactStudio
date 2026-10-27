@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw
 from make_ghost_frft_comparison import display_rgb, read_pfm
 
 
-CHANNEL_NAMES = ("R/610nm", "G/550nm", "B/460nm")
+CHANNEL_NAMES = ("R", "G", "B")
 WEIGHTS = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 COMPLEMENTS = ((0.0, 1.0, 1.0), (1.0, 0.0, 1.0), (1.0, 1.0, 0.0))
 
@@ -88,6 +88,9 @@ def main():
                         help="shared Reinhard display gain for ghost radiance")
     parser.add_argument("--difference-gain", type=float, default=12000.0,
                         help="display amplification for signed per-channel differences")
+    parser.add_argument("--model-labels", nargs=2, default=("Cauchy", "Linear Abbe"),
+                        metavar=("FIRST", "SECOND"),
+                        help="labels for the two render inputs")
     args = parser.parse_args()
 
     loaded = []
@@ -109,13 +112,14 @@ def main():
         y = case_index * (height + label_height)
         for column, (panel, title) in enumerate(zip(
                 (cauchy_image, linear_image, difference_image),
-                ("Cauchy", "Linear Abbe", "Cauchy − Linear (signed RGB)"))):
+                (args.model_labels[0], args.model_labels[1],
+                 f"{args.model_labels[0]} − {args.model_labels[1]} (signed RGB)"))):
             x = column * width
             sheet.paste(panel, (x, y + label_height))
             draw.text((x + 6, y + 5), f"{label} | {title}", fill=(225, 230, 238))
 
         model_metrics = []
-        for model_name, pixels in (("Cauchy", cauchy_pixels), ("linear", linear_pixels)):
+        for model_name, pixels in zip(args.model_labels, (cauchy_pixels, linear_pixels)):
             sums, peaks, centroids, separation = channel_metrics(pixels)
             model_metrics.append((model_name, sums, peaks, centroids, separation))
             formatted = " ".join(
@@ -124,7 +128,7 @@ def main():
                 for c in range(3))
             print(f"{label} {model_name}: {formatted}; maxRGBSeparation={separation:.4f}px")
         a, b = model_metrics
-        print(f"{label}: channelFluxChange=" + ", ".join(
+        print(f"{label}: channelFluxChange({args.model_labels[1]}/{args.model_labels[0]}-1)=" + ", ".join(
             f"{CHANNEL_NAMES[c]}={(b[1][c] / max(a[1][c], 1e-30) - 1):+.5%}"
             for c in range(3)))
 

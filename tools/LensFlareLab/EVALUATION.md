@@ -585,9 +585,62 @@ See [Hullin et al. (2011)](https://resources.mpi-inf.mpg.de/lensflareRendering/p
 and [Bodonyi et al. (2025)](https://link.springer.com/article/10.1007/s00371-024-03625-7).
 Hullin et al. report that a few ghosts may need up to 60 wavelength samples for
 smooth brute-force results; their runtime configuration uses three bands for
-standard quality and up to seven with interpolation for high quality. A useful
-next validation is a 7-band render against measured glass or a reference
-optical prescription with known dispersion data.
+standard quality and up to seven with interpolation for high quality. LensFlareLab
+now has an opt-in seven-band reflected-ghost mode. The measurements below test
+the interpolation's sensitivity; they do not establish physical accuracy.
+
+### Optional seven-band reflected ghosts
+
+`--spectral-samples 7` evaluates reflected ghost rays at 430, 460, 490, 520,
+550, 580, and 610 nm, then integrates the results back to RGB. Input RGB is
+expanded into a piecewise-linear set of triangular channel weights between the
+existing blue, green, and red reference wavelengths. The output uses the same
+triangular basis and trapezoidal wavelength weights. This is a bounded RGB
+interpolation experiment, not a CIE standard-observer conversion, a measured
+emitter spectrum, or a full visible-spectrum reconstruction. Glass dispersion
+still comes from the prescription's d-line index and Abbe number. Source
+Fraunhofer diffraction remains on the original three-band path; the option
+changes reflected ghosts only.
+
+The 3-band default was compared byte-for-byte against the preceding build for
+geometric ghost rasterization, aperture-FrFT ghost rendering, and scalar ghost
+Fresnel propagation. All three outputs were identical. The 7-band option is
+therefore opt-in while the RGB-to-spectrum reconstruction and lens data remain
+uncalibrated.
+
+For an isolated, un-clipped 9→8 path at `(0.4,0.5)`, ray-grid 192, neutral RGB
+source, and Cauchy dispersion, the maximum RGB centroid separation changes
+from 2.4827 px at 3 bands to 2.2886 px at 7. Channel flux changes by -4.28%
+red, +5.50% green, and -5.03% blue (7-band relative to 3-band). On the full
+42-path field image at ray-grid 96, the in-frame R/G/B sums change by -11.75%,
++14.65%, and -3.35%; several ghosts touch the sensor boundary, so these are
+cropped frame totals rather than complete path energy. The maximum RGB centroid
+separation for that combined image is 19.78 px at 3 bands and 19.99 px at 7.
+Thus the isolated path spread moves modestly, while the combined field's spread
+does not improve; more bands alone are not evidence of a more realistic flare.
+
+| Case | 3 bands | 7 bands |
+|---|---:|---:|
+| 9→8, off-axis maximum RGB centroid separation | 2.4827 px | 2.2886 px |
+| All 42 paths, off-axis maximum RGB centroid separation | 19.7792 px | 19.9935 px |
+| 9→8 render time, warm mean of 3 runs | 153.71 ms | 332.32 ms |
+
+The timing includes process launch and PFM file I/O and was measured on the
+same machine and settings; it is an indicative standalone CPU comparison, not
+a frame-time benchmark. Seven bands cost about 2.16x for the isolated path.
+Keep the mode as an offline look-development choice until it can be checked
+against measured glass/emitter spectra or a validated spectral reference.
+
+![Off-axis isolated 9-to-8 ghost with the three-band and seven-band modes and signed difference](examples/spectral-3-vs-7-offaxis.png)
+
+![All eligible ghost paths with three-band and seven-band evaluation and signed difference](examples/spectral-all-ghosts-3-vs-7.png)
+
+Reproduce the isolated comparison by rendering the neutral source twice with
+identical settings, changing only `--spectral-samples 3` to `7`, then passing
+both results to `make_dispersion_comparison.py` with
+`--model-labels "3 bands" "7 bands"`. Use the same option with
+`--ghost-frft on` or `--ghost-diffraction on` to exercise the spectral ghost
+layers. The source diffraction result is intentionally unchanged.
 
 Recreate the plate by generating neutral point inputs at both fields, rendering
 each with the same path/settings except `--dispersion`, and passing the two

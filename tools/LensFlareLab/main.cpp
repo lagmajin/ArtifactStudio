@@ -23,6 +23,54 @@ struct Pixel {
     float b = 0.0f;
 };
 
+struct SpectralBand {
+    float wavelengthNm = 0.0f;
+    Pixel sourceWeights{};
+    Pixel outputWeights{};
+};
+
+Pixel spectralRgbBasis(float wavelengthNm) {
+    const float blue = wavelengthNm <= 460.0f ? 1.0f :
+        (wavelengthNm < 550.0f ? (550.0f - wavelengthNm) / 90.0f : 0.0f);
+    const float green = wavelengthNm < 460.0f ? 0.0f :
+        (wavelengthNm < 550.0f ? (wavelengthNm - 460.0f) / 90.0f :
+         (wavelengthNm < 610.0f ? (610.0f - wavelengthNm) / 60.0f : 0.0f));
+    const float red = wavelengthNm <= 550.0f ? 0.0f :
+        (wavelengthNm < 610.0f ? (wavelengthNm - 550.0f) / 60.0f : 1.0f);
+    return {red, green, blue};
+}
+
+std::array<SpectralBand, 7> makeSpectralBands(int sampleCount) {
+    std::array<SpectralBand, 7> bands{};
+    if (sampleCount == 3) {
+        bands[0] = {610.0f, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        bands[1] = {550.0f, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
+        bands[2] = {460.0f, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}};
+        return bands;
+    }
+
+    constexpr std::array<float, 7> wavelengths{430.0f, 460.0f, 490.0f, 520.0f,
+                                               550.0f, 580.0f, 610.0f};
+    constexpr std::array<float, 7> quadratureWeights{15.0f, 30.0f, 30.0f, 30.0f,
+                                                     30.0f, 30.0f, 15.0f};
+    std::array<Pixel, 7> basis{};
+    Pixel normalization{};
+    for (std::size_t i = 0; i < bands.size(); ++i) {
+        basis[i] = spectralRgbBasis(wavelengths[i]);
+        normalization.r += basis[i].r * quadratureWeights[i];
+        normalization.g += basis[i].g * quadratureWeights[i];
+        normalization.b += basis[i].b * quadratureWeights[i];
+    }
+    for (std::size_t i = 0; i < bands.size(); ++i) {
+        const float weight = quadratureWeights[i];
+        bands[i] = {wavelengths[i], basis[i],
+                    {basis[i].r * weight / normalization.r,
+                     basis[i].g * weight / normalization.g,
+                     basis[i].b * weight / normalization.b}};
+    }
+    return bands;
+}
+
 struct Image {
     int width = 0;
     int height = 0;
@@ -60,6 +108,7 @@ struct Settings {
     float jacobianCap = 512.0f;
     int rayGrid = 64;
     int sourceSamples = 9;
+    int spectralSamples = 3;
     bool adaptiveRayRefinementEnabled = false;
     float adaptiveRayRefinementThreshold = 0.75f;
     bool useCauchyDispersion = true;
@@ -519,16 +568,16 @@ PropagatedPatch propagateFresnelPatch(const std::vector<float>& layer, int image
     return patch;
 }
 
-void addPropagatedPatch(Image& output, const PropagatedPatch& patch, std::size_t band) {
+void addPropagatedPatch(Image& output, const PropagatedPatch& patch, Pixel outputWeights) {
     for (int y = 0; y < patch.height; ++y) for (int x = 0; x < patch.width; ++x) {
         const int imageX = patch.left + x;
         const int imageY = patch.top + y;
         if (imageX < 0 || imageY < 0 || imageX >= output.width || imageY >= output.height) continue;
         const float value = patch.intensity[static_cast<std::size_t>(y) * patch.width + x];
         Pixel& pixel = output.pixels[static_cast<std::size_t>(imageY) * output.width + imageX];
-        if (band == 0) pixel.r += value;
-        else if (band == 1) pixel.g += value;
-        else pixel.b += value;
+        pixel.r += value * outputWeights.r;
+        pixel.g += value * outputWeights.g;
+        pixel.b += value * outputWeights.b;
     }
 }
 
@@ -1177,6 +1226,8 @@ Image render(const Image& source, const Settings& settings) {
     const int rayCount = grid * grid;
     const float sensorHeight = lens.sensorWidth * static_cast<float>(height) / width;
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
+    const std::array<SpectralBand, 7> spectralBands = makeSpectralBands(settings.spectralSamples);
+    const std::size_t spectralBandCount = static_cast<std::size_t>(settings.spectralSamples);
     if (settings.ghostFrftTransportMask && !settings.ghostFrftEnabled)
         throw std::runtime_error("--ghost-frft-mask transport requires --ghost-frft on");
     if (settings.ghostFrftTransportMask && settings.selectedFirstReflection < 0)
@@ -1282,12 +1333,12 @@ Image render(const Image& source, const Settings& settings) {
         }
         std::cout << std::defaultfloat << std::setprecision(6);
     }
-    std::array<GhostApertureTexture, 3> ghostApertureTextures;
+    std::array<GhostApertureTexture, 7> ghostApertureTextures;
     if (settings.ghostFrftEnabled) {
         const auto precomputeStart = std::chrono::steady_clock::now();
         const float fNumber = lens.effectiveFocalLength / (lens.irisRadius * 2.0f);
-        for (std::size_t band = 0; band < wavelengths.size(); ++band) {
-            const float order = applyFrftOrderOverride(wavelengths[band], fNumber,
+        for (std::size_t band = 0; band < spectralBandCount; ++band) {
+            const float order = applyFrftOrderOverride(spectralBands[band].wavelengthNm, fNumber,
                                                        settings.fresnelFrftOrder,
                                                        settings.fresnelFrftOrderOverride);
             if (settings.ghostFrftTransportMask) {
@@ -1303,16 +1354,22 @@ Image render(const Image& source, const Settings& settings) {
             const auto elapsed = std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - precomputeStart).count();
             std::cout << "Ghost aperture FrFT: " << settings.ghostFrftResolution << 'x'
-                      << settings.ghostFrftResolution << " samples, Hullin Eq. 5 alpha RGB="
-                      << ghostApertureTextures[0].fractionalOrder << ','
-                      << ghostApertureTextures[1].fractionalOrder << ','
-                      << ghostApertureTextures[2].fractionalOrder << " maskMode="
+                      << settings.ghostFrftResolution << " samples, spectral bands="
+                      << spectralBandCount << " Hullin Eq. 5 alpha=";
+            for (std::size_t band = 0; band < spectralBandCount; ++band) {
+                if (band > 0) std::cout << ',';
+                std::cout << spectralBands[band].wavelengthNm << "nm:"
+                          << ghostApertureTextures[band].fractionalOrder;
+            }
+            std::cout << " maskMode="
                       << (settings.ghostFrftTransportMask ? "transport" : "polygon");
-            if (!settings.ghostFrftTransportMask)
-                std::cout << " polygonFluxNormalization RGB="
-                          << ghostApertureTextures[0].fluxNormalization << ','
-                          << ghostApertureTextures[1].fluxNormalization << ','
-                          << ghostApertureTextures[2].fluxNormalization;
+            if (!settings.ghostFrftTransportMask) {
+                std::cout << " polygonFluxNormalization=";
+                for (std::size_t band = 0; band < spectralBandCount; ++band) {
+                    if (band > 0) std::cout << ',';
+                    std::cout << ghostApertureTextures[band].fluxNormalization;
+                }
+            }
             std::cout
                       << " precomputeMs=" << elapsed << '\n';
         }
@@ -1393,8 +1450,6 @@ Image render(const Image& source, const Settings& settings) {
             const Vec3 direction = normalized({std::sin(thetaX), std::sin(thetaY),
                                                 std::cos(thetaX) * std::cos(thetaY)});
             const float rayGain = settings.gain * sourceEnergy / rayCount;
-            const std::array<float, 3> sourceBands{sourceColor.r, sourceColor.g, sourceColor.b};
-
             if (settings.ghostsEnabled)
             for (int firstReflection = 1; firstReflection < static_cast<int>(lens.surfaces.size()); ++firstReflection) {
                 for (int secondReflection = 0; secondReflection < firstReflection; ++secondReflection) {
@@ -1410,8 +1465,12 @@ Image render(const Image& source, const Settings& settings) {
                     const std::size_t pathIndex = static_cast<std::size_t>(
                         firstReflection * (firstReflection - 1) / 2 + secondReflection);
                     GhostPathDiagnostic& pathDiagnostic = pathDiagnostics[pathIndex];
-                    for (std::size_t band = 0; band < wavelengths.size(); ++band) {
-                        if (sourceBands[band] <= 1e-6f) continue;
+                    for (std::size_t band = 0; band < spectralBandCount; ++band) {
+                        const SpectralBand& spectralBand = spectralBands[band];
+                        const float sourceSpectrum = sourceColor.r * spectralBand.sourceWeights.r +
+                            sourceColor.g * spectralBand.sourceWeights.g +
+                            sourceColor.b * spectralBand.sourceWeights.b;
+                        if (sourceSpectrum <= 1e-6f) continue;
                         std::vector<RayVertex> rayGridData(static_cast<std::size_t>(grid) * grid);
                         std::vector<float> ghostLayer;
                         if (settings.ghostDiffractionEnabled)
@@ -1426,19 +1485,19 @@ Image render(const Image& source, const Settings& settings) {
                                 std::cos(apertureSector);
                             if (std::hypot(stopX, stopY) > aperturePolygonRadius) return traced;
                             Vec3 origin{};
-                            if (!traceEntrancePupilRay(lens, wavelengths[band], stopX, stopY,
+                            if (!traceEntrancePupilRay(lens, spectralBand.wavelengthNm, stopX, stopY,
                                                        direction, origin, settings.useCauchyDispersion)) return traced;
                             float energy = 0.0f;
                             Vec3 sensorPoint{};
                             Vec3 aperturePoint{};
                             if (!traceGhostRay(lens, firstReflection, secondReflection,
-                                               wavelengths[band], origin, direction, energy,
+                                               spectralBand.wavelengthNm, origin, direction, energy,
                                                sensorPoint, aperturePoint, settings.apertureBlades,
                                                settings.antiReflectCoating,
                                                settings.useCauchyDispersion)) return traced;
                             traced = {width * 0.5f + sensorPoint.x / lens.sensorWidth * width,
                                       height * 0.5f - sensorPoint.y / sensorHeight * height,
-                                      energy * sourceBands[band], true,
+                                      energy * sourceSpectrum, true,
                                       aperturePoint.x, aperturePoint.y, stopX, stopY};
                             return traced;
                         };
@@ -1557,7 +1616,9 @@ Image render(const Image& source, const Settings& settings) {
                             auto accumulatePixel = [&](int x, int y, float value) {
                                 if (value <= 0.0f) return;
                                 pathDiagnostic.luminance += value *
-                                    (band == 0 ? 0.2126 : (band == 1 ? 0.7152 : 0.0722));
+                                    (0.2126 * spectralBand.outputWeights.r +
+                                     0.7152 * spectralBand.outputWeights.g +
+                                     0.0722 * spectralBand.outputWeights.b);
                                 pathDiagnostic.minX = std::min(pathDiagnostic.minX, static_cast<float>(x));
                                 pathDiagnostic.minY = std::min(pathDiagnostic.minY, static_cast<float>(y));
                                 pathDiagnostic.maxX = std::max(pathDiagnostic.maxX, static_cast<float>(x));
@@ -1566,9 +1627,9 @@ Image render(const Image& source, const Settings& settings) {
                                     ghostLayer[static_cast<std::size_t>(y) * width + x] += value;
                                 } else {
                                     Pixel& dst = output.pixels[static_cast<std::size_t>(y) * width + x];
-                                    if (band == 0) dst.r += value;
-                                    else if (band == 1) dst.g += value;
-                                    else dst.b += value;
+                                    dst.r += value * spectralBand.outputWeights.r;
+                                    dst.g += value * spectralBand.outputWeights.g;
+                                    dst.b += value * spectralBand.outputWeights.b;
                                 }
                             };
                             if (settings.usePixelAreaRasterization) {
@@ -1698,18 +1759,24 @@ Image render(const Image& source, const Settings& settings) {
                             const float distanceMm = settings.ghostDiffractionDistanceMm > 0.0f
                                 ? settings.ghostDiffractionDistanceMm : lens.effectiveFocalLength;
                             PropagatedPatch patch = propagateFresnelPatch(ghostLayer, width, height,
-                                left, top, right, bottom, wavelengths[band], sensorPixelPitchMm,
+                                left, top, right, bottom, spectralBand.wavelengthNm, sensorPixelPitchMm,
                                 distanceMm);
-                            ghostDiffractionInputEnergy += patch.inputEnergy;
-                            ghostDiffractionOutputEnergy += patch.outputEnergy;
-                            ghostDiffractionRawOutputEnergy += patch.outputEnergy / patch.normalizationScale;
+                            const float spectralLumaWeight = 0.2126f * spectralBand.outputWeights.r +
+                                0.7152f * spectralBand.outputWeights.g +
+                                0.0722f * spectralBand.outputWeights.b;
+                            const float diagnosticWeight = settings.spectralSamples == 3
+                                ? 1.0f : spectralLumaWeight;
+                            ghostDiffractionInputEnergy += patch.inputEnergy * diagnosticWeight;
+                            ghostDiffractionOutputEnergy += patch.outputEnergy * diagnosticWeight;
+                            ghostDiffractionRawOutputEnergy += patch.outputEnergy /
+                                patch.normalizationScale * diagnosticWeight;
                             ghostDiffractionMinNormalization = std::min(ghostDiffractionMinNormalization,
                                                                          patch.normalizationScale);
                             ghostDiffractionMaxNormalization = std::max(ghostDiffractionMaxNormalization,
                                                                          patch.normalizationScale);
                             if (patch.inputEnergy > 0.0f) {
                                 ++ghostDiffractionPatches;
-                                addPropagatedPatch(output, patch, band);
+                                addPropagatedPatch(output, patch, spectralBand.outputWeights);
                             }
                         }
                     }
@@ -1779,7 +1846,9 @@ Image render(const Image& source, const Settings& settings) {
                   << ghostFrftMinRayNormalization << ',' << ghostFrftMaxRayNormalization
                   << "] maps=" << ghostFrftRayMaps
                   << " maxMap=" << ghostFrftMaxPathFirst << "->" << ghostFrftMaxPathSecond
-                  << " band=" << ghostFrftMaxBand << " sourceSample=" << ghostFrftMaxSample
+                  << " band=" << ghostFrftMaxBand << " wavelengthNm="
+                  << spectralBands[ghostFrftMaxBand].wavelengthNm
+                  << " sourceSample=" << ghostFrftMaxSample
                   << " geometricRayEnergy=" << ghostFrftMaxGeometricEnergy
                   << " texturedRayEnergy=" << ghostFrftMaxTexturedEnergy
                   << " transportMaskFrftMs=" << ghostFrftTransportMaskMs
@@ -1829,6 +1898,7 @@ void printSettings(const Settings& s) {
               << " adaptiveRayRefinement=" << s.adaptiveRayRefinementEnabled
               << " adaptiveRayRefinementThreshold=" << s.adaptiveRayRefinementThreshold
               << " jacobianCap=" << s.jacobianCap << " sourceSamples=" << s.sourceSamples
+              << " spectralSamples=" << s.spectralSamples
               << " dispersion=" << (s.useCauchyDispersion ? "cauchy" : "linear-abbe")
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
@@ -1848,11 +1918,12 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
+              << "               --spectral-samples 3|7 (reflected ghosts; 7 uses piecewise-linear RGB spectrum)\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
@@ -1873,6 +1944,11 @@ void setValue(Settings& s, const std::string& name, float value) {
             binsPerAxis * binsPerAxis != sampleCount)
             throw std::runtime_error("sourceSamples must be 1 or an odd square from 9 to 225");
         s.sourceSamples = sampleCount;
+    }
+    else if (name == "spectralSamples") {
+        if (!std::isfinite(value) || (value != 3.0f && value != 7.0f))
+            throw std::runtime_error("spectralSamples must be 3 or 7");
+        s.spectralSamples = static_cast<int>(value);
     }
     else if (name == "dispersionModel") s.useCauchyDispersion = value >= 0.5f;
     else if (name == "rasterizerModel") s.usePixelAreaRasterization = value >= 0.5f;
@@ -1918,6 +1994,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--adaptive-ray-refinement-threshold")
         setValue(settings, "adaptiveRayRefinementThreshold", value());
     else if (option == "--source-samples") setValue(settings, "sourceSamples", value());
+    else if (option == "--spectral-samples") setValue(settings, "spectralSamples", value());
     else if (option == "--rasterizer") {
         if (++i >= argc) throw std::runtime_error("missing value for --rasterizer");
         const std::string model = argv[i];
@@ -2009,7 +2086,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample] [--ghosts on|off] [--diffraction on|off] [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM] [options]\n";
+        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--spectral-samples 3|7] [--rasterizer pixel-area|point-sample] [--ghosts on|off] [--diffraction on|off] [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM] [options]\n";
         return 2;
     }
     try {

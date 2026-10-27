@@ -52,7 +52,8 @@ PFM preserves values above 1.0. Output alpha is not stored.
 LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|odd square <=225]
                [--adaptive-ray-refinement on|off] [--adaptive-ray-refinement-threshold PX]
-               [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample]
+               [--dispersion cauchy|linear] [--spectral-samples 3|7]
+               [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
                [--ghosts on|off] [--diffraction on|off]
@@ -89,6 +90,13 @@ calibrated camera response. `--diffraction off` isolates reflected ghost paths
 for image evaluation; `--coating off` provides an uncoated comparison.
 `--ghosts off` isolates diffraction, and `--diffraction off` isolates reflected
 ghosts.
+Reflected ghosts use the original three wavelength samples by default.
+`--spectral-samples 7` opts into a 430–610 nm piecewise-linear reconstruction
+from input RGB and trapezoidal wavelength integration back to RGB. This is an
+exploratory interpolation between the three existing RGB primaries, not a CIE
+standard-observer conversion or measured source spectrum. It roughly doubles
+CPU time for a traced ghost path and does not change the source Fraunhofer
+starburst, which remains three-band.
 `--rasterizer pixel-area` is the default. It clips each mapped ray triangle to
 unit-area sensor pixels and integrates the linearly interpolated ray energy
 inside each overlap. This conserves sampled ray flux when a triangle is smaller
@@ -129,7 +137,8 @@ Use `--single-light-position U V` to generate off-axis charts for field sweeps;
 add `--single-light-neutral` for equal-RGB point sources in dispersion
 comparisons. `make_dispersion_comparison.py` builds a shared-exposure plate and
 reports per-channel ghost flux, peak, centroid, and maximum RGB centroid spread
-for repeatable Cauchy/linear A/B cases.
+for repeatable A/B cases. Use `--model-labels` to name comparisons other than
+Cauchy versus linear Abbe.
 `python tools/LensFlareLab/make_source_sampling_comparison.py` creates an
 image comparison plate and radiometric summary from the 1/9/25 source-sample
 PFM renders.
