@@ -49,8 +49,8 @@ def main():
     parser.add_argument("output", type=Path)
     parser.add_argument("--case", action="append", nargs=2, required=True,
                         metavar=("LABEL", "PFM"), help="candidate render; repeatable")
-    parser.add_argument("--gain", type=float, default=300000.0)
-    parser.add_argument("--difference-gain", type=float, default=1000000.0)
+    parser.add_argument("--gain", type=float, default=300.0)
+    parser.add_argument("--difference-gain", type=float, default=1000.0)
     parser.add_argument("--panel-width", type=int, default=192)
     parser.add_argument("--panel-height", type=int, default=108)
     args = parser.parse_args()

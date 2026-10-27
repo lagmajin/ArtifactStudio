@@ -95,6 +95,57 @@ The comparison plates show the isolated flare and signed luminance difference
 uniform grids 64/96/128/192/512 from identical source PFMs and render settings.
 The tool reports frame Y, relative L1, peak, and centroid for every candidate.
 
+### Automatic four-source flare evaluation
+
+The synthetic full-scene chart was rendered at source scale 1024 with automatic
+light detection, 3x3 source sampling, and the adaptive base grid 64. It detected
+four emitters at `(0.383,0.384)`, `(0.657,0.217)`, `(0.185,0.265)`, and
+`(0.814,0.696)`, with 42/42, 32/42, 25/42, and 29/42 visible ghost paths.
+The weaker three emitters populated only 1/9, 5/9, and 6/9 source-direction
+bins, while the strongest populated 9/9; this is a limitation of the current
+thresholded source sampler in a multi-light scene. The adaptive planner traced
+10,501,974 center probes and refined 135,503 cells (1.29%), identically with
+FrFT enabled and disabled.
+
+In the complete flare with direct-source diffraction enabled, adaptive64 versus
+uniform96 FrFT gives relative image L1 0.145%, frame Y `2943.80` vs `2941.49`,
+and centroid shift 0.042 px. The direct-source diffraction dominates this
+whole-frame metric. With direct-source diffraction disabled to isolate reflected
+ghosts, adaptive64 vs uniform96 gives 1.59% L1, Y `275.05` vs `272.69`
+(+0.87%), and centroid shift 0.189 px; uniform64 is 2.57% L1 from uniform96.
+Thus adaptation improves the four-source ghost image over the base uniform grid
+for this chart, while the final composite is visually much less sensitive.
+
+Comparing adaptive geometry against adaptive triangle-FrFT at the same mesh,
+the full composite changes by 1.57% relative L1, +0.076% frame Y, and 0.127 px
+centroid shift. In the ghost-only image the aperture texture changes L1 by
+17.06%, increases frame Y by 0.72%, and moves the centroid 1.55 px. These
+measures keep the visual effect visible without hiding its small contribution
+to the full image.
+
+One-shot wall times including PFM I/O were 22.6–23.5 s for adaptive64,
+13.0–13.1 s for uniform64, and 25.6–28.6 s for uniform96 across the ghost-only
+and full-composite runs. Adaptive64 costs substantially more than uniform64
+and only saves about 8–18% against uniform96 on this machine. These are single
+runs on a deterministic synthetic plate, not benchmark statistics or measured
+real-lens validation.
+
+![Four-source full flare: adaptive64, uniform64, and uniform96 FrFT](examples/multilight-adaptive-frft.png)
+
+![Four-source reflected ghosts only: adaptive64 and uniform-grid FrFT](examples/multilight-ghostonly-adaptive-frft.png)
+
+![Four-source ghost-only change from geometric rays to adaptive triangle FrFT](examples/multilight-ghost-frft-effect.png)
+
+![Four-source full-composite change from geometric rays to adaptive triangle FrFT](examples/multilight-total-frft-effect.png)
+
+Recreate the source with `make_evaluation_chart.py --light-scale 1024`. Render
+all modes with `--source-samples 9 --gain 1 --adaptive-ray-refinement on` for
+adaptive cases, adding `--diffraction on|off` and `--ghost-frft on|off` as
+appropriate; uniform references use the same commands without the adaptive flag
+and with `--ray-grid 64|96`. Use
+`make_adaptive_refinement_comparison.py` to create the shared-exposure plates
+and report frame Y, image L1, peak, and centroid.
+
 ![Adaptive FrFT vertex versus triangle-quadrature normalization](examples/adaptive-frft-normalization-triangle.png)
 
 For a separate isolated neutral source at `(0.1,0.1)`, base grid 64, adaptive

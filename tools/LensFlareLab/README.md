@@ -210,8 +210,9 @@ or a general quality guarantee. This standalone quality experiment costs
 extra ray traces and remains off by default.
 Use `--adaptive-ray-refinement-threshold PX` to tune the screen-space center
 deviation trigger (default 0.75 px); the relative energy trigger is fixed at
-25%. See [EVALUATION.md](EVALUATION.md) for an off-axis comparison against
-uniform ray grids.
+25%. The refinement-energy test uses unweighted optical-trace energy, so the
+optional aperture FrFT does not alter the selected mesh. See [EVALUATION.md](EVALUATION.md)
+for off-axis and automatic multi-source comparisons against uniform ray grids.
 `--optical-path-report` requires `--ghost-pair FIRST SECOND` and reports five
 pupil-ray optical paths at each RGB wavelength, referenced to a common plane
 100 mm before the front surface. It is a ray-path diagnostic; coating phase,
