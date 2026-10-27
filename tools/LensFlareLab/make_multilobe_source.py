@@ -12,9 +12,13 @@ def main() -> None:
                         default=Path("build/tools/LensFlareLab/multilobe-source.pfm"))
     parser.add_argument("--peak", type=float, default=1024.0,
                         help="radiance scale (default: 1024)")
+    parser.add_argument("--lobe-spacing-scale", type=float, default=1.0,
+                        help="scale lobe offsets from their center (0..2.5, default: 1)")
     args = parser.parse_args()
     if not math.isfinite(args.peak) or args.peak <= 0.0:
         parser.error("--peak must be finite and greater than zero")
+    if not math.isfinite(args.lobe_spacing_scale) or not 0.0 <= args.lobe_spacing_scale <= 2.5:
+        parser.error("--lobe-spacing-scale must be in the range 0..2.5")
 
     width, height = 640, 360
     center_x, center_y = round(0.383 * (width - 1)), round(0.384 * (height - 1))
@@ -29,7 +33,8 @@ def main() -> None:
             for x in range(width):
                 radiance = 0.0
                 for offset_x, offset_y, sigma, strength in lobes:
-                    dx, dy = x - center_x - offset_x, y - center_y - offset_y
+                    dx = x - center_x - offset_x * args.lobe_spacing_scale
+                    dy = y - center_y - offset_y * args.lobe_spacing_scale
                     radiance += args.peak * strength * math.exp(
                         -(dx * dx + dy * dy) / (2.0 * sigma * sigma))
                 image.write(struct.pack("<3f", radiance, radiance, radiance))

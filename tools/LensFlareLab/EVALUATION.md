@@ -85,6 +85,38 @@ For both paths, render with `--position 0.383 0.384 --ray-grid 96
 shared exposure and display the 225-bin weighted image as an explicitly
 sampling-dependent comparison reference.
 
+#### Extraction-threshold sensitivity
+
+The same three-lobe source and 10→8 path was rendered at thresholds 0.85, 2,
+and 4 radiance units, holding ray grid 96 fixed. At 49 requested bins,
+equal-grid populated 27/23/22 directions as the threshold rose; weighted
+quantiles populated all 49 in each case. Relative L1 against the weighted
+225-bin image stayed in a narrow range: equal-grid 49 measured
+1.963%/1.963%/1.964%, and weighted 49 measured 0.694%/0.738%/0.726%.
+The input footprint flux fell from 138,364 to 136,112, while each mode's
+reported sampled flux remained within 0.00002% of its corresponding extracted
+flux. For these three thresholds, the weighted-bin advantage is not an artifact
+of one threshold choice. This is still one synthetic spatial profile and one
+path, so it does not establish behavior for clipping, saturation, or measured
+sources.
+
+![Threshold 2 extraction comparison for the asymmetric multi-lobe source](examples/source-layout-multilobe-threshold-2.png)
+
+![Threshold 4 extraction comparison for the asymmetric multi-lobe source](examples/source-layout-multilobe-threshold-4.png)
+
+#### Lobe-separation sensitivity
+
+The same profile was regenerated with its lobe offsets multiplied by 1.8 while
+keeping each lobe's width and intensity fixed. On path 10→8, equal-grid versus
+weighted active bins were 27 versus 49 at 49 requested and 110 versus 194 at
+225 requested. Against the weighted 225-bin image, L1 at 9/49 bins was
+5.39%/1.89% for equal-grid and 2.59%/1.07% for weighted quantiles. The
+equal-grid 225 image differed from the weighted reference by 0.81%. This
+supports the benefit on a more spatially spread source, while again exposing
+sampling-layout dependence at high counts.
+
+![Source-bin comparison after increasing the three-lobe emitter spacing by 1.8×](examples/source-layout-multilobe-spread.png)
+
 ### Optical path length diagnostic
 
 The optional `--optical-path-report` traces the selected ghost pair at the
