@@ -730,13 +730,22 @@ exposure changes.
 
 ![The same source-scale sweep showing the default threshold response](examples/ghost-flux-threshold-response.png)
 
+Scaling the threshold with the known exposure factor restores the same
+linearity without changing extraction: thresholds 0.2125/0.85/3.4 for source
+scales 0.25/1/4 produce 0% normalized L1 and 1.00000× crop Y in both modes.
+This is a controlled-input result; it does not provide automatic exposure
+metadata handling for arbitrary images.
+
+![Source-scale-normalized flare when the threshold is scaled with exposure](examples/ghost-flux-relative-threshold.png)
+
 The comparison uses crop `(300,100)..(590,360)`, display gain 300,000, and
 reports the normalized flare crop against the scale-1 render. Generate the
 source-only inputs with `make_evaluation_chart.py --source-only
 --single-light-position 0.3834 0.3844 --light-scale N`; render with
 `--ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8`, and
-select `--threshold 0` for the linearity control. Use
-`make_ghost_flux_linearity_chart.py` to produce the two plates.
+select `--threshold 0` for the linearity control, or scale the threshold by
+the same known exposure factor (baseline `--threshold 0.85`) for the matched
+threshold sweep. Use `make_ghost_flux_linearity_chart.py` to produce the plates.
 
 ### Texture-resolution convergence
 
