@@ -2,6 +2,42 @@
 
 **最終更新:** 2026-10-28
 
+## Display-only logarithmic view for full-field ghost comparison
+
+`make_ghost_diffraction_comparison.py` keeps the legacy Reinhard view as its
+default and adds `--tone-map log` for inspection of low-radiance structures.
+The log view derives one white point from the selected source-subtracted crop
+across both renders (99.9th percentile by default), so geometric and propagated
+panels use the same display scale. `--log-contrast` controls display contrast;
+the signed-difference panel remains linear and has an independent
+`--difference-gain`. These controls affect only the diagnostic PNG, not the
+PFM radiance or the lens/ghost model.
+
+On the 640×360 multi-source evaluation chart, a 64² ray grid, three spectral
+bands, all 42 eligible ghost paths, and direct diffraction produced 2,254
+path-band patches at 100 mm propagation distance. The common log white was
+10.0469971 radiance at p99.9. The log view reveals faint polygonal ghost
+structures that are largely hidden by the legacy Reinhard view. They are useful
+to inspect, but their visibility in this display is not evidence of extra
+physical energy: logarithmic contrast intentionally lifts the low end, and
+polygon edges may expose ray-map or patch-rasterization structure. The render's
+Fresnel integrated input/output ratio stayed near unity (1847.42022 / the
+reported normalization), which is a separate numerical conservation check.
+
+![Full-field geometric and Fresnel ghost comparison using legacy Reinhard and shared-percentile logarithmic display](examples/ghost-fresnel-tone-map-compare.png)
+
+Recreate the comparison from the standard evaluation chart and its matched
+geometric/Fresnel PFM renders with:
+
+```text
+python tools/LensFlareLab/make_ghost_diffraction_comparison.py build/tonemap-full-input.pfm build/tonemap-full-geometric.pfm build/tonemap-full-fresnel.pfm build/tonemap-full-log.png --crop 0 0 639 359 --gain 1 --difference-gain 1000 --tone-map log --log-contrast 1000 --white-percentile 99.9
+```
+
+Use the same command with `--tone-map reinhard` to reproduce the legacy
+comparison. For an isolated bright ghost, the same logarithmic settings can
+compress highlights heavily; choose crop and contrast for the diagnostic and
+do not interpret either display transform as exposure-calibrated output.
+
 ### Radiance-weighted source-bin placement
 
 The experimental `--source-sampling weighted-quantile` option places source
