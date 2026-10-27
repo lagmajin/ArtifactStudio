@@ -170,22 +170,24 @@ At a 512² incident-ray grid and 2048² pupil grid, the ray-mapped pupil retains
 98.5%, 98.2%, 94.8%, and 52.4% of the paraxial on-axis hex area at 0/5/10/12°.
 Within the ±12 px crop, after normalizing each crop to unit energy, the
 pixel-integrated PSF L1 difference from the ideal pupil is 0.31%, 0.30%,
-0.34%, and 184.58%, respectively. The 12° crop retains 98.18% of the sampled
-PSF energy, 1.82% less than the ideal-pupil crop. The edge-field result reflects
-strong off-axis clipping: its pupil area is nearly halved and its encircled radii are
-r50=2.24 px and r90=8.00 px, while the near-axis core remains inside one pixel.
-The central PSF image changes by less than 0.08% normalized L1 from 1024² to
-2048² pupil sampling for 0/5/10° over the common ±6 px region.
+0.34%, and 1.17%, respectively. The 12° pupil is nearly half the on-axis area,
+but its 2048² pixel-integrated core remains similar to the ideal pupil at the
+assumed sensor pitch; r99 is 1 px and the ±12 px crop retains 99.990% of the
+sampled PSF energy.
 
-The 12° field is not converged yet. On that same common crop, normalized image
-L1 changes by 24.47% from 1024² to 2048², 7.17% from 2048² to 4096², and
-4.66% from 4096² to 8192². Do not use that edge-field image to tune production
-rendering. The 2048² final plate has a finite sampled angular support of only
-±13.7 sensor pixels; it shows the central PSF and is not a full-frame flare
-reference. The evaluator remains a monochromatic scalar prototype with the
-assumed prescription, paraxial Fraunhofer propagation, and geometric amplitude
-proxy. Its 550 nm phase does not include the wavelength-dependent pupil and OPD
-needed for RGB PSFs.
+Grid checks now agree after excluding pupil triangles with undefined or
+nonpositive Jacobian vertices from amplitude interpolation. On the common
+±6 px crop, doubling pupil sampling from 1024² to 2048² changes normalized PSF
+L1 by 0.073–0.113% across all four fields. For 12°, increasing to 4096² changes
+the common ±12 px image by 0.058%. Doubling the 12° incident-ray grid from
+512² to 1024² changes that normalized crop by 0.151%. These checks support the
+current pupil-grid result, though the 1024² ray check covers only the 12° case.
+The 2048² final plate has finite sampled angular support of only ±13.7 sensor
+pixels; it shows the central PSF and is not a full-frame flare reference. The
+evaluator remains a monochromatic scalar prototype with the assumed
+prescription, paraxial Fraunhofer propagation, and geometric amplitude proxy.
+Its 550 nm phase does not include the wavelength-dependent pupil and OPD needed
+for RGB PSFs.
 
 ![Prescription-derived 550 nm scalar PSFs at four fields compared in a shared crop](examples/prescription-coherent-psf.png)
 
@@ -199,10 +201,10 @@ Reproduce the higher quality plate with:
 python tools/LensFlareLab/evaluate_prescription_coherent_psf.py --ray-samples 512 --pupil-samples 2048
 ```
 
-Use `--field field_12deg --ray-samples 512 --pupil-samples 4096` or `8192`
-for the slower edge-field convergence study. Validate the edge pupil and wavelength-dependent
-wavefront against an optical design package or measured RAW point-source data
-before considering RGB reconstruction or Core/App integration.
+Use `--field field_12deg --ray-samples 512 --pupil-samples 4096` for the edge-
+field convergence study. Validate the pupil and wavelength-dependent wavefront
+against an optical design package or measured RAW point-source data before
+considering RGB reconstruction or Core/App integration.
 
 ## Controlled wavefront-aberration PSFs
 

@@ -38,6 +38,8 @@ def map_to_regular_pupil(xy, opd_mm, directions, index_map, jacobian,
     grid_vertices = launch_locations[simplex_vertices]
     local = ((np.ptp(grid_vertices[:, :, 0], axis=1) <= 1) &
              (np.ptp(grid_vertices[:, :, 1], axis=1) <= 1))
+    jacobian_valid = np.isfinite(jacobian) & (jacobian > 0.0)
+    local &= np.all(jacobian_valid[simplex_vertices], axis=1)
     if not np.any(local):
         raise RuntimeError("ray map contains no locally connected pupil triangles")
 

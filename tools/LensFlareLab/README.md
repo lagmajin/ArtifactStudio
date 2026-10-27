@@ -238,8 +238,9 @@ It reports the effective f-number from both pupil magnifications; for the
 current assumed prescription they agree near f/6.38 even though the physical
 stop semidiameter is EFL/22. `evaluate_prescription_coherent_psf.py` applies
 the ray-map Jacobian amplitude proxy and computes a 550 nm scalar Fraunhofer
-PSF for each field against an ideal paraxial hex pupil. The 12° clipped-pupil
-PSF remains under pupil-grid convergence evaluation; neither script is yet a
+PSF for each field against an ideal paraxial hex pupil. Pupil-grid convergence
+is below 0.12% normalized PSF L1 through 12° in the shared core crop; the
+resolved image covers only the center 13.7 sensor pixels and is not a
 calibrated, full-frame camera flare model.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
