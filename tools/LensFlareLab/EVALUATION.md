@@ -1020,8 +1020,9 @@ mode remains opt-in because it assumes piecewise-constant FFT sample cells and
 uniform sensor response; it has not been validated against a measured camera
 PSF. Against the previous nearest-pixel accumulator, the cell-overlap result
 differs by 0.02–1.32% normalized channel L1 across the three tested apertures,
-consistent with the FFT cells being narrower than a sensor pixel. The default
-tent mode remains byte-identical to the previous build.
+consistent with the FFT cells being narrower than a sensor pixel. Explicit
+512² tent output remains byte-identical to the previous build; the higher
+1024² default intentionally changes default output.
 
 ![Source, tent PSF, area-integrated PSF, and their absolute difference](examples/diffraction-resampling-area-integrated.png)
 
@@ -1045,6 +1046,42 @@ for a source/PSF/difference plate. Fractional phase inputs are generated with
 `make_evaluation_chart.py --source-only --single-light-position U V
 --single-light-neutral --source-radius 1`; set `--threshold 0` on both renders
 and the comparison utility for a full-source phase comparison.
+
+#### Aperture FFT resolution convergence
+
+The direct-source aperture transform was rendered at 128², 256², 512²,
+1024², 2048², and 4096² with the same centered near-point source, six-blade
+f/11 stop, and area-integrated pixel sampling. Reconstructed RGB PSFs were
+compared against 4096², which is a dense numerical reference rather than
+ground truth:
+
+| FFT size | RGB-channel normalized PSF L1 vs 4096² | One render time |
+|---:|---:|---:|
+| 128² | 0.67–0.77% | 33 ms |
+| 256² | 0.33–0.34% | 28 ms |
+| 512² | 0.18% | 58 ms |
+| 1024² | 0.099–0.103% | 190 ms |
+| 2048² | 0.038% | 803 ms |
+| 4096² | reference | 4,193 ms |
+
+The non-monotonic 128²/256² time reflects variability in these single runs and
+is not a stable timing comparison; higher resolutions cost progressively more
+from 512² onward. The 1024² output differs by
+about 0.1% L1 from the 4096² reference at 190 ms, so it is now the Lab default.
+The 512² setting reproduces the former default and is available for quick
+look-development; 2048²/4096² are offline references. The sixfold spikes are
+already visible at 512², while 128² shows obvious central aliasing.
+
+![Direct-source PSF convergence at aperture FFT sizes 128²–4096², with absolute 1024²-to-4096² difference](examples/diffraction-resolution-convergence.png)
+
+This is one wavelength-mixed RGB source, one aperture radius, and one sensor
+resolution. Increasing the aperture grid improves discrete-mask sampling but
+does not add measured aberrations, real glass dispersion, polarization,
+coherence between extended-source points, or a measured detector response.
+Reproduce by rendering the same source with
+`--diffraction-resolution 128|256|512|1024|2048|4096`, then compare each output
+against the 4096² PFM with `compare_diffraction_resampling.py` and create the
+plate with `make_diffraction_resolution_chart.py`.
 
 Reproduce the blade sweep with:
 

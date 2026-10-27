@@ -62,6 +62,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--dispersion cauchy|linear] [--spectral-samples 3|7]
                [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
+               [--diffraction-resolution 128|256|512|1024|2048|4096]
                [--aperture-blades N] [--coating on|off]
                [--ghosts on|off] [--diffraction on|off]
                [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM]
@@ -104,6 +105,11 @@ as piecewise constant over its cell and integrates its overlap with sensor
 pixel areas. This experimental comparison preserves
 unit kernel energy while changing the subpixel PSF shape; it does not change
 ghost diffraction or model a measured intrapixel sensitivity map.
+`--diffraction-resolution` sets the square aperture FFT used by the direct
+source PSF. The default is 1024²; 512² is the legacy-speed comparison and
+2048²/4096² are offline convergence references with progressively longer
+render times. This setting does not change the separate ghost-diffraction or
+ghost-FrFT texture resolutions.
 Reflected ghosts use the original three wavelength samples by default.
 `--spectral-samples 7` opts into a 430–610 nm piecewise-linear reconstruction
 from input RGB and trapezoidal wavelength integration back to RGB. This is an

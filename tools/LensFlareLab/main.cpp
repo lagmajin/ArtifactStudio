@@ -117,6 +117,7 @@ struct Settings {
     bool usePixelAreaRasterization = true;
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
+    int diffractionResolution = 1024;
     float fresnelFrftOrder = 0.0f;
     bool fresnelFrftOrderOverride = false;
     float ghostDiffractionDistanceMm = 0.0f;
@@ -1475,7 +1476,8 @@ Image render(const Image& source, const Settings& settings) {
     std::array<DiffractionKernel, 3> diffraction;
     if (settings.diffractionEnabled) {
         for (std::size_t band = 0; band < diffraction.size(); ++band) {
-            diffraction[band] = makeDiffractionKernel(512, settings.apertureBlades,
+            diffraction[band] = makeDiffractionKernel(settings.diffractionResolution,
+                settings.apertureBlades,
                 wavelengths[band], lens, lens.irisRadius, width,
                 settings.diffractionPixelAreaResampling);
         }
@@ -2180,6 +2182,7 @@ void printSettings(const Settings& s) {
               << " dispersion=" << (s.useCauchyDispersion ? "cauchy" : "linear-abbe")
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
+              << " diffractionResolution=" << s.diffractionResolution
               << " fresnelFrftOrder=" << s.fresnelFrftOrder
               << " fresnelFrftOrderOverride=" << s.fresnelFrftOrderOverride
               << " ghostFrft=" << s.ghostFrftEnabled
@@ -2200,13 +2203,14 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades diffractionResolution(128|256|512|1024|2048|4096) diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
               << "               --spectral-samples 3|7 (reflected ghosts; 7 uses piecewise-linear RGB spectrum)\n"
               << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default tent)\n"
+              << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"
               << "               --source-sampling equal-grid|weighted-quantile (experimental footprint-aware binning)\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
@@ -2239,6 +2243,12 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "rasterizerModel") s.usePixelAreaRasterization = value >= 0.5f;
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
+    else if (name == "diffractionResolution") {
+        if (!std::isfinite(value) || (value != 128.0f && value != 256.0f &&
+            value != 512.0f && value != 1024.0f && value != 2048.0f && value != 4096.0f))
+            throw std::runtime_error("diffractionResolution must be 128, 256, 512, 1024, 2048, or 4096");
+        s.diffractionResolution = static_cast<int>(value);
+    }
     else if (name == "diffractionPixelAreaResampling") s.diffractionPixelAreaResampling = value >= 0.5f;
     else if (name == "fresnelFrftOrder") {
         s.fresnelFrftOrder = finiteClamp(value, 0.0f, 1.0f);
@@ -2304,6 +2314,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     }
     else if (option == "--aperture-radius") setValue(settings, "apertureRadius", value());
     else if (option == "--aperture-blades") setValue(settings, "apertureBlades", value());
+    else if (option == "--diffraction-resolution") setValue(settings, "diffractionResolution", value());
     else if (option == "--diffraction-resampling") {
         if (++i >= argc) throw std::runtime_error("missing value for --diffraction-resampling");
         const std::string mode = argv[i];
