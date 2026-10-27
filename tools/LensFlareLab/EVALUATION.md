@@ -72,6 +72,46 @@ matching the paper's Angenieux count; all 42 are visible on-axis. At
 
 ![Three-by-three field response with reflected ghosts only](examples/field-sweep-3x3-ghosts.png)
 
+## Angenieux comparison against Fig. 10
+
+Bodonyi et al. show three results for each lens: the full polynomial model,
+analytical ray tracing, and their partial polynomial model. The Angenieux setup
+is f/11, 100 mm, 14 refracting surfaces, and 42 ghost paths. Their method uses
+distant directional sources, so this comparison collapses each light to one
+source sample and disables aperture diffraction to isolate reflected ghosts.
+
+The two normalized source positions `(0.246, 0.356)` and `(0.390, 0.693)` are
+estimated from the red and green markers in the paper's Angenieux panel; they
+are not coordinates published by the authors. The helper script creates a
+black 640x360 chart with small neutral Gaussian source cores. Its radiance is
+only selected to make the source detector stable; the evaluation image removes
+the input before display. To reproduce the renders:
+
+```powershell
+python tools/LensFlareLab/make_fig10_comparison_chart.py
+LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-light-a.pfm --position 0.246 0.356 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off
+LensFlareLab.exe build/tools/LensFlareLab/fig10-angenieux-two-light-input.pfm build/tools/LensFlareLab/fig10-light-b.pfm --position 0.390 0.693 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off
+```
+
+The visualization separates the two point-source contributions and shows their
+combined result using one shared logarithmic display mapping. The ghost field
+layout is qualitatively plausible relative to the paper's Angenieux reference,
+with aperture-shaped patches and source-dependent field changes. This is not a
+pixel-matched validation: the paper does not publish exact source coordinates,
+radiance, sensor mapping, tone curve, or the per-surface coating data needed to
+recreate its rendering setup. Our coatings and d-line/Abbe-derived dispersion
+remain approximations.
+
+At ray-grid 96 to 192, source A's integrated ghost luminance changed from
+10.1576 to 10.1684 (+0.11%) and its centroid moved 2.34 pixels; source B
+changed from 20.7533 to 20.8764 (+0.59%) and its centroid moved 0.05 pixels.
+The peak pixel fell from 0.02873 to 0.00719 for source A and from 0.03551 to
+0.00962 for source B. Integrated energy is stable at this interval, while
+caustic peaks remain grid-dependent and need higher-resolution convergence
+work.
+
+![Angenieux Fig. 10 source-position approximation, rendered at ray-grid 192](examples/paper-fig10-angenieux-position-sweep.png)
+
 The highlight detector integrates positive luminance above threshold over each
 source footprint, keeps source chromaticity separate, and distributes that
 source flux over the sampled pupil rays once. Sampling the physical stop

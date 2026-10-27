@@ -85,7 +85,9 @@ integrated highlight flux with the sum of the nine bin fluxes and reports how
 many bins contain energy.
 
 See [EVALUATION.md](EVALUATION.md) for paper-grounded evaluation images and
-current model limits. Regenerate the chart with
+current model limits. The two-source Angenieux Fig. 10 approximation can be
+regenerated with `python tools/LensFlareLab/make_fig10_comparison_chart.py`.
+Regenerate the general evaluation chart with
 `python tools/LensFlareLab/make_evaluation_chart.py`. To raise only the source
 radiances for a high-dynamic-range visibility check, use
 `python tools/LensFlareLab/make_evaluation_chart.py --output build/high-exposure.pfm --light-scale 4096`.
