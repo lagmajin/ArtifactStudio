@@ -1,6 +1,6 @@
-**ステータス:** CE-1〜CE-13 実装済み、Speed グラフ編集と runtime／回帰検証が未完了
+**ステータス:** CE-1〜CE-14 実装済み、runtime／回帰検証が未完了
 
-最終更新: 2026-08-15
+**最終更新:** 2026-10-27
 
 2026-07-25: CE-8〜CE-13 のソース実装を再確認。常設数値入力、Buffer／Normalize／Cycle／Snap、Curve Copy/Paste まで実装済み。ビルド・ランタイム検証は未実施。
 
@@ -68,7 +68,7 @@
 - [x] **CE-11**: サイクル表示（pre/post を点線、Maya Infinity / AE LoopOut 相当。`roving` フラグと整合）。
 - [x] **CE-12**: スナップ（整数フレーム/値/隣接キー/グリッド）。
 - [x] **CE-13**: キーの Copy/Paste（同トラック・別トラック間）。
-- [ ] **CE-14**: Speed グラフの編集可（read-only 解除。別途設計）。
+- [x] **CE-14**: Speed グラフの編集可（read-only 解除。編集契約は 2026-10-27 の追記を参照）。
 
 ## 非目標（スコープ外）
 - タイムライン painter 側のキーフレーム編集（dope sheet）の変更。
@@ -85,7 +85,7 @@
 
 - CE-1〜CE-13 は、タンジェント書き戻し、複数選択／移動／挿入、数値入力、Buffer／Normalize／Cycle／Snap、Copy/Paste を含め、計画書の実装記録とソース確認が一致する。
 - CE-8 の数値入力は実装済みだったため、チェック欄を `[x]` に修正した。
-- CE-14（Speed グラフの編集）は非目標ではなく後続項目として未実装である。
+- CE-14（Speed グラフの編集）は後続項目として未実装である。
 - ビルド、runtime、Undo／Redo の実機動作、評価カーブとの一致は未検証のため、マイルストーン全体は `In Progress` のままとする。
 
 ## 2026-08-15 現行コード監査
@@ -97,6 +97,13 @@
 
 判定: **通常の Value カーブ編集と主要 DCC 操作は実装済み。Speed 編集、実機検証、回帰検証は pending。**
 
+### CE-14 実装追記 2026-10-27
+
+- Speed graph points now represent signed outgoing interval velocity in property units per second; terminal, padded-range and Constant/Hold interval points are read-only. One focused numeric channel is editable at a time.
+- Dragging a point keeps the interval start and all key times fixed, integrates the requested speed to the next key, and offsets later key values to preserve downstream relative motion.
+- Speed mode disables frame and tangent editing and reuses the existing curve interaction snapshot for undo.
+- Widget contract tests cover signed velocity, fixed-time dragging, terminal-point locking and disabled structure commands. Runtime test execution is pending.
+
 ### CE-14 調査追記 2026-08-15
 
-Speed graph は現在の Value keyframe 群から区間速度をサンプリングして生成する派生表示であり、Speed上の1点を移動しても、元の値・時間キーフレームへ一意に逆変換できない。したがって既存の `keyMoved(track, key, frame, value)` をそのままSpeedへ接続する実装は行わず、速度編集の契約（速度を変更した区間の再積分、境界条件、値域、Undo単位）を先に定義する必要がある。
+Speed graph は Value keyframe 群からの派生表示である。編集契約を上記 2026-10-27 の項目に定義し、単純に `keyMoved` を Value graph と同じ意味で扱わない。

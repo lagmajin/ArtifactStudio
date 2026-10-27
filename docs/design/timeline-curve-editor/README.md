@@ -1,6 +1,15 @@
 # Timeline curve editor reference
 
-**最終更新:** 2026-10-09
+**最終更新:** 2026-10-27
+
+## 2026-10-27 Speed graph editing contract
+
+- Speed points show signed outgoing average velocity for the interval from that key to the next key, in property units per second. Hold intervals display zero speed.
+- Dragging a speed point keeps all key times and the interval start value fixed, then integrates the requested velocity to compute the interval end value. Later values shift by the same delta so downstream motion is preserved.
+- The terminal point, padded range boundaries, and Hold/Constant intervals are not draggable. Speed edits use the existing timeline keyframe snapshot undo transaction.
+- Dragging is enabled for one focused numeric channel at a time. With no property filter, all channels are listed and the focused row controls which speed keys can be dragged; a multi-property filter leaves speed points read-only.
+- Tangent, frame, insert, delete and numeric value operations remain unavailable in Speed mode.
+- Automated widget verification is pending because the current build stops in an unrelated ArtifactCore module compile before reaching the curve editor target.
 
 承認済み参考画像: [approved-subtle-fabfilter-graph-2026-09-07.png](approved-subtle-fabfilter-graph-2026-09-07.png)
 

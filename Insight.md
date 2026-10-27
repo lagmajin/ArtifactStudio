@@ -7491,3 +7491,9 @@
 - **価値または懸念:** 煙densityと熱を分離でき、煙の量・熱の浮上・冷却を独立させるCore基盤ができた。ただし今回のthermal buoyancy 2.0/s設定は短時間で煙重心をsourceから約42 grid cells持ち上げる強い実験値で、既定値ではない。2本の追加scalar gridによりsolverごと約`2 * width * height * sizeof(float)`（128×128なら128 KiB）をコールド初期化時に使い、snapshotのcopy量も増える。App runtimeはまだtemperatureを注入も表示もせず、fire renderingやC4D/Houdini級の画質は未達。
 - **仮説（未検証）:** 次はAppのFluid専用設定からemitter temperatureとcooling/thermal buoyancyを供給し、sampled temperatureをparticle color/alphaへ結び付けると、同じ2D emitterから煙と炎を一緒に見せられる可能性がある。パーティクルAlpha rendererの色・輝度特性がflame表現に足るか、GPU additive/glow経路との組合せは未検証。
 - **次に確認すべきこと:** App runtimeとcheckpoint/settings hashへ温度を接続し、smoke-only / fire-only / mixedの連続frame画像を同一露出で比較する。燃焼後のheat lifetimeとfire color/intensityを密度・煙色と独立制御できるかを確認し、粒子の点状印象が強ければvolume/fire compositing pathの範囲を再評価する。
+# 2026-10-27: Curve Editor契約テストがArtifactCoreのmodule IFC参照で停止
+- **関連:** `tests/Artifact/CurveEditorWidgetContractTest.cpp`、`ArtifactCore/src/Graphics/Compute/CurveComputer.cpp`、`ArtifactCore/CMakeLists.txt`。
+- **確認できた事実:** `ArtifactCurveEditorWidgetContractTest` をNinjaでビルドすると、Curve Editorのソースへ到達する前に `CurveComputer.cpp` のコンパイルで停止した。MSVCの診断は `Graphics.Compute` と `Graphics.GPUcomputeContext` のimportを解決できないという内容で、同じbuild treeには対応するIFCファイルが生成されていたが、そのコンパイルコマンドには両IFCの `/reference` 引数がなかった。ArtifactCoreは今回の機能変更対象外のため変更していない。
+- **価値または懸念:** ArtifactのCurve Editor契約テストを実行できず、今回の編集ループがこのビルド環境では早期に止まる。原因修正なしでは次回も同じ依存再構築段階で止まる可能性が高い。
+- **仮説（未検証）:** `.cpp` のmodule implementation unitに対するCMake/Ninja依存スキャンまたは明示IFC参照設定が、当該importの依存をコンパイルコマンドへ反映していない可能性がある。
+- **次に確認すべきこと:** `.ddi` / dyndep出力と `ArtifactCore/CMakeLists.txt` のmodule implementation用参照設定を照合し、既存のC++20 module hygiene規則を保ったまま、どの段階で2つのimport依存が欠落するかを特定する。

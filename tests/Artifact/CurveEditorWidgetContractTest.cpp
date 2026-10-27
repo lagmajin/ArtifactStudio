@@ -9,6 +9,7 @@
 #include <vector>
 
 import Widget.CurveEditor;
+import Frame.Rate;
 
 namespace {
 
@@ -148,4 +149,102 @@ TEST(CurveEditorWidgetContractTest, DragMovesAllSelectedKeysByOneDelta)
     EXPECT_NEAR(widget.tracks()[0].keys[2].value, 90.0f, 0.1f);
     EXPECT_TRUE(widget.visualKeySelected(0, 0));
     EXPECT_TRUE(widget.visualKeySelected(0, 1));
+}
+
+TEST(CurveEditorWidgetContractTest, SpeedGraphUsesSignedOutgoingVelocityAndLocksBoundaries)
+{
+    QVector<ArtifactCore::TimeRemapKeyframe> keys{
+        {0.0, 0.0, ArtifactCore::TimeRemapKeyframe::Interpolation::Linear},
+        {1.0, 2.0, ArtifactCore::TimeRemapKeyframe::Interpolation::Linear},
+        {2.0, 1.0, ArtifactCore::TimeRemapKeyframe::Interpolation::Linear},
+    };
+    const auto track = ArtifactCore::sampleSpeedGraph(keys, 0, 60,
+                                                       ArtifactCore::FrameRate(30.0f));
+
+    ASSERT_EQ(track.keys.size(), 3u);
+    EXPECT_NEAR(track.keys[0].value, 60.0f, 0.001f);
+    EXPECT_NEAR(track.keys[1].value, -30.0f, 0.001f);
+    EXPECT_FLOAT_EQ(track.keys[2].value, 0.0f);
+    EXPECT_TRUE(track.keys[0].editable);
+    EXPECT_TRUE(track.keys[1].editable);
+    EXPECT_FALSE(track.keys[2].editable);
+}
+
+TEST(CurveEditorWidgetContractTest, SpeedGraphDragKeepsKeyFramesFixed)
+{
+    ArtifactCore::ArtifactCurveEditorWidget widget;
+    widget.resize(640, 400);
+    widget.setViewRange(0.0f, 100.0f, -100.0f, 100.0f);
+    auto track = makeTrack();
+    track.keys = {{10, 0.0f}, {90, 100.0f}};
+    track.keys[1].editable = false;
+    widget.setTracks({track});
+    widget.setFrameEditingEnabled(false);
+    widget.show();
+    QApplication::processEvents();
+
+    sendDrag(widget, widget.visualPoint(0, 10.0f, 0.0f),
+             widget.visualPoint(0, 30.0f, 20.0f));
+
+    ASSERT_EQ(widget.tracks()[0].keys.size(), 2u);
+    EXPECT_EQ(widget.tracks()[0].keys[0].frame, 10);
+    EXPECT_NEAR(widget.tracks()[0].keys[0].value, 20.0f, 0.5f);
+    EXPECT_EQ(widget.tracks()[0].keys[1].frame, 90);
+    EXPECT_NEAR(widget.tracks()[0].keys[1].value, 100.0f, 0.1f);
+}
+
+TEST(CurveEditorWidgetContractTest, SpeedGraphDoesNotDragTerminalBoundary)
+{
+    ArtifactCore::ArtifactCurveEditorWidget widget;
+    widget.resize(640, 400);
+    widget.setViewRange(0.0f, 100.0f, 0.0f, 100.0f);
+    auto track = makeTrack();
+    track.keys[1].editable = false;
+    widget.setTracks({track});
+    widget.setFrameEditingEnabled(false);
+    widget.show();
+    QApplication::processEvents();
+
+    sendDrag(widget, widget.visualPoint(0, 90.0f, 100.0f),
+             widget.visualPoint(0, 70.0f, 80.0f));
+
+    EXPECT_EQ(widget.tracks()[0].keys[1].frame, 90);
+    EXPECT_NEAR(widget.tracks()[0].keys[1].value, 100.0f, 0.1f);
+}
+
+TEST(CurveEditorWidgetContractTest, SpeedEditingDisablesKeyStructureCommands)
+{
+    ArtifactCore::ArtifactCurveEditorWidget widget;
+    widget.resize(640, 400);
+    widget.setViewRange(0.0f, 100.0f, 0.0f, 100.0f);
+    widget.setTracks({makeTrack()});
+    widget.setKeyEditingEnabled(true);
+    widget.setKeyStructureEditingEnabled(false);
+    widget.setFrameEditingEnabled(false);
+    widget.show();
+    QApplication::processEvents();
+
+    sendClick(widget, widget.visualPoint(0, 10.0f, 0.0f));
+    sendDelete(widget);
+
+    ASSERT_EQ(widget.tracks().size(), 1u);
+    ASSERT_EQ(widget.tracks()[0].keys.size(), 2u);
+    EXPECT_EQ(widget.tracks()[0].keys[0].frame, 10);
+    EXPECT_EQ(widget.tracks()[0].keys[1].frame, 90);
+    EXPECT_FALSE(widget.setSelectedKeyConstant());
+}
+
+TEST(CurveEditorWidgetContractTest, HoldIntervalSpeedIsZeroAndNotEditable)
+{
+    QVector<ArtifactCore::TimeRemapKeyframe> keys{
+        {0.0, 0.0, ArtifactCore::TimeRemapKeyframe::Interpolation::Hold},
+        {1.0, 2.0, ArtifactCore::TimeRemapKeyframe::Interpolation::Linear},
+    };
+    const auto track = ArtifactCore::sampleSpeedGraph(keys, 0, 30,
+                                                       ArtifactCore::FrameRate(30.0f));
+
+    ASSERT_EQ(track.keys.size(), 2u);
+    EXPECT_FLOAT_EQ(track.keys[0].value, 0.0f);
+    EXPECT_FALSE(track.keys[0].editable);
+    EXPECT_FALSE(track.keys[1].editable);
 }
