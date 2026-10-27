@@ -91,6 +91,7 @@ struct DetectedLight {
     Pixel color{};
     int centerX = 0;
     int centerY = 0;
+    bool touchesFrameBoundary = false;
     std::array<SourceSample, 225> samples{};
 };
 
@@ -1016,6 +1017,7 @@ DetectedLight estimateLight(const Image& image, int centerX, int centerY, float 
     std::array<double, 225> weightedX{}, weightedY{};
     std::array<double, 225> sampleRed{}, sampleGreen{}, sampleBlue{};
     std::array<double, 49> columnFlux{}, rowFlux{};
+    bool touchesFrameBoundary = false;
     for (int y = std::max(0, centerY - 24); y <= std::min(image.height - 1, centerY + 24); ++y) {
         for (int x = std::max(0, centerX - 24); x <= std::min(image.width - 1, centerX + 24); ++x) {
             const float dx = static_cast<float>(x - centerX);
@@ -1025,6 +1027,8 @@ DetectedLight estimateLight(const Image& image, int centerX, int centerY, float 
             const float luminance = pixel.r * 0.2126f + pixel.g * 0.7152f + pixel.b * 0.0722f;
             const float excess = std::max(0.0f, luminance - threshold);
             if (excess <= 0.0f || luminance <= 1e-8f) continue;
+            if (x == 0 || y == 0 || x == image.width - 1 || y == image.height - 1)
+                touchesFrameBoundary = true;
             const double chromaWeight = static_cast<double>(excess / luminance);
             columnFlux[static_cast<std::size_t>(x - centerX + 24)] += excess;
             rowFlux[static_cast<std::size_t>(y - centerY + 24)] += excess;
@@ -1074,6 +1078,7 @@ DetectedLight estimateLight(const Image& image, int centerX, int centerY, float 
     }
     DetectedLight light;
     light.energy = static_cast<float>(totalFlux);
+    light.touchesFrameBoundary = touchesFrameBoundary;
     if (totalFlux > 1e-8) {
         // Keep chromaticity separate from integrated source flux so intensity
         // enters the optical energy calculation exactly once.
@@ -1255,7 +1260,8 @@ Image render(const Image& source, const Settings& settings) {
             std::cout << "Source (" << std::fixed << std::setprecision(3) << light.u << ',' << light.v
                       << ") integratedFlux=" << std::setprecision(6) << light.energy
                       << " sampledFlux=" << sampledFlux << " activeBins=" << activeSamples << '/'
-                      << settings.sourceSamples << '\n';
+                      << settings.sourceSamples << " touchesFrameBoundary="
+                      << std::boolalpha << light.touchesFrameBoundary << '\n';
         }
     }
     if (lights.count == 0) return output;

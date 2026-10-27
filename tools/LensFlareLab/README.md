@@ -118,7 +118,9 @@ only paths eligible under the single-stop-crossing rule. `--ghost-pair 9 8`
 renders only the path that reflects at surface 9 and then surface 8, making a
 single ghost easy to inspect. `--source-report` compares the integrated
 highlight flux with the sum of the selected bin fluxes and reports how many bins
-contain energy.
+contain energy. It also reports `touchesFrameBoundary` when above-threshold
+source pixels reach the image edge; this warns that the reported flux only
+covers visible pixels and does not estimate unseen off-frame radiance.
 
 See [EVALUATION.md](EVALUATION.md) for paper-grounded evaluation images and
 current model limits. `--diffraction-report` prints the RGB Fresnel/FrFT order

@@ -16,14 +16,20 @@ def main() -> None:
                         help="scale lobe offsets from their center (0..2.5, default: 1)")
     parser.add_argument("--color-separated", action="store_true",
                         help="assign warm, blue, and red spectra to the three lobes")
+    parser.add_argument("--position", type=float, nargs=2, default=(0.383, 0.384),
+                        metavar=("U", "V"), help="source center in normalized image coordinates")
     args = parser.parse_args()
     if not math.isfinite(args.peak) or args.peak <= 0.0:
         parser.error("--peak must be finite and greater than zero")
     if not math.isfinite(args.lobe_spacing_scale) or not 0.0 <= args.lobe_spacing_scale <= 2.5:
         parser.error("--lobe-spacing-scale must be in the range 0..2.5")
+    if any(not math.isfinite(value) or not 0.0 <= value <= 1.0
+           for value in args.position):
+        parser.error("--position coordinates must be in the range 0..1")
 
     width, height = 640, 360
-    center_x, center_y = round(0.383 * (width - 1)), round(0.384 * (height - 1))
+    center_x = round(args.position[0] * (width - 1))
+    center_y = round(args.position[1] * (height - 1))
     # Three overlapping lobes form an asymmetric finite emitter. The unequal
     # radiance and offsets exercise both marginal partitions and the 2D bins.
     lobes = ((-7.0, -2.0, 3.8, 1.0, (1.0, 0.66, 0.30)),

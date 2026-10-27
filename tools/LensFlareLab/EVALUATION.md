@@ -146,6 +146,38 @@ Reproduce with `python tools/LensFlareLab/make_multilobe_source.py
 `measure_rgb_error.py INPUT WEIGHTED_225 --case LABEL RENDER ...`. The utility
 subtracts the unprocessed input and reports flare-only RGB and per-channel L1.
 
+#### Sources clipped by the image boundary
+
+The generator's `--position U V` places the asymmetric emitter near a frame
+edge. At x=0.01, only 87,320 of the centered profile's 138,364 thresholded
+luminance units remain in-frame (63.1%); at x=0.99, 131,826 remain (95.3%),
+because the brighter and weaker lobes point in different directions. `--auto`
+detected both sources near the edge and `--source-report` marked
+`touchesFrameBoundary=true`; the centered control reports false. The detector
+preserves the measured visible flux within float-rounding error, but cannot
+infer the missing off-frame 36.9% or 4.7%. It intentionally does not multiply
+the visible source by a guessed completion factor.
+
+For the visible 6→5 path at grid 96, the weighted 225-bin image again serves
+only as a layout-dependent reference. At requested 9/49 bins, left-edge
+equal-grid L1 is 3.54%/1.40% and weighted L1 is 1.13%/0.40%; right-edge values
+are 3.39%/1.66% and 1.76%/0.51%. Flare-only RGB L1 at 49 bins is 1.47% equal
+versus 0.45% weighted on the left, and 1.73% versus 0.57% on the right. The
+equal-grid 225 image differs from the weighted reference by 0.53%/0.57% at
+the left/right edge. Automatic source-center estimates (0.003,0.379) and
+(0.981,0.379) produce 0.53%/0.65% RGB L1 against the corresponding weighted
+225 reference at 49 bins, including detection-center variation.
+
+![Left-edge clipped asymmetric source and 6→5 ghost sampling comparison](examples/source-layout-edge-left-6-5.png)
+
+![Right-edge clipped asymmetric source and 6→5 ghost sampling comparison](examples/source-layout-edge-right-6-5.png)
+
+Regenerate with `make_multilobe_source.py --position 0.01 0.384` or
+`--position 0.99 0.384`, render the visible `--ghost-pair 6 5` at 9/49/225
+bins with both sampling modes, and compare against the weighted 225 image.
+`--source-report` flags visible source pixels touching the frame boundary; it
+is a truncation warning, not an estimate of the complete emitter energy.
+
 ### Optical path length diagnostic
 
 The optional `--optical-path-report` traces the selected ghost pair at the
