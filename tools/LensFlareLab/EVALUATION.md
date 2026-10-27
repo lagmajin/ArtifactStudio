@@ -41,6 +41,42 @@ Reproduce with:
 python tools/LensFlareLab/evaluate_adaptive_field_convergence.py build/tools/LensFlareLab/LensFlareLab.exe
 ```
 
+### Isolated-path error and refinement-threshold sensitivity
+
+The all-path field metric can hide a weak ghost's centroid or shape error, so I
+also rendered five individual paths (13→9, 6→5, 5→0, 12→9, 10→7) at the same
+four source fields. For every path/field pair with nonzero 128² reference flux,
+adaptive 64² reduced RGB L1. The weak 5→0 and edge-shaped 6→5 paths showed the
+largest uniform-grid shape errors: up to 25.13% and 12.42%, respectively; the
+adaptive result reduced these to 8.84% and 4.26% in the top-edge field and to
+13.83% and 4.72% in the upper-left field. One limitation emerged: for 6→5 at
+upper-left and its symmetric lower-right field, adaptive sampling increased
+the weighted-centroid error from 0.302 px to 1.362 px even while normalized
+shape L1 fell from 12.42% to 4.72%. A single shape metric is therefore not a
+sufficient acceptance measure for small, asymmetric ghosts.
+
+I then swept the advertised screen-error threshold from 0.05 to 8 px on the
+upper-left 6→5 path. All six adaptive renders were byte-identical and refined
+the same 139 of 3,969 center cells; each reported a fixed 25% relative-energy
+threshold. This is evidence that the fixed energy/topology criteria dominate
+the screen-error threshold in this selected case, so changing that setting
+alone did not change quality or sample count. It should not be interpreted as
+proof that the screen-error setting is inactive on every lens or field.
+
+![Uniform, adaptive, reference, and signed luminance error panels for the 6→5 ghost at four fields](examples/adaptive-path-convergence/ghost-6-5.png)
+
+The per-path measurements and signed-difference plates are in
+[`adaptive-path-convergence.csv`](examples/adaptive-path-convergence.csv) and
+[`adaptive-path-convergence`](examples/adaptive-path-convergence/). The
+threshold sweep is in [`adaptive-threshold-sensitivity.csv`](examples/adaptive-threshold-sensitivity.csv)
+and [its comparison image](examples/adaptive-threshold-sensitivity.png).
+Reproduce both studies with:
+
+```powershell
+python tools/LensFlareLab/evaluate_adaptive_ghost_paths.py build/tools/LensFlareLab/LensFlareLab.exe
+python tools/LensFlareLab/evaluate_adaptive_threshold_sensitivity.py build/tools/LensFlareLab/LensFlareLab.exe
+```
+
 ## Full-field coverage of reflected paths
 
 The 42 eligible surface-pair paths were measured over a 5×5 source grid
