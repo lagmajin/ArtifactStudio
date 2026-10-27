@@ -12,16 +12,17 @@ areas, and convolves detected highlights with a Fraunhofer-diffraction PSF for
 the aperture.
 
 The detector integrates positive luminance above the threshold over each
-highlight and keeps its RGB chromaticity separate from that flux. By default,
-that footprint is divided into 3x3 radiance bins; each occupied bin contributes
-its own source direction to the reflected-ghost calculation. Diffraction instead
+highlight and keeps its RGB chromaticity separate from that flux. Its footprint
+is divided into radiance bins; each occupied bin contributes its own source
+direction to the reflected-ghost calculation. Diffraction instead
 convolves the original threshold-excess radiance footprint with the aperture
 PSF, replacing that source energy rather than adding a second copy. This keeps
 the finite source's shape in the diffraction result. `--source-samples 1`
-selects the point-source baseline and `--source-samples 9` selects the default
-finite-source ghost mode. Rays are sampled over the physical stop and traced
-backwards through the front group to the entrance pupil, which gives coarse
-grids useful coverage at the stated f-number. Reflected ghost paths and
+selects the point-source baseline, `--source-samples 9` selects the default
+3x3 finite-source ghost mode, and `--source-samples 25` selects a 5x5 grid for
+sampling-convergence comparisons. Rays are sampled over the physical stop and
+traced backwards through the front group to the entrance pupil, which gives
+coarse grids useful coverage at the stated f-number. Reflected ghost paths and
 diffraction can be rendered independently for evaluation. Paths that cross the
 aperture stop three times are omitted; the Angenieux prescription then has 42
 remaining surface pairs, matching the paper's single-stop-crossing model.
@@ -47,7 +48,7 @@ PFM preserves values above 1.0. Output alpha is not stored.
 
 ```text
 LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
-               [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|9]
+               [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|9|25]
                [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
@@ -94,7 +95,7 @@ image luminance and prints their sensor bounds. The visible-path count uses
 only paths eligible under the single-stop-crossing rule. `--ghost-pair 9 8`
 renders only the path that reflects at surface 9 and then surface 8, making a
 single ghost easy to inspect. `--source-report` compares the integrated
-highlight flux with the sum of the nine bin fluxes and reports how many bins
+highlight flux with the sum of the selected bin fluxes and reports how many bins
 contain energy.
 
 See [EVALUATION.md](EVALUATION.md) for paper-grounded evaluation images and
@@ -118,6 +119,9 @@ Regenerate the general evaluation chart with
 radiances for a high-dynamic-range visibility check, use
 `python tools/LensFlareLab/make_evaluation_chart.py --output build/high-exposure.pfm --light-scale 4096`.
 Use `--single-light-position U V` to generate off-axis charts for field sweeps.
+`python tools/LensFlareLab/make_source_sampling_comparison.py` creates an
+image comparison plate and radiometric summary from the 1/9/25 source-sample
+PFM renders.
 
 ## Core/app integration path
 

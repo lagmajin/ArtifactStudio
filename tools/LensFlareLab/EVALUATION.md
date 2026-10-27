@@ -169,13 +169,15 @@ of wasting samples over the full front-element diameter.
 
 The detector now retains the spatial radiance distribution inside each
 highlight footprint. In default mode it accumulates energy and chromaticity in
-3x3 bins and traces each occupied bin from its own field direction, applying
-the same source samples to reflected ghosts and aperture diffraction. This is
-an image-space proxy for a finite emitter: it assumes the thresholded input
+3x3 bins and traces each occupied bin from its own field direction for the
+reflected ghosts. Aperture diffraction instead uses the full input footprint.
+This is an image-space proxy for a finite emitter: it assumes the thresholded input
 footprint represents emitter extent, so sensor bloom or an existing point
 spread function can be mistaken for source size. It does not infer a 3D emitter
 or separate emitter size from camera blur. `--source-samples 1` collapses the
-same integrated flux and chromaticity to a single point source for comparison.
+same integrated flux and chromaticity to a single point source for comparison;
+`--source-samples 25` selects a 5x5 bin grid for source-integration convergence
+checks. The historical nine-bin measurements below remain unchanged.
 With `--source-report`, the four-chart input preserved a combined integrated
 flux of 2,202,271.78 versus 2,202,271.69 summed across the bins (less than
 0.00001% numerical difference). The four highlights occupied 9, 3, 5, and 8
@@ -186,9 +188,40 @@ of the nine bins.
 `--source-samples` controls the directions traced for reflected ghosts. The
 diffraction calculation uses the original spatial highlight radiance directly,
 so changing the ghost sampling count does not collapse the source footprint to
-one or nine diffraction points.
+one, nine, or twenty-five diffraction points.
 
 ![Reflected ghosts only, point-source baseline on the left and finite-source sampling on the right](examples/finite-source-ghost-comparison-x256.png)
+
+### Finite-source integration refinement
+
+The lab now accepts `--source-samples 25`, partitioning the same thresholded
+detector footprint inside a 24-pixel radius into 5x5 radiance bins. The default remains
+3x3, and `1` remains the point-source baseline. This refines source-angle
+quadrature without changing the lens, stop pupil grid, ray grid, or total input
+highlight energy.
+
+For a single warm source at `(0.3834, 0.3844)` with radiance scale 4096,
+ray-grid 96, gain 1, and source diffraction off, point / 3x3 / 5x5 ghost
+luminance sums inside the sensor were `931.474`, `931.031`, and `926.547`.
+Peak luminance fell from `4.659` to `4.233` to `2.818`; centroids were
+`(353.413, 199.140)`, `(353.467, 199.168)`, and `(353.856, 199.397)`. The
+sensor-frame energy decrease at 5x5 is consistent with ghost rays shifted
+beyond the sensor boundary, not with source-energy renormalization. The 5x5 image differs
+from 3x3 by 4.24% L1 relative to its in-frame flare luminance, so the current
+3x3 approximation has visible sampling dependence. A 5x5 grid is a refinement
+sample, not a proven converged result; more bins can change clipping and cost.
+
+![Single-source point, 3x3, 5x5 ghost renders and the 3x3-to-5x5 signed image difference](examples/finite-source-sampling-convergence-x256.png)
+
+Reproduce the input and three renders with:
+
+```powershell
+python tools/LensFlareLab/make_evaluation_chart.py --output build/tools/LensFlareLab/finite-source-convergence-input.pfm --light-scale 4096 --single-light-position 0.3834 0.3844
+LensFlareLab.exe build/tools/LensFlareLab/finite-source-convergence-input.pfm build/tools/LensFlareLab/finite-source-1-convergence.pfm --position 0.3834 0.3844 --source-samples 1 --ray-grid 96 --diffraction off
+LensFlareLab.exe build/tools/LensFlareLab/finite-source-convergence-input.pfm build/tools/LensFlareLab/finite-source-9-convergence.pfm --position 0.3834 0.3844 --source-samples 9 --ray-grid 96 --diffraction off
+LensFlareLab.exe build/tools/LensFlareLab/finite-source-convergence-input.pfm build/tools/LensFlareLab/finite-source-25-convergence.pfm --position 0.3834 0.3844 --source-samples 25 --ray-grid 96 --diffraction off
+python tools/LensFlareLab/make_source_sampling_comparison.py build/tools/LensFlareLab/finite-source-convergence-input.pfm build/tools/LensFlareLab/finite-source-1-convergence.pfm build/tools/LensFlareLab/finite-source-9-convergence.pfm build/tools/LensFlareLab/finite-source-25-convergence.pfm tools/LensFlareLab/examples/finite-source-sampling-convergence-x256.png
+```
 
 ## Diffraction PSF and source-energy conservation
 

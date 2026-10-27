@@ -42,7 +42,7 @@ struct DetectedLight {
     Pixel color{};
     int centerX = 0;
     int centerY = 0;
-    std::array<SourceSample, 9> samples{};
+    std::array<SourceSample, 25> samples{};
 };
 
 struct DetectedLightSet {
@@ -761,12 +761,14 @@ float finiteClamp(float value, float minimum, float maximum) {
     return std::clamp(std::isfinite(value) ? value : minimum, minimum, maximum);
 }
 
-DetectedLight estimateLight(const Image& image, int centerX, int centerY, float threshold) {
+DetectedLight estimateLight(const Image& image, int centerX, int centerY, float threshold,
+                            int sourceSamples) {
+    const int binsPerAxis = sourceSamples == 25 ? 5 : 3;
     double totalFlux = 0.0;
     double red = 0.0, green = 0.0, blue = 0.0;
-    std::array<double, 9> flux{};
-    std::array<double, 9> weightedX{}, weightedY{};
-    std::array<double, 9> sampleRed{}, sampleGreen{}, sampleBlue{};
+    std::array<double, 25> flux{};
+    std::array<double, 25> weightedX{}, weightedY{};
+    std::array<double, 25> sampleRed{}, sampleGreen{}, sampleBlue{};
     for (int y = std::max(0, centerY - 24); y <= std::min(image.height - 1, centerY + 24); ++y) {
         for (int x = std::max(0, centerX - 24); x <= std::min(image.width - 1, centerX + 24); ++x) {
             const float dx = static_cast<float>(x - centerX);
@@ -777,9 +779,9 @@ DetectedLight estimateLight(const Image& image, int centerX, int centerY, float 
             const float excess = std::max(0.0f, luminance - threshold);
             if (excess <= 0.0f || luminance <= 1e-8f) continue;
             const double chromaWeight = static_cast<double>(excess / luminance);
-            const int binX = std::clamp((x - (centerX - 24)) / 16, 0, 2);
-            const int binY = std::clamp((y - (centerY - 24)) / 16, 0, 2);
-            const std::size_t bin = static_cast<std::size_t>(binY * 3 + binX);
+            const int binX = std::clamp((x - (centerX - 24)) * binsPerAxis / 48, 0, binsPerAxis - 1);
+            const int binY = std::clamp((y - (centerY - 24)) * binsPerAxis / 48, 0, binsPerAxis - 1);
+            const std::size_t bin = static_cast<std::size_t>(binY * binsPerAxis + binX);
             totalFlux += excess;
             red += pixel.r * chromaWeight;
             green += pixel.g * chromaWeight;
@@ -929,7 +931,8 @@ Image render(const Image& source, const Settings& settings) {
                 weightSum > 0.000001 ? weightedX / weightSum : peakX)), 0, width - 1);
             const int centerY = std::clamp(static_cast<int>(std::lround(
                 weightSum > 0.000001 ? weightedY / weightSum : peakY)), 0, height - 1);
-            DetectedLight light = estimateLight(source, centerX, centerY, settings.threshold);
+            DetectedLight light = estimateLight(source, centerX, centerY, settings.threshold,
+                                                settings.sourceSamples);
             light.u = static_cast<float>(centerX) / std::max(1, width - 1);
             light.v = static_cast<float>(centerY) / std::max(1, height - 1);
             light.centerX = centerX;
@@ -942,7 +945,7 @@ Image render(const Image& source, const Settings& settings) {
         light.v = settings.positionY;
         const int sx = std::clamp(static_cast<int>(std::lround(light.u * (width - 1))), 0, width - 1);
         const int sy = std::clamp(static_cast<int>(std::lround(light.v * (height - 1))), 0, height - 1);
-        light = estimateLight(source, sx, sy, settings.threshold);
+        light = estimateLight(source, sx, sy, settings.threshold, settings.sourceSamples);
         const float shiftU = settings.positionX - static_cast<float>(sx) / std::max(1, width - 1);
         const float shiftV = settings.positionY - static_cast<float>(sy) / std::max(1, height - 1);
         for (SourceSample& sample : light.samples) {
@@ -967,7 +970,8 @@ Image render(const Image& source, const Settings& settings) {
             }
             std::cout << "Source (" << std::fixed << std::setprecision(3) << light.u << ',' << light.v
                       << ") integratedFlux=" << std::setprecision(6) << light.energy
-                      << " sampledFlux=" << sampledFlux << " activeBins=" << activeSamples << "/9\n";
+                      << " sampledFlux=" << sampledFlux << " activeBins=" << activeSamples << '/'
+                      << settings.sourceSamples << '\n';
         }
     }
     if (lights.count == 0) return output;
@@ -1020,7 +1024,7 @@ Image render(const Image& source, const Settings& settings) {
             }
         }
         for (std::size_t sampleIndex = 0; sampleIndex <
-             static_cast<std::size_t>(settings.sourceSamples == 1 ? 1 : 9); ++sampleIndex) {
+             static_cast<std::size_t>(settings.sourceSamples == 1 ? 1 : settings.sourceSamples); ++sampleIndex) {
             SourceSample sample;
             if (settings.sourceSamples == 1) {
                 sample = {light.u, light.v, light.energy, light.color};
@@ -1298,7 +1302,7 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
@@ -1310,8 +1314,8 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "jacobianCap") s.jacobianCap = finiteClamp(value, 0.01f, 4096.0f);
     else if (name == "rayGrid") s.rayGrid = static_cast<int>(std::lround(finiteClamp(value, 8.0f, 192.0f)));
     else if (name == "sourceSamples") {
-        if (value != 1.0f && value != 9.0f)
-            throw std::runtime_error("sourceSamples must be 1 or 9");
+        if (value != 1.0f && value != 9.0f && value != 25.0f)
+            throw std::runtime_error("sourceSamples must be 1, 9, or 25");
         s.sourceSamples = static_cast<int>(value);
     }
     else if (name == "dispersionModel") s.useCauchyDispersion = value >= 0.5f;
