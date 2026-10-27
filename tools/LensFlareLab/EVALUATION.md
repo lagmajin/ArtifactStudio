@@ -71,16 +71,51 @@ python tools/LensFlareLab/evaluate_direct_transmission_raytrace.py --samples 512
 ```
 
 This is geometric optics: it deposits rays at their sensor-plane intercepts.
-It does not calculate a complex pupil, phase, diffraction, coating phase,
-polarization, calibrated glass dispersion, or camera response. In particular,
-the output cannot yet replace the ideal-pupil diffraction kernel. Computing a
-prescription-based wavefront requires the correct exit-pupil reference sphere
-and its path-length correction; see [OpticStudio's OPD definition](https://ansyshelp.ansys.com/public/Views/Secured/Zemax/v252/en/OpticStudio_User_Guide/OpticStudio_Help/topics/Exit_Pupil.html)
-and [Lin (2024), DOI 10.1364/JOSAA.529814](https://doi.org/10.1364/JOSAA.529814).
-The prescription and f/11 stop are the Lab's assumed model, not a measured
-serial-number-specific Angenieux lens. Keep this evaluation in LensFlareLab
-until ray, reference-sphere, diffraction, and measured-camera comparisons are
-validated before any Core/App integration.
+It does not itself calculate a complex pupil, phase, diffraction, coating
+phase, polarization, calibrated glass dispersion, or camera response. The
+prescription and f/11 stop are the Lab's assumed model, not a measured
+serial-number-specific Angenieux lens.
+
+## Prescription-derived optical path and reference-sphere diagnostic
+
+`evaluate_prescription_wavefront.py` accumulates optical path length as
+`n × segment length` from the field's equal-phase incident plane, through all
+14 surfaces, and to a shared plane 1 mm beyond the last surface vertex. It then
+adds the air distance from each plane sample to the chief ray's image point on
+the assumed sensor plane and subtracts the chief-ray path. This forms an
+image-centered reference sphere on the chosen exit-side plane and removes
+piston at the chief ray. It is an explicit path-length correction, not a claim
+that this convenient plane is the system's true exit pupil.
+
+At a 512² launch grid, the 550 nm reference-sphere OPD RMS is 0.145–0.273 µm
+(0.264–0.496 waves); doubling from 256² changes these RMS values by at most
+0.20%. The 12° field transmits 4,734 rays, consistent with the separate pupil
+clipping estimate. As an internal ray/eikonal check, OPL differences between
+adjacent valid launch samples are compared with the mean outgoing direction
+cosines dotted into their exit-plane displacement; the RMS relative error is
+0.000042–0.000058% across the four fields. This checks path accumulation and
+plane phase sampling, but does not independently validate the prescription.
+
+![Prescription-derived reference-sphere OPD at 550 nm for four fields](examples/prescription-wavefront.png)
+
+The CSV records each chief image point, reference-sphere radius, OPD RMS, and
+eikonal residual. Samples have equal incident-plane area; no pupil Jacobian,
+Fresnel amplitude, coating phase, polarization, edge diffraction, or calibrated
+sensor response is applied. A physically correct exit-pupil coordinate map
+and its field-dependent reference sphere remain necessary before forming a
+prescription-derived coherent PSF. This next step follows the exit-pupil OPD
+definition in [OpticStudio's documentation](https://ansyshelp.ansys.com/public/Views/Secured/Zemax/v252/en/OpticStudio_User_Guide/OpticStudio_Help/topics/Exit_Pupil.html)
+and the reference-sphere path-length treatment validated against Zemax by
+[Lin (2024), DOI 10.1364/JOSAA.529814](https://doi.org/10.1364/JOSAA.529814).
+Keep this work in LensFlareLab until pupil coordinates, complex amplitude,
+diffraction, and measured-camera comparisons are validated before any Core/App
+integration.
+
+Reproduce the OPD map and CSV with:
+
+```powershell
+python tools/LensFlareLab/evaluate_prescription_wavefront.py --samples 512
+```
 
 ## Controlled wavefront-aberration PSFs
 

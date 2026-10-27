@@ -225,11 +225,17 @@ the same-phase 4096² result.
 six-blade pupil with controlled Zernike-style wavefront modes, integrates them
 over detector pixels, and cross-checks the zero-aberration kernel against the
 existing renderer.
+`evaluate_prescription_wavefront.py --samples 512` accumulates optical path
+length through the direct-transmission prescription, applies a chief-image-
+centered reference-sphere correction at an exit-side reference plane, and
+checks adjacent-ray OPL increments against the eikonal direction relation.
+This map is an intermediate diagnostic: the plane is not yet the true exit
+pupil, and the output is not a coherent PSF.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
 NumPy, SciPy, and Pillow; spectral evaluation requires NumPy and Pillow. The
-wavefront evaluation requires NumPy, SciPy, and Pillow. The renderer itself
+wavefront evaluations require NumPy, SciPy, and Pillow. The renderer itself
 has no Python runtime dependency.
 `evaluate_direct_diffraction_spectral.py` compares 3/7/15/31/61 wavelength
 sampling for neutral and primary-color point sources against its 61-band
