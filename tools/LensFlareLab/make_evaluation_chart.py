@@ -17,6 +17,8 @@ def main() -> None:
                         help="replace the chart lights with one warm source at normalized image coordinates")
     parser.add_argument("--source-radius", type=float, default=7.0,
                         help="Gaussian scale parameter in pixels for the single-light source (1..8, default 7)")
+    parser.add_argument("--single-light-neutral", action="store_true",
+                        help="use an equal-energy RGB source for spectral dispersion evaluation")
     args = parser.parse_args()
     if not math.isfinite(args.light_scale) or args.light_scale <= 0:
         parser.error("--light-scale must be finite and greater than zero")
@@ -51,7 +53,9 @@ def main() -> None:
     if args.single_light_position is not None:
         u, v = args.single_light_position
         lights = ((round(u * (width - 1)), round(v * (height - 1)), args.source_radius,
-                   (1.0, 0.83, 0.58), 4.5),)
+                   (1.0, 1.0, 1.0) if args.single_light_neutral else (1.0, 0.83, 0.58), 4.5),)
+    elif args.single_light_neutral:
+        parser.error("--single-light-neutral requires --single-light-position")
     for cx, cy, radius, color, peak in lights:
         for y in range(max(0, cy - 20), min(height, cy + 21)):
             for x in range(max(0, cx - 20), min(width, cx + 21)):

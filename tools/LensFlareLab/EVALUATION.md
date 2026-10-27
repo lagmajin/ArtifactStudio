@@ -547,6 +547,62 @@ from d-line index and Abbe number, not measured Sellmeier coefficients.
 
 ![Ghost-only A/B comparison of linear Abbe and Cauchy dispersion](examples/dispersion-cauchy-vs-linear-x256.png)
 
+### Spectral ghost separation across the image field
+
+The existing four-light comparison averages together paths and source colors,
+so it can hide wavelength-dependent displacement. This evaluation uses a neutral
+isolated point source and only surface path 9→8, rendered at the same 610/550/460
+nm bands, ray-grid 192, no diffraction, and no aperture FrFT. The on-axis source
+is `(0.5,0.5)`; the off-axis source is `(0.4,0.5)`. Both ghosts remain inside
+the 640x360 sensor. Source radiance is raised 1024x only for visibility; both
+models use the same input and logarithmic display gain.
+
+| Field | Model | R centroid (610 nm) | G centroid (550 nm) | B centroid (460 nm) | Max RGB separation |
+|---|---|---:|---:|---:|---:|
+| On-axis | Cauchy | (319.500, 179.500) | (319.500, 179.500) | (319.500, 179.500) | 0.0001 px |
+| On-axis | Linear Abbe | (319.500, 179.500) | (319.500, 179.500) | (319.500, 179.500) | 0.0001 px |
+| Off-axis | Cauchy | (446.453, 179.500) | (447.174, 179.500) | (448.936, 179.500) | 2.4827 px |
+| Off-axis | Linear Abbe | (446.573, 179.500) | (446.934, 179.500) | (447.805, 179.500) | 1.2312 px |
+
+At the off-axis position, the two dispersion models therefore predict about a
+2x difference in lateral RGB ghost spread. Relative to Cauchy, linear Abbe
+changes per-channel ghost flux by +0.34% red, -0.38% green, and -4.75% blue.
+The field-dependent separation is visible in the comparison plate; the signed
+difference panel uses a stronger amplification than the two image panels.
+
+![Neutral isolated 9→8 ghost at the center and off-axis positions; each row shows Cauchy, linear Abbe, and signed RGB difference](examples/dispersion-ghost-field-sweep.png)
+
+This is a model-sensitivity result, not a measurement of which dispersion curve
+is more accurate. The prescription provides d-line index and Abbe number but no
+glass identity or Sellmeier coefficients. The Cauchy parameterization follows
+the 2024 reference implementation, while the alternative linear estimate is a
+legacy approximation. Hullin et al. evaluate rays per wavelength: three bands
+represent most ghosts, but their paper notes that a few cases need many more
+samples and describes interpolation with up to seven bands for high quality.
+LensFlareLab currently evaluates only three wavelengths, so this test does not
+prove that 610/550/460 nm adequately resolve this ghost's continuous spectrum.
+See [Hullin et al. (2011)](https://resources.mpi-inf.mpg.de/lensflareRendering/pdf/flare.pdf)
+and [Bodonyi et al. (2025)](https://link.springer.com/article/10.1007/s00371-024-03625-7).
+Hullin et al. report that a few ghosts may need up to 60 wavelength samples for
+smooth brute-force results; their runtime configuration uses three bands for
+standard quality and up to seven with interpolation for high quality. A useful
+next validation is a 7-band render against measured glass or a reference
+optical prescription with known dispersion data.
+
+Recreate the plate by generating neutral point inputs at both fields, rendering
+each with the same path/settings except `--dispersion`, and passing the two
+models for each field to `make_dispersion_comparison.py`:
+
+```powershell
+python tools/LensFlareLab/make_evaluation_chart.py --output build/tools/LensFlareLab/dispersion-center-input.pfm --source-only --single-light-position 0.5 0.5 --single-light-neutral --light-scale 1024
+python tools/LensFlareLab/make_evaluation_chart.py --output build/tools/LensFlareLab/dispersion-offaxis-input.pfm --source-only --single-light-position 0.4 0.5 --single-light-neutral --light-scale 1024
+LensFlareLab.exe build/tools/LensFlareLab/dispersion-center-input.pfm build/tools/LensFlareLab/dispersion-center-cauchy.pfm --position 0.5 0.5 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft off --ghost-pair 9 8 --dispersion cauchy
+LensFlareLab.exe build/tools/LensFlareLab/dispersion-center-input.pfm build/tools/LensFlareLab/dispersion-center-linear.pfm --position 0.5 0.5 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft off --ghost-pair 9 8 --dispersion linear
+LensFlareLab.exe build/tools/LensFlareLab/dispersion-offaxis-input.pfm build/tools/LensFlareLab/dispersion-offaxis-cauchy.pfm --position 0.4 0.5 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft off --ghost-pair 9 8 --dispersion cauchy
+LensFlareLab.exe build/tools/LensFlareLab/dispersion-offaxis-input.pfm build/tools/LensFlareLab/dispersion-offaxis-linear.pfm --position 0.4 0.5 --source-samples 1 --ray-grid 192 --gain 1 --diffraction off --ghost-frft off --ghost-pair 9 8 --dispersion linear
+python tools/LensFlareLab/make_dispersion_comparison.py tools/LensFlareLab/examples/dispersion-ghost-field-sweep.png --gain 2400 --difference-gain 250000 --case "on-axis 9-8" build/tools/LensFlareLab/dispersion-center-input.pfm build/tools/LensFlareLab/dispersion-center-cauchy.pfm build/tools/LensFlareLab/dispersion-center-linear.pfm --case "off-axis (0.4, 0.5) 9-8" build/tools/LensFlareLab/dispersion-offaxis-input.pfm build/tools/LensFlareLab/dispersion-offaxis-cauchy.pfm build/tools/LensFlareLab/dispersion-offaxis-linear.pfm
+```
+
 The legacy point-sample rasterizer uses a 1-pixel reference area and exposes a
 cap for local caustic gain; the default is 512 and the supported maximum is
 4096. This is a numerical guard, not a paper-derived physical parameter. At ray-grid 192, cap

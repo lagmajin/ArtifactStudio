@@ -125,7 +125,11 @@ Regenerate the general evaluation chart with
 `python tools/LensFlareLab/make_evaluation_chart.py`. To raise only the source
 radiances for a high-dynamic-range visibility check, use
 `python tools/LensFlareLab/make_evaluation_chart.py --output build/high-exposure.pfm --light-scale 4096`.
-Use `--single-light-position U V` to generate off-axis charts for field sweeps.
+Use `--single-light-position U V` to generate off-axis charts for field sweeps;
+add `--single-light-neutral` for equal-RGB point sources in dispersion
+comparisons. `make_dispersion_comparison.py` builds a shared-exposure plate and
+reports per-channel ghost flux, peak, centroid, and maximum RGB centroid spread
+for repeatable Cauchy/linear A/B cases.
 `python tools/LensFlareLab/make_source_sampling_comparison.py` creates an
 image comparison plate and radiometric summary from the 1/9/25 source-sample
 PFM renders.
