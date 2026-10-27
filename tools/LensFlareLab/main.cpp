@@ -63,12 +63,14 @@ struct Settings {
     bool usePixelAreaRasterization = true;
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
+    float fresnelFrftOrder = 0.0f;
     bool antiReflectCoating = true;
     bool ghostsEnabled = true;
     bool diffractionEnabled = true;
     bool reportGhostPaths = false;
     bool reportJacobianCap = false;
     bool reportSourceSamples = false;
+    bool reportDiffractionModel = false;
     int selectedFirstReflection = -1;
     int selectedSecondReflection = -1;
 };
@@ -214,6 +216,16 @@ struct DiffractionKernel {
     float pixelScale = 0.0f;
     std::vector<float> intensity;
 };
+
+float lensFlareFrftOrder(float wavelengthNm, float fNumber) {
+    // Hullin et al. (2011), Eq. (5): heuristic fractional Fourier order for
+    // near-field aperture ringing. It is a look-development approximation.
+    return 0.15f * (wavelengthNm / 400.0f) * (fNumber / 18.0f);
+}
+
+float applyFrftOrderOverride(float wavelengthNm, float fNumber, float overrideOrder) {
+    return overrideOrder > 0.0f ? overrideOrder : lensFlareFrftOrder(wavelengthNm, fNumber);
+}
 
 void fft1D(std::vector<std::complex<float>>& values) {
     const std::size_t size = values.size();
@@ -755,6 +767,19 @@ Image render(const Image& source, const Settings& settings) {
     const int height = source.height;
     LensPrescription lens = makeAngenieuxPrescription();
     lens.irisRadius = finiteClamp(settings.apertureRadius, 1.0f, 12.75f);
+    if (settings.reportDiffractionModel) {
+        constexpr std::array<float, 3> reportWavelengths{610.0f, 550.0f, 460.0f};
+        const float fNumber = lens.effectiveFocalLength / (lens.irisRadius * 2.0f);
+        std::cout << "Fresnel ringing model: Hullin et al. (2011), Eq. (5), heuristic FrFT order\n"
+                  << "fNumber=" << std::fixed << std::setprecision(3) << fNumber
+                  << " override=" << settings.fresnelFrftOrder << " effective RGB alpha=";
+        for (std::size_t band = 0; band < reportWavelengths.size(); ++band) {
+            if (band) std::cout << ',';
+            std::cout << applyFrftOrderOverride(reportWavelengths[band], fNumber,
+                                                 settings.fresnelFrftOrder);
+        }
+        std::cout << " (diagnostic only; aperture FrFT texture not applied to ray-mapped ghost layers)\n";
+    }
     DetectedLightSet lights;
     if (settings.autoPosition) {
         constexpr int suppressionRadius = 28;
@@ -1099,6 +1124,7 @@ void printSettings(const Settings& s) {
               << " dispersion=" << (s.useCauchyDispersion ? "cauchy" : "linear-abbe")
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
+              << " fresnelFrftOrder=" << s.fresnelFrftOrder
               << " antiReflectCoating=" << s.antiReflectCoating
               << " ghosts=" << s.ghostsEnabled
               << " diffraction=" << s.diffractionEnabled
@@ -1108,10 +1134,10 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel rasterizerModel apertureRadius apertureBlades antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
-              << "CLI effect toggles: --ghosts on|off | --diffraction on|off\n"
-              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report\n";
+              << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --fresnel-frft-order N (0=paper heuristic)\n"
+              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report | --diffraction-report\n";
 }
 
 void setValue(Settings& s, const std::string& name, float value) {
@@ -1128,6 +1154,7 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "rasterizerModel") s.usePixelAreaRasterization = value >= 0.5f;
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
+    else if (name == "fresnelFrftOrder") s.fresnelFrftOrder = finiteClamp(value, 0.0f, 1.0f);
     else if (name == "antiReflectCoating") s.antiReflectCoating = value >= 0.5f;
     else if (name == "ghostsEnabled") s.ghostsEnabled = value >= 0.5f;
     else if (name == "diffractionEnabled") s.diffractionEnabled = value >= 0.5f;
@@ -1166,6 +1193,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     }
     else if (option == "--aperture-radius") setValue(settings, "apertureRadius", value());
     else if (option == "--aperture-blades") setValue(settings, "apertureBlades", value());
+    else if (option == "--fresnel-frft-order") setValue(settings, "fresnelFrftOrder", value());
     else if (option == "--coating") {
         if (++i >= argc) throw std::runtime_error("missing value for --coating");
         const std::string enabled = argv[i];
@@ -1189,6 +1217,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     }
     else if (option == "--ghost-report") settings.reportGhostPaths = true;
     else if (option == "--source-report") settings.reportSourceSamples = true;
+    else if (option == "--diffraction-report") settings.reportDiffractionModel = true;
     else if (option == "--jacobian-report") settings.reportJacobianCap = true;
     else if (option == "--ghost-pair") {
         if (i + 2 >= argc) throw std::runtime_error("--ghost-pair expects FIRST SECOND surface indices");

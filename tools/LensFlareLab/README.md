@@ -51,7 +51,8 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
-               [--ghosts on|off] [--diffraction on|off] [--ghost-report]
+               [--ghosts on|off] [--diffraction on|off]
+               [--fresnel-frft-order N] [--diffraction-report] [--ghost-report]
                [--ghost-pair FIRST SECOND] [--jacobian-report] [--source-report]
 ```
 
@@ -95,7 +96,11 @@ highlight flux with the sum of the nine bin fluxes and reports how many bins
 contain energy.
 
 See [EVALUATION.md](EVALUATION.md) for paper-grounded evaluation images and
-current model limits. The two-source Angenieux Fig. 10 approximation can be
+current model limits. `--diffraction-report` prints the RGB Fresnel/FrFT order
+from Hullin et al.'s Eq. (5), using the current f-number and wavelengths.
+The default order is the paper's heuristic; `--fresnel-frft-order N` overrides
+it for A/B experiments. This reports the parameter only: the FrFT aperture
+texture is not yet applied to individual ray-mapped ghost layers. The two-source Angenieux Fig. 10 approximation can be
 regenerated with `python tools/LensFlareLab/make_fig10_comparison_chart.py`.
 Regenerate the general evaluation chart with
 `python tools/LensFlareLab/make_evaluation_chart.py`. To raise only the source

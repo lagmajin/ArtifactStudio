@@ -307,6 +307,20 @@ demand and is not stored in the source tree.
 
 ## Limits and next evaluation gates
 
+Hullin et al. distinguish Fraunhofer starburst from near-field ringing in
+ghost elements. Their pipeline builds an aperture-transmission texture for
+each ghost path and applies a fractional Fourier transform (FrFT), with the
+heuristic order `α = 0.15 × (λ / 400 nm) × (f/# / 18)` (Eq. 5). The lab now
+exposes `--diffraction-report` and `--fresnel-frft-order` to inspect and sweep
+that RGB order. This is diagnostic only: current ray tracing accumulates
+irradiance and does not retain a per-path aperture-visibility texture, so the
+FrFT ringing is not yet rendered. The Fraunhofer source PSF must not be treated
+as a substitute for this per-ghost near-field treatment.
+
+For the default 100 mm, f/11 setup, Eq. (5) gives RGB orders approximately
+`0.140, 0.126, 0.106` for 610, 550, and 460 nm. These are the paper's
+look-matching heuristic, not a calibration of this prescription.
+
 The prescription table gives d-line refractive indices and Abbe numbers, not
 full Sellmeier coefficients. The lab approximates RGB dispersion with a Cauchy
 approximation derived from those Abbe values and uses one idealized coating
@@ -317,7 +331,10 @@ diffraction off took 0.67 s at ray-grid 64, 1.86 s at 128, and 3.97 s at 192
 on the evaluation machine. These are single-run timings and vary with CPU load.
 The lab remains a look-development reference, not an editor frame path.
 
-Next: compare ghost coordinates against Fig. 10's analytical ray-traced reference in the [2024 paper](https://link.springer.com/article/10.1007/s00371-024-03625-7)
-and real lens captures, replace the Abbe-derived Cauchy/coating approximations
+Next: implement the paper's per-path aperture transmission texture and FrFT,
+validate its fractional transform against the α=0 (aperture image) and α=1
+(Fourier intensity) limits, then compare ghost coordinates against Fig. 10's
+analytical ray-traced reference in the [2024 paper](https://link.springer.com/article/10.1007/s00371-024-03625-7)
+and real lens captures. Replace Abbe-derived Cauchy/coating approximations
 with measured optical data, and precompute ray-transfer maps before an
 allocation-bounded GPU integration.
