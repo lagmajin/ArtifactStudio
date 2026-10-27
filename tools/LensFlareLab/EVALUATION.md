@@ -2,6 +2,46 @@
 
 **最終更新:** 2026-10-28
 
+## Prescription-based direct-transmission geometric PSF
+
+`evaluate_direct_transmission_raytrace.py` independently traces a collimated
+ray bundle through the 14 spherical surfaces in the bundled Angenieux
+prescription, clips it at the six-blade f/11 stop, and plots sensor-plane ray
+intercepts at 610/550/460 nm and 0/5/10 degree fields. The script matches the
+LensFlareLab surface table, Cauchy dispersion approximation, and 15 mm rear
+group spacing. This gives the standalone lab its first prescription-dependent
+direct-transmission image evaluation rather than another synthetic Zernike
+fixture.
+
+The 512² launch grid transmits about 8,516–8,744 rays per field/wavelength
+case. Median-centered 90% spot radii range from 5.24 to 19.92 µm over the
+nine cases. The 10 degree blue case is the broadest (r90=19.92 µm), while the
+on-axis blue geometric bundle is much tighter (r90=0.23 µm); the large spectral
+change is visible in the plate. Doubling the launch grid from 256² to 512²
+changes r90 by at most 0.44% across these cases, so the geometric sampling is
+numerically stable at this scale. This is still a geometric ray image, not a
+wave-optical or measured production PSF.
+
+![Prescription-based direct-transmission geometric ray bundles at three field angles and wavelengths](examples/direct-transmission-geometric-psf.png)
+
+Reproduce the numerical table and plate with:
+
+```powershell
+python tools/LensFlareLab/evaluate_direct_transmission_raytrace.py --samples 512
+```
+
+This is geometric optics: it deposits rays at their sensor-plane intercepts.
+It does not calculate a complex pupil, phase, diffraction, coating phase,
+polarization, calibrated glass dispersion, or camera response. In particular,
+the output cannot yet replace the ideal-pupil diffraction kernel. Computing a
+prescription-based wavefront requires the correct exit-pupil reference sphere
+and its path-length correction; see [OpticStudio's OPD definition](https://ansyshelp.ansys.com/public/Views/Secured/Zemax/v252/en/OpticStudio_User_Guide/OpticStudio_Help/topics/Exit_Pupil.html)
+and [Lin (2024), DOI 10.1364/JOSAA.529814](https://doi.org/10.1364/JOSAA.529814).
+The prescription and f/11 stop are the Lab's assumed model, not a measured
+serial-number-specific Angenieux lens. Keep this evaluation in LensFlareLab
+until ray, reference-sphere, diffraction, and measured-camera comparisons are
+validated before any Core/App integration.
+
 ## Controlled wavefront-aberration PSFs
 
 `evaluate_wavefront_aberration_psf.py` extends the ideal six-blade pupil with
