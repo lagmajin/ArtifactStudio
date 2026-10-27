@@ -49,6 +49,19 @@ These choices reveal the spatial shape and suppress the launch-grid lattice;
 they do not preserve relative spectral power or model a physical sensor. The
 CSV spot radii are computed from the unblurred ray coordinates.
 
+The same equal-weight rays are also deposited without smoothing into 5 µm
+square sensor pixels. `direct-transmission-pixel-psf.png` centers each field's
+spot on its own median while keeping one shared ±35 µm display range; each
+wavelength channel is peak-normalized and square-root encoded for visibility.
+The CSV's `pixel_r50_um`, `pixel_r80_um`, and `pixel_r90_um` columns report the
+radii enclosing those fractions of the binned ray counts, measured from the
+median-centered pixel grid. At 12° the blue 460 nm bundle has the broadest
+pixel-integrated 90% radius (25.5 µm); the on-axis 460 nm bundle falls within
+one 5 µm pixel at this sampling pitch. These are sampling-dependent geometric
+ray-density descriptors, not diffraction PSFs or calibrated pixel responses.
+
+![Pixel-area-integrated geometric PSF at four fields on a shared sensor scale](examples/direct-transmission-pixel-psf.png)
+
 ![Prescription-based direct-transmission geometric ray bundles at four field angles and wavelengths](examples/direct-transmission-geometric-psf.png)
 
 Reproduce the numerical table and plate with:

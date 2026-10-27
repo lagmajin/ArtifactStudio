@@ -27,6 +27,7 @@ SURFACE_DATA = (
 EFL = 100.0
 SENSOR_WIDTH = 53.96
 STOP_RADIUS = EFL / 22.0
+SENSOR_PIXEL_PITCH_UM = 5.0
 
 
 def make_surfaces():
@@ -227,6 +228,85 @@ def metrics(points):
     }
 
 
+def pixel_psf_metrics(points, pitch_um=SENSOR_PIXEL_PITCH_UM):
+    """Return energy radii of equal-weight rays deposited into square pixels."""
+    if len(points) == 0:
+        return {"pixel_r50_um": math.nan, "pixel_r80_um": math.nan,
+                "pixel_r90_um": math.nan, "pixel_pitch_um": pitch_um}
+    center = np.median(points, axis=0)
+    pixel_indices = np.floor((points - center) * (1000.0 / pitch_um) + 0.5).astype(np.int64)
+    unique_pixels, counts = np.unique(pixel_indices, axis=0, return_counts=True)
+    pixel_centers = unique_pixels * (pitch_um / 1000.0)
+    pixel_radii_um = np.linalg.norm(pixel_centers, axis=1) * 1000.0
+    energy_order = np.argsort(pixel_radii_um, kind="stable")
+    cumulative = np.cumsum(counts[energy_order]) / len(points)
+    result = {}
+    for fraction in (0.50, 0.80, 0.90):
+        result[f"pixel_r{int(fraction * 100)}_um"] = float(
+            pixel_radii_um[energy_order[np.searchsorted(cumulative, fraction)]])
+    result["pixel_pitch_um"] = pitch_um
+    return result
+
+
+def make_pixel_psf_chart(clouds, output, pitch_um=SENSOR_PIXEL_PITCH_UM):
+    """Visualize ray-count PSFs on one shared, explicitly non-diffractive grid."""
+    fields = tuple(name for name, _ in FIELD_CASES)
+    wavelengths = (610.0, 550.0, 460.0)
+    colors = {610.0: (255, 112, 89), 550.0: (132, 222, 255),
+              460.0: (175, 255, 137)}
+    centered_clouds = {}
+    radii_um = []
+    for name in fields:
+        points = [clouds[(name, wavelength)] for wavelength in wavelengths
+                  if len(clouds[(name, wavelength)])]
+        center = np.median(np.concatenate(points), axis=0)
+        centered_clouds[name] = {
+            wavelength: clouds[(name, wavelength)] - center for wavelength in wavelengths
+        }
+        radii_um.extend(np.linalg.norm(points, axis=1) * 1000.0
+                        for points in centered_clouds[name].values() if len(points))
+    radius_um = max(float(np.quantile(np.concatenate(radii_um), .999)), pitch_um)
+    half_span_um = math.ceil(radius_um * 1.08 / pitch_um) * pitch_um
+    half_span_mm = half_span_um / 1000.0
+    bins = max(1, int(round(2.0 * half_span_um / pitch_um)))
+    panel_size = 384
+    panel_width, panel_height, gap = 430, 492, 12
+    width = len(fields) * panel_width + (len(fields) - 1) * gap
+    image = Image.new("RGB", (width, panel_height + 52), (18, 21, 26))
+    draw = ImageDraw.Draw(image)
+    channel_index = {610.0: 0, 550.0: 1, 460.0: 2}
+    for col, (name, angle_deg) in enumerate(FIELD_CASES):
+        left = col * (panel_width + gap)
+        draw.text((left + 6, 5), f"{name} ({angle_deg:.1f} deg)", fill=(235, 238, 244))
+        rgb = np.zeros((bins, bins, 3), dtype=np.float64)
+        for wavelength in wavelengths:
+            points = centered_clouds[name][wavelength]
+            if not len(points):
+                continue
+            hist, _, _ = np.histogram2d(
+                points[:, 1], points[:, 0], bins=bins,
+                range=((-half_span_mm, half_span_mm), (-half_span_mm, half_span_mm)))
+            hist = np.flipud(hist)
+            # No smoothing: each ray contributes its energy to one physical pixel.
+            channel = hist / max(float(hist.max()), 1.0)
+            rgb[:, :, channel_index[wavelength]] = np.sqrt(channel)
+        panel = Image.fromarray(np.clip(rgb * 235, 0, 255).astype(np.uint8)).resize(
+            (panel_width - 24, panel_width - 24), Image.Resampling.NEAREST)
+        image.paste(panel, (left + 12, 31))
+        draw.rectangle((left + 11, 30, left + panel_width - 13, panel_width - 5),
+                       outline=(62, 68, 78))
+        draw.text((left + 7, panel_width + 4),
+                  f"shared +/-{half_span_um:.0f} um; {pitch_um:.1f} um pixels",
+                  fill=(190, 198, 210))
+        draw.text((left + 7, panel_width + 25), "sqrt density; each band peak normalized",
+                  fill=(160, 168, 180))
+    for i, wavelength in enumerate(wavelengths):
+        x = 8 + i * 135
+        draw.text((x, panel_height + 38), f"{wavelength:.0f} nm", fill=colors[wavelength])
+    output.parent.mkdir(parents=True, exist_ok=True)
+    image.save(output)
+
+
 def make_illumination_chart(records, output):
     width, height = 1000, 560
     image = Image.new("RGB", (width, height), (18, 21, 26))
@@ -316,9 +396,15 @@ def main():
         "tools/LensFlareLab/examples/direct-transmission-geometric-psf.csv"))
     parser.add_argument("--density-output", type=Path, default=Path(
         "tools/LensFlareLab/examples/direct-transmission-geometric-irradiance.png"))
+    parser.add_argument("--pixel-psf-output", type=Path, default=Path(
+        "tools/LensFlareLab/examples/direct-transmission-pixel-psf.png"))
+    parser.add_argument("--pixel-pitch-um", type=float, default=SENSOR_PIXEL_PITCH_UM,
+                        help="sensor pixel pitch used by the pixel-integrated PSF (default: 5 um)")
     parser.add_argument("--illumination-output", type=Path, default=Path(
         "tools/LensFlareLab/examples/direct-transmission-relative-illumination.png"))
     args = parser.parse_args()
+    if args.pixel_pitch_um <= 0.0:
+        parser.error("--pixel-pitch-um must be positive")
     records = []
     clouds = {}
     chief_angles = {}
@@ -331,7 +417,8 @@ def main():
             records.append({"field": name, "field_angle_deg": angle_deg,
                             "chief_ray_angle_image_deg": chief_angles[(name, wavelength)],
                             "wavelength_nm": wavelength, "launch_grid": args.samples,
-                            "valid_rays": len(points), **metrics(points)})
+                            "valid_rays": len(points), **metrics(points),
+                            **pixel_psf_metrics(points, args.pixel_pitch_um)})
     on_axis_counts = {wavelength: next(
         row["valid_rays"] for row in records
         if row["field"] == "on_axis" and row["wavelength_nm"] == wavelength)
@@ -425,13 +512,14 @@ def main():
                               fill=colors[wavelength])
     args.density_output.parent.mkdir(parents=True, exist_ok=True)
     density.save(args.density_output)
+    make_pixel_psf_chart(clouds, args.pixel_psf_output, args.pixel_pitch_um)
     for row in records:
         print(f"{row['field']:14s} {row['wavelength_nm']:.0f}nm: "
               f"rms={row['rms_radius_um']:.2f}um r90={row['r90_um']:.2f}um "
               f"centroid=({row['centroid_x_um']:.2f},{row['centroid_y_um']:.2f})um "
               f"rays={row['valid_rays']}")
     print(f"saved {args.csv}, {args.output}, {args.density_output}, "
-          f"and {args.illumination_output}")
+          f"{args.pixel_psf_output}, and {args.illumination_output}")
 
 
 if __name__ == "__main__":
