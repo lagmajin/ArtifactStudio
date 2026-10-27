@@ -1,4 +1,4 @@
-**最終更新:** 2026-10-26
+**最終更新:** 2026-10-27
 
 ## 2026-10-27: 煙の短期解像度差は注入だけでは説明できない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::SeparatesSmokeResolutionDriftByInjectionAndSolverStage`、`::MeasuresSmokeProjectionResolutionAndIterationConvergence`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::project`。
@@ -7491,3 +7491,11 @@
 - **価値または懸念:** 煙densityと熱を分離でき、煙の量・熱の浮上・冷却を独立させるCore基盤ができた。ただし今回のthermal buoyancy 2.0/s設定は短時間で煙重心をsourceから約42 grid cells持ち上げる強い実験値で、既定値ではない。2本の追加scalar gridによりsolverごと約`2 * width * height * sizeof(float)`（128×128なら128 KiB）をコールド初期化時に使い、snapshotのcopy量も増える。App runtimeはまだtemperatureを注入も表示もせず、fire renderingやC4D/Houdini級の画質は未達。
 - **仮説（未検証）:** 次はAppのFluid専用設定からemitter temperatureとcooling/thermal buoyancyを供給し、sampled temperatureをparticle color/alphaへ結び付けると、同じ2D emitterから煙と炎を一緒に見せられる可能性がある。パーティクルAlpha rendererの色・輝度特性がflame表現に足るか、GPU additive/glow経路との組合せは未検証。
 - **次に確認すべきこと:** App runtimeとcheckpoint/settings hashへ温度を接続し、smoke-only / fire-only / mixedの連続frame画像を同一露出で比較する。燃焼後のheat lifetimeとfire color/intensityを密度・煙色と独立制御できるかを確認し、粒子の点状印象が強ければvolume/fire compositing pathの範囲を再評価する。
+
+# 2026-10-27: レンズ処方の後群位置誤差を修正し画像評価を更新
+- **関連:** Hullin et al. [Physically-Based Real-Time Lens Flare Rendering](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf)、Bodonyi et al. [Real-time ray transfer for lens flare rendering using sparse polynomials](https://link.springer.com/article/10.1007/s00371-024-03625-7)、`tools/LensFlareLab/main.cpp`、`tools/LensFlareLab/EVALUATION.md`。
+- **確認できた事実:** Labは論文記載のAngenieux double-Gauss prescription（f/11、焦点距離100mm、14面）を使用する。光路はSnell屈折、非偏光平均Fresnel reflectance/transmittance、2面反射、aperture/lens barrel clippingを追い、3回stop crossingする49候補を除外して42経路に制限する。コード監査で、stopからrear groupへの15mm air gapをsurface7以降の全surfaceに反復加算している誤りを発見した。gapはsurface7にだけ加えるよう修正し、後群後端で最大105mmの余分なaxial shiftを除去した。修正後のsynthetic chartではwarm lightの42/42 eligible pathsが可視で、(0.1,0.1)のsingle-light sweepでは7/42。ray-grid128標準chartの追加luminanceは6.492（Fraunhofer diffraction 6.3795、反射ghost 0.1121）、source-above-threshold flux 192.52。coat-off ray-grid64 ghostは2.779でcoat-onの24.8倍。
+- **収束・画像評価:** center single-light ghost energyはcap512でgrid64/128/192が1312.15/1316.72/1329.00、128→192差0.93%。grid192でcap128→512はenergy +0.16%、cap512→4096は+0.73%だがpeak pixelは0.766→3.202。default capを512（最大4096）とし、unresolved caustic抑制とenergy retentionのlook-development compromiseとした。cap512でもmapped triangles 2.90%がcapに達するためfull physical convergenceではない。更新済みの物理出力、ghost-only、光路別、3x3視野、cap sweep画像をLab examplesに保存し、目視確認した。
+- **価値または懸念:** 以前の評価画像・経路順位・energy値はrear prescriptionが誤っていたため破棄し、この文書とEVALUATIONの数値は修正版から取り直した。現在もRGB dispersionはAbbe近似、coatingは理想単層膜、diffractionは離散FFT、causticはbounded rasterizationで、実写との座標・色比較は未完了。分析traceはlook-development referenceでありApp hot pathには使えない。
+- **仮説（未検証）:** 有限サイズの発光体から入射方向も複数sampleすればpoint-source caustic peakとJacobian clippingを物理的に緩和でき、任意の数値capへの依存を減らせる可能性がある。現状はhighlight footprintからflux/chromaticityを積分するが、ray directionは代表点で一定。
+- **次に確認すべきこと:** 2024論文Fig.10のanalytical ray-traced Angenieux画像からsource positionsとghost centroidsを測り、同じdirection/画角で出力画像と照合する。その後、finite-area source sampling、実測Sellmeier/coating data、reference captureを順に評価し、GPU precompute/Core/App integrationの品質基準を作る。

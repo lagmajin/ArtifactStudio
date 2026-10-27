@@ -1,0 +1,3 @@
+add_executable(LensFlareLab main.cpp)
+target_compile_features(LensFlareLab PRIVATE cxx_std_17)
+target_compile_definitions(LensFlareLab PRIVATE NOMINMAX)

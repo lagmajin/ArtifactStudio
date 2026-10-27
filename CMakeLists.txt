@@ -146,6 +146,13 @@ endif()
 
 project(ArtifactSuite LANGUAGES C CXX)
 
+# Standalone CPU lens flare look-development tool. This target is intentionally
+# isolated from the C++ modules and runtime dependencies used by the app.
+option(ARTIFACT_BUILD_LENS_FLARE_LAB "Build the standalone lens flare lab" OFF)
+if(ARTIFACT_BUILD_LENS_FLARE_LAB)
+    add_subdirectory(tools/LensFlareLab)
+endif()
+
 if(ARTIFACT_USE_LLD)
     if(NOT WIN32 OR NOT MSVC)
         message(FATAL_ERROR "ARTIFACT_USE_LLD currently requires the Windows MSVC frontend")
