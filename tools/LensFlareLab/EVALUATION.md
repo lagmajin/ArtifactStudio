@@ -244,6 +244,38 @@ peak behavior is why the newer pixel-area results are reported separately.
 
 ![Angenieux Fig. 10 source-position approximation, rendered at ray-grid 192](examples/paper-fig10-angenieux-position-sweep.png)
 
+### Aperture-FrFT look-development at the Fig. 10 source positions
+
+The paper compares polynomial approximations with analytical geometric ray
+tracing; it does not provide the calibrated sensor data needed to validate our
+render numerically. This additional plate therefore compares our own geometric
+ghost render with the optional aperture-FrFT appearance at the same two
+estimated source positions. It is a look-development check, not a reproduction
+of the paper's reference result. The FrFT mode adds spatial aperture structure
+to each geometric ghost and is distinct from the paper's analytical ray tracer
+([Bodonyi et al., 2025](https://link.springer.com/article/10.1007/s00371-024-03625-7)).
+
+Both rows use the same source-subtracted logarithmic display mapping (`gain
+900`). At ray-grid 64 and texture resolution 256, source A's ghost Y sum changes
+from 9.97742 to 10.98809 (+10.13%), with 25.20% relative L1 and an 8.54 px
+luminance-centroid shift. Source B changes from 20.49858 to 21.33169 (+4.06%),
+with 18.87% relative L1 and a 0.32 px centroid shift. This shows that the
+current aperture transform can alter integrated radiance as well as appearance;
+the per-path normalization is not a guarantee of scene-wide energy
+conservation. These figures are tied to this low-resolution look-dev setup and
+do not establish calibrated physical accuracy.
+
+![Geometric ghosts (top) and aperture-FrFT ghosts (bottom) for the two estimated Fig. 10 source positions](examples/fig10-source-position-aperture-frft-review.png)
+
+`make_ghost_frft_sweep_chart.py` now reports integrated Y, flux change, relative
+L1, peak Y and centroid movement for each case in addition to creating the
+plate. Reproduce it by generating the input as above, rendering each source
+with `--ghost-frft off` and `--ghost-frft on` at the same `--ray-grid 64` and
+`--ghost-frft-resolution 256`, then passing the input and both renders for each
+source through the script's repeated `--case LABEL INPUT GEOMETRIC FRFT`
+arguments. Keep the ray grid and every other render setting fixed when
+comparing the modes.
+
 The highlight detector integrates positive luminance above threshold over each
 source footprint, keeps source chromaticity separate, and distributes that
 source flux over the sampled pupil rays once. Sampling the physical stop

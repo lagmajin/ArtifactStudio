@@ -57,19 +57,35 @@ def main():
             else:
                 draw.text((x + 5, panel_height + label_height + 5),
                           f"{label} | aperture FrFT", fill=(225, 230, 238))
-        geo, wave = [], []
+        geo_sum = wave_sum = delta = 0.0
+        geo_peak = wave_peak = 0.0
+        geo_x = geo_y = wave_x = wave_y = 0.0
         for y in range(height):
             for x in range(width):
                 offset = x * 3
                 src = source[2][y][offset:offset + 3]
                 g = tuple(max(0.0, geometric[2][y][offset + c] - src[c]) for c in range(3))
                 f = tuple(max(0.0, frft[2][y][offset + c] - src[c]) for c in range(3))
-                geo.append(sum(g[c] * w for c, w in enumerate((0.2126, 0.7152, 0.0722))))
-                wave.append(sum(f[c] * w for c, w in enumerate((0.2126, 0.7152, 0.0722))))
-        geo_sum = sum(geo)
-        delta = sum(abs(a - b) for a, b in zip(geo, wave))
-        print(f"{label}: geometricY={geo_sum:.8g} frftY={sum(wave):.8g} "
-              f"relativeL1={delta / max(geo_sum, 1e-30):.6%}")
+                gy = sum(g[c] * w for c, w in enumerate((0.2126, 0.7152, 0.0722)))
+                fy = sum(f[c] * w for c, w in enumerate((0.2126, 0.7152, 0.0722)))
+                geo_sum += gy
+                wave_sum += fy
+                delta += abs(gy - fy)
+                geo_peak = max(geo_peak, gy)
+                wave_peak = max(wave_peak, fy)
+                geo_x += x * gy
+                geo_y += y * gy
+                wave_x += x * fy
+                wave_y += y * fy
+        geo_centroid = (geo_x / max(geo_sum, 1e-30), geo_y / max(geo_sum, 1e-30))
+        wave_centroid = (wave_x / max(wave_sum, 1e-30), wave_y / max(wave_sum, 1e-30))
+        centroid_delta = ((geo_centroid[0] - wave_centroid[0]) ** 2
+                          + (geo_centroid[1] - wave_centroid[1]) ** 2) ** 0.5
+        print(f"{label}: geometricY={geo_sum:.8g} frftY={wave_sum:.8g} "
+              f"fluxChange={(wave_sum / max(geo_sum, 1e-30) - 1):+.6%} "
+              f"relativeL1={delta / max(geo_sum, 1e-30):.6%} "
+              f"peak={geo_peak:.8g}->{wave_peak:.8g} "
+              f"centroidShift={centroid_delta:.4f}px")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(args.output)
