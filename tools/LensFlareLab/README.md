@@ -134,13 +134,16 @@ ghost-FrFT texture resolutions.
 Reflected ghosts use the original three wavelength samples by default.
 `--spectral-samples 7|15|31|61` selects trapezoidal integration over 430–610 nm
 with a piecewise-linear reconstruction from input RGB for both reflected
-ghosts and direct-source Fraunhofer diffraction. The 7-band option preserves
-its original wavelengths exactly; higher counts are offline convergence
-probes (61 bands at 3 nm spacing). This is an exploratory interpolation
-between the three existing RGB primaries, not a CIE standard-observer
-conversion or measured source spectrum. Higher counts increase CPU time
-roughly in proportion to the band count; the default 3-band mode retains the
-original RGB wavelengths and output.
+ghosts and direct-source Fraunhofer diffraction. For counts above three, a
+dual basis maps the sampled spectrum back to RGB so a wavelength-independent
+transfer preserves integrated RGB channel energy. The 7-band option preserves
+its original wavelengths; higher counts are offline convergence probes (61
+bands at 3 nm spacing). This is an algebraic reconstruction from three RGB
+channels, not a CIE standard-observer conversion, measured source spectrum, or
+camera sensitivity model. It can produce small negative linear-RGB values for
+some saturated inputs. Higher counts increase CPU time roughly in proportion
+to the band count; the default 3-band mode retains the original RGB wavelengths
+and output.
 `--rasterizer pixel-area` is the default. It clips each mapped ray triangle to
 unit-area sensor pixels and integrates the linearly interpolated ray energy
 inside each overlap. This conserves sampled ray flux when a triangle is smaller

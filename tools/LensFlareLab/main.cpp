@@ -53,26 +53,52 @@ std::array<SpectralBand, kMaxSpectralBands> makeSpectralBands(int sampleCount) {
     }
 
     const float wavelengthStep = 180.0f / static_cast<float>(sampleCount - 1);
-    Pixel normalization{};
+    std::array<double, 9> gram{};
+    std::array<double, kMaxSpectralBands> quadratureWeights{};
     for (int i = 0; i < sampleCount; ++i) {
         const float wavelength = 430.0f + wavelengthStep * static_cast<float>(i);
         const float quadratureWeight = (i == 0 || i == sampleCount - 1)
             ? wavelengthStep * 0.5f : wavelengthStep;
         const Pixel basis = spectralRgbBasis(wavelength);
-        normalization.r += basis.r * quadratureWeight;
-        normalization.g += basis.g * quadratureWeight;
-        normalization.b += basis.b * quadratureWeight;
+        const std::array<double, 3> values{basis.r, basis.g, basis.b};
+        quadratureWeights[static_cast<std::size_t>(i)] = quadratureWeight;
+        for (std::size_t row = 0; row < values.size(); ++row)
+            for (std::size_t column = 0; column < values.size(); ++column)
+                gram[row * 3 + column] += values[row] * values[column] * quadratureWeight;
     }
+    const double determinant =
+        gram[0] * (gram[4] * gram[8] - gram[5] * gram[7]) -
+        gram[1] * (gram[3] * gram[8] - gram[5] * gram[6]) +
+        gram[2] * (gram[3] * gram[7] - gram[4] * gram[6]);
+    if (std::abs(determinant) <= 1e-12)
+        throw std::runtime_error("RGB spectral basis is singular");
+    const std::array<double, 9> inverseGram{
+        (gram[4] * gram[8] - gram[5] * gram[7]) / determinant,
+        (gram[2] * gram[7] - gram[1] * gram[8]) / determinant,
+        (gram[1] * gram[5] - gram[2] * gram[4]) / determinant,
+        (gram[5] * gram[6] - gram[3] * gram[8]) / determinant,
+        (gram[0] * gram[8] - gram[2] * gram[6]) / determinant,
+        (gram[2] * gram[3] - gram[0] * gram[5]) / determinant,
+        (gram[3] * gram[7] - gram[4] * gram[6]) / determinant,
+        (gram[1] * gram[6] - gram[0] * gram[7]) / determinant,
+        (gram[0] * gram[4] - gram[1] * gram[3]) / determinant};
+
+    // Use the dual RGB basis so a wavelength-independent transfer preserves
+    // integrated RGB energy. These are algebraic RGB weights, not sensor data.
     for (int i = 0; i < sampleCount; ++i) {
         const float wavelength = 430.0f + wavelengthStep * static_cast<float>(i);
-        const float quadratureWeight = (i == 0 || i == sampleCount - 1)
-            ? wavelengthStep * 0.5f : wavelengthStep;
+        const double quadratureWeight = quadratureWeights[static_cast<std::size_t>(i)];
         const Pixel basis = spectralRgbBasis(wavelength);
+        const std::array<double, 3> values{basis.r, basis.g, basis.b};
+        std::array<double, 3> outputWeights{};
+        for (std::size_t output = 0; output < outputWeights.size(); ++output)
+            for (std::size_t basisChannel = 0; basisChannel < values.size(); ++basisChannel)
+                outputWeights[output] += values[basisChannel] *
+                    inverseGram[basisChannel * 3 + output] * quadratureWeight;
         bands[static_cast<std::size_t>(i)] = {
             wavelength, basis,
-            {basis.r * quadratureWeight / normalization.r,
-             basis.g * quadratureWeight / normalization.g,
-             basis.b * quadratureWeight / normalization.b}};
+            {static_cast<float>(outputWeights[0]), static_cast<float>(outputWeights[1]),
+             static_cast<float>(outputWeights[2])}};
     }
     return bands;
 }
@@ -2422,7 +2448,7 @@ void printHelp() {
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX | --adaptive-ray-refinement-energy-threshold FRACTION\n"
-              << "               --spectral-samples 3|7|15|31|61 (direct diffraction and reflected ghosts; RGB-basis 430-610 nm integration)\n"
+              << "               --spectral-samples 3|7|15|31|61 (direct diffraction and reflected ghosts; dual RGB-basis 430-610 nm integration)\n"
               << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default pixel-area)\n"
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"

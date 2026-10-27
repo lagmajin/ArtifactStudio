@@ -1645,14 +1645,22 @@ the interpolation's sensitivity; they do not establish physical accuracy.
 `--spectral-samples 7|15|31|61` evaluates reflected ghost rays at evenly spaced
 wavelengths from 430 to 610 nm, then integrates the results back to RGB. Input
 RGB is expanded into a piecewise-linear set of triangular channel weights
-between the existing blue, green, and red reference wavelengths. The output
-uses the same triangular basis and trapezoidal wavelength weights. This is a
-bounded RGB interpolation experiment, not a CIE standard-observer conversion,
-a measured emitter spectrum, or a full visible-spectrum reconstruction. Glass
-dispersion still comes from the prescription's d-line index and Abbe number.
-Source Fraunhofer diffraction and reflected ghosts both use the selected
-band count. The default three-band output is unchanged; higher counts also
-integrate the direct-source PSF over the same RGB-basis wavelengths. Hullin et al. use three bands for
+between the existing blue, green, and red reference wavelengths. For counts
+above three, a quadrature-weighted dual basis maps the result back to RGB and
+preserves integrated channel energy for a wavelength-independent transfer.
+This is an algebraic RGB interpolation experiment, not a CIE standard-observer
+conversion, measured emitter spectrum, or full visible-spectrum
+reconstruction. Glass dispersion still comes from the prescription's d-line
+index and Abbe number. Source Fraunhofer diffraction and reflected ghosts both
+use the selected band count. The default three-band output is unchanged;
+higher counts also integrate the direct-source PSF over the same RGB-basis
+wavelengths. CIE 1931 color matching functions describe a human standard
+observer, not a camera sensor ([CIE data](https://cie.co.at/datatable/cie-1931-colour-matching-functions-2-degree-observer),
+[CIE 015:2018](https://cie.co.at/publications/colorimetry-4th-edition)). RGB
+illumination spectral upsampling requires a chosen or measured spectral basis;
+RGB values alone do not determine a unique spectrum ([Guarnera et al.,
+Eurographics 2022](https://diglib7.eg.org/items/7e4bf7d5-d288-41af-bf04-1346b4a1d9bf)).
+Hullin et al. use three bands for
 standard quality and discuss up to seven interpolated bands for higher quality,
 while noting that brute-force smooth results can require around 60 wavelength
 samples. LensFlareLab exposes 15/31/61 as offline integration probes for its
@@ -1664,7 +1672,9 @@ The same `--spectral-samples 3|7|15|31|61` option now builds and integrates a
 Fraunhofer PSF at each selected wavelength. At 3 bands it uses the existing
 610/550/460 nm channel-to-channel mapping, which remains byte-identical to the
 prior direct-source output. Higher counts use the existing 430–610 nm
-piecewise-linear RGB-basis model and trapezoidal integration.
+piecewise-linear RGB-basis model and trapezoidal integration. Output uses a
+quadrature-weighted dual basis, which preserves integrated channel energy for
+a wavelength-independent transfer.
 
 The image evaluation uses neutral, red, green, and blue Gaussian point sources,
 a six-blade 4.545 mm pupil, 512² aperture FFT, and pixel-area detector sampling.
@@ -1672,32 +1682,31 @@ Each row is compared with its 61-band render. RGB L1 errors were:
 
 | Source | 3 bands | 7 bands | 15 bands | 31 bands |
 |---|---:|---:|---:|---:|
-| Neutral | 0.051% | 0.010% | 0.001% | 0.00034% |
-| Red | 58.152% | 14.429% | 1.136% | 0.437% |
-| Green | 72.118% | 13.297% | 0.879% | 0.403% |
-| Blue | 39.958% | 4.400% | 0.399% | 0.133% |
+| Neutral | 0.023% | 0.006% | 0.001% | 0.0003% |
+| Red | 0.070% | 0.021% | 0.006% | 0.0007% |
+| Green | 0.124% | 0.035% | 0.006% | 0.0012% |
+| Blue | 0.086% | 0.025% | 0.003% | 0.0011% |
 
-The primary-color differences expose a limitation of the current RGB spectral
-reconstruction: the 3-band special case assigns one wavelength directly to
-each channel, while higher counts reconstruct broad, overlapping wavelength
-bases. Thus, this convergence table measures numerical agreement with the
-61-band version of that model, not measured spectral or camera accuracy. The
-higher-band render can shift channel energy and hue; keep 3 bands as the
-default until the RGB-to-spectrum and sensor response are calibrated. Render
-time and cold-path kernel storage increase with the selected band count.
-Median 512² render times across three process runs, including launch and PFM
-I/O, ranged from 55–66 ms at 3 bands, 108–112 ms at 7, 214–242 ms at 15,
-424–471 ms at 31, and 822–858 ms at 61. Treat these as standalone CPU
-measurements from this machine, not a frame-time benchmark.
+Compared with the earlier triangular analysis basis, the dual output basis
+reduces primary-color error against the 61-band numerical reference by orders
+of magnitude. Across all four inputs and counts, integrated output channel
+energy differs from the removed source energy by at most 0.00022%. The largest
+negative linear-RGB mass is 0.0473% of removed source energy (green at 61
+bands); display conversion clamps negative values. This measures numerical
+convergence and energy consistency of the chosen RGB basis, not measured
+spectral or camera accuracy. Median 512² render times across three runs,
+including launch and PFM I/O, were 54–136 ms at 3 bands, 108–156 ms at 7,
+211–236 ms at 15, 420–428 ms at 31, and 812–838 ms at 61 on this machine.
+These are standalone CPU measurements, not frame-time benchmarks.
 
-![Neutral and primary-color diffraction at 3–61 spectral samples, compared against the 61-band reference](examples/direct-diffraction-spectral-convergence.png)
+![Neutral and primary-color diffraction at 3–61 spectral samples, compared against the 61-band reference](examples/direct-diffraction-spectral-dual-basis.png)
 
 The raw metrics are in
-[`direct-diffraction-spectral-convergence.csv`](examples/direct-diffraction-spectral-convergence.csv).
+[`direct-diffraction-spectral-dual-basis.csv`](examples/direct-diffraction-spectral-dual-basis.csv).
 Recreate with:
 
 ```powershell
-python tools/LensFlareLab/evaluate_direct_diffraction_spectral.py build/tools/LensFlareLab/LensFlareLab-dev.exe --output-dir build/tools/LensFlareLab/direct-diffraction-spectral --resolution 512
+python tools/LensFlareLab/evaluate_direct_diffraction_spectral.py build/tools/LensFlareLab/LensFlareLab-rgb-dual-basis-dev.exe --output-dir build/tools/LensFlareLab/direct-diffraction-spectral-dual-basis --resolution 512
 ```
 
 The script needs NumPy and Pillow. The 61-band case is a dense reference for
@@ -2375,24 +2384,21 @@ then each output channel is normalized by its integrated basis response. The
 61-band result (3 nm spacing) is a numerical reference for this reconstructed
 model, not physical ground truth.
 
-| Coating | RGB L1 vs 61-band: 3 / 7 / 15 / 31 | 7-band per-channel flux error vs 61-band | Max RGB centroid separation (7 → 61) |
+| Coating | RGB L1 vs 61-band: 3 / 7 / 15 / 31 | Per-channel flux error and centroid separation |
 |---|---:|---:|---:|
-| Off | 2.659% / 0.469% / 0.055% / 0.014% | R −0.755%, G −0.094%, B +0.568% | 1.543 → 1.464 px |
-| Air-surface MgF2-like | 6.960% / 1.771% / 0.205% / 0.054% | R +1.113%, G −1.092%, B +2.545% | 1.734 → 1.635 px |
+| Off | 1.591% / 0.252% / 0.079% / 0.010% | Prior values use triangular basis; see dual-basis CSV |
+| Air-surface MgF2-like | 10.483% / 2.358% / 0.465% / 0.088% | Prior values use triangular basis; see dual-basis CSV |
 
-For this isolated ghost, seven bands recover the integrated RGB flux within
-0.47% uncoated and 1.77% coated against the dense synthetic reference; fifteen
-bands bring the coated error to 0.21%. This supports seven as a practical
-sensitivity mode but not as universal convergence: other paths, narrower
-spectral features, real illuminants, sensor responses, and multilayer coatings
-can change the result. In particular, this RGB-basis model contains no measured
-source spectrum, CIE observer weighting, camera spectral sensitivity, or
-measured per-surface coating data. Hullin et al. formulate wavelength-dependent
-ghost diffraction and ray transport; this experiment specifically checks the
-spectral quadrature of our RGB-derived implementation, not empirical camera
+For this field and path, the dual basis reduces the uncoated seven-band error
+to 0.25%; the coated error is 2.36% and falls to 0.47% at fifteen bands. Other
+paths and fields remain more sensitive. This RGB-basis model contains no
+measured source spectrum, CIE observer weighting, camera spectral sensitivity,
+or measured per-surface coating data. Hullin et al. formulate wavelength-
+dependent ghost diffraction and ray transport; this experiment checks
+quadrature convergence of our RGB-derived implementation, not empirical camera
 accuracy.
 
-![Spectral sampling convergence against the 61-band RGB-basis reference, with the coating disabled and enabled](examples/coating-spectrum-convergence.png)
+![Earlier triangular-basis spectral sampling convergence, retained as a baseline comparison](examples/coating-spectrum-convergence.png)
 
 Reproduce from the neutral source fixture used above. Render the isolated path
 with `--spectral-samples 3|7|15|31|61` and `--coating off|on`, keeping
@@ -2413,16 +2419,16 @@ same five integration counts; every render is compared with the matching
 
 | Integration bands | Maximum RGB L1 error, uncoated | Maximum RGB L1 error, coated |
 |---:|---:|---:|
-| 3 | 2.66% | 14.48% |
-| 7 | 0.47% | 8.27% |
-| 15 | 0.06% | 1.13% |
-| 31 | 0.01% | 0.27% |
+| 3 | 1.59% | 28.79% |
+| 7 | 0.40% | 6.65% |
+| 15 | 0.08% | 1.44% |
+| 31 | 0.02% | 0.23% |
 
 The maxima cover seven path/field cases with nonzero in-frame ghost flux; six
 off-axis 10→9 and 12→11 cases had no detected in-frame energy and are excluded.
 The large coated errors are not limited to the earlier 9→8 example: at
-midfield, coated 10→9 and 12→11 have 7-band RGB L1 errors of 6.17% and 8.27%,
-falling to 0.78% and 1.10% at 15 bands, and 0.19% and 0.25% at 31 bands. This
+midfield, coated 10→9 and 12→11 have 7-band RGB L1 errors of 6.65% and 6.03%,
+falling to 1.41% and 1.42% at 15 bands, and 0.23% and 0.21% at 31 bands. This
 shows why the single-path 7-band result cannot set a global accuracy claim.
 
 For this synthetic thin-film model, 31 bands are needed to keep the worst
@@ -2432,7 +2438,16 @@ for speed and use 31/61 only for offline color-sensitive look development.
 These thresholds are numerical integration errors within the RGB-basis model;
 they do not validate actual lens coatings, source spectra, or camera color.
 
-![Spectral integration counts across ghost paths and fields with coating off/on](examples/coating-spectrum-field-path-convergence.png)
+The table and paragraph above record the original triangular-basis run. The
+dual-basis rerun has a maximum valid-case RGB L1 error of 1.59 / 0.40 / 0.08 /
+0.02% uncoated and 28.79 / 6.65 / 1.44 / 0.23% coated for 3 / 7 / 15 / 31
+bands. These different convergence values arise from the changed RGB output
+weights; keep the original chart as a baseline and use the dual-basis CSV for
+current numbers. This again shows that integrated neutral light with thin-film
+coatings can require more wavelength samples than the direct PSF energy test.
+
+![Dual-basis spectral integration counts across ghost paths and fields with coating off/on](examples/coating-spectrum-field-path-convergence-dual-basis.png)
+[`coating-spectrum-field-path-convergence-dual-basis.csv`](examples/coating-spectrum-field-path-convergence-dual-basis.csv)
 
 The matching per-render flux, centroid, and reference-error results are in
 [`coating-spectrum-field-path-convergence.csv`](examples/coating-spectrum-field-path-convergence.csv).

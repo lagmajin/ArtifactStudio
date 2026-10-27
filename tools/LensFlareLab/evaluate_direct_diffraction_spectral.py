@@ -56,38 +56,53 @@ def extract_flare(source: np.ndarray, rendered: np.ndarray,
     luminance = source @ LUMA
     removed = np.clip((luminance - threshold) / np.maximum(luminance, 1e-30), 0.0, 1.0)
     remaining = source * (1.0 - removed[:, :, None])
-    return np.maximum(rendered - remaining, 0.0)
+    return rendered - remaining
 
 
-def image_metrics(candidate: np.ndarray, reference: np.ndarray) -> dict[str, float]:
+def image_metrics(candidate: np.ndarray, reference: np.ndarray,
+                  source_energy: np.ndarray) -> dict[str, float]:
     reference_energy = reference.sum(axis=(0, 1))
     candidate_energy = candidate.sum(axis=(0, 1))
+    positive_reference = np.maximum(reference, 0.0)
+    positive_candidate = np.maximum(candidate, 0.0)
+    positive_reference_energy = positive_reference.sum(axis=(0, 1))
+    positive_candidate_energy = positive_candidate.sum(axis=(0, 1))
     channel_l1 = np.abs(candidate - reference).sum(axis=(0, 1))
     normalized_l1 = np.abs(
-        candidate / np.maximum(candidate_energy, 1e-30)[None, None, :] -
-        reference / np.maximum(reference_energy, 1e-30)[None, None, :]
+        positive_candidate / np.maximum(positive_candidate_energy, 1e-30)[None, None, :] -
+        positive_reference / np.maximum(positive_reference_energy, 1e-30)[None, None, :]
     ).sum(axis=(0, 1))
-    active = (candidate_energy > 1e-12 * max(float(candidate_energy.max()), 1e-30)) & (
-        reference_energy > 1e-12 * max(float(reference_energy.max()), 1e-30))
-    support_mismatch = (candidate_energy > 1e-12 * max(float(candidate_energy.max()), 1e-30)) ^ (
-        reference_energy > 1e-12 * max(float(reference_energy.max()), 1e-30))
+    energy_threshold = 1e-6 * max(float(positive_reference_energy.sum()), 1e-30)
+    active = (positive_candidate_energy > energy_threshold) & (
+        positive_reference_energy > energy_threshold)
+    support_mismatch = (positive_candidate_energy > energy_threshold) ^ (
+        positive_reference_energy > energy_threshold)
     channel_shape_error = np.where(active, normalized_l1, np.where(support_mismatch, 1.0, 0.0))
     height, width, _ = candidate.shape
     yy, xx = np.mgrid[:height, :width]
     centroid_error = []
     for channel in np.flatnonzero(active):
-        c = (float((candidate[:, :, channel] * xx).sum() / max(candidate_energy[channel], 1e-30)),
-             float((candidate[:, :, channel] * yy).sum() / max(candidate_energy[channel], 1e-30)))
-        r = (float((reference[:, :, channel] * xx).sum() / max(reference_energy[channel], 1e-30)),
-             float((reference[:, :, channel] * yy).sum() / max(reference_energy[channel], 1e-30)))
+        c = (float((positive_candidate[:, :, channel] * xx).sum() /
+                   max(positive_candidate_energy[channel], 1e-30)),
+             float((positive_candidate[:, :, channel] * yy).sum() /
+                   max(positive_candidate_energy[channel], 1e-30)))
+        r = (float((positive_reference[:, :, channel] * xx).sum() /
+                   max(positive_reference_energy[channel], 1e-30)),
+             float((positive_reference[:, :, channel] * yy).sum() /
+                   max(positive_reference_energy[channel], 1e-30)))
         centroid_error.append(math.hypot(c[0] - r[0], c[1] - r[1]))
     denom = max(float(reference_energy.sum()), 1e-30)
+    source_denom = max(float(source_energy.sum()), 1e-30)
     return {
         "rgb_l1_percent": 100.0 * float(channel_l1.sum()) / denom,
         "max_channel_shape_l1_percent": 100.0 * float(channel_shape_error.max()),
         "channel_support_mismatch_count": int(support_mismatch.sum()),
         "max_common_channel_centroid_error_px": max(centroid_error, default=0.0),
         "rgb_energy_ratio": float(candidate_energy.sum() / denom),
+        "rgb_channel_energy_error_percent": 100.0 * float(
+            np.abs(candidate_energy - source_energy).sum()) / source_denom,
+        "negative_rgb_mass_percent": 100.0 * float(np.maximum(-candidate, 0.0).sum()) /
+            source_denom,
     }
 
 
@@ -116,11 +131,18 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     inputs: dict[str, np.ndarray] = {}
+    source_energies: dict[str, np.ndarray] = {}
     flares: dict[tuple[str, int], np.ndarray] = {}
     render_milliseconds: dict[tuple[str, int], float] = {}
     for color_name, color in COLORS.items():
         source = source_image(color)
         inputs[color_name] = source
+        source_luminance = source @ LUMA
+        source_removed = source * np.clip(
+            (source_luminance - 0.85) / np.maximum(source_luminance, 1e-30),
+            0.0, 1.0)[:, :, None]
+        source_energy = source_removed.sum(axis=(0, 1))
+        source_energies[color_name] = source_energy
         input_path = args.output_dir / f"{color_name}-input.pfm"
         write_pfm(input_path, source)
         for sample_count in SAMPLES:
@@ -142,14 +164,16 @@ def main() -> None:
     csv_path = args.output_dir / "metrics.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as output:
         writer = csv.DictWriter(output, fieldnames=("source", "samples", "render_ms", *image_metrics(
-            flares["neutral", 3], flares["neutral", 61]).keys()))
+            flares["neutral", 3], flares["neutral", 61],
+            source_energies["neutral"]).keys()))
         writer.writeheader()
         for color_name in COLORS:
             reference = flares[color_name, 61]
             for sample_count in SAMPLES:
                 writer.writerow({"source": color_name, "samples": sample_count,
                                  "render_ms": f"{render_milliseconds[color_name, sample_count]:.3f}",
-                                 **image_metrics(flares[color_name, sample_count], reference)})
+                             **image_metrics(flares[color_name, sample_count], reference,
+                                             source_energies[color_name])})
 
     width, height = 124, 124
     crop_radius = 42
@@ -186,6 +210,8 @@ def main() -> None:
                       f"RGB-L1={float(row['rgb_l1_percent']):.3f}% "
                       f"shape-L1={float(row['max_channel_shape_l1_percent']):.3f}% "
                       f"centroid={float(row['max_common_channel_centroid_error_px']):.4f}px "
+                      f"energy-error={float(row['rgb_channel_energy_error_percent']):.4f}% "
+                      f"negative-mass={float(row['negative_rgb_mass_percent']):.4f}% "
                       f"render={float(row['render_ms']):.0f}ms")
 
 
