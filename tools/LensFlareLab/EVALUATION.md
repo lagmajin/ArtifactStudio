@@ -1,6 +1,6 @@
 # Lens Flare Optics Evaluation
 
-**最終更新:** 2026-10-27
+**最終更新:** 2026-10-28
 
 ### Radiance-weighted source-bin placement
 
