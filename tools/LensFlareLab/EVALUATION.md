@@ -473,10 +473,10 @@ ghost elements. Their pipeline builds an aperture-transmission texture for
 each ghost path and applies a fractional Fourier transform (FrFT), with the
 heuristic order `α = 0.15 × (λ / 400 nm) × (f/# / 18)` (Eq. 5). The lab now
 exposes `--diffraction-report` and `--fresnel-frft-order` to inspect and sweep
-that RGB order. The paper's FrFT ringing texture is not implemented. The
-separate scalar Fresnel propagation prototype above does not substitute for
-that per-path aperture texture, and the Fraunhofer source PSF is not a ghost
-diffraction model.
+that RGB order. The separate scalar Fresnel propagation prototype above does
+not substitute for the per-path aperture texture, and the Fraunhofer source
+PSF is not a ghost diffraction model. The first standalone aperture-FrFT
+look-development path is evaluated below.
 
 For the default 100 mm, f/11 setup, Eq. (5) gives RGB orders approximately
 `0.140, 0.126, 0.106` for 610, 550, and 460 nm. These are the paper's
@@ -492,10 +492,71 @@ diffraction off took 0.67 s at ray-grid 64, 1.86 s at 128, and 3.97 s at 192
 on the evaluation machine. These are single-run timings and vary with CPU load.
 The lab remains a look-development reference, not an editor frame path.
 
-Next: implement the paper's per-path aperture transmission texture and FrFT,
-validate its fractional transform against the α=0 (aperture image) and α=1
-(Fourier intensity) limits, then compare ghost coordinates against Fig. 10's
-analytical ray-traced reference in the [2024 paper](https://link.springer.com/article/10.1007/s00371-024-03625-7)
-and real lens captures. Replace Abbe-derived Cauchy/coating approximations
-with measured optical data, and precompute ray-transfer maps before an
+Next: compare ghost coordinates against Fig. 10's analytical ray-traced
+reference in the [2024 paper](https://link.springer.com/article/10.1007/s00371-024-03625-7)
+and against real lens captures. Replace Abbe-derived Cauchy/coating
+approximations with measured optical data before considering an
 allocation-bounded GPU integration.
+
+## Per-path aperture FrFT look-development
+
+Hullin et al. retain each ray's aperture-plane crossing and use a per-ghost
+aperture transmission texture. Their method applies an FrFT to the aperture
+mask to introduce near-field ringing, with the order estimated by Eq. (5).
+The current lab captures the iris-plane position on each valid path, applies a
+separable direct-kernel 2D FrFT to a 256×256 binary polygon aperture, and
+weights ray energy by the transformed intensity. Each path/source-sample/
+wavelength ray map is normalized to its original sampled ray-energy sum before
+rasterization. `--ghost-frft-report` prints the effective orders, texture and
+ray-map normalizers, and cold-path precompute time.
+
+The α=0 limit is an exact geometric bypass: the isolated 9→8 path is
+pixel-identical to the geometric baseline. For the default f/11 lens, the
+paper's Eq. (5) RGB orders are `0.139806, 0.126054, 0.105427`. With a point
+source at `(0.3834, 0.3844)`, ray grid 128, and source diffraction off, the
+isolated 9→8 path changes from Y flux `128.328` to `131.499`, peak luminance
+`0.003364` to `0.005954`, and centroid `(465.157, 257.015)` to
+`(457.916, 254.927)`. The sensor-cropped integrated flux rises 2.47% despite
+per-map ray normalization; transformed weighting moves some energy across the
+sensor boundary. The absolute image difference is 31.62% of geometric ghost Y
+flux, with visible sixfold aperture ringing.
+
+![Isolated geometric ghost compared with the Eq. 5 aperture FrFT result, plus signed luminance difference at display gain 300](examples/ghost-aperture-frft-x300.png)
+
+With all 42 eligible paths at ray grid 64, the sensor-cropped Y flux changes
+from `911.276` to `930.914`, relative image L1 is 18.37%, peak changes from
+`4.388` to `4.585`, and centroid moves from `(353.274, 199.223)` to
+`(352.082, 198.837)`. This shows that the aperture pattern remains visible
+among overlapping ghosts, while the individual pattern is clearer in the
+isolated comparison.
+
+![All 42 geometric ghosts compared with Eq. 5 aperture FrFT, with signed difference at display gain 40](examples/ghost-aperture-frft-all-paths-x40.png)
+
+The α=1 endpoint uses the Fourier kernel and shows the expected aperture
+diffraction pattern. It is a transform endpoint, not the order used for normal
+ghost rendering. Explicit orders below 0.01 bypass the sampled kernel: at
+256² its sharply concentrated kernel is unresolved and produced unstable
+energy before this guard. The direct 256² RGB precompute took about 90 ms on
+the evaluation machine; it is standalone cold-path work, not suitable for a
+per-frame editor path. The remaining 1–3% in-frame flux difference and
+empirical ray-map normalization make this a look-development approximation,
+not a calibrated optical-energy solution.
+
+![The α=1 Fourier limit compared with the geometric ghost](examples/ghost-aperture-frft-fourier-limit-x300.png)
+
+The implementation follows the aperture-coordinate and FrFT look-development
+approach in [Hullin et al., 2011](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf)
+and the continuous FrFT kernel described by
+[Ozaktas et al., 1996](https://www.ee.bilkent.edu.tr/~haldun/publications/ozaktas108.pdf).
+It uses direct separable quadrature rather than Ozaktas's fast
+chirp-convolution algorithm. Core/App promotion needs a stable optical-phase
+and energy model, calibrated reference captures, and cold-path cached transfer
+data before any bounded GPU-frame integration.
+
+Reproduce the isolated comparison and its image plate with:
+
+```powershell
+LensFlareLab.exe build/finite-source-convergence-input.pfm build/ghost-geometric.pfm --position 0.3834 0.3844 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8
+LensFlareLab.exe build/finite-source-convergence-input.pfm build/ghost-frft-eq5.pfm --position 0.3834 0.3844 --ray-grid 128 --source-samples 1 --diffraction off --ghost-pair 9 8 --ghost-frft on --ghost-frft-report
+python tools/LensFlareLab/make_ghost_frft_comparison.py build/finite-source-convergence-input.pfm build/ghost-geometric.pfm build/ghost-frft-eq5.pfm tools/LensFlareLab/examples/ghost-aperture-frft-x300.png --gain 300
+```

@@ -55,6 +55,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--ghosts on|off] [--diffraction on|off]
                [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM]
                [--ghost-diffraction-report]
+               [--ghost-frft on|off] [--ghost-frft-report]
                [--fresnel-frft-order N] [--diffraction-report] [--ghost-report]
                [--ghost-pair FIRST SECOND] [--jacobian-report] [--source-report]
 ```
@@ -125,6 +126,17 @@ PFM renders.
 `python tools/LensFlareLab/make_ray_grid_comparison.py` compares the same
 source-sample mode across 64/96/128 pupil ray grids and reports in-frame
 flux, peak, centroid, and image differences.
+
+`--ghost-frft on` is a separate look-development switch for the Hullin-style
+aperture-coordinate texture. It records each successful ghost ray's stop
+crossing, transforms a binary aperture with a separable, direct-kernel 2D FrFT,
+and weights the ray grid by the resulting intensity. `--fresnel-frft-order`
+chooses the order; otherwise the RGB orders use Eq. (5). `--ghost-frft-report`
+prints the effective orders, texture and ray-map normalizers, and cold-path
+precompute time. The α=0 option is an exact geometric bypass. Orders below
+0.01 also use that bypass because the 256² texture cannot resolve their narrow
+kernel without aliasing. This is a CPU reference implementation for the
+standalone lab, not an editor frame path or a measured-camera match.
 
 ## Core/app integration path
 

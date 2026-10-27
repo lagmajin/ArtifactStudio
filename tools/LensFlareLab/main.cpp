@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <complex>
+#include <chrono>
 #include <cstring>
 #include <cstdlib>
 #include <fstream>
@@ -64,16 +65,19 @@ struct Settings {
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
     float fresnelFrftOrder = 0.0f;
+    bool fresnelFrftOrderOverride = false;
     float ghostDiffractionDistanceMm = 0.0f;
     bool antiReflectCoating = true;
     bool ghostsEnabled = true;
     bool diffractionEnabled = true;
     bool ghostDiffractionEnabled = false;
+    bool ghostFrftEnabled = false;
     bool reportGhostPaths = false;
     bool reportJacobianCap = false;
     bool reportSourceSamples = false;
     bool reportDiffractionModel = false;
     bool reportGhostDiffraction = false;
+    bool reportGhostFrft = false;
     int selectedFirstReflection = -1;
     int selectedSecondReflection = -1;
 };
@@ -125,6 +129,8 @@ struct RayVertex {
     float y = 0.0f;
     float energy = 0.0f;
     bool valid = false;
+    float apertureX = 0.0f;
+    float apertureY = 0.0f;
 };
 
 struct Point2 {
@@ -220,14 +226,23 @@ struct DiffractionKernel {
     std::vector<float> intensity;
 };
 
+struct GhostApertureTexture {
+    int size = 0;
+    float radiusMm = 0.0f;
+    float fractionalOrder = 0.0f;
+    float fluxNormalization = 1.0f;
+    std::vector<float> intensity;
+};
+
 float lensFlareFrftOrder(float wavelengthNm, float fNumber) {
     // Hullin et al. (2011), Eq. (5): heuristic fractional Fourier order for
     // near-field aperture ringing. It is a look-development approximation.
     return 0.15f * (wavelengthNm / 400.0f) * (fNumber / 18.0f);
 }
 
-float applyFrftOrderOverride(float wavelengthNm, float fNumber, float overrideOrder) {
-    return overrideOrder > 0.0f ? overrideOrder : lensFlareFrftOrder(wavelengthNm, fNumber);
+float applyFrftOrderOverride(float wavelengthNm, float fNumber, float overrideOrder,
+                             bool overrideEnabled) {
+    return overrideEnabled ? overrideOrder : lensFlareFrftOrder(wavelengthNm, fNumber);
 }
 
 void fft1D(std::vector<std::complex<float>>& values) {
@@ -275,6 +290,122 @@ void fft2D(std::vector<std::complex<float>>& values, int size, bool inverse) {
         for (int y = 0; y < size; ++y)
             values[static_cast<std::size_t>(y) * size + x] = line[static_cast<std::size_t>(y)];
     }
+}
+
+std::vector<std::complex<float>> makeFrftKernel1D(int size, float order) {
+    constexpr double pi = 3.14159265358979323846;
+    const double phi = static_cast<double>(order) * pi * 0.5;
+    const double sine = std::sin(phi);
+    const double cotangent = std::cos(phi) / sine;
+    const double cosecant = 1.0 / sine;
+    const std::complex<double> normalization = std::polar(
+        1.0 / std::sqrt(std::abs(sine)), -pi * 0.25 + phi * 0.5);
+    const double sampleStep = 2.0 / static_cast<double>(size);
+    std::vector<std::complex<float>> kernel(static_cast<std::size_t>(size) * size);
+    for (int outputIndex = 0; outputIndex < size; ++outputIndex) {
+        const double outputCoordinate = (outputIndex + 0.5) * sampleStep - 1.0;
+        for (int inputIndex = 0; inputIndex < size; ++inputIndex) {
+            const double inputCoordinate = (inputIndex + 0.5) * sampleStep - 1.0;
+            const double phase = pi * (cotangent *
+                (outputCoordinate * outputCoordinate + inputCoordinate * inputCoordinate) -
+                2.0 * outputCoordinate * inputCoordinate * cosecant);
+            const std::complex<double> value = normalization *
+                std::polar(1.0, phase) * sampleStep;
+            kernel[static_cast<std::size_t>(outputIndex) * size + inputIndex] =
+                {static_cast<float>(value.real()), static_cast<float>(value.imag())};
+        }
+    }
+    return kernel;
+}
+
+void applySeparableFrft(std::vector<std::complex<float>>& field, int size, float order) {
+    const auto kernel = makeFrftKernel1D(size, order);
+    std::vector<std::complex<float>> intermediate(field.size());
+    for (int y = 0; y < size; ++y) for (int outputX = 0; outputX < size; ++outputX) {
+        std::complex<float> sum{};
+        const std::size_t kernelRow = static_cast<std::size_t>(outputX) * size;
+        const std::size_t fieldRow = static_cast<std::size_t>(y) * size;
+        for (int inputX = 0; inputX < size; ++inputX)
+            sum += kernel[kernelRow + inputX] * field[fieldRow + inputX];
+        intermediate[fieldRow + outputX] = sum;
+    }
+    for (int outputY = 0; outputY < size; ++outputY) for (int x = 0; x < size; ++x) {
+        std::complex<float> sum{};
+        const std::size_t kernelRow = static_cast<std::size_t>(outputY) * size;
+        for (int inputY = 0; inputY < size; ++inputY)
+            sum += kernel[kernelRow + inputY] * intermediate[static_cast<std::size_t>(inputY) * size + x];
+        field[static_cast<std::size_t>(outputY) * size + x] = sum;
+    }
+}
+
+GhostApertureTexture makeGhostApertureTexture(int size, int blades, float radiusMm,
+                                              float fractionalOrder) {
+    GhostApertureTexture texture;
+    texture.size = size;
+    texture.radiusMm = radiusMm;
+    // The sampled integral approaches a delta kernel at very small orders.
+    // A 256-square aperture texture cannot resolve that kernel; preserve the
+    // exact spatial-domain limit rather than introducing aliased rings.
+    texture.fractionalOrder = fractionalOrder < 0.01f ? 0.0f : fractionalOrder;
+    texture.intensity.assign(static_cast<std::size_t>(size) * size, 0.0f);
+    std::vector<std::complex<float>> field(texture.intensity.size());
+    const float sector = 2.0f * 3.14159265358979323846f / blades;
+    std::size_t openSamples = 0;
+    for (int y = 0; y < size; ++y) for (int x = 0; x < size; ++x) {
+        const float px = ((x + 0.5f) / size * 2.0f - 1.0f) * radiusMm;
+        const float py = (1.0f - (y + 0.5f) / size * 2.0f) * radiusMm;
+        const float angle = std::atan2(py, px);
+        const float polygonRadius = radiusMm * std::cos(0.5f * sector) /
+                                    std::cos(std::remainder(angle, sector));
+        const std::size_t index = static_cast<std::size_t>(y) * size + x;
+        if (std::hypot(px, py) <= polygonRadius) {
+            field[index] = {1.0f, 0.0f};
+            ++openSamples;
+        }
+    }
+    if (openSamples == 0) return texture;
+
+    if (texture.fractionalOrder > 1e-6f)
+        applySeparableFrft(field, size, texture.fractionalOrder);
+
+    double transformedApertureEnergy = 0.0;
+    for (int y = 0; y < size; ++y) for (int x = 0; x < size; ++x) {
+        const float px = ((x + 0.5f) / size * 2.0f - 1.0f) * radiusMm;
+        const float py = (1.0f - (y + 0.5f) / size * 2.0f) * radiusMm;
+        const float angle = std::atan2(py, px);
+        const float polygonRadius = radiusMm * std::cos(0.5f * sector) /
+                                    std::cos(std::remainder(angle, sector));
+        if (std::hypot(px, py) > polygonRadius) continue;
+        const std::size_t index = static_cast<std::size_t>(y) * size + x;
+        texture.intensity[index] = std::norm(field[index]);
+        transformedApertureEnergy += texture.intensity[index];
+    }
+    if (transformedApertureEnergy > 1e-20) {
+        texture.fluxNormalization = static_cast<float>(openSamples / transformedApertureEnergy);
+        for (float& intensity : texture.intensity) intensity *= texture.fluxNormalization;
+    }
+    return texture;
+}
+
+float sampleGhostApertureTexture(const GhostApertureTexture& texture, Vec3 aperturePoint) {
+    if (texture.size <= 0 || texture.radiusMm <= 0.0f || texture.fractionalOrder <= 1e-6f)
+        return 1.0f;
+    const float u = aperturePoint.x / texture.radiusMm;
+    const float v = -aperturePoint.y / texture.radiusMm;
+    const float x = std::clamp((u * 0.5f + 0.5f) * texture.size - 0.5f,
+                               0.0f, static_cast<float>(texture.size - 1));
+    const float y = std::clamp((v * 0.5f + 0.5f) * texture.size - 0.5f,
+                               0.0f, static_cast<float>(texture.size - 1));
+    const int x0 = static_cast<int>(x), y0 = static_cast<int>(y);
+    const int x1 = std::min(x0 + 1, texture.size - 1);
+    const int y1 = std::min(y0 + 1, texture.size - 1);
+    const float tx = x - x0, ty = y - y0;
+    const float a = texture.intensity[static_cast<std::size_t>(y0) * texture.size + x0];
+    const float b = texture.intensity[static_cast<std::size_t>(y0) * texture.size + x1];
+    const float c = texture.intensity[static_cast<std::size_t>(y1) * texture.size + x0];
+    const float d = texture.intensity[static_cast<std::size_t>(y1) * texture.size + x1];
+    return std::max(0.0f, (a + (b - a) * tx) * (1.0f - ty) +
+                          (c + (d - c) * tx) * ty);
 }
 
 struct PropagatedPatch {
@@ -591,7 +722,7 @@ void reflectRay(Vec3& direction, Vec3 normal) {
 }
 
 bool clipIris(Vec3& origin, Vec3 direction, const LensPrescription& lens,
-              int bladeCount) {
+              int bladeCount, Vec3* aperturePoint = nullptr) {
     if (std::abs(direction.z) < 1e-7f) return false;
     const float t = (lens.irisZ - origin.z) / direction.z;
     if (!(t > 1e-5f)) return false;
@@ -601,16 +732,17 @@ bool clipIris(Vec3& origin, Vec3 direction, const LensPrescription& lens,
     const float sector = std::remainder(angle, step);
     const float polygonRadius = lens.irisRadius * std::cos(3.14159265358979323846f / bladeCount) /
         std::cos(sector);
+    if (aperturePoint) *aperturePoint = origin;
     return std::hypot(origin.x, origin.y) <= polygonRadius;
 }
 
 bool traceGhostRay(const LensPrescription& lens, int firstReflection, int secondReflection,
                    float wavelengthNm, Vec3 origin, Vec3 direction, float& energy,
-                   Vec3& sensorPoint, int bladeCount, bool antiReflectCoating,
+                   Vec3& sensorPoint, Vec3& aperturePoint, int bladeCount, bool antiReflectCoating,
                    bool useCauchyDispersion) {
     energy = 1.0f;
     for (int i = 0; i <= firstReflection; ++i) {
-        if (i == 7 && !clipIris(origin, direction, lens, bladeCount)) return false;
+        if (i == 7 && !clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
         const Vec3 normal = surfaceNormal(surface, origin);
@@ -633,7 +765,7 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
     }
 
     for (int i = firstReflection - 1; i >= secondReflection; --i) {
-        if (i == 6 && !clipIris(origin, direction, lens, bladeCount)) return false;
+        if (i == 6 && !clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
         const Vec3 normal = surfaceNormal(surface, origin);
@@ -656,7 +788,7 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
     }
 
     for (int i = secondReflection + 1; i < static_cast<int>(lens.surfaces.size()); ++i) {
-        if (i == 7 && !clipIris(origin, direction, lens, bladeCount)) return false;
+        if (i == 7 && !clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
         const Vec3 normal = surfaceNormal(surface, origin);
@@ -885,13 +1017,17 @@ Image render(const Image& source, const Settings& settings) {
         const float fNumber = lens.effectiveFocalLength / (lens.irisRadius * 2.0f);
         std::cout << "Fresnel ringing model: Hullin et al. (2011), Eq. (5), heuristic FrFT order\n"
                   << "fNumber=" << std::fixed << std::setprecision(3) << fNumber
-                  << " override=" << settings.fresnelFrftOrder << " effective RGB alpha=";
+                  << " override=";
+        if (settings.fresnelFrftOrderOverride) std::cout << settings.fresnelFrftOrder;
+        else std::cout << "auto";
+        std::cout << " effective RGB alpha=";
         for (std::size_t band = 0; band < reportWavelengths.size(); ++band) {
             if (band) std::cout << ',';
             std::cout << applyFrftOrderOverride(reportWavelengths[band], fNumber,
-                                                 settings.fresnelFrftOrder);
+                                                 settings.fresnelFrftOrder,
+                                                 settings.fresnelFrftOrderOverride);
         }
-        std::cout << " (FrFT heuristic parameter; use --ghost-diffraction on for the separate scalar Fresnel model)\n";
+        std::cout << " (Hullin Eq. 5 FrFT heuristic; --ghost-frft on applies the aperture texture)\n";
     }
     DetectedLightSet lights;
     if (settings.autoPosition) {
@@ -979,6 +1115,30 @@ Image render(const Image& source, const Settings& settings) {
     const int rayCount = grid * grid;
     const float sensorHeight = lens.sensorWidth * static_cast<float>(height) / width;
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
+    std::array<GhostApertureTexture, 3> ghostApertureTextures;
+    if (settings.ghostFrftEnabled) {
+        const auto precomputeStart = std::chrono::steady_clock::now();
+        const float fNumber = lens.effectiveFocalLength / (lens.irisRadius * 2.0f);
+        for (std::size_t band = 0; band < wavelengths.size(); ++band) {
+            const float order = applyFrftOrderOverride(wavelengths[band], fNumber,
+                                                       settings.fresnelFrftOrder,
+                                                       settings.fresnelFrftOrderOverride);
+            ghostApertureTextures[band] = makeGhostApertureTexture(
+                256, settings.apertureBlades, lens.irisRadius, order);
+        }
+        if (settings.reportGhostFrft) {
+            const auto elapsed = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - precomputeStart).count();
+            std::cout << "Ghost aperture FrFT: 256x256 samples, Hullin Eq. 5 alpha RGB="
+                      << ghostApertureTextures[0].fractionalOrder << ','
+                      << ghostApertureTextures[1].fractionalOrder << ','
+                      << ghostApertureTextures[2].fractionalOrder << " fluxNormalization RGB="
+                      << ghostApertureTextures[0].fluxNormalization << ','
+                      << ghostApertureTextures[1].fluxNormalization << ','
+                      << ghostApertureTextures[2].fluxNormalization
+                      << " precomputeMs=" << elapsed << '\n';
+        }
+    }
     std::uint64_t rasterizedTriangles = 0;
     std::uint64_t jacobianClampedTriangles = 0;
     double ghostDiffractionInputEnergy = 0.0;
@@ -987,6 +1147,9 @@ Image render(const Image& source, const Settings& settings) {
     float ghostDiffractionMinNormalization = std::numeric_limits<float>::infinity();
     float ghostDiffractionMaxNormalization = 0.0f;
     std::uint64_t ghostDiffractionPatches = 0;
+    double ghostFrftMinRayNormalization = std::numeric_limits<double>::infinity();
+    double ghostFrftMaxRayNormalization = 0.0;
+    std::uint64_t ghostFrftRayMaps = 0;
     std::array<DiffractionKernel, 3> diffraction;
     if (settings.diffractionEnabled) {
         for (std::size_t band = 0; band < diffraction.size(); ++band) {
@@ -1080,15 +1243,46 @@ Image render(const Image& source, const Settings& settings) {
                                                        direction, origin, settings.useCauchyDispersion)) continue;
                             float energy = 0.0f;
                             Vec3 sensorPoint{};
+                            Vec3 aperturePoint{};
                             if (!traceGhostRay(lens, firstReflection, secondReflection,
                                                wavelengths[band], origin, direction, energy,
-                                       sensorPoint, settings.apertureBlades,
+                                       sensorPoint, aperturePoint, settings.apertureBlades,
                                        settings.antiReflectCoating,
                                        settings.useCauchyDispersion)) continue;
                             const float screenX = width * 0.5f + sensorPoint.x / lens.sensorWidth * width;
                             const float screenY = height * 0.5f - sensorPoint.y / sensorHeight * height;
                             RayVertex& vertex = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
-                            vertex = {screenX, screenY, energy * sourceBands[band], true};
+                            vertex = {screenX, screenY, energy * sourceBands[band], true,
+                                      aperturePoint.x, aperturePoint.y};
+                        }
+
+                        if (settings.ghostFrftEnabled &&
+                            ghostApertureTextures[band].fractionalOrder > 1e-6f) {
+                            double geometricRayEnergy = 0.0;
+                            double texturedRayEnergy = 0.0;
+                            for (RayVertex& vertex : rayGridData) {
+                                if (!vertex.valid) continue;
+                                geometricRayEnergy += vertex.energy;
+                                const float weight = sampleGhostApertureTexture(
+                                    ghostApertureTextures[band],
+                                    {vertex.apertureX, vertex.apertureY, 0.0f});
+                                texturedRayEnergy += vertex.energy * weight;
+                            }
+                            if (geometricRayEnergy > 1e-20 && texturedRayEnergy > 1e-20) {
+                                const double normalization = geometricRayEnergy / texturedRayEnergy;
+                                ghostFrftMinRayNormalization = std::min(
+                                    ghostFrftMinRayNormalization, normalization);
+                                ghostFrftMaxRayNormalization = std::max(
+                                    ghostFrftMaxRayNormalization, normalization);
+                                ++ghostFrftRayMaps;
+                                for (RayVertex& vertex : rayGridData) {
+                                    if (!vertex.valid) continue;
+                                    const float weight = sampleGhostApertureTexture(
+                                        ghostApertureTextures[band],
+                                        {vertex.apertureX, vertex.apertureY, 0.0f});
+                                    vertex.energy *= static_cast<float>(normalization) * weight;
+                                }
+                            }
                         }
 
                         auto rasterizeTriangle = [&](const RayVertex& a, const RayVertex& b,
@@ -1246,6 +1440,12 @@ Image render(const Image& source, const Settings& settings) {
                       ? settings.ghostDiffractionDistanceMm : lens.effectiveFocalLength)
                   << " (per-patch intensity normalized; scalar paraxial approximation)\n";
     }
+    if (settings.reportGhostFrft && ghostFrftRayMaps > 0) {
+        std::cout << "Ghost aperture FrFT ray-map flux normalization range=["
+                  << ghostFrftMinRayNormalization << ',' << ghostFrftMaxRayNormalization
+                  << "] maps=" << ghostFrftRayMaps
+                  << " (per path/source-sample/wavelength map)\n";
+    }
     return output;
 }
 
@@ -1291,6 +1491,8 @@ void printSettings(const Settings& s) {
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
               << " fresnelFrftOrder=" << s.fresnelFrftOrder
+              << " fresnelFrftOrderOverride=" << s.fresnelFrftOrderOverride
+              << " ghostFrft=" << s.ghostFrftEnabled
               << " ghostDiffraction=" << s.ghostDiffractionEnabled
               << " ghostDiffractionDistanceMm=" << s.ghostDiffractionDistanceMm
               << " antiReflectCoating=" << s.antiReflectCoating
@@ -1302,9 +1504,10 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
+              << "               --ghost-frft on|off | --ghost-frft-report\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
@@ -1322,7 +1525,11 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "rasterizerModel") s.usePixelAreaRasterization = value >= 0.5f;
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
-    else if (name == "fresnelFrftOrder") s.fresnelFrftOrder = finiteClamp(value, 0.0f, 1.0f);
+    else if (name == "fresnelFrftOrder") {
+        s.fresnelFrftOrder = finiteClamp(value, 0.0f, 1.0f);
+        s.fresnelFrftOrderOverride = true;
+    }
+    else if (name == "ghostFrft") s.ghostFrftEnabled = value >= 0.5f;
     else if (name == "ghostDiffraction") s.ghostDiffractionEnabled = value >= 0.5f;
     else if (name == "ghostDiffractionDistanceMm") s.ghostDiffractionDistanceMm = finiteClamp(value, 0.0f, 500.0f);
     else if (name == "antiReflectCoating") s.antiReflectCoating = value >= 0.5f;
@@ -1398,6 +1605,14 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
         else if (enabled == "off") settings.ghostDiffractionEnabled = false;
         else throw std::runtime_error("--ghost-diffraction expects on or off");
     }
+    else if (option == "--ghost-frft") {
+        if (++i >= argc) throw std::runtime_error("missing value for --ghost-frft");
+        const std::string enabled = argv[i];
+        if (enabled == "on") settings.ghostFrftEnabled = true;
+        else if (enabled == "off") settings.ghostFrftEnabled = false;
+        else throw std::runtime_error("--ghost-frft expects on or off");
+    }
+    else if (option == "--ghost-frft-report") settings.reportGhostFrft = true;
     else if (option == "--jacobian-report") settings.reportJacobianCap = true;
     else if (option == "--ghost-pair") {
         if (i + 2 >= argc) throw std::runtime_error("--ghost-pair expects FIRST SECOND surface indices");
