@@ -737,6 +737,83 @@ TEST(LiquidSurfaceTest, TriangleVerticesRetainDensityForDepthShading)
         << "interior coverage should be available to the renderer as a smooth depth cue";
 }
 
+TEST(LiquidCollisionTest, HighSpeedParticleCannotTunnelThroughClosedPolygonEdge)
+{
+    LiquidSolver2D solver;
+    ASSERT_TRUE(solver.setContainerPolygon(
+        NamedVector<LiquidContainerPoint2D>{
+            ContainerName{"Test.LiquidSweepPolygon"},
+            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
+        0));
+    solver.setGravity(0.0f, 0.0f);
+    solver.setViscosity(0.0f);
+    solver.setSubsteps(1);
+    solver.setSolverIterations(1);
+    solver.reset(0.0f, 0.05f);
+
+    LiquidSnapshot2D initial;
+    initial.particles.assign({{0.5f, 0.5f, 60.0f, 0.0f}});
+    ASSERT_TRUE(solver.restore(initial));
+
+    solver.update(1.0f / 30.0f);
+
+    ASSERT_EQ(solver.particles().size(), 1U);
+    const auto& particle = solver.particles().front();
+    EXPECT_LT(particle.x, 0.9f);
+    EXPECT_GE(particle.x, 0.9f - solver.particleSpacing() * 0.5f - 1.0e-4f);
+    EXPECT_LT(particle.vx, 0.0f);
+}
+
+TEST(LiquidCollisionTest, HighSpeedParticleCanExitThroughPolygonOpening)
+{
+    LiquidSolver2D solver;
+    ASSERT_TRUE(solver.setContainerPolygon(
+        NamedVector<LiquidContainerPoint2D>{
+            ContainerName{"Test.LiquidOpeningSweepPolygon"},
+            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
+        0));
+    solver.setGravity(0.0f, 0.0f);
+    solver.setViscosity(0.0f);
+    solver.setSubsteps(1);
+    solver.setSolverIterations(1);
+    solver.reset(0.0f, 0.05f);
+
+    LiquidSnapshot2D initial;
+    initial.particles.assign({{0.5f, 0.86f, 0.0f, 60.0f}});
+    ASSERT_TRUE(solver.restore(initial));
+
+    solver.update(1.0f / 30.0f);
+
+    ASSERT_EQ(solver.particles().size(), 1U);
+    EXPECT_GT(solver.particles().front()->y, 0.9f);
+    EXPECT_GT(solver.particles().front()->vy, 0.0f);
+}
+
+TEST(LiquidCollisionTest, ParticleAtWallContactCannotTunnelOnNextStep)
+{
+    LiquidSolver2D solver;
+    ASSERT_TRUE(solver.setContainerPolygon(
+        NamedVector<LiquidContainerPoint2D>{
+            ContainerName{"Test.LiquidContactSweepPolygon"},
+            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
+        0));
+    solver.setGravity(0.0f, 0.0f);
+    solver.setViscosity(0.0f);
+    solver.setSubsteps(1);
+    solver.setSolverIterations(1);
+    solver.reset(0.0f, 0.05f);
+
+    LiquidSnapshot2D initial;
+    initial.particles.assign({{0.875f, 0.5f, 30.0f, 0.0f}});
+    ASSERT_TRUE(solver.restore(initial));
+
+    solver.update(1.0f / 30.0f);
+
+    ASSERT_EQ(solver.particles().size(), 1U);
+    EXPECT_LE(solver.particles().front()->x, 0.8751f);
+    EXPECT_LT(solver.particles().front()->vx, 0.0f);
+}
+
 TEST(LiquidSurfaceTest, FoamPointsRetainVelocityForDirectionalRendering)
 {
     NamedVector<LiquidSurfaceSample2D> samples{

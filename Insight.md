@@ -1,5 +1,18 @@
 **最終更新:** 2026-10-27
 
+## 2026-10-27: 2D liquid collision needs swept checks after PBF corrections
+- **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::LiquidSolver2D::solveContainerBounds`、`solveDensityConstraints`、`update`。
+- **確認できた事実:** Polygon container collision previously checked only the final particle center and pushed it to the closest edge. PBF position corrections can move a particle across a closed edge between checks; the polygon path did not test the movement segment. The current edit sweeps the prior-to-current center segment for the integration step and each PBF correction, while excluding the configured opening; the existing rectangular-container path still clamps endpoints. Surface extraction and rendering are a separate path and should be evaluated independently.
+- **価値または懸念:** Sweeping the previous substep position to each predicted/corrected position can catch high-speed tunneling while preserving the open-edge escape rule. The current edit adds that check for closed polygon edges, but runtime coverage, vertex grazing, concave polygons, and spill interaction remain unverified. Non-polygon rectangular walls still use endpoint clamping.
+- **仮説（未検証）:** A continuous segment-edge test with particle-radius tolerance can reduce polygon wall leaks without requiring globally higher substep counts; edge endpoints and open-edge junctions may need a capsule-style sweep to cover all corner cases.
+- **次に確認すべきこと:** Run the focused high-speed collision regression and existing opening/escape/determinism cases, then capture polygon vertex and concave-wall scenarios. Evaluate surface extraction fidelity separately using production renders and fixed particle samples.
+
+## 2026-10-27: Liquid surface edge needs coverage-driven alpha
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp::shadeLiquidVertex`、`ArtifactCore::LiquidSurfaceTriangle2D::coverageA/B/C`。
+- **確認できた事実:** Existing 320x320 D3D12 captures (`build/fluid-capture-d3d12-shaded`, `ripples-wide`, and `organic-crema`) show a hard, slightly faceted liquid silhouette. The current triangle renderer interpolates vertex alpha, but `shadeLiquidVertex` used a constant surface alpha while using density coverage only for color/absorption. A local edit now maps coverage 0.34–0.50 through smoothstep to alpha 0–1; triangle and command counts are unchanged.
+- **価値または懸念:** Coverage-driven alpha can soften the inside edge without increasing mesh density, GPU commands, or resources. It also reduces opacity over a narrow band just inside the contour, so actual visual improvement and edge width remain unverified until a matching D3D12/Vulkan capture is produced.
+- **仮説（未検証）:** The ~0.16 density interval will soften roughly a few pixels at the current sample/grid ratio while preserving the existing thin contour line; low zoom and sparse/LOD samples may need a different interval.
+- **次に確認すべきこと:** Re-run the same coffee/water fixtures and compare silhouette edge gradient, visible area, contour continuity, and command count against the saved captures. Check low-zoom and high-sample LOD cases before tuning the interval.
 ## 2026-10-27: 煙の短期解像度差は注入だけでは説明できない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::SeparatesSmokeResolutionDriftByInjectionAndSolverStage`、`::MeasuresSmokeProjectionResolutionAndIterationConvergence`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::project`。
 - **確認できた事実:** 96×72 / 128×96 / 192×144のnormalized source injectionはmass 0.006045 / 0.006034 / 0.006031、重心Y 0.8406 / 0.8387 / 0.8369と近い。独立したsmooth normalized density/vortex fixtureの1-step輸送でもmass変化は0.03%未満。固定emit fieldへ適用したraw buoyancy kickはdensity-weighted deltaVy約-0.0093で揃い、weak buoyancyのfull update後のdensity transportはadvection-onlyとほぼ同じ。
