@@ -1440,6 +1440,40 @@ To repeat the four diagnostic phases against the denser aperture-FFT sample,
 add `--phases 0 0.25 0.5 0.75 --diffraction-resolution 4096` and select
 build-directory CSV/image outputs.
 
+#### Pixel phase versus aperture FFT resolution
+
+The phase sweep was repeated with pixel-area resampling at aperture FFT sizes
+128², 256², 512², 1024², and 4096². It uses the same analytically pixel-
+integrated neutral R=1 px Gaussian, eight horizontal phases (0–0.875 px),
+vertical phase 0.375 px, six-blade 4.545 mm pupil, and 640×360 detector. The
+normalized RGB shape in a centered 88×88 crop is compared per phase with the
+4096² result. That result is a denser sample of the same binary-pupil FFT
+model, not a measured optical PSF.
+
+| Aperture FFT | Maximum shape L1 vs same-phase 4096² | r99 radius across phases | Maximum centroid error | Throughput span |
+| ---: | ---: | ---: | ---: | ---: |
+| 128² | 0.5922% | 1.976–2.129 px | 0.00342 px | 1.15×10⁻⁷ |
+| 256² | 0.2906% | 2.050–2.211 px | 0.00342 px | 1.09×10⁻⁷ |
+| 512² | 0.1566% | 2.050–2.211 px | 0.00342 px | 6.74×10⁻⁸ |
+| 1024² | 0.0839% | 2.095–2.226 px | 0.00342 px | 1.34×10⁻⁷ |
+| 4096² | 0.0000% | 2.095–2.226 px | 0.00342 px | 1.08×10⁻⁷ |
+
+The shape difference decreases with aperture sampling density. The small r99
+changes across phases remain because encircled energy is measured on discrete
+detector pixels; they are not a monotonic convergence measure. The throughput
+and centroid are stable for this centered synthetic source. Results describe
+the sampled model and do not validate a physical lens or sensor.
+
+![Pixel-area diffraction PSFs across eight subpixel phases and five aperture FFT resolutions](examples/diffraction-pixel-phase-convergence.png)
+
+Per-phase measurements and shape errors are in
+[`diffraction-pixel-phase-convergence.csv`](examples/diffraction-pixel-phase-convergence.csv).
+Recreate with the existing standalone renderer and Python NumPy/Pillow:
+
+```powershell
+python tools/LensFlareLab/evaluate_pixel_phase_convergence.py build/tools/LensFlareLab/LensFlareLab-source-field-dev.exe
+```
+
 #### Independent oversampled sensor-integration reference
 
 To check the resampling methods, the 1024-sample hexagonal pupil was

@@ -218,6 +218,9 @@ per-channel encircled-energy radii from the PFM outputs.
 `evaluate_diffraction_pixel_phase.py` creates pixel-area-integrated Gaussian
 sources at eight subpixel phases, compares tent and pixel-area PSF resampling,
 and records throughput, centroid, and encircled-radius sensitivity.
+`evaluate_pixel_phase_convergence.py` repeats the pixel-area phase sweep across
+aperture FFT sizes from 128² to 4096² and compares each normalized PSF crop to
+the same-phase 4096² result.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
