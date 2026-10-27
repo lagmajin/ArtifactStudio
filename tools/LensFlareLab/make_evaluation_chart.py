@@ -15,6 +15,8 @@ def main() -> None:
                         help="omit the constant background for isolated source-response studies")
     parser.add_argument("--single-light-position", type=float, nargs=2, metavar=("U", "V"),
                         help="replace the chart lights with one warm source at normalized image coordinates")
+    parser.add_argument("--source-radius", type=float, default=7.0,
+                        help="Gaussian scale parameter in pixels for the single-light source (1..8, default 7)")
     args = parser.parse_args()
     if not math.isfinite(args.light_scale) or args.light_scale <= 0:
         parser.error("--light-scale must be finite and greater than zero")
@@ -23,6 +25,8 @@ def main() -> None:
         for value in args.single_light_position
     ):
         parser.error("--single-light-position coordinates must be in the range 0..1")
+    if not math.isfinite(args.source_radius) or not 1.0 <= args.source_radius <= 8.0:
+        parser.error("--source-radius must be in the range 1..8 pixels")
 
     width, height = 640, 360
     pixels = [[0.0, 0.0, 0.0] for _ in range(width * height)]
@@ -46,7 +50,7 @@ def main() -> None:
     )
     if args.single_light_position is not None:
         u, v = args.single_light_position
-        lights = ((round(u * (width - 1)), round(v * (height - 1)), 7,
+        lights = ((round(u * (width - 1)), round(v * (height - 1)), args.source_radius,
                    (1.0, 0.83, 0.58), 4.5),)
     for cx, cy, radius, color, peak in lights:
         for y in range(max(0, cy - 20), min(height, cy + 21)):

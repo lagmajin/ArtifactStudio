@@ -347,6 +347,38 @@ each render as a `--case COUNT FILE` to
 same 225-bin source at `--ray-grid 64`, `96`, and `128`, compared with
 `make_ray_grid_comparison.py --source-samples 225`.
 
+### Finite-emitter size versus source-bin density
+
+The source chart generator now exposes a Gaussian scale parameter `R` in pixels
+for its isolated light, with profile `exp(-r²/(0.48 R²))`. At `R=3/5/7` px,
+the 25-bin image differs from the 225-bin
+reference by 2.47%/4.36%/4.39% relative L1; 81 bins reduce that to
+1.61%/1.97%/2.12%. Crop Y remains within 0.3% for all three radii. In this
+case the small emitter is adequately represented with fewer directions,
+while the larger footprints need denser angular integration to capture their
+different field directions. This supports exploring a source-extent quality
+preset, though the 225-bin and pupil-grid128 references remain sampled rather
+than ground truth.
+
+| Gaussian scale R | 25 bins L1 | 81 bins L1 | 25-bin Y / 225 | 81-bin Y / 225 | Wall time ms (25 / 81 / 225) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 3 px | 2.47% | 1.61% | 0.99987 | 1.00031 | 254 / 347 / 706 |
+| 5 px | 4.36% | 1.97% | 0.99742 | 0.99910 | 349 / 657 / 1,288 |
+| 7 px | 4.39% | 2.12% | 0.99742 | 0.99743 | 449 / 1,076 / 2,433 |
+
+Wall times are single-process measurements on the evaluation machine, including
+PFM I/O. Larger footprints occupy more bins, so cost rises with both grid size
+and source extent; treat these timings as directional, not a benchmark.
+
+![Finite-source FrFT convergence at Gaussian scale parameters 3, 5, and 7 pixels](examples/finite-source-size-convergence.png)
+
+The 225-bin `--source-report` preserved integrated source flux to within
+0.000022% for these inputs. Reproduce with `make_evaluation_chart.py
+--source-only --single-light-position 0.3834 0.3844 --source-radius R
+--light-scale 4096`, render 25/81/225 bins at fixed pupil grid64 with the
+isolated 9→8 path and polygon FrFT, then pass each radius and its three PFM
+files to `make_finite_source_size_sweep.py`.
+
 Reproduce the input and three renders with:
 
 ```powershell
