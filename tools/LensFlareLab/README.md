@@ -161,9 +161,7 @@ standalone lab, not an editor frame path or a measured-camera match.
 `--ghost-frft-normalization triangle` is the default: it normalizes each
 path/source/wavelength map with the same valid ray triangles and vertex
 quadrature used by pixel-area rasterization. `vertex` selects the earlier
-valid-node sum for A/B comparison. When adaptive ray refinement is enabled,
-the report identifies that triangle mode falls back to vertex normalization,
-because refined cells use a different triangle set.
+valid-node sum for A/B comparison. With adaptive ray refinement, triangle normalization uses the selected cells' eight-triangle center fan and the same four edge-midpoint rays as rasterization; non-refined cells keep the two-triangle split. Adaptive topology is selected from the existing preliminary vertex-normalized probes, then the final FrFT weights are normalized over that exact mesh.
 The report also estimates the integrated RGB-luminance contribution over all
 mapped ghost triangles before sensor clipping and the remainder outside the
 sensor. Use the default `pixel-area` rasterizer for this estimate; it helps

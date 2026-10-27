@@ -7540,3 +7540,9 @@
 - **価値または懸念:** 256² is a useful offline cost/quality point for this polygon-aperture path. This does not establish convergence for transport masks, other paths, or measured optics, and 512² has roughly 8.2× precompute cost for negligible image change here.
 - **仮説（未検証）:** Texture-resolution requirements may be driven more by aperture-mask topology and ghost path than by field position alone; one shared default may be inefficient for weak or heavily clipped paths.
 - **次に確認すべきこと:** Repeat the same fixed-exposure/resolution comparison on transport masks, weak paths, and clipped off-axis paths before considering any per-path quality policy.
+
+## 2026-10-27: Adaptive FrFT normalization follows the rasterized mesh
+- **関連:** `tools/LensFlareLab/main.cpp` (`--ghost-frft-normalization`, adaptive center fan)、`tools/LensFlareLab/EVALUATION.md`、`tools/LensFlareLab/examples/adaptive-frft-normalization-triangle.png`。
+- **確認できた事実:** At neutral source `(0.1,0.1)`, base grid 64, the adaptive plan refined 891/3969 cells and traced 3,564 edge rays identically for vertex and triangle modes. Triangle mode integrates the selected eight-triangle center fans and ordinary two-triangle cells; reported all-map Y is 83.3918 versus 86.2131 for vertex normalization. Sensor Y is 9.67245 versus 9.99158, relative L1 is 3.19%, and centroid moves 0.083 px.
+- **価値または懸念:** Adaptive FrFT normalization no longer changes integration rules between quality modes. Whole-map equality is by construction and does not validate the lens physics; refinement topology still uses preliminary vertex-normalized probe energy, so changing normalization does not alter its existing decisions.
+- **次に確認すべきこと:** Repeat at several fields, base grids, and clipped paths; compare adaptive triangle mode to dense uniform triangle-normalized references and measured camera captures before using it as a production quality claim.

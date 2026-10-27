@@ -79,6 +79,19 @@ capture is available. It stays opt-in and off by default.
 
 ![Adaptive off-axis geometric and FrFT comparison against uniform ray grids](examples/ghost-aperture-adaptive-refinement-offaxis.png)
 
+![Adaptive FrFT vertex versus triangle-quadrature normalization](examples/adaptive-frft-normalization-triangle.png)
+
+For a separate isolated neutral source at `(0.1,0.1)`, base grid 64, adaptive
+refinement selected 891 of 63² cells and traced 3,564 edge rays in both modes.
+Triangle quadrature makes the reported all-map Y (`83.3918`) match the geometric
+mesh integral, while vertex mode reports `86.2131` (+3.38%). After sensor
+clipping, triangle mode gives Y `9.67245` versus `9.99158` for vertex mode
+(-3.19%), relative image L1 3.19%, and centroid shift 0.083 px. The full-plane
+equality is by construction; adaptive topology still follows the established
+preliminary vertex-weight probe rule. This is a numerical consistency result,
+not a physical-camera validation.
+
+
 Reproduce the adaptive case using the off-axis input chart, all paths, and
 `--ray-grid 64 --source-samples 1 --diffraction off
 --adaptive-ray-refinement on`; render a uniform baseline by omitting the last
@@ -327,9 +340,12 @@ integrates valid ray triangles. `--ghost-frft-normalization triangle` now
 normalizes each path/source-sample/wavelength map using the same complete
 two-triangle cells, triangle energy average, degeneracy threshold, and ray
 weights used by the pixel-area rasterizer. It is the default when FrFT is on;
-`vertex` retains the earlier method for direct comparison. Adaptive refinement
-currently falls back to vertex normalization because it replaces some base
-cells with a different triangle set.
+`vertex` retains the earlier method for direct comparison. Adaptive refinement now uses the same selected mesh for normalization and
+rasterization: unrefined cells use the two-triangle split; refined cells trace
+four edge midpoints and use the eight-triangle center fan. Refinement decisions
+remain based on preliminary vertex-normalized probe energies, preserving the
+existing topology rule; final FrFT weights are then normalized against that
+mesh.
 
 Across 12 isolated cases (paths 9→8, 10→8, 5→4, and 10→9 at the estimated
 Fig. 10 source A, center, and right-of-center fields; grid 96), vertex

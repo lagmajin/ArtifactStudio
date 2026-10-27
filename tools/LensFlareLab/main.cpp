@@ -189,6 +189,7 @@ struct RayVertex {
     float apertureY = 0.0f;
     float pupilX = 0.0f;
     float pupilY = 0.0f;
+    float unweightedEnergy = 0.0f;
 };
 
 struct Point2 {
@@ -1504,6 +1505,7 @@ Image render(const Image& source, const Settings& settings) {
                                       height * 0.5f - sensorPoint.y / sensorHeight * height,
                                       energy * sourceSpectrum, true,
                                       aperturePoint.x, aperturePoint.y, stopX, stopY};
+                            traced.unweightedEnergy = traced.energy;
                             return traced;
                         };
                         for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
@@ -1554,6 +1556,9 @@ Image render(const Image& source, const Settings& settings) {
                             ghostApertureTextures[band].fractionalOrder > 1e-6f) {
                             double geometricRayEnergy = 0.0;
                             double texturedRayEnergy = 0.0;
+                            const bool deferAdaptiveTriangleNormalization =
+                                settings.ghostFrftTriangleNormalization &&
+                                settings.adaptiveRayRefinementEnabled;
                             const bool useTriangleNormalization =
                                 settings.ghostFrftTriangleNormalization &&
                                 !settings.adaptiveRayRefinementEnabled;
@@ -1597,17 +1602,19 @@ Image render(const Image& source, const Settings& settings) {
                                 rayMapNormalization = geometricRayEnergy / texturedRayEnergy;
                                 ghostFrftMapWeighted = true;
                                 const double normalization = rayMapNormalization;
-                                if (normalization > ghostFrftMaxRayNormalization) {
-                                    ghostFrftMaxRayNormalization = normalization;
-                                    ghostFrftMaxPathFirst = firstReflection;
-                                    ghostFrftMaxPathSecond = secondReflection;
-                                    ghostFrftMaxBand = band;
-                                    ghostFrftMaxSample = sampleIndex;
-                                    ghostFrftMaxGeometricEnergy = geometricRayEnergy;
-                                    ghostFrftMaxTexturedEnergy = texturedRayEnergy;
+                                if (!deferAdaptiveTriangleNormalization) {
+                                    if (normalization > ghostFrftMaxRayNormalization) {
+                                        ghostFrftMaxRayNormalization = normalization;
+                                        ghostFrftMaxPathFirst = firstReflection;
+                                        ghostFrftMaxPathSecond = secondReflection;
+                                        ghostFrftMaxBand = band;
+                                        ghostFrftMaxSample = sampleIndex;
+                                        ghostFrftMaxGeometricEnergy = geometricRayEnergy;
+                                        ghostFrftMaxTexturedEnergy = texturedRayEnergy;
+                                    }
+                                    ghostFrftMinRayNormalization = std::min(
+                                        ghostFrftMinRayNormalization, normalization);
                                 }
-                                ghostFrftMinRayNormalization = std::min(
-                                    ghostFrftMinRayNormalization, normalization);
                                 ++ghostFrftRayMaps;
                                 for (RayVertex& vertex : rayGridData) {
                                     if (!vertex.valid) continue;
@@ -1633,6 +1640,156 @@ Image render(const Image& source, const Settings& settings) {
                                 applyGhostFrftWeight(center);
                                 rayCellCenters[static_cast<std::size_t>(gy) * (grid - 1) + gx] = center;
                                 ++adaptiveCenterRays;
+                            }
+                        }
+
+                        auto shouldRefineAdaptiveCell = [&](int gx, int gy, const RayVertex& center) {
+                            if (!center.valid) return false;
+                            const RayVertex& a = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
+                            const RayVertex& b = rayGridData[static_cast<std::size_t>(gy) * grid + gx + 1];
+                            const RayVertex& c = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx];
+                            const RayVertex& d = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx + 1];
+                            const std::array<const RayVertex*, 4> corners{&a, &b, &d, &c};
+                            int validCorners = 0;
+                            float averageX = 0.0f, averageY = 0.0f, averageEnergy = 0.0f;
+                            for (const RayVertex* corner : corners) {
+                                if (!corner->valid) continue;
+                                ++validCorners;
+                                averageX += corner->x;
+                                averageY += corner->y;
+                                averageEnergy += corner->energy;
+                            }
+                            bool refine = validCorners >= 2 && validCorners < 4;
+                            if (validCorners == 4) {
+                                averageX *= 0.25f;
+                                averageY *= 0.25f;
+                                averageEnergy *= 0.25f;
+                                const float mappingError = std::hypot(center.x - averageX,
+                                                                      center.y - averageY);
+                                const float energyScale = std::max({std::abs(center.energy),
+                                                                    std::abs(averageEnergy), 1e-6f});
+                                const float energyError = std::abs(center.energy - averageEnergy) /
+                                                          energyScale;
+                                refine = mappingError > settings.adaptiveRayRefinementThreshold ||
+                                         energyError > 0.25f;
+                                const float parentAreaA = (b.x - a.x) * (d.y - a.y) -
+                                                          (b.y - a.y) * (d.x - a.x);
+                                const float parentAreaB = (d.x - a.x) * (c.y - a.y) -
+                                                          (d.y - a.y) * (c.x - a.x);
+                                if (parentAreaA * parentAreaB < 0.0f) refine = true;
+                                for (std::size_t edge = 0; edge < corners.size(); ++edge) {
+                                    const RayVertex& p = *corners[edge];
+                                    const RayVertex& q = *corners[(edge + 1) % corners.size()];
+                                    const float area = (q.x - p.x) * (center.y - p.y) -
+                                                       (q.y - p.y) * (center.x - p.x);
+                                    if ((parentAreaA * area < 0.0f) || (parentAreaB * area < 0.0f))
+                                        refine = true;
+                                }
+                            }
+                            return refine;
+                        };
+
+                        const bool useAdaptiveTrianglePlan =
+                            settings.adaptiveRayRefinementEnabled &&
+                            settings.ghostFrftTriangleNormalization && ghostFrftMapWeighted;
+                        std::vector<unsigned char> triangleRefineFlags;
+                        std::vector<int> triangleEdgeIndexByCell;
+                        std::vector<std::array<RayVertex, 4>> triangleCellEdges;
+                        if (useAdaptiveTrianglePlan) {
+                            const int cellSide = grid - 1;
+                            const std::size_t cellCount = static_cast<std::size_t>(cellSide) * cellSide;
+                            triangleRefineFlags.assign(cellCount, 0);
+                            triangleEdgeIndexByCell.assign(cellCount, -1);
+                            std::size_t refinedCount = 0;
+                            for (int gy = 0; gy < cellSide; ++gy) for (int gx = 0; gx < cellSide; ++gx) {
+                                const std::size_t cellIndex = static_cast<std::size_t>(gy) * cellSide + gx;
+                                if (!shouldRefineAdaptiveCell(gx, gy, rayCellCenters[cellIndex])) continue;
+                                triangleRefineFlags[cellIndex] = 1;
+                                triangleEdgeIndexByCell[cellIndex] = static_cast<int>(refinedCount++);
+                                ++adaptiveRefinedCells;
+                            }
+                            triangleCellEdges.resize(refinedCount);
+                            for (int gy = 0; gy < cellSide; ++gy) for (int gx = 0; gx < cellSide; ++gx) {
+                                const std::size_t cellIndex = static_cast<std::size_t>(gy) * cellSide + gx;
+                                if (!triangleRefineFlags[cellIndex]) continue;
+                                const float stopX0 = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                const float stopX1 = ((gx + 1.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                const float stopY0 = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                const float stopY1 = ((gy + 1.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                std::array<RayVertex, 4>& edges = triangleCellEdges[
+                                    static_cast<std::size_t>(triangleEdgeIndexByCell[cellIndex])];
+                                edges = {{
+                                    traceRayAtPupil((stopX0 + stopX1) * 0.5f, stopY0),
+                                    traceRayAtPupil(stopX1, (stopY0 + stopY1) * 0.5f),
+                                    traceRayAtPupil((stopX0 + stopX1) * 0.5f, stopY1),
+                                    traceRayAtPupil(stopX0, (stopY0 + stopY1) * 0.5f)}};
+                                for (RayVertex& edge : edges) applyGhostFrftWeight(edge);
+                                adaptiveEdgeRays += 4;
+                            }
+
+                            double geometricTriangleEnergy = 0.0;
+                            double texturedTriangleEnergy = 0.0;
+                            auto accumulateNormalizationTriangle = [&](const RayVertex& p,
+                                                                        const RayVertex& q,
+                                                                        const RayVertex& r,
+                                                                        float rayWeightScale) {
+                                if (!p.valid || !q.valid || !r.valid) return;
+                                const float area = (q.x - p.x) * (r.y - p.y) -
+                                                   (q.y - p.y) * (r.x - p.x);
+                                if (std::abs(area) < (settings.usePixelAreaRasterization ?
+                                                      1e-12f : 1e-5f)) return;
+                                geometricTriangleEnergy +=
+                                    (static_cast<double>(p.unweightedEnergy) + q.unweightedEnergy +
+                                     r.unweightedEnergy) / 3.0 * rayWeightScale;
+                                texturedTriangleEnergy += (
+                                    static_cast<double>(p.unweightedEnergy) * apertureWeight(p) +
+                                    static_cast<double>(q.unweightedEnergy) * apertureWeight(q) +
+                                    static_cast<double>(r.unweightedEnergy) * apertureWeight(r)) /
+                                    3.0 * rayWeightScale;
+                            };
+                            for (int gy = 0; gy < cellSide; ++gy) for (int gx = 0; gx < cellSide; ++gx) {
+                                const std::size_t cellIndex = static_cast<std::size_t>(gy) * cellSide + gx;
+                                const RayVertex& a = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
+                                const RayVertex& b = rayGridData[static_cast<std::size_t>(gy) * grid + gx + 1];
+                                const RayVertex& c = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx];
+                                const RayVertex& d = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx + 1];
+                                if (triangleRefineFlags[cellIndex]) {
+                                    const std::array<RayVertex, 4>& edges = triangleCellEdges[
+                                        static_cast<std::size_t>(triangleEdgeIndexByCell[cellIndex])];
+                                    const RayVertex& center = rayCellCenters[cellIndex];
+                                    const std::array<const RayVertex*, 8> ring{
+                                        &a, &edges[0], &b, &edges[1], &d, &edges[2], &c, &edges[3]};
+                                    for (std::size_t edge = 0; edge < ring.size(); ++edge)
+                                        accumulateNormalizationTriangle(*ring[edge],
+                                            *ring[(edge + 1) % ring.size()], center, 0.25f);
+                                } else if (a.valid && b.valid && c.valid && d.valid) {
+                                    accumulateNormalizationTriangle(a, b, d, 1.0f);
+                                    accumulateNormalizationTriangle(a, d, c, 1.0f);
+                                }
+                            }
+                            if (geometricTriangleEnergy > 1e-20 &&
+                                texturedTriangleEnergy > 1e-20) {
+                                rayMapNormalization = geometricTriangleEnergy / texturedTriangleEnergy;
+                                const float normalization = static_cast<float>(rayMapNormalization);
+                                auto normalizeVertex = [&](RayVertex& vertex) {
+                                    if (!vertex.valid) return;
+                                    vertex.energy = vertex.unweightedEnergy * normalization * apertureWeight(vertex);
+                                };
+                                for (RayVertex& vertex : rayGridData) normalizeVertex(vertex);
+                                for (RayVertex& center : rayCellCenters) normalizeVertex(center);
+                                for (auto& edges : triangleCellEdges)
+                                    for (RayVertex& edge : edges) normalizeVertex(edge);
+                                if (rayMapNormalization > ghostFrftMaxRayNormalization) {
+                                    ghostFrftMaxRayNormalization = rayMapNormalization;
+                                    ghostFrftMaxPathFirst = firstReflection;
+                                    ghostFrftMaxPathSecond = secondReflection;
+                                    ghostFrftMaxBand = band;
+                                    ghostFrftMaxSample = sampleIndex;
+                                    ghostFrftMaxGeometricEnergy = geometricTriangleEnergy;
+                                    ghostFrftMaxTexturedEnergy = texturedTriangleEnergy;
+                                }
+                                ghostFrftMinRayNormalization = std::min(
+                                    ghostFrftMinRayNormalization, rayMapNormalization);
                             }
                         }
 
@@ -1736,60 +1893,35 @@ Image render(const Image& source, const Settings& settings) {
                                 ? &rayCellCenters[static_cast<std::size_t>(gy) * (grid - 1) + gx]
                                 : nullptr;
                             if (center && center->valid) {
-                                const std::array<const RayVertex*, 4> corners{&a, &b, &d, &c};
-                                int validCorners = 0;
-                                float averageX = 0.0f, averageY = 0.0f, averageEnergy = 0.0f;
-                                for (const RayVertex* corner : corners) {
-                                    if (!corner->valid) continue;
-                                    ++validCorners;
-                                    averageX += corner->x;
-                                    averageY += corner->y;
-                                    averageEnergy += corner->energy;
-                                }
-                                bool refine = validCorners >= 2 && validCorners < 4;
-                                if (validCorners == 4) {
-                                    averageX *= 0.25f;
-                                    averageY *= 0.25f;
-                                    averageEnergy *= 0.25f;
-                                    const float mappingError = std::hypot(center->x - averageX,
-                                                                          center->y - averageY);
-                                    const float energyScale = std::max({std::abs(center->energy),
-                                                                        std::abs(averageEnergy), 1e-6f});
-                                    const float energyError = std::abs(center->energy - averageEnergy) /
-                                                              energyScale;
-                                    refine = mappingError > settings.adaptiveRayRefinementThreshold ||
-                                             energyError > 0.25f;
-                                    const float parentAreaA = (b.x - a.x) * (d.y - a.y) -
-                                                              (b.y - a.y) * (d.x - a.x);
-                                    const float parentAreaB = (d.x - a.x) * (c.y - a.y) -
-                                                              (d.y - a.y) * (c.x - a.x);
-                                    if (parentAreaA * parentAreaB < 0.0f) refine = true;
-                                    for (std::size_t edge = 0; edge < corners.size(); ++edge) {
-                                        const RayVertex& p = *corners[edge];
-                                        const RayVertex& q = *corners[(edge + 1) % corners.size()];
-                                        const float area = (q.x - p.x) * (center->y - p.y) -
-                                                           (q.y - p.y) * (center->x - p.x);
-                                        if ((parentAreaA * area < 0.0f) || (parentAreaB * area < 0.0f))
-                                            refine = true;
-                                    }
-                                }
+                                const std::size_t cellIndex =
+                                    static_cast<std::size_t>(gy) * (grid - 1) + gx;
+                                const bool refine = useAdaptiveTrianglePlan
+                                    ? triangleRefineFlags[cellIndex] != 0
+                                    : shouldRefineAdaptiveCell(gx, gy, *center);
                                 if (refine) {
-                                    ++adaptiveRefinedCells;
-                                    const float stopX0 = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
-                                    const float stopX1 = ((gx + 1.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
-                                    const float stopY0 = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
-                                    const float stopY1 = ((gy + 1.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
-                                    RayVertex top = traceRayAtPupil((stopX0 + stopX1) * 0.5f, stopY0);
-                                    RayVertex right = traceRayAtPupil(stopX1, (stopY0 + stopY1) * 0.5f);
-                                    RayVertex bottom = traceRayAtPupil((stopX0 + stopX1) * 0.5f, stopY1);
-                                    RayVertex left = traceRayAtPupil(stopX0, (stopY0 + stopY1) * 0.5f);
-                                    applyGhostFrftWeight(top);
-                                    applyGhostFrftWeight(right);
-                                    applyGhostFrftWeight(bottom);
-                                    applyGhostFrftWeight(left);
-                                    adaptiveEdgeRays += 4;
-                                    const std::array<const RayVertex*, 8> edgeRing{
-                                        &a, &top, &b, &right, &d, &bottom, &c, &left};
+                                    std::array<const RayVertex*, 8> edgeRing{};
+                                    if (useAdaptiveTrianglePlan) {
+                                        const std::array<RayVertex, 4>& edges = triangleCellEdges[
+                                            static_cast<std::size_t>(triangleEdgeIndexByCell[cellIndex])];
+                                        edgeRing = {&a, &edges[0], &b, &edges[1],
+                                                    &d, &edges[2], &c, &edges[3]};
+                                    } else {
+                                        const float stopX0 = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                        const float stopX1 = ((gx + 1.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                        const float stopY0 = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                        const float stopY1 = ((gy + 1.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                        RayVertex top = traceRayAtPupil((stopX0 + stopX1) * 0.5f, stopY0);
+                                        RayVertex right = traceRayAtPupil(stopX1, (stopY0 + stopY1) * 0.5f);
+                                        RayVertex bottom = traceRayAtPupil((stopX0 + stopX1) * 0.5f, stopY1);
+                                        RayVertex left = traceRayAtPupil(stopX0, (stopY0 + stopY1) * 0.5f);
+                                        applyGhostFrftWeight(top);
+                                        applyGhostFrftWeight(right);
+                                        applyGhostFrftWeight(bottom);
+                                        applyGhostFrftWeight(left);
+                                        edgeRing = {&a, &top, &b, &right, &d, &bottom, &c, &left};
+                                        ++adaptiveRefinedCells;
+                                        adaptiveEdgeRays += 4;
+                                    }
                                     for (std::size_t edge = 0; edge < edgeRing.size(); ++edge) {
                                         const RayVertex& p = *edgeRing[edge];
                                         const RayVertex& q = *edgeRing[(edge + 1) % edgeRing.size()];
@@ -1923,8 +2055,7 @@ Image render(const Image& source, const Settings& settings) {
                   << " allMapsRasterY=" << ghostFrftRasterLuminance
                   << " allMapsEstimatedOutsideSensorY=" << ghostFrftEstimatedOutsideSensorLuminance
                   << " normalization="
-                  << (settings.ghostFrftTriangleNormalization &&
-                      !settings.adaptiveRayRefinementEnabled ? "triangle" : "vertex")
+                  << (settings.ghostFrftTriangleNormalization ? "triangle" : "vertex")
                   << " rasterizer=" << (settings.usePixelAreaRasterization ? "pixel-area" : "point-sample")
                   << " (outside-sensor estimate is meaningful only with pixel-area rasterization)\n";
     }
@@ -1980,8 +2111,7 @@ void printSettings(const Settings& s) {
               << " ghostFrft=" << s.ghostFrftEnabled
               << " ghostFrftMask=" << (s.ghostFrftTransportMask ? "transport" : "polygon")
               << " ghostFrftNormalization="
-              << (s.ghostFrftTriangleNormalization && !s.adaptiveRayRefinementEnabled
-                      ? "triangle" : "vertex")
+              << (s.ghostFrftTriangleNormalization ? "triangle" : "vertex")
               << " ghostFrftResolution=" << s.ghostFrftResolution
               << " ghostDiffraction=" << s.ghostDiffractionEnabled
               << " ghostDiffractionDistanceMm=" << s.ghostDiffractionDistanceMm
