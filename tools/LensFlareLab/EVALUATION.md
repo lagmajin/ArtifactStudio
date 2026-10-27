@@ -2,6 +2,44 @@
 
 **最終更新:** 2026-10-28
 
+## Full-field coverage of reflected paths
+
+The 42 eligible surface-pair paths were measured over a 5×5 source grid
+(`u,v = 0.02, 0.26, 0.50, 0.74, 0.98`) with a neutral 1 px source, 96² pupil
+sampling, three spectral bands, and diffraction disabled. A path is visible
+when the standalone renderer's per-path pixel-integrated luminance is positive.
+All 42 paths appear at the central field; only 23 appear in the earlier
+edge-only survey. The edge-only absence therefore did not indicate that those
+paths are blocked—their images land inside the sensor at central field angles.
+Several paths have restricted footprints: 10→7, 12→7, and 12→9 registered at
+only the center sample in the coarse grid.
+
+A second 5×5 grid over `u,v = 0.44, 0.47, 0.50, 0.53, 0.56`, at the same 96²
+pupil grid, found all 42 paths in all 25 fields. In particular, the three
+coarse-grid center-only paths remain visible throughout this central region;
+they were not isolated to the exact on-axis point. Their integrated Y ranges
+were 0.0446–0.0745 (10→7), 0.0723–0.0755 (12→7), and 0.1225–0.1302 (12→9).
+This demonstrates that visibility can change substantially with field angle
+and that a coarse full-frame grid can miss intermediate narrow footprints,
+but it does not establish the full boundary of each path's footprint.
+
+![All 42 eligible paths over the full 5×5 field grid; dark cells indicate no in-frame flux, bars encode log integrated luminance](examples/ghost-field-coverage.png)
+
+The center refinement CSV and its heatmap are in
+[`ghost-field-center-refine.csv`](examples/ghost-field-center-refine.csv) and
+[`ghost-field-center-refine.png`](examples/ghost-field-center-refine.png).
+Reproduce the two scans with:
+
+```powershell
+python tools/LensFlareLab/evaluate_ghost_field_coverage.py build/tools/LensFlareLab/LensFlareLab.exe
+python tools/LensFlareLab/evaluate_ghost_field_coverage.py build/tools/LensFlareLab/LensFlareLab.exe --output-dir build/tools/LensFlareLab/field-center-refine --ray-grid 96 --positions 0.44 0.47 0.50 0.53 0.56 --csv-output tools/LensFlareLab/examples/ghost-field-center-refine.csv --image-output tools/LensFlareLab/examples/ghost-field-center-refine.png
+```
+
+The per-field/per-path flux, weighted centroid, sensor bounds, and edge-contact
+mask are recorded in [`ghost-field-coverage.csv`](examples/ghost-field-coverage.csv).
+The coarse sweep is a detection map, not a proof of continuous visibility or a
+comparison against a measured lens image.
+
 ## Fig. 10 analytical-reference path-layout diagnostic
 
 The paper's Angenieux `Ref.` image is an analytical ray-tracing reference,
