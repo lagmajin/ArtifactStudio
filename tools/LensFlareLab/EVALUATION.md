@@ -2,6 +2,39 @@
 
 **最終更新:** 2026-10-27
 
+### Adaptive off-axis ray refinement
+
+At source position `(0.1,0.1)`, adaptive refinement at base grid 64 was
+compared with uniform grids 64, 96, 192, and 512. It probes each pupil-cell
+center, and refines cells when the mapped center departs from the corner-ray
+interpolation, relative ray energy changes by more than 25%, or the map folds.
+Four edge-midpoint rays then form an eight-triangle center fan; each child gets
+one quarter of the parent pupil-cell ray weight. Refinement is one level deep.
+
+Against uniform grid 512, geometric relative image L1 error is 3.76% for
+adaptive grid 64, versus 9.15% at uniform 64 and 5.86% at uniform 96. With
+FrFT, adaptive grid 64 is 3.45%, versus 5.36% at uniform 64 and 3.06% at
+uniform 96. Adaptive improves on the coarse grid, but uniform 96 remains
+slightly closer by FrFT image L1. Sensor Y flux errors are 3.66% geometric
+and 1.46% FrFT for adaptive 64, versus 5.84% and 2.08% for uniform 96.
+Adaptive traced 500,094 center probes, 3,280 geometric edge rays / 820 cells,
+and 3,564 FrFT edge rays / 891 cells; refined cells are about 0.16%/0.18% of
+the probed cells. The extra tracing therefore targets a small subset, though
+center probes still cost one additional ray per base cell.
+
+This demonstrates a useful coarse-grid quality option for the tested corner
+field, not a general speed-quality win: grid 512 is a dense reference rather
+than ground truth, refinement is currently one level, and no measured lens
+capture is available. It stays opt-in and off by default.
+
+![Adaptive off-axis geometric and FrFT comparison against uniform ray grids](examples/ghost-aperture-adaptive-refinement-offaxis.png)
+
+Reproduce the adaptive case using the off-axis input chart, all paths, and
+`--ray-grid 64 --source-samples 1 --diffraction off
+--adaptive-ray-refinement on`; render a uniform baseline by omitting the last
+option. Compare against uniform grids 96 through 512 with the same input,
+position, ghost/fringe settings, and source sample count.
+
 ## Method
 
 The implementation follows the physical stages described by Hullin et al.

@@ -49,6 +49,7 @@ PFM preserves values above 1.0. Output alpha is not stored.
 ```text
 LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|9|25]
+               [--adaptive-ray-refinement on|off] [--adaptive-ray-refinement-threshold PX]
                [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
@@ -140,6 +141,15 @@ kernel without aliasing. This is a CPU reference implementation for the
 standalone lab, not an editor frame path or a measured-camera match.
 `--ray-grid` accepts values from 8 to 512; the upper range is intended for
 offline convergence checks and can be substantially slower than the default.
+The opt-in adaptive refinement probes cell centers and refines cells whose
+mapped center deviates from interpolation, whose ray energy changes sharply,
+or whose mapping folds. It reports probe/refinement counts and preserves the
+parent pupil-cell ray weight across child triangles. This standalone quality
+experiment costs extra ray traces and remains off by default.
+Use `--adaptive-ray-refinement-threshold PX` to tune the screen-space center
+deviation trigger (default 0.75 px); the relative energy trigger is fixed at
+25%. See [EVALUATION.md](EVALUATION.md) for an off-axis comparison against
+uniform ray grids.
 
 ## Core/app integration path
 

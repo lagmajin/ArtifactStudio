@@ -60,6 +60,8 @@ struct Settings {
     float jacobianCap = 512.0f;
     int rayGrid = 64;
     int sourceSamples = 9;
+    bool adaptiveRayRefinementEnabled = false;
+    float adaptiveRayRefinementThreshold = 0.75f;
     bool useCauchyDispersion = true;
     bool usePixelAreaRasterization = true;
     float apertureRadius = 4.545f;
@@ -1143,6 +1145,9 @@ Image render(const Image& source, const Settings& settings) {
     }
     std::uint64_t rasterizedTriangles = 0;
     std::uint64_t jacobianClampedTriangles = 0;
+    std::uint64_t adaptiveCenterRays = 0;
+    std::uint64_t adaptiveEdgeRays = 0;
+    std::uint64_t adaptiveRefinedCells = 0;
     double ghostDiffractionInputEnergy = 0.0;
     double ghostDiffractionOutputEnergy = 0.0;
     double ghostDiffractionRawOutputEnergy = 0.0;
@@ -1236,34 +1241,41 @@ Image render(const Image& source, const Settings& settings) {
                         std::vector<float> ghostLayer;
                         if (settings.ghostDiffractionEnabled)
                             ghostLayer.assign(source.pixels.size(), 0.0f);
-                        for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
-                            const float stopX = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
-                            const float stopY = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                        auto traceRayAtPupil = [&](float stopX, float stopY) {
+                            RayVertex traced;
                             const float apertureStep = 2.0f * 3.14159265358979323846f /
                                                        settings.apertureBlades;
                             const float apertureSector = std::remainder(std::atan2(stopY, stopX), apertureStep);
                             const float aperturePolygonRadius = lens.irisRadius *
                                 std::cos(3.14159265358979323846f / settings.apertureBlades) /
                                 std::cos(apertureSector);
-                            if (std::hypot(stopX, stopY) > aperturePolygonRadius) continue;
+                            if (std::hypot(stopX, stopY) > aperturePolygonRadius) return traced;
                             Vec3 origin{};
                             if (!traceEntrancePupilRay(lens, wavelengths[band], stopX, stopY,
-                                                       direction, origin, settings.useCauchyDispersion)) continue;
+                                                       direction, origin, settings.useCauchyDispersion)) return traced;
                             float energy = 0.0f;
                             Vec3 sensorPoint{};
                             Vec3 aperturePoint{};
                             if (!traceGhostRay(lens, firstReflection, secondReflection,
                                                wavelengths[band], origin, direction, energy,
-                                       sensorPoint, aperturePoint, settings.apertureBlades,
-                                       settings.antiReflectCoating,
-                                       settings.useCauchyDispersion)) continue;
-                            const float screenX = width * 0.5f + sensorPoint.x / lens.sensorWidth * width;
-                            const float screenY = height * 0.5f - sensorPoint.y / sensorHeight * height;
-                            RayVertex& vertex = rayGridData[static_cast<std::size_t>(gy) * grid + gx];
-                            vertex = {screenX, screenY, energy * sourceBands[band], true,
+                                               sensorPoint, aperturePoint, settings.apertureBlades,
+                                               settings.antiReflectCoating,
+                                               settings.useCauchyDispersion)) return traced;
+                            traced = {width * 0.5f + sensorPoint.x / lens.sensorWidth * width,
+                                      height * 0.5f - sensorPoint.y / sensorHeight * height,
+                                      energy * sourceBands[band], true,
                                       aperturePoint.x, aperturePoint.y};
+                            return traced;
+                        };
+                        for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
+                            const float stopX = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                            const float stopY = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                            rayGridData[static_cast<std::size_t>(gy) * grid + gx] =
+                                traceRayAtPupil(stopX, stopY);
                         }
 
+                        double rayMapNormalization = 1.0;
+                        bool ghostFrftMapWeighted = false;
                         if (settings.ghostFrftEnabled &&
                             ghostApertureTextures[band].fractionalOrder > 1e-6f) {
                             double geometricRayEnergy = 0.0;
@@ -1277,7 +1289,9 @@ Image render(const Image& source, const Settings& settings) {
                                 texturedRayEnergy += vertex.energy * weight;
                             }
                             if (geometricRayEnergy > 1e-20 && texturedRayEnergy > 1e-20) {
-                                const double normalization = geometricRayEnergy / texturedRayEnergy;
+                                rayMapNormalization = geometricRayEnergy / texturedRayEnergy;
+                                ghostFrftMapWeighted = true;
+                                const double normalization = rayMapNormalization;
                                 if (normalization > ghostFrftMaxRayNormalization) {
                                     ghostFrftMaxRayNormalization = normalization;
                                     ghostFrftMaxPathFirst = firstReflection;
@@ -1300,8 +1314,29 @@ Image render(const Image& source, const Settings& settings) {
                             }
                         }
 
+                        std::vector<RayVertex> rayCellCenters;
+                        auto applyGhostFrftWeight = [&](RayVertex& vertex) {
+                            if (!vertex.valid || !ghostFrftMapWeighted) return;
+                            const float weight = sampleGhostApertureTexture(
+                                ghostApertureTextures[band],
+                                {vertex.apertureX, vertex.apertureY, 0.0f});
+                            vertex.energy *= static_cast<float>(rayMapNormalization) * weight;
+                        };
+                        if (settings.adaptiveRayRefinementEnabled) {
+                            const std::size_t cellCount = static_cast<std::size_t>(grid - 1) * (grid - 1);
+                            rayCellCenters.resize(cellCount);
+                            for (int gy = 0; gy + 1 < grid; ++gy) for (int gx = 0; gx + 1 < grid; ++gx) {
+                                const float stopX = (((gx + 1.0f) / grid) * 2.0f - 1.0f) * lens.irisRadius;
+                                const float stopY = (((gy + 1.0f) / grid) * 2.0f - 1.0f) * lens.irisRadius;
+                                RayVertex center = traceRayAtPupil(stopX, stopY);
+                                applyGhostFrftWeight(center);
+                                rayCellCenters[static_cast<std::size_t>(gy) * (grid - 1) + gx] = center;
+                                ++adaptiveCenterRays;
+                            }
+                        }
+
                         auto rasterizeTriangle = [&](const RayVertex& a, const RayVertex& b,
-                                                     const RayVertex& c) {
+                                                     const RayVertex& c, float rayWeightScale) {
                             const float area = (b.x - a.x) * (c.y - a.y) -
                                                (b.y - a.y) * (c.x - a.x);
                             if (std::abs(area) < (settings.usePixelAreaRasterization ? 1e-12f : 1e-5f)) return;
@@ -1347,7 +1382,8 @@ Image render(const Image& source, const Settings& settings) {
                                     const float wc = 1.0f - wa - wb;
                                     const float energy = std::max(0.0f,
                                         wa * a.energy + wb * b.energy + wc * c.energy);
-                                    const float value = energy * rayGain * overlap.area / std::abs(area);
+                                    const float value = energy * rayGain * rayWeightScale *
+                                                        overlap.area / std::abs(area);
                                     accumulatePixel(x, y, value);
                                 }
                             } else {
@@ -1361,7 +1397,8 @@ Image render(const Image& source, const Settings& settings) {
                                     const float wc = 1.0f - wa - wb;
                                     if (wa < -1e-4f || wb < -1e-4f || wc < -1e-4f) continue;
                                     const float value = std::max(0.0f,
-                                        wa * a.energy + wb * b.energy + wc * c.energy) * rayGain * irradiance;
+                                        wa * a.energy + wb * b.energy + wc * c.energy) *
+                                        rayGain * rayWeightScale * irradiance;
                                     accumulatePixel(x, y, value);
                                 }
                             }
@@ -1372,9 +1409,76 @@ Image render(const Image& source, const Settings& settings) {
                             const RayVertex& b = rayGridData[static_cast<std::size_t>(gy) * grid + gx + 1];
                             const RayVertex& c = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx];
                             const RayVertex& d = rayGridData[static_cast<std::size_t>(gy + 1) * grid + gx + 1];
+                            const RayVertex* center = settings.adaptiveRayRefinementEnabled
+                                ? &rayCellCenters[static_cast<std::size_t>(gy) * (grid - 1) + gx]
+                                : nullptr;
+                            if (center && center->valid) {
+                                const std::array<const RayVertex*, 4> corners{&a, &b, &d, &c};
+                                int validCorners = 0;
+                                float averageX = 0.0f, averageY = 0.0f, averageEnergy = 0.0f;
+                                for (const RayVertex* corner : corners) {
+                                    if (!corner->valid) continue;
+                                    ++validCorners;
+                                    averageX += corner->x;
+                                    averageY += corner->y;
+                                    averageEnergy += corner->energy;
+                                }
+                                bool refine = validCorners >= 2 && validCorners < 4;
+                                if (validCorners == 4) {
+                                    averageX *= 0.25f;
+                                    averageY *= 0.25f;
+                                    averageEnergy *= 0.25f;
+                                    const float mappingError = std::hypot(center->x - averageX,
+                                                                          center->y - averageY);
+                                    const float energyScale = std::max({std::abs(center->energy),
+                                                                        std::abs(averageEnergy), 1e-6f});
+                                    const float energyError = std::abs(center->energy - averageEnergy) /
+                                                              energyScale;
+                                    refine = mappingError > settings.adaptiveRayRefinementThreshold ||
+                                             energyError > 0.25f;
+                                    const float parentAreaA = (b.x - a.x) * (d.y - a.y) -
+                                                              (b.y - a.y) * (d.x - a.x);
+                                    const float parentAreaB = (d.x - a.x) * (c.y - a.y) -
+                                                              (d.y - a.y) * (c.x - a.x);
+                                    if (parentAreaA * parentAreaB < 0.0f) refine = true;
+                                    for (std::size_t edge = 0; edge < corners.size(); ++edge) {
+                                        const RayVertex& p = *corners[edge];
+                                        const RayVertex& q = *corners[(edge + 1) % corners.size()];
+                                        const float area = (q.x - p.x) * (center->y - p.y) -
+                                                           (q.y - p.y) * (center->x - p.x);
+                                        if ((parentAreaA * area < 0.0f) || (parentAreaB * area < 0.0f))
+                                            refine = true;
+                                    }
+                                }
+                                if (refine) {
+                                    ++adaptiveRefinedCells;
+                                    const float stopX0 = ((gx + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                    const float stopX1 = ((gx + 1.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                    const float stopY0 = ((gy + 0.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                    const float stopY1 = ((gy + 1.5f) / grid * 2.0f - 1.0f) * lens.irisRadius;
+                                    RayVertex top = traceRayAtPupil((stopX0 + stopX1) * 0.5f, stopY0);
+                                    RayVertex right = traceRayAtPupil(stopX1, (stopY0 + stopY1) * 0.5f);
+                                    RayVertex bottom = traceRayAtPupil((stopX0 + stopX1) * 0.5f, stopY1);
+                                    RayVertex left = traceRayAtPupil(stopX0, (stopY0 + stopY1) * 0.5f);
+                                    applyGhostFrftWeight(top);
+                                    applyGhostFrftWeight(right);
+                                    applyGhostFrftWeight(bottom);
+                                    applyGhostFrftWeight(left);
+                                    adaptiveEdgeRays += 4;
+                                    const std::array<const RayVertex*, 8> edgeRing{
+                                        &a, &top, &b, &right, &d, &bottom, &c, &left};
+                                    for (std::size_t edge = 0; edge < edgeRing.size(); ++edge) {
+                                        const RayVertex& p = *edgeRing[edge];
+                                        const RayVertex& q = *edgeRing[(edge + 1) % edgeRing.size()];
+                                        if (p.valid && q.valid)
+                                            rasterizeTriangle(p, q, *center, 0.25f);
+                                    }
+                                    continue;
+                                }
+                            }
                             if (a.valid && b.valid && c.valid && d.valid) {
-                                rasterizeTriangle(a, b, d);
-                                rasterizeTriangle(a, d, c);
+                                rasterizeTriangle(a, b, d, 1.0f);
+                                rasterizeTriangle(a, d, c, 1.0f);
                             }
                         }
                         if (settings.ghostDiffractionEnabled &&
@@ -1444,6 +1548,16 @@ Image render(const Image& source, const Settings& settings) {
                   << jacobianClampedTriangles << '/' << rasterizedTriangles << " ray triangles ("
                   << std::fixed << std::setprecision(2) << clampedPercent << "%)\n";
     }
+    if (settings.adaptiveRayRefinementEnabled) {
+        const double refinedPercent = adaptiveCenterRays > 0
+            ? 100.0 * adaptiveRefinedCells / adaptiveCenterRays : 0.0;
+        std::cout << "Adaptive ray refinement: centerRays=" << adaptiveCenterRays
+                  << " edgeRays=" << adaptiveEdgeRays
+                  << " refinedCells=" << adaptiveRefinedCells << " ("
+                  << std::fixed << std::setprecision(2) << refinedPercent
+                  << "%), screenErrorThreshold=" << settings.adaptiveRayRefinementThreshold
+                  << "px, relativeEnergyThreshold=25%\n";
+    }
     if (settings.reportGhostDiffraction) {
         std::cout << "Ghost Fresnel propagation: " << ghostDiffractionPatches
                   << " path-band patches, integrated input=" << std::setprecision(9)
@@ -1456,6 +1570,7 @@ Image render(const Image& source, const Settings& settings) {
                   << " (per-patch intensity normalized; scalar paraxial approximation)\n";
     }
     if (settings.reportGhostFrft && ghostFrftRayMaps > 0) {
+        std::cout << std::defaultfloat << std::setprecision(6);
         std::cout << "Ghost aperture FrFT ray-map flux normalization range=["
                   << ghostFrftMinRayNormalization << ',' << ghostFrftMaxRayNormalization
                   << "] maps=" << ghostFrftRayMaps
@@ -1505,6 +1620,8 @@ void saveImage(const Image& image, const std::string& path) {
 void printSettings(const Settings& s) {
     std::cout << std::boolalpha << "auto=" << s.autoPosition << " position=" << s.positionX << ',' << s.positionY
               << " threshold=" << s.threshold << " gain=" << s.gain << " rayGrid=" << s.rayGrid
+              << " adaptiveRayRefinement=" << s.adaptiveRayRefinementEnabled
+              << " adaptiveRayRefinementThreshold=" << s.adaptiveRayRefinementThreshold
               << " jacobianCap=" << s.jacobianCap << " sourceSamples=" << s.sourceSamples
               << " dispersion=" << (s.useCauchyDispersion ? "cauchy" : "linear-abbe")
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
@@ -1524,10 +1641,11 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-resolution N | --ghost-frft-report\n"
+              << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
@@ -1536,6 +1654,9 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "gain") s.gain = finiteClamp(value, 0.0f, 10000.0f);
     else if (name == "jacobianCap") s.jacobianCap = finiteClamp(value, 0.01f, 4096.0f);
     else if (name == "rayGrid") s.rayGrid = static_cast<int>(std::lround(finiteClamp(value, 8.0f, 512.0f)));
+    else if (name == "adaptiveRayRefinement") s.adaptiveRayRefinementEnabled = value >= 0.5f;
+    else if (name == "adaptiveRayRefinementThreshold")
+        s.adaptiveRayRefinementThreshold = finiteClamp(value, 0.05f, 8.0f);
     else if (name == "sourceSamples") {
         if (value != 1.0f && value != 9.0f && value != 25.0f)
             throw std::runtime_error("sourceSamples must be 1, 9, or 25");
@@ -1575,6 +1696,15 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--gain") setValue(settings, "gain", value());
     else if (option == "--jacobian-cap") setValue(settings, "jacobianCap", value());
     else if (option == "--ray-grid") setValue(settings, "rayGrid", value());
+    else if (option == "--adaptive-ray-refinement") {
+        if (++i >= argc) throw std::runtime_error("missing value for --adaptive-ray-refinement");
+        const std::string enabled = argv[i];
+        if (enabled == "on") settings.adaptiveRayRefinementEnabled = true;
+        else if (enabled == "off") settings.adaptiveRayRefinementEnabled = false;
+        else throw std::runtime_error("--adaptive-ray-refinement expects on or off");
+    }
+    else if (option == "--adaptive-ray-refinement-threshold")
+        setValue(settings, "adaptiveRayRefinementThreshold", value());
     else if (option == "--source-samples") setValue(settings, "sourceSamples", value());
     else if (option == "--rasterizer") {
         if (++i >= argc) throw std::runtime_error("missing value for --rasterizer");
