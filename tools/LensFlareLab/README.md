@@ -59,6 +59,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--ghost-frft on|off] [--ghost-frft-resolution N] [--ghost-frft-report]
                [--fresnel-frft-order N] [--diffraction-report] [--ghost-report]
                [--ghost-pair FIRST SECOND] [--optical-path-report]
+               [--optical-path-map CSV]
                [--jacobian-report] [--source-report]
 ```
 
@@ -156,6 +157,10 @@ pupil-ray optical paths at each RGB wavelength, referenced to a common plane
 100 mm before the front surface. It is a ray-path diagnostic; coating phase,
 complex Fresnel amplitudes, phase unwrapping, and coherent image formation are
 not yet modeled.
+`--optical-path-map CSV` writes the selected path's pupil-grid ray map at the
+active `--ray-grid` resolution. `make_optical_path_phase_chart.py` visualizes
+four grids and reports neighboring-ray phase steps; wrapped colors are a
+sampling diagnostic, not a diffraction render.
 
 ## Core/app integration path
 

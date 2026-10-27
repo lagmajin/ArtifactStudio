@@ -82,6 +82,7 @@ struct Settings {
     bool reportGhostDiffraction = false;
     bool reportGhostFrft = false;
     bool reportOpticalPath = false;
+    std::string opticalPathMapFile;
     int selectedFirstReflection = -1;
     int selectedSecondReflection = -1;
 };
@@ -1146,6 +1147,58 @@ Image render(const Image& source, const Settings& settings) {
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
     if (settings.reportOpticalPath && settings.selectedFirstReflection < 0)
         throw std::runtime_error("--optical-path-report requires --ghost-pair FIRST SECOND");
+    if (!settings.opticalPathMapFile.empty() && settings.selectedFirstReflection < 0)
+        throw std::runtime_error("--optical-path-map requires --ghost-pair FIRST SECOND");
+    if (!settings.opticalPathMapFile.empty()) {
+        std::ofstream map(settings.opticalPathMapFile, std::ios::binary);
+        if (!map) throw std::runtime_error("cannot create optical path map: " + settings.opticalPathMapFile);
+        map << "wavelength_nm,pupil_u,pupil_v,valid,opl_mm,phase_cycles,energy,sensor_x_mm,sensor_y_mm\n";
+        map << std::setprecision(12);
+        const float sourceU = settings.autoPosition ? lights.lights[0].u : settings.positionX;
+        const float sourceV = settings.autoPosition ? lights.lights[0].v : settings.positionY;
+        const float thetaX = std::atan((sourceU - 0.5f) * lens.sensorWidth /
+                                       lens.effectiveFocalLength);
+        const float thetaY = std::atan((0.5f - sourceV) * lens.sensorWidth *
+            static_cast<float>(height) / (width * lens.effectiveFocalLength));
+        const Vec3 direction = normalized({std::sin(thetaX), std::sin(thetaY),
+                                            std::cos(thetaX) * std::cos(thetaY)});
+        const double referencePlaneZ = static_cast<double>(lens.surfaces.front().z) - 100.0;
+        for (std::size_t band = 0; band < wavelengths.size(); ++band) {
+            const double wavelengthMm = wavelengths[band] * 1e-6;
+            for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
+                const float pupilU = ((gx + 0.5f) / grid) * 2.0f - 1.0f;
+                const float pupilV = ((gy + 0.5f) / grid) * 2.0f - 1.0f;
+                const float stopX = pupilU * lens.irisRadius;
+                const float stopY = pupilV * lens.irisRadius;
+                Vec3 entranceOrigin{};
+                if (!traceEntrancePupilRay(lens, wavelengths[band], stopX, stopY, direction,
+                                           entranceOrigin, settings.useCauchyDispersion)) {
+                    map << wavelengths[band] << ',' << pupilU << ',' << pupilV
+                        << ",0,0,0,0,0,0\n";
+                    continue;
+                }
+                double opticalPathMm = 0.0;
+                float energy = 0.0f;
+                Vec3 sensorPoint{};
+                Vec3 aperturePoint{};
+                if (!traceGhostRay(lens, settings.selectedFirstReflection,
+                                   settings.selectedSecondReflection, wavelengths[band],
+                                   entranceOrigin, direction, energy, sensorPoint, aperturePoint,
+                                   settings.apertureBlades, settings.antiReflectCoating,
+                                   settings.useCauchyDispersion, &opticalPathMm)) {
+                    map << wavelengths[band] << ',' << pupilU << ',' << pupilV
+                        << ",0,0,0,0,0,0\n";
+                    continue;
+                }
+                opticalPathMm += (entranceOrigin.z - referencePlaneZ) / direction.z;
+                map << wavelengths[band] << ',' << pupilU << ',' << pupilV << ",1,"
+                    << opticalPathMm << ',' << opticalPathMm / wavelengthMm << ',' << energy
+                    << ',' << sensorPoint.x << ',' << sensorPoint.y << '\n';
+            }
+        }
+        std::cout << "Optical path map: " << settings.opticalPathMapFile << " ("
+                  << grid << "x" << grid << " pupil rays, 3 wavelengths)\n";
+    }
     if (settings.reportOpticalPath) {
         constexpr std::array<Point2, 5> pupilSamples{{
             {0.0f, 0.0f}, {-0.5f, 0.0f}, {0.5f, 0.0f}, {0.0f, -0.5f}, {0.0f, 0.5f}}};
@@ -1721,7 +1774,7 @@ void printHelp() {
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
-              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
+              << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
 void setValue(Settings& s, const std::string& name, float value) {
@@ -1825,6 +1878,10 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     }
     else if (option == "--ghost-report") settings.reportGhostPaths = true;
     else if (option == "--optical-path-report") settings.reportOpticalPath = true;
+    else if (option == "--optical-path-map") {
+        if (++i >= argc) throw std::runtime_error("missing value for --optical-path-map");
+        settings.opticalPathMapFile = argv[i];
+    }
     else if (option == "--source-report") settings.reportSourceSamples = true;
     else if (option == "--diffraction-report") settings.reportDiffractionModel = true;
     else if (option == "--ghost-diffraction-report") settings.reportGhostDiffraction = true;

@@ -5,7 +5,9 @@
 ### Optical path length diagnostic
 
 The optional `--optical-path-report` traces the selected ghost pair at the
-central and four half-radius pupil coordinates for 610/550/460 nm. Optical
+central and four half-radius pupil coordinates for 610/550/460 nm. The
+`--optical-path-map CSV` option extends this to every active pupil-grid ray.
+Optical
 path accumulates `n × segment length` through the actual reflected and
 refracted ray sequence, including air travel to the iris. A common incident
 reference plane 100 mm before the first surface is used so the entrance-pupil
@@ -19,6 +21,32 @@ The diagnostic does not yet model complex Fresnel amplitudes, thin-film
 reflection phase, phase unwrapping, or coherent propagation, and therefore
 does not alter or validate the rendered flare image. Enabling the report leaves
 the PFM byte-identical to the same render without the report.
+
+The full 9→8 path map was sampled at grids 64/128/256/512 for source
+`(0.3834,0.3844)`. Median absolute phase change between neighboring valid
+pupil rays at grid 512 is 6.48/7.23/8.75 cycles at 610/550/460 nm; the 90th
+percentiles are 12.50/13.90/16.72 cycles. These exceed the 0.5 cycle/sample
+Nyquist limit by more than an order of magnitude, so even grid 512 cannot
+sample the path phase. Coarser grids produce aliased wrapped phase maps, and
+the regular rings at grid 512 still represent undersampling rather than a
+converged diffraction pattern. The map establishes that a coherent model
+needs a different formulation or much more efficient oscillatory integration;
+it does not provide evidence for simply multiplying the current ghost pixels
+by an OPL-derived phase.
+
+![Wrapped pupil phase samples for the 9-to-8 ghost path at grids 64, 128, 256, and 512](examples/ghost-optical-path-phase-sampling.png)
+
+Reproduce maps with `--ray-grid N --ghost-pair 9 8 --optical-path-map
+build/opl-grid-N.csv`, then create the chart with:
+
+```powershell
+python tools/LensFlareLab/make_optical_path_phase_chart.py `
+  --case grid64=build/opl-grid-64.csv `
+  --case grid128=build/opl-grid-128.csv `
+  --case grid256=build/opl-grid-256.csv `
+  --case grid512=build/opl-grid-512.csv `
+  tools/LensFlareLab/examples/ghost-optical-path-phase-sampling.png
+```
 
 Reproduce with `LensFlareLab input.pfm output.pfm --position 0.3834 0.3844
 --ray-grid 32 --source-samples 1 --diffraction off --ghost-pair 9 8
