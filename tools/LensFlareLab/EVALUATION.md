@@ -1965,3 +1965,41 @@ The driver creates neutral source fixtures, invokes the standalone executable
 for each path/field/coating/sample combination, and writes the CSV and contact
 sheet. Its 61-band values remain a dense numerical reference, not measured
 spectral truth.
+
+## Fresnel ghost diffraction distance and finite-source image check
+
+The scalar ghost propagator exposes distance because the mapped irradiance has
+no recovered complex phase or uniquely defined propagation plane. I compared
+50, 100, and 200 mm on isolated path 9→8, keeping the 100 mm lens prescription,
+field `(0.3834,0.3844)`, 128² pupil grid, coating enabled, 31 spectral bands,
+and source diffraction off. The two source cases use either a 1 px source with
+one angular sample or a 3 px source with a 3×3 angular sampling grid. The
+geometric image is the baseline for each matching source.
+
+| Propagation distance | Point-source RGB L1 vs geometric | 3×3 finite-source RGB L1 vs geometric | Max centroid shift, point / finite |
+|---:|---:|---:|---:|
+| 50 mm | 0.83% | 0.84% | 0.052 / 0.052 px |
+| 100 mm | 1.70% | 1.71% | 0.079 / 0.078 px |
+| 200 mm | 2.95% | 2.95% | 0.118 / 0.118 px |
+
+The images show stronger edge ripples as distance increases; the integrated
+RGB flux changes by at most 0.12% from the geometric baseline at 200 mm. In
+this path, moving from 50 to 200 mm changes normalized image shape by about
+2.69% L1. Finite-source angular sampling barely changes that relative distance
+sensitivity in this setup. Thus the option is a controlled look-development
+parameter, not a recovered physical distance. The contact sheet uses a shared
+display gain of one million to reveal the low-radiance isolated ghost; do not
+read its brightness as exposure-calibrated output. The two source sizes also
+have different total emitted radiance and are not a brightness comparison.
+
+![Geometric and Fresnel-propagated 9-to-8 ghost at three propagation distances, for point and finite sources](examples/ghost-fresnel-distance-field-study.png)
+
+The exact channel flux, full-image RGB error, and centroid measurements are in
+[`ghost-fresnel-distance-field-study.csv`](examples/ghost-fresnel-distance-field-study.csv).
+Recreate each neutral source with `make_evaluation_chart.py`, then render the
+same geometric 9→8 path with `--ray-grid 128 --diffraction off
+--ghost-pair 9 8 --coating on --spectral-samples 31`; for the propagated
+variants add `--ghost-diffraction on --ghost-diffraction-distance-mm 50|100|200`.
+Use `--source-samples 1` with source radius 1, then `--source-samples 9` with
+source radius 3 for the finite-source row. This remains a scalar, zero-phase
+approximation, not wave-optical propagation through the compound lens.
