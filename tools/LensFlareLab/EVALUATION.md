@@ -31,6 +31,26 @@ marked with white centroid dots.
 
 ![Sensor-space bounds of reflected paths for the two estimated Fig. 10 light positions](examples/fig10-ghost-path-layout.png)
 
+### Off-axis field continuity
+
+To check for unstable path visibility or centroid jumps, the dominant path at
+each estimated source was sampled at five horizontal source positions spanning
+±6 sensor pixels. At grid 96, path 13→9 remained visible at all five A
+positions: its Y rose smoothly from 0.33329 to 0.35507, while centroid X moved
+from 228.18 to 232.50 px. Path 11→9 likewise stayed visible for field B: Y
+rose from 0.47652 to 0.49576 and centroid X moved from 187.25 to 207.69 px.
+There was no sudden visibility or position jump in these two representative
+paths. Their motion sensitivity differs substantially, so a single global
+source-to-ghost motion scale would be misleading.
+
+![Ghost centroid X motion for two dominant paths as each source moves horizontally](examples/fig10-field-continuity.png)
+
+The reproducible sweep and measurements are in
+[`evaluate_fig10_field_continuity.py`](evaluate_fig10_field_continuity.py) and
+[`fig10-field-continuity.csv`](examples/fig10-field-continuity.csv). This is
+only a local five-point sweep of two paths; clipped or weaker paths may still
+enter or leave the sensor elsewhere in the field.
+
 The qualitative evidence is that moving between the two marker positions
 changes both the number of sensor-visible paths and their spatial arrangement.
 This makes the Lab useful for tracing discrepancies against the analytical
