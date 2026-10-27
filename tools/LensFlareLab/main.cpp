@@ -58,6 +58,7 @@ struct Settings {
     int rayGrid = 64;
     int sourceSamples = 9;
     bool useCauchyDispersion = true;
+    bool usePixelAreaRasterization = true;
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
     bool antiReflectCoating = true;
@@ -117,6 +118,93 @@ struct RayVertex {
     float energy = 0.0f;
     bool valid = false;
 };
+
+struct Point2 {
+    float x = 0.0f;
+    float y = 0.0f;
+};
+
+struct ClippedTrianglePixel {
+    float area = 0.0f;
+    Point2 centroid{};
+};
+
+enum class ClipEdge { Left, Right, Top, Bottom };
+
+bool insideClipEdge(Point2 point, ClipEdge edge, float boundary) {
+    switch (edge) {
+    case ClipEdge::Left: return point.x >= boundary;
+    case ClipEdge::Right: return point.x <= boundary;
+    case ClipEdge::Top: return point.y >= boundary;
+    case ClipEdge::Bottom: return point.y <= boundary;
+    }
+    return false;
+}
+
+Point2 intersectClipEdge(Point2 a, Point2 b, ClipEdge edge, float boundary) {
+    if (edge == ClipEdge::Left || edge == ClipEdge::Right) {
+        const float denominator = b.x - a.x;
+        const float t = std::abs(denominator) > 1e-20f ? (boundary - a.x) / denominator : 0.0f;
+        return {boundary, a.y + (b.y - a.y) * t};
+    }
+    const float denominator = b.y - a.y;
+    const float t = std::abs(denominator) > 1e-20f ? (boundary - a.y) / denominator : 0.0f;
+    return {a.x + (b.x - a.x) * t, boundary};
+}
+
+int clipPolygon(const std::array<Point2, 12>& input, int inputCount,
+                std::array<Point2, 12>& output, ClipEdge edge, float boundary) {
+    if (inputCount <= 0) return 0;
+    int outputCount = 0;
+    Point2 previous = input[static_cast<std::size_t>(inputCount - 1)];
+    bool previousInside = insideClipEdge(previous, edge, boundary);
+    for (int i = 0; i < inputCount; ++i) {
+        const Point2 current = input[static_cast<std::size_t>(i)];
+        const bool currentInside = insideClipEdge(current, edge, boundary);
+        if (currentInside != previousInside && outputCount < static_cast<int>(output.size()))
+            output[static_cast<std::size_t>(outputCount++)] =
+                intersectClipEdge(previous, current, edge, boundary);
+        if (currentInside && outputCount < static_cast<int>(output.size()))
+            output[static_cast<std::size_t>(outputCount++)] = current;
+        previous = current;
+        previousInside = currentInside;
+    }
+    return outputCount;
+}
+
+ClippedTrianglePixel intersectTriangleWithPixel(const RayVertex& a, const RayVertex& b,
+                                                 const RayVertex& c, int x, int y) {
+    std::array<Point2, 12> first{};
+    std::array<Point2, 12> second{};
+    first[0] = {a.x, a.y};
+    first[1] = {b.x, b.y};
+    first[2] = {c.x, c.y};
+    int count = 3;
+    count = clipPolygon(first, count, second, ClipEdge::Left, static_cast<float>(x));
+    count = clipPolygon(second, count, first, ClipEdge::Right, static_cast<float>(x + 1));
+    count = clipPolygon(first, count, second, ClipEdge::Top, static_cast<float>(y));
+    count = clipPolygon(second, count, first, ClipEdge::Bottom, static_cast<float>(y + 1));
+    if (count < 3) return {};
+
+    double twiceArea = 0.0;
+    double centroidXNumerator = 0.0;
+    double centroidYNumerator = 0.0;
+    for (int i = 0; i < count; ++i) {
+        const Point2 current = first[static_cast<std::size_t>(i)];
+        const Point2 next = first[static_cast<std::size_t>((i + 1) % count)];
+        const double cross = static_cast<double>(current.x) * next.y -
+                             static_cast<double>(next.x) * current.y;
+        twiceArea += cross;
+        centroidXNumerator += (current.x + next.x) * cross;
+        centroidYNumerator += (current.y + next.y) * cross;
+    }
+    if (std::abs(twiceArea) < 1e-12) return {};
+    const double signedArea = 0.5 * twiceArea;
+    const float area = static_cast<float>(std::abs(signedArea));
+    const double centroidDenominator = 6.0 * signedArea;
+    return {area, {static_cast<float>(centroidXNumerator / centroidDenominator),
+                   static_cast<float>(centroidYNumerator / centroidDenominator)}};
+}
 
 struct DiffractionKernel {
     int size = 0;
@@ -759,40 +847,62 @@ Image render(const Image& source, const Settings& settings) {
                                                      const RayVertex& c) {
                             const float area = (b.x - a.x) * (c.y - a.y) -
                                                (b.y - a.y) * (c.x - a.x);
-                            if (std::abs(area) < 1e-5f) return;
+                            if (std::abs(area) < (settings.usePixelAreaRasterization ? 1e-12f : 1e-5f)) return;
                             ++rasterizedTriangles;
-                            const float rawIrradiance = 1.0f / std::abs(area);
-                            if (rawIrradiance > settings.jacobianCap) ++jacobianClampedTriangles;
                             const int left = std::max(0, static_cast<int>(std::floor(
                                 std::min({a.x, b.x, c.x}))));
                             const int right = std::min(width - 1, static_cast<int>(std::ceil(
-                                std::max({a.x, b.x, c.x}))));
+                                std::max({a.x, b.x, c.x})) - (settings.usePixelAreaRasterization ? 1 : 0)));
                             const int top = std::max(0, static_cast<int>(std::floor(
                                 std::min({a.y, b.y, c.y}))));
                             const int bottom = std::min(height - 1, static_cast<int>(std::ceil(
-                                std::max({a.y, b.y, c.y}))));
+                                std::max({a.y, b.y, c.y})) - (settings.usePixelAreaRasterization ? 1 : 0)));
                             const float inverseArea = 1.0f / area;
-                            const float irradiance = std::min(rawIrradiance, settings.jacobianCap);
-                            for (int y = top; y <= bottom; ++y) for (int x = left; x <= right; ++x) {
-                                const float px = x + 0.5f, py = y + 0.5f;
-                                const float wa = ((b.x - px) * (c.y - py) - (b.y - py) * (c.x - px)) * inverseArea;
-                                const float wb = ((c.x - px) * (a.y - py) - (c.y - py) * (a.x - px)) * inverseArea;
-                                const float wc = 1.0f - wa - wb;
-                                if (wa < -1e-4f || wb < -1e-4f || wc < -1e-4f) continue;
-                                const float value = std::max(0.0f,
-                                    wa * a.energy + wb * b.energy + wc * c.energy) * rayGain * irradiance;
-                                if (value > 0.0f) {
-                                    pathDiagnostic.luminance += value *
-                                        (band == 0 ? 0.2126 : (band == 1 ? 0.7152 : 0.0722));
-                                    pathDiagnostic.minX = std::min(pathDiagnostic.minX, static_cast<float>(x));
-                                    pathDiagnostic.minY = std::min(pathDiagnostic.minY, static_cast<float>(y));
-                                    pathDiagnostic.maxX = std::max(pathDiagnostic.maxX, static_cast<float>(x));
-                                    pathDiagnostic.maxY = std::max(pathDiagnostic.maxY, static_cast<float>(y));
-                                }
+                            auto accumulatePixel = [&](int x, int y, float value) {
+                                if (value <= 0.0f) return;
+                                pathDiagnostic.luminance += value *
+                                    (band == 0 ? 0.2126 : (band == 1 ? 0.7152 : 0.0722));
+                                pathDiagnostic.minX = std::min(pathDiagnostic.minX, static_cast<float>(x));
+                                pathDiagnostic.minY = std::min(pathDiagnostic.minY, static_cast<float>(y));
+                                pathDiagnostic.maxX = std::max(pathDiagnostic.maxX, static_cast<float>(x));
+                                pathDiagnostic.maxY = std::max(pathDiagnostic.maxY, static_cast<float>(y));
                                 Pixel& dst = output.pixels[static_cast<std::size_t>(y) * width + x];
                                 if (band == 0) dst.r += value;
                                 else if (band == 1) dst.g += value;
                                 else dst.b += value;
+                            };
+                            if (settings.usePixelAreaRasterization) {
+                                // Integrate the mapped ray triangle over each unit-area sensor pixel.
+                                // This conserves each triangle's sampled ray flux even when it is
+                                // smaller than one pixel, where point sampling aliases caustics.
+                                for (int y = top; y <= bottom; ++y) for (int x = left; x <= right; ++x) {
+                                    const ClippedTrianglePixel overlap =
+                                        intersectTriangleWithPixel(a, b, c, x, y);
+                                    if (overlap.area <= 0.0f) continue;
+                                    const float wa = ((b.x - overlap.centroid.x) * (c.y - overlap.centroid.y) -
+                                                      (b.y - overlap.centroid.y) * (c.x - overlap.centroid.x)) * inverseArea;
+                                    const float wb = ((c.x - overlap.centroid.x) * (a.y - overlap.centroid.y) -
+                                                      (c.y - overlap.centroid.y) * (a.x - overlap.centroid.x)) * inverseArea;
+                                    const float wc = 1.0f - wa - wb;
+                                    const float energy = std::max(0.0f,
+                                        wa * a.energy + wb * b.energy + wc * c.energy);
+                                    const float value = energy * rayGain * overlap.area / std::abs(area);
+                                    accumulatePixel(x, y, value);
+                                }
+                            } else {
+                                const float rawIrradiance = 1.0f / std::abs(area);
+                                if (rawIrradiance > settings.jacobianCap) ++jacobianClampedTriangles;
+                                const float irradiance = std::min(rawIrradiance, settings.jacobianCap);
+                                for (int y = top; y <= bottom; ++y) for (int x = left; x <= right; ++x) {
+                                    const float px = x + 0.5f, py = y + 0.5f;
+                                    const float wa = ((b.x - px) * (c.y - py) - (b.y - py) * (c.x - px)) * inverseArea;
+                                    const float wb = ((c.x - px) * (a.y - py) - (c.y - py) * (a.x - px)) * inverseArea;
+                                    const float wc = 1.0f - wa - wb;
+                                    if (wa < -1e-4f || wb < -1e-4f || wc < -1e-4f) continue;
+                                    const float value = std::max(0.0f,
+                                        wa * a.energy + wb * b.energy + wc * c.energy) * rayGain * irradiance;
+                                    accumulatePixel(x, y, value);
+                                }
                             }
                         };
 
@@ -868,7 +978,10 @@ Image render(const Image& source, const Settings& settings) {
             }
         }
     }
-    if (settings.reportJacobianCap && rasterizedTriangles > 0) {
+    if (settings.reportJacobianCap && settings.usePixelAreaRasterization && rasterizedTriangles > 0) {
+        std::cout << "Rasterizer=pixel-area; each mapped triangle is integrated over pixel coverage; "
+                     "jacobian cap is not applied\n";
+    } else if (settings.reportJacobianCap && rasterizedTriangles > 0) {
         const double clampedPercent = 100.0 * static_cast<double>(jacobianClampedTriangles) /
                                       static_cast<double>(rasterizedTriangles);
         std::cout << "Jacobian cap=" << settings.jacobianCap << " clipped "
@@ -917,6 +1030,7 @@ void printSettings(const Settings& s) {
               << " threshold=" << s.threshold << " gain=" << s.gain << " rayGrid=" << s.rayGrid
               << " jacobianCap=" << s.jacobianCap << " sourceSamples=" << s.sourceSamples
               << " dispersion=" << (s.useCauchyDispersion ? "cauchy" : "linear-abbe")
+              << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
               << " antiReflectCoating=" << s.antiReflectCoating
               << " diffraction=" << s.diffractionEnabled
@@ -926,7 +1040,8 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel apertureRadius apertureBlades antiReflectCoating diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid sourceSamples dispersionModel rasterizerModel apertureRadius apertureBlades antiReflectCoating diffractionEnabled\n"
+              << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --jacobian-report | --source-report\n";
 }
 
@@ -941,6 +1056,7 @@ void setValue(Settings& s, const std::string& name, float value) {
         s.sourceSamples = static_cast<int>(value);
     }
     else if (name == "dispersionModel") s.useCauchyDispersion = value >= 0.5f;
+    else if (name == "rasterizerModel") s.usePixelAreaRasterization = value >= 0.5f;
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
     else if (name == "antiReflectCoating") s.antiReflectCoating = value >= 0.5f;
@@ -964,6 +1080,13 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--jacobian-cap") setValue(settings, "jacobianCap", value());
     else if (option == "--ray-grid") setValue(settings, "rayGrid", value());
     else if (option == "--source-samples") setValue(settings, "sourceSamples", value());
+    else if (option == "--rasterizer") {
+        if (++i >= argc) throw std::runtime_error("missing value for --rasterizer");
+        const std::string model = argv[i];
+        if (model == "pixel-area") settings.usePixelAreaRasterization = true;
+        else if (model == "point-sample") settings.usePixelAreaRasterization = false;
+        else throw std::runtime_error("--rasterizer expects pixel-area or point-sample");
+    }
     else if (option == "--dispersion") {
         if (++i >= argc) throw std::runtime_error("missing value for --dispersion");
         const std::string model = argv[i];
@@ -1007,7 +1130,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [options]\n";
+        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample] [options]\n";
         return 2;
     }
     try {

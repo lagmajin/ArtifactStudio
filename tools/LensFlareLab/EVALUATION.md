@@ -23,6 +23,12 @@ References: [Hullin et al., Physically-Based Real-Time Lens Flare Rendering
 [Bodonyi et al., 2024 real-time lens flare rendering paper](https://link.springer.com/article/10.1007/s00371-024-03625-7);
 [reference implementation dispersion model](https://github.com/bodonyiandi94/LensFlareFramework/blob/4136459dffa1ed582f199a9a43950730b4ddcd66/Source/Scene/Components/LensFlare/PhysicalCamera.cpp).
 
+Historical evaluation images and measurements in this document were rendered
+with the prior `point-sample` rasterizer unless explicitly identified as
+`pixel-area`. Use `--rasterizer point-sample` to reproduce those baselines. The
+current default and the two updated Fig. 10 rasterization images use
+`pixel-area`.
+
 The included 640x360 HDR chart has four similarly bright colored point lights.
 The strongest warm source is at `(245, 138)`.
 
@@ -72,6 +78,48 @@ matching the paper's Angenieux count; all 42 are visible on-axis. At
 
 ![Three-by-three field response with reflected ghosts only](examples/field-sweep-3x3-ghosts.png)
 
+## Pixel-area rasterization and caustic convergence
+
+The default rasterizer now clips each mapped ray triangle against sensor-pixel
+squares and integrates its linearly interpolated ray energy over the overlap.
+Unlike a pixel-center test, this deposits a subpixel triangle's full sampled
+flux into the covered pixel instead of making the result depend on whether the
+pixel center happens to land inside it. The prior point-sample rasterizer
+remains available with `--rasterizer point-sample`; its hard Jacobian cap is
+useful for historical comparisons but changes energy and centroid as the cap
+varies. Pixel-area mode ignores that cap because the finite pixel footprint
+provides the integration area.
+
+At the two Fig. 10 source positions, ray-grid 96 to 192 changed integrated
+ghost luminance by +1.19% for source A and +1.09% for source B. Peak luminance
+changed by -0.02% (0.04772 to 0.04771) and +1.22% (0.08182 to 0.08281). The
+luminance centroids moved 0.72 and 0.71 pixels respectively. For comparison,
+legacy point-sample mode with cap 512 changed the same peaks by -75.0% and
+-72.9%; its integrated luminance changed +0.11% and +0.59%. Pixel-area mode
+therefore stabilizes local caustic peaks substantially while keeping total
+energy and centroid near the denser-grid result. This is convergence evidence
+for the sampled single-source image, not validation against measured optics.
+
+![Point-sample and pixel-area rasterizer comparison at ray-grid 64, 128, and 192](examples/fig10-rasterizer-convergence.png)
+
+On the high-radiance four-source chart at grid 64 with nine source bins and
+diffraction disabled, pixel-area mode adds 1,060.56 luminance versus 1,057.46
+for legacy point-sample (+0.29%). Its peak is 4.124 versus 2.664 and the
+luminance centroid differs by 0.39 pixels. This shows that the rasterizer
+choice has little effect on aggregate energy for this scene while changing
+how unresolved caustic peaks land in individual pixels.
+
+![High-radiance reflected ghosts with pixel-area integration on the left and legacy point sampling on the right](examples/high-exposure-pixel-area-vs-point-sample-x256.png)
+
+A separate cap sweep at ray-grid 192 for source A further shows why raising
+the legacy cap is not a convergence fix: cap 512 to 4096 changes ghost energy
+from 10.1684 to 10.3519 (+1.80%), raises the peak from 0.00719 to 0.05099
+(7.1x), and moves the luminance centroid about 5.1 pixels. The default
+pixel-area result at grid 192 has energy 10.3436 and peak 0.04771, close to the
+legacy high-cap energy without its point-sampling spikes.
+
+![Legacy point-sample Jacobian cap sweep at grid 192](examples/fig10-jacobian-sweep.png)
+
 ## Angenieux comparison against Fig. 10
 
 Bodonyi et al. show three results for each lens: the full polynomial model,
@@ -102,13 +150,12 @@ radiance, sensor mapping, tone curve, or the per-surface coating data needed to
 recreate its rendering setup. Our coatings and d-line/Abbe-derived dispersion
 remain approximations.
 
-At ray-grid 96 to 192, source A's integrated ghost luminance changed from
-10.1576 to 10.1684 (+0.11%) and its centroid moved 2.34 pixels; source B
-changed from 20.7533 to 20.8764 (+0.59%) and its centroid moved 0.05 pixels.
-The peak pixel fell from 0.02873 to 0.00719 for source A and from 0.03551 to
-0.00962 for source B. Integrated energy is stable at this interval, while
-caustic peaks remain grid-dependent and need higher-resolution convergence
-work.
+The historical point-sample baseline at ray-grid 96 to 192 changed source A's
+integrated ghost luminance from 10.1576 to 10.1684 (+0.11%) and moved its
+centroid 2.34 pixels; source B changed from 20.7533 to 20.8764 (+0.59%) and
+moved its centroid 0.05 pixels. Peak luminance fell from 0.02873 to 0.00719
+for source A and from 0.03551 to 0.00962 for source B. This grid-dependent
+peak behavior is why the newer pixel-area results are reported separately.
 
 ![Angenieux Fig. 10 source-position approximation, rendered at ray-grid 192](examples/paper-fig10-angenieux-position-sweep.png)
 
@@ -162,16 +209,16 @@ from d-line index and Abbe number, not measured Sellmeier coefficients.
 
 ![Ghost-only A/B comparison of linear Abbe and Cauchy dispersion](examples/dispersion-cauchy-vs-linear-x256.png)
 
-The rasterizer uses a 1-pixel reference area and exposes a cap for local
-caustic gain; the default is 512 and the supported maximum is 4096. This is a
-numerical guard, not a paper-derived physical parameter. At ray-grid 192, cap
+The legacy point-sample rasterizer uses a 1-pixel reference area and exposes a
+cap for local caustic gain; the default is 512 and the supported maximum is
+4096. This is a numerical guard, not a paper-derived physical parameter. At ray-grid 192, cap
 512 clipped 141,378 of 4,878,908 ray triangles (2.90%); cap 128 clipped
 234,342 (4.80%), and cap 4096 clipped 128,315 (2.63%). The comparison below
 uses an on-axis high-radiance source with diffraction disabled. Each panel uses
 the same warm false-color scale (128x display gain); the source core is masked
 so the surrounding ghost field is easier to compare.
 
-![Jacobian cap comparison at ray-grid 192](examples/jacobian-cap-comparison.png)
+![Legacy point-sample Jacobian cap comparison at ray-grid 192](examples/jacobian-cap-comparison.png)
 
 At gain 1, the standard chart with 1 source sample has `192.52` integrated luminance above the
 source threshold. Total added luminance is `6.49057` at ray-grid 64 and
@@ -182,13 +229,13 @@ single-layer coating. Turning that coating off at ray-grid 64 raises ghost
 energy from about `0.1121` to `2.779`, around 24.8 times. These are synthetic
 measurements, not a match validated against a captured lens.
 
-For the harder on-axis single-light case with diffraction disabled, ghost-only
-energy at cap 512 was `1312.15`, `1316.72`, and `1329.00` for ray-grids 64,
-128, and 192; peak ghost pixel luminance was `5.206`, `1.289`, and `0.766`.
+For the harder on-axis single-light case with diffraction disabled in legacy
+point-sample mode, ghost-only energy at cap 512 was `1312.15`, `1316.72`, and
+`1329.00` for ray-grids 64, 128, and 192; peak ghost pixel luminance was `5.206`, `1.289`, and `0.766`.
 The 128-to-192 energy difference is `0.93%`. At grid 192, increasing cap from
 128 to 512 changes total ghost energy from `1326.85` to `1329.00` (0.16%),
 while cap 4096 reaches `1338.74` (0.73% above cap 512) and raises the peak to
-`3.202`. Cap 512 is the current look-development compromise between energy
+`3.202`. Cap 512 was the legacy point-sample look-development compromise between energy
 retention and unresolved caustic peaks; 2.90% of mapped triangles still reach
 that limit, so it is not a claim of full physical convergence.
 
@@ -213,12 +260,12 @@ demand and is not stored in the source tree.
 The prescription table gives d-line refractive indices and Abbe numbers, not
 full Sellmeier coefficients. The lab approximates RGB dispersion with a Cauchy
 approximation derived from those Abbe values and uses one idealized coating
-layer; the real coating stack and
-manufacturing scatter are unknown. The aperture diffraction is a discrete FFT
-approximation, and source visibility/occlusion is not modeled. The CPU ray
-tracing takes about 1.6 seconds at 640x360 and ray-grid 64, and about 7 seconds
-at ray-grid 128 on the development machine after excluding the multi-stop
-paths and correcting the rear-group placement. It remains a look-development reference, not an editor frame path.
+layer; the real coating stack and manufacturing scatter are unknown. The
+aperture diffraction is a discrete FFT approximation, and source
+visibility/occlusion is not modeled. One pixel-area, single-source render with
+diffraction off took 0.67 s at ray-grid 64, 1.86 s at 128, and 3.97 s at 192
+on the evaluation machine. These are single-run timings and vary with CPU load.
+The lab remains a look-development reference, not an editor frame path.
 
 Next: compare ghost coordinates against Fig. 10's analytical ray-traced reference in the [2024 paper](https://link.springer.com/article/10.1007/s00371-024-03625-7)
 and real lens captures, replace the Abbe-derived Cauchy/coating approximations

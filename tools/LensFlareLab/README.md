@@ -7,7 +7,8 @@ flare model without launching ArtifactStudio. It has no Qt, Diligent, or
 ArtifactCore runtime dependency. It traces two-reflection ghost paths through
 the paper's Angenieux double-Gauss prescription, evaluates Fresnel reflection
 and refraction, clips the aperture and lens housing, approximates RGB glass
-dispersion from Abbe numbers, rasterizes the ray grid, and adds a
+dispersion from Abbe numbers, integrates mapped ray triangles over sensor-pixel
+areas, and adds a
 Fraunhofer-diffraction kernel for the aperture.
 
 The detector integrates positive luminance above the threshold over each
@@ -46,7 +47,7 @@ PFM preserves values above 1.0. Output alpha is not stored.
 ```text
 LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|9]
-               [--dispersion cauchy|linear]
+               [--dispersion cauchy|linear] [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
                [--aperture-blades N] [--coating on|off]
                [--diffraction on|off] [--ghost-report]
@@ -62,8 +63,8 @@ When options are supplied, the program renders once and exits; the CLI and
 interactive paths support the same settings.
 
 The default lens is the Angenieux 100 mm double-Gauss prescription tabulated
-by Hullin et al. The f/11 stop radius is derived from focal length and f-number; the 15 mm air
-gap between the stop and rear group is applied once. RGB dispersion defaults
+by Hullin et al. The f/11 stop radius is derived from focal length and f-number;
+the 15 mm air gap between the stop and rear group is applied once. RGB dispersion defaults
 to a Cauchy approximation parameterized by the prescription d-line index and
 Abbe number, following the coefficient form used by the 2024 reference
 implementation. `--dispersion linear` selects the prior linear Abbe
@@ -74,15 +75,21 @@ explicit model assumptions, not a claim that the original lens had that exact
 coating stack. Gain is an exposure/look-development control and is not a
 calibrated camera response. `--diffraction off` isolates reflected ghost paths
 for image evaluation; `--coating off` provides an uncoated comparison.
+`--rasterizer pixel-area` is the default. It clips each mapped ray triangle to
+unit-area sensor pixels and integrates the linearly interpolated ray energy
+inside each overlap. This conserves sampled ray flux when a triangle is smaller
+than a pixel and reduces caustic aliasing as the ray grid changes.
+`--rasterizer point-sample` retains the prior pixel-center rasterizer for A/B
+comparisons. `--jacobian-cap` (default 512, maximum 4096) and
+`--jacobian-report` apply to that legacy mode; pixel-area mode integrates the
+finite sensor pixel footprint and does not apply the Jacobian cap.
 `--ghost-report` ranks the 0-based reflecting-surface pairs by accumulated
 image luminance and prints their sensor bounds. The visible-path count uses
 only paths eligible under the single-stop-crossing rule. `--ghost-pair 9 8`
 renders only the path that reflects at surface 9 and then surface 8, making a
-single ghost easy to inspect. `--jacobian-cap` sets the maximum ray-grid
-irradiance amplification (default 512, maximum 4096); `--jacobian-report`
-reports how many triangles hit that cap. `--source-report` compares the
-integrated highlight flux with the sum of the nine bin fluxes and reports how
-many bins contain energy.
+single ghost easy to inspect. `--source-report` compares the integrated
+highlight flux with the sum of the nine bin fluxes and reports how many bins
+contain energy.
 
 See [EVALUATION.md](EVALUATION.md) for paper-grounded evaluation images and
 current model limits. The two-source Angenieux Fig. 10 approximation can be
