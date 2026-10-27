@@ -1394,6 +1394,10 @@ Image render(const Image& source, const Settings& settings) {
     std::size_t ghostFrftMaxSample = 0;
     double ghostFrftMaxGeometricEnergy = 0.0;
     double ghostFrftMaxTexturedEnergy = 0.0;
+    double ghostFrftRasterEnergy = 0.0;
+    double ghostFrftEstimatedOutsideSensorEnergy = 0.0;
+    double ghostFrftRasterLuminance = 0.0;
+    double ghostFrftEstimatedOutsideSensorLuminance = 0.0;
     double ghostFrftTransportMaskMs = 0.0;
     std::array<DiffractionKernel, 3> diffraction;
     if (settings.diffractionEnabled) {
@@ -1598,12 +1602,24 @@ Image render(const Image& source, const Settings& settings) {
                             }
                         }
 
+                        const double spectralLuminanceWeight =
+                            0.2126 * spectralBand.outputWeights.r +
+                            0.7152 * spectralBand.outputWeights.g +
+                            0.0722 * spectralBand.outputWeights.b;
                         auto rasterizeTriangle = [&](const RayVertex& a, const RayVertex& b,
                                                      const RayVertex& c, float rayWeightScale) {
                             const float area = (b.x - a.x) * (c.y - a.y) -
                                                (b.y - a.y) * (c.x - a.x);
                             if (std::abs(area) < (settings.usePixelAreaRasterization ? 1e-12f : 1e-5f)) return;
                             ++rasterizedTriangles;
+                            const double triangleEnergy = (static_cast<double>(a.energy) + b.energy + c.energy) /
+                                3.0 * rayGain * rayWeightScale;
+                            if (settings.reportGhostFrft) {
+                                ghostFrftRasterEnergy += triangleEnergy;
+                                ghostFrftEstimatedOutsideSensorEnergy += triangleEnergy;
+                                ghostFrftRasterLuminance += triangleEnergy * spectralLuminanceWeight;
+                                ghostFrftEstimatedOutsideSensorLuminance += triangleEnergy * spectralLuminanceWeight;
+                            }
                             const int left = std::max(0, static_cast<int>(std::floor(
                                 std::min({a.x, b.x, c.x}))));
                             const int right = std::min(width - 1, static_cast<int>(std::ceil(
@@ -1649,6 +1665,10 @@ Image render(const Image& source, const Settings& settings) {
                                         wa * a.energy + wb * b.energy + wc * c.energy);
                                     const float value = energy * rayGain * rayWeightScale *
                                                         overlap.area / std::abs(area);
+                                    if (settings.reportGhostFrft) {
+                                        ghostFrftEstimatedOutsideSensorEnergy -= value;
+                                        ghostFrftEstimatedOutsideSensorLuminance -= value * spectralLuminanceWeight;
+                                    }
                                     accumulatePixel(x, y, value);
                                 }
                             } else {
@@ -1664,6 +1684,10 @@ Image render(const Image& source, const Settings& settings) {
                                     const float value = std::max(0.0f,
                                         wa * a.energy + wb * b.energy + wc * c.energy) *
                                         rayGain * rayWeightScale * irradiance;
+                                    if (settings.reportGhostFrft) {
+                                        ghostFrftEstimatedOutsideSensorEnergy -= value;
+                                        ghostFrftEstimatedOutsideSensorLuminance -= value * spectralLuminanceWeight;
+                                    }
                                     accumulatePixel(x, y, value);
                                 }
                             }
@@ -1840,20 +1864,32 @@ Image render(const Image& source, const Settings& settings) {
                       ? settings.ghostDiffractionDistanceMm : lens.effectiveFocalLength)
                   << " (per-patch intensity normalized; scalar paraxial approximation)\n";
     }
-    if (settings.reportGhostFrft && ghostFrftRayMaps > 0) {
+    if (settings.reportGhostFrft) {
         std::cout << std::defaultfloat << std::setprecision(6);
-        std::cout << "Ghost aperture FrFT ray-map flux normalization range=["
-                  << ghostFrftMinRayNormalization << ',' << ghostFrftMaxRayNormalization
-                  << "] maps=" << ghostFrftRayMaps
+        std::cout << "Ghost aperture FrFT ray-map flux normalization range=[";
+        if (ghostFrftRayMaps > 0)
+            std::cout << ghostFrftMinRayNormalization << ',' << ghostFrftMaxRayNormalization;
+        else
+            std::cout << "inactive";
+        std::cout << "] maps=" << ghostFrftRayMaps
                   << " maxMap=" << ghostFrftMaxPathFirst << "->" << ghostFrftMaxPathSecond
                   << " band=" << ghostFrftMaxBand << " wavelengthNm="
                   << spectralBands[ghostFrftMaxBand].wavelengthNm
                   << " sourceSample=" << ghostFrftMaxSample
                   << " geometricRayEnergy=" << ghostFrftMaxGeometricEnergy
                   << " texturedRayEnergy=" << ghostFrftMaxTexturedEnergy
+                  << " allMapsRasterEnergy=" << ghostFrftRasterEnergy
+                  << " allMapsEstimatedOutsideSensorEnergy=" << ghostFrftEstimatedOutsideSensorEnergy
                   << " transportMaskFrftMs=" << ghostFrftTransportMaskMs
                   << " maskMode=" << (settings.ghostFrftTransportMask ? "transport" : "polygon")
                   << " (per path/source-sample/wavelength map)\n";
+        std::cout << "Ghost aperture FrFT image-domain energy estimate: allMapsRasterEnergy="
+                  << ghostFrftRasterEnergy << " allMapsEstimatedOutsideSensorEnergy="
+                  << ghostFrftEstimatedOutsideSensorEnergy
+                  << " allMapsRasterY=" << ghostFrftRasterLuminance
+                  << " allMapsEstimatedOutsideSensorY=" << ghostFrftEstimatedOutsideSensorLuminance
+                  << " rasterizer=" << (settings.usePixelAreaRasterization ? "pixel-area" : "point-sample")
+                  << " (outside-sensor estimate is meaningful only with pixel-area rasterization)\n";
     }
     return output;
 }

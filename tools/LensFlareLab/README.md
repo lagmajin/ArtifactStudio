@@ -158,6 +158,11 @@ precompute time. `--ghost-frft-resolution` sets the square texture resolution
 0.01 also use that bypass because the 256² texture cannot resolve their narrow
 kernel without aliasing. This is a CPU reference implementation for the
 standalone lab, not an editor frame path or a measured-camera match.
+The report also estimates the integrated RGB-luminance contribution over all
+mapped ghost triangles before sensor clipping and the remainder outside the
+sensor. Use the default `pixel-area` rasterizer for this estimate; it helps
+separate frame cropping from changes in the full mapped field, but is a sampled
+ray-map diagnostic rather than a calibrated energy measurement.
 `--ghost-frft-mask polygon` is the default shared iris transform. The
 experimental `transport` mode requires `--ghost-pair FIRST SECOND`; it builds a
 binary visibility mask from that ghost path's ray grid before applying FrFT.

@@ -270,8 +270,7 @@ per-map correction, the on-sensor Y sum still changes from 1.22161 to 1.50040
 (+22.82%), with a 0.94 px centroid shift. The edge-touching ghost is cropped by
 the sensor, so the visible-window integral changes as the aperture weighting
 redistributes rays across sensor coordinates. This is not evidence of a 22.82%
-full-path energy gain; the standalone renderer does not currently sum the
-off-sensor part of the ghost. Do not renormalize the final frame to hide that
+full-path energy gain. Do not renormalize the final frame to hide that
 crop-dependent change. Ray-grid 96 gives the same clipped bounds
 `(551,175)..(639,359)` and a +22.55% on-sensor Y change (1.22126 to 1.49668),
 so this result is not a ray-grid-64 artifact. The numbers remain a low-resolution
@@ -280,6 +279,44 @@ look-dev evaluation, not calibrated physical accuracy.
 ![Geometric ghosts (top) and aperture-FrFT ghosts (bottom) for the two estimated Fig. 10 source positions](examples/fig10-source-position-aperture-frft-review.png)
 
 ![Cropped 9→8 ghost: geometry, aperture FrFT, and the per-pixel change (red adds, blue removes)](examples/ghost-9-8-flux-diagnostic-crop.png)
+
+#### Sensor-window versus whole-map energy
+
+The earlier comparisons established that a large frame Y increase can coexist
+with nearly unchanged ray-map energy, but did not quantify where the cropped
+energy went. `--ghost-frft-report` now also estimates the summed luminance over
+all mapped triangles before sensor clipping, then subtracts the deposits inside
+the frame to estimate the off-sensor remainder. On the same Fig. 10 source A
+and all 42 paths, the sensor Y sum increases by 9–10% with FrFT, while the
+whole-map triangle estimate converges toward a sub-1% change as the pupil ray
+grid gets denser. The off-sensor remainder decreases, showing that much of the
+apparent frame gain is redistribution onto the sensor.
+
+| Ray grid | Whole-map estimated Y, geometric → FrFT | Whole-map change | Sensor Y, geometric → FrFT | Sensor change |
+|---:|---:|---:|---:|---:|
+| 64 | 25.7513 → 26.3654 | +2.39% | 9.9774 → 10.9881 | +10.13% |
+| 96 | 26.4453 → 26.8762 | +1.63% | 10.2220 → 11.1993 | +9.56% |
+| 128 | 26.4888 → 26.8238 | +1.27% | 10.1858 → 11.1461 | +9.43% |
+| 192 | 26.8528 → 27.0806 | +0.85% | 10.3436 → 11.2714 | +8.97% |
+
+At grid 192, the estimated off-sensor Y remainder falls from 16.5082 to
+15.8083 (-4.24%). The estimate is the sum of linearly interpolated triangle
+energy before clipping, weighted by the same RGB luminance coefficients as the
+image. Its residual whole-map drift falls from 2.39% at grid 64 to 0.85% at
+grid 192. This is a sampling/conservation diagnostic, not a calibrated
+wave-optics result; the off-sensor remainder is meaningful only with the
+pixel-area rasterizer. Do not treat the frame-only Y change as created optical
+energy or hide it by normalizing the final image.
+
+![All-path Fig. 10 source A: geometric versus FrFT ghost fields at ray grid 192 with signed image difference](examples/ghost-frft-energy-conservation-eval.png)
+
+Reproduce the energy diagnostic by rendering the same input at ray grids 64,
+96, 128, and 192 with `--ghost-frft off` and `--ghost-frft on`, keeping
+`--position 0.246 0.356 --source-samples 1 --gain 1 --diffraction off
+--ghost-frft-resolution 256 --ghost-frft-report` fixed. The report emits
+`allMapsRasterY` and `allMapsEstimatedOutsideSensorY`; subtract the latter
+from the former for the sensor-window estimate and compare with the saved PFM
+Y sum. Use `--rasterizer pixel-area` for this accounting.
 
 Recreate the isolated path measurement with the same generated input. Run both
 render commands with identical settings except `--ghost-frft`, retain
