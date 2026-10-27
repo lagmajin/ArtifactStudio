@@ -151,7 +151,7 @@ TEST(CurveEditorWidgetContractTest, DragMovesAllSelectedKeysByOneDelta)
     EXPECT_TRUE(widget.visualKeySelected(0, 1));
 }
 
-TEST(CurveEditorWidgetContractTest, SpeedGraphUsesSignedOutgoingVelocityAndLocksBoundaries)
+TEST(CurveEditorWidgetContractTest, TimeRemapSpeedGraphUsesSignedPercentAndLocksBoundaries)
 {
     QVector<ArtifactCore::TimeRemapKeyframe> keys{
         {0.0, 0.0, ArtifactCore::TimeRemapKeyframe::Interpolation::Linear},
@@ -162,8 +162,8 @@ TEST(CurveEditorWidgetContractTest, SpeedGraphUsesSignedOutgoingVelocityAndLocks
                                                        ArtifactCore::FrameRate(30.0f));
 
     ASSERT_EQ(track.keys.size(), 3u);
-    EXPECT_NEAR(track.keys[0].value, 60.0f, 0.001f);
-    EXPECT_NEAR(track.keys[1].value, -30.0f, 0.001f);
+    EXPECT_NEAR(track.keys[0].value, 200.0f, 0.001f);
+    EXPECT_NEAR(track.keys[1].value, -100.0f, 0.001f);
     EXPECT_FLOAT_EQ(track.keys[2].value, 0.0f);
     EXPECT_TRUE(track.keys[0].editable);
     EXPECT_TRUE(track.keys[1].editable);
