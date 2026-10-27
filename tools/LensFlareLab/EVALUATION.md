@@ -1879,3 +1879,33 @@ The historical source comparison uses the default four-light chart, then
 with all paths enabled. `make_dispersion_comparison.py` creates the shared-
 exposure plates and reports channel sums/centroids. These synthetic comparisons
 are not predictions of a particular coated camera lens.
+
+### Coating response versus spectral sampling
+
+The narrow MgF2-like interference response was also compared with the renderer's
+three-band (610/550/460 nm) and seven-band (430–610 nm) modes, holding source,
+path 9→8, pupil grid 64, and field `(0.4,0.5)` fixed. The seven-band mode
+reconstructs a piecewise-linear spectrum from RGB; neither mode uses a measured
+source spectrum or calibrated sensor sensitivities.
+
+| Interface coating | RGB L1, 3-band vs 7-band | Per-channel flux change (7-band vs 3-band) | Max RGB centroid separation (3 → 7) |
+|---|---:|---:|---:|
+| Off | 2.41% | R +2.34%, G +2.42%, B −1.92% | 1.764 → 1.543 px |
+| Air-surface MgF2-like | 5.23% | R −3.45%, G +8.52%, B −4.24% | 1.838 → 1.734 px |
+
+The coating nearly doubles the whole-image sampling difference and shifts the
+green ghost flux by 8.52% in this case. Its interface interference therefore
+deserves denser spectral sampling when color separation matters. Seven bands
+are a sensitivity check, not convergence proof: the estimated RGB spectrum is
+piecewise linear, and no reference reflectance spectrum or RAW capture is
+available.
+
+![Three-band versus seven-band ghost colors, with coating disabled and enabled](examples/coating-spectrum-3-vs-7.png)
+
+Reproduce from the neutral source fixture used above. Render the isolated path
+four times with `--spectral-samples 3|7` and `--coating off|on`, keeping
+`--position 0.4 0.5 --ray-grid 64 --source-samples 1 --diffraction off
+--ghost-pair 9 8` fixed. Use `measure_rgb_error.py` for each 7-band render
+against its matching 3-band PFM and `make_dispersion_comparison.py` for the
+two-row image plate. The RGB-to-spectrum interpolation and its limits are
+described in the spectral ghost section above.
