@@ -123,6 +123,7 @@ struct Settings {
     bool antiReflectCoating = true;
     bool ghostsEnabled = true;
     bool diffractionEnabled = true;
+    bool diffractionPixelAreaResampling = false;
     bool ghostDiffractionEnabled = false;
     bool ghostFrftEnabled = false;
     bool ghostFrftTransportMask = false;
@@ -587,7 +588,7 @@ void addPropagatedPatch(Image& output, const PropagatedPatch& patch, Pixel outpu
 
 DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm,
                                         const LensPrescription& lens, float apertureRadius,
-                                        int imageWidth) {
+                                        int imageWidth, bool pixelAreaResampling) {
     DiffractionKernel kernel;
     const float diameter = apertureRadius * 2.0f;
     kernel.pixelScale = wavelengthNm * 1e-6f * lens.effectiveFocalLength * imageWidth /
@@ -644,6 +645,13 @@ DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm
         const float ty = fy - y0;
         const float intensity = sampledIntensity[static_cast<std::size_t>(y) * fftSize + x] /
                                 sampledEnergySum;
+        if (pixelAreaResampling) {
+            const int px = static_cast<int>(std::floor(fx + 0.5f));
+            const int py = static_cast<int>(std::floor(fy + 0.5f));
+            if (px >= 0 && py >= 0 && px < kernel.size && py < kernel.size)
+                kernel.intensity[static_cast<std::size_t>(py) * kernel.size + px] += intensity;
+            continue;
+        }
         for (int oy = 0; oy <= 1; ++oy) for (int ox = 0; ox <= 1; ++ox) {
             const int px = x0 + ox;
             const int py = y0 + oy;
@@ -1446,7 +1454,8 @@ Image render(const Image& source, const Settings& settings) {
     if (settings.diffractionEnabled) {
         for (std::size_t band = 0; band < diffraction.size(); ++band) {
             diffraction[band] = makeDiffractionKernel(512, settings.apertureBlades,
-                wavelengths[band], lens, lens.irisRadius, width);
+                wavelengths[band], lens, lens.irisRadius, width,
+                settings.diffractionPixelAreaResampling);
         }
         // Separate source removal from convolution so overlapping highlights
         // cannot remove PSF energy deposited by an earlier highlight.
@@ -2161,18 +2170,21 @@ void printSettings(const Settings& s) {
               << " antiReflectCoating=" << s.antiReflectCoating
               << " ghosts=" << s.ghostsEnabled
               << " diffraction=" << s.diffractionEnabled
+              << " diffractionResampling="
+              << (s.diffractionPixelAreaResampling ? "pixel-area" : "tent")
               << " ghostPair=" << s.selectedFirstReflection << ',' << s.selectedSecondReflection
               << " lens=Angenieux-Double-Gauss-100mm\n";
 }
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
               << "               --spectral-samples 3|7 (reflected ghosts; 7 uses piecewise-linear RGB spectrum)\n"
+              << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default tent)\n"
               << "               --source-sampling equal-grid|weighted-quantile (experimental footprint-aware binning)\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
@@ -2205,6 +2217,7 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "rasterizerModel") s.usePixelAreaRasterization = value >= 0.5f;
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
+    else if (name == "diffractionPixelAreaResampling") s.diffractionPixelAreaResampling = value >= 0.5f;
     else if (name == "fresnelFrftOrder") {
         s.fresnelFrftOrder = finiteClamp(value, 0.0f, 1.0f);
         s.fresnelFrftOrderOverride = true;
@@ -2269,6 +2282,13 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     }
     else if (option == "--aperture-radius") setValue(settings, "apertureRadius", value());
     else if (option == "--aperture-blades") setValue(settings, "apertureBlades", value());
+    else if (option == "--diffraction-resampling") {
+        if (++i >= argc) throw std::runtime_error("missing value for --diffraction-resampling");
+        const std::string mode = argv[i];
+        if (mode == "tent") settings.diffractionPixelAreaResampling = false;
+        else if (mode == "pixel-area") settings.diffractionPixelAreaResampling = true;
+        else throw std::runtime_error("--diffraction-resampling expects tent or pixel-area");
+    }
     else if (option == "--fresnel-frft-order") setValue(settings, "fresnelFrftOrder", value());
     else if (option == "--ghost-frft-resolution")
         setValue(settings, "ghostFrftResolution", value());

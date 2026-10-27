@@ -7607,3 +7607,9 @@
 - **確認できた事実:** For a near-point neutral source and six-blade aperture, changing radius 2.5→12.5 mm (approximately f/20→f/4) reduced red/green/blue r99.9 from 26.42/24/20 px to 5/5/4 px. Red remained broader than blue. Recovered per-channel PSF energy stayed within 0.002% of extracted source energy. The r50/r80 core is usually contained in the center pixel at the current sensor resolution.
 - **価値または懸念:** Aperture and wavelength scaling match the model's Fraunhofer assumptions, but this does not validate pixel integration or match a camera; most core energy is undersampled at 640-pixel width.
 - **次に確認すべきこと:** Compare box-integrated and current resampling against a measured monochromatic/panchromatic PSF before changing the convolution kernel; verify the same scaling under sensor-resolution and focal-length changes.
+
+## 2026-10-27: Compare sensor-pixel accumulation for the direct Fraunhofer PSF
+- **関連:** `tools/LensFlareLab/main.cpp` (`makeDiffractionKernel`, `--diffraction-resampling`), `tools/LensFlareLab/compare_diffraction_resampling.py`, `tools/LensFlareLab/EVALUATION.md`.
+- **確認できた事実:** Across 2.5/4.545/12.5 mm aperture radii, pixel-area binning changed reconstructed per-channel PSFs by 4.16–11.74% normalized L1 while changing total channel energy by less than 0.00025%; r99 mostly stayed fixed. Existing tent output remained byte-identical when the option defaulted to tent.
+- **価値または懸念:** Sample-to-pixel binning exposes meaningful subpixel redistribution while preserving energy, but it is a discrete area-bin estimate rather than continuous integration through a measured sensor pixel response. Neither variant is yet validated against a real camera PSF.
+- **次に確認すべきこと:** Compare a true pixel-response integral and both sampling modes against calibrated point-source captures at multiple wavelengths, aperture settings, and sensor resolutions.

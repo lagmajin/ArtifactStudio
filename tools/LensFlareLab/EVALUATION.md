@@ -989,6 +989,42 @@ build/aperture-radius-input.pfm`, then render it with
 `measure_source_psf.py INPUT RENDER` for per-channel encircled radii and
 `make_aperture_diffraction_sweep.py` for the crop plate.
 
+#### FFT-to-sensor pixel resampling A/B
+
+The existing bilinear tent placement was compared with `pixel-area`, which
+assigns each sampled FFT intensity to the sensor pixel containing its mapped
+coordinate. This is an area-bin accumulation of the discrete FFT samples, not
+an analytic integration of a continuous PSF over the pixel response. Both
+modes normalize the sampled kernel to unit energy. The same centered neutral
+near-point source (radius 1), six-blade aperture, and source threshold were
+used at aperture radii 2.5, 4.545, and 12.5 mm. The comparison reconstructs
+each PSF after removing the same unprocessed source contribution; it does not
+compare flare-only positive differences.
+
+| Aperture radius | PSF RGB-channel L1 range | Energy delta range (pixel-area vs tent) | r99 result |
+|---:|---:|---:|---|
+| 2.5 mm | 10.05–11.74% | -0.000209% to +0.000242% | Unchanged at reported precision |
+| 4.545 mm | 8.04–10.03% | -0.000209% to +0.000105% | Same except green: 3.162→3.000 px |
+| 12.5 mm | 4.16–5.06% | -0.000018% to +0.000114% | Same except blue: 1.000→0 px |
+
+Thus resampling redistributes several percent of channel PSF energy between
+neighboring pixels while preserving total energy to float-rounding precision.
+The broad r99 statistic barely moves because most energy is in the central
+pixel and faint wings dominate the radius. This supports retaining bilinear
+tent as the current default for smooth subpixel placement and keeping the
+pixel-area mode available for offline A/B; it does not establish which matches
+a real sensor. A finite pixel response should ultimately be integrated as an
+explicit detector-area operation, and compared against measured PSFs.
+
+![Near-point source with tent and pixel-area FFT-to-sensor resampling](examples/diffraction-resampling-ab-4.545.png)
+
+Reproduce by rendering the same input with
+`--ghosts off --diffraction on --aperture-blades 6 --aperture-radius R`,
+selecting `--diffraction-resampling tent|pixel-area`. Run
+`compare_diffraction_resampling.py INPUT TENT_PFM PIXEL_AREA_PFM` for per-band
+energy, normalized PSF L1, and r99; use
+`make_aperture_diffraction_sweep.py` with a centered crop for the image plate.
+
 Reproduce the blade sweep with:
 
 ```powershell

@@ -97,6 +97,12 @@ calibrated camera response. `--diffraction off` isolates reflected ghost paths
 for image evaluation; `--coating off` provides an uncoated comparison.
 `--ghosts off` isolates diffraction, and `--diffraction off` isolates reflected
 ghosts.
+The direct-source Fraunhofer PSF defaults to `--diffraction-resampling tent`,
+which bilinearly splats each FFT intensity sample onto neighboring sensor
+pixels. `--diffraction-resampling pixel-area` instead bins each sample into
+the sensor pixel area containing its mapped coordinate. This experimental
+comparison preserves unit kernel energy while changing the subpixel PSF shape;
+it does not change ghost diffraction.
 Reflected ghosts use the original three wavelength samples by default.
 `--spectral-samples 7` opts into a 430–610 nm piecewise-linear reconstruction
 from input RGB and trapezoidal wavelength integration back to RGB. This is an
