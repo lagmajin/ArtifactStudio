@@ -50,15 +50,18 @@ def reconstruct(source, rendered, threshold):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path, help="original source PFM")
-    parser.add_argument("tent", type=Path, help="tent-resampled render PFM")
-    parser.add_argument("pixel_area", type=Path, help="pixel-area render PFM")
+    parser.add_argument("reference", type=Path, help="reference render PFM")
+    parser.add_argument("candidate", type=Path, help="render PFM to compare")
     parser.add_argument("--threshold", type=float, default=0.85)
     parser.add_argument("--center", type=int, nargs=2, metavar=("X", "Y"),
                         help="PSF center; default is the brightest source pixel")
+    parser.add_argument("--normalize-each-psf", action="store_true",
+                        help="normalize each reconstructed channel before shape comparison")
     args = parser.parse_args()
-    source, tent_render, area_render = (read_pfm(p) for p in
-                                         (args.input, args.tent, args.pixel_area))
-    if source[:2] != tent_render[:2] or source[:2] != area_render[:2]:
+    source, reference_render, candidate_render = (read_pfm(p) for p in
+                                                  (args.input, args.reference,
+                                                   args.candidate))
+    if source[:2] != reference_render[:2] or source[:2] != candidate_render[:2]:
         parser.error("input and rendered dimensions differ")
     width, height = source[:2]
     if args.center:
@@ -72,22 +75,25 @@ def main():
                     cx, cy, peak = x, y, value
     if not (0 <= cx < width and 0 <= cy < height):
         parser.error("PSF center must lie inside the image")
-    tent = reconstruct(source, tent_render, args.threshold)
-    area = reconstruct(source, area_render, args.threshold)
+    reference = reconstruct(source, reference_render, args.threshold)
+    candidate = reconstruct(source, candidate_render, args.threshold)
 
     for c, label in enumerate(CHANNELS):
-        t = [row[x][c] for row in tent for x in range(width)]
-        a = [row[x][c] for row in area for x in range(width)]
+        t = [row[x][c] for row in reference for x in range(width)]
+        a = [row[x][c] for row in candidate for x in range(width)]
         energy_t, energy_a = sum(t), sum(a)
-        diff = sum(abs(x - y) for x, y in zip(t, a))
         radius_t, radius_a = [], []
         for y in range(height):
             for x in range(width):
                 radius = math.hypot(x - cx, y - cy)
-                if tent[y][x][c] > 0:
-                    radius_t.append((radius, tent[y][x][c]))
-                if area[y][x][c] > 0:
-                    radius_a.append((radius, area[y][x][c]))
+                if reference[y][x][c] > 0:
+                    radius_t.append((radius, reference[y][x][c]))
+                if candidate[y][x][c] > 0:
+                    radius_a.append((radius, candidate[y][x][c]))
+        if args.normalize_each_psf:
+            t = [value / max(energy_t, 1e-30) for value in t]
+            a = [value / max(energy_a, 1e-30) for value in a]
+        diff = sum(abs(x - y) for x, y in zip(t, a))
         def quantile(samples, fraction):
             samples.sort(key=lambda item: item[0])
             target, total = sum(v for _, v in samples) * fraction, 0.0
@@ -97,10 +103,11 @@ def main():
                     return radius
             return 0.0
         r99_t, r99_a = quantile(radius_t, .99), quantile(radius_a, .99)
-        print(f"{label}: tentEnergy={energy_t:.9g} pixelAreaEnergy={energy_a:.9g} "
+        difference_label = "shape_L1" if args.normalize_each_psf else "PSF_L1"
+        print(f"{label}: referenceEnergy={energy_t:.9g} candidateEnergy={energy_a:.9g} "
               f"energyDelta={(energy_a-energy_t)/max(energy_t,1e-30):+.6%} "
-              f"PSF_L1={diff/max(energy_t,energy_a,1e-30):.6%} "
-              f"r99_tent={r99_t:.3f}px r99_pixelArea={r99_a:.3f}px")
+              f"{difference_label}={diff/max(sum(t),sum(a),1e-30):.6%} "
+              f"r99_reference={r99_t:.3f}px r99_candidate={r99_a:.3f}px")
 
 
 if __name__ == "__main__":

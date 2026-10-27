@@ -185,13 +185,19 @@ struct RegularPolygonAperture {
         apothemRatio = std::cos(0.5f * sectorWidth);
     }
 
-    bool contains(float x, float y) const {
-        if (centralObstructionRadius > 0.0f &&
-            std::hypot(x, y) < centralObstructionRadius) return false;
+    bool contains(float x, float y, bool* insideOuterPupil = nullptr) const {
+        const bool hasObstruction = centralObstructionRadius > 0.0f;
+        const float radialDistance = hasObstruction ? std::hypot(x, y) : 0.0f;
+        const bool blockedByObstruction = hasObstruction &&
+            radialDistance < centralObstructionRadius;
         const float sectorAngle = std::remainder(std::atan2(y, x) - rotationRadians,
                                                   sectorWidth);
         const float boundaryRadius = radius * apothemRatio / std::cos(sectorAngle);
-        return std::hypot(x, y) <= boundaryRadius;
+        const bool insideOuter = hasObstruction
+            ? radialDistance <= boundaryRadius
+            : std::hypot(x, y) <= boundaryRadius;
+        if (insideOuterPupil) *insideOuterPupil = insideOuter;
+        return insideOuter && !blockedByObstruction;
     }
 };
 
@@ -322,6 +328,7 @@ ClippedTrianglePixel intersectTriangleWithPixel(const RayVertex& a, const RayVer
 struct DiffractionKernel {
     int size = 0;
     float pixelScale = 0.0f;
+    float pupilThroughput = 1.0f;
     std::vector<float> intensity;
 };
 
@@ -635,15 +642,20 @@ DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm
     const RegularPolygonAperture aperture(apertureRadius, blades, rotationRadians,
                                           obstructionRatio);
     std::size_t openSamples = 0;
+    std::size_t unobstructedOpenSamples = 0;
     for (int y = 0; y < fftSize; ++y) for (int x = 0; x < fftSize; ++x) {
         const float px = ((x + 0.5f) / fftSize * 2.0f - 1.0f) * apertureRadius;
         const float py = ((y + 0.5f) / fftSize * 2.0f - 1.0f) * apertureRadius;
-        if (aperture.contains(px, py)) {
-            field[static_cast<std::size_t>(y) * size + x] = {1.0f, 0.0f};
-            ++openSamples;
-        }
+        bool insideOuterPupil = false;
+        const bool insidePupil = aperture.contains(px, py, &insideOuterPupil);
+        if (insideOuterPupil) ++unobstructedOpenSamples;
+        if (!insidePupil) continue;
+        field[static_cast<std::size_t>(y) * size + x] = {1.0f, 0.0f};
+        ++openSamples;
     }
     if (openSamples == 0) return kernel;
+    kernel.pupilThroughput = static_cast<float>(openSamples) /
+                             static_cast<float>(unobstructedOpenSamples);
     std::vector<std::complex<float>> line(static_cast<std::size_t>(fftSize));
     for (int y = 0; y < fftSize; ++y) {
         const std::size_t offset = static_cast<std::size_t>(y) * fftSize;
@@ -718,7 +730,9 @@ DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm
     }
     float pixelEnergySum = 0.0f;
     for (float value : kernel.intensity) pixelEnergySum += value;
-    if (pixelEnergySum > 1e-12f) for (float& value : kernel.intensity) value /= pixelEnergySum;
+    if (pixelEnergySum > 1e-12f)
+        for (float& value : kernel.intensity)
+            value = (value / pixelEnergySum) * kernel.pupilThroughput;
     return kernel;
 }
 

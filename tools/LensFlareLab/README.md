@@ -106,7 +106,10 @@ ghost clipping, and polygon-based ghost FrFT textures so those paths use the
 same stop orientation. The polygon repeats every `360 / blade count` degrees.
 `--central-obstruction-ratio` models an opaque, concentric circular obstruction
 as a fraction of the outer pupil radius. It affects direct Fraunhofer PSFs and
-both reflected-ghost aperture paths; zero preserves the unobstructed pupil.
+both reflected-ghost aperture paths. Direct PSF energy is additionally scaled
+by the sampled open-pupil area relative to the clear polygon; zero preserves
+the unobstructed output. This is relative pupil throughput, not absolute
+T-stop, glass transmission, or exposure calibration.
 The direct-source Fraunhofer PSF defaults to `--diffraction-resampling tent`,
 which bilinearly splats each FFT intensity sample onto neighboring sensor
 pixels. `--diffraction-resampling pixel-area` treats each mapped FFT intensity
