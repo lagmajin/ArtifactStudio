@@ -62,6 +62,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--dispersion cauchy|linear] [--spectral-samples 3|7]
                [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
+               [--aperture-rotation-degrees DEG]
                [--diffraction-resolution 128|256|512|1024|2048|4096]
                [--aperture-blades N] [--coating on|off]
                [--ghosts on|off] [--diffraction on|off]
@@ -98,6 +99,10 @@ calibrated camera response. `--diffraction off` isolates reflected ghost paths
 for image evaluation; `--coating off` provides an uncoated comparison.
 `--ghosts off` isolates diffraction, and `--diffraction off` isolates reflected
 ghosts.
+`--aperture-rotation-degrees` rotates the shared regular-polygon stop in the
+pupil plane. The angle is applied to direct Fraunhofer diffraction, geometric
+ghost clipping, and polygon-based ghost FrFT textures so those paths use the
+same stop orientation. The polygon repeats every `360 / blade count` degrees.
 The direct-source Fraunhofer PSF defaults to `--diffraction-resampling tent`,
 which bilinearly splats each FFT intensity sample onto neighboring sensor
 pixels. `--diffraction-resampling pixel-area` treats each mapped FFT intensity

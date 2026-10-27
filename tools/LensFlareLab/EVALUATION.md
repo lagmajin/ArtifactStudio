@@ -1110,6 +1110,37 @@ a measured optical PSF.
 
 ![Resolution convergence for a ten-blade aperture at f/11](examples/diffraction-resolution-blades-10.png)
 
+#### Shared aperture rotation
+
+`--aperture-rotation-degrees` applies one polygon orientation to the direct
+Fraunhofer pupil, geometric iris clipping, and the ghost FrFT aperture mask.
+For a centered six-blade f/11 source at 1024², rotating 0°→15° changed the
+direct PSF by 2.20–2.55% normalized channel L1; 0°→30° changed it by
+1.65–2.63%. The sixfold star pattern rotates with the pupil. Because a regular
+hexagon repeats every 60°, 60° produced a byte-identical direct PSF to 0°.
+Negative and wrapped angles (-15° and 345°) were also byte-identical.
+The zero-angle direct, geometric-ghost, and polygon ghost-FrFT outputs all
+remain byte-identical to the pre-rotation implementation.
+
+![Direct-source starburst with the shared aperture rotated by 15 degrees](examples/diffraction-aperture-rotation-15.png)
+
+The off-axis geometric 9→8 ghost at `(0.3834,0.3844)` and ray grid 64 changed
+by 10.34% RGB L1 at 15° and 13.47% at 30° relative to 0°; 60° again matched
+exactly. Enabling polygon-based ghost FrFT changed the 15° comparison by
+29.23% L1 and retained the exact 60° period. This demonstrates that the same
+stop orientation reaches both the physical ray clipping and the approximate
+FrFT path. The numbers describe this one synthetic source and one ghost path;
+they do not validate a particular real lens orientation.
+
+![The isolated 9-to-8 geometric ghost after a 15-degree pupil rotation](examples/ghost-aperture-rotation-15.png)
+
+Reproduce with `--aperture-rotation-degrees 0|15|30|60`, keeping aperture
+radius, blade count, source, and all other options fixed. For the ghost
+comparison use `--diffraction off --ghost-pair 9 8 --ray-grid 64`; add
+`--ghost-frft on` to compare the aperture FrFT path. The rotation is reduced
+modulo `360 / aperture blade count`, so symmetry-equivalent angles resolve to
+the same pupil orientation.
+
 Reproduce the blade sweep with:
 
 ```powershell

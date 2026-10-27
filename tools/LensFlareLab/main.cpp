@@ -117,6 +117,7 @@ struct Settings {
     bool usePixelAreaRasterization = true;
     float apertureRadius = 4.545f;
     int apertureBlades = 6;
+    float apertureRotationDegrees = 0.0f;
     int diffractionResolution = 1024;
     float fresnelFrftOrder = 0.0f;
     bool fresnelFrftOrderOverride = false;
@@ -157,6 +158,34 @@ struct GhostPathDiagnostic {
 
 struct Vec3 {
     float x, y, z;
+};
+
+float normalizedApertureRotationRadians(float rotationDegrees, int bladeCount) {
+    constexpr float pi = 3.14159265358979323846f;
+    const float periodDegrees = 360.0f / static_cast<float>(std::max(3, bladeCount));
+    return std::remainder(rotationDegrees, periodDegrees) * (pi / 180.0f);
+}
+
+struct RegularPolygonAperture {
+    float radius = 0.0f;
+    float rotationRadians = 0.0f;
+    float sectorWidth = 0.0f;
+    float apothemRatio = 0.0f;
+
+    RegularPolygonAperture(float circumradius, int bladeCount, float rotation)
+        : radius(circumradius), rotationRadians(rotation) {
+        constexpr float pi = 3.14159265358979323846f;
+        const float safeBladeCount = static_cast<float>(std::max(3, bladeCount));
+        sectorWidth = 2.0f * pi / safeBladeCount;
+        apothemRatio = std::cos(0.5f * sectorWidth);
+    }
+
+    bool contains(float x, float y) const {
+        const float sectorAngle = std::remainder(std::atan2(y, x) - rotationRadians,
+                                                  sectorWidth);
+        const float boundaryRadius = radius * apothemRatio / std::cos(sectorAngle);
+        return std::hypot(x, y) <= boundaryRadius;
+    }
 };
 
 Vec3 operator+(Vec3 a, Vec3 b) { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
@@ -402,7 +431,7 @@ void applySeparableFrft(std::vector<std::complex<float>>& field, int size, float
 }
 
 GhostApertureTexture makeGhostApertureTexture(int size, int blades, float radiusMm,
-                                              float fractionalOrder) {
+                                              float fractionalOrder, float rotationRadians) {
     GhostApertureTexture texture;
     texture.size = size;
     texture.radiusMm = radiusMm;
@@ -412,16 +441,13 @@ GhostApertureTexture makeGhostApertureTexture(int size, int blades, float radius
     texture.fractionalOrder = fractionalOrder < 0.01f ? 0.0f : fractionalOrder;
     texture.intensity.assign(static_cast<std::size_t>(size) * size, 0.0f);
     std::vector<std::complex<float>> field(texture.intensity.size());
-    const float sector = 2.0f * 3.14159265358979323846f / blades;
+    const RegularPolygonAperture aperture(radiusMm, blades, rotationRadians);
     std::size_t openSamples = 0;
     for (int y = 0; y < size; ++y) for (int x = 0; x < size; ++x) {
         const float px = ((x + 0.5f) / size * 2.0f - 1.0f) * radiusMm;
         const float py = (1.0f - (y + 0.5f) / size * 2.0f) * radiusMm;
-        const float angle = std::atan2(py, px);
-        const float polygonRadius = radiusMm * std::cos(0.5f * sector) /
-                                    std::cos(std::remainder(angle, sector));
         const std::size_t index = static_cast<std::size_t>(y) * size + x;
-        if (std::hypot(px, py) <= polygonRadius) {
+        if (aperture.contains(px, py)) {
             field[index] = {1.0f, 0.0f};
             ++openSamples;
         }
@@ -435,10 +461,7 @@ GhostApertureTexture makeGhostApertureTexture(int size, int blades, float radius
     for (int y = 0; y < size; ++y) for (int x = 0; x < size; ++x) {
         const float px = ((x + 0.5f) / size * 2.0f - 1.0f) * radiusMm;
         const float py = (1.0f - (y + 0.5f) / size * 2.0f) * radiusMm;
-        const float angle = std::atan2(py, px);
-        const float polygonRadius = radiusMm * std::cos(0.5f * sector) /
-                                    std::cos(std::remainder(angle, sector));
-        if (std::hypot(px, py) > polygonRadius) continue;
+        if (!aperture.contains(px, py)) continue;
         const std::size_t index = static_cast<std::size_t>(y) * size + x;
         texture.intensity[index] = std::norm(field[index]);
         transformedApertureEnergy += texture.intensity[index];
@@ -589,7 +612,8 @@ void addPropagatedPatch(Image& output, const PropagatedPatch& patch, Pixel outpu
 
 DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm,
                                         const LensPrescription& lens, float apertureRadius,
-                                        int imageWidth, bool pixelAreaResampling) {
+                                        int imageWidth, bool pixelAreaResampling,
+                                        float rotationRadians) {
     DiffractionKernel kernel;
     const float diameter = apertureRadius * 2.0f;
     kernel.pixelScale = wavelengthNm * 1e-6f * lens.effectiveFocalLength * imageWidth /
@@ -599,15 +623,12 @@ DiffractionKernel makeDiffractionKernel(int size, int blades, float wavelengthNm
     kernel.size = supportRadius * 2 + 1;
     std::vector<float> sampledIntensity(static_cast<std::size_t>(fftSize) * fftSize);
     std::vector<std::complex<float>> field(static_cast<std::size_t>(fftSize) * fftSize);
-    const float sector = 2.0f * 3.14159265358979323846f / blades;
+    const RegularPolygonAperture aperture(apertureRadius, blades, rotationRadians);
     std::size_t openSamples = 0;
     for (int y = 0; y < fftSize; ++y) for (int x = 0; x < fftSize; ++x) {
         const float px = ((x + 0.5f) / fftSize * 2.0f - 1.0f) * apertureRadius;
         const float py = ((y + 0.5f) / fftSize * 2.0f - 1.0f) * apertureRadius;
-        const float angle = std::atan2(py, px);
-        const float polygonRadius = apertureRadius * std::cos(0.5f * sector) /
-                                    std::cos(std::remainder(angle, sector));
-        if (std::hypot(px, py) <= polygonRadius) {
+        if (aperture.contains(px, py)) {
             field[static_cast<std::size_t>(y) * size + x] = {1.0f, 0.0f};
             ++openSamples;
         }
@@ -843,23 +864,20 @@ void reflectRay(Vec3& direction, Vec3 normal) {
 }
 
 bool clipIris(Vec3& origin, Vec3 direction, const LensPrescription& lens,
-              int bladeCount, Vec3* aperturePoint = nullptr) {
+              int bladeCount, float rotationRadians, Vec3* aperturePoint = nullptr) {
     if (std::abs(direction.z) < 1e-7f) return false;
     const float t = (lens.irisZ - origin.z) / direction.z;
     if (!(t > 1e-5f)) return false;
     origin = origin + direction * t;
-    const float angle = std::atan2(origin.y, origin.x);
-    const float step = 2.0f * 3.14159265358979323846f / std::max(3, bladeCount);
-    const float sector = std::remainder(angle, step);
-    const float polygonRadius = lens.irisRadius * std::cos(3.14159265358979323846f / bladeCount) /
-        std::cos(sector);
     if (aperturePoint) *aperturePoint = origin;
-    return std::hypot(origin.x, origin.y) <= polygonRadius;
+    const RegularPolygonAperture aperture(lens.irisRadius, bladeCount, rotationRadians);
+    return aperture.contains(origin.x, origin.y);
 }
 
 bool traceGhostRay(const LensPrescription& lens, int firstReflection, int secondReflection,
                    float wavelengthNm, Vec3 origin, Vec3 direction, float& energy,
-                   Vec3& sensorPoint, Vec3& aperturePoint, int bladeCount, bool antiReflectCoating,
+                   Vec3& sensorPoint, Vec3& aperturePoint, int bladeCount,
+                   float apertureRotationRadians, bool antiReflectCoating,
                    bool useCauchyDispersion, double* opticalPathMm = nullptr) {
     energy = 1.0f;
     double opticalPath = 0.0;
@@ -873,7 +891,8 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
     };
     for (int i = 0; i <= firstReflection; ++i) {
         if (i == 7) {
-            if (!clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
+            if (!clipIris(origin, direction, lens, bladeCount, apertureRotationRadians,
+                          &aperturePoint)) return false;
             accumulateSegment(origin);
         }
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
@@ -902,7 +921,8 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
 
     for (int i = firstReflection - 1; i >= secondReflection; --i) {
         if (i == 6) {
-            if (!clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
+            if (!clipIris(origin, direction, lens, bladeCount, apertureRotationRadians,
+                          &aperturePoint)) return false;
             accumulateSegment(origin);
         }
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
@@ -930,7 +950,8 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
     }
 
     for (int i = secondReflection + 1; i < static_cast<int>(lens.surfaces.size()); ++i) {
-        if (i == 7 && !clipIris(origin, direction, lens, bladeCount, &aperturePoint)) return false;
+        if (i == 7 && !clipIris(origin, direction, lens, bladeCount,
+                                apertureRotationRadians, &aperturePoint)) return false;
         const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
         if (!intersectSurface(origin, direction, surface)) return false;
         accumulateSegment(origin);
@@ -1194,6 +1215,10 @@ Image render(const Image& source, const Settings& settings) {
     const int height = source.height;
     LensPrescription lens = makeAngenieuxPrescription();
     lens.irisRadius = finiteClamp(settings.apertureRadius, 1.0f, 12.75f);
+    const float apertureRotationRadians = normalizedApertureRotationRadians(
+        settings.apertureRotationDegrees, settings.apertureBlades);
+    const RegularPolygonAperture apertureStop(
+        lens.irisRadius, settings.apertureBlades, apertureRotationRadians);
     if (settings.reportDiffractionModel) {
         constexpr std::array<float, 3> reportWavelengths{610.0f, 550.0f, 460.0f};
         const float fNumber = lens.effectiveFocalLength / (lens.irisRadius * 2.0f);
@@ -1345,7 +1370,8 @@ Image render(const Image& source, const Settings& settings) {
                 if (!traceGhostRay(lens, settings.selectedFirstReflection,
                                    settings.selectedSecondReflection, wavelengths[band],
                                    entranceOrigin, direction, energy, sensorPoint, aperturePoint,
-                                   settings.apertureBlades, settings.antiReflectCoating,
+                                   settings.apertureBlades, apertureRotationRadians,
+                                   settings.antiReflectCoating,
                                    settings.useCauchyDispersion, &opticalPathMm)) {
                     map << wavelengths[band] << ',' << pupilU << ',' << pupilV
                         << ",0,0,0,0,0,0\n";
@@ -1389,7 +1415,8 @@ Image render(const Image& source, const Settings& settings) {
                 if (!traceGhostRay(lens, settings.selectedFirstReflection,
                                    settings.selectedSecondReflection, wavelengths[band],
                                    entranceOrigin, direction, energy, sensorPoint, aperturePoint,
-                                   settings.apertureBlades, settings.antiReflectCoating,
+                                   settings.apertureBlades, apertureRotationRadians,
+                                   settings.antiReflectCoating,
                                    settings.useCauchyDispersion, &opticalPathMm)) {
                     std::cout << wavelengths[band] << "nm pupil=(" << pupil.x << ',' << pupil.y
                               << "): blocked on ghost path\n";
@@ -1421,7 +1448,8 @@ Image render(const Image& source, const Settings& settings) {
                 ghostApertureTextures[band].fractionalOrder = order < 0.01f ? 0.0f : order;
             } else {
                 ghostApertureTextures[band] = makeGhostApertureTexture(
-                    settings.ghostFrftResolution, settings.apertureBlades, lens.irisRadius, order);
+                    settings.ghostFrftResolution, settings.apertureBlades, lens.irisRadius,
+                    order, apertureRotationRadians);
             }
         }
         if (settings.reportGhostFrft) {
@@ -1479,7 +1507,7 @@ Image render(const Image& source, const Settings& settings) {
             diffraction[band] = makeDiffractionKernel(settings.diffractionResolution,
                 settings.apertureBlades,
                 wavelengths[band], lens, lens.irisRadius, width,
-                settings.diffractionPixelAreaResampling);
+                settings.diffractionPixelAreaResampling, apertureRotationRadians);
         }
         // Separate source removal from convolution so overlapping highlights
         // cannot remove PSF energy deposited by an earlier highlight.
@@ -1557,13 +1585,7 @@ Image render(const Image& source, const Settings& settings) {
                             ghostLayer.assign(source.pixels.size(), 0.0f);
                         auto traceRayAtPupil = [&](float stopX, float stopY) {
                             RayVertex traced;
-                            const float apertureStep = 2.0f * 3.14159265358979323846f /
-                                                       settings.apertureBlades;
-                            const float apertureSector = std::remainder(std::atan2(stopY, stopX), apertureStep);
-                            const float aperturePolygonRadius = lens.irisRadius *
-                                std::cos(3.14159265358979323846f / settings.apertureBlades) /
-                                std::cos(apertureSector);
-                            if (std::hypot(stopX, stopY) > aperturePolygonRadius) return traced;
+                            if (!apertureStop.contains(stopX, stopY)) return traced;
                             Vec3 origin{};
                             if (!traceEntrancePupilRay(lens, spectralBand.wavelengthNm, stopX, stopY,
                                                        direction, origin, settings.useCauchyDispersion)) return traced;
@@ -1573,6 +1595,7 @@ Image render(const Image& source, const Settings& settings) {
                             if (!traceGhostRay(lens, firstReflection, secondReflection,
                                                spectralBand.wavelengthNm, origin, direction, energy,
                                                sensorPoint, aperturePoint, settings.apertureBlades,
+                                               apertureRotationRadians,
                                                settings.antiReflectCoating,
                                                settings.useCauchyDispersion)) return traced;
                             traced = {width * 0.5f + sensorPoint.x / lens.sensorWidth * width,
@@ -2182,6 +2205,7 @@ void printSettings(const Settings& s) {
               << " dispersion=" << (s.useCauchyDispersion ? "cauchy" : "linear-abbe")
               << " rasterizer=" << (s.usePixelAreaRasterization ? "pixel-area" : "point-sample")
               << " apertureRadius=" << s.apertureRadius << " apertureBlades=" << s.apertureBlades
+              << " apertureRotationDegrees=" << s.apertureRotationDegrees
               << " diffractionResolution=" << s.diffractionResolution
               << " fresnelFrftOrder=" << s.fresnelFrftOrder
               << " fresnelFrftOrderOverride=" << s.fresnelFrftOrderOverride
@@ -2203,13 +2227,14 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades diffractionResolution(128|256|512|1024|2048|4096) diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades apertureRotationDegrees diffractionResolution(128|256|512|1024|2048|4096) diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
               << "               --spectral-samples 3|7 (reflected ghosts; 7 uses piecewise-linear RGB spectrum)\n"
               << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default tent)\n"
+              << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"
               << "               --source-sampling equal-grid|weighted-quantile (experimental footprint-aware binning)\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
@@ -2243,6 +2268,12 @@ void setValue(Settings& s, const std::string& name, float value) {
     else if (name == "rasterizerModel") s.usePixelAreaRasterization = value >= 0.5f;
     else if (name == "apertureRadius") s.apertureRadius = finiteClamp(value, 1.0f, 12.75f);
     else if (name == "apertureBlades") s.apertureBlades = static_cast<int>(std::lround(finiteClamp(value, 3.0f, 12.0f)));
+    else if (name == "apertureRotationDegrees") {
+        if (!std::isfinite(value)) throw std::runtime_error("apertureRotationDegrees must be finite");
+        float degrees = std::fmod(value, 360.0f);
+        if (degrees < 0.0f) degrees += 360.0f;
+        s.apertureRotationDegrees = degrees;
+    }
     else if (name == "diffractionResolution") {
         if (!std::isfinite(value) || (value != 128.0f && value != 256.0f &&
             value != 512.0f && value != 1024.0f && value != 2048.0f && value != 4096.0f))
@@ -2314,6 +2345,8 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     }
     else if (option == "--aperture-radius") setValue(settings, "apertureRadius", value());
     else if (option == "--aperture-blades") setValue(settings, "apertureBlades", value());
+    else if (option == "--aperture-rotation-degrees")
+        setValue(settings, "apertureRotationDegrees", value());
     else if (option == "--diffraction-resolution") setValue(settings, "diffractionResolution", value());
     else if (option == "--diffraction-resampling") {
         if (++i >= argc) throw std::runtime_error("missing value for --diffraction-resampling");

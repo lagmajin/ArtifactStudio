@@ -7631,3 +7631,8 @@
 - **確認できた事実:** At aperture radii 2.5/4.545/12.5 mm with six blades and at five/ten blades with the 4.545 mm stop, 1024² produced <=0.106% RGB-channel PSF L1 against each same-condition 4096² reference; 2048² produced <=0.043%.
 - **価値または懸念:** The 1024² default's measured error stayed bounded across five synthetic conditions, but the dense binary-pupil reference is not measured optical truth and the sweep omits rotations, obscurations, field dependence, and sensor-size changes.
 - **次に確認すべきこと:** Add aperture rotation and central obstruction cases, then compare selected outputs against measured or independently generated high-quality PSF data.
+## 2026-10-27: Rotate the shared physical aperture in the LensFlareLab
+- **関連:** `tools/LensFlareLab/main.cpp` (`apertureRotationDegrees`, `RegularPolygonAperture`, `makeDiffractionKernel`, `clipIris`), `tools/LensFlareLab/EVALUATION.md`.
+- **確認できた事実:** At six blades, direct 0° and 60° PSFs were byte-identical, as were -15° and 345°. For an off-axis 9→8 ghost, 15° and 30° changed RGB L1 by 10.34% and 13.47%; the 60° geometry and ghost-FrFT results were byte-identical to 0°. The shared rotation is applied to direct pupil diffraction, ray clipping, and ghost aperture masks.
+- **価値または懸念:** Aperture orientation is now a controllable look parameter with polygon symmetry preserved across the standalone model; this is not a calibration of actual stop orientation or blade-edge imperfections.
+- **次に確認すべきこと:** Compare rotated masks against lens photographs or measured PSFs, and evaluate blade rotation with central obstructions and wavelength-dependent coatings.
