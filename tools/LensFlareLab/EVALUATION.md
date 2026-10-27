@@ -38,10 +38,10 @@ The continuity sweep covers four cases at grid 96: bright paths 13→9 and
 motion, and path 6→5 for a source near the upper-left field under vertical
 ±18 px motion. All 20 samples retained a visible path and showed no centroid
 jump. The weak path's Y varied smoothly from `8.05e-5` to `9.39e-5`. The edge
-path's visible bounds touched y=1 px at one end and moved to y=11 px at the
-other; its in-frame Y varied by 2.8% peak-to-peak across the sweep. This is
-evidence that the sampled edge clipping is continuous for this path, not proof
-that all 42 paths enter or leave the sensor smoothly.
+path's visible bounds approached y=1 px at one end and moved to y=11 px at the
+other; its in-frame Y varied by 2.8% peak-to-peak across the sweep. This checks
+near-edge motion for that path; the full boundary scan below separately
+measures paths that reach the raster border.
 
 For the two bright horizontal cases, path 13→9's centroid X moves 4.32 px as
 the source moves 12 px; path 11→9's centroid X moves 20.43 px. Their distinct
@@ -54,6 +54,44 @@ The reproducible sweep and measurements are in
 [`fig10-field-continuity.csv`](examples/fig10-field-continuity.csv). It creates
 a neutral point-source fixture for the edge case and uses the Fig. 10 chart for
 the other three cases.
+
+### All eligible ghost paths near the four sensor edges
+
+The edge survey sampled 20 source fields: five positions along each normalized
+sensor edge, with the other coordinate fixed at 0.02 or 0.98. It examined all
+42 eligible reflection paths at ray grid 96. Of 840 path/field combinations,
+206 produced in-frame light across 23 unique paths. Thirty observations entered
+the 2 px boundary band; all were on the top or bottom edges. None of the tested
+left/right-edge fields produced a path in the boundary band. The recurring
+boundary paths were 6→5 (10 observations), 11→10 (6), 13→7 (6), 13→12 (6),
+and 10→8 (2). This side imbalance is limited to these normalized source
+positions; the sensor's physical aspect ratio makes equal normalized x/y
+offsets different physical field angles.
+
+![Visibility and near-boundary contact for all 42 eligible paths across 20 edge fields](examples/field-edge-visibility.png)
+
+The five recurring paths were then sampled at five vertical source positions
+near the top and bottom edges. All 50 path/field samples remained visible. For
+path 6→5, the top-edge band flag cleared between source `v=0.04` and `v=0.06`;
+the mirrored bottom-edge flag appeared between `v=0.94` and `v=0.96`. Its
+centroid and in-frame luminance changed gradually through the transition.
+Other tested paths remained near the opposite edge over this small sweep, so
+their eventual exit positions are not established here.
+
+![Boundary-band transitions for the five recurring paths near the top and bottom](examples/sensor-edge-path-motion.png)
+
+Reproduce the full scan and focused edge sweep with:
+
+```powershell
+python tools/LensFlareLab/evaluate_field_edge_visibility.py build/tools/LensFlareLab/LensFlareLab.exe --ray-grid 96
+python tools/LensFlareLab/evaluate_sensor_edge_path_motion.py build/tools/LensFlareLab/LensFlareLab.exe --ray-grid 96
+```
+
+The corresponding measurements are in
+[`field-edge-visibility.csv`](examples/field-edge-visibility.csv) and
+[`sensor-edge-path-motion.csv`](examples/sensor-edge-path-motion.csv). The
+boundary flag denotes a raster extent within 2 px of an image edge; it is not
+a measurement of energy outside the sensor crop.
 
 The qualitative evidence is that moving between the two marker positions
 changes both the number of sensor-visible paths and their spatial arrangement.
