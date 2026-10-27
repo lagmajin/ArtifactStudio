@@ -2,6 +2,50 @@
 
 **最終更新:** 2026-10-28
 
+## Pupil diffraction image quality: symmetry and FFT convergence
+
+I added `evaluate_pupil_psf.py` to inspect both the rendered image and numeric
+PSF diagnostics for a centered, neutral, subpixel Gaussian point source. The
+matrix covers five, six, eight, and ten pupil blades, a six-blade pupil with a
+0.30-radius central obstruction, and 512²/1024²/2048²/4096² aperture FFTs.
+Every output is source-subtracted, uses three wavelengths and pixel-area
+detector integration, and is compared with the matching 4096² pupil case.
+
+The largest RGB L1 error at 1024² is 0.1413% (obstructed six-blade pupil), and
+the largest at 2048² is 0.0583%. The default 1024² clear six-blade result is
+0.0864% from its dense reference. Center-of-mass errors stay below 0.000006 px;
+horizontal mirror L1 remains below 0.0006% in all cases. At 4096², measured
+central-obstruction throughput is 0.891310, close to the geometric open-area
+ratio 0.891172; differences reflect finite pupil rasterization. The
+obstruction measurement is independent of absolute camera transmission.
+
+| Pupil | FFT | Throughput | RGB L1 vs 4096² |
+|---|---:|---:|---:|
+| 5 blades, clear | 1024² | 1.000022 | 0.0878% |
+| 6 blades, clear | 1024² | 1.000025 | 0.0864% |
+| 8 blades, clear | 1024² | 1.000010 | 0.0681% |
+| 10 blades, clear | 1024² | 1.000021 | 0.0758% |
+| 6 blades, ε=0.30 | 1024² | 0.891109 | 0.1412% |
+
+![Image plate showing five- through ten-blade PSFs and a centrally obstructed pupil at increasing FFT resolution](examples/pupil-psf-diagnostic.png)
+
+Raw image metrics are recorded in
+[`pupil-psf-diagnostic.csv`](examples/pupil-psf-diagnostic.csv). Reproduce by
+building the opt-in LensFlareLab target and running:
+
+```powershell
+python tools/LensFlareLab/evaluate_pupil_psf.py build/tools/LensFlareLab/LensFlareLab.exe
+```
+
+The image plate uses a shared display scale within each pupil family, while
+the CSV separately records throughput. These tests establish FFT convergence
+and symmetry for an ideal binary pupil only; they do not add measured
+aberrations, scattering, sensor response, or real lens data. Pupil diffraction
+follows the Fourier relationship reviewed in
+[Goodman, *Introduction to Fourier Optics*](https://www.macmillanlearning.com/college/us/product/Introduction-to-Fourier-Optics/p/1319119166)
+and the modeled obstruction's dependence on pupil shape is consistent with
+[Hakobyan (2020)](https://academic.oup.com/mnras/article/496/4/5414/5874233).
+
 ## Adaptive pupil sampling across source fields
 
 I compared uniform 64² pupil sampling, adaptive 64² sampling at a 0.75 px

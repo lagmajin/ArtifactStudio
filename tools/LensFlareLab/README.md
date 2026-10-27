@@ -131,6 +131,11 @@ source PSF. The default is 1024²; 512² is the legacy-speed comparison and
 2048²/4096² are offline convergence references with progressively longer
 render times. This setting does not change the separate ghost-diffraction or
 ghost-FrFT texture resolutions.
+`evaluate_pupil_psf.py` renders centered neutral point-source cases and reports
+throughput, centroid, mirror symmetry, encircled radii, and RGB error against a
+dense FFT reference for several blade counts and a central obstruction. Its
+plate and raw metrics are included in [EVALUATION.md](EVALUATION.md); it checks
+the ideal sampled stop model, not a measured camera PSF.
 Reflected ghosts use the original three wavelength samples by default.
 `--spectral-samples 7|15|31|61` selects trapezoidal integration over 430–610 nm
 with a piecewise-linear reconstruction from input RGB for both reflected
