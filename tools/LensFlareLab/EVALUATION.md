@@ -1206,18 +1206,22 @@ standard quality and up to seven with interpolation for high quality. LensFlareL
 now has an opt-in seven-band reflected-ghost mode. The measurements below test
 the interpolation's sensitivity; they do not establish physical accuracy.
 
-### Optional seven-band reflected ghosts
+### Optional multi-band reflected ghosts
 
-`--spectral-samples 7` evaluates reflected ghost rays at 430, 460, 490, 520,
-550, 580, and 610 nm, then integrates the results back to RGB. Input RGB is
-expanded into a piecewise-linear set of triangular channel weights between the
-existing blue, green, and red reference wavelengths. The output uses the same
-triangular basis and trapezoidal wavelength weights. This is a bounded RGB
-interpolation experiment, not a CIE standard-observer conversion, a measured
-emitter spectrum, or a full visible-spectrum reconstruction. Glass dispersion
-still comes from the prescription's d-line index and Abbe number. Source
-Fraunhofer diffraction remains on the original three-band path; the option
-changes reflected ghosts only.
+`--spectral-samples 7|15|31|61` evaluates reflected ghost rays at evenly spaced
+wavelengths from 430 to 610 nm, then integrates the results back to RGB. Input
+RGB is expanded into a piecewise-linear set of triangular channel weights
+between the existing blue, green, and red reference wavelengths. The output
+uses the same triangular basis and trapezoidal wavelength weights. This is a
+bounded RGB interpolation experiment, not a CIE standard-observer conversion,
+a measured emitter spectrum, or a full visible-spectrum reconstruction. Glass
+dispersion still comes from the prescription's d-line index and Abbe number.
+Source Fraunhofer diffraction remains on the original three-band path; the
+option changes reflected ghosts only. Hullin et al. use three bands for
+standard quality and discuss up to seven interpolated bands for higher quality,
+while noting that brute-force smooth results can require around 60 wavelength
+samples. LensFlareLab exposes 15/31/61 as offline integration probes for its
+own RGB-basis model.
 
 The 3-band default was compared byte-for-byte against the preceding build for
 geometric ghost rasterization, aperture-FrFT ghost rendering, and scalar ghost
@@ -1883,29 +1887,36 @@ are not predictions of a particular coated camera lens.
 ### Coating response versus spectral sampling
 
 The narrow MgF2-like interference response was also compared with the renderer's
-three-band (610/550/460 nm) and seven-band (430–610 nm) modes, holding source,
-path 9→8, pupil grid 64, and field `(0.4,0.5)` fixed. The seven-band mode
-reconstructs a piecewise-linear spectrum from RGB; neither mode uses a measured
-source spectrum or calibrated sensor sensitivities.
+three-, seven-, fifteen-, thirty-one-, and sixty-one-band integrations, holding
+source, path 9→8, pupil grid 64, and field `(0.4,0.5)` fixed. Uniform trapezoid
+nodes span 430–610 nm; RGB is reconstructed piecewise-linearly at each node,
+then each output channel is normalized by its integrated basis response. The
+61-band result (3 nm spacing) is a numerical reference for this reconstructed
+model, not physical ground truth.
 
-| Interface coating | RGB L1, 3-band vs 7-band | Per-channel flux change (7-band vs 3-band) | Max RGB centroid separation (3 → 7) |
+| Coating | RGB L1 vs 61-band: 3 / 7 / 15 / 31 | 7-band per-channel flux error vs 61-band | Max RGB centroid separation (7 → 61) |
 |---|---:|---:|---:|
-| Off | 2.41% | R +2.34%, G +2.42%, B −1.92% | 1.764 → 1.543 px |
-| Air-surface MgF2-like | 5.23% | R −3.45%, G +8.52%, B −4.24% | 1.838 → 1.734 px |
+| Off | 2.659% / 0.469% / 0.055% / 0.014% | R −0.755%, G −0.094%, B +0.568% | 1.543 → 1.464 px |
+| Air-surface MgF2-like | 6.960% / 1.771% / 0.205% / 0.054% | R +1.113%, G −1.092%, B +2.545% | 1.734 → 1.635 px |
 
-The coating nearly doubles the whole-image sampling difference and shifts the
-green ghost flux by 8.52% in this case. Its interface interference therefore
-deserves denser spectral sampling when color separation matters. Seven bands
-are a sensitivity check, not convergence proof: the estimated RGB spectrum is
-piecewise linear, and no reference reflectance spectrum or RAW capture is
-available.
+For this isolated ghost, seven bands recover the integrated RGB flux within
+0.47% uncoated and 1.77% coated against the dense synthetic reference; fifteen
+bands bring the coated error to 0.21%. This supports seven as a practical
+sensitivity mode but not as universal convergence: other paths, narrower
+spectral features, real illuminants, sensor responses, and multilayer coatings
+can change the result. In particular, this RGB-basis model contains no measured
+source spectrum, CIE observer weighting, camera spectral sensitivity, or
+measured per-surface coating data. Hullin et al. formulate wavelength-dependent
+ghost diffraction and ray transport; this experiment specifically checks the
+spectral quadrature of our RGB-derived implementation, not empirical camera
+accuracy.
 
-![Three-band versus seven-band ghost colors, with coating disabled and enabled](examples/coating-spectrum-3-vs-7.png)
+![Spectral sampling convergence against the 61-band RGB-basis reference, with the coating disabled and enabled](examples/coating-spectrum-convergence.png)
 
 Reproduce from the neutral source fixture used above. Render the isolated path
-four times with `--spectral-samples 3|7` and `--coating off|on`, keeping
+with `--spectral-samples 3|7|15|31|61` and `--coating off|on`, keeping
 `--position 0.4 0.5 --ray-grid 64 --source-samples 1 --diffraction off
---ghost-pair 9 8` fixed. Use `measure_rgb_error.py` for each 7-band render
-against its matching 3-band PFM and `make_dispersion_comparison.py` for the
-two-row image plate. The RGB-to-spectrum interpolation and its limits are
-described in the spectral ghost section above.
+--ghost-pair 9 8` fixed. Subtract the source PFM before integrating ghost RGB
+flux; compare each count with 61-band and use `make_dispersion_comparison.py`
+to generate the convergence plate. The RGB-to-spectrum interpolation and its
+limits are described in the spectral ghost section above.

@@ -40,8 +40,10 @@ Pixel spectralRgbBasis(float wavelengthNm) {
     return {red, green, blue};
 }
 
-std::array<SpectralBand, 7> makeSpectralBands(int sampleCount) {
-    std::array<SpectralBand, 7> bands{};
+constexpr std::size_t kMaxSpectralBands = 61;
+
+std::array<SpectralBand, kMaxSpectralBands> makeSpectralBands(int sampleCount) {
+    std::array<SpectralBand, kMaxSpectralBands> bands{};
     if (sampleCount == 3) {
         bands[0] = {610.0f, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
         bands[1] = {550.0f, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
@@ -49,24 +51,27 @@ std::array<SpectralBand, 7> makeSpectralBands(int sampleCount) {
         return bands;
     }
 
-    constexpr std::array<float, 7> wavelengths{430.0f, 460.0f, 490.0f, 520.0f,
-                                               550.0f, 580.0f, 610.0f};
-    constexpr std::array<float, 7> quadratureWeights{15.0f, 30.0f, 30.0f, 30.0f,
-                                                     30.0f, 30.0f, 15.0f};
-    std::array<Pixel, 7> basis{};
+    const float wavelengthStep = 180.0f / static_cast<float>(sampleCount - 1);
     Pixel normalization{};
-    for (std::size_t i = 0; i < bands.size(); ++i) {
-        basis[i] = spectralRgbBasis(wavelengths[i]);
-        normalization.r += basis[i].r * quadratureWeights[i];
-        normalization.g += basis[i].g * quadratureWeights[i];
-        normalization.b += basis[i].b * quadratureWeights[i];
+    for (int i = 0; i < sampleCount; ++i) {
+        const float wavelength = 430.0f + wavelengthStep * static_cast<float>(i);
+        const float quadratureWeight = (i == 0 || i == sampleCount - 1)
+            ? wavelengthStep * 0.5f : wavelengthStep;
+        const Pixel basis = spectralRgbBasis(wavelength);
+        normalization.r += basis.r * quadratureWeight;
+        normalization.g += basis.g * quadratureWeight;
+        normalization.b += basis.b * quadratureWeight;
     }
-    for (std::size_t i = 0; i < bands.size(); ++i) {
-        const float weight = quadratureWeights[i];
-        bands[i] = {wavelengths[i], basis[i],
-                    {basis[i].r * weight / normalization.r,
-                     basis[i].g * weight / normalization.g,
-                     basis[i].b * weight / normalization.b}};
+    for (int i = 0; i < sampleCount; ++i) {
+        const float wavelength = 430.0f + wavelengthStep * static_cast<float>(i);
+        const float quadratureWeight = (i == 0 || i == sampleCount - 1)
+            ? wavelengthStep * 0.5f : wavelengthStep;
+        const Pixel basis = spectralRgbBasis(wavelength);
+        bands[static_cast<std::size_t>(i)] = {
+            wavelength, basis,
+            {basis.r * quadratureWeight / normalization.r,
+             basis.g * quadratureWeight / normalization.g,
+             basis.b * quadratureWeight / normalization.b}};
     }
     return bands;
 }
@@ -1406,7 +1411,8 @@ Image render(const Image& source, const Settings& settings) {
     const int rayCount = grid * grid;
     const float sensorHeight = lens.sensorWidth * static_cast<float>(height) / width;
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
-    const std::array<SpectralBand, 7> spectralBands = makeSpectralBands(settings.spectralSamples);
+    const std::array<SpectralBand, kMaxSpectralBands> spectralBands =
+        makeSpectralBands(settings.spectralSamples);
     const std::size_t spectralBandCount = static_cast<std::size_t>(settings.spectralSamples);
     if (settings.ghostFrftTransportMask && !settings.ghostFrftEnabled)
         throw std::runtime_error("--ghost-frft-mask transport requires --ghost-frft on");
@@ -1550,7 +1556,7 @@ Image render(const Image& source, const Settings& settings) {
         }
         std::cout << std::defaultfloat << std::setprecision(6);
     }
-    std::array<GhostApertureTexture, 7> ghostApertureTextures;
+    std::array<GhostApertureTexture, kMaxSpectralBands> ghostApertureTextures;
     if (settings.ghostFrftEnabled) {
         const auto precomputeStart = std::chrono::steady_clock::now();
         const float fNumber = lens.effectiveFocalLength / (lens.irisRadius * 2.0f);
@@ -2346,12 +2352,12 @@ void printSettings(const Settings& s) {
 
 void printHelp() {
     std::cout << "Commands: show | auto on/off | position X Y | set NAME VALUE | render | save PATH | help | quit\n"
-              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7) dispersionModel rasterizerModel apertureRadius apertureBlades apertureRotationDegrees centralObstructionRatio diffractionResolution(128|256|512|1024|2048|4096) diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
+              << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|odd-square-9..225) sourceSamplingQuantiles(0|1) spectralSamples(3|7|15|31|61) dispersionModel rasterizerModel apertureRadius apertureBlades apertureRotationDegrees centralObstructionRatio diffractionResolution(128|256|512|1024|2048|4096) diffractionPixelAreaResampling fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
-              << "               --spectral-samples 3|7 (reflected ghosts; 7 uses piecewise-linear RGB spectrum)\n"
+              << "               --spectral-samples 3|7|15|31|61 (reflected ghosts; RGB-basis spectrum, trapezoidal 430-610 nm integration)\n"
               << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default tent)\n"
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"
@@ -2379,8 +2385,9 @@ void setValue(Settings& s, const std::string& name, float value) {
     }
     else if (name == "sourceSamplingQuantiles") s.useWeightedSourceQuantiles = value >= 0.5f;
     else if (name == "spectralSamples") {
-        if (!std::isfinite(value) || (value != 3.0f && value != 7.0f))
-            throw std::runtime_error("spectralSamples must be 3 or 7");
+        if (!std::isfinite(value) || (value != 3.0f && value != 7.0f && value != 15.0f &&
+                                      value != 31.0f && value != 61.0f))
+            throw std::runtime_error("spectralSamples must be 3, 7, 15, 31, or 61");
         s.spectralSamples = static_cast<int>(value);
     }
     else if (name == "dispersionModel") s.useCauchyDispersion = value >= 0.5f;
@@ -2561,7 +2568,7 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--spectral-samples 3|7] [--rasterizer pixel-area|point-sample] [--ghosts on|off] [--diffraction on|off] [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM] [options]\n";
+        std::cerr << "Usage: LensFlareLab INPUT.(ppm|pfm) OUTPUT.(ppm|pfm) [--dispersion cauchy|linear] [--spectral-samples 3|7|15|31|61] [--rasterizer pixel-area|point-sample] [--ghosts on|off] [--diffraction on|off] [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM] [options]\n";
         return 2;
     }
     try {

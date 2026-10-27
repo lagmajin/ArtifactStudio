@@ -59,7 +59,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--gain N] [--jacobian-cap N] [--ray-grid N] [--source-samples 1|odd square <=225]
                [--source-sampling equal-grid|weighted-quantile]
                [--adaptive-ray-refinement on|off] [--adaptive-ray-refinement-threshold PX]
-               [--dispersion cauchy|linear] [--spectral-samples 3|7]
+               [--dispersion cauchy|linear] [--spectral-samples 3|7|15|31|61]
                [--rasterizer pixel-area|point-sample]
                [--aperture-radius MM]
                [--aperture-rotation-degrees DEG]
@@ -129,12 +129,14 @@ source PSF. The default is 1024²; 512² is the legacy-speed comparison and
 render times. This setting does not change the separate ghost-diffraction or
 ghost-FrFT texture resolutions.
 Reflected ghosts use the original three wavelength samples by default.
-`--spectral-samples 7` opts into a 430–610 nm piecewise-linear reconstruction
-from input RGB and trapezoidal wavelength integration back to RGB. This is an
-exploratory interpolation between the three existing RGB primaries, not a CIE
-standard-observer conversion or measured source spectrum. It roughly doubles
-CPU time for a traced ghost path and does not change the source Fraunhofer
-starburst, which remains three-band.
+`--spectral-samples 7|15|31|61` selects trapezoidal integration over 430–610 nm
+with a piecewise-linear reconstruction from input RGB. The 7-band option
+preserves its original wavelengths exactly; higher counts are offline
+convergence probes (61 bands at 3 nm spacing). This is an exploratory
+interpolation between the three existing RGB primaries, not a CIE
+standard-observer conversion or measured source spectrum. Higher counts
+increase CPU time roughly in proportion to the band count and do not change the
+source Fraunhofer starburst, which remains three-band.
 `--rasterizer pixel-area` is the default. It clips each mapped ray triangle to
 unit-area sensor pixels and integrates the linearly interpolated ray energy
 inside each overlap. This conserves sampled ray flux when a triangle is smaller
