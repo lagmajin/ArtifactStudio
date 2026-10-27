@@ -145,6 +145,9 @@ encircled radii, and image error; results and limits are in
 to primary-color near-point and extended emitters at center and frame edge. It
 compares 3/15/61 wavelength integrations and records per-channel throughput,
 PSF radii, RGB-basis cross-channel energy, and negative linear-RGB mass.
+`evaluate_sensor_sampling.py` renders the same point PSF on several raster
+sizes for the fixed 53.96 mm sensor width, records physical encircled radii,
+and cross-checks each PFM against an independent NumPy pupil-FFT accumulator.
 Reflected ghosts use the original three wavelength samples by default.
 `--spectral-samples 7|15|31|61` selects trapezoidal integration over 430–610 nm
 with a piecewise-linear reconstruction from input RGB for both reflected

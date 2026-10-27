@@ -1630,6 +1630,52 @@ a measured optical PSF.
 
 ![Resolution convergence for a ten-blade aperture at f/11](examples/diffraction-resolution-blades-10.png)
 
+#### Sensor pixel pitch and direct-source PSF
+
+To separate sensor sampling from optical scale, I rendered the same neutral
+point source and six-blade f/11 pupil at 320×180, 640×360, 1280×720, and
+2560×1440 while keeping the modeled sensor width fixed at 53.96 mm and the
+pupil FFT at 1024². The resulting pixel pitch spans 168.63 to 21.08 μm. For
+each raster size, the source-subtracted output was compared with an independent
+NumPy implementation of the sampled Fraunhofer pupil and pixel-area overlap
+integral. Pixel-area integration represents the uniform detector response used
+in the optical-PSF-plus-pixel-response model of
+[Bickerton & Lupton (2013)](https://doi.org/10.1093/mnras/stt244).
+
+| Raster | Pixel pitch | Energy in central 4 pixels | r99 (sensor mm) | r99.9 (sensor mm) | C++ vs NumPy RGB L1 |
+|---:|---:|---:|---:|---:|---:|
+| 320×180 | 168.63 μm | 98.93% | 0.1686 | 1.3595 | 0.00039% |
+| 640×360 | 84.31 μm | 97.88% | 0.1686 | 1.3490 | 0.00237% |
+| 1280×720 | 42.16 μm | 95.42% | 0.1520 | 1.3490 | 0.00474% |
+| 2560×1440 | 21.08 μm | 90.50% | 0.1414 | 1.3391 | 0.00995% |
+
+The r99.9 radius stays within 0.021 mm across an 8× change in pixel pitch,
+while the central-pixel concentration falls as finer pixels resolve more of
+the starburst. The r50/r90 core remains in the source pixel through 1280×720;
+at 2560×1440 r90 reaches one pixel (0.0211 mm). This is expected for the
+modeled diffraction core being narrower than even the finest tested detector
+pixel, while the faint diffraction wings remain spatially resolved. The
+independent C++/NumPy image difference is at most 0.010%; this confirms the
+implementation of the sampled pupil and detector-area integration, not the
+physical accuracy of the pupil or a real camera's pixel response.
+
+![Six-blade direct-source PSF at four raster sizes, shown over approximately the same physical sensor crop](examples/sensor-sampling.png)
+
+The measurements are in [`sensor-sampling.csv`](examples/sensor-sampling.csv).
+Recreate with:
+
+```powershell
+python tools/LensFlareLab/evaluate_sensor_sampling.py build/tools/LensFlareLab/LensFlareLab.exe --diffraction-resolution 1024
+```
+
+The evaluator requires NumPy, SciPy, and Pillow.
+
+This experiment assumes a uniform pixel response and the same ideal polygonal
+pupil at every raster size. It does not model fill factor, microlenses, sensor
+MTF, aberrations, scattering, or per-pixel calibration. Its NumPy reference
+uses the same 1024² sampled binary pupil, so it is an independent numerical
+implementation check rather than empirical optical validation.
+
 #### Shared aperture rotation
 
 `--aperture-rotation-degrees` applies one polygon orientation to the direct
