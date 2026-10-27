@@ -42,6 +42,8 @@ def main():
     parser.add_argument("--crop", type=int, nargs=4, metavar=("LEFT", "TOP", "RIGHT", "BOTTOM"))
     parser.add_argument("--gain", type=float, default=300.0)
     parser.add_argument("--difference-gain", type=float, default=1200.0)
+    parser.add_argument("--frft-label", default="Hullin aperture FrFT",
+                        help="label for the third, transformed image")
     args = parser.parse_args()
 
     source, geometric, frft = (read_pfm(path) for path in (args.input, args.geometric, args.frft))
@@ -79,7 +81,7 @@ def main():
     for panel, pixels in zip(panels, panel_pixels):
         panel.putdata(pixels)
 
-    labels = ("Geometric ghost", "Hullin aperture FrFT", "Change: red adds / blue removes")
+    labels = ("Geometric ghost", args.frft_label, "Change: red adds / blue removes")
     label_height = 24
     sheet = Image.new("RGB", (panels[0].width * 3, panels[0].height + label_height), (18, 21, 26))
     draw = ImageDraw.Draw(sheet)

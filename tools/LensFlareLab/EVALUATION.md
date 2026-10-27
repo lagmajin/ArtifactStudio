@@ -581,17 +581,17 @@ and against real lens captures. Replace Abbe-derived Cauchy/coating
 approximations with measured optical data before considering an
 allocation-bounded GPU integration.
 
-## Per-path aperture FrFT look-development
+## Aperture FrFT look-development
 
-Hullin et al. retain each ray's aperture-plane crossing and use a per-ghost
-aperture transmission texture. Their method applies an FrFT to the aperture
-mask to introduce near-field ringing, with the order estimated by Eq. (5).
-The current lab captures the iris-plane position on each valid path, applies a
-separable direct-kernel 2D FrFT to a 256×256 binary polygon aperture, and
-weights ray energy by the transformed intensity. Each path/source-sample/
-wavelength ray map is normalized to its original sampled ray-energy sum before
-rasterization. `--ghost-frft-report` prints the effective orders, texture and
-ray-map normalizers, and cold-path precompute time.
+Hullin et al. trace a sparse ray grid and use aperture functions to add
+near-field ringing; Eq. (5) gives a heuristic FrFT order. The current lab
+captures each valid ray's iris-plane crossing, applies a separable
+direct-kernel FrFT to a binary polygon iris, and weights ghost ray energy by
+the transformed intensity. Each path/source-sample/wavelength map is
+normalized to its original sampled ray-energy sum before rasterization. The
+default `polygon` mode shares one transformed iris across ghost paths.
+`--ghost-frft-report` prints effective orders, normalizers, and transform
+timings.
 
 The α=0 limit is an exact geometric bypass: the isolated 9→8 path is
 pixel-identical to the geometric baseline. For the default f/11 lens, the
@@ -626,6 +626,48 @@ empirical ray-map normalization make this a look-development approximation,
 not a calibrated optical-energy solution.
 
 ![The α=1 Fourier limit compared with the geometric ghost](examples/ghost-aperture-frft-fourier-limit-x300.png)
+
+### Per-path transport-mask FrFT experiment
+
+Tang's [University of Toronto project report](https://www.cs.toronto.edu/~hxtang/projects/flare_render/index.html) describes a complementary method:
+construct a binary aperture-transport mask from the traced ray grid for each
+ghost, then FrFT that mask before mapping the result to the sensor. The new
+`--ghost-frft-mask transport` mode implements this as an opt-in comparison for
+one selected `--ghost-pair`; the visibility mask is nearest-resampled from the
+active ray grid to the FrFT texture size. It therefore carries that grid's
+sampling limits and is not an implementation of Hullin et al.'s exact method.
+
+On the 9→8 path, source `(0.3834,0.3844)`, ray grid 128, texture 256, and the
+default RGB Eq. (5) orders, transport-mask FrFT changes crop Y from
+`0.013373` to `0.014010` (+4.76%); relative image L1 between the two FrFT modes
+is 36.63% of polygon-mode crop Y. Over the full frame, Y changes from
+`0.014617` to `0.014822`, peak from `6.63e-7` to `8.26e-7`, and centroid from
+`(457.917,254.929)` to `(465.113,259.418)`. The comparison image uses display
+gain 300,000 to expose this very dim isolated ghost.
+
+![Polygon-only and per-path transport-mask FrFT comparison for the isolated 9-to-8 ghost](examples/ghost-aperture-transport-mask-comparison.png)
+
+This large image difference confirms that the path mask materially changes
+ghost texture, not that it is more accurate. The experiment currently lacks a
+measured capture or a phase-correct reference; mask resampling, per-map flux
+normalization, and the empirical FrFT order remain approximations. Keep the
+polygon mode as default pending optical reference comparison. The transport
+mode performs a separate direct FrFT for each active wavelength and is intended
+for offline isolated-path look development.
+
+At fixed FrFT texture size 256, transport-mask ray-grid outputs at 64/128/256
+have relative image L1 errors of 3.15%/2.74%/1.18% against grid 512. In-frame
+Y is `0.014834/0.014822/0.014943/0.014945` at grids 64/128/256/512. This
+supports grid 256 as a reasonable preview setting for this one path; grid 512
+is only a denser comparison, not ground truth. The mask FrFT cost at grid 128
+and texture 256 was 81 ms for the three wavelength maps on the evaluation
+machine, excluding base ray tracing.
+
+Reproduce with `--position 0.3834 0.3844 --ray-grid 128 --source-samples 1
+--diffraction off --ghost-pair 9 8 --ghost-frft on --ghost-frft-mask transport`.
+The comparison plate can be generated with
+`make_ghost_transport_mask_comparison.py` using the geometric, polygon, and
+transport PFM renders.
 
 ### Texture-resolution convergence
 

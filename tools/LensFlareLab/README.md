@@ -57,6 +57,7 @@ LensFlareLab input.pfm output.pfm [--auto|--position X Y] [--threshold N]
                [--ghost-diffraction on|off] [--ghost-diffraction-distance-mm MM]
                [--ghost-diffraction-report]
                [--ghost-frft on|off] [--ghost-frft-resolution N] [--ghost-frft-report]
+               [--ghost-frft-mask polygon|transport]
                [--fresnel-frft-order N] [--diffraction-report] [--ghost-report]
                [--ghost-pair FIRST SECOND] [--optical-path-report]
                [--optical-path-map CSV]
@@ -141,6 +142,12 @@ precompute time. `--ghost-frft-resolution` sets the square texture resolution
 0.01 also use that bypass because the 256² texture cannot resolve their narrow
 kernel without aliasing. This is a CPU reference implementation for the
 standalone lab, not an editor frame path or a measured-camera match.
+`--ghost-frft-mask polygon` is the default shared iris transform. The
+experimental `transport` mode requires `--ghost-pair FIRST SECOND`; it builds a
+binary visibility mask from that ghost path's ray grid before applying FrFT.
+Use it for isolated path comparisons. It costs one direct 2D FrFT per active
+path, source sample, and wavelength, and has no calibrated photographic
+reference yet.
 `--ray-grid` accepts values from 8 to 512; the upper range is intended for
 offline convergence checks and can be substantially slower than the default.
 The opt-in adaptive refinement probes cell centers and refines cells whose

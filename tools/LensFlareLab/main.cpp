@@ -74,6 +74,7 @@ struct Settings {
     bool diffractionEnabled = true;
     bool ghostDiffractionEnabled = false;
     bool ghostFrftEnabled = false;
+    bool ghostFrftTransportMask = false;
     int ghostFrftResolution = 256;
     bool reportGhostPaths = false;
     bool reportJacobianCap = false;
@@ -136,6 +137,8 @@ struct RayVertex {
     bool valid = false;
     float apertureX = 0.0f;
     float apertureY = 0.0f;
+    float pupilX = 0.0f;
+    float pupilY = 0.0f;
 };
 
 struct Point2 {
@@ -411,6 +414,35 @@ float sampleGhostApertureTexture(const GhostApertureTexture& texture, Vec3 apert
     const float d = texture.intensity[static_cast<std::size_t>(y1) * texture.size + x1];
     return std::max(0.0f, (a + (b - a) * tx) * (1.0f - ty) +
                           (c + (d - c) * tx) * ty);
+}
+
+GhostApertureTexture makeGhostTransportTexture(int size, float radiusMm, float fractionalOrder,
+                                               const std::vector<unsigned char>& transportMask) {
+    GhostApertureTexture texture;
+    texture.size = size;
+    texture.radiusMm = radiusMm;
+    texture.fractionalOrder = fractionalOrder < 0.01f ? 0.0f : fractionalOrder;
+    texture.intensity.assign(static_cast<std::size_t>(size) * size, 0.0f);
+    std::vector<std::complex<float>> field(texture.intensity.size());
+    std::size_t transmittedSamples = 0;
+    for (std::size_t i = 0; i < field.size(); ++i) {
+        if (transportMask[i] == 0) continue;
+        field[i] = {1.0f, 0.0f};
+        ++transmittedSamples;
+    }
+    if (transmittedSamples == 0) return texture;
+    if (texture.fractionalOrder > 1e-6f)
+        applySeparableFrft(field, size, texture.fractionalOrder);
+    double transformedEnergy = 0.0;
+    for (std::size_t i = 0; i < field.size(); ++i) {
+        texture.intensity[i] = std::norm(field[i]);
+        transformedEnergy += texture.intensity[i];
+    }
+    if (transformedEnergy > 1e-20) {
+        texture.fluxNormalization = static_cast<float>(transmittedSamples / transformedEnergy);
+        for (float& value : texture.intensity) value *= texture.fluxNormalization;
+    }
+    return texture;
 }
 
 struct PropagatedPatch {
@@ -1145,6 +1177,10 @@ Image render(const Image& source, const Settings& settings) {
     const int rayCount = grid * grid;
     const float sensorHeight = lens.sensorWidth * static_cast<float>(height) / width;
     constexpr std::array<float, 3> wavelengths{610.0f, 550.0f, 460.0f};
+    if (settings.ghostFrftTransportMask && !settings.ghostFrftEnabled)
+        throw std::runtime_error("--ghost-frft-mask transport requires --ghost-frft on");
+    if (settings.ghostFrftTransportMask && settings.selectedFirstReflection < 0)
+        throw std::runtime_error("--ghost-frft-mask transport requires --ghost-pair FIRST SECOND");
     if (settings.reportOpticalPath && settings.selectedFirstReflection < 0)
         throw std::runtime_error("--optical-path-report requires --ghost-pair FIRST SECOND");
     if (!settings.opticalPathMapFile.empty() && settings.selectedFirstReflection < 0)
@@ -1254,8 +1290,14 @@ Image render(const Image& source, const Settings& settings) {
             const float order = applyFrftOrderOverride(wavelengths[band], fNumber,
                                                        settings.fresnelFrftOrder,
                                                        settings.fresnelFrftOrderOverride);
-            ghostApertureTextures[band] = makeGhostApertureTexture(
-                settings.ghostFrftResolution, settings.apertureBlades, lens.irisRadius, order);
+            if (settings.ghostFrftTransportMask) {
+                ghostApertureTextures[band].size = settings.ghostFrftResolution;
+                ghostApertureTextures[band].radiusMm = lens.irisRadius;
+                ghostApertureTextures[band].fractionalOrder = order < 0.01f ? 0.0f : order;
+            } else {
+                ghostApertureTextures[band] = makeGhostApertureTexture(
+                    settings.ghostFrftResolution, settings.apertureBlades, lens.irisRadius, order);
+            }
         }
         if (settings.reportGhostFrft) {
             const auto elapsed = std::chrono::duration<double, std::milli>(
@@ -1264,10 +1306,14 @@ Image render(const Image& source, const Settings& settings) {
                       << settings.ghostFrftResolution << " samples, Hullin Eq. 5 alpha RGB="
                       << ghostApertureTextures[0].fractionalOrder << ','
                       << ghostApertureTextures[1].fractionalOrder << ','
-                      << ghostApertureTextures[2].fractionalOrder << " fluxNormalization RGB="
-                      << ghostApertureTextures[0].fluxNormalization << ','
-                      << ghostApertureTextures[1].fluxNormalization << ','
-                      << ghostApertureTextures[2].fluxNormalization
+                      << ghostApertureTextures[2].fractionalOrder << " maskMode="
+                      << (settings.ghostFrftTransportMask ? "transport" : "polygon");
+            if (!settings.ghostFrftTransportMask)
+                std::cout << " polygonFluxNormalization RGB="
+                          << ghostApertureTextures[0].fluxNormalization << ','
+                          << ghostApertureTextures[1].fluxNormalization << ','
+                          << ghostApertureTextures[2].fluxNormalization;
+            std::cout
                       << " precomputeMs=" << elapsed << '\n';
         }
     }
@@ -1291,6 +1337,7 @@ Image render(const Image& source, const Settings& settings) {
     std::size_t ghostFrftMaxSample = 0;
     double ghostFrftMaxGeometricEnergy = 0.0;
     double ghostFrftMaxTexturedEnergy = 0.0;
+    double ghostFrftTransportMaskMs = 0.0;
     std::array<DiffractionKernel, 3> diffraction;
     if (settings.diffractionEnabled) {
         for (std::size_t band = 0; band < diffraction.size(); ++band) {
@@ -1392,7 +1439,7 @@ Image render(const Image& source, const Settings& settings) {
                             traced = {width * 0.5f + sensorPoint.x / lens.sensorWidth * width,
                                       height * 0.5f - sensorPoint.y / sensorHeight * height,
                                       energy * sourceBands[band], true,
-                                      aperturePoint.x, aperturePoint.y};
+                                      aperturePoint.x, aperturePoint.y, stopX, stopY};
                             return traced;
                         };
                         for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
@@ -1401,6 +1448,41 @@ Image render(const Image& source, const Settings& settings) {
                             rayGridData[static_cast<std::size_t>(gy) * grid + gx] =
                                 traceRayAtPupil(stopX, stopY);
                         }
+
+                        GhostApertureTexture pathApertureTexture;
+                        const GhostApertureTexture* activeApertureTexture =
+                            &ghostApertureTextures[band];
+                        if (settings.ghostFrftEnabled && settings.ghostFrftTransportMask &&
+                            ghostApertureTextures[band].fractionalOrder > 1e-6f) {
+                            const int textureSize = settings.ghostFrftResolution;
+                            std::vector<unsigned char> transportMask(
+                                static_cast<std::size_t>(textureSize) * textureSize, 0);
+                            for (int ty = 0; ty < textureSize; ++ty) {
+                                for (int tx = 0; tx < textureSize; ++tx) {
+                                    const float pupilU = (tx + 0.5f) / textureSize * 2.0f - 1.0f;
+                                    const float pupilV = 1.0f - (ty + 0.5f) / textureSize * 2.0f;
+                                    const int gx = std::clamp(static_cast<int>(
+                                        std::floor((pupilU * 0.5f + 0.5f) * grid)), 0, grid - 1);
+                                    const int gy = std::clamp(static_cast<int>(
+                                        std::floor((0.5f - pupilV * 0.5f) * grid)), 0, grid - 1);
+                                    transportMask[static_cast<std::size_t>(ty) * textureSize + tx] =
+                                        rayGridData[static_cast<std::size_t>(gy) * grid + gx].valid ? 1 : 0;
+                                }
+                            }
+                            const auto maskFrftStart = std::chrono::steady_clock::now();
+                            pathApertureTexture = makeGhostTransportTexture(textureSize,
+                                lens.irisRadius, ghostApertureTextures[band].fractionalOrder,
+                                transportMask);
+                            ghostFrftTransportMaskMs += std::chrono::duration<double, std::milli>(
+                                std::chrono::steady_clock::now() - maskFrftStart).count();
+                            activeApertureTexture = &pathApertureTexture;
+                        }
+                        auto apertureWeight = [&](const RayVertex& vertex) {
+                            const Vec3 coordinate = settings.ghostFrftTransportMask
+                                ? Vec3{vertex.pupilX, -vertex.pupilY, 0.0f}
+                                : Vec3{vertex.apertureX, vertex.apertureY, 0.0f};
+                            return sampleGhostApertureTexture(*activeApertureTexture, coordinate);
+                        };
 
                         double rayMapNormalization = 1.0;
                         bool ghostFrftMapWeighted = false;
@@ -1411,9 +1493,7 @@ Image render(const Image& source, const Settings& settings) {
                             for (RayVertex& vertex : rayGridData) {
                                 if (!vertex.valid) continue;
                                 geometricRayEnergy += vertex.energy;
-                                const float weight = sampleGhostApertureTexture(
-                                    ghostApertureTextures[band],
-                                    {vertex.apertureX, vertex.apertureY, 0.0f});
+                                const float weight = apertureWeight(vertex);
                                 texturedRayEnergy += vertex.energy * weight;
                             }
                             if (geometricRayEnergy > 1e-20 && texturedRayEnergy > 1e-20) {
@@ -1434,9 +1514,7 @@ Image render(const Image& source, const Settings& settings) {
                                 ++ghostFrftRayMaps;
                                 for (RayVertex& vertex : rayGridData) {
                                     if (!vertex.valid) continue;
-                                    const float weight = sampleGhostApertureTexture(
-                                        ghostApertureTextures[band],
-                                        {vertex.apertureX, vertex.apertureY, 0.0f});
+                                    const float weight = apertureWeight(vertex);
                                     vertex.energy *= static_cast<float>(normalization) * weight;
                                 }
                             }
@@ -1445,9 +1523,7 @@ Image render(const Image& source, const Settings& settings) {
                         std::vector<RayVertex> rayCellCenters;
                         auto applyGhostFrftWeight = [&](RayVertex& vertex) {
                             if (!vertex.valid || !ghostFrftMapWeighted) return;
-                            const float weight = sampleGhostApertureTexture(
-                                ghostApertureTextures[band],
-                                {vertex.apertureX, vertex.apertureY, 0.0f});
+                            const float weight = apertureWeight(vertex);
                             vertex.energy *= static_cast<float>(rayMapNormalization) * weight;
                         };
                         if (settings.adaptiveRayRefinementEnabled) {
@@ -1706,6 +1782,8 @@ Image render(const Image& source, const Settings& settings) {
                   << " band=" << ghostFrftMaxBand << " sourceSample=" << ghostFrftMaxSample
                   << " geometricRayEnergy=" << ghostFrftMaxGeometricEnergy
                   << " texturedRayEnergy=" << ghostFrftMaxTexturedEnergy
+                  << " transportMaskFrftMs=" << ghostFrftTransportMaskMs
+                  << " maskMode=" << (settings.ghostFrftTransportMask ? "transport" : "polygon")
                   << " (per path/source-sample/wavelength map)\n";
     }
     return output;
@@ -1757,6 +1835,7 @@ void printSettings(const Settings& s) {
               << " fresnelFrftOrder=" << s.fresnelFrftOrder
               << " fresnelFrftOrderOverride=" << s.fresnelFrftOrderOverride
               << " ghostFrft=" << s.ghostFrftEnabled
+              << " ghostFrftMask=" << (s.ghostFrftTransportMask ? "transport" : "polygon")
               << " ghostFrftResolution=" << s.ghostFrftResolution
               << " ghostDiffraction=" << s.ghostDiffractionEnabled
               << " ghostDiffractionDistanceMm=" << s.ghostDiffractionDistanceMm
@@ -1772,7 +1851,7 @@ void printHelp() {
               << "Names: threshold gain jacobianCap rayGrid adaptiveRayRefinement adaptiveRayRefinementThreshold sourceSamples(1|9|25) dispersionModel rasterizerModel apertureRadius apertureBlades fresnelFrftOrder ghostFrft ghostFrftResolution ghostDiffraction ghostDiffractionDistanceMm antiReflectCoating ghostsEnabled diffractionEnabled\n"
               << "Rasterizers: pixel-area (default), point-sample (legacy Jacobian-cap comparison)\n"
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
-              << "               --ghost-frft on|off | --ghost-frft-resolution N | --ghost-frft-report\n"
+              << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX\n"
               << "CLI diagnostics: --ghost-report | --ghost-pair FIRST SECOND | --optical-path-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
@@ -1853,6 +1932,13 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--fresnel-frft-order") setValue(settings, "fresnelFrftOrder", value());
     else if (option == "--ghost-frft-resolution")
         setValue(settings, "ghostFrftResolution", value());
+    else if (option == "--ghost-frft-mask") {
+        if (++i >= argc) throw std::runtime_error("missing value for --ghost-frft-mask");
+        const std::string mode = argv[i];
+        if (mode == "polygon") settings.ghostFrftTransportMask = false;
+        else if (mode == "transport") settings.ghostFrftTransportMask = true;
+        else throw std::runtime_error("--ghost-frft-mask expects polygon or transport");
+    }
     else if (option == "--ghost-diffraction-distance-mm")
         setValue(settings, "ghostDiffractionDistanceMm", value());
     else if (option == "--coating") {
