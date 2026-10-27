@@ -7493,7 +7493,7 @@
 - **次に確認すべきこと:** App runtimeとcheckpoint/settings hashへ温度を接続し、smoke-only / fire-only / mixedの連続frame画像を同一露出で比較する。燃焼後のheat lifetimeとfire color/intensityを密度・煙色と独立制御できるかを確認し、粒子の点状印象が強ければvolume/fire compositing pathの範囲を再評価する。
 # 2026-10-27: Curve Editor契約テストがArtifactCoreのmodule IFC参照で停止
 - **関連:** `tests/Artifact/CurveEditorWidgetContractTest.cpp`、`ArtifactCore/src/Graphics/Compute/CurveComputer.cpp`、`ArtifactCore/CMakeLists.txt`。
-- **確認できた事実:** `ArtifactCurveEditorWidgetContractTest` をNinjaでビルドすると、Curve Editorのソースへ到達する前に `CurveComputer.cpp` のコンパイルで停止した。MSVCの診断は `Graphics.Compute` と `Graphics.GPUcomputeContext` のimportを解決できないという内容で、同じbuild treeには対応するIFCファイルが生成されていたが、そのコンパイルコマンドには両IFCの `/reference` 引数がなかった。ArtifactCoreは今回の機能変更対象外のため変更していない。
+- **確認できた事実:** `ArtifactCurveEditorWidgetContractTest` をNinjaでビルドすると、Curve Editorのソースへ到達する前に `CurveComputer.cpp` のコンパイルで停止した。該当 `.cpp` はNinja上で `unscanned` ルールになり、最初のコマンドに `Graphics.Compute` と `Graphics.GPUcomputeContext` の `/reference` がなかった。`ArtifactCore/CMakeLists.txt` には `LUT3DComputer.cpp` の明示参照設定はあるが、同じフォルダのほかのCompute module implementationには該当条件がない。生成済みbuild.ninjaだけに直接importの参照を一時追加しても `DuotoneComputer.cpp` で解決せず、テスト本体は未到達。ArtifactCoreの tracked file は変更していない。
 - **価値または懸念:** ArtifactのCurve Editor契約テストを実行できず、今回の編集ループがこのビルド環境では早期に止まる。原因修正なしでは次回も同じ依存再構築段階で止まる可能性が高い。
-- **仮説（未検証）:** `.cpp` のmodule implementation unitに対するCMake/Ninja依存スキャンまたは明示IFC参照設定が、当該importの依存をコンパイルコマンドへ反映していない可能性がある。
-- **次に確認すべきこと:** `.ddi` / dyndep出力と `ArtifactCore/CMakeLists.txt` のmodule implementation用参照設定を照合し、既存のC++20 module hygiene規則を保ったまま、どの段階で2つのimport依存が欠落するかを特定する。
+- **仮説（未検証）:** unscanned implementationに明示する参照またはmodule map上の依存が不足している可能性がある。直接import参照だけでは十分でない理由は未特定。
+- **次に確認すべきこと:** `LUT3DComputer.cpp` と他のCompute implementationの生成コマンド／OBJECT_DEPENDSを比較し、IFC importだけでなくinterface object orderingやmodule mapの差があるか確認する。ArtifactCoreを編集する場合はユーザーの明示承認を得てから行う。

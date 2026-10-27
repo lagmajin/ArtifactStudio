@@ -231,6 +231,8 @@ TEST(CurveEditorWidgetContractTest, SpeedEditingDisablesKeyStructureCommands)
     ASSERT_EQ(widget.tracks()[0].keys.size(), 2u);
     EXPECT_EQ(widget.tracks()[0].keys[0].frame, 10);
     EXPECT_EQ(widget.tracks()[0].keys[1].frame, 90);
+    sendClick(widget, widget.visualPoint(0, 50.0f, 50.0f), Qt::ControlModifier);
+    EXPECT_EQ(widget.tracks()[0].keys.size(), 2u);
     EXPECT_FALSE(widget.setSelectedKeyConstant());
 }
 
