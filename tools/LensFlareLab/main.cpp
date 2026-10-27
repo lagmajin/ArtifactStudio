@@ -133,7 +133,7 @@ struct Settings {
     bool antiReflectCoating = true;
     bool ghostsEnabled = true;
     bool diffractionEnabled = true;
-    bool diffractionPixelAreaResampling = false;
+    bool diffractionPixelAreaResampling = true;
     bool ghostDiffractionEnabled = false;
     bool ghostFrftEnabled = false;
     bool ghostFrftTransportMask = false;
@@ -2418,7 +2418,7 @@ void printHelp() {
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX | --adaptive-ray-refinement-energy-threshold FRACTION\n"
               << "               --spectral-samples 3|7|15|31|61 (reflected ghosts; RGB-basis spectrum, trapezoidal 430-610 nm integration)\n"
-              << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default tent)\n"
+              << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default pixel-area)\n"
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"
               << "               --source-sampling equal-grid|weighted-quantile (experimental footprint-aware binning)\n"

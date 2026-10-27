@@ -117,13 +117,15 @@ both reflected-ghost aperture paths. Direct PSF energy is additionally scaled
 by the sampled open-pupil area relative to the clear polygon; zero preserves
 the unobstructed output. This is relative pupil throughput, not absolute
 T-stop, glass transmission, or exposure calibration.
-The direct-source Fraunhofer PSF defaults to `--diffraction-resampling tent`,
-which bilinearly splats each FFT intensity sample onto neighboring sensor
-pixels. `--diffraction-resampling pixel-area` treats each mapped FFT intensity
-as piecewise constant over its cell and integrates its overlap with sensor
-pixel areas. This experimental comparison preserves
-unit kernel energy while changing the subpixel PSF shape; it does not change
-ghost diffraction or model a measured intrapixel sensitivity map.
+The direct-source Fraunhofer PSF defaults to `--diffraction-resampling pixel-area`.
+It treats each mapped FFT intensity sample as piecewise constant over its cell
+and integrates its overlap with sensor-pixel areas. The alternative
+`--diffraction-resampling tent` bilinearly splats each sample onto neighboring
+pixels. A subpixel-phase sweep against an independently oversampled pupil FFT
+found lower image error for pixel-area resampling in the tested six-blade
+near-point cases; see [EVALUATION.md](EVALUATION.md). Both modes preserve unit
+kernel energy. The model assumes uniform pixel response and does not change
+ghost diffraction or model measured intrapixel sensitivity.
 `--diffraction-resolution` sets the square aperture FFT used by the direct
 source PSF. The default is 1024²; 512² is the legacy-speed comparison and
 2048²/4096² are offline convergence references with progressively longer
@@ -195,6 +197,10 @@ per-channel encircled-energy radii from the PFM outputs.
 `evaluate_diffraction_pixel_phase.py` creates pixel-area-integrated Gaussian
 sources at eight subpixel phases, compares tent and pixel-area PSF resampling,
 and records throughput, centroid, and encircled-radius sensitivity.
+`evaluate_diffraction_supersampled_reference.py` compares both resamplers with
+an independent 4096² pupil FFT and 9× sensor-pixel integration reference. The
+two diffraction evaluation scripts require Python packages NumPy, SciPy, and
+Pillow; the renderer itself has no Python runtime dependency.
 `python tools/LensFlareLab/make_ray_grid_comparison.py` compares the same
 source-sample mode across 64/96/128 pupil ray grids and reports in-frame
 flux, peak, centroid, and image differences. Its `--source-samples` accepts

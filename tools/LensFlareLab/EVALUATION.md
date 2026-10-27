@@ -1333,19 +1333,12 @@ response detector model discussed by
 [Bickerton & Lupton (2013)](https://doi.org/10.1093/mnras/stt244), while
 remaining a synthetic, uniform-pixel experiment.
 
-The recovered throughput ratio varied only from 1.0000248 to 1.0000249, and
-the output centroid followed the specified emitter center to within 0.000001
-px. However, the 50%-encircled radius varied from 1.179 to 1.463 px across
-phases for both resampling modes. The 99% radius varied 3.412–3.555 px with
-tent and 3.375–3.520 px with pixel-area resampling. Thus, total energy and
-centroid are stable, but the sampled core profile is phase-dependent; changing
-the FFT-to-pixel resampler does not remove it. A four-phase repeat at FFT size
-4096² produced identical r50 and r99 values to the 1024² run at the reported
-precision. This rules out coarse aperture-FFT sampling as the cause in those
-cases. Pixel-phase sensitivity is expected when a narrow optical PSF is
-sampled on a coarser detector grid, but an independently oversampled,
-sensor-integrated reference is still needed to verify the implementation's
-pixel response.
+The recovered throughput ratio varied only from 1.0000248 to 1.0000249; the
+largest centroid error was 0.0035 px. The 50%-encircled radius varied from
+0.625 to 0.729 px for both resampling modes. The 99% radius varied 2.325–2.427
+px with tent and 2.095–2.226 px with pixel-area. Total energy and centroid
+remain stable while the sampled core profile changes modestly with pixel
+phase. A four-phase 4096² repeat is recorded below.
 
 ![Eight horizontal source pixel phases comparing tent and pixel-area diffraction PSFs at a shared display scale](examples/diffraction-pixel-phase.png)
 
@@ -1359,10 +1352,41 @@ python tools/LensFlareLab/evaluate_diffraction_pixel_phase.py build/tools/LensFl
 
 To repeat the four diagnostic phases against the denser aperture-FFT sample,
 add `--phases 0 0.25 0.5 0.75 --diffraction-resolution 4096` and select
-build-directory CSV/image outputs. The next useful check is an independently
-oversampled PSF integrated into detector pixels at each fractional source
-phase before deciding whether phase-specific kernels would improve the Lab's
-image model.
+build-directory CSV/image outputs.
+
+#### Independent oversampled sensor-integration reference
+
+To check the resampling methods, the 1024-sample hexagonal pupil was
+zero-padded to a 4096² FFT, providing four-times denser samples of the same
+discrete pupil transform. The FFT intensity cells were integrated into a 9×
+subpixel grid, convolved with the analytic R=1 px Gaussian emitter, then
+integrated into detector pixels. The same source profile was area-integrated
+into PFM inputs for LensFlareLab. Four horizontal phases (0, 0.25, 0.5, 0.75
+px), vertical phase 0.375 px, and the six-blade 4.545 mm pupil were compared.
+
+An independent NumPy implementation of the Lab's discrete pupil-sample
+accumulator matched the C++ output to at most 0.0026% RGB L1. Against the
+oversampled continuous-source reference, C++ pixel-area renders ranged from
+0.388% to 0.715% RGB L1; tent renders ranged from 3.339% to 3.941%. Pixel-area
+was closer at all four phases. This supports the default change for the tested
+uniform-pixel detector model. The reference shares the sampled binary pupil
+and does not model a real sensor response, lens aberrations, or measured
+source spectrum, so it is a numerical image-formation check rather than a
+camera calibration.
+
+![LensFlareLab tent and pixel-area renders against a 4096² pupil-FFT reference at four subpixel phases](examples/diffraction-supersampled-reference.png)
+
+The comparison metrics and independent-kernel cross-check are in
+[`diffraction-supersampled-reference.csv`](examples/diffraction-supersampled-reference.csv).
+Recreate with:
+
+```powershell
+python tools/LensFlareLab/evaluate_diffraction_supersampled_reference.py build/tools/LensFlareLab/LensFlareLab-dev.exe
+```
+
+The reference uses a 1024² aperture mask, zero-padded to 4096², and 9× spatial
+sampling per detector pixel. It improves detector-response verification but
+does not establish measured optical accuracy.
 
 #### Aperture-radius and wavelength scaling
 
@@ -1424,13 +1448,15 @@ Sensor-pixel integration redistributes several percent of channel energy
 between neighboring pixels while preserving total PSF energy to float-rounding
 precision. The broad r99 statistic barely moves because the central pixel
 contains most energy and faint wings determine the radius. The area-integrated
-mode remains opt-in because it assumes piecewise-constant FFT sample cells and
-uniform sensor response; it has not been validated against a measured camera
-PSF. Against the previous nearest-pixel accumulator, the cell-overlap result
-differs by 0.02–1.32% normalized channel L1 across the three tested apertures,
-consistent with the FFT cells being narrower than a sensor pixel. Explicit
-512² tent output remains byte-identical to the previous build; the higher
-1024² default intentionally changes default output.
+mode assumes piecewise-constant FFT sample cells and a uniform sensor response;
+it has not been validated against a measured camera PSF. The subpixel-phase
+reference study below provides a denser numerical validation for this model,
+so pixel-area resampling is now the LensFlareLab default. Tent remains available
+for A/B comparisons. Against the previous nearest-pixel accumulator, the
+cell-overlap result differs by 0.02–1.32% normalized channel L1 across the
+three tested apertures, consistent with the FFT cells being narrower than a
+sensor pixel. Explicit 512² tent output remains byte-identical to the prior
+implementation; the 1024² pixel-area default changes output intentionally.
 
 ![Source, tent PSF, area-integrated PSF, and their absolute difference](examples/diffraction-resampling-area-integrated.png)
 

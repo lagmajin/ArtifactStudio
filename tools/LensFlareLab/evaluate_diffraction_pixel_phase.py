@@ -18,10 +18,9 @@ LUMA = (0.2126, 0.7152, 0.0722)
 def integrated_gaussian_pixel(x: int, center: float, radius: float) -> float:
     """Average exp(-r²/(0.48 R²)) over one unit-width pixel."""
     sigma_scale = math.sqrt(0.48) * radius
-    denominator = 2.0 * sigma_scale
     return (math.sqrt(math.pi) * sigma_scale * 0.5 *
-            (math.erf((x + 0.5 - center) / denominator) -
-             math.erf((x - 0.5 - center) / denominator)))
+            (math.erf((x + 0.5 - center) / sigma_scale) -
+             math.erf((x - 0.5 - center) / sigma_scale)))
 
 
 def write_source(path: Path, width: int, height: int, center_x: float,
