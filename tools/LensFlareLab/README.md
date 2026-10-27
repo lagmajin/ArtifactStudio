@@ -93,11 +93,14 @@ Abbe number, following the coefficient form used by the 2024 reference
 implementation. `--dispersion linear` selects the prior linear Abbe
 approximation for A/B comparisons. Neither model replaces measured Sellmeier
 glass data. `--coating on` applies a
-single MgF2-like quarter-wave layer at every refracting interface. These are
-explicit model assumptions, not a claim that the original lens had that exact
-coating stack. Gain is an exposure/look-development control and is not a
-calibrated camera response. `--diffraction off` isolates reflected ghost paths
-for image evaluation; `--coating off` provides an uncoated comparison.
+single MgF2-like quarter-wave layer at every refracting interface. Its index
+and 550 nm design wavelength are illustrative, not prescription or manufacturer
+data. Thin-film interference can reduce reflectance at some interfaces, angles,
+and wavelengths while increasing it at others; this is a spectral sensitivity
+experiment, not a blanket ghost-reduction switch. Gain is an exposure/look-
+development control and is not a calibrated camera response. `--diffraction
+off` isolates reflected ghost paths for image evaluation; `--coating off`
+provides an uncoated comparison.
 `--ghosts off` isolates diffraction, and `--diffraction off` isolates reflected
 ghosts.
 `--aperture-rotation-degrees` rotates the shared regular-polygon stop in the

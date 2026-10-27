@@ -1194,10 +1194,12 @@ the 2024 reference implementation, while the alternative linear estimate is a
 legacy approximation. Hullin et al. evaluate rays per wavelength: three bands
 represent most ghosts, but their paper notes that a few cases need many more
 samples and describes interpolation with up to seven bands for high quality.
+
 This specific comparison uses the default three wavelengths, so it does not
 prove that 610/550/460 nm adequately resolve this ghost's continuous spectrum.
 See [Hullin et al. (2011)](https://resources.mpi-inf.mpg.de/lensflareRendering/pdf/flare.pdf)
 and [Bodonyi et al. (2025)](https://link.springer.com/article/10.1007/s00371-024-03625-7).
+
 Hullin et al. report that a few ghosts may need up to 60 wavelength samples for
 smooth brute-force results; their runtime configuration uses three bands for
 standard quality and up to seven with interpolation for high quality. LensFlareLab
@@ -1287,9 +1289,10 @@ luminance above the source threshold. With the updated pixel-area rasterizer,
 ray-grid 64, and diffraction on, total added luminance is `0.09998`, almost
 all of it the `0.09987` reflected-ghost contribution. The earlier additive
 diffraction overlay reported `6.38` luminance here; that was a second copy of
-the source radiance and has been removed. Turning the coating off at ray-grid
-64 raises ghost energy from about `0.0999` to `2.78`, around 27.8 times. These
-are synthetic measurements, not a match validated against a captured lens.
+the source radiance and has been removed. In the same executable and standard
+chart, disabling the illustrative single-layer coating changes the flare field
+substantially; see the coating sensitivity evaluation below. These are
+synthetic measurements, not a match validated against a captured lens.
 
 For the harder on-axis single-light case with diffraction disabled in legacy
 point-sample mode, ghost-only energy at cap 512 was `1312.15`, `1316.72`, and
@@ -1800,3 +1803,50 @@ For reflected ghosts, use a 4096-scale source at `(0.3834,0.3844)`, select
 `--ghost-pair 9 8 --diffraction off --ray-grid 128`, and compare geometric and
 `--ghost-frft on --ghost-frft-resolution 128` renders with
 `measure_rgb_error.py`.
+
+### Thin-film coating sensitivity
+
+The coating option is a single ideal MgF2-like quarter-wave layer (index 1.38,
+550 nm design wavelength) applied uniformly at every refracting interface. It
+is not the Angenieux prescription's measured coating stack. Thin-film
+interference depends on incident angle, polarization, wavelength, and both
+adjacent media; therefore a coating can lower reflectance on one interface and
+raise it on another. Hullin et al. use this wavelength- and angle-dependent
+reflectance to produce both ghost intensity and color, while later work
+accumulates reflectance and transmittance along each path ([Hullin et al.,
+2011](https://resources.mpi-inf.mpg.de/lensflareRendering/pdf/flare.pdf),
+[Bodonyi et al., 2025](https://link.springer.com/article/10.1007/s00371-024-03625-7)).
+
+For a neutral 1 px synthetic source at `(0.4,0.5)`, path 9→8, ray-grid 64,
+pixel-area rasterizer, Cauchy dispersion, and no direct diffraction or aperture
+FrFT, the illustrative coated render changed integrated ghost radiance and
+chromatic spread as follows. A single shared display exposure is used in the
+image plate; metrics use HDR values before display mapping.
+
+| Coating model | Red ghost sum | Green ghost sum | Blue ghost sum | Max RGB centroid separation |
+|---|---:|---:|---:|---:|
+| Uncoated Fresnel | 0.05567 | 0.06139 | 0.07539 | 1.7637 px |
+| Ideal MgF2-like layer on all interfaces | 0.87540 | 0.77629 | 1.24186 | 2.4790 px |
+
+Relative to the uncoated render, per-channel absolute ghost-field differences
+are 1472.41% / 1164.43% / 1547.34%. This counterintuitive increase is allowed
+by the deliberately uniform, non-prescription coating assumption; it is not
+evidence that a real AR coating increases flare by these amounts. The plate
+shows the same bright ghost across all three RGB channels, with a larger blue
+component and a measurable centroid spread. No material dispersion for the
+coating, multilayer stack, absorption, surface-specific coating assignment, or
+polarization state is available. Do not use the current `--coating on` result
+as a quantitative camera prediction.
+
+![Uncoated versus ideal single-layer coating for the isolated off-axis 9→8 ghost](examples/coating-9-8-field-04.png)
+
+The comparison plate can be regenerated with
+`make_coating_comparison.py INPUT UNCOATED COATED OUTPUT --gain 200000
+--difference-gain 12000`. The renderer options used were
+`--position 0.4 0.5 --ray-grid 64 --source-samples 1 --diffraction off
+--ghost-pair 9 8` with `--coating off` and `--coating on`. The standard-chart
+plate was also checked with the default nine source bins, `--auto`, ray-grid 64,
+and gain 1; its coated/uncoated flare-only absolute RGB changes were 67.77%,
+70.32%, and 67.15%. The integrated behavior depends on which ghost paths and
+surface incidence conditions are present, so coating cannot be summarized by
+one global gain.
