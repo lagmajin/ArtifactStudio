@@ -136,6 +136,11 @@ throughput, centroid, mirror symmetry, encircled radii, and RGB error against a
 dense FFT reference for several blade counts and a central obstruction. Its
 plate and raw metrics are included in [EVALUATION.md](EVALUATION.md); it checks
 the ideal sampled stop model, not a measured camera PSF.
+`evaluate_source_field_psf.py` compares near-point and extended neutral emitters
+at the frame center and both horizontal edges against a linear convolution of
+the measured point PSF. It records source clipping, PSF throughput, centroid,
+encircled radii, and image error; results and limits are in
+[EVALUATION.md](EVALUATION.md).
 Reflected ghosts use the original three wavelength samples by default.
 `--spectral-samples 7|15|31|61` selects trapezoidal integration over 430–610 nm
 with a piecewise-linear reconstruction from input RGB for both reflected

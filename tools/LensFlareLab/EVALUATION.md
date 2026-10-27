@@ -46,6 +46,48 @@ follows the Fourier relationship reviewed in
 and the modeled obstruction's dependence on pupil shape is consistent with
 [Hakobyan (2020)](https://academic.oup.com/mnras/article/496/4/5414/5874233).
 
+## Direct-source PSF across emitter sizes and frame position
+
+`evaluate_source_field_psf.py` compares three neutral Gaussian emitter sizes
+(σ=0.7, 3, and 7 px) at the frame center and 4/5 px from the left/right
+boundaries. For each case it compares the renderer against a linear convolution
+of the same 1024² measured point-source PSF with the finite source, cropped to
+the 640×360 detector. This follows the incoherent-image formation model: each
+source point contributes a shifted intensity PSF, as described in Goodman and
+used for direct aperture diffraction by Hullin et al. The reference validates
+the renderer's source convolution and frame-crop behavior; it is not an
+independent optical-accuracy reference.
+
+| Emitter σ | Center throughput / full source | Edge source visible | Edge PSF / full source | Edge PSF / visible source | Edge centroid offset |
+|---:|---:|---:|---:|---:|---:|
+| 0.7 px | 1.000025 | 100.0% | 0.998747 | 0.998747 | 0.015 px |
+| 3 px | 1.000024 | 93.4% | 0.932276 | 0.998053 | 0.433 px |
+| 7 px | 1.000022 | 74.0% | 0.738760 | 0.998298 | 3.092 px |
+
+The edge results separate two losses: the detector first clips the emitter,
+then the finite PSF spreads a small additional fraction beyond the frame. The
+renderer retains 99.805–99.830% of the already visible source energy in the
+two extended cases. Across all nine cases, RGB L1 against the numerical
+convolution reference is at most 0.00498%. Thus the synthetic image-space
+convolution and crop agree closely, while the growing centroid offset at the
+edge follows the truncated emitter footprint. The mirrored left/right values
+also check field symmetry for this centered lens model.
+
+![Direct source diffraction at center and horizontal frame edges for three emitter sizes, compared with linear convolution and absolute error](examples/source-field-psf.png)
+
+Measurements are in [`source-field-psf.csv`](examples/source-field-psf.csv).
+Reproduce with:
+
+```powershell
+python tools/LensFlareLab/evaluate_source_field_psf.py build/tools/LensFlareLab/LensFlareLab.exe --diffraction-resolution 1024
+```
+
+The source is a synthetic neutral Gaussian, and the reference uses the same
+renderer-derived point PSF. No measured aberrations, scattering, spectral
+source, sensor response, or real camera flare capture is included. The result
+supports the implementation's linear convolution and edge accounting only; it
+does not establish photographic accuracy.
+
 ## Adaptive pupil sampling across source fields
 
 I compared uniform 64² pupil sampling, adaptive 64² sampling at a 0.75 px
