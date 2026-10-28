@@ -31,27 +31,33 @@ def scale_parameters(wavelength_nm, reference_nm, slope, b_ref, l_ref_mrad):
 
 
 def render_band(case, wavelength_nm, slope, b_ref, l_ref_mrad,
-                reference_nm, transmission, na, rho):
+                reference_nm, transmission, na, rho, pixel_area_mm2,
+                radius_index=3):
     b, l_mrad = scale_parameters(wavelength_nm, reference_nm, slope,
                                  b_ref, l_ref_mrad)
     l_rad = l_mrad * 1e-3
     b0 = b * (100.0 * l_rad) ** slope
     rows = case["rows"]
-    entrance_radius = rows[0][3]
+    entrance_radius = rows[0][radius_index]
     accepted_fraction = case["accepted"] / case["launched"]
     field_transmission = transmission * accepted_fraction
-    surface_images = []
+    image = np.zeros_like(rho)
+    surface_contributions = []
     for row in rows:
-        a_j = row[3]
+        a_j = row[radius_index]
         if not math.isfinite(a_j) or a_j <= 1e-8 or not math.isfinite(entrance_radius):
-            surface_images.append(np.zeros_like(rho))
+            surface_contributions.append(0.0)
             continue
         scatter_angle = na * rho / (l_rad * a_j)
-        surface_images.append(
+        surface_image = (
             math.pi * field_transmission * na**2 * (entrance_radius / a_j)**2 *
             b0 * (1.0 + scatter_angle**2) ** (slope * .5))
-    return {"b": b, "l_mrad": l_mrad, "surface_images": surface_images,
-            "image": np.sum(surface_images, axis=0),
+        image += surface_image
+        surface_contributions.append(float(surface_image.sum()) * pixel_area_mm2 /
+                                     (math.pi * entrance_radius**2))
+    return {"b": b, "l_mrad": l_mrad,
+            "surface_contributions": surface_contributions,
+            "image": image,
             "entrance_radius": entrance_radius,
             "field_transmission": field_transmission}
 
@@ -157,7 +163,7 @@ def make_contribution_plate(path, cases, bands):
     draw = ImageDraw.Draw(canvas)
     left, right, top, bottom = 54, panel_w - 16, 42, panel_h - 42
     colors = ((255, 110, 104), (111, 223, 160), (110, 174, 255))
-    surface_count = len(next(iter(bands.values()))["surface_images"])
+    surface_count = len(next(iter(bands.values()))["surface_contributions"])
     for case_index, case in enumerate(cases):
         field = case["field_deg"]
         x0 = (case_index % 2) * panel_w
@@ -165,7 +171,7 @@ def make_contribution_plate(path, cases, bands):
         per_band = {}
         for name, _ in RGB_BANDS:
             result = bands[(field, name)]
-            fractions = np.asarray([float(image.sum()) for image in result["surface_images"]])
+            fractions = np.asarray(result["surface_contributions"])
             per_band[name] = 100.0 * fractions / max(float(fractions.sum()), 1e-300)
         top5 = [float(np.sort(per_band[name])[-5:].sum()) for name, _ in RGB_BANDS]
         draw.text((x0 + 8, y0 + 7),
@@ -250,11 +256,13 @@ def main():
     xx, yy = np.meshgrid(axis, axis)
     rho = np.hypot(xx, yy)
     bands = {}
+    pixel_area = pitch_mm**2
     for field in args.fields:
         for name, wavelength_nm in RGB_BANDS:
             result = render_band(bundles[(field, name)], wavelength_nm,
                 args.slope, args.b_reference, args.l_reference_mrad,
-                args.reference_wavelength_nm, args.transmission, args.na, rho)
+                args.reference_wavelength_nm, args.transmission, args.na, rho,
+                pixel_area)
             bands[(field, name)] = result
 
     args.csv.parent.mkdir(parents=True, exist_ok=True)
@@ -267,17 +275,14 @@ def main():
             "reference_wavelength_nm", "grid", "scatter_width_px",
             "scatter_height_px", "pixel_pitch_um", "focal_length_mm",
             "transmission_assumption", "NA_assumption"))
-        pixel_area = pitch_mm**2
         for field in args.fields:
             for name, wavelength_nm in RGB_BANDS:
                 bundle = bundles[(field, name)]
                 result = bands[(field, name)]
-                total_crop = float(result["image"].sum()) * pixel_area / (
-                    math.pi * result["entrance_radius"]**2)
+                total_crop = float(sum(result["surface_contributions"]))
                 b0 = result["b"] * (100 * result["l_mrad"] * 1e-3) ** args.slope
                 for index, row in enumerate(bundle["rows"]):
-                    surface_crop = float(result["surface_images"][index].sum()) * pixel_area / (
-                        math.pi * result["entrance_radius"]**2)
+                    surface_crop = result["surface_contributions"][index]
                     a_j = row[3]
                     coefficient = (math.pi * result["field_transmission"] * args.na**2 *
                         (result["entrance_radius"] / a_j)**2 * b0

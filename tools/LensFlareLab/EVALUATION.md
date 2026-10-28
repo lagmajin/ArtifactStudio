@@ -159,6 +159,40 @@ Reproduce the figures and CSV with
 `python tools/LensFlareLab/evaluate_prescription_spectral_surface_scatter.py --grid 64`.
 Pass `--pfm-dir <directory>` to also write one linear RGB PFM per field.
 
+### Sensitivity to the pupil-cone radius proxy
+
+The surface model uses r90 as a practical proxy for Peterson's beam-radius
+term, but the prescription trace also records r50, r99, and RMS radii.
+`evaluate_scatter_radius_proxy_sensitivity.py` reuses the same 64² trace and
+recomputes the crop model with each statistic substituted consistently for
+all 14 surfaces. This isolates the radius definition; it does not establish
+that any one percentile is the physically correct beam radius.
+
+Across all four fields and all three wavelength bands, relative to r90:
+
+| Radius statistic | Change in modeled crop scatter |
+|---|---:|
+| r50 | +18.3% to +21.2% |
+| r99 | −9.6% to −8.0% |
+| RMS | +17.0% to +19.2% |
+
+The top-ranked surface remains index 7 for 0–10° and index 13 at 12° for all
+four radius choices and all three bands. Its share remains below 8.9%, so this
+ranking is weak and depends on the shared generic BSDF and the assumption that
+one scalar radius can stand in for each surface's actual pupil distribution.
+Changing only that radius statistic moves total crop estimates by up to about
+21%, which is a larger uncertainty than the 32²-to-64² sampling change. A
+measured or non-sequential surface-scatter model is needed before interpreting
+the absolute scatter estimate or using it to prioritize an individual surface.
+
+![Crop-scatter sensitivity to r50, r90, r99, and RMS beam-radius proxies](examples/prescription-scatter-radius-proxy-sensitivity.png)
+
+Exact band/field results and top-surface indices are in
+[`prescription-scatter-radius-proxy-sensitivity.csv`](examples/prescription-scatter-radius-proxy-sensitivity.csv).
+Reproduce with `python tools/LensFlareLab/evaluate_scatter_radius_proxy_sensitivity.py`;
+it reads [`prescription-spectral-surface-scatter.csv`](examples/prescription-spectral-surface-scatter.csv)
+and does not repeat the ray trace.
+
 ### Fitting a measured linear point-source capture
 
 `fit_harvey_measurement.py` accepts an RGB PFM capture and an optional matching
