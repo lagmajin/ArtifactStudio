@@ -948,9 +948,68 @@ bool traceEntrancePupilRay(const LensPrescription& lens, float wavelengthNm,
         if (!refractRay(direction, surfaceNormal(surface, origin), forwardAfter, forwardBefore))
             return false;
     }
-    const Vec3 forwardDirection = direction * -1.0f;
-    if (forwardDirection.z <= 1e-6f) return false;
-    entranceOrigin = origin - forwardDirection * 0.05f;
+    const Vec3 backtracedForward = direction * -1.0f;
+    if (backtracedForward.z <= 1e-6f) return false;
+    entranceOrigin = origin - backtracedForward * 0.05f;
+
+    // Keep the incident field direction fixed and solve the entrance-plane
+    // position whose forward trace crosses the requested physical stop point.
+    const auto traceToStop = [&](Vec3 launch, Vec3& stopPoint) {
+        Vec3 rayOrigin = launch;
+        Vec3 rayDirection = incidentDirection;
+        for (int i = 0; i <= 6; ++i) {
+            const Surface& surface = lens.surfaces[static_cast<std::size_t>(i)];
+            if (!intersectSurface(rayOrigin, rayDirection, surface)) return false;
+            const float nBefore = i == 0 ? 1.0f :
+                refractiveIndex(lens.surfaces[static_cast<std::size_t>(i - 1)], wavelengthNm,
+                                useCauchyDispersion);
+            const float nAfter = refractiveIndex(surface, wavelengthNm, useCauchyDispersion);
+            if (!refractRay(rayDirection, surfaceNormal(surface, rayOrigin), nBefore, nAfter))
+                return false;
+        }
+        if (rayDirection.z <= 1e-6f) return false;
+        const float distance = (lens.irisZ - rayOrigin.z) / rayDirection.z;
+        if (!(distance > 1e-5f)) return false;
+        stopPoint = rayOrigin + rayDirection * distance;
+        return true;
+    };
+
+    constexpr float finiteDifferenceStep = 1e-3f;
+    constexpr float stopToleranceMm = 1e-4f;
+    bool converged = false;
+    for (int iteration = 0; iteration < 10; ++iteration) {
+        Vec3 hit{};
+        if (!traceToStop(entranceOrigin, hit)) return false;
+        const float errorX = hit.x - stopX;
+        const float errorY = hit.y - stopY;
+        if (std::hypot(errorX, errorY) <= stopToleranceMm) {
+            converged = true;
+            break;
+        }
+
+        Vec3 hitX{}, hitY{};
+        if (!traceToStop(entranceOrigin + Vec3{finiteDifferenceStep, 0.0f, 0.0f}, hitX) ||
+            !traceToStop(entranceOrigin + Vec3{0.0f, finiteDifferenceStep, 0.0f}, hitY))
+            return false;
+        const float j00 = (hitX.x - hit.x) / finiteDifferenceStep;
+        const float j10 = (hitX.y - hit.y) / finiteDifferenceStep;
+        const float j01 = (hitY.x - hit.x) / finiteDifferenceStep;
+        const float j11 = (hitY.y - hit.y) / finiteDifferenceStep;
+        const float determinant = j00 * j11 - j01 * j10;
+        if (std::abs(determinant) < 1e-8f) return false;
+        const float deltaX = (j11 * errorX - j01 * errorY) / determinant;
+        const float deltaY = (-j10 * errorX + j00 * errorY) / determinant;
+        if (!std::isfinite(deltaX) || !std::isfinite(deltaY) ||
+            std::hypot(deltaX, deltaY) > 20.0f) return false;
+        entranceOrigin.x -= deltaX;
+        entranceOrigin.y -= deltaY;
+    }
+    if (!converged) {
+        Vec3 hit{};
+        if (!traceToStop(entranceOrigin, hit) ||
+            std::hypot(hit.x - stopX, hit.y - stopY) > stopToleranceMm)
+            return false;
+    }
     return true;
 }
 

@@ -28,8 +28,11 @@ partitions each source footprint at cumulative luminance quantiles before
 forming the requested source bins; this can activate more directions for a
 small emitter, at a higher ray-tracing cost. The interactive equivalent is
 `set sourceSamplingQuantiles 1` (or `0` for equal-grid). Rays are sampled over
-the physical stop and traced backwards through the front group to the entrance
-pupil, which gives coarse grids useful coverage at the stated f-number.
+the physical stop. A backward trace provides an initial entrance-pupil estimate,
+then a bounded 2D Newton solve adjusts that point so the fixed distant-source
+direction passes through the requested stop coordinate after refraction through
+the front group. This preserves parallel incoming rays while retaining useful
+stop coverage at coarse grids.
 Reflected ghost paths and diffraction can be rendered independently for
 evaluation. Paths that cross the aperture stop three times are omitted; the
 Angenieux prescription then has 42 remaining surface pairs, matching the

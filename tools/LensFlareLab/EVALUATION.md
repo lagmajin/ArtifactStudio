@@ -2,6 +2,39 @@
 
 **最終更新:** 2026-10-28
 
+## Fixed-direction entrance-pupil shooting
+
+The stop-grid sampler previously back-traced a ray from each stop point, used
+the resulting entrance position, then restarted the ghost trace with the
+original field direction. Those two ray directions differ after refraction, so
+the forward ray did not generally pass through the stop point. A float64
+independent diagnostic measured an RMS miss of 0.680 mm (95th percentile
+0.992 mm, maximum 1.113 mm) at 550 nm for a 64x64 grid and field `(0.52,
+0.498)`. The Lab now retains the back-trace as an initial estimate and solves
+the 2D entrance position so the fixed incident direction reaches the requested
+stop coordinate. The solve is bounded to 10 iterations with a 0.1 µm stop
+residual tolerance.
+
+Image comparison for the paper's Angenieux prescription and Fig. 10 source A
+(position `(0.246, 0.356)`) at 192x192 ray grid shows the scale of the change: on
+the same 640x360 input and crop, integrated geometric ghost luminance changed
+from 1.22161 to 0.04983 (-95.92%), and the ghost centroid moved 74.23 pixels.
+The old image is therefore not a trustworthy visual reference; this large change
+is evidence of a sampling inconsistency, not proof that the corrected exposure
+is calibrated. Ghost reflectance still depends on coating assumptions and the
+prescription is not a measured calibration of a production lens. The paper's
+ray-transfer model likewise traces parallel rays from the entrance pupil and
+records the aperture-plane and sensor coordinates ([Bodonyi et al., 2025](https://link.springer.com/article/10.1007/s00371-024-03625-7)).
+
+![Old stop back-projection versus fixed-direction entrance-pupil shooting](examples/ghost-stop-shooting-comparison-192.png)
+
+The independent float64 reference was updated to use the same shooting
+constraint and compared with a newly generated 64x64 map at 550 nm and field
+`(0.52, 0.498)`. The solved stop residual was below 0.0001 µm in the reference;
+exit-position RMS was 0.286/0.273 µm (x/y), direction RMS was 7.04/6.70 ppm,
+and OPL residual RMS after piston/tilt removal was 0.0422 µm. This verifies
+implementation agreement for sampled rays, not image-space physical calibration.
+
 ## Independent float64 ghost-ray reference
 
 `validate_ghost_raytrace_reference.py` independently traces the bundled

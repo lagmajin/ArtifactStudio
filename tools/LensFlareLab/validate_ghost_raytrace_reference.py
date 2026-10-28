@@ -114,6 +114,24 @@ def polygon_stop_contains(x, y):
     return math.hypot(x, y) <= boundary
 
 
+def trace_front_to_iris(origin, direction, wavelength_nm):
+    origin = origin.copy()
+    direction = direction.copy()
+    for index, surface in enumerate(SURFACES[:7]):
+        origin = intersect(origin, direction, surface)
+        if origin is None:
+            return None
+        n_before = 1.0 if index == 0 else refractive_index(SURFACES[index - 1], wavelength_nm)
+        n_after = refractive_index(surface, wavelength_nm)
+        direction = refract(direction, surface_normal(surface, origin), n_before, n_after)
+        if direction is None:
+            return None
+    distance = (IRIS_Z - origin[2]) / direction[2]
+    if distance <= 0.0:
+        return None
+    return origin + direction * distance
+
+
 def trace_reference(u, v, wavelength_nm, source_u, source_v, image_aspect):
     """Trace the 9→8 ghost using independent float64 scalar equations."""
     stop_x, stop_y = u * STOP_RADIUS_MM, v * STOP_RADIUS_MM
@@ -140,6 +158,37 @@ def trace_reference(u, v, wavelength_nm, source_u, source_v, image_aspect):
     origin = origin - backtraced_forward * 0.05
     entrance_origin_point = origin.copy()
     direction = incident.copy()
+    finite_difference_step = 1e-4
+    stop_tolerance = 1e-7
+    entrance_stop_point = None
+    for _ in range(12):
+        entrance_stop_point = trace_front_to_iris(origin, direction, wavelength_nm)
+        if entrance_stop_point is None:
+            return None
+        error = entrance_stop_point[:2] - (stop_x, stop_y)
+        if float(np.linalg.norm(error)) <= stop_tolerance:
+            break
+        hit_x = trace_front_to_iris(origin + (finite_difference_step, 0.0, 0.0),
+                                    direction, wavelength_nm)
+        hit_y = trace_front_to_iris(origin + (0.0, finite_difference_step, 0.0),
+                                    direction, wavelength_nm)
+        if hit_x is None or hit_y is None:
+            return None
+        jacobian = np.column_stack(((hit_x[:2] - entrance_stop_point[:2]) / finite_difference_step,
+                                    (hit_y[:2] - entrance_stop_point[:2]) / finite_difference_step))
+        try:
+            delta = np.linalg.solve(jacobian, error)
+        except np.linalg.LinAlgError:
+            return None
+        if not np.all(np.isfinite(delta)) or float(np.linalg.norm(delta)) > 20.0:
+            return None
+        origin[:2] -= delta
+    entrance_stop_point = trace_front_to_iris(origin, direction, wavelength_nm)
+    if entrance_stop_point is None:
+        return None
+    stop_miss = float(np.linalg.norm(entrance_stop_point[:2] - (stop_x, stop_y)))
+    if stop_miss > stop_tolerance:
+        return None
     previous = origin.copy()
     segment_index = 1.0
     opl = 0.0
@@ -210,7 +259,8 @@ def trace_reference(u, v, wavelength_nm, source_u, source_v, image_aspect):
     sensor_point = origin + direction * ((SENSOR_Z - origin[2]) / direction[2])
     return {"exit_x": exit_point[0], "exit_y": exit_point[1], "exit_z": exit_point[2],
             "dir_x": direction[0], "dir_y": direction[1], "dir_z": direction[2],
-            "exit_opl": exit_opl, "sensor_x": sensor_point[0], "sensor_y": sensor_point[1]}
+            "exit_opl": exit_opl, "sensor_x": sensor_point[0], "sensor_y": sensor_point[1],
+            "backprojected_stop_miss_mm": stop_miss}
 
 
 def load_rows(path: Path, grid: int, wavelength: int):
@@ -291,6 +341,7 @@ def main():
             "sensor_y": "sensor_y_mm"}
         sample.update({f"map_{name}": float(row[map_columns[name]]) for name in fields})
         sample.update({f"ref_{name}": float(reference[name]) for name in fields})
+        sample["backprojected_stop_miss_um"] = reference["backprojected_stop_miss_mm"] * 1000.0
         for name in fields:
             sample[f"error_{name}"] = sample[f"map_{name}"] - sample[f"ref_{name}"]
         measured.append(sample)
@@ -320,6 +371,9 @@ def main():
             unit = "um"
         summary.append((field, float(np.sqrt(np.mean(values * values))),
                         float(np.percentile(np.abs(values), 95.0)), unit))
+    miss = np.array([sample["backprojected_stop_miss_um"] for sample in measured])
+    print(f"re-forwarded stop miss: RMS={np.sqrt(np.mean(miss**2)):.3f} um, "
+          f"p95={np.percentile(miss, 95):.3f} um, max={np.max(miss):.3f} um")
     print(f"float64 reference valid rays={len(measured)}/{sample_count}; "
           f"OPL residual after piston/tilt RMS={np.sqrt(np.mean(residual_um**2)):.5f} um")
     for name, rms, p95, unit in summary:
