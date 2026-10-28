@@ -1650,6 +1650,30 @@ global OPD RMS alone does not establish wavefront convergence.
 
 ![1024² and 2048² ray-mapped pupil amplitudes at 460, 550, and 610 nm](examples/ghost-exit-pupil-amplitude-1024-2048-20261028.png)
 
+To separate ray-map refinement from pupil-raster refinement, the evaluator now
+accepts `--pupil-resolution N`. With the physical pupil held at 1024², the
+512²→1024² and 1024²→2048² ray-map PSF L1 changes are 56.1–66.1% and
+64.1–76.0% across 460/550/610 nm. On the common pupil raster, the corresponding
+piston/tilt-removed OPD residuals are 0.0349–0.0364 µm and 0.0344–0.0357 µm;
+amplitude relative L2 changes are only 0.73–0.79% and 1.81–1.91%, but support
+IoU remains 49.9–52.6% and 33.3–35.5%. The output PSF still changes strongly
+when its pupil raster is fixed, so the earlier large deltas were not solely a
+co-varying FFT/pupil-raster artifact. Sparse and changing support, interpolation,
+and phase sampling remain coupled; this experiment does not identify one cause
+or establish convergence. The row-level results are in
+`examples/ghost-exit-pupil-common-grid-20261028.csv`.
+
+Reproduce the fixed-raster comparison with:
+
+```powershell
+python tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py `
+  --grid 512 --grid 1024 --grid 2048 --pupil-resolution 1024 `
+  --pixel-subsamples 4 `
+  --csv build/tools/LensFlareLab/ghost-exit-pupil-common-grid.csv `
+  --image build/tools/LensFlareLab/ghost-exit-pupil-common-grid.png `
+  --pupil-image build/tools/LensFlareLab/ghost-exit-pupil-common-grid-amplitude.png
+```
+
 The `--crop-radius 128 --wavelengths-nm 550` view shows a broader fringe field;
 on the 512² map it contains about 8.25% of the modeled phase-PSF energy, so it
 is not a full-frame result. The exit-pupil fit and scalar OPL model still omit

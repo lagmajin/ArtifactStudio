@@ -454,6 +454,11 @@ monochromatic scalar diagnostic:
 coating phase, polarization, broadband coherence, and measured-camera response
 are not modeled.
 
+Use `--pupil-resolution N` to hold the regular physical pupil raster fixed while
+comparing different ray-map grids. This isolates changes in ray mapping from
+changes in pupil raster resolution; independent optical-path maps are still
+required for each `--grid` value.
+
 ## Core/app integration path
 
 The current editor effect is still an empirical screen-space implementation.
