@@ -3566,6 +3566,36 @@ for each path/field/coating/sample combination, and writes the CSV and contact
 sheet. Its 61-band values remain a dense numerical reference, not measured
 spectral truth.
 
+### Chromatic ghost-position convergence
+
+Flux convergence does not guarantee that colored ghost components land at the
+same positions. `plot_chromatic_centroid_convergence.py` reads the same dual-
+basis sweep and compares the maximum pairwise RGB centroid separation with the
+61-band result. It reports the absolute error in pixels across the seven
+nonzero-flux path/field cases per coating; two zero-flux cases are excluded.
+
+| Coating | Bands | Median absolute spread error | Maximum absolute spread error |
+|---|---:|---:|---:|
+| Off | 3 | 0.0105 px | 0.0284 px |
+| Off | 7 | 0.0086 px | 0.0561 px |
+| Off | 15 | 0.0024 px | 0.0083 px |
+| Off | 31 | 0.0003 px | 0.0023 px |
+| On | 3 | 0.0138 px | 32.2991 px |
+| On | 7 | 0.0065 px | 10.0318 px |
+| On | 15 | 0.0153 px | 6.4381 px |
+| On | 31 | 0.0036 px | 0.7490 px |
+
+![Median and maximum absolute RGB centroid-spread error against 61-band integration](examples/chromatic-centroid-convergence.png)
+
+The maximum-pairwise-separation metric measures chromatic spread, not each
+channel's signed 2D centroid displacement. The 15-band flux error can be small
+while a weak coated ghost still has a large positional discrepancy, so the
+standalone renderer now defaults to 31 bands. This is a numerical look-dev
+decision from the saved sweep, not a measured lens result; 61 bands remain the
+reference and runtime at 31 bands has not been benchmarked on the current
+source build. Recreate the summary with
+`python tools/LensFlareLab/plot_chromatic_centroid_convergence.py`.
+
 ## Fresnel ghost diffraction distance and finite-source image check
 
 The scalar ghost propagator exposes distance because the mapped irradiance has

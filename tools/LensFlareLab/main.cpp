@@ -142,7 +142,7 @@ struct Settings {
     int rayGrid = 64;
     int sourceSamples = 9;
     bool useWeightedSourceQuantiles = false;
-    int spectralSamples = 15;
+    int spectralSamples = 31;
     bool adaptiveRayRefinementEnabled = false;
     float adaptiveRayRefinementThreshold = 0.75f;
     float adaptiveRayRefinementEnergyThreshold = 0.25f;
@@ -2448,7 +2448,7 @@ void printHelp() {
               << "CLI effect toggles: --ghosts on|off | --diffraction on|off | --ghost-diffraction on|off | --ghost-diffraction-distance-mm N\n"
               << "               --ghost-frft on|off | --ghost-frft-mask polygon|transport | --ghost-frft-normalization vertex|triangle | --ghost-frft-resolution N | --ghost-frft-report\n"
               << "               --adaptive-ray-refinement on|off | --adaptive-ray-refinement-threshold PX | --adaptive-ray-refinement-energy-threshold FRACTION\n"
-              << "               --spectral-samples 3|7|15|31|61 (default 15; 3 is fast preview; dual RGB-basis integration)\n"
+              << "               --spectral-samples 3|7|15|31|61 (default 31; 3 is fast preview; dual RGB-basis integration)\n"
               << "               --diffraction-resampling tent|pixel-area (direct-source PSF; default pixel-area)\n"
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"

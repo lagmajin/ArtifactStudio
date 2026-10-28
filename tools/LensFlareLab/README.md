@@ -152,9 +152,10 @@ PSF radii, RGB-basis cross-channel energy, and negative linear-RGB mass.
 `evaluate_sensor_sampling.py` renders the same point PSF on several raster
 sizes for the fixed 53.96 mm sensor width, records physical encircled radii,
 and cross-checks each PFM against an independent NumPy pupil-FFT accumulator.
-Reflected ghosts and direct-source diffraction use 15 wavelength samples by
-default. `--spectral-samples 3` selects a faster RGB preview; 31 or 61 bands
-provide denser offline color integration at a higher CPU cost.
+Reflected ghosts and direct-source diffraction use 31 wavelength samples by
+default. `--spectral-samples 3` selects a faster RGB preview; 61 bands provide
+a denser offline reference at a higher CPU cost. Fifteen bands are an
+intermediate speed/quality option.
 `--spectral-samples 3|7|15|31|61` selects trapezoidal integration over 430–610 nm
 with a piecewise-linear reconstruction from input RGB for both reflected
 ghosts and direct-source Fraunhofer diffraction. For counts above three, a
@@ -166,8 +167,9 @@ channels, not a CIE standard-observer conversion, measured source spectrum, or
 camera sensitivity model. It can produce small negative linear-RGB values for
 some saturated inputs. Higher counts increase CPU time roughly in proportion
 to the band count; the 3-band mode retains the original RGB wavelengths and
-output. The default 15-band mode reduces coating-related wavelength error while
-remaining below the 31/61-band offline reference cost.
+output. The default 31-band mode reduces both coating-related flux error and
+chromatic ghost-position error relative to 15 bands; the additional render
+cost has not been measured on the current executable.
 `--rasterizer pixel-area` is the default. It clips each mapped ray triangle to
 unit-area sensor pixels and integrates the linearly interpolated ray energy
 inside each overlap. This conserves sampled ray flux when a triangle is smaller
@@ -314,6 +316,8 @@ experimental 90%-coverage ellipse fit to each surface's traced ray footprint.
 spectral sweep into mean and worst-case RGB flux error plots.
 `plot_spectral_case_detail.py` visualizes channel flux and spectral error for
 one selected ghost path, using the multi-path sweep data.
+`plot_chromatic_centroid_convergence.py` summarizes maximum RGB-centroid-spread
+error against 61 wavelength samples for coated and uncoated ghost paths.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
