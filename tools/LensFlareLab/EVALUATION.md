@@ -115,9 +115,14 @@ sparse ghosts and streaks, while `--statistic mean` preserves their energy in
 the fit profile.
 
 The fitter estimates Harvey slope `S`, roll-off `L`, an image-domain scale, and
-a residual background. It cannot infer absolute BSDF `B` from ordinary image
-counts: that requires calibrated source irradiance, sensor responsivity, and
-system throughput. The radial model also cannot represent asymmetric ghosts,
+a residual background. Its `--residual-image` output maps positive spatial
+residuals in red and negative residuals in blue after removing the fitted radial
+profile, with a default range of ±1.5 decades. The console also reports the 95th
+percentile absolute log residual and the fraction of valid pixels differing
+from the radial model by more than 2×. These expose asymmetric flare structure
+that the annular profile hides. It cannot infer absolute BSDF `B` from ordinary
+image counts: that requires calibrated source irradiance, sensor responsivity,
+and system throughput. The radial model also cannot represent asymmetric ghosts,
 streaks, dust, housing scatter, or field-dependent veiling glare; inspect the
 residuals and use a field-by-field measurement set for such cases. Source center,
 pixel pitch, and focal length must be supplied or known. This initial tool reads
@@ -131,6 +136,15 @@ shape fitter against its matching synthetic model; it is not independent
 validation of real lens scatter.
 
 ![Synthetic point-source profile and fitted Harvey curve](examples/harvey-measurement-fit-synthetic.png)
+
+For a saturated-core/ghost-contaminated synthetic measurement, the residual
+map highlights all four injected ghost spots after fitting the radial median
+profile. It reports a 0.676% fraction of valid crop pixels with more than 2×
+absolute deviation; the annular log-RMSE remains low because those spots occupy
+small angular fractions of their rings. This illustrates why the spatial map
+must accompany radial fit metrics.
+
+![Spatial residual heatmap revealing sparse synthetic ghost spots](examples/harvey-measurement-spatial-residual-synthetic.png)
 
 To reproduce, first run `evaluate_harvey_scatter_reference.py` or generate a
 linear PFM measurement, then call:

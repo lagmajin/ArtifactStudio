@@ -278,8 +278,10 @@ lens and are a sensitivity comparison, not Angenieux calibration.
 `fit_harvey_measurement.py` fits the radial scatter shape of a dark-subtracted
 linear RGB PFM point-source capture. It estimates slope S, roll-off angle L,
 and image-domain scale; it does not report absolute BSDF B without radiometric
-calibration. See [EVALUATION.md](EVALUATION.md) for the capture conversion and
-fit limitations. `evaluate_harvey_fit_robustness.py` stress-checks the fit with
+calibration. Alongside the radial fit, it writes a spatial residual heatmap to
+show asymmetric ghosts and streaks hidden by the radial reduction. See
+[EVALUATION.md](EVALUATION.md) for the capture conversion and fit limitations.
+`evaluate_harvey_fit_robustness.py` stress-checks the fit with
 a saturated source core, sparse ghost spots, a residual dark offset, and median
 versus mean annular statistics.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with

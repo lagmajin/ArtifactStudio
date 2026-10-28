@@ -140,6 +140,41 @@ def save_profile_chart(path, radius_px, measured, fitted, valid, fit):
     image.save(path)
 
 
+def save_spatial_residual(path, luminance, center_x, center_y, core_radius,
+                          max_radius, fitted_profile, fit):
+    height, width = luminance.shape
+    yy, xx = np.mgrid[:height, :width]
+    radius = np.hypot(xx - center_x, yy - center_y)
+    radius_bin = np.floor(radius + .5).astype(np.int32)
+    expected = fitted_profile[np.clip(radius_bin, 0, len(fitted_profile) - 1)]
+    floor = max(float(np.max(luminance)) * 1e-9, fit["scale"] * 1e-8,
+                np.finfo(float).tiny)
+    residual = np.log10(np.maximum(luminance, floor) /
+                        np.maximum(expected, floor))
+    valid = (radius > core_radius) & (radius <= max_radius)
+    shown = np.clip(residual / 1.5, -1.0, 1.0)
+    rgb = np.zeros((height, width, 3), dtype=np.uint8)
+    positive = np.maximum(shown, 0.0)
+    negative = np.maximum(-shown, 0.0)
+    rgb[:, :, 0] = (45 + 210 * positive).astype(np.uint8)
+    rgb[:, :, 1] = (45 + 5 * (1.0 - np.abs(shown))).astype(np.uint8)
+    rgb[:, :, 2] = (45 + 210 * negative).astype(np.uint8)
+    rgb[~valid] = (31, 34, 40)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    residual_image = Image.fromarray(rgb)
+    canvas = Image.new("RGB", (width, height + 34), (18, 21, 26))
+    canvas.paste(residual_image, (0, 34))
+    draw = ImageDraw.Draw(canvas)
+    draw.text((8, 10),
+        "log10(measured / radial fit): red = excess, blue = deficit, ±1.5 decades",
+        fill=(235, 238, 244))
+    canvas.save(path)
+    abs_residual = np.abs(residual[valid])
+    factor_two = math.log10(2.0)
+    return {"q95_abs_log": float(np.quantile(abs_residual, .95)),
+            "fraction_factor_two": float(np.mean(abs_residual > factor_two))}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("measurement", type=Path, help="dark-subtracted linear RGB PFM")
@@ -155,6 +190,8 @@ def main():
     parser.add_argument("--initial-slope", type=float, default=-1.86)
     parser.add_argument("--csv", type=Path, default=Path("build/LensFlareLab/harvey-measurement-fit.csv"))
     parser.add_argument("--image", type=Path, default=Path("build/LensFlareLab/harvey-measurement-fit.png"))
+    parser.add_argument("--residual-image", type=Path, default=Path(
+        "build/LensFlareLab/harvey-measurement-spatial-residual.png"))
     args = parser.parse_args()
     if args.pixel_pitch_um <= 0 or args.focal_length_mm <= 0 or args.core_radius_px < 0:
         parser.error("pixel pitch and focal length must be positive; core radius must be nonnegative")
@@ -195,10 +232,14 @@ def main():
                 f"{residual:.9g}" if math.isfinite(residual) else "",
                 int(positive[index])))
     save_profile_chart(args.image, radii, values, fit["predicted"], positive, fit)
+    residual_metrics = save_spatial_residual(args.residual_image, luminance,
+        center_x, center_y, args.core_radius_px, max_radius, fit["predicted"], fit)
     print(f"fit_success={fit['success']} S={fit['slope']:.6g} "
           f"L={fit['l_mrad']:.6g} mrad image_scale={fit['scale']:.6g} "
           f"offset={fit['offset']:.6g} log_RMSE={fit['rmse_log']:.6g} "
-          f"R2_log={fit['r2_log']:.6g} annuli={positive.sum()}")
+          f"R2_log={fit['r2_log']:.6g} annuli={positive.sum()} "
+          f"spatial_q95_abs_log={residual_metrics['q95_abs_log']:.6g} "
+          f"spatial_fraction_gt_2x={residual_metrics['fraction_factor_two']:.4%}")
     print("B/B0 are not reported as physical BSDF coefficients: absolute calibration "
           "of source irradiance, sensor response, and system throughput is required.")
 
