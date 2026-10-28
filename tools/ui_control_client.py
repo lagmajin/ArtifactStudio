@@ -11,19 +11,24 @@ LSP style framing (``Content-Length: <n>\\r\\n\\r\\n<body>``).
 
 Examples
 --------
-    python tools/ui_control_client.py --port 7801 list
+    python tools/ui_control_client.py --port 7801 list --filter layer
     python tools/ui_control_client.py --port 7801 click --target layerListWidget
+    python tools/ui_control_client.py --port 7801 click --target layerListWidget --modifiers Shift
     python tools/ui_control_client.py --port 7801 drag --from-x 120 --from-y 300 --to-x 420 --to-y 300
     python tools/ui_control_client.py --port 7801 key --sequence Ctrl+Z
+    python tools/ui_control_client.py --port 7801 type "Rename"
+    python tools/ui_control_client.py --port 7801 screenshot --output shot.png
     python tools/ui_control_client.py --port 7801 call ui.mouseWheel --arguments '{"deltaY": -120}'
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import socket
 import sys
+from pathlib import Path
 from typing import Any, Optional
 
 DEFAULT_HOST = "127.0.0.1"
@@ -139,7 +144,16 @@ def _drag_arguments(args: argparse.Namespace) -> dict[str, Any]:
     }
     if args.target:
         arguments["target"] = args.target
+    if args.modifiers:
+        arguments["modifiers"] = args.modifiers
     return arguments
+
+
+def _add_point_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--target")
+    parser.add_argument("--x", type=int)
+    parser.add_argument("--y", type=int)
+    parser.add_argument("--modifiers", help='key modifiers, e.g. "Ctrl+Shift"')
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -149,18 +163,20 @@ def _build_parser() -> argparse.ArgumentParser:
 
     commands = parser.add_subparsers(dest="command", required=True)
 
-    commands.add_parser("list", help="list visible named widgets")
+    listing = commands.add_parser("list", help="list visible named widgets")
+    listing.add_argument("--filter", default="", help="case-insensitive objectName substring")
+    listing.add_argument("--limit", type=int, default=500)
+
+    actions = commands.add_parser("actions", help="list items of open menus")
+    actions.add_argument("--menu", default="", help="menu objectName or title substring")
 
     click = commands.add_parser("click", help="press and release a mouse button")
-    click.add_argument("--target")
-    click.add_argument("--x", type=int)
-    click.add_argument("--y", type=int)
+    _add_point_arguments(click)
     click.add_argument("--button", default="left", choices=["left", "right", "middle"])
+    click.add_argument("--count", type=int, default=1, choices=[1, 2], help="2 sends a double click")
 
     move = commands.add_parser("move", help="move the virtual pointer")
-    move.add_argument("--target")
-    move.add_argument("--x", type=int)
-    move.add_argument("--y", type=int)
+    _add_point_arguments(move)
 
     drag = commands.add_parser("drag", help="drag with a held button")
     drag.add_argument("--target", help="coordinates become widget local when set")
@@ -170,12 +186,11 @@ def _build_parser() -> argparse.ArgumentParser:
     drag.add_argument("--to-y", type=int, required=True)
     drag.add_argument("--steps", type=int, default=8)
     drag.add_argument("--button", default="left", choices=["left", "right", "middle"])
+    drag.add_argument("--modifiers", help='key modifiers, e.g. "Shift"')
 
     button = commands.add_parser("button", help="press or release and hold")
     button.add_argument("action", choices=["press", "release"])
-    button.add_argument("--target")
-    button.add_argument("--x", type=int)
-    button.add_argument("--y", type=int)
+    _add_point_arguments(button)
     button.add_argument("--button", default="left", choices=["left", "right", "middle"])
 
     key = commands.add_parser("key", help="send a key press and release")
@@ -183,12 +198,20 @@ def _build_parser() -> argparse.ArgumentParser:
     key.add_argument("--target")
     key.add_argument("--text", default="")
 
+    type_text = commands.add_parser("type", help="type text into the focused or named widget")
+    type_text.add_argument("text")
+    type_text.add_argument("--target")
+    type_text.add_argument("--modifiers")
+
     wheel = commands.add_parser("wheel", help="send a wheel event")
     wheel.add_argument("--delta-y", type=int, default=120)
     wheel.add_argument("--delta-x", type=int, default=0)
-    wheel.add_argument("--target")
-    wheel.add_argument("--x", type=int)
-    wheel.add_argument("--y", type=int)
+    _add_point_arguments(wheel)
+
+    shot = commands.add_parser("screenshot", help="capture a PNG of the window or a widget")
+    shot.add_argument("--output", required=True, help="PNG path to write")
+    shot.add_argument("--target")
+    shot.add_argument("--native", action="store_true", help="capture what is on screen")
 
     call = commands.add_parser("call", help="call a tool directly")
     call.add_argument("tool")
@@ -197,13 +220,34 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _write_screenshot(result: dict[str, Any], output: str) -> int:
+    encoded = result.get("imageBase64")
+    if not encoded:
+        sys.stderr.write("control endpoint returned no image data\n")
+        return 1
+    path = Path(output)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(base64.b64decode(encoded))
+    sys.stdout.write(
+        f"{path} {result.get('width')}x{result.get('height')} "
+        f"{result.get('byteCount')} bytes\n"
+    )
+    return 0
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
     with UiControlClient(args.port, args.host) as client:
         if args.command == "list":
-            return _print_result(client.call("ui.listWidgets"))
+            arguments = {"limit": args.limit}
+            if args.filter:
+                arguments["nameFilter"] = args.filter
+            return _print_result(client.call("ui.listWidgets", arguments))
+        if args.command == "actions":
+            arguments = {"menu": args.menu} if args.menu else {}
+            return _print_result(client.call("ui.listActions", arguments))
         if args.command == "move":
             return _print_result(
                 client.call("ui.mouseMove", _point_arguments(args))
@@ -211,6 +255,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         if args.command == "click":
             arguments = _point_arguments(args)
             arguments["button"] = args.button
+            arguments["count"] = args.count
             return _print_result(client.call("ui.mouseClick", arguments))
         if args.command == "drag":
             return _print_result(client.call("ui.mouseDrag", _drag_arguments(args)))
@@ -224,11 +269,26 @@ def main(argv: Optional[list[str]] = None) -> int:
             if args.target:
                 arguments["target"] = args.target
             return _print_result(client.call("ui.keyPress", arguments))
+        if args.command == "type":
+            arguments = {"text": args.text}
+            if args.target:
+                arguments["target"] = args.target
+            if args.modifiers:
+                arguments["modifiers"] = args.modifiers
+            return _print_result(client.call("ui.typeText", arguments))
         if args.command == "wheel":
             arguments = _point_arguments(args)
             arguments["deltaY"] = args.delta_y
             arguments["deltaX"] = args.delta_x
             return _print_result(client.call("ui.mouseWheel", arguments))
+        if args.command == "screenshot":
+            arguments = {"native": args.native}
+            if args.target:
+                arguments["target"] = args.target
+            result = client.call("ui.screenshot", arguments)
+            if result.get("isError"):
+                return _print_result(result)
+            return _write_screenshot(result.get("structuredContent", {}), args.output)
         if args.command == "call":
             return _print_result(
                 client.call(args.tool, json.loads(args.arguments))
@@ -245,6 +305,8 @@ def _point_arguments(args: argparse.Namespace) -> dict[str, Any]:
         arguments["x"] = args.x
     if args.y is not None:
         arguments["y"] = args.y
+    if args.modifiers:
+        arguments["modifiers"] = args.modifiers
     return arguments
 
 
