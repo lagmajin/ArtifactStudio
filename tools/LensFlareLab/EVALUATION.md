@@ -32,21 +32,69 @@ The independent float64 reference was updated to use the same shooting
 constraint and compared with a newly generated 64x64 map at 550 nm and field
 `(0.52, 0.498)`. The solved stop residual was below 0.0001 µm in the reference;
 exit-position RMS was 0.286/0.273 µm (x/y), direction RMS was 7.04/6.70 ppm,
-and OPL residual RMS after piston/tilt removal was 0.0422 µm. This verifies
+and OPL residual RMS after piston/tilt removal was 0.0401 µm. This verifies
 implementation agreement for sampled rays, not image-space physical calibration.
+
+### All-path image and ray-grid convergence
+
+The corrected sampler was also evaluated across all 42 eligible Angenieux paths
+for a synthetic off-axis source at `(0.15,0.15)`. The 640x360 source-only image
+was rendered with 3 wavelength bands, one source sample, geometric ghosts, and
+FrFT disabled to isolate ray-mapped ghost coverage. At 64²/96²/128²/192² ray
+grids, wall time was 4.4/9.3/16.0/37.9 s on this workstation. Against 192²,
+flare-only RGB L1 was 5.23%/5.75%/3.21%; the 96² result was worse than 64²,
+showing non-monotonic sampling error at coarse grids. From 128² to 192², total
+flare luminance changed +2.00%, centroid moved 0.32 px, and RGB L1 was 2.69%
+in the comparison crop. The major ghost outlines are stable, but the 192² image
+still has visible polygon edges because this is geometric-only output without
+diffraction. Treat 192² as a useful comparison reference, not a converged or
+calibrated production image.
+
+![All-path off-axis geometric ghost comparison at 128² and 192² ray grids](examples/ghost-fixed-direction-allpaths-grid-128-vs-192.png)
+
+### Wideband FrFT after fixed-direction correction
+
+For the same isolated `(0.15,0.15)` 16:9 source and 9→8 path, 192² pupil
+samples, and 31 wavelength bands, aperture FrFT changed the geometric frame
+luminance from 0.35675 to 0.32034 (-10.20%), with 45.99% flare-only RGB L1, a
+74% increase in peak luminance, and an 11.13 px centroid shift. Its precompute
+took 8.61 s and the total render took 19.4 s on this workstation, versus 10.35 s
+for geometric projection. The image adds smooth chromatic structure inside the
+polygon footprint, but the position and energy change are large enough that the
+FrFT remains an evaluation path rather than a calibrated camera response.
+
+Using the exact same ray maps, triangle versus vertex normalization changed the
+FrFT frame by only 1.15% RGB L1, changed luminance by +1.15%, and moved the
+centroid by 0.0001 px. This indicates that, for this case, normalization choice
+is not the main source of the large geometric-versus-FrFT difference.
+
+![Geometric projection and aperture FrFT for the corrected 9→8 ghost](examples/ghost-frft-fixed-direction-edge-192.png)
+
+![Triangle and vertex normalization comparison using identical corrected ray maps](examples/ghost-frft-normalization-fixed-rays-192.png)
 
 ## Independent float64 ghost-ray reference
 
 `validate_ghost_raytrace_reference.py` independently traces the bundled
 Angenieux prescription in scalar NumPy float64 and compares exit-pupil position,
-direction, OPL, and sensor intercept against an optical-path-map CSV. The source
-field must match the map generation arguments. At 550 nm, a 64x64 map generated
-for source `(0.52, 0.498)` was checked at 32 valid pupil samples: exit-position
-RMS was 0.239/0.259 µm (x/y), direction RMS was 5.96/6.44 ppm, OPL RMS was
-0.0853 µm, and sensor-intercept RMS was 0.570/0.617 µm. After removing piston
-and tilt, the OPL residual RMS was 0.0254 µm. This cross-check supports the
-existing trace arithmetic, while sharing the same published prescription and
-path definition; it is not an independent measurement of the physical lens.
+direction, OPL, and sensor intercept against an optical-path-map CSV. Source U/V
+and input-image aspect are required arguments because the map does not embed
+those settings; the aspect ratio must match the image used to generate it. For
+a 64x64 square source map at `(0.52, 0.498)`, 64 sampled rays at 550 nm produced
+exit-position RMS 0.286/0.273 µm (x/y), direction RMS 7.04/6.70 ppm, raw OPL RMS
+0.103 µm, and OPL residual RMS 0.0401 µm after removing piston and tilt. The
+reference Newton solve residual was below 0.0001 µm. A 16:9 map must be
+validated with `--image-aspect 1.7777778`; omitting or mismatching this value
+changes the reconstructed source direction and invalidates the comparison.
+
+A broader comparison sampled 128 rays at each of 460/550/610 nm for three
+fields: center `(0.5,0.5)` with a square input; Fig. 10 source A `(0.246,0.356)`
+with 640x360 input; and off-axis `(0.15,0.15)` with a 640x360 input. Across
+these 9 field/wavelength combinations, exit-position RMS stayed below 0.28 µm
+per axis, direction RMS below 7.1 ppm per component, sensor-intercept RMS below
+0.68 µm per axis, and piston/tilt-removed OPL residual RMS below 0.05 µm. The
+edge field was generated as an isolated synthetic source so the ray-map and
+source-detection conditions were controlled. These cross-checks verify sampled
+trace agreement, not image-space physical calibration or measured lens behavior.
 
 ## Prescription surface-scatter pupil-cone study
 

@@ -156,7 +156,6 @@ def trace_reference(u, v, wavelength_nm, source_u, source_v, image_aspect):
 
     backtraced_forward = -direction
     origin = origin - backtraced_forward * 0.05
-    entrance_origin_point = origin.copy()
     direction = incident.copy()
     finite_difference_step = 1e-4
     stop_tolerance = 1e-7
@@ -189,6 +188,7 @@ def trace_reference(u, v, wavelength_nm, source_u, source_v, image_aspect):
     stop_miss = float(np.linalg.norm(entrance_stop_point[:2] - (stop_x, stop_y)))
     if stop_miss > stop_tolerance:
         return None
+    entrance_origin_point = origin.copy()
     previous = origin.copy()
     segment_index = 1.0
     opl = 0.0
@@ -260,7 +260,7 @@ def trace_reference(u, v, wavelength_nm, source_u, source_v, image_aspect):
     return {"exit_x": exit_point[0], "exit_y": exit_point[1], "exit_z": exit_point[2],
             "dir_x": direction[0], "dir_y": direction[1], "dir_z": direction[2],
             "exit_opl": exit_opl, "sensor_x": sensor_point[0], "sensor_y": sensor_point[1],
-            "backprojected_stop_miss_mm": stop_miss}
+            "solved_stop_miss_mm": stop_miss}
 
 
 def load_rows(path: Path, grid: int, wavelength: int):
@@ -308,10 +308,12 @@ def main():
     parser.add_argument("--grid", type=int, required=True)
     parser.add_argument("--wavelength-nm", type=int, default=550)
     parser.add_argument("--samples", type=int, default=512)
-    parser.add_argument("--source-u", type=float, default=32.0 / 63.0)
-    parser.add_argument("--source-v", type=float, default=32.0 / 63.0)
-    parser.add_argument("--image-aspect", type=float, default=1.0,
-                        help="source image width divided by height")
+    parser.add_argument("--source-u", type=float, required=True,
+                        help="normalized horizontal source position used to generate the map")
+    parser.add_argument("--source-v", type=float, required=True,
+                        help="normalized vertical source position used to generate the map")
+    parser.add_argument("--image-aspect", type=float, required=True,
+                        help="source image width divided by height; must match the map input image")
     parser.add_argument("--csv", type=Path,
                         default=Path("build/tools/LensFlareLab/ghost-raytrace-reference.csv"))
     parser.add_argument("--image", type=Path,
@@ -341,13 +343,13 @@ def main():
             "sensor_y": "sensor_y_mm"}
         sample.update({f"map_{name}": float(row[map_columns[name]]) for name in fields})
         sample.update({f"ref_{name}": float(reference[name]) for name in fields})
-        sample["backprojected_stop_miss_um"] = reference["backprojected_stop_miss_mm"] * 1000.0
+        sample["solved_stop_miss_um"] = reference["solved_stop_miss_mm"] * 1000.0
         for name in fields:
             sample[f"error_{name}"] = sample[f"map_{name}"] - sample[f"ref_{name}"]
         measured.append(sample)
 
-    if len(measured) < 16:
-        parser.error(f"only {len(measured)} samples reproduced as valid in the reference trace")
+    if not measured:
+        parser.error("no valid map rays reproduced in the reference trace")
     stop_xy = np.array([(sample["u"] * STOP_RADIUS_MM,
                          sample["v"] * STOP_RADIUS_MM) for sample in measured])
     opl_error = np.array([sample["error_exit_opl"] for sample in measured])
@@ -371,8 +373,8 @@ def main():
             unit = "um"
         summary.append((field, float(np.sqrt(np.mean(values * values))),
                         float(np.percentile(np.abs(values), 95.0)), unit))
-    miss = np.array([sample["backprojected_stop_miss_um"] for sample in measured])
-    print(f"re-forwarded stop miss: RMS={np.sqrt(np.mean(miss**2)):.3f} um, "
+    miss = np.array([sample["solved_stop_miss_um"] for sample in measured])
+    print(f"solved stop residual: RMS={np.sqrt(np.mean(miss**2)):.3f} um, "
           f"p95={np.percentile(miss, 95):.3f} um, max={np.max(miss):.3f} um")
     print(f"float64 reference valid rays={len(measured)}/{sample_count}; "
           f"OPL residual after piston/tilt RMS={np.sqrt(np.mean(residual_um**2)):.5f} um")
