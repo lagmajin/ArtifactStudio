@@ -163,6 +163,38 @@ accuracy.
 Individual spatial-residual maps are also written for each channel. The
 synthetic radial-only input leaves them near the residual floor, as expected.
 
+### Chromatic fit under synthetic noise and colored ghosts
+
+`evaluate_harvey_chromatic_robustness.py` starts from those same three
+pixel-integrated profiles, saturates a 20 px source core, injects four sparse
+colored Gaussian spots, adds fixed-seed Poisson/read noise (with an explicitly
+chosen 1e8 photon-count scale and 3-count read-noise sigma), and adds a small
+residual dark offset. It then fits each channel with the annular median and
+writes signed residual maps per channel plus a three-panel image. The right
+panel shows residual magnitude by channel, while the individual maps encode
+excess in red and deficit in blue.
+
+| Channel | Clean fit S / L (mrad) | Stressed fit S / L (mrad) | Stressed shift vs clean, S / L |
+|---|---:|---:|---:|
+| Red | -1.8471 / 2.9024 | -1.8252 / 2.8690 | +1.19% / -1.15% |
+| Green | -1.9201 / 2.1286 | -1.9019 / 2.1015 | +0.95% / -1.27% |
+| Blue | -2.0754 / 1.5310 | -2.0607 / 1.5088 | +0.71% / -1.45% |
+
+The RGB ordering remained consistent and the largest parameter movement was
+1.45% in L relative to the clean fit. In this single deterministic case, the
+stressed estimates also happen to be closer to the input values because the
+clean model's fit bias and contamination partly cancel. Do not read that as
+contamination improving the estimator. The noise scale is illustrative rather
+than camera-calibrated; this is a method stress case, not a sensor-performance
+claim.
+
+![Clean, noisy ghost-contaminated, and RGB residual magnitude images](examples/harvey-chromatic-robustness.png)
+
+Per-channel signed residual maps and exact fit metrics are in
+`examples/harvey-chromatic-robustness-residuals/` and
+[`harvey-chromatic-robustness.csv`](examples/harvey-chromatic-robustness.csv).
+Reproduce with `python tools/LensFlareLab/evaluate_harvey_chromatic_robustness.py`.
+
 A synthetic closed-loop check generated a 512² pixel-integrated Harvey image
 with `S=-1.86`, `L=2.04 mrad`, 5.5 µm pixels and a 100 mm focal length. Fitting
 annuli 12–240 px recovered `S=-1.9155`, `L=2.1073 mrad` (3.0% and 3.3% relative

@@ -289,6 +289,9 @@ a saturated source core, sparse ghost spots, a residual dark offset, and median
 versus mean annular statistics.
 `evaluate_harvey_chromatic_fit.py` writes a synthetic color-dependent Harvey
 capture and truth table for exercising the per-channel measurement workflow.
+`evaluate_harvey_chromatic_robustness.py` evaluates how fixed-seed synthetic
+noise, a saturated source core, and sparse colored ghost spots affect those
+fits, with channel-specific residual maps and a comparison plate.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
