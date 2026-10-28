@@ -135,15 +135,28 @@ L=2.04 mrad reference (`0.454551%`).
 The color image is false-color: each band is peak-normalized to show shape,
 while panel labels give the unnormalized crop fractions. The paired radial
 profile chart makes the modest wavelength-dependent width differences easier
-to inspect; profiles are normalized to the first non-zero annulus. Per-surface radii and contributions
-are in [`prescription-spectral-surface-scatter.csv`](examples/prescription-spectral-surface-scatter.csv).
+to inspect; profiles are normalized to the first non-zero annulus. Per-surface
+radii and contributions are in
+[`prescription-spectral-surface-scatter.csv`](examples/prescription-spectral-surface-scatter.csv).
 They use f/22, 80% post-scatter transmission, generic Double-Gauss coefficients,
 and the r90 beam-radius proxy. Measured per-surface BSDF/TIS, coatings, source
 spectrum, sensor color response, post-scatter ray clipping, and housing scatter
 remain outside this model. The wavelength-scaling rule itself is an approximate
 limited-band law; see the references in the [Harvey wavelength-scaling study](#limited-band-harvey-wavelength-scaling).
 
-Reproduce with `python tools/LensFlareLab/evaluate_prescription_spectral_surface_scatter.py --grid 64`.
+The per-surface contribution plot shows how evenly this parameterization
+distributes the crop scatter: no surface contributes more than 8.6% or less
+than 5.5%, and the five largest surfaces account for about 40.0–40.5% from 0°
+through 10° and 40.9–41.4% at 12°. This is close to an even 14-surface split;
+the plot does not identify a reliable coating-priority surface. That outcome
+is expected here because every surface shares one generic BSDF while cone size
+is represented by traced r90. Per-surface measured BSDF/TIS is needed before
+the contribution ranking can guide lens redesign.
+
+![Relative crop scatter contribution by prescription surface and wavelength](examples/prescription-surface-scatter-contributions.png)
+
+Reproduce the figures and CSV with
+`python tools/LensFlareLab/evaluate_prescription_spectral_surface_scatter.py --grid 64`.
 Pass `--pfm-dir <directory>` to also write one linear RGB PFM per field.
 
 ### Fitting a measured linear point-source capture

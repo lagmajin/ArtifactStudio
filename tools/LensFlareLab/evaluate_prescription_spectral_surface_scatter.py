@@ -150,6 +150,60 @@ def make_profile_plate(path, cases, bands, pixel_pitch_um,
     canvas.save(path)
 
 
+def make_contribution_plate(path, cases, bands):
+    panel_w, panel_h, header = 500, 390, 32
+    canvas = Image.new("RGB", (2 * panel_w, 2 * (panel_h + header)),
+                       (18, 21, 26))
+    draw = ImageDraw.Draw(canvas)
+    left, right, top, bottom = 54, panel_w - 16, 42, panel_h - 42
+    colors = ((255, 110, 104), (111, 223, 160), (110, 174, 255))
+    surface_count = len(next(iter(bands.values()))["surface_images"])
+    for case_index, case in enumerate(cases):
+        field = case["field_deg"]
+        x0 = (case_index % 2) * panel_w
+        y0 = (case_index // 2) * (panel_h + header)
+        per_band = {}
+        for name, _ in RGB_BANDS:
+            result = bands[(field, name)]
+            fractions = np.asarray([float(image.sum()) for image in result["surface_images"]])
+            per_band[name] = 100.0 * fractions / max(float(fractions.sum()), 1e-300)
+        top5 = [float(np.sort(per_band[name])[-5:].sum()) for name, _ in RGB_BANDS]
+        draw.text((x0 + 8, y0 + 7),
+            f"{field:g}° field  top-5 R/G/B=" + "/".join(f"{value:.1f}%" for value in top5),
+            fill=(235, 238, 244))
+        plot = (x0 + left, y0 + top, x0 + right, y0 + bottom)
+        draw.rectangle(plot, outline=(80, 88, 100))
+        for tick in (0, 5, 10):
+            y = plot[3] - int(tick / 10 * (plot[3] - plot[1]))
+            draw.line((plot[0], y, plot[2], y), fill=(43, 48, 57))
+            draw.text((x0 + 14, y - 6), f"{tick}%", fill=(150, 158, 170))
+        baseline = 100.0 / surface_count
+        y = plot[3] - int(baseline / 10 * (plot[3] - plot[1]))
+        for x in range(plot[0], plot[2], 10):
+            draw.line((x, y, min(x + 5, plot[2]), y), fill=(105, 111, 122))
+        for band_index, (name, _) in enumerate(RGB_BANDS):
+            points = []
+            for surface, share in enumerate(per_band[name]):
+                x = plot[0] + int(surface / max(surface_count - 1, 1) *
+                                  (plot[2] - plot[0]))
+                y = plot[3] - int(share / 10 * (plot[3] - plot[1]))
+                points.append((x, y))
+            if len(points) > 1:
+                draw.line(points, fill=colors[band_index], width=2)
+            lx = plot[0] + 10 + band_index * 86
+            draw.text((lx, plot[1] + 5), name, fill=colors[band_index])
+        for surface in range(surface_count):
+            x = plot[0] + int(surface / max(surface_count - 1, 1) *
+                              (plot[2] - plot[0]))
+            if surface in (0, surface_count - 1) or surface % 2 == 0:
+                draw.text((x - 3, plot[3] + 4), str(surface),
+                          fill=(150, 158, 170))
+        draw.text((plot[0], y0 + panel_h - 14), "surface index",
+                  fill=(200, 207, 218))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(path)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fields", type=float, nargs="+", default=[0, 5, 10, 12])
@@ -170,6 +224,8 @@ def main():
         "tools/LensFlareLab/examples/prescription-spectral-surface-scatter.png"))
     parser.add_argument("--profile-image", type=Path, default=Path(
         "tools/LensFlareLab/examples/prescription-spectral-surface-scatter-profile.png"))
+    parser.add_argument("--contribution-image", type=Path, default=Path(
+        "tools/LensFlareLab/examples/prescription-surface-scatter-contributions.png"))
     parser.add_argument("--pfm-dir", type=Path,
                         help="optional directory for one linear RGB PFM per field")
     args = parser.parse_args()
@@ -247,7 +303,10 @@ def main():
                        [{"field_deg": field} for field in args.fields],
                        bands, args.pixel_pitch_um, args.scatter_width,
                        args.scatter_height)
-    print(f"wrote {args.csv}, {args.image}, and {args.profile_image}; "
+    make_contribution_plate(args.contribution_image,
+                            [{"field_deg": field} for field in args.fields], bands)
+    print(f"wrote {args.csv}, {args.image}, {args.profile_image}, "
+          f"and {args.contribution_image}; "
           "spectral display uses log compression")
     print("RGB mapping is illustrative; input spectrum, sensor response, measured per-surface BSDF, "
           "post-scatter clipping, and housing scatter are not calibrated/modelled.")

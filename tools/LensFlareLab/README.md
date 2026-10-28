@@ -299,8 +299,9 @@ spectrum and sensor color response are not calibrated.
 `evaluate_prescription_spectral_surface_scatter.py` re-traces the Angenieux
 prescription at representative RGB wavelengths, applies wavelength-scaled
 Harvey parameters per surface, and evaluates Peterson Eq. 8 using each band's
-own r90 pupil-cone radii. Its color visualization and physical limits are
-documented in [EVALUATION.md](EVALUATION.md).
+own r90 pupil-cone radii. It also plots each surface's share of sensor-crop
+scatter to expose whether the generic model predicts a dominant surface. Its
+visualizations and physical limits are documented in [EVALUATION.md](EVALUATION.md).
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
