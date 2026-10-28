@@ -1650,6 +1650,39 @@ global OPD RMS alone does not establish wavefront convergence.
 
 ![1024² and 2048² ray-mapped pupil amplitudes at 460, 550, and 610 nm](examples/ghost-exit-pupil-amplitude-1024-2048-20261028.png)
 
+The controlled pupil-field ablation at 550 nm confirms that both support and
+OPD sampling matter. At 512²→1024², native-support PSF L1 is 77.34%; restricting
+both maps to their shared support lowers it to 47.98%. Giving both maps the
+same amplitude while retaining each OPD leaves 47.98%, while sharing OPD and
+retaining each amplitude lowers it to 0.72%. At 1024²→2048² the corresponding
+values are 64.20%, 25.76%, 25.47%, and 0.84%. Thus support mismatch accounts
+for a substantial part of the native-map difference, and the remaining
+shared-support difference is dominated by OPD, not amplitude, in this ablation.
+This diagnoses sampling/interpolation sensitivity in the mapped wavefront; it
+does not show that either map is the physically correct wavefront. L1 compares
+PSFs normalized within the modeled ±32-pixel crop (2×2 detector subpixels), so
+it is a crop-shape metric rather than total sensor energy error.
+
+![550 nm controlled ghost-pupil PSF ablations for 1024² and 2048² ray maps](examples/ghost-pupil-ablation-1024-2048-20261028.png)
+
+![550 nm controlled ghost-pupil PSF ablations for 512² and 1024² ray maps](examples/ghost-pupil-ablation-512-1024-20261028.png)
+
+Reproduce these plates with:
+
+```powershell
+python tools/LensFlareLab/compare_ghost_pupil_ablation.py `
+  --low-grid 512 --high-grid 1024 --pupil-resolution 512 `
+  --wavelength-nm 550 --pixel-subsamples 2 `
+  --csv build/tools/LensFlareLab/ghost-pupil-ablation-512-1024.csv `
+  --image build/tools/LensFlareLab/ghost-pupil-ablation-512-1024.png
+
+python tools/LensFlareLab/compare_ghost_pupil_ablation.py `
+  --low-grid 1024 --high-grid 2048 --pupil-resolution 1024 `
+  --wavelength-nm 550 --pixel-subsamples 2 `
+  --csv build/tools/LensFlareLab/ghost-pupil-ablation-1024-2048.csv `
+  --image build/tools/LensFlareLab/ghost-pupil-ablation-1024-2048.png
+```
+
 To separate ray-map refinement from pupil-raster refinement, the evaluator now
 accepts `--pupil-resolution N`. With the physical pupil held at 1024², the
 512²→1024² and 1024²→2048² ray-map PSF L1 changes are 56.1–66.1% and
