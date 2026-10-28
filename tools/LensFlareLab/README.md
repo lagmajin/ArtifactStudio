@@ -152,8 +152,10 @@ PSF radii, RGB-basis cross-channel energy, and negative linear-RGB mass.
 `evaluate_sensor_sampling.py` renders the same point PSF on several raster
 sizes for the fixed 53.96 mm sensor width, records physical encircled radii,
 and cross-checks each PFM against an independent NumPy pupil-FFT accumulator.
-Reflected ghosts use the original three wavelength samples by default.
-`--spectral-samples 7|15|31|61` selects trapezoidal integration over 430–610 nm
+Reflected ghosts and direct-source diffraction use 15 wavelength samples by
+default. `--spectral-samples 3` selects a faster RGB preview; 31 or 61 bands
+provide denser offline color integration at a higher CPU cost.
+`--spectral-samples 3|7|15|31|61` selects trapezoidal integration over 430–610 nm
 with a piecewise-linear reconstruction from input RGB for both reflected
 ghosts and direct-source Fraunhofer diffraction. For counts above three, a
 dual basis maps the sampled spectrum back to RGB so a wavelength-independent
@@ -163,8 +165,9 @@ bands at 3 nm spacing). This is an algebraic reconstruction from three RGB
 channels, not a CIE standard-observer conversion, measured source spectrum, or
 camera sensitivity model. It can produce small negative linear-RGB values for
 some saturated inputs. Higher counts increase CPU time roughly in proportion
-to the band count; the default 3-band mode retains the original RGB wavelengths
-and output.
+to the band count; the 3-band mode retains the original RGB wavelengths and
+output. The default 15-band mode reduces coating-related wavelength error while
+remaining below the 31/61-band offline reference cost.
 `--rasterizer pixel-area` is the default. It clips each mapped ray triangle to
 unit-area sensor pixels and integrates the linearly interpolated ray energy
 inside each overlap. This conserves sampled ray flux when a triangle is smaller

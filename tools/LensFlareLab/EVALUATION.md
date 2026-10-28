@@ -2641,20 +2641,21 @@ legacy approximation. Hullin et al. evaluate rays per wavelength: three bands
 represent most ghosts, but their paper notes that a few cases need many more
 samples and describes interpolation with up to seven bands for high quality.
 
-This specific comparison uses the default three wavelengths, so it does not
-prove that 610/550/460 nm adequately resolve this ghost's continuous spectrum.
+This specific comparison uses the historical 610/550/460 nm three-band mode,
+so it does not prove those wavelengths adequately resolve this ghost's
+continuous spectrum.
 See [Hullin et al. (2011)](https://resources.mpi-inf.mpg.de/lensflareRendering/pdf/flare.pdf)
 and [Bodonyi et al. (2025)](https://link.springer.com/article/10.1007/s00371-024-03625-7).
 
 Hullin et al. report that a few ghosts may need up to 60 wavelength samples for
 smooth brute-force results; their runtime configuration uses three bands for
 standard quality and up to seven with interpolation for high quality. LensFlareLab
-now has an opt-in seven-band reflected-ghost mode. The measurements below test
-the interpolation's sensitivity; they do not establish physical accuracy.
+supports 3/7/15/31/61-band reflected-ghost integration. The measurements below
+test numerical sensitivity; they do not establish physical accuracy.
 
-### Optional multi-band reflected ghosts
+### Spectral reflected-ghost integration
 
-`--spectral-samples 7|15|31|61` evaluates reflected ghost rays at evenly spaced
+`--spectral-samples 3|7|15|31|61` evaluates reflected ghost rays at evenly spaced
 wavelengths from 430 to 610 nm, then integrates the results back to RGB. Input
 RGB is expanded into a piecewise-linear set of triangular channel weights
 between the existing blue, green, and red reference wavelengths. For counts
@@ -2664,9 +2665,9 @@ This is an algebraic RGB interpolation experiment, not a CIE standard-observer
 conversion, measured emitter spectrum, or full visible-spectrum
 reconstruction. Glass dispersion still comes from the prescription's d-line
 index and Abbe number. Source Fraunhofer diffraction and reflected ghosts both
-use the selected band count. The default three-band output is unchanged;
-higher counts also integrate the direct-source PSF over the same RGB-basis
-wavelengths. CIE 1931 color matching functions describe a human standard
+use the selected band count. Three bands retain the historical RGB reference
+wavelengths. The current default is 15 bands; higher counts also integrate the
+direct-source PSF over the same RGB-basis wavelengths. CIE 1931 color matching functions describe a human standard
 observer, not a camera sensor ([CIE data](https://cie.co.at/datatable/cie-1931-colour-matching-functions-2-degree-observer),
 [CIE 015:2018](https://cie.co.at/publications/colorimetry-4th-edition)). RGB
 illumination spectral upsampling requires a chosen or measured spectral basis;
@@ -2771,11 +2772,11 @@ sampling only. Realistic colored flare still requires a selected or measured
 emitter spectrum and camera response, plus comparison with calibrated RAW
 captures; the primary-color fixtures are not such calibration data.
 
-The 3-band default was compared byte-for-byte against the preceding build for
-geometric ghost rasterization, aperture-FrFT ghost rendering, and scalar ghost
-Fresnel propagation. All three outputs were identical. The 7-band option is
-therefore opt-in while the RGB-to-spectrum reconstruction and lens data remain
-uncalibrated.
+The former 3-band default was compared byte-for-byte against the preceding
+build for geometric ghost rasterization, aperture-FrFT ghost rendering, and
+scalar ghost Fresnel propagation. All three outputs were identical. The
+3-band mode remains available as an explicit fast preview; the default is now
+15 bands, selected from the multi-path coating convergence results below.
 
 For an isolated, un-clipped 9→8 path at `(0.4,0.5)`, ray-grid 192, neutral RGB
 source, and Cauchy dispersion, the maximum RGB centroid separation changes
@@ -2797,8 +2798,10 @@ does not improve; more bands alone are not evidence of a more realistic flare.
 The timing includes process launch and PFM file I/O and was measured on the
 same machine and settings; it is an indicative standalone CPU comparison, not
 a frame-time benchmark. Seven bands cost about 2.16x for the isolated path.
-Keep the mode as an offline look-development choice until it can be checked
-against measured glass/emitter spectra or a validated spectral reference.
+That measurement predates the 15-band default and does not predict its total
+wall time. The higher band counts still use an uncalibrated RGB spectrum and
+illustrative glass/coating data; they improve integration convergence, not
+agreement with a real camera.
 
 ![Off-axis isolated 9-to-8 ghost with the three-band and seven-band modes and signed difference](examples/spectral-3-vs-7-offaxis.png)
 
@@ -3492,10 +3495,11 @@ shows why the single-path 7-band result cannot set a global accuracy claim.
 
 For this synthetic thin-film model, 31 bands are needed to keep the worst
 tested coated path below 0.3% against the dense reference; 15 bands are a
-faster intermediate with about 1.1% worst-case error. Keep the 3-band default
-for speed and use 31/61 only for offline color-sensitive look development.
-These thresholds are numerical integration errors within the RGB-basis model;
-they do not validate actual lens coatings, source spectra, or camera color.
+faster intermediate. The earlier single-path chart measured about 1.1% at 15
+bands; the broader dual-basis study below measures 1.44% maximum across seven
+valid path/field cases. These thresholds are numerical integration errors
+within the RGB-basis model; they do not validate actual lens coatings, source
+spectra, or camera color.
 
 The table and paragraph above record the original triangular-basis run. The
 dual-basis rerun has a maximum valid-case RGB L1 error of 1.59 / 0.40 / 0.08 /
@@ -3508,10 +3512,12 @@ coatings can require more wavelength samples than the direct PSF energy test.
 The compact summary below aggregates the seven path/field cases with nonzero
 ghost flux; zero-flux cases are excluded instead of being counted as zero error.
 For the tested coated paths, 31 bands keep the worst RGB flux error below
-0.23% of the 61-band reference. Fifteen bands are an intermediate setting
-(maximum 1.44%), while the three-band default has a maximum error of 28.79%.
+0.23% of the 61-band reference. The new 15-band default has a maximum error of
+1.44%, while the explicit three-band preview has a maximum error of 28.79%.
 These are integration errors for the illustrative single-layer coating and
-reconstructed RGB spectrum, not evidence of agreement with a real lens.
+reconstructed RGB spectrum, not evidence of agreement with a real lens. The
+15-band choice costs five times as many wavelength evaluations as three bands;
+wall-time impact has not been measured on the current executable.
 
 ![Mean and maximum ghost RGB flux error against 61-band integration](examples/spectral-convergence-summary.png)
 
