@@ -1920,13 +1920,29 @@ For a full-flare visual check, I rendered the same neutral point source at
 `(0.246, 0.356)` with direct-source diffraction enabled, 31 wavelengths, and
 ray grid 128. The source-subtracted geometric and triangle-normalized
 aperture-FrFT flare images have Y sums `138.4956` and `138.5172` (+0.0156%),
-relative image L1 `0.1239%`, and a `0.0173 px` centroid shift. The zoomed image shows
-that the FrFT adds only a subtle change to this full path mix; the crisp
-six-sided ghost boundaries remain visible. A more realistic blur/shape match
-needs measured or prescription-derived wavefront aberration in the reflected
-paths, rather than increasing ray density alone.
+relative image L1 `0.1239%`, and a `0.0173 px` centroid shift. Since the bright
+source region dominates that full-frame comparison, I also masked its 22 px
+radius core and inspected the crop `(80,55)..(440,275)` with a shared log white
+at p99.9 (`0.0168948` radiance). The masked crop has flare Y `5.21510` vs
+`5.22884` (+0.2635%), relative L1 `2.0876%`, and a `0.1633 px` centroid shift.
+The crop makes the FrFT aperture texture easier to inspect, but the crisp
+six-sided ghost boundaries remain. A more realistic blur/shape match needs
+measured or prescription-derived wavefront aberration in the reflected paths,
+rather than increasing ray density alone.
 
 ![31-band full flare with direct diffraction: geometric versus aperture FrFT at a shared exposure](examples/fullflare-aperture-frft-review-31band.png)
+
+![31-band flare crop with shared log display and masked source core](examples/fullflare-aperture-frft-review-31band-log.png)
+
+`make_ghost_frft_comparison.py` supports `--tone-map log`, which derives one
+white point from both source-subtracted flare panels, and repeatable
+`--mask-circle X Y R` controls that exclude bright cores from the display and
+reported crop metrics. The difference panel remains linear. Recreate the
+masked diagnostic with:
+
+```text
+python tools/LensFlareLab/make_ghost_frft_comparison.py build/tools/LensFlareLab/fullflare-lookreview-31band-20261028/source.pfm build/tools/LensFlareLab/fullflare-lookreview-31band-20261028/geometric.pfm build/tools/LensFlareLab/fullflare-lookreview-31band-20261028/aperture-frft.pfm build/tools/LensFlareLab/fullflare-lookreview-31band-20261028/comparison-zoom-log-mask.png --crop 80 55 440 275 --tone-map log --log-contrast 1000 --white-percentile 99.9 --difference-gain 4000 --mask-circle 157 128 22
+```
 
 ![Cropped 9→8 ghost: geometry, aperture FrFT, and the per-pixel change (red adds, blue removes)](examples/ghost-9-8-flux-diagnostic-crop.png)
 

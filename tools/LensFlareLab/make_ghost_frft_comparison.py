@@ -1,6 +1,7 @@
 """Create a radiometric comparison of geometric ghosts and aperture FrFT ghosts."""
 
 import argparse
+import math
 import struct
 from pathlib import Path
 
@@ -23,11 +24,15 @@ def read_pfm(path):
     return width, height, list(reversed(rows))
 
 
-def display_rgb(rgb, gain):
+def display_rgb(rgb, gain, tone_map, log_contrast, log_white):
     result = []
     for value in rgb:
-        mapped = max(0.0, value * gain)
-        mapped /= 1.0 + mapped
+        value = max(0.0, value)
+        if tone_map == "log":
+            mapped = math.log1p(log_contrast * value / max(log_white, 1e-30)) / math.log1p(log_contrast)
+        else:
+            exposed = value * gain
+            mapped = exposed / (1.0 + exposed)
         srgb = 12.92 * mapped if mapped <= 0.0031308 else 1.055 * mapped ** (1 / 2.4) - 0.055
         result.append(round(min(1.0, max(0.0, srgb)) * 255))
     return tuple(result)
@@ -42,6 +47,14 @@ def main():
     parser.add_argument("--crop", type=int, nargs=4, metavar=("LEFT", "TOP", "RIGHT", "BOTTOM"))
     parser.add_argument("--gain", type=float, default=300.0)
     parser.add_argument("--difference-gain", type=float, default=1200.0)
+    parser.add_argument("--tone-map", choices=("reinhard", "log"), default="reinhard",
+                        help="log uses one shared white point for both flare panels")
+    parser.add_argument("--log-contrast", type=float, default=1000.0)
+    parser.add_argument("--white-percentile", type=float, default=99.9,
+                        help="positive source-subtracted flare percentile used as log white")
+    parser.add_argument("--mask-circle", type=int, nargs=3, action="append", default=[],
+                        metavar=("X", "Y", "R"),
+                        help="hide a bright source core from the display and comparison metrics")
     parser.add_argument("--frft-label", default="Hullin aperture FrFT",
                         help="label for the third, transformed image")
     args = parser.parse_args()
@@ -49,10 +62,38 @@ def main():
     source, geometric, frft = (read_pfm(path) for path in (args.input, args.geometric, args.frft))
     if source[:2] != geometric[:2] or source[:2] != frft[:2]:
         parser.error("PFM dimensions must match")
+    for name in ("gain", "difference_gain", "log_contrast"):
+        value = getattr(args, name)
+        if not math.isfinite(value) or value <= 0.0:
+            parser.error(f"--{name.replace('_', '-')} must be positive and finite")
+    if not 0.0 < args.white_percentile <= 100.0:
+        parser.error("--white-percentile must be in (0,100]")
     width, height = source[:2]
     left, top, right, bottom = args.crop or (0, 0, width, height)
     if not (0 <= left < right <= width and 0 <= top < bottom <= height):
         parser.error("crop must lie inside the input image")
+
+    def is_masked(x, y):
+        return any((x - cx) ** 2 + (y - cy) ** 2 <= radius ** 2
+                   for cx, cy, radius in args.mask_circle)
+
+    log_white = 0.0
+    if args.tone_map == "log":
+        positive_flare = []
+        for rendered in (geometric[2], frft[2]):
+            for y in range(top, bottom):
+                for x in range(left, right):
+                    if is_masked(x, y):
+                        continue
+                    src = source[2][y][x * 3:x * 3 + 3]
+                    flare = rendered[y][x * 3:x * 3 + 3]
+                    positive_flare.extend(max(0.0, flare[c] - src[c]) for c in range(3))
+        positive_flare = sorted(value for value in positive_flare if value > 0.0)
+        if not positive_flare:
+            parser.error("the selected crop has no positive flare radiance")
+        percentile_index = min(len(positive_flare) - 1,
+                               int((args.white_percentile / 100.0) * (len(positive_flare) - 1)))
+        log_white = positive_flare[percentile_index]
 
     panels = [Image.new("RGB", (right - left, bottom - top)) for _ in range(3)]
     panel_pixels = [[] for _ in panels]
@@ -60,14 +101,23 @@ def main():
     frft_luma = []
     for y in range(top, bottom):
         for x in range(left, right):
+            if is_masked(x, y):
+                panel_pixels[0].append((0, 0, 0))
+                panel_pixels[1].append((0, 0, 0))
+                panel_pixels[2].append((0, 0, 0))
+                geometric_luma.append(0.0)
+                frft_luma.append(0.0)
+                continue
             index = x * 3
             src = source[2][y][index:index + 3]
             geo = geometric[2][y][index:index + 3]
             fft = frft[2][y][index:index + 3]
             geo_ghost = tuple(max(0.0, geo[c] - src[c]) for c in range(3))
             frft_ghost = tuple(max(0.0, fft[c] - src[c]) for c in range(3))
-            panel_pixels[0].append(display_rgb(geo_ghost, args.gain))
-            panel_pixels[1].append(display_rgb(frft_ghost, args.gain))
+            panel_pixels[0].append(display_rgb(
+                geo_ghost, args.gain, args.tone_map, args.log_contrast, log_white))
+            panel_pixels[1].append(display_rgb(
+                frft_ghost, args.gain, args.tone_map, args.log_contrast, log_white))
             delta = sum((frft_ghost[c] - geo_ghost[c]) * weight
                         for c, weight in enumerate((0.2126, 0.7152, 0.0722)))
             magnitude = min(1.0, abs(delta) * args.difference_gain)
@@ -81,7 +131,11 @@ def main():
     for panel, pixels in zip(panels, panel_pixels):
         panel.putdata(pixels)
 
-    labels = ("Geometric ghost", args.frft_label, "Change: red adds / blue removes")
+    display_label = "log" if args.tone_map == "log" else "Reinhard"
+    mask_label = " | source core masked" if args.mask_circle else ""
+    labels = (f"Geometric flare | {display_label}{mask_label}",
+              f"{args.frft_label} | {display_label}{mask_label}",
+              "Change: red adds / blue removes")
     label_height = 24
     sheet = Image.new("RGB", (panels[0].width * 3, panels[0].height + label_height), (18, 21, 26))
     draw = ImageDraw.Draw(sheet)
@@ -110,6 +164,8 @@ def main():
     centroid_shift = ((geo_centroid[0] - frft_centroid[0]) ** 2
                       + (geo_centroid[1] - frft_centroid[1]) ** 2) ** 0.5
     print(f"saved {args.output}")
+    print(f"toneMap={args.tone_map} sharedWhiteRadiance={log_white:.9g} "
+          f"whitePercentile={args.white_percentile:g} logContrast={args.log_contrast:g}")
     print(f"geometricY={geo_sum:.9g} frftY={frft_sum:.9g} "
           f"fluxChange={(frft_sum / max(geo_sum, 1e-30) - 1):+.6%} "
           f"relativeL1={absolute_delta / max(geo_sum, 1e-30):.6%} "

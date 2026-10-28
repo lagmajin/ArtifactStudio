@@ -371,6 +371,10 @@ across repeated field/path cases and reports frame luminance, relative image
 L1, and centroid movement on one shared exposure scale.
 `make_ghost_frft_resolution_chart.py` compares 64²/128²/256²/512² polygon or
 transport-mask texture renders against the dense 512² reference.
+`make_ghost_frft_comparison.py` compares geometric and FrFT PFM renders;
+`--tone-map log` shares one p99.9 white point across both panels, while
+repeatable `--mask-circle X Y R` excludes bright source cores from display and
+crop metrics. The difference image remains linear.
 Use `make_evaluation_chart.py --source-only --single-light-position U V
 --source-radius R` to create a size-controlled isolated emitter, and
 `make_ghost_flux_linearity_chart.py` to compare normalized flare output across
