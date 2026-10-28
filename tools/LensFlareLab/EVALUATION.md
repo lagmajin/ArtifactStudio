@@ -277,6 +277,15 @@ prescription's aberrated pupil, wavelength integration, coating losses,
 obstructions, sensor response, or measured camera scatter, and is not suitable
 as a production flare kernel.
 
+The boundary-integral amplitudes were checked at 40 frequency/angle pairs
+(`q × pupil-radius = 0.25…16`) against independent 96-point Gauss-Legendre
+integration over six center-to-edge triangles. Maximum complex-amplitude error
+was `2.15e-15` relative to pupil area. At much higher frequencies through
+`q × pupil-radius = 12000`, the 60° rotational-symmetry check had a maximum
+normalized complex error of `1.18e-16`; this range covers the full-frame image
+corners. These are numerical checks of the ideal-polygon transform, not
+validation of the optical prescription or sensor integration.
+
 ![Continuous ideal-hex diffraction irradiance sampled across the full sensor](examples/hex-pupil-full-frame.png)
 
 Recreate the image and point-sample table with:
@@ -285,8 +294,11 @@ Recreate the image and point-sample table with:
 python tools/LensFlareLab/evaluate_hex_pupil_full_frame.py
 ```
 
-The defaults are 640×360, 53.96 mm sensor width, and 550 nm; `--width`,
-`--height`, `--sensor-width-mm`, and `--wavelength-nm` select other cases.
+The defaults are 640×360, 53.96 mm sensor width, 550 nm, and a 96-point
+quadrature validation order. `--width`, `--height`, `--sensor-width-mm`,
+`--wavelength-nm`, and `--validation-order` select other cases. The independent
+complex-amplitude samples are in
+[`hex-pupil-transform-validation.csv`](examples/hex-pupil-transform-validation.csv).
 The script prints the ordinary 2048² pupil FFT's unaliased sensor support for
 comparison. This analytic ideal-pupil view is a reference for future
 wide-support and pixel-area integration work, not evidence to integrate into

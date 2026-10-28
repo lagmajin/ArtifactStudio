@@ -250,6 +250,9 @@ normalized bands, not calibrated color or radiometry.
 transform of an ideal hexagonal exit pupil over the full sensor using its
 polygon boundary integral. It is a wide-support reference for diffraction
 wings; samples are pointwise irradiance and are not detector-pixel integrals.
+At 96-point Gauss order, the transform is cross-checked against an independent
+six-triangle area integral and against hexagonal rotational symmetry at high
+spatial frequencies.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

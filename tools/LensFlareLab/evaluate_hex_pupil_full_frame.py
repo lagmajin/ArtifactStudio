@@ -45,6 +45,75 @@ def polygon_transform(qx, qy, radius):
     return result
 
 
+def direct_triangle_quadrature(qx, qy, radius, order):
+    """Independent area integral over six center-to-edge triangles."""
+    nodes, weights = np.polynomial.legendre.leggauss(order)
+    nodes = (nodes + 1.0) * 0.5
+    weights = weights * 0.5
+    radial, edge_t = np.meshgrid(nodes, nodes, indexing="ij")
+    quadrature_weights = weights[:, None] * weights[None, :] * radial
+    angles = np.arange(6, dtype=np.float64) * (math.pi / 3.0) + math.pi / 6.0
+    vertices = np.stack((radius * np.cos(angles), radius * np.sin(angles)), axis=1)
+    x_parts, y_parts, w_parts = [], [], []
+    for index in range(6):
+        start, end = vertices[index], vertices[(index + 1) % 6]
+        determinant = abs(start[0] * end[1] - start[1] * end[0])
+        x = radial * ((1.0 - edge_t) * start[0] + edge_t * end[0])
+        y = radial * ((1.0 - edge_t) * start[1] + edge_t * end[1])
+        x_parts.append(x.ravel())
+        y_parts.append(y.ravel())
+        w_parts.append((quadrature_weights * determinant).ravel())
+    x = np.concatenate(x_parts)
+    y = np.concatenate(y_parts)
+    area_weights = np.concatenate(w_parts)
+    phase = np.exp(-2j * math.pi * (qx[:, None] * x[None, :] +
+                                      qy[:, None] * y[None, :]))
+    return phase @ area_weights
+
+
+def validate_transform(radius, order, output_path):
+    normalized_radius = (0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 16.0)
+    angles_deg = (0.0, 11.0, 30.0, 47.0, 73.0)
+    rho = np.repeat(normalized_radius, len(angles_deg))
+    theta = np.tile(np.deg2rad(angles_deg), len(normalized_radius))
+    qx, qy = rho * np.cos(theta) / radius, rho * np.sin(theta) / radius
+    analytic = polygon_transform(qx, qy, radius)
+    numerical = direct_triangle_quadrature(qx, qy, radius, order)
+    area = 1.5 * math.sqrt(3.0) * radius * radius
+    abs_error = np.abs(analytic - numerical) / area
+    rel_error = abs_error / np.maximum(np.abs(numerical) / area, 1e-12)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(("frequency_radius_over_pupil_radius", "angle_deg",
+                         "analytic_real_over_area", "quadrature_real_over_area",
+                         "analytic_imag_over_area", "quadrature_imag_over_area",
+                         "absolute_complex_error_over_area", "relative_complex_error"))
+        for index in range(len(rho)):
+            writer.writerow((f"{rho[index]:.6g}", f"{math.degrees(theta[index]):.6g}",
+                             f"{analytic[index].real / area:.12g}",
+                             f"{numerical[index].real / area:.12g}",
+                             f"{analytic[index].imag / area:.12g}",
+                             f"{numerical[index].imag / area:.12g}",
+                             f"{abs_error[index]:.12g}", f"{rel_error[index]:.12g}"))
+    # Rotational symmetry exercises the analytic expression out to the far
+    # corners of the rendered sensor, where direct area quadrature would need
+    # thousands of nodes per edge to resolve the oscillations.
+    high_rho = np.array((32.0, 256.0, 2048.0, 8192.0, 12000.0))
+    high_theta = np.linspace(0.0, math.pi / 3.0, 257, endpoint=False)
+    symmetry_error = 0.0
+    for value in high_rho:
+        base = polygon_transform(value * np.cos(high_theta) / radius,
+                                 value * np.sin(high_theta) / radius, radius)
+        rotated = polygon_transform(value * np.cos(high_theta + math.pi / 3.0) / radius,
+                                    value * np.sin(high_theta + math.pi / 3.0) / radius,
+                                    radius)
+        symmetry_error = max(symmetry_error,
+                             float(np.max(np.abs(base - rotated)) / area))
+    return (float(abs_error.max()), float(np.quantile(abs_error, 0.95)),
+            symmetry_error)
+
+
 def evaluate_pixel_centers(width, height, pixel_pitch_mm, wavelength_nm, efl_mm,
                            pupil_radius_mm):
     x_centers = (np.arange(width, dtype=np.float64) - (width - 1) / 2) * pixel_pitch_mm
@@ -66,13 +135,16 @@ def main():
     parser.add_argument("--height", type=int, default=360)
     parser.add_argument("--sensor-width-mm", type=float, default=53.96)
     parser.add_argument("--wavelength-nm", type=float, default=550.0)
+    parser.add_argument("--validation-order", type=int, default=96)
     parser.add_argument("--csv", type=Path, default=Path(
         "tools/LensFlareLab/examples/hex-pupil-full-frame.csv"))
     parser.add_argument("--image", type=Path, default=Path(
         "tools/LensFlareLab/examples/hex-pupil-full-frame.png"))
+    parser.add_argument("--validation-csv", type=Path, default=Path(
+        "tools/LensFlareLab/examples/hex-pupil-transform-validation.csv"))
     args = parser.parse_args()
-    if min(args.width, args.height) < 1:
-        parser.error("width and height must be positive")
+    if min(args.width, args.height, args.validation_order) < 1:
+        parser.error("width, height, and validation-order must be positive")
     pixel_pitch = args.sensor_width_mm / args.width
     _, _, _, magnification_x, _, _ = wavefront.estimate_exit_pupil(
         args.wavelength_nm)
@@ -87,6 +159,8 @@ def main():
     pupil_pitch = 2.0 * 1.30 * pupil_radius / fft_grid
     support_px = (args.wavelength_nm * 1e-6 * prescription.EFL /
                   (2.0 * pupil_pitch * pixel_pitch))
+    max_error, p95_error, symmetry_error = validate_transform(
+        pupil_radius, args.validation_order, args.validation_csv)
     args.csv.parent.mkdir(parents=True, exist_ok=True)
     with args.csv.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -112,7 +186,12 @@ def main():
     print(f"pixel_pitch_um={pixel_pitch * 1000:.4f}")
     print(f"pupil_radius_mm={pupil_radius:.6f}")
     print(f"fft_support_radius_px={support_px:.3f}")
+    print(f"transform_validation_order={args.validation_order}")
+    print(f"transform_validation_max_abs_error_over_area={max_error:.3e}")
+    print(f"transform_validation_p95_abs_error_over_area={p95_error:.3e}")
+    print(f"high_frequency_hex_symmetry_max_error_over_area={symmetry_error:.3e}")
     print("sampling=pointwise irradiance; values are not pixel-area integrated")
+    print(f"validation_csv={args.validation_csv}")
     print(f"csv={args.csv}")
     print(f"image={args.image}")
 
