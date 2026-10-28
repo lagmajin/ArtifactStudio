@@ -254,6 +254,44 @@ python tools/LensFlareLab/evaluate_prescription_polychromatic_psf.py --ray-sampl
 The 3-band RGB view remains provisional until glass data, RGB/sensor spectral
 response, wide-angle diffraction, and RAW lens captures are available.
 
+## Continuous ideal-pupil full-frame diffraction reference
+
+The prescription-derived FFT above resolves a local core, because a uniform
+pupil grid has finite unaliased image support. To inspect the wider diffraction
+wings without pretending a coarse pupil FFT contains them, `evaluate_hex_pupil_full_frame.py`
+evaluates the continuous Fourier transform of a regular hexagon using its
+polygon boundary integral. The scalar Fraunhofer transform follows the aperture
+Fourier model used by [Hullin et al. (2011)](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf).
+The ideal exit-pupil radius is derived from the assumed prescription's stop and
+550 nm paraxial exit-pupil magnification. At 640×360 on a 53.96 mm sensor, a
+2048² uniformly sampled pupil covers only ±13.7 sensor pixels before its
+frequency support repeats, while the analytic polygon transform has no such
+sample-grid cutoff.
+
+The image and CSV report normalized pointwise irradiance over the full sensor.
+They do **not** integrate detector pixel areas: the diffraction core is far
+narrower than these pixels, so coarse point samples would alias the central
+energy. The image uses a logarithmic display range of eight decades. This
+reference isolates ideal-hex diffraction geometry; it does not include the
+prescription's aberrated pupil, wavelength integration, coating losses,
+obstructions, sensor response, or measured camera scatter, and is not suitable
+as a production flare kernel.
+
+![Continuous ideal-hex diffraction irradiance sampled across the full sensor](examples/hex-pupil-full-frame.png)
+
+Recreate the image and point-sample table with:
+
+```powershell
+python tools/LensFlareLab/evaluate_hex_pupil_full_frame.py
+```
+
+The defaults are 640×360, 53.96 mm sensor width, and 550 nm; `--width`,
+`--height`, `--sensor-width-mm`, and `--wavelength-nm` select other cases.
+The script prints the ordinary 2048² pupil FFT's unaliased sensor support for
+comparison. This analytic ideal-pupil view is a reference for future
+wide-support and pixel-area integration work, not evidence to integrate into
+Core/App.
+
 ## Controlled wavefront-aberration PSFs
 
 `evaluate_wavefront_aberration_psf.py` extends the ideal six-blade pupil with

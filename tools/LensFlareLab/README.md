@@ -246,6 +246,10 @@ calibrated, full-frame camera flare model.
 PSF calculation at 460/550/610 nm to expose prescription dispersion and chief-
 ray color shifts. Its RGB plate is a morphology diagnostic with independently
 normalized bands, not calibrated color or radiometry.
+`evaluate_hex_pupil_full_frame.py` evaluates the continuous Fraunhofer
+transform of an ideal hexagonal exit pupil over the full sensor using its
+polygon boundary integral. It is a wide-support reference for diffraction
+wings; samples are pointwise irradiance and are not detector-pixel integrals.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
