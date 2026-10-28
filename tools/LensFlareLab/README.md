@@ -259,11 +259,14 @@ radial profiles and a 4×4 versus 8×8 pixel-integration comparison. It is a
 separate scatter reference, not a full prescription flare kernel.
 `evaluate_prescription_surface_scatter.py` traces pupil bundles through every
 prescription surface at 0/5/10/12-degree fields and writes per-surface r50/r90/
-r99/RMS radii plus comparison plates. Its image plate sums equal-weight
-Harvey-Shack surface kernels to visualize cone-size effects; it is exploratory
-because the prescription has no measured surface roughness, TIS, contamination,
-or coating scatter data. It is not used by the C++ renderer and is not a
-calibrated flare prediction.
+r99/RMS radii plus comparison plates. Its image plate sums per-surface
+contributions from Peterson's analytic focal-plane scatter equation,
+using each traced r90 as a beam-radius proxy and overall bundle acceptance as a
+field-throughput proxy. Defaults assume f/22, 80% post-scatter transmission,
+and generic Double-Gauss Harvey coefficients. This remains exploratory because
+the prescription has no measured surface roughness, per-surface BSDF/TIS,
+contamination, or coating scatter data. It is not used by the C++ renderer and
+is not a calibrated flare prediction.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

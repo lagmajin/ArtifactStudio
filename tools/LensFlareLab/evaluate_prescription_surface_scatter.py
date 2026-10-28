@@ -14,7 +14,6 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 import evaluate_direct_transmission_raytrace as raytrace
-from evaluate_harvey_scatter_reference import bsdf, calculate_tis
 
 
 def surface_bundle(field_deg, wavelength_nm, grid_size):
@@ -104,31 +103,29 @@ def make_plate(cases, path):
     image.save(path)
 
 
-def make_scatter_plate(cases, path, pitch_um, focal_mm, slope, b, l_mrad, subpixels):
-    """Render the simple summed surface kernels for qualitative field comparison."""
+def make_scatter_plate(cases, path, pitch_um, focal_mm, slope, b, l_mrad,
+                       transmission, na):
+    """Render the Peterson per-surface irradiance model with traced cone radii."""
     size = 720
     pitch_mm = pitch_um * 1e-3
     axis = (np.arange(size) + .5 - size / 2) * pitch_mm
     xx, yy = np.meshgrid(axis, axis)
     rho = np.hypot(xx, yy)
-    cos_theta = focal_mm / np.hypot(focal_mm, rho)
-    sin_theta = rho / np.hypot(focal_mm, rho)
     images = []
-    tis, _ = calculate_tis(slope, b, l_mrad * 1e-3,
-                           b * (100 * l_mrad * 1e-3) ** slope)
+    b0 = b * (100.0 * l_mrad * 1e-3) ** slope
     for case in cases:
         acc = np.zeros((size, size), dtype=np.float64)
-        # Each surface contributes one equal-weight scatter event here; this
-        # deliberately isolates the pupil-cone geometry from unknown coatings.
+        a_ent = case["rows"][0][3]
+        field_transmission = transmission * case["accepted"] / case["launched"]
         for row in case["rows"]:
-            radius_mm = row[3]
-            if not math.isfinite(radius_mm) or radius_mm <= 1e-8:
+            a_j = row[3]
+            if not math.isfinite(a_j) or a_j <= 1e-8:
                 continue
-            corner = l_mrad * 1e-3 * math.sqrt(max(radius_mm, 1e-6) /
-                                                max(case["rows"][0][3], 1e-6))
-            amp = b * (100 * corner) ** slope
-            angular = bsdf(np.arctan2(sin_theta, cos_theta), slope, amp, corner)
-            acc += angular * cos_theta**3 / focal_mm**2 / max(tis, 1e-12)
+            # Peterson Eq. 8. r is sensor-plane distance; a_ent/a_j are the
+            # traced 90%-energy pupil-cone radii (an operational proxy).
+            scatter_angle = na * rho / (l_mrad * 1e-3 * a_j)
+            acc += (math.pi * field_transmission * na**2 * (a_ent / a_j) ** 2 * b0 *
+                    (1.0 + scatter_angle**2) ** (slope * .5))
         images.append(acc)
     maximum = max(float(im.max()) for im in images)
     panel = 360
@@ -156,6 +153,10 @@ def main():
     parser.add_argument("--slope", type=float, default=-1.86)
     parser.add_argument("--b", type=float, default=.36)
     parser.add_argument("--l-mrad", type=float, default=2.04)
+    parser.add_argument("--transmission", type=float, default=.8,
+                        help="post-scatter system transmission assumption (0..1)")
+    parser.add_argument("--na", type=float, default=1.0 / 44.0,
+                        help="image-side numerical aperture; default is f/22")
     parser.add_argument("--csv", type=Path, default=Path(
         "tools/LensFlareLab/examples/prescription-surface-scatter.csv"))
     parser.add_argument("--image", type=Path, default=Path(
@@ -163,30 +164,42 @@ def main():
     parser.add_argument("--scatter-image", type=Path, default=Path(
         "tools/LensFlareLab/examples/prescription-surface-scatter-fields.png"))
     args = parser.parse_args()
-    if args.grid < 4 or args.grid > 256 or args.wavelength_nm <= 0 or args.l_mrad <= 0:
-        parser.error("grid must be 4..256; wavelength and L must be positive")
+    if (args.grid < 4 or args.grid > 256 or args.wavelength_nm <= 0 or
+            args.l_mrad <= 0 or args.transmission < 0 or args.transmission > 1 or
+            args.na <= 0 or args.na >= 1 or args.b <= 0 or args.slope >= 0):
+        parser.error("grid/wavelength/L/b/NA must be positive, slope negative, and T in 0..1")
     cases = []
     for field in args.fields:
         accepted, rows = surface_bundle(field, args.wavelength_nm, args.grid)
-        cases.append({"field_deg": field, "accepted": accepted, "rows": rows})
+        cases.append({"field_deg": field, "accepted": accepted,
+                      "launched": args.grid**2, "rows": rows})
     args.csv.parent.mkdir(parents=True, exist_ok=True)
     with args.csv.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(("field_deg", "accepted_full_path_rays", "surface_index",
                          "surface_ray_count", "bundle_radius_r50_mm", "bundle_radius_r90_mm",
-                         "bundle_radius_r99_mm", "bundle_radius_rms_mm"))
+                         "bundle_radius_r99_mm", "bundle_radius_rms_mm",
+                         "peterson_eq8_center_coefficient"))
         for case in cases:
+            a_ent = case["rows"][0][3]
+            t_field = args.transmission * case["accepted"] / case["launched"]
+            b0 = args.b * (100.0 * args.l_mrad * 1e-3) ** args.slope
             for row in case["rows"]:
-                writer.writerow((case["field_deg"], case["accepted"], *row))
+                a_j = row[3]
+                center_coefficient = (math.pi * t_field * args.na**2 *
+                    (a_ent / a_j) ** 2 * b0) if math.isfinite(a_j) and a_j > 1e-8 else math.nan
+                writer.writerow((case["field_deg"], case["accepted"], *row,
+                                 f"{center_coefficient:.12g}"))
     make_plate(cases, args.image)
     make_scatter_plate(cases, args.scatter_image, 5.5, 100.0, args.slope,
-                       args.b, args.l_mrad, 4)
+                       args.b, args.l_mrad, args.transmission, args.na)
     for case in cases:
         print(f"field={case['field_deg']:g} deg accepted={case['accepted']}/{args.grid**2} "
               f"surface-0 r90={case['rows'][0][3]:.4f} mm "
               f"surface-13 r90={case['rows'][-1][3]:.4f} mm")
-    print("Scatter image uses equal per-surface event weights; no calibrated coating, "
-          "contamination, or surface-specific TIS data are available.")
+    print(f"Scatter image uses Peterson Eq. 8 with B={args.b:g}, S={args.slope:g}, "
+          f"L={args.l_mrad:g} mrad, NA={args.na:g}, T={args.transmission:g}; "
+          "surface a_j is traced r90 and calibrated per-surface BSDF/TIS is unavailable.")
 
 
 if __name__ == "__main__":

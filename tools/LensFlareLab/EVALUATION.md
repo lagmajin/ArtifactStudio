@@ -6,31 +6,39 @@
 
 `evaluate_prescription_surface_scatter.py` traces a regular pupil bundle
 through all 14 prescription surfaces at 550 nm and reports the accepted full
-path ray count and per-surface r50/r90/r99/RMS bundle radius. With a 32x32
-sample, the accepted rays were 1024/1024 at 0, 5, and 10 degrees, and 592/1024
-(57.8%) at 12 degrees. The surface-0 r90 stayed near 5.04 mm, while surface-13
-r90 decreased from 2.824 mm on axis to 2.426 mm at 12 degrees. This confirms
+path ray count and per-surface r50/r90/r99/RMS bundle radius. With a 64x64
+sample, the accepted rays were 4096/4096 at 0, 5, and 10 degrees, and 2362/4096
+(57.7%) at 12 degrees. The surface-0 r90 stayed near 5.06 mm, while surface-13
+r90 decreased from 2.841 mm on axis to 2.413 mm at 12 degrees. This confirms
 that a single invariant pupil-radius parameter cannot represent all surfaces
-and fields in this prescription.
+and fields in this prescription. Increasing the grid from 32² to 64² moved the
+reported surface-13 r90 by less than 0.6% at both 0 and 12 degrees.
 
 ![Per-surface pupil bundle radii at four field angles](examples/prescription-surface-bundle-radii.png)
 
-The companion image sums equal-weight Harvey-Shack kernels using the traced
-surface-cone radii, and is useful only for checking the expected broad halo
-shape and field trend. It is not a physical exposure prediction: the source
-model does not include transmission-weighted scattering, measured roughness or
-surface TIS, vignetting weights within each scattering cone, aberration, sensor
-response, or measured stray-light references. In particular, equal event
-weights across all 14 surfaces are an explicit visualization assumption, not
-an inferred property of the lens. The generic Harvey coefficients come from
-Ritt et al.'s generic Double-Gauss example and should not be mistaken for data
-from the Angenieux prescription.
+The companion image uses Peterson's per-surface focal-plane irradiance equation
+(Eq. 8), with `a_j` approximated by the traced r90 beam radius and field
+throughput approximated by the full-path acceptance fraction. The reference
+uses f/22, 80% post-scatter system transmission, and generic Harvey parameters
+from Ritt et al.'s generic Double-Gauss example; none are measured properties
+of the bundled Angenieux prescription. The equation predicts how each surface's
+cone radius changes the scatter amplitude and radial falloff, so the surfaces
+are no longer assigned equal weights. See [Ritt et al. (2020)](https://www.mdpi.com/1424-8220/20/21/6308).
+
+This remains an exploratory image, not a calibrated exposure prediction. It
+does not include per-surface measured BSDF/TIS, actual coating scatter,
+contamination, full post-scatter ray clipping, aberration, sensor response, or
+measured stray-light references. The scalar throughput proxy and r90 beam
+radius require validation against a non-sequential optical model or measured
+PSF before the image can support production settings.
 
 ![Exploratory summed surface-scatter comparison by field](examples/prescription-surface-scatter-fields.png)
 
 Reproduce the study with `python tools/LensFlareLab/evaluate_prescription_surface_scatter.py
---grid 32`. Increase `--grid` to check pupil sampling convergence before using
-these radii as inputs to a future per-surface render model.
+--grid 64`. The image uses the generic Harvey parameters `S=-1.86`, `B=0.36`
+and `L=2.04 mrad`; `--transmission` and `--na` control the stated system
+assumptions. Increase `--grid` to check pupil sampling convergence before
+using these radii as inputs to a future per-surface render model.
 
 ## Prescription-based direct-transmission geometric image evaluation
 
