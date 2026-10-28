@@ -245,6 +245,15 @@ float dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 float length(Vec3 a) { return std::sqrt(dot(a, a)); }
 Vec3 normalized(Vec3 a) { const float n = length(a); return n > 1e-12f ? a * (1.0f / n) : Vec3{0, 0, 1}; }
 
+double pathFromCommonIncidentPlaneMm(Vec3 point, Vec3 direction, double planeZ) {
+    // Measure from one plane normal to the incident ray, anchored at z = planeZ on axis.
+    const double dx = direction.x;
+    const double dy = direction.y;
+    const double dz = direction.z;
+    const double projectedDistance = dx * point.x + dy * point.y + dz * (point.z - planeZ);
+    return projectedDistance / std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 struct Surface {
     float radius;
     float z;
@@ -1502,7 +1511,8 @@ Image render(const Image& source, const Settings& settings) {
                         << ",0,0,0,0,0,0\n";
                     continue;
                 }
-                opticalPathMm += (entranceOrigin.z - referencePlaneZ) / direction.z;
+                opticalPathMm += pathFromCommonIncidentPlaneMm(
+                    entranceOrigin, direction, referencePlaneZ);
                 map << wavelengths[band] << ',' << pupilU << ',' << pupilV << ",1,"
                     << opticalPathMm << ',' << opticalPathMm / wavelengthMm << ',' << energy
                     << ',' << sensorPoint.x << ',' << sensorPoint.y << '\n';
@@ -1516,7 +1526,8 @@ Image render(const Image& source, const Settings& settings) {
             {0.0f, 0.0f}, {-0.5f, 0.0f}, {0.5f, 0.0f}, {0.0f, -0.5f}, {0.0f, 0.5f}}};
         const double referencePlaneZ = static_cast<double>(lens.surfaces.front().z) - 100.0;
         if (settings.reportOpticalPath)
-            std::cout << "Optical path report (5 pupil rays; common plane 100mm before front surface; coating phase omitted):\n";
+            std::cout << "Optical path report (5 pupil rays; common phase plane 100mm before front vertex, "
+                          "perpendicular to incident direction; coating phase omitted):\n";
         if (settings.reportCoating)
             std::cout << "Thin-film report (chief pupil ray; 1.38 index, 550nm quarter-wave layer on air/glass surfaces; glass/glass interfaces uncoated):\n";
         for (std::size_t band = 0; band < wavelengths.size(); ++band) {
@@ -1578,7 +1589,8 @@ Image render(const Image& source, const Settings& settings) {
                                   << uncoatedPathFactor << '/' << coatedPathFactor << '\n';
                     }
                 }
-                opticalPathMm += (entranceOrigin.z - referencePlaneZ) / direction.z;
+                opticalPathMm += pathFromCommonIncidentPlaneMm(
+                    entranceOrigin, direction, referencePlaneZ);
                 const double wavelengthMm = wavelengths[band] * 1e-6;
                 if (settings.reportOpticalPath)
                     std::cout << std::fixed << std::setprecision(3) << wavelengths[band] << "nm"

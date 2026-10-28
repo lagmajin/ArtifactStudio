@@ -1478,37 +1478,27 @@ is a truncation warning, not an estimate of the complete emitter energy.
 The optional `--optical-path-report` traces the selected ghost pair at the
 central and four half-radius pupil coordinates for 610/550/460 nm. The
 `--optical-path-map CSV` option extends this to every active pupil-grid ray.
-Optical
-path accumulates `n × segment length` through the actual reflected and
-refracted ray sequence, including air travel to the iris. A common incident
-reference plane 100 mm before the first surface is used so the entrance-pupil
-origin shift is included. Coating phase is omitted.
+Optical path accumulates `n × segment length` through the reflected/refracted
+ray sequence. The incoming wavefront reference is now the plane perpendicular
+to the incident direction that crosses the optical axis 100 mm before the
+front surface. Its entrance-path term is the projection
+`dot(direction, entranceOrigin - referencePoint) / |direction|`; using only
+`(entranceOrigin.z - referencePlaneZ) / direction.z` instead references a
+different Z-plane point for every off-axis ray and corrupts phase comparisons.
+Coating reflection phase remains omitted.
 
-For the Angenieux 9→8 path at source `(0.3834,0.3844)`, the x half-radius pupil
-rays differ in OPL by 1.516/1.523/1.538 mm at 610/550/460 nm (about 2,485/
-2,769/3,344 phase cycles). This confirms that a future coherent model must
-retain dense pupil sampling and handle phase modulo wavelength carefully.
-The diagnostic does not yet model complex Fresnel amplitudes, thin-film
-reflection phase, phase unwrapping, or coherent propagation, and therefore
-does not alter or validate the rendered flare image. Enabling the report leaves
-the PFM byte-identical to the same render without the report.
+**The old phase-step values and phase chart below are superseded.** They were
+generated with the incorrect Z-plane reference and must not be used to set
+sampling or judge phase convergence. No corrected phase maps have been
+regenerated yet. The corrected report/map code is in the current source, but
+render-image evidence still requires fresh maps from a rebuilt executable.
+Even with the corrected reference, these diagnostics do not yet model complex
+Fresnel amplitudes, thin-film reflection phase, phase unwrapping, or coherent
+propagation, so they do not validate the rendered flare image.
 
-The full 9→8 path map was sampled at grids 64/128/256/512 for source
-`(0.3834,0.3844)`. Median absolute phase change between neighboring valid
-pupil rays at grid 512 is 6.48/7.23/8.75 cycles at 610/550/460 nm; the 90th
-percentiles are 12.50/13.90/16.72 cycles. These exceed the 0.5 cycle/sample
-Nyquist limit by more than an order of magnitude, so even grid 512 cannot
-sample the path phase. Coarser grids produce aliased wrapped phase maps, and
-the regular rings at grid 512 still represent undersampling rather than a
-converged diffraction pattern. The map establishes that a coherent model
-needs a different formulation or much more efficient oscillatory integration;
-it does not provide evidence for simply multiplying the current ghost pixels
-by an OPL-derived phase.
-
-![Wrapped pupil phase samples for the 9-to-8 ghost path at grids 64, 128, 256, and 512](examples/ghost-optical-path-phase-sampling.png)
-
-Reproduce maps with `--ray-grid N --ghost-pair 9 8 --optical-path-map
-build/opl-grid-N.csv`, then create the chart with:
+Recreate the historical, superseded chart only if needed for comparison with
+older notes. For new measurements, rebuild the executable and regenerate maps
+at ray grids 64/128/256/512 before drawing conclusions:
 
 ```powershell
 python tools/LensFlareLab/make_optical_path_phase_chart.py `

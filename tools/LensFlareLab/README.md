@@ -405,10 +405,13 @@ report lists mapping, energy, validity-boundary, and foldover refinement
 triggers separately. See [EVALUATION.md](EVALUATION.md) for off-axis and
 per-path comparisons against uniform ray grids.
 `--optical-path-report` requires `--ghost-pair FIRST SECOND` and reports five
-pupil-ray optical paths at each RGB wavelength, referenced to a common plane
-100 mm before the front surface. It is a ray-path diagnostic; coating phase,
-complex Fresnel amplitudes, phase unwrapping, and coherent image formation are
-not yet modeled.
+pupil-ray optical paths at each RGB wavelength, referenced to the plane
+perpendicular to the incident direction that crosses the optical axis 100 mm
+before the front surface. `--optical-path-map CSV` uses the same phase reference.
+These are ray-path diagnostics; coating phase, complex Fresnel amplitudes, phase
+unwrapping, and coherent image formation are not yet modeled. Historical phase
+maps produced before the common-plane correction are not valid for quantitative
+off-axis phase analysis; see [EVALUATION.md](EVALUATION.md).
 `--optical-path-map CSV` writes the selected path's pupil-grid ray map at the
 active `--ray-grid` resolution. `make_optical_path_phase_chart.py` visualizes
 four grids and reports neighboring-ray phase steps; wrapped colors are a
