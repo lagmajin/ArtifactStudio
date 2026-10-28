@@ -67,6 +67,8 @@ def main() -> None:
     parser.add_argument("--wavelength-nm", type=int, default=550)
     parser.add_argument("--pupil-resolution", type=int, choices=(128, 256, 512, 1024, 2048),
                         default=1024)
+    parser.add_argument("--triangulation-method", choices=("delaunay", "launch-grid"),
+                        default="launch-grid")
     parser.add_argument("--crop-radius", type=int, default=32)
     parser.add_argument("--pixel-subsamples", type=int, choices=(2, 4, 8), default=4)
     parser.add_argument("--csv", type=Path,
@@ -84,7 +86,8 @@ def main() -> None:
     opd, image_point, reference_radius, _ = optics.image_centered_opd(
         data, args.wavelength_nm, pupil_xy, pupil_center, pupil_z)
     regular_opd, pitch, amplitude = optics.map_to_regular_pupil(
-        data, pupil_xy, opd, args.pupil_resolution, "linear")
+        data, pupil_xy, opd, args.pupil_resolution, "linear", "triangle",
+        args.triangulation_method)
 
     # Align the pixel-integrated reference with the nearest detector-pixel center.
     center_x = (float(image_point[0]) / optics.SENSOR_WIDTH_MM + 0.5) * width
@@ -116,6 +119,7 @@ def main() -> None:
     record = {
         "wavelength_nm": args.wavelength_nm, "ray_grid": args.grid,
         "pupil_resolution": args.pupil_resolution,
+        "triangulation_method": args.triangulation_method,
         "detector_pixel_subsamples": args.pixel_subsamples,
         "chief_image_x_px": center_x, "chief_image_y_px": center_y,
         "detector_offset_x_px": offset_x, "detector_offset_y_px": offset_y,

@@ -104,7 +104,8 @@ def main() -> None:
         opd, _, reference_radius, _ = image_centered_opd(
             data, args.wavelength_nm, pupil_xy, pupil_center, pupil_z)
         pupil_opd, pitch, amplitude = map_to_regular_pupil(
-            data, pupil_xy, opd, args.pupil_resolution, args.opd_interpolation)
+            data, pupil_xy, opd, args.pupil_resolution, args.opd_interpolation,
+            "triangle", "delaunay")
         fields.append({"opd": pupil_opd, "amplitude": amplitude,
                        "pitch": pitch, "reference_radius": reference_radius})
 

@@ -450,8 +450,10 @@ evaluator fits that ghost path's virtual exit-pupil plane, back-projects the
 OPL, subtracts an image-centered reference sphere, and maps the result to a
 physical pupil grid. Its scalar Fraunhofer PSF is integrated onto sensor-pixel
 areas using direct subpixel Fourier evaluation (`--pixel-subsamples 4`, with
-2 or 8 available for sampling checks). Use `--optical-path-map-grid` at 128,
-256, or higher and pass the maps with repeated `--grid` flags. See the current
+2 or 8 available for sampling checks). It uses launch-grid-cell topology by
+default; `--triangulation-method delaunay` reproduces the earlier interpolator.
+Generate maps at 128, 256, or higher, then pass them with repeated `--grid`
+flags. See the current
 measurements and limitations in [EVALUATION.md](EVALUATION.md). It remains a
 monochromatic scalar diagnostic:
 coating phase, polarization, broadband coherence, and measured-camera response
@@ -465,6 +467,10 @@ Use `--pupil-resolution N` to hold the regular physical pupil raster fixed while
 comparing different ray-map grids. This isolates changes in ray mapping from
 changes in pupil raster resolution; independent optical-path maps are still
 required for each `--grid` value.
+
+`compare_ghost_pupil_topology.py` compares the launch-cell mesh with the
+Delaunay reconstruction and both cell diagonals using common-pupil PSF and
+support-mask metrics.
 
 `compare_ghost_pupil_jacobian.py` compares the triangle-averaged pupil-area
 Jacobian with a structured-launch finite-difference estimator; its alternate mode

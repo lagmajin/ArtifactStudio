@@ -1683,6 +1683,9 @@ python tools/LensFlareLab/make_optical_path_phase_chart.py `
 
 ### Path-specific ghost exit-pupil PSF
 
+The early measurements in this section use the original Delaunay mapper. The evaluator's default is now launch-grid-cell topology; the controlled comparison and
+updated FrFT image study are documented near the end of this file. Pass `--triangulation-method delaunay` to reproduce the historical measurements.
+
 `main.cpp` now exports the ghost ray position, direction, and OPL on a shared
 image-side plane one millimeter after the final prescription surface. This
 matches the exit-plane convention used by `evaluate_prescription_wavefront.py`.
@@ -4155,8 +4158,10 @@ remaining a scalar diagnostic rather than a calibrated lens simulation.
 
 ![550 nm independent exit-pupil PSF, geometric ghost, and FrFT ghost comparison](examples/ghost-frft-wavefront-550-current.png)
 
-These errors are large, but they do not yet establish that FrFT is less
-physical: the ray-mapped reference itself is not converged. With the common
+These values came from the original local-filtered Delaunay pupil mapper;
+they are superseded by the launch-grid topology comparison below. At that time,
+they did not establish whether FrFT was less physical because the reference
+itself had not converged. With the common
 1024² pupil and detector integration held fixed, increasing the shooting map
 from 256² to 512² changes the normalized crop PSF by 26.85% L1, and 512² to
 1024² changes it by 25.86%. Pupil RMS radius remains near 23.4 µm and the
@@ -4207,4 +4212,70 @@ python tools/LensFlareLab/compare_ghost_pupil_jacobian.py `
   --detector-offset-px 0.157536 0.319445 `
   --csv build/tools/LensFlareLab/ghost-pupil-jacobian-ablation.csv `
   --image tools/LensFlareLab/examples/ghost-pupil-jacobian-ablation-20261028.png
+```
+
+
+## Preserve the launch-grid topology when reconstructing the ghost pupil
+
+The Delaunay mesh used by the first path-specific PSF evaluator can connect a
+ray to a physically nearby ray from another launch-grid branch. Filtering
+Delaunay triangles by launch-grid adjacency still fails to recover many true
+neighbor cells where the mapped pupil folds or clips: the 550 nm center 9→8
+fixture showed only about 6.4k nonzero samples on the common 512² pupil.
+
+I added a launch-cell reconstruction. It builds triangles only from three or
+four valid corners of each original ray-grid cell, requires a positive
+pupil-area Jacobian, and locates pupil samples within those triangles. The
+four-ray cells are tested with both fixed diagonals. This retains the original
+ray-neighbor connectivity instead of retriangulating across branches.
+
+| 512²→1024² mapping | Normalized PSF L1 | Amplitude relative L2 | Support IoU | Nonzero support samples |
+|---|---:|---:|---:|---:|
+| Delaunay, filtered to local launch neighbors | 23.955% | 76.050% | 59.006% | 6,431→6,528 |
+| Launch cells, TL→BR diagonal | 3.832% | 37.887% | 97.260% | 98,376→98,488 |
+| Launch cells, TR→BL diagonal | 3.935% | 37.641% | 97.262% | 98,373→98,489 |
+
+The pixel-area integral uses four subpixels per sensor pixel; repeating the
+TL→BR comparison with 2×2 samples gives 3.844% PSF L1. The close agreement
+between both launch-cell diagonals suggests the improvement does not depend on
+one special diagonal choice. The launch-cell method is now the evaluator
+default; pass `--triangulation-method delaunay` to reproduce earlier Delaunay
+measurements. The methods still differ in amplitude L2, so a sub-4% PSF shape
+change is not proof of radiometric convergence or a validated camera model.
+
+![Ghost pupil topology, support masks, and PSF convergence for Delaunay and two launch-cell diagonals](examples/ghost-pupil-topology-ablation-20261028.png)
+
+Using the launch-cell reference on the same source-subtracted 550 nm render,
+the normalized ±32 px crop L1 is 64.42% for geometric projection and 91.96%
+for the aperture FrFT result. The new reference is much better converged, but
+this is still a synthetic scalar model; it does not include coating phase or
+sensor calibration, and the geometric baseline itself differs substantially.
+Do not interpret this comparison as proof of absolute physical accuracy.
+
+![Geometric and FrFT ghost renders against the launch-cell exit-pupil PSF](examples/ghost-frft-topology-550-20261028.png)
+
+Recreate the topology plate and metrics with:
+
+```powershell
+python tools/LensFlareLab/compare_ghost_pupil_topology.py `
+  --low-grid 512 --high-grid 1024 --wavelength-nm 550 `
+  --pupil-resolution 512 --crop-radius 12 --pixel-subsamples 4 `
+  --detector-offset-px 0.157536 0.319445 `
+  --csv tools/LensFlareLab/examples/ghost-pupil-topology-ablation-20261028.csv `
+  --image tools/LensFlareLab/examples/ghost-pupil-topology-ablation-20261028.png
+```
+
+Use `compare_ghost_frft_exit_pupil_psf.py` with
+`--triangulation-method launch-grid` to reproduce the renderer comparison:
+
+```powershell
+python tools/LensFlareLab/compare_ghost_frft_exit_pupil_psf.py `
+  build/tools/LensFlareLab/psf-reference-550-center-input.pfm `
+  build/tools/LensFlareLab/psf-reference-550-center-frft-off.pfm `
+  build/tools/LensFlareLab/psf-reference-550-center-frft-on.pfm `
+  build/tools/LensFlareLab/psf-reference-550-center-grid512.csv `
+  --grid 512 --wavelength-nm 550 --pupil-resolution 512 `
+  --pixel-subsamples 4 --triangulation-method launch-grid `
+  --csv tools/LensFlareLab/examples/ghost-frft-topology-compare-20261028.csv `
+  --image tools/LensFlareLab/examples/ghost-frft-topology-550-20261028.png
 ```

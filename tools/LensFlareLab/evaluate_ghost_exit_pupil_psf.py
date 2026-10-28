@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy.interpolate import CloughTocher2DInterpolator
-from scipy.spatial import Delaunay
+from scipy.spatial import cKDTree, Delaunay
 
 
 SENSOR_WIDTH_MM = 53.96
@@ -130,11 +130,171 @@ def image_centered_opd(data: dict[str, np.ndarray], wavelength: int,
     return opd, image_point, reference_radius, chief_pupil
 
 
+def map_to_regular_pupil_launch_grid(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
+                                    opd_mm: np.ndarray, resolution: int,
+                                    diagonal: str = "tl-br"
+                                    ) -> tuple[np.ndarray, float, np.ndarray]:
+    """Map only within triangles built from adjacent original launch-grid rays."""
+    valid = data["valid"]
+    launch_grid = np.argwhere(valid)
+    node_id = np.full(valid.shape, -1, dtype=np.int32)
+    node_id[valid] = np.arange(len(launch_grid), dtype=np.int32)
+    cell_triangles = np.full((valid.shape[0] - 1, valid.shape[1] - 1, 2), -1,
+                             dtype=np.int32)
+    tl, tr = node_id[:-1, :-1], node_id[:-1, 1:]
+    bl, br = node_id[1:, :-1], node_id[1:, 1:]
+    corners = np.stack((tl, tr, bl, br), axis=-1)
+    corner_valid = corners >= 0
+    count = corner_valid.sum(axis=-1)
+    triangle_parts = []
+    cell_y_parts = []
+    cell_x_parts = []
+    slot_parts = []
+    row3, col3 = np.nonzero(count == 3)
+    if len(row3):
+        present3 = corner_valid[row3, col3]
+        choices = np.array(((1, 3, 2), (0, 3, 2), (0, 1, 3), (0, 1, 2)))
+        missing = np.argmax(~present3, axis=1)
+        triangle_parts.append(np.take_along_axis(corners[row3, col3], choices[missing], axis=1))
+        cell_y_parts.append(row3)
+        cell_x_parts.append(col3)
+        slot_parts.append(np.zeros(len(row3), dtype=np.int8))
+    row4, col4 = np.nonzero(count == 4)
+    if len(row4):
+        four = corners[row4, col4]
+        if diagonal == "tl-br":
+            split = (four[:, (0, 1, 3)], four[:, (0, 3, 2)])
+        elif diagonal == "tr-bl":
+            split = (four[:, (0, 1, 2)], four[:, (1, 3, 2)])
+        else:
+            raise ValueError(f"unsupported launch-grid diagonal: {diagonal}")
+        triangle_parts.extend(split)
+        cell_y_parts.extend((row4, row4))
+        cell_x_parts.extend((col4, col4))
+        slot_parts.extend((np.zeros(len(row4), dtype=np.int8),
+                           np.ones(len(row4), dtype=np.int8)))
+    if not triangle_parts:
+        raise ValueError("ghost ray grid has no positive-Jacobian launch-cell triangles")
+    candidate_triangles = np.concatenate(triangle_parts).astype(np.int32, copy=False)
+    candidate_y = np.concatenate(cell_y_parts)
+    candidate_x = np.concatenate(cell_x_parts)
+    candidate_slot = np.concatenate(slot_parts)
+    pupil_points = pupil_xy[candidate_triangles]
+    pupil_cross = ((pupil_points[:, 1, 0] - pupil_points[:, 0, 0]) *
+                   (pupil_points[:, 2, 1] - pupil_points[:, 0, 1]) -
+                   (pupil_points[:, 1, 1] - pupil_points[:, 0, 1]) *
+                   (pupil_points[:, 2, 0] - pupil_points[:, 0, 0]))
+    launch_uv = np.column_stack((data["u"][valid], data["v"][valid]))
+    uv_points = launch_uv[candidate_triangles]
+    uv_cross = ((uv_points[:, 1, 0] - uv_points[:, 0, 0]) *
+                (uv_points[:, 2, 1] - uv_points[:, 0, 1]) -
+                (uv_points[:, 1, 1] - uv_points[:, 0, 1]) *
+                (uv_points[:, 2, 0] - uv_points[:, 0, 0]))
+    candidate_jacobian = pupil_cross / np.where(np.abs(uv_cross) > 1e-30, uv_cross, 1.0)
+    accepted = np.isfinite(candidate_jacobian) & (candidate_jacobian > 1e-12)
+    primary_valid = np.zeros_like(cell_triangles[..., 0], dtype=bool)
+    primary_indices = np.flatnonzero(accepted & (candidate_slot == 0))
+    primary_valid[candidate_y[primary_indices], candidate_x[primary_indices]] = True
+    accepted_indices = np.flatnonzero(accepted)
+    triangles = candidate_triangles[accepted_indices]
+    jacobian = candidate_jacobian[accepted_indices]
+    accepted_y, accepted_x = candidate_y[accepted_indices], candidate_x[accepted_indices]
+    accepted_slot = candidate_slot[accepted_indices].copy()
+    second_diagonal = accepted_slot == 1
+    accepted_slot[second_diagonal &
+                  ~primary_valid[accepted_y, accepted_x]] = 0
+    cell_triangles[accepted_y, accepted_x, accepted_slot] = np.arange(len(triangles))
+    if not len(triangles):
+        raise ValueError("ghost ray grid has no positive-Jacobian launch-cell triangles")
+    nodal_jacobian = np.zeros(len(pupil_xy), dtype=np.float64)
+    nodal_count = np.zeros(len(pupil_xy), dtype=np.float64)
+    for corner in range(3):
+        np.add.at(nodal_jacobian, triangles[:, corner], jacobian)
+        np.add.at(nodal_count, triangles[:, corner], 1.0)
+    nodal_jacobian /= np.maximum(nodal_count, 1.0)
+    amplitude = np.sqrt(data["energy"][valid] / np.maximum(nodal_jacobian, 1e-30))
+
+    center = pupil_xy.mean(axis=0)
+    half_span = 0.5 * max(float(np.ptp(pupil_xy[:, 0])), float(np.ptp(pupil_xy[:, 1])))
+    pitch = 2.0 * half_span / resolution
+    axis = (np.arange(resolution, dtype=np.float64) + 0.5 - resolution * 0.5) * pitch
+    pupil_opd = np.zeros((resolution, resolution), dtype=np.float64)
+    pupil_amplitude = np.zeros_like(pupil_opd)
+    pupil_valid = np.zeros_like(pupil_opd, dtype=bool)
+    tree = cKDTree(pupil_xy)
+    chunk = max(1, min(16, resolution))
+    for y0 in range(0, resolution, chunk):
+        y1 = min(resolution, y0 + chunk)
+        xx, yy = np.meshgrid(center[0] + axis, center[1] + axis[y0:y1])
+        query = np.column_stack((xx.ravel(), yy.ravel()))
+        _, nearest = tree.query(query, k=min(4, len(pupil_xy)))
+        nearest = np.atleast_2d(nearest)
+        if nearest.shape[0] != len(query):
+            nearest = nearest.T
+        nearest_launch = launch_grid[nearest]
+        count = len(query)
+        result_opd = np.zeros(count, dtype=np.float64)
+        result_amp = np.zeros(count, dtype=np.float64)
+        resolved = np.zeros(count, dtype=bool)
+        for neighbor in range(nearest_launch.shape[1]):
+            launch_rc = nearest_launch[:, neighbor]
+            for cell_dy in (-1, 0):
+                cell_y = launch_rc[:, 0] + cell_dy
+                for cell_dx in (-1, 0):
+                    cell_x = launch_rc[:, 1] + cell_dx
+                    inside_cell = ((cell_y >= 0) & (cell_x >= 0) &
+                                   (cell_y < cell_triangles.shape[0]) &
+                                   (cell_x < cell_triangles.shape[1]) & ~resolved)
+                    if not np.any(inside_cell):
+                        continue
+                    rows = np.flatnonzero(inside_cell)
+                    cy, cx = cell_y[rows], cell_x[rows]
+                    for triangle_slot in (0, 1):
+                        triangle_ids = cell_triangles[cy, cx, triangle_slot]
+                        available = triangle_ids >= 0
+                        if not np.any(available):
+                            continue
+                        selected_rows = rows[available]
+                        selected_triangles = triangles[triangle_ids[available]]
+                        points = pupil_xy[selected_triangles]
+                        edge_a = points[:, 0] - points[:, 2]
+                        edge_b = points[:, 1] - points[:, 2]
+                        delta = query[selected_rows] - points[:, 2]
+                        determinant = edge_a[:, 0] * edge_b[:, 1] - edge_b[:, 0] * edge_a[:, 1]
+                        safe_det = np.where(np.abs(determinant) > 1e-30, determinant, 1.0)
+                        bary0 = (delta[:, 0] * edge_b[:, 1] - edge_b[:, 0] * delta[:, 1]) / safe_det
+                        bary1 = (edge_a[:, 0] * delta[:, 1] - delta[:, 0] * edge_a[:, 1]) / safe_det
+                        bary = np.column_stack((bary0, bary1, 1.0 - bary0 - bary1))
+                        hit = np.all(bary >= -1e-9, axis=1) & np.all(bary <= 1.0 + 1e-9, axis=1)
+                        if not np.any(hit):
+                            continue
+                        hit_rows = selected_rows[hit]
+                        hit_triangles = selected_triangles[hit]
+                        hit_bary = bary[hit]
+                        result_opd[hit_rows] = np.sum(opd_mm[hit_triangles] * hit_bary, axis=1)
+                        result_amp[hit_rows] = np.sum(amplitude[hit_triangles] * hit_bary, axis=1)
+                        resolved[hit_rows] = True
+        pupil_opd[y0:y1].ravel()[resolved] = result_opd[resolved]
+        pupil_amplitude[y0:y1].ravel()[resolved] = result_amp[resolved]
+        pupil_valid[y0:y1].ravel()[resolved] = True
+    if not np.any(pupil_valid):
+        raise ValueError("launch-grid triangles did not cover the regular pupil")
+    return pupil_opd, pitch, np.where(pupil_valid, pupil_amplitude, 0.0)
+
+
 def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
                          opd_mm: np.ndarray, resolution: int,
                          opd_interpolation: str = "linear",
-                         jacobian_method: str = "triangle"
+                         jacobian_method: str = "triangle",
+                         triangulation_method: str = "launch-grid"
                          ) -> tuple[np.ndarray, float, np.ndarray]:
+    if triangulation_method in ("launch-grid", "launch-grid-alt"):
+        if opd_interpolation != "linear" or jacobian_method != "triangle":
+            raise ValueError("launch-grid topology currently requires linear OPD and triangle Jacobians")
+        diagonal = "tl-br" if triangulation_method == "launch-grid" else "tr-bl"
+        return map_to_regular_pupil_launch_grid(data, pupil_xy, opd_mm, resolution, diagonal)
+    if triangulation_method != "delaunay":
+        raise ValueError(f"unsupported pupil triangulation method: {triangulation_method}")
     valid = data["valid"]
     launch_grid = np.argwhere(valid)
     launch_uv = np.column_stack((data["u"][valid], data["v"][valid]))
@@ -434,6 +594,9 @@ def main() -> None:
     parser.add_argument("--jacobian-method", choices=("triangle", "launch-fd"),
                         default="triangle",
                         help="ray-energy to pupil-amplitude area Jacobian")
+    parser.add_argument("--triangulation-method", choices=("delaunay", "launch-grid", "launch-grid-alt"),
+                        default="launch-grid",
+                        help="physical-pupil interpolation topology (launch-grid uses a fixed cell diagonal)")
     parser.add_argument("--map-pattern", default="build/tools/LensFlareLab/ghost-exit-grid-{grid}.csv")
     parser.add_argument("--wavelengths-nm", type=int, nargs="+", default=DEFAULT_WAVELENGTHS)
     parser.add_argument("--crop-radius", type=int, default=32)
@@ -465,7 +628,7 @@ def main() -> None:
             pupil_resolution = args.pupil_resolution or grid
             regular_opd, pupil_pitch, amplitude = map_to_regular_pupil(
                 data, pupil_xy, opd, pupil_resolution, args.opd_interpolation,
-                args.jacobian_method)
+                args.jacobian_method, args.triangulation_method)
             previous_pupil = previous_pupils.get(wavelength)
             if previous_pupil is None:
                 opd_delta_um, amplitude_delta_percent, support_iou_percent = (
@@ -506,6 +669,7 @@ def main() -> None:
                 "pupil_grid_resolution": pupil_resolution,
                 "opd_interpolation": args.opd_interpolation,
                 "jacobian_method": args.jacobian_method,
+                "triangulation_method": args.triangulation_method,
                 "native_fourier_sample_pitch_sensor_px": pixel_scale,
                 "detector_pixel_subsamples": args.pixel_subsamples,
                 "reference_sphere_opd_rms_um": float(np.sqrt(np.mean(opd * opd)) * 1000.0),

@@ -64,7 +64,7 @@ def main() -> None:
         fields[grid] = {}
         for method in ("triangle", "launch-fd"):
             wavefront, pitch, amplitude = optics.map_to_regular_pupil(
-                data, pupil_xy, opd, args.pupil_resolution, "linear", method)
+                data, pupil_xy, opd, args.pupil_resolution, "linear", method, "delaunay")
             psf, _, _, _, _, crop_fraction, _ = optics.psf_and_pixel_integral(
                 wavefront, amplitude, args.wavelength_nm, pitch, reference_radius,
                 args.crop_radius, args.pixel_subsamples, *args.detector_offset_px)
