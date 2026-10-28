@@ -17,7 +17,7 @@ import evaluate_direct_transmission_raytrace as raytrace
 from evaluate_harvey_scatter_reference import calculate_tis
 
 
-def surface_bundle(field_deg, wavelength_nm, grid_size):
+def surface_bundle(field_deg, wavelength_nm, grid_size, include_hit_points=False):
     field = math.radians(field_deg)
     direction = np.array((math.sin(field), 0.0, math.cos(field)))
     chief, _ = raytrace.chief_ray(field, wavelength_nm)
@@ -58,8 +58,10 @@ def surface_bundle(field_deg, wavelength_nm, grid_size):
                 origin = point
             accepted += int(valid)
     stats = []
+    hit_points = []
     for i, points in enumerate(hits):
         values = np.asarray(points, dtype=np.float64).reshape(-1, 2)
+        hit_points.append(values)
         if not len(values):
             stats.append((i, 0, math.nan, math.nan, math.nan, math.nan))
             continue
@@ -68,6 +70,8 @@ def surface_bundle(field_deg, wavelength_nm, grid_size):
         stats.append((i, len(values), float(np.quantile(radii, .5)),
                       float(np.quantile(radii, .9)), float(np.quantile(radii, .99)),
                       float(np.sqrt(np.mean(radii * radii)))))
+    if include_hit_points:
+        return accepted, stats, hit_points
     return accepted, stats
 
 

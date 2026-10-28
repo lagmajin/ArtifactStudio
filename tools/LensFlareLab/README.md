@@ -305,6 +305,8 @@ visualizations and physical limits are documented in [EVALUATION.md](EVALUATION.
 `evaluate_scatter_radius_proxy_sensitivity.py` reuses that per-surface trace
 to compare crop predictions using r50, r90, r99, RMS, and `sqrt(2) × RMS`
 equal-area disk cone radii.
+`evaluate_elliptical_pupil_scatter.py` compares the circular r90 model with an
+experimental 90%-coverage ellipse fit to each surface's traced ray footprint.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

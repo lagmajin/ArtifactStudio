@@ -40,6 +40,44 @@ and `L=2.04 mrad`; `--transmission` and `--na` control the stated system
 assumptions. Increase `--grid` to check pupil sampling convergence before
 using these radii as inputs to a future per-surface render model.
 
+### Elliptical pupil-footprint sensitivity
+
+`evaluate_elliptical_pupil_scatter.py` retains the traced hit points on each
+surface and compares the circular r90 approximation with a 90%-coverage
+covariance ellipse. The ellipse's equivalent radius preserves its area; a
+directional radius then replaces the circular radius in the radial falloff.
+This is an exploratory extension of the circular per-surface model in
+[Ritt et al. (2020)](https://www.mdpi.com/1424-8220/20/21/6308), not a published
+anisotropic BSDF formulation. In particular, mapping each surface's ellipse
+orientation directly to image-plane directions is an unvalidated assumption.
+
+The image plate compares both models on the same 5.5 µm-pitch central crop and
+shared display range. Red in the difference panel means the elliptical model
+is brighter; blue means the circular model is brighter. Crop totals were:
+
+| Field | 32² delta vs circular | 64² delta | 128² delta | Median ellipse axis ratio at 64² |
+|---:|---:|---:|---:|---:|
+| 0° | 0.000% | 0.000% | 0.000% | 1.000 |
+| 5° | −0.001% | +0.007% | +0.001% | 1.002 |
+| 10° | +0.017% | +0.015% | +0.022% | 1.011 |
+| 12° | +0.815% | +0.835% | +0.828% | 1.057 |
+
+At 12°, five of fourteen surface bundles exceed a 1.1 major/minor axis ratio;
+the maximum is 1.73. The total crop prediction still moves by less than 0.84%,
+and the result is stable from 32² through 128². For this lens, generic BSDF,
+and small central crop, the circular r90 approximation remains adequate for
+total captured energy. The visible red/blue difference pattern shows where the
+directional shape would alter the image, but its pixel-level value remains
+unverified until compared with a measured or non-sequential scatter reference.
+
+![Circular and covariance-ellipse pupil scatter images with a signed difference](examples/elliptical-pupil-scatter.png)
+
+The field summary and per-surface ellipse axes are in
+[`elliptical-pupil-scatter.csv`](examples/elliptical-pupil-scatter.csv) and
+[`elliptical-pupil-scatter-surfaces.csv`](examples/elliptical-pupil-scatter-surfaces.csv).
+Reproduce with `python tools/LensFlareLab/evaluate_elliptical_pupil_scatter.py
+--grid 64`; `--grid 32` and `--grid 128` reproduce the sampling comparison.
+
 ### Harvey roll-off and finite-sensor capture
 
 The same prescription-derived on-axis cones were evaluated at four roll-off
