@@ -1587,6 +1587,58 @@ python tools/LensFlareLab/make_optical_path_phase_chart.py `
   tools/LensFlareLab/examples/ghost-optical-path-phase-residual-20261028.png
 ```
 
+### Coherent ghost pupil PSF prototype
+
+`evaluate_ghost_wavefront_psf.py` turns the selected 9→8 ghost optical-path
+maps into a complex pupil and scalar Fraunhofer PSF. For each wavelength it
+fits piston, tilt, and quadratic phase; it removes piston and tilt, and removes
+only the isotropic part of the quadratic carrier. The remaining astigmatic and
+higher-order phase is retained. A flat-phase pupil with the same ray-energy
+amplitude isolates the PSF change caused by the traced phase. The image plate
+shows phase PSF, flat-phase baseline, absolute difference, and residual pupil
+phase. Metrics compare normalized Fourier-bin crops, not detector pixels.
+The exported OPL terminates at each ray's own sensor intercept rather than on
+a shared path-specific exit-pupil reference sphere. This FFT is therefore an
+experimental phase-texture diagnostic and does not yet reconstruct a physical
+ghost diffraction PSF.
+
+The preliminary 256²/512² comparison changed the common-crop normalized PSF by
+23.66–38.22% L1. Independent OPL maps were then traced at 1024² and 2048²
+without changing the renderer's 64² grid. Adjacent-grid PSF L1 changes fall
+from 23.66–38.22% (256²→512²), to 10.83–19.11% (512²→1024²), then to
+5.20–9.15% (1024²→2048²) across 610/550/460 nm. The valid pupil fractions
+remain near 75.7%. Residual OPD RMS changes by at most 0.20% from 256² to
+512², then by less than 0.11% for each doubled resolution. The images retain
+the same broad asymmetric lobe and
+fringe pattern, but the remaining L1 differences mean the PSF is not
+converged. The chart is a phase-texture diagnostic, not a promotion candidate.
+The current pupil coordinates are normalized stop coordinates; a path-specific
+exit-pupil transform is still required before assigning physical screen scale.
+
+Generate the dense OPL maps without changing the ordinary render grid, then
+compare the complex-pupil PSF at all four resolutions:
+
+```powershell
+foreach ($grid in 256, 512, 1024, 2048) {
+  build/lens-flare-lab-direct/LensFlareLab.exe `
+    build/tools/LensFlareLab/opl-phase-input.pfm `
+    ("build/tools/LensFlareLab/opl-wavefront-grid-$grid.pfm") `
+    --position 0.3834 0.3844 --ray-grid 64 --source-samples 1 `
+    --diffraction off --ghost-pair 9 8 `
+    --optical-path-map ("build/tools/LensFlareLab/opl-wavefront-grid-$grid.csv") `
+    --optical-path-map-grid $grid
+}
+
+python tools/LensFlareLab/evaluate_ghost_wavefront_psf.py `
+  --grid 256 --grid 512 --grid 1024 --grid 2048 `
+  --map-pattern build/tools/LensFlareLab/opl-wavefront-grid-{grid}.csv
+```
+
+![Prescription-based coherent ghost pupil PSFs at 460/550/610 nm, compared with a flat-phase pupil](examples/ghost-wavefront-psf-20261028.png)
+
+The per-grid pupil, residual-phase, and PSF metrics are in
+[`ghost-wavefront-psf-20261028.csv`](examples/ghost-wavefront-psf-20261028.csv).
+
 Reproduce with `LensFlareLab input.pfm output.pfm --position 0.3834 0.3844
 --ray-grid 32 --source-samples 1 --diffraction off --ghost-pair 9 8
 --optical-path-report`.

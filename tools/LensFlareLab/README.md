@@ -416,14 +416,30 @@ per-path comparisons against uniform ray grids.
 pupil-ray optical paths at each RGB wavelength, referenced to the plane
 perpendicular to the incident direction that crosses the optical axis 100 mm
 before the front surface. `--optical-path-map CSV` uses the same phase reference.
-These are ray-path diagnostics; coating phase, complex Fresnel amplitudes, phase
-unwrapping, and coherent image formation are not yet modeled. Historical phase
-maps produced before the common-plane correction are not valid for quantitative
-off-axis phase analysis; see [EVALUATION.md](EVALUATION.md).
+The map contains ray-energy losses but omits complex Fresnel coefficient phase
+and polarization. The offline coherent-pupil diagnostic is described below;
+the production ghost render still does not use the optical-path phase map.
+Historical maps produced before the common-plane correction are not valid for
+quantitative off-axis phase analysis; see [EVALUATION.md](EVALUATION.md).
 `--optical-path-map CSV` writes the selected path's pupil-grid ray map at the
-active `--ray-grid` resolution. `make_optical_path_phase_chart.py` visualizes
+active `--ray-grid` resolution. For denser phase studies, add
+`--optical-path-map-grid N` (8–2048); this diagnostic grid is independent of
+the render grid and may take substantially longer at high resolutions.
+`make_optical_path_phase_chart.py` visualizes
 four grids and reports neighboring-ray phase steps; wrapped colors are a
 sampling diagnostic, not a diffraction render.
+
+`evaluate_ghost_wavefront_psf.py` consumes those maps and forms a scalar
+stop-grid phase-PSF diagnostic after removing piston, tilt, and the isotropic quadratic
+carrier. The remaining quadratic astigmatism and higher-order OPL structure
+shape the PSF; a flat-phase pupil with the same Fresnel energy distribution is
+the comparison. This is a monochromatic wavefront diagnostic in normalized
+Fourier coordinates. It does not yet have a path-specific exit-pupil scale,
+coating reflection phase, polarization, source spectrum, or measured-camera
+calibration. The exported OPL terminates at each ray's own sensor intercept,
+not on a path-specific exit-pupil reference sphere, so this is a phase-texture
+and sampling diagnostic rather than a physically calibrated ghost PSF or
+screen-space flare render.
 
 ## Core/app integration path
 

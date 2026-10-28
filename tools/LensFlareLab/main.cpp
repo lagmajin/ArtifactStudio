@@ -175,6 +175,7 @@ struct Settings {
     bool reportOpticalPath = false;
     bool reportCoating = false;
     std::string opticalPathMapFile;
+    int opticalPathMapGrid = 0;
     int selectedFirstReflection = -1;
     int selectedSecondReflection = -1;
 };
@@ -1473,6 +1474,9 @@ Image render(const Image& source, const Settings& settings) {
         if (!map) throw std::runtime_error("cannot create optical path map: " + settings.opticalPathMapFile);
         map << "wavelength_nm,pupil_u,pupil_v,valid,opl_mm,phase_cycles,energy,sensor_x_mm,sensor_y_mm\n";
         map << std::setprecision(12);
+        const int mapGrid = std::clamp(settings.opticalPathMapGrid > 0
+                                           ? settings.opticalPathMapGrid : grid,
+                                       8, 2048);
         const float sourceU = settings.autoPosition ? lights.lights[0].u : settings.positionX;
         const float sourceV = settings.autoPosition ? lights.lights[0].v : settings.positionY;
         const float thetaX = std::atan((sourceU - 0.5f) * lens.sensorWidth /
@@ -1484,9 +1488,9 @@ Image render(const Image& source, const Settings& settings) {
         const double referencePlaneZ = static_cast<double>(lens.surfaces.front().z) - 100.0;
         for (std::size_t band = 0; band < wavelengths.size(); ++band) {
             const double wavelengthMm = wavelengths[band] * 1e-6;
-            for (int gy = 0; gy < grid; ++gy) for (int gx = 0; gx < grid; ++gx) {
-                const float pupilU = ((gx + 0.5f) / grid) * 2.0f - 1.0f;
-                const float pupilV = ((gy + 0.5f) / grid) * 2.0f - 1.0f;
+            for (int gy = 0; gy < mapGrid; ++gy) for (int gx = 0; gx < mapGrid; ++gx) {
+                const float pupilU = ((gx + 0.5f) / mapGrid) * 2.0f - 1.0f;
+                const float pupilV = ((gy + 0.5f) / mapGrid) * 2.0f - 1.0f;
                 const float stopX = pupilU * lens.irisRadius;
                 const float stopY = pupilV * lens.irisRadius;
                 Vec3 entranceOrigin{};
@@ -1519,7 +1523,7 @@ Image render(const Image& source, const Settings& settings) {
             }
         }
         std::cout << "Optical path map: " << settings.opticalPathMapFile << " ("
-                  << grid << "x" << grid << " pupil rays, 3 wavelengths)\n";
+                  << mapGrid << "x" << mapGrid << " pupil rays, 3 wavelengths)\n";
     }
     if (settings.reportOpticalPath || settings.reportCoating) {
         constexpr std::array<Point2, 5> pupilSamples{{
@@ -2450,6 +2454,7 @@ void printSettings(const Settings& s) {
               << " diffractionResampling="
               << (s.diffractionPixelAreaResampling ? "pixel-area" : "tent")
               << " ghostPair=" << s.selectedFirstReflection << ',' << s.selectedSecondReflection
+              << " opticalPathMapGrid=" << s.opticalPathMapGrid
               << " lens=Angenieux-Double-Gauss-100mm\n";
 }
 
@@ -2465,7 +2470,7 @@ void printHelp() {
               << "               --aperture-rotation-degrees N (shared pupil rotation; default 0)\n"
               << "               --diffraction-resolution 128|256|512|1024|2048|4096 (default 1024)\n"
               << "               --source-sampling equal-grid|weighted-quantile (experimental footprint-aware binning)\n"
-              << "CLI diagnostics: --ghost-report | --ghost-report-csv PATH | --ghost-pair FIRST SECOND | --optical-path-report | --coating-report | --optical-path-map CSV | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
+              << "CLI diagnostics: --ghost-report | --ghost-report-csv PATH | --ghost-pair FIRST SECOND | --optical-path-report | --coating-report | --optical-path-map CSV [--optical-path-map-grid 8..2048] | --jacobian-report | --source-report | --diffraction-report | --ghost-diffraction-report\n";
 }
 
 void setValue(Settings& s, const std::string& name, float value) {
@@ -2642,6 +2647,13 @@ void parseOption(Settings& settings, int& i, int argc, char** argv) {
     else if (option == "--optical-path-map") {
         if (++i >= argc) throw std::runtime_error("missing value for --optical-path-map");
         settings.opticalPathMapFile = argv[i];
+    }
+    else if (option == "--optical-path-map-grid") {
+        if (++i >= argc) throw std::runtime_error("missing value for --optical-path-map-grid");
+        const float requestedGrid = std::stof(argv[i]);
+        if (!std::isfinite(requestedGrid) || requestedGrid < 8.0f || requestedGrid > 2048.0f)
+            throw std::runtime_error("--optical-path-map-grid must be between 8 and 2048");
+        settings.opticalPathMapGrid = static_cast<int>(std::lround(requestedGrid));
     }
     else if (option == "--source-report") settings.reportSourceSamples = true;
     else if (option == "--diffraction-report") settings.reportDiffractionModel = true;
