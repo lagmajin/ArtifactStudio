@@ -16,7 +16,12 @@ import evaluate_adaptive_field_convergence as shared
 
 FIELDS = shared.FIELDS
 GHOST_PAIRS = ((13, 9), (6, 5), (5, 0), (12, 9), (10, 7))
-REFINEMENT_COUNTS = re.compile(r"centerRays=(\d+) edgeRays=(\d+) refinedCells=(\d+).*?screenErrorThreshold=([\d.]+)px, relativeEnergyThreshold=[\deE.+-]+% maxMappingError=[\deE.+-]+px maxEnergyRelativeError=[\deE.+-]+% triggers\(mapping=(\d+), energy=(\d+), validity=(\d+), foldover=(\d+)\)")
+REFINEMENT_COUNTS = re.compile(
+    r"centerRays=(?P<center>\d+) edgeRays=(?P<edge>\d+) refinedCells=(?P<cells>\d+)"
+    r".*?screenErrorThreshold=(?P<threshold>[\d.]+)px, relativeEnergyThreshold=[\deE.+-]+%"
+    r" maxMappingError=[\deE.+-]+px maxEnergyRelativeError=[\deE.+-]+%"
+    r" triggers\(mapping=(?P<mapping>\d+), energy=(?P<energy>\d+),"
+    r" validity=(?P<validity>\d+), foldover=(?P<foldover>\d+)\)")
 
 
 def main():
@@ -25,6 +30,7 @@ def main():
     parser.add_argument("--output-dir", type=Path, default=Path("build/tools/LensFlareLab/adaptive-paths"))
     parser.add_argument("--ray-grid", type=int, default=64)
     parser.add_argument("--reference-grid", type=int, default=128)
+    parser.add_argument("--spectral-samples", type=int, choices=(3, 7, 15, 31, 61), default=31)
     parser.add_argument("--threshold", type=float, default=0.75)
     parser.add_argument("--fields", nargs="+", choices=tuple(field[0] for field in FIELDS),
                         default=tuple(field[0] for field in FIELDS))
@@ -62,7 +68,8 @@ def main():
                 output = args.output_dir / f"{field}-{pair_name}-{mode}.pfm"
                 command = [str(args.executable.resolve()), str(source_path.resolve()), str(output.resolve()),
                            "--position", str(u), str(v), "--source-samples", "1", "--ray-grid", str(grid),
-                           "--gain", "1", "--diffraction", "off", "--ghost-diffraction", "off",
+                           "--spectral-samples", str(args.spectral_samples), "--gain", "1",
+                           "--diffraction", "off", "--ghost-diffraction", "off",
                            "--ghost-pair", str(first), str(second), "--ghost-report"]
                 if adaptive:
                     command += ["--adaptive-ray-refinement", "on", "--adaptive-ray-refinement-threshold",
@@ -80,6 +87,7 @@ def main():
                 rows.append({"field": field, "source_u": u, "source_v": v,
                              "first_surface": first, "second_surface": second, "mode": mode,
                              "ray_grid": grid, "adaptive": adaptive,
+                             "spectral_samples": args.spectral_samples,
                              "threshold_px": args.threshold if adaptive else "", "render_seconds": elapsed,
                              "rgb_flux": summary["rgb_flux"], "luma_flux": summary["luma_flux"],
                              "peak_luma": summary["peak_luma"]})
@@ -87,12 +95,13 @@ def main():
                     match = REFINEMENT_COUNTS.search(result.stdout)
                     if not match:
                         raise RuntimeError(f"adaptive reason counters missing for {field}/{pair_name}:\n{result.stdout}")
-                    rows[-1].update({"center_rays": int(match.group(1)), "edge_rays": int(match.group(2)),
-                                     "refined_cells": int(match.group(3)),
-                                     "mapping_error_triggers": int(match.group(6)),
-                                     "energy_error_triggers": int(match.group(7)),
-                                     "validity_boundary_triggers": int(match.group(8)),
-                                     "foldover_triggers": int(match.group(9))})
+                    rows[-1].update({"center_rays": int(match.group("center")),
+                                     "edge_rays": int(match.group("edge")),
+                                     "refined_cells": int(match.group("cells")),
+                                     "mapping_error_triggers": int(match.group("mapping")),
+                                     "energy_error_triggers": int(match.group("energy")),
+                                     "validity_boundary_triggers": int(match.group("validity")),
+                                     "foldover_triggers": int(match.group("foldover"))})
                 print(f"field={field} path={first}->{second} mode={mode} seconds={elapsed:.3f} "
                       f"Y={summary['luma_flux']:.7g}", flush=True)
 

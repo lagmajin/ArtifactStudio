@@ -1566,6 +1566,44 @@ The comparison plates show the isolated flare and signed luminance difference
 uniform grids 64/96/128/192/512 from identical source PFMs and render settings.
 The tool reports frame Y, relative L1, peak, and centroid for every candidate.
 
+#### 31-band path image review
+
+A focused follow-up compared uniform grid 64, adaptive grid 64 (0.75 px
+threshold), and uniform grid 128 for paths 13→9, 6→5, and 5→0 at the center
+and upper-left fields. All six cases used one neutral point source, 31
+wavelength samples, and disabled source/ghost diffraction to isolate the ray
+map. The 128 grid is a denser numerical reference, not measured ground truth.
+
+| Metric across six cases | Uniform 64 median / maximum | Adaptive 64 median / maximum |
+|---|---:|---:|
+| RGB relative L1 vs grid 128 | 5.281% / 13.373% | 3.460% / 9.687% |
+| Normalized-shape L1 vs grid 128 | 9.499% / 16.604% | 4.299% / 13.842% |
+| Centroid error vs grid 128 | 0.070 / 0.848 px | 0.083 / 1.477 px |
+| Render time including PFM I/O | 0.220 s median | 0.330 s median |
+
+The images show adaptive refinement softening coarse pupil-cell edges and
+bringing patch shapes closer to grid 128, especially for the large 6→5 ghost.
+It does not improve every measure: median and worst centroid errors increase,
+and adaptive is 1.50× slower by median time in this short run. Keep adaptive
+sampling opt-in until centroid placement and cost are addressed across more
+fields and paths.
+
+![Path 13-to-9 image review at center and upper-left fields](examples/adaptive-image-review-13-9-31band.png)
+
+![Path 6-to-5 image review at center and upper-left fields](examples/adaptive-image-review-6-5-31band.png)
+
+![Path 5-to-0 image review at center and upper-left fields](examples/adaptive-image-review-5-0-31band.png)
+
+The exact per-case measurements are in
+[`adaptive-image-review-31band.csv`](examples/adaptive-image-review-31band.csv).
+`evaluate_adaptive_ghost_paths.py` now accepts and records
+`--spectral-samples`; it also parses each named adaptive trigger counter
+correctly. The images were rendered with the available prebuilt dev executable
+and explicit `--spectral-samples 31`. That executable predates the source
+commits that changed only the default band count/help text; no fresh C++ build
+was run, so this confirms the explicit 31-band render path but not a clean
+rebuild from the current checkout.
+
 ### Automatic four-source flare evaluation
 
 The synthetic full-scene chart was rendered at source scale 1024 with automatic
@@ -1877,6 +1915,18 @@ so this result is not a ray-grid-64 artifact. The numbers remain a low-resolutio
 look-dev evaluation, not calibrated physical accuracy.
 
 ![Geometric ghosts (top) and aperture-FrFT ghosts (bottom) for the two estimated Fig. 10 source positions](examples/fig10-source-position-aperture-frft-review.png)
+
+For a full-flare visual check, I rendered the same neutral point source at
+`(0.246, 0.356)` with direct-source diffraction enabled, 31 wavelengths, and
+ray grid 128. The source-subtracted geometric and triangle-normalized
+aperture-FrFT flare images have Y sums `138.4956` and `138.5172` (+0.0156%),
+relative image L1 `0.1239%`, and a `0.0173 px` centroid shift. The zoomed image shows
+that the FrFT adds only a subtle change to this full path mix; the crisp
+six-sided ghost boundaries remain visible. A more realistic blur/shape match
+needs measured or prescription-derived wavefront aberration in the reflected
+paths, rather than increasing ray density alone.
+
+![31-band full flare with direct diffraction: geometric versus aperture FrFT at a shared exposure](examples/fullflare-aperture-frft-review-31band.png)
 
 ![Cropped 9→8 ghost: geometry, aperture FrFT, and the per-pixel change (red adds, blue removes)](examples/ghost-9-8-flux-diagnostic-crop.png)
 
