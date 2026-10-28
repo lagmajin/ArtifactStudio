@@ -1492,22 +1492,30 @@ generated with the incorrect Z-plane reference and must not be used to set
 sampling or judge phase convergence. Corrected maps and image comparisons have
 now been regenerated from a fresh LensFlareLab build.
 Even with the corrected reference, these diagnostics do not yet model complex
-Fresnel amplitudes, thin-film reflection phase, phase unwrapping, or coherent
-propagation, so they do not validate the rendered flare image.
+Fresnel amplitudes, thin-film reflection phase, or coherent propagation, so
+they do not validate the rendered flare image.
 
 The corrected map was regenerated at 64², 128², 256², and 512² pupil grids for
 the 9→8 ghost at source position (0.3834, 0.3844), using the Angenieux
-prescription and 610/550/460 nm report wavelengths. At 512², adjacent valid
-pupil samples still differ by 8.51/9.48/11.45 phase cycles at the median and
-18.29/20.33/24.45 cycles at the maximum (red/green/blue report wavelengths).
-Only 2.48–3.30% of adjacent valid intervals are at or below the half-cycle
-Nyquist limit. The high-frequency wrapped colors in the chart therefore
-diagnose severe undersampling; they are not a resolved wavefront and cannot be
-passed into a coherent pupil transform as-is. This confirms that the
-optical-path map currently serves as a diagnostic, not as a phase model used
-by the rendered ghost.
+prescription and 610/550/460 nm report wavelengths. The raw phase map contains
+a strong smooth quadratic carrier. Counting its per-cell
+phase changes as unmodeled wavefront frequencies incorrectly suggested severe
+undersampling. A diagnostic least-squares fit of piston, tilt, and a full
+quadratic reference reduces the 512² residual phase-step medians to
+0.06/0.07/0.09 cycles and the 90th percentiles to 0.15/0.17/0.21 cycles
+(610/550/460 nm). Maximum residual steps are 0.48/0.51/0.64 cycles;
+99.99–100.00% of adjacent valid intervals are at or below 0.5 cycles. At
+256², 99.43–99.97% meet that criterion. This indicates that the non-quadratic
+residual is resolved at these grids, especially 256² and 512². The fit is a
+sampling diagnostic, not a physical propagation model: the quadratic term
+must be retained and handled analytically (or by an appropriate scaled
+Fresnel/FrFT transform), rather than discarded, before using the complex
+pupil in an image renderer. The optical-path map remains diagnostic and is
+not yet used by the rendered ghost.
 
 ![Corrected common-plane ghost phase sampling at four pupil-grid resolutions](examples/ghost-optical-path-phase-sampling-corrected-20261028.png)
+
+![Residual ghost phase after fitting piston, tilt, and quadratic reference](examples/ghost-optical-path-phase-residual-20261028.png)
 
 The same synthetic point-source input was used for a 31-band image comparison
 of geometric mapping, scalar Fresnel propagation, and the aperture FrFT on the
@@ -1535,7 +1543,9 @@ render and added `--ghost-frft on --ghost-frft-report`; the chart masks a
 12-pixel-radius region around the light source and reports the 180..640,
 80..360 pixel crop. The corrected phase chart and table can be regenerated
 from four `--optical-path-map` CSVs with
-`make_optical_path_phase_chart.py`, which prints the phase-step summary.
+`make_optical_path_phase_chart.py`; add `--remove-quadratic-reference` to
+reproduce the residual chart and summary. The fit is separate for each
+wavelength and resolution.
 
 Recreate the historical, superseded chart only if needed for comparison with
 older notes. For new measurements, build LensFlareLab and regenerate maps at
@@ -1567,6 +1577,14 @@ python tools/LensFlareLab/make_optical_path_phase_chart.py `
   --case grid256=build/tools/LensFlareLab/opl-fixed-grid-256.csv `
   --case grid512=build/tools/LensFlareLab/opl-fixed-grid-512.csv `
   tools/LensFlareLab/examples/ghost-optical-path-phase-sampling-corrected-20261028.png
+
+python tools/LensFlareLab/make_optical_path_phase_chart.py `
+  --remove-quadratic-reference `
+  --case grid64=build/tools/LensFlareLab/opl-fixed-grid-64.csv `
+  --case grid128=build/tools/LensFlareLab/opl-fixed-grid-128.csv `
+  --case grid256=build/tools/LensFlareLab/opl-fixed-grid-256.csv `
+  --case grid512=build/tools/LensFlareLab/opl-fixed-grid-512.csv `
+  tools/LensFlareLab/examples/ghost-optical-path-phase-residual-20261028.png
 ```
 
 Reproduce with `LensFlareLab input.pfm output.pfm --position 0.3834 0.3844

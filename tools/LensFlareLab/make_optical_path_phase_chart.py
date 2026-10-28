@@ -27,6 +27,59 @@ def read_map(path):
     return grids
 
 
+def quadratic_basis(u, v):
+    return (1.0, u, v, u * u, u * v, v * v)
+
+
+def fit_quadratic_reference(samples):
+    """Remove the best-fit piston, tilt, and quadratic reference wave."""
+    size = 6
+    normal = [[0.0] * size for _ in range(size)]
+    right = [0.0] * size
+    valid_count = 0
+    for u, v, valid, cycles in samples:
+        if not valid:
+            continue
+        basis = quadratic_basis(u, v)
+        for row in range(size):
+            right[row] += basis[row] * cycles
+            for column in range(size):
+                normal[row][column] += basis[row] * basis[column]
+        valid_count += 1
+    if valid_count < size:
+        raise ValueError("not enough valid rays to fit a quadratic reference")
+
+    # Gauss-Jordan elimination with partial pivoting.
+    for column in range(size):
+        pivot = max(range(column, size), key=lambda row: abs(normal[row][column]))
+        if abs(normal[pivot][column]) < 1e-18:
+            raise ValueError("quadratic reference fit is singular")
+        normal[column], normal[pivot] = normal[pivot], normal[column]
+        right[column], right[pivot] = right[pivot], right[column]
+        scale = normal[column][column]
+        normal[column] = [value / scale for value in normal[column]]
+        right[column] /= scale
+        for row in range(size):
+            if row == column:
+                continue
+            factor = normal[row][column]
+            if factor == 0.0:
+                continue
+            normal[row] = [normal[row][index] - factor * normal[column][index]
+                           for index in range(size)]
+            right[row] -= factor * right[column]
+
+    coefficients = right
+    residuals = []
+    for u, v, valid, cycles in samples:
+        if valid:
+            reference = sum(coefficient * basis for coefficient, basis in
+                            zip(coefficients, quadratic_basis(u, v)))
+            cycles -= reference
+        residuals.append((u, v, valid, cycles))
+    return residuals, coefficients
+
+
 def phase_step_summary(samples, resolution, wavelength):
     cells = {}
     for u, v, valid, cycles in samples:
@@ -68,6 +121,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", action="append", required=True, metavar="LABEL=CSV",
                         help="ray-grid label and --optical-path-map CSV (repeat 4 times)")
+    parser.add_argument("--remove-quadratic-reference", action="store_true",
+                        help="fit and remove piston, tilt, and quadratic phase before analysis")
     parser.add_argument("output", type=Path, help="PNG image plate")
     args = parser.parse_args()
     cases = []
@@ -88,6 +143,13 @@ def main():
 
     for label, resolution, maps in cases:
         for wavelength in (610, 550, 460):
+            if args.remove_quadratic_reference:
+                maps[wavelength], coefficients = fit_quadratic_reference(maps[wavelength])
+                print(f"{label} {wavelength}nm fitted quadratic phase coefficients "
+                      f"(cycles in normalized pupil coordinates): "
+                      f"piston={coefficients[0]:.6g}, tilt=({coefficients[1]:.6g},"
+                      f"{coefficients[2]:.6g}), quadratic=({coefficients[3]:.6g},"
+                      f"{coefficients[4]:.6g},{coefficients[5]:.6g})")
             p50, p90, maximum, below_nyquist = phase_step_summary(
                 maps[wavelength], resolution, wavelength)
             print(f"{label} {wavelength}nm adjacent valid pupil-ray phase step "
@@ -106,7 +168,9 @@ def main():
     font = ImageFont.load_default()
     for column, (label, resolution, maps) in enumerate(cases):
         x = margin + row_label_width + column * (panel + margin)
-        draw.text((x, margin), f"{label} ({resolution}²)", fill=(230, 234, 240), font=font)
+        phase_label = "quadratic removed" if args.remove_quadratic_reference else "raw OPL phase"
+        draw.text((x, margin), f"{label} ({resolution}²; {phase_label})",
+                  fill=(230, 234, 240), font=font)
         for row_index, wavelength in enumerate((610, 550, 460)):
             y = margin + label_height + row_index * (panel + label_height + margin)
             if column == 0:
