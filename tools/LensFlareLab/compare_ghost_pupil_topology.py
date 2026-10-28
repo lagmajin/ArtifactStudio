@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import math
 from pathlib import Path
 
 import numpy as np
@@ -50,7 +51,8 @@ def main() -> None:
     parser.add_argument("--pupil-resolution", type=int, default=512)
     parser.add_argument("--crop-radius", type=int, default=12)
     parser.add_argument("--pixel-subsamples", type=int, choices=(2, 4, 8), default=4)
-    parser.add_argument("--detector-offset-px", type=float, nargs=2, default=(0.157536, 0.319445))
+    parser.add_argument("--detector-offset-px", type=float, nargs=2, default=None,
+                        help="override chief-ray subpixel offset; default derives it from the low-grid map")
     parser.add_argument("--csv", type=Path,
                         default=Path("tools/LensFlareLab/examples/ghost-pupil-topology-ablation.csv"))
     parser.add_argument("--image", type=Path,
@@ -65,15 +67,22 @@ def main() -> None:
         data = optics.read_map(Path(args.map_pattern.format(grid=grid)), grid,
                                args.wavelength_nm)
         pupil_xy, center, pupil_z, pupil_rms = optics.fit_exit_pupil(data)
-        opd, _, reference_radius, _ = optics.image_centered_opd(
+        opd, image_point, reference_radius, _ = optics.image_centered_opd(
             data, args.wavelength_nm, pupil_xy, center, pupil_z)
+        if grid == args.low_grid:
+            center_x = (image_point[0] / optics.SENSOR_WIDTH_MM + 0.5) * optics.SENSOR_WIDTH_PX
+            center_y = (0.5 - image_point[1] / optics.SENSOR_WIDTH_MM) * optics.SENSOR_WIDTH_PX
+            offset_x = math.floor(center_x + 0.5) - center_x
+            offset_y = math.floor(center_y + 0.5) - center_y
+            detector_offset = (tuple(args.detector_offset_px) if args.detector_offset_px
+                               else (offset_x, offset_y))
         mapped[grid] = {}
         for method, _ in methods:
             wavefront, pitch, amplitude = optics.map_to_regular_pupil(
                 data, pupil_xy, opd, args.pupil_resolution, "linear", "triangle", method)
             psf, _, _, _, _, crop_fraction, _ = optics.psf_and_pixel_integral(
                 wavefront, amplitude, args.wavelength_nm, pitch, reference_radius,
-                args.crop_radius, args.pixel_subsamples, *args.detector_offset_px)
+                args.crop_radius, args.pixel_subsamples, *detector_offset)
             mapped[grid][method] = (amplitude, psf, crop_fraction)
         print(f"grid={grid} pupil_rms={pupil_rms * 1000:.3f} um")
 
@@ -90,8 +99,8 @@ def main() -> None:
             "pupil_resolution": args.pupil_resolution,
             "crop_radius_px": args.crop_radius,
             "pixel_subsamples": args.pixel_subsamples,
-            "detector_offset_x_px": args.detector_offset_px[0],
-            "detector_offset_y_px": args.detector_offset_px[1],
+            "detector_offset_x_px": detector_offset[0],
+            "detector_offset_y_px": detector_offset[1],
             "normalized_psf_l1_percent": 100.0 * float(np.abs(low_norm - high_norm).sum()),
             "amplitude_relative_l2_percent": 100.0 * float(
                 np.linalg.norm(high_amp - low_amp) / max(np.linalg.norm(low_amp), 1e-30)),
