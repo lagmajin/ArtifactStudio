@@ -279,7 +279,9 @@ lens and are a sensitivity comparison, not Angenieux calibration.
 linear RGB PFM point-source capture. It estimates slope S, roll-off angle L,
 and image-domain scale; it does not report absolute BSDF B without radiometric
 calibration. See [EVALUATION.md](EVALUATION.md) for the capture conversion and
-fit limitations.
+fit limitations. `evaluate_harvey_fit_robustness.py` stress-checks the fit with
+a saturated source core, sparse ghost spots, a residual dark offset, and median
+versus mean annular statistics.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

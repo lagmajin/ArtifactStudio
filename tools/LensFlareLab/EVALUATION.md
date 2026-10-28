@@ -142,6 +142,27 @@ python tools/LensFlareLab/fit_harvey_measurement.py capture.pfm `
 
 Souksava et al., [Evaluation of the Lens Flare (2021)](https://library.imaging.org/ei/articles/33/9/art00008), describe RAW flare measurement across source positions. Their measured images and camera-specific calibration are not bundled here.
 
+### Robustness to saturated cores and sparse ghosts
+
+`evaluate_harvey_fit_robustness.py` starts from the same 512² synthetic Harvey
+capture, saturates a 20 px central disk, adds four sparse Gaussian ghost spots
+and a small residual black-level offset, then fits outside a 24 px core mask.
+The same contaminated image is summarized with annular median and mean. Relative
+to the clean median fit, contamination moved median-fit `S/L` by −2.91%/−3.98%,
+while the mean moved them by +3.34%/+13.48%. Against the input parameters, the
+contaminated median result was within 0.23% in `S` and 0.19% in `L`; contaminated
+mean errors were 6.68% and 18.41%, with log-RMSE 0.405. This is one constructed
+case and the near-exact median result partly cancels the clean synthetic fit's
+own 3.23%/4.34% parameter bias. It does not establish general robustness on
+real flare captures.
+
+![Clean and contaminated synthetic captures](examples/harvey-fit-robustness-images.png)
+
+![Median and mean profile fits under sparse-ghost contamination](examples/harvey-fit-robustness-profiles.png)
+
+Reproduce the table and images with `python tools/LensFlareLab/evaluate_harvey_fit_robustness.py`;
+the case metrics are in [`harvey-fit-robustness.csv`](examples/harvey-fit-robustness.csv).
+
 ## Prescription-based direct-transmission geometric image evaluation
 
 `evaluate_direct_transmission_raytrace.py` independently traces a collimated

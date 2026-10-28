@@ -166,8 +166,13 @@ def main():
         measurement = measurement - dark
     height, width, _ = measurement.shape
     center_x, center_y = args.center or ((width - 1) * .5, (height - 1) * .5)
-    max_radius = args.max_radius_px or int(min(center_x, center_y, width - 1 - center_x,
-                                               height - 1 - center_y))
+    if not (0 <= center_x < width and 0 <= center_y < height):
+        parser.error("source center must be inside the image")
+    complete_radius = int(min(center_x, center_y, width - 1 - center_x,
+                              height - 1 - center_y))
+    max_radius = args.max_radius_px if args.max_radius_px is not None else complete_radius
+    if max_radius > complete_radius:
+        parser.error(f"max radius {max_radius} exceeds {complete_radius}px complete-annulus limit")
     if max_radius <= args.core_radius_px + 24:
         parser.error("fitting annulus must span at least 24 pixels beyond the excluded core")
     luminance = np.maximum(0.0, measurement @ np.array((.2126, .7152, .0722)))
