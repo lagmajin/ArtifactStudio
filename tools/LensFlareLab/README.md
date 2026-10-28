@@ -312,6 +312,8 @@ equal-area disk cone radii.
 experimental 90%-coverage ellipse fit to each surface's traced ray footprint.
 `plot_spectral_convergence_summary.py` condenses the coated/uncoated ghost
 spectral sweep into mean and worst-case RGB flux error plots.
+`plot_spectral_case_detail.py` visualizes channel flux and spectral error for
+one selected ghost path, using the multi-path sweep data.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

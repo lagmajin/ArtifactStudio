@@ -3536,6 +3536,20 @@ Regenerate the compact chart and table with
 `python tools/LensFlareLab/plot_spectral_convergence_summary.py`; it reads the
 dual-basis per-case CSV and does not launch the renderer.
 
+The most sensitive coated case in this sweep is the centered 10→9 ghost. Its
+green-channel flux is `0.087115` at 3 bands versus `0.000107` at 61 bands;
+15 bands reduce that channel to `0.000085`, and the total RGB L1 error falls
+from 28.79% to 1.11% (31 bands: 0.17%). This sharp channel change is easier to
+see in the path-level chart than in a full-frame composite, where unrelated
+paths can dilute or cancel spectral differences.
+
+![Centered coated 10-to-9 ghost: channel flux and error by spectral sample count](examples/spectral-case-center-10-9.png)
+
+The selected-case chart and exact fluxes are in
+[`spectral-case-center-10-9.csv`](examples/spectral-case-center-10-9.csv).
+Recreate them from the multi-path CSV with
+`python tools/LensFlareLab/plot_spectral_case_detail.py`.
+
 ![Dual-basis spectral integration counts across ghost paths and fields with coating off/on](examples/coating-spectrum-field-path-convergence-dual-basis.png)
 [`coating-spectrum-field-path-convergence-dual-basis.csv`](examples/coating-spectrum-field-path-convergence-dual-basis.csv)
 

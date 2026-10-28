@@ -49,10 +49,16 @@ def channel_metrics(pixels):
     return sums, peaks, centroids, max(separations)
 
 
-def make_panels(source, cauchy, linear, gain, difference_gain):
+def make_panels(source, cauchy, linear, gain, difference_gain,
+                difference_range_percent=None):
     width, height = source[:2]
     cauchy_pixels = ghost_pixels(source, cauchy)
     linear_pixels = ghost_pixels(source, linear)
+    reference_peak = max(max(max(pixel) for row in cauchy_pixels for pixel in row),
+                         max(max(pixel) for row in linear_pixels for pixel in row))
+    difference_floor = reference_peak * 0.01
+    relative_scale = (difference_range_percent / 100.0
+                      if difference_range_percent is not None else None)
     cauchy_image = Image.new("RGB", (width, height))
     linear_image = Image.new("RGB", (width, height))
     difference_image = Image.new("RGB", (width, height))
@@ -67,7 +73,13 @@ def make_panels(source, cauchy, linear, gain, difference_gain):
             diff = tuple(a[c] - b[c] for c in range(3))
             color = [0.0, 0.0, 0.0]
             for c, value in enumerate(diff):
-                strength = min(1.0, abs(value) * difference_gain)
+                if relative_scale is None:
+                    strength = min(1.0, abs(value) * difference_gain)
+                elif max(max(a), max(b)) < difference_floor:
+                    strength = 0.0
+                else:
+                    local_reference = max(abs(a[c]), abs(b[c]), difference_floor)
+                    strength = min(1.0, abs(value) / local_reference / relative_scale)
                 tint = WEIGHTS[c] if value >= 0.0 else COMPLEMENTS[c]
                 for channel in range(3):
                     color[channel] = min(1.0, color[channel] + tint[channel] * strength)
@@ -88,12 +100,19 @@ def main():
                         help="shared Reinhard display gain for ghost radiance")
     parser.add_argument("--difference-gain", type=float, default=12000.0,
                         help="display amplification for signed per-channel differences")
+    parser.add_argument("--difference-range-percent", type=float,
+                        help="display signed per-channel relative error, clipped at this percent; "
+                             "hides pixels below 1%% of the case peak")
     parser.add_argument("--model-labels", nargs=2, default=("Cauchy", "Linear Abbe"),
                         metavar=("FIRST", "SECOND"),
                         help="labels for the two render inputs")
     args = parser.parse_args()
 
     loaded = []
+    if (args.difference_range_percent is not None and
+            (not (args.difference_range_percent > 0.0) or
+             not (args.difference_range_percent < float("inf")))):
+        parser.error("difference-range-percent must be finite and positive")
     for label, input_path, cauchy_path, linear_path in args.case:
         source, cauchy, linear = (read_pfm(Path(path))
                                   for path in (input_path, cauchy_path, linear_path))
@@ -107,13 +126,17 @@ def main():
                       (18, 21, 26))
     draw = ImageDraw.Draw(sheet)
     for case_index, (label, source, cauchy, linear) in enumerate(loaded):
-        panels = make_panels(source, cauchy, linear, args.gain, args.difference_gain)
+        panels = make_panels(source, cauchy, linear, args.gain, args.difference_gain,
+                             args.difference_range_percent)
         cauchy_image, linear_image, difference_image, cauchy_pixels, linear_pixels = panels
         y = case_index * (height + label_height)
         for column, (panel, title) in enumerate(zip(
                 (cauchy_image, linear_image, difference_image),
                 (args.model_labels[0], args.model_labels[1],
-                f"{args.model_labels[0]} minus {args.model_labels[1]} (signed RGB)"))):
+                (f"{args.model_labels[0]} minus {args.model_labels[1]} "
+                 f"(signed relative RGB ±{args.difference_range_percent:g}%)"
+                 if args.difference_range_percent is not None else
+                 f"{args.model_labels[0]} minus {args.model_labels[1]} (signed RGB)")))):
             x = column * width
             sheet.paste(panel, (x, y + label_height))
             draw.text((x + 6, y + 5), f"{label} | {title}", fill=(225, 230, 238))
