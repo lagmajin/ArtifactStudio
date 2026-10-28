@@ -296,6 +296,11 @@ fits, with channel-specific residual maps and a comparison plate.
 the published limited-band wavelength scaling law and writes a linear PFM
 fixture plus per-band images and radial data. It is a model-law study; source
 spectrum and sensor color response are not calibrated.
+`evaluate_prescription_spectral_surface_scatter.py` re-traces the Angenieux
+prescription at representative RGB wavelengths, applies wavelength-scaled
+Harvey parameters per surface, and evaluates Peterson Eq. 8 using each band's
+own r90 pupil-cone radii. Its color visualization and physical limits are
+documented in [EVALUATION.md](EVALUATION.md).
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

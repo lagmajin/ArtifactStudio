@@ -101,6 +101,51 @@ Reproduce the comparison after regenerating the 64x64 cone table with
 `python tools/LensFlareLab/evaluate_prescription_surface_scatter.py --grid 64`,
 then run `python tools/LensFlareLab/compare_scatter_parameter_sets.py`.
 
+### Spectral scatter traced through the prescription
+
+`evaluate_prescription_spectral_surface_scatter.py` applies the limited-band
+Harvey wavelength scaling law to the Angenieux prescription's 14 surfaces.
+Unlike the spectral reference image above, it re-traces the pupil bundle at
+610/550/460 nm, so glass dispersion changes each surface's r90 cone radius and
+the accepted full-path ray count before Peterson Eq. 8 is evaluated per
+surface. The 64² trace accepted all rays at 0°, 5°, and 10°. At 12°, acceptance
+was 2400/4096 red (58.59%), 2362/4096 green (57.67%), and 2258/4096 blue
+(55.13%).
+
+| Field | Red crop | Green crop | Blue crop | Blue / red |
+|---:|---:|---:|---:|---:|
+| 0° | 0.3475% | 0.4546% | 0.7187% | 2.068× |
+| 5° | 0.3483% | 0.4555% | 0.7202% | 2.068× |
+| 10° | 0.3502% | 0.4580% | 0.7239% | 2.068× |
+| 12° | 0.2098% | 0.2699% | 0.4076% | 1.944× |
+
+The 32²-to-64² crop fractions changed by less than 0.4% for every field and
+band. Each crop is the central 3.96 mm of a hypothetical 5.5 µm-pitch sensor;
+it is not the full 53.96 mm sensor in the prescription. The wavelength law
+raises short-wave scatter in this assumed parameter set, and the bundle trace
+adds a small field-dependent spectral change. These values are not measured
+properties of the Angenieux lens. As a consistency check, the 550 nm green
+channel's on-axis crop fraction exactly matches the existing monochromatic
+L=2.04 mrad reference (`0.454551%`).
+
+![Prescription-derived spectral surface scatter by field](examples/prescription-spectral-surface-scatter.png)
+
+![RGB radial scatter profiles at four source fields](examples/prescription-spectral-surface-scatter-profile.png)
+
+The color image is false-color: each band is peak-normalized to show shape,
+while panel labels give the unnormalized crop fractions. The paired radial
+profile chart makes the modest wavelength-dependent width differences easier
+to inspect; profiles are normalized to the first non-zero annulus. Per-surface radii and contributions
+are in [`prescription-spectral-surface-scatter.csv`](examples/prescription-spectral-surface-scatter.csv).
+They use f/22, 80% post-scatter transmission, generic Double-Gauss coefficients,
+and the r90 beam-radius proxy. Measured per-surface BSDF/TIS, coatings, source
+spectrum, sensor color response, post-scatter ray clipping, and housing scatter
+remain outside this model. The wavelength-scaling rule itself is an approximate
+limited-band law; see the references in the [Harvey wavelength-scaling study](#limited-band-harvey-wavelength-scaling).
+
+Reproduce with `python tools/LensFlareLab/evaluate_prescription_spectral_surface_scatter.py --grid 64`.
+Pass `--pfm-dir <directory>` to also write one linear RGB PFM per field.
+
 ### Fitting a measured linear point-source capture
 
 `fit_harvey_measurement.py` accepts an RGB PFM capture and an optional matching
