@@ -195,6 +195,61 @@ Per-channel signed residual maps and exact fit metrics are in
 [`harvey-chromatic-robustness.csv`](examples/harvey-chromatic-robustness.csv).
 Reproduce with `python tools/LensFlareLab/evaluate_harvey_chromatic_robustness.py`.
 
+### Limited-band Harvey wavelength scaling
+
+The earlier chromatic fit fixture deliberately assigned unrelated S/L values
+to exercise the estimator. This separate study uses the published
+smooth-surface wavelength scaling law instead: `S(λ)=S(λ₀)`,
+`B(λ)=B(λ₀)(λ₀/λ)^(4+S)`, and `L(λ)=L(λ₀)(λ/λ₀)`. The source describes this
+law as valid over a limited wavelength range, says camera-lens scatter
+parameters generally require measurement for each lens, and limits the model
+to clean, smooth surface scatter; it excludes housing scatter and multiple
+scattering. See [Harvey's surface-scatter paper](https://lasp.colorado.edu/galaxy/download/attachments/232894171/Scattering_Harvey1975.pdf?api=v2)
+and [the reviewed derivation and limits](https://pmc.ncbi.nlm.nih.gov/articles/PMC6749343/).
+
+The evaluation starts from the published generic Double-Gauss reference set
+at 550 nm (`S=-1.86`, `B=0.36 sr⁻¹`, `L=2.04 mrad`) and derives representative
+red/green/blue bands at 610/550/460 nm. It assumes equal incident energy per
+band and uses the same 512² crop, 5.5 µm pitch, 100 mm focal length, and 8x8
+pixel-area integration for each band:
+
+| Band | Wavelength | Derived B (sr⁻¹) | Derived L (mrad) | Eq. 6 TIS | 2.816 mm crop energy |
+|---|---:|---:|---:|---:|---:|
+| Red | 610 nm | 0.28845 | 2.2625 | 0.1415% | 0.02958% |
+| Green | 550 nm | 0.36000 | 2.0400 | 0.1785% | 0.03887% |
+| Blue | 460 nm | 0.52769 | 1.7062 | 0.2664% | 0.06199% |
+
+Shorter wavelength produces a narrower angular roll-off but more integrated
+scatter under this scaling law. The displayed panels normalize each band to
+its own peak to compare shape; the plotted radial curves show that shape
+normalized to the first non-zero annulus. They do not encode calibrated RGB
+appearance. Equal spectral input, no sensor color-response matrix, and one
+generic parameter set mean this is a law-consistency image, not a prediction
+of a particular camera or lens. In particular, the formula does not replace
+measured per-surface BSDF or coating data.
+
+Passing the generated PFM through the per-channel measurement fitter recovered
+`S=-1.9164/-1.9136/-1.9094` and `L=2.3358/2.1076/1.7655 mrad` for
+red/green/blue. The common S and increasing L ordering were recovered within
+about 3.6%; remaining bias is from finite pixel integration, annular profile
+sampling, and the fit model. The exact radial data are in
+[`harvey-spectral-scaling.csv`](examples/harvey-spectral-scaling.csv); the
+per-channel fit is in [`harvey-spectral-scaling-fit.csv`](examples/harvey-spectral-scaling-fit.csv).
+
+![Harvey limited-band wavelength scaling by representative RGB band](examples/harvey-spectral-scaling.png)
+
+Reproduce both generation and fit with:
+
+```powershell
+python tools/LensFlareLab/evaluate_harvey_spectral_scaling.py
+python tools/LensFlareLab/fit_harvey_measurement.py `
+  tools/LensFlareLab/examples/harvey-spectral-scaling-synthetic.pfm `
+  --pixel-pitch-um 5.5 --focal-length-mm 100 --core-radius-px 12 `
+  --channel all --csv tools/LensFlareLab/examples/harvey-spectral-scaling-fit.csv `
+  --image tools/LensFlareLab/examples/harvey-spectral-scaling-fit.png `
+  --residual-image tools/LensFlareLab/examples/harvey-spectral-scaling-residual.png
+```
+
 A synthetic closed-loop check generated a 512² pixel-integrated Harvey image
 with `S=-1.86`, `L=2.04 mrad`, 5.5 µm pixels and a 100 mm focal length. Fitting
 annuli 12–240 px recovered `S=-1.9155`, `L=2.1073 mrad` (3.0% and 3.3% relative
