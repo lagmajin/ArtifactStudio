@@ -1684,6 +1684,25 @@ python tools/LensFlareLab/compare_ghost_pupil_ablation.py `
   --image build/tools/LensFlareLab/ghost-pupil-ablation-1024-2048.png
 ```
 
+As an interpolation ablation, the evaluator can use SciPy's
+Clough–Tocher C¹ piecewise-cubic OPD interpolation while keeping the same
+Delaunay support mask and linear ray-energy amplitude. At 512²→1024², the
+native PSF L1 changes from 77.34% with linear OPD interpolation to 78.21% with
+Clough–Tocher. On common support and common amplitude (phase-only comparison),
+L1 rises from 47.98% to 56.02%. This alternative therefore did not improve this
+case; retain it as a diagnostic, not as the preferred mapper. The image plate
+shows the sampled PSF changes; its L1 is still normalized within ±32 px.
+
+![Clough–Tocher OPD interpolation ablation at 550 nm](examples/ghost-pupil-ablation-clough-512-1024-20261028.png)
+
+```powershell
+python tools/LensFlareLab/compare_ghost_pupil_ablation.py `
+  --low-grid 512 --high-grid 1024 --pupil-resolution 512 `
+  --wavelength-nm 550 --pixel-subsamples 2 --opd-interpolation clough-tocher `
+  --csv build/tools/LensFlareLab/ghost-pupil-ablation-clough.csv `
+  --image build/tools/LensFlareLab/ghost-pupil-ablation-clough.png
+```
+
 To separate ray-map refinement from pupil-raster refinement, the evaluator now
 accepts `--pupil-resolution N`. With the physical pupil held at 1024², the
 512²→1024² and 1024²→2048² ray-map PSF L1 changes are 56.1–66.1% and

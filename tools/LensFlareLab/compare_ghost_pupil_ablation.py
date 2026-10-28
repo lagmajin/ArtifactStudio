@@ -47,7 +47,8 @@ def encircled_radius(image: np.ndarray, fraction: float) -> float:
     return float(radius[order[index]])
 
 
-def save_plate(results: list[dict], output: Path, wavelength: int) -> None:
+def save_plate(results: list[dict], output: Path, wavelength: int,
+               opd_interpolation: str) -> None:
     tile, header, footer = 256, 28, 24
     row_height = tile + header + footer
     image = Image.new("RGB", (tile * 3, row_height * len(results)), (18, 21, 26))
@@ -70,7 +71,8 @@ def save_plate(results: list[dict], output: Path, wavelength: int) -> None:
             gray = Image.fromarray(np.clip(shown * 255 + 0.5, 0, 255).astype(np.uint8))
             image.paste(gray.resize((tile, tile), Image.Resampling.NEAREST), (left, top + header))
         draw.text((6, top + header + tile + 5),
-                  f"{wavelength} nm | {result['name']} | PSF L1 {result['l1']:.2f}%",
+                  f"{wavelength} nm | {opd_interpolation} OPD | {result['name']} | "
+                  f"PSF L1 {result['l1']:.2f}%",
                   fill=(210, 215, 224))
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)
@@ -84,6 +86,8 @@ def main() -> None:
     parser.add_argument("--pupil-resolution", type=int, default=512)
     parser.add_argument("--crop-radius", type=int, default=32)
     parser.add_argument("--pixel-subsamples", type=int, choices=(2, 4, 8), default=2)
+    parser.add_argument("--opd-interpolation", choices=("linear", "clough-tocher"),
+                        default="linear")
     parser.add_argument("--map-pattern", default="build/tools/LensFlareLab/ghost-exit-grid-{grid}.csv")
     parser.add_argument("--csv", type=Path,
                         default=Path("build/tools/LensFlareLab/ghost-pupil-ablation.csv"))
@@ -100,7 +104,7 @@ def main() -> None:
         opd, _, reference_radius, _ = image_centered_opd(
             data, args.wavelength_nm, pupil_xy, pupil_center, pupil_z)
         pupil_opd, pitch, amplitude = map_to_regular_pupil(
-            data, pupil_xy, opd, args.pupil_resolution)
+            data, pupil_xy, opd, args.pupil_resolution, args.opd_interpolation)
         fields.append({"opd": pupil_opd, "amplitude": amplitude,
                        "pitch": pitch, "reference_radius": reference_radius})
 
@@ -144,7 +148,7 @@ def main() -> None:
 
     args.csv.parent.mkdir(parents=True, exist_ok=True)
     with args.csv.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.DictWriter(stream, fieldnames=("condition", "low_grid", "high_grid",
+        writer = csv.DictWriter(stream, fieldnames=("condition", "opd_interpolation", "low_grid", "high_grid",
             "wavelength_nm", "pupil_resolution", "common_support_samples",
             "common_support_iou_percent", "normalized_psf_l1_percent",
             "low_r50_px", "high_r50_px", "low_r90_px", "high_r90_px"))
@@ -152,7 +156,8 @@ def main() -> None:
         common_iou = 100.0 * float(common_support.sum() /
                                    max(int((low_support | high_support).sum()), 1))
         for result in results:
-            writer.writerow({"condition": result["name"], "low_grid": args.low_grid,
+            writer.writerow({"condition": result["name"], "opd_interpolation": args.opd_interpolation,
+                "low_grid": args.low_grid,
                 "high_grid": args.high_grid, "wavelength_nm": args.wavelength_nm,
                 "pupil_resolution": args.pupil_resolution,
                 "common_support_samples": int(common_support.sum()),
@@ -160,7 +165,7 @@ def main() -> None:
                 "normalized_psf_l1_percent": result["l1"],
                 "low_r50_px": result["low_r50"], "high_r50_px": result["high_r50"],
                 "low_r90_px": result["low_r90"], "high_r90_px": result["high_r90"]})
-    save_plate(results, args.image, args.wavelength_nm)
+    save_plate(results, args.image, args.wavelength_nm, args.opd_interpolation)
     print(f"saved {args.csv} and {args.image}; common support IoU={common_iou:.2f}%")
 
 

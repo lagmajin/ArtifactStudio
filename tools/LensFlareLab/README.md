@@ -466,7 +466,9 @@ required for each `--grid` value.
 `compare_ghost_pupil_ablation.py` compares two neighboring ray-map resolutions
 on the same physical pupil and separates native support, shared support,
 amplitude, and OPD effects. It writes a normalized PSF comparison plate and CSV
-for image-based review.
+for image-based review. `--opd-interpolation clough-tocher` is available as an
+experimental alternative to linear OPD interpolation; it does not change the
+support or amplitude interpolation.
 
 ## Core/app integration path
 

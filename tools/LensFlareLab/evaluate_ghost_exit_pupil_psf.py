@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw
+from scipy.interpolate import CloughTocher2DInterpolator
 from scipy.spatial import Delaunay
 
 
@@ -130,7 +131,9 @@ def image_centered_opd(data: dict[str, np.ndarray], wavelength: int,
 
 
 def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
-                         opd_mm: np.ndarray, resolution: int) -> tuple[np.ndarray, float, np.ndarray]:
+                         opd_mm: np.ndarray, resolution: int,
+                         opd_interpolation: str = "linear"
+                         ) -> tuple[np.ndarray, float, np.ndarray]:
     valid = data["valid"]
     launch_grid = np.argwhere(valid)
     launch_uv = np.column_stack((data["u"][valid], data["v"][valid]))
@@ -153,6 +156,10 @@ def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
     local &= np.isfinite(jacobian) & (jacobian > 1e-12)
     if not np.any(local):
         raise ValueError("ghost ray map has no local, positive-Jacobian pupil triangles")
+    if opd_interpolation not in ("linear", "clough-tocher"):
+        raise ValueError(f"unsupported OPD interpolation: {opd_interpolation}")
+    smooth_opd = (CloughTocher2DInterpolator(triangulation, opd_mm, tol=1e-6, maxiter=400)
+                  if opd_interpolation == "clough-tocher" else None)
 
     nodal_jacobian = np.zeros(len(pupil_xy), dtype=np.float64)
     nodal_count = np.zeros(len(pupil_xy), dtype=np.float64)
@@ -195,7 +202,10 @@ def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
         flat_opd = pupil_opd[y0:y1].ravel()
         flat_amp = pupil_amplitude[y0:y1].ravel()
         flat_valid = pupil_valid[y0:y1].ravel()
-        flat_opd[target] = np.sum(opd_mm[vertices] * bary, axis=1)
+        if smooth_opd is None:
+            flat_opd[target] = np.sum(opd_mm[vertices] * bary, axis=1)
+        else:
+            flat_opd[target] = smooth_opd(query[inside])
         flat_amp[target] = np.sum(amplitude[vertices] * bary, axis=1)
         flat_valid[target] = True
 
@@ -369,6 +379,8 @@ def main() -> None:
                         help="optical-path-map grids; repeat for convergence")
     parser.add_argument("--pupil-resolution", type=int, choices=(128, 256, 512, 1024, 2048),
                         help="common regular-pupil grid size for isolating ray-grid convergence")
+    parser.add_argument("--opd-interpolation", choices=("linear", "clough-tocher"),
+                        default="linear", help="OPD interpolation inside accepted local pupil triangles")
     parser.add_argument("--map-pattern", default="build/tools/LensFlareLab/ghost-exit-grid-{grid}.csv")
     parser.add_argument("--wavelengths-nm", type=int, nargs="+", default=DEFAULT_WAVELENGTHS)
     parser.add_argument("--crop-radius", type=int, default=32)
@@ -396,7 +408,7 @@ def main() -> None:
                 data, wavelength, pupil_xy, pupil_center, pupil_z)
             pupil_resolution = args.pupil_resolution or grid
             regular_opd, pupil_pitch, amplitude = map_to_regular_pupil(
-                data, pupil_xy, opd, pupil_resolution)
+                data, pupil_xy, opd, pupil_resolution, args.opd_interpolation)
             previous_pupil = previous_pupils.get(wavelength)
             if previous_pupil is None:
                 opd_delta_um, amplitude_delta_percent, support_iou_percent = (
@@ -434,6 +446,7 @@ def main() -> None:
                 "chief_pupil_y_mm": float(chief_pupil[1]),
                 "physical_pupil_grid_pitch_mm": pupil_pitch,
                 "pupil_grid_resolution": pupil_resolution,
+                "opd_interpolation": args.opd_interpolation,
                 "native_fourier_sample_pitch_sensor_px": pixel_scale,
                 "detector_pixel_subsamples": args.pixel_subsamples,
                 "reference_sphere_opd_rms_um": float(np.sqrt(np.mean(opd * opd)) * 1000.0),
