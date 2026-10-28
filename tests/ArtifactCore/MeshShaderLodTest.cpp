@@ -24,14 +24,39 @@ class MeshShaderLodTest : public testing::Test {
         if (!factory) {
             GTEST_SKIP() << "Diligent Vulkan backend is unavailable";
         }
+        Uint32 adapterCount = 0;
+        factory->EnumerateAdapters(Version{}, adapterCount, nullptr);
+        if (adapterCount == 0) {
+            GTEST_SKIP() << "No Vulkan adapter is available";
+        }
+        std::vector<GraphicsAdapterInfo> adapters(adapterCount);
+        factory->EnumerateAdapters(Version{}, adapterCount, adapters.data());
+        Uint32 meshShaderAdapterId = DEFAULT_ADAPTER_ID;
+        for (Uint32 adapterIndex = 0; adapterIndex < adapterCount;
+             ++adapterIndex) {
+            const auto& adapter = adapters[adapterIndex];
+            if (adapter.Features.MeshShaders != DEVICE_FEATURE_STATE_DISABLED &&
+                adapter.MeshShader.MaxThreadGroupCountX > 0 &&
+                adapter.MeshShader.MaxThreadGroupTotalCount > 0 &&
+                (adapter.DrawCommand.CapFlags &
+                 DRAW_COMMAND_CAP_FLAG_DRAW_INDIRECT) != 0) {
+                meshShaderAdapterId = adapterIndex;
+                break;
+            }
+        }
+        if (meshShaderAdapterId == DEFAULT_ADAPTER_ID) {
+            GTEST_SKIP()
+                << "No Vulkan adapter exposes mesh shaders and indirect mesh draws";
+        }
         EngineVkCreateInfo createInfo{};
+        createInfo.AdapterId = meshShaderAdapterId;
         createInfo.Features.MultithreadedResourceCreation =
             DEVICE_FEATURE_STATE_DISABLED;
+        createInfo.Features.MeshShaders = DEVICE_FEATURE_STATE_ENABLED;
         createInfo.Features.RayTracing = DEVICE_FEATURE_STATE_DISABLED;
         factory->CreateDeviceAndContextsVk(createInfo, &device_, &context_);
-        if (!device_ || !context_) {
-            GTEST_SKIP() << "Could not create a headless Vulkan device";
-        }
+        ASSERT_TRUE(device_ && context_)
+            << "Could not create a Vulkan device with mesh shaders enabled";
     }
 
     void TearDown() override {
@@ -199,7 +224,8 @@ TEST_F(MeshShaderLodTest, MeshRendererSelectsMeshletLodAtProjectedSizeBoundaries
         << "replacing uploaded geometry without LOD levels should clear the old selection table";
 }
 
-TEST_F(MeshShaderLodTest, MeshRendererDrawsTheSelectedMeshletLod) {
+TEST_F(MeshShaderLodTest,
+       MeshRendererGpuSelectsAndIndirectlyDrawsTheSelectedMeshletLod) {
     ArtifactCore::GpuContext gpuContext(device_.RawPtr(), context_.RawPtr());
     ArtifactCore::MeshRenderer renderer(gpuContext);
     renderer.setRenderTargetFormat(TEX_FORMAT_RGBA32_FLOAT);
@@ -230,9 +256,8 @@ TEST_F(MeshShaderLodTest, MeshRendererDrawsTheSelectedMeshletLod) {
     renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
                                    meshletIndices.data(), meshletIndices.size(),
                                    lods.data(), lods.size());
-    if (!renderer.meshShaderReady()) {
-        GTEST_SKIP() << "The active Vulkan adapter does not provide a usable mesh-shader PSO";
-    }
+    ASSERT_TRUE(renderer.meshShaderReady())
+        << "The selected adapter advertises mesh shaders, but MeshRenderer did not create a usable mesh-shader PSO";
 
     constexpr std::array<float, 16> identity{
         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
@@ -284,7 +309,6 @@ TEST_F(MeshShaderLodTest, MeshRendererDrawsTheSelectedMeshletLod) {
     ASSERT_NE(stagingTexture, nullptr);
 
     const auto countDrawnPixelsByBand = [&](float projectedRadiusPixels) {
-        const auto lodIndex = renderer.chooseMeshletLOD(projectedRadiusPixels);
         const float clearColor[4]{0.0f, 0.0f, 0.0f, 0.0f};
         context_->SetRenderTargets(1, &colorView, depthView,
                                    RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
@@ -295,8 +319,9 @@ TEST_F(MeshShaderLodTest, MeshRendererDrawsTheSelectedMeshletLod) {
         const Viewport viewport{0.0f, 0.0f, static_cast<float>(width),
                                 static_cast<float>(height), 0.0f, 1.0f};
         context_->SetViewports(1, &viewport, width, height);
-        renderer.prepareMeshShader(context_.RawPtr(), lodIndex);
-        renderer.drawMeshlets(context_.RawPtr(), lodIndex);
+        EXPECT_TRUE(renderer.prepareMeshShaderForProjectedSize(
+            context_.RawPtr(), projectedRadiusPixels));
+        EXPECT_TRUE(renderer.drawMeshletsGpuDriven(context_.RawPtr()));
         context_->SetRenderTargets(0, nullptr, nullptr,
                                    RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         CopyTextureAttribs copy(colorTexture,
@@ -343,6 +368,15 @@ TEST_F(MeshShaderLodTest, MeshRendererDrawsTheSelectedMeshletLod) {
         << "the coarse LOD should not draw the second fine LOD meshlet";
     EXPECT_GT(coarseLodPixels[2], 0u)
         << "the coarse LOD should draw its right-side meshlet";
+
+    const auto justAboveCoarseThreshold = countDrawnPixelsByBand(
+        std::nextafter(48.0f, std::numeric_limits<float>::infinity()));
+    EXPECT_GT(justAboveCoarseThreshold[0], 0u)
+        << "the GPU should select the fine LOD immediately above its switch radius";
+    EXPECT_GT(justAboveCoarseThreshold[1], 0u)
+        << "the fine LOD should dispatch both meshlet groups above the threshold";
+    EXPECT_EQ(justAboveCoarseThreshold[2], 0u)
+        << "the fine LOD should leave the coarse-only target band empty";
 }
 
 } // namespace

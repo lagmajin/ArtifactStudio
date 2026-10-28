@@ -77,6 +77,14 @@ QVariant fractureValue(Artifact::ArtifactAbstractLayer* layer, const char* path)
     return property ? property->getValue() : QVariant{};
 }
 
+QVariant componentValue(Artifact::ArtifactAbstractLayer* layer, const char* path)
+{
+    (void)layer->getComponentPropertyGroups();
+    const auto property = layer->getProperty(QString::fromLatin1(path));
+    EXPECT_NE(property, nullptr) << path;
+    return property ? property->getValue() : QVariant{};
+}
+
 } // namespace
 
 TEST(ArtifactFracturePropertyTest, SettingsSurviveJsonRoundTrip)
@@ -112,6 +120,41 @@ TEST(ArtifactFracturePropertyTest, SettingsSurviveJsonRoundTrip)
     EXPECT_FLOAT_EQ(fractureValue(restored.get(), "fracture.shardGravity").toFloat(), 250.0f);
     EXPECT_FLOAT_EQ(fractureValue(restored.get(), "fracture.shardDamping").toFloat(), 0.9f);
     EXPECT_FLOAT_EQ(fractureValue(restored.get(), "fracture.impactSensitivity").toFloat(), 1.5f);
+}
+
+TEST(ArtifactFracturePropertyTest, FlameLifetimeIsEditableAndPersists)
+{
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactFracturePropertyTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    const auto source = makeFractureSolid();
+    ASSERT_NE(source.get(), nullptr);
+    ASSERT_TRUE(source->setLayerPropertyValue(
+        QStringLiteral("component.fluid.enabled"), QVariant(true)));
+    ASSERT_TRUE(source->setLayerPropertyValue(
+        QStringLiteral("component.fluid.flameLifetimeSeconds"),
+        QVariant(1.75)));
+    EXPECT_FLOAT_EQ(componentValue(
+        source.get(), "component.fluid.flameLifetimeSeconds").toFloat(),
+        1.75f);
+
+    const QJsonObject state = source->toJson();
+    const QJsonObject components = state.value(QStringLiteral("components")).toObject();
+    EXPECT_DOUBLE_EQ(components.value(
+        QStringLiteral("fluidFlameLifetimeSeconds")).toDouble(), 1.75);
+
+    const auto restored = makeFractureSolid();
+    ASSERT_NE(restored.get(), nullptr);
+    restored->fromJsonProperties(state);
+    EXPECT_FLOAT_EQ(componentValue(
+        restored.get(), "component.fluid.flameLifetimeSeconds").toFloat(),
+        1.75f);
+    ASSERT_TRUE(restored->setLayerPropertyValue(
+        QStringLiteral("component.fluid.flameLifetimeSeconds"),
+        QVariant(40.0)));
+    EXPECT_FLOAT_EQ(componentValue(
+        restored.get(), "component.fluid.flameLifetimeSeconds").toFloat(),
+        10.0f);
 }
 
 TEST(ArtifactFracturePropertyTest, ShardCountChangeUndoesAndRedoes)

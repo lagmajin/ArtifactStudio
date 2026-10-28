@@ -1,12 +1,15 @@
 #include <gtest/gtest.h>
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QLocale>
 #include <QMatrix4x4>
 #include <QRectF>
 #include <QSize>
 #include <QString>
+#include <QTextStream>
 #include <array>
 #include <algorithm>
 #include <chrono>
@@ -43,6 +46,7 @@ struct SmokeRuntimePreProjectionCurlConfig final {
   std::uint32_t seed = 17U;
   float strength = 0.0f;
   float elapsedSeconds = 0.0f;
+  bool advanceClockOnUpdate = true;
   double forceDivergenceSquared = 0.0;
   std::size_t forceDivergenceSamples = 0;
   double densityWeightedForceSquared = 0.0;
@@ -407,6 +411,10 @@ struct SmokeResolutionCapture final {
   float maximumDensity = 0.0f;
   double integratedDensity = 0.0;
   double gradientEnergy = 0.0;
+  double upperThirdMassShare = 0.0;
+  double middleThirdMassShare = 0.0;
+  double lowerThirdMassShare = 0.0;
+  double centroidY = 0.0;
   double simulationMicroseconds = 0.0;
   double renderingMicroseconds = 0.0;
 };
@@ -469,7 +477,8 @@ extern "C" void artifactSmokeRuntimeRndApplyPreUpdate(
   std::fill(gPreProjectionCurlX.begin(), gPreProjectionCurlX.end(), 0.0f);
   std::fill(gPreProjectionCurlY.begin(), gPreProjectionCurlY.end(), 0.0f);
 
-  config->elapsedSeconds += dt;
+  if (config->advanceClockOnUpdate)
+    config->elapsedSeconds += dt;
   const float time = config->elapsedSeconds;
   for (int y = 1; y < height - 1; ++y) {
     for (int x = 1; x < width - 1; ++x) {
@@ -1190,6 +1199,725 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresPyroSmokeAndReactionConvergenceAcrossFixedTimeSteps) {
+  using namespace ArtifactCore;
+  PyroDomain domain;
+  domain.min = {-0.5f, 0.0f, -0.5f};
+  domain.max = {0.5f, 1.0f, 0.5f};
+  domain.voxelSize = 1.0f / 16.0f;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 16u * 1024u * 1024u;
+
+  PyroSimulationSettings settings;
+  settings.dissipation = 0.04f;
+  settings.coolingRate = 0.16f;
+  settings.buoyancy = 0.35f;
+  settings.vorticity = 0.0f;
+  settings.pressureIterations = 12.0f;
+
+  PyroSourceState source;
+  source.position = {0.0f, 0.12f, 0.0f};
+  source.extent = {0.16f, 0.12f, 0.16f};
+  source.velocity = {0.0f, 0.6f, 0.0f};
+  source.density = 2.0f;
+  source.temperature = 2.0f;
+  source.fuel = 2.0f;
+
+  struct Result final {
+    std::vector<float> density;
+    std::vector<float> temperature;
+    std::vector<float> fuel;
+    std::vector<float> reaction;
+    double densityMass = 0.0;
+    double temperatureMass = 0.0;
+    double fuelMass = 0.0;
+    double reactionMass = 0.0;
+    double maximumTemperatureMass = 0.0;
+    double integratedReaction = 0.0;
+    float maximumReaction = 0.0f;
+    float maximumVelocity = 0.0f;
+    float maximumCfl = 0.0f;
+  };
+  const auto run = [&](const int rate, const float sourceVelocityY) {
+    PyroSimulation simulation(domain);
+    simulation.setSettings(settings);
+    simulation.setFixedTimeStep(1.0 / static_cast<double>(rate));
+    auto rateSource = source;
+    rateSource.velocity.y = sourceVelocityY;
+    const int totalSteps = rate / 2;
+    const int sourceSteps = rate / 5;
+    Result result;
+    for (int step = 0; step < totalSteps; ++step) {
+      if (step < sourceSteps) {
+        simulation.setSources(
+            std::span<const PyroSourceState>(&rateSource, 1));
+      } else {
+        simulation.setSources({});
+      }
+      simulation.step(1.0 / static_cast<double>(rate));
+      for (const auto velocity : simulation.fields().velocityStorage()) {
+        const float speed = std::sqrt(velocity.x * velocity.x +
+            velocity.y * velocity.y + velocity.z * velocity.z);
+        result.maximumCfl = std::max(result.maximumCfl,
+            speed / static_cast<float>(rate));
+      }
+      double temperatureMass = 0.0;
+      for (const float value : simulation.fields().temperatureStorage())
+        temperatureMass += value;
+      result.maximumTemperatureMass = std::max(
+          result.maximumTemperatureMass, temperatureMass);
+      for (const float value : simulation.fields().reactionStorage())
+        result.integratedReaction += value / static_cast<double>(rate);
+    }
+    result.density = simulation.fields().densityStorage();
+    result.temperature = simulation.fields().temperatureStorage();
+    result.fuel = simulation.fields().fuelStorage();
+    result.reaction = simulation.fields().reactionStorage();
+    for (const auto velocity : simulation.fields().velocityStorage()) {
+      result.maximumVelocity = std::max(result.maximumVelocity,
+          std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y +
+                    velocity.z * velocity.z));
+    }
+    for (const float value : result.density) result.densityMass += value;
+    for (const float value : result.temperature)
+      result.temperatureMass += value;
+    for (const float value : result.fuel) result.fuelMass += value;
+    for (const float value : result.reaction) {
+      result.reactionMass += value;
+      result.maximumReaction = std::max(result.maximumReaction, value);
+    }
+    return result;
+  };
+
+  const auto coarse = run(30, 0.6f);
+  const auto medium = run(60, 0.6f);
+  const auto fine = run(120, 0.6f);
+  const auto ultraFine = run(240, 0.6f);
+  const auto relativeL1Error = [](const std::vector<float>& candidate,
+                                  const std::vector<float>& reference) {
+    double difference = 0.0;
+    double referenceMass = 0.0;
+    for (std::size_t i = 0; i < candidate.size(); ++i) {
+      difference += std::abs(static_cast<double>(candidate[i]) -
+                             reference[i]);
+      referenceMass += std::abs(static_cast<double>(reference[i]));
+    }
+    return difference / std::max(1.0e-12, referenceMass);
+  };
+  const double densityError30 = relativeL1Error(
+      coarse.density, ultraFine.density);
+  const double densityError60 = relativeL1Error(
+      medium.density, ultraFine.density);
+  const double densityError120 = relativeL1Error(
+      fine.density, ultraFine.density);
+  const double temperatureError30 = relativeL1Error(
+      coarse.temperature, ultraFine.temperature);
+  const double temperatureError60 = relativeL1Error(
+      medium.temperature, ultraFine.temperature);
+  const double temperatureError120 = relativeL1Error(
+      fine.temperature, ultraFine.temperature);
+  const double fuelError30 = relativeL1Error(coarse.fuel, ultraFine.fuel);
+  const double fuelError60 = relativeL1Error(medium.fuel, ultraFine.fuel);
+  const double fuelError120 = relativeL1Error(fine.fuel, ultraFine.fuel);
+
+  EXPECT_EQ(coarse.density.size(), ultraFine.density.size());
+  EXPECT_GT(coarse.densityMass, 0.0);
+  EXPECT_GT(medium.densityMass, 0.0);
+  EXPECT_GT(fine.densityMass, 0.0);
+  EXPECT_GE(coarse.fuelMass, 0.0);
+  EXPECT_GE(medium.fuelMass, 0.0);
+  EXPECT_GE(fine.fuelMass, 0.0);
+  EXPECT_GT(coarse.maximumTemperatureMass, 0.0);
+  EXPECT_GT(medium.maximumTemperatureMass, 0.0);
+  EXPECT_GT(fine.maximumTemperatureMass, 0.0);
+  EXPECT_GT(coarse.integratedReaction, 0.0);
+  EXPECT_GT(medium.integratedReaction, 0.0);
+  EXPECT_GT(fine.integratedReaction, 0.0);
+  GTEST_LOG_(INFO) << "Pyro fixed-step convergence (30/60/120/240 Hz): density "
+      << coarse.densityMass << '/' << medium.densityMass << '/'
+      << fine.densityMass << '/' << ultraFine.densityMass << " temp "
+      << coarse.temperatureMass << '/'
+      << medium.temperatureMass << '/' << fine.temperatureMass << " fuel "
+      << coarse.fuelMass << '/' << medium.fuelMass << '/' << fine.fuelMass
+      << '/' << ultraFine.fuelMass
+      << " reactionMass " << coarse.reactionMass << '/'
+      << medium.reactionMass << '/' << fine.reactionMass
+      << '/' << ultraFine.reactionMass
+      << " integratedReaction " << coarse.integratedReaction << '/'
+      << medium.integratedReaction << '/' << fine.integratedReaction << '/'
+      << ultraFine.integratedReaction
+      << " peakTempMass " << coarse.maximumTemperatureMass << '/'
+      << medium.maximumTemperatureMass << '/'
+      << fine.maximumTemperatureMass << '/' << ultraFine.maximumTemperatureMass
+      << " reactionMax "
+      << coarse.maximumReaction << '/' << medium.maximumReaction << '/'
+      << fine.maximumReaction << '/' << ultraFine.maximumReaction
+      << " maxCFL " << coarse.maximumCfl << '/'
+      << medium.maximumCfl << '/' << fine.maximumCfl << '/'
+      << ultraFine.maximumCfl << " relL1 density "
+      << densityError30 << '/'
+      << densityError60 << '/' << densityError120 << " temperature "
+      << temperatureError30 << '/' << temperatureError60 << '/'
+      << temperatureError120 << " fuel " << fuelError30 << '/'
+      << fuelError60 << '/' << fuelError120 << " maxVelocity/CFL30/CFL240 "
+      << coarse.maximumVelocity << '/' << coarse.maximumVelocity / 30.0f
+      << '/' << ultraFine.maximumVelocity / 240.0f;
+  EXPECT_GT(ultraFine.densityMass, 0.0);
+  EXPECT_LT(densityError30, 0.05);
+  EXPECT_LT(densityError60, 0.05);
+  EXPECT_LT(densityError120, 0.05);
+  EXPECT_LT(temperatureError30, 0.06);
+  EXPECT_LT(temperatureError60, 0.06);
+  EXPECT_LT(temperatureError120, 0.05);
+  EXPECT_LT(fuelError30, 0.05);
+  EXPECT_LT(fuelError60, 0.05);
+  EXPECT_LT(fuelError120, 0.05);
+  EXPECT_LT(std::abs(coarse.integratedReaction - ultraFine.integratedReaction) /
+                ultraFine.integratedReaction,
+            0.15);
+  EXPECT_LT(std::abs(medium.integratedReaction - ultraFine.integratedReaction) /
+                ultraFine.integratedReaction,
+            0.08);
+
+  const auto fastCoarse = run(30, 10.0f);
+  const auto fastMedium = run(60, 10.0f);
+  const auto fastFine = run(120, 10.0f);
+  const auto fastUltraFine = run(240, 10.0f);
+  const double fastDensityError30 = relativeL1Error(
+      fastCoarse.density, fastUltraFine.density);
+  const double fastDensityError60 = relativeL1Error(
+      fastMedium.density, fastUltraFine.density);
+  const double fastDensityError120 = relativeL1Error(
+      fastFine.density, fastUltraFine.density);
+  const double fastFuelError30 = relativeL1Error(
+      fastCoarse.fuel, fastUltraFine.fuel);
+  const double fastFuelError60 = relativeL1Error(
+      fastMedium.fuel, fastUltraFine.fuel);
+  const double fastFuelError120 = relativeL1Error(
+      fastFine.fuel, fastUltraFine.fuel);
+  GTEST_LOG_(INFO) << "Pyro maximum-UI-velocity source=10 convergence: density mass "
+      << fastCoarse.densityMass << '/' << fastMedium.densityMass << '/'
+      << fastFine.densityMass << '/' << fastUltraFine.densityMass << " fuel "
+      << fastCoarse.fuelMass << '/'
+      << fastMedium.fuelMass << '/' << fastFine.fuelMass
+      << '/' << fastUltraFine.fuelMass
+      << " integratedReaction " << fastCoarse.integratedReaction << '/'
+      << fastMedium.integratedReaction << '/' << fastFine.integratedReaction
+      << '/' << fastUltraFine.integratedReaction
+      << " maxVelocity/maxCFL " << fastCoarse.maximumVelocity << '/'
+      << fastCoarse.maximumCfl << '/' << fastMedium.maximumCfl << '/'
+      << fastFine.maximumCfl << '/' << fastUltraFine.maximumCfl
+      << " relL1 density "
+      << fastDensityError30 << '/' << fastDensityError60 << '/'
+      << fastDensityError120 << " relL1 fuel " << fastFuelError30 << '/'
+      << fastFuelError60 << '/' << fastFuelError120;
+  EXPECT_GT(fastCoarse.densityMass, 0.0);
+  EXPECT_GT(fastMedium.densityMass, 0.0);
+  EXPECT_GT(fastFine.densityMass, 0.0);
+  EXPECT_GT(fastUltraFine.densityMass, 0.0);
+  EXPECT_GT(fastCoarse.integratedReaction, 0.0);
+  EXPECT_GT(fastMedium.integratedReaction, 0.0);
+  EXPECT_GT(fastFine.integratedReaction, 0.0);
+  EXPECT_LT(fastDensityError30, 0.10);
+  EXPECT_LT(fastDensityError60, 0.10);
+  EXPECT_LT(fastDensityError120, 0.10);
+  EXPECT_LT(fastFuelError30, 0.10);
+  EXPECT_LT(fastFuelError60, 0.10);
+  EXPECT_LT(fastFuelError120, 0.10);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesDensityAndReactionGatedCurlNoiseForSmokeAndFlame) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+  PyroDomain domain;
+  domain.min = {0.0f, 0.0f, 0.0f};
+  domain.max = {1.0f, 1.0f, 1.0f};
+  domain.voxelSize = 1.0f / 40.0f;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 16u * 1024u * 1024u;
+
+  PyroSimulationSettings baseSettings;
+  baseSettings.dissipation = 0.04f;
+  baseSettings.coolingRate = 0.16f;
+  baseSettings.buoyancy = 0.35f;
+  baseSettings.pressureIterations = 12.0f;
+  baseSettings.smokeTurbulenceScale = 18.0f;
+  baseSettings.flameTurbulenceScale = 7.0f;
+
+  PyroSourceState source;
+  source.position = {0.5f, 0.12f, 0.5f};
+  source.extent = {0.16f, 0.12f, 0.16f};
+  source.velocity = {0.0f, 60.0f, 0.0f};
+  source.density = 1.2f;
+  source.temperature = 2.0f;
+  source.fuel = 1.5f;
+
+  struct Capture final {
+    std::vector<float> density;
+    std::vector<float> temperature;
+    std::vector<float> reaction;
+    std::vector<float> flameDensity;
+    std::vector<float> flameTemperature;
+    std::vector<float> flameReaction;
+    double mass = 0.0;
+    double upperThirdMassShare = 0.0;
+    double centroidY = 0.0;
+    double microsecondsPerFrame = 0.0;
+    RayTrace::ImageBuffer smokeImage;
+    RayTrace::ImageBuffer fireImage;
+  };
+  const auto run = [&](const float smokeTurbulence,
+                       const float flameTurbulence,
+                       const float smokeDisturbance = 0.0f) {
+    auto settings = baseSettings;
+    settings.smokeTurbulence = smokeTurbulence;
+    settings.flameTurbulence = flameTurbulence;
+    settings.smokeDisturbance = smokeDisturbance;
+    PyroSimulation simulation(domain);
+    simulation.setSettings(settings);
+    simulation.setFixedTimeStep(1.0 / 30.0);
+    Capture capture;
+    const auto simulationStart = std::chrono::steady_clock::now();
+    for (int frame = 0; frame < 90; ++frame) {
+      if (frame < 60)
+        simulation.setSources(std::span<const PyroSourceState>(&source, 1));
+      else
+        simulation.setSources({});
+      simulation.step(1.0 / 30.0);
+      if (frame == 59) {
+        capture.flameDensity = simulation.fields().densityStorage();
+        capture.flameTemperature = simulation.fields().temperatureStorage();
+        capture.flameReaction = simulation.fields().reactionStorage();
+      }
+    }
+    capture.microsecondsPerFrame =
+        std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - simulationStart).count() / 90.0;
+    const auto& fields = simulation.fields();
+    const auto resolution = fields.resolution();
+    capture.density = fields.densityStorage();
+    capture.temperature = fields.temperatureStorage();
+    capture.reaction = fields.reactionStorage();
+    double upperThirdMass = 0.0;
+    double weightedY = 0.0;
+    for (int z = 0; z < resolution.depth; ++z)
+      for (int y = 0; y < resolution.height; ++y)
+        for (int x = 0; x < resolution.width; ++x) {
+          const auto index = static_cast<std::size_t>(x + resolution.width *
+              (y + resolution.height * z));
+          const double density = capture.density[index];
+          capture.mass += density;
+          weightedY += density * y;
+          if (y >= (resolution.height * 2) / 3)
+            upperThirdMass += density;
+        }
+    capture.upperThirdMassShare = upperThirdMass /
+        std::max(1.0e-12, capture.mass);
+    capture.centroidY = weightedY / std::max(1.0e-12, capture.mass);
+
+    const auto render = [&](const TransferFunction& transfer,
+                            const std::vector<float>& density,
+                            const std::vector<float>& temperature,
+                            const std::vector<float>& reaction) {
+      CPUVolumeRenderer renderer;
+      VolumeAABB bounds;
+      bounds.min = {domain.min.x, domain.min.y, domain.min.z};
+      bounds.max = {domain.max.x, domain.max.y, domain.max.z};
+      VolumeFieldSet volumeFields;
+      volumeFields.density = {const_cast<float*>(density.data()),
+          {resolution.width, resolution.height, resolution.depth}};
+      volumeFields.temperature = {
+          const_cast<float*>(temperature.data()),
+          {resolution.width, resolution.height, resolution.depth}};
+      volumeFields.reaction = {const_cast<float*>(reaction.data()),
+          {resolution.width, resolution.height, resolution.depth}};
+      renderer.setVolumeData(bounds, volumeFields);
+      renderer.setTransferFunction(transfer);
+      renderer.settings.stepSize = domain.voxelSize * 0.9f;
+      renderer.settings.maxSteps = 256;
+      renderer.settings.densityScale = transfer.kind ==
+          TransferFunctionKind::Fire ? 8.0f : 5.0f;
+      renderer.settings.fireIntensityScale = 1.6f;
+      renderer.settings.backgroundColor = {0.004f, 0.006f, 0.01f};
+      renderer.settings.lightIntensity = 0.0f;
+      renderer.settings.shadowIntensity = 0.0f;
+      renderer.settings.multipleScatteringStrength = 0.0f;
+      renderer.camera = Camera(1.0f, 50.0f, 1.0f, 0.0f,
+          {0.0f, 0.32f, 1.65f}, {0.0f, 0.32f, 0.0f},
+          {0.0f, 1.0f, 0.0f});
+      return renderer.render(160, 160);
+    };
+    capture.smokeImage = render(TransferFunction::makeSmoke(), capture.density,
+        capture.temperature, capture.reaction);
+    capture.fireImage = render(TransferFunction::makeFire(),
+        capture.flameDensity, capture.flameTemperature, capture.flameReaction);
+    return capture;
+  };
+
+  const auto baseline = run(0.0f, 0.0f);
+  auto smokeCurl = run(3.0f, 0.0f);
+  auto flameCurl = run(0.0f, 3.0f);
+  auto strongSmokeCurl = run(9.0f, 0.0f);
+  auto strongFlameCurl = run(0.0f, 9.0f);
+  auto smokeCurlRepeat = run(3.0f, 0.0f);
+  auto smokeDisturbance = run(0.0f, 0.0f, 3.0f);
+  auto smokeDisturbanceRepeat = run(0.0f, 0.0f, 3.0f);
+  const auto matchExposure = [](RayTrace::ImageBuffer& image,
+                               const RayTrace::ImageBuffer& reference) {
+    const auto sum = [](const RayTrace::ImageBuffer& input) {
+      return std::accumulate(input.pixels.begin(), input.pixels.end(),
+          0.0);
+    };
+    const double sourceExposure = sum(image);
+    if (sourceExposure <= 0.0) return;
+    const float gain = static_cast<float>(sum(reference) / sourceExposure);
+    for (auto& channel : image.pixels)
+      channel = static_cast<std::uint8_t>(std::clamp(
+          std::lround(static_cast<double>(channel) * gain), 0l, 255l));
+  };
+  for (auto* capture : {&smokeCurl, &flameCurl, &strongSmokeCurl,
+                        &strongFlameCurl, &smokeCurlRepeat,
+                        &smokeDisturbance, &smokeDisturbanceRepeat}) {
+    matchExposure(capture->smokeImage, baseline.smokeImage);
+    matchExposure(capture->fireImage, baseline.fireImage);
+  }
+  const auto differentPixels = [](const RayTrace::ImageBuffer& left,
+                                  const RayTrace::ImageBuffer& right) {
+    std::size_t count = 0;
+    for (std::size_t i = 0; i + 2 < left.pixels.size(); i += 3) {
+      if (std::abs(static_cast<int>(left.pixels[i]) - right.pixels[i]) > 1 ||
+          std::abs(static_cast<int>(left.pixels[i + 1]) -
+                   right.pixels[i + 1]) > 1 ||
+          std::abs(static_cast<int>(left.pixels[i + 2]) -
+                   right.pixels[i + 2]) > 1) {
+        ++count;
+      }
+    }
+    return count;
+  };
+  const auto smokeImageChanges = differentPixels(
+      baseline.smokeImage, smokeCurl.smokeImage);
+  const auto flameImageChanges = differentPixels(
+      baseline.fireImage, flameCurl.fireImage);
+  const auto smokeDisturbanceImageChanges = differentPixels(
+      baseline.smokeImage, smokeDisturbance.smokeImage);
+  EXPECT_NE(hashSettings(baseSettings), hashSettings(PyroSimulationSettings{
+      .smokeTurbulence = 3.0f, .smokeTurbulenceScale = 18.0f}));
+  auto disturbanceSettings = baseSettings;
+  disturbanceSettings.smokeDisturbance = 3.0f;
+  EXPECT_NE(hashSettings(baseSettings), hashSettings(disturbanceSettings));
+  EXPECT_NE(baseline.density, smokeCurl.density);
+  EXPECT_NE(baseline.density, flameCurl.density);
+  EXPECT_NE(baseline.density, strongSmokeCurl.density);
+  EXPECT_NE(baseline.density, strongFlameCurl.density);
+  EXPECT_NE(baseline.density, smokeDisturbance.density);
+  EXPECT_EQ(smokeCurl.density, smokeCurlRepeat.density);
+  EXPECT_EQ(smokeCurl.smokeImage.pixels, smokeCurlRepeat.smokeImage.pixels);
+  EXPECT_EQ(smokeCurl.fireImage.pixels, smokeCurlRepeat.fireImage.pixels);
+  EXPECT_EQ(smokeDisturbance.density, smokeDisturbanceRepeat.density);
+  EXPECT_EQ(smokeDisturbance.smokeImage.pixels,
+      smokeDisturbanceRepeat.smokeImage.pixels);
+  EXPECT_EQ(smokeDisturbance.fireImage.pixels,
+      smokeDisturbanceRepeat.fireImage.pixels);
+  EXPECT_LT(smokeCurl.upperThirdMassShare, baseline.upperThirdMassShare);
+  EXPECT_LT(flameCurl.upperThirdMassShare, baseline.upperThirdMassShare);
+  EXPECT_LT(strongSmokeCurl.upperThirdMassShare,
+      baseline.upperThirdMassShare);
+  EXPECT_LT(strongFlameCurl.upperThirdMassShare,
+      baseline.upperThirdMassShare);
+  EXPECT_GT(smokeImageChanges, 100u);
+  EXPECT_GT(flameImageChanges, 100u);
+  EXPECT_GT(smokeDisturbanceImageChanges, 100u);
+  auto outOfRangeSettings = baseSettings;
+  outOfRangeSettings.smokeTurbulence = 100.0f;
+  PyroSimulation clampedSimulation(domain);
+  clampedSimulation.setSettings(outOfRangeSettings);
+  EXPECT_FLOAT_EQ(clampedSimulation.settings().smokeTurbulence, 10.0f);
+  outOfRangeSettings.smokeDisturbance = 100.0f;
+  clampedSimulation.setSettings(outOfRangeSettings);
+  EXPECT_FLOAT_EQ(clampedSimulation.settings().smokeDisturbance, 10.0f);
+
+  GTEST_LOG_(INFO) << "Pyro gated curl/disturbance mass baseline/smoke/flame/strongSmoke/strongFlame/disturbance="
+      << baseline.mass << '/' << smokeCurl.mass << '/' << flameCurl.mass
+      << '/' << strongSmokeCurl.mass << '/' << strongFlameCurl.mass
+      << '/' << smokeDisturbance.mass
+      << " upperThirdShare=" << baseline.upperThirdMassShare << '/'
+      << smokeCurl.upperThirdMassShare << '/' << flameCurl.upperThirdMassShare
+      << '/' << strongSmokeCurl.upperThirdMassShare << '/'
+      << strongFlameCurl.upperThirdMassShare << '/'
+      << smokeDisturbance.upperThirdMassShare
+      << " centroidY=" << baseline.centroidY << '/' << smokeCurl.centroidY
+      << '/' << flameCurl.centroidY << '/' << strongSmokeCurl.centroidY
+      << '/' << strongFlameCurl.centroidY << '/'
+      << smokeDisturbance.centroidY
+      << " usPerFrame=" << baseline.microsecondsPerFrame << '/'
+      << smokeCurl.microsecondsPerFrame << '/'
+      << flameCurl.microsecondsPerFrame << '/'
+      << strongSmokeCurl.microsecondsPerFrame << '/'
+      << strongFlameCurl.microsecondsPerFrame << '/'
+      << smokeDisturbance.microsecondsPerFrame
+      << " imageChangedPixelsSmoke/Fire=" << smokeImageChanges << '/'
+      << flameImageChanges << " disturbance="
+      << smokeDisturbanceImageChanges;
+
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_PYRO_CURL_NOISE_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory));
+    const std::array<const Capture*, 6> captures{
+        &baseline, &smokeCurl, &flameCurl, &strongSmokeCurl,
+        &strongFlameCurl, &smokeDisturbance};
+    const std::array<const char*, 6> names{"baseline", "smoke_curl",
+        "flame_curl", "smoke_curl_strong", "flame_curl_strong",
+        "smoke_disturbance"};
+    for (std::size_t i = 0; i < captures.size(); ++i) {
+      const auto save = [&](const RayTrace::ImageBuffer& sourceImage,
+                            const QString& name) {
+        QImage image(sourceImage.width, sourceImage.height,
+            QImage::Format_RGB888);
+        for (int y = 0; y < sourceImage.height; ++y)
+          std::copy_n(sourceImage.pixels.data() +
+              static_cast<std::size_t>(y * sourceImage.width * 3),
+              sourceImage.width * 3, image.scanLine(y));
+        EXPECT_TRUE(image.save(QDir(outputDirectory).filePath(name), "PNG"));
+      };
+      save(captures[i]->smokeImage,
+          QString::fromLatin1("%1_smoke.png").arg(names[i]));
+      save(captures[i]->fireImage,
+          QString::fromLatin1("%1_fire.png").arg(names[i]));
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     FlameLifetimePersistsAfterHeatStopsAndThenExpires) {
+  Artifact::LayerFluidRuntimeState state;
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = 64;
+  settings.gridHeight = 64;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.82f;
+  settings.emitterRadius = 0.075f;
+  settings.emitterDensity = 0.65f;
+  settings.emitterTemperature = 5.0f;
+  settings.temperatureDissipationPerSecond = 10.0f;
+  settings.thermalBuoyancy = 0.0f;
+  settings.buoyancy = 0.0f;
+  settings.vorticity = 0.0f;
+  settings.flameLifetimeSeconds = 0.65f;
+
+  constexpr double kFramesPerSecond = 30.0;
+  for (std::int64_t frame = 0; frame < 8; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, kFramesPerSecond, settings);
+
+  settings.emitterTemperature = 0.0f;
+  settings.emitterDensity = 0.0f;
+  settings.emitterVelocityX = 0.0f;
+  settings.emitterVelocityY = 0.0f;
+  settings.emitterSwirl = 0.0f;
+  for (std::int64_t frame = 8; frame <= 18; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, kFramesPerSecond, settings);
+
+  double flameLifetimeMass = 0.0;
+  float maximumTemperature = 0.0f;
+  for (std::size_t index = 0; index < state.flameLifetime_.size(); ++index) {
+    flameLifetimeMass += state.flameLifetime_[index];
+    maximumTemperature = std::max(maximumTemperature,
+        state.fluidSolver_->getTemperature(
+            static_cast<int>(index % 64), static_cast<int>(index / 64)));
+  }
+  QMatrix4x4 identity;
+  identity.setToIdentity();
+  const auto& fireData = Artifact::prepareLayerFireRenderData(
+      state, QRectF(0.0, 0.0, 64.0, 64.0), identity, 1.0f, 18, settings);
+  GTEST_LOG_(INFO) << "2D flame source-stop tail mass/maxTemperature/particles="
+                   << flameLifetimeMass << '/' << maximumTemperature << '/'
+                   << fireData.particles.size();
+  EXPECT_GT(flameLifetimeMass, 0.0);
+  EXPECT_LT(maximumTemperature, 0.35f);
+  EXPECT_GT(fireData.particles.size(), 0U);
+
+  for (std::int64_t frame = 19; frame <= 64; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, kFramesPerSecond, settings);
+  double expiredFlameMass = 0.0;
+  for (const float value : state.flameLifetime_)
+    expiredFlameMass += value;
+  EXPECT_NEAR(expiredFlameMass, 0.0, 1.0e-6);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     RestoresFlameLifetimeFromSmokeCheckpointOnBackwardSeek) {
+  Artifact::LayerFluidRuntimeState state;
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = 48;
+  settings.gridHeight = 48;
+  settings.emitterX = 0.48f;
+  settings.emitterY = 0.8f;
+  settings.emitterRadius = 0.08f;
+  settings.emitterDensity = 0.5f;
+  settings.emitterTemperature = 4.0f;
+  settings.flameLifetimeSeconds = 1.1f;
+  settings.thermalBuoyancy = 0.0f;
+  settings.buoyancy = 0.0f;
+
+  for (std::int64_t frame = 0; frame <= 32; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+  const auto& checkpoint = state.smokeCheckpoints_[3];
+  ASSERT_EQ(checkpoint.frame, 24);
+  ASSERT_EQ(checkpoint.flameLifetime.size(), state.flameLifetime_.size());
+  ASSERT_TRUE(checkpoint.flameLifetimeActive);
+  std::vector<float> expected(checkpoint.flameLifetime.begin(),
+                              checkpoint.flameLifetime.end());
+
+  Artifact::advanceLayerSmokeRuntime(state, 24, 30.0, settings);
+  EXPECT_TRUE(state.flameLifetimeActive_);
+  double maximumDifference = 0.0;
+  for (std::size_t index = 0; index < expected.size(); ++index) {
+    maximumDifference = std::max(maximumDifference,
+        std::abs(static_cast<double>(state.flameLifetime_[index]) -
+                 expected[index]));
+  }
+  GTEST_LOG_(INFO) << "2D flame checkpoint restore max difference="
+                   << maximumDifference;
+  EXPECT_NEAR(maximumDifference, 0.0, 1.0e-7);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     FlameLifetimeCanRenderWithoutSmokeDensity) {
+  Artifact::LayerFluidRuntimeState state;
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = 48;
+  settings.gridHeight = 48;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.82f;
+  settings.emitterRadius = 0.07f;
+  settings.emitterDensity = 0.0f;
+  settings.emitterTemperature = 4.0f;
+  settings.buoyancy = 0.0f;
+  settings.thermalBuoyancy = 0.0f;
+
+  for (std::int64_t frame = 0; frame < 4; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
+
+  double smokeMass = 0.0;
+  for (int y = 0; y < settings.gridHeight; ++y)
+    for (int x = 0; x < settings.gridWidth; ++x)
+      smokeMass += state.fluidSolver_->getDensity(x, y);
+  QMatrix4x4 identity;
+  identity.setToIdentity();
+  Artifact::ArtifactIRenderer renderer;
+  Artifact::renderLayerSmokeRuntime(state, &renderer,
+      QRectF(0.0, 0.0, 48.0, 48.0), identity, 1.0f, 3, 30.0, settings);
+  GTEST_LOG_(INFO) << "2D independent fire smokeMass/smokeParticles/fireParticles="
+                   << smokeMass << "/0/"
+                   << renderer.lastParticleData().particles.size();
+  EXPECT_NEAR(smokeMass, 0.0, 1.0e-8);
+  ASSERT_EQ(renderer.particleDrawCount(), 1);
+  EXPECT_GT(renderer.lastParticleData().particles.size(), 0U);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     PreservesPyroSmokeAndFlameAcrossRenderFrameRates) {
+  using namespace ArtifactCore;
+  PyroDomain domain;
+  domain.min = {-0.5f, 0.0f, -0.5f};
+  domain.max = {0.5f, 1.0f, 0.5f};
+  domain.voxelSize = 1.0f / 16.0f;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 16u * 1024u * 1024u;
+
+  PyroSimulationSettings settings;
+  settings.dissipation = 0.04f;
+  settings.coolingRate = 0.16f;
+  settings.buoyancy = 0.35f;
+  settings.vorticity = 0.0f;
+  settings.pressureIterations = 12.0f;
+  PyroSourceState source;
+  source.position = {0.0f, 0.12f, 0.0f};
+  source.extent = {0.16f, 0.12f, 0.16f};
+  source.velocity = {0.0f, 10.0f, 0.0f};
+  source.density = 2.0f;
+  source.temperature = 2.0f;
+  source.fuel = 2.0f;
+
+  struct Result final {
+    std::vector<float> density;
+    std::vector<float> temperature;
+    std::vector<float> fuel;
+    std::vector<float> reaction;
+    std::uint64_t frameIndex = 0;
+  };
+  constexpr double fixedStep = 1.0 / 120.0;
+  const auto run = [&](const int renderRate) {
+    PyroSimulation simulation(domain);
+    simulation.setSettings(settings);
+    simulation.setFixedTimeStep(fixedStep);
+    const int totalFrames = renderRate / 2;
+    const int sourceFrames = renderRate * 2 / 5;
+    for (int frame = 0; frame < totalFrames; ++frame) {
+      if (frame < sourceFrames) {
+        simulation.setSources(std::span<const PyroSourceState>(&source, 1));
+      } else {
+        simulation.setSources({});
+      }
+      simulation.step(1.0 / static_cast<double>(renderRate));
+    }
+    Result result;
+    result.density = simulation.fields().densityStorage();
+    result.temperature = simulation.fields().temperatureStorage();
+    result.fuel = simulation.fields().fuelStorage();
+    result.reaction = simulation.fields().reactionStorage();
+    result.frameIndex = simulation.frameIndex();
+    return result;
+  };
+  const auto at30 = run(30);
+  const auto at60 = run(60);
+  const auto at120 = run(120);
+  const auto relativeL1Error = [](const std::vector<float>& candidate,
+                                  const std::vector<float>& reference) {
+    double difference = 0.0;
+    double referenceMass = 0.0;
+    for (std::size_t i = 0; i < candidate.size(); ++i) {
+      difference += std::abs(static_cast<double>(candidate[i]) -
+                             reference[i]);
+      referenceMass += std::abs(static_cast<double>(reference[i]));
+    }
+    return difference / std::max(1.0e-12, referenceMass);
+  };
+  const double density30 = relativeL1Error(at30.density, at120.density);
+  const double density60 = relativeL1Error(at60.density, at120.density);
+  const double temperature30 = relativeL1Error(
+      at30.temperature, at120.temperature);
+  const double temperature60 = relativeL1Error(
+      at60.temperature, at120.temperature);
+  const double fuel30 = relativeL1Error(at30.fuel, at120.fuel);
+  const double fuel60 = relativeL1Error(at60.fuel, at120.fuel);
+  const double reaction30 = relativeL1Error(at30.reaction, at120.reaction);
+  const double reaction60 = relativeL1Error(at60.reaction, at120.reaction);
+  EXPECT_EQ(at30.frameIndex, 60U);
+  EXPECT_EQ(at60.frameIndex, 60U);
+  EXPECT_EQ(at120.frameIndex, 60U);
+  EXPECT_GT(std::accumulate(at30.density.begin(), at30.density.end(), 0.0),
+            0.0);
+  EXPECT_GT(std::accumulate(at30.reaction.begin(), at30.reaction.end(), 0.0),
+            0.0);
+  GTEST_LOG_(INFO) << "Pyro render-rate parity at fixed 120Hz solver step; "
+      << "relative L1 30/60 vs 120: density " << density30 << '/'
+      << density60 << " temperature " << temperature30 << '/'
+      << temperature60 << " fuel " << fuel30 << '/' << fuel60
+      << " reaction " << reaction30 << '/' << reaction60;
+  EXPECT_LT(density30, 1.0e-6);
+  EXPECT_LT(density60, 1.0e-6);
+  EXPECT_LT(temperature30, 1.0e-6);
+  EXPECT_LT(temperature60, 1.0e-6);
+  EXPECT_LT(fuel30, 1.0e-6);
+  EXPECT_LT(fuel60, 1.0e-6);
+  EXPECT_LT(reaction30, 1.0e-6);
+  EXPECT_LT(reaction60, 1.0e-6);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      RechecksPyroSourceShapeAcrossSeedsAtHigherResolution) {
   using namespace ArtifactCore;
   using namespace ArtifactCore::RayTrace;
@@ -1687,7 +2415,22 @@ SmokeFieldFrame captureSmokeFieldFrame(
 
 SmokeResolutionCapture captureSmokeDensityAtResolution(
     const int width, const int height, const int frameCount,
-    const int solverIterations = 1, const float vorticity = 1.5f) {
+    const int solverIterations = 1, const float vorticity = 1.5f,
+    const float smokeTurbulence = 0.0f,
+    const float flameTurbulence = 0.0f,
+    const float smokeTurbulenceScale = 18.0f,
+    const float flameTurbulenceScale = 7.0f,
+    const float emitterTemperature = 0.0f,
+    const float thermalBuoyancy = 0.0f,
+    const float topOutflowRate = 100.0f,
+    const float topOutflowBand = 0.35f,
+    const float emitterX = 0.5f,
+    const float emitterY = 0.78f,
+    const float emitterRadius = 0.08f,
+    const int emitterCount = 1,
+    const float emitterDensity = 0.8f,
+    const float emitterVelocityY = -1.2f,
+    const float emitterSwirl = 0.6f) {
   SmokeResolutionCapture capture;
   capture.width = width;
   capture.height = height;
@@ -1696,13 +2439,22 @@ SmokeResolutionCapture captureSmokeDensityAtResolution(
   settings.gridWidth = width;
   settings.gridHeight = height;
   settings.solverIterations = solverIterations;
-  settings.emitterX = 0.5f;
-  settings.emitterY = 0.78f;
-  settings.emitterRadius = 0.08f;
-  settings.emitterDensity = 0.8f;
-  settings.emitterVelocityY = -1.2f;
+  settings.emitterX = emitterX;
+  settings.emitterY = emitterY;
+  settings.emitterRadius = emitterRadius;
+  settings.emitterCount = emitterCount;
+  settings.emitterDensity = emitterDensity;
+  settings.emitterVelocityY = emitterVelocityY;
   settings.vorticity = vorticity;
-  settings.emitterSwirl = 0.6f;
+  settings.emitterSwirl = emitterSwirl;
+  settings.smokeTurbulence = smokeTurbulence;
+  settings.flameTurbulence = flameTurbulence;
+  settings.smokeTurbulenceScale = smokeTurbulenceScale;
+  settings.flameTurbulenceScale = flameTurbulenceScale;
+  settings.emitterTemperature = emitterTemperature;
+  settings.thermalBuoyancy = thermalBuoyancy;
+  settings.topOutflowRatePerSecond = topOutflowRate;
+  settings.topOutflowBandFraction = topOutflowBand;
 
   const auto simulationStart = std::chrono::steady_clock::now();
   for (int frame = 0; frame <= frameCount; ++frame) {
@@ -1712,12 +2464,20 @@ SmokeResolutionCapture captureSmokeDensityAtResolution(
   capture.simulationMicroseconds = std::chrono::duration<double, std::micro>(
       simulationEnd - simulationStart).count();
   capture.density.resize(static_cast<std::size_t>(width * height));
+  double upperThirdMass = 0.0;
+  double middleThirdMass = 0.0;
+  double lowerThirdMass = 0.0;
+  double weightedY = 0.0;
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
       const float value = state.fluidSolver_->getDensity(x, y);
       capture.density[static_cast<std::size_t>(y * width + x)] = value;
       capture.maximumDensity = std::max(capture.maximumDensity, value);
       capture.integratedDensity += value;
+      weightedY += static_cast<double>(value) * y;
+      if (y < height / 3) upperThirdMass += value;
+      else if (y < (2 * height) / 3) middleThirdMass += value;
+      else lowerThirdMass += value;
       if (x > 0) {
         capture.gradientEnergy += std::abs(value - state.fluidSolver_->getDensity(
             x - 1, y));
@@ -1728,6 +2488,14 @@ SmokeResolutionCapture captureSmokeDensityAtResolution(
       }
     }
   }
+  capture.upperThirdMassShare = upperThirdMass /
+      std::max(1.0e-12, capture.integratedDensity);
+  capture.middleThirdMassShare = middleThirdMass /
+      std::max(1.0e-12, capture.integratedDensity);
+  capture.lowerThirdMassShare = lowerThirdMass /
+      std::max(1.0e-12, capture.integratedDensity);
+  capture.centroidY = weightedY /
+      std::max(1.0e-12, capture.integratedDensity);
   capture.image = rasterizeSolverDensity(
       capture.density, width, height, 1.1f, -0.6f, -0.8f, 0.18f,
       0.82f, 0.84f, 0.88f);
@@ -3181,6 +3949,574 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ComparesProductionTwoDimensionalSmokeAndFlameCurlNoise) {
+  constexpr int kGridSize = 128;
+  constexpr int kFrameCount = 44;
+  constexpr int kIterations = 20;
+  constexpr float kVorticity = 0.1f;
+  constexpr float kEmitterTemperature = 2.0f;
+  constexpr float kThermalBuoyancy = 0.03f;
+  const auto run = [&](const float smokeTurbulence,
+                       const float flameTurbulence) {
+    return captureSmokeDensityAtResolution(kGridSize, kGridSize,
+        kFrameCount, kIterations, kVorticity, smokeTurbulence,
+        flameTurbulence, 18.0f, 7.0f, kEmitterTemperature,
+        kThermalBuoyancy);
+  };
+  const auto baseline = run(0.0f, 0.0f);
+  const auto smokeCurl = run(0.4f, 0.0f);
+  const auto flameCurl = run(0.0f, 0.4f);
+  const auto strongSmokeCurl = run(1.2f, 0.0f);
+  const auto smokeCurlRepeat = run(0.4f, 0.0f);
+  const auto massMatchedImage = [&](const SmokeResolutionCapture& capture) {
+    std::vector<float> density = capture.density;
+    const float gain = static_cast<float>(baseline.integratedDensity /
+        std::max(1.0e-12, capture.integratedDensity));
+    for (auto& value : density) value *= gain;
+    return rasterizeSolverDensity(density, kGridSize, kGridSize,
+        1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f);
+  };
+  const QImage baselineImage = massMatchedImage(baseline);
+  const QImage smokeCurlImage = massMatchedImage(smokeCurl);
+  const QImage flameCurlImage = massMatchedImage(flameCurl);
+  const QImage strongSmokeCurlImage = massMatchedImage(strongSmokeCurl);
+  const QImage repeatImage = massMatchedImage(smokeCurlRepeat);
+  const int smokeChanged = countDifferentPixels(baselineImage, smokeCurlImage);
+  const int flameChanged = countDifferentPixels(baselineImage, flameCurlImage);
+  GTEST_LOG_(INFO) << "Production 2D gated curl mass baseline/smoke/flame/strong="
+      << baseline.integratedDensity << '/' << smokeCurl.integratedDensity
+      << '/' << flameCurl.integratedDensity << '/'
+      << strongSmokeCurl.integratedDensity
+      << " upperThird baseline/smoke/flame/strong="
+      << baseline.upperThirdMassShare << '/' << smokeCurl.upperThirdMassShare
+      << '/' << flameCurl.upperThirdMassShare << '/'
+      << strongSmokeCurl.upperThirdMassShare
+      << " centroidY=" << baseline.centroidY << '/' << smokeCurl.centroidY
+      << '/' << flameCurl.centroidY << '/' << strongSmokeCurl.centroidY
+      << " simulationUsPerFrame="
+      << baseline.simulationMicroseconds / kFrameCount << '/'
+      << smokeCurl.simulationMicroseconds / kFrameCount << '/'
+      << flameCurl.simulationMicroseconds / kFrameCount << '/'
+      << strongSmokeCurl.simulationMicroseconds / kFrameCount
+      << " matchedImageChanged smoke/flame=" << smokeChanged << '/'
+      << flameChanged;
+  EXPECT_NE(baseline.density, smokeCurl.density);
+  EXPECT_NE(baseline.density, flameCurl.density);
+  EXPECT_EQ(smokeCurl.density, smokeCurlRepeat.density);
+  EXPECT_EQ(smokeCurlImage, repeatImage);
+  EXPECT_GT(smokeChanged, 100);
+  EXPECT_GT(flameChanged, 100);
+  EXPECT_LT(smokeCurl.upperThirdMassShare,
+      baseline.upperThirdMassShare);
+
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_CURL_NOISE_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory));
+    EXPECT_TRUE(baselineImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("2d_baseline_mass_matched.png")), "PNG"));
+    EXPECT_TRUE(smokeCurlImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("2d_smoke_curl_mass_matched.png")), "PNG"));
+    EXPECT_TRUE(flameCurlImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("2d_flame_curl_mass_matched.png")), "PNG"));
+    EXPECT_TRUE(strongSmokeCurlImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("2d_smoke_curl_strong_mass_matched.png")), "PNG"));
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresProductionSmokeTopOutflowRateAndBandTradeoff) {
+  constexpr int kGridSize = 128;
+  constexpr int kFrameCount = 44;
+  constexpr int kIterations = 20;
+  const auto run = [&](const float rate, const float band) {
+    return captureSmokeDensityAtResolution(kGridSize, kGridSize,
+        kFrameCount, kIterations, 0.1f, 0.0f, 0.0f, 18.0f, 7.0f,
+        1.0f, 0.0f, rate, band, 0.5f, 0.9f, 0.20f, 7, 0.04f,
+        -0.75f, 0.0f);
+  };
+  const auto baseline = run(30.0f, 0.35f);
+  const auto mediumOutflow = run(60.0f, 0.3f);
+  const auto strongOutflow = run(100.0f, 0.35f);
+  const auto matchedImage = [&](const SmokeResolutionCapture& capture) {
+    std::vector<float> density = capture.density;
+    const float gain = static_cast<float>(mediumOutflow.integratedDensity /
+        std::max(1.0e-12, capture.integratedDensity));
+    for (auto& value : density) value *= gain;
+    return rasterizeSolverDensity(density, kGridSize, kGridSize,
+        1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f);
+  };
+  const auto fixedExposureImage = [&](const SmokeResolutionCapture& capture) {
+    return rasterizeSolverDensity(capture.density, kGridSize, kGridSize,
+        1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f);
+  };
+  const auto baselineImage = matchedImage(baseline);
+  const auto mediumImage = matchedImage(mediumOutflow);
+  const auto strongImage = matchedImage(strongOutflow);
+  const auto baselineFixedImage = fixedExposureImage(baseline);
+  const auto mediumFixedImage = fixedExposureImage(mediumOutflow);
+  const auto strongFixedImage = fixedExposureImage(strongOutflow);
+  const auto baselineFixedMetrics = measureSmokeImage(baselineFixedImage);
+  const auto mediumFixedMetrics = measureSmokeImage(mediumFixedImage);
+  const auto strongFixedMetrics = measureSmokeImage(strongFixedImage);
+  GTEST_LOG_(INFO) << "Production smoke top outflow rate/band=30/.35,60/.30,100/.35"
+      << " mass=" << baseline.integratedDensity << '/'
+      << mediumOutflow.integratedDensity << '/'
+      << strongOutflow.integratedDensity
+      << " upperThird=" << baseline.upperThirdMassShare << '/'
+      << mediumOutflow.upperThirdMassShare << '/'
+      << strongOutflow.upperThirdMassShare
+      << " centroidY=" << baseline.centroidY << '/'
+      << mediumOutflow.centroidY << '/' << strongOutflow.centroidY
+      << " fixedExposureVisiblePixels="
+      << baselineFixedMetrics.visiblePixels << '/'
+      << mediumFixedMetrics.visiblePixels << '/'
+      << strongFixedMetrics.visiblePixels
+      << " fixedExposureGreenExcess="
+      << baselineFixedMetrics.greenExcess << '/'
+      << mediumFixedMetrics.greenExcess << '/'
+      << strongFixedMetrics.greenExcess
+      << " changedPixels=" << countDifferentPixels(baselineImage, mediumImage)
+      << '/' << countDifferentPixels(baselineImage, strongImage);
+  EXPECT_LT(strongOutflow.upperThirdMassShare,
+      mediumOutflow.upperThirdMassShare);
+  EXPECT_GT(strongOutflow.integratedDensity,
+      mediumOutflow.integratedDensity * 0.5);
+
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_CURL_NOISE_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory));
+    EXPECT_TRUE(baselineImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("top_outflow_30_035.png")), "PNG"));
+    EXPECT_TRUE(mediumImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("top_outflow_60_030.png")), "PNG"));
+    EXPECT_TRUE(strongImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("top_outflow_100_035.png")), "PNG"));
+    EXPECT_TRUE(baselineFixedImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("top_outflow_30_035_fixed_exposure.png")), "PNG"));
+    EXPECT_TRUE(mediumFixedImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("top_outflow_60_030_fixed_exposure.png")), "PNG"));
+    EXPECT_TRUE(strongFixedImage.save(QDir(outputDirectory).filePath(
+        QStringLiteral("top_outflow_100_035_fixed_exposure.png")), "PNG"));
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresProductionGridResolutionCostAndUpperConcentration) {
+  constexpr int kFrameCount = 60;
+  constexpr int kSolverIterations = 20;
+  // Keep the production baseline and intermediate controls, then include the
+  // 384x216 aspect ratio already exercised by the production Diligent capture.
+  // All fields are rasterized to the same output dimensions below, isolating
+  // solver detail and CPU simulation cost from image size and renderer cost.
+  constexpr std::array<std::pair<int, int>, 4> resolutions{{
+      {128, 128}, {192, 192}, {256, 256}, {384, 216}}};
+  std::array<SmokeResolutionCapture, resolutions.size()> captures;
+  for (std::size_t index = 0; index < resolutions.size(); ++index) {
+    const auto [width, height] = resolutions[index];
+    captures[index] = captureSmokeDensityAtResolution(
+        width, height, kFrameCount, kSolverIterations, 0.1f,
+        0.0f, 0.0f, 18.0f, 7.0f, 1.0f, 0.0f,
+        100.0f, 0.35f, 0.5f, 0.9f, 0.20f, 7, 0.04f, -0.75f, 0.0f);
+  }
+
+  const auto normalizedMass = [](const SmokeResolutionCapture& capture) {
+    const double interiorCells = static_cast<double>(
+        (capture.width - 2) * (capture.height - 2));
+    return capture.integratedDensity / interiorCells;
+  };
+  const double referenceMass = normalizedMass(captures.front());
+  const QString outputDirectory =
+      qEnvironmentVariable("ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty())
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+
+  for (std::size_t index = 0; index < captures.size(); ++index) {
+    const auto& capture = captures[index];
+    std::vector<float> matchedDensity = capture.density;
+    const float gain = static_cast<float>(referenceMass /
+        std::max(1.0e-12, normalizedMass(capture)));
+    for (float& density : matchedDensity) density *= gain;
+    const QImage matchedImage = rasterizeSolverDensity(
+        matchedDensity, capture.width, capture.height,
+        1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f);
+    const auto imageMetrics = measureSmokeImage(matchedImage);
+    GTEST_LOG_(INFO) << "Production smoke grid " << capture.width << 'x'
+        << capture.height << " normalizedMass=" << normalizedMass(capture)
+        << " upperThirdShare=" << capture.upperThirdMassShare
+        << " normalizedCentroidY=" << capture.centroidY /
+            static_cast<double>(capture.height - 1)
+        << " profile=emitterY0.90/r0.20/n7/d0.04/vy-0.75/temp1.0"
+        << "/outflow100-band0.35 frames=0.." << kFrameCount
+        << " simulationMsPerFrame=" << capture.simulationMicroseconds /
+            static_cast<double>(kFrameCount + 1) / 1000.0
+        << " cpuRasterMs=" << capture.renderingMicroseconds / 1000.0
+        << " matchedVisiblePixels=" << imageMetrics.visiblePixels
+        << " gradientEnergy=" << capture.gradientEnergy;
+    EXPECT_GT(imageMetrics.visiblePixels, 500);
+    EXPECT_LT(capture.upperThirdMassShare, 0.5);
+    EXPECT_EQ(imageMetrics.saturatedPixels, 0);
+    if (!outputDirectory.isEmpty()) {
+      const QString filename = QStringLiteral("smoke_production_grid_%1x%2.png")
+          .arg(capture.width).arg(capture.height);
+      EXPECT_TRUE(matchedImage.save(
+          QDir(outputDirectory).filePath(filename), "PNG"));
+    }
+  }
+  EXPECT_GT(countDifferentPixels(
+      rasterizeSolverDensity(captures[0].density, captures[0].width,
+          captures[0].height, 1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f),
+      rasterizeSolverDensity(captures[2].density, captures[2].width,
+          captures[2].height, 1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f)),
+      1000);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ExploresSourceFootprintAndLiftForVisibleSmokeDistribution) {
+  constexpr int kGridSize = 128;
+  constexpr int kFrameCount = 60;
+  constexpr int kSolverIterations = 20;
+  // Compare the current component defaults against the former narrow source
+  // and a slower lift, keeping the approximate source area-density product
+  // constant so the silhouette/upper concentration comparison is not a simple
+  // exposure increase.
+  const auto run = [&](const float radius, const int sourceCount,
+                       const float density, const float verticalVelocity) {
+    return captureSmokeDensityAtResolution(
+        kGridSize, kGridSize, kFrameCount, kSolverIterations, 0.1f,
+        0.0f, 0.0f, 18.0f, 7.0f, 1.0f, 0.0f, 60.0f, 0.3f,
+        0.5f, 0.9f, radius, sourceCount, density, verticalVelocity, 0.0f);
+  };
+  const auto currentDefault = run(0.20f, 7, 0.04f, -0.75f);
+  const auto formerNarrow = run(0.16f, 7, 0.0625f, -0.75f);
+  const auto broadSlow = run(0.2f, 7, 0.04f, -0.5f);
+  const auto currentDefaultRepeat = run(0.20f, 7, 0.04f, -0.75f);
+  const auto massMatchedImage = [&](const SmokeResolutionCapture& capture) {
+    std::vector<float> density = capture.density;
+    const float gain = static_cast<float>(currentDefault.integratedDensity /
+        std::max(1.0e-12, capture.integratedDensity));
+    for (float& value : density) value *= gain;
+    return rasterizeSolverDensity(density, kGridSize, kGridSize,
+        1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f);
+  };
+  const std::array<const SmokeResolutionCapture*, 3> captures{{
+      &currentDefault, &formerNarrow, &broadSlow}};
+  const std::array<QString, 3> names{{
+      QStringLiteral("current_default_r020_d004_vy075"),
+      QStringLiteral("former_narrow_r016_d00625_vy075"),
+      QStringLiteral("current_default_slow_lift_vy050")}};
+  std::array<QImage, 3> images;
+  std::array<QImage, 3> fixedExposureImages;
+  for (std::size_t index = 0; index < captures.size(); ++index) {
+    images[index] = massMatchedImage(*captures[index]);
+    const auto imageMetrics = measureSmokeImage(images[index]);
+    fixedExposureImages[index] = rasterizeSolverDensity(
+        captures[index]->density, kGridSize, kGridSize,
+        1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f);
+    const auto fixedExposureMetrics =
+        measureSmokeImage(fixedExposureImages[index]);
+    GTEST_LOG_(INFO) << "Smoke source profile " << names[index].toStdString()
+        << " mass=" << captures[index]->integratedDensity
+        << " thirds(top/middle/bottom)="
+        << captures[index]->upperThirdMassShare << '/'
+        << captures[index]->middleThirdMassShare << '/'
+        << captures[index]->lowerThirdMassShare
+        << " centroidY=" << captures[index]->centroidY
+        << " visiblePixels=" << imageMetrics.visiblePixels
+        << " fixedExposureVisiblePixels="
+        << fixedExposureMetrics.visiblePixels
+        << " fixedExposureGreenExcess="
+        << fixedExposureMetrics.greenExcess
+        << " gradientEnergy=" << captures[index]->gradientEnergy
+        << " simulationMsPerFrame="
+        << captures[index]->simulationMicroseconds / kFrameCount / 1000.0;
+    EXPECT_GT(captures[index]->integratedDensity, 0.0);
+    EXPECT_TRUE(std::isfinite(captures[index]->upperThirdMassShare));
+    EXPECT_GT(imageMetrics.visiblePixels, 500);
+    EXPECT_EQ(imageMetrics.saturatedPixels, 0);
+  }
+  EXPECT_EQ(currentDefault.density, currentDefaultRepeat.density);
+  EXPECT_EQ(images[0], massMatchedImage(currentDefaultRepeat));
+  EXPECT_GT(countDifferentPixels(images[0], images[1]), 100);
+  EXPECT_GT(countDifferentPixels(images[1], images[2]), 100);
+
+  const QString outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+    for (std::size_t index = 0; index < images.size(); ++index) {
+      const QString filename = QStringLiteral(
+          "smoke_source_profile_%1.png").arg(names[index]);
+      EXPECT_TRUE(images[index].save(
+          QDir(outputDirectory).filePath(filename), "PNG"));
+      const QString fixedExposureFilename = QStringLiteral(
+          "smoke_source_profile_%1_fixed_exposure.png").arg(names[index]);
+      EXPECT_TRUE(fixedExposureImages[index].save(
+          QDir(outputDirectory).filePath(fixedExposureFilename), "PNG"));
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresSourcePlacementAndTopOutflowBandInteraction) {
+  struct Condition final {
+    const char* name;
+    float emitterVelocityY;
+    float topOutflowBand;
+  };
+  // Small factorial sweep: vary upward source speed and the top absorption
+  // band independently while holding source position and profile fixed.
+  constexpr std::array<Condition, 4> conditions{{
+      {"velocity_m075_band030", -0.75f, 0.30f},
+      {"velocity_m045_band030", -0.45f, 0.30f},
+      {"velocity_m075_band035", -0.75f, 0.35f},
+      {"velocity_m045_band035", -0.45f, 0.35f}}};
+  constexpr int gridWidth = 128;
+  constexpr int gridHeight = 128;
+  constexpr int frameCount = 60;
+  constexpr int solverIterations = 20;
+  std::array<SmokeResolutionCapture, conditions.size()> captures;
+  for (std::size_t index = 0; index < conditions.size(); ++index) {
+    const auto& condition = conditions[index];
+    captures[index] = captureSmokeDensityAtResolution(
+        gridWidth, gridHeight, frameCount, solverIterations,
+        0.1f, 0.0f, 0.0f, 18.0f, 7.0f,
+        1.0f, 0.0f, 60.0f, condition.topOutflowBand,
+        0.5f, 0.90f, 0.20f, 7, 0.04f,
+        condition.emitterVelocityY, 0.0f);
+  }
+
+  const double referenceMass = captures[0].integratedDensity;
+  const auto matchedImage = [&](const SmokeResolutionCapture& capture) {
+    std::vector<float> density = capture.density;
+    const float gain = static_cast<float>(referenceMass /
+        std::max(1.0e-12, capture.integratedDensity));
+    for (float& value : density) value *= gain;
+    return rasterizeSolverDensity(density, gridWidth, gridHeight,
+        1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f);
+  };
+  std::array<QImage, conditions.size()> images;
+  const QString outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty())
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+
+  for (std::size_t index = 0; index < conditions.size(); ++index) {
+    const auto& capture = captures[index];
+    images[index] = matchedImage(capture);
+    const auto imageMetrics = measureSmokeImage(images[index]);
+    std::array<std::size_t, 3> visiblePixelsByThird{};
+    std::array<std::uint64_t, 3> greenExcessByThird{};
+    int visibleTop = images[index].height();
+    int visibleBottom = -1;
+    for (int y = 0; y < images[index].height(); ++y) {
+      const std::size_t third = std::min<std::size_t>(2,
+          3 * static_cast<std::size_t>(y) /
+              static_cast<std::size_t>(images[index].height()));
+      for (int x = 0; x < images[index].width(); ++x) {
+        const int greenExcess = std::max(0,
+            qGreen(images[index].pixel(x, y)) - qGreen(kBackground));
+        greenExcessByThird[third] +=
+            static_cast<std::uint64_t>(greenExcess);
+        if (greenExcess <= 2) continue;
+        ++visiblePixelsByThird[third];
+        visibleTop = std::min(visibleTop, y);
+        visibleBottom = std::max(visibleBottom, y);
+      }
+    }
+    GTEST_LOG_(INFO) << "Smoke placement/outflow matrix="
+        << conditions[index].name
+        << " mass=" << capture.integratedDensity
+        << " thirds(top/middle/bottom)="
+        << capture.upperThirdMassShare << '/'
+        << capture.middleThirdMassShare << '/'
+        << capture.lowerThirdMassShare
+        << " centroidY=" << capture.centroidY
+        << " matchedVisiblePixels=" << imageMetrics.visiblePixels
+        << " visiblePixels(top/middle/bottom)="
+        << visiblePixelsByThird[0] << '/' << visiblePixelsByThird[1]
+        << '/' << visiblePixelsByThird[2]
+        << " greenExcessShare(top/middle/bottom)="
+        << static_cast<double>(greenExcessByThird[0]) /
+            std::max(1.0, static_cast<double>(imageMetrics.greenExcess))
+        << '/' << static_cast<double>(greenExcessByThird[1]) /
+            std::max(1.0, static_cast<double>(imageMetrics.greenExcess))
+        << '/' << static_cast<double>(greenExcessByThird[2]) /
+            std::max(1.0, static_cast<double>(imageMetrics.greenExcess))
+        << " visibleYBounds=" << visibleTop << '-' << visibleBottom
+        << " simulationMsPerFrame="
+        << capture.simulationMicroseconds / frameCount / 1000.0;
+    ASSERT_GT(capture.integratedDensity, 0.0);
+    EXPECT_GT(capture.integratedDensity, referenceMass * 0.5);
+    EXPECT_GT(imageMetrics.visiblePixels, 500);
+    EXPECT_EQ(imageMetrics.saturatedPixels, 0);
+    if (index > 0)
+      EXPECT_GT(countDifferentPixels(images[0], images[index]), 100);
+    if (!outputDirectory.isEmpty()) {
+      EXPECT_TRUE(images[index].save(QDir(outputDirectory).filePath(
+          QString::fromLatin1("smoke_placement_outflow_%1.png")
+              .arg(QString::fromLatin1(conditions[index].name))), "PNG"));
+    }
+  }
+
+  const double sourceEffectAtNarrowBand =
+      captures[1].upperThirdMassShare - captures[0].upperThirdMassShare;
+  const double sourceEffectAtWideBand =
+      captures[3].upperThirdMassShare - captures[2].upperThirdMassShare;
+  const double bandEffectAtDefaultSource =
+      captures[2].upperThirdMassShare - captures[0].upperThirdMassShare;
+  const double bandEffectAtLowerSource =
+      captures[3].upperThirdMassShare - captures[1].upperThirdMassShare;
+  GTEST_LOG_(INFO) << "Smoke placement/outflow upper-third effects"
+      << " velocityY -.75->-.45 at band .30/.35="
+      << sourceEffectAtNarrowBand << '/' << sourceEffectAtWideBand
+      << " band .30->.35 at velocityY -.75/-.45="
+      << bandEffectAtDefaultSource << '/' << bandEffectAtLowerSource;
+  // Direction is intentionally not asserted: weaker lift may lower the plume,
+  // while widening absorption may simply remove its upper portion. The sweep
+  // records distribution and visible bounds for visual review.
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ExploresMassNormalizedProductionDensityWarp) {
+  constexpr int gridWidth = 128;
+  constexpr int gridHeight = 128;
+  constexpr int frameCount = 60;
+  constexpr int solverIterations = 20;
+  constexpr float detailFrequency = 0.42f;
+  constexpr std::array<float, 3> detailStrengths{{0.0f, 0.7f, 1.0f}};
+  const auto base = captureSmokeDensityAtResolution(
+      gridWidth, gridHeight, frameCount, solverIterations, 0.1f,
+      0.0f, 0.0f, 18.0f, 7.0f, 1.0f, 0.0f, 60.0f, 0.3f,
+      0.5f, 0.9f, 0.16f, 7, 0.0625f, -0.75f, 0.0f);
+  const auto smooth2 = [](const float a, const float b,
+                          const float t) {
+    return std::lerp(a, b, t * t * (3.0f - 2.0f * t));
+  };
+  const auto sampleNoise = [&](const float px, const float py,
+                               const float offsetX, const float offsetY,
+                               const float frequency) {
+    const float sx = px * frequency + offsetX;
+    const float sy = py * frequency + offsetY;
+    const int x0 = static_cast<int>(std::floor(sx));
+    const int y0 = static_cast<int>(std::floor(sy));
+    const float tx = sx - static_cast<float>(x0);
+    const float ty = sy - static_cast<float>(y0);
+    return smooth2(
+        smooth2(smokeValueNoise(static_cast<float>(x0),
+                    static_cast<float>(y0)),
+            smokeValueNoise(static_cast<float>(x0 + 1),
+                    static_cast<float>(y0)), tx),
+        smooth2(smokeValueNoise(static_cast<float>(x0),
+                    static_cast<float>(y0 + 1)),
+            smokeValueNoise(static_cast<float>(x0 + 1),
+                    static_cast<float>(y0 + 1)), tx), ty);
+  };
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty())
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+  const auto highPassRms = [](const QImage& image) {
+    double squared = 0.0;
+    std::size_t samples = 0;
+    for (int y = 1; y + 1 < image.height(); ++y) {
+      for (int x = 1; x + 1 < image.width(); ++x) {
+        const double center = qGreen(image.pixel(x, y));
+        const double neighbors = 0.25 * (
+            qGreen(image.pixel(x - 1, y)) +
+            qGreen(image.pixel(x + 1, y)) +
+            qGreen(image.pixel(x, y - 1)) +
+            qGreen(image.pixel(x, y + 1)));
+        const double residual = center - neighbors;
+        squared += residual * residual;
+        ++samples;
+      }
+    }
+    return samples > 0
+        ? std::sqrt(squared / static_cast<double>(samples)) : 0.0;
+  };
+
+  for (const float strength : detailStrengths) {
+    SmokeResolutionCapture shaped = base;
+    double shapedMass = 0.0;
+    double unnormalizedTopMass = 0.0;
+    for (int y = 0; y < gridHeight; ++y) {
+      for (int x = 0; x < gridWidth; ++x) {
+        const auto index = static_cast<std::size_t>(y * gridWidth + x);
+        const float broad = sampleNoise(static_cast<float>(x),
+            static_cast<float>(y), 11.7f, -4.3f, detailFrequency);
+        const float fine = sampleNoise(static_cast<float>(x),
+            static_cast<float>(y), -8.1f, 3.9f, detailFrequency * 2.0f);
+        const float displacementX = strength *
+            (2.4f * broad + 0.8f * fine);
+        const float displacementY = strength *
+            (2.4f * sampleNoise(static_cast<float>(x),
+                 static_cast<float>(y), -6.4f, 15.1f, detailFrequency) +
+             0.8f * sampleNoise(static_cast<float>(x),
+                 static_cast<float>(y), 2.2f, -9.6f,
+                 detailFrequency * 2.0f));
+        const float advectedX = std::clamp(
+            static_cast<float>(x) + displacementX,
+            0.0f, static_cast<float>(gridWidth - 1));
+        const float advectedY = std::clamp(
+            static_cast<float>(y) + displacementY,
+            0.0f, static_cast<float>(gridHeight - 1));
+        const int x0 = static_cast<int>(advectedX);
+        const int y0 = static_cast<int>(advectedY);
+        const int x1 = std::min(x0 + 1, gridWidth - 1);
+        const int y1 = std::min(y0 + 1, gridHeight - 1);
+        const float tx = advectedX - static_cast<float>(x0);
+        const float ty = advectedY - static_cast<float>(y0);
+        const auto sample = [&](const int sx, const int sy) {
+          return base.density[static_cast<std::size_t>(sy * gridWidth + sx)];
+        };
+        const float value = std::lerp(
+            std::lerp(sample(x0, y0), sample(x1, y0), tx),
+            std::lerp(sample(x0, y1), sample(x1, y1), tx), ty);
+        shaped.density[index] = value;
+        shapedMass += value;
+        if (y < gridHeight / 3) unnormalizedTopMass += value;
+      }
+    }
+
+    const float massGain = static_cast<float>(base.integratedDensity /
+        std::max(1.0e-12, shapedMass));
+    double normalizedMass = 0.0;
+    for (float& value : shaped.density) {
+      value *= massGain;
+      normalizedMass += value;
+    }
+    const double afterTopMass = unnormalizedTopMass * massGain;
+    shaped.integratedDensity = normalizedMass;
+    shaped.upperThirdMassShare = afterTopMass /
+        std::max(1.0e-12, normalizedMass);
+    const auto image = rasterizeSolverDensity(
+        shaped.density, gridWidth, gridHeight,
+        1.1f, -0.6f, -0.8f, 0.18f, 0.82f, 0.84f, 0.88f);
+    const auto metrics = measureSmokeImage(image);
+    GTEST_LOG_(INFO) << "Smoke mass-normalized density warp strength="
+        << strength << " frequency=" << detailFrequency
+        << " massBefore/after=" << base.integratedDensity << '/'
+        << normalizedMass << " topShareBefore/after="
+        << base.upperThirdMassShare << '/'
+        << shaped.upperThirdMassShare
+        << " visiblePixels=" << metrics.visiblePixels
+        << " highPassRms=" << highPassRms(image);
+    if (strength > 0.0f)
+      EXPECT_GT(countDifferentPixels(base.image, image), 100);
+    EXPECT_NEAR(normalizedMass, base.integratedDensity,
+        std::max(1.0e-5, base.integratedDensity * 1.0e-5));
+    EXPECT_GT(metrics.visiblePixels, 500);
+    if (!outputDirectory.isEmpty()) {
+      EXPECT_TRUE(image.save(QDir(outputDirectory).filePath(
+          QStringLiteral("smoke_density_warp_%1.png")
+              .arg(static_cast<int>(strength * 100.0f))), "PNG"));
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
      ComparesCommonFieldReconstructionAcrossDensityResolutions) {
   constexpr int kFrameCountForResolution = 44;
   const auto low = captureSmokeDensityAtResolution(
@@ -3253,12 +4589,17 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   constexpr int kFirstCapturedFrame = 20;
   constexpr float kDeltaTime = 1.0f / 30.0f;
   constexpr float kWavelength = 2.5f;
+  constexpr int kFlowWarpScale = 2;
+  constexpr int kFlowWarpWidth = kWidth * kFlowWarpScale;
+  constexpr int kFlowWarpHeight = kHeight * kFlowWarpScale;
+  constexpr float kFlowWarpAmplitudeCells = 3.0f;
   constexpr float kDetailAmplitude = 1.0f;
   constexpr std::array<std::uint32_t, 3> seeds{17U, 29U, 71U};
 
   struct FrameResult {
     QImage baseImage;
     QImage detailedImage;
+    QImage flowWarpedImage;
     QImage normalSourceImage;
     QImage tangentSourceImage;
     double baseMass = 0.0;
@@ -3266,12 +4607,16 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     double baseCentroidX = 0.0;
     double baseCentroidY = 0.0;
     double detailedCentroidX = 0.0;
+    double flowWarpedMass = 0.0;
+    double flowWarpedCentroidX = 0.0;
+    double flowWarpedCentroidY = 0.0;
     double normalSourceMass = 0.0;
     double tangentSourceMass = 0.0;
     double normalSourceCentroidX = 0.0;
     double tangentSourceCentroidX = 0.0;
     double normalSourceCentroidY = 0.0;
     double tangentSourceCentroidY = 0.0;
+    std::vector<float> density;
     std::vector<float> velocityX;
     std::vector<float> velocityY;
   };
@@ -3292,6 +4637,28 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     std::vector<float> detail(static_cast<std::size_t>(kWidth * kHeight), 0.0f);
     std::vector<float> advected(static_cast<std::size_t>(kWidth * kHeight), 0.0f);
     std::vector<float> corrected(static_cast<std::size_t>(kWidth * kHeight), 0.0f);
+    std::vector<float> flowDetail(static_cast<std::size_t>(
+        kFlowWarpWidth * kFlowWarpHeight), 0.0f);
+    std::vector<float> flowDetailAdvected(flowDetail.size(), 0.0f);
+    const auto sampleGrid = [](const std::vector<float>& values,
+                               const int width, const int height,
+                               const float sampleX, const float sampleY) {
+      const float x = std::clamp(sampleX, 1.0f,
+          static_cast<float>(width - 2));
+      const float y = std::clamp(sampleY, 1.0f,
+          static_cast<float>(height - 2));
+      const int x0 = static_cast<int>(x);
+      const int y0 = static_cast<int>(y);
+      const int x1 = std::min(x0 + 1, width - 2);
+      const int y1 = std::min(y0 + 1, height - 2);
+      const float tx = x - static_cast<float>(x0);
+      const float ty = y - static_cast<float>(y0);
+      const auto at = [&](const int px, const int py) {
+        return values[static_cast<std::size_t>(py * width + px)];
+      };
+      return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
+                       std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+    };
     for (int frame = 0; frame <= kLastFrame; ++frame) {
       Artifact::advanceLayerSmokeRuntime(state, frame, 30.0, settings);
       const SmokeFieldFrame field = captureSmokeFieldFrame(state, kWidth, kHeight);
@@ -3304,6 +4671,19 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
             detail[index] = smokeSeededValueNoise(
                 static_cast<float>(x) / kWavelength,
                 static_cast<float>(y) / kWavelength, seed) * envelope;
+          }
+        }
+        for (int y = 1; y < kFlowWarpHeight - 1; ++y) {
+          for (int x = 1; x < kFlowWarpWidth - 1; ++x) {
+            const float coarseX = static_cast<float>(x) / kFlowWarpScale;
+            const float coarseY = static_cast<float>(y) / kFlowWarpScale;
+            const float density = sampleGrid(field.density, kWidth, kHeight,
+                coarseX, coarseY);
+            const float envelope = density / (density + 0.035f);
+            flowDetail[static_cast<std::size_t>(y * kFlowWarpWidth + x)] =
+                smokeSeededValueNoise(static_cast<float>(x) / 5.0f,
+                    static_cast<float>(y) / 5.0f,
+                    seed ^ 0x63D83595U) * envelope;
           }
         }
       } else {
@@ -3369,6 +4749,28 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           }
         }
         detail.swap(corrected);
+
+        for (int y = 1; y < kFlowWarpHeight - 1; ++y) {
+          for (int x = 1; x < kFlowWarpWidth - 1; ++x) {
+            const float coarseX = static_cast<float>(x) / kFlowWarpScale;
+            const float coarseY = static_cast<float>(y) / kFlowWarpScale;
+            const float velocityX = sampleGrid(field.velocityX,
+                kWidth, kHeight, coarseX, coarseY);
+            const float velocityY = sampleGrid(field.velocityY,
+                kWidth, kHeight, coarseX, coarseY);
+            const float stepX = velocityX * kDeltaTime *
+                static_cast<float>(kWidth - 2) * kFlowWarpScale;
+            const float stepY = velocityY * kDeltaTime *
+                static_cast<float>(kHeight - 2) * kFlowWarpScale;
+            const auto index = static_cast<std::size_t>(
+                y * kFlowWarpWidth + x);
+            flowDetailAdvected[index] = sampleGrid(flowDetail,
+                kFlowWarpWidth, kFlowWarpHeight,
+                static_cast<float>(x) - stepX,
+                static_cast<float>(y) - stepY);
+          }
+        }
+        flowDetail.swap(flowDetailAdvected);
       }
 
       double densityMass = 0.0;
@@ -3380,12 +4782,64 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       const float detailMean = densityMass > 0.0
           ? static_cast<float>(weightedDetail / densityMass) : 0.0f;
       std::vector<float> detailedDensity(field.density.size());
+      std::vector<float> flowWarpedDensity(static_cast<std::size_t>(
+          kFlowWarpWidth * kFlowWarpHeight), 0.0f);
       std::vector<float> normalDirectionalDetail(field.density.size(), 0.0f);
       std::vector<float> tangentDirectionalDetail(field.density.size(), 0.0f);
+      const auto sampleBaseDensity = [&](const float sampleX,
+                                         const float sampleY) {
+        const float clampedX = std::clamp(sampleX, 1.0f,
+            static_cast<float>(kWidth - 2));
+        const float clampedY = std::clamp(sampleY, 1.0f,
+            static_cast<float>(kHeight - 2));
+        const int x0 = static_cast<int>(clampedX);
+        const int y0 = static_cast<int>(clampedY);
+        const int x1 = std::min(x0 + 1, kWidth - 2);
+        const int y1 = std::min(y0 + 1, kHeight - 2);
+        const float tx = clampedX - static_cast<float>(x0);
+        const float ty = clampedY - static_cast<float>(y0);
+        const auto at = [&](const int x, const int y) {
+          return field.density[static_cast<std::size_t>(y * kWidth + x)];
+        };
+        return std::lerp(std::lerp(at(x0, y0), at(x1, y0), tx),
+                         std::lerp(at(x0, y1), at(x1, y1), tx), ty);
+      };
       double detailedMass = 0.0;
       double baseMomentX = 0.0;
       double baseMomentY = 0.0;
       double detailedMomentX = 0.0;
+      double flowWarpedMass = 0.0;
+      double flowWarpedMomentX = 0.0;
+      double flowWarpedMomentY = 0.0;
+      for (int y = 1; y < kFlowWarpHeight - 1; ++y) {
+        for (int x = 1; x < kFlowWarpWidth - 1; ++x) {
+          const auto index = static_cast<std::size_t>(
+              y * kFlowWarpWidth + x);
+          const float detailDx = 0.5f *
+              (flowDetail[static_cast<std::size_t>(
+                   (y + 1) * kFlowWarpWidth + x)] -
+               flowDetail[static_cast<std::size_t>(
+                   (y - 1) * kFlowWarpWidth + x)]);
+          const float detailDy = -0.5f *
+              (flowDetail[static_cast<std::size_t>(
+                   y * kFlowWarpWidth + x + 1)] -
+               flowDetail[static_cast<std::size_t>(
+                   y * kFlowWarpWidth + x - 1)]);
+          const float coarseX = static_cast<float>(x) / kFlowWarpScale;
+          const float coarseY = static_cast<float>(y) / kFlowWarpScale;
+          flowWarpedDensity[index] = sampleBaseDensity(
+              coarseX + kFlowWarpAmplitudeCells * detailDx /
+                  kFlowWarpScale,
+              coarseY + kFlowWarpAmplitudeCells * detailDy /
+                  kFlowWarpScale);
+          flowWarpedMass += flowWarpedDensity[index];
+          flowWarpedMomentX += flowWarpedDensity[index] * coarseX;
+          flowWarpedMomentY += flowWarpedDensity[index] * coarseY;
+        }
+      }
+      flowWarpedMass /= kFlowWarpScale * kFlowWarpScale;
+      flowWarpedMomentX /= kFlowWarpScale * kFlowWarpScale;
+      flowWarpedMomentY /= kFlowWarpScale * kFlowWarpScale;
       double normalWeightedDetail = 0.0;
       double tangentWeightedDetail = 0.0;
       const auto interfaceNoise = [&](const float x, const float y) {
@@ -3470,6 +4924,24 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           detailedMomentX += detailedDensity[index] * x;
         }
       }
+      const float flowWarpMassGain = static_cast<float>(densityMass /
+          std::max(1.0e-12, flowWarpedMass));
+      flowWarpedMass = 0.0;
+      flowWarpedMomentX = 0.0;
+      flowWarpedMomentY = 0.0;
+      for (int y = 1; y < kFlowWarpHeight - 1; ++y) {
+        for (int x = 1; x < kFlowWarpWidth - 1; ++x) {
+          const auto index = static_cast<std::size_t>(
+              y * kFlowWarpWidth + x);
+          flowWarpedDensity[index] *= flowWarpMassGain;
+          const double value = flowWarpedDensity[index];
+          flowWarpedMass += value / (kFlowWarpScale * kFlowWarpScale);
+          flowWarpedMomentX += value * (static_cast<double>(x) /
+              kFlowWarpScale) / (kFlowWarpScale * kFlowWarpScale);
+          flowWarpedMomentY += value * (static_cast<double>(y) /
+              kFlowWarpScale) / (kFlowWarpScale * kFlowWarpScale);
+        }
+      }
       if (frame >= kFirstCapturedFrame) {
         const auto resultIndex = static_cast<std::size_t>(
             frame - kFirstCapturedFrame);
@@ -3480,6 +4952,10 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         result.detailedImage = rasterizeSolverDensity(
             detailedDensity, kWidth, kHeight, 1.1f, -0.6f, -0.8f,
             0.18f, 0.82f, 0.84f, 0.88f);
+        result.flowWarpedImage = rasterizeSolverDensity(
+            flowWarpedDensity, kFlowWarpWidth, kFlowWarpHeight,
+            1.1f, -0.6f, -0.8f,
+            0.18f, 0.82f, 0.84f, 0.88f);
         result.normalSourceImage = rasterizeSolverDensity(
             normalSourceDensity, kWidth, kHeight, 1.1f, -0.6f, -0.8f,
             0.18f, 0.82f, 0.84f, 0.88f);
@@ -3488,6 +4964,11 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
             0.18f, 0.82f, 0.84f, 0.88f);
         result.baseMass = densityMass;
         result.detailedMass = detailedMass;
+        result.flowWarpedMass = flowWarpedMass;
+        result.flowWarpedCentroidX = flowWarpedMass > 0.0
+            ? flowWarpedMomentX / flowWarpedMass : 0.0;
+        result.flowWarpedCentroidY = flowWarpedMass > 0.0
+            ? flowWarpedMomentY / flowWarpedMass : 0.0;
         result.normalSourceMass = normalSourceMass;
         result.tangentSourceMass = tangentSourceMass;
         result.normalSourceCentroidX = normalSourceMomentX / normalSourceMass;
@@ -3498,6 +4979,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
         result.baseCentroidY = densityMass > 0.0 ? baseMomentY / densityMass : 0.0;
         result.detailedCentroidX = detailedMass > 0.0
             ? detailedMomentX / detailedMass : 0.0;
+        result.density = field.density;
         result.velocityX = field.velocityX;
         result.velocityY = field.velocityY;
       }
@@ -3641,17 +5123,27 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       const auto& frame = frames[index];
       ASSERT_FALSE(frame.baseImage.isNull());
       ASSERT_FALSE(frame.detailedImage.isNull());
+      ASSERT_FALSE(frame.flowWarpedImage.isNull());
       ASSERT_FALSE(frame.normalSourceImage.isNull());
       ASSERT_FALSE(frame.tangentSourceImage.isNull());
       const auto baseMetrics = measureSmokeImage(frame.baseImage);
       const auto detailMetrics = measureSmokeImage(frame.detailedImage);
+      const auto flowWarpedMetrics = measureSmokeImage(frame.flowWarpedImage);
       EXPECT_GT(baseMetrics.visiblePixels, 500);
       EXPECT_GT(detailMetrics.visiblePixels, 500);
+      EXPECT_GT(flowWarpedMetrics.visiblePixels, 500);
       EXPECT_EQ(detailMetrics.saturatedPixels, 0);
+      EXPECT_EQ(flowWarpedMetrics.saturatedPixels, 0);
       EXPECT_LT(std::abs(frame.detailedMass - frame.baseMass) /
                     std::max(1.0, frame.baseMass), 0.002);
       EXPECT_LT(std::abs(frame.detailedCentroidX - frame.baseCentroidX), 0.25);
       EXPECT_GT(countDifferentPixels(frame.baseImage, frame.detailedImage), 100);
+      const double flowWarpedMassError = std::abs(
+          frame.flowWarpedMass - frame.baseMass) /
+          std::max(1.0, frame.baseMass);
+      EXPECT_LT(flowWarpedMassError, 0.002);
+      EXPECT_GT(countDifferentPixels(frame.baseImage,
+                                     frame.flowWarpedImage), 100);
       const double normalMassError = std::abs(
           frame.normalSourceMass - frame.baseMass) /
           std::max(1.0, frame.baseMass);
@@ -3671,8 +5163,16 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       GTEST_LOG_(INFO) << "Smoke velocity-advected detail seed=" << seed
           << " frame=" << (kFirstCapturedFrame + index)
           << " visible=" << baseMetrics.visiblePixels << '/'
-          << detailMetrics.visiblePixels << " mass=" << frame.baseMass << '/'
-          << frame.detailedMass << " centroidX=" << frame.baseCentroidX << '/'
+          << detailMetrics.visiblePixels << '/'
+          << flowWarpedMetrics.visiblePixels << " mass=" << frame.baseMass << '/'
+          << frame.detailedMass << '/' << frame.flowWarpedMass
+          << " centroidXY(base/flowWarped)=" << frame.baseCentroidX << ','
+          << frame.baseCentroidY << '/' << frame.flowWarpedCentroidX << ','
+          << frame.flowWarpedCentroidY << " highPass="
+          << highPassEnergy(frame.baseImage) << '/'
+          << highPassEnergy(frame.detailedImage) << '/'
+          << highPassEnergy(frame.flowWarpedImage)
+          << " centroidX=" << frame.baseCentroidX << '/'
           << frame.detailedCentroidX << " laplacianEnergy="
           << highPassEnergy(frame.baseImage) << '/'
           << highPassEnergy(frame.detailedImage)
@@ -3680,6 +5180,7 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           << highPassEnergy(frame.normalSourceImage) << '/'
           << highPassEnergy(frame.tangentSourceImage)
           << " massError=" << normalMassError << '/' << tangentMassError
+          << '/' << flowWarpedMassError
           << " centroidX=" << frame.baseCentroidX << '/'
           << frame.normalSourceCentroidX << '/'
           << frame.tangentSourceCentroidX << " changedPixels="
@@ -3692,10 +5193,33 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
             QStringLiteral("smoke_advected_base_") + suffix), "PNG"));
         EXPECT_TRUE(frame.detailedImage.save(QDir(outputDirectory).filePath(
             QStringLiteral("smoke_advected_detail_") + suffix), "PNG"));
+        EXPECT_TRUE(frame.flowWarpedImage.save(QDir(outputDirectory).filePath(
+            QStringLiteral("smoke_advected_flow_warp_") + suffix), "PNG"));
         EXPECT_TRUE(frame.normalSourceImage.save(QDir(outputDirectory).filePath(
             QStringLiteral("smoke_interface_normal_detail_") + suffix), "PNG"));
         EXPECT_TRUE(frame.tangentSourceImage.save(QDir(outputDirectory).filePath(
             QStringLiteral("smoke_interface_tangent_detail_") + suffix), "PNG"));
+        QFile fieldFile(QDir(outputDirectory).filePath(
+            QStringLiteral("smoke_velocity_advected_fields_seed_%1_frame_%2.csv")
+                .arg(seed).arg(kFirstCapturedFrame + index)));
+        ASSERT_TRUE(fieldFile.open(QIODevice::WriteOnly | QIODevice::Text));
+        QTextStream fieldOutput(&fieldFile);
+        fieldOutput.setLocale(QLocale::c());
+        fieldOutput.setRealNumberPrecision(9);
+        fieldOutput << "# width=" << kWidth << ",height=" << kHeight
+                    << ",seed=" << seed << ",frame="
+                    << kFirstCapturedFrame + index << '\n'
+                    << "x,y,density,velocityX,velocityY\n";
+        for (int y = 0; y < kHeight; ++y) {
+          for (int x = 0; x < kWidth; ++x) {
+            const auto fieldIndex = static_cast<std::size_t>(y * kWidth + x);
+            fieldOutput << x << ',' << y << ',' << frame.density[fieldIndex]
+                        << ',' << frame.velocityX[fieldIndex] << ','
+                        << frame.velocityY[fieldIndex] << '\n';
+          }
+        }
+        fieldOutput.flush();
+        ASSERT_GT(fieldFile.size(), 0);
       }
     }
     for (std::size_t index = 1; index < frames.size(); ++index) {
@@ -3715,6 +5239,10 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           previous.tangentSourceImage, current.tangentSourceImage,
           current.tangentSourceCentroidX - previous.tangentSourceCentroidX,
           current.tangentSourceCentroidY - previous.tangentSourceCentroidY);
+      const double flowWarpedResidual = registeredHighPassTemporalResidual(
+          previous.flowWarpedImage, current.flowWarpedImage,
+          current.flowWarpedCentroidX - previous.flowWarpedCentroidX,
+          current.flowWarpedCentroidY - previous.flowWarpedCentroidY);
       const double baseFlowResidual = flowRegisteredHighPassTemporalResidual(
           previous.baseImage, current.baseImage, current.velocityX,
           current.velocityY, kDeltaTime, 1.0f);
@@ -3724,6 +5252,10 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       const double tangentFlowResidual = flowRegisteredHighPassTemporalResidual(
           previous.tangentSourceImage, current.tangentSourceImage,
           current.velocityX, current.velocityY, kDeltaTime, 1.0f);
+      const double flowWarpedFlowResidual =
+          flowRegisteredHighPassTemporalResidual(previous.flowWarpedImage,
+              current.flowWarpedImage, current.velocityX,
+              current.velocityY, kDeltaTime, 1.0f);
       constexpr float kSourceExcludedMaxNormalizedY = 0.68f;
       const double baseSourceExcludedResidual =
           flowRegisteredHighPassTemporalResidual(previous.baseImage,
@@ -3740,9 +5272,11 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       EXPECT_GT(baseResidual, 0.0);
       EXPECT_GT(normalResidual, 0.0);
       EXPECT_GT(tangentResidual, 0.0);
+      EXPECT_GT(flowWarpedResidual, 0.0);
       EXPECT_GT(baseFlowResidual, 0.0);
       EXPECT_GT(normalFlowResidual, 0.0);
       EXPECT_GT(tangentFlowResidual, 0.0);
+      EXPECT_GT(flowWarpedFlowResidual, 0.0);
       EXPECT_GT(baseSourceExcludedResidual, 0.0);
       EXPECT_GT(normalSourceExcludedResidual, 0.0);
       EXPECT_GT(tangentSourceExcludedResidual, 0.0);
@@ -3751,7 +5285,9 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           << (kFirstCapturedFrame + index) << " base/normal/tangent="
           << baseResidual << '/' << normalResidual << '/' << tangentResidual
           << " flow-backtrace=" << baseFlowResidual << '/'
-          << normalFlowResidual << '/' << tangentFlowResidual
+          << normalFlowResidual << '/' << tangentFlowResidual << '/'
+          << flowWarpedFlowResidual
+          << " centroid-registered-flow-warped=" << flowWarpedResidual
           << " source-excluded-y<0.68=" << baseSourceExcludedResidual << '/'
           << normalSourceExcludedResidual << '/'
           << tangentSourceExcludedResidual;
@@ -4082,6 +5618,9 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   settings.emitterDensity = 0.6f;
   settings.emitterVelocityY = -1.2f;
   settings.vorticity = 0.1f;
+  settings.smokeTurbulence = 0.25f;
+  settings.smokeTurbulenceScale = 18.0f;
+  settings.smokeTurbulenceOctaves = 1;
   constexpr double frameRate = 30.0;
   const auto advanceThrough = [&](Artifact::LayerFluidRuntimeState& state,
                                   const int frame) {
@@ -5613,6 +7152,171 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
       gPreProjectionCurlConfig = nullptr;
     }
   }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     MeasuresPreProjectionCurlSeekReplayClockRequirement) {
+  constexpr int width = kGridWidth;
+  constexpr int height = kGridHeight;
+  constexpr int targetFrame = 44;
+  constexpr int futureFrame = 52;
+  constexpr double fps = 30.0;
+  constexpr float dt = 1.0f / static_cast<float>(fps);
+
+  Artifact::LayerFluidRuntimeState state;
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = width;
+  settings.gridHeight = height;
+  settings.solverIterations = 20;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.84f;
+  settings.emitterRadius = 0.08f;
+  settings.emitterDensity = 0.6f;
+  settings.emitterVelocityY = -1.2f;
+  settings.emitterSwirl = 0.15f;
+  settings.vorticity = 0.1f;
+
+  SmokeRuntimePreProjectionCurlConfig curlConfig;
+  curlConfig.enabled = true;
+  curlConfig.seed = 17U;
+  curlConfig.strength = 0.5f;
+  curlConfig.elapsedSeconds = -dt;
+  gPreProjectionCurlConfig = &curlConfig;
+
+  for (int frame = 0; frame <= targetFrame; ++frame) {
+    curlConfig.enabled = frame != 0;
+    Artifact::advanceLayerSmokeRuntime(state, frame, fps, settings);
+  }
+  const auto targetSnapshot = state.fluidSolver_->snapshot();
+
+  for (int frame = targetFrame + 1; frame <= futureFrame; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, fps, settings);
+
+  // This intentionally leaves the R&D clock at its future value. Runtime
+  // checkpoints restore the fluid state, but not this test-owned phase.
+  const float staleFutureClock = curlConfig.elapsedSeconds;
+  Artifact::advanceLayerSmokeRuntime(state, targetFrame, fps, settings);
+  const auto staleReplay = state.fluidSolver_->snapshot();
+
+  const auto maxFieldDelta = [](const auto& a, const auto& b) {
+    double maximum = 0.0;
+    for (std::size_t index = 0; index < a.size(); ++index)
+      maximum = std::max(maximum, std::abs(static_cast<double>(a[index]) -
+                                           static_cast<double>(b[index])));
+    return maximum;
+  };
+  const double staleDensityDelta = maxFieldDelta(
+      targetSnapshot.density, staleReplay.density);
+  const double staleVelocityXDelta = maxFieldDelta(
+      targetSnapshot.velocityX, staleReplay.velocityX);
+  const double staleVelocityYDelta = maxFieldDelta(
+      targetSnapshot.velocityY, staleReplay.velocityY);
+
+  for (int frame = targetFrame + 1; frame <= futureFrame; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, fps, settings);
+  // Frame 40 is the checkpoint restored by the backward seek. The seeded
+  // detail phase must also be restored to its post-frame-40 value.
+  curlConfig.elapsedSeconds = 39.0f * dt;
+  Artifact::advanceLayerSmokeRuntime(state, targetFrame, fps, settings);
+  const auto restoredReplay = state.fluidSolver_->snapshot();
+  const double restoredDensityDelta = maxFieldDelta(
+      targetSnapshot.density, restoredReplay.density);
+  const double restoredVelocityXDelta = maxFieldDelta(
+      targetSnapshot.velocityX, restoredReplay.velocityX);
+  const double restoredVelocityYDelta = maxFieldDelta(
+      targetSnapshot.velocityY, restoredReplay.velocityY);
+
+  GTEST_LOG_(INFO) << "pre-projection curl seek replay target=" << targetFrame
+      << " checkpoint=40 staleClock=" << staleFutureClock
+      << " stale max density/velocityX/velocityY="
+      << staleDensityDelta << '/' << staleVelocityXDelta << '/'
+      << staleVelocityYDelta
+      << " restored max density/velocityX/velocityY="
+      << restoredDensityDelta << '/' << restoredVelocityXDelta << '/'
+      << restoredVelocityYDelta;
+  EXPECT_GT(std::max({staleDensityDelta, staleVelocityXDelta,
+                      staleVelocityYDelta}), 1.0e-5);
+  EXPECT_LT(restoredDensityDelta, 1.0e-6);
+  EXPECT_LT(restoredVelocityXDelta, 1.0e-6);
+  EXPECT_LT(restoredVelocityYDelta, 1.0e-6);
+
+  curlConfig.enabled = false;
+  gPreProjectionCurlConfig = nullptr;
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     ReplaysStatelessPreProjectionCurlAcrossCheckpointSeek) {
+  constexpr double fps = 30.0;
+  constexpr int targetFrame = 44;
+  constexpr int futureFrame = 52;
+  Artifact::LayerFluidRuntimeState state;
+  Artifact::LayerSmokeRuntimeSettings settings;
+  settings.gridWidth = kGridWidth;
+  settings.gridHeight = kGridHeight;
+  settings.solverIterations = 20;
+  settings.emitterX = 0.5f;
+  settings.emitterY = 0.84f;
+  settings.emitterRadius = 0.08f;
+  settings.emitterDensity = 0.6f;
+  settings.emitterVelocityY = -1.2f;
+  settings.emitterSwirl = 0.15f;
+  settings.vorticity = 0.1f;
+
+  SmokeRuntimePreProjectionCurlConfig curlConfig;
+  curlConfig.enabled = true;
+  curlConfig.seed = 17U;
+  curlConfig.strength = 0.5f;
+  curlConfig.elapsedSeconds = 0.0f;
+  curlConfig.advanceClockOnUpdate = false;
+  gPreProjectionCurlConfig = &curlConfig;
+  for (int frame = 0; frame <= targetFrame; ++frame) {
+    curlConfig.enabled = frame != 0;
+    Artifact::advanceLayerSmokeRuntime(state, frame, fps, settings);
+  }
+  const auto targetSnapshot = state.fluidSolver_->snapshot();
+  for (int frame = targetFrame + 1; frame <= futureFrame; ++frame)
+    Artifact::advanceLayerSmokeRuntime(state, frame, fps, settings);
+  Artifact::advanceLayerSmokeRuntime(state, targetFrame, fps, settings);
+  const auto replaySnapshot = state.fluidSolver_->snapshot();
+
+  const auto maxFieldDelta = [](const auto& a, const auto& b) {
+    double maximum = 0.0;
+    for (std::size_t index = 0; index < a.size(); ++index)
+      maximum = std::max(maximum, std::abs(static_cast<double>(a[index]) -
+                                           static_cast<double>(b[index])));
+    return maximum;
+  };
+  const double densityDelta = maxFieldDelta(
+      targetSnapshot.density, replaySnapshot.density);
+  const double velocityXDelta = maxFieldDelta(
+      targetSnapshot.velocityX, replaySnapshot.velocityX);
+  const double velocityYDelta = maxFieldDelta(
+      targetSnapshot.velocityY, replaySnapshot.velocityY);
+  QMatrix4x4 transform;
+  transform.setToIdentity();
+  const auto& renderData = Artifact::prepareLayerSmokeRenderData(
+      state, QRectF(0.0, 0.0, kGridWidth, kGridHeight), transform, 1.0f,
+      targetFrame, settings);
+  const auto image = rasterizeParticles(renderData);
+  GTEST_LOG_(INFO) << "stateless pre-projection curl seek target="
+      << targetFrame << " max density/velocityX/velocityY="
+      << densityDelta << '/' << velocityXDelta << '/' << velocityYDelta;
+  EXPECT_EQ(densityDelta, 0.0);
+  EXPECT_EQ(velocityXDelta, 0.0);
+  EXPECT_EQ(velocityYDelta, 0.0);
+  EXPECT_GT(std::accumulate(targetSnapshot.density.begin(),
+                            targetSnapshot.density.end(), 0.0), 0.0);
+  EXPECT_GT(measureSmokeImage(image).visiblePixels, 100);
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty()) {
+    ASSERT_TRUE(QDir().mkpath(outputDirectory.toUtf8().constData()));
+    EXPECT_TRUE(image.save(QDir(outputDirectory).filePath(
+        QStringLiteral("smoke-stateless-curl-seed17-frame44.png")), "PNG"));
+  }
+
+  curlConfig.enabled = false;
+  gPreProjectionCurlConfig = nullptr;
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
@@ -8553,7 +10257,8 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
     for (int substep = 0; substep < 2; ++substep) {
       const float timeSeconds = static_cast<float>(frame * 2 + substep) / 60.0f;
       applyTemporalCurl(curlSimulation, timeSeconds, 0.0625f);
-      curlSimulation.setSources(std::span<const PyroSourceState>(&source, 1));
+      curlSimulation.setSources(
+          std::span<const PyroSourceState>(&source, 1));
       curlSimulation.step(1.0 / 60.0);
       simulation.setSources(std::span<const PyroSourceState>(&source, 1));
       simulation.step(1.0 / 60.0);
@@ -9267,6 +10972,71 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
   GTEST_LOG_(INFO) << "Production 2D smoke pulse density mass at frame 60: 0.5/s="
                    << slowDecayMass << " 2.5/s=" << defaultDecayMass;
   EXPECT_GT(slowDecayMass, defaultDecayMass * 10.0);
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     HighOrderSmokeDensityAdvectionIsBoundedAndCheckpointDeterministic) {
+  constexpr int gridSize = 64;
+  const auto seedFlow = [=](ArtifactCore::FluidSolver2D& solver) {
+    solver.setBuoyancy(0.0f);
+    solver.setVorticity(0.0f);
+    solver.setSolverIterations(20);
+    for (int y = 1; y < gridSize - 1; ++y) {
+      for (int x = 1; x < gridSize - 1; ++x) {
+        const float dx = static_cast<float>(x - 24) / 7.0f;
+        const float dy = static_cast<float>(y - 43) / 9.0f;
+        solver.addDensity(x, y, std::exp(-0.5f * (dx * dx + dy * dy)));
+        const float normalizedY = static_cast<float>(y) /
+            static_cast<float>(gridSize);
+        solver.addVelocity(x, y,
+            0.18f * std::sin(normalizedY * 6.2831853f),
+            -0.12f + 0.08f * std::sin(
+                static_cast<float>(x) * 0.17f));
+      }
+    }
+  };
+  const auto advance = [](ArtifactCore::FluidSolver2D& solver,
+                          const int count) {
+    for (int frame = 0; frame < count; ++frame)
+      solver.update(1.0f / 30.0f);
+  };
+
+  ArtifactCore::FluidSolver2D firstOrder(gridSize, gridSize);
+  ArtifactCore::FluidSolver2D highOrder(gridSize, gridSize);
+  seedFlow(firstOrder);
+  seedFlow(highOrder);
+  highOrder.setHighOrderDensityAdvection(true);
+  advance(firstOrder, 24);
+  advance(highOrder, 12);
+  const auto replayCheckpoint = highOrder.snapshot();
+  advance(highOrder, 12);
+  const auto highOrderResult = highOrder.snapshot();
+  ArtifactCore::FluidSolver2D replay(gridSize, gridSize);
+  ASSERT_TRUE(replay.restoreSnapshot(replayCheckpoint));
+  EXPECT_TRUE(replay.highOrderDensityAdvection());
+  advance(replay, 12);
+
+  const auto firstOrderResult = firstOrder.snapshot();
+  const auto replayResult = replay.snapshot();
+  ASSERT_EQ(firstOrderResult.density.size(), highOrderResult.density.size());
+  ASSERT_EQ(highOrderResult.density.size(), replayResult.density.size());
+  double maximumDifference = 0.0;
+  for (std::size_t index = 0; index < highOrderResult.density.size(); ++index) {
+    const float density = highOrderResult.density[index];
+    EXPECT_TRUE(std::isfinite(density));
+    EXPECT_GE(density, 0.0f);
+    maximumDifference = std::max(maximumDifference,
+        std::abs(static_cast<double>(density -
+            firstOrderResult.density[index])));
+    EXPECT_FLOAT_EQ(density, replayResult.density[index]);
+    EXPECT_FLOAT_EQ(highOrderResult.velocityX[index],
+                    replayResult.velocityX[index]);
+    EXPECT_FLOAT_EQ(highOrderResult.velocityY[index],
+                    replayResult.velocityY[index]);
+  }
+  GTEST_LOG_(INFO) << "2D smoke high-order advection max field difference="
+                   << maximumDifference;
+  EXPECT_GT(maximumDifference, 1.0e-6);
 }
 
 TEST(ArtifactSmokeRuntimeStandaloneTest,
@@ -10973,6 +12743,403 @@ TEST(ArtifactSmokeRuntimeStandaloneTest,
           QStringLiteral("post_pulse_%1_front.png").arg(condition.label))));
       EXPECT_TRUE(savePng(side, QDir(captureDirectory).filePath(
           QStringLiteral("post_pulse_%1_side.png").arg(condition.label))));
+    }
+  }
+}
+
+TEST(ArtifactSmokeRuntimeStandaloneTest,
+     RendersSmokeFireExplosionSteamAndFogProfilesToDistinctVolumes) {
+  using namespace ArtifactCore;
+  using namespace ArtifactCore::RayTrace;
+
+  const auto smokeTransfer = TransferFunction::makeSmoke().evaluate(0.2f, 0.0f);
+  const auto fogTransfer = TransferFunction::makeFog().evaluate(0.2f, 0.0f);
+  EXPECT_LT(fogTransfer.absorption, smokeTransfer.absorption);
+  EXPECT_LT(fogTransfer.emission.x, smokeTransfer.emission.x);
+  EXPECT_GT(fogTransfer.emission.z, fogTransfer.emission.x);
+
+  PyroDomain domain;
+  domain.min = {-1.0f, -1.0f, -1.0f};
+  domain.max = {1.0f, 1.0f, 1.0f};
+  bool gridOverrideValid = false;
+  const int requestedGrid = qEnvironmentVariableIntValue(
+      "ARTIFACT_PYRO_PROFILE_GRID", &gridOverrideValid);
+  const int gridSize = gridOverrideValid ? std::clamp(requestedGrid, 40, 96) : 40;
+  bool outputOverrideValid = false;
+  const int requestedOutput = qEnvironmentVariableIntValue(
+      "ARTIFACT_PYRO_PROFILE_OUTPUT_SIZE", &outputOverrideValid);
+  const int outputSize = outputOverrideValid
+      ? std::clamp(requestedOutput, 128, 1024) : 256;
+  domain.voxelSize = 2.0f / static_cast<float>(gridSize);
+  domain.fixedTimeStep = 1.0 / 60.0;
+  domain.boundaryMode = PyroBoundaryMode::Open;
+  domain.memoryBudgetBytes = 128u * 1024u * 1024u;
+  const PyroEffectKind effectKinds[]{PyroEffectKind::Smoke,
+      PyroEffectKind::Fire, PyroEffectKind::Explosion,
+      PyroEffectKind::Steam, PyroEffectKind::Fog};
+  const char* effectNames[]{"smoke", "fire", "explosion", "steam", "fog"};
+  const auto resolution3d = domain.resolution();
+  const VolumeResolution resolution{resolution3d.width, resolution3d.height,
+      resolution3d.depth};
+  const auto outputDirectory = qEnvironmentVariable(
+      "ARTIFACT_PYRO_PROFILE_OUTPUT_DIR");
+  if (!outputDirectory.isEmpty())
+    ASSERT_TRUE(QDir().mkpath(outputDirectory));
+
+  std::array<ImageBuffer, 5> images;
+  std::array<std::uint64_t, 5> imageHashes{};
+  for (std::size_t effectIndex = 0; effectIndex < 5; ++effectIndex) {
+    auto profile = makePyroEffectProfile(effectKinds[effectIndex], resolution3d);
+    profile.simulation.pressureIterations = 6.0f;
+    PyroSimulation simulation(domain);
+    simulation.setSettings(profile.simulation);
+    profile.source.position = {0.0f, -0.6f, 0.0f};
+
+    const int emissionFrames = std::max(1, static_cast<int>(std::ceil(
+        profile.sourceDurationSeconds * 60.0f)));
+    double peakReactionMass = -1.0;
+    std::vector<float> peakDensity;
+    std::vector<float> peakTemperature;
+    std::vector<float> peakFuel;
+    std::vector<float> peakReaction;
+    for (int frame = 0; frame < emissionFrames + 30; ++frame) {
+      if (frame < emissionFrames) {
+        simulation.setSources(
+            std::span<const PyroSourceState>(&profile.source, 1));
+      } else {
+        simulation.setSources(std::span<const PyroSourceState>{});
+      }
+      simulation.step(1.0 / 60.0);
+      const auto& currentReaction = simulation.fields().reactionStorage();
+      const double currentReactionMass = std::accumulate(
+          currentReaction.begin(), currentReaction.end(), 0.0);
+      if (currentReactionMass > peakReactionMass) {
+        peakReactionMass = currentReactionMass;
+        peakDensity = simulation.fields().densityStorage();
+        peakTemperature = simulation.fields().temperatureStorage();
+        peakFuel = simulation.fields().fuelStorage();
+        peakReaction = currentReaction;
+      }
+    }
+
+    auto& density = simulation.fields().densityStorage();
+    auto& temperature = simulation.fields().temperatureStorage();
+    auto& fuel = simulation.fields().fuelStorage();
+    const auto& reaction = simulation.fields().reactionStorage();
+    ASSERT_EQ(density.size(), resolution.cellCount());
+    const double densityMass = std::accumulate(
+        density.begin(), density.end(), 0.0);
+    const double temperatureMass = std::accumulate(
+        temperature.begin(), temperature.end(), 0.0);
+    const double fuelMass = std::accumulate(fuel.begin(), fuel.end(), 0.0);
+    const double reactionMass = std::accumulate(
+        reaction.begin(), reaction.end(), 0.0);
+    ASSERT_GT(densityMass, 0.0) << effectNames[effectIndex];
+    if (effectKinds[effectIndex] == PyroEffectKind::Fire ||
+        effectKinds[effectIndex] == PyroEffectKind::Explosion) {
+      ASSERT_GT(peakReactionMass, 0.0) << effectNames[effectIndex];
+    }
+
+    const auto& renderDensity = peakReactionMass > 0.0 &&
+        (effectKinds[effectIndex] == PyroEffectKind::Fire ||
+         effectKinds[effectIndex] == PyroEffectKind::Explosion)
+        ? peakDensity : density;
+    const auto& renderTemperature = peakReactionMass > 0.0 &&
+        (effectKinds[effectIndex] == PyroEffectKind::Fire ||
+         effectKinds[effectIndex] == PyroEffectKind::Explosion)
+        ? peakTemperature : temperature;
+    const auto& renderFuel = peakReactionMass > 0.0 &&
+        (effectKinds[effectIndex] == PyroEffectKind::Fire ||
+         effectKinds[effectIndex] == PyroEffectKind::Explosion)
+        ? peakFuel : fuel;
+    const auto& renderReaction = peakReactionMass > 0.0 &&
+        (effectKinds[effectIndex] == PyroEffectKind::Fire ||
+         effectKinds[effectIndex] == PyroEffectKind::Explosion)
+        ? peakReaction : reaction;
+    // Lookdev-only density detail experiment. Keep this outside the solver so
+    // the reference simulation remains unchanged while comparing silhouettes.
+    const auto hashNoise = [](int x, int y, int z, const std::uint32_t seed) {
+      std::uint32_t h = seed ^ (static_cast<std::uint32_t>(x) * 0x8da6b343u);
+      h = (h ^ (h >> 13)) * 0x85ebca6bu;
+      h ^= static_cast<std::uint32_t>(y) * 0xc2b2ae35u;
+      h = (h ^ (h >> 16)) * 0x27d4eb2fu;
+      h ^= static_cast<std::uint32_t>(z) * 0x165667b1u;
+      h ^= h >> 15;
+      return static_cast<float>(h & 0x00ffffffu) / 8388607.5f - 1.0f;
+    };
+    const auto smoothNoise = [&](const float x, const float y, const float z,
+                                 const std::uint32_t seed) {
+      const int x0 = static_cast<int>(std::floor(x));
+      const int y0 = static_cast<int>(std::floor(y));
+      const int z0 = static_cast<int>(std::floor(z));
+      const auto fade = [](const float t) {
+        return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+      };
+      const float tx = fade(x - static_cast<float>(x0));
+      const float ty = fade(y - static_cast<float>(y0));
+      const float tz = fade(z - static_cast<float>(z0));
+      const auto mix = [](const float a, const float b, const float t) {
+        return std::lerp(a, b, t);
+      };
+      const float a = mix(mix(hashNoise(x0, y0, z0, seed),
+          hashNoise(x0 + 1, y0, z0, seed), tx),
+          mix(hashNoise(x0, y0 + 1, z0, seed),
+          hashNoise(x0 + 1, y0 + 1, z0, seed), tx), ty);
+      const float b = mix(mix(hashNoise(x0, y0, z0 + 1, seed),
+          hashNoise(x0 + 1, y0, z0 + 1, seed), tx),
+          mix(hashNoise(x0, y0 + 1, z0 + 1, seed),
+          hashNoise(x0 + 1, y0 + 1, z0 + 1, seed), tx), ty);
+      return mix(a, b, tz);
+    };
+    const float detailStrength = effectKinds[effectIndex] == PyroEffectKind::Fog
+        ? 0.55f : effectKinds[effectIndex] == PyroEffectKind::Fire ? 0.65f
+        : effectKinds[effectIndex] == PyroEffectKind::Explosion ? 0.80f
+        : effectKinds[effectIndex] == PyroEffectKind::Steam ? 0.60f : 0.80f;
+    double originalDensityMass = 0.0;
+    for (const auto value : renderDensity)
+      originalDensityMass += std::max(0.0f, value);
+    const auto sampleBaseDensity = [&](const float x, const float y,
+                                       const float z) {
+      const float cx = std::clamp(x, 0.0f,
+          static_cast<float>(resolution.width - 1));
+      const float cy = std::clamp(y, 0.0f,
+          static_cast<float>(resolution.height - 1));
+      const float cz = std::clamp(z, 0.0f,
+          static_cast<float>(resolution.depth - 1));
+      const int x0 = static_cast<int>(std::floor(cx));
+      const int y0 = static_cast<int>(std::floor(cy));
+      const int z0 = static_cast<int>(std::floor(cz));
+      const int x1 = std::min(x0 + 1, resolution.width - 1);
+      const int y1 = std::min(y0 + 1, resolution.height - 1);
+      const int z1 = std::min(z0 + 1, resolution.depth - 1);
+      const auto lerp = [](const float a, const float b, const float t) {
+        return std::lerp(a, b, t);
+      };
+      const float tx = cx - static_cast<float>(x0);
+      const float ty = cy - static_cast<float>(y0);
+      const float tz = cz - static_cast<float>(z0);
+      const auto at = [&](int ix, int iy, int iz) {
+        return std::max(0.0f, renderDensity[resolution.indexOf(ix, iy, iz)]);
+      };
+      const float z0Value = lerp(lerp(at(x0, y0, z0), at(x1, y0, z0), tx),
+          lerp(at(x0, y1, z0), at(x1, y1, z0), tx), ty);
+      const float z1Value = lerp(lerp(at(x0, y0, z1), at(x1, y0, z1), tx),
+          lerp(at(x0, y1, z1), at(x1, y1, z1), tx), ty);
+      return lerp(z0Value, z1Value, tz);
+    };
+    const auto makeDetailedDensity = [&](const float timeSeconds) {
+      std::vector<float> values(renderDensity.size(), 0.0f);
+      double detailedDensityMass = 0.0;
+      const float drift = timeSeconds * 0.7f;
+      for (int z = 0; z < resolution.depth; ++z)
+        for (int y = 0; y < resolution.height; ++y)
+          for (int x = 0; x < resolution.width; ++x) {
+            const auto cell = resolution.indexOf(x, y, z);
+            const float wx = (static_cast<float>(x) + 0.5f) / resolution.width;
+            const float wy = (static_cast<float>(y) + 0.5f) / resolution.height;
+            const float wz = (static_cast<float>(z) + 0.5f) / resolution.depth;
+            const float broad = smoothNoise(wx * 5.0f + drift,
+                wy * 5.0f - drift * 0.43f, wz * 5.0f + drift * 0.19f,
+                0x51f15e5du);
+            const float fine = smoothNoise(wx * 11.0f + 7.1f + drift * 1.7f,
+                wy * 11.0f - 2.3f - drift * 0.8f,
+                wz * 11.0f + 4.7f + drift * 0.35f, 0x51f15e5du);
+            const float detail = 0.65f * broad + 0.35f * fine;
+            const float warpScale = effectKinds[effectIndex] == PyroEffectKind::Fog
+                ? 1.5f : 2.8f;
+            const float offsetX = warpScale * smoothNoise(wx * 3.7f + 2.1f + drift,
+                wy * 3.7f - drift * 0.43f, wz * 3.7f + drift * 0.19f, 0x9f31u);
+            const float offsetY = 0.45f * warpScale * smoothNoise(wx * 3.7f -
+                drift * 0.23f, wy * 3.7f + 5.2f + drift * 0.61f,
+                wz * 3.7f - drift, 0x7a42u);
+            const float offsetZ = warpScale * smoothNoise(wx * 3.7f + drift * 0.47f,
+                wy * 3.7f + drift * 0.13f,
+                wz * 3.7f + 1.4f + drift * 0.73f, 0x3c53u);
+            const float base = sampleBaseDensity(static_cast<float>(x) + offsetX,
+                static_cast<float>(y) + offsetY,
+                static_cast<float>(z) + offsetZ);
+            values[cell] = base * std::max(0.05f,
+                1.0f + detailStrength * detail);
+            detailedDensityMass += values[cell];
+          }
+      if (detailedDensityMass > 0.0) {
+        const float massScale = static_cast<float>(originalDensityMass /
+            detailedDensityMass);
+        for (auto& value : values) value *= massScale;
+      }
+      return values;
+    };
+    auto detailedDensity = makeDetailedDensity(0.0f);
+    auto nextDetailDensity = makeDetailedDensity(1.0f / 30.0f);
+    const auto replayedNextDetailDensity = makeDetailedDensity(1.0f / 30.0f);
+    TransferFunction transfer = TransferFunction::makeSmoke();
+    switch (effectKinds[effectIndex]) {
+    case PyroEffectKind::Fire:
+      transfer = TransferFunction::makeFire();
+      break;
+    case PyroEffectKind::Explosion:
+      transfer = TransferFunction::makeExplosion();
+      break;
+    case PyroEffectKind::Steam:
+      transfer = TransferFunction::makeSteam();
+      break;
+    case PyroEffectKind::Fog:
+      transfer = TransferFunction::makeFog();
+      break;
+    case PyroEffectKind::Smoke:
+      break;
+    }
+
+    CPUVolumeRenderer renderer;
+    VolumeAABB bounds;
+    bounds.min = {domain.min.x, domain.min.y, domain.min.z};
+    bounds.max = {domain.max.x, domain.max.y, domain.max.z};
+    VolumeFieldSet fields;
+    fields.density = {const_cast<float*>(renderDensity.data()), resolution};
+    fields.temperature = {const_cast<float*>(renderTemperature.data()), resolution};
+    fields.fuel = {const_cast<float*>(renderFuel.data()), resolution};
+    fields.reaction = {const_cast<float*>(renderReaction.data()), resolution};
+    renderer.setVolumeData(bounds, fields);
+    renderer.setTransferFunction(transfer);
+    renderer.settings.stepSize = domain.voxelSize * 0.9f;
+    renderer.settings.maxSteps = static_cast<int>(std::ceil(
+        3.5f / renderer.settings.stepSize));
+    renderer.settings.densityScale =
+        effectKinds[effectIndex] == PyroEffectKind::Fog ? 3.5f :
+        effectKinds[effectIndex] == PyroEffectKind::Fire ? 8.0f :
+        effectKinds[effectIndex] == PyroEffectKind::Steam ? 18.0f : 5.0f;
+    renderer.settings.fireIntensityScale =
+        effectKinds[effectIndex] == PyroEffectKind::Fire ? 1.6f : 1.0f;
+    renderer.settings.useTemperatureEmission = true;
+    renderer.settings.backgroundColor = {0.004f, 0.006f, 0.01f};
+    renderer.settings.lightIntensity = 0.0f;
+    renderer.settings.shadowIntensity = 0.0f;
+    renderer.settings.multipleScatteringStrength = 0.0f;
+    // Keep the whole domain in a fixed frame across effects and time.
+    // A unit focus distance avoids the camera's non-unit ray scale.
+    renderer.camera = Camera(1.0f, 50.0f, 1.0f, 0.0f,
+        {0.0f, 0.1f, 3.6f}, {0.0f, 0.1f, 0.0f},
+        {0.0f, 1.0f, 0.0f});
+    images[effectIndex] = renderer.render(outputSize, outputSize);
+    VolumeFieldSet detailedFields = fields;
+    detailedFields.density = {detailedDensity.data(), resolution};
+    CPUVolumeRenderer detailedRenderer;
+    detailedRenderer.setVolumeData(bounds, detailedFields);
+    detailedRenderer.setTransferFunction(transfer);
+    detailedRenderer.settings = renderer.settings;
+    detailedRenderer.camera = renderer.camera;
+    const auto detailedImage = detailedRenderer.render(outputSize, outputSize);
+    detailedFields.density = {const_cast<float*>(nextDetailDensity.data()),
+        resolution};
+    detailedRenderer.setVolumeData(bounds, detailedFields);
+    const auto nextDetailImage = detailedRenderer.render(outputSize, outputSize);
+    const double nextDetailMass = std::accumulate(nextDetailDensity.begin(),
+        nextDetailDensity.end(), 0.0);
+    double temporalDifferenceSquared = 0.0;
+    for (std::size_t pixel = 0; pixel < detailedImage.pixels.size(); ++pixel) {
+      const double difference = static_cast<double>(
+          detailedImage.pixels[pixel]) - nextDetailImage.pixels[pixel];
+      temporalDifferenceSquared += difference * difference;
+    }
+    const double temporalDifferenceRms = std::sqrt(temporalDifferenceSquared /
+        std::max<std::size_t>(1, detailedImage.pixels.size()));
+    double imageDifferenceSquared = 0.0;
+    for (std::size_t pixel = 0; pixel < images[effectIndex].pixels.size();
+         ++pixel) {
+      const double difference = static_cast<double>(
+          images[effectIndex].pixels[pixel]) - detailedImage.pixels[pixel];
+      imageDifferenceSquared += difference * difference;
+    }
+    const double imageDifferenceRms = std::sqrt(imageDifferenceSquared /
+        std::max<std::size_t>(1, images[effectIndex].pixels.size()));
+    const double finalDetailMass = std::accumulate(detailedDensity.begin(),
+        detailedDensity.end(), 0.0);
+
+    std::size_t visiblePixels = 0;
+    int visibleTop = images[effectIndex].height;
+    int visibleBottom = -1;
+    for (int y = 0; y < images[effectIndex].height; ++y) {
+      for (int x = 0; x < images[effectIndex].width; ++x) {
+        const auto offset = static_cast<std::size_t>(
+            (y * images[effectIndex].width + x) * 3);
+        const int luminance = (images[effectIndex].pixels[offset] * 54 +
+            images[effectIndex].pixels[offset + 1] * 183 +
+            images[effectIndex].pixels[offset + 2] * 19) / 256;
+        if (luminance > 12) {
+          ++visiblePixels;
+          visibleTop = std::min(visibleTop, y);
+          visibleBottom = std::max(visibleBottom, y);
+        }
+      }
+    }
+    for (const auto value : images[effectIndex].pixels) {
+      imageHashes[effectIndex] =
+          (imageHashes[effectIndex] ^ value) * 1099511628211ull;
+    }
+    GTEST_LOG_(INFO) << "Pyro profile=" << effectNames[effectIndex]
+        << " emissionFrames=" << emissionFrames
+        << " density/temp/fuel/reaction=" << densityMass << '/'
+        << temperatureMass << '/' << fuelMass << '/' << reactionMass
+        << " peakReaction=" << peakReactionMass
+        << " visiblePixels=" << visiblePixels
+        << " grid=" << gridSize << " output=" << outputSize
+        << " visibleY=" << visibleTop << '-' << visibleBottom
+        << " imageHash=" << imageHashes[effectIndex];
+    GTEST_LOG_(INFO) << "Pyro density detail=" << effectNames[effectIndex]
+        << " strength=" << detailStrength
+        << " massBefore/after=" << originalDensityMass << '/'
+        << finalDetailMass
+        << " imageDifferenceRms8bit=" << imageDifferenceRms
+        << " temporalRms8bit@30fps=" << temporalDifferenceRms;
+    EXPECT_NEAR(finalDetailMass, originalDensityMass,
+        std::max(1.0e-5, originalDensityMass * 1.0e-5))
+        << effectNames[effectIndex];
+    EXPECT_GT(imageDifferenceRms, 0.25) << effectNames[effectIndex];
+    EXPECT_NEAR(nextDetailMass, originalDensityMass,
+        std::max(1.0e-5, originalDensityMass * 1.0e-5))
+        << effectNames[effectIndex];
+    EXPECT_EQ(nextDetailDensity, replayedNextDetailDensity)
+        << effectNames[effectIndex];
+    EXPECT_GT(temporalDifferenceRms, 0.0) << effectNames[effectIndex];
+
+    if (!outputDirectory.isEmpty()) {
+      QImage image(images[effectIndex].width, images[effectIndex].height,
+          QImage::Format_RGB888);
+      for (int y = 0; y < images[effectIndex].height; ++y) {
+        std::copy_n(images[effectIndex].pixels.data() +
+            static_cast<std::size_t>(y * images[effectIndex].width * 3),
+            images[effectIndex].width * 3, image.scanLine(y));
+      }
+      EXPECT_TRUE(image.save(QDir(outputDirectory).filePath(
+          QString::fromLatin1("pyro_%1.png").arg(effectNames[effectIndex])),
+          "PNG"));
+      QImage detailedOutput(detailedImage.width, detailedImage.height,
+          QImage::Format_RGB888);
+      for (int y = 0; y < detailedImage.height; ++y)
+        std::copy_n(detailedImage.pixels.data() +
+            static_cast<std::size_t>(y * detailedImage.width * 3),
+            detailedImage.width * 3, detailedOutput.scanLine(y));
+      EXPECT_TRUE(detailedOutput.save(QDir(outputDirectory).filePath(
+          QString::fromLatin1("pyro_%1_detail.png").arg(effectNames[effectIndex])),
+          "PNG"));
+      QImage nextDetailOutput(nextDetailImage.width, nextDetailImage.height,
+          QImage::Format_RGB888);
+      for (int y = 0; y < nextDetailImage.height; ++y)
+        std::copy_n(nextDetailImage.pixels.data() +
+            static_cast<std::size_t>(y * nextDetailImage.width * 3),
+            nextDetailImage.width * 3, nextDetailOutput.scanLine(y));
+      EXPECT_TRUE(nextDetailOutput.save(QDir(outputDirectory).filePath(
+          QString::fromLatin1("pyro_%1_detail_t1.png").arg(effectNames[effectIndex])),
+          "PNG"));
+    }
+    ASSERT_GT(visiblePixels, 0u) << effectNames[effectIndex];
+    EXPECT_GT(visibleTop, 0) << effectNames[effectIndex];
+    EXPECT_LT(visibleBottom, outputSize - 1) << effectNames[effectIndex];
+  }
+  for (std::size_t i = 0; i < imageHashes.size(); ++i) {
+    for (std::size_t j = i + 1; j < imageHashes.size(); ++j) {
+      EXPECT_NE(imageHashes[i], imageHashes[j])
+          << effectNames[i] << " and " << effectNames[j];
     }
   }
 }

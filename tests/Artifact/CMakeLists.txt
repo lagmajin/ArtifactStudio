@@ -267,6 +267,124 @@ if(ARTIFACT_BUILD_FX_STUDIO_TEST)
     )
 endif()
 
+# ---------------------------------------------------------------------------
+# Timeline curve editor mode: standalone contract test + capture harness.
+#
+# Like the FxStudio render contract above, this target compiles only the
+# module units the curve editor needs (Widget.CurveEditor + Artifact.Event.Types)
+# and links ArtifactCore, instead of linking ArtifactAppRuntime. That keeps the
+# dependency boundary at ArtifactCore + Qt, so the curve editor mode can be
+# exercised without building or launching the editor.
+#
+# The executable is both a test and a lab:
+#   ArtifactCurveEditorStandaloneTest            -> contract checks (offscreen)
+#   ArtifactCurveEditorStandaloneTest --ui       -> interactive lab window
+# Captures are written to ARTIFACT_CURVE_EDITOR_CAPTURE_DIR.
+# ---------------------------------------------------------------------------
+set(ARTIFACT_CURVE_EDITOR_MODULE_SOURCES
+    "${PROJECT_SOURCE_DIR}/Artifact/include/Event/ArtifactEventTypes.ixx"
+    "${PROJECT_SOURCE_DIR}/Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx"
+)
+set(ARTIFACT_CURVE_EDITOR_IMPL_SOURCES
+    "${PROJECT_SOURCE_DIR}/Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp"
+)
+
+function(artifact_curve_editor_sources target)
+    target_sources(${target}
+        PRIVATE ${ARTIFACT_CURVE_EDITOR_IMPL_SOURCES}
+        PUBLIC FILE_SET CXX_MODULES
+            BASE_DIRS "${PROJECT_SOURCE_DIR}/Artifact/include"
+            FILES ${ARTIFACT_CURVE_EDITOR_MODULE_SOURCES}
+    )
+    # Time.TimeRemap is owned by ArtifactCoreAnalyze, not the aggregate
+    # ArtifactCore target, so the module consumer must link its owner.
+    target_link_libraries(${target} PRIVATE
+        ArtifactCore
+        ArtifactCoreAnalyze
+        ArtifactCorePlayback
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
+    )
+    target_include_directories(${target} PRIVATE
+        "${PROJECT_SOURCE_DIR}/Artifact/include"
+        "${PROJECT_SOURCE_DIR}/third_party/verdigris/src"
+        "${PROJECT_SOURCE_DIR}/tests"
+    )
+    set_target_properties(${target} PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(${target} PRIVATE /Zf /Zc:__cplusplus /utf-8 /MP /WX-)
+    endif()
+endfunction()
+
+add_executable(ArtifactCurveEditorStandaloneTest
+    "${CMAKE_CURRENT_SOURCE_DIR}/CurveEditorStandaloneTest.cpp"
+)
+artifact_curve_editor_sources(ArtifactCurveEditorStandaloneTest)
+target_link_libraries(ArtifactCurveEditorStandaloneTest PRIVATE GTest::gtest)
+if(WIN32)
+    add_custom_command(TARGET ArtifactCurveEditorStandaloneTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactCurveEditorStandaloneTest>
+            "$<TARGET_FILE_DIR:ArtifactCurveEditorStandaloneTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+
+    # The contract run is headless (QT_QPA_PLATFORM=offscreen) and --ui uses the
+    # native Windows platform, so both platform plugins have to sit next to the
+    # executable or QApplication aborts before any test runs.
+    set(_artifact_curve_editor_vcpkg_installed "${VCPKG_INSTALLED}")
+    if(NOT EXISTS "${_artifact_curve_editor_vcpkg_installed}/debug/bin"
+       AND DEFINED VCPKG_INSTALLED_DIR
+       AND EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows")
+        set(_artifact_curve_editor_vcpkg_installed
+            "${VCPKG_INSTALLED_DIR}/x64-windows")
+    endif()
+    if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+        set(_artifact_curve_editor_vcpkg_installed
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+    endif()
+
+    add_custom_command(TARGET ArtifactCurveEditorStandaloneTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+            "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactCurveEditorStandaloneTest>"
+            "-DVCPKG_INSTALLED=${_artifact_curve_editor_vcpkg_installed}"
+            "-DCONFIG=$<CONFIG>"
+            -P "${PROJECT_SOURCE_DIR}/Artifact/cmake/CopyQtPlatformPlugin.cmake"
+        VERBATIM
+    )
+
+    set(_curve_editor_offscreen_plugin
+        "${_artifact_curve_editor_vcpkg_installed}/debug/Qt6/plugins/platforms/qoffscreend.dll")
+    if(NOT EXISTS "${_curve_editor_offscreen_plugin}")
+        set(_curve_editor_offscreen_plugin
+            "${_artifact_curve_editor_vcpkg_installed}/Qt6/plugins/platforms/qoffscreen.dll")
+    endif()
+    if(EXISTS "${_curve_editor_offscreen_plugin}")
+        add_custom_command(TARGET ArtifactCurveEditorStandaloneTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                "$<TARGET_FILE_DIR:ArtifactCurveEditorStandaloneTest>/platforms"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${_curve_editor_offscreen_plugin}"
+                "$<TARGET_FILE_DIR:ArtifactCurveEditorStandaloneTest>/platforms/"
+            VERBATIM
+        )
+    endif()
+endif()
+add_test(NAME ArtifactCurveEditorStandaloneTest
+    COMMAND ArtifactCurveEditorStandaloneTest
+)
+set_tests_properties(ArtifactCurveEditorStandaloneTest PROPERTIES
+    LABELS "curve-editor;timeline;animation;widget;qt;image;cpu;standalone;contract"
+    TIMEOUT 180
+    RUN_SERIAL TRUE
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_CURVE_EDITOR_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/curve-editor"
+)
+
 artifact_add_test(ArtifactProcedural3DLayerLodContractTest
     SOURCES
         Procedural3DLayerLodContractTest.cpp
@@ -494,10 +612,73 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactClonerGpuRenderContractTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12"
         )
     endif()
+
+    artifact_add_test(ArtifactPyroSmokeLookdevRAndTest
+        SOURCES
+            PyroSmokeLookdevRAndTest.cpp
+        LIBS
+            ArtifactRender
+            ArtifactAppRuntime
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactPyroSmokeLookdevRAndTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                "$<TARGET_FILE_DIR:ArtifactPyroSmokeLookdevRAndTest>/platforms"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+                "$<TARGET_FILE_DIR:ArtifactPyroSmokeLookdevRAndTest>/platforms/"
+            VERBATIM
+        )
+    endif()
+    set_tests_properties(ArtifactPyroSmokeLookdevRAndTest PROPERTIES
+        LABELS "physics;pyro;smoke;lookdev;gpu;headless;standalone;r-and-d"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
+    if(VULKAN_SUPPORTED)
+        set_tests_properties(ArtifactPyroSmokeLookdevRAndTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactPyroSmokeLookdevRAndTest>/platforms;ARTIFACT_RENDER_BACKEND=vulkan"
+        )
+    elseif(D3D12_SUPPORTED)
+        set_tests_properties(ArtifactPyroSmokeLookdevRAndTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactPyroSmokeLookdevRAndTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12"
+        )
+    endif()
 endif()
 
 if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
    AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
+    artifact_add_test(ArtifactSmokeVolumeLookdevRAndTest
+        SOURCES
+            SmokeVolumeLookdevRAndTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactSmokeVolumeLookdevRAndTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                "$<TARGET_FILE_DIR:ArtifactSmokeVolumeLookdevRAndTest>/platforms"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+                "$<TARGET_FILE_DIR:ArtifactSmokeVolumeLookdevRAndTest>/platforms/"
+            VERBATIM
+        )
+    endif()
+    set_tests_properties(ArtifactSmokeVolumeLookdevRAndTest PROPERTIES
+        LABELS "renderer;gpu;smoke;lookdev;standalone;r-and-d"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    if(VULKAN_SUPPORTED)
+        set_tests_properties(ArtifactSmokeVolumeLookdevRAndTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactSmokeVolumeLookdevRAndTest>/platforms;ARTIFACT_RENDER_BACKEND=vulkan"
+        )
+    elseif(D3D12_SUPPORTED)
+        set_tests_properties(ArtifactSmokeVolumeLookdevRAndTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactSmokeVolumeLookdevRAndTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12"
+        )
+    endif()
+
     artifact_add_test(ArtifactAudioLayerRenderIntegrationTest
         SOURCES
             AudioLayerRenderQueueIntegrationTest.cpp
@@ -822,6 +1003,39 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 300
         RUN_SERIAL TRUE
         ENVIRONMENT "ARTIFACT_RENDER_BACKEND=vulkan"
+    )
+    # End-to-end pipeline: a real image file is loaded, placed on a timeline
+    # range, driven by a keyframed transform, rendered through the Render
+    # Manager queue and verified from the written PNGs. Standalone executable
+    # with --self-check; writes a montage and analysis JSON for review.
+    add_executable(ArtifactPipelineIntegrationTest
+        ArtifactPipelineIntegrationTest.cpp
+    )
+    target_link_libraries(ArtifactPipelineIntegrationTest PRIVATE
+        Qt6::Core
+        Qt6::Widgets
+        ArtifactAppRuntime
+    )
+    set_target_properties(ArtifactPipelineIntegrationTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactPipelineIntegrationTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /MP /WX-
+        )
+    endif()
+    add_test(NAME ArtifactPipelineIntegrationTest
+        COMMAND ArtifactPipelineIntegrationTest --self-check
+    )
+    set_tests_properties(ArtifactPipelineIntegrationTest PROPERTIES
+        LABELS "pipeline;image;layer;transform;animation;render-queue;renderer;gpu;headless;integration"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+        ENVIRONMENT "ARTIFACT_PIPELINE_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/pipeline"
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin;PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin;PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
     )
 endif()
 

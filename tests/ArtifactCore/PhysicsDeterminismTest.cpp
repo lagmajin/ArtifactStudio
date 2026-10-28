@@ -1,13 +1,16 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <span>
 
 import Physics.SoftBody;
 import Physics.Fluid;
 import Physics.SandSim2D;
+import Core.Simulation.Pyro;
 import Container.NamedVector;
 
 using namespace ArtifactCore;
@@ -263,6 +266,199 @@ TEST(FluidDeterminismTest, IdenticalInputsProduceIdenticalDensity)
             EXPECT_EQ(a.getDensity(x, y), b.getDensity(x, y));
         }
     }
+}
+
+TEST(FluidDeterminismTest, ScalarFieldViewsExposeSolverStorageWithoutSnapshots)
+{
+    FluidSolver2D solver(12, 10);
+    solver.addDensity(4, 6, 0.75f);
+    solver.addTemperature(4, 6, 1.25f);
+
+    const auto* density = solver.densityFieldData();
+    const auto* temperature = solver.temperatureFieldData();
+    ASSERT_NE(density, nullptr);
+    ASSERT_NE(temperature, nullptr);
+    EXPECT_EQ(solver.fieldElementCount(), 120u);
+    EXPECT_FLOAT_EQ(density[6 * solver.width() + 4],
+                    solver.getDensity(4, 6));
+    EXPECT_FLOAT_EQ(temperature[6 * solver.width() + 4],
+                    solver.getTemperature(4, 6));
+}
+
+TEST(PyroEffectProfileTest, ProvidesDistinctSmokeFireExplosionSteamAndFogDefaults)
+{
+    constexpr PyroResolution resolution{32, 48, 32};
+    const auto smoke = makePyroEffectProfile(PyroEffectKind::Smoke, resolution);
+    const auto fire = makePyroEffectProfile(PyroEffectKind::Fire, resolution);
+    const auto explosion = makePyroEffectProfile(
+        PyroEffectKind::Explosion, resolution);
+    const auto steam = makePyroEffectProfile(PyroEffectKind::Steam, resolution);
+    const auto fog = makePyroEffectProfile(PyroEffectKind::Fog, resolution);
+
+    EXPECT_FLOAT_EQ(smoke.source.fuel, 0.0f);
+    EXPECT_GT(smoke.source.temperature, fog.source.temperature);
+    EXPECT_GT(fire.source.fuel, 0.0f);
+    EXPECT_GT(explosion.source.temperature, fire.source.temperature);
+    EXPECT_FLOAT_EQ(explosion.simulation.vorticity, 0.35f);
+    EXPECT_GT(explosion.source.radialVelocity, 0.0f);
+    EXPECT_LT(explosion.sourceDurationSeconds, smoke.sourceDurationSeconds);
+    EXPECT_GT(steam.simulation.buoyancy, smoke.simulation.buoyancy);
+    EXPECT_GT(fog.source.extent.x, smoke.source.extent.x);
+    EXPECT_FLOAT_EQ(fog.source.temperature, 0.0f);
+    EXPECT_FLOAT_EQ(fog.source.fuel, 0.0f);
+
+    const PyroEffectProfile profiles[]{smoke, fire, explosion, steam, fog};
+    for (const auto& profile : profiles) {
+        EXPECT_TRUE(std::isfinite(profile.source.density));
+        EXPECT_TRUE(std::isfinite(profile.source.temperature));
+        EXPECT_TRUE(std::isfinite(profile.source.fuel));
+        EXPECT_GT(profile.sourceDurationSeconds, 0.0f);
+        EXPECT_GE(profile.source.extent.x, 0.0f);
+        EXPECT_GE(profile.source.extent.y, 0.0f);
+        EXPECT_GE(profile.source.extent.z, 0.0f);
+    }
+}
+
+TEST(PyroEffectProfileTest, ScalesEmitterMotionToTheRequestedGridResolution)
+{
+    const auto small = makePyroEffectProfile(
+        PyroEffectKind::Smoke, PyroResolution{16, 24, 16});
+    const auto large = makePyroEffectProfile(
+        PyroEffectKind::Smoke, PyroResolution{32, 48, 32});
+    const auto smallExplosion = makePyroEffectProfile(
+        PyroEffectKind::Explosion, PyroResolution{16, 24, 16});
+    const auto largeExplosion = makePyroEffectProfile(
+        PyroEffectKind::Explosion, PyroResolution{32, 48, 32});
+
+    EXPECT_FLOAT_EQ(large.source.velocity.y,
+                    2.0f * small.source.velocity.y);
+    EXPECT_FLOAT_EQ(largeExplosion.source.radialVelocity,
+                    2.0f * smallExplosion.source.radialVelocity);
+}
+
+TEST(PyroSourceTest, RadialExpansionSurvivesPressureProjectionDeterministically)
+{
+    PyroDomain domain{};
+    domain.min = {-1.0f, -1.0f, -1.0f};
+    domain.max = {1.0f, 1.0f, 1.0f};
+    domain.voxelSize = 0.1f;
+    domain.fixedTimeStep = 1.0f / 60.0f;
+
+    const auto simulate = [&domain](const float radialVelocity) {
+        PyroSimulation simulation(domain);
+        PyroSimulationSettings settings{};
+        settings.sourceDensity = 0.5f;
+        settings.sourceTemperature = 0.0f;
+        settings.sourceFuel = 0.0f;
+        settings.dissipation = 0.0f;
+        settings.coolingRate = 0.0f;
+        settings.buoyancy = 0.0f;
+        settings.vorticity = 0.0f;
+        settings.pressureIterations = 20.0f;
+        simulation.setSettings(settings);
+
+        PyroSourceState source{};
+        source.position = {};
+        source.extent = {0.45f, 0.45f, 0.45f};
+        source.density = 0.5f;
+        source.radialVelocity = radialVelocity;
+        const std::array sources{source};
+        simulation.setSources(sources);
+        simulation.step(1.0 / 60.0);
+
+        const auto velocity = simulation.fields().velocityView().at(12, 9, 9);
+        const float radialProjection =
+            (velocity.x * 0.25f - velocity.y * 0.05f - velocity.z * 0.05f) /
+            std::sqrt(0.25f * 0.25f + 0.05f * 0.05f + 0.05f * 0.05f);
+        float maximumDivergence = 0.0f;
+        for (const float value : simulation.fields().divergenceStorage()) {
+            maximumDivergence = std::max(maximumDivergence, value);
+        }
+        return std::array{radialProjection, maximumDivergence};
+    };
+
+    const auto noExpansion = simulate(0.0f);
+    const auto expansion = simulate(3.0f);
+    const auto repeatedExpansion = simulate(3.0f);
+    EXPECT_NEAR(noExpansion[0], 0.0f, 1.0e-6f);
+    EXPECT_GT(expansion[0], 0.02f);
+    EXPECT_GT(expansion[1], 0.0f);
+    EXPECT_EQ(expansion, repeatedExpansion);
+}
+
+TEST(PyroTurbulenceTest, SmokeCurlOctavesAreBoundedDistinctAndDeterministic)
+{
+    PyroDomain domain{};
+    domain.min = {-0.8f, -0.8f, -0.8f};
+    domain.max = {0.8f, 0.8f, 0.8f};
+    domain.voxelSize = 0.1f;
+    domain.fixedTimeStep = 1.0 / 60.0;
+
+    const auto simulate = [&domain](const std::uint8_t octaves) {
+        PyroSimulation simulation(domain);
+        simulation.setCacheInterval(0);
+        PyroSimulationSettings settings{};
+        settings.dissipation = 0.0f;
+        settings.coolingRate = 0.0f;
+        settings.buoyancy = 0.0f;
+        settings.vorticity = 0.0f;
+        settings.pressureIterations = 8.0f;
+        settings.smokeTurbulence = 4.0f;
+        settings.smokeTurbulenceScale = 10.0f;
+        settings.smokeTurbulenceOctaves = octaves;
+        simulation.setSettings(settings);
+        PyroSourceState source{};
+        source.position = {0.0f, -0.2f, 0.0f};
+        source.extent = {0.35f, 0.35f, 0.35f};
+        source.density = 0.9f;
+        simulation.setSources(std::span<const PyroSourceState>(&source, 1));
+        for (int frame = 0; frame < 8; ++frame)
+            simulation.step(1.0 / 60.0);
+        return PyroFieldSnapshot{
+            .resolution = simulation.fields().resolution(),
+            .density = simulation.fields().densityStorage(),
+            .velocity = simulation.fields().velocityStorage()};
+    };
+
+    PyroSimulationSettings singleBandSettings{};
+    PyroSimulationSettings multiBandSettings = singleBandSettings;
+    singleBandSettings.smokeTurbulenceOctaves = 1;
+    multiBandSettings.smokeTurbulenceOctaves = 2;
+    EXPECT_NE(hashSettings(singleBandSettings), hashSettings(multiBandSettings));
+    PyroSimulation octaveClampProbe(domain);
+    auto invalidOctaveSettings = singleBandSettings;
+    invalidOctaveSettings.smokeTurbulenceOctaves = 0;
+    octaveClampProbe.setSettings(invalidOctaveSettings);
+    EXPECT_EQ(octaveClampProbe.settings().smokeTurbulenceOctaves, 1);
+    invalidOctaveSettings.smokeTurbulenceOctaves =
+        std::numeric_limits<std::uint8_t>::max();
+    octaveClampProbe.setSettings(invalidOctaveSettings);
+    EXPECT_EQ(octaveClampProbe.settings().smokeTurbulenceOctaves, 4);
+
+    const auto singleBand = simulate(1);
+    const auto multiBand = simulate(2);
+    const auto repeatedMultiBand = simulate(2);
+    ASSERT_EQ(multiBand.density.size(), repeatedMultiBand.density.size());
+    ASSERT_EQ(multiBand.velocity.size(), repeatedMultiBand.velocity.size());
+    EXPECT_EQ(multiBand.density, repeatedMultiBand.density);
+
+    float maximumDensityDifference = 0.0f;
+    float maximumVelocityDifference = 0.0f;
+    for (std::size_t index = 0; index < multiBand.density.size(); ++index) {
+        maximumDensityDifference = std::max(maximumDensityDifference,
+            std::abs(multiBand.density[index] - singleBand.density[index]));
+        const auto& actual = multiBand.velocity[index];
+        const auto& repeated = repeatedMultiBand.velocity[index];
+        const auto& single = singleBand.velocity[index];
+        EXPECT_FLOAT_EQ(actual.x, repeated.x);
+        EXPECT_FLOAT_EQ(actual.y, repeated.y);
+        EXPECT_FLOAT_EQ(actual.z, repeated.z);
+        maximumVelocityDifference = std::max({maximumVelocityDifference,
+            std::abs(actual.x - single.x), std::abs(actual.y - single.y),
+            std::abs(actual.z - single.z)});
+    }
+    EXPECT_GT(maximumDensityDifference, 1.0e-6f);
+    EXPECT_GT(maximumVelocityDifference, 1.0e-5f);
 }
 
 TEST(FluidDeterminismTest, ZeroDeltaIsNoOpAndLargeDeltaStaysFinite)
@@ -617,6 +813,83 @@ TEST(LiquidOpeningTest, ManualSideEdgeControlsInflowAndEscape)
     EXPECT_LT(solver.particles().front()->y, 0.1f);
 }
 
+TEST(LiquidCollisionTest, HighSpeedParticleCannotTunnelThroughClosedPolygonEdge)
+{
+    LiquidSolver2D solver;
+    ASSERT_TRUE(solver.setContainerPolygon(
+        NamedVector<LiquidContainerPoint2D>{
+            ContainerName{"Test.LiquidSweepPolygon"},
+            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
+        0));
+    solver.setGravity(0.0f, 0.0f);
+    solver.setViscosity(0.0f);
+    solver.setSubsteps(1);
+    solver.setSolverIterations(1);
+    solver.reset(0.0f, 0.05f);
+
+    LiquidSnapshot2D initial;
+    initial.particles.assign({{0.5f, 0.5f, 60.0f, 0.0f}});
+    ASSERT_TRUE(solver.restore(initial));
+
+    solver.update(1.0f / 30.0f);
+
+    ASSERT_EQ(solver.particles().size(), 1U);
+    const auto& particle = solver.particles().front();
+    EXPECT_LT(particle.x, 0.9f);
+    EXPECT_GE(particle.x, 0.9f - solver.particleSpacing() * 0.5f - 1.0e-4f);
+    EXPECT_NEAR(particle.vx, -16.8f, 1.0e-3f);
+}
+
+TEST(LiquidCollisionTest, HighSpeedParticleCanExitThroughPolygonOpening)
+{
+    LiquidSolver2D solver;
+    ASSERT_TRUE(solver.setContainerPolygon(
+        NamedVector<LiquidContainerPoint2D>{
+            ContainerName{"Test.LiquidOpeningSweepPolygon"},
+            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
+        0));
+    solver.setGravity(0.0f, 0.0f);
+    solver.setViscosity(0.0f);
+    solver.setSubsteps(1);
+    solver.setSolverIterations(1);
+    solver.reset(0.0f, 0.05f);
+
+    LiquidSnapshot2D initial;
+    initial.particles.assign({{0.5f, 0.86f, 0.0f, 60.0f}});
+    ASSERT_TRUE(solver.restore(initial));
+
+    solver.update(1.0f / 30.0f);
+
+    ASSERT_EQ(solver.particles().size(), 1U);
+    EXPECT_GT(solver.particles().front()->y, 0.9f);
+    EXPECT_GT(solver.particles().front()->vy, 0.0f);
+}
+
+TEST(LiquidCollisionTest, ParticleAtWallContactCannotTunnelOnNextStep)
+{
+    LiquidSolver2D solver;
+    ASSERT_TRUE(solver.setContainerPolygon(
+        NamedVector<LiquidContainerPoint2D>{
+            ContainerName{"Test.LiquidContactSweepPolygon"},
+            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
+        0));
+    solver.setGravity(0.0f, 0.0f);
+    solver.setViscosity(0.0f);
+    solver.setSubsteps(1);
+    solver.setSolverIterations(1);
+    solver.reset(0.0f, 0.05f);
+
+    LiquidSnapshot2D initial;
+    initial.particles.assign({{0.875f, 0.5f, 30.0f, 0.0f}});
+    ASSERT_TRUE(solver.restore(initial));
+
+    solver.update(1.0f / 30.0f);
+
+    ASSERT_EQ(solver.particles().size(), 1U);
+    EXPECT_LE(solver.particles().front()->x, 0.8751f);
+    EXPECT_LT(solver.particles().front()->vx, 0.0f);
+}
+
 TEST(LiquidSpillTest, NeighborInteractionsAreDeterministic)
 {
     NamedVector<LiquidSpillParticle2D> a{
@@ -735,83 +1008,6 @@ TEST(LiquidSurfaceTest, TriangleVerticesRetainDensityForDepthShading)
         << "the reconstructed edge should retain the density threshold";
     EXPECT_GT(maximumCoverage, minimumCoverage + 0.2f)
         << "interior coverage should be available to the renderer as a smooth depth cue";
-}
-
-TEST(LiquidCollisionTest, HighSpeedParticleCannotTunnelThroughClosedPolygonEdge)
-{
-    LiquidSolver2D solver;
-    ASSERT_TRUE(solver.setContainerPolygon(
-        NamedVector<LiquidContainerPoint2D>{
-            ContainerName{"Test.LiquidSweepPolygon"},
-            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
-        0));
-    solver.setGravity(0.0f, 0.0f);
-    solver.setViscosity(0.0f);
-    solver.setSubsteps(1);
-    solver.setSolverIterations(1);
-    solver.reset(0.0f, 0.05f);
-
-    LiquidSnapshot2D initial;
-    initial.particles.assign({{0.5f, 0.5f, 60.0f, 0.0f}});
-    ASSERT_TRUE(solver.restore(initial));
-
-    solver.update(1.0f / 30.0f);
-
-    ASSERT_EQ(solver.particles().size(), 1U);
-    const auto& particle = solver.particles().front();
-    EXPECT_LT(particle.x, 0.9f);
-    EXPECT_GE(particle.x, 0.9f - solver.particleSpacing() * 0.5f - 1.0e-4f);
-    EXPECT_NEAR(particle.vx, -16.8f, 1.0e-3f);
-}
-
-TEST(LiquidCollisionTest, HighSpeedParticleCanExitThroughPolygonOpening)
-{
-    LiquidSolver2D solver;
-    ASSERT_TRUE(solver.setContainerPolygon(
-        NamedVector<LiquidContainerPoint2D>{
-            ContainerName{"Test.LiquidOpeningSweepPolygon"},
-            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
-        0));
-    solver.setGravity(0.0f, 0.0f);
-    solver.setViscosity(0.0f);
-    solver.setSubsteps(1);
-    solver.setSolverIterations(1);
-    solver.reset(0.0f, 0.05f);
-
-    LiquidSnapshot2D initial;
-    initial.particles.assign({{0.5f, 0.86f, 0.0f, 60.0f}});
-    ASSERT_TRUE(solver.restore(initial));
-
-    solver.update(1.0f / 30.0f);
-
-    ASSERT_EQ(solver.particles().size(), 1U);
-    EXPECT_GT(solver.particles().front()->y, 0.9f);
-    EXPECT_GT(solver.particles().front()->vy, 0.0f);
-}
-
-TEST(LiquidCollisionTest, ParticleAtWallContactCannotTunnelOnNextStep)
-{
-    LiquidSolver2D solver;
-    ASSERT_TRUE(solver.setContainerPolygon(
-        NamedVector<LiquidContainerPoint2D>{
-            ContainerName{"Test.LiquidContactSweepPolygon"},
-            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
-        0));
-    solver.setGravity(0.0f, 0.0f);
-    solver.setViscosity(0.0f);
-    solver.setSubsteps(1);
-    solver.setSolverIterations(1);
-    solver.reset(0.0f, 0.05f);
-
-    LiquidSnapshot2D initial;
-    initial.particles.assign({{0.875f, 0.5f, 30.0f, 0.0f}});
-    ASSERT_TRUE(solver.restore(initial));
-
-    solver.update(1.0f / 30.0f);
-
-    ASSERT_EQ(solver.particles().size(), 1U);
-    EXPECT_LE(solver.particles().front()->x, 0.8751f);
-    EXPECT_LT(solver.particles().front()->vx, 0.0f);
 }
 
 TEST(LiquidSurfaceTest, FoamPointsRetainVelocityForDirectionalRendering)

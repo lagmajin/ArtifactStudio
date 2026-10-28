@@ -1,5 +1,9 @@
 # ArtifactCore Tests
 
+if(ARTIFACT_BUILD_TESTS)
+    add_subdirectory(MeshShaderLodStandalone)
+endif()
+
 if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
     if(TARGET Diligent-GraphicsEngineVk-static)
         set(_artifact_rt_test_backend Diligent-GraphicsEngineVk-static)
@@ -31,13 +35,19 @@ endif()
 
 # Mesh-shader meshlet LOD selection and draw contract. Kept in its own process
 # so it can run without ray tracing support or ray-tracing test state.
-if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_RAY_TRACING_TEST) AND VULKAN_SUPPORTED)
+if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_RAY_TRACING_TEST
+    OR ARTIFACT_ENABLE_MESH_SHADER_LOD_TEST) AND VULKAN_SUPPORTED)
     if(TARGET Diligent-GraphicsEngineVk-static)
         set(_artifact_mesh_lod_test_backend Diligent-GraphicsEngineVk-static)
     elseif(TARGET Diligent-GraphicsEngineVk-shared)
         set(_artifact_mesh_lod_test_backend Diligent-GraphicsEngineVk-shared)
     else()
         set(_artifact_mesh_lod_test_backend "")
+    endif()
+    if(ARTIFACT_ENABLE_MESH_SHADER_LOD_TEST AND
+       NOT _artifact_mesh_lod_test_backend)
+        message(FATAL_ERROR
+            "ARTIFACT_ENABLE_MESH_SHADER_LOD_TEST requires a Diligent Vulkan backend target")
     endif()
     if(_artifact_mesh_lod_test_backend)
         artifact_add_test(ArtifactCoreMeshShaderLodTest
@@ -52,12 +62,17 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_RAY_TRACING_TEST) AND VULKAN_SUPPORT
                 DXCOMPILER_FOR_SPIRV YES)
         endif()
         set_tests_properties(ArtifactCoreMeshShaderLodTest PROPERTIES
-            LABELS "renderer;gpu;mesh-shader;meshlet;lod;headless;standalone;core"
+            LABELS "renderer;gpu;gpu-driven;mesh-shader;meshlet;lod;headless;standalone;core"
             TIMEOUT 180
             RUN_SERIAL TRUE
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan"
         )
     endif()
+endif()
+
+if(ARTIFACT_ENABLE_MESH_SHADER_LOD_TEST AND NOT VULKAN_SUPPORTED)
+    message(FATAL_ERROR
+        "ARTIFACT_ENABLE_MESH_SHADER_LOD_TEST requires Vulkan support")
 endif()
 
 
@@ -784,3 +799,181 @@ artifact_add_test(ArtifactCoreBoidsDistanceLodContractTest
 set_tests_properties(ArtifactCoreBoidsDistanceLodContractTest PROPERTIES
     LABELS "crowd;boids;lod;cpu;contract;core"
 )
+
+# ---------------------------------------------------------------------------
+# Video transition render contract + standalone MCP lab.
+#
+# Same shape as the FxStudio FX animation test: the contract executable renders
+# every registered Video.Transitions.* over a deterministic A/B pair and writes
+# PNG strips, per-progress grids and a behaviour report; the MCP host exposes the
+# same render path as transition.* tools so a transition can be driven and
+# inspected without the NLE editor.
+#
+# Linking ArtifactCoreVideo is not sufficient: its transition implementation
+# units only contain static registrars, so a static-library link drops them. The
+# test therefore compiles the needed Video module set and the implementation
+# units into the executable itself, and each transition also exposes an explicit
+# register<T>Transition() hook that the lab calls, because MSVC does not run
+# implementation-unit initializers reliably for a library consumer.
+# ---------------------------------------------------------------------------
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_BUILD_TRANSITION_TEST)
+    # Compile the module set the transitions need directly into each test
+    # executable, exactly like the FxStudio test compiles its module units
+    # instead of linking ArtifactAppRuntime.  (A static library is not enough:
+    # lld-link also rejects CMake's CXXMODWEAKSYM archive member for a module
+    # interface library.)
+    set(ARTIFACT_TRANSITION_TEST_MODULES
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/VideoFrame.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/AbstractTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/CpuFrameView.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/TransitionFactory.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/BlockDissolveTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/CrossfadeTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/CubeTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/DissolveTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/DoorsTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/FlipTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/GlitchDisplaceTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/GradientWipeTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/IrisWipeTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/LightLeakTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/LinearWipeTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/RadialWipeTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/SlideTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/SpinTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/WipeTransition.ixx"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include/Video/Transitions/ZoomTransition.ixx"
+    )
+    set(ARTIFACT_TRANSITION_TEST_IMPL
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/TransitionFactory.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/BlockDissolveTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/CrossfadeTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/CubeTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/DissolveTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/DoorsTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/FlipTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/GlitchDisplaceTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/GradientWipeTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/IrisWipeTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/LightLeakTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/LinearWipeTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/RadialWipeTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/SlideTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/SpinTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/WipeTransition.cpp"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/src/Video/Transitions/ZoomTransition.cpp"
+    )
+    add_library(ArtifactTransitionTestModules STATIC)
+    target_sources(ArtifactTransitionTestModules
+        PRIVATE ${ARTIFACT_TRANSITION_TEST_IMPL}
+        PUBLIC FILE_SET CXX_MODULES
+            BASE_DIRS "${PROJECT_SOURCE_DIR}/ArtifactCore/include"
+            FILES ${ARTIFACT_TRANSITION_TEST_MODULES}
+    )
+    target_link_libraries(ArtifactTransitionTestModules
+        PUBLIC ArtifactCoreNLE Qt6::Core Qt6::Gui Qt6::Widgets)
+    target_include_directories(ArtifactTransitionTestModules PRIVATE
+        "${PROJECT_SOURCE_DIR}/ArtifactCore/include"
+        "${PROJECT_SOURCE_DIR}/ArtifactCore"
+        "${PROJECT_SOURCE_DIR}/third_party"
+    )
+    set_target_properties(ArtifactTransitionTestModules PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactTransitionTestModules PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /MP /WX-
+        )
+    endif()
+
+    function(artifact_transition_test_sources target)
+        target_sources(${target}
+            PRIVATE ${ARTIFACT_TRANSITION_TEST_IMPL}
+            PUBLIC FILE_SET CXX_MODULES
+                BASE_DIRS "${PROJECT_SOURCE_DIR}/ArtifactCore/include"
+                FILES ${ARTIFACT_TRANSITION_TEST_MODULES}
+        )
+        target_link_libraries(${target} PRIVATE
+            ArtifactCoreNLE Qt6::Core Qt6::Gui Qt6::Widgets)
+        target_include_directories(${target} PRIVATE
+            "${PROJECT_SOURCE_DIR}/ArtifactCore/include"
+            "${PROJECT_SOURCE_DIR}/ArtifactCore"
+            "${PROJECT_SOURCE_DIR}/third_party"
+        )
+        set_target_properties(${target} PROPERTIES
+            CXX_STANDARD 23
+            CXX_STANDARD_REQUIRED ON
+        )
+        if(ARTIFACT_FRONTEND_MSVC)
+            target_compile_options(${target} PRIVATE
+                /Zf /Zc:__cplusplus /utf-8 /MP /WX-
+            )
+        endif()
+    endfunction()
+
+    artifact_add_test(ArtifactCoreTransitionRenderContractTest
+        SOURCES
+            TransitionRenderContractTest.cpp
+    )
+    artifact_transition_test_sources(ArtifactCoreTransitionRenderContractTest)
+    if(WIN32)
+        add_custom_command(TARGET ArtifactCoreTransitionRenderContractTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactCoreTransitionRenderContractTest>
+                "$<TARGET_FILE_DIR:ArtifactCoreTransitionRenderContractTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    set_tests_properties(ArtifactCoreTransitionRenderContractTest PROPERTIES
+        LABELS "video;transition;image;cpu;standalone;contract;core"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+        ENVIRONMENT "ARTIFACT_TRANSITION_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/transitions"
+        # The copied Qt DLLs pull further vcpkg runtime DLLs (harfbuzz, pcre2,
+        # ...) that the POST_BUILD copy does not enumerate; CTest starts the
+        # process without the developer PATH, so add the vcpkg runtime dirs.
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin;PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin;PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+endif()
+
+if(ARTIFACT_BUILD_TRANSITION_TEST)
+    add_executable(ArtifactTransitionMcpTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/TransitionMcpMain.cpp"
+    )
+    artifact_transition_test_sources(ArtifactTransitionMcpTest)
+    target_include_directories(ArtifactTransitionMcpTest PRIVATE
+        "${PROJECT_SOURCE_DIR}/tests"
+    )
+    set_target_properties(ArtifactTransitionMcpTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactTransitionMcpTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /MP /WX-
+        )
+    endif()
+    if(WIN32)
+        add_custom_command(TARGET ArtifactTransitionMcpTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactTransitionMcpTest>
+                "$<TARGET_FILE_DIR:ArtifactTransitionMcpTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    add_test(NAME ArtifactTransitionMcpSelfCheck
+        COMMAND ArtifactTransitionMcpTest --self-check
+    )
+    set_tests_properties(ArtifactTransitionMcpSelfCheck PROPERTIES
+        LABELS "video;transition;image;mcp;cpu;standalone;contract"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+        ENVIRONMENT "ARTIFACT_TRANSITION_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/transitions/mcp"
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin;PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+    )
+endif()

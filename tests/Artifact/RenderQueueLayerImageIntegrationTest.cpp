@@ -31,6 +31,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <utility>
 #include <vector>
 
 import Artifact.Composition.InitParams;
@@ -46,6 +47,9 @@ import Artifact.Layer.Text;
 import Artifact.Generator.Particle;
 import Artifact.Project.Manager;
 import Artifact.Render.IRenderer;
+import Artifact.Render.DiligentDeviceManager;
+import Artifact.Render.OffscreenComposition;
+import Artifact.Render.CompositionViewDrawing;
 import Artifact.Render.Queue.Job;
 import Artifact.Render.Queue.Service;
 import BrightnessEffect;
@@ -557,7 +561,6 @@ TEST(RenderQueueLayerImageIntegrationTest,
     ASSERT_NE(brightness, nullptr);
     brightness->setBrightness(0.18f);
     created.layer->addEffect(brightness);
-    created.layer->clearFrameCache();
 
     const QString effectedOutput = isolatedOutputPath(
         QStringLiteral("large_effect_queue_brightness.png"));
@@ -846,6 +849,366 @@ TEST(RenderQueueLayerImageIntegrationTest,
                         qBlue(pixel) > 40);
             }) > 4;
         }, &failure)) << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     FluidSmokeUsesSharedStateInCpuAndGpuRenderQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 320;
+    constexpr int height = 180;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueSmokeParityTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("SmokeParity")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(150);
+    compositionParams.setBackgroundColor(
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 1.0f));
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("SmokeEmitter"));
+    layerParams.setWidth(width);
+    layerParams.setHeight(height);
+    layerParams.setColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    const auto created = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(created.success);
+    const std::pair<const char*, QVariant> properties[] = {
+        {"component.fluid.enabled", QVariant(true)},
+        {"component.fluid.mode", QVariant(0)},
+        {"component.fluid.gridWidth", QVariant(96)},
+        {"component.fluid.gridHeight", QVariant(72)},
+        {"component.fluid.emitterY", QVariant(0.86)},
+        {"component.fluid.emitterRadius", QVariant(0.05)},
+        {"component.fluid.emitterDensity", QVariant(0.3)},
+        {"component.fluid.emitterVelocityY", QVariant(-1.2)},
+        {"component.fluid.smokeColor",
+         QVariant(QColor::fromRgbF(0.12f, 0.76f, 0.28f, 1.0f))},
+    };
+    for (const auto& [path, value] : properties) {
+        ASSERT_TRUE(created.layer->setLayerPropertyValue(
+            QString::fromLatin1(path), value)) << "property=" << path;
+    }
+
+    const auto isGreenSmoke = [](QRgb pixel) {
+        return qAlpha(pixel) > 8 && qGreen(pixel) > qRed(pixel) * 1.15 &&
+               qGreen(pixel) > qBlue(pixel) * 1.15;
+    };
+    const QString cpuOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_smoke_cpu.png"));
+    const QString gpuOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_smoke_gpu.png"));
+    const QString cpuRepeatOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_smoke_cpu_repeat.png"));
+    const QString cpuRangeOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_smoke_cpu_range.png"));
+    const QString gpuRangeOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_smoke_gpu_range.png"));
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("SmokeParity"), cpuOutput,
+        width, height,
+        [&isGreenSmoke](const QImage& image) {
+            return countPixelsMatching(image, isGreenSmoke) > 10;
+        }, &failure, 25, QStringLiteral("cpu"), 0)) << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("SmokeParity"), gpuOutput,
+        width, height,
+        [&isGreenSmoke](const QImage& image) {
+            return countPixelsMatching(image, isGreenSmoke) > 10;
+        }, &failure, 25, QStringLiteral("gpu"), 0)) << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("SmokeParity"), cpuRepeatOutput,
+        width, height,
+        [&isGreenSmoke](const QImage& image) {
+            return countPixelsMatching(image, isGreenSmoke) > 10;
+        }, &failure, 25, QStringLiteral("cpu_repeat"), 0))
+        << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("SmokeParity"), cpuRangeOutput,
+        width, height,
+        [&isGreenSmoke](const QImage& image) {
+            return countPixelsMatching(image, isGreenSmoke) > 10;
+        }, &failure, 25, QStringLiteral("cpu_range"), 24))
+        << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("SmokeParity"), gpuRangeOutput,
+        width, height,
+        [&isGreenSmoke](const QImage& image) {
+            return countPixelsMatching(image, isGreenSmoke) > 10;
+        }, &failure, 25, QStringLiteral("gpu_range"), 24))
+        << failure.toStdString();
+
+    const auto readFrame = [](const QString& outputBase, const int frameNumber) {
+        const QFileInfo outputInfo(outputBase);
+        const QString framePath = QDir(outputInfo.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(outputInfo.completeBaseName())
+                .arg(frameNumber, 4, 10, QLatin1Char('0')));
+        return QImage(framePath);
+    };
+    const QImage cpuImage = readFrame(cpuOutput, 24);
+    const QImage gpuImage = readFrame(gpuOutput, 24);
+    const QImage cpuRepeatImage = readFrame(cpuRepeatOutput, 24);
+    const QImage cpuRangeImage = readFrame(cpuRangeOutput, 24);
+    const QImage gpuRangeImage = readFrame(gpuRangeOutput, 24);
+    ASSERT_FALSE(cpuImage.isNull());
+    ASSERT_FALSE(gpuImage.isNull());
+    ASSERT_FALSE(cpuRepeatImage.isNull());
+    ASSERT_FALSE(cpuRangeImage.isNull());
+    ASSERT_FALSE(gpuRangeImage.isNull());
+    ASSERT_EQ(cpuImage.size(), cpuRepeatImage.size());
+
+    const auto compositionObject = projects.findComposition(composition.id)
+                                       .ptr.lock();
+    ASSERT_NE(compositionObject, nullptr);
+    Artifact::DiligentDeviceManager viewDevice;
+    viewDevice.initializeHeadless();
+    ASSERT_NE(viewDevice.device(), nullptr);
+    Artifact::OffscreenCompositionRenderer viewRenderer(
+        viewDevice.device(), viewDevice.immediateContext(), width, height);
+    compositionObject->resetLayerComponentSimulation();
+    for (int frame = 0; frame <= 24; ++frame) {
+        const ArtifactCore::FramePosition position(frame);
+        compositionObject->goToFrame(frame);
+        compositionObject->evaluateLayerComponentSimulation(position, false);
+    }
+    const ArtifactCore::FramePosition previewPosition(24);
+    viewRenderer.renderFrame(previewPosition, compositionObject.get());
+    auto* previewRenderer = viewRenderer.renderer();
+    ASSERT_NE(previewRenderer, nullptr);
+    previewRenderer->setClearColor(compositionObject->backgroundColor());
+    previewRenderer->clear();
+    Artifact::drawLayerForCompositionView(created.layer.get(), previewRenderer);
+    previewRenderer->flush();
+    const QImage previewImage = previewRenderer->readbackToImage(
+        ArtifactCore::SurfaceChannelOrder::BGRA);
+    ASSERT_FALSE(previewImage.isNull());
+    ASSERT_EQ(previewImage.size(), gpuImage.size());
+    const QString viewOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_smoke_view.png"));
+    EXPECT_TRUE(previewImage.save(viewOutput, "PNG"));
+
+    struct SmokeCentroid final {
+        int count = 0;
+        double x = 0.0;
+        double y = 0.0;
+    };
+    const auto centroid = [&isGreenSmoke](const QImage& image) {
+        SmokeCentroid result;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                if (!isGreenSmoke(image.pixel(x, y))) continue;
+                ++result.count;
+                result.x += x;
+                result.y += y;
+            }
+        }
+        if (result.count > 0) {
+            result.x /= result.count;
+            result.y /= result.count;
+        }
+        return result;
+    };
+    const SmokeCentroid cpuSmoke = centroid(cpuImage);
+    const SmokeCentroid gpuSmoke = centroid(gpuImage);
+    const SmokeCentroid cpuRepeatSmoke = centroid(cpuRepeatImage);
+    const SmokeCentroid cpuRangeSmoke = centroid(cpuRangeImage);
+    const SmokeCentroid gpuRangeSmoke = centroid(gpuRangeImage);
+    const SmokeCentroid previewSmoke = centroid(previewImage);
+    int previewQueueChangedPixels = 0;
+    for (int y = 0; y < previewImage.height(); ++y) {
+        for (int x = 0; x < previewImage.width(); ++x) {
+            if (previewImage.pixel(x, y) != gpuImage.pixel(x, y)) {
+                ++previewQueueChangedPixels;
+            }
+        }
+    }
+    EXPECT_GT(cpuSmoke.count, 10);
+    EXPECT_GT(gpuSmoke.count, 10);
+    EXPECT_GT(cpuRepeatSmoke.count, 10);
+    EXPECT_GT(cpuRangeSmoke.count, 10);
+    EXPECT_GT(gpuRangeSmoke.count, 10);
+    EXPECT_GT(previewSmoke.count, 10);
+    EXPECT_EQ(previewQueueChangedPixels, 0)
+        << "Composition View GPU wrapper and GPU Render Queue should match pixel-for-pixel";
+    EXPECT_NEAR(cpuSmoke.x, gpuSmoke.x, 12.0);
+    EXPECT_NEAR(cpuSmoke.y, gpuSmoke.y, 12.0);
+    EXPECT_NEAR(cpuSmoke.x, cpuRepeatSmoke.x, 0.5);
+    EXPECT_NEAR(cpuSmoke.y, cpuRepeatSmoke.y, 0.5);
+    EXPECT_NEAR(cpuSmoke.x, cpuRangeSmoke.x, 0.5);
+    EXPECT_NEAR(cpuSmoke.y, cpuRangeSmoke.y, 0.5);
+    EXPECT_LE(std::abs(cpuSmoke.count - cpuRangeSmoke.count),
+              std::max(1, cpuSmoke.count / 50));
+    EXPECT_NEAR(gpuSmoke.x, gpuRangeSmoke.x, 12.0);
+    EXPECT_NEAR(gpuSmoke.y, gpuRangeSmoke.y, 12.0);
+    EXPECT_LE(std::abs(cpuSmoke.count - cpuRepeatSmoke.count),
+              std::max(1, cpuSmoke.count / 50));
+
+    // Moving the source in layer coordinates must also move the visible plume
+    // in the Composition View, rather than only changing the stored property.
+    ASSERT_TRUE(created.layer->setLayerPropertyValue(
+        QStringLiteral("component.fluid.emitterY"), QVariant(0.60)));
+    compositionObject->resetLayerComponentSimulation();
+    for (int frame = 0; frame <= 24; ++frame) {
+        compositionObject->goToFrame(frame);
+        compositionObject->evaluateLayerComponentSimulation(
+            ArtifactCore::FramePosition(frame), false);
+    }
+    previewRenderer->setClearColor(compositionObject->backgroundColor());
+    previewRenderer->clear();
+    Artifact::drawLayerForCompositionView(created.layer.get(), previewRenderer);
+    previewRenderer->flush();
+    const QImage movedImage = previewRenderer->readbackToImage(
+        ArtifactCore::SurfaceChannelOrder::BGRA);
+    ASSERT_FALSE(movedImage.isNull());
+    const SmokeCentroid movedSmoke = centroid(movedImage);
+    ASSERT_GT(movedSmoke.count, 10);
+    EXPECT_LT(movedSmoke.y, previewSmoke.y - 10.0);
+
+    for (int frame = 25; frame <= 120; ++frame) {
+        compositionObject->goToFrame(frame);
+        compositionObject->evaluateLayerComponentSimulation(
+            ArtifactCore::FramePosition(frame), false);
+    }
+    previewRenderer->setClearColor(compositionObject->backgroundColor());
+    previewRenderer->clear();
+    Artifact::drawLayerForCompositionView(created.layer.get(), previewRenderer);
+    previewRenderer->flush();
+    const QImage longImage = previewRenderer->readbackToImage(
+        ArtifactCore::SurfaceChannelOrder::BGRA);
+    ASSERT_FALSE(longImage.isNull());
+    const SmokeCentroid longSmoke = centroid(longImage);
+    ASSERT_GT(longSmoke.count, 10);
+    int topPixels = 0;
+    for (int y = 0; y < 5; ++y) {
+        for (int x = 0; x < longImage.width(); ++x) {
+            topPixels += isGreenSmoke(longImage.pixel(x, y)) ? 1 : 0;
+        }
+    }
+    GTEST_LOG_(INFO) << "2D smoke frame 120 centroid=" << longSmoke.y
+                     << " top-five-row pixels=" << topPixels
+                     << " visible=" << longSmoke.count;
+
+    ASSERT_TRUE(created.layer->setLayerPropertyValue(
+        QStringLiteral("component.fluid.densityDissipationPerSecond"),
+        QVariant(5.0)));
+    compositionObject->resetLayerComponentSimulation();
+    for (int frame = 0; frame <= 120; ++frame) {
+        compositionObject->goToFrame(frame);
+        compositionObject->evaluateLayerComponentSimulation(
+            ArtifactCore::FramePosition(frame), false);
+    }
+    previewRenderer->setClearColor(compositionObject->backgroundColor());
+    previewRenderer->clear();
+    Artifact::drawLayerForCompositionView(created.layer.get(), previewRenderer);
+    previewRenderer->flush();
+    const QImage dissipatedImage = previewRenderer->readbackToImage(
+        ArtifactCore::SurfaceChannelOrder::BGRA);
+    ASSERT_FALSE(dissipatedImage.isNull());
+    const SmokeCentroid dissipatedSmoke = centroid(dissipatedImage);
+    int dissipatedTopPixels = 0;
+    for (int y = 0; y < 5; ++y) {
+        for (int x = 0; x < dissipatedImage.width(); ++x) {
+            dissipatedTopPixels += isGreenSmoke(dissipatedImage.pixel(x, y)) ? 1 : 0;
+        }
+    }
+    GTEST_LOG_(INFO) << "2D smoke frame 120 higher dissipation centroid="
+                     << dissipatedSmoke.y << " top-five-row pixels="
+                     << dissipatedTopPixels << " visible=" << dissipatedSmoke.count;
+
+    ASSERT_TRUE(created.layer->setLayerPropertyValue(
+        QStringLiteral("component.fluid.densityDissipationPerSecond"), QVariant(2.5)));
+    created.layer->setInPoint(ArtifactCore::FramePosition(10));
+    const auto renderAfterSeek = [&](bool drawDuringPlayback, int explicitStart) {
+        compositionObject->resetLayerComponentSimulation();
+        for (int frame = explicitStart > 0 ? explicitStart : 10; frame <= 24; ++frame) {
+            compositionObject->goToFrame(frame);
+            if (explicitStart > 0) {
+                created.layer->advanceFluidSmokeSimulation(frame, 30.0, explicitStart);
+            } else {
+                compositionObject->evaluateLayerComponentSimulation(
+                    ArtifactCore::FramePosition(frame), false);
+            }
+            if (drawDuringPlayback) {
+                previewRenderer->clear();
+                Artifact::drawLayerForCompositionView(created.layer.get(), previewRenderer);
+                previewRenderer->flush();
+            }
+        }
+        compositionObject->goToFrame(16);
+        if (explicitStart > 0) {
+            created.layer->advanceFluidSmokeSimulation(16, 30.0, explicitStart);
+        } else {
+            compositionObject->evaluateLayerComponentSimulation(
+                ArtifactCore::FramePosition(16), false);
+        }
+        previewRenderer->clear();
+        Artifact::drawLayerForCompositionView(created.layer.get(), previewRenderer);
+        previewRenderer->flush();
+        return previewRenderer->readbackToImage(ArtifactCore::SurfaceChannelOrder::BGRA);
+    };
+    const QImage seekReference = renderAfterSeek(false, 0);
+    const QImage seekAfterDrawing = renderAfterSeek(true, 0);
+    ASSERT_FALSE(seekReference.isNull());
+    ASSERT_FALSE(seekAfterDrawing.isNull());
+    ASSERT_GT(centroid(seekReference).count, 10);
+    EXPECT_EQ(seekAfterDrawing, seekReference)
+        << "drawing must not invalidate smoke checkpoints for a nonzero layer in-point";
+    const QImage customStartReference = renderAfterSeek(false, 12);
+    const QImage customStartDrawn = renderAfterSeek(true, 12);
+    ASSERT_FALSE(customStartReference.isNull());
+    ASSERT_GT(centroid(customStartReference).count, 10);
+    EXPECT_EQ(customStartDrawn, customStartReference)
+        << "drawing must retain the explicitly requested simulation start";
+    const auto softwareAfterSeek = [&](bool drawDuringPlayback) {
+        compositionObject->resetLayerComponentSimulation();
+        QImage surface(width, height, QImage::Format_ARGB32_Premultiplied);
+        for (int frame = 12; frame <= 24; ++frame) {
+            compositionObject->goToFrame(frame);
+            created.layer->advanceFluidSmokeSimulation(frame, 30.0, 12);
+            if (drawDuringPlayback) {
+                surface.fill(Qt::transparent);
+                created.layer->compositeFluidSmokeSoftwareSurface(surface);
+            }
+        }
+        compositionObject->goToFrame(16);
+        created.layer->advanceFluidSmokeSimulation(16, 30.0, 12);
+        surface.fill(Qt::transparent);
+        created.layer->compositeFluidSmokeSoftwareSurface(surface);
+        return surface;
+    };
+    const QImage softwareReference = softwareAfterSeek(false);
+    const QImage softwareAfterDrawing = softwareAfterSeek(true);
+    ASSERT_GT(centroid(softwareReference).count, 10);
+    EXPECT_EQ(softwareAfterDrawing, softwareReference)
+        << "software fallback must retain the explicitly requested simulation start";
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,

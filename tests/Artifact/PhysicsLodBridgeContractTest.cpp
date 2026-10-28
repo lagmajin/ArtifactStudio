@@ -107,7 +107,7 @@ TEST(PhysicsLodBridgeContractTest,
     const PropertyGroup* liquid = findGroup(QStringLiteral("Liquid"));
     ASSERT_NE(fluid, nullptr);
     ASSERT_NE(liquid, nullptr);
-    EXPECT_EQ(fluid->propertyCount(), 8U);
+    EXPECT_EQ(fluid->propertyCount(), 21U);
     EXPECT_EQ(liquid->propertyCount(), 18U);
 
     const auto expectProperty = [](const PropertyGroup* group,
@@ -123,6 +123,22 @@ TEST(PhysicsLodBridgeContractTest,
                    PropertyType::Integer);
     expectProperty(fluid, QStringLiteral("component.fluid.viscosity"),
                    PropertyType::Float);
+    expectProperty(fluid, QStringLiteral("component.fluid.emitterX"),
+                   PropertyType::Float);
+    expectProperty(fluid, QStringLiteral("component.fluid.emitterY"),
+                   PropertyType::Float);
+    expectProperty(fluid, QStringLiteral("component.fluid.emitterRadius"),
+                   PropertyType::Float);
+    expectProperty(fluid, QStringLiteral("component.fluid.emitterCount"),
+                   PropertyType::Integer);
+    expectProperty(fluid, QStringLiteral("component.fluid.emitterDensity"),
+                   PropertyType::Float);
+    expectProperty(fluid, QStringLiteral("component.fluid.emitterVelocityX"),
+                   PropertyType::Float);
+    expectProperty(fluid, QStringLiteral("component.fluid.emitterVelocityY"),
+                   PropertyType::Float);
+    expectProperty(fluid, QStringLiteral("component.fluid.smokeColor"),
+                   PropertyType::Color);
     expectProperty(liquid,
                    QStringLiteral("component.fluid.liquidFillAmount"),
                    PropertyType::Float);
@@ -135,10 +151,35 @@ TEST(PhysicsLodBridgeContractTest,
                    QStringLiteral("component.fluid.liquidFoamColor"),
                    PropertyType::Color);
 
+    const auto emitterCount = fluid->findProperty(
+        QStringLiteral("component.fluid.emitterCount"));
+    ASSERT_TRUE(emitterCount);
+    EXPECT_EQ(emitterCount->metadata().hardMin.toInt(), 1);
+    EXPECT_EQ(emitterCount->metadata().hardMax.toInt(), 64);
+    EXPECT_EQ(emitterCount->getValue().toInt(), 7);
+    const auto emitterRadius = fluid->findProperty(
+        QStringLiteral("component.fluid.emitterRadius"));
+    ASSERT_TRUE(emitterRadius);
+    EXPECT_FLOAT_EQ(emitterRadius->getValue().toFloat(), 0.16f);
+    const auto emitterDensity = fluid->findProperty(
+        QStringLiteral("component.fluid.emitterDensity"));
+    ASSERT_TRUE(emitterDensity);
+    EXPECT_FLOAT_EQ(emitterDensity->getValue().toFloat(), 0.0625f);
+    const auto emitterTemperature = fluid->findProperty(
+        QStringLiteral("component.fluid.emitterTemperature"));
+    ASSERT_TRUE(emitterTemperature);
+    EXPECT_FLOAT_EQ(emitterTemperature->getValue().toFloat(), 1.0f);
+    const auto emitterVelocityY = fluid->findProperty(
+        QStringLiteral("component.fluid.emitterVelocityY"));
+    ASSERT_TRUE(emitterVelocityY);
+    EXPECT_FLOAT_EQ(emitterVelocityY->getValue().toFloat(), -0.75f);
+
     const QColor coffeeColor(102, 61, 31, 255);
     const QColor cremaColor(224, 194, 151, 220);
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("component.fluid.mode"), 1));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.emitterCount"), 9));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("component.fluid.liquidColor"), coffeeColor));
     ASSERT_TRUE(layer.setLayerPropertyValue(
@@ -149,7 +190,16 @@ TEST(PhysicsLodBridgeContractTest,
             return group.name() == QStringLiteral("Liquid");
         });
     ASSERT_NE(liquidGroup, updatedGroups.end());
-    const auto updatedMode = fluid->findProperty(
+    const auto updatedFluidGroup = std::find_if(
+        updatedGroups.begin(), updatedGroups.end(), [](const PropertyGroup& group) {
+            return group.name() == QStringLiteral("Fluid");
+        });
+    ASSERT_NE(updatedFluidGroup, updatedGroups.end());
+    const auto updatedEmitterCount = updatedFluidGroup->findProperty(
+        QStringLiteral("component.fluid.emitterCount"));
+    ASSERT_TRUE(updatedEmitterCount);
+    EXPECT_EQ(updatedEmitterCount->getValue().toInt(), 9);
+    const auto updatedMode = updatedFluidGroup->findProperty(
         QStringLiteral("component.fluid.mode"));
     ASSERT_TRUE(updatedMode);
     EXPECT_EQ(updatedMode->getValue().toInt(), 1)
@@ -159,11 +209,6 @@ TEST(PhysicsLodBridgeContractTest,
     ASSERT_TRUE(updatedLiquidColor);
     EXPECT_EQ(updatedLiquidColor->getColorValue(), coffeeColor);
 
-    const auto updatedFluidGroup = std::find_if(
-        updatedGroups.begin(), updatedGroups.end(), [](const PropertyGroup& group) {
-            return group.name() == QStringLiteral("Fluid");
-        });
-    ASSERT_NE(updatedFluidGroup, updatedGroups.end());
     const auto updatedModeValue = updatedFluidGroup->findProperty(
         QStringLiteral("component.fluid.mode"));
     ASSERT_TRUE(updatedModeValue);
