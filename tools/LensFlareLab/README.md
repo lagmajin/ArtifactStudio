@@ -37,12 +37,20 @@ paper's single-stop-crossing model.
 
 ## Build
 
-The target is opt-in and is excluded from normal app builds. Configure the
-repository with the option enabled, then build the target:
+LensFlareLab can be configured directly as an independent CMake project:
 
 ```powershell
-cmake -S . -B build/lens-flare-lab -DARTIFACT_BUILD_LENS_FLARE_LAB=ON
+cmake -S tools/LensFlareLab -B build/lens-flare-lab
 cmake --build build/lens-flare-lab --target LensFlareLab
+```
+
+The same target can be included in a full repository build. It is opt-in and
+excluded from normal app builds; configure the repository with the option
+enabled, then build the target:
+
+```powershell
+cmake -S . -B build/lens-flare-lab-repo -DARTIFACT_BUILD_LENS_FLARE_LAB=ON
+cmake --build build/lens-flare-lab-repo --target LensFlareLab
 ```
 
 The target is not part of normal builds. It only needs a C++17 compiler.

@@ -1489,24 +1489,84 @@ Coating reflection phase remains omitted.
 
 **The old phase-step values and phase chart below are superseded.** They were
 generated with the incorrect Z-plane reference and must not be used to set
-sampling or judge phase convergence. No corrected phase maps have been
-regenerated yet. The corrected report/map code is in the current source, but
-render-image evidence still requires fresh maps from a rebuilt executable.
+sampling or judge phase convergence. Corrected maps and image comparisons have
+now been regenerated from a fresh LensFlareLab build.
 Even with the corrected reference, these diagnostics do not yet model complex
 Fresnel amplitudes, thin-film reflection phase, phase unwrapping, or coherent
 propagation, so they do not validate the rendered flare image.
 
+The corrected map was regenerated at 64², 128², 256², and 512² pupil grids for
+the 9→8 ghost at source position (0.3834, 0.3844), using the Angenieux
+prescription and 610/550/460 nm report wavelengths. At 512², adjacent valid
+pupil samples still differ by 8.51/9.48/11.45 phase cycles at the median and
+18.29/20.33/24.45 cycles at the maximum (red/green/blue report wavelengths).
+Only 2.48–3.30% of adjacent valid intervals are at or below the half-cycle
+Nyquist limit. The high-frequency wrapped colors in the chart therefore
+diagnose severe undersampling; they are not a resolved wavefront and cannot be
+passed into a coherent pupil transform as-is. This confirms that the
+optical-path map currently serves as a diagnostic, not as a phase model used
+by the rendered ghost.
+
+![Corrected common-plane ghost phase sampling at four pupil-grid resolutions](examples/ghost-optical-path-phase-sampling-corrected-20261028.png)
+
+The same synthetic point-source input was used for a 31-band image comparison
+of geometric mapping, scalar Fresnel propagation, and the aperture FrFT on the
+9→8 path. Between 256² and 512², source-subtracted geometric RGB L1 error was
+0.717% and centroid displacement was 0.103 px; scalar Fresnel was 1.275% and
+0.116 px. At 512², scalar Fresnel changed total luminance by only -0.17% from
+geometric, while the aperture FrFT at 256² changed the masked-crop luminance
+by +1.98%, had 35.04% relative L1 difference, and moved the crop centroid
+8.37 px. The FrFT image introduces visible internal structure, but its large
+spatial rearrangement and saturated spots need calibration against a measured
+lens flare before being treated as realistic. The geometric comparison still
+shows a flat six-sided ghost boundary.
+
+![Single-path geometric ghost compared with the aperture FrFT result; this render does not consume the optical-path phase map](examples/ghost-frft-optical-path-review-20261028.png)
+
+These measurements use a synthetic source and the paper's Angenieux lens
+prescription, not a measured camera capture. They evaluate pupil-grid
+convergence and current model behavior; they do not establish perceptual or
+camera-level accuracy. The per-grid image metrics are in
+[`ghost-path-grid-convergence-31band-20261028.csv`](examples/ghost-path-grid-convergence-31band-20261028.csv).
+The 31-band renders were generated with `evaluate_ghost_raygrid_convergence.py`
+using grids 64/128/256/512, `--ghost-pair 9 8`, and the synthetic source at
+(0.3834, 0.3844). The aperture-FrFT comparison reused its 256² geometric
+render and added `--ghost-frft on --ghost-frft-report`; the chart masks a
+12-pixel-radius region around the light source and reports the 180..640,
+80..360 pixel crop. The corrected phase chart and table can be regenerated
+from four `--optical-path-map` CSVs with
+`make_optical_path_phase_chart.py`, which prints the phase-step summary.
+
 Recreate the historical, superseded chart only if needed for comparison with
-older notes. For new measurements, rebuild the executable and regenerate maps
-at ray grids 64/128/256/512 before drawing conclusions:
+older notes. For new measurements, build LensFlareLab and regenerate maps at
+ray grids 64/128/256/512 before drawing conclusions. Use a bright source at the
+same coordinates as `--position`; otherwise the render exits before running
+the path diagnostics:
 
 ```powershell
+cmake -S tools/LensFlareLab -B build/lens-flare-lab -G Ninja
+cmake --build build/lens-flare-lab --target LensFlareLab
+
+python tools/LensFlareLab/make_evaluation_chart.py `
+  --output build/tools/LensFlareLab/opl-phase-input.pfm `
+  --source-only --single-light-position 0.3834 0.3844 `
+  --source-radius 2 --single-light-neutral --light-scale 1024
+
+foreach ($grid in 64, 128, 256, 512) {
+  build/lens-flare-lab/LensFlareLab.exe `
+    build/tools/LensFlareLab/opl-phase-input.pfm `
+    ("build/tools/LensFlareLab/opl-fixed-grid-$grid.pfm") `
+    --position 0.3834 0.3844 --ray-grid $grid --source-samples 1 `
+    --diffraction off --ghost-pair 9 8 `
+    --optical-path-map ("build/tools/LensFlareLab/opl-fixed-grid-$grid.csv")
+}
+
 python tools/LensFlareLab/make_optical_path_phase_chart.py `
-  --case grid64=build/opl-grid-64.csv `
-  --case grid128=build/opl-grid-128.csv `
-  --case grid256=build/opl-grid-256.csv `
-  --case grid512=build/opl-grid-512.csv `
-  tools/LensFlareLab/examples/ghost-optical-path-phase-sampling.png
+  --case grid64=build/tools/LensFlareLab/opl-fixed-grid-64.csv `
+  --case grid128=build/tools/LensFlareLab/opl-fixed-grid-128.csv `
+  --case grid256=build/tools/LensFlareLab/opl-fixed-grid-256.csv `
+  --case grid512=build/tools/LensFlareLab/opl-fixed-grid-512.csv `
+  tools/LensFlareLab/examples/ghost-optical-path-phase-sampling-corrected-20261028.png
 ```
 
 Reproduce with `LensFlareLab input.pfm output.pfm --position 0.3834 0.3844

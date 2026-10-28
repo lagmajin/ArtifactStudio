@@ -42,10 +42,11 @@ def phase_step_summary(samples, resolution, wavelength):
             if other is not None:
                 steps.append(abs(cycles - other))
     if not steps:
-        return (math.nan, math.nan, math.nan)
+        return (math.nan, math.nan, math.nan, math.nan)
     steps.sort()
     percentile = lambda p: steps[min(len(steps) - 1, int((len(steps) - 1) * p))]
-    return percentile(0.50), percentile(0.90), steps[-1]
+    below_nyquist = sum(step <= 0.5 for step in steps) / len(steps)
+    return percentile(0.50), percentile(0.90), steps[-1], below_nyquist
 
 
 def render_phase_grid(samples, resolution, scale):
@@ -87,10 +88,11 @@ def main():
 
     for label, resolution, maps in cases:
         for wavelength in (610, 550, 460):
-            p50, p90, maximum = phase_step_summary(
+            p50, p90, maximum, below_nyquist = phase_step_summary(
                 maps[wavelength], resolution, wavelength)
             print(f"{label} {wavelength}nm adjacent valid pupil-ray phase step "
-                  f"(cycles): p50={p50:.2f}, p90={p90:.2f}, max={maximum:.2f}")
+                  f"(cycles): p50={p50:.2f}, p90={p90:.2f}, max={maximum:.2f}, "
+                  f"intervals <= 0.5 cycles={below_nyquist:.2%}")
 
     scale = max(1, min(4, 512 // max(resolution for _, resolution, _ in cases)))
     panel = 512
