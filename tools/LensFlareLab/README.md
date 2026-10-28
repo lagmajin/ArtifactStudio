@@ -267,8 +267,9 @@ and generic Double-Gauss Harvey coefficients. This remains exploratory because
 the prescription has no measured surface roughness, per-surface BSDF/TIS,
 contamination, or coating scatter data. It is not used by the C++ renderer and
 is not a calibrated flare prediction. The default L sweep also exports a
-radial irradiance profile, L-dependent scatter plates, sensor-cropped energy,
-and a comparison with the 14-surface Eq. 6 integrated-scatter estimate.
+radial irradiance profile, L-dependent scatter plates, energy captured by the
+central 3.96 mm crop (the prescription sensor is 53.96 mm wide), and a
+comparison with the 14-surface Eq. 6 integrated-scatter estimate.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

@@ -1,4 +1,4 @@
-L_mrad,radius_px,radius_mm,mean_Es_over_Eent,surface_TIS_integral,surface_TIS_Eq6,captured_sensor_fraction_of_incident,infinite_sensor_Eq6_prediction,captured_fraction_of_infinite_prediction
+L_mrad,radius_px,radius_mm,mean_Es_over_Eent,surface_TIS_integral,surface_TIS_Eq6,captured_3p96mm_crop_fraction_of_incident,full_plane_14_surface_Eq6_prediction,crop_fraction_of_full_plane_prediction
 0.5,0,0,0,0.00199980498462,0.00201639824302,0.00710491080737,0.0225836603219,0.314604041423
 0.5,1,0.0055,3.84216249817,0.00199980498462,0.00201639824302,0.00710491080737,0.0225836603219,0.314604041423
 0.5,2,0.011,3.78276456521,0.00199980498462,0.00201639824302,0.00710491080737,0.0225836603219,0.314604041423

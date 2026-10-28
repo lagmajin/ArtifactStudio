@@ -188,8 +188,9 @@ def make_l_sweep(case, image_path, profile_path, csv_path, pitch_um, focal_mm,
         writer = csv.writer(handle)
         writer.writerow(("L_mrad", "radius_px", "radius_mm", "mean_Es_over_Eent",
                          "surface_TIS_integral", "surface_TIS_Eq6",
-                         "captured_sensor_fraction_of_incident", "infinite_sensor_Eq6_prediction",
-                         "captured_fraction_of_infinite_prediction"))
+                         "captured_3p96mm_crop_fraction_of_incident",
+                         "full_plane_14_surface_Eq6_prediction",
+                         "crop_fraction_of_full_plane_prediction"))
         for l_value, profile, _ in profiles:
             record = next(r for r in records if r[0] == l_value)
             captured, predicted = record[4], record[5]
@@ -207,7 +208,7 @@ def make_l_sweep(case, image_path, profile_path, csv_path, pitch_um, focal_mm,
     chart = Image.new("RGB", (chart_w, chart_h), (18, 21, 26))
     draw = ImageDraw.Draw(chart)
     plot_w, plot_h = chart_w - left - right, chart_h - top - bottom
-    draw.text((left, 14), "Peterson Eq. 8 radial scatter profile (axis field)",
+    draw.text((left, 14), "Peterson Eq. 8 radial scatter profile (axis field, 3.96 mm crop)",
               fill=(235, 238, 244))
     draw.rectangle((left, top, left + plot_w, top + plot_h), outline=(80, 88, 100))
     colors = ((91, 184, 255), (109, 229, 176), (255, 196, 90), (255, 119, 139))
@@ -233,7 +234,7 @@ def make_l_sweep(case, image_path, profile_path, csv_path, pitch_um, focal_mm,
             draw.line(points, fill=colors[index % len(colors)], width=2)
         rec = records[index]
         draw.text((left + 10, 31 + index * 17),
-                  f"L={l_value:g} mrad  frame={rec[4]*100:.3g}% of incident",
+                  f"L={l_value:g} mrad  crop={rec[4]*100:.3g}% of incident",
                   fill=colors[index % len(colors)])
     draw.text((left + plot_w // 2 - 80, chart_h - 19),
               "sensor radius (mm), log irradiance / center", fill=(200, 207, 218))
@@ -252,13 +253,13 @@ def make_l_sweep(case, image_path, profile_path, csv_path, pitch_um, focal_mm,
         plate.paste(Image.merge("RGB", (tile, tile, tile)), (x, y + 28))
         rec = records[i]
         draw.text((x + 8, y + 8),
-                  f"L={l_value:g} mrad  captured={rec[4]*100:.3g}%",
+                  f"L={l_value:g} mrad  crop={rec[4]*100:.3g}%",
                   fill=(235, 238, 244))
     image_path.parent.mkdir(parents=True, exist_ok=True)
     plate.save(image_path)
     for l_value, b0, tis_integral, tis_eq6, captured, predicted in records:
         print(f"L={l_value:g} mrad b0={b0:.6g} TIS={tis_integral:.6g} "
-              f"(Eq6 {tis_eq6:.6g}) frame={captured:.6g} "
+              f"(Eq6 {tis_eq6:.6g}) 3.96mm-crop={captured:.6g} "
               f"({captured / predicted:.3%} of 14-surface Eq6 integral)")
 
 

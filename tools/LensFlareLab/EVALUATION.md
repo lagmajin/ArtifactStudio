@@ -43,12 +43,13 @@ using these radii as inputs to a future per-surface render model.
 ### Harvey roll-off and finite-sensor capture
 
 The same prescription-derived on-axis cones were evaluated at four roll-off
-angles. The raster is 720² pixels at 5.5 µm pitch (3.96 mm square); the
-per-pixel irradiance is integrated to estimate the captured scatter power. The
-model's full-plane reference is 14 times the generic Eq. 6 TIS, multiplied by
-the assumed 80% transmission. Results are:
+angles. The raster is a 720² central crop at 5.5 µm pitch (3.96 mm square),
+not the prescription's full 53.96 mm sensor. Per-pixel irradiance is integrated
+to estimate scatter power captured by this crop. The full-plane reference is
+14 times the generic Eq. 6 TIS, multiplied by the assumed 80% transmission.
+Results are:
 
-| L (mrad) | Surface TIS integral | Eq. 6 TIS | Sensor capture / incident | Captured / full-plane Eq. 6 |
+| L (mrad) | Surface TIS integral | Eq. 6 TIS | 3.96 mm crop / incident | Crop / full-plane Eq. 6 |
 |---:|---:|---:|---:|---:|
 | 0.5 | 0.2000% | 0.2016% | 0.7105% | 31.46% |
 | 1.0 | 0.1995% | 0.1908% | 0.5898% | 27.60% |
@@ -56,9 +57,10 @@ the assumed 80% transmission. Results are:
 | 4.0 | 0.1920% | 0.1657% | 0.3197% | 17.22% |
 
 The narrower BSDF roll-off concentrates more of the modeled scatter inside
-this finite sensor. The captured-energy ratios are lower than the full-plane
-estimate because the Harvey wings extend beyond the sensor. They are numerical
-results for this assumed model and are not measured lens efficiencies.
+this local crop. The crop fractions are lower than the full-plane estimate
+because Harvey wings extend beyond this crop; they do not say how much light
+falls on the complete sensor. They are numerical results for this assumed
+model and are not measured lens efficiencies.
 
 ![L-dependent Peterson surface-scatter renders](examples/prescription-surface-scatter-l-sweep.png)
 
