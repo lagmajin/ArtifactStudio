@@ -32,19 +32,19 @@ def scale_parameters(wavelength_nm, reference_nm, slope, b_ref, l_ref_mrad):
 
 def render_band(case, wavelength_nm, slope, b_ref, l_ref_mrad,
                 reference_nm, transmission, na, rho, pixel_area_mm2,
-                radius_index=3):
+                radius_index=3, radius_scale=1.0):
     b, l_mrad = scale_parameters(wavelength_nm, reference_nm, slope,
                                  b_ref, l_ref_mrad)
     l_rad = l_mrad * 1e-3
     b0 = b * (100.0 * l_rad) ** slope
     rows = case["rows"]
-    entrance_radius = rows[0][radius_index]
+    entrance_radius = rows[0][radius_index] * radius_scale
     accepted_fraction = case["accepted"] / case["launched"]
     field_transmission = transmission * accepted_fraction
     image = np.zeros_like(rho)
     surface_contributions = []
     for row in rows:
-        a_j = row[radius_index]
+        a_j = row[radius_index] * radius_scale
         if not math.isfinite(a_j) or a_j <= 1e-8 or not math.isfinite(entrance_radius):
             surface_contributions.append(0.0)
             continue

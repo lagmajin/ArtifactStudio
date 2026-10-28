@@ -177,7 +177,7 @@ Across all four fields and all three wavelength bands, relative to r90:
 | RMS | +17.0% to +19.2% |
 
 The top-ranked surface remains index 7 for 0–10° and index 13 at 12° for all
-four radius choices and all three bands. Its share remains below 8.9%, so this
+four original radius choices and all three bands. Its share remains below 8.9%, so this
 ranking is weak and depends on the shared generic BSDF and the assumption that
 one scalar radius can stand in for each surface's actual pupil distribution.
 Changing only that radius statistic moves total crop estimates by up to about
@@ -186,6 +186,13 @@ measured or non-sequential surface-scatter model is needed before interpreting
 the absolute scatter estimate or using it to prioritize an individual surface.
 
 ![Crop-scatter sensitivity to r50, r90, r99, and RMS beam-radius proxies](examples/prescription-scatter-radius-proxy-sensitivity.png)
+
+An additional equal-area disk radius, `sqrt(2) × RMS`, changes the modeled crop
+by −2.13% to −1.29% relative to r90 across these cases. The conversion follows
+the second moment of a uniform disk; its closeness to r90 here is an observed
+property of this trace, not evidence that the true surface footprint is uniform.
+This fifth curve is therefore a geometry-based comparison case, not a calibrated
+replacement for measured pupil footprints or BSDF data.
 
 Exact band/field results and top-surface indices are in
 [`prescription-scatter-radius-proxy-sensitivity.csv`](examples/prescription-scatter-radius-proxy-sensitivity.csv).

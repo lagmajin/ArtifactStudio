@@ -1,8 +1,8 @@
 """Measure how the cone-radius proxy changes prescription-scatter predictions.
 
-Reads the per-surface ray-trace CSV and compares r50, r90, r99 and RMS radii
-in Peterson Eq. 8. These are sensitivity cases, not four equally validated
-physical interpretations of the model parameter.
+Reads the per-surface ray-trace CSV and compares r50, r90, r99, RMS, and the
+equal-area disk radius derived from RMS in Peterson Eq. 8. These are sensitivity
+cases, not equally validated physical interpretations of the model parameter.
 """
 
 import argparse
@@ -18,7 +18,8 @@ from evaluate_harvey_spectral_scaling import RGB_BANDS
 from evaluate_prescription_spectral_surface_scatter import render_band
 
 
-PROXIES = (("r50", 2), ("r90", 3), ("r99", 4), ("rms", 5))
+PROXIES = (("r50", 2, 1.0), ("r90", 3, 1.0), ("r99", 4, 1.0),
+           ("rms", 5, 1.0), ("rms-eq-disk", 5, math.sqrt(2.0)))
 COLORS = ((255, 110, 104), (111, 223, 160), (110, 174, 255))
 
 
@@ -70,10 +71,10 @@ def evaluate(input_csv):
         ratio = case["wavelength_nm"] / case["reference_nm"]
         b_ref = case["b"] * ratio ** (4.0 + case["slope"])
         l_ref_mrad = case["l_mrad"] / ratio
-        for proxy, radius_index in PROXIES:
+        for proxy, radius_index, radius_scale in PROXIES:
             result = render_band(case, case["wavelength_nm"], case["slope"],
                 b_ref, l_ref_mrad, case["reference_nm"], case["transmission"],
-                case["na"], rho, pixel_area, radius_index)
+                case["na"], rho, pixel_area, radius_index, radius_scale)
             values.append({"field": field, "channel": channel,
                 "wavelength_nm": case["wavelength_nm"], "proxy": proxy,
                 "accepted": case["accepted"], "launched": case["launched"],
@@ -91,7 +92,7 @@ def make_chart(path, fields, rows):
     left, right, top, bottom = 58, panel_w - 18, 43, panel_h - 42
     ymax = max(r["crop_fraction"] * 100 for r in rows)
     ymax = max(.5, math.ceil(ymax * 2.0) / 2.0)
-    proxies = [name for name, _ in PROXIES]
+    proxies = [name for name, _, _ in PROXIES]
     for index, field in enumerate(fields):
         x0 = (index % 2) * panel_w
         y0 = (index // 2) * (panel_h + header)
@@ -118,15 +119,19 @@ def make_chart(path, fields, rows):
                              fill=COLORS[channel_index])
             if len(points) > 1:
                 draw.line(points, fill=COLORS[channel_index], width=2)
+        labels = {"rms-eq-disk": "rms disk"}
         for proxy_index, proxy in enumerate(proxies):
             x = plot[0] + int(proxy_index / (len(proxies) - 1) *
                               (plot[2] - plot[0]))
-            draw.text((x - 12, plot[3] + 5), proxy, fill=(170, 177, 188))
+            label = labels.get(proxy, proxy)
+            bounds = draw.textbbox((0, 0), label)
+            draw.text((x - (bounds[2] - bounds[0]) / 2, plot[3] + 5),
+                      label, fill=(170, 177, 188))
         for channel_index, (channel, _) in enumerate(RGB_BANDS):
             draw.text((plot[0] + 8 + channel_index * 82, plot[1] + 6),
                       channel, fill=COLORS[channel_index])
         draw.text((plot[0], y0 + panel_h - 14),
-                  "r50 / r90 / r99 / RMS radius statistic",
+                  "RMS-eq-disk radius = sqrt(2) * RMS",
                   fill=(200, 207, 218))
     path.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(path)
@@ -146,6 +151,7 @@ def main():
     with args.csv.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(("field_deg", "channel", "wavelength_nm", "radius_proxy",
+            "radius_scale",
             "accepted_rays", "launched_rays", "entrance_radius_mm",
             "crop_fraction", "crop_percent", "delta_percent_vs_r90",
             "top_surface_index", "top_surface_crop_share_percent"))
@@ -157,7 +163,9 @@ def main():
             top_share = (row["surface_contributions"][top_index] /
                          max(row["crop_fraction"], 1e-300) * 100.0)
             writer.writerow((row["field"], row["channel"], row["wavelength_nm"],
-                row["proxy"], row["accepted"], row["launched"],
+                row["proxy"], next(scale for name, _, scale in PROXIES
+                                    if name == row["proxy"]),
+                row["accepted"], row["launched"],
                 f"{row['entrance_radius_mm']:.12g}",
                 f"{row['crop_fraction']:.12g}",
                 f"{row['crop_fraction']*100:.9g}",
@@ -175,7 +183,7 @@ def main():
                 for row in rows if row["field"] == field and row["channel"] == channel}
             print(f"field={field:g} {channel}: " + " ".join(
                 f"{proxy}={by_proxy[proxy]*100:.4f}%/surf{top_by_proxy[proxy]}"
-                for proxy, _ in PROXIES))
+                for proxy, _, _ in PROXIES))
     print(f"wrote {args.csv} and {args.image}; source grid={prototype['grid']}²")
     print("Radius-statistic cases are sensitivity bounds, not calibrated cone-radius choices.")
 

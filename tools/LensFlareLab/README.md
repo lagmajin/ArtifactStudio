@@ -303,7 +303,8 @@ own r90 pupil-cone radii. It also plots each surface's share of sensor-crop
 scatter to expose whether the generic model predicts a dominant surface. Its
 visualizations and physical limits are documented in [EVALUATION.md](EVALUATION.md).
 `evaluate_scatter_radius_proxy_sensitivity.py` reuses that per-surface trace
-to compare crop predictions using r50, r90, r99, or RMS cone radii.
+to compare crop predictions using r50, r90, r99, RMS, and `sqrt(2) × RMS`
+equal-area disk cone radii.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
