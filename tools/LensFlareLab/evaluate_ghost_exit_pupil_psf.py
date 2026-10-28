@@ -64,6 +64,7 @@ def read_map(path: Path, grid: int, wavelength: int) -> dict[str, np.ndarray]:
 
 
 def fit_exit_pupil(data: dict[str, np.ndarray]) -> tuple[np.ndarray, np.ndarray, float, float]:
+    """Estimate the minimum-radius back-projection plane and pupil RMS radius."""
     valid = data["valid"]
     z_values = data["exit_z"][valid]
     if valid.sum() < 16:
@@ -390,7 +391,7 @@ def main() -> None:
             parser.error(f"missing optical-path map: {path}")
         for wavelength in args.wavelengths_nm:
             data = read_map(path, grid, wavelength)
-            pupil_xy, pupil_center, pupil_z, plane_rms = fit_exit_pupil(data)
+            pupil_xy, pupil_center, pupil_z, pupil_rms_radius = fit_exit_pupil(data)
             opd, image_point, reference_radius, chief_pupil = image_centered_opd(
                 data, wavelength, pupil_xy, pupil_center, pupil_z)
             pupil_resolution = args.pupil_resolution or grid
@@ -425,7 +426,7 @@ def main() -> None:
                 "exit_pupil_center_x_mm": float(pupil_center[0]),
                 "exit_pupil_center_y_mm": float(pupil_center[1]),
                 "exit_pupil_back_projection_mm": float(np.mean(data["exit_z"][data["valid"]]) - pupil_z),
-                "exit_pupil_plane_fit_rms_mm": plane_rms,
+                "exit_pupil_rms_radius_mm": pupil_rms_radius,
                 "reference_sphere_radius_mm": reference_radius,
                 "chief_image_x_mm": float(image_point[0]),
                 "chief_image_y_mm": float(image_point[1]),
@@ -449,7 +450,7 @@ def main() -> None:
             }
             records.append(record)
             print(f"{wavelength} nm grid={grid} exit pupil z={pupil_z:.4f} mm "
-                  f"fit RMS={plane_rms:.5f} mm, OPD RMS="
+                  f"pupil RMS radius={pupil_rms_radius:.5f} mm, OPD RMS="
                   f"{record['reference_sphere_opd_rms_um']:.4f} um, "
                   f"Rref={reference_radius:.3f} mm, phase/flat L1={l1:.2f}%, "
                   f"grid L1={grid_l1:.2f}%")

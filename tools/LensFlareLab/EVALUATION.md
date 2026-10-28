@@ -1605,8 +1605,9 @@ Fourier relation described in the [TUDelft Fourier analysis notes](https://qiweb
 and the prescription-based, Fresnel-weighted path model of [Hullin et al.](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf).
 This is a research diagnostic, not a calibrated camera result: reflection
 coating phase, polarization, broadband coherence, sensor spectral response,
-and measured lens calibration remain unmodeled. The least-squares pupil-plane
-fit residual is reported as a check on whether a single plane is adequate.
+and measured lens calibration remain unmodeled. The evaluator reports the
+RMS radius of the back-projected pupil; it does not calculate a pupil-plane
+fit residual or prove that a single plane is an adequate wavefront reference.
 
 The first detector image used a two-neighbor splat for each native Fourier
 sample. Because the fitted pupil is very small, one Fourier sample spans about
@@ -1616,8 +1617,8 @@ integrates intensity per detector pixel. On a 512² pupil map, 4×4 versus 8×8
 subpixel sampling gives identical r50/r90 to the reported precision and
 phase-versus-flat L1 within 0.03 percentage points.
 
-For the centered 9→8 Angenieux ghost, 128²–2048² maps yield pupil-plane fit
-RMS near 0.0111 mm and reference-sphere OPD RMS near 1.30 µm. Adjacent-grid
+For the centered 9→8 Angenieux ghost, 128²–2048² maps yield back-projected
+pupil RMS radius near 0.0111 mm and reference-sphere OPD RMS near 1.30 µm. Adjacent-grid
 normalized sensor-crop PSF L1 changes are 89.43/96.05/105.34% (128²→256²),
 95.89/74.22/92.14% (256²→512²), and 68.49/64.27/61.33% (512²→1024²) at
 460/550/610 nm. 1024²→2048² changes by 80.38/61.82/61.21% L1 at

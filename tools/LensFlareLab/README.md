@@ -454,6 +454,10 @@ monochromatic scalar diagnostic:
 coating phase, polarization, broadband coherence, and measured-camera response
 are not modeled.
 
+The reported `exit_pupil_rms_radius_mm` is the RMS radius of back-projected ray
+positions about their center. It is not a residual measuring the adequacy of
+the fitted plane.
+
 Use `--pupil-resolution N` to hold the regular physical pupil raster fixed while
 comparing different ray-map grids. This isolates changes in ray mapping from
 changes in pupil raster resolution; independent optical-path maps are still
