@@ -4176,3 +4176,35 @@ pupil and does not include complex coating phase or a measured lens. The source
 is synthetic, and panel intensities are normalized independently for shape
 inspection. This evaluation uses an independent ray-mapped Fraunhofer reference;
 it is not calibrated against a captured optical system.
+
+## Exit-pupil energy Jacobian ablation
+
+The ray-energy-to-pupil-amplitude conversion currently averages area Jacobians
+from accepted local Delaunay triangles. I added an alternate estimator that
+computes finite differences on the original structured launch grid, then uses
+the same accepted triangles for pupil support and interpolation. This isolates
+whether triangle-area averaging itself explains the unstable mapped pupil.
+
+For the 550 nm central 9→8 case, with a common 512² physical pupil, ±12 px
+sensor crop, 2×2 detector subpixels, and the same fractional chief-ray offset,
+the normalized 512²→1024² PSF L1 is 23.966% with triangle averaging and
+23.972% with launch-grid finite differences. The pupil-amplitude relative L2
+changes from 76.050% to 76.036%; support IoU is 59.006% for both because the
+support mask is intentionally shared. On the same 512² map, the two Jacobian
+estimators differ by 0.437% amplitude-relative L2 and yield 0.129% PSF L1.
+
+![Exit-pupil Jacobian methods compared at two ray-map grids](examples/ghost-pupil-jacobian-ablation-20261028.png)
+
+The alternative does not improve cross-grid convergence. It rules out the
+triangle-area average as a significant cause in this fixture; changes in the
+mapped support and its phase samples remain. Keep `triangle` as the default and
+use `launch-fd` only as an ablation. Recreate the image and CSV with:
+
+```powershell
+python tools/LensFlareLab/compare_ghost_pupil_jacobian.py `
+  --low-grid 512 --high-grid 1024 --wavelength-nm 550 `
+  --pupil-resolution 512 --crop-radius 12 --pixel-subsamples 2 `
+  --detector-offset-px 0.157536 0.319445 `
+  --csv build/tools/LensFlareLab/ghost-pupil-jacobian-ablation.csv `
+  --image tools/LensFlareLab/examples/ghost-pupil-jacobian-ablation-20261028.png
+```

@@ -132,7 +132,8 @@ def image_centered_opd(data: dict[str, np.ndarray], wavelength: int,
 
 def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
                          opd_mm: np.ndarray, resolution: int,
-                         opd_interpolation: str = "linear"
+                         opd_interpolation: str = "linear",
+                         jacobian_method: str = "triangle"
                          ) -> tuple[np.ndarray, float, np.ndarray]:
     valid = data["valid"]
     launch_grid = np.argwhere(valid)
@@ -161,12 +162,54 @@ def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
     smooth_opd = (CloughTocher2DInterpolator(triangulation, opd_mm, tol=1e-6, maxiter=400)
                   if opd_interpolation == "clough-tocher" else None)
 
-    nodal_jacobian = np.zeros(len(pupil_xy), dtype=np.float64)
-    nodal_count = np.zeros(len(pupil_xy), dtype=np.float64)
-    for corner in range(3):
-        np.add.at(nodal_jacobian, triangles[local, corner], jacobian[local])
-        np.add.at(nodal_count, triangles[local, corner], 1.0)
-    nodal_jacobian /= np.maximum(nodal_count, 1.0)
+    if jacobian_method == "triangle":
+        nodal_jacobian = np.zeros(len(pupil_xy), dtype=np.float64)
+        nodal_count = np.zeros(len(pupil_xy), dtype=np.float64)
+        for corner in range(3):
+            np.add.at(nodal_jacobian, triangles[local, corner], jacobian[local])
+            np.add.at(nodal_count, triangles[local, corner], 1.0)
+        nodal_jacobian /= np.maximum(nodal_count, 1.0)
+    elif jacobian_method == "launch-fd":
+        # Estimate area scale on the structured launch grid before mapping to
+        # pupil space, avoiding dependence on Delaunay triangle diagonals.
+        pupil_grid = np.full((*valid.shape, 2), np.nan, dtype=np.float64)
+        pupil_grid[valid] = pupil_xy
+
+        def derivative(values: np.ndarray, coordinates: np.ndarray,
+                       axis: int) -> np.ndarray:
+            plus_values = np.full_like(values, np.nan)
+            minus_values = np.full_like(values, np.nan)
+            plus_coords = np.full_like(coordinates, np.nan)
+            minus_coords = np.full_like(coordinates, np.nan)
+            plus_slice = [slice(None), slice(None)]
+            minus_slice = [slice(None), slice(None)]
+            plus_slice[axis] = slice(1, None)
+            minus_slice[axis] = slice(None, -1)
+            plus_values[tuple(minus_slice)] = values[tuple(plus_slice)]
+            plus_coords[tuple(minus_slice)] = coordinates[tuple(plus_slice)]
+            minus_values[tuple(plus_slice)] = values[tuple(minus_slice)]
+            minus_coords[tuple(plus_slice)] = coordinates[tuple(minus_slice)]
+            has_plus = np.isfinite(plus_values[..., 0])
+            has_minus = np.isfinite(minus_values[..., 0])
+            central = has_plus & has_minus
+            forward = has_plus & ~has_minus
+            backward = has_minus & ~has_plus
+            result = np.zeros_like(values)
+            result[central] = ((plus_values[central] - minus_values[central]) /
+                               (plus_coords[central] - minus_coords[central])[:, None])
+            result[forward] = ((plus_values[forward] - values[forward]) /
+                               (plus_coords[forward] - coordinates[forward])[:, None])
+            result[backward] = ((values[backward] - minus_values[backward]) /
+                                (coordinates[backward] - minus_coords[backward])[:, None])
+            return result
+
+        pupil_du = derivative(pupil_grid, data["u"], axis=1)
+        pupil_dv = derivative(pupil_grid, data["v"], axis=0)
+        fd_jacobian = (pupil_du[..., 0] * pupil_dv[..., 1] -
+                       pupil_du[..., 1] * pupil_dv[..., 0])
+        nodal_jacobian = np.maximum(fd_jacobian[valid], 0.0)
+    else:
+        raise ValueError(f"unsupported pupil Jacobian method: {jacobian_method}")
     nodal_energy = data["energy"][valid]
     amplitude = np.sqrt(nodal_energy / np.maximum(nodal_jacobian, 1e-30))
 
@@ -388,6 +431,9 @@ def main() -> None:
                         help="common regular-pupil grid size for isolating ray-grid convergence")
     parser.add_argument("--opd-interpolation", choices=("linear", "clough-tocher"),
                         default="linear", help="OPD interpolation inside accepted local pupil triangles")
+    parser.add_argument("--jacobian-method", choices=("triangle", "launch-fd"),
+                        default="triangle",
+                        help="ray-energy to pupil-amplitude area Jacobian")
     parser.add_argument("--map-pattern", default="build/tools/LensFlareLab/ghost-exit-grid-{grid}.csv")
     parser.add_argument("--wavelengths-nm", type=int, nargs="+", default=DEFAULT_WAVELENGTHS)
     parser.add_argument("--crop-radius", type=int, default=32)
@@ -418,7 +464,8 @@ def main() -> None:
                 data, wavelength, pupil_xy, pupil_center, pupil_z)
             pupil_resolution = args.pupil_resolution or grid
             regular_opd, pupil_pitch, amplitude = map_to_regular_pupil(
-                data, pupil_xy, opd, pupil_resolution, args.opd_interpolation)
+                data, pupil_xy, opd, pupil_resolution, args.opd_interpolation,
+                args.jacobian_method)
             previous_pupil = previous_pupils.get(wavelength)
             if previous_pupil is None:
                 opd_delta_um, amplitude_delta_percent, support_iou_percent = (
@@ -458,6 +505,7 @@ def main() -> None:
                 "physical_pupil_grid_pitch_mm": pupil_pitch,
                 "pupil_grid_resolution": pupil_resolution,
                 "opd_interpolation": args.opd_interpolation,
+                "jacobian_method": args.jacobian_method,
                 "native_fourier_sample_pitch_sensor_px": pixel_scale,
                 "detector_pixel_subsamples": args.pixel_subsamples,
                 "reference_sphere_opd_rms_um": float(np.sqrt(np.mean(opd * opd)) * 1000.0),

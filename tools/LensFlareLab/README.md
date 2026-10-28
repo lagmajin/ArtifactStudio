@@ -466,6 +466,10 @@ comparing different ray-map grids. This isolates changes in ray mapping from
 changes in pupil raster resolution; independent optical-path maps are still
 required for each `--grid` value.
 
+`compare_ghost_pupil_jacobian.py` compares the triangle-averaged pupil-area
+Jacobian with a structured-launch finite-difference estimator; its alternate mode
+is diagnostic only. See its controlled result in [EVALUATION.md](EVALUATION.md).
+
 `compare_ghost_pupil_ablation.py` compares two neighboring ray-map resolutions
 on the same physical pupil and separates native support, shared support,
 amplitude, and OPD effects. It writes a normalized PSF comparison plate and CSV
