@@ -7689,3 +7689,8 @@
 - **確認できた事実:** 矩形経路の連続 sweep が、多角形分岐内だけで宣言された `point` を参照していた。
 - **価値または懸念:** 現在の粒子位置を矩形分岐内で明示してから sweep 終点に使うよう修正した。ビルド未実行のため、コンパイル確認は未了。
 - **次に確認すべきこと:** ビルド許可後に Core をコンパイルし、矩形の左右・底辺および開口の回帰を実行する。
+## 2026-10-28: 液体表面格子の上限とフレーム内確保
+- **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::buildSurfaceSnapshotInto`、`Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`。
+- **確認できた事実:** surface snapshot はフレーム番号ごとに一度構築される。密度ノードとsurface cellは呼び出しローカルの `std::map` / `std::set`。入力サンプルは最大4096件に制限され、各sampleのsupport半径はgrid間隔の8倍以下だが、floor/ceil境界を含めると理論上は1 sampleあたり各軸最大18 node、最大約133万回のdensity-node加算候補がある。これは上限からの静的推定で実測ではない。
+- **価値または懸念:** 格子を細かくした場合、snapshot生成時のnode探索・割当が増える可能性がある。実際の重複率・ノード数・CPU時間は未計測で、最大surface cell数やtriangle数だけではdensity mapの割当量を評価できない。
+- **次に確認すべきこと:** 同じ固定sample列でgrid spacing変更前後のunique density node数、map/set割当、snapshot生成時間を測り、必要なら既存workspaceを再利用するboundedなscratch構造へ移す。
