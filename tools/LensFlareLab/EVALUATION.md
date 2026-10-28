@@ -304,6 +304,52 @@ comparison. This analytic ideal-pupil view is a reference for future
 wide-support and pixel-area integration work, not evidence to integrate into
 Core/App.
 
+## Harvey–Shack rough-surface scatter reference
+
+The current geometric ghost and aperture-diffraction models do not produce the
+wide, low-level veiling component caused by rough optical surfaces. To study
+that missing contribution, `evaluate_harvey_scatter_reference.py` evaluates the
+angular Harvey–Shack BSDF
+`BSDF(θ)=b₀[1+(sin θ/L)²]^(S/2)` and maps it onto the focal plane with the
+solid-angle Jacobian `cos³(θ)/f²`. It integrates 4×4 subpixel samples per
+detector pixel and compares each rendered shape against an 8×8 reference.
+
+The parameters use the generic commercial Double-Gauss set reported by
+[Ritt et al. (2020)](https://www.mdpi.com/1424-8220/20/21/6308):
+`S=-1.86`, `B=0.36 sr⁻¹`, and `L=2.04 mrad`. The derived `b₀` is `6.9245 sr⁻¹`.
+The test image follows that article's example detector (1000×1000, 5.5 µm
+pixels) and the 35 mm Double-Gauss simulation in its validation study. These
+are generic lens-class measurements, not values measured from the bundled
+Angenieux prescription or any specific production lens. The image shows one
+rough surface's scatter-only component; the full lens surface count is not
+assumed.
+
+At `L=2.04 mrad`, the hemisphere integral of the stated BSDF is `0.1976%` while
+the article's small-angle Eq. 6 gives `0.1785%`; the renderer scales the profile
+to Eq. 6's per-surface TIS convention. The selected sensor captures `0.0810%`
+of unit incident energy from that surface, about 45% of its Eq. 6 scatter. The
+4×4 pixel integration differs from the 8×8 reference by `0.00023%` normalized
+L1 in this case; the maximum across the four `L` cases is `0.00248%`. The
+radial curve shifts outward as `L` grows, as expected from the BSDF corner
+angle.
+
+![Pixel-integrated rough-surface scatter for four Harvey corner angles](examples/harvey-scatter-reference.png)
+
+![Log-log radial profile showing the scatter-wing change with Harvey corner angle](examples/harvey-scatter-profile.png)
+
+Reproduce both figures and the per-pixel-radius CSV with:
+
+```powershell
+python tools/LensFlareLab/evaluate_harvey_scatter_reference.py
+```
+
+This applies the rotationally symmetric pupil-to-image approximation. It omits
+the surface-specific beam radii and `a_ent²/a_j²` factors from Peterson's full
+focal-plane model, field dependence, aperture clipping, the coherent PSF core,
+ghosts, and measured sensor response; see the [2022 validation paper](https://www.mdpi.com/1424-8220/22/23/9447).
+It is a research-grounded scatter layer candidate, not a camera-calibrated
+effect and not yet part of the C++ renderer.
+
 ## Controlled wavefront-aberration PSFs
 
 `evaluate_wavefront_aberration_psf.py` extends the ideal six-blade pupil with

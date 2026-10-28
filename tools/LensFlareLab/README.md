@@ -253,6 +253,10 @@ wings; samples are pointwise irradiance and are not detector-pixel integrals.
 At 96-point Gauss order, the transform is cross-checked against an independent
 six-triangle area integral and against hexagonal rotational symmetry at high
 spatial frequencies.
+`evaluate_harvey_scatter_reference.py` renders the pixel-integrated angular
+Harvey-Shack scatter component reported for generic Double-Gauss lenses, with
+radial profiles and a 4×4 versus 8×8 pixel-integration comparison. It is a
+separate scatter reference, not a full prescription flare kernel.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires
