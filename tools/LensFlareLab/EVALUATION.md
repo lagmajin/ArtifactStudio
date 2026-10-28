@@ -3505,6 +3505,31 @@ weights; keep the original chart as a baseline and use the dual-basis CSV for
 current numbers. This again shows that integrated neutral light with thin-film
 coatings can require more wavelength samples than the direct PSF energy test.
 
+The compact summary below aggregates the seven path/field cases with nonzero
+ghost flux; zero-flux cases are excluded instead of being counted as zero error.
+For the tested coated paths, 31 bands keep the worst RGB flux error below
+0.23% of the 61-band reference. Fifteen bands are an intermediate setting
+(maximum 1.44%), while the three-band default has a maximum error of 28.79%.
+These are integration errors for the illustrative single-layer coating and
+reconstructed RGB spectrum, not evidence of agreement with a real lens.
+
+![Mean and maximum ghost RGB flux error against 61-band integration](examples/spectral-convergence-summary.png)
+
+| Coating | Bands | Mean RGB L1 | Maximum RGB L1 |
+|---|---:|---:|---:|
+| Off | 3 | 0.680% | 1.591% |
+| Off | 7 | 0.143% | 0.402% |
+| Off | 15 | 0.038% | 0.079% |
+| Off | 31 | 0.009% | 0.023% |
+| On | 3 | 19.946% | 28.792% |
+| On | 7 | 4.454% | 6.648% |
+| On | 15 | 0.934% | 1.444% |
+| On | 31 | 0.150% | 0.227% |
+
+Regenerate the compact chart and table with
+`python tools/LensFlareLab/plot_spectral_convergence_summary.py`; it reads the
+dual-basis per-case CSV and does not launch the renderer.
+
 ![Dual-basis spectral integration counts across ghost paths and fields with coating off/on](examples/coating-spectrum-field-path-convergence-dual-basis.png)
 [`coating-spectrum-field-path-convergence-dual-basis.csv`](examples/coating-spectrum-field-path-convergence-dual-basis.csv)
 
