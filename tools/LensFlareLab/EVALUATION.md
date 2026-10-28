@@ -2,6 +2,36 @@
 
 **最終更新:** 2026-10-28
 
+## Prescription surface-scatter pupil-cone study
+
+`evaluate_prescription_surface_scatter.py` traces a regular pupil bundle
+through all 14 prescription surfaces at 550 nm and reports the accepted full
+path ray count and per-surface r50/r90/r99/RMS bundle radius. With a 32x32
+sample, the accepted rays were 1024/1024 at 0, 5, and 10 degrees, and 592/1024
+(57.8%) at 12 degrees. The surface-0 r90 stayed near 5.04 mm, while surface-13
+r90 decreased from 2.824 mm on axis to 2.426 mm at 12 degrees. This confirms
+that a single invariant pupil-radius parameter cannot represent all surfaces
+and fields in this prescription.
+
+![Per-surface pupil bundle radii at four field angles](examples/prescription-surface-bundle-radii.png)
+
+The companion image sums equal-weight Harvey-Shack kernels using the traced
+surface-cone radii, and is useful only for checking the expected broad halo
+shape and field trend. It is not a physical exposure prediction: the source
+model does not include transmission-weighted scattering, measured roughness or
+surface TIS, vignetting weights within each scattering cone, aberration, sensor
+response, or measured stray-light references. In particular, equal event
+weights across all 14 surfaces are an explicit visualization assumption, not
+an inferred property of the lens. The generic Harvey coefficients come from
+Ritt et al.'s generic Double-Gauss example and should not be mistaken for data
+from the Angenieux prescription.
+
+![Exploratory summed surface-scatter comparison by field](examples/prescription-surface-scatter-fields.png)
+
+Reproduce the study with `python tools/LensFlareLab/evaluate_prescription_surface_scatter.py
+--grid 32`. Increase `--grid` to check pupil sampling convergence before using
+these radii as inputs to a future per-surface render model.
+
 ## Prescription-based direct-transmission geometric image evaluation
 
 `evaluate_direct_transmission_raytrace.py` independently traces a collimated
