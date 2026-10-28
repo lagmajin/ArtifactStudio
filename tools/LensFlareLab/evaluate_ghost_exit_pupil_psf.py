@@ -216,7 +216,9 @@ def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
 
 def psf_and_pixel_integral(opd_mm: np.ndarray, amplitude: np.ndarray, wavelength: int,
                            pitch_mm: float, reference_radius_mm: float,
-                           crop_radius: int, pixel_subsamples: int
+                           crop_radius: int, pixel_subsamples: int,
+                           detector_pixel_offset_x: float = 0.0,
+                           detector_pixel_offset_y: float = 0.0
                            ) -> tuple[np.ndarray, np.ndarray, float, float, float, float, float]:
     pupil_phase = opd_mm * 1e6 / wavelength
     pupil = amplitude * np.exp(2j * math.pi * pupil_phase)
@@ -231,14 +233,19 @@ def psf_and_pixel_integral(opd_mm: np.ndarray, amplitude: np.ndarray, wavelength
     samples = np.arange(pixel_subsamples, dtype=np.float64)
     offsets = (samples + 0.5) / pixel_subsamples - 0.5
     pixel_centers = np.arange(-crop_radius, crop_radius + 1, dtype=np.float64)
-    sensor_positions_mm = (pixel_centers[:, None] + offsets[None, :]).ravel() * sensor_pixel_pitch
-    frequencies = sensor_positions_mm / (wavelength_mm * reference_radius_mm)
+    sensor_positions_x_mm = (pixel_centers[:, None] + offsets[None, :] +
+                             detector_pixel_offset_x).ravel() * sensor_pixel_pitch
+    sensor_positions_y_mm = (pixel_centers[:, None] + offsets[None, :] +
+                             detector_pixel_offset_y).ravel() * sensor_pixel_pitch
+    frequencies_x = sensor_positions_x_mm / (wavelength_mm * reference_radius_mm)
+    frequencies_y = sensor_positions_y_mm / (wavelength_mm * reference_radius_mm)
     pupil_axis = (np.arange(opd_mm.shape[0], dtype=np.float64) +
                   0.5 - opd_mm.shape[0] * 0.5) * pitch_mm
-    kernel = np.exp(-2j * math.pi * np.outer(frequencies, pupil_axis))
+    kernel_x = np.exp(-2j * math.pi * np.outer(frequencies_x, pupil_axis))
+    kernel_y = np.exp(-2j * math.pi * np.outer(frequencies_y, pupil_axis))
 
     def evaluate(source_pupil: np.ndarray) -> tuple[np.ndarray, float]:
-        field = kernel @ source_pupil @ kernel.T
+        field = kernel_y @ source_pupil @ kernel_x.T
         subpixel_intensity = np.abs(field) ** 2
         side = 2 * crop_radius + 1
         pixels = subpixel_intensity.reshape(side, pixel_subsamples,
@@ -386,6 +393,9 @@ def main() -> None:
     parser.add_argument("--crop-radius", type=int, default=32)
     parser.add_argument("--pixel-subsamples", type=int, choices=(2, 4, 8), default=4,
                         help="direct Fraunhofer samples per detector pixel axis")
+    parser.add_argument("--detector-offset-px", type=float, nargs=2, default=(0.0, 0.0),
+                        metavar=("X", "Y"),
+                        help="detector pixel-center offset from the chief image point")
     parser.add_argument("--csv", type=Path, default=Path(
         "tools/LensFlareLab/examples/ghost-exit-pupil-psf-20261028.csv"))
     parser.add_argument("--image", type=Path, default=Path(
@@ -423,7 +433,8 @@ def main() -> None:
             (phase_psf, flat_psf, pixel_scale, total, flat_total,
              phase_crop_fraction, flat_crop_fraction) = psf_and_pixel_integral(
                 regular_opd, amplitude, wavelength, pupil_pitch, reference_radius,
-                args.crop_radius, args.pixel_subsamples)
+                args.crop_radius, args.pixel_subsamples,
+                args.detector_offset_px[0], args.detector_offset_px[1])
             normalized_phase = phase_psf / max(total, 1e-30)
             normalized_flat = flat_psf / max(flat_total, 1e-30)
             l1 = 100.0 * float(np.abs(normalized_phase - normalized_flat).sum())

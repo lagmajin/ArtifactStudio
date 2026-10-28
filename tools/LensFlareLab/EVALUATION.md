@@ -4131,3 +4131,48 @@ Reproduce them with `measure_ghost_edge_profiles.py`, supplying the source and
 render PFM for each `--case`. The defaults average rows 249–265, use columns
 540–560 as the interior plateau, and search columns 540–598 for the falling
 edge. These coordinates apply to the 640×360 fixture used here.
+
+
+## FrFT ghost PSF against an independent wavefront reference
+
+To compare the current ghost FrFT path with a wave-optical reference, I rendered
+an isolated 9→8 ghost from a neutral one-sample source at `(0.4,0.5)` in a
+640×360 frame. The green channel is the 550 nm band. The reference traces the
+same corrected ghost rays, fits their exit pupil and image-centered reference
+sphere, interpolates the measured OPL onto a common 1024² pupil, then directly
+integrates a scalar Fraunhofer field over four subpixels per detector-pixel
+axis. The detector offset is retained so the reference is centered on the
+fractional chief-ray image coordinate `(412.842,319.681)` px. This follows the
+ray-transfer / pupil-coordinate framing used by [Bodonyi et al. (2025)](https://link.springer.com/article/10.1007/s00371-024-03625-7), while
+remaining a scalar diagnostic rather than a calibrated lens simulation.
+
+| Comparison | Normalized 65×65 crop L1 |
+|---|---:|
+| Geometric render vs ray-mapped phase PSF | 66.35% |
+| FrFT render vs ray-mapped phase PSF | 88.86% |
+| Geometric render vs flat-phase pupil PSF | 108.19% |
+| FrFT render vs flat-phase pupil PSF | 116.94% |
+
+![550 nm independent exit-pupil PSF, geometric ghost, and FrFT ghost comparison](examples/ghost-frft-wavefront-550-current.png)
+
+These errors are large, but they do not yet establish that FrFT is less
+physical: the ray-mapped reference itself is not converged. With the common
+1024² pupil and detector integration held fixed, increasing the shooting map
+from 256² to 512² changes the normalized crop PSF by 26.85% L1, and 512² to
+1024² changes it by 25.86%. Pupil RMS radius remains near 23.4 µm and the
+512²→1024² pupil amplitude L2 difference is under 1%, so these scalar checks
+do not explain the PSF shape instability. The changing support and phase
+sampling/interpolation are plausible contributors, but that attribution is
+still unverified. Improve reference convergence before using these values to
+tune FrFT or deciding whether to integrate it into Core/App.
+
+Reproduce the map-resolution sweep with `evaluate_ghost_exit_pupil_psf.py`,
+passing the corresponding `--grid 256`, `512`, or `1024` map and
+`--detector-offset-px 0.157536 0.319445`; use a common
+`--pupil-resolution 1024 --pixel-subsamples 4`. Compare the matching source,
+geometric, and FrFT PFM renders with `compare_ghost_frft_exit_pupil_psf.py`.
+The reference assumes scalar coherent propagation from a reconstructed exit
+pupil and does not include complex coating phase or a measured lens. The source
+is synthetic, and panel intensities are normalized independently for shape
+inspection. This evaluation uses an independent ray-mapped Fraunhofer reference;
+it is not calibrated against a captured optical system.
