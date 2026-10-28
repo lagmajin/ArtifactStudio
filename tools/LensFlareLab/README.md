@@ -275,6 +275,11 @@ the measured Fr3 achromatic-doublet #8 coefficients published by Ritt et al.
 to the same Angenieux pupil geometry, exposing how much the result depends on
 the roughness dataset. The Fr3 coefficients belong to a different measured
 lens and are a sensitivity comparison, not Angenieux calibration.
+`fit_harvey_measurement.py` fits the radial scatter shape of a dark-subtracted
+linear RGB PFM point-source capture. It estimates slope S, roll-off angle L,
+and image-domain scale; it does not report absolute BSDF B without radiometric
+calibration. See [EVALUATION.md](EVALUATION.md) for the capture conversion and
+fit limitations.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

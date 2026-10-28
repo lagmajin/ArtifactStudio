@@ -101,6 +101,47 @@ Reproduce the comparison after regenerating the 64x64 cone table with
 `python tools/LensFlareLab/evaluate_prescription_surface_scatter.py --grid 64`,
 then run `python tools/LensFlareLab/compare_scatter_parameter_sets.py`.
 
+### Fitting a measured linear point-source capture
+
+`fit_harvey_measurement.py` accepts an RGB PFM capture and an optional matching
+dark-frame PFM. This follows the measurement principle of Souksava et al., who
+use RAW sensor captures to avoid nonlinear ISP processing and compare flare
+light with the source. For a camera measurement, retain linear sensor values,
+subtract black level/dark signal, and convert without tone mapping, sharpening,
+denoising, or local contrast to PFM. Match focus, aperture, gain, exposure, and
+temperature between illuminated and dark frames. Exclude the saturated source
+core with `--core-radius-px`; the default annular median reduces sensitivity to
+sparse ghosts and streaks, while `--statistic mean` preserves their energy in
+the fit profile.
+
+The fitter estimates Harvey slope `S`, roll-off `L`, an image-domain scale, and
+a residual background. It cannot infer absolute BSDF `B` from ordinary image
+counts: that requires calibrated source irradiance, sensor responsivity, and
+system throughput. The radial model also cannot represent asymmetric ghosts,
+streaks, dust, housing scatter, or field-dependent veiling glare; inspect the
+residuals and use a field-by-field measurement set for such cases. Source center,
+pixel pitch, and focal length must be supplied or known. This initial tool reads
+linear RGB PFM; demosaicing/RAW decoding remains an input-preparation step.
+
+A synthetic closed-loop check generated a 512² pixel-integrated Harvey image
+with `S=-1.86`, `L=2.04 mrad`, 5.5 µm pixels and a 100 mm focal length. Fitting
+annuli 12–240 px recovered `S=-1.9155`, `L=2.1073 mrad` (3.0% and 3.3% relative
+errors), with log-profile RMSE 0.00349 and log-R² 0.999988. This checks the
+shape fitter against its matching synthetic model; it is not independent
+validation of real lens scatter.
+
+![Synthetic point-source profile and fitted Harvey curve](examples/harvey-measurement-fit-synthetic.png)
+
+To reproduce, first run `evaluate_harvey_scatter_reference.py` or generate a
+linear PFM measurement, then call:
+
+```powershell
+python tools/LensFlareLab/fit_harvey_measurement.py capture.pfm `
+  --pixel-pitch-um 5.5 --focal-length-mm 100 --core-radius-px 12
+```
+
+Souksava et al., [Evaluation of the Lens Flare (2021)](https://library.imaging.org/ei/articles/33/9/art00008), describe RAW flare measurement across source positions. Their measured images and camera-specific calibration are not bundled here.
+
 ## Prescription-based direct-transmission geometric image evaluation
 
 `evaluate_direct_transmission_raytrace.py` independently traces a collimated
