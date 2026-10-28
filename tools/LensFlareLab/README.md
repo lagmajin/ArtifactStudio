@@ -441,6 +441,17 @@ not on a path-specific exit-pupil reference sphere, so this is a phase-texture
 and sampling diagnostic rather than a physically calibrated ghost PSF or
 screen-space flare render.
 
+`evaluate_ghost_exit_pupil_psf.py` is the newer path-specific diagnostic. The
+ray map exports a shared image-side plane point, direction, and OPL; the
+evaluator fits that ghost path's virtual exit-pupil plane, back-projects the
+OPL, subtracts an image-centered reference sphere, and maps the result to a
+physical pupil grid. Its scalar Fraunhofer PSF is integrated onto sensor-pixel
+areas. Use `--optical-path-map-grid` at 128, 256, or higher and pass the maps
+with repeated `--grid` flags. See the current measurements and limitations in
+[EVALUATION.md](EVALUATION.md). It remains a monochromatic scalar diagnostic:
+coating phase, polarization, broadband coherence, and measured-camera response
+are not modeled.
+
 ## Core/app integration path
 
 The current editor effect is still an empirical screen-space implementation.

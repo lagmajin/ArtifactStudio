@@ -1587,7 +1587,59 @@ python tools/LensFlareLab/make_optical_path_phase_chart.py `
   tools/LensFlareLab/examples/ghost-optical-path-phase-residual-20261028.png
 ```
 
-### Coherent ghost pupil PSF prototype
+### Path-specific ghost exit-pupil PSF
+
+`main.cpp` now exports the ghost ray position, direction, and OPL on a shared
+image-side plane one millimeter after the final prescription surface. This
+matches the exit-plane convention used by `evaluate_prescription_wavefront.py`.
+`evaluate_ghost_exit_pupil_psf.py` fits the ghost path's virtual pupil plane
+from ray positions and slopes, back-projects both rays and OPL in air, and
+forms an image-centered reference-sphere OPD:
+
+`OPD = OPL_pupil + distance(image, pupil) - chief_OPL_pupil - distance(image, chief_pupil)`.
+
+It interpolates OPD and the ray-energy/Jacobian amplitude onto a physical
+regular pupil, computes a monochromatic scalar Fraunhofer PSF, and integrates
+the result over detector-pixel areas. This follows the standard pupil-to-PSF
+Fourier relation described in the [TUDelft Fourier analysis notes](https://qiweb.tudelft.nl/aoi/fourieranalysis/fourieranalysis/)
+and the prescription-based, Fresnel-weighted path model of [Hullin et al.](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf).
+This is a research diagnostic, not a calibrated camera result: reflection
+coating phase, polarization, broadband coherence, sensor spectral response,
+and measured lens calibration remain unmodeled. The least-squares pupil-plane
+fit residual is reported as a check on whether a single plane is adequate.
+
+For the centered 9→8 Angenieux ghost, 128²/256²/512² maps yield pupil-plane
+fit RMS of 0.01111–0.01117 mm and reference-sphere OPD RMS of 1.30–1.35 µm
+at 460/550/610 nm. The 256²→512² sensor-pixel PSF L1 changes are reported in
+`examples/ghost-exit-pupil-psf-20261028.csv` (97.40%, 175.24%, and 136.22%
+at 460/550/610 nm); they remain substantial, so the PSF sampling is not converged.
+The chart compares the phase PSF with the same
+physical-pupil flat-phase baseline and includes their absolute difference.
+The script also reports phase/flat L1, which measures aberration impact rather
+than grid convergence.
+
+Generate the maps and evaluation with:
+
+```powershell
+python tools/LensFlareLab/make_evaluation_chart.py `
+  --output build/tools/LensFlareLab/ghost-source.pfm `
+  --source-only --single-light-position 0.5 0.5 `
+  --source-radius 2 --single-light-neutral --light-scale 1024
+
+foreach ($grid in 128, 256, 512) {
+  build/lens-flare-lab-direct/LensFlareLab.exe `
+    build/tools/LensFlareLab/ghost-source.pfm `
+    ("build/tools/LensFlareLab/ghost-exit-grid-$grid.pfm") `
+    --ghost-pair 9 8 --ghosts off --diffraction off --ghost-diffraction off `
+    --optical-path-map ("build/tools/LensFlareLab/ghost-exit-grid-$grid.csv") `
+    --optical-path-map-grid $grid
+}
+python tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py `
+  --grid 128 --grid 256 --grid 512 `
+  --map-pattern build/tools/LensFlareLab/ghost-exit-grid-{grid}.csv
+```
+
+### Legacy coherent ghost pupil PSF prototype
 
 `evaluate_ghost_wavefront_psf.py` turns the selected 9→8 ghost optical-path
 maps into a complex pupil and scalar Fraunhofer PSF. For each wavelength it

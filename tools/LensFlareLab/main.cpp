@@ -977,13 +977,17 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
                    float apertureRotationRadians, float obstructionRatio,
                    bool antiReflectCoating,
                    bool useCauchyDispersion, double* opticalPathMm = nullptr,
-                   CoatingRayReport* coatingReport = nullptr) {
+                   CoatingRayReport* coatingReport = nullptr,
+                   Vec3* outputExitPlanePoint = nullptr,
+                   Vec3* outputExitDirection = nullptr,
+                   double* outputExitPlaneOpticalPathMm = nullptr) {
     energy = 1.0f;
     double opticalPath = 0.0;
+    const bool trackOpticalPath = opticalPathMm || outputExitPlaneOpticalPathMm;
     Vec3 previousPoint = origin;
     float segmentIndex = 1.0f;
     auto accumulateSegment = [&](Vec3 point) {
-        if (!opticalPathMm) return;
+        if (!trackOpticalPath) return;
         const Vec3 delta = point - previousPoint;
         opticalPath += static_cast<double>(segmentIndex) * length(delta);
         previousPoint = point;
@@ -1094,6 +1098,14 @@ bool traceGhostRay(const LensPrescription& lens, int firstReflection, int second
     }
     const float sensorZ = lens.surfaces.back().z + lens.surfaces.back().thickness;
     if (direction.z <= 1e-6f) return false;
+    const float exitPlaneZ = lens.surfaces.back().z + 1.0f;
+    const float exitPlaneT = (exitPlaneZ - origin.z) / direction.z;
+    if (!(exitPlaneT > 0.0f)) return false;
+    const Vec3 exitPlanePoint = origin + direction * exitPlaneT;
+    if (outputExitPlanePoint) *outputExitPlanePoint = exitPlanePoint;
+    if (outputExitDirection) *outputExitDirection = direction;
+    accumulateSegment(exitPlanePoint);
+    if (outputExitPlaneOpticalPathMm) *outputExitPlaneOpticalPathMm = opticalPath;
     const float t = (sensorZ - origin.z) / direction.z;
     if (!(t > 0.0f)) return false;
     sensorPoint = origin + direction * t;
@@ -1472,7 +1484,9 @@ Image render(const Image& source, const Settings& settings) {
     if (!settings.opticalPathMapFile.empty()) {
         std::ofstream map(settings.opticalPathMapFile, std::ios::binary);
         if (!map) throw std::runtime_error("cannot create optical path map: " + settings.opticalPathMapFile);
-        map << "wavelength_nm,pupil_u,pupil_v,valid,opl_mm,phase_cycles,energy,sensor_x_mm,sensor_y_mm\n";
+        map << "wavelength_nm,pupil_u,pupil_v,valid,opl_mm,phase_cycles,energy,sensor_x_mm,sensor_y_mm,"
+               "exit_plane_x_mm,exit_plane_y_mm,exit_plane_z_mm,exit_dir_x,exit_dir_y,exit_dir_z,"
+               "exit_opl_mm,sensor_z_mm\n";
         map << std::setprecision(12);
         const int mapGrid = std::clamp(settings.opticalPathMapGrid > 0
                                            ? settings.opticalPathMapGrid : grid,
@@ -1486,6 +1500,7 @@ Image render(const Image& source, const Settings& settings) {
         const Vec3 direction = normalized({std::sin(thetaX), std::sin(thetaY),
                                             std::cos(thetaX) * std::cos(thetaY)});
         const double referencePlaneZ = static_cast<double>(lens.surfaces.front().z) - 100.0;
+        const float sensorZ = lens.surfaces.back().z + lens.surfaces.back().thickness;
         for (std::size_t band = 0; band < wavelengths.size(); ++band) {
             const double wavelengthMm = wavelengths[band] * 1e-6;
             for (int gy = 0; gy < mapGrid; ++gy) for (int gx = 0; gx < mapGrid; ++gx) {
@@ -1497,29 +1512,39 @@ Image render(const Image& source, const Settings& settings) {
                 if (!traceEntrancePupilRay(lens, wavelengths[band], stopX, stopY, direction,
                                            entranceOrigin, settings.useCauchyDispersion)) {
                     map << wavelengths[band] << ',' << pupilU << ',' << pupilV
-                        << ",0,0,0,0,0,0\n";
+                        << ",0,0,0,0,0,0,0,0,0,0,0,0,0,0\n";
                     continue;
                 }
                 double opticalPathMm = 0.0;
                 float energy = 0.0f;
                 Vec3 sensorPoint{};
                 Vec3 aperturePoint{};
+                Vec3 exitPlanePoint{};
+                Vec3 exitDirection{};
+                double exitPlaneOpticalPathMm = 0.0;
                 if (!traceGhostRay(lens, settings.selectedFirstReflection,
                                    settings.selectedSecondReflection, wavelengths[band],
                                    entranceOrigin, direction, energy, sensorPoint, aperturePoint,
                                    settings.apertureBlades, apertureRotationRadians,
                                    settings.centralObstructionRatio,
                                    settings.antiReflectCoating,
-                                   settings.useCauchyDispersion, &opticalPathMm)) {
+                                   settings.useCauchyDispersion, &opticalPathMm, nullptr,
+                                   &exitPlanePoint, &exitDirection,
+                                   &exitPlaneOpticalPathMm)) {
                     map << wavelengths[band] << ',' << pupilU << ',' << pupilV
-                        << ",0,0,0,0,0,0\n";
+                        << ",0,0,0,0,0,0,0,0,0,0,0,0,0,0\n";
                     continue;
                 }
-                opticalPathMm += pathFromCommonIncidentPlaneMm(
+                const double incidentPlanePath = pathFromCommonIncidentPlaneMm(
                     entranceOrigin, direction, referencePlaneZ);
+                opticalPathMm += incidentPlanePath;
+                exitPlaneOpticalPathMm += incidentPlanePath;
                 map << wavelengths[band] << ',' << pupilU << ',' << pupilV << ",1,"
                     << opticalPathMm << ',' << opticalPathMm / wavelengthMm << ',' << energy
-                    << ',' << sensorPoint.x << ',' << sensorPoint.y << '\n';
+                    << ',' << sensorPoint.x << ',' << sensorPoint.y
+                    << ',' << exitPlanePoint.x << ',' << exitPlanePoint.y << ',' << exitPlanePoint.z
+                    << ',' << exitDirection.x << ',' << exitDirection.y << ',' << exitDirection.z
+                    << ',' << exitPlaneOpticalPathMm << ',' << sensorZ << '\n';
             }
         }
         std::cout << "Optical path map: " << settings.opticalPathMapFile << " ("
