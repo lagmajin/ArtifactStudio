@@ -7659,3 +7659,8 @@
 - **確認できた事実:** Scaling the normalized FFT PSF by open-to-clear sampled pupil area yields throughput ratios 0.97275/0.89109/0.75500 at circular obstruction ratios 0.15/0.30/0.45, matching annular-hex area. At ratio 0.30 the isolated area-normalized PSF shape L1 is 2.01%; total flare RGB L1 is 32.14%. At ratio 0.30, throughput varied only from 0.89109 to 0.89127 across FFT sizes 512²–4096², against the analytic 0.891172. Ratio zero remains byte-identical to the earlier executable, and the 60° six-blade result is byte-identical to 0°.
 - **価値または懸念:** The direct source convolution now models relative blocked-pupil throughput separately from normalized PSF shape. It still omits absolute lens transmission, T-stop, sensor response, and measured optical aberrations.
 - **次に確認すべきこと:** Validate throughput and normalized PSF shape independently against calibrated RAW point-source captures across obstruction ratios, wavelengths, and aperture sizes.
+## 2026-10-28: 液体サーフェスの格子解像度と上限
+- **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::buildSurfaceSnapshotInto`。
+- **確認できた事実:** 表面メッシュの格子間隔は平均粒子サイズの0.58倍を下限としていた。今回、平均サイズ基準を0.32倍にし、サンプル範囲から推定したセル予算と最大三角形数に基づく間隔の下限を加えた。
+- **価値または懸念:** 輪郭の段差を減らせる可能性があるが、実画像での改善とフレーム時間への影響は未検証。サンプル範囲の推定は疎な配置を含むため、予算の実効性も計測が必要。
+- **次に確認すべきこと:** 同一条件の更新前後画像で輪郭誤差を比較し、スナップショット生成の時間と最大セル・三角形数を測る。
