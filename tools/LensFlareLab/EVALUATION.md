@@ -2,6 +2,19 @@
 
 **最終更新:** 2026-10-28
 
+## Independent float64 ghost-ray reference
+
+`validate_ghost_raytrace_reference.py` independently traces the bundled
+Angenieux prescription in scalar NumPy float64 and compares exit-pupil position,
+direction, OPL, and sensor intercept against an optical-path-map CSV. The source
+field must match the map generation arguments. At 550 nm, a 64x64 map generated
+for source `(0.52, 0.498)` was checked at 32 valid pupil samples: exit-position
+RMS was 0.239/0.259 µm (x/y), direction RMS was 5.96/6.44 ppm, OPL RMS was
+0.0853 µm, and sensor-intercept RMS was 0.570/0.617 µm. After removing piston
+and tilt, the OPL residual RMS was 0.0254 µm. This cross-check supports the
+existing trace arithmetic, while sharing the same published prescription and
+path definition; it is not an independent measurement of the physical lens.
+
 ## Prescription surface-scatter pupil-cone study
 
 `evaluate_prescription_surface_scatter.py` traces a regular pupil bundle
