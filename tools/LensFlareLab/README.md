@@ -242,6 +242,10 @@ PSF for each field against an ideal paraxial hex pupil. Pupil-grid convergence
 is below 0.12% normalized PSF L1 through 12° in the shared core crop; the
 resolved image covers only the center 13.7 sensor pixels and is not a
 calibrated, full-frame camera flare model.
+`evaluate_prescription_polychromatic_psf.py` repeats the exit-pupil and complex
+PSF calculation at 460/550/610 nm to expose prescription dispersion and chief-
+ray color shifts. Its RGB plate is a morphology diagnostic with independently
+normalized bands, not calibrated color or radiometry.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

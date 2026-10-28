@@ -206,6 +206,54 @@ field convergence study. Validate the pupil and wavelength-dependent wavefront
 against an optical design package or measured RAW point-source data before
 considering RGB reconstruction or Core/App integration.
 
+## Prescription-derived wavelength-dependent PSFs
+
+`evaluate_prescription_polychromatic_psf.py` repeats the independent exit-pupil
+fit, direct ray trace, reference-sphere OPD, and geometric Jacobian amplitude
+for 460/550/610 nm. Dispersion therefore changes both the pupil conjugate and
+the focused wavefront; each monochromatic PSF is computed independently and
+integrated over the same assumed 84.3 µm sensor pixels. This follows the
+complex-pupil Fourier formulation above and the wavelength-dependent optical
+path and aperture behavior in [Hullin et al. (2011)](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf).
+
+At a 512² ray grid and 2048² pupil grid, chief-image lateral shifts relative to
+550 nm are 0.03/0.01 px at 5°, 0.07/0.03 px at 10°, and 0.09/0.04 px at 12°
+for 460/610 nm. The field-dependent 460 nm OPD RMS grows from 0.006 µm on axis
+to 0.428 µm at 12°, while 610 nm ranges from 0.374 µm on axis to 0.179 µm at
+12°. The relative aperture area at 12° spans 49.9–53.4% across these bands.
+These are consequences of this assumed prescription, its approximate Cauchy
+glass dispersion, and the fixed sensor plane; the table does not independently
+validate a real lens.
+
+At 12°, increasing pupil sampling from 1024² to 2048² changes the normalized
+common-core PSF by 0.129% L1 at 460 nm (±5 px) and 0.119% at 610 nm (±7 px).
+The 550 nm band changes by 0.113% over ±6 px. These are local core convergence
+checks, not evidence that diffraction wings outside the sampled support are
+resolved.
+
+The plate maps 460/550/610 nm to blue/green/red and normalizes each band's
+display independently so morphology is visible. This is a diagnostic RGB
+basis: it does not model source spectrum, color-matching functions, sensor
+response, or relative radiometric energy. Each PSF is recentered on its own
+chief ray; the CSV carries chief-image coordinates and the wavelength shifts.
+The crop is at most ±12 pixels (±10 px for 460 nm at this pupil grid), not a
+full-frame flare kernel.
+
+![Prescription-derived 460, 550, and 610 nm PSFs at four fields](examples/prescription-polychromatic-psf.png)
+
+Metrics and pupil/chief-ray data are in
+[`prescription-polychromatic-psf.csv`](examples/prescription-polychromatic-psf.csv);
+per-pixel samples are in
+[`prescription-polychromatic-psf-pixels.csv`](examples/prescription-polychromatic-psf-pixels.csv).
+Reproduce with:
+
+```powershell
+python tools/LensFlareLab/evaluate_prescription_polychromatic_psf.py --ray-samples 512 --pupil-samples 2048
+```
+
+The 3-band RGB view remains provisional until glass data, RGB/sensor spectral
+response, wide-angle diffraction, and RAW lens captures are available.
+
 ## Controlled wavefront-aberration PSFs
 
 `evaluate_wavefront_aberration_psf.py` extends the ideal six-blade pupil with
