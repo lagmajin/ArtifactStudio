@@ -270,6 +270,11 @@ is not a calibrated flare prediction. The default L sweep also exports a
 radial irradiance profile, L-dependent scatter plates, energy captured by the
 central 3.96 mm crop (the prescription sensor is 53.96 mm wide), and a
 comparison with the 14-surface Eq. 6 integrated-scatter estimate.
+`compare_scatter_parameter_sets.py` applies the generic Double-Gauss set and
+the measured Fr3 achromatic-doublet #8 coefficients published by Ritt et al.
+to the same Angenieux pupil geometry, exposing how much the result depends on
+the roughness dataset. The Fr3 coefficients belong to a different measured
+lens and are a sensitivity comparison, not Angenieux calibration.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

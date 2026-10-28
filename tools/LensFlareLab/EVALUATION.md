@@ -69,6 +69,38 @@ model and are not measured lens efficiencies.
 The per-radius values and repeated energy-integral diagnostics are saved in
 [`prescription-surface-scatter-profile.csv`](examples/prescription-surface-scatter-profile.csv).
 
+### Generic versus measured Harvey parameters
+
+To quantify how much the predicted image depends on missing lens-specific
+surface data, `compare_scatter_parameter_sets.py` applies two published
+parameter sets to the exact same traced Angenieux pupil cones. The first is the
+paper's generic Double-Gauss set (`S=-1.86, B=0.36 sr⁻¹, B0=6.92,
+L=2.04 mrad`). The second is the median measured Fr3 achromatic-doublet #8 set
+(`S=-2.22, B=1.09 sr⁻¹, B0=16.14, L=3.02 mrad`). Ritt et al. identify Fr3 as
+measured values for a distinct achromatic doublet, so this is a roughness-data
+sensitivity comparison only; those coefficients do not describe the bundled
+Angenieux lens.
+
+| Parameter set | Surface TIS integral | Eq. 6 TIS | 3.96 mm crop / incident | Crop / full-plane Eq. 6 |
+|---|---:|---:|---:|---:|
+| Generic Double-Gauss | 0.1975% | 0.1785% | 0.4543% | 22.72% |
+| Measured achromat Fr3 #8 | 0.2954% | 0.2921% | 1.3678% | 41.81% |
+
+The measured set produces about 3.0× more crop energy than the generic set in
+this transferred model. The difference combines parameter changes and cannot
+be interpreted as the expected flare ratio between those actual lenses; their
+prescriptions, coatings, baffles, and sensor geometry differ.
+
+![Same pupil geometry with generic and measured published scatter parameters](examples/scatter-parameter-sets.png)
+
+![Normalized radial profiles for both published parameter sets](examples/scatter-parameter-profiles.png)
+
+Per-radius values and energy integrals are saved in
+[`scatter-parameter-comparison.csv`](examples/scatter-parameter-comparison.csv).
+Reproduce the comparison after regenerating the 64x64 cone table with
+`python tools/LensFlareLab/evaluate_prescription_surface_scatter.py --grid 64`,
+then run `python tools/LensFlareLab/compare_scatter_parameter_sets.py`.
+
 ## Prescription-based direct-transmission geometric image evaluation
 
 `evaluate_direct_transmission_raytrace.py` independently traces a collimated
