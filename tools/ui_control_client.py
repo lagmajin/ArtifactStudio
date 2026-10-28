@@ -28,6 +28,7 @@ import base64
 import json
 import socket
 import sys
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -170,6 +171,11 @@ def _build_parser() -> argparse.ArgumentParser:
     actions = commands.add_parser("actions", help="list items of open menus")
     actions.add_argument("--menu", default="", help="menu objectName or title substring")
 
+    commands.add_parser("state", help="report pointer, buttons, focus and open dialogs")
+
+    focus = commands.add_parser("focus", help="give keyboard focus to a widget")
+    focus.add_argument("--target", required=True)
+
     click = commands.add_parser("click", help="press and release a mouse button")
     _add_point_arguments(click)
     click.add_argument("--button", default="left", choices=["left", "right", "middle"])
@@ -177,6 +183,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     move = commands.add_parser("move", help="move the virtual pointer")
     _add_point_arguments(move)
+
+    context = commands.add_parser("context-menu", help="open a context menu at a point")
+    _add_point_arguments(context)
 
     drag = commands.add_parser("drag", help="drag with a held button")
     drag.add_argument("--target", help="coordinates become widget local when set")
@@ -212,12 +221,33 @@ def _build_parser() -> argparse.ArgumentParser:
     shot.add_argument("--output", required=True, help="PNG path to write")
     shot.add_argument("--target")
     shot.add_argument("--native", action="store_true", help="capture what is on screen")
+    shot.add_argument("--delay", type=float, default=0.0, help="seconds to wait before capturing")
 
     call = commands.add_parser("call", help="call a tool directly")
     call.add_argument("tool")
     call.add_argument("--arguments", default="{}")
 
     return parser
+
+
+def _run_input(client: UiControlClient, tool: str, arguments: dict[str, Any]) -> int:
+    """Send a queued input action and report what it actually did.
+
+    Input is queued by the endpoint so a widget that opens a menu or a modal
+    dialog cannot stall the request. The outcome is read back from ui.state.
+    """
+    result = client.call(tool, arguments)
+    if result.get("isError"):
+        return _print_result(result)
+    sys.stdout.write(json.dumps(result.get("structuredContent", {}), ensure_ascii=False) + "\n")
+    time.sleep(0.05)
+    state = (client.call("ui.state") or {}).get("structuredContent", {})
+    last = state.get("lastInput") or {}
+    if last.get("tool") == tool:
+        sys.stdout.write(json.dumps({"lastInput": last}, indent=2, ensure_ascii=False) + "\n")
+        return 1 if last.get("error") else 0
+    sys.stdout.write("outcome pending (a nested event loop may be open); call `state`\n")
+    return 0
 
 
 def _write_screenshot(result: dict[str, Any], output: str) -> int:
@@ -230,6 +260,7 @@ def _write_screenshot(result: dict[str, Any], output: str) -> int:
     path.write_bytes(base64.b64decode(encoded))
     sys.stdout.write(
         f"{path} {result.get('width')}x{result.get('height')} "
+        f"dpr={result.get('devicePixelRatio')} "
         f"{result.get('byteCount')} bytes\n"
     )
     return 0
@@ -248,43 +279,51 @@ def main(argv: Optional[list[str]] = None) -> int:
         if args.command == "actions":
             arguments = {"menu": args.menu} if args.menu else {}
             return _print_result(client.call("ui.listActions", arguments))
+        if args.command == "state":
+            return _print_result(client.call("ui.state"))
+        if args.command == "focus":
+            return _print_result(client.call("ui.focus", {"target": args.target}))
         if args.command == "move":
             return _print_result(
                 client.call("ui.mouseMove", _point_arguments(args))
             )
+        if args.command == "context-menu":
+            return _run_input(client, "ui.contextMenu", _point_arguments(args))
+        if args.command == "drag":
+            return _run_input(client, "ui.mouseDrag", _drag_arguments(args))
         if args.command == "click":
             arguments = _point_arguments(args)
             arguments["button"] = args.button
             arguments["count"] = args.count
-            return _print_result(client.call("ui.mouseClick", arguments))
-        if args.command == "drag":
-            return _print_result(client.call("ui.mouseDrag", _drag_arguments(args)))
+            return _run_input(client, "ui.mouseClick", arguments)
         if args.command == "button":
             arguments = _point_arguments(args)
             arguments["button"] = args.button
             arguments["action"] = args.action
-            return _print_result(client.call("ui.mouseButton", arguments))
+            return _run_input(client, "ui.mouseButton", arguments)
         if args.command == "key":
             arguments = {"sequence": args.sequence, "text": args.text}
             if args.target:
                 arguments["target"] = args.target
-            return _print_result(client.call("ui.keyPress", arguments))
+            return _run_input(client, "ui.keyPress", arguments)
         if args.command == "type":
             arguments = {"text": args.text}
             if args.target:
                 arguments["target"] = args.target
             if args.modifiers:
                 arguments["modifiers"] = args.modifiers
-            return _print_result(client.call("ui.typeText", arguments))
+            return _run_input(client, "ui.typeText", arguments)
         if args.command == "wheel":
             arguments = _point_arguments(args)
             arguments["deltaY"] = args.delta_y
             arguments["deltaX"] = args.delta_x
-            return _print_result(client.call("ui.mouseWheel", arguments))
+            return _run_input(client, "ui.mouseWheel", arguments)
         if args.command == "screenshot":
             arguments = {"native": args.native}
             if args.target:
                 arguments["target"] = args.target
+            if args.delay > 0:
+                time.sleep(args.delay)
             result = client.call("ui.screenshot", arguments)
             if result.get("isError"):
                 return _print_result(result)
