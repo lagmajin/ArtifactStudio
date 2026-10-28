@@ -20,7 +20,6 @@ from scipy.spatial import Delaunay
 
 SENSOR_WIDTH_MM = 53.96
 SENSOR_WIDTH_PX = 640
-SENSOR_HEIGHT_PX = 360
 DEFAULT_WAVELENGTHS = (460, 550, 610)
 
 
@@ -131,7 +130,6 @@ def image_centered_opd(data: dict[str, np.ndarray], wavelength: int,
 
 def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
                          opd_mm: np.ndarray, resolution: int) -> tuple[np.ndarray, float, np.ndarray]:
-    grid = data["u"].shape[0]
     valid = data["valid"]
     launch_grid = np.argwhere(valid)
     launch_uv = np.column_stack((data["u"][valid], data["v"][valid]))
@@ -207,44 +205,44 @@ def map_to_regular_pupil(data: dict[str, np.ndarray], pupil_xy: np.ndarray,
 
 def psf_and_pixel_integral(opd_mm: np.ndarray, amplitude: np.ndarray, wavelength: int,
                            pitch_mm: float, reference_radius_mm: float,
-                           crop_radius: int) -> tuple[np.ndarray, np.ndarray, float]:
+                           crop_radius: int, pixel_subsamples: int
+                           ) -> tuple[np.ndarray, np.ndarray, float, float, float, float, float]:
     pupil_phase = opd_mm * 1e6 / wavelength
     pupil = amplitude * np.exp(2j * math.pi * pupil_phase)
-    field = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(pupil)))
-    intensity = np.abs(field) ** 2
-    intensity /= max(float(intensity.sum()), 1e-30)
-    flat_field = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(amplitude.astype(np.complex128))))
-    flat_intensity = np.abs(flat_field) ** 2
-    flat_intensity /= max(float(flat_intensity.sum()), 1e-30)
-
     sensor_pixel_pitch = SENSOR_WIDTH_MM / SENSOR_WIDTH_PX
-    sample_pitch_px = (wavelength * 1e-6 * reference_radius_mm /
-                       (intensity.shape[0] * pitch_mm * sensor_pixel_pitch))
-    coordinates = (np.arange(intensity.shape[0], dtype=np.float64) -
-                   intensity.shape[0] // 2) * sample_pitch_px
-    base = np.floor(coordinates + 0.5).astype(np.int32)
-    left = np.maximum(0.0, (base - 0.5) - (coordinates - 0.5 * sample_pitch_px)) / sample_pitch_px
-    right = np.maximum(0.0, (coordinates + 0.5 * sample_pitch_px) - (base + 0.5)) / sample_pitch_px
-    edge_index = np.where(left > 0.0, base - 1, base + 1)
-    center_weight = 1.0 - left - right
-    edge_weight = left + right
+    wavelength_mm = wavelength * 1e-6
+    sample_pitch_px = (wavelength_mm * reference_radius_mm /
+                       (opd_mm.shape[0] * pitch_mm * sensor_pixel_pitch))
 
-    def reduce_to_sensor(source: np.ndarray) -> np.ndarray:
-        output = np.zeros((2 * crop_radius + 1, 2 * crop_radius + 1), dtype=np.float64)
-        rows = ((base, center_weight), (edge_index, edge_weight))
-        columns = ((base, center_weight), (edge_index, edge_weight))
-        for row_indices, row_weights in rows:
-            valid_rows = (row_indices >= -crop_radius) & (row_indices <= crop_radius)
-            out_rows = row_indices[valid_rows] + crop_radius
-            for col_indices, col_weights in columns:
-                valid_cols = (col_indices >= -crop_radius) & (col_indices <= crop_radius)
-                out_cols = col_indices[valid_cols] + crop_radius
-                contribution = (source[np.ix_(valid_rows, valid_cols)] *
-                                row_weights[valid_rows, None] * col_weights[None, valid_cols])
-                np.add.at(output, (out_rows[:, None], out_cols[None, :]), contribution)
-        return output
+    # Evaluate the Fraunhofer integral directly at subpixel detector positions.
+    # Native FFT bins are 7–10 sensor pixels apart for this tiny virtual pupil;
+    # spreading each bin over only its two neighboring pixels aliases the PSF.
+    samples = np.arange(pixel_subsamples, dtype=np.float64)
+    offsets = (samples + 0.5) / pixel_subsamples - 0.5
+    pixel_centers = np.arange(-crop_radius, crop_radius + 1, dtype=np.float64)
+    sensor_positions_mm = (pixel_centers[:, None] + offsets[None, :]).ravel() * sensor_pixel_pitch
+    frequencies = sensor_positions_mm / (wavelength_mm * reference_radius_mm)
+    pupil_axis = (np.arange(opd_mm.shape[0], dtype=np.float64) +
+                  0.5 - opd_mm.shape[0] * 0.5) * pitch_mm
+    kernel = np.exp(-2j * math.pi * np.outer(frequencies, pupil_axis))
 
-    return reduce_to_sensor(intensity), reduce_to_sensor(flat_intensity), sample_pitch_px
+    def evaluate(source_pupil: np.ndarray) -> tuple[np.ndarray, float]:
+        field = kernel @ source_pupil @ kernel.T
+        subpixel_intensity = np.abs(field) ** 2
+        side = 2 * crop_radius + 1
+        pixels = subpixel_intensity.reshape(side, pixel_subsamples,
+                                            side, pixel_subsamples).mean(axis=(1, 3))
+        pixel_frequency_area = (sensor_pixel_pitch /
+                                (wavelength_mm * reference_radius_mm)) ** 2
+        pupil_power = float(np.sum(np.abs(source_pupil) ** 2))
+        crop_fraction = (float(pixels.sum()) * pitch_mm ** 2 * pixel_frequency_area /
+                         max(pupil_power, 1e-30))
+        return pixels, crop_fraction
+
+    phase_pixels, phase_fraction = evaluate(pupil)
+    flat_pixels, flat_fraction = evaluate(amplitude.astype(np.complex128))
+    return (phase_pixels, flat_pixels, sample_pitch_px, float(phase_pixels.sum()),
+            float(flat_pixels.sum()), phase_fraction, flat_fraction)
 
 
 def encircled_radius(image: np.ndarray, fraction: float) -> float:
@@ -288,21 +286,95 @@ def make_chart(cases: list[dict], output: Path) -> None:
     image.save(output)
 
 
+def make_pupil_chart(cases: list[dict], output: Path) -> None:
+    tile, header_height, footer_height = 512, 26, 24
+    row_height = header_height + tile + footer_height
+    image = Image.new("RGB", (tile, row_height * len(cases)), (18, 21, 26))
+    draw = ImageDraw.Draw(image)
+    sampled = np.concatenate([case["amplitude"][::8, ::8].ravel() for case in cases])
+    positive = sampled[sampled > 0.0]
+    scale = float(np.percentile(positive, 99.5)) if positive.size else 1.0
+    scale = max(scale, 1e-30)
+    for row_index, case in enumerate(cases):
+        top = row_index * row_height
+        draw.text((6, top + 6), f"{case['wavelength_nm']} nm, ray-mapped pupil amplitude",
+                  fill=(235, 238, 244))
+        normalized = np.log1p(np.maximum(case["amplitude"], 0.0) / scale) / math.log(2.0)
+        gray = Image.fromarray(np.clip(normalized * 255 + 0.5, 0, 255).astype(np.uint8))
+        resampling = Image.Resampling.BOX if gray.width > tile else Image.Resampling.NEAREST
+        image.paste(gray.resize((tile, tile), resampling),
+                    (0, top + header_height))
+        draw.rectangle((0, top + header_height, tile - 1,
+                        top + header_height + tile - 1), outline=(62, 68, 78))
+        draw.text((6, top + header_height + tile + 5),
+                  f"{case['grid']}² ray map; one shared log-amplitude scale",
+                  fill=(210, 215, 224))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    image.save(output)
+
+
+def compare_pupil_fields(previous: dict, opd: np.ndarray, amplitude: np.ndarray,
+                        pitch_mm: float) -> tuple[float, float, float]:
+    previous_grid = previous["opd"].shape[0]
+    current_grid = opd.shape[0]
+    if current_grid != 2 * previous_grid:
+        return float("nan"), float("nan"), float("nan")
+    high_valid = amplitude > 0.0
+    block_shape = (previous_grid, 2, previous_grid, 2)
+    valid_count = high_valid.reshape(block_shape).sum(axis=(1, 3))
+    high_valid_blocks = high_valid.reshape(block_shape)
+    high_opd = opd.reshape(block_shape)
+    high_amplitude = amplitude.reshape(block_shape)
+    down_opd = np.divide((high_opd * high_valid_blocks).sum(axis=(1, 3)),
+                         valid_count, out=np.zeros((previous_grid, previous_grid)),
+                         where=valid_count > 0)
+    down_amplitude = np.sqrt((high_amplitude ** 2).reshape(block_shape).mean(axis=(1, 3)))
+    low_amplitude = previous["amplitude"]
+    low_valid = low_amplitude > 0.0
+    high_support = valid_count > 0
+    intersection = low_valid & high_support
+    union = low_valid | high_support
+    support_iou = float(intersection.sum() / max(int(union.sum()), 1))
+    if intersection.sum() < 16:
+        return float("nan"), float("nan"), 100.0 * support_iou
+
+    axis = (np.arange(previous_grid, dtype=np.float64) + 0.5 - previous_grid * 0.5) * previous["pitch"]
+    xx, yy = np.meshgrid(axis, axis)
+    design = np.column_stack((np.ones(intersection.sum()), xx[intersection], yy[intersection]))
+    delta = down_opd[intersection] - previous["opd"][intersection]
+    weight = np.maximum(low_amplitude[intersection] * down_amplitude[intersection], 1e-20)
+    root_weight = np.sqrt(weight)
+    coefficients = np.linalg.lstsq(design * root_weight[:, None],
+                                   delta * root_weight, rcond=None)[0]
+    residual = delta - design @ coefficients
+    opd_rms_um = math.sqrt(float(np.sum(weight * residual * residual) /
+                                 np.sum(weight))) * 1000.0
+    amplitude_l2 = math.sqrt(float(np.sum((down_amplitude[intersection] -
+                                           low_amplitude[intersection]) ** 2) /
+                                    max(np.sum(low_amplitude[intersection] ** 2), 1e-30)))
+    return opd_rms_um, 100.0 * amplitude_l2, 100.0 * support_iou
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--grid", type=int, action="append", choices=(64, 128, 256, 512, 1024),
+    parser.add_argument("--grid", type=int, action="append", choices=(64, 128, 256, 512, 1024, 2048),
                         help="optical-path-map grids; repeat for convergence")
     parser.add_argument("--map-pattern", default="build/tools/LensFlareLab/ghost-exit-grid-{grid}.csv")
     parser.add_argument("--wavelengths-nm", type=int, nargs="+", default=DEFAULT_WAVELENGTHS)
     parser.add_argument("--crop-radius", type=int, default=32)
+    parser.add_argument("--pixel-subsamples", type=int, choices=(2, 4, 8), default=4,
+                        help="direct Fraunhofer samples per detector pixel axis")
     parser.add_argument("--csv", type=Path, default=Path(
         "tools/LensFlareLab/examples/ghost-exit-pupil-psf-20261028.csv"))
     parser.add_argument("--image", type=Path, default=Path(
         "tools/LensFlareLab/examples/ghost-exit-pupil-psf-20261028.png"))
+    parser.add_argument("--pupil-image", type=Path, default=Path(
+        "tools/LensFlareLab/examples/ghost-exit-pupil-amplitude-20261028.png"))
     args = parser.parse_args()
     grids = sorted(set(args.grid or [256, 512]))
-    records, cases = [], []
+    records, cases, pupil_cases = [], [], []
     previous_psfs: dict[int, np.ndarray] = {}
+    previous_pupils: dict[int, dict] = {}
     for grid in grids:
         path = Path(args.map_pattern.format(grid=grid))
         if not path.is_file():
@@ -312,15 +384,22 @@ def main() -> None:
             pupil_xy, pupil_center, pupil_z, plane_rms = fit_exit_pupil(data)
             opd, image_point, reference_radius, chief_pupil = image_centered_opd(
                 data, wavelength, pupil_xy, pupil_center, pupil_z)
-            opd_full = np.zeros((grid, grid), dtype=np.float64)
-            opd_full[data["valid"]] = opd
             regular_opd, pupil_pitch, amplitude = map_to_regular_pupil(
                 data, pupil_xy, opd, grid)
-            phase_psf, flat_psf, pixel_scale = psf_and_pixel_integral(
+            previous_pupil = previous_pupils.get(wavelength)
+            if previous_pupil is None:
+                opd_delta_um, amplitude_delta_percent, support_iou_percent = (
+                    float("nan"), float("nan"), float("nan"))
+            else:
+                opd_delta_um, amplitude_delta_percent, support_iou_percent = compare_pupil_fields(
+                    previous_pupil, regular_opd, amplitude, pupil_pitch)
+            previous_pupils[wavelength] = {"opd": regular_opd,
+                                           "amplitude": amplitude,
+                                           "pitch": pupil_pitch}
+            (phase_psf, flat_psf, pixel_scale, total, flat_total,
+             phase_crop_fraction, flat_crop_fraction) = psf_and_pixel_integral(
                 regular_opd, amplitude, wavelength, pupil_pitch, reference_radius,
-                args.crop_radius)
-            total = float(phase_psf.sum())
-            flat_total = float(flat_psf.sum())
+                args.crop_radius, args.pixel_subsamples)
             normalized_phase = phase_psf / max(total, 1e-30)
             normalized_flat = flat_psf / max(flat_total, 1e-30)
             l1 = 100.0 * float(np.abs(normalized_phase - normalized_flat).sum())
@@ -342,14 +421,19 @@ def main() -> None:
                 "chief_pupil_x_mm": float(chief_pupil[0]),
                 "chief_pupil_y_mm": float(chief_pupil[1]),
                 "physical_pupil_grid_pitch_mm": pupil_pitch,
-                "fft_sample_pitch_sensor_px": pixel_scale,
+                "native_fourier_sample_pitch_sensor_px": pixel_scale,
+                "detector_pixel_subsamples": args.pixel_subsamples,
                 "reference_sphere_opd_rms_um": float(np.sqrt(np.mean(opd * opd)) * 1000.0),
-                "phase_psf_crop_energy_fraction": total,
+                "phase_psf_crop_energy_fraction": phase_crop_fraction,
+                "flat_psf_crop_energy_fraction": flat_crop_fraction,
                 "phase_psf_r50_px": encircled_radius(phase_psf, 0.5),
                 "phase_psf_r90_px": encircled_radius(phase_psf, 0.9),
                 "flat_phase_r50_px": encircled_radius(flat_psf, 0.5),
                 "phase_to_flat_normalized_l1_percent": l1,
                 "phase_psf_l1_to_previous_grid_percent": grid_l1,
+                "pupil_opd_residual_to_previous_grid_um": opd_delta_um,
+                "pupil_amplitude_l2_to_previous_grid_percent": amplitude_delta_percent,
+                "pupil_support_iou_to_previous_grid_percent": support_iou_percent,
             }
             records.append(record)
             print(f"{wavelength} nm grid={grid} exit pupil z={pupil_z:.4f} mm "
@@ -357,10 +441,11 @@ def main() -> None:
                   f"{record['reference_sphere_opd_rms_um']:.4f} um, "
                   f"Rref={reference_radius:.3f} mm, phase/flat L1={l1:.2f}%, "
                   f"grid L1={grid_l1:.2f}%")
-            if grid == grids[-1]:
-                cases.append({"grid": grid, "wavelength_nm": wavelength,
-                              "phase": normalized_phase, "flat": normalized_flat,
-                              "difference": np.abs(normalized_phase - normalized_flat)})
+            cases.append({"grid": grid, "wavelength_nm": wavelength,
+                          "phase": normalized_phase, "flat": normalized_flat,
+                          "difference": np.abs(normalized_phase - normalized_flat)})
+            pupil_cases.append({"grid": grid, "wavelength_nm": wavelength,
+                                "amplitude": amplitude})
 
     args.csv.parent.mkdir(parents=True, exist_ok=True)
     with args.csv.open("w", newline="", encoding="utf-8") as stream:
@@ -368,7 +453,8 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(records)
     make_chart(cases, args.image)
-    print(f"saved {args.csv} and {args.image}")
+    make_pupil_chart(pupil_cases, args.pupil_image)
+    print(f"saved {args.csv}, {args.image}, and {args.pupil_image}")
 
 
 if __name__ == "__main__":

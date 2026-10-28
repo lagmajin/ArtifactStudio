@@ -446,9 +446,11 @@ ray map exports a shared image-side plane point, direction, and OPL; the
 evaluator fits that ghost path's virtual exit-pupil plane, back-projects the
 OPL, subtracts an image-centered reference sphere, and maps the result to a
 physical pupil grid. Its scalar Fraunhofer PSF is integrated onto sensor-pixel
-areas. Use `--optical-path-map-grid` at 128, 256, or higher and pass the maps
-with repeated `--grid` flags. See the current measurements and limitations in
-[EVALUATION.md](EVALUATION.md). It remains a monochromatic scalar diagnostic:
+areas using direct subpixel Fourier evaluation (`--pixel-subsamples 4`, with
+2 or 8 available for sampling checks). Use `--optical-path-map-grid` at 128,
+256, or higher and pass the maps with repeated `--grid` flags. See the current
+measurements and limitations in [EVALUATION.md](EVALUATION.md). It remains a
+monochromatic scalar diagnostic:
 coating phase, polarization, broadband coherence, and measured-camera response
 are not modeled.
 

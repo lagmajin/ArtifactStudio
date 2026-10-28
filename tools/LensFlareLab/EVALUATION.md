@@ -1608,15 +1608,55 @@ coating phase, polarization, broadband coherence, sensor spectral response,
 and measured lens calibration remain unmodeled. The least-squares pupil-plane
 fit residual is reported as a check on whether a single plane is adequate.
 
-For the centered 9→8 Angenieux ghost, 128²/256²/512² maps yield pupil-plane
-fit RMS of 0.01111–0.01117 mm and reference-sphere OPD RMS of 1.30–1.35 µm
-at 460/550/610 nm. The 256²→512² sensor-pixel PSF L1 changes are reported in
-`examples/ghost-exit-pupil-psf-20261028.csv` (97.40%, 175.24%, and 136.22%
-at 460/550/610 nm); they remain substantial, so the PSF sampling is not converged.
-The chart compares the phase PSF with the same
-physical-pupil flat-phase baseline and includes their absolute difference.
-The script also reports phase/flat L1, which measures aberration impact rather
-than grid convergence.
+The first detector image used a two-neighbor splat for each native Fourier
+sample. Because the fitted pupil is very small, one Fourier sample spans about
+7–10 detector pixels; that splat produced a false point grid. The evaluator now
+computes the Fraunhofer integral directly at 4×4 subpixel locations and
+integrates intensity per detector pixel. On a 512² pupil map, 4×4 versus 8×8
+subpixel sampling gives identical r50/r90 to the reported precision and
+phase-versus-flat L1 within 0.03 percentage points.
+
+For the centered 9→8 Angenieux ghost, 128²–2048² maps yield pupil-plane fit
+RMS near 0.0111 mm and reference-sphere OPD RMS near 1.30 µm. Adjacent-grid
+normalized sensor-crop PSF L1 changes are 89.43/96.05/105.34% (128²→256²),
+95.89/74.22/92.14% (256²→512²), and 68.49/64.27/61.33% (512²→1024²) at
+460/550/610 nm. 1024²→2048² changes by 80.38/61.82/61.21% L1 at
+460/550/610 nm. The last two refinements lower the differences, but they remain
+far too high to call the pupil PSF converged. See
+`examples/ghost-exit-pupil-psf-20261028.csv` and the
+550 nm convergence plate. The chart compares the phase PSF with the same
+physical-pupil flat-phase baseline and their absolute difference. The
+phase/flat L1 measures aberration impact, not grid convergence.
+
+![PSF comparisons at 128², 256², and 512² across 460, 550, and 610 nm](examples/ghost-exit-pupil-psf-20261028.png)
+
+![550 nm PSFs from 512², 1024², and 2048² ray maps](examples/ghost-exit-pupil-550-convergence-20261028.png)
+
+![1024² and 2048² detector PSFs at 460, 550, and 610 nm](examples/ghost-exit-pupil-psf-1024-2048-20261028.png)
+
+The corresponding ray-mapped pupil amplitude shows the four clipped support
+arms. Their coarse shape is consistent across grids, while local thickness
+and occupancy change; the small support area makes these changes large in the
+area-weighted IoU metric.
+
+![550 nm ray-mapped pupil amplitude at 512², 1024², and 2048²](examples/ghost-exit-pupil-amplitude-550-convergence-20261028.png)
+
+The shared-pupil comparison separates possible sources of the remaining
+difference. After removing piston and tilt, 1024²→2048² OPD residual RMS is
+0.0330/0.0319/0.0326 µm at 460/550/610 nm, while pupil-amplitude relative L2
+changes by 32.2/32.4/31.8% and support IoU is 41.1/39.5/40.3%. This indicates
+that pupil amplitude/support mapping is also unstable; the nearly unchanged
+global OPD RMS alone does not establish wavefront convergence.
+
+![1024² and 2048² ray-mapped pupil amplitudes at 460, 550, and 610 nm](examples/ghost-exit-pupil-amplitude-1024-2048-20261028.png)
+
+The `--crop-radius 128 --wavelengths-nm 550` view shows a broader fringe field;
+on the 512² map it contains about 8.25% of the modeled phase-PSF energy, so it
+is not a full-frame result. The exit-pupil fit and scalar OPL model still omit
+coating reflection phase, polarization, broadband coherence, measured sensor
+response, and lens calibration.
+
+![Wide 550 nm phase PSF, flat-phase pupil, and absolute difference](examples/ghost-exit-pupil-psf-wide-20261028.png)
 
 Generate the maps and evaluation with:
 
@@ -1626,7 +1666,7 @@ python tools/LensFlareLab/make_evaluation_chart.py `
   --source-only --single-light-position 0.5 0.5 `
   --source-radius 2 --single-light-neutral --light-scale 1024
 
-foreach ($grid in 128, 256, 512) {
+foreach ($grid in 128, 256, 512, 1024, 2048) {
   build/lens-flare-lab-direct/LensFlareLab.exe `
     build/tools/LensFlareLab/ghost-source.pfm `
     ("build/tools/LensFlareLab/ghost-exit-grid-$grid.pfm") `
@@ -1635,8 +1675,13 @@ foreach ($grid in 128, 256, 512) {
     --optical-path-map-grid $grid
 }
 python tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py `
-  --grid 128 --grid 256 --grid 512 `
+  --grid 128 --grid 256 --grid 512 --grid 1024 --grid 2048 `
   --map-pattern build/tools/LensFlareLab/ghost-exit-grid-{grid}.csv
+
+python tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py `
+  --grid 512 --wavelengths-nm 550 --crop-radius 128 --pixel-subsamples 4 `
+  --csv tools/LensFlareLab/examples/ghost-exit-pupil-psf-wide-20261028.csv `
+  --image tools/LensFlareLab/examples/ghost-exit-pupil-psf-wide-20261028.png
 ```
 
 ### Legacy coherent ghost pupil PSF prototype
