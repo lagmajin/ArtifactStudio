@@ -75,7 +75,7 @@ def save_plates(results, image_path, profile_path, pitch_um):
         x = index * panel
         plate.paste(Image.merge("RGB", (tile, tile, tile)), (x, 34))
         draw.text((x + 8, 8),
-            f"{result['preset']['name']}  crop={result['captured']*100:.3g}%",
+            f"{result['preset']['name']}  3.96mm crop={result['captured']*100:.3g}%",
             fill=result["preset"]["color"])
     image_path.parent.mkdir(parents=True, exist_ok=True)
     plate.save(image_path)
