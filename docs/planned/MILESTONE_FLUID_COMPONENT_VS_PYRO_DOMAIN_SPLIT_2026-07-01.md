@@ -2,7 +2,7 @@
 
 **ステータス:** In Progress
 
-**最終更新:** 2026-10-26
+**最終更新:** 2026-10-28
 
 ## 現行コード監査 (2026-08-15)
 
@@ -15,6 +15,22 @@
 役割を分離するための方針。
 
 ## 2026-10-26 GPU particle smoke sampling R&D
+
+2026-10-28 高密度＋広い kernel: 同じ128×64 field・frame 44で128×64 sampleの粒子径を1.5倍にし、D3D12 / 1024×512で露出を揃えて比較。粒子数868のまま、目視では標準径の候補に比べて粒子境界が目立ちにくくなった。normalized high-frequency RMS は標準径0.00583、広い径0.00586、現行64×64は0.00633で、指標だけでは優劣を断定できない。候補の alpha は同じ露出になるよう校正されており、本番の固定補正値ではない。単一frame・横長1条件のみで、時間安定性、縦長、ピーク負荷、他backendや実アプリは未検証。test-only、D3D12 pass。画像 `build/smoke-runtime-rnd/smoke-rect-wide-kernel-20261028/`。
+
+2026-10-28 高密度矩形 sampling: 同じ128×64 field・frame 44で、現行64×64と高密度128×64の test-only Gaussian streamを D3D12 / 1024×512 で露出一致比較。可視粒子426→868、normalized high-frequency RMS 0.00633→0.00583。目視では輪郭の粒子模様が残り、現行より高品質とは判断できない。候補は本番抽出と初期 alpha 係数が異なり、各 alphaScale の直接比較はできない。単一フレームであり、長時間・縦長・性能・実アプリの評価は未実施。画像 `build/smoke-runtime-rnd/smoke-rectangular-highres-20261028/`、矩形および既定条件の D3D12 test は pass。本番変更なし。
+
+2026-10-28 矩形格子の露出一致比較: 同じ128×64 solver field・frame 44を D3D12 / 1024×512 で描画。現行64×64は426粒子、均一間隔64×32の試作は215粒子。各画像を共通露出に調整すると、後者は目視で粒子境界が目立ち、normalized high-frequency RMS は 0.00633→0.00499。候補と本番で初期alpha係数が異なるため、各 alphaScale をそのまま比較しない。候補には視覚上の改善が確認できず、本番変更は行わない。単一frame・横長1条件で、時間連続性と縦長は未検証。画像: `build/smoke-runtime-rnd/smoke-rectangular-final-20261028/`、test pass。
+
+2026-10-28 開始フレーム整合: Composition の smoke simulation 更新は layer in-point と composition 開始を反映する一方、GPU overlay と既存 software surface は開始フレーム 0 を渡していた。実行状態に開始値を保持し、描画時に同じ値を渡すよう修正。非ゼロ in-point および明示開始 frame 12 のそれぞれで、再生中に描画を挟む場合と挟まない場合の seek frame 16 の画像一致・煙の存在を D3D12 統合テストで確認した。明示開始 frame 12 では software surface 直接呼び出しでも同じ比較に pass。software を変えたのは既存 fallback の checkpoint key 不一致修正で、画質機能の追加ではない。明示開始値を伴う software Render Queue 全経路は未検証。3D Pyro は別経路。
+
+2026-10-28 再確認: 現行 D3D12 contract test は pass。固定された96×72 solver field の同一露出比較で、production 64×48 は325粒子、96×72 Gaussian 候補は734粒子。正規化高周波 RMS はそれぞれ 0.006200 と 0.006132 で、この指標から解像度増加による品質向上は確認できない。候補は露出合わせで alpha 1.713 倍が必要であり、本番既定に変更していない。単一フレーム・単一条件で、動きや実アプリでの比較ではない。ログ: `temp/smoke-sampling-current-20261028.log`。
+
+2026-10-28 配置確認: 2D Fluid の Composition View 統合テストに、emitterY を 0.86 から 0.60 に変え、シミュレーションを初期化して同じ24フレームまで進めたとき、可視煙の重心が少なくとも10ピクセル上へ動く検証を追加。D3D12 で pass。レイヤー座標で発生位置を調整できることの確認であり、時間に応じた自動フレーミングや3D Pyroの配置改善は未検証。
+
+同テストを120フレームまで延長すると、emitterY 0.60、上向き速度 -1.2 の条件でも 320×180 画像の煙重心は Y=40.39、上端5行に778可視ピクセルがあり、境界付近への集中を再現した。これは単一設定の2D Fluidの観測で、端への接触を禁止するテストではなく、自動フレーミングや open boundary の妥当性はまだ検証していない。ログ: `temp/smoke-long-frame-test.log`。
+
+同条件で densityDissipationPerSecond のみ 2.5→5.0 に変更し、初期化から再シミュレーションした120フレーム目は重心 Y=69.07、上端5行 0 ピクセル。ただし可視ピクセル数は 6,957→3,081 に減る。煙が早く消える調整であり、開放境界ではなく、本番既定値を変更する根拠にはしない。D3D12 統合テストは pass。ログ: `temp/smoke-dissipation-boundary-test.log`。
 
 `ArtifactCore::ParticleRenderOptions` に `ParticleFalloffMode` を追加し、既定の
 `SoftCircle` を維持したまま、GPU particle renderer に opt-in の
@@ -398,3 +414,28 @@ software smoke surface rasterizerは変更していないため、両経路の�
 - A test-only 96×72 resampling of the same candidate yielded 367–566 particles versus 70–131 at production sampling, reducing obvious sprite gaps but preserving the ring/void shape. This sampling path uses the production particle extraction data and a standalone CPU reference rasterizer; it is not a Diligent GPU renderer comparison.
 - Focused `ArtifactSmokeRuntimeStandaloneTest` build succeeded and `ComparesTemperatureCurlNoiseThroughProductionParticleExtraction` passed (two seeds, six capture comparisons). Captures: `build/smoke-runtime-rnd/captures/temperature-curl-production-pulse-particles-rnd-20261026/`.
 - Next: hold a production density field fixed and use the Diligent renderer to compare transfer response, extinction and lighting at matched exposure. Keep curl-noise and high-resolution resampling test-only until multi-seed GPU images show repeatable roll improvement without voids or excess mass. A separate temperature field would also need runtime snapshot/checkpoint/seek support and bounded storage before integration.
+
+## 2026-10-28 — Fixed-exposure temporal sampling check
+
+- D3D12 の矩形 128×64 density field を 1024×512 に描画し、40×40 baseline、64×64 resample、粒径を 1.5 倍にした 128×64 resample を比較した。frame 20 で各候補の露出を baseline に合わせ、その係数を後続フレームでは固定した。frame 44 の green exposure は baseline 45,672、64×64 46,436、wide 128×64 47,250 で、最初に合わせても後から差が広がる。
+- 別実行の隣接 frame 42–44 では frame 42 で露出を合わせて固定し、frame 44 は baseline 45,672、64×64 45,732、wide 45,954。両実行とも focused GPU test は pass。active cell の増減と画像を記録したが、動き補償や長時間の動画評価ではないため、ちらつきの有無や最終品質は判定できない。
+- 比較用抽出は production の alpha 係数と完全一致せず、複数 seed、実アプリ経路、性能、上端への集中も未検証。候補は test-only のままとする。出力は `build/smoke-runtime-rnd/smoke-fixed-temporal-20261028/` と `build/smoke-runtime-rnd/smoke-fixed-adjacent-20261028/`。
+
+- 同テストに本番 `prepareLayerSmokeRenderData` を固定露出比較の基準として追加した。矩形 field の frame 20 で基準に合わせた係数を維持すると、frame 44 の green exposure は本番 46,984、64×64 fixture 47,063、wide 128×64 fixture 47,898。wide は約 1.9% 明るく、粒子数 868 対 426。focused D3D12 test pass、出力 `build/smoke-runtime-rnd/smoke-real-reference-20261028/`。実アプリの連続表示、複数 seed、性能、上端対策の確認には代わらない。
+
+- 横長の本番対 wide 画像を目視すると両者とも内部が滑らかで、wide の明確な画質改善は認められない。縦長 64×128 field / 512×1024 出力でも同じ固定露出比較を実施。frame 44 の本番 / wide は粒子 417 / 824、green exposure 52,150 / 51,808。画像はどちらも単調な縦柱で、wide はさらに平坦に見える。抽出密度や粒径の変更だけを製品へ採用しない。
+- 縦長の focused test は **失敗**: 同一テストの別候補 `soft-multikernel-40x40` で露出合わせが許容 1% を超過（58,335 対目標 57,226）。wide の上記値は失敗を含む診断実行の記録であり、テスト合格や画質達成を意味しない。露出探索の前提と再現性の調査が必要。capture `build/smoke-runtime-rnd/smoke-vertical-reference-20261028/`。
+
+- 縦長の露出合わせ失敗を再実行し、`soft-multikernel-40x40` の二分探索を記録した。scale 2.14600 の exposure 56,986 に対し、2.14648 は 58,341（目標 57,226）。この近傍で探索値が目標を飛び越え、1% 以内に合わせられない。原因は未特定で、レンダーターゲットやブレンドの量子化・各粒子の寄与を含めて調査が必要。focused test は引き続き失敗。ログ `temp/smoke-vertical-search.log`。比較許容差は変更せず、本番画質の検証にこの候補を使わない。
+
+- 描画経路の確認: `Graphics.ParticleData` の粒子描画先は `RGBA8_UNORM_SRGB`、Alpha blend は source-alpha / inverse-source-alpha。`soft-multikernel` は同じ位置に非常に低い alpha の粒子を3重に重ねる。8-bit render target のブレンド途中の丸めが露出の飛びを作る可能性があるが、現時点では仮説であり、float target の対照または単粒子・反復合成で検証する必要がある。`readbackToImageF32` の戻り型だけで、描画時の精度が float だったとは言えない。Visual Studio debugger の接続先が存在せず、GPU shader の実行時確認は未実施。探索用の一時ログはコードから除去し、前回のログは保持。
+
+- 単色・同一位置の低 alpha 粒子を 1 個／128 個重ねる独立 Diligent test を追加。D3D12 / Vulkan とも同値で再描画が一致し、中心 green の readback は alpha 0.0015 では 1 個・128 個とも 0、0.0020 では各 0.0392 / 0.5451。8-bit target の微小寄与には大きな段差があり、粒子を増やしても閾値以下では蓄積しないことをこの fixture で確認した。前述の全画像 exposure 飛びとの直接の因果や float target での改善は未検証。focused test は両 backend で pass（再現性と値域の検証であり画質合格ではない）。
+
+- 同一 test に無量子化の linear source-over 数学参照を追加。中心 alpha 0.0015・128 粒子の参照 green は 0.132857（linear）だが、D3D12 readback は 0。0 と非 0 の比較で寄与消失を確認できる。readback は sRGB encoded 値のため、非ゼロ数値を linear 参照と直接比較しない。focused test pass。参照は GPU float target ではなく、shader の全画素・実際の smoke field を検証したものではない。粒子 PSO は現状 `DefaultParticleRTVFormat` に固定されており、float target 比較には対応 PSO と target の別途準備が必要。
+
+- 既存 3D volume GPU raymarcher の RGBA16F 出力を staging texture へ直接 readback し、一定低密度 0.00005 の中心 alpha が非ゼロとなる独立 test を追加。D3D12 / Vulkan で各 pass。これは shader 内で浮動小数点積分する別方式が低密度 alpha を保持する証拠であり、同じ粒子描画の 8-bit 対 float 比較ではなく、最終 composition や画質を保証しない。alpha の有限性や正確な値はこの test では未検証。
+
+- 上記 RGBA16F の低密度 test を拡張し、half 値の符号・有限性と均一密度の解析解 `1-exp(-0.00005*30)` を検証。16 / 64 / 256 steps の alpha は 0.00149822 / 0.00149822 / 0.00149536、期待値 0.00149888。D3D12 と Vulkan の両方で一致し各 1/1 pass。GPU completion fence 後に非待機 map する。均一 field の alpha 契約であり、煙の実形状・粒子レンダラー・composition での品質や性能を保証しない。
+
+- 2D runtime field を深さ方向へ拡張する既存の test-only Diligent raymarcher に、定数散乱色と密度依存散乱色の切替を追加。同一 frame 22 field・吸収・光・背景で比較。D3D12 / Vulkan は各 focused test pass、画面平均輝度は D3D12 29.0926 / 28.9315（定数 / 密度依存、8-bit 値）で、画像はわずかに異なるが両方とも滑らかな塊で明確な品質向上は見えない。画像は `build/smoke-runtime-rnd/scatter-test-D3D12/` と `scatter-test-Vulkan/`。2.5D fixture の密度や照明は 3D Pyro と異なり、露出合わせもないため 3D transfer の採否を決める根拠にはならない。production の資源、同期、シェーダー、既定動作は変更していない。
