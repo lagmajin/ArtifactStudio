@@ -279,11 +279,16 @@ lens and are a sensitivity comparison, not Angenieux calibration.
 linear RGB PFM point-source capture. It estimates slope S, roll-off angle L,
 and image-domain scale; it does not report absolute BSDF B without radiometric
 calibration. Alongside the radial fit, it writes a spatial residual heatmap to
-show asymmetric ghosts and streaks hidden by the radial reduction. See
-[EVALUATION.md](EVALUATION.md) for the capture conversion and fit limitations.
+show asymmetric ghosts and streaks hidden by the radial reduction. Use
+`--channel red|green|blue` for an individual sensor channel or `--channel all`
+to save separate fits and residual maps for all three RGB channels. See
+[EVALUATION.md](EVALUATION.md) for the synthetic chromatic fit evaluation,
+capture conversion, and fit limitations.
 `evaluate_harvey_fit_robustness.py` stress-checks the fit with
 a saturated source core, sparse ghost spots, a residual dark offset, and median
 versus mean annular statistics.
+`evaluate_harvey_chromatic_fit.py` writes a synthetic color-dependent Harvey
+capture and truth table for exercising the per-channel measurement workflow.
 `evaluate_diffraction_supersampled_reference.py` compares both resamplers with
 an independent 4096² pupil FFT and 9× sensor-pixel integration reference.
 Pixel-phase evaluation requires Pillow; the supersampled reference requires

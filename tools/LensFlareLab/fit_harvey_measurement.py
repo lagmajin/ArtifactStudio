@@ -187,6 +187,9 @@ def main():
                         help="exclude saturated/specular core and central diffraction")
     parser.add_argument("--max-radius-px", type=int)
     parser.add_argument("--statistic", choices=("median", "mean"), default="median")
+    parser.add_argument("--channel", choices=("luminance", "red", "green", "blue", "all"),
+                        default="luminance",
+                        help="fit luminance or one/all linear RGB channels")
     parser.add_argument("--initial-slope", type=float, default=-1.86)
     parser.add_argument("--csv", type=Path, default=Path("build/LensFlareLab/harvey-measurement-fit.csv"))
     parser.add_argument("--image", type=Path, default=Path("build/LensFlareLab/harvey-measurement-fit.png"))
@@ -212,34 +215,48 @@ def main():
         parser.error(f"max radius {max_radius} exceeds {complete_radius}px complete-annulus limit")
     if max_radius <= args.core_radius_px + 24:
         parser.error("fitting annulus must span at least 24 pixels beyond the excluded core")
-    luminance = np.maximum(0.0, measurement @ np.array((.2126, .7152, .0722)))
-    radii, angles, values, counts, positive = radial_profile(
-        luminance, center_x, center_y, args.pixel_pitch_um, args.focal_length_mm,
-        args.core_radius_px, max_radius, args.statistic)
-    fit = fit_profile(angles, values, positive, args.initial_slope)
+    channels = {"red": 0, "green": 1, "blue": 2}
+    selected = list(channels) if args.channel == "all" else [args.channel]
+    profiles = []
+    for name in selected:
+        plane = (np.maximum(0.0, measurement @ np.array((.2126, .7152, .0722)))
+                 if name == "luminance" else np.maximum(0.0, measurement[:, :, channels[name]]))
+        radii, angles, values, counts, positive = radial_profile(
+            plane, center_x, center_y, args.pixel_pitch_um, args.focal_length_mm,
+            args.core_radius_px, max_radius, args.statistic)
+        fit = fit_profile(angles, values, positive, args.initial_slope)
+        profiles.append((name, plane, radii, angles, values, counts, positive, fit))
+
+    def output_path(path, name):
+        if args.channel != "all":
+            return path
+        return path.with_name(f"{path.stem}-{name}{path.suffix}")
+
     csv_path = args.csv
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(("radius_px", "angle_mrad", "sample_count", "measured_profile",
+        writer.writerow(("channel", "radius_px", "angle_mrad", "sample_count", "measured_profile",
                          "fitted_profile", "relative_residual", "included_in_fit"))
-        for index in range(len(radii)):
-            residual = (values[index] / fit["predicted"][index] - 1.0
-                        if values[index] > 0 and math.isfinite(fit["predicted"][index]) else math.nan)
-            writer.writerow((radii[index], f"{angles[index]*1000:.9g}", counts[index],
-                f"{values[index]:.12g}" if math.isfinite(values[index]) else "",
-                f"{fit['predicted'][index]:.12g}" if math.isfinite(fit["predicted"][index]) else "",
-                f"{residual:.9g}" if math.isfinite(residual) else "",
-                int(positive[index])))
-    save_profile_chart(args.image, radii, values, fit["predicted"], positive, fit)
-    residual_metrics = save_spatial_residual(args.residual_image, luminance,
-        center_x, center_y, args.core_radius_px, max_radius, fit["predicted"], fit)
-    print(f"fit_success={fit['success']} S={fit['slope']:.6g} "
-          f"L={fit['l_mrad']:.6g} mrad image_scale={fit['scale']:.6g} "
-          f"offset={fit['offset']:.6g} log_RMSE={fit['rmse_log']:.6g} "
-          f"R2_log={fit['r2_log']:.6g} annuli={positive.sum()} "
-          f"spatial_q95_abs_log={residual_metrics['q95_abs_log']:.6g} "
-          f"spatial_fraction_gt_2x={residual_metrics['fraction_factor_two']:.4%}")
+        for name, plane, radii, angles, values, counts, positive, fit in profiles:
+            for index in range(len(radii)):
+                residual = (values[index] / fit["predicted"][index] - 1.0
+                            if values[index] > 0 and math.isfinite(fit["predicted"][index]) else math.nan)
+                writer.writerow((name, radii[index], f"{angles[index]*1000:.9g}", counts[index],
+                    f"{values[index]:.12g}" if math.isfinite(values[index]) else "",
+                    f"{fit['predicted'][index]:.12g}" if math.isfinite(fit["predicted"][index]) else "",
+                    f"{residual:.9g}" if math.isfinite(residual) else "",
+                    int(positive[index])))
+            save_profile_chart(output_path(args.image, name), radii, values,
+                               fit["predicted"], positive, fit)
+            residual_metrics = save_spatial_residual(output_path(args.residual_image, name), plane,
+                center_x, center_y, args.core_radius_px, max_radius, fit["predicted"], fit)
+            print(f"channel={name} fit_success={fit['success']} S={fit['slope']:.6g} "
+                  f"L={fit['l_mrad']:.6g} mrad image_scale={fit['scale']:.6g} "
+                  f"offset={fit['offset']:.6g} log_RMSE={fit['rmse_log']:.6g} "
+                  f"R2_log={fit['r2_log']:.6g} annuli={positive.sum()} "
+                  f"spatial_q95_abs_log={residual_metrics['q95_abs_log']:.6g} "
+                  f"spatial_fraction_gt_2x={residual_metrics['fraction_factor_two']:.4%}")
     print("B/B0 are not reported as physical BSDF coefficients: absolute calibration "
           "of source irradiance, sensor response, and system throughput is required.")
 

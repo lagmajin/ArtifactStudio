@@ -127,6 +127,41 @@ streaks, dust, housing scatter, or field-dependent veiling glare; inspect the
 residuals and use a field-by-field measurement set for such cases. Source center,
 pixel pitch, and focal length must be supplied or known. This initial tool reads
 linear RGB PFM; demosaicing/RAW decoding remains an input-preparation step.
+Use `--channel red|green|blue` to fit one sensor channel, or `--channel all` to
+fit all three independently. The all-channel mode writes three profile images
+and three spatial-residual maps with `-red`, `-green`, and `-blue` suffixes;
+the CSV contains a `channel` column. The default `luminance` mode retains the
+single-image output. Channel fits help reveal wavelength-dependent scatter,
+but sensor spectral response and Bayer/demosaic cross-talk still affect real
+captures.
+
+`evaluate_harvey_chromatic_fit.py` creates a 512² synthetic RGB PFM with
+different S/L values per channel (red `S=-1.78, L=2.8 mrad`, green
+`S=-1.86, L=2.04 mrad`, blue `S=-2.02, L=1.45 mrad`) and records the exact
+inputs in `examples/harvey-chromatic-truth.csv`. This is a controlled fitter
+check, not an empirical claim that real lenses follow this color ordering.
+Run the generator, then fit its output with `--channel all`; compare each
+channel's recovered S/L to the truth table. The model still fits a scalar
+Harvey profile per channel and does not model spectral BSDF, sensor color
+filters, or wavelength-resolved source calibration.
+
+Using the documented 512² setup, the fit recovered:
+
+| Channel | Input S | Fit S | S error | Input L (mrad) | Fit L (mrad) | L error | Log RMSE |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Red | -1.78 | -1.8416 | +3.46% | 2.80 | 2.8871 | +3.11% | 0.00261 |
+| Green | -1.86 | -1.9136 | +2.88% | 2.04 | 2.1076 | +3.31% | 0.00367 |
+| Blue | -2.02 | -2.0673 | +2.34% | 1.45 | 1.5016 | +3.56% | 0.00504 |
+
+The input values, source generation, and fitting model share the same
+pixel-integrated Harvey formulation, so these errors measure discretization
+and fitting bias under controlled conditions rather than independent optical
+accuracy.
+
+![Synthetic red, green, and blue Harvey profile fits](examples/harvey-chromatic-fit-profiles.png)
+
+Individual spatial-residual maps are also written for each channel. The
+synthetic radial-only input leaves them near the residual floor, as expected.
 
 A synthetic closed-loop check generated a 512² pixel-integrated Harvey image
 with `S=-1.86`, `L=2.04 mrad`, 5.5 µm pixels and a 100 mm focal length. Fitting
@@ -152,6 +187,18 @@ linear PFM measurement, then call:
 ```powershell
 python tools/LensFlareLab/fit_harvey_measurement.py capture.pfm `
   --pixel-pitch-um 5.5 --focal-length-mm 100 --core-radius-px 12
+```
+
+For the synthetic chromatic check, run:
+
+```powershell
+python tools/LensFlareLab/evaluate_harvey_chromatic_fit.py
+python tools/LensFlareLab/fit_harvey_measurement.py `
+  tools/LensFlareLab/examples/harvey-chromatic-synthetic.pfm `
+  --pixel-pitch-um 5.5 --focal-length-mm 100 --core-radius-px 12 `
+  --channel all --csv tools/LensFlareLab/examples/harvey-chromatic-fit.csv `
+  --image tools/LensFlareLab/examples/harvey-chromatic-fit.png `
+  --residual-image tools/LensFlareLab/examples/harvey-chromatic-residual.png
 ```
 
 Souksava et al., [Evaluation of the Lens Flare (2021)](https://library.imaging.org/ei/articles/33/9/art00008), describe RAW flare measurement across source positions. Their measured images and camera-specific calibration are not bundled here.
