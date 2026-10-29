@@ -4275,6 +4275,68 @@ TEST(CreativeImageEffectContractTest, PigmentSeparationGranulationIsDeterministi
     }
 }
 
+TEST(CreativeImageEffectContractTest, PigmentSeparationRgbOutputDoesNotDependOnOptionalAlphaPlane) {
+    constexpr int width = 8;
+    constexpr int height = 6;
+    VideoFrame withAlpha(width, height);
+    VideoFrame withoutAlpha(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float red = static_cast<float>(x) / (width - 1);
+            const float green = static_cast<float>(y) / (height - 1);
+            const float blue = static_cast<float>((x + 2 * y) % width) / (width - 1);
+            for (VideoFrame* frame : {&withAlpha, &withoutAlpha}) {
+                frame->getChannel(ChannelType::Red)->data()[pixel] = red;
+                frame->getChannel(ChannelType::Green)->data()[pixel] = green;
+                frame->getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            }
+            withAlpha.getChannel(ChannelType::Alpha)->data()[pixel] =
+                static_cast<float>(pixel) / (width * height - 1);
+        }
+    }
+    withoutAlpha.removeChannel(ChannelType::Alpha);
+
+    PigmentSeparationEffect withAlphaEffect;
+    withAlphaEffect.setParameter("Spread", 0.65f);
+    withAlphaEffect.setParameter("Bleed", 0.55f);
+    withAlphaEffect.setParameter("Flow", 0.7f);
+    withAlphaEffect.setParameter("Granulation", 0.8f);
+    PigmentSeparationEffect withoutAlphaEffect;
+    withoutAlphaEffect.setParameter("Spread", 0.65f);
+    withoutAlphaEffect.setParameter("Bleed", 0.55f);
+    withoutAlphaEffect.setParameter("Flow", 0.7f);
+    withoutAlphaEffect.setParameter("Granulation", 0.8f);
+    const CreativeEffectContext context{.time = 3.25};
+    withAlphaEffect.process(withAlpha, context);
+    withoutAlphaEffect.process(withoutAlpha, context);
+
+    bool changedRgb = false;
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto expected = withAlpha.getChannel(channelType);
+        const auto actual = withoutAlpha.getChannel(channelType);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const int pixel = y * width + x;
+                EXPECT_TRUE(std::isfinite(actual->data()[pixel]));
+                EXPECT_FLOAT_EQ(actual->data()[pixel], expected->data()[pixel]);
+                const float original = channelType == ChannelType::Red
+                    ? static_cast<float>(x) / (width - 1)
+                    : channelType == ChannelType::Green
+                        ? static_cast<float>(y) / (height - 1)
+                        : static_cast<float>((x + 2 * y) % width) / (width - 1);
+                changedRgb = changedRgb ||
+                    std::abs(actual->data()[pixel] - original) > 1.0e-6f;
+            }
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    EXPECT_FALSE(withoutAlpha.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, PigmentSeparationMissingRequiredColorChannelLeavesFrameUnchanged) {
     VideoFrame frame(2, 1);
     const float red[] = {0.2f, 0.7f};
