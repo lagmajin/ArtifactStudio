@@ -378,7 +378,9 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                        QStringLiteral("Depth"), QStringLiteral("Normal.X"),
                        QStringLiteral("Normal.Y"), QStringLiteral("Normal.Z"),
                        QStringLiteral("Velocity.X"),
-                       QStringLiteral("Velocity.Y")});
+                       QStringLiteral("Velocity.Y"),
+                       QStringLiteral("ObjectId"),
+                       QStringLiteral("MaterialId")});
     }
     queue->setJobFrameRangeAt(jobIndex, frameStart, frameEnd);
     auto selectiveSettings = queue->jobSelectiveSettingsAt(jobIndex);
@@ -480,7 +482,8 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             };
             for (const std::string& required : {
                      "R", "G", "B", "A", "Depth", "Normal.X", "Normal.Y",
-                     "Normal.Z", "Velocity.X", "Velocity.Y"}) {
+                     "Normal.Z", "Velocity.X", "Velocity.Y", "ObjectId",
+                     "MaterialId"}) {
                 if (!hasChannel(required)) {
                     *failure = QStringLiteral(
                         "Multi-channel EXR is missing requested AOV %1: %2")
@@ -546,6 +549,73 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue EXR metadata was incomplete or incorrect: %1")
+                               .arg(framePath);
+                return false;
+            }
+            const auto objectManifest = QJsonDocument::fromJson(
+                QByteArray::fromStdString(spec.get_string_attribute(
+                    "artifact.cryptomatte.object.manifest", "")));
+            const auto materialManifest = QJsonDocument::fromJson(
+                QByteArray::fromStdString(spec.get_string_attribute(
+                    "artifact.cryptomatte.material.manifest", "")));
+            const auto cryptomatteId = [](const QString& name) {
+                QString id = QString::number(
+                    ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(name),
+                    16).rightJustified(8, QLatin1Char('0'));
+                id.chop(1);
+                return id;
+            };
+            const QString objectStandardPrefix = QStringLiteral("cryptomatte/%1")
+                .arg(cryptomatteId(QStringLiteral("CryptoObject")));
+            const QString materialStandardPrefix = QStringLiteral("cryptomatte/%1")
+                .arg(cryptomatteId(QStringLiteral("CryptoMaterial")));
+            const auto objectStandardManifest = QJsonDocument::fromJson(
+                QByteArray::fromStdString(spec.get_string_attribute(
+                    (objectStandardPrefix + QStringLiteral("/manifest")).toStdString(),
+                    "")));
+            const auto materialStandardManifest = QJsonDocument::fromJson(
+                QByteArray::fromStdString(spec.get_string_attribute(
+                    (materialStandardPrefix + QStringLiteral("/manifest")).toStdString(),
+                    "")));
+            if (spec.get_string_attribute(
+                    "artifact.cryptomatte.object.name", "") != "CryptoObject" ||
+                spec.get_string_attribute(
+                    "artifact.cryptomatte.object.hash", "") !=
+                    "MurmurHash3_32" ||
+                !objectManifest.isObject() || objectManifest.object().isEmpty() ||
+                spec.get_string_attribute(
+                    "artifact.cryptomatte.material.name", "") !=
+                    "CryptoMaterial" ||
+                spec.get_string_attribute(
+                    "artifact.cryptomatte.material.hash", "") !=
+                    "MurmurHash3_32" ||
+                !materialManifest.isObject() ||
+                materialManifest.object().isEmpty() ||
+                spec.get_string_attribute(
+                    (objectStandardPrefix + QStringLiteral("/name")).toStdString(),
+                    "") != "CryptoObject" ||
+                spec.get_string_attribute(
+                    (objectStandardPrefix + QStringLiteral("/hash")).toStdString(),
+                    "") != "MurmurHash3_32" ||
+                spec.get_string_attribute(
+                    (objectStandardPrefix + QStringLiteral("/conversion")).toStdString(),
+                    "") != "uint32_to_float32" ||
+                !objectStandardManifest.isObject() ||
+                objectStandardManifest.object() != objectManifest.object() ||
+                spec.get_string_attribute(
+                    (materialStandardPrefix + QStringLiteral("/name")).toStdString(),
+                    "") != "CryptoMaterial" ||
+                spec.get_string_attribute(
+                    (materialStandardPrefix + QStringLiteral("/hash")).toStdString(),
+                    "") != "MurmurHash3_32" ||
+                spec.get_string_attribute(
+                    (materialStandardPrefix + QStringLiteral("/conversion")).toStdString(),
+                    "") != "uint32_to_float32" ||
+                !materialStandardManifest.isObject() ||
+                materialStandardManifest.object() != materialManifest.object()) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue EXR Cryptomatte metadata or manifest was missing: %1")
                                .arg(framePath);
                 return false;
             }
