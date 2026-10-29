@@ -3245,6 +3245,67 @@ TEST(CreativeImageEffectContractTest, TemporalFossilCreatesResidueFromPriorFrame
     }
 }
 
+TEST(CreativeImageEffectContractTest, TemporalFossilRgbHistoryDoesNotDependOnOptionalAlphaPlane) {
+    constexpr int width = 3;
+    constexpr int height = 2;
+    VideoFrame previousWithAlpha(width, height);
+    VideoFrame currentWithAlpha(width, height);
+    VideoFrame previousWithoutAlpha(width, height);
+    VideoFrame currentWithoutAlpha(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (VideoFrame* frame : {&previousWithAlpha, &previousWithoutAlpha}) {
+            frame->getChannel(ChannelType::Red)->data()[pixel] = 0.2f;
+            frame->getChannel(ChannelType::Green)->data()[pixel] = 0.2f;
+            frame->getChannel(ChannelType::Blue)->data()[pixel] = 0.2f;
+        }
+        for (VideoFrame* frame : {&currentWithAlpha, &currentWithoutAlpha}) {
+            frame->getChannel(ChannelType::Red)->data()[pixel] = 0.8f;
+            frame->getChannel(ChannelType::Green)->data()[pixel] = 0.8f;
+            frame->getChannel(ChannelType::Blue)->data()[pixel] = 0.8f;
+        }
+        previousWithAlpha.getChannel(ChannelType::Alpha)->data()[pixel] = 0.25f;
+        currentWithAlpha.getChannel(ChannelType::Alpha)->data()[pixel] =
+            static_cast<float>(pixel + 1) / 10.0f;
+    }
+    previousWithoutAlpha.removeChannel(ChannelType::Alpha);
+    currentWithoutAlpha.removeChannel(ChannelType::Alpha);
+
+    TemporalFossilEffect withAlphaEffect;
+    withAlphaEffect.setParameter("Persistence", 1.0f);
+    withAlphaEffect.setParameter("Decay", 0.5f);
+    withAlphaEffect.setParameter("EdgeThreshold", 0.0f);
+    withAlphaEffect.setParameter("ChromaEcho", 0.0f);
+    TemporalFossilEffect withoutAlphaEffect;
+    withoutAlphaEffect.setParameter("Persistence", 1.0f);
+    withoutAlphaEffect.setParameter("Decay", 0.5f);
+    withoutAlphaEffect.setParameter("EdgeThreshold", 0.0f);
+    withoutAlphaEffect.setParameter("ChromaEcho", 0.0f);
+    const CreativeEffectContext firstContext{.time = 0.0, .frameIndex = 0};
+    const CreativeEffectContext secondContext{.time = 0.25, .frameIndex = 1};
+    withAlphaEffect.process(previousWithAlpha, firstContext);
+    withAlphaEffect.process(currentWithAlpha, secondContext);
+    withoutAlphaEffect.process(previousWithoutAlpha, firstContext);
+    withoutAlphaEffect.process(currentWithoutAlpha, secondContext);
+
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto expected = currentWithAlpha.getChannel(channelType);
+        const auto actual = currentWithoutAlpha.getChannel(channelType);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(actual->data()[pixel], expected->data()[pixel]);
+            EXPECT_FLOAT_EQ(actual->data()[pixel], 0.3f);
+        }
+    }
+    const auto outputAlpha = currentWithAlpha.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(outputAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(outputAlpha->data()[pixel], static_cast<float>(pixel + 1) / 10.0f);
+    }
+    EXPECT_FALSE(currentWithoutAlpha.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, TemporalFossilMissingChannelDoesNotAdvanceHistory) {
     constexpr int width = 3;
     constexpr int height = 2;
