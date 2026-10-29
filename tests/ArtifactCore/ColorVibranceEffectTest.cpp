@@ -375,6 +375,23 @@ TEST(CreativeImageEffectContractTest, SolarizeClampsThresholdBelowZero) {
     EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[1], 0.7f);
 }
 
+TEST(CreativeImageEffectContractTest, SolarizeClampsThresholdAboveOneAndRgbOutput) {
+    VideoFrame frame(1, 1);
+    frame.getChannel(ChannelType::Red)->data()[0] = 1.5f;
+    frame.getChannel(ChannelType::Green)->data()[0] = 0.5f;
+    frame.getChannel(ChannelType::Blue)->data()[0] = -0.25f;
+    frame.getChannel(ChannelType::Alpha)->data()[0] = 1.3f;
+
+    SolarizeEffect effect;
+    effect.setParameter("Threshold", 5.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[0], 0.0f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[0], 0.5f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[0], 0.0f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[0], 1.3f);
+}
+
 TEST(CreativeImageEffectContractTest, SolarizeLeavesFrameUnchangedWhenRequiredChannelIsMissing) {
     VideoFrame frame(1, 1);
     frame.getChannel(ChannelType::Red)->data()[0] = 0.25f;
