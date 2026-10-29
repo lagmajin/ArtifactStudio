@@ -1158,6 +1158,17 @@ artifact_add_test(ArtifactCoreTaskSystemMattePoC
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreThreadPoolContractTest
+    SOURCES
+        ThreadPoolContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreThreadPoolContractTest PROPERTIES
+    LABELS "core;thread-pool;concurrency;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreTextShapingTest
     SOURCES
         TextShapingTest.cpp
