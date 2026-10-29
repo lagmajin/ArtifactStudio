@@ -360,6 +360,57 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeFrameUpdatesPreserveDimensionsDescriptorAndAlpha)
+{
+    constexpr int width = 17;
+    constexpr int height = 11;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset = static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>((x * 3 + y) % 13) / 12.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 5) % 17) / 16.0f;
+            pixels[offset + 2] = static_cast<float>((x * 7 + y * 2) % 19) / 18.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 3) % 9) / 8.0f;
+        }
+    }
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    image.setColorDescriptor(descriptor);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache frame12;
+    ImageF32x4RGBAWithCache repeatedFrame12;
+    ImageF32x4RGBAWithCache frame13;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, frame12);
+    effect.applyCPUOnly(source, repeatedFrame12);
+    context.compositionFrame = 13;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, frame13);
+
+    const std::array<const ImageF32x4RGBAWithCache*, 3> outputs{
+        &frame12, &repeatedFrame12, &frame13};
+    for (const auto* output : outputs) {
+        ASSERT_NE(output->image().rgba32fData(), nullptr);
+        EXPECT_EQ(output->width(), width);
+        EXPECT_EQ(output->height(), height);
+        EXPECT_EQ(output->image().colorDescriptor(), descriptor);
+        const float* result = output->image().rgba32fData();
+        for (std::size_t pixel = 0;
+             pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+            EXPECT_FLOAT_EQ(result[pixel * 4 + 3], pixels[pixel * 4 + 3])
+                << "pixel=" << pixel;
+        }
+    }
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeGateWeaveDisplacesAlphaWithTheColorSample)
 {
     constexpr int width = 32;
