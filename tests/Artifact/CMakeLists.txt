@@ -901,6 +901,15 @@ artifact_add_test(ArtifactPosterizeTimeEffectContractTest
 set_tests_properties(ArtifactPosterizeTimeEffectContractTest PROPERTIES
     LABELS "effect;posterize-time;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactFeedbackEffectContractTest
+    SOURCES
+        FeedbackEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactFeedbackEffectContractTest PROPERTIES
+    LABELS "effect;feedback;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
