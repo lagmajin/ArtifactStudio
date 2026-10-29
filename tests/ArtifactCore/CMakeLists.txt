@@ -1099,6 +1099,16 @@ set_tests_properties(ArtifactCoreStarfieldSpectralContractTest PROPERTIES
     LABELS "starfield;spectral;generation;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreMetadataCollectorContractTest
+    SOURCES
+        MetadataCollectorContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreMetadataCollectorContractTest PROPERTIES
+    LABELS "project;metadata;serialization;csv;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
