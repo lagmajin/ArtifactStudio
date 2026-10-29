@@ -1587,6 +1587,109 @@ TEST(CreativeImageEffectContractTest, TemporalEffectsInitializeHistoryFromFirstF
     }
 }
 
+TEST(CreativeImageEffectContractTest, SurfaceMemoryRetainsPriorFrameAndPreservesAlpha) {
+    constexpr int width = 3;
+    constexpr int height = 2;
+    VideoFrame previousFrame(width, height);
+    VideoFrame currentFrame(width, height);
+    VideoFrame freshCurrentFrame(width, height);
+    const float alphaValues[] = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f};
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+            previousFrame.getChannel(channel)->data()[pixel] = 0.2f;
+            currentFrame.getChannel(channel)->data()[pixel] = 0.8f;
+            freshCurrentFrame.getChannel(channel)->data()[pixel] = 0.8f;
+        }
+        previousFrame.getChannel(ChannelType::Alpha)->data()[pixel] = 0.25f;
+        currentFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alphaValues[pixel];
+        freshCurrentFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alphaValues[pixel];
+    }
+
+    SurfaceMemoryEffect effect;
+    effect.setParameter("Retention", 1.0f);
+    effect.setParameter("Refresh", 0.0f);
+    effect.setParameter("Texture", 0.0f);
+    effect.setParameter("Smear", 0.0f);
+    effect.process(previousFrame, CreativeEffectContext{.time = 0.0, .frameIndex = 0});
+    effect.process(currentFrame, CreativeEffectContext{.time = 0.5, .frameIndex = 1});
+
+    SurfaceMemoryEffect freshEffect;
+    freshEffect.setParameter("Retention", 1.0f);
+    freshEffect.setParameter("Refresh", 0.0f);
+    freshEffect.setParameter("Texture", 0.0f);
+    freshEffect.setParameter("Smear", 0.0f);
+    freshEffect.process(freshCurrentFrame,
+                        CreativeEffectContext{.time = 0.5, .frameIndex = 1});
+
+    bool differsFromFreshFrame = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto retained = currentFrame.getChannel(channel);
+        const auto fresh = freshCurrentFrame.getChannel(channel);
+        ASSERT_TRUE(retained);
+        ASSERT_TRUE(fresh);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(retained->data()[pixel]));
+            EXPECT_LT(retained->data()[pixel], 0.8f)
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            EXPECT_FLOAT_EQ(fresh->data()[pixel], 0.8f)
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            differsFromFreshFrame = differsFromFreshFrame ||
+                std::abs(retained->data()[pixel] - fresh->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(differsFromFreshFrame);
+    const auto alpha = currentFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(alpha->data()[pixel], alphaValues[pixel]);
+    }
+}
+
+TEST(CreativeImageEffectContractTest, TemporalFossilCreatesResidueFromPriorFrame) {
+    constexpr int width = 3;
+    constexpr int height = 2;
+    VideoFrame previousFrame(width, height);
+    VideoFrame currentFrame(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+            previousFrame.getChannel(channel)->data()[pixel] = 0.2f;
+            currentFrame.getChannel(channel)->data()[pixel] = 0.8f;
+        }
+        previousFrame.getChannel(ChannelType::Alpha)->data()[pixel] = 0.15f;
+        currentFrame.getChannel(ChannelType::Alpha)->data()[pixel] =
+            static_cast<float>(pixel + 1) / 10.0f;
+    }
+
+    TemporalFossilEffect effect;
+    effect.setParameter("Persistence", 1.0f);
+    effect.setParameter("Decay", 0.5f);
+    effect.setParameter("EdgeThreshold", 0.0f);
+    effect.setParameter("ChromaEcho", 0.0f);
+    effect.process(previousFrame,
+                   CreativeEffectContext{.time = 0.0, .frameIndex = 0});
+    effect.process(currentFrame,
+                   CreativeEffectContext{.time = 0.25, .frameIndex = 1});
+
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto plane = currentFrame.getChannel(channel);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], 0.3f)
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+        }
+    }
+    const auto alpha = currentFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(alpha->data()[pixel], static_cast<float>(pixel + 1) / 10.0f)
+            << "pixel=" << pixel;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, DepthMeltPreservesUniformGrayAndAlpha) {
     VideoFrame frame(3, 2);
     auto red = frame.getChannel(ChannelType::Red);
