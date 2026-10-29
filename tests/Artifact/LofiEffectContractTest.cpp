@@ -264,6 +264,84 @@ TEST(LofiEffectContractTest, AnimatedRegionEnabledTogglesWithoutCoordinateTracks
     EXPECT_FALSE(effect.hasEffectRegion());
 }
 
+TEST(LofiEffectContractTest, AnimatedRegionCoordinatesMoveThePixelComposite)
+{
+    constexpr int width = 8;
+    constexpr int height = 8;
+    const auto source = makePatternSurface();
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    const auto enabled =
+        effect.editableProperty(QStringLiteral("Effect Region Enabled"));
+    const auto regionX = effect.editableProperty(QStringLiteral("Effect Region X"));
+    const auto regionY = effect.editableProperty(QStringLiteral("Effect Region Y"));
+    const auto regionWidth =
+        effect.editableProperty(QStringLiteral("Effect Region Width"));
+    const auto regionHeight =
+        effect.editableProperty(QStringLiteral("Effect Region Height"));
+    ASSERT_TRUE(enabled);
+    ASSERT_TRUE(regionX);
+    ASSERT_TRUE(regionY);
+    ASSERT_TRUE(regionWidth);
+    ASSERT_TRUE(regionHeight);
+    enabled->addKeyFrame(RationalTime(0, 30), true);
+    enabled->addKeyFrame(RationalTime(30, 30), true);
+    regionX->addKeyFrame(RationalTime(0, 30), 2.0);
+    regionX->addKeyFrame(RationalTime(30, 30), 3.0);
+    regionY->addKeyFrame(RationalTime(0, 30), 1.0);
+    regionY->addKeyFrame(RationalTime(30, 30), 2.0);
+    regionWidth->addKeyFrame(RationalTime(0, 30), 3.0);
+    regionWidth->addKeyFrame(RationalTime(30, 30), 4.0);
+    regionHeight->addKeyFrame(RationalTime(0, 30), 2.0);
+    regionHeight->addKeyFrame(RationalTime(30, 30), 3.0);
+
+    ArtifactOldTVEffect fullEffect;
+    fullEffect.setComputeMode(ComputeMode::CPU);
+    ImageF32x4RGBAWithCache fullEffectOutput;
+    fullEffect.applyCPUOnly(source, fullEffectOutput);
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* fullPixels = fullEffectOutput.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(fullPixels, nullptr);
+
+    const auto expectRegionOutput = [&](std::int64_t frame,
+                                        int left,
+                                        int top,
+                                        int regionWidthPixels,
+                                        int regionHeightPixels) {
+        EffectContext context;
+        context.frameRate = 30.0;
+        context.compositionFrame = frame;
+        effect.setContext(context);
+        ASSERT_TRUE(effect.hasEffectRegion());
+        EXPECT_EQ(effect.effectRegion(),
+                  QRectF(left, top, regionWidthPixels, regionHeightPixels));
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        const float* actual = output.image().rgba32fData();
+        ASSERT_NE(actual, nullptr);
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const bool inside = x >= left && x < left + regionWidthPixels &&
+                                    y >= top && y < top + regionHeightPixels;
+                const std::size_t offset =
+                    static_cast<std::size_t>((y * width + x) * 4);
+                for (std::size_t channel = 0; channel < 4; ++channel) {
+                    const float expected = inside
+                        ? fullPixels[offset + channel]
+                        : sourcePixels[offset + channel];
+                    EXPECT_FLOAT_EQ(actual[offset + channel], expected)
+                        << "frame=" << frame << " x=" << x << " y=" << y
+                        << " channel=" << channel;
+                }
+            }
+        }
+    };
+
+    expectRegionOutput(0, 2, 1, 3, 2);
+    expectRegionOutput(30, 3, 2, 4, 3);
+}
+
 TEST(LofiEffectContractTest, AllowOverscanDoesNotExpandOldTvOutput)
 {
     const auto source = makePatternSurface();
