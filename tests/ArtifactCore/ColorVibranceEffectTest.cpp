@@ -700,6 +700,60 @@ TEST(CreativeImageEffectContractTest, KaleidoscopeCountOneFoldsUpperRightTowardL
     }
 }
 
+TEST(CreativeImageEffectContractTest, KaleidoscopeCenterControlsTheSymmetryOrigin) {
+    VideoFrame centered(3, 3);
+    VideoFrame originCentered(3, 3);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    for (const ChannelType channel : channels) {
+        auto centeredPlane = centered.getChannel(channel);
+        auto originPlane = originCentered.getChannel(channel);
+        ASSERT_TRUE(centeredPlane);
+        ASSERT_TRUE(originPlane);
+        for (int pixel = 0; pixel < 9; ++pixel) {
+            const float value = static_cast<float>(pixel) / 10.0f;
+            centeredPlane->data()[pixel] = value;
+            originPlane->data()[pixel] = value;
+        }
+    }
+
+    KaleidoscopeEffect centeredEffect;
+    centeredEffect.setParameter("Count", 4.0f);
+    centeredEffect.setParameter("Angle", 0.0f);
+    centeredEffect.setParameter("CenterX", 0.5f);
+    centeredEffect.setParameter("CenterY", 0.5f);
+    KaleidoscopeEffect originEffect;
+    originEffect.setParameter("Count", 4.0f);
+    originEffect.setParameter("Angle", 0.0f);
+    originEffect.setParameter("CenterX", 0.0f);
+    originEffect.setParameter("CenterY", 0.0f);
+    centeredEffect.process(centered, CreativeEffectContext{});
+    originEffect.process(originCentered, CreativeEffectContext{});
+
+    constexpr int upperRightPixel = 1 * 3 + 2;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto centeredPlane = centered.getChannel(channel);
+        const auto originPlane = originCentered.getChannel(channel);
+        ASSERT_TRUE(centeredPlane);
+        ASSERT_TRUE(originPlane);
+        EXPECT_FLOAT_EQ(centeredPlane->data()[upperRightPixel], 0.8f);
+        EXPECT_FLOAT_EQ(originPlane->data()[upperRightPixel], 0.5f);
+    }
+    const auto centeredAlpha = centered.getChannel(ChannelType::Alpha);
+    const auto originAlpha = originCentered.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(centeredAlpha);
+    ASSERT_TRUE(originAlpha);
+    for (int pixel = 0; pixel < 9; ++pixel) {
+        EXPECT_FLOAT_EQ(centeredAlpha->data()[pixel],
+                        static_cast<float>(pixel) / 10.0f);
+        EXPECT_FLOAT_EQ(originAlpha->data()[pixel],
+                        static_cast<float>(pixel) / 10.0f);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, ChromaticAberrationShiftsRedAndBlueInOppositeDirections) {
     VideoFrame frame(3, 1);
     auto red = frame.getChannel(ChannelType::Red);
