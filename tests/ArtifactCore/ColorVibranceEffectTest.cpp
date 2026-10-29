@@ -1022,6 +1022,30 @@ TEST(CreativeImageEffectContractTest, PixelateMissingRequiredColorChannelLeavesF
     EXPECT_FALSE(frame.getChannel(ChannelType::Blue));
 }
 
+TEST(CreativeImageEffectContractTest, PixelateAveragesRgbWithoutOptionalAlpha) {
+    VideoFrame frame(2, 1);
+    frame.getChannel(ChannelType::Red)->data()[0] = 0.2f;
+    frame.getChannel(ChannelType::Red)->data()[1] = 0.8f;
+    frame.getChannel(ChannelType::Green)->data()[0] = 0.4f;
+    frame.getChannel(ChannelType::Green)->data()[1] = 0.6f;
+    frame.getChannel(ChannelType::Blue)->data()[0] = 0.1f;
+    frame.getChannel(ChannelType::Blue)->data()[1] = 0.9f;
+    frame.removeChannel(ChannelType::Alpha);
+
+    PixelateEffect effect;
+    effect.setParameter("BlockSize", 2.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto channel = frame.getChannel(channelType);
+        ASSERT_TRUE(channel);
+        EXPECT_FLOAT_EQ(channel->data()[0], 0.5f);
+        EXPECT_FLOAT_EQ(channel->data()[1], 0.5f);
+    }
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, HalftoneCreatesExpectedDotCenterAndCornerValues) {
     VideoFrame frame(4, 4);
     auto red = frame.getChannel(ChannelType::Red);
