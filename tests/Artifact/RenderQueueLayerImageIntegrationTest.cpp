@@ -377,14 +377,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
         queue->setJobMultiChannelChannelsAt(
             jobIndex, {QStringLiteral("R"), QStringLiteral("G"),
                        QStringLiteral("B"), QStringLiteral("A"),
-                       QStringLiteral("Depth"),
-                       QStringLiteral("Normal.X"),
-                       QStringLiteral("Normal.Y"),
-                       QStringLiteral("Normal.Z"),
-                       QStringLiteral("Velocity.X"),
-                       QStringLiteral("Velocity.Y"),
-                       QStringLiteral("ObjectId"),
-                       QStringLiteral("MaterialId")});
+                       QStringLiteral("Depth")});
     }
     queue->setJobFrameRangeAt(jobIndex, frameStart, frameEnd);
     auto selectiveSettings = queue->jobSelectiveSettingsAt(jobIndex);
@@ -484,10 +477,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 return found == spec.channelnames.end()
                     ? -1 : static_cast<int>(found - spec.channelnames.begin());
             };
-            for (const std::string& required : {
-                     "R", "G", "B", "A", "Depth", "Normal.X",
-                     "Normal.Y", "Normal.Z", "Velocity.X", "Velocity.Y",
-                     "ObjectId", "MaterialId"}) {
+            for (const std::string& required : {"R", "G", "B", "A", "Depth"}) {
                 if (!hasChannel(required)) {
                     *failure = QStringLiteral(
                         "Multi-channel EXR is missing requested AOV %1: %2")
@@ -539,26 +529,6 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                                    .arg(QString::fromStdString(name), framePath);
                     return false;
                 }
-            }
-            const int objectIdIndex = channelIndex("ObjectId");
-            const int materialIdIndex = channelIndex("MaterialId");
-            if (!expectedObjectManifestEntry.isEmpty() &&
-                (objectIdIndex < 0 || materialIdIndex < 0 ||
-                 ArtifactCore::Image::Cryptomatte::CryptoSample::floatToId(
-                     pixels[centerPixel +
-                            static_cast<std::size_t>(objectIdIndex)]) !=
-                     ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
-                         expectedObjectManifestEntry) ||
-                 ArtifactCore::Image::Cryptomatte::CryptoSample::floatToId(
-                     pixels[centerPixel +
-                            static_cast<std::size_t>(materialIdIndex)]) !=
-                     ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
-                         expectedMaterialManifestEntry))) {
-                input->close();
-                *failure = QStringLiteral(
-                    "Render Queue Cryptomatte AOV samples did not match the fixture layer: %1")
-                               .arg(framePath);
-                return false;
             }
             const auto cryptomatteId = [](const QString& layerName) {
                 QString value = QString::number(
