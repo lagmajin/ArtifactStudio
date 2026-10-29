@@ -838,6 +838,15 @@ artifact_add_test(ArtifactFrameBlendEffectContractTest
 set_tests_properties(ArtifactFrameBlendEffectContractTest PROPERTIES
     LABELS "effect;frame-blend;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactGhostEffectContractTest
+    SOURCES
+        GhostEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactGhostEffectContractTest PROPERTIES
+    LABELS "effect;ghost;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
