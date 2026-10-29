@@ -1279,6 +1279,16 @@ set_tests_properties(ArtifactCorePosterizeTimeContractTest PROPERTIES
     LABELS "image;temporal;posterize-time;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreStrobeLightContractTest
+    SOURCES
+        StrobeLightContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreStrobeLightContractTest PROPERTIES
+    LABELS "image;temporal;strobe;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
