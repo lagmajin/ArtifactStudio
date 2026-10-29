@@ -765,6 +765,16 @@ set_tests_properties(ArtifactPixelSortProEffectContractTest PROPERTIES
     LABELS "effect;pixel-sort;cpu;contract"
 )
 
+artifact_add_test(ArtifactDeflickerEffectContractTest
+    SOURCES
+        DeflickerEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactDeflickerEffectContractTest PROPERTIES
+    LABELS "effect;deflicker;temporal;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
