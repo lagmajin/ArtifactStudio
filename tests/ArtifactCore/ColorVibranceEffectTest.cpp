@@ -1967,6 +1967,67 @@ TEST(CreativeImageEffectContractTest, LightPressureCompressionRespondsToLuminanc
     }
 }
 
+TEST(CreativeImageEffectContractTest, LightPressureSpreadChangesWarpDistance) {
+    constexpr int width = 16;
+    constexpr int height = 8;
+    VideoFrame narrowSpreadFrame(width, height);
+    VideoFrame broadSpreadFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float value = x < width / 2 ? 0.12f : 0.88f;
+            for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                              ChannelType::Blue}) {
+                narrowSpreadFrame.getChannel(channel)->data()[pixel] = value;
+                broadSpreadFrame.getChannel(channel)->data()[pixel] = value;
+            }
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            narrowSpreadFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            broadSpreadFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    LightPressureEffect narrowSpread;
+    narrowSpread.setParameter("Pressure", 0.9f);
+    narrowSpread.setParameter("Bloom", 0.0f);
+    narrowSpread.setParameter("Spread", 0.0f);
+    narrowSpread.setParameter("Compression", 0.0f);
+    LightPressureEffect broadSpread;
+    broadSpread.setParameter("Pressure", 0.9f);
+    broadSpread.setParameter("Bloom", 0.0f);
+    broadSpread.setParameter("Spread", 1.0f);
+    broadSpread.setParameter("Compression", 0.0f);
+    const CreativeEffectContext context{.time = 0.75};
+    narrowSpread.process(narrowSpreadFrame, context);
+    broadSpread.process(broadSpreadFrame, context);
+
+    bool spreadChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto narrow = narrowSpreadFrame.getChannel(channel);
+        const auto broad = broadSpreadFrame.getChannel(channel);
+        ASSERT_TRUE(narrow);
+        ASSERT_TRUE(broad);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(broad->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            spreadChangedRgb = spreadChangedRgb ||
+                std::abs(broad->data()[pixel] - narrow->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(spreadChangedRgb);
+
+    const auto narrowAlpha = narrowSpreadFrame.getChannel(ChannelType::Alpha);
+    const auto broadAlpha = broadSpreadFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(narrowAlpha);
+    ASSERT_TRUE(broadAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(narrowAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(broadAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, TemporalEffectsInitializeHistoryFromFirstFrameWithoutChangingPixels) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
