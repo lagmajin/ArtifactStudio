@@ -110,6 +110,16 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST)
     )
 endif()
 
+artifact_add_test(ArtifactCoreTrackingDataContractTest
+    SOURCES
+        TrackingDataContractTest.cpp
+    LIBS
+        ArtifactCoreTracking
+)
+set_tests_properties(ArtifactCoreTrackingDataContractTest PROPERTIES
+    LABELS "tracking;data;homography;interpolation;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreTest
     SOURCES
         UtilsTest.cpp
