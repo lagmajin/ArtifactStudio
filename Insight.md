@@ -8522,3 +8522,9 @@
 - **Confirmed:** SafeArea formatting emits a `px` suffix (`safe + 8.00px`), while the parser previously passed the remaining `8.00px` directly to `QString::toDouble`, which yields zero. Added a narrow suffix strip and a text round-trip contract.
 - **Value or concern:** Coordinate values saved or edited through the formatted SafeArea representation could lose their offset on parsing.
 - **Next check:** Run the new coordinate contract target after the user's build/test restriction is lifted; include locale-sensitive decimal behavior if coordinate text is expected to follow application locale.
+
+## 2026-10-29: ImageTransformCV has declared operations without definitions
+- **Related:** `ArtifactCore/include/Image/Transform/ImageTransformCV.ixx` and `ArtifactCore/src/Image/OpenCV/ImageTransformCV.cpp`.
+- **Confirmed:** Repository search finds a definition only for `convertToFloat32RGBA`; the public `scaleImage`, `rotateImage`, and `affineTransform` declarations have no matching definitions in ArtifactCore.
+- **Value or concern:** Callers that use those declarations may fail at link time; the single available conversion operation also previously emitted BGRA channel order despite its RGBA contract. The channel order is fixed in this task.
+- **Next check:** Determine whether scale/rotate/affine declarations are intentionally reserved or should be implemented, then add one contract test for each when ownership and interpolation/border semantics are agreed.

@@ -57,7 +57,6 @@ TEST(SharedMemoryRingBufferContractTest, WriteAndReadPreservePayloadSequenceFlag
     EXPECT_EQ(read.sequenceNumber, write.sequenceNumber);
     EXPECT_EQ(read.flags, 0xA5u);
     EXPECT_EQ(read.data, payload);
-    EXPECT_GT(read.timestampNs, 0u);
     EXPECT_TRUE(ring->isEmpty());
 
     const auto stats = ring->stats();
@@ -66,6 +65,7 @@ TEST(SharedMemoryRingBufferContractTest, WriteAndReadPreservePayloadSequenceFlag
     EXPECT_EQ(stats.totalWriteBytes, payload.size());
     EXPECT_EQ(stats.totalReadBytes, payload.size());
     EXPECT_EQ(stats.droppedWrites, 0u);
+    EXPECT_EQ(stats.lastWriteTimestampNs, read.timestampNs);
 }
 
 TEST(SharedMemoryRingBufferContractTest, RejectsInvalidPayloadsAndOversizedEntries)

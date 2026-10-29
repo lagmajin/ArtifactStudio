@@ -1129,6 +1129,16 @@ set_tests_properties(ArtifactCoreLocaleFormattingContractTest PROPERTIES
     LABELS "localization;formatting;locale;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreImageTransformCVContractTest
+    SOURCES
+        ImageTransformCVContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreImageTransformCVContractTest PROPERTIES
+    LABELS "image;opencv;transform;conversion;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
