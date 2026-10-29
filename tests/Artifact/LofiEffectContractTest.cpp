@@ -191,6 +191,61 @@ TEST(LofiEffectContractTest,
     }
 }
 
+TEST(LofiEffectContractTest,
+     FilmGrungeIsRepeatableWithinAFrameAndChangesAcrossFrames)
+{
+    constexpr int width = 64;
+    constexpr int height = 48;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>((x * 3 + y) % 31) / 30.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 5) % 29) / 28.0f;
+            pixels[offset + 2] = static_cast<float>((x * 7 + y * 2) % 37) / 36.0f;
+            pixels[offset + 3] = 1.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache firstFrame;
+    ImageF32x4RGBAWithCache repeatedFrame;
+    ImageF32x4RGBAWithCache nextFrame;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, firstFrame);
+    effect.applyCPUOnly(source, repeatedFrame);
+
+    context.compositionFrame = 13;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, nextFrame);
+
+    const float* firstPixels = firstFrame.image().rgba32fData();
+    const float* repeatedPixels = repeatedFrame.image().rgba32fData();
+    const float* nextPixels = nextFrame.image().rgba32fData();
+    ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(repeatedPixels, nullptr);
+    ASSERT_NE(nextPixels, nullptr);
+    std::size_t changedRgbSamples = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            const std::size_t offset = pixel * 4 + channel;
+            EXPECT_FLOAT_EQ(firstPixels[offset], repeatedPixels[offset])
+                << "pixel=" << pixel << " channel=" << channel;
+            if (channel < 3 && firstPixels[offset] != nextPixels[offset]) {
+                ++changedRgbSamples;
+            }
+        }
+    }
+    EXPECT_GT(changedRgbSamples, 0u);
+}
+
 TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
 {
     ArtifactOldTVEffect effect;
