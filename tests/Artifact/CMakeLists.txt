@@ -1144,6 +1144,15 @@ artifact_add_test(ArtifactPinchBulgeEffectContractTest
 set_tests_properties(ArtifactPinchBulgeEffectContractTest PROPERTIES
     LABELS "effect;pinch-bulge;distortion;cpu;contract"
 )
+artifact_add_test(ArtifactOpticalGlowEffectContractTest
+    SOURCES
+        OpticalGlowEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsGlow
+)
+set_tests_properties(ArtifactOpticalGlowEffectContractTest PROPERTIES
+    LABELS "effect;optical-glow;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
