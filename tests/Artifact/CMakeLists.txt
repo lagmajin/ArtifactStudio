@@ -955,6 +955,15 @@ artifact_add_test(ArtifactTemporalSmearEffectContractTest
 set_tests_properties(ArtifactTemporalSmearEffectContractTest PROPERTIES
     LABELS "effect;temporal-smear;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactTrailFadeEffectContractTest
+    SOURCES
+        TrailFadeEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactTrailFadeEffectContractTest PROPERTIES
+    LABELS "effect;trail-fade;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
