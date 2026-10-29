@@ -443,6 +443,68 @@ TEST_F(PostProcessPassGpuContractTest, DisabledPassesLeaveOutputPixelsUntouched)
     }
 }
 
+TEST_F(PostProcessPassGpuContractTest, PassesRejectZeroDimensionsWithoutTouchingOutput)
+{
+    std::array<float, kPixelCount * 4> input{};
+    std::array<float, kPixelCount * 2> velocity{};
+    std::array<float, kPixelCount * 4> initialOutput{};
+    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
+        input[pixel * 4 + 3] = 1.0f;
+        initialOutput[pixel * 4 + 0] = 0.125f;
+        initialOutput[pixel * 4 + 1] = 0.25f;
+        initialOutput[pixel * 4 + 2] = 0.5f;
+        initialOutput[pixel * 4 + 3] = 0.75f;
+    }
+    auto inputTexture = createTexture(
+        gpu_.device(), "Zero-size post-process input", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_SHADER_RESOURCE, input.data(), kWidth * 4 * sizeof(float));
+    auto velocityTexture = createTexture(
+        gpu_.device(), "Zero-size motion blur velocity", TEX_FORMAT_RG32_FLOAT,
+        BIND_SHADER_RESOURCE, velocity.data(), kWidth * 2 * sizeof(float));
+    auto depthTexture = createDepthTexture(gpu_, 0.5f);
+    auto outputTexture = createTexture(
+        gpu_.device(), "Zero-size post-process output", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, initialOutput.data(),
+        kWidth * 4 * sizeof(float));
+    ASSERT_NE(inputTexture, nullptr);
+    ASSERT_NE(velocityTexture, nullptr);
+    ASSERT_NE(depthTexture, nullptr);
+    ASSERT_NE(outputTexture, nullptr);
+
+    auto* inputSrv = inputTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* velocitySrv = velocityTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* depthSrv = depthTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
+    ASSERT_NE(inputSrv, nullptr);
+    ASSERT_NE(velocitySrv, nullptr);
+    ASSERT_NE(depthSrv, nullptr);
+    ASSERT_NE(outputUav, nullptr);
+
+    Artifact::DepthOfFieldPass depthOfField;
+    ASSERT_TRUE(depthOfField.initialize(gpu_.device(), gpu_.context()));
+    Artifact::DepthOfFieldSettings depthSettings;
+    depthSettings.enabled = true;
+    EXPECT_FALSE(depthOfField.apply(gpu_.context(), inputSrv, depthSrv, outputUav,
+                                    0, kHeight, depthSettings));
+    EXPECT_FALSE(depthOfField.apply(gpu_.context(), inputSrv, depthSrv, outputUav,
+                                    kWidth, 0, depthSettings));
+
+    Artifact::MotionBlurPass motionBlur;
+    ASSERT_TRUE(motionBlur.initialize(gpu_.device(), gpu_.context()));
+    Artifact::MotionBlurSettings motionSettings;
+    motionSettings.enabled = true;
+    EXPECT_FALSE(motionBlur.apply(gpu_.context(), inputSrv, velocitySrv, depthSrv,
+                                  outputUav, 0, kHeight, motionSettings));
+    EXPECT_FALSE(motionBlur.apply(gpu_.context(), inputSrv, velocitySrv, depthSrv,
+                                  outputUav, kWidth, 0, motionSettings));
+
+    std::array<float, kPixelCount * 4> output{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, output));
+    for (std::size_t index = 0; index < output.size(); ++index) {
+        EXPECT_FLOAT_EQ(output[index], initialOutput[index]) << "component=" << index;
+    }
+}
+
 TEST_F(PostProcessPassGpuContractTest, DepthOfFieldPreservesAnInFocusImpulse)
 {
     Artifact::DepthOfFieldPass pass;
