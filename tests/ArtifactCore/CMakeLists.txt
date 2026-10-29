@@ -347,6 +347,16 @@ set_tests_properties(ArtifactCoreLightContractTest PROPERTIES
     LABELS "light;3d;parameters;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreIESProfileContractTest
+    SOURCES
+        IESProfileContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreIESProfileContractTest PROPERTIES
+    LABELS "light;photometry;ies;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreActionManagerContractTest
     SOURCES
         ActionManagerContractTest.cpp
