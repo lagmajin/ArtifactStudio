@@ -431,6 +431,82 @@ TEST(SpatialImageEffectContractTest,
     }
 }
 
+TEST(SpatialImageEffectContractTest,
+     DepthBokehClampsNamedDepthSamplesToUnitRange)
+{
+    constexpr int width = 17;
+    constexpr int height = 17;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr std::size_t center =
+        static_cast<std::size_t>(height / 2) * width + width / 2;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const float value = (pixel % 2 == 0) ? 0.2f : 0.65f;
+        pixels[pixel * 4] = value;
+        pixels[pixel * 4 + 1] = value;
+        pixels[pixel * 4 + 2] = value;
+        pixels[pixel * 4 + 3] = 0.8f;
+    }
+    pixels[center * 4] = 1.0f;
+    pixels[center * 4 + 1] = 1.0f;
+    pixels[center * 4 + 2] = 1.0f;
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache negativeDepth;
+    ImageF32x4RGBAWithCache zeroDepth;
+    ImageF32x4RGBAWithCache aboveDepth;
+    ImageF32x4RGBAWithCache unitDepth;
+
+    const auto renderWithDepth = [&source](
+        const float depth, ImageF32x4RGBAWithCache& output) {
+        FixedDepthInputSampler sampler(width, height, depth);
+        DepthBokehEffect effect;
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusDistance")), QVariant(0.5));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusRange")), QVariant(0.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("foregroundBlur")), QVariant(0.25));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("backgroundBlur")), QVariant(1.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("maxRadius")), QVariant(8.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
+        EffectContext context;
+        context.compositionFrame = 73;
+        context.sampler = &sampler;
+        effect.setContext(context);
+        effect.applyCPUOnly(source, output);
+    };
+    renderWithDepth(-2.0f, negativeDepth);
+    renderWithDepth(0.0f, zeroDepth);
+    renderWithDepth(3.0f, aboveDepth);
+    renderWithDepth(1.0f, unitDepth);
+
+    const float* negativePixels = negativeDepth.image().rgba32fData();
+    const float* zeroPixels = zeroDepth.image().rgba32fData();
+    const float* abovePixels = aboveDepth.image().rgba32fData();
+    const float* unitPixels = unitDepth.image().rgba32fData();
+    ASSERT_NE(negativePixels, nullptr);
+    ASSERT_NE(zeroPixels, nullptr);
+    ASSERT_NE(abovePixels, nullptr);
+    ASSERT_NE(unitPixels, nullptr);
+    bool foregroundBackgroundDiffer = false;
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(negativePixels[channel], zeroPixels[channel])
+            << "negative sample channel=" << channel;
+        EXPECT_FLOAT_EQ(abovePixels[channel], unitPixels[channel])
+            << "above-unit sample channel=" << channel;
+        foregroundBackgroundDiffer = foregroundBackgroundDiffer ||
+            std::abs(zeroPixels[channel] - unitPixels[channel]) > 1.0e-5f;
+    }
+    EXPECT_TRUE(foregroundBackgroundDiffer)
+        << "foreground and background blur settings must make the clamp endpoints observable";
+}
+
 TEST(SpatialImageEffectContractTest, ApertureBlurSpreadsRgbAndPreservesAlphaAndInput)
 {
     constexpr int width = 33;
