@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <QMatrix4x4>
+#include <QVector3D>
 #include <glm/glm.hpp>
 
 #include <cmath>
@@ -11,7 +13,9 @@ namespace {
 
 using ArtifactCore::Camera;
 using ArtifactCore::Coordinates::WorldPoint3;
+using ArtifactCore::StereoCamera;
 using ArtifactCore::Units::Degrees;
+using ArtifactCore::Units::Meters;
 using ArtifactCore::Units::WorldLength;
 
 void expectNear(float actual, float expected, float tolerance = 1.0e-4f)
@@ -120,4 +124,23 @@ TEST(CameraContractTest, ProjectionInputsClampToFiniteSupportedRanges)
             EXPECT_TRUE(std::isfinite(projection[column][row]));
         }
     }
+}
+
+TEST(CameraContractTest, StereoEyesUseSymmetricHalfIpdOffsets)
+{
+    const float ipd = 0.072f;
+    const StereoCamera stereo = StereoCamera::fromHmd(
+        QMatrix4x4(), Meters{ipd}, ArtifactCore::Units::Pixels{0.2f},
+        ArtifactCore::Units::Pixels{250.0f});
+
+    const QVector3D origin(0.0f, 0.0f, 0.0f);
+    const QVector3D leftOrigin = stereo.leftEyeView.map(origin);
+    const QVector3D rightOrigin = stereo.rightEyeView.map(origin);
+    expectNear(leftOrigin.x(), -ipd * 0.5f);
+    expectNear(rightOrigin.x(), ipd * 0.5f);
+    expectNear(leftOrigin.y(), 0.0f);
+    expectNear(rightOrigin.y(), 0.0f);
+    expectNear(stereo.ipd.value, ipd);
+    expectNear(stereo.nearPlane.value, 0.2f);
+    expectNear(stereo.farPlane.value, 250.0f);
 }
