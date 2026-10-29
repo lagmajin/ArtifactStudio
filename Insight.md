@@ -8552,3 +8552,9 @@
 - **確認できた事実:** 派生effectの`apply()`は効果本体を実行する仮想関数であり、Effect Mix／region／maskの合成は`ArtifactAbstractEffect::applyConfigured()`が行う。`applyCPUOnly()`はCPUモードを一時設定したうえで共通実行経路を通る。
 - **価値または懸念:** Mix=0のpassthroughや中間Mix比率を確認するテストで派生`apply()`を直接呼ぶと、共通合成を迂回して契約を測定できない。Old TVの新しいMixテストは`applyCPUOnly()`経由に統一した。コード確認のみで、テスト実行は未実施。
 - **次に確認すべきこと:** layer effectの独立テストでMix、Effect Region、Maskを検証するときは、共通適用APIと効果本体APIを意図的に使い分け、fixtureが測る層を明示する。
+
+## 2026-10-30: Lens Distortion の CPU/GPU サンプラー境界を比較する
+- **関連:** `Artifact/src/Effects/LensDistortion/LensDistortionEffect.cpp::LensDistortionEffectCPUImpl::applyCPU` / `LensDistortionEffectGPUImpl::kHlsl`、`ArtifactCore/src/ImageProcessing/Distortion.cpp::sampleBilinear`。
+- **確認できた事実:** CPU の `sampleBilinear` は画像外座標を幅・高さで wrap する一方、GPU の `sampleLinear` は画像端へ clamp する。さらに最小寸法が 1 px の場合、CPU の `maxR` は `0.5`、GPU の `maxR` は最低 `1` となる。
+- **価値または懸念:** `transparentEdges=false` で境界を越えるワープ、または 1 px 寸法では CPU と GPU の出力が異なる可能性がある。今回の独立テストは CPU 契約だけを固定し、GPU parity は未検証である。
+- **次に確認すべきこと:** ビルド・GPU テストの実行が許可された後、同一の非定数画像を CPU / GPU に通し、透明端の有効・無効と 1 px 軸を含む寸法で画素比較する。仕様として wrap と clamp のどちらが正しいか決めてから、実装または許容誤差付き parity テストを検討する。

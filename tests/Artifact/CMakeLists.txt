@@ -535,6 +535,16 @@ set_tests_properties(ArtifactSpherizeEffectContractTest PROPERTIES
     LABELS "effect;distortion;cpu;contract"
 )
 
+artifact_add_test(ArtifactLensDistortionEffectContractTest
+    SOURCES
+        LensDistortionEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsOptics
+)
+set_tests_properties(ArtifactLensDistortionEffectContractTest PROPERTIES
+    LABELS "effect;distortion;cpu;contract"
+)
+
 artifact_add_test(ArtifactVHSTapeEffectContractTest
     SOURCES
         VHSTapeEffectContractTest.cpp
