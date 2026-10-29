@@ -18,6 +18,7 @@
 
 import Encoder.FFmpegEncoder;
 import Image.ImageF32x4_RGBA;
+import MediaSource;
 
 using ArtifactCore::FFmpegEncoder;
 
@@ -225,6 +226,9 @@ TEST(FFmpegEncoderAvailabilityContractTest,
     EXPECT_FALSE(encoder.isOpen());
     ASSERT_TRUE(QFileInfo::exists(outputPath));
     EXPECT_GT(QFileInfo(outputPath).size(), 0);
+    const auto probe = ArtifactCore::probeVideoFile(outputPath);
+    ASSERT_TRUE(probe.hasVideoStream) << probe.probeError.toStdString();
+    EXPECT_EQ(probe.codecName, QStringLiteral("mjpeg"));
 }
 
 TEST(FFmpegEncoderAvailabilityContractTest,

@@ -905,6 +905,7 @@ artifact_add_test(ArtifactCoreFFmpegEncoderAvailabilityContractTest
         FFmpegEncoderAvailabilityContractTest.cpp
     LIBS
         ArtifactCoreVideo
+        ArtifactCoreMedia
 )
 set_tests_properties(ArtifactCoreFFmpegEncoderAvailabilityContractTest PROPERTIES
     LABELS "video;encoder;ffmpeg;availability;cpu;contract"
