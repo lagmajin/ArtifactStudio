@@ -375,6 +375,17 @@ artifact_add_test(ArtifactCoreLayerLockManagerContractTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreBackgroundTaskWorkerPoolContractTest
+    SOURCES
+        BackgroundTaskWorkerPoolContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreBackgroundTaskWorkerPoolContractTest PROPERTIES
+    LABELS "threading;background-task;cpu;contract;core"
+    TIMEOUT 30
+)
 set_tests_properties(ArtifactCoreLayerLockManagerContractTest PROPERTIES
     LABELS "collaboration;layer-lock;event-bus;cpu;contract"
     RUN_SERIAL TRUE
