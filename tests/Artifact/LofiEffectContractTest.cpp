@@ -396,6 +396,13 @@ TEST(LofiEffectContractTest,
 
     const std::array<const ImageF32x4RGBAWithCache*, 3> outputs{
         &frame12, &repeatedFrame12, &frame13};
+    const float* firstFramePixels = frame12.image().rgba32fData();
+    const float* repeatedFramePixels = repeatedFrame12.image().rgba32fData();
+    const float* nextFramePixels = frame13.image().rgba32fData();
+    ASSERT_NE(firstFramePixels, nullptr);
+    ASSERT_NE(repeatedFramePixels, nullptr);
+    ASSERT_NE(nextFramePixels, nullptr);
+    bool nextFrameChangesRgb = false;
     for (const auto* output : outputs) {
         ASSERT_NE(output->image().rgba32fData(), nullptr);
         EXPECT_EQ(output->width(), width);
@@ -408,6 +415,14 @@ TEST(LofiEffectContractTest,
                 << "pixel=" << pixel;
         }
     }
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(firstFramePixels[channel], repeatedFramePixels[channel])
+            << "channel=" << channel;
+        if (channel % 4 != 3 && firstFramePixels[channel] != nextFramePixels[channel]) {
+            nextFrameChangesRgb = true;
+        }
+    }
+    EXPECT_TRUE(nextFrameChangesRgb);
 }
 
 TEST(LofiEffectContractTest,
