@@ -1117,6 +1117,15 @@ artifact_add_test(ArtifactReactionDiffusionBlurEffectContractTest
 set_tests_properties(ArtifactReactionDiffusionBlurEffectContractTest PROPERTIES
     LABELS "effect;reaction-diffusion-blur;cpu;contract"
 )
+artifact_add_test(ArtifactLiquifyEffectContractTest
+    SOURCES
+        LiquifyEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactLiquifyEffectContractTest PROPERTIES
+    LABELS "effect;liquify;distortion;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
