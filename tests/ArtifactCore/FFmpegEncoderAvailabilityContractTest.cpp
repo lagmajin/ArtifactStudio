@@ -7,7 +7,10 @@
 #include <vector>
 
 #include <QByteArray>
+#include <QColor>
 #include <QFile>
+#include <QFileInfo>
+#include <QImage>
 #include <QIODevice>
 #include <QTemporaryDir>
 #include <QString>
@@ -185,6 +188,43 @@ TEST(FFmpegEncoderAvailabilityContractTest,
     EXPECT_FALSE(FFmpegEncoder::isEncoderAvailableByName(QStringLiteral("   ")));
     EXPECT_FALSE(FFmpegEncoder::isEncoderAvailableByName(
         QStringLiteral("artifact-unknown-encoder")));
+}
+
+TEST(FFmpegEncoderAvailabilityContractTest,
+     MissingPreferredHardwareEncoderFallsBackToSoftwareCodec)
+{
+    if (!FFmpegEncoder::isCodecAvailable(QStringLiteral("mjpeg"))) {
+        GTEST_SKIP() << "FFmpeg MJPEG software encoder is unavailable";
+    }
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString outputPath = directory.filePath(
+        QStringLiteral("software-fallback.avi"));
+    ArtifactCore::FFmpegEncoderSettings settings;
+    settings.width = 16;
+    settings.height = 16;
+    settings.fps = 2.0;
+    settings.videoCodec = QStringLiteral("mjpeg");
+    settings.container = QStringLiteral("avi");
+    settings.encoderName = QStringLiteral("artifact-absent-hardware-encoder");
+    settings.preferHardware = true;
+    settings.threadCount = 1;
+    EXPECT_FALSE(FFmpegEncoder::isEncoderAvailableByName(settings.encoderName));
+
+    FFmpegEncoder encoder;
+    ASSERT_TRUE(encoder.open(outputPath, settings))
+        << encoder.lastError().toStdString();
+    EXPECT_TRUE(encoder.isOpen());
+
+    QImage frame(settings.width, settings.height, QImage::Format_RGBA8888);
+    frame.fill(QColor(220, 40, 20, 255));
+    ASSERT_TRUE(encoder.addImage(frame)) << encoder.lastError().toStdString();
+    encoder.close();
+
+    EXPECT_FALSE(encoder.isOpen());
+    ASSERT_TRUE(QFileInfo::exists(outputPath));
+    EXPECT_GT(QFileInfo(outputPath).size(), 0);
 }
 
 TEST(FFmpegEncoderAvailabilityContractTest,
