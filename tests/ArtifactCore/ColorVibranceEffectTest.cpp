@@ -4263,6 +4263,39 @@ TEST(CreativeImageEffectContractTest, DisabledGlitchPreservesEveryChannelExactly
     }
 }
 
+TEST(CreativeImageEffectContractTest, DisabledGlitchPreservesOutOfRangeRgbaWithActiveSettings) {
+    VideoFrame frame(2, 1);
+    const float red[] = {1.25f, -0.2f};
+    const float green[] = {-0.4f, 0.75f};
+    const float blue[] = {0.35f, 1.4f};
+    const float alpha[] = {1.2f, -0.1f};
+    for (int pixel = 0; pixel < 2; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = red[pixel];
+        frame.getChannel(ChannelType::Green)->data()[pixel] = green[pixel];
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = blue[pixel];
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha[pixel];
+    }
+
+    GlitchCreativeEffect effect;
+    effect.setEnabled(false);
+    effect.setParameter("Amount", 1.0f);
+    effect.setParameter("RGBSplit", 1.0f);
+    effect.setParameter("BlockNoise", 1.0f);
+    effect.process(frame, CreativeEffectContext{.time = 17.0});
+
+    const float* expected[] = {red, green, blue, alpha};
+    const ChannelType channelTypes[] = {
+        ChannelType::Red, ChannelType::Green, ChannelType::Blue, ChannelType::Alpha};
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channelTypes[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < 2; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], expected[channel][pixel])
+                << "channel=" << channel << " pixel=" << pixel;
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, GlitchMissingRequiredColorChannelLeavesFrameUnchanged) {
     VideoFrame frame(3, 2);
     const float red[] = {0.1f, 0.4f, 0.9f, 0.3f, 0.7f, 0.2f};
