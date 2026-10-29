@@ -975,6 +975,47 @@ TEST(CreativeImageEffectContractTest, EmbossUsesDiagonalDifferenceAndPreservesUn
     }
 }
 
+TEST(CreativeImageEffectContractTest, EmbossZeroStrengthProducesNeutralReliefAndKeepsAlpha) {
+    constexpr int width = 2;
+    constexpr int height = 2;
+    VideoFrame frame(width, height);
+    const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
+    const float inputGreen[] = {0.9f, 0.6f, 0.3f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.4f, 0.7f, 0.8f};
+    const float inputAlpha[] = {0.15f, 0.35f, 0.65f, 0.85f};
+    const float* inputs[] = {inputRed, inputGreen, inputBlue, inputAlpha};
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            plane->data()[pixel] = inputs[channel][pixel];
+        }
+    }
+
+    EmbossEffect effect;
+    effect.setParameter("Strength", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int channel = 0; channel < 3; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], 0.5f)
+                << "channel=" << channel << " pixel=" << pixel;
+        }
+    }
+    const auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(alpha->data()[pixel], inputAlpha[pixel])
+            << "pixel=" << pixel;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, OldTvChangesRgbWithoutChangingAlpha) {
     constexpr int width = 5;
     constexpr int height = 4;
