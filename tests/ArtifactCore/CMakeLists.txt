@@ -1079,6 +1079,16 @@ set_tests_properties(ArtifactCorePathMorphContractTest PROPERTIES
     LABELS "mask;path-morph;geometry;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreSequenceGroupContractTest
+    SOURCES
+        SequenceGroupContractTest.cpp
+    LIBS
+        ArtifactCoreSequence
+)
+set_tests_properties(ArtifactCoreSequenceGroupContractTest PROPERTIES
+    LABELS "sequence;transport;timing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
