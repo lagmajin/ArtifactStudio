@@ -109,8 +109,12 @@ TEST(LofiEffectContractTest, OldTvKeepsAlphaAndSourceAndAppliesFourRowScanline)
         for (int x = 0; x < width; ++x) {
             const std::size_t offset = static_cast<std::size_t>((y * width + x) * 4);
             const float scanline = y % 4 == 0 ? 0.7f : 1.0f;
+            const float noise = output[offset] - baseBgra[0] * scanline;
+            EXPECT_GE(noise, -0.005f) << "x=" << x << " y=" << y;
+            EXPECT_LE(noise, 0.005f) << "x=" << x << " y=" << y;
             for (int channel = 0; channel < 3; ++channel) {
-                EXPECT_NEAR(output[offset + channel], baseBgra[channel] * scanline, 0.006f)
+                EXPECT_NEAR(output[offset + channel],
+                            baseBgra[channel] * scanline + noise, 1.0e-6f)
                     << "x=" << x << " y=" << y << " channel=" << channel;
                 EXPECT_FLOAT_EQ(output[offset + channel], repeatedOutput[offset + channel]);
                 EXPECT_FLOAT_EQ(unchangedSource[offset + channel], original[offset + channel]);
