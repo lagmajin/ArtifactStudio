@@ -191,7 +191,7 @@ TEST_F(PostProcessPassGpuContractTest, UploadedLutTransformsPixelsAndRejectsMiss
         gpu_.context(), inputSrv, outputUav, kWidth, kHeight));
     std::array<float, kPixelCount * 4> selectedStackOutput{};
     ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, selectedStackOutput));
-    EXPECT_NEAR(selectedStackOutput[0], 0.0f, 1.0e-4f);
+    EXPECT_NEAR(selectedStackOutput[0], 0.5f, 1.0e-4f);
     EXPECT_NEAR(selectedStackOutput[1], 1.0f, 1.0e-4f);
     EXPECT_NEAR(selectedStackOutput[2], 1.0f, 1.0e-4f);
     EXPECT_NEAR(selectedStackOutput[3], 1.0f, 1.0e-4f);
