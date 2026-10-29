@@ -296,6 +296,16 @@ set_tests_properties(ArtifactCoreInputBindingContractTest PROPERTIES
     LABELS "input;key-binding;shortcuts;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreUiLayoutStateContractTest
+    SOURCES
+        UiLayoutStateContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreUiLayoutStateContractTest PROPERTIES
+    LABELS "ui-layout;serialization;settings;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
