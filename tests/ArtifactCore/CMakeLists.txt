@@ -1309,6 +1309,16 @@ set_tests_properties(ArtifactCoreMedianEffectContractTest PROPERTIES
     LABELS "image;median;neighborhood;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreChromaSpreadEffectContractTest
+    SOURCES
+        ChromaSpreadEffectContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreChromaSpreadEffectContractTest PROPERTIES
+    LABELS "image;chroma-spread;remap;opencv;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
