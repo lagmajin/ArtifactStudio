@@ -1054,6 +1054,15 @@ artifact_add_test(ArtifactAutoExposureEffectContractTest
 set_tests_properties(ArtifactAutoExposureEffectContractTest PROPERTIES
     LABELS "effect;auto-exposure;property;contract"
 )
+artifact_add_test(ArtifactAutoMosaicEffectContractTest
+    SOURCES
+        AutoMosaicEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactAutoMosaicEffectContractTest PROPERTIES
+    LABELS "effect;auto-mosaic;image;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
