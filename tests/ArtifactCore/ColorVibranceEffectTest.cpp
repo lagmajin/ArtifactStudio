@@ -266,6 +266,26 @@ TEST(CreativeImageEffectContractTest, PosterizeClampsLevelsToAtLeastTwo) {
     EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[1], 0.8f);
 }
 
+TEST(CreativeImageEffectContractTest, PosterizeUsesAllSixtyFourLevels) {
+    VideoFrame frame(1, 1);
+    frame.getChannel(ChannelType::Red)->data()[0] = 0.5f;
+    frame.getChannel(ChannelType::Green)->data()[0] = 0.25f;
+    frame.getChannel(ChannelType::Blue)->data()[0] = 0.75f;
+    frame.getChannel(ChannelType::Alpha)->data()[0] = 0.37f;
+
+    PosterizeEffect effect;
+    effect.setParameter("Levels", 64.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_NEAR(frame.getChannel(ChannelType::Red)->data()[0], 32.0f / 63.0f,
+                1.0e-6f);
+    EXPECT_NEAR(frame.getChannel(ChannelType::Green)->data()[0], 16.0f / 63.0f,
+                1.0e-6f);
+    EXPECT_NEAR(frame.getChannel(ChannelType::Blue)->data()[0], 47.0f / 63.0f,
+                1.0e-6f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[0], 0.37f);
+}
+
 TEST(CreativeImageEffectContractTest, SolarizeThresholdIsStrictAndAlphaIsUnchanged) {
     VideoFrame frame(4, 1);
     const float red[] = {0.25f, 0.50f, 0.75f, 1.0f};
