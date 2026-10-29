@@ -1341,7 +1341,7 @@ TEST(CreativeImageEffectContractTest, OldTvFlickerParameterAddsDeterministicNois
     }
 }
 
-TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeutralNoOp) {
+TEST(CreativeImageEffectContractTest, OldTvNeutralParametersProduceExactNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
     const float inputBlue[] = {0.2f, 0.4f, 0.6f, 0.8f};
@@ -1362,16 +1362,6 @@ TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeut
         alpha->data()[index] = inputAlpha[index];
     }
 
-    EdgeEchoEffect edgeEcho;
-    edgeEcho.setParameter("Intensity", 0.0f);
-    edgeEcho.setParameter("Tint", 0.0f);
-    edgeEcho.process(frame, CreativeEffectContext{});
-    LightPressureEffect lightPressure;
-    lightPressure.setParameter("Pressure", 0.0f);
-    lightPressure.setParameter("Bloom", 0.0f);
-    lightPressure.setParameter("Spread", 0.0f);
-    lightPressure.setParameter("Compression", 0.0f);
-    lightPressure.process(frame, CreativeEffectContext{});
     OldTVEffect oldTv;
     oldTv.setParameter("Scanline", 0.0f);
     oldTv.setParameter("Curvature", 0.0f);
@@ -1387,6 +1377,76 @@ TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeut
             << "blue pixel=" << index;
         EXPECT_FLOAT_EQ(alpha->data()[index], inputAlpha[index])
             << "alpha pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, EdgeEchoZeroIntensityAndTintPreserveInput) {
+    const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
+    const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.4f, 0.6f, 0.8f};
+    const float inputAlpha[] = {0.0f, 0.2f, 0.4f, 0.6f};
+    VideoFrame frame(2, 2);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    const float* inputs[] = {inputRed, inputGreen, inputBlue, inputAlpha};
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < 4; ++pixel) {
+            plane->data()[pixel] = inputs[channel][pixel];
+        }
+    }
+
+    EdgeEchoEffect effect;
+    effect.setParameter("Intensity", 0.0f);
+    effect.setParameter("Tint", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < 4; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], inputs[channel][pixel])
+                << "channel=" << channel << " pixel=" << pixel;
+        }
+    }
+}
+
+TEST(CreativeImageEffectContractTest, LightPressureZeroControlsPreserveInput) {
+    const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
+    const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.4f, 0.6f, 0.8f};
+    const float inputAlpha[] = {0.0f, 0.2f, 0.4f, 0.6f};
+    VideoFrame frame(2, 2);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    const float* inputs[] = {inputRed, inputGreen, inputBlue, inputAlpha};
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < 4; ++pixel) {
+            plane->data()[pixel] = inputs[channel][pixel];
+        }
+    }
+
+    LightPressureEffect effect;
+    effect.setParameter("Pressure", 0.0f);
+    effect.setParameter("Bloom", 0.0f);
+    effect.setParameter("Spread", 0.0f);
+    effect.setParameter("Compression", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < 4; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], inputs[channel][pixel])
+                << "channel=" << channel << " pixel=" << pixel;
+        }
     }
 }
 
