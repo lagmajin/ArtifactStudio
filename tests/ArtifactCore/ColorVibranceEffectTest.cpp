@@ -560,6 +560,73 @@ TEST(CreativeImageEffectContractTest, HalftoneContrastChangesDotCoverage) {
     EXPECT_FLOAT_EQ(contrastRed->data()[dotEdgePixel], 1.0f);
 }
 
+TEST(CreativeImageEffectContractTest, HalftoneAngleRotatesDotGridPhase) {
+    VideoFrame unrotated(4, 4);
+    VideoFrame rotated(4, 4);
+    for (int index = 0; index < 16; ++index) {
+        for (const auto channel : {ChannelType::Red, ChannelType::Green,
+                                   ChannelType::Blue}) {
+            auto unrotatedPlane = unrotated.getChannel(channel);
+            auto rotatedPlane = rotated.getChannel(channel);
+            ASSERT_TRUE(unrotatedPlane);
+            ASSERT_TRUE(rotatedPlane);
+            unrotatedPlane->data()[index] = 0.5f;
+            rotatedPlane->data()[index] = 0.5f;
+        }
+        auto unrotatedAlpha = unrotated.getChannel(ChannelType::Alpha);
+        auto rotatedAlpha = rotated.getChannel(ChannelType::Alpha);
+        ASSERT_TRUE(unrotatedAlpha);
+        ASSERT_TRUE(rotatedAlpha);
+        unrotatedAlpha->data()[index] = static_cast<float>(index) / 16.0f;
+        rotatedAlpha->data()[index] = static_cast<float>(index) / 16.0f;
+    }
+
+    HalftoneEffect unrotatedEffect;
+    unrotatedEffect.setParameter("Size", 4.0f);
+    unrotatedEffect.setParameter("Angle", 0.0f);
+    unrotatedEffect.setParameter("Contrast", 1.0f);
+    HalftoneEffect rotatedEffect;
+    rotatedEffect.setParameter("Size", 4.0f);
+    rotatedEffect.setParameter("Angle", 0.785398163f);
+    rotatedEffect.setParameter("Contrast", 1.0f);
+    unrotatedEffect.process(unrotated, CreativeEffectContext{});
+    rotatedEffect.process(rotated, CreativeEffectContext{});
+
+    constexpr int phaseSample = 4;
+    const auto unrotatedRed = unrotated.getChannel(ChannelType::Red);
+    const auto unrotatedGreen = unrotated.getChannel(ChannelType::Green);
+    const auto unrotatedBlue = unrotated.getChannel(ChannelType::Blue);
+    const auto rotatedRed = rotated.getChannel(ChannelType::Red);
+    const auto rotatedGreen = rotated.getChannel(ChannelType::Green);
+    const auto rotatedBlue = rotated.getChannel(ChannelType::Blue);
+    ASSERT_TRUE(unrotatedRed);
+    ASSERT_TRUE(unrotatedGreen);
+    ASSERT_TRUE(unrotatedBlue);
+    ASSERT_TRUE(rotatedRed);
+    ASSERT_TRUE(rotatedGreen);
+    ASSERT_TRUE(rotatedBlue);
+    EXPECT_GT(unrotatedRed->data()[phaseSample],
+              rotatedRed->data()[phaseSample] + 0.2f);
+    EXPECT_FLOAT_EQ(unrotatedRed->data()[phaseSample],
+                    unrotatedGreen->data()[phaseSample]);
+    EXPECT_FLOAT_EQ(unrotatedRed->data()[phaseSample],
+                    unrotatedBlue->data()[phaseSample]);
+    EXPECT_FLOAT_EQ(rotatedRed->data()[phaseSample],
+                    rotatedGreen->data()[phaseSample]);
+    EXPECT_FLOAT_EQ(rotatedRed->data()[phaseSample],
+                    rotatedBlue->data()[phaseSample]);
+    const auto unrotatedAlpha = unrotated.getChannel(ChannelType::Alpha);
+    const auto rotatedAlpha = rotated.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(unrotatedAlpha);
+    ASSERT_TRUE(rotatedAlpha);
+    for (int index = 0; index < 16; ++index) {
+        EXPECT_FLOAT_EQ(unrotatedAlpha->data()[index],
+                        static_cast<float>(index) / 16.0f);
+        EXPECT_FLOAT_EQ(rotatedAlpha->data()[index],
+                        static_cast<float>(index) / 16.0f);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, KaleidoscopeCountOneFoldsUpperRightTowardLowerWedge) {
     VideoFrame frame(3, 3);
     auto red = frame.getChannel(ChannelType::Red);
