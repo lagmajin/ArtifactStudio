@@ -688,6 +688,17 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVel
     EXPECT_FLOAT_EQ(zeroShutter[adjacent], 0.0f);
     EXPECT_FLOAT_EQ(zeroShutter[center + 3], 1.0f);
     EXPECT_FLOAT_EQ(zeroShutter[adjacent + 3], 0.0f);
+
+    settings.shutterAngle = 360.0f;
+    settings.sampleCount = 0;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
+                           outputUav, kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> zeroSamples{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, zeroSamples));
+    EXPECT_FLOAT_EQ(zeroSamples[center], 1.0f);
+    EXPECT_FLOAT_EQ(zeroSamples[adjacent], 0.0f);
+    EXPECT_FLOAT_EQ(zeroSamples[center + 3], 1.0f);
+    EXPECT_FLOAT_EQ(zeroSamples[adjacent + 3], 0.0f);
 }
 
 TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
