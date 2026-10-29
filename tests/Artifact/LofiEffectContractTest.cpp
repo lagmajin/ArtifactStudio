@@ -246,6 +246,75 @@ TEST(LofiEffectContractTest,
     EXPECT_GT(changedRgbSamples, 0u);
 }
 
+TEST(LofiEffectContractTest,
+     FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
+{
+    constexpr int width = 64;
+    constexpr int height = 48;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>((x * 3 + y) % 31) / 30.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 5) % 29) / 28.0f;
+            pixels[offset + 2] = static_cast<float>((x * 7 + y * 2) % 37) / 36.0f;
+            pixels[offset + 3] = 1.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    const auto currentSeed = [&effect]() {
+        const auto properties = effect.getProperties();
+        const auto found = std::find_if(
+            properties.begin(), properties.end(), [](const auto& property) {
+                return property.getName() == QStringLiteral("seed");
+            });
+        return found == properties.end() ? -1 : found->getValue().toInt();
+    };
+
+    EXPECT_EQ(currentSeed(), 1977);
+    effect.setPropertyValue(UniString("seed"), QVariant(-25));
+    EXPECT_EQ(currentSeed(), 0);
+    effect.setPropertyValue(UniString("seed"), QVariant(100025));
+    EXPECT_EQ(currentSeed(), 100000);
+
+    ImageF32x4RGBAWithCache defaultSeedOutput;
+    ImageF32x4RGBAWithCache changedSeedOutput;
+    ImageF32x4RGBAWithCache repeatedChangedSeedOutput;
+    effect.setPropertyValue(UniString("seed"), QVariant(1977));
+    effect.applyCPUOnly(source, defaultSeedOutput);
+    effect.setPropertyValue(UniString("seed"), QVariant(1978));
+    effect.applyCPUOnly(source, changedSeedOutput);
+    effect.applyCPUOnly(source, repeatedChangedSeedOutput);
+
+    const float* defaultPixels = defaultSeedOutput.image().rgba32fData();
+    const float* changedPixels = changedSeedOutput.image().rgba32fData();
+    const float* repeatedPixels = repeatedChangedSeedOutput.image().rgba32fData();
+    ASSERT_NE(defaultPixels, nullptr);
+    ASSERT_NE(changedPixels, nullptr);
+    ASSERT_NE(repeatedPixels, nullptr);
+    std::size_t changedRgbSamples = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            const std::size_t offset = pixel * 4 + channel;
+            EXPECT_FLOAT_EQ(changedPixels[offset], repeatedPixels[offset])
+                << "pixel=" << pixel << " channel=" << channel;
+            if (channel < 3 && defaultPixels[offset] != changedPixels[offset]) {
+                ++changedRgbSamples;
+            }
+        }
+    }
+    EXPECT_GT(changedRgbSamples, 0u);
+}
+
 TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
 {
     ArtifactOldTVEffect effect;
