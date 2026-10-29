@@ -155,3 +155,17 @@ TEST(SimpleChokerContractTest, FractionalStrengthExtrapolationAndLargeRadiusMatc
     }
 }
 
+TEST(SimpleChokerContractTest, NullAndInvalidDimensionsLeaveBufferUntouched)
+{
+    float4 pixel{0.2f, 0.4f, 0.6f, 0.8f};
+    const float4 original = pixel;
+    SimpleChoker effect;
+    SimpleChokerSettings settings;
+    effect.process(nullptr, 1, 1, settings);
+    effect.process(&pixel, 0, 1, settings);
+    effect.process(&pixel, 1, 0, settings);
+    effect.process(&pixel, -1, 1, settings);
+    effect.process(&pixel, 1, -1, settings);
+    EXPECT_EQ(pixel, original);
+}
+
