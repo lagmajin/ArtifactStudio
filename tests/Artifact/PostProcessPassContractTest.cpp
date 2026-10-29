@@ -442,6 +442,23 @@ TEST_F(PostProcessPassGpuContractTest, DisabledPassesLeaveOutputPixelsUntouched)
     }
 }
 
+TEST_F(PostProcessPassGpuContractTest, InitializedPassesRejectNullTextureViews)
+{
+    Artifact::DepthOfFieldPass depthOfField;
+    ASSERT_TRUE(depthOfField.initialize(gpu_.device(), gpu_.context()));
+    Artifact::DepthOfFieldSettings depthSettings;
+    depthSettings.enabled = true;
+    EXPECT_FALSE(depthOfField.apply(gpu_.context(), nullptr, nullptr, nullptr,
+                                    kWidth, kHeight, depthSettings));
+
+    Artifact::MotionBlurPass motionBlur;
+    ASSERT_TRUE(motionBlur.initialize(gpu_.device(), gpu_.context()));
+    Artifact::MotionBlurSettings motionSettings;
+    motionSettings.enabled = true;
+    EXPECT_FALSE(motionBlur.apply(gpu_.context(), nullptr, nullptr, nullptr,
+                                  nullptr, kWidth, kHeight, motionSettings));
+}
+
 TEST_F(PostProcessPassGpuContractTest, PassesRejectZeroDimensionsWithoutTouchingOutput)
 {
     std::array<float, kPixelCount * 4> input{};
