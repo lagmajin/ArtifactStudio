@@ -131,6 +131,48 @@ TEST(LofiEffectContractTest, GlitchCpuOutputIsDeterministicAndPreservesAlpha)
     EXPECT_TRUE(changedRgb);
 }
 
+TEST(LofiEffectContractTest, GlitchCpuInPlaceMatchesOutOfPlaceWithoutAliasing)
+{
+    constexpr int width = 37;
+    constexpr int height = 21;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset = static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>((x * 7 + y) % 31) / 30.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 5) % 29) / 28.0f;
+            pixels[offset + 2] = static_cast<float>((x * 3 + y * 11) % 23) / 22.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 2) % 13) / 12.0f;
+        }
+    }
+
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache inPlace(image);
+    ImageF32x4RGBAWithCache outOfPlace;
+    ArtifactGlitchEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, outOfPlace);
+    effect.applyCPUOnly(inPlace, inPlace);
+
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* outOfPlacePixels = outOfPlace.image().rgba32fData();
+    const float* inPlacePixels = inPlace.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(outOfPlacePixels, nullptr);
+    ASSERT_NE(inPlacePixels, nullptr);
+    ASSERT_EQ(inPlace.width(), width);
+    ASSERT_EQ(inPlace.height(), height);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(sourcePixels[channel], pixels[channel])
+            << "source channel=" << channel;
+        EXPECT_FLOAT_EQ(outOfPlacePixels[channel], inPlacePixels[channel])
+            << "output channel=" << channel;
+    }
+    EXPECT_NE(sourcePixels, inPlacePixels);
+}
+
 TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
 {
     const auto source = makePatternSurface();
