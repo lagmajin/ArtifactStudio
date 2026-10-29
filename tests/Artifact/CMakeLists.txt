@@ -928,6 +928,15 @@ artifact_add_test(ArtifactVectorFlowGlitchEffectContractTest
 set_tests_properties(ArtifactVectorFlowGlitchEffectContractTest PROPERTIES
     LABELS "effect;vector-flow-glitch;cpu;contract"
 )
+artifact_add_test(ArtifactTimeBlurEffectContractTest
+    SOURCES
+        TimeBlurEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactTimeBlurEffectContractTest PROPERTIES
+    LABELS "effect;time-blur;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
