@@ -840,6 +840,34 @@ TEST(CreativeImageEffectContractTest, MirrorMissingRequiredColorChannelLeavesFra
     EXPECT_FALSE(frame.getChannel(ChannelType::Blue));
 }
 
+TEST(CreativeImageEffectContractTest, MirrorProcessesRgbWithoutOptionalAlpha) {
+    VideoFrame frame(4, 1);
+    const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
+    const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.4f, 0.6f, 0.8f};
+    for (int index = 0; index < 4; ++index) {
+        frame.getChannel(ChannelType::Red)->data()[index] = inputRed[index];
+        frame.getChannel(ChannelType::Green)->data()[index] = inputGreen[index];
+        frame.getChannel(ChannelType::Blue)->data()[index] = inputBlue[index];
+    }
+    frame.removeChannel(ChannelType::Alpha);
+
+    MirrorEffect effect;
+    effect.setParameter("Angle", 0.0f);
+    effect.setParameter("CenterX", 0.5f);
+    effect.setParameter("CenterY", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const int expectedSources[] = {0, 1, 2, 1};
+    for (int index = 0; index < 4; ++index) {
+        const int source = expectedSources[index];
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[index], inputRed[source]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[index], inputGreen[source]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[index], inputBlue[source]);
+    }
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, PixelateAveragesPartialEdgeBlocksWithoutChangingAlpha) {
     VideoFrame frame(3, 2);
     auto red = frame.getChannel(ChannelType::Red);
