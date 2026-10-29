@@ -605,6 +605,16 @@ set_tests_properties(ArtifactDitheringEffectContractTest PROPERTIES
     LABELS "effect;dithering;cpu;contract"
 )
 
+artifact_add_test(ArtifactHalftoneEffectContractTest
+    SOURCES
+        HalftoneEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactHalftoneEffectContractTest PROPERTIES
+    LABELS "effect;halftone;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
