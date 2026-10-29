@@ -134,6 +134,9 @@ TEST_F(PostProcessPassGpuContractTest, UploadedLutTransformsPixelsAndRejectsMiss
     postProcess.updateFromColorLUT(nullptr, 2);
     EXPECT_FALSE(postProcess.hasActiveLUT())
         << "a missing LUT payload must invalidate the previously uploaded LUT";
+    postProcess.updateFromColorLUT(invertRgbLut.data(), 1);
+    EXPECT_FALSE(postProcess.hasActiveLUT())
+        << "LUT dimensions below the supported minimum must be rejected";
     postProcess.updateFromColorLUT(invertRgbLut.data(), 257);
     EXPECT_FALSE(postProcess.hasActiveLUT())
         << "LUT dimensions above the supported limit must be rejected";
