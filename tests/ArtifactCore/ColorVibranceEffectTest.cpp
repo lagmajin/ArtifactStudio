@@ -1515,6 +1515,33 @@ TEST(CreativeImageEffectContractTest, ChromaticAberrationMissingRequiredColorCha
     EXPECT_FALSE(frame.getChannel(ChannelType::Blue));
 }
 
+TEST(CreativeImageEffectContractTest, ChromaticAberrationProcessesRgbWithoutOptionalAlpha) {
+    VideoFrame frame(3, 1);
+    const float inputRed[] = {0.1f, 0.4f, 0.9f};
+    const float inputGreen[] = {0.2f, 0.5f, 0.8f};
+    const float inputBlue[] = {0.3f, 0.6f, 0.7f};
+    for (int pixel = 0; pixel < 3; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = inputRed[pixel];
+        frame.getChannel(ChannelType::Green)->data()[pixel] = inputGreen[pixel];
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = inputBlue[pixel];
+    }
+    frame.removeChannel(ChannelType::Alpha);
+
+    ChromaticAberrationEffect effect;
+    effect.setParameter("Amount", 1.0f);
+    effect.setParameter("Angle", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const float expectedRed[] = {0.4f, 0.9f, 0.9f};
+    const float expectedBlue[] = {0.3f, 0.3f, 0.6f};
+    for (int pixel = 0; pixel < 3; ++pixel) {
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[pixel], expectedRed[pixel]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[pixel], inputGreen[pixel]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[pixel], expectedBlue[pixel]);
+    }
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, EmbossUsesDiagonalDifferenceAndPreservesUnprocessedEdges) {
     VideoFrame frame(2, 2);
     auto red = frame.getChannel(ChannelType::Red);
