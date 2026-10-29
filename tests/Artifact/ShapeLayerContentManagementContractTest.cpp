@@ -8,6 +8,8 @@
 #include <vector>
 
 import Artifact.Layer.Shape;
+import Color.Float;
+import Shape.Operator;
 
 namespace {
 
