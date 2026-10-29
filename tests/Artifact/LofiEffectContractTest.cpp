@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cmath>
 
+#include <QRectF>
+
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
 import Image.ImageF32x4RGBAWithCache;
@@ -238,6 +240,56 @@ TEST(LofiEffectContractTest, OldTvHalfMixInterpolatesSourceAndEffectPixels)
                 pixels[offset] * 0.5f + fullEffectPixels[offset] * 0.5f;
             EXPECT_NEAR(halfMixPixels[offset], expected, 1.0e-6f)
                 << "pixel=" << pixel << " channel=" << channel;
+        }
+    }
+}
+
+TEST(LofiEffectContractTest, OldTvEffectRegionCompositesOnlyInsidePixelBounds)
+{
+    constexpr int width = 6;
+    constexpr int height = 4;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>(x + 1) / 8.0f;
+            pixels[offset + 1] = static_cast<float>(y + 1) / 6.0f;
+            pixels[offset + 2] = static_cast<float>(x + y + 1) / 12.0f;
+            pixels[offset + 3] = static_cast<float>(x + 2 * y + 1) / 16.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache fullEffect;
+    ImageF32x4RGBAWithCache regionalEffect;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, fullEffect);
+    effect.setEffectRegion(QRectF(2.0, 1.0, 2.0, 2.0));
+    effect.applyCPUOnly(source, regionalEffect);
+
+    ASSERT_EQ(fullEffect.image().width(), width);
+    ASSERT_EQ(fullEffect.image().height(), height);
+    ASSERT_EQ(regionalEffect.image().width(), width);
+    ASSERT_EQ(regionalEffect.image().height(), height);
+    const float* fullEffectPixels = fullEffect.image().rgba32fData();
+    const float* regionalPixels = regionalEffect.image().rgba32fData();
+    ASSERT_NE(fullEffectPixels, nullptr);
+    ASSERT_NE(regionalPixels, nullptr);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const bool inside = x >= 2 && x < 4 && y >= 1 && y < 3;
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            for (std::size_t channel = 0; channel < 4; ++channel) {
+                const float expected = inside
+                    ? fullEffectPixels[offset + channel]
+                    : pixels[offset + channel];
+                EXPECT_NEAR(regionalPixels[offset + channel], expected, 1.0e-6f)
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+            }
         }
     }
 }
