@@ -244,6 +244,36 @@ TEST(LofiEffectContractTest, AnimatedEnabledSwitchesOldTvBypassAtCompositionFram
     }
 }
 
+TEST(LofiEffectContractTest, AllowOverscanDoesNotExpandOldTvOutput)
+{
+    const auto source = makePatternSurface();
+    ImageF32x4RGBAWithCache standardOutput;
+    ImageF32x4RGBAWithCache overscanOutput;
+    ArtifactOldTVEffect standardEffect;
+    standardEffect.setComputeMode(ComputeMode::CPU);
+    standardEffect.applyCPUOnly(source, standardOutput);
+
+    ArtifactOldTVEffect overscanEffect;
+    overscanEffect.setComputeMode(ComputeMode::CPU);
+    overscanEffect.setAllowOverscan(true);
+    ASSERT_TRUE(overscanEffect.allowOverscan());
+    overscanEffect.applyCPUOnly(source, overscanOutput);
+
+    EXPECT_EQ(overscanOutput.image().width(), source.image().width());
+    EXPECT_EQ(overscanOutput.image().height(), source.image().height());
+    EXPECT_EQ(overscanOutput.image().width(), standardOutput.image().width());
+    EXPECT_EQ(overscanOutput.image().height(), standardOutput.image().height());
+    const float* standardPixels = standardOutput.image().rgba32fData();
+    const float* overscanPixels = overscanOutput.image().rgba32fData();
+    ASSERT_NE(standardPixels, nullptr);
+    ASSERT_NE(overscanPixels, nullptr);
+    constexpr std::size_t channelCount = 8 * 8 * 4;
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(overscanPixels[channel], standardPixels[channel])
+            << "channel=" << channel;
+    }
+}
+
 TEST(LofiEffectContractTest, AnimatedRegionDisableOverridesAnimatedCoordinates)
 {
     const auto source = makePatternSurface();
