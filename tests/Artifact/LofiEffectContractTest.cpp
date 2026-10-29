@@ -433,6 +433,70 @@ TEST(LofiEffectContractTest,
         << "four scratch columns may affect at most three columns each";
 }
 
+TEST(LofiEffectContractTest, FilmGrungeDustAmountAddsLocalizedDeterministicDamage)
+{
+    constexpr int width = 128;
+    constexpr int height = 96;
+    constexpr float alpha = 0.7f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache noDust;
+    ImageF32x4RGBAWithCache firstDust;
+    ImageF32x4RGBAWithCache repeatedDust;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    effect.setPropertyValue(UniString("dustAmount"), QVariant(0.0f));
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, noDust);
+
+    effect.setPropertyValue(UniString("dustAmount"), QVariant(1.0f));
+    effect.applyCPUOnly(source, firstDust);
+    effect.applyCPUOnly(source, repeatedDust);
+
+    const float* baseline = noDust.image().rgba32fData();
+    const float* result = firstDust.image().rgba32fData();
+    const float* repeated = repeatedDust.image().rgba32fData();
+    ASSERT_NE(baseline, nullptr);
+    ASSERT_NE(result, nullptr);
+    ASSERT_NE(repeated, nullptr);
+    std::size_t changedPixels = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        EXPECT_FLOAT_EQ(result[offset + 0], result[offset + 1])
+            << "pixel=" << pixel << " R-G";
+        EXPECT_FLOAT_EQ(result[offset + 1], result[offset + 2])
+            << "pixel=" << pixel << " G-B";
+        EXPECT_FLOAT_EQ(result[offset + 3], alpha) << "pixel=" << pixel;
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            EXPECT_FLOAT_EQ(result[offset + channel], repeated[offset + channel])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+        if (result[offset + 1] != baseline[offset + 1]) {
+            ++changedPixels;
+            EXPECT_LT(result[offset + 1], baseline[offset + 1])
+                << "dust should darken pixels";
+        }
+    }
+    EXPECT_GT(changedPixels, 0u);
+    EXPECT_LT(changedPixels, static_cast<std::size_t>(width) * height);
+}
+
 TEST(LofiEffectContractTest,
      FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
 {
