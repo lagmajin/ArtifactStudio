@@ -843,8 +843,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
     QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
     QStandardPaths::setTestModeEnabled(true);
 
-    constexpr int width = 512;
-    constexpr int height = 512;
+    constexpr int width = 511;
+    constexpr int height = 511;
     constexpr int tileSize = 256;
     auto& projects = Artifact::ArtifactProjectManager::getInstance();
     auto* queue = Artifact::ArtifactRenderQueueService::instance();
