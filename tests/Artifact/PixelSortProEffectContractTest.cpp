@@ -1,0 +1,97 @@
+#include <gtest/gtest.h>
+
+#include <array>
+#include <cstddef>
+#include <QVariant>
+
+import Artifact.Effect.Abstract;
+import Artifact.Effect.Rasterizer.PixelSort;
+import Image.ImageF32x4RGBAWithCache;
+import Image.ImageF32x4_RGBA;
+import Utils.String.UniString;
+
+namespace {
+
+constexpr int kWidth = 4;
+constexpr int kHeight = 4;
+using Pixels = std::array<float, kWidth * kHeight * 4>;
+
+ArtifactCore::ImageF32x4RGBAWithCache makeRepeatedLumaRows()
+{
+    constexpr std::array<float, kWidth> values{0.8f, 0.2f, 0.6f, 0.4f};
+    Pixels pixels{};
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * kWidth + x) * 4;
+            pixels[offset] = values[static_cast<std::size_t>(x)];
+            pixels[offset + 1] = values[static_cast<std::size_t>(x)];
+            pixels[offset + 2] = values[static_cast<std::size_t>(x)];
+            pixels[offset + 3] = 0.1f + 0.1f * static_cast<float>(x);
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), kWidth, kHeight);
+    return ArtifactCore::ImageF32x4RGBAWithCache(image);
+}
+
+void setSortProperty(Artifact::PixelSortProEffect& effect,
+                     const char* name, float value)
+{
+    effect.setPropertyValue(ArtifactCore::UniString(name), QVariant(value));
+}
+
+} // namespace
+
+TEST(PixelSortProEffectContractTest, SortsEligibleRunsAscendingAndPreservesSourceAlpha)
+{
+    const auto source = makeRepeatedLumaRows();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::PixelSortProEffect effect;
+    setSortProperty(effect, "angle", 0.0f);
+    setSortProperty(effect, "maxSegment", 4.0f);
+    setSortProperty(effect, "lowThreshold", 0.0f);
+    setSortProperty(effect, "highThreshold", 1.0f);
+    setSortProperty(effect, "keyMode", 0.0f);
+    setSortProperty(effect, "descending", 0.0f);
+    setSortProperty(effect, "edgeProtection", 0.0f);
+    setSortProperty(effect, "mix", 1.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    constexpr std::array<float, kWidth> sorted{0.2f, 0.4f, 0.6f, 0.8f};
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto pixel = output.image().getPixel(x, y);
+            EXPECT_NEAR(pixel.r(), sorted[static_cast<std::size_t>(x)], 1.0e-6f);
+            EXPECT_NEAR(pixel.g(), sorted[static_cast<std::size_t>(x)], 1.0e-6f);
+            EXPECT_NEAR(pixel.b(), sorted[static_cast<std::size_t>(x)], 1.0e-6f);
+            EXPECT_FLOAT_EQ(pixel.a(), source.image().getPixel(x, y).a());
+        }
+    }
+}
+
+TEST(PixelSortProEffectContractTest, MixZeroLeavesRgbUnsorted)
+{
+    const auto source = makeRepeatedLumaRows();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::PixelSortProEffect effect;
+    setSortProperty(effect, "angle", 0.0f);
+    setSortProperty(effect, "lowThreshold", 0.0f);
+    setSortProperty(effect, "highThreshold", 1.0f);
+    setSortProperty(effect, "edgeProtection", 0.0f);
+    setSortProperty(effect, "mix", 0.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto actual = output.image().getPixel(x, y);
+            const auto expected = source.image().getPixel(x, y);
+            EXPECT_FLOAT_EQ(actual.r(), expected.r());
+            EXPECT_FLOAT_EQ(actual.g(), expected.g());
+            EXPECT_FLOAT_EQ(actual.b(), expected.b());
+            EXPECT_FLOAT_EQ(actual.a(), expected.a());
+        }
+    }
+}

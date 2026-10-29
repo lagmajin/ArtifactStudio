@@ -755,6 +755,16 @@ set_tests_properties(ArtifactSatinEffectContractTest PROPERTIES
     LABELS "effect;satin;cpu;contract"
 )
 
+artifact_add_test(ArtifactPixelSortProEffectContractTest
+    SOURCES
+        PixelSortProEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactPixelSortProEffectContractTest PROPERTIES
+    LABELS "effect;pixel-sort;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
