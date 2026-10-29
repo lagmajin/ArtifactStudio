@@ -1941,6 +1941,17 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
 endif()
 
 if(ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactCreativeEffectAdapterContractTest
+        SOURCES
+            CreativeEffectAdapterContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactCreativeEffectAdapterContractTest PROPERTIES
+        LABELS "effect;creative;adapter;cpu;contract"
+        TIMEOUT 60
+    )
+
     artifact_add_test(ArtifactCreativeImageCleanupEffectContractTest
         SOURCES
             CreativeImageCleanupEffectContractTest.cpp
