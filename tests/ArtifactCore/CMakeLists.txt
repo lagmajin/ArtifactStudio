@@ -815,6 +815,17 @@ set_tests_properties(ArtifactCoreFileTypeDetectorContractTest PROPERTIES
     LABELS "file;type-detection;cpu;contract"
 )
 
+artifact_add_test(ArtifactCorePreviewDescriptorContractTest
+    SOURCES
+        PreviewDescriptorContractTest.cpp
+    LIBS
+        ArtifactCoreFile
+)
+set_tests_properties(ArtifactCorePreviewDescriptorContractTest PROPERTIES
+    LABELS "file;preview;metadata;cpu;contract"
+    TIMEOUT 60
+)
+
 artifact_add_test(ArtifactCoreLottieExporterContractTest
     SOURCES
         LottieExporterContractTest.cpp
