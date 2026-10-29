@@ -635,6 +635,16 @@ set_tests_properties(ArtifactEdgeEffectsContractTest PROPERTIES
     LABELS "effect;edge;rim-light;cpu;contract"
 )
 
+artifact_add_test(ArtifactChromaticReliefEffectContractTest
+    SOURCES
+        ChromaticReliefEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactChromaticReliefEffectContractTest PROPERTIES
+    LABELS "effect;chromatic-relief;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
