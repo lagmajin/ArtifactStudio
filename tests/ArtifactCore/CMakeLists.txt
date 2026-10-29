@@ -1139,6 +1139,16 @@ set_tests_properties(ArtifactCoreImageTransformCVContractTest PROPERTIES
     LABELS "image;opencv;transform;conversion;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreOpenVDBSnapshotContractTest
+    SOURCES
+        OpenVDBSnapshotContractTest.cpp
+    LIBS
+        ArtifactCoreSimulation
+)
+set_tests_properties(ArtifactCoreOpenVDBSnapshotContractTest PROPERTIES
+    LABELS "simulation;openvdb;snapshot;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
