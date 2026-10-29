@@ -81,6 +81,56 @@ TEST(LofiEffectContractTest, OldTvPatternedInputProducesFiniteChangedOutput)
     EXPECT_TRUE(changed);
 }
 
+TEST(LofiEffectContractTest, GlitchCpuOutputIsDeterministicAndPreservesAlpha)
+{
+    constexpr int width = 40;
+    constexpr int height = 19;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset = static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>(x) / static_cast<float>(width - 1);
+            pixels[offset + 1] = static_cast<float>(y) / static_cast<float>(height - 1);
+            pixels[offset + 2] = static_cast<float>((x * 3 + y * 5) % 17) / 16.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 2) % 13) / 12.0f;
+        }
+    }
+
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache firstOutput;
+    ImageF32x4RGBAWithCache secondOutput;
+    ArtifactGlitchEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.apply(source, firstOutput);
+    effect.apply(source, secondOutput);
+
+    const float* first = firstOutput.image().rgba32fData();
+    const float* second = secondOutput.image().rgba32fData();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    ASSERT_EQ(firstOutput.width(), width);
+    ASSERT_EQ(firstOutput.height(), height);
+
+    bool changedRgb = false;
+    for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width * height); ++pixel) {
+        for (int channel = 0; channel < 4; ++channel) {
+            const std::size_t index = pixel * 4 + static_cast<std::size_t>(channel);
+            EXPECT_FLOAT_EQ(first[index], second[index])
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_TRUE(std::isfinite(first[index]))
+                << "pixel=" << pixel << " channel=" << channel;
+            if (channel == 3) {
+                EXPECT_FLOAT_EQ(first[index], pixels[index]) << "pixel=" << pixel;
+            } else {
+                changedRgb = changedRgb || std::abs(first[index] - pixels[index]) > 1.0e-5f;
+            }
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+}
+
 TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
 {
     const auto source = makePatternSurface();
