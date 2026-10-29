@@ -1119,6 +1119,16 @@ set_tests_properties(ArtifactCoreSharedMemoryRingBufferContractTest PROPERTIES
     LABELS "ipc;shared-memory;ring-buffer;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreLocaleFormattingContractTest
+    SOURCES
+        LocaleFormattingContractTest.cpp
+    LIBS
+        ArtifactCoreLocalization
+)
+set_tests_properties(ArtifactCoreLocaleFormattingContractTest PROPERTIES
+    LABELS "localization;formatting;locale;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
