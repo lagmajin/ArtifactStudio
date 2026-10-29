@@ -31,6 +31,7 @@ import Artifact.Export.Session;
 import Artifact.Export.UnityUxmlWriter;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.Image;
+import Artifact.Layer.Shape;
 import Artifact.Layer.Text;
 import Artifact.Project.Manager;
 import Text.Style;
@@ -1007,4 +1008,100 @@ TEST(ExportWriterContractTest, SingleTextLayerProducesMinimalWriterSchemas)
     EXPECT_EQ(textKeyframes.front().toObject().value(QStringLiteral("s"))
                   .toObject().value(QStringLiteral("t")).toString(),
               specialText);
+}
+
+TEST(ExportWriterContractTest, SingleShapeLayerProducesMinimalWriterSchemas)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("SingleShapeExportContractTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("SingleShapeContract")));
+    compositionParams.setResolution(64, 36);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(12);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams shapeParams(
+        QStringLiteral("OnlyShape"), Artifact::LayerType::Shape);
+    const auto shapeResult = projects.addLayerToComposition(
+        composition.id, shapeParams);
+    ASSERT_TRUE(shapeResult.success);
+    auto* shapeLayer =
+        dynamic_cast<Artifact::ArtifactShapeLayer*>(shapeResult.layer.get());
+    ASSERT_NE(shapeLayer, nullptr);
+    shapeLayer->setSize(23, 11);
+    shapeLayer->setFillColor(ArtifactCore::FloatColor(0.25f, 0.5f, 0.75f, 1.0f));
+
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+    Artifact::ArtifactExportSession session(compositionPtr);
+    QString error;
+    ASSERT_TRUE(session.build(&error)) << error.toStdString();
+    ASSERT_EQ(session.snapshot().layers.size(), 1);
+    EXPECT_EQ(session.snapshot().layers.front().name, QStringLiteral("OnlyShape"));
+    EXPECT_TRUE(session.snapshot().layers.front().serialized.contains(
+        QStringLiteral("shapeWidth")));
+    EXPECT_TRUE(session.snapshot().assets.isEmpty());
+
+    const QString root = temporary.path();
+    const QString gameface = QDir(root).filePath(QStringLiteral("gameface"));
+    const QString noesis = QDir(root).filePath(QStringLiteral("noesis"));
+    const QString rmlui = QDir(root).filePath(QStringLiteral("rmlui"));
+    const QString unity = QDir(root).filePath(QStringLiteral("unity"));
+    const QString lottie = QDir(root).filePath(QStringLiteral("animation.json"));
+    ASSERT_TRUE(Artifact::ArtifactExportGamefaceWriter::write(
+        compositionPtr, gameface, {}, &error)) << error.toStdString();
+    ASSERT_TRUE(Artifact::ArtifactExportNoesisXamlWriter::write(
+        compositionPtr, noesis, {}, &error)) << error.toStdString();
+    ASSERT_TRUE(Artifact::ArtifactExportRmlUiWriter::write(
+        compositionPtr, rmlui, {}, &error)) << error.toStdString();
+    ASSERT_TRUE(Artifact::ArtifactExportUnityUxmlWriter::write(
+        compositionPtr, unity, {}, &error)) << error.toStdString();
+    ASSERT_TRUE(Artifact::ArtifactExportLottieWriter::write(
+        compositionPtr, lottie, {}, &error)) << error.toStdString();
+
+    const QString gamefaceHtml = readTextFile(
+        QDir(gameface).filePath(QStringLiteral("index.html")));
+    EXPECT_EQ(gamefaceHtml.count(QStringLiteral("class=\"layer ")), 1);
+    EXPECT_TRUE(gamefaceHtml.contains(QStringLiteral("width:23px;height:11px;")));
+
+    const QString noesisPath = QDir(noesis).filePath(QStringLiteral("composition.xaml"));
+    ASSERT_TRUE(isWellFormedXml(noesisPath));
+    const QString noesisMarkup = readTextFile(noesisPath);
+    EXPECT_EQ(noesisMarkup.count(QStringLiteral("<Rectangle ")), 1);
+    EXPECT_TRUE(noesisMarkup.contains(QStringLiteral("Width=\"23\" Height=\"11\"")));
+
+    const QString rmlPath = QDir(rmlui).filePath(QStringLiteral("composition.rml"));
+    ASSERT_TRUE(isWellFormedXml(rmlPath));
+    EXPECT_EQ(readTextFile(rmlPath).count(QStringLiteral("class=\"layer_0\"")), 1);
+
+    const QString unityPath = QDir(unity).filePath(QStringLiteral("composition.uxml"));
+    ASSERT_TRUE(isWellFormedXml(unityPath));
+    EXPECT_EQ(readTextFile(unityPath).count(QStringLiteral("class=\"layer")), 1);
+
+    const QJsonDocument lottieDocument =
+        QJsonDocument::fromJson(readFileBytes(lottie));
+    ASSERT_TRUE(lottieDocument.isObject());
+    const QJsonArray layers = lottieDocument.object()
+        .value(QStringLiteral("layers")).toArray();
+    ASSERT_EQ(layers.size(), 1);
+    const QJsonObject shape = layers.front().toObject();
+    EXPECT_EQ(shape.value(QStringLiteral("nm")).toString(),
+              QStringLiteral("OnlyShape"));
+    EXPECT_EQ(shape.value(QStringLiteral("ty")).toInt(), 4);
+    EXPECT_FALSE(shape.value(QStringLiteral("shapes")).toArray().isEmpty());
 }
