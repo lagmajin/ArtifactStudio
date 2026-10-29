@@ -749,7 +749,7 @@ TEST_F(PostProcessPassGpuContractTest, DepthOfFieldPreservesAnInFocusImpulse)
     EXPECT_FLOAT_EQ(output[center + 3], 1.0f);
 }
 
-TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVelocity)
+TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndPhaseAndCopiesZeroMotion)
 {
     Artifact::MotionBlurPass pass;
     ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
@@ -858,6 +858,29 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVel
     EXPECT_FLOAT_EQ(zeroSamples[adjacent], 0.0f);
     EXPECT_FLOAT_EQ(zeroSamples[center + 3], 1.0f);
     EXPECT_FLOAT_EQ(zeroSamples[adjacent + 3], 0.0f);
+
+    settings.sampleCount = 8;
+    settings.shutterAngle = 0.0f;
+    settings.shutterPhase = 0.5f;
+    settings.velocityScale = 1.0f;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
+                           outputUav, kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> phaseShifted{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, phaseShifted));
+    EXPECT_FLOAT_EQ(phaseShifted[center], 0.0f);
+    EXPECT_FLOAT_EQ(phaseShifted[adjacent], 1.0f);
+    EXPECT_FLOAT_EQ(phaseShifted[center + 3], 0.0f);
+    EXPECT_FLOAT_EQ(phaseShifted[adjacent + 3], 1.0f);
+
+    settings.velocityScale = 0.0f;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
+                           outputUav, kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> zeroVelocityScale{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, zeroVelocityScale));
+    EXPECT_FLOAT_EQ(zeroVelocityScale[center], 1.0f);
+    EXPECT_FLOAT_EQ(zeroVelocityScale[adjacent], 0.0f);
+    EXPECT_FLOAT_EQ(zeroVelocityScale[center + 3], 1.0f);
+    EXPECT_FLOAT_EQ(zeroVelocityScale[adjacent + 3], 0.0f);
 }
 
 TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
