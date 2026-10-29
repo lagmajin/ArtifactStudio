@@ -3002,6 +3002,82 @@ TEST(ExrWriterOutputContractTest,
 }
 
 TEST(ExrWriterOutputContractTest,
+     CryptomatteDraftCoverageClampsAlphaAndSuppressesZeroIds)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(
+        QStringLiteral("cryptomatte_draft_coverage.exr"));
+
+    ArtifactCore::MultiChannelImage image(4, 1);
+    image.addChannel(ArtifactCore::ChannelType::Alpha);
+    image.addChannel(ArtifactCore::ChannelType::ObjectId);
+    const auto alpha = image.getChannel(ArtifactCore::ChannelType::Alpha);
+    const auto objectIds = image.getChannel(ArtifactCore::ChannelType::ObjectId);
+    ASSERT_NE(alpha, nullptr);
+    ASSERT_NE(objectIds, nullptr);
+    const std::array<float, 4> alphaValues{0.25f, 0.5f, 2.0f, -0.25f};
+    const std::array<float, 4> objectIdValues{17.0f, 0.0f, 29.0f, 31.0f};
+    std::copy(alphaValues.begin(), alphaValues.end(), alpha->data());
+    std::copy(objectIdValues.begin(), objectIdValues.end(), objectIds->data());
+
+    ArtifactCore::ImageExportOptions options;
+    options.format = QStringLiteral("exr");
+    options.dataType = OIIO::TypeDesc::FLOAT;
+    options.stringAttributes.insert(
+        QStringLiteral("cryptomatte/00000000/name"),
+        QStringLiteral("CryptoObject"));
+    options.stringAttributes.insert(
+        QStringLiteral("cryptomatte/00000000/manifest"),
+        QStringLiteral("{}"));
+
+    ArtifactCore::ImageExporter exporter;
+    const auto result = exporter.writeMultiChannel(image, path, options);
+    ASSERT_TRUE(result.success) << result.errorStage.toStdString() << ": "
+                                << result.errorMessage.toStdString();
+
+    const QByteArray encodedPath = path.toUtf8();
+    auto input = OIIO::ImageInput::open(encodedPath.constData());
+    ASSERT_NE(input, nullptr);
+    const auto& spec = input->spec();
+    const auto channelIndex = [&spec](const std::string& name) {
+        const auto found = std::find(spec.channelnames.begin(),
+                                     spec.channelnames.end(), name);
+        return found == spec.channelnames.end()
+            ? -1 : static_cast<int>(found - spec.channelnames.begin());
+    };
+    const int idIndex = channelIndex("CryptoObject00.R");
+    const int coverageIndex = channelIndex("CryptoObject00.G");
+    const int unusedBIndex = channelIndex("CryptoObject00.B");
+    const int unusedAIndex = channelIndex("CryptoObject00.A");
+    ASSERT_GE(idIndex, 0);
+    ASSERT_GE(coverageIndex, 0);
+    ASSERT_GE(unusedBIndex, 0);
+    ASSERT_GE(unusedAIndex, 0);
+
+    std::vector<float> pixels(static_cast<std::size_t>(spec.nchannels) * 4u);
+    ASSERT_TRUE(input->read_image(OIIO::TypeDesc::FLOAT, pixels.data()));
+    const auto sample = [&pixels, &spec](int x, int channel) {
+        return pixels[static_cast<std::size_t>(x) *
+                          static_cast<std::size_t>(spec.nchannels) +
+                      static_cast<std::size_t>(channel)];
+    };
+    EXPECT_FLOAT_EQ(sample(0, idIndex), 17.0f);
+    EXPECT_FLOAT_EQ(sample(0, coverageIndex), 0.25f);
+    EXPECT_FLOAT_EQ(sample(1, idIndex), 0.0f);
+    EXPECT_FLOAT_EQ(sample(1, coverageIndex), 0.0f);
+    EXPECT_FLOAT_EQ(sample(2, idIndex), 29.0f);
+    EXPECT_FLOAT_EQ(sample(2, coverageIndex), 1.0f);
+    EXPECT_FLOAT_EQ(sample(3, idIndex), 31.0f);
+    EXPECT_FLOAT_EQ(sample(3, coverageIndex), 0.0f);
+    for (int x = 0; x < 4; ++x) {
+        EXPECT_FLOAT_EQ(sample(x, unusedBIndex), 0.0f) << "pixel=" << x;
+        EXPECT_FLOAT_EQ(sample(x, unusedAIndex), 0.0f) << "pixel=" << x;
+    }
+    input->close();
+}
+
+TEST(ExrWriterOutputContractTest,
      DeepExrRoundTripRetainsVariablePerPixelSamplesAndDepthOrder)
 {
     QTemporaryDir outputDirectory;
