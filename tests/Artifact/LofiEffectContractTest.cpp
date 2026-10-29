@@ -498,6 +498,74 @@ TEST(LofiEffectContractTest, FilmGrungeDustAmountAddsLocalizedDeterministicDamag
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeFlickerChangesFrameExposureWithoutChangingAlpha)
+{
+    constexpr int width = 12;
+    constexpr int height = 8;
+    constexpr float sourceValue = 0.4f;
+    constexpr float alpha = 0.65f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4 + 0] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache noFlicker;
+    ImageF32x4RGBAWithCache firstFrame;
+    ImageF32x4RGBAWithCache repeatedFrame;
+    ImageF32x4RGBAWithCache nextFrame;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+    effect.applyCPUOnly(source, noFlicker);
+
+    effect.setPropertyValue(UniString("flicker"), QVariant(0.5f));
+    effect.applyCPUOnly(source, firstFrame);
+    effect.applyCPUOnly(source, repeatedFrame);
+    context.compositionFrame = 13;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, nextFrame);
+
+    const float* baseline = noFlicker.image().rgba32fData();
+    const float* first = firstFrame.image().rgba32fData();
+    const float* repeated = repeatedFrame.image().rgba32fData();
+    const float* next = nextFrame.image().rgba32fData();
+    ASSERT_NE(baseline, nullptr);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(repeated, nullptr);
+    ASSERT_NE(next, nullptr);
+    EXPECT_FLOAT_EQ(baseline[0], sourceValue);
+    EXPECT_NE(first[0], baseline[0]);
+    EXPECT_NE(next[0], first[0]);
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(first[offset + channel], first[0])
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(first[offset + channel], repeated[offset + channel])
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(next[offset + channel], next[0])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+        EXPECT_FLOAT_EQ(first[offset + 3], alpha) << "pixel=" << pixel;
+        EXPECT_FLOAT_EQ(next[offset + 3], alpha) << "pixel=" << pixel;
+    }
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
 {
     constexpr int width = 64;
