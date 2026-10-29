@@ -2546,6 +2546,67 @@ TEST(CreativeImageEffectContractTest, DepthMeltHeatChangesWarpAndHighlight) {
     }
 }
 
+TEST(CreativeImageEffectContractTest, DepthMeltDetailChangesGradientResponse) {
+    constexpr int width = 8;
+    constexpr int height = 8;
+    VideoFrame smoothDetailFrame(width, height);
+    VideoFrame sharpDetailFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float value = 0.06f + static_cast<float>(y) * 0.12f;
+            for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                              ChannelType::Blue}) {
+                smoothDetailFrame.getChannel(channel)->data()[pixel] = value;
+                sharpDetailFrame.getChannel(channel)->data()[pixel] = value;
+            }
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            smoothDetailFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            sharpDetailFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    DepthMeltEffect smoothDetail;
+    smoothDetail.setParameter("Melt", 0.8f);
+    smoothDetail.setParameter("Gravity", 0.5f);
+    smoothDetail.setParameter("Heat", 0.0f);
+    smoothDetail.setParameter("Detail", 0.0f);
+    DepthMeltEffect sharpDetail;
+    sharpDetail.setParameter("Melt", 0.8f);
+    sharpDetail.setParameter("Gravity", 0.5f);
+    sharpDetail.setParameter("Heat", 0.0f);
+    sharpDetail.setParameter("Detail", 1.0f);
+    const CreativeEffectContext context{.time = 1.5};
+    smoothDetail.process(smoothDetailFrame, context);
+    sharpDetail.process(sharpDetailFrame, context);
+
+    bool detailChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto smooth = smoothDetailFrame.getChannel(channel);
+        const auto sharp = sharpDetailFrame.getChannel(channel);
+        ASSERT_TRUE(smooth);
+        ASSERT_TRUE(sharp);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(sharp->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            detailChangedRgb = detailChangedRgb ||
+                std::abs(sharp->data()[pixel] - smooth->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(detailChangedRgb);
+
+    const auto smoothAlpha = smoothDetailFrame.getChannel(ChannelType::Alpha);
+    const auto sharpAlpha = sharpDetailFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(smoothAlpha);
+    ASSERT_TRUE(sharpAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(smoothAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(sharpAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, GlitchIsRepeatableAtFixedTimeAndAppliesSharedGrainToRgb) {
     VideoFrame first(4, 2);
     VideoFrame second(4, 2);
