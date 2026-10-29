@@ -640,6 +640,7 @@ artifact_add_test(ArtifactHalftoneEffectContractTest
         HalftoneEffectContractTest.cpp
     LIBS
         ArtifactEffectsRasterizer
+        ArtifactAppRuntime
 )
 set_tests_properties(ArtifactHalftoneEffectContractTest PROPERTIES
     LABELS "effect;halftone;cpu;contract"
@@ -710,6 +711,7 @@ artifact_add_test(ArtifactGlitchEffectContractTest
         GlitchEffectContractTest.cpp
     LIBS
         ArtifactEffectsRasterizer
+        ArtifactAppRuntime
 )
 set_tests_properties(ArtifactGlitchEffectContractTest PROPERTIES
     LABELS "effect;glitch;cpu;contract"
