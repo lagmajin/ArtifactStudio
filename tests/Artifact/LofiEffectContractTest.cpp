@@ -329,6 +329,7 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
     image.setFromRGBA32F(pixels.data(), width, height);
     const ImageF32x4RGBAWithCache source(image);
     ImageF32x4RGBAWithCache output;
+    ImageF32x4RGBAWithCache otherFrameOutput;
     ArtifactFilmGrungeEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
     effect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
@@ -341,11 +342,17 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
     context.compositionFrame = 12;
     effect.setContext(context);
     effect.applyCPUOnly(source, output);
+    context.compositionFrame = 13;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, otherFrameOutput);
 
     const float* result = output.image().rgba32fData();
+    const float* otherFrame = otherFrameOutput.image().rgba32fData();
     ASSERT_NE(result, nullptr);
+    ASSERT_NE(otherFrame, nullptr);
     const float firstBlockSample = result[1];
     bool observedBlockVariation = false;
+    std::size_t changedByFrame = 0;
     for (int blockY = 0; blockY < height; blockY += 4) {
         for (int blockX = 0; blockX < width; blockX += 4) {
             const std::size_t blockOffset =
@@ -363,14 +370,25 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
                         EXPECT_FLOAT_EQ(result[offset + channel], blockValue[channel])
                             << "x=" << x << " y=" << y
                             << " channel=" << channel;
+                        EXPECT_FLOAT_EQ(
+                            otherFrame[offset + channel],
+                            otherFrame[blockOffset + channel])
+                            << "other-frame grain block x=" << x << " y=" << y
+                            << " channel=" << channel;
+                    }
+                    if (result[offset + 1] != otherFrame[offset + 1]) {
+                        ++changedByFrame;
                     }
                     EXPECT_FLOAT_EQ(result[offset + 3], alpha)
                         << "x=" << x << " y=" << y;
+                    EXPECT_FLOAT_EQ(otherFrame[offset + 3], alpha)
+                        << "other frame x=" << x << " y=" << y;
                 }
             }
         }
     }
     EXPECT_TRUE(observedBlockVariation);
+    EXPECT_GT(changedByFrame, 0u);
 }
 
 TEST(LofiEffectContractTest,
