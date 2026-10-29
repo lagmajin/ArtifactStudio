@@ -1009,6 +1009,15 @@ artifact_add_test(ArtifactDecalEffectContractTest
 set_tests_properties(ArtifactDecalEffectContractTest PROPERTIES
     LABELS "effect;decal;property;contract"
 )
+artifact_add_test(ArtifactPixelSortEffectContractTest
+    SOURCES
+        PixelSortEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactPixelSortEffectContractTest PROPERTIES
+    LABELS "effect;pixel-sort;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
