@@ -1198,6 +1198,15 @@ artifact_add_test(ArtifactLuminescenceCausticsEffectContractTest
 set_tests_properties(ArtifactLuminescenceCausticsEffectContractTest PROPERTIES
     LABELS "effect;luminescence-caustics;cpu;contract"
 )
+artifact_add_test(ArtifactLiquidGlowEffectContractTest
+    SOURCES
+        LiquidGlowEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsGlow
+)
+set_tests_properties(ArtifactLiquidGlowEffectContractTest PROPERTIES
+    LABELS "effect;liquid-glow;spatial;cpu;contract"
+)
 artifact_add_test(ArtifactDisplacementMapEffectContractTest
     SOURCES
         DisplacementMapEffectContractTest.cpp
