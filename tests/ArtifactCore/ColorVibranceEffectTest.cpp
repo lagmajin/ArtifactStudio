@@ -2065,3 +2065,59 @@ TEST(CreativeImageEffectContractTest, PigmentSeparationUniformZeroTextureMatches
             << "alpha pixel=" << index;
     }
 }
+
+TEST(CreativeImageEffectContractTest, PigmentSeparationGranulationAddsPaperTexture) {
+    constexpr int width = 8;
+    constexpr int height = 6;
+    VideoFrame smoothFrame(width, height);
+    VideoFrame texturedFrame(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+            smoothFrame.getChannel(channel)->data()[pixel] = 0.5f;
+            texturedFrame.getChannel(channel)->data()[pixel] = 0.5f;
+        }
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        smoothFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        texturedFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+    }
+
+    PigmentSeparationEffect smoothEffect;
+    smoothEffect.setParameter("Spread", 0.0f);
+    smoothEffect.setParameter("Bleed", 0.0f);
+    smoothEffect.setParameter("Flow", 0.0f);
+    smoothEffect.setParameter("Granulation", 0.0f);
+    PigmentSeparationEffect texturedEffect;
+    texturedEffect.setParameter("Spread", 0.0f);
+    texturedEffect.setParameter("Bleed", 0.0f);
+    texturedEffect.setParameter("Flow", 0.0f);
+    texturedEffect.setParameter("Granulation", 1.0f);
+    const CreativeEffectContext context{.time = 2.5};
+    smoothEffect.process(smoothFrame, context);
+    texturedEffect.process(texturedFrame, context);
+
+    bool textureChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto smooth = smoothFrame.getChannel(channel);
+        const auto textured = texturedFrame.getChannel(channel);
+        ASSERT_TRUE(smooth);
+        ASSERT_TRUE(textured);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(textured->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            textureChangedRgb = textureChangedRgb ||
+                std::abs(textured->data()[pixel] - smooth->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(textureChangedRgb);
+    const auto smoothAlpha = smoothFrame.getChannel(ChannelType::Alpha);
+    const auto texturedAlpha = texturedFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(smoothAlpha);
+    ASSERT_TRUE(texturedAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(smoothAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(texturedAlpha->data()[pixel], alpha);
+    }
+}
