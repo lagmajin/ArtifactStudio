@@ -241,6 +241,52 @@ TEST(LofiEffectContractTest,
     }
 }
 
+TEST(LofiEffectContractTest, FilmGrungeInPlaceMatchesOutOfPlaceAndKeepsIndependentStorage)
+{
+    constexpr int width = 13;
+    constexpr int height = 9;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset = static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>((x * 7 + y * 3) % 19) / 18.0f;
+            pixels[offset + 1] = static_cast<float>((x * 2 + y * 11) % 23) / 22.0f;
+            pixels[offset + 2] = static_cast<float>((x * 5 + y * 13) % 29) / 28.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 2) % 7) / 6.0f;
+        }
+    }
+
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache inPlace(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect outOfPlaceEffect;
+    ArtifactFilmGrungeEffect inPlaceEffect;
+    outOfPlaceEffect.setComputeMode(ComputeMode::CPU);
+    inPlaceEffect.setComputeMode(ComputeMode::CPU);
+    outOfPlaceEffect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    inPlaceEffect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+
+    outOfPlaceEffect.applyCPUOnly(source, output);
+    inPlaceEffect.applyCPUOnly(inPlace, inPlace);
+
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* outputPixels = output.image().rgba32fData();
+    const float* inPlacePixels = inPlace.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(outputPixels, nullptr);
+    ASSERT_NE(inPlacePixels, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(sourcePixels[channel], pixels[channel])
+            << "source channel=" << channel;
+        EXPECT_FLOAT_EQ(outputPixels[channel], inPlacePixels[channel])
+            << "output channel=" << channel;
+    }
+    EXPECT_NE(outputPixels, sourcePixels);
+    EXPECT_NE(inPlacePixels, sourcePixels);
+}
+
 TEST(LofiEffectContractTest,
      FilmGrungeEmptyInputReplacesPreviouslyPopulatedOutput)
 {
