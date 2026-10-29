@@ -460,6 +460,16 @@ set_tests_properties(ArtifactCoreLabColorContractTest PROPERTIES
     LABELS "color;lab;conversion;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreOCIOConfigContractTest
+    SOURCES
+        OCIOConfigContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreOCIOConfigContractTest PROPERTIES
+    LABELS "color;ocio;configuration;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorConversionTest
     SOURCES
         ColorConversionTest.cpp
