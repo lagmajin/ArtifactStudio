@@ -2115,6 +2115,67 @@ TEST(CreativeImageEffectContractTest, OldTvFlickerChangesAcrossTimesAndKeepsAlph
     }
 }
 
+TEST(CreativeImageEffectContractTest, OldTvRgbOutputDoesNotDependOnOptionalAlphaPlane) {
+    constexpr int width = 4;
+    constexpr int height = 3;
+    VideoFrame withAlpha(width, height);
+    VideoFrame withoutAlpha(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float red = static_cast<float>((x * 3 + y) % 7) / 7.0f;
+            const float green = static_cast<float>((x + y * 2) % 6) / 6.0f;
+            const float blue = static_cast<float>((x * 2 + y * 3) % 8) / 8.0f;
+            for (VideoFrame* frame : {&withAlpha, &withoutAlpha}) {
+                frame->getChannel(ChannelType::Red)->data()[pixel] = red;
+                frame->getChannel(ChannelType::Green)->data()[pixel] = green;
+                frame->getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            }
+            withAlpha.getChannel(ChannelType::Alpha)->data()[pixel] =
+                static_cast<float>(pixel) / (width * height - 1);
+        }
+    }
+    withoutAlpha.removeChannel(ChannelType::Alpha);
+
+    OldTVEffect withAlphaEffect;
+    withAlphaEffect.setParameter("Scanline", 0.8f);
+    withAlphaEffect.setParameter("Curvature", 0.4f);
+    withAlphaEffect.setParameter("Flicker", 0.3f);
+    withAlphaEffect.setParameter("Fringe", 0.7f);
+    OldTVEffect withoutAlphaEffect;
+    withoutAlphaEffect.setParameter("Scanline", 0.8f);
+    withoutAlphaEffect.setParameter("Curvature", 0.4f);
+    withoutAlphaEffect.setParameter("Flicker", 0.3f);
+    withoutAlphaEffect.setParameter("Fringe", 0.7f);
+    const CreativeEffectContext context{.time = 1.75};
+    withAlphaEffect.process(withAlpha, context);
+    withoutAlphaEffect.process(withoutAlpha, context);
+
+    bool changedRgb = false;
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto expected = withAlpha.getChannel(channelType);
+        const auto actual = withoutAlpha.getChannel(channelType);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(actual->data()[pixel]));
+            EXPECT_FLOAT_EQ(actual->data()[pixel], expected->data()[pixel]);
+            const int x = pixel % width;
+            const int y = pixel / width;
+            const float original = channelType == ChannelType::Red
+                ? static_cast<float>((x * 3 + y) % 7) / 7.0f
+                : channelType == ChannelType::Green
+                    ? static_cast<float>((x + y * 2) % 6) / 6.0f
+                    : static_cast<float>((x * 2 + y * 3) % 8) / 8.0f;
+            changedRgb = changedRgb ||
+                std::abs(actual->data()[pixel] - original) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    EXPECT_FALSE(withoutAlpha.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, OldTvNeutralParametersProduceExactNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
