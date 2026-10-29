@@ -7,6 +7,7 @@
 #include <limits>
 
 #include <QRectF>
+#include <QString>
 
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
@@ -93,6 +94,50 @@ TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
     for (std::size_t channel = 0; channel < 8 * 8 * 4; ++channel) {
         EXPECT_TRUE(std::isfinite(pixels[channel])) << "channel=" << channel;
     }
+}
+
+TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
+{
+    ArtifactOldTVEffect effect;
+    const auto findProperty = [&effect](const QString& name) {
+        const auto properties = effect.editableProperties();
+        const auto found = std::find_if(
+            properties.begin(), properties.end(), [&name](const auto& property) {
+                return property && property->getName() == name;
+            });
+        return found == properties.end()
+            ? SharedPtr<AbstractProperty>{}
+            : *found;
+    };
+
+    const auto defaultMix = findProperty(QStringLiteral("Effect Mix"));
+    const auto defaultEnabled = findProperty(QStringLiteral("Effect Enabled"));
+    const auto defaultRegion = findProperty(
+        QStringLiteral("Effect Region Enabled"));
+    const auto defaultOverscan = findProperty(QStringLiteral("Allow Overscan"));
+    ASSERT_TRUE(defaultMix);
+    ASSERT_TRUE(defaultEnabled);
+    ASSERT_TRUE(defaultRegion);
+    ASSERT_TRUE(defaultOverscan);
+    EXPECT_DOUBLE_EQ(defaultMix->getValue().toDouble(), 1.0);
+    EXPECT_TRUE(defaultEnabled->getValue().toBool());
+    EXPECT_FALSE(defaultRegion->getValue().toBool());
+    EXPECT_FALSE(defaultOverscan->getValue().toBool());
+
+    effect.setMix(0.4f);
+    effect.setEnabled(false);
+    effect.setAllowOverscan(true);
+    effect.setEffectRegion(QRectF(2.0, 3.0, 4.0, 5.0));
+
+    EXPECT_NEAR(findProperty(QStringLiteral("Effect Mix"))->getValue().toDouble(),
+                0.4, 1.0e-6);
+    EXPECT_FALSE(findProperty(QStringLiteral("Effect Enabled"))->getValue().toBool());
+    EXPECT_TRUE(findProperty(QStringLiteral("Effect Region Enabled"))->getValue().toBool());
+    EXPECT_TRUE(findProperty(QStringLiteral("Allow Overscan"))->getValue().toBool());
+    EXPECT_DOUBLE_EQ(findProperty(QStringLiteral("Effect Region X"))->getValue().toDouble(), 2.0);
+    EXPECT_DOUBLE_EQ(findProperty(QStringLiteral("Effect Region Y"))->getValue().toDouble(), 3.0);
+    EXPECT_DOUBLE_EQ(findProperty(QStringLiteral("Effect Region Width"))->getValue().toDouble(), 4.0);
+    EXPECT_DOUBLE_EQ(findProperty(QStringLiteral("Effect Region Height"))->getValue().toDouble(), 5.0);
 }
 
 TEST(LofiEffectContractTest, OldTvEmptyInputClearsPreviouslyPopulatedOutput)
