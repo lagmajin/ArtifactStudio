@@ -883,6 +883,15 @@ artifact_add_test(ArtifactSlitScanEffectContractTest
 set_tests_properties(ArtifactSlitScanEffectContractTest PROPERTIES
     LABELS "effect;slit-scan;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactTimeWarpEffectContractTest
+    SOURCES
+        TimeWarpEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactTimeWarpEffectContractTest PROPERTIES
+    LABELS "effect;time-warp;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
