@@ -190,6 +190,30 @@ TEST(LofiEffectContractTest, OldTvHandlesSinglePixelHighImagesDeterministically)
     }
 }
 
+TEST(LofiEffectContractTest, OldTvPreservesAlphaOnSinglePixelImages)
+{
+    constexpr std::array<float, 4> pixels{0.35f, 0.65f, 0.9f, 0.42f};
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 1, 1);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), 1);
+    ASSERT_EQ(output.image().height(), 1);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_TRUE(std::isfinite(result[channel])) << "channel=" << channel;
+        EXPECT_GE(result[channel], 0.0f) << "channel=" << channel;
+        EXPECT_LE(result[channel], 1.0f) << "channel=" << channel;
+    }
+    EXPECT_FLOAT_EQ(result[3], pixels[3]);
+}
+
 } // namespace
 
 TEST(LofiEffectContractTest, OldTvKeepsAlphaAndSourceAndAppliesFourRowScanline)
