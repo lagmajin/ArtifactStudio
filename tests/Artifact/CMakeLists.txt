@@ -545,6 +545,16 @@ set_tests_properties(ArtifactVHSTapeEffectContractTest PROPERTIES
     LABELS "effect;vhs;lofi;cpu;contract"
 )
 
+artifact_add_test(ArtifactVignetteEffectContractTest
+    SOURCES
+        VignetteEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactVignetteEffectContractTest PROPERTIES
+    LABELS "effect;vignette;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
