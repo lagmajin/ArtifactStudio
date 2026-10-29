@@ -314,8 +314,8 @@ TEST(LofiEffectContractTest,
 
 TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
 {
-    constexpr int width = 16;
-    constexpr int height = 16;
+    constexpr int width = 18;
+    constexpr int height = 11;
     constexpr float alpha = 0.65f;
     std::array<float, width * height * 4> pixels{};
     for (std::size_t pixel = 0;
@@ -355,8 +355,8 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
                 result[blockOffset + 2], result[blockOffset + 3]};
             observedBlockVariation = observedBlockVariation ||
                 blockValue[1] != firstBlockSample;
-            for (int y = blockY; y < blockY + 4; ++y) {
-                for (int x = blockX; x < blockX + 4; ++x) {
+            for (int y = blockY; y < std::min(blockY + 4, height); ++y) {
+                for (int x = blockX; x < std::min(blockX + 4, width); ++x) {
                     const std::size_t offset =
                         static_cast<std::size_t>((y * width + x) * 4);
                     for (std::size_t channel = 0; channel < 3; ++channel) {
