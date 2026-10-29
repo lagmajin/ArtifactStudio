@@ -120,6 +120,7 @@ void captureXpuDispatchMessage(QtMsgType type,
         message.contains(QStringLiteral("XPU active plan")) ||
         message.contains(QStringLiteral("XPU job summary")) ||
         message.contains(QStringLiteral("XPU async sequence manager requested")) ||
+        message.contains(QStringLiteral("XPU test failure injection")) ||
         message.contains(QStringLiteral("XPU mixed dispatch unavailable")) ||
         message.contains(QStringLiteral("[DiligentDeviceManager] XPU DXGI"))) {
         std::lock_guard<std::mutex> lock(xpuLogMutex);
@@ -1829,6 +1830,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
     struct RestoreEnvironment final {
         QByteArray xpu = qgetenv("ARTIFACT_XPU");
         QByteArray maxInFlight = qgetenv("ARTIFACT_XPU_MAX_IN_FLIGHT");
+        QByteArray failGpuFrame = qgetenv(
+            "ARTIFACT_XPU_TEST_FAIL_GPU_FRAME");
         ~RestoreEnvironment()
         {
             if (xpu.isNull()) {
@@ -1841,9 +1844,15 @@ TEST(RenderQueueLayerImageIntegrationTest,
             } else {
                 qputenv("ARTIFACT_XPU_MAX_IN_FLIGHT", maxInFlight);
             }
+            if (failGpuFrame.isNull()) {
+                qunsetenv("ARTIFACT_XPU_TEST_FAIL_GPU_FRAME");
+            } else {
+                qputenv("ARTIFACT_XPU_TEST_FAIL_GPU_FRAME", failGpuFrame);
+            }
         }
     } restoreEnvironment;
     qputenv("ARTIFACT_XPU", "mixed=on,asyncseq=manager");
+    qunsetenv("ARTIFACT_XPU_TEST_FAIL_GPU_FRAME");
     // Keep one GPU lane plus one CPU lane so the test exercises an actual
     // mixed dispatch on hosts with different core counts and adapter counts.
     qputenv("ARTIFACT_XPU_MAX_IN_FLIGHT", "2");
@@ -1946,6 +1955,9 @@ TEST(RenderQueueLayerImageIntegrationTest,
         std::lock_guard<std::mutex> lock(xpuLogMutex);
         xpuDispatchMessages.clear();
     }
+    // Fail the first seeded GPU frame once, then require CPU fallback to
+    // produce the same pixels as the sequential CPU baseline.
+    qputenv("ARTIFACT_XPU_TEST_FAIL_GPU_FRAME", "1");
 
     const QString xpuOutputPath = isolatedOutputPath(
         QStringLiteral("render_queue_xpu_mixed.png"));
@@ -1970,6 +1982,10 @@ TEST(RenderQueueLayerImageIntegrationTest,
             .match(joined).hasMatch()) {
         GTEST_SKIP() << "No active full GPU worker is available on this host";
     }
+    ASSERT_TRUE(joined.contains(
+        QStringLiteral("XPU test failure injection fired")))
+        << "The test-only GPU failure seam did not fire: "
+        << joined.toStdString();
 
     const QFileInfo xpuOutputInfo(xpuOutputPath);
     const QString xpuOutputBaseName = xpuOutputInfo.completeBaseName();
@@ -1993,6 +2009,10 @@ TEST(RenderQueueLayerImageIntegrationTest,
             << xpuFramePath.toStdString();
         ASSERT_EQ(xpuFrame.size(), QSize(width, height))
             << "Unexpected XPU frame size at frame " << frameNumber;
+        if (frameNumber == 1) {
+            EXPECT_TRUE(xpuFrame == cpuFrame)
+                << "Injected GPU failure must fall back to the CPU frame";
+        }
     }
     const auto workerLimitMatch = QRegularExpression(
         QStringLiteral("frameWorkerLimit=\\s*(\\d+)")).match(joined);
@@ -2120,6 +2140,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
     const int gpuFrameCount = gpuMatch.captured(1).toInt();
     const int cpuFallbackFrameCount = cpuFallbackMatch.captured(1).toInt();
     const int gpuFallbackFrameCount = gpuFallbackMatch.captured(1).toInt();
+    EXPECT_EQ(cpuFallbackFrameCount, 1) << joined.toStdString();
+    EXPECT_EQ(gpuFallbackFrameCount, 0) << joined.toStdString();
     EXPECT_LE(cpuFallbackFrameCount, cpuFrameCount)
         << "CPU fallback frames must be a subset of completed CPU frames: "
         << joined.toStdString();
