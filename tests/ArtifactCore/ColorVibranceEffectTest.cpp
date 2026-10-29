@@ -52,6 +52,36 @@ TEST(ColorVibranceEffectTest, BoostsLowSaturationColor) {
     EXPECT_GT(b->data()[0], 0.30f);
 }
 
+TEST(ColorVibranceEffectTest, NegativeVibranceReducesColorSeparation) {
+    VideoFrame frame(1, 1);
+    const auto red = frame.getChannel(ChannelType::Red);
+    const auto green = frame.getChannel(ChannelType::Green);
+    const auto blue = frame.getChannel(ChannelType::Blue);
+    const auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    red->data()[0] = 0.6f;
+    green->data()[0] = 0.5f;
+    blue->data()[0] = 0.4f;
+    alpha->data()[0] = 0.73f;
+
+    ColorVibranceEffect effect;
+    effect.setParameter("Vibrance", -1.0f);
+    effect.setParameter("Saturation", 0.0f);
+    effect.setParameter("ColorBoost", 1.0f);
+    effect.setParameter("MatteAmount", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    constexpr float luma = 0.6f * 0.299f + 0.5f * 0.587f + 0.4f * 0.114f;
+    EXPECT_NEAR(red->data()[0], luma + (0.6f - luma) * 0.2f, 1.0e-6f);
+    EXPECT_NEAR(green->data()[0], luma + (0.5f - luma) * 0.2f, 1.0e-6f);
+    EXPECT_NEAR(blue->data()[0], luma + (0.4f - luma) * 0.2f, 1.0e-6f);
+    EXPECT_LT(red->data()[0] - blue->data()[0], 0.2f);
+    EXPECT_FLOAT_EQ(alpha->data()[0], 0.73f);
+}
+
 TEST(ColorVibranceEffectTest, CanWriteMatteAlpha) {
     VideoFrame frame(1, 1);
     auto r = frame.getChannel(ChannelType::Red);
