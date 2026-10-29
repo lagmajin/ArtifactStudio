@@ -190,6 +190,26 @@ TEST(ColorVibranceEffectTest, MissingRequiredColorChannelLeavesFrameUnchanged) {
     EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[0], 0.45f);
 }
 
+TEST(ColorVibranceEffectTest, MissingOptionalAlphaStillProcessesRgb) {
+    VideoFrame frame(1, 1);
+    frame.getChannel(ChannelType::Red)->data()[0] = 0.40f;
+    frame.getChannel(ChannelType::Green)->data()[0] = 0.35f;
+    frame.getChannel(ChannelType::Blue)->data()[0] = 0.30f;
+    frame.removeChannel(ChannelType::Alpha);
+
+    ColorVibranceEffect effect;
+    effect.setParameter("Vibrance", 1.0f);
+    effect.setParameter("Saturation", 0.0f);
+    effect.setParameter("ColorBoost", 1.0f);
+    effect.setParameter("MatteAmount", 1.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_GT(frame.getChannel(ChannelType::Red)->data()[0], 0.40f);
+    EXPECT_LT(frame.getChannel(ChannelType::Green)->data()[0], 0.35f);
+    EXPECT_LT(frame.getChannel(ChannelType::Blue)->data()[0], 0.30f);
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
+}
+
 TEST(ColorVibranceEffectTest, FiniteOutOfRangeRgbInputsProduceFiniteClampedOutput) {
     VideoFrame frame(1, 1);
     frame.getChannel(ChannelType::Red)->data()[0] = 2.0f;
