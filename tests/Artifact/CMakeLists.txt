@@ -1139,6 +1139,29 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     )
 endif()
 
+# Exercise the production compute passes with a headless Vulkan device and
+# inspect their output textures without starting the application renderer.
+if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
+    artifact_add_test(ArtifactPostProcessPassContractTest
+        SOURCES
+            PostProcessPassContractTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    target_include_directories(ArtifactPostProcessPassContractTest PRIVATE
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngine/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngineVulkan/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Common/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Platforms/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
+    )
+    set_tests_properties(ArtifactPostProcessPassContractTest PROPERTIES
+        LABELS "renderer;gpu;postprocess;dof;motion-blur;headless;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+endif()
+
 if(ARTIFACT_BUILD_TESTS)
     # Playback range service contract runs in its own process with a Core
     # event loop; it does not start playback or initialize a graphics device.
