@@ -655,6 +655,16 @@ set_tests_properties(ArtifactDropShadowEffectContractTest PROPERTIES
     LABELS "effect;drop-shadow;cpu;contract"
 )
 
+artifact_add_test(ArtifactBricksEffectContractTest
+    SOURCES
+        BricksEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactBricksEffectContractTest PROPERTIES
+    LABELS "effect;bricks;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
