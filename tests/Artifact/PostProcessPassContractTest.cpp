@@ -86,6 +86,22 @@ TEST(FinalPostProcessContractTest, StackRequiresAnEnabledLutAndClearResetsIt)
     EXPECT_FALSE(postProcess.hasActiveLUT());
 }
 
+TEST(FinalPostProcessContractTest,
+     UploadWithoutDeviceDoesNotReportAnActiveLut)
+{
+    ArtifactCore::GpuContext context;
+    Artifact::ArtifactFinalPostProcess postProcess(context);
+    constexpr std::array<float, 24> lut{
+        0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f};
+
+    postProcess.updateFromColorLUT(lut.data(), 2);
+
+    EXPECT_FALSE(postProcess.hasActiveLUT());
+}
+
 TEST_F(PostProcessPassGpuContractTest, UploadedLutTransformsPixelsAndRejectsMissingTransform)
 {
     ArtifactCore::GpuContext context(gpu_.device(), gpu_.context());
