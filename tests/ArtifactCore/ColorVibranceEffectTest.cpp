@@ -790,6 +790,38 @@ TEST(CreativeImageEffectContractTest, HalftoneAngleRotatesDotGridPhase) {
     }
 }
 
+TEST(CreativeImageEffectContractTest, HalftoneLuminanceControlsDotCoverage) {
+    VideoFrame blackFrame(1, 1);
+    VideoFrame whiteFrame(1, 1);
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        blackFrame.getChannel(channel)->data()[0] = 0.0f;
+        whiteFrame.getChannel(channel)->data()[0] = 1.0f;
+    }
+    blackFrame.getChannel(ChannelType::Alpha)->data()[0] = 0.35f;
+    whiteFrame.getChannel(ChannelType::Alpha)->data()[0] = 0.65f;
+
+    HalftoneEffect blackEffect;
+    blackEffect.setParameter("Size", 4.0f);
+    blackEffect.setParameter("Angle", 0.0f);
+    blackEffect.setParameter("Contrast", 1.0f);
+    HalftoneEffect whiteEffect;
+    whiteEffect.setParameter("Size", 4.0f);
+    whiteEffect.setParameter("Angle", 0.0f);
+    whiteEffect.setParameter("Contrast", 1.0f);
+    blackEffect.process(blackFrame, CreativeEffectContext{});
+    whiteEffect.process(whiteFrame, CreativeEffectContext{});
+
+    EXPECT_FLOAT_EQ(blackFrame.getChannel(ChannelType::Red)->data()[0], 0.5f);
+    EXPECT_FLOAT_EQ(whiteFrame.getChannel(ChannelType::Red)->data()[0], 1.0f);
+    for (const ChannelType channel : {ChannelType::Green, ChannelType::Blue}) {
+        EXPECT_FLOAT_EQ(blackFrame.getChannel(channel)->data()[0], 0.5f);
+        EXPECT_FLOAT_EQ(whiteFrame.getChannel(channel)->data()[0], 1.0f);
+    }
+    EXPECT_FLOAT_EQ(blackFrame.getChannel(ChannelType::Alpha)->data()[0], 0.35f);
+    EXPECT_FLOAT_EQ(whiteFrame.getChannel(ChannelType::Alpha)->data()[0], 0.65f);
+}
+
 TEST(CreativeImageEffectContractTest, KaleidoscopeCountOneFoldsUpperRightTowardLowerWedge) {
     VideoFrame frame(3, 3);
     auto red = frame.getChannel(ChannelType::Red);
