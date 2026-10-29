@@ -1338,6 +1338,33 @@ TEST(CreativeImageEffectContractTest, KaleidoscopeCenterControlsTheSymmetryOrigi
     }
 }
 
+TEST(CreativeImageEffectContractTest, KaleidoscopeProcessesRgbWithoutOptionalAlpha) {
+    VideoFrame frame(3, 3);
+    for (int pixel = 0; pixel < 9; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = static_cast<float>(pixel) / 10.0f;
+        frame.getChannel(ChannelType::Green)->data()[pixel] = static_cast<float>(10 + pixel) / 10.0f;
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = static_cast<float>(20 + pixel) / 10.0f;
+    }
+    frame.removeChannel(ChannelType::Alpha);
+
+    KaleidoscopeEffect effect;
+    effect.setParameter("Count", 1.0f);
+    effect.setParameter("Angle", 0.0f);
+    effect.setParameter("CenterX", 0.5f);
+    effect.setParameter("CenterY", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    constexpr int destinationPixel = 5;
+    constexpr int expectedSourcePixel = 8;
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[destinationPixel],
+                    static_cast<float>(expectedSourcePixel) / 10.0f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[destinationPixel],
+                    static_cast<float>(10 + expectedSourcePixel) / 10.0f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[destinationPixel],
+                    static_cast<float>(20 + expectedSourcePixel) / 10.0f);
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, KaleidoscopeNonPositiveCountUsesOneDivision) {
     constexpr int width = 3;
     constexpr int height = 3;
