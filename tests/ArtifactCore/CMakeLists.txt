@@ -804,6 +804,16 @@ set_tests_properties(ArtifactCoreFileTypeDetectorContractTest PROPERTIES
     LABELS "file;type-detection;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreCpuFrameViewContractTest
+    SOURCES
+        CpuFrameViewContractTest.cpp
+    LIBS
+        ArtifactCoreVideo
+)
+set_tests_properties(ArtifactCoreCpuFrameViewContractTest PROPERTIES
+    LABELS "video;cpu-frame;frame-view;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreDiagnosticsContractTest
     SOURCES
         CoreDiagnosticsContractTest.cpp
