@@ -592,6 +592,16 @@ set_tests_properties(ArtifactCoreImageYUV420ContractTest PROPERTIES
     LABELS "image;yuv420;pixel-format;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreDeepImageBufferContractTest
+    SOURCES
+        DeepImageBufferContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreDeepImageBufferContractTest PROPERTIES
+    LABELS "image;deep;compositing;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreRawImageContractTest
     SOURCES
         RawImageContractTest.cpp
