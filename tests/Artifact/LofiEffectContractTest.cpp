@@ -376,3 +376,40 @@ TEST(LofiEffectContractTest, OldTvEffectRegionClipsToImageBounds)
         }
     }
 }
+
+TEST(LofiEffectContractTest, OldTvEffectRegionUsesPixelCentersForFractionalBounds)
+{
+    constexpr int width = 8;
+    constexpr int height = 8;
+    const auto source = makePatternSurface();
+    ImageF32x4RGBAWithCache fullEffect;
+    ImageF32x4RGBAWithCache fractionalEffect;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, fullEffect);
+    effect.setEffectRegion(QRectF(2.25, 1.25, 1.0, 1.5));
+    effect.applyCPUOnly(source, fractionalEffect);
+
+    const float* original = source.image().rgba32fData();
+    const float* fullPixels = fullEffect.image().rgba32fData();
+    const float* fractionalPixels = fractionalEffect.image().rgba32fData();
+    ASSERT_NE(original, nullptr);
+    ASSERT_NE(fullPixels, nullptr);
+    ASSERT_NE(fractionalPixels, nullptr);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            // Pixel centers are (x + 0.5, y + 0.5). The fractional region
+            // contains only x=2 and y=1,2.
+            const bool inside = x == 2 && (y == 1 || y == 2);
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            for (std::size_t channel = 0; channel < 4; ++channel) {
+                const float expected = inside
+                    ? fullPixels[offset + channel]
+                    : original[offset + channel];
+                EXPECT_NEAR(fractionalPixels[offset + channel], expected, 1.0e-6f)
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+            }
+        }
+    }
+}
