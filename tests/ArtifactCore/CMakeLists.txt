@@ -814,6 +814,16 @@ set_tests_properties(ArtifactCoreCpuFrameViewContractTest PROPERTIES
     LABELS "video;cpu-frame;frame-view;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreVideoFrameValidityContractTest
+    SOURCES
+        VideoFrameValidityContractTest.cpp
+    LIBS
+        ArtifactCoreVideo
+)
+set_tests_properties(ArtifactCoreVideoFrameValidityContractTest PROPERTIES
+    LABELS "video;cpu-frame;gpu-frame;ownership;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreDiagnosticsContractTest
     SOURCES
         CoreDiagnosticsContractTest.cpp
