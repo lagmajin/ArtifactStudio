@@ -128,6 +128,17 @@ set_tests_properties(ArtifactCoreCommandSandboxContractTest PROPERTIES
     LABELS "ai;security;process;dry-run;contract;core"
 )
 
+artifact_add_test(ArtifactCoreCommandIRContractTest
+    SOURCES
+        CommandIRContractTest.cpp
+    LIBS
+        ArtifactCoreAI
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreCommandIRContractTest PROPERTIES
+    LABELS "ai;validation;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAngelScriptTest
     SOURCES
         AngelScriptEngineTest.cpp
