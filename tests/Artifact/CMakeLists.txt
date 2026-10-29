@@ -1207,6 +1207,15 @@ artifact_add_test(ArtifactLiquidGlowEffectContractTest
 set_tests_properties(ArtifactLiquidGlowEffectContractTest PROPERTIES
     LABELS "effect;liquid-glow;spatial;cpu;contract"
 )
+artifact_add_test(ArtifactRadialShadowEffectContractTest
+    SOURCES
+        RadialShadowEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsShadows
+)
+set_tests_properties(ArtifactRadialShadowEffectContractTest PROPERTIES
+    LABELS "effect;radial-shadow;cpu;contract"
+)
 artifact_add_test(ArtifactDisplacementMapEffectContractTest
     SOURCES
         DisplacementMapEffectContractTest.cpp
