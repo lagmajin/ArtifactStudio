@@ -201,7 +201,9 @@ TEST(LofiEffectContractTest, AnimatedMixControlsOldTvCompositeAtCompositionFrame
 
 TEST(LofiEffectContractTest, AnimatedRegionDisableOverridesAnimatedCoordinates)
 {
+    const auto source = makePatternSurface();
     ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
     const auto regionEnabled =
         effect.editableProperty(QStringLiteral("Effect Region Enabled"));
     const auto regionX = effect.editableProperty(QStringLiteral("Effect Region X"));
@@ -238,6 +240,22 @@ TEST(LofiEffectContractTest, AnimatedRegionDisableOverridesAnimatedCoordinates)
     effect.setContext(context);
     EXPECT_FALSE(effect.hasEffectRegion())
         << "animated region coordinates must not override Region Enabled=false";
+
+    ImageF32x4RGBAWithCache disabledRegionOutput;
+    effect.applyCPUOnly(source, disabledRegionOutput);
+    ArtifactOldTVEffect fullEffect;
+    fullEffect.setComputeMode(ComputeMode::CPU);
+    ImageF32x4RGBAWithCache fullEffectOutput;
+    fullEffect.applyCPUOnly(source, fullEffectOutput);
+    const float* actual = disabledRegionOutput.image().rgba32fData();
+    const float* expected = fullEffectOutput.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+    constexpr std::size_t channelCount = 8 * 8 * 4;
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], expected[channel])
+            << "channel=" << channel;
+    }
 }
 
 TEST(LofiEffectContractTest, OldTvEmptyInputClearsPreviouslyPopulatedOutput)
