@@ -874,6 +874,15 @@ artifact_add_test(ArtifactTemporalDenoiseEffectContractTest
 set_tests_properties(ArtifactTemporalDenoiseEffectContractTest PROPERTIES
     LABELS "effect;temporal-denoise;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactSlitScanEffectContractTest
+    SOURCES
+        SlitScanEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactSlitScanEffectContractTest PROPERTIES
+    LABELS "effect;slit-scan;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
