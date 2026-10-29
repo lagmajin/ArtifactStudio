@@ -1169,6 +1169,16 @@ set_tests_properties(ArtifactCoreMediaMetaDataContractTest PROPERTIES
     LABELS "media;metadata;streams;formatting;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreSourceInterpretContractTest
+    SOURCES
+        SourceInterpretContractTest.cpp
+    LIBS
+        ArtifactCoreMedia
+)
+set_tests_properties(ArtifactCoreSourceInterpretContractTest PROPERTIES
+    LABELS "media;source-interpret;impact;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
