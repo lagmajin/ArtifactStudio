@@ -141,6 +141,14 @@ TEST_F(PostProcessPassGpuContractTest, UploadedLutTransformsPixelsAndRejectsMiss
     EXPECT_NEAR(remappedDomainOutput[2], 1.0f, 1.0e-4f);
     EXPECT_NEAR(remappedDomainOutput[3], 1.0f, 1.0e-4f);
 
+    postProcess.setLUTInputDomain(2.0f, 2.0f);
+    ASSERT_TRUE(postProcess.apply(
+        gpu_.context(), inputSrv, outputUav, kWidth, kHeight));
+    std::array<float, kPixelCount * 4> invalidDomainOutput{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, invalidDomainOutput));
+    EXPECT_NEAR(invalidDomainOutput[0], 0.5f, 1.0e-4f)
+        << "an invalid domain must leave the previous valid domain intact";
+
     postProcess.updateFromColorLUT(nullptr, 2);
     EXPECT_FALSE(postProcess.hasActiveLUT())
         << "a missing LUT payload must invalidate the previously uploaded LUT";
