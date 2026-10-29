@@ -351,6 +351,31 @@ TEST(CreativeImageEffectContractTest, PosterizeQuantizesAtHalfStepBoundariesAndP
     EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[1], 0.71f);
 }
 
+TEST(CreativeImageEffectContractTest, PosterizeQuantizesOutOfRangeRgbWithoutClampingAndPreservesAlpha) {
+    VideoFrame frame(2, 1);
+    frame.getChannel(ChannelType::Red)->data()[0] = -0.2f;
+    frame.getChannel(ChannelType::Red)->data()[1] = 1.4f;
+    frame.getChannel(ChannelType::Green)->data()[0] = -1.0f;
+    frame.getChannel(ChannelType::Green)->data()[1] = 2.0f;
+    frame.getChannel(ChannelType::Blue)->data()[0] = 1.25f;
+    frame.getChannel(ChannelType::Blue)->data()[1] = -0.4f;
+    frame.getChannel(ChannelType::Alpha)->data()[0] = 1.2f;
+    frame.getChannel(ChannelType::Alpha)->data()[1] = -0.1f;
+
+    PosterizeEffect effect;
+    effect.setParameter("Levels", 4.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_NEAR(frame.getChannel(ChannelType::Red)->data()[0], -1.0f / 3.0f, 1.0e-6f);
+    EXPECT_NEAR(frame.getChannel(ChannelType::Red)->data()[1], 4.0f / 3.0f, 1.0e-6f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[0], -1.0f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[1], 2.0f);
+    EXPECT_NEAR(frame.getChannel(ChannelType::Blue)->data()[0], 4.0f / 3.0f, 1.0e-6f);
+    EXPECT_NEAR(frame.getChannel(ChannelType::Blue)->data()[1], -1.0f / 3.0f, 1.0e-6f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[0], 1.2f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[1], -0.1f);
+}
+
 TEST(CreativeImageEffectContractTest, PosterizeClampsLevelsToAtLeastTwo) {
     VideoFrame frame(2, 1);
     frame.getChannel(ChannelType::Red)->data()[0] = 0.49f;
