@@ -124,6 +124,35 @@ TEST(LofiEffectContractTest, OldTvPreservesInputColorDescriptor)
     EXPECT_EQ(output.image().colorDescriptor(), descriptor);
 }
 
+TEST(LofiEffectContractTest, OldTvOutputDoesNotSharePixelStorageWithInput)
+{
+    constexpr int width = 8;
+    constexpr int height = 8;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        pixels[channel] = 0.2f + static_cast<float>(channel % 17) * 0.01f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, output);
+
+    float* sourcePixels = source.image().rgba32fData();
+    float* outputPixels = output.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(outputPixels, nullptr);
+    const float originalOutputChannel0 = outputPixels[0];
+    const float originalSourceChannel4 = sourcePixels[4];
+
+    sourcePixels[0] = -17.0f;
+    EXPECT_FLOAT_EQ(outputPixels[0], originalOutputChannel0);
+    outputPixels[4] = 23.0f;
+    EXPECT_FLOAT_EQ(sourcePixels[4], originalSourceChannel4);
+}
+
 TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
 {
     ArtifactOldTVEffect effect;
