@@ -844,6 +844,16 @@ set_tests_properties(ArtifactCoreDepthMaskContractTest PROPERTIES
     LABELS "mask;depth;geometry;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreVolumeMaskContractTest
+    SOURCES
+        VolumeMaskContractTest.cpp
+    LIBS
+        ArtifactCoreMask
+)
+set_tests_properties(ArtifactCoreVolumeMaskContractTest PROPERTIES
+    LABELS "mask;volume;geometry;opencv;cpu;contract;core"
+)
+
 set_tests_properties(ArtifactCoreRotoMaskContractTest PROPERTIES
     LABELS "mask;roto;animation;geometry;cpu;contract;core"
 )
