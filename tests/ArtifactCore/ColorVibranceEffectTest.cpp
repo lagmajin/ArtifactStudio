@@ -899,6 +899,7 @@ TEST(CreativeImageEffectContractTest, OldTvFlickerParameterAddsDeterministicNois
     constexpr int pixelCount = width * height;
     VideoFrame noFlicker(width, height);
     VideoFrame withFlicker(width, height);
+    VideoFrame sameTimeRepeat(width, height);
     const ChannelType channels[] = {
         ChannelType::Red, ChannelType::Green,
         ChannelType::Blue, ChannelType::Alpha,
@@ -906,12 +907,15 @@ TEST(CreativeImageEffectContractTest, OldTvFlickerParameterAddsDeterministicNois
     for (ChannelType channel : channels) {
         auto noFlickerPlane = noFlicker.getChannel(channel);
         auto withFlickerPlane = withFlicker.getChannel(channel);
+        auto repeatPlane = sameTimeRepeat.getChannel(channel);
         ASSERT_TRUE(noFlickerPlane);
         ASSERT_TRUE(withFlickerPlane);
+        ASSERT_TRUE(repeatPlane);
         for (int pixel = 0; pixel < pixelCount; ++pixel) {
             const float value = channel == ChannelType::Alpha ? 0.4f : 0.5f;
             noFlickerPlane->data()[pixel] = value;
             withFlickerPlane->data()[pixel] = value;
+            repeatPlane->data()[pixel] = value;
         }
     }
 
@@ -928,16 +932,21 @@ TEST(CreativeImageEffectContractTest, OldTvFlickerParameterAddsDeterministicNois
     const CreativeEffectContext context{};
     noFlickerEffect.process(noFlicker, context);
     withFlickerEffect.process(withFlicker, context);
+    withFlickerEffect.process(sameTimeRepeat, context);
 
     bool changedRgb = false;
     for (ChannelType channel : {ChannelType::Red, ChannelType::Green,
                                 ChannelType::Blue}) {
         const auto expected = noFlicker.getChannel(channel);
         const auto actual = withFlicker.getChannel(channel);
+        const auto repeated = sameTimeRepeat.getChannel(channel);
         ASSERT_TRUE(expected);
         ASSERT_TRUE(actual);
+        ASSERT_TRUE(repeated);
         for (int pixel = 0; pixel < pixelCount; ++pixel) {
             EXPECT_TRUE(std::isfinite(actual->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            EXPECT_FLOAT_EQ(actual->data()[pixel], repeated->data()[pixel])
                 << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
             changedRgb = changedRgb ||
                 std::abs(actual->data()[pixel] - expected->data()[pixel]) > 1.0e-6f;
