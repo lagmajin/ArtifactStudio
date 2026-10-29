@@ -203,6 +203,49 @@ TEST(VHSTapeEffectContractTest, ColorBleedSoftensHorizontalChromaEdgeAndPreserve
     }
 }
 
+TEST(VHSTapeEffectContractTest, NoiseAmountPerturbsColorAndKeepsOutputFinite)
+{
+    constexpr int width = 32;
+    constexpr int height = 24;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset] = 0.5f;
+        pixels[offset + 1] = 0.5f;
+        pixels[offset + 2] = 0.5f;
+        pixels[offset + 3] = 1.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Noise Amount")), 1.0);
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    bool colorChanged = false;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            const float value = result[pixel * 4 + channel];
+            EXPECT_TRUE(std::isfinite(value))
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_GE(value, 0.0f);
+            EXPECT_LE(value, 1.0f);
+            if (channel < 3) {
+                colorChanged = colorChanged ||
+                    std::abs(value - pixels[pixel * 4 + channel]) > 1.0e-5f;
+            }
+        }
+    }
+    EXPECT_TRUE(colorChanged)
+        << "nonzero tape noise should perturb at least one color sample";
+}
+
 TEST(VHSTapeEffectContractTest, WobbleOutputIsRepeatableForSameSeedAndEvolution)
 {
     constexpr int width = 32;
