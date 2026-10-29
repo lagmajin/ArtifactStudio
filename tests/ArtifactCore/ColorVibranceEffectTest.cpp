@@ -1975,6 +1975,63 @@ TEST(CreativeImageEffectContractTest, GlitchRgbSplitOffsetsRedAndBlueAroundGreen
     }
 }
 
+TEST(CreativeImageEffectContractTest, GlitchZeroAmountSuppressesRgbSplit) {
+    constexpr int width = 8;
+    constexpr int height = 2;
+    VideoFrame splitFrame(width, height);
+    VideoFrame noSplitFrame(width, height);
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto splitPlane = splitFrame.getChannel(channel);
+        const auto noSplitPlane = noSplitFrame.getChannel(channel);
+        ASSERT_TRUE(splitPlane);
+        ASSERT_TRUE(noSplitPlane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            const float value = static_cast<float>(pixel % width) / (width - 1);
+            splitPlane->data()[pixel] = value;
+            noSplitPlane->data()[pixel] = value;
+        }
+    }
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = 0.2f + static_cast<float>(pixel) / 20.0f;
+        splitFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        noSplitFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+    }
+
+    GlitchCreativeEffect splitEffect;
+    splitEffect.setParameter("Amount", 0.0f);
+    splitEffect.setParameter("RGBSplit", 1.0f);
+    splitEffect.setParameter("BlockNoise", 0.0f);
+    GlitchCreativeEffect noSplitEffect;
+    noSplitEffect.setParameter("Amount", 0.0f);
+    noSplitEffect.setParameter("RGBSplit", 0.0f);
+    noSplitEffect.setParameter("BlockNoise", 0.0f);
+    const CreativeEffectContext context{.time = 0.75, .frameIndex = 19};
+    splitEffect.process(splitFrame, context);
+    noSplitEffect.process(noSplitFrame, context);
+
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto splitPlane = splitFrame.getChannel(channel);
+        const auto noSplitPlane = noSplitFrame.getChannel(channel);
+        ASSERT_TRUE(splitPlane);
+        ASSERT_TRUE(noSplitPlane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(splitPlane->data()[pixel], noSplitPlane->data()[pixel])
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+        }
+    }
+    const auto splitAlpha = splitFrame.getChannel(ChannelType::Alpha);
+    const auto noSplitAlpha = noSplitFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(splitAlpha);
+    ASSERT_TRUE(noSplitAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float expectedAlpha = 0.2f + static_cast<float>(pixel) / 20.0f;
+        EXPECT_FLOAT_EQ(splitAlpha->data()[pixel], expectedAlpha);
+        EXPECT_FLOAT_EQ(noSplitAlpha->data()[pixel], expectedAlpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, PigmentSeparationUniformZeroTextureMatchesExpectedPaperMix) {
     VideoFrame frame(2, 2);
     auto red = frame.getChannel(ChannelType::Red);
