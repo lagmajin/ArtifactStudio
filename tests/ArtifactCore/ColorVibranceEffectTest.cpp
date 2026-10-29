@@ -1394,6 +1394,69 @@ TEST(CreativeImageEffectContractTest, OldTvFlickerParameterAddsDeterministicNois
     }
 }
 
+TEST(CreativeImageEffectContractTest, OldTvFlickerChangesAcrossTimesAndKeepsAlpha) {
+    constexpr int width = 8;
+    constexpr int height = 5;
+    VideoFrame firstFrame(width, height);
+    VideoFrame laterFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float red = static_cast<float>(x) / (width - 1);
+            const float green = static_cast<float>(y) / (height - 1);
+            const float blue = static_cast<float>((x + y) % width) / (width - 1);
+            firstFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            firstFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            firstFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            laterFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            laterFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            laterFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            firstFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            laterFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    OldTVEffect firstEffect;
+    firstEffect.setParameter("Scanline", 0.0f);
+    firstEffect.setParameter("Curvature", 0.0f);
+    firstEffect.setParameter("Flicker", 0.5f);
+    firstEffect.setParameter("Fringe", 0.0f);
+    OldTVEffect laterEffect;
+    laterEffect.setParameter("Scanline", 0.0f);
+    laterEffect.setParameter("Curvature", 0.0f);
+    laterEffect.setParameter("Flicker", 0.5f);
+    laterEffect.setParameter("Fringe", 0.0f);
+    firstEffect.process(firstFrame, CreativeEffectContext{.time = 0.25});
+    laterEffect.process(laterFrame, CreativeEffectContext{.time = 0.75});
+
+    bool timeChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto first = firstFrame.getChannel(channel);
+        const auto later = laterFrame.getChannel(channel);
+        ASSERT_TRUE(first);
+        ASSERT_TRUE(later);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(later->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            timeChangedRgb = timeChangedRgb ||
+                std::abs(later->data()[pixel] - first->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(timeChangedRgb);
+
+    const auto firstAlpha = firstFrame.getChannel(ChannelType::Alpha);
+    const auto laterAlpha = laterFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(firstAlpha);
+    ASSERT_TRUE(laterAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(firstAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(laterAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, OldTvNeutralParametersProduceExactNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
