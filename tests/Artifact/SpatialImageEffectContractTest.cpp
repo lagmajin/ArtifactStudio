@@ -84,6 +84,57 @@ TEST(SpatialImageEffectContractTest,
     }
 }
 
+TEST(SpatialImageEffectContractTest,
+     DepthBokehLumaFallbackBlursOutOfFocusRgbAndPreservesAlpha)
+{
+    constexpr int width = 33;
+    constexpr int height = 33;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr std::size_t center =
+        static_cast<std::size_t>(height / 2) * width + width / 2;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4] = 0.8f;
+        pixels[pixel * 4 + 1] = 0.8f;
+        pixels[pixel * 4 + 2] = 0.8f;
+        pixels[pixel * 4 + 3] = 0.3f +
+            0.6f * static_cast<float>(pixel) /
+                static_cast<float>(pixelCount - 1);
+    }
+    pixels[center * 4] = 1.0f;
+    pixels[center * 4 + 1] = 1.0f;
+    pixels[center * 4 + 2] = 1.0f;
+
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+
+    DepthBokehEffect effect;
+    effect.setPropertyValue(
+        UniString(QStringLiteral("focusDistance")), QVariant(0.0));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("focusRange")), QVariant(0.0));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("maxRadius")), QVariant(8.0));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    const std::size_t adjacent = center + 1;
+    EXPECT_LT(result[center * 4], pixels[center * 4]);
+    EXPECT_GT(result[adjacent * 4], pixels[adjacent * 4]);
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        EXPECT_FLOAT_EQ(result[pixel * 4 + 3], pixels[pixel * 4 + 3])
+            << "pixel=" << pixel;
+    }
+}
+
 TEST(SpatialImageEffectContractTest, ApertureBlurSpreadsRgbAndPreservesAlphaAndInput)
 {
     constexpr int width = 33;
