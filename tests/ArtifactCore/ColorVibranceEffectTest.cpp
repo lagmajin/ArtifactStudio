@@ -733,6 +733,41 @@ TEST(CreativeImageEffectContractTest, PixelateBlockSizeOnePreservesEveryChannel)
     }
 }
 
+TEST(CreativeImageEffectContractTest, PixelateNonPositiveBlockSizeFallsBackToOnePixel) {
+    constexpr int width = 3;
+    constexpr int height = 2;
+    VideoFrame frame(width, height);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    float original[width * height][4]{};
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        original[pixel][0] = static_cast<float>(pixel + 1) / 8.0f;
+        original[pixel][1] = static_cast<float>(7 - pixel) / 9.0f;
+        original[pixel][2] = static_cast<float>(pixel * 2 + 1) / 10.0f;
+        original[pixel][3] = static_cast<float>(pixel) / 5.0f;
+        for (int channel = 0; channel < 4; ++channel) {
+            const auto plane = frame.getChannel(channels[channel]);
+            ASSERT_TRUE(plane);
+            plane->data()[pixel] = original[pixel][channel];
+        }
+    }
+
+    PixelateEffect effect;
+    effect.setParameter("BlockSize", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], original[pixel][channel])
+                << "channel=" << channel << " pixel=" << pixel;
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, HalftoneCreatesExpectedDotCenterAndCornerValues) {
     VideoFrame frame(4, 4);
     auto red = frame.getChannel(ChannelType::Red);
