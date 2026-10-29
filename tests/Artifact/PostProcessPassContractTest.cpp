@@ -670,6 +670,21 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVel
     EXPECT_LT(blurred[center + 3], 1.0f);
     EXPECT_GT(blurred[adjacent + 3], 0.0f);
 
+    settings.sampleCount = 32;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
+                           outputUav, kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> maximumSamples{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, maximumSamples));
+    settings.sampleCount = 100;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
+                           outputUav, kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> overMaximumSamples{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, overMaximumSamples));
+    for (std::size_t component = 0; component < maximumSamples.size(); ++component) {
+        EXPECT_FLOAT_EQ(overMaximumSamples[component], maximumSamples[component])
+            << "component=" << component;
+    }
+
     ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, zeroVelocitySrv, depthSrv,
                            outputUav, kWidth, kHeight, settings));
     std::array<float, kPixelCount * 4> unblurred{};
