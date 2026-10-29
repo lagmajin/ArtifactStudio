@@ -100,12 +100,25 @@ TEST(CreativeEffectAdapterContractTest,
     ArtifactCore::ImageF32x4RGBAWithCache output;
     ArtifactCore::OldTVEffect directEffect;
     directEffect.setParameter("Scanline", 0.25f);
-    directEffect.process(directFrame, ArtifactCore::CreativeEffectContext{});
+    directEffect.setParameter("Curvature", 0.15f);
+    directEffect.setParameter("Flicker", 0.2f);
+    directEffect.setParameter("Fringe", 0.4f);
+    const ArtifactCore::CreativeEffectContext context{.time = 0.75};
+    directEffect.process(directFrame, context);
 
     Artifact::ArtifactCoreCreativeEffect adapter(
         "OldTV", "builtin.test_old_tv", "Old TV Adapter Contract");
     adapter.setPropertyValue(ArtifactCore::UniString(QStringLiteral("Scanline")),
                              QVariant(0.25));
+    adapter.setPropertyValue(ArtifactCore::UniString(QStringLiteral("Curvature")),
+                             QVariant(0.15));
+    adapter.setPropertyValue(ArtifactCore::UniString(QStringLiteral("Flicker")),
+                             QVariant(0.2));
+    adapter.setPropertyValue(ArtifactCore::UniString(QStringLiteral("Fringe")),
+                             QVariant(0.4));
+    Artifact::EffectContext adapterContext;
+    adapterContext.timeSeconds = context.time;
+    adapter.setContext(adapterContext);
     adapter.applyCPUOnly(source, output);
 
     ASSERT_EQ(output.image().width(), width);
