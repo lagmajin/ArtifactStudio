@@ -649,6 +649,74 @@ TEST(LofiEffectContractTest, OldTvKeepsAlphaAndSourceAndAppliesFourRowScanline)
     }
 }
 
+TEST(LofiEffectContractTest,
+     OldTvAppliesDeterministicClampedHorizontalJitterPerScanline)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float ramp = 0.1f + static_cast<float>(x) * 0.005f;
+            pixels[offset + 0] = ramp;
+            pixels[offset + 1] = ramp * 2.0f;
+            pixels[offset + 2] = ramp * 3.0f;
+            pixels[offset + 3] = 0.25f + static_cast<float>(y) * 0.01f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache first;
+    ImageF32x4RGBAWithCache repeated;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, first);
+    effect.applyCPUOnly(source, repeated);
+
+    const float* result = first.image().rgba32fData();
+    const float* repeatedResult = repeated.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    ASSERT_NE(repeatedResult, nullptr);
+    bool observedJitter = false;
+    for (int y = 0; y < height; ++y) {
+        const float scanline = y % 4 == 0 ? 0.7f : 1.0f;
+        int rowShift = 0;
+        bool haveRowShift = false;
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float redGreenDelta = result[offset + 1] - result[offset];
+            const int sourceX = static_cast<int>(std::lround(
+                redGreenDelta / (0.005f * scanline)));
+            ASSERT_GE(sourceX, 0) << "x=" << x << " y=" << y;
+            ASSERT_LT(sourceX, width) << "x=" << x << " y=" << y;
+            const int shift = sourceX - x;
+            if (!haveRowShift) {
+                rowShift = shift;
+                haveRowShift = true;
+            }
+            EXPECT_EQ(shift, rowShift) << "x=" << x << " y=" << y;
+            EXPECT_EQ(sourceX, std::clamp(x + rowShift, 0, width - 1))
+                << "x=" << x << " y=" << y;
+            EXPECT_LE(std::abs(rowShift), 5) << "y=" << y;
+            EXPECT_FLOAT_EQ(result[offset + 3], pixels[offset + 3])
+                << "x=" << x << " y=" << y;
+            for (std::size_t channel = 0; channel < 4; ++channel) {
+                EXPECT_FLOAT_EQ(result[offset + channel],
+                                repeatedResult[offset + channel])
+                    << "x=" << x << " y=" << y
+                    << " channel=" << channel;
+            }
+        }
+        observedJitter = observedJitter || rowShift != 0;
+    }
+    EXPECT_TRUE(observedJitter);
+}
+
 TEST(LofiEffectContractTest, OldTvSupportsInPlaceProcessingWithoutChangingAlpha)
 {
     constexpr int width = 9;
