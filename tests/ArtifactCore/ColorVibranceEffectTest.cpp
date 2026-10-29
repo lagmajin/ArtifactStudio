@@ -2855,6 +2855,62 @@ TEST(CreativeImageEffectContractTest, TemporalFossilCreatesResidueFromPriorFrame
     }
 }
 
+TEST(CreativeImageEffectContractTest, TemporalFossilMissingChannelDoesNotAdvanceHistory) {
+    constexpr int width = 3;
+    constexpr int height = 2;
+    VideoFrame initial(width, height);
+    VideoFrame incomplete(width, height);
+    VideoFrame afterIncomplete(width, height);
+    VideoFrame directCurrent(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (VideoFrame* frame : {&initial, &incomplete, &afterIncomplete, &directCurrent}) {
+            frame->getChannel(ChannelType::Red)->data()[pixel] = 0.2f;
+            frame->getChannel(ChannelType::Green)->data()[pixel] = 0.2f;
+            frame->getChannel(ChannelType::Blue)->data()[pixel] = 0.2f;
+            frame->getChannel(ChannelType::Alpha)->data()[pixel] = 0.35f;
+        }
+        afterIncomplete.getChannel(ChannelType::Red)->data()[pixel] = 0.8f;
+        afterIncomplete.getChannel(ChannelType::Green)->data()[pixel] = 0.8f;
+        afterIncomplete.getChannel(ChannelType::Blue)->data()[pixel] = 0.8f;
+        directCurrent.getChannel(ChannelType::Red)->data()[pixel] = 0.8f;
+        directCurrent.getChannel(ChannelType::Green)->data()[pixel] = 0.8f;
+        directCurrent.getChannel(ChannelType::Blue)->data()[pixel] = 0.8f;
+    }
+    incomplete.removeChannel(ChannelType::Blue);
+
+    TemporalFossilEffect withGapEffect;
+    withGapEffect.setParameter("Persistence", 1.0f);
+    withGapEffect.setParameter("Decay", 0.5f);
+    withGapEffect.setParameter("EdgeThreshold", 0.0f);
+    withGapEffect.setParameter("ChromaEcho", 0.0f);
+    TemporalFossilEffect directEffect;
+    directEffect.setParameter("Persistence", 1.0f);
+    directEffect.setParameter("Decay", 0.5f);
+    directEffect.setParameter("EdgeThreshold", 0.0f);
+    directEffect.setParameter("ChromaEcho", 0.0f);
+    withGapEffect.process(initial, CreativeEffectContext{.frameIndex = 0});
+    directEffect.process(initial, CreativeEffectContext{.frameIndex = 0});
+    withGapEffect.process(incomplete, CreativeEffectContext{.frameIndex = 1});
+    withGapEffect.process(afterIncomplete, CreativeEffectContext{.frameIndex = 2});
+    directEffect.process(directCurrent, CreativeEffectContext{.frameIndex = 2});
+
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                              ChannelType::Blue}) {
+            const auto afterGap = afterIncomplete.getChannel(channelType);
+            const auto direct = directCurrent.getChannel(channelType);
+            ASSERT_TRUE(afterGap);
+            ASSERT_TRUE(direct);
+            EXPECT_FLOAT_EQ(afterGap->data()[pixel], direct->data()[pixel])
+                << "channel=" << static_cast<int>(channelType) << " pixel=" << pixel;
+        }
+        EXPECT_FLOAT_EQ(incomplete.getChannel(ChannelType::Red)->data()[pixel], 0.2f);
+        EXPECT_FLOAT_EQ(incomplete.getChannel(ChannelType::Green)->data()[pixel], 0.2f);
+        EXPECT_FLOAT_EQ(incomplete.getChannel(ChannelType::Alpha)->data()[pixel], 0.35f);
+    }
+    EXPECT_FALSE(incomplete.getChannel(ChannelType::Blue));
+}
+
 TEST(CreativeImageEffectContractTest, DepthMeltPreservesUniformGrayAndAlpha) {
     VideoFrame frame(3, 2);
     auto red = frame.getChannel(ChannelType::Red);
