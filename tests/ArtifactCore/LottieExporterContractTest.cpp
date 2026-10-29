@@ -7,7 +7,9 @@
 #include <QJsonObject>
 #include <QString>
 #include <QTemporaryDir>
+#include <QVector2D>
 
+#include <any>
 #include <cstddef>
 #include <cmath>
 #include <limits>
@@ -15,7 +17,9 @@
 #include <vector>
 
 import Export.Lottie.Exporter;
+import Export.Lottie.RigExporter;
 import Export.Lottie.Types;
+import ArtifactCore.Rig2D;
 
 namespace {
 
@@ -257,4 +261,113 @@ TEST(LottieExporterContractTest,
     error.clear();
     EXPECT_FALSE(LottieExporter::importFromFile(noLayersPath, &error));
     EXPECT_FALSE(error.isEmpty());
+}
+
+TEST(LottieExporterContractTest,
+     RigExportSamplesBoneTransformsAndPreservesParentLayerReferences)
+{
+    ArtifactCore::Rig2D rig;
+    auto* root = rig.addBone(QStringLiteral("root"));
+    auto* child = rig.addBone(QStringLiteral("child"), root);
+    ASSERT_NE(root, nullptr);
+    ASSERT_NE(child, nullptr);
+    root->setLength(20.0f);
+    root->setLocalTransform({QVector2D(2.0f, 3.0f), 15.0f,
+                             QVector2D(1.5f, 0.5f)});
+    child->setLength(8.0f);
+    child->setLocalTransform({QVector2D(7.0f, -4.0f), -25.0f,
+                              QVector2D(0.75f, 1.25f)});
+
+    std::vector<LottieLayer> layers;
+    ASSERT_TRUE(appendRigAnimation(rig, 0, 2, 24, layers));
+    ASSERT_EQ(layers.size(), 2u);
+
+    const auto& rootLayer = layers[0];
+    EXPECT_EQ(rootLayer.ind, 1);
+    EXPECT_EQ(rootLayer.parent, 0);
+    EXPECT_EQ(rootLayer.nm, std::string("root"));
+    EXPECT_EQ(rootLayer.ty, 4);
+    EXPECT_EQ(rootLayer.ip, 0);
+    EXPECT_EQ(rootLayer.op, 3);
+    ASSERT_EQ(rootLayer.position.keyframes.size(), 3u);
+    EXPECT_DOUBLE_EQ(rootLayer.position.keyframes.front().t, 0.0);
+    EXPECT_DOUBLE_EQ(rootLayer.position.keyframes.front().s[0], 2.0);
+    EXPECT_DOUBLE_EQ(rootLayer.position.keyframes.front().s[1], 3.0);
+    EXPECT_DOUBLE_EQ(rootLayer.scale.keyframes.front().s[0], 150.0);
+    EXPECT_DOUBLE_EQ(rootLayer.scale.keyframes.front().s[1], 50.0);
+    EXPECT_DOUBLE_EQ(rootLayer.rotation.keyframes.front().s[0], 15.0);
+    ASSERT_EQ(rootLayer.shapes.size(), 2u);
+    const auto* rectangle = std::any_cast<LottieShapeRect>(&rootLayer.shapes[0]);
+    ASSERT_NE(rectangle, nullptr);
+    EXPECT_DOUBLE_EQ(rectangle->s.k[0], 20.0);
+    EXPECT_DOUBLE_EQ(rectangle->s.k[1], 4.0);
+
+    const auto& childLayer = layers[1];
+    EXPECT_EQ(childLayer.ind, 2);
+    EXPECT_EQ(childLayer.parent, rootLayer.ind);
+    EXPECT_EQ(childLayer.nm, std::string("child"));
+    EXPECT_DOUBLE_EQ(childLayer.position.keyframes.front().s[0], 7.0);
+    EXPECT_DOUBLE_EQ(childLayer.position.keyframes.front().s[1], -4.0);
+}
+
+TEST(LottieExporterContractTest,
+     RigExportRejectsInvalidRequestsWithoutMutatingCallerOutputs)
+{
+    ArtifactCore::Rig2D rig;
+    auto* bone = rig.addBone(QStringLiteral("root"));
+    ASSERT_NE(bone, nullptr);
+
+    LottieLayer outputLayer;
+    outputLayer.ind = 91;
+    outputLayer.nm = "preserved";
+    EXPECT_FALSE(appendRigBoneAnimation(rig, QString(), 0, 1, 24,
+                                        outputLayer));
+    EXPECT_EQ(outputLayer.ind, 91);
+    EXPECT_EQ(outputLayer.nm, std::string("preserved"));
+
+    std::vector<LottieLayer> outputLayers(1);
+    outputLayers.front().ind = 73;
+    EXPECT_FALSE(appendRigAnimation(rig, 5, 4, 24, outputLayers));
+    ASSERT_EQ(outputLayers.size(), 1u);
+    EXPECT_EQ(outputLayers.front().ind, 73);
+
+    bone->setLocalTransform({
+        QVector2D(std::numeric_limits<float>::quiet_NaN(), 0.0f), 0.0f,
+        QVector2D(1.0f, 1.0f)});
+    EXPECT_FALSE(appendRigAnimation(rig, 0, 1, 24, outputLayers));
+    ASSERT_EQ(outputLayers.size(), 1u);
+    EXPECT_EQ(outputLayers.front().ind, 73);
+
+    LottieDocument document = validDocument();
+    const auto original = LottieExporter::toJson(document);
+    EXPECT_FALSE(appendRigToDocument(rig, 0, 720, 24.0, 0, 1,
+                                     QStringLiteral("invalid"), document));
+    EXPECT_EQ(LottieExporter::toJson(document), original);
+}
+
+TEST(LottieExporterContractTest,
+     RigExportUsesExclusiveOutFrameAndCompressesStaticSamplesInDocument)
+{
+    ArtifactCore::Rig2D rig;
+    auto* bone = rig.addBone(QStringLiteral("static"));
+    ASSERT_NE(bone, nullptr);
+    bone->setLocalTransform({QVector2D(4.0f, 9.0f), 30.0f,
+                             QVector2D(1.0f, 1.0f)});
+
+    LottieDocument document;
+    ASSERT_TRUE(appendRigToDocument(rig, 1920, 1080, 23.976, 3, 5,
+                                   QStringLiteral("Rig"), document));
+
+    EXPECT_DOUBLE_EQ(document.fr, 23.976);
+    EXPECT_EQ(document.ip, 3);
+    EXPECT_EQ(document.op, 6);
+    EXPECT_EQ(document.w, 1920);
+    EXPECT_EQ(document.h, 1080);
+    EXPECT_EQ(document.nm, std::string("Rig"));
+    ASSERT_EQ(document.layers.size(), 1u);
+    EXPECT_EQ(document.layers.front().ip, 3);
+    EXPECT_EQ(document.layers.front().op, 6);
+    ASSERT_EQ(document.layers.front().position.keyframes.size(), 2u);
+    EXPECT_DOUBLE_EQ(document.layers.front().position.keyframes.front().t, 3.0);
+    EXPECT_DOUBLE_EQ(document.layers.front().position.keyframes.back().t, 5.0);
 }
