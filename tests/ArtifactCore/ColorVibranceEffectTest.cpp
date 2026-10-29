@@ -2421,6 +2421,67 @@ TEST(CreativeImageEffectContractTest, DepthMeltZeroMeltPreservesInputWithOtherCo
     }
 }
 
+TEST(CreativeImageEffectContractTest, DepthMeltGravityChangesVerticalDisplacement) {
+    constexpr int width = 8;
+    constexpr int height = 8;
+    VideoFrame lowGravityFrame(width, height);
+    VideoFrame highGravityFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float value = 0.08f + static_cast<float>(y) * 0.11f;
+            for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                              ChannelType::Blue}) {
+                lowGravityFrame.getChannel(channel)->data()[pixel] = value;
+                highGravityFrame.getChannel(channel)->data()[pixel] = value;
+            }
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            lowGravityFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            highGravityFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    DepthMeltEffect lowGravity;
+    lowGravity.setParameter("Melt", 0.8f);
+    lowGravity.setParameter("Gravity", 0.0f);
+    lowGravity.setParameter("Heat", 0.0f);
+    lowGravity.setParameter("Detail", 0.5f);
+    DepthMeltEffect highGravity;
+    highGravity.setParameter("Melt", 0.8f);
+    highGravity.setParameter("Gravity", 1.0f);
+    highGravity.setParameter("Heat", 0.0f);
+    highGravity.setParameter("Detail", 0.5f);
+    const CreativeEffectContext context{.time = 1.25};
+    lowGravity.process(lowGravityFrame, context);
+    highGravity.process(highGravityFrame, context);
+
+    bool gravityChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto low = lowGravityFrame.getChannel(channel);
+        const auto high = highGravityFrame.getChannel(channel);
+        ASSERT_TRUE(low);
+        ASSERT_TRUE(high);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(high->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            gravityChangedRgb = gravityChangedRgb ||
+                std::abs(high->data()[pixel] - low->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(gravityChangedRgb);
+
+    const auto lowAlpha = lowGravityFrame.getChannel(ChannelType::Alpha);
+    const auto highAlpha = highGravityFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(lowAlpha);
+    ASSERT_TRUE(highAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(lowAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(highAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, GlitchIsRepeatableAtFixedTimeAndAppliesSharedGrainToRgb) {
     VideoFrame first(4, 2);
     VideoFrame second(4, 2);
