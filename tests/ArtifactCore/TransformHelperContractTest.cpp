@@ -1,63 +1,54 @@
 #include <gtest/gtest.h>
 
 #include <QMatrix4x4>
-#include <QTransform>
 #include <QVector3D>
 
-#include <cmath>
-
 import Transform.Hlper;
+import Math.Matrix4x4;
 
 namespace {
 
-void expectNear(double actual, double expected, double tolerance = 1.0e-4)
+QVector3D mapPoint(const ArtifactCore::Matrix4x4& matrix, const QVector3D& point)
 {
-    EXPECT_NEAR(actual, expected, tolerance);
+    const auto& m = matrix.m;
+    return {
+        m[0] * point.x() + m[1] * point.y() + m[2] * point.z() + m[3],
+        m[4] * point.x() + m[5] * point.y() + m[6] * point.z() + m[7],
+        m[8] * point.x() + m[9] * point.y() + m[10] * point.z() + m[11],
+    };
+}
+
+void expectPointNear(const QVector3D& actual, const QVector3D& expected)
+{
+    EXPECT_NEAR(actual.x(), expected.x(), 1.0e-4f);
+    EXPECT_NEAR(actual.y(), expected.y(), 1.0e-4f);
+    EXPECT_NEAR(actual.z(), expected.z(), 1.0e-4f);
 }
 
 } // namespace
 
-TEST(TransformHelperContractTest, TwoDimensionalTransformMapsAnchorToLayerPosition)
+TEST(TransformHelperContractTest, CustomMatrixLayerTransformMatchesQtThreeDimensionalPath)
 {
-    const auto transform = ArtifactCore::makeLayerTransform2D(
-        120.0, 85.0, 37.0, 1.7, 0.65, 24.0, -13.0);
-    const QPointF mappedAnchor = transform.map(QPointF(24.0, -13.0));
-    expectNear(mappedAnchor.x(), 120.0);
-    expectNear(mappedAnchor.y(), 85.0);
-
-    const QPointF localPoint(31.0, 9.0);
-    const QPointF mapped = transform.map(localPoint);
-    EXPECT_TRUE(std::isfinite(mapped.x()));
-    EXPECT_TRUE(std::isfinite(mapped.y()));
-    EXPECT_NE(mapped, localPoint);
-}
-
-TEST(TransformHelperContractTest, ThreeDimensionalTransformMapsAnchorToLayerPosition)
-{
-    const auto transform = ArtifactCore::makeLayerTransform3D(
+    const auto custom = ArtifactCore::makeLayerMatrix4x4(
         120.0, 85.0, -30.0, 63.0, 1.7, 0.65, 2.2, 24.0, -13.0, 7.0);
-    const QVector3D mappedAnchor = transform.map(QVector3D(24.0f, -13.0f, 7.0f));
-    expectNear(mappedAnchor.x(), 120.0);
-    expectNear(mappedAnchor.y(), 85.0);
-    expectNear(mappedAnchor.z(), -30.0);
+    const auto qt = ArtifactCore::makeLayerTransform3D(
+        120.0, 85.0, -30.0, 63.0, 1.7, 0.65, 2.2, 24.0, -13.0, 7.0);
 
-    const QVector3D mapped = transform.map(QVector3D(31.0f, 9.0f, 11.0f));
-    EXPECT_TRUE(std::isfinite(mapped.x()));
-    EXPECT_TRUE(std::isfinite(mapped.y()));
-    EXPECT_TRUE(std::isfinite(mapped.z()));
-    EXPECT_NE(mapped, QVector3D(31.0f, 9.0f, 11.0f));
+    const QVector3D anchor(24.0f, -13.0f, 7.0f);
+    expectPointNear(mapPoint(custom, anchor), qt.map(anchor));
+
+    const QVector3D probe(31.0f, 9.0f, 11.0f);
+    expectPointNear(mapPoint(custom, probe), qt.map(probe));
 }
 
-TEST(TransformHelperContractTest, TwoDimensionalCombinationAppliesParentAfterLocal)
+TEST(TransformHelperContractTest, CustomMatrixHierarchyAppliesLocalThenParent)
 {
-    const QTransform local = ArtifactCore::makeLayerTransform2D(
-        10.0, 4.0, 0.0, 2.0, 2.0, 0.0, 0.0);
-    const QTransform parent = ArtifactCore::makeLayerTransform2D(
-        5.0, 7.0, 0.0, 1.0, 1.0, 0.0, 0.0);
-    const QPointF point(3.0, 2.0);
+    const auto local = ArtifactCore::makeLayerMatrix4x4(
+        10.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0);
+    const auto parent = ArtifactCore::makeLayerMatrix4x4(
+        0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0);
 
-    const QPointF expected = parent.map(local.map(point));
-    const QPointF actual = ArtifactCore::combineLayerTransform2D(local, parent).map(point);
-    expectNear(actual.x(), expected.x());
-    expectNear(actual.y(), expected.y());
+    const auto combined = ArtifactCore::combineLayerMatrix4x4(local, parent);
+    expectPointNear(mapPoint(combined, QVector3D(0.0f, 0.0f, 0.0f)),
+                    QVector3D(20.0f, 0.0f, 0.0f));
 }

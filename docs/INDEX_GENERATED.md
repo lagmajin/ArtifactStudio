@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-29 12:34
+> Generated: 2026-10-29 12:36
 > Total documents: 1480
 
 ---
@@ -254,7 +254,7 @@
 | 77 | `docs/analysis/REPORT_SELECTION_MANAGER_TEST_GAP_2026-10-29.md` | SelectionManager Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | SELECTION, MANAGER, TEST, GAP |
 | 78 | `docs/analysis/REPORT_SHAPE_ANIMATION_PERSISTENCE_TEST_2026-10-29.md` | Shape Layer Animation Persistence Test | 2026-10-29 | --- | 2026-10-29 | 1.3 KB | SHAPE, ANIMATION, PERSISTENCE, TEST |
 | 79 | `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md` | Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細） | 2026-09-10 | --- | 2026-09-26 | 14.0 KB | SHAPE, GAP, UPDATE |
-| 80 | `docs/analysis/REPORT_SHORTCUT_BINDINGS_TEST_GAP_2026-10-29.md` | ShortcutBindings Test Coverage Gap | 2026-10-29 | --- | --- | 0.8 KB | SHORTCUT, BINDINGS, TEST, GAP |
+| 80 | `docs/analysis/REPORT_SHORTCUT_BINDINGS_TEST_GAP_2026-10-29.md` | ShortcutBindings Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | SHORTCUT, BINDINGS, TEST, GAP |
 | 81 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
 | 82 | `docs/analysis/REPORT_TIME_CODE_RANGE_TEST_GAP_2026-10-29.md` | TimeCodeRange Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.9 KB | TIME, CODE, RANGE, TEST, GAP |
 | 83 | `docs/analysis/REPORT_TRANSFORM_HELPER_TEST_GAP_2026-10-29.md` | Transform Helper Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | TRANSFORM, HELPER, TEST, GAP |
@@ -1428,7 +1428,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-29 | --- | 2026-10-29 | 317.0 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-29 | --- | 2026-10-29 | 317.2 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |

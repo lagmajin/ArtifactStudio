@@ -4,8 +4,8 @@
 
 ## 調査
 
-`Transform.Hlper` はレイヤーの 2D / 3D anchor・position・rotation・scale から Qt と独自行列の変換を構築し、親子変換を結合する。テスト群にはこの helper を直接呼び出すケースが見つからなかった。
+既存 `CompositionTransformTimeContractTest.cpp` は Qt の 2D / 3D helper と Qt 行列の親子結合を既に検証していた。未カバーだったのは独自 `Matrix4x4` 経路とその親子結合である。
 
 ## 追加したテスト
 
-`tests/ArtifactCore/TransformHelperContractTest.cpp` を独立ターゲットとして登録した。2D / 3D とも anchor が指定 position に写ること、変換後座標が有限であること、2D 結合結果が local の後に parent を適用することを確認する。数値は Qt の行列適用規則に基づく固定点で照合する。ビルド・テスト実行は行っていない。
+`tests/ArtifactCore/TransformHelperContractTest.cpp` を独立ターゲットとして登録した。独自 `Matrix4x4` の point transform を Qt 3D helper と同じ anchor / probe 座標で照合し、親子結合後の点を期待座標と比べる。ソース照合で `combineLayerMatrix4x4()` が local × parent とし、Qt 3D 経路の親 × local と演算順が逆であることを確認したため、独自行列経路も親 × local に修正した。ビルド・テスト実行は行っていない。
