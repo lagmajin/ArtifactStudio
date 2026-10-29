@@ -893,6 +893,67 @@ TEST(CreativeImageEffectContractTest, OldTvCurvatureMovesTheVerticalSampleAtTheE
     }
 }
 
+TEST(CreativeImageEffectContractTest, OldTvFlickerParameterAddsDeterministicNoise) {
+    constexpr int width = 4;
+    constexpr int height = 3;
+    constexpr int pixelCount = width * height;
+    VideoFrame noFlicker(width, height);
+    VideoFrame withFlicker(width, height);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    for (ChannelType channel : channels) {
+        auto noFlickerPlane = noFlicker.getChannel(channel);
+        auto withFlickerPlane = withFlicker.getChannel(channel);
+        ASSERT_TRUE(noFlickerPlane);
+        ASSERT_TRUE(withFlickerPlane);
+        for (int pixel = 0; pixel < pixelCount; ++pixel) {
+            const float value = channel == ChannelType::Alpha ? 0.4f : 0.5f;
+            noFlickerPlane->data()[pixel] = value;
+            withFlickerPlane->data()[pixel] = value;
+        }
+    }
+
+    OldTVEffect noFlickerEffect;
+    noFlickerEffect.setParameter("Scanline", 0.0f);
+    noFlickerEffect.setParameter("Curvature", 0.0f);
+    noFlickerEffect.setParameter("Fringe", 0.0f);
+    noFlickerEffect.setParameter("Flicker", 0.0f);
+    OldTVEffect withFlickerEffect;
+    withFlickerEffect.setParameter("Scanline", 0.0f);
+    withFlickerEffect.setParameter("Curvature", 0.0f);
+    withFlickerEffect.setParameter("Fringe", 0.0f);
+    withFlickerEffect.setParameter("Flicker", 0.5f);
+    const CreativeEffectContext context{};
+    noFlickerEffect.process(noFlicker, context);
+    withFlickerEffect.process(withFlicker, context);
+
+    bool changedRgb = false;
+    for (ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                ChannelType::Blue}) {
+        const auto expected = noFlicker.getChannel(channel);
+        const auto actual = withFlicker.getChannel(channel);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int pixel = 0; pixel < pixelCount; ++pixel) {
+            EXPECT_TRUE(std::isfinite(actual->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            changedRgb = changedRgb ||
+                std::abs(actual->data()[pixel] - expected->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    const auto noFlickerAlpha = noFlicker.getChannel(ChannelType::Alpha);
+    const auto withFlickerAlpha = withFlicker.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(noFlickerAlpha);
+    ASSERT_TRUE(withFlickerAlpha);
+    for (int pixel = 0; pixel < pixelCount; ++pixel) {
+        EXPECT_FLOAT_EQ(noFlickerAlpha->data()[pixel], 0.4f);
+        EXPECT_FLOAT_EQ(withFlickerAlpha->data()[pixel], 0.4f);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeutralNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
