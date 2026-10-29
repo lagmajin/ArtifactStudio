@@ -438,6 +438,17 @@ set_tests_properties(ArtifactCoreColorLUTContractTest PROPERTIES
     LABELS "color;lut;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreColorScopesContractTest
+    SOURCES
+        ColorScopesContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreColorScopesContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "color;scopes;image;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreColoramaProcessorContractTest
     SOURCES
         ColoramaProcessorContractTest.cpp
