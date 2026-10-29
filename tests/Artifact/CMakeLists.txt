@@ -1108,6 +1108,15 @@ artifact_add_test(ArtifactWaveEffectContractTest
 set_tests_properties(ArtifactWaveEffectContractTest PROPERTIES
     LABELS "effect;wave;distortion;cpu;contract"
 )
+artifact_add_test(ArtifactReactionDiffusionBlurEffectContractTest
+    SOURCES
+        ReactionDiffusionBlurEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactReactionDiffusionBlurEffectContractTest PROPERTIES
+    LABELS "effect;reaction-diffusion-blur;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
