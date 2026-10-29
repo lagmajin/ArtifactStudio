@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <array>
 #include <initializer_list>
 #include <cmath>
+#include <vector>
 
 import Graphics.Effect.Creative.ColorVibrance;
 import Graphics.Effect.Creative.Posterize;
@@ -3355,5 +3357,40 @@ TEST(CreativeImageEffectContractTest, PigmentSeparationBleedChangesWetChannelMix
         const float alpha = static_cast<float>(pixel) / (width * height - 1);
         EXPECT_FLOAT_EQ(dryAlpha->data()[pixel], alpha);
         EXPECT_FLOAT_EQ(wetAlpha->data()[pixel], alpha);
+    }
+}
+
+TEST(CreativeImageEffectContractTest, DisabledPigmentSeparationPreservesEveryChannelExactly) {
+    constexpr int width = 7;
+    constexpr int height = 5;
+    VideoFrame frame(width, height);
+    std::vector<std::vector<float>> original(4, std::vector<float>(width * height));
+    const std::array<ChannelType, 4> channels = {
+        ChannelType::Red, ChannelType::Green, ChannelType::Blue, ChannelType::Alpha};
+    for (int channelIndex = 0; channelIndex < static_cast<int>(channels.size()); ++channelIndex) {
+        auto channel = frame.getChannel(channels[channelIndex]);
+        ASSERT_TRUE(channel);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            const float value = static_cast<float>((pixel * 11 + channelIndex * 17) % 37) / 36.0f;
+            channel->data()[pixel] = value;
+            original[channelIndex][pixel] = value;
+        }
+    }
+
+    PigmentSeparationEffect effect;
+    effect.setEnabled(false);
+    effect.setParameter("Spread", 1.0f);
+    effect.setParameter("Bleed", 1.0f);
+    effect.setParameter("Flow", 1.0f);
+    effect.setParameter("Granulation", 1.0f);
+    effect.process(frame, CreativeEffectContext{.time = 8.5});
+
+    for (int channelIndex = 0; channelIndex < static_cast<int>(channels.size()); ++channelIndex) {
+        const auto channel = frame.getChannel(channels[channelIndex]);
+        ASSERT_TRUE(channel);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(channel->data()[pixel], original[channelIndex][pixel])
+                << "channel=" << channelIndex << " pixel=" << pixel;
+        }
     }
 }
