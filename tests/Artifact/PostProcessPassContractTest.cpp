@@ -131,6 +131,15 @@ TEST_F(PostProcessPassGpuContractTest, UploadedLutTransformsPixelsAndRejectsMiss
     EXPECT_NEAR(output[2], 1.0f, 1.0e-4f);
     EXPECT_NEAR(output[3], 1.0f, 1.0e-4f);
 
+    postProcess.updateFromColorLUT(nullptr, 2);
+    EXPECT_FALSE(postProcess.hasActiveLUT())
+        << "a missing LUT payload must invalidate the previously uploaded LUT";
+    postProcess.updateFromColorLUT(invertRgbLut.data(), 257);
+    EXPECT_FALSE(postProcess.hasActiveLUT())
+        << "LUT dimensions above the supported limit must be rejected";
+    EXPECT_FALSE(postProcess.apply(
+        gpu_.context(), inputSrv, outputUav, kWidth, kHeight));
+
     ArtifactCore::CompositionFinalEffectStack selectedStack;
     auto selectedLut = std::make_unique<ArtifactCore::CompositionFinalEffect>(
         ArtifactCore::FinalEffectType::LUT);
