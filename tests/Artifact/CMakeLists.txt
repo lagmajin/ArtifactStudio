@@ -565,6 +565,16 @@ set_tests_properties(ArtifactVignetteEffectContractTest PROPERTIES
     LABELS "effect;vignette;cpu;contract"
 )
 
+artifact_add_test(ArtifactSharpenEffectContractTest
+    SOURCES
+        SharpenEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactSharpenEffectContractTest PROPERTIES
+    LABELS "effect;sharpen;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
