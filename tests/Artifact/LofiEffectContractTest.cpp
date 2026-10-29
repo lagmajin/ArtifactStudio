@@ -365,6 +365,27 @@ TEST(LofiEffectContractTest,
     }
 }
 
+TEST(LofiEffectContractTest,
+     FilmGrungeRoiHintTracksGateWeaveAndRequiresFullFrame)
+{
+    ArtifactFilmGrungeEffect effect;
+    const auto expectRoiHint = [&effect](float expansion) {
+        const auto hint = effect.roiHint();
+        EXPECT_EQ(hint.kind, EffectROIHintKind::Displacement);
+        EXPECT_FLOAT_EQ(hint.expansionPixels, expansion);
+        EXPECT_FLOAT_EQ(hint.expansionFraction, 0.0f);
+        EXPECT_TRUE(hint.requiresFullFrame);
+    };
+
+    expectRoiHint(3.0f);
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    expectRoiHint(1.0f);
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.5f));
+    expectRoiHint(2.0f);
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(100.0f));
+    expectRoiHint(13.0f);
+}
+
 TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
 {
     ArtifactOldTVEffect effect;
