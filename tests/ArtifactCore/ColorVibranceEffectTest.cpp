@@ -3888,6 +3888,66 @@ TEST(CreativeImageEffectContractTest, GlitchIsRepeatableAtFixedTimeAndAppliesSha
     }
 }
 
+TEST(CreativeImageEffectContractTest, GlitchRgbOutputDoesNotDependOnOptionalAlphaPlane) {
+    constexpr int width = 8;
+    constexpr int height = 4;
+    VideoFrame withAlpha(width, height);
+    VideoFrame withoutAlpha(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float red = static_cast<float>((x * 3 + y) % 9) / 9.0f;
+            const float green = static_cast<float>((x + y * 2) % 8) / 8.0f;
+            const float blue = static_cast<float>((x * 2 + y * 3) % 10) / 10.0f;
+            for (VideoFrame* frame : {&withAlpha, &withoutAlpha}) {
+                frame->getChannel(ChannelType::Red)->data()[pixel] = red;
+                frame->getChannel(ChannelType::Green)->data()[pixel] = green;
+                frame->getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            }
+            withAlpha.getChannel(ChannelType::Alpha)->data()[pixel] =
+                static_cast<float>(pixel) / (width * height - 1);
+        }
+    }
+    withoutAlpha.removeChannel(ChannelType::Alpha);
+
+    GlitchCreativeEffect withAlphaEffect;
+    withAlphaEffect.setParameter("Amount", 0.8f);
+    withAlphaEffect.setParameter("RGBSplit", 0.6f);
+    withAlphaEffect.setParameter("BlockNoise", 0.0f);
+    GlitchCreativeEffect withoutAlphaEffect;
+    withoutAlphaEffect.setParameter("Amount", 0.8f);
+    withoutAlphaEffect.setParameter("RGBSplit", 0.6f);
+    withoutAlphaEffect.setParameter("BlockNoise", 0.0f);
+    const CreativeEffectContext context{.time = 2.75};
+    withAlphaEffect.process(withAlpha, context);
+    withoutAlphaEffect.process(withoutAlpha, context);
+
+    bool changedRgb = false;
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto expected = withAlpha.getChannel(channelType);
+        const auto actual = withoutAlpha.getChannel(channelType);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const int pixel = y * width + x;
+                EXPECT_TRUE(std::isfinite(actual->data()[pixel]));
+                EXPECT_FLOAT_EQ(actual->data()[pixel], expected->data()[pixel]);
+                const float original = channelType == ChannelType::Red
+                    ? static_cast<float>((x * 3 + y) % 9) / 9.0f
+                    : channelType == ChannelType::Green
+                        ? static_cast<float>((x + y * 2) % 8) / 8.0f
+                        : static_cast<float>((x * 2 + y * 3) % 10) / 10.0f;
+                changedRgb = changedRgb ||
+                    std::abs(actual->data()[pixel] - original) > 1.0e-6f;
+            }
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    EXPECT_FALSE(withoutAlpha.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, GlitchRgbSplitOffsetsRedAndBlueAroundGreen) {
     constexpr int width = 64;
     VideoFrame frame(width, 1);
