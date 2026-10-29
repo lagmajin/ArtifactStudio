@@ -4,6 +4,7 @@
 #include <QPointF>
 #include <QJsonObject>
 
+#include <cmath>
 #include <vector>
 
 import Artifact.Layer.Shape;
@@ -115,4 +116,59 @@ TEST(ShapeLayerAnimationPersistenceContractTest,
     EXPECT_DOUBLE_EQ(last.front().pos.y(), 30.0);
     EXPECT_DOUBLE_EQ(after.front().pos.x(), 20.0);
     EXPECT_DOUBLE_EQ(after.front().pos.y(), 30.0);
+}
+
+TEST(ShapeLayerAnimationPersistenceContractTest,
+     TopologyChangesMorphBetweenKeysAndSurviveJsonRoundTrip)
+{
+    ensureApplication();
+    Artifact::ArtifactShapeLayer source;
+    const std::vector<Artifact::CustomPathVertex> triangle{
+        {QPointF(-10.0, -8.0), QPointF(), QPointF(), false},
+        {QPointF(10.0, -8.0), QPointF(), QPointF(), false},
+        {QPointF(0.0, 12.0), QPointF(), QPointF(), false},
+    };
+    const std::vector<Artifact::CustomPathVertex> pentagon{
+        {QPointF(0.0, -14.0), QPointF(), QPointF(), false},
+        {QPointF(13.0, -4.0), QPointF(), QPointF(), false},
+        {QPointF(8.0, 11.0), QPointF(), QPointF(), false},
+        {QPointF(-8.0, 11.0), QPointF(), QPointF(), false},
+        {QPointF(-13.0, -4.0), QPointF(), QPointF(), false},
+    };
+    source.setCustomPathVertices(triangle, true);
+    source.setPathKeyframe(0, triangle);
+    source.setPathKeyframe(12, pentagon);
+
+    const auto restored = Artifact::ArtifactShapeLayer::fromJson(source.toJson());
+    ASSERT_TRUE(restored);
+
+    const auto first = restored->evaluatePathAt(0);
+    const auto middle = restored->evaluatePathAt(6);
+    const auto last = restored->evaluatePathAt(12);
+    ASSERT_EQ(first.size(), triangle.size());
+    ASSERT_EQ(last.size(), pentagon.size());
+    ASSERT_EQ(middle.size(), 64u);
+
+    bool movedFromFirst = false;
+    bool movedFromLast = false;
+    for (const auto& vertex : middle) {
+        EXPECT_TRUE(std::isfinite(vertex.pos.x()));
+        EXPECT_TRUE(std::isfinite(vertex.pos.y()));
+        movedFromFirst = movedFromFirst || vertex.pos != triangle.front().pos;
+        movedFromLast = movedFromLast || vertex.pos != pentagon.front().pos;
+    }
+    EXPECT_TRUE(movedFromFirst);
+    EXPECT_TRUE(movedFromLast);
+
+    const auto restoredAgain = Artifact::ArtifactShapeLayer::fromJson(
+        restored->toJson());
+    ASSERT_TRUE(restoredAgain);
+    const auto middleAfterSecondRoundTrip = restoredAgain->evaluatePathAt(6);
+    ASSERT_EQ(middleAfterSecondRoundTrip.size(), middle.size());
+    for (size_t i = 0; i < middle.size(); ++i) {
+        EXPECT_DOUBLE_EQ(middleAfterSecondRoundTrip[i].pos.x(),
+                         middle[i].pos.x());
+        EXPECT_DOUBLE_EQ(middleAfterSecondRoundTrip[i].pos.y(),
+                         middle[i].pos.y());
+    }
 }
