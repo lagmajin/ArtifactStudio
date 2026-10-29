@@ -856,6 +856,15 @@ artifact_add_test(ArtifactFrameAverageEffectContractTest
 set_tests_properties(ArtifactFrameAverageEffectContractTest PROPERTIES
     LABELS "effect;frame-average;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactFrameAccumulationEffectContractTest
+    SOURCES
+        FrameAccumulationEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactFrameAccumulationEffectContractTest PROPERTIES
+    LABELS "effect;frame-accumulation;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
