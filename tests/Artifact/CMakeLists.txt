@@ -675,6 +675,16 @@ set_tests_properties(ArtifactHexGridEffectContractTest PROPERTIES
     LABELS "effect;hex-grid;cpu;contract"
 )
 
+artifact_add_test(ArtifactGlitchEffectContractTest
+    SOURCES
+        GlitchEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactGlitchEffectContractTest PROPERTIES
+    LABELS "effect;glitch;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
