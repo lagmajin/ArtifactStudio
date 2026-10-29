@@ -602,8 +602,10 @@ TEST(LofiEffectContractTest, OldTvEffectRegionCompositesOnlyInsidePixelBounds)
     ASSERT_EQ(regionalEffect.image().height(), height);
     const float* fullEffectPixels = fullEffect.image().rgba32fData();
     const float* regionalPixels = regionalEffect.image().rgba32fData();
+    const float* unchangedSource = source.image().rgba32fData();
     ASSERT_NE(fullEffectPixels, nullptr);
     ASSERT_NE(regionalPixels, nullptr);
+    ASSERT_NE(unchangedSource, nullptr);
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const bool inside = x >= 2 && x < 4 && y >= 1 && y < 3;
@@ -615,6 +617,8 @@ TEST(LofiEffectContractTest, OldTvEffectRegionCompositesOnlyInsidePixelBounds)
                     : pixels[offset + channel];
                 EXPECT_NEAR(regionalPixels[offset + channel], expected, 1.0e-6f)
                     << "x=" << x << " y=" << y << " channel=" << channel;
+                EXPECT_FLOAT_EQ(unchangedSource[offset + channel], pixels[offset + channel])
+                    << "source x=" << x << " y=" << y << " channel=" << channel;
             }
         }
     }
