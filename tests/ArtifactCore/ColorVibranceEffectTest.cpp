@@ -1647,6 +1647,49 @@ TEST(CreativeImageEffectContractTest, SurfaceMemoryRetainsPriorFrameAndPreserves
     }
 }
 
+TEST(CreativeImageEffectContractTest, SurfaceMemoryRewindResetsPriorSurface) {
+    constexpr int width = 2;
+    constexpr int height = 2;
+    VideoFrame earlier(width, height);
+    VideoFrame later(width, height);
+    VideoFrame rewound(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+            earlier.getChannel(channel)->data()[pixel] = 0.2f;
+            later.getChannel(channel)->data()[pixel] = 0.8f;
+            rewound.getChannel(channel)->data()[pixel] = 0.4f;
+        }
+        earlier.getChannel(ChannelType::Alpha)->data()[pixel] = 0.3f;
+        later.getChannel(ChannelType::Alpha)->data()[pixel] = 0.6f;
+        rewound.getChannel(ChannelType::Alpha)->data()[pixel] = 0.9f;
+    }
+
+    SurfaceMemoryEffect effect;
+    effect.setParameter("Retention", 1.0f);
+    effect.setParameter("Refresh", 0.0f);
+    effect.setParameter("Texture", 0.0f);
+    effect.setParameter("Smear", 0.0f);
+    effect.process(earlier, CreativeEffectContext{.time = 0.0, .frameIndex = 5});
+    effect.process(later, CreativeEffectContext{.time = 0.5, .frameIndex = 6});
+    effect.process(rewound, CreativeEffectContext{.time = 0.2, .frameIndex = 3});
+
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto plane = rewound.getChannel(channel);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], 0.4f)
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+        }
+    }
+    const auto alpha = rewound.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(alpha->data()[pixel], 0.9f) << "pixel=" << pixel;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, TemporalFossilCreatesResidueFromPriorFrame) {
     constexpr int width = 3;
     constexpr int height = 2;
