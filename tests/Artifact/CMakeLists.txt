@@ -735,6 +735,16 @@ set_tests_properties(ArtifactRadialBlurEffectContractTest PROPERTIES
     LABELS "effect;radial-blur;cpu;contract"
 )
 
+artifact_add_test(ArtifactFilmDamageEffectContractTest
+    SOURCES
+        FilmDamageEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactFilmDamageEffectContractTest PROPERTIES
+    LABELS "effect;film-damage;lofi;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
