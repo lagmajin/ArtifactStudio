@@ -312,6 +312,67 @@ TEST(LofiEffectContractTest,
     EXPECT_GT(displacedSamples, 0u);
 }
 
+TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
+{
+    constexpr int width = 16;
+    constexpr int height = 16;
+    constexpr float alpha = 0.65f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(4.0f));
+    for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    const float firstBlockSample = result[1];
+    bool observedBlockVariation = false;
+    for (int blockY = 0; blockY < height; blockY += 4) {
+        for (int blockX = 0; blockX < width; blockX += 4) {
+            const std::size_t blockOffset =
+                static_cast<std::size_t>((blockY * width + blockX) * 4);
+            const std::array<float, 4> blockValue{
+                result[blockOffset + 0], result[blockOffset + 1],
+                result[blockOffset + 2], result[blockOffset + 3]};
+            observedBlockVariation = observedBlockVariation ||
+                blockValue[1] != firstBlockSample;
+            for (int y = blockY; y < blockY + 4; ++y) {
+                for (int x = blockX; x < blockX + 4; ++x) {
+                    const std::size_t offset =
+                        static_cast<std::size_t>((y * width + x) * 4);
+                    for (std::size_t channel = 0; channel < 3; ++channel) {
+                        EXPECT_FLOAT_EQ(result[offset + channel], blockValue[channel])
+                            << "x=" << x << " y=" << y
+                            << " channel=" << channel;
+                    }
+                    EXPECT_FLOAT_EQ(result[offset + 3], alpha)
+                        << "x=" << x << " y=" << y;
+                }
+            }
+        }
+    }
+    EXPECT_TRUE(observedBlockVariation);
+}
+
 TEST(LofiEffectContractTest,
      FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
 {
