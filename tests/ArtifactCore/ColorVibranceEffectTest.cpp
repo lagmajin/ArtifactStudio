@@ -638,6 +638,57 @@ TEST(CreativeImageEffectContractTest, EmbossUsesDiagonalDifferenceAndPreservesUn
     }
 }
 
+TEST(CreativeImageEffectContractTest, OldTvChangesRgbWithoutChangingAlpha) {
+    constexpr int width = 5;
+    constexpr int height = 4;
+    constexpr int pixelCount = width * height;
+    VideoFrame frame(width, height);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+
+    float originalRed[pixelCount]{};
+    float originalGreen[pixelCount]{};
+    float originalBlue[pixelCount]{};
+    float originalAlpha[pixelCount]{};
+    for (int pixel = 0; pixel < pixelCount; ++pixel) {
+        const float position = static_cast<float>(pixel) /
+                               static_cast<float>(pixelCount - 1);
+        red->data()[pixel] = 0.15f + position * 0.55f;
+        green->data()[pixel] = 0.75f - position * 0.45f;
+        blue->data()[pixel] = 0.25f + position * 0.35f;
+        alpha->data()[pixel] = 0.1f + position * 0.8f;
+        originalRed[pixel] = red->data()[pixel];
+        originalGreen[pixel] = green->data()[pixel];
+        originalBlue[pixel] = blue->data()[pixel];
+        originalAlpha[pixel] = alpha->data()[pixel];
+    }
+
+    OldTVEffect effect;
+    effect.process(frame, CreativeEffectContext{.time = 0.75});
+
+    bool changedRgb = false;
+    for (int pixel = 0; pixel < pixelCount; ++pixel) {
+        const float rgb[] = {red->data()[pixel], green->data()[pixel],
+                             blue->data()[pixel]};
+        const float originalRgb[] = {originalRed[pixel], originalGreen[pixel],
+                                     originalBlue[pixel]};
+        for (int channel = 0; channel < 3; ++channel) {
+            EXPECT_TRUE(std::isfinite(rgb[channel])) << "pixel=" << pixel;
+            changedRgb = changedRgb ||
+                std::abs(rgb[channel] - originalRgb[channel]) > 1.0e-6f;
+        }
+        EXPECT_FLOAT_EQ(alpha->data()[pixel], originalAlpha[pixel])
+            << "pixel=" << pixel;
+    }
+    EXPECT_TRUE(changedRgb);
+}
+
 TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeutralNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
