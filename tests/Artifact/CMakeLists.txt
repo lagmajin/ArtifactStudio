@@ -1948,7 +1948,7 @@ if(ARTIFACT_BUILD_TESTS)
             ArtifactAppRuntime
     )
     set_tests_properties(ArtifactCreativeImageCleanupEffectContractTest PROPERTIES
-        LABELS "effect;creative;deblock;cpu;contract"
+        LABELS "effect;creative;image-cleanup;cpu;contract"
         TIMEOUT 60
     )
 
