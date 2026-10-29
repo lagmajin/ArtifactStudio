@@ -784,6 +784,15 @@ artifact_add_test(ArtifactInnerShadowEffectContractTest
 set_tests_properties(ArtifactInnerShadowEffectContractTest PROPERTIES
     LABELS "effect;inner-shadow;cpu;contract"
 )
+artifact_add_test(ArtifactStrokeEffectContractTest
+    SOURCES
+        StrokeEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactStrokeEffectContractTest PROPERTIES
+    LABELS "effect;stroke;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
