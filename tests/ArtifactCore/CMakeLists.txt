@@ -1175,6 +1175,17 @@ artifact_add_test(ArtifactCoreKeyframePatternGeneratorTest
 set_tests_properties(ArtifactCoreKeyframePatternGeneratorTest PROPERTIES
     LABELS "animation;keyframe;cpu;contract"
 )
+
+artifact_add_test(ArtifactCoreTrajectoryKeyframeContractTest
+    SOURCES
+        TrajectoryKeyframeContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreTrajectoryKeyframeContractTest PROPERTIES
+    LABELS "animation;trajectory;keyframes;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreEasingFunctionsTest
     SOURCES
         EasingFunctionsTest.cpp
