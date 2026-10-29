@@ -247,6 +247,55 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeGateWeaveDisplacesAlphaWithTheColorSample)
+{
+    constexpr int width = 32;
+    constexpr int height = 24;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float pattern =
+                static_cast<float>((x * 3 + y * 7) % 47) / 46.0f;
+            pixels[offset + 0] = static_cast<float>(x) / (width - 1);
+            pixels[offset + 1] = static_cast<float>(y) / (height - 1);
+            pixels[offset + 2] = pattern;
+            pixels[offset + 3] = pattern;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(4.0f));
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    std::size_t displacedSamples = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        EXPECT_FLOAT_EQ(result[pixel * 4 + 2], result[pixel * 4 + 3])
+            << "pixel=" << pixel;
+        if (std::abs(result[pixel * 4 + 2] - pixels[pixel * 4 + 2]) > 1.0e-5f) {
+            ++displacedSamples;
+        }
+    }
+    EXPECT_GT(displacedSamples, 0u);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
 {
     constexpr int width = 64;
