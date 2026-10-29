@@ -1581,6 +1581,69 @@ TEST(CreativeImageEffectContractTest, EdgeEchoThicknessChangesEchoSamplingDistan
     }
 }
 
+TEST(CreativeImageEffectContractTest, EdgeEchoCountChangesAccumulatedEchoSamples) {
+    constexpr int width = 16;
+    constexpr int height = 8;
+    VideoFrame oneEchoFrame(width, height);
+    VideoFrame sixEchoFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float base = x < width / 2 ? 0.12f : 0.88f;
+            const float green = std::clamp(base + static_cast<float>(y) * 0.01f,
+                                           0.0f, 1.0f);
+            oneEchoFrame.getChannel(ChannelType::Red)->data()[pixel] = base;
+            oneEchoFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            oneEchoFrame.getChannel(ChannelType::Blue)->data()[pixel] = 1.0f - base;
+            sixEchoFrame.getChannel(ChannelType::Red)->data()[pixel] = base;
+            sixEchoFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            sixEchoFrame.getChannel(ChannelType::Blue)->data()[pixel] = 1.0f - base;
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            oneEchoFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            sixEchoFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    EdgeEchoEffect oneEcho;
+    oneEcho.setParameter("Intensity", 0.85f);
+    oneEcho.setParameter("Thickness", 1.5f);
+    oneEcho.setParameter("EchoCount", 1.0f);
+    oneEcho.setParameter("Tint", 0.25f);
+    EdgeEchoEffect sixEcho;
+    sixEcho.setParameter("Intensity", 0.85f);
+    sixEcho.setParameter("Thickness", 1.5f);
+    sixEcho.setParameter("EchoCount", 6.0f);
+    sixEcho.setParameter("Tint", 0.25f);
+    oneEcho.process(oneEchoFrame, CreativeEffectContext{});
+    sixEcho.process(sixEchoFrame, CreativeEffectContext{});
+
+    bool countChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto one = oneEchoFrame.getChannel(channel);
+        const auto six = sixEchoFrame.getChannel(channel);
+        ASSERT_TRUE(one);
+        ASSERT_TRUE(six);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(six->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            countChangedRgb = countChangedRgb ||
+                std::abs(six->data()[pixel] - one->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(countChangedRgb);
+
+    const auto oneAlpha = oneEchoFrame.getChannel(ChannelType::Alpha);
+    const auto sixAlpha = sixEchoFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(oneAlpha);
+    ASSERT_TRUE(sixAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(oneAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(sixAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, LightPressureZeroControlsPreserveInput) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
