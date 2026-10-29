@@ -288,6 +288,55 @@ TEST(VHSTapeEffectContractTest,
     }
 }
 
+TEST(VHSTapeEffectContractTest,
+     ZeroSharpnessSoftensColorEdgeAndKeepsOpaqueAlpha)
+{
+    constexpr int width = 65;
+    constexpr int height = 5;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float value = x < width / 2 ? 0.0f : 1.0f;
+            pixels[offset] = value;
+            pixels[offset + 1] = value;
+            pixels[offset + 2] = value;
+            pixels[offset + 3] = 1.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height,
+                         SurfaceColorDescriptor::unknownBgra32Float());
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache sharp;
+    ImageF32x4RGBAWithCache softened;
+    VHSTapeEffect sharpEffect;
+    setNeutralTapeProperties(sharpEffect);
+    sharpEffect.applyCPUOnly(source, sharp);
+    VHSTapeEffect softEffect;
+    setNeutralTapeProperties(softEffect);
+    softEffect.setPropertyValue(UniString(QStringLiteral("Sharpness")), 0.0);
+    softEffect.applyCPUOnly(source, softened);
+
+    const int leftX = width / 2 - 1;
+    const int rightX = width / 2;
+    const float sharpDelta = std::abs(
+        sharp.image().getPixel(leftX, height / 2).r() -
+        sharp.image().getPixel(rightX, height / 2).r());
+    const float softDelta = std::abs(
+        softened.image().getPixel(leftX, height / 2).r() -
+        softened.image().getPixel(rightX, height / 2).r());
+    EXPECT_GT(sharpDelta, 0.9f);
+    EXPECT_LT(softDelta, sharpDelta);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            EXPECT_FLOAT_EQ(softened.image().getPixel(x, y).a(), 1.0f)
+                << "x=" << x << " y=" << y;
+        }
+    }
+}
+
 TEST(VHSTapeEffectContractTest, WobbleOutputIsRepeatableForSameSeedAndEvolution)
 {
     constexpr int width = 32;
