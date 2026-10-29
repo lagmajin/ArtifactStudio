@@ -820,6 +820,15 @@ artifact_add_test(ArtifactTemporalMedianEffectContractTest
 set_tests_properties(ArtifactTemporalMedianEffectContractTest PROPERTIES
     LABELS "effect;temporal-median;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactEchoEffectContractTest
+    SOURCES
+        EchoEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactEchoEffectContractTest PROPERTIES
+    LABELS "effect;echo;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
