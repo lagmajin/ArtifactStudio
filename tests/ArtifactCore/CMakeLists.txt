@@ -804,6 +804,28 @@ set_tests_properties(ArtifactCoreFileTypeDetectorContractTest PROPERTIES
     LABELS "file;type-detection;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreLottieExporterContractTest
+    SOURCES
+        LottieExporterContractTest.cpp
+    LIBS
+        ArtifactCoreExport
+)
+set_tests_properties(ArtifactCoreLottieExporterContractTest PROPERTIES
+    LABELS "lottie;export;serialization;validation;cpu;contract"
+    TIMEOUT 60
+)
+
+artifact_add_test(ArtifactCoreColorGradingContractTest
+    SOURCES
+        ColorGradingContractTest.cpp
+    LIBS
+        ArtifactCoreColorCollection
+)
+set_tests_properties(ArtifactCoreColorGradingContractTest PROPERTIES
+    LABELS "color;grading;levels;curves;cpu;contract"
+    TIMEOUT 60
+)
+
 artifact_add_test(ArtifactCoreCpuFrameViewContractTest
     SOURCES
         CpuFrameViewContractTest.cpp
