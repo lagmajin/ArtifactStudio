@@ -438,6 +438,16 @@ set_tests_properties(ArtifactCoreColorLUTContractTest PROPERTIES
     LABELS "color;lut;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreLUTLoaderContractTest
+    SOURCES
+        LUTLoaderContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLUTLoaderContractTest PROPERTIES
+    LABELS "color;grading;lut;file-io;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreColorScopesContractTest
     SOURCES
         ColorScopesContractTest.cpp
