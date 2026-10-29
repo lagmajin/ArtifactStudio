@@ -629,12 +629,31 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 QByteArray::fromStdString(spec.get_string_attribute(
                     (materialStandardPrefix + QStringLiteral("/manifest")).toStdString(),
                     "")));
+            const auto isValidCryptomatteManifest = [](const QJsonObject& manifest) {
+                if (manifest.isEmpty()) {
+                    return false;
+                }
+                for (auto entry = manifest.constBegin();
+                     entry != manifest.constEnd(); ++entry) {
+                    if (!entry.value().isString()) {
+                        return false;
+                    }
+                    const QString expectedHash = QString::number(
+                        ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
+                            entry.key()), 16).rightJustified(8, QLatin1Char('0'));
+                    if (entry.value().toString() != expectedHash) {
+                        return false;
+                    }
+                }
+                return true;
+            };
             if (spec.get_string_attribute(
                     "artifact.cryptomatte.object.name", "") != "CryptoObject" ||
                 spec.get_string_attribute(
                     "artifact.cryptomatte.object.hash", "") !=
                     "MurmurHash3_32" ||
-                !objectManifest.isObject() || objectManifest.object().isEmpty() ||
+                !objectManifest.isObject() ||
+                !isValidCryptomatteManifest(objectManifest.object()) ||
                 spec.get_string_attribute(
                     "artifact.cryptomatte.material.name", "") !=
                     "CryptoMaterial" ||
@@ -642,7 +661,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                     "artifact.cryptomatte.material.hash", "") !=
                     "MurmurHash3_32" ||
                 !materialManifest.isObject() ||
-                materialManifest.object().isEmpty() ||
+                !isValidCryptomatteManifest(materialManifest.object()) ||
                 spec.get_string_attribute(
                     (objectStandardPrefix + QStringLiteral("/name")).toStdString(),
                     "") != "CryptoObject" ||
