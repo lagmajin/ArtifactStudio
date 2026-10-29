@@ -374,6 +374,66 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeScratchAmountAddsLocalizedSharedRgbDamage)
+{
+    constexpr int width = 72;
+    constexpr int height = 32;
+    constexpr float alpha = 0.7f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache noScratch;
+    ImageF32x4RGBAWithCache scratched;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "dustAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.0f));
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, noScratch);
+
+    effect.setPropertyValue(UniString("scratchAmount"), QVariant(1.0f));
+    effect.applyCPUOnly(source, scratched);
+
+    const float* baseline = noScratch.image().rgba32fData();
+    const float* result = scratched.image().rgba32fData();
+    ASSERT_NE(baseline, nullptr);
+    ASSERT_NE(result, nullptr);
+    int changedColumns = 0;
+    for (int x = 0; x < width; ++x) {
+        bool columnChanged = false;
+        for (int y = 0; y < height; ++y) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            EXPECT_FLOAT_EQ(result[offset + 0], result[offset + 1])
+                << "x=" << x << " y=" << y << " R-G";
+            EXPECT_FLOAT_EQ(result[offset + 1], result[offset + 2])
+                << "x=" << x << " y=" << y << " G-B";
+            EXPECT_FLOAT_EQ(result[offset + 3], alpha)
+                << "x=" << x << " y=" << y;
+            columnChanged = columnChanged ||
+                std::abs(result[offset + 1] - baseline[offset + 1]) > 1.0e-5f;
+        }
+        changedColumns += columnChanged ? 1 : 0;
+    }
+    EXPECT_GT(changedColumns, 0);
+    EXPECT_LE(changedColumns, 12)
+        << "four scratch columns may affect at most three columns each";
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
 {
     constexpr int width = 64;
