@@ -507,6 +507,76 @@ TEST(SpatialImageEffectContractTest,
         << "foreground and background blur settings must make the clamp endpoints observable";
 }
 
+TEST(SpatialImageEffectContractTest,
+     DepthBokehFocusRangeEndpointsStaySharpAndOutsideBeginsBlurring)
+{
+    constexpr int width = 17;
+    constexpr int height = 17;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr std::size_t center =
+        static_cast<std::size_t>(height / 2) * width + width / 2;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 3] = 1.0f;
+    }
+    pixels[center * 4] = 1.0f;
+    pixels[center * 4 + 1] = 1.0f;
+    pixels[center * 4 + 2] = 1.0f;
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache foregroundEndpoint;
+    ImageF32x4RGBAWithCache foregroundOutside;
+    ImageF32x4RGBAWithCache backgroundEndpoint;
+    ImageF32x4RGBAWithCache backgroundOutside;
+
+    const auto renderAtDepth = [&source](
+        const float depth, ImageF32x4RGBAWithCache& output) {
+        FixedDepthInputSampler sampler(width, height, depth);
+        DepthBokehEffect effect;
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusDistance")), QVariant(0.5));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusRange")), QVariant(0.2));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("maxRadius")), QVariant(8.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
+        EffectContext context;
+        context.sampler = &sampler;
+        effect.setContext(context);
+        effect.applyCPUOnly(source, output);
+    };
+    renderAtDepth(0.3f, foregroundEndpoint);
+    renderAtDepth(0.25f, foregroundOutside);
+    renderAtDepth(0.7f, backgroundEndpoint);
+    renderAtDepth(0.75f, backgroundOutside);
+
+    const float* foregroundEndpointPixels =
+        foregroundEndpoint.image().rgba32fData();
+    const float* foregroundOutsidePixels =
+        foregroundOutside.image().rgba32fData();
+    const float* backgroundEndpointPixels =
+        backgroundEndpoint.image().rgba32fData();
+    const float* backgroundOutsidePixels =
+        backgroundOutside.image().rgba32fData();
+    ASSERT_NE(foregroundEndpointPixels, nullptr);
+    ASSERT_NE(foregroundOutsidePixels, nullptr);
+    ASSERT_NE(backgroundEndpointPixels, nullptr);
+    ASSERT_NE(backgroundOutsidePixels, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(foregroundEndpointPixels[channel], pixels[channel])
+            << "foreground endpoint channel=" << channel;
+        EXPECT_FLOAT_EQ(backgroundEndpointPixels[channel], pixels[channel])
+            << "background endpoint channel=" << channel;
+    }
+    EXPECT_LT(foregroundOutsidePixels[center * 4], 1.0f);
+    EXPECT_GT(foregroundOutsidePixels[(center + 1) * 4], 0.0f);
+    EXPECT_LT(backgroundOutsidePixels[center * 4], 1.0f);
+    EXPECT_GT(backgroundOutsidePixels[(center + 1) * 4], 0.0f);
+}
+
 TEST(SpatialImageEffectContractTest, ApertureBlurSpreadsRgbAndPreservesAlphaAndInput)
 {
     constexpr int width = 33;
