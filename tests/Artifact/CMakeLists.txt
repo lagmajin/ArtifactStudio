@@ -1045,6 +1045,15 @@ artifact_add_test(ArtifactFindEdgesEffectContractTest
 set_tests_properties(ArtifactFindEdgesEffectContractTest PROPERTIES
     LABELS "effect;find-edges;cpu;contract"
 )
+artifact_add_test(ArtifactAutoExposureEffectContractTest
+    SOURCES
+        AutoExposureEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsColor
+)
+set_tests_properties(ArtifactAutoExposureEffectContractTest PROPERTIES
+    LABELS "effect;auto-exposure;property;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
