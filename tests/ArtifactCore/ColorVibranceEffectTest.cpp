@@ -1657,6 +1657,61 @@ TEST(CreativeImageEffectContractTest, LightPressureActiveSettingsChangeFiniteRgb
     }
 }
 
+TEST(CreativeImageEffectContractTest, LightPressureBloomAddsHighlightContribution) {
+    constexpr int width = 4;
+    constexpr int height = 3;
+    VideoFrame noBloomFrame(width, height);
+    VideoFrame bloomFrame(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+            noBloomFrame.getChannel(channel)->data()[pixel] = 0.5f;
+            bloomFrame.getChannel(channel)->data()[pixel] = 0.5f;
+        }
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        noBloomFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        bloomFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+    }
+
+    LightPressureEffect noBloomEffect;
+    noBloomEffect.setParameter("Pressure", 0.8f);
+    noBloomEffect.setParameter("Bloom", 0.0f);
+    noBloomEffect.setParameter("Spread", 0.0f);
+    noBloomEffect.setParameter("Compression", 0.0f);
+    LightPressureEffect bloomEffect;
+    bloomEffect.setParameter("Pressure", 0.8f);
+    bloomEffect.setParameter("Bloom", 1.0f);
+    bloomEffect.setParameter("Spread", 0.0f);
+    bloomEffect.setParameter("Compression", 0.0f);
+    const CreativeEffectContext context{.time = 0.75};
+    noBloomEffect.process(noBloomFrame, context);
+    bloomEffect.process(bloomFrame, context);
+
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto noBloom = noBloomFrame.getChannel(channel);
+        const auto bloom = bloomFrame.getChannel(channel);
+        ASSERT_TRUE(noBloom);
+        ASSERT_TRUE(bloom);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(bloom->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            EXPECT_GT(bloom->data()[pixel], noBloom->data()[pixel])
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+        }
+    }
+
+    const auto noBloomAlpha = noBloomFrame.getChannel(ChannelType::Alpha);
+    const auto bloomAlpha = bloomFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(noBloomAlpha);
+    ASSERT_TRUE(bloomAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(noBloomAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(bloomAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, TemporalEffectsInitializeHistoryFromFirstFrameWithoutChangingPixels) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
