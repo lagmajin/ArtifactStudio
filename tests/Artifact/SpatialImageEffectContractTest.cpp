@@ -388,6 +388,49 @@ TEST(SpatialImageEffectContractTest,
     EXPECT_TRUE(backgroundChanged);
 }
 
+TEST(SpatialImageEffectContractTest,
+     DepthBokehPreservesInputWhenNamedDepthIsUnavailableAndFallbackIsDisabled)
+{
+    constexpr int width = 5;
+    constexpr int height = 3;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width * height);
+         ++pixel) {
+        pixels[pixel * 4] = static_cast<float>(pixel + 1) / 20.0f;
+        pixels[pixel * 4 + 1] = static_cast<float>(pixel + 2) / 24.0f;
+        pixels[pixel * 4 + 2] = static_cast<float>(pixel + 3) / 28.0f;
+        pixels[pixel * 4 + 3] = static_cast<float>(pixel + 4) / 32.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    FixedDepthInputSampler unavailableSampler(width, height, 0.5f);
+
+    DepthBokehEffect effect;
+    effect.setPropertyValue(
+        UniString(QStringLiteral("depthInput")), QStringLiteral("missing-depth"));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("useLumaFallback")), QVariant(false));
+    EffectContext context;
+    context.compositionFrame = 73;
+    context.sampler = &unavailableSampler;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_EQ(unavailableSampler.requestedInput,
+              QStringLiteral("missing-depth"));
+    EXPECT_EQ(unavailableSampler.requestedFrame, 73);
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(result[channel], pixels[channel])
+            << "channel=" << channel;
+    }
+}
+
 TEST(SpatialImageEffectContractTest, ApertureBlurSpreadsRgbAndPreservesAlphaAndInput)
 {
     constexpr int width = 33;
