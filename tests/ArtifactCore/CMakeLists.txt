@@ -612,6 +612,16 @@ set_tests_properties(ArtifactCoreGPUThreadPoolContractTest PROPERTIES
     LABELS "graphics;gpu-queue;cpu;contract"
 )
 
+artifact_add_test(ArtifactCorePointwiseFusionGraphContractTest
+    SOURCES
+        PointwiseFusionGraphContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCorePointwiseFusionGraphContractTest PROPERTIES
+    LABELS "graphics;pointwise-fusion;shader-generation;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreRawImageContractTest
     SOURCES
         RawImageContractTest.cpp
