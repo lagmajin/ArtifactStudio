@@ -743,6 +743,17 @@ artifact_add_test(ArtifactCoreShapeExtrudeTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
+    SOURCES
+        AeShapeOperatorsContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreAeShapeOperatorsContractTest PROPERTIES
+    LABELS "shape;operators;geometry;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreMeshImporterPlyTest
     SOURCES
         MeshImporterPlyTest.cpp
