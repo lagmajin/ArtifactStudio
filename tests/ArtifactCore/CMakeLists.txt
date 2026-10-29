@@ -327,6 +327,16 @@ set_tests_properties(ArtifactCoreCameraContractTest PROPERTIES
     LABELS "camera;transform;projection;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreViewOrientationNavigatorContractTest
+    SOURCES
+        ViewOrientationNavigatorContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreViewOrientationNavigatorContractTest PROPERTIES
+    LABELS "viewport;orientation;interaction;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
