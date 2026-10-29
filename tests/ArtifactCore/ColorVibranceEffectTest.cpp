@@ -3394,3 +3394,63 @@ TEST(CreativeImageEffectContractTest, DisabledPigmentSeparationPreservesEveryCha
         }
     }
 }
+
+TEST(CreativeImageEffectContractTest, PigmentSeparationGranulationIsDeterministicAtTimeAndVariesAcrossTime) {
+    constexpr int width = 10;
+    constexpr int height = 8;
+    VideoFrame firstFrame(width, height);
+    VideoFrame repeatFrame(width, height);
+    VideoFrame laterFrame(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float value = 0.15f + static_cast<float>((pixel * 7) % 29) / 40.0f;
+        for (VideoFrame* frame : {&firstFrame, &repeatFrame, &laterFrame}) {
+            frame->getChannel(ChannelType::Red)->data()[pixel] = value;
+            frame->getChannel(ChannelType::Green)->data()[pixel] = value * 0.8f;
+            frame->getChannel(ChannelType::Blue)->data()[pixel] = value * 0.6f;
+            frame->getChannel(ChannelType::Alpha)->data()[pixel] =
+                static_cast<float>(pixel) / (width * height - 1);
+        }
+    }
+
+    auto makeGrainEffect = [] {
+        PigmentSeparationEffect effect;
+        effect.setParameter("Spread", 0.0f);
+        effect.setParameter("Bleed", 0.0f);
+        effect.setParameter("Flow", 0.0f);
+        effect.setParameter("Granulation", 1.0f);
+        return effect;
+    };
+    auto firstEffect = makeGrainEffect();
+    auto repeatEffect = makeGrainEffect();
+    auto laterEffect = makeGrainEffect();
+    firstEffect.process(firstFrame, CreativeEffectContext{.time = 2.0});
+    repeatEffect.process(repeatFrame, CreativeEffectContext{.time = 2.0});
+    laterEffect.process(laterFrame, CreativeEffectContext{.time = 22.0});
+
+    bool timeChangedGrain = false;
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto first = firstFrame.getChannel(channelType);
+        const auto repeat = repeatFrame.getChannel(channelType);
+        const auto later = laterFrame.getChannel(channelType);
+        ASSERT_TRUE(first);
+        ASSERT_TRUE(repeat);
+        ASSERT_TRUE(later);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(first->data()[pixel], repeat->data()[pixel]);
+            EXPECT_TRUE(std::isfinite(later->data()[pixel]));
+            timeChangedGrain = timeChangedGrain ||
+                std::abs(first->data()[pixel] - later->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(timeChangedGrain);
+
+    for (VideoFrame* frame : {&firstFrame, &repeatFrame, &laterFrame}) {
+        const auto alpha = frame->getChannel(ChannelType::Alpha);
+        ASSERT_TRUE(alpha);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(alpha->data()[pixel],
+                            static_cast<float>(pixel) / (width * height - 1));
+        }
+    }
+}
