@@ -937,6 +937,15 @@ artifact_add_test(ArtifactTimeBlurEffectContractTest
 set_tests_properties(ArtifactTimeBlurEffectContractTest PROPERTIES
     LABELS "effect;time-blur;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactVectorBlurEffectContractTest
+    SOURCES
+        VectorBlurEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactVectorBlurEffectContractTest PROPERTIES
+    LABELS "effect;vector-blur;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
