@@ -2266,6 +2266,62 @@ TEST(CreativeImageEffectContractTest, EdgeEchoActiveSettingsChangeFiniteRgbAndKe
     }
 }
 
+TEST(CreativeImageEffectContractTest, EdgeEchoRgbOutputDoesNotDependOnOptionalAlphaPlane) {
+    constexpr int width = 4;
+    constexpr int height = 2;
+    VideoFrame withAlpha(width, height);
+    VideoFrame withoutAlpha(width, height);
+    const float inputRed[] = {0.1f, 0.2f, 0.8f, 0.9f,
+                              0.1f, 0.2f, 0.8f, 0.9f};
+    const float inputGreen[] = {0.8f, 0.7f, 0.2f, 0.1f,
+                                0.8f, 0.7f, 0.2f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.3f, 0.7f, 0.8f,
+                               0.2f, 0.3f, 0.7f, 0.8f};
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (VideoFrame* frame : {&withAlpha, &withoutAlpha}) {
+            frame->getChannel(ChannelType::Red)->data()[pixel] = inputRed[pixel];
+            frame->getChannel(ChannelType::Green)->data()[pixel] = inputGreen[pixel];
+            frame->getChannel(ChannelType::Blue)->data()[pixel] = inputBlue[pixel];
+        }
+        withAlpha.getChannel(ChannelType::Alpha)->data()[pixel] =
+            static_cast<float>(pixel) / (width * height - 1);
+    }
+    withoutAlpha.removeChannel(ChannelType::Alpha);
+
+    EdgeEchoEffect withAlphaEffect;
+    withAlphaEffect.setParameter("Intensity", 0.8f);
+    withAlphaEffect.setParameter("Thickness", 1.0f);
+    withAlphaEffect.setParameter("EchoCount", 2.0f);
+    withAlphaEffect.setParameter("Tint", 0.5f);
+    EdgeEchoEffect withoutAlphaEffect;
+    withoutAlphaEffect.setParameter("Intensity", 0.8f);
+    withoutAlphaEffect.setParameter("Thickness", 1.0f);
+    withoutAlphaEffect.setParameter("EchoCount", 2.0f);
+    withoutAlphaEffect.setParameter("Tint", 0.5f);
+    withAlphaEffect.process(withAlpha, CreativeEffectContext{});
+    withoutAlphaEffect.process(withoutAlpha, CreativeEffectContext{});
+
+    bool changedRgb = false;
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto expected = withAlpha.getChannel(channelType);
+        const auto actual = withoutAlpha.getChannel(channelType);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(actual->data()[pixel]));
+            EXPECT_FLOAT_EQ(actual->data()[pixel], expected->data()[pixel]);
+            const float original = channelType == ChannelType::Red ? inputRed[pixel]
+                : channelType == ChannelType::Green ? inputGreen[pixel]
+                                                    : inputBlue[pixel];
+            changedRgb = changedRgb ||
+                std::abs(actual->data()[pixel] - original) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    EXPECT_FALSE(withoutAlpha.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, EdgeEchoThicknessChangesEchoSamplingDistance) {
     constexpr int width = 12;
     constexpr int height = 8;
