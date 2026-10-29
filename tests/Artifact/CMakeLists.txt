@@ -495,6 +495,16 @@ set_tests_properties(ArtifactThresholdEffectContractTest PROPERTIES
     LABELS "effect;cpu;contract"
 )
 
+artifact_add_test(ArtifactVHSTapeEffectContractTest
+    SOURCES
+        VHSTapeEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactVHSTapeEffectContractTest PROPERTIES
+    LABELS "effect;vhs;lofi;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
