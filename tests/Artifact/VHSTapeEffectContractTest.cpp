@@ -442,6 +442,7 @@ TEST(VHSTapeEffectContractTest, OsdTimecodeAdvancesWithEvolution)
                          SurfaceColorDescriptor::unknownBgra32Float());
     const ImageF32x4RGBAWithCache source(image);
     ImageF32x4RGBAWithCache firstSecond;
+    ImageF32x4RGBAWithCache halfSecond;
     ImageF32x4RGBAWithCache secondSecond;
 
     const auto renderOsdAt = [&source](
@@ -454,27 +455,37 @@ TEST(VHSTapeEffectContractTest, OsdTimecodeAdvancesWithEvolution)
         effect.applyCPUOnly(source, output);
     };
     renderOsdAt(0.0, firstSecond);
+    renderOsdAt(0.5, halfSecond);
     renderOsdAt(1.0, secondSecond);
 
     ASSERT_EQ(firstSecond.image().width(), width);
     ASSERT_EQ(firstSecond.image().height(), height);
+    ASSERT_EQ(halfSecond.image().width(), width);
+    ASSERT_EQ(halfSecond.image().height(), height);
     ASSERT_EQ(secondSecond.image().width(), width);
     ASSERT_EQ(secondSecond.image().height(), height);
     const float* firstPixels = firstSecond.image().rgba32fData();
+    const float* halfPixels = halfSecond.image().rgba32fData();
     const float* secondPixels = secondSecond.image().rgba32fData();
     ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(halfPixels, nullptr);
     ASSERT_NE(secondPixels, nullptr);
-    bool timecodeChanged = false;
+    bool subframeChanged = false;
+    bool secondChanged = false;
     for (std::size_t pixel = 0;
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
         for (std::size_t channel = 0; channel < 3; ++channel) {
             const std::size_t offset = pixel * 4 + channel;
-            timecodeChanged = timecodeChanged ||
-                std::abs(firstPixels[offset] - secondPixels[offset]) > 1.0e-5f;
+            subframeChanged = subframeChanged ||
+                std::abs(firstPixels[offset] - halfPixels[offset]) > 1.0e-5f;
+            secondChanged = secondChanged ||
+                std::abs(halfPixels[offset] - secondPixels[offset]) > 1.0e-5f;
         }
     }
-    EXPECT_TRUE(timecodeChanged)
-        << "the OSD timecode should reflect the Evolution property";
+    EXPECT_TRUE(subframeChanged)
+        << "the OSD frame field should reflect fractional Evolution seconds";
+    EXPECT_TRUE(secondChanged)
+        << "the OSD seconds field should advance with Evolution";
 }
 
 TEST(VHSTapeEffectContractTest,
