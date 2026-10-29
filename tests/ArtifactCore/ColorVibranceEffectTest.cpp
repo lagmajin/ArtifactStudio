@@ -491,6 +491,41 @@ TEST(CreativeImageEffectContractTest, MirrorReflectsOnlyTheSelectedHalfAcrossVer
     }
 }
 
+TEST(CreativeImageEffectContractTest, MirrorAnglePiOverTwoReflectsAcrossHorizontalAxis) {
+    VideoFrame frame(1, 4);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int y = 0; y < 4; ++y) {
+        red->data()[y] = static_cast<float>(y + 1) / 10.0f;
+        green->data()[y] = static_cast<float>(y + 2) / 10.0f;
+        blue->data()[y] = static_cast<float>(y + 3) / 10.0f;
+        alpha->data()[y] = static_cast<float>(y + 1) / 5.0f;
+    }
+
+    MirrorEffect effect;
+    effect.setParameter("Angle", 1.570796327f);
+    effect.setParameter("CenterX", 0.5f);
+    effect.setParameter("CenterY", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const float expectedRed[] = {0.1f, 0.2f, 0.3f, 0.2f};
+    const float expectedGreen[] = {0.2f, 0.3f, 0.4f, 0.3f};
+    const float expectedBlue[] = {0.3f, 0.4f, 0.5f, 0.4f};
+    for (int y = 0; y < 4; ++y) {
+        EXPECT_FLOAT_EQ(red->data()[y], expectedRed[y]) << "row=" << y;
+        EXPECT_FLOAT_EQ(green->data()[y], expectedGreen[y]) << "row=" << y;
+        EXPECT_FLOAT_EQ(blue->data()[y], expectedBlue[y]) << "row=" << y;
+        EXPECT_FLOAT_EQ(alpha->data()[y], static_cast<float>(y + 1) / 5.0f)
+            << "row=" << y;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, PixelateAveragesPartialEdgeBlocksWithoutChangingAlpha) {
     VideoFrame frame(3, 2);
     auto red = frame.getChannel(ChannelType::Red);
