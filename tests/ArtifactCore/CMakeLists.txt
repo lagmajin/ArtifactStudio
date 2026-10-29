@@ -120,6 +120,17 @@ set_tests_properties(ArtifactCoreTrackingDataContractTest PROPERTIES
     LABELS "tracking;data;homography;interpolation;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCorePlanarTrackerContractTest
+    SOURCES
+        PlanarTrackerContractTest.cpp
+    LIBS
+        ArtifactCoreTracking
+)
+set_tests_properties(ArtifactCorePlanarTrackerContractTest PROPERTIES
+    LABELS "tracking;planar;homography;opencv;cpu;contract;core"
+    TIMEOUT 60
+)
+
 artifact_add_test(ArtifactCoreTest
     SOURCES
         UtilsTest.cpp
