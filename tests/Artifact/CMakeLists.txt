@@ -645,6 +645,16 @@ set_tests_properties(ArtifactChromaticReliefEffectContractTest PROPERTIES
     LABELS "effect;chromatic-relief;cpu;contract"
 )
 
+artifact_add_test(ArtifactDropShadowEffectContractTest
+    SOURCES
+        DropShadowEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactDropShadowEffectContractTest PROPERTIES
+    LABELS "effect;drop-shadow;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
