@@ -93,11 +93,11 @@ TEST(SharpenEffectContractTest, GpuSpatialDescriptorCarriesSettings)
     effect.setAmount(2.5f);
     effect.setSigma(1.25f);
     effect.setThreshold(0.2f);
-    ArtifactCore::GpuSpatialEffectStack stack;
+    Artifact::GpuSpatialEffectStack stack;
 
     ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
     ASSERT_EQ(stack.count, 1u);
-    EXPECT_EQ(stack.nodes[0].kind, ArtifactCore::GpuSpatialEffectKind::Sharpen);
+    EXPECT_EQ(stack.nodes[0].kind, Artifact::GpuSpatialEffectKind::Sharpen);
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[0], 2.5f);
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[1], 1.25f);
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[2], 0.2f);

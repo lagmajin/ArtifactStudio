@@ -62,11 +62,11 @@ TEST(VignetteEffectContractTest, GpuSpatialDescriptorCarriesConfiguration)
     effect.setFeather(0.3f);
     effect.setCenterX(0.2f);
     effect.setCenterY(0.7f);
-    ArtifactCore::GpuSpatialEffectStack stack;
+    Artifact::GpuSpatialEffectStack stack;
 
     ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
     ASSERT_EQ(stack.count, 1u);
-    EXPECT_EQ(stack.nodes[0].kind, ArtifactCore::GpuSpatialEffectKind::Vignette);
+    EXPECT_EQ(stack.nodes[0].kind, Artifact::GpuSpatialEffectKind::Vignette);
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[0], 0.25f);
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[1], 1.5f);
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[2], 0.3f);

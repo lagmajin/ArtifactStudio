@@ -595,6 +595,16 @@ set_tests_properties(ArtifactKaleidoscopeEffectContractTest PROPERTIES
     LABELS "effect;kaleidoscope;cpu;contract"
 )
 
+artifact_add_test(ArtifactDitheringEffectContractTest
+    SOURCES
+        DitheringEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsStylize
+)
+set_tests_properties(ArtifactDitheringEffectContractTest PROPERTIES
+    LABELS "effect;dithering;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp

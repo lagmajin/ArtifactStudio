@@ -113,12 +113,12 @@ TEST(LensDistortionEffectContractTest, GpuSpatialDescriptorCarriesConfiguration)
     effect.setTangentialX(0.3f);
     effect.setTangentialY(-0.4f);
     effect.setTransparentEdges(true);
-    ArtifactCore::GpuSpatialEffectStack stack;
+    Artifact::GpuSpatialEffectStack stack;
 
     ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
     ASSERT_EQ(stack.count, 1u);
     EXPECT_EQ(stack.nodes[0].kind,
-              ArtifactCore::GpuSpatialEffectKind::LensDistortion);
+              Artifact::GpuSpatialEffectKind::LensDistortion);
     const std::array<float, 9> expected{
         12.0f, -8.0f, 0.2f, 0.7f, 1.5f, 1.0f, 0.3f, -0.4f, 1.0f};
     for (std::size_t i = 0; i < expected.size(); ++i) {

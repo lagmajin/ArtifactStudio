@@ -87,12 +87,12 @@ TEST(KaleidoscopeEffectContractTest, GpuSpatialDescriptorCarriesSettings)
     effect.setZoom(1.25f);
     effect.setFeather(0.4f);
     effect.setMirror(false);
-    ArtifactCore::GpuSpatialEffectStack stack;
+    Artifact::GpuSpatialEffectStack stack;
 
     ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
     ASSERT_EQ(stack.count, 1u);
     EXPECT_EQ(stack.nodes[0].kind,
-              ArtifactCore::GpuSpatialEffectKind::Kaleidoscope);
+              Artifact::GpuSpatialEffectKind::Kaleidoscope);
     const std::array<float, 7> expected{
         9.0f, 0.35f, 0.6f, 25.0f, 1.25f, 0.4f, 0.0f};
     for (std::size_t i = 0; i < expected.size(); ++i) {
