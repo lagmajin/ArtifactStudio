@@ -811,6 +811,15 @@ artifact_add_test(ArtifactDifferenceMatteEffectContractTest
 set_tests_properties(ArtifactDifferenceMatteEffectContractTest PROPERTIES
     LABELS "effect;difference-matte;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactTemporalMedianEffectContractTest
+    SOURCES
+        TemporalMedianEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactTemporalMedianEffectContractTest PROPERTIES
+    LABELS "effect;temporal-median;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
