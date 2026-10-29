@@ -1189,6 +1189,15 @@ artifact_add_test(ArtifactPhysicalHalationEffectContractTest
 set_tests_properties(ArtifactPhysicalHalationEffectContractTest PROPERTIES
     LABELS "effect;physical-halation;cpu;contract"
 )
+artifact_add_test(ArtifactLuminescenceCausticsEffectContractTest
+    SOURCES
+        LuminescenceCausticsEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsGlow
+)
+set_tests_properties(ArtifactLuminescenceCausticsEffectContractTest PROPERTIES
+    LABELS "effect;luminescence-caustics;cpu;contract"
+)
 artifact_add_test(ArtifactDisplacementMapEffectContractTest
     SOURCES
         DisplacementMapEffectContractTest.cpp
