@@ -387,6 +387,50 @@ TEST(LofiEffectContractTest, OldTvClampsRgbAndPreservesOutOfRangeAlpha)
     }
 }
 
+TEST(LofiEffectContractTest, OldTvAddsSharedNoiseWithoutChangingRgbChannelDifferences)
+{
+    constexpr int width = 7;
+    constexpr int height = 5;
+    constexpr std::array<float, 3> baseRgb{0.2f, 0.4f, 0.6f};
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = baseRgb[0];
+            pixels[offset + 1] = baseRgb[1];
+            pixels[offset + 2] = baseRgb[2];
+            pixels[offset + 3] = 0.75f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (int y = 0; y < height; ++y) {
+        const float scanline = y % 4 == 0 ? 0.7f : 1.0f;
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            EXPECT_NEAR(result[offset + 1] - result[offset + 0],
+                        (baseRgb[1] - baseRgb[0]) * scanline, 1.0e-6f)
+                << "x=" << x << " y=" << y << " R-G";
+            EXPECT_NEAR(result[offset + 2] - result[offset + 1],
+                        (baseRgb[2] - baseRgb[1]) * scanline, 1.0e-6f)
+                << "x=" << x << " y=" << y << " G-B";
+            EXPECT_FLOAT_EQ(result[offset + 3], 0.75f)
+                << "x=" << x << " y=" << y;
+        }
+    }
+}
+
 TEST(LofiEffectContractTest, OldTvZeroMixIsAnExactSourcePassthrough)
 {
     constexpr int width = 5;
