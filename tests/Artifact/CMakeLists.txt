@@ -1099,6 +1099,15 @@ artifact_add_test(ArtifactRadioWavesEffectContractTest
 set_tests_properties(ArtifactRadioWavesEffectContractTest PROPERTIES
     LABELS "effect;radio-waves;generator;cpu;contract"
 )
+artifact_add_test(ArtifactWaveEffectContractTest
+    SOURCES
+        WaveEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactWaveEffectContractTest PROPERTIES
+    LABELS "effect;wave;distortion;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
