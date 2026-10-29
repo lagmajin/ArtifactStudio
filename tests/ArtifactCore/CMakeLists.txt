@@ -138,6 +138,16 @@ artifact_add_test(ArtifactCoreTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreCompositionFinalEffectStackContractTest
+    SOURCES
+        CompositionFinalEffectStackContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreCompositionFinalEffectStackContractTest PROPERTIES
+    LABELS "composition;final-effects;serialization;contract;core"
+)
+
 artifact_add_test(ArtifactCoreCommandSandboxContractTest
     SOURCES
         CommandSandboxContractTest.cpp
