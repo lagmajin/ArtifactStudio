@@ -983,6 +983,17 @@ set_tests_properties(ArtifactCoreRenderJobModelContractTest PROPERTIES
     LABELS "render-manager;model;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreProgressAggregatorContractTest
+    SOURCES
+        ProgressAggregatorContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreProgressAggregatorContractTest PROPERTIES
+    LABELS "render-farm;progress;threading;cpu;contract;core"
+    TIMEOUT 30
+)
+
 artifact_add_test(ArtifactCoreAcousticGenerationTest
     SOURCES
         AcousticGenerationTest.cpp
