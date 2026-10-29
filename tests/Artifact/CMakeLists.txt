@@ -1081,6 +1081,15 @@ artifact_add_test(ArtifactLinearWipeEffectContractTest
 set_tests_properties(ArtifactLinearWipeEffectContractTest PROPERTIES
     LABELS "effect;linear-wipe;cpu;contract"
 )
+artifact_add_test(ArtifactOpticsCompensationEffectContractTest
+    SOURCES
+        OpticsCompensationEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactOpticsCompensationEffectContractTest PROPERTIES
+    LABELS "effect;optics-compensation;property;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
