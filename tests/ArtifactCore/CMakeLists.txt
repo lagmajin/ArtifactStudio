@@ -347,6 +347,17 @@ set_tests_properties(ArtifactCoreLightContractTest PROPERTIES
     LABELS "light;3d;parameters;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreActionManagerContractTest
+    SOURCES
+        ActionManagerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreActionManagerContractTest PROPERTIES
+    LABELS "actions;input;event-bus;cpu;contract"
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
