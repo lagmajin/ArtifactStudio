@@ -46,6 +46,16 @@ RefCntAutoPtr<ITexture> createTexture(
     const float* data,
     Uint64 stride);
 
+RefCntAutoPtr<ITexture> createTextureWithSize(
+    IRenderDevice* device,
+    const char* name,
+    TEXTURE_FORMAT format,
+    BIND_FLAGS bindFlags,
+    unsigned width,
+    unsigned height,
+    const float* data,
+    Uint64 stride);
+
 RefCntAutoPtr<ITexture> createDepthTexture(
     VulkanGpuDevice& gpu,
     float clearDepth);
@@ -210,6 +220,57 @@ TEST_F(PostProcessPassGpuContractTest, UploadedLutTransformsPixelsAndRejectsMiss
         gpu_.context(), inputSrv, outputUav, kWidth, kHeight));
 }
 
+TEST_F(PostProcessPassGpuContractTest, LutRejectsMismatchedOutputDimensionsWithoutWriting)
+{
+    ArtifactCore::GpuContext context(gpu_.device(), gpu_.context());
+    Artifact::ArtifactFinalPostProcess postProcess(context);
+    std::array<float, kPixelCount * 4> input{};
+    std::array<float, kPixelCount * 4> initialOutput{};
+    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
+        input[pixel * 4 + 0] = 1.0f;
+        input[pixel * 4 + 3] = 1.0f;
+        initialOutput[pixel * 4 + 0] = 0.125f;
+        initialOutput[pixel * 4 + 1] = 0.25f;
+        initialOutput[pixel * 4 + 2] = 0.5f;
+        initialOutput[pixel * 4 + 3] = 0.75f;
+    }
+    auto inputTexture = createTexture(
+        gpu_.device(), "Mismatched LUT input", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_SHADER_RESOURCE, input.data(), kWidth * 4 * sizeof(float));
+    auto outputTexture = createTextureWithSize(
+        gpu_.device(), "Mismatched LUT output", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, kWidth - 1, kHeight,
+        initialOutput.data(), (kWidth - 1) * 4 * sizeof(float));
+    ASSERT_NE(inputTexture, nullptr);
+    ASSERT_NE(outputTexture, nullptr);
+
+    auto* inputSrv = inputTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
+    ASSERT_NE(inputSrv, nullptr);
+    ASSERT_NE(outputUav, nullptr);
+    constexpr std::array<float, 24> invertRgbLut{
+        1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    postProcess.updateFromColorLUT(invertRgbLut.data(), 2);
+    ASSERT_TRUE(postProcess.hasActiveLUT());
+
+    EXPECT_FALSE(postProcess.apply(
+        gpu_.context(), inputSrv, outputUav, kWidth, kHeight));
+
+    std::array<float, kPixelCount * 4> output{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, output));
+    for (unsigned y = 0; y < kHeight; ++y) {
+        for (unsigned x = 0; x < kWidth - 1; ++x) {
+            const auto offset = pixelOffset(x, y);
+            EXPECT_FLOAT_EQ(output[offset + 0], 0.125f);
+            EXPECT_FLOAT_EQ(output[offset + 1], 0.25f);
+            EXPECT_FLOAT_EQ(output[offset + 2], 0.5f);
+            EXPECT_FLOAT_EQ(output[offset + 3], 0.75f);
+        }
+    }
+}
+
 RefCntAutoPtr<ITexture> createTexture(
     IRenderDevice* device,
     const char* name,
@@ -218,11 +279,25 @@ RefCntAutoPtr<ITexture> createTexture(
     const float* data,
     Uint64 stride)
 {
+    return createTextureWithSize(
+        device, name, format, bindFlags, kWidth, kHeight, data, stride);
+}
+
+RefCntAutoPtr<ITexture> createTextureWithSize(
+    IRenderDevice* device,
+    const char* name,
+    TEXTURE_FORMAT format,
+    BIND_FLAGS bindFlags,
+    unsigned width,
+    unsigned height,
+    const float* data,
+    Uint64 stride)
+{
     TextureDesc desc;
     desc.Name = name;
     desc.Type = RESOURCE_DIM_TEX_2D;
-    desc.Width = kWidth;
-    desc.Height = kHeight;
+    desc.Width = width;
+    desc.Height = height;
     desc.Format = format;
     desc.MipLevels = 1;
     desc.Usage = USAGE_DEFAULT;
