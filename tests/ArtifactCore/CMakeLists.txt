@@ -652,6 +652,17 @@ set_tests_properties(ArtifactCoreRawImageContractTest PROPERTIES
     LABELS "image;import;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreAsyncFileWriterContractTest
+    SOURCES
+        AsyncFileWriterContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreAsyncFileWriterContractTest PROPERTIES
+    LABELS "io;async-file-writer;serialization;cpu;contract"
+    TIMEOUT 30
+)
+
 artifact_add_test(ArtifactCoreImageAnalyzerContractTest
     SOURCES
         ImageAnalyzerContractTest.cpp
