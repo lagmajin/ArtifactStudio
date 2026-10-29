@@ -1180,6 +1180,15 @@ artifact_add_test(ArtifactReactiveGlowEffectContractTest
 set_tests_properties(ArtifactReactiveGlowEffectContractTest PROPERTIES
     LABELS "effect;reactive-glow;spatial;cpu;contract"
 )
+artifact_add_test(ArtifactPhysicalHalationEffectContractTest
+    SOURCES
+        PhysicalHalationEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsGlow
+)
+set_tests_properties(ArtifactPhysicalHalationEffectContractTest PROPERTIES
+    LABELS "effect;physical-halation;cpu;contract"
+)
 artifact_add_test(ArtifactDisplacementMapEffectContractTest
     SOURCES
         DisplacementMapEffectContractTest.cpp
