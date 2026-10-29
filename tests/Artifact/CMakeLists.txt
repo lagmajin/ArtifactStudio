@@ -625,6 +625,16 @@ set_tests_properties(ArtifactBevelEffectContractTest PROPERTIES
     LABELS "effect;bevel;cpu;contract"
 )
 
+artifact_add_test(ArtifactEdgeEffectsContractTest
+    SOURCES
+        EdgeEffectsContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactEdgeEffectsContractTest PROPERTIES
+    LABELS "effect;edge;rim-light;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
