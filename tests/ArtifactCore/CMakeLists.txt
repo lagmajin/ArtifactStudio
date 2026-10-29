@@ -458,6 +458,16 @@ set_tests_properties(ArtifactCoreLUTLoaderContractTest PROPERTIES
     LABELS "color;grading;lut;file-io;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreLUTWriterContractTest
+    SOURCES
+        LUTWriterContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLUTWriterContractTest PROPERTIES
+    LABELS "color;grading;lut;file-io;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreColorScopesContractTest
     SOURCES
         ColorScopesContractTest.cpp
