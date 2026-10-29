@@ -860,6 +860,16 @@ set_tests_properties(ArtifactCoreRandomStreamContractTest PROPERTIES
     LABELS "math;random;determinism;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreSpatialGridContractTest
+    SOURCES
+        SpatialGridStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreSpatialGridContractTest PROPERTIES
+    LABELS "math;spatial-grid;geometry;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreShapeExtrudeTest
     SOURCES
         ShapeExtrudeTest.cpp
