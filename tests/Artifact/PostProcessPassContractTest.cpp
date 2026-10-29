@@ -181,15 +181,28 @@ TEST_F(PostProcessPassGpuContractTest, UploadedLutTransformsPixelsAndRejectsMiss
     auto selectedLut = std::make_unique<ArtifactCore::CompositionFinalEffect>(
         ArtifactCore::FinalEffectType::LUT);
     selectedStack.addEffect(std::move(selectedLut));
+    postProcess.updateFromColorLUT(invertRgbLut.data(), 2);
+    ASSERT_TRUE(postProcess.hasActiveLUT())
+        << "the configured LUT pixels must be uploaded before selecting the stack effect";
     postProcess.updateFromEffectStack(selectedStack);
     EXPECT_TRUE(postProcess.hasActiveLUT())
         << "Selecting the configured LUT must preserve its separately uploaded pixels";
+    ASSERT_TRUE(postProcess.apply(
+        gpu_.context(), inputSrv, outputUav, kWidth, kHeight));
+    std::array<float, kPixelCount * 4> selectedStackOutput{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, selectedStackOutput));
+    EXPECT_NEAR(selectedStackOutput[0], 0.0f, 1.0e-4f);
+    EXPECT_NEAR(selectedStackOutput[1], 1.0f, 1.0e-4f);
+    EXPECT_NEAR(selectedStackOutput[2], 1.0f, 1.0e-4f);
+    EXPECT_NEAR(selectedStackOutput[3], 1.0f, 1.0e-4f);
 
     ASSERT_NE(selectedStack.getEffect(0), nullptr);
     selectedStack.getEffect(0)->setEnabled(false);
     postProcess.updateFromEffectStack(selectedStack);
     EXPECT_FALSE(postProcess.hasActiveLUT())
         << "Disabling the only LUT effect must clear stale uploaded LUT state";
+    EXPECT_FALSE(postProcess.apply(
+        gpu_.context(), inputSrv, outputUav, kWidth, kHeight));
 
     postProcess.clearLUT();
     EXPECT_FALSE(postProcess.hasActiveLUT());
