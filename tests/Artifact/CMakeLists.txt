@@ -725,6 +725,16 @@ set_tests_properties(ArtifactFreezeFrameEffectContractTest PROPERTIES
     LABELS "effect;freeze-frame;temporal;cpu;contract"
 )
 
+artifact_add_test(ArtifactRadialBlurEffectContractTest
+    SOURCES
+        RadialBlurEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactRadialBlurEffectContractTest PROPERTIES
+    LABELS "effect;radial-blur;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
