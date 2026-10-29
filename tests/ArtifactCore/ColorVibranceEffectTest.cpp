@@ -1618,6 +1618,75 @@ TEST(CreativeImageEffectContractTest, DepthMeltPreservesUniformGrayAndAlpha) {
     }
 }
 
+TEST(CreativeImageEffectContractTest, DepthMeltActiveSettingsAreRepeatableAndKeepAlpha) {
+    constexpr int width = 8;
+    constexpr int height = 6;
+    constexpr int pixelCount = width * height;
+    VideoFrame first(width, height);
+    VideoFrame repeated(width, height);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    float original[pixelCount][4]{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            original[pixel][0] = 0.15f + x * 0.07f + y * 0.025f;
+            original[pixel][1] = 0.8f - x * 0.055f - y * 0.03f;
+            original[pixel][2] = 0.2f + ((x + 2 * y) % 7) * 0.08f;
+            original[pixel][3] = 0.1f + static_cast<float>(pixel) / 64.0f;
+            for (int channel = 0; channel < 4; ++channel) {
+                const auto firstPlane = first.getChannel(channels[channel]);
+                const auto repeatedPlane = repeated.getChannel(channels[channel]);
+                ASSERT_TRUE(firstPlane);
+                ASSERT_TRUE(repeatedPlane);
+                firstPlane->data()[pixel] = original[pixel][channel];
+                repeatedPlane->data()[pixel] = original[pixel][channel];
+            }
+        }
+    }
+
+    DepthMeltEffect firstEffect;
+    firstEffect.setParameter("Melt", 0.8f);
+    firstEffect.setParameter("Gravity", 0.6f);
+    firstEffect.setParameter("Heat", 0.5f);
+    firstEffect.setParameter("Detail", 0.7f);
+    DepthMeltEffect repeatedEffect;
+    repeatedEffect.setParameter("Melt", 0.8f);
+    repeatedEffect.setParameter("Gravity", 0.6f);
+    repeatedEffect.setParameter("Heat", 0.5f);
+    repeatedEffect.setParameter("Detail", 0.7f);
+    const CreativeEffectContext context{.time = 1.25, .frameIndex = 37};
+    firstEffect.process(first, context);
+    repeatedEffect.process(repeated, context);
+
+    bool changedRgb = false;
+    for (int channel = 0; channel < 3; ++channel) {
+        const auto firstPlane = first.getChannel(channels[channel]);
+        const auto repeatedPlane = repeated.getChannel(channels[channel]);
+        ASSERT_TRUE(firstPlane);
+        ASSERT_TRUE(repeatedPlane);
+        for (int pixel = 0; pixel < pixelCount; ++pixel) {
+            EXPECT_TRUE(std::isfinite(firstPlane->data()[pixel]))
+                << "channel=" << channel << " pixel=" << pixel;
+            EXPECT_FLOAT_EQ(firstPlane->data()[pixel], repeatedPlane->data()[pixel])
+                << "channel=" << channel << " pixel=" << pixel;
+            changedRgb = changedRgb || std::abs(
+                firstPlane->data()[pixel] - original[pixel][channel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    const auto firstAlpha = first.getChannel(ChannelType::Alpha);
+    const auto repeatedAlpha = repeated.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(firstAlpha);
+    ASSERT_TRUE(repeatedAlpha);
+    for (int pixel = 0; pixel < pixelCount; ++pixel) {
+        EXPECT_FLOAT_EQ(firstAlpha->data()[pixel], original[pixel][3]);
+        EXPECT_FLOAT_EQ(repeatedAlpha->data()[pixel], original[pixel][3]);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, GlitchIsRepeatableAtFixedTimeAndAppliesSharedGrainToRgb) {
     VideoFrame first(4, 2);
     VideoFrame second(4, 2);
