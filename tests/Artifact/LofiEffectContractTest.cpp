@@ -4,11 +4,13 @@
 #include <algorithm>
 #include <cstddef>
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 
 #include <QPointF>
 #include <QRectF>
 #include <QString>
+#include <QVariant>
 
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
@@ -151,6 +153,42 @@ TEST(LofiEffectContractTest, OldTvOutputDoesNotSharePixelStorageWithInput)
     EXPECT_FLOAT_EQ(outputPixels[0], originalOutputChannel0);
     outputPixels[4] = 23.0f;
     EXPECT_FLOAT_EQ(sourcePixels[4], originalSourceChannel4);
+}
+
+TEST(LofiEffectContractTest,
+     FilmGrungeZeroStrengthControlsPreserveTheInputExactly)
+{
+    constexpr int width = 7;
+    constexpr int height = 5;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        pixels[channel] = 0.1f + static_cast<float>(channel % 23) * 0.025f;
+    }
+    const auto descriptor =
+        SurfaceColorDescriptor::linearStraightRgba32Float();
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    image.setColorDescriptor(descriptor);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    EXPECT_EQ(output.image().colorDescriptor(), descriptor);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(result[channel], pixels[channel])
+            << "channel=" << channel;
+    }
 }
 
 TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
