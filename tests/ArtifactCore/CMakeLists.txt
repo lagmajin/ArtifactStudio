@@ -1109,6 +1109,16 @@ set_tests_properties(ArtifactCoreMetadataCollectorContractTest PROPERTIES
     LABELS "project;metadata;serialization;csv;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreSharedMemoryRingBufferContractTest
+    SOURCES
+        SharedMemoryRingBufferContractTest.cpp
+    LIBS
+        ArtifactCoreIPC
+)
+set_tests_properties(ArtifactCoreSharedMemoryRingBufferContractTest PROPERTIES
+    LABELS "ipc;shared-memory;ring-buffer;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
