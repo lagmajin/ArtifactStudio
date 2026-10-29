@@ -1219,6 +1219,16 @@ set_tests_properties(ArtifactCoreScatterEffectContractTest PROPERTIES
     LABELS "image;scatter;determinism;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreLeaveColorEffectContractTest
+    SOURCES
+        LeaveColorEffectContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLeaveColorEffectContractTest PROPERTIES
+    LABELS "image;color;leave-color;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
