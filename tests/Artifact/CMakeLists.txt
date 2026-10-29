@@ -615,6 +615,16 @@ set_tests_properties(ArtifactHalftoneEffectContractTest PROPERTIES
     LABELS "effect;halftone;cpu;contract"
 )
 
+artifact_add_test(ArtifactBevelEffectContractTest
+    SOURCES
+        BevelEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsStylize
+)
+set_tests_properties(ArtifactBevelEffectContractTest PROPERTIES
+    LABELS "effect;bevel;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp

@@ -8558,3 +8558,9 @@
 - **確認できた事実:** CPU の `sampleBilinear` は画像外座標を幅・高さで wrap する一方、GPU の `sampleLinear` は画像端へ clamp する。さらに最小寸法が 1 px の場合、CPU の `maxR` は `0.5`、GPU の `maxR` は最低 `1` となる。
 - **価値または懸念:** `transparentEdges=false` で境界を越えるワープ、または 1 px 寸法では CPU と GPU の出力が異なる可能性がある。今回の独立テストは CPU 契約だけを固定し、GPU parity は未検証である。
 - **次に確認すべきこと:** ビルド・GPU テストの実行が許可された後、同一の非定数画像を CPU / GPU に通し、透明端の有効・無効と 1 px 軸を含む寸法で画素比較する。仕様として wrap と clamp のどちらが正しいか決めてから、実装または許容誤差付き parity テストを検討する。
+
+## 2026-10-30: Bevel の edgeMode は CPU/GPU 実装で未使用
+- **関連:** `Artifact/src/Effects/Bevel/BevelEffect.cpp::BevelEffectCPUImpl::applyCPU` / `BevelEffectGPUImpl::kHlsl`。
+- **確認できた事実:** CPU impl に `edgeMode_` はあるが `applyCPU()` 内で読まれない。GPU 側は `g_EdgeMode` uniform を設定するが shader 本文で参照していない。公開 setter と property は存在する。
+- **価値または懸念:** UI の Edge Mode 切替は現状の両実装で出力へ影響しない。今回の契約テストは setter の状態のみを確認し、モード別出力を主張しない。
+- **次に確認すべきこと:** 意図する alpha bevel と edge bevel の入力・出力仕様を確認し、CPU/GPU 共通の非定数輪郭 fixture で mode 差を定義してから実装・統合テストする。実行確認は未実施。
