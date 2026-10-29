@@ -2186,3 +2186,67 @@ TEST(CreativeImageEffectContractTest, PigmentSeparationSpreadSoftensHighContrast
         EXPECT_FLOAT_EQ(spreadAlpha->data()[pixel], alpha);
     }
 }
+
+TEST(CreativeImageEffectContractTest, PigmentSeparationFlowChangesDirectionalSampling) {
+    constexpr int width = 12;
+    constexpr int height = 10;
+    VideoFrame stillFlowFrame(width, height);
+    VideoFrame variedFlowFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float red = static_cast<float>(x) / (width - 1);
+            const float green = static_cast<float>(y) / (height - 1);
+            const float blue = static_cast<float>((x + 2 * y) % width) / (width - 1);
+            stillFlowFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            stillFlowFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            stillFlowFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            variedFlowFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            variedFlowFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            variedFlowFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            stillFlowFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            variedFlowFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    PigmentSeparationEffect stillFlowEffect;
+    stillFlowEffect.setParameter("Spread", 0.65f);
+    stillFlowEffect.setParameter("Bleed", 0.0f);
+    stillFlowEffect.setParameter("Flow", 0.0f);
+    stillFlowEffect.setParameter("Granulation", 0.0f);
+    PigmentSeparationEffect variedFlowEffect;
+    variedFlowEffect.setParameter("Spread", 0.65f);
+    variedFlowEffect.setParameter("Bleed", 0.0f);
+    variedFlowEffect.setParameter("Flow", 1.0f);
+    variedFlowEffect.setParameter("Granulation", 0.0f);
+    const CreativeEffectContext context{.time = 3.0};
+    stillFlowEffect.process(stillFlowFrame, context);
+    variedFlowEffect.process(variedFlowFrame, context);
+
+    bool flowChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto stillFlow = stillFlowFrame.getChannel(channel);
+        const auto variedFlow = variedFlowFrame.getChannel(channel);
+        ASSERT_TRUE(stillFlow);
+        ASSERT_TRUE(variedFlow);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(variedFlow->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            flowChangedRgb = flowChangedRgb ||
+                std::abs(variedFlow->data()[pixel] - stillFlow->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(flowChangedRgb);
+
+    const auto stillFlowAlpha = stillFlowFrame.getChannel(ChannelType::Alpha);
+    const auto variedFlowAlpha = variedFlowFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(stillFlowAlpha);
+    ASSERT_TRUE(variedFlowAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(stillFlowAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(variedFlowAlpha->data()[pixel], alpha);
+    }
+}
