@@ -1239,6 +1239,16 @@ set_tests_properties(ArtifactCoreMotionTrailContractTest PROPERTIES
     LABELS "image;temporal;motion-trail;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreDuotoneEffectContractTest
+    SOURCES
+        DuotoneEffectContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreDuotoneEffectContractTest PROPERTIES
+    LABELS "image;color;duotone;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
