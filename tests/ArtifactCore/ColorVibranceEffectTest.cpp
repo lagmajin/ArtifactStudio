@@ -3934,6 +3934,40 @@ TEST(CreativeImageEffectContractTest, DepthMeltZeroMeltPreservesInputWithOtherCo
     }
 }
 
+TEST(CreativeImageEffectContractTest, DisabledDepthMeltPreservesOutOfRangeRgbaAtMaximumSettings) {
+    VideoFrame frame(2, 1);
+    const float red[] = {1.25f, -0.2f};
+    const float green[] = {-0.4f, 0.75f};
+    const float blue[] = {0.35f, 1.4f};
+    const float alpha[] = {1.2f, -0.1f};
+    for (int pixel = 0; pixel < 2; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = red[pixel];
+        frame.getChannel(ChannelType::Green)->data()[pixel] = green[pixel];
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = blue[pixel];
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha[pixel];
+    }
+
+    DepthMeltEffect effect;
+    effect.setEnabled(false);
+    effect.setParameter("Melt", 1.0f);
+    effect.setParameter("Gravity", 1.0f);
+    effect.setParameter("Heat", 1.0f);
+    effect.setParameter("Detail", 1.0f);
+    effect.process(frame, CreativeEffectContext{.time = 8.25});
+
+    const float* expected[] = {red, green, blue, alpha};
+    const ChannelType channelTypes[] = {
+        ChannelType::Red, ChannelType::Green, ChannelType::Blue, ChannelType::Alpha};
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channelTypes[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < 2; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], expected[channel][pixel])
+                << "channel=" << channel << " pixel=" << pixel;
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, DepthMeltGravityChangesVerticalDisplacement) {
     constexpr int width = 8;
     constexpr int height = 8;
