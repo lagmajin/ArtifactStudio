@@ -5,14 +5,70 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 import Artifact.Effect.Rasterizer.ApertureShapeBlur;
+import Artifact.Effect.Context;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
 import Utils.String.UniString;
 
 using namespace Artifact;
 using namespace ArtifactCore;
+
+namespace {
+
+class FixedDepthInputSampler final : public IEffectFrameSampler {
+public:
+    FixedDepthInputSampler(int width, int height, float depth)
+        : width_(width), height_(height), depth_(depth)
+    {
+    }
+
+    bool sampleCurrentLayerFrame(
+        std::int64_t, ImageF32x4RGBAWithCache&) override
+    {
+        return false;
+    }
+
+    bool sampleCurrentLayerFrameRelative(
+        std::int64_t, ImageF32x4RGBAWithCache&) override
+    {
+        return false;
+    }
+
+    bool sampleNamedInput(
+        const QString& inputId,
+        std::int64_t compositionFrame,
+        ImageF32x4RGBAWithCache& out) override
+    {
+        requestedInput = inputId;
+        requestedFrame = compositionFrame;
+        if (inputId != QStringLiteral("depth")) {
+            return false;
+        }
+        std::array<float, 17 * 17 * 4> pixels{};
+        for (std::size_t pixel = 0;
+             pixel < static_cast<std::size_t>(width_) * height_; ++pixel) {
+            pixels[pixel * 4] = depth_;
+            pixels[pixel * 4 + 3] = 1.0f;
+        }
+        ImageF32x4_RGBA image;
+        image.setFromRGBA32F(pixels.data(), width_, height_);
+        out = ImageF32x4RGBAWithCache(image);
+        return true;
+    }
+
+    QString requestedInput;
+    std::int64_t requestedFrame = -1;
+
+private:
+    int width_;
+    int height_;
+    float depth_;
+};
+
+} // namespace
 
 TEST(SpatialImageEffectContractTest,
      DepthBokehWithoutDepthOrLumaFallbackPreservesInputExactly)
@@ -74,6 +130,58 @@ TEST(SpatialImageEffectContractTest,
         UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
     effect.applyCPUOnly(source, output);
 
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(result[channel], pixels[channel])
+            << "channel=" << channel;
+    }
+}
+
+TEST(SpatialImageEffectContractTest,
+     DepthBokehSamplesNamedDepthInputAtCompositionFrame)
+{
+    constexpr int width = 17;
+    constexpr int height = 17;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr std::size_t center =
+        static_cast<std::size_t>(height / 2) * width + width / 2;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4] = 0.8f;
+        pixels[pixel * 4 + 1] = 0.8f;
+        pixels[pixel * 4 + 2] = 0.8f;
+        pixels[pixel * 4 + 3] = 0.6f;
+    }
+    pixels[center * 4] = 1.0f;
+    pixels[center * 4 + 1] = 1.0f;
+    pixels[center * 4 + 2] = 1.0f;
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    FixedDepthInputSampler sampler(width, height, 0.5f);
+
+    DepthBokehEffect effect;
+    effect.setPropertyValue(
+        UniString(QStringLiteral("focusDistance")), QVariant(0.5));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("focusRange")), QVariant(0.0));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("maxRadius")), QVariant(8.0));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
+    EffectContext context;
+    context.compositionFrame = 42;
+    context.sampler = &sampler;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_EQ(sampler.requestedInput, QStringLiteral("depth"));
+    EXPECT_EQ(sampler.requestedFrame, 42);
     ASSERT_EQ(output.image().width(), width);
     ASSERT_EQ(output.image().height(), height);
     const float* result = output.image().rgba32fData();
