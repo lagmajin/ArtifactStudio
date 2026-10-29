@@ -577,6 +577,73 @@ TEST(SpatialImageEffectContractTest,
     EXPECT_GT(backgroundOutsidePixels[(center + 1) * 4], 0.0f);
 }
 
+TEST(SpatialImageEffectContractTest,
+     DepthBokehMaximumRadiusClampsToDocumentedLimits)
+{
+    constexpr int width = 17;
+    constexpr int height = 17;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr std::size_t center =
+        static_cast<std::size_t>(height / 2) * width + width / 2;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 3] = 1.0f;
+    }
+    pixels[center * 4] = 1.0f;
+    pixels[center * 4 + 1] = 1.0f;
+    pixels[center * 4 + 2] = 1.0f;
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache belowMinimum;
+    ImageF32x4RGBAWithCache minimum;
+    ImageF32x4RGBAWithCache aboveMaximum;
+    ImageF32x4RGBAWithCache maximum;
+
+    const auto renderAtRadius = [&source](
+        const float radius, ImageF32x4RGBAWithCache& output) {
+        FixedDepthInputSampler sampler(width, height, 1.0f);
+        DepthBokehEffect effect;
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusDistance")), QVariant(0.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusRange")), QVariant(0.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("maxRadius")), QVariant(radius));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
+        EffectContext context;
+        context.sampler = &sampler;
+        effect.setContext(context);
+        effect.applyCPUOnly(source, output);
+    };
+    renderAtRadius(0.0f, belowMinimum);
+    renderAtRadius(1.0f, minimum);
+    renderAtRadius(65.0f, aboveMaximum);
+    renderAtRadius(64.0f, maximum);
+
+    const float* belowMinimumPixels = belowMinimum.image().rgba32fData();
+    const float* minimumPixels = minimum.image().rgba32fData();
+    const float* aboveMaximumPixels = aboveMaximum.image().rgba32fData();
+    const float* maximumPixels = maximum.image().rgba32fData();
+    ASSERT_NE(belowMinimumPixels, nullptr);
+    ASSERT_NE(minimumPixels, nullptr);
+    ASSERT_NE(aboveMaximumPixels, nullptr);
+    ASSERT_NE(maximumPixels, nullptr);
+    bool minimumAndMaximumDiffer = false;
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(belowMinimumPixels[channel], minimumPixels[channel])
+            << "below-minimum channel=" << channel;
+        EXPECT_FLOAT_EQ(aboveMaximumPixels[channel], maximumPixels[channel])
+            << "above-maximum channel=" << channel;
+        minimumAndMaximumDiffer = minimumAndMaximumDiffer ||
+            std::abs(minimumPixels[channel] - maximumPixels[channel]) > 1.0e-5f;
+    }
+    EXPECT_TRUE(minimumAndMaximumDiffer)
+        << "the clamped radius range must produce distinguishable blur levels";
+}
+
 TEST(SpatialImageEffectContractTest, ApertureBlurSpreadsRgbAndPreservesAlphaAndInput)
 {
     constexpr int width = 33;
