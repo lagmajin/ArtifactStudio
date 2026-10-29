@@ -1083,6 +1083,15 @@ artifact_add_test(ArtifactAutoMosaicEffectContractTest
 set_tests_properties(ArtifactAutoMosaicEffectContractTest PROPERTIES
     LABELS "effect;auto-mosaic;image;cpu;contract"
 )
+artifact_add_test(ArtifactSurfaceFXEffectContractTest
+    SOURCES
+        SurfaceFXEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsSurfaceFX
+)
+set_tests_properties(ArtifactSurfaceFXEffectContractTest PROPERTIES
+    LABELS "effect;surface-fx;timing;cpu;contract"
+)
 artifact_add_test(ArtifactProceduralTextureGeneratorEffectContractTest
     SOURCES
         ProceduralTextureGeneratorEffectContractTest.cpp
