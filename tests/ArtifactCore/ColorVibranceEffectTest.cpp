@@ -769,6 +769,48 @@ TEST(CreativeImageEffectContractTest, OldTvIsRepeatableForTheSameFrameAndTime) {
     }
 }
 
+TEST(CreativeImageEffectContractTest, OldTvScanlineParameterModulatesRows) {
+    constexpr int width = 2;
+    constexpr int height = 4;
+    VideoFrame frame(width, height);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        red->data()[pixel] = 0.5f;
+        green->data()[pixel] = 0.5f;
+        blue->data()[pixel] = 0.5f;
+        alpha->data()[pixel] = 0.4f;
+    }
+
+    OldTVEffect effect;
+    effect.setParameter("Curvature", 0.0f);
+    effect.setParameter("Flicker", 0.0f);
+    effect.setParameter("Fringe", 0.0f);
+    effect.setParameter("Scanline", 1.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int x = 0; x < width; ++x) {
+        const int firstRowPixel = x;
+        const int secondRowPixel = width + x;
+        EXPECT_FLOAT_EQ(red->data()[firstRowPixel], 0.5f);
+        EXPECT_FLOAT_EQ(green->data()[firstRowPixel], 0.5f);
+        EXPECT_FLOAT_EQ(blue->data()[firstRowPixel], 0.5f);
+        const float expectedSecondRow =
+            0.5f * (1.0f - std::abs(std::sin(2.0f)) * 0.2f);
+        EXPECT_NEAR(red->data()[secondRowPixel], expectedSecondRow, 1.0e-6f);
+        EXPECT_NEAR(green->data()[secondRowPixel], expectedSecondRow, 1.0e-6f);
+        EXPECT_NEAR(blue->data()[secondRowPixel], expectedSecondRow, 1.0e-6f);
+        EXPECT_FLOAT_EQ(alpha->data()[firstRowPixel], 0.4f);
+        EXPECT_FLOAT_EQ(alpha->data()[secondRowPixel], 0.4f);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeutralNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
