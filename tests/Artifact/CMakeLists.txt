@@ -1135,6 +1135,15 @@ artifact_add_test(ArtifactTimeDisplacementEffectContractTest
 set_tests_properties(ArtifactTimeDisplacementEffectContractTest PROPERTIES
     LABELS "effect;time-displacement;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactPinchBulgeEffectContractTest
+    SOURCES
+        PinchBulgeEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactPinchBulgeEffectContractTest PROPERTIES
+    LABELS "effect;pinch-bulge;distortion;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
