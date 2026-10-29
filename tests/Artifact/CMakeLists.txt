@@ -1000,6 +1000,15 @@ artifact_add_test(ArtifactScreenShakeEffectContractTest
 set_tests_properties(ArtifactScreenShakeEffectContractTest PROPERTIES
     LABELS "effect;screen-shake;cpu;contract"
 )
+artifact_add_test(ArtifactDecalEffectContractTest
+    SOURCES
+        DecalEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactDecalEffectContractTest PROPERTIES
+    LABELS "effect;decal;property;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
