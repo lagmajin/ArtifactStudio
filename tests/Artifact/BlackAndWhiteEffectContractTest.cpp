@@ -82,6 +82,20 @@ TEST(BlackAndWhiteEffectContractTest, TintAppliesToMonochromeResultWithoutChangi
     expectPixelNear(source, 0, 0, FloatRGBA(1.0f, 0.0f, 0.0f, 0.65f));
 }
 
+TEST(BlackAndWhiteEffectContractTest, ZeroTintAmountLeavesHueWeightedMonochrome)
+{
+    const float pixels[] = {1.0f, 0.0f, 0.0f, 0.45f};
+    const auto source = makeSurface(pixels, 1, 1);
+    ImageF32x4RGBAWithCache output;
+    BlackAndWhiteEffect effect;
+    effect.setTintColor(QColor(0, 0, 255));
+    effect.setTintAmount(0.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    expectPixelNear(output, 0, 0, FloatRGBA(0.4f, 0.4f, 0.4f, 0.45f));
+}
+
 TEST(BlackAndWhiteEffectContractTest, GpuSpatialDescriptorCarriesHueWeightsAndTintAmount)
 {
     BlackAndWhiteEffect effect;
@@ -104,4 +118,22 @@ TEST(BlackAndWhiteEffectContractTest, GpuSpatialDescriptorCarriesHueWeightsAndTi
         EXPECT_FLOAT_EQ(stack.nodes[0].parameters[i],
                         static_cast<float>(i + 1) / 10.0f);
     }
+}
+
+TEST(BlackAndWhiteEffectContractTest, HueWeightsAndTintAmountClampToSupportedRanges)
+{
+    BlackAndWhiteEffect effect;
+    effect.setReds(-3.0f);
+    effect.setBlues(4.0f);
+    effect.setTintAmount(-1.0f);
+    EXPECT_FLOAT_EQ(effect.reds(), -2.0f);
+    EXPECT_FLOAT_EQ(effect.blues(), 3.0f);
+    EXPECT_FLOAT_EQ(effect.tintAmount(), 0.0f);
+
+    effect.setReds(4.0f);
+    effect.setBlues(-3.0f);
+    effect.setTintAmount(2.0f);
+    EXPECT_FLOAT_EQ(effect.reds(), 3.0f);
+    EXPECT_FLOAT_EQ(effect.blues(), -2.0f);
+    EXPECT_FLOAT_EQ(effect.tintAmount(), 1.0f);
 }

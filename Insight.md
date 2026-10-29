@@ -1,4 +1,52 @@
-**最終更新:** 2026-10-28
+**最終更新:** 2026-10-29
+
+## 2026-10-29: KuwaharaのAnisotropic設定はCPU経路で未使用
+- **関連:** `Artifact/src/Effects/Kuwahara/KuwaharaEffect.cpp` の `KuwaharaEffectCPUImpl::applyCPU` と `KuwaharaEffectGPUImpl::renderGPU`、`tests/Artifact/KuwaharaEffectContractTest.cpp`。
+- **確認できた事実:** `anisotropic_` はCPU/GPU実装へ同期され、GPU定数へ渡されるが、CPUの四象限平均処理内では参照されていない。
+- **価値または懸念:** CPUフォールバックとGPU経路でAnisotropic設定の効果が異なる可能性がある。実際にどの環境で差が出るかと意図された仕様は未検証。今回のテストはRadius/Sharpnessだけを対象とし、製品実装は変更していない。
+- **次に確認すべきこと:** 同じ非一様画像でCPU/GPU双方をAnisotropic on/offにして比較し、CPU側でも効果が必要か、UI/プロパティを経路に合わせて制限するかを判断する。
+
+## 2026-10-29: Physical Halationの拡散パスがRGB成分を上書きする可能性
+- **関連:** `ArtifactCore/include/ImageProcessing/Halation.ixx::PhysicalHalation::process` と `diffuse`、`tests/Artifact/PhysicalHalationEffectContractTest.cpp`。
+- **確認できた事実:** `process` は同じ `highlights` バッファに対して赤層用と緑・青層用の `diffuse` を順番に実行する。各 `diffuse` は入力の各成分を平均化後、倍率を掛けた値で全成分を書き戻す。
+- **価値または懸念:** 後段パスが前段で作った成分をゼロ倍率で上書きする可能性がある。拡散色の寄与が意図した二層モデルと一致するかは未検証で、製品実装は今回変更していない。
+- **次に確認すべきこと:** 固定seed不要の単一点入力を使い、各チャンネルの拡散半径と寄与を `PhysicalHalation::process` の独立テストで測定する。既存の `PhysicalHalationEffectContractTest` は効果量・閾値・アルファを確認し、この成分別契約はまだ検証していない。
+
+## 2026-10-29: ブロックモーション推定の部分重なり候補
+- **関連:** `Artifact/src/Effects/Rasterizer/PixelSortEffect.cpp`、`Artifact/src/Effects/Rasterizer/TrailFadeEffect.cpp` の前フレームブロック探索。
+- **確認できた事実:** 両実装は探索候補ごとにフレーム内へ入る画素だけを比較し、比較数で二乗差を平均する。候補の有効な重なり面積が少ない場合も、十分な面積がある候補と同じ条件で最小誤差を選ぶ。
+- **価値または懸念:** 未検証だが、部分重なりの少数画素が偶然一致すると、広い領域で安定した候補より優先され、画面端近くのモーションベクトルが不安定になる可能性がある。今回の同一フレーム契約テストは画素値を一意にして誤ったゼロ差候補を避けている。
+- **次に確認すべきこと:** 既知の平行移動を持つテクスチャで、各候補の比較数・平均誤差・推定ベクトルを計測し、重なり面積の下限または信頼度項を導入した場合の品質と端部挙動を比較する。今回の依頼範囲では製品実装は変更しない。
+
+## 2026-10-29: DecalEffect宣言が製品ターゲットに未接続
+- **関連:** `Artifact/include/Effects/Rasterizer/DecalEffect.ixx`、`Artifact/CMakeLists.txt`、既存の `SurfaceFX` テクスチャデカール経路。
+- **確認できた事実:** `DecalEffect.ixx` は `export module DecalEffect` としてクラス宣言・inline setter/property処理を持つが、Artifact の CMake モジュール／実装リストに登録されず、対応する `.cpp` も見当たらない。別に `SurfaceFX` の TextureDecal 実装経路が存在する。
+- **価値または懸念:** この宣言は独立した画像エフェクトとしてビルド・適用されることを現状保証できず、SurfaceFX のデカールとは責務が重複するように見える。用途と履歴を確認せずテストターゲットへ無理に追加すべきではない。
+- **次に確認すべきこと:** `DecalEffect` の生成・登録参照とコミット履歴を調べ、意図された旧宣言か未完了実装かを判定する。必要性が確認できた場合にのみ、対応する module / implementation / Effect Service 経路を決める。
+
+## 2026-10-29: Optics Compensationの中心座標単位が不一致の可能性
+- **関連:** `Artifact/include/Effects/OpticsCompensation/OpticsCompensationEffect.ixx`、`Artifact/src/Effects/OpticsCompensation/OpticsCompensationEffect.cpp`、`ArtifactCore/src/ImageProcessing/Distortion.cpp` の `makeOpticsCompensation`。
+- **確認できた事実:** Effect の Center X/Y setter は 0〜1 に clamp する。一方、Effect は値を画像幅・高さでスケールせず `makeOpticsCompensation` に渡し、同関数はピクセル座標 `sx/sy` を受けて `dx=(sx-cx)/cx`、`dy=(sy-cy)/cy` を計算する。`applyDisplacement` はピクセル座標を渡す。
+- **価値または懸念:** 公開 Center X/Y が正規化座標なら、中心指定と実際の歪み中心が一致しない可能性が高い。仕様の意図と既存プロジェクト互換性を確認する前に本番計算を変更しない。
+- **次に確認すべきこと:** Center X/Y の UI 表示・保存形式・過去の実装意図を確認し、正規化座標かピクセル座標かを確定してから契約テストと必要な変換修正を決める。
+
+## 2026-10-29: NoiseEffectは現状で画素処理を持たない
+- **関連:** `Artifact/include/Effects/Noise/NoiseEffect.ixx`、`Artifact/src/Effects/Glow/NoiseEffect.cpp`、`Artifact/CMakeLists.txt` の `ARTIFACT_EFFECTS_NOISE_MODULES` / `ARTIFACT_EFFECTS_NOISE_IMPL`。
+- **確認できた事実:** NoiseEffect の Impl は空で、コンストラクタはID・表示名・Rasterizer stage を設定するだけである。CPU/GPU impl の登録や画素処理は確認できず、同じ Noise target にある AddNoiseEffect とは別のクラスである。
+- **価値または懸念:** NoiseEffect を独立テストから直接 apply しても画素効果の契約を検証できない。UIまたはシリアライズに公開されている場合、実行時には何もしない効果として見える可能性がある。
+- **次に確認すべきこと:** NoiseEffect の EffectID を登録・生成するサービスや保存済みプロジェクトの参照を調べ、互換性上の残存クラスか、実装漏れかを判断する。
+
+## 2026-10-29: LUTEffectのソースが製品ターゲットへ未登録
+- **関連:** `Artifact/include/Effects/ColorCorrection/LUTEffect.ixx`、`Artifact/src/Effects/ColorCorrection/LUTEffect.cpp`、`Artifact/CMakeLists.txt` の `ARTIFACT_EFFECTS_COLOR_MODULES` / `ARTIFACT_EFFECTS_COLOR_IMPL`。
+- **確認できた事実:** LUTEffect のインターフェースと CPU 実装ファイルは存在するが、CMake の色効果モジュール・実装リストに登録されていない。ImageEffects 独立テストがリンクする `ArtifactEffectsColor` からも import できない。
+- **価値または懸念:** ソースの存在だけでは LUT 効果がビルド・配布されることを保証せず、独立テストの登録にも影響する。既存色補正スイート内には LUT の実出力テストが見当たらない。
+- **次に確認すべきこと:** LUTEffect を製品へ含める意図と、`ColorLUT` が属する ArtifactCore モジュールの利用条件を確認したうえで、CMake 登録と独立テストを追加するか判断する。
+
+## 2026-10-29: Gaussian Blur実装の公開ターゲット登録を確認する
+- **関連:** `Artifact/include/Effects/Blur/BlurEffect.ixx`、`Artifact/src/Effects/Blur/BlurEffect.cpp`、`Artifact/CMakeLists.txt` の `ARTIFACT_EFFECTS_BLUR_MODULES` / `ARTIFACT_EFFECTS_BLUR_IMPL`。
+- **確認できた事実:** `BlurEffect` のモジュールインターフェースと実装ファイルは存在する一方、公開CMakeのBlurライブラリ登録リストに両ファイルが含まれていない。既存 `ArtifactEffectsBlur` targetへリンクしても `Artifact.Effect.Rasterizer.Blur` をimportできないため、独立テストを登録すると未解決モジュールになる。
+- **価値または懸念:** 現状のテストからは当該Blur実装をビルド・利用できず、ソースの存在だけでは製品経路への収録を保証しない。今回のテスト拡張では、公開targetに登録済みの別Blur効果を対象とした。
+- **次に確認すべきこと:** `BlurEffect` を製品で利用する意図があるかを確認し、必要ならCMake targetへの登録・他のBlur APIとの重複・Renderer選択経路を設計単位でレビューする。実装が未使用なら削除候補として扱う前に参照と履歴を確認する。
 
 ## 2026-10-28: Smoke比較PNGはalpha分布の証拠に使えない
 - **関連:** `build/smoke-runtime-rnd/active-goal-resolution-pyro-compare-20261028/`、`tests/Artifact/ClonerGpuRenderContractTest.cpp` のPyro GPU readback sweeps。

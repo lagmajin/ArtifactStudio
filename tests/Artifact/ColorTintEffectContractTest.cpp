@@ -116,6 +116,22 @@ TEST(ColorTintEffectContractTest, DisabledEffectPreservesHdrAndTransparentPixels
     expectPixelNear(output, 1, 0, FloatRGBA(0.3f, 0.5f, 0.7f, 0.42f));
 }
 
+TEST(ColorTintEffectContractTest, ClampsLumaBeforeMappingOutOfRangeRgb)
+{
+    const float pixels[] = {-0.5f, -0.25f, -1.0f, 0.2f,
+                            1.5f, 2.0f, 1.25f, 0.8f};
+    const auto source = makeSurface(pixels, 2, 1);
+    ImageF32x4RGBAWithCache output;
+    ColorTintEffect effect;
+    effect.setMapBlackTo(QColor::fromRgbF(0.1, 0.2, 0.3));
+    effect.setMapWhiteTo(QColor::fromRgbF(0.7, 0.8, 0.9));
+
+    effect.applyCPUOnly(source, output);
+
+    expectPixelNear(output, 0, 0, FloatRGBA(0.1f, 0.2f, 0.3f, 0.2f));
+    expectPixelNear(output, 1, 0, FloatRGBA(0.7f, 0.8f, 0.9f, 0.8f));
+}
+
 TEST(ColorTintEffectContractTest, GpuSpatialDescriptorCarriesColorsAndAmount)
 {
     ColorTintEffect effect;

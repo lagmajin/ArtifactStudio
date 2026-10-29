@@ -535,13 +535,13 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_KEYING_EFFECT_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
-    artifact_add_test(ArtifactSpatialImageEffectContractTest
+    artifact_add_test(ArtifactApertureShapeBlurEffectContractTest
         SOURCES
-            SpatialImageEffectContractTest.cpp
+            ApertureShapeBlurEffectContractTest.cpp
         LIBS
             ArtifactEffectsBlur
     )
-    set_tests_properties(ArtifactSpatialImageEffectContractTest PROPERTIES
+    set_tests_properties(ArtifactApertureShapeBlurEffectContractTest PROPERTIES
         LABELS "effect;image-effect;cpu;contract;spatial"
     )
 endif()
