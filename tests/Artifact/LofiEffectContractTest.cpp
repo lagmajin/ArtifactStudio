@@ -160,6 +160,12 @@ TEST(LofiEffectContractTest, AnimatedMixControlsOldTvCompositeAtCompositionFrame
     ImageF32x4RGBAWithCache atZero;
     effect.applyCPUOnly(source, atZero);
 
+    context.compositionFrame = 15;
+    effect.setContext(context);
+    EXPECT_FLOAT_EQ(effect.mix(), 0.5f);
+    ImageF32x4RGBAWithCache atHalf;
+    effect.applyCPUOnly(source, atHalf);
+
     context.compositionFrame = 30;
     effect.setContext(context);
     EXPECT_FLOAT_EQ(effect.mix(), 1.0f);
@@ -172,16 +178,22 @@ TEST(LofiEffectContractTest, AnimatedMixControlsOldTvCompositeAtCompositionFrame
     fullEffect.applyCPUOnly(source, expectedFullEffect);
     const float* sourcePixels = source.image().rgba32fData();
     const float* zeroMixPixels = atZero.image().rgba32fData();
+    const float* halfMixPixels = atHalf.image().rgba32fData();
     const float* fullMixPixels = atOne.image().rgba32fData();
     const float* expectedPixels = expectedFullEffect.image().rgba32fData();
     ASSERT_NE(sourcePixels, nullptr);
     ASSERT_NE(zeroMixPixels, nullptr);
+    ASSERT_NE(halfMixPixels, nullptr);
     ASSERT_NE(fullMixPixels, nullptr);
     ASSERT_NE(expectedPixels, nullptr);
     constexpr std::size_t channelCount = 8 * 8 * 4;
     for (std::size_t channel = 0; channel < channelCount; ++channel) {
         EXPECT_FLOAT_EQ(zeroMixPixels[channel], sourcePixels[channel])
             << "zero-mix channel=" << channel;
+        EXPECT_NEAR(halfMixPixels[channel],
+                    sourcePixels[channel] * 0.5f + expectedPixels[channel] * 0.5f,
+                    1.0e-6f)
+            << "half-mix channel=" << channel;
         EXPECT_FLOAT_EQ(fullMixPixels[channel], expectedPixels[channel])
             << "full-mix channel=" << channel;
     }
