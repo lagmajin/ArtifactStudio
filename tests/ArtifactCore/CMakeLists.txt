@@ -1179,6 +1179,16 @@ set_tests_properties(ArtifactCoreSourceInterpretContractTest PROPERTIES
     LABELS "media;source-interpret;impact;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreBroadcastColorsContractTest
+    SOURCES
+        BroadcastColorsContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreBroadcastColorsContractTest PROPERTIES
+    LABELS "image;broadcast-colors;color;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
