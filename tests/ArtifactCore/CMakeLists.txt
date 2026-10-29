@@ -833,6 +833,17 @@ artifact_add_test(ArtifactCoreRotoMaskContractTest
     LIBS
         ArtifactCoreMask
 )
+
+artifact_add_test(ArtifactCoreDepthMaskContractTest
+    SOURCES
+        DepthMaskContractTest.cpp
+    LIBS
+        ArtifactCoreMask
+)
+set_tests_properties(ArtifactCoreDepthMaskContractTest PROPERTIES
+    LABELS "mask;depth;geometry;cpu;contract;core"
+)
+
 set_tests_properties(ArtifactCoreRotoMaskContractTest PROPERTIES
     LABELS "mask;roto;animation;geometry;cpu;contract;core"
 )
