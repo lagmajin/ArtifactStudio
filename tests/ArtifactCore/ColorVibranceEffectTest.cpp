@@ -1414,6 +1414,57 @@ TEST(CreativeImageEffectContractTest, EdgeEchoZeroIntensityAndTintPreserveInput)
     }
 }
 
+TEST(CreativeImageEffectContractTest, EdgeEchoActiveSettingsChangeFiniteRgbAndKeepAlpha) {
+    constexpr int width = 4;
+    constexpr int height = 2;
+    VideoFrame frame(width, height);
+    const float inputRed[] = {0.1f, 0.2f, 0.8f, 0.9f,
+                              0.1f, 0.2f, 0.8f, 0.9f};
+    const float inputGreen[] = {0.8f, 0.7f, 0.2f, 0.1f,
+                                0.8f, 0.7f, 0.2f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.3f, 0.7f, 0.8f,
+                               0.2f, 0.3f, 0.7f, 0.8f};
+    const float inputAlpha[] = {0.1f, 0.2f, 0.3f, 0.4f,
+                                0.5f, 0.6f, 0.7f, 0.8f};
+    const float* inputs[] = {inputRed, inputGreen, inputBlue, inputAlpha};
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            plane->data()[pixel] = inputs[channel][pixel];
+        }
+    }
+
+    EdgeEchoEffect effect;
+    effect.setParameter("Intensity", 0.8f);
+    effect.setParameter("Thickness", 1.0f);
+    effect.setParameter("EchoCount", 2.0f);
+    effect.setParameter("Tint", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    bool changedRgb = false;
+    for (int channel = 0; channel < 3; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(plane->data()[pixel]));
+            changedRgb = changedRgb ||
+                std::abs(plane->data()[pixel] - inputs[channel][pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    const auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(alpha->data()[pixel], inputAlpha[pixel])
+            << "pixel=" << pixel;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, LightPressureZeroControlsPreserveInput) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
@@ -1447,6 +1498,46 @@ TEST(CreativeImageEffectContractTest, LightPressureZeroControlsPreserveInput) {
             EXPECT_FLOAT_EQ(plane->data()[pixel], inputs[channel][pixel])
                 << "channel=" << channel << " pixel=" << pixel;
         }
+    }
+}
+
+TEST(CreativeImageEffectContractTest, LightPressureActiveSettingsChangeFiniteRgbAndKeepAlpha) {
+    constexpr int width = 3;
+    constexpr int height = 2;
+    VideoFrame frame(width, height);
+    const float alphaValues[] = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f};
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = 0.5f;
+        frame.getChannel(ChannelType::Green)->data()[pixel] = 0.5f;
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = 0.5f;
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alphaValues[pixel];
+    }
+
+    LightPressureEffect effect;
+    effect.setParameter("Pressure", 0.8f);
+    effect.setParameter("Bloom", 0.6f);
+    effect.setParameter("Spread", 0.5f);
+    effect.setParameter("Compression", 0.0f);
+    effect.process(frame, CreativeEffectContext{.time = 0.0});
+
+    bool changedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto plane = frame.getChannel(channel);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(plane->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            changedRgb = changedRgb ||
+                std::abs(plane->data()[pixel] - 0.5f) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    const auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(alpha->data()[pixel], alphaValues[pixel])
+            << "pixel=" << pixel;
     }
 }
 
