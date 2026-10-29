@@ -386,6 +386,59 @@ TEST(LofiEffectContractTest,
     expectRoiHint(13.0f);
 }
 
+TEST(LofiEffectContractTest, FilmGrungePublishesStablePropertyContracts)
+{
+    struct PropertyContract {
+        const char* name;
+        const char* label;
+        ArtifactCore::PropertyType type;
+        double defaultValue;
+        double minimum;
+        double maximum;
+        bool animatable;
+    };
+    constexpr std::array<PropertyContract, 9> contracts{{
+        {"grainAmount", "Grain Amount", ArtifactCore::PropertyType::Float,
+         0.075, 0.0, 0.5, true},
+        {"grainSize", "Grain Size", ArtifactCore::PropertyType::Float,
+         1.4, 1.0, 8.0, true},
+        {"scratchAmount", "Scratches", ArtifactCore::PropertyType::Float,
+         0.22, 0.0, 1.0, true},
+        {"dustAmount", "Dust and Dirt", ArtifactCore::PropertyType::Float,
+         0.18, 0.0, 1.0, true},
+        {"flicker", "Exposure Flicker", ArtifactCore::PropertyType::Float,
+         0.055, 0.0, 0.5, true},
+        {"gateWeave", "Gate Weave", ArtifactCore::PropertyType::Float,
+         1.2, 0.0, 12.0, true},
+        {"vignette", "Vignette", ArtifactCore::PropertyType::Float,
+         0.18, 0.0, 1.0, true},
+        {"stain", "Emulsion Stain", ArtifactCore::PropertyType::Float,
+         0.10, 0.0, 0.5, true},
+        {"seed", "Random Seed", ArtifactCore::PropertyType::Integer,
+         1977.0, 0.0, 100000.0, false},
+    }};
+    ArtifactFilmGrungeEffect effect;
+    const auto properties = effect.getProperties();
+    ASSERT_EQ(properties.size(), contracts.size());
+    for (const auto& contract : contracts) {
+        SCOPED_TRACE(contract.name);
+        const auto found = std::find_if(
+            properties.begin(), properties.end(), [&contract](const auto& property) {
+                return property.getName() == QString::fromUtf8(contract.name);
+            });
+        ASSERT_NE(found, properties.end());
+        EXPECT_EQ(found->getType(), contract.type);
+        EXPECT_NEAR(found->getValue().toDouble(), contract.defaultValue, 1.0e-6);
+        EXPECT_NEAR(found->getDefaultValue().toDouble(), contract.defaultValue,
+                    1.0e-6);
+        EXPECT_EQ(found->isAnimatable(), contract.animatable);
+        const auto metadata = found->metadata();
+        EXPECT_EQ(metadata.displayLabel, QString::fromUtf8(contract.label));
+        EXPECT_NEAR(metadata.hardMin.toDouble(), contract.minimum, 1.0e-6);
+        EXPECT_NEAR(metadata.hardMax.toDouble(), contract.maximum, 1.0e-6);
+    }
+}
+
 TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
 {
     ArtifactOldTVEffect effect;
