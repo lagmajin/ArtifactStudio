@@ -580,6 +580,42 @@ TEST(LofiEffectContractTest, OldTvEffectRegionClipsToImageBounds)
     }
 }
 
+TEST(LofiEffectContractTest, OldTvRegionOutsideImageLeavesSourceUntouched)
+{
+    constexpr int width = 5;
+    constexpr int height = 4;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>(x + 1) / 7.0f;
+            pixels[offset + 1] = static_cast<float>(y + 1) / 6.0f;
+            pixels[offset + 2] = static_cast<float>(x + y + 1) / 10.0f;
+            pixels[offset + 3] = static_cast<float>(x + 2 * y + 1) / 16.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setEffectRegion(QRectF(width + 2.0, height + 1.0, 3.0, 2.0));
+    ASSERT_TRUE(effect.hasEffectRegion());
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(result[channel], pixels[channel])
+            << "channel=" << channel;
+    }
+}
+
 TEST(LofiEffectContractTest, OldTvEffectRegionUsesPixelCentersForFractionalBounds)
 {
     constexpr int width = 8;
