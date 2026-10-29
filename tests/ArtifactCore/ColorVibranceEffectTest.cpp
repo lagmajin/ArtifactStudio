@@ -2482,6 +2482,70 @@ TEST(CreativeImageEffectContractTest, DepthMeltGravityChangesVerticalDisplacemen
     }
 }
 
+TEST(CreativeImageEffectContractTest, DepthMeltHeatChangesWarpAndHighlight) {
+    constexpr int width = 8;
+    constexpr int height = 8;
+    VideoFrame coolFrame(width, height);
+    VideoFrame hotFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float red = 0.05f + static_cast<float>(x) * 0.08f;
+            const float green = 0.05f + static_cast<float>(y) * 0.08f;
+            const float blue = 0.1f + static_cast<float>((x + y) % width) * 0.07f;
+            coolFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            coolFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            coolFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            hotFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            hotFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            hotFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            coolFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            hotFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    DepthMeltEffect coolEffect;
+    coolEffect.setParameter("Melt", 0.75f);
+    coolEffect.setParameter("Gravity", 0.5f);
+    coolEffect.setParameter("Heat", 0.0f);
+    coolEffect.setParameter("Detail", 0.4f);
+    DepthMeltEffect hotEffect;
+    hotEffect.setParameter("Melt", 0.75f);
+    hotEffect.setParameter("Gravity", 0.5f);
+    hotEffect.setParameter("Heat", 1.0f);
+    hotEffect.setParameter("Detail", 0.4f);
+    const CreativeEffectContext context{.time = 2.0};
+    coolEffect.process(coolFrame, context);
+    hotEffect.process(hotFrame, context);
+
+    bool heatChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto cool = coolFrame.getChannel(channel);
+        const auto hot = hotFrame.getChannel(channel);
+        ASSERT_TRUE(cool);
+        ASSERT_TRUE(hot);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(hot->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            heatChangedRgb = heatChangedRgb ||
+                std::abs(hot->data()[pixel] - cool->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(heatChangedRgb);
+
+    const auto coolAlpha = coolFrame.getChannel(ChannelType::Alpha);
+    const auto hotAlpha = hotFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(coolAlpha);
+    ASSERT_TRUE(hotAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(coolAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(hotAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, GlitchIsRepeatableAtFixedTimeAndAppliesSharedGrainToRgb) {
     VideoFrame first(4, 2);
     VideoFrame second(4, 2);
