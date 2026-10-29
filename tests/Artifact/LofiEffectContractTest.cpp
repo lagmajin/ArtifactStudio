@@ -6,6 +6,7 @@
 #include <cmath>
 #include <initializer_list>
 #include <limits>
+#include <utility>
 
 #include <QPointF>
 #include <QRectF>
@@ -374,6 +375,54 @@ TEST(LofiEffectContractTest,
         EXPECT_TRUE(std::isfinite(result[channel])) << "channel=" << channel;
     }
     EXPECT_FLOAT_EQ(result[3], pixels[3]);
+}
+
+TEST(LofiEffectContractTest,
+     FilmGrungeProcessesSingleRowAndColumnWithFinitePixels)
+{
+    constexpr int extent = 89;
+    std::array<float, extent * 4> pixels{};
+    for (int pixel = 0; pixel < extent; ++pixel) {
+        const std::size_t offset = static_cast<std::size_t>(pixel * 4);
+        pixels[offset] = static_cast<float>((pixel * 3) % 17) / 16.0f;
+        pixels[offset + 1] = static_cast<float>((pixel * 5) % 19) / 18.0f;
+        pixels[offset + 2] = static_cast<float>((pixel * 7) % 23) / 22.0f;
+        pixels[offset + 3] = static_cast<float>((pixel * 2) % 11) / 10.0f;
+    }
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(12.0f));
+    EffectContext context;
+    context.compositionFrame = 14;
+    effect.setContext(context);
+
+    for (const auto [width, height] :
+         std::array<std::pair<int, int>, 2>{{{extent, 1}, {1, extent}}}) {
+        ImageF32x4_RGBA image;
+        image.setFromRGBA32F(pixels.data(), width, height);
+        image.setColorDescriptor(descriptor);
+        const ImageF32x4RGBAWithCache source(image);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+
+        ASSERT_EQ(output.width(), width);
+        ASSERT_EQ(output.height(), height);
+        EXPECT_EQ(output.image().colorDescriptor(), descriptor);
+        const float* result = output.image().rgba32fData();
+        ASSERT_NE(result, nullptr);
+        for (int pixel = 0; pixel < extent; ++pixel) {
+            const std::size_t offset = static_cast<std::size_t>(pixel * 4);
+            for (int channel = 0; channel < 3; ++channel) {
+                EXPECT_TRUE(std::isfinite(result[offset + channel]))
+                    << "width=" << width << " height=" << height
+                    << " pixel=" << pixel << " channel=" << channel;
+            }
+            EXPECT_FLOAT_EQ(result[offset + 3], pixels[offset + 3])
+                << "width=" << width << " height=" << height
+                << " pixel=" << pixel;
+        }
+    }
 }
 
 TEST(LofiEffectContractTest,
