@@ -702,6 +702,57 @@ TEST_F(PostProcessPassGpuContractTest, DepthOfFieldClampsNegativeCocRadiusToZero
     }
 }
 
+TEST_F(PostProcessPassGpuContractTest, DepthOfFieldNormalizesFocusAndClipDistances)
+{
+    Artifact::DepthOfFieldPass pass;
+    ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
+
+    std::array<float, kPixelCount * 4> color{};
+    const auto centerInput = pixelOffset(kWidth / 2, kHeight / 2);
+    color[centerInput] = 1.0f;
+    color[centerInput + 3] = 1.0f;
+    auto colorTexture = createTexture(
+        gpu_.device(), "DOF normalized clip impulse", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_SHADER_RESOURCE, color.data(), kWidth * 4 * sizeof(float));
+    auto depthTexture = createDepthTexture(gpu_, 0.5f);
+    auto outputTexture = createTexture(
+        gpu_.device(), "DOF normalized clip output", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, nullptr, 0);
+    ASSERT_NE(colorTexture, nullptr);
+    ASSERT_NE(depthTexture, nullptr);
+    ASSERT_NE(outputTexture, nullptr);
+    auto* colorSrv = colorTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* depthSrv = depthTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
+    ASSERT_NE(colorSrv, nullptr);
+    ASSERT_NE(depthSrv, nullptr);
+    ASSERT_NE(outputUav, nullptr);
+
+    Artifact::DepthOfFieldSettings settings;
+    settings.enabled = true;
+    settings.focusDistance.value = 1.0f;
+    settings.nearClip.value = 2.0f;
+    settings.farClip.value = 1.0f;
+    settings.maxCocRadius.value = 3.0f;
+    settings.sampleCount = 64;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, depthSrv, outputUav,
+                           kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> normalizedFromInvalidValues{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, normalizedFromInvalidValues));
+
+    settings.focusDistance.value = 2.0f;
+    settings.farClip.value = 4.0f;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, depthSrv, outputUav,
+                           kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> explicitlyNormalized{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, explicitlyNormalized));
+
+    for (std::size_t component = 0; component < explicitlyNormalized.size(); ++component) {
+        EXPECT_FLOAT_EQ(normalizedFromInvalidValues[component], explicitlyNormalized[component])
+            << "component=" << component;
+    }
+}
+
 TEST_F(PostProcessPassGpuContractTest, DepthOfFieldPreservesAnInFocusImpulse)
 {
     Artifact::DepthOfFieldPass pass;
