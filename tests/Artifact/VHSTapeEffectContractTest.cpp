@@ -381,6 +381,58 @@ TEST(VHSTapeEffectContractTest, WobbleOutputIsRepeatableForSameSeedAndEvolution)
     }
 }
 
+TEST(VHSTapeEffectContractTest, WobbleOutputChangesAcrossEvolutionFrames)
+{
+    constexpr int width = 64;
+    constexpr int height = 48;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float value = (x / 2 + y / 2) % 2 == 0 ? 0.15f : 0.85f;
+            pixels[offset] = value;
+            pixels[offset + 1] = 1.0f - value;
+            pixels[offset + 2] = (x + y) % 2 == 0 ? 0.9f : 0.1f;
+            pixels[offset + 3] = 1.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache firstFrame;
+    ImageF32x4RGBAWithCache laterFrame;
+
+    const auto renderAtEvolution = [&source](
+        const float evolution, ImageF32x4RGBAWithCache& output) {
+        VHSTapeEffect effect;
+        setNeutralTapeProperties(effect);
+        effect.setPropertyValue(UniString(QStringLiteral("Wobble")), 2.0);
+        effect.setPropertyValue(UniString(QStringLiteral("Seed")), 29);
+        effect.setPropertyValue(UniString(QStringLiteral("Evolution")), evolution);
+        effect.applyCPUOnly(source, output);
+    };
+    renderAtEvolution(0.4f, firstFrame);
+    renderAtEvolution(0.8f, laterFrame);
+
+    ASSERT_EQ(firstFrame.image().width(), width);
+    ASSERT_EQ(firstFrame.image().height(), height);
+    ASSERT_EQ(laterFrame.image().width(), width);
+    ASSERT_EQ(laterFrame.image().height(), height);
+    const float* first = firstFrame.image().rgba32fData();
+    const float* later = laterFrame.image().rgba32fData();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(later, nullptr);
+    bool changed = false;
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_TRUE(std::isfinite(first[channel])) << "channel=" << channel;
+        EXPECT_TRUE(std::isfinite(later[channel])) << "channel=" << channel;
+        changed = changed || std::abs(first[channel] - later[channel]) > 1.0e-5f;
+    }
+    EXPECT_TRUE(changed)
+        << "fixed-seed wobble should evolve when the frame time changes";
+}
+
 } // namespace
 
 TEST(VHSTapeEffectContractTest, ScanlineGapDarkensEveryConfiguredRow)
