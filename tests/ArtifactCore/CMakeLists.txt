@@ -1089,6 +1089,16 @@ set_tests_properties(ArtifactCoreSequenceGroupContractTest PROPERTIES
     LABELS "sequence;transport;timing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreStarfieldSpectralContractTest
+    SOURCES
+        StarfieldSpectralContractTest.cpp
+    LIBS
+        ArtifactCoreGenerate
+)
+set_tests_properties(ArtifactCoreStarfieldSpectralContractTest PROPERTIES
+    LABELS "starfield;spectral;generation;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
