@@ -1941,6 +1941,17 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
 endif()
 
 if(ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactCreativeImageCleanupEffectContractTest
+        SOURCES
+            CreativeImageCleanupEffectContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactCreativeImageCleanupEffectContractTest PROPERTIES
+        LABELS "effect;creative;deblock;cpu;contract"
+        TIMEOUT 60
+    )
+
     artifact_add_test(ArtifactLofiEffectContractTest
         SOURCES
             LofiEffectContractTest.cpp
