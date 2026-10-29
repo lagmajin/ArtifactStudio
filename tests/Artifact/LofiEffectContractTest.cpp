@@ -566,6 +566,70 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeEmulsionStainAddsDeterministicSpatialColorVariation)
+{
+    constexpr int width = 32;
+    constexpr int height = 24;
+    constexpr float sourceValue = 0.4f;
+    constexpr float alpha = 0.65f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4 + 0] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache noStain;
+    ImageF32x4RGBAWithCache firstStain;
+    ImageF32x4RGBAWithCache repeatedStain;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "gateWeave", "vignette"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+    effect.applyCPUOnly(source, noStain);
+
+    effect.setPropertyValue(UniString("stain"), QVariant(0.5f));
+    effect.applyCPUOnly(source, firstStain);
+    effect.applyCPUOnly(source, repeatedStain);
+
+    const float* baseline = noStain.image().rgba32fData();
+    const float* result = firstStain.image().rgba32fData();
+    const float* repeated = repeatedStain.image().rgba32fData();
+    ASSERT_NE(baseline, nullptr);
+    ASSERT_NE(result, nullptr);
+    ASSERT_NE(repeated, nullptr);
+    float minimum = std::numeric_limits<float>::infinity();
+    float maximum = -std::numeric_limits<float>::infinity();
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        EXPECT_FLOAT_EQ(baseline[offset], sourceValue);
+        EXPECT_FLOAT_EQ(baseline[offset + 1], sourceValue);
+        EXPECT_FLOAT_EQ(baseline[offset + 2], sourceValue);
+        EXPECT_FLOAT_EQ(result[offset + 0], result[offset + 1]);
+        EXPECT_FLOAT_EQ(result[offset + 1], result[offset + 2]);
+        EXPECT_FLOAT_EQ(result[offset + 3], alpha);
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            EXPECT_FLOAT_EQ(result[offset + channel], repeated[offset + channel])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+        minimum = std::min(minimum, result[offset]);
+        maximum = std::max(maximum, result[offset]);
+    }
+    EXPECT_GT(maximum - minimum, 1.0e-3f);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
 {
     constexpr int width = 64;
