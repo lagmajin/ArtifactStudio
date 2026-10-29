@@ -47,6 +47,43 @@ TEST(SpatialImageEffectContractTest,
     }
 }
 
+TEST(SpatialImageEffectContractTest,
+     DepthBokehLumaFallbackKeepsUniformInFocusPixelsSharp)
+{
+    constexpr int width = 7;
+    constexpr int height = 5;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width * height);
+         ++pixel) {
+        pixels[pixel * 4] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = static_cast<float>(pixel + 1) / 36.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+
+    DepthBokehEffect effect;
+    effect.setPropertyValue(
+        UniString(QStringLiteral("focusDistance")), QVariant(0.5));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("focusRange")), QVariant(0.0));
+    effect.setPropertyValue(
+        UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(result[channel], pixels[channel])
+            << "channel=" << channel;
+    }
+}
+
 TEST(SpatialImageEffectContractTest, ApertureBlurSpreadsRgbAndPreservesAlphaAndInput)
 {
     constexpr int width = 33;
