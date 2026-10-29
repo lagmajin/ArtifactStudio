@@ -60,6 +60,7 @@ import Artifact.Render.DiligentDeviceManager;
 import Artifact.Render.OffscreenComposition;
 import Artifact.Render.CompositionViewDrawing;
 import Artifact.Render.Queue.Job;
+import Artifact.Render.Queue.Encoder;
 import Artifact.Render.Queue.Service;
 import BrightnessEffect;
 import Shape.Types;
@@ -2321,6 +2322,23 @@ TEST(RenderQueueLayerImageIntegrationTest,
     EXPECT_EQ(queue->tileSize(), 64);
     queue->setTileSize(-128);
     EXPECT_EQ(queue->tileSize(), 64);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     VideoEncoderBackendAliasesNormalizeToStablePublicNames)
+{
+    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("AUTO")),
+              QStringLiteral("auto"));
+    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("ffmpeg.exe")),
+              QStringLiteral("pipe"));
+    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("hardware")),
+              QStringLiteral("pipe-hw"));
+    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("vulkan-hw")),
+              QStringLiteral("pipe-vulkan"));
+    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("FFmpegAPI")),
+              QStringLiteral("native"));
+    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("Diligent")),
+              QStringLiteral("auto"));
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
