@@ -525,6 +525,16 @@ set_tests_properties(ArtifactBendTransformContractTest PROPERTIES
     LABELS "effect;transform;cpu;contract"
 )
 
+artifact_add_test(ArtifactSpherizeEffectContractTest
+    SOURCES
+        SpherizeEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsFilters
+)
+set_tests_properties(ArtifactSpherizeEffectContractTest PROPERTIES
+    LABELS "effect;distortion;cpu;contract"
+)
+
 artifact_add_test(ArtifactVHSTapeEffectContractTest
     SOURCES
         VHSTapeEffectContractTest.cpp
