@@ -2121,3 +2121,68 @@ TEST(CreativeImageEffectContractTest, PigmentSeparationGranulationAddsPaperTextu
         EXPECT_FLOAT_EQ(texturedAlpha->data()[pixel], alpha);
     }
 }
+
+TEST(CreativeImageEffectContractTest, PigmentSeparationSpreadSoftensHighContrastEdge) {
+    constexpr int width = 32;
+    constexpr int height = 8;
+    VideoFrame noSpreadFrame(width, height);
+    VideoFrame spreadFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float value = x < width / 2 ? 0.0f : 1.0f;
+            for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                              ChannelType::Blue}) {
+                noSpreadFrame.getChannel(channel)->data()[pixel] = value;
+                spreadFrame.getChannel(channel)->data()[pixel] = value;
+            }
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            noSpreadFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            spreadFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    PigmentSeparationEffect noSpreadEffect;
+    noSpreadEffect.setParameter("Spread", 0.0f);
+    noSpreadEffect.setParameter("Bleed", 0.0f);
+    noSpreadEffect.setParameter("Flow", 0.0f);
+    noSpreadEffect.setParameter("Granulation", 0.0f);
+    PigmentSeparationEffect spreadEffect;
+    spreadEffect.setParameter("Spread", 1.0f);
+    spreadEffect.setParameter("Bleed", 0.0f);
+    spreadEffect.setParameter("Flow", 0.0f);
+    spreadEffect.setParameter("Granulation", 0.0f);
+    const CreativeEffectContext context{.time = 1.75};
+    noSpreadEffect.process(noSpreadFrame, context);
+    spreadEffect.process(spreadFrame, context);
+
+    bool spreadChangedEdge = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto noSpread = noSpreadFrame.getChannel(channel);
+        const auto spread = spreadFrame.getChannel(channel);
+        ASSERT_TRUE(noSpread);
+        ASSERT_TRUE(spread);
+        for (int y = 0; y < height; ++y) {
+            for (int x = width / 2 - 2; x <= width / 2 + 1; ++x) {
+                const int pixel = y * width + x;
+                EXPECT_TRUE(std::isfinite(spread->data()[pixel]))
+                    << "channel=" << static_cast<int>(channel)
+                    << " x=" << x << " y=" << y;
+                spreadChangedEdge = spreadChangedEdge ||
+                    std::abs(spread->data()[pixel] - noSpread->data()[pixel]) > 1.0e-6f;
+            }
+        }
+    }
+    EXPECT_TRUE(spreadChangedEdge);
+
+    const auto noSpreadAlpha = noSpreadFrame.getChannel(ChannelType::Alpha);
+    const auto spreadAlpha = spreadFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(noSpreadAlpha);
+    ASSERT_TRUE(spreadAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(noSpreadAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(spreadAlpha->data()[pixel], alpha);
+    }
+}
