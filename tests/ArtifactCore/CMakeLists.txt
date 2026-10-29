@@ -867,6 +867,16 @@ artifact_add_test(ArtifactCoreShapeExtrudeTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreRotationTurnsContractTest
+    SOURCES
+        RotationTurnsStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRotationTurnsContractTest PROPERTIES
+    LABELS "math;rotation;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreRotoMaskContractTest
     SOURCES
         RotoMaskContractTest.cpp

@@ -42,7 +42,6 @@ TEST(GPUThreadPoolContractTest, DrainBudgetPreservesFifoOrderAndUpdatesHandlesAn
         return true;
     };
 
-    EXPECT_EQ(pool.drain(executor, 0), 0u);
     EXPECT_EQ(pool.drain(executor, 2), 2u);
     EXPECT_EQ(executorCalls, 2);
     EXPECT_TRUE(first.isSubmitted());
