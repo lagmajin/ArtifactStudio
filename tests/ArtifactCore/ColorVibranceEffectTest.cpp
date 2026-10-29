@@ -1644,6 +1644,74 @@ TEST(CreativeImageEffectContractTest, EdgeEchoCountChangesAccumulatedEchoSamples
     }
 }
 
+TEST(CreativeImageEffectContractTest, EdgeEchoTintAddsEdgeColorContribution) {
+    constexpr int width = 10;
+    constexpr int height = 6;
+    VideoFrame untintedFrame(width, height);
+    VideoFrame tintedFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float value = x < width / 2 ? 0.2f : 0.65f;
+            const float red = value;
+            const float green = std::min(value + 0.12f, 1.0f);
+            const float blue = std::max(value - 0.1f, 0.0f);
+            untintedFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            untintedFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            untintedFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            tintedFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            tintedFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            tintedFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            untintedFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            tintedFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    EdgeEchoEffect untinted;
+    untinted.setParameter("Intensity", 0.8f);
+    untinted.setParameter("Thickness", 1.0f);
+    untinted.setParameter("EchoCount", 3.0f);
+    untinted.setParameter("Tint", 0.0f);
+    EdgeEchoEffect tinted;
+    tinted.setParameter("Intensity", 0.8f);
+    tinted.setParameter("Thickness", 1.0f);
+    tinted.setParameter("EchoCount", 3.0f);
+    tinted.setParameter("Tint", 1.0f);
+    untinted.process(untintedFrame, CreativeEffectContext{});
+    tinted.process(tintedFrame, CreativeEffectContext{});
+
+    bool tintChangedEdgeRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto noTint = untintedFrame.getChannel(channel);
+        const auto withTint = tintedFrame.getChannel(channel);
+        ASSERT_TRUE(noTint);
+        ASSERT_TRUE(withTint);
+        for (int y = 0; y < height; ++y) {
+            for (int x = width / 2 - 1; x <= width / 2; ++x) {
+                const int pixel = y * width + x;
+                EXPECT_TRUE(std::isfinite(withTint->data()[pixel]))
+                    << "channel=" << static_cast<int>(channel)
+                    << " x=" << x << " y=" << y;
+                tintChangedEdgeRgb = tintChangedEdgeRgb ||
+                    std::abs(withTint->data()[pixel] - noTint->data()[pixel]) > 1.0e-6f;
+            }
+        }
+    }
+    EXPECT_TRUE(tintChangedEdgeRgb);
+
+    const auto untintedAlpha = untintedFrame.getChannel(ChannelType::Alpha);
+    const auto tintedAlpha = tintedFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(untintedAlpha);
+    ASSERT_TRUE(tintedAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(untintedAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(tintedAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, LightPressureZeroControlsPreserveInput) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
