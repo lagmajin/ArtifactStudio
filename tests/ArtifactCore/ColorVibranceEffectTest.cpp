@@ -2320,6 +2320,44 @@ TEST(CreativeImageEffectContractTest, DepthMeltActiveSettingsAreRepeatableAndKee
     }
 }
 
+TEST(CreativeImageEffectContractTest, DepthMeltZeroMeltPreservesInputWithOtherControlsActive) {
+    constexpr int width = 3;
+    constexpr int height = 2;
+    const float inputRed[] = {0.05f, 0.2f, 0.45f, 0.6f, 0.8f, 0.95f};
+    const float inputGreen[] = {0.9f, 0.7f, 0.5f, 0.3f, 0.1f, 0.0f};
+    const float inputBlue[] = {0.15f, 0.35f, 0.55f, 0.75f, 0.85f, 1.0f};
+    const float inputAlpha[] = {0.0f, 0.2f, 0.4f, 0.6f, 0.8f, 1.0f};
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    const float* inputs[] = {inputRed, inputGreen, inputBlue, inputAlpha};
+    VideoFrame frame(width, height);
+    for (int channelIndex = 0; channelIndex < 4; ++channelIndex) {
+        const auto plane = frame.getChannel(channels[channelIndex]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            plane->data()[pixel] = inputs[channelIndex][pixel];
+        }
+    }
+
+    DepthMeltEffect effect;
+    effect.setParameter("Melt", 0.0f);
+    effect.setParameter("Gravity", 1.0f);
+    effect.setParameter("Heat", 1.0f);
+    effect.setParameter("Detail", 1.0f);
+    effect.process(frame, CreativeEffectContext{.time = 4.0});
+
+    for (int channelIndex = 0; channelIndex < 4; ++channelIndex) {
+        const auto plane = frame.getChannel(channels[channelIndex]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], inputs[channelIndex][pixel])
+                << "channel=" << channelIndex << " pixel=" << pixel;
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, GlitchIsRepeatableAtFixedTimeAndAppliesSharedGrainToRgb) {
     VideoFrame first(4, 2);
     VideoFrame second(4, 2);
