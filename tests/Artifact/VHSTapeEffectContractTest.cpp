@@ -355,6 +355,8 @@ TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
     ImageF32x4RGBAWithCache hidden;
     ImageF32x4RGBAWithCache play;
     ImageF32x4RGBAWithCache record;
+    ImageF32x4RGBAWithCache pause;
+    ImageF32x4RGBAWithCache autoTrack;
 
     VHSTapeEffect hiddenEffect;
     setNeutralTapeProperties(hiddenEffect);
@@ -369,6 +371,16 @@ TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
     recordEffect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
     recordEffect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 1);
     recordEffect.applyCPUOnly(source, record);
+    VHSTapeEffect pauseEffect;
+    setNeutralTapeProperties(pauseEffect);
+    pauseEffect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+    pauseEffect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 2);
+    pauseEffect.applyCPUOnly(source, pause);
+    VHSTapeEffect autoTrackEffect;
+    setNeutralTapeProperties(autoTrackEffect);
+    autoTrackEffect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+    autoTrackEffect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 3);
+    autoTrackEffect.applyCPUOnly(source, autoTrack);
 
     ASSERT_EQ(hidden.image().width(), width);
     ASSERT_EQ(hidden.image().height(), height);
@@ -376,14 +388,24 @@ TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
     ASSERT_EQ(play.image().height(), height);
     ASSERT_EQ(record.image().width(), width);
     ASSERT_EQ(record.image().height(), height);
+    ASSERT_EQ(pause.image().width(), width);
+    ASSERT_EQ(pause.image().height(), height);
+    ASSERT_EQ(autoTrack.image().width(), width);
+    ASSERT_EQ(autoTrack.image().height(), height);
     const float* hiddenPixels = hidden.image().rgba32fData();
     const float* playPixels = play.image().rgba32fData();
     const float* recordPixels = record.image().rgba32fData();
+    const float* pausePixels = pause.image().rgba32fData();
+    const float* autoTrackPixels = autoTrack.image().rgba32fData();
     ASSERT_NE(hiddenPixels, nullptr);
     ASSERT_NE(playPixels, nullptr);
     ASSERT_NE(recordPixels, nullptr);
+    ASSERT_NE(pausePixels, nullptr);
+    ASSERT_NE(autoTrackPixels, nullptr);
     bool osdVisible = false;
     bool modeChanged = false;
+    bool pauseChanged = false;
+    bool autoTrackChanged = false;
     for (std::size_t pixel = 0;
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
         for (std::size_t channel = 0; channel < 3; ++channel) {
@@ -392,10 +414,16 @@ TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
                 std::abs(playPixels[offset] - hiddenPixels[offset]) > 1.0e-5f;
             modeChanged = modeChanged ||
                 std::abs(playPixels[offset] - recordPixels[offset]) > 1.0e-5f;
+            pauseChanged = pauseChanged ||
+                std::abs(playPixels[offset] - pausePixels[offset]) > 1.0e-5f;
+            autoTrackChanged = autoTrackChanged ||
+                std::abs(playPixels[offset] - autoTrackPixels[offset]) > 1.0e-5f;
         }
     }
     EXPECT_TRUE(osdVisible);
     EXPECT_TRUE(modeChanged);
+    EXPECT_TRUE(pauseChanged);
+    EXPECT_TRUE(autoTrackChanged);
 }
 
 TEST(VHSTapeEffectContractTest,
