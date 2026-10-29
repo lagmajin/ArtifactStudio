@@ -1415,6 +1415,16 @@ set_tests_properties(ArtifactCoreAeShapeOperatorsContractTest PROPERTIES
     LABELS "shape;operators;geometry;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreShapeLayerContractTest
+    SOURCES
+        ShapeLayerContractTest.cpp
+    LIBS
+        ArtifactCoreShape
+)
+set_tests_properties(ArtifactCoreShapeLayerContractTest PROPERTIES
+    LABELS "shape;layer;geometry;copy;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreTrimPathsContractTest
     SOURCES
         TrimPathsContractTest.cpp
