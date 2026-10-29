@@ -830,6 +830,10 @@ TEST(LofiEffectContractTest,
     expectRoiHint(2.0f);
     effect.setPropertyValue(UniString("gateWeave"), QVariant(100.0f));
     expectRoiHint(13.0f);
+    effect.setPropertyValue(UniString("seed"), QVariant(0));
+    expectRoiHint(13.0f);
+    effect.setPropertyValue(UniString("seed"), QVariant(100000));
+    expectRoiHint(13.0f);
 }
 
 TEST(LofiEffectContractTest, FilmGrungePublishesStablePropertyContracts)
