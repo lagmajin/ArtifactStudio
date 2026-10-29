@@ -535,6 +535,16 @@ set_tests_properties(ArtifactMagnifyEffectContractTest PROPERTIES
     LABELS "effect;distortion;cpu;contract"
 )
 
+artifact_add_test(ArtifactImageMorphEffectContractTest
+    SOURCES
+        ImageMorphEffectContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactImageMorphEffectContractTest PROPERTIES
+    LABELS "effect;image-morph;cpu;contract"
+)
+
 artifact_add_test(ArtifactSpherizeEffectContractTest
     SOURCES
         SpherizeEffectContractTest.cpp
