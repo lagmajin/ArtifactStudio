@@ -936,7 +936,10 @@ TEST(ExportWriterContractTest, SingleTextLayerProducesMinimalWriterSchemas)
     ASSERT_TRUE(textResult.success);
     auto* textLayer = dynamic_cast<Artifact::ArtifactTextLayer*>(textResult.layer.get());
     ASSERT_NE(textLayer, nullptr);
-    textLayer->setText(ArtifactCore::UniString(QStringLiteral("schema-one-layer")));
+    const QString specialText = QStringLiteral("schema & <one-layer>");
+    const QString escapedText =
+        QStringLiteral("schema &amp; &lt;one-layer&gt;");
+    textLayer->setText(ArtifactCore::UniString(specialText));
 
     const auto compositionResult = projects.findComposition(composition.id);
     ASSERT_TRUE(compositionResult.success);
@@ -968,25 +971,25 @@ TEST(ExportWriterContractTest, SingleTextLayerProducesMinimalWriterSchemas)
     const QString gamefaceHtml = readTextFile(
         QDir(gameface).filePath(QStringLiteral("index.html")));
     EXPECT_EQ(gamefaceHtml.count(QStringLiteral("class=\"layer ")), 1);
-    EXPECT_TRUE(gamefaceHtml.contains(QStringLiteral("schema-one-layer")));
+    EXPECT_TRUE(gamefaceHtml.contains(escapedText));
 
     const QString noesisPath = QDir(noesis).filePath(QStringLiteral("composition.xaml"));
     ASSERT_TRUE(isWellFormedXml(noesisPath));
     const QString noesisMarkup = readTextFile(noesisPath);
     EXPECT_EQ(noesisMarkup.count(QStringLiteral("<TextBlock ")), 1);
-    EXPECT_TRUE(noesisMarkup.contains(QStringLiteral("schema-one-layer")));
+    EXPECT_TRUE(noesisMarkup.contains(escapedText));
 
     const QString rmlPath = QDir(rmlui).filePath(QStringLiteral("composition.rml"));
     ASSERT_TRUE(isWellFormedXml(rmlPath));
     const QString rmlMarkup = readTextFile(rmlPath);
     EXPECT_EQ(rmlMarkup.count(QStringLiteral("class=\"layer_0\"")), 1);
-    EXPECT_TRUE(rmlMarkup.contains(QStringLiteral("schema-one-layer")));
+    EXPECT_TRUE(rmlMarkup.contains(escapedText));
 
     const QString unityPath = QDir(unity).filePath(QStringLiteral("composition.uxml"));
     ASSERT_TRUE(isWellFormedXml(unityPath));
     const QString unityMarkup = readTextFile(unityPath);
     EXPECT_EQ(unityMarkup.count(QStringLiteral("<ui:Label ")), 1);
-    EXPECT_TRUE(unityMarkup.contains(QStringLiteral("schema-one-layer")));
+    EXPECT_TRUE(unityMarkup.contains(escapedText));
 
     const QJsonDocument lottieDocument =
         QJsonDocument::fromJson(readFileBytes(lottie));
@@ -994,6 +997,14 @@ TEST(ExportWriterContractTest, SingleTextLayerProducesMinimalWriterSchemas)
     const QJsonArray lottieLayers = lottieDocument.object()
         .value(QStringLiteral("layers")).toArray();
     ASSERT_EQ(lottieLayers.size(), 1);
-    EXPECT_EQ(lottieLayers.front().toObject().value(QStringLiteral("nm")).toString(),
+    const QJsonObject lottieTextLayer = lottieLayers.front().toObject();
+    EXPECT_EQ(lottieTextLayer.value(QStringLiteral("nm")).toString(),
               QStringLiteral("OnlyLayer"));
+    const QJsonArray textKeyframes = lottieTextLayer.value(QStringLiteral("t"))
+        .toObject().value(QStringLiteral("d")).toObject()
+        .value(QStringLiteral("k")).toArray();
+    ASSERT_EQ(textKeyframes.size(), 1);
+    EXPECT_EQ(textKeyframes.front().toObject().value(QStringLiteral("s"))
+                  .toObject().value(QStringLiteral("t")).toString(),
+              specialText);
 }
