@@ -421,3 +421,37 @@ TEST(TimeRemapProcessorTest, BlendClampFrameConvertAndReset)
     context.timeSeconds = 1.5;
     EXPECT_EQ(context.timeKey(), 1500000);
 }
+
+TEST(AudioTimeStretchProcessorTest, SimpleStereoStretchInterpolatesAndClampsAtInputEnd)
+{
+    AudioTimeStretchProcessor processor;
+    processor.setChannels(2);
+    processor.setPreservePitch(false);
+    const float input[]{0.0f, 10.0f, 2.0f, 12.0f, 4.0f, 14.0f};
+    float stretched[12]{};
+
+    const int outputFrames = processor.processTimeStretch(input, 3, 0.5, stretched);
+    ASSERT_EQ(outputFrames, 6);
+    const float expected[]{0.0f, 10.0f, 1.0f, 11.0f, 2.0f, 12.0f,
+                           3.0f, 13.0f, 4.0f, 14.0f, 4.0f, 14.0f};
+    for (int sample = 0; sample < 12; ++sample) {
+        EXPECT_FLOAT_EQ(stretched[sample], expected[sample]) << "sample " << sample;
+    }
+}
+
+TEST(AudioTimeStretchProcessorTest, InvalidRequestsDoNotWriteOutput)
+{
+    AudioTimeStretchProcessor processor;
+    processor.setChannels(0);
+    const float input[]{1.0f, 2.0f, 3.0f};
+    float output[]{-7.0f, -7.0f, -7.0f, -7.0f};
+
+    EXPECT_EQ(processor.channels(), 1);
+    EXPECT_EQ(processor.processTimeStretch(nullptr, 3, 1.0, output), 0);
+    EXPECT_EQ(processor.processTimeStretch(input, 3, 0.0, output), 0);
+    EXPECT_EQ(processor.processTimeStretch(input, 3,
+                                           std::numeric_limits<double>::infinity(), output), 0);
+    EXPECT_EQ(processor.processTimeStretch(input, 0, 1.0, output), 0);
+    EXPECT_EQ(processor.processTimeStretch(input, 3, 1.0, nullptr), 0);
+    for (const float sample : output) EXPECT_FLOAT_EQ(sample, -7.0f);
+}
