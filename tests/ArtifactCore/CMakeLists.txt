@@ -1299,6 +1299,16 @@ set_tests_properties(ArtifactCoreEmbossEffectContractTest PROPERTIES
     LABELS "image;emboss;convolution;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreMedianEffectContractTest
+    SOURCES
+        MedianEffectContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreMedianEffectContractTest PROPERTIES
+    LABELS "image;median;neighborhood;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
