@@ -1072,6 +1072,15 @@ artifact_add_test(ArtifactProceduralTextureGeneratorEffectContractTest
 set_tests_properties(ArtifactProceduralTextureGeneratorEffectContractTest PROPERTIES
     LABELS "effect;procedural-texture;generator;cpu;contract"
 )
+artifact_add_test(ArtifactSimpleRainEffectContractTest
+    SOURCES
+        SimpleRainEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsGenerate
+)
+set_tests_properties(ArtifactSimpleRainEffectContractTest PROPERTIES
+    LABELS "effect;simple-rain;generator;cpu;contract"
+)
 artifact_add_test(ArtifactLinearWipeEffectContractTest
     SOURCES
         LinearWipeEffectContractTest.cpp
