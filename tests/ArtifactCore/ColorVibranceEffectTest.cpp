@@ -2250,3 +2250,67 @@ TEST(CreativeImageEffectContractTest, PigmentSeparationFlowChangesDirectionalSam
         EXPECT_FLOAT_EQ(variedFlowAlpha->data()[pixel], alpha);
     }
 }
+
+TEST(CreativeImageEffectContractTest, PigmentSeparationBleedChangesWetChannelMix) {
+    constexpr int width = 12;
+    constexpr int height = 10;
+    VideoFrame dryFrame(width, height);
+    VideoFrame wetFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float red = static_cast<float>(x) / (width - 1);
+            const float green = static_cast<float>(y) / (height - 1);
+            const float blue = static_cast<float>((x + 2 * y) % width) / (width - 1);
+            dryFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            dryFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            dryFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            wetFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+            wetFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+            wetFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            dryFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            wetFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    PigmentSeparationEffect dryEffect;
+    dryEffect.setParameter("Spread", 0.0f);
+    dryEffect.setParameter("Bleed", 0.0f);
+    dryEffect.setParameter("Flow", 0.0f);
+    dryEffect.setParameter("Granulation", 0.0f);
+    PigmentSeparationEffect wetEffect;
+    wetEffect.setParameter("Spread", 0.0f);
+    wetEffect.setParameter("Bleed", 1.0f);
+    wetEffect.setParameter("Flow", 0.0f);
+    wetEffect.setParameter("Granulation", 0.0f);
+    const CreativeEffectContext context{.time = 4.25};
+    dryEffect.process(dryFrame, context);
+    wetEffect.process(wetFrame, context);
+
+    bool bleedChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto dry = dryFrame.getChannel(channel);
+        const auto wet = wetFrame.getChannel(channel);
+        ASSERT_TRUE(dry);
+        ASSERT_TRUE(wet);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(wet->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            bleedChangedRgb = bleedChangedRgb ||
+                std::abs(wet->data()[pixel] - dry->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(bleedChangedRgb);
+
+    const auto dryAlpha = dryFrame.getChannel(ChannelType::Alpha);
+    const auto wetAlpha = wetFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(dryAlpha);
+    ASSERT_TRUE(wetAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(dryAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(wetAlpha->data()[pixel], alpha);
+    }
+}
