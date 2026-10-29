@@ -6,6 +6,7 @@
 #include <cmath>
 #include <limits>
 
+#include <QPointF>
 #include <QRectF>
 #include <QString>
 
@@ -305,25 +306,22 @@ TEST(LofiEffectContractTest, AnimatedRegionCoordinatesMoveThePixelComposite)
     ASSERT_NE(fullPixels, nullptr);
 
     const auto expectRegionOutput = [&](std::int64_t frame,
-                                        int left,
-                                        int top,
-                                        int regionWidthPixels,
-                                        int regionHeightPixels) {
+                                        const QRectF& expectedRegion) {
         EffectContext context;
         context.frameRate = 30.0;
         context.compositionFrame = frame;
         effect.setContext(context);
         ASSERT_TRUE(effect.hasEffectRegion());
-        EXPECT_EQ(effect.effectRegion(),
-                  QRectF(left, top, regionWidthPixels, regionHeightPixels));
+        EXPECT_EQ(effect.effectRegion(), expectedRegion);
         ImageF32x4RGBAWithCache output;
         effect.applyCPUOnly(source, output);
         const float* actual = output.image().rgba32fData();
         ASSERT_NE(actual, nullptr);
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
-                const bool inside = x >= left && x < left + regionWidthPixels &&
-                                    y >= top && y < top + regionHeightPixels;
+                const bool inside = expectedRegion.contains(
+                    QPointF(static_cast<qreal>(x) + 0.5,
+                            static_cast<qreal>(y) + 0.5));
                 const std::size_t offset =
                     static_cast<std::size_t>((y * width + x) * 4);
                 for (std::size_t channel = 0; channel < 4; ++channel) {
@@ -338,8 +336,9 @@ TEST(LofiEffectContractTest, AnimatedRegionCoordinatesMoveThePixelComposite)
         }
     };
 
-    expectRegionOutput(0, 2, 1, 3, 2);
-    expectRegionOutput(30, 3, 2, 4, 3);
+    expectRegionOutput(0, QRectF(2.0, 1.0, 3.0, 2.0));
+    expectRegionOutput(15, QRectF(2.5, 1.5, 3.5, 2.5));
+    expectRegionOutput(30, QRectF(3.0, 2.0, 4.0, 3.0));
 }
 
 TEST(LofiEffectContractTest, AllowOverscanDoesNotExpandOldTvOutput)
