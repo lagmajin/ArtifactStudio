@@ -147,6 +147,49 @@ TEST(LofiEffectContractTest, OldTvHandlesSinglePixelWideImages)
     }
 }
 
+TEST(LofiEffectContractTest, OldTvHandlesSinglePixelHighImagesDeterministically)
+{
+    constexpr int width = 5;
+    constexpr int height = 1;
+    constexpr std::array<float, width * height * 4> pixels{
+        0.2f, 0.4f, 0.6f, 0.1f,
+        0.3f, 0.5f, 0.7f, 0.3f,
+        0.4f, 0.6f, 0.8f, 0.5f,
+        0.5f, 0.7f, 0.9f, 0.7f,
+        0.6f, 0.8f, 1.0f, 0.9f};
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache first;
+    ImageF32x4RGBAWithCache repeated;
+
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, first);
+    effect.applyCPUOnly(source, repeated);
+
+    ASSERT_EQ(first.image().width(), width);
+    ASSERT_EQ(first.image().height(), height);
+    const float* result = first.image().rgba32fData();
+    const float* repeatedResult = repeated.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    ASSERT_NE(repeatedResult, nullptr);
+    for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width); ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_TRUE(std::isfinite(result[pixel * 4 + channel]))
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_GE(result[pixel * 4 + channel], 0.0f)
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_LE(result[pixel * 4 + channel], 1.0f)
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(result[pixel * 4 + channel],
+                            repeatedResult[pixel * 4 + channel])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+        EXPECT_FLOAT_EQ(result[pixel * 4 + 3], pixels[pixel * 4 + 3]);
+    }
+}
+
 } // namespace
 
 TEST(LofiEffectContractTest, OldTvKeepsAlphaAndSourceAndAppliesFourRowScanline)
