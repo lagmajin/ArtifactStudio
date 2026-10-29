@@ -397,6 +397,23 @@ TEST(CreativeImageEffectContractTest, PosterizeMissingRequiredColorChannelLeaves
     EXPECT_FALSE(frame.getChannel(ChannelType::Blue));
 }
 
+TEST(CreativeImageEffectContractTest, PosterizeProcessesRgbWithoutOptionalAlpha) {
+    VideoFrame frame(1, 1);
+    frame.getChannel(ChannelType::Red)->data()[0] = 0.4f;
+    frame.getChannel(ChannelType::Green)->data()[0] = 0.6f;
+    frame.getChannel(ChannelType::Blue)->data()[0] = 0.8f;
+    frame.removeChannel(ChannelType::Alpha);
+
+    PosterizeEffect effect;
+    effect.setParameter("Levels", 2.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[0], 0.0f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[0], 1.0f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[0], 1.0f);
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, SolarizeThresholdIsStrictAndAlphaIsUnchanged) {
     VideoFrame frame(4, 1);
     const float red[] = {0.25f, 0.50f, 0.75f, 1.0f};
@@ -520,6 +537,23 @@ TEST(CreativeImageEffectContractTest, SolarizeLeavesFrameUnchangedWhenRequiredCh
     EXPECT_FALSE(frame.getChannel(ChannelType::Green));
     EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[0], 0.75f);
     EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[0], 0.40f);
+}
+
+TEST(CreativeImageEffectContractTest, SolarizeProcessesRgbWithoutOptionalAlpha) {
+    VideoFrame frame(1, 1);
+    frame.getChannel(ChannelType::Red)->data()[0] = 0.25f;
+    frame.getChannel(ChannelType::Green)->data()[0] = 0.75f;
+    frame.getChannel(ChannelType::Blue)->data()[0] = 1.0f;
+    frame.removeChannel(ChannelType::Alpha);
+
+    SolarizeEffect effect;
+    effect.setParameter("Threshold", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[0], 0.25f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[0], 0.5f);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[0], 0.0f);
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
 }
 
 TEST(CreativeImageEffectContractTest, FisheyeUnitStrengthAndZoomUseExpectedNearestSamples) {
