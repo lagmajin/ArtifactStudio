@@ -13,6 +13,7 @@
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
 import Artifact.Effect.Context;
+import Graphics.SurfaceColorContract;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
 import Time.Rational;
@@ -97,6 +98,30 @@ TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
     for (std::size_t channel = 0; channel < 8 * 8 * 4; ++channel) {
         EXPECT_TRUE(std::isfinite(pixels[channel])) << "channel=" << channel;
     }
+}
+
+TEST(LofiEffectContractTest, OldTvPreservesInputColorDescriptor)
+{
+    constexpr std::array<float, 16> pixels{
+        0.1f, 0.2f, 0.3f, 0.4f,
+        0.2f, 0.3f, 0.4f, 0.5f,
+        0.3f, 0.4f, 0.5f, 0.6f,
+        0.4f, 0.5f, 0.6f, 0.7f,
+    };
+    const auto descriptor =
+        SurfaceColorDescriptor::linearStraightRgba32Float();
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 2, 2);
+    image.setColorDescriptor(descriptor);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_EQ(source.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(output.image().colorDescriptor(), descriptor);
 }
 
 TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
