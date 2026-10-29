@@ -172,6 +172,40 @@ TEST(ColorVibranceEffectTest, MatteMovesAlphaTowardSaturationMask) {
     }
 }
 
+TEST(ColorVibranceEffectTest, ZeroMatteSoftnessUsesFiniteThresholdBoundary) {
+    VideoFrame frame(3, 1);
+    constexpr float red[] = {0.75f, 0.75005f, 0.7502f};
+    constexpr float green[] = {0.25f, 0.25f, 0.25f};
+    constexpr float blue[] = {0.25f, 0.25f, 0.25f};
+    constexpr float alpha[] = {0.2f, 0.4f, 0.6f};
+    for (int pixel = 0; pixel < 3; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = red[pixel];
+        frame.getChannel(ChannelType::Green)->data()[pixel] = green[pixel];
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = blue[pixel];
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha[pixel];
+    }
+
+    ColorVibranceEffect effect;
+    effect.setParameter("Vibrance", 0.0f);
+    effect.setParameter("Saturation", 0.0f);
+    effect.setParameter("ColorBoost", 1.0f);
+    effect.setParameter("MatteAmount", 1.0f);
+    effect.setParameter("MatteThreshold", 0.5f);
+    effect.setParameter("MatteSoftness", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const auto outputAlpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(outputAlpha);
+    EXPECT_FLOAT_EQ(outputAlpha->data()[0], 0.0f);
+    EXPECT_NEAR(outputAlpha->data()[1], 0.5f, 1.0e-3f);
+    EXPECT_FLOAT_EQ(outputAlpha->data()[2], 1.0f);
+    for (int pixel = 0; pixel < 3; ++pixel) {
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[pixel], red[pixel]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[pixel], green[pixel]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[pixel], blue[pixel]);
+    }
+}
+
 TEST(ColorVibranceEffectTest, MissingRequiredColorChannelLeavesFrameUnchanged) {
     VideoFrame frame(1, 1);
     frame.getChannel(ChannelType::Red)->data()[0] = 0.20f;
