@@ -338,10 +338,9 @@ TEST_F(PostProcessPassGpuContractTest, DepthOfFieldBlursAnOffFocusImpulse)
     ASSERT_TRUE(pass.ready());
 
     std::array<float, kPixelCount * 4> color{};
-    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-        color[pixel * 4 + 3] = 1.0f;
-    }
-    color[pixelOffset(kWidth / 2, kHeight / 2)] = 1.0f;
+    const auto centerInput = pixelOffset(kWidth / 2, kHeight / 2);
+    color[centerInput] = 1.0f;
+    color[centerInput + 3] = 1.0f;
 
     auto colorTexture = createTexture(
         gpu_.device(), "DOF contract impulse", TEX_FORMAT_RGBA32_FLOAT,
@@ -379,8 +378,8 @@ TEST_F(PostProcessPassGpuContractTest, DepthOfFieldBlursAnOffFocusImpulse)
     const auto adjacent = pixelOffset(kWidth / 2 + 1, kHeight / 2);
     EXPECT_LT(output[center], 1.0f);
     EXPECT_GT(output[adjacent], 0.0f);
-    EXPECT_NEAR(output[center + 3], 1.0f, 1.0e-5f);
-    EXPECT_NEAR(output[adjacent + 3], 1.0f, 1.0e-5f);
+    EXPECT_LT(output[center + 3], 1.0f);
+    EXPECT_GT(output[adjacent + 3], 0.0f);
 }
 
 TEST_F(PostProcessPassGpuContractTest, DisabledPassesLeaveOutputPixelsUntouched)
@@ -562,10 +561,11 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVel
     std::array<float, kPixelCount * 2> velocity{};
     std::array<float, kPixelCount * 2> zeroVelocity{};
     for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-        color[pixel * 4 + 3] = 1.0f;
         velocity[pixel * 2] = 2.0f;
     }
-    color[pixelOffset(kWidth / 2, kHeight / 2)] = 1.0f;
+    const auto centerInput = pixelOffset(kWidth / 2, kHeight / 2);
+    color[centerInput] = 1.0f;
+    color[centerInput + 3] = 1.0f;
 
     auto colorTexture = createTexture(
         gpu_.device(), "Motion blur contract impulse", TEX_FORMAT_RGBA32_FLOAT,
@@ -613,6 +613,8 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVel
     const auto adjacent = pixelOffset(kWidth / 2 + 1, kHeight / 2);
     EXPECT_LT(blurred[center], 1.0f);
     EXPECT_GT(blurred[adjacent], 0.0f);
+    EXPECT_LT(blurred[center + 3], 1.0f);
+    EXPECT_GT(blurred[adjacent + 3], 0.0f);
 
     ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, zeroVelocitySrv, depthSrv,
                            outputUav, kWidth, kHeight, settings));
@@ -621,6 +623,7 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVel
     EXPECT_FLOAT_EQ(unblurred[center], 1.0f);
     EXPECT_FLOAT_EQ(unblurred[adjacent], 0.0f);
     EXPECT_FLOAT_EQ(unblurred[center + 3], 1.0f);
+    EXPECT_FLOAT_EQ(unblurred[adjacent + 3], 0.0f);
 
     settings.shutterAngle = 0.0f;
     ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
@@ -630,6 +633,7 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVel
     EXPECT_FLOAT_EQ(zeroShutter[center], 1.0f);
     EXPECT_FLOAT_EQ(zeroShutter[adjacent], 0.0f);
     EXPECT_FLOAT_EQ(zeroShutter[center + 3], 1.0f);
+    EXPECT_FLOAT_EQ(zeroShutter[adjacent + 3], 0.0f);
 }
 
 TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
