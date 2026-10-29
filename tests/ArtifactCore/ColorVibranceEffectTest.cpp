@@ -476,6 +476,50 @@ TEST(CreativeImageEffectContractTest, FisheyeUnitStrengthAndZoomUseExpectedNeare
     }
 }
 
+TEST(CreativeImageEffectContractTest, FisheyeMinimumZoomExpandsAndClampsSamples) {
+    VideoFrame frame(3, 3);
+    const auto red = frame.getChannel(ChannelType::Red);
+    const auto green = frame.getChannel(ChannelType::Green);
+    const auto blue = frame.getChannel(ChannelType::Blue);
+    const auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < 9; ++pixel) {
+        red->data()[pixel] = static_cast<float>(pixel) / 10.0f;
+        green->data()[pixel] = static_cast<float>(8 - pixel) / 10.0f;
+        blue->data()[pixel] = static_cast<float>((pixel * 2) % 9) / 10.0f;
+        alpha->data()[pixel] = static_cast<float>(pixel + 1) / 10.0f;
+    }
+
+    FisheyeEffect effect;
+    effect.setParameter("Strength", 0.0f);
+    effect.setParameter("Zoom", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    constexpr int expectedSourceIndices[] = {
+        0, 0, 2,
+        0, 0, 2,
+        6, 6, 8,
+    };
+    for (int pixel = 0; pixel < 9; ++pixel) {
+        const int source = expectedSourceIndices[pixel];
+        EXPECT_FLOAT_EQ(red->data()[pixel],
+                        static_cast<float>(source) / 10.0f)
+            << "red pixel=" << pixel;
+        EXPECT_FLOAT_EQ(green->data()[pixel],
+                        static_cast<float>(8 - source) / 10.0f)
+            << "green pixel=" << pixel;
+        EXPECT_FLOAT_EQ(blue->data()[pixel],
+                        static_cast<float>((source * 2) % 9) / 10.0f)
+            << "blue pixel=" << pixel;
+        EXPECT_FLOAT_EQ(alpha->data()[pixel],
+                        static_cast<float>(pixel + 1) / 10.0f)
+            << "alpha pixel=" << pixel;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, FisheyeZeroStrengthAndUnitZoomAreExactPassthrough) {
     constexpr int width = 4;
     constexpr int height = 2;
