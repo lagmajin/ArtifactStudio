@@ -1329,6 +1329,16 @@ set_tests_properties(ArtifactCoreAnamorphicFlareContractTest PROPERTIES
     LABELS "image;flare;anamorphic;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreChromaSpreadGlowContractTest
+    SOURCES
+        ChromaSpreadGlowContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreChromaSpreadGlowContractTest PROPERTIES
+    LABELS "image;chroma-spread;glow;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
