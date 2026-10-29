@@ -523,6 +523,43 @@ TEST(CreativeImageEffectContractTest, HalftoneCreatesExpectedDotCenterAndCornerV
     }
 }
 
+TEST(CreativeImageEffectContractTest, HalftoneContrastChangesDotCoverage) {
+    VideoFrame noContrast(4, 4);
+    VideoFrame highContrast(4, 4);
+    for (int index = 0; index < 16; ++index) {
+        for (const auto channel : {ChannelType::Red, ChannelType::Green,
+                                   ChannelType::Blue}) {
+            auto noContrastPlane = noContrast.getChannel(channel);
+            auto highContrastPlane = highContrast.getChannel(channel);
+            ASSERT_TRUE(noContrastPlane);
+            ASSERT_TRUE(highContrastPlane);
+            const float value = channel == ChannelType::Red ? 0.25f
+                : channel == ChannelType::Green ? 0.5f : 0.75f;
+            noContrastPlane->data()[index] = value;
+            highContrastPlane->data()[index] = value;
+        }
+    }
+
+    HalftoneEffect flatEffect;
+    flatEffect.setParameter("Size", 4.0f);
+    flatEffect.setParameter("Angle", 0.0f);
+    flatEffect.setParameter("Contrast", 0.0f);
+    HalftoneEffect contrastEffect;
+    contrastEffect.setParameter("Size", 4.0f);
+    contrastEffect.setParameter("Angle", 0.0f);
+    contrastEffect.setParameter("Contrast", 2.0f);
+    flatEffect.process(noContrast, CreativeEffectContext{});
+    contrastEffect.process(highContrast, CreativeEffectContext{});
+
+    const auto flatRed = noContrast.getChannel(ChannelType::Red);
+    const auto contrastRed = highContrast.getChannel(ChannelType::Red);
+    ASSERT_TRUE(flatRed);
+    ASSERT_TRUE(contrastRed);
+    constexpr int dotEdgePixel = 2 * 4;
+    EXPECT_FLOAT_EQ(flatRed->data()[dotEdgePixel], 0.0f);
+    EXPECT_FLOAT_EQ(contrastRed->data()[dotEdgePixel], 1.0f);
+}
+
 TEST(CreativeImageEffectContractTest, KaleidoscopeCountOneFoldsUpperRightTowardLowerWedge) {
     VideoFrame frame(3, 3);
     auto red = frame.getChannel(ChannelType::Red);
