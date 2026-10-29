@@ -418,6 +418,42 @@ TEST(CreativeImageEffectContractTest, FisheyeUnitStrengthAndZoomUseExpectedNeare
     }
 }
 
+TEST(CreativeImageEffectContractTest, FisheyeZeroStrengthAndUnitZoomAreExactPassthrough) {
+    constexpr int width = 4;
+    constexpr int height = 2;
+    VideoFrame frame(width, height);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    float original[width * height][4]{};
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        original[pixel][0] = static_cast<float>(pixel + 1) / 10.0f;
+        original[pixel][1] = static_cast<float>(width * height - pixel) / 11.0f;
+        original[pixel][2] = static_cast<float>((pixel * 3) % 7) / 8.0f;
+        original[pixel][3] = static_cast<float>(pixel) / 9.0f;
+        for (int channel = 0; channel < 4; ++channel) {
+            const auto plane = frame.getChannel(channels[channel]);
+            ASSERT_TRUE(plane);
+            plane->data()[pixel] = original[pixel][channel];
+        }
+    }
+
+    FisheyeEffect effect;
+    effect.setParameter("Strength", 0.0f);
+    effect.setParameter("Zoom", 1.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int channel = 0; channel < 4; ++channel) {
+        const auto plane = frame.getChannel(channels[channel]);
+        ASSERT_TRUE(plane);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(plane->data()[pixel], original[pixel][channel])
+                << "channel=" << channel << " pixel=" << pixel;
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, MirrorReflectsOnlyTheSelectedHalfAcrossVerticalAxis) {
     VideoFrame frame(4, 1);
     auto red = frame.getChannel(ChannelType::Red);
