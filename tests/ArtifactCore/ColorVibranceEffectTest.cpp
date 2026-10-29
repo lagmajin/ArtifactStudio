@@ -736,6 +736,42 @@ TEST(CreativeImageEffectContractTest, ChromaticAberrationShiftsRedAndBlueInOppos
     }
 }
 
+TEST(CreativeImageEffectContractTest, ChromaticAberrationAngleShiftsVerticallyAndClampsEdges) {
+    VideoFrame frame(1, 3);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    const float inputRed[] = {0.1f, 0.2f, 0.3f};
+    const float inputGreen[] = {0.4f, 0.5f, 0.6f};
+    const float inputBlue[] = {0.7f, 0.8f, 0.9f};
+    const float inputAlpha[] = {0.2f, 0.4f, 0.6f};
+    for (int y = 0; y < 3; ++y) {
+        red->data()[y] = inputRed[y];
+        green->data()[y] = inputGreen[y];
+        blue->data()[y] = inputBlue[y];
+        alpha->data()[y] = inputAlpha[y];
+    }
+
+    ChromaticAberrationEffect effect;
+    effect.setParameter("Amount", 1.0f);
+    effect.setParameter("Angle", 90.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const float expectedRed[] = {0.2f, 0.3f, 0.3f};
+    const float expectedBlue[] = {0.7f, 0.7f, 0.8f};
+    for (int y = 0; y < 3; ++y) {
+        EXPECT_FLOAT_EQ(red->data()[y], expectedRed[y]) << "row=" << y;
+        EXPECT_FLOAT_EQ(green->data()[y], inputGreen[y]) << "row=" << y;
+        EXPECT_FLOAT_EQ(blue->data()[y], expectedBlue[y]) << "row=" << y;
+        EXPECT_FLOAT_EQ(alpha->data()[y], inputAlpha[y]) << "row=" << y;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, EmbossUsesDiagonalDifferenceAndPreservesUnprocessedEdges) {
     VideoFrame frame(2, 2);
     auto red = frame.getChannel(ChannelType::Red);
