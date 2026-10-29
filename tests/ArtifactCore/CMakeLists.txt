@@ -868,6 +868,17 @@ set_tests_properties(ArtifactCoreVideoStabilizerContractTest PROPERTIES
     TIMEOUT 60
 )
 
+artifact_add_test(ArtifactCoreEncoderSettingsContractTest
+    SOURCES
+        EncoderSettingsContractTest.cpp
+    LIBS
+        ArtifactCoreVideo
+)
+set_tests_properties(ArtifactCoreEncoderSettingsContractTest PROPERTIES
+    LABELS "video;encoder;settings;preset;serialization;cpu;contract"
+    TIMEOUT 60
+)
+
 artifact_add_test(ArtifactCoreDiagnosticsContractTest
     SOURCES
         CoreDiagnosticsContractTest.cpp
