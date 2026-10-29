@@ -663,7 +663,8 @@ TEST(LofiEffectContractTest,
             pixels[offset + 0] = ramp;
             pixels[offset + 1] = ramp * 2.0f;
             pixels[offset + 2] = ramp * 3.0f;
-            pixels[offset + 3] = 0.25f + static_cast<float>(y) * 0.01f;
+            pixels[offset + 3] = 0.15f + static_cast<float>(x) * 0.01f +
+                                 static_cast<float>(y) * 0.001f;
         }
     }
     ImageF32x4_RGBA image;
@@ -703,8 +704,10 @@ TEST(LofiEffectContractTest,
             EXPECT_EQ(sourceX, std::clamp(x + rowShift, 0, width - 1))
                 << "x=" << x << " y=" << y;
             EXPECT_LE(std::abs(rowShift), 5) << "y=" << y;
-            EXPECT_FLOAT_EQ(result[offset + 3], pixels[offset + 3])
-                << "x=" << x << " y=" << y;
+            const std::size_t sourceOffset =
+                static_cast<std::size_t>((y * width + sourceX) * 4);
+            EXPECT_FLOAT_EQ(result[offset + 3], pixels[sourceOffset + 3])
+                << "x=" << x << " y=" << y << " sourceX=" << sourceX;
             for (std::size_t channel = 0; channel < 4; ++channel) {
                 EXPECT_FLOAT_EQ(result[offset + channel],
                                 repeatedResult[offset + channel])
