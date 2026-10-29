@@ -450,6 +450,16 @@ set_tests_properties(ArtifactCoreColorSpaceTest PROPERTIES
     LABELS "color;color-space;cpu;unit"
 )
 
+artifact_add_test(ArtifactCoreLabColorContractTest
+    SOURCES
+        LabColorContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLabColorContractTest PROPERTIES
+    LABELS "color;lab;conversion;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorConversionTest
     SOURCES
         ColorConversionTest.cpp
