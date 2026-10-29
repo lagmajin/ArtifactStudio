@@ -499,6 +499,17 @@ set_tests_properties(ArtifactCoreAutoColorMatcherContractTest PROPERTIES
     LABELS "color;matching;image;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreRig2DContractTest
+    SOURCES
+        Rig2DContractTest.cpp
+    LIBS
+        ArtifactCoreRig
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRig2DContractTest PROPERTIES
+    LABELS "rig;animation;serialization;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreColoramaProcessorContractTest
     SOURCES
         ColoramaProcessorContractTest.cpp
