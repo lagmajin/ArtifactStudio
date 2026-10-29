@@ -398,7 +398,8 @@ TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
     EXPECT_TRUE(modeChanged);
 }
 
-TEST(VHSTapeEffectContractTest, WobbleOutputIsRepeatableForSameSeedAndEvolution)
+TEST(VHSTapeEffectContractTest,
+     WobbleOutputIsRepeatableForSameSeedAndChangesForDifferentSeed)
 {
     constexpr int width = 32;
     constexpr int height = 24;
@@ -418,28 +419,41 @@ TEST(VHSTapeEffectContractTest, WobbleOutputIsRepeatableForSameSeedAndEvolution)
     const ImageF32x4RGBAWithCache source(image);
     ImageF32x4RGBAWithCache first;
     ImageF32x4RGBAWithCache repeated;
+    ImageF32x4RGBAWithCache differentSeed;
 
-    const auto applyFixedSettings = [&source](ImageF32x4RGBAWithCache& output) {
+    const auto applyFixedSettings = [&source](
+        const int seed, ImageF32x4RGBAWithCache& output) {
         VHSTapeEffect effect;
         setNeutralTapeProperties(effect);
         effect.setPropertyValue(UniString(QStringLiteral("Wobble")), 2.0);
-        effect.setPropertyValue(UniString(QStringLiteral("Seed")), 29);
+        effect.setPropertyValue(UniString(QStringLiteral("Seed")), seed);
         effect.setPropertyValue(UniString(QStringLiteral("Evolution")), 0.4);
         effect.applyCPUOnly(source, output);
     };
-    applyFixedSettings(first);
-    applyFixedSettings(repeated);
+    applyFixedSettings(29, first);
+    applyFixedSettings(29, repeated);
+    applyFixedSettings(30, differentSeed);
 
     ASSERT_EQ(first.image().width(), width);
     ASSERT_EQ(first.image().height(), height);
+    ASSERT_EQ(differentSeed.image().width(), width);
+    ASSERT_EQ(differentSeed.image().height(), height);
     const float* firstPixels = first.image().rgba32fData();
     const float* repeatedPixels = repeated.image().rgba32fData();
+    const float* differentSeedPixels = differentSeed.image().rgba32fData();
     ASSERT_NE(firstPixels, nullptr);
     ASSERT_NE(repeatedPixels, nullptr);
+    ASSERT_NE(differentSeedPixels, nullptr);
+    bool seedChangedOutput = false;
     for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
         EXPECT_FLOAT_EQ(firstPixels[channel], repeatedPixels[channel])
             << "channel=" << channel;
+        seedChangedOutput = seedChangedOutput ||
+            std::abs(firstPixels[channel] - differentSeedPixels[channel]) >
+                1.0e-5f;
     }
+    EXPECT_TRUE(seedChangedOutput)
+        << "changing the fixed seed should change the wobble sequence";
 }
 
 TEST(VHSTapeEffectContractTest, WobbleOutputChangesAcrossEvolutionFrames)
