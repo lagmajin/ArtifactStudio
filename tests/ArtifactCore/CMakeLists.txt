@@ -897,6 +897,76 @@ artifact_add_test(ArtifactCoreShapeExtrudeTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreBezierPathSamplerContractTest
+    SOURCES
+        BezierPathSamplerStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreBezierPathSamplerContractTest PROPERTIES
+    LABELS "geometry;bezier;path-sampling;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreCameraGuideContractTest
+    SOURCES
+        CameraGuideStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreCameraGuideContractTest PROPERTIES
+    LABELS "geometry;camera-guide;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreLayerBoundsCalculatorContractTest
+    SOURCES
+        LayerBoundsCalculatorStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLayerBoundsCalculatorContractTest PROPERTIES
+    LABELS "geometry;layer-bounds;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreLayerAlignmentContractTest
+    SOURCES
+        LayerAlignmentStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLayerAlignmentContractTest PROPERTIES
+    LABELS "geometry;layer-alignment;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreQuaternionContractTest
+    SOURCES
+        QuaternionStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreQuaternionContractTest PROPERTIES
+    LABELS "math;quaternion;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreMatrix4x4ContractTest
+    SOURCES
+        Matrix4x4StandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreMatrix4x4ContractTest PROPERTIES
+    LABELS "math;matrix;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreArtifactMinMaxContractTest
+    SOURCES
+        ArtifactMinMaxStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreArtifactMinMaxContractTest PROPERTIES
+    LABELS "math;numeric;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreRotationTurnsContractTest
     SOURCES
         RotationTurnsStandaloneTest.cpp
