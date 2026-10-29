@@ -99,10 +99,13 @@ TEST(CreativeEffectAdapterContractTest,
     const ArtifactCore::ImageF32x4RGBAWithCache source(image);
     ArtifactCore::ImageF32x4RGBAWithCache output;
     ArtifactCore::OldTVEffect directEffect;
+    directEffect.setParameter("Scanline", 0.25f);
     directEffect.process(directFrame, ArtifactCore::CreativeEffectContext{});
 
     Artifact::ArtifactCoreCreativeEffect adapter(
         "OldTV", "builtin.test_old_tv", "Old TV Adapter Contract");
+    adapter.setPropertyValue(ArtifactCore::UniString(QStringLiteral("Scanline")),
+                             QVariant(0.25));
     adapter.applyCPUOnly(source, output);
 
     ASSERT_EQ(output.image().width(), width);
