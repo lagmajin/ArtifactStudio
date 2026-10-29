@@ -245,6 +245,26 @@ set_tests_properties(ArtifactCoreViewportTransformerContractTest PROPERTIES
     LABELS "viewport;transform;coordinates;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreSelectionManagerContractTest
+    SOURCES
+        SelectionManagerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreSelectionManagerContractTest PROPERTIES
+    LABELS "selection;event-bus;state;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreZoomScaleContractTest
+    SOURCES
+        ZoomScaleContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreZoomScaleContractTest PROPERTIES
+    LABELS "viewport;zoom;scale;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
