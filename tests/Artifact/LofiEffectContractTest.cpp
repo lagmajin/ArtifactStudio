@@ -347,6 +347,36 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeProcessesSinglePixelSurfaceWithFiniteColorAndStableAlpha)
+{
+    constexpr std::array<float, 4> pixels{0.25f, 0.5f, 0.75f, 0.375f};
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 1, 1);
+    image.setColorDescriptor(descriptor);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(12.0f));
+    EffectContext context;
+    context.compositionFrame = 9;
+    effect.setContext(context);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.width(), 1);
+    ASSERT_EQ(output.height(), 1);
+    EXPECT_EQ(output.image().colorDescriptor(), descriptor);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (int channel = 0; channel < 3; ++channel) {
+        EXPECT_TRUE(std::isfinite(result[channel])) << "channel=" << channel;
+    }
+    EXPECT_FLOAT_EQ(result[3], pixels[3]);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeIsRepeatableWithinAFrameAndChangesAcrossFrames)
 {
     constexpr int width = 64;
