@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <initializer_list>
 #include <cmath>
 
@@ -1514,6 +1515,69 @@ TEST(CreativeImageEffectContractTest, EdgeEchoActiveSettingsChangeFiniteRgbAndKe
     for (int pixel = 0; pixel < width * height; ++pixel) {
         EXPECT_FLOAT_EQ(alpha->data()[pixel], inputAlpha[pixel])
             << "pixel=" << pixel;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, EdgeEchoThicknessChangesEchoSamplingDistance) {
+    constexpr int width = 12;
+    constexpr int height = 8;
+    VideoFrame thinEchoFrame(width, height);
+    VideoFrame thickEchoFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float base = x < width / 2 ? 0.15f : 0.85f;
+            thinEchoFrame.getChannel(ChannelType::Red)->data()[pixel] = base;
+            thinEchoFrame.getChannel(ChannelType::Green)->data()[pixel] =
+                std::clamp(base + static_cast<float>(y) * 0.01f, 0.0f, 1.0f);
+            thinEchoFrame.getChannel(ChannelType::Blue)->data()[pixel] = 1.0f - base;
+            thickEchoFrame.getChannel(ChannelType::Red)->data()[pixel] = base;
+            thickEchoFrame.getChannel(ChannelType::Green)->data()[pixel] =
+                std::clamp(base + static_cast<float>(y) * 0.01f, 0.0f, 1.0f);
+            thickEchoFrame.getChannel(ChannelType::Blue)->data()[pixel] = 1.0f - base;
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            thinEchoFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            thickEchoFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    EdgeEchoEffect thinEcho;
+    thinEcho.setParameter("Intensity", 0.9f);
+    thinEcho.setParameter("Thickness", 0.5f);
+    thinEcho.setParameter("EchoCount", 4.0f);
+    thinEcho.setParameter("Tint", 0.2f);
+    EdgeEchoEffect thickEcho;
+    thickEcho.setParameter("Intensity", 0.9f);
+    thickEcho.setParameter("Thickness", 8.0f);
+    thickEcho.setParameter("EchoCount", 4.0f);
+    thickEcho.setParameter("Tint", 0.2f);
+    thinEcho.process(thinEchoFrame, CreativeEffectContext{});
+    thickEcho.process(thickEchoFrame, CreativeEffectContext{});
+
+    bool thicknessChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto thin = thinEchoFrame.getChannel(channel);
+        const auto thick = thickEchoFrame.getChannel(channel);
+        ASSERT_TRUE(thin);
+        ASSERT_TRUE(thick);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(thick->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            thicknessChangedRgb = thicknessChangedRgb ||
+                std::abs(thick->data()[pixel] - thin->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(thicknessChangedRgb);
+
+    const auto thinAlpha = thinEchoFrame.getChannel(ChannelType::Alpha);
+    const auto thickAlpha = thickEchoFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(thinAlpha);
+    ASSERT_TRUE(thickAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(thinAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(thickAlpha->data()[pixel], alpha);
     }
 }
 
