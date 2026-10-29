@@ -3454,3 +3454,31 @@ TEST(CreativeImageEffectContractTest, PigmentSeparationGranulationIsDeterministi
         }
     }
 }
+
+TEST(CreativeImageEffectContractTest, PigmentSeparationMissingRequiredColorChannelLeavesFrameUnchanged) {
+    VideoFrame frame(2, 1);
+    const float red[] = {0.2f, 0.7f};
+    const float green[] = {0.4f, 0.3f};
+    const float alpha[] = {0.1f, 0.9f};
+    for (int pixel = 0; pixel < 2; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = red[pixel];
+        frame.getChannel(ChannelType::Green)->data()[pixel] = green[pixel];
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha[pixel];
+    }
+    frame.removeChannel(ChannelType::Blue);
+
+    PigmentSeparationEffect effect;
+    effect.setParameter("Spread", 1.0f);
+    effect.setParameter("Bleed", 1.0f);
+    effect.setParameter("Flow", 1.0f);
+    effect.setParameter("Granulation", 1.0f);
+    effect.process(frame, CreativeEffectContext{.time = 6.0});
+
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[0], red[0]);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[1], red[1]);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[0], green[0]);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[1], green[1]);
+    EXPECT_FALSE(frame.getChannel(ChannelType::Blue));
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[0], alpha[0]);
+    EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[1], alpha[1]);
+}
