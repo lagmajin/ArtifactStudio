@@ -160,6 +160,11 @@ TEST(LofiEffectContractTest, AnimatedMixControlsOldTvCompositeAtCompositionFrame
     EXPECT_FLOAT_EQ(effect.mix(), 0.0f);
     ImageF32x4RGBAWithCache atZero;
     effect.applyCPUOnly(source, atZero);
+    const auto refreshedProperties = effect.editableProperties();
+    EXPECT_TRUE(mix->hasKeyFrames());
+    EXPECT_TRUE(std::find(refreshedProperties.begin(), refreshedProperties.end(), mix) !=
+                refreshedProperties.end())
+        << "refreshing editable properties must retain the animated Mix property";
 
     context.compositionFrame = 15;
     effect.setContext(context);
