@@ -426,6 +426,57 @@ TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
     EXPECT_TRUE(autoTrackChanged);
 }
 
+TEST(VHSTapeEffectContractTest, OsdTimecodeAdvancesWithEvolution)
+{
+    constexpr int width = 320;
+    constexpr int height = 180;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset] = 0.12f;
+        pixels[offset + 1] = 0.18f;
+        pixels[offset + 2] = 0.24f;
+        pixels[offset + 3] = 1.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height,
+                         SurfaceColorDescriptor::unknownBgra32Float());
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache firstSecond;
+    ImageF32x4RGBAWithCache secondSecond;
+
+    const auto renderOsdAt = [&source](
+        const double evolution, ImageF32x4RGBAWithCache& output) {
+        VHSTapeEffect effect;
+        setNeutralTapeProperties(effect);
+        effect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+        effect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 0);
+        effect.setPropertyValue(UniString(QStringLiteral("Evolution")), evolution);
+        effect.applyCPUOnly(source, output);
+    };
+    renderOsdAt(0.0, firstSecond);
+    renderOsdAt(1.0, secondSecond);
+
+    ASSERT_EQ(firstSecond.image().width(), width);
+    ASSERT_EQ(firstSecond.image().height(), height);
+    ASSERT_EQ(secondSecond.image().width(), width);
+    ASSERT_EQ(secondSecond.image().height(), height);
+    const float* firstPixels = firstSecond.image().rgba32fData();
+    const float* secondPixels = secondSecond.image().rgba32fData();
+    ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(secondPixels, nullptr);
+    bool timecodeChanged = false;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            const std::size_t offset = pixel * 4 + channel;
+            timecodeChanged = timecodeChanged ||
+                std::abs(firstPixels[offset] - secondPixels[offset]) > 1.0e-5f;
+        }
+    }
+    EXPECT_TRUE(timecodeChanged)
+        << "the OSD timecode should reflect the Evolution property";
+}
+
 TEST(VHSTapeEffectContractTest,
      WobbleOutputIsRepeatableForSameSeedAndChangesForDifferentSeed)
 {
