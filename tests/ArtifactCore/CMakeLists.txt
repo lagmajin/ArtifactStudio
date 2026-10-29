@@ -774,6 +774,16 @@ set_tests_properties(ArtifactCoreTrimPathsContractTest PROPERTIES
     LABELS "shape;trim-paths;animation;geometry;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreRepeaterContractTest
+    SOURCES
+        RepeaterContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRepeaterContractTest PROPERTIES
+    LABELS "shape;repeater;geometry;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreMeshImporterPlyTest
     SOURCES
         MeshImporterPlyTest.cpp
