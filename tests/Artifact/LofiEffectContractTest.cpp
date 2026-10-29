@@ -630,6 +630,69 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeVignetteDarkensCornersWithAStableRadialProfile)
+{
+    constexpr int width = 17;
+    constexpr int height = 13;
+    constexpr float sourceValue = 0.4f;
+    constexpr float alpha = 0.65f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4 + 0] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache noVignette;
+    ImageF32x4RGBAWithCache vignetted;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "gateWeave", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+    effect.applyCPUOnly(source, noVignette);
+
+    constexpr float vignette = 0.2f;
+    effect.setPropertyValue(UniString("vignette"), QVariant(vignette));
+    effect.applyCPUOnly(source, vignetted);
+
+    const float* baseline = noVignette.image().rgba32fData();
+    const float* result = vignetted.image().rgba32fData();
+    ASSERT_NE(baseline, nullptr);
+    ASSERT_NE(result, nullptr);
+    const auto channelAt = [result, width](int x, int y, int channel) {
+        return result[(static_cast<std::size_t>(y * width + x) * 4) + channel];
+    };
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(baseline[offset + channel], sourceValue);
+        }
+        EXPECT_FLOAT_EQ(result[offset + 3], alpha) << "pixel=" << pixel;
+    }
+    const float center = channelAt(width / 2, height / 2, 0);
+    const float edge = channelAt(width / 2, 0, 0);
+    const float corner = channelAt(0, 0, 0);
+    const float expectedCorner = sourceValue *
+        (1.0f - vignette * std::pow(2.0f, 1.35f));
+    EXPECT_NEAR(center, sourceValue, 1.0e-6f);
+    EXPECT_NEAR(edge, sourceValue * (1.0f - vignette), 1.0e-6f);
+    EXPECT_NEAR(corner, expectedCorner, 1.0e-6f);
+    EXPECT_GT(center, edge);
+    EXPECT_GT(edge, corner);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
 {
     constexpr int width = 64;
