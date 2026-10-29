@@ -11,8 +11,10 @@
 
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
+import Artifact.Effect.Context;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
+import Time.Rational;
 
 using namespace Artifact;
 using namespace ArtifactCore;
@@ -138,6 +140,51 @@ TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
     EXPECT_DOUBLE_EQ(findProperty(QStringLiteral("Effect Region Y"))->getValue().toDouble(), 3.0);
     EXPECT_DOUBLE_EQ(findProperty(QStringLiteral("Effect Region Width"))->getValue().toDouble(), 4.0);
     EXPECT_DOUBLE_EQ(findProperty(QStringLiteral("Effect Region Height"))->getValue().toDouble(), 5.0);
+}
+
+TEST(LofiEffectContractTest, AnimatedMixControlsOldTvCompositeAtCompositionFrames)
+{
+    const auto source = makePatternSurface();
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    const auto mix = effect.editableProperty(QStringLiteral("Effect Mix"));
+    ASSERT_TRUE(mix);
+    mix->addKeyFrame(RationalTime(0, 30), 0.0);
+    mix->addKeyFrame(RationalTime(30, 30), 1.0);
+
+    EffectContext context;
+    context.frameRate = 30.0;
+    context.compositionFrame = 0;
+    effect.setContext(context);
+    EXPECT_FLOAT_EQ(effect.mix(), 0.0f);
+    ImageF32x4RGBAWithCache atZero;
+    effect.applyCPUOnly(source, atZero);
+
+    context.compositionFrame = 30;
+    effect.setContext(context);
+    EXPECT_FLOAT_EQ(effect.mix(), 1.0f);
+    ImageF32x4RGBAWithCache atOne;
+    effect.applyCPUOnly(source, atOne);
+
+    ArtifactOldTVEffect fullEffect;
+    fullEffect.setComputeMode(ComputeMode::CPU);
+    ImageF32x4RGBAWithCache expectedFullEffect;
+    fullEffect.applyCPUOnly(source, expectedFullEffect);
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* zeroMixPixels = atZero.image().rgba32fData();
+    const float* fullMixPixels = atOne.image().rgba32fData();
+    const float* expectedPixels = expectedFullEffect.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(zeroMixPixels, nullptr);
+    ASSERT_NE(fullMixPixels, nullptr);
+    ASSERT_NE(expectedPixels, nullptr);
+    constexpr std::size_t channelCount = 8 * 8 * 4;
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(zeroMixPixels[channel], sourcePixels[channel])
+            << "zero-mix channel=" << channel;
+        EXPECT_FLOAT_EQ(fullMixPixels[channel], expectedPixels[channel])
+            << "full-mix channel=" << channel;
+    }
 }
 
 TEST(LofiEffectContractTest, OldTvEmptyInputClearsPreviouslyPopulatedOutput)
