@@ -919,6 +919,15 @@ artifact_add_test(ArtifactDataMoshEffectContractTest
 set_tests_properties(ArtifactDataMoshEffectContractTest PROPERTIES
     LABELS "effect;data-mosh;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactVectorFlowGlitchEffectContractTest
+    SOURCES
+        VectorFlowGlitchEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactVectorFlowGlitchEffectContractTest PROPERTIES
+    LABELS "effect;vector-flow-glitch;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
