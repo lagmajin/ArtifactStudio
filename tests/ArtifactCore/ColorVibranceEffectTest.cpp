@@ -1843,6 +1843,68 @@ TEST(CreativeImageEffectContractTest, LightPressureBloomAddsHighlightContributio
     }
 }
 
+TEST(CreativeImageEffectContractTest, LightPressureStrengthWarpsHighContrastInput) {
+    constexpr int width = 10;
+    constexpr int height = 6;
+    VideoFrame unpressuredFrame(width, height);
+    VideoFrame pressuredFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float value = x < width / 2 ? 0.15f : 0.9f;
+            for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                              ChannelType::Blue}) {
+                unpressuredFrame.getChannel(channel)->data()[pixel] = value;
+                pressuredFrame.getChannel(channel)->data()[pixel] = value;
+            }
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            unpressuredFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            pressuredFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    LightPressureEffect unpressured;
+    unpressured.setParameter("Pressure", 0.0f);
+    unpressured.setParameter("Bloom", 0.0f);
+    unpressured.setParameter("Spread", 0.5f);
+    unpressured.setParameter("Compression", 0.0f);
+    LightPressureEffect pressured;
+    pressured.setParameter("Pressure", 1.0f);
+    pressured.setParameter("Bloom", 0.0f);
+    pressured.setParameter("Spread", 0.5f);
+    pressured.setParameter("Compression", 0.0f);
+    const CreativeEffectContext context{.time = 0.75};
+    unpressured.process(unpressuredFrame, context);
+    pressured.process(pressuredFrame, context);
+
+    bool pressureChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto unpressuredPixels = unpressuredFrame.getChannel(channel);
+        const auto pressuredPixels = pressuredFrame.getChannel(channel);
+        ASSERT_TRUE(unpressuredPixels);
+        ASSERT_TRUE(pressuredPixels);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(pressuredPixels->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            pressureChangedRgb = pressureChangedRgb ||
+                std::abs(pressuredPixels->data()[pixel] -
+                         unpressuredPixels->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(pressureChangedRgb);
+
+    const auto unpressuredAlpha = unpressuredFrame.getChannel(ChannelType::Alpha);
+    const auto pressuredAlpha = pressuredFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(unpressuredAlpha);
+    ASSERT_TRUE(pressuredAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(unpressuredAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(pressuredAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, TemporalEffectsInitializeHistoryFromFirstFrameWithoutChangingPixels) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
