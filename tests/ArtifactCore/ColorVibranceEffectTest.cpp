@@ -1031,6 +1031,52 @@ TEST(CreativeImageEffectContractTest, KaleidoscopeCenterControlsTheSymmetryOrigi
     }
 }
 
+TEST(CreativeImageEffectContractTest, KaleidoscopeNonPositiveCountUsesOneDivision) {
+    constexpr int width = 3;
+    constexpr int height = 3;
+    VideoFrame invalidCountFrame(width, height);
+    VideoFrame minimumCountFrame(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float red = static_cast<float>(pixel) / 10.0f;
+        const float green = static_cast<float>(8 - pixel) / 10.0f;
+        const float blue = static_cast<float>((pixel * 2) % 9) / 10.0f;
+        const float alpha = static_cast<float>(pixel + 1) / 10.0f;
+        invalidCountFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+        invalidCountFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+        invalidCountFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+        invalidCountFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        minimumCountFrame.getChannel(ChannelType::Red)->data()[pixel] = red;
+        minimumCountFrame.getChannel(ChannelType::Green)->data()[pixel] = green;
+        minimumCountFrame.getChannel(ChannelType::Blue)->data()[pixel] = blue;
+        minimumCountFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+    }
+
+    KaleidoscopeEffect invalidCount;
+    invalidCount.setParameter("Count", 0.0f);
+    invalidCount.setParameter("Angle", 0.37f);
+    invalidCount.setParameter("CenterX", 0.4f);
+    invalidCount.setParameter("CenterY", 0.6f);
+    KaleidoscopeEffect minimumCount;
+    minimumCount.setParameter("Count", 1.0f);
+    minimumCount.setParameter("Angle", 0.37f);
+    minimumCount.setParameter("CenterX", 0.4f);
+    minimumCount.setParameter("CenterY", 0.6f);
+    invalidCount.process(invalidCountFrame, CreativeEffectContext{});
+    minimumCount.process(minimumCountFrame, CreativeEffectContext{});
+
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue, ChannelType::Alpha}) {
+        const auto invalid = invalidCountFrame.getChannel(channel);
+        const auto minimum = minimumCountFrame.getChannel(channel);
+        ASSERT_TRUE(invalid);
+        ASSERT_TRUE(minimum);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(invalid->data()[pixel], minimum->data()[pixel])
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, ChromaticAberrationShiftsRedAndBlueInOppositeDirections) {
     VideoFrame frame(3, 1);
     auto red = frame.getChannel(ChannelType::Red);
