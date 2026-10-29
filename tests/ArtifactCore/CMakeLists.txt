@@ -1249,6 +1249,16 @@ set_tests_properties(ArtifactCoreDuotoneEffectContractTest PROPERTIES
     LABELS "image;color;duotone;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCorePosterizeTimeContractTest
+    SOURCES
+        PosterizeTimeContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCorePosterizeTimeContractTest PROPERTIES
+    LABELS "image;temporal;posterize-time;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
