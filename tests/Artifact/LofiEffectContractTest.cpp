@@ -413,3 +413,31 @@ TEST(LofiEffectContractTest, OldTvEffectRegionUsesPixelCentersForFractionalBound
         }
     }
 }
+
+TEST(LofiEffectContractTest, InvalidEffectRegionClearsPreviousRegion)
+{
+    const auto source = makePatternSurface();
+    ImageF32x4RGBAWithCache fullEffect;
+    ImageF32x4RGBAWithCache restoredEffect;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, fullEffect);
+
+    effect.setEffectRegion(QRectF(2.0, 2.0, 2.0, 2.0));
+    ASSERT_TRUE(effect.hasEffectRegion());
+    effect.setEffectRegion(QRectF(2.0, 2.0, 0.0, 2.0));
+    EXPECT_FALSE(effect.hasEffectRegion());
+    effect.applyCPUOnly(source, restoredEffect);
+
+    const float* expected = fullEffect.image().rgba32fData();
+    const float* actual = restoredEffect.image().rgba32fData();
+    ASSERT_NE(expected, nullptr);
+    ASSERT_NE(actual, nullptr);
+    ASSERT_EQ(restoredEffect.image().width(), fullEffect.image().width());
+    ASSERT_EQ(restoredEffect.image().height(), fullEffect.image().height());
+    constexpr std::size_t channelCount = 8 * 8 * 4;
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], expected[channel])
+            << "channel=" << channel;
+    }
+}
