@@ -705,6 +705,16 @@ set_tests_properties(ArtifactStrobeEffectContractTest PROPERTIES
     LABELS "effect;strobe;temporal;cpu;contract"
 )
 
+artifact_add_test(ArtifactVoronoiEffectContractTest
+    SOURCES
+        VoronoiEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactVoronoiEffectContractTest PROPERTIES
+    LABELS "effect;voronoi;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
