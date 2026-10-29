@@ -869,6 +869,35 @@ TEST(CreativeImageEffectContractTest, HalftoneCreatesExpectedDotCenterAndCornerV
     }
 }
 
+TEST(CreativeImageEffectContractTest, HalftoneProcessesRgbWithoutOptionalAlpha) {
+    VideoFrame frame(2, 2);
+    for (int pixel = 0; pixel < 4; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = 1.0f;
+        frame.getChannel(ChannelType::Green)->data()[pixel] = 1.0f;
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = 1.0f;
+    }
+    frame.removeChannel(ChannelType::Alpha);
+
+    HalftoneEffect effect;
+    effect.setParameter("Size", 2.0f);
+    effect.setParameter("Angle", 0.0f);
+    effect.setParameter("Contrast", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto channel = frame.getChannel(channelType);
+        ASSERT_TRUE(channel);
+        EXPECT_FLOAT_EQ(channel->data()[3], 0.0f);
+        for (int pixel = 0; pixel < 4; ++pixel) {
+            EXPECT_TRUE(std::isfinite(channel->data()[pixel]));
+            EXPECT_GE(channel->data()[pixel], 0.0f);
+            EXPECT_LE(channel->data()[pixel], 1.0f);
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, HalftoneContrastChangesDotCoverage) {
     VideoFrame noContrast(4, 4);
     VideoFrame highContrast(4, 4);
