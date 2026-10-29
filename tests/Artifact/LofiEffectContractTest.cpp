@@ -199,6 +199,46 @@ TEST(LofiEffectContractTest, AnimatedMixControlsOldTvCompositeAtCompositionFrame
     }
 }
 
+TEST(LofiEffectContractTest, AnimatedRegionDisableOverridesAnimatedCoordinates)
+{
+    ArtifactOldTVEffect effect;
+    const auto regionEnabled =
+        effect.editableProperty(QStringLiteral("Effect Region Enabled"));
+    const auto regionX = effect.editableProperty(QStringLiteral("Effect Region X"));
+    const auto regionY = effect.editableProperty(QStringLiteral("Effect Region Y"));
+    const auto regionWidth =
+        effect.editableProperty(QStringLiteral("Effect Region Width"));
+    const auto regionHeight =
+        effect.editableProperty(QStringLiteral("Effect Region Height"));
+    ASSERT_TRUE(regionEnabled);
+    ASSERT_TRUE(regionX);
+    ASSERT_TRUE(regionY);
+    ASSERT_TRUE(regionWidth);
+    ASSERT_TRUE(regionHeight);
+
+    regionEnabled->addKeyFrame(RationalTime(0, 30), true);
+    regionEnabled->addKeyFrame(RationalTime(30, 30), false);
+    regionX->addKeyFrame(RationalTime(0, 30), 2.0);
+    regionX->addKeyFrame(RationalTime(30, 30), 3.0);
+    regionY->addKeyFrame(RationalTime(0, 30), 1.0);
+    regionY->addKeyFrame(RationalTime(30, 30), 2.0);
+    regionWidth->addKeyFrame(RationalTime(0, 30), 3.0);
+    regionWidth->addKeyFrame(RationalTime(30, 30), 4.0);
+    regionHeight->addKeyFrame(RationalTime(0, 30), 2.0);
+    regionHeight->addKeyFrame(RationalTime(30, 30), 3.0);
+
+    EffectContext context;
+    context.frameRate = 30.0;
+    context.compositionFrame = 0;
+    effect.setContext(context);
+    EXPECT_TRUE(effect.hasEffectRegion());
+
+    context.compositionFrame = 30;
+    effect.setContext(context);
+    EXPECT_FALSE(effect.hasEffectRegion())
+        << "animated region coordinates must not override Region Enabled=false";
+}
+
 TEST(LofiEffectContractTest, OldTvEmptyInputClearsPreviouslyPopulatedOutput)
 {
     const ImageF32x4RGBAWithCache source;
