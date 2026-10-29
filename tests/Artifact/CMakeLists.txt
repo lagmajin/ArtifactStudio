@@ -1036,6 +1036,15 @@ artifact_add_test(ArtifactAnisotropicFlowBlurEffectContractTest
 set_tests_properties(ArtifactAnisotropicFlowBlurEffectContractTest PROPERTIES
     LABELS "effect;anisotropic-flow-blur;cpu;contract"
 )
+artifact_add_test(ArtifactFindEdgesEffectContractTest
+    SOURCES
+        FindEdgesEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactFindEdgesEffectContractTest PROPERTIES
+    LABELS "effect;find-edges;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
