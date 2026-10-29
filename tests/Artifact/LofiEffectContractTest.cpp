@@ -199,6 +199,51 @@ TEST(LofiEffectContractTest, AnimatedMixControlsOldTvCompositeAtCompositionFrame
     }
 }
 
+TEST(LofiEffectContractTest, AnimatedEnabledSwitchesOldTvBypassAtCompositionFrames)
+{
+    const auto source = makePatternSurface();
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    const auto enabled = effect.editableProperty(QStringLiteral("Effect Enabled"));
+    ASSERT_TRUE(enabled);
+    enabled->addKeyFrame(RationalTime(0, 30), false);
+    enabled->addKeyFrame(RationalTime(30, 30), true);
+
+    EffectContext context;
+    context.frameRate = 30.0;
+    context.compositionFrame = 0;
+    effect.setContext(context);
+    EXPECT_FALSE(effect.isEnabled());
+    ImageF32x4RGBAWithCache bypassed;
+    effect.applyCPUOnly(source, bypassed);
+
+    context.compositionFrame = 30;
+    effect.setContext(context);
+    EXPECT_TRUE(effect.isEnabled());
+    ImageF32x4RGBAWithCache enabledOutput;
+    effect.applyCPUOnly(source, enabledOutput);
+
+    ArtifactOldTVEffect fullEffect;
+    fullEffect.setComputeMode(ComputeMode::CPU);
+    ImageF32x4RGBAWithCache expectedFullEffect;
+    fullEffect.applyCPUOnly(source, expectedFullEffect);
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* bypassedPixels = bypassed.image().rgba32fData();
+    const float* actualEffectPixels = enabledOutput.image().rgba32fData();
+    const float* expectedEffectPixels = expectedFullEffect.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(bypassedPixels, nullptr);
+    ASSERT_NE(actualEffectPixels, nullptr);
+    ASSERT_NE(expectedEffectPixels, nullptr);
+    constexpr std::size_t channelCount = 8 * 8 * 4;
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(bypassedPixels[channel], sourcePixels[channel])
+            << "bypassed channel=" << channel;
+        EXPECT_FLOAT_EQ(actualEffectPixels[channel], expectedEffectPixels[channel])
+            << "enabled channel=" << channel;
+    }
+}
+
 TEST(LofiEffectContractTest, AnimatedRegionDisableOverridesAnimatedCoordinates)
 {
     const auto source = makePatternSurface();
