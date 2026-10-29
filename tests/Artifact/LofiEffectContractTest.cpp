@@ -710,8 +710,15 @@ TEST(LofiEffectContractTest,
     bool observedJitter = false;
     for (int y = 0; y < height; ++y) {
         const float scanline = y % 4 == 0 ? 0.7f : 1.0f;
-        int rowShift = 0;
-        bool haveRowShift = false;
+        constexpr int referenceX = 6;
+        const std::size_t referenceOffset =
+            static_cast<std::size_t>((y * width + referenceX) * 4);
+        const float referenceDelta =
+            result[referenceOffset + 1] - result[referenceOffset];
+        const int referenceSourceX = static_cast<int>(std::lround(
+            referenceDelta / (0.005f * scanline)));
+        const int rowShift = referenceSourceX - referenceX;
+        ASSERT_LE(std::abs(rowShift), 4) << "y=" << y;
         for (int x = 0; x < width; ++x) {
             const std::size_t offset =
                 static_cast<std::size_t>((y * width + x) * 4);
@@ -721,10 +728,6 @@ TEST(LofiEffectContractTest,
             ASSERT_GE(sourceX, 0) << "x=" << x << " y=" << y;
             ASSERT_LT(sourceX, width) << "x=" << x << " y=" << y;
             const int shift = sourceX - x;
-            if (!haveRowShift) {
-                rowShift = shift;
-                haveRowShift = true;
-            }
             EXPECT_EQ(shift, rowShift) << "x=" << x << " y=" << y;
             EXPECT_EQ(sourceX, std::clamp(x + rowShift, 0, width - 1))
                 << "x=" << x << " y=" << y;
