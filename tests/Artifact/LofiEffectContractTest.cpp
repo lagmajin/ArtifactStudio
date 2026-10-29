@@ -380,7 +380,7 @@ TEST(LofiEffectContractTest,
 TEST(LofiEffectContractTest,
      FilmGrungeProcessesSingleRowAndColumnWithFinitePixels)
 {
-    constexpr int extent = 89;
+    constexpr int extent = 100;
     std::array<float, extent * 4> pixels{};
     for (int pixel = 0; pixel < extent; ++pixel) {
         const std::size_t offset = static_cast<std::size_t>(pixel * 4);
