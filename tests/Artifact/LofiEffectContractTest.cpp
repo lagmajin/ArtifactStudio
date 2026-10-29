@@ -315,6 +315,56 @@ TEST(LofiEffectContractTest,
     EXPECT_GT(changedRgbSamples, 0u);
 }
 
+TEST(LofiEffectContractTest,
+     FilmGrungeFloatControlsClampBoundsAndNonFiniteValues)
+{
+    struct FloatControl {
+        const char* name;
+        float minimum;
+        float maximum;
+    };
+    constexpr std::array<FloatControl, 8> controls{{
+        {"grainAmount", 0.0f, 0.5f},
+        {"grainSize", 1.0f, 8.0f},
+        {"scratchAmount", 0.0f, 1.0f},
+        {"dustAmount", 0.0f, 1.0f},
+        {"flicker", 0.0f, 0.5f},
+        {"gateWeave", 0.0f, 12.0f},
+        {"vignette", 0.0f, 1.0f},
+        {"stain", 0.0f, 0.5f},
+    }};
+    ArtifactFilmGrungeEffect effect;
+    const auto actualValue = [&effect](const char* name) {
+        const auto properties = effect.getProperties();
+        const auto found = std::find_if(
+            properties.begin(), properties.end(), [name](const auto& property) {
+                return property.getName() == QString::fromUtf8(name);
+            });
+        return found == properties.end()
+            ? std::numeric_limits<float>::quiet_NaN()
+            : found->getValue().toFloat();
+    };
+    const std::array<double, 3> nonFiniteValues{
+        std::numeric_limits<double>::quiet_NaN(),
+        std::numeric_limits<double>::infinity(),
+        -std::numeric_limits<double>::infinity(),
+    };
+
+    for (const auto& control : controls) {
+        SCOPED_TRACE(control.name);
+        effect.setPropertyValue(
+            UniString(control.name), QVariant(control.minimum - 1.0f));
+        EXPECT_FLOAT_EQ(actualValue(control.name), control.minimum);
+        effect.setPropertyValue(
+            UniString(control.name), QVariant(control.maximum + 1.0f));
+        EXPECT_FLOAT_EQ(actualValue(control.name), control.maximum);
+        for (const double requested : nonFiniteValues) {
+            effect.setPropertyValue(UniString(control.name), QVariant(requested));
+            EXPECT_FLOAT_EQ(actualValue(control.name), control.minimum);
+        }
+    }
+}
+
 TEST(LofiEffectContractTest, CommonEditablePropertiesReflectOldTvState)
 {
     ArtifactOldTVEffect effect;
