@@ -775,6 +775,16 @@ set_tests_properties(ArtifactDeflickerEffectContractTest PROPERTIES
     LABELS "effect;deflicker;temporal;cpu;contract"
 )
 
+artifact_add_test(ArtifactMosaicEffectContractTest
+    SOURCES
+        MosaicEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactMosaicEffectContractTest PROPERTIES
+    LABELS "effect;mosaic;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
