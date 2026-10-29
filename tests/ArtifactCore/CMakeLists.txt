@@ -693,6 +693,16 @@ set_tests_properties(ArtifactCoreStringConversionUnicodeContractTest PROPERTIES
     LABELS "utils;string;unicode;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreCoordinateProfileContractTest
+    SOURCES
+        CoordinateProfileContractTest.cpp
+    LIBS
+        ArtifactCoreCoordinate
+)
+set_tests_properties(ArtifactCoreCoordinateProfileContractTest PROPERTIES
+    LABELS "coordinate;profile;serialization;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCorePropertyPathTest
     SOURCES
         PropertyPathTest.cpp

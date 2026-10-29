@@ -8516,3 +8516,9 @@
 - **Value or concern:** Solver-space curl is a more direct 2D morphology control than adding high-frequency render noise. The .25 candidate is promising but is not yet proven through the `LayerFluidRuntimeState` orchestration, flame coupling, seek/checkpoint replay, or a live Composition render; the 2D image still cannot claim true 3D Pyro depth. Timing samples were single-run and are not a stable performance benchmark.
 - **Unverified hypothesis:** A .25-strength, one-octave profile may provide a useful quality/cost balance in the complete layer path with less breakup than .5.
 - **Next check:** Run matched frame-30/60/95 Composition captures through `LayerFluidRuntimeState` with flame off/on and gather repeated warm GPU timings. Keep product defaults unchanged until that gate passes.
+
+## 2026-10-29: Coordinate SafeArea text output did not parse back
+- **Related:** `ArtifactCore/src/Coordinate/CoordinateProfile.cpp::CoordinateValue::toString` and `CoordinateValue::fromString`, plus `tests/ArtifactCore/CoordinateProfileContractTest.cpp`.
+- **Confirmed:** SafeArea formatting emits a `px` suffix (`safe + 8.00px`), while the parser previously passed the remaining `8.00px` directly to `QString::toDouble`, which yields zero. Added a narrow suffix strip and a text round-trip contract.
+- **Value or concern:** Coordinate values saved or edited through the formatted SafeArea representation could lose their offset on parsing.
+- **Next check:** Run the new coordinate contract target after the user's build/test restriction is lifted; include locale-sensitive decimal behavior if coordinate text is expected to follow application locale.
