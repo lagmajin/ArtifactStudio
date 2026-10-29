@@ -117,6 +117,17 @@ artifact_add_test(ArtifactCoreTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreCommandSandboxContractTest
+    SOURCES
+        CommandSandboxContractTest.cpp
+    LIBS
+        ArtifactCoreAI
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreCommandSandboxContractTest PROPERTIES
+    LABELS "ai;security;process;dry-run;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAngelScriptTest
     SOURCES
         AngelScriptEngineTest.cpp
