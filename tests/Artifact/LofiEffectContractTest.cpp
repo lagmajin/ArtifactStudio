@@ -586,6 +586,8 @@ TEST(LofiEffectContractTest,
     ImageF32x4RGBAWithCache noStain;
     ImageF32x4RGBAWithCache firstStain;
     ImageF32x4RGBAWithCache repeatedStain;
+    ImageF32x4RGBAWithCache otherFrameStain;
+    ImageF32x4RGBAWithCache otherSeedStain;
     ArtifactFilmGrungeEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
     for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
@@ -601,15 +603,27 @@ TEST(LofiEffectContractTest,
     effect.setPropertyValue(UniString("stain"), QVariant(0.5f));
     effect.applyCPUOnly(source, firstStain);
     effect.applyCPUOnly(source, repeatedStain);
+    context.compositionFrame = 13;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, otherFrameStain);
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.setPropertyValue(UniString("seed"), QVariant(1978));
+    effect.applyCPUOnly(source, otherSeedStain);
 
     const float* baseline = noStain.image().rgba32fData();
     const float* result = firstStain.image().rgba32fData();
     const float* repeated = repeatedStain.image().rgba32fData();
+    const float* otherFrame = otherFrameStain.image().rgba32fData();
+    const float* otherSeed = otherSeedStain.image().rgba32fData();
     ASSERT_NE(baseline, nullptr);
     ASSERT_NE(result, nullptr);
     ASSERT_NE(repeated, nullptr);
+    ASSERT_NE(otherFrame, nullptr);
+    ASSERT_NE(otherSeed, nullptr);
     float minimum = std::numeric_limits<float>::infinity();
     float maximum = -std::numeric_limits<float>::infinity();
+    std::size_t changedBySeed = 0;
     for (std::size_t pixel = 0;
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
         const std::size_t offset = pixel * 4;
@@ -622,11 +636,18 @@ TEST(LofiEffectContractTest,
         for (std::size_t channel = 0; channel < 4; ++channel) {
             EXPECT_FLOAT_EQ(result[offset + channel], repeated[offset + channel])
                 << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(result[offset + channel], otherFrame[offset + channel])
+                << "frame-independent stain pixel=" << pixel
+                << " channel=" << channel;
+            if (channel < 3 && result[offset + channel] != otherSeed[offset + channel]) {
+                ++changedBySeed;
+            }
         }
         minimum = std::min(minimum, result[offset]);
         maximum = std::max(maximum, result[offset]);
     }
     EXPECT_GT(maximum - minimum, 1.0e-3f);
+    EXPECT_GT(changedBySeed, 0u);
 }
 
 TEST(LofiEffectContractTest,
