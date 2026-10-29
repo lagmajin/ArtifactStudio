@@ -1229,6 +1229,16 @@ set_tests_properties(ArtifactCoreLeaveColorEffectContractTest PROPERTIES
     LABELS "image;color;leave-color;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreMotionTrailContractTest
+    SOURCES
+        MotionTrailContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreMotionTrailContractTest PROPERTIES
+    LABELS "image;temporal;motion-trail;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
