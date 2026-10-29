@@ -426,7 +426,7 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
-     FilmGrungeIsRepeatableWithinAFrameAndChangesAcrossFrames)
+     FilmGrungeIsDeterministicWhenFramesAreRevisitedAndChangesAcrossFrames)
 {
     constexpr int width = 64;
     constexpr int height = 48;
@@ -447,6 +447,7 @@ TEST(LofiEffectContractTest,
     ImageF32x4RGBAWithCache firstFrame;
     ImageF32x4RGBAWithCache repeatedFrame;
     ImageF32x4RGBAWithCache nextFrame;
+    ImageF32x4RGBAWithCache revisitedFrame;
     ArtifactFilmGrungeEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
     EffectContext context;
@@ -458,13 +459,18 @@ TEST(LofiEffectContractTest,
     context.compositionFrame = 13;
     effect.setContext(context);
     effect.applyCPUOnly(source, nextFrame);
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, revisitedFrame);
 
     const float* firstPixels = firstFrame.image().rgba32fData();
     const float* repeatedPixels = repeatedFrame.image().rgba32fData();
     const float* nextPixels = nextFrame.image().rgba32fData();
+    const float* revisitedPixels = revisitedFrame.image().rgba32fData();
     ASSERT_NE(firstPixels, nullptr);
     ASSERT_NE(repeatedPixels, nullptr);
     ASSERT_NE(nextPixels, nullptr);
+    ASSERT_NE(revisitedPixels, nullptr);
     std::size_t changedRgbSamples = 0;
     for (std::size_t pixel = 0;
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
@@ -472,6 +478,8 @@ TEST(LofiEffectContractTest,
             const std::size_t offset = pixel * 4 + channel;
             EXPECT_FLOAT_EQ(firstPixels[offset], repeatedPixels[offset])
                 << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(firstPixels[offset], revisitedPixels[offset])
+                << "revisited pixel=" << pixel << " channel=" << channel;
             if (channel < 3 && firstPixels[offset] != nextPixels[offset]) {
                 ++changedRgbSamples;
             }
