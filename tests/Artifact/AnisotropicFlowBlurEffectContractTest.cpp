@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <limits>
 
@@ -31,7 +32,7 @@ Pixels makePattern()
         pixels[pixel * 4] = value;
         pixels[pixel * 4 + 1] = 1.0f - value;
         pixels[pixel * 4 + 2] = static_cast<float>(pixel) / 8.0f;
-        pixels[pixel * 4 + 3] = 0.25f + static_cast<float>(pixel) / 12.0f;
+        pixels[pixel * 4 + 3] = 0.65f;
     }
     return pixels;
 }
@@ -48,10 +49,39 @@ void expectPixelsEqual(const ArtifactCore::ImageF32x4RGBAWithCache& image,
 
 } // namespace
 
-TEST(AnisotropicFlowBlurEffectContractTest, DefaultBlurAmountPreservesPixels)
+TEST(AnisotropicFlowBlurEffectContractTest,
+     DefaultBlurChangesRgbAndPreservesUniformAlphaAndSource)
+{
+    const Pixels pixels = makePattern();
+    const auto source = makeImage(pixels);
+    Artifact::AnisotropicFlowBlurEffect effect;
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), 3);
+    ASSERT_EQ(output.image().height(), 3);
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    bool rgbChanged = false;
+    for (std::size_t pixel = 0; pixel < pixels.size() / 4; ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_TRUE(std::isfinite(actual[pixel * 4 + channel]));
+            rgbChanged = rgbChanged ||
+                std::abs(actual[pixel * 4 + channel] -
+                         pixels[pixel * 4 + channel]) > 1.0e-5f;
+        }
+        EXPECT_NEAR(actual[pixel * 4 + 3], 0.65f, 1.0e-6f);
+    }
+    EXPECT_TRUE(rgbChanged);
+    expectPixelsEqual(source, pixels);
+}
+
+TEST(AnisotropicFlowBlurEffectContractTest, ZeroBlurAmountPreservesEveryPixel)
 {
     const Pixels pixels = makePattern();
     Artifact::AnisotropicFlowBlurEffect effect;
+    effect.setPropertyValue(ArtifactCore::UniString("Blur Amount"), QVariant(0.0));
     ArtifactCore::ImageF32x4RGBAWithCache output;
 
     effect.applyCPUOnly(makeImage(pixels), output);
