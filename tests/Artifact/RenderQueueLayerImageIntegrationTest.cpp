@@ -835,6 +835,102 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     TwoByTwoTileRenderMatchesFullFramePixels)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 512;
+    constexpr int height = 512;
+    constexpr int tileSize = 256;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        Artifact::ArtifactRenderQueueService::TileRenderMode tileMode;
+        int tileSize;
+        ~Cleanup()
+        {
+            queue->setTileRenderMode(tileMode);
+            queue->setTileSize(tileSize);
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue, queue->tileRenderMode(), queue->tileSize()};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("TiledRenderPixelContract"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("TiledGradient")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(1);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams gradient(
+        QStringLiteral("TileBoundaryGradient"));
+    gradient.setWidth(width);
+    gradient.setHeight(height);
+    gradient.setFillType(Artifact::ArtifactSolidFillType::LinearGradient);
+    gradient.setGradientStartColor(ArtifactCore::FloatColor(0.05f, 0.2f, 0.8f, 1.0f));
+    gradient.setGradientEndColor(ArtifactCore::FloatColor(0.9f, 0.35f, 0.1f, 1.0f));
+    gradient.setGradientAngleDegrees(37.0f);
+    const auto layer = projects.addLayerToComposition(composition.id, gradient);
+    ASSERT_TRUE(layer.success);
+
+    queue->setTileSize(tileSize);
+    queue->setTileRenderMode(
+        Artifact::ArtifactRenderQueueService::TileRenderMode::FullFrame);
+    QString failure;
+    const QString fullFramePath = isolatedOutputPath(
+        QStringLiteral("tile_contract_full_frame.exr"));
+    ASSERT_TRUE(addAndRenderExr(
+        queue, composition.id, QStringLiteral("TiledGradient"), fullFramePath,
+        width, height, &failure, 0, 1)) << failure.toStdString();
+
+    queue->setTileRenderMode(
+        Artifact::ArtifactRenderQueueService::TileRenderMode::Tiled);
+    const QString tiledPath = isolatedOutputPath(
+        QStringLiteral("tile_contract_tiled.exr"));
+    ASSERT_TRUE(addAndRenderExr(
+        queue, composition.id, QStringLiteral("TiledGradient"), tiledPath,
+        width, height, &failure, 0, 1)) << failure.toStdString();
+
+    const auto readFrame = [](const QString& basePath, std::vector<float>& pixels) {
+        const QFileInfo outputInfo(basePath);
+        const QString framePath = QDir(outputInfo.absolutePath()).filePath(
+            QStringLiteral("%1_0000.exr").arg(outputInfo.completeBaseName()));
+        ArtifactCore::OpenExr exr;
+        int readWidth = 0;
+        int readHeight = 0;
+        return exr.readRGBA32F(framePath, pixels, readWidth, readHeight) &&
+               readWidth == width && readHeight == height;
+    };
+    std::vector<float> fullFramePixels;
+    std::vector<float> tiledPixels;
+    ASSERT_TRUE(readFrame(fullFramePath, fullFramePixels));
+    ASSERT_TRUE(readFrame(tiledPath, tiledPixels));
+    ASSERT_EQ(fullFramePixels.size(), tiledPixels.size());
+    ASSERT_EQ(fullFramePixels.size(), static_cast<std::size_t>(width * height * 4));
+    for (std::size_t channel = 0; channel < fullFramePixels.size(); ++channel) {
+        EXPECT_NEAR(tiledPixels[channel], fullFramePixels[channel], 1.0e-6f)
+            << "pixel=" << channel / 4 << " channel=" << channel % 4;
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      LargeSurfaceEffectQueueWritesEveryFrameAndAppliesEffect)
 {
     QTemporaryDir projectRoot;
