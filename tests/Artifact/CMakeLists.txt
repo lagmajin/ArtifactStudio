@@ -585,6 +585,16 @@ set_tests_properties(ArtifactChromaticAberrationEffectContractTest PROPERTIES
     LABELS "effect;chromatic-aberration;cpu;contract"
 )
 
+artifact_add_test(ArtifactKaleidoscopeEffectContractTest
+    SOURCES
+        KaleidoscopeEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsStylize
+)
+set_tests_properties(ArtifactKaleidoscopeEffectContractTest PROPERTIES
+    LABELS "effect;kaleidoscope;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
