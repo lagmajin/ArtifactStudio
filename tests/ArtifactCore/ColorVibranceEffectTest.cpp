@@ -689,6 +689,40 @@ TEST(CreativeImageEffectContractTest, OldTvChangesRgbWithoutChangingAlpha) {
     EXPECT_TRUE(changedRgb);
 }
 
+TEST(CreativeImageEffectContractTest, OldTvHandlesSingleColumnFrames) {
+    constexpr int width = 1;
+    constexpr int height = 5;
+    VideoFrame frame(width, height);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+
+    float originalAlpha[height]{};
+    for (int y = 0; y < height; ++y) {
+        const float position = static_cast<float>(y) / (height - 1);
+        red->data()[y] = 0.2f + position * 0.5f;
+        green->data()[y] = 0.8f - position * 0.4f;
+        blue->data()[y] = 0.1f + position * 0.7f;
+        alpha->data()[y] = 0.15f + position * 0.7f;
+        originalAlpha[y] = alpha->data()[y];
+    }
+
+    OldTVEffect effect;
+    effect.process(frame, CreativeEffectContext{.time = 1.25});
+
+    for (int y = 0; y < height; ++y) {
+        EXPECT_TRUE(std::isfinite(red->data()[y])) << "row=" << y;
+        EXPECT_TRUE(std::isfinite(green->data()[y])) << "row=" << y;
+        EXPECT_TRUE(std::isfinite(blue->data()[y])) << "row=" << y;
+        EXPECT_FLOAT_EQ(alpha->data()[y], originalAlpha[y]) << "row=" << y;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeutralNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
