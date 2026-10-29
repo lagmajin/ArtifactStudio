@@ -1319,6 +1319,16 @@ set_tests_properties(ArtifactCoreChromaSpreadEffectContractTest PROPERTIES
     LABELS "image;chroma-spread;remap;opencv;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreAnamorphicFlareContractTest
+    SOURCES
+        AnamorphicFlareContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreAnamorphicFlareContractTest PROPERTIES
+    LABELS "image;flare;anamorphic;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
