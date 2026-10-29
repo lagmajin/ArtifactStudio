@@ -73,6 +73,20 @@ TEST(LofiEffectContractTest, OldTvPatternedInputProducesFiniteChangedOutput)
     EXPECT_TRUE(changed);
 }
 
+TEST(LofiEffectContractTest, OldTvPreservesEmptyInputAsAnEmptyOutput)
+{
+    const ImageF32x4RGBAWithCache source;
+    ImageF32x4RGBAWithCache output;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.apply(source, output);
+
+    EXPECT_TRUE(output.image().isEmpty());
+    EXPECT_EQ(output.image().width(), 0);
+    EXPECT_EQ(output.image().height(), 0);
+}
+
 } // namespace
 
 TEST(LofiEffectContractTest, OldTvKeepsAlphaAndSourceAndAppliesFourRowScanline)
