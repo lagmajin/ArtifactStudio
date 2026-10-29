@@ -1126,6 +1126,15 @@ artifact_add_test(ArtifactLiquifyEffectContractTest
 set_tests_properties(ArtifactLiquifyEffectContractTest PROPERTIES
     LABELS "effect;liquify;distortion;cpu;contract"
 )
+artifact_add_test(ArtifactTimeDisplacementEffectContractTest
+    SOURCES
+        TimeDisplacementEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactTimeDisplacementEffectContractTest PROPERTIES
+    LABELS "effect;time-displacement;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
