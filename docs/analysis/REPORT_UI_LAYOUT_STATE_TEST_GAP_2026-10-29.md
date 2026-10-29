@@ -8,4 +8,4 @@
 
 ## 追加したテスト
 
-`tests/ArtifactCore/UiLayoutStateContractTest.cpp` を独立ターゲットとして登録した。任意バイナリの JSON 往復、欠落フィールドの既定値、QSettings prefix 間の分離、ISerializable deserialize による完全置換を確認する。テストは外部 UI や実アプリ設定を変更せず、QTemporaryDir 内の一時 INI に限定する。ビルド・テスト実行は行っていない。
+`tests/ArtifactCore/UiLayoutStateContractTest.cpp` を独立ターゲットとして登録した。任意バイナリの JSON 往復、欠落フィールドの既定値、QSettings prefix 間の分離、FastSettingsStore の永続化往復、ISerializable deserialize による完全置換を確認する。テストは外部 UI や実アプリ設定を変更せず、一時ディレクトリ内の INI / CBOR ストアに限定する。ビルド・テスト実行は行っていない。

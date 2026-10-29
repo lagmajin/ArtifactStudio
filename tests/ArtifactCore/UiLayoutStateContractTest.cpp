@@ -6,6 +6,7 @@
 #include <QTemporaryDir>
 
 import UI.Layout.State;
+import Core.FastSettingsStore;
 
 namespace {
 
@@ -82,6 +83,28 @@ TEST(UiLayoutStateContractTest, QSettingsRoundTripUsesPrefixAndKeepsOtherLayouts
         settings, QStringLiteral("ui/layouts/other"));
     EXPECT_EQ(otherRestored.layoutKey, QStringLiteral("unrelated"));
     EXPECT_EQ(otherRestored.geometry, QByteArray("other"));
+}
+
+TEST(UiLayoutStateContractTest, FastSettingsStoreRoundTripPersistsAllThreePayloads)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("settings.cbor"));
+    const UiLayoutState original = sampleState();
+    {
+        ArtifactCore::FastSettingsStore store(path);
+        original.saveToStore(store, QStringLiteral("layouts/composition"));
+        ASSERT_TRUE(store.sync());
+    }
+
+    ArtifactCore::FastSettingsStore restoredStore(path);
+    const UiLayoutState restored = UiLayoutState::loadFromStore(
+        restoredStore, QStringLiteral("layouts/composition"));
+    EXPECT_EQ(restored.layoutKey, original.layoutKey);
+    EXPECT_EQ(restored.geometry, original.geometry);
+    EXPECT_EQ(restored.state, original.state);
+    EXPECT_EQ(restored.dockState, original.dockState);
+    EXPECT_EQ(restored.version, original.version);
 }
 
 TEST(UiLayoutStateContractTest, SerializableDeserializeReplacesWholeState)

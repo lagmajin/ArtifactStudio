@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-29 12:32
+> Generated: 2026-10-29 12:33
 > Total documents: 1479
 
 ---
@@ -257,7 +257,7 @@
 | 80 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
 | 81 | `docs/analysis/REPORT_TIME_CODE_RANGE_TEST_GAP_2026-10-29.md` | TimeCodeRange Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.9 KB | TIME, CODE, RANGE, TEST, GAP |
 | 82 | `docs/analysis/REPORT_TRANSFORM_HELPER_TEST_GAP_2026-10-29.md` | Transform Helper Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | TRANSFORM, HELPER, TEST, GAP |
-| 83 | `docs/analysis/REPORT_UI_LAYOUT_STATE_TEST_GAP_2026-10-29.md` | UiLayoutState Test Coverage Gap | 2026-10-29 | --- | --- | 0.8 KB | LAYOUT, STATE, TEST, GAP |
+| 83 | `docs/analysis/REPORT_UI_LAYOUT_STATE_TEST_GAP_2026-10-29.md` | UiLayoutState Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.9 KB | LAYOUT, STATE, TEST, GAP |
 | 84 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
 | 85 | `docs/analysis/REPORT_VIEWPORT_TRANSFORMER_TEST_GAP_2026-10-29.md` | ViewportTransformer Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 1.3 KB | VIEWPORT, TRANSFORMER, TEST, GAP |
 | 86 | `docs/analysis/REPORT_ZOOM_SCALE_TEST_GAP_2026-10-29.md` | ZoomScale2D Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.7 KB | ZOOM, SCALE, TEST, GAP |
