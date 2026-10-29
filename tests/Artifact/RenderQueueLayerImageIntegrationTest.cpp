@@ -348,7 +348,8 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                      int frameStart = 1,
                      int frameEnd = 2,
                      RenderQueueEventLoopProbe* eventLoopProbe = nullptr,
-                     bool multiChannel = false)
+                     bool multiChannel = false,
+                     bool deep = false)
 {
     const QFileInfo requestedOutput(outputBasePath);
     if (!QDir().mkpath(requestedOutput.absolutePath())) {
@@ -370,6 +371,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
     queue->setJobBitDepthAt(jobIndex, 32);
     queue->setJobExrCompressionAt(jobIndex, QStringLiteral("zip"));
     queue->setJobRenderBackendAt(jobIndex, QStringLiteral("gpu"));
+    queue->setJobDeepExportEnabledAt(jobIndex, deep);
     if (multiChannel) {
         queue->setJobMultiChannelEnabledAt(jobIndex, true);
         queue->setJobMultiChannelChannelsAt(
@@ -427,6 +429,54 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
     for (int frame = frameStart; frame < frameEnd; ++frame) {
         const QString framePath = QDir(outputInfo.absolutePath()).filePath(
             framePattern.arg(frame, 4, 10, QLatin1Char('0')));
+        if (deep) {
+            std::vector<std::vector<ArtifactCore::OpenExrDeepSample>> samples;
+            int width = 0;
+            int height = 0;
+            if (!exr.readDeepRGBA32F(framePath, samples, width, height) ||
+                width != expectedWidth || height != expectedHeight ||
+                samples.size() != expectedComponents / 4u) {
+                *failure = QStringLiteral(
+                    "Render Queue did not write a valid Deep EXR: %1")
+                               .arg(framePath);
+                return false;
+            }
+            for (std::size_t pixel = 0; pixel < samples.size(); ++pixel) {
+                if (samples[pixel].size() != 1u) {
+                    *failure = QStringLiteral(
+                        "Render Queue Deep EXR must contain one resolved sample per pixel: %1")
+                                   .arg(framePath);
+                    return false;
+                }
+                const auto& sample = samples[pixel].front();
+                if (!std::isfinite(sample.depth) ||
+                    !std::isfinite(sample.red) ||
+                    !std::isfinite(sample.green) ||
+                    !std::isfinite(sample.blue) ||
+                    !std::isfinite(sample.alpha)) {
+                    *failure = QStringLiteral(
+                        "Render Queue Deep EXR contains a non-finite sample: %1")
+                                   .arg(framePath);
+                    return false;
+                }
+            }
+            const auto centerPixel =
+                (static_cast<std::size_t>(expectedHeight / 2) *
+                     static_cast<std::size_t>(expectedWidth) +
+                 static_cast<std::size_t>(expectedWidth / 2));
+            const auto& center = samples[centerPixel].front();
+            if (std::abs(center.red - 0.15f) > 1.0e-3f ||
+                std::abs(center.green - 0.25f) > 1.0e-3f ||
+                std::abs(center.blue - 0.4f) > 1.0e-3f ||
+                std::abs(center.alpha - 1.0f) > 1.0e-5f ||
+                std::abs(center.depth - 1.0f) > 1.0e-5f) {
+                *failure = QStringLiteral(
+                    "Render Queue Deep EXR center color/depth did not match resolved AOVs: %1")
+                               .arg(framePath);
+                return false;
+            }
+            continue;
+        }
         if (multiChannel) {
             const QByteArray encodedFramePath = framePath.toUtf8();
             auto input = OIIO::ImageInput::open(encodedFramePath.constData());
@@ -734,6 +784,11 @@ TEST(RenderQueueLayerImageIntegrationTest,
         queue, composition.id, QStringLiteral("ExrQueueOutput"),
         isolatedOutputPath(QStringLiteral("render_queue_exr.exr")),
         width, height, &failure, 0, 48, &eventLoopProbe, true))
+        << failure.toStdString();
+    ASSERT_TRUE(addAndRenderExr(
+        queue, composition.id, QStringLiteral("DeepExrQueueOutput"),
+        isolatedOutputPath(QStringLiteral("render_queue_deep.exr")),
+        width, height, &failure, 0, 1, nullptr, false, true))
         << failure.toStdString();
     EXPECT_TRUE(eventLoopProbe.servicedWhileRendering());
 }
