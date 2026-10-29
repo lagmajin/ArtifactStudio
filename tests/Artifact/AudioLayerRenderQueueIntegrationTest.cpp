@@ -287,7 +287,10 @@ bool renderCompositionMp4WithAudio(
     const QString& compositionName,
     const QString& outputPath,
     QString* failure,
-    double frameRate = 30.0)
+    double frameRate = 30.0,
+    const QString& audioCodec = QStringLiteral("aac"),
+    bool expectMuxFailure = false,
+    const QString& audioSourcePath = {})
 {
     if (!QDir().mkpath(QFileInfo(outputPath).absolutePath())) {
         *failure = QStringLiteral("Could not create MP4 output directory");
@@ -303,10 +306,13 @@ bool renderCompositionMp4WithAudio(
     queue->setJobOutputSettingsAt(jobIndex, QStringLiteral("MP4"),
                                   QStringLiteral("h264"), 320, 180,
                                   frameRate, 2000);
-    queue->setJobAudioCodecAt(jobIndex, QStringLiteral("aac"));
+    queue->setJobAudioCodecAt(jobIndex, audioCodec);
     queue->setJobAudioBitrateKbpsAt(jobIndex, 128);
     queue->setJobAudioChannelModeAt(jobIndex, QStringLiteral("stereo"));
     queue->setJobAudioSampleRateAt(jobIndex, 48000);
+    if (!audioSourcePath.isEmpty()) {
+        queue->setJobAudioSourcePathAt(jobIndex, audioSourcePath);
+    }
     queue->setJobIntegratedRenderEnabledAt(jobIndex, true);
     queue->startRenderQueueAt(jobIndex);
 
@@ -322,6 +328,22 @@ bool renderCompositionMp4WithAudio(
             break;
         }
         QThread::msleep(10);
+    }
+    if (expectMuxFailure) {
+        if (status != QStringLiteral("Failed")) {
+            *failure = QStringLiteral(
+                "MP4 job ended as '%1'; expected the audio mux to fail")
+                           .arg(status);
+            return false;
+        }
+        const QString error = queue->jobErrorMessageAt(jobIndex);
+        if (!error.contains(QStringLiteral("Audio mux failed"),
+                            Qt::CaseInsensitive)) {
+            *failure = QStringLiteral(
+                "MP4 job failed for an unexpected reason: %1").arg(error);
+            return false;
+        }
+        return true;
     }
     if (status != QStringLiteral("Completed")) {
         *failure = QStringLiteral("MP4 Render Queue job ended as '%1': %2")
@@ -877,4 +899,62 @@ TEST(AudioLayerRenderIntegrationTest,
     ASSERT_TRUE(muxedAudioDecoder.decodeNextSegment(firstMuxedAudioSegment));
     EXPECT_GT(firstMuxedAudioSegment.frameCount(), 0);
     EXPECT_EQ(firstMuxedAudioSegment.sampleRate, 48000);
+
+    const QString invalidAudioPath = root.filePath(
+        QStringLiteral("invalid-audio-source.bin"));
+    QFile invalidAudioFile(invalidAudioPath);
+    ASSERT_TRUE(invalidAudioFile.open(QIODevice::WriteOnly));
+    ASSERT_EQ(invalidAudioFile.write("not an audio stream"), 19);
+    invalidAudioFile.close();
+
+    Artifact::ArtifactCompositionInitParams failedMuxCompositionParams;
+    failedMuxCompositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("InvalidExternalAudioMux")));
+    failedMuxCompositionParams.setResolution(width, height);
+    failedMuxCompositionParams.setFrameRate(2.0);
+    failedMuxCompositionParams.setDurationFrames(6);
+    const auto failedMuxComposition = projects.createComposition(
+        failedMuxCompositionParams);
+    ASSERT_TRUE(failedMuxComposition.success);
+    Artifact::ArtifactVideoInitParams failedMuxVideoParams(
+        QStringLiteral("Video without valid audio"));
+    failedMuxVideoParams.setVideoPath(videoPath);
+    const auto failedMuxVideoResult = projects.addLayerToComposition(
+        failedMuxComposition.id, failedMuxVideoParams);
+    ASSERT_TRUE(failedMuxVideoResult.success);
+    auto* failedMuxVideo = dynamic_cast<Artifact::ArtifactVideoLayer*>(
+        failedMuxVideoResult.layer.get());
+    ASSERT_NE(failedMuxVideo, nullptr);
+    waitForVideoLayer(failedMuxVideo);
+    ASSERT_TRUE(failedMuxVideo->isLoaded())
+        << failedMuxVideo->debugState().toStdString();
+
+    const QString failedMuxOutputPath = root.filePath(
+        QStringLiteral("video-only-after-mux-failure.mp4"));
+    QString muxFailure;
+    ASSERT_TRUE(renderCompositionMp4WithAudio(
+        queue, failedMuxComposition.id, QStringLiteral("InvalidExternalAudioMux"),
+        failedMuxOutputPath, &muxFailure, 2.0,
+        QStringLiteral("aac"), true, invalidAudioPath))
+        << muxFailure.toStdString();
+    const QString videoOnlyPath = root.filePath(
+        QStringLiteral("video-only-after-mux-failure.__video_tmp__.mp4"));
+    ASSERT_TRUE(QFileInfo::exists(videoOnlyPath))
+        << "mux failure must retain the successfully encoded video-only file";
+    EXPECT_GT(QFileInfo(videoOnlyPath).size(), 0);
+    Artifact::ArtifactVideoLayer retainedVideo;
+    ASSERT_TRUE(retainedVideo.loadFromPath(videoOnlyPath));
+    waitForVideoLayer(&retainedVideo);
+    ASSERT_TRUE(retainedVideo.isLoaded())
+        << retainedVideo.debugState().toStdString();
+    EXPECT_FALSE(retainedVideo.streamInfo().hasAudio);
+    EXPECT_GT(retainedVideo.streamInfo().frameCount, 0);
+    const auto retainedFrame = retainedVideo.decodeFrameToImageBuffer(
+        std::int64_t{1});
+    ASSERT_FALSE(retainedFrame.isEmpty());
+    const auto retainedPixel = canonicalPixel(
+        retainedFrame, width / 2, height / 2);
+    EXPECT_GT(retainedPixel.r(), 0.5f);
+    EXPECT_LT(retainedPixel.g(), 0.25f);
+    EXPECT_LT(retainedPixel.b(), 0.25f);
 }

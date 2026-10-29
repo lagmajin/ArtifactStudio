@@ -10,7 +10,9 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
+#include <QIODevice>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QPointF>
@@ -26,11 +28,18 @@
 #include <QVector3D>
 #include <QtGlobal>
 
+#include <OpenImageIO/imageio.h>
+
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -60,6 +69,10 @@ import Math.Interpolate;
 import Property.Abstract;
 import Time.Rational;
 import Image.OpenEXR;
+import Image.Cryptomatte.Pixel;
+import IO.ImageExporter;
+import Image.ExportOptions;
+import Image.MultiChannelImage;
 import Memory.SharedPtr;
 import Utils.Id;
 import Utils.String.UniString;
@@ -106,6 +119,7 @@ void captureXpuDispatchMessage(QtMsgType type,
     if (message.contains(QStringLiteral("XPU mixed active")) ||
         message.contains(QStringLiteral("XPU active plan")) ||
         message.contains(QStringLiteral("XPU job summary")) ||
+        message.contains(QStringLiteral("XPU async sequence manager requested")) ||
         message.contains(QStringLiteral("XPU mixed dispatch unavailable")) ||
         message.contains(QStringLiteral("[DiligentDeviceManager] XPU DXGI"))) {
         std::lock_guard<std::mutex> lock(xpuLogMutex);
@@ -332,7 +346,10 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                      QString* failure,
                      int frameStart = 1,
                      int frameEnd = 2,
-                     RenderQueueEventLoopProbe* eventLoopProbe = nullptr)
+                     RenderQueueEventLoopProbe* eventLoopProbe = nullptr,
+                     bool multiChannel = false,
+                     const QString& expectedObjectManifestEntry = {},
+                     const QString& expectedMaterialManifestEntry = {})
 {
     const QFileInfo requestedOutput(outputBasePath);
     if (!QDir().mkpath(requestedOutput.absolutePath())) {
@@ -354,6 +371,20 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
     queue->setJobBitDepthAt(jobIndex, 32);
     queue->setJobExrCompressionAt(jobIndex, QStringLiteral("zip"));
     queue->setJobRenderBackendAt(jobIndex, QStringLiteral("gpu"));
+    if (multiChannel) {
+        queue->setJobMultiChannelEnabledAt(jobIndex, true);
+        queue->setJobMultiChannelChannelsAt(
+            jobIndex, {QStringLiteral("R"), QStringLiteral("G"),
+                       QStringLiteral("B"), QStringLiteral("A"),
+                       QStringLiteral("Depth"),
+                       QStringLiteral("Normal.X"),
+                       QStringLiteral("Normal.Y"),
+                       QStringLiteral("Normal.Z"),
+                       QStringLiteral("Velocity.X"),
+                       QStringLiteral("Velocity.Y"),
+                       QStringLiteral("ObjectId"),
+                       QStringLiteral("MaterialId")});
+    }
     queue->setJobFrameRangeAt(jobIndex, frameStart, frameEnd);
     auto selectiveSettings = queue->jobSelectiveSettingsAt(jobIndex);
     selectiveSettings.insert(
@@ -399,6 +430,215 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
     for (int frame = frameStart; frame < frameEnd; ++frame) {
         const QString framePath = QDir(outputInfo.absolutePath()).filePath(
             framePattern.arg(frame, 4, 10, QLatin1Char('0')));
+        if (multiChannel) {
+            const QByteArray encodedFramePath = framePath.toUtf8();
+            auto input = OIIO::ImageInput::open(encodedFramePath.constData());
+            if (!input) {
+                *failure = QStringLiteral(
+                    "Render Queue did not write a readable multi-channel EXR: %1")
+                               .arg(framePath);
+                return false;
+            }
+            const auto& spec = input->spec();
+            if (spec.width != expectedWidth || spec.height != expectedHeight) {
+                *failure = QStringLiteral(
+                    "Multi-channel EXR dimensions were %1x%2, expected %3x%4: %5")
+                               .arg(spec.width).arg(spec.height)
+                               .arg(expectedWidth).arg(expectedHeight)
+                               .arg(framePath);
+                input->close();
+                return false;
+            }
+            if (spec.nchannels <= 0 ||
+                spec.channelnames.size() !=
+                    static_cast<std::size_t>(spec.nchannels)) {
+                *failure = QStringLiteral(
+                    "Multi-channel EXR channel metadata is inconsistent: %1")
+                               .arg(framePath);
+                input->close();
+                return false;
+            }
+            if (spec.format.basetype != OIIO::TypeDesc::FLOAT ||
+                (!spec.channelformats.empty() &&
+                 (spec.channelformats.size() !=
+                      static_cast<std::size_t>(spec.nchannels) ||
+                  !std::all_of(spec.channelformats.begin(),
+                               spec.channelformats.end(), [](const auto& format) {
+                                   return format.basetype == OIIO::TypeDesc::FLOAT;
+                               })))) {
+                *failure = QStringLiteral(
+                    "Multi-channel EXR did not retain requested 32-bit float channels: %1")
+                               .arg(framePath);
+                input->close();
+                return false;
+            }
+            const auto hasChannel = [&spec](const std::string& name) {
+                return std::find(spec.channelnames.begin(),
+                                 spec.channelnames.end(), name) !=
+                       spec.channelnames.end();
+            };
+            const auto channelIndex = [&spec](const std::string& name) {
+                const auto found = std::find(spec.channelnames.begin(),
+                                             spec.channelnames.end(), name);
+                return found == spec.channelnames.end()
+                    ? -1 : static_cast<int>(found - spec.channelnames.begin());
+            };
+            for (const std::string& required : {
+                     "R", "G", "B", "A", "Depth", "Normal.X",
+                     "Normal.Y", "Normal.Z", "Velocity.X", "Velocity.Y",
+                     "ObjectId", "MaterialId"}) {
+                if (!hasChannel(required)) {
+                    *failure = QStringLiteral(
+                        "Multi-channel EXR is missing requested AOV %1: %2")
+                                   .arg(QString::fromStdString(required), framePath);
+                    input->close();
+                    return false;
+                }
+            }
+            std::vector<float> pixels(
+                static_cast<std::size_t>(spec.width) *
+                static_cast<std::size_t>(spec.height) *
+                static_cast<std::size_t>(spec.nchannels));
+            const bool readOk = input->read_image(
+                OIIO::TypeDesc::FLOAT, pixels.data());
+            if (!readOk || pixels.empty()) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Multi-channel EXR AOV payload was unreadable: %1")
+                               .arg(framePath);
+                return false;
+            }
+            if (!std::all_of(pixels.begin(), pixels.end(), [](float value) {
+                    return std::isfinite(value);
+                })) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Multi-channel EXR AOV payload contained a non-finite sample: %1")
+                               .arg(framePath);
+                return false;
+            }
+            const std::size_t centerPixel =
+                (static_cast<std::size_t>(expectedHeight / 2) *
+                     static_cast<std::size_t>(expectedWidth) +
+                 static_cast<std::size_t>(expectedWidth / 2)) *
+                static_cast<std::size_t>(spec.nchannels);
+            for (const auto& [name, expected] : {
+                     std::pair{std::string("R"), 0.15f},
+                     std::pair{std::string("G"), 0.25f},
+                     std::pair{std::string("B"), 0.4f},
+                     std::pair{std::string("A"), 1.0f}}) {
+                const int index = channelIndex(name);
+                if (index < 0 ||
+                    std::abs(pixels[centerPixel +
+                                    static_cast<std::size_t>(index)] - expected) >
+                        1.0e-3f) {
+                    input->close();
+                    *failure = QStringLiteral(
+                        "Render Queue multi-channel EXR %1 sample was incorrect: %2")
+                                   .arg(QString::fromStdString(name), framePath);
+                    return false;
+                }
+            }
+            const int objectIdIndex = channelIndex("ObjectId");
+            const int materialIdIndex = channelIndex("MaterialId");
+            if (!expectedObjectManifestEntry.isEmpty() &&
+                (objectIdIndex < 0 || materialIdIndex < 0 ||
+                 ArtifactCore::Image::Cryptomatte::CryptoSample::floatToId(
+                     pixels[centerPixel +
+                            static_cast<std::size_t>(objectIdIndex)]) !=
+                     ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
+                         expectedObjectManifestEntry) ||
+                 ArtifactCore::Image::Cryptomatte::CryptoSample::floatToId(
+                     pixels[centerPixel +
+                            static_cast<std::size_t>(materialIdIndex)]) !=
+                     ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
+                         expectedMaterialManifestEntry))) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue Cryptomatte AOV samples did not match the fixture layer: %1")
+                               .arg(framePath);
+                return false;
+            }
+            const auto cryptomatteId = [](const QString& layerName) {
+                QString value = QString::number(
+                    ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
+                        layerName), 16).rightJustified(8, QLatin1Char('0'));
+                value.chop(1);
+                return value;
+            };
+            for (const auto& [layerName, displayName] : {
+                     std::pair{QStringLiteral("CryptoObject"),
+                               QStringLiteral("CryptoObject")},
+                     std::pair{QStringLiteral("CryptoMaterial"),
+                               QStringLiteral("CryptoMaterial")}}) {
+                const QString prefix = QStringLiteral("cryptomatte/%1/")
+                                           .arg(cryptomatteId(layerName));
+                const QByteArray nameKey = (prefix + QStringLiteral("name")).toUtf8();
+                const QByteArray hashKey = (prefix + QStringLiteral("hash")).toUtf8();
+                const QByteArray conversionKey =
+                    (prefix + QStringLiteral("conversion")).toUtf8();
+                const QByteArray manifestKey =
+                    (prefix + QStringLiteral("manifest")).toUtf8();
+                const QByteArray manifestBytes = QByteArray::fromStdString(
+                    spec.get_string_attribute(manifestKey.constData(), ""));
+                const QJsonDocument manifestDocument =
+                    QJsonDocument::fromJson(manifestBytes);
+                const QString& expectedEntry =
+                    layerName == QStringLiteral("CryptoObject")
+                        ? expectedObjectManifestEntry
+                        : expectedMaterialManifestEntry;
+                const QString expectedHash = expectedEntry.isEmpty()
+                    ? QString()
+                    : QString::number(
+                          ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
+                              expectedEntry), 16)
+                          .rightJustified(8, QLatin1Char('0'));
+                if (spec.get_string_attribute(nameKey.constData(), "") !=
+                        displayName.toStdString() ||
+                    spec.get_string_attribute(hashKey.constData(), "") !=
+                        "MurmurHash3_32" ||
+                    spec.get_string_attribute(conversionKey.constData(), "") !=
+                        "uint32_to_float32" ||
+                    manifestBytes.isEmpty() || !manifestDocument.isObject() ||
+                    (!expectedEntry.isEmpty() &&
+                     manifestDocument.object().value(expectedEntry).toString() !=
+                         expectedHash)) {
+                    input->close();
+                    *failure = QStringLiteral(
+                        "Render Queue Cryptomatte metadata was incomplete for %1: %2")
+                                   .arg(displayName, framePath);
+                    return false;
+                }
+            }
+            if (spec.get_string_attribute("artifact/aov/normal_space", "") !=
+                    "view" ||
+                spec.get_string_attribute("artifact/aov/velocity_encoding", "") !=
+                    "ndc_delta_xy" ||
+                spec.get_string_attribute("artifact/aov/depth_encoding", "") !=
+                    "device_depth_0_1" ||
+                spec.get_string_attribute("artifact/frame", "") !=
+                    std::to_string(frame) ||
+                spec.get_string_attribute("artifact/frame_rate", "") != "30" ||
+                spec.get_string_attribute("Software", "") != "ArtifactStudio") {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue EXR metadata was incomplete or incorrect: %1")
+                               .arg(framePath);
+                return false;
+            }
+            const int depthIndex = channelIndex("Depth");
+            if (depthIndex < 0 ||
+                !std::isfinite(pixels[centerPixel +
+                                      static_cast<std::size_t>(depthIndex)])) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue multi-channel EXR Depth sample was invalid: %1")
+                               .arg(framePath);
+                return false;
+            }
+            input->close();
+            continue;
+        }
         std::vector<float> rgba;
         int width = 0;
         int height = 0;
@@ -484,12 +724,26 @@ TEST(RenderQueueLayerImageIntegrationTest,
     const auto composition = projects.createComposition(params);
     ASSERT_TRUE(composition.success);
 
+    Artifact::ArtifactSolidLayerInitParams manifestLayerParams(
+        QStringLiteral("CryptoManifestLayer"));
+    manifestLayerParams.setWidth(width);
+    manifestLayerParams.setHeight(height);
+    manifestLayerParams.setColor(ArtifactCore::FloatColor(
+        0.15f, 0.25f, 0.4f, 1.0f));
+    const auto manifestLayer = projects.addLayerToComposition(
+        composition.id, manifestLayerParams);
+    ASSERT_TRUE(manifestLayer.success);
+    const QString objectManifestEntry = manifestLayer.layer->id().toString();
+    const QString materialManifestEntry =
+        QStringLiteral("CryptoManifestLayer|material");
+
     QString failure;
     RenderQueueEventLoopProbe eventLoopProbe;
     ASSERT_TRUE(addAndRenderExr(
         queue, composition.id, QStringLiteral("ExrQueueOutput"),
         isolatedOutputPath(QStringLiteral("render_queue_exr.exr")),
-        width, height, &failure, 0, 48, &eventLoopProbe))
+        width, height, &failure, 0, 48, &eventLoopProbe, true,
+        objectManifestEntry, materialManifestEntry))
         << failure.toStdString();
     EXPECT_TRUE(eventLoopProbe.servicedWhileRendering());
 }
@@ -1589,7 +1843,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
             }
         }
     } restoreEnvironment;
-    qputenv("ARTIFACT_XPU", "mixed=on");
+    qputenv("ARTIFACT_XPU", "mixed=on,asyncseq=manager");
     // Keep one GPU lane plus one CPU lane so the test exercises an actual
     // mixed dispatch on hosts with different core counts and adapter counts.
     qputenv("ARTIFACT_XPU_MAX_IN_FLIGHT", "2");
@@ -1706,6 +1960,17 @@ TEST(RenderQueueLayerImageIntegrationTest,
             }) > 20;
         }, &failure, 4)) << failure.toStdString();
 
+    QStringList capturedMessages;
+    {
+        std::lock_guard<std::mutex> lock(xpuLogMutex);
+        capturedMessages = xpuDispatchMessages;
+    }
+    const QString joined = capturedMessages.join(QLatin1Char('\n'));
+    if (QRegularExpression(QStringLiteral("gpuFrames=\\s*0(?:\\D|$)"))
+            .match(joined).hasMatch()) {
+        GTEST_SKIP() << "No active full GPU worker is available on this host";
+    }
+
     const QFileInfo xpuOutputInfo(xpuOutputPath);
     const QString xpuOutputBaseName = xpuOutputInfo.completeBaseName();
     for (int frameNumber = 1; frameNumber <= 3; ++frameNumber) {
@@ -1728,18 +1993,6 @@ TEST(RenderQueueLayerImageIntegrationTest,
             << xpuFramePath.toStdString();
         ASSERT_EQ(xpuFrame.size(), QSize(width, height))
             << "Unexpected XPU frame size at frame " << frameNumber;
-
-    }
-
-    QStringList capturedMessages;
-    {
-        std::lock_guard<std::mutex> lock(xpuLogMutex);
-        capturedMessages = xpuDispatchMessages;
-    }
-    const QString joined = capturedMessages.join(QLatin1Char('\n'));
-    if (QRegularExpression(QStringLiteral("gpuFrames=\\s*0(?:\\D|$)"))
-            .match(joined).hasMatch()) {
-        GTEST_SKIP() << "No active full GPU worker is available on this host";
     }
     const auto workerLimitMatch = QRegularExpression(
         QStringLiteral("frameWorkerLimit=\\s*(\\d+)")).match(joined);
@@ -1775,6 +2028,12 @@ TEST(RenderQueueLayerImageIntegrationTest,
     ASSERT_TRUE(reservedWriterThreadsMatch.hasMatch()) << joined.toStdString();
     ASSERT_TRUE(writerMaxPendingMatch.hasMatch()) << joined.toStdString();
     ASSERT_TRUE(asyncSequenceMatch.hasMatch()) << joined.toStdString();
+    EXPECT_EQ(asyncSequenceMatch.captured(1), QStringLiteral("true"))
+        << joined.toStdString();
+    EXPECT_TRUE(joined.contains(QStringLiteral(
+        "XPU async sequence manager requested; using bounded writer futures")))
+        << "Manager mode must retain bounded writer backpressure: "
+        << joined.toStdString();
     EXPECT_LE(workerLimitMatch.captured(1).toInt(),
               hostThreadLimitMatch.captured(1).toInt())
         << joined.toStdString();
@@ -1857,6 +2116,16 @@ TEST(RenderQueueLayerImageIntegrationTest,
     EXPECT_GT(gpuMatch.captured(1).toInt(), 0) << joined.toStdString();
     EXPECT_EQ(cpuMatch.captured(1).toInt() + gpuMatch.captured(1).toInt(), 3)
         << joined.toStdString();
+    const int cpuFrameCount = cpuMatch.captured(1).toInt();
+    const int gpuFrameCount = gpuMatch.captured(1).toInt();
+    const int cpuFallbackFrameCount = cpuFallbackMatch.captured(1).toInt();
+    const int gpuFallbackFrameCount = gpuFallbackMatch.captured(1).toInt();
+    EXPECT_LE(cpuFallbackFrameCount, cpuFrameCount)
+        << "CPU fallback frames must be a subset of completed CPU frames: "
+        << joined.toStdString();
+    EXPECT_LE(gpuFallbackFrameCount, gpuFrameCount)
+        << "GPU fallback frames must be a subset of completed GPU frames: "
+        << joined.toStdString();
     EXPECT_EQ(cpuWorkersMatch.captured(1).toInt(),
               cpuPlanLimitMatch.captured(1).toInt())
         << joined.toStdString();
@@ -1877,6 +2146,9 @@ TEST(RenderQueueLayerImageIntegrationTest,
             << "The primary renderer did not process any frame: "
             << joined.toStdString();
     }
+    EXPECT_LE(primaryGpuFramesMatch.captured(1).toInt(), gpuFrameCount)
+        << "Primary GPU frames must be included in completed GPU frames: "
+        << joined.toStdString();
     QString activePlanMessage;
     for (const QString& message : capturedMessages) {
         if (message.contains(QStringLiteral("XPU active plan"))) {
@@ -1905,6 +2177,43 @@ TEST(RenderQueueLayerImageIntegrationTest,
     }
 
 
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     TileRenderSettingsExposeModeAndClampMinimumSize)
+{
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    const auto previousMode = queue->tileRenderMode();
+    const int previousTileSize = queue->tileSize();
+    struct RestoreTileSettings final {
+        Artifact::ArtifactRenderQueueService* queue;
+        Artifact::ArtifactRenderQueueService::TileRenderMode mode;
+        int tileSize;
+        ~RestoreTileSettings()
+        {
+            queue->setTileRenderMode(mode);
+            queue->setTileSize(tileSize);
+        }
+    } restore{queue, previousMode, previousTileSize};
+
+    queue->setTileRenderMode(
+        Artifact::ArtifactRenderQueueService::TileRenderMode::Tiled);
+    EXPECT_EQ(queue->tileRenderMode(),
+              Artifact::ArtifactRenderQueueService::TileRenderMode::Tiled);
+    queue->setTileRenderMode(
+        Artifact::ArtifactRenderQueueService::TileRenderMode::FullFrame);
+    EXPECT_EQ(queue->tileRenderMode(),
+              Artifact::ArtifactRenderQueueService::TileRenderMode::FullFrame);
+
+    queue->setTileSize(512);
+    EXPECT_EQ(queue->tileSize(), 512);
+    queue->setTileSize(64);
+    EXPECT_EQ(queue->tileSize(), 64);
+    queue->setTileSize(1);
+    EXPECT_EQ(queue->tileSize(), 64);
+    queue->setTileSize(-128);
+    EXPECT_EQ(queue->tileSize(), 64);
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
@@ -2378,4 +2687,599 @@ TEST(RenderQueueLayerImageIntegrationTest,
             << "The Vulkan primary adapter did not process a frame: "
             << joined.toStdString();
     }
+}
+
+TEST(ExrWriterOutputContractTest,
+     UnknownCryptomatteMetadataIdsArePreservedWithoutInventedDraftAliases)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(QStringLiteral("hashed_prefix.exr"));
+    ArtifactCore::MultiChannelImage image(1, 1);
+    image.addChannel(ArtifactCore::ChannelType::ObjectId);
+    image.addChannel(ArtifactCore::ChannelType::MaterialId);
+    auto objectIds = image.getChannel(ArtifactCore::ChannelType::ObjectId);
+    auto materialIds = image.getChannel(ArtifactCore::ChannelType::MaterialId);
+    ASSERT_NE(objectIds, nullptr);
+    ASSERT_NE(materialIds, nullptr);
+    objectIds->data()[0] = 13.0f;
+    materialIds->data()[0] = 27.0f;
+
+    const auto metadataId = [](const QString& layerName) {
+        QString value = QString::number(
+            ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(layerName), 16)
+                            .rightJustified(8, QLatin1Char('0'));
+        value.chop(1);
+        return value;
+    };
+    const QString objectId = metadataId(QStringLiteral("CryptoObject"));
+    const QString materialId = metadataId(QStringLiteral("CryptoMaterial"));
+    // The exporter currently recognizes only the standard Cryptomatte layer
+    // ids below. Arbitrary ids must remain ordinary metadata, never inferred
+    // draft-channel aliases.
+    ASSERT_NE(objectId, QStringLiteral("00000000"));
+    ASSERT_NE(materialId, QStringLiteral("00000001"));
+
+    ArtifactCore::ImageExportOptions options;
+    options.format = QStringLiteral("exr");
+    options.dataType = OIIO::TypeDesc::FLOAT;
+    options.stringAttributes.insert(
+        QStringLiteral("cryptomatte/%1/name").arg(objectId),
+        QStringLiteral("CryptoObject"));
+    options.stringAttributes.insert(
+        QStringLiteral("cryptomatte/%1/manifest").arg(objectId),
+        QStringLiteral("{}"));
+    options.stringAttributes.insert(
+        QStringLiteral("cryptomatte/%1/name").arg(materialId),
+        QStringLiteral("CryptoMaterial"));
+    options.stringAttributes.insert(
+        QStringLiteral("cryptomatte/%1/manifest").arg(materialId),
+        QStringLiteral("{}"));
+
+    ArtifactCore::ImageExporter exporter;
+    const auto result = exporter.writeMultiChannel(image, path, options);
+    ASSERT_TRUE(result.success) << result.errorStage.toStdString() << ": "
+                                << result.errorMessage.toStdString();
+
+    const QByteArray encodedPath = path.toUtf8();
+    auto input = OIIO::ImageInput::open(encodedPath.constData());
+    ASSERT_NE(input, nullptr);
+    const auto& spec = input->spec();
+    const QByteArray objectNameAttribute =
+        QStringLiteral("cryptomatte/%1/name").arg(objectId).toUtf8();
+    const QByteArray materialNameAttribute =
+        QStringLiteral("cryptomatte/%1/name").arg(materialId).toUtf8();
+    EXPECT_EQ(spec.get_string_attribute(objectNameAttribute.constData(), ""),
+              "CryptoObject");
+    EXPECT_EQ(spec.get_string_attribute(materialNameAttribute.constData(), ""),
+              "CryptoMaterial");
+    const auto hasChannel = [&spec](const std::string& name) {
+        return std::find(spec.channelnames.begin(), spec.channelnames.end(), name) !=
+               spec.channelnames.end();
+    };
+    EXPECT_TRUE(hasChannel("ObjectId"));
+    EXPECT_TRUE(hasChannel("MaterialId"));
+    EXPECT_FALSE(hasChannel("CryptoObject00.R"));
+    EXPECT_FALSE(hasChannel("CryptoMaterial00.R"));
+    input->close();
+}
+
+TEST(ExrWriterOutputContractTest, CryptomatteNameHashIsStableAndAvoidsZeroAndNonFinitePayloads)
+{
+    using ArtifactCore::Image::Cryptomatte::CryptoSample;
+    const auto idFor = [](const QString& name) {
+        return CryptoSample::nameToId(name);
+    };
+    for (const QString& name : {QStringLiteral("Layer A"),
+                                 QStringLiteral("日本語レイヤー"),
+                                 QStringLiteral("Camera.001")}) {
+        const std::uint32_t first = idFor(name);
+        EXPECT_NE(first, 0u) << name.toStdString();
+        EXPECT_EQ(idFor(name), first) << name.toStdString();
+
+        float payload = 0.0f;
+        static_assert(sizeof(payload) == sizeof(first));
+        std::memcpy(&payload, &first, sizeof(payload));
+        EXPECT_TRUE(std::isfinite(payload)) << name.toStdString();
+    }
+    EXPECT_NE(idFor(QStringLiteral("Layer A")),
+              idFor(QStringLiteral("Layer B")));
+}
+
+TEST(ExrWriterOutputContractTest,
+     MultiChannelValidationFailurePreservesExistingDestination)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(
+        QStringLiteral("existing_multichannel.exr"));
+    const QByteArray preservedBytes = QByteArrayLiteral("previous EXR output");
+    QFile existingOutput(path);
+    ASSERT_TRUE(existingOutput.open(QIODevice::WriteOnly));
+    ASSERT_EQ(existingOutput.write(preservedBytes), preservedBytes.size());
+    existingOutput.close();
+
+    ArtifactCore::MultiChannelImage emptyImage;
+    ArtifactCore::ImageExportOptions options;
+    options.format = QStringLiteral("exr");
+    ArtifactCore::ImageExporter exporter;
+    const auto result = exporter.writeMultiChannel(emptyImage, path, options);
+
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.errorStage, QStringLiteral("validate"));
+    EXPECT_EQ(result.errorMessage, QStringLiteral("MultiChannelImage is empty."));
+    QFile preservedOutput(path);
+    ASSERT_TRUE(preservedOutput.open(QIODevice::ReadOnly));
+    EXPECT_EQ(preservedOutput.readAll(), preservedBytes);
+}
+
+TEST(ExrWriterOutputContractTest,
+     MultiChannelExrReplacesNonFiniteAovSamplesWithZero)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(
+        QStringLiteral("finite_aov_values.exr"));
+
+    ArtifactCore::MultiChannelImage image(2, 1);
+    image.addChannel(ArtifactCore::ChannelType::Depth);
+    image.addChannel(ArtifactCore::ChannelType::VelocityX);
+    image.addChannel(ArtifactCore::ChannelType::Custom);
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float infinity = std::numeric_limits<float>::infinity();
+    const auto setPair = [&image](ArtifactCore::ChannelType channel,
+                                  const float first, const float second) {
+        auto values = image.getChannel(channel);
+        ASSERT_NE(values, nullptr);
+        values->data()[0] = first;
+        values->data()[1] = second;
+    };
+    setPair(ArtifactCore::ChannelType::Depth, nan, 0.75f);
+    setPair(ArtifactCore::ChannelType::VelocityX, infinity, -3.0f);
+    setPair(ArtifactCore::ChannelType::Custom, -infinity, 1.25f);
+
+    ArtifactCore::ImageExportOptions options;
+    options.format = QStringLiteral("exr");
+    options.dataType = OIIO::TypeDesc::FLOAT;
+    ArtifactCore::ImageExporter exporter;
+    const auto result = exporter.writeMultiChannel(image, path, options);
+    ASSERT_TRUE(result.success) << result.errorStage.toStdString() << ": "
+                                << result.errorMessage.toStdString();
+
+    const QByteArray encodedPath = path.toUtf8();
+    auto input = OIIO::ImageInput::open(encodedPath.constData());
+    ASSERT_NE(input, nullptr);
+    const auto& spec = input->spec();
+    ASSERT_EQ(spec.nchannels, 3);
+    const auto channelIndex = [&spec](const std::string& name) {
+        const auto found = std::find(spec.channelnames.begin(),
+                                     spec.channelnames.end(), name);
+        return found == spec.channelnames.end()
+            ? -1 : static_cast<int>(found - spec.channelnames.begin());
+    };
+    std::vector<float> pixels(static_cast<std::size_t>(spec.nchannels) * 2);
+    ASSERT_TRUE(input->read_image(OIIO::TypeDesc::FLOAT, pixels.data()));
+    for (const auto& [name, finiteValue] : {
+             std::pair{std::string("Depth"), 0.75f},
+             std::pair{std::string("Velocity.X"), -3.0f},
+             std::pair{std::string("Custom"), 1.25f}}) {
+        const int index = channelIndex(name);
+        ASSERT_GE(index, 0) << name;
+        EXPECT_FLOAT_EQ(pixels[static_cast<std::size_t>(index)], 0.0f)
+            << name << " non-finite sample";
+        EXPECT_FLOAT_EQ(pixels[static_cast<std::size_t>(spec.nchannels + index)],
+                        finiteValue)
+            << name << " finite neighbor";
+    }
+    input->close();
+}
+
+TEST(ExrWriterOutputContractTest,
+     MultiChannelExrRoundTripsNamedAovValuesAndSingleHitCryptomatteDraftAliases)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(QStringLiteral("aov_roundtrip.exr"));
+
+    ArtifactCore::MultiChannelImage image(2, 1);
+    const std::array channels{
+        ArtifactCore::ChannelType::Red,
+        ArtifactCore::ChannelType::Green,
+        ArtifactCore::ChannelType::Blue,
+        ArtifactCore::ChannelType::Alpha,
+        ArtifactCore::ChannelType::Depth,
+        ArtifactCore::ChannelType::NormalX,
+        ArtifactCore::ChannelType::NormalY,
+        ArtifactCore::ChannelType::NormalZ,
+        ArtifactCore::ChannelType::VelocityX,
+        ArtifactCore::ChannelType::VelocityY,
+        ArtifactCore::ChannelType::ObjectId,
+        ArtifactCore::ChannelType::MaterialId,
+        ArtifactCore::ChannelType::AlbedoR,
+        ArtifactCore::ChannelType::AlbedoG,
+        ArtifactCore::ChannelType::AlbedoB,
+        ArtifactCore::ChannelType::Emission,
+        ArtifactCore::ChannelType::PositionX,
+        ArtifactCore::ChannelType::PositionY,
+        ArtifactCore::ChannelType::PositionZ,
+        ArtifactCore::ChannelType::U,
+        ArtifactCore::ChannelType::V,
+        ArtifactCore::ChannelType::Custom};
+    for (const auto channel : channels) {
+        image.addChannel(channel);
+    }
+    const auto setPair = [&image](ArtifactCore::ChannelType channel,
+                                  const float first, const float second) {
+        auto values = image.getChannel(channel);
+        ASSERT_NE(values, nullptr);
+        values->data()[0] = first;
+        values->data()[1] = second;
+    };
+    setPair(ArtifactCore::ChannelType::Red, 0.125f, 0.25f);
+    setPair(ArtifactCore::ChannelType::Green, 0.375f, 0.5f);
+    setPair(ArtifactCore::ChannelType::Blue, 0.625f, 0.75f);
+    setPair(ArtifactCore::ChannelType::Alpha, 1.0f, 0.5f);
+    setPair(ArtifactCore::ChannelType::Depth, 0.2f, 0.8f);
+    setPair(ArtifactCore::ChannelType::NormalX, -0.5f, 0.5f);
+    setPair(ArtifactCore::ChannelType::NormalY, -0.25f, 0.25f);
+    setPair(ArtifactCore::ChannelType::NormalZ, 0.75f, -0.75f);
+    setPair(ArtifactCore::ChannelType::VelocityX, -12.0f, 13.0f);
+    setPair(ArtifactCore::ChannelType::VelocityY, 21.0f, -22.0f);
+    setPair(ArtifactCore::ChannelType::ObjectId, 17.0f, 0.0f);
+    setPair(ArtifactCore::ChannelType::MaterialId, 29.0f, 0.0f);
+    setPair(ArtifactCore::ChannelType::AlbedoR, 0.11f, 0.21f);
+    setPair(ArtifactCore::ChannelType::AlbedoG, 0.31f, 0.41f);
+    setPair(ArtifactCore::ChannelType::AlbedoB, 0.51f, 0.61f);
+    setPair(ArtifactCore::ChannelType::Emission, 1.5f, 2.5f);
+    setPair(ArtifactCore::ChannelType::PositionX, -101.0f, 102.0f);
+    setPair(ArtifactCore::ChannelType::PositionY, -201.0f, 202.0f);
+    setPair(ArtifactCore::ChannelType::PositionZ, -301.0f, 302.0f);
+    setPair(ArtifactCore::ChannelType::U, 0.125f, 0.875f);
+    setPair(ArtifactCore::ChannelType::V, 0.25f, 0.75f);
+    setPair(ArtifactCore::ChannelType::Custom, 9.0f, -9.0f);
+
+    ArtifactCore::ImageExportOptions options;
+    options.format = QStringLiteral("exr");
+    options.dataType = OIIO::TypeDesc::FLOAT;
+    options.compression = QStringLiteral("zip");
+    options.stringAttributes.insert(QStringLiteral("cryptomatte/00000000/name"),
+                                    QStringLiteral("CryptoObject"));
+    options.stringAttributes.insert(QStringLiteral("cryptomatte/00000000/hash"),
+                                    QStringLiteral("MurmurHash3_32"));
+    options.stringAttributes.insert(QStringLiteral("cryptomatte/00000000/conversion"),
+                                    QStringLiteral("uint32_to_float32"));
+    options.stringAttributes.insert(QStringLiteral("cryptomatte/00000000/manifest"),
+                                    QStringLiteral("{\"LayerA\":\"00000011\"}"));
+    options.stringAttributes.insert(QStringLiteral("cryptomatte/00000001/name"),
+                                    QStringLiteral("CryptoMaterial"));
+    options.stringAttributes.insert(QStringLiteral("cryptomatte/00000001/hash"),
+                                    QStringLiteral("MurmurHash3_32"));
+    options.stringAttributes.insert(QStringLiteral("cryptomatte/00000001/conversion"),
+                                    QStringLiteral("uint32_to_float32"));
+    options.stringAttributes.insert(QStringLiteral("cryptomatte/00000001/manifest"),
+                                    QStringLiteral("{\"MaterialA\":\"0000001d\"}"));
+
+    ArtifactCore::ImageExporter exporter;
+    const auto result = exporter.writeMultiChannel(image, path, options);
+    ASSERT_TRUE(result.success) << result.errorStage.toStdString() << ": "
+                                << result.errorMessage.toStdString();
+
+    const QByteArray encodedPath = path.toUtf8();
+    auto input = OIIO::ImageInput::open(encodedPath.constData());
+    ASSERT_NE(input, nullptr);
+    const auto& spec = input->spec();
+    ASSERT_EQ(spec.width, 2);
+    ASSERT_EQ(spec.height, 1);
+    EXPECT_EQ(spec.format.basetype, OIIO::TypeDesc::FLOAT);
+    EXPECT_EQ(spec.get_string_attribute("compression", ""), "zip");
+    EXPECT_EQ(spec.nchannels, static_cast<int>(channels.size()) + 8);
+    ASSERT_EQ(spec.channelnames.size(), static_cast<std::size_t>(spec.nchannels));
+    for (std::size_t index = 0; index < spec.channelnames.size(); ++index) {
+        for (std::size_t previous = 0; previous < index; ++previous) {
+            EXPECT_NE(spec.channelnames[index], spec.channelnames[previous])
+                << "duplicate EXR channel " << spec.channelnames[index];
+        }
+    }
+    if (!spec.channelformats.empty()) {
+        ASSERT_EQ(spec.channelformats.size(),
+                  static_cast<std::size_t>(spec.nchannels));
+        for (std::size_t index = 0; index < spec.channelformats.size(); ++index) {
+            EXPECT_EQ(spec.channelformats[index].basetype, OIIO::TypeDesc::FLOAT)
+                << "channel " << spec.channelnames[index];
+        }
+    }
+    const auto channelIndex = [&spec](const std::string& name) {
+        const auto found = std::find(spec.channelnames.begin(),
+                                     spec.channelnames.end(), name);
+        return found == spec.channelnames.end()
+            ? -1 : static_cast<int>(found - spec.channelnames.begin());
+    };
+    for (const std::string& name : {
+             "R", "G", "B", "A", "Depth", "Normal.X", "Normal.Y",
+             "Normal.Z", "Velocity.X", "Velocity.Y", "ObjectId", "MaterialId",
+             "Albedo.R", "Albedo.G", "Albedo.B", "Emission", "Position.X",
+             "Position.Y", "Position.Z", "UV.U", "UV.V", "Custom",
+             "CryptoObject00.R", "CryptoObject00.G", "CryptoObject00.B",
+             "CryptoObject00.A", "CryptoMaterial00.R", "CryptoMaterial00.G",
+             "CryptoMaterial00.B", "CryptoMaterial00.A"}) {
+        EXPECT_GE(channelIndex(name), 0) << name;
+    }
+    EXPECT_EQ(spec.get_string_attribute("cryptomatte/00000000/name", ""),
+              "CryptoObject");
+    EXPECT_EQ(spec.get_string_attribute("cryptomatte/00000000/hash", ""),
+              "MurmurHash3_32");
+    EXPECT_EQ(spec.get_string_attribute("cryptomatte/00000000/conversion", ""),
+              "uint32_to_float32");
+    EXPECT_EQ(spec.get_string_attribute("cryptomatte/00000000/manifest", ""),
+              "{\"LayerA\":\"00000011\"}");
+    EXPECT_EQ(spec.get_string_attribute("cryptomatte/00000001/name", ""),
+              "CryptoMaterial");
+    EXPECT_EQ(spec.get_string_attribute("cryptomatte/00000001/hash", ""),
+              "MurmurHash3_32");
+    EXPECT_EQ(spec.get_string_attribute("cryptomatte/00000001/conversion", ""),
+              "uint32_to_float32");
+    EXPECT_EQ(spec.get_string_attribute("cryptomatte/00000001/manifest", ""),
+              "{\"MaterialA\":\"0000001d\"}");
+
+    std::vector<float> pixels(static_cast<std::size_t>(spec.width) *
+                              static_cast<std::size_t>(spec.height) *
+                              static_cast<std::size_t>(spec.nchannels));
+    ASSERT_TRUE(input->read_image(OIIO::TypeDesc::FLOAT, pixels.data()));
+    for (const auto [name, expected] : {
+             std::pair{"R", std::array{0.125f, 0.25f}},
+             std::pair{"G", std::array{0.375f, 0.5f}},
+             std::pair{"B", std::array{0.625f, 0.75f}},
+             std::pair{"A", std::array{1.0f, 0.5f}},
+             std::pair{"Depth", std::array{0.2f, 0.8f}},
+             std::pair{"Normal.X", std::array{-0.5f, 0.5f}},
+             std::pair{"Normal.Y", std::array{-0.25f, 0.25f}},
+             std::pair{"Normal.Z", std::array{0.75f, -0.75f}},
+             std::pair{"Velocity.X", std::array{-12.0f, 13.0f}},
+             std::pair{"Velocity.Y", std::array{21.0f, -22.0f}},
+             std::pair{"ObjectId", std::array{17.0f, 0.0f}},
+             std::pair{"MaterialId", std::array{29.0f, 0.0f}},
+             std::pair{"Albedo.R", std::array{0.11f, 0.21f}},
+             std::pair{"Albedo.G", std::array{0.31f, 0.41f}},
+             std::pair{"Albedo.B", std::array{0.51f, 0.61f}},
+             std::pair{"Emission", std::array{1.5f, 2.5f}},
+             std::pair{"Position.X", std::array{-101.0f, 102.0f}},
+             std::pair{"Position.Y", std::array{-201.0f, 202.0f}},
+             std::pair{"Position.Z", std::array{-301.0f, 302.0f}},
+             std::pair{"UV.U", std::array{0.125f, 0.875f}},
+             std::pair{"UV.V", std::array{0.25f, 0.75f}},
+             std::pair{"Custom", std::array{9.0f, -9.0f}},
+             std::pair{"CryptoObject00.R", std::array{17.0f, 0.0f}},
+             std::pair{"CryptoObject00.G", std::array{1.0f, 0.0f}},
+             std::pair{"CryptoObject00.B", std::array{0.0f, 0.0f}},
+             std::pair{"CryptoObject00.A", std::array{0.0f, 0.0f}},
+             std::pair{"CryptoMaterial00.R", std::array{29.0f, 0.0f}},
+             std::pair{"CryptoMaterial00.G", std::array{1.0f, 0.0f}},
+             std::pair{"CryptoMaterial00.B", std::array{0.0f, 0.0f}},
+             std::pair{"CryptoMaterial00.A", std::array{0.0f, 0.0f}}}) {
+        const int index = channelIndex(name);
+        ASSERT_GE(index, 0) << name;
+        EXPECT_FLOAT_EQ(pixels[static_cast<std::size_t>(index)], expected[0]);
+        EXPECT_FLOAT_EQ(pixels[static_cast<std::size_t>(spec.nchannels + index)],
+                        expected[1]);
+    }
+    input->close();
+}
+
+TEST(ExrWriterOutputContractTest,
+     DeepExrRoundTripRetainsVariablePerPixelSamplesAndDepthOrder)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(QStringLiteral("deep_samples.exr"));
+    std::vector<std::vector<ArtifactCore::OpenExrDeepSample>> source(4);
+    source[0].push_back({0.25f, 0.1f, 0.2f, 0.3f, 0.5f});
+    source[0].push_back({0.75f, 0.4f, 0.5f, 0.6f, 1.0f});
+    source[1].push_back({0.5f, 0.7f, 0.6f, 0.5f, 0.75f});
+    source[2].push_back({0.1f, 0.8f, 0.7f, 0.6f, 0.5f});
+    source[2].push_back({0.4f, 0.3f, 0.2f, 0.1f, 0.75f});
+    source[2].push_back({0.9f, 0.2f, 0.3f, 0.4f, 0.25f});
+    // Pixel 3 deliberately has no samples.
+
+    ArtifactCore::OpenExr exr;
+    ASSERT_TRUE(exr.writeDeepRGBA32F(path, 4, 1, source));
+    std::vector<std::vector<ArtifactCore::OpenExrDeepSample>> decoded;
+    int width = 0;
+    int height = 0;
+    ASSERT_TRUE(exr.readDeepRGBA32F(path, decoded, width, height));
+    ASSERT_EQ(width, 4);
+    ASSERT_EQ(height, 1);
+    ASSERT_EQ(decoded.size(), 4u);
+    ASSERT_EQ(decoded[0].size(), 2u);
+    ASSERT_EQ(decoded[1].size(), 1u);
+    ASSERT_EQ(decoded[2].size(), 3u);
+    EXPECT_TRUE(decoded[3].empty());
+    ASSERT_EQ(decoded.size(), source.size());
+    for (std::size_t pixel = 0; pixel < source.size(); ++pixel) {
+        ASSERT_EQ(decoded[pixel].size(), source[pixel].size()) << "pixel " << pixel;
+        for (std::size_t sample = 0; sample < source[pixel].size(); ++sample) {
+            const auto& expected = source[pixel][sample];
+            const auto& actual = decoded[pixel][sample];
+            EXPECT_FLOAT_EQ(actual.depth, expected.depth)
+                << "pixel " << pixel << ", sample " << sample;
+            EXPECT_FLOAT_EQ(actual.red, expected.red)
+                << "pixel " << pixel << ", sample " << sample;
+            EXPECT_FLOAT_EQ(actual.green, expected.green)
+                << "pixel " << pixel << ", sample " << sample;
+            EXPECT_FLOAT_EQ(actual.blue, expected.blue)
+                << "pixel " << pixel << ", sample " << sample;
+            EXPECT_FLOAT_EQ(actual.alpha, expected.alpha)
+                << "pixel " << pixel << ", sample " << sample;
+        }
+    }
+}
+
+TEST(ExrWriterOutputContractTest,
+     DeepReaderClearsOutputArgumentsWhenInputIsNotDeep)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(
+        QStringLiteral("flat_input.exr"));
+    constexpr std::array<float, 4> rgba{0.2f, 0.4f, 0.6f, 1.0f};
+    ArtifactCore::OpenExr exr;
+    ASSERT_TRUE(exr.writeRGBA32F(path, rgba.data(), 1, 1));
+
+    std::vector<std::vector<ArtifactCore::OpenExrDeepSample>> samples(1);
+    samples[0].push_back({0.5f, 0.1f, 0.2f, 0.3f, 1.0f});
+    int width = 17;
+    int height = 19;
+    EXPECT_FALSE(exr.readDeepRGBA32F(path, samples, width, height));
+    EXPECT_TRUE(samples.empty());
+    EXPECT_EQ(width, 0);
+    EXPECT_EQ(height, 0);
+
+    ArtifactCore::DeepImageBuffer image(1, 1);
+    ArtifactCore::DeepSample sample;
+    sample.depth = 0.5f;
+    sample.color = {0.1f, 0.2f, 0.3f, 1.0f};
+    sample.alpha = 1.0f;
+    ASSERT_TRUE(image.addSample(0, 0, sample));
+    EXPECT_FALSE(exr.readDeepRGBA32F(path, image));
+    EXPECT_EQ(image.width(), 0);
+    EXPECT_EQ(image.height(), 0);
+    EXPECT_TRUE(image.isEmpty());
+}
+
+TEST(ExrWriterOutputContractTest,
+     DeepImageBufferWritesOnlyDepthAndRgbaAndReadbackUsesDocumentedDefaults)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(QStringLiteral("deep_buffer.exr"));
+
+    ArtifactCore::DeepImageBuffer source(2, 1);
+    ArtifactCore::DeepSample front;
+    front.depth = 0.2f;
+    front.depthBack = 0.35f;
+    front.color = {0.1f, 0.2f, 0.3f, 1.0f};
+    front.alpha = 0.6f;
+    front.coverage = 0.25f;
+    front.holdout = true;
+    ASSERT_TRUE(source.addSample(0, 0, front));
+
+    ArtifactCore::DeepSample back;
+    back.depth = 0.8f;
+    back.depthBack = 0.95f;
+    back.color = {0.7f, 0.6f, 0.5f, 1.0f};
+    back.alpha = 0.4f;
+    back.coverage = 0.75f;
+    ASSERT_TRUE(source.addSample(0, 0, back));
+
+    ArtifactCore::OpenExr exr;
+    ASSERT_TRUE(exr.writeDeepRGBA32F(path, source));
+
+    const QByteArray encodedPath = path.toUtf8();
+    auto input = OIIO::ImageInput::open(encodedPath.constData());
+    ASSERT_NE(input, nullptr);
+    const auto& spec = input->spec();
+    ASSERT_TRUE(spec.deep);
+    EXPECT_EQ(spec.nchannels, 5);
+    EXPECT_EQ(spec.channelnames,
+              (std::vector<std::string>{"Z", "R", "G", "B", "A"}));
+    OIIO::DeepData deep;
+    ASSERT_TRUE(input->read_native_deep_image(0, 0, deep));
+    EXPECT_EQ(deep.samples(0), 2);
+    EXPECT_EQ(deep.samples(1), 0);
+    for (int sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        const auto& expected = sampleIndex == 0 ? front : back;
+        EXPECT_FLOAT_EQ(deep.deep_value(0, 0, sampleIndex), expected.depth);
+        EXPECT_FLOAT_EQ(deep.deep_value(0, 1, sampleIndex), expected.color[0]);
+        EXPECT_FLOAT_EQ(deep.deep_value(0, 2, sampleIndex), expected.color[1]);
+        EXPECT_FLOAT_EQ(deep.deep_value(0, 3, sampleIndex), expected.color[2]);
+        EXPECT_FLOAT_EQ(deep.deep_value(0, 4, sampleIndex), expected.alpha);
+    }
+    input->close();
+
+    ArtifactCore::DeepImageBuffer decoded;
+    ASSERT_TRUE(exr.readDeepRGBA32F(path, decoded));
+    ASSERT_EQ(decoded.width(), 2);
+    ASSERT_EQ(decoded.height(), 1);
+    const auto* firstPixel = decoded.pixel(0, 0);
+    const auto* emptyPixel = decoded.pixel(1, 0);
+    ASSERT_NE(firstPixel, nullptr);
+    ASSERT_NE(emptyPixel, nullptr);
+    ASSERT_EQ(firstPixel->samples.size(), 2u);
+    EXPECT_TRUE(emptyPixel->samples.empty());
+
+    const auto& decodedFront = firstPixel->samples[0];
+    EXPECT_FLOAT_EQ(decodedFront.depth, front.depth);
+    EXPECT_FLOAT_EQ(decodedFront.depthBack, front.depth);
+    EXPECT_FLOAT_EQ(decodedFront.color[0], front.color[0]);
+    EXPECT_FLOAT_EQ(decodedFront.color[1], front.color[1]);
+    EXPECT_FLOAT_EQ(decodedFront.color[2], front.color[2]);
+    EXPECT_FLOAT_EQ(decodedFront.alpha, front.alpha);
+    EXPECT_FLOAT_EQ(decodedFront.coverage, 1.0f);
+    EXPECT_FALSE(decodedFront.holdout);
+
+    const auto& decodedBack = firstPixel->samples[1];
+    EXPECT_FLOAT_EQ(decodedBack.depth, back.depth);
+    EXPECT_FLOAT_EQ(decodedBack.depthBack, back.depth);
+    EXPECT_FLOAT_EQ(decodedBack.color[0], back.color[0]);
+    EXPECT_FLOAT_EQ(decodedBack.color[1], back.color[1]);
+    EXPECT_FLOAT_EQ(decodedBack.color[2], back.color[2]);
+    EXPECT_FLOAT_EQ(decodedBack.alpha, back.alpha);
+    EXPECT_FLOAT_EQ(decodedBack.coverage, 1.0f);
+    EXPECT_FALSE(decodedBack.holdout);
+}
+
+TEST(ExrWriterOutputContractTest,
+     DeepWriterRejectsUnsortedAndNonFiniteSamplePayloads)
+{
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+    const QString path = outputDirectory.filePath(QStringLiteral("invalid_deep.exr"));
+    ArtifactCore::OpenExr exr;
+
+    std::vector<std::vector<ArtifactCore::OpenExrDeepSample>> unsorted(1);
+    unsorted[0].push_back({0.8f, 0.1f, 0.2f, 0.3f, 0.4f});
+    unsorted[0].push_back({0.2f, 0.5f, 0.6f, 0.7f, 0.8f});
+    EXPECT_FALSE(exr.writeDeepRGBA32F(path, 1, 1, unsorted));
+    EXPECT_FALSE(QFileInfo::exists(path));
+
+    const QByteArray preservedBytes = QByteArrayLiteral("previous deep exr output");
+    QFile existingOutput(path);
+    ASSERT_TRUE(existingOutput.open(QIODevice::WriteOnly));
+    ASSERT_EQ(existingOutput.write(preservedBytes), preservedBytes.size());
+    existingOutput.close();
+    const auto readExistingOutput = [&path]() {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            return QByteArray{};
+        }
+        return file.readAll();
+    };
+
+    EXPECT_FALSE(exr.writeDeepRGBA32F(path, 1, 1, unsorted));
+    EXPECT_EQ(readExistingOutput(), preservedBytes);
+
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float positiveInfinity = std::numeric_limits<float>::infinity();
+    const float negativeInfinity = -positiveInfinity;
+    for (const auto& sample : {
+             ArtifactCore::OpenExrDeepSample{nan, 0.1f, 0.2f, 0.3f, 0.4f},
+             ArtifactCore::OpenExrDeepSample{0.5f, nan, 0.2f, 0.3f, 0.4f},
+             ArtifactCore::OpenExrDeepSample{0.5f, 0.1f, nan, 0.3f, 0.4f},
+             ArtifactCore::OpenExrDeepSample{0.5f, 0.1f, 0.2f, nan, 0.4f},
+             ArtifactCore::OpenExrDeepSample{0.5f, 0.1f, 0.2f, 0.3f, nan},
+             ArtifactCore::OpenExrDeepSample{positiveInfinity, 0.1f, 0.2f, 0.3f, 0.4f},
+             ArtifactCore::OpenExrDeepSample{0.5f, negativeInfinity, 0.2f, 0.3f, 0.4f},
+             ArtifactCore::OpenExrDeepSample{0.5f, 0.1f, positiveInfinity, 0.3f, 0.4f},
+             ArtifactCore::OpenExrDeepSample{0.5f, 0.1f, 0.2f, negativeInfinity, 0.4f},
+             ArtifactCore::OpenExrDeepSample{0.5f, 0.1f, 0.2f, 0.3f, positiveInfinity}}) {
+        std::vector<std::vector<ArtifactCore::OpenExrDeepSample>> invalid(1);
+        invalid[0].push_back(sample);
+        EXPECT_FALSE(exr.writeDeepRGBA32F(path, 1, 1, invalid));
+        EXPECT_EQ(readExistingOutput(), preservedBytes);
+    }
+
+    std::vector<std::vector<ArtifactCore::OpenExrDeepSample>> missingPixel;
+    EXPECT_FALSE(exr.writeDeepRGBA32F(path, 1, 1, missingPixel));
+    EXPECT_EQ(readExistingOutput(), preservedBytes);
+    EXPECT_FALSE(exr.writeDeepRGBA32F(path, 0, 1, unsorted));
+    EXPECT_EQ(readExistingOutput(), preservedBytes);
 }

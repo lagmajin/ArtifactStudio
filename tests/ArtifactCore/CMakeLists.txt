@@ -890,6 +890,17 @@ set_tests_properties(ArtifactCoreEncoderSettingsContractTest PROPERTIES
     TIMEOUT 60
 )
 
+artifact_add_test(ArtifactCoreFFmpegEncoderAvailabilityContractTest
+    SOURCES
+        FFmpegEncoderAvailabilityContractTest.cpp
+    LIBS
+        ArtifactCoreVideo
+)
+set_tests_properties(ArtifactCoreFFmpegEncoderAvailabilityContractTest PROPERTIES
+    LABELS "video;encoder;ffmpeg;availability;cpu;contract"
+    TIMEOUT 60
+)
+
 artifact_add_test(ArtifactCoreDiagnosticsContractTest
     SOURCES
         CoreDiagnosticsContractTest.cpp

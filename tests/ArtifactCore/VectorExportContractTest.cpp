@@ -1,15 +1,20 @@
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <vector>
 
+#include <QColor>
 #include <QFile>
 #include <QDir>
 #include <QByteArray>
+#include <QRectF>
 #include <QSize>
 #include <QStringList>
 #include <QTemporaryDir>
+#include <QXmlStreamReader>
 
 import IO.VectorExport;
+import Shape.Layer;
 
 using namespace ArtifactCore;
 
@@ -92,4 +97,60 @@ TEST(VectorExportContractTest, SvgSequenceCreatesDirectoryAndZeroPadsFrameNumber
     ASSERT_TRUE(last.open(QIODevice::ReadOnly | QIODevice::Text));
     EXPECT_EQ(first.readAll(), QByteArray("<svg>first</svg>\n"));
     EXPECT_EQ(last.readAll(), QByteArray("<svg>last</svg>\n"));
+}
+
+TEST(VectorExportContractTest, CompositionFrameExportsVisibleShapeGeometryAndTransform)
+{
+    ShapeLayer visibleLayer;
+    visibleLayer.setName(QStringLiteral("VisibleRectangle"));
+    visibleLayer.transform().position = Point2DValue(12.0, 7.0);
+    auto rectangle = std::make_unique<RectanglePathShape>(QRectF(1.0, 2.0, 8.0, 6.0));
+    rectangle->fill().color = QColor(255, 0, 0);
+    rectangle->stroke().enabled = false;
+    visibleLayer.addShape(std::move(rectangle));
+
+    ShapeLayer hiddenLayer;
+    hiddenLayer.setName(QStringLiteral("HiddenRectangle"));
+    hiddenLayer.setVisible(false);
+    auto hiddenRectangle =
+        std::make_unique<RectanglePathShape>(QRectF(20.0, 20.0, 5.0, 5.0));
+    hiddenRectangle->fill().color = QColor(0, 0, 255);
+    hiddenRectangle->stroke().enabled = false;
+    hiddenLayer.addShape(std::move(hiddenRectangle));
+
+    const std::vector<const ShapeLayer*> layers{&visibleLayer, &hiddenLayer};
+    const QString svg = SvgFrameExporter::exportCompositionFrame(
+        layers, QSize(320, 180), 24);
+
+    QXmlStreamReader xml(svg);
+    bool foundSvgRoot = false;
+    int pathElementCount = 0;
+    while (!xml.atEnd()) {
+        xml.readNext();
+        if (xml.isStartElement()) {
+            if (!foundSvgRoot) {
+                foundSvgRoot = true;
+                EXPECT_EQ(xml.name(), QStringLiteral("svg"));
+                EXPECT_EQ(xml.namespaceUri().toString(),
+                          QStringLiteral("http://www.w3.org/2000/svg"));
+            }
+            if (xml.name() == QStringLiteral("path")) {
+                ++pathElementCount;
+                EXPECT_FALSE(xml.attributes().value(QStringLiteral("d")).isEmpty());
+            }
+        }
+    }
+    EXPECT_FALSE(xml.hasError()) << xml.errorString().toStdString();
+    EXPECT_TRUE(foundSvgRoot);
+    EXPECT_EQ(pathElementCount, 1);
+
+    EXPECT_NE(svg.indexOf(QStringLiteral("width=\"320\" height=\"180\"")), -1);
+    EXPECT_NE(svg.indexOf(QStringLiteral("<!-- Frame 24 -->")), -1);
+    EXPECT_NE(svg.indexOf(QStringLiteral("<!-- Layer: VisibleRectangle -->")), -1);
+    EXPECT_EQ(svg.indexOf(QStringLiteral("HiddenRectangle")), -1);
+    EXPECT_NE(svg.indexOf(QStringLiteral("fill:#ffff0000")), -1);
+    EXPECT_EQ(svg.indexOf(QStringLiteral("fill:#ff0000ff")), -1);
+    EXPECT_NE(svg.indexOf(QStringLiteral(
+        "matrix(1.000000,0.000000,0.000000,1.000000,12.000000,7.000000)")), -1);
+    EXPECT_EQ(svg.count(QStringLiteral("<path d=\"")), 1);
 }

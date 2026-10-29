@@ -127,6 +127,16 @@ set_tests_properties(ArtifactRenderContextLodContractTest PROPERTIES
     LABELS "render;lod;resolution;cpu;contract"
 )
 
+artifact_add_test(ArtifactTileGridContractTest
+    SOURCES
+        TileGridContractTest.cpp
+    LIBS
+        ArtifactRender
+)
+set_tests_properties(ArtifactTileGridContractTest PROPERTIES
+    LABELS "render;tile;roi;geometry;cpu;contract"
+)
+
 artifact_add_test(ArtifactGlobalIlluminationLodContractTest
     SOURCES
         GlobalIlluminationLodContractTest.cpp
@@ -583,6 +593,27 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
 endif()
 
+if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
+    artifact_add_test(ArtifactPostProcessPassContractTest
+        SOURCES
+            PostProcessPassContractTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    target_include_directories(ArtifactPostProcessPassContractTest PRIVATE
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngine/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngineVulkan/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Common/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Platforms/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
+    )
+    set_tests_properties(ArtifactPostProcessPassContractTest PROPERTIES
+        LABELS "renderer;gpu;postprocess;dof;motion-blur;final-effects;headless;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+endif()
+
 if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
    AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
     artifact_add_test(ArtifactDiligentDeviceManagerRecoveryContractTest
@@ -953,6 +984,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactExrWriterOutputContractTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=ExrWriterOutputContractTest.*
+    )
+    set_tests_properties(ArtifactExrWriterOutputContractTest PROPERTIES
+        LABELS "openexr;aov;cryptomatte;metadata;deep;contract;cpu"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactRenderQueueLargeSurfaceEffectStressIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.LargeSurfaceEffectQueueWritesEveryFrameAndAppliesEffect
@@ -1140,6 +1180,58 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
 endif()
 
 if(ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactLofiEffectContractTest
+        SOURCES
+            LofiEffectContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactLofiEffectContractTest PROPERTIES
+        LABELS "effect;lofi;old-tv;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+
+    if(TARGET ArtifactProxyWorker AND TARGET ArtifactProxyWorkerPackage)
+        artifact_add_test(ArtifactProxyWorkerProtocolTest
+            SOURCES
+                ProxyWorkerProtocolTest.cpp
+        )
+        set_target_properties(ArtifactProxyWorkerProtocolTest PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        )
+        add_dependencies(ArtifactProxyWorkerProtocolTest ArtifactProxyWorkerPackage)
+        if(WIN32)
+            add_custom_command(TARGET ArtifactProxyWorkerProtocolTest POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    $<TARGET_RUNTIME_DLLS:ArtifactProxyWorkerProtocolTest>
+                    "$<TARGET_FILE_DIR:ArtifactProxyWorkerProtocolTest>/"
+                COMMAND_EXPAND_LISTS
+                VERBATIM
+            )
+        endif()
+        set_tests_properties(ArtifactProxyWorkerProtocolTest PROPERTIES
+            ENVIRONMENT
+                "ARTIFACT_PROXY_WORKER_EXECUTABLE=${CMAKE_BINARY_DIR}/proxy-worker-package/$<CONFIG>/$<TARGET_FILE_NAME:ArtifactProxyWorker>"
+            LABELS "proxy;worker;process;protocol;contract"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
+    endif()
+
+    artifact_add_test(ArtifactExportWriterContractTest
+        SOURCES
+            ExportWriterContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactExportWriterContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;schema;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
+
     # Playback range service contract runs in its own process with a Core
     # event loop; it does not start playback or initialize a graphics device.
     artifact_add_test(ArtifactPlaybackRangeServiceContractTest
