@@ -715,6 +715,16 @@ set_tests_properties(ArtifactVoronoiEffectContractTest PROPERTIES
     LABELS "effect;voronoi;cpu;contract"
 )
 
+artifact_add_test(ArtifactFreezeFrameEffectContractTest
+    SOURCES
+        FreezeFrameEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactFreezeFrameEffectContractTest PROPERTIES
+    LABELS "effect;freeze-frame;temporal;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
