@@ -14,9 +14,17 @@ TEST(VideoFrameValidityContractTest, CpuFrameRequiresPositiveDimensionsAndStorag
 
     frame.meta.width = 2;
     frame.meta.height = 1;
+    frame.meta.pixelFormat = VideoFramePixelFormat::RGBA8;
     frame.strideBytes = 8;
-    frame.bytes = {1, 2, 3, 4, 5, 6, 7, 8};
+    frame.bytes = {1, 2, 3, 4, 5, 6, 7};
+    EXPECT_FALSE(frame.isValid());
+
+    frame.bytes.push_back(8);
     EXPECT_TRUE(frame.isValid());
+
+    frame.strideBytes = 7;
+    EXPECT_FALSE(frame.isValid());
+    frame.strideBytes = 8;
 
     frame.meta.height = 0;
     EXPECT_FALSE(frame.isValid());

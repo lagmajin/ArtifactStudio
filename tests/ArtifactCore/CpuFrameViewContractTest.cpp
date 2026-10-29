@@ -2,11 +2,13 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <variant>
 #include <vector>
 
 import Video.CpuFrameView;
 import Video.VideoFrame;
+import Memory.SharedPtr;
 
 using namespace ArtifactCore;
 
@@ -86,5 +88,33 @@ TEST(CpuFrameViewContractTest, FrameMetadataRemainsAttachedToCpuVariant)
     EXPECT_EQ(view.height(), 1);
     EXPECT_EQ(CpuFrameView::pixel(view.scanline(0), 0, 0), 9);
     EXPECT_EQ(CpuFrameView::pixel(view.scanline(0), 0, 3), 6);
+}
+
+TEST(CpuFrameViewContractTest, RejectsEmptyGpuAndNonFourChannelFramesWithoutAsserting)
+{
+    const DecodedVideoFrame empty;
+    const CpuFrameView emptyView(empty);
+    EXPECT_FALSE(emptyView.isValid());
+
+    int image = 0;
+    GpuVideoFrame gpu;
+    gpu.meta.width = 1;
+    gpu.meta.height = 1;
+    gpu.storage = VideoFrameStorageKind::VulkanImage;
+    gpu.handle = VulkanVideoFrameHandle{.image = &image};
+    gpu.lifetime = SharedPtr<void>(std::make_shared<int>(1));
+    const DecodedVideoFrame gpuFrame = gpu;
+    const CpuFrameView gpuView(gpuFrame);
+    EXPECT_FALSE(gpuView.isValid());
+
+    CpuVideoFrame rgb;
+    rgb.meta.width = 1;
+    rgb.meta.height = 1;
+    rgb.meta.pixelFormat = VideoFramePixelFormat::RGB24;
+    rgb.strideBytes = 3;
+    rgb.bytes = {1, 2, 3};
+    const DecodedVideoFrame rgbFrame = rgb;
+    const CpuFrameView rgbView(rgbFrame);
+    EXPECT_FALSE(rgbView.isValid());
 }
 
