@@ -558,7 +558,7 @@ TEST_F(PostProcessPassGpuContractTest, DepthOfFieldThinLensModelRespondsToApertu
     EXPECT_GT(wideAperture[adjacent + 3], 0.0f);
 }
 
-TEST_F(PostProcessPassGpuContractTest, DepthOfFieldClampsCocScaleToUnitRange)
+TEST_F(PostProcessPassGpuContractTest, DepthOfFieldClampsCocScaleAndSampleCount)
 {
     Artifact::DepthOfFieldPass pass;
     ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
@@ -618,6 +618,34 @@ TEST_F(PostProcessPassGpuContractTest, DepthOfFieldClampsCocScaleToUnitRange)
     for (std::size_t component = 0; component < atMaximum.size(); ++component) {
         EXPECT_FLOAT_EQ(aboveMaximum[component], atMaximum[component])
             << "component=" << component;
+    }
+
+    settings.cocScale.value = 1.0f;
+    settings.sampleCount = 0;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, depthSrv, outputUav,
+                           kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> belowMinimumSamples{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, belowMinimumSamples));
+    settings.sampleCount = 4;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, depthSrv, outputUav,
+                           kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> minimumSamples{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, minimumSamples));
+    settings.sampleCount = 64;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, depthSrv, outputUav,
+                           kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> maximumSamples{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, maximumSamples));
+    settings.sampleCount = 100;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, depthSrv, outputUav,
+                           kWidth, kHeight, settings));
+    std::array<float, kPixelCount * 4> aboveMaximumSamples{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, aboveMaximumSamples));
+    for (std::size_t component = 0; component < minimumSamples.size(); ++component) {
+        EXPECT_FLOAT_EQ(belowMinimumSamples[component], minimumSamples[component])
+            << "minimum component=" << component;
+        EXPECT_FLOAT_EQ(aboveMaximumSamples[component], maximumSamples[component])
+            << "maximum component=" << component;
     }
 }
 
