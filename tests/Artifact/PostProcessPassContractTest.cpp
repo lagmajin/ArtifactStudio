@@ -510,3 +510,64 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndCopiesZeroVel
     EXPECT_FLOAT_EQ(zeroShutter[adjacent], 0.0f);
     EXPECT_FLOAT_EQ(zeroShutter[center + 3], 1.0f);
 }
+
+TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
+{
+    Artifact::MotionBlurPass pass;
+    ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
+    ASSERT_TRUE(pass.ready());
+
+    std::array<float, kPixelCount * 4> color{};
+    std::array<float, kPixelCount * 2> velocity{};
+    std::array<float, kPixelCount> depth{};
+    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
+        color[pixel * 4 + 3] = 1.0f;
+        velocity[pixel * 2] = 2.0f;
+        depth[pixel] = 0.5f;
+    }
+    const auto foreground = pixelOffset(kWidth / 2, kHeight / 2);
+    color[foreground] = 1.0f;
+    depth[foreground / 4] = 0.0f;
+
+    auto colorTexture = createTexture(
+        gpu_.device(), "Motion blur depth-edge color", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_SHADER_RESOURCE, color.data(), kWidth * 4 * sizeof(float));
+    auto velocityTexture = createTexture(
+        gpu_.device(), "Motion blur depth-edge velocity", TEX_FORMAT_RG32_FLOAT,
+        BIND_SHADER_RESOURCE, velocity.data(), kWidth * 2 * sizeof(float));
+    auto depthTexture = createTexture(
+        gpu_.device(), "Motion blur depth-edge depth", TEX_FORMAT_R32_FLOAT,
+        BIND_SHADER_RESOURCE, depth.data(), kWidth * sizeof(float));
+    auto outputTexture = createTexture(
+        gpu_.device(), "Motion blur depth-edge output", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, nullptr, 0);
+    ASSERT_NE(colorTexture, nullptr);
+    ASSERT_NE(velocityTexture, nullptr);
+    ASSERT_NE(depthTexture, nullptr);
+    ASSERT_NE(outputTexture, nullptr);
+
+    auto* colorSrv = colorTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* velocitySrv = velocityTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* depthSrv = depthTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
+    ASSERT_NE(colorSrv, nullptr);
+    ASSERT_NE(velocitySrv, nullptr);
+    ASSERT_NE(depthSrv, nullptr);
+    ASSERT_NE(outputUav, nullptr);
+
+    Artifact::MotionBlurSettings settings;
+    settings.enabled = true;
+    settings.shutterAngle = 360.0f;
+    settings.velocityScale = 1.0f;
+    settings.sampleCount = 16;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
+                           outputUav, kWidth, kHeight, settings));
+
+    std::array<float, kPixelCount * 4> output{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, output));
+    const auto background = pixelOffset(kWidth / 2 + 1, kHeight / 2);
+    EXPECT_FLOAT_EQ(output[foreground], 1.0f)
+        << "Foreground samples must not be diluted by a different depth surface";
+    EXPECT_FLOAT_EQ(output[background], 0.0f)
+        << "Foreground color must not bleed across the depth discontinuity";
+}
