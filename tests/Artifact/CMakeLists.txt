@@ -991,6 +991,15 @@ artifact_add_test(ArtifactLightTrailsEffectContractTest
 set_tests_properties(ArtifactLightTrailsEffectContractTest PROPERTIES
     LABELS "effect;light-trails;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactScreenShakeEffectContractTest
+    SOURCES
+        ScreenShakeEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactScreenShakeEffectContractTest PROPERTIES
+    LABELS "effect;screen-shake;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
