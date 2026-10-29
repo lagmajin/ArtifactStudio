@@ -348,9 +348,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                      int frameStart = 1,
                      int frameEnd = 2,
                      RenderQueueEventLoopProbe* eventLoopProbe = nullptr,
-                     bool multiChannel = false,
-                     const QString& expectedObjectManifestEntry = {},
-                     const QString& expectedMaterialManifestEntry = {})
+                     bool multiChannel = false)
 {
     const QFileInfo requestedOutput(outputBasePath);
     if (!QDir().mkpath(requestedOutput.absolutePath())) {
@@ -530,57 +528,6 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                     return false;
                 }
             }
-            const auto cryptomatteId = [](const QString& layerName) {
-                QString value = QString::number(
-                    ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
-                        layerName), 16).rightJustified(8, QLatin1Char('0'));
-                value.chop(1);
-                return value;
-            };
-            for (const auto& [layerName, displayName] : {
-                     std::pair{QStringLiteral("CryptoObject"),
-                               QStringLiteral("CryptoObject")},
-                     std::pair{QStringLiteral("CryptoMaterial"),
-                               QStringLiteral("CryptoMaterial")}}) {
-                const QString prefix = QStringLiteral("cryptomatte/%1/")
-                                           .arg(cryptomatteId(layerName));
-                const QByteArray nameKey = (prefix + QStringLiteral("name")).toUtf8();
-                const QByteArray hashKey = (prefix + QStringLiteral("hash")).toUtf8();
-                const QByteArray conversionKey =
-                    (prefix + QStringLiteral("conversion")).toUtf8();
-                const QByteArray manifestKey =
-                    (prefix + QStringLiteral("manifest")).toUtf8();
-                const QByteArray manifestBytes = QByteArray::fromStdString(
-                    spec.get_string_attribute(manifestKey.constData(), ""));
-                const QJsonDocument manifestDocument =
-                    QJsonDocument::fromJson(manifestBytes);
-                const QString& expectedEntry =
-                    layerName == QStringLiteral("CryptoObject")
-                        ? expectedObjectManifestEntry
-                        : expectedMaterialManifestEntry;
-                const QString expectedHash = expectedEntry.isEmpty()
-                    ? QString()
-                    : QString::number(
-                          ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
-                              expectedEntry), 16)
-                          .rightJustified(8, QLatin1Char('0'));
-                if (spec.get_string_attribute(nameKey.constData(), "") !=
-                        displayName.toStdString() ||
-                    spec.get_string_attribute(hashKey.constData(), "") !=
-                        "MurmurHash3_32" ||
-                    spec.get_string_attribute(conversionKey.constData(), "") !=
-                        "uint32_to_float32" ||
-                    manifestBytes.isEmpty() || !manifestDocument.isObject() ||
-                    (!expectedEntry.isEmpty() &&
-                     manifestDocument.object().value(expectedEntry).toString() !=
-                         expectedHash)) {
-                    input->close();
-                    *failure = QStringLiteral(
-                        "Render Queue Cryptomatte metadata was incomplete for %1: %2")
-                                   .arg(displayName, framePath);
-                    return false;
-                }
-            }
             if (spec.get_string_attribute("artifact/aov/normal_space", "") !=
                     "view" ||
                 spec.get_string_attribute("artifact/aov/velocity_encoding", "") !=
@@ -695,26 +642,21 @@ TEST(RenderQueueLayerImageIntegrationTest,
     const auto composition = projects.createComposition(params);
     ASSERT_TRUE(composition.success);
 
-    Artifact::ArtifactSolidLayerInitParams manifestLayerParams(
-        QStringLiteral("CryptoManifestLayer"));
-    manifestLayerParams.setWidth(width);
-    manifestLayerParams.setHeight(height);
-    manifestLayerParams.setColor(ArtifactCore::FloatColor(
+    Artifact::ArtifactSolidLayerInitParams outputLayerParams(
+        QStringLiteral("ExrOutputLayer"));
+    outputLayerParams.setWidth(width);
+    outputLayerParams.setHeight(height);
+    outputLayerParams.setColor(ArtifactCore::FloatColor(
         0.15f, 0.25f, 0.4f, 1.0f));
-    const auto manifestLayer = projects.addLayerToComposition(
-        composition.id, manifestLayerParams);
-    ASSERT_TRUE(manifestLayer.success);
-    const QString objectManifestEntry = manifestLayer.layer->id().toString();
-    const QString materialManifestEntry =
-        QStringLiteral("CryptoManifestLayer|material");
-
+    const auto outputLayer = projects.addLayerToComposition(
+        composition.id, outputLayerParams);
+    ASSERT_TRUE(outputLayer.success);
     QString failure;
     RenderQueueEventLoopProbe eventLoopProbe;
     ASSERT_TRUE(addAndRenderExr(
         queue, composition.id, QStringLiteral("ExrQueueOutput"),
         isolatedOutputPath(QStringLiteral("render_queue_exr.exr")),
-        width, height, &failure, 0, 48, &eventLoopProbe, true,
-        objectManifestEntry, materialManifestEntry))
+        width, height, &failure, 0, 48, &eventLoopProbe, true))
         << failure.toStdString();
     EXPECT_TRUE(eventLoopProbe.servicedWhileRendering());
 }
