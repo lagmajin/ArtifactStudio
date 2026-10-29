@@ -1,7 +1,7 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-29 12:33
-> Total documents: 1479
+> Generated: 2026-10-29 12:34
+> Total documents: 1480
 
 ---
 
@@ -171,7 +171,7 @@
 | 44 | `ArtifactCore/docs/REFERENCE_UTILITY_PATTERNS_WICKED_ENGINE.md` | Utility Patterns Reference (from Wicked Engine) | --- | --- | --- | 6.7 KB | REFERENCE, UTILITY, PATTERNS, WICKED, ENGINE |
 | 45 | `ArtifactCore/docs/TimelineClock_Architecture.md` | Timeline Clock �A�[�L�e�N�`�� | --- | --- | --- | 7.3 KB | TimelineClock, Architecture |
 
-## analysis (97 files)
+## analysis (98 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -254,24 +254,25 @@
 | 77 | `docs/analysis/REPORT_SELECTION_MANAGER_TEST_GAP_2026-10-29.md` | SelectionManager Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | SELECTION, MANAGER, TEST, GAP |
 | 78 | `docs/analysis/REPORT_SHAPE_ANIMATION_PERSISTENCE_TEST_2026-10-29.md` | Shape Layer Animation Persistence Test | 2026-10-29 | --- | 2026-10-29 | 1.3 KB | SHAPE, ANIMATION, PERSISTENCE, TEST |
 | 79 | `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md` | Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細） | 2026-09-10 | --- | 2026-09-26 | 14.0 KB | SHAPE, GAP, UPDATE |
-| 80 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
-| 81 | `docs/analysis/REPORT_TIME_CODE_RANGE_TEST_GAP_2026-10-29.md` | TimeCodeRange Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.9 KB | TIME, CODE, RANGE, TEST, GAP |
-| 82 | `docs/analysis/REPORT_TRANSFORM_HELPER_TEST_GAP_2026-10-29.md` | Transform Helper Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | TRANSFORM, HELPER, TEST, GAP |
-| 83 | `docs/analysis/REPORT_UI_LAYOUT_STATE_TEST_GAP_2026-10-29.md` | UiLayoutState Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.9 KB | LAYOUT, STATE, TEST, GAP |
-| 84 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
-| 85 | `docs/analysis/REPORT_VIEWPORT_TRANSFORMER_TEST_GAP_2026-10-29.md` | ViewportTransformer Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 1.3 KB | VIEWPORT, TRANSFORMER, TEST, GAP |
-| 86 | `docs/analysis/REPORT_ZOOM_SCALE_TEST_GAP_2026-10-29.md` | ZoomScale2D Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.7 KB | ZOOM, SCALE, TEST, GAP |
-| 87 | `docs/analysis/REVIEW_ARTIFACT_FIXES_2026-09-09.md` | `review-artifact-fixes` 精査台帳 | 2026-09-09 | --- | 2026-09-09 | 8.5 KB | REVIEW, ARTIFACT, FIXES |
-| 88 | `docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md` | Sequence Group 設計メモ (2026-07-26) | 2026-07-26 | --- | 2026-07-26 | 10.8 KB | SEQUENCE, GROUP, DESIGN, NOTE |
-| 89 | `docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md` | Shared Device Lease / Image Cache Audit | 2026-08-11 | --- | 2026-08-13 | 2.1 KB | SHARED, DEVICE, AND, IMAGE, CACHE |
-| 90 | `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` | 静止画レイヤー制作受入マトリクス | 2026-09-19 | --- | 2026-09-21 | 11.5 KB | STILL, IMAGE, LAYER, ACCEPTANCE, MATRIX |
-| 91 | `docs/analysis/TECH_ADOPTION_CANDIDATES_2026-07-27.md` | 採用候補技術調査 — アプリ改良のための技術選定メモ | 2026-07-27 | --- | 2026-07-28 | 11.7 KB | TECH, ADOPTION, CANDIDATES |
-| 92 | `docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md` | 3Dレイヤー AE/Element3D/C4D 劣位点と改善メモ | 2026-09-11 | --- | 2026-09-11 | 4.3 KB | THREED, E3D, C4D, GAP |
-| 93 | `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md` | 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08) | 2026-08-08 | ** 分析完了 | 2026-08-10 | 9.7 KB | THREED, LAYER, FEATURE, GAP, DCC |
-| 94 | `docs/analysis/VIDEO_LAYER_PREVIEW_LATENCY_2026-08-06.md` | 動画レイヤー プレビュー再生遅延 原因調査メモ | 2026-08-06 | --- | 2026-08-06 | 4.7 KB | VIDEO, LAYER, PREVIEW, LATENCY |
-| 95 | `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` | ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStu | 2026-09-26 | --- | 2026-09-26 | 28.8 KB | VIEWPORT, DCC, PARITY, C4D, HOUDINI |
-| 96 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.1 KB | WIDGET, GAP, ANALYSIS |
-| 97 | `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` | Workflow Gap Deep Dive — 2026-06-16 | 2026-06-16 | --- | 2026-09-08 | 21.1 KB | WORKFLOW, GAP, DEEP, DIVE |
+| 80 | `docs/analysis/REPORT_SHORTCUT_BINDINGS_TEST_GAP_2026-10-29.md` | ShortcutBindings Test Coverage Gap | 2026-10-29 | --- | --- | 0.8 KB | SHORTCUT, BINDINGS, TEST, GAP |
+| 81 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
+| 82 | `docs/analysis/REPORT_TIME_CODE_RANGE_TEST_GAP_2026-10-29.md` | TimeCodeRange Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.9 KB | TIME, CODE, RANGE, TEST, GAP |
+| 83 | `docs/analysis/REPORT_TRANSFORM_HELPER_TEST_GAP_2026-10-29.md` | Transform Helper Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | TRANSFORM, HELPER, TEST, GAP |
+| 84 | `docs/analysis/REPORT_UI_LAYOUT_STATE_TEST_GAP_2026-10-29.md` | UiLayoutState Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.9 KB | LAYOUT, STATE, TEST, GAP |
+| 85 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
+| 86 | `docs/analysis/REPORT_VIEWPORT_TRANSFORMER_TEST_GAP_2026-10-29.md` | ViewportTransformer Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 1.3 KB | VIEWPORT, TRANSFORMER, TEST, GAP |
+| 87 | `docs/analysis/REPORT_ZOOM_SCALE_TEST_GAP_2026-10-29.md` | ZoomScale2D Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.7 KB | ZOOM, SCALE, TEST, GAP |
+| 88 | `docs/analysis/REVIEW_ARTIFACT_FIXES_2026-09-09.md` | `review-artifact-fixes` 精査台帳 | 2026-09-09 | --- | 2026-09-09 | 8.5 KB | REVIEW, ARTIFACT, FIXES |
+| 89 | `docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md` | Sequence Group 設計メモ (2026-07-26) | 2026-07-26 | --- | 2026-07-26 | 10.8 KB | SEQUENCE, GROUP, DESIGN, NOTE |
+| 90 | `docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md` | Shared Device Lease / Image Cache Audit | 2026-08-11 | --- | 2026-08-13 | 2.1 KB | SHARED, DEVICE, AND, IMAGE, CACHE |
+| 91 | `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` | 静止画レイヤー制作受入マトリクス | 2026-09-19 | --- | 2026-09-21 | 11.5 KB | STILL, IMAGE, LAYER, ACCEPTANCE, MATRIX |
+| 92 | `docs/analysis/TECH_ADOPTION_CANDIDATES_2026-07-27.md` | 採用候補技術調査 — アプリ改良のための技術選定メモ | 2026-07-27 | --- | 2026-07-28 | 11.7 KB | TECH, ADOPTION, CANDIDATES |
+| 93 | `docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md` | 3Dレイヤー AE/Element3D/C4D 劣位点と改善メモ | 2026-09-11 | --- | 2026-09-11 | 4.3 KB | THREED, E3D, C4D, GAP |
+| 94 | `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md` | 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08) | 2026-08-08 | ** 分析完了 | 2026-08-10 | 9.7 KB | THREED, LAYER, FEATURE, GAP, DCC |
+| 95 | `docs/analysis/VIDEO_LAYER_PREVIEW_LATENCY_2026-08-06.md` | 動画レイヤー プレビュー再生遅延 原因調査メモ | 2026-08-06 | --- | 2026-08-06 | 4.7 KB | VIDEO, LAYER, PREVIEW, LATENCY |
+| 96 | `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` | ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStu | 2026-09-26 | --- | 2026-09-26 | 28.8 KB | VIEWPORT, DCC, PARITY, C4D, HOUDINI |
+| 97 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.1 KB | WIDGET, GAP, ANALYSIS |
+| 98 | `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` | Workflow Gap Deep Dive — 2026-06-16 | 2026-06-16 | --- | 2026-09-08 | 21.1 KB | WORKFLOW, GAP, DEEP, DIVE |
 
 ## arch (3 files)
 
@@ -1644,7 +1645,7 @@
 | Artifact/bugs | 1 |
 | Artifact/planned | 3 |
 | ArtifactCore | 45 |
-| analysis | 97 |
+| analysis | 98 |
 | arch | 3 |
 | archived | 1 |
 | bugs | 91 |
@@ -1668,4 +1669,4 @@
 | trash | 1 |
 | verification | 1 |
 | worklog | 28 |
-| **Total** | **1479** |
+| **Total** | **1480** |

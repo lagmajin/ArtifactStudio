@@ -306,6 +306,17 @@ set_tests_properties(ArtifactCoreUiLayoutStateContractTest PROPERTIES
     LABELS "ui-layout;serialization;settings;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreShortcutBindingsContractTest
+    SOURCES
+        ShortcutBindingsContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreShortcutBindingsContractTest PROPERTIES
+    LABELS "shortcuts;input;serialization;cpu;contract"
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
