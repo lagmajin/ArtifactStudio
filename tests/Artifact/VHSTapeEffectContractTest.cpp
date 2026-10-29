@@ -337,6 +337,67 @@ TEST(VHSTapeEffectContractTest,
     }
 }
 
+TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
+{
+    constexpr int width = 320;
+    constexpr int height = 180;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset] = 0.12f;
+        pixels[offset + 1] = 0.18f;
+        pixels[offset + 2] = 0.24f;
+        pixels[offset + 3] = 1.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height,
+                         SurfaceColorDescriptor::unknownBgra32Float());
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache hidden;
+    ImageF32x4RGBAWithCache play;
+    ImageF32x4RGBAWithCache record;
+
+    VHSTapeEffect hiddenEffect;
+    setNeutralTapeProperties(hiddenEffect);
+    hiddenEffect.applyCPUOnly(source, hidden);
+    VHSTapeEffect playEffect;
+    setNeutralTapeProperties(playEffect);
+    playEffect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+    playEffect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 0);
+    playEffect.applyCPUOnly(source, play);
+    VHSTapeEffect recordEffect;
+    setNeutralTapeProperties(recordEffect);
+    recordEffect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+    recordEffect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 1);
+    recordEffect.applyCPUOnly(source, record);
+
+    ASSERT_EQ(hidden.image().width(), width);
+    ASSERT_EQ(hidden.image().height(), height);
+    ASSERT_EQ(play.image().width(), width);
+    ASSERT_EQ(play.image().height(), height);
+    ASSERT_EQ(record.image().width(), width);
+    ASSERT_EQ(record.image().height(), height);
+    const float* hiddenPixels = hidden.image().rgba32fData();
+    const float* playPixels = play.image().rgba32fData();
+    const float* recordPixels = record.image().rgba32fData();
+    ASSERT_NE(hiddenPixels, nullptr);
+    ASSERT_NE(playPixels, nullptr);
+    ASSERT_NE(recordPixels, nullptr);
+    bool osdVisible = false;
+    bool modeChanged = false;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            const std::size_t offset = pixel * 4 + channel;
+            osdVisible = osdVisible ||
+                std::abs(playPixels[offset] - hiddenPixels[offset]) > 1.0e-5f;
+            modeChanged = modeChanged ||
+                std::abs(playPixels[offset] - recordPixels[offset]) > 1.0e-5f;
+        }
+    }
+    EXPECT_TRUE(osdVisible);
+    EXPECT_TRUE(modeChanged);
+}
+
 TEST(VHSTapeEffectContractTest, WobbleOutputIsRepeatableForSameSeedAndEvolution)
 {
     constexpr int width = 32;
