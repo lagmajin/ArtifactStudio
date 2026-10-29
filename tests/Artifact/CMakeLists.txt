@@ -1018,6 +1018,15 @@ artifact_add_test(ArtifactPixelSortEffectContractTest
 set_tests_properties(ArtifactPixelSortEffectContractTest PROPERTIES
     LABELS "effect;pixel-sort;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactRasterizerGlowEffectContractTest
+    SOURCES
+        RasterizerGlowEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactRasterizerGlowEffectContractTest PROPERTIES
+    LABELS "effect;rasterizer-glow;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
