@@ -1090,6 +1090,15 @@ artifact_add_test(ArtifactOpticsCompensationEffectContractTest
 set_tests_properties(ArtifactOpticsCompensationEffectContractTest PROPERTIES
     LABELS "effect;optics-compensation;property;cpu;contract"
 )
+artifact_add_test(ArtifactRadioWavesEffectContractTest
+    SOURCES
+        RadioWavesEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactRadioWavesEffectContractTest PROPERTIES
+    LABELS "effect;radio-waves;generator;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
