@@ -375,7 +375,10 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
         queue->setJobMultiChannelChannelsAt(
             jobIndex, {QStringLiteral("R"), QStringLiteral("G"),
                        QStringLiteral("B"), QStringLiteral("A"),
-                       QStringLiteral("Depth")});
+                       QStringLiteral("Depth"), QStringLiteral("Normal.X"),
+                       QStringLiteral("Normal.Y"), QStringLiteral("Normal.Z"),
+                       QStringLiteral("Velocity.X"),
+                       QStringLiteral("Velocity.Y")});
     }
     queue->setJobFrameRangeAt(jobIndex, frameStart, frameEnd);
     auto selectiveSettings = queue->jobSelectiveSettingsAt(jobIndex);
@@ -475,7 +478,9 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 return found == spec.channelnames.end()
                     ? -1 : static_cast<int>(found - spec.channelnames.begin());
             };
-            for (const std::string& required : {"R", "G", "B", "A", "Depth"}) {
+            for (const std::string& required : {
+                     "R", "G", "B", "A", "Depth", "Normal.X", "Normal.Y",
+                     "Normal.Z", "Velocity.X", "Velocity.Y"}) {
                 if (!hasChannel(required)) {
                     *failure = QStringLiteral(
                         "Multi-channel EXR is missing requested AOV %1: %2")
