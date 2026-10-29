@@ -244,6 +244,26 @@ TEST(LofiEffectContractTest, AnimatedEnabledSwitchesOldTvBypassAtCompositionFram
     }
 }
 
+TEST(LofiEffectContractTest, AnimatedRegionEnabledTogglesWithoutCoordinateTracks)
+{
+    ArtifactOldTVEffect effect;
+    const auto enabled =
+        effect.editableProperty(QStringLiteral("Effect Region Enabled"));
+    ASSERT_TRUE(enabled);
+    enabled->addKeyFrame(RationalTime(0, 30), true);
+    enabled->addKeyFrame(RationalTime(30, 30), false);
+
+    EffectContext context;
+    context.frameRate = 30.0;
+    context.compositionFrame = 0;
+    effect.setContext(context);
+    EXPECT_TRUE(effect.hasEffectRegion());
+
+    context.compositionFrame = 30;
+    effect.setContext(context);
+    EXPECT_FALSE(effect.hasEffectRegion());
+}
+
 TEST(LofiEffectContractTest, AllowOverscanDoesNotExpandOldTvOutput)
 {
     const auto source = makePatternSurface();
