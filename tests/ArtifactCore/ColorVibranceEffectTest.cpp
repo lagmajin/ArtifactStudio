@@ -1036,6 +1036,7 @@ TEST(CreativeImageEffectContractTest, PixelateAveragesRgbWithoutOptionalAlpha) {
     effect.setParameter("BlockSize", 2.0f);
     effect.process(frame, CreativeEffectContext{});
 
+    bool changedRgb = false;
     for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
                                           ChannelType::Blue}) {
         const auto channel = frame.getChannel(channelType);
@@ -3099,6 +3100,88 @@ TEST(CreativeImageEffectContractTest, SurfaceMemoryRetainsPriorFrameAndPreserves
     for (int pixel = 0; pixel < width * height; ++pixel) {
         EXPECT_FLOAT_EQ(alpha->data()[pixel], alphaValues[pixel]);
     }
+}
+
+TEST(CreativeImageEffectContractTest, SurfaceMemoryRgbOutputDoesNotDependOnOptionalAlphaPlane) {
+    constexpr int width = 4;
+    constexpr int height = 3;
+    VideoFrame previousWithAlpha(width, height);
+    VideoFrame currentWithAlpha(width, height);
+    VideoFrame previousWithoutAlpha(width, height);
+    VideoFrame currentWithoutAlpha(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float previousRed = 0.15f + static_cast<float>(x) * 0.08f;
+            const float previousGreen = 0.7f - static_cast<float>(y) * 0.12f;
+            const float previousBlue = 0.25f + static_cast<float>((x + y) % 4) * 0.1f;
+            const float currentRed = 0.8f - static_cast<float>(x) * 0.06f;
+            const float currentGreen = 0.2f + static_cast<float>(y) * 0.15f;
+            const float currentBlue = 0.3f + static_cast<float>((2 * x + y) % 5) * 0.09f;
+            for (VideoFrame* frame : {&previousWithAlpha, &previousWithoutAlpha}) {
+                frame->getChannel(ChannelType::Red)->data()[pixel] = previousRed;
+                frame->getChannel(ChannelType::Green)->data()[pixel] = previousGreen;
+                frame->getChannel(ChannelType::Blue)->data()[pixel] = previousBlue;
+            }
+            for (VideoFrame* frame : {&currentWithAlpha, &currentWithoutAlpha}) {
+                frame->getChannel(ChannelType::Red)->data()[pixel] = currentRed;
+                frame->getChannel(ChannelType::Green)->data()[pixel] = currentGreen;
+                frame->getChannel(ChannelType::Blue)->data()[pixel] = currentBlue;
+            }
+            previousWithAlpha.getChannel(ChannelType::Alpha)->data()[pixel] = 0.2f;
+            currentWithAlpha.getChannel(ChannelType::Alpha)->data()[pixel] =
+                static_cast<float>(pixel) / (width * height - 1);
+        }
+    }
+    previousWithoutAlpha.removeChannel(ChannelType::Alpha);
+    currentWithoutAlpha.removeChannel(ChannelType::Alpha);
+
+    SurfaceMemoryEffect withAlphaEffect;
+    withAlphaEffect.setParameter("Retention", 0.8f);
+    withAlphaEffect.setParameter("Refresh", 0.4f);
+    withAlphaEffect.setParameter("Texture", 0.3f);
+    withAlphaEffect.setParameter("Smear", 0.25f);
+    SurfaceMemoryEffect withoutAlphaEffect;
+    withoutAlphaEffect.setParameter("Retention", 0.8f);
+    withoutAlphaEffect.setParameter("Refresh", 0.4f);
+    withoutAlphaEffect.setParameter("Texture", 0.3f);
+    withoutAlphaEffect.setParameter("Smear", 0.25f);
+    const CreativeEffectContext firstContext{.time = 0.5, .frameIndex = 0};
+    const CreativeEffectContext secondContext{.time = 1.25, .frameIndex = 1};
+    withAlphaEffect.process(previousWithAlpha, firstContext);
+    withAlphaEffect.process(currentWithAlpha, secondContext);
+    withoutAlphaEffect.process(previousWithoutAlpha, firstContext);
+    withoutAlphaEffect.process(currentWithoutAlpha, secondContext);
+
+    bool changedRgb = false;
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto expected = currentWithAlpha.getChannel(channelType);
+        const auto actual = currentWithoutAlpha.getChannel(channelType);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const int pixel = y * width + x;
+                EXPECT_TRUE(std::isfinite(actual->data()[pixel]));
+                EXPECT_FLOAT_EQ(actual->data()[pixel], expected->data()[pixel]);
+                const float original = channelType == ChannelType::Red
+                    ? 0.8f - static_cast<float>(x) * 0.06f
+                    : channelType == ChannelType::Green
+                        ? 0.2f + static_cast<float>(y) * 0.15f
+                        : 0.3f + static_cast<float>((2 * x + y) % 5) * 0.09f;
+                changedRgb = changedRgb ||
+                    std::abs(actual->data()[pixel] - original) > 1.0e-6f;
+            }
+        }
+    }
+    const auto alpha = currentWithAlpha.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(alpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(alpha->data()[pixel], static_cast<float>(pixel) / (width * height - 1));
+    }
+    EXPECT_TRUE(changedRgb);
+    EXPECT_FALSE(currentWithoutAlpha.getChannel(ChannelType::Alpha));
 }
 
 TEST(CreativeImageEffectContractTest, SurfaceMemoryRewindResetsPriorSurface) {
