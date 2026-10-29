@@ -109,6 +109,24 @@ TEST(CommandSandboxContractTest, RejectsEmptyMissingAndNonAllowlistedPrograms)
               QStringLiteral("Program is not on the allowlist: another-tool.exe"));
 }
 
+TEST(CommandSandboxContractTest, EmptyAllowlistFailsClosedInsteadOfDisablingValidation)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString program = createProgramFile(directory, QStringLiteral("tool.exe"));
+    ASSERT_FALSE(program.isEmpty());
+
+    CommandSandbox sandbox;
+    sandbox.setAllowedPrograms({});
+    const QVariantMap result = dryRun(sandbox, program);
+
+    EXPECT_FALSE(result.value(QStringLiteral("allowed")).toBool());
+    EXPECT_FALSE(result.value(QStringLiteral("validationPassed")).toBool());
+    EXPECT_FALSE(result.value(QStringLiteral("started")).toBool());
+    EXPECT_EQ(result.value(QStringLiteral("error")).toString(),
+              QStringLiteral("Program is not on the allowlist: %1").arg(program));
+}
+
 TEST(CommandSandboxContractTest, BlocklistOverridesAllowlistAndShellPolicyOverridesBoth)
 {
     QTemporaryDir directory;
