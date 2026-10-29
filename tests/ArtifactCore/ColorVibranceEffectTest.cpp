@@ -731,6 +731,32 @@ TEST(CreativeImageEffectContractTest, MirrorAtRightBoundaryPreservesTheWholeFram
     }
 }
 
+TEST(CreativeImageEffectContractTest, MirrorMissingRequiredColorChannelLeavesFrameUnchanged) {
+    VideoFrame frame(3, 1);
+    const float red[] = {0.1f, 0.4f, 0.9f};
+    const float green[] = {0.8f, 0.3f, 0.2f};
+    const float alpha[] = {0.0f, 0.45f, 1.0f};
+    for (int pixel = 0; pixel < 3; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = red[pixel];
+        frame.getChannel(ChannelType::Green)->data()[pixel] = green[pixel];
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha[pixel];
+    }
+    frame.removeChannel(ChannelType::Blue);
+
+    MirrorEffect effect;
+    effect.setParameter("Angle", 0.0f);
+    effect.setParameter("CenterX", 0.0f);
+    effect.setParameter("CenterY", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int pixel = 0; pixel < 3; ++pixel) {
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[pixel], red[pixel]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[pixel], green[pixel]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[pixel], alpha[pixel]);
+    }
+    EXPECT_FALSE(frame.getChannel(ChannelType::Blue));
+}
+
 TEST(CreativeImageEffectContractTest, PixelateAveragesPartialEdgeBlocksWithoutChangingAlpha) {
     VideoFrame frame(3, 2);
     auto red = frame.getChannel(ChannelType::Red);
