@@ -793,6 +793,15 @@ artifact_add_test(ArtifactStrokeEffectContractTest
 set_tests_properties(ArtifactStrokeEffectContractTest PROPERTIES
     LABELS "effect;stroke;cpu;contract"
 )
+artifact_add_test(ArtifactDifferenceMatteEffectContractTest
+    SOURCES
+        DifferenceMatteEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactDifferenceMatteEffectContractTest PROPERTIES
+    LABELS "effect;difference-matte;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
