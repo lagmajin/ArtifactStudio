@@ -82,6 +82,18 @@ set_tests_properties(ArtifactShapeLayerAnimationPersistenceContractTest PROPERTI
     RUN_SERIAL TRUE
 )
 
+artifact_add_test(ArtifactShapeLayerContentManagementContractTest
+    SOURCES
+        ShapeLayerContentManagementContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactShapeLayerContentManagementContractTest PROPERTIES
+    LABELS "shape;layer;contents;geometry;serialization;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactVariationSystemContractTest
     SOURCES
         VariationSystemContractTest.cpp
