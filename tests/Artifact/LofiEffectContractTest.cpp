@@ -330,3 +330,49 @@ TEST(LofiEffectContractTest, OldTvEffectRegionCompositesOnlyInsidePixelBounds)
         }
     }
 }
+
+TEST(LofiEffectContractTest, OldTvEffectRegionClipsToImageBounds)
+{
+    constexpr int width = 5;
+    constexpr int height = 4;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>(x + 1) / 7.0f;
+            pixels[offset + 1] = static_cast<float>(y + 1) / 6.0f;
+            pixels[offset + 2] = static_cast<float>(x + y + 1) / 10.0f;
+            pixels[offset + 3] = 0.65f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache fullEffect;
+    ImageF32x4RGBAWithCache clippedEffect;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, fullEffect);
+    effect.setEffectRegion(QRectF(-2.0, -1.0, 4.0, 3.0));
+    effect.applyCPUOnly(source, clippedEffect);
+
+    const float* fullPixels = fullEffect.image().rgba32fData();
+    const float* clippedPixels = clippedEffect.image().rgba32fData();
+    ASSERT_NE(fullPixels, nullptr);
+    ASSERT_NE(clippedPixels, nullptr);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const bool insideClippedRegion = x < 2 && y < 2;
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            for (std::size_t channel = 0; channel < 4; ++channel) {
+                const float expected = insideClippedRegion
+                    ? fullPixels[offset + channel]
+                    : pixels[offset + channel];
+                EXPECT_NEAR(clippedPixels[offset + channel], expected, 1.0e-6f)
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+            }
+        }
+    }
+}
