@@ -857,6 +857,17 @@ set_tests_properties(ArtifactCoreVideoFrameValidityContractTest PROPERTIES
     LABELS "video;cpu-frame;gpu-frame;ownership;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreVideoStabilizerContractTest
+    SOURCES
+        VideoStabilizerContractTest.cpp
+    LIBS
+        ArtifactCoreVideo
+)
+set_tests_properties(ArtifactCoreVideoStabilizerContractTest PROPERTIES
+    LABELS "video;stabilization;motion;cpu;contract;core"
+    TIMEOUT 60
+)
+
 artifact_add_test(ArtifactCoreDiagnosticsContractTest
     SOURCES
         CoreDiagnosticsContractTest.cpp
