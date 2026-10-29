@@ -184,7 +184,7 @@ TEST(LofiEffectContractTest, OldTvZeroMixIsAnExactSourcePassthrough)
     ArtifactOldTVEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
     effect.setMix(0.0f);
-    effect.apply(source, output);
+    effect.applyCPUOnly(source, output);
 
     ASSERT_EQ(output.image().width(), width);
     ASSERT_EQ(output.image().height(), height);
@@ -193,5 +193,51 @@ TEST(LofiEffectContractTest, OldTvZeroMixIsAnExactSourcePassthrough)
     for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
         EXPECT_FLOAT_EQ(result[channel], pixels[channel])
             << "channel=" << channel;
+    }
+}
+
+TEST(LofiEffectContractTest, OldTvHalfMixInterpolatesSourceAndEffectPixels)
+{
+    constexpr int width = 7;
+    constexpr int height = 5;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>(x + 1) / 10.0f;
+            pixels[offset + 1] = static_cast<float>(y + 1) / 8.0f;
+            pixels[offset + 2] = static_cast<float>(x + 2 * y + 1) / 16.0f;
+            pixels[offset + 3] = static_cast<float>(x + y + 1) / 16.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache fullEffect;
+    ImageF32x4RGBAWithCache halfMix;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, fullEffect);
+    effect.setMix(0.5f);
+    effect.applyCPUOnly(source, halfMix);
+
+    ASSERT_EQ(fullEffect.image().width(), width);
+    ASSERT_EQ(fullEffect.image().height(), height);
+    ASSERT_EQ(halfMix.image().width(), width);
+    ASSERT_EQ(halfMix.image().height(), height);
+    const float* fullEffectPixels = fullEffect.image().rgba32fData();
+    const float* halfMixPixels = halfMix.image().rgba32fData();
+    ASSERT_NE(fullEffectPixels, nullptr);
+    ASSERT_NE(halfMixPixels, nullptr);
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            const std::size_t offset = pixel * 4 + channel;
+            const float expected =
+                pixels[offset] * 0.5f + fullEffectPixels[offset] * 0.5f;
+            EXPECT_NEAR(halfMixPixels[offset], expected, 1.0e-6f)
+                << "pixel=" << pixel << " channel=" << channel;
+        }
     }
 }

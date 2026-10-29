@@ -8546,3 +8546,9 @@
 - **変更:** RenderQueue の EXR integration fixture で実在が確認できる Beauty RGBA と depth target だけを要求する。Cryptomatteの画素値はこのQueue経路の証拠に使わず、別の `MultiChannelImage` writer roundtrip fixture に任せる。Normal/Velocity/ID の Queue AOV 出力は現状の配線で成功を仮定しない。
 - **価値または懸念:** 要求AOVが出ない現状を「出力内容検証」の正常契約テストに混ぜると、実装・renderer設定とテストfixtureのどちらの欠落か切り分けにくい。RenderQueue に AOV source 統合が加わった段階で、実際のサンプル値・座標系・Cryptomatte payloadをQueue経由で再検証する必要がある。コード確認のみで、ビルド／実行は未実施。
 - **次に確認すべきこと:** RenderQueue が layer AOV target を所有または取得する設計が決まった後、Normal/Velocity/IDの非定数fixtureを追加し、EXR再読込値と元のtarget値の対応を確認する。
+
+## 2026-10-30: Effect mix契約は共通実行経路を通して検証する
+- **関連:** `Artifact/include/Effects/ArtifactAbstractEffect.ixx`, `Artifact/src/Effects/ArtifactAbstractEffect.cpp::applyConfigured`, `tests/Artifact/LofiEffectContractTest.cpp`。
+- **確認できた事実:** 派生effectの`apply()`は効果本体を実行する仮想関数であり、Effect Mix／region／maskの合成は`ArtifactAbstractEffect::applyConfigured()`が行う。`applyCPUOnly()`はCPUモードを一時設定したうえで共通実行経路を通る。
+- **価値または懸念:** Mix=0のpassthroughや中間Mix比率を確認するテストで派生`apply()`を直接呼ぶと、共通合成を迂回して契約を測定できない。Old TVの新しいMixテストは`applyCPUOnly()`経由に統一した。コード確認のみで、テスト実行は未実施。
+- **次に確認すべきこと:** layer effectの独立テストでMix、Effect Region、Maskを検証するときは、共通適用APIと効果本体APIを意図的に使い分け、fixtureが測る層を明示する。
