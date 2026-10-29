@@ -3681,6 +3681,71 @@ TEST(CreativeImageEffectContractTest, TemporalFossilCreatesResidueFromPriorFrame
     }
 }
 
+TEST(CreativeImageEffectContractTest, DisabledTemporalFossilPreservesFrameAndDoesNotAdvanceHistory) {
+    constexpr int width = 2;
+    constexpr int height = 1;
+    VideoFrame initial(width, height);
+    VideoFrame disabledFrame(width, height);
+    VideoFrame resumedAfterDisabled(width, height);
+    VideoFrame directCurrent(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (VideoFrame* frame : {&initial, &disabledFrame, &resumedAfterDisabled,
+                                  &directCurrent}) {
+            frame->getChannel(ChannelType::Red)->data()[pixel] = 0.2f;
+            frame->getChannel(ChannelType::Green)->data()[pixel] = 0.2f;
+            frame->getChannel(ChannelType::Blue)->data()[pixel] = 0.2f;
+            frame->getChannel(ChannelType::Alpha)->data()[pixel] = 1.25f;
+        }
+        disabledFrame.getChannel(ChannelType::Red)->data()[pixel] = 1.3f;
+        disabledFrame.getChannel(ChannelType::Green)->data()[pixel] = -0.2f;
+        disabledFrame.getChannel(ChannelType::Blue)->data()[pixel] = 0.9f;
+        resumedAfterDisabled.getChannel(ChannelType::Red)->data()[pixel] = 0.8f;
+        resumedAfterDisabled.getChannel(ChannelType::Green)->data()[pixel] = 0.8f;
+        resumedAfterDisabled.getChannel(ChannelType::Blue)->data()[pixel] = 0.8f;
+        directCurrent.getChannel(ChannelType::Red)->data()[pixel] = 0.8f;
+        directCurrent.getChannel(ChannelType::Green)->data()[pixel] = 0.8f;
+        directCurrent.getChannel(ChannelType::Blue)->data()[pixel] = 0.8f;
+    }
+
+    TemporalFossilEffect withDisabledGap;
+    withDisabledGap.setParameter("Persistence", 1.0f);
+    withDisabledGap.setParameter("Decay", 0.5f);
+    withDisabledGap.setParameter("EdgeThreshold", 0.0f);
+    withDisabledGap.setParameter("ChromaEcho", 0.0f);
+    TemporalFossilEffect directEffect;
+    directEffect.setParameter("Persistence", 1.0f);
+    directEffect.setParameter("Decay", 0.5f);
+    directEffect.setParameter("EdgeThreshold", 0.0f);
+    directEffect.setParameter("ChromaEcho", 0.0f);
+
+    withDisabledGap.process(initial, CreativeEffectContext{.frameIndex = 0});
+    directEffect.process(initial, CreativeEffectContext{.frameIndex = 0});
+    withDisabledGap.setEnabled(false);
+    withDisabledGap.process(disabledFrame, CreativeEffectContext{.frameIndex = 1});
+    withDisabledGap.setEnabled(true);
+    withDisabledGap.process(resumedAfterDisabled, CreativeEffectContext{.frameIndex = 2});
+    directEffect.process(directCurrent, CreativeEffectContext{.frameIndex = 2});
+
+    const ChannelType channelTypes[] = {
+        ChannelType::Red, ChannelType::Green, ChannelType::Blue, ChannelType::Alpha};
+    const float disabledExpected[] = {1.3f, -0.2f, 0.9f, 1.25f};
+    for (int channel = 0; channel < 4; ++channel) {
+        const ChannelType channelType = channelTypes[channel];
+        const auto disabled = disabledFrame.getChannel(channelType);
+        const auto resumed = resumedAfterDisabled.getChannel(channelType);
+        const auto direct = directCurrent.getChannel(channelType);
+        ASSERT_TRUE(disabled);
+        ASSERT_TRUE(resumed);
+        ASSERT_TRUE(direct);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_FLOAT_EQ(disabled->data()[pixel], disabledExpected[channel])
+                << "disabled channel=" << channel << " pixel=" << pixel;
+            EXPECT_FLOAT_EQ(resumed->data()[pixel], direct->data()[pixel])
+                << "channel=" << channel << " pixel=" << pixel;
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, TemporalFossilRgbHistoryDoesNotDependOnOptionalAlphaPlane) {
     constexpr int width = 3;
     constexpr int height = 2;
