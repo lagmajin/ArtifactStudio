@@ -545,12 +545,14 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 return false;
             }
             const int depthIndex = channelIndex("Depth");
-            if (depthIndex < 0 ||
-                !std::isfinite(pixels[centerPixel +
-                                      static_cast<std::size_t>(depthIndex)])) {
+            const float depthSample = depthIndex < 0
+                ? std::numeric_limits<float>::quiet_NaN()
+                : pixels[centerPixel + static_cast<std::size_t>(depthIndex)];
+            if (!std::isfinite(depthSample) ||
+                std::abs(depthSample - 1.0f) > 1.0e-5f) {
                 input->close();
                 *failure = QStringLiteral(
-                    "Render Queue multi-channel EXR Depth sample was invalid: %1")
+                    "Render Queue multi-channel EXR Depth clear sample was incorrect: %1")
                                .arg(framePath);
                 return false;
             }
