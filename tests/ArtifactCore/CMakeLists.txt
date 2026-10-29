@@ -928,6 +928,16 @@ artifact_add_test(ArtifactCoreShapeExtrudeTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreVectorExportContractTest
+    SOURCES
+        VectorExportContractTest.cpp
+    LIBS
+        ArtifactCoreShape
+)
+set_tests_properties(ArtifactCoreVectorExportContractTest PROPERTIES
+    LABELS "vector-export;svg;html;css-animation;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreBezierPathSamplerContractTest
     SOURCES
         BezierPathSamplerStandaloneTest.cpp
