@@ -494,6 +494,91 @@ TEST(VHSTapeEffectContractTest, WobbleOutputChangesAcrossEvolutionFrames)
         << "fixed-seed wobble should evolve when the frame time changes";
 }
 
+TEST(VHSTapeEffectContractTest,
+     TrackingErrorAndBottomJitterDisturbExpectedRows)
+{
+    constexpr int width = 97;
+    constexpr int height = 200;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float value = static_cast<float>((x * 37 + y * 19) % width) /
+                                static_cast<float>(width - 1);
+            pixels[offset] = value;
+            pixels[offset + 1] = 1.0f - value;
+            pixels[offset + 2] = static_cast<float>((x * 13 + y * 7) % width) /
+                                 static_cast<float>(width - 1);
+            pixels[offset + 3] = 1.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height,
+                         SurfaceColorDescriptor::unknownBgra32Float());
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache baseline;
+    ImageF32x4RGBAWithCache tracking;
+    ImageF32x4RGBAWithCache bottomJitter;
+
+    const auto applyWith = [&source](const QString& property,
+                                     const double value,
+                                     ImageF32x4RGBAWithCache& output) {
+        VHSTapeEffect effect;
+        setNeutralTapeProperties(effect);
+        effect.setPropertyValue(UniString(QStringLiteral("Seed")), 29);
+        effect.setPropertyValue(UniString(QStringLiteral("Evolution")), 0.4);
+        effect.setPropertyValue(UniString(property), value);
+        effect.applyCPUOnly(source, output);
+    };
+    applyWith(QStringLiteral("Tracking Error"), 0.0, baseline);
+    applyWith(QStringLiteral("Tracking Error"), 2.0, tracking);
+    applyWith(QStringLiteral("Bottom Jitter"), 2.0, bottomJitter);
+
+    ASSERT_EQ(baseline.image().width(), width);
+    ASSERT_EQ(baseline.image().height(), height);
+    ASSERT_EQ(tracking.image().width(), width);
+    ASSERT_EQ(bottomJitter.image().width(), width);
+    const float* baselinePixels = baseline.image().rgba32fData();
+    const float* trackingPixels = tracking.image().rgba32fData();
+    const float* bottomPixels = bottomJitter.image().rgba32fData();
+    ASSERT_NE(baselinePixels, nullptr);
+    ASSERT_NE(trackingPixels, nullptr);
+    ASSERT_NE(bottomPixels, nullptr);
+
+    bool trackingChanged = false;
+    bool bottomChanged = false;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            bool trackingPixelChanged = false;
+            bool bottomPixelChanged = false;
+            for (std::size_t channel = 0; channel < 3; ++channel) {
+                trackingPixelChanged = trackingPixelChanged ||
+                    std::abs(trackingPixels[offset + channel] -
+                             baselinePixels[offset + channel]) > 1.0e-5f;
+                bottomPixelChanged = bottomPixelChanged ||
+                    std::abs(bottomPixels[offset + channel] -
+                             baselinePixels[offset + channel]) > 1.0e-5f;
+            }
+            trackingChanged = trackingChanged || trackingPixelChanged;
+            if (y < height - 20) {
+                EXPECT_FALSE(bottomPixelChanged)
+                    << "bottom jitter modified upper pixel=" << x << "," << y;
+            } else {
+                bottomChanged = bottomChanged || bottomPixelChanged;
+            }
+            EXPECT_FLOAT_EQ(trackingPixels[offset + 3], 1.0f)
+                << "tracking alpha pixel=" << x << "," << y;
+            EXPECT_FLOAT_EQ(bottomPixels[offset + 3], 1.0f)
+                << "bottom-jitter alpha pixel=" << x << "," << y;
+        }
+    }
+    EXPECT_TRUE(trackingChanged);
+    EXPECT_TRUE(bottomChanged);
+}
+
 } // namespace
 
 TEST(VHSTapeEffectContractTest, ScanlineGapDarkensEveryConfiguredRow)
