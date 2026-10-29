@@ -2619,6 +2619,54 @@ TEST(CreativeImageEffectContractTest, LightPressureActiveSettingsChangeFiniteRgb
     }
 }
 
+TEST(CreativeImageEffectContractTest, LightPressureRgbOutputDoesNotDependOnOptionalAlphaPlane) {
+    constexpr int width = 3;
+    constexpr int height = 2;
+    VideoFrame withAlpha(width, height);
+    VideoFrame withoutAlpha(width, height);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        for (VideoFrame* frame : {&withAlpha, &withoutAlpha}) {
+            frame->getChannel(ChannelType::Red)->data()[pixel] = 0.5f;
+            frame->getChannel(ChannelType::Green)->data()[pixel] = 0.5f;
+            frame->getChannel(ChannelType::Blue)->data()[pixel] = 0.5f;
+        }
+        withAlpha.getChannel(ChannelType::Alpha)->data()[pixel] =
+            static_cast<float>(pixel) / (width * height - 1);
+    }
+    withoutAlpha.removeChannel(ChannelType::Alpha);
+
+    LightPressureEffect withAlphaEffect;
+    withAlphaEffect.setParameter("Pressure", 0.8f);
+    withAlphaEffect.setParameter("Bloom", 0.6f);
+    withAlphaEffect.setParameter("Spread", 0.5f);
+    withAlphaEffect.setParameter("Compression", 0.0f);
+    LightPressureEffect withoutAlphaEffect;
+    withoutAlphaEffect.setParameter("Pressure", 0.8f);
+    withoutAlphaEffect.setParameter("Bloom", 0.6f);
+    withoutAlphaEffect.setParameter("Spread", 0.5f);
+    withoutAlphaEffect.setParameter("Compression", 0.0f);
+    const CreativeEffectContext context{.time = 0.0};
+    withAlphaEffect.process(withAlpha, context);
+    withoutAlphaEffect.process(withoutAlpha, context);
+
+    bool changedRgb = false;
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto expected = withAlpha.getChannel(channelType);
+        const auto actual = withoutAlpha.getChannel(channelType);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(actual->data()[pixel]));
+            EXPECT_FLOAT_EQ(actual->data()[pixel], expected->data()[pixel]);
+            changedRgb = changedRgb ||
+                std::abs(actual->data()[pixel] - 0.5f) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    EXPECT_FALSE(withoutAlpha.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, LightPressureBloomAddsHighlightContribution) {
     constexpr int width = 4;
     constexpr int height = 3;
