@@ -1181,6 +1181,41 @@ TEST(CreativeImageEffectContractTest, GlitchIsRepeatableAtFixedTimeAndAppliesSha
     }
 }
 
+TEST(CreativeImageEffectContractTest, GlitchRgbSplitOffsetsRedAndBlueAroundGreen) {
+    constexpr int width = 64;
+    VideoFrame frame(width, 1);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int x = 0; x < width; ++x) {
+        const float value = static_cast<float>(x) / (width - 1);
+        red->data()[x] = value;
+        green->data()[x] = value;
+        blue->data()[x] = value;
+        alpha->data()[x] = 0.25f + value * 0.5f;
+    }
+
+    GlitchCreativeEffect effect;
+    effect.setParameter("Amount", 1.0f);
+    effect.setParameter("RGBSplit", 1.0f);
+    effect.setParameter("BlockNoise", 0.0f);
+    effect.process(frame, CreativeEffectContext{.time = 0.0});
+
+    constexpr int centerPixel = width / 2;
+    EXPECT_LT(red->data()[centerPixel], green->data()[centerPixel]);
+    EXPECT_LT(green->data()[centerPixel], blue->data()[centerPixel]);
+    for (int x = 0; x < width; ++x) {
+        EXPECT_FLOAT_EQ(alpha->data()[x],
+                        0.25f + static_cast<float>(x) / (width - 1) * 0.5f)
+            << "pixel=" << x;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, PigmentSeparationUniformZeroTextureMatchesExpectedPaperMix) {
     VideoFrame frame(2, 2);
     auto red = frame.getChannel(ChannelType::Red);

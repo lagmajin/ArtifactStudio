@@ -8564,3 +8564,9 @@
 - **確認できた事実:** CPU impl に `edgeMode_` はあるが `applyCPU()` 内で読まれない。GPU 側は `g_EdgeMode` uniform を設定するが shader 本文で参照していない。公開 setter と property は存在する。
 - **価値または懸念:** UI の Edge Mode 切替は現状の両実装で出力へ影響しない。今回の契約テストは setter の状態のみを確認し、モード別出力を主張しない。
 - **次に確認すべきこと:** 意図する alpha bevel と edge bevel の入力・出力仕様を確認し、CPU/GPU 共通の非定数輪郭 fixture で mode 差を定義してから実装・統合テストする。実行確認は未実施。
+
+## 2026-10-30: Glitch の BlockNoise パラメータが出力へ未接続
+- **関連:** `ArtifactCore/src/Graphics/Effect/GlitchCreativeEffect.cpp`、`ArtifactCore/include/Graphics/Effect/GlitchCreativeEffect.ixx`、`tests/ArtifactCore/ColorVibranceEffectTest.cpp`。
+- **確認できた事実:** Core の Glitch は `Amount` と `RGBSplit` を `process()` 内で読み取る。`BlockNoise` はクラス内 accessor と初期値付き parameter として宣言されるが、処理本体から呼ばれていない。
+- **価値または懸念:** UI／プリセットから Block Noise を変更しても画素へ反映されない可能性が高い。現状のテストは RGBSplit の色チャンネル順を追加し、BlockNoise の動作を保証していない。変更は子リポジトリ ArtifactCore に属するため、この作業では実装を変更していない。
+- **次に確認すべきこと:** BlockNoise の期待する空間パターンと Amount との合成仕様を定義し、子リポジトリの実装変更が明示的に許可された後、同じ固定入力・時刻で BlockNoise 0 と正値の画素差、および再現性・Alpha保持を契約化する。現状はコード読解のみで未実行。
