@@ -453,9 +453,11 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                     !std::isfinite(sample.red) ||
                     !std::isfinite(sample.green) ||
                     !std::isfinite(sample.blue) ||
-                    !std::isfinite(sample.alpha)) {
+                    !std::isfinite(sample.alpha) ||
+                    sample.depth < 0.0f || sample.depth > 1.0f ||
+                    sample.alpha < 0.0f || sample.alpha > 1.0f) {
                     *failure = QStringLiteral(
-                        "Render Queue Deep EXR contains a non-finite sample: %1")
+                        "Render Queue Deep EXR sample violates depth/alpha bounds: %1")
                                    .arg(framePath);
                     return false;
                 }
@@ -670,9 +672,29 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 return false;
             }
             const int depthIndex = channelIndex("Depth");
-            const float depthSample = depthIndex < 0
-                ? std::numeric_limits<float>::quiet_NaN()
-                : pixels[centerPixel + static_cast<std::size_t>(depthIndex)];
+            if (depthIndex < 0) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue multi-channel EXR did not contain Depth: %1")
+                               .arg(framePath);
+                return false;
+            }
+            for (std::size_t pixel = 0;
+                 pixel < static_cast<std::size_t>(spec.width) * spec.height;
+                 ++pixel) {
+                const float depth = pixels[
+                    pixel * static_cast<std::size_t>(spec.nchannels) +
+                    static_cast<std::size_t>(depthIndex)];
+                if (depth < 0.0f || depth > 1.0f) {
+                    input->close();
+                    *failure = QStringLiteral(
+                        "Render Queue EXR Depth sample was outside 0..1: %1")
+                                   .arg(framePath);
+                    return false;
+                }
+            }
+            const float depthSample =
+                pixels[centerPixel + static_cast<std::size_t>(depthIndex)];
             if (!std::isfinite(depthSample) ||
                 std::abs(depthSample - 1.0f) > 1.0e-5f) {
                 input->close();
