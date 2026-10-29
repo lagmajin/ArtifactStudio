@@ -286,6 +286,16 @@ set_tests_properties(ArtifactCoreTransformHelperContractTest PROPERTIES
     LABELS "transform;2d;3d;coordinates;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreInputBindingContractTest
+    SOURCES
+        InputBindingContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreInputBindingContractTest PROPERTIES
+    LABELS "input;key-binding;shortcuts;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
