@@ -317,6 +317,16 @@ set_tests_properties(ArtifactCoreShortcutBindingsContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
+artifact_add_test(ArtifactCoreCameraContractTest
+    SOURCES
+        CameraContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreCameraContractTest PROPERTIES
+    LABELS "camera;transform;projection;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
