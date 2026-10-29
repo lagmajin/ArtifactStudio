@@ -615,6 +615,16 @@ set_tests_properties(ArtifactDitheringEffectContractTest PROPERTIES
     LABELS "effect;dithering;cpu;contract"
 )
 
+artifact_add_test(ArtifactKuwaharaEffectContractTest
+    SOURCES
+        KuwaharaEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsStylize
+)
+set_tests_properties(ArtifactKuwaharaEffectContractTest PROPERTIES
+    LABELS "effect;kuwahara;cpu;contract"
+)
+
 artifact_add_test(ArtifactHalftoneEffectContractTest
     SOURCES
         HalftoneEffectContractTest.cpp
