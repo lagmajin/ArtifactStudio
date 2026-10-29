@@ -1857,6 +1857,30 @@ TEST(CreativeImageEffectContractTest, ChromaticAberrationProcessesRgbWithoutOpti
     EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
 }
 
+TEST(CreativeImageEffectContractTest, ActiveChromaticAberrationPreservesOutOfRangeAlphaAtOriginalPixelPositions) {
+    constexpr int width = 3;
+    constexpr int height = 1;
+    VideoFrame frame(width, height);
+    const float alpha[] = {-0.2f, 1.2f, 0.35f};
+    for (int pixel = 0; pixel < width; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = static_cast<float>(pixel) / 2.0f;
+        frame.getChannel(ChannelType::Green)->data()[pixel] = static_cast<float>(2 - pixel) / 2.0f;
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = static_cast<float>((pixel + 1) % 3) / 2.0f;
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha[pixel];
+    }
+
+    ChromaticAberrationEffect effect;
+    effect.setParameter("Amount", 50.0f);
+    effect.setParameter("Angle", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const auto outputAlpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(outputAlpha);
+    for (int pixel = 0; pixel < width; ++pixel) {
+        EXPECT_FLOAT_EQ(outputAlpha->data()[pixel], alpha[pixel]) << "pixel=" << pixel;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, DisabledChromaticAberrationPreservesOutOfRangeRgbaAtMaximumSettings) {
     VideoFrame frame(2, 1);
     const float red[] = {1.25f, -0.2f};
