@@ -76,3 +76,43 @@ TEST(ShapeLayerAnimationPersistenceContractTest,
     EXPECT_DOUBLE_EQ(after.front().pos.x(), 20.0);
     EXPECT_DOUBLE_EQ(after.front().pos.y(), 10.0);
 }
+
+TEST(ShapeLayerAnimationPersistenceContractTest,
+     SparseNegativeFramesHoldEdgesAndReplacingAFrameDoesNotMutateOtherKeys)
+{
+    ensureApplication();
+    Artifact::ArtifactShapeLayer layer;
+    auto firstKey = pathAt(-8.0, -4.0);
+    const auto originalLastKey = pathAt(12.0, 16.0);
+    layer.setPathKeyframe(-10, firstKey);
+    layer.setPathKeyframe(10, originalLastKey);
+
+    // Keyframe values are snapshots; editing the caller's vector afterward
+    // must not mutate the serialized key.
+    firstKey.front().pos = QPointF(999.0, 999.0);
+
+    // Reusing a frame replaces only that frame's geometry.
+    layer.setPathKeyframe(10, pathAt(20.0, 30.0));
+
+    const auto before = layer.evaluatePathAt(-11);
+    const auto first = layer.evaluatePathAt(-10);
+    const auto middle = layer.evaluatePathAt(0);
+    const auto last = layer.evaluatePathAt(10);
+    const auto after = layer.evaluatePathAt(11);
+    ASSERT_EQ(before.size(), 2u);
+    ASSERT_EQ(first.size(), 2u);
+    ASSERT_EQ(middle.size(), 2u);
+    ASSERT_EQ(last.size(), 2u);
+    ASSERT_EQ(after.size(), 2u);
+
+    EXPECT_DOUBLE_EQ(before.front().pos.x(), -8.0);
+    EXPECT_DOUBLE_EQ(before.front().pos.y(), -4.0);
+    EXPECT_DOUBLE_EQ(first.front().pos.x(), -8.0);
+    EXPECT_DOUBLE_EQ(first.front().pos.y(), -4.0);
+    EXPECT_DOUBLE_EQ(middle.front().pos.x(), 6.0);
+    EXPECT_DOUBLE_EQ(middle.front().pos.y(), 13.0);
+    EXPECT_DOUBLE_EQ(last.front().pos.x(), 20.0);
+    EXPECT_DOUBLE_EQ(last.front().pos.y(), 30.0);
+    EXPECT_DOUBLE_EQ(after.front().pos.x(), 20.0);
+    EXPECT_DOUBLE_EQ(after.front().pos.y(), 30.0);
+}
