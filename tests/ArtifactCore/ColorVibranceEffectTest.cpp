@@ -987,6 +987,66 @@ TEST(CreativeImageEffectContractTest, ChromaticAberrationAngleShiftsVerticallyAn
     }
 }
 
+TEST(CreativeImageEffectContractTest, ChromaticAberrationAmountRoundsAtHalfPixelBoundary) {
+    constexpr int width = 5;
+    constexpr int height = 1;
+    VideoFrame belowThreshold(width, height);
+    VideoFrame atThreshold(width, height);
+    for (int x = 0; x < width; ++x) {
+        const float value = static_cast<float>(x) / (width - 1);
+        const float alpha = 0.2f + value * 0.6f;
+        for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+            belowThreshold.getChannel(channel)->data()[x] = value;
+            atThreshold.getChannel(channel)->data()[x] = value;
+        }
+        belowThreshold.getChannel(ChannelType::Alpha)->data()[x] = alpha;
+        atThreshold.getChannel(ChannelType::Alpha)->data()[x] = alpha;
+    }
+
+    ChromaticAberrationEffect subpixel;
+    subpixel.setParameter("Amount", 0.49f);
+    subpixel.setParameter("Angle", 0.0f);
+    subpixel.process(belowThreshold, CreativeEffectContext{});
+    ChromaticAberrationEffect halfPixel;
+    halfPixel.setParameter("Amount", 0.5f);
+    halfPixel.setParameter("Angle", 0.0f);
+    halfPixel.process(atThreshold, CreativeEffectContext{});
+
+    const auto belowRed = belowThreshold.getChannel(ChannelType::Red);
+    const auto belowGreen = belowThreshold.getChannel(ChannelType::Green);
+    const auto belowBlue = belowThreshold.getChannel(ChannelType::Blue);
+    const auto belowAlpha = belowThreshold.getChannel(ChannelType::Alpha);
+    const auto thresholdRed = atThreshold.getChannel(ChannelType::Red);
+    const auto thresholdGreen = atThreshold.getChannel(ChannelType::Green);
+    const auto thresholdBlue = atThreshold.getChannel(ChannelType::Blue);
+    const auto thresholdAlpha = atThreshold.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(belowRed);
+    ASSERT_TRUE(belowGreen);
+    ASSERT_TRUE(belowBlue);
+    ASSERT_TRUE(belowAlpha);
+    ASSERT_TRUE(thresholdRed);
+    ASSERT_TRUE(thresholdGreen);
+    ASSERT_TRUE(thresholdBlue);
+    ASSERT_TRUE(thresholdAlpha);
+    for (int x = 0; x < width; ++x) {
+        const float value = static_cast<float>(x) / (width - 1);
+        const float expectedRed = static_cast<float>(std::min(x + 1, width - 1)) /
+                                  (width - 1);
+        const float expectedBlue = static_cast<float>(std::max(x - 1, 0)) /
+                                   (width - 1);
+        EXPECT_FLOAT_EQ(belowRed->data()[x], value) << "subpixel red x=" << x;
+        EXPECT_FLOAT_EQ(belowGreen->data()[x], value) << "subpixel green x=" << x;
+        EXPECT_FLOAT_EQ(belowBlue->data()[x], value) << "subpixel blue x=" << x;
+        EXPECT_FLOAT_EQ(thresholdRed->data()[x], expectedRed) << "red x=" << x;
+        EXPECT_FLOAT_EQ(thresholdBlue->data()[x], expectedBlue) << "blue x=" << x;
+        EXPECT_FLOAT_EQ(thresholdGreen->data()[x], value) << "green x=" << x;
+        const float alpha = 0.2f + value * 0.6f;
+        EXPECT_FLOAT_EQ(belowAlpha->data()[x], alpha);
+        EXPECT_FLOAT_EQ(thresholdAlpha->data()[x], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, EmbossUsesDiagonalDifferenceAndPreservesUnprocessedEdges) {
     VideoFrame frame(2, 2);
     auto red = frame.getChannel(ChannelType::Red);
