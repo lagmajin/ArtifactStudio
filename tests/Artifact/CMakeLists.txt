@@ -1027,6 +1027,15 @@ artifact_add_test(ArtifactRasterizerGlowEffectContractTest
 set_tests_properties(ArtifactRasterizerGlowEffectContractTest PROPERTIES
     LABELS "effect;rasterizer-glow;cpu;contract"
 )
+artifact_add_test(ArtifactAnisotropicFlowBlurEffectContractTest
+    SOURCES
+        AnisotropicFlowBlurEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactAnisotropicFlowBlurEffectContractTest PROPERTIES
+    LABELS "effect;anisotropic-flow-blur;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
