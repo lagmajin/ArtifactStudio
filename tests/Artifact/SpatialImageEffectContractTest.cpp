@@ -135,6 +135,88 @@ TEST(SpatialImageEffectContractTest,
     }
 }
 
+TEST(SpatialImageEffectContractTest,
+     DepthBokehRoutesForegroundAndBackgroundBlurToTheirDepthSides)
+{
+    constexpr int width = 33;
+    constexpr int height = 17;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            const float value = x < width / 2 ? 0.2f : 0.8f;
+            pixels[offset] = value;
+            pixels[offset + 1] = value;
+            pixels[offset + 2] = value;
+            pixels[offset + 3] = 0.75f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache foregroundOnly;
+    ImageF32x4RGBAWithCache backgroundOnly;
+
+    const auto applyDirectionalBlur = [&source](
+        const float foreground, const float background,
+        ImageF32x4RGBAWithCache& output) {
+        DepthBokehEffect effect;
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusDistance")), QVariant(0.5));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusRange")), QVariant(0.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("foregroundBlur")), QVariant(foreground));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("backgroundBlur")), QVariant(background));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("maxRadius")), QVariant(8.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
+        effect.applyCPUOnly(source, output);
+    };
+    applyDirectionalBlur(1.0f, 0.0f, foregroundOnly);
+    applyDirectionalBlur(0.0f, 1.0f, backgroundOnly);
+
+    ASSERT_EQ(foregroundOnly.image().width(), width);
+    ASSERT_EQ(foregroundOnly.image().height(), height);
+    ASSERT_EQ(backgroundOnly.image().width(), width);
+    ASSERT_EQ(backgroundOnly.image().height(), height);
+    const float* foregroundPixels = foregroundOnly.image().rgba32fData();
+    const float* backgroundPixels = backgroundOnly.image().rgba32fData();
+    ASSERT_NE(foregroundPixels, nullptr);
+    ASSERT_NE(backgroundPixels, nullptr);
+    bool foregroundChanged = false;
+    bool backgroundChanged = false;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            const bool foregroundSide = x < width / 2;
+            const float foregroundDelta = std::abs(
+                foregroundPixels[offset] - pixels[offset]);
+            const float backgroundDelta = std::abs(
+                backgroundPixels[offset] - pixels[offset]);
+            if (foregroundSide) {
+                foregroundChanged = foregroundChanged ||
+                    foregroundDelta > 1.0e-5f;
+                EXPECT_FLOAT_EQ(backgroundPixels[offset], pixels[offset]);
+            } else {
+                backgroundChanged = backgroundChanged ||
+                    backgroundDelta > 1.0e-5f;
+                EXPECT_FLOAT_EQ(foregroundPixels[offset], pixels[offset]);
+            }
+            EXPECT_FLOAT_EQ(foregroundPixels[offset + 3], pixels[offset + 3]);
+            EXPECT_FLOAT_EQ(backgroundPixels[offset + 3], pixels[offset + 3]);
+        }
+    }
+    EXPECT_TRUE(foregroundChanged);
+    EXPECT_TRUE(backgroundChanged);
+}
+
 TEST(SpatialImageEffectContractTest, ApertureBlurSpreadsRgbAndPreservesAlphaAndInput)
 {
     constexpr int width = 33;
