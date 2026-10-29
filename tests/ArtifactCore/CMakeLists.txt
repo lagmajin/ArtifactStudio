@@ -757,6 +757,16 @@ artifact_add_test(ArtifactCoreMathVecTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreRandomStreamContractTest
+    SOURCES
+        RandomStreamContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRandomStreamContractTest PROPERTIES
+    LABELS "math;random;determinism;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreShapeExtrudeTest
     SOURCES
         ShapeExtrudeTest.cpp
