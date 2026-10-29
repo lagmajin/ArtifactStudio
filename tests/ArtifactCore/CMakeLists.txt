@@ -1289,6 +1289,16 @@ set_tests_properties(ArtifactCoreStrobeLightContractTest PROPERTIES
     LABELS "image;temporal;strobe;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreEmbossEffectContractTest
+    SOURCES
+        EmbossEffectContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreEmbossEffectContractTest PROPERTIES
+    LABELS "image;emboss;convolution;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
