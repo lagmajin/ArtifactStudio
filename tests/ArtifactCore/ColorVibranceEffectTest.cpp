@@ -723,6 +723,52 @@ TEST(CreativeImageEffectContractTest, OldTvHandlesSingleColumnFrames) {
     }
 }
 
+TEST(CreativeImageEffectContractTest, OldTvIsRepeatableForTheSameFrameAndTime) {
+    constexpr int width = 4;
+    constexpr int height = 3;
+    constexpr int pixelCount = width * height;
+    VideoFrame first(width, height);
+    VideoFrame second(width, height);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    float original[pixelCount][4]{};
+    for (int pixel = 0; pixel < pixelCount; ++pixel) {
+        const float position = static_cast<float>(pixel) /
+                               static_cast<float>(pixelCount - 1);
+        original[pixel][0] = 0.1f + position * 0.7f;
+        original[pixel][1] = 0.8f - position * 0.6f;
+        original[pixel][2] = 0.2f + position * 0.5f;
+        original[pixel][3] = 0.15f + position * 0.75f;
+        for (int channel = 0; channel < 4; ++channel) {
+            auto firstPlane = first.getChannel(channels[channel]);
+            auto secondPlane = second.getChannel(channels[channel]);
+            ASSERT_TRUE(firstPlane);
+            ASSERT_TRUE(secondPlane);
+            firstPlane->data()[pixel] = original[pixel][channel];
+            secondPlane->data()[pixel] = original[pixel][channel];
+        }
+    }
+
+    OldTVEffect firstEffect;
+    OldTVEffect secondEffect;
+    const CreativeEffectContext context{.time = 2.5};
+    firstEffect.process(first, context);
+    secondEffect.process(second, context);
+
+    for (ChannelType channel : channels) {
+        const auto firstPlane = first.getChannel(channel);
+        const auto secondPlane = second.getChannel(channel);
+        ASSERT_TRUE(firstPlane);
+        ASSERT_TRUE(secondPlane);
+        for (int pixel = 0; pixel < pixelCount; ++pixel) {
+            EXPECT_FLOAT_EQ(firstPlane->data()[pixel], secondPlane->data()[pixel])
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+        }
+    }
+}
+
 TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeutralNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
