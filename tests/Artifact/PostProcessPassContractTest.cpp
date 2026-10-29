@@ -893,12 +893,12 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
     std::array<float, kPixelCount * 2> velocity{};
     std::array<float, kPixelCount> depth{};
     for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-        color[pixel * 4 + 3] = 1.0f;
         velocity[pixel * 2] = 2.0f;
         depth[pixel] = 0.5f;
     }
     const auto foreground = pixelOffset(kWidth / 2, kHeight / 2);
     color[foreground] = 1.0f;
+    color[foreground + 3] = 1.0f;
     depth[foreground / 4] = 0.0f;
 
     auto colorTexture = createTexture(
@@ -940,6 +940,10 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
     const auto background = pixelOffset(kWidth / 2 + 1, kHeight / 2);
     EXPECT_FLOAT_EQ(output[foreground], 1.0f)
         << "Foreground samples must not be diluted by a different depth surface";
+    EXPECT_FLOAT_EQ(output[foreground + 3], 1.0f)
+        << "Foreground alpha must not be diluted by a different depth surface";
     EXPECT_FLOAT_EQ(output[background], 0.0f)
         << "Foreground color must not bleed across the depth discontinuity";
+    EXPECT_FLOAT_EQ(output[background + 3], 0.0f)
+        << "Foreground alpha must not bleed across the depth discontinuity";
 }
