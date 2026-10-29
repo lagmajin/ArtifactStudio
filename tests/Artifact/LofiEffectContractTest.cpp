@@ -119,3 +119,45 @@ TEST(LofiEffectContractTest, OldTvKeepsAlphaAndSourceAndAppliesFourRowScanline)
         }
     }
 }
+
+TEST(LofiEffectContractTest, OldTvSupportsInPlaceProcessingWithoutChangingAlpha)
+{
+    constexpr int width = 9;
+    constexpr int height = 5;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>(x + 1) / width;
+            pixels[offset + 1] = static_cast<float>(y + 1) / height;
+            pixels[offset + 2] = 0.25f;
+            pixels[offset + 3] = static_cast<float>(x + y + 1) /
+                                 static_cast<float>(width + height);
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    ImageF32x4RGBAWithCache inPlace(image);
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.apply(inPlace, inPlace);
+
+    ASSERT_EQ(inPlace.image().width(), width);
+    ASSERT_EQ(inPlace.image().height(), height);
+    const float* output = inPlace.image().rgba32fData();
+    ASSERT_NE(output, nullptr);
+    bool colorChanged = false;
+    for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width * height);
+         ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_TRUE(std::isfinite(output[pixel * 4 + channel]));
+            colorChanged = colorChanged ||
+                std::abs(output[pixel * 4 + channel] - pixels[pixel * 4 + channel]) >
+                    1.0e-5f;
+        }
+        EXPECT_FLOAT_EQ(output[pixel * 4 + 3], pixels[pixel * 4 + 3])
+            << "pixel=" << pixel;
+    }
+    EXPECT_TRUE(colorChanged);
+}
