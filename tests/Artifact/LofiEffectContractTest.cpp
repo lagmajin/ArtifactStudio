@@ -232,6 +232,7 @@ TEST(LofiEffectContractTest, AnimatedRegionDisableOverridesAnimatedCoordinates)
     context.compositionFrame = 0;
     effect.setContext(context);
     EXPECT_TRUE(effect.hasEffectRegion());
+    EXPECT_EQ(effect.effectRegion(), QRectF(2.0, 1.0, 3.0, 2.0));
 
     context.compositionFrame = 30;
     effect.setContext(context);
