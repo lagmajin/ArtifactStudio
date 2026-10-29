@@ -685,6 +685,16 @@ set_tests_properties(ArtifactGlitchEffectContractTest PROPERTIES
     LABELS "effect;glitch;cpu;contract"
 )
 
+artifact_add_test(ArtifactStripesEffectContractTest
+    SOURCES
+        StripesEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactStripesEffectContractTest PROPERTIES
+    LABELS "effect;stripes;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
