@@ -575,6 +575,16 @@ set_tests_properties(ArtifactSharpenEffectContractTest PROPERTIES
     LABELS "effect;sharpen;cpu;contract"
 )
 
+artifact_add_test(ArtifactChromaticAberrationEffectContractTest
+    SOURCES
+        ChromaticAberrationEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactChromaticAberrationEffectContractTest PROPERTIES
+    LABELS "effect;chromatic-aberration;cpu;contract"
+)
+
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
         EffectSequenceContractTest.cpp
