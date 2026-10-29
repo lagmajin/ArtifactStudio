@@ -8553,6 +8553,12 @@
 - **価値または懸念:** Mix=0のpassthroughや中間Mix比率を確認するテストで派生`apply()`を直接呼ぶと、共通合成を迂回して契約を測定できない。Old TVの新しいMixテストは`applyCPUOnly()`経由に統一した。コード確認のみで、テスト実行は未実施。
 - **次に確認すべきこと:** layer effectの独立テストでMix、Effect Region、Maskを検証するときは、共通適用APIと効果本体APIを意図的に使い分け、fixtureが測る層を明示する。
 
+## 2026-10-30: Animated Effect Region coordinates can reactivate a disabled region
+- **関連:** `Artifact/src/Effects/ArtifactAbstractEffect.cpp::setContext`、`tests/Artifact/LofiEffectContractTest.cpp::AnimatedRegionDisableOverridesAnimatedCoordinates`。
+- **確認できた事実:** `setContext()`は`Effect Region Enabled`を先に処理してfalseなら領域をクリアする。その後、同じフレームにアニメーション中のX/Y/Width/Heightがあると、座標分岐が領域を変更して`setEffectRegion()`を呼ぶため、無効化後に領域を再有効化できる。幅0でclearされた後に高さキーが既定矩形から領域を再生成する経路もある。静的コード確認のみ。
+- **価値または懸念:** 有効フラグがfalseのままでも座標アニメーションで領域が復活すると、Effect Region UIと描画結果が食い違う。テストは「falseが座標より優先される」契約を追加したが、未実行かつ親のArtifactStudio側テストのみで、Artifactサブモジュールの実装修正は行っていない。
+- **次に確認すべきこと:** テスト実行許可後に独立Lofiターゲットを走らせて再現を確定し、修正する場合は座標更新とEnabled状態を同じ評価スナップショットとして適用する経路をArtifact所有者に確認する。
+
 ## 2026-10-30: Lens Distortion の CPU/GPU サンプラー境界を比較する
 - **関連:** `Artifact/src/Effects/LensDistortion/LensDistortionEffect.cpp::LensDistortionEffectCPUImpl::applyCPU` / `LensDistortionEffectGPUImpl::kHlsl`、`ArtifactCore/src/ImageProcessing/Distortion.cpp::sampleBilinear`。
 - **確認できた事実:** CPU の `sampleBilinear` は画像外座標を幅・高さで wrap する一方、GPU の `sampleLinear` は画像端へ clamp する。さらに最小寸法が 1 px の場合、CPU の `maxR` は `0.5`、GPU の `maxR` は最低 `1` となる。
