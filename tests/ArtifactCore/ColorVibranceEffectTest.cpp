@@ -1905,6 +1905,68 @@ TEST(CreativeImageEffectContractTest, LightPressureStrengthWarpsHighContrastInpu
     }
 }
 
+TEST(CreativeImageEffectContractTest, LightPressureCompressionRespondsToLuminanceGradient) {
+    constexpr int width = 10;
+    constexpr int height = 6;
+    VideoFrame uncompressedFrame(width, height);
+    VideoFrame compressedFrame(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float value = x < width / 2 ? 0.15f : 0.9f;
+            for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                              ChannelType::Blue}) {
+                uncompressedFrame.getChannel(channel)->data()[pixel] = value;
+                compressedFrame.getChannel(channel)->data()[pixel] = value;
+            }
+            const float alpha = static_cast<float>(pixel) / (width * height - 1);
+            uncompressedFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+            compressedFrame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha;
+        }
+    }
+
+    LightPressureEffect uncompressed;
+    uncompressed.setParameter("Pressure", 0.0f);
+    uncompressed.setParameter("Bloom", 0.0f);
+    uncompressed.setParameter("Spread", 0.5f);
+    uncompressed.setParameter("Compression", 0.0f);
+    LightPressureEffect compressed;
+    compressed.setParameter("Pressure", 0.0f);
+    compressed.setParameter("Bloom", 0.0f);
+    compressed.setParameter("Spread", 0.5f);
+    compressed.setParameter("Compression", 1.0f);
+    const CreativeEffectContext context{.time = 0.75};
+    uncompressed.process(uncompressedFrame, context);
+    compressed.process(compressedFrame, context);
+
+    bool compressionChangedRgb = false;
+    for (const ChannelType channel : {ChannelType::Red, ChannelType::Green,
+                                      ChannelType::Blue}) {
+        const auto uncompressedPixels = uncompressedFrame.getChannel(channel);
+        const auto compressedPixels = compressedFrame.getChannel(channel);
+        ASSERT_TRUE(uncompressedPixels);
+        ASSERT_TRUE(compressedPixels);
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            EXPECT_TRUE(std::isfinite(compressedPixels->data()[pixel]))
+                << "channel=" << static_cast<int>(channel) << " pixel=" << pixel;
+            compressionChangedRgb = compressionChangedRgb ||
+                std::abs(compressedPixels->data()[pixel] -
+                         uncompressedPixels->data()[pixel]) > 1.0e-6f;
+        }
+    }
+    EXPECT_TRUE(compressionChangedRgb);
+
+    const auto uncompressedAlpha = uncompressedFrame.getChannel(ChannelType::Alpha);
+    const auto compressedAlpha = compressedFrame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(uncompressedAlpha);
+    ASSERT_TRUE(compressedAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        const float alpha = static_cast<float>(pixel) / (width * height - 1);
+        EXPECT_FLOAT_EQ(uncompressedAlpha->data()[pixel], alpha);
+        EXPECT_FLOAT_EQ(compressedAlpha->data()[pixel], alpha);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, TemporalEffectsInitializeHistoryFromFirstFrameWithoutChangingPixels) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
