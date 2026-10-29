@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <memory>
 
 #include "DiligentVulkanTestDevice.hpp"
 
@@ -129,6 +130,20 @@ TEST_F(PostProcessPassGpuContractTest, UploadedLutTransformsPixelsAndRejectsMiss
     EXPECT_NEAR(output[1], 1.0f, 1.0e-4f);
     EXPECT_NEAR(output[2], 1.0f, 1.0e-4f);
     EXPECT_NEAR(output[3], 1.0f, 1.0e-4f);
+
+    ArtifactCore::CompositionFinalEffectStack selectedStack;
+    auto selectedLut = std::make_unique<ArtifactCore::CompositionFinalEffect>(
+        ArtifactCore::FinalEffectType::LUT);
+    selectedStack.addEffect(std::move(selectedLut));
+    postProcess.updateFromEffectStack(selectedStack);
+    EXPECT_TRUE(postProcess.hasActiveLUT())
+        << "Selecting the configured LUT must preserve its separately uploaded pixels";
+
+    ASSERT_NE(selectedStack.getEffect(0), nullptr);
+    selectedStack.getEffect(0)->setEnabled(false);
+    postProcess.updateFromEffectStack(selectedStack);
+    EXPECT_FALSE(postProcess.hasActiveLUT())
+        << "Disabling the only LUT effect must clear stale uploaded LUT state";
 
     postProcess.clearLUT();
     EXPECT_FALSE(postProcess.hasActiveLUT());
