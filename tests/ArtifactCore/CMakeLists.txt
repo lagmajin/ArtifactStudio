@@ -225,6 +225,26 @@ artifact_add_test(ArtifactCoreFrameTimeTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreTimeCodeRangeContractTest
+    SOURCES
+        TimeCodeRangeContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreTimeCodeRangeContractTest PROPERTIES
+    LABELS "time;timecode;range;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreViewportTransformerContractTest
+    SOURCES
+        ViewportTransformerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreViewportTransformerContractTest PROPERTIES
+    LABELS "viewport;transform;coordinates;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
