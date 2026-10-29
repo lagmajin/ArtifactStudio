@@ -1162,6 +1162,15 @@ artifact_add_test(ArtifactOpticalGlowEffectContractTest
 set_tests_properties(ArtifactOpticalGlowEffectContractTest PROPERTIES
     LABELS "effect;optical-glow;cpu;contract"
 )
+artifact_add_test(ArtifactResidualGlowEffectContractTest
+    SOURCES
+        ResidualGlowEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsGlow
+)
+set_tests_properties(ArtifactResidualGlowEffectContractTest PROPERTIES
+    LABELS "effect;residual-glow;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactDisplacementMapEffectContractTest
     SOURCES
         DisplacementMapEffectContractTest.cpp
