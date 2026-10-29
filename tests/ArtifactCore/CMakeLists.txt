@@ -469,6 +469,16 @@ set_tests_properties(ArtifactCoreColorScopesContractTest PROPERTIES
     LABELS "color;scopes;image;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreColorCurvesContractTest
+    SOURCES
+        ColorCurvesContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreColorCurvesContractTest PROPERTIES
+    LABELS "color;grading;curves;image;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreColoramaProcessorContractTest
     SOURCES
         ColoramaProcessorContractTest.cpp
