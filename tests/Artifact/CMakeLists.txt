@@ -865,6 +865,15 @@ artifact_add_test(ArtifactFrameAccumulationEffectContractTest
 set_tests_properties(ArtifactFrameAccumulationEffectContractTest PROPERTIES
     LABELS "effect;frame-accumulation;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactTemporalDenoiseEffectContractTest
+    SOURCES
+        TemporalDenoiseEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactTemporalDenoiseEffectContractTest PROPERTIES
+    LABELS "effect;temporal-denoise;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
