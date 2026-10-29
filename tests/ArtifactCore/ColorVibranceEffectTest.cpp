@@ -811,6 +811,88 @@ TEST(CreativeImageEffectContractTest, OldTvScanlineParameterModulatesRows) {
     }
 }
 
+TEST(CreativeImageEffectContractTest, OldTvFringeOffsetsRedAndBlueInOppositeDirections) {
+    constexpr int width = 5;
+    constexpr int height = 1;
+    VideoFrame frame(width, height);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int x = 0; x < width; ++x) {
+        const float value = static_cast<float>(x) / (width - 1);
+        red->data()[x] = value;
+        green->data()[x] = value;
+        blue->data()[x] = value;
+        alpha->data()[x] = 0.3f;
+    }
+
+    OldTVEffect effect;
+    effect.setParameter("Scanline", 0.0f);
+    effect.setParameter("Curvature", 0.0f);
+    effect.setParameter("Flicker", 0.0f);
+    effect.setParameter("Fringe", 0.2f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_FLOAT_EQ(red->data()[0], 0.0f);
+    EXPECT_FLOAT_EQ(green->data()[0], 0.0f);
+    EXPECT_FLOAT_EQ(blue->data()[0], 0.25f);
+    EXPECT_FLOAT_EQ(red->data()[4], 0.75f);
+    EXPECT_FLOAT_EQ(green->data()[4], 1.0f);
+    EXPECT_FLOAT_EQ(blue->data()[4], 1.0f);
+    for (int x = 0; x < width; ++x) {
+        EXPECT_FLOAT_EQ(alpha->data()[x], 0.3f) << "x=" << x;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, OldTvCurvatureMovesTheVerticalSampleAtTheEdge) {
+    constexpr int width = 5;
+    constexpr int height = 4;
+    VideoFrame frame(width, height);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int y = 0; y < height; ++y) {
+        const float value = static_cast<float>(y) / (height - 1);
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            red->data()[pixel] = value;
+            green->data()[pixel] = value;
+            blue->data()[pixel] = value;
+            alpha->data()[pixel] = 0.6f;
+        }
+    }
+
+    OldTVEffect effect;
+    effect.setParameter("Scanline", 0.0f);
+    effect.setParameter("Curvature", 0.5f);
+    effect.setParameter("Flicker", 0.0f);
+    effect.setParameter("Fringe", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int x = 0; x < width; ++x) {
+        const int rowOnePixel = width + x;
+        const int middlePixel = 2 * width + x;
+        EXPECT_FLOAT_EQ(red->data()[rowOnePixel], 0.0f);
+        EXPECT_FLOAT_EQ(green->data()[rowOnePixel], 0.0f);
+        EXPECT_FLOAT_EQ(blue->data()[rowOnePixel], 0.0f);
+        EXPECT_NEAR(red->data()[middlePixel], 2.0f / 3.0f, 1.0e-6f);
+        EXPECT_NEAR(green->data()[middlePixel], 2.0f / 3.0f, 1.0e-6f);
+        EXPECT_NEAR(blue->data()[middlePixel], 2.0f / 3.0f, 1.0e-6f);
+        EXPECT_FLOAT_EQ(alpha->data()[rowOnePixel], 0.6f);
+        EXPECT_FLOAT_EQ(alpha->data()[middlePixel], 0.6f);
+    }
+}
+
 TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeutralNoOp) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
