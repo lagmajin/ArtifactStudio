@@ -964,6 +964,15 @@ artifact_add_test(ArtifactTrailFadeEffectContractTest
 set_tests_properties(ArtifactTrailFadeEffectContractTest PROPERTIES
     LABELS "effect;trail-fade;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactOpticalFlowBlurEffectContractTest
+    SOURCES
+        OpticalFlowBlurEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactOpticalFlowBlurEffectContractTest PROPERTIES
+    LABELS "effect;optical-flow-blur;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
