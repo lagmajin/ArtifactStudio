@@ -1199,6 +1199,16 @@ set_tests_properties(ArtifactCoreThresholdEffectContractTest PROPERTIES
     LABELS "image;threshold;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreSimpleChokerContractTest
+    SOURCES
+        SimpleChokerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreSimpleChokerContractTest PROPERTIES
+    LABELS "image;alpha;choker;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
