@@ -95,10 +95,11 @@ TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
     }
 }
 
-TEST(LofiEffectContractTest, OldTvPreservesEmptyInputAsAnEmptyOutput)
+TEST(LofiEffectContractTest, OldTvEmptyInputClearsPreviouslyPopulatedOutput)
 {
     const ImageF32x4RGBAWithCache source;
-    ImageF32x4RGBAWithCache output;
+    ImageF32x4RGBAWithCache output = makePatternSurface();
+    ASSERT_FALSE(output.image().isEmpty());
     ArtifactOldTVEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
 
