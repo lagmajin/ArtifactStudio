@@ -1,7 +1,7 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-28 01:22
-> Total documents: 1470
+> Generated: 2026-10-29 12:19
+> Total documents: 1471
 
 ---
 
@@ -12,21 +12,21 @@
 | 1 | `Artifact/docs/AI_API_CLOUD_WIDGET_NOTES.md` | Cloud AI Widget - Note API Reference | 2026-08-14 | --- | --- | 8.3 KB | API, CLOUD, WIDGET, NOTES |
 | 2 | `Artifact/docs/AI_API_EXTENDED_REFERENCE.md` | Cloud AI Widget - Extended API Reference (Phases 1-5) | 2026-08-14 | --- | --- | 14.7 KB | API, EXTENDED, REFERENCE |
 | 3 | `Artifact/docs/AssetIcons.md` | AssetIcons | 2026-06-03 | --- | --- | 5.1 KB | AssetIcons |
-| 4 | `Artifact/docs/CLI_INTERACTIVE_SHELL.md` | Artifact CLI interactive shell | 2026-09-23 | --- | --- | 12.5 KB | CLI, INTERACTIVE, SHELL |
+| 4 | `Artifact/docs/CLI_INTERACTIVE_SHELL.md` | Artifact CLI interactive shell | 2026-09-23 | --- | --- | 12.8 KB | CLI, INTERACTIVE, SHELL |
 | 5 | `Artifact/docs/HYPOTHESIS_RENDER_PASS_OPTIMIZATION_2026-03-28.md` | Render Pass Optimization Hypotheses (2026-03-28) | 2026-03-28 | --- | --- | 3.4 KB | HYPOTHESIS, RENDER, PASS, OPTIMIZATION |
 | 6 | `Artifact/docs/INVESTIGATION_MASK_CHANNEL_ORDER_2026-04-27.md` | Mask Rendering: Channel Order Investigation (2026-04-27) | 2026-04-27 | --- | --- | 6.2 KB | INVESTIGATION, MASK, CHANNEL, ORDER |
-| 7 | `Artifact/docs/INVESTIGATION_PROJECT_TREE_FLOATING_RESIZE_2026-03-14.md` | INVESTIGATION_PROJECT_TREE_FLOATING_RESIZE_2026-03-14 | 2026-03-14 | --- | --- | 20.7 KB | INVESTIGATION, PROJECT, TREE, FLOATING, RESIZE |
-| 8 | `Artifact/docs/INVESTIGATION_QADS_UPSTREAM_COMPARISON_2026-06-23.md` | QADS Upstream Comparison Investigation (2026-06-23) | 2026-06-23 | --- | --- | 23.6 KB | INVESTIGATION, QADS, UPSTREAM, COMPARISON |
+| 7 | `Artifact/docs/INVESTIGATION_PROJECT_TREE_FLOATING_RESIZE_2026-03-14.md` | INVESTIGATION_PROJECT_TREE_FLOATING_RESIZE_2026-03-14 | 2026-03-14 | --- | --- | 21.0 KB | INVESTIGATION, PROJECT, TREE, FLOATING, RESIZE |
+| 8 | `Artifact/docs/INVESTIGATION_QADS_UPSTREAM_COMPARISON_2026-06-23.md` | QADS Upstream Comparison Investigation (2026-06-23) | 2026-06-23 | --- | --- | 23.8 KB | INVESTIGATION, QADS, UPSTREAM, COMPARISON |
 | 9 | `Artifact/docs/LAYER_CREATION_SPEC_2026-03-15.md` | Layer Creation Spec (2026-03-15) | 2026-03-15 | --- | --- | 1.2 KB | LAYER, CREATION, SPEC |
-| 10 | `Artifact/docs/MILESTONE_3D_GIZMO_IMPLEMENTATION_2026-03-25.md` | 3D Transform Gizmo Implementation Milestone (2026-03-25) | 2026-03-25 | --- | --- | 8.3 KB | GIZMO, IMPLEMENTATION |
-| 11 | `Artifact/docs/MILESTONE_3D_PARTICLE_2026-08-29.md` | 3D Particle 完成度マイルストーン (2026-08-29) | 2026-08-29 | --- | --- | 25.2 KB | PARTICLE |
-| 12 | `Artifact/docs/MILESTONE_AI_CLOUD_UI_2026-04-09.md` | AI Cloud UI / Provider Milestone (2026-04-09) | 2026-04-09 | --- | --- | 7.0 KB | CLOUD |
-| 13 | `Artifact/docs/MILESTONE_AI_CLOUD_WIDGET_HARDENING_2026-04-09.md` | Milestone: AI Cloud Widget Hardening / OpenRouter-Kilo Gateway Trial (2026-04-09 | 2026-04-09 | --- | --- | 6.7 KB | CLOUD, WIDGET, HARDENING |
+| 10 | `Artifact/docs/MILESTONE_3D_GIZMO_IMPLEMENTATION_2026-03-25.md` | 3D Transform Gizmo Implementation Milestone (2026-03-25) | 2026-03-25 | --- | --- | 8.4 KB | GIZMO, IMPLEMENTATION |
+| 11 | `Artifact/docs/MILESTONE_3D_PARTICLE_2026-08-29.md` | 3D Particle 完成度マイルストーン (2026-08-29) | 2026-08-29 | --- | --- | 25.4 KB | PARTICLE |
+| 12 | `Artifact/docs/MILESTONE_AI_CLOUD_UI_2026-04-09.md` | AI Cloud UI / Provider Milestone (2026-04-09) | 2026-04-09 | --- | --- | 7.2 KB | CLOUD |
+| 13 | `Artifact/docs/MILESTONE_AI_CLOUD_WIDGET_HARDENING_2026-04-09.md` | Milestone: AI Cloud Widget Hardening / OpenRouter-Kilo Gateway Trial (2026-04-09 | 2026-04-09 | --- | --- | 6.9 KB | CLOUD, WIDGET, HARDENING |
 | 14 | `Artifact/docs/MILESTONE_APP_UX_AND_CORE_REFINEMENT_2026-03-17.md` | M15 App UX & Core Refinement (2026-03-17) | 2026-03-17 | --- | --- | 4.8 KB | APP, AND, CORE, REFINEMENT |
 | 15 | `Artifact/docs/MILESTONE_ARTIFACT_IRENDER_2026-03-12.md` | ArtifactIRender Milestone | 2026-08-15 | --- | --- | 9.6 KB | ARTIFACT, IRENDER |
-| 16 | `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System Milestone | 2026-09-11 | --- | --- | 9.7 KB | ASSET, SYSTEM |
+| 16 | `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System Milestone | 2026-09-11 | --- | --- | 9.9 KB | ASSET, SYSTEM |
 | 17 | `Artifact/docs/MILESTONE_AUDIO_BUS_ROUTING_UI_2026-04-09.md` | Audio Bus Routing UI Milestone | 2026-04-09 | --- | --- | 6.2 KB | AUDIO, BUS, ROUTING |
-| 18 | `Artifact/docs/MILESTONE_AUDIO_ENGINE_2026-03.md` | Audio Engine Implementation Milestone | 2026-03-22 | --- | --- | 3.1 KB | AUDIO, ENGINE, 2026 |
+| 18 | `Artifact/docs/MILESTONE_AUDIO_ENGINE_2026-03.md` | Audio Engine Implementation Milestone | 2026-03-22 | --- | --- | 3.2 KB | AUDIO, ENGINE, 2026 |
 | 19 | `Artifact/docs/MILESTONE_CLONE_LAYER_CONSOLIDATION_2026-03-30.md` | Milestone: Clone Layer Consolidation (2026-03-30) | 2026-03-30 | --- | --- | 1.7 KB | CLONE, LAYER, CONSOLIDATION |
 | 20 | `Artifact/docs/MILESTONE_CLONER_GENERATOR_2026-03-17.md` | M12 Cloner Generator Foundation (2026-03-17) | 2026-03-17 | --- | --- | 21.1 KB | CLONER, GENERATOR |
 | 21 | `Artifact/docs/MILESTONE_CLOUD_AI_API_ALL_PHASES_2026-04-26.md` | Milestone: Cloud AI Widget API Expansion - All Phases (2026-04-26) | 2026-04-26 | --- | --- | 11.0 KB | CLOUD, API, ALL, PHASES |
@@ -40,7 +40,7 @@
 | 29 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_CACHE_SYSTEM_2026-03-26.md` | Composition Editor Cache System (2026-03-26) | 2026-03-26 | --- | --- | 4.4 KB | COMPOSITION, EDITOR, CACHE, SYSTEM |
 | 30 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_IMPLEMENTATION_RULES_2026-04-13.md` | Composition Editor Implementation Rules | 2026-04-13 | --- | --- | 6.2 KB | COMPOSITION, EDITOR, IMPLEMENTATION, RULES |
 | 31 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_PIE_MENU_2026-03-25.md` | Composition Editor Pie Menu (2026-03-25) | 2026-03-25 | --- | --- | 6.1 KB | COMPOSITION, EDITOR, PIE, MENU |
-| 32 | `Artifact/docs/MILESTONE_COMPOSITION_MENU_2026-03-13.md` | Composition Menu Milestone | 2026-03-13 | --- | --- | 6.5 KB | COMPOSITION, MENU |
+| 32 | `Artifact/docs/MILESTONE_COMPOSITION_MENU_2026-03-13.md` | Composition Menu Milestone | 2026-03-13 | --- | --- | 6.7 KB | COMPOSITION, MENU |
 | 33 | `Artifact/docs/MILESTONE_COMPOSITION_VIEW_FAST_PATH_2026-03-25.md` | Composition View Fast Path (2026-03-25) | 2026-03-25 | --- | --- | 2.9 KB | COMPOSITION, VIEW, FAST, PATH |
 | 34 | `Artifact/docs/MILESTONE_CREATIVE_WORKFLOW_REFINEMENT_2026-03-13.md` | Milestone: Creative Workflow & Inspector Refinement | 2026-08-15 | Partial（M-CW-1〜5 の実装・静的確認済み。composition effect の追加・削除・enable・移動は Undo 接続済み。実ランタイム検証とコンポーネント面の統合は未完了） | --- | 5.4 KB | CREATIVE, WORKFLOW, REFINEMENT |
 | 35 | `Artifact/docs/MILESTONE_DIAGNOSTIC_PHASE_2_2026-04-27.md` | Diagnostic Phase 2: Frame Timing Logger (2026-04-27) | 2026-04-27 | --- | --- | 3.9 KB | DIAGNOSTIC, PHASE |
@@ -56,38 +56,38 @@
 | 45 | `Artifact/docs/MILESTONE_MESH_INSTANCING_PHASE_2_CLONE_CONVERSION_2026-04-27.md` | Mesh Instancing Phase 2: CloneData to InstanceData Conversion (2026-04-27) | 2026-04-27 | --- | --- | 10.3 KB | MESH, INSTANCING, PHASE, CLONE |
 | 46 | `Artifact/docs/MILESTONE_OIIO_IMAGE_PIPELINE_MIGRATION_2026-03-30.md` | Milestone: OIIO Image Pipeline Migration (2026-03-30) | 2026-03-30 | --- | --- | 6.0 KB | OIIO, IMAGE, PIPELINE, MIGRATION |
 | 47 | `Artifact/docs/MILESTONE_PARTICLE_LAYER_3D_MIGRATION_2026-03-25.md` | ParticleLayer 3D Migration Milestone (2026-03-25) | 2026-03-25 | --- | --- | 12.5 KB | PARTICLE, LAYER, MIGRATION |
-| 48 | `Artifact/docs/MILESTONE_PARTICLE_RENDER_PATH_STABILIZATION_2026-04-21.md` | Particle Render Path Stabilization | 2026-10-08 | --- | --- | 5.3 KB | PARTICLE, RENDER, PATH, STABILIZATION |
+| 48 | `Artifact/docs/MILESTONE_PARTICLE_RENDER_PATH_STABILIZATION_2026-04-21.md` | Particle Render Path Stabilization | 2026-10-08 | --- | --- | 5.4 KB | PARTICLE, RENDER, PATH, STABILIZATION |
 | 49 | `Artifact/docs/MILESTONE_PLAYBACK_ENGINE_STABILIZATION_2026-03-25.md` | Playback Engine Stabilization (2026-03-25) | 2026-03-25 | --- | --- | 7.7 KB | PLAYBACK, ENGINE, STABILIZATION |
 | 50 | `Artifact/docs/MILESTONE_PREVIEW_FREEZE_STOP_RESPONSIVENESS_2026-06-05.md` | Preview Freeze & Stop Responsiveness (2026-06-05) | 2026-06-05 | --- | --- | 5.9 KB | PREVIEW, FREEZE, STOP, RESPONSIVENESS |
 | 51 | `Artifact/docs/MILESTONE_PRIMITIVE3D_RENDER_PATH_2026-03-21.md` | Primitive 3D Render Path Milestone | 2026-08-29 | ** P3D-1〜4 は実装済み、P3D-5 は backend 側の基盤実装済みで parity の runtime 検証待ち。3D primitive 形状は Plane/Box/Sphere/Cylinder/Cone + Torus/Capsule/Pyramid (2026-08-29 追加)。 | --- | 9.8 KB | PRIMITIVE3D, RENDER, PATH |
-| 52 | `Artifact/docs/MILESTONE_RAM_PREVIEW_SYSTEM_2026-05-01.md` | RAM Preview System | 2026-05-16 | --- | --- | 3.7 KB | RAM, PREVIEW, SYSTEM |
+| 52 | `Artifact/docs/MILESTONE_RAM_PREVIEW_SYSTEM_2026-05-01.md` | RAM Preview System | 2026-05-16 | --- | --- | 3.8 KB | RAM, PREVIEW, SYSTEM |
 | 53 | `Artifact/docs/MILESTONE_RENDER_MANAGER_2026-03-17.md` | M14 Render Manager (2026-03-17) | 2026-03-17 | --- | --- | 9.1 KB | RENDER, MANAGER |
 | 54 | `Artifact/docs/MILESTONE_ROADMAP_2026-03-10.md` | Artifact Milestone Roadmap (2026-03-10) | 2026-03-10 | --- | --- | 3.0 KB | ROADMAP |
 | 55 | `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md` | Static Layer GPU Cache (2026-03-26) | 2026-03-26 | 実装完了（runtime性能検証待ち） | --- | 5.7 KB | STATIC, LAYER, GPU, CACHE |
-| 56 | `Artifact/docs/MILESTONE_STYLE_SURFACE_KIT_2026-04-09.md` | Milestone: Style Surface Kit / QProxyStyle-Backed Widget Primitives (2026-04-09) | 2026-04-09 | --- | --- | 4.3 KB | STYLE, SURFACE, KIT |
-| 57 | `Artifact/docs/MILESTONE_V0_1_DIAGNOSTIC_2026-03-10.md` | v0.1 Diagnostic (2026-03-10) | 2026-03-10 | --- | --- | 6.4 KB | DIAGNOSTIC |
-| 58 | `Artifact/docs/MILESTONE_V0_1_USABLE_APP.md` | Artifact v0.1 Usable Milestone | --- | --- | --- | 3.4 KB | USABLE, APP |
-| 59 | `Artifact/docs/MILESTONE_V0_2_PRODUCTION_PATH_2026-03-10.md` | Artifact v0.2 Production Path (2026-03-10) | 2026-03-10 | --- | --- | 7.3 KB | PRODUCTION, PATH |
-| 60 | `Artifact/docs/MILESTONE_V0_3_EDITOR_CORE_2026-03-10.md` | Artifact v0.3 Editor Core (2026-03-10) | 2026-03-10 | --- | --- | 4.4 KB | EDITOR, CORE |
-| 61 | `Artifact/docs/MILESTONE_V0_4_PIPELINE_FOUNDATION_2026-03-10.md` | Artifact v0.4 Pipeline Foundation (2026-03-10) | 2026-03-10 | --- | --- | 3.2 KB | PIPELINE, FOUNDATION |
-| 62 | `Artifact/docs/MILESTONE_V0_5_PLAYABLE_EDITOR_2026-03-11.md` | Artifact v0.5 Playable Editor (2026-03-11) | 2026-03-11 | --- | --- | 3.3 KB | PLAYABLE, EDITOR |
-| 63 | `Artifact/docs/MILESTONE_V0_6_EFFECTS_PIPELINE_USABILITY_2026-03-11.md` | Artifact v0.6 Effects Pipeline Usability (2026-03-11) | 2026-03-11 | --- | --- | 3.2 KB | EFFECTS, PIPELINE, USABILITY |
-| 64 | `Artifact/docs/MILESTONE_V0_7_EXECUTION_LOOP_2026-03-11.md` | Artifact v0.7 Execution Loop (2026-03-11) | 2026-03-11 | --- | --- | 3.2 KB | EXECUTION, LOOP |
+| 56 | `Artifact/docs/MILESTONE_STYLE_SURFACE_KIT_2026-04-09.md` | Milestone: Style Surface Kit / QProxyStyle-Backed Widget Primitives (2026-04-09) | 2026-04-09 | --- | --- | 4.4 KB | STYLE, SURFACE, KIT |
+| 57 | `Artifact/docs/MILESTONE_V0_1_DIAGNOSTIC_2026-03-10.md` | v0.1 Diagnostic (2026-03-10) | 2026-03-10 | --- | --- | 6.6 KB | DIAGNOSTIC |
+| 58 | `Artifact/docs/MILESTONE_V0_1_USABLE_APP.md` | Artifact v0.1 Usable Milestone | --- | --- | --- | 3.5 KB | USABLE, APP |
+| 59 | `Artifact/docs/MILESTONE_V0_2_PRODUCTION_PATH_2026-03-10.md` | Artifact v0.2 Production Path (2026-03-10) | 2026-03-10 | --- | --- | 7.5 KB | PRODUCTION, PATH |
+| 60 | `Artifact/docs/MILESTONE_V0_3_EDITOR_CORE_2026-03-10.md` | Artifact v0.3 Editor Core (2026-03-10) | 2026-03-10 | --- | --- | 4.5 KB | EDITOR, CORE |
+| 61 | `Artifact/docs/MILESTONE_V0_4_PIPELINE_FOUNDATION_2026-03-10.md` | Artifact v0.4 Pipeline Foundation (2026-03-10) | 2026-03-10 | --- | --- | 3.3 KB | PIPELINE, FOUNDATION |
+| 62 | `Artifact/docs/MILESTONE_V0_5_PLAYABLE_EDITOR_2026-03-11.md` | Artifact v0.5 Playable Editor (2026-03-11) | 2026-03-11 | --- | --- | 3.4 KB | PLAYABLE, EDITOR |
+| 63 | `Artifact/docs/MILESTONE_V0_6_EFFECTS_PIPELINE_USABILITY_2026-03-11.md` | Artifact v0.6 Effects Pipeline Usability (2026-03-11) | 2026-03-11 | --- | --- | 3.3 KB | EFFECTS, PIPELINE, USABILITY |
+| 64 | `Artifact/docs/MILESTONE_V0_7_EXECUTION_LOOP_2026-03-11.md` | Artifact v0.7 Execution Loop (2026-03-11) | 2026-03-11 | --- | --- | 3.3 KB | EXECUTION, LOOP |
 | 65 | `Artifact/docs/MILESTONE_V0_8_RC_FOUNDATION_2026-03-11.md` | Artifact v0.8 RC Foundation (2026-03-11) | 2026-03-11 | --- | --- | 3.4 KB | FOUNDATION |
-| 66 | `Artifact/docs/MILESTONE_V0_9_OPERATIONS_AND_DIAGNOSTICS_2026-03-11.md` | Artifact v0.9 Operations and Diagnostics (2026-03-11) | 2026-03-11 | --- | --- | 3.3 KB | OPERATIONS, AND, DIAGNOSTICS |
-| 67 | `Artifact/docs/MILESTONE_V1_0_PRODUCTION_READINESS_2026-03-11.md` | Artifact v1.0 Production Readiness (2026-03-11) | 2026-03-11 | --- | --- | 2.4 KB | PRODUCTION, READINESS |
-| 68 | `Artifact/docs/MILESTONE_V1_1_RENDERING_DUAL_BACKEND_2026-03-11.md` | Artifact v1.1 Rendering Dual Backend (2026-03-11) | 2026-03-11 | --- | --- | 1.9 KB | RENDERING, DUAL, BACKEND |
-| 69 | `Artifact/docs/MILESTONE_V1_2_TOOLCHAIN_AND_MODULE_HARDENING_2026-03-11.md` | Artifact v1.2 Toolchain and Module Hardening (2026-03-11) | 2026-03-11 | --- | --- | 2.1 KB | TOOLCHAIN, AND, MODULE |
-| 70 | `Artifact/docs/MILESTONE_V1_3_LAYER_API_MIGRATION_2026-03-11.md` | Artifact v1.3 Layer API Migration (2026-03-11) | 2026-03-11 | --- | --- | 1.4 KB | LAYER, API, MIGRATION |
-| 71 | `Artifact/docs/MILESTONE_V1_4_CREATION_FLOW_AND_MODULE_ROLLOUT_2026-03-11.md` | MILESTONE_V1_4_CREATION_FLOW_AND_MODULE_ROLLOUT_2026-03-11 | 2026-03-11 | --- | --- | 1.5 KB | CREATION, FLOW, AND |
+| 66 | `Artifact/docs/MILESTONE_V0_9_OPERATIONS_AND_DIAGNOSTICS_2026-03-11.md` | Artifact v0.9 Operations and Diagnostics (2026-03-11) | 2026-03-11 | --- | --- | 3.4 KB | OPERATIONS, AND, DIAGNOSTICS |
+| 67 | `Artifact/docs/MILESTONE_V1_0_PRODUCTION_READINESS_2026-03-11.md` | Artifact v1.0 Production Readiness (2026-03-11) | 2026-03-11 | --- | --- | 2.5 KB | PRODUCTION, READINESS |
+| 68 | `Artifact/docs/MILESTONE_V1_1_RENDERING_DUAL_BACKEND_2026-03-11.md` | Artifact v1.1 Rendering Dual Backend (2026-03-11) | 2026-03-11 | --- | --- | 2.0 KB | RENDERING, DUAL, BACKEND |
+| 69 | `Artifact/docs/MILESTONE_V1_2_TOOLCHAIN_AND_MODULE_HARDENING_2026-03-11.md` | Artifact v1.2 Toolchain and Module Hardening (2026-03-11) | 2026-03-11 | --- | --- | 2.2 KB | TOOLCHAIN, AND, MODULE |
+| 70 | `Artifact/docs/MILESTONE_V1_3_LAYER_API_MIGRATION_2026-03-11.md` | Artifact v1.3 Layer API Migration (2026-03-11) | 2026-03-11 | --- | --- | 1.5 KB | LAYER, API, MIGRATION |
+| 71 | `Artifact/docs/MILESTONE_V1_4_CREATION_FLOW_AND_MODULE_ROLLOUT_2026-03-11.md` | MILESTONE_V1_4_CREATION_FLOW_AND_MODULE_ROLLOUT_2026-03-11 | 2026-03-11 | --- | --- | 1.6 KB | CREATION, FLOW, AND |
 | 72 | `Artifact/docs/MILESTONE_VIDEO_LAYER_UNIFICATION_2026-03-13.md` | Video Layer Unification Milestone | 2026-03-13 | --- | --- | 3.5 KB | VIDEO, LAYER, UNIFICATION |
 | 73 | `Artifact/docs/MILESTONE_VIDEO_QIMAGE_RETIREMENT_2026-04-15.md` | Milestone: Video QImage Retirement (2026-04-15) | 2026-04-15 | --- | --- | 8.1 KB | VIDEO, QIMAGE, RETIREMENT |
-| 74 | `Artifact/docs/MULTI_CHANNEL_OUTPUT_DESIGN_2026-04-30.md` | Multi-Channel Output Design | 2026-04-30 | --- | --- | 2.6 KB | MULTI, CHANNEL, OUTPUT, DESIGN |
+| 74 | `Artifact/docs/MULTI_CHANNEL_OUTPUT_DESIGN_2026-04-30.md` | Multi-Channel Output Design | 2026-04-30 | --- | --- | 2.7 KB | MULTI, CHANNEL, OUTPUT, DESIGN |
 | 75 | `Artifact/docs/OPERATIONS_PLAYBOOK_V0_9_2026-03-11.md` | Artifact Operations Playbook v0.9 (2026-03-11) | 2026-03-11 | --- | --- | 1.9 KB | OPERATIONS, PLAYBOOK |
-| 76 | `Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md` | PropertyEditor Audit | 2026-03-11 | --- | --- | 2.4 KB | PROPERTY, EDITOR, AUDIT |
+| 76 | `Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md` | PropertyEditor Audit | 2026-03-11 | --- | --- | 2.5 KB | PROPERTY, EDITOR, AUDIT |
 | 77 | `Artifact/docs/RC5_EDITING_READY_REGRESSION_CHECKLIST_2026-03-12.md` | RC-5 Editing Ready Regression Checklist (2026-03-12) | 2026-03-12 | --- | --- | 4.8 KB | RC5, EDITING, READY, REGRESSION, CHECKLIST |
 | 78 | `Artifact/docs/SAVE_LOAD_PROJECT_TREE_VERIFICATION_2026-03-12.md` | Save/Load Project Tree Verification Cases (2026-03-12) | 2026-03-12 | --- | --- | 2.5 KB | SAVE, LOAD, PROJECT, TREE, VERIFICATION |
-| 79 | `Artifact/docs/TimelinePanelImplementationChecklist.md` | TimelinePanelImplementationChecklist | --- | --- | --- | 3.5 KB | TimelinePanelImplementationChecklist |
+| 79 | `Artifact/docs/TimelinePanelImplementationChecklist.md` | TimelinePanelImplementationChecklist | --- | --- | --- | 3.6 KB | TimelinePanelImplementationChecklist |
 | 80 | `Artifact/docs/TimelinePanelSpecification.md` | TimelinePanelSpecification | --- | --- | --- | 4.0 KB | TimelinePanelSpecification |
 | 81 | `Artifact/docs/VERIFICATION_CLOUD_AI_NOTE_METHODS_2026-04-27.md` | Cloud AI Widget: Note Methods Verification (2026-04-27) | 2026-04-27 | --- | --- | 5.1 KB | VERIFICATION, CLOUD, NOTE, METHODS |
 
@@ -95,8 +95,8 @@
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
-| 1 | `Artifact/docs/Notes/feature-discussion-summary.md` | feature-discussion-summary | 2026-03-09 | --- | --- | 4.8 KB | feature, discussion, summary |
-| 2 | `Artifact/docs/Notes/weekly-progress-summary-2026-05-10.md` | Weekly Progress Summary - 2026-05-10 | 2026-05-10 | --- | --- | 1.4 KB | weekly, progress, summary, 2026 |
+| 1 | `Artifact/docs/Notes/feature-discussion-summary.md` | feature-discussion-summary | 2026-03-09 | --- | --- | 4.9 KB | feature, discussion, summary |
+| 2 | `Artifact/docs/Notes/weekly-progress-summary-2026-05-10.md` | Weekly Progress Summary - 2026-05-10 | 2026-05-10 | --- | --- | 1.5 KB | weekly, progress, summary, 2026 |
 
 ## Artifact/archived (4 files)
 
@@ -118,24 +118,24 @@
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
 | 1 | `Artifact/docs/planned/MILESTONE_GPU_TEXT_ANIMATOR_TRANSFORM_BUFFER_2026-08-13.md` | GPU Text Animator Transform Buffer / Instancing | 2026-10-02 | 部分実装（分離 Submitter の連続 Glyph quad を1 drawへバッチ化。Animator本線の Transform Buffer／Instancing は未実装） | --- | 15.1 KB | GPU, TEXT, ANIMATOR, TRANSFORM, BUFFER |
-| 2 | `Artifact/docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` | Milestone: Mask Keyframe Foundation | 2026-07-25 | --- | --- | 3.7 KB | MASK, KEYFRAME, FOUNDATION |
+| 2 | `Artifact/docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` | Milestone: Mask Keyframe Foundation | 2026-07-25 | --- | --- | 3.8 KB | MASK, KEYFRAME, FOUNDATION |
 | 3 | `Artifact/docs/planned/MILESTONE_MULTI_FRAME_PREVIEW_RENDERING_2026-06-29.md` | Milestone: Multi-Frame Preview Rendering | 2026-06-29 | --- | --- | 18.4 KB | MULTI, FRAME, PREVIEW, RENDERING |
 
 ## ArtifactCore (45 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
-| 1 | `ArtifactCore/docs/ArtifactCore_AI_Feature_Map_2026-04-10.md` | ArtifactCore AI Feature Map | 2026-10-22 | --- | --- | 3.3 KB | ArtifactCore, Feature, Map |
+| 1 | `ArtifactCore/docs/ArtifactCore_AI_Feature_Map_2026-04-10.md` | ArtifactCore AI Feature Map | 2026-10-22 | --- | --- | 3.4 KB | ArtifactCore, Feature, Map |
 | 2 | `ArtifactCore/docs/ArtifactCore_Feature_List.en.md` | ArtifactCore_Feature_List.en | 2026-03-02 | --- | --- | 3.3 KB | ArtifactCore, Feature, List.en |
 | 3 | `ArtifactCore/docs/ArtifactCore_Feature_List.ja.md` | ArtifactCore_Feature_List.ja | 2026-03-02 | --- | --- | 4.2 KB | ArtifactCore, Feature, List.ja |
 | 4 | `ArtifactCore/docs/ArtifactCore_Feature_List.md` | ArtifactCore_Feature_List | 2026-04-10 | --- | --- | 0.4 KB | ArtifactCore, Feature, List |
 | 5 | `ArtifactCore/docs/ArtifactCore_Feature_List.zh.md` | ArtifactCore_Feature_List.zh | 2026-03-02 | --- | --- | 3.1 KB | ArtifactCore, Feature, List.zh |
-| 6 | `ArtifactCore/docs/AUDIO_PERFORMANCE_ARCHITECTURE_2026-06-05.md` | オーディオ再生パフォーマンス設計 | 2026-06-05 | --- | --- | 7.8 KB | AUDIO, PERFORMANCE, ARCHITECTURE |
+| 6 | `ArtifactCore/docs/AUDIO_PERFORMANCE_ARCHITECTURE_2026-06-05.md` | オーディオ再生パフォーマンス設計 | 2026-06-05 | --- | --- | 8.0 KB | AUDIO, PERFORMANCE, ARCHITECTURE |
 | 7 | `ArtifactCore/docs/CMAKE_MIGRATION_PREP_2026-03-02.md` | ArtifactCore CMake Migration Prep (2026-03-02) | 2026-03-02 | --- | --- | 3.6 KB | CMAKE, MIGRATION, PREP |
 | 8 | `ArtifactCore/docs/CONTAINER_DEBUG_AI_INTERFACE.md` | Container Debug / AI Interface | 2026-09-01 | --- | --- | 4.0 KB | CONTAINER, DEBUG, INTERFACE |
 | 9 | `ArtifactCore/docs/CORE_NATIVE_DIAGNOSTICS_PLAN_2026-07-11.md` | Core-native Diagnostics Plan | 2026-07-11 | In Progress | --- | 4.8 KB | CORE, NATIVE, DIAGNOSTICS, PLAN |
-| 10 | `ArtifactCore/docs/CORE_NATIVE_STRING_BOUNDARY_PLAN_2026-07-11.md` | Core-native String Boundary Plan | 2026-07-11 | In Progress | --- | 3.1 KB | CORE, NATIVE, STRING, BOUNDARY, PLAN |
-| 11 | `ArtifactCore/docs/CREATIVE_EFFECTS_MEMO.md` | Creative Effects Implementation Memo (Kaleidoscope & Halftone) | 2026-10-23 | --- | --- | 3.6 KB | CREATIVE, EFFECTS, MEMO |
+| 10 | `ArtifactCore/docs/CORE_NATIVE_STRING_BOUNDARY_PLAN_2026-07-11.md` | Core-native String Boundary Plan | 2026-07-11 | In Progress | --- | 3.2 KB | CORE, NATIVE, STRING, BOUNDARY, PLAN |
+| 11 | `ArtifactCore/docs/CREATIVE_EFFECTS_MEMO.md` | Creative Effects Implementation Memo (Kaleidoscope & Halftone) | 2026-10-23 | --- | --- | 3.7 KB | CREATIVE, EFFECTS, MEMO |
 | 12 | `ArtifactCore/docs/FrameRange_Usage.md` | FrameRange �g�p�K�C�h | --- | --- | --- | 10.4 KB | FrameRange, Usage |
 | 13 | `ArtifactCore/docs/MFFrameExtractor_Usage.md` | MFFrameExtractor �g�p�K�C�h | --- | --- | --- | 7.8 KB | MFFrameExtractor, Usage |
 | 14 | `ArtifactCore/docs/MILESTONE_2D_RIG_SYSTEM_2026-04-15.md` | Milestone: Pro-Level 2D Rig & Bone System | 2026-04-15 | --- | --- | 14.3 KB | RIG, SYSTEM |
@@ -143,27 +143,27 @@
 | 16 | `ArtifactCore/docs/MILESTONE_FFMPEG_ENCODER_2026-03-17.md` | FFmpegEncoder Milestone | 2026-03-17 | --- | --- | 10.9 KB | FFMPEG, ENCODER |
 | 17 | `ArtifactCore/docs/MILESTONE_GPU_CAPABILITIES_2026-09-06.md` | GPU Capability Foundation | 2026-09-06 | --- | --- | 1.4 KB | GPU, CAPABILITIES |
 | 18 | `ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_2026-04-01.md` | GPU Text Rendering / Japanese Shaping (2026-04-01) | 2026-04-01 | --- | --- | 4.9 KB | GPU, TEXT, RENDERING |
-| 19 | `ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_EXECUTION_2026-04-30.md` | MILESTONE: GPU Text Rendering / Japanese Shaping - Execution Slice | 2026-04-30 | --- | --- | 3.3 KB | GPU, TEXT, RENDERING, EXECUTION |
+| 19 | `ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_EXECUTION_2026-04-30.md` | MILESTONE: GPU Text Rendering / Japanese Shaping - Execution Slice | 2026-04-30 | --- | --- | 3.4 KB | GPU, TEXT, RENDERING, EXECUTION |
 | 20 | `ArtifactCore/docs/MILESTONE_INTERNAL_EVENT_SYSTEM_2026-03-24.md` | Internal Event System Milestone | 2026-03-24 | --- | --- | 1.9 KB | INTERNAL, EVENT, SYSTEM |
 | 21 | `ArtifactCore/docs/MILESTONE_LAYER_COMPOSITION_SNAPSHOT_2026-04-14.md` | マイルストーン: Layer & Composition Snapshot System | 2026-04-14 | --- | --- | 6.1 KB | LAYER, COMPOSITION, SNAPSHOT |
 | 22 | `ArtifactCore/docs/MILESTONE_NLE_CORE_2026-04-09.md` | マイルストーン: NLE Core Foundation | 2026-04-09 | --- | --- | 9.2 KB | NLE, CORE |
 | 23 | `ArtifactCore/docs/MILESTONE_NLE_CORE_SERVICE_DESIGN_2026-04-09.md` | NLE Core Service Design Memo | 2026-04-09 | --- | --- | 6.8 KB | NLE, CORE, SERVICE, DESIGN |
 | 24 | `ArtifactCore/docs/MILESTONE_NLE_CORE_TYPE_DESIGN_2026-04-09.md` | NLE Core Type Design Memo | 2026-04-09 | --- | --- | 7.4 KB | NLE, CORE, TYPE, DESIGN |
-| 25 | `ArtifactCore/docs/MILESTONE_PARAMETRIC_COMPOSITION_2026-06-05.md` | Parametric Composition Foundation | 2026-06-05 | --- | --- | 1.0 KB | PARAMETRIC, COMPOSITION |
-| 26 | `ArtifactCore/docs/MILESTONE_PYRO_VOLUME_SIMULATION_CORE_2026-06-27.md` | マイルストーン: Pyro Volume Simulation Core | 2026-06-27 | --- | --- | 11.0 KB | PYRO, VOLUME, SIMULATION, CORE |
+| 25 | `ArtifactCore/docs/MILESTONE_PARAMETRIC_COMPOSITION_2026-06-05.md` | Parametric Composition Foundation | 2026-06-05 | --- | --- | 1.1 KB | PARAMETRIC, COMPOSITION |
+| 26 | `ArtifactCore/docs/MILESTONE_PYRO_VOLUME_SIMULATION_CORE_2026-06-27.md` | マイルストーン: Pyro Volume Simulation Core | 2026-06-27 | --- | --- | 11.4 KB | PYRO, VOLUME, SIMULATION, CORE |
 | 27 | `ArtifactCore/docs/MILESTONE_RENDER_FOUNDATION_TRIAD_2026-07-18.md` | Render Foundation Triad | 2026-07-18 | In Progress | --- | 1.6 KB | RENDER, FOUNDATION, TRIAD |
 | 28 | `ArtifactCore/docs/MILESTONE_TEXT_LAYOUT_CONTRACT_2026-06-12.md` | MILESTONE: Text Layout Contract | 2026-06-12 | --- | --- | 3.9 KB | TEXT, LAYOUT, CONTRACT |
 | 29 | `ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_2026-06-12.md` | MILESTONE: Text Shaping Backend / HarfBuzz | 2026-06-12 | --- | --- | 5.4 KB | TEXT, SHAPING, BACKEND, HARFBUZZ |
 | 30 | `ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_EXECUTION_2026-06-12.md` | MILESTONE: Text Shaping Backend / HarfBuzz - Execution Slice | 2026-06-12 | --- | --- | 13.6 KB | TEXT, SHAPING, BACKEND, HARFBUZZ, EXECUTION |
 | 31 | `ArtifactCore/docs/MILESTONE_TEXT_SYSTEM_2026-03-12.md` | Text System Milestone | 2026-04-27 | --- | --- | 7.5 KB | TEXT, SYSTEM |
 | 32 | `ArtifactCore/docs/MILESTONE_TRACK_MATTE_CORE_2026-03-26.md` | Matte Stack / Child Matte Core Milestone | 2026-08-15 | --- | --- | 4.0 KB | TRACK, MATTE, CORE |
-| 33 | `ArtifactCore/docs/MILESTONE_TYPED_BACKGROUND_TASK_RUNTIME_2026-04-09.md` | マイルストーン: Typed Background Task Runtime | 2026-04-09 | --- | --- | 2.4 KB | TYPED, BACKGROUND, TASK, RUNTIME |
+| 33 | `ArtifactCore/docs/MILESTONE_TYPED_BACKGROUND_TASK_RUNTIME_2026-04-09.md` | マイルストーン: Typed Background Task Runtime | 2026-04-09 | --- | --- | 2.6 KB | TYPED, BACKGROUND, TASK, RUNTIME |
 | 34 | `ArtifactCore/docs/MILESTONE_VOLUME_PRODUCTION_CORE_2026-07-07.md` | マイルストーン: Volume Production Core | 2026-07-07 | --- | --- | 3.1 KB | VOLUME, PRODUCTION, CORE |
 | 35 | `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` | ArtifactCore Milestones Backlog | 2026-06-24 | --- | --- | 8.6 KB | CORE, BACKLOG |
-| 36 | `ArtifactCore/docs/MOTION_TRAIL_MEMO.md` | Motion Trail (Ghosting) Effect Implementation Memo | --- | --- | --- | 1.7 KB | MOTION, TRAIL, MEMO |
+| 36 | `ArtifactCore/docs/MOTION_TRAIL_MEMO.md` | Motion Trail (Ghosting) Effect Implementation Memo | --- | --- | --- | 1.8 KB | MOTION, TRAIL, MEMO |
 | 37 | `ArtifactCore/docs/ONNX_IMAGE_SEGMENTATION_CONFIG.md` | ONNX Image Segmentation Configuration | 2026-09-04 | --- | --- | 1.2 KB | ONNX, IMAGE, SEGMENTATION, CONFIG |
 | 38 | `ArtifactCore/docs/PlaybackClock_Usage.md` | PlaybackClock �g�p�K�C�h | --- | --- | --- | 6.8 KB | PlaybackClock, Usage |
-| 39 | `ArtifactCore/docs/PREMIUM_EFFECTS_MEMO.md` | Premium Effects Pack Implementation Memo | --- | --- | --- | 4.7 KB | PREMIUM, EFFECTS, MEMO |
+| 39 | `ArtifactCore/docs/PREMIUM_EFFECTS_MEMO.md` | Premium Effects Pack Implementation Memo | --- | --- | --- | 4.8 KB | PREMIUM, EFFECTS, MEMO |
 | 40 | `ArtifactCore/docs/REFERENCE_ECS_ARCHIVE_WICKED_ENGINE.md` | ECS + Archive Serialization Reference (from Wicked Engine) | --- | --- | --- | 6.0 KB | REFERENCE, ECS, ARCHIVE, WICKED, ENGINE |
 | 41 | `ArtifactCore/docs/REFERENCE_FLAGS_PATTERN_WICKED_ENGINE.md` | Flags Pattern Reference (from Wicked Engine wiScene_Components.h) | --- | --- | --- | 3.8 KB | REFERENCE, FLAGS, PATTERN, WICKED, ENGINE |
 | 42 | `ArtifactCore/docs/REFERENCE_GPU_PARTICLE_WICKED_ENGINE.md` | ShaderInterop / GPU Particle Reference (from Wicked Engine) | --- | --- | --- | 5.3 KB | REFERENCE, GPU, PARTICLE, WICKED, ENGINE |
@@ -171,7 +171,7 @@
 | 44 | `ArtifactCore/docs/REFERENCE_UTILITY_PATTERNS_WICKED_ENGINE.md` | Utility Patterns Reference (from Wicked Engine) | --- | --- | --- | 6.7 KB | REFERENCE, UTILITY, PATTERNS, WICKED, ENGINE |
 | 45 | `ArtifactCore/docs/TimelineClock_Architecture.md` | Timeline Clock �A�[�L�e�N�`�� | --- | --- | --- | 7.3 KB | TimelineClock, Architecture |
 
-## analysis (88 files)
+## analysis (89 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -184,49 +184,49 @@
 | 7 | `docs/analysis/ASYNC_MULTITHREAD_AUDIT_2026-08-08.md` | Multi-Threading & Async Optimization Opportunities (2026-08-08) | 2026-08-08 | ** 調査完了・提案 | 2026-08-10 | 9.9 KB | ASYNC, MULTITHREAD, AUDIT |
 | 8 | `docs/analysis/AUDIO_TEXT_ANIM_AUDIT_2026-08-02.md` | Audio / Text / Animation 詳細監査 | 2026-08-02 | --- | 2026-08-03 | 3.8 KB | AUDIO, TEXT, ANIM, AUDIT |
 | 9 | `docs/analysis/BATCH_RENDER_FAILURE_2026-08-13.md` | バッチレンダリング 失敗原因の検証 | 2026-09-07 | --- | 2026-09-08 | 8.7 KB | BATCH, RENDER, FAILURE |
-| 10 | `docs/analysis/COLLABORATION_IMPLEMENTATION_AUDIT_2026-08-22.md` | コラボレーション実装監査 | 2026-09-24 | --- | 2026-09-24 | 32.4 KB | COLLABORATION, IMPLEMENTATION, AUDIT |
+| 10 | `docs/analysis/COLLABORATION_IMPLEMENTATION_AUDIT_2026-08-22.md` | コラボレーション実装監査 | 2026-09-24 | --- | 2026-09-24 | 32.6 KB | COLLABORATION, IMPLEMENTATION, AUDIT |
 | 11 | `docs/analysis/COLOR_CHANNEL_ORDER_CONSISTENCY_AUDIT_2026-10-16.md` | 画像チャンネル順の一貫性監査 | 2026-10-17 | --- | 2026-10-17 | 30.2 KB | COLOR, CHANNEL, ORDER, CONSISTENCY, AUDIT |
 | 12 | `docs/analysis/COLOR_PIPELINE_AUDIT_2026-08-02.md` | プロダクションカラーシステム 詳細監査 | 2026-08-02 | --- | 2026-08-03 | 8.6 KB | COLOR, PIPELINE, AUDIT |
 | 13 | `docs/analysis/COMPOSITION_EFFECT_FORMAT_PATH_MEMO_2026-07-13.md` | Composition / Effect Format Path Memo — 2026-07-13 | 2026-07-13 | --- | 2026-07-14 | 9.8 KB | COMPOSITION, EFFECT, FORMAT, PATH, MEMO |
-| 14 | `docs/analysis/COMPOSITION_VIEWPORT_PERFORMANCE_AUDIT_2026-09-09.md` | Composition Viewport パフォーマンス監査メモ | 2026-09-16 | ** 静的ソーストレース完了。実機プロファイル・ビルド・ランタイム検証は未実施。 | 2026-09-17 | 17.7 KB | COMPOSITION, VIEWPORT, PERFORMANCE, AUDIT |
+| 14 | `docs/analysis/COMPOSITION_VIEWPORT_PERFORMANCE_AUDIT_2026-09-09.md` | Composition Viewport パフォーマンス監査メモ | 2026-09-16 | ** 静的ソーストレース完了。実機プロファイル・ビルド・ランタイム検証は未実施。 | 2026-09-17 | 18.1 KB | COMPOSITION, VIEWPORT, PERFORMANCE, AUDIT |
 | 15 | `docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md` | ArtifactCore モーショングラフィックスツールとしての欠落機能一覧 | 2026-04-19 | --- | 2026-04-20 | 4.2 KB | CORE, MODULE, MISSING, FEATURES |
 | 16 | `docs/analysis/CORRECTED_AUDIT_2026-08-02.md` | 全モジュール 修正監査 2026-08-02 | 2026-08-02 | --- | 2026-08-04 | 4.2 KB | CORRECTED, AUDIT |
 | 17 | `docs/analysis/CROSS_APP_COMPARISON_2026-08-01.md` | クロスアプリケーション機能比較 | 2026-08-01 | --- | 2026-08-03 | 21.3 KB | CROSS, APP, COMPARISON |
-| 18 | `docs/analysis/DESIRED_IMPORT_FORMATS_2026-04-19.md` | モーショングラフィッカーが本当に欲しいファイルインポート一覧 | 2026-10-04 | --- | 2026-10-04 | 5.8 KB | DESIRED, IMPORT, FORMATS |
+| 18 | `docs/analysis/DESIRED_IMPORT_FORMATS_2026-04-19.md` | モーショングラフィッカーが本当に欲しいファイルインポート一覧 | 2026-10-04 | --- | 2026-10-04 | 5.9 KB | DESIRED, IMPORT, FORMATS |
 | 19 | `docs/analysis/DILIGENT_PREVIEW_BOTTLENECK_MEMO_2026-08-27.md` | Diligent プレビュー ボトルネック メモ | 2026-08-27 | --- | 2026-08-28 | 4.9 KB | DILIGENT, PREVIEW, BOTTLENECK, MEMO |
 | 20 | `docs/analysis/EFFECT_MAP_2026-07-16.md` | ArtifactStudio Effect Map | 2026-09-22 | --- | 2026-09-22 | 24.7 KB | EFFECT, MAP |
-| 21 | `docs/analysis/ENVIRONMENTAL_AUDIO_PHYSICS_RESEARCH_2026-10-08.md` | Environmental Audio Physics Research | 2026-10-08 | --- | 2026-10-08 | 8.1 KB | ENVIRONMENTAL, AUDIO, PHYSICS, RESEARCH |
+| 21 | `docs/analysis/ENVIRONMENTAL_AUDIO_PHYSICS_RESEARCH_2026-10-08.md` | Environmental Audio Physics Research | 2026-10-08 | --- | 2026-10-08 | 8.2 KB | ENVIRONMENTAL, AUDIO, PHYSICS, RESEARCH |
 | 22 | `docs/analysis/FEATURE_AUDIT_MOTION_DESIGN_2026-06-02.md` | Motion Design Feature Audit — 2026-06-02 | 2026-06-02 | --- | 2026-08-04 | 9.1 KB | FEATURE, AUDIT, MOTION, DESIGN |
 | 23 | `docs/analysis/FINAL_AUDIT_SUMMARY_2026-08-02.md` | ArtifactStudio 全モジュール監査 最終サマリー | 2026-08-02 | --- | 2026-08-04 | 8.5 KB | FINAL, AUDIT, SUMMARY |
 | 24 | `docs/analysis/GAP_AE_NUKE_2026-08-01.md` | AE / Nuke 機能ギャップ分析 | 2026-08-01 | --- | 2026-09-21 | 23.3 KB | GAP, NUKE |
-| 25 | `docs/analysis/GENERIC_RESIDENT_GPU_DESIGN_2026-09-12.md` | 汎用GPU常駐 設計メモ（Halftoneパイロット） | 2026-10-05 | --- | 2026-10-05 | 7.2 KB | GENERIC, RESIDENT, GPU, DESIGN |
+| 25 | `docs/analysis/GENERIC_RESIDENT_GPU_DESIGN_2026-09-12.md` | 汎用GPU常駐 設計メモ（Halftoneパイロット） | 2026-10-05 | --- | 2026-10-05 | 7.3 KB | GENERIC, RESIDENT, GPU, DESIGN |
 | 26 | `docs/analysis/GPU_OFFLOAD_TARGETS_2026-08-08.md` | GPU Offload Targets — Non-Rendering Pipeline (2026-08-08) | 2026-08-08 | ** 調査完了・提案 | 2026-10-23 | 9.2 KB | GPU, OFFLOAD, TARGETS |
-| 27 | `docs/analysis/GRAPHICS_GPU_AUDIT_2026-08-02.md` | Graphics / GPU / Diligent 詳細監査 | 2026-08-02 | --- | 2026-09-08 | 7.9 KB | GRAPHICS, GPU, AUDIT |
+| 27 | `docs/analysis/GRAPHICS_GPU_AUDIT_2026-08-02.md` | Graphics / GPU / Diligent 詳細監査 | 2026-08-02 | --- | 2026-09-08 | 8.0 KB | GRAPHICS, GPU, AUDIT |
 | 28 | `docs/analysis/GROUP_LAYER_PROMOTION_FEASIBILITY_2026-08-27.md` | グループレイヤー昇格の検討 | 2026-08-27 | --- | 2026-08-27 | 7.3 KB | GROUP, LAYER, PROMOTION, FEASIBILITY |
 | 29 | `docs/analysis/HIEROPLAYER_GAP_ANALYSIS_2026-09-22.md` | HieroPlayer 機能ギャップ分析（2026-09-22） | 2026-09-22 | --- | 2026-09-26 | 11.1 KB | HIEROPLAYER, GAP, ANALYSIS |
 | 30 | `docs/analysis/IMAGE_BUFFER_PRECISION_AUDIT_2026-08-13.md` | 画像バッファ精度 監査メモ | 2026-08-13 | --- | 2026-08-15 | 8.3 KB | IMAGE, BUFFER, PRECISION, AUDIT |
 | 31 | `docs/analysis/IMAGE_PIPELINE_AUDIT_2026-08-02.md` | Image / ImageProcessing 詳細監査 | 2026-08-02 | --- | 2026-09-14 | 14.9 KB | IMAGE, PIPELINE, AUDIT |
 | 32 | `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` | Insight Archive (through 2026-08-11) | 2026-08-11 | --- | 2026-08-13 | 1132.9 KB | INSIGHT, ARCHIVE |
-| 33 | `docs/analysis/INSIGHT_ARCHIVE_2026-09-01.md` | Insight Archive (through 2026-09-01) | 2026-09-01 | --- | 2026-09-03 | 1014.6 KB | INSIGHT, ARCHIVE |
+| 33 | `docs/analysis/INSIGHT_ARCHIVE_2026-09-01.md` | Insight Archive (through 2026-09-01) | 2026-09-01 | --- | 2026-09-03 | 1014.8 KB | INSIGHT, ARCHIVE |
 | 34 | `docs/analysis/KEYING_EFFECTS_RD_2026-10-26.md` | Keying Effects R&D | 2026-10-27 | --- | 2026-10-27 | 34.0 KB | KEYING, EFFECTS |
 | 35 | `docs/analysis/LAYER_COMPONENT_CANDIDATES_2026-08-13.md` | レイヤーコンポーネント 追加候補 | 2026-08-24 | --- | 2026-08-24 | 4.3 KB | LAYER, COMPONENT, CANDIDATES |
 | 36 | `docs/analysis/LAYER_COMPONENT_PIPELINE_INTEGRITY_2026-08-13.md` | レイヤーコンポーネント パイプライン整合性検証 | 2026-08-13 | --- | 2026-08-14 | 16.4 KB | LAYER, COMPONENT, PIPELINE, INTEGRITY |
-| 37 | `docs/analysis/LAYER_KEYFRAME_AND_COMPOSITION_CREATE_INVESTIGATION_2026-09-07.md` | 左ペインのキー追加とコンポジション作成待ちの調査 | 2026-09-07 | --- | 2026-09-08 | 9.3 KB | LAYER, KEYFRAME, AND, COMPOSITION, CREATE |
+| 37 | `docs/analysis/LAYER_KEYFRAME_AND_COMPOSITION_CREATE_INVESTIGATION_2026-09-07.md` | 左ペインのキー追加とコンポジション作成待ちの調査 | 2026-09-07 | --- | 2026-09-08 | 9.4 KB | LAYER, KEYFRAME, AND, COMPOSITION, CREATE |
 | 38 | `docs/analysis/MEDIA_VIDEO_IO_AUDIT_2026-08-02.md` | Media / Video / Codec / IO 詳細監査 | 2026-08-02 | --- | 2026-09-08 | 5.1 KB | MEDIA, VIDEO, AUDIT |
 | 39 | `docs/analysis/MINOR_IMAGE_3D_FORMAT_IMPORT_INVESTIGATION_2026-08-13.md` | マイナーな画像・3Dモデル形式のインポート調査レポート | 2026-08-13 | --- | 2026-08-13 | 7.9 KB | MINOR, IMAGE, FORMAT, IMPORT |
 | 40 | `docs/analysis/MISSING_MODULES_2026-08-01.md` | 不在モジュール一覧 — 完全に存在しない or 空のスタブ | 2026-08-01 | --- | 2026-09-08 | 9.1 KB | MISSING, MODULES |
 | 41 | `docs/analysis/MOTION_GRAPHICS_AD_PRODUCTION_THINKING_MEMO_2026-05-28.md` | モーショングラフィック制作アプリの思考メモ | 2026-05-28 | --- | 2026-06-01 | 3.2 KB | MOTION, GRAPHICS, PRODUCTION, THINKING |
 | 42 | `docs/analysis/MOTION_GRAPHICS_ARTIST_PAIN_POINTS_2026-04-19.md` | MOTION_GRAPHICS_ARTIST_PAIN_POINTS_2026-04-19 | 2026-04-19 | --- | 2026-04-19 | 0.0 KB | MOTION, GRAPHICS, ARTIST, PAIN, POINTS |
-| 43 | `docs/analysis/MOTION_MODULATION_PHASE0_CONTRACT_2026-09-22.md` | Motion Modulation Phase 0 — 現行基盤監査と評価契約 | 2026-09-22 | --- | 2026-09-22 | 13.8 KB | MOTION, MODULATION, PHASE0, CONTRACT |
+| 43 | `docs/analysis/MOTION_MODULATION_PHASE0_CONTRACT_2026-09-22.md` | Motion Modulation Phase 0 — 現行基盤監査と評価契約 | 2026-09-22 | --- | 2026-09-22 | 13.9 KB | MOTION, MODULATION, PHASE0, CONTRACT |
 | 44 | `docs/analysis/MULTITHREADING_OPPORTUNITY_AUDIT_2026-08-14.md` | Multithreading Opportunity Audit | 2026-08-14 | --- | 2026-08-14 | 12.6 KB | MULTITHREADING, OPPORTUNITY, AUDIT |
 | 45 | `docs/analysis/NEURAL_TEXTURE_COMPRESSION_FEASIBILITY_2026-07-27.md` | ニューラルテクスチャ圧縮 (NTC) 導入可能性調査 | 2026-07-27 | --- | 2026-07-28 | 5.8 KB | NEURAL, TEXTURE, COMPRESSION, FEASIBILITY |
 | 46 | `docs/analysis/OCCLUSION_CULLING_IMPLEMENTATION_MEMO_2026-08-13.md` | オクルージョンカリング 実装メモ | 2026-08-13 | --- | 2026-08-15 | 7.7 KB | OCCLUSION, CULLING, IMPLEMENTATION, MEMO |
 | 47 | `docs/analysis/OPERATION_STATE_MAP_2026-08-30.md` | Operation State Map (2026-08-30) | 2026-08-30 | --- | 2026-08-31 | 41.5 KB | OPERATION, STATE, MAP |
 | 48 | `docs/analysis/PERFORMANCE_ASYNC_GPU_OPTIMIZATION_2026-08-06.md` | 非同期化・GPU化 パフォーマンス調査 | 2026-08-06 | --- | 2026-08-06 | 40.9 KB | PERFORMANCE, ASYNC, GPU, OPTIMIZATION |
-| 49 | `docs/analysis/PLAYHEAD_PREVIEW_JITTER_AUDIT_2026-09-08.md` | プレビュー再生時プレイヘッドのガタつき調査 | 2026-09-08 | --- | 2026-09-08 | 8.8 KB | PLAYHEAD, PREVIEW, JITTER, AUDIT |
+| 49 | `docs/analysis/PLAYHEAD_PREVIEW_JITTER_AUDIT_2026-09-08.md` | プレビュー再生時プレイヘッドのガタつき調査 | 2026-09-08 | --- | 2026-09-08 | 8.9 KB | PLAYHEAD, PREVIEW, JITTER, AUDIT |
 | 50 | `docs/analysis/PREVIEW_CACHE_SYSTEM_AUDIT_2026-08-08.md` | プレビューキャッシュシステム監査 (2026-08-08) | 2026-08-08 | ** アーキテクチャ監査完了。主要なスレッド境界とキャッシュ状態整合性の指摘を対応済み。性能上の遅延は継続監視。 | 2026-08-09 | 15.3 KB | PREVIEW, CACHE, SYSTEM, AUDIT |
 | 51 | `docs/analysis/PREVIEW_GPU_RESIDENCY_2026-09-08.md` | プレビューGPU常駐化：最初の実装範囲 | 2026-09-08 | --- | 2026-09-08 | 4.6 KB | PREVIEW, GPU, RESIDENCY |
-| 52 | `docs/analysis/PROFESSIONAL_VS_AUDIENCE_GAP_2026-10-04.md` | 動画・モーション ソフトとしての仕様ギャップ監査 | 2026-10-04 | 実コード監査（ビルド・実機未実施） | 2026-10-04 | 25.2 KB | PROFESSIONAL, AUDIENCE, GAP |
+| 52 | `docs/analysis/PROFESSIONAL_VS_AUDIENCE_GAP_2026-10-04.md` | 動画・モーション ソフトとしての仕様ギャップ監査 | 2026-10-04 | 実コード監査（ビルド・実機未実施） | 2026-10-04 | 25.4 KB | PROFESSIONAL, AUDIENCE, GAP |
 | 53 | `docs/analysis/REACTIVE_EVENTS_ENGINE_DESIGN_2026-07-25.md` | ReactiveEvents Engine Design | 2026-07-25 | --- | 2026-07-26 | 2.1 KB | REACTIVE, EVENTS, ENGINE, DESIGN |
 | 54 | `docs/analysis/REMOTE_BRANCH_INTEGRATION_REVIEW_2026-10-05.md` | 開発ブランチ取り込みレビュー | 2026-10-05 | --- | 2026-10-05 | 4.6 KB | REMOTE, BRANCH, INTEGRATION, REVIEW |
 | 55 | `docs/analysis/RENDER_OUTPUT_BEGINNER_GUIDE_2026-07-03.md` | Render Output Beginner Guide | 2026-07-03 | --- | 2026-07-09 | 8.8 KB | RENDER, OUTPUT, BEGINNER, GUIDE |
@@ -240,7 +240,7 @@
 | 63 | `docs/analysis/REPORT_ARTIFACT_PR_IMPLEMENTABILITY_2026-06-16.md` | ArtifactPr 実装可能性レポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 16.7 KB | ARTIFACT, IMPLEMENTABILITY |
 | 64 | `docs/analysis/REPORT_ARTIFACT_PR_NLE_2026-06-16.md` | ArtifactPr (Premiere-like NLE) 機能ギャップレポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 10.5 KB | ARTIFACT, NLE |
 | 65 | `docs/analysis/REPORT_ARTIFACTPR_VP_RENDERING_VS_ARTIFACT_2026-08-31.md` | ArtifactPr VP / レンダリング — Artifact との比較レポート 2026-08-31 | 2026-08-31 | --- | 2026-09-27 | 22.3 KB | ARTIFACTPR, RENDERING, ARTIFACT |
-| 66 | `docs/analysis/REPORT_ARTIFACTPR_X_DRIVE_IMPORT_REVIEW_2026-09-30.md` | Xドライブ ArtifactPr 取り込みレビュー | 2026-10-01 | --- | 2026-10-01 | 9.9 KB | ARTIFACTPR, DRIVE, IMPORT, REVIEW |
+| 66 | `docs/analysis/REPORT_ARTIFACTPR_X_DRIVE_IMPORT_REVIEW_2026-09-30.md` | Xドライブ ArtifactPr 取り込みレビュー | 2026-10-01 | --- | 2026-10-01 | 10.0 KB | ARTIFACTPR, DRIVE, IMPORT, REVIEW |
 | 67 | `docs/analysis/REPORT_CE_RENDER_ROI_2026-06-16.md` | CompositionEditor / 低レベル Render / ROI 適合調査 — 2026-06-16 | 2026-06-16 | --- | 2026-06-20 | 10.5 KB | RENDER, ROI |
 | 68 | `docs/analysis/REPORT_CROSS_APP_FEATURE_OPPORTUNITIES_2026-07-04.md` | 他アプリ横断 Artifact 機能機会レポート — 2026-07-04 | 2026-07-04 | --- | 2026-07-24 | 19.6 KB | CROSS, APP, FEATURE, OPPORTUNITIES |
 | 69 | `docs/analysis/REPORT_DCC_GAP_3D_TEXT_2026-08-18.md` | DCC ギャップ分析：3D レイヤー & テキスト機能 — 2026-08-18 | 2026-08-18 | --- | 2026-08-21 | 13.6 KB | DCC, GAP, TEXT |
@@ -249,20 +249,21 @@
 | 72 | `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` | Late-Stage & DCC Gap レポート — 2026-06-16 | 2026-06-16 | --- | 2026-07-07 | 16.0 KB | LATE, STAGE, AND, DCC, GAP |
 | 73 | `docs/analysis/REPORT_PREVIEW_RENDER_PERF_FIXES_2026-07-30.md` | 🔴 プレビューレンダリング パフォーマンス要修正レポート | 2026-07-30 | --- | 2026-08-03 | 8.9 KB | PREVIEW, RENDER, PERF, FIXES |
 | 74 | `docs/analysis/REPORT_QADS_AE_FOCUS_FRAME_IMPLEMENTATION_2026-08-09.md` | QADSにおけるAEスタイルフォーカスフレームの実装監査レポート | 2026-08-09 | --- | 2026-08-10 | 6.4 KB | QADS, FOCUS, FRAME, IMPLEMENTATION |
-| 75 | `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md` | Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細） | 2026-09-10 | --- | 2026-09-26 | 13.9 KB | SHAPE, GAP, UPDATE |
-| 76 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
-| 77 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
-| 78 | `docs/analysis/REVIEW_ARTIFACT_FIXES_2026-09-09.md` | `review-artifact-fixes` 精査台帳 | 2026-09-09 | --- | 2026-09-09 | 8.4 KB | REVIEW, ARTIFACT, FIXES |
-| 79 | `docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md` | Sequence Group 設計メモ (2026-07-26) | 2026-07-26 | --- | 2026-07-26 | 10.8 KB | SEQUENCE, GROUP, DESIGN, NOTE |
-| 80 | `docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md` | Shared Device Lease / Image Cache Audit | 2026-08-11 | --- | 2026-08-13 | 2.1 KB | SHARED, DEVICE, AND, IMAGE, CACHE |
-| 81 | `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` | 静止画レイヤー制作受入マトリクス | 2026-09-19 | --- | 2026-09-21 | 11.5 KB | STILL, IMAGE, LAYER, ACCEPTANCE, MATRIX |
-| 82 | `docs/analysis/TECH_ADOPTION_CANDIDATES_2026-07-27.md` | 採用候補技術調査 — アプリ改良のための技術選定メモ | 2026-07-27 | --- | 2026-07-28 | 11.7 KB | TECH, ADOPTION, CANDIDATES |
-| 83 | `docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md` | 3Dレイヤー AE/Element3D/C4D 劣位点と改善メモ | 2026-09-11 | --- | 2026-09-11 | 4.3 KB | THREED, E3D, C4D, GAP |
-| 84 | `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md` | 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08) | 2026-08-08 | ** 分析完了 | 2026-08-10 | 9.7 KB | THREED, LAYER, FEATURE, GAP, DCC |
-| 85 | `docs/analysis/VIDEO_LAYER_PREVIEW_LATENCY_2026-08-06.md` | 動画レイヤー プレビュー再生遅延 原因調査メモ | 2026-08-06 | --- | 2026-08-06 | 4.7 KB | VIDEO, LAYER, PREVIEW, LATENCY |
-| 86 | `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` | ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStu | 2026-09-26 | --- | 2026-09-26 | 28.6 KB | VIEWPORT, DCC, PARITY, C4D, HOUDINI |
-| 87 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.1 KB | WIDGET, GAP, ANALYSIS |
-| 88 | `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` | Workflow Gap Deep Dive — 2026-06-16 | 2026-06-16 | --- | 2026-09-08 | 21.1 KB | WORKFLOW, GAP, DEEP, DIVE |
+| 75 | `docs/analysis/REPORT_SHAPE_ANIMATION_PERSISTENCE_TEST_2026-10-29.md` | Shape Layer Animation Persistence Test | 2026-10-29 | --- | --- | 1.1 KB | SHAPE, ANIMATION, PERSISTENCE, TEST |
+| 76 | `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md` | Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細） | 2026-09-10 | --- | 2026-09-26 | 14.0 KB | SHAPE, GAP, UPDATE |
+| 77 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
+| 78 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
+| 79 | `docs/analysis/REVIEW_ARTIFACT_FIXES_2026-09-09.md` | `review-artifact-fixes` 精査台帳 | 2026-09-09 | --- | 2026-09-09 | 8.5 KB | REVIEW, ARTIFACT, FIXES |
+| 80 | `docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md` | Sequence Group 設計メモ (2026-07-26) | 2026-07-26 | --- | 2026-07-26 | 10.8 KB | SEQUENCE, GROUP, DESIGN, NOTE |
+| 81 | `docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md` | Shared Device Lease / Image Cache Audit | 2026-08-11 | --- | 2026-08-13 | 2.1 KB | SHARED, DEVICE, AND, IMAGE, CACHE |
+| 82 | `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` | 静止画レイヤー制作受入マトリクス | 2026-09-19 | --- | 2026-09-21 | 11.5 KB | STILL, IMAGE, LAYER, ACCEPTANCE, MATRIX |
+| 83 | `docs/analysis/TECH_ADOPTION_CANDIDATES_2026-07-27.md` | 採用候補技術調査 — アプリ改良のための技術選定メモ | 2026-07-27 | --- | 2026-07-28 | 11.7 KB | TECH, ADOPTION, CANDIDATES |
+| 84 | `docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md` | 3Dレイヤー AE/Element3D/C4D 劣位点と改善メモ | 2026-09-11 | --- | 2026-09-11 | 4.3 KB | THREED, E3D, C4D, GAP |
+| 85 | `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md` | 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08) | 2026-08-08 | ** 分析完了 | 2026-08-10 | 9.7 KB | THREED, LAYER, FEATURE, GAP, DCC |
+| 86 | `docs/analysis/VIDEO_LAYER_PREVIEW_LATENCY_2026-08-06.md` | 動画レイヤー プレビュー再生遅延 原因調査メモ | 2026-08-06 | --- | 2026-08-06 | 4.7 KB | VIDEO, LAYER, PREVIEW, LATENCY |
+| 87 | `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` | ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStu | 2026-09-26 | --- | 2026-09-26 | 28.8 KB | VIEWPORT, DCC, PARITY, C4D, HOUDINI |
+| 88 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.1 KB | WIDGET, GAP, ANALYSIS |
+| 89 | `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` | Workflow Gap Deep Dive — 2026-06-16 | 2026-06-16 | --- | 2026-09-08 | 21.1 KB | WORKFLOW, GAP, DEEP, DIVE |
 
 ## arch (3 files)
 
@@ -363,7 +364,7 @@
 | 79 | `docs/bugs/RENDER_QUEUE_PERF_BOTTLENECK_HYPOTHESES_2026-04-02.md` | ボトルネック仮説: レンダリングキューからの出力が異常に遅い | 2026-04-02 | --- | 2026-04-02 | 7.5 KB | RENDER, QUEUE, PERF, BOTTLENECK, HYPOTHESES |
 | 80 | `docs/bugs/RENDER_QUEUE_PROGRESS_SLIDER_BUGS_2026-03-27.md` | レンダーキューマネージャー ％スライダーバグレポート (2026-03-27) | 2026-03-27 | --- | 2026-03-27 | 14.7 KB | RENDER, QUEUE, PROGRESS, SLIDER, BUGS |
 | 81 | `docs/bugs/RENDER_SYSTEM_AUDIT_2026-03-27.md` | レンダーシステム包括調査レポート (2026-03-27) | 2026-03-27 | --- | 2026-09-08 | 10.9 KB | RENDER, SYSTEM, AUDIT |
-| 82 | `docs/bugs/TEXT_GIZMO_INPUT_OWNERSHIP_INVESTIGATION_2026-10-05.md` | テキストレイヤーのギズモが動かない問題の調査 | 2026-10-05 | ** 静的調査後に所有者統一と操作セッションを実装。実機再現・ビルド・テスト未実施。 | 2026-10-05 | 7.0 KB | TEXT, GIZMO, INPUT, OWNERSHIP, INVESTIGATION |
+| 82 | `docs/bugs/TEXT_GIZMO_INPUT_OWNERSHIP_INVESTIGATION_2026-10-05.md` | テキストレイヤーのギズモが動かない問題の調査 | 2026-10-05 | ** 静的調査後に所有者統一と操作セッションを実装。実機再現・ビルド・テスト未実施。 | 2026-10-05 | 7.1 KB | TEXT, GIZMO, INPUT, OWNERSHIP, INVESTIGATION |
 | 83 | `docs/bugs/TIMELINE_DRAG_DROP_NOT_WORKING_2026-03-27.md` | レイヤーパネル ドラッグ＆ドロップ非機能バグ仮説 (2026-03-27) | 2026-03-27 | --- | 2026-04-06 | 8.1 KB | TIMELINE, DRAG, DROP, NOT, WORKING |
 | 84 | `docs/bugs/TIMELINE_KEYFRAME_DIAGNOSTICS_2026-09-21.md` | Timeline keyframe diagnostics | 2026-09-21 | --- | 2026-09-22 | 1.8 KB | TIMELINE, KEYFRAME, DIAGNOSTICS |
 | 85 | `docs/bugs/TIMELINE_KEYFRAME_MARKER_LAYING_2026-04-02.md` | 不具合調査記録: タイムライン keyframe marker 表示の階層化欠如 | 2026-04-02 | --- | 2026-04-02 | 3.8 KB | TIMELINE, KEYFRAME, MARKER, LAYING |
@@ -391,34 +392,34 @@
 | 5 | `docs/design/artifactpr-premium-workbench/README.md` | ArtifactPr premium workbench and structure review | 2026-10-20 | ** 検討用モック。未採用・未実装。 | 2026-10-20 | 3.7 KB | README |
 | 6 | `docs/design/asset-relink-picker/README.md` | Asset Relink Picker 採用モック | 2026-09-12 | --- | 2026-09-14 | 1.5 KB | README |
 | 7 | `docs/design/audio-mixer/README.md` | Audio Mixer concept | 2026-09-08 | --- | 2026-09-08 | 7.0 KB | README |
-| 8 | `docs/design/button-states/dcc-comparison-2026-09-12.md` | DCC button color comparison | 2026-09-20 | --- | 2026-09-21 | 10.5 KB | dcc, comparison, 2026 |
-| 9 | `docs/design/button-states/README.md` | Button state proposal | 2026-09-12 | --- | 2026-09-14 | 2.0 KB | README |
+| 8 | `docs/design/button-states/dcc-comparison-2026-09-12.md` | DCC button color comparison | 2026-09-20 | --- | 2026-09-21 | 10.6 KB | dcc, comparison, 2026 |
+| 9 | `docs/design/button-states/README.md` | Button state proposal | 2026-09-12 | --- | 2026-09-14 | 2.1 KB | README |
 | 10 | `docs/design/camera-layer-dialog/README.md` | Camera Layer dialog design reference | 2026-09-09 | --- | 2026-09-09 | 0.8 KB | README |
 | 11 | `docs/design/collab-presence-widget/README.md` | Collaboration Presence Widget concept | 2026-09-10 | --- | 2026-09-10 | 0.7 KB | README |
 | 12 | `docs/design/color-grading/README.md` | Color Grading UI Concept | 2026-09-09 | --- | 2026-09-10 | 1.2 KB | README |
-| 13 | `docs/design/color-picker/README.md` | Color picker reference | 2026-09-07 | --- | 2026-09-08 | 3.9 KB | README |
+| 13 | `docs/design/color-picker/README.md` | Color picker reference | 2026-09-07 | --- | 2026-09-08 | 4.0 KB | README |
 | 14 | `docs/design/component-inspector/README.md` | Component / Effect Inspector Flat UI Reference | 2026-07-11 | --- | 2026-07-12 | 1.5 KB | README |
 | 15 | `docs/design/composition-create-dialog/README.md` | Composition creation dialog | 2026-09-07 | --- | 2026-09-07 | 0.8 KB | README |
 | 16 | `docs/design/composition-empty-state/README.md` | Composition Empty State | 2026-09-22 | --- | 2026-09-22 | 0.7 KB | README |
 | 17 | `docs/design/composition-graph-widget/README.md` | Composition Graph Widget concept | 2026-09-10 | --- | 2026-09-10 | 0.6 KB | README |
-| 18 | `docs/design/composition-viewport/README.md` | Composition Viewport concept | 2026-09-22 | --- | 2026-09-22 | 12.7 KB | README |
+| 18 | `docs/design/composition-viewport/README.md` | Composition Viewport concept | 2026-09-22 | --- | 2026-09-22 | 12.8 KB | README |
 | 19 | `docs/design/content_viewer_mockups_2026-07-12/README.md` | Content Viewer Design Mockups | 2026-09-08 | --- | 2026-09-08 | 2.2 KB | README |
-| 20 | `docs/design/dialog-guidelines/README.md` | Dialog design and implementation rules | 2026-10-03 | --- | 2026-10-03 | 6.7 KB | README |
+| 20 | `docs/design/dialog-guidelines/README.md` | Dialog design and implementation rules | 2026-10-03 | --- | 2026-10-03 | 6.8 KB | README |
 | 21 | `docs/design/dope-sheet/README.md` | dope-sheet image mockup | 2026-09-08 | ** 初期実装へ反映済み。ランタイム確認は未実施。 | 2026-09-08 | 1.9 KB | README |
 | 22 | `docs/design/effect-picker/README.md` | Add Effect Dialog Concept | 2026-09-25 | --- | 2026-09-26 | 3.5 KB | README |
 | 23 | `docs/design/effect-rack/README.md` | エフェクトラック採用デザイン | 2026-09-07 | --- | 2026-09-08 | 4.4 KB | README |
 | 24 | `docs/design/environment-variable-editor/README.md` | Environment Variable Editor | 2026-09-22 | --- | 2026-09-22 | 0.5 KB | README |
 | 25 | `docs/design/exit-confirmation/README.md` | 保存・終了確認ダイアログ 採用リファレンス | 2026-09-07 | --- | 2026-09-08 | 1.3 KB | README |
-| 26 | `docs/design/export-destination-picker/README.md` | Export Destination Picker 採用モック | 2026-09-12 | --- | 2026-09-14 | 1.5 KB | README |
+| 26 | `docs/design/export-destination-picker/README.md` | Export Destination Picker 採用モック | 2026-09-12 | --- | 2026-09-14 | 1.6 KB | README |
 | 27 | `docs/design/font-picker/README.md` | font-picker image mockup | 2026-09-08 | ** 初期実装へ反映済み。ランタイム確認は未実施。 | 2026-09-08 | 2.0 KB | README |
 | 28 | `docs/design/import-assets-dialog/README.md` | Import Assets dialog design reference | 2026-09-09 | --- | 2026-09-10 | 1.4 KB | README |
 | 29 | `docs/design/interface-tone-review-2026-10-16/README.md` | Interface tone review | 2026-10-16 | ** 検討用モック。未採用・未実装。 | 2026-10-16 | 2.3 KB | README |
 | 30 | `docs/design/interface-tone-review-2026-10-16/themes/README.md` | Theme candidates | 2026-10-16 | ** 03 Modo Graphite の配色方向をユーザー依頼により既存 ModoStyle へ反映。実行時確認待ち。他4案は未採用・未実装。 | 2026-10-16 | 4.0 KB | README |
 | 31 | `docs/design/key-pattern-dialog/README.md` | Key Pattern Dialog concept | 2026-09-10 | --- | 2026-09-10 | 0.5 KB | README |
 | 32 | `docs/design/light-layer-dialog/README.md` | Light Layer Dialog design | 2026-09-09 | --- | 2026-09-10 | 2.2 KB | README |
-| 33 | `docs/design/lut-color-reference-picker/README.md` | LUT & Color Reference Picker 採用モック | 2026-09-12 | --- | 2026-09-14 | 2.0 KB | README |
+| 33 | `docs/design/lut-color-reference-picker/README.md` | LUT & Color Reference Picker 採用モック | 2026-09-12 | --- | 2026-09-14 | 2.1 KB | README |
 | 34 | `docs/design/media-import-picker/README.md` | Media Import Picker 採用モック | 2026-09-12 | --- | 2026-09-14 | 2.9 KB | README |
-| 35 | `docs/design/motion-path/README.md` | モーションパス直接編集モックアップ | 2026-09-07 | --- | 2026-09-08 | 1.1 KB | README |
+| 35 | `docs/design/motion-path/README.md` | モーションパス直接編集モックアップ | 2026-09-07 | --- | 2026-09-08 | 1.2 KB | README |
 | 36 | `docs/design/noise-layer-dialog/README.md` | Noise Layer Dialog design | 2026-09-09 | --- | 2026-09-09 | 0.9 KB | README |
 | 37 | `docs/design/object-picker-dialog/README.md` | Object Picker dialog design reference | 2026-09-09 | --- | 2026-09-10 | 1.0 KB | README |
 | 38 | `docs/design/playback-controls/README.md` | プレイバックコントロール採用デザイン | 2026-09-07 | --- | 2026-09-07 | 3.0 KB | README |
@@ -426,17 +427,17 @@
 | 40 | `docs/design/project-open-picker/README.md` | Project Open Picker 採用モック | 2026-09-26 | --- | 2026-09-26 | 3.3 KB | README |
 | 41 | `docs/design/project-view-improvement-2026-09-26/README.md` | Project View 改善Ver（2026-09-26） | 2026-09-26 | --- | 2026-09-26 | 2.7 KB | README |
 | 42 | `docs/design/project_asset_view_mockups_2026-07-12/README.md` | Project View / Asset Browser Design References | --- | --- | 2026-07-12 | 0.7 KB | README |
-| 43 | `docs/design/project_view_redesign_2026-09-08/README.md` | Project View Redesign Concepts | 2026-09-21 | --- | 2026-09-21 | 3.9 KB | README |
+| 43 | `docs/design/project_view_redesign_2026-09-08/README.md` | Project View Redesign Concepts | 2026-09-21 | --- | 2026-09-21 | 4.0 KB | README |
 | 44 | `docs/design/project_view_redesign_2026-09-08/TREE_RUNTIME_REVIEW_2026-09-21.md` | Project View Tree runtime review | 2026-09-21 | --- | 2026-09-21 | 3.2 KB | TREE, RUNTIME, REVIEW |
 | 45 | `docs/design/quick-layer-creation-dialog/README.md` | Quick Layer Creation Dialog design | 2026-09-09 | --- | 2026-09-10 | 1.1 KB | README |
-| 46 | `docs/design/rename-dialog/README.md` | Rename dialog design reference | 2026-09-21 | --- | 2026-09-21 | 3.7 KB | README |
+| 46 | `docs/design/rename-dialog/README.md` | Rename dialog design reference | 2026-09-21 | --- | 2026-09-21 | 3.8 KB | README |
 | 47 | `docs/design/render-manager/README.md` | Render Manager redesign | 2026-09-07 | In Progress | 2026-09-09 | 3.7 KB | README |
 | 48 | `docs/design/resolution-remap-dialog/README.md` | Resolution Remap dialog design reference | 2026-09-09 | --- | 2026-09-10 | 0.9 KB | README |
 | 49 | `docs/design/screenshot-export-dialog/README.md` | Screenshot Export Dialog design | 2026-09-09 | --- | 2026-09-09 | 0.9 KB | README |
 | 50 | `docs/design/shortcuts/keyboard-overlay-concept-2026-10-08.md` | Keyboard Overlay モックアップ | 2026-10-08 | --- | 2026-10-09 | 2.9 KB | keyboard, overlay, concept, 2026 |
 | 51 | `docs/design/solid-create-dialog/README.md` | Solid creation dialog | 2026-09-07 | --- | 2026-09-07 | 1.0 KB | README |
-| 52 | `docs/design/status-bar/README.md` | Status Bar design reference | 2026-09-09 | --- | 2026-09-09 | 2.1 KB | README |
-| 53 | `docs/design/timeline/README.md` | 通常タイムライン採用デザイン | 2026-09-26 | ** デザイン採用・画像保存済み。Diligent表示面を既定表示へ切り替え、実装を開始した。今回の保存は実装完了を意味しない。 | 2026-09-26 | 10.1 KB | README |
+| 52 | `docs/design/status-bar/README.md` | Status Bar design reference | 2026-09-09 | --- | 2026-09-09 | 2.2 KB | README |
+| 53 | `docs/design/timeline/README.md` | 通常タイムライン採用デザイン | 2026-09-26 | ** デザイン採用・画像保存済み。Diligent表示面を既定表示へ切り替え、実装を開始した。今回の保存は実装完了を意味しない。 | 2026-09-26 | 10.2 KB | README |
 | 54 | `docs/design/timeline-curve-editor/README.md` | Timeline curve editor reference | 2026-10-09 | --- | 2026-10-09 | 1.9 KB | README |
 | 55 | `docs/design/timeline-layer-panel/README.md` | タイムライン左ペイン採用デザイン | 2026-09-25 | --- | 2026-09-26 | 4.0 KB | README |
 | 56 | `docs/design/timeline-range-controls/README.md` | Timeline Range Controls | 2026-09-07 | --- | 2026-09-08 | 0.7 KB | README |
@@ -447,8 +448,8 @@
 | 61 | `docs/design/viewport-full-gizmo/README.md` | Compact Full Gizmo | 2026-09-07 | --- | 2026-09-07 | 1.6 KB | README |
 | 62 | `docs/design/viewport-rotation-gizmo/README.md` | Viewport rotation gizmo | 2026-09-07 | --- | 2026-09-07 | 0.9 KB | README |
 | 63 | `docs/design/viewport-scale-gizmo/README.md` | Viewport scale gizmo | 2026-09-07 | --- | 2026-09-07 | 0.9 KB | README |
-| 64 | `docs/design/viewport-volume-gizmo/README.md` | 立体モデル用バウンディングボックス・ギズモ | 2026-09-07 | --- | 2026-09-08 | 1.6 KB | README |
-| 65 | `docs/design/welcome-widget/README.md` | Welcome Widget concept | 2026-09-10 | --- | 2026-09-10 | 0.4 KB | README |
+| 64 | `docs/design/viewport-volume-gizmo/README.md` | 立体モデル用バウンディングボックス・ギズモ | 2026-09-07 | --- | 2026-09-08 | 1.7 KB | README |
+| 65 | `docs/design/welcome-widget/README.md` | Welcome Widget concept | 2026-09-10 | --- | 2026-09-10 | 0.5 KB | README |
 
 ## done (100 files)
 
@@ -580,7 +581,7 @@
 | 2 | `docs/memo/BUG_3D_LAYER_VP_RENDER_2026-07-31.md` | 3DレイヤーがVPに正常に描画されない不具合 調査メモ | 2026-07-31 | 調査中 — 2026-08-04 追記で「フレームギズモは出る / メッシュ本体が不可視」に絞り込み。原因は MeshRenderer（三角形パイプライン）側、とくにバックフェイスカリングの巻き順不一致を最有力候補とする。 | 2026-08-06 | 10.3 KB | BUG, LAYER, RENDER |
 | 3 | `docs/memo/BUG_TIMELINE_PLAYHEAD_OFFSET_2026-07-31.md` | タイムライン右パネル プレイヘッド描画ずれ 調査メモ | 2026-07-31 | --- | 2026-08-03 | 5.4 KB | BUG, TIMELINE, PLAYHEAD, OFFSET |
 | 4 | `docs/memo/OCIO_MISSING_FEATURES_2026-08-01.md` | OCIO 不足機能 メモ | 2026-08-01 | --- | 2026-08-03 | 11.3 KB | OCIO, MISSING, FEATURES |
-| 5 | `docs/memo/PREVIEW_LAG_AND_LAYER_PHYSICS_2026-09-07.md` | プレビューもたつき + レイヤー物理 Gap メモ | 2026-09-07 | --- | 2026-09-08 | 7.7 KB | PREVIEW, LAG, AND, LAYER, PHYSICS |
+| 5 | `docs/memo/PREVIEW_LAG_AND_LAYER_PHYSICS_2026-09-07.md` | プレビューもたつき + レイヤー物理 Gap メモ | 2026-09-07 | --- | 2026-09-08 | 7.8 KB | PREVIEW, LAG, AND, LAYER, PHYSICS |
 
 ## perf (3 files)
 
@@ -603,33 +604,33 @@
 | 1 | `docs/planned/2D_RIG_CORE_CONTRACT_2026-04-29.md` | 2D Rig Core Contract Note - 2026-04-29 | 2026-04-29 | --- | 2026-08-16 | 5.7 KB | RIG, CORE, CONTRACT |
 | 2 | `docs/planned/AI_TOOL_DSL_IMPLEMENTATION_GUIDE_2026-04-05.md` | AI Tool DSL Implementation Guide | 2026-04-05 | --- | 2026-04-10 | 17.0 KB | TOOL, DSL, IMPLEMENTATION, GUIDE |
 | 3 | `docs/planned/AIDAW_MIDI_AI_MVP.md` | AIDAW MIDI AI MVP | 2026-09-09 | ** 設計中 | 2026-09-09 | 4.8 KB | AIDAW, MIDI, MVP |
-| 4 | `docs/planned/ARTIFACT_ABSTRACT_LAYER_DECOMPOSITION_2026-09-21.md` | ArtifactAbstractLayer 段階分割計画 | 2026-09-23 | --- | 2026-09-23 | 23.0 KB | ARTIFACT, ABSTRACT, LAYER, DECOMPOSITION |
+| 4 | `docs/planned/ARTIFACT_ABSTRACT_LAYER_DECOMPOSITION_2026-09-21.md` | ArtifactAbstractLayer 段階分割計画 | 2026-09-23 | --- | 2026-09-23 | 23.3 KB | ARTIFACT, ABSTRACT, LAYER, DECOMPOSITION |
 | 5 | `docs/planned/ARTIFACT_IRENDERER_ANALYSIS_2026-04-17.md` | ArtifactIRenderer インターフェース & 実装 分析レポート | 2026-04-17 | --- | 2026-04-18 | 35.4 KB | ARTIFACT, IRENDERER, ANALYSIS |
 | 6 | `docs/planned/CLASS_DICTIONARY_DEPENDENCY_RESPONSIBILITY_2026-04-17.md` | ArtifactStudio クラス辞典・依存マップ・責務表 | 2026-04-17 | ⚠️ 実装未完（インターフェースのみ） | 2026-04-18 | 19.3 KB | CLASS, DICTIONARY, DEPENDENCY, RESPONSIBILITY |
 | 7 | `docs/planned/COLOR_SYSTEM_ANALYSIS_2026-04-17.md` | ArtifactCore カラーシステム分析レポート | 2026-04-17 | --- | 2026-09-08 | 29.4 KB | COLOR, SYSTEM, ANALYSIS |
 | 8 | `docs/planned/COMPOSITION_PRECOMPOSE_ANALYSIS_2026-04-17.md` | Composition システムと PreCompose システム分析 | 2026-04-17 | --- | 2026-04-18 | 32.5 KB | COMPOSITION, PRECOMPOSE, ANALYSIS |
 | 9 | `docs/planned/COMPOSITION_RENDER_CONTROLLER_ANALYSIS_2026-04-17.md` | `ArtifactCompositionRenderController` クラス分析報告書 | 2026-04-17 | --- | 2026-04-18 | 22.1 KB | COMPOSITION, RENDER, CONTROLLER, ANALYSIS |
-| 10 | `docs/planned/DESIGN_INTERACTIVE_RENDER_REGION_2026-09-22.md` | Design — Interactive Render Region (IRR) 設計統合 | 2026-09-22 | 設計のみ。実装は未着手。着手前提はビルド・実機確認の許可後。 | 2026-09-22 | 13.7 KB | DESIGN, INTERACTIVE, RENDER, REGION |
+| 10 | `docs/planned/DESIGN_INTERACTIVE_RENDER_REGION_2026-09-22.md` | Design — Interactive Render Region (IRR) 設計統合 | 2026-09-22 | 設計のみ。実装は未着手。着手前提はビルド・実機確認の許可後。 | 2026-09-22 | 14.0 KB | DESIGN, INTERACTIVE, RENDER, REGION |
 | 11 | `docs/planned/DIFFRACTION_GLARE_IMPLEMENTATION_2026-08-13.md` | FFT 回折グレア（光芒・まつ毛・ハロ）実装 手順書 | 2026-08-13 | --- | 2026-08-16 | 16.4 KB | DIFFRACTION, GLARE, IMPLEMENTATION |
 | 12 | `docs/planned/DILIGENT_RENDER_EXTENSION_REPORT_2026-06-17.md` | Diligent レンダリング拡充 — 実装報告書 | 2026-06-17 | --- | 2026-06-17 | 11.5 KB | DILIGENT, RENDER, EXTENSION, REPORT |
 | 13 | `docs/planned/EDITOR_RENDER_RULES.md` | Editor / Render Rules | --- | --- | 2026-06-24 | 3.8 KB | EDITOR, RENDER, RULES |
 | 14 | `docs/planned/FEATURE_EFFECT_LEVEL_MASK_2026-07-02.md` | エフェクト単位の個別マスク設定 | 2026-07-02 | ** 実装済み・実機未確認 | 2026-07-14 | 3.8 KB | FEATURE, EFFECT, LEVEL, MASK |
 | 15 | `docs/planned/GROUP_CONTAINER_MIGRATION_PLAN_2026-08-27.md` | GroupContainer 移行計画 | 2026-08-27 | Phase 0 / 1 実装済み、Phase 2 は独立GroupContainerの作成・保存・Timeline表示・switch列まで部分実装。展開状態の永続化は追加実装。Render Boundary移行は未着手 | 2026-10-01 | 10.2 KB | GROUP, CONTAINER, MIGRATION, PLAN |
-| 16 | `docs/planned/HIEROPLAYER_VIEWER_INSPECTION_PRESTUDY_2026-09-26.md` | HieroPlayer 由来「Viewer Inspection Controls」導入前検討 | 2026-09-26 | 導入前検討（コード変更なし・ビルド未実施） | 2026-09-26 | 17.9 KB | HIEROPLAYER, VIEWER, INSPECTION, PRESTUDY |
+| 16 | `docs/planned/HIEROPLAYER_VIEWER_INSPECTION_PRESTUDY_2026-09-26.md` | HieroPlayer 由来「Viewer Inspection Controls」導入前検討 | 2026-09-26 | 導入前検討（コード変更なし・ビルド未実施） | 2026-09-26 | 18.2 KB | HIEROPLAYER, VIEWER, INSPECTION, PRESTUDY |
 | 17 | `docs/planned/IMPLEMENTATION_ANIMATION_PHYSICS_2026-03-22.md` | Animation-Style Physics for Layer Transforms — Implementation Proposal | 2026-03-22 | --- | 2026-03-22 | 13.3 KB | IMPLEMENTATION, ANIMATION, PHYSICS |
 | 18 | `docs/planned/IMPLEMENTATION_PLAN_MULTI_VIEWPORT_2026-06-02.md` | Implementation Plan: Multi-Viewport Layout System (M-VP-1) | 2026-06-02 | --- | 2026-06-02 | 16.3 KB | IMPLEMENTATION, PLAN, MULTI, VIEWPORT |
 | 19 | `docs/planned/IMPLEMENTATION_PLAN_MULTI_VIEWPORT_2026-06-27.md` | Implementation Plan: Multi-Viewport Layout System (M-VP-1) | 2026-06-27 | --- | 2026-07-25 | 17.8 KB | IMPLEMENTATION, PLAN, MULTI, VIEWPORT |
 | 20 | `docs/planned/IMPLEMENTATION_PLAN_VIEWPORT_PANE_MANAGER_2026-06-28.md` | Implementation Plan: Viewport Pane Manager Migration (M-VP-2) | 2026-06-28 | --- | 2026-06-29 | 9.3 KB | IMPLEMENTATION, PLAN, VIEWPORT, PANE, MANAGER |
 | 21 | `docs/planned/IMPROVEMENT_SUGGESTIONS.md` | Artifact ドラッグ&ドロップ・ワークフロー改善提案 | --- | --- | 2026-03-20 | 6.5 KB | IMPROVEMENT, SUGGESTIONS |
 | 22 | `docs/planned/LAYER_MASK_ANALYSIS_2026-04-17.md` | LayerMask クラス分析レポート | 2026-04-17 | --- | 2026-04-18 | 14.5 KB | LAYER, MASK, ANALYSIS |
-| 23 | `docs/planned/LAYER_SIMULATION_TRANSFER_ATTRIBUTES_DESIGN_2026-10-15.md` | レイヤー粒子化・シミュレーション間接続・属性設計メモ | 2026-10-15 | ** 独立コアの初期実装あり（実アプリ未接続・コンパイル／実行未検証） | 2026-10-15 | 11.1 KB | LAYER, SIMULATION, TRANSFER, ATTRIBUTES, DESIGN |
+| 23 | `docs/planned/LAYER_SIMULATION_TRANSFER_ATTRIBUTES_DESIGN_2026-10-15.md` | レイヤー粒子化・シミュレーション間接続・属性設計メモ | 2026-10-15 | ** 独立コアの初期実装あり（実アプリ未接続・コンパイル／実行未検証） | 2026-10-15 | 11.0 KB | LAYER, SIMULATION, TRANSFER, ATTRIBUTES, DESIGN |
 | 24 | `docs/planned/LIBRARY_SPLIT_PROPOSAL_2026-08-12.md` | ライブラリ分割提案（第2段階） | 2026-08-13 | In Progress（P1/P2/P3/P4/P5/P6/P7/P8/P9/P10/P11/P12/P13/P14/P15/P16/P17/P18/P19/P20/P21/P22/P23/P24/P25/P26/P27/P28/P29/P30/P31/P32/P33/P34/P35/P36/P37/P38/P39/P40/P41/P42/P43/P44/P45/P46/P47/P48/P49/P50/P51/P52/P53/P54/P55/P56/P57/P58/P59/P60/P61/P62/P63/P64/P65/P66/P67/P68/P69/P70/P71/P72/P73/P74/P75/P76/P77/P78/P79/P80/P81/P82/P83/P84/P85/P86/P87/P88/P89/P90/P91/P92/P93/P94/P95/P96/P97/P98/P99/P100/P101/P102/P103/P104/P105 CMake分割実装済み・ビルド未検証） | 2026-08-13 | 53.7 KB | LIBRARY, SPLIT, PROPOSAL |
 | 25 | `docs/planned/MILESTONE_2D_COLLIDER_VIEWPORT_EDIT_2026-09-19.md` | M-COLLIDER-VP-1: 2D Collider Viewport Edit | 2026-10-02 | ** Phase 0 実装完了。Coreの値DTOとレイヤーの一括適用入口に加え、Layer Editorの読み取り専用輪郭プレビューを確認。専用編集モード、ハンドル、入力、Undo接続、実機検証は未完了。 | 2026-10-02 | 5.9 KB | COLLIDER, VIEWPORT, EDIT |
 | 26 | `docs/planned/MILESTONE_2D_DEFORMER_2026-09-23.md` | 2D デフォーマ統合計画 | 2026-10-02 | In Progress | 2026-10-02 | 15.1 KB | DEFORMER |
 | 27 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-02.md` | M-MOTION-1 2D Point Tracker (2026-06-02) | 2026-08-04 | --- | 2026-08-06 | 6.4 KB | POINT, TRACKER |
 | 28 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-16.md` | M-2DTRACK-1 2D Point Tracker Milestone | 2026-06-16 | --- | 2026-08-16 | 18.9 KB | POINT, TRACKER |
 | 29 | `docs/planned/MILESTONE_3D_COMPOSITING_2026-07-08.md` | Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08) | 2026-07-08 | In Progress | 2026-10-15 | 13.0 KB | COMPOSITING |
-| 30 | `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md` | MILESTONE: 3D Material System | 2026-10-14 | Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用、RT triangleごとのscalar material slot選択、RT UV伝搬、AO／base color／metallic-roughness／normal／independent coat-normal／clearcoat factor／clearcoat roughness／sheen color／sheen roughness／anisotropy／emission map samplingとray-coneによるtexture mip選択、linear float Base Color TextureのsRGB storage encoding、Raster複数slotのscalar Principled定数とslot別texture SRV切替、Masked材質のshadow alpha clip、material range別alpha pass、Principled specular tint、dielectric thin-film interference（RGB 3波長近似、反射と透過のエネルギー配分）、異方性direct／IBL反射、Disney/Burley diffuse、Cycles風 diffuse roughnessのdirect single／multi-scatter energy補償近似、subsurface weight／IOR／color/radius／anisotropyによるFresnel・散乱方向制御（厚みを追跡しない高速近似）、coat normal varianceによるroughness filtering、coatがsheenと基材反射・透過より上にあるdirect／IBL energy ordering、Emissionのcoat／sheen層下配置に対応する視線方向energy attenuation、Base Color／Metallic-Roughness／Normal／Coat Normal／Clearcoat factor／Clearcoat roughness／Sheen color／Sheen roughness／Anisotropy／Occlusion／Emission／OpacityのUV0／UV1選択、ufbx/glTFおよびOBJ/MTLのmaterial table単位Principled scalar／tint／texture importと、material partごとのRaster／RT slot mappingはコード実装済み。独立 Material Browser／asset 管理、高度 mapping、実制作mesh/HDRでのRaster／RT parityは pending。Raster／RT shader変更後build/runtime verificationも pending。 | 2026-10-14 | 60.4 KB | MATERIAL, SYSTEM |
+| 30 | `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md` | MILESTONE: 3D Material System | 2026-10-14 | Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用、RT triangleごとのscalar material slot選択、RT UV伝搬、AO／base color／metallic-roughness／normal／independent coat-normal／clearcoat factor／clearcoat roughness／sheen color／sheen roughness／anisotropy／emission map samplingとray-coneによるtexture mip選択、linear float Base Color TextureのsRGB storage encoding、Raster複数slotのscalar Principled定数とslot別texture SRV切替、Masked材質のshadow alpha clip、material range別alpha pass、Principled specular tint、dielectric thin-film interference（RGB 3波長近似、反射と透過のエネルギー配分）、異方性direct／IBL反射、Disney/Burley diffuse、Cycles風 diffuse roughnessのdirect single／multi-scatter energy補償近似、subsurface weight／IOR／color/radius／anisotropyによるFresnel・散乱方向制御（厚みを追跡しない高速近似）、coat normal varianceによるroughness filtering、coatがsheenと基材反射・透過より上にあるdirect／IBL energy ordering、Emissionのcoat／sheen層下配置に対応する視線方向energy attenuation、Base Color／Metallic-Roughness／Normal／Coat Normal／Clearcoat factor／Clearcoat roughness／Sheen color／Sheen roughness／Anisotropy／Occlusion／Emission／OpacityのUV0／UV1選択、ufbx/glTFおよびOBJ/MTLのmaterial table単位Principled scalar／tint／texture importと、material partごとのRaster／RT slot mappingはコード実装済み。独立 Material Browser／asset 管理、高度 mapping、実制作mesh/HDRでのRaster／RT parityは pending。Raster／RT shader変更後build/runtime verificationも pending。 | 2026-10-14 | 60.9 KB | MATERIAL, SYSTEM |
 | 31 | `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md` | マイルストーン: 3D Model Import and Contents Viewer Integration | 2026-03-29 | ** Phase 1〜4 は実装済み、Phase 5 は拡張余地と runtime 検証が残る。 | 2026-08-21 | 10.0 KB | MODEL, IMPORT, AND, CONTENTS |
 | 32 | `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md` | マイルストーン: 3D Model Review in Contents Viewer | 2026-08-04 | --- | 2026-08-06 | 8.1 KB | MODEL, REVIEW, CONTENTS |
 | 33 | `docs/planned/MILESTONE_3D_ROTATION_MODEL_2026-08-14.md` | 3Dレイヤー回転モデルの3軸化 | 2026-08-15 | --- | 2026-08-16 | 3.5 KB | ROTATION, MODEL |
@@ -641,7 +642,7 @@
 | 39 | `docs/planned/MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md` | 3D Viewport Stabilization: Solid / Camera / Overlay | 2026-08-04 | ** Phase 1、Phase 3、Phase 4 は実装済み。Phase 2 は主要経路を実装済みだが、viewer/editor 間の完全統一と実機検証が未完了。 | 2026-08-06 | 10.5 KB | VIEWPORT, SOLID, CAMERA, OVERLAY |
 | 40 | `docs/planned/MILESTONE_ACCESSIBILITY_2026-03-28.md` | アクセシビリティ改善 Milestone | 2026-08-04 | 部分実装（キーボードフォーカス基盤・スクリーンリーダーラベルは主要UIへ適用、全操作検証待ち） | 2026-08-06 | 8.7 KB | ACCESSIBILITY |
 | 41 | `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Milestone: Accessibility and Left-Handed UI Support (M-ACC-1) | 2026-06-28 | Phase 1〜2 の静的実装は主要ウィジェットへ適用済み — runtime 検証、RTL レイアウト、Phase 3 の全体統合は未完了 | 2026-08-16 | 31.2 KB | ACCESSIBILITY, AND, LEFT, HANDED |
-| 42 | `docs/planned/MILESTONE_ACCESSIBILITY_FOUNDATION_2026-08-08.md` | Accessibility Foundation (2026-08-08) | 2026-08-08 | ** 設定・UI・一部入力統合に加え、各 menu の標準 QAction セマンティクス（Phase 7 初期実装）を追加。Composition Viewport の常設操作にキーボード活性化、大ターゲット、主要状態のアクセシブル通知を追加。ビューポート拡大鏡（Phase 5）を実装（静的・実機受入れは未完了）。 | 2026-09-21 | 18.3 KB | ACCESSIBILITY, FOUNDATION |
+| 42 | `docs/planned/MILESTONE_ACCESSIBILITY_FOUNDATION_2026-08-08.md` | Accessibility Foundation (2026-08-08) | 2026-08-08 | ** 設定・UI・一部入力統合に加え、各 menu の標準 QAction セマンティクス（Phase 7 初期実装）を追加。Composition Viewport の常設操作にキーボード活性化、大ターゲット、主要状態のアクセシブル通知を追加。ビューポート拡大鏡（Phase 5）を実装（静的・実機受入れは未完了）。 | 2026-09-21 | 18.6 KB | ACCESSIBILITY, FOUNDATION |
 | 43 | `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md` | Active Implementation Triad / May 2026 | 2026-05-12 | --- | 2026-08-16 | 5.7 KB | ACTIVE, IMPLEMENTATION, TRIAD |
 | 44 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md` | MILESTONE: Ad Production Accelerator | 2026-05-28 | --- | 2026-08-16 | 8.3 KB | PRODUCTION, ACCELERATOR |
 | 45 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE1_EXECUTION_2026-05-29.md` | Ad Production Accelerator - Phase 1 Execution | 2026-08-04 | --- | 2026-08-06 | 6.8 KB | PRODUCTION, ACCELERATOR, PHASE1, EXECUTION |
@@ -690,7 +691,7 @@
 | 88 | `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_PHASE2_2026-04-21.md` | MILESTONE: AI Workflow Automation Phase 2 | 2026-08-04 | ** Phase 2-1 の snapshot 基盤と Phase 2-4 の confirmation／approval 接続は部分実装。派生 summary／統一 SafeWriteResult／before-after dry-run payload は未完了。 | 2026-08-06 | 3.9 KB | WORKFLOW, AUTOMATION, PHASE2 |
 | 89 | `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_PHASE3_2026-04-21.md` | MILESTONE: AI Workflow Automation - Phase 3 Execution | 2026-08-04 | ** Queue snapshot／control／explanation の API と schema 検査は実装済み。実 UI／render service 接続の runtime 検証待ち。 | 2026-08-06 | 2.4 KB | WORKFLOW, AUTOMATION, PHASE3 |
 | 90 | `docs/planned/MILESTONE_AI_WORKSPACE_AUTOMATION_2026-04-10.md` | AI Workspace Automation Milestone | 2026-08-04 | ** Phase 1〜3 は実装済み。schema／mutation／confirmation の static 検証済み、runtime 実行確認待ち。 | 2026-08-06 | 1.9 KB | WORKSPACE, AUTOMATION |
-| 91 | `docs/planned/MILESTONE_ALEMBIC_PREPARATION_2026-09-06.md` | Alembic対応準備メモ | 2026-09-06 | ** 準備・設計のみ。依存追加、実装、ビルド、テストは未実施。 | 2026-09-07 | 9.7 KB | ALEMBIC, PREPARATION |
+| 91 | `docs/planned/MILESTONE_ALEMBIC_PREPARATION_2026-09-06.md` | Alembic対応準備メモ | 2026-09-06 | ** 準備・設計のみ。依存追加、実装、ビルド、テストは未実施。 | 2026-09-07 | 9.8 KB | ALEMBIC, PREPARATION |
 | 92 | `docs/planned/MILESTONE_ANIMATED_IMAGE_EXPORT_2026-03-27.md` | マイルストーン: Animated Image Export | 2026-03-27 | ** Phase 1〜4 は実装済み、Phase 5 は部分実装。実ファイル出力と品質／alpha 検証待ち。 | 2026-08-16 | 6.8 KB | ANIMATED, IMAGE, EXPORT |
 | 93 | `docs/planned/MILESTONE_ANIMATION_DYNAMICS_CORE_2026-03-28.md` | Animation Dynamics Core Milestone | 2026-03-28 | ** Phase 0〜3 の主要基盤は実装済み。高度な layer/channel UI と runtime／回帰検証が残る。 | 2026-08-16 | 9.5 KB | ANIMATION, DYNAMICS, CORE |
 | 94 | `docs/planned/MILESTONE_ANIMATION_DYNAMICS_UI_2026-03-28.md` | マイルストーン: Animation Dynamics UI Surface | 2026-03-28 | --- | 2026-08-16 | 6.1 KB | ANIMATION, DYNAMICS |
@@ -729,9 +730,9 @@
 | 127 | `docs/planned/MILESTONE_ARTIFACTPR_INDEPENDENT_PROJECT_2026-04-22.md` | MILESTONE: ArtifactPr Independent Project | 2026-09-27 | --- | 2026-09-27 | 8.5 KB | ARTIFACTPR, INDEPENDENT, PROJECT |
 | 128 | `docs/planned/MILESTONE_ARTIFACTPR_SEQUENCE_PREVIEW_2026-08-21.md` | MILESTONE: ArtifactPr シーケンス合成プレビュー | 2026-08-21 | --- | 2026-08-24 | 8.2 KB | ARTIFACTPR, SEQUENCE, PREVIEW |
 | 129 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_BINDING_AND_CLASS_2026-08-28.md` | マイルストーン: ArtifactScript Binding API 強化 & クラス対応（Phase 2/3 実走） | 2026-10-19 | Phase A / C + プロパティ／キーフレーム API 拡充（スライス1〜3）実装済み、Phase B / D〜H 未着手。ArtifactScript 系 5 テストのビルドと ctest 実行済み（全緑、164 件 PASS） | 2026-10-20 | 15.7 KB | ARTIFACTSCRIPT, BINDING, AND, CLASS |
-| 130 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_COROUTINES_2026-10-09.md` | マイルストーン: ArtifactScript 協調型コルーチン | 2026-10-09 | Not Started | 2026-10-10 | 5.8 KB | ARTIFACTSCRIPT, COROUTINES |
+| 130 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_COROUTINES_2026-10-09.md` | マイルストーン: ArtifactScript 協調型コルーチン | 2026-10-09 | Not Started | 2026-10-10 | 5.9 KB | ARTIFACTSCRIPT, COROUTINES |
 | 131 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md` | MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21 | 2026-07-21 | --- | 2026-08-16 | 3.2 KB | ARTIFACTSCRIPT, ENGINE |
-| 132 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` | マイルストーン: ArtifactScript Language Evolution | 2026-10-09 | In Progress | 2026-10-10 | 45.3 KB | ARTIFACTSCRIPT, LANGUAGE, EVOLUTION |
+| 132 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` | マイルストーン: ArtifactScript Language Evolution | 2026-10-09 | In Progress | 2026-10-10 | 45.5 KB | ARTIFACTSCRIPT, LANGUAGE, EVOLUTION |
 | 133 | `docs/planned/MILESTONE_ASIO_STUB_IMPLEMENTATION_PLAN_2026-03-28.md` | ASIO スタブ実装 計画案 | 2026-03-28 | ASIO stub 実装済み・実機検証待ち | 2026-08-16 | 13.0 KB | ASIO, STUB, IMPLEMENTATION, PLAN |
 | 134 | `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md` | MILESTONE: Aspect Ratio / Resolution Remap Wizard - 2026-06-07 | 2026-06-07 | --- | 2026-08-16 | 8.5 KB | ASPECT, RATIO, RESOLUTION, REMAP, WIZARD |
 | 135 | `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md` | Milestone: Asset Browser Advanced Sort (M-AB-11) | 2026-06-28 | Partial implementation（単一キー／natural name／固定複合 preset／sort key・方向の設定保存を実装、個別方向の multi-key／custom order／runtime 検証 pending） | 2026-08-16 | 50.8 KB | ASSET, BROWSER, ADVANCED, SORT |
@@ -760,7 +761,7 @@
 | 158 | `docs/planned/MILESTONE_AUDIO_MIXER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: オーディオミキサー 機能監査 (2026-07-04) | 2026-08-04 | --- | 2026-08-16 | 3.4 KB | AUDIO, MIXER, DESIGN, AUDIT |
 | 159 | `docs/planned/MILESTONE_AUDIO_MIXER_SURFACE_PHASE2_2026-05-25.md` | マイルストーン: Audio Mixer Surface Phase 2 | 2026-08-04 | Partial（Phase 1 mixer surface 基礎実装済み、routing／waveform／永続化と runtime 検証待ち、静的確認 2026-07-29） | 2026-08-06 | 3.3 KB | AUDIO, MIXER, SURFACE, PHASE2 |
 | 160 | `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md` | マイルストーン: Audio Playback Stabilization | 2026-08-15 | --- | 2026-08-16 | 9.1 KB | AUDIO, PLAYBACK, STABILIZATION |
-| 161 | `docs/planned/MILESTONE_AUDIO_PLUGIN_EDITOR_WINDOWS_2026-09-24.md` | Audio Plugin Editor Windows Milestone | 2026-09-24 | In Progress | 2026-09-24 | 8.1 KB | AUDIO, PLUGIN, EDITOR, WINDOWS |
+| 161 | `docs/planned/MILESTONE_AUDIO_PLUGIN_EDITOR_WINDOWS_2026-09-24.md` | Audio Plugin Editor Windows Milestone | 2026-09-24 | In Progress | 2026-09-24 | 8.2 KB | AUDIO, PLUGIN, EDITOR, WINDOWS |
 | 162 | `docs/planned/MILESTONE_AUDIO_REACTOR_SYSTEM_2026-03-30.md` | Milestone: Audio Reactor System (M-AU-6) | 2026-08-15 | --- | 2026-08-16 | 6.4 KB | AUDIO, REACTOR, SYSTEM |
 | 163 | `docs/planned/MILESTONE_AUDIO_ROUTING_DEPTH_2026-08-20.md` | MILESTONE: オーディオ・ルーティング深度の充実（Group/Return/Sidechain/VCA/Pre-Fader Send） | 2026-08-20 | --- | 2026-08-21 | 11.0 KB | AUDIO, ROUTING, DEPTH |
 | 164 | `docs/planned/MILESTONE_AUDIO_ROUTING_HARDENING_2026-08-10.md` | マイルストーン: Audio Routing Hardening | 2026-08-20 | Core/UI routing contract implemented / runtime parity pending | 2026-08-21 | 15.1 KB | AUDIO, ROUTING, HARDENING |
@@ -780,9 +781,9 @@
 | 178 | `docs/planned/MILESTONE_BATCH_RELINK_2026-08-14.md` | バッチ再リンク・一括参照更新 | 2026-08-15 | --- | 2026-08-16 | 4.7 KB | BATCH, RELINK |
 | 179 | `docs/planned/MILESTONE_BATCH_RENDERING_2026-03-28.md` | Milestone: バッチレンダリング (2026-03-28) | 2026-03-28 | --- | 2026-08-16 | 6.5 KB | BATCH, RENDERING |
 | 180 | `docs/planned/MILESTONE_BEHAVIOR_DRIVEN_PROPERTY_MOTION_2026-07-05.md` | Milestone: Behavior-Driven Property Motion (2026-07-05) | 2026-07-05 | 部分実装（Property Link／Audio Reactive の個別経路あり、共通 Behavior 契約は未整備） | 2026-08-16 | 14.1 KB | BEHAVIOR, DRIVEN, PROPERTY, MOTION |
-| 181 | `docs/planned/MILESTONE_BEHAVIOR_PARTICLE_LAYER_2026-09-02.md` | Behavior Particle Layer Milestone (2026-09-02) | 2026-09-02 | Not Started | 2026-09-03 | 10.5 KB | BEHAVIOR, PARTICLE, LAYER |
+| 181 | `docs/planned/MILESTONE_BEHAVIOR_PARTICLE_LAYER_2026-09-02.md` | Behavior Particle Layer Milestone (2026-09-02) | 2026-09-02 | Not Started | 2026-09-03 | 10.7 KB | BEHAVIOR, PARTICLE, LAYER |
 | 182 | `docs/planned/MILESTONE_BEYOND_AE_DIFFERENTIATION_2026-06-02.md` | M-BEYOND-AE After Effects にない Artifact だけの差別化機能 (2026-06-02) | 2026-06-02 | --- | 2026-08-16 | 17.1 KB | BEYOND, DIFFERENTIATION |
-| 183 | `docs/planned/MILESTONE_BITWIG_INSPIRED_MOTION_MODULATION_2026-09-22.md` | Bitwig-inspired Motion Modulation and Reusable Animation Blocks | 2026-09-22 | In Progress (Phase 0 監査・契約固定済み → Phase 1 実装済み → Phase 2 実装済み・ビルド待ち) | 2026-09-22 | 9.9 KB | BITWIG, INSPIRED, MOTION, MODULATION |
+| 183 | `docs/planned/MILESTONE_BITWIG_INSPIRED_MOTION_MODULATION_2026-09-22.md` | Bitwig-inspired Motion Modulation and Reusable Animation Blocks | 2026-09-22 | In Progress (Phase 0 監査・契約固定済み → Phase 1 実装済み → Phase 2 実装済み・ビルド待ち) | 2026-09-22 | 10.0 KB | BITWIG, INSPIRED, MOTION, MODULATION |
 | 184 | `docs/planned/MILESTONE_BROADCAST_MEDIA_FOUNDATION_2026-08-06.md` | 業務メディア基盤マイルストーン | 2026-08-06 | In Progress | 2026-08-16 | 6.5 KB | BROADCAST, MEDIA, FOUNDATION |
 | 185 | `docs/planned/MILESTONE_CAMERA_ENHANCEMENT_DOF_2026-07-09.md` | M-CAM: Camera Enhancement - Depth of Field / Lens Blur 設計マイルストーン（本格的移植版） | 2026-08-04 | Partial camera foundation / DOF render path not implemented | 2026-08-06 | 10.8 KB | CAMERA, ENHANCEMENT, DOF |
 | 186 | `docs/planned/MILESTONE_CAMERA_OVERLAY_EXPERIMENT_2026-04-02.md` | MILESTONE: Camera Overlay Experiment | 2026-08-04 | --- | 2026-08-06 | 3.5 KB | CAMERA, OVERLAY, EXPERIMENT |
@@ -791,15 +792,15 @@
 | 189 | `docs/planned/MILESTONE_CAPTION_SUBTITLE_2026-06-16.md` | M-CAPTION-1 Caption / Subtitle Milestone (SRT / WebVTT) | 2026-06-16 | --- | 2026-08-16 | 15.3 KB | CAPTION, SUBTITLE |
 | 190 | `docs/planned/MILESTONE_CHANNEL_BOX_2026-07-07.md` | M-CBOX-1 Channel Box + Maya-Style Property Editor Milestone | 2026-07-07 | --- | 2026-08-20 | 10.7 KB | CHANNEL, BOX |
 | 191 | `docs/planned/MILESTONE_CLAP_HOST_COMPLETION_2026-07-25.md` | MILESTONE_CLAP_HOST_COMPLETION_2026-07-25 | 2026-07-25 | In Progress — loader、params、GUI、state stream API、複数バス／sidechain音声処理、thread-check host extension、要求元別host request callbackとmain-thread callback dispatch、AudioMixer結合スモークを実装。restart/process要求の実サービス処理と実プラグイン互換を含むruntime受入が残る。 | 2026-10-23 | 11.8 KB | CLAP, HOST, COMPLETION |
-| 192 | `docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md` | M-CLI-1: CLI・Python 対話実行・自動化の統合 | 2026-09-23 | In Progress（単発 `--command --json`、versioned `--request` / persistent command JSONL、Command IR catalog / validate / execute と stdin JSONL CLI、Python `run` / `eval` / 人向け・JSONL REPL を実装。Windows console 入口保証と実行検証は未完了） | 2026-09-23 | 16.8 KB | CLI, PYTHON, AUTOMATION |
-| 193 | `docs/planned/MILESTONE_CLONER_UNIFICATION_2026-08-23.md` | MILESTONE: Cloner 長期統合計画 | 2026-10-12 | In Progress | 2026-10-12 | 42.2 KB | CLONER, UNIFICATION |
+| 192 | `docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md` | M-CLI-1: CLI・Python 対話実行・自動化の統合 | 2026-09-23 | In Progress（単発 `--command --json`、versioned `--request` / persistent command JSONL、Command IR catalog / validate / execute と stdin JSONL CLI、Python `run` / `eval` / 人向け・JSONL REPL を実装。Windows console 入口保証と実行検証は未完了） | 2026-09-23 | 16.9 KB | CLI, PYTHON, AUTOMATION |
+| 193 | `docs/planned/MILESTONE_CLONER_UNIFICATION_2026-08-23.md` | MILESTONE: Cloner 長期統合計画 | 2026-10-12 | In Progress | 2026-10-12 | 42.4 KB | CLONER, UNIFICATION |
 | 194 | `docs/planned/MILESTONE_CLOUD_AI_PHASE_6_7_2026-05-20.md` | Cloud AI Phase 6 & 7: Export API & Timeline Operations | 2026-05-20 | --- | 2026-08-16 | 2.9 KB | CLOUD, PHASE |
 | 195 | `docs/planned/MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21.md` | MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21 | 2026-07-21 | --- | 2026-10-22 | 4.4 KB | COLLAB, BACKEND, FOUNDATION |
 | 196 | `docs/planned/MILESTONE_COLLAB_PROTOCOL_EXPORT_SESSION_2026-07-25.md` | MILESTONE_COLLAB_PROTOCOL_EXPORT_SESSION_2026-07-25 | 2026-07-25 | protocol export、session ID、rule sync API は実装済み。server bridge、UI状態表示、競合解決、認証、runtime検証は未完了。 | 2026-08-16 | 6.0 KB | COLLAB, PROTOCOL, EXPORT, SESSION |
 | 197 | `docs/planned/MILESTONE_COLLAB_WS_CLIENT_2026-07-02.md` | M-COLLAB-1 Collaboration WebSocket Client Milestone | 2026-08-04 | --- | 2026-08-06 | 11.4 KB | COLLAB, CLIENT |
-| 198 | `docs/planned/MILESTONE_COLLABORATION_FEATURES_2026-03-28.md` | コラボレーション機能 Milestone | 2026-03-28 | In Progress — WebSocket／Session 接続、presence dock、選択 layer の手動ロック予約、layer property／structure/state／transform と macro の UndoManager lock guard、既知 layer operation のサーバー側 lock enforcement、heartbeat 更新付き lock lease timeout、room／参加者ごとの lock 数上限、Composition/layer/frame アンカー付き review note の追加／返信／編集／直近 50 版の編集履歴表示／削除／resolve／reopen、アンカーへの移動、サーバー側 operation 履歴の JSONL 保存・再起動後 replay、履歴容量上限、任意設定の全 room 共通 edit/view token と viewer の server-side mutation 拒否を実装。policy close による join 拒否後は自動再接続を止める。adapter は履歴・lock snapshot 完了を示す `room_ready` 前の durable operation と lock request/release を拒否する。`SetLayerPropertyValueCommand` の property value、単独 keyframe 列、単独 property expression を expected-value 条件付きで送受信し、Undo/Redo を補償 operation として送る最小経路を追加し、1 child の MacroUndoCommand は子 command を同期対象として dispatch する。全子が property value command の macro は `property.batch` で最大128件まで同期し、すべての対象 layer の lock を必要とする。server operation rejection は `clientId + opSeq` で特定し、保留中の push／undo／redo を期待値検証付きで補償する。ACK／拒否が届くまで追加 Undo command と history 保存・offload を止める。再接続では `room_ready` までに履歴 echo が届けば ACK とし、履歴にない保留 operation は未コミットと判定して補償する。共同セッション中、UndoManager は対応可否を push／undo／redo 前に照会し、未対応 command は適用前に拒否する。ただし UndoManager を通らない直接 mutation 経路は未監査・未遮断。layer.add／layer.remove の限定同期を実装。transform／その他 structure operation、remote operation の共有 Undo 履歴は未完了。 | 2026-09-24 | 27.5 KB | COLLABORATION, FEATURES |
+| 198 | `docs/planned/MILESTONE_COLLABORATION_FEATURES_2026-03-28.md` | コラボレーション機能 Milestone | 2026-03-28 | In Progress — WebSocket／Session 接続、presence dock、選択 layer の手動ロック予約、layer property／structure/state／transform と macro の UndoManager lock guard、既知 layer operation のサーバー側 lock enforcement、heartbeat 更新付き lock lease timeout、room／参加者ごとの lock 数上限、Composition/layer/frame アンカー付き review note の追加／返信／編集／直近 50 版の編集履歴表示／削除／resolve／reopen、アンカーへの移動、サーバー側 operation 履歴の JSONL 保存・再起動後 replay、履歴容量上限、任意設定の全 room 共通 edit/view token と viewer の server-side mutation 拒否を実装。policy close による join 拒否後は自動再接続を止める。adapter は履歴・lock snapshot 完了を示す `room_ready` 前の durable operation と lock request/release を拒否する。`SetLayerPropertyValueCommand` の property value、単独 keyframe 列、単独 property expression を expected-value 条件付きで送受信し、Undo/Redo を補償 operation として送る最小経路を追加し、1 child の MacroUndoCommand は子 command を同期対象として dispatch する。全子が property value command の macro は `property.batch` で最大128件まで同期し、すべての対象 layer の lock を必要とする。server operation rejection は `clientId + opSeq` で特定し、保留中の push／undo／redo を期待値検証付きで補償する。ACK／拒否が届くまで追加 Undo command と history 保存・offload を止める。再接続では `room_ready` までに履歴 echo が届けば ACK とし、履歴にない保留 operation は未コミットと判定して補償する。共同セッション中、UndoManager は対応可否を push／undo／redo 前に照会し、未対応 command は適用前に拒否する。ただし UndoManager を通らない直接 mutation 経路は未監査・未遮断。layer.add／layer.remove の限定同期を実装。transform／その他 structure operation、remote operation の共有 Undo 履歴は未完了。 | 2026-09-24 | 27.8 KB | COLLABORATION, FEATURES |
 | 199 | `docs/planned/MILESTONE_COLLISION_AWARE_LAYOUT_2026-06-07.md` | MILESTONE: Collision-Aware Layout | 2026-06-07 | --- | 2026-08-16 | 3.9 KB | COLLISION, AWARE, LAYOUT |
-| 200 | `docs/planned/MILESTONE_COLOR_ALPHA_CONTRACT_UNIFICATION_2026-07-18.md` | Milestone: Repository-Wide Color / Alpha Contract Unification | 2026-08-04 | In Progress | 2026-10-17 | 21.6 KB | COLOR, ALPHA, CONTRACT, UNIFICATION |
+| 200 | `docs/planned/MILESTONE_COLOR_ALPHA_CONTRACT_UNIFICATION_2026-07-18.md` | Milestone: Repository-Wide Color / Alpha Contract Unification | 2026-08-04 | In Progress | 2026-10-17 | 21.2 KB | COLOR, ALPHA, CONTRACT, UNIFICATION |
 | 201 | `docs/planned/MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21.md` | MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21 | 2026-07-21 | --- | 2026-08-16 | 5.4 KB | COLOR, BACKEND, HARDENING |
 | 202 | `docs/planned/MILESTONE_COLOR_CORRECTION_2026-03-27.md` | Color Correction / Grading Milestone | 2026-08-04 | --- | 2026-08-16 | 6.4 KB | COLOR, CORRECTION |
 | 203 | `docs/planned/MILESTONE_COLOR_GRADING_2026-03-29.md` | Milestone: Color Grading Suite (2026-03-29) | 2026-03-29 | --- | 2026-08-16 | 3.6 KB | COLOR, GRADING |
@@ -811,7 +812,7 @@
 | 209 | `docs/planned/MILESTONE_COLOR_SWATCH_DIALOG_2026-04-04.md` | カラースウォッチダイアログ 新規作成マイルストーン | 2026-08-04 | --- | 2026-08-06 | 2.6 KB | COLOR, SWATCH, DIALOG |
 | 210 | `docs/planned/MILESTONE_COMMAND_IR_AUTOMATION_FOUNDATION_2026-06-28.md` | M-CMD-1 Command IR / Automation Foundation | 2026-08-30 | --- | 2026-08-31 | 24.0 KB | COMMAND, AUTOMATION, FOUNDATION |
 | 211 | `docs/planned/MILESTONE_COMPONENT_EXPANSION_2026-08-31.md` | MILESTONE: レイヤーコンポーネント到達性・Runtime Parity | 2026-08-31 | Planned — `MILESTONE_LAYER_COMPONENT_SYSTEM_2026-04-18.md` の follow-up | 2026-08-31 | 9.9 KB | COMPONENT, EXPANSION |
-| 212 | `docs/planned/MILESTONE_COMPOSITION_100_LAYER_PLAYBACK_STRESS_TEST_2026-10-15.md` | Composition 100-Layer Playback Stress Test | 2026-10-15 | In Progress（実装済み。複雑なTransform負荷を追加し、ビルド・実行確認中） | 2026-10-16 | 11.0 KB | COMPOSITION, 100, LAYER, PLAYBACK, STRESS |
+| 212 | `docs/planned/MILESTONE_COMPOSITION_100_LAYER_PLAYBACK_STRESS_TEST_2026-10-15.md` | Composition 100-Layer Playback Stress Test | 2026-10-15 | In Progress（実装済み。複雑なTransform負荷を追加し、ビルド・実行確認中） | 2026-10-16 | 11.1 KB | COMPOSITION, 100, LAYER, PLAYBACK, STRESS |
 | 213 | `docs/planned/MILESTONE_COMPOSITION_API_HARDENING_2026-08-21.md` | マイルストーン: Composition API Hardening | 2026-08-21 | Not Started | 2026-08-21 | 7.4 KB | COMPOSITION, API, HARDENING |
 | 214 | `docs/planned/MILESTONE_COMPOSITION_CLEANUP_2026-07-14.md` | Milestone: CompositionCleanup (2026-07-14) | 2026-07-14 | MVP の analyzer／preview／apply／Undo は実装済み。immutable snapshot 契約、精密な可視 bounds／背景解析、preflight 接続、runtime 受入は未完了。 | 2026-08-16 | 11.5 KB | COMPOSITION, CLEANUP |
 | 215 | `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_2026-04-21.md` | マイルストーン: Composition Editor Figma-like Overlay / Snap / HUD | 2026-08-15 | --- | 2026-08-16 | 3.4 KB | COMPOSITION, EDITOR, FIGMA, LIKE, OVERLAY |
@@ -827,12 +828,12 @@
 | 225 | `docs/planned/MILESTONE_COMPOSITION_EDITOR_SELECTION_COMPARISON_2026-06-27.md` | Milestone: Composition Editor Selection / Comparison Upgrade (2026-06-27) | 2026-06-27 | --- | 2026-09-18 | 6.7 KB | COMPOSITION, EDITOR, SELECTION, COMPARISON |
 | 226 | `docs/planned/MILESTONE_COMPOSITION_EXPORT_GAME_UI_2026-08-08.md` | Composition Export to Game UI Middleware (2026-08-08) | 2026-08-08 | ** 初期実装済み。Writer／共通 session／pre-render の静的導線は成立、各ランタイム受入れと atlas 最適化は未完了。 | 2026-08-16 | 14.6 KB | COMPOSITION, EXPORT, GAME |
 | 227 | `docs/planned/MILESTONE_COMPOSITION_LAYER_SURFACE_CACHE_TEST_2026-10-16.md` | Composition Layer Surface Cache 独立テスト | 2026-10-16 | Blocked（ArtifactCore 内の重複 IFC 参照が継続） | 2026-10-16 | 5.0 KB | COMPOSITION, LAYER, SURFACE, CACHE, TEST |
-| 228 | `docs/planned/MILESTONE_COMPOSITION_MOTION_PATH_OVERLAY_2026-03-28.md` | マイルストーン: Composition Motion Path Overlay | 2026-03-28 | --- | 2026-08-16 | 10.0 KB | COMPOSITION, MOTION, PATH, OVERLAY |
+| 228 | `docs/planned/MILESTONE_COMPOSITION_MOTION_PATH_OVERLAY_2026-03-28.md` | マイルストーン: Composition Motion Path Overlay | 2026-03-28 | --- | 2026-08-16 | 9.7 KB | COMPOSITION, MOTION, PATH, OVERLAY |
 | 229 | `docs/planned/MILESTONE_COMPOSITION_NESTING_DISPLAY_2026-04-10.md` | コンポジションのネスト表示改善 | 2026-08-15 | --- | 2026-08-16 | 3.2 KB | COMPOSITION, NESTING, DISPLAY |
 | 230 | `docs/planned/MILESTONE_COMPOSITION_QUICK_SETTINGS_2026-04-10.md` | コンポジションクイック設定メニューの実装 | 2026-08-15 | --- | 2026-08-16 | 3.3 KB | COMPOSITION, QUICK, SETTINGS |
 | 231 | `docs/planned/MILESTONE_CONFIGURATION_LAYERING.md` | MILESTONE: Configuration Layering System | 2026-10-22 | 基盤実装済み、QSettings 移行と hot reload は未完了 | 2026-10-22 | 16.3 KB | CONFIGURATION, LAYERING |
 | 232 | `docs/planned/MILESTONE_CONSOLE_WIDGET_ENHANCEMENT_2026-03-31.md` | マイルストーン: デバッグコンソールウィジェットの拡充 | 2026-03-31 | --- | 2026-08-16 | 5.7 KB | CONSOLE, WIDGET, ENHANCEMENT |
-| 233 | `docs/planned/MILESTONE_CONSTRUCTION_LAYER_2026-06-05.md` | マイルストーン: Construction Layer | 2026-06-05 | 部分完了（Construction Layerの基盤・保存・表示・UI導線を実装、拡張construction itemと専用animation/runtime検証は未完了） | 2026-09-05 | 11.9 KB | CONSTRUCTION, LAYER |
+| 233 | `docs/planned/MILESTONE_CONSTRUCTION_LAYER_2026-06-05.md` | マイルストーン: Construction Layer | 2026-06-05 | 部分完了（Construction Layerの基盤・保存・表示・UI導線を実装、拡張construction itemと専用animation/runtime検証は未完了） | 2026-09-05 | 12.0 KB | CONSTRUCTION, LAYER |
 | 234 | `docs/planned/MILESTONE_CONTENT_AWARE_FILL_2026-07-08.md` | Milestone: Content-Aware Fill（コンテンツに応じた塗りつぶし） (2026-07-08) | 2026-07-08 | DRAFT（新規・未実装・専用マイルストーン未作成を確認済み） | 2026-08-16 | 4.2 KB | CONTENT, AWARE, FILL |
 | 235 | `docs/planned/MILESTONE_CONTENT_BOUNDS_SYSTEM_2026-06-07.md` | MILESTONE: Content Bounds System | 2026-06-07 | --- | 2026-08-16 | 4.8 KB | CONTENT, BOUNDS, SYSTEM |
 | 236 | `docs/planned/MILESTONE_CONTENTS_VIEWER_COMPARE_2026-07-12.md` | Contents Viewer Compare Redesign | 2026-08-04 | In Progress | 2026-08-06 | 10.5 KB | CONTENTS, VIEWER, COMPARE |
@@ -852,13 +853,13 @@
 | 250 | `docs/planned/MILESTONE_CREATIVE_EFFECT_CPU_HLSL_DUAL_BACKEND_2026-03-25.md` | Creative Effect CPU/HLSL Dual Backend | 2026-08-15 | --- | 2026-08-16 | 6.3 KB | CREATIVE, EFFECT, CPU, HLSL, DUAL |
 | 251 | `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md` | MILESTONE: Cross-Industry Inspection Tools | 2026-06-02 | --- | 2026-08-16 | 7.1 KB | CROSS, INDUSTRY, INSPECTION, TOOLS |
 | 252 | `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_PHASE1_EXECUTION_2026-06-02.md` | Cross-Industry Inspection Tools - Phase 1 Execution | 2026-06-02 | --- | 2026-08-16 | 4.3 KB | CROSS, INDUSTRY, INSPECTION, TOOLS, PHASE1 |
-| 253 | `docs/planned/MILESTONE_CRYPTOMATTE_2026-08-01.md` | Cryptomatte 実装マイルストーン | 2026-09-12 | --- | 2026-09-14 | 11.5 KB | CRYPTOMATTE |
+| 253 | `docs/planned/MILESTONE_CRYPTOMATTE_2026-08-01.md` | Cryptomatte 実装マイルストーン | 2026-09-12 | --- | 2026-09-14 | 11.6 KB | CRYPTOMATTE |
 | 254 | `docs/planned/MILESTONE_CSHARP_CSX_SCRIPT_ENGINE_2026-08-04.md` | C# Script Engine (hostfxr + CSX) 実装マイルストーン | 2026-08-04 | --- | 2026-08-21 | 26.7 KB | CSHARP, CSX, SCRIPT, ENGINE |
 | 255 | `docs/planned/MILESTONE_CSHARP_SCRIPT_ENGINE_2026-07-25.md` | MILESTONE_CSHARP_SCRIPT_ENGINE_2026-07-25 | 2026-07-25 | Partial（C# engine と hostfxr 経路を実装済み。CMake 定義、複数プラットフォーム対応、Script export、実環境検証は未完了） | 2026-08-21 | 4.0 KB | CSHARP, SCRIPT, ENGINE |
-| 256 | `docs/planned/MILESTONE_CURVE_EDITOR_DCC_IMPROVEMENTS_2026-07-22.md` | M-CURVE-ED: カーブエディタ改善 — DCC いいとこどり計画 | 2026-08-15 | CE-1〜CE-13 実装済み、Speed グラフ編集と runtime／回帰検証が未完了 | 2026-08-16 | 10.9 KB | CURVE, EDITOR, DCC, IMPROVEMENTS |
-| 257 | `docs/planned/MILESTONE_CUSTOM_COLLECTIONS_DESIGN_2026-07-04.md` | 自前コレクションライブラリ 全体設計 (2026-07-04) | 2026-07-04 | --- | 2026-10-01 | 9.2 KB | CUSTOM, COLLECTIONS, DESIGN |
+| 256 | `docs/planned/MILESTONE_CURVE_EDITOR_DCC_IMPROVEMENTS_2026-07-22.md` | M-CURVE-ED: カーブエディタ改善 — DCC いいとこどり計画 | 2026-08-15 | CE-1〜CE-13 実装済み、Speed グラフ編集と runtime／回帰検証が未完了 | 2026-08-16 | 10.8 KB | CURVE, EDITOR, DCC, IMPROVEMENTS |
+| 257 | `docs/planned/MILESTONE_CUSTOM_COLLECTIONS_DESIGN_2026-07-04.md` | 自前コレクションライブラリ 全体設計 (2026-07-04) | 2026-07-04 | --- | 2026-10-01 | 9.4 KB | CUSTOM, COLLECTIONS, DESIGN |
 | 258 | `docs/planned/MILESTONE_CYCLE_SHORTCUTS_2026-06-07.md` | MILESTONE: Cycle Shortcuts | 2026-06-07 | --- | 2026-08-16 | 3.4 KB | CYCLE, SHORTCUTS |
-| 259 | `docs/planned/MILESTONE_DATA_BINDING_COMPOSITIONS_2026-09-22.md` | M-DATABIND-1 Data-Bound Compositions | 2026-09-22 | Not Started | 2026-09-22 | 2.6 KB | DATA, BINDING, COMPOSITIONS |
+| 259 | `docs/planned/MILESTONE_DATA_BINDING_COMPOSITIONS_2026-09-22.md` | M-DATABIND-1 Data-Bound Compositions | 2026-09-22 | Not Started | 2026-09-22 | 2.7 KB | DATA, BINDING, COMPOSITIONS |
 | 260 | `docs/planned/MILESTONE_DATA_DRIVEN_ENGINE_2026-04-21.md` | MILESTONE: Data-Driven Engine (CSV / Tabular Data) | 2026-08-04 | --- | 2026-08-06 | 6.4 KB | DATA, DRIVEN, ENGINE |
 | 261 | `docs/planned/MILESTONE_DATA_PERSISTENCE_2026-03-28.md` | データ永続化改善 Milestone | 2026-08-15 | 基盤実装済み・運用検証継続中 | 2026-08-16 | 8.3 KB | DATA, PERSISTENCE |
 | 262 | `docs/planned/MILESTONE_DATABASE_MODULE.md` | MILESTONE: General-Purpose Database Module (SQLite) | 2026-08-04 | --- | 2026-08-16 | 22.3 KB | DATABASE, MODULE |
@@ -871,7 +872,7 @@
 | 269 | `docs/planned/MILESTONE_DEEP_COMPOSITING_2026-03-31.md` | マイルストーン: Deep Compositing Support | 2026-08-04 | --- | 2026-08-06 | 3.9 KB | DEEP, COMPOSITING |
 | 270 | `docs/planned/MILESTONE_DEFERRED_UI_INITIALIZATION_2026-03-27.md` | Deferred UI Initialization / Lazy Load (2026-03-27) | 2026-03-27 | --- | 2026-08-16 | 6.8 KB | DEFERRED, INITIALIZATION |
 | 271 | `docs/planned/MILESTONE_DESIGN_WORKSPACE_FIGMA_2026-08-08.md` | Design Workspace — Figma-style UI Design Features (2026-08-08) | 2026-08-08 | ** Design／Animate と Auto Layout の基盤、既存 export は実装済み。Figma固有の Constraints／Components／Slice 等は未完了。 | 2026-08-16 | 13.2 KB | DESIGN, WORKSPACE, FIGMA |
-| 272 | `docs/planned/MILESTONE_DETACHED_TASK_2026-09-20.md` | MILESTONE: Detached Task / Detached Session | 2026-09-20 | Not Started | 2026-09-21 | 27.8 KB | DETACHED, TASK |
+| 272 | `docs/planned/MILESTONE_DETACHED_TASK_2026-09-20.md` | MILESTONE: Detached Task / Detached Session | 2026-09-20 | Not Started | 2026-09-21 | 28.1 KB | DETACHED, TASK |
 | 273 | `docs/planned/MILESTONE_DEV_DIAGNOSTICS_2026-06-16.md` | M-DEBUG-1 Dev Diagnostics Foundation Milestone | 2026-06-16 | --- | 2026-08-16 | 13.4 KB | DEV, DIAGNOSTICS |
 | 274 | `docs/planned/MILESTONE_DIAGNOSTICS_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: 診断 / デバッグ機能監査 (2026-07-04) | 2026-08-04 | --- | 2026-08-06 | 2.8 KB | DIAGNOSTICS, DESIGN, AUDIT |
 | 275 | `docs/planned/MILESTONE_DILIGENT_LOW_LEVEL_API_2026-04-01.md` | Milestone: Diligent Low-Level Rendering API Expansion (2026-04-01) | 2026-04-01 | --- | 2026-08-16 | 13.4 KB | DILIGENT, LOW, LEVEL, API |
@@ -896,8 +897,8 @@
 | 294 | `docs/planned/MILESTONE_EASING_LAB_PHASE3_2026-04-21.md` | EasingLab - Phase 3: Integration and Apply Path | 2026-08-04 | --- | 2026-08-06 | 2.6 KB | EASING, LAB, PHASE3 |
 | 295 | `docs/planned/MILESTONE_EASING_LAB_PHASE3_EXECUTION_2026-04-21.md` | EasingLab - Phase 3 Execution | 2026-08-04 | --- | 2026-08-06 | 1.9 KB | EASING, LAB, PHASE3, EXECUTION |
 | 296 | `docs/planned/MILESTONE_EDIT_MENU_2026-06-16.md` | M-EDIT-1 Edit Menu Foundation Milestone | 2026-06-16 | --- | 2026-08-16 | 16.1 KB | EDIT, MENU |
-| 297 | `docs/planned/MILESTONE_EDIT_SEQUENCE_CRASH_FUZZ_2026-10-07.md` | 編集シーケンス Crash / Fuzz Test マイルストーン | 2026-10-08 | In Progress | 2026-10-08 | 15.9 KB | EDIT, SEQUENCE, CRASH, FUZZ |
-| 298 | `docs/planned/MILESTONE_EFFECT_GPU_RESIDENCY_AND_ASYNC_PREVIEW_2026-09-11.md` | Milestone: GPU常駐エフェクト連鎖 + 非同期プレビュー再描画 | 2026-09-11 | --- | 2026-09-11 | 5.4 KB | EFFECT, GPU, RESIDENCY, AND, ASYNC |
+| 297 | `docs/planned/MILESTONE_EDIT_SEQUENCE_CRASH_FUZZ_2026-10-07.md` | 編集シーケンス Crash / Fuzz Test マイルストーン | 2026-10-08 | In Progress | 2026-10-08 | 16.1 KB | EDIT, SEQUENCE, CRASH, FUZZ |
+| 298 | `docs/planned/MILESTONE_EFFECT_GPU_RESIDENCY_AND_ASYNC_PREVIEW_2026-09-11.md` | Milestone: GPU常駐エフェクト連鎖 + 非同期プレビュー再描画 | 2026-09-11 | --- | 2026-09-11 | 5.5 KB | EFFECT, GPU, RESIDENCY, AND, ASYNC |
 | 299 | `docs/planned/MILESTONE_EFFECT_LOD_2026-08-05.md` | エフェクトLOD導入マイルストーン | 2026-08-15 | --- | 2026-08-16 | 7.8 KB | EFFECT, LOD |
 | 300 | `docs/planned/MILESTONE_EFFECT_PALETTE_CURVE_EDITOR.md` | MILESTONE: Effect Browser + Curve Editor Completion | 2026-08-15 | --- | 2026-08-16 | 18.5 KB | EFFECT, PALETTE, CURVE, EDITOR |
 | 301 | `docs/planned/MILESTONE_EFFECT_PALETTE_DND_2026-07-30.md` | Milestone: エフェクトパレット D&D + 簡易操作強化 | 2026-08-15 | Phase 1 のパレット／検索／drag source は実装済み。レイヤー drop は導線上の要確認、Phase 2 は未確認。 | 2026-08-16 | 9.6 KB | EFFECT, PALETTE, DND |
@@ -905,7 +906,7 @@
 | 303 | `docs/planned/MILESTONE_EFFECT_SYSTEM_IMPROVEMENT_2026-03-28.md` | エフェクトシステム改善 Milestone | 2026-08-15 | GPU／CPU effect と stack／preset 基盤、effect-local Rect の共通適用、project／clipboard region 保存は実装済み。Inspector入力・preset serialization・共通 parity・UI統合検証が未完了 | 2026-08-16 | 18.1 KB | EFFECT, SYSTEM, IMPROVEMENT |
 | 304 | `docs/planned/MILESTONE_EFFECT_UI_STANDARDIZATION_2026-06-07.md` | エフェクト UI 標準化 Milestone | 2026-08-04 | descriptor／Inspector bridge 部分実装、共通UI面とruntime受入は未完了 | 2026-08-16 | 18.3 KB | EFFECT, STANDARDIZATION |
 | 305 | `docs/planned/MILESTONE_ELEMENT3D_EXTRUDE_AND_AOV_2026-08-25.md` | MILESTONE: Element 3D 相当機能 — Shape/Text 押し出しジオメトリと World Position AOV | 2026-09-21 | In Progress（押し出しコア・TextExtrude レイヤー配線・Position/UV AOV 実装済み。Shape 3Dモード・runtime検証残） | 2026-09-21 | 3.3 KB | ELEMENT3D, EXTRUDE, AND, AOV |
-| 306 | `docs/planned/MILESTONE_ENVIRONMENT_MAP_2026-03-28.md` | Milestone: 環境マップ (Environment Map) (2026-03-28) | 2026-03-28 | --- | 2026-10-14 | 11.4 KB | ENVIRONMENT, MAP |
+| 306 | `docs/planned/MILESTONE_ENVIRONMENT_MAP_2026-03-28.md` | Milestone: 環境マップ (Environment Map) (2026-03-28) | 2026-03-28 | --- | 2026-10-14 | 11.6 KB | ENVIRONMENT, MAP |
 | 307 | `docs/planned/MILESTONE_EVENT_BUS_WIDGET_MIGRATION_2026-04-01.md` | マイルストーン: EventBus Widget Migration Matrix | 2026-04-01 | --- | 2026-08-16 | 11.3 KB | EVENT, BUS, WIDGET, MIGRATION |
 | 308 | `docs/planned/MILESTONE_EVENT_SYSTEM_MIGRATION_2026-03-25.md` | マイルストーン: Qt Signal/Slot から Core Event System への段階移行 | 2026-03-25 | --- | 2026-08-16 | 8.3 KB | EVENT, SYSTEM, MIGRATION |
 | 309 | `docs/planned/MILESTONE_EXPORT_MATRIX_2026-06-07.md` | Export Matrix And Alpha Clarity Milestone | 2026-08-15 | Export Matrix／preset／automation と出力設定ガイドは実装済み、alpha preflight／比較 workflow と runtime 検証が未完了 | 2026-08-16 | 11.3 KB | EXPORT, MATRIX |
@@ -920,10 +921,10 @@
 | 318 | `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md` | Milestone: ExtendScript-Style Script Runtime Phase 1 Execution | 2026-08-04 | --- | 2026-08-06 | 3.7 KB | EXTENDSCRIPT, STYLE, SCRIPT, RUNTIME, PHASE1 |
 | 319 | `docs/planned/MILESTONE_EXTERNAL_CONTROL_MIDI_OSC_2026-07-25.md` | MILESTONE_EXTERNAL_CONTROL_MIDI_OSC_2026-07-25 | 2026-07-25 | Partial（MIDI/OSC 入力基盤 + Artifact 起動配線を実装済み。設定 UI、追加メッセージ型、非 Windows backend、runtime 検証は未完了） | 2026-08-21 | 5.4 KB | EXTERNAL, CONTROL, MIDI, OSC |
 | 320 | `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_2026-04-22.md` | External Renderer Design | 2026-04-22 | snapshot／farm transport の基盤実装済み、独立 renderer process の end-to-end 実装待ち | 2026-08-16 | 23.1 KB | EXTERNAL, RENDERER, DESIGN |
-| 321 | `docs/planned/MILESTONE_EXTERNAL_SEMANTIC_DEBUGGER_2026-09-02.md` | MILESTONE: 外部 Semantic Debugger（ArtifactDebugger.exe） | 2026-09-05 | Not Started | 2026-09-07 | 21.5 KB | EXTERNAL, SEMANTIC, DEBUGGER |
+| 321 | `docs/planned/MILESTONE_EXTERNAL_SEMANTIC_DEBUGGER_2026-09-02.md` | MILESTONE: 外部 Semantic Debugger（ArtifactDebugger.exe） | 2026-09-05 | Not Started | 2026-09-07 | 21.8 KB | EXTERNAL, SEMANTIC, DEBUGGER |
 | 322 | `docs/planned/MILESTONE_FACE_DETECTION_MOSAIC_2026-04-01.md` | Milestone: Face Detection & Auto-Mosaic (2026-04-01) | 2026-04-01 | --- | 2026-08-16 | 7.3 KB | FACE, DETECTION, MOSAIC |
 | 323 | `docs/planned/MILESTONE_FARM_WORKER_REMOTE_RENDER_2026-08-01.md` | リモートレンダーファームワーカー 実装マイルストーン | 2026-08-01 | --- | 2026-08-16 | 10.8 KB | FARM, WORKER, REMOTE, RENDER |
-| 324 | `docs/planned/MILESTONE_FAST_TEST_SUITES_AND_UI_VISUAL_REGRESSION_2026-10-06.md` | Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画 | 2026-10-16 | In Progress | 2026-10-16 | 265.6 KB | FAST, TEST, SUITES, AND |
+| 324 | `docs/planned/MILESTONE_FAST_TEST_SUITES_AND_UI_VISUAL_REGRESSION_2026-10-06.md` | Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画 | 2026-10-16 | In Progress | 2026-10-16 | 268.1 KB | FAST, TEST, SUITES, AND |
 | 325 | `docs/planned/MILESTONE_FBX_ANIMATION_VIEWER_TEST_2026-10-14.md` | FBX アニメーション独立ビューアテスト | 2026-10-15 | D3D12／VulkanでFBX表示・MCP・独立metallic／roughness画像を確認済み。Core importer 6ケースpass。 | 2026-10-15 | 42.8 KB | FBX, ANIMATION, VIEWER, TEST |
 | 326 | `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md` | マイルストーン: 機能追加 / Feature Expansion | 2026-03-25 | --- | 2026-08-16 | 14.4 KB | FEATURE, EXPANSION |
 | 327 | `docs/planned/MILESTONE_FEATURE_EXPANSION_FOCUS_TRIO_2026-03-28.md` | マイルストーン: Feature Expansion Focus Trio | 2026-03-28 | --- | 2026-08-16 | 5.9 KB | FEATURE, EXPANSION, FOCUS, TRIO |
@@ -933,15 +934,15 @@
 | 331 | `docs/planned/MILESTONE_FIGMA_AUTO_LAYOUT_2026-07-07.md` | M-FIGMA-1 Auto Layout + Constraints System Milestone | 2026-07-07 | --- | 2026-08-16 | 7.7 KB | FIGMA, AUTO, LAYOUT |
 | 332 | `docs/planned/MILESTONE_FIGMA_BOOLEAN_FILL_STROKE_2026-07-07.md` | M-FIGMA-3 Boolean Path Operations + Advanced Fill/Stroke Milestone | 2026-07-07 | --- | 2026-08-16 | 8.2 KB | FIGMA, BOOLEAN, FILL, STROKE |
 | 333 | `docs/planned/MILESTONE_FIGMA_COMPONENT_INSTANCE_2026-07-07.md` | M-FIGMA-2 Component / Instance System Milestone | 2026-07-07 | --- | 2026-08-16 | 8.5 KB | FIGMA, COMPONENT, INSTANCE |
-| 334 | `docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md` | Fluid Component vs Pyro Domain Split (2026-07-01) | 2026-07-01 | In Progress | 2026-10-26 | 40.1 KB | FLUID, COMPONENT, PYRO, DOMAIN |
+| 334 | `docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md` | Fluid Component vs Pyro Domain Split (2026-07-01) | 2026-07-01 | In Progress | 2026-10-29 | 51.6 KB | FLUID, COMPONENT, PYRO, DOMAIN |
 | 335 | `docs/planned/MILESTONE_FONT_USAGE_REPORT_2026-07-09.md` | MILESTONE: 使用フォントインベントリ出力（Font Usage Report） | 2026-08-15 | Phase 1〜4・出力導線実装済み、runtime/build検証 pending | 2026-08-16 | 12.4 KB | FONT, USAGE, REPORT |
 | 336 | `docs/planned/MILESTONE_FORM_GRID_PARTICLE_LAYER_2026-06-26.md` | Form Grid Particle Layer Milestone | 2026-08-04 | Implementation present; static audit completed 2026-08-15. | 2026-08-16 | 9.7 KB | FORM, GRID, PARTICLE, LAYER |
-| 337 | `docs/planned/MILESTONE_FRACTURE_COMPONENT_STATIC_IMAGE_2026-09-10.md` | Fracture Component — Static Image MVP | 2026-09-10 | In progress — 破砕設定の統一、保存／再読込、seek再現、Undo/Redo、静止画 GPU テクスチャ破片描画まで実装済み。runtime受入確認と実 GPU 表示確認が未完了。 | 2026-09-11 | 5.0 KB | FRACTURE, COMPONENT, STATIC, IMAGE |
+| 337 | `docs/planned/MILESTONE_FRACTURE_COMPONENT_STATIC_IMAGE_2026-09-10.md` | Fracture Component — Static Image MVP | 2026-09-10 | In progress — 破砕設定の統一、保存／再読込、seek再現、Undo/Redo、静止画 GPU テクスチャ破片描画まで実装済み。runtime受入確認と実 GPU 表示確認が未完了。 | 2026-09-11 | 5.1 KB | FRACTURE, COMPONENT, STATIC, IMAGE |
 | 338 | `docs/planned/MILESTONE_FRAME_BY_FRAME_ANIMATION_2026-07-03.md` | M-FBF-1 Frame-by-Frame Animation Milestone | 2026-07-03 | Paint Layer／Brush／Onion Skin 基盤は実装済み、専用 Timeline 編集と統合検証が未完了 | 2026-08-16 | 5.9 KB | FRAME, ANIMATION |
 | 339 | `docs/planned/MILESTONE_FRAME_DEBUG_GOAL_FIRST_SUMMARY_2026-05-12.md` | Frame Debug / Goal-First Summary | 2026-08-04 | --- | 2026-08-06 | 4.4 KB | FRAME, DEBUG, GOAL, FIRST, SUMMARY |
 | 340 | `docs/planned/MILESTONE_GENERATOR_MODIFIER_FIELD_STACK_2026-07-01.md` | Generator / Modifier / Field Stack Migration (2026-07-01) | 2026-07-01 | --- | 2026-08-16 | 11.2 KB | GENERATOR, MODIFIER, FIELD, STACK |
 | 341 | `docs/planned/MILESTONE_GI_POINTWISE_FOUNDATION_2026-07-17.md` | GI / Pointwise Fusion Foundation | 2026-08-15 | In Progress | 2026-08-16 | 3.7 KB | POINTWISE, FOUNDATION |
-| 342 | `docs/planned/MILESTONE_GIZMO_INTERACTION_OWNERSHIP_2026-10-05.md` | ギズモ操作所有者の統一 | 2026-10-05 | In Progress | 2026-10-05 | 10.5 KB | GIZMO, INTERACTION, OWNERSHIP |
+| 342 | `docs/planned/MILESTONE_GIZMO_INTERACTION_OWNERSHIP_2026-10-05.md` | ギズモ操作所有者の統一 | 2026-10-05 | In Progress | 2026-10-05 | 10.6 KB | GIZMO, INTERACTION, OWNERSHIP |
 | 343 | `docs/planned/MILESTONE_GLITCH_EFFECTS_PROPOSAL_2026-06-13.md` | グリッジ系動画像エフェクト提案 | 2026-06-13 | --- | 2026-08-16 | 5.7 KB | GLITCH, EFFECTS, PROPOSAL |
 | 344 | `docs/planned/MILESTONE_GPU_DRIVEN_MDI_RENDER_2026-04-02.md` | Milestone: GPU-Driven MDI Render (2026-04-02) | 2026-04-02 | clone／mesh／particle の indirect submission と一部GPU visibility は実装済み、Clone compaction・診断・backend parity は未完了 | 2026-08-16 | 10.3 KB | GPU, DRIVEN, MDI, RENDER |
 | 345 | `docs/planned/MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md` | GPU Effect Parity Milestone | 2026-08-04 | --- | 2026-08-16 | 7.0 KB | GPU, EFFECT, PARITY |
@@ -952,7 +953,7 @@
 | 350 | `docs/planned/MILESTONE_GRAPH_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: カーブ / グラフエディタ 機能監査 (2026-07-04) | 2026-08-04 | --- | 2026-08-06 | 2.3 KB | GRAPH, EDITOR, DESIGN, AUDIT |
 | 351 | `docs/planned/MILESTONE_GUIDE_LINES_2026-08-20.md` | M-GUIDE-1 誘導ガイドライン拡張 | 2026-08-20 | --- | 2026-08-20 | 3.2 KB | GUIDE, LINES |
 | 352 | `docs/planned/MILESTONE_HARNESS_ENGINEERING_2026-05-12.md` | Harness Engineering / Goal-First Working Loop | 2026-08-04 | --- | 2026-08-16 | 6.0 KB | HARNESS, ENGINEERING |
-| 353 | `docs/planned/MILESTONE_HETERO_COMPUTE_FOUNDATION_2026-09-14.md` | XPU ヘテロコンピューティング基盤（CPU複数＋dGPU複数＋iGPU）詳細計画 — 2026-09-14 | 2026-09-14 | Partial — Render QueueのCPU＋GPU mixed frame dispatch、D3D12 adapter worker、backend別plan／diagnostics、shared TBB arenaは実装済み。Agility SDK runtimeが設定された場合のみSDK version/pathをexportするよう修正し、新しいDebug build treeでCPU＋D3D12 primaryのmixed 10-frame image integration test（backend選択・GPU lane・CPU lane・出力画素を含む）と自動選択のCPU＋Vulkan mixed image testが成功。ホストはIntel Core i7-13700KF＋RTX 4070 Tiの物理GPU 1基で、iGPUはなく複数GPU同時実行は未検証。Agility SDK 619を明示設定した構成、複数物理GPU/iGPU、cross-backend parity／性能受入は未完了。 | 2026-10-12 | 48.5 KB | HETERO, COMPUTE, FOUNDATION |
+| 353 | `docs/planned/MILESTONE_HETERO_COMPUTE_FOUNDATION_2026-09-14.md` | XPU ヘテロコンピューティング基盤（CPU複数＋dGPU複数＋iGPU）詳細計画 — 2026-09-14 | 2026-09-14 | Partial — Render QueueのCPU＋GPU mixed frame dispatch、D3D12 adapter worker、backend別plan／diagnostics、shared TBB arenaは実装済み。Agility SDK runtimeが設定された場合のみSDK version/pathをexportするよう修正し、新しいDebug build treeでCPU＋D3D12 primaryのmixed 10-frame image integration test（backend選択・GPU lane・CPU lane・出力画素を含む）と自動選択のCPU＋Vulkan mixed image testが成功。ホストはIntel Core i7-13700KF＋RTX 4070 Tiの物理GPU 1基で、iGPUはなく複数GPU同時実行は未検証。Agility SDK 619を明示設定した構成、複数物理GPU/iGPU、cross-backend parity／性能受入は未完了。 | 2026-10-12 | 48.9 KB | HETERO, COMPUTE, FOUNDATION |
 | 354 | `docs/planned/MILESTONE_HIERARCHICAL_CACHE_SYSTEM_2026-07-21.md` | Milestone: Hierarchical Cache System | 2026-08-15 | In Progress | 2026-08-16 | 18.7 KB | HIERARCHICAL, CACHE, SYSTEM |
 | 355 | `docs/planned/MILESTONE_HIGH_PRIORITY_SUMMARY_2026-03-28.md` | 優先度高い実装マイルストーン 総括 | 2026-03-28 | 一部実装済み | 2026-08-16 | 12.5 KB | HIGH, PRIORITY, SUMMARY |
 | 356 | `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_2026-04-20.md` | マイルストーン: Host / Context / ROI / Property Core | 2026-08-15 | --- | 2026-08-16 | 13.4 KB | HOST, CONTEXT, ROI, PROPERTY, CORE |
@@ -963,7 +964,7 @@
 | 361 | `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE5_EXECUTION_2026-04-20.md` | Phase 5 実行メモ: ROI Metadata and Partial Invalidation | 2026-08-04 | --- | 2026-08-06 | 3.5 KB | HOST, CONTEXT, ROI, PROPERTY, CORE |
 | 362 | `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE6_EXECUTION_2026-04-20.md` | Phase 6 実行メモ: Tiled ROI Engine | 2026-08-04 | --- | 2026-08-06 | 3.6 KB | HOST, CONTEXT, ROI, PROPERTY, CORE |
 | 363 | `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE7_EXECUTION_2026-04-20.md` | Phase 7 実行メモ: Network / Script / Headless Integration | 2026-08-04 | --- | 2026-08-06 | 3.6 KB | HOST, CONTEXT, ROI, PROPERTY, CORE |
-| 364 | `docs/planned/MILESTONE_I18N_HARDENING_2026-09-16.md` | MILESTONE: 翻訳システム作り込み (i18n Hardening) | 2026-09-18 | --- | 2026-09-21 | 19.5 KB | I18N, HARDENING |
+| 364 | `docs/planned/MILESTONE_I18N_HARDENING_2026-09-16.md` | MILESTONE: 翻訳システム作り込み (i18n Hardening) | 2026-09-18 | --- | 2026-09-21 | 19.7 KB | I18N, HARDENING |
 | 365 | `docs/planned/MILESTONE_I18N_IMPLEMENTATION.md` | MILESTONE: Internationalization (i18n) Implementation | 2026-08-04 | --- | 2026-08-16 | 16.7 KB | I18N, IMPLEMENTATION |
 | 366 | `docs/planned/MILESTONE_IBK_KEYER_2026-08-01.md` | IBKキーヤー 実装マイルストーン | 2026-10-27 | In Progress | 2026-10-27 | 7.5 KB | IBK, KEYER |
 | 367 | `docs/planned/MILESTONE_IK_FK_VIEWPORT_2026-07-07.md` | M-RIG-2 IK/FK Switch + Pole Vector Viewport Milestone | 2026-07-07 | --- | 2026-08-16 | 12.4 KB | VIEWPORT |
@@ -974,7 +975,7 @@
 | 372 | `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_SAFE_SEQUENCE_2026-04-21.md` | M-IR-8 Safe Sequence | 2026-08-04 | --- | 2026-08-06 | 2.4 KB | IMMEDIATE, CONTEXT, BOUNDARY, SAFE, SEQUENCE |
 | 373 | `docs/planned/MILESTONE_IMPLEMENTATION_PRIORITY_DEEP_AUDIT_2026-04-08.md` | 実装優先順位 ディープオーディットレポート | 2026-04-08 | 優先順位の基準を整理済み（実装完了を示すマイルストーンではない） | 2026-08-16 | 7.0 KB | IMPLEMENTATION, PRIORITY, DEEP, AUDIT |
 | 374 | `docs/planned/MILESTONE_IN_APP_LLM_INTEGRATION_2026-04-08.md` | MILESTONE: アプリ内 LLM 統合フェーズ1 | 2026-08-04 | 提案中 | 2026-08-06 | 3.6 KB | APP, LLM, INTEGRATION |
-| 375 | `docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md` | 独自ドッキングウィジェットマネージャ移行マイルストーン | 2026-10-16 | Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、外部再利用境界を整備中。runtime verification pending。floating lifecycle と backend switch pending | 2026-10-16 | 13.7 KB | INDEPENDENT, DOCK, MANAGER |
+| 375 | `docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md` | 独自ドッキングウィジェットマネージャ移行マイルストーン | 2026-10-16 | Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、外部再利用境界を整備中。runtime verification pending。floating lifecycle と backend switch pending | 2026-10-16 | 13.5 KB | INDEPENDENT, DOCK, MANAGER |
 | 376 | `docs/planned/MILESTONE_INDEPENDENT_FUNCTION_TESTS_2026-10-16.md` | 独立機能テスト拡充マイルストーン | 2026-10-25 | In Progress | 2026-10-25 | 92.7 KB | INDEPENDENT, FUNCTION, TESTS |
 | 377 | `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` | Inline Interaction Surfaces Milestone (2026-03-31) | 2026-03-31 | --- | 2026-08-16 | 6.6 KB | INLINE, INTERACTION, SURFACES |
 | 378 | `docs/planned/MILESTONE_INSPECTOR_PROPERTY_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Inspector / PropertyEditor 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-08-16 | 8.2 KB | INSPECTOR, PROPERTY, EDITOR, DESIGN, AUDIT |
@@ -1024,7 +1025,7 @@
 | 422 | `docs/planned/MILESTONE_LOCAL_AI_CHAT_2026-04-01.md` | Milestone: Local AI Chat Integration (2026-04-01) | 2026-04-01 | --- | 2026-08-16 | 5.4 KB | LOCAL, CHAT |
 | 423 | `docs/planned/MILESTONE_LOCAL_AI_PREPROCESSOR_2026-03-27.md` | ローカル AI プリプロセッサー Milestone | 2026-08-04 | 実装完了 | 2026-08-06 | 11.1 KB | LOCAL, PREPROCESSOR |
 | 424 | `docs/planned/MILESTONE_LOCAL_AI_SEPARATION_UI_ONLY_2026-04-23.md` | Milestone: Local AI Process Separation (UI Only) | 2026-08-04 | --- | 2026-08-06 | 5.4 KB | LOCAL, SEPARATION, ONLY |
-| 425 | `docs/planned/MILESTONE_LOCAL_TIME_WARP_MASK_2026-10-12.md` | Local Time Warp — マスク領域別の時間操作 | 2026-10-12 | Not Started | 2026-10-13 | 6.1 KB | LOCAL, TIME, WARP, MASK |
+| 425 | `docs/planned/MILESTONE_LOCAL_TIME_WARP_MASK_2026-10-12.md` | Local Time Warp — マスク領域別の時間操作 | 2026-10-12 | Not Started | 2026-10-13 | 6.2 KB | LOCAL, TIME, WARP, MASK |
 | 426 | `docs/planned/MILESTONE_LOGGING_SYSTEM_2026-07-26.md` | Logging System Expansion Milestone (2026-07-26) | 2026-07-26 | In Progress | 2026-08-16 | 4.3 KB | LOGGING, SYSTEM |
 | 427 | `docs/planned/MILESTONE_LONG_MODULE_SPLIT_2026-08-31.md` | 実装案: 巨大 C++20 module / ソース分割 | 2026-10-18 | Phase 1-A 部分完了（CompositionChangeDetector、RenderPassExecutor、Layer Editor geometry、Composition controller の Gizmo / Rig / Motion Path / Layer / Edit / Text-Puppet / Tracker Session / Construction Undo 群、Onion Skin history を分離。Composition controller の frame body、GPU cache 群の分離は未完了） | 2026-10-19 | 40.8 KB | LONG, MODULE, SPLIT |
 | 428 | `docs/planned/MILESTONE_LONG_RUNNING_FEATURE_WORKSTREAMS_2026-03-25.md` | マイルストーン: 長期機能拡張ワークストリーム | 2026-03-25 | --- | 2026-08-16 | 7.6 KB | LONG, RUNNING, FEATURE, WORKSTREAMS |
@@ -1061,8 +1062,8 @@
 | 459 | `docs/planned/MILESTONE_MOTION_PATH_ENHANCEMENT_2026-08-20.md` | MILESTONE: モーションパス機能の充実（Broken Tangent / Seek 連動 / HUD フィードバック / 高度編集） | 2026-08-20 | --- | 2026-08-20 | 5.5 KB | MOTION, PATH, ENHANCEMENT |
 | 460 | `docs/planned/MILESTONE_MOTION_TOKENS_2026-06-07.md` | MILESTONE: Motion Tokens | 2026-06-07 | --- | 2026-08-16 | 4.1 KB | MOTION, TOKENS |
 | 461 | `docs/planned/MILESTONE_MOTION_TRACKING_PHASE1_EXECUTION_2026-03-28.md` | マイルストーン: Motion Tracking Phase 1 Execution | 2026-08-04 | --- | 2026-08-06 | 5.8 KB | MOTION, TRACKING, PHASE1, EXECUTION |
-| 462 | `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md` | マイルストーン: モーショントラッキングシステムの段階導入 | 2026-03-25 | In Progress | 2026-10-12 | 19.6 KB | MOTION, TRACKING, SYSTEM |
-| 463 | `docs/planned/MILESTONE_MPM_GRANULAR_SAND_2026-10-11.md` | MPM 2D Granular Sand Simulation | 2026-10-12 | In Progress | 2026-10-12 | 116.5 KB | MPM, GRANULAR, SAND |
+| 462 | `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md` | マイルストーン: モーショントラッキングシステムの段階導入 | 2026-03-25 | In Progress | 2026-10-12 | 20.1 KB | MOTION, TRACKING, SYSTEM |
+| 463 | `docs/planned/MILESTONE_MPM_GRANULAR_SAND_2026-10-11.md` | MPM 2D Granular Sand Simulation | 2026-10-12 | In Progress | 2026-10-12 | 116.9 KB | MPM, GRANULAR, SAND |
 | 464 | `docs/planned/MILESTONE_MULTI_DISPLAY_SUPPORT_2026-04-01.md` | Milestone: Multi-Display Support (2026-04-01) | 2026-04-01 | --- | 2026-08-16 | 10.2 KB | MULTI, DISPLAY, SUPPORT |
 | 465 | `docs/planned/MILESTONE_MULTI_FORMAT_PREVIEW_2026-06-07.md` | MILESTONE: Multi-Format Preview | 2026-06-07 | --- | 2026-08-16 | 4.9 KB | MULTI, FORMAT, PREVIEW |
 | 466 | `docs/planned/MILESTONE_MULTI_FRAME_RENDERING_2026-04-09.md` | マイルストーン: Multi-Frame Rendering (MFR) for Render Queue | 2026-04-09 | MFR scheduler／in-flight／progress 基盤は部分実装、安全性・全 backend parity の検証待ち | 2026-08-16 | 6.8 KB | MULTI, FRAME, RENDERING |
@@ -1071,7 +1072,7 @@
 | 469 | `docs/planned/MILESTONE_MULTICHANNEL_AUDIO_OUTPUT_2026-07-02.md` | マルチチャンネルオーディオ出力 設計書 | 2026-07-02 | 基盤実装済み（実機出力・品質・切替検証待ち） | 2026-09-08 | 15.3 KB | MULTICHANNEL, AUDIO, OUTPUT |
 | 470 | `docs/planned/MILESTONE_MULTICHANNEL_RENDER_PIPELINE_2026-04-18.md` | マイルストーン: マルチチャンネルレンダーパイプライン (AE互換) | 2026-08-15 | --- | 2026-08-16 | 8.8 KB | MULTICHANNEL, RENDER, PIPELINE |
 | 471 | `docs/planned/MILESTONE_NAMED_GUIDES_2026-06-07.md` | MILESTONE: Named Guides | 2026-06-07 | --- | 2026-08-16 | 4.0 KB | NAMED, GUIDES |
-| 472 | `docs/planned/MILESTONE_NATIVE_DOCK_TAB_ENHANCEMENT_2026-09-22.md` | Native Dock タブ操作強化マイルストーン | 2026-10-16 | In Progress | 2026-10-16 | 57.7 KB | NATIVE, DOCK, TAB, ENHANCEMENT |
+| 472 | `docs/planned/MILESTONE_NATIVE_DOCK_TAB_ENHANCEMENT_2026-09-22.md` | Native Dock タブ操作強化マイルストーン | 2026-10-16 | In Progress | 2026-10-16 | 57.9 KB | NATIVE, DOCK, TAB, ENHANCEMENT |
 | 473 | `docs/planned/MILESTONE_NESTED_COMPOSITION_VISUALIZATION_2026-04-18.md` | マイルストーン: ネストコンポジション 視覚化実装 | 2026-04-18 | --- | 2026-08-16 | 6.6 KB | NESTED, COMPOSITION, VISUALIZATION |
 | 474 | `docs/planned/MILESTONE_NEURODIVERSITY_ACCESSIBILITY_2026-08-08.md` | Neurodiversity Accessibility (2026-08-08) | 2026-08-08 | ** 部分実装（N-1 Calm UIテーマのトークン適用済み。輝度上限・点滅検出は未完了） | 2026-08-16 | 17.3 KB | NEURODIVERSITY, ACCESSIBILITY |
 | 475 | `docs/planned/MILESTONE_NLE_CORE_COMPLETION_2026-08-21.md` | マイルストーン: NLE Core 完成度向上(編集操作・OTIO・Undo) | 2026-08-21 | In Progress | 2026-08-22 | 7.2 KB | NLE, CORE, COMPLETION |
@@ -1081,12 +1082,12 @@
 | 479 | `docs/planned/MILESTONE_OBJECT_FRACTURE_EFFECT_2026-03-25.md` | マイルストーン: Object Fracture / Shatter Effect | 2026-08-31 | --- | 2026-08-31 | 12.9 KB | OBJECT, FRACTURE, EFFECT |
 | 480 | `docs/planned/MILESTONE_OBJECT_REFERENCE_UI_2026-03-17.md` | M13 Object Reference UI (2026-03-17) | 2026-03-17 | --- | 2026-08-16 | 17.6 KB | OBJECT, REFERENCE |
 | 481 | `docs/planned/MILESTONE_OCIO_INTEGRATION_2026-06-16.md` | M-OCIO-1 OpenColorIO 統合 Milestone | 2026-06-16 | --- | 2026-10-22 | 18.9 KB | OCIO, INTEGRATION |
-| 482 | `docs/planned/MILESTONE_OFX_PLUGIN_SUPPORT_2026-04-18.md` | マイルストーン: OFX プラグインサポート実装 | 2026-04-18 | --- | 2026-10-04 | 22.3 KB | OFX, PLUGIN, SUPPORT |
-| 483 | `docs/planned/MILESTONE_OPENUSD_INTERCHANGE_2026-09-22.md` | M-USD-INTERCHANGE-1 OpenUSD Interchange Foundation | 2026-09-22 | Not Started | 2026-09-22 | 2.7 KB | OPENUSD, INTERCHANGE |
+| 482 | `docs/planned/MILESTONE_OFX_PLUGIN_SUPPORT_2026-04-18.md` | マイルストーン: OFX プラグインサポート実装 | 2026-04-18 | --- | 2026-10-04 | 22.6 KB | OFX, PLUGIN, SUPPORT |
+| 483 | `docs/planned/MILESTONE_OPENUSD_INTERCHANGE_2026-09-22.md` | M-USD-INTERCHANGE-1 OpenUSD Interchange Foundation | 2026-09-22 | Not Started | 2026-09-22 | 2.8 KB | OPENUSD, INTERCHANGE |
 | 484 | `docs/planned/MILESTONE_OPERATION_FEEL_REFINEMENT_2026-03-25.md` | マイルストーン: 操作感改善 / Responsiveness Refinement | 2026-03-25 | --- | 2026-08-16 | 7.7 KB | OPERATION, FEEL, REFINEMENT |
 | 485 | `docs/planned/MILESTONE_OPERATION_IR_AND_REVISION_DAG_2026-10-01.md` | マイルストーン: Operation IR 正本化と Revision DAG | 2026-10-01 | Not Started | 2026-10-02 | 31.4 KB | OPERATION, AND, REVISION, DAG |
 | 486 | `docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md` | DCC操作信頼性マイルストーン (2026-08-30) | 2026-08-31 | In Progress | 2026-08-31 | 31.4 KB | OPERATION, RELIABILITY, DCC |
-| 487 | `docs/planned/MILESTONE_OUT_OF_PROCESS_PROXY_WORKER_2026-09-02.md` | MILESTONE: Out-of-Process プロキシ生成ワーカー（ArtifactProxyWorker） | 2026-09-02 | 部分実装（worker runtime 検証済み、host UI 統合検証待ち） | 2026-09-03 | 21.5 KB | OUT, PROCESS, PROXY, WORKER |
+| 487 | `docs/planned/MILESTONE_OUT_OF_PROCESS_PROXY_WORKER_2026-09-02.md` | MILESTONE: Out-of-Process プロキシ生成ワーカー（ArtifactProxyWorker） | 2026-09-02 | 部分実装（worker runtime 検証済み、host UI 統合検証待ち） | 2026-09-03 | 21.7 KB | OUT, PROCESS, PROXY, WORKER |
 | 488 | `docs/planned/MILESTONE_PAINT_LAYER_2026-06-16.md` | M-PAINT-1 Paint Layer / Raster Editing Foundation Milestone | 2026-06-16 | --- | 2026-08-16 | 19.7 KB | PAINT, LAYER |
 | 489 | `docs/planned/MILESTONE_PAINT_LAYER_RASTER_EDITING_2026-06-01.md` | マイルストーン: Paint Layer / Raster Editing Foundation | 2026-08-04 | --- | 2026-08-06 | 22.0 KB | PAINT, LAYER, RASTER, EDITING |
 | 490 | `docs/planned/MILESTONE_PARTICLE_2D_PARTICULAR_WORKFLOW_2026-08-30.md` | Particle 2D Particular-style Workflow (2026-08-30) | 2026-08-30 | Implemented — runtime verification pending | 2026-08-31 | 7.2 KB | PARTICLE, PARTICULAR, WORKFLOW |
@@ -1113,13 +1114,13 @@
 | 511 | `docs/planned/MILESTONE_PMD_FILE_IMPORT_SUPPORT_2026-04-19.md` | マイルストーン: PMD ファイルインポート対応 | 2026-04-19 | Phase 1 の最小デコーダ・検出は実装済み相当、マテリアル／ボーン表示／モーフ／runtime 受入れ待ち | 2026-08-16 | 9.0 KB | PMD, FILE, IMPORT, SUPPORT |
 | 512 | `docs/planned/MILESTONE_PMD_VMD_LOTTIE_IMPORT_2026-04-19.md` | マイルストーン: PMD / PMX / VMD / Lottie インポート対応 | 2026-08-15 | --- | 2026-08-16 | 6.5 KB | PMD, VMD, LOTTIE, IMPORT |
 | 513 | `docs/planned/MILESTONE_PR_STYLE_REMEDIATION_2026-06-16.md` | Milestone M-PR-STYLE-1: ArtifactPr Style 違反修正 | 2026-06-16 | --- | 2026-07-25 | 17.1 KB | STYLE, REMEDIATION |
-| 514 | `docs/planned/MILESTONE_PRECOMPOSE_BREADCRUMB_DUPLICATE_2026-09-10.md` | Precompose 改善 B+F: パンくず移動と複製管理 | 2026-09-10 | Not Started | 2026-09-10 | 13.4 KB | PRECOMPOSE, BREADCRUMB, DUPLICATE |
-| 515 | `docs/planned/MILESTONE_PRECOMPOSE_VIEWER_TEST_2026-10-15.md` | プリコンポーズ独立GUI・MCPテスト | 2026-10-16 | 実装済み、ビルド・実行未確認（依頼により省略）。 | 2026-10-16 | 36.5 KB | PRECOMPOSE, VIEWER, TEST |
+| 514 | `docs/planned/MILESTONE_PRECOMPOSE_BREADCRUMB_DUPLICATE_2026-09-10.md` | Precompose 改善 B+F: パンくず移動と複製管理 | 2026-09-10 | Not Started | 2026-09-10 | 13.6 KB | PRECOMPOSE, BREADCRUMB, DUPLICATE |
+| 515 | `docs/planned/MILESTONE_PRECOMPOSE_VIEWER_TEST_2026-10-15.md` | プリコンポーズ独立GUI・MCPテスト | 2026-10-16 | 実装済み、ビルド・実行未確認（依頼により省略）。 | 2026-10-16 | 36.4 KB | PRECOMPOSE, VIEWER, TEST |
 | 516 | `docs/planned/MILESTONE_PREVIEW_PLAYBACK_PERFORMANCE_LOW_LEVEL_AI_2026-05-23.md` | Preview Playback Performance - Low Level AI Implementation Milestone | 2026-05-23 | --- | 2026-07-25 | 8.4 KB | PREVIEW, PLAYBACK, PERFORMANCE, LOW, LEVEL |
 | 517 | `docs/planned/MILESTONE_PRO_MONITORING_SCOPES_2026-08-08.md` | Professional Monitoring Scopes Expansion (2026-08-08) | 2026-08-08 | ** 一部実装（Phase 1a Histogram 統合済み、残作業あり） | 2026-08-16 | 11.9 KB | PRO, MONITORING, SCOPES |
 | 518 | `docs/planned/MILESTONE_PROCEDURAL_3D_GENERATORS_MIR_TAO_2026-06-26.md` | Procedural 3D Generators Milestone | 2026-06-26 | Implementation present through the authoring/render/input/preset slices; | 2026-08-16 | 15.0 KB | PROCEDURAL, GENERATORS, MIR, TAO |
 | 519 | `docs/planned/MILESTONE_PRODUCTION_EMISSIVE_BLOOM_2026-08-08.md` | Production Emissive + GPU Bloom Pipeline (2026-08-08) | 2026-08-08 | ** Emissive入力とCPU／参照Bloomあり / GPU final post-process未接続 | 2026-08-16 | 10.0 KB | PRODUCTION, EMISSIVE, BLOOM |
-| 520 | `docs/planned/MILESTONE_PRODUCTION_IMAGE_EFFECT_CONTROLS_2026-08-20.md` | Production Image Effect Controls | 2026-10-26 | In Progress | 2026-09-14 | 8.2 KB | PRODUCTION, IMAGE, EFFECT, CONTROLS |
+| 520 | `docs/planned/MILESTONE_PRODUCTION_IMAGE_EFFECT_CONTROLS_2026-08-20.md` | Production Image Effect Controls | 2026-10-26 | In Progress | 2026-10-29 | 8.2 KB | PRODUCTION, IMAGE, EFFECT, CONTROLS |
 | 521 | `docs/planned/MILESTONE_PRODUCTION_VOLUME_VOXEL_PIPELINE_2026-08-08.md` | Production Volume / Voxel Pipeline (2026-08-08) | 2026-08-08 | ** Core 参照実装あり / Artifact 統合未着手 | 2026-08-16 | 14.6 KB | PRODUCTION, VOLUME, VOXEL, PIPELINE |
 | 522 | `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md` | Professional Media Materials Support (2026-07-16) | 2026-07-16 | --- | 2026-09-21 | 9.6 KB | PROFESSIONAL, MEDIA, MATERIALS |
 | 523 | `docs/planned/MILESTONE_PROFESSIONAL_SOFT_BODY_2026-07-11.md` | マイルストーン: Professional Soft Body / Cloth System | 2026-09-22 | In Progress | 2026-09-22 | 7.2 KB | PROFESSIONAL, SOFT, BODY |
@@ -1148,7 +1149,7 @@
 | 546 | `docs/planned/MILESTONE_PROXY_QUALITY_TOGGLE_UI_2026-06-01.md` | Milestone: Proxy Quality Toggle in Preview UI | 2026-08-15 | --- | 2026-08-16 | 6.1 KB | PROXY, QUALITY, TOGGLE |
 | 547 | `docs/planned/MILESTONE_PROXY_WORKFLOW_2026-03-29.md` | Milestone: Proxy Workflow (2026-03-29) | 2026-03-29 | --- | 2026-08-16 | 5.0 KB | PROXY, WORKFLOW |
 | 548 | `docs/planned/MILESTONE_PUPPET_ENGINE_2026-03-29.md` | Milestone: OpenCV Puppet Engine (2026-03-29) | 2026-03-29 | --- | 2026-08-16 | 7.4 KB | PUPPET, ENGINE |
-| 549 | `docs/planned/MILESTONE_PYRO_DOMAIN_LAYER_INTEGRATION_2026-09-27.md` | M-PYRO-1: Pyro Domain のレイヤー統合（燃焼・火・煙の emitting 経路） | 2026-10-28 | In Progress（resolution-scaled effect profile、爆発向けradial velocity source、Diligent GPU volume raymarch、任意の時間変化ディテールと実験的な煙の自己遮蔽を追加。FireAndSmoke transferと5 profileをD3D12/Vulkanで検証。細部の品質、Composition描画への接続、preview/render queue parityは未完了） | 2026-09-27 | 38.1 KB | PYRO, DOMAIN, LAYER, INTEGRATION |
+| 549 | `docs/planned/MILESTONE_PYRO_DOMAIN_LAYER_INTEGRATION_2026-09-27.md` | M-PYRO-1: Pyro Domain のレイヤー統合（燃焼・火・煙の emitting 経路） | 2026-10-28 | In Progress（resolution-scaled effect profile、爆発向けradial velocity source、Diligent GPU volume raymarch、任意の時間変化ディテールと実験的な煙の自己遮蔽を追加。FireAndSmoke transferと5 profileをD3D12/Vulkanで検証。細部の品質、Composition描画への接続、preview/render queue parityは未完了） | 2026-10-29 | 108.7 KB | PYRO, DOMAIN, LAYER, INTEGRATION |
 | 550 | `docs/planned/MILESTONE_PYTHON_API_SCRIPTING_2026-03-30.md` | Milestone: Python API & Scripting Console (M-PY-1) | 2026-08-15 | --- | 2026-08-16 | 4.6 KB | PYTHON, API, SCRIPTING |
 | 551 | `docs/planned/MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md` | Milestone: QADS Floating Surface Stabilization | 2026-05-16 | --- | 2026-08-16 | 5.9 KB | QADS, FLOATING, SURFACE, STABILIZATION |
 | 552 | `docs/planned/MILESTONE_QSS_DECOMMISSION_COMMONSTYLE_2026-04-03.md` | Milestone: QSS Decommission / CommonStyle Path to QCommonStyle (2026-04-03) | 2026-08-04 | --- | 2026-08-06 | 6.1 KB | QSS, DECOMMISSION, COMMONSTYLE |
@@ -1159,7 +1160,7 @@
 | 557 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_2026-05-31.md` | Milestone: RAM Preview Range Policy and Priority | 2026-08-15 | --- | 2026-08-16 | 8.3 KB | RAM, PREVIEW, RANGE, POLICY, AND |
 | 558 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_PHASE1_EXECUTION_2026-05-31.md` | MILESTONE: RAM Preview Range Policy and Priority - Phase 1 Execution | 2026-08-04 | --- | 2026-08-06 | 6.8 KB | RAM, PREVIEW, RANGE, POLICY, AND |
 | 559 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_PHASE2_EXECUTION_2026-06-24.md` | MILESTONE: RAM Preview Range Policy and Priority - Phase 2 Execution | 2026-08-04 | --- | 2026-08-06 | 2.9 KB | RAM, PREVIEW, RANGE, POLICY, AND |
-| 560 | `docs/planned/MILESTONE_RAY_TRACING_DX_VULKAN_2026-05-16.md` | Milestone: DX12/Vulkan Ray Tracing Integration | 2026-05-16 | --- | 2026-10-14 | 18.8 KB | RAY, TRACING, VULKAN |
+| 560 | `docs/planned/MILESTONE_RAY_TRACING_DX_VULKAN_2026-05-16.md` | Milestone: DX12/Vulkan Ray Tracing Integration | 2026-05-16 | --- | 2026-10-14 | 18.9 KB | RAY, TRACING, VULKAN |
 | 561 | `docs/planned/MILESTONE_RAYTRACING_EFFECTS_2026-03-25.md` | Milestone: レイトレ系エフェクト段階導入 (2026-03-25) | 2026-08-04 | --- | 2026-08-06 | 14.6 KB | RAYTRACING, EFFECTS |
 | 562 | `docs/planned/MILESTONE_REACTION_DIFFUSION_BLUR_2026-06-13.md` | Milestone: ReactionDiffusionBlur (自己組織化・細胞分裂ブラー) | 2026-06-13 | --- | 2026-08-16 | 7.4 KB | REACTION, DIFFUSION, BLUR |
 | 563 | `docs/planned/MILESTONE_REACTION_DIFFUSION_STYLIZER_2026-06-13.md` | Milestone: ReactionDiffusionStylizer (反応拡散スタイライザー / 自律絵画化) | 2026-08-04 | --- | 2026-08-06 | 7.5 KB | REACTION, DIFFUSION, STYLIZER |
@@ -1181,7 +1182,7 @@
 | 579 | `docs/planned/MILESTONE_RENDER_THREAD_SEPARATION_FEASIBILITY_2026-10-16.md` | Render Thread Separation — Phase 4 Feasibility & Design | 2026-10-19 | In Progress — active packet-order paths, Particle / retained Billboard / transferred Gizmo / solid and textured 3D Card / bounded 3D shape triangle / warm-atlas ordinary and transformed GlyphText deferred parity with distinct-glyph and post-seed atlas-update image assertions, projector fallback, offscreen target continuity, the bounded asynchronous base-to-overlay recording window, Composition point-light and channel-inspection frame images, the Cloner async-dispatch → immediate-clear → CPU-fallback image contract, renderer-owned viewport color / channel-display passes, and production Composition FXAA command recording on a dedicated Deferred Context with shadow-map overlap. Production Composition controller frames are saved as PNGs. The current source Spot synchronous control and Deferred shadow-overlap test pass; each backend was exercised in separate processes. Point cases also pass on Vulkan and assert that deferred FXAA work completed. The Composition frame output and `present` still run on the caller thread, so GUI rendering is not yet generally non-blocking. The focused synthetic renderer-owned deferred-compute case passes on D3D12 and Vulkan and writes byte-identical PNGs; the full Cloner contract suite timed out when run without a filter. | 2026-10-19 | 213.0 KB | RENDER, THREAD, SEPARATION, FEASIBILITY |
 | 580 | `docs/planned/MILESTONE_RENDERING_PERFORMANCE_2026-03-28.md` | レンダリング性能改善 Milestone | 2026-03-28 | 性能基盤は大部分実装済み、数値目標と実機受入れは未完了 | 2026-08-16 | 12.1 KB | RENDERING, PERFORMANCE |
 | 581 | `docs/planned/MILESTONE_RESPONSIVE_LAYOUT_COMPOSITION_2026-06-05.md` | MILESTONE Responsive Layout Composition | 2026-06-29 | --- | 2026-08-16 | 4.5 KB | RESPONSIVE, LAYOUT, COMPOSITION |
-| 582 | `docs/planned/MILESTONE_REVEAL_COVERAGE.md` | 共通 Reveal / Coverage 実装計画 | 2026-10-01 | In Progress | 2026-10-01 | 11.1 KB | REVEAL, COVERAGE |
+| 582 | `docs/planned/MILESTONE_REVEAL_COVERAGE.md` | 共通 Reveal / Coverage 実装計画 | 2026-10-01 | In Progress | 2026-10-01 | 11.0 KB | REVEAL, COVERAGE |
 | 583 | `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md` | マイルストーン: Review / Compare / Annotation | 2026-08-15 | --- | 2026-08-16 | 6.9 KB | REVIEW, COMPARE, ANNOTATION |
 | 584 | `docs/planned/MILESTONE_REVIEW_WORKSPACE_2026-04-03.md` | Review Workspace: Frame-Accurate Compare & Annotation Milestone (2026-04-03) | 2026-04-03 | --- | 2026-08-16 | 11.3 KB | REVIEW, WORKSPACE |
 | 585 | `docs/planned/MILESTONE_RIG2D_BONE_KEYFRAME_ANIMATION_2026-07-25.md` | MILESTONE_RIG2D_BONE_KEYFRAME_ANIMATION_2026-07-25 | 2026-07-25 | Partial（時間評価・キーフレーム補間を実装済み。FPS 設定、独立補間、AnimationLayerStack、RigControl、編集 UI、runtime 検証は未完了） | 2026-09-08 | 5.8 KB | RIG2D, BONE, KEYFRAME, ANIMATION |
@@ -1189,14 +1190,14 @@
 | 587 | `docs/planned/MILESTONE_RPC_CLIENT_2026-07-02.md` | M-RE-2.A Network RPC Client Milestone | 2026-08-15 | --- | 2026-08-16 | 13.1 KB | RPC, CLIENT |
 | 588 | `docs/planned/MILESTONE_SANDBOX_EDITS_2026-06-07.md` | MILESTONE: Sandbox Edits | 2026-06-07 | --- | 2026-08-16 | 4.0 KB | SANDBOX, EDITS |
 | 589 | `docs/planned/MILESTONE_SCENE_NODE_EXPANSION_2026-04-20.md` | MILESTONE: SceneNode Feature Expansion | 2026-08-15 | --- | 2026-08-16 | 10.1 KB | SCENE, NODE, EXPANSION |
-| 590 | `docs/planned/MILESTONE_SCOPES_2026-06-16.md` | M-SCOPES-1 Scopes Milestone (Vector / Waveform / Parade) | 2026-06-16 | --- | 2026-09-08 | 16.5 KB | SCOPES |
+| 590 | `docs/planned/MILESTONE_SCOPES_2026-06-16.md` | M-SCOPES-1 Scopes Milestone (Vector / Waveform / Parade) | 2026-06-16 | --- | 2026-09-08 | 16.8 KB | SCOPES |
 | 591 | `docs/planned/MILESTONE_SCRIPT_CONSOLE_2026-06-16.md` | M-SCRIPT-1 Script Console (REPL) Milestone | 2026-06-16 | --- | 2026-08-16 | 13.1 KB | SCRIPT, CONSOLE |
 | 592 | `docs/planned/MILESTONE_SCRIPT_MENU_MACRO_ENTRY_EXECUTION_2026-05-31.md` | M-FE-6a Script Menu / Macro Entry Execution | 2026-08-04 | --- | 2026-08-06 | 8.3 KB | SCRIPT, MENU, MACRO, ENTRY, EXECUTION |
 | 593 | `docs/planned/MILESTONE_SCRIPT_MENU_PY_LOADER_2026-04-02.md` | Milestone: Script Menu / menu.py Loader (M-PY-2) | 2026-08-15 | --- | 2026-08-16 | 4.3 KB | SCRIPT, MENU, LOADER |
 | 594 | `docs/planned/MILESTONE_SCRUB_EXPRESSION_CACHE_REUSE_2026-06-07.md` | MILESTONE: Scrub Accuracy / Expression Recursion / Cache Reuse - 2026-06-07 | 2026-06-07 | --- | 2026-08-16 | 10.8 KB | SCRUB, EXPRESSION, CACHE, REUSE |
 | 595 | `docs/planned/MILESTONE_SEARCH_COLLECTIONS_SMART_ORGANIZATION_2026-03-28.md` | マイルストーン: Search / Collections / Smart Organization | 2026-08-15 | --- | 2026-08-16 | 4.9 KB | SEARCH, COLLECTIONS, SMART, ORGANIZATION |
 | 596 | `docs/planned/MILESTONE_SECURITY_HARDENING_2026-03-28.md` | セキュリティ強化 Milestone | 2026-03-28 | 計画中 | 2026-08-16 | 9.9 KB | SECURITY, HARDENING |
-| 597 | `docs/planned/MILESTONE_SERIALIZATION_DIAGNOSTIC_BOUNDARY_2026-09-25.md` | マイルストーン: シリアライズ診断境界と軽量ワークスペーススナップショット | 2026-09-25 | In Progress | 2026-09-26 | 8.3 KB | SERIALIZATION, DIAGNOSTIC, BOUNDARY |
+| 597 | `docs/planned/MILESTONE_SERIALIZATION_DIAGNOSTIC_BOUNDARY_2026-09-25.md` | マイルストーン: シリアライズ診断境界と軽量ワークスペーススナップショット | 2026-09-25 | In Progress | 2026-09-26 | 8.4 KB | SERIALIZATION, DIAGNOSTIC, BOUNDARY |
 | 598 | `docs/planned/MILESTONE_SERIALIZATION_FRAMEWORK.md` | MILESTONE: Unified Serialization Framework | 2026-08-04 | --- | 2026-08-16 | 24.7 KB | SERIALIZATION, FRAMEWORK |
 | 599 | `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md` | マイルストーン: Session Ledger / Recovery Workspace | 2026-04-09 | --- | 2026-08-16 | 5.1 KB | SESSION, LEDGER, RECOVERY, WORKSPACE |
 | 600 | `docs/planned/MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02.md` | MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02 | 2026-04-02 | --- | 2026-08-16 | 8.0 KB | SETTINGS, SEARCH, FILTER |
@@ -1207,7 +1208,7 @@
 | 605 | `docs/planned/MILESTONE_SHAPE_PATH_NATIVE_RENDER_PIPELINE_2026-07-27.md` | ShapePath 自作ジオメトリ／描画経路移行マイルストーン | 2026-08-04 | In Progress（native geometry の通常描画移行済み、gradient／stroke alignment等は明示fallback、runtime検証待ち） | 2026-09-07 | 14.0 KB | SHAPE, PATH, NATIVE, RENDER, PIPELINE |
 | 606 | `docs/planned/MILESTONE_SHAPE_SVG_EXPORT_AND_KEYFRAME_VERIFY_2026-08-22.md` | MILESTONE: シェイプ機能拡充（SVG品質・ブール演算・複数シェイプ・性能・頂点編集） | 2026-10-02 | In Progress | 2026-10-02 | 24.2 KB | SHAPE, SVG, EXPORT, AND, KEYFRAME |
 | 607 | `docs/planned/MILESTONE_SHARED_MEMORY_IPC.md` | MILESTONE: Shared Memory IPC Framework | 2026-08-05 | In Progress | 2026-08-16 | 27.0 KB | SHARED, MEMORY, IPC |
-| 608 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` | M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing | 2026-04-21 | --- | 2026-09-08 | 11.6 KB | SHORTCUT, CONTEXT, MAP |
+| 608 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` | M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing | 2026-04-21 | --- | 2026-09-08 | 11.7 KB | SHORTCUT, CONTEXT, MAP |
 | 609 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE1_2026-04-21.md` | M-SC-2 Phase 1 Context Model Freeze | 2026-08-04 | --- | 2026-08-06 | 0.7 KB | SHORTCUT, CONTEXT, MAP, PHASE1 |
 | 610 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE2_2026-04-21.md` | M-SC-2 Phase 2 Widget / Region Registration | 2026-08-04 | --- | 2026-08-06 | 0.7 KB | SHORTCUT, CONTEXT, MAP, PHASE2 |
 | 611 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE3_2026-04-21.md` | M-SC-2 Phase 3 Preset / Editor Integration | 2026-08-04 | --- | 2026-08-06 | 0.7 KB | SHORTCUT, CONTEXT, MAP, PHASE3 |
@@ -1218,12 +1219,12 @@
 | 616 | `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md` | MILESTONE: 単一画像レイヤー化（Single Image Layerization） | 2026-08-17 | In Progress（standalone prototype implemented; app integration not started） | 2026-08-18 | 12.5 KB | SINGLE, IMAGE, LAYERIZATION |
 | 617 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | --- | 2026-10-02 | 7.5 KB | SMART, FALLBACKS |
 | 618 | `docs/planned/MILESTONE_SMART_GUIDES_2026-04-10.md` | スマートガイドシステムの実装 | 2026-08-15 | --- | 2026-08-16 | 2.8 KB | SMART, GUIDES |
-| 619 | `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` | M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ | 2026-10-27 | In Progress（煙エミッタのCore API・Inspector設定・永続化・Brushによるビューポートstirringを実装。エミッタ数1〜64を追加。独立Core/runtime、D3D12 production、CPU/GPU Render Queueとheadless Composition View描画wrapperの同一frame画像比較は通過。Composition View wrapperとGPU Render Queue frameは画素完全一致。本番2D runtimeに独立flame-lifetime fieldを追加し、source-stop tail・煙密度ゼロ描画・checkpoint逆再生を独立runtime testで検証。test-only煙＋炎同一raymarchはD3D12 / Vulkanで画素完全一致。炎の詳細形状はなお滑らかで製品品質に不足し、fuel/reaction simulation、寿命のInspector / JSON設定は実装済み。燃焼field、production volume renderer、実アプリUI操作とlive viewport captureは未完了） | 2026-10-27 | 241.9 KB | SMOKE, EMITTER, AND, VIEWPORT, INTERACTION |
+| 619 | `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` | M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ | 2026-10-28 | In Progress（煙エミッタのCore API・Inspector設定・永続化・Brushによるビューポートstirringを実装。エミッタ数1〜64を追加。独立Core/runtime、D3D12 production、CPU/GPU Render Queueとheadless Composition View描画wrapperの同一frame画像比較は通過。Composition View wrapperとGPU Render Queue frameは画素完全一致。本番2D runtimeに独立flame-lifetime fieldを追加し、source-stop tail・煙密度ゼロ描画・checkpoint逆再生を独立runtime testで検証。production `ArtifactIRenderer`へbounded 2.5D GPU volume pathを接続し、runtime統合テストはD3D12 / Vulkanで通過。192²初期格子案は過去のCPUコスト／形状測定を根拠に撤回し、128²へ戻した。煙のbillow品質と自動画面解像度は未達で、live viewport順序・実時間予算・高解像度負荷・実アプリUI操作は未完了） | 2026-10-29 | 324.1 KB | SMOKE, EMITTER, AND, VIEWPORT, INTERACTION |
 | 620 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-08-15 | --- | 2026-08-16 | 2.9 KB | SNAP, ADVANCED |
 | 621 | `docs/planned/MILESTONE_SOLID_LAYER_NOISE_FILL_2026-08-18.md` | MILESTONE: 平面レイヤー Noise Fill | 2026-08-24 | Superseded（2026-08-24: 独立ノイズレイヤー方式へ方針変更。平面 Fill 拡張は実装断念） | 2026-08-24 | 16.9 KB | SOLID, LAYER, NOISE, FILL |
 | 622 | `docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md` | マイルストーン: Source Relocation Contract（Image / Image Sequence） | 2026-10-02 | In Progress | 2026-10-02 | 11.6 KB | SOURCE, RELOCATION, CONTRACT |
 | 623 | `docs/planned/MILESTONE_SOURCE_TEXT_KEYFRAME_2026-06-16.md` | M-TXT-3 Source Text Keyframe Milestone | 2026-07-16 | --- | 2026-08-16 | 18.8 KB | SOURCE, TEXT, KEYFRAME |
-| 624 | `docs/planned/MILESTONE_SPATIAL_AUDIO_OBJECT_RENDERING_2026-09-04.md` | Spatial Audio Object Rendering Milestone | 2026-09-05 | 最小再生、speaker VBAP、解析的headphone、距離音色、明示LFE send、Property編集はコード接続済み・実行未検証。測定HRIR、room、routing／exportは未実装。 | 2026-09-05 | 25.5 KB | SPATIAL, AUDIO, OBJECT, RENDERING |
+| 624 | `docs/planned/MILESTONE_SPATIAL_AUDIO_OBJECT_RENDERING_2026-09-04.md` | Spatial Audio Object Rendering Milestone | 2026-09-05 | 最小再生、speaker VBAP、解析的headphone、距離音色、明示LFE send、Property編集はコード接続済み・実行未検証。測定HRIR、room、routing／exportは未実装。 | 2026-09-05 | 25.7 KB | SPATIAL, AUDIO, OBJECT, RENDERING |
 | 625 | `docs/planned/MILESTONE_SPATIAL_ROOM_REFLECTION_REVERB_2026-10-08.md` | MILESTONE: Spatial Room / 初期反射 / 残響の物理化（M-AU-9.7 具体化） | 2026-10-08 | 設計確定・実装待ち | 2026-10-08 | 4.7 KB | SPATIAL, ROOM, REFLECTION, REVERB |
 | 626 | `docs/planned/MILESTONE_STARTUP_AND_COMPOSITION_OPEN_LATENCY_2026-04-28.md` | マイルストーン: Startup / Composition Open Latency Reduction | 2026-04-28 | In Progress | 2026-08-16 | 9.2 KB | STARTUP, AND, COMPOSITION, OPEN, LATENCY |
 | 627 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_2026-04-21.md` | M-DIAG-5 Startup Thread Churn / Worker Burst Trace | 2026-08-15 | --- | 2026-08-16 | 3.6 KB | STARTUP, THREAD, CHURN, TRACE |
@@ -1244,7 +1245,7 @@
 | 642 | `docs/planned/MILESTONE_TEMPORAL_EFFECT_HOST_FOR_TIME_DISPLACEMENT_2026-07-01.md` | Temporal Effect Host for Time Displacement (2026-07-01) | 2026-07-01 | --- | 2026-07-01 | 12.9 KB | TEMPORAL, EFFECT, HOST, FOR, TIME |
 | 643 | `docs/planned/MILESTONE_TERMINAL_SHELL_2026-04-06.md` | Terminal Shell / Command Surface Milestone | 2026-08-15 | --- | 2026-08-16 | 5.1 KB | TERMINAL, SHELL |
 | 644 | `docs/planned/MILESTONE_TEST_QA_INFRASTRUCTURE_2026-03-28.md` | テスト・QA 基盤 Milestone | 2026-03-28 | Phase 1 実装済み | 2026-04-08 | 8.1 KB | TEST, INFRASTRUCTURE |
-| 645 | `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` | M-TXT-ANIM-1: Text Animator の追加ワークフロー仕上げ（AE 風個別追加・Timeline 露出） | 2026-10-06 | In Progress（P1 の個別プロパティ追加と P2 の Timeline 左ペイン露出は 2026-09-26 に実装・静的確認済み。ビルド・実機は未確認） | 2026-10-06 | 12.5 KB | TEXT, ANIMATOR, ADD, WORKFLOW |
+| 645 | `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` | M-TXT-ANIM-1: Text Animator の追加ワークフロー仕上げ（AE 風個別追加・Timeline 露出） | 2026-10-06 | In Progress（P1 の個別プロパティ追加と P2 の Timeline 左ペイン露出は 2026-09-26 に実装・静的確認済み。ビルド・実機は未確認） | 2026-10-06 | 12.6 KB | TEXT, ANIMATOR, ADD, WORKFLOW |
 | 646 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLETION.md` | MILESTONE: Text Animator Completion & Inline Editing | 2026-08-04 | ** 2026-08-08 ソース実装完了、runtime確認待ち。`RangeSelector::order` を正規状態として追加し、通常評価と source-aware 評価、selector preview、JSON 保存復元、Inspector の `Order` プロパティへ接続した。既存データは `Natural` を既定値として互換維持する。 | 2026-08-16 | 24.5 KB | TEXT, ANIMATOR, COMPLETION |
 | 647 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-08-04 | --- | 2026-10-02 | 18.8 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
 | 648 | `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md` | MILESTONE: 次世代テキストアニメーター | 2026-08-04 | --- | 2026-08-06 | 5.5 KB | TEXT, ANIMATOR, NEXT, GEN |
@@ -1257,7 +1258,7 @@
 | 655 | `docs/planned/MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md` | マイルストーン: テキストレイヤー コンポジットエディタ内編集 | 2026-07-16 | --- | 2026-08-16 | 8.6 KB | TEXT, LAYER, INLINE, EDIT |
 | 656 | `docs/planned/MILESTONE_TEXT_VIEWPORT_EDIT_MODE_FEASIBILITY_2026-06-25.md` | Text Viewport Edit Mode Feasibility (2026-06-25) | 2026-08-04 | --- | 2026-08-06 | 14.4 KB | TEXT, VIEWPORT, EDIT, MODE, FEASIBILITY |
 | 657 | `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md` | Text Workstream Index | 2026-04-30 | --- | 2026-07-16 | 2.7 KB | TEXT, WORKSTREAM, INDEX |
-| 658 | `docs/planned/MILESTONE_TGFX_INSPIRED_RENDER_REUSE_2026-09-22.md` | TGFX-inspired Render Reuse / Damage Scheduling | 2026-09-26 | In Progress | 2026-09-26 | 81.9 KB | TGFX, INSPIRED, RENDER, REUSE |
+| 658 | `docs/planned/MILESTONE_TGFX_INSPIRED_RENDER_REUSE_2026-09-22.md` | TGFX-inspired Render Reuse / Damage Scheduling | 2026-09-26 | In Progress | 2026-09-26 | 82.5 KB | TGFX, INSPIRED, RENDER, REUSE |
 | 659 | `docs/planned/MILESTONE_TIME_REMAP_CURVE_UI_2026-06-02.md` | M-MOTION-7 Time Remap Curve UI (2026-06-02) | 2026-06-02 | --- | 2026-08-16 | 5.3 KB | TIME, REMAP, CURVE |
 | 660 | `docs/planned/MILESTONE_TIME_WARP_CURVE_2026-07-07.md` | M-TWC-1 Time Warp Curve on Clips Milestone | 2026-07-07 | --- | 2026-08-16 | 10.6 KB | TIME, WARP, CURVE |
 | 661 | `docs/planned/MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Audio Layer Specialization (2026-04-23) | 2026-08-04 | --- | 2026-08-06 | 3.6 KB | TIMELINE, AUDIO, LAYER, SPECIALIZATION |
@@ -1268,7 +1269,7 @@
 | 666 | `docs/planned/MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-29.md` | マイルストーン: Timeline DCC-Feel Gaps (2026-08-29) | 2026-08-29 | --- | 2026-08-30 | 11.8 KB | TIMELINE, DCC, FEEL, GAPS |
 | 667 | `docs/planned/MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30.md` | MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30 | 2026-08-29 | In Progress | 2026-09-08 | 16.0 KB | TIMELINE, DCC, FEEL, GAPS |
 | 668 | `docs/planned/MILESTONE_TIMELINE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: タイムラインエディタ 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-08-31 | 25.0 KB | TIMELINE, DESIGN, AUDIT |
-| 669 | `docs/planned/MILESTONE_TIMELINE_DILIGENT_GPU_SURFACE_2026-08-29.md` | Timeline Diligent GPU Surface | 2026-09-16 | Phase 1 実装済み・Phase 2 部分実装、runtime / backend 実機検証待ち | 2026-09-16 | 11.8 KB | TIMELINE, DILIGENT, GPU, SURFACE |
+| 669 | `docs/planned/MILESTONE_TIMELINE_DILIGENT_GPU_SURFACE_2026-08-29.md` | Timeline Diligent GPU Surface | 2026-09-16 | Phase 1 実装済み・Phase 2 部分実装、runtime / backend 実機検証待ち | 2026-09-16 | 12.0 KB | TIMELINE, DILIGENT, GPU, SURFACE |
 | 670 | `docs/planned/MILESTONE_TIMELINE_FEATURE_IMPLEMENTATION_2026-04-03.md` | マイルストーン: Timeline Feature Implementation / Interaction Surface | 2026-04-03 | --- | 2026-08-16 | 10.2 KB | TIMELINE, FEATURE, IMPLEMENTATION |
 | 671 | `docs/planned/MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03.md` | Timeline Flat Keyframe View / U-Key Style Filter | 2026-05-11 | --- | 2026-08-16 | 9.7 KB | TIMELINE, FLAT, KEYFRAME, VIEW |
 | 672 | `docs/planned/MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03_EXECUTION.md` | Timeline Flat Keyframe View Execution Memo | 2026-08-04 | --- | 2026-08-06 | 4.1 KB | TIMELINE, FLAT, KEYFRAME, VIEW, EXECUTION |
@@ -1297,8 +1298,8 @@
 | 695 | `docs/planned/MILESTONE_TOOLBAR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ツールバー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-08-16 | 2.5 KB | TOOLBAR, DESIGN, AUDIT |
 | 696 | `docs/planned/MILESTONE_TOP_LEVEL_WIDGET_ARCHITECTURE_2026-07-13.md` | Top-Level Widget Architecture Migration | 2026-08-15 | `ArtifactMainWindow : QWidget` 化と DockManager／backend-neutral layout 基盤は実装済み。workspace facade への全面移行、floating lifecycle、backend switch、runtime 検証は未完了。 | 2026-08-16 | 13.6 KB | TOP, LEVEL, WIDGET, ARCHITECTURE |
 | 697 | `docs/planned/MILESTONE_TRACK_MATTE_DRAG_LINK_UX_2026-06-01.md` | Milestone: Track Matte Drag-Link UX | 2026-06-01 | --- | 2026-08-16 | 6.5 KB | TRACK, MATTE, DRAG, LINK |
-| 698 | `docs/planned/MILESTONE_TRACKING_REVIEW_BAKE_2026-09-22.md` | M-TRACK-REVIEW-1 Tracking Review / Bake Acceptance | 2026-10-11 | In Progress | 2026-10-12 | 4.3 KB | TRACKING, REVIEW, BAKE |
-| 699 | `docs/planned/MILESTONE_TYPED_COORDINATE_SPACES_2026-09-27.md` | 座標空間・単位の強型化マイルストーン | 2026-09-30 | In Progress | 2026-10-01 | 77.4 KB | TYPED, COORDINATE, SPACES |
+| 698 | `docs/planned/MILESTONE_TRACKING_REVIEW_BAKE_2026-09-22.md` | M-TRACK-REVIEW-1 Tracking Review / Bake Acceptance | 2026-10-11 | In Progress | 2026-10-12 | 4.4 KB | TRACKING, REVIEW, BAKE |
+| 699 | `docs/planned/MILESTONE_TYPED_COORDINATE_SPACES_2026-09-27.md` | 座標空間・単位の強型化マイルストーン | 2026-09-30 | In Progress | 2026-10-01 | 77.7 KB | TYPED, COORDINATE, SPACES |
 | 700 | `docs/planned/MILESTONE_TYPOGRAPHY_PRESET_UI_2026-03-30.md` | Milestone: Typography Preset & Motion Style UI (M-TY-2) | 2026-08-04 | --- | 2026-08-06 | 2.6 KB | TYPOGRAPHY, PRESET |
 | 701 | `docs/planned/MILESTONE_UI_EVENT_BUS_ADOPTION_2026-04-01.md` | UI EventBus Adoption Milestone | 2026-08-15 | --- | 2026-08-16 | 3.6 KB | EVENT, BUS, ADOPTION |
 | 702 | `docs/planned/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History Milestone | 2026-06-07 | Phase 0〜2 と安全な default reset は実装済み。全操作の granular undo、menu 同期、recovery の runtime 受入れは未完了。 | 2026-08-16 | 5.9 KB | LAYOUT, UNDO, HISTORY |
@@ -1316,12 +1317,12 @@
 | 714 | `docs/planned/MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md` | マイルストーン: Vector / SVG Layer Import | 2026-08-15 | --- | 2026-08-16 | 6.4 KB | VECTOR, LAYER, IMPORT |
 | 715 | `docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md` | Milestone: Real-time Particle & Fluid Simulation (M-VFX-1) | 2026-08-04 | SUPERSEDED — Surface FX System（2026-08-15 現行コード照合） | 2026-08-16 | 5.2 KB | VFX, PARTICLE, FLUID |
 | 716 | `docs/planned/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-06.md` | マイルストーン: VideoLayer Playback Stability | 2026-06-06 | --- | 2026-07-09 | 5.6 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
-| 717 | `docs/planned/MILESTONE_VIDEO_PREVIEW_LAYER_SCALING_HARNESS_2026-10-12.md` | 動画プレビュー レイヤー数スケーリング検証ハーネス | 2026-10-13 | In Progress — ハーネス実行済み、プレビュー性能条件は未達 | 2026-10-13 | 59.7 KB | VIDEO, PREVIEW, LAYER, SCALING, HARNESS |
+| 717 | `docs/planned/MILESTONE_VIDEO_PREVIEW_LAYER_SCALING_HARNESS_2026-10-12.md` | 動画プレビュー レイヤー数スケーリング検証ハーネス | 2026-10-13 | In Progress — ハーネス実行済み、プレビュー性能条件は未達 | 2026-10-13 | 60.1 KB | VIDEO, PREVIEW, LAYER, SCALING, HARNESS |
 | 718 | `docs/planned/MILESTONE_VIDEO_PROXY_IMPROVEMENT_2026-03-28.md` | ビデオプロキシ機能改善 Milestone | 2026-03-28 | 生成・品質切替・Project View／Timeline 導線・batch API は実装済み。同期実行、cache policy、runtime 検証が残る。 | 2026-08-16 | 13.5 KB | VIDEO, PROXY, IMPROVEMENT |
 | 719 | `docs/planned/MILESTONE_VIDEO_QIMAGE_RETIREMENT_COMPLETION_2026-07-09.md` | M-VIDEO-QIR: Video QImage Retirement — Completion 設計マイルストーン | 2026-08-15 | Partial（正フレーム型・色メタ経路は実装済み。CPU fallback／互換API／runtime確認が残存） | 2026-08-16 | 9.1 KB | VIDEO, QIMAGE, RETIREMENT, COMPLETION |
 | 720 | `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md` | Milestone: Viewport Bookmarks System (M-VP-8) | 2026-06-27 | 名前付き viewport／camera bookmark、template、ズーム／パン／回転／orientation／preview quality の保存・復元、UI 導線は実装済み。shortcut／並べ替え／実機受入れは未完了。なお `Ctrl+Shift+1〜9` は Rig Pose Slot が使用しており、Bookmark の `Ctrl+1〜9` は未接続。 | 2026-08-16 | 35.9 KB | VIEWPORT, BOOKMARKS |
 | 721 | `docs/planned/MILESTONE_VIEWPORT_CANVAS_ROTATION_2026-06-27.md` | Milestone: Viewport Canvas Rotation System (M-VP-4) | 2026-08-04 | In Progress（基盤実装済み、runtime 検証待ち） | 2026-08-16 | 21.5 KB | VIEWPORT, CANVAS, ROTATION |
-| 722 | `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md` | M-VP-DCC-1: ビューポート DCC パリティ導入（C4D / Houdini / Maya） | 2026-09-26 | P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）/ P0-4 / P1-5 / P1-10 着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3d.1（ProgressiveRenderer 統合）/ P1-1〜P1-4 / P1-6 の readback 反映 / P1-7〜P1-9 / P1-11 以降 / P2 は未着手（分析完了）。 | 2026-09-26 | 26.2 KB | VIEWPORT, DCC, PARITY |
+| 722 | `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md` | M-VP-DCC-1: ビューポート DCC パリティ導入（C4D / Houdini / Maya） | 2026-09-26 | P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）/ P0-4 / P1-5 / P1-10 着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3d.1（ProgressiveRenderer 統合）/ P1-1〜P1-4 / P1-6 の readback 反映 / P1-7〜P1-9 / P1-11 以降 / P2 は未着手（分析完了）。 | 2026-09-26 | 26.5 KB | VIEWPORT, DCC, PARITY |
 | 723 | `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ビューポート（Composition Editor）デザイン監査 (2026-07-04) | 2026-07-04 | --- | 2026-09-22 | 55.5 KB | VIEWPORT, DESIGN, AUDIT |
 | 724 | `docs/planned/MILESTONE_VIEWPORT_DYNAMIC_RESOLUTION_2026-06-27.md` | Milestone: Viewport Dynamic Resolution Switching (M-VP-5) | 2026-08-04 | 部分実装（固定品質プリセットと操作中 downsample は実装済み。負荷連動の自動スケールは未完了） | 2026-08-16 | 25.4 KB | VIEWPORT, DYNAMIC, RESOLUTION |
 | 725 | `docs/planned/MILESTONE_VIEWPORT_ENHANCEMENT_PROPOSAL_2026-07-08.md` | ビューポート強化案 (Viewport Enhancement Proposal) | 2026-08-04 | --- | 2026-08-06 | 25.2 KB | VIEWPORT, ENHANCEMENT, PROPOSAL |
@@ -1341,7 +1342,7 @@
 | 739 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-08-15 | 実装完了（runtime検証待ち） | 2026-08-16 | 5.9 KB | ZOOM, FIT |
 | 740 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-10-11 | --- | 2026-10-23 | 286.9 KB | BACKLOG |
 | 741 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
-| 742 | `docs/planned/P0_DESIGN_NOTES_2026-09-22.md` | P0 設計メモ — VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22 着手前調査 | 2026-09-22 | 着手前調査のみ。コード変更なし。 | 2026-09-22 | 21.9 KB | DESIGN, NOTES |
+| 742 | `docs/planned/P0_DESIGN_NOTES_2026-09-22.md` | P0 設計メモ — VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22 着手前調査 | 2026-09-22 | 着手前調査のみ。コード変更なし。 | 2026-09-22 | 22.2 KB | DESIGN, NOTES |
 | 743 | `docs/planned/PHYSICAL_LENS_FLARE_IMPLEMENTATION_2026-08-13.md` | 物理ベース・レンズフレア実装 手順書 | 2026-08-13 | --- | 2026-08-16 | 17.8 KB | PHYSICAL, LENS, FLARE, IMPLEMENTATION |
 | 744 | `docs/planned/PIMPL_CUSTOM_ALLOCATOR_DESIGN_2026-08-23.md` | PImpl と専用メモリアロケータの設計プラン | 2026-08-23 | Not Started | 2026-08-24 | 13.9 KB | PIMPL, CUSTOM, ALLOCATOR, DESIGN |
 | 745 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-09-08 | 4.2 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
@@ -1370,11 +1371,11 @@
 |---|------|-------|------|--------|----------|------|----------|
 | 1 | `plans/AFTER_EFFECTS_GAP_ANALYSIS.md` | After Effects 比較 不足機能分析レポート | 2026-04-18 | --- | 2026-04-19 | 5.8 KB | AFTER, EFFECTS, GAP, ANALYSIS |
 | 2 | `plans/AFTER_EFFECTS_MISSING_FEATURES_PRIORITY_LIST.md` | After Effects 比較 不足機能優先順位一覧 | 2026-04-18 | --- | 2026-04-19 | 3.4 KB | AFTER, EFFECTS, MISSING, FEATURES, PRIORITY |
-| 3 | `plans/ARTIFACT_PR_GAP_ANALYSIS_VS_PREMIERE_2026-08-29.md` | ArtifactPr × Premiere Pro ギャップ分析レポート | 2026-08-29 | --- | 2026-09-27 | 7.4 KB | ARTIFACT, GAP, ANALYSIS |
+| 3 | `plans/ARTIFACT_PR_GAP_ANALYSIS_VS_PREMIERE_2026-08-29.md` | ArtifactPr × Premiere Pro ギャップ分析レポート | 2026-08-29 | --- | 2026-09-27 | 7.5 KB | ARTIFACT, GAP, ANALYSIS |
 | 4 | `plans/MILESTONE_APP_WHOLE_IMPROVEMENT_2026-04-11.md` | マイルストーン: アプリケーション全体品質改善 | 2026-04-11 | --- | 2026-04-11 | 6.0 KB | APP, WHOLE, IMPROVEMENT |
 | 5 | `plans/MILESTONE_COLLABORATIVE_REACTIVE_RULES_2026-06-07.md` | Milestone: Real-time Collaboration for Reactive Rules | 2026-06-07 | --- | 2026-06-09 | 1.4 KB | COLLABORATIVE, REACTIVE, RULES |
 | 6 | `plans/MILESTONE_CORE_FEATURE_EXPANSION_2026-04-11.md` | マイルストーン: コア機能拡充ロードマップ | 2026-04-11 | --- | 2026-04-11 | 7.4 KB | CORE, FEATURE, EXPANSION |
-| 7 | `plans/transition-effects-expansion-2026-07-09.md` | トランジションエフェクト拡充 — 計画（2026-07-09） | 2026-07-09 | --- | 2026-09-27 | 8.7 KB | transition, effects, expansion, 2026 |
+| 7 | `plans/transition-effects-expansion-2026-07-09.md` | トランジションエフェクト拡充 — 計画（2026-07-09） | 2026-07-09 | --- | 2026-09-27 | 8.8 KB | transition, effects, expansion, 2026 |
 
 ## ref (1 files)
 
@@ -1418,7 +1419,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-28 | --- | 2026-10-27 | 315.3 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-29 | --- | 2026-10-29 | 314.0 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1527,13 +1528,13 @@
 | 18 | `docs/technical/GIZMO_VISUAL_NOISE_REDUCTION_2026-09-04.md` | Gizmo Visual Noise Reduction (2026-09-04) | 2026-09-04 | ** 実装完了（commit `dac0ab67` in `Artifact`、親Repo `63140e8`、push 済み） | 2026-09-04 | 3.9 KB | GIZMO, VISUAL, NOISE, REDUCTION |
 | 19 | `docs/technical/GPU_COMPOSITING_SPECIFICATION_2026-07-01.md` | GPU Compositing Specification | 2026-07-01 | Normative draft for the Composition Viewer GPU layer path | 2026-07-14 | 13.4 KB | GPU, COMPOSITING, SPECIFICATION |
 | 20 | `docs/technical/GPU_COMPUTE_AGGREGATION_DESIGN.md` | GPU 集計系 Compute Shader 設計ガイド | 2026-04-19 | --- | 2026-04-19 | 4.8 KB | GPU, COMPUTE, AGGREGATION, DESIGN |
-| 21 | `docs/technical/GPU_CULLING_DESIGN_2026-10-18.md` | GPUカリング設計 | 2026-10-18 | Draft（設計のみ・未実装・未計測） | 2026-10-19 | 6.0 KB | GPU, CULLING, DESIGN |
+| 21 | `docs/technical/GPU_CULLING_DESIGN_2026-10-18.md` | GPUカリング設計 | 2026-10-18 | Draft（設計のみ・未実装・未計測） | 2026-10-19 | 5.9 KB | GPU, CULLING, DESIGN |
 | 22 | `docs/technical/GPU_DIRECT_TEXT_DRAW_WP1_STATUS_2026-05-06.md` | GPU Direct Text Draw WP-1 Status - 2026-05-06 | 2026-05-06 | --- | 2026-05-06 | 1.3 KB | GPU, DIRECT, TEXT, DRAW, WP1 |
 | 23 | `docs/technical/GPU_RENDER_OPTIMIZATION_TECHNIQUES_AE_STYLE.md` | AfterEffects 風コンポジタ GPU 描画最適化テクニック | 2026-04-19 | --- | 2026-04-19 | 8.2 KB | GPU, RENDER, OPTIMIZATION, TECHNIQUES |
 | 24 | `docs/technical/GPU_TEXT_AND_SHAPE_RENDERING_REPORT_2026-04-19.md` | GPU Text and Shape Rendering Report | 2026-04-19 | --- | 2026-04-19 | 5.6 KB | GPU, TEXT, AND, SHAPE, RENDERING |
 | 25 | `docs/technical/HARNESS_ENGINEERING_PRINCIPLES_2026-05-12.md` | Harness Engineering Principles | 2026-04-30 | --- | 2026-05-13 | 3.7 KB | HARNESS, ENGINEERING, PRINCIPLES |
 | 26 | `docs/technical/HIDDEN_FEATURES_IN_CODEBASE.md` | HIDDEN_FEATURES_IN_CODEBASE | 2026-10-01 | --- | 2026-10-02 | 5.4 KB | HIDDEN, FEATURES, CODEBASE |
-| 27 | `docs/technical/HOT_PATH_RULES.md` | ホットパス実装ルール | 2026-09-20 | --- | 2026-09-21 | 6.2 KB | HOT, PATH, RULES |
+| 27 | `docs/technical/HOT_PATH_RULES.md` | ホットパス実装ルール | 2026-09-20 | --- | 2026-09-21 | 6.3 KB | HOT, PATH, RULES |
 | 28 | `docs/technical/IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md` | Image Channel Order Contract | 2026-10-17 | BGRAをCPU Float32/Float16画像の正規物理順序として適用中 | 2026-10-17 | 5.7 KB | IMAGE, CHANNEL, ORDER, CONTRACT |
 | 29 | `docs/technical/IMAGE_FORMAT_CONVENTIONS.md` | Image Format & Channel Order Conventions | 2026-10-17 | --- | 2026-10-17 | 7.2 KB | IMAGE, FORMAT, CONVENTIONS |
 | 30 | `docs/technical/INTERNAL_VCS_ARCHITECTURE.md` | 内蔵軽量VCS アーキテクチャ調査 | 2026-04-19 | --- | 2026-10-02 | 6.1 KB | INTERNAL, VCS, ARCHITECTURE |
@@ -1552,12 +1553,12 @@
 | 43 | `docs/technical/MILESTONE_VIEWPORT_NAVIGATION_CONTRACT_STATUS_2026-09-04.md` | Viewport Navigation Contract Status (2026-09-04) | 2026-09-04 | --- | 2026-09-04 | 6.2 KB | VIEWPORT, NAVIGATION, CONTRACT, STATUS |
 | 44 | `docs/technical/MOTION_TRACKING_CORE_PRO_ARCHITECTURE_2026-07-11.md` | Motion Tracking Core — Professional Architecture | 2026-07-11 | In Progress | 2026-07-12 | 3.2 KB | MOTION, TRACKING, CORE, PRO, ARCHITECTURE |
 | 45 | `docs/technical/MULTICHANNEL_RENDERER_FEASIBILITY_REPORT.md` | マルチチャンネルレンダラー 実装可能性レポート | 2026-04-18 | --- | 2026-04-19 | 4.7 KB | MULTICHANNEL, RENDERER, FEASIBILITY, REPORT |
-| 46 | `docs/technical/RENDER_FORMAT_CONTRACT_2026-05-16.md` | Render Format Contract | 2026-05-16 | --- | 2026-10-17 | 6.7 KB | RENDER, FORMAT, CONTRACT |
+| 46 | `docs/technical/RENDER_FORMAT_CONTRACT_2026-05-16.md` | Render Format Contract | 2026-05-16 | --- | 2026-10-17 | 6.5 KB | RENDER, FORMAT, CONTRACT |
 | 47 | `docs/technical/RENDER_QUEUE_PROGRESS_SLIDER_BUG_REPORT.md` | レンダーキューマネージャー 進捗率スライダーバグ調査レポート | 2026-03-27 | 調査完了 | 2026-03-27 | 22.4 KB | RENDER, QUEUE, PROGRESS, SLIDER, BUG |
 | 48 | `docs/technical/RENDER_QUEUE_PROGRESS_SLIDER_FIX_REPORT_2026-03-27.md` | レンダーキューマネージャー 進捗率スライダーバグ修正レポート | 2026-03-27 | 修正完了（4 バグ） | 2026-03-27 | 14.6 KB | RENDER, QUEUE, PROGRESS, SLIDER, FIX |
 | 49 | `docs/technical/RENDER_RECOVERY_LAYER_IDENTITY_IMPLEMENTATION_2026-03-27.md` | Render Recovery & Layer Identity 実装レポート (2026-03-27) | 2026-03-27 | 実装完了 | 2026-03-27 | 10.3 KB | RENDER, RECOVERY, LAYER, IDENTITY, IMPLEMENTATION |
 | 50 | `docs/technical/RENDER_ROI_CONTEXT_IMPLEMENTATION_2026-03-28.md` | RenderROI & RenderContext 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 12.6 KB | RENDER, ROI, CONTEXT, IMPLEMENTATION |
-| 51 | `docs/technical/REVEAL_COVERAGE_SPEC.md` | 共通 Reveal / Coverage 仕様書 | 2026-10-01 | ** 実装反映中（ソース実装あり、ビルド・実機検証未実施） | 2026-10-01 | 14.5 KB | REVEAL, COVERAGE, SPEC |
+| 51 | `docs/technical/REVEAL_COVERAGE_SPEC.md` | 共通 Reveal / Coverage 仕様書 | 2026-10-01 | ** 実装反映中（ソース実装あり、ビルド・実機検証未実施） | 2026-10-01 | 14.3 KB | REVEAL, COVERAGE, SPEC |
 | 52 | `docs/technical/ROI_IMPLEMENTATION_GUIDE_2026-03-28.md` | ROI 実装ガイド - 成功率を上げるための完全手順 | 2026-03-28 | 実装手順確定 | 2026-03-30 | 15.1 KB | ROI, IMPLEMENTATION, GUIDE |
 | 53 | `docs/technical/ROI_IMPLEMENTATION_SPECIFICATION_2026-03-28.md` | ROI (Region of Interest) 実装仕様書 | 2026-03-28 | 実装仕様確定 | 2026-03-30 | 14.7 KB | ROI, IMPLEMENTATION, SPECIFICATION |
 | 54 | `docs/technical/ROI_PHASE1_2_3_IMPLEMENTATION_COMPLETE_2026-03-28.md` | ROI 実装 段階 1-3 完了レポート | 2026-03-28 | 段階 1-3 完了 | 2026-03-30 | 8.0 KB | ROI, PHASE1, IMPLEMENTATION |
@@ -1609,7 +1610,7 @@
 | 11 | `docs/worklog/FOG_PROGRESS_2026-07-20.md` | Fog Progress | 2026-07-20 | --- | 2026-07-20 | 0.8 KB | FOG, PROGRESS |
 | 12 | `docs/worklog/GAUSSIAN_BLUR_PROGRESS_2026-07-20.md` | Gaussian Blur Progress | 2026-07-20 | --- | 2026-07-20 | 0.6 KB | GAUSSIAN, BLUR, PROGRESS |
 | 13 | `docs/worklog/MOTION_PATH_EDITING_WORKLOG_2026-04-29.md` | モーションパス編集 作業ログ | 2026-04-29 | --- | 2026-04-30 | 2.6 KB | MOTION, PATH, EDITING, WORKLOG |
-| 14 | `docs/worklog/MOTION_PATH_HISTORICAL_BOUNDS_2026-09-07.md` | VP モーションパス過去枠編集 実装ログ | 2026-09-08 | ソース実装・静的確認。ビルド、テスト、実画面での操作確認は未実施。 | 2026-09-08 | 5.8 KB | MOTION, PATH, HISTORICAL, BOUNDS |
+| 14 | `docs/worklog/MOTION_PATH_HISTORICAL_BOUNDS_2026-09-07.md` | VP モーションパス過去枠編集 実装ログ | 2026-09-08 | ソース実装・静的確認。ビルド、テスト、実画面での操作確認は未実施。 | 2026-09-08 | 5.9 KB | MOTION, PATH, HISTORICAL, BOUNDS |
 | 15 | `docs/worklog/MULTICHANNEL_IMPLEMENTATION_WORKLOG.md` | マルチチャンネルレンダラー 実装作業ログ | 2026-04-18 | --- | 2026-04-19 | 4.1 KB | MULTICHANNEL, IMPLEMENTATION, WORKLOG |
 | 16 | `docs/worklog/NOISEFIELD_SOFTBODY_UV_PROGRESS_2026-07-20.md` | NoiseField / SoftBody UV Progress | 2026-07-20 | --- | 2026-07-20 | 0.9 KB | NOISEFIELD, SOFTBODY, PROGRESS |
 | 17 | `docs/worklog/NPR_FILM_PROGRESS_2026-07-20.md` | NPR / FILM Progress | 2026-07-20 | --- | 2026-07-20 | 0.7 KB | NPR, FILM, PROGRESS |
@@ -1635,7 +1636,7 @@
 | Artifact/bugs | 1 |
 | Artifact/planned | 3 |
 | ArtifactCore | 45 |
-| analysis | 88 |
+| analysis | 89 |
 | arch | 3 |
 | archived | 1 |
 | bugs | 91 |
@@ -1659,4 +1660,4 @@
 | trash | 1 |
 | verification | 1 |
 | worklog | 28 |
-| **Total** | **1470** |
+| **Total** | **1471** |

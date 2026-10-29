@@ -70,6 +70,18 @@ if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
+artifact_add_test(ArtifactShapeLayerAnimationPersistenceContractTest
+    SOURCES
+        ShapeLayerAnimationPersistenceContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactShapeLayerAnimationPersistenceContractTest PROPERTIES
+    LABELS "shape;layer;animation;serialization;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactVariationSystemContractTest
     SOURCES
         VariationSystemContractTest.cpp
