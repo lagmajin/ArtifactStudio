@@ -760,6 +760,30 @@ TEST(CreativeImageEffectContractTest, FisheyeZeroStrengthAndUnitZoomAreExactPass
     }
 }
 
+TEST(CreativeImageEffectContractTest, ActiveFisheyePreservesOutOfRangeAlphaAtOriginalPixelPositions) {
+    constexpr int width = 3;
+    constexpr int height = 3;
+    VideoFrame frame(width, height);
+    const float alpha[] = {-0.2f, 1.2f, 0.35f, 0.7f, -0.1f, 1.4f, 0.0f, 0.9f, 1.1f};
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = static_cast<float>(pixel) / 8.0f;
+        frame.getChannel(ChannelType::Green)->data()[pixel] = static_cast<float>(8 - pixel) / 8.0f;
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = static_cast<float>((pixel * 3) % 9) / 8.0f;
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha[pixel];
+    }
+
+    FisheyeEffect effect;
+    effect.setParameter("Strength", 1.0f);
+    effect.setParameter("Zoom", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const auto outputAlpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(outputAlpha);
+    for (int pixel = 0; pixel < width * height; ++pixel) {
+        EXPECT_FLOAT_EQ(outputAlpha->data()[pixel], alpha[pixel]) << "pixel=" << pixel;
+    }
+}
+
 TEST(CreativeImageEffectContractTest, DisabledFisheyePreservesEveryChannelWithoutClamping) {
     VideoFrame frame(2, 1);
     const float red[] = {1.25f, -0.2f};
