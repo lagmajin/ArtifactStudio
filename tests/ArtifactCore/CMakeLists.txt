@@ -358,6 +358,17 @@ set_tests_properties(ArtifactCoreActionManagerContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
+artifact_add_test(ArtifactCoreKeyMapContractTest
+    SOURCES
+        KeyMapContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreKeyMapContractTest PROPERTIES
+    LABELS "keymap;input;shortcuts;serialization;cpu;contract"
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
