@@ -525,6 +525,16 @@ set_tests_properties(ArtifactBendTransformContractTest PROPERTIES
     LABELS "effect;transform;cpu;contract"
 )
 
+artifact_add_test(ArtifactMagnifyEffectContractTest
+    SOURCES
+        MagnifyEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsDistort
+)
+set_tests_properties(ArtifactMagnifyEffectContractTest PROPERTIES
+    LABELS "effect;distortion;cpu;contract"
+)
+
 artifact_add_test(ArtifactSpherizeEffectContractTest
     SOURCES
         SpherizeEffectContractTest.cpp
