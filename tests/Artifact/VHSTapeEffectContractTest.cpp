@@ -246,6 +246,48 @@ TEST(VHSTapeEffectContractTest, NoiseAmountPerturbsColorAndKeepsOutputFinite)
         << "nonzero tape noise should perturb at least one color sample";
 }
 
+TEST(VHSTapeEffectContractTest,
+     ZeroSaturationProducesMonochromeAndPreservesAlpha)
+{
+    constexpr int width = 7;
+    constexpr int height = 3;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset] = static_cast<float>(x + 1) / 8.0f;
+            pixels[offset + 1] = static_cast<float>(y + 1) / 4.0f;
+            pixels[offset + 2] = static_cast<float>(width - x) / 8.0f;
+            pixels[offset + 3] = static_cast<float>(x + y + 1) / 12.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height,
+                         SurfaceColorDescriptor::unknownBgra32Float());
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Saturation")), 0.0);
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        EXPECT_NEAR(result[offset], result[offset + 1], 1.0e-6f)
+            << "pixel=" << pixel;
+        EXPECT_NEAR(result[offset + 1], result[offset + 2], 1.0e-6f)
+            << "pixel=" << pixel;
+        EXPECT_FLOAT_EQ(result[offset + 3], pixels[offset + 3])
+            << "pixel=" << pixel;
+    }
+}
+
 TEST(VHSTapeEffectContractTest, WobbleOutputIsRepeatableForSameSeedAndEvolution)
 {
     constexpr int width = 32;
