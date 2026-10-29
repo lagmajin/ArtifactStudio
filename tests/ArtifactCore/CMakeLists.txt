@@ -337,6 +337,16 @@ set_tests_properties(ArtifactCoreViewOrientationNavigatorContractTest PROPERTIES
     LABELS "viewport;orientation;interaction;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreLightContractTest
+    SOURCES
+        LightContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLightContractTest PROPERTIES
+    LABELS "light;3d;parameters;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
