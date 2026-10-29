@@ -847,6 +847,15 @@ artifact_add_test(ArtifactGhostEffectContractTest
 set_tests_properties(ArtifactGhostEffectContractTest PROPERTIES
     LABELS "effect;ghost;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactFrameAverageEffectContractTest
+    SOURCES
+        FrameAverageEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactFrameAverageEffectContractTest PROPERTIES
+    LABELS "effect;frame-average;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
