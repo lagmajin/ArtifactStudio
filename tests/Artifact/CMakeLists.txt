@@ -505,6 +505,16 @@ set_tests_properties(ArtifactThresholdEffectContractTest PROPERTIES
     LABELS "effect;cpu;contract"
 )
 
+artifact_add_test(ArtifactTwistTransformContractTest
+    SOURCES
+        TwistTransformContractTest.cpp
+    LIBS
+        ArtifactEffectsDistort
+)
+set_tests_properties(ArtifactTwistTransformContractTest PROPERTIES
+    LABELS "effect;transform;cpu;contract"
+)
+
 artifact_add_test(ArtifactVHSTapeEffectContractTest
     SOURCES
         VHSTapeEffectContractTest.cpp
