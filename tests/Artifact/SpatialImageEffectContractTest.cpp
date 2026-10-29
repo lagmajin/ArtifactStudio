@@ -193,6 +193,69 @@ TEST(SpatialImageEffectContractTest,
 }
 
 TEST(SpatialImageEffectContractTest,
+     DepthBokehFallsBackToLumaWhenNamedDepthSizeDoesNotMatch)
+{
+    constexpr int width = 17;
+    constexpr int height = 17;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr std::size_t center =
+        static_cast<std::size_t>(height / 2) * width + width / 2;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4] = 0.8f;
+        pixels[pixel * 4 + 1] = 0.8f;
+        pixels[pixel * 4 + 2] = 0.8f;
+        pixels[pixel * 4 + 3] = 0.6f;
+    }
+    pixels[center * 4] = 1.0f;
+    pixels[center * 4 + 1] = 1.0f;
+    pixels[center * 4 + 2] = 1.0f;
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache fallbackOutput;
+    ImageF32x4RGBAWithCache mismatchedDepthOutput;
+    FixedDepthInputSampler mismatchedSampler(1, 1, 0.5f);
+
+    const auto configureEffect = [](DepthBokehEffect& effect) {
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusDistance")), QVariant(0.5));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("focusRange")), QVariant(0.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("maxRadius")), QVariant(8.0));
+        effect.setPropertyValue(
+            UniString(QStringLiteral("highlightBoost")), QVariant(0.0));
+    };
+    DepthBokehEffect fallbackEffect;
+    configureEffect(fallbackEffect);
+    fallbackEffect.applyCPUOnly(source, fallbackOutput);
+
+    DepthBokehEffect mismatchedEffect;
+    configureEffect(mismatchedEffect);
+    EffectContext context;
+    context.compositionFrame = 42;
+    context.sampler = &mismatchedSampler;
+    mismatchedEffect.setContext(context);
+    mismatchedEffect.applyCPUOnly(source, mismatchedDepthOutput);
+
+    EXPECT_EQ(mismatchedSampler.requestedInput, QStringLiteral("depth"));
+    EXPECT_EQ(mismatchedSampler.requestedFrame, 42);
+    const float* fallbackPixels = fallbackOutput.image().rgba32fData();
+    const float* mismatchedPixels =
+        mismatchedDepthOutput.image().rgba32fData();
+    ASSERT_NE(fallbackPixels, nullptr);
+    ASSERT_NE(mismatchedPixels, nullptr);
+    EXPECT_NE(fallbackPixels[center * 4], pixels[center * 4])
+        << "the no-sampler reference must exercise the luma fallback blur";
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(mismatchedPixels[channel], fallbackPixels[channel])
+            << "channel=" << channel;
+    }
+}
+
+TEST(SpatialImageEffectContractTest,
      DepthBokehLumaFallbackBlursOutOfFocusRgbAndPreservesAlpha)
 {
     constexpr int width = 33;
