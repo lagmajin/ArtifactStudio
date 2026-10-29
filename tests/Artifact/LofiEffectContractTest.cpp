@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cmath>
+#include <limits>
 
 #include <QRectF>
 
@@ -333,6 +334,64 @@ TEST(LofiEffectContractTest, OldTvHalfMixInterpolatesSourceAndEffectPixels)
                 pixels[offset] * 0.5f + fullEffectPixels[offset] * 0.5f;
             EXPECT_NEAR(halfMixPixels[offset], expected, 1.0e-6f)
                 << "pixel=" << pixel << " channel=" << channel;
+        }
+    }
+}
+
+TEST(LofiEffectContractTest, OldTvMixClampsFiniteValuesAndResetsNonFiniteValues)
+{
+    constexpr int width = 5;
+    constexpr int height = 3;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>(x + 1) / 8.0f;
+            pixels[offset + 1] = static_cast<float>(y + 2) / 7.0f;
+            pixels[offset + 2] = static_cast<float>(x + y + 1) / 9.0f;
+            pixels[offset + 3] = static_cast<float>(x + 2 * y + 1) / 12.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache fullEffect;
+    ArtifactOldTVEffect fullEffectInstance;
+    fullEffectInstance.setComputeMode(ComputeMode::CPU);
+    fullEffectInstance.applyCPUOnly(source, fullEffect);
+    const float* fullPixels = fullEffect.image().rgba32fData();
+    ASSERT_NE(fullPixels, nullptr);
+
+    struct MixCase {
+        float requested;
+        float effective;
+    };
+    const std::array<MixCase, 7> cases{{
+        {-2.0f, 0.0f},
+        {0.0f, 0.0f},
+        {0.35f, 0.35f},
+        {1.0f, 1.0f},
+        {3.0f, 1.0f},
+        {std::numeric_limits<float>::quiet_NaN(), 1.0f},
+        {std::numeric_limits<float>::infinity(), 1.0f},
+    }};
+
+    for (const auto& mixCase : cases) {
+        SCOPED_TRACE(mixCase.requested);
+        ArtifactOldTVEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setMix(mixCase.requested);
+        EXPECT_FLOAT_EQ(effect.mix(), mixCase.effective);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        const float* result = output.image().rgba32fData();
+        ASSERT_NE(result, nullptr);
+        for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+            const float expected = pixels[channel] * (1.0f - mixCase.effective) +
+                                   fullPixels[channel] * mixCase.effective;
+            EXPECT_NEAR(result[channel], expected, 1.0e-6f)
+                << "channel=" << channel;
         }
     }
 }
