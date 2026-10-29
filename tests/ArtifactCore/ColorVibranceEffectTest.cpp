@@ -2534,6 +2534,33 @@ TEST(CreativeImageEffectContractTest, LightPressureSpreadChangesWarpDistance) {
     }
 }
 
+TEST(CreativeImageEffectContractTest, LightPressureMissingRequiredColorChannelLeavesFrameUnchanged) {
+    VideoFrame frame(3, 2);
+    const float green[] = {0.8f, 0.3f, 0.2f, 0.6f, 0.1f, 0.5f};
+    const float blue[] = {0.1f, 0.9f, 0.3f, 0.7f, 0.2f, 0.8f};
+    const float alpha[] = {0.0f, 0.2f, 0.4f, 0.6f, 0.8f, 1.0f};
+    for (int pixel = 0; pixel < 6; ++pixel) {
+        frame.getChannel(ChannelType::Green)->data()[pixel] = green[pixel];
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = blue[pixel];
+        frame.getChannel(ChannelType::Alpha)->data()[pixel] = alpha[pixel];
+    }
+    frame.removeChannel(ChannelType::Red);
+
+    LightPressureEffect effect;
+    effect.setParameter("Pressure", 1.0f);
+    effect.setParameter("Bloom", 1.0f);
+    effect.setParameter("Spread", 1.0f);
+    effect.setParameter("Compression", 1.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    for (int pixel = 0; pixel < 6; ++pixel) {
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[pixel], green[pixel]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[pixel], blue[pixel]);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[pixel], alpha[pixel]);
+    }
+    EXPECT_FALSE(frame.getChannel(ChannelType::Red));
+}
+
 TEST(CreativeImageEffectContractTest, TemporalEffectsInitializeHistoryFromFirstFrameWithoutChangingPixels) {
     const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
     const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
