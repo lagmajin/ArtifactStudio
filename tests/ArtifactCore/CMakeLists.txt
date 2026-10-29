@@ -1159,6 +1159,16 @@ set_tests_properties(ArtifactCoreTestImageGeneratorContractTest PROPERTIES
     LABELS "image;test-patterns;rgba;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreMediaMetaDataContractTest
+    SOURCES
+        MediaMetaDataContractTest.cpp
+    LIBS
+        ArtifactCoreMedia
+)
+set_tests_properties(ArtifactCoreMediaMetaDataContractTest PROPERTIES
+    LABELS "media;metadata;streams;formatting;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
