@@ -910,6 +910,15 @@ artifact_add_test(ArtifactFeedbackEffectContractTest
 set_tests_properties(ArtifactFeedbackEffectContractTest PROPERTIES
     LABELS "effect;feedback;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactDataMoshEffectContractTest
+    SOURCES
+        DataMoshEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactDataMoshEffectContractTest PROPERTIES
+    LABELS "effect;data-mosh;temporal;cpu;contract"
+)
 artifact_add_test(ArtifactMosaicEffectContractTest
     SOURCES
         MosaicEffectContractTest.cpp
