@@ -541,7 +541,7 @@ TEST(LofiEffectContractTest, OldTvMixClampsFiniteValuesAndResetsNonFiniteValues)
         float requested;
         float effective;
     };
-    const std::array<MixCase, 7> cases{{
+    const std::array<MixCase, 8> cases{{
         {-2.0f, 0.0f},
         {0.0f, 0.0f},
         {0.35f, 0.35f},
@@ -549,6 +549,7 @@ TEST(LofiEffectContractTest, OldTvMixClampsFiniteValuesAndResetsNonFiniteValues)
         {3.0f, 1.0f},
         {std::numeric_limits<float>::quiet_NaN(), 1.0f},
         {std::numeric_limits<float>::infinity(), 1.0f},
+        {-std::numeric_limits<float>::infinity(), 1.0f},
     }};
 
     for (const auto& mixCase : cases) {
