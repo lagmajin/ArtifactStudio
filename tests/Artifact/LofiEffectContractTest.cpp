@@ -590,9 +590,12 @@ TEST(LofiEffectContractTest, OldTvEffectRegionCompositesOnlyInsidePixelBounds)
     const ImageF32x4RGBAWithCache source(image);
     ImageF32x4RGBAWithCache fullEffect;
     ImageF32x4RGBAWithCache regionalEffect;
+    ArtifactOldTVEffect fullEffectInstance;
+    fullEffectInstance.setComputeMode(ComputeMode::CPU);
+    fullEffectInstance.applyCPUOnly(source, fullEffect);
     ArtifactOldTVEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
-    effect.applyCPUOnly(source, fullEffect);
+    effect.setMix(0.5f);
     effect.setEffectRegion(QRectF(2.0, 1.0, 2.0, 2.0));
     effect.applyCPUOnly(source, regionalEffect);
 
@@ -613,7 +616,8 @@ TEST(LofiEffectContractTest, OldTvEffectRegionCompositesOnlyInsidePixelBounds)
                 static_cast<std::size_t>((y * width + x) * 4);
             for (std::size_t channel = 0; channel < 4; ++channel) {
                 const float expected = inside
-                    ? fullEffectPixels[offset + channel]
+                    ? pixels[offset + channel] * 0.5f +
+                          fullEffectPixels[offset + channel] * 0.5f
                     : pixels[offset + channel];
                 EXPECT_NEAR(regionalPixels[offset + channel], expected, 1.0e-6f)
                     << "x=" << x << " y=" << y << " channel=" << channel;
