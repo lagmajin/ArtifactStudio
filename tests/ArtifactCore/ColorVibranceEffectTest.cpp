@@ -680,6 +680,33 @@ TEST(CreativeImageEffectContractTest, FisheyeZeroStrengthAndUnitZoomAreExactPass
     }
 }
 
+TEST(CreativeImageEffectContractTest, FisheyeProcessesRgbWithoutOptionalAlpha) {
+    VideoFrame frame(3, 3);
+    for (int pixel = 0; pixel < 9; ++pixel) {
+        frame.getChannel(ChannelType::Red)->data()[pixel] = static_cast<float>(pixel) / 10.0f;
+        frame.getChannel(ChannelType::Green)->data()[pixel] = static_cast<float>(8 - pixel) / 10.0f;
+        frame.getChannel(ChannelType::Blue)->data()[pixel] = static_cast<float>((pixel * 2) % 9) / 10.0f;
+    }
+    frame.removeChannel(ChannelType::Alpha);
+
+    FisheyeEffect effect;
+    effect.setParameter("Strength", 0.0f);
+    effect.setParameter("Zoom", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    constexpr int expectedSources[] = {0, 0, 2, 0, 0, 2, 6, 6, 8};
+    for (int pixel = 0; pixel < 9; ++pixel) {
+        const int source = expectedSources[pixel];
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Red)->data()[pixel],
+                        static_cast<float>(source) / 10.0f);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Green)->data()[pixel],
+                        static_cast<float>(8 - source) / 10.0f);
+        EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[pixel],
+                        static_cast<float>((source * 2) % 9) / 10.0f);
+    }
+    EXPECT_FALSE(frame.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, FisheyeMissingRequiredColorChannelLeavesFrameUnchanged) {
     VideoFrame frame(3, 2);
     const float red[] = {0.1f, 0.4f, 0.9f, 0.3f, 0.7f, 0.2f};
