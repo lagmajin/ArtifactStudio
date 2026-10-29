@@ -1209,6 +1209,16 @@ set_tests_properties(ArtifactCoreSimpleChokerContractTest PROPERTIES
     LABELS "image;alpha;choker;pixel-processing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreScatterEffectContractTest
+    SOURCES
+        ScatterEffectContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreScatterEffectContractTest PROPERTIES
+    LABELS "image;scatter;determinism;pixel-processing;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreAeShapeOperatorsContractTest
     SOURCES
         AeShapeOperatorsContractTest.cpp
