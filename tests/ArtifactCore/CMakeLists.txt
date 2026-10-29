@@ -369,6 +369,17 @@ set_tests_properties(ArtifactCoreKeyMapContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
+artifact_add_test(ArtifactCoreLayerLockManagerContractTest
+    SOURCES
+        LayerLockManagerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLayerLockManagerContractTest PROPERTIES
+    LABELS "collaboration;layer-lock;event-bus;cpu;contract"
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactCoreColorBridgeTest
     SOURCES
         ColorBridgeTest.cpp
