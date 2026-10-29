@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 
@@ -46,6 +47,46 @@ TEST(TileGridContractTest, PartialEdgeTilesAndOutOfImageRoisAreClamped)
     EXPECT_EQ(grid.countTilesIntersecting(RenderROI()), 0);
     EXPECT_EQ(grid.countTilesIntersecting(RenderROI(
                   std::numeric_limits<float>::quiet_NaN(), 0.0f, 4.0f, 4.0f)), 0);
+}
+
+TEST(TileGridContractTest, NonDivisibleGridCoversEveryPixelExactlyOnce)
+{
+    constexpr int width = 513;
+    constexpr int height = 257;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    const TileGrid grid(width, height, 128);
+    ASSERT_TRUE(grid.isValid());
+    std::array<unsigned char, pixelCount> coverage{};
+
+    for (int tileY = 0; tileY < grid.gridHeight; ++tileY) {
+        for (int tileX = 0; tileX < grid.gridWidth; ++tileX) {
+            const QRectF rect = grid.tileRectClamped(TileKey{tileX, tileY});
+            ASSERT_FALSE(rect.isEmpty());
+            const int left = static_cast<int>(rect.x());
+            const int top = static_cast<int>(rect.y());
+            const int right = left + static_cast<int>(rect.width());
+            const int bottom = top + static_cast<int>(rect.height());
+            ASSERT_GE(left, 0);
+            ASSERT_GE(top, 0);
+            ASSERT_LE(right, width);
+            ASSERT_LE(bottom, height);
+            for (int y = top; y < bottom; ++y) {
+                for (int x = left; x < right; ++x) {
+                    const std::size_t pixel =
+                        static_cast<std::size_t>(y) * width + x;
+                    ++coverage[pixel];
+                    EXPECT_EQ(grid.keyForPixel(x, y), (TileKey{tileX, tileY}))
+                        << "pixel=" << x << "," << y;
+                }
+            }
+        }
+    }
+
+    for (std::size_t pixel = 0; pixel < coverage.size(); ++pixel) {
+        EXPECT_EQ(coverage[pixel], 1)
+            << "uncovered or multiply covered linear pixel=" << pixel;
+    }
 }
 
 TEST(TileGridContractTest, BoundedPlanSchedulesUniqueTilesWithinCapacity)
