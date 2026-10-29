@@ -683,6 +683,16 @@ set_tests_properties(ArtifactCorePathContractTest PROPERTIES
     LABELS "path;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreStringConversionUnicodeContractTest
+    SOURCES
+        StringConversionUnicodeContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreStringConversionUnicodeContractTest PROPERTIES
+    LABELS "utils;string;unicode;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCorePropertyPathTest
     SOURCES
         PropertyPathTest.cpp
