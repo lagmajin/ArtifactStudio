@@ -3401,6 +3401,70 @@ TEST(CreativeImageEffectContractTest, DepthMeltActiveSettingsAreRepeatableAndKee
     }
 }
 
+TEST(CreativeImageEffectContractTest, DepthMeltRgbOutputDoesNotDependOnOptionalAlphaPlane) {
+    constexpr int width = 8;
+    constexpr int height = 6;
+    VideoFrame withAlpha(width, height);
+    VideoFrame withoutAlpha(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pixel = y * width + x;
+            const float red = 0.15f + static_cast<float>(x) * 0.07f +
+                              static_cast<float>(y) * 0.025f;
+            const float green = 0.8f - static_cast<float>(x) * 0.055f -
+                                static_cast<float>(y) * 0.03f;
+            const float blue = 0.2f + static_cast<float>((x + 2 * y) % 7) * 0.08f;
+            for (VideoFrame* frame : {&withAlpha, &withoutAlpha}) {
+                frame->getChannel(ChannelType::Red)->data()[pixel] = red;
+                frame->getChannel(ChannelType::Green)->data()[pixel] = green;
+                frame->getChannel(ChannelType::Blue)->data()[pixel] = blue;
+            }
+            withAlpha.getChannel(ChannelType::Alpha)->data()[pixel] =
+                0.1f + static_cast<float>(pixel) / 64.0f;
+        }
+    }
+    withoutAlpha.removeChannel(ChannelType::Alpha);
+
+    DepthMeltEffect withAlphaEffect;
+    withAlphaEffect.setParameter("Melt", 0.8f);
+    withAlphaEffect.setParameter("Gravity", 0.6f);
+    withAlphaEffect.setParameter("Heat", 0.5f);
+    withAlphaEffect.setParameter("Detail", 0.7f);
+    DepthMeltEffect withoutAlphaEffect;
+    withoutAlphaEffect.setParameter("Melt", 0.8f);
+    withoutAlphaEffect.setParameter("Gravity", 0.6f);
+    withoutAlphaEffect.setParameter("Heat", 0.5f);
+    withoutAlphaEffect.setParameter("Detail", 0.7f);
+    const CreativeEffectContext context{.time = 1.25, .frameIndex = 37};
+    withAlphaEffect.process(withAlpha, context);
+    withoutAlphaEffect.process(withoutAlpha, context);
+
+    bool changedRgb = false;
+    for (const ChannelType channelType : {ChannelType::Red, ChannelType::Green,
+                                          ChannelType::Blue}) {
+        const auto expected = withAlpha.getChannel(channelType);
+        const auto actual = withoutAlpha.getChannel(channelType);
+        ASSERT_TRUE(expected);
+        ASSERT_TRUE(actual);
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const int pixel = y * width + x;
+                EXPECT_TRUE(std::isfinite(actual->data()[pixel]));
+                EXPECT_FLOAT_EQ(actual->data()[pixel], expected->data()[pixel]);
+                const float original = channelType == ChannelType::Red
+                    ? 0.15f + static_cast<float>(x) * 0.07f + static_cast<float>(y) * 0.025f
+                    : channelType == ChannelType::Green
+                        ? 0.8f - static_cast<float>(x) * 0.055f - static_cast<float>(y) * 0.03f
+                        : 0.2f + static_cast<float>((x + 2 * y) % 7) * 0.08f;
+                changedRgb = changedRgb ||
+                    std::abs(actual->data()[pixel] - original) > 1.0e-6f;
+            }
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+    EXPECT_FALSE(withoutAlpha.getChannel(ChannelType::Alpha));
+}
+
 TEST(CreativeImageEffectContractTest, DepthMeltZeroMeltPreservesInputWithOtherControlsActive) {
     constexpr int width = 3;
     constexpr int height = 2;
