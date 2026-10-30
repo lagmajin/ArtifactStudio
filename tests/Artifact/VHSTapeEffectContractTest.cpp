@@ -392,6 +392,40 @@ TEST(VHSTapeEffectContractTest, NoiseAmountPerturbsColorAndKeepsOutputFinite)
 }
 
 TEST(VHSTapeEffectContractTest,
+     NoiseAmountPreservesPerPixelAlpha)
+{
+    constexpr int width = 32;
+    constexpr int height = 24;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.45f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.55f;
+        pixels[pixel * 4 + 3] = static_cast<float>(pixel % 11) / 10.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Noise Amount")), 1.0);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        EXPECT_FLOAT_EQ(result[pixel * 4 + 3], pixels[pixel * 4 + 3])
+            << "noise must not alter alpha at pixel=" << pixel;
+    }
+}
+
+TEST(VHSTapeEffectContractTest,
      NoiseAmountUsesConfiguredSeedDeterministically)
 {
     constexpr int width = 32;
