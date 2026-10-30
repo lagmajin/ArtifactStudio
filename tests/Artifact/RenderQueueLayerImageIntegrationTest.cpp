@@ -2372,6 +2372,117 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     HalftoneGenericGpuNodeRendersRepeatableDotPattern)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 16;
+    constexpr int height = 16;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueHalftoneGpuTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("HalftoneGpu")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(2);
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("HalftoneGpuLayer"));
+    layerParams.setWidth(width);
+    layerParams.setHeight(height);
+    layerParams.setColor(ArtifactCore::FloatColor(
+        1.0f, 1.0f, 1.0f, 1.0f));
+    const auto layer = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(layer.success);
+
+    auto halftone =
+        ArtifactCore::makeShared<Artifact::ArtifactHalftoneEffect>();
+    ASSERT_NE(halftone, nullptr);
+    halftone->setComputeMode(Artifact::ComputeMode::GPU);
+    ASSERT_TRUE(halftone->supportsGPU());
+    layer.layer->addEffect(halftone);
+
+    const QString outputPath = isolatedOutputPath(
+        QStringLiteral("render_queue_halftone_gpu.png"));
+    const QString repeatPath = isolatedOutputPath(
+        QStringLiteral("render_queue_halftone_gpu_repeat.png"));
+    QString failure;
+    const auto validImage = [](const QImage& image) {
+        return !image.isNull();
+    };
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("HalftoneGpu"), outputPath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("HalftoneGpu"), repeatPath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+
+    const auto framePath = [](const QString& basePath) {
+        const QFileInfo info(basePath);
+        return QDir(info.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(info.completeBaseName())
+                .arg(0, 4, 10, QLatin1Char('0')));
+    };
+    const QImage output(framePath(outputPath));
+    const QImage repeat(framePath(repeatPath));
+    ASSERT_EQ(output.size(), QSize(width, height));
+    ASSERT_EQ(repeat.size(), QSize(width, height));
+    EXPECT_EQ(output, repeat)
+        << "GPU Halftone output must repeat for the same input and frame";
+    const auto isBlack = [&output](int x, int y) {
+        const QColor pixel = output.pixelColor(x, y);
+        return pixel.red() < 8 && pixel.green() < 8 && pixel.blue() < 8;
+    };
+    const auto isWhite = [&output](int x, int y) {
+        const QColor pixel = output.pixelColor(x, y);
+        return pixel.red() > 247 && pixel.green() > 247 && pixel.blue() > 247;
+    };
+    EXPECT_TRUE(isBlack(4, 4))
+        << "the center of a full-white 8x8 cell must be inside its dot";
+    EXPECT_TRUE(isWhite(0, 4))
+        << "the radius boundary must remain outside the strict dot test";
+    EXPECT_TRUE(isBlack(12, 12))
+        << "the dot pattern must restart at the next 8x8 cell";
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const QColor pixel = output.pixelColor(x, y);
+            EXPECT_TRUE(isBlack(x, y) || isWhite(x, y))
+                << "Halftone output must be binary at " << x << "," << y;
+            EXPECT_EQ(pixel.alpha(), 255)
+                << "Halftone output must be opaque at " << x << "," << y;
+        }
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      OldTvGenericGpuNodeAppliesScanlineAndPreservesTranslucentAlphaRepeatably)
 {
     QTemporaryDir projectRoot;
