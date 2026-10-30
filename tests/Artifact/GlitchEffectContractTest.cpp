@@ -81,6 +81,27 @@ TEST(GlitchEffectContractTest, SeededChannelShiftIsRepeatableAndPreservesAlpha)
     EXPECT_GT(shiftedPixels, 0u);
 }
 
+TEST(GlitchEffectContractTest, CpuReferencePreservesConfiguredComputeMode)
+{
+    const auto source = makeColorPattern();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::ArtifactGlitchEffect effect;
+    effect.setComputeMode(Artifact::ComputeMode::GPU);
+
+    ASSERT_TRUE(effect.supportsCPU());
+    ASSERT_TRUE(effect.supportsGPU());
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_EQ(effect.computeMode(), Artifact::ComputeMode::GPU);
+    ASSERT_EQ(output.width(), source.width());
+    ASSERT_EQ(output.height(), source.height());
+    const float* pixels = output.image().rgba32fData();
+    ASSERT_NE(pixels, nullptr);
+    for (std::size_t channel = 0; channel < kWidth * kHeight * 4; ++channel) {
+        EXPECT_TRUE(std::isfinite(pixels[channel])) << "channel=" << channel;
+    }
+}
+
 TEST(GlitchEffectContractTest,
      ZeroAmountsAreAnExactDeepCopy)
 {

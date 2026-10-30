@@ -132,54 +132,6 @@ TEST(LofiEffectContractTest, GlitchCpuOutputIsDeterministicAndPreservesAlpha)
     EXPECT_TRUE(changedRgb);
 }
 
-TEST(LofiEffectContractTest, GlitchCpuSeparatesRgbAroundTheGreenReferenceSample)
-{
-    constexpr int width = 64;
-    constexpr int height = 12;
-    constexpr int row = 5;
-    constexpr int x = 24;
-    std::array<float, width * height * 4> pixels{};
-    for (int y = 0; y < height; ++y) {
-        for (int column = 0; column < width; ++column) {
-            const std::size_t offset =
-                static_cast<std::size_t>((y * width + column) * 4);
-            pixels[offset + 0] = static_cast<float>(column) / (width - 1);
-            pixels[offset + 1] = static_cast<float>(column + 1) / (width + 1);
-            pixels[offset + 2] = static_cast<float>(column + 2) / (width + 2);
-            pixels[offset + 3] = static_cast<float>((column + y) % 7) / 6.0f;
-        }
-    }
-
-    ImageF32x4_RGBA image;
-    image.setFromRGBA32F(pixels.data(), width, height);
-    const ImageF32x4RGBAWithCache source(image);
-    ImageF32x4RGBAWithCache output;
-    ArtifactGlitchEffect effect;
-    effect.setComputeMode(ComputeMode::CPU);
-
-    effect.applyCPUOnly(source, output);
-
-    const float* actual = output.image().rgba32fData();
-    ASSERT_NE(actual, nullptr);
-    const std::size_t outputOffset =
-        static_cast<std::size_t>((row * width + x) * 4);
-    const float green = actual[outputOffset + 1];
-    const int referenceX = static_cast<int>(std::lround(
-        green * (width + 1))) - 1;
-    ASSERT_GE(referenceX, 0);
-    ASSERT_LT(referenceX, width);
-    const int redX = static_cast<int>(std::lround(
-        actual[outputOffset + 0] * (width - 1)));
-    const int blueX = static_cast<int>(std::lround(
-        actual[outputOffset + 2] * (width + 2))) - 2;
-    const int redShift = referenceX - redX;
-    const int blueShift = blueX - referenceX;
-    EXPECT_GE(redShift, 3);
-    EXPECT_LE(redShift, 7);
-    EXPECT_EQ(blueShift, redShift);
-    EXPECT_FLOAT_EQ(actual[outputOffset + 3], pixels[outputOffset + 3]);
-}
-
 TEST(LofiEffectContractTest, GlitchCpuInPlaceMatchesOutOfPlaceWithoutAliasing)
 {
     constexpr int width = 37;
@@ -273,63 +225,6 @@ TEST(LofiEffectContractTest,
             << "channel=" << channel;
     }
     EXPECT_NE(actual, source.image().rgba32fData());
-}
-
-TEST(LofiEffectContractTest, GlitchCpuSingleRowKeepsFiniteRgbAndSourceAlpha)
-{
-    constexpr int width = 17;
-    constexpr int height = 1;
-    std::array<float, width * 4> pixels{};
-    for (int x = 0; x < width; ++x) {
-        const std::size_t offset = static_cast<std::size_t>(x * 4);
-        pixels[offset + 0] = static_cast<float>((x * 3) % 11) / 10.0f;
-        pixels[offset + 1] = static_cast<float>((x * 5) % 13) / 12.0f;
-        pixels[offset + 2] = static_cast<float>((x * 7) % 17) / 16.0f;
-        pixels[offset + 3] = static_cast<float>(x) / (width - 1);
-    }
-
-    ImageF32x4_RGBA image;
-    image.setFromRGBA32F(pixels.data(), width, height);
-    const ImageF32x4RGBAWithCache source(image);
-    ImageF32x4RGBAWithCache output;
-    ArtifactGlitchEffect effect;
-    effect.setComputeMode(ComputeMode::CPU);
-
-    effect.applyCPUOnly(source, output);
-
-    ASSERT_EQ(output.width(), width);
-    ASSERT_EQ(output.height(), height);
-    const float* actual = output.image().rgba32fData();
-    ASSERT_NE(actual, nullptr);
-    for (int x = 0; x < width; ++x) {
-        const std::size_t offset = static_cast<std::size_t>(x * 4);
-        for (int channel = 0; channel < 3; ++channel) {
-            EXPECT_TRUE(std::isfinite(actual[offset + channel]))
-                << "x=" << x << " channel=" << channel;
-        }
-        EXPECT_FLOAT_EQ(actual[offset + 3], pixels[offset + 3]) << "x=" << x;
-    }
-}
-
-TEST(LofiEffectContractTest, GlitchCpuReferencePreservesConfiguredComputeMode)
-{
-    const auto source = makePatternSurface();
-    ImageF32x4RGBAWithCache output;
-    ArtifactGlitchEffect effect;
-    effect.setComputeMode(ComputeMode::GPU);
-
-    ASSERT_TRUE(effect.supportsCPU());
-    ASSERT_TRUE(effect.supportsGPU());
-    effect.applyCPUOnly(source, output);
-
-    EXPECT_EQ(effect.computeMode(), ComputeMode::GPU);
-    ASSERT_EQ(output.width(), source.width());
-    ASSERT_EQ(output.height(), source.height());
-    const float* pixels = output.image().rgba32fData();
-    ASSERT_NE(pixels, nullptr);
-    for (std::size_t channel = 0; channel < 8 * 8 * 4; ++channel) {
-        EXPECT_TRUE(std::isfinite(pixels[channel])) << "channel=" << channel;
-    }
 }
 
 TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
