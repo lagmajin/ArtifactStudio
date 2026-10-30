@@ -54,6 +54,7 @@ TEST(GlitchEffectContractTest, SeededChannelShiftIsRepeatableAndPreservesAlpha)
     effect.applyCPUOnly(source, first);
     effect.applyCPUOnly(source, second);
 
+    std::size_t shiftedPixels = 0;
     for (int y = 0; y < kHeight; ++y) {
         for (int x = 0; x < kWidth; ++x) {
             const auto input = source.image().getPixel(x, y);
@@ -71,10 +72,12 @@ TEST(GlitchEffectContractTest, SeededChannelShiftIsRepeatableAndPreservesAlpha)
                 const bool unchanged = a.r() == input.r() && a.b() == input.b();
                 const bool swapped = a.r() == input.b() && a.b() == input.r();
                 EXPECT_TRUE(unchanged || swapped);
+                if (swapped && !unchanged) ++shiftedPixels;
             }
             EXPECT_FLOAT_EQ(a.g(), input.g());
         }
     }
+    EXPECT_GT(shiftedPixels, 0u);
 }
 
 TEST(GlitchEffectContractTest,
