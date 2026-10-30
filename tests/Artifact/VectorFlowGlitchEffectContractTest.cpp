@@ -78,3 +78,41 @@ TEST(VectorFlowGlitchEffectContractTest, ZeroNoiseBandPreservesInputPixels)
         EXPECT_FLOAT_EQ(result[channel], pixels[channel]);
     }
 }
+
+TEST(VectorFlowGlitchEffectContractTest,
+     MaximumDisplacementOnSinglePixelSurfacePreservesAllChannels)
+{
+    constexpr std::array<float, 4> pixels{0.15f, 0.4f, 0.85f, 0.3f};
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 1, 1);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::VectorFlowGlitchEffect effect;
+    effect.setPropertyValue(ArtifactCore::UniString("Glitch Amount"),
+                            QVariant(200.0));
+    effect.setPropertyValue(ArtifactCore::UniString("Frequency"),
+                            QVariant(1.0));
+    effect.setPropertyValue(ArtifactCore::UniString("Chromatic Aberration"),
+                            QVariant(50.0));
+    effect.setPropertyValue(ArtifactCore::UniString("Edge Flow Influence"),
+                            QVariant(1.0));
+    effect.setPropertyValue(ArtifactCore::UniString("Evolution"),
+                            QVariant(0.25));
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), 1);
+    ASSERT_EQ(output.image().height(), 1);
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], pixels[channel])
+            << "channel=" << channel;
+    }
+    const float* original = source.image().rgba32fData();
+    ASSERT_NE(original, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(original[channel], pixels[channel])
+            << "source channel=" << channel;
+    }
+}
