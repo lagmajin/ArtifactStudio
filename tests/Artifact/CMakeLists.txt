@@ -1835,6 +1835,33 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 120
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactExrMultiChannelAovContractTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=ExrWriterOutputContractTest.MultiChannelExrRoundTripsNamedAovValuesAndSingleHitCryptomatteDraftAliases
+    )
+    set_tests_properties(ArtifactExrMultiChannelAovContractTest PROPERTIES
+        LABELS "openexr;aov;cryptomatte;metadata;contract;cpu"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactExrCryptomatteCoverageContractTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=ExrWriterOutputContractTest.CryptomatteDraftCoverageClampsAlphaAndSuppressesZeroIds
+    )
+    set_tests_properties(ArtifactExrCryptomatteCoverageContractTest PROPERTIES
+        LABELS "openexr;cryptomatte;coverage;contract;cpu"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactExrDeepSamplesContractTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=ExrWriterOutputContractTest.DeepExrRoundTripRetainsVariablePerPixelSamplesAndDepthOrder:ExrWriterOutputContractTest.DeepImageBufferWritesOnlyDepthAndRgbaAndReadbackUsesDocumentedDefaults
+    )
+    set_tests_properties(ArtifactExrDeepSamplesContractTest PROPERTIES
+        LABELS "openexr;deep;multi-sample;contract;cpu"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactRenderQueueLargeSurfaceEffectStressIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.LargeSurfaceEffectQueueWritesEveryFrameAndAppliesEffect
