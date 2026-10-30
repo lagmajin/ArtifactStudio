@@ -2138,6 +2138,15 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactLofiOldTvEffectContractTest
+        COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
+            "--gtest_filter=LofiEffectContractTest.*OldTv*:LofiEffectContractTest.AnimatedRegionEnabledTogglesWithoutCoordinateTracks:LofiEffectContractTest.AnimatedRegionCoordinatesMoveThePixelComposite:LofiEffectContractTest.AnimatedRegionDisableOverridesAnimatedCoordinates"
+    )
+    set_tests_properties(ArtifactLofiOldTvEffectContractTest PROPERTIES
+        LABELS "effect;lofi;old-tv;animation;composition;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
 
     if(TARGET ArtifactProxyWorker AND TARGET ArtifactProxyWorkerPackage)
         artifact_add_test(ArtifactProxyWorkerProtocolTest
