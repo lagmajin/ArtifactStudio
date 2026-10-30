@@ -1799,6 +1799,89 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeFlickerScalesExposureAndClampsAtItsPropertyBounds)
+{
+    constexpr int width = 12;
+    constexpr int height = 8;
+    constexpr float sourceValue = 0.4f;
+    constexpr float alpha = 0.65f;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    EffectContext context;
+    context.compositionFrame = 12;
+    const auto renderWithFlicker = [&](const QVariant& value) {
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setContext(context);
+        for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                     "gateWeave", "vignette", "stain"}) {
+            effect.setPropertyValue(UniString(property), QVariant(0.0f));
+        }
+        effect.setPropertyValue(UniString("flicker"), value);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+
+    const auto noFlicker = renderWithFlicker(QVariant(0.0f));
+    const auto halfFlicker = renderWithFlicker(QVariant(0.25f));
+    const auto maximumFlicker = renderWithFlicker(QVariant(0.5f));
+    const auto clampedLow = renderWithFlicker(QVariant(-1.0f));
+    const auto clampedHigh = renderWithFlicker(QVariant(1.0f));
+    const auto nonFinite = renderWithFlicker(
+        QVariant(std::numeric_limits<double>::quiet_NaN()));
+    const float* noFlickerPixels = noFlicker.image().rgba32fData();
+    const float* halfFlickerPixels = halfFlicker.image().rgba32fData();
+    const float* maximumFlickerPixels = maximumFlicker.image().rgba32fData();
+    const float* clampedLowPixels = clampedLow.image().rgba32fData();
+    const float* clampedHighPixels = clampedHigh.image().rgba32fData();
+    const float* nonFinitePixels = nonFinite.image().rgba32fData();
+    ASSERT_NE(noFlickerPixels, nullptr);
+    ASSERT_NE(halfFlickerPixels, nullptr);
+    ASSERT_NE(maximumFlickerPixels, nullptr);
+    ASSERT_NE(clampedLowPixels, nullptr);
+    ASSERT_NE(clampedHighPixels, nullptr);
+    ASSERT_NE(nonFinitePixels, nullptr);
+    EXPECT_FLOAT_EQ(noFlickerPixels[0], sourceValue);
+    EXPECT_NE(maximumFlickerPixels[0], sourceValue);
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(noFlickerPixels[offset + channel], sourceValue);
+            EXPECT_FLOAT_EQ(clampedLowPixels[offset + channel],
+                            noFlickerPixels[offset + channel]);
+            EXPECT_FLOAT_EQ(nonFinitePixels[offset + channel],
+                            noFlickerPixels[offset + channel]);
+            EXPECT_FLOAT_EQ(clampedHighPixels[offset + channel],
+                            maximumFlickerPixels[offset + channel]);
+            EXPECT_NEAR(halfFlickerPixels[offset + channel],
+                        noFlickerPixels[offset + channel] +
+                            (maximumFlickerPixels[offset + channel] -
+                             noFlickerPixels[offset + channel]) * 0.5f,
+                        1.0e-6f)
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(maximumFlickerPixels[offset + channel],
+                            maximumFlickerPixels[channel])
+                << "maximum exposure must be uniform pixel=" << pixel
+                << " channel=" << channel;
+        }
+        EXPECT_FLOAT_EQ(noFlickerPixels[offset + 3], alpha);
+        EXPECT_FLOAT_EQ(halfFlickerPixels[offset + 3], alpha);
+        EXPECT_FLOAT_EQ(maximumFlickerPixels[offset + 3], alpha);
+    }
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeAnimatesFlickerAgainstFixedFrameExposure)
 {
     constexpr int width = 12;
