@@ -366,6 +366,93 @@ TEST(ExportWriterContractTest, LottieRejectsMissingCompositionBeforeTouchingOutp
     expectWriterRejectsMissingComposition(QStringLiteral("Lottie"));
 }
 
+void expectWriterRejectsBlockedOutputParent(const QString& writerName)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("BlockedWriterOutputContractTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("BlockedOutputContract")));
+    compositionParams.setResolution(16, 16);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(1);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+
+    const QString blockedParent = QDir(temporary.path()).filePath(
+        QStringLiteral("blocked-output-parent"));
+    const QByteArray sentinel = QByteArrayLiteral("keep output parent intact");
+    QFile parentFile(blockedParent);
+    ASSERT_TRUE(parentFile.open(QIODevice::WriteOnly));
+    ASSERT_EQ(parentFile.write(sentinel), sentinel.size());
+    parentFile.close();
+
+    const QString output = QDir(blockedParent).filePath(writerName);
+    QString error;
+    bool succeeded = false;
+    if (writerName == QStringLiteral("Gameface")) {
+        succeeded = Artifact::ArtifactExportGamefaceWriter::write(
+            compositionPtr, output, {}, &error);
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        succeeded = Artifact::ArtifactExportNoesisXamlWriter::write(
+            compositionPtr, output, {}, &error);
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        succeeded = Artifact::ArtifactExportRmlUiWriter::write(
+            compositionPtr, output, {}, &error);
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        succeeded = Artifact::ArtifactExportUnityUxmlWriter::write(
+            compositionPtr, output, {}, &error);
+    } else if (writerName == QStringLiteral("Lottie")) {
+        succeeded = Artifact::ArtifactExportLottieWriter::write(
+            compositionPtr, QDir(output).filePath(QStringLiteral("animation.json")),
+            {}, &error);
+    } else {
+        FAIL() << "unknown writer: " << writerName.toStdString();
+        return;
+    }
+    EXPECT_FALSE(succeeded);
+    EXPECT_FALSE(error.isEmpty());
+    EXPECT_EQ(readFileBytes(blockedParent), sentinel);
+}
+
+TEST(ExportWriterContractTest, GamefaceRejectsBlockedOutputParent)
+{
+    expectWriterRejectsBlockedOutputParent(QStringLiteral("Gameface"));
+}
+
+TEST(ExportWriterContractTest, NoesisXamlRejectsBlockedOutputParent)
+{
+    expectWriterRejectsBlockedOutputParent(QStringLiteral("NoesisXaml"));
+}
+
+TEST(ExportWriterContractTest, RmlUiRejectsBlockedOutputParent)
+{
+    expectWriterRejectsBlockedOutputParent(QStringLiteral("RmlUi"));
+}
+
+TEST(ExportWriterContractTest, UnityUxmlRejectsBlockedOutputParent)
+{
+    expectWriterRejectsBlockedOutputParent(QStringLiteral("UnityUxml"));
+}
+
+TEST(ExportWriterContractTest, LottieRejectsBlockedOutputParent)
+{
+    expectWriterRejectsBlockedOutputParent(QStringLiteral("Lottie"));
+}
+
 TEST(ExportWriterContractTest, MinimalTextCompositionProducesWriterSchemas)
 {
     QTemporaryDir temporary;
