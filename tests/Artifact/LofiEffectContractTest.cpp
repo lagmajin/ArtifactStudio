@@ -1861,6 +1861,64 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeDustProcessesTransparentRgbWithoutChangingAlpha)
+{
+    constexpr int width = 128;
+    constexpr int height = 96;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr std::array<float, 4> sourcePixel{0.8f, 0.6f, 0.4f, 0.0f};
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        std::copy(sourcePixel.begin(), sourcePixel.end(),
+                  pixels.begin() + static_cast<std::ptrdiff_t>(pixel * 4));
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("dustAmount"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(1002));
+    EffectContext context;
+    context.compositionFrame = 4;
+    effect.setContext(context);
+
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(output.image().width(), width);
+    EXPECT_EQ(output.image().height(), height);
+    bool observedDust = false;
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        EXPECT_FLOAT_EQ(result[offset + 3], 0.0f) << "pixel=" << pixel;
+        const bool changed = result[offset] < pixels[offset];
+        if (!changed) {
+            EXPECT_FLOAT_EQ(result[offset + 1], pixels[offset + 1]);
+            EXPECT_FLOAT_EQ(result[offset + 2], pixels[offset + 2]);
+            continue;
+        }
+        observedDust = true;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_GE(result[offset + channel], 0.0f)
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_LT(result[offset + channel], pixels[offset + channel])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+    }
+    EXPECT_TRUE(observedDust);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeScratchAmountAddsLocalizedSharedRgbDamage)
 {
     constexpr int width = 72;
