@@ -149,6 +149,18 @@ set_tests_properties(ArtifactVideoEncoderBackendAliasContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
+artifact_add_test(ArtifactVideoEncoderBackendFallbackContractTest
+    SOURCES
+        VideoEncoderBackendFallbackContractTest.cpp
+    LIBS
+        ArtifactRender
+)
+set_tests_properties(ArtifactVideoEncoderBackendFallbackContractTest PROPERTIES
+    LABELS "video;encoder;backend;fallback;failure;contract"
+    TIMEOUT 90
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactGlobalIlluminationLodContractTest
     SOURCES
         GlobalIlluminationLodContractTest.cpp
