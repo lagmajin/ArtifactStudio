@@ -3727,6 +3727,54 @@ TEST(LofiEffectContractTest, OldTvClampsRgbAndPreservesOutOfRangeAlpha)
     }
 }
 
+TEST(LofiEffectContractTest,
+     OldTvTransformsRgbIndependentlyOfAlphaIncludingTransparentPixels)
+{
+    constexpr int width = 5;
+    constexpr int height = 8;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.17f + 0.013f * static_cast<float>(pixel);
+        pixels[pixel * 4 + 1] = 0.83f - 0.009f * static_cast<float>(pixel);
+        pixels[pixel * 4 + 2] = 0.31f + 0.007f * static_cast<float>(pixel);
+        pixels[pixel * 4 + 3] = pixel % 3 == 0 ? 0.0f :
+                                 pixel % 3 == 1 ? 0.4f : 1.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    bool transparentRgbChanged = false;
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_TRUE(std::isfinite(result[offset + channel]))
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_GE(result[offset + channel], 0.0f);
+            EXPECT_LE(result[offset + channel], 1.0f);
+            if (pixels[offset + 3] == 0.0f) {
+                transparentRgbChanged = transparentRgbChanged ||
+                    result[offset + channel] != pixels[offset + channel];
+            }
+        }
+        EXPECT_FLOAT_EQ(result[offset + 3], pixels[offset + 3])
+            << "pixel=" << pixel;
+    }
+    EXPECT_TRUE(transparentRgbChanged)
+        << "RGB processing must be independent from zero alpha";
+}
+
 TEST(LofiEffectContractTest, OldTvAddsSharedNoiseWithoutChangingRgbChannelDifferences)
 {
     constexpr int width = 7;
