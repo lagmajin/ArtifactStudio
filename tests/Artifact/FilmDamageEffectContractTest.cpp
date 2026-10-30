@@ -3,6 +3,8 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <limits>
+#include <QString>
 #include <QVariant>
 
 import Artifact.Effect.Abstract;
@@ -175,6 +177,37 @@ TEST(FilmDamageEffectContractTest,
             << "source channel=" << channel;
         EXPECT_FLOAT_EQ(actual[channel], expected[channel])
             << "output channel=" << channel;
+    }
+}
+
+TEST(FilmDamageEffectContractTest,
+     PublishedControlsClampFiniteValuesAndResetNonFiniteValues)
+{
+    Artifact::FilmDamageEffect effect;
+    setFilmProperty(effect, "Grain", QVariant(-1.0));
+    setFilmProperty(effect, "Dust", QVariant(2.0));
+    setFilmProperty(effect, "Scratches",
+                    QVariant(std::numeric_limits<double>::quiet_NaN()));
+    setFilmProperty(effect, "Gate Weave", QVariant(25.0));
+    setFilmProperty(effect, "Flicker",
+                    QVariant(std::numeric_limits<double>::infinity()));
+    setFilmProperty(effect, "Film Burn", QVariant(-3.0));
+    setFilmProperty(effect, "Evolution",
+                    QVariant(std::numeric_limits<double>::quiet_NaN()));
+    setFilmProperty(effect, "Seed", QVariant(-99));
+
+    const auto properties = effect.getProperties();
+    ASSERT_EQ(properties.size(), 8u);
+    constexpr std::array<const char*, 8> expectedNames{
+        "Grain", "Dust", "Scratches", "Gate Weave", "Flicker",
+        "Film Burn", "Evolution", "Seed"};
+    constexpr std::array<float, 8> expectedValues{
+        0.0f, 1.0f, 0.1f, 20.0f, 0.08f, 0.0f, 0.0f, -99.0f};
+    for (std::size_t index = 0; index < properties.size(); ++index) {
+        EXPECT_EQ(properties[index].name(), QString::fromLatin1(expectedNames[index]))
+            << "property=" << index;
+        EXPECT_FLOAT_EQ(properties[index].getValue().toFloat(), expectedValues[index])
+            << "property=" << expectedNames[index];
     }
 }
 
