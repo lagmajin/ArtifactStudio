@@ -569,6 +569,59 @@ TEST(HalftoneEffectContractTest,
     }
 }
 
+TEST(HalftoneEffectContractTest,
+     InputAlphaDoesNotChangeEitherHalftoneDotMask)
+{
+    constexpr int width = 8;
+    constexpr int height = 8;
+    std::array<float, width * height * 4> transparentPixels{};
+    std::array<float, width * height * 4> opaquePixels{};
+    for (std::size_t pixel = 0; pixel < width * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        transparentPixels[offset] = opaquePixels[offset] = 0.35f;
+        transparentPixels[offset + 1] = opaquePixels[offset + 1] = 0.6f;
+        transparentPixels[offset + 2] = opaquePixels[offset + 2] = 0.8f;
+        transparentPixels[offset + 3] = 0.0f;
+        opaquePixels[offset + 3] = 1.0f;
+    }
+    ArtifactCore::ImageF32x4_RGBA transparentImage;
+    transparentImage.setFromRGBA32F(transparentPixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache transparent(transparentImage);
+    ArtifactCore::ImageF32x4_RGBA opaqueImage;
+    opaqueImage.setFromRGBA32F(opaquePixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache opaque(opaqueImage);
+
+    ArtifactCore::ImageF32x4RGBAWithCache standardTransparent;
+    ArtifactCore::ImageF32x4RGBAWithCache standardOpaque;
+    ArtifactCore::ImageF32x4RGBAWithCache creativeTransparent;
+    ArtifactCore::ImageF32x4RGBAWithCache creativeOpaque;
+    Artifact::HalftoneEffect standardEffect;
+    Artifact::ArtifactHalftoneEffect creativeEffect;
+    creativeEffect.setComputeMode(Artifact::ComputeMode::CPU);
+    standardEffect.applyCPUOnly(transparent, standardTransparent);
+    standardEffect.applyCPUOnly(opaque, standardOpaque);
+    creativeEffect.applyCPUOnly(transparent, creativeTransparent);
+    creativeEffect.applyCPUOnly(opaque, creativeOpaque);
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const auto checkPair = [x, y](
+                const ArtifactCore::ImageF32x4RGBAWithCache& lowAlpha,
+                const ArtifactCore::ImageF32x4RGBAWithCache& highAlpha) {
+                const auto low = lowAlpha.image().getPixel(x, y);
+                const auto high = highAlpha.image().getPixel(x, y);
+                EXPECT_FLOAT_EQ(low.r(), high.r()) << "x=" << x << " y=" << y;
+                EXPECT_FLOAT_EQ(low.g(), high.g()) << "x=" << x << " y=" << y;
+                EXPECT_FLOAT_EQ(low.b(), high.b()) << "x=" << x << " y=" << y;
+                EXPECT_FLOAT_EQ(low.a(), 1.0f) << "x=" << x << " y=" << y;
+                EXPECT_FLOAT_EQ(high.a(), 1.0f) << "x=" << x << " y=" << y;
+            };
+            checkPair(standardTransparent, standardOpaque);
+            checkPair(creativeTransparent, creativeOpaque);
+        }
+    }
+}
+
 TEST(HalftoneEffectContractTest, SettersClampFiniteValuesAndResetNonFiniteValues)
 {
     Artifact::HalftoneEffect effect;
