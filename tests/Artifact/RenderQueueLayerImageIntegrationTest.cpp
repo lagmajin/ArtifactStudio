@@ -755,9 +755,10 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
                 const std::size_t pixelBase = pixel *
                     static_cast<std::size_t>(spec.nchannels);
-                if (objectIdIndex >= 0 &&
+                const bool expectedObjectPixel =
                     pixels[pixelBase + static_cast<std::size_t>(objectIdIndex)] ==
-                        expectedObjectId && expectedObjectId > 0.0f) {
+                        expectedObjectId && expectedObjectId > 0.0f;
+                if (expectedObjectPixel) {
                     hasObjectIdSample = true;
                 }
                 if (materialIdIndex >= 0 &&
@@ -782,7 +783,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                         1.0f - 1.0e-5f) {
                     hasDepthSample = true;
                 }
-                if (velocityXIndex >= 0 && velocityYIndex >= 0 &&
+                if (expectedObjectPixel &&
                     (std::abs(pixels[pixelBase +
                                      static_cast<std::size_t>(velocityXIndex)]) >
                          1.0e-6f ||
@@ -794,8 +795,9 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             }
             if (!hasObjectIdSample || !hasMaterialIdSample || !hasNormalSample ||
                 !hasDepthSample ||
-                (expectMotionVectors && frame > frameStart &&
-                 !hasVelocitySample)) {
+                (expectMotionVectors &&
+                 ((frame > frameStart && !hasVelocitySample) ||
+                  (frame == frameStart && hasVelocitySample)))) {
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue EXR did not contain non-clear 3D ObjectId, "
