@@ -1760,6 +1760,71 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeDustAddsSharedRgbDamageWithoutErasingGrainChroma)
+{
+    constexpr int width = 96;
+    constexpr int height = 72;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr float alpha = 0.7f;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    const auto renderWithDust = [&source](const float dustAmount) {
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setPropertyValue(UniString("grainAmount"), QVariant(0.3f));
+        effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+        effect.setPropertyValue(UniString("dustAmount"), QVariant(dustAmount));
+        effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("seed"), QVariant(823));
+        EffectContext context;
+        context.compositionFrame = 19;
+        effect.setContext(context);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+
+    const auto grainOnly = renderWithDust(0.0f);
+    const auto grainAndDust = renderWithDust(1.0f);
+    const float* grainPixels = grainOnly.image().rgba32fData();
+    const float* combinedPixels = grainAndDust.image().rgba32fData();
+    ASSERT_NE(grainPixels, nullptr);
+    ASSERT_NE(combinedPixels, nullptr);
+    bool observedDust = false;
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        const float redDelta = combinedPixels[offset] - grainPixels[offset];
+        const float greenDelta =
+            combinedPixels[offset + 1] - grainPixels[offset + 1];
+        const float blueDelta =
+            combinedPixels[offset + 2] - grainPixels[offset + 2];
+        EXPECT_NEAR(redDelta, greenDelta, 1.0e-6f)
+            << "dust delta should be shared by RGB at pixel=" << pixel;
+        EXPECT_NEAR(greenDelta, blueDelta, 1.0e-6f)
+            << "dust delta should be shared by RGB at pixel=" << pixel;
+        EXPECT_LE(greenDelta, 1.0e-6f)
+            << "dust should not brighten pixel=" << pixel;
+        observedDust = observedDust || greenDelta < -1.0e-6f;
+        EXPECT_FLOAT_EQ(grainPixels[offset + 3], alpha);
+        EXPECT_FLOAT_EQ(combinedPixels[offset + 3], alpha);
+    }
+    EXPECT_TRUE(observedDust);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeScratchAmountAddsLocalizedSharedRgbDamage)
 {
     constexpr int width = 72;
