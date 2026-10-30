@@ -1222,11 +1222,15 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesEmulsionStainAcrossCompositionFra
     stain->addKeyFrame(RationalTime(30, 30), 0.4);
 
     ImageF32x4RGBAWithCache firstFrame;
+    ImageF32x4RGBAWithCache interpolatedFrame;
     ImageF32x4RGBAWithCache animatedFrame;
     EffectContext context;
     context.compositionFrame = 0;
     effect.setContext(context);
     effect.applyCPUOnly(source, firstFrame);
+    context.compositionFrame = 15;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, interpolatedFrame);
     context.compositionFrame = 30;
     effect.setContext(context);
     effect.applyCPUOnly(source, animatedFrame);
@@ -1243,12 +1247,23 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesEmulsionStainAcrossCompositionFra
     fixedEffect.setContext(context);
     fixedEffect.applyCPUOnly(source, fixedFrame);
 
+    context.compositionFrame = 15;
+    fixedEffect.setContext(context);
+    fixedEffect.setPropertyValue(UniString("stain"), QVariant(0.2f));
+    ImageF32x4RGBAWithCache interpolatedFixedFrame;
+    fixedEffect.applyCPUOnly(source, interpolatedFixedFrame);
+
     const float* firstPixels = firstFrame.image().rgba32fData();
+    const float* interpolatedPixels = interpolatedFrame.image().rgba32fData();
     const float* animatedPixels = animatedFrame.image().rgba32fData();
     const float* fixedPixels = fixedFrame.image().rgba32fData();
+    const float* interpolatedFixedPixels =
+        interpolatedFixedFrame.image().rgba32fData();
     ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(interpolatedPixels, nullptr);
     ASSERT_NE(animatedPixels, nullptr);
     ASSERT_NE(fixedPixels, nullptr);
+    ASSERT_NE(interpolatedFixedPixels, nullptr);
     std::size_t changedRgbSamples = 0;
     for (std::size_t pixel = 0;
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
@@ -1257,9 +1272,13 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesEmulsionStainAcrossCompositionFra
             EXPECT_FLOAT_EQ(firstPixels[offset], sourceValue);
             EXPECT_FLOAT_EQ(animatedPixels[offset], fixedPixels[offset])
                 << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(interpolatedPixels[offset],
+                            interpolatedFixedPixels[offset])
+                << "interpolated pixel=" << pixel << " channel=" << channel;
             if (animatedPixels[offset] != sourceValue) ++changedRgbSamples;
         }
         EXPECT_FLOAT_EQ(firstPixels[pixel * 4 + 3], alpha);
+        EXPECT_FLOAT_EQ(interpolatedPixels[pixel * 4 + 3], alpha);
         EXPECT_FLOAT_EQ(animatedPixels[pixel * 4 + 3], alpha);
     }
     EXPECT_GT(changedRgbSamples, 0u);
