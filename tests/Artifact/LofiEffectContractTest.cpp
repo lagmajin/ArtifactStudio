@@ -1634,6 +1634,68 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeScratchCountCrossesIntegerThresholdAtHalfAmount)
+{
+    constexpr int width = 36;
+    constexpr int height = 64;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr float sourceValue = 0.5f;
+    constexpr float alpha = 0.7f;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    const auto renderWithScratch = [&source](const float amount) {
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setPropertyValue(UniString("grainAmount"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("scratchAmount"), QVariant(amount));
+        effect.setPropertyValue(UniString("dustAmount"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("seed"), QVariant(43));
+        EffectContext context;
+        context.compositionFrame = 8;
+        effect.setContext(context);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+    const auto belowThreshold = renderWithScratch(0.49f);
+    const auto atThreshold = renderWithScratch(0.5f);
+
+    const float* belowPixels = belowThreshold.image().rgba32fData();
+    const float* thresholdPixels = atThreshold.image().rgba32fData();
+    ASSERT_NE(belowPixels, nullptr);
+    ASSERT_NE(thresholdPixels, nullptr);
+    std::size_t changedPixels = 0;
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(belowPixels[offset + channel], sourceValue)
+                << "0.49 * (36 / 18) truncates to zero scratches";
+            if (thresholdPixels[offset + channel] != sourceValue) {
+                changedPixels += channel == 1 ? 1u : 0u;
+            }
+        }
+        EXPECT_FLOAT_EQ(belowPixels[offset + 3], alpha);
+        EXPECT_FLOAT_EQ(thresholdPixels[offset + 3], alpha);
+    }
+    EXPECT_GT(changedPixels, 0u)
+        << "0.5 * (36 / 18) creates one three-pixel-wide scratch";
+    EXPECT_LE(changedPixels, static_cast<std::size_t>(height) * 3);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeAnimatesScratchAmountAgainstFixedFrameOutput)
 {
     constexpr int width = 72;
