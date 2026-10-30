@@ -1904,6 +1904,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactRenderQueueDeepExrIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.DeepExrContainsResolvedRgbaAndDepthForEveryPixel
+    )
+    set_tests_properties(ArtifactRenderQueueDeepExrIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;image;openexr;deep;rgba;depth;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactExrWriterOutputContractTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=ExrWriterOutputContractTest.*

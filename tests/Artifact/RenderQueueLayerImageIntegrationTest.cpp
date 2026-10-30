@@ -1096,6 +1096,64 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     DeepExrContainsResolvedRgbaAndDepthForEveryPixel)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 640;
+    constexpr int height = 360;
+    const ArtifactCore::FloatColor background(0.15f, 0.25f, 0.4f, 1.0f);
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueDeepExrTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("DeepExrQueueOutput")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(1);
+    params.setBackgroundColor(background);
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("DeepExrOutputLayer"));
+    layerParams.setWidth(width);
+    layerParams.setHeight(height);
+    layerParams.setColor(background);
+    ASSERT_TRUE(projects.addLayerToComposition(
+        composition.id, layerParams).success);
+
+    QString failure;
+    ASSERT_TRUE(addAndRenderExr(
+        queue, composition.id, QStringLiteral("DeepExrQueueOutput"),
+        isolatedOutputPath(QStringLiteral("render_queue_deep_only.exr")),
+        width, height, &failure, 0, 1, nullptr, false, true))
+        << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      LargeSurfaceEffectQueueWritesEveryFrameAndAppliesEffect)
 {
     QTemporaryDir projectRoot;
