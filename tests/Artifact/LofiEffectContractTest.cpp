@@ -1770,10 +1770,10 @@ TEST(LofiEffectContractTest, FilmGrungeDustAmountAddsLocalizedDeterministicDamag
 }
 
 TEST(LofiEffectContractTest,
-     FilmGrungeDustCountCrossesItsFirstAreaThresholdAtMaximumAmount)
+     FilmGrungeDustCountScalesWithWhole900PixelAreas)
 {
-    constexpr int width = 30;
-    constexpr int height = 30;
+    constexpr int width = 90;
+    constexpr int height = 100;
     constexpr std::size_t pixelCount =
         static_cast<std::size_t>(width) * height;
     constexpr float sourceValue = 0.5f;
@@ -1806,29 +1806,29 @@ TEST(LofiEffectContractTest,
         effect.applyCPUOnly(source, output);
         return output;
     };
-    const auto belowFirstDust = renderWithDust(0.999f);
-    const auto firstDust = renderWithDust(1.0f);
+    const auto belowFirstDust = renderWithDust(0.0999f);
+    const auto scaledDust = renderWithDust(0.2f);
 
     const float* belowPixels = belowFirstDust.image().rgba32fData();
-    const float* firstPixels = firstDust.image().rgba32fData();
+    const float* scaledPixels = scaledDust.image().rgba32fData();
     ASSERT_NE(belowPixels, nullptr);
-    ASSERT_NE(firstPixels, nullptr);
-    bool observedFirstParticle = false;
+    ASSERT_NE(scaledPixels, nullptr);
+    bool observedScaledDust = false;
     for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
         const std::size_t offset = pixel * 4;
         for (std::size_t channel = 0; channel < 3; ++channel) {
             EXPECT_FLOAT_EQ(belowPixels[offset + channel], sourceValue)
                 << "amount below one yields zero whole particles; pixel=" << pixel;
-            EXPECT_LE(firstPixels[offset + channel], sourceValue)
+            EXPECT_LE(scaledPixels[offset + channel], sourceValue)
                 << "dust only darkens; pixel=" << pixel;
-            observedFirstParticle = observedFirstParticle ||
-                firstPixels[offset + channel] < sourceValue;
+            observedScaledDust = observedScaledDust ||
+                scaledPixels[offset + channel] < sourceValue;
         }
         EXPECT_FLOAT_EQ(belowPixels[offset + 3], alpha);
-        EXPECT_FLOAT_EQ(firstPixels[offset + 3], alpha);
+        EXPECT_FLOAT_EQ(scaledPixels[offset + 3], alpha);
     }
-    EXPECT_TRUE(observedFirstParticle)
-        << "one 900-pixel area at full amount creates the first dust particle";
+    EXPECT_TRUE(observedScaledDust)
+        << "a 9,000-pixel image at amount 0.2 creates two dust particles";
 }
 
 TEST(LofiEffectContractTest,
