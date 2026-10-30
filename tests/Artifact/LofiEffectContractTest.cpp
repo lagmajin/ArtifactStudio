@@ -1064,6 +1064,60 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeVignetteCentersTheCollapsedAxisForSingleRowsAndColumns)
+{
+    constexpr int extent = 5;
+    constexpr float sourceValue = 0.4f;
+    constexpr float alpha = 0.65f;
+    const auto renderDegenerateSurface = [=](const int width, const int height) {
+        const std::size_t pixelCount =
+            static_cast<std::size_t>(width) * height;
+        std::array<float, extent * 4> pixels{};
+        for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+            pixels[pixel * 4 + 0] = sourceValue;
+            pixels[pixel * 4 + 1] = sourceValue;
+            pixels[pixel * 4 + 2] = sourceValue;
+            pixels[pixel * 4 + 3] = alpha;
+        }
+        ImageF32x4_RGBA image;
+        image.setFromRGBA32F(pixels.data(), width, height);
+        const ImageF32x4RGBAWithCache source(image);
+        ImageF32x4RGBAWithCache output;
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                     "flicker", "gateWeave", "stain"}) {
+            effect.setPropertyValue(UniString(property), QVariant(0.0f));
+        }
+        effect.setPropertyValue(UniString("vignette"), QVariant(1.0f));
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+
+    const auto singleRow = renderDegenerateSurface(extent, 1);
+    const auto singleColumn = renderDegenerateSurface(1, extent);
+    const float* rowPixels = singleRow.image().rgba32fData();
+    const float* columnPixels = singleColumn.image().rgba32fData();
+    ASSERT_NE(rowPixels, nullptr);
+    ASSERT_NE(columnPixels, nullptr);
+    for (int index = 0; index < extent; ++index) {
+        const float normalized = (2.0f * index / (extent - 1)) - 1.0f;
+        const float expected = sourceValue * std::clamp(
+            1.0f - std::pow(normalized * normalized, 1.35f), 0.0f, 1.0f);
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(rowPixels[static_cast<std::size_t>(index) * 4 + channel],
+                        expected, 1.0e-6f)
+                << "single row index=" << index << " channel=" << channel;
+            EXPECT_NEAR(columnPixels[static_cast<std::size_t>(index) * 4 + channel],
+                        expected, 1.0e-6f)
+                << "single column index=" << index << " channel=" << channel;
+        }
+        EXPECT_FLOAT_EQ(rowPixels[static_cast<std::size_t>(index) * 4 + 3], alpha);
+        EXPECT_FLOAT_EQ(columnPixels[static_cast<std::size_t>(index) * 4 + 3], alpha);
+    }
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeIsDeterministicWhenFramesAreRevisitedAndChangesAcrossFrames)
 {
     constexpr int width = 64;
