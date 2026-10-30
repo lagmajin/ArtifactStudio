@@ -460,6 +460,36 @@ TEST(HalftoneEffectContractTest,
 }
 
 TEST(HalftoneEffectContractTest,
+     StandardHalftoneInPlaceMatchesOutOfPlaceWithoutChangingSource)
+{
+    const auto source = makeSolidSurface(0.5f, 0.4f);
+    auto inPlace = source;
+    ArtifactCore::ImageF32x4RGBAWithCache outOfPlace;
+    Artifact::HalftoneEffect effect;
+    effect.setDotSize(4.0f);
+    effect.setAngle(27.0f);
+    effect.setContrast(1.7f);
+
+    effect.applyCPUOnly(source, outOfPlace);
+    effect.applyCPUOnly(inPlace, inPlace);
+
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* inPlacePixels = inPlace.image().rgba32fData();
+    const float* outOfPlacePixels = outOfPlace.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(inPlacePixels, nullptr);
+    ASSERT_NE(outOfPlacePixels, nullptr);
+    EXPECT_NE(inPlacePixels, sourcePixels);
+    for (std::size_t channel = 0; channel < 4 * 4 * 4; ++channel) {
+        EXPECT_FLOAT_EQ(sourcePixels[channel],
+                        channel % 4 == 3 ? 0.4f : 0.5f)
+            << "source channel=" << channel;
+        EXPECT_FLOAT_EQ(inPlacePixels[channel], outOfPlacePixels[channel])
+            << "output channel=" << channel;
+    }
+}
+
+TEST(HalftoneEffectContractTest,
      CreativeHalftoneEmptyInputReplacesPreviouslyPopulatedOutput)
 {
     const ArtifactCore::ImageF32x4RGBAWithCache source;
