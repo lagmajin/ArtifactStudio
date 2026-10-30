@@ -768,9 +768,9 @@ TEST(LofiEffectContractTest, FilmGrungeEffectRegionLimitsGrainToPixelCenters)
 TEST(LofiEffectContractTest,
      FilmGrungeEffectRegionBoundsCombinedEffectsAtFractionalPixelCenters)
 {
-    constexpr int width = 32;
-    constexpr int height = 20;
-    const QRectF region(7.25, 4.25, 13.5, 9.5);
+    constexpr int width = 128;
+    constexpr int height = 96;
+    const QRectF region(31.25, 19.25, 69.5, 47.5);
     std::array<float, width * height * 4> pixels{};
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
