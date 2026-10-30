@@ -1826,6 +1826,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactRenderQueueTileSettingsContractTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.TileRenderSettingsExposeModeAndClampMinimumSize
+    )
+    set_tests_properties(ArtifactRenderQueueTileSettingsContractTest PROPERTIES
+        LABELS "render-queue;tile;settings;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactExrWriterOutputContractTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=ExrWriterOutputContractTest.*
