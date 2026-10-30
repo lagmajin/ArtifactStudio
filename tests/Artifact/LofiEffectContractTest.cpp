@@ -191,6 +191,42 @@ TEST(LofiEffectContractTest,
     EXPECT_EQ(output.image().colorDescriptor(), source.image().colorDescriptor());
 }
 
+TEST(LofiEffectContractTest,
+     GlitchCpuSingleColumnClampsEveryChannelSampleToTheSourcePixel)
+{
+    constexpr int width = 1;
+    constexpr int height = 9;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        const std::size_t offset = static_cast<std::size_t>(y * 4);
+        pixels[offset] = static_cast<float>(y + 1) / 10.0f;
+        pixels[offset + 1] = static_cast<float>(y + 2) / 12.0f;
+        pixels[offset + 2] = static_cast<float>(y + 3) / 14.0f;
+        pixels[offset + 3] = static_cast<float>(y + 4) / 16.0f;
+    }
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    image.setColorDescriptor(descriptor);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactGlitchEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.width(), width);
+    ASSERT_EQ(output.height(), height);
+    EXPECT_EQ(output.image().colorDescriptor(), descriptor);
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], pixels[channel])
+            << "channel=" << channel;
+    }
+    EXPECT_NE(actual, source.image().rgba32fData());
+}
+
 TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
 {
     const auto source = makePatternSurface();
