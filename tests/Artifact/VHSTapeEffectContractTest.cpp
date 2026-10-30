@@ -157,6 +157,46 @@ TEST(VHSTapeEffectContractTest, ScanlineIntensityDarkensRowsAndPreservesAlphaCon
     }
 }
 
+TEST(VHSTapeEffectContractTest,
+     ScanlineIntensityPreservesPerPixelAlpha)
+{
+    constexpr int width = 9;
+    constexpr int height = 8;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>(y * width + x) * 4;
+            pixels[offset + 0] = 0.3f;
+            pixels[offset + 1] = 0.45f;
+            pixels[offset + 2] = 0.6f;
+            pixels[offset + 3] = static_cast<float>(y * width + x) /
+                                 static_cast<float>(pixelCount - 1);
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Scanline Gap")), 2.0);
+    effect.setPropertyValue(UniString(QStringLiteral("Scanline Intensity")), 0.75);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        EXPECT_FLOAT_EQ(result[pixel * 4 + 3], pixels[pixel * 4 + 3])
+            << "scanline intensity must not change alpha at pixel=" << pixel;
+    }
+}
+
 TEST(VHSTapeEffectContractTest, EmptyInputIsPreservedAndInPlaceProcessingStaysFinite)
 {
     ImageF32x4_RGBA emptyImage;
