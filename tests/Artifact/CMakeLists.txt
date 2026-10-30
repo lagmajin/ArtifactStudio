@@ -645,6 +645,13 @@ artifact_add_test(ArtifactHalftoneEffectContractTest
 set_tests_properties(ArtifactHalftoneEffectContractTest PROPERTIES
     LABELS "effect;halftone;cpu;contract"
 )
+add_test(NAME ArtifactCreativeHalftoneEffectContractTest
+    COMMAND $<TARGET_FILE:ArtifactHalftoneEffectContractTest>
+        "--gtest_filter=HalftoneEffectContractTest.CreativeHalftone*"
+)
+set_tests_properties(ArtifactCreativeHalftoneEffectContractTest PROPERTIES
+    LABELS "effect;creative;halftone;cpu;contract"
+)
 
 artifact_add_test(ArtifactBevelEffectContractTest
     SOURCES
