@@ -1108,7 +1108,8 @@ TEST(VHSTapeEffectContractTest,
             pixels[offset + 1] = 1.0f - value;
             pixels[offset + 2] = static_cast<float>((x * 13 + y * 7) % width) /
                                  static_cast<float>(width - 1);
-            pixels[offset + 3] = 1.0f;
+            pixels[offset + 3] = static_cast<float>(x) /
+                                 static_cast<float>(width - 1);
         }
     }
     ImageF32x4_RGBA image;
@@ -1167,10 +1168,32 @@ TEST(VHSTapeEffectContractTest,
             } else {
                 bottomChanged = bottomChanged || bottomPixelChanged;
             }
-            EXPECT_FLOAT_EQ(trackingPixels[offset + 3], 1.0f)
-                << "tracking alpha pixel=" << x << "," << y;
-            EXPECT_FLOAT_EQ(bottomPixels[offset + 3], 1.0f)
-                << "bottom-jitter alpha pixel=" << x << "," << y;
+            int trackingSourceX = -1;
+            int bottomSourceX = -1;
+            for (int sourceX = 0; sourceX < width; ++sourceX) {
+                const std::size_t sourceOffset =
+                    static_cast<std::size_t>((y * width + sourceX) * 4);
+                if (trackingPixels[offset + 1] == pixels[sourceOffset + 1]) {
+                    trackingSourceX = sourceX;
+                }
+                if (bottomPixels[offset + 1] == pixels[sourceOffset + 1]) {
+                    bottomSourceX = sourceX;
+                }
+            }
+            ASSERT_GE(trackingSourceX, 0)
+                << "tracking green channel must identify the shifted sample";
+            ASSERT_GE(bottomSourceX, 0)
+                << "head-switch green channel must identify the shifted sample";
+            EXPECT_FLOAT_EQ(trackingPixels[offset + 3],
+                            pixels[static_cast<std::size_t>(
+                                (y * width + trackingSourceX) * 4 + 3)])
+                << "tracking alpha must follow its green source pixel at "
+                << x << "," << y;
+            EXPECT_FLOAT_EQ(bottomPixels[offset + 3],
+                            pixels[static_cast<std::size_t>(
+                                (y * width + bottomSourceX) * 4 + 3)])
+                << "head-switch alpha must follow its green source pixel at "
+                << x << "," << y;
         }
     }
     EXPECT_TRUE(trackingChanged);
