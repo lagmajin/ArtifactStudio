@@ -13,6 +13,7 @@ import Artifact.Effect.Rasterizer.VHSTape;
 import Graphics.SurfaceColorContract;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
+import Property.Abstract;
 import Utils.String.UniString;
 
 using namespace Artifact;
@@ -274,6 +275,31 @@ TEST(VHSTapeEffectContractTest, NumericPropertiesClampAndRecoverFromNonFiniteVal
     effect.setPropertyValue(UniString(QStringLiteral("Tracking Error")),
                             std::numeric_limits<double>::quiet_NaN());
     EXPECT_DOUBLE_EQ(value(QStringLiteral("Tracking Error")), 0.3);
+}
+
+TEST(VHSTapeEffectContractTest,
+     PublishedPropertySchemaKeepsStableNamesOrderAndTypes)
+{
+    VHSTapeEffect effect;
+    const auto properties = effect.getProperties();
+    ASSERT_EQ(properties.size(), 13u);
+    constexpr std::array<const char*, 13> expectedNames{
+        "Tracking Error", "Noise Amount", "Color Bleed", "Scanline Gap",
+        "Scanline Intensity", "Wobble", "Saturation", "Sharpness",
+        "Bottom Jitter", "Show OSD", "OSD Mode", "Evolution", "Seed"};
+    constexpr std::array<PropertyType, 13> expectedTypes{
+        PropertyType::Float, PropertyType::Float, PropertyType::Float,
+        PropertyType::Float, PropertyType::Float, PropertyType::Float,
+        PropertyType::Float, PropertyType::Float, PropertyType::Float,
+        PropertyType::Boolean, PropertyType::Integer, PropertyType::Float,
+        PropertyType::Integer};
+    for (std::size_t index = 0; index < properties.size(); ++index) {
+        EXPECT_EQ(properties[index].getName(),
+                  QString::fromLatin1(expectedNames[index]))
+            << "property=" << index;
+        EXPECT_EQ(properties[index].getType(), expectedTypes[index])
+            << "property=" << expectedNames[index];
+    }
 }
 
 TEST(VHSTapeEffectContractTest, ColorBleedSoftensHorizontalChromaEdgeAndPreservesAlpha)
