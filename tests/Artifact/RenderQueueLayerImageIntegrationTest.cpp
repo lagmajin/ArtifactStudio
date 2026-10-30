@@ -2325,6 +2325,97 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     TiledAndFullFrameRenderProduceIdenticalPixels)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 128;
+    constexpr int height = 128;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        Artifact::ArtifactRenderQueueService::TileRenderMode previousMode;
+        int previousTileSize;
+        ~Cleanup()
+        {
+            queue->setTileRenderMode(previousMode);
+            queue->setTileSize(previousTileSize);
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue, queue->tileRenderMode(), queue->tileSize()};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueTileParityTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("TileParity")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(2);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.13f, 0.27f, 0.41f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("TileParityLayer"));
+    layerParams.setWidth(73);
+    layerParams.setHeight(61);
+    layerParams.setColor(ArtifactCore::FloatColor(
+        0.82f, 0.36f, 0.11f, 1.0f));
+    const auto layer = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(layer.success);
+
+    const QString fullFramePath = isolatedOutputPath(
+        QStringLiteral("render_queue_tile_parity_full.png"));
+    const QString tiledPath = isolatedOutputPath(
+        QStringLiteral("render_queue_tile_parity_tiled.png"));
+    QString failure;
+    queue->setTileRenderMode(
+        Artifact::ArtifactRenderQueueService::TileRenderMode::FullFrame);
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("TileParity"), fullFramePath,
+        width, height, [](const QImage& image) { return !image.isNull(); },
+        &failure, 1, QStringLiteral("gpu"), 0)) << failure.toStdString();
+
+    queue->setTileSize(64);
+    queue->setTileRenderMode(
+        Artifact::ArtifactRenderQueueService::TileRenderMode::Tiled);
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("TileParity"), tiledPath,
+        width, height, [](const QImage& image) { return !image.isNull(); },
+        &failure, 1, QStringLiteral("gpu"), 0)) << failure.toStdString();
+
+    const auto outputFramePath = [](const QString& basePath) {
+        const QFileInfo outputInfo(basePath);
+        return QDir(outputInfo.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(outputInfo.completeBaseName())
+                .arg(0, 4, 10, QLatin1Char('0')));
+    };
+    const QImage fullFrame(outputFramePath(fullFramePath));
+    const QImage tiled(outputFramePath(tiledPath));
+    ASSERT_EQ(fullFrame.size(), QSize(width, height));
+    ASSERT_EQ(tiled.size(), QSize(width, height));
+    EXPECT_EQ(tiled, fullFrame)
+        << "2x2 Tiled output must match the FullFrame reference pixel-for-pixel";
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      VideoEncoderBackendAliasesNormalizeToStablePublicNames)
 {
     EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("AUTO")),
