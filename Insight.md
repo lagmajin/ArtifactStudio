@@ -8579,6 +8579,6 @@
 
 ## 2026-10-30: 派生Raster Effectの無効化経路を確認する
 - **関連:** `Artifact/src/Effects/ArtifactAbstractEffect.cpp::applyCPUOnly/applyConfigured/apply`、`Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactOldTVEffect::apply/ArtifactFilmGrungeEffect::apply`、`tests/Artifact/LofiEffectContractTest.cpp::DisabledOldTvIsAnExactPassthrough`。
-- **確認できた事実:** `applyCPUOnly()` は `applyConfigured()` を呼び、後者は仮想 `apply()` を呼ぶ。`ArtifactAbstractEffect::apply()` には`enabled`判定がある一方、Old TV と FilmGrunge のoverride本体には同判定がない。既存Old TVテストは無効時の完全パススルーを期待している。コード経路の静的確認のみで、テスト実行はしていない。
-- **価値または懸念:** 無効状態の派生効果が共通API経由でも処理を通る可能性があり、既存Old TV契約と食い違う疑いがある。実行禁止のため現時点では実動作の断定はしない。修正する場合は Artifact 子リポジトリの変更が必要であり、この作業では触れていない。
-- **次に確認すべきこと:** 明示的なテスト実行許可後に `DisabledOldTvIsAnExactPassthrough` を実行して経路を確定する。失敗した場合は、共通適用層で無効状態を処理するか各overrideで扱うかを設計確認し、FilmGrungeも含む独立契約を整える。
+- **確認できた事実:** `applyCPUOnly()` は `applyConfigured()` を呼び、後者は仮想 `apply()` を呼ぶ。`ArtifactAbstractEffect::apply()` には`enabled`判定がある一方、Old TV と FilmGrunge のoverride本体には同判定がない。既存Old TVテストは無効時の完全パススルーを期待している。加えて、基底クラスのコメントは独自`apply()`にCPU参照を持つeffectへ`supportsCPU()` overrideを求めるが、FilmGrungeはoverrideせず、基底実装は`cpuImpl_`の有無を返す。FilmGrungeのconstructorにも`setCPUImpl()`は見当たらない。コード経路の静的確認のみで、テスト実行はしていない。
+- **価値または懸念:** 無効状態の派生効果が共通API経由でも処理を通る可能性があり、既存Old TV契約と食い違う疑いがある。またFilmGrungeはCPU画素処理を持ちながらCPU対応をfalseと報告する可能性が高く、fallbackや実行可否判定との不整合が懸念される。どちらも実動作は未検証。修正する場合は Artifact 子リポジトリの変更が必要であり、この作業では触れていない。
+- **次に確認すべきこと:** 明示的なテスト実行許可後に`DisabledOldTvIsAnExactPassthrough`とFilmGrungeの`supportsCPU()`／CPU fallback経路を確認する。結果に基づき、共通適用層と各overrideの責務を整理し、子リポジトリの修正許可後に独立契約を整える。
