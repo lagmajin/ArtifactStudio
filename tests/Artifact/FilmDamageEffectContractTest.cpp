@@ -229,6 +229,67 @@ TEST(FilmDamageEffectContractTest,
     EXPECT_EQ(output.image().colorDescriptor(), source.image().colorDescriptor());
 }
 
+TEST(FilmDamageEffectContractTest,
+     DegenerateSurfacesRemainFiniteAndPreserveDimensionsAndAlpha)
+{
+    constexpr std::array<std::array<int, 2>, 3> dimensions{{
+        {{1, 1}}, {{1, 9}}, {{9, 1}}}};
+    Artifact::FilmDamageEffect effect;
+    setFilmProperty(effect, "Grain", QVariant(1.0));
+    setFilmProperty(effect, "Dust", QVariant(1.0));
+    setFilmProperty(effect, "Scratches", QVariant(1.0));
+    setFilmProperty(effect, "Gate Weave", QVariant(20.0));
+    setFilmProperty(effect, "Flicker", QVariant(1.0));
+    setFilmProperty(effect, "Film Burn", QVariant(1.0));
+    setFilmProperty(effect, "Evolution", QVariant(0.75));
+    setFilmProperty(effect, "Seed", QVariant(812));
+
+    for (const auto& size : dimensions) {
+        const int width = size[0];
+        const int height = size[1];
+        std::array<float, 9 * 4> pixels{};
+        for (int pixel = 0; pixel < width * height; ++pixel) {
+            const std::size_t offset = static_cast<std::size_t>(pixel) * 4;
+            pixels[offset] = 0.15f + 0.03f * static_cast<float>(pixel);
+            pixels[offset + 1] = 0.3f + 0.02f * static_cast<float>(pixel);
+            pixels[offset + 2] = 0.65f - 0.01f * static_cast<float>(pixel);
+            pixels[offset + 3] = 1.25f;
+        }
+        ArtifactCore::ImageF32x4_RGBA image;
+        image.setFromRGBA32F(pixels.data(), width, height);
+        const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+        auto baseline = source.image().DeepCopy();
+        ArtifactCore::ImageF32x4RGBAWithCache output;
+
+        effect.applyCPUOnly(source, output);
+
+        ASSERT_EQ(output.image().width(), width);
+        ASSERT_EQ(output.image().height(), height);
+        EXPECT_EQ(output.image().colorDescriptor(), source.image().colorDescriptor());
+        const float* actual = output.image().rgba32fData();
+        const float* original = source.image().rgba32fData();
+        const float* baselinePixels = baseline.rgba32fData();
+        ASSERT_NE(actual, nullptr);
+        ASSERT_NE(original, nullptr);
+        ASSERT_NE(baselinePixels, nullptr);
+        for (std::size_t pixel = 0; pixel < source.image().totalPixels(); ++pixel) {
+            for (std::size_t channel = 0; channel < 3; ++channel) {
+                EXPECT_TRUE(std::isfinite(actual[pixel * 4 + channel]))
+                    << "size=" << width << "x" << height
+                    << " pixel=" << pixel << " channel=" << channel;
+            }
+            EXPECT_FLOAT_EQ(actual[pixel * 4 + 3], 1.25f)
+                << "size=" << width << "x" << height << " pixel=" << pixel;
+        }
+        for (std::size_t channel = 0;
+             channel < source.image().totalPixels() * 4; ++channel) {
+            EXPECT_FLOAT_EQ(original[channel], baselinePixels[channel])
+                << "size=" << width << "x" << height
+                << " source channel=" << channel;
+        }
+    }
+}
+
 TEST(FilmDamageEffectContractTest, ZeroDamageControlsLeaveTheSurfaceUnchanged)
 {
     const auto source = makeFilmSurface();
