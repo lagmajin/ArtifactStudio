@@ -71,6 +71,7 @@ TEST(FilmDamageEffectContractTest, FixedSeedAndEvolutionRepeatRgbAndPreserveAlph
     effect.applyCPUOnly(source, first);
     effect.applyCPUOnly(source, second);
 
+    int changedRgbPixels = 0;
     for (int y = 0; y < kHeight; ++y) {
         for (int x = 0; x < kWidth; ++x) {
             const auto a = first.image().getPixel(x, y);
@@ -80,8 +81,13 @@ TEST(FilmDamageEffectContractTest, FixedSeedAndEvolutionRepeatRgbAndPreserveAlph
             EXPECT_FLOAT_EQ(a.g(), b.g());
             EXPECT_FLOAT_EQ(a.b(), b.b());
             EXPECT_FLOAT_EQ(a.a(), input.a());
+            changedRgbPixels +=
+                (std::abs(a.r() - input.r()) > 1.0e-6f ||
+                 std::abs(a.g() - input.g()) > 1.0e-6f ||
+                 std::abs(a.b() - input.b()) > 1.0e-6f) ? 1 : 0;
         }
     }
+    EXPECT_GT(changedRgbPixels, 0);
 }
 
 TEST(FilmDamageEffectContractTest,
