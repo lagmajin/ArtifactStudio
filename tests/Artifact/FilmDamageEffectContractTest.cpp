@@ -90,6 +90,35 @@ TEST(FilmDamageEffectContractTest, FixedSeedAndEvolutionRepeatRgbAndPreserveAlph
     EXPECT_GT(changedRgbPixels, 0);
 }
 
+TEST(FilmDamageEffectContractTest, ChangingSeedChangesTheGrainPattern)
+{
+    const auto source = makeFilmSurface();
+    ArtifactCore::ImageF32x4RGBAWithCache first;
+    ArtifactCore::ImageF32x4RGBAWithCache second;
+    Artifact::FilmDamageEffect effect;
+    configureDeterministicDamage(effect);
+    effect.applyCPUOnly(source, first);
+
+    setFilmProperty(effect, "Seed", QVariant(315));
+    effect.applyCPUOnly(source, second);
+
+    const float* firstPixels = first.image().rgba32fData();
+    const float* secondPixels = second.image().rgba32fData();
+    ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(secondPixels, nullptr);
+    int changedRgbChannels = 0;
+    for (std::size_t pixel = 0; pixel < source.image().totalPixels(); ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            const std::size_t index = pixel * 4 + channel;
+            changedRgbChannels += std::abs(firstPixels[index] - secondPixels[index]) >
+                1.0e-6f ? 1 : 0;
+        }
+        EXPECT_FLOAT_EQ(firstPixels[pixel * 4 + 3],
+                        secondPixels[pixel * 4 + 3]);
+    }
+    EXPECT_GT(changedRgbChannels, 0);
+}
+
 TEST(FilmDamageEffectContractTest,
      EvolutionUsesDeterministicTwentyFourStepPerSecondFrameKeys)
 {
