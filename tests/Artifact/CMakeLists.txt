@@ -137,6 +137,18 @@ set_tests_properties(ArtifactTileGridContractTest PROPERTIES
     LABELS "render;tile;roi;geometry;cpu;contract"
 )
 
+artifact_add_test(ArtifactVideoEncoderBackendAliasContractTest
+    SOURCES
+        VideoEncoderBackendAliasContractTest.cpp
+    LIBS
+        ArtifactRender
+)
+set_tests_properties(ArtifactVideoEncoderBackendAliasContractTest PROPERTIES
+    LABELS "video;encoder;backend;normalization;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactGlobalIlluminationLodContractTest
     SOURCES
         GlobalIlluminationLodContractTest.cpp
@@ -1832,15 +1844,6 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
     set_tests_properties(ArtifactRenderQueueTileSettingsContractTest PROPERTIES
         LABELS "render-queue;tile;settings;contract"
-        TIMEOUT 60
-        RUN_SERIAL TRUE
-    )
-    add_test(NAME ArtifactVideoEncoderBackendAliasesContractTest
-        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
-            --gtest_filter=RenderQueueLayerImageIntegrationTest.VideoEncoderBackendAliasesNormalizeToStablePublicNames
-    )
-    set_tests_properties(ArtifactVideoEncoderBackendAliasesContractTest PROPERTIES
-        LABELS "video;encoder;backend;normalization;contract;cpu"
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
