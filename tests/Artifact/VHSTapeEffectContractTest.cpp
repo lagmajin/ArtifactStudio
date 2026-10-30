@@ -528,6 +528,51 @@ TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
     EXPECT_TRUE(autoTrackChanged);
 }
 
+TEST(VHSTapeEffectContractTest,
+     OsdRaisesAlphaOnlyWhereTheOverlayIsDrawn)
+{
+    constexpr int width = 320;
+    constexpr int height = 180;
+    constexpr float sourceAlpha = 0.2f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset] = 0.12f;
+        pixels[offset + 1] = 0.18f;
+        pixels[offset + 2] = 0.24f;
+        pixels[offset + 3] = sourceAlpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height,
+                         SurfaceColorDescriptor::unknownBgra32Float());
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+    effect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 1);
+
+    effect.applyCPUOnly(source, output);
+
+    int overlayAlphaPixels = 0;
+    int unchangedAlphaPixels = 0;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const float alpha = output.image().getPixel(x, y).a();
+            EXPECT_TRUE(std::isfinite(alpha));
+            EXPECT_GE(alpha, sourceAlpha);
+            EXPECT_LE(alpha, 1.0f);
+            if (alpha > sourceAlpha + 1.0e-5f) {
+                ++overlayAlphaPixels;
+            } else {
+                EXPECT_FLOAT_EQ(alpha, sourceAlpha);
+                ++unchangedAlphaPixels;
+            }
+        }
+    }
+    EXPECT_GT(overlayAlphaPixels, 0);
+    EXPECT_GT(unchangedAlphaPixels, 0);
+}
+
 TEST(VHSTapeEffectContractTest, OsdTimecodeAdvancesWithEvolution)
 {
     constexpr int width = 320;
