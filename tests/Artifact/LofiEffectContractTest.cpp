@@ -17,11 +17,17 @@
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
 import Artifact.Effect.Context;
+import Artifact.Composition.Abstract;
+import Artifact.Composition.InitParams;
+import Artifact.Render.CompositionViewDrawing;
 import Graphics.SurfaceColorContract;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
 import Memory.SharedPtr;
+import Composition3D;
+import Color.Float;
 import Time.Rational;
+import Utils.Id;
 
 using namespace Artifact;
 using namespace ArtifactCore;
@@ -830,6 +836,88 @@ TEST(LofiEffectContractTest,
     }
     EXPECT_TRUE(changedInside)
         << "combined FilmGrunge effects should alter pixels inside the region";
+}
+
+TEST(LofiEffectContractTest,
+     FilmGrungeCompositionStackUsesCurrentFrameAndMatchesDirectCpuOutput)
+{
+    constexpr int width = 40;
+    constexpr int height = 28;
+    constexpr std::int64_t frame = 17;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>((x * 3 + y) % 23) / 22.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 5) % 19) / 18.0f;
+            pixels[offset + 2] = static_cast<float>((x * 7 + y * 2) % 29) / 28.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 3) % 11) / 10.0f;
+        }
+    }
+    ImageF32x4_RGBA sourceImage;
+    sourceImage.setFromRGBA32F(pixels.data(), width, height);
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    sourceImage.setColorDescriptor(descriptor);
+    ImageF32x4_RGBA expectedImage(sourceImage);
+
+    ArtifactCompositionInitParams params(
+        UniString(QStringLiteral("FilmGrunge composition stack")),
+        FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(32);
+    auto composition = makeShared<ArtifactComposition3D>(
+        CompositionID(QStringLiteral("film-grunge-composition-stack")), params);
+    ASSERT_TRUE(composition);
+    composition->goToFrame(frame);
+
+    auto stackEffect = makeShared<ArtifactFilmGrungeEffect>();
+    ASSERT_TRUE(stackEffect);
+    stackEffect->setComputeMode(ComputeMode::CPU);
+    stackEffect->setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    stackEffect->setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    stackEffect->setPropertyValue(UniString("scratchAmount"), QVariant(0.8f));
+    stackEffect->setPropertyValue(UniString("dustAmount"), QVariant(0.7f));
+    stackEffect->setPropertyValue(UniString("flicker"), QVariant(0.25f));
+    stackEffect->setPropertyValue(UniString("gateWeave"), QVariant(2.0f));
+    stackEffect->setPropertyValue(UniString("vignette"), QVariant(0.3f));
+    stackEffect->setPropertyValue(UniString("stain"), QVariant(0.15f));
+    stackEffect->setPropertyValue(UniString("seed"), QVariant(431));
+    composition->addEffect(stackEffect);
+
+    ArtifactFilmGrungeEffect directEffect;
+    directEffect.setComputeMode(ComputeMode::CPU);
+    directEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    directEffect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    directEffect.setPropertyValue(UniString("scratchAmount"), QVariant(0.8f));
+    directEffect.setPropertyValue(UniString("dustAmount"), QVariant(0.7f));
+    directEffect.setPropertyValue(UniString("flicker"), QVariant(0.25f));
+    directEffect.setPropertyValue(UniString("gateWeave"), QVariant(2.0f));
+    directEffect.setPropertyValue(UniString("vignette"), QVariant(0.3f));
+    directEffect.setPropertyValue(UniString("stain"), QVariant(0.15f));
+    directEffect.setPropertyValue(UniString("seed"), QVariant(431));
+    EffectContext directContext;
+    directContext.compositionFrame = frame;
+    directEffect.setContext(directContext);
+    const ImageF32x4RGBAWithCache directSource(sourceImage);
+    ImageF32x4RGBAWithCache directOutput;
+    directEffect.applyCPUOnly(directSource, directOutput);
+    expectedImage = directOutput.image();
+
+    ASSERT_TRUE(applyCompositionFinalEffectsToBuffer(
+        composition.get(), sourceImage));
+    EXPECT_EQ(sourceImage.width(), width);
+    EXPECT_EQ(sourceImage.height(), height);
+    EXPECT_EQ(sourceImage.colorDescriptor(), descriptor);
+    const float* actual = sourceImage.rgba32fData();
+    const float* expected = expectedImage.rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], expected[channel])
+            << "composition stack channel=" << channel;
+    }
 }
 
 TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
