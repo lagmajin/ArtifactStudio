@@ -1465,6 +1465,16 @@ set_tests_properties(ArtifactCoreShapeLayerSvgContractTest PROPERTIES
     LABELS "shape;layer;svg;geometry;serialization;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreShapeGroupContractTest
+    SOURCES
+        ShapeGroupContractTest.cpp
+    LIBS
+        ArtifactCoreShape
+)
+set_tests_properties(ArtifactCoreShapeGroupContractTest PROPERTIES
+    LABELS "shape;group;hierarchy;transforms;operators;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreTrimPathsContractTest
     SOURCES
         TrimPathsContractTest.cpp
