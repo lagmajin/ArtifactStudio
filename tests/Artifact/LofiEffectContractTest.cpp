@@ -134,6 +134,49 @@ TEST(LofiEffectContractTest, GlitchCpuOutputIsDeterministicAndPreservesAlpha)
     EXPECT_TRUE(changedRgb);
 }
 
+TEST(LofiEffectContractTest,
+     GlitchCpuOutputDoesNotDependOnCompositionFrame)
+{
+    constexpr int width = 23;
+    constexpr int height = 16;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = 0.08f + 0.012f * x + 0.001f * y;
+            pixels[offset + 1] = 0.16f + 0.009f * x + 0.002f * y;
+            pixels[offset + 2] = 0.24f + 0.006f * x + 0.003f * y;
+            pixels[offset + 3] = 0.2f + 0.01f * ((x + y) % 10);
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactGlitchEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    EffectContext context;
+    context.compositionFrame = -13;
+    effect.setContext(context);
+    ImageF32x4RGBAWithCache firstFrame;
+    effect.applyCPUOnly(source, firstFrame);
+    context.compositionFrame = 208;
+    effect.setContext(context);
+    ImageF32x4RGBAWithCache laterFrame;
+    effect.applyCPUOnly(source, laterFrame);
+
+    const float* first = firstFrame.image().rgba32fData();
+    const float* later = laterFrame.image().rgba32fData();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(later, nullptr);
+    ASSERT_EQ(firstFrame.width(), width);
+    ASSERT_EQ(firstFrame.height(), height);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(first[channel], later[channel])
+            << "channel=" << channel;
+    }
+}
+
 TEST(LofiEffectContractTest, GlitchCpuInPlaceMatchesOutOfPlaceWithoutAliasing)
 {
     constexpr int width = 37;
