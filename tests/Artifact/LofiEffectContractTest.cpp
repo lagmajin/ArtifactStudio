@@ -1141,6 +1141,7 @@ TEST(LofiEffectContractTest,
     EXPECT_EQ(mediumFrame12, repeatedMediumFrame12)
         << "Medium detail output must be deterministic at a fixed frame";
 
+    QImage rgb32Output;
     for (const QImage::Format format : {
              QImage::Format_ARGB32,
              QImage::Format_ARGB32_Premultiplied,
@@ -1167,6 +1168,13 @@ TEST(LofiEffectContractTest,
         if (format == QImage::Format_ARGB32) {
             EXPECT_EQ(formattedOutput, frame12)
                 << "equivalent straight-alpha channel layouts must render identically";
+        }
+        if (format == QImage::Format_RGB32) {
+            rgb32Output = formattedOutput;
+        } else if (format == QImage::Format_RGB888) {
+            ASSERT_FALSE(rgb32Output.isNull());
+            EXPECT_EQ(formattedOutput, rgb32Output)
+                << "RGB888 fallback must match the equivalent RGB32 surface";
         }
         if (!formattedSource.hasAlphaChannel()) {
             for (int y = 0; y < height; ++y) {
