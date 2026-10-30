@@ -417,8 +417,11 @@ TEST(LofiEffectContractTest,
             pixels[offset + 3] = static_cast<float>((x + y) % 5) * 0.25f;
         }
     }
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float(
+        SurfaceColorPrimaries::DisplayP3_D65);
     ImageF32x4_RGBA image;
     image.setFromRGBA32F(pixels.data(), width, height);
+    image.setColorDescriptor(descriptor);
     const ImageF32x4RGBAWithCache source(image);
     ImageF32x4RGBAWithCache outOfPlace;
     ImageF32x4RGBAWithCache inPlace(image);
@@ -432,6 +435,8 @@ TEST(LofiEffectContractTest,
     ASSERT_EQ(outOfPlace.height(), height);
     ASSERT_EQ(inPlace.width(), width);
     ASSERT_EQ(inPlace.height(), height);
+    EXPECT_EQ(outOfPlace.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(inPlace.image().colorDescriptor(), descriptor);
     const float* actual = outOfPlace.image().rgba32fData();
     const float* inPlacePixels = inPlace.image().rgba32fData();
     const float* sourcePixels = source.image().rgba32fData();
