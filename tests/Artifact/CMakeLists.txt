@@ -2260,6 +2260,17 @@ if(ARTIFACT_BUILD_TESTS)
             TIMEOUT 90
             RUN_SERIAL TRUE
         )
+        add_test(NAME ArtifactProxyWorkerNativeSuccessContractTest
+            COMMAND $<TARGET_FILE:ArtifactProxyWorkerProtocolTest>
+                "--gtest_filter=ProxyWorkerProtocolTest.NativeGenerationCompletesProtocolAndAtomicallyReplacesFinalOutput"
+        )
+        set_tests_properties(ArtifactProxyWorkerNativeSuccessContractTest PROPERTIES
+            ENVIRONMENT
+                "ARTIFACT_PROXY_WORKER_EXECUTABLE=${CMAKE_BINARY_DIR}/proxy-worker-package/$<CONFIG>/$<TARGET_FILE_NAME:ArtifactProxyWorker>"
+            LABELS "proxy;worker;process;native;success;output-commit;contract"
+            TIMEOUT 120
+            RUN_SERIAL TRUE
+        )
         add_test(NAME ArtifactProxyWorkerCancellationRetentionContractTest
             COMMAND $<TARGET_FILE:ArtifactProxyWorkerProtocolTest>
                 "--gtest_filter=ProxyWorkerProtocolTest.PreCancelledRequestPreservesTemporaryOutput"

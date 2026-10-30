@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -29,14 +30,15 @@ struct WorkerRunResult {
     QByteArray standardError;
 };
 
-WorkerRunResult runWorker(const QStringList& arguments)
+WorkerRunResult runWorker(const QStringList& arguments,
+                          const int timeoutMilliseconds = 15000)
 {
     QProcess process;
     process.start(workerPath(), arguments);
     if (!process.waitForStarted(5000)) {
         return {};
     }
-    if (!process.waitForFinished(15000)) {
+    if (!process.waitForFinished(timeoutMilliseconds)) {
         process.kill();
         process.waitForFinished(1000);
         return {};
@@ -270,8 +272,109 @@ TEST(ProxyWorkerProtocolTest,
               QStringLiteral("corrupt-video-job"));
     EXPECT_TRUE(failure.value(QStringLiteral("reason")).toString().startsWith(
         QStringLiteral("FFmpeg C API proxy generation: ")));
-    EXPECT_EQ(readFileBytes(outputPath), previousOutput);
+    QFile preservedOutput(outputPath);
+    ASSERT_TRUE(preservedOutput.open(QIODevice::ReadOnly));
+    EXPECT_EQ(preservedOutput.readAll(), previousOutput);
     EXPECT_FALSE(QFileInfo::exists(temporaryOutputPath));
+}
+
+TEST(ProxyWorkerProtocolTest,
+     NativeGenerationCompletesProtocolAndAtomicallyReplacesFinalOutput)
+{
+    ASSERT_FALSE(workerPath().isEmpty());
+    const QString sourceDirectory =
+        QFileInfo(QString::fromUtf8(__FILE__)).absolutePath();
+    const QString sourcePath = QDir::cleanPath(QDir(sourceDirectory).filePath(
+        QStringLiteral("../ArtifactCore/fixtures/walkway-orbit-cc0.mp4")));
+    ASSERT_TRUE(QFileInfo(sourcePath).isFile())
+        << "The existing CC0 video fixture is required for worker success coverage";
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString outputPath = directory.filePath(QStringLiteral("proxy.mp4"));
+    const QString temporaryOutputPath =
+        directory.filePath(QStringLiteral("proxy.partial.mp4"));
+    const QString backupOutputPath = outputPath +
+        QStringLiteral(".native-success-job.previous");
+    const QByteArray previousOutput = QByteArrayLiteral("previous valid proxy");
+    ASSERT_TRUE(writeBytes(outputPath, previousOutput));
+    ASSERT_TRUE(writeBytes(temporaryOutputPath,
+                           QByteArrayLiteral("stale partial proxy")));
+
+    QJsonObject request = requestBase(QStringLiteral("native-success-job"),
+                                      sourcePath, outputPath,
+                                      temporaryOutputPath);
+    request.insert(QStringLiteral("backend"), QStringLiteral("native"));
+    request.insert(QStringLiteral("scale"), 0.125);
+    const QString requestPath = directory.filePath(QStringLiteral("success.json"));
+    ASSERT_TRUE(writeBytes(requestPath,
+        QJsonDocument(request).toJson(QJsonDocument::Compact)));
+
+    const WorkerRunResult result = runWorker(
+        {QStringLiteral("--request"), requestPath}, 60000);
+    ASSERT_EQ(result.exitStatus, QProcess::NormalExit);
+    if (result.exitCode != 0) {
+        const QJsonObject failure = jsonLineOfType(
+            result.standardOutput, QStringLiteral("failed"));
+        if (failure.value(QStringLiteral("reason")).toString().contains(
+                QStringLiteral("Encoder not found"))) {
+            GTEST_SKIP() << "This FFmpeg build has no native H.264 encoder";
+        }
+    }
+    ASSERT_EQ(result.exitCode, 0)
+        << result.standardError.toStdString()
+        << result.standardOutput.toStdString();
+
+    QStringList eventTypes;
+    QList<double> progressFractions;
+    const QList<QByteArray> lines = result.standardOutput.split('\n');
+    for (const QByteArray& line : lines) {
+        QJsonParseError error;
+        const QJsonDocument document = QJsonDocument::fromJson(line, &error);
+        if (error.error != QJsonParseError::NoError || !document.isObject()) {
+            continue;
+        }
+        const QJsonObject message = document.object();
+        if (message.value(QStringLiteral("jobId")).toString() !=
+            QStringLiteral("native-success-job")) {
+            continue;
+        }
+        const QString type = message.value(QStringLiteral("type")).toString();
+        eventTypes.push_back(type);
+        if (type == QStringLiteral("progress")) {
+            progressFractions.push_back(
+                message.value(QStringLiteral("fraction")).toDouble(-1.0));
+        }
+    }
+    ASSERT_GE(eventTypes.size(), 4);
+    EXPECT_EQ(eventTypes.first(), QStringLiteral("started"));
+    EXPECT_EQ(eventTypes.last(), QStringLiteral("completed"));
+    EXPECT_FALSE(eventTypes.contains(QStringLiteral("failed")));
+    ASSERT_FALSE(progressFractions.isEmpty());
+    EXPECT_DOUBLE_EQ(progressFractions.first(), 0.0);
+    EXPECT_DOUBLE_EQ(progressFractions.last(), 1.0);
+    for (qsizetype index = 1; index < progressFractions.size(); ++index) {
+        EXPECT_LE(progressFractions[index - 1], progressFractions[index]);
+    }
+
+    const QJsonObject completed = jsonLineOfType(
+        result.standardOutput, QStringLiteral("completed"));
+    EXPECT_EQ(completed.value(QStringLiteral("outputPath")).toString(), outputPath);
+    EXPECT_EQ(completed.value(QStringLiteral("backendRequested")).toString(),
+              QStringLiteral("native"));
+    EXPECT_EQ(completed.value(QStringLiteral("backend")).toString(),
+              QStringLiteral("native"));
+    EXPECT_FALSE(completed.value(QStringLiteral("encoder")).toString().isEmpty());
+    ASSERT_TRUE(QFileInfo(outputPath).isFile());
+    const qint64 outputBytes = QFileInfo(outputPath).size();
+    EXPECT_GT(outputBytes, 0);
+    EXPECT_EQ(completed.value(QStringLiteral("outputBytes")).toInteger(-1),
+              outputBytes);
+    QFile generatedOutput(outputPath);
+    ASSERT_TRUE(generatedOutput.open(QIODevice::ReadOnly));
+    EXPECT_NE(generatedOutput.readAll(), previousOutput);
+    EXPECT_FALSE(QFileInfo::exists(temporaryOutputPath));
+    EXPECT_FALSE(QFileInfo::exists(backupOutputPath));
 }
 
 TEST(ProxyWorkerProtocolTest,
