@@ -2011,6 +2011,15 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactFilmGrungeEffectContractTest
+        COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
+            "--gtest_filter=LofiEffectContractTest.*FilmGrunge*"
+    )
+    set_tests_properties(ArtifactFilmGrungeEffectContractTest PROPERTIES
+        LABELS "effect;film-grunge;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
 
     if(TARGET ArtifactProxyWorker AND TARGET ArtifactProxyWorkerPackage)
         artifact_add_test(ArtifactProxyWorkerProtocolTest
