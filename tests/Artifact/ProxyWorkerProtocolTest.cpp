@@ -364,7 +364,21 @@ TEST(ProxyWorkerProtocolTest,
               QStringLiteral("native"));
     EXPECT_EQ(completed.value(QStringLiteral("backend")).toString(),
               QStringLiteral("native"));
-    EXPECT_FALSE(completed.value(QStringLiteral("encoder")).toString().isEmpty());
+    const QString selectedEncoder =
+        completed.value(QStringLiteral("encoder")).toString();
+    ASSERT_FALSE(selectedEncoder.isEmpty());
+    const bool selectedHardwareEncoder =
+        selectedEncoder == QStringLiteral("h264_nvenc") ||
+        selectedEncoder == QStringLiteral("h264_qsv") ||
+        selectedEncoder == QStringLiteral("h264_amf") ||
+        selectedEncoder == QStringLiteral("h264_mf");
+    EXPECT_EQ(completed.value(QStringLiteral("hardwareAccelRequested")).toBool(),
+              false);
+    EXPECT_EQ(completed.value(QStringLiteral("hardwareEncoderUsed")).toBool(),
+              selectedHardwareEncoder);
+    const QJsonArray encoderCandidates =
+        completed.value(QStringLiteral("encoderCandidates")).toArray();
+    EXPECT_TRUE(encoderCandidates.contains(QJsonValue(selectedEncoder)));
     ASSERT_TRUE(QFileInfo(outputPath).isFile());
     const qint64 outputBytes = QFileInfo(outputPath).size();
     EXPECT_GT(outputBytes, 0);
