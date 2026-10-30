@@ -139,6 +139,58 @@ TEST(GlitchEffectContractTest,
 }
 
 TEST(GlitchEffectContractTest,
+     IntensityControlsBlockDisplacementWithoutChangingAlpha)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            pixels[offset] = static_cast<float>((x * 7 + y * 3) % 251) / 250.0f;
+            pixels[offset + 1] = static_cast<float>((x * 5 + y * 11) % 241) / 240.0f;
+            pixels[offset + 2] = static_cast<float>((x * 13 + y * 2) % 239) / 238.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 3) % 29) / 28.0f;
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache noDisplacement;
+    ArtifactCore::ImageF32x4RGBAWithCache displaced;
+    Artifact::GlitchEffect effect;
+    effect.setScanlines(0.0f);
+    effect.setColorShift(0.0f);
+    effect.setIntensity(0.0f);
+    effect.applyCPUOnly(source, noDisplacement);
+    effect.setIntensity(1.0f);
+    effect.applyCPUOnly(source, displaced);
+
+    const float* baseline = noDisplacement.image().rgba32fData();
+    const float* actual = displaced.image().rgba32fData();
+    ASSERT_NE(baseline, nullptr);
+    ASSERT_NE(actual, nullptr);
+    std::size_t changedPixels = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(baseline[offset + channel], pixels[offset + channel])
+                << "baseline pixel=" << pixel << " channel=" << channel;
+        }
+        if (actual[offset] != baseline[offset] ||
+            actual[offset + 1] != baseline[offset + 1] ||
+            actual[offset + 2] != baseline[offset + 2]) {
+            ++changedPixels;
+        }
+        EXPECT_FLOAT_EQ(actual[offset + 3], pixels[offset + 3])
+            << "pixel=" << pixel;
+    }
+    EXPECT_GT(changedPixels, 0u);
+}
+
+TEST(GlitchEffectContractTest,
      SeededGlitchInPlaceMatchesOutOfPlaceWithoutChangingSource)
 {
     const auto source = makeColorPattern();
