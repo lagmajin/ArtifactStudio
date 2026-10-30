@@ -2055,6 +2055,17 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    artifact_add_test(ArtifactCompositionFinalEffectStackContractTest
+        SOURCES
+            CompositionFinalEffectStackContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactCompositionFinalEffectStackContractTest PROPERTIES
+        LABELS "composition;final-effect;stack;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactFilmGrungeEffectContractTest
         COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
             "--gtest_filter=LofiEffectContractTest.*FilmGrunge*"
@@ -2064,12 +2075,12 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
-    add_test(NAME ArtifactCompositionFinalEffectStackContractTest
+    add_test(NAME ArtifactFilmGrungeCompositionStackContractTest
         COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
             "--gtest_filter=LofiEffectContractTest.FilmGrungeCompositionStackUsesCurrentFrameAndMatchesDirectCpuOutput"
     )
-    set_tests_properties(ArtifactCompositionFinalEffectStackContractTest PROPERTIES
-        LABELS "composition;final-effect;stack;cpu;contract"
+    set_tests_properties(ArtifactFilmGrungeCompositionStackContractTest PROPERTIES
+        LABELS "composition;final-effect;film-grunge;stack;cpu;contract"
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
