@@ -2371,8 +2371,12 @@ TEST(RenderQueueLayerImageIntegrationTest,
         QStringLiteral("OldTvGpuLayer"));
     layerParams.setWidth(width);
     layerParams.setHeight(height);
-    layerParams.setColor(ArtifactCore::FloatColor(
-        0.72f, 0.48f, 0.26f, 0.55f));
+    layerParams.setFillType(Artifact::ArtifactSolidFillType::LinearGradient);
+    layerParams.setGradientStartColor(ArtifactCore::FloatColor(
+        0.05f, 0.12f, 0.85f, 0.55f));
+    layerParams.setGradientEndColor(ArtifactCore::FloatColor(
+        0.92f, 0.18f, 0.04f, 0.55f));
+    layerParams.setGradientAngleDegrees(0.0f);
     const auto layer = projects.addLayerToComposition(
         composition.id, layerParams);
     ASSERT_TRUE(layer.success);
@@ -2438,14 +2442,50 @@ TEST(RenderQueueLayerImageIntegrationTest,
         << "Old TV GPU output must repeat exactly for the same source frame";
     EXPECT_NE(effected, cpuReference)
         << "GPU mode must execute its distinct shader reference instead of silently using CPU output";
-    const QColor scanlinePixel = effected.pixelColor(width / 2, 40);
-    const QColor adjacentRowPixel = effected.pixelColor(width / 2, 41);
-    EXPECT_LT(scanlinePixel.red(), adjacentRowPixel.red())
-        << "GPU Old TV must darken every fourth scanline";
-    EXPECT_LT(scanlinePixel.green(), adjacentRowPixel.green())
-        << "GPU Old TV scanline must affect green consistently";
-    EXPECT_LT(scanlinePixel.blue(), adjacentRowPixel.blue())
-        << "GPU Old TV scanline must affect blue consistently";
+    bool gpuJitterMovesGradient = false;
+    for (int y = 0; y < height && !gpuJitterMovesGradient; ++y) {
+        for (int x = 5; x + 5 < width; ++x) {
+            const QColor sourcePixel = baseline.pixelColor(x, y);
+            const QColor outputPixel = effected.pixelColor(x, y);
+            const auto differsFrom = [](const QColor& lhs, const QColor& rhs) {
+                return std::abs(lhs.red() - rhs.red()) > 12 ||
+                       std::abs(lhs.green() - rhs.green()) > 12 ||
+                       std::abs(lhs.blue() - rhs.blue()) > 12;
+            };
+            if (differsFrom(outputPixel, sourcePixel)) {
+                for (int shift = 1; shift <= 5; ++shift) {
+                    const QColor leftPixel = baseline.pixelColor(x - shift, y);
+                    const QColor rightPixel = baseline.pixelColor(x + shift, y);
+                    if (differsFrom(sourcePixel, leftPixel) &&
+                        differsFrom(sourcePixel, rightPixel) &&
+                        (!differsFrom(outputPixel, leftPixel) ||
+                         !differsFrom(outputPixel, rightPixel))) {
+                        gpuJitterMovesGradient = true;
+                        break;
+                    }
+                }
+                if (gpuJitterMovesGradient) break;
+            }
+        }
+    }
+    EXPECT_TRUE(gpuJitterMovesGradient)
+        << "GPU Old TV jitter must sample a horizontally shifted gradient row";
+    const QColor scanlineSource = baseline.pixelColor(width / 2, 40);
+    const QColor scanlineOutput = effected.pixelColor(width / 2, 40);
+    const QColor adjacentRowSource = baseline.pixelColor(width / 2, 41);
+    const QColor adjacentRowOutput = effected.pixelColor(width / 2, 41);
+    EXPECT_LT(scanlineOutput.red(), scanlineSource.red())
+        << "GPU Old TV must darken every fourth scanline red";
+    EXPECT_LT(scanlineOutput.green(), scanlineSource.green())
+        << "GPU Old TV must darken every fourth scanline green";
+    EXPECT_LT(scanlineOutput.blue(), scanlineSource.blue())
+        << "GPU Old TV must darken every fourth scanline blue";
+    EXPECT_NEAR(adjacentRowOutput.red(), adjacentRowSource.red(), 5)
+        << "GPU Old TV must leave non-scanline red near its source value";
+    EXPECT_NEAR(adjacentRowOutput.green(), adjacentRowSource.green(), 5)
+        << "GPU Old TV must leave non-scanline green near its source value";
+    EXPECT_NEAR(adjacentRowOutput.blue(), adjacentRowSource.blue(), 5)
+        << "GPU Old TV must leave non-scanline blue near its source value";
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             EXPECT_EQ(effected.pixelColor(x, y).alpha(),
