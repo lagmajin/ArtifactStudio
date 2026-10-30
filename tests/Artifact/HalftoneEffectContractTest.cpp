@@ -124,6 +124,46 @@ TEST(HalftoneEffectContractTest,
 }
 
 TEST(HalftoneEffectContractTest,
+     CreativeHalftoneUsesTheCellAverageForEveryPixelInTheCell)
+{
+    constexpr int width = 8;
+    constexpr int height = 8;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            const float value = x < width / 2 ? 0.0f : 1.0f;
+            pixels[offset] = value;
+            pixels[offset + 1] = value;
+            pixels[offset + 2] = value;
+            pixels[offset + 3] = 0.5f;
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::ArtifactHalftoneEffect effect;
+    effect.setComputeMode(Artifact::ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    const auto center = output.image().getPixel(4, 4);
+    const auto radiusBoundary = output.image().getPixel(6, 4);
+    const auto darkSourceSide = output.image().getPixel(0, 4);
+    const auto brightSourceSide = output.image().getPixel(7, 4);
+    EXPECT_FLOAT_EQ(center.r(), 0.0f)
+        << "cell mean luma 0.5 gives radius 2 around (4, 4)";
+    EXPECT_FLOAT_EQ(radiusBoundary.r(), 1.0f)
+        << "the radius boundary itself is outside the dot";
+    EXPECT_FLOAT_EQ(darkSourceSide.r(), 1.0f)
+        << "the cell mean, rather than local dark input, sets the dot";
+    EXPECT_FLOAT_EQ(brightSourceSide.r(), 1.0f)
+        << "the cell mean, rather than local bright input, sets the dot";
+}
+
+TEST(HalftoneEffectContractTest,
      CreativeHalftoneHandlesPartialRightAndBottomCells)
 {
     constexpr int width = 9;
