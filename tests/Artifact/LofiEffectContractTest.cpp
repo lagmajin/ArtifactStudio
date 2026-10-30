@@ -1161,6 +1161,7 @@ TEST(LofiEffectContractTest,
     auto neutralEffect = makeShared<ArtifactFilmGrungeEffect>();
     ASSERT_TRUE(neutralEffect);
     neutralEffect->setComputeMode(ComputeMode::CPU);
+    effect->setEnabled(false);
     for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
                                  "flicker", "gateWeave", "vignette", "stain"}) {
         neutralEffect->setPropertyValue(UniString(property), QVariant(0.0f));
