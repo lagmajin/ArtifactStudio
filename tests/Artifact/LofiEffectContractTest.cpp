@@ -1770,6 +1770,68 @@ TEST(LofiEffectContractTest, FilmGrungeDustAmountAddsLocalizedDeterministicDamag
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeDustCountCrossesItsFirstAreaThresholdAtMaximumAmount)
+{
+    constexpr int width = 30;
+    constexpr int height = 30;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr float sourceValue = 0.5f;
+    constexpr float alpha = 0.7f;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    const auto renderWithDust = [&source](const float amount) {
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setPropertyValue(UniString("grainAmount"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("dustAmount"), QVariant(amount));
+        effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("seed"), QVariant(91));
+        EffectContext context;
+        context.compositionFrame = 7;
+        effect.setContext(context);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+    const auto belowFirstDust = renderWithDust(0.999f);
+    const auto firstDust = renderWithDust(1.0f);
+
+    const float* belowPixels = belowFirstDust.image().rgba32fData();
+    const float* firstPixels = firstDust.image().rgba32fData();
+    ASSERT_NE(belowPixels, nullptr);
+    ASSERT_NE(firstPixels, nullptr);
+    bool observedFirstParticle = false;
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(belowPixels[offset + channel], sourceValue)
+                << "amount below one yields zero whole particles; pixel=" << pixel;
+            EXPECT_LE(firstPixels[offset + channel], sourceValue)
+                << "dust only darkens; pixel=" << pixel;
+            observedFirstParticle = observedFirstParticle ||
+                firstPixels[offset + channel] < sourceValue;
+        }
+        EXPECT_FLOAT_EQ(belowPixels[offset + 3], alpha);
+        EXPECT_FLOAT_EQ(firstPixels[offset + 3], alpha);
+    }
+    EXPECT_TRUE(observedFirstParticle)
+        << "one 900-pixel area at full amount creates the first dust particle";
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeDustAmountAddsMonotonicDamageAndClampsAtItsBounds)
 {
     constexpr int width = 128;
