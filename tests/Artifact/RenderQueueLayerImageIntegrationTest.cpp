@@ -702,9 +702,10 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                     const int redIndex = channelIndex(prefix + ".R");
                     const int greenIndex = channelIndex(prefix + ".G");
                     const int blueIndex = channelIndex(prefix + ".B");
-                    const int alphaIndex = channelIndex(prefix + ".A");
-                    if (idIndex < 0 || alphaIndex < 0 || redIndex < 0 || greenIndex < 0 ||
-                        blueIndex < 0 || alphaIndex < 0) {
+                    const int packedAlphaIndex = channelIndex(prefix + ".A");
+                    if (idIndex < 0 || alphaIndex < 0 || redIndex < 0 ||
+                        greenIndex < 0 || blueIndex < 0 ||
+                        packedAlphaIndex < 0) {
                         return false;
                     }
                     const auto component = [&pixels, &spec](
@@ -718,13 +719,13 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                         static_cast<std::size_t>(spec.height);
                     for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
                         const float id = component(pixel, idIndex);
-                        const float alpha = component(pixel, alphaIndex);
+                        const float sourceAlpha = component(pixel, alphaIndex);
                         const float coverage = id > 0.0f
-                            ? std::clamp(alpha, 0.0f, 1.0f) : 0.0f;
+                            ? std::clamp(sourceAlpha, 0.0f, 1.0f) : 0.0f;
                         if (component(pixel, redIndex) != id ||
                             component(pixel, greenIndex) != coverage ||
                             component(pixel, blueIndex) != 0.0f ||
-                            component(pixel, alphaIndex) != 0.0f) {
+                            component(pixel, packedAlphaIndex) != 0.0f) {
                             return false;
                         }
                     }
