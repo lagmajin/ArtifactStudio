@@ -471,6 +471,54 @@ TEST(LofiEffectContractTest,
     }
 }
 
+TEST(LofiEffectContractTest,
+     HalftoneCpuClipsDotGeometryWithinSmallPartialCells)
+{
+    constexpr int cellSize = 8;
+    constexpr std::array<QSize, 3> sizes{
+        QSize(1, 8), QSize(8, 1), QSize(5, 5)};
+    std::array<float, cellSize * cellSize * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < cellSize * cellSize; ++pixel) {
+        pixels[pixel * 4 + 0] = 1.0f;
+        pixels[pixel * 4 + 1] = 1.0f;
+        pixels[pixel * 4 + 2] = 1.0f;
+        pixels[pixel * 4 + 3] = 0.25f;
+    }
+    ArtifactHalftoneEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    for (const QSize size : sizes) {
+        ImageF32x4_RGBA image;
+        image.setFromRGBA32F(pixels.data(), size.width(), size.height());
+        const ImageF32x4RGBAWithCache source(image);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+
+        ASSERT_EQ(output.width(), size.width());
+        ASSERT_EQ(output.height(), size.height());
+        const float* actual = output.image().rgba32fData();
+        ASSERT_NE(actual, nullptr);
+        for (int y = 0; y < size.height(); ++y) {
+            for (int x = 0; x < size.width(); ++x) {
+                const std::size_t offset =
+                    static_cast<std::size_t>((y * size.width() + x) * 4);
+                const int dx = x - cellSize / 2;
+                const int dy = y - cellSize / 2;
+                const float expected = dx * dx + dy * dy < 16 ? 0.0f : 1.0f;
+                for (int channel = 0; channel < 3; ++channel) {
+                    EXPECT_FLOAT_EQ(actual[offset + channel], expected)
+                        << "size=" << size.width() << "x" << size.height()
+                        << " x=" << x << " y=" << y
+                        << " channel=" << channel;
+                }
+                EXPECT_FLOAT_EQ(actual[offset + 3], 1.0f)
+                    << "output alpha at size=" << size.width() << "x"
+                    << size.height() << " x=" << x << " y=" << y;
+            }
+        }
+    }
+}
+
 TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
 {
     const auto source = makePatternSurface();
