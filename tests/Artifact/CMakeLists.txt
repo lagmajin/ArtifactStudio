@@ -2198,6 +2198,15 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactFilmGrungeFrameContractTest
+        COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
+            "--gtest_filter=LofiEffectContractTest.*FilmGrunge*Animat*:LofiEffectContractTest.FilmGrungeCompositionImagePathIsDeterministicPerFrame:LofiEffectContractTest.FilmGrungeIsDeterministicWhenFramesAreRevisitedAndChangesAcrossFrames"
+    )
+    set_tests_properties(ArtifactFilmGrungeFrameContractTest PROPERTIES
+        LABELS "effect;film-grunge;animation;frame;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactFilmGrungeCompositionStackContractTest
         COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
             "--gtest_filter=LofiEffectContractTest.FilmGrungeCompositionStackUsesCurrentFrameAndMatchesDirectCpuOutput"
