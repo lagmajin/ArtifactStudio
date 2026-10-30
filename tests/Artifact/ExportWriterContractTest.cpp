@@ -1066,6 +1066,132 @@ TEST(ExportWriterContractTest, MinimalTextCompositionProducesWriterSchemas)
         });
 }
 
+void expectWriterMissingAssetPreservesOutput(const QString& writerName)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+    const QString sourcePath = QDir(temporary.path()).filePath(
+        QStringLiteral("source/missing-after-build.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(sourcePath).absolutePath()));
+    QImage sourceImage(2, 2, QImage::Format_RGBA8888);
+    sourceImage.fill(QColor(80, 140, 200, 255));
+    ASSERT_TRUE(sourceImage.save(sourcePath, "PNG"));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("MissingWriterAssetContractTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("MissingWriterAssetContract")));
+    compositionParams.setResolution(16, 16);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(1);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("MissingImage"));
+    imageParams.setImagePath(sourcePath);
+    ASSERT_TRUE(projects.addLayerToComposition(composition.id, imageParams).success);
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+    Artifact::ArtifactExportSession session(compositionPtr);
+    QString error;
+    ASSERT_TRUE(session.build(&error)) << error.toStdString();
+    ASSERT_EQ(session.snapshot().assets.size(), 1);
+    ASSERT_TRUE(QFile::remove(sourcePath));
+
+    const QString outputDirectory = QDir(temporary.path()).filePath(writerName);
+    QString outputPath;
+    QString writerOutput = outputDirectory;
+    if (writerName == QStringLiteral("Gameface")) {
+        outputPath = QDir(outputDirectory).filePath(QStringLiteral("index.html"));
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        outputPath = QDir(outputDirectory).filePath(QStringLiteral("composition.xaml"));
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        outputPath = QDir(outputDirectory).filePath(QStringLiteral("composition.rml"));
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        outputPath = QDir(outputDirectory).filePath(QStringLiteral("composition.uxml"));
+    } else if (writerName == QStringLiteral("Lottie")) {
+        outputPath = QDir(temporary.path()).filePath(QStringLiteral("animation.json"));
+        writerOutput = outputPath;
+    } else {
+        FAIL() << "unknown writer: " << writerName.toStdString();
+        return;
+    }
+
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputPath).absolutePath()));
+    const QByteArray sentinel = QByteArrayLiteral("existing output survives");
+    QFile outputFile(outputPath);
+    ASSERT_TRUE(outputFile.open(QIODevice::WriteOnly));
+    ASSERT_EQ(outputFile.write(sentinel), sentinel.size());
+    outputFile.close();
+
+    error.clear();
+    bool succeeded = false;
+    if (writerName == QStringLiteral("Gameface")) {
+        succeeded = Artifact::ArtifactExportGamefaceWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        succeeded = Artifact::ArtifactExportNoesisXamlWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        succeeded = Artifact::ArtifactExportRmlUiWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        succeeded = Artifact::ArtifactExportUnityUxmlWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    } else {
+        succeeded = Artifact::ArtifactExportLottieWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    }
+    EXPECT_FALSE(succeeded);
+    EXPECT_TRUE(error.contains(sourcePath)) << error.toStdString();
+    EXPECT_EQ(readFileBytes(outputPath), sentinel);
+}
+
+TEST(ExportWriterContractTest, MissingImageAssetFailureContractCoversAllWriters)
+{
+    for (const QString& writerName : {QStringLiteral("Gameface"),
+                                      QStringLiteral("NoesisXaml"),
+                                      QStringLiteral("RmlUi"),
+                                      QStringLiteral("UnityUxml"),
+                                      QStringLiteral("Lottie")}) {
+        expectWriterMissingAssetPreservesOutput(writerName);
+    }
+}
+
+TEST(ExportWriterContractTest, GamefaceMissingImageAssetPreservesOutput)
+{
+    expectWriterMissingAssetPreservesOutput(QStringLiteral("Gameface"));
+}
+
+TEST(ExportWriterContractTest, NoesisXamlMissingImageAssetPreservesOutput)
+{
+    expectWriterMissingAssetPreservesOutput(QStringLiteral("NoesisXaml"));
+}
+
+TEST(ExportWriterContractTest, RmlUiMissingImageAssetPreservesOutput)
+{
+    expectWriterMissingAssetPreservesOutput(QStringLiteral("RmlUi"));
+}
+
+TEST(ExportWriterContractTest, UnityUxmlMissingImageAssetPreservesOutput)
+{
+    expectWriterMissingAssetPreservesOutput(QStringLiteral("UnityUxml"));
+}
+
+TEST(ExportWriterContractTest, LottieMissingImageAssetPreservesOutput)
+{
+    expectWriterMissingAssetPreservesOutput(QStringLiteral("Lottie"));
+}
+
 void expectSingleTextWriterSchema(const QString& writerName)
 {
     QTemporaryDir temporary;
