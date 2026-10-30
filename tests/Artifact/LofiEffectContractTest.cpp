@@ -2746,6 +2746,47 @@ TEST(LofiEffectContractTest, DisabledOldTvIsAnExactPassthrough)
     }
 }
 
+TEST(LofiEffectContractTest, DisabledFilmGrungeIsAnExactPassthrough)
+{
+    constexpr int width = 4;
+    constexpr int height = 3;
+    constexpr std::array<float, width * height * 4> pixels{
+        0.1f, 0.2f, 0.3f, 0.4f,
+        0.5f, 0.6f, 0.7f, 0.8f,
+        0.9f, 1.0f, 0.0f, 1.2f,
+        -0.1f, 0.25f, 0.75f, -0.3f,
+        0.3f, 0.2f, 0.1f, 0.0f,
+        0.7f, 0.8f, 0.9f, 0.6f,
+        0.15f, 0.35f, 0.55f, 0.75f,
+        0.25f, 0.45f, 0.65f, 0.85f,
+        0.95f, 0.05f, 0.4f, 0.2f,
+        0.33f, 0.66f, 0.99f, 0.12f,
+        0.42f, 0.24f, 0.18f, 0.36f,
+        0.8f, 0.4f, 0.2f, 0.1f};
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setEnabled(false);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    const float* sourcePixels = source.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    ASSERT_NE(sourcePixels, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(result[channel], pixels[channel])
+            << "output channel=" << channel;
+        EXPECT_FLOAT_EQ(sourcePixels[channel], pixels[channel])
+            << "source channel=" << channel;
+    }
+}
+
 TEST(LofiEffectContractTest, OldTvHandlesSinglePixelWideImages)
 {
     constexpr int width = 1;
