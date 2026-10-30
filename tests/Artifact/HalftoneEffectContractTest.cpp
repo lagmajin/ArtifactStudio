@@ -80,6 +80,56 @@ TEST(HalftoneEffectContractTest, BrightInputLeavesOnlyCellCentersDark)
 }
 
 TEST(HalftoneEffectContractTest,
+     ConfiguredAngleChangesTheHalftoneDotMask)
+{
+    constexpr int width = 16;
+    constexpr int height = 16;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset] = 0.5f;
+        pixels[offset + 1] = 0.5f;
+        pixels[offset + 2] = 0.5f;
+        pixels[offset + 3] = 0.25f;
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache unrotated;
+    ArtifactCore::ImageF32x4RGBAWithCache rotated;
+    Artifact::HalftoneEffect effect;
+    effect.setDotSize(4.0f);
+    effect.setContrast(1.0f);
+    effect.setAngle(0.0f);
+    effect.applyCPUOnly(source, unrotated);
+    effect.setAngle(45.0f);
+    effect.applyCPUOnly(source, rotated);
+
+    const float* unrotatedPixels = unrotated.image().rgba32fData();
+    const float* rotatedPixels = rotated.image().rgba32fData();
+    ASSERT_NE(unrotatedPixels, nullptr);
+    ASSERT_NE(rotatedPixels, nullptr);
+    std::size_t changedMaskPixels = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        EXPECT_TRUE(unrotatedPixels[offset] == 0.0f ||
+                    unrotatedPixels[offset] == 1.0f);
+        EXPECT_TRUE(rotatedPixels[offset] == 0.0f ||
+                    rotatedPixels[offset] == 1.0f);
+        EXPECT_FLOAT_EQ(unrotatedPixels[offset + 1], unrotatedPixels[offset]);
+        EXPECT_FLOAT_EQ(unrotatedPixels[offset + 2], unrotatedPixels[offset]);
+        EXPECT_FLOAT_EQ(rotatedPixels[offset + 1], rotatedPixels[offset]);
+        EXPECT_FLOAT_EQ(rotatedPixels[offset + 2], rotatedPixels[offset]);
+        EXPECT_FLOAT_EQ(unrotatedPixels[offset + 3], 1.0f);
+        EXPECT_FLOAT_EQ(rotatedPixels[offset + 3], 1.0f);
+        if (unrotatedPixels[offset] != rotatedPixels[offset]) {
+            ++changedMaskPixels;
+        }
+    }
+    EXPECT_GT(changedMaskPixels, 0u);
+}
+
+TEST(HalftoneEffectContractTest,
      CreativeHalftoneUsesEightPixelCellsAndWritesOpaqueMonochrome)
 {
     constexpr int width = 8;
