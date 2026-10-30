@@ -400,6 +400,66 @@ TEST(LofiEffectContractTest,
     EXPECT_NE(actual, source.image().rgba32fData());
 }
 
+TEST(LofiEffectContractTest,
+     HalftoneCpuUsesLocalEightPixelBlocksAndMatchesInPlaceOutput)
+{
+    constexpr int width = 16;
+    constexpr int height = 8;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float value = x < 8 ? 1.0f : 0.0f;
+            pixels[offset + 0] = value;
+            pixels[offset + 1] = value;
+            pixels[offset + 2] = value;
+            pixels[offset + 3] = static_cast<float>((x + y) % 5) * 0.25f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache outOfPlace;
+    ImageF32x4RGBAWithCache inPlace(image);
+    ArtifactHalftoneEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, outOfPlace);
+    effect.applyCPUOnly(inPlace, inPlace);
+
+    ASSERT_EQ(outOfPlace.width(), width);
+    ASSERT_EQ(outOfPlace.height(), height);
+    ASSERT_EQ(inPlace.width(), width);
+    ASSERT_EQ(inPlace.height(), height);
+    const float* actual = outOfPlace.image().rgba32fData();
+    const float* inPlacePixels = inPlace.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(inPlacePixels, nullptr);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float expected = x < 8 &&
+                    (x - 4) * (x - 4) + (y - 4) * (y - 4) < 16
+                ? 0.0f : 1.0f;
+            for (int channel = 0; channel < 3; ++channel) {
+                EXPECT_FLOAT_EQ(actual[offset + channel], expected)
+                    << "x=" << x << " y=" << y
+                    << " channel=" << channel;
+            }
+            EXPECT_FLOAT_EQ(actual[offset + 3], 1.0f)
+                << "Halftone's binary output is opaque at " << x << "," << y;
+            for (int channel = 0; channel < 4; ++channel) {
+                EXPECT_FLOAT_EQ(inPlacePixels[offset + channel],
+                                actual[offset + channel])
+                    << "in-place mismatch at " << x << "," << y
+                    << " channel=" << channel;
+            }
+        }
+    }
+}
+
 TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
 {
     const auto source = makePatternSurface();
