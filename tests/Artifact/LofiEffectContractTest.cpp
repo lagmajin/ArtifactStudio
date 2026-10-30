@@ -1276,11 +1276,15 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesVignetteAcrossCompositionFrames)
     vignette->addKeyFrame(RationalTime(30, 30), 0.25);
 
     ImageF32x4RGBAWithCache firstFrame;
+    ImageF32x4RGBAWithCache interpolatedFrame;
     ImageF32x4RGBAWithCache animatedFrame;
     EffectContext context;
     context.compositionFrame = 0;
     effect.setContext(context);
     effect.applyCPUOnly(source, firstFrame);
+    context.compositionFrame = 15;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, interpolatedFrame);
     context.compositionFrame = 30;
     effect.setContext(context);
     effect.applyCPUOnly(source, animatedFrame);
@@ -1297,12 +1301,23 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesVignetteAcrossCompositionFrames)
     fixedEffect.setContext(context);
     fixedEffect.applyCPUOnly(source, fixedFrame);
 
+    context.compositionFrame = 15;
+    fixedEffect.setContext(context);
+    fixedEffect.setPropertyValue(UniString("vignette"), QVariant(0.125f));
+    ImageF32x4RGBAWithCache interpolatedFixedFrame;
+    fixedEffect.applyCPUOnly(source, interpolatedFixedFrame);
+
     const float* firstPixels = firstFrame.image().rgba32fData();
+    const float* interpolatedPixels = interpolatedFrame.image().rgba32fData();
     const float* animatedPixels = animatedFrame.image().rgba32fData();
     const float* fixedPixels = fixedFrame.image().rgba32fData();
+    const float* interpolatedFixedPixels =
+        interpolatedFixedFrame.image().rgba32fData();
     ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(interpolatedPixels, nullptr);
     ASSERT_NE(animatedPixels, nullptr);
     ASSERT_NE(fixedPixels, nullptr);
+    ASSERT_NE(interpolatedFixedPixels, nullptr);
     for (std::size_t pixel = 0;
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
         for (std::size_t channel = 0; channel < 3; ++channel) {
@@ -1310,14 +1325,22 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesVignetteAcrossCompositionFrames)
             EXPECT_FLOAT_EQ(firstPixels[offset], sourceValue);
             EXPECT_FLOAT_EQ(animatedPixels[offset], fixedPixels[offset])
                 << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(interpolatedPixels[offset],
+                            interpolatedFixedPixels[offset])
+                << "interpolated pixel=" << pixel << " channel=" << channel;
         }
         EXPECT_FLOAT_EQ(animatedPixels[pixel * 4 + 3], alpha);
+        EXPECT_FLOAT_EQ(interpolatedPixels[pixel * 4 + 3], alpha);
     }
     const std::size_t center =
         (static_cast<std::size_t>(height / 2) * width + width / 2) * 4;
     EXPECT_NEAR(animatedPixels[center], sourceValue, 1.0e-6f);
     EXPECT_NEAR(animatedPixels[0],
                 sourceValue * (1.0f - 0.25f * std::pow(2.0f, 1.35f)),
+                1.0e-6f);
+    EXPECT_NEAR(interpolatedPixels[center], sourceValue, 1.0e-6f);
+    EXPECT_NEAR(interpolatedPixels[0],
+                sourceValue * (1.0f - 0.125f * std::pow(2.0f, 1.35f)),
                 1.0e-6f);
 }
 
