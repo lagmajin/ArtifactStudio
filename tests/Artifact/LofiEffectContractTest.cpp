@@ -1124,6 +1124,24 @@ TEST(LofiEffectContractTest,
         << "Low detail output must be deterministic at a fixed frame";
     EXPECT_EQ(mediumFrame12, repeatedMediumFrame12)
         << "Medium detail output must be deterministic at a fixed frame";
+
+    effect->setEnabled(false);
+    QImage disabledOutput = source;
+    EXPECT_FALSE(applyCompositionFinalEffectsToImage(
+        composition.get(), disabledOutput, DetailLevel::High));
+    EXPECT_EQ(disabledOutput, source)
+        << "a disabled rasterizer stack must leave the input image untouched";
+
+    QImage nullCompositionOutput = source;
+    EXPECT_FALSE(applyCompositionFinalEffectsToImage(
+        nullptr, nullCompositionOutput, DetailLevel::High));
+    EXPECT_EQ(nullCompositionOutput, source)
+        << "a null Composition must leave the input image untouched";
+
+    QImage emptyImage;
+    EXPECT_FALSE(applyCompositionFinalEffectsToImage(
+        composition.get(), emptyImage, DetailLevel::High));
+    EXPECT_TRUE(emptyImage.isNull());
 }
 
 TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
