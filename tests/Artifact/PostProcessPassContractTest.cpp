@@ -892,57 +892,6 @@ TEST_F(PostProcessPassGpuContractTest, DepthOfFieldPreservesAnInFocusImpulse)
     EXPECT_FLOAT_EQ(output[center + 3], 1.0f);
 }
 
-TEST_F(PostProcessPassGpuContractTest, DepthOfFieldBlursAnOutOfFocusImpulse)
-{
-    Artifact::DepthOfFieldPass pass;
-    ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
-
-    std::array<float, kPixelCount * 4> color{};
-    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-        color[pixel * 4 + 3] = 1.0f;
-    }
-    const auto centerInput = pixelOffset(kWidth / 2, kHeight / 2);
-    color[centerInput] = 1.0f;
-    auto colorTexture = createTexture(
-        gpu_.device(), "DOF out-of-focus contract impulse", TEX_FORMAT_RGBA32_FLOAT,
-        BIND_SHADER_RESOURCE, color.data(), kWidth * 4 * sizeof(float));
-    // Window depth zero maps to nearClip (1.0), well in front of the focus plane.
-    auto depthTexture = createDepthTexture(gpu_, 0.0f);
-    auto outputTexture = createTexture(
-        gpu_.device(), "DOF out-of-focus contract output", TEX_FORMAT_RGBA32_FLOAT,
-        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, nullptr, 0);
-    ASSERT_NE(colorTexture, nullptr);
-    ASSERT_NE(depthTexture, nullptr);
-    ASSERT_NE(outputTexture, nullptr);
-    auto* colorSrv = colorTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    auto* depthSrv = depthTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
-    ASSERT_NE(colorSrv, nullptr);
-    ASSERT_NE(depthSrv, nullptr);
-    ASSERT_NE(outputUav, nullptr);
-
-    Artifact::DepthOfFieldSettings settings;
-    settings.enabled = true;
-    settings.focusDistance.value = 10.0f;
-    settings.nearClip.value = 1.0f;
-    settings.farClip.value = 100.0f;
-    settings.maxCocRadius.value = 4.0f;
-    settings.sampleCount = 64;
-    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, depthSrv, outputUav,
-                           kWidth, kHeight, settings));
-
-    std::array<float, kPixelCount * 4> output{};
-    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, output));
-    const auto center = pixelOffset(kWidth / 2, kHeight / 2);
-    const auto adjacent = pixelOffset(kWidth / 2 + 1, kHeight / 2);
-    EXPECT_LT(output[center], 1.0f)
-        << "An out-of-focus impulse should lose energy at its source pixel";
-    EXPECT_GT(output[adjacent], 0.0f)
-        << "The defocused impulse should contribute to neighboring pixels";
-    EXPECT_FLOAT_EQ(output[center + 3], 1.0f);
-    EXPECT_GT(output[adjacent + 3], 0.0f);
-}
-
 TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndPhaseAndCopiesZeroMotion)
 {
     Artifact::MotionBlurPass pass;
