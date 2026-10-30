@@ -434,8 +434,10 @@ TEST(LofiEffectContractTest,
     ASSERT_EQ(inPlace.height(), height);
     const float* actual = outOfPlace.image().rgba32fData();
     const float* inPlacePixels = inPlace.image().rgba32fData();
+    const float* sourcePixels = source.image().rgba32fData();
     ASSERT_NE(actual, nullptr);
     ASSERT_NE(inPlacePixels, nullptr);
+    ASSERT_NE(sourcePixels, nullptr);
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const std::size_t offset =
@@ -454,6 +456,10 @@ TEST(LofiEffectContractTest,
                 EXPECT_FLOAT_EQ(inPlacePixels[offset + channel],
                                 actual[offset + channel])
                     << "in-place mismatch at " << x << "," << y
+                    << " channel=" << channel;
+                EXPECT_FLOAT_EQ(sourcePixels[offset + channel],
+                                pixels[offset + channel])
+                    << "source mutation at " << x << "," << y
                     << " channel=" << channel;
             }
         }
