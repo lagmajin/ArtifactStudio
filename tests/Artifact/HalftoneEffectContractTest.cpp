@@ -130,6 +130,39 @@ TEST(HalftoneEffectContractTest,
 }
 
 TEST(HalftoneEffectContractTest,
+     WeightedLumaChangesTheDotRadiusForDifferentColorChannels)
+{
+    constexpr int width = 4;
+    constexpr int height = 4;
+    const auto renderSolidColor = [](float red, float green, float blue) {
+        std::array<float, width * height * 4> pixels{};
+        for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+            pixels[offset] = red;
+            pixels[offset + 1] = green;
+            pixels[offset + 2] = blue;
+            pixels[offset + 3] = 0.4f;
+        }
+        ArtifactCore::ImageF32x4_RGBA image;
+        image.setFromRGBA32F(pixels.data(), width, height);
+        const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+        ArtifactCore::ImageF32x4RGBAWithCache output;
+        Artifact::HalftoneEffect effect;
+        effect.setDotSize(4.0f);
+        effect.setAngle(0.0f);
+        effect.setContrast(1.0f);
+        effect.applyCPUOnly(source, output);
+        return output.image().getPixel(1, 1).r();
+    };
+
+    const float redPixel = renderSolidColor(1.0f, 0.0f, 0.0f);
+    const float greenPixel = renderSolidColor(0.0f, 1.0f, 0.0f);
+    EXPECT_FLOAT_EQ(redPixel, 0.0f)
+        << "red luma 0.114 leaves the (1, 1) sample inside the dot";
+    EXPECT_FLOAT_EQ(greenPixel, 1.0f)
+        << "green luma 0.587 shrinks the dot below the (1, 1) sample";
+}
+
+TEST(HalftoneEffectContractTest,
      CreativeHalftoneUsesEightPixelCellsAndWritesOpaqueMonochrome)
 {
     constexpr int width = 8;
