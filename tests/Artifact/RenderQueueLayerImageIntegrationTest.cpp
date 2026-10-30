@@ -2380,8 +2380,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
     QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
     QStandardPaths::setTestModeEnabled(true);
 
-    constexpr int width = 16;
-    constexpr int height = 16;
+    constexpr int width = 13;
+    constexpr int height = 11;
     auto& projects = Artifact::ArtifactProjectManager::getInstance();
     auto* queue = Artifact::ArtifactRenderQueueService::instance();
     ASSERT_NE(queue, nullptr);
@@ -2469,8 +2469,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
         << "the center of a full-white 8x8 cell must be inside its dot";
     EXPECT_TRUE(isWhite(0, 4))
         << "the radius boundary must remain outside the strict dot test";
-    EXPECT_TRUE(isBlack(12, 12))
-        << "the dot pattern must restart at the next 8x8 cell";
+    EXPECT_TRUE(isBlack(12, 10))
+        << "the partial bottom-right cell must retain its local dot pattern";
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const QColor pixel = output.pixelColor(x, y);
