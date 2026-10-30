@@ -130,6 +130,30 @@ TEST(HalftoneEffectContractTest,
 }
 
 TEST(HalftoneEffectContractTest,
+     AddingFullTurnsToTheAnglePreservesTheHalftoneMask)
+{
+    const auto source = makeSolidSurface(0.25f, 0.4f);
+    ArtifactCore::ImageF32x4RGBAWithCache zeroDegrees;
+    ArtifactCore::ImageF32x4RGBAWithCache twoTurns;
+    Artifact::HalftoneEffect effect;
+    effect.setDotSize(4.0f);
+    effect.setContrast(1.0f);
+    effect.setAngle(0.0f);
+    effect.applyCPUOnly(source, zeroDegrees);
+    effect.setAngle(720.0f);
+    effect.applyCPUOnly(source, twoTurns);
+
+    const float* reference = zeroDegrees.image().rgba32fData();
+    const float* actual = twoTurns.image().rgba32fData();
+    ASSERT_NE(reference, nullptr);
+    ASSERT_NE(actual, nullptr);
+    for (std::size_t channel = 0; channel < 4 * 4 * 4; ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], reference[channel])
+            << "channel=" << channel;
+    }
+}
+
+TEST(HalftoneEffectContractTest,
      WeightedLumaChangesTheDotRadiusForDifferentColorChannels)
 {
     constexpr int width = 4;
