@@ -427,6 +427,30 @@ TEST(HalftoneEffectContractTest,
     EXPECT_EQ(creativeOutput.image().colorDescriptor(), descriptor);
 }
 
+TEST(HalftoneEffectContractTest,
+     BothHalftoneVariantsLeaveOutOfPlaceSourcePixelsUntouched)
+{
+    const auto source = makeSolidSurface(0.5f, 0.4f);
+    ArtifactCore::ImageF32x4RGBAWithCache genericOutput;
+    ArtifactCore::ImageF32x4RGBAWithCache creativeOutput;
+    Artifact::HalftoneEffect genericEffect;
+    Artifact::ArtifactHalftoneEffect creativeEffect;
+    creativeEffect.setComputeMode(Artifact::ComputeMode::CPU);
+
+    genericEffect.applyCPUOnly(source, genericOutput);
+    creativeEffect.applyCPUOnly(source, creativeOutput);
+
+    const float* sourcePixels = source.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    for (std::size_t pixel = 0; pixel < 4 * 4; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        EXPECT_FLOAT_EQ(sourcePixels[offset], 0.5f) << "pixel=" << pixel;
+        EXPECT_FLOAT_EQ(sourcePixels[offset + 1], 0.5f) << "pixel=" << pixel;
+        EXPECT_FLOAT_EQ(sourcePixels[offset + 2], 0.5f) << "pixel=" << pixel;
+        EXPECT_FLOAT_EQ(sourcePixels[offset + 3], 0.4f) << "pixel=" << pixel;
+    }
+}
+
 TEST(HalftoneEffectContractTest, SettersClampFiniteValuesAndResetNonFiniteValues)
 {
     Artifact::HalftoneEffect effect;

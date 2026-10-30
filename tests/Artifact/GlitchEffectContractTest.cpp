@@ -9,6 +9,7 @@ import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
 import Artifact.Effect.Context;
 import Artifact.Effect.Rasterizer.Glitch;
+import Graphics.SurfaceColorContract;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
 
@@ -329,7 +330,11 @@ TEST(GlitchEffectContractTest,
 TEST(GlitchEffectContractTest,
      SeededGlitchInPlaceMatchesOutOfPlaceWithoutChangingSource)
 {
-    const auto source = makeColorPattern();
+    const auto descriptor =
+        ArtifactCore::SurfaceColorDescriptor::linearStraightRgba32Float();
+    auto sourceImage = makeColorPattern().image();
+    sourceImage.setColorDescriptor(descriptor);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(sourceImage);
     auto inPlace = source;
     const float* sourceBefore = source.image().rgba32fData();
     ASSERT_NE(sourceBefore, nullptr);
@@ -351,6 +356,8 @@ TEST(GlitchEffectContractTest,
     ASSERT_NE(sourcePixels, nullptr);
     ASSERT_NE(outOfPlacePixels, nullptr);
     ASSERT_NE(inPlacePixels, nullptr);
+    EXPECT_EQ(outOfPlace.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(inPlace.image().colorDescriptor(), descriptor);
     EXPECT_NE(sourcePixels, inPlacePixels);
     for (std::size_t channel = 0; channel < kWidth * kHeight * 4; ++channel) {
         EXPECT_FLOAT_EQ(sourcePixels[channel], originalSource[channel])
