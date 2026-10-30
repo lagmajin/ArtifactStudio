@@ -2121,6 +2121,105 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeStainStrengthScalesItsSpatialPatternAndClampsBounds)
+{
+    constexpr int width = 32;
+    constexpr int height = 24;
+    constexpr float sourceValue = 0.4f;
+    constexpr float alpha = 0.65f;
+    constexpr int seed = 1977;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    EffectContext context;
+    context.compositionFrame = 12;
+    const auto renderWithStain = [&](const QVariant& value) {
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setContext(context);
+        for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                     "flicker", "gateWeave", "vignette"}) {
+            effect.setPropertyValue(UniString(property), QVariant(0.0f));
+        }
+        effect.setPropertyValue(UniString("seed"), QVariant(seed));
+        effect.setPropertyValue(UniString("stain"), value);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+
+    const auto noStain = renderWithStain(QVariant(0.0f));
+    const auto halfStain = renderWithStain(QVariant(0.25f));
+    const auto maximumStain = renderWithStain(QVariant(0.5f));
+    const auto clampedLow = renderWithStain(QVariant(-1.0f));
+    const auto clampedHigh = renderWithStain(QVariant(1.0f));
+    const auto nonFinite = renderWithStain(
+        QVariant(std::numeric_limits<double>::quiet_NaN()));
+    const float* noStainPixels = noStain.image().rgba32fData();
+    const float* halfStainPixels = halfStain.image().rgba32fData();
+    const float* maximumStainPixels = maximumStain.image().rgba32fData();
+    const float* clampedLowPixels = clampedLow.image().rgba32fData();
+    const float* clampedHighPixels = clampedHigh.image().rgba32fData();
+    const float* nonFinitePixels = nonFinite.image().rgba32fData();
+    ASSERT_NE(noStainPixels, nullptr);
+    ASSERT_NE(halfStainPixels, nullptr);
+    ASSERT_NE(maximumStainPixels, nullptr);
+    ASSERT_NE(clampedLowPixels, nullptr);
+    ASSERT_NE(clampedHighPixels, nullptr);
+    ASSERT_NE(nonFinitePixels, nullptr);
+    bool observedSpatialVariation = false;
+    for (int y = 0; y < height; ++y) {
+        const float ny = (2.0f * y / (height - 1)) - 1.0f;
+        for (int x = 0; x < width; ++x) {
+            const float nx = (2.0f * x / (width - 1)) - 1.0f;
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float stainPattern = std::sin(
+                nx * 4.7f + ny * 2.9f + static_cast<float>(seed));
+            const float expectedMaximum =
+                sourceValue * (1.0f + 0.5f * stainPattern);
+            for (std::size_t channel = 0; channel < 3; ++channel) {
+                EXPECT_FLOAT_EQ(noStainPixels[offset + channel], sourceValue)
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+                EXPECT_FLOAT_EQ(clampedLowPixels[offset + channel],
+                                noStainPixels[offset + channel]);
+                EXPECT_FLOAT_EQ(nonFinitePixels[offset + channel],
+                                noStainPixels[offset + channel]);
+                EXPECT_FLOAT_EQ(clampedHighPixels[offset + channel],
+                                maximumStainPixels[offset + channel]);
+                EXPECT_NEAR(maximumStainPixels[offset + channel],
+                            expectedMaximum, 1.0e-6f)
+                    << "maximum stain x=" << x << " y=" << y
+                    << " channel=" << channel;
+                EXPECT_NEAR(halfStainPixels[offset + channel],
+                            sourceValue +
+                                (maximumStainPixels[offset + channel] -
+                                 sourceValue) * 0.5f,
+                            1.0e-6f)
+                    << "half stain x=" << x << " y=" << y
+                    << " channel=" << channel;
+                observedSpatialVariation = observedSpatialVariation ||
+                    std::abs(maximumStainPixels[offset + channel] -
+                             sourceValue) > 1.0e-5f;
+            }
+            EXPECT_FLOAT_EQ(noStainPixels[offset + 3], alpha);
+            EXPECT_FLOAT_EQ(halfStainPixels[offset + 3], alpha);
+            EXPECT_FLOAT_EQ(maximumStainPixels[offset + 3], alpha);
+        }
+    }
+    EXPECT_TRUE(observedSpatialVariation);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeVignetteDarkensCornersWithAStableRadialProfile)
 {
     constexpr int width = 17;
