@@ -636,6 +636,91 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeCombinesMixRegionAndPrimaryMaskCoverage)
+{
+    constexpr int width = 16;
+    constexpr int height = 12;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>((x * 3 + y) % 17) / 16.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 2) % 13) / 12.0f;
+            pixels[offset + 2] = static_cast<float>((x * 5 + y * 3) % 19) / 18.0f;
+            pixels[offset + 3] = 0.75f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.35f));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(731));
+    EffectContext context;
+    context.compositionFrame = 9;
+    effect.setContext(context);
+
+    ImageF32x4RGBAWithCache fullEffect;
+    ImageF32x4RGBAWithCache combinedEffect;
+    effect.applyCPUOnly(source, fullEffect);
+
+    const QRectF region(4.0, 3.0, 8.0, 6.0);
+    constexpr std::array<float, 16> maskPixels{
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f,
+        0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.25f};
+    auto mask = makeShared<ImageF32x4_RGBA>();
+    mask->setFromRGBA32F(maskPixels.data(), 2, 2);
+    effect.setMix(0.5f);
+    effect.setEffectRegion(region);
+    effect.setMaskImage(mask);
+    effect.setMaskEnabled(true);
+    effect.setMaskOpacity(0.5f);
+    effect.applyCPUOnly(source, combinedEffect);
+
+    const float* full = fullEffect.image().rgba32fData();
+    const float* combined = combinedEffect.image().rgba32fData();
+    ASSERT_NE(full, nullptr);
+    ASSERT_NE(combined, nullptr);
+    constexpr std::array<float, 4> maskAlpha{0.0f, 0.5f, 1.0f, 0.25f};
+    bool observedEffectInsideCoverage = false;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int maskX = std::min(
+                static_cast<int>((static_cast<float>(x) + 0.5f) * 2.0f / width),
+                1);
+            const int maskY = std::min(
+                static_cast<int>((static_cast<float>(y) + 0.5f) * 2.0f / height),
+                1);
+            const bool inside = region.contains(QPointF(x + 0.5, y + 0.5));
+            const float coverage = inside
+                ? 0.5f * maskAlpha[static_cast<std::size_t>(maskY * 2 + maskX)] *
+                      0.5f
+                : 0.0f;
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            for (int channel = 0; channel < 4; ++channel) {
+                if (coverage > 0.0f && channel < 3) {
+                    observedEffectInsideCoverage =
+                        observedEffectInsideCoverage ||
+                        std::abs(full[offset + channel] -
+                                 pixels[offset + channel]) > 1.0e-5f;
+                }
+                EXPECT_NEAR(combined[offset + channel],
+                            pixels[offset + channel] * (1.0f - coverage) +
+                                full[offset + channel] * coverage,
+                            1.0e-6f)
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+            }
+        }
+    }
+    EXPECT_TRUE(observedEffectInsideCoverage);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeCombinesValidMasksAndIgnoresInvalidAdditionalMasks)
 {
     constexpr int width = 16;
