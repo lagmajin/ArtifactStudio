@@ -3089,18 +3089,32 @@ TEST(RenderQueueLayerImageIntegrationTest,
 TEST(RenderQueueLayerImageIntegrationTest,
      VideoEncoderBackendAliasesNormalizeToStablePublicNames)
 {
-    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("AUTO")),
-              QStringLiteral("auto"));
-    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("ffmpeg.exe")),
-              QStringLiteral("pipe"));
-    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("hardware")),
-              QStringLiteral("pipe-hw"));
-    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("vulkan-hw")),
-              QStringLiteral("pipe-vulkan"));
-    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("FFmpegAPI")),
-              QStringLiteral("native"));
-    EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(QStringLiteral("Diligent")),
-              QStringLiteral("auto"));
+    const std::array<std::pair<QString, QString>, 19> aliases{{
+        {QStringLiteral(" AUTO "), QStringLiteral("auto")},
+        {QStringLiteral("unknown"), QStringLiteral("auto")},
+        {QStringLiteral("pipe"), QStringLiteral("pipe")},
+        {QStringLiteral("ffmpeg.exe"), QStringLiteral("pipe")},
+        {QStringLiteral("FFMPEG"), QStringLiteral("pipe")},
+        {QStringLiteral("pipe-hw"), QStringLiteral("pipe-hw")},
+        {QStringLiteral("pipe-hw (nvenc)"), QStringLiteral("pipe-hw")},
+        {QStringLiteral("ffmpeg-hw"), QStringLiteral("pipe-hw")},
+        {QStringLiteral("hardware"), QStringLiteral("pipe-hw")},
+        {QStringLiteral("hw"), QStringLiteral("pipe-hw")},
+        {QStringLiteral("pipe-vulkan"), QStringLiteral("pipe-vulkan")},
+        {QStringLiteral("ffmpeg-vulkan"), QStringLiteral("pipe-vulkan")},
+        {QStringLiteral("vulkan-hw"), QStringLiteral("pipe-vulkan")},
+        {QStringLiteral("VULKAN"), QStringLiteral("pipe-vulkan")},
+        {QStringLiteral("native"), QStringLiteral("native")},
+        {QStringLiteral("api"), QStringLiteral("native")},
+        {QStringLiteral("FFmpegAPI"), QStringLiteral("native")},
+        {QStringLiteral("gpu"), QStringLiteral("gpu")},
+        {QStringLiteral("Diligent"), QStringLiteral("auto")},
+    }};
+
+    for (const auto& [alias, expected] : aliases) {
+        EXPECT_EQ(Artifact::normalizeVideoEncodeBackendName(alias), expected)
+            << "alias=" << alias.toStdString();
+    }
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,

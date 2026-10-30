@@ -1835,6 +1835,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactVideoEncoderBackendAliasesContractTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.VideoEncoderBackendAliasesNormalizeToStablePublicNames
+    )
+    set_tests_properties(ArtifactVideoEncoderBackendAliasesContractTest PROPERTIES
+        LABELS "video;encoder;backend;normalization;contract;cpu"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactExrWriterOutputContractTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=ExrWriterOutputContractTest.*
