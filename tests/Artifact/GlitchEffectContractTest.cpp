@@ -194,6 +194,54 @@ TEST(GlitchEffectContractTest,
 }
 
 TEST(GlitchEffectContractTest,
+     ScanlinePatchesStayWithinTheirSourceRowAndBoundedWidth)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            pixels[offset] = static_cast<float>(x + 1) / (width + 1);
+            pixels[offset + 1] = static_cast<float>(y + 1) / (height + 1);
+            pixels[offset + 2] = static_cast<float>((x * 3 + y * 5) % 31) / 30.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 2) % 17) / 16.0f;
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::GlitchEffect effect;
+    effect.setIntensity(0.0f);
+    effect.setColorShift(0.0f);
+    effect.setScanlines(1.0f);
+    effect.applyCPUOnly(source, output);
+
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    std::size_t changedRows = 0;
+    for (int y = 0; y < height; ++y) {
+        std::size_t changedPixels = 0;
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            const bool changed = actual[offset] != pixels[offset] ||
+                actual[offset + 1] != pixels[offset + 1] ||
+                actual[offset + 2] != pixels[offset + 2];
+            changedPixels += changed ? 1u : 0u;
+            EXPECT_FLOAT_EQ(actual[offset + 3], pixels[offset + 3])
+                << "x=" << x << " y=" << y;
+        }
+        EXPECT_LE(changedPixels, static_cast<std::size_t>(width / 4))
+            << "a scanline patch is at most one quarter of the row, y=" << y;
+        changedRows += changedPixels > 0 ? 1u : 0u;
+    }
+    EXPECT_GT(changedRows, 0u);
+}
+
+TEST(GlitchEffectContractTest,
      SeededGlitchInPlaceMatchesOutOfPlaceWithoutChangingSource)
 {
     const auto source = makeColorPattern();
