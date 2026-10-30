@@ -1064,18 +1064,23 @@ TEST(LofiEffectContractTest,
     ImageF32x4RGBAWithCache defaultSeedOutput;
     ImageF32x4RGBAWithCache changedSeedOutput;
     ImageF32x4RGBAWithCache repeatedChangedSeedOutput;
+    ImageF32x4RGBAWithCache restoredSeedOutput;
     effect.setPropertyValue(UniString("seed"), QVariant(1977));
     effect.applyCPUOnly(source, defaultSeedOutput);
     effect.setPropertyValue(UniString("seed"), QVariant(1978));
     effect.applyCPUOnly(source, changedSeedOutput);
     effect.applyCPUOnly(source, repeatedChangedSeedOutput);
+    effect.setPropertyValue(UniString("seed"), QVariant(1977));
+    effect.applyCPUOnly(source, restoredSeedOutput);
 
     const float* defaultPixels = defaultSeedOutput.image().rgba32fData();
     const float* changedPixels = changedSeedOutput.image().rgba32fData();
     const float* repeatedPixels = repeatedChangedSeedOutput.image().rgba32fData();
+    const float* restoredPixels = restoredSeedOutput.image().rgba32fData();
     ASSERT_NE(defaultPixels, nullptr);
     ASSERT_NE(changedPixels, nullptr);
     ASSERT_NE(repeatedPixels, nullptr);
+    ASSERT_NE(restoredPixels, nullptr);
     std::size_t changedRgbSamples = 0;
     for (std::size_t pixel = 0;
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
@@ -1083,6 +1088,8 @@ TEST(LofiEffectContractTest,
             const std::size_t offset = pixel * 4 + channel;
             EXPECT_FLOAT_EQ(changedPixels[offset], repeatedPixels[offset])
                 << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(defaultPixels[offset], restoredPixels[offset])
+                << "restored pixel=" << pixel << " channel=" << channel;
             if (channel < 3 && defaultPixels[offset] != changedPixels[offset]) {
                 ++changedRgbSamples;
             }
