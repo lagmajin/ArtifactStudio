@@ -123,6 +123,54 @@ TEST(HalftoneEffectContractTest,
     }
 }
 
+TEST(HalftoneEffectContractTest,
+     CreativeHalftoneHandlesPartialRightAndBottomCells)
+{
+    constexpr int width = 9;
+    constexpr int height = 10;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset] = 1.0f;
+        pixels[offset + 1] = 1.0f;
+        pixels[offset + 2] = 1.0f;
+        pixels[offset + 3] = 0.35f;
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::ArtifactHalftoneEffect effect;
+    effect.setComputeMode(Artifact::ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const auto pixel = output.image().getPixel(x, y);
+            EXPECT_TRUE(pixel.r() == 0.0f || pixel.r() == 1.0f)
+                << "x=" << x << " y=" << y;
+            EXPECT_FLOAT_EQ(pixel.g(), pixel.r()) << "x=" << x << " y=" << y;
+            EXPECT_FLOAT_EQ(pixel.b(), pixel.r()) << "x=" << x << " y=" << y;
+            EXPECT_FLOAT_EQ(pixel.a(), 1.0f) << "x=" << x << " y=" << y;
+        }
+    }
+    const auto rightEdgeGap = output.image().getPixel(8, 4);
+    const auto bottomEdgeGap = output.image().getPixel(4, 8);
+    const auto bottomRightGap = output.image().getPixel(8, 9);
+    EXPECT_FLOAT_EQ(rightEdgeGap.r(), 1.0f);
+    EXPECT_FLOAT_EQ(bottomEdgeGap.r(), 1.0f);
+    EXPECT_FLOAT_EQ(bottomRightGap.r(), 1.0f);
+
+    const float* unchangedSource = source.image().rgba32fData();
+    ASSERT_NE(unchangedSource, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(unchangedSource[channel], pixels[channel])
+            << "channel=" << channel;
+    }
+}
+
 TEST(HalftoneEffectContractTest, SettersClampFiniteValuesAndResetNonFiniteValues)
 {
     Artifact::HalftoneEffect effect;
