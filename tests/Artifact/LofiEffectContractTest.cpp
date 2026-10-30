@@ -1246,6 +1246,81 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesEmulsionStainAcrossCompositionFra
     EXPECT_GT(changedRgbSamples, 0u);
 }
 
+TEST(LofiEffectContractTest, FilmGrungeAnimatesVignetteAcrossCompositionFrames)
+{
+    constexpr int width = 9;
+    constexpr int height = 9;
+    constexpr float sourceValue = 0.4f;
+    constexpr float alpha = 0.7f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "gateWeave", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    auto* vignette = effect.editableProperty(QStringLiteral("vignette"));
+    ASSERT_NE(vignette, nullptr);
+    vignette->addKeyFrame(RationalTime(0, 30), 0.0);
+    vignette->addKeyFrame(RationalTime(30, 30), 0.25);
+
+    ImageF32x4RGBAWithCache firstFrame;
+    ImageF32x4RGBAWithCache animatedFrame;
+    EffectContext context;
+    context.compositionFrame = 0;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, firstFrame);
+    context.compositionFrame = 30;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, animatedFrame);
+
+    ArtifactFilmGrungeEffect fixedEffect;
+    fixedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "gateWeave", "stain"}) {
+        fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    fixedEffect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    fixedEffect.setPropertyValue(UniString("vignette"), QVariant(0.25f));
+    ImageF32x4RGBAWithCache fixedFrame;
+    fixedEffect.setContext(context);
+    fixedEffect.applyCPUOnly(source, fixedFrame);
+
+    const float* firstPixels = firstFrame.image().rgba32fData();
+    const float* animatedPixels = animatedFrame.image().rgba32fData();
+    const float* fixedPixels = fixedFrame.image().rgba32fData();
+    ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(animatedPixels, nullptr);
+    ASSERT_NE(fixedPixels, nullptr);
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            const std::size_t offset = pixel * 4 + channel;
+            EXPECT_FLOAT_EQ(firstPixels[offset], sourceValue);
+            EXPECT_FLOAT_EQ(animatedPixels[offset], fixedPixels[offset])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+        EXPECT_FLOAT_EQ(animatedPixels[pixel * 4 + 3], alpha);
+    }
+    const std::size_t center =
+        (static_cast<std::size_t>(height / 2) * width + width / 2) * 4;
+    EXPECT_NEAR(animatedPixels[center], sourceValue, 1.0e-6f);
+    EXPECT_NEAR(animatedPixels[0],
+                sourceValue * (1.0f - 0.25f * std::pow(2.0f, 1.35f)),
+                1.0e-6f);
+}
+
 TEST(LofiEffectContractTest,
      FilmGrungeFloatControlsClampBoundsAndNonFiniteValues)
 {
