@@ -8,6 +8,7 @@
 
 #include <array>
 #include <memory>
+#include <utility>
 
 import Artifact.Render.Queue.Encoder;
 import Artifact.Render.Queue.Job;
@@ -54,37 +55,49 @@ private:
     QtMessageHandler previousHandler_ = nullptr;
 };
 
+std::unique_ptr<Artifact::IVideoEncodeBackend> createInvalidCodecBackend(
+    const QString& preference, const QString& outputPath,
+    QString* backendName, QString* errorMessage, QStringList* messages)
+{
+    ensureApplication();
+    Artifact::ArtifactRenderJob job;
+    job.encoderBackend = preference;
+    job.codec = QStringLiteral("artifact_invalid_codec");
+    job.outputPath = outputPath;
+    job.resolutionWidth = 64;
+    job.resolutionHeight = 64;
+    job.frameRate = 24.0;
+
+    QtMessageCapture capture(*messages);
+    return Artifact::createVideoEncodeBackend(job, backendName, errorMessage);
+}
+
+void expectBackendCloseFailure(
+    std::unique_ptr<Artifact::IVideoEncodeBackend>& backend)
+{
+    if (backend) {
+        QString closeError;
+        EXPECT_FALSE(backend->close(&closeError))
+            << "An invalid codec must not finalize a valid video stream";
+    }
+}
+
 } // namespace
 
 TEST(VideoEncoderBackendFallbackContractTest,
      AutomaticSelectionTriesHardwareVulkanNativeThenPipe)
 {
-    ensureApplication();
     QTemporaryDir outputDirectory;
     ASSERT_TRUE(outputDirectory.isValid());
 
-    Artifact::ArtifactRenderJob job;
-    job.encoderBackend = QStringLiteral("auto");
-    job.codec = QStringLiteral("artifact_invalid_codec");
-    job.outputPath = outputDirectory.filePath(QStringLiteral("fallback.mp4"));
-    job.resolutionWidth = 64;
-    job.resolutionHeight = 64;
-    job.frameRate = 24.0;
-
     QStringList messages;
-    std::unique_ptr<Artifact::IVideoEncodeBackend> backend;
     QString backendName;
     QString errorMessage;
-    {
-        QtMessageCapture capture(messages);
-        backend = Artifact::createVideoEncodeBackend(
-            job, &backendName, &errorMessage);
-        if (backend) {
-            QString closeError;
-            EXPECT_FALSE(backend->close(&closeError))
-                << "An invalid codec must not finalize a valid video stream";
-        }
-    }
+    auto backend = createInvalidCodecBackend(
+        QStringLiteral("auto"),
+        outputDirectory.filePath(QStringLiteral("fallback.mp4")),
+        &backendName, &errorMessage, &messages);
+    expectBackendCloseFailure(backend);
 
     const QString log = messages.join(QLatin1Char('\n'));
     const std::array<QString, 5> expectedStages{
@@ -110,4 +123,73 @@ TEST(VideoEncoderBackendFallbackContractTest,
         EXPECT_TRUE(backendName.isEmpty());
         EXPECT_FALSE(errorMessage.isEmpty());
     }
+}
+
+TEST(VideoEncoderBackendFallbackContractTest,
+     ExplicitHardwarePreferencesFallbackDirectlyToPipe)
+{
+    ensureApplication();
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+
+    for (const auto& [preference, expectedFailureStage] : {
+             std::pair{QStringLiteral("pipe-hw"),
+                       QStringLiteral("pipe-hw backend failed; falling back to pipe")},
+             std::pair{QStringLiteral("pipe-vulkan"),
+                       QStringLiteral("pipe-vulkan backend failed; falling back to pipe")}}) {
+        QStringList messages;
+        QString backendName;
+        QString errorMessage;
+        auto backend = createInvalidCodecBackend(
+            preference,
+            outputDirectory.filePath(preference + QStringLiteral(".mp4")),
+            &backendName, &errorMessage, &messages);
+        expectBackendCloseFailure(backend);
+
+        const QString log = messages.join(QLatin1Char('\n'));
+        ASSERT_TRUE(log.contains(expectedFailureStage)) << log.toStdString();
+        EXPECT_FALSE(log.contains(
+            QStringLiteral("GPU FFmpeg backend failed"))) << log.toStdString();
+        EXPECT_FALSE(log.contains(
+            QStringLiteral("[Encode][Native] backend attempt failed")))
+            << log.toStdString();
+        if (backend) {
+            EXPECT_EQ(backendName, QStringLiteral("pipe"));
+        } else {
+            EXPECT_TRUE(backendName.isEmpty());
+            EXPECT_FALSE(errorMessage.isEmpty());
+        }
+    }
+}
+
+TEST(VideoEncoderBackendFallbackContractTest,
+     ExplicitNativePreferenceDoesNotTryOtherBackends)
+{
+    ensureApplication();
+    QTemporaryDir outputDirectory;
+    ASSERT_TRUE(outputDirectory.isValid());
+
+    QStringList messages;
+    QString backendName;
+    QString errorMessage;
+    auto backend = createInvalidCodecBackend(
+        QStringLiteral("native"),
+        outputDirectory.filePath(QStringLiteral("native.mp4")),
+        &backendName, &errorMessage, &messages);
+
+    EXPECT_FALSE(backend);
+    EXPECT_TRUE(backendName.isEmpty());
+    EXPECT_FALSE(errorMessage.isEmpty());
+    const QString log = messages.join(QLatin1Char('\n'));
+    EXPECT_TRUE(log.contains(
+        QStringLiteral("[Encode][Native] backend attempt failed")))
+        << log.toStdString();
+    EXPECT_FALSE(log.contains(QStringLiteral("GPU FFmpeg backend failed")))
+        << log.toStdString();
+    EXPECT_FALSE(log.contains(QStringLiteral("pipe-hw backend failed")))
+        << log.toStdString();
+    EXPECT_FALSE(log.contains(QStringLiteral("pipe-vulkan backend failed")))
+        << log.toStdString();
+    EXPECT_FALSE(log.contains(QStringLiteral("backend fell back to pipe")))
+        << log.toStdString();
 }
