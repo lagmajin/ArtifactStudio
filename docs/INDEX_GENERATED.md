@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-29 12:36
+> Generated: 2026-10-30 12:50
 > Total documents: 1480
 
 ---
@@ -906,7 +906,7 @@
 | 294 | `docs/planned/MILESTONE_EASING_LAB_PHASE3_2026-04-21.md` | EasingLab - Phase 3: Integration and Apply Path | 2026-08-04 | --- | 2026-08-06 | 2.6 KB | EASING, LAB, PHASE3 |
 | 295 | `docs/planned/MILESTONE_EASING_LAB_PHASE3_EXECUTION_2026-04-21.md` | EasingLab - Phase 3 Execution | 2026-08-04 | --- | 2026-08-06 | 1.9 KB | EASING, LAB, PHASE3, EXECUTION |
 | 296 | `docs/planned/MILESTONE_EDIT_MENU_2026-06-16.md` | M-EDIT-1 Edit Menu Foundation Milestone | 2026-06-16 | --- | 2026-08-16 | 16.1 KB | EDIT, MENU |
-| 297 | `docs/planned/MILESTONE_EDIT_SEQUENCE_CRASH_FUZZ_2026-10-07.md` | 編集シーケンス Crash / Fuzz Test マイルストーン | 2026-10-08 | In Progress | 2026-10-08 | 16.1 KB | EDIT, SEQUENCE, CRASH, FUZZ |
+| 297 | `docs/planned/MILESTONE_EDIT_SEQUENCE_CRASH_FUZZ_2026-10-07.md` | 編集シーケンス Crash / Fuzz Test マイルストーン | 2026-10-08 | In Progress | 2026-10-08 | 15.9 KB | EDIT, SEQUENCE, CRASH, FUZZ |
 | 298 | `docs/planned/MILESTONE_EFFECT_GPU_RESIDENCY_AND_ASYNC_PREVIEW_2026-09-11.md` | Milestone: GPU常駐エフェクト連鎖 + 非同期プレビュー再描画 | 2026-09-11 | --- | 2026-09-11 | 5.5 KB | EFFECT, GPU, RESIDENCY, AND, ASYNC |
 | 299 | `docs/planned/MILESTONE_EFFECT_LOD_2026-08-05.md` | エフェクトLOD導入マイルストーン | 2026-08-15 | --- | 2026-08-16 | 7.8 KB | EFFECT, LOD |
 | 300 | `docs/planned/MILESTONE_EFFECT_PALETTE_CURVE_EDITOR.md` | MILESTONE: Effect Browser + Curve Editor Completion | 2026-08-15 | --- | 2026-08-16 | 18.5 KB | EFFECT, PALETTE, CURVE, EDITOR |
@@ -1228,7 +1228,7 @@
 | 616 | `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md` | MILESTONE: 単一画像レイヤー化（Single Image Layerization） | 2026-08-17 | In Progress（standalone prototype implemented; app integration not started） | 2026-08-18 | 12.5 KB | SINGLE, IMAGE, LAYERIZATION |
 | 617 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | --- | 2026-10-02 | 7.5 KB | SMART, FALLBACKS |
 | 618 | `docs/planned/MILESTONE_SMART_GUIDES_2026-04-10.md` | スマートガイドシステムの実装 | 2026-08-15 | --- | 2026-08-16 | 2.8 KB | SMART, GUIDES |
-| 619 | `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` | M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ | 2026-10-28 | In Progress（煙エミッタのCore API・Inspector設定・永続化・Brushによるビューポートstirringを実装。エミッタ数1〜64を追加。独立Core/runtime、D3D12 production、CPU/GPU Render Queueとheadless Composition View描画wrapperの同一frame画像比較は通過。Composition View wrapperとGPU Render Queue frameは画素完全一致。本番2D runtimeに独立flame-lifetime fieldを追加し、source-stop tail・煙密度ゼロ描画・checkpoint逆再生を独立runtime testで検証。production `ArtifactIRenderer`へbounded 2.5D GPU volume pathを接続し、runtime統合テストはD3D12 / Vulkanで通過。192²初期格子案は過去のCPUコスト／形状測定を根拠に撤回し、128²へ戻した。煙のbillow品質と自動画面解像度は未達で、live viewport順序・実時間予算・高解像度負荷・実アプリUI操作は未完了） | 2026-10-29 | 324.1 KB | SMOKE, EMITTER, AND, VIEWPORT, INTERACTION |
+| 619 | `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` | M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ | 2026-10-30 | In Progress（煙エミッタのCore API・Inspector設定・永続化・Brushによるビューポートstirringを実装。エミッタ数1〜64を追加。独立Core/runtime、D3D12 production、CPU/GPU Render Queueとheadless Composition View描画wrapperの同一frame画像比較は通過。Composition View wrapperとGPU Render Queue frameは画素完全一致。本番2D runtimeに独立flame-lifetime fieldを追加し、source-stop tail・煙密度ゼロ描画・checkpoint逆再生を独立runtime testで検証。production `ArtifactIRenderer`へbounded 2.5D GPU volume pathを接続し、runtime統合テストはD3D12 / Vulkanで通過。192²初期格子案は過去のCPUコスト／形状測定を根拠に撤回し、128²へ戻した。煙のbillow品質と自動画面解像度は未達で、live viewport順序・実時間予算・高解像度負荷・実アプリUI操作は未完了） | 2026-10-29 | 327.0 KB | SMOKE, EMITTER, AND, VIEWPORT, INTERACTION |
 | 620 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-08-15 | --- | 2026-08-16 | 2.9 KB | SNAP, ADVANCED |
 | 621 | `docs/planned/MILESTONE_SOLID_LAYER_NOISE_FILL_2026-08-18.md` | MILESTONE: 平面レイヤー Noise Fill | 2026-08-24 | Superseded（2026-08-24: 独立ノイズレイヤー方式へ方針変更。平面 Fill 拡張は実装断念） | 2026-08-24 | 16.9 KB | SOLID, LAYER, NOISE, FILL |
 | 622 | `docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md` | マイルストーン: Source Relocation Contract（Image / Image Sequence） | 2026-10-02 | In Progress | 2026-10-02 | 11.6 KB | SOURCE, RELOCATION, CONTRACT |
@@ -1428,7 +1428,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-29 | --- | 2026-10-29 | 317.2 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-30 | --- | 2026-10-29 | 315.5 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |

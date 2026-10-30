@@ -1,5 +1,17 @@
 **最終更新:** 2026-10-30
 
+## 2026-10-30: 2D smoke curl A/B実測 — .25はほぼ中立、.5/2octは時間方向に荒れる
+- **関連:** `tests/Artifact/SmokeVolumeLookdevRAndTest.cpp::DensityRampAndShadowAblationPreservesTheSameVolume`、captures `out/rnd/smoke-lookdev-20261030/`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
+- **確認できた事実:** Vulkan headlessで frame 30/60/95 × curl 0 (1oct) / .25 (1oct) / .5 (2oct) を実行し、9ケースすべてpass。baseline lookのframe 95で、density mass 420.133 / 423.463 / 436.605、alpha mass 33,629.7 / 33,778.5 / 35,566.7、mean horizontal luma gradient 0.001739 / 0.001759 / 0.001864、alpha top-third share 0.03213 / 0.03173 / 0.02806、次frame相対alpha差 0.00632 / 0.00767 / 0.01788。frame 60では gradient 0.001558 / 0.001609 / 0.001828、次frame差 0.02195 / 0.02199 / 0.02711、top share 0.000302 / 0.000498 / 0.000900。curl .25は形状・質量・時間残差ともbaselineに近く、.5/2octはgradientを上げる代わりにframe 95で上三分割shareを12.7%下げ、次frame差を183%上げた。画像では .5/2octのframe 95に横方向のshearとdetached wispが出ており、数値の時間残差増加と一致する。
+- **価値または懸念:** 縦分布はcurl強度に対して単調ではなく、frame 60では増、frame 95では減と符号が反転する。単一frameのupper-third shareをcurlの可否判定に使えないという2026-10-30の結論を実測で裏づけた。さらにframe 60のtop-third shareは0.03%程度で、ほぼ空の帯を測っている。standalone curl testのframe 44 upper-third比較は低信号の指標であり、合否の主軸にしない方がよい。D3D12はこのビルドツリーで無効（HAS_ATL=FALSE → D3D12_SUPPORTED=FALSE）のため、今回の実測はVulkanのみ。
+- **次に確認すべきこと:** curl .25をproduction候補として維持し、次はlive Composition captureでflame on/offと実時間予算を確認する。.5/2octはdetached wispと時間残差増加があるため候補から外す。upper-third shareを契約に残すなら、plumeが上三分割へ到達するframe以降（例: 90+）で測るか、絶対shareではなく質量保存・centroid・形状指標と組み合わせる。
+
+## 2026-10-30: 2D smoke curlの縦分布期待は形態変化と分離する
+- **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesProductionTwoDimensionalSmokeAndFlameCurlNoise`、`tests/Artifact/SmokeVolumeLookdevRAndTest.cpp::DensityRampAndShadowAblationPreservesTheSameVolume`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
+- **確認できた事実:** 既存の2D curlテストは「curlがupper-third density shareを下げる」を前提にしていたが、記録済みの .4/44frame 実行は .05261 baseline 対 .05392 curl で逆方向だった。curlは密度場・画像・pixel-exact replayを変えるが、縦方向の質量再配分器ではない。テストは絶対 +0.01 の上限ガードへ変更し、形状差と再現性の検証は維持した。あわせて2D volume lookdevへ top/middle/bottom の alpha・alpha-weighted luma shareと、1 frame先の相対alpha差を追加した。
+- **価値または懸念:** 未検証の主張をテスト契約から外すことで、focused suiteの失敗が実退行か計測契約の誤りかを切り分けられる。新しい縦分布・時間差分は curl .25/.5 候補の比較を1回の実行で行える。50%の時間差上限は品質基準ではない。
+- **次に確認すべきこと:** 実行結果は同日の「2D smoke curl A/B実測」項目に記録した。以後の比較ではframe 60のtop-third shareを主判定にせず、frame 90以降の到達後shareと時間残差を併記する。
+
 ## 2026-10-28: Smoke比較PNGはalpha分布の証拠に使えない
 - **関連:** `build/smoke-runtime-rnd/active-goal-resolution-pyro-compare-20261028/`、`tests/Artifact/ClonerGpuRenderContractTest.cpp` のPyro GPU readback sweeps。
 - **確認できた事実:** 保存済み2D / 2.5D / 3D Pyro比較PNGを読み取り専用で調べると、全画素のalphaが255だった。これらは背景込みの画像で、PNG alphaから煙の可視範囲や出力opacityの分布は測れない。RGB輝度の分布は測れるが、背景色と転送関数を含む画像上の値である。

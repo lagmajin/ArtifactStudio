@@ -78,8 +78,7 @@ TEST(ArtifactSmokeVolumeLookdevRAndTest,
         std::sqrt(static_cast<float>(emitterCount));
     const float placementRadius = std::max(0.0f, emitterRadius - sourceRadius);
     constexpr float goldenAngle = 2.39996322972865332f;
-    const auto simulationStart = std::chrono::steady_clock::now();
-    for (int frameIndex = 0; frameIndex < frame; ++frameIndex) {
+    const auto advanceOneFrame = [&](const int frameIndex) {
         const float elapsedSeconds = (frameIndex + 1) * frameDt;
         const float swayPhase = elapsedSeconds * (6.28318530718f * 0.22f);
         for (int source = 0; source < emitterCount; ++source) {
@@ -175,7 +174,11 @@ TEST(ArtifactSmokeVolumeLookdevRAndTest,
             }
         }
         solver.scaleDensity(std::exp(-2.5f * frameDt));
-    }
+    };
+
+    const auto simulationStart = std::chrono::steady_clock::now();
+    for (int frameIndex = 0; frameIndex < frame; ++frameIndex)
+        advanceOneFrame(frameIndex);
     const double simulationMs = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - simulationStart).count();
     const float* density = solver.densityFieldData();
@@ -282,13 +285,20 @@ TEST(ArtifactSmokeVolumeLookdevRAndTest,
         double lumaMass = 0.0;
         double lumaGradient = 0.0;
         std::size_t gradientSamples = 0;
+        std::array<double, 3> alphaThirdMass{};
+        std::array<double, 3> lumaThirdMass{};
         for (int y = 0; y < outputHeight; ++y) {
+            const std::size_t third = std::min<std::size_t>(
+                2, static_cast<std::size_t>(y) * 3 /
+                       static_cast<std::size_t>(outputHeight));
             for (int x = 0; x < outputWidth; ++x) {
                 const auto pixel = images[lookIndex].getPixel(x, y);
                 const double luma = 0.2126 * pixel.r() +
                     0.7152 * pixel.g() + 0.0722 * pixel.b();
                 alphaMass += pixel.a();
                 lumaMass += luma * pixel.a();
+                alphaThirdMass[third] += pixel.a();
+                lumaThirdMass[third] += luma * pixel.a();
                 if (x + 1 < outputWidth) {
                     const auto right = images[lookIndex].getPixel(x + 1, y);
                     lumaGradient += std::abs(luma - (0.2126 * right.r() +
@@ -300,15 +310,76 @@ TEST(ArtifactSmokeVolumeLookdevRAndTest,
         alphaMasses[lookIndex] = alphaMass;
         meanLumaGradients[lookIndex] = gradientSamples
             ? lumaGradient / gradientSamples : 0.0;
+        const auto share = [](const double part, const double total) {
+            return total > 0.0 ? part / total : 0.0;
+        };
         GTEST_LOG_(INFO) << "look=" << names[lookIndex] << " frame=" << frame
             << " smokeCurl=" << curlStrength
             << " curlOctaves=" << curlOctaves
             << " densityMax=" << maximumDensity << " densityMass=" << densityMass
             << " simulationMs=" << simulationMs
             << " alphaMass=" << alphaMass << " alphaWeightedLuma=" << lumaMass
+            << " alphaThirdShares(top/middle/bottom)="
+            << share(alphaThirdMass[0], alphaMass) << '/'
+            << share(alphaThirdMass[1], alphaMass) << '/'
+            << share(alphaThirdMass[2], alphaMass)
+            << " lumaThirdShares(top/middle/bottom)="
+            << share(lumaThirdMass[0], lumaMass) << '/'
+            << share(lumaThirdMass[1], lumaMass) << '/'
+            << share(lumaThirdMass[2], lumaMass)
             << " meanHorizontalLumaGradient=" << meanLumaGradients[lookIndex]
             << " gpuRenderMs=" << renderMs << " image=" << path.toStdString();
     }
+    // One more simulated frame, rendered with the baseline look, separates
+    // temporal persistence from static appearance. A large jump here would
+    // mean the chosen candidate changes the frame-to-frame structure rather
+    // than adding stable morphology. The value is a diagnostic; the loose
+    // bound only catches a gross break in time continuity.
+    const auto temporalStart = std::chrono::steady_clock::now();
+    advanceOneFrame(static_cast<int>(frame));
+    const float* nextDensity = solver.densityFieldData();
+    ASSERT_NE(nextDensity, nullptr);
+    renderer.clear();
+    ASSERT_TRUE(renderer.drawSmokeVolumeField(
+        nextDensity, flame.data(), fieldWidth, fieldHeight,
+        QRectF(0.0, 0.0, outputWidth, outputHeight), identity,
+        ArtifactCore::FloatColor(0.42f, 0.72f, 1.0f, 1.0f), 1.0f,
+        static_cast<float>(frame + 1) / 30.0f, 0.9f, baseline));
+    renderer.flushAndWait();
+    const auto nextImage = renderer.readbackToImageF32();
+    const double temporalMs = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - temporalStart).count();
+    double alphaDifferenceMass = 0.0;
+    double previousAlphaMass = 0.0;
+    for (int y = 0; y < outputHeight; ++y) {
+        for (int x = 0; x < outputWidth; ++x) {
+            const double previousAlpha = images[0].getPixel(x, y).a();
+            const double nextAlpha = nextImage.getPixel(x, y).a();
+            alphaDifferenceMass += std::abs(nextAlpha - previousAlpha);
+            previousAlphaMass += previousAlpha;
+        }
+    }
+    const double relativeAlphaDifference = previousAlphaMass > 0.0
+        ? alphaDifferenceMass / previousAlphaMass : 0.0;
+    if (!outputDirectory.isEmpty()) {
+        const QString temporalPath = QDir(outputDirectory).filePath(
+            QStringLiteral("smoke_baseline_frame%1_temporal.png")
+                .arg(frame + 1));
+        ASSERT_TRUE(nextImage.toQImage().save(temporalPath, "PNG"))
+            << temporalPath.toStdString();
+    }
+    GTEST_LOG_(INFO) << "temporal frame=" << frame << "->" << frame + 1
+        << " smokeCurl=" << curlStrength
+        << " relativeAlphaDifference=" << relativeAlphaDifference
+        << " simulationAndRenderMs=" << temporalMs;
+    EXPECT_TRUE(std::isfinite(relativeAlphaDifference));
+    // Early frames legitimately change fast while the plume is being built,
+    // so the continuity gate only applies once the profile has developed.
+    if (frame >= 30)
+        EXPECT_LT(relativeAlphaDifference, 0.5)
+            << "one-frame alpha change is a continuity sanity gate, not a "
+               "quality target";
+
     if (frame == 60) {
         EXPECT_GT(meanLumaGradients[3], meanLumaGradients[0] * 1.15)
             << "Fine detail frequency should add measurable image structure";
