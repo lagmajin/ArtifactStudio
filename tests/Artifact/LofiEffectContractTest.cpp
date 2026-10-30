@@ -571,8 +571,8 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
     effect.applyCPUOnly(source, fullEffect);
 
     constexpr std::array<float, 16> maskPixels{
-        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.25f,
-        0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 1.0f};
+        0.0f, 0.0f, 0.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.25f,
+        0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 1.5f};
     auto mask = makeShared<ImageF32x4_RGBA>();
     mask->setFromRGBA32F(maskPixels.data(), 2, 2);
     effect.setMaskImage(mask);
@@ -655,9 +655,9 @@ TEST(LofiEffectContractTest,
             pixels[offset + 3] =
                 x % 3 == 0 ? -0.5f : x % 3 == 1 ? 0.6f : 1.5f;
             firstMaskPixels[offset + 3] =
-                static_cast<float>((x + y) % 5) / 4.0f;
+                static_cast<float>((x + y) % 5) * 0.5f - 0.5f;
             secondMaskPixels[offset + 3] =
-                static_cast<float>((x * 2 + y) % 7) / 6.0f;
+                static_cast<float>((x * 2 + y) % 7) * 0.25f - 0.25f;
         }
     }
     ImageF32x4_RGBA image;
@@ -703,8 +703,8 @@ TEST(LofiEffectContractTest,
     ASSERT_NE(masked, nullptr);
     for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
         const float combinedAlpha = 0.8f * 0.5f *
-            firstMaskPixels[pixel * 4 + 3] *
-            secondMaskPixels[pixel * 4 + 3];
+            std::clamp(firstMaskPixels[pixel * 4 + 3], 0.0f, 1.0f) *
+            std::clamp(secondMaskPixels[pixel * 4 + 3], 0.0f, 1.0f);
         for (int channel = 0; channel < 4; ++channel) {
             const std::size_t offset =
                 pixel * 4 + static_cast<std::size_t>(channel);
