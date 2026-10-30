@@ -189,7 +189,8 @@ TEST(LofiEffectContractTest,
             pixels[offset + 0] = 0.1f + 0.003f * x + 0.0002f * y;
             pixels[offset + 1] = 0.2f + 0.004f * x + 0.0003f * y;
             pixels[offset + 2] = 0.3f + 0.005f * x + 0.0004f * y;
-            pixels[offset + 3] = 0.1f + 0.006f * x + 0.0005f * y;
+            pixels[offset + 3] =
+                x % 3 == 0 ? -0.5f : x % 3 == 1 ? 0.4f : 1.5f;
         }
     }
     ImageF32x4_RGBA image;
