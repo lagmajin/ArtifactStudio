@@ -1578,6 +1578,16 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactVideoMuxFailureRetentionIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactAudioLayerRenderIntegrationTest>
+            "--gtest_filter=AudioLayerRenderIntegrationTest.RendersSynchronizedVideoAndAudioLayersIntoMuxedMp4"
+    )
+    set_tests_properties(ArtifactVideoMuxFailureRetentionIntegrationTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=${_artifact_audio_test_qpa_platform}"
+        LABELS "video;encoder;mux;failure-retention;render-queue;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
 
     # Production Image/Solid layers with fracture.* enabled, rendered through
     # the headless offscreen viewport path (OffscreenCompositionRenderer +
