@@ -8576,3 +8576,9 @@
 - **確認できた事実:** Core の Glitch は `Amount` と `RGBSplit` を `process()` 内で読み取る。`BlockNoise` はクラス内 accessor と初期値付き parameter として宣言されるが、処理本体から呼ばれていない。
 - **価値または懸念:** UI／プリセットから Block Noise を変更しても画素へ反映されない可能性が高い。現状のテストは RGBSplit の色チャンネル順を追加し、BlockNoise の動作を保証していない。変更は子リポジトリ ArtifactCore に属するため、この作業では実装を変更していない。
 - **次に確認すべきこと:** BlockNoise の期待する空間パターンと Amount との合成仕様を定義し、子リポジトリの実装変更が明示的に許可された後、同じ固定入力・時刻で BlockNoise 0 と正値の画素差、および再現性・Alpha保持を契約化する。現状はコード読解のみで未実行。
+
+## 2026-10-30: 派生Raster Effectの無効化経路を確認する
+- **関連:** `Artifact/src/Effects/ArtifactAbstractEffect.cpp::applyCPUOnly/applyConfigured/apply`、`Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactOldTVEffect::apply/ArtifactFilmGrungeEffect::apply`、`tests/Artifact/LofiEffectContractTest.cpp::DisabledOldTvIsAnExactPassthrough`。
+- **確認できた事実:** `applyCPUOnly()` は `applyConfigured()` を呼び、後者は仮想 `apply()` を呼ぶ。`ArtifactAbstractEffect::apply()` には`enabled`判定がある一方、Old TV と FilmGrunge のoverride本体には同判定がない。既存Old TVテストは無効時の完全パススルーを期待している。コード経路の静的確認のみで、テスト実行はしていない。
+- **価値または懸念:** 無効状態の派生効果が共通API経由でも処理を通る可能性があり、既存Old TV契約と食い違う疑いがある。実行禁止のため現時点では実動作の断定はしない。修正する場合は Artifact 子リポジトリの変更が必要であり、この作業では触れていない。
+- **次に確認すべきこと:** 明示的なテスト実行許可後に `DisabledOldTvIsAnExactPassthrough` を実行して経路を確定する。失敗した場合は、共通適用層で無効状態を処理するか各overrideで扱うかを設計確認し、FilmGrungeも含む独立契約を整える。
