@@ -2423,6 +2423,28 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 90
         RUN_SERIAL TRUE
     )
+    foreach(_writer_format IN ITEMS Gameface NoesisXaml RmlUi UnityUxml Lottie)
+        add_test(NAME ArtifactExportShape${_writer_format}SchemaContractTest
+            COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+                "--gtest_filter=ExportWriterContractTest.SingleShapeLayerProduces${_writer_format}Schema"
+        )
+        set_tests_properties(ArtifactExportShape${_writer_format}SchemaContractTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+            LABELS "export;schema;shape;${_writer_format};contract;cpu"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactExportImage${_writer_format}SchemaContractTest
+            COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+                "--gtest_filter=ExportWriterContractTest.SingleImageLayerProduces${_writer_format}Schema"
+        )
+        set_tests_properties(ArtifactExportImage${_writer_format}SchemaContractTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+            LABELS "export;schema;image;assets;${_writer_format};contract;cpu"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
+    endforeach()
     add_test(NAME ArtifactExportWriterInputValidationContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
             "--gtest_filter=ExportWriterContractTest.WritersRejectMissingCompositionBeforeTouchingOutputs"

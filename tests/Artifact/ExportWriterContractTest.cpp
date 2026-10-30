@@ -1164,6 +1164,196 @@ TEST(ExportWriterContractTest, SingleTextLayerProducesLottieSchema)
     expectSingleTextWriterSchema(QStringLiteral("Lottie"));
 }
 
+void expectSingleShapeOrImageWriterSchema(const QString& writerName,
+                                          const bool imageLayer)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("SingleLayerWriterSchemaContractTest"),
+                           true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    QString sourcePath;
+    QByteArray sourceBytes;
+    if (imageLayer) {
+        sourcePath = QDir(temporary.path()).filePath(
+            QStringLiteral("source/only-image.png"));
+        ASSERT_TRUE(QDir().mkpath(QFileInfo(sourcePath).absolutePath()));
+        QImage sourceImage(3, 2, QImage::Format_RGBA8888);
+        sourceImage.fill(QColor(40, 120, 220, 255));
+        ASSERT_TRUE(sourceImage.save(sourcePath, "PNG"));
+        sourceBytes = readFileBytes(sourcePath);
+    }
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        imageLayer ? QStringLiteral("SingleImageContract")
+                   : QStringLiteral("SingleShapeContract")));
+    compositionParams.setResolution(64, 36);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(12);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    if (imageLayer) {
+        Artifact::ArtifactImageInitParams imageParams(QStringLiteral("OnlyImage"));
+        imageParams.setImagePath(sourcePath);
+        ASSERT_TRUE(projects.addLayerToComposition(
+            composition.id, imageParams).success);
+    } else {
+        Artifact::ArtifactLayerInitParams shapeParams(
+            QStringLiteral("OnlyShape"), Artifact::LayerType::Shape);
+        const auto shapeResult = projects.addLayerToComposition(
+            composition.id, shapeParams);
+        ASSERT_TRUE(shapeResult.success);
+        auto* shapeLayer = dynamic_cast<Artifact::ArtifactShapeLayer*>(
+            shapeResult.layer.get());
+        ASSERT_NE(shapeLayer, nullptr);
+        shapeLayer->setSize(23, 11);
+        shapeLayer->setFillColor(
+            ArtifactCore::FloatColor(0.25f, 0.5f, 0.75f, 1.0f));
+    }
+
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+    Artifact::ArtifactExportSession session(compositionPtr);
+    QString error;
+    ASSERT_TRUE(session.build(&error)) << error.toStdString();
+    ASSERT_EQ(session.snapshot().layers.size(), 1);
+    EXPECT_EQ(session.snapshot().layers.front().name,
+              imageLayer ? QStringLiteral("OnlyImage")
+                         : QStringLiteral("OnlyShape"));
+    if (imageLayer) {
+        ASSERT_EQ(session.snapshot().assets.size(), 1);
+    } else {
+        EXPECT_TRUE(session.snapshot().assets.isEmpty());
+    }
+    const QString relativeAssetPath = imageLayer
+        ? session.snapshot().assets.front().relativePath
+        : QString();
+
+    const QString root = temporary.path();
+    const QString output = QDir(root).filePath(writerName);
+    bool writeSucceeded = false;
+    if (writerName == QStringLiteral("Gameface")) {
+        writeSucceeded = Artifact::ArtifactExportGamefaceWriter::write(
+            compositionPtr, output, {}, &error);
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        writeSucceeded = Artifact::ArtifactExportNoesisXamlWriter::write(
+            compositionPtr, output, {}, &error);
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        writeSucceeded = Artifact::ArtifactExportRmlUiWriter::write(
+            compositionPtr, output, {}, &error);
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        writeSucceeded = Artifact::ArtifactExportUnityUxmlWriter::write(
+            compositionPtr, output, {}, &error);
+    } else if (writerName == QStringLiteral("Lottie")) {
+        Artifact::ArtifactLottieExportOptions options;
+        options.embedImages = false;
+        writeSucceeded = Artifact::ArtifactExportLottieWriter::write(
+            compositionPtr, QDir(root).filePath(QStringLiteral("animation.json")),
+            options, &error);
+    } else {
+        FAIL() << "unknown writer: " << writerName.toStdString();
+        return;
+    }
+    ASSERT_TRUE(writeSucceeded) << error.toStdString();
+
+    if (writerName == QStringLiteral("Gameface")) {
+        const QString markup = readTextFile(
+            QDir(output).filePath(QStringLiteral("index.html")));
+        EXPECT_EQ(markup.count(QStringLiteral("class=\"layer ")), 1);
+        EXPECT_TRUE(markup.contains(imageLayer
+            ? relativeAssetPath
+            : QStringLiteral("width:23px;height:11px;")));
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        const QString path = QDir(output).filePath(QStringLiteral("composition.xaml"));
+        ASSERT_TRUE(isWellFormedXml(path));
+        const QString markup = readTextFile(path);
+        EXPECT_EQ(markup.count(imageLayer ? QStringLiteral("<Image ")
+                                          : QStringLiteral("<Rectangle ")), 1);
+        EXPECT_TRUE(markup.contains(imageLayer
+            ? relativeAssetPath
+            : QStringLiteral("Width=\"23\" Height=\"11\"")));
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        const QString path = QDir(output).filePath(QStringLiteral("composition.rml"));
+        ASSERT_TRUE(isWellFormedXml(path));
+        const QString markup = readTextFile(path);
+        EXPECT_EQ(markup.count(imageLayer ? QStringLiteral("<img ")
+                                          : QStringLiteral("class=\"layer_0\"")), 1);
+        if (imageLayer) EXPECT_TRUE(markup.contains(relativeAssetPath));
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        const QString path = QDir(output).filePath(QStringLiteral("composition.uxml"));
+        ASSERT_TRUE(isWellFormedXml(path));
+        const QString markup = readTextFile(path);
+        EXPECT_EQ(markup.count(imageLayer
+            ? QStringLiteral("<ui:VisualElement ")
+            : QStringLiteral("class=\"layer")), 1);
+        if (imageLayer) {
+            EXPECT_TRUE(readTextFile(QDir(output).filePath(
+                QStringLiteral("composition.uss"))).contains(relativeAssetPath));
+        }
+    } else {
+        const QString path = QDir(root).filePath(QStringLiteral("animation.json"));
+        const QJsonDocument document = QJsonDocument::fromJson(readFileBytes(path));
+        ASSERT_TRUE(document.isObject());
+        const QJsonObject rootObject = document.object();
+        const QJsonArray layers = rootObject.value(QStringLiteral("layers")).toArray();
+        ASSERT_EQ(layers.size(), 1);
+        const QJsonObject layer = layers.front().toObject();
+        EXPECT_EQ(layer.value(QStringLiteral("nm")).toString(),
+                  imageLayer ? QStringLiteral("OnlyImage")
+                             : QStringLiteral("OnlyShape"));
+        EXPECT_EQ(layer.value(QStringLiteral("ty")).toInt(), imageLayer ? 2 : 4);
+        if (imageLayer) {
+            const QString assetId = layer.value(QStringLiteral("refId")).toString();
+            ASSERT_FALSE(assetId.isEmpty());
+            const QJsonArray assets = rootObject.value(QStringLiteral("assets")).toArray();
+            ASSERT_EQ(assets.size(), 1);
+            const QJsonObject asset = assets.front().toObject();
+            EXPECT_EQ(asset.value(QStringLiteral("id")).toString(), assetId);
+            const QString copiedPath = QDir(root).filePath(
+                QStringLiteral("assets/") + asset.value(QStringLiteral("p")).toString());
+            EXPECT_EQ(readFileBytes(copiedPath), sourceBytes);
+        } else {
+            EXPECT_FALSE(layer.value(QStringLiteral("shapes")).toArray().isEmpty());
+        }
+    }
+
+    if (imageLayer && writerName != QStringLiteral("Lottie")) {
+        const QString copiedPath = QDir(output).filePath(relativeAssetPath);
+        ASSERT_TRUE(QFileInfo::exists(copiedPath));
+        EXPECT_EQ(readFileBytes(copiedPath), sourceBytes);
+    }
+}
+
+#define ARTIFACT_SINGLE_LAYER_WRITER_TEST(LayerName, WriterName, IsImage) \
+    TEST(ExportWriterContractTest, Single##LayerName##LayerProduces##WriterName##Schema) \
+    { \
+        expectSingleShapeOrImageWriterSchema(QStringLiteral(#WriterName), IsImage); \
+    }
+
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, Gameface, false)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, NoesisXaml, false)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, RmlUi, false)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, UnityUxml, false)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, Lottie, false)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, Gameface, true)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, NoesisXaml, true)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, RmlUi, true)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, UnityUxml, true)
+ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, Lottie, true)
+
+#undef ARTIFACT_SINGLE_LAYER_WRITER_TEST
+
 TEST(ExportWriterContractTest, SingleShapeLayerProducesMinimalWriterSchemas)
 {
     QTemporaryDir temporary;
