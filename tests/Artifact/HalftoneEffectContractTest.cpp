@@ -172,6 +172,49 @@ TEST(HalftoneEffectContractTest,
 }
 
 TEST(HalftoneEffectContractTest,
+     CreativeHalftoneInPlaceMatchesOutOfPlaceWithoutChangingSource)
+{
+    constexpr int width = 11;
+    constexpr int height = 13;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            const float value = static_cast<float>((x * 5 + y * 3) % 17) / 16.0f;
+            pixels[offset] = value;
+            pixels[offset + 1] = value * 0.8f;
+            pixels[offset + 2] = value * 0.6f;
+            pixels[offset + 3] = static_cast<float>((x + y) % 7) / 6.0f;
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache inPlace(image);
+    ArtifactCore::ImageF32x4RGBAWithCache outOfPlace;
+    Artifact::ArtifactHalftoneEffect effect;
+    effect.setComputeMode(Artifact::ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, outOfPlace);
+    effect.applyCPUOnly(inPlace, inPlace);
+
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* inPlacePixels = inPlace.image().rgba32fData();
+    const float* outOfPlacePixels = outOfPlace.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(inPlacePixels, nullptr);
+    ASSERT_NE(outOfPlacePixels, nullptr);
+    EXPECT_NE(inPlacePixels, sourcePixels);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(sourcePixels[channel], pixels[channel])
+            << "source channel=" << channel;
+        EXPECT_FLOAT_EQ(inPlacePixels[channel], outOfPlacePixels[channel])
+            << "output channel=" << channel;
+    }
+}
+
+TEST(HalftoneEffectContractTest,
      CreativeHalftoneEmptyInputReplacesPreviouslyPopulatedOutput)
 {
     const ArtifactCore::ImageF32x4RGBAWithCache source;
