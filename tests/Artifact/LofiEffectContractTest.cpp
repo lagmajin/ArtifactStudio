@@ -1125,6 +1125,35 @@ TEST(LofiEffectContractTest,
     EXPECT_EQ(mediumFrame12, repeatedMediumFrame12)
         << "Medium detail output must be deterministic at a fixed frame";
 
+    for (const QImage::Format format : {
+             QImage::Format_ARGB32,
+             QImage::Format_ARGB32_Premultiplied,
+             QImage::Format_RGB32}) {
+        SCOPED_TRACE(static_cast<int>(format));
+        const QImage formattedSource = source.convertToFormat(format);
+        ASSERT_EQ(formattedSource.format(), format);
+        const auto renderFormattedFrame = [&]() {
+            composition->goToFrame(12);
+            QImage output = formattedSource;
+            EXPECT_TRUE(applyCompositionFinalEffectsToImage(
+                composition.get(), output, DetailLevel::High));
+            EXPECT_EQ(output.size(), QSize(width, height));
+            return output;
+        };
+        const QImage formattedOutput = renderFormattedFrame();
+        const QImage repeatedFormattedOutput = renderFormattedFrame();
+        EXPECT_EQ(formattedOutput, repeatedFormattedOutput)
+            << "QImage format must retain fixed-frame determinism";
+        if (format == QImage::Format_RGB32) {
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    EXPECT_EQ(qAlpha(formattedOutput.pixel(x, y)), 255)
+                        << "opaque input acquired alpha at x=" << x << " y=" << y;
+                }
+            }
+        }
+    }
+
     effect->setEnabled(false);
     QImage disabledOutput = source;
     EXPECT_FALSE(applyCompositionFinalEffectsToImage(
