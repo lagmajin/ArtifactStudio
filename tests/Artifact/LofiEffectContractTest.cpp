@@ -2707,7 +2707,7 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
-     FilmGrungeAnimatesDustAmountAgainstFixedFrameOutput)
+     FilmGrungeAnimatesDustWithFixedColorTransforms)
 {
     constexpr int width = 128;
     constexpr int height = 96;
@@ -2726,10 +2726,13 @@ TEST(LofiEffectContractTest,
 
     ArtifactFilmGrungeEffect animatedEffect;
     animatedEffect.setComputeMode(ComputeMode::CPU);
-    for (const char* property : {"grainAmount", "scratchAmount", "flicker",
-                                 "gateWeave", "vignette", "stain"}) {
+    for (const char* property : {"scratchAmount", "flicker", "gateWeave"}) {
         animatedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
     }
+    animatedEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    animatedEffect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    animatedEffect.setPropertyValue(UniString("vignette"), QVariant(0.2f));
+    animatedEffect.setPropertyValue(UniString("stain"), QVariant(0.15f));
     auto* dust = animatedEffect.editableProperty(QStringLiteral("dustAmount"));
     ASSERT_NE(dust, nullptr);
     dust->addKeyFrame(RationalTime(0, 30), 0.0);
@@ -2743,18 +2746,27 @@ TEST(LofiEffectContractTest,
 
     ArtifactFilmGrungeEffect fixedEffect;
     fixedEffect.setComputeMode(ComputeMode::CPU);
-    for (const char* property : {"grainAmount", "scratchAmount", "flicker",
-                                 "gateWeave", "vignette", "stain"}) {
+    for (const char* property : {"scratchAmount", "flicker", "gateWeave"}) {
         fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
     }
-    fixedEffect.setPropertyValue(UniString("dustAmount"), QVariant(0.5f));
+    fixedEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    fixedEffect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    fixedEffect.setPropertyValue(UniString("vignette"), QVariant(0.2f));
+    fixedEffect.setPropertyValue(UniString("stain"), QVariant(0.15f));
+    ImageF32x4RGBAWithCache noDustFrame;
+    fixedEffect.setPropertyValue(UniString("dustAmount"), QVariant(0.0f));
     fixedEffect.setContext(context);
+    fixedEffect.applyCPUOnly(source, noDustFrame);
+
+    fixedEffect.setPropertyValue(UniString("dustAmount"), QVariant(0.5f));
     ImageF32x4RGBAWithCache fixedFrame;
     fixedEffect.applyCPUOnly(source, fixedFrame);
 
     const float* animated = animatedFrame.image().rgba32fData();
+    const float* noDust = noDustFrame.image().rgba32fData();
     const float* fixed = fixedFrame.image().rgba32fData();
     ASSERT_NE(animated, nullptr);
+    ASSERT_NE(noDust, nullptr);
     ASSERT_NE(fixed, nullptr);
     std::size_t changedPixels = 0;
     for (std::size_t pixel = 0;
@@ -2764,14 +2776,17 @@ TEST(LofiEffectContractTest,
             EXPECT_FLOAT_EQ(animated[offset + channel], fixed[offset + channel])
                 << "pixel=" << pixel << " channel=" << channel;
         }
-        EXPECT_FLOAT_EQ(animated[offset], animated[offset + 1])
-            << "pixel=" << pixel << " R-G";
-        EXPECT_FLOAT_EQ(animated[offset + 1], animated[offset + 2])
-            << "pixel=" << pixel << " G-B";
+        const float redDelta = animated[offset] - noDust[offset];
+        const float greenDelta = animated[offset + 1] - noDust[offset + 1];
+        const float blueDelta = animated[offset + 2] - noDust[offset + 2];
+        EXPECT_NEAR(redDelta, greenDelta, 1.0e-6f)
+            << "dust delta should be shared by RGB at pixel=" << pixel;
+        EXPECT_NEAR(greenDelta, blueDelta, 1.0e-6f)
+            << "dust delta should be shared by RGB at pixel=" << pixel;
         EXPECT_FLOAT_EQ(animated[offset + 3], alpha) << "pixel=" << pixel;
-        if (animated[offset + 1] != 0.5f) {
+        if (greenDelta < -1.0e-6f) {
             ++changedPixels;
-            EXPECT_LT(animated[offset + 1], 0.5f)
+            EXPECT_LT(animated[offset + 1], noDust[offset + 1])
                 << "dust should darken pixels";
         }
     }
