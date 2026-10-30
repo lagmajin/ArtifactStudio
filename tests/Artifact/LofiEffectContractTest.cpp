@@ -3281,6 +3281,57 @@ TEST(LofiEffectContractTest, OldTvEffectRegionCompositesOnlyInsidePixelBounds)
     }
 }
 
+TEST(LofiEffectContractTest, OldTvCombinesMixRegionAndPrimaryMaskCoverage)
+{
+    const auto source = makePatternSurface();
+    ImageF32x4RGBAWithCache fullEffect;
+    ImageF32x4RGBAWithCache combinedEffect;
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, fullEffect);
+
+    const QRectF region(2.0, 2.0, 4.0, 4.0);
+    constexpr std::array<float, 4> maskPixel{0.0f, 0.0f, 0.0f, 0.5f};
+    auto mask = makeShared<ImageF32x4_RGBA>();
+    mask->setFromRGBA32F(maskPixel.data(), 1, 1);
+    effect.setMix(0.6f);
+    effect.setEffectRegion(region);
+    effect.setMaskImage(mask);
+    effect.setMaskEnabled(true);
+    effect.applyCPUOnly(source, combinedEffect);
+
+    const float* original = source.image().rgba32fData();
+    const float* full = fullEffect.image().rgba32fData();
+    const float* combined = combinedEffect.image().rgba32fData();
+    ASSERT_NE(original, nullptr);
+    ASSERT_NE(full, nullptr);
+    ASSERT_NE(combined, nullptr);
+    bool observedEffectInsideCoverage = false;
+    for (int y = 0; y < source.height(); ++y) {
+        for (int x = 0; x < source.width(); ++x) {
+            const bool inside = region.contains(QPointF(x + 0.5, y + 0.5));
+            constexpr float coverageInside = 0.6f * 0.5f;
+            const float coverage = inside ? coverageInside : 0.0f;
+            const std::size_t offset =
+                static_cast<std::size_t>((y * source.width() + x) * 4);
+            for (int channel = 0; channel < 4; ++channel) {
+                if (inside && channel < 3) {
+                    observedEffectInsideCoverage =
+                        observedEffectInsideCoverage ||
+                        std::abs(full[offset + channel] -
+                                 original[offset + channel]) > 1.0e-5f;
+                }
+                EXPECT_NEAR(combined[offset + channel],
+                            original[offset + channel] * (1.0f - coverage) +
+                                full[offset + channel] * coverage,
+                            1.0e-6f)
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+            }
+        }
+    }
+    EXPECT_TRUE(observedEffectInsideCoverage);
+}
+
 TEST(LofiEffectContractTest, OldTvEffectRegionClipsToImageBounds)
 {
     constexpr int width = 5;
