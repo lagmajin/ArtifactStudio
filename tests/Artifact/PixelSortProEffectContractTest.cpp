@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <QString>
 #include <QVariant>
 
 import Artifact.Effect.Abstract;
@@ -120,6 +121,34 @@ TEST(PixelSortProEffectContractTest, HueKeyModeSortsAnEligibleRunByColorHue)
         EXPECT_FLOAT_EQ(actual.b(), expected[2]) << "x=" << x;
         EXPECT_FLOAT_EQ(actual.a(), pixels[static_cast<std::size_t>(x) * 4 + 3])
             << "x=" << x;
+    }
+}
+
+TEST(PixelSortProEffectContractTest,
+     PublishedPropertiesClampValuesAndKeepThresholdsOrdered)
+{
+    Artifact::PixelSortProEffect effect;
+    setSortProperty(effect, "angle", 999.0f);
+    setSortProperty(effect, "maxSegment", 1.0f);
+    setSortProperty(effect, "lowThreshold", 3.5f);
+    setSortProperty(effect, "highThreshold", 2.0f);
+    setSortProperty(effect, "keyMode", -1.0f);
+    setSortProperty(effect, "descending", 1.5f);
+    setSortProperty(effect, "edgeProtection", -1.0f);
+    setSortProperty(effect, "mix", 2.0f);
+
+    const auto properties = effect.getProperties();
+    ASSERT_EQ(properties.size(), 8u);
+    constexpr std::array<const char*, 8> expectedNames{
+        "angle", "maxSegment", "lowThreshold", "highThreshold",
+        "keyMode", "descending", "edgeProtection", "mix"};
+    constexpr std::array<float, 8> expectedValues{
+        180.0f, 2.0f, 3.5f, 3.5f, 0.0f, 1.0f, 0.0f, 1.0f};
+    for (std::size_t index = 0; index < properties.size(); ++index) {
+        EXPECT_EQ(properties[index].name(), QString::fromLatin1(expectedNames[index]))
+            << "property=" << index;
+        EXPECT_FLOAT_EQ(properties[index].getValue().toFloat(), expectedValues[index])
+            << "property=" << expectedNames[index];
     }
 }
 
