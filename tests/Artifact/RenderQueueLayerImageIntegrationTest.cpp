@@ -55,6 +55,8 @@ import Artifact.Layers.SolidImage;
 import Artifact.Layer.Text;
 import Artifact.Generator.Particle;
 import Artifact.Project.Manager;
+import Artifact.Effect.Abstract;
+import Artifact.Effect.Creative;
 import Artifact.Render.IRenderer;
 import Artifact.Render.DiligentDeviceManager;
 import Artifact.Render.OffscreenComposition;
@@ -2322,6 +2324,102 @@ TEST(RenderQueueLayerImageIntegrationTest,
     EXPECT_EQ(queue->tileSize(), 64);
     queue->setTileSize(-128);
     EXPECT_EQ(queue->tileSize(), 64);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     OldTvGenericGpuNodeChangesPixelsAndPreservesOpaqueAlpha)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 128;
+    constexpr int height = 80;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueOldTvGpuTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("OldTvGpu")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(2);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.1f, 0.2f, 0.3f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("OldTvGpuLayer"));
+    layerParams.setWidth(width);
+    layerParams.setHeight(height);
+    layerParams.setColor(ArtifactCore::FloatColor(
+        0.72f, 0.48f, 0.26f, 1.0f));
+    const auto layer = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(layer.success);
+
+    const QString baselinePath = isolatedOutputPath(
+        QStringLiteral("render_queue_old_tv_gpu_baseline.png"));
+    const QString effectedPath = isolatedOutputPath(
+        QStringLiteral("render_queue_old_tv_gpu_effect.png"));
+    QString failure;
+    const auto validImage = [](const QImage& image) {
+        return !image.isNull();
+    };
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("OldTvGpu"), baselinePath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+
+    auto oldTv = ArtifactCore::makeShared<Artifact::ArtifactOldTVEffect>();
+    ASSERT_NE(oldTv, nullptr);
+    oldTv->setComputeMode(Artifact::ComputeMode::GPU);
+    ASSERT_TRUE(oldTv->supportsGPU());
+    layer.layer->addEffect(oldTv);
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("OldTvGpu"), effectedPath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+
+    const auto framePath = [](const QString& basePath) {
+        const QFileInfo info(basePath);
+        return QDir(info.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(info.completeBaseName())
+                .arg(0, 4, 10, QLatin1Char('0')));
+    };
+    const QImage baseline(framePath(baselinePath));
+    const QImage effected(framePath(effectedPath));
+    ASSERT_EQ(baseline.size(), QSize(width, height));
+    ASSERT_EQ(effected.size(), QSize(width, height));
+    EXPECT_NE(effected, baseline)
+        << "Old TV generic GPU dispatch must affect rendered RGB pixels";
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            EXPECT_EQ(effected.pixelColor(x, y).alpha(),
+                      baseline.pixelColor(x, y).alpha())
+                << "GPU Old TV must preserve alpha at " << x << "," << y;
+        }
+    }
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
