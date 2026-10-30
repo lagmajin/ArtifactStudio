@@ -1154,6 +1154,43 @@ TEST(LofiEffectContractTest,
         }
     }
 
+    // The public image path normalizes every processed frame to RGBA8888
+    // straight alpha. With the effect stack present but visually neutral,
+    // equivalent straight and premultiplied inputs must decode to the same
+    // visible pixels instead of darkening the semi-transparent edge.
+    auto neutralEffect = makeShared<ArtifactFilmGrungeEffect>();
+    ASSERT_TRUE(neutralEffect);
+    neutralEffect->setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "gateWeave", "vignette", "stain"}) {
+        neutralEffect->setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    composition->addEffect(neutralEffect);
+    QImage alphaEdge(2, 1, QImage::Format_RGBA8888);
+    alphaEdge.setPixelColor(0, 0, QColor(220, 120, 40, 128));
+    alphaEdge.setPixelColor(1, 0, QColor(30, 180, 240, 64));
+    const QImage straightAlphaEdge = alphaEdge.convertToFormat(QImage::Format_ARGB32);
+    const QImage premultipliedAlphaEdge =
+        alphaEdge.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    ASSERT_EQ(straightAlphaEdge.format(), QImage::Format_ARGB32);
+    ASSERT_EQ(premultipliedAlphaEdge.format(),
+              QImage::Format_ARGB32_Premultiplied);
+    ASSERT_NE(straightAlphaEdge.pixel(0, 0), premultipliedAlphaEdge.pixel(0, 0))
+        << "fixture must contain premultiplied channel storage";
+    composition->goToFrame(12);
+    QImage straightAlphaOutput = straightAlphaEdge;
+    QImage premultipliedAlphaOutput = premultipliedAlphaEdge;
+    ASSERT_TRUE(applyCompositionFinalEffectsToImage(
+        composition.get(), straightAlphaOutput, DetailLevel::High));
+    ASSERT_TRUE(applyCompositionFinalEffectsToImage(
+        composition.get(), premultipliedAlphaOutput, DetailLevel::High));
+    EXPECT_EQ(straightAlphaOutput.format(), QImage::Format_RGBA8888);
+    EXPECT_EQ(premultipliedAlphaOutput.format(), QImage::Format_RGBA8888);
+    EXPECT_EQ(straightAlphaOutput, premultipliedAlphaOutput)
+        << "premultiplied storage must decode to the same straight-alpha image";
+    EXPECT_EQ(straightAlphaOutput.pixelColor(0, 0), QColor(220, 120, 40, 128));
+    EXPECT_EQ(straightAlphaOutput.pixelColor(1, 0), QColor(30, 180, 240, 64));
+
     effect->setEnabled(false);
     QImage disabledOutput = source;
     EXPECT_FALSE(applyCompositionFinalEffectsToImage(
