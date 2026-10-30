@@ -1390,6 +1390,33 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactDepthOfFieldPassContractTest
+        COMMAND $<TARGET_FILE:ArtifactPostProcessPassContractTest>
+            "--gtest_filter=PostProcessPassGpuContractTest.DepthOfField*"
+    )
+    set_tests_properties(ArtifactDepthOfFieldPassContractTest PROPERTIES
+        LABELS "renderer;gpu;postprocess;dof;headless;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactMotionBlurPassContractTest
+        COMMAND $<TARGET_FILE:ArtifactPostProcessPassContractTest>
+            "--gtest_filter=PostProcessPassGpuContractTest.MotionBlur*"
+    )
+    set_tests_properties(ArtifactMotionBlurPassContractTest PROPERTIES
+        LABELS "renderer;gpu;postprocess;motion-blur;headless;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactFinalPostProcessContractTest
+        COMMAND $<TARGET_FILE:ArtifactPostProcessPassContractTest>
+            "--gtest_filter=FinalPostProcessContractTest.*:PostProcessPassGpuContractTest.*Lut*"
+    )
+    set_tests_properties(ArtifactFinalPostProcessContractTest PROPERTIES
+        LABELS "renderer;gpu;postprocess;final-effects;headless;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
 endif()
 
 if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
