@@ -911,6 +911,14 @@ set_tests_properties(ArtifactCoreFFmpegEncoderAvailabilityContractTest PROPERTIE
     LABELS "video;encoder;ffmpeg;availability;cpu;contract"
     TIMEOUT 60
 )
+add_test(NAME ArtifactCoreHardwareEncoderFallbackContractTest
+    COMMAND $<TARGET_FILE:ArtifactCoreFFmpegEncoderAvailabilityContractTest>
+        "--gtest_filter=FFmpegEncoderAvailabilityContractTest.MissingPreferredHardwareEncoderFallsBackToSoftwareCodec"
+)
+set_tests_properties(ArtifactCoreHardwareEncoderFallbackContractTest PROPERTIES
+    LABELS "video;encoder;hardware-fallback;cpu;contract"
+    TIMEOUT 60
+)
 
 artifact_add_test(ArtifactCoreDiagnosticsContractTest
     SOURCES
