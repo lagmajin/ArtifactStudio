@@ -1947,6 +1947,61 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeScratchOnSingleColumnStaysInBoundsAndPreservesAlpha)
+{
+    constexpr int width = 1;
+    constexpr int height = 13;
+    constexpr float alpha = 0.55f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.6f;
+        pixels[pixel * 4 + 1] = 0.6f;
+        pixels[pixel * 4 + 2] = 0.6f;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("scratchAmount"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("dustAmount"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(947));
+    EffectContext context;
+    context.compositionFrame = 6;
+    effect.setContext(context);
+
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_EQ(output.image().width(), width);
+    EXPECT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    bool observedScratch = false;
+    for (int y = 0; y < height; ++y) {
+        const std::size_t offset = static_cast<std::size_t>(y) * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_TRUE(std::isfinite(result[offset + channel]))
+                << "y=" << y << " channel=" << channel;
+            EXPECT_GE(result[offset + channel], pixels[offset + channel])
+                << "scratch damage brightens narrow input";
+            observedScratch = observedScratch ||
+                result[offset + channel] > pixels[offset + channel];
+        }
+        EXPECT_FLOAT_EQ(result[offset + 3], alpha) << "y=" << y;
+    }
+    EXPECT_TRUE(observedScratch)
+        << "the one generated scratch column is clipped onto the image column";
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeAnimatesScratchAmountAgainstFixedFrameOutput)
 {
     constexpr int width = 72;
