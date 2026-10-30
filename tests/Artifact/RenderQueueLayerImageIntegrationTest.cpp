@@ -390,7 +390,16 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                        QStringLiteral("Velocity.X"),
                        QStringLiteral("Velocity.Y"),
                        QStringLiteral("ObjectId"),
-                       QStringLiteral("MaterialId")});
+                       QStringLiteral("MaterialId"),
+                       QStringLiteral("Albedo.R"),
+                       QStringLiteral("Albedo.G"),
+                       QStringLiteral("Albedo.B"),
+                       QStringLiteral("Emission"),
+                       QStringLiteral("Position.X"),
+                       QStringLiteral("Position.Y"),
+                       QStringLiteral("Position.Z"),
+                       QStringLiteral("UV.U"),
+                       QStringLiteral("UV.V")});
     }
     queue->setJobFrameRangeAt(jobIndex, frameStart, frameEnd);
     auto selectiveSettings = queue->jobSelectiveSettingsAt(jobIndex);
@@ -543,7 +552,9 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             for (const std::string& required : {
                      "R", "G", "B", "A", "Depth", "Normal.X", "Normal.Y",
                      "Normal.Z", "Velocity.X", "Velocity.Y", "ObjectId",
-                     "MaterialId"}) {
+                     "MaterialId", "Albedo.R", "Albedo.G", "Albedo.B",
+                     "Emission", "Position.X", "Position.Y", "Position.Z",
+                     "UV.U", "UV.V"}) {
                 if (!hasChannel(required)) {
                     *failure = QStringLiteral(
                         "Multi-channel EXR is missing requested AOV %1: %2")
@@ -726,10 +737,18 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             const int normalZIndex = channelIndex("Normal.Z");
             const int velocityXIndex = channelIndex("Velocity.X");
             const int velocityYIndex = channelIndex("Velocity.Y");
+            const int albedoRIndex = channelIndex("Albedo.R");
+            const int albedoGIndex = channelIndex("Albedo.G");
+            const int albedoBIndex = channelIndex("Albedo.B");
+            const int positionXIndex = channelIndex("Position.X");
+            const int positionYIndex = channelIndex("Position.Y");
+            const int positionZIndex = channelIndex("Position.Z");
             const int depthIndex = channelIndex("Depth");
             if (objectIdIndex < 0 || materialIdIndex < 0 || normalXIndex < 0 ||
                 normalYIndex < 0 || normalZIndex < 0 || depthIndex < 0 ||
-                velocityXIndex < 0 || velocityYIndex < 0) {
+                velocityXIndex < 0 || velocityYIndex < 0 || albedoRIndex < 0 ||
+                albedoGIndex < 0 || albedoBIndex < 0 || positionXIndex < 0 ||
+                positionYIndex < 0 || positionZIndex < 0) {
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue EXR was missing required 3D AOV channels: %1")
@@ -741,6 +760,8 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             bool hasNormalSample = false;
             bool hasDepthSample = false;
             bool hasVelocitySample = false;
+            bool hasAlbedoSample = false;
+            bool hasPositionSample = false;
             const float expectedObjectId = expectedObjectName.isEmpty()
                 ? 0.0f
                 : ArtifactCore::Image::Cryptomatte::CryptoSample::nameToFloat(
@@ -787,6 +808,27 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                     hasDepthSample = true;
                 }
                 if (expectedObjectPixel &&
+                    (pixels[pixelBase + static_cast<std::size_t>(albedoRIndex)] >
+                         1.0e-5f ||
+                     pixels[pixelBase + static_cast<std::size_t>(albedoGIndex)] >
+                         1.0e-5f ||
+                     pixels[pixelBase + static_cast<std::size_t>(albedoBIndex)] >
+                         1.0e-5f)) {
+                    hasAlbedoSample = true;
+                }
+                if (expectedObjectPixel &&
+                    (std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(positionXIndex)]) >
+                         1.0e-5f ||
+                     std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(positionYIndex)]) >
+                         1.0e-5f ||
+                     std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(positionZIndex)]) >
+                         1.0e-5f)) {
+                    hasPositionSample = true;
+                }
+                if (expectedObjectPixel &&
                     (std::abs(pixels[pixelBase +
                                      static_cast<std::size_t>(velocityXIndex)]) >
                          1.0e-6f ||
@@ -797,14 +839,15 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 }
             }
             if (!hasObjectIdSample || !hasMaterialIdSample || !hasNormalSample ||
-                !hasDepthSample ||
+                !hasDepthSample || !hasAlbedoSample || !hasPositionSample ||
                 (expectMotionVectors &&
                  ((frame > frameStart && !hasVelocitySample) ||
                   (frame == frameStart && hasVelocitySample)))) {
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue EXR did not contain non-clear 3D ObjectId, "
-                    "MaterialId, Normal, Depth, and expected Velocity samples: %1")
+                    "MaterialId, Normal, Depth, Albedo, Position, and expected "
+                    "Velocity samples: %1")
                                .arg(framePath);
                 return false;
             }
