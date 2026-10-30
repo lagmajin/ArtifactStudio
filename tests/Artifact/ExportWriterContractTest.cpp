@@ -1271,9 +1271,13 @@ void expectSingleShapeOrImageWriterSchema(const QString& writerName,
         const QString markup = readTextFile(
             QDir(output).filePath(QStringLiteral("index.html")));
         EXPECT_EQ(markup.count(QStringLiteral("class=\"layer ")), 1);
-        EXPECT_TRUE(markup.contains(imageLayer
-            ? relativeAssetPath
-            : QStringLiteral("width:23px;height:11px;")));
+        if (imageLayer) {
+            EXPECT_TRUE(markup.contains(relativeAssetPath));
+        } else {
+            EXPECT_TRUE(readTextFile(QDir(output).filePath(
+                QStringLiteral("styles.css"))).contains(
+                    QStringLiteral("width:23px;height:11px;")));
+        }
     } else if (writerName == QStringLiteral("NoesisXaml")) {
         const QString path = QDir(output).filePath(QStringLiteral("composition.xaml"));
         ASSERT_TRUE(isWellFormedXml(path));
@@ -1294,9 +1298,7 @@ void expectSingleShapeOrImageWriterSchema(const QString& writerName,
         const QString path = QDir(output).filePath(QStringLiteral("composition.uxml"));
         ASSERT_TRUE(isWellFormedXml(path));
         const QString markup = readTextFile(path);
-        EXPECT_EQ(markup.count(imageLayer
-            ? QStringLiteral("<ui:VisualElement ")
-            : QStringLiteral("class=\"layer")), 1);
+        EXPECT_EQ(markup.count(QStringLiteral("class=\"layer layer_0\"")), 1);
         if (imageLayer) {
             EXPECT_TRUE(readTextFile(QDir(output).filePath(
                 QStringLiteral("composition.uss"))).contains(relativeAssetPath));
@@ -1335,24 +1337,55 @@ void expectSingleShapeOrImageWriterSchema(const QString& writerName,
     }
 }
 
-#define ARTIFACT_SINGLE_LAYER_WRITER_TEST(LayerName, WriterName, IsImage) \
-    TEST(ExportWriterContractTest, Single##LayerName##LayerProduces##WriterName##Schema) \
-    { \
-        expectSingleShapeOrImageWriterSchema(QStringLiteral(#WriterName), IsImage); \
-    }
+TEST(ExportWriterContractTest, SingleShapeLayerProducesGamefaceSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("Gameface"), false);
+}
 
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, Gameface, false)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, NoesisXaml, false)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, RmlUi, false)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, UnityUxml, false)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Shape, Lottie, false)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, Gameface, true)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, NoesisXaml, true)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, RmlUi, true)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, UnityUxml, true)
-ARTIFACT_SINGLE_LAYER_WRITER_TEST(Image, Lottie, true)
+TEST(ExportWriterContractTest, SingleShapeLayerProducesNoesisXamlSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("NoesisXaml"), false);
+}
 
-#undef ARTIFACT_SINGLE_LAYER_WRITER_TEST
+TEST(ExportWriterContractTest, SingleShapeLayerProducesRmlUiSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("RmlUi"), false);
+}
+
+TEST(ExportWriterContractTest, SingleShapeLayerProducesUnityUxmlSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("UnityUxml"), false);
+}
+
+TEST(ExportWriterContractTest, SingleShapeLayerProducesLottieSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("Lottie"), false);
+}
+
+TEST(ExportWriterContractTest, SingleImageLayerProducesGamefaceSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("Gameface"), true);
+}
+
+TEST(ExportWriterContractTest, SingleImageLayerProducesNoesisXamlSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("NoesisXaml"), true);
+}
+
+TEST(ExportWriterContractTest, SingleImageLayerProducesRmlUiSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("RmlUi"), true);
+}
+
+TEST(ExportWriterContractTest, SingleImageLayerProducesUnityUxmlSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("UnityUxml"), true);
+}
+
+TEST(ExportWriterContractTest, SingleImageLayerProducesLottieSchema)
+{
+    expectSingleShapeOrImageWriterSchema(QStringLiteral("Lottie"), true);
+}
 
 TEST(ExportWriterContractTest, SingleShapeLayerProducesMinimalWriterSchemas)
 {
@@ -1421,7 +1454,8 @@ TEST(ExportWriterContractTest, SingleShapeLayerProducesMinimalWriterSchemas)
     const QString gamefaceHtml = readTextFile(
         QDir(gameface).filePath(QStringLiteral("index.html")));
     EXPECT_EQ(gamefaceHtml.count(QStringLiteral("class=\"layer ")), 1);
-    EXPECT_TRUE(gamefaceHtml.contains(QStringLiteral("width:23px;height:11px;")));
+    EXPECT_TRUE(readTextFile(QDir(gameface).filePath(QStringLiteral("styles.css")))
+                    .contains(QStringLiteral("width:23px;height:11px;")));
 
     const QString noesisPath = QDir(noesis).filePath(QStringLiteral("composition.xaml"));
     ASSERT_TRUE(isWellFormedXml(noesisPath));
@@ -1538,7 +1572,8 @@ TEST(ExportWriterContractTest, SingleImageLayerProducesMinimalWriterSchemas)
     const QString unityPath = QDir(unity).filePath(
         QStringLiteral("composition.uxml"));
     ASSERT_TRUE(isWellFormedXml(unityPath));
-    EXPECT_EQ(readTextFile(unityPath).count(QStringLiteral("<ui:VisualElement ")),
+    EXPECT_EQ(readTextFile(unityPath).count(
+                  QStringLiteral("class=\"layer layer_0\"")),
               1);
     const QString unityStyles = readTextFile(QDir(unity).filePath(
         QStringLiteral("composition.uss")));

@@ -2405,7 +2405,7 @@ if(ARTIFACT_BUILD_TESTS)
     )
     add_test(NAME ArtifactExportWriterShapeSchemaContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
-            "--gtest_filter=ExportWriterContractTest.SingleShapeLayerProducesMinimalWriterSchemas"
+            "--gtest_filter=ExportWriterContractTest.SingleShapeLayerProduces*"
     )
     set_tests_properties(ArtifactExportWriterShapeSchemaContractTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
@@ -2415,7 +2415,7 @@ if(ARTIFACT_BUILD_TESTS)
     )
     add_test(NAME ArtifactExportWriterImageSchemaContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
-            "--gtest_filter=ExportWriterContractTest.SingleImageLayerProducesMinimalWriterSchemas"
+            "--gtest_filter=ExportWriterContractTest.SingleImageLayerProduces*"
     )
     set_tests_properties(ArtifactExportWriterImageSchemaContractTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
