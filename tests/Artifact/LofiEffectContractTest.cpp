@@ -1531,6 +1531,61 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeGrainSizeClampsToItsMinimumAndMaximum)
+{
+    constexpr int width = 17;
+    constexpr int height = 10;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = 0.8f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    const auto renderWithGrainSize = [&source](const float grainSize) {
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setPropertyValue(UniString("grainAmount"), QVariant(0.35f));
+        effect.setPropertyValue(UniString("grainSize"), QVariant(grainSize));
+        effect.setPropertyValue(UniString("seed"), QVariant(419));
+        for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                     "gateWeave", "vignette", "stain"}) {
+            effect.setPropertyValue(UniString(property), QVariant(0.0f));
+        }
+        EffectContext context;
+        context.compositionFrame = 23;
+        effect.setContext(context);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+
+    const auto belowMinimum = renderWithGrainSize(-4.0f);
+    const auto minimum = renderWithGrainSize(1.0f);
+    const auto aboveMaximum = renderWithGrainSize(12.0f);
+    const auto maximum = renderWithGrainSize(8.0f);
+    const float* belowMinimumPixels = belowMinimum.image().rgba32fData();
+    const float* minimumPixels = minimum.image().rgba32fData();
+    const float* aboveMaximumPixels = aboveMaximum.image().rgba32fData();
+    const float* maximumPixels = maximum.image().rgba32fData();
+    ASSERT_NE(belowMinimumPixels, nullptr);
+    ASSERT_NE(minimumPixels, nullptr);
+    ASSERT_NE(aboveMaximumPixels, nullptr);
+    ASSERT_NE(maximumPixels, nullptr);
+    for (std::size_t channel = 0; channel < pixelCount * 4; ++channel) {
+        EXPECT_FLOAT_EQ(belowMinimumPixels[channel], minimumPixels[channel])
+            << "below-range grainSize should clamp to 1 at channel=" << channel;
+        EXPECT_FLOAT_EQ(aboveMaximumPixels[channel], maximumPixels[channel])
+            << "above-range grainSize should clamp to 8 at channel=" << channel;
+    }
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeGrainAmountScalesOutputAndClampsAtItsPropertyBounds)
 {
     constexpr int width = 16;
