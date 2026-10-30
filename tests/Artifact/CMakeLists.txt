@@ -1401,13 +1401,13 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_KEYING_EFFECT_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
-    artifact_add_test(ArtifactSpatialImageEffectContractTest
+    artifact_add_test(ArtifactApertureShapeBlurEffectContractTest
         SOURCES
-            SpatialImageEffectContractTest.cpp
+            ApertureShapeBlurEffectContractTest.cpp
         LIBS
             ArtifactEffectsBlur
     )
-    set_tests_properties(ArtifactSpatialImageEffectContractTest PROPERTIES
+    set_tests_properties(ArtifactApertureShapeBlurEffectContractTest PROPERTIES
         LABELS "effect;image-effect;cpu;contract;spatial"
     )
 endif()
@@ -2141,6 +2141,29 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     )
     set_tests_properties(ArtifactTextGlyphRenderContractTest PROPERTIES
         LABELS "animation;renderer;gpu;text;headless;contract"
+    )
+endif()
+
+# Exercise the production compute passes with a headless Vulkan device and
+# inspect their output textures without starting the application renderer.
+if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
+    artifact_add_test(ArtifactPostProcessPassContractTest
+        SOURCES
+            PostProcessPassContractTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    target_include_directories(ArtifactPostProcessPassContractTest PRIVATE
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngine/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngineVulkan/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Common/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Platforms/interface"
+        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
+    )
+    set_tests_properties(ArtifactPostProcessPassContractTest PROPERTIES
+        LABELS "renderer;gpu;postprocess;dof;motion-blur;headless;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
     )
 endif()
 

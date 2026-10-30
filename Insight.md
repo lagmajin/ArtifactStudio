@@ -6,11 +6,13 @@
 - **価値または懸念:** 縦分布はcurl強度に対して単調ではなく、frame 60では増、frame 95では減と符号が反転する。単一frameのupper-third shareをcurlの可否判定に使えないという2026-10-30の結論を実測で裏づけた。さらにframe 60のtop-third shareは0.03%程度で、ほぼ空の帯を測っている。standalone curl testのframe 44 upper-third比較は低信号の指標であり、合否の主軸にしない方がよい。D3D12はこのビルドツリーで無効（HAS_ATL=FALSE → D3D12_SUPPORTED=FALSE）のため、今回の実測はVulkanのみ。
 - **次に確認すべきこと:** curl .25をproduction候補として維持し、次はlive Composition captureでflame on/offと実時間予算を確認する。.5/2octはdetached wispと時間残差増加があるため候補から外す。upper-third shareを契約に残すなら、plumeが上三分割へ到達するframe以降（例: 90+）で測るか、絶対shareではなく質量保存・centroid・形状指標と組み合わせる。
 
+
 ## 2026-10-30: 2D smoke curlの縦分布期待は形態変化と分離する
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesProductionTwoDimensionalSmokeAndFlameCurlNoise`、`tests/Artifact/SmokeVolumeLookdevRAndTest.cpp::DensityRampAndShadowAblationPreservesTheSameVolume`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
 - **確認できた事実:** 既存の2D curlテストは「curlがupper-third density shareを下げる」を前提にしていたが、記録済みの .4/44frame 実行は .05261 baseline 対 .05392 curl で逆方向だった。curlは密度場・画像・pixel-exact replayを変えるが、縦方向の質量再配分器ではない。テストは絶対 +0.01 の上限ガードへ変更し、形状差と再現性の検証は維持した。あわせて2D volume lookdevへ top/middle/bottom の alpha・alpha-weighted luma shareと、1 frame先の相対alpha差を追加した。
 - **価値または懸念:** 未検証の主張をテスト契約から外すことで、focused suiteの失敗が実退行か計測契約の誤りかを切り分けられる。新しい縦分布・時間差分は curl .25/.5 候補の比較を1回の実行で行える。50%の時間差上限は品質基準ではない。
 - **次に確認すべきこと:** 実行結果は同日の「2D smoke curl A/B実測」項目に記録した。以後の比較ではframe 60のtop-third shareを主判定にせず、frame 90以降の到達後shareと時間残差を併記する。
+
 
 ## 2026-10-28: Smoke比較PNGはalpha分布の証拠に使えない
 - **関連:** `build/smoke-runtime-rnd/active-goal-resolution-pyro-compare-20261028/`、`tests/Artifact/ClonerGpuRenderContractTest.cpp` のPyro GPU readback sweeps。
@@ -18,11 +20,13 @@
 - **価値または懸念:** 既存captureにalpha重心を適用すると、煙形状ではなく全面画像のalphaを集計してしまう。solver density / raw GPU output alpha / 背景込みRGB輝度は、異なる証拠として分けて扱う必要がある。
 - **次に確認すべきこと:** alpha計測はPyro GPU testのreadbackTextureViewToImageで得る未合成volume outputに限定し、RGB輝度計測ではalpha重み付け・三分割比率を同じ未合成出力で記録する。追加した計測コードは未実行。
 
+
 ## 2026-10-28: 密度重心だけでは最終煙画像の縦方向の見え方を表せない
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::ProductionSmokeVolumeDrawsSmokeAndFlameFieldsOnDiligentRenderer`、`build/smoke-runtime-rnd/cap-boundary-sweep-20261028/wide-source-slow-rise/test.log`。
 - **確認できた事実:** 既存のframe 60 captureでは、solver densityの上1/3比率が0.0168548、density centroid Yが0.696503なのに対し、volume出力luma centroid Yは0.626857だった。現行の計測コードはdensityの質量分布と、volume照明・吸収を経たRGB luma分布を同一フレームで別々に集計する。
 - **価値または懸念:** 最終画像の明るさ分布はsolverのdensity質量分布と一致しない。密度重心だけで「上部に偏って見える」原因を判断すると、volume shading / extinction側の寄与を取り違える可能性がある。ただしlumaはopacityそのものではなく、この単一captureだけで見た目の原因や全設定での傾向までは確定しない。
 - **次に確認すべきこと:** GPU R&Dログに出力alphaの重心・三分割量を追加済み。再実行後、同一field・同一カメラでdensity、alpha、lumaを比較し、top-outflowとilluminationを独立に変えたcaptureで相関を確認する。今回も未実行。
+
 
 ## 2026-10-28: 解像度を上げるだけでは2D煙のbillow品質に届かない
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerImpl.cpp`、`Artifact/src/Render/ArtifactIRenderer.cpp::drawSmokeVolumeField`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` のproduction resolution / outflow R&D。
@@ -33,6 +37,7 @@
 - **次に確認すべきこと:** まず同じsource / frame sequence / output bounds / exposureで、128² CPU field、高解像度CPU field、GPU-resident advection/pressure候補、独立深度流を持つ3D volume候補を並べる。各々density mass、opacity alpha、lumaの分布、空間高周波、時間方向の細部残存、CPU/GPU時間を測る。単純な渦度増加や押し出しではなく、massと時間連続性を保ちながら前面の連結曲率・側面変位が増える候補だけをproduction設計へ進める。GPU煙テストには密度・alpha・luma計測を追加済み。ビルド・実行は未承認のため未実施。
 - **追加のcapture確認:** 過去の768×432画像を直接見比べると、frame60のoutflow 30/60/100条件はいずれも大きく滑らかなcapを持つ。frame95の256×144と384×216では巻き込み線に差があるが、細かい内部billowの増加は見られない。別経路のPyro GPU capture（24³ field、48 step）も小さな塊状であり、現状そのまま2Dの代替にできる品質ではない。これらは既存captureの目視で、新規実行ではない。
 
+
 ## 2026-10-28: 2D煙炎volume出力のbounded texture寿命
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cpp::drawSmokeVolumeField`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp::renderLayerSmokeRuntime`。
 - **確認できた事実:** production smoke runtimeのdensity fieldと独立flame-lifetime fieldをGPUへ別々に転送し、同じvelocity/runtime frameから1つのcompute volume spriteとして描画できる。4 output texture slotを順番に使い、slot再利用前は既存queued transformed-sprite drawをsubmitする。実runtime headless captureはD3D12 / Vulkanで128×128、focused test各1/1 pass、RGBA8画像の最大差3/255だった。
@@ -40,11 +45,13 @@
 - **仮説（未検証）:** field textureを1ペア共有して複数layerから更新する現在の方式は、immediate context上の順序付きupdate/dispatchにより正しく動く可能性が高いが、deferred recordingや複数layer interleave時の保証は実viewport captureで確認が必要。
 - **次に確認すべきこと:** 実Compositionに複数smoke layerを置いて交互描画・seek・worker queue時のcaptureを比較し、resource updateとoutput-slot reuseの順序、GPU timestamp、frame-size別のdispatch予算を測る。煙のbillow形状はこのqueue統合と独立した受入項目として評価する。
 
+
 ## 2026-10-28: 液面セル予算の細長い範囲での過小評価
 - **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::buildSurfaceSnapshotInto`。
 - **確認できた事実:** 旧 `gridSpacingForBudget` は `sqrt(surfaceWidth * surfaceHeight / gridCellBudget)` のみを使っていたため、細長い液面ではセル数を大幅に過小評価する。幅100,000px・高さ2px・予算12,500セルなら間隔は4pxで、セル境界の余裕を含めた矩形上限は約112,500セルとなる。セル上限に達すると辞書順で追加を止めるため、輪郭メッシュの片側が欠け得る。実コードはセル境界分の余裕を含む幅・高さの二次式から必要間隔を求めるよう変更した。
 - **価値または懸念:** アスペクト比にかかわらずセル予算内に収めることで、上限到達時の片側欠落を避ける狙い。細長い形状では予算内に収めるため格子間隔が広がり、輪郭ディテールが落ちる可能性がある。変更後の実セル数・輪郭・生成時間は未検証。
 - **次に確認すべきこと:** 細長い固定サンプルと通常の矩形サンプルで実セル数が予算内に収まることを確認し、triangle数・輪郭エッジ・snapshot生成時間・確保量を記録する。ビルド／テスト実行は許可待ち。
+
 
 ## 2026-10-28: 矩形煙の抽出格子と露出の関係
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の `smokeRenderSampleCounts`、2D Fluid smoke。
@@ -53,13 +60,14 @@
 - **追加確認:** 128×64 field・1 frameの D3D12 露出一致比較では、64×32候補は現行64×64より粒子の境界が目立った。候補と本番は初期alpha係数が異なり、比較結果は単一frame・横長1条件に限る。詳細は `docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md`。
 - **次に確認すべきこと:** 時間連続性、縦長の煙、別のkernelと露出補償、および両描画経路の影響を検証する。
 
+
 ## 2026-10-27: 2D liquid collision needs swept checks after PBF corrections
 - **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::LiquidSolver2D::solveContainerBounds`、`solveDensityConstraints`、`update`。
-- **確認できた事実:** Polygon container collision previously checked only the final particle center and pushed it to the closest edge. PBF position corrections can move a particle across a closed edge between checks; the polygon path did not test the movement segment. The current implementation sweeps the prior-to-current center segment for the integration step and each PBF correction, while excluding the configured opening. A follow-up audit found that collision damping was overwritten by velocity reconstruction from position deltas; the solver now restores the post-collision normal velocity after reconstruction while retaining its reconstructed tangential component. The existing rectangular-container path uses the same preservation. Surface extraction and rendering are a separate path and should be evaluated independently.
-- **価値または懸念:** Sweeping the previous substep position to each predicted/corrected position can catch high-speed tunneling while preserving the open-edge escape rule. A follow-up found that one retained contact normal could be overwritten at corners and viscosity could restore inward velocity; the current work retains up to two independent normals and reapplies them after viscosity. The sweep now checks up to four successive closed-edge contacts along the remaining tangential move. Corner, long concave-path, and multi-particle behavior remain unverified. Non-polygon rectangular walls still use endpoint clamping.
+- **確認できた事実:** polygon container collision previously checked only the final particle center and pushed it to the closest edge. PBF position corrections can move a particle across a closed edge between checks; the polygon path did not test the movement segment. The surface extraction and rendering are a separate path and should be evaluated independently.
+- **価値または懸念:** Sweeping the previous substep position to each predicted/corrected position can catch high-speed tunneling while preserving the open-edge escape rule. The current edit adds that check for closed polygon edges, but runtime coverage, vertex grazing, concave polygons, and spill interaction remain unverified. Non-polygon rectangular walls still use endpoint clamping.
 - **仮説（未検証）:** A continuous segment-edge test with particle-radius tolerance can reduce polygon wall leaks without requiring globally higher substep counts; edge endpoints and open-edge junctions may need a capsule-style sweep to cover all corner cases.
-- **追加確認:** `PhysicsDeterminismTest.cpp` の高速閉壁衝突・開口通過ケースはいずれも `solverIterations=1` を設定している。複数回のPBF位置補正中の壁抜けや角接触を直接検証していない。
-- **次に確認すべきこと:** ビルド／テストが許可されたら、高速衝突を複数反復で実行し、開口通過、頂点・凹壁の接触、決定性を確認する。液面品質は固定サンプルによる本番描画比較と生成時間計測で別途評価する。いずれも現在は未検証。
+- **次に確認すべきこと:** Run the focused high-speed collision regression and existing opening/escape/determinism cases, then capture polygon vertex and concave-wall scenarios. Evaluate surface extraction fidelity separately using production renders and fixed particle samples.
+
 
 ## 2026-10-27: Liquid surface edge needs coverage-driven alpha
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp::shadeLiquidVertex`、`ArtifactCore::LiquidSurfaceTriangle2D::coverageA/B/C`。
@@ -68,12 +76,14 @@
 - **仮説（未検証）:** The ~0.16 density interval will soften roughly a few pixels at the current sample/grid ratio while preserving the existing thin contour line; low zoom and sparse/LOD samples may need a different interval.
 - **次に確認すべきこと:** Re-run the same coffee/water fixtures and compare silhouette edge gradient, visible area, contour continuity, and command count against the saved captures. Check low-zoom and high-sample LOD cases before tuning the interval.
 
+
 ## 2026-10-27: Pyro lookdevのdensity modulationだけでは輪郭detailが弱い
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::RendersSmokeFireExplosionSteamAndFogProfilesToDistinctVolumes`、`docs/planned/MILESTONE_PYRO_DOMAIN_LAYER_INTEGRATION_2026-09-27.md`。
 - **確認できた事実:** 40³ Pyro profile fieldに固定seedの3D smooth-noise density modulationを適用し、元massへ正規化したbase/detail画像を比較した。単純乗算はimage RMS差0.16〜0.38/255で視認差が小さい。数voxel規模のdomain warpを加えると差はSmoke 10.11、Fire 3.96、Explosion 4.50、Steam 14.56、Fog 1.56/255となり、baseとdetailのmassは一致した。時間を明示入力にした30fps隣接画像差は0.184〜0.614/255、同じ時刻のfield replayは完全一致。focused standalone testは1/1 pass。
 - **価値または懸念:** 低解像度volumeに密度乗算だけを行う方法では、丸い大形状を崩してbillowを作れない。domain warpは輪郭差を作るが、これは静止画像lookdevであり、連続フレームの時間一貫性やDCC品質の証拠ではない。CPU test renderer用の実験で、production renderer/solverへは適用していない。
 - **仮説（未検証）:** 時間整合性を持つvelocity-driven displacement、またはwavelet detail transportなら形状を変えつつ連続フレームとseek replayを維持できる可能性がある。時間関数warpは小さい画像差と再現性を満たしたが、velocity-aligned billowは未達。
 - **次に確認すべきこと:** detail warpを複数連続frameでsimulation velocityに沿ってadvectし、隣接画像差・mass・centroid・seek replay差を同時に評価する。単一画像での差だけを受入れ根拠にしない。
+
 
 ## 2026-10-27: Pyro fogにはsmokeより低吸収のtransferが必要
 - **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx`、`ArtifactCore/src/Render/VolumeRenderer.cpp`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::RendersSmokeFireExplosionSteamAndFogProfilesToDistinctVolumes`。
@@ -82,6 +92,7 @@
 - **仮説（未検証）:** GPU raymarchでFog curveと低周波密度fieldを用い、距離に応じた複数散乱を加えると、particle sprite近似より一様で奥行きのある霧を表現できる可能性がある。
 - **次に確認すべきこと:** Diligent volume rendering pathを作る段階で同じtransfer curveをGPU化し、Smoke/Steam/Fogに同一field・camera・exposureを用いたCPU/GPU image parityとvisible-density rangeを比較する。
 
+
 ## 2026-10-27: LensFlareLabのghost-ring diffractionは経路別開口テクスチャが必要
 - **関連:** Hullin et al. [Physically-Based Real-Time Lens Flare Rendering](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf)、`tools/LensFlareLab/main.cpp`、`tools/LensFlareLab/EVALUATION.md`。
 - **確認できた事実:** 論文は星芒用Fraunhoferスペクトルとゴースト縁のFresnel近似/FrFTを別段にし、ghost rasterizationで使う開口テクスチャをFrFTする。経験次数は `α=0.15×(λ/400nm)×(f/#/18)`。現在のLabはray-gridをsensor上に積分してRGB irradianceだけを加算し、経路ごとの開口visibility/位相テクスチャを保持しない。
@@ -89,12 +100,14 @@
 - **仮説（未検証）:** 経路別可視マスクを開口座標系へ再投影し、α=0で開口像、α=1でFourier-domain強度へ滑らかに遷移する離散FrFTを用意すれば、ghost ray-mapの形を保ったまま弱いリングを加えられる可能性がある。離散FrFTの正規化・エネルギー保存・高速性は未検証。
 - **次に確認すべきこと:** 文献/実装例のFrFT核定義を調べ、非正方形・クリップされた開口のα=0/1極限、flux、色別次数を数値画像で確認した後、単一ghost pathへ接続して実写参照と比較する。
 
+
 ## 2026-10-27: render-space volume noiseは静止fieldにも時間差を作る
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::SmokeDepthVaryingVolumeRaymarchOnDiligentRenderer`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`、Kim et al. *Wavelet Turbulence for Fluid Simulation*。
 - **確認できた事実:** 同じsmoke/flame volumeを固定し、test-only 3D value-noiseのtimeのみを1/30秒ずつ進めた4枚のGPU raymarch captureで、隣接画像の平均絶対luma差はD3D12 0.08413/0.08577/0.08429、Vulkan 0.08419/0.08590/0.08427だった。両backendの差は小さいが、solver fieldが静止していてもrender detailは変化する。captureの目視でも大きなbillow形成は見られない。
 - **価値または懸念:** detailの見かけの動きをshader上の時間warpだけで作ると、流体速度やcheckpoint/seek状態と独立に変化し、時間整合性を欠く可能性がある。今回の平均luma差は低い値だが、物理的な時間一貫性の合格基準ではない。fixtureは固定volumeで、advected field・高速運動・production exposureを含まない。
 - **仮説（未検証）:** velocity fieldへdeterministic curl detailを加え、その速度で密度・温度・flame-lifeを一緒に移流する方が、render-only animated noiseより流れと揃った高周波detailになる可能性がある。Kim et al.のwavelet法とMantaFlowのUV追跡sceneはこの方向の参照だが、2D runtimeでの見た目・性能は未検証。
 - **次に確認すべきこと:** test-only CPU prototypeで同じseedのsequential replayとcheckpoint seek replayを比較し、隣接画像差だけでなくdensity mass、centroid、velocity divergence、CFL、source-stop tailを記録する。安定した移流と見た目改善が両方確認できるまでproduction solverへ反映しない。
+
 
 ## 2026-10-27: turbulence phaseもsimulation checkpoint契約に従う
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresPreProjectionCurlSeekReplayClockRequirement`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp::storeSmokeCheckpoint`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::update`。
@@ -104,12 +117,14 @@
 - **仮説（未検証）:** deterministicな時間関数にしたdetail forceを、checkpoint frameと同一の境界で各solver substepに評価すれば、保存fieldを増やさず再現できる可能性がある。時間可変forceの積分誤差と見た目の連続性は未測定。
 - **次に確認すべきこと:** absolute frame/time入力かsnapshot済みphaseを使うcurl-noise prototypeで、sequential 44と52→44 seekのfield pixel-exact一致、source stop、複数seed、30/60fpsを確認する。さらにstateless候補では不足したbillow形成を画像で確認する。producer側時間を使う場合はcheckpoint APIへ含める設計を先に追加し、production solverへの適用は品質差とcostが受入れられてから行う。
 
+
 ## 2026-10-27: Diligent volume passはcommand順とSRV再利用境界を守る
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp::renderLayerSmokeRuntime`、`Artifact/src/Render/ArtifactIRenderer.cpp::drawParticles/drawMpmSurface`、`Artifact/include/Render/RenderCommandBuffer.ixx::SpritePkt`。
 - **確認できた事実:** smoke/fireは粒子packetとして別々にqueuedされる。既存transformed texture sprite packetはSRVを保持し、submit/resetまでtexture viewの寿命を保つ。MPM immediate fallbackはqueueを先にsubmitして現在のrender targetを保つ。
 - **価値または懸念:** GPU volume結果をshared textureへ何度もrenderしてからqueued spriteで表示すると、未submitのspriteが後のfield内容を読む危険がある。複数volumeを正しい層順で描くにはbounded output slotか、明示submit境界が必要。後者はqueue flushを増やすためframe costを測定する。
 - **仮説（未検証）:** 2D densityとflame-life textureをDiligent pixel shaderで同一raymarchし、直後にtransformed quadへ描けば、現行のsmoke/fire二packetを一passへまとめられる。既存transform overloadは活用できるが、composition viewport/scissor、HDR blend、deferred packet workerとの整合は未確認。
 - **次に確認すべきこと:** Composition Render Controllerのactive RTV / viewport lifecycle、`PrimitiveRenderer`のtransformed SRV packet経路、Diligent shader resource lifetimeを追う。production変更はfield uploadを含む2backend testと実viewport ordering captureを用意し、steady-state resource再生成なしを計測してから行う。
+
 
 ## 2026-10-27: 煙の短期解像度差は注入だけでは説明できない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::SeparatesSmokeResolutionDriftByInjectionAndSolverStage`、`::MeasuresSmokeProjectionResolutionAndIterationConvergence`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::project`。
@@ -118,12 +133,14 @@
 - **仮説（未検証）:** 長時間積分でsource pulseの格子丸め、投影・移流・境界条件の小さな差が蓄積し、centroid差を生じる可能性がある。
 - **次に確認すべきこと:** production `FluidSolver2D::update()`へR&D限定のdiagnostic callbackを足す前に、既存の独立targetがCoreのtest-only compile definitionを受けられるか確認する。可能なら投影直後の同一実装状態をcallbackで記録し、after projectionとafter velocity advectionを複数解像度・aspect ratioで比較する。成立して原因がprojectionと確認できてからCore修正と液体回帰を検討する。
 
+
 ## 2026-10-27: smoke plumeの長期解像度ドリフトはvelocity有効時に増える
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::TracksSmokeMorphologyDriftAcrossFramesAndResolutions`、`::MeasuresResolutionDriftForStationaryContinuousSmokeSource`。
 - **確認できた事実:** production runtimeの30fps/frame28、8 solver iterations、emitter density 0.6・radius 0.08・Y 0.84、buoyancy 0.7、vorticity 0.1、dissipation既定2.5/sでは、96×72 / 128×96 / 192×144のnormalized density massが0.06890 / 0.05835 / 0.04786、centroidYが0.4642 / 0.5110 / 0.5815、sigmaYが0.2311 / 0.2159 / 0.1929。framewiseでは差が連続して広がる。全velocity/swirl/buoyancy/vorticityを0にした連続sourceではmass 0.06220 / 0.06219 / 0.06194、centroidY 0.8406 / 0.8388 / 0.8370、sigmaY 0.03540 / 0.03468 / 0.03379で、格子間差は小さい。
 - **価値または懸念:** 注入カーネルとdissipationだけでは通常plumeの大きなmass/centroid差を説明しにくい。velocity-dependent solver evolutionが有力だが、現テストは実際のpressure projectionとvelocity advectionを個別に観測していないため、どちらかを原因と断定できない。Core/Appへの補正はまだ行わない。
 - **仮説（未検証）:** backward semi-Lagrangian velocity/density transportの数値dissipationやgrid-unit scalingの小差が、連続注入と非圧縮projectionを経て蓄積し、上昇速度・残存質量・billow形状の解像度差になる可能性がある。
 - **次に確認すべきこと:** production実装そのもののintermediate stateを取得し、velocity projection直後・velocity advection後・density advection後のfield divergence、energy、massをframe 0/1/2/4/8/16/28で比較する。変更候補は同一初期場のgrid convergenceと見た目画像の双方で改善することを確認してから採用する。
+
 
 ## 2026-10-27: 煙vorticity係数のgrid scalingは解像度差を補正しない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresResolutionScalingForProductionVorticityConfinement`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::vorticityConfinement`。
@@ -134,12 +151,6 @@
 
 # Insight Register
 
-## 2026-10-27: 2D liquid collision needs swept checks after PBF corrections
-- **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::LiquidSolver2D::solveContainerBounds`、`solveDensityConstraints`、`update`。
-- **確認できた事実:** polygon container collision previously checked only the final particle center and pushed it to the closest edge. PBF position corrections can move a particle across a closed edge between checks; the polygon path did not test the movement segment. The surface extraction and rendering are a separate path and should be evaluated independently.
-- **価値または懸念:** Sweeping the previous substep position to each predicted/corrected position can catch high-speed tunneling while preserving the open-edge escape rule. The current edit adds that check for closed polygon edges, but runtime coverage, vertex grazing, concave polygons, and spill interaction remain unverified. Non-polygon rectangular walls still use endpoint clamping.
-- **仮説（未検証）:** A continuous segment-edge test with particle-radius tolerance can reduce polygon wall leaks without requiring globally higher substep counts; edge endpoints and open-edge junctions may need a capsule-style sweep to cover all corner cases.
-- **次に確認すべきこと:** Run the focused high-speed collision regression and existing opening/escape/determinism cases, then capture polygon vertex and concave-wall scenarios. Evaluate surface extraction fidelity separately using production renders and fixed particle samples.
 
 ## 2026-10-26: Gaussian particle kernel smooths plume grains but not its large-scale shape
 - **関連:** `ArtifactCore/include/Graphics/ParticleData.ixx`, `ArtifactCore/src/Graphics/ParticleRenderer.cpp`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, standalone smoke runtime/GPU tests.
@@ -147,6 +158,7 @@
 - **価値または懸念:** A bounded Gaussian profile improves the visible particle kernel without changing the default renderer mode. Production smoke now opts into it. The GPU sampling count roughly doubles from 40×40 to 64×48 for a 96×72 solver; debug submit timings varied, so performance needs release/profiler measurement. The software smoke surface path remains unchanged.
 - **仮説（未検証）:** DCC-like billows depend more on persistent coherent roll structures in the velocity/density field than on further radial kernel tuning.
 - **次に確認すべきこと:** Compare non-periodic temperature/density-masked curl turbulence through production extraction over multiple frames and seeds; measure release GPU cost and CPU/GPU appearance before expanding beyond this kernel change.
+
 
 ## 2026-10-26: 温度マスク付きcurl turbulenceは2D plumeを巻くが、DCC smokeには未到達
 - **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `ComparesSeparatedThermalMemoryAfterEqualSmokePulse` と test-only `applyTemperatureCurlTurbulence()`。
@@ -156,6 +168,7 @@
 - **次に確認すべきこと:** 同じ非周期curl-noiseを本番particle extraction／renderer出力で露出合わせ比較する。優位性が安定したら、別温度fieldを含むCore runtime snapshot/checkpoint/scrubと設定導線を設計し、hot pathの確保を避けて段階統合する。
 - **再検証:** `ArtifactCoreSmokeEmitterStandaloneTest` build成功。`ComparesSeparatedThermalMemoryAfterEqualSmokePulse` 2 seed / 8条件 / 4 capture frames pass。`TemperatureMaskedCurlNoiseAddsDivergenceFreeVelocity` pass（RMS divergence <1e-7、最大絶対値 <1e-6）。captures: `build/smoke-emitter-rnd/captures/nonperiodic-curl-turbulence-rnd-20261026/`。
 
+
 ## 2026-10-26: temperature curl候補はproduction particle出力でリング状に崩れる
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesTemperatureCurlNoiseThroughProductionParticleExtraction`。
 - **確認できた事実:** 12-frame pulse、seed 17/71、frame 24/36/44、production `LayerFluidRuntimeState` と40×40 particle extractionを比較し、green exposureを一致させた。curl候補のframe44 particle数は73→96 / 70→79、density massは18.90→23.79 / 18.82→23.72に増えた。画像では後半が煙のrollより穴のあるリング／void状に見え、mass増加もあるため品質改善とは判定できない。test-only 96×72再サンプリングは粒子隙間を減らすが、リング形状を残した。これはCPU reference rasterizerによる画像でありDiligent GPU比較ではない。
@@ -163,6 +176,7 @@
 - **仮説（未検証）:** 固定density fieldのtransfer curve、extinction、lightingをproduction Diligent rendererで露出合わせ比較すれば、solver形状とvolume/sprite描画品質を切り分けられる。
 - **次に確認すべきこと:** 同じproduction densityをGPU描画し、seed／複数時点の連続性と穴の有無を評価する。curl noiseおよび96×72 resamplingはGPU画像でroll改善が再現するまでtest-onlyに留める。
 - **再検証:** `cmake --build build/smoke-runtime-rnd --target ArtifactSmokeRuntimeStandaloneTest --parallel 8` 成功。focused `ComparesTemperatureCurlNoiseThroughProductionParticleExtraction` 1/1 pass（2 seed、6 frame比較）。captures: `build/smoke-runtime-rnd/captures/temperature-curl-production-pulse-particles-rnd-20261026/`。
+
 
 ## 2026-10-26: 2D smoke density lifetimeは視覚形状と分けて制御できる
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の density retention、`Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp` の Fluid Component properties、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ProductionRuntimeHonorsSmokeDensityDissipationRate`。
@@ -172,6 +186,7 @@
 - **次に確認すべきこと:** production 2D velocity/density field上で、時間持続するconnected roll/foldを作る速度場／渦度手法を、2 seed以上・複数frame・同一発生源で比較する。減衰率は既定値を変えず、寿命軸として保持する。
 - **再検証:** `cmake --build build/smoke-runtime-rnd --target ArtifactSmokeRuntimeStandaloneTest --parallel 8` 成功、focused runtime test 1/1 pass（density mass値は上記）。`cmake --build build --target Artifact --parallel 8` 成功。
 
+
 ## 2026-10-26: 密度輸送の改善は粒子描画で再評価する
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes` と `ComparesIndependentRollAndFineDisturbanceOperators`。
 - **確認できた事実:** 2 seedで追従単一渦・左右逆回転ペアを比較したが、強度を上げても持続するbillowではなくplume全体の屈曲・分裂が主だった。production速度履歴を固定したtest-only MUSCL density transportはsemi-Lagrangianより質量を保ち、density fieldの高域指標も高かった。しかしmass-matchとgreen exposure-match後のproduction 40×40 particle rasterでは、MUSCLの可視pixelが少なく、画像高域指標も低かった。既存のproduction samplingを使った同一露出比較では40×40から96×72へ増やすと画像high-pass RMSが0.236から0.624へ上がったが、見た目は粒子粒度の改善であり、巻き上がる煙には至っていない。
@@ -180,12 +195,14 @@
 - **次に確認すべきこと:** 本番の密度→粒子抽出について、サンプル密度とgrid解像度を分離して評価する。その後、渦度閉じ込め等の速度場構築を複数seed・連続frame・粒子描画込みで比較する。MUSCLを本番採用せず、roll/fold目標を保つ。
 - **再検証:** focused standalone `ComparesIndependentRollAndFineDisturbanceOperators` pass（paired vortex 2 seedsを含む）、`ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes` pass（runtime particle capturesを含む）。captures: `build/smoke-runtime-rnd/paired-vortex-rnd-20261026/`, `build/smoke-runtime-rnd/transport-visual-rnd/`。
 
+
 ## 2026-10-26: 2D vorticity confinement must preserve signed curl
 - **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp` の `FluidSolver2D::vorticityConfinement()`、`tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `ComparesSignedVorticityConfinementAcrossSeedsAndFrames`。
 - **確認できた事実:** 旧実装は `ω = ∂v/∂x - ∂u/∂y` を `abs(ω)` に置き換え、その値を勾配方向だけでなく confinement force の符号にも使っていた。2D標準式では方向場 `N = ∇|ω|/|∇|ω||` とsigned `ω` を分け、forceは `(N_y ω, -N_x ω)` とする。Coreをこの形へ修正し、同じ煙源2条件を45 frameずつ、旧式比較とCore対standalone参照で実行した。変更前の旧式対参照画像MAEはframe15/30/45でseed17 `.000191/.001111/.002984`、seed71 `.000162/.001055/.001968`。変更後Core対参照は両seed・全capture frameで画素完全一致し、密度massも一致した。反対回転渦対2条件の30 frame画像も比較したが、大きなbillowは確認できない。全standalone 8 tests pass。Captures: `build/smoke-emitter-rnd/captures/vorticity-sign-rnd/` と `vorticity-signed-fixed-rnd/`。
 - **価値または懸念:** Core修正は反対向き渦へ符号を正しく反映する数値上の修正で、現行の単一source画像への効果は小さい。Houdini/C4D級のbillow達成や描画品質の大幅改善を示す結果ではない。snapshotの`curl`値も従来の絶対値から符号付き値になるため、将来それを読むconsumerが追加される場合は意味を確認する。
 - **仮説（未検証）:** 渦度符号の保持はcounter-rotating flowの進展を物理的に妥当化するが、billow形成の十分条件ではない。密度・温度の制御場、渦の初期条件、またはより高次の流体solverがなお必要となる可能性がある。
 - **次に確認すべきこと:** 子リポジトリではFluidSolver2D実装の対象hunkのみをcommitし、親側の独立回帰テストとR&D文書を合わせて同期する。品質R&Dでは、符号修正を固定したうえで煙源profileとsolver解像度／substepを露出一致・複数時点・複数seedで再評価する。
+
 
 ## 2026-10-26: D3D12 velocity-aligned sprite stretch smooths grain but does not form billows
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`、`ArtifactCore/src/Graphics/ParticleRenderer.cpp` のVelocityAligned billboard。
@@ -194,11 +211,13 @@
 - **仮説（未検証）:** production 2D煙をDCC風に近づける主要課題はspriteの縁の滑らかさより、速度場に沿って時間持続する渦度・密度の大域的roll構造である。
 - **次に確認すべきこと:** stretchはproductionへ採用せず、複数seed・連続frameの独立流体試験で渦構造の移流持続と密度形状を評価する。伸長を再検討する場合は方向契約と複数frameのGPUキャプチャを同時に更新する。
 
+
 ## 2026-10-25: IdMap standalone suite called a nonexistent erase API
 - **関連:** `tests/ArtifactCore/IdMapStandaloneTest.cpp`, `ArtifactCore/include/Container/IdMap.ixx`
 - **確認できた事実:** The standalone test had `EraseReturnsNumberOfRemovedEntries` calling `IdMap::erase()`, but the current public `IdMap` interface has no `erase()` member. The suite already has separate `remove()` success and missing-key tests, so the invalid test was removed instead of changing the product API.
 - **価値または懸念:** The stale call would prevent that standalone test source from compiling and could conceal the distinction between `NameMap::erase()` and `IdMap::remove()`.
 - **次に確認すべきこと:** When build/test execution is authorized, build the `IdMapStandalone` target to confirm no other stale API calls remain.
+
 
 ## 2026-10-25: clang-cl must not inherit MSVC-only flags
 - **関連:** `Artifact/DockFoundation/CMakeLists.txt`, root `CMakeLists.txt`, clang-cl P1689 scans
@@ -206,11 +225,13 @@
 - **価値または懸念:** Dedicated library conditions and root optional-target flags can both bypass compiler-family gates and inject MSVC-only options into Clang scanning. The identified production-library and optional-root cases are now gated, but broad compile coverage is still incomplete.
 - **次に確認すべきこと:** Build the optional Plugin Host object after its imported module BMIs are available; a Ninja target request currently expands to a multi-thousand-action OpenUSD dependency graph.
 
+
 ## 2026-10-25: GNU Clang 22 direct object checks separate passing migrations from module crashes
 - **関連:** `Artifact/src/Application/ArtifactApplicationManager.cpp`, `Artifact/src/Preview/ArtifactPreviewWorker.cpp`, `Artifact/src/Render/ArtifactRenderElement.cpp`, `Artifact/src/Widgets/LayerEditorRenderScheduler.cpp`, `Artifact/src/Widgets/LayerEditorViewWheelController.cpp`, `Artifact/src/Widgets/CompositionEmptyOverlay.cpp`, `Artifact/src/Widgets/ArtifactAudioMiniWidget.cpp`, `Artifact/src/Render/ArtifactRenderQueueEncoder.cpp`, Preview pipeline split
 - **確認できた事実:** Using generated GNU Clang 22.1.3 compile commands and available current-tree PCM files, direct object compilation succeeded for the first six implementation units. `UndoManager.ixx` and `Utils.Id.ixx` interfaces also compiled independently. Earlier direct compiles of `ArtifactAudioMiniWidget.cpp` and `ArtifactRenderQueueEncoder.cpp` emitted `Id` from named module `Utils.Id` cannot be attached to another module and crashed Clang. Static inspection then found the encoder's `Render.Queue.Manager` import unused; it has been removed to reduce the graph, but the updated source has not been compiled. The widget now splits Project lookup and AudioLayer inspection into separate access TUs, but a direct compile against the existing module map still reports the Id ownership diagnostic before validating those TUs. `ArtifactPreviewCompositionPipeline.cpp` and `ArtifactPreviewLayerEffects.cpp` also crashed with their referenced PCM files present. No full Ninja target build or final link was verified.
 - **価値または懸念:** Extension migration and P1689 source classification now have representative successful object evidence, while the Clang application lane still has reproducible module-ownership/frontend failures in larger import graphs. The failing result is not established as a source syntax error, and blindly changing the `Id` API or preview behavior would exceed the evidence.
 - **次に確認すべきこと:** Regenerate Clang dependency scans and PCMs when CMake/build execution is authorized, then compile the current encoder and widget access TUs. Continue isolating the preview pipeline source-location limit without changing public module ownership or rendering behavior without evidence.
+
 
 ## 2026-10-25: clang-cl module units cannot inherit the MSVC Qt forced include
 - **関連:** `ArtifactCore/CMakeLists.txt`, `include/Compat/QtListForward.h`, clang-cl module compilation
@@ -218,11 +239,13 @@
 - **価値または懸念:** Other clang-cl module source units may rely on declarations currently supplied only by the forced include, so one successful target does not prove the full ArtifactCore or application build. Clang 22 P1689 scan succeeded across the selected dependency set after excluding `/FI`.
 - **次に確認すべきこと:** Expand clang-cl builds across the remaining ArtifactCore and Artifact targets; then replace any newly exposed implicit Qt declarations with direct includes in the affected source units and remove MSVC-only switches from the clang-cl option branch.
 
+
 ## 2026-10-25: GNU Clang 22 repeatedly fails reading a large module PCM
 - **関連:** `Artifact/src/Preview/ArtifactPreviewCompositionPipeline.cpp`, GNU Clang 22.1.3, generated Artifact module PCMs
 - **確認できた事実:** The source's P1689 scan succeeds and records 21 imported modules. Compilation failed twice with `malformed or corrupted precompiled file: ran out of source locations`, including once after reconfiguring with sccache disabled. The unit was not part of the `.cppm` migration. The generated diagnostic identifies a Clang frontend crash; the exact imported PCM or compiler defect is not yet isolated.
 - **価値または懸念:** The remaining GNU Clang build gap is not explained by sccache or parallel execution alone. Treating the partial build as fully passing would hide an unresolved compiler/module artifact issue.
 - **次に確認すべきこと:** Isolate the failing imported PCM or reproduce with a newer/alternate upstream Clang build, then resume the GNU Clang app build and verify the final link.
+
 
 ## 2026-10-25: Preview pipeline import set reaches Clang source-location limit
 - **関連:** `Artifact/src/Preview/ArtifactPreviewCompositionPipeline.cpp`, `Artifact/src/Preview/ArtifactPreviewCloneSelectionOverlay.cpp`
@@ -230,11 +253,13 @@
 - **価値または懸念:** The failure is cumulative across the translation unit's imported AST graph; removing one direct import is insufficient. Any further splitting needs dependency-graph evidence and a fresh generated build tree.
 - **次に確認すべきこと:** The temporary helper split did not reduce the main unit's source-location failure and was reverted because no module map or compile evidence was available. Measure import subsets in a generated tree before attempting another split; prefer compiler-supported source-location growth or a partition that demonstrably lowers cumulative AST imports.
 
+
 ## 2026-10-25: Clone layer implementation uses the existing renderer abstraction
 - **関連:** `Artifact/src/Layer/ArtifactCloneLayer.cppm` → `.cpp`、`Artifact/include/Layer/ArtifactCloneLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Layer.Clone;`, matching the public interface, and imports clone effect, mesh, composition, layer, and renderer modules. It includes `Graphics/InstanceData.h` but has no direct Diligent interface calls; the source path was migrated without changing clone generation or rendering behavior. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** The migration retains the current renderer abstraction and module API while allowing standard `.cpp` dependency scanning.
 - **次に確認すべきこと:** Verify P1689 scanning and object compilation with Clone effect and Mesh module artifacts available.
+
 
 ## 2026-10-25: Content gizmo compile evidence was limited by missing provider PCMs
 - **関連:** `Artifact/src/Widgets/Render/ArtifactContentGizmo.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactContentGizmo.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -242,11 +267,13 @@
 - **価値または懸念:** The normal Clang `.cpp` scan path should expose the imports to the generated target dependency graph, but full provider ordering remains unverified until the generated build graph is inspected.
 - **次に確認すべきこと:** Verify a fresh P1689 scan and ensure the generated target schedules both provider interfaces before compiling the implementation.
 
+
 ## 2026-10-25: Composition audio mixer has two implementation units in one module
 - **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerPresentation.cppm` → `.cpp`、`Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cpp`、`Artifact/include/Widgets/ArtifactCompositionAudioMixerWidget.ixx`
 - **確認できた事実:** Both source units declare `module Artifact.Widgets.CompositionAudioMixer;`; the presentation unit imports the existing audio mixer, service, event, playback, and undo modules. Its path was migrated without changing the shared module declaration, imports, presentation, or service calls. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** CMake module dependency scanning must treat both `.cpp` files as implementation units belonging to the same named module; only the `.ixx` remains the importable interface.
 - **次に確認すべきこと:** Verify both implementation scans and target compilation together when build execution is authorized.
+
 
 ## 2026-10-25: Audio mixer widget stays behind its established module interface
 - **関連:** `Artifact/src/Widgets/AudioMixerWidget.cppm` → `.cpp`、`Artifact/include/Widgets/AudioMixerWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -254,11 +281,13 @@
 - **価値または懸念:** This puts the existing widget under normal `.cpp` Clang classification without changing audio functionality.
 - **次に確認すべきこと:** Verify P1689 scanning and compile with the VST/CLAP and audio provider module artifacts available.
 
+
 ## 2026-10-25: Software render inspectors remain a UI adapter over the existing compositor
 - **関連:** `Artifact/src/Widgets/Render/ArtifactSoftwareRenderInspectors.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactSoftwareRenderInspectors.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Widgets.SoftwareRenderInspectors;`, matching its interface, and imports the existing SoftwareCompositor and layer/project modules. The implementation path was migrated; no inspector or rendering behavior was edited. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** This moves the existing inspector implementation to standard `.cpp` classification without adding software rendering features.
 - **次に確認すべきこと:** Verify P1689 scanning and compilation when build execution is authorized.
+
 
 ## 2026-10-25: Playback control test widget keeps its existing service usage
 - **関連:** `Artifact/src/Widgets/Control/ArtifactPlaybackControlTestWidget.cppm` → `.cpp`、`Artifact/include/Widgets/Control/ArtifactPlaybackControlTestWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -266,11 +295,13 @@
 - **価値または懸念:** The implementation will now use the standard Clang `.cpp` scanning path while retaining the established service API boundary.
 - **次に確認すべきこと:** Verify dependency scanning and object compilation when build execution is authorized.
 
+
 ## 2026-10-25: Composition audio mixer remains a view over existing service APIs
 - **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm` → `.cpp`、`Artifact/include/Widgets/ArtifactCompositionAudioMixerWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Widgets.CompositionAudioMixer;`, matching the public interface, and imports the existing mixer, project, playback, audio service, event, and undo modules. Its path was migrated; no service calls, transport behavior, or audio feature logic were edited. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** The module boundary is preserved while Clang gets the implementation through the `.cpp` classification path.
 - **次に確認すべきこと:** Verify P1689 scanning and compile after the mixer and service provider module artifacts are available.
+
 
 ## 2026-10-25: Procedural 3D layer keeps its existing public module boundary
 - **関連:** `Artifact/src/Layer/ArtifactProcedural3DLayer.cppm` → `.cpp`、`Artifact/include/Layer/ArtifactProcedural3DLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -278,11 +309,13 @@
 - **価値または懸念:** This aligns a 3D layer implementation with the standard `.cpp` compiler classification while preserving its module API.
 - **次に確認すべきこと:** Verify P1689 scanning and implementation compilation when the module dependency artifacts are available.
 
+
 ## 2026-10-25: Noise layer implementation preserves its existing GPU and image path
 - **関連:** `Artifact/src/Layer/ArtifactNoiseLayer.cppm` → `.cpp`、`Artifact/include/Layer/ArtifactNoiseLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Layers.Noise;`, matching its public interface, and imports layer, image, procedural texture, GPU compute, property, and expression modules. The source path was migrated; procedural generation and GPU behavior were not edited. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** This brings a static-image-related layer implementation under normal `.cpp` Clang classification without changing its render path.
 - **次に確認すべきこと:** Verify P1689 scanning and object compilation with the procedural texture and GPU compute providers available.
+
 
 ## 2026-10-25: Text gizmo implementation preserves the approved module boundary
 - **関連:** `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactTextGizmo.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -290,11 +323,13 @@
 - **価値または懸念:** Clang can classify the existing implementation through the standard `.cpp` path without changing the approved gizmo design.
 - **次に確認すべきこと:** Verify fresh P1689 scan and compile when dependency artifacts are available.
 
+
 ## 2026-10-25: Animation menu keeps its existing module and audio binding behavior
 - **関連:** `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm` → `.cpp`、`Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Menu.Animation;`, matching its interface, and imports timeline, audio analysis/segment, property, event, and undo modules. The source path was migrated; its W_OBJECT implementation, menu actions, audio-reactive binding commands, and behavior were not changed. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** Standard `.cpp` classification can cover this module implementation without changing the menu API or transport ownership.
 - **次に確認すべきこと:** Verify P1689 scanning and implementation compilation with its UI/audio provider modules available.
+
 
 ## 2026-10-25: Composition menu remains paired with the Menu.Composition interface
 - **関連:** `Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cppm` → `.cpp`、`Artifact/include/Widgets/Menu/ArtifactCompositionMenu.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -302,11 +337,13 @@
 - **価値または懸念:** The implementation now uses standard `.cpp` classification while preserving menu responsibilities and APIs. The large dependency set may still make standalone Clang compilation costly.
 - **次に確認すべきこと:** Verify P1689 scanning and compile after dependency module artifacts are available.
 
+
 ## 2026-10-25: Software render test widget has a separate implementation unit
 - **関連:** `Artifact/src/Widgets/Render/ArtifactSoftwareRenderTestWidget.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactSoftwareRenderTestWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Widgets.SoftwareRenderTest;`, matching its public interface, and imports SoftwareCompositor, Layer.Blend, Project service, and Application manager. The implementation path was changed to `.cpp`; the widget and software rendering code were not changed. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** This is a test-facing adapter and changes no renderer capability. It is now eligible for the normal `.cpp` Clang source classification.
 - **次に確認すべきこと:** Verify its dependency scan and compile when build execution is authorized.
+
 
 ## 2026-10-25: Project manager implementation preserves its dedicated module interface
 - **関連:** `Artifact/src/Project/ArtifactProjectManager.cppm` → `.cpp`、`Artifact/include/Project/ArtifactProjectManager.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -314,11 +351,13 @@
 - **価値または懸念:** This keeps project management APIs behind their current module boundary while using the Clang `.cpp` dependency scan path. Its 24-module closure may still have a high compile cost.
 - **次に確認すべきこと:** Verify fresh P1689 scanning and implementation compilation when the required dependency artifacts are available.
 
+
 ## 2026-10-25: File menu implementation remains paired with the approved File Menu interface
 - **関連:** `Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm` → `.cpp`、`Artifact/include/Widgets/Menu/ArtifactFileMenu.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Menu.File;`, matching its public `.ixx`, and imports project, export, dialog, layer, and render queue modules. Existing `filemenu_*.svg` references were left untouched. The source path was migrated with only LF normalization; module imports and menu behavior were unchanged. Clang scan/compile remain unverified.
 - **価値または懸念:** This preserves the existing menu and icon approval boundary while allowing the implementation to use the standard `.cpp` classification.
 - **次に確認すべきこと:** Verify fresh Clang P1689 scanning and compile/link when build execution is authorized.
+
 
 ## 2026-10-25: AI client implementation keeps its AI.Client module boundary
 - **関連:** `Artifact/src/AI/AIClient.cppm` → `.cpp`、`Artifact/include/AI/AIClient.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -326,11 +365,13 @@
 - **価値または懸念:** This lets Clang classify the implementation through its standard `.cpp` extension while retaining the current API boundary. Its broad provider imports may require a large PCM dependency closure.
 - **次に確認すべきこと:** Verify P1689 scanning and compile with the required AI provider module artifacts available.
 
+
 ## 2026-10-25: Tool options remain behind the existing Widgets.ToolOptionsBar interface
 - **関連:** `Artifact/src/Widgets/ArtifactToolOptionsBar.cppm` → `.cpp`、`Artifact/include/Widgets/ArtifactToolOptionsBar.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Widgets.ToolOptionsBar;`, matching its public interface, and has 12 direct module imports. Its implementation path was changed to `.cpp`; imports, `W_OBJECT_IMPL`, event routing, and option behavior were left unchanged. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** Migrating the existing source preserves the module API while bringing this UI implementation under ordinary `.cpp` compiler classification. Verdigris and dependency closure still require Clang verification.
 - **次に確認すべきこと:** Verify fresh P1689 scanning and implementation compilation when the build restriction is lifted.
+
 
 ## 2026-10-25: Toolbar behavior stays behind the existing Widgets.ToolBar module
 - **関連:** `Artifact/src/Widgets/ArtifactToolBar.cppm` → `.cpp`、`Artifact/include/Widgets/ArtifactToolBar.ixx`、`Artifact/cmake/ArtifactSources.cmake`
@@ -338,11 +379,13 @@
 - **価値または懸念:** This removes one UI implementation from the legacy extension while preserving its public module boundary. Verdigris compatibility with the selected Clang generator still needs compile verification.
 - **次に確認すべきこと:** Verify its P1689 scan and object compilation after the provider module artifacts are available.
 
+
 ## 2026-10-25: Shader graph widget has a narrow named-module dependency boundary
 - **関連:** `Artifact/src/Widgets/ArtifactShaderGraphWidget.cppm` → `.cpp`、`Artifact/include/Widgets/ArtifactShaderGraphWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Widgets.ShaderGraphWidget;` and imports ShaderNode.Core, CompositionEditor, and CompositionRenderController. Its public `.ixx` remains unchanged. The implementation and manifest path were moved to `.cpp`; widget behavior and module imports were not edited. LF endings are enforced. Clang scan/compile remain unverified.
 - **価値または懸念:** This reduces reliance on `.cppm` extension classification while preserving the existing named-module interface. Clang compilation may still depend on large upstream module interfaces.
 - **次に確認すべきこと:** Verify a fresh Clang dependency scan and implementation compile with required provider module artifacts available.
+
 
 ## 2026-10-25: ArtifactWidgets Clang source scan covered only legacy `.cppm` implementations
 - **関連:** `ArtifactWidgets/CMakeLists.txt`、`ARTIFACT_COMPILER_CLANG_GNU`、`ARTIFACT_COMPILER_CLANG_CL`
@@ -350,11 +393,13 @@
 - **価値または懸念:** This aligns dependency scanning with the `.cpp` migration path and avoids passing the GNU driver option to clang-cl. The CMake behavior on each generator still requires an authorized configure/scan verification.
 - **次に確認すべきこと:** Configure clang-cl and upstream Clang separately, then inspect generated dependency scan rules for module implementations and import consumers in ArtifactWidgets.
 
+
 ## 2026-10-25: Motion sketch remains an implementation behind its existing tool interface
 - **関連:** `Artifact/src/Tool/ArtifactMotionSketchTool.cppm` → `.cpp`、`Artifact/include/Tool/ArtifactMotionSketchTool.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Tool.MotionSketchTool;`, matching the public `.ixx`. It imports existing layer, composition, event, property, time, and undo modules. The file was migrated with its source content unchanged and LF endings; no event or tool behavior was changed. Clang scanning/compilation remain unverified.
 - **価値または懸念:** The existing source-only module boundary can be retained while allowing Clang's `.cpp` source classification to scan the named module implementation.
 - **次に確認すべきこと:** Verify fresh P1689 scanning and object compilation when build execution is authorized.
+
 
 ## 2026-10-25: Rasterizer Glow has an established named-module implementation boundary
 - **関連:** `Artifact/src/Effects/Rasterizer/GlowEffect.cppm` → `.cpp`、`Artifact/cmake/ArtifactSources.cmake`、`Artifact.Effect.Rasterizer.Glow`
@@ -362,11 +407,13 @@
 - **価値または懸念:** Upstream Clang can use the existing `.cpp` named-module scan classification without a special per-file source pin. Actual Clang compilation remains unverified.
 - **次に確認すべきこと:** Verify fresh P1689 scanning and implementation compilation when build execution is authorized.
 
+
 ## 2026-10-25: Layer panel presentation is a source-only module implementation
 - **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelPresentation.cppm` → `.cpp`、`Artifact/include/Widgets/Timeline/ArtifactLayerPanelWidget.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The implementation declares `module Artifact.Widgets.LayerPanelWidget;`, matching the existing public `.ixx` interface, and contains presentation descriptor functions. The extension and manifest path were updated without changing the module declaration, imports, or UI behavior. LF endings were preserved. No compiler scan or build was run.
 - **価値または懸念:** Keeping this logic in the existing module implementation preserves the interface boundary and lets the Clang `.cpp` scan path handle the named module declaration.
 - **次に確認すべきこと:** Verify fresh Clang P1689 scanning and implementation compilation when build execution is authorized.
+
 
 ## 2026-10-25: ArtifactPr implementation manifest no longer depends on the `.cppm` extension
 - **関連:** `ArtifactPr/CMakeLists.txt`、`ArtifactPr/src/GpuProgramMonitor.cppm` → `.cpp`、Clang source scanning
@@ -374,17 +421,20 @@
 - **価値または懸念:** This removes ArtifactPr's current reliance on compiler-specific interpretation of implementation `.cppm` files. The new source classification still needs verification on supported Clang generators.
 - **次に確認すべきこと:** When build execution is authorized, configure Clang GNU and clang-cl separately, inspect generated P1689 dependency rules for the module implementation `.cpp` sources, and compile/link ArtifactPr targets.
 
+
 ## 2026-10-25: ArtifactPr editor engine implementation remains behind a module interface
 - **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm` → `.cpp`、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/CMakeLists.txt`
 - **確認できた事実:** The source declares `module ArtifactPr.EditorEngine;` and imports ClipEffects, EditCommand, SequenceExporter, and Translation. Its public interface remains the `.ixx`; the implementation path was changed to `.cpp`. LF endings are preserved. No compilation or dependency scan was run.
 - **価値または懸念:** The implementation contains serialization and editor operations, but this migration does not alter those behaviors. Compiler compatibility is still unverified.
 - **次に確認すべきこと:** When build/scan execution is authorized, verify its P1689 dependency record and compile after required provider module artifacts are available.
 
+
 ## 2026-10-25: ArtifactPr main window implementation uses a complete module interface boundary
 - **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm` → `.cpp`、`ArtifactPr/include/ArtifactPrMainWindow.ixx`、`ArtifactPr/CMakeLists.txt`
 - **確認できた事実:** implementation unit declares `module ArtifactPr.MainWindow;` and imports sibling modules; its public interface remains the `.ixx`. The source was moved to `.cpp` and the implementation manifest path updated. LF endings were preserved. Compilation and module dependency scanning were not run.
 - **価値または懸念:** This is a large UI implementation (about 2,700 lines), so static path and module-boundary checks alone do not establish compiler compatibility.
 - **次に確認すべきこと:** When builds are authorized, verify fresh Clang P1689 scanning and compilation for the migrated implementation with its provider modules available.
+
 
 ## 2026-10-24: Verdigris QWidget implementation may expose Clang module ownership ambiguity
 
@@ -393,12 +443,386 @@
 - **価値または懸念:** A clean module scan and available PCM do not establish that Verdigris implementation macros are valid across the named-module boundary. The exact cause is unverified and should not be classified as a simple missing include or extension-only issue.
 - **次に確認すべきこと:** Before retrying this widget, inspect its Verdigris macro expansion and Qt declarations as imported through its interface module; keep the implementation on `.cppm` until a source-level fix is justified and compiled.
 
+### 2026-10-11 — FastSettingsStore failed reload clears existing cache
+
+- **関連:** `ArtifactCore/src/Core/FastSettingsStore.cppm`、`tests/ArtifactCore/FastSettingsStoreContractTest.cpp`。
+- **確認できた事実:** `loadFromDiskUnlocked()`はCBORの読み込み・型検査より前に`cache_`をclearし、invalid payloadではfalseを返す。`reload(true)`はこの関数を直接呼ぶ。
+- **仮説／未検証:** reload失敗時は最後に読み込み済みの値を保持し、エラー復旧可能にする方が望ましい。新しいcaseはその期待だが、実行していない。
+- **価値／懸念:** ディスク破損や途中書き込み後のreloadでメモリ上の有効設定が消える可能性を検出する。ArtifactCore child repoは変更していない。
+- **次に確認:** invalid CBOR・I/O失敗時のreload保証を定義し、必要ならtemporary cacheへのparse後にcommitする方式へ直して独立suiteで確認する。
+
+### 2026-10-11 — FastSettingsStore sync failure retains retry state
+
+- **関連:** `ArtifactCore/src/Core/FastSettingsStore.cppm`、`tests/ArtifactCore/FastSettingsStoreContractTest.cpp`。
+- **確認できた事実:** `syncUnlocked()`は未open、親directory作成、`QSaveFile::open/write/commit`の失敗時にfalseを返し、成功時だけdirty/pendingをclearする。
+- **仮説／未検証:** 各I/O失敗経路でdirty値とpending countが保たれ、後のretryが可能なことを回帰契約にした。新caseはtargetを既存directoryにして保存open失敗を狙うが、実行していない。
+- **価値／懸念:** 保存エラー後に変更が誤ってclean扱いされる回帰を検知する。ディレクトリをファイルとして開けないOS挙動に依存する。
+- **次に確認:** 実行環境で`QSaveFile`のopen failureとして安定するかを確認し、必要なら明示的に書込不能な親パスを使う。
+
+### 2026-10-11 — RationalTime rescaledTo accepts negative target scales
+
+- **関連:** `ArtifactCore/src/Time/RationalTime.cppm`、`tests/ArtifactCore/RationalTimeContractTest.cpp`。
+- **確認できた事実:** `toFrameCount()`はfpsが0以下なら0を返す一方、`rescaledTo()`はtarget scaleが0の場合だけを無効扱いし、負値では負の分子として再スケールする。RationalTimeのconstructorは非正scaleを1に正規化する。
+- **仮説／未検証:** `rescaledTo()`のtarget scaleも正値に限り、負値は0または安全な既定値を返すべきと考える。追加caseは0を期待するが実行していない。
+- **価値／懸念:** 不正なtarget scaleで時間方向が反転する結果を防ぐ契約候補。ArtifactCore child repoは変更していない。
+- **次に確認:** 呼び出し元で負target scaleが意図的に利用されていないことと、無効入力の期待値を確認してから実装修正する。
+
+### 2026-10-11 — ArtifactHashMap moved-from destruction may dereference null buckets
+
+- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm`、`tests/ArtifactCore/ArtifactHashMapContractTest.cpp`。
+- **確認できた事実:** move constructorとmove assignmentは移動元の`buckets_`を`nullptr`にし、`bucketCount_`を初期容量に戻す。destructorは常に`clear()`を呼び、`clear()`は`bucketCount_`回`buckets_[i]`を参照する。
+- **仮説／未検証:** 別mapへのmove後に移動元が破棄されるとnull pointer dereferenceになる可能性が高い。実行していない。
+- **価値／懸念:** move APIの基本的な破棄安全性に関わる。再現テストはstandalone suite全体をクラッシュさせる可能性があるため今回追加しなかった。ArtifactCore child repoは変更していない。
+- **次に確認:** move後のsourceへ空bucketを再確保する等、valid destructible invariantを実装者と確認し、安全に失敗を報告できるテスト形態で検証する。
+
+### 2026-10-11 — ShapeVertex mirrorHandles length mode is indistinguishable
+
+- **関連:** `ArtifactCore/include/Core/ShapePoint.ixx`、`tests/ArtifactCore/ShapeVertexContractTest.cpp`。
+- **確認できた事実:** `mirrorHandles(bool keepLength)`はtrue/false両分岐で`outHandle_`を`-inHandle_`に置き換えており、既存outgoing handleの長さを読み取らない。リポジトリ内の他の呼び出し・説明は検索で見つからなかった。
+- **仮説／未検証:** `keepLength=false`は反対側ハンドルの既存長を維持しながらincoming方向と反対向きにそろえる意図かもしれない。新しい契約caseはこの解釈を期待するが、実装者の意図を示す仕様は見つけていないためテストは未実行。
+- **価値／懸念:** UIから選べる長さモードが無効になっている可能性を切り分ける。ArtifactCore child repoは今回変更していない。
+- **次に確認:** 呼び出し元または設計仕様で`keepLength`の意味を確定し、期待値を承認してから実装修正と独立suite実行を行う。
+
+### 2026-10-11 — ArtifactTimer can expire before it starts for negative timeouts
+
+- **関連:** `ArtifactCore/include/Core/ArtifactTimer.ixx`、`tests/ArtifactCore/ArtifactTimerContractTest.cpp`。
+- **確認できた事実:** `hasExpired(timeoutMs)` はtimer validityを確認せず、`timer_.elapsed() >= timeoutMs` を返す。Qtの無効な`QElapsedTimer`はelapsedが負値となり、既存テストは未startの0 timeoutを未expired、開始済みの負timeoutをexpiredとしている。
+- **仮説:** 未start timerではtimeout値にかかわらず未expiredを返すのがAPIとして一貫する。新しい負timeout未startケースは現実装でexpiredになる見込みだが、実行していない。
+- **価値／懸念:** start前に待機完了と誤判定する呼び出しを検出できる。実装修正はArtifactCore child repoにあるため今回は行わない。
+- **次に確認:** 意図する無効timerの契約を確認し、必要なら`isValid()` guardを加えて独立suiteを実行する。
+
+### 2026-10-11 — FileTypeDetector treats malformed UTF-8 headers as text
+
+- **関連:** `ArtifactCore/src/File/FileTypeDetector.cppm`、`tests/ArtifactCore/FileTypeDetectorContractTest.cpp`。
+- **確認できた事実:** The text fallback rejects ASCII control bytes other than tab/LF/CR, but accepts every byte >= 32 without validating UTF-8. A regression case now expects malformed UTF-8 lead/continuation sequences to classify as Binary; it is not executed.
+- **仮説:** Since valid UTF-8 Japanese text is already explicitly supported by a test, malformed multibyte sequences should not be classified as text. Current fallback will classify both new fixtures as Text.
+- **価値／懸念:** This distinguishes valid Unicode text from arbitrary high-bit binary data. The implementation is in the ArtifactCore child repository, which is not modified here.
+- **次に確認:** Confirm the intended accepted encodings (UTF-8 only or UTF-16/legacy as well), implement matching validation in the child repository if authorized, then run the standalone target.
+
+### 2026-10-11 — AssetMetaFile tag removal does not normalize input
+
+- **関連:** `ArtifactCore/src/Asset/AssetMetaFile.cppm`、`tests/ArtifactCore/AssetMetaFileContractTest.cpp`。
+- **確認できた事実:** `addTag()` stores `tag.trimmed()`, while `removeTag()` compares each stored tag directly to the untrimmed argument. Added a standalone contract case that adds and removes the same whitespace-padded tag; based on the implementation it is expected to fail, but it was not run.
+- **仮説:** Callers that pass the same user-entered tag string to add and remove can leave a tag behind because only the insertion path normalizes whitespace.
+- **価値／懸念:** This test catches asymmetric tag matching without editing the child repository. If the intended contract is exact matching for removal, document that explicitly instead of normalizing.
+- **次に確認:** Confirm tag matching policy, then fix/remove the regression case with the user-authorized ArtifactCore change and execute the standalone target when allowed.
+
+### 2026-10-11 — ArtifactArray squeeze currently cannot reduce capacity
+
+- **関連:** `ArtifactCore/include/Core/ArtifactArray.ixx`、`tests/ArtifactCore/ArtifactArrayContractTest.cpp`。
+- **確認できた事実:** `squeeze()` calls `reserve(size_)`, while `reserve(n)` immediately returns whenever `n <= capacity_`. Thus a non-empty array with spare capacity retains its old allocation. Added a standalone contract case expecting capacity to shrink to size while preserving elements; it was not executed.
+- **仮説:** The API name and QVector-like capacity interface imply `squeeze()` should release excess storage; current implementation does not.
+- **価値／懸念:** This regression case detects an ineffective public capacity operation. Fixing it requires editing the ArtifactCore child repository and remains outside this test-only scope.
+- **次に確認:** With child-repository change authorization, implement allocate/move/release or equivalent safe shrink logic, then run the standalone suite and non-trivial lifetime case.
+
+### 2026-10-11 — ArtifactRandom inclusive maximum overflows its upper bound
+
+- **関連:** `ArtifactCore/include/Core/ArtifactRandom.ixx`、`tests/ArtifactCore/ArtifactRandomContractTest.cpp`。
+- **確認できた事実:** integer `between(min, max)` computes `max + 1` in signed `int` before passing it to Qt's bounded generator. Existing boundary tests stop at `INT_MAX - 1`.
+- **仮説:** `between(INT_MAX, INT_MAX)` overflows before generation and cannot reliably satisfy the documented-by-tests inclusive range behavior. A singleton-at-maximum regression case was added; it was not executed.
+- **価値／懸念:** Highest-end integer boundary is now represented in the independent suite, but the case may fail or invoke undefined behavior until the child implementation handles that endpoint.
+- **次に確認:** ArtifactCore-side remediation should generate over a wider unsigned interval or special-case the upper endpoint; then execute this standalone target after explicit authorization.
+
+### 2026-10-11 — ArtifactVariant empty-state destruction dispatch
+
+- **関連:** `ArtifactCore/include/Core/ArtifactVariant.ixx`、`tests/ArtifactCore/ArtifactVariantContractTest.cpp`。
+- **確認できた事実:** default construction sets `typeIndex_` to zero and exposes `isSet()==false`, but `destroy()` unconditionally dispatches `vtableForCurrent()` using the first alternative before resetting the index. Destructor and assignment call `destroy()` even for that unset state.
+- **仮説:** an unset variant may invoke the first alternative's destructor on storage where no object lifetime began; behavior is especially hazardous when the first alternative is non-trivial. Added tests exercise default/copy/move unset state and assignment clearing an active alternative. They are unexecuted; sanitizers/runtime validation is still needed.
+- **価値／懸念:** Empty-state lifecycle coverage can expose undefined destruction behavior hidden by the current first-alternative-is-int fixture. Fixing this requires editing the ArtifactCore child repository, which is outside the authorized scope.
+- **次に確認:** With explicit permission for child-repository changes and test execution, guard `destroy()` on `typeIndex_ != 0`, then run the standalone suite under an available sanitizer.
+
+### 2026-10-11 — Tag StringLike setter has an empty implementation
+
+- **関連:** `ArtifactCore/include/Utils/Tag.ixx`、`ArtifactCore/src/Utils/Tag.cppm`、`tests/ArtifactCore/TagContractTest.cpp`。
+- **確認できた事実:** `Tag::setName(const S&)` の `StringLike` template body は空である。実装側にある非-template setterは `const UniString&` overloadのみ。`StringLike` は `QString` と `std::string` を含む型を受け入れる。
+- **仮説:** `QString` / `std::string` を直接渡す通常の呼び出しは空のtemplate overloadを選び、名前を変更しない可能性が高い。追加した2つのstandalone contract caseはこのAPI意図を固定し、実行時に失敗する見込みだが未実行。
+- **価値／懸念:** generic setterを使う呼び出しが黙って無視される不具合を検出できる。修正が必要なら子repository編集禁止ルールに従い、ArtifactCore側の実装修正は別途明示依頼を待つ。
+- **次に確認:** `Tag` のStringLike setterの意図と所有repoでの修正可否を確認し、許可後にこのstandalone suiteを実行する。
+
+### 2026-10-11 — Id contract test references undeclared isValid
+
+- **関連:** `ArtifactCore/include/Utils/Id.ixx`、`tests/ArtifactCore/IdContractTest.cpp`。
+- **確認できた事実:** 現在の `Id` module interfaceには`isValid()`宣言がなく、テストの`ValidUuidStringRoundTripsInCanonicalForm`は`value.isValid()`を呼び出している。`Id.cppm`にもその定義は見当たらない。
+- **価値／懸念:** 現行ソースのままでは独立suiteのコンパイルを妨げる可能性が高い。ビルド／テストは指示により実施していないため、実コンパイル診断は未確認。
+- **次に確認:** `isValid()`を追加する設計意図があるか確認し、なければテストを`!isNil()`等の実在する契約に修正する。変更後にユーザー許可を得て独立suiteを実行する。
+
+### 2026-10-11 — Tag StringLike setter template is empty
+
+- **関連:** `ArtifactCore/include/Utils/Tag.ixx`、`ArtifactCore/src/Utils/Tag.cppm`、`tests/ArtifactCore/TagContractTest.cpp`。
+- **確認できた事実:** `Tag::setName(const UniString&)` は `impl_->name` を更新するが、`StringLike` を受けるheader template overloadの本体は空。
+- **価値／懸念:** `setName(QString/std::string/const char*)` など、`StringLike` conceptを満たす型で呼び出しても名前は変わらない。今回の独立suiteは動作する`UniString` overloadだけを検査し、この未実装挙動は通過テストとして隠さない。
+- **次に確認:** template setterで`toQString`して`UniString` overloadへ委譲するか、template APIを削除するか判断した後、各対応文字列型のsetNameを回帰テストする。
+
+### 2026-10-11 — ArtifactDict set calls absent ArtifactHashMap insert
+
+- **関連:** `ArtifactCore/include/Core/ArtifactDict.ixx`、`ArtifactCore/src/Core/ArtifactHashMap.cppm`。
+- **確認できた事実:** `ArtifactDict::set` は`map_.insert(key, value)`を呼ぶが、基底`ArtifactHashMap`が公開する挿入APIは`tryEmplace` / `emplace`で、`insert`は定義されていない。
+- **価値／懸念:** `ArtifactDict::set`をインスタンス化するコードはコンパイルできない。既存の`ArtifactDict`テストはこの経路を使っており、直接module構成で検証する独立suiteもまだない。
+- **次に確認:** ArtifactDictがinsert-or-assignかinsert-onlyか意味を決め、ArtifactHashMapの既存APIへ接続してから独立standaloneでset/get/removeを検証する。
+
+### 2026-10-11 — Callback documentation references missing ifValid API
+
+- **関連:** `ArtifactCore/include/Core/ArtifactCallback.ixx`、`tests/ArtifactCore/ArtifactCallbackContractTest.cpp`。
+- **確認できた事実:** Callbackのclass commentは`isValid()`確認または`ifValid()`利用を案内するが、公開メソッドに`ifValid`はなく、`isValid` / `operator bool` / `invoke` / `clear` / `reset`だけがある。
+- **価値／懸念:** 利用者が文書の例外安全な呼び出しAPIを探しても利用できず、empty時に直接`invoke`するとempty `std::function`の呼び出しになる。
+- **次に確認:** null-safe invocation APIを追加するか、commentを実在APIに合わせる判断後、empty経路の仕様をテストする。
+
+### 2026-10-11 — ArtifactFunction unsafe empty invocation and heap move
+
+- **関連:** `ArtifactCore/include/Core/ArtifactFunction.ixx`、`tests/ArtifactCore/ArtifactFunctionContractTest.cpp`。
+- **確認できた事実:** `operator()` は`invoker_`未設定時のguardなしに関数pointerを呼ぶ。heap callableのmoveでは`onHeap_`を先にtrueにした状態で、未初期化の移動先storageを`ptr()`経由で参照する。またmove後のsource callableはdestroyerを呼ばずmetadataだけnull化される。
+- **価値／懸念:** 空function invocationは無効な関数pointer呼び出しとなる。heap callable moveは無効なstorage参照となり得て、SBO/heap双方のmoveはmoved-from callableのdestructorを欠落させる。
+- **次に確認:** 空invokeを明示的な契約（assert/exception/no-op）にし、heap移動時のpointer transferとsource destructionを正しく実装してから、heap callable move・move assignment・destructor balance・empty invocationのテストを追加する。
+
+### 2026-10-11 — ArtifactSpan end on null empty range
+
+- **関連:** `ArtifactCore/include/Core/ArtifactSpan.ixx`、`tests/ArtifactCore/ArtifactSpanContractTest.cpp`。
+- **確認できた事実:** default `ArtifactSpan` は`data_ == nullptr`、`size_ == 0`。`end()` は一律 `data_ + size_` を返す。
+- **価値／懸念:** C++のポインタ加算対象となる配列がないnull pointerに対する`+ 0`は、標準上安全な配列内／one-past演算として保証されない。空spanをrange-forなどで走査する経路の扱いを確認したい。
+- **次に確認:** empty span用にnullをそのまま返す分岐を設けるか、null pointer rangeをiteratorとして使わない契約にするか決め、default/empty spanのbegin/endとrange iterationを回帰テストする。
+
+### 2026-10-11 — Position2D methods on moved-from objects
+
+- **関連:** `ArtifactCore/include/Core/Position2D.ixx`、`ArtifactCore/src/Core/Position2D.cppm`、`tests/ArtifactCore/Position2DContractTest.cpp`。
+- **確認できた事実:** move constructor/assignmentは`impl_`の所有権を移してsourceを`nullptr`にする。`Set` / `Get` はnull確認せず`impl_`を参照する一方、destructorはnull-safeな`delete`となる。
+- **価値／懸念:** moved-from objectは破棄可能だが、再設定や読み出しはクラッシュする。通常のmoved-from型に期待される再代入・再利用可能性は満たさない。
+- **次に確認:** moved-from状態を空として扱うか、有効なゼロ値へ再初期化するかを決め、move後のGet/Setと再代入の契約を追加する。
+
+### 2026-10-11 — ArtifactPtr WeakPtr copy assignment ownership count
+
+- **関連:** `ArtifactCore/include/Core/ArtifactPtr.ixx`、`tests/ArtifactCore/ArtifactPtrContractTest.cpp`。
+- **確認できた事実:** `WeakPtr` はcopy constructorでweak countを増やすが、copy assignmentを定義していない。コンパイラ生成assignmentはcontrol-block pointerをmemberwise copyするだけなので、既存weak ownerへの代入でcountを適切に保持・解放しない。
+- **価値／懸念:** 一時`WeakPtr`からの代入では一時objectのdestructorがcountを減らし、代入先が解放済みcontrol blockを参照する可能性がある。テストは未定義寿命状態を踏まないよう代入を使用しない。
+- **次に確認:** copy/move assignmentの所有権契約を定め、weak countを保持する実装と同一control blockへのself-assignmentを回帰テストする。
+
+### 2026-10-11 — ArtifactPtr UniquePtr reset with its current pointer
+
+- **関連:** `ArtifactCore/include/Core/ArtifactPtr.ixx`、`tests/ArtifactCore/ArtifactPtrContractTest.cpp`。
+- **確認できた事実:** `UniquePtr::reset(raw)` は先に `ptr_ = raw` を設定した後、元の `old` を削除する。そのため現在所有中の同じポインタを渡すと、所有値を解放した後にdangling pointerを保持する。
+- **価値／懸念:** 同一アドレスへのresetはuse-after-free/double-deleteにつながり得る。
+- **次に確認:** self-resetをno-opとする契約を定めて実装を修正し、同一pointerを渡した後の値アクセスと破棄回数を回帰テストする。
+
+### 2026-10-11 — ArtifactThread condition notification synchronization
+
+- **関連:** `ArtifactCore/include/Core/ArtifactThread.ixx`、`tests/ArtifactCore/ArtifactThreadContractTest.cpp`。
+- **確認できた事実:** `Cond::wait(Lock&)` は渡された`Lock`のmutexを解放せず、別の`cv_lock_`でcondition variableを待つ。一方、`wakeOne/wakeAll`は`notified_`をmutex lockなしで書き換える。
+- **価値／懸念:** wait前後のpredicate保護が呼び出し側mutexと同期せず、通知のlost wakeや`notified_`のdata raceを起こし得る。
+- **次に確認:** `Lock`から待機中にmutexを解放／再取得できる設計にし、predicateを同一mutex下で確認するAPI契約を確定してrace・lost-wake回帰ケースを加える。
+
+### 2026-10-11 — ArtifactOptional empty/present swap and empty initializer list
+
+- **関連:** `ArtifactCore/src/Core/ArtifactOptional.cppm`、`tests/ArtifactCore/ArtifactOptionalContractTest.cpp`。
+- **確認できた事実:** `ArtifactOptional<T>::swap` の片側だけpresentの分岐はempty側のunion memberへplacement constructionせずmove assignmentを行う。initializer-list constructorは空listでも`hasValue_`をtrueにし、contained `T`を構築しない。
+- **価値／懸念:** empty/present swap後のdestructorは未構築`T`を破棄し、empty initializer-list optionalも同じ不正状態となる。
+- **次に確認:** 片側presence swapはplacement move constructionを行う状態遷移に修正し、empty initializer-listはemptyとする契約を定めてそれぞれの回帰テストを追加する。
+
+### 2026-10-11 — ArtifactMath signed absolute minimum overflow
+
+- **関連:** `ArtifactCore/include/Core/ArtifactMath.ixx`、`tests/ArtifactCore/ArtifactMathContractTest.cpp`。
+- **確認できた事実:** `artifactAbs` は負値を unary `-value` で正値化する。符号付き整数の最小値は対応する正値を同じ型で表せず、評価は符号付きoverflowになる。
+- **価値／懸念:** `artifactAbs(INT_MIN)`等は安全な絶対値を返さない。
+- **次に確認:** APIの戻り型を広げるか飽和させるか仕様を定め、整数最小値の回帰ケースを決める。
+
+### 2026-10-11 — ArtifactRandom integer upper-bound overflow
+
+- **関連:** `ArtifactCore/include/Core/ArtifactRandom.ixx`、`tests/ArtifactCore/ArtifactRandomContractTest.cpp`。
+- **確認できた事実:** 整数版`between(min, max)`はinclusive化のため`max + 1`を`int`で計算してQt APIへ渡す。
+- **価値／懸念:** `max == INT_MAX`の場合に符号付き整数overflowとなり、定義済み動作ではない。
+- **次に確認:** 上限inclusive要件を保てる範囲幅APIまたは64-bit中間値による実装へ変更し、`INT_MAX`近辺を含む境界回帰ケースを追加する。
+
+### 2026-10-11 — ArtifactVariant destroys storage while empty
+
+- **関連:** `ArtifactCore/include/Core/ArtifactVariant.ixx`、`tests/ArtifactCore/ArtifactVariantContractTest.cpp`。
+- **確認できた事実:** `destroy()` は `typeIndex_ == 0` の空状態でも index 0 の vtable を取得して destroyer を呼ぶ。index 0 は第1 alternativeであり、既定構築 variant の storageにはその型のオブジェクトが構築されていない。
+- **価値／懸念:** 第1 alternativeが非自明デストラクタを持つ場合、空variantの破棄や値を持つvariantから空variantへの代入で未構築オブジェクトに対して破棄処理を行う。
+- **次に確認:** `destroy()` は `isSet()` の時だけ破棄関数を呼ぶようにし、空状態の生成・破棄と値から空へのcopy assignmentを回帰テストする。
+
+### 2026-10-11 — ArtifactAlgorithms erase API does not match ArtifactArray
+
+- **関連:** `ArtifactCore/include/Core/ArtifactAlgorithms.ixx`、`ArtifactCore/include/Core/ArtifactArray.ixx`、`tests/ArtifactCore/ArtifactAlgorithmsContractTest.cpp`。
+- **確認できた事実:** `artifactRemoveIf` は削除時に`container.eraseAt(index)`を呼ぶ。一方、`ArtifactArray`が提供する削除APIは`removeAt(index)`で、`eraseAt`は定義されていない。
+- **価値／懸念:** `artifactRemoveIf(Array<T>&, ...)` は要求メンバーが一致せず直接利用できない。suiteではAPIどおり`eraseAt`を持つ小fixtureを介してアルゴリズム単体を検査する。
+- **次に確認:** `artifactRemoveIf` を`removeAt`コンテナへ一般化するか、`ArtifactArray`へaliasを設けるか決めて、実際のArray統合テストを追加する。
+
+### 2026-10-11 — ArtifactHashMap collision iteration and moved-from lifetime
+
+- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm`、`tests/ArtifactCore/ArtifactHashMapContractTest.cpp`。
+- **確認できた事実:** iteratorの`operator++()`はbucket indexを進め、現在Nodeの`next`を辿らないため、同一bucket内の複数Nodeをiterationで全件訪問しない。move constructor/assignmentは移動元のbucket pointerをnullにするが、destructorの`clear()`はbucket配列をdereferenceする。また、`const_iterator`はmutable `iterator` のaliasでconst mapの`find()`もmutable referenceを返す。`tryEmplace`重複時は既存mapped valueへ新valueを代入してfalseを返す。
+- **価値／懸念:** collision iterationの取りこぼし、move元destruction時のnull dereference、const map経由の変更、try-emplace名称から期待される既存値非変更との不一致がある。
+- **次に確認:** iteratorがchainとbucket遷移の両方を扱うよう修正し、const iteratorを読み取り専用にし、move元を空の有効状態にする。重複時のtryEmplaceを非変更契約にするか決める。回帰テストは修正後にcollision iteration、const性、重複値保持、move元スコープ終了を含める。
+
+### 2026-10-11 — ArtifactArray squeeze currently cannot reduce capacity
+
+- **関連:** `ArtifactCore/include/Core/ArtifactArray.ixx`、`tests/ArtifactCore/ArtifactArrayContractTest.cpp`。
+- **確認できた事実:** `squeeze()` は `size_ < capacity_` の場合に `reserve(size_)` を呼ぶが、`reserve()` は要求容量が現在容量以下なら即returnする。従ってstorage容量は減らない。
+- **価値／懸念:** 名前と一般的なcontainer契約から期待される容量縮小が起きず、過剰確保メモリを保持する。
+- **次に確認:** 容量を縮める再配置処理が必要か判断し、必要なら要素move/destructionとallocation failure時の保証を定めた後でcapacity assertionを追加する。
+
+### 2026-10-11 — AudioEngineProfiler reset retains last frame counts
+
+- **関連:** `ArtifactCore/include/Utils/PerformanceProfiler.ixx`、`tests/ArtifactCore/PerformanceProfilerContractTest.cpp`。
+- **確認できた事実:** `resetStats()` はcallback/fill counters、durations、underflow、buffer levelを0にするが、`lastCallbackFrames_` と `lastRequestedFrames_` はresetしない。
+- **価値／懸念:** reset後snapshotが過去のframe数と新しい累積統計を混在させる。これが意図的なlast-known metadataか、reset漏れかは未検証。
+- **次に確認:** reset後もlast-known値を保持する契約か決め、仕様がzero resetなら両atomicもresetして期待値を追加する。
+
+### 2026-10-11 — PatternNameGenerator without a number slot can loop forever
+
+- **関連:** `ArtifactCore/src/Utils/NameGenerator.cppm`、`tests/ArtifactCore/NameGeneratorContractTest.cpp`。
+- **確認できた事実:** `Generate` はcandidateが `usedNames` に存在する限り番号を増やして再試行するが、`makeCandidateZero` はpatternに `***` がなければ候補文字列を変化させない。同じ固定文字列が使用済みになった後の再生成は終了しない。
+- **価値／懸念:** 固定patternやname slotだけのpatternを複数回使うと呼び出しが停止する可能性がある。再試行上限なしのループであり、通常のテストではプロセスをハングさせうる。
+- **次に確認:** number slotがないpatternの重複方針（エラー、同名返却、pattern妥当性検証）を決め、boundedな失敗契約を実装した後に回帰テストを追加する。
+
+### 2026-10-11 — MultipleTag moved-from state is not reusable
+
+- **関連:** `ArtifactCore/src/Utils/MulitpleTag.cppm`、`ArtifactCore/include/Utils/MultipleTag.ixx`。
+- **確認できた事実:** move constructor と move assignment は移動元の `impl_` を `nullptr` にする。destructor は許容するが、`count()`、`clear()` などの通常メソッドは `impl_` を直接参照する。
+- **価値／懸念:** 移動元を破棄以外に使うと null dereference になる。クラスの moved-from 契約が未定義であり、利用側が再利用可能と期待する場合は問題になる。
+- **次に確認:** moved-from 状態を空の有効状態へ戻すか、型の契約として明示するかを決めてから、move 後再利用テストを追加する。
+
+### 2026-10-11 — Buffer view lifetime and missing-delimiter edge
+
+- **関連:** `ArtifactCore/include/Utils/Buffer.ixx`、`tests/ArtifactCore/BufferContractTest.cpp`。
+- **確認できた事実:** `toBufferView(const QString&)` はローカル `QByteArray` のdata pointerを `BufferView` として返すため、戻り値はローカル所有物の破棄後を参照する。`afterLast` は区切りがないと `splitLast` が `{empty, value}` を返し、非empty側の先頭1byteを除いたviewを返す。
+- **価値／懸念:** QString変換のviewはuse-after-lifetimeとなる。delimiter未検出時の `afterLast` は命名上期待される意味とずれる可能性がある（期待仕様は未確認）。独立suiteではこれらの不安定な期待値を固定せず、テスト対象から外した。
+- **次に確認:** Buffer view APIで所有権が期待されるか、または呼び出し側所有のUTF-8作業領域を受け取る形にするかを確認する。`afterLast`／`takeAfter`／`suffixAfter` の delimiter未検出仕様を定めて境界テストを追加する。
+
+未着手の設計判断、現在の優先方針に直結する実装候補、実機検証待ちだけを記録する。実装済みの詳細履歴と過去の調査は [Insight Archive (through 2026-09-01)](docs/analysis/INSIGHT_ARCHIVE_2026-09-01.md) を参照。
+
+### 2026-10-10 — 2D/3D layer transform composition order
+
+- **関連:** `ArtifactCore/src/Transform/TransformHelper.cppm`、`tests/ArtifactCore/CompositionTransformTimeContractTest.cpp`。
+- **確認できた事実:** `combineLayerTransform2D(local, parent)` は `local * parent` を返す一方、3D 版は `parent * local` を返す。2D 実装コメントは親変換を子空間で適用すると記述し、3D 実装は `QMatrix4x4` の標準的な親×子順を使っている。
+- **価値／懸念:** 2D と 3D の規約差が意図的か、ネストしたレイヤーの描画・座標変換で整合しているかは未検証。単体テストでは各 API の現在の契約を固定できるが、親子レイヤーの実描画結果までは保証しない。
+- **次に確認:** 親子レイヤーを使う描画・bounds・入力座標の各経路で変換積の順序を追い、同じ階層構成の 2D/3D テストを追加すべきか判断する。
+
+### 2026-10-10 — XPU CPU lanes share oneTBB through Core.Parallel
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`ArtifactCore/src/Core/Parallel.cppm`、`ArtifactCore/include/Common/ThreadPool.ixx`。
+- **確認できた事実:** XPU mixed の CPU frame lanes はソフトウェア renderer を通り、複数の画像処理が `ArtifactCore::Parallel::For` を呼ぶ。同 API は `tbb::parallel_for` に委譲される。既存 `ThreadPool` は `tbb::global_control(max_allowed_parallelism, concurrency_)` を作り、TBB の global control は scheduler 内で同時実行する worker thread 数を制限する。TBB の implicit arena は parallel algorithm を呼ぶ user thread ごとに関連付く ([task arena](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/task_scheduler/task_arena/task_arena_cls)、[global control](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/task_scheduler/scheduling_controls/global_control_cls))。
+- **今回の対応:** `Core.Parallel` に共有 TBB arena API を置き、全 `Parallel::For` と XPU CPU frame lanes を同じ arena に通す。XPU は初回 arena 初期化へ process-available thread count を渡し、job host limit を実 concurrency 以下へ上限化する。MSVC module compile で `ThreadPool.ixx` の TBB inline実装を Artifact から使う形が失敗したため撤回し、TBBの実装詳細を既存 `Core.Parallel.cppm` 内へ閉じた。XPU summary と統合テスト source に scheduler と concurrency の確認を加えた。
+- **価値／懸念:** XPU CPU frame lanes と内側の TBB kernels が共有 concurrency cap を使う。Taskflow、QThreadPool、GPU submission、writer/encoderとの完全な process-wide budget は未統合。Debug構成でCore/Artifact/test targetがビルド成功し、RTX 4070 Ti Vulkan + CPUのmixed-text、2D/3D particle、10-frame all-adapters/backpressureテストがそれぞれ3回連続成功。共有TBB arena/concurrencyのdiagnosticsも確認済み。複数物理GPU/iGPUでの受入は未確認。
+- **次に確認:** ArtifactCoreとArtifactの対象ターゲットをビルドし、XPU mixed runtimeでCPU frame lanesとnested `Parallel::For` が同一arenaに参加すること、summaryの実 concurrency、TBB worker数とprocess CPU utilizationを検証する。
+
+### 2026-10-10 — XPU D3D12 requires matching Agility runtime exports
+
+- **関連:** root `CMakeLists.txt` Windows SDK `try_compile` paths、`Artifact/src/Render/DiligentDeviceManager.cppm`、`Artifact/tests/RenderQueueLayerImageIntegrationTest.cpp`。
+- **確認できた事実:** CMake `D3D12_SUPPORTED` と `VULKAN_SUPPORTED` は両方TRUE。ArtifactはAgility SDK 619 のversion/pathを無条件exportしていたが、SDK `D3D12Core.dll` が配置されない構成では `D3D12_ERROR_INVALID_REDIST` (`0x887E0003`) でdevice creationが拒否される。テスト機は Intel Core i7-13700KF と NVIDIA GeForce RTX 4070 Ti の1 GPU構成で、iGPUは列挙されない。
+- **今回の対応:** Agility SDK runtimeがCMakeで設定された場合だけversion/pathをexportする。SDKなし構成ではOS D3D12 runtimeへ戻す。新しいDebug treeでRender Queue統合テストを実行し、CPU＋D3D12 primaryの混在10-frame dispatch、D3D12 backend選択、画像内容を確認。自動backend選択のCPU＋Vulkan混在画像テストも成功。
+- **価値／懸念:** D3D12 primaryを利用できる構成が復旧した。Agility SDKを設定した構成は未検証。現ホストではiGPUおよび複数物理GPUを使った同時レンダリングを受け入れられない。
+- **次に確認:** Agility SDK 619を明示設定したruntimeと、iGPU＋dGPUまたは複数dGPUの実機で、各GPU laneの参加・フレーム数・画像出力を検証する。
+
+### 2026-10-10 — Particle XPU parity uses different rasterizers
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`、`tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`。
+- **確認できた事実:** software particle rendering paints a QPainter radial-gradient circle sprite. GPU particle rendering draws an instanced quad and computes a soft circular alpha edge with a shader `smoothstep`; the rasterizers differ.
+- **今回の対応:** isolated XPU particle Render Queue test verifies deterministic CPU reference output, XPU frame outputs, plan diagnostics, and both 2D/3D layer setup. The GPU-only production particle test separately verifies visible pixels. CPU/GPU lane participation is asserted in the separate multi-frame text case.
+- **価値／懸念:** exact CPU/GPU particle parity remains unverified; the XPU case records mismatch count/bounds without guessing a tolerance. Both XPU particle and GPU-only visibility cases passed three consecutive runs.
+- **次に確認:** capture and compare XPU particle pixels across different GPU vendors/backends; do not call parity complete from manager output alone.
+
+### 2026-10-10 — XPU pull dispatch adapts frame share without static weights
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU `nextFrameCounter` worker loop。
+- **確認できた事実:** mixed/multi-GPU lanes receive one distinct startup frame, then claim the next frame only after `renderOneFrame` completes. There is no fixed per-device frame quota after seeding.
+- **今回の対応:** documented the completion-driven pull behavior next to the shared counter and in P4. Per-device timing weights remain diagnostic rather than being fed back into assignment.
+- **価値／懸念:** fast lanes naturally claim more remaining frames, so a stale startup weight is unnecessary and could bias work after scene/device conditions change. This does not prove there is no starvation under long-tail frames or output-buffer backpressure.
+- **次に確認:** use runtime bench frame counts and lane render durations on dissimilar CPU/iGPU/dGPU hardware. Add a weighted policy only if the pull scheduler shows a repeatable imbalance that lowers throughput.
+
+### 2026-10-10 — Render Queue の HW encoder slot は現行の単一job実行では飽和しない
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`。
+- **確認できた事実:** `ArtifactRenderQueueService::startAllJobs()` は `isRendering_` で同一serviceの二重開始を拒否し、単一 `workerThread_` 内で `jobOrder` を順番に処理する。各動画jobのencoder backendはそのjob処理中に作成される。
+- **今回の対応:** `ARTIFACT_XPU_MAX_HW_ENCODERS` の共有slotをNative HW / ffmpeg HW pipe / Vulkan pipeへ適用し、session lifetime中の上限をコード化した。
+- **価値／懸念:** 将来job並列化または独立encoder利用が入った際のプロセス共通上限を先に確立できる。ただし現行Render Queue単体では複数jobが同時にencoderを開かないため、設定値の差によるthroughput/backoffのruntime効果はまだない。今回の変更だけでXPU並列性能が改善したとは扱わない。
+- **次に確認:** encoder backendを呼び出す他の同一process経路とservice構築可視性を確認し、競合可能なconsumerがなければ、job並列化導入時に同時encoder上限の受入試験を追加する。
+
+### 2026-10-10 — XPU consumer worker と RenderQueue writer 上限の統合
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`ArtifactCore/src/IO/Image/AsyncImageWriterManager.cppm`。
+- **確認できた事実:** XPU混在時はCPU/GPU frame worker上限とは別に画像書き込みfutureが生成されていた。`AsyncImageWriterManager` は既定hardware_concurrencyサイズのthread poolを作り、enqueue件数を呼び出し側へ通知・制限するAPIがない。
+- **今回の対応:** RenderQueue側のasync writer futureを1〜2件に固定し、XPU mixed jobではその同時writer数をhardware thread数から予約してframe lane上限を決める。6 logical threads未満ではasync writerを止めて同期書き込みへ戻す。job summaryへ共有枠を出し、mixed画像統合テストに枠の包含関係を追加。manager指定時はbounded future経路へfallbackし、理由を警告する。ArtifactCoreは変更していない。
+- **価値／懸念:** mixed job内のCPU render laneとsequence writer threadが別々に上限を消費しない。これはjob-localな保守的予算であり、UI・TBB・他poolを含むprocess-wide schedulerではない。CPU budgetの効果、writer失敗時の挙動は実行未確認。
+- **次に確認:** ユーザー許可後に混在レンダー＋async sequenceの低論理CPU数／通常CPU数条件で、summaryのthread枠、キャンセル、書込失敗伝播、長時間メモリ上限を確認し、render/consumer総CPU予算をbenchで確定する。
+
+### 2026-10-10 — XPU mixed video encoder もframe laneのhost budgetを使う
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`、`RenderQueue/XpuEncoderThreads`。
+- **確認できた事実:** native FFmpeg settingsは`threadCount=0`のままencoderへ渡しており、external FFmpeg pipeにも`-threads`指定がなかった。video consumerはframe workerと並行して動く。
+- **今回の対応:** mixed動画ではencoder thread数の既定を1にし、正数指定もusable host thread数へclampする。service側は同数をframe laneの予算から控除し、nativeおよびpipe backend双方へthread countを渡す。
+- **価値／懸念:** frame renderingとencodeが同じCPU資源を超過予約しにくくなる。混在jobのthread枠であり、アプリ全体のpoolを横断してはいない。FFmpegが実際にそのthread上限を守ること、画質・出力と速度への影響は未検証。
+- **次に確認:** software/hardware native backendとexternal pipeで、混在動画のsummary予約数・encoder起動ログ・実プロセスthread数を確認し、thread数別benchを行う。
+
+### 2026-10-10 — XPU mixed eligibility must include the selected render backend
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`xpuMixedEligibleForJob`。
+- **確認できた事実:** CPU backendを選んだjobでは`cpu-render-backend-selected`をmixed unavailable reasonとして記録していた一方、eligible predicate自体にはGPU backend条件がなく、CPU/GPU lane計画と予算予約へ進む余地があった。
+- **今回の対応:** `useGpuBackend`をeligibility条件に加え、実際にGPU rendererが使われるjobだけをXPU mixedとして扱う。Render Queue画像統合テストにCPU backend baselineのunavailable reason、未起動mixed lane、未予約budgetを検査するassertionを追加した。
+- **価値／懸念:** unavailable reasonとplan/CPU予算の分類が一致する。統合テストは未実行で、CPU backendを明示した mixed 要求のruntime summaryは未確認。
+- **次に確認:** GPU backend有効／CPU backend明示の両ケースで、active mixed plan、frame lane数、writer/encoder予約が期待通り切り替わることを確認する。
+
+### 2026-10-10 — XPU thread budget should use process-available CPUs
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`。
+- **確認できた事実:** XPU lane/encoder budgetは`std::thread::hardware_concurrency()`でmachine-wide logical thread数を参照していた。Qtの`QThread::idealThreadCount()`は、OSが対応する場合にprocessが利用可能なlogical processor数を返し、affinityやCPU hotplugで変化し得る。
+- **今回の対応:** serviceとencoderの予算計算を`QThread::idealThreadCount()`へ統一し、processに適用されたCPU制限を反映する。
+- **価値／懸念:** affinity/container/job objectなどの制約が公開される環境で、実際に使えないCPU数を予算へ数えない。OSごとの検出範囲とjob開始後の変化はruntime未確認。
+- **次に確認:** affinityを制限した環境でsummaryのhardwareThreadsが利用可能processor数に一致すること、同一jobのencoder/service両方が同じ数を使うことを確認する。
+
+### 2026-10-10 — 既存Schedulerはdevice-affineなXPU frame laneを表現しない
+
+- **関連:** `Artifact/src/Render/ArtifactRenderScheduler.cppm`、`ArtifactCore/include/Render/MFR/MFRDispatcher.ixx`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`。
+- **確認できた事実:** `ArtifactRenderScheduler` は優先度・重複排除付きの汎用RenderTaskとTaskSystemを持ち、device/renderer affinityをタスクに渡すAPIが見当たらない。`MFRDispatcher` のFrameTaskもframe番号だけを受け取り、実行worker identityをcallbackへ返さない。現在のGPU laneは各immediate context・cache・composition snapshotを単独所有する。
+- **設計仮説（未検証）:** 汎用Schedulerへ現状のframe callbackをそのまま移すと、どのGPU laneが実行中かを外部状態で割り当てる必要が生じ、context所有権やin-flight上限が壊れる可能性がある。XPU dispatcher APIはnode/worker identity付きのclaim/completeを提供する必要がある。
+- **価値／懸念:** 既存Schedulerの名目上の再利用でGPU資源所有を弱めるリスクを避けられる。一方、現行のローカルatomic採番とraw thread管理はRenderQueueに残る。
+- **次に確認:** P2 runtime受入後、device-affine worker descriptorを持つAPIが現在の枠内で追加できるか、シグナル／スロットを増やさず段階的に統合できるかを設計レビューする。
+
+### 2026-10-10 — XPU assist と consumer pipeline は実際の重複実行が必要
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU P3/P4。
+- **確認できた事実:** `igpu=assist` のpreview縮小と動画 `pipeline=on` は、CPU処理を `std::async` で開始して同じフレーム内ですぐ `get()` しており、iGPU処理でもencodeとの重複でもなかった。GPU assist plan node は現時点で `maxInFlight=0`。
+- **今回の対応:** 誤解を招く即時待機のasync処理を撤去し、動画pipeline要求は非対応警告を出して同期経路を使うようにした。マイルストーン文書も未実装に訂正した。さらに、専用D3D12 workerに偏っていたGPU frame数の観測へprimary rendererのadapter IDとframe数を加えた。
+- **価値／懸念:** 「async」指定だけでXPU利用を誤認せず、hot pathで余計なfuture/threadを生成しない。iGPU assistそのものと動画のbounded lookahead pipelineは未実装。
+- **次に確認:** GPU資源で実行可能な既存convert/scale/encode経路とrenderer/device ownershipを特定し、assistの一作業を実GPUへ割り当てる。動画pipelineはbounded lookaheadで次フレーム変換と現フレームencodeを実際に重ねる。primaryとdedicated GPU laneを同時に使うfallback caseのbench counter整合は未検証。
+
+### 2026-10-10 — XPU 開発スイッチを ArtifactStartup.json から解決する
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`、`docs/technical/STARTUP_FLAGS_CONTRACT_2026-09-29.md`。
+- **確認できた事実:** Startup Flags 契約は XPU 系環境変数を `RenderQueue/Xpu*` へ段階移行する計画だが、Render Queue と encoder は環境変数だけを直接読んでいた。また GUI 起動では `ArtifactAppSettings::instance()` が `QApplication` と Startup JSON 読込より先に呼ばれていた。
+- **今回の対応:** XPU spec、worker上限、iGPU参加、preview、sequence、parity、pipeline、bench、clone診断、encoder thread/preset/HW上限の値を `LayeredConfigStore` 起点へ移した。JSON があれば対応 env より優先し、各 setting accessor は解決値を起動後初回にキャッシュする。`AppMain` の GUI 起動順を変更し、Startup JSON を最初の `ArtifactAppSettings` 取得前に読み込む。テンプレートに任意keyの一覧を記載。
+- **価値／懸念:** IDEやExplorer起動でもXPUを設定でき、解決層の読み込みをrender frame hot pathへ持ち込まない。StartupFlags競合時のログと全keyの型・優先順位はruntime未検証。
+- **次に確認:** XPU各keyについて環境変数のみ／JSONのみ／JSONとenv競合／未設定の4条件で解決値を確認する。ビルド・テストはユーザー明示指示待ち。
+
+### 2026-10-10 — XPU GPU worker の初期化失敗を adapter 単位で隔離
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`GpuFinalWorker` 初期化。
+- **確認できた事実:** worker 構築ループは composition snapshot または adapter renderer の初期化に失敗したとき、既に作成済みの全 GPU worker も `workersReady` gate で無効化していた。
+- **今回の対応:** 失敗した adapter の worker だけを skip し、他の GPU worker は保持する。CPU fallback snapshot が利用できなくても GPU renderer 自体は登録する。混在時の最低1 worker条件と legacy multi-GPU時の最低2 worker条件は維持する。
+- **価値／懸念:** 1台の不調 adapter が他の正常な GPU lane を無効にしない。fallback snapshot がない GPU lane は GPU render 失敗時にCPUへ切り替えられない。
+- **次に確認:** adapter 初期化失敗・snapshot clone失敗を個別に注入し、残存 worker のフレーム出力、fallback、summary計数を確認する。ビルド・テストはユーザー明示指示待ち。
+
+### 2026-10-10 — XPU CPU lane の snapshot clone 部分失敗を縮退扱いにする
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU mixed CPU worker 初期化。
+- **確認できた事実:** CPU composition snapshot の作成ループは一つでも clone に失敗すると `mixedCpuReady=false` にし、すでに正常作成した snapshot がある場合も mixed dispatch を有効にしなかった。
+- **今回の対応:** 失敗を警告して clone ループを止め、作成済み snapshot が一つ以上あればその数だけ CPU lane を登録する。CPU lane が0ならGPU側の既存dispatchへ縮退する。
+- **価値／懸念:** 一時的なclone失敗で既に確保したCPU資源を全て失わず、実際に初期化できたlane数を超えて起動しない。
+- **次に確認:** clone failure を注入し、要求／実稼働 lane 数、順序復元、フレーム成功数が縮退後の構成と一致することをruntimeで確認する。ビルド・テストはユーザー明示指示待ち。
+
+### 2026-10-10 — Kuwahara の近傍統計を一走査で集計する
+
+- **関連:** `Artifact/src/Effects/Kuwahara/KuwaharaEffect.cppm`。
+- **確認できた事実:** CPU と HLSL の両方で、各 quadrant の平均用と分散用に同じ近傍画素を別々に走査・読込していた。GPU shader は1画素につき4 quadrantを処理する。
+- **今回の対応:** RGBの二乗和も平均と同時に集計し、`E[x²] - E[x]²` から分散を得る形へ変更。CPU と HLSL を揃えた。負の丸め誤差は0へクランプする。CPU 側のquadrant loopは0／負のoffsetで終端へ進まず走査が継続する向きだったため、GPU と同じ画素範囲を進むよう修正。
+- **価値／懸念:** 近傍テクスチャ読込・CPU画素読込を理論上およそ半減できる。二乗和方式は従来の差分二乗方式と浮動小数点丸めが異なり、HDR値やほぼ一様な領域では分散選択に差が出る可能性がある。速度と画像差は未検証。
+- **次に確認:** ビルド後、CPU/GPU pixel parity と半径別の実行時間を比較する。ビルド・テストは明示指示待ち。
+
+
 ## 2026-10-24: A module source migration may need both the manifest and a direct APP_IMPL registration updated
 
 - **関連:** `Artifact/cmake/ArtifactSources.cmake`、`Artifact/CMakeLists.txt`、`ArtifactSwitchLayer.cppm`、`ArtifactPaintLayer.cppm`
 - **確認できた事実:** SwitchLayerとPaintLayerはsource manifestのsource pathを `.cpp` に変更した後も、Artifact/CMakeLists.txt内の明示 `APP_IMPL` entryが `.cppm` を参照していた。CMake configureは `file(STRINGS)` で旧pathを読み込もうとして失敗した。2つの明示entryを `.cpp` に更新するとconfigure / generateが成功した。
 - **価値または懸念:** source manifestのpath置換だけでは足りず、CMakeLists.txtの明示target pinや直接ファイル参照が残ることがある。拡張子移行ではsource pathをrepository-wide検索し、manifestと明示登録の両方を整合させる。
 - **次に確認すべきこと:** 将来の `.cppm` → `.cpp` 移行前後に `rg` で旧basenameをCMakeLists / cmake directory全体から検索し、file read / target pinの参照漏れを確認する。
+
 
 ## 2026-10-24: Event payloads should not redeclare widget classes owned by another module
 
@@ -407,12 +831,14 @@
 - **価値または懸念:** event identityにwidget派生型を露出しない設計はnamed-module ownershipの重複を避け、event busのpayloadを利用側の具象widgetから疎結合にできる。ただし変更後の全target link / runtimeは未検証。
 - **次に確認すべきこと:** 他のevent payloadにwidget具象型のpointerがあり、別interface moduleでもforward declaration / 定義されていないか調べる。変更を広げる際は利用側比較とaggregate constructionを確認する。
 
+
 ## 2026-10-24: PCM file presence alone does not guarantee a source is safe to compile in the current Clang session
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactLayerCompositeTestWidget.cppm`、`ArtifactCompositionRenderOverlay.cppm`、Clang 23.1.4 / Windows MSVC ABI
 - **確認できた事実:** LayerCompositeTestWidget の全direct required PCMが存在し、fresh P1689 scanとpublic interface PCM compileも成功したが、implementation compileはAST source-location使用量約2.13 GB（診断上99%）でfrontend exit 70となった。別batchのCompositionRenderOverlayでも約2.15 GBでcrashしている。
 - **価値または懸念:** 欠落PCMを解消しても、import closure全体のsource-location tableがClang frontendの上限に達する可能性がある。PCM存在チェックだけで対象sourceのcompile可能性を予測できない。
 - **次に確認すべきこと:** 再試行前にmodule closureの大きさを評価し、frontend RAMを監視する。上限に達した候補はsource error扱いせず、根拠ある依存縮小まで `.cppm` に残す。
+
 
 ## 2026-10-24: A dialog's public interface can be the high-memory step even when its implementation module has few imports
 
@@ -421,12 +847,14 @@
 - **価値または懸念:** implementation import数やsource byte数だけでなく、public interfaceが再export/importするmodule closureを見てClang適合候補を選ぶ必要がある。interface PCM compileもメモリ監視対象にする。
 - **次に確認すべきこと:** QuickLayerCreationDialogを再試行する前に `Artifact.Menu.Layer` interfaceの公開依存closureを確認し、既存PCM再利用または依存境界を狭める根拠があるか調べる。
 
+
 ## 2026-10-24: Module implementation consumers need direct imports for owner-defined value types
 
 - **関連:** `Artifact/src/Layer/ArtifactSwitchLayer.cpp`、`Utils.Id`、Clang 23.1.4 / Windows MSVC ABI
 - **確認できた事実:** SwitchLayer implementationは `LayerID` を `Artifact.Layer.Abstract` 経由で使っていたが、Clangはowner module `Utils.Id` の直接importを要求した。implementationに `import Utils.Id;` を追加するとfresh P1689 scanと個別object compileが成功した。
 - **価値または懸念:** あるmoduleのinterfaceから別module型が見えていても、implementationの利用箇所で所有元moduleを明示importする必要がある場合がある。拡張子を変えるだけで診断を終わらせず、型のmodule ownerに沿って依存を直す。
 - **次に確認すべきこと:** Clangが未移行 `.cppm` の型可視性エラーを出した場合、型定義moduleを特定し、implementation単位に直接importを加えて再scan / compileする。
+
 
 ## 2026-10-24: `_2D` module componentはClangの予約名warningを発生させる
 
@@ -435,12 +863,14 @@
 - **価値または懸念:** source filenameの拡張子移行ではこのidentifier warningは解消しない。logical module名を変更するにはpublic interfaceと全importerの協調更新が必要なため、今回の拡張子移行の範囲外である。
 - **次に確認すべきこと:** module名の診断対応を別途行う場合は、全 `_2D` 宣言とimportを調査し、`.cppm` → `.cpp` とは分離したatomicなmodule名移行を計画する。
 
+
 ## 2026-10-24: Clang source-location limit affects some implementation module closures
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderOverlay.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionViewerFooter.cpp`、`Artifact/src/Widgets/Dialog/CreateCameraLayerDialog.cpp`、`Artifact/src/Diagnostics/AppValidationRules.cpp`、`Artifact/src/Render/Software/ArtifactSoftwareImageCompositor.cpp`、`Artifact/src/Layer/ArtifactFormParticleLayer.cpp`、`Artifact/src/Layer/ArtifactSolidImageLayer.cpp`、`Artifact/src/Layer/ArtifactGroupLayer.cpp`、`Artifact/src/Layer/ArtifactLightLayer.cpp`、Clang 23.1.4 / Windows MSVC ABI
 - **確認できた事実:** CompositionRenderOverlayのimplementation compileはAST内source locations約2.15 GB（診断上99%）でfrontend exit 70となった。CompositionViewerFooter、CreateCameraLayerDialog、ArtifactSolidImageLayerはfresh P1689 scan後のcompileでそれぞれ約2.13 GB / 99%に達してexit 70。一方、同じ作業のAppValidationRules、ArtifactSoftwareImageCompositor、ArtifactFormParticleLayer、ArtifactGroupLayer、ArtifactLightLayerはfresh scanとimplementation compileに成功した。NLETransitionBridgeも単独compile成功。
 - **価値または懸念:** 直接import数やsource byte数だけでClangのcompile可否は予測できない。module closureのAST負荷がtranslation unitごとに異なるため、fresh scanとimplementation compileを分けて確認する必要がある。
 - **次に確認すべきこと:** source-location上限に達したUI translation unitは、import closureを具体的に縮小できる根拠が得られるまで再試行しない。AppValidationRules成功を根拠に他のclosureへ一般化しない。
+
 ## 2026-10-24: Clang module implementation では所有元 module の型を直接 import する
 
 - **関連:** `Artifact/src/Widgets/Diagnostics/FramePipelineViewWidget.cpp`、`Graphics.RenderGraph`、Clang 22.1.3 / P1689
@@ -448,12 +878,14 @@
 - **価値／懸念:** 既存interface越しに見える型であっても、implementationの利用moduleを直接importするとClang frontend間の可視性差を早期に検出できる。依存追加は実装側に閉じ、公開interfaceのimport集合を不必要に広げない。
 - **次に確認:** 他の移行sourceで同様のtransitive visibility依存が出るか、Clang compile結果に基づき個別に確認する。
 
+
 ## 2026-10-22: 実 ArtifactCore module target でも sccache が Clang cache hit を返す
 
 - **関連:** upstream clang++ 22.1.3 / MSVC ABI、`ArtifactCoreEnvironment`、sccache 0.18.0、`.cppm` → `.cpp` migration
 - **確認できた事実:** vcpkg `FindStb.cmake` の directory を `CMAKE_MODULE_PATH` に明示して root configure/generate が成功。sccache launcher 下で `ArtifactCoreEnvironment` を2回 clean/build し、1回目は3 compile miss、2回目は3 compile hit、0 non-cacheable calls。2回とも `.ixx` / `.cpp` compile と static archive link が成功した。
 - **価値／懸念:** isolated smoke だけでなく実ソースの CMake module target に cache が適用されることを確認できた。全 ArtifactCore / ArtifactWidgets / アプリ全体の cache hit・成果物一致は未確認。
 - **次に確認:** 別 split target で Clang P1689 / module map の依存順と sccache hit を検証し、clang-cl root 側の third-party option 問題と切り分けて全体対応を進める。- **追加確認（2026-10-23）:** ImageProcessing partition implementations `ChromaSpreadGlow.cppm` / `EdgeEcho.cppm` を `.cpp` へ移し、両本文がHEADと一致すること、upstream clang++でscan・compile・ArtifactCore.lib link成功を確認。clang-clではChromaSpreadGlowの実interface/implementationとOpenCV headersを使ったfixture compile/link、sccache 1 miss→1 hitが成功した。EdgeEchoのclang-cl fixtureは元HEADにもある `FloatRGBA` 未宣言で停止し、拡張子移行と独立した既存可視性問題と判断。**未検証:** root clang-cl全体target。
+
 
 ## 2026-10-22: upstream clang++ の広い target 検証は OpenUSD Windows min macro で停止
 
@@ -463,12 +895,14 @@
 - **価値／懸念:** Core split target の P1689 / cache integration はこの試行では判定できない。GNU frontend と MSVC ABI を別軸にするには OpenUSD の compiler feature test が `__clang__` と `_MSC_VER` の両方を区別する必要がある。
 - **次に確認:** OpenUSD 側に用意済みの CMake option / feature override で Clang MSVC ABI を構成できるか調べる。無ければ dependency patch 運用が必要かユーザー判断を仰ぐ。
 
+
 ## 2026-10-22: Verdigris 実装を含む Widget module の `.cpp` 移行と cache hit
 
 - **関連:** `ArtifactWidgets/src/Common/ClickableLabel.cpp`、`include/Common/ClickableLabel.ixx`、Qt6、Verdigris、clang-cl / upstream clang++、sccache
 - **確認できた事実:** `ClickableLabel.cppm` は Verdigris の `W_OBJECT_IMPL` と mouse event 実装を含む。`.cpp` へ拡張子のみ移し、両ファイルの Git blob hash が元 `.cppm` と一致することを確認。CMake 4.4.4 / Ninja で clang-cl と upstream clang++ + MSVC ABI の両方が module scan、compile、Qt6 DLL link に成功。Upstream clang++ / sccache launcher 下で同 target の clean/build 2回から4 compile cache hit を確認した。
 - **価値／懸念:** 実装が単純な no-op ではない UI module でも、両 Clang frontend で `.cpp` source extension と module interface の組み合わせが成立する。Widget 全体の link は未確認。
 - **次に確認:** UI module の次候補を依存と責務から選び、ArtifactWidgets target の実際の module dependency graph へ移行を広げる。
+
 
 ## 2026-10-22: DialogPlacement module を両 Clang frontend で `.cpp` として構築
 
@@ -478,12 +912,14 @@
 - **次に確認:** source manifest と module graph を保ちつつ Widgets の移行候補を広げる。全体ビルドは OpenUSD ABI 分岐と clang-cl の third-party flags の解消後に検証する。
 
 
+
 ## 2026-10-21: CMake 4.4 で clang-cl と `.cpp` implementation unit を分離検証できる
 
 - **関連:** ルート `CMakeLists.txt` clang-cl scanner gate、`ArtifactWidgets/src/Dock/Pane.cpp`、CMake 4.4.4、sccache v0.18.0
 - **確認できた事実:** CMake 4.4.4 / Ninja / clang-cl 22.1.3 で実 Pane `.cpp` と `.ixx` を compile し、Qt6 Core / Widgets を link できた。CMake 4.2.2 では clang-cl module rule がなく、CMake 4.4 では追加される。sccache では clang-cl importer / implementation `.cpp` が cache hit、interface `.ixx` は `multiple input files` で bypass した。
 - **価値／懸念:** 拡張子移行の実現可能性と root 全体の toolchain 互換を分けて評価でき、clang-cl の `.cpp` module implementation をキャッシュ対象にできる可能性が実測できた。Root target は OpenUSD の clang-cl 非互換 warning flags で停止し、全体対応は未完了。
 - **次に確認:** clang-cl 用 OpenMP 自動検出と OpenUSD warning option の責務を依存側で分離し、root target の段階的 build を再開する。sccache cache hit は固定版・隔離 target で確認し続ける。
+
 
 ## 2026-10-21: Windows upstream clang++ は GNU frontend と MSVC ABI を別々に成立させる必要がある
 
@@ -493,6 +929,7 @@
 - **価値／懸念:** compiler frontend と object / library ABI を独立した軸として扱い、GNU frontend + MSVC ABI のための明示 toolchain を設計できる。既存の cl.exe 前提 v143 toolchain や MSVC IFC をそのまま流用すると、誤った configure 成功や module format の混在につながる。
 - **次に確認:** upstream clang の配布元・版・driver options、CMake / Ninja scanner 対応版を固定し、最小 module provider/importer と `.cpp` implementation unit の configure・build feasibility を確認後、Windows SDK / vcpkg / Qt / Diligent を段階追加する。
 
+
 ## 2026-10-21: upstream clang++ の P1689 と ArtifactCore 既存依存設定
 
 - **関連:** `tools/clang-msvc-abi-smoke/implementation.cpp`、CMake Ninja P1689 dyndep、ArtifactCore `.cppm` 実装スキャン
@@ -501,12 +938,14 @@
 - **価値／懸念:** P1689 の正規依存情報を使いつつ、MSVC IFC 固有の source-level ordering から GNU Clang lane を分離できる。今回の root target 検証は ArtifactCoreEnvironment に限り、他の split target とアプリ全体の link は未確認。
 - **次に確認:** 同様の分割 target を追加検証し、sccache 有効時の実 compile cache hit を計測する。Clang lane の source property 除外が他 target に波及しないか確認する。
 
+
 ## 2026-10-21: GNU frontend の Windows module smoke は P1689 と COFF link の設定境界を分ける
 
 - **関連:** `cmake/toolchain-clangxx-msvc-abi.cmake`、`cmake/clangxx-msvc-abi-rules.cmake`、`tools/clang-msvc-abi-smoke/`
 - **確認できた事実:** CMake 4.2.2 / Ninja 1.12.1 / clang++ 22.1.3 の Windows x64 smoke では `clang-scan-deps` P1689 と dyndep が `.cpp` module implementation unit を interface provider へ依存させ、Clang GNU frontend + `x86_64-pc-windows-msvc` で link / 実行まで成功した。stock Windows-Clang link command の MinGW 用 `-nostartfiles` / `-nostdlib` はこの ABI とは衝突した。
 - **価値／懸念:** scanner / module map を Clang 標準経路に保ちながら、MSVC ABI の runtime library と linker defaults を個別調整できる。smoke の成功だけではプロジェクト全体の MSVC `/reference`・`std.ifc`・vcpkg / Qt / Diligent 整合を示さない。
 - **次に確認:** 現在の rules override が CMake の対応版間で安定するか確認し、ArtifactCore / Widgets の小さな実際の target に段階適用する。sccache と CMake 3.30 / clang-cl は別レーンで実測する。
+
 
 ## 2026-10-21: `.cpp` module implementation unit は MSVC / Ninja でコンパイル可能
 
@@ -515,12 +954,14 @@
 - **価値／懸念:** `.cpp` 拡張子は既存 MSVC module implementation として成立するが、compile 成功だけでは DLL link / runtime 完了を意味しない。
 - **次に確認:** CMake `vs_link_dll` manifest step の失敗を既存 build environment で切り分けたうえで、clang++ / clang-cl 各 lane の `.cpp` pilot と sccache cache stats を独立に実測する。
 
+
 ## 2026-10-19: レイヤー流体の動作確認はタイムラインフレームを進めてキャプチャする
 
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cppm`、`Artifact/src/Layer/ArtifactLayerTimelineSupport.cppm`、`tests/Artifact/PhysicsLodBridgeContractTest.cpp`
 - **確認できた事実:** Liquid レイヤー描画は `currentTimelineFrame()` を見てフレーム間の solver update を行う。composition 未接続なら layer current frame が使われる。単一フレームの描画キャプチャは色と形状しか検証せず、時間変化を示さない。D3D12 headless で frame 0 / 12 の readback を比較するテストは成功し、泡の縮小・減光と厚み由来の方向光／局所ハイライトを加えた。
 - **価値／懸念:** アニメーションを含むレイヤーシミュレーションのGPUテストは、同一条件で異なるフレーム画像を比較するとシミュレーション進行と描画の両方を確認できる。GPU/ドライバ差を考慮し、完全一致ではなく意味のある画素差を判定する必要がある。層ごとの定数色描画であり、屈折や環境反射を含む本格的な流体シェーダーではない。
 - **次に確認:** 明暗幅を含む更新後テストを通し、実アプリでフレーム移動・再生・シーク時の表示を MCP capture または UI テストで確認する。
+
 
 ## 2026-10-19: 独立Motion Path統合テストはVS2026/Ninjaで成立した
 
@@ -529,6 +970,7 @@
 - **価値／懸念:** VS2026がこの独立GUIテストの実用コンパイラであることを実ビルド・実行で確認できた。CMake/NinjaやMSVC更新時は親側IFC補完とshimが不要になるか再検証が要る。
 - **次に確認:** 同じtoolchainを更新したとき、IFC参照補完と `_Fill_vbool` workaroundの必要性を個別に再確認する。
 
+
 ## 2026-10-19: 状態差分の画像artifactをVP overlay認識へ適用できた
 
 - **関連:** `tests/ArtifactTestImageArtifacts.h`、`tests/ArtifactTestWindowCapture.h`、`tests/Artifact/CompositionMotionPathMain.cpp`
@@ -536,12 +978,14 @@
 - **価値／懸念:** 全画面画像に頼らず、対状態の差分から特定表示のpixel maskを得られる。maskは画素差であってキーフレーム等の意味データではなく、他widget/backendへの再利用は未検証。
 - **次に確認:** paired-state切替が安全な別GUIテストでhelperを適用し、capture領域、DPI、backendごとの安定性を確認する。
 
+
 ## 2026-10-19: 過去Motion Pathキーを編集しても現在フレームを維持する
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` のMotion Path hit処理、`tests/Artifact/CompositionMotionPathMain.cpp`
 - **確認できた事実:** 当初、Motion Path sample/key hit処理が `ArtifactPlaybackService::setCurrentFrame(hitSample.framePosition)` を呼んでいた。ユーザーから過去点を触ると現在オブジェクトが移動すると報告され、ユーザー指定の「編集時は現在フレームを維持」に合わせてseekを削除した。独立GUI回帰はframe 45でframe 0 keyをdragし、frame 45の再生位置・Transform評価を保ち、キー変更とUndo復元を確認する。VS2026ビルドと3 MCPステップがpassした。
 - **価値／懸念:** 過去keyの編集対象frameとPlaybackの現在frameが分離され、現在のプレビュー位置を保ってキーを修正できる。
 - **次に確認:** 通常アプリ上でも選択・ドラッグ時の編集感を確認する。回帰は独立GUI fixtureのWindows / VS2026実行であり、他backend・OSは未検証。
+
 
 ## 2026-10-17: ProgressiveRenderer downsample settings have no callback consumer
 
@@ -551,6 +995,7 @@
 - **価値／懸念:** The progressive stage sequencing has explicit coverage. The downsample setters still expose settings with no observable effect through this callback API; this is a potential missing feature, not evidence that the current stage contract is inconsistent.
 - **次に確認:** If progressive downsampling becomes an implementation target, define how a stage communicates its working resolution and add assertions at that renderer boundary. Runtime status remains unknown because tests were not run under repository instructions.
 
+
 ## 2026-10-17: SoftBody self-collision stays disabled after leaving Minimal LOD
 
 - **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::PhysicsSystem::updateSoftBodies`、`SoftBodySolver::setSelfCollisionEnabled`、`tests/ArtifactCore/PhysicsLodSettingsContractTest.cpp`。
@@ -558,6 +1003,7 @@
 - **変更:** Added a test that starts with authored self-collision enabled, enters Minimal, then returns to Full and expects the setting to be restored. The current update path appears not to satisfy the final assertion; tests were not run under repository instructions.
 - **価値／懸念:** A temporary performance LOD can permanently change the user's SoftBody behavior after the quality level rises again.
 - **次に確認:** Decide how PhysicsSystem should preserve and restore each solver's authored self-collision state across LOD overrides, then run the focused Physics LOD contract test.
+
 
 ## 2026-10-17: MeshRenderer retains stale CPU LOD levels after an empty LOD upload
 
@@ -567,6 +1013,7 @@
 - **価値／懸念:** Renderer selection can reference stale levels after geometry replacement, diverging CPU LOD choice from the available GPU resources.
 - **次に確認:** When the implementation is in scope, clear `meshletLods_` on every upload before conditionally assigning the new table, then run the targeted GPU acceptance case.
 
+
 ## 2026-10-17: GI working resolution accepts non-finite LOD scales
 
 - **関連:** `ArtifactCore/include/Graphics/GIResources.ixx::GIFrameResources::scaledDimension`、`tests/ArtifactCore/RenderPipelineContractTest.cpp`。
@@ -574,6 +1021,7 @@
 - **変更:** Added a contract expecting NaN and ±Inf resolution scales to resolve to zero working dimensions. The tests are expected to expose a mismatch for NaN and positive infinity; they have not been executed under the repository's no-test-without-request rule.
 - **価値／懸念:** Malformed GI LOD settings can otherwise produce invalid or implementation-dependent resource dimensions before texture allocation.
 - **次に確認:** When ArtifactCore production changes are explicitly in scope, reject non-finite scales before conversion and run the targeted render pipeline contract suite.
+
 
 ## 2026-10-17: RenderContext zoom accepts non-finite values
 
@@ -583,6 +1031,7 @@
 - **価値／懸念:** 不正な zoom が view ROI 計算や snapshot 復元へ伝播して描画座標を壊す可能性がある。
 - **次に確認:** 実装変更が許可された段階で、非有限値を 1.0 倍へ正規化し、zoom と resolutionScale の共通 clamp 方針を検討する。
 
+
 ## 2026-10-17: Preview quality scaling can produce zero-sized non-empty previews
 
 - **関連:** `ArtifactCore/src/Preview/PreviewQuality.cppm::calculatePreviewSize`、`tests/ArtifactCore/PreviewSettingsLodContractTest.cpp`。
@@ -591,6 +1040,7 @@
 - **価値／懸念:** This makes the smallest preview-size behavior explicit and should catch zero-sized resource requests. The positive-dimension contract is inferred from the need to preserve valid output dimensions; no test execution was performed because repository instructions prohibit it without explicit user direction.
 - **次に確認:** Decide whether non-empty preview dimensions must be clamped to one pixel, then run the PreviewSettings LOD contract suite when test execution is authorized.
 
+
 ## 2026-10-17: Preview TextureQuality has no consumer in the current tree
 
 - **関連:** `ArtifactCore/include/Preview/PreviewQuality.ixx`、`ArtifactCore/src/Preview/PreviewQuality.cppm`、texture resource creation and sampling paths.
@@ -598,12 +1048,14 @@
 - **価値／懸念:** Presets advertise a texture-quality LOD dimension that currently has no verified downstream effect. An end-to-end test needs a consumer boundary first; a storage-only test would not prove texture LOD behavior.
 - **次に確認:** When implementation scope includes preview texture policy, define the mapping from TextureQuality to mip/residency/filtering and add an image-level or resource-selection contract at that seam.
 
+
 ## 2026-10-17: Boids LOD transitions retain the previous skip counter
 
 - **関連:** `ArtifactCore/include/Crowd/BoidsSwarmSystem.ixx::update`、`tests/ArtifactCore/BoidsDistanceLodContractTest.cpp`。
 - **確認できた事実:** `update()` changes `agentLod_[i]` from camera distance and decrements `lodSkipCounter_[i]`, but does not reset the counter when the LOD changes. Existing coverage verifies initial entry into Far and periodic force refresh; a new contract also exercises Far→Near→Far after reversing the target direction and expects a fresh force on re-entry.
 - **価値／懸念:** A Far agent can hold a multi-frame skip counter while Near computes a new force; returning to Far before that counter expires may skip the first force update and retain stale acceleration. This is inferred from the inspected control flow; test execution is prohibited by the repository instructions, so runtime confirmation is pending.
 - **次に確認:** When implementation work is authorized, reset or refresh the skip state at distance-LOD transitions and run the targeted Boids contract suite.
+
 
 ## 2026-10-17: Physics fluid resolution scale is configured but not applied
 
@@ -613,6 +1065,7 @@
 - **価値／懸念:** The test exposes a mismatch between the configured Physics LOD budget and the solver resolution. It is expected to fail against the inspected implementation; no runtime result is available because repository instructions prohibit test/build execution without explicit user direction.
 - **次に確認:** When production implementation is authorized, define how live fluid fields are resampled on both downscale and restoration, then run the Physics LOD contract tests.
 
+
 ## 2026-10-17: Particle render LOD target ratio differs from actual fixed-stride count
 
 - **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm::applyParticleRenderLOD`、`tests/Artifact/Particle3DRenderContractTest.cpp`。
@@ -620,6 +1073,7 @@
 - **追加確認:** At screen scale 0.10, 257 source particles produce a 64-particle target but a stride of 5, so the selected count is `ceil(257 / 5) = 52`. This falls below the apparent 64-particle minimum. Added `ParticleLodMinimumBudgetSurvivesOddPopulation` to cover this boundary; it is expected to expose the mismatch, but has not been run.
 - **価値／懸念:** Fixed-stride rounding makes the target ratio differ from retained density and can reduce output below the intended minimum. The new odd-population assertion is expected to fail against the inspected calculation; runtime confirmation was not performed because repository instructions prohibit test/build execution without explicit user direction.
 - **次に確認:** Decide whether fixed-stride sampling is the intended density policy. If an approximately proportional target is required, consider a bounded deterministic index-distribution scheme and add particle attribute/model-matrix preservation checks through a suitable test seam.
+
 
 ## 2026-10-17: Deferred command recording needs a strict first worker lane
 
@@ -631,6 +1085,7 @@
 
 - **追加確認 (2026-10-17):** `Model3DLightCompositionIntegrationTest` は frame serial の進行と GPU readback source の準備を同時とみなしており、point-light case で空画像を受け取ることがあった。テスト側で GPU readback を最大 5 秒待つようにし、Debug / D3D12 と Debug / Vulkan で Composition の実フレーム PNG が出力されることを確認した。両 PNG は SHA-256 が一致した。この確認は画像出力の安定化であり、worker frame ownership の証明ではない。
 
+
 ## 2026-10-17: Particle deferred image tests also validate readback channel order
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::readbackToImageF32()`、`tests/Artifact/Particle3DRenderContractTest.cpp`、`tests/Artifact/CMakeLists.txt`。
@@ -638,6 +1093,7 @@
 - **今回の対応:** Normalize the raw RGBA readback through `setFromRGBA32F()`, copy Qt's offscreen integration plugin beside the Particle test binary, and add a 16-packet deferred-vs-immediate Particle image contract.
 - **価値／懸念:** The Deferred Particle test now checks actual GPU output on D3D12 and Vulkan; the full Particle contract suite passes. Binding the DSV only when Particle depth testing or writing is enabled removed the depth-format mismatch warning. All seven Particle contract tests pass on both D3D12 and Vulkan.
 - **次に確認:** Extend the same offscreen plugin deployment to other Windows headless targets only when their CTest setup demonstrates the same missing-plugin failure; continue validating depth-enabled Particle PSOs against the active DSV format on both backends.
+
 
 ## 2026-10-17: Deferred viewport state needs an image-level boundary test
 
@@ -647,6 +1103,7 @@
 - **価値／懸念:** This proves viewport preservation and queue draining for solid-rect packet batches; it does not prove gizmo runs or billboard/3D render-target handoff.
 - **次に確認:** Add image contracts for ordered gizmo overlays and Billboard/3D target handoff before claiming broad deferred viewport parity.
 
+
 ## 2026-10-17: Resident GPU shaders need paired BGRA load and store swizzles
 
 - **関連:** `Artifact/src/Effects/InnerShadow/InnerShadowEffect.cppm` resident shader、`docs/analysis/COLOR_CHANNEL_ORDER_CONSISTENCY_AUDIT_2026-10-16.md`。
@@ -654,6 +1111,7 @@
 - **変更:** shaderのforeground loadに`.bgra`、output storeにも`.bgra`を追加し、resident BGRA textureとの入出力規約を対称にした。
 - **価値／懸念:** Inner ShadowのGPU出力とCPU fallbackを同じlogical colorに揃える。shader compileとruntime画素比較は実施していない。
 - **次に確認:** 赤青が非対称な素材と影色を用い、resident GPU / CPU fallback / 後続effect chainの画素値を比較する。
+
 
 ## 2026-10-16（更新 2026-10-17）: Render thread separation is gated by a widely shared immediate context
 
@@ -681,12 +1139,14 @@
 - **価値／懸念:** deferred context は command recording を段階的に移せるが、現在は同期呼び出しで GUI を外れない。submitter は PSO cache と batch 配列、PrimitiveRenderer3D は SRB / constant buffer / 定数値 / RTV override を可変共有するため、別 worker へ context pointer だけ渡す設計では競合する。順序付き gizmo run metadata は初期化時に小さく reserve するが、256 run を超える場合の steady-state allocation は計測していない。GUI block の解消には GUI snapshot、worker-owned deferred recorder と mutable resource state、immediate execution / present owner の分離が別々に必要。deferred command list 実行まで resource の寿命を保ち、順序を維持しなければならない。
 - **次に確認:** 明示的なビルド／実行後に Cloner の dispatch → sprite 順序、CPU fallback、画像 parity と、gizmo の面／輪郭線順序、target、D3D12 / Vulkan parity、offscreen Billboard 後の即時 3D draw target を確認する。続けて recorder ごとの GPU resource ownership を設計し、GUI prep / command record / immediate execute / present を個別計測する。併せて shared immediate を使う Effect の frame 外利用と queue/cache 経由の context も追跡する。`MultithreadedResourceCreation` は別機能として扱う。
 
+
 ## 2026-10-16: Effect parameter edits bypass undo and force full surface invalidation
 
 - **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`（effect 行 `:3555-3726`、preview `:565-597`）、`Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm:1003-1020`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:18408`/`:18497`、`Artifact/src/Service/ArtifactEffectService.cppm:1612`/`:1691`、`Artifact/src/Undo/UndoManager.cppm:996`。計画は `docs/planned/MILESTONE_EFFECT_PARAM_UI_PERFORMANCE_2026-10-16.md`。
 - **確認できた事実:** Inspector のエフェクトパラメータ UI は `ArtifactInspectorWidget` 内の `ArtifactPropertyWidget`（`effectPropertyWidget`）が担い、編集は `effect->setPropertyValue` を同期直接呼び出しする（`beginValueEdit`/`cancelValueEdit` は渡されない）。そのためこの経路は `SetPropertyCommand` を積まず undo 履歴に入らない。`LayerDirtyFlag::Effect` は lightweight 合成から除外され、1ステップごとに full/draft surface cache 破棄＋full-frame effect で全画面再合成を誘発し、描画は GUI スレッドで走る。undo 付きの正規 API（`ArtifactEffectService::setEffectProperty`）は別に存在するが、パラメータ値編集では使われていない。
 - **価値／懸念:** 同じ「エフェクト param 編集」で undo 有無と dirty 処理が二重系統に分かれている。rect 編集で full 破棄を避け、undo を service 経路へ寄せれば、重さと undo ギャップを同時に縮められる可能性がある。ただし直接経路が undo 無しである理由は未確認。
 - **次に確認:** 直接経路が意図的（undo 対象外）か、別ハンドラが補完しているかを確定してから Phase 1.2 を実装する。Phase 0 計測（`ArtifactEffectParamPerf.enable` 案）で setPropertyValue / invalidation / full redraw / GUI ブロック時間を実測して採否を判断する。
+
 
 ## 2026-10-16: GPU image upload should preserve canonical BGRA directly
 
@@ -696,12 +1156,14 @@
 - **価値／懸念:** 正規BGRA CPU imageからGPU textureへのuploadがzero-copyになり、色順変換とフレーム単位scratch allocationをなくす。もしRGBA descriptorのsurfaceが残ればupload失敗し、caller fallbackとなるため、全surface producerの正規化は引き続き必要。
 - **次に確認:** surfaceView生成箇所と全upload call siteでBGRA descriptorが確立していることを静的に確認し、descriptor不整合を実行時に検出する。pixel parityとallocation profileは未実施。
 
+
 ## 2026-10-16: RationalTimeのint64境界rescaleが符号を反転する
 
 - **関連:** `ArtifactCore/src/Time/RationalTime.cppm` の `RationalTime::rescaledTo()`、`tests/ArtifactCore/RationalTimeContractTest.cpp`、`tests/ArtifactCore/RationalTimeStandalone/CMakeLists.txt`。
 - **確認できた事実:** MSVC standalone suiteで26件中24件が通り、`INT64_MAX / 2` と `INT64_MIN / 2` をscale 1へrescaleする2ケースが失敗した。runtime結果はそれぞれ数学的な符号と逆向きの値を返した。実装は正数側で`numerator + denominator / 2`、負数側で`-numerator`を計算しており、int64境界の加算・符号反転を安全化していない。
 - **価値／懸念:** フレーム時間変換の極端値で時間方向が反転する可能性を独立CPUテストで再現できた。修正はArtifactCore child repoの変更となるため、今回のテスト作業では行っていない。
 - **次に確認:** ArtifactCore変更を含む明示依頼の後、境界演算をchecked arithmeticまたは符号付きsafe roundingへ置き換え、該当2ケースとRationalTime全suiteを再実行する。
+
 
 ## 2026-10-16: MSVC standalone module testはIFCとQt runtime pathを明示する
 
@@ -710,12 +1172,14 @@
 - **価値／懸念:** 小さなCPU contract suiteをArtifactCore全targetから隔離でき、unrelated module failuresによる実行阻害を避けられる。IFC pathはstandalone targetごとのmodule依存に合わせて指定する必要がある。
 - **次に確認:** 新しいstandalone targetを作る際、interface IFC build order、implementation imports、CTestのQt runtime pathを構成時に確認する。
 
+
 ## 2026-10-16: CompositionNodeStore契約はArtifactAppRuntimeなしで検証できる
 
 - **関連:** `Artifact/include/Composition/ArtifactCompositionNodes.ixx`、`Artifact/src/Composition/ArtifactCompositionNodes.cppm`、`tests/Artifact/CompositionNodeStoreContractTest.cpp`、`tests/Artifact/CompositionNodesStandalone/CMakeLists.txt`。
 - **確認できた事実:** CompositionNodeStore単体suiteは上記Artifact module interfaceと実装だけをコンパイル・リンクし、MSVC standalone processで7ケースすべて通った。既存のArtifact test targetは同じCPU契約suiteにArtifactAppRuntimeをリンクしている。
 - **価値／懸念:** このモデル契約をアプリruntimeや他のArtifactCore module群から分離して検証でき、広い依存targetのビルド失敗と切り分けやすい。
 - **次に確認:** test targetを統合する場合も、必要moduleだけのリンク境界を維持し、AppRuntimeの追加を避けられるか検討する。
+
 
 ## 2026-10-16: SchemaMigrationはheader-only module単体で契約検査できる
 
@@ -724,12 +1188,14 @@
 - **価値／懸念:** ArtifactCore全体をビルドせずにmigration graphの純粋な契約を確認できる。migration callbackがthrowした時に入力JSONを段階反映する実装は確認できるが、atomicityは公開契約が未確定で今回のsuiteではassertしない。
 - **次に確認:** migration callback例外時に入力値を保持すべきか仕様決定後、必要なら失敗時状態の契約テストを追加する。
 
+
 ## 2026-10-16: Effect sequence contractは製品runtimeなしでもsuite依存が広い
 
 - **関連:** `tests/Artifact/EffectSequenceContractTest.cpp`、`tests/Artifact/CMakeLists.txt`、`Artifact/CMakeLists.txt`の`ArtifactEffectsColor` target。
 - **確認できた事実:** CPU契約テストはeffect stage順・同stage安定順・画素出力・mix setterを検査し、Project RoundTripはeffectの削除再挿入後の保存再読込を扱う。テスト実行ファイルは現在の生成buildに存在せず、`ArtifactEffectsColor`はArtifactCore/Audio/ColorCollection/Render/EffectContractへ推移依存する。
 - **価値／懸念:** アプリ起動を避ける既存契約はあるが、1つのsuite実行が広いmodule buildへ波及しうる。独立性を上げるにはeffect abstract/baseと2つのeffect実装、および画像buffer関連だけのmodule境界を確認する必要がある。
 - **次に確認:** 次の独立化候補では、必要moduleのimport closureと既存IFCを先に列挙し、target依存が狭まることを確認してから実行する。
+
 
 ## 2026-10-16: Rasterizer mask integrationは専用processだがAppRuntime依存
 
@@ -738,12 +1204,14 @@
 - **価値／懸念:** 小画像のCPU integration coverageは既に存在する一方、test単体のbuild依存は大きい。実行だけのために親targetをbuildすると多くのmodule scanへ波及し得る。
 - **次に確認:** 独立化するなら、layer factoryとcomposition drawing helperの必要module closureを特定し、テストfixtureだけを構築する最小経路を評価する。
 
+
 ## 2026-10-16: Project/StillImage contractはfixture隔離済みだがbuild境界が広い
 
 - **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp`、`tests/Artifact/StillImageLayerRoundTripTest.cpp`、`tests/Artifact/CMakeLists.txt`。
 - **確認できた事実:** Matte source deletionはtemporary project rootとcleanupを使いtarget/matte参照を確認する。Still image replacementはtemporary PNGを使いsource path/寸法/画素とopacity/positionを確認する。両suiteとも専用CTest process・RUN_SERIALだが`ArtifactAppRuntime`にリンクする。
 - **価値／懸念:** filesystem/process状態の隔離はあるが、target build時のmodule dependencyは狭くない。既存テストを重ねて実行する前にruntime依存を把握する必要がある。
 - **次に確認:** 追加ケースを検討する前に同suiteの該当coverageを再利用し、分離が必要なら対象layer/serviceのmodule closureを個別に計測する。
+
 
 ## 2026-10-16: Image sequence stale-frame回帰は3条件を既存suiteで網羅
 
@@ -752,12 +1220,14 @@
 - **価値／懸念:** 既存coverageが具体的で、新規テストの重複は不要。これらは1つの大きなStillImage suiteにあり、AppRuntime依存を持つ。
 - **次に確認:** suiteを実行する際は対象caseだけをfilterできるか確認し、必要ならStillImageLayerの実装module closureで小さなstandalone targetを評価する。
 
+
 ## 2026-10-16: Undo budget rejection test must avoid the clamped entry-count field
 
 - **関連:** `tests/Artifact/UndoManagerContractTest.cpp`、`Artifact/src/Undo/UndoManager.cppm`の`setBudget()`。
 - **確認できた事実:** `setBudget()`は`maxEntryCount`を最低1へ正規化する一方、単一entry bytesと総bytesの0は拒否条件として維持する。従来のtestは`maxEntryCount=0`を設定していたため、期待するpush拒否を誘発しない。
 - **価値／懸念:** rejection testを`maxSingleEntryBytes=0`へ変更し、entry count上限1の最古Undo entry evictionと残存entryのUndo/Redoを別caseで検査する。
 - **次に確認:** AppRuntime targetが広いため、実行時は既存IFCを再利用する限定buildで可能か評価する。Artifact child repoは変更しない。
+
 
 ## 2026-10-16: Composition node removal preserves descendants below direct children
 
@@ -766,12 +1236,14 @@
 - **価値／懸念:** 直接子のroot detachと再帰削除を区別し、階層のrootが変化しても子孫を保持する契約を保護する。root同orderの並び順には依存しない。
 - **次に確認:** 既存CMake構成ではMSVC `/showIncludes`の日本語一覧がNinja出力へ漏れた。接頭辞を英語に揃えるには許可済みの次回configure時に`VSLANG=1033`をconfigure/compile双方へ設定して確認する。
 
+
 ## 2026-10-16: Playback state assertions should include transport frame-clock behavior
 
 - **関連:** `tests/Artifact/PlaybackRangeServiceContractTest.cpp`。
 - **確認できた事実:** 既存Play/Pause/Resume/Stop integration case checked only the service state enum. PlaybackService exposes `currentFrame()`, allowing the same isolated process to observe clock progress without adding UI or graphics.
 - **価値／懸念:** The test now checks initial progress, a short stable frame while paused, and renewed progress after resume. Timing uses bounded polling and does not start Artifact.exe; runtime behavior remains unverified.
 - **次に確認:** Run only the PlaybackRangeService contract target after a build path that avoids the full ArtifactAppRuntime module rescan is available.
+
 
 ## 2026-10-16: Render cache identity tests should cover both equality and hashing
 
@@ -780,12 +1252,14 @@
 - **価値／懸念:** The shared mutation helper now asserts both key inequality and a changed stable hash for every identity field, guarding against fields omitted from the hash path.
 - **次に確認:** Execute the focused target when the existing ArtifactCore build graph can be reused without a full module rescan.
 
+
 ## 2026-10-16: Surface cache counter changes need rendered-pixel evidence
 
 - **関連:** `tests/Artifact/CompositionLayerSurfaceCacheMain.cpp`、Composition Editor presented-frame readback.
 - **確認できた事実:** The GUI harness compared pixels only for unchanged rerender. Effect invalidation/rebuild and unrelated-layer non-interference were inferred from diagnostic counters.
 - **価値／懸念:** The regression now also requires changed effect output and changed unrelated-layer output in presented-frame readbacks, while the target layer's cache build/invalidation counters remain stable for the unrelated edit.
 - **次に確認:** Run the Windows GUI harness only after its ArtifactAppRuntime build is available; its current target requires the broad app module graph and GPU/window runtime.
+
 
 ## 2026-10-16: Convex-edge hit testing needs explicit degenerate geometry cases
 
@@ -794,12 +1268,14 @@
 - **価値／懸念:** Added standalone assertions for rejecting a nearby off-point and line-segment endpoint extensions/off-axis points. Source analysis predicts failures, but the standalone test was not executed; no ArtifactCore product code was changed.
 - **次に確認:** After an authorized independent build setup is available, run the focused standalone test and report the exposed contract failure for a separately authorized child-repo fix.
 
+
 ## 2026-10-16: PrecomposeViewer選択テストのbuildは全module再走査を伴う
 
 - **関連:** `CMakeLists.txt` の `ArtifactPrecomposeViewer` target、`tests/Artifact/PrecomposeViewerMain.cpp`。
 - **確認できた事実:** targetは`ArtifactAppRuntime`へリンクし、ArtifactCoreを含む全module dependency scanを開始した。最初の試行は526/7326、二度目は777/6806 scan時点で中断し、ArtifactCoreのCMakeには`EnvironmentVariable.cppm`のmodule IFC `/reference`がない一方でinterface objectの`OBJECT_DEPENDS`だけが残る。過去の同じbuild graphは当該module-not-foundで失敗した。製品アプリやGUI processは起動していない。
 - **価値／懸念:** 独立実行ファイルでもAppRuntime全体を参照すると全module再走査が必要になり、さらに既知のIFC blockerがある。GUIケース自体は別processだが、ローカルで繰り返し実行するbuild負荷は高い。
 - **次に確認:** ArtifactCore child repoの変更許可が得られた後にIFC参照を修正し、既存build成果物が活用される状態でPrecomposeViewerの`--check`を実行する。現作業ではサブモジュールを変更しない。
+
 
 ## 2026-10-16: AudioReverbのSize公開設定が信号処理へ未接続
 
@@ -809,6 +1285,7 @@
 - **価値／懸念:** 公開UI/APIから変更可能なSizeが実際のreverb応答に影響しない可能性がある。
 - **次に確認:** ユーザーの明示的なArtifactCore変更許可後にsizeの意味と期待する信号差を決め、実装・テストを合わせて確認する。現作業では子リポジトリを変更しない。
 
+
 ## 2026-10-16: in-memory ImageLayer差し替えとsurface cache identity
 
 - **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `buildLayerSurfaceCacheKey()`、`Artifact/src/Layer/ArtifactImageLayer.cppm` の `setFromQImage()`、`tests/Artifact/LayerSurfaceCacheParityContractTest.cpp`。
@@ -816,6 +1293,7 @@
 - **未検証の仮説:** 同じLayer objectのcache entryが残った状態で同寸法の画像を差し替えると、古いrasterized surfaceが再利用される可能性がある。test-only比較を試みたが、実行できず現状では挙動未確定のため、#31の完了ケースからは外した。
 - **価値／懸念:** 画像編集ツールが`setFromQImage()`を使うときのsource更新とComposition surface cache無効化の整合性を検証できる。
 - **次に確認:** Artifact child repoの変更許可が得られた後、差し替え時のrevision伝播とcache key更新を追い、cached/bypass出力を比較する。現行作業ではサブモジュールを変更しない。
+
 
 ## 2026-10-16: InOutPoints XML不正入力時の状態保持
 
@@ -826,6 +1304,7 @@
 - **対応:** #21のルート独立契約テストへ、既存rangeとmarkerを設定して途中まで有効なmalformed XMLを読み込ませ、失敗時の状態保持を期待するケースを追加。現行Artifact importerとは不一致がソース上明らかだが、ユーザー指示によりビルド・実行しておらずruntime結果は未確認。
 - **次に確認:** この原子性契約がruntimeで失敗することを確認し、Artifact child repoの変更許可後に一時状態へparseして成功時だけcommitする実装修正を行う。
 
+
 ## 2026-10-16: In/Out PointsのImpl解放経路
 
 - **関連:** `Artifact/include/Composition/ArtifactInOutPoints.ixx`、`Artifact/src/Composition/ArtifactInOutPoints.cppm`、`tests/Artifact/InOutPointsContractTest.cpp`。
@@ -833,6 +1312,7 @@
 - **未検証の仮説:** `Impl` が別の所有経路で解放されていなければ、各インスタンス破棄時に漏れる可能性がある。今回追加するテストは小数のインスタンスしか生成しないため、影響を検出・評価しない。
 - **価値／懸念:** In/Out Pointsを繰り返し生成・破棄する再生やComposition切替経路で、累積メモリ使用量へ影響する可能性がある。
 - **次に確認:** 全デストラクタ定義と所有モデルを確認し、明示deleteが不要な意図があるか調べる。漏れが確定した場合は、テスト追加範囲から切り離して最小修正を検討する。
+
 
 ## 2026-10-16: Rasterizer mask/effect順序とalpha境界
 
@@ -842,6 +1322,7 @@
 - **価値／懸念:** boundary alphaを固定fixtureで監視すると、Effect/Mask順序の変更による輪郭差を小画像で検知できる。結果が意図と違う場合は、テスト期待値を変える前に合成仕様を確認する。
 - **次に確認:** 許可されたCPU integration test実行で32×16 fixtureの内部・境界・外側alphaを確認し、必要ならmask/effect orderの製品仕様を決める。
 
+
 ## 2026-10-16: 重複時刻キーフレームの選択規則
 
 - **関連:** `ArtifactCore/include/Geometry/Interpolate.ixx` の `KeyframeInterpolator::addKeyframe()` / `evaluate()`、`tests/ArtifactCore/KeyframeSplineTest.cpp`。
@@ -849,6 +1330,7 @@
 - **未検証の懸念:** 同時刻キーが複数ある場合、どの値が採用されるかは安定した契約として保証されていない可能性がある。現時点では仕様を推測してテストに固定していない。
 - **価値／懸念:** キー編集・読み込みで同時刻キーが生じた場合の結果を明確にできれば、保存再読込やUndo後の再現性を高められる。
 - **次に確認:** 重複時刻を拒否するか、先勝ち／後勝ちに正規化するかを仕様として決め、その契約に沿った単体テストを追加する。
+
 
 
 ## 2026-10-15: 共有子Composition解除時のsource layer所有権
@@ -860,12 +1342,14 @@
 - **次に確認:** ユーザーが許可したビルド・実行で `test.sharedChildReferences` の実結果を確かめ、期待する共有Compositionの解除仕様を決める。テスト依頼の範囲を越えるService変更は別途指示を待つ。
 
 
+
 ## 2026-10-15: シェイプ描画テストで自動保存される初期形状を除去する
 
 - **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `addShapeContent()`、`tests/shape_visual/ShapeVisualCases.inc`。
 - **確認できた事実:** 空の content 配列へ最初の content を追加すると、指定 content より先に `makeContentFromLegacy()` の結果が格納される。content の Intersect は先行 content の描画を消さず、後続 content の形状だけを先行形状で切り抜く。
 - **価値／懸念:** 初期矩形が穴や透明領域を覆い、意図した入力と異なる画像を検証する恐れがある。専用テストでは初期 snapshot を除去し、content Intersect の入力は塗りを無効にして演算結果を分離した。
 - **次に確認:** ユーザーが許可したビルド・実行で実際の座標と alpha を確認する。製品側の仕様変更を提案するものではない。
+
 
 
 ## 2026-10-15: 既存プリコンポーズレイヤー移動時の親階層登録
@@ -877,6 +1361,7 @@
 - **次に確認:** 許可されたビルド／テスト実行で新ケースを動かし、失敗した場合はテストだけの依頼範囲を越えずに結果を報告する。
 
 
+
 ## 2026-10-15: ネストしたプリコンポーズ解除時のManager登録と時間復元
 
 - **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`ArtifactCore::PreComposeManager`、`tests/Artifact/PrecomposeViewerMain.cpp`。
@@ -884,6 +1369,7 @@
 - **未検証の仮説:** ルート→子→孫の孫階層を解除・Undo・Redoした際、レイヤー時間とManagerの親参照が全段で一貫して復元されるか、既存ケースでは直接確認していない。
 - **価値／懸念:** 見た目のツリーだけでなく、孫レイヤーID・In/Out/Startと実行時のネスト登録が保たれることを回帰検知する。
 - **次に確認:** `test.unprecomposeNested` の実行は未確認。許可された環境でテスト実行し、結果を確認する。
+
 
 
 ## 2026-10-15: プリコンポーズのプロジェクト再読込後に実行時ネスト登録を確認する
@@ -895,12 +1381,14 @@
 - **次に確認:** 独立GUIテストは保存後に対象登録を明示解除し、再読込後の `isPrecomposeLayer()`、`getCompositionNesting()`、子からの親逆引きを確認するよう拡張中。実行時に欠落が確認された場合の製品側復元変更は、テスト追加とは別の依頼または設計判断を待つ。
 
 
+
 ## 2026-10-15: 独立GUIテストの共通MCPヘルパー参照と実ファイルの整合
 
 - **関連:** `tests/Artifact/FbxAnimationViewerMain.cpp`、`docs/planned/MILESTONE_FBX_ANIMATION_VIEWER_TEST_2026-10-14.md`。
 - **確認できた事実:** このチェックアウトではFBXテストがincludeする `tests/ArtifactTestMcpServer.h` と `tests/ArtifactTestWindowCapture.h`、文書で参照する `tools/test_mcp_client.py` が存在しない。プリコンポーズ独立テストは製品変更を避けるため専用のWindows stdio経路を持つ。
 - **価値／懸念:** 文書だけから共通テスト基盤を再利用すると、欠落依存でビルドできない可能性がある。他checkoutでの存在・履歴は未検証。
 - **次に確認:** FBXテストを次回変更する際、共通ヘルパーの元コミットと追跡状態を確認し、実ファイルが揃ってから各GUIテストの通信処理を統合できるか検討する。
+
 
 
 ## 2026-10-15: Preserve straight alpha across PNG import and export
@@ -911,6 +1399,7 @@
 - **次に確認:** If more image formats gain OIIO support, verify each plugin's alpha convention and metadata behavior separately; this result covers the PNG path.
 
 
+
 ## 2026-10-15: 2D particle render-queue test must distinguish particles from background
 
 - **関連:** `tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`、`Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`。
@@ -919,6 +1408,7 @@
 - **検証:** Debug targetをビルドし、`Production2DAnd3DParticlesRenderThroughManagerQueue` は成功。2D粒子のCPU描画＋Brightnessと3D粒子GPU描画を含む。追加で既定GPU backendの2D粒子を確認したところ、粒子出力が依然なく失敗した。PSOのDSV修正でDSV mismatch警告は消えたが、GPU描画復旧には至っていない。低レベル2D契約テストはglobal test environment setup後に停止し未確認。
 - **価値／懸念:** 背景色によるfalse positiveをなくし、CPU Render Queue経路で2D粒子とラスタライザーエフェクトの結合を回帰検知できる。PSO修正後もGPU 2D粒子経路は未解決で、現在の新しい2D assertionはCPU backendを対象とする。
 - **次に確認:** GPU 2D粒子surfaceのreadback、後段 `drawSprite`、最終RTVへのsubmitを切り分け、CPU／GPU両backendで同じ粒子画像とBrightness結果を検証する。
+
 
 ## 2026-10-14: RT shading geometryへvertex colorを統合
 
@@ -1763,384 +2253,6 @@
 - **価値／懸念:** legacy frame scale変換で範囲外の浮動小数点整数変換を検出できる。期待値は上限飽和のAPI契約を明示するため、実装修正が必要になる見込み。
 - **次に確認:** `fps > int64_t max`判定を`llround`より先に行う実装へ直し、独立FrameRate suiteで極大値と境界近傍を実行確認する。
 
-## 2026-10-24: Verdigris QWidget implementation may expose Clang module ownership ambiguity
-
-- **関連:** `Artifact/src/Widgets/ArtifactSecondaryPreviewWindow.cppm`、`Artifact/include/Widgets/ArtifactSecondaryPreviewWindow.ixx`、Clang 23.1.4 / Windows MSVC ABI
-- **確認できた事実:** Fresh P1689 scan succeeded, but the implementation compile failed while expanding `W_OBJECT_IMPL(ArtifactSecondaryPreviewWindow)`: Clang reported ambiguous `operator->` lookup at `QObject::d_ptr` with `QScopedPointer<QObjectData>` candidates, then the frontend terminated by signal. The `.cpp` migration was reverted and the manifest returned to `.cppm`. No source diagnostic outside this macro expansion was established.
-- **価値または懸念:** A clean module scan and available PCM do not establish that Verdigris implementation macros are valid across the named-module boundary. The exact cause is unverified and should not be classified as a simple missing include or extension-only issue.
-- **次に確認すべきこと:** Before retrying this widget, inspect its Verdigris macro expansion and Qt declarations as imported through its interface module; keep the implementation on `.cppm` until a source-level fix is justified and compiled.
-
-### 2026-10-11 — FastSettingsStore failed reload clears existing cache
-
-- **関連:** `ArtifactCore/src/Core/FastSettingsStore.cppm`、`tests/ArtifactCore/FastSettingsStoreContractTest.cpp`。
-- **確認できた事実:** `loadFromDiskUnlocked()`はCBORの読み込み・型検査より前に`cache_`をclearし、invalid payloadではfalseを返す。`reload(true)`はこの関数を直接呼ぶ。
-- **仮説／未検証:** reload失敗時は最後に読み込み済みの値を保持し、エラー復旧可能にする方が望ましい。新しいcaseはその期待だが、実行していない。
-- **価値／懸念:** ディスク破損や途中書き込み後のreloadでメモリ上の有効設定が消える可能性を検出する。ArtifactCore child repoは変更していない。
-- **次に確認:** invalid CBOR・I/O失敗時のreload保証を定義し、必要ならtemporary cacheへのparse後にcommitする方式へ直して独立suiteで確認する。
-
-### 2026-10-11 — FastSettingsStore sync failure retains retry state
-
-- **関連:** `ArtifactCore/src/Core/FastSettingsStore.cppm`、`tests/ArtifactCore/FastSettingsStoreContractTest.cpp`。
-- **確認できた事実:** `syncUnlocked()`は未open、親directory作成、`QSaveFile::open/write/commit`の失敗時にfalseを返し、成功時だけdirty/pendingをclearする。
-- **仮説／未検証:** 各I/O失敗経路でdirty値とpending countが保たれ、後のretryが可能なことを回帰契約にした。新caseはtargetを既存directoryにして保存open失敗を狙うが、実行していない。
-- **価値／懸念:** 保存エラー後に変更が誤ってclean扱いされる回帰を検知する。ディレクトリをファイルとして開けないOS挙動に依存する。
-- **次に確認:** 実行環境で`QSaveFile`のopen failureとして安定するかを確認し、必要なら明示的に書込不能な親パスを使う。
-
-### 2026-10-11 — RationalTime rescaledTo accepts negative target scales
-
-- **関連:** `ArtifactCore/src/Time/RationalTime.cppm`、`tests/ArtifactCore/RationalTimeContractTest.cpp`。
-- **確認できた事実:** `toFrameCount()`はfpsが0以下なら0を返す一方、`rescaledTo()`はtarget scaleが0の場合だけを無効扱いし、負値では負の分子として再スケールする。RationalTimeのconstructorは非正scaleを1に正規化する。
-- **仮説／未検証:** `rescaledTo()`のtarget scaleも正値に限り、負値は0または安全な既定値を返すべきと考える。追加caseは0を期待するが実行していない。
-- **価値／懸念:** 不正なtarget scaleで時間方向が反転する結果を防ぐ契約候補。ArtifactCore child repoは変更していない。
-- **次に確認:** 呼び出し元で負target scaleが意図的に利用されていないことと、無効入力の期待値を確認してから実装修正する。
-
-### 2026-10-11 — ArtifactHashMap moved-from destruction may dereference null buckets
-
-- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm`、`tests/ArtifactCore/ArtifactHashMapContractTest.cpp`。
-- **確認できた事実:** move constructorとmove assignmentは移動元の`buckets_`を`nullptr`にし、`bucketCount_`を初期容量に戻す。destructorは常に`clear()`を呼び、`clear()`は`bucketCount_`回`buckets_[i]`を参照する。
-- **仮説／未検証:** 別mapへのmove後に移動元が破棄されるとnull pointer dereferenceになる可能性が高い。実行していない。
-- **価値／懸念:** move APIの基本的な破棄安全性に関わる。再現テストはstandalone suite全体をクラッシュさせる可能性があるため今回追加しなかった。ArtifactCore child repoは変更していない。
-- **次に確認:** move後のsourceへ空bucketを再確保する等、valid destructible invariantを実装者と確認し、安全に失敗を報告できるテスト形態で検証する。
-
-### 2026-10-11 — ShapeVertex mirrorHandles length mode is indistinguishable
-
-- **関連:** `ArtifactCore/include/Core/ShapePoint.ixx`、`tests/ArtifactCore/ShapeVertexContractTest.cpp`。
-- **確認できた事実:** `mirrorHandles(bool keepLength)`はtrue/false両分岐で`outHandle_`を`-inHandle_`に置き換えており、既存outgoing handleの長さを読み取らない。リポジトリ内の他の呼び出し・説明は検索で見つからなかった。
-- **仮説／未検証:** `keepLength=false`は反対側ハンドルの既存長を維持しながらincoming方向と反対向きにそろえる意図かもしれない。新しい契約caseはこの解釈を期待するが、実装者の意図を示す仕様は見つけていないためテストは未実行。
-- **価値／懸念:** UIから選べる長さモードが無効になっている可能性を切り分ける。ArtifactCore child repoは今回変更していない。
-- **次に確認:** 呼び出し元または設計仕様で`keepLength`の意味を確定し、期待値を承認してから実装修正と独立suite実行を行う。
-
-### 2026-10-11 — ArtifactTimer can expire before it starts for negative timeouts
-
-- **関連:** `ArtifactCore/include/Core/ArtifactTimer.ixx`、`tests/ArtifactCore/ArtifactTimerContractTest.cpp`。
-- **確認できた事実:** `hasExpired(timeoutMs)` はtimer validityを確認せず、`timer_.elapsed() >= timeoutMs` を返す。Qtの無効な`QElapsedTimer`はelapsedが負値となり、既存テストは未startの0 timeoutを未expired、開始済みの負timeoutをexpiredとしている。
-- **仮説:** 未start timerではtimeout値にかかわらず未expiredを返すのがAPIとして一貫する。新しい負timeout未startケースは現実装でexpiredになる見込みだが、実行していない。
-- **価値／懸念:** start前に待機完了と誤判定する呼び出しを検出できる。実装修正はArtifactCore child repoにあるため今回は行わない。
-- **次に確認:** 意図する無効timerの契約を確認し、必要なら`isValid()` guardを加えて独立suiteを実行する。
-
-### 2026-10-11 — FileTypeDetector treats malformed UTF-8 headers as text
-
-- **関連:** `ArtifactCore/src/File/FileTypeDetector.cppm`、`tests/ArtifactCore/FileTypeDetectorContractTest.cpp`。
-- **確認できた事実:** The text fallback rejects ASCII control bytes other than tab/LF/CR, but accepts every byte >= 32 without validating UTF-8. A regression case now expects malformed UTF-8 lead/continuation sequences to classify as Binary; it is not executed.
-- **仮説:** Since valid UTF-8 Japanese text is already explicitly supported by a test, malformed multibyte sequences should not be classified as text. Current fallback will classify both new fixtures as Text.
-- **価値／懸念:** This distinguishes valid Unicode text from arbitrary high-bit binary data. The implementation is in the ArtifactCore child repository, which is not modified here.
-- **次に確認:** Confirm the intended accepted encodings (UTF-8 only or UTF-16/legacy as well), implement matching validation in the child repository if authorized, then run the standalone target.
-
-### 2026-10-11 — AssetMetaFile tag removal does not normalize input
-
-- **関連:** `ArtifactCore/src/Asset/AssetMetaFile.cppm`、`tests/ArtifactCore/AssetMetaFileContractTest.cpp`。
-- **確認できた事実:** `addTag()` stores `tag.trimmed()`, while `removeTag()` compares each stored tag directly to the untrimmed argument. Added a standalone contract case that adds and removes the same whitespace-padded tag; based on the implementation it is expected to fail, but it was not run.
-- **仮説:** Callers that pass the same user-entered tag string to add and remove can leave a tag behind because only the insertion path normalizes whitespace.
-- **価値／懸念:** This test catches asymmetric tag matching without editing the child repository. If the intended contract is exact matching for removal, document that explicitly instead of normalizing.
-- **次に確認:** Confirm tag matching policy, then fix/remove the regression case with the user-authorized ArtifactCore change and execute the standalone target when allowed.
-
-### 2026-10-11 — ArtifactArray squeeze currently cannot reduce capacity
-
-- **関連:** `ArtifactCore/include/Core/ArtifactArray.ixx`、`tests/ArtifactCore/ArtifactArrayContractTest.cpp`。
-- **確認できた事実:** `squeeze()` calls `reserve(size_)`, while `reserve(n)` immediately returns whenever `n <= capacity_`. Thus a non-empty array with spare capacity retains its old allocation. Added a standalone contract case expecting capacity to shrink to size while preserving elements; it was not executed.
-- **仮説:** The API name and QVector-like capacity interface imply `squeeze()` should release excess storage; current implementation does not.
-- **価値／懸念:** This regression case detects an ineffective public capacity operation. Fixing it requires editing the ArtifactCore child repository and remains outside this test-only scope.
-- **次に確認:** With child-repository change authorization, implement allocate/move/release or equivalent safe shrink logic, then run the standalone suite and non-trivial lifetime case.
-
-### 2026-10-11 — ArtifactRandom inclusive maximum overflows its upper bound
-
-- **関連:** `ArtifactCore/include/Core/ArtifactRandom.ixx`、`tests/ArtifactCore/ArtifactRandomContractTest.cpp`。
-- **確認できた事実:** integer `between(min, max)` computes `max + 1` in signed `int` before passing it to Qt's bounded generator. Existing boundary tests stop at `INT_MAX - 1`.
-- **仮説:** `between(INT_MAX, INT_MAX)` overflows before generation and cannot reliably satisfy the documented-by-tests inclusive range behavior. A singleton-at-maximum regression case was added; it was not executed.
-- **価値／懸念:** Highest-end integer boundary is now represented in the independent suite, but the case may fail or invoke undefined behavior until the child implementation handles that endpoint.
-- **次に確認:** ArtifactCore-side remediation should generate over a wider unsigned interval or special-case the upper endpoint; then execute this standalone target after explicit authorization.
-
-### 2026-10-11 — ArtifactVariant empty-state destruction dispatch
-
-- **関連:** `ArtifactCore/include/Core/ArtifactVariant.ixx`、`tests/ArtifactCore/ArtifactVariantContractTest.cpp`。
-- **確認できた事実:** default construction sets `typeIndex_` to zero and exposes `isSet()==false`, but `destroy()` unconditionally dispatches `vtableForCurrent()` using the first alternative before resetting the index. Destructor and assignment call `destroy()` even for that unset state.
-- **仮説:** an unset variant may invoke the first alternative's destructor on storage where no object lifetime began; behavior is especially hazardous when the first alternative is non-trivial. Added tests exercise default/copy/move unset state and assignment clearing an active alternative. They are unexecuted; sanitizers/runtime validation is still needed.
-- **価値／懸念:** Empty-state lifecycle coverage can expose undefined destruction behavior hidden by the current first-alternative-is-int fixture. Fixing this requires editing the ArtifactCore child repository, which is outside the authorized scope.
-- **次に確認:** With explicit permission for child-repository changes and test execution, guard `destroy()` on `typeIndex_ != 0`, then run the standalone suite under an available sanitizer.
-
-### 2026-10-11 — Tag StringLike setter has an empty implementation
-
-- **関連:** `ArtifactCore/include/Utils/Tag.ixx`、`ArtifactCore/src/Utils/Tag.cppm`、`tests/ArtifactCore/TagContractTest.cpp`。
-- **確認できた事実:** `Tag::setName(const S&)` の `StringLike` template body は空である。実装側にある非-template setterは `const UniString&` overloadのみ。`StringLike` は `QString` と `std::string` を含む型を受け入れる。
-- **仮説:** `QString` / `std::string` を直接渡す通常の呼び出しは空のtemplate overloadを選び、名前を変更しない可能性が高い。追加した2つのstandalone contract caseはこのAPI意図を固定し、実行時に失敗する見込みだが未実行。
-- **価値／懸念:** generic setterを使う呼び出しが黙って無視される不具合を検出できる。修正が必要なら子repository編集禁止ルールに従い、ArtifactCore側の実装修正は別途明示依頼を待つ。
-- **次に確認:** `Tag` のStringLike setterの意図と所有repoでの修正可否を確認し、許可後にこのstandalone suiteを実行する。
-
-### 2026-10-11 — Id contract test references undeclared isValid
-
-- **関連:** `ArtifactCore/include/Utils/Id.ixx`、`tests/ArtifactCore/IdContractTest.cpp`。
-- **確認できた事実:** 現在の `Id` module interfaceには`isValid()`宣言がなく、テストの`ValidUuidStringRoundTripsInCanonicalForm`は`value.isValid()`を呼び出している。`Id.cppm`にもその定義は見当たらない。
-- **価値／懸念:** 現行ソースのままでは独立suiteのコンパイルを妨げる可能性が高い。ビルド／テストは指示により実施していないため、実コンパイル診断は未確認。
-- **次に確認:** `isValid()`を追加する設計意図があるか確認し、なければテストを`!isNil()`等の実在する契約に修正する。変更後にユーザー許可を得て独立suiteを実行する。
-
-### 2026-10-11 — Tag StringLike setter template is empty
-
-- **関連:** `ArtifactCore/include/Utils/Tag.ixx`、`ArtifactCore/src/Utils/Tag.cppm`、`tests/ArtifactCore/TagContractTest.cpp`。
-- **確認できた事実:** `Tag::setName(const UniString&)` は `impl_->name` を更新するが、`StringLike` を受けるheader template overloadの本体は空。
-- **価値／懸念:** `setName(QString/std::string/const char*)` など、`StringLike` conceptを満たす型で呼び出しても名前は変わらない。今回の独立suiteは動作する`UniString` overloadだけを検査し、この未実装挙動は通過テストとして隠さない。
-- **次に確認:** template setterで`toQString`して`UniString` overloadへ委譲するか、template APIを削除するか判断した後、各対応文字列型のsetNameを回帰テストする。
-
-### 2026-10-11 — ArtifactDict set calls absent ArtifactHashMap insert
-
-- **関連:** `ArtifactCore/include/Core/ArtifactDict.ixx`、`ArtifactCore/src/Core/ArtifactHashMap.cppm`。
-- **確認できた事実:** `ArtifactDict::set` は`map_.insert(key, value)`を呼ぶが、基底`ArtifactHashMap`が公開する挿入APIは`tryEmplace` / `emplace`で、`insert`は定義されていない。
-- **価値／懸念:** `ArtifactDict::set`をインスタンス化するコードはコンパイルできない。既存の`ArtifactDict`テストはこの経路を使っており、直接module構成で検証する独立suiteもまだない。
-- **次に確認:** ArtifactDictがinsert-or-assignかinsert-onlyか意味を決め、ArtifactHashMapの既存APIへ接続してから独立standaloneでset/get/removeを検証する。
-
-### 2026-10-11 — Callback documentation references missing ifValid API
-
-- **関連:** `ArtifactCore/include/Core/ArtifactCallback.ixx`、`tests/ArtifactCore/ArtifactCallbackContractTest.cpp`。
-- **確認できた事実:** Callbackのclass commentは`isValid()`確認または`ifValid()`利用を案内するが、公開メソッドに`ifValid`はなく、`isValid` / `operator bool` / `invoke` / `clear` / `reset`だけがある。
-- **価値／懸念:** 利用者が文書の例外安全な呼び出しAPIを探しても利用できず、empty時に直接`invoke`するとempty `std::function`の呼び出しになる。
-- **次に確認:** null-safe invocation APIを追加するか、commentを実在APIに合わせる判断後、empty経路の仕様をテストする。
-
-### 2026-10-11 — ArtifactFunction unsafe empty invocation and heap move
-
-- **関連:** `ArtifactCore/include/Core/ArtifactFunction.ixx`、`tests/ArtifactCore/ArtifactFunctionContractTest.cpp`。
-- **確認できた事実:** `operator()` は`invoker_`未設定時のguardなしに関数pointerを呼ぶ。heap callableのmoveでは`onHeap_`を先にtrueにした状態で、未初期化の移動先storageを`ptr()`経由で参照する。またmove後のsource callableはdestroyerを呼ばずmetadataだけnull化される。
-- **価値／懸念:** 空function invocationは無効な関数pointer呼び出しとなる。heap callable moveは無効なstorage参照となり得て、SBO/heap双方のmoveはmoved-from callableのdestructorを欠落させる。
-- **次に確認:** 空invokeを明示的な契約（assert/exception/no-op）にし、heap移動時のpointer transferとsource destructionを正しく実装してから、heap callable move・move assignment・destructor balance・empty invocationのテストを追加する。
-
-### 2026-10-11 — ArtifactSpan end on null empty range
-
-- **関連:** `ArtifactCore/include/Core/ArtifactSpan.ixx`、`tests/ArtifactCore/ArtifactSpanContractTest.cpp`。
-- **確認できた事実:** default `ArtifactSpan` は`data_ == nullptr`、`size_ == 0`。`end()` は一律 `data_ + size_` を返す。
-- **価値／懸念:** C++のポインタ加算対象となる配列がないnull pointerに対する`+ 0`は、標準上安全な配列内／one-past演算として保証されない。空spanをrange-forなどで走査する経路の扱いを確認したい。
-- **次に確認:** empty span用にnullをそのまま返す分岐を設けるか、null pointer rangeをiteratorとして使わない契約にするか決め、default/empty spanのbegin/endとrange iterationを回帰テストする。
-
-### 2026-10-11 — Position2D methods on moved-from objects
-
-- **関連:** `ArtifactCore/include/Core/Position2D.ixx`、`ArtifactCore/src/Core/Position2D.cppm`、`tests/ArtifactCore/Position2DContractTest.cpp`。
-- **確認できた事実:** move constructor/assignmentは`impl_`の所有権を移してsourceを`nullptr`にする。`Set` / `Get` はnull確認せず`impl_`を参照する一方、destructorはnull-safeな`delete`となる。
-- **価値／懸念:** moved-from objectは破棄可能だが、再設定や読み出しはクラッシュする。通常のmoved-from型に期待される再代入・再利用可能性は満たさない。
-- **次に確認:** moved-from状態を空として扱うか、有効なゼロ値へ再初期化するかを決め、move後のGet/Setと再代入の契約を追加する。
-
-### 2026-10-11 — ArtifactPtr WeakPtr copy assignment ownership count
-
-- **関連:** `ArtifactCore/include/Core/ArtifactPtr.ixx`、`tests/ArtifactCore/ArtifactPtrContractTest.cpp`。
-- **確認できた事実:** `WeakPtr` はcopy constructorでweak countを増やすが、copy assignmentを定義していない。コンパイラ生成assignmentはcontrol-block pointerをmemberwise copyするだけなので、既存weak ownerへの代入でcountを適切に保持・解放しない。
-- **価値／懸念:** 一時`WeakPtr`からの代入では一時objectのdestructorがcountを減らし、代入先が解放済みcontrol blockを参照する可能性がある。テストは未定義寿命状態を踏まないよう代入を使用しない。
-- **次に確認:** copy/move assignmentの所有権契約を定め、weak countを保持する実装と同一control blockへのself-assignmentを回帰テストする。
-
-### 2026-10-11 — ArtifactPtr UniquePtr reset with its current pointer
-
-- **関連:** `ArtifactCore/include/Core/ArtifactPtr.ixx`、`tests/ArtifactCore/ArtifactPtrContractTest.cpp`。
-- **確認できた事実:** `UniquePtr::reset(raw)` は先に `ptr_ = raw` を設定した後、元の `old` を削除する。そのため現在所有中の同じポインタを渡すと、所有値を解放した後にdangling pointerを保持する。
-- **価値／懸念:** 同一アドレスへのresetはuse-after-free/double-deleteにつながり得る。
-- **次に確認:** self-resetをno-opとする契約を定めて実装を修正し、同一pointerを渡した後の値アクセスと破棄回数を回帰テストする。
-
-### 2026-10-11 — ArtifactThread condition notification synchronization
-
-- **関連:** `ArtifactCore/include/Core/ArtifactThread.ixx`、`tests/ArtifactCore/ArtifactThreadContractTest.cpp`。
-- **確認できた事実:** `Cond::wait(Lock&)` は渡された`Lock`のmutexを解放せず、別の`cv_lock_`でcondition variableを待つ。一方、`wakeOne/wakeAll`は`notified_`をmutex lockなしで書き換える。
-- **価値／懸念:** wait前後のpredicate保護が呼び出し側mutexと同期せず、通知のlost wakeや`notified_`のdata raceを起こし得る。
-- **次に確認:** `Lock`から待機中にmutexを解放／再取得できる設計にし、predicateを同一mutex下で確認するAPI契約を確定してrace・lost-wake回帰ケースを加える。
-
-### 2026-10-11 — ArtifactOptional empty/present swap and empty initializer list
-
-- **関連:** `ArtifactCore/src/Core/ArtifactOptional.cppm`、`tests/ArtifactCore/ArtifactOptionalContractTest.cpp`。
-- **確認できた事実:** `ArtifactOptional<T>::swap` の片側だけpresentの分岐はempty側のunion memberへplacement constructionせずmove assignmentを行う。initializer-list constructorは空listでも`hasValue_`をtrueにし、contained `T`を構築しない。
-- **価値／懸念:** empty/present swap後のdestructorは未構築`T`を破棄し、empty initializer-list optionalも同じ不正状態となる。
-- **次に確認:** 片側presence swapはplacement move constructionを行う状態遷移に修正し、empty initializer-listはemptyとする契約を定めてそれぞれの回帰テストを追加する。
-
-### 2026-10-11 — ArtifactMath signed absolute minimum overflow
-
-- **関連:** `ArtifactCore/include/Core/ArtifactMath.ixx`、`tests/ArtifactCore/ArtifactMathContractTest.cpp`。
-- **確認できた事実:** `artifactAbs` は負値を unary `-value` で正値化する。符号付き整数の最小値は対応する正値を同じ型で表せず、評価は符号付きoverflowになる。
-- **価値／懸念:** `artifactAbs(INT_MIN)`等は安全な絶対値を返さない。
-- **次に確認:** APIの戻り型を広げるか飽和させるか仕様を定め、整数最小値の回帰ケースを決める。
-
-### 2026-10-11 — ArtifactRandom integer upper-bound overflow
-
-- **関連:** `ArtifactCore/include/Core/ArtifactRandom.ixx`、`tests/ArtifactCore/ArtifactRandomContractTest.cpp`。
-- **確認できた事実:** 整数版`between(min, max)`はinclusive化のため`max + 1`を`int`で計算してQt APIへ渡す。
-- **価値／懸念:** `max == INT_MAX`の場合に符号付き整数overflowとなり、定義済み動作ではない。
-- **次に確認:** 上限inclusive要件を保てる範囲幅APIまたは64-bit中間値による実装へ変更し、`INT_MAX`近辺を含む境界回帰ケースを追加する。
-
-### 2026-10-11 — ArtifactVariant destroys storage while empty
-
-- **関連:** `ArtifactCore/include/Core/ArtifactVariant.ixx`、`tests/ArtifactCore/ArtifactVariantContractTest.cpp`。
-- **確認できた事実:** `destroy()` は `typeIndex_ == 0` の空状態でも index 0 の vtable を取得して destroyer を呼ぶ。index 0 は第1 alternativeであり、既定構築 variant の storageにはその型のオブジェクトが構築されていない。
-- **価値／懸念:** 第1 alternativeが非自明デストラクタを持つ場合、空variantの破棄や値を持つvariantから空variantへの代入で未構築オブジェクトに対して破棄処理を行う。
-- **次に確認:** `destroy()` は `isSet()` の時だけ破棄関数を呼ぶようにし、空状態の生成・破棄と値から空へのcopy assignmentを回帰テストする。
-
-### 2026-10-11 — ArtifactAlgorithms erase API does not match ArtifactArray
-
-- **関連:** `ArtifactCore/include/Core/ArtifactAlgorithms.ixx`、`ArtifactCore/include/Core/ArtifactArray.ixx`、`tests/ArtifactCore/ArtifactAlgorithmsContractTest.cpp`。
-- **確認できた事実:** `artifactRemoveIf` は削除時に`container.eraseAt(index)`を呼ぶ。一方、`ArtifactArray`が提供する削除APIは`removeAt(index)`で、`eraseAt`は定義されていない。
-- **価値／懸念:** `artifactRemoveIf(Array<T>&, ...)` は要求メンバーが一致せず直接利用できない。suiteではAPIどおり`eraseAt`を持つ小fixtureを介してアルゴリズム単体を検査する。
-- **次に確認:** `artifactRemoveIf` を`removeAt`コンテナへ一般化するか、`ArtifactArray`へaliasを設けるか決めて、実際のArray統合テストを追加する。
-
-### 2026-10-11 — ArtifactHashMap collision iteration and moved-from lifetime
-
-- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm`、`tests/ArtifactCore/ArtifactHashMapContractTest.cpp`。
-- **確認できた事実:** iteratorの`operator++()`はbucket indexを進め、現在Nodeの`next`を辿らないため、同一bucket内の複数Nodeをiterationで全件訪問しない。move constructor/assignmentは移動元のbucket pointerをnullにするが、destructorの`clear()`はbucket配列をdereferenceする。また、`const_iterator`はmutable `iterator` のaliasでconst mapの`find()`もmutable referenceを返す。`tryEmplace`重複時は既存mapped valueへ新valueを代入してfalseを返す。
-- **価値／懸念:** collision iterationの取りこぼし、move元destruction時のnull dereference、const map経由の変更、try-emplace名称から期待される既存値非変更との不一致がある。
-- **次に確認:** iteratorがchainとbucket遷移の両方を扱うよう修正し、const iteratorを読み取り専用にし、move元を空の有効状態にする。重複時のtryEmplaceを非変更契約にするか決める。回帰テストは修正後にcollision iteration、const性、重複値保持、move元スコープ終了を含める。
-
-### 2026-10-11 — ArtifactArray squeeze currently cannot reduce capacity
-
-- **関連:** `ArtifactCore/include/Core/ArtifactArray.ixx`、`tests/ArtifactCore/ArtifactArrayContractTest.cpp`。
-- **確認できた事実:** `squeeze()` は `size_ < capacity_` の場合に `reserve(size_)` を呼ぶが、`reserve()` は要求容量が現在容量以下なら即returnする。従ってstorage容量は減らない。
-- **価値／懸念:** 名前と一般的なcontainer契約から期待される容量縮小が起きず、過剰確保メモリを保持する。
-- **次に確認:** 容量を縮める再配置処理が必要か判断し、必要なら要素move/destructionとallocation failure時の保証を定めた後でcapacity assertionを追加する。
-
-### 2026-10-11 — AudioEngineProfiler reset retains last frame counts
-
-- **関連:** `ArtifactCore/include/Utils/PerformanceProfiler.ixx`、`tests/ArtifactCore/PerformanceProfilerContractTest.cpp`。
-- **確認できた事実:** `resetStats()` はcallback/fill counters、durations、underflow、buffer levelを0にするが、`lastCallbackFrames_` と `lastRequestedFrames_` はresetしない。
-- **価値／懸念:** reset後snapshotが過去のframe数と新しい累積統計を混在させる。これが意図的なlast-known metadataか、reset漏れかは未検証。
-- **次に確認:** reset後もlast-known値を保持する契約か決め、仕様がzero resetなら両atomicもresetして期待値を追加する。
-
-### 2026-10-11 — PatternNameGenerator without a number slot can loop forever
-
-- **関連:** `ArtifactCore/src/Utils/NameGenerator.cppm`、`tests/ArtifactCore/NameGeneratorContractTest.cpp`。
-- **確認できた事実:** `Generate` はcandidateが `usedNames` に存在する限り番号を増やして再試行するが、`makeCandidateZero` はpatternに `***` がなければ候補文字列を変化させない。同じ固定文字列が使用済みになった後の再生成は終了しない。
-- **価値／懸念:** 固定patternやname slotだけのpatternを複数回使うと呼び出しが停止する可能性がある。再試行上限なしのループであり、通常のテストではプロセスをハングさせうる。
-- **次に確認:** number slotがないpatternの重複方針（エラー、同名返却、pattern妥当性検証）を決め、boundedな失敗契約を実装した後に回帰テストを追加する。
-
-### 2026-10-11 — MultipleTag moved-from state is not reusable
-
-- **関連:** `ArtifactCore/src/Utils/MulitpleTag.cppm`、`ArtifactCore/include/Utils/MultipleTag.ixx`。
-- **確認できた事実:** move constructor と move assignment は移動元の `impl_` を `nullptr` にする。destructor は許容するが、`count()`、`clear()` などの通常メソッドは `impl_` を直接参照する。
-- **価値／懸念:** 移動元を破棄以外に使うと null dereference になる。クラスの moved-from 契約が未定義であり、利用側が再利用可能と期待する場合は問題になる。
-- **次に確認:** moved-from 状態を空の有効状態へ戻すか、型の契約として明示するかを決めてから、move 後再利用テストを追加する。
-
-### 2026-10-11 — Buffer view lifetime and missing-delimiter edge
-
-- **関連:** `ArtifactCore/include/Utils/Buffer.ixx`、`tests/ArtifactCore/BufferContractTest.cpp`。
-- **確認できた事実:** `toBufferView(const QString&)` はローカル `QByteArray` のdata pointerを `BufferView` として返すため、戻り値はローカル所有物の破棄後を参照する。`afterLast` は区切りがないと `splitLast` が `{empty, value}` を返し、非empty側の先頭1byteを除いたviewを返す。
-- **価値／懸念:** QString変換のviewはuse-after-lifetimeとなる。delimiter未検出時の `afterLast` は命名上期待される意味とずれる可能性がある（期待仕様は未確認）。独立suiteではこれらの不安定な期待値を固定せず、テスト対象から外した。
-- **次に確認:** Buffer view APIで所有権が期待されるか、または呼び出し側所有のUTF-8作業領域を受け取る形にするかを確認する。`afterLast`／`takeAfter`／`suffixAfter` の delimiter未検出仕様を定めて境界テストを追加する。
-
-未着手の設計判断、現在の優先方針に直結する実装候補、実機検証待ちだけを記録する。実装済みの詳細履歴と過去の調査は [Insight Archive (through 2026-09-01)](docs/analysis/INSIGHT_ARCHIVE_2026-09-01.md) を参照。
-
-### 2026-10-10 — 2D/3D layer transform composition order
-
-- **関連:** `ArtifactCore/src/Transform/TransformHelper.cppm`、`tests/ArtifactCore/CompositionTransformTimeContractTest.cpp`。
-- **確認できた事実:** `combineLayerTransform2D(local, parent)` は `local * parent` を返す一方、3D 版は `parent * local` を返す。2D 実装コメントは親変換を子空間で適用すると記述し、3D 実装は `QMatrix4x4` の標準的な親×子順を使っている。
-- **価値／懸念:** 2D と 3D の規約差が意図的か、ネストしたレイヤーの描画・座標変換で整合しているかは未検証。単体テストでは各 API の現在の契約を固定できるが、親子レイヤーの実描画結果までは保証しない。
-- **次に確認:** 親子レイヤーを使う描画・bounds・入力座標の各経路で変換積の順序を追い、同じ階層構成の 2D/3D テストを追加すべきか判断する。
-
-### 2026-10-10 — XPU CPU lanes share oneTBB through Core.Parallel
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`ArtifactCore/src/Core/Parallel.cppm`、`ArtifactCore/include/Common/ThreadPool.ixx`。
-- **確認できた事実:** XPU mixed の CPU frame lanes はソフトウェア renderer を通り、複数の画像処理が `ArtifactCore::Parallel::For` を呼ぶ。同 API は `tbb::parallel_for` に委譲される。既存 `ThreadPool` は `tbb::global_control(max_allowed_parallelism, concurrency_)` を作り、TBB の global control は scheduler 内で同時実行する worker thread 数を制限する。TBB の implicit arena は parallel algorithm を呼ぶ user thread ごとに関連付く ([task arena](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/task_scheduler/task_arena/task_arena_cls)、[global control](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/task_scheduler/scheduling_controls/global_control_cls))。
-- **今回の対応:** `Core.Parallel` に共有 TBB arena API を置き、全 `Parallel::For` と XPU CPU frame lanes を同じ arena に通す。XPU は初回 arena 初期化へ process-available thread count を渡し、job host limit を実 concurrency 以下へ上限化する。MSVC module compile で `ThreadPool.ixx` の TBB inline実装を Artifact から使う形が失敗したため撤回し、TBBの実装詳細を既存 `Core.Parallel.cppm` 内へ閉じた。XPU summary と統合テスト source に scheduler と concurrency の確認を加えた。
-- **価値／懸念:** XPU CPU frame lanes と内側の TBB kernels が共有 concurrency cap を使う。Taskflow、QThreadPool、GPU submission、writer/encoderとの完全な process-wide budget は未統合。Debug構成でCore/Artifact/test targetがビルド成功し、RTX 4070 Ti Vulkan + CPUのmixed-text、2D/3D particle、10-frame all-adapters/backpressureテストがそれぞれ3回連続成功。共有TBB arena/concurrencyのdiagnosticsも確認済み。複数物理GPU/iGPUでの受入は未確認。
-- **次に確認:** ArtifactCoreとArtifactの対象ターゲットをビルドし、XPU mixed runtimeでCPU frame lanesとnested `Parallel::For` が同一arenaに参加すること、summaryの実 concurrency、TBB worker数とprocess CPU utilizationを検証する。
-
-### 2026-10-10 — XPU D3D12 requires matching Agility runtime exports
-
-- **関連:** root `CMakeLists.txt` Windows SDK `try_compile` paths、`Artifact/src/Render/DiligentDeviceManager.cppm`、`Artifact/tests/RenderQueueLayerImageIntegrationTest.cpp`。
-- **確認できた事実:** CMake `D3D12_SUPPORTED` と `VULKAN_SUPPORTED` は両方TRUE。ArtifactはAgility SDK 619 のversion/pathを無条件exportしていたが、SDK `D3D12Core.dll` が配置されない構成では `D3D12_ERROR_INVALID_REDIST` (`0x887E0003`) でdevice creationが拒否される。テスト機は Intel Core i7-13700KF と NVIDIA GeForce RTX 4070 Ti の1 GPU構成で、iGPUは列挙されない。
-- **今回の対応:** Agility SDK runtimeがCMakeで設定された場合だけversion/pathをexportする。SDKなし構成ではOS D3D12 runtimeへ戻す。新しいDebug treeでRender Queue統合テストを実行し、CPU＋D3D12 primaryの混在10-frame dispatch、D3D12 backend選択、画像内容を確認。自動backend選択のCPU＋Vulkan混在画像テストも成功。
-- **価値／懸念:** D3D12 primaryを利用できる構成が復旧した。Agility SDKを設定した構成は未検証。現ホストではiGPUおよび複数物理GPUを使った同時レンダリングを受け入れられない。
-- **次に確認:** Agility SDK 619を明示設定したruntimeと、iGPU＋dGPUまたは複数dGPUの実機で、各GPU laneの参加・フレーム数・画像出力を検証する。
-
-### 2026-10-10 — Particle XPU parity uses different rasterizers
-
-- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`、`tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`。
-- **確認できた事実:** software particle rendering paints a QPainter radial-gradient circle sprite. GPU particle rendering draws an instanced quad and computes a soft circular alpha edge with a shader `smoothstep`; the rasterizers differ.
-- **今回の対応:** isolated XPU particle Render Queue test verifies deterministic CPU reference output, XPU frame outputs, plan diagnostics, and both 2D/3D layer setup. The GPU-only production particle test separately verifies visible pixels. CPU/GPU lane participation is asserted in the separate multi-frame text case.
-- **価値／懸念:** exact CPU/GPU particle parity remains unverified; the XPU case records mismatch count/bounds without guessing a tolerance. Both XPU particle and GPU-only visibility cases passed three consecutive runs.
-- **次に確認:** capture and compare XPU particle pixels across different GPU vendors/backends; do not call parity complete from manager output alone.
-
-### 2026-10-10 — XPU pull dispatch adapts frame share without static weights
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU `nextFrameCounter` worker loop。
-- **確認できた事実:** mixed/multi-GPU lanes receive one distinct startup frame, then claim the next frame only after `renderOneFrame` completes. There is no fixed per-device frame quota after seeding.
-- **今回の対応:** documented the completion-driven pull behavior next to the shared counter and in P4. Per-device timing weights remain diagnostic rather than being fed back into assignment.
-- **価値／懸念:** fast lanes naturally claim more remaining frames, so a stale startup weight is unnecessary and could bias work after scene/device conditions change. This does not prove there is no starvation under long-tail frames or output-buffer backpressure.
-- **次に確認:** use runtime bench frame counts and lane render durations on dissimilar CPU/iGPU/dGPU hardware. Add a weighted policy only if the pull scheduler shows a repeatable imbalance that lowers throughput.
-
-### 2026-10-10 — Render Queue の HW encoder slot は現行の単一job実行では飽和しない
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`。
-- **確認できた事実:** `ArtifactRenderQueueService::startAllJobs()` は `isRendering_` で同一serviceの二重開始を拒否し、単一 `workerThread_` 内で `jobOrder` を順番に処理する。各動画jobのencoder backendはそのjob処理中に作成される。
-- **今回の対応:** `ARTIFACT_XPU_MAX_HW_ENCODERS` の共有slotをNative HW / ffmpeg HW pipe / Vulkan pipeへ適用し、session lifetime中の上限をコード化した。
-- **価値／懸念:** 将来job並列化または独立encoder利用が入った際のプロセス共通上限を先に確立できる。ただし現行Render Queue単体では複数jobが同時にencoderを開かないため、設定値の差によるthroughput/backoffのruntime効果はまだない。今回の変更だけでXPU並列性能が改善したとは扱わない。
-- **次に確認:** encoder backendを呼び出す他の同一process経路とservice構築可視性を確認し、競合可能なconsumerがなければ、job並列化導入時に同時encoder上限の受入試験を追加する。
-
-### 2026-10-10 — XPU consumer worker と RenderQueue writer 上限の統合
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`ArtifactCore/src/IO/Image/AsyncImageWriterManager.cppm`。
-- **確認できた事実:** XPU混在時はCPU/GPU frame worker上限とは別に画像書き込みfutureが生成されていた。`AsyncImageWriterManager` は既定hardware_concurrencyサイズのthread poolを作り、enqueue件数を呼び出し側へ通知・制限するAPIがない。
-- **今回の対応:** RenderQueue側のasync writer futureを1〜2件に固定し、XPU mixed jobではその同時writer数をhardware thread数から予約してframe lane上限を決める。6 logical threads未満ではasync writerを止めて同期書き込みへ戻す。job summaryへ共有枠を出し、mixed画像統合テストに枠の包含関係を追加。manager指定時はbounded future経路へfallbackし、理由を警告する。ArtifactCoreは変更していない。
-- **価値／懸念:** mixed job内のCPU render laneとsequence writer threadが別々に上限を消費しない。これはjob-localな保守的予算であり、UI・TBB・他poolを含むprocess-wide schedulerではない。CPU budgetの効果、writer失敗時の挙動は実行未確認。
-- **次に確認:** ユーザー許可後に混在レンダー＋async sequenceの低論理CPU数／通常CPU数条件で、summaryのthread枠、キャンセル、書込失敗伝播、長時間メモリ上限を確認し、render/consumer総CPU予算をbenchで確定する。
-
-### 2026-10-10 — XPU mixed video encoder もframe laneのhost budgetを使う
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`、`RenderQueue/XpuEncoderThreads`。
-- **確認できた事実:** native FFmpeg settingsは`threadCount=0`のままencoderへ渡しており、external FFmpeg pipeにも`-threads`指定がなかった。video consumerはframe workerと並行して動く。
-- **今回の対応:** mixed動画ではencoder thread数の既定を1にし、正数指定もusable host thread数へclampする。service側は同数をframe laneの予算から控除し、nativeおよびpipe backend双方へthread countを渡す。
-- **価値／懸念:** frame renderingとencodeが同じCPU資源を超過予約しにくくなる。混在jobのthread枠であり、アプリ全体のpoolを横断してはいない。FFmpegが実際にそのthread上限を守ること、画質・出力と速度への影響は未検証。
-- **次に確認:** software/hardware native backendとexternal pipeで、混在動画のsummary予約数・encoder起動ログ・実プロセスthread数を確認し、thread数別benchを行う。
-
-### 2026-10-10 — XPU mixed eligibility must include the selected render backend
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`xpuMixedEligibleForJob`。
-- **確認できた事実:** CPU backendを選んだjobでは`cpu-render-backend-selected`をmixed unavailable reasonとして記録していた一方、eligible predicate自体にはGPU backend条件がなく、CPU/GPU lane計画と予算予約へ進む余地があった。
-- **今回の対応:** `useGpuBackend`をeligibility条件に加え、実際にGPU rendererが使われるjobだけをXPU mixedとして扱う。Render Queue画像統合テストにCPU backend baselineのunavailable reason、未起動mixed lane、未予約budgetを検査するassertionを追加した。
-- **価値／懸念:** unavailable reasonとplan/CPU予算の分類が一致する。統合テストは未実行で、CPU backendを明示した mixed 要求のruntime summaryは未確認。
-- **次に確認:** GPU backend有効／CPU backend明示の両ケースで、active mixed plan、frame lane数、writer/encoder予約が期待通り切り替わることを確認する。
-
-### 2026-10-10 — XPU thread budget should use process-available CPUs
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`。
-- **確認できた事実:** XPU lane/encoder budgetは`std::thread::hardware_concurrency()`でmachine-wide logical thread数を参照していた。Qtの`QThread::idealThreadCount()`は、OSが対応する場合にprocessが利用可能なlogical processor数を返し、affinityやCPU hotplugで変化し得る。
-- **今回の対応:** serviceとencoderの予算計算を`QThread::idealThreadCount()`へ統一し、processに適用されたCPU制限を反映する。
-- **価値／懸念:** affinity/container/job objectなどの制約が公開される環境で、実際に使えないCPU数を予算へ数えない。OSごとの検出範囲とjob開始後の変化はruntime未確認。
-- **次に確認:** affinityを制限した環境でsummaryのhardwareThreadsが利用可能processor数に一致すること、同一jobのencoder/service両方が同じ数を使うことを確認する。
-
-### 2026-10-10 — 既存Schedulerはdevice-affineなXPU frame laneを表現しない
-
-- **関連:** `Artifact/src/Render/ArtifactRenderScheduler.cppm`、`ArtifactCore/include/Render/MFR/MFRDispatcher.ixx`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`。
-- **確認できた事実:** `ArtifactRenderScheduler` は優先度・重複排除付きの汎用RenderTaskとTaskSystemを持ち、device/renderer affinityをタスクに渡すAPIが見当たらない。`MFRDispatcher` のFrameTaskもframe番号だけを受け取り、実行worker identityをcallbackへ返さない。現在のGPU laneは各immediate context・cache・composition snapshotを単独所有する。
-- **設計仮説（未検証）:** 汎用Schedulerへ現状のframe callbackをそのまま移すと、どのGPU laneが実行中かを外部状態で割り当てる必要が生じ、context所有権やin-flight上限が壊れる可能性がある。XPU dispatcher APIはnode/worker identity付きのclaim/completeを提供する必要がある。
-- **価値／懸念:** 既存Schedulerの名目上の再利用でGPU資源所有を弱めるリスクを避けられる。一方、現行のローカルatomic採番とraw thread管理はRenderQueueに残る。
-- **次に確認:** P2 runtime受入後、device-affine worker descriptorを持つAPIが現在の枠内で追加できるか、シグナル／スロットを増やさず段階的に統合できるかを設計レビューする。
-
-### 2026-10-10 — XPU assist と consumer pipeline は実際の重複実行が必要
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU P3/P4。
-- **確認できた事実:** `igpu=assist` のpreview縮小と動画 `pipeline=on` は、CPU処理を `std::async` で開始して同じフレーム内ですぐ `get()` しており、iGPU処理でもencodeとの重複でもなかった。GPU assist plan node は現時点で `maxInFlight=0`。
-- **今回の対応:** 誤解を招く即時待機のasync処理を撤去し、動画pipeline要求は非対応警告を出して同期経路を使うようにした。マイルストーン文書も未実装に訂正した。さらに、専用D3D12 workerに偏っていたGPU frame数の観測へprimary rendererのadapter IDとframe数を加えた。
-- **価値／懸念:** 「async」指定だけでXPU利用を誤認せず、hot pathで余計なfuture/threadを生成しない。iGPU assistそのものと動画のbounded lookahead pipelineは未実装。
-- **次に確認:** GPU資源で実行可能な既存convert/scale/encode経路とrenderer/device ownershipを特定し、assistの一作業を実GPUへ割り当てる。動画pipelineはbounded lookaheadで次フレーム変換と現フレームencodeを実際に重ねる。primaryとdedicated GPU laneを同時に使うfallback caseのbench counter整合は未検証。
-
-### 2026-10-10 — XPU 開発スイッチを ArtifactStartup.json から解決する
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`、`docs/technical/STARTUP_FLAGS_CONTRACT_2026-09-29.md`。
-- **確認できた事実:** Startup Flags 契約は XPU 系環境変数を `RenderQueue/Xpu*` へ段階移行する計画だが、Render Queue と encoder は環境変数だけを直接読んでいた。また GUI 起動では `ArtifactAppSettings::instance()` が `QApplication` と Startup JSON 読込より先に呼ばれていた。
-- **今回の対応:** XPU spec、worker上限、iGPU参加、preview、sequence、parity、pipeline、bench、clone診断、encoder thread/preset/HW上限の値を `LayeredConfigStore` 起点へ移した。JSON があれば対応 env より優先し、各 setting accessor は解決値を起動後初回にキャッシュする。`AppMain` の GUI 起動順を変更し、Startup JSON を最初の `ArtifactAppSettings` 取得前に読み込む。テンプレートに任意keyの一覧を記載。
-- **価値／懸念:** IDEやExplorer起動でもXPUを設定でき、解決層の読み込みをrender frame hot pathへ持ち込まない。StartupFlags競合時のログと全keyの型・優先順位はruntime未検証。
-- **次に確認:** XPU各keyについて環境変数のみ／JSONのみ／JSONとenv競合／未設定の4条件で解決値を確認する。ビルド・テストはユーザー明示指示待ち。
-
-### 2026-10-10 — XPU GPU worker の初期化失敗を adapter 単位で隔離
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`GpuFinalWorker` 初期化。
-- **確認できた事実:** worker 構築ループは composition snapshot または adapter renderer の初期化に失敗したとき、既に作成済みの全 GPU worker も `workersReady` gate で無効化していた。
-- **今回の対応:** 失敗した adapter の worker だけを skip し、他の GPU worker は保持する。CPU fallback snapshot が利用できなくても GPU renderer 自体は登録する。混在時の最低1 worker条件と legacy multi-GPU時の最低2 worker条件は維持する。
-- **価値／懸念:** 1台の不調 adapter が他の正常な GPU lane を無効にしない。fallback snapshot がない GPU lane は GPU render 失敗時にCPUへ切り替えられない。
-- **次に確認:** adapter 初期化失敗・snapshot clone失敗を個別に注入し、残存 worker のフレーム出力、fallback、summary計数を確認する。ビルド・テストはユーザー明示指示待ち。
-
-### 2026-10-10 — XPU CPU lane の snapshot clone 部分失敗を縮退扱いにする
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU mixed CPU worker 初期化。
-- **確認できた事実:** CPU composition snapshot の作成ループは一つでも clone に失敗すると `mixedCpuReady=false` にし、すでに正常作成した snapshot がある場合も mixed dispatch を有効にしなかった。
-- **今回の対応:** 失敗を警告して clone ループを止め、作成済み snapshot が一つ以上あればその数だけ CPU lane を登録する。CPU lane が0ならGPU側の既存dispatchへ縮退する。
-- **価値／懸念:** 一時的なclone失敗で既に確保したCPU資源を全て失わず、実際に初期化できたlane数を超えて起動しない。
-- **次に確認:** clone failure を注入し、要求／実稼働 lane 数、順序復元、フレーム成功数が縮退後の構成と一致することをruntimeで確認する。ビルド・テストはユーザー明示指示待ち。
-
-### 2026-10-10 — Kuwahara の近傍統計を一走査で集計する
-
-- **関連:** `Artifact/src/Effects/Kuwahara/KuwaharaEffect.cppm`。
-- **確認できた事実:** CPU と HLSL の両方で、各 quadrant の平均用と分散用に同じ近傍画素を別々に走査・読込していた。GPU shader は1画素につき4 quadrantを処理する。
-- **今回の対応:** RGBの二乗和も平均と同時に集計し、`E[x²] - E[x]²` から分散を得る形へ変更。CPU と HLSL を揃えた。負の丸め誤差は0へクランプする。CPU 側のquadrant loopは0／負のoffsetで終端へ進まず走査が継続する向きだったため、GPU と同じ画素範囲を進むよう修正。
-- **価値／懸念:** 近傍テクスチャ読込・CPU画素読込を理論上およそ半減できる。二乗和方式は従来の差分二乗方式と浮動小数点丸めが異なり、HDR値やほぼ一様な領域では分散選択に差が出る可能性がある。速度と画像差は未検証。
-- **次に確認:** ビルド後、CPU/GPU pixel parity と半径別の実行時間を比較する。ビルド・テストは明示指示待ち。
 
 ## 現在の優先検証
 
@@ -2425,6 +2537,7 @@
 - **状態:** ファイルGoboを置換できるruntime SRV入力は実装済み。Image Layerとの接続・UI・保存は未実装。
 - **判断待ち:** 接続を始める時点で、packed scene-light slotではなく安定したLight IDとresource revisionを対応付ける。
 
+
 ## 現在の設計判断
 
 ### Semantic Debugger — 外部 `ArtifactDebugger.exe` を正規UI境界とする
@@ -2465,6 +2578,7 @@
 - **状態:** 実装済み、host UI実機確認待ち。
 - **判断:** worker の exit code だけでは成功とみなさず、completed message、final output、partial cleanup、timeout／強制終了後の状態を一組で検証する。これにより、ハングや中断を有効な proxy と誤認する経路を受入段階で検出できる。
 
+
 ## 保留中の設計判断
 
 ### シェイプレイヤー VP 操作の増強範囲（2026-09-02 ユーザー質問）
@@ -2495,6 +2609,7 @@
   1. スコープ: 既存の `MILESTONE_SHAPE_SVG_EXPORT_AND_KEYFRAME_VERIFY_2026-08-22.md` Phase D（キャンバス頂点編集）と Phase E（複数シェイプ）をそれぞれ独立に進めるか、または一括で (1)〜(7) をフェーズ計画に起こすか。
   2. 編集ホスト: メイン VP で直接編集（既存 `ArtifactCompositionRenderController` を拡張）か、`ArtifactRenderLayerWidgetv2`（LayerEditorPanel）側に集約して「ソロビュー」相当の編集ペインにするか。
   3. データモデル: 現状の単一 primitive を維持して `ShapeType` をツールプリセットにマップするか、コア `ShapeGroup` ベース（Phase E）へ移行してから VP 操作を実装するか。
+
 
 ## 検証運用
 
@@ -2544,6 +2659,7 @@
 - **確認できた事実:** MPM Layerは粒子packetではなく、128x96 density fieldからbounded triangle meshを作って単一`MpmSurfacePkt`として送る。`PrimitiveRenderer2D::drawMpmSurface()`はcommand buffer満杯時にfalseを返しpacketを追加しない。Layerは戻り値を無視するため、そのframeの砂面は欠落する。CPU Render Queue側にはsolver densityから生成する専用`getThumbnail()`があるが、GPU Composition Viewの同一frame drawで代替描画はされない。
 - **価値／懸念:** 粒子ごとのpacket overflowは避けている一方、command queue全体が満杯ならMPM面の可視性保証はない。Layer側のmesh容量は全cell三角形数を上限として確保済みで、問題はmesh vertex capacityではなくcommand packet slotの拒否。
 - **未検証／次に確認:** packet capacity到達をruntimeで再現していない。優先slot確保、packet admission計画、または明示的な描画失敗診断のいずれかを設計し、他Layerの順序・bounded allocation・GPU submit失敗との責務を比較する。QPainter/QImageや粒子ごとのprimitive fallbackは追加しない。
+
 
 ## Weekly insight files
 
@@ -3164,6 +3280,7 @@
 - **次に確認:** MPM layerのsave/load・duplicate・Undo/Redoでscalar値とanimationが揃い、Composition replay結果が一致することをruntime確認する。
 
 \n
+
 ## 2026-10-20: Rectangular liquid surface overhang was a render artifact
 
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cppm`, `tests/Artifact/PhysicsLodBridgeContractTest.cpp`, `Artifact/cmake/RunWindeployqt.cmake`。
@@ -3623,6 +3740,7 @@
 - 確認済み: native mixed2/8-layer・1秒窓/3秒は両90/drop0/repeat0、late1/0。fault exception0、重大D3D12/CRTエラー0、正常exit1。temp/video-native-composition-sync-gate-debug.log。bench残存なし。
 - 次に確認: 最新全1..8 matrixと反復、guard deferral時系列、viewport/no-cache/disk有効経路。cached短区間であり長い固有sourceとvisual parityは未達。
 
+
 ## 2026-10-13 — 完成描画数と表示通知数の比較
 
 - 関連: tools/VideoPreviewBench/main.cpp、export_report.py、ArtifactCompositionRenderController。
@@ -3922,6 +4040,7 @@
 - **実装:** 既存ImageUploadBufferを3slotに冷間準備し、SharedPtr useCountでGUI受け取りまで再利用を拒否。worker／GUI／renderer破棄をまたぐbyte storageの寿命を共有所有で維持する。1slot64MiB上限。
 - **価値／懸念:** readback→RAM cache間のQt画像境界を除去するが、GPU→CPUとCPU cacheのコピーは残る。通常prefixは提示47／drop17で不合格。最新版native試行はexception0だが提示47／drop1で不合格。色alpha parityは未検証。
 - **次に確認:** 通常prefix試行、native exception、payload色／alphaの旧経路との一致、GPU resident cacheのidentityとbyte budget。
+
 
 
 ## 2026-10-13 — RAM replay の GPU residency と cache budget
@@ -4349,6 +4468,7 @@
 - **次に確認:** 対象Debugテスト1件は成功。全suite、他のFFmpeg codec構成やGPU adapterでの再現性は未確認。
 
 
+
 ## 2026-10-15: DPX writerはCineon transferとビット深度を個別メタデータで保持する
 
 - **関連:** `ArtifactCore/src/IO/Image/ImageExporter.cppm`、`ArtifactCore/src/IO/Image/ImageImporter.cppm`、`ImageExportOptions::bitsPerSample`。
@@ -4358,6 +4478,7 @@
 - **次に確認:** 別のOIIO build/pluginでも標準DPX headerとpackingを読み戻せるか確認する。
 
 
+
 ## 2026-10-15: 非連続プリコンポーズ解除でのレイヤー順復元
 
 - **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`tests/Artifact/PrecomposeViewerMain.cpp`。
@@ -4365,6 +4486,7 @@
 - **未検証の仮説:** AとUntouchedを選びBを残す非連続選択では、逐次挿入位置がシフトし、解除後の順序が元のA/B/Untouchedと異なる可能性がある。`test.nonContiguousSelectionOrder` を追加したが、実行は未確認。
 - **価値／懸念:** レイヤー順は描画重なりや編集結果に影響するため、連続選択だけでなく隙間を含む選択解除の回帰検知が必要。
 - **次に確認:** 許可されたGUIテスト実行で解除・Undo・Redo後のレイヤー順が一致するか確認する。
+
 
 
 ## 2026-10-15: Native Dockの一時ターゲット表示と局所分割
@@ -4378,6 +4500,7 @@
 - **次に確認:** ビルド・実機確認が許可されたら、分割方向、入れ子分割、splitterリサイズ後の保存・復元、Undo/Redo、空split葉のcollapseを確認する。浮動グループへのタブ挿入位置と、キャンセル時の予告解除も確認する。QADSとの次の大きな機能差であるAuto-Hideは、`pinned_`と分離した状態・保存形式・4辺sidebar・popup lifecycleを設計してから実装する。
 
 
+
 ## 2026-10-15: FBX importerはDiffuseFactorをbase-color weightとして適用する
 
 - **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` の `detectTexturesFromUfbx()`、`ArtifactCore/include/Geometry/MeshImporter.ixx` の `ImportedPbrMaterial`、`tests/fixtures/fbx-materials/diffuse-factor-weight.fbx`、`tools/fbx/create_material_fixtures.py`、`tests/ArtifactCore/MeshImporterFbxTest.cpp`。
@@ -4389,12 +4512,14 @@
 - **未検証:** ビルドとテスト実行は未実施。回帰テストの期待値 0.39886 / 0.24228 は手計算であり、実測で確認していない。
 
 
+
 ## 2026-10-15: FBX importerの単位正規化は現状維持（有効化すると全FBXが1/100になる）
 
 - **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` の `loadWithUfbx()` が組む `ufbx_load_opts`、`third_party/ufbx/ufbx.c` の `ufbxi_update_scene_settings()` / `ufbxi_scale_units()`。
 - **確認済み事実:** ufbx は `UnitScaleFactor` 未宣言の FBX を cm 既定として扱う（`unit_scale_factor = 1.0` → `unit_meters = 1.0 * 0.01`、`ufbx.c:23796-23802`。`ufbx.h:3903` にも "FBX files usually default to centimeters" とある）。`target_unit_meters` は既定 0 で無変換（`ufbx.h:4832-4834`）。Importer は unit 変換を一切設定しておらず、`Artifact3DModelLayer` 側にも補正は無い。
 - **価値／懸念:** `opts.target_unit_meters = 1.0` を設定すると scene が `0.01 / 1.0 = 0.01` 倍され、既存の全 FBX が 100 分の 1 の大きさになる。ファイル間のスケールは揃うが、基準画像・既存プロジェクトの見た目が変わるため1行の修正として扱えない。
 - **決定:** 2026-10-15 のユーザー判断により現状維持。単位正規化は必要になった時点で、既存モデルと基準画像の更新を含む別の作業として扱う。
+
 
 
 ## 2026-10-16: ArtifactScriptとLayerの統合fixtureを独立ファイルで差し替える
@@ -4406,6 +4531,7 @@
 - **次に確認:** 負のケース（存在しないLayer／property）とキーフレーム書込みをfixture suiteへ追加するか検討する。CMake再configure後の独立build/runは成功済み。
 
 
+
 ## 2026-10-15: FBX取り込み時にカメラ／ライト層を生成する
 
 - **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` の `handleCreateModel3D()` / `createImportedSceneLayers()` / `applyImportedSceneTransform()`、`ArtifactCore` の `MeshImporter::importedCameras()` / `importedLights()`、`third_party/ufbx/ufbx.h` の `target_camera_axes`、`Artifact/src/Layer/ArtifactCameraLayer.cppm`、`ArtifactCore/src/Animation/AnimatableTransform3D.cppm`。
@@ -4415,6 +4541,7 @@
 - **未確認／懸念:** (1) ライト色を `FloatColor` へ入れるときの色空間変換をしていない（`toLinear()` / `fromLinear()` の向きを確認していない）。(2) FBX座標をcomp単位へ変換していない（単位正規化を現状維持にしたためで、3Dモデル層もFBX座標をそのまま層ローカルに使うことに合わせた）。(3) 取り込んだカメラが active camera になるかは未確認。なれば合成の描画が変わる。(4) Undo が既存の層追加経路と同一になるか未確認。(5) `LightType` に volume が無いため volume ライトは point に落としている。
 - **別便にできる改善:** `MeshImporter` は3Dモデル層が保持しているのに、メニュー側でファイルを読み直している（2回パース）。層からカメラ／ライトを公開すれば1回で済む。`Artifact3DModelLayer.ixx` に `import MeshImporter;` を足すことになるため、公開APIを広げる判断が要る。
 
+
 ## 2026-10-15: Contents Viewerの描画経路に初期化・開始時競合の穴
 
 - **関連:** Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm、Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm、ArtifactCore/src/Media/MediaReader.cppm、ArtifactCore/src/Media/MediaPlaybackController.cppm。
@@ -4423,6 +4550,7 @@
 - **未検証の仮説:** WAVの空表示は最初のpacketが未到着のpollによって再生が停止した可能性が高い。GPU画像previewではNVIDIA Vulkan deviceとswapchain初期化ログが得られたが、sprite submit／present成功は未計測。3Dでもdeviceとviewport相当サイズのswapchain resizeログがあるためdevice/swapchain failure fallbackではなさそうだが、draw／present成功は不明。Qt widget captureの白viewportはネイティブQWindowの実画面表示を確定しない（desktop capture時にテスト窓が前面でなかった）。paused動画は再生開始前のため黒画面のままで、先頭frameを表示する経路がない可能性がある。
 - **価値／懸念:** メタデータ読込の成功だけではsurfaceの初期化・frame delivery・audio queue readinessを検査できない。独立ウィジェットテストに経路別runtime assertionが必要になる。
 - **次に確認:** Renderer isInitialized / swapchain / present結果、video frameChanged受信、audio sink deviceと初回packetまでの状態をテスト結果へ出し、各失敗を形式別に再実行する。製品修正は独立した明示依頼を待つ。
+
 
 
 ## 2026-10-16: Contents ViewerのSVGはimageformats plugin配置を要確認
@@ -4437,6 +4565,7 @@
 - **次に確認:** Contents ViewerのGPU previewとComposition Viewのsurface作成・owner階層を比較し、可視captureでPNGのdraw/presentを再現する。Play後のMP4 frameもcapture helperまたはGUI操作で確認する。Audioは再生中に短間隔でplayhead更新を確認する。
 
 
+
 ## 2026-10-16: Contents Viewer previewのswapchain resizeでDebug Assertion
 
 - **関連:** `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、Contents Viewer独立fixture。
@@ -4445,6 +4574,7 @@
 - **残る確認:** 共有rendererで長時間の連続異サイズresize stress、MP4 fixture上のPlay/seek、WAV再生中positionの独立操作確認。Widget captureはネイティブGPU surfaceを欠くため画面画像の証拠にはOS desktop captureを使用。
 - **関連する未検証の設計案:** GPU viewport widgetのswapchain lifecycleを、present後のRTV保持とresize前のunbindを含めて共通契約として明文化できる可能性がある。現時点ではこの一箇所で得た事実であり、他widgetへ一般化できるかは未検証。
 - **次に確認:** Contents ViewerでMP4とWAVの操作確認を行い、異なるwidgetのresize前にも同じRTV所有条件があるかコードから調べる。
+
 
 
 ## 2026-10-16: Contents Viewer transport表示がnull state labelで早期return
@@ -4457,6 +4587,7 @@
 - **追加確認:** 修正後のArtifactUiTestで20秒WAVのpositionが `00:05 / 00:20` から `00:11 / 00:20` へ進むこと、4秒H.264 MP4で `00:00 / 00:04` と `Frame 0 / 120` が表示され、Play後に映像とframe番号が進むことを確認した。seek sliderにフォーカスしてRightを押すとpositionが1秒、frame 30/120へ移った。マウスドラッグシーク、長時間resize stressは未確認。
 - **次に確認:** WAVのpause/seek後の保持とMP4のマウスドラッグseekを確認する。長時間の連続異サイズresize stressも実行する。
 
+
 ## 2026-10-16: Composition Surface Cache の検証では render-key suppression と区別する
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`tests/Artifact/CompositionLayerSurfaceCacheMain.cpp`。
@@ -4466,12 +4597,14 @@
 - **未検証:** render-key 経路を通過して surface lookup/hit が実際に観測されるかは、新 target のビルドおよび実機実行が必要。既存 build target は ArtifactCore の module IFC 重複エラーで新コードの compile 前に停止した。
 - **次に確認:** IFC 重複の出所を確認してから target をビルドし、`cache.runRegression` の hit / invalidation / unrelated-edit assertion と capture を GPU runtime で実行する。
 
+
 ## 2026-10-16: プリコンポーズ解除のkeepCompositionは空の子を残す
 
 - **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`tests/Artifact/PrecomposeViewerMain.cpp`。
 - **確認できた事実:** `keepComposition=true` は子Composition自体の削除を止めるが、子レイヤーは親へ移動する。結果として子Compositionは空になり、Undoでレイヤーが子へ戻る。
 - **価値／懸念:** 「子を保持」という表現を元の内容も残す意味と誤読すると、テストが誤った内容保持を期待し得る。レイヤーeffect保持テストの解除後条件を空childに合わせて修正した。
 - **次に確認:** UI文言・API引数名とこの意味が一致しているかは未確認。必要なら別途ユーザー向け文言を確認する。
+
 
 ## 2026-10-16: ShapeExtrude の穴付きキャップは穴を横切る可能性
 
@@ -4481,6 +4614,7 @@
 - **未検証:** この穴形状で現在の実装が実際に失敗するか、コンパイル・実行では確認していない。
 - **次に確認:** ビルドが許可された際にShapeExtrude独立テストを実行し、失敗する場合はポリゴンと穴の交差を考慮する三角形化方法を別途検討する。
 
+
 ## 2026-10-16: ShapeExtrude は不正輪郭を個別に読み飛ばす
 
 - **関連:** `ArtifactCore/src/Geometry/ShapeExtrude.cppm` の輪郭正規化、`tests/ArtifactCore/ShapeExtrudeTest.cpp`。
@@ -4488,6 +4622,7 @@
 - **価値／懸念:** 不正な穴輪郭などが黙って失われると、返却成功でも意図しない塗りつぶし形状になり得る。テストは有効な外周と重複点輪郭を同時に渡し、失敗時に既存出力が維持される契約を確認する。
 - **未検証:** 独立テスト実行前の静的確認であり、現在の失敗挙動は実行で未確認。
 - **次に確認:** ビルドが許可された際に失敗を再現し、輪郭群全体の入力検証方針を別途判断する。
+
 
 ## 2026-10-16: AudioRingBuffer の12ch対応分岐は書き込み上限と不一致
 
@@ -4497,6 +4632,7 @@
 - **未検証:** 入力拒否の挙動とテスト結果は実行未確認。下流コードは変更していない。
 - **次に確認:** ビルドが許可された際に失敗を確認し、リングバッファ容量・チャンネル固定ストレージ・音声出力経路全体で12ch対応の意図を別途判断する。
 
+
 ## 2026-10-16: AssetManager の未知ID無効化はregistry entryを生成する
 
 - **関連:** `ArtifactCore/src/Asset/AssetManager.cppm` の`invalidateSource()`、`tests/ArtifactCore/AssetManagerContractTest.cpp`。
@@ -4504,6 +4640,7 @@
 - **価値／懸念:** 誤った・古いIDのinvalidate呼び出しがsource registryへ参照数0の幽霊状態を残す可能性がある。回帰テストでは未知IDを無効化してもversion 0のまま、既存sourceとして取得不能であることを確認する。
 - **未検証:** 現在の結果と実行時影響はテスト未実行。下流コードは変更していない。
 - **次に確認:** ビルドが許可された際に失敗を確認し、無効化呼び出し側が必ず登録済みIDを渡すか追跡する。
+
 
 ## 2026-10-16: AudioVolume deserialize は保存値を読み戻さない
 
@@ -4513,6 +4650,7 @@
 - **未検証:** テストは実行していない。現実装では失敗することを静的なコード読解から予想している。
 - **次に確認:** ビルドが許可された際に失敗を確認し、JSONの不正入力・旧形式に対する既定値方針を別途定める。
 
+
 ## 2026-10-16: AudioDecibels deserialize も保存値を読み戻さない
 
 - **関連:** `ArtifactCore/src/Audio/AudioDecibels.cppm` の`serialize()` / `deserialize()`、`tests/ArtifactCore/AudioDecibelsStandaloneTest.cpp`。
@@ -4520,6 +4658,7 @@
 - **価値／懸念:** dB音量値も保存・復元で失われる。回帰テストでは-12.75 dBの往復保持を要求する。
 - **未検証:** テスト未実行。現実装では失敗するとコード読解から予想している。
 - **次に確認:** ビルドが許可された際に両音量型のserialize/deserialize挙動と不正JSON時の既定値を確認する。
+
 
 ## 2026-10-16: RawImage の validity は記述サイズとpixel buffer長を照合しない
 
@@ -4529,6 +4668,7 @@
 - **未検証:** テスト結果は未実行。コード読解では現テストの期待と実装が不一致。ArtifactCore childは変更していない。
 - **次に確認:** 対象suiteをビルド・実行できる環境で失敗を確認し、必要byte数の計算で整数overflowを安全に扱う契約も確認する。
 
+
 ## 2026-10-16: GI frame resource descriptor はresource種別ごとにchannel layoutが異なる
 
 - **関連:** `ArtifactCore/include/Graphics/GIResources.ixx` の`GIFrameResources::descriptor()`、`tests/ArtifactCore/RenderPipelineContractTest.cpp`。
@@ -4536,6 +4676,7 @@
 - **価値／懸念:** 他の種別での誤ったchannel数や寸法伝播を捕捉するため、全種別を一括で検査するtable-driven testを追加した。
 - **未検証:** テストは未実行。期待値は現行headerの分岐から確認した。
 - **次に確認:** 次回対象buildが利用可能なときに`RenderPipelineContractTest`を実行する。
+
 
 ## 2026-10-16: FrameCache の容量上限は設定時と明示trimの契約を分けて確認する
 
@@ -4545,6 +4686,7 @@
 - **未検証:** テストは未実行。期待値は現行FrameCache実装とentryの16-byte画素領域から導いた。
 - **次に確認:** `ArtifactFrameCacheContractTest`を実行し、trim target以下への到達とcount/bytesの整合を確認する。
 
+
 ## 2026-10-16: RenderPipeline contract単体targetもCore module dependency再構築で広域compileを要求する
 
 - **関連:** `out/build/x64-Debug-Agent` の`ArtifactCoreRenderPipelineContractTest` target、`ArtifactCore/src/Codec/MFEncoder.cppm`、`ArtifactCore/src/Animation/AnimatableTransform3D.cppm`。
@@ -4552,6 +4694,7 @@
 - **価値／懸念:** 個別契約targetを選んでも既存生成物の古さにより広いCore rebuildが必要になり、今回追加したテストのコンパイル結果を得られなかった。
 - **未検証:** compile diagnosticsは出力上で確認したが、根本原因の切り分け・修正は行っていない。関連submodule/製品コードは変更していない。
 - **次に確認:** 依存module側の既存修正または有効なbuild stateが利用可能になった後、同じtargetを再実行する。
+
 
 ## 2026-10-16: Undo history byte budget eviction と entry-count eviction は別契約
 
@@ -4561,6 +4704,7 @@
 - **未検証:** AppRuntime依存targetのため未ビルド・未実行。期待値は現実装の`estimatedMemoryBytes()`と`enforceBudget()`から確認した。
 - **次に確認:** 依存module build blockerが解消した後、UndoManager contract suiteを実行する。
 
+
 ## 2026-10-16: Schema migration callback exception can expose a partially migrated object
 
 - **関連:** `ArtifactCore/include/Serialization/SchemaMigration.ixx` の`SchemaMigrationRegistry::findPath()`、`tests/ArtifactCore/SchemaMigrationContractTest.cpp`。
@@ -4568,6 +4712,7 @@
 - **価値／懸念:** load/import側が失敗後のobjectを再利用すると、中間versionデータを誤って有効データとして扱う可能性がある。後段callback例外で入力が開始時状態のままという原子性testを追加した。
 - **未検証:** テスト未実行。現実装と期待の不一致は静的に確認した。ArtifactCore childは変更していない。
 - **次に確認:** 独立SchemaMigration suiteを実行して再現し、必要なら移行全体を一時objectで行う方針を設計判断する。
+
 
 ## 2026-10-16: Existing standalone Ninja build may lack the MSVC include environment
 
@@ -4577,6 +4722,7 @@
 - **未検証:** Visual Studio installationの修復・環境変数の手動構成は行っていない。
 - **次に確認:** 動作するDeveloper PowerShell/VS environmentから同じbuildを実行する。
 
+
 ## 2026-10-16: Failed project replacement should preserve both Undo and Redo branches
 
 - **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp` の`SaveLoadGuardsRejectBadInput`、`Artifact::ArtifactProjectManager::loadFromFile()`。
@@ -4584,6 +4730,7 @@
 - **価値／懸念:** failed importが現Projectを維持しつつUndo historyだけ消すと、ユーザーが直前操作を戻せなくなる。2件push後に1件undoし両stackを非空にしてから不正loadし、stack countsと残るcommand順序を確認するcaseを追加した。
 - **未検証:** AppRuntime依存のProject RoundTrip suiteは未ビルド・未実行。実際のimporterがUndo historyに触るかはruntime未確認。
 - **次に確認:** ArtifactAppRuntime buildが通る環境で`ArtifactProjectRoundTripTest.SaveLoadGuardsRejectBadInput`を実行する。
+
 
 ## 2026-10-16: Effect stage stability should be checked through actual CPU pixel output
 
@@ -4593,6 +4740,7 @@
 - **未検証:** CPU contract target未実行。Effect stage APIと既存pixel期待値から静的に構成した。
 - **次に確認:** ArtifactEffectsColor依存targetがbuild可能な環境でsuiteを実行する。
 
+
 ## 2026-10-16: Mask/effect order is clearer with a same-pixel mask-only baseline
 
 - **関連:** `tests/Artifact/RasterizerMaskEffectIntegrationTest.cpp`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の`buildRasterizedSurfaceBuffer()`。
@@ -4600,6 +4748,7 @@
 - **価値／懸念:** edge antialiasだけでboundary assertionを満たす可能性があり、mask後にblurが広げる寄与を分離できていなかった。同じfixtureをmask-onlyでも描画し、mask外の同一pixel alphaが0からblur時に増加する比較を追加した。
 - **未検証:** `ArtifactAppRuntime`依存integration suiteは未実行。現実装のmask→effect順序とradius=4 fixtureから期待を構成した。
 - **次に確認:** integration targetを起動可能なGPU/Qt test環境で実行する。
+
 
 ## 2026-10-16: Track Matte deletion should preserve unrelated source references
 
@@ -4609,6 +4758,7 @@
 - **未検証:** ArtifactAppRuntime依存のProject RoundTrip suiteは未実行。Artifact childは変更していない。
 - **次に確認:** `ArtifactProjectRoundTripTest.RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip`を実行する。
 
+
 ## 2026-10-16: Still-image path replacement should also be checked when dimensions stay constant
 
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp` の`LoadingAnotherStillImageReplacesPixelsAndKeepsLayerEdits`。
@@ -4616,6 +4766,7 @@
 - **価値／懸念:** pathを変えて同じ寸法の画像へ切り替えたときに古いpixel bufferを再利用する回帰は、寸法差で更新できる既存caseでは捕捉できない。3×2の別path・異色画像へ再差し替え、編集値保持も確認するcaseを追加した。
 - **未検証:** ArtifactAppRuntime依存のStillImageLayer suite未実行。
 - **次に確認:** `StillImageLayerRoundTripTest.LoadingAnotherStillImageReplacesPixelsAndKeepsLayerEdits`を実行する。
+
 
 ## 2026-10-16: Consecutive missing sequence frames must not retain a just-reconnected frame
 
@@ -4625,6 +4776,7 @@
 - **未検証:** ArtifactAppRuntime依存suite未実行。
 - **次に確認:** `StillImageLayerRoundTripTest.MissingImageSequenceFrameDoesNotKeepStalePixels`を実行する。
 
+
 ## 2026-10-16: Relinking a missing still-image source should preserve layer edits
 
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp` の`MissingSourceCanBeRelinkedAfterProjectReload`。
@@ -4632,6 +4784,7 @@
 - **価値／懸念:** source切断/再接続やProject reload処理がlayer編集値を初期化する回帰を取り逃す可能性がある。missing化前にopacity/positionを設定し、reload後とrelink後の両方で保持を確認するassertを追加した。
 - **未検証:** AppRuntime依存のStillImageLayer suiteは未実行。Artifact childは変更していない。
 - **次に確認:** `StillImageLayerRoundTripTest.MissingSourceCanBeRelinkedAfterProjectReload`を実行する。
+
 
 ## 2026-10-16: Duplicated layer properties should be independent after copying
 
@@ -4641,6 +4794,7 @@
 - **未検証:** ArtifactAppRuntime依存のProject RoundTrip suiteは未実行。Artifact childは変更していない。
 - **次に確認:** `ArtifactProjectRoundTripTest.DuplicateLayerCreatesIndependentIdAndCopiesProperties`を実行する。
 
+
 ## 2026-10-16: Stop should freeze the playback frame clock
 
 - **関連:** `tests/Artifact/PlaybackRangeServiceContractTest.cpp` の`TransportTransitionsPlayPauseResumeAndStop`。
@@ -4648,6 +4802,7 @@
 - **価値／懸念:** stateだけStoppedになりframe timerが進み続ける回帰を取り逃す可能性がある。Stop完了後に100msのevent processing窓を設けてframe位置が不変であることを確認する。
 - **未検証:** Playback Service targetはAppRuntime依存で未実行。テストは実時間待機を既に使うsuiteへboundedな100ms観測を追加した。
 - **次に確認:** `PlaybackRangeServiceContractTest.TransportTransitionsPlayPauseResumeAndStop`を実行する。
+
 
 ## 2026-10-16: Resized viewport should remain within the requested window bounds
 
@@ -4657,6 +4812,7 @@
 - **未検証:** Windows GPU/GUI stress harness未実行。実行時にplatform frame geometryがviewportのsizeへ影響しないか確認が必要。
 - **次に確認:** `stress.resizeWhilePlaying`を起動可能なGUI環境で要求寸法を変えて実行する。
 
+
 ## 2026-10-16: Composition cycling should explicitly assert its return point
 
 - **関連:** `tests/Artifact/CompositionPlaybackStressMain.cpp` の`cycleCompositions`。
@@ -4664,6 +4820,7 @@
 - **価値／懸念:** loop順序変更時に全transitionが通っても開始点へ戻らない回帰を見逃す可能性がある。最後のactive indexとPlayback Service current Compositionを開始点と比較し、出力・合否へ加えた。
 - **未検証:** Windows GPU/GUI stress harness未実行。既存test exe起動も`0xC0000135`でloaderが必要DLL不足を報告し、suiteは未起動。
 - **次に確認:** `stress.cycleCompositions`を2つ以上のCompositionで実行し、`returnedToStartComposition`を確認する。
+
 
 ## 2026-10-16: Standalone tests can run with the repository's bundled DLL paths
 
@@ -4673,6 +4830,7 @@
 - **未検証:** other executables may depend on additional DLLs or Qt platform plugins. These outcomes apply to the existing build outputs; only CompositionNodeStore was confirmed up to date by Ninja reporting no work.
 - **次に確認:** reuse the process-local DLL search path for other already-built, low-dependency standalone targets, and rebuild narrow targets when source updates require it.
 
+
 ## 2026-10-16: Schema migration callback exceptions currently leave partial input mutations
 
 - **関連:** `tests/ArtifactCore/SchemaMigrationContractTest.cpp` の`FailedCallbackLeavesInputUnchanged`と`SchemaMigration::migrate()`。
@@ -4680,6 +4838,7 @@
 - **価値／懸念:** callerが例外を捕捉しても部分更新済みデータを誤って継続利用する可能性がある。入力atomicityをtestとして固定したが、実装修正はArtifactCore child repo変更禁止のため未実施。
 - **未検証:** 子repoの修正後に再実行してpassすること。最終linkは一時`LIB`設定で成功した。
 - **次に確認:** 明示的にArtifactCore変更が依頼された段階でcopy-and-commit方式などmigration原子性を設計し、単体testを再実行する。
+
 
 ## 2026-10-16: The RawImage test target in the app build still pulls the full Core module graph
 
@@ -4689,6 +4848,7 @@
 - **未検証:** `RawImage::isValid()`短buffer拒否の追加期待はruntime未実行。現実装はdata非空だけを確認する。
 - **次に確認:** ArtifactCoreが健全なbuild stateになった後にのみ、既存targetでRawImage contractを実行する。
 
+
 ## 2026-10-16: New keyframe cases were missing from the minimal standalone test project
 
 - **関連:** `tests/ArtifactCore/KeyframeSplineTest.cpp`、`tests/ArtifactCore/KeyframeStandalone/CMakeLists.txt`。
@@ -4697,12 +4857,14 @@
 - **未検証:** standalone projectのconfigure/build/testはユーザーの明示的CMake許可待ち。
 - **次に確認:** target再構成後にkeyframe contract suite全体を実行する。
 
+
 ## 2026-10-16: レイヤーマスクの独立テストは演算・状態・描画を分ける
 
 - **関連:** `tests/mask_visual/MaskVisualTest.cpp`、`Artifact/src/Mask/LayerMask.cppm`、`Artifact/src/Layer/ArtifactLayerSerialization.cppm`、Composition mask render path。
 - **確認できた事実:** 既存 `ArtifactMaskVisualTest` は `LayerMask::compositeAlphaMask()` のCPU演算を画像出力と数値assertで検査する。FBXの独立GUI Viewerが扱うimport／animation表示とは異なり、CPU mask契約だけではlayerへの保持、保存復元、Composition描画での適用を確認できない。
 - **価値／懸念:** 一つのGUIテストへ全責務を集めず、演算回帰・layer state/persistence・実Composition captureを独立実行可能にすれば、失敗箇所を切り分けやすい。既存CPUケースとの重複やComposition Surface Cacheテストとの責務重複を避ける必要がある。
 - **次に確認:** `docs/planned/MILESTONE_LAYER_MASK_STANDALONE_TEST_2026-10-16.md` を基に、現行APIとfixture経路を実装前に照合する。テストは計画段階であり、ビルド／実行未確認。
+
 
 ## 2026-10-16: Unscanned module attachments need explicit IFC references
 
@@ -4716,12 +4878,14 @@
 - **追確認（2026-10-17）:** app target の実ビルドでは SceneNode の aggregate/split provider 重複、scanner-enabled source への手動 import 重複、VectorExport の split target ownership と export-import 閉包不足が別々に C7684/C2230 を起こした。consumer と provider の出力 directory を分離し、scanner-enabled translation unit は手動 import table から除外、分割先を module/interface owner から解決する必要がある。VectorExport の再公開 import は Shape.Layer → Shape.Group / Property.Types → Shape.Operator まで必要になった。修正後は Artifact と現在の worker image contract test target のビルドが完了し、worker image case は D3D12/Vulkan 両方で pass。別の非コンパイル blocker として、ビルド環境 PATH に Windows SDK rc.exe がなく test DLL の link で停止したため SDK x64 bin を加えて通した。
 - **未検証の仮説:** CMake configure 後も test target build が2,131 action の広い module graph を再構築した。target dependency の実体が広いのか、再configure後の dyndep invalidation が主要因なのかは未分離。次は warm Ninja build を同一 preset で比較し、aggregate Core に残る source 数と renderer source の依存閉包を計測してから追加分割候補を決める。
 
+
 ## 2026-10-16: Dialog confirm throttling belongs at the application event boundary
 
 - **関連:** `Artifact/src/AppMain.cppm` の `DialogLatencyEventFilter` とアプリ共通ダイアログ。
 - **確認できた事実:** アプリには `QApplication` に登録されたイベントフィルターがあり、`QDialogButtonBox` の確定 role と既定ボタンを共通に検出できる。各ダイアログの OK 処理へ個別ガードを追加すると実装漏れが起きやすい。
 - **価値／懸念:** ダイアログ単位で確定入力を短時間抑止すれば、同じボタンだけでなく別の確定ボタン経由の連続実行も防げる。入力イベントをフックする方式は `QAbstractButton::click()` の直接呼び出しには適用されない。
 - **次に確認:** UI 上でマウス・キーボードの連続確定と入力エラー後の再試行が正常に動くことを確認する。
+
 
 ## 2026-10-16: Layer creation emitted the same Created event twice
 
@@ -4730,6 +4894,7 @@
 - **変更:** Project の wrapper から重複 publish を除き、平面レイヤーの Undo 情報を一度の `toJson()` 結果から作るようにした。
 - **価値／懸念:** 作成イベントの同期購読者による重複更新を避ける。`appendLayerTop()` が通常どおり通知する既存契約に依存するため、別の通知抑止経路を使う呼び出しではイベントが必要か確認する。
 - **次に確認:** UI で平面レイヤー追加後の Timeline / Inspector / Project View 更新が一度で完了し、Undo / Redo と選択が維持されること、作成時間の実測が改善することを確認する。
+
 
 ## 2026-10-16: Successful creation diagnostics synchronously flushed every phase
 
@@ -4740,12 +4905,14 @@
 - **価値／懸念:** 正常な診断記録を残したまま同期ディスク待ちを減らす。異常終了時は、最後の buffered record がプロセス終了前に未flushなら失われる可能性がある。
 - **次に確認:** 実機で composition 作成時間を複数回測定し、プロセス終了後に正常・失敗記録の両方がファイルに残ることを確認する。
 
+
 ## 2026-10-16: BGRA backing requires auditing every raw channel-index boundary
 
 - **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cppm`、`Artifact/src/Effects`、`Artifact/src/Render/ArtifactRenderLayerPipeline.cppm`。
 - **確認できた事実:** BGRA backingへ揃えたGPU upload/readbackだけでは色の一貫性は保証されない。CPU fallbackの輝度係数、OpenCV conversion code、画素indexでの赤青指定、GPU resident shaderの入力/出力値順、QImage export write orderが同時にその契約を使う必要がある。今回の追加静的監査ではDeflicker、Radial Shadow、Rim Light、Kaleidoscope、NCC tracker、Liquid Glow、Luminescence Caustics、Offscreen exportに漏れが見つかった。
 - **価値／懸念:** 次回の全画像形式変更では型/APIの統一だけで完了とせず、CPU、OpenCV、GPU shader、描画境界ごとに非対称なRGB値で静的分類と画素比較を行う必要がある。現在はbuild/runtime/pixel parity未確認。
 - **次に確認:** 全rendererの`drawSprite(ITextureView*)`に渡すtextureのchannel orderをproducerまで追跡し、BGRA image textureとRGBA external textureの境界が明示されているか調べる。
+
 
 ## 2026-10-16: External color APIs need named channel-order adapters
 
@@ -4754,12 +4921,14 @@
 - **価値／懸念:** raw pointer boundaryにdescriptorから独立した名前付きadapterを用意すると、新しい外部APIを追加したときの見落としを減らせる。現状この変更では各境界個別に実装しており、共通adapter化は未実施・未検証。
 - **次に確認:** 同一の非対称色fixtureで各外部APIへの出力を確認し、繰り返し使うRGBA/BGRA境界処理を共通APIへ寄せる価値を測る。
 
+
 ## 2026-10-16: Shared distortion sampling must return logical colors
 
 - **関連:** `ArtifactCore/src/ImageProcessing/Distortion.cppm` のbilinear/nearest sampling、morph、displacement。
 - **確認できた事実:** 共通sample helperはraw channel 0/1/2をそのままFloatRGBAのr/g/bとして返しており、BGRA backingでは赤青が入れ替わる。morph/displacement出力も論理RGBA順を書いていた。
 - **価値／懸念:** sample helperの一箇所の順序誤りが、複数distortion effectに共有される。descriptor-aware read/writeでRGBAとBGRA双方を扱い、出力descriptorをsourceから引き継ぐ。
 - **次に確認:** 非対称画素fixtureでnearest/bilinear、morph、各displacementをCPU実行し、RGBA/BGRAの論理色一致を比較する。未実施。
+
 
 ## 2026-10-16: OIIO channel names should drive image ingress and export mapping
 
@@ -4769,12 +4938,14 @@
 - **価値／懸念:** file reader/writerのchannel nameを境界契約に使うことで、source/internal channel layoutと保存形式のラベルを一致させる。名前がないファイルでは位置fallbackとなる。OIIO版とのAPI整合および画素結果は未検証。
 - **次に確認:** R/G/B/AとB/G/R/Aの異なるchannel layoutを持つOIIO fixtureでload/export結果を比較し、実際の対象formatでchannelnamesがどう報告されるか確認する。未実施。
 
+
 ## 2026-10-16: float4 component names do not define image channel order
 
 - **関連:** `ArtifactCore/src/ImageProcessing` の`float4*` processors、`ArtifactCore/include/ImageProcessing/Halation.ixx`、Glow / SurfaceFXなどのCPU effect色処理。
 - **確認できた事実:** `float4.x/y/z`は画像配列のcomponent 0/1/2を指す。BGRA画素ではそれぞれB/G/Rだが、Anamorphic Flare、Broadcast Colors、Edge Echo、Leave Color、Threshold、Luma Key、Emboss、Halftone、Duotone、Strobe Light、Physical Halationが一部でRGB係数や色設定をx=R/z=Bとして扱っていた。追加でRadio Waves、Pixel Sort、Inner Shadow、Surface FX、Simple Rain、Glow CPU出力setterにも同じ種類のCPU RGB/BGRA対応漏れがあった。
 - **価値／懸念:** raw `float4*` processorの引数型から論理色順を推定するとCPU effect間の不整合が再発する。BGRA順を公開コメントへ明記し、設定色は論理RGBAとして個別にmapする。
 - **次に確認:** 同系列の全`float4*` processorとCPU effectについて、RGB依存計算とユーザー色設定の両方を継続監査する。今回の列挙以外は未確認。
+
 
 ## 2026-10-16: Shared matte, viewport exposure, and render-farm transport also consume BGRA
 
@@ -4784,6 +4955,7 @@
 - **価値／懸念:** 画像effect以外の表示・matte・共有transport境界にも同一の値順を適用する。変更はコード読解から確認したがbuild、実行、非対称色比較は未実施。
 - **次に確認:** 残るCPU raw-index processors、GPU shader texture read/store、preview/export境界を継続監査し、最終的にD3D12/Vulkan双方で赤・青が異なる入力を用いて確認する。
 
+
 ## 2026-10-16: Single-pass shader generator needs an explicit pixel-function color contract
 
 - **関連:** `ArtifactCore/src/ImageProcessing/DirectCompute/SinglePassShader.cppm`、`docs/technical/IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md`。
@@ -4791,6 +4963,7 @@
 - **変更:** 生成器の読み出しでBGRA→論理RGBAを行い、pixel functionの戻り値をBGRAへ戻して保存する。
 - **価値／懸念:** 個々のsingle-pass effectへswizzle漏れを分散させず、共通生成境界で契約を固定する。関数戻りswizzleのHLSLコンパイルおよびruntimeは未確認。
 - **次に確認:** caller追加時に、非対称RGB値を用いて生成HLSLのCPU期待値との一致を確認する。shader compilerがfunction return swizzleを受け付けるかビルド時に確認する。
+
 
 ## 2026-10-16: Core GPU scopes and analysis shaders need logical RGB from BGRA textures
 
@@ -4800,6 +4973,7 @@
 - **価値／懸念:** image effectsだけでなくGPU scopes、analysis、keying/matteとdisplay LUTも同じresident texture契約へ揃える。これらのGPU実行結果は未検証。
 - **次に確認:** scopes、3D LUT、Edge Echo、Track Matteを非対称RGB入力で実行し、GPU readbackおよびD3D12/Vulkanでlogical resultを比較する。
 
+
 ## 2026-10-16: Serialized and shared-memory image payloads need order-specific versions
 
 - **関連:** `ArtifactCore/src/Composition/ParametricComposition.cppm`、`ArtifactCore/src/IPC/RenderFarmSharedBuffer.cppm`。
@@ -4807,6 +4981,7 @@
 - **変更:** 新しい保存データは`bgra32f` keyを使い、legacy `rgba32f`はRGBAとして読む。共有packet magicをBGRA payload v2へ更新し、旧peerからのpacketを拒否する。
 - **価値／懸念:** 新旧形式を無言で取り違えることを防ぐ。旧JSONは維持できるが、旧Render Farm peerとの通信は成立しない。protocol混在時の拒否動作は未実行。
 - **次に確認:** 保存／再読込の非対称色比較と、新旧Render Farm peerの互換挙動を確認する。
+
 
 ## 2026-10-16: Internal image byte snapshots need channel metadata or versioning
 
@@ -4816,6 +4991,7 @@
 - **価値／懸念:** 新旧データの意味を分け、画像cache／preset／paint frameの往復で順序を固定する。既存JSON互換の非対称色読み戻しは未実行。
 - **次に確認:** legacy RGBA JSONと新BGRA JSONの両方を非対称色画像で読み込み、derived cache再生成後の見た目とdescriptorを確認する。
 
+
 ## 2026-10-16: Remaining raw CPU effects still assumed component zero was red
 
 - **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cppm`、`ArtifactCore/src/ImageProcessing/ColorTransform/TriChromaticShift.cppm`。
@@ -4823,6 +4999,7 @@
 - **変更:** luma係数をBGRA indexへ合わせ、Beauty Studioでは論理RGB順の作業画像を作ってBGRA出力へ戻し、TriChromaticShiftはraw input/outputをBGRAと明記してR/B componentをmapする。
 - **価値／懸念:** これらのCPU-only / fallback effectでも赤青依存の見た目と選択をCPU/GPU間で揃える。pixel comparisonは未実行。
 - **次に確認:** remaining raw CPU effect passでluminance、hue/saturation、skin-color、user tintの全てをchannel-order viewで継続走査する。
+
 
 ## 2026-10-16: Wire removal and dust repair compute paths consume BGRA image textures
 
@@ -4832,6 +5009,7 @@
 - **価値／懸念:** CPU/GPUで同じeffectの赤青寄与を一致させる。共有shader compilation/runtimeは未確認。
 - **次に確認:** GPU Wire Removal/Dust Repairを非対称RGB素材でCPU fallbackと比較し、D3D12/Vulkan双方で出力を確認する。
 
+
 ## 2026-10-16: Creative Effects RGB identities need to survive BGRA CPU processing
 
 - **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cppm`、`ArtifactCore/src/ImageProcessing/FilmRepair.cppm`。
@@ -4839,6 +5017,7 @@
 - **変更:** 論理RGBで処理してBGRA indexへ戻す。色付き加算、luma、深度/法線抽出、暖色補正、赤青分散をBGRA backingに合わせた。
 - **価値／懸念:** エフェクト固有の色設定・チャンネル選択で赤青が入れ替わる残存要因を減らす。GPU/CPU runtimeや非対称色画素での結果は未確認。Energy Zapの正のwarmthを赤寄りと解釈した点は、UIラベルからの意味解釈で実行時見本は未検証。
 - **次に確認:** 各CPU/GPU fallbackで非対称な赤青入力を比較し、Creative Effectsの色設定と暖色方向の期待値を確認する。
+
 
 ## 2026-10-16: GPU output swizzles and readback descriptors must agree
 
@@ -4848,6 +5027,7 @@
 - **価値／懸念:** GPU shader内のBGRA-native規約とCPU readback契約を揃え、二重変換とfallbackだけの色差を減らす。変更後の実行結果・D3D12/Vulkan差は未検証。
 - **次に確認:** Add Noise、Blur、Gaussian Blurについて、CPU/GPU双方で赤と青が異なる入力を比較する。
 
+
 ## 2026-10-16: OpenCV effect helpers must name their returned channel order
 
 - **関連:** `ArtifactCore/src/ImageProcessing/OpenCV/Glow.cppm`。
@@ -4855,6 +5035,7 @@
 - **変更:** helper名をBGRAにし、BGR/gray入力をBGRAへ変換するよう修正した。4-channel inputは順序を変えずに扱う。
 - **価値／懸念:** OpenCV matrixのchannel countだけでRGBA/BGRAを推測する誤りを避ける。入力producerの4-channel順序は呼び出し契約に依存し、実行時確認は未実施。
 - **次に確認:** 8-bit/float BGRおよびBGRA入力でVertical Glowの出力色を比較する。
+
 
 ## 2026-10-16: Color-specific effect parameters must use logical RGB indices
 
@@ -4864,6 +5045,7 @@
 - **価値／懸念:** CPU fallbackとresident GPU経路の赤青差、および色付きeffectの赤青反転を減らす。runtime parityは未検証。
 - **次に確認:** Film Damage、Film Grunge、Heatwave、Texturize Motion、Reflection Composer、Glowを赤青非対称画素でCPU/GPU比較する。
 
+
 ## 2026-10-16: Raw float processor overloads need an explicit BGRA contract
 
 - **関連:** `ArtifactCore/src/ImageProcessing/ColorTransform/Fill.cppm`、`ArtifactCore/src/ImageProcessing/ColorTransform/GradientRamp.cppm`。
@@ -4871,6 +5053,7 @@
 - **変更:** raw BGRA pixelのindex 2/1/0をlogical R/G/B参照へ接続した。
 - **価値／懸念:** 同じprocessorのtyped pixel APIとraw image APIが色付き入力で一貫する。現在のrepository内にこのraw overloadを呼び出す箇所は見つからず、挙動は未実行。
 - **次に確認:** 今後 `float*` image processor APIを追加・変更するとき、物理BGRAとlogical RGBAを関数境界で明記し、typed viewとの対応を確認する。
+
 
 ## 2026-10-16: Image producers and CPU fallbacks must map logical colors to BGRA storage
 
@@ -4880,6 +5063,7 @@
 - **価値／懸念:** 静止画effectだけでなくレイヤー生成・ペイントでも色設定の赤青を維持し、CPU/GPU fallback差を減らす。runtime画素比較は未実施。
 - **次に確認:** 色設定を使ってraw image backingへ書くproducerを継続走査し、CPU生成画像がpreview、cache、exportまでBGRA descriptorを保持することを確認する。
 
+
 ## 2026-10-16: Explicit QImage order is required at software image boundaries
 
 - **関連:** `Artifact/src/Render/Software/ArtifactSoftwareImageCompositor.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`。
@@ -4887,6 +5071,7 @@
 - **変更:** software compositorでRGBA input descriptorを明示した。scene-light liftは順序に依存しないためraw BGRA RGB成分をin-placeで更新し、全画面swizzleと一時Matを除いた。
 - **価値／懸念:** QImage↔canonical CPU image境界の色を保ち、software compositionでの赤青反転とscene-light段の不要なmemory passを解消する。実行時比較は未実施。
 - **次に確認:** software compositor出力とscene-light on/offを異なるR/B値の素材で比較し、GPU経路とlogical colorが一致することを確認する。
+
 
 ## 2026-10-16: Color mattes in CPU effects must be written in BGRA order
 
@@ -4896,6 +5081,7 @@
 - **価値／懸念:** 影・サテン・ストロークの色指定で発生する赤青入替を防ぎ、Inner ShadowおよびGPU BGRA経路と揃える。runtime画素比較は未実施。
 - **次に確認:** 非対称色（赤と青の異なる値）を使い、3 effectのCPU/GPU出力とeffect chain後のlogical colorを比較する。
 
+
 ## 2026-10-17: Float image classes should enforce their BGRA backing invariant
 
 - **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cppm::setColorDescriptor()`、`ArtifactCore/include/Image/ImageF16x4.ixx`、`Artifact/src/Widgets/ArtifactFilmstripWidget.cppm`。
@@ -4903,6 +5089,7 @@
 - **変更:** Float32 descriptor setterはstorage/orderをFloat32/BGRAに固定し、Float16 constructor/setterもFloat16/BGRAを強制する。Filmstripはcolor-space metadataのみ継承する。
 - **価値／懸念:** 「BGRA backing」とdescriptorが食い違う状態を内部画像クラスで表現できなくし、FilmstripのR/B swapも防ぐ。既存descriptor互換テストや全callerは実行未確認。明示RGBA export helperは境界用途として残る。
 - **次に確認:** 全 `setColorDescriptor()` callerと既存画像契約テストを見直し、RGBA boundary bufferが内部Image objectとして流通していないことを確認する。
+
 
 ## 2026-10-17: RGBA video frame display needs an explicit BGRA adapter
 
@@ -4912,6 +5099,7 @@
 - **価値／懸念:** RGBA32F video frameの表示に残る赤青入替を防ぐ。境界で全フレームのR/B変換は必要だが、内部Float image/GPU processingでは発生させない。runtime比較は未実施。
 - **次に確認:** RGBA32F video producerからQImage表示とFloat32 image ingressまで同一非対称色で照合する。
 
+
 ## 2026-10-17: GPU readback must carry the source channel order
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
@@ -4919,6 +5107,7 @@
 - **変更:** rendererの同期・非同期readbackへsource channel order overloadを追加し、QImage/native buffer出力をRGBAへ正規化した。Composition capture、RAM preview、layer/accumulator診断previewでsource orderを明示。行stride不正時にnative buffer callbackへ失敗payloadを返すようにした。
 - **価値／懸念:** RGBA化fallbackが発生してもcapture/previewへ正しい色を渡せる。変更は静的確認のみで、module compile、D3D12/Vulkanのreadback挙動、RGBA/BGRAの実画素比較は未検証。
 - **次に確認:** 非対称赤青pixelをRGBA化成功/fallback双方、sync/async QImage、RAM preview buffer、RGBA8/16F/32F stagingで比較する。全ての未指定legacy overload callerが真にRGBA sourceであることも再確認する。
+
 
 ## 2026-10-17: Float render readback must use the canonical BGRA image setter
 
@@ -4928,6 +5117,7 @@
 - **価値／懸念:** render queueとoffscreen F32経路で発生し得るreadback時の赤青反転を抑える。source GPU targetがBGRA image-pipeline値を保持するという契約に基づく変更であり、実際の各AOV producerおよび外部render targetとの一致は未検証。
 - **次に確認:** RGBA/BGRA各producerから高精度readback、MultiChannel export、最終画像出力まで非対称色fixtureで比較する。
 
+
 ## 2026-10-17: Pixel order needs raw-byte and logical-color assertions together
 
 - **関連:** `tests/ArtifactCore/PixelChannelOrderStandaloneTest.cpp`、Float32/Float16 image backing、GPU upload descriptor。
@@ -4935,6 +5125,7 @@
 - **変更:** Added a separately launchable `ArtifactCorePixelChannelOrderStandaloneTest` executable, linked only to ArtifactCore and the standard test harness. Its test uses exact binary fractions and distinct R/G/B/A to check raw BGRA float values, logical RGBA getters, exact IEEE-754 binary16 channel bits, Float16 round-trip, descriptor setter invariance, and BGRA zero-copy GPU upload/rejection of an RGBA target.
 - **価値／懸念:** Raw order regressions and API semantic regressions fail at separate assertions with the failing channel index. The standalone executable has not been configured, built, or run under the repository rule.
 - **次に確認:** Execute ArtifactCorePixelChannelOrderStandaloneTest when build/test execution is explicitly allowed; then add renderer GPU readback coverage using the same non-symmetric fixture and compare D3D12/Vulkan where available.
+
 
 ## 2026-10-17: Boids formation initialization appears to omit LOD state
 
@@ -4944,6 +5135,7 @@
 - **価値／懸念:** A future targeted regression should cover `initializeFormation()` followed by `update()` and assert all agents remain finite. First decide whether formation should initialize LOD state alongside agent creation, then run under an address/undefined-behavior sanitizer if available.
 - **次に確認:** Reconcile the formation agent lifecycle with LOD arrays and add the regression in the ArtifactCore-owning change.
 
+
 ## 2026-10-17: Imported 3D model drawing currently ignores viewport detail level
 
 - **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm::drawLOD()` and `Artifact/src/Layer/ArtifactProcedural3DLayer.cppm::drawLOD()`.
@@ -4952,6 +5144,7 @@
 - **価値／懸念:** A test asserting model LOD behavior would need a concrete observable contract (for example selected meshlet level or reduced submitted geometry) and GPU-backed evidence. No such behavior is currently specified by the layer override.
 - **次に確認:** Define whether imported models should consume `DetailLevel` directly or rely solely on meshlet LOD, then add a production-path test at the chosen boundary.
 
+
 ## 2026-10-17: Physics target-rate LOD is bypassed by fixed timeline advancement
 
 - **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::advancePhysicsFrame()` and `update()`.
@@ -4959,6 +5152,7 @@
 - **気づき:** Calls through the fixed-timeline entry point appear to ignore the preset target rate, even though solver-detail overrides such as soft-body grid scale still apply. This is a source-level finding; runtime behavior was not tested in this task.
 - **価値／懸念:** Tests should distinguish frame-clock fixed stepping from an intended lower simulation update frequency. Do not assert target-rate throttling until that contract is clarified; the current test addition verifies only Reduced/Full soft-body resolution transitions.
 - **次に確認:** Decide whether `targetHz` should subdivide or skip fixed timeline updates, then add a deterministic registered-solver test for the selected timing contract.
+
 
 ## 2026-10-17: Layer drawLOD overrides have no caller in the current render sources
 
@@ -4969,6 +5163,7 @@
 - **価値／懸念:** A direct unit test of `drawLOD()` would prove only the override in isolation, not viewport integration. A meaningful regression needs a composition/render-path test that observes the selected quality after the layer loop.
 - **次に確認:** Select the intended production dispatch point and add an integration assertion for procedural 3D quality; keep imported model behavior separately specified because its current override delegates to ordinary drawing.
 
+
 ## 2026-10-17: Physics fluid resolution scale has no observed application site
 
 - **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::PhysicsLODSettings` and its registered `FluidSolver2D` update loop.
@@ -4976,6 +5171,7 @@
 - **気づき:** The preset's advertised fluid resolution reduction is currently stored but does not appear to change `FluidSolver2D::width()` or `height()`. This is a source-level gap, not runtime-tested in this task.
 - **価値／懸念:** A future application test should register a solver, step under Reduced/Minimal, and assert a defined scaled grid plus restoration behavior. No such expectation is added here because resolution scaling semantics (rounding, minimum dimensions, and state resampling) are not established by current code.
 - **次に確認:** Define resolution scaling and state preservation, then implement and test its lifecycle from Full through reduced levels and back.
+
 
 ## 2026-10-17: Full rigid-body LOD may skip collision restoration
 
@@ -4985,6 +5181,7 @@
 - **価値／懸念:** This identifies a likely transition bug in the parent/child-owned physics implementation. Avoid adding a passing expectation for restoration until the implementation is corrected or the intended lifecycle is clarified.
 - **次に確認:** Ensure every registered rigid body receives collision restoration on transition to a policy with `simplifyCollisionMesh == false`, then add a Minimal→Full mass/geometry round-trip contract.
 
+
 ## 2026-10-17: Physics LOD solver budgets may remain reduced after returning to Full
 
 - **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::update()` and `tests/ArtifactCore/PhysicsLodSettingsContractTest.cpp`.
@@ -4993,12 +5190,14 @@
 - **価値／懸念:** A passing transition suite needs an explicit policy for restoring per-solver defaults (including custom pre-LOD settings), not merely clearing the global override to zero. The implementation belongs to the ArtifactCore child repository and was not changed in this parent test task.
 - **次に確認:** Define whether Full restores constructor defaults or each solver's pre-LOD value, implement that policy in the owning repository, then run the new round-trip tests.
 
+
 ## 2026-10-17: Text extrusion quality presets do not currently change mesh density
 
 - **関連:** `Artifact/src/Layer/ArtifactProcedural3DLayer.cppm::Impl::regenerate()`, `ArtifactCore/src/Geometry/Procedural3DGenerators.cppm::makeTextExtrudePreset()` and `generateTextExtrude()`; `tests/ArtifactCore/Procedural3DQualityLodTest.cpp`; `tests/Artifact/Procedural3DLayerLodContractTest.cpp`.
 - **確認できた事実:** The Draft/Preview/Full preset stores the requested `quality`, but sets the same `bevelSegments` value for all three. `generateTextExtrude()` does not read `settings.quality`; it passes the unchanged bevel segment count into extrusion. The layer's regeneration path also passes `textExtrude` unchanged, unlike Terrain and PathTube which copy settings and apply `qualityOverride`. Generator and layer contracts require strictly growing geometry sizes and are expected to expose both gaps.
 - **価値／懸念:** Text extrusion can report three quality labels while generating identical tessellation, so a quality preset may not provide the intended preview cost reduction. This is a source-level finding; the ArtifactCore child implementation was not changed or runtime-tested.
 - **次に確認:** Define Draft/Preview/Full bevel or contour tessellation budgets while preserving text bounds and silhouette as much as possible, then make the new geometry-count test pass and validate representative glyphs including counters and narrow strokes.
+
 
 ## 2026-10-17: LOD threshold validation accepts NaN values
 
@@ -5008,6 +5207,7 @@
 - **価値／懸念:** A NaN threshold can poison LOD classification for the lifetime of the manager. Fixing validation belongs to the Artifact child repository and is outside this parent test-only change.
 - **次に確認:** Reject non-finite thresholds before storing either value, then run the LOD manager contract test and verify selection/factor continuity remains intact.
 
+
 ## 2026-10-17: Preview resolution scale can retain NaN
 
 - **関連:** `ArtifactCore/src/Preview/PreviewSettings.cppm::setResolutionScale()` and `tests/ArtifactCore/PreviewSettingsLodContractTest.cpp`.
@@ -5015,6 +5215,7 @@
 - **気づき:** Added a contract for finite fallback on NaN and bound clamping for infinities. The NaN assertion is expected to fail against the current source; no tests were run.
 - **価値／懸念:** A non-finite preview scale can propagate into render-size calculations and invalidate previews. The implementation belongs to the ArtifactCore child repository and was not changed.
 - **次に確認:** Normalize non-finite scale input to the default full scale before clamping, then exercise preview render dimensions at the accepted scale bounds.
+
 
 ## 2026-10-17: Render context cache keys round LOD scale to three decimals
 
@@ -5024,6 +5225,7 @@
 - **価値／懸念:** A cache hit can return an image rendered at another LOD scale when callers use fine-grained custom resolution values. This RenderContext implementation belongs to the Artifact child repository and was not modified.
 - **次に確認:** Encode enough scale precision, or key by resolved pixel dimensions when available, then verify no collisions across supported widths and scale inputs.
 
+
 ## 2026-10-17: Render context resolution scale accepts positive infinity
 
 - **関連:** `Artifact/include/Render/ArtifactRenderContext.ixx::RenderContext::setResolutionScale()` and `tests/Artifact/RenderContextLodContractTest.cpp`.
@@ -5031,6 +5233,7 @@
 - **変更:** Added a contract requiring NaN and either infinity to fall back to full resolution (1.0), while leaving finite custom scales available for export upscaling.
 - **価値／懸念:** A non-finite scale can propagate into cache keys and downstream size calculations. This is a source-level finding; the Artifact child implementation was not changed or tested at runtime.
 - **次に確認:** Normalize non-finite inputs to 1.0 before applying the positive floor, then verify snapshot restoration and cache-key generation remain finite.
+
 
 ## 2026-10-17: GI working dimensions cast non-finite scales to unsigned integers
 
@@ -5040,6 +5243,7 @@
 - **価値／懸念:** Invalid user or propagated preview settings could corrupt GI resource dimensions or trigger undefined behavior. The implementation belongs to ArtifactCore and was not modified in this test task.
 - **次に確認:** Reject non-finite scale values before the cast with a defined fallback, then add NaN and infinity dimension tests.
 
+
 ## 2026-10-17: Viewport LOD zoom cutoffs differ from LODManager defaults
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm::detailLevelFromZoom()` and `Artifact/src/LOD/ArtifactLODManager.cppm::getDetailLevel()`.
@@ -5047,6 +5251,7 @@
 - **気づき:** There are two different zoom-to-LOD policies in the same application. Whether this is intentional (viewport rendering vs manager contract) or causes UI/render detail drift is unverified; this task did not run the viewport.
 - **価値／懸念:** A controller-level regression test should cover its 0.50 and 0.90 boundaries and confirm the selected policy is applied consistently to effect surfaces, layer culling, and renderer material LOD. Avoid assuming the manager defaults are the intended controller thresholds until the design is clarified.
 - **次に確認:** Define whether the controller cutoffs are a separate policy or should be sourced from `LODManager`, then expose a stable controller-level contract test without broadening the public API unnecessarily.
+
 
 ## 2026-10-17: Boids far-LOD skip counter can survive a near-detail interval
 
@@ -5056,6 +5261,7 @@
 - **価値／懸念:** A distant agent may skip its first force update after returning from near detail and temporarily keep a force derived from an earlier target or neighbor arrangement. Whether transition refresh is the intended policy remains unverified.
 - **次に確認:** Run the focused Boids LOD tests when testing is authorized, confirm the transition behavior, then decide whether the counter should reset on LOD changes or whether carrying the remaining interval is intentional.
 
+
 ## 2026-10-17: Composition controller LOD enable API has no implementation
 
 - **関連:** `Artifact/include/Widgets/Render/ArtifactCompositionRenderController.ixx::setLODEnabled()` / `isLODEnabled()` and `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm::Impl::lodEnabled_`.
@@ -5063,6 +5269,7 @@
 - **気づき:** A test for disabling zoom-based LOD was considered but not added because it would reference an unimplemented API and could fail to link. Whether the API was intended to control layer culling, renderer detail selection, effect resolution, or all three is unverified.
 - **価値／懸念:** The declarations imply a control that currently has no observable behavior, while defining a test expectation requires clarifying its intended scope.
 - **次に確認:** Define the toggle's scope, implement it in the controller, then add a viewport regression test that checks the affected LOD decisions.
+
 
 ## 2026-10-17: Interactive render region does not restore the prior preview LOD
 
@@ -5073,6 +5280,7 @@
 - **価値／懸念:** An interactive render region can leave the viewport at reduced preview quality after it is cleared, while a NaN scale can reach HUD formatting despite the documented range. The intended restoration behavior is documented in the controller comments; runtime confirmation remains pending.
 - **次に確認:** Store the pre-region preset separately from the active forced preset, normalize non-finite resolution scales before clamping, then run the focused controller integration test when test execution is authorized.
 
+
 ## 2026-10-17: Broad renderer module interface changes amplify rebuild and IFC risk
 
 - **関連:** `Artifact/include/Render/ArtifactIRenderer.ixx`, `Artifact/src/Render/ArtifactIRenderer.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `ArtifactCore/CMakeLists.txt` split-target module tables.
@@ -5080,6 +5288,7 @@
 - **仮説（未検証）:** Keeping high-churn render coordination declarations in the broad renderer interface may unnecessarily expand IFC invalidation and make manual split-target provider tables more fragile. A narrow render-submission control interface or implementation-only adapter might reduce the rebuild closure, but introducing another module could also add dependency edges and worsen it.
 - **価値／懸念:** Compile diagnostics can become very large when an IFC/provider mismatch appears, and wide public interfaces increase the number of consumers rebuilt after a small change. A split that only adds module boundaries without reducing importer closure would add maintenance without improving iteration time.
 - **次に確認:** Capture warm incremental action counts for an implementation-only renderer change and a public interface change, then inspect the generated MSVC `/reference` map for `ArtifactCoreAnalyze` in Ninja versus MSBuild before choosing any interface split.
+
 
 ## 2026-10-17: Composition async recording is workload-thresholded
 
@@ -5089,6 +5298,7 @@
 - **価値／懸念:** A passing direct renderer contract alone could miss a controller integration that never submits eligible batches. The new test checks both worker selection and the produced Composition frame. It does not show that ordinary scenes gain latency benefit or that the whole frame is non-blocking.
 - **次に確認:** Measure representative Composition frames' eligible packet count and worker submit frequency before changing the 16-packet threshold or broadening accepted packet types.
 
+
 ## 2026-10-17: Deferred frame cleanup can outlive immediate execution
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::DeferredPacketRecordWorker` and Composition overlay submission.
@@ -5096,12 +5306,14 @@
 - **価値／懸念:** Waiting for deferred-context cleanup at the first immediate barrier shortens the available overlap window. Resource lifetime and deferred context reuse still require explicit completion tracking; visual parity alone does not measure a latency improvement.
 - **次に確認:** Measure cleanup overlap duration on representative frames and verify any other supported graphics backends before widening this completion policy.
 
+
 ## 2026-10-17: Deferred packet eligibility needs an allocation and ownership audit
 
 - **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::canRecordDeferred()` and `RenderCommandBuffer` packet visitors.
 - **確認できた事実:** Gradient rect, dot line, checkerboard, grid, and rect outline recording use packet values plus recorder-owned buffers and pipelines; their immediate and worker images matched on D3D12 and Vulkan. Solid circle currently creates a `std::vector` for every draw, so it remains on the owner path under the render hot-path allocation rule.
 - **気づき:** Packet type support should depend on both resource lifetime and the recording implementation's allocation behavior. A list of apparently value-only packets can still hide frame allocations or renderer-owned mutable state.
 - **次に確認:** Audit the bounded vertex capacity / growth behavior of `MpmSurfacePkt` and measure how often these newly supported packet types occur in production Composition batches.
+
 
 ## 2026-10-17: Module build error counts can be dominated by IFC graph faults
 
@@ -5111,12 +5323,14 @@
 - **価値／懸念:** Sorting build failures by earliest module-resolution diagnostics can avoid repairing downstream symptoms. Conversely, lowering source line counts alone may increase module graph complexity and rebuild work.
 - **次に確認:** Capture warm incremental action counts for implementation-only and public-interface edits; compare Ninja and MSBuild provider-reference maps before selecting the next split.
 
+
 ## 2026-10-17: Borrowed PSO pointers must not enter owning PSOAndSRB temporaries
 
 - **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::cloneSubmitterPipeline()` and worker submitter teardown.
 - **確認できた事実:** The glyph pipeline adapter returns borrowed raw PSO/SRB pointers. Wrapping those pointers in a local owning `PSOAndSRB` caused its destructor to release the `ShaderManager` references. Visual Studio debugger triage observed the resulting access violation later in `DiligentImmediateSubmitter::destroy()` while releasing a glyph PSO whose vtable had already been cleared.
 - **価値／懸念:** Separate worker SRBs can safely share immutable PSOs only when each owner holds a balanced reference. Borrowed adapters must clone directly from raw pointers or explicitly acquire their own references before entering an owning wrapper.
 - **次に確認:** Keep the D3D12/Vulkan worker image contracts covering renderer teardown, and audit future adapter-to-owner conversions for accidental ownership transfer.
+
 
 ## 2026-10-17: LOD contract test families now span generation, selection, and rendering
 
@@ -5126,6 +5340,7 @@
 - **価値／懸念:** 今回はテスト起動が禁止されているため全ケースの実行結果は未確認。特に既存大規模GPU統合テストの追加ケースは実行環境依存性を含み、Focused run が必要。
 - **次に確認:** テスト実行が許可された後、登録済みLOD専用ターゲットを優先し、その後 GPU / Composition 統合テストを段階的に実行する。
 
+
 ## 2026-10-17: Glyph Text needs a prepared packet before worker recording
 
 - **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::submitGlyphText()` / `submitGlyphTextTransformed()`、`GlyphAtlas`、`ArtifactIRenderer::DeferredPacketRecordWorker`。
@@ -5133,6 +5348,7 @@
 - **未検証の設計案:** producer thread で bounded glyph instance data を作り、atlas texture/SRV を保持した immutable packet を worker に渡せば、text preparation を caller 側に残しつつ GPU command recording を移せる可能性がある。atlas eviction / clear、texture upload の順序、複数 submitter 間での lifetime pinning はまだ設計・実機検証していない。
 - **価値／懸念:** allow-list だけの拡張は worker 内 allocation と lazy GPU resource creation を持ち込む。まず owner fallback の実画像 contract を固定し、その後に prepared packet の bounded capacity と frame lifetime を決める必要がある。
 - **次に確認:** GlyphAtlas が glyph rect を移動・無効化する条件を調べ、frame packet が使う atlas generation を保持または安定化できる契約を設計する。D3D12 / Vulkan の即時・worker 描画画像を比較してから eligibility を広げる。
+
 
 ## 2026-10-17: Deferred eligibility should account for packet work, not only count
 
@@ -5142,12 +5358,14 @@
 - **価値／懸念:** packet 数 threshold は軽い packet 多数を表すには機能するが、単体の大きな geometry packet を過小評価する。worker recording 時間は実測したが、同じ workload の owner recording との比較や GUI latency の改善量は未検証。
 - **次に確認:** 実 Composition で MPM surface の packet サイズ分布を計測し、16 chunk threshold が通常 workload の余計な command-list overhead を生まないか確認する。
 
+
 ## 2026-10-17: Particle worker preflight needs its renderer dependency first
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::flushDeferredPacketsAsync()`、`DiligentImmediateSubmitter::canRecordDeferred()`、production worker image contract。
 - **確認できた事実:** `canRecordDeferred()` は `ParticlePkt` に対してsubmitter内の `ParticleRenderer*` を必要とする。非同期handoffはそのpreflight後にpointerを渡していたため、Particleを含むbatchは非同期経路へ進まなかった。pointer設定をpreflight前に移動すると、D3D12 / Vulkan のproduction renderer testでworker handoffと後続overlayの画像順がpassし、両PNGのhashが一致した。
 - **価値／懸念:** eligibility判定も実行時依存を要する場合、preflight準備の順序が実際のサポート可否を決める。ParticleRendererはmutableなので、handoff中の診断読み取りを避け、再利用前のjob完了待ちを保つ。
 - **次に確認:** CompositionのParticle workloadで通常blend以外のrender options頻度を計測し、非対応設定がowner fallbackに残る条件を確認する。GUI latencyへの影響量は未測定。
+
 
 ## 2026-10-17: Large Particle uploads should count toward deferred work
 
@@ -5156,12 +5374,14 @@
 - **価値／懸念:** packet count alone hides large uploads, and payload-based eligibility produced a 6 MiB upload. Two worker frames on the same renderer retained the same heap high-water marks (D3D12 6/8 MiB, Vulkan 6/7 MiB); D3D12 logged one 8 MiB dynamic page creation for both frames. This suggests capacity reuse, but the logs do not count per-frame suballocations or prove that every Composition context follows the same pattern.
 - **次に確認:** Measure allocator calls directly if an existing profiler hook is available, then collect Composition-level particle packet distribution and GUI-thread wait. Keep the 100,000-particle cap and recheck high-water behavior if its capacity changes.
 
+
 ## 2026-10-17: Deferred 3D packets need recorder-owned renderer state
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::DeferredPacketRecordWorker`、`PrimitiveRenderer3D`、`BillboardPkt`。
 - **確認できた事実:** `BillboardPkt` の描画は viewport / camera constants buffer と SRB を更新するため、owner とworkerが同じ `PrimitiveRenderer3D` を並行使用すると状態を共有する。worker専用の `PrimitiveRenderer3D` を初期化し、camera / viewport stateをsnapshotとして渡すと、元texture参照解放後もD3D12 / Vulkan両方でdeferred frameが即時画像と一致した。Billboard PSOはdepthを無効化しているため DSV formatを `UNKNOWN` にでき、color-only targetとのbind警告も消えた。
 - **価値／懸念:** 3D packetをallow-listへ足すだけではなく、packetを記録するrenderer固有の可変GPU stateもrecorder単位で所有する必要がある。worker rendererはshader / bufferを別作成するため初期化コストがあり、今回の起動時間への影響は未計測。
 - **次に確認:** Gizmo / card系のstate snapshot要件を整理し、packetごとに必要な最小stateとtarget / DSVの契約を確認する。Compositionの実 workloadでBillboard頻度とworker初期化時間も計測する。
+
 
 ## 2026-10-17: Gizmo worker recording needs queue and SRB ownership transfer
 
@@ -5170,12 +5390,14 @@
 - **価値／懸念:** 値のcopyではなくcapacityを含めたqueue ownership swapでframe中のgeometry copyを避けられる。workerのGPU vertex buffer容量拡張はdispatch前のcaller threadで行うため、初回の高watermark拡張自体はcallerを止める。Gizmo頂点生成もcallerに残る。
 - **次に確認:** CompositionでGizmo頂点数とworker buffer high-watermarkの分布を計測し、capacity増加が発生する頻度を調べる。Gizmo packetを独立packet化する場合は、現在の2D後 overlay orderingを保持できるframe command contractを確認する。
 
+
 ## 2026-10-17: Deferred Billboard barriers must preserve offscreen color and depth targets
 
 - **関連:** `ArtifactIRenderer::flushDeferredPacketsAsync()` / `draw3DCard()`、`PrimitiveRenderer3D::drawBillboard()`、offscreen render-target stack。
 - **確認できた事実:** RGBA8 sRGB offscreen RTV と D32 DSV に対して、worker Billboard packet の後に深度付き immediate 3D card を描く production path が同期 owner frame と一致し、D3D12 / Vulkan 両方で全画素比較を通過した。worker submit counter は async recording の開始時ではなく、command list のexecute/release後に進む。
 - **価値／懸念:** 3D draw barrierは次のpacketだけでなく、active offscreen targetとdepth viewを再bindする責務を持つ。画像 parityはこの具体的RTV/DSV formatを確認するが、別formatやComposition内での出現頻度、GUI latencyは測っていない。
 - **次に確認:** target override の異なるcolor/depth formatと連続したtarget push/popでworker PSO format、resource state、順序が維持されるかを個別に検証する。
+
 
 ## 2026-10-17: Vulkan headless tests need an actual-device assertion
 
@@ -5184,12 +5406,14 @@
 - **価値／懸念:** GPU render testは環境変数だけでbackendを証明せず、実際に選ばれたdevice typeをassertする必要がある。新しいoffscreen barrier caseにrequested backendとdevice typeの一致assertを加えた。Vulkan backend比較は引き続き個別プロセスを正とし、一括テストのVulkan結果を証拠にしない。同一プロセス失敗の具体的な共有状態原因はまだ未検証。
 - **次に確認:** Deferred test helperのbackend identityを全testで共通にassertできる既存の公開面を確認し、共有test harness変更の影響範囲を評価する。
 
+
 ## 2026-10-18: Headless glyph parity needs a registered font fixture
 
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp`、`GlyphTextPkt` / `GlyphTextXformPkt`、repository-bundled Roboto fixture。
 - **確認できた事実:** headless Qt で未登録の Arial を使うと `QRawFont` が文字列中の複数 codepoint を同じ glyph ID / silhouette に解決し、owner と worker の画像 parity が通っても capture は replacement-box glyphs になった。test が同梱 Roboto を `QFontDatabase::addApplicationFont()` で登録してからは、raw font の distinct glyph ID / mask と実 frame の複数 silhouette を検査する。cold owner fallback で `Seed` のみを atlas に入れ、その後の worker batch で初見 glyph を owner 側で追加・upload してから記録し、warm 後の同期 owner frame と全画素一致することを Debug / D3D12 / Vulkan で確認した。別の bounded ASCII fixture では raw glyph bitmap と2px paddingの総面積が2048×2048 atlasを超えることを確認し、先に同じ大サイズ font の atlas texture を作成・upload して clean にした後、eviction を含むバッチが worker submit count を増やさず owner 経路で可視 glyph frame を出力することを両 backend の実デバイスで確認した。eviction frame PNG の SHA-256 は両 backend で `EAB84E5FF0CA9D0A6B7104BB44B8984EFE0AD59DC9DD55E1FF2FFDE4F16151E5` で一致した。
 - **価値／懸念:** headless parity test が同期経路と同じ誤った fallback image を正解扱いする問題を避け、保存した frame で字形が実際に描かれたことを確認できる。atlas容量超過もworkerへ渡さず owner fallback に残る境界を画像付きで固定した。production font fallback 全般や実アプリでのフォント登録状態は未検証。
 - **次に確認:** 実アプリの `FontManager` 初期化後に選択される system / user font を使う production-frame contractでも glyph ID と silhouette を確認し、実運用フォントの登録境界を検証する。
+
 
 ## 2026-10-18: Deferred glyph snapshot capacity stays on owner
 
@@ -5198,12 +5422,14 @@
 - **価値／懸念:** fixed sidecar capacity が超過した batch を worker に部分移譲せず、描画を owner に戻す境界を画像付きで記録できた。owner fallback では 4,097 glyph の shaping / draw work が依然として caller 側に残るため、大きな text payload の latency は未計測。
 - **次に確認:** 通常 Composition の glyph 数分布と 4,096 slot 超過頻度を測り、sidecar の固定容量を変える前に bounded owner preparation cost と worker recording cost を分けて評価する。
 
+
 ## 2026-10-18: Deferred glyph recording preserves later owner overlays
 
 - **関連:** `ArtifactIRenderer::flushDeferredPacketsAsync()` / `flushAndWait()`、`GlyphTextPkt`、deferred double-buffer、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
 - **確認できた事実:** warm atlas で未登録 glyph を含む `Deferred` text batch を worker に渡し、record 中に owner 側の2つ目の command buffer へ blue overlay を追加するケースは、同期 owner frame と全画素一致した。overlay は text の一部を覆い、残りの glyph は表示された。Debug / D3D12 と Debug / Vulkan の実 device で pass し、PNG hash は両 backend で `CC001DBF4E2B7684FCD0E8FD166D283A1FF9997A59642C8B4BCA2384B0B0B6FB` で一致した。
 - **価値／懸念:** glyph-specific atlas upload と、worker base batch 後の owner overlay ordering を同じ image contract で確認できた。これは一つの bounded packet mix の順序であり、Composition 全体の非ブロッキングや queue backpressure の改善量は示さない。
 - **次に確認:** Composition 側の複数 pass / immediate barriers で base worker batch と owner-produced packet の境界が実 workload でも保たれるか、controller frame sequence の source/runtime evidence を集める。
+
 
 ## 2026-10-18: Deferred Cloner ranges expire at the submit boundary
 
@@ -5212,12 +5438,14 @@
 - **価値／懸念:** deferred queue drain 後に stale GPU range を誤用せず、画面上の clone 描画を継続できる境界を、明示的な immediate clear barrier を含む実画像で固定した。Composition の通常 observer-to-draw path に同じ drain が入る呼び出しは確認されていない。
 - **次に確認:** device loss / placement resource 再初期化中の generation invalidation と、Composition 実 frame で observer-to-draw 間の barrier 有無を測定する。
 
+
 ## 2026-10-18: Measure the owner wait at the deferred recording barrier
 
 - **関連:** `DeferredPacketRecordWorker::executeAndRelease()`、`ARTIFACT_VIDEO_PREVIEW_PROFILE_SETUP`、Composition point-light integration。
 - **確認できた事実:** owner-side wait on `recordReady_` had no measurable duration at 0.001 ms display precision for the tested 16-packet Composition batch on either D3D12 or Vulkan. D3D12 worker record took 0.798 ms / 0.206 ms across two frames; Vulkan took 0.224 ms. The captured point-light frame hashes matched across backends. First-frame setup and render-to-present totals were much larger and backend-dependent.
 - **価値／懸念:** The existing profile separated worker recording and execute, but did not expose whether the owner actually waited at the completion barrier. The new opt-in field closes that observability gap for this boundary. Zero at the current resolution does not imply zero latency in other scenes, and this single workload does not quantify the improvement over synchronous recording.
 - **次に確認:** Repeat with representative Composition packet mixes and a matched synchronous owner-record baseline before claiming GUI latency improvement or changing the bounded worker threshold.
+
 
 ## 2026-10-18: Async readback teardown joins the in-flight renderer worker
 
@@ -5226,6 +5454,7 @@
 - **価値／懸念:** This establishes the normal-completion lifetime and packet-before-copy ordering at the renderer teardown boundary. It does not establish recovery from device loss or a GPU fence that never signals.
 - **次に確認:** Exercise texture-size reinitialization while one readback slot is busy, then separately characterize the shutdown behavior when the device is lost or stalled.
 
+
 ## 2026-10-18: Async Deferred handoff must not retire video texture readers early
 
 - **関連:** `flushDeferredPacketsAsync()`、`completeDeferredPacketRecording()`、`PrimitiveRenderer2D::textureForVideoFrame()`。
@@ -5233,12 +5462,14 @@
 - **価値／懸念:** Queue handoff and GPU execution are different resource lifetime boundaries. This repair keeps the reusable texture immutable until all earlier deferred readers have been executed, without scanning all queued packets or allocating per frame.
 - **次に確認:** Verify how often Composition inserts the overwrite boundary in real frame sequencing and characterize normal queue occupancy.
 
+
 ## 2026-10-18: Deferred video texture reuse holds through Cloner and masked draws
 
 - **関連:** `PrimitiveRenderer2D::textureForVideoFrame()`、`drawSpriteTransformedClonerGrid()`、`drawMaskedTextureLocal()`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
 - **確認できた事実:** Red frame を同期描画した baseline に対し、同じ reusable slot を参照する Cloner / masked Deferred batch を async handoff してから blue frame を同 slot に upload する。両 batch の first frame は baseline と全画素一致（最大 RGBA float error `1.0e-4` 以下）し、次の frame は blue に更新された。Debug / D3D12 と Debug / Vulkan の個別 test process で実 device を確認して pass。Cloner と masked の各 first / second frame PNG は backend 間で byte-identical だった（hashes: Cloner `74BA55BB60526FA817E87DE8FC837B3B93BD93D1FA158DA5BEB9A0F9F9F03982` / `BBE7EE1C5B71549A2366493074D35025A20142529577B0169F8789F223077398`; masked `FF0FEF7C917DBA84D1554283B8E2285978F2C1E71D3F27B7293195567C796572` / `1B6EAEF93115F273DB138C6E18FA52583FBD62BFCE392FCA6F9AAA56C343B12A`).
 - **価値／懸念:** Shared video texture reader lifetime is now covered for ordinary sprite packets, Cloner placement/sprites, and masked sprites. These are bounded renderer-level image contracts; they do not establish how often Composition inserts the overwrite boundary or the normal queue occupancy distribution.
 - **次に確認:** Exercise the same boundary through a representative Composition frame and characterize normal queue occupancy before adjusting thresholds.
+
 
 ## 2026-10-18: Queue saturation exposed missing video tracking in local sprites
 
@@ -5248,6 +5479,7 @@
 - **追加確認:** The production `CompositionRenderController` point-light integration case now inserts 16 small base layers, asserts that `deferredWorkerSubmitCount()` advances, and reads back the rendered frame. Debug / D3D12 and Debug / Vulkan passed; the captured 400×300 PNGs were byte-identical (SHA-256 `AC7C475B62E440744DFF4D9F97D69ED63C38BC71C0020E1A67BC11254AA18754`). This exercises Composition's async base-to-overlay recording window, but the frame does not contain a video layer. Follow-up video-fixture test attempts stayed at FFmpeg hardware-decoder fallback output. Source inspection confirms `preloadFrames()` decodes synchronously; the tested `seekToFrame()` route dispatches decode asynchronously, but the process still did not return within two minutes after the viewport render was included. Exact stopping point remains unknown: the Visual Studio debugger was not running and DebugMCP had no test-runner adapter for this executable. These observations do not establish a production renderer defect.
 - **次に確認:** Use an attachable debugger or a test-local timeout boundary to locate the video fixture stall before adding a Composition video assertion. Then exercise cached video-frame replacement while Cloner or a masked draw remains queued, and collect queue occupancy during normal playback before revisiting worker thresholds.
 
+
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::draw3DCard()` / `draw3DTexturedCard()`、`Artifact/src/Render/PrimitiveRenderer3D.cppm::drawCardPass()`、`DeferredPacketRecordWorker`。
@@ -5255,6 +5487,7 @@
 - **気づき:** Solid / Textured Card and bounded shape triangles now join ordered worker recording without sharing owner SRB / constant-buffer state. Active projector, queue exhaustion, and shapes beyond the worker VB's preallocated capacity stay on the owner path. Shape's producer-side triangulation allocations remain a likely follow-up for GUI latency.
 - **価値／懸念:** Offscreen image contracts cover worker Card parity after the Billboard barrier and camera reset, projector-active owner fallback, textured two-pass parity after releasing the producer SRV, shape triangle parity, and warm glyph text. Tests verify worker submit counts and actual D3D12/Vulkan device identity. Glyph preparation still runs on the owner; this moves only draw recording, and transformed text remains owner-only. Projector-enabled Textured Card still uses owner immediate recording; Composition effect and postprocess dispatches also remain owner-context operations. Mesh GPU draws are a larger boundary because the cached `MeshRenderer` combines reusable geometry with mutable per-draw state and pre-draw side effects.
 - **次に確認:** Measure ordinary Composition frequencies and work cost for Card / Shape / Glyph packet types before widening the 16-unit deferred threshold. Extend prepared glyphs to transformed text only after validating transform / device-pixel-ratio parity and atlas update ordering. For mesh work, separate immutable geometry ownership from per-draw material / instance snapshots and identify which shadow / ray-tracing mutations must stay on the owner before proposing a worker packet. Continue following Composition effect / postprocess helpers through their inputs, outputs, and flush boundary.
+
 
 ## 2026-10-18: Composition channel views need distinct RGB and AOV coverage sources
 
@@ -5264,6 +5497,7 @@
 - **価値／懸念:** Final presentation と独立AOV readbackではAlpha/coverageの意味が異なる。チャンネル結果の正しさと、透明領域の背景保持を同じ画像sourceで保証できるとは限らない。
 - **次に確認:** Present前への移動後にAOVの実表示値と同一フレームの背景をキャプチャ比較する。Depth fixtureに有効な深度値を出し、全モードの表示内容を検証できるようにする。
 
+
 ## 2026-10-18: Deferred recording and render-thread ownership are separate milestones
 
 - **関連:** `ArtifactIRenderer::initializeOnRenderThread()`、`DiligentDeviceManager::initializeOnRenderThread()`、`tests/Artifact/Model3DLightCompositionIntegrationTest.cpp`。
@@ -5271,6 +5505,7 @@
 - **価値／懸念:** The test proves the shared immediate context can be initialized and used by a dedicated worker in isolation, which preserves compatibility with existing device-owned resources. It does not prove that the Composition frame graph, layer traversal, caches, or final present have moved off the GUI thread; other shared-context clients must be transferred or serialized before production ownership changes.
 - **追加確認:** After the manager change, the existing D3D12 Point-light Composition integration test failed once (`baselineImage != deferredRestoredImage`, then null final image), passed on an immediate isolated-process rerun, and passed once on Vulkan. The failure's cause is unverified; do not attribute it to either the change or known backend flakiness without another controlled run.
 - **次に確認:** Define immutable frame inputs and GPU resource lifetime handoff for `CompositionRenderController::renderOneFrameImpl()`. Move production frame work in bounded slices, retaining backend PNG parity and thread-identity assertions at each integration gate.
+
 
 ## 2026-10-19: Offscreen Composition preview is not a production 3D parity oracle
 
@@ -5283,12 +5518,14 @@
 - **追加確認:** The active `PreciseTicker` callback explicitly posts its frame body to the controller QObject with `Qt::QueuedConnection`, and the public manual `renderOneFrame()` calls `renderOneFrameImpl()` synchronously. The latter mutates the controller's `Impl` state (renderer, preview pipeline, caches, temporal history, frame counters) and presents. Direct owner callbacks inside it include two `videoDebugMessage()` calls and one `markRenderDirty()`. Changing only the invocation thread would race shared controller state and violate QObject affinity; it needs a single-owner handoff for the render state plus a GUI-captured frame request and GUI-posted results.
 - **次に確認:** Identify a faithful production frame slice whose immutable inputs and GPU resource lifetime can be transferred without JSON round-trip per frame. Implement an explicit single-owner render-state boundary and capture/completion protocol, then keep the end-to-end completion gate on production Composition output and worker thread identity. Do not use the current Composition offscreen helper as whole-scene parity evidence.
 
+
 ## 2026-10-18: GUI-created resources need the app's shared device before worker handoff
 
 - **関連:** `ArtifactIRenderer::initializeOnRenderThread()`、`DiligentDeviceManager::initializeHeadless()`、`tests/Artifact/Model3DLightCompositionIntegrationTest.cpp`。
 - **確認できた事実:** A green texture created by a renderer initialized with `initializeHeadless()` was not a valid Vulkan handoff to a worker renderer using the shared-device lease: Diligent rejected concurrent Vulkan instance/device creation and the worker fell back to D3D12. Initializing both renderers through the QWidget/shared-device path removed that setup mismatch. The worker sampled the GUI-created texture and presented a real frame; D3D12 and Vulkan each passed twice in separate processes, with all four PNGs byte-identical.
 - **価値／懸念:** A resource pointer crossing threads is not sufficient evidence of GPU-resource compatibility; its device identity and lifetime must match the receiving renderer. The isolated test serializes GUI texture creation before worker use and does not establish safety while unrelated clients concurrently use the same immediate context.
 - **次に確認:** For Composition, identify a frame-owned immutable resource snapshot that retains the GUI-created GPU resources through worker completion, and define how all shared immediate-context submissions are ordered around the frame owner.
+
 
 ## 2026-10-18: Composition's host snapshot is not yet a render-frame snapshot
 
@@ -5301,6 +5538,7 @@
 - **追加変更と検証:** `captureCompositionPlaybackFrameSnapshot()`がenabled、frame cache state、pending-build、fallback policy、summary、pinned uploadをPlayback Service所有thread上で捕捉し、render bodyのcache state / pending / summary照会をsnapshot経由にした。worker threadからのcaptureを拒否してsnapshotを未変更にするtestも追加し、PlaybackRangeServiceContractTest 6/6 pass。Production gateはD3D12 / Vulkanで実GPU画像を取得した後にGUI thread ID一致でfail。CPU image borrow、readback完了・defer更新のservice副作用、renderer/context/cache/state所有権は未完了。
 - **次に確認:** JSON cloneをper-frame transportにせず、値化できるscene/layer inputsとretained GPU resourcesを持つbounded immutable frame packetを作る。single-owner render-state boundary、GUI側snapshot capture、worker側frame execution、completion/present orderingを結び、GUI edit・resize・shutdown順序を保つ実Composition image gateを用意する。
 
+
 ## 2026-10-18: Composition frame requests need scene mutation identity
 
 - **関連:** `Artifact.Widgets.CompositionHostFrameSnapshot`、`CompositionRenderController::Impl::captureHostFrameSnapshot()`、active Composition の `LayerChangedEvent` subscription。
@@ -5309,12 +5547,14 @@
 - **検証:** VS18 Debug `ArtifactAppRuntime.vcxproj` and `ArtifactModel3DLightCompositionIntegrationTest.vcxproj` builds passed without CMake regeneration. The production Point-light frame test passed on D3D12 and Vulkan on controlled reruns; both saved 400x300 PNGs matched baseline SHA-256 `AC7C475B62E440744DFF4D9F7D69ED63C38BC71C0020E1A67BC11254AA18754`. One earlier run per backend failed the existing baseline/restored image equality check and passed on isolated rerun. The dedicated-Composition-thread gate generated the same verified PNG on both backends and failed only its expected thread assertion; the native frame thread ID equalled the GUI thread ID.
 - **次に確認:** Build the bounded immutable scene/resource packet and use `sceneMutationGeneration` to reject stale work before rendering; then make the production thread-identity image gate pass on both backends.
 
+
 ## 2026-10-18: Existing CompositionRenderWidget worker is not the editor render path
 
 - **関連:** `ArtifactCompositionRenderWidget::Impl::startRenderLoop()`、`ArtifactCompositionRenderWidget::Impl::renderOneFrame()`、`ArtifactCompositionEditor`。
 - **確認できた事実:** `ArtifactCompositionRenderWidget.cppm` contains a `std::thread` render loop and calls `ArtifactIRenderer::present()` on that worker. Repository-wide source search finds no construction/use of `ArtifactCompositionRenderWidget` outside its own declaration and implementation. `ArtifactCompositionEditor.cppm` imports `Artifact.Widgets.CompositionRenderController` and constructs `CompositionRenderController` for the main and secondary panes. Its production frame identity gate still reports GUI-thread execution. The legacy widget worker also reads the Composition and playback service from its worker and accesses widget dimensions during rendering, so it is not a safe template for moving the editor controller's frame body.
 - **価値／懸念:** A render thread already present in an unused/legacy widget can make the app look thread-separated in a source search while the active editor path remains synchronous on GUI. Migrating by reusing that loop would carry scene ownership and QWidget-affinity hazards into the active path.
 - **次に確認:** Keep the production `CompositionRenderController` as the acceptance target. Separate immutable scene inputs and renderer/context ownership before moving frame execution; retain the thread-identity plus rendered-image gate on D3D12 and Vulkan.
+
 
 ## 2026-10-18: Shared render-device mutex does not serialize GPU context use
 
@@ -5323,12 +5563,14 @@
 - **価値／懸念:** The shared device lease is a lifetime mechanism, not an execution-serialization contract. Moving Composition calls to a worker while leaving other renderer clients active can concurrently use the same immediate context; serializing only initialization/refcount does not prevent that. A global owner/executor or an explicit frame-level exclusive-use contract is needed in addition to the scene snapshot.
 - **次に確認:** Map every production shared-device user and its frame boundary, then choose one app-wide immediate-context owner model and test interleaved viewport/render-queue requests on D3D12 and Vulkan before Composition migration.
 
+
 ## 2026-10-18: RenderCommandBuffer is a GPU packet buffer, not a Composition frame snapshot
 
 - **関連:** `RenderCommandBuffer::swapContents()`、`DrawPacket`、`ArtifactIRenderer::flushDeferredPacketsAsync()`。
 - **確認できた事実:** The existing command buffer can exchange preallocated packet storage and retains several referenced GPU resources (`ITextureView` / target views). Its packet variants also include renderer-specific GPU dispatches, prepared-glyph ranges, and Qt value types. `ArtifactIRenderer` records eligible packet batches through a Diligent Deferred Context, then executes their command list on the immediate context. Composition frame work also performs direct offscreen target changes, resolves, compute passes, layer traversal, and caches outside this packet stream.
 - **価値／懸念:** The command buffer is a useful bounded handoff for eligible draw packets, but moving its worker recorder or swapping the buffer does not transfer immediate-context ownership and does not represent the full Composition frame. A dedicated drawing owner would still need ordered control of direct GPU passes, renderer resources, and present.
 - **次に確認:** Trace which Composition passes can be represented by packets without changing target / resource ordering, and identify the first complete ordered pass interval that can be executed by one worker-owned immediate context while preserving its frame image.
+
 
 ## 2026-10-18: Composition frame graph is diagnostic, pass execution remains synchronous
 
@@ -5337,12 +5579,14 @@
 - **価値／懸念:** The current graph is not a scheduled worker graph, and its current pass closures cannot safely be copied to a worker because they retain references to mutable frame locals and renderer state. Turning on graph execution in parallel without explicit resource dependencies and owned packet inputs would change ordering and lifetime guarantees.
 - **次に確認:** Refactor one real frame stage into an owned pass input/output contract, not just a diagnostic graph node; test its output against the existing production Composition PNG before migrating additional stages.
 
+
 ## 2026-10-18: Worker renderer can own a D3D12 device, Vulkan must transfer its shared device
 
 - **関連:** `ArtifactIRenderer::initializeIndependentOnRenderThread()`、`DiligentDeviceManager::initializeIndependentOnRenderThread()`、`createIndependentRenderDevice()`。
 - **確認できた事実:** Added a render-thread renderer initialization path that creates an independent device/context and swapchain, distinct from the existing shared-device path. Debug D3D12 test verified distinct GUI/worker device and context pointers, worker-thread draw/readback/present, and a captured frame. The worker image matched the Vulkan shared-context worker image byte-for-byte (SHA-256 `EA350DF86A123D7B80504A8939AB18553429D7C6DF2E8366CFEE797384594719`). Attempting a second Vulkan instance/device while the app shared Vulkan device was live produced Diligent's documented process-global function-pointer error; the new independent path now rejects that state before creation. Vulkan uses the existing shared device/context worker path, and both the shared-resource handoff smoke and dedicated-owner image test pass on D3D12 and Vulkan.
 - **価値／懸念:** D3D12 can isolate Composition worker context usage from shared-device clients. Vulkan can move context use to a worker only when the app coordinates exclusive ownership of the one shared Vulkan device; this test proves sequential worker use, not concurrent safety or Composition scene lifetime. The production `CompositionRenderController` still runs its frame body on GUI.
 - **次に確認:** Wire the active controller to the appropriate backend owner path only after its scene/resource packet and app-wide shared Vulkan context schedule are explicit; preserve the production frame thread-ID and image gates.
+
 
 ## 2026-10-18: Composition image tests must wait for present before readback
 
@@ -5351,12 +5595,14 @@
 - **価値／懸念:** The intermittent null was a test-side ordering issue; it was not evidence that the deferred overlap failed or that the renderer thread probe caused a defect. `currentFrameSerial` may advance before `present` completes, so a frame test must gate readback on successful presentation.
 - **次に確認:** Keep frame capture APIs tied to the presented serial where available. Continue testing renderer ownership independently; this correction does not move Composition frame execution or `present()` to a dedicated drawing thread.
 
+
 ## 2026-10-18: Keep the Composition thread gate independent from deferred-packet mutation coverage
 
 - **関連:** `CompositionFrameBodyRunsOutsideTheGuiThread`、`CompositionControllerAppliesPointLightLayer`、`exerciseCompositionLight()`。
 - **確認できた事実:** The production thread gate had enabled the separate async-packet test path, which adds sixteen layers and mutates visibility/color before comparing restored images. The point-light integration test already independently asserts deferred worker submission. After disabling that option only for the thread-identity gate, D3D12 and Vulkan each produced an actual 320×240 presented-frame PNG with identical SHA-256 (`ABCBCE0B0225AA7BF5BFE985BF3157165416BBB342B9AAFC4F1A8B8FE383C3DB`); both passed image assertions and failed only because the frame thread ID remained the GUI thread. The separate point-light async-worker test passed on both backends.
 - **価値／懸念:** Separating these assertions makes a thread-ownership failure easier to diagnose without dropping async-recording coverage. It does not move any production frame work or establish GUI responsiveness.
 - **次に確認:** Build and consume an immutable, bounded Composition frame packet on a dedicated worker while preserving the image hash and the separate deferred-worker test.
+
 
 ## 2026-10-18: Existing GPU effects can resolve a render-owner device through a thread-local binding
 
@@ -5365,12 +5611,14 @@
 - **価値／懸念:** This provides a device-identity handoff for existing effect code without editing dozens of effect modules. The scope must outlive all acquisitions made through it. Binding the app's shared Vulkan context still does not serialize concurrent GUI/render-queue use, and the active Composition controller has not been moved to a worker.
 - **次に確認:** Build an immutable frame input and worker-owned Composition clone/resource lifetime around this binding; add explicit Vulkan shared-context scheduling before enabling asynchronous production frames.
 
+
 ## 2026-10-18: Composition JSON can be packetized on GUI and rehydrated with worker QObject affinity
 
 - **関連:** `CompositionRenderFramePacket`、`CompositionHostFrameSnapshot`、`ArtifactAbstractComposition::toJson()` / `fromJson()`、`CompositionFrameBodyRunsOutsideTheGuiThread`。
 - **確認できた事実:** The new frame packet owns a serialized Composition document beside copied host facts and source identity. In the production Point-light fixture, the GUI built the packet before activating the Composition, then a worker reconstructed the scene. The clone had worker-thread QObject affinity and matched the source ID, effective size, and layer count. D3D12 and Vulkan both passed those packet assertions; the regular presented Composition images remained byte-identical across backends. The production frame-body thread assertion still fails because rendering continues on the GUI thread. A fresh VS18 Debug rebuild passed; the isolated D3D12 and Vulkan runs again passed the image checks and stopped only at that expected thread assertion. Captured 2761-byte PNGs had the same SHA-256 (`ABCBCE0B0225AA7BF5BFE985BF3157165416BBB342B9AAFC4F1A8B8FE383C3DB`).
 - **価値／懸念:** Existing JSON persistence gives an ownership boundary that can be tested without letting the worker dereference GUI-owned Composition objects. The two-layer Point-light fixture measured JSON capture at 12.062 ms (D3D12) / 8.606 ms (Vulkan) and worker rehydration at 17.879 ms / 15.509 ms. This is already too costly to perform synchronously for each edit or playback frame. The active controller advances `sceneMutationGeneration` on each accepted non-`FrameReady` layer event and captures host metadata on the GUI render path, so serializing the cached packet there would put full-scene JSON work on frequent drag edits. Avoid eager controller-side serialization until a coalesced, bounded handoff exists or measurements justify it. Clone reconstruction does not yet preserve all runtime decoder/effect GPU resource lifetimes, and this probe does not render the clone.
 - **次に確認:** Add a representative multi-layer payload/cost measurement, then design a persistent worker-owned scene/resource update path that does not block the GUI on full-scene JSON serialization. Keep the worker frame image gate and shared Vulkan context scheduling explicit before connecting present/completion to the live viewport.
+
 
 ## 2026-10-19: Composition worker-clone probe should verify reopened model geometry
 
@@ -5379,12 +5627,14 @@
 - **価値／懸念:** Layer-count equality alone could pass when a worker clone had lost its externally loaded mesh. The stronger assertion confirms model-file reopening for this fixture, but it does not verify texture/material dependencies, effect runtime state, GPU uploads, or rendering the clone.
 - **次に確認:** Render an owned worker clone through the production Composition frame path and compare the presented pixels with the GUI-owned source. Preserve explicit assertions for all external assets used by the fixture and investigate null readback separately from frame thread identity.
 
+
 ## 2026-10-19: A synchronous render pass worker proves ownership, not GUI responsiveness
 
 - **関連:** `ArtifactIRenderer::ImmediateContextPassWorker`、`renderShadowMapFrame()`、production Composition Spot-light rendering。
 - **確認できた事実:** The production shadow-map pass now executes on a persistent worker thread and its native thread ID differs from the GUI thread. The D3D12 and Vulkan Spot-light image/Deferred-FXAA overlap tests pass with matching PNG hashes. The GUI caller waits synchronously for the pass, and Composition frame traversal plus `present()` remain on the GUI/caller thread. The full-frame thread assertion still fails after the image checks.
 - **価値／懸念:** This isolates a real immediate-context pass on a render worker and keeps worker creation out of the per-frame path after first use. It is not an asynchronous render-thread architecture and does not improve UI responsiveness; first-use worker startup remains a cold-path cost. Inline fallback also means thread identity must remain an explicit test contract.
 - **次に確認:** Define ownership and lifetime for immutable frame input, mutable evaluation/cache state, immediate-context access, and swapchain present together before moving the complete Composition frame. Measure UI wait time and validate shutdown/resize ordering when the queue becomes asynchronous.
+
 
 ## 2026-10-19: The Composition frame body has GUI callbacks beyond its renderer
 
@@ -5396,6 +5646,7 @@
 - **価値／懸念:** The helper argument is an active UI/async ownership edge; moving only the large function body to a worker could cause off-thread QWidget/controller use or lifetime races even if GUI drawing is blocked during a synchronous wait. `showSelectionRectLines`, Tracker activity, and the TrackPoint/RigSelect/RigWeight/Clone/Pen/Rectangle tool kind plus overlay label are now captured into `CompositionHostFrameSnapshot`; these values flow through Selection Editing and frame overlays, and overlay, selection-editing, and ghost helpers no longer receive an unused controller pointer. D3D12/Vulkan Point-light images remain byte-identical and the Spot/deferred-overlap test passes, but the full-frame worker gate still fails on GUI thread identity. PuppetTool, MotionSketchTool, BrushTool, and selection-manager references remain in overlay rendering; the Tracker-active visual branch does not yet have a dedicated runtime fixture. Shift/Alt/Ctrl modifier flags are now GUI-captured values for three frame overlay decisions, while event handlers retain live modifier reads. A worker-owned serialized clone can traverse and draw its full 3D+light Composition into an offscreen target; D3D12/Vulkan output with a fixture Point Light matched pixel-for-pixel (320×240, SHA-256 `08EB28A632F987DC0C8E052BAE691F1F0189D182776551881FDE9D951F9B9108`). The no-light/lit center-pixel comparison prevents a non-black silhouette from satisfying the light gate. A separate worker-owned swapchain test now presents that clone's SRV from the same worker, but active-controller cache/effect/AOV/present ownership, live shared-context scheduling, and worker frame evaluation's process-wide PhysicsSystem interaction remain unverified.
 - **次に確認:** Replace active owner calls with a value-based frame input and a bounded frame result returned to the GUI thread; pin scene/resource lifetime and serialize resize/present before enabling worker execution for the full Composition frame.
 
+
 ## 2026-10-19: A worker-owned Composition clone can now render and present one frame
 
 - **関連:** `OffscreenCompositionRenderer::renderTargetShaderResourceView()`、`CompositionRenderFramePacket`、`WorkerCompositionCloneRendersAndPresentsOnDedicatedThread`。
@@ -5403,11 +5654,13 @@
 - **価値／懸念:** This joins previously separate worker-clone drawing and worker swapchain ownership into one image-producing path and gives the future viewport worker a borrowed GPU output-SRV boundary. It is still a test-only synchronous worker whose device context is used exclusively during the run. Debug cold initialization of the offscreen renderer plus presenter costs about 1.74 s on D3D12 and 2.53 s on Vulkan; production must retain one worker, renderer, and offscreen target. JSON serialization still costs about 6.5 ms on the GUI fixture, and this probe does not cover worker queue coalescing, live edits, playback PhysicsSystem ownership, effects/overlays, concurrent shared-context users, or resize/shutdown lifecycle.
 - **次に確認:** Move this passing path behind a persistent bounded worker interface, measure GUI submit/serialization time under rapid edits, and validate stale-frame rejection, shared-context single ownership, resize, teardown, and representative effect/overlay parity before connecting it to the active controller.
 
+
 ## 2026-10-19: Composition frame packet is not connected to the production controller yet
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionHostFrameSnapshot.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `tests/Artifact/PlaybackRangeServiceContractTest.cpp`
 - **確認できた事実:** Source search finds `CompositionRenderFramePacketCache` only in its module and contract tests; `renderOneFrameImpl()` still reads the live controller Composition and emits `present()` synchronously. Packet construction previously consulted the singleton Playback Service to fill missing frame/upload data; this was removed so only GUI-captured snapshot fields cross that boundary. The focused PlaybackRangeServiceContractTest passes 6/6 after the change.
 - **価値 / 懸念:** Worker-clone, mailbox, and packet contract tests do not yet validate a production controller handoff. Connecting the packet needs a clear owner for the live renderer/immediate context, mutable render caches, playback completion side effects, resize, and shutdown; passing metadata tests cannot stand in for that integration.
 - **次に確認:** Define the production request/result owner boundary and identify which helpers can consume an owned scene packet without reading `previewPipeline_`, controller members, or QObject services before attempting to dispatch the frame body.
+
 
 ## 2026-10-19: UI test MCP code in AppMain crosses Qt module import boundaries
 - **関連:** `Artifact/src/AppMain.cppm`, `Artifact/src/Test.cppm`, `Artifact/include/Widgets/ArtifactUndoHistoryWidget.ixx`
@@ -5415,6 +5668,7 @@
 - **仮説・未検証:** Qt declarations added to a large module purview may be colliding with Qt specializations exposed through imported IFCs. A small dedicated module with a forward-declaration-only interface and implementation-local Qt includes may isolate the dependency set, but this has not been tested.
 - **価値／懸念:** AppMain gained hundreds of lines for test-only control and the build error now blocks fresh render integration verification. Moving the code into another already-large module does not solve that boundary and can create a second IFC failure.
 - **次に確認:** Trace the exact `QMetaType::fromType<Qt::CheckState>` trigger, then place the endpoint in a narrowly scoped test-control module if the generated-project path can be verified without CMake regeneration.
+
 ## 2026-10-19: ArtifactPr workbench polish should track module boundaries
 
 - **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/src/TimelinePanel.cppm`、`tests/ArtifactPr/TimelinePanelStandaloneTest.cpp`。
@@ -5423,12 +5677,14 @@
 - **次に確認:** 明示的に許可されたビルド・runtime 検証の後、Monitor / Inspector 群と EditorEngine の責務を依存関係から分けて段階的に切り出す。
 - **追記 (2026-10-19):** この項目が参照する `tests/ArtifactPr/TimelinePanelStandaloneTest.cpp` は削除し、内容は `tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp` (gtest) へ移植した。下の「ArtifactPr module set could not have compiled」も参照。
 
+
 ## 2026-10-19: Composition Viewport grid alpha blending corrected
 
 - **関連:** `Artifact/src/Render/ShaderManager.cppm` の Grid PSO、`tools/CompositionViewportGridTest/main.cpp`、`temp/composition-viewport-all-fixed.png`
 - **変更・確認:** Grid PSO に既存 SolidRect と同じ straight-alpha blend state を設定した。D3D12 の独立テスト target を再ビルドし、修正後キャプチャでグリッドの透明度が反映され、合成画像でセーフエリア／ガイドがグリッドより前面に読めることを目視した。ビューポート全体に表示する範囲は維持した。
 - **価値／懸念:** 透明度を使う Composition Viewport overlay がグリッドに隠されにくくなる。`AppMain.cppm` には実際の利用がない `Artifact.Widgets.UndoHistoryWidget` import があり、削除後に C1116 が解消して Artifact.exe の再リンクが完了した。`ArtifactUndoHistoryWidget.ixx` に QMetaType を追加する試行は C1116 を解消しなかったため戻した。アプリ本体の実ウィンドウ確認と Vulkan backend は未確認。
 - **次に確認:** アプリ起動後に Composition Viewport 上で同じ表示を確認する。必要なら Vulkan の同じ独立テスト capture も行う。
+
 
 ## 2026-10-19: Liquid frame changes pass, but coffee appearance remains weak
 
@@ -5467,6 +5723,7 @@
 - **実行確認（2026-10-20）:** 起動中の検証用Artifact.exeがDLLをロックしていたため、こちらが起動した同プロセス (PID 35100) を終了し、ArtifactPhysicsLodBridgeContractTest と `Artifact` target を再ビルドした。最新 `build/bin/Debug/Artifact.exe` のリンク・runtime deploymentが成功し、新プロセスPID 36196は8秒後にResponding=True、window title `Artifact 0.9.0 | dev | local`。`windeployqt` はtranslations catalogとその探索先のQt DLL不足警告を出すが、アプリプロセスは起動・維持できた。通常viewport内のfluid scene表示はまだ確認していない。
 - **Debug Qt deployment path（2026-10-20）:** `RunWindeployqt.cmake` は Debug 実行でも標準 `qtpaths.exe` を使っていた。この exe は `QT_INSTALL_BINS` を `vcpkg_installed/x64-windows/bin` と返す一方、Debug Qt6 DLL は `debug/bin` にあるため、windeployqt が `Qt6Widgetsd.dll` を誤った場所で探して warning / failure code を出していた。Debug 用 `qtpaths.debug.bat`（`qt.debug.conf` を読む）を `--qtpaths` に渡すよう修正。スクリプトを Artifact.exe に対して直接実行すると warning なく終了し、アプリプロセスも維持された。実際の不足 DLL ダイアログの文言は取得できていないため、この原因との完全な同一性は未確認。
 
+
 ## 2026-10-19: ArtifactPr module set could not have compiled
 
 - **関連:** `ArtifactPr/src/{AppTheme,AudioPreviewMixer,GpuProgramMonitor,MediaFrameDecoder,MediaThumbnailer,SequenceCompositor,SequenceExporter}.cppm`、`ArtifactPr/src/VideoSurface.cpp`、`ArtifactPr/src/{MarkerEditDialog,PrColorPickerDialog,PrShortcut,PrStatusNotifier,TimecodeOverlayWidget}.cppm`、`ArtifactPr/CMakeLists.txt`、`tests/ArtifactPr/`、ルート `CMakeLists.txt:269`。
@@ -5479,12 +5736,14 @@
 
 \n
 
+
 ## 2026-10-21: CMake 4.2 clang-cl module scan は GNU frontend rule を流用できない
 
 - **関連:** `CMakeLists.txt` clang-cl scanner setup、CMake 4.2.2 `Compiler/Clang-CXX.cmake`、`ArtifactWidgets/CMakeLists.txt` OpenMP discovery
 - **確認できた事実:** clang-cl root configure で OpenMP compiler flags を `-Xclang -fopenmp` として与え、MSVC `libomp.lib` および spec date を指定すると Qt / OpenMP の configure-time checks は越えた。generate は clang-cl 用 CXX scan rule 不在で停止した。CMake 4.2.2 Clang P1689 rule は GNU frontend 分岐内でのみ定義される。
 - **価値／懸念:** GNU frontend の P1689 scanner command を clang-cl にそのまま渡すのは不適合で、dependency scanning、module map、BMI 出力の MSVC driver syntax を分けて実装する必要がある。より新しい CMake が clang-cl 対応を追加していても、最小 CMake 3.30 を維持する場合の backport / version gate を決める必要がある。
 - **次に確認:** CMake clang-cl module scan 対応版の最小要件と、P1689 scanner invocation が `clang-cl` の MSVC style arguments を扱うか一次資料・隔離 smoke で照合する。その後で root scan override と OpenMP / Qt try_compile の適用境界を最小化する。
+
 
 
 ## 2026-10-22: clang-cl で移行済み .cpp の実 target module scan を確認
@@ -5496,6 +5755,7 @@
 - **次に確認すること:** 他 split target と Clang interface compilation の依存解決、OpenUSD を含む root 全体 build、OpenMP 検出を段階的に検証する。
 
 
+
 ## 2026-10-22: ToggleGlyphButton module implementation を `.cpp` に移行
 
 - **関連:** `ArtifactWidgets/src/Common/ToggleGlyphButton.cpp`、`ArtifactWidgets/include/Common/ToggleGlyphButton.ixx`、CMake 4.4.4 / Ninja、Qt6、clang-cl / upstream clang++ / sccache
@@ -5504,12 +5764,14 @@
 - **次に確認すること:** Widget 全体 target の依存関係と MSVC の最終 DLL link を確認し、同じ manifest 手順で次の候補を段階移行する。
 
 
+
 ## 2026-10-22: ContentViewer implementation を両 Clang frontend で `.cpp` 検証
 
 - **関連:** `ArtifactWidgets/src/Viewer/ContentViewer.cpp`、`ArtifactWidgets/include/Viewer/ContentViewer.ixx`、CMake 4.4.4 / Ninja、Qt6、clang-cl / upstream clang++
 - **確認できた事実:** `ContentViewer.cppm` の本文を変更せず、LF 化して `.cpp` へ移し、CMake の明示 implementation source list に追加した。clang-cl と upstream clang++ + Windows MSVC ABI の両方で P1689 scan、interface / implementation compile、Qt6 DLL link が成功した。
 - **価値:** Common widget と異なる Viewer 領域でも、現在の `.cpp` source 登録・module scan 経路が成立することを確認できた。
 - **次に確認すること:** ArtifactWidgets 全体 DLL の MSVC / Clang link と、より広い依存を含む implementation の段階移行を確認する。
+
 
 
 ## 2026-10-22: MSVC module implementation の sccache 判定
@@ -5521,6 +5783,7 @@
 - **次に確認すること:** ArtifactWidgets 全体 link と、実アプリ build で通常 `.cpp` の cache hit が出るか確認する。
 
 
+
 ## 2026-10-22: MSVC Widgets 全体 link と TimeCodeLabel pilot
 
 - **関連:** `ArtifactWidgets/src/Time/TimeCodeLabel.cpp`、`ArtifactWidgets/CMakeLists.txt`、MSVC 19.51 / CMake 4.4.4 / Ninja
@@ -5528,6 +5791,7 @@
 - **境界:** 独立 Clang pilot は未使用 import `Frame.Position` をテスト用BMI stubで補った。MSVC 本体 target は実依存 graph を通る。Clang pilot の個別 sccache hit/miss 数は未採取。既存 interface が宣言する `setFrame` / `setDisplayMode` は現行 implementation に定義がなく、`impl_` も初期化されていない。拡張子移行だけの今回の変更ではruntime動作を確認していない。
 - **価値:** MSVC では compiler cache launcher を外すと実際の Widgets DLL link が通り、次の小さい implementation unit でも両 Clang frontend の `.cpp` module scan とlinkが成立した。
 - **次に確認すること:** TimeCodeLabel の既存runtime/API欠落を別途扱うか判断し、より機能が揃った小さな module pair を選びながら移行と compiler/sccache 測定を続ける。
+
 
 
 ## 2026-10-22: ColorViewLabel migration と Clang sccache 実測
@@ -5539,6 +5803,7 @@
 - **次に確認すること:** Clang root targetでCore moduleとQtの実依存を結合した際のscan / link、MSVC parallel compiler cacheのPDB競合、さらに低fan-inな implementation候補を継続確認する。
 
 
+
 ## 2026-10-22: CollapsibleSection implementation unit を3 compiler laneで検証
 
 - **関連:** `ArtifactWidgets/src/Common/CollapsibleSection.cpp` / `include/Common/CollapsibleSection.ixx`、MSVC 19.51、upstream clang++ + MSVC ABI、clang-cl、sccache 0.18.0
@@ -5546,6 +5811,7 @@
 - **sccache 実測:** upstream clang++ は2 clean buildで4 requests / 2 misses / 2 hits / 0 bypass / 0 failure。clang-cl は4 requests中1 miss→1 hit、module interface `multiple input files` bypass 2件、0 failure。
 - **価値:** Widgets内の独立module implementationを3 compiler laneで確認し、source module graphを増やさず拡張子移行とcache再利用を再現した。
 - **次に確認すること:** ArtifactCoreの低fan-in implementation候補をmanifest/reference-map依存まで確認して選び、Clang root target側の実依存とsccacheを拡大検証する。
+
 ## 2026-10-22: OpenUSD arch の upstream clang++ / MSVC ABI 判定
 
 - **関連:** root `CMakeLists.txt`、`libs/openusd/pxr/base/arch/defines.h` / `attributes.h` / `demangle.cpp` / `errno.cpp`
@@ -5553,6 +5819,7 @@
 - **推測・未検証:** 上流 OpenUSD が clang-cl/MSVC ABI lane を正式に扱う場合、compiler detection または arch implementation の条件修正が必要になる可能性が高い。upstream の現在版に修正があるかは未検証。
 - **価値または懸念:** isolated Qt module pilots の成功と root OpenUSD 統合の失敗を区別できる。広域 macro spoofing は STL ヘッダや別の OpenUSD source を壊すため、親から全ターゲットへ適用する workaround は避けるべき。
 - **次に確認すること:** OpenUSD の更新候補を精査する際、Windows Clang MSVC ABI の `arch` 対応を upstream で確認する。submodule を変える場合はユーザーの明示指示を得る。
+
 ## 2026-10-22: Analyze.OpticalFlow の末端 implementation 移行
 
 - **関連:** `ArtifactCore/src/Analyze/OpenCV/OptifalFlowResult.cppm`、`ArtifactCore/include/Analyze/OpenCV/OptifalFlowResult.ixx`、Analyze source manifest / BMI reference map
@@ -5560,6 +5827,7 @@
 - **推測・未検証:** interface に inline 実装を多く置く他 module も移行候補になり得るが、各 interface の依存と split target ownership は個別確認が必要。
 - **価値または懸念:** source manifest、module reference map、専用 split target を一緒に更新する移行例となった。OpenUSD root blocker は独立して残るため、pilot 成功を full Clang build 成功とは扱わない。
 - **次に確認すること:** 次候補では manifest 所有 target、MSVC reference map、importer object dependency、sccache cacheability を先に照合する。
+
 ## 2026-10-22: Utils.Tag module implementation を `.cpp` に移行
 
 - **関連:** `ArtifactCore/src/Utils/Tag.cppm` / `.cpp`、`include/Utils/Tag.ixx`、ArtifactCore source manifest と module reference map
@@ -5567,6 +5835,7 @@
 - **推測・未検証:** 依存 BMI を stub に置き換えた pilot は Tag の Clang 実 dependency graph を証明しない。sccache の cacheability も未計測。
 - **価値または懸念:** Core module implementation と reference map の migration をもう一件通したが、Clang root target は OpenUSD blocker により未完了のまま。
 - **次に確認すること:** 次の移行は module reference 数だけでなく MSVC object dependency、importing consumers、split target ownership を確認してから選定する。
+
 
 
 ## 2026-10-22: ArtifactCore 単一 module object の検証範囲が target order dependency に広がる
@@ -5578,6 +5847,7 @@
 - **次に確認すること:** Core split target の既存構造を保ったまま、selected implementation と importer / provider BMI だけを検証できる正式 target が作れるかを調べる。必要なら target-order dependency の発生元を生成 Ninja graph と CMake target property で追跡する。
 
 
+
 ## 2026-10-22: Qt `QStringLiteral` と Clang module interface の TU-local warning
 
 - **関連:** `ArtifactCore/include/Utils/Path.ixx:43`、Qt `qstring.h` の `QStringLiteral` macro、Windows upstream clang++ / clang-cl module build
@@ -5585,6 +5855,7 @@
 - **推測・未検証:** C++ modules で Qt inline API が内部 TU-local helper を露出する警告は、実行時不具合ではなく module linkage / compiler diagnostic 上の注意である可能性がある。実 consumer での ABI・ODR 影響や Qt 側の既知対応は未確認。
 - **価値または懸念:** Clang の Qt module pilot で移行以前から存在する warning を検出した。現時点で警告抑制や Qt interface 改変は行わず、root build の warning 整理と混同しない。
 - **次に確認すること:** Qt module support の公式説明・該当 helper の linkage 属性を調べ、実際の consumer module compile が可能になった段階で再現性と影響を確認する。
+
 
 
 ## 2026-10-22: Module partition implementation は primary-module migration と別扱いが必要
@@ -5598,6 +5869,7 @@
 - **次に確認すること:** Clang configure後にFileInfoのcompile commandがpartition interface PCMを参照し、重複dyndep ruleを生成しないことを確認する。今回は実行禁止のため未検証。
 
 
+
 ## 2026-10-22: `export namespace` 内の二重 `export` が Clang module compile を阻止
 
 - **関連:** `ArtifactCore/include/Animation/AnimationDynamics.ixx`、`AnimationDynamics` module implementation migration
@@ -5606,6 +5878,7 @@
 - **価値または懸念:** namespace export block の中で宣言を維持すれば内側の `export` は不要で、API export visibility を保ったまま Clang parser error を除ける実例を得た。
 - **追加確認（2026-10-24）:** 同じnested exportが `Artifact/include/Widgets/Render/TransformGizmo.ixx` と `Artifact/include/Core/Guides/ArtifactSmartGuidesManager.ixx` にもあった。両export namespace内のclassから内側の `export` だけを除き、各interface compileに成功。SmartGuides implementation compileも成功した。TransformGizmo implementationのfresh scanは成功したが、object compileはAST約2.14GB（診断上99%）でfrontend crashし、実装側は未確認。`TransformGizmo` API exportが広がった・狭まったとの兆候はinterfaceとSmartGuides compileでは見られないが、全consumer linkは未確認。
 - **次に確認すること:** ArtifactCore / Artifact / ArtifactWidgets interfaces を狭い検索で監査し、同じ構文があれば個別に宣言の所属と export visibility を確認する。
+
 
 ## 2026-10-22: Clang named-module BMI graph source-location 上限
 
@@ -5616,6 +5889,7 @@
 - **価値または懸念:** この上限を回避できない限り、Artifact 全体の Windows upstream clang++ ビルドは成立しない。大規模interface変更はMSVC module graphとABIにも影響するため、まずimport閉包と最小consumerで測定する。
 - **次に確認すること:** `ArtifactAbstractLayer` / `ArtifactAbstractComposition` それぞれの宣言で値型・継承・関数引数に必要な依存と実装専用依存を分類し、分割可能な境界を探る。PR #209795 の merge / LLVM 23.x への backport と、修正を含む Clang での再検証を追う。clang-cl でも同じ大規模 module closure による制限が出るか、Artifact target で確認する。
 
+
 ## 2026-10-22: Artifact object-only Ninja build の依存範囲
 
 - **関連:** `Artifact/cmake/ArtifactSources.cmake`、`ArtifactGuiManager.cpp`、ArtifactAppRuntime / CMake 4.2.2 / Ninja。
@@ -5624,6 +5898,7 @@
 - **推測・未検証:** C++ modules の dyndep/provider closure と stale build tree の再生成が重なり、object 指定でも広い target graph が要求された可能性がある。専用 isolated target は拡張子・attachment の検証には有効だが、root target の統合確認を代替しない。
 - **価値または懸念:** 拡張子移行の局所検証と app target 統合検証のコストを区別する必要がある。対象 object のみを狙ったつもりの build が third-party を含む大規模再構築へ広がることがある。
 - **次に確認すること:** build tree の Ninja query / dyndep を調べ、対象 implementation の最小必要 provider closure と、root target の広域依存を引き起こす条件を特定する。`ArtifactBatchRenderer.ixx` のClang memory使用は依存BMI数・source-location共有・Clang build差を分けて再現する。
+
 ## 2026-10-22: `.gitattributes` と実ファイルの改行状態
 
 - **関連:** `Artifact/.gitattributes`、`Artifact/src/Core/SystemStats.cppm`、`.cppm` → `.cpp` の rename。
@@ -5631,6 +5906,7 @@
 - **価値または懸念:** attribute 設定だけでは現在の worktree の改行コードが LF である証拠にならない。拡張子移行時は `git ls-files --eol` と rename diff を併用すると、不要な全行変更と既存の改行不整合を区別できる。
 - **次に確認すること:** 今後移行する `.cppm` でも source と manifest の worktree 改行状態を確認し、必要な場合だけ正規化後に rename 判定と diff を確認する。
 - **追加確認（2026-10-24）:** `Artifact/src/Mask/LayerMask.cppm` も作業ツリーbytesはCRLF、Git HEAD blobはLFだったが、Git statusではclean扱いだった。移行時にLFへ正規化すると `.cpp` はGit HEAD本文と一致した。ユーザー設定の `core.autocrlf` は `false` であり、`.gitattributes eol=lf` とGitのclean判定だけでは作業ファイルの実bytesを保証しないことを再確認した。
+
 ## 2026-10-22: Live scope widgets は paintEvent 内で画像分析を実行
 
 - **関連:** `ArtifactWidgets/src/Color/VectorScopeWidget.cppm`、`ArtifactWidgets/src/Color/HistgramWidget.cppm`、`Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。
@@ -5638,6 +5914,7 @@
 - **推測・未検証:** live playback で更新頻度が高い場合、GUI paint 内の CPU 処理と画像確保が UI 応答や frame presentation に影響する可能性がある。実際の呼び出し頻度、allocation 量、遅延は未計測。
 - **価値または懸念:** module 移行とは別に、live scope の CPU work が UI paint boundary に置かれている点を性能計測対象として記録する。今回の拡張子移行では描画経路を変更しない。
 - **次に確認すること:** 両 scope が表示された状態で代表的な frame size / playback を計測し、paint duration と allocation frequency を確認する。必要なら bounded reusable buffer と stale-frame rejection を含めて再設計を検討する。
+
 ## 2026-10-22: WaveformScope / ParadeScope の再計算ごとに completion handler が追加される
 
 - **関連:** `ArtifactWidgets/src/Color/WaveformScopeWidget.cppm`、`ArtifactWidgets/src/Color/ParadeScopeWidget.cppm`、`Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。
@@ -5645,6 +5922,7 @@
 - **推測・未検証:** watcher の再利用後、finished signal ごとに過去の completion lambda も実行され、同じ result の反映や redraw が重複する可能性がある。実際の handler 数、画面負荷、終了時の lifetime 影響は未計測。ParadeScope でも finished 時に過去の callback が再実行される可能性があるが未検証。
 - **価値または懸念:** frame 更新のたびに watcher callback が累積しないかを、extension migration と分けて確認する必要がある。今回の `.cpp` 移行では async / signal 経路を変更しない。
 - **次に確認すること:** WaveformScope と ParadeScope の連続 frame 更新・dialog close を含めて completion callback 数・paint duration・allocation を計測し、単一 completion registration と stale-frame rejection の設計を検討する。
+
 ## 2026-10-22: CommandAction command state is not reflected by hasCommand()
 
 - **関連:** `ArtifactWidgets/src/Common/CommandAction.cppm`、`ArtifactWidgets/include/Common/CommandAction.ixx`。
@@ -5652,6 +5930,7 @@
 - **推測・未検証:** これは既存の挙動不整合の可能性があるが、利用時の期待値や歴史的理由は未確認。現在の移行では処理を変更しない。
 - **価値または懸念:** コマンド設定状態の問い合わせが正確でない可能性があり、呼び出し側が `hasCommand()` を分岐に使う場合に誤動作し得る。
 - **次に確認すること:** `CommandAction` の全利用箇所とコンストラクタ呼び出しを調べ、`setCommand()` 前後に期待される状態を確認してから別途修正範囲を決める。
+
 ## 2026-10-22: Deprecated KnobSlider impl_ may be read before initialization
 
 - **関連:** `ArtifactWidgets/src/Knob/KnobSlider.cppm`、`ArtifactWidgets/include/Knob/KnobSlider.ixx`。
@@ -5659,6 +5938,7 @@
 - **推測・未検証:** `impl_` が初期化されない状態で mouse press を受けると不正アクセスになる可能性がある。deprecated widget の実生成有無、ゼロ初期化や別の定義経路の影響は未確認。
 - **価値または懸念:** 廃止予定 UI でも外部利用可能な public class のイベント経路に危険が残る可能性がある。今回の拡張子移行では挙動を変更しない。
 - **次に確認すること:** repository 全体で module import と `KnobSlider` の生成を追跡し、実利用・互換要件を確認してから削除／修正方針を別途決める。
+
 ## 2026-10-22: GraphicsFloatImageItem interface and implementation do not match
 
 - **関連:** `ArtifactWidgets/include/Graphics/GraphicsItemFloatImageItem.ixx`、`ArtifactWidgets/src/Graphics/GraphicsItemFloatImageItem.cppm`。
@@ -5666,6 +5946,7 @@
 - **推測・未検証:** public class を実際に生成する経路があれば未解決 symbol になる可能性がある。CMake / compiler で現行状態を再現したわけではない。
 - **価値または懸念:** 拡張子を `.cpp` へ移すだけでは API / implementation mismatch は解決しない。今回の migration は宣言・実装の責務を変更しない。
 - **次に確認すること:** interface の利用履歴、生成・除去された graphics item 経路、`GraphicsItemFloatImageItem.Temp.axt` の役割を調べ、API の完成・削除・再接続を別途判断する。
+
 
 ## 2026-10-22: TimeCode implementation の標準ヘッダー依存
 
@@ -5675,6 +5956,7 @@
 - **価値または懸念:** implementation source ごとの direct header dependency を明示すると、compiler / module boundary の違いに左右されにくくなる。
 - **次に確認すること:** ビルド・依存スキャンを許可された後、MSVC・clang-cl・upstream clang++ の module scan と TimeCode / TimeCodeRange compile を確認する。
 
+
 ## 2026-10-22: 拡張子移行時の補助スクリプト参照
 
 - **関連:** `ArtifactCore/check_remaining.py` と `TimeCodeRange.cppm` から `TimeCodeRange.cpp` への移行。
@@ -5682,6 +5964,7 @@
 - **推測・未検証:** script は `X:\dev\ArtifactStudio` を固定しているため、他環境での再利用性は低い可能性がある。script の用途と実行結果は未確認。
 - **価値または懸念:** 拡張子移行では補助 script、IDE 設定、生成 source list も旧 path を保持することがある。
 - **次に確認すること:** 今後の移行でも tracked references を検索し、script の一般化は別作業として扱う。
+
 
 ## 2026-10-22: DepthMask implementation の Qt 直接依存
 
@@ -5692,6 +5975,7 @@
 - **価値または懸念:** named module import だけでは Qt header 内の全宣言が通常 header include のように伝播するとは限らない。使用する Qt 型・macro の直接依存を source 側に明示する。
 - **次に確認すること:** ビルド・依存スキャン許可後、MSVC・clang-cl・upstream clang++ で DepthMask implementation compile と module scan を確認する。
 
+
 ## 2026-10-22: Saturation の interface / implementation 宣言差
 
 - **関連:** `ArtifactCore/include/Image/Sarturation.ixx` と `ArtifactCore/src/Color/Sarturation.cppm`。
@@ -5699,6 +5983,7 @@
 - **推測・未検証:** parameterized constructor の利用があれば unresolved symbol になる可能性があるが、link で再現した事実はない。
 - **価値または懸念:** 拡張子だけ移すと宣言／定義の不一致は残るため、移行前に public API と method definitions を照合する必要がある。
 - **次に確認すること:** usage を調査し、constructor の補完・削除を別途判断する。今回の移行では変更しない。
+
 
 ## 2026-10-22: ColorSwatch interface uses unique_ptr PImpl
 
@@ -5708,6 +5993,7 @@
 - **価値または懸念:** 現行のPImpl所有ルールに照らして、将来この型を変更する場合に所有権境界とABIを先に照合する手掛かりとなる。
 - **次に確認すること:** 実際のDLL export境界・consumer側の生成コード・copy/move利用を調査し、独立した変更として扱うか判断する。
 
+
 ## 2026-10-22: RendererQueueSetting template definition is implementation-only
 
 - **関連:** `ArtifactCore/include/Render/RendererQueueSetting.ixx`、`ArtifactCore/src/Render/RendererQueueSetting.cppm`
@@ -5715,6 +6001,7 @@
 - **推測・未検証:** consumers may need the definition reachable from the imported interface to instantiate this member template. Current MSVC and Clang compile/link behavior has not been checked.
 - **価値または懸念:** this can be a compiler-specific module boundary issue and should be checked before migrating the implementation file.
 - **次に確認すること:** search call sites and inspect BMI/IFC visibility; then reproduce with MSVC, clang-cl and upstream clang++ in an isolated consumer before deciding on a code change.
+
 
 ## 2026-10-22: CoordinateResolver expression evaluator precedence
 
@@ -5725,6 +6012,7 @@
 - **次に確認すること:** expression の実際の利用箇所・設定例を調べ、現在の式文法を仕様化して runtime 例を確認する。
 
 
+
 ## 2026-10-22: AspectRatio PImpl ownership boundary
 
 - **関連:** `ArtifactCore/include/Core/AspectRatio.ixx`、`ArtifactCore/src/Core/AspectRatio.cpp`。
@@ -5733,6 +6021,7 @@
 - **価値または懸念:** current repository guidance prefers raw-pointer PImpl ownership for new types, while existing smart-pointer PImpl must not be mechanically replaced without compatibility review. This migration intentionally preserved the existing ownership model.
 - **次に確認すること:** when next changing this type's ownership, inspect DLL export boundaries, consumers, and copy / move generation before proposing a separate change.
 
+
 ## 2026-10-22: LayerState copy/move and solo toggle definitions
 
 - **関連:** `ArtifactCore/include/Layer/LayerState.ixx`、`ArtifactCore/src/Layer/LayerState.cppm`。
@@ -5740,6 +6029,7 @@
 - **推測・未検証:** call site がこれらの操作を利用する場合、コピー後・move 後に visible / locked / solo / guide / adjustment state が意図せず失われる可能性がある。実際の利用箇所で問題が再現するかは未検証。
 - **価値または懸念:** 拡張子移行ではこの既存挙動を変更せず、LayerState 自体の移行前に API 実装と呼び出し側の契約を別途精査する必要がある。
 - **次に確認すること:** `LayerState` の生成・copy/move・`toggleSolo()` call site を調査し、期待する state transition を確認して独立した修正として判断する。
+
 
 
 ## 2026-10-22: ValidationRules provider が source manifest に未登録の可能性
@@ -5751,6 +6041,7 @@
 - **次に確認すること:** CMake target source evaluation と呼び出し／link 利用を調べ、意図的な除外か manifest 漏れかを判断してから、別変更として修正する。
 
 
+
 ## 2026-10-22: Artifact.Composition._2D module name warning in Clang
 
 - **関連:** `Artifact/include/Composition/ArtifactComposition2D.ixx`、`Artifact/src/Composition/ArtifactComposition2D.cpp`。
@@ -5758,6 +6049,7 @@
 - **推測・未検証:** module 名変更が既存 import / BMI / MSVC 利用者に与える影響と、将来の標準・compiler interoperability 上の実害は未評価。
 - **価値または懸念:** public module rename は依存全体へ波及するため、警告だけを理由に移行範囲へ含めない。別の互換性調査として扱う。
 - **次に確認すること:** 全 consumer と cross-compiler module import を洗い出し、変更が必要と判断した場合は独立した移行計画を作る。
+
 
 ## 2026-10-22: AudioLimiter の条件付き delay buffer 再確保
 
@@ -5767,6 +6059,7 @@
 - **価値または懸念:** `.cppm` から `.cpp` への拡張子移行では動作を変えず、この既存 allocation behavior を別途調べる価値がある。
 - **次に確認すること:** Audio processing の呼び出し元と format change の境界を追い、再確保が callback 内で起きるか、準備済み capacity を保持できるかを確認する。
 
+
 ## 2026-10-23: FluidVisualizer のフレームごとの source copy
 
 - **関連:** `ArtifactCore/src/ImageProcessing/FluidVisualizer.cpp`、`ArtifactCore/include/ImageProcessing/FluidVisualizer.ixx`。
@@ -5775,6 +6068,7 @@
 - **価値または懸念:** render 呼び出しが反復される経路なら、大きな一時確保と全画素 copy が frame cost に影響しうる。今回の拡張子移行では挙動を変えず、調査項目として記録する。
 - **次に確認すること:** module consumer と call site を追跡し、buffer aliasing の必要性、容量再利用の可否、呼び出し頻度を特定してから別変更として評価する。
 \n## 2026-10-23: Viewport color key generation in the render path\n\n- **Related:** Artifact/src/Widgets/Render/ViewportColorPipeline.cpp; Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm.\n- **Confirmed:** ViewportColorPipeline::prepare() constructs a QString key through multiple QString::arg() calls before checking whether the key changed. The composition render controller calls prepare() from applyDisplayColorTransform().\n- **Inference / unverified:** This call may run once per displayed composition frame; exact call frequency, heap allocation count, and user-visible cost have not been profiled.\n- **Value or concern:** If repeated in steady-state rendering, rebuilding the unchanged key may add avoidable string work and allocations. The current extension migration preserves behavior and does not address this.\n- **Next check:** Measure prepare() call frequency and allocations, then consider a revision-based or cached key in a separate performance change if confirmed.\n
+
 ## 2026-10-23: RendererQueueSetting の既存未実装 setter / copy constructor
 
 - **関連:** `ArtifactCore/src/Render/RendererQueueSetting.cpp`、`ArtifactCore/include/Render/RendererQueueSetting.ixx`
@@ -5783,6 +6077,7 @@
 - **価値または懸念:** API 利用時に設定値が失われる可能性がある。拡張子移行では挙動を変更しておらず、独立した修正候補として扱う。
 - **次に確認すること:** manager の construction / copy / name setter 経路と公開 API consumer を確認し、必要なら挙動修正を別変更として評価する。
 
+
 ## 2026-10-23: clang-cl preset の vcpkg manifest mode
 
 - **関連:** `CMakePresets.json` の `x64-Debug-ClangCL`、root configure。
@@ -5790,6 +6085,7 @@
 - **推測・未検証:** 新規 clone / clean machine でこの固定 installed tree を使う運用が常に適切かは未評価。
 - **価値または懸念:** Windows の clang-cl と upstream clang++ で dependency provisioning を揃えると、意図しない vcpkg restore の大規模なディスク消費を避けられる。preset に既存 vcpkg root、installed tree、triplet、manifest mode を記録した。
 - **次に確認すること:** 別の clean vcpkg installation / manifest mode を使う contributor workflow が必要か、既存 preset 利用者の環境を確認して判断する。
+
 
 
 ## 2026-10-23: SimpleChoker の per-call full-frame scratch allocation
@@ -5801,6 +6097,7 @@
 - **次に確認すること:** `SimpleChoker` の consumer と process callsite を特定し、呼び出し頻度と必要な buffer lifetime を確認してから hot-path allocation の別変更として検討する。
 
 
+
 ## 2026-10-23: ArtifactCore Ninja object target inherits wide ordering dependencies
 
 - **関連:** `ArtifactCore/CMakeLists.txt` の `ArtifactCore` target、clang-cl / Ninja root build graph。
@@ -5808,6 +6105,7 @@
 - **推測・未検証:** target-level ordering dependency がどの `add_dependencies` / object library relationship で広がるか、module ordering に必要な最小境界は未特定。
 - **価値または懸念:** root clang-cl の個別 source 検証でも依存群全体を再コンパイルする可能性があり、試験所要時間が source 本体の複雑さを反映しない。
 - **次に確認すること:** ArtifactCore target dependencies と generated Ninja order-only edges を追い、必要性を損なわず clang-cl の対象限定 build が可能な fixture / object boundary を設計する。
+
 
 
 ## 2026-10-23: Emboss CPU effect allocates a full-frame temporary buffer
@@ -5819,6 +6117,7 @@
 - **次に確認すること:** Emboss の consumer と process callsite を調べ、頻度と workspace lifetime を特定してから allocation を別変更として検討する。
 
 
+
 ## 2026-10-23: SpinTransition implementation is absent from explicit source registration
 
 - **関連:** `ArtifactCore/src/Video/Transitions/SpinTransition.cppm`、`ArtifactCore/cmake/ArtifactCoreSources.cmake`、`ArtifactCore/CMakeLists.txt`、`ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`。
@@ -5826,6 +6125,7 @@
 - **推測・未検証:** omission が意図的か、遷移 registrar の runtime reachability に影響するか、別経路でリンクされる利用者があるかは未確認。
 - **価値または懸念:** 移行対象として登録済み implementation と誤認すると、拡張子移動で未ビルドコードを新たに有効化する変更になる。今回は scope を保つため `SpinTransition` を `.cppm` のまま残し、移行には含めなかった。
 - **次に確認すること:** Spin transition の product behavior / registrar consumer と、explicit manifest から外れている設計意図を確認し、別作業で source registration が必要か判断する。
+
 
 
 ## 2026-10-23: Creative effects copy full color channels per render
@@ -5837,6 +6137,7 @@
 - **次に確認すること:** effect 呼び出し経路と頻度を確認し、入力と出力の aliasing / 読み取り一貫性を保てる bounded workspace または再利用 buffer の可否を評価する。
 
 
+
 ## 2026-10-23: Chromatic aberration effect allocates full-frame channel temporaries
 
 - **関連:** `ArtifactCore/src/Graphics/Effect/ChromaticAberrationEffect.cpp`。
@@ -5845,12 +6146,14 @@
 - **価値または懸念:** 高解像度・反復適用時に大きな一時確保と copy が生じ得る。今回の拡張子移行では処理を変更していない。
 - **次に確認すること:** caller と buffer aliasing 条件を確認し、再利用領域で処理できるか別途評価する。
 
+
 ## 2026-10-23 — SpinTransition implementation registration gap
 
 - **関連:** `ArtifactCore/src/Video/Transitions/SpinTransition.cppm`, `ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`, `ArtifactCore/cmake/ArtifactCoreSources.cmake`, `ArtifactCore/CMakeLists.txt`
 - **確認できた事実:** `Video.Transitions.SpinTransition` は module-reference manifest に記載されている一方、実装ソースは `ArtifactCoreSources.cmake` と `ARTIFACTCORE_VIDEO_IMPL` に登録されていない。今回の CMake target scan にも同実装は現れなかった。
 - **価値／懸念:** 現状では Clang / MSVC のいずれでもこの実装単位の compile 検証・リンクはされない。ソース登録を補うと遷移実装が有効化される可能性があり、単なる拡張子移行の範囲を越える。
 - **次に確認すること:** transition 実装の登録漏れが意図的か確認し、挙動を有効化してよい判断が得られた後に、ソース登録・ビルド順・拡張子移行を一緒に扱う。
+
 
 
 ## 2026-10-23: Acoustic split target requires direct Clang verification
@@ -5861,12 +6164,14 @@
 - **次に確認すること:** 今後も変更した実装が所属する実際のtargetを source registration から特定し、そのtargetをbuildして確認する。
 
 
+
 ## 2026-10-23: Explicit CXX_MODULES file set accepts `.cpp` module interfaces under upstream Clang
 
 - **関連:** `ArtifactCore/cmake/ArtifactCoreSources.cmake` の `ARTIFACTCORE_MODULE_SOURCES`、`ArtifactCore/CMakeLists.txt` の `ARTIFACTCORE_AI_MODULES`、16個の `Core.AI.*Descriptions` module interfaces。
 - **確認できた事実:** 16個の exported module source を `.cppm` から `.cpp` に変更し、両明示 module source lists を更新した。upstream clang++ 22.1.3 / CMake 4.4.4 / Ninja の `ArtifactCoreAI` target が module scan、全16 compile、static archive link に成功し、warm rebuild は16 sccache hits、0 missesだった。
 - **価値または懸念:** 拡張子ヒューリスティックとは別に、明示 `CXX_MODULES` file set が `.cpp` の exported interface を module source として扱えることを、この実 target で検証できた。これは明示 file set に含まれない一般の `.cpp` が module interface になることを意味しない。
 - **次に確認すること:** 同じ登録方式を使う他の split target で小さな module group を移行し、upstream clang++ の scan / link と cache behavior を検証する。
+
 
 
 ## 2026-10-23: Core utility module rename fans out but remains fully cacheable
@@ -5878,6 +6183,7 @@
 - **追加確認（2026-10-23）:** `Memory.SharedPtr` / `TrackedPtr` / `UniquePtr` の3 provider を `.cpp` に移し、source manifest、29 module-reference entries、CMake object dependencies を更新。`ArtifactCore` compile / link と NamedVector を含むconsumer graphが成功し、warm rebuildは203 Ninja steps中197 compile hits / 0 misses。
 
 
+
 ## 2026-10-23: ArtifactCore に未登録の `.cppm` 実装が複数残る
 
 - **関連:** `ArtifactCore/src/**/*.cppm`、`ArtifactCore/cmake/ArtifactCoreSources.cmake`、`ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`、`ArtifactCore/CMakeLists.txt`。
@@ -5886,6 +6192,7 @@
 - **価値または懸念:** これらを `.cpp` にrenameしても現行 target の Clang compile 検証にはならない。source registration を足すと未使用機能を build graph に再導入し、link / dependency graph を変える可能性がある。
 - **次に確認すること:** 各 public `.ixx` の consumer と git history、target 構成を照合し、意図的な除外か登録漏れかを分類してから個別に移行判断する。
 
+
 ## 2026-10-23: Ofx source extensions hide export-module interfaces
 
 - **関連:** `Artifact/src/Effects/Ofx/ArtifactOfxEffectImpl.cppm`, `ArtifactOfxHost.cppm`。
@@ -5893,6 +6200,7 @@
 - **推測・未検証:** source manifest上で `.cppm` としてどのCMake target / file setに配置するのが意図された構成か、再整理が必要かは今回の移行調査では未検証。
 - **価値または懸念:** `.cpp` への変更で既存PCM依存が欠落し、sccache compileがHost PCM不足で失敗した。またOfxHost単独compileではexport redeclarationが発生した。interface形式のソースを拡張子移行対象として扱わず、CMakeのmodule classification / provider registrationを別途監査する必要がある。
 - **次に確認すること:** CMake生成file setとP1689 provider scanを照合し、二つのexport module providerの正しいinterface登録状態を調べる。
+
 
 
 ## 2026-10-23: upstream Clang module PCM generation can approach source-location capacity
@@ -5904,6 +6212,7 @@
 - **次に確認すること:** 可能なら最小の再現コマンドと clang crash reproducerを保持し、同moduleのimport集合・PCM再利用状況・clangの修正版で比較する。広域ビルドに拡張する前にメモリ余裕と出力先容量を確認する。
 
 
+
 ## 2026-10-23: Clang split-target build may fan out through stale dependency state
 
 - **関連:** `ArtifactColorNode` target、CMake 4.4.4 / Ninja、upstream clang++ build tree `V:\ArtifactStudioBuilds\x64-Debug-ClangXX23-MsvcAbi`。
@@ -5911,6 +6220,7 @@
 - **推測・未検証:** 広域fan-outの直接原因がbuild treeの古いdepfile、missing command log、verify-globsの再走査、またはそれらの組合せかは未確定。クリーンな専用build treeでも再現するか未検証。
 - **価値または懸念:** 特定split targetの短い検証を意図しても、既存build treeでは大量のthird-party actionに波及し得る。target全体のcompile/linkを成功したと誤報せず、個別objectとarchiveの検証範囲を分けて記録する。
 - **次に確認すること:** Clang laneの専用build treeを一度クリーンに構成し、module scan / dyndep生成後のtarget action数と依存順を比較する。大規模依存再構築が不要な状態を確認してからtarget全体の検証を再開する。
+
 
 ## 2026-10-23: ArtifactCore 残存 `.cppm` の登録監査と Distort 移行 manifest
 
@@ -5922,12 +6232,14 @@
 - **追加確認（2026-10-23）:** upstream clang++で3件のP1689 scan / object compileが成功。cold 3 miss、warm 3 hit。通常のdyndep targetはthird-partyを含む2,430 actionsへ広がり、486で停止した後、対象の既存DDI群とCMake dyndepを直接生成して3 objectをcompile、既存objectと合わせて`ArtifactEffectsDistort.lib`を再アーカイブした。ArtifactCore候補2件は引き続き登録意図が確認できるまで保留する。
 
 
+
 ## 2026-10-23: CMake Ninja dyndep から実装targetを限定検証できる
 
 - **関連:** `ArtifactEffectsDistort`、`ArtifactEffectsWave`、`ArtifactEffectsSurfaceFX`、upstream clang++ 23.1.4 / Ninja / CMake 4.2。
 - **確認できた事実:** 通常のDistort dyndep target buildはOpenUSD等を含む2,430 actionsへ展開した。一方、targetの既存P1689 `.ddi` 群、`CXXDependInfo.json`、`cmake_ninja_dyndep` を使って対象の `.obj.modmap` を生成し、変更対象だけをsccache付きcompile、既存objectを合わせてtarget archiveへ再格納できた。3つのtargetで実装source scan / compile、合計3 target archivesが成功した。
 - **価値／懸念:** 既存build treeの広いorder dependencyを実行せず、CMakeが生成したmodule mappingでextension migrationのcompileとarchiveを確かめられる。ただし生成済み依存PCM / interface objectsの存在を前提とし、clean buildや通常Ninja targetの成功を証明しない。
 - **次に確認すること:** clean build treeまたは更新済み依存が揃った環境で通常target buildを再評価し、P1689 scanからarchiveまでNinja管理下で完了する依存範囲を比較する。
+
 
 
 ## 2026-10-24: Spatial specialty effects also compile from `.cpp`
@@ -5938,12 +6250,14 @@
 - **次に確認すること:** Wave / SurfaceFX、DirectionalGlow / AutoMosaicの小targetで得た結果を踏まえ、残る implementation-only `.cppm` を登録済みtargetごとにまとめて移行し、target archiveと必要なconsumer linkを段階確認する。
 
 
+
 ## 2026-10-24: 同一primary moduleの複数implementationを `.cpp` に移行できる
 
 - **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cpp`、`ParticleEmitterDescription.cpp`、`Artifact.Generator.Particle`、`ArtifactAppRuntime`。
 - **確認できた事実:** 両sourceは同じ `module Artifact.Generator.Particle;` を宣言する別implementation unitである。両方を `.cpp` へ移し、explicit source manifestを更新後、upstream clang++ 23.1.4 / Windows MSVC ABI のP1689 scanとobject compileが成功した。sccache cold 2 miss / warm 2 hit。source bodyはGit HEADと一致しLF。
 - **価値または懸念:** 同一primary moduleに属する複数implementationをひとまとまりで移行しても、生成済み interface PCMを使う限定compileではClangが扱える。`ArtifactAppRuntime` の全dyndep / link成功を意味しない。
 - **次に確認すること:** 同targetに残るimplementation-only sourceをCMake scan / PCMの状態で分類し、小グループごとのcompileと必要なtarget linkを進める。
+
 
 ## 2026-10-24: Generator implementation pair has different dependency verification outcomes
 
@@ -5953,18 +6267,21 @@
 - **価値または懸念:** 対象ソースの限定compileでも、直接DDIだけで生成したmodule mapはCMakeの既存PCM依存閉包を完全に再現しない場合がある。通常のtarget dyndep compileとの結果を分けて報告する必要がある。
 - **次に確認すること:** cleanまたは依存PCMを更新したClang build treeで対象interface dependency closureを含む通常dyndep buildを再試行し、AbstractGeneratorEffector のcompile結果を確定する。
 
+
 ## 2026-10-24: Color management and grading compile after `.cppm` migration
 
 - **関連:** `Artifact/src/Color/ArtifactColorManagement.cpp`, `ArtifactColorGradingEngine.cpp`, `ArtifactColorManagement`, `ArtifactColorGrading`。
 - **確認できた事実:** 対応する専用targetへ登録済みの2 implementation unitを `.cpp` に移し、common manifestとtarget source pathsを更新。upstream clang++ 23.1.4 / Windows MSVC ABIで両方のP1689 scan、object compile、static archive再生成が成功した。最終warm sccacheは2 hits / 0 missesで、既存cache errors / compilation failures集計は増加しなかった。実装本文はGit HEADと一致しLF-only。
 - **価値または懸念:** 小さいColor専用targetでも既存Ninja build treeがOpenUSDを含む3,181 actionsへ膨らむ。対象だけの正規CMake module map compileとarchive確認はできるが、target全体の依存build / app linkの証拠にはならない。
 - **次に確認すること:** CMake/Ninjaが全依存を管理するclean build treeでtarget全体の最小依存buildを実行し、直接object/archive検証との差を確かめる。
+
 ## 2026-10-24: Playback service pair compiles with generated module maps
 
 - **関連:** `Artifact/src/Service/ArtifactPlaybackService.cpp`、`ArtifactPlaybackShortcuts.cpp`、upstream clang++ 23.1.4 / Windows MSVC ABI。
 - **確認できた事実:** 2つの implementation unitを `.cppm` から `.cpp` に移し、source manifestを更新した。両public interfaceと両implementationを個別にコンパイルできた。CMake configure / generateも成功。
 - **価値または懸念:** 直接DDIだけで作った限定dyndep mapはimport依存閉包が足りず失敗したが、実装の問題ではなく検証mapの不備だった。通常生成されたCMake module mapでは4件成功。sccache warm hit、clean build、アプリ統合linkは未確認。
 - **次に確認すること:** 次のsccache記録時にwarm compile結果を取得し、対象2 sourceの本文一致・LFを監査する。
+
 
 ## 2026-10-24: Composition PlaybackController migration is blocked by a module cycle
 
@@ -5974,12 +6291,14 @@
 - **価値または懸念:** Clang移行時に出た直接import不足を単純に追加すると module cycleを作るため、このunitを `.cpp` 化済みとして数えない。現行の変更差分は先頭BOM除去だけで、module importは追加されていない。
 - **次に確認すること:** Transport APIの責務と型の利用箇所を調べ、共有診断型のmodule分離が適切か別途判断してから再移行する。
 
+
 ## 2026-10-24: ColorScience and OCIO implementation pair compile as `.cpp`
 
 - **関連:** `Artifact/src/Color/ArtifactColorScienceManager.cpp`, `ArtifactOCIOManager.cpp`, `Artifact.Event.Types`, upstream clang++ 23.1.4。
 - **確認できた事実:** 2つの登録済み implementation unitを `.cppm` から `.cpp` に移し、Artifact source manifestとCMake cycle-pinning pathsを更新。public interfaceのcompileでPCMを作成後、両sourceのP1689 scanとobject compileが成功した。限定CMake dyndep mapには `Artifact.Event.Types` providerを含め、OCIOがColorScience interfaceに依存する順序も確認した。sccache warm compileは2 hits / 0 missesで、累積errors/failuresは増えなかった。source bodiesはHEADと一致しLF-only。
 - **価値または懸念:** cycle ownershipを保ったまま、実装拡張子だけを移せることをClangで確認できた。これはArtifactAppRuntime全体のdyndep build / app link成功を示さない。
 - **次に確認すること:** clean Clang build treeでArtifactAppRuntimeの通常Ninja buildを再開し、この pair を含むmodule graphからリンクまで通す。
+
 
 ## 2026-10-24: Artifact source manifest membership does not prove final target membership
 
@@ -5990,12 +6309,14 @@
 - **次に確認すること:** 次の候補選定で各implementationの最終target所属と専用target pinningを確認し、buildされるtranslation unitだけを移行する。
 
 
+
 ## 2026-10-24: Project module implementation uses an indirectly exposed item type
 
 - **関連:** `Artifact/src/Project/ArtifactProjectStatistics.cpp`、`Artifact.Project.Items`、Clang module map。
 - **確認できた事実:** Statistics implementation traverses `ProjectItem` and invokes its members, while its imports omitted the owning module `Artifact.Project.Items`. A preexisting module map happened to contain that provider; Clang direct-import checking still rejected the source. Adding the direct implementation import compiled successfully and the Items interface did not import Statistics.
 - **価値または懸念:** Existing module maps can conceal missing direct imports, so compile success against a stale or broad map is weaker evidence than fresh P1689 scanning plus a real compile. In addition, a PCM may retain a deleted `.cppm` path after a source rename; regenerating that provider's build-tree DDI/map can validate the current source without changing child repository files.
 - **次に確認すべきこと:** Continue migration verification with fresh source scans and check direct ownership imports; when stale PCM blocks a compile, establish whether its provider moved and rebuild only that provider before judging the candidate.
+
 
 
 ## 2026-10-24: Project importer module-map closure can exceed Clang memory
@@ -6006,12 +6327,14 @@
 - **次に確認すべきこと:** Project importer / managerの分割・依存閉包を別途切り分け、メモリを抑えた再現条件またはより小さい翻訳単位で再評価する。
 
 
+
 ## 2026-10-24: Missing module-map providers can be validated through interface compiles
 
 - **関連:** Render Queue Widget implementation units、CMake/Ninja Clang module maps、P1689。
 - **確認できた事実:** Render Queue Widget `.cppm` implementations had fresh maps that referenced their paired public interfaces plus Queue Job / Service providers. The existing PCM set was incomplete, but compiling those registered `.ixx` interfaces with their own generated maps produced the missing PCMs; the implementations then passed fresh P1689 scans and object compiles.
 - **価値または懸念:** A missing PCM in a copied/stale implementation map does not by itself show a source incompatibility. Compile the owning public interface with its own provider map when the missing module is an interface, then verify the implementation against the complete closure. This avoids invoking the much larger application target for a narrow migration check.
 - **次に確認すべきこと:** Prefer regenerating a complete CMake dyndep map from fresh DDIs when practical; use individual interface compiles only when provider ownership is clear and all its own imports are present.
+
 
 
 ## 2026-10-24: Frame cache entry retains two image representations
@@ -6023,6 +6346,7 @@
 - **次に確認すべきこと:** Trace FrameCache producers and consumers, determine whether `QImage` and float storage coexist per entry and at what frequency, then profile memory and allocation before proposing a representation change.
 
 
+
 ## 2026-10-24: Migrated module providers leave stale source paths in downstream PCMs
 
 - **関連:** ArtifactCore Physics modules and Artifact Layer PhysicsBridge compilation under Clang 22.1.3.
@@ -6030,48 +6354,57 @@
 - **価値または懸念:** A complete file-based PCM map does not prove its serialized dependency state matches current source paths. When a module provider was renamed, refresh the provider and its migrated prerequisites before attributing downstream failures to the consumer source.
 - **次に確認すべきこと:** For broader validation, regenerate dyndep maps from fresh DDIs in a clean build tree, then compare with this targeted provider refresh workflow.
 
+
 ## 2026-10-24: Large module implementations reach Clang frontend memory ceiling
 - **関連:** `Artifact/src/Project/{ArtifactProject,ArtifactProjectImporter,ArtifactProjectManager}.cppm`、ArtifactAppRuntime、Clang 22.1.3 GNU frontend / Windows MSVC ABI、`Artifact/src/Widgets/LayerEditorContextMenu.cppm`。
 - **確認できた事実:** 3実装を一時的に `.cpp` としてfresh scanした結果、CMake configure / generateとP1689 scanは成功したが、各個別compileがAST読込約2.1GB（診断上99%）でfrontend crashしobjectを生成できなかった。3ファイルとmanifestは `.cppm` に復元した。 LayerEditorContextMenuも一時 `.cpp` としてfresh P1689 scan後にobject compileを試したが、同じくAST読込約2.13GB（99%）でfrontend crashしたためmanifestとsource pathを `.cppm` に戻した。実装には `Memory.SharedPtr` の直接importを追加したが、crash前にこの修正を含むcompile成立は確認できていない。
 - **価値または懸念:** source scanの成立だけでは実用的なcompile互換性を示せない。Projectの大きいmodule dependency closureがfrontend memoryを消費している可能性があるが、正確な原因は未確定。
 - **次に確認すべきこと:** Project importer / managerのimport閉包とPCM再利用を調べ、小さな依存単位または修正版Clangで再評価する。
 
+
 ## 2026-10-24: VST module implementations expose a missing direct String import under Clang
 - **関連:** `Artifact/src/VST/VSTHost.cpp`、`Core.ArtifactString`、Clang 22.1.3 / Windows MSVC ABI。
 - **確認できた事実:** `VSTHost.cpp` が `ArtifactCore::String` を使う一方で直接importしていなかったため、implementation object compileでClangが不足を報告した。実装 `.cpp` に `import Core.ArtifactString;` を追加すると fresh P1689 scanとobject compileが成功した。
 - **価値または懸念:** VST module pairでも、既存module mapにPCMが含まれているだけでは直接import要件を満たさない。所有module importを実装側に置くことでpublic interfaceを広げずに済む。
 - **次に確認すべきこと:** 他の移行sourceも実compileで不足が示された場合に限り、実装側の直接importを追加して検証する。
+
 ## 2026-10-24: Asset Browser undo helper needs its owning Project.Items module
 - **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowserUndoCommands.cpp`、`Artifact.Project.Items`、Clang 22.1.3 / Windows MSVC ABI。
 - **確認できた事実:** Undo helper implementation uses `ProjectItem*` while importing `Artifact.Project`; Clang rejected the indirect visibility and required `Artifact.Project.Items`. Adding that direct import to the implementation source allowed fresh P1689 scan and object compilation to succeed.
 - **価値または懸念:** Project type ownership remains clear when implementation imports the module that declares the type; this avoids widening the widget interface.
 - **次に確認すべきこと:** Add direct imports only when the compiler identifies a missing owning module, then verify no cycle and recompile.
+
 ## 2026-10-24: Color Science Panel compile is gated by a separate interface error
 - **関連:** `Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`、`Artifact/include/Widgets/Render/Artifact3DGizmo.ixx`、Clang 22.1.3 / Windows MSVC ABI。
 - **確認できた事実:** Science Panelを一時的に `.cpp` としてfresh P1689 scanしたが、implementation objectに必要な `Artifact.Widgets.CompositionEditor.pcm` が欠けていた。依存PCM生成のため既存interfaceを個別compileしたところ、`Artifact3DGizmo.ixx` のline 70でnested `export` declaration errorが発生し、その上流PCM chainを揃えられなかった。Panelは `.cppm` とsource manifest entryへ戻した。
 - **価値または懸念:** この検証結果はScience Panel implementationのClang非互換を示すものではなく、source scanだけでmigration成功とも判断できない。依存interface側の独立したClang errorがobject-level検証を止めている。
 - **次に確認すべきこと:** `Artifact3DGizmo.ixx` のexport nestingを独立して精査し、修正後にScience Panelのmodule closureを再compileする。
+
 ## 2026-10-24: OFX module required exported forward declarations and a direct EffectContext import
 - **関連:** `Artifact/src/Effects/Ofx/ArtifactOfxHost.cpp`、`ArtifactOfxEffectImpl.cpp`、Clang 22.1.3 / Windows MSVC ABI。
 - **確認できた事実:** OFX Host compile rejected `OfxPluginDescriptor` and `ArtifactOfxHost` because non-exported forward declarations preceded exported definitions in the same module. Marking those forward declarations `export` made the host implementation compile. EffectImpl then required a direct import of the owning module `Artifact.Effect.Context` for `EffectContext`; adding it to the implementation allowed fresh scan and compile.
 - **価値または懸念:** Module implementation migration can expose declaration linkage inconsistencies and transitive type visibility hidden by existing build state. Both fixes are confined to the OFX module sources.
 - **次に確認すべきこと:** Continue verifying exported declaration consistency and direct owning-module imports through fresh scan and individual object compilation.
+
 ## 2026-10-24: Clang implementations need direct owners and current provider PCMs
 - **関連:** `Artifact/src/Tool/{ArtifactCameraTrackerTool,ArtifactPointTrackerTool}.cpp`、`Artifact/src/Widgets/LayerEditorShapeInputController.cpp`、`LayerEditorShapeHoverController.cpp`、`LayerEditorShapePressInteractionController.cpp`、`LayerEditorShapeCommands.cpp`、`LayerEditorShapeEditSession.cpp`、`LayerEditorShapeParameterController.cpp`、`Tracking.CameraTracker`、`Artifact.Layer.InitParams`、`Memory.SharedPtr`、`Artifact/src/Widgets/LayerEditorShapeOverlay.cpp`。
 - **確認できた事実:** CameraTracker implementationが `ArtifactLayerInitParams` を間接可視のまま使っていたためClangが `Artifact.Layer.InitParams` を要求した。PointTrackerでは `makeShared` の所有元 `Memory.SharedPtr` が不足していた。両implementationへの直接import追加でfresh scan / object compileが成功した。また古いArtifactCore CameraTracker PCMは削除済み `.cppm` sourceを参照していたため、ArtifactCoreの現在の `.cpp` sourceをbuild tree内で個別scan / compileしPCMを更新してから利用した。ArtifactCoreソースは変更していない。LayerEditorShapeInputControllerでも `ArtifactCore::dynamicPointerCast` の所有元 `Memory.SharedPtr` を直接importしておらず、implementationへのimport追加後にfresh scan / compileが成功した。 ShapeCommands、ShapeEditSession、ShapeParameterControllerでも `ArtifactCore::SharedPtr` / `dynamicPointerCast` の所有元 `Memory.SharedPtr` を実装からimportしておらず、直接importを足した後にそれぞれfresh scan / compileが通った。 続くLayer Editor hover / press interaction群では、ShapeHoverControllerに `Memory.SharedPtr` の直接import、ShapePressInteractionControllerにglobal module fragment側の `#include <QPointF>` が必要とClangが指摘し、追加後にfresh scan / compileが成功した。 ShapeOverlayでは `ArtifactCore::Collider2DShape` のowner `Physics.Collider2DEdit` をimportしておらず、implementationに直接importを追加してfresh scan / compileが成功した。
 - **価値または懸念:** module-mapの古さとClangのsource import不足は別の問題であり、どちらも個別に解消してからcompile結果を判断する必要がある。
 - **次に確認すべきこと:** 同様のmissing source pathでは所有sourceの現在pathとtargetを照合してPCMをbuild tree内で更新し、missing declarationは直接importで明示する。
 
+
 ## 2026-10-24: Playback ControlWidget verification reaches Application Manager memory ceiling
 - **関連:** `Artifact/src/Widgets/Control/ArtifactPlaybackControlWidget.cppm`、`Artifact/include/Application/ArtifactApplicationManager.ixx`、Clang 22.1.3 / Windows MSVC ABI。
 - **確認できた事実:** Playback ControlWidgetのsourceを一時 `.cpp` としてfresh scanできたが、個別compileに必要な `Artifact.Application.Manager.pcm` を作るためApplicationManager interfaceを個別compileした際、Clang frontendはAST約2.15GB（診断上99%）でcrashした。ControlWidgetは `.cppm` とmanifest entryへ戻した。Playback Engine implementation単体は別途 `.cpp` 化後にfresh scan / object compileに成功している。
 - **価値または懸念:** UI implementation sourceのcompile可否は、依存interface自身のfrontend memory上限に制約される場合がある。今回ControlWidget本文はcompile到達前で、Clang互換性を判定できていない。
 - **次に確認すべきこと:** Application Managerのmodule closure / memory負荷を独立に分割評価し、必要PCMが揃う条件を確認後に再試行する。
+
 ## 2026-10-24: Artifact primary module interfaces must stay `.cppm` under the current source classifier
 - **関連:** `Artifact/src/Widgets/ArtifactProjectResponsiveLayout.cppm`、`ArtifactProjectItemPresentation.cppm`、`Artifact/cmake/ArtifactSources.cmake`。
 - **確認できた事実:** 2 sourceは `export module ...;` を宣言し、対応する別 `.ixx` interfaceを持たないprimary module interfaceだった。Artifactの現在のCMake source分類は `.cppm` を内容走査してinterface / implementationを判別する一方、`.cpp` はimplementationとして扱う。拡張子変更とmanifest更新だけではinterfaceを維持できないため、両sourceをコンパイル前に元の `.cppm` pathへ戻し、CMakeを再生成した。
 - **価値または懸念:** `.cppm` → `.cpp` の候補はファイル名やtarget登録だけでなく、module declarationとinterface ownershipで判定する。`export module` を持つsourceを現在の規則下で単純移動するとimporter向けinterfaceを失わせる可能性がある。
 - **次に確認すべきこと:** 各候補のsource declarationが `module X;` のimplementation unitで、public interfaceが別に登録されていることを確認してから移行する。
+
 
 ## 2026-10-24: Ninja object target can expand into a large stale module dependency graph
 - **関連:** `Artifact/src/Widgets/LayerEditorInteractionStateController.cpp`、`out/build/x64-Debug-ClangXX-MsvcAbi`、Ninja / Clang modules。
@@ -6079,11 +6412,13 @@
 - **価値または懸念:** object path指定だけではmodule provider群や外部targetの再buildを避けられない場合がある。依存PCMが揃っているかを確認せずにNinja target buildを行うと、意図した単体検証を超える大きな再buildが始まる。
 - **次に確認すべきこと:** 既存build treeで対象module providersのPCMとmodmapを確認し、必要依存を限定してからobject compileする。全target buildを単体compileの代わりに使わない。
 
+
 ## 2026-10-24: Qt pointer forward declarations belong to the global module fragment
 - **関連:** `Artifact/include/Widgets/ArtifactObjectPickerDialog.ixx`、`Artifact/src/Widgets/ArtifactObjectPickerDialog.cpp`、Clang 22.1.3。
 - **確認できた事実:** Clangでinterface compileした際、`QDialog` headerがglobal moduleに宣言済みの `QPushButton` をmodule purviewでも再宣言しておりエラーになった。またmodule purviewの `QTreeWidget` / `QLineEdit` forward declarationsは、implementation global module fragmentのQt headersが定義する型と同一視されず、implementationのメンバーアクセスがincomplete typeで失敗した。重複 `QPushButton` 宣言を除き、pointer-only forward declarationsをglobal module fragmentへ移した後にinterface PCMとimplementation objectがcompile成功した。
 - **価値または懸念:** public module interfaceでのみポインタ保持するQt型は、module purviewで独自宣言せずglobal module fragmentの宣言を共有すると、implementation側の直接Qt includeと同じ型宣言に揃う。
 - **次に確認すべきこと:** 他のpublic `.ixx` にmodule purview内のQt forward declarationsがあれば、該当型がmodule境界を越えてimplementationで使われる場合にClangで確認する。
+
 
 ## 2026-10-24: AnimationTimeline implementation Clang crash identifies an unresolved PCM/source-location failure
 - **関連:** `Artifact/src/Widgets/ArtifactAnimationTimelineWidget.cppm`、Clang 22.1.3、`out/build/x64-Debug-ClangXX-MsvcAbi`。
@@ -6091,11 +6426,13 @@
 - **価値または懸念:** PCMファイルが存在することだけではClang frontendが正常に読み込める保証にならない。sourceのcompile診断や拡張子起因と断定せず、imported PCMの個別整合性を分けて調査する必要がある。
 - **次に確認すべきこと:** import closureを限定し、AnimationTimelineが読むPCMを個別再生成 / 読み込み検証してから、Clang compileを再試行する。
 
+
 ## 2026-10-24: Clang module interface PCM size varies substantially by UI surface
 - **関連:** `Artifact/include/Widgets/ArtifactUndoHistoryWidget.ixx`、`Artifact.Widgets.UndoHistoryWidget.pcm`、Clang 22.1.3。
 - **確認できた事実:** interfaceの個別compileは成功し、Clang build treeに生成されたPCMは86,293,516 bytesだった。対応するimplementation objectもcompile成功した。
 - **価値または懸念:** source行数からmodule PCM容量を推測できない。Clang build容量を整理するときは一部の小sourceだけで全モジュールのPCM規模を代表させない。
 - **次に確認すべきこと:** build tree容量を整理する場合、対象構成を特定した上でPCM / object / dependency cacheの実サイズを区別して集計する。
+
 
 ## 2026-10-24: Project Manager interface PCM compile has a high Clang memory peak
 - **関連:** `Artifact/include/Project/ArtifactProjectManager.ixx`、`Artifact.Project.Manager.pcm`、Clang 23.1.4 / Windows MSVC ABI。
@@ -6103,17 +6440,20 @@
 - **価値または懸念:** 依存interfaceが存在しない場合の単体検証は、少数の対象sourceだけでも大きなRAMを要することがある。作業機全体の空きメモリを見ずに続けると、周辺プロセスまでメモリ圧迫を受ける。
 - **次に確認すべきこと:** 大きなUI interfaceのPCMが欠落した場合は、先にメモリ上限と空きRAMを確認し、既存PCMを再利用できる候補を優先する。
 
+
 ## 2026-10-24: ProjectImporter implementation hits Clang's AST source-location limit
 - **関連:** `Artifact/src/Project/ArtifactProjectImporter.cppm`、Clang 23.1.4 / Windows MSVC ABI。
 - **確認できた事実:** sourceを一時 `.cpp` に移した後、fresh P1689 scanは成功したが、implementation compileがAST file読み込み時に約2.13 GiB（診断上99%）でfrontend crash / exit 70した。extensionとmanifest entryは `.cppm` へ戻した。失敗はimplementationのsource diagnosticではなく、個別compile・リンク・runtimeには到達していない。
 - **価値または懸念:** ProjectImporterの現状module closureはClang 23のAST source-location容量上限に達し、拡張子移行の検証が成立しない。問題PCMや依存を絞らず再試行しても同じ失敗を繰り返す可能性が高い。
 - **次に確認すべきこと:** ASTを膨らませているPCM依存を個別に調べ、import closureまたはmodule partitioningを見直せる根拠が得られるまで `.cppm` のままにする。
 
+
 ## 2026-10-24: Inspector effect catalog leaves a stage enumerator unhandled
 - **関連:** `Artifact/src/Widgets/InspectorEffectCatalog.cpp`、`ArtifactEffectStage`。
 - **確認できた事実:** Clang 23.1.4でInspectorEffectCatalog implementationを個別compileした際、`switch (stage)` に `ArtifactEffectStage::PreProcess` caseがないという `-Wswitch` warningが出た。拡張子移行ではこのコードを変更しておらず、warningが実行時の欠落動作に結び付くかは未検証。
 - **価値または懸念:** effect stage一覧とcatalogの分類がずれている可能性を確認できる。安易にcaseを追加するとUI分類を変えるため、現状の責務・表示方針を調べず修正しない。
 - **次に確認すべきこと:** `ArtifactEffectStage::PreProcess` の利用元とInspectorのstage表示要件を確認し、意図的な除外か欠落かを判定する。
+
 
 ## 2026-10-24: UI source migrations need per-source validation and provider ordering
 
@@ -6122,60 +6462,70 @@
 - **価値または懸念:** UI近接機能を一群として監査しても、成立性はsource単位で異なる。consumerのrequiresにproviderが現れる場合、provider PCMを個別に先行生成すると不足依存を特定して段階検証できる。crashした候補は成功群に含めず `.cppm` に戻す。
 - **次に確認すべきこと:** 各public interfaceと直接module importを確認し、依存PCMが欠ける候補はproviderを含む個別評価に回す。Camera crashの原因は未特定のため、原因調査なしに再試行を繰り返さない。
 
+
 ## 2026-10-24: Qt event types used by module implementations need direct global-fragment includes
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactLayerEditorPanel.cpp`、`Artifact/include/Widgets/Render/ArtifactLayerEditorPanel.ixx`、`Artifact/src/Widgets/StyleSurface.cpp`、Clang 23.1.4 / Windows MSVC ABI。
 - **確認できた事実:** ArtifactLayerEditorPanel implementationでは`QCloseEvent*`、StyleSurface implementationでは`QPaintEvent*`を使っていたが、各sourceのglobal module fragmentに該当headerがなく、Clang compileがunknown typeで失敗した。それぞれglobal module fragmentへ`#include <QCloseEvent>` / `#include <QPaintEvent>`を追加した後、fresh P1689 scanとimplementation compileが成功した。
 - **価値または懸念:** Qtイベント型は他Qt headers経由で見えていると推測せず、実装が使う型をsource側で直接includeするとClangのmodule境界で依存漏れを検出できる。追加includeはglobal module fragmentに置き、module purviewには置かない。
 - **次に確認すべきこと:** 移行候補のmodule implementationでイベント型のメンバー参照や完全型利用があれば、Clang診断に基づいて直接includeを確認する。
+
 ## 2026-10-24: Camera layer implementation has a self-contained public module boundary
 
 - **関連:** `Artifact/src/Layer/ArtifactCameraLayer.cppm` → `.cpp`、`Artifact/include/Layer/ArtifactCameraLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** CameraLayer interfaceは `Artifact.Layer.Abstract` をimportして公開APIを定義している。実装単位は同じmoduleのimplementation unitで、追加の直接CMake APP_IMPL entryはなく、source manifestにだけ登録されていた。`.cppm` を `.cpp` に変更しmanifestも同期した。ビルドは禁止されていたためコンパイルと生成後のtarget分類は未確認。
 - **価値または懸念:** 追加のpublic importやCMake pinを増やさず一実装単位ずつ拡張子移行できる候補だった。実ビルドまでは安全性が確定していない。
 - **次に確認すべきこと:** CMake configure後のsource分類とClang MSVC-ABIでのimplementation compileを確認する。
+
 ## 2026-10-24: A narrow Ninja object target can still trigger a large regenerated dependency graph
 
 - **関連:** `Artifact/src/Layer/ArtifactNLETransitionBridge.cpp`、`Artifact/cmake/ArtifactSources.cmake`、`V:\ArtifactStudioBuilds\x64-Debug-ClangXX23-MsvcAbi`
 - **確認できた事実:** CMake configure/generate succeeded after migrating the NLE bridge source path. A direct Clang 23.1.4 GNU frontend compile using the existing module map completed successfully. Running Ninja for only the bridge object then reported 6632 actions because of regenerated transitive dependencies and began OpenUSD generation/compilation; it was interrupted after roughly 112 actions to limit additional disk/build work.
 - **価値または懸念:** A one-object Ninja target is not necessarily a low-cost verification after CMake regeneration. Inspect its planned action count before executing; isolated compile with an existing module map provides narrower evidence but does not validate a fresh dependency scan or complete build-graph closure.
 - **次に確認すべきこと:** For future migrations, use fresh scan and compile-only checks where module maps exist, and inspect Ninja's dry-run/plan before starting a target that may fan out. Confirm whether regenerated dependency artifacts are expected before another broad build.
+
 ## 2026-10-24: Fresh P1689 scans can validate migrated sources without running their build closure
 
 - **関連:** `Artifact/src/Layer/ArtifactNLETransitionBridge.cpp`、`Artifact/src/Effects/ImageMorph/ImageMorphEffect.cpp`、`Artifact/src/Widgets/Coordinate/ArtifactPerformanceHUD.cpp`、`Artifact/src/Widgets/WebUI/ArtifactReportDashboard.cpp`
 - **確認できた事実:** After CMake regeneration, invoking each generated `clang-scan-deps -format=p1689` rule directly succeeded and emitted the `.cpp.obj.ddi` dependency record. The isolated implementation compile succeeded for NLETransitionBridge. The other three compile attempts stopped before Clang compilation because their module maps referenced missing interface PCM files. Running the Ninja object target expanded to 6632 actions and was interrupted after about 112 actions.
 - **価値または懸念:** Fresh dependency scanning is a useful narrow check of module source classification, while it does not prove implementation compilation. A direct object target can fan out into a much larger generated dependency graph.
 - **次に確認すべきこと:** Build only the required interface PCM/module dependencies in a bounded way before retrying the three isolated implementation compiles; inspect Ninja's planned action count first.
+
 ## 2026-10-24: Interface PCM preparation can isolate source migration, but interface cost is not predicted by import count
 
 - **関連:** `Artifact/include/Widgets/CollabPresenceWidget.ixx`、`Artifact/include/Widgets/ArtifactLooksPresetBrowser.ixx`、`Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`、`Artifact/include/Widgets/ArtifactExpressionCopilotWidget.ixx`、`Artifact/include/Widgets/Render/ArtifactPointTrackerGizmo.ixx`、`Artifact/include/Service/ArtifactAudioService.ixx`、Clang 23.1.4 / Windows MSVC ABI
 - **確認できた事実:** CollabPresenceWidget、ArtifactLooksPresetBrowser、AIChatWidget、ArtifactColorPaletteWidget、CurveEditorWidgetではinterface PCMを単独compile後、implementation fresh scan / compileまで進められた（ExpressionCopilotWidgetはinterfaceは成功したがimplementation frontendはsignal終了）。ArtifactAudioServiceはinterface importが3件でもfrontend signal終了。PointTrackerGizmoはinterface compile中にClang working setが約4.2 GiBとなり、空きメモリ約1.48 GiBで中断した。
 - **価値または懸念:** interface import数だけではPCM生成コストやimplementation compile成功を予測できない。各段階を別々に測定し、メモリ圧迫時は依存を広げず停止する必要がある。
 - **次に確認すべきこと:** interfaceのimport closureと実測memoryを候補ごとに確認し、frontend signal/crashしたsourceは原因を理解するまで拡張子を戻す。
+
 ## 2026-10-25: Point tracker gizmo migration remains unvalidated at interface boundary
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactPointTrackerGizmo.cppm` → `.cpp`、`Artifact/include/Widgets/Render/ArtifactPointTrackerGizmo.ixx`
 - **確認できた事実:** 実装単位のmodule declaration/import群を保ったまま拡張子とsource manifest entryだけを変更した。以前のClang試行はimplementationではなくinterface PCM生成中、working set約4.2 GiB・空き約1.48 GiBで中断されている。
 - **価値または懸念:** 描画用scratch bufferの挙動は変更していないが、現在の変更だけではClang source分類・compile成立性は検証されていない。
 - **次に確認すべきこと:** 利用可能なメモリに余裕がある環境でinterface PCMを作成した後、fresh scanとimplementation compileを個別に行う。ビルド実行は禁止中のため今回は実施しない。
+
 ## 2026-10-25: Render module-reference inventory has its own implementation paths
 
 - **関連:** `Artifact/cmake/ArtifactRenderModuleReferences.cmake`、`Artifact/cmake/ArtifactSources.cmake`、`Artifact/src/Render/DiligentBindlessSubmitter.cpp`
 - **確認できた事実:** Render module reference inventory records implementation paths separately from the main Artifact source manifest. The BindlessSubmitter extension migration required updating both records; its named module declaration and imports remained unchanged.
 - **価値または懸念:** Future renderer implementation migrations can leave the dependency inventory stale even when the main source list is correct. This inventory is an additional static consistency surface.
 - **次に確認すべきこと:** For each renderer migration, check both source manifest and render reference map, then use the project's reference checker when an authorized build/verification is available.
+
 ## 2026-10-25: Some registered .cppm files are ordinary C++ translation units
 
 - **関連:** `Artifact/src/Render/DiligentUploadCoordinator.cppm` → `.cpp`、`Artifact/src/Render/DiligentUploadCoordinator.hpp`、`Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** このmanifest登録sourceにはmodule declaration/importがなく、implementationは通常のC++翻訳単位だった。拡張子とsource manifestだけを変更し、upload queue / synchronization本文を保持した。
 - **価値または懸念:** `.cppm` inventoryをmodule declarationの有無で分類すると、通常sourceにmodule compiler modeを課しているケースも識別できる。GPU upload pathなので動作・性能検証は行っていない。
 - **次に確認すべきこと:** 他のmanifest登録`.cppm`も、exported interface / named module implementation / module-free translation unitに分け、分類に沿ったscan設定を確認する。
+
 ## 2026-10-25: Artifact CMakeLists was replaced by migration notes in the working tree
 
 - **関連:** root `CMakeLists.txt` (`add_subdirectory(Artifact)`), `Artifact/CMakeLists.txt`, `Artifact/cmake/ArtifactSources.cmake`, `docs/planned/MILESTONE_CPPM_IMPLEMENTATION_TO_CPP_CLANG_SCCACHE_2026-10-21.md`
 - **確認できた事実:** Artifact working-tree `CMakeLists.txt` began with Markdown and held a migration log, while the root CMake adds that directory as a subdirectory. The repository version is executable CMake and contains compiler-specific module source classification. The migration log was already preserved in the planned milestone; its one distinct manifest-comment note was semantically covered there. Restored the repository CMake script and updated 148 distinct active CMake path references to current migrated sources.
 - **価値または懸念:** With Markdown at this path, root CMake could not evaluate the Artifact subdirectory, so the Clang source scan rule was not reachable. The restored script statically identifies implementation `.cpp` module sources and enables Clang P1689 scanning; this is not proof that configure or compile succeeds.
 - **次に確認すべきこと:** Once CMake execution is explicitly authorized, configure/generate and inspect the generated scan rules for both upstream clang++ and clang-cl; no such commands were run in this change.
+
 ## 2026-10-25: Artifact `.cpp` Clang classification must include import-only consumers
 
 - **関連:** `Artifact/CMakeLists.txt` source-classification loop、`Artifact/cmake/ArtifactSources.cmake`、six import-only sources in `Artifact/src`
@@ -6183,22 +6533,26 @@
 - **価値または懸念:** These translation units need dependency scanning despite not defining a named module. The classifier now includes either named module declarations or import declarations; CMake configure and generated scan rules are unverified.
 - **次に確認すべきこと:** With explicit authorization, configure under GNU-style Clang and clang-cl and inspect generated scan rules for all six import-only sources.
 
+
 ## 2026-10-25: Extension migrations must normalize inherited CRLF
 - **Related:** `Artifact/src/Layer/ArtifactAbstractLayerLayoutRouting.cppm` → `.cpp` and `Artifact/cmake/ArtifactSources.cmake`
 - **Confirmed fact:** The migrated source retained CRLF when its text was copied to the new `.cpp`; a follow-up check detected and normalized it to LF. The module declaration and source manifest path were otherwise preserved.
 - **Value or concern:** A text-preserving rename alone does not guarantee the repository's LF rule when a source has pre-existing CRLF. Each migration should explicitly normalize and verify line endings.
 - **Next check:** Keep the CRLF scan in the static migration checklist; Clang scanning and compilation remain unverified.
+
 ## 2026-10-25: Clang scan classification must include direct-target module implementations
 - **Related:** `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`, its private runtime targets in `Artifact/CMakeLists.txt`, and the Clang source-classification loop
 - **Confirmed fact:** `ArtifactTextGlyphSubmitter.cppm` was added directly with `target_sources()` rather than through `ArtifactSources.cmake` or an `_IMPL` variable, so the generic Clang scan loop did not include it.
 - **Value or concern:** Migrating this implementation to `.cpp` requires an explicit classifier entry; otherwise Clang may compile the import without the intended CMake P1689 scan/dependency ordering.
 - **Next check:** When CMake execution is authorized, verify both private targets receive module dependency scans under GNU-style Clang and clang-cl.
+
 ## 2026-10-25: Source-tree `.cppm` inventory includes unregistered implementation files
 - **Related:** `Artifact/src/Color/ArtifactColorWheels.cppm`, `Effect/ArtifactStabilizer.cppm`, `Preview/ArtifactTimelineClock.cppm`, `Render/ArtifactTextRenderTarget.cppm`
 - **Confirmed fact:** Static source-tree inventory found these four named implementation units without entries in `Artifact/cmake/ArtifactSources.cmake` or references in `Artifact/CMakeLists.txt` / `Artifact/cmake/*.cmake`. `ArtifactTextRenderTarget.ixx` has inline method definitions, and its dedicated excluded runtime target intentionally registers only the interface; adding its `.cppm` could create duplicate definitions.
 - **Value or concern:** Three files have no import sites or target registration; the TextRenderTarget source duplicates inline interface definitions. Renaming alone does not improve a compiled target, and registering them may change build scope or violate ODR.
 - **Follow-up evidence:** Recent history shows `ArtifactStabilizer.cppm` was changed on 2026-10-10. The Command Palette was separately found behind `ARTIFACT_FEATURE_COMMAND_PALETTE`; its interface and implementation are now conditionally registered, and the option macro reaches `ArtifactAppRuntime`.
 - **Next check:** Inspect module import sites and feature-specific target ownership for the three remaining unreferenced files to determine whether they are intentionally dormant, superseded, or missing an intended target registration.
+
 ## 2026-10-25: ArtifactWidgets still compiles unregistered `.cppm` files through its source glob
 - **Related:** `ArtifactWidgets/CMakeLists.txt`, `src/Render/BackendSettingWidget.cppm`, `src/Common/AbstractWidget.cppm`, `src/Knob/KnobEditorWidget/KnobEditorWidget.cppm`, `src/Graphics/NodeWireGraphicItem.cppm`
 - **Confirmed fact:** Unlike ArtifactCore's explicit source manifest, ArtifactWidgets uses `file(GLOB_RECURSE)` over `.cppm`; these four files had no literal CMake path references but were added to `WIDGETS_IMPL` through the glob. Their contents have no module declarations or imports.
@@ -6208,62 +6562,74 @@
 - **確認できた事実:** 現在の静的分類では Artifact の `.cppm` 47件のうち45件が `export module` の interface、残る2件は凍結対象。登録済み実装 `ArtifactAbstractLayerUtilities` と `ArtifactCompositionHostFrameSnapshot` は `.cpp` へ移行し、manifestを更新した。別途残る `ArtifactColorWheels` / `ArtifactTimelineClock` / `ArtifactStabilizer` / `ArtifactTextRenderTarget` はmanifest外であり、前3件は参照・登録なし、TextRenderTargetはinterfaceにinline定義が重複する。
 - **価値または懸念:** source-tree上の `.cppm` 件数だけを移行残件数として扱うと、interfaceや未使用sourceを誤って実装対象に含める。登録状態と宣言種別を合わせて分類する必要がある。
 - **次に確認すべきこと:** ArtifactCoreの残る凍結外 `.cppm` は同様にsource manifest、module map、CMake source propertyを照合し、Clang configure / P1689 scan / compileは実行許可後に確認する。
+
 ## 2026-10-25: Direct executable entry points with imports need explicit Clang scans
 - **関連:** `Artifact/src/AppMainEntry.cpp`, `Artifact/CMakeLists.txt`, `ArtifactPr/src/main.cpp`, `ArtifactPr/src/main_cli.cpp`, `ArtifactPr/CMakeLists.txt`
 - **確認できた事実:** Artifact main entry and ArtifactPr GUI/CLI entries import named modules but are attached directly to executable targets, outside their implementation source lists. The source classifiers therefore did not include them in their P1689 scan sets. Added these direct entries to the Clang scanning configuration without changing source behavior.
 - **価値または懸念:** A migrated implementation can have correct scan configuration while its directly attached executable consumer still lacks dependency ordering. Direct target sources need separate static inventory from source manifests.
 - **次に確認すべきこと:** When CMake execution is authorized, inspect generated P1689 rules for all three entry points and verify Ninja schedules their providers first.
+
 ## 2026-10-25: Module-aware sources may be owned outside explicit source manifests
 - **関連:** `Artifact/CMakeLists.txt`, `ArtifactCore/CMakeLists.txt`, `Artifact/cmake/ArtifactSources.cmake`, `ArtifactCore/cmake/ArtifactCoreSources.cmake`
 - **確認できた事実:** A static comparison found several module/import-aware `.cpp` files outside the primary manifests. Active examples are held by domain lists ending in `_IMPL` or `_MODULES`, while directly attached executable or smoke-target sources require explicit Clang scan classification. Other unregistered candidates have no active target reference.
 - **価値または懸念:** Manifest-only audits can misclassify active split-target sources as dormant, while direct target sources may evade generic scanner collection. Clang scan audits must compare filesystem sources, manifest lists, split target lists, and direct `target_sources()` registrations.
 - **次に確認すべきこと:** After authorized configure, inspect generated P1689 rules against the static source ownership map; do not infer scanner coverage only from manifest membership.
+
 ## 2026-10-25: Historical Clang logs must be reconciled with current source and dependency closure
 - **関連:** `ArtifactCore/src/Time/RationalTime.cpp`, `include/Utils/ExplorerUtils.ixx`, `include/Frame/FrameSkipTracker.ixx`, existing `temp/*clang*.log`
 - **確認できた事実:** Old diagnostics reported RationalTime being parsed as a module interface, nested exports in two interfaces, and a missing GPUCapabilities IFC. The current RationalTime source is `.cpp` with `module Time.Rational;`, the two interfaces no longer contain nested export declarations, and the IFC error came from an isolated compile log whose provider was not part of that command.
 - **価値または懸念:** Historical log errors can identify useful failure modes but do not establish current Clang status after migration or after dependency-isolated experiments. Tie each diagnostic to the current source revision and actual provider set before changing code.
 - **次に確認すべきこと:** Use authorized GNU Clang and clang-cl configure/scan/compile outputs for current status; keep isolated missing-provider diagnostics separate from source failures.
+
 ## 2026-10-25: Clang scan classification order is part of CMake behavior
 - **関連:** `Artifact/CMakeLists.txt`、`ArtifactCore/CMakeLists.txt`、`ArtifactWidgets/CMakeLists.txt`、`ArtifactPr/CMakeLists.txt`
 - **確認できた事実:** Artifact と ArtifactCore は複数の MSVC 向け `CXX_SCAN_FOR_MODULES OFF` / manual IFC property blocksを先に設定し、ファイル末尾のClang分類で通常のimplementation scanを再設定している。FileInfoはpartition例外としてscan disabledと明示PCM参照を維持する。ArtifactWidgetsとArtifactPrはtarget source登録前にClang scan propertyを設定する。
 - **価値または懸念:** 新しいsource-local `OFF` をClang分類より後へ追加すると、ClangのP1689依存順序を静かに無効化する可能性がある。反対にFileInfoのような例外は最終分類から明示して除外する必要がある。
 - **次に確認すべきこと:** CMake configure後のsource-specific scan rulesとcompile commandsをGNU Clang / clang-cl双方で比較する。現状は静的確認のみで生成結果は未検証。
+
 ## 2026-10-25: Artifact render module reference map had a stale submitter name
 - **関連:** `Artifact/cmake/ArtifactRenderModuleReferences.cmake`, `Artifact/src/Render/Artifact3DPrimitiveSubmitter.cpp`, `Artifact/include/Render/Artifact3DPrimitiveSubmitter.ixx`
 - **確認できた事実:** The implementation and exported interface both declare `Artifact.Render.ThreeDPrimitiveSubmitter.Contract`, while the explicit reference table had omitted `.Contract`. The table is included from `Artifact/CMakeLists.txt`; a static search found no consumer of the table variable.
 - **価値または懸念:** Keeping the reference metadata aligned avoids future source-map tooling or CMake consumers resolving the implementation against the wrong module name. Current Clang build behavior is not known to depend on this table.
 - **次に確認すべきこと:** If the render module-reference table becomes active in source classification or BMI wiring, validate its rows against actual declarations during an authorized CMake configure/scan.
+
 ## 2026-10-25: Active implementation migration inventory is exhausted
 - **関連:** `Artifact`, `ArtifactCore`, `ArtifactWidgets`, `ArtifactPr` の `.cppm` inventory、Artifact Clang source classifier、各 repository の CMake source manifests
 - **確認できた事実:** Static inventory found no active in-scope implementation unit remaining to migrate from `.cppm` to `.cpp`. Module-aware `.cpp` files outside the central Artifact source manifest were reconciled with split-target `_IMPL` lists or the explicit Clang scan list. The Artifact render module-reference table has 17 rows with existing files and matching source/interface module declarations.
 - **価値または懸念:** Source extension migration and scanner registration have reached the point where the remaining confidence gap is compiler-generated P1689 rules and actual Clang compilation, which source inspection cannot prove.
 - **次に確認すべきこと:** After CMake/build execution is authorized, validate both upstream Clang and clang-cl from fresh generated trees, inspect module scan outputs and compile commands, then address only current reproducible diagnostics.
+
 ## 2026-10-25: Existing Clang Ninja tree predates current Artifact CMake changes
 - **関連:** `out/build/x64-Debug-ClangXX-MsvcAbi/build.ninja`, `Artifact/CMakeLists.txt`, `Artifact/cmake/ArtifactSources.cmake`
 - **確認できた事実:** The old generated Ninja file was timestamped 2026-10-24 04:28 and lacked the newly registered preview helper rules. Current GNU-style Clang and clang-cl trees have since been reconfigured with CMake 4.4.4; their fresh rules include the six preview implementation sources, and P1689 scans pass for all six in both frontends. Direct compilation still requires current module BMIs; old PCMs report stale/out-of-date or missing transitive modules.
 - **価値または懸念:** Generated source classification and scan coverage are now confirmed, while compile/link coverage remains open until the module dependency graph can rebuild without triggering the entire 7,737-action target graph.
 - **次に確認すべきこと:** Identify a bounded way to regenerate the preview module BMI dependency closure and compile/link these sources on both Clang frontends.
+
 ## 2026-10-25: Workspace-root `.cppm` search includes a separate review checkout and scratch files
 - **関連:** `Artifact_dev_review` worktree (`codex/review-artifact-fixes`)、root `temp*.cppm` files、active project CMake manifests
 - **確認できた事実:** A root-wide `.cppm` search found additional files under the separate `Artifact_dev_review` git checkout and three root-level `temp*.cppm` files. The active project CMake files do not reference these paths.
 - **価値または懸念:** Counting every filesystem hit as an active migration candidate would mix a separate review branch and scratch artifacts into the current project scope.
 - **次に確認すべきこと:** Keep future migration inventories rooted in active project source manifests and distinguish other worktrees or scratch files from configured build sources.
+
 ## 2026-10-25: Unregistered Artifact `.cppm` files are not implementation migration candidates
 - **関連:** `Artifact/src/Test/ArtifactTestRenderQueue.cppm`, `Artifact/composition_codex_original.cppm`, Artifact CMake source manifests
 - **確認できた事実:** These are the two Artifact `.cppm` files absent from active CMake references. `ArtifactTestRenderQueue.cppm` declares `export module Artifact.Test.RenderQueue`; `composition_codex_original.cppm` is an unregistered source snapshot.
 - **価値または懸念:** A missing CMake reference alone is insufficient to classify a `.cppm` as a module implementation; exported interfaces and source snapshots must remain distinct from active implementation units.
 - **次に確認すべきこと:** Preserve this distinction when refreshing `.cppm` inventories; migrate only files confirmed as implementation units in the active source scope.
+
 ## 2026-10-25: Rename audit caught line-ending drift and mojibake
 - **関連:** 682 `.cppm` → `.cpp` sibling pairs across `Artifact`, `ArtifactCore`, `ArtifactWidgets`, and `ArtifactPr`; `ArtifactCore/src/ImageProcessing/Halide/Glow.cpp`
 - **確認できた事実:** Byte comparison against HEAD found 645 pairs identical after line-ending/final-LF normalization. The other 37 pairs contain 26 direct include/import or narrow API-name corrections and 11 BOM/blank-line changes; all 16 added imports have an in-scope exported provider. Three Japanese comment lines in `Glow.cpp` had been re-encoded with replacement characters and were restored byte-for-byte. Migration had also introduced CRLF in 53 files and omitted final LF in 29; all migrated `.cpp` files now use LF and end with LF. No migration-introduced U+FFFD remains.
 - **価値または懸念:** Extension migration needs a byte-level pass because PowerShell/encoding transformations can silently alter comments and line endings even when module declarations and behavior are intended to stay unchanged.
 - **次に確認すべきこと:** Configure and P1689 scanning are now confirmed for both Clang frontends. Continue with current BMI regeneration, object compilation, and link validation.
 
+
 ## 2026-10-25: clang-cl module flags must stay separate from frontend compatibility flags
 - **関連:** `CMakeLists.txt`, `ArtifactCore/CMakeLists.txt`, `ArtifactWidgets/CMakeLists.txt`, `Artifact/CMakeLists.txt`
 - **確認できた事実:** clang-cl identifies as Clang with the MSVC frontend, so `ARTIFACT_FRONTEND_MSVC` is true while `ARTIFACT_COMPILER_MSVC_CL` is false. A fresh CMake 4.4.4 configure generated clang-cl commands with `-std=c++23`; after gating `/std:c++latest` and `/experimental:module` on actual MSVC, these switches are absent from the generated CoreAudio compile command.
 - **価値または懸念:** Frontend compatibility does not imply MSVC module flags are valid for clang-cl; keeping these controls separate avoids unused-option diagnostics without changing C++ standard selection or Clang module scanning.
 - **次に確認すべきこと:** Compile the representative CoreAudio/Core implementation targets and inspect diagnostics, then continue a full clang-cl build to expose source-level compatibility issues.
+
 ## 2026-10-25: Preview pipeline module import size exceeded Clang source-location capacity
 - **関連:** `Artifact/src/Preview/ArtifactPreviewCompositionPipeline.cpp`, its layer draw branches, and Artifact source manifest
 - **確認できた事実:** A GNU-style Clang 22.1.3 build failed repeatedly while importing the pipeline's large set of layer PCMs with `malformed or corrupted precompiled file: ran out of source locations`. Incremental direct probes showed that the module primary interface and five imports fit, while adding another large layer PCM crossed the limit. Each of the layer modules also compiled alone with the module interface.
@@ -6271,6 +6637,7 @@
 - **価値または懸念:** Moving Clone access out of the dispatcher reduces its direct dependency set and keeps rendering behavior in the same named module. The added Clone dependency now belongs to `ArtifactPreviewOtherLayers.cpp`; P1689 ordering, cross-TU linkage, Clang source-location usage, and final target linkage remain unverified.
 - **確認できた事実:** The six current implementation units passed GNU-style Clang and clang-cl 22.1.3 P1689 scans after fresh CMake generation. An anonymous-namespace mismatch in pipeline forward declarations was caught by symbol inspection and corrected. A partial `lld-link /force:unresolved` probe showed no unresolved `tryDraw*Preview` helper symbols, but did not prove full module or application linkage. A direct compile against old PCMs failed because the primary module's transitive imports were missing and several referenced module PCMs were out of date. Invoking Ninja for one object expanded to 7,737 actions, so the run was interrupted after 113 actions.
 - **次に確認すべきこと:** Regenerate module scans after the overlay move, compile the pipeline and OtherLayers objects under GNU Clang and clang-cl, then validate the six-unit helper linkage and full ArtifactAppRuntime target.
+
 ## 2026-10-25: Clang production compile is exposing module ownership and import-boundary errors
 - **関連:** `Artifact/include/Widgets/Dialog/ApplicationSettingDialog.ixx`, `Artifact/src/Tool/AIDSL/`, `Artifact/src/Layer/ArtifactAbstractLayerRuntimeSnapshot.cpp`, and directly imported module/header dependencies
 - **確認できた事実:** Current Clang compilation reported a module-purview redeclaration of Qt's `QEvent`, nested `export` declarations inside exported namespaces, AIDSL member definitions attached to `AIToolDSL.Parser` although declared in `AIToolDSL.Types`, and member definitions of `ArtifactAbstractLayer` emitted from the global module. The corresponding narrow fixes have been applied; the current incremental target compiled `ArtifactAbstractLayerRuntimeSnapshot.cpp` after making it an implementation unit of `Artifact.Layer.Abstract`.
@@ -6278,11 +6645,13 @@
 - **価値または懸念:** Correcting ownership at the source boundary improves portability while keeping interface dependencies narrow. The complete GNU Clang target and clang-cl production compilation remain unverified.
 - **次に確認すべきこと:** Continue the current GNU Clang application build and address subsequent concrete diagnostics; then perform a full clang-cl production build and inspect final link results.
 
+
 ## 2026-10-25: Clang source-location limits can be reduced by splitting independent service access
 - **関連:** `ArtifactRenderMenu.cpp`, `ArtifactRenderMenuQueueSupport.cpp`, `ArtifactRenderMenuProjectAccess.cpp`, `ArtifactCompositionViewerFooter.cpp`, `ArtifactRenderQueueService.ixx`, `ArtifactApplicationManager.cpp`
 - **確認できた事実:** GNU Clang 22.1.3 exceeded its source-location capacity when Render Menu combined Project/Composition and Render Queue imports. Separating Project access from queue access allowed the three Render Menu objects to compile. Separating Project and Playback reads likewise allowed the Composition Footer objects to compile. Removing declaration-irrelevant implementation headers from `ArtifactRenderQueueService.ixx` also reduced its interface surface. `ArtifactApplicationManager.cpp` still exceeded the limit after removing the project-service import because the remaining manager imports cumulatively consumed too many source locations. A first same-module accessor split also exposed a Clang ownership ambiguity between the AppManager purview forward declaration and the imported service type. The verified solution is an import-light `Artifact.Application.Manager.Access` interface plus separate implementation TUs, each importing one concrete manager module; the AppManager PImpl stores opaque raw access handles with explicit destroy functions. GNU Clang 22.1.3 compiled all 12 access TUs and `ArtifactApplicationManager.cpp`. The full application target and final link remain unverified.
 - **価値または懸念:** Splitting an implementation along independent dependency sets can keep Clang module imports below the per-translation-unit source-location ceiling without changing behavior. The opaque access boundary keeps module-owned public types in their existing interface while limiting each helper implementation TU to a narrow manager import. Full application linkage remains a required follow-up.
 - **次に確認すべきこと:** Build and link the complete `ArtifactAppRuntime` target, then repeat the focused support-source validation with clang-cl once CMake 4.4 or newer is available.
+
 
 ## 2026-10-25: Audio mini widget has a Project/Audio import-pair Clang failure
 - **関連:** `Artifact/src/Widgets/ArtifactAudioMiniWidget.cpp`, `Artifact.Service.Project`, `Artifact.Composition.Abstract`, and `Artifact.Layer.Audio`
@@ -6292,11 +6661,13 @@
 - **価値または懸念:** Keeping the owner alive preserves marker editing while separating the failing Project/Audio import pair. A direct compile of the preceding source revision stopped on the `Utils.Id` ownership diagnostic before validating the helper split; whether that diagnosis came from the missing implementation-side direct import or another PCM ownership issue remains unverified. P1689 ordering and cross-TU linkage are also unverified.
 - **次に確認すべきこと:** Regenerate the module dependency closure when CMake execution is authorized, then validate the direct `Utils.Id` import, both helper P1689 scans, GNU Clang and clang-cl object compilation, and the containing target link.
 
+
 ## 2026-10-25: Preview implementation units should import LayerID ownership directly
 - **関連:** `Artifact/src/Preview/ArtifactPreviewCompositionPipeline.cpp`, `ArtifactPreviewSolidLayers.cpp`, `ArtifactPreviewRasterLayers.cpp`, `ArtifactPreviewVideoLayer.cpp`
 - **確認できた事実:** These four existing implementation units spell `ArtifactCore::LayerID` directly and now import `Utils.Id`; previously their module interface imports provided the type transitively. No Clang P1689 scan or compile was run after this source change.
 - **価値または懸念:** An explicit owning-module dependency can make Clang module attachment more predictable, while still leaving the reported ownership/source-location failure unresolved until compiler evidence exists.
 - **次に確認すべきこと:** After build/CMake execution is authorized, regenerate the relevant module dependency closure and check these four units with GNU-style Clang and clang-cl.
+
 
 ## 2026-10-25: Literal-path scans can miss dynamically registered module sources
 - **関連:** `Artifact/src/Color/ArtifactColorWheels.cpp`, `Artifact/src/Effect/ArtifactStabilizer.cpp`, `Artifact/src/Effects/ImageMorph/ImageMorphEffect.cpp`, `Artifact/src/Preview/ArtifactTimelineClock.cpp`, `Artifact/src/Render/ArtifactTextRenderTarget.cpp`
@@ -6305,6 +6676,7 @@
 - **価値または懸念:** Filename-only scans produce false positives when CMake constructs paths from variables. Registering candidate files without tracing their target and interface could expand the build or duplicate definitions.
 - **次に確認すべきこと:** When configure/build execution is authorized, compare the four candidates with generated target membership and module dependency data before changing any registration.
 
+
 ## 2026-10-25: Spatial parameter sanitizer omits the distance model enum
 - **関連:** `ArtifactCore/include/Audio/Spatial/SpatialParams.ixx`, `tests/ArtifactCore/AudioSpatialParamsStandaloneTest.cpp`
 - **確認できた事実:** `sanitizedSpatialParams()` validates `outputLayout` and `renderMode`, but does not validate `DistanceModel`. `distanceAttenuation()` has a default return path for unknown model values.
@@ -6312,11 +6684,13 @@
 - **価値または懸念:** Consistent enum validation would avoid silently accepting invalid spatial attenuation configuration. Changing the sanitizer belongs to a later implementation decision; this test-only task leaves ArtifactCore unchanged.
 - **次に確認すべきこと:** Confirm expected invalid-model fallback with the audio spatial contract owner, then repair the sanitizer and run the independent suite when builds/tests are authorized.
 
+
 ## 2026-10-25: Equal-power panning mode is not wired to its gain function
 - **関連:** `ArtifactCore/src/Audio/AudioPanner.cpp`, `tests/ArtifactCore/AudioPannerStandaloneTest.cpp`
 - **確認できた事実:** `PanningMode::EqualPower` is publicly described as constant-power panning and `AudioPanner::calculateConstantPowerGains()` implements that curve. `AudioPanner::Impl::calculateGain()` currently returns unity gains for every mode except `StereoBalance`.
 - **価値または懸念:** Selecting EqualPower currently has no audible panning effect; the new standalone assertion captures the missing connection without changing the child repository.
 - **次に確認すべきこと:** Confirm whether `VBAP`, `Ambisonics`, and `Binaural` are intentionally placeholders or have separate implementation contracts before adding mode-specific expectations.
+
 
 ## 2026-10-25: Chorus LFO phase restarts at every audio segment
 - **関連:** `ArtifactCore/src/Audio/AudioChorus.cpp`, `tests/ArtifactCore/AudioChorusStandaloneTest.cpp`
@@ -6325,12 +6699,14 @@
 - **価値または懸念:** A phase restart can make modulation periodic at the host block length and create audible discontinuities or timing changes when buffer size changes.
 - **次に確認すべきこと:** Confirm the intended block-invariance contract, then repair chorus phase accumulation and verify with the independent suite when test execution is authorized.
 
+
 ## 2026-10-25: Reverb circular-buffer period depends on block length
 - **関連:** `ArtifactCore/src/Audio/AudioReverb.cpp`, `tests/ArtifactCore/AudioReverbStandaloneTest.cpp`
 - **確認できた事実:** `AudioReverb::process()` sets `needed` to `max(frames, 1225) + 64`; the comb delay reads `(idx + combDelays[c]) % needed`, while write positions advance modulo the same `needed`. The added 1500-frame whole-block versus 300-frame-block contract test is expected to detect differing delay positions because the ring modulus is 1564 versus 1289. The test has not been built or run.
 - **仮説（未検証）:** An audio segment boundary should not change the reverb time profile, so the storage period should be stable for a given instance/sample rate and delay configuration, independent of the caller's block size.
 - **価値または懸念:** The current sizing may change the effective comb tap timing with host block size, so buffer partitioning can alter the effect response.
 - **次に確認すべきこと:** Confirm the intended block-invariance contract, then redesign the reverb ring sizing/state to keep tap delays stable and verify with the independent suite when tests are authorized.
+
 
 ## 2026-10-25: Stereo tone channels start at different oscillator phases
 - **関連:** `ArtifactCore/src/Audio/AudioTone.cpp`, `tests/ArtifactCore/AudioToneStandaloneTest.cpp`
@@ -6339,12 +6715,14 @@
 - **価値または懸念:** The phase offset can cause unintended stereo movement or cancellation when the generated tone is mixed downstream.
 - **次に確認すべきこと:** Confirm the intended stereo generator behavior, then advance phase once per frame and write the same generated sample to both channels before verifying the independent suite when tests are authorized.
 
+
 ## 2026-10-25: ArtifactHashMap move-from cleanup may dereference null storage
 - **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm`, `tests/ArtifactCore/ArtifactHashMapContractTest.cpp`
 - **確認できた事実:** Move constructor and move assignment set the source `buckets_` to null but restore `bucketCount_` to `kInitialBucketCount`; `clear()` iterates `bucketCount_` and accesses `buckets_[i]`. Static inspection therefore indicates moved-from destruction or reuse may dereference null. ArtifactCore is a child repository and was not changed.
 - **仮説（未検証）:** This sequence can crash when a moved-from map is destroyed; existing move contract tests may encounter it at teardown.
 - **価値または懸念:** A moved-from container should remain safely destructible, and reusable if that is its documented contract.
 - **次に確認すべきこと:** When child-repository work is explicitly in scope, verify this behavior with a focused runtime reproducer and correct bucket storage state or clear semantics.
+
 
 
 ## 2026-10-25: ACESlog is declared but has no transfer-function dispatch
@@ -6355,6 +6733,7 @@
 - **次に確認すべきこと:** Confirm whether ACESlog should be implemented or explicitly treated as unsupported, then add a dedicated behavior contract before changing its dispatch.
 
 
+
 ## 2026-10-26: Guard Diligent BasicMath hash support at module boundaries
 - **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `libs/DiligentEngine/DiligentCore/Common/interface/BasicMath.hpp`, production smoke-render test build
 - **確認できた事実:** The `Artifact.Layer.Abstract` interface needs `Diligent::float4x4` but not Diligent hashing. Its unguarded `BasicMath.hpp` include pulled `HashUtils.hpp`, `GraphicsTypes.h`, `ThreadPool.h`, and MSVC `stop_token` into the IFC. Wrapping the include with `DILIGENT_BASICMATH_DISABLE_HASH_SUPPORT` removed those IFC dependencies and production C1116 disappeared. Adding `<TextureView.h>` makes the previously transitive `ITextureView` dependency explicit; the physics support implementation also needs `<compare>` in its own global module fragment for Qt's `QList` requirements.
@@ -6363,17 +6742,20 @@
 - **価値または懸念:** Production code compilation confirms the smoke runtime and brush wiring are type-correct in the main app target. The local QImage/OpenCV adapter must stay behaviorally aligned with the original utility formats; the current test executable cannot validate it until the existing service link closure is repaired.
 - **次に確認すべきこと:** Reconcile the actual runtime's header contract with a future upstream-compatible BasicMath hash opt-out, inspect the test target's service implementation link closure, and complete production render / GPU capture. The independent Core and production-runtime suites both pass with the deterministic stir injection contract.
 
+
 ## 2026-10-26: Smoke production capture exposed particle overlap saturation
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`
 - **確認できた事実:** The production smoke render test originally treated any nontransparent pixel as visible, which allowed an all-white saturated frame to pass. Tightening the frame-area and deterministic redraw assertions caught it. Once the production test link closure was repaired, D3D12 capture on an RTX 4070 Ti showed large overlapping particles forming an opaque mound. Reducing per-particle alpha/size and selecting Alpha blend produced a softer, smaller smoke cloud; production capture and the independent runtime suite pass. The smoke still looks stylized and needs viewport-scale review.
 - **価値または懸念:** A passing headless render test alone does not establish useful smoke appearance; inspect actual captures and assert bounded image coverage to catch saturation. Current evidence is from offscreen D3D12 capture, not the interactive app viewport or brush interaction.
 - **次に確認すべきこと:** Review the emitter controls and brush stirring in the normal application viewport, then compare preview and render-queue output. Consider a density-based soft sprite or volumetric shading path only after establishing the current particle renderer's supported appearance controls.
 
+
 ## 2026-10-26: Fluid smoke color used the wrong Qt property type
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerPhysicsRouting.cpp`, production smoke render test
 - **確認できた事実:** `component.fluid.smokeColor` is a `PropertyType::Color`, whose editor and `AbstractProperty` contract use `QColor`. Its component group and routed getter exposed `FloatColor`, while the setter expected a `FloatColor` QVariant. Setting the property from the UI therefore emitted an incompatible-value diagnostic and left the smoke color at its previous value. Aligning the group/getter to `ArtifactCore::toQColor` and converting `QColor` to `FloatColor` in the setter fixed the contract. The D3D12 production test sets a green `QColor`, asserts green-dominant output pixels, and now round-trips emitter X and smoke RGB through `toJson()` / `fromJsonProperties()` before rendering. The persistence assertions use tolerance for QColor's 8-bit channel quantization; the test passes without the prior type-rejection diagnostic.
 - **価値または懸念:** The type mismatch prevented a visible smoke control from applying despite the property being present. The same property boundary now follows the already-working liquid color pattern. Normal application UI operation remains unobserved.
 - **次に確認すべきこと:** Exercise the color picker and smoke preview in the running app, then compare the same project/frame through preview and render queue.
+
 
 ## 2026-10-26: Production brush stirring can be tested through frame replay
 - **関連:** `Artifact/src/Tool/ArtifactBrushTool.cpp`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`
@@ -6382,11 +6764,13 @@
 - **価値または懸念:** The test confirms the production Brush path on D3D12, but not the on-screen Components editor or renderer/caching parity with render queue.
 - **次に確認すべきこと:** Add an equivalent preview-versus-render-queue image comparison, and validate the UI controls in the normal application once desktop Computer Use is available.
 
+
 ## 2026-10-26: Recycle smoke particle submission storage across frames
 - **関連:** `Artifact/include/Layer/ArtifactLayerFluidRuntimeState.ixx`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `Artifact/src/Render/ArtifactIRenderer.cpp`
 - **確認できた事実:** The smoke runtime created a fresh `ParticleRenderData` vector and copied each sampled particle into it on every frame. `ArtifactIRenderer::drawParticles(ParticleRenderData&&)` already returns a recycled particle vector to the submitted object. Keeping that object in `LayerFluidRuntimeState` allows the returned capacity to persist. Sampling is bounded to at most 41×41 entries for supported grid sizes and capacity is reserved at solver initialization. Independent runtime and production D3D12 smoke/brush tests pass after this change.
 - **価値または懸念:** The steady-state draw path avoids the previous per-frame temporary vector allocation and duplicate particle copy. GPU/CPU allocation profiling has not been run, and unrelated renderer queue packet allocations remain outside this focused change.
 - **次に確認すべきこと:** Measure steady-state allocation counts through a representative interactive playback session and check preview/render-queue parity.
+
 
 ## 2026-10-26: Smoke preview parity requires a renderer-independent simulation step
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`, `Artifact/src/Render/ArtifactRenderQueueService.cpp`
@@ -6394,6 +6778,7 @@
 - **実装・確認:** `advanceLayerSmokeRuntime()` を `LayerFluidRuntimeState` に追加し、`evaluateLayerComponentSimulation()` から各レイヤーの固定frameを更新する。レイヤーが不活性またはsmoke component無効ならstateをinvalidateする。独立runtime suiteでrenderer描画前のadvanceと描画時advanceが同じPNGになることを確認し、production Vulkan smoke testも通過した。
 - **価値または懸念:** Composition evaluation、CPU surface出力、GPU direct-layer drawのsmoke表示とframe-range warmupを確認した。CPU/GPU画像のpixel完全一致およびinteractive previewとの比較はまだ実証していない。Fluid solver state自体はcomponent bakeに保存されないため、queueは既知状態から再生する方式を使う。
 - **次に確認すべきこと:** 同じcomposition/frameのinteractive GPU previewとGPU Render Queueを比較し、必要ならsolver snapshotをbakeへ含める設計を別途評価する。
+
 
 ## 2026-10-26: Smoke density must dissipate during continuous emission
 - **関連:** `ArtifactCore/include/Physics/FluidSolver2D.ixx`, `ArtifactCore/src/Physics/FluidSolver2D.cpp`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`
@@ -6403,6 +6788,7 @@
 - **価値または懸念:** Density now has a bounded lifetime, and emission amount is approximately time-scaled instead of directly tied to frame count. Test tolerances cover plume centroid and alpha mass, not pixel equality across frame rates. Production D3D12 is verified; live viewport appearance remains unobserved.
 - **次に確認すべきこと:** Review interactive viewport controls and brush stirring, compare preview to queue on the same frame, and assess plume appearance across larger compositions before exposing dissipation or sway controls.
 
+
 ## 2026-10-26: Smoke particle appearance depends on renderer scale and sample spacing
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `ArtifactCore/src/Graphics/ParticleRenderer.cpp`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`
 - **確認できた事実:** The production particle vertex shader converts `ParticleVertex::size` to a world-space radius with `size * 10`, while the standalone smoke PNG rasterizer had used `(0.5 + size * 0.3) * imageScale` and additive color accumulation. That made its screenshots far smaller and more dotted than the real renderer. The standalone rasterizer now follows the shader radius, soft-circle edge, and alpha compositing. Production smoke sprite size is derived from the screen-space sampling interval, uses a screen-aligned circular sprite, and no longer adds a second velocity rotation. A deterministic hash of each sample's `(gx, gy)` offsets sprite positions by at most 30% of the local sample interval. Particle alpha now follows `sqrt(density) * 0.15` with a 0.18 cap, lifting the low-density edge. The five runtime tests, D3D12 production capture test, and CPU/GPU Render Queue smoke comparison pass. Updated standalone and production captures show a fuller plume and less regular rows; the production image has no full-frame saturation.
@@ -6410,11 +6796,13 @@
 - **価値または懸念:** The independent R&D image now reflects the production particle size contract instead of an unrelated dot size, and stable coordinates preserve exact repeatability. The per-particle hash adds bounded arithmetic to the frame loop; performance profiling has not measured its cost. Higher alpha can thicken the plume if a composition has stronger density than the current test setup.
 - **次に確認すべきこと:** Inspect the smoke at viewport zoom levels and compare GPU preview with Render Queue. If particle texture remains too visible, prototype density interpolation within the existing renderer budget before introducing another full image-processing pass.
 
+
 ## 2026-10-26: Smoke Composition View wrapper matches direct GPU layer output
 - **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cpp`, `Artifact/src/Render/ArtifactRenderQueueService.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`
 - **確認できた事実:** The D3D12 smoke test renders one frame through `ArtifactAbstractLayer::draw()` and through `drawLayerForCompositionView()` using the same renderer, solver state, frame, transparent clear color, and output size. The images are pixel-identical. The Render Queue integration test also renders frame 24 from a separate D3D12 device through the same wrapper; its decoded 320×180 RGBA image is pixel-identical to the GPU Render Queue export.
 - **価値または懸念:** The smoke overlay wrapper preserves direct layer output and produces the same tested frame as the GPU Render Queue under the tested composition and color settings. This verifies the production drawing paths headlessly; it does not capture the running interactive viewport's final framebuffer or test mouse interaction in the real app.
 - **次に確認すべきこと:** Capture the same composition/frame from the running UI viewport to check canvas zoom, pan, and color-pipeline integration. Keep that live capture distinct from headless path parity.
+
 
 ## 2026-10-26: Smoke plume shape changes with source velocity and layer transform
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`
@@ -6422,11 +6810,13 @@
 - **価値または懸念:** Increasing sprite overlap alone hides the particle pattern by sacrificing plume detail; 0.10 is a measured modest change between the dotted 0.08 and detail-losing 0.15. Narrowing or broadening the injection radius alone also misses the target, so the current 0.05 default remains a measured midpoint. The transformed scene exaggerated the apparent curling; velocity scales plume proportions but does not change the basic silhouette.
 - **次に確認すべきこと:** Inspect density advection and particle reconstruction on the untransformed fixture; track plume bounds and alpha mass before changing production defaults. Check whether moderate vorticity values can be recommended for smoke without changing shared Fluid defaults, then inspect the result at interactive viewport scale.
 
+
 ## 2026-10-26: Jittered smoke particles should sample density at their rendered positions
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`
 - **確認できた事実:** Smoke particle positions are offset deterministically by up to 0.3 grid-sample intervals to break visible regular rows. Bilinear density and velocity sampling now use the same jittered fractional coordinate as the rendered particle. On the D3D12 upright fixture, density interpolation changed alpha>8 coverage by +1.2% and alpha sum by +1.1%; bounds stayed nearly unchanged and alpha>240 remained zero. The independent runtime suite now also asserts particle positions match the jitter coordinates and both particle density (encoded in alpha) and velocity differ from old integer-cell reads; it passes. The production D3D12 smoke test and CPU/GPU Render Queue integration test pass; queue frame 24 remains pixel-identical to the Composition View wrapper. Capture `build/smoke-runtime-rnd/production-bilinear-density-velocity/smoke_final.png` retains the green plume and curled cap. Velocity affects CPU software particle orientation; the D3D12 smoke shader uses screen-aligned sprites and does not consume it.
 - **価値または懸念:** This keeps particle attributes spatially aligned without adding particles or a blur pass. Floor stride previously made `kSmokeRenderSamplesPerAxis=40` a target rather than a cap, reaching 79×79 samples for a 79² grid and causing a sharp count change at 80². The runtime now chooses at most 40 evenly spaced samples per axis and jitters by the corresponding fractional grid spacing. At 79², reserve capacity fell 6,241→1,600, CPU preparation 387.8→99.3 µs, and velocity-free submit with the test renderer 167.5→42.9 µs. At 128², preparation fell 117.7→100.0 µs and velocity-free submit 45.1→38.7 µs. Initial production D3D12 alpha mass fell about 29% with alpha>8 area nearly unchanged. A particle alpha gain of 1.20 in the independent rasterizer raised green channel excess by 18% without saturation and barely changed coverage. Production `sqrt(density)` alpha coefficient is now 0.18 (from 0.15, existing maximum still 0.18): latest capture recovers 17.7% alpha mass versus capped 0.15, with alpha>8 area 6,969 and alpha>240 count 0. CPU/GPU Render Queue parity is being rerun after this alpha change. Timings exclude solver stepping and actual GPU upload/render.
 - **次に確認すべきこと:** Inspect the running viewport at editor zoom levels and measure full interactive frame time; the smoke remains sprite-based and its in-app appearance is not yet verified.
+
 
 ## 2026-10-25: Module IFC failures need dependency-boundary isolation before header cleanup
 - **関連:** `ArtifactCore/include/Math/Random.ixx`, `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`, smoke production-render test build
@@ -6435,12 +6825,14 @@
 - **価値または懸念:** Reproducing the failure with the real consuming module closure can identify the responsible interaction without speculative standard-header cleanup.
 - **次に確認すべきこと:** Build focused importers for `Artifact.Effect.Abstract` and `Artifact.Render.ROI` using their actual transitive IFC closures, then compare with the successful Transform3D-only probe.
 
+
 ## 2026-10-26: Smoke sprite reconstruction size trades spacing for overlap
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`
 - **確認できた事実:** At runtime size 0.118, an independent rasterizer measured 48.7k visible pixels / 2.98M green excess for the 129-particle baseline. Reproducing the production sample hash and reducing jitter from 0.30 to 0.10 yielded 49.0k / 2.98M. A 1.25x larger kernel with 0.64x alpha produced 53.2k / 2.97M; a 1.40x kernel with 0.51x alpha gave 55.3k / 2.97M. Production uses 1.25x / 0.64x: D3D12 green coverage rose 7,860→8,736 pixels (+11.1%) and green-region alpha sum 439,351→444,216 (+1.1%), with zero pixels above alpha 240. The smoke Render Queue test passes and GPU Queue frame24 exactly matches the 320×180 Composition View wrapper image.
 - **仮説（未検証）:** Area-compensated wider kernels reduce the visible gaps between particle sprites while retaining total smoke mass. They may still look too soft at higher canvas zooms; the standalone rasterizer does not model D3D12 rasterization exactly.
 - **価値または懸念:** The adjustment keeps particle count and upload size unchanged and needs no blur pass. Larger bounds increase fragment fill and software pixel-loop work; full frame-time cost has not been profiled. Live viewport appearance remains unverified.
 - **次に確認すべきこと:** Inspect the result at multiple live viewport zoom levels and profile GPU particle overdraw plus software compositing cost at 320×180 and a larger composition before settling the default.
+
 
 ## 2026-10-26: 2D smoke can be rendered from solver density instead of particle sprites
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
@@ -6450,12 +6842,14 @@
 - **価値または懸念:** Direct density rendering removes sprite texture without increasing sample count or per-sprite overdraw. Current field still appears as a broad column with a rounded cap; higher vorticity and emitter swirl did not add fine curls. This is evidence to investigate density reconstruction, not yet a production adoption recommendation.
 - **次に確認すべきこと:** Compare a higher-resolution 2D density field with bounded curl/detail shaping, record CPU/GPU cost at viewport resolutions, and decide whether a 2D sheet is adequate before considering a third spatial dimension.
 
+
 ## 2026-10-26: Density resolution tightens the plume; domain warp adds irregularity but not curls
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** With the frame-44 source held constant, 96×72 / 128×96 / 192×144 solver grids took 0.52 / 1.06 / 3.07 ms per frame in the Release standalone runtime. The same 768×576 CPU reference volume pass took about 265 / 200 / 145 ms for the three resulting fields; the active smoke coverage differs, so these are not a monotonic resolution benchmark. Higher resolution narrowed the image and reduced visible output from 34.4k to 27.7k pixels instead of creating curls. A deterministic multiscale domain warp at strength 0.45 / 0.90 increased visible pixels to 37.6k / 41.0k; visual inspection found 0.45 mildly irregular and 0.90 noisy, without fluid-looking curls.
 - **仮説（未検証）:** GPU execution may make bounded domain warping practical, but coherent curling likely requires the warp to follow the velocity field or to advect a secondary detail field; independent value noise alone only bends the density lookup.
 - **価値または懸念:** The CPU reference shader is a quality and parameter experiment, not a viable real-time renderer at the tested 768×576 output. Raising solver resolution increases simulation cost substantially and does not itself improve the target shape. Current production code still uses particle sprites with size 1.125× and alpha 0.79×; the density pass and warp exist only in the standalone test.
 - **次に確認すべきこと:** Prototype density sampling and a modest velocity-directed domain warp in a Diligent shader, then profile GPU time and compare against the current production smoke at the same composition/frame.
+
 
 ## 2026-10-26: Diligent density pass is viable as a GPU smoke R&D path
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
@@ -6464,12 +6858,14 @@
 - **価値または懸念:** D3D12 submit+wait+readback wall times were 3.73 / 0.87 / 0.67 ms; first-use work affects the first sample and these are not GPU-only timings. The pass is confined to a test and establishes a path for volumetric-style density shading without changing production behavior. It does not establish live viewport performance or visual parity with C4D/Houdini.
 - **次に確認すべきこと:** Add a small velocity-guided or advected detail field to the test shader, capture the output, and use Diligent timestamp queries to measure warm GPU cost before deciding whether this should replace particle sprites in production.
 
+
 ## 2026-10-26: Velocity-backtraced smoke detail creates streaks before billows
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** The Diligent prototype now uploads solver density and velocity in RGBA32_FLOAT and midpoint-backtraces detail coordinates through the velocity field. On the 384×288 D3D12 test, no detail / static warp 0.45 / velocity backtrace 4f / 10f yielded 13,741 / 14,260 / 13,901 / 13,394 visible pixels. Inspection shows 4f creates soft directional wisps; 10f creates narrow ribbons. Neither creates small billows. Diligent timestamp queries report 10.24 / 8.192 / 9.216 / 9.216 µs GPU draw time, while submit+wait+readback measures 4.88 / 0.90 / 1.16 / 0.60 ms on an RTX 4070 Ti.
 - **仮説（未検証）:** A transported noise texture follows bulk velocity and stretches into filaments, while billows likely require a divergence-free/curl-noise perturbation or a separately advected scalar with controlled dissipation and injection.
 - **価値または懸念:** Backtrace distance is a useful bounded visual control, but 10f is too streaky and timestamp granularity is about 1.024 µs, so one-shot differences do not establish a shader cost delta. The pass remains test-only and does not change production behavior.
 - **次に確認すべきこと:** Prototype a small curl-noise perturbation derived from the velocity field or advect a secondary low-amplitude detail scalar, compare it against the 4f wisps, and use repeated/batched GPU timestamp queries or a profiler before any production decision.
+
 
 ## 2026-10-26: Direct procedural curl displacement breaks the smoke silhouette
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
@@ -6478,12 +6874,14 @@
 - **価値または懸念:** The curl vector construction is divergence-free in the continuous-noise idealization, but applying it as an unbounded density-coordinate warp does not preserve the plume silhouette in practice. GPU timestamps of 7.168 / 8.192 µs are within the RTX 4070 Ti query granularity and do not establish comparative cost.
 - **次に確認すべきこと:** Prototype a second advected detail scalar at lower amplitude and limited lifetime on the test path; evaluate whether it adds billows while preserving the base plume and profile it with repeated timestamp batches.
 
+
 ## 2026-10-26: Advected secondary smoke density adds measurable but faint mottling
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** The test fixture injects signed deterministic detail around the emitter each frame, semi-Lagrangian advects it through the primary solver velocity, and damps it by `exp(-2 dt)`. The RGBA32_FLOAT alpha channel carries that scalar to a Diligent density shader, which applies `primaryDensity * exp(strength * detail)`. At strengths 1.5 / 2.4, the 384×288 output differs from baseline in 6,863 / 7,483 pixels with mean absolute channel differences 0.127 / 0.203 and maxima 13 / 21 of 255. Images show faint mottling, strongest near the source, not convincing billows. The filtered D3D12 test passes; captures are in `build/smoke-runtime-rnd/gpu-density-secondary-field-strong-rnd/`.
 - **仮説（未検証）:** Increasing scalar residence time or injecting at plume boundaries may distribute the secondary structure farther upward; simply raising density response risks speckling rather than coherent smoke.
 - **価値または懸念:** The detail scalar is spatially aligned with solver velocity and does not displace the main plume. The simulation is only an independent test fixture using two 96×72 CPU buffers, so no production hot-path or UI behavior is proven. Draw-only timing was 8.192 µs in both variants, below useful one-shot comparison precision.
 - **次に確認すべきこと:** Sweep secondary-field lifetime, injection spatial scale, and advection distance while measuring visible mottling and preserving a continuous plume; only then consider a reusable GPU detail-state design.
+
 
 ## 2026-10-26: Secondary smoke detail survives better with longer lifetime and broader injection
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
@@ -6492,6 +6890,7 @@
 - **価値または懸念:** Profile changes improve measurable texture without altering the primary plume coordinates, but current visual impact is weak and CPU fixture simulation plus GPU readback timings do not represent a production renderer. GPU timestamps stay around 8.192 µs and cannot resolve this sweep's cost differences.
 - **次に確認すべきこと:** Advect the secondary scalar on a 2× or 4× grid using bilinear velocity from the base solver; compare detail texture coherence, plume silhouette, and actual GPU timestamp batches before settling a representation.
 
+
 ## 2026-10-26: A 2× advected detail field adds finer wisps without changing the plume silhouette
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** A 192×144 signed secondary density was injected and advected using bilinearly interpolated velocity from the same 96×72 primary solver. At equal lifetime, source radius, and density response, its 384×288 output differed from the 96×72 detail render in 7,667 pixels, mean absolute RGB 0.315, maximum 39/255, with upper/lower-half means 0.177 / 0.453. Visual inspection shows finer wisps across the plume and a stable broad silhouette. The filtered 12-variant D3D12 test passes. Capture: `build/smoke-runtime-rnd/gpu-density-detail-highres-rnd/smoke_gpu_density_detail_highres_2x.png`.
@@ -6499,17 +6898,20 @@
 - **価値または懸念:** Higher detail resolution appears to improve texture without directly warping the main density. GPU draw time remained 8.192 µs (within query granularity); field simulation/update, uploads, and live playback cost are separate and unmeasured. Any production path would need bounded preallocated state and likely GPU-side transport.
 - **次に確認すべきこと:** Compare 4× against 2× for visual saturation, then prototype the secondary-field update on the GPU and measure repeated GPU timestamps, memory, and viewport-frame impact before proposing adoption.
 
+
 ## 2026-10-26: Correlated 4× smoke detail removes grain but loses the 2× wisps
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** At 384×288, independent per-cell signed noise made the secondary-field output visibly grainy. Bilinear value noise sampled at quarter-cell spacing (correlated across four detail cells) removed much of the grain, but visual inspection returned to a soft narrow column without improving the 2× coherent wisps. The filtered D3D12 test passes. Captures: `build/smoke-runtime-rnd/gpu-density-detail-highres-4x-rnd/` and `build/smoke-runtime-rnd/gpu-density-detail-highres-4x-correlated-rnd/`.
 - **価値または懸念:** In this Debug CPU fixture, one 384×288 field took about 1.47 s across 45 steps, vs. 362 ms for 192×144 and 113 ms for four 96×72 fields together. GPU draw timestamps ranged roughly 25.6–56.3 µs across variants, with warm renders mostly 25.6–40.96 µs; this is a one-shot test and not a product benchmark. More resolution alone is not producing convincing billows and carries steep CPU fixture cost.
 - **次に確認すべきこと:** Test a low-frequency plume-scale correlated scalar with multi-scale structure, or move secondary advection to GPU; assess coherent billow shape and repeated GPU timings before considering product integration.
 
+
 ## 2026-10-26: Multi-scale long-lived 4× injection still does not form smoke billows
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** The 4× scalar injection was changed to 75% broad value noise (scale 0.055) plus 25% fine noise (scale 0.22), with fixed spatial noise transported by the base velocity. Two filtered D3D12 runs passed: one with 2/s decay and another with 0.5/s. Both rendered as a smooth narrow column at frame 44; the longer lifetime did not restore the wisps or generate large billows. The latter capture is `build/smoke-runtime-rnd/gpu-density-detail-multiscale-4x-longlife-rnd/smoke_gpu_density_detail_highres_4x_multiscale_longlife.png`.
 - **価値または懸念:** Detail-only injection does not seem to be the primary missing mechanism. The fixture still uses the production 96×72 velocity/density solver, then adds an independent scalar; increasing its scale/residence time cannot create convincing mesoscale velocity rolls when the base plume lacks them. Captures are headless test output, not viewport evidence.
 - **次に確認すべきこと:** Separate solver-flow quality from shader shading: inspect matched base solver density/velocity captures across vorticity settings, then hold the flow fixed and compare density-only shading against shadowed Beer–Lambert projection. Use the result to decide whether the next prototype belongs in the velocity solver or the renderer.
+
 
 ## 2026-10-26: Smoke density R&D at one solver iteration understated the product plume
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerImpl.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp`
@@ -6518,11 +6920,13 @@
 - **価値または懸念:** Solver fidelity was the hidden variable behind the previous low-detail column result. At product iterations, the base velocity/density field already creates a broad cap, so adding more scalar resolution is not the next priority. Renderer readback is still a headless prototype and the top-edge artifact needs a controlled comparison.
 - **次に確認すべきこと:** Add a test-only soft fade over the top few field cells, compare cap preservation and edge continuity against the baseline, then decide whether product implementation needs a configurable outflow boundary rather than a render mask.
 
+
 ## 2026-10-26: Top-edge density fade trades boundary band against billow cap
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp::setBoundary()`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** A test-only `smoothstep` fade was applied in density sampling over the upper 2.5 and 5 solver cells, with the production-iteration (20) velocity/density field held fixed. The filtered D3D12 test passes. Mean green intensity in the top 8 output rows dropped from 56.92/255 to 28.70 and 10.37; whole-frame visible pixels dropped from 43,466 to 43,066 and 42,646. The 2.5-cell fade retains more of the cap but leaves an edge band; 5 cells hides more of the upper center and trims/dims the billow, while side-edge residue remains. Captures are in `build/smoke-runtime-rnd/gpu-density-top-fade-sweep-rnd/`.
 - **価値または懸念:** A render mask can improve edge appearance, but it clips a physically trapped plume and does not change reflected top velocity or scalar retention. The image evidence supports only symptom reduction, not a solver fix; do not promote the mask as the smoke solution.
 - **次に確認すべきこと:** The all-edge fade adds almost no improvement over top-only fade because side edges contain little smoke. Design and measure a real outflow/open-top boundary separately before product integration; keep shader fade only as a diagnostic comparison.
+
 
 ## 2026-10-26: All-edge fade confirms smoke boundary artifact is concentrated at the top
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp::setBoundary()`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
@@ -6530,17 +6934,20 @@
 - **価値または懸念:** This confirms the visible band is concentrated near the top, and general edge masking is not a useful quality lever. Top-only fade dims the billow; neither mask changes the closed solver boundary.
 - **次に確認すべきこと:** Evaluate outflow/open-top boundary behavior as a separate solver experiment, with the current closed-boundary field and 20-iteration default as controls; do not infer product behavior from a render mask.
 
+
 ## 2026-10-26: Per-step density sponge clears the top band while preserving an S-shaped plume
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp::update()`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** Two test-only simulations apply a smooth density retention ramp after each solver step over the top 6 or 12 cells. Velocity remains the production solver's closed-boundary result. At 20 iterations, the 12-cell sponge reduces top-8-row mean green from 56.92 to 0.00/255 and top-20-row mean from 45.59 to 0.30; visible pixels fall 43,466→29,092. The 6-cell sponge leaves top-8 mean 0.225 and top-20 mean 3.899, with 35,993 visible pixels. Both retain a recognizable rising S-shaped plume; the 12-cell image has the cleanest edge while the 6-cell image retains more density. Filtered D3D12 test passes. Captures are in `build/smoke-runtime-rnd/gpu-density-top-sponge-depth-sweep-rnd/`.
 - **価値または懸念:** A per-step density sponge addresses accumulated edge density without a post-render mask and is a tunable presentation/simulation-boundary compromise. It is not an open boundary: velocity and pressure still use the closed solver boundary, and density mass is deliberately removed. It may erase legitimate billow detail and must not be presented as physically correct outflow.
 - **次に確認すべきこと:** Measure integrated density and plume centroid/mass loss across the timeline for 6/12-cell sponge controls; then prototype top-normal velocity outflow in a separate test-only solver implementation and compare against these controls before any product-code proposal.
 
+
 ## 2026-10-26: Top sponge visibly improves the boundary by removing plume mass
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`
 - **確認できた事実:** Final solver-field sums and density-weighted centroids at frame 44: closed baseline 699.513 at (0.5449, 0.3644), 6-cell density sponge 603.571 at (0.5334, 0.4158), 12-cell sponge 562.489 at (0.5343, 0.4379). Cumulative density removed across 45 steps is 297.801 and 500.293 for the 6/12-cell sponges. D3D12 test passes. Values are grid-density units, not physical mass.
 - **価値または懸念:** The increasingly clean top edge directly costs 13.7% / 19.6% of final integrated density and shifts the plume centroid downward. This is expected for a sponge and shows the visual fix is mass removal, not a free renderer improvement.
 - **次に確認すべきこと:** Record intermediate-frame density/centroid curves and compare a larger simulation domain whose closed boundary lies above the visible crop. That control can show whether added headroom preserves plume mass before attempting a test-only one-way velocity boundary.
+
 
 
 ## 2026-10-26: Sponge density loss begins when smoke reaches the top band
@@ -6551,12 +6958,14 @@
 - **次に確認すべきこと:** Add a test-only extended-domain run and crop the same visible region, keeping solver resolution and emitter mapping explicit, then compare top-edge intensity and density retained inside the crop. Do not integrate sponge behavior into product code based on this test.
 
 
+
 ## 2026-10-26: Extended closed domain reduces the top band by moving smoke outside the crop
 
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, planned smoke-emitter milestone.
 - **確認できた事実:** A D3D12 test runs the production smoke runtime on a 128×96 domain, maps the emitter and scales its cell-space settings to match a centered 96×72 crop, then renders that crop with the existing density shader. At frame 44, crop density sum is 629.925 (centroid .5459/.3982) versus the baseline 699.513 (.5449/.3644); full extended-domain sum is 825.927. Top-8 output-row mean green drops from 56.92 to 15.39/255, and visible pixels from 43,346 to 36,985. The filtered test passes. Visual capture: `build/smoke-runtime-rnd/gpu-density-extended-domain-rnd/smoke_gpu_density_extended_domain_crop.png`. The reflected horizontal band is greatly reduced, but the plume cap leaves the visible crop at the top.
 - **価値または懸念:** Unlike a sponge, the extended run does not intentionally erase density near the visible edge; smoke continues into the halo. Density-grid sums are not physical mass, and the changed total reflects the larger domain and altered pressure solution. The crop still loses visible plume as it advects above the frame.
 - **次に確認すべきこと:** Compare top-only headroom while keeping horizontal domain and cell scale fixed, sampling crop and halo density over time. Use that to distinguish top-boundary influence from the natural loss of plume through the crop.
+
 
 
 ## 2026-10-26: Extended-domain plume begins leaving the crop between frames 22 and 33
@@ -6567,12 +6976,14 @@
 - **次に確認すべきこと:** Keep boundary testing separate from detail-generation R&D. Compare curl/vorticity-driven billow breakup at matched domain and crop, using independent deterministic captures, after this trajectory baseline is preserved.
 
 
+
 ## 2026-10-26: Render-space curl adds detail gradually, but strong displacement distorts the plume
 
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, Diligent smoke density prototype.
 - **確認できた事実:** At 20 solver iterations, the same frame-44 density/velocity field was rendered with different shader-only detail. In 384×288 PNGs, high-pass energy was computed as mean squared grayscale difference from a Gaussian blur of radius 2 (diagnostic, not perceptual). Base is .0000231. Curl displacement .35/.7/1.4 cells gives .0000264/.0000304/.0000460 (+14%/+32%/+99%) while visible pixels above gray 10/255 remain 31,538/31,532/31,596 versus base 31,525. Four-cell velocity backtrace gives .0000572 (+148%); combining it with curl .35/.7 gives .0000608/.0000692 (+6%/+21% over backtrace). Strong curl 3.5/7 produces .0001635/.0005438 but visible holes/loops and edge spread. Filtered D3D12 test passes; captures are in `build/smoke-runtime-rnd/gpu-density-production-curl-sweep-rnd/`.
 - **価値または懸念:** Sub-cell curl displacement modestly increases edge detail without changing visible occupancy, while stronger displacement creates stylized liquid-like holes. Velocity backtrace modifies overall plume structure and leaves the top band; adding a little curl only adds a small high-frequency increment. A static frame comparison says nothing about temporal shimmer or motion coherence.
 - **次に確認すべきこと:** Capture the same shader variants at frames 22/33/44 from one deterministic simulation, then measure inter-frame high-pass change and compare it with solver-field change. Keep boundary and detail quality as separate axes; do not promote the one-frame prototype to product rendering.
+
 
 
 ## 2026-10-26: Static render curl and combined warping differ in short-term image-space stability
@@ -6583,12 +6994,14 @@
 - **次に確認すべきこと:** Compare velocity-advected secondary detail at controlled amplitude and decay against static curl over these same frame samples. If deciding between them by temporal coherence, add motion compensation using the captured velocity field rather than raw image-space deltas.
 
 
+
 ## 2026-10-26: Advected smoke detail strength and decay trade temporal stability for texture
 
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, planned smoke emitter milestone, Diligent density shader prototype.
 - **確認できた事実:** In the filtered D3D12 temporal test, three 4× detail fields use identical source noise and solver velocity with decay 0.25/0.5/2.0 s^-1. At frame 33 their high-pass energy at strength 2.4 is .0000305/.0000275/.0000191, versus .0000160 base and .0000222 curl .7; decay .5 at strength 1.2/4.0 is .0000177/.0000510. Visual inspection shows fine layered modulation but regular upper-plume ripples at decay .5 strength 2.4, more pronounced at strength 4.0. The filtered test passes; captures are under `build/smoke-runtime-rnd/gpu-density-temporal-advected-rnd/`.
 - **価値または懸念:** Lower decay and stronger shading preserve more high-frequency structure, but also increase frame-to-frame image change and expose grid-like ripples. The medium/strong version does not yet resemble natural turbulent smoke. Raw frame deltas include plume motion and are not motion-compensated. Simulating three 4× fields took about 2.40 s in the test, so this configuration is suitable only for offline R&D in its current CPU form.
 - **次に確認すべきこと:** Measure motion-compensated detail coherence and test a disturbance field with less grid correlation. Keep this test-only and do not change production defaults until the texture and runtime cost are understood.
+
 
 
 ## 2026-10-26: Solver-velocity compensation separates plume travel from detail change
@@ -6599,12 +7012,14 @@
 - **次に確認すべきこと:** Test integrated particle trajectories or a passive marker field for motion compensation, then inspect short playback for perceived shimmer.
 
 
+
 ## 2026-10-26: Midpoint trajectory integration does not remove advected-detail residual
 
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, temporal smoke velocity dumps.
 - **確認できた事実:** Reintegrated output-pixel paths through the captured frame-n velocity field using midpoint steps 1/2/4/8/16. Across frame pairs 11→12, 12→13, 33→34, 34→35, mean high-pass residual changes 1→8 steps from .00763 to .00741 for base and .01028 to .01007 for advected decay .5 / strength 2.4. The residual ratio is 1.348× at one step and 1.359× at eight. By 4–8 steps the values are nearly converged.
 - **価値または懸念:** The earlier one-step warp slightly overestimated correspondence residual, but higher integration accuracy does not remove the secondary-detail excess. This test freezes the velocity at frame n, so it checks spatial integration convergence rather than temporal acceleration or perceived shimmer.
 - **次に確認すべきこと:** To verify appearance, evaluate a short frame sequence in playback or use velocity at multiple simulation substeps; do not interpret this metric alone as visual acceptance.
+
 
 
 ## 2026-10-26: Repeated fixed source noise contributes to late smoke ripples
@@ -6615,12 +7030,14 @@
 - **次に確認すべきこと:** Test smooth temporal translation of the source noise against fixed noise and the stop-injection ablation, tracking both high-pass amplitude and motion-aligned temporal residual.
 
 
+
 ## 2026-10-26: Smoothly drifting source noise weakens fixed-pattern smoke ripples
 
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, high-resolution smoke source detail.
 - **確認できた事実:** A test-only .5 s^-1 field translates the repeated correlated source pattern by (0.04, 0.025) solver cells per frame. At frame 34, high-pass energy is 2.84e-5, compared with 2.90e-5 for the fixed repeated pattern and 2.29e-5 when injection stops after frame 22. With 8-substep velocity compensation, late residual at 33→34 / 34→35 is .00582/.00596 for moving noise, .00597/.00615 fixed, and .00561/.00569 stopped. Visual inspection shows less regular upper rippling than fixed injection, while retaining more detail than the stop control. D3D12 filtered test passes; captures are at `build/smoke-runtime-rnd/gpu-density-temporal-moving-noise-rnd/`.
 - **価値または懸念:** Coherent temporal translation appears to reduce a regular pattern without removing as much texture as stopping injection, but quantitative residual improvement is small and one drift rate is not enough to select a setting.
 - **次に確認すべきこと:** Sweep half, nominal, and double drift speed with fixed and stop controls. Judge shape and detail retention alongside motion-aligned temporal residual; do not use high-pass energy alone.
+
 
 
 ## 2026-10-26: Faster coherent source-noise drift weakens banding with small detail loss
@@ -6631,12 +7048,14 @@
 - **次に確認すべきこと:** Validate double drift over more emitter positions, plume phases, and short playback; then compare the GPU cost of the eventual detail reconstruction path.
 
 
+
 ## 2026-10-26: Uniform source-noise drift changes sign of benefit with emitter position
 
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, experimental GPU smoke density captures.
 - **確認できた事実:** With all solver settings fixed except source X, the same filtered test passed at X=.35 and X=.65. For 8-step velocity-aligned late residual, fixed/half/nominal/double/stop conditions are .00734/.00725/.00717/.00699/.00624 at X=.35, but .00768/.00772/.00776/.00793/.00724 at X=.65. Frame-34 high-pass energy for fixed versus double is 3.957e-5 vs 3.551e-5 at X=.35, and 5.406e-5 vs 5.684e-5 at X=.65. Captures are in `build/smoke-runtime-rnd/gpu-density-drift-sweep-emitter-x0p35/` and `...x0p65/`.
 - **価値または懸念:** One uniform world-space temporal drift improves the plume at one emitter placement and worsens it at another. Its effect depends on local flow direction and plume shape, so the centered-fixture speed result is not robust enough to promote.
 - **次に確認すべきこと:** Compare positive, negative, and local-velocity-aligned noise drift at both emitter positions and early/late plume phases; evaluate visible banding alongside high-pass residual.
+
 
 
 ## 2026-10-26: Emitter-center velocity does not make global noise drift robust
@@ -6647,12 +7066,14 @@
 - **次に確認すべきこと:** Test per-cell semi-Lagrangian advection of the procedural detail field or a passive scalar/material-coordinate field, preserving temporal coherence and measuring source-to-plume texture transport.
 
 
+
 ## 2026-10-26: Bounded MacCormack correction sharpens but destabilizes the smoke detail
 
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, 4× smoke secondary detail transport.
 - **確認できた事実:** Source review confirms the existing secondary detail is already transported with per-cell solver velocity using first-order semi-Lagrangian backtracing. A test-only bounded MacCormack/BFECC-style correction was compared at the same .5 s^-1 decay, source injection, and render strength 2.4. It clamps corrected values to the departure-cell donor range. The filtered D3D12 test passes; captures are in `build/smoke-runtime-rnd/gpu-density-advection-maccormack-rnd/`. At frame 34 high-pass energy is 6.004e-5 vs 2.900e-5 first-order. Late velocity-aligned residual is .00855/.00924 at 33→34/34→35 (mean .00890), compared with .00597/.00615 (mean .00606) for first-order.
 - **価値または懸念:** Higher order retains sharper detail but more than doubles the static high-pass energy and raises late temporal residual by ~47%; visual inspection shows stronger regular ripples. This straightforward correction is not a quality win for the current signed scalar field.
 - **次に確認すべきこと:** Do not add another duplicate local-advection path. Focus on source-injection correlation and oscillation-resistant transport; any improved scheme must be compared for detail retention, temporal residual, and visible banding.
+
 
 ## 2026-10-26: Higher smoke vorticity bends the plume but does not create stable billows
 
@@ -6661,6 +7082,7 @@
 - **価値または懸念:** Increasing the existing shared fluid vorticity parameter mainly changes plume trajectory and increases late temporal residual; a small high-pass increase is not evidence of improved natural smoke. Do not promote a default or treat this as the full Houdini/C4D quality path. The separate shaping controls described in official SideFX Pyro documentation (disturbance and velocity turbulence) are research context only: https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html .
 - **次に確認すべきこと:** Prototype a test-only, band-limited velocity-disturbance field injected at substeps and compare low/mid/high spatial scales at identical vorticity. Track plume occupancy, centroid/bounds, detail energy, and motion-aligned temporal residual, then inspect short frame sequences for coherent billows versus noisy breakup.
 
+
 ## 2026-10-26: Single-band curl forces create periodic eddies, not coherent smoke billows
 
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, smoke density D3D12 R&D.
@@ -6668,6 +7090,7 @@
 - **確認できた事実:** An exploratory 8-step frozen-frame velocity warp on late high-pass images gives 33→34 / 34→35 residual means: base .00539, low .00554, mid .00579, high .00543, multi .00579. It uses one captured velocity field and is only a spatial correspondence proxy. It does not prove perceived flicker or true substep behavior.
 - **価値または懸念:** Spectral curl forcing can produce eddy-like shapes, but these coherent sinusoids create detached or repetitive trails instead of layered, transported billows; multi-scale blending did not improve the temporal residual. This is not evidence for a production control or default.
 - **次に確認すべきこと:** Replace periodic modes with a deterministic multi-directional curl-noise field, use a smooth bounded envelope tied to density/plume regions, and compare it against this spectral baseline at matched force RMS. Keep simulation fields and renderer details separate, and inspect both early/late frame sequences.
+
 
 ## 2026-10-26: Curl-noise forces add texture but cause strong bulk drift
 
@@ -6678,6 +7101,7 @@
 - **次に確認すべきこと:** Hold the solver field fixed and prototype directional transmittance/self-shadow in the Diligent density shader to test whether volume lighting adds depth without changing plume motion. After that, revisit solver-side disturbance with an explicitly bounded, divergence-aware envelope and track momentum over multiple simulation steps rather than one-frame force balance.
 
 
+
 ## 2026-10-26: Stronger 2D self-shadowing suppresses contrast without shaping smoke
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, GPU smoke density prototype, planned smoke emitter milestone.
 - **確認できた事実:** The Diligent test shader already had a bounded 10-step Beer–Lambert optical-depth estimate. A fixed solver field was rendered at shadow strengths 0 / .18 / .45 / .9; visible occupancy stayed 32,434 pixels while visible-region mean gray fell 64.27 / 47.61 / 37.43 / 31.43 and high-pass energy fell 1.136e-4 / 6.668e-5 / 4.903e-5 / 3.872e-5. Changing light direction had a smaller effect. The D3D12 filtered test passed; captures/contact sheet are under `build/smoke-runtime-rnd/gpu-volume-lighting-sweep/`.
@@ -6686,11 +7110,13 @@
 - **次に確認すべきこと:** Hold the field and opacity fixed; independently sweep shadow distance, density weighting, and ambient floor, then compare perceptual contrast and draw timing. Keep the shader test-only.
 
 
+
 ## 2026-10-26: Shadow distance and ambient fill mainly remap global contrast in 2D smoke
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`, test-only Diligent density pass.
 - **確認できた事実:** With the same solver field, shadow march lengths 2.75 / 5.5 / 11 cells at strength .18 produce mean visible gray 41.37 / 37.17 / 33.46 and high-pass energy 6.844e-5 / 5.563e-5 / 4.648e-5. Ambient fill .18 / .30 / .42 / .55 at distance 5.5 and strength .18 gives mean gray 27.12 / 32.17 / 37.17 / 42.54; high-pass energy rises 3.147e-5 / 4.253e-5 / 5.563e-5 / 7.217e-5. A .45 shadow with .55 fill yields mean 35.01 and high-pass 5.445e-5. D3D12 filtered test passes 1/1; contact sheet is at `build/smoke-runtime-rnd/gpu-volume-lighting-distance-ambient-sweep/lighting_distance_ambient_contact_sheet.png`.
 - **価値または懸念:** Visually, parameter changes mainly remap brightness while leaving the broad plume and top-boundary structure. These global grayscale metrics do not measure volume perception; no setting is promoted. HLSL constant-buffer packing required two explicit CPU padding floats before the color vector, found through a failed transparent-image assertion and fixed before the passing rerun.
 - **次に確認すべきこと:** Keep mean luminance matched and compare bounded density-gradient shading against density-normalized transmittance. That can test local shape cues without mistaking an overall brightness change for added depth.
+
 
 
 ## 2026-10-26: Mean-matched density-gradient lighting reads as a rim on a 2D smoke sheet
@@ -6701,12 +7127,14 @@
 - **次に確認すべきこと:** Compare a bounded single-scattering approximation against the current directional shadow using the same field, alpha mask, and matched mean luminance; inspect whether it gives broad internal shading without edge rims.
 
 
+
 ## 2026-10-26: Layered rendering cannot recover depth variation absent from the 2D smoke field
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only Diligent smoke shader, smoke emitter milestone.
 - **確認できた事実:** A test-only shader integrates eight synthetic depth slices from the same 2D density field, with small curl warp, four local light-transmittance samples per slice, and front-to-back Beer–Lambert compositing. The tuned condition matches alpha-mask mean gray 36.97 vs 36.96 baseline and integrated alpha within +0.64%; high-pass energy is 5.337e-5 vs 5.611e-5. Visuals remain a broad S-shaped column with no convincing new billows. D3D12 test passes 1/1. GPU timestamp is 329.7–333.8 µs at 384×288, about 2.8× the warm baseline variant from the same single run. Captures are under `build/smoke-runtime-rnd/gpu-volume-integration-final-confirm-rnd/`.
 - **価値または懸念:** Procedural extrusion of one planar density slice adds cost without creating independent depth structure; it is not a substitute for true volumetric density. Keep this shader test-only and reject it as a production path.
 - **確認した外部仕様:** Maxon describes volume rendering as ray marching multiple positions with density-based scatter/absorption and anisotropy; SideFX exposes separate volume and volume-shadow sampling controls: https://help.maxon.net/c4d/2027/en-us/Content/html/What_is_Volumetric_Rendering.html and https://www.sidefx.com/docs/houdini/render/volumes .
 - **次に確認すべきこと:** If DCC-level smoke remains the target, research a real 3D density source/cache and a bounded GPU volume ray marcher. Keep it separate from the current 2D emitter until memory, resolution, and viewport cost are measured.
+
 
 ## 2026-10-26: Windowing curl noise before differentiation reduces plume drift
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only `ExperimentalGpuSmokeDensityShaderUsesSolverField`, smoke emitter milestone.
@@ -6716,6 +7144,7 @@
 - **仮説（未検証）:** A small stochastic rotation of the existing velocity vectors can add curl-like turns while preserving local speed, offering a cleaner test of SideFX's Shredding behavior than adding more force magnitude.
 - **次に確認すべきこと:** Add a test-only bounded local velocity rotation at matched wavelength and force strength, capture adjacent frames, and compare plume centroid, density mass, cap breakup, and velocity-compensated temporal residual against windowed curl.
 
+
 ## 2026-10-26: Speed-preserving local rotation still biases smoke transport
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only `ExperimentalGpuSmokeDensityShaderUsesSolverField`, smoke emitter milestone.
 - **確認できた事実:** A test-only Shredding analogue rotates the local solver velocity by a smooth seedable angle field, using single 24/12/6-cell bands or all three. Ten filtered D3D12 runs pass: multi-band scales .05/.15/.30; each single band at .15; and seeds 1/29/71 at .15 (default seed 17 also passed). The local velocity magnitude changes by only 2.3e-7–2.5e-7 relative during the rotation operation. Yet after repeated solver integration, frame-44 centroid changes substantially. At multi-band .05/.15/.30 it is (.5239,.3684)/(.4866,.3783)/(.4515,.3902) vs (.5449,.3644) control. Single 24/12/6 bands at .15 yield (.5777,.3698)/(.6123,.3760)/(.6023,.3762). Seeds 1/17/29/71 at .15 yield (.6113,.3912)/(.4866,.3783)/(.6346,.3645)/(.5679,.3658). Images remain broad plumes and the cap/trajectory changes by band and seed; no fine wisps emerge. Contact sheets are under `build/smoke-runtime-rnd/gpu-shredding-{strength,bands,seed}-rnd/`.
@@ -6723,11 +7152,13 @@
 - **仮説（未検証）:** Density- and speed-weighted mean-angle removal might reduce net steering, but because vector rotation is nonlinear and the solver subsequently advects/projects the field, it may still drift. Pairing local opposite rotations could constrain transport more directly.
 - **次に確認すべきこと:** Compare corrected and uncorrected angle fields across multiple seeds at a matched wavelength/angle. Measure frame-44 centroid, density mass, cap breakup, and short-sequence flow-aligned residual before judging visual quality.
 
+
 ## 2026-10-26: Local angle pairing stabilizes a test-only smoke shred field
 - **関連:** `tests/Artifact/ArtifactFractureLayerRenderTest.cpp`, test-only `ExperimentalGpuSmokeDensityShaderUsesSolverField`, smoke emitter milestone.
 - **確認できた事実:** Added global density×speed-weighted mean-angle subtraction and local 8×8-cell weighted mean subtraction to the test-only speed-preserving velocity rotation. At scale .15, both pass seeds 1/17/29, with local speed error below 2.4e-7 and mean-angle residual below 1.5e-8. Global centroids still vary by .121 in normalized X (.4805/.6014/.5512). Local correction narrows the range to .0281 (.5295/.5575/.5478), centered on the .5449 control; mass is 681.9/685.2/705.8 vs 699.5. At scale .30, local correction centroids are .5180/.5669/.5491, but mass falls to 635.1/656.0 for seeds 1/17. Nine D3D12 filtered runs pass across both correction methods, three seeds at .15, and local pairing at .30.
 - **価値または懸念:** Local opposite-angle balancing is more robust to noise seed and preserves the broad plume better than global centering. Image high-pass energy is not consistently higher than control (1.365/1.369/1.584 vs 1.502 at .15; 1.317/1.176/1.462 at .30), and visual inspection shows no reliable fine-billow gain. It is a useful transport-stability technique in this prototype, not a DCC-quality smoke solution. Keep it test-only.
 - **次に確認すべきこと:** Test a higher-frequency disturbance with solver resolution held as an explicit independent variable, or build a separate 3D density-source experiment. Evaluate multiple seeds and adjacent frames, and require both detail gain and plume-shape stability before considering integration.
+
 
 ## 2026-10-26: Higher smoke solver resolution adds variation but changes the plume trajectory
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` (`ReportsDensityResolutionQualityAndCostTradeoff`), smoke emitter milestone.
@@ -6736,12 +7167,14 @@
 - **仮説（未検証）:** Resampling one identical saved density field to the common output grid will reveal whether higher field resolution itself adds useful structure, independent of dynamics. A temporal comparison should then advect detail using the captured velocity and check mass, centroid, and seed stability.
 - **次に確認すべきこと:** Add a standalone, test-only common-field resampling comparison on the existing isolated smoke fixture, followed by a velocity-aligned temporal sequence. Keep product code and defaults unchanged until stable detail gain is demonstrated.
 
+
 ## 2026-10-26: Common-field upsampling smooths smoke instead of adding billows
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, test-only `ComparesCommonFieldReconstructionAcrossDensityResolutions`, smoke emitter milestone.
 - **確認できた事実:** Added and built an isolated comparison that bilinearly upsamples one exact 96×72 frame-44 density field to 192×144, renders it at the same 768×576 output, and compares it with both native rendering and an independently simulated 192×144 field. The test passes 1/1. Native / upsampled / independent-high-resolution renders have 34,369 / 35,126 / 27,740 visible pixels, green excess 2,371,004 / 2,202,882 / 1,985,743, and radius-2 rendered high-pass energy 3.70e-5 / 2.24e-5 / 1.15e-4. Native vs upsampled centroids differ by <1 output pixel; independent high-resolution centroid is ~62 px lower. Captures: `build/smoke-runtime-rnd/common-field-reconstruction-rnd/`.
 - **価値または懸念:** Interpolation alone preserves the broad shape but smooths it and reduces high-frequency energy by ~39%; it does not make coherent billows. The high-frequency increase in the separate high-resolution simulation is tied to its changed field/trajectory and may contain grid-scale texture. The image metrics are diagnostics rather than perception scores.
 - **仮説（未検証）:** Detail gain that survives a fixed common field will require explicit temporally advected density variation or genuinely independent depth-varying density, rather than merely increasing reconstruction resolution.
 - **次に確認すべきこと:** Compare a bounded conservative density perturbation transported by the captured velocity across adjacent frames and multiple seeds; report density mass, centroid, high-pass structure, and flow-aligned temporal residual. Keep it test-only.
+
 
 ## 2026-10-26: Conservative MacCormack smoke detail remains visually suppressed
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, `ReportsVelocityAdvectedSmokeDetailAcrossFramesAndSeeds`, smoke emitter milestone.
@@ -6750,12 +7183,14 @@
 - **仮説（未検証）:** Visible billows require perturbing the flow or adding independently evolving density structure, not just transporting a weak scalar modulation through the current coarse field.
 - **次に確認すべきこと:** Test a bounded solver-coupled curl disturbance at product solver iterations, or move the isolated renderer experiment to a genuinely depth-varying density field. Require multi-seed trajectory stability and consecutive-frame coherence before product integration.
 
+
 ## 2026-10-26: Production-iteration 2D vorticity makes broad rolls, not fine billows
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, production-iteration vorticity sweep and velocity-advected detail case.
 - **確認できた事実:** Added a test-only resolution capture option and compared 96×72 at the production default of 20 solver iterations. At frame 22, vorticity strengths 0.1/0.8/1.5 give density mass 739.6/742.0/744.9, visible pixels 94,548/94,447/94,165, and radius-2 rendered high-pass energy 7.28e-6/6.98e-6/6.76e-6. The contact sheet shows the same pair of broad symmetric cap vortices; higher strength slightly bends the stem and reduces the high-frequency proxy. The bounded MacCormack detail test at 20 iterations (frames 20–22, seeds 17/29/71) conserves displayed mass and keeps centroid changes ≤0.14 cells, but high-pass gain ranges 0.2–4.5% by seed/frame and visual billows remain imperceptible. Both tests pass. Captures: `build/smoke-runtime-rnd/product-iteration-vorticity-frame22-rnd/` and `build/smoke-runtime-rnd/velocity-advected-product-iterations-rnd/`.
 - **価値または懸念:** A one-iteration smoke capture can misrepresent the product field: 20 iterations expose the large-scale cap rolls and reveal that confinement strength is not a direct fine-detail control. The Debug 96×72 simulation measured ~27 ms/frame; this is not a Release benchmark. Frame 44 is boundary-dominated, so frame 22 was used to inspect cap formation before top-edge contact. The test-only sweep changes no product implementation.
 - **仮説（未検証）:** In 2D, vorticity confinement preserves/enhances existing rolls but lacks 3D vortex stretching; a small scale-space noise force may be needed to create finer curling without steering the plume, or 3D density could provide depth cues.
 - **次に確認すべきこと:** Compare controlled multi-scale curl forces at 20 iterations and measure both mass/centroid and seed variance; if they cannot create stable smaller rolls, prototype a true 3D volume render path separately instead of increasing 2D vorticity strength.
+
 
 ## 2026-10-26: 3D Pyro fields reach CPU volume rendering, but source injection is overwritten
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, `ArtifactCore/src/Simulation/PyroSimulation.cpp`, `ArtifactCore/src/Render/VolumeRenderer.cpp`.
@@ -6764,6 +7199,7 @@
 - **価値または懸念:** The CPU reference renderer can consume genuine 3D Pyro fields and gives view-dependent projections, but current output is visually diffuse and says nothing about GPU/viewport performance or parity. The suspected source-order defect blocks evaluating the normal emitter path reliably.
 - **仮説（未検証）:** Correct source accumulation before advection, plus a stronger turbulence/disturbance model and better volume lighting, may be needed to approach DCC-quality billows; this experiment does not identify which is the main visual bottleneck.
 - **次に確認すべきこと:** Obtain explicit authorization before changing `ArtifactCore`, then add a source persistence regression test and correct the integration order. Separately compare higher voxel resolution and multi-scale rotational velocity fields using fixed seeds, adjacent-frame captures, density mass/centroid, and render cost. Keep the standalone renderer results as CPU-reference only until a GPU path exists.
+
 
 ## 2026-10-26: Test-only 3D emitter inputs still produce soft puffs
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, `CPUVolumeRenderer`, Pyro source injection investigation.
@@ -6774,12 +7210,14 @@
 - **仮説（未検証）:** The curl force is currently applied by a test adapter once per outer frame and is then altered by solver advection/projection. Its weak visual response may reflect force placement and solver coupling as much as the potential-field design.
 - **次に確認すべきこと:** Once child-repository edits are explicitly authorized, first add a regression for source persistence and correct injection/advection ordering. Then apply the curl force inside the solver's velocity-update sequence and save adjacent frames while tracking density centroid, frame-to-frame coherence, image structure and CPU cost. Keep this test adapter out of production.
 
+
 ## 2026-10-26: CPU volume shadows need step-calibrated density and restrained scattering
 - **関連:** `ArtifactCore/src/Render/VolumeRenderer.cpp`, `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, fixed 32×48×32 Pyro field.
 - **確認できた事実:** On a fixed density field, unlit/direct/shadow/low-scatter/high-scatter luminance sums are 970,616/833,603/629,578/1,226,878/2,524,252, with smoke-pixel luminance standard deviation 15.74/12.92/8.52/20.28/45.90. Settings are light intensity 5; shadow intensity 0.8, step 0.5, max steps 96; low scattering uses g=.35 and strength .12, high uses g=.55 and strength .45. Default shadow density scale 1.0 nearly blackens the result (sum 65,682), while .08 avoids the collapse. The high-scattering case pushes all 25,600 output pixels over the smoke threshold and visibly washes out the volume. `sampleLight()` accumulates one raw sampled density per shadow step without multiplying by the step length, so `shadowDensityScale` must compensate for sample spacing in this implementation.
 - **価値または懸念:** Moderate scattering raises tonal spread, but lighting does not create missing 3D density detail; high scattering saturates the image. Isotropic direct illumination at intensity 5 is dimmer than the unlit smoke transfer because the normalized phase value scales the lighting term. These are CPU-reference observations only, not GPU/product settings.
 - **仮説（未検証）:** The shadow integration's dependence on sample count may make shadow appearance unstable when shadowStepSize or volume resolution changes; a path-length-weighted integral may be more predictable, but would alter the existing renderer contract and needs a separate review.
 - **次に確認すべきこと:** Compare shadow brightness at fixed physical ray distance while varying step size and resolution; inspect normalized phase response and test a lower scattering range on a density field with coherent fine structure. Do not promote the current values as defaults.
+
 
 ## 2026-10-26: Shadow step stability requires density-scale compensation
 - **関連:** `ArtifactCore/src/Render/VolumeRenderer.cpp` (`CPUVolumeRenderer::sampleLight()`), `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`.
@@ -6788,12 +7226,14 @@
 - **仮説（未検証）:** For anisotropic voxel spacing, applying a world-space light direction directly to voxel coordinates may change the physical shadow ray direction; current validation uses isotropic cells only.
 - **次に確認すべきこと:** Validate anisotropic cell spacing and a denser field, then decide whether a path-length-weighted shadow integral merits a separately reviewed renderer change. Keep tuning values local to standalone research until there is an agreed renderer contract.
 
+
 ## 2026-10-26: Static density noise adds grain, not volumetric billows
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, `CPUVolumeRenderer`, 48×72×48 resampled Pyro snapshot.
 - **確認できた事実:** Added fixed three-direction sine bands at 0.25 m and 0.125 m wavelengths with amplitude 0.45. Density-weighted mean noise is removed and each field is renormalized to base mass 5923.9. Base / broad / fine max density is 0.3578 / 0.4874 / 0.5075, and weighted centroids stay within 0.08 voxels. Field Laplacian RMS rises 0.03446 → 0.03560 / 0.03952; rendered occupied pixels rise 24,819 → 24,857 / 24,964 while luma is within 0.2%. Contact sheet inspection shows no convincing billows; the fine band mostly extends faint edge coverage. The filtered standalone GTest case passes.
 - **価値または懸念:** Static detail modulation is a renderer visibility probe, not turbulence: it is not advected and produces extra grain/coverage without coherent internal rolls. Keep it test-only.
 - **仮説（未検証）:** To gain convincing billows, temporal coherence likely needs to come from a velocity-coupled evolving 3D field; current measurements do not establish the appropriate model or cost.
 - **次に確認すべきこと:** Continue with a solver-coupled 3D disturbance experiment after the source integration order can be safely exercised; compare short sequences and multiple fixed seeds using density mass, centroid, image structure, and render time.
+
 
 ## 2026-10-26: Pyro pressure projection and source persistence block turbulence R&D
 - **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp` (`integrateStep`, `solvePressure`, `projectVelocity`), `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`.
@@ -6802,12 +7242,14 @@
 - **仮説（未検証）:** Making the pressure operator/RHS sign/projection stencils consistent and applying source values in the transported state may reduce divergence and improve mass behavior, allowing stable temporal curl comparison. Verify with isolated divergence-reduction and source-persistence tests; do not infer the exact fix solely from this appearance fixture.
 - **次に確認すべきこと:** With explicit authorization to modify the child repository, fix/add targeted Pyro tests for source persistence, projection divergence reduction, mass drift under bounded curl, then rerun the identical 3-seed strength sweep and inspect adjacent frames.
 
+
 ## 2026-10-26: Focused Pyro projection and scalar-persistence probes
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`, `ArtifactCore/src/Simulation/PyroSimulation.cpp`.
 - **確認できた事実:** On a deterministic 24³ compressible velocity field, input divergence RMS is 0.157845. A test-only copy of the current Jacobi pressure formula and projection yields 0.188262 / 0.241493 / 0.294179 after 8 / 32 / 96 iterations. A test-only Jacobi operator matched to the central-difference divergence and gradient yields 0.067230 / 0.007853 / 0.000247. The matched operator is a numerical diagnostic, not a production change. A Pyro scalar probe with density mass 64 and dissipation 0.6/s leaves mass 64 after one 1/60 s step; source-only emission produces density mass 0. This supports that the pre-step scalar snapshot overwrites decay and injected values during advection.
 - **価値または懸念:** The pressure operator mismatch is directly reproducible in a reduced reference, and the scalar ordering observation covers both source loss and disabled density dissipation. `ArtifactCore` remains untouched. Prior curl mass measurements used as visual exploration are not a production-quality baseline.
 - **仮説（未検証）:** Updating source/decay on the transported scalar and solving the pressure equation with the exact discrete divergence-gradient composition should enable stable curl evaluation, but production boundary conditions and multi-grid behavior still require separate tests.
 - **次に確認すべきこと:** With authorization to modify the child repository, add failing-before/fixed-after regression tests for nonzero source persistence, density dissipation, and divergence reduction across representative resolutions and boundary modes, then implement the solver correction and repeat the multi-seed volume comparison.
+
 ## 2026-10-26: Pyro修正後のR&D再測定
 - **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp`、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`。
 - **確認できた事実:** 独立CMake/GTestを最新コードでビルドし、CTest 1/1が34.72秒で成功。実際の `PyroSimulation::step()` で24³場を測ると発散RMSは8/20/32反復で0.157845から0.067299/0.0224104/0.00786073へ減少。スカラー減衰は64から63.36、単独ソースの質量は2.2265となり、両方とも以前の失敗を解消した。`solvePressure()` は中心差分の発散・勾配合成に対応した2セル幅Jacobi stencilへ変更し、`integrateStep()` はソース/浮力/渦度適用後に移流元フィールドを取得する順へ変更した。これらはArtifactCore子リポジトリの変更。
@@ -6815,36 +7257,42 @@
 - **価値または懸念:** ソルバー回帰は改善し、弱いcurl帯域なら比較可能になった。一方、curlを強めるほど質量と形状を壊し、見た目の利得は限定的。CPUボリュームレンダラーの照明/散乱調整だけでは密度場にない細部は生成できない。
 - **仮説（未検証）:** よりよい次候補は、安定した速度場に追従する限定的な速度回転/渦度閉じ込めを独立比較し、単純外力curlとの短い連番を同じ発生量と描画条件で測ること。
 - **次に確認すべきこと:** まず同一設定の接触シートと密度軌跡を再確認し、弱いcurl域と速度方向回転方式を比較する。速度質量、重心、連続フレーム差、画像高周波成分、CPU時間を併記し、知覚上の改善が確認できるまで本番の既定値にはしない。
+
 ## 2026-10-26: 渦度軸回転は煙を広げるがビロウを作らない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、修正済みPyro solver、CPU volume renderer。
 - **確認できた事実:** 2シードで同じ固定 `setSources()` エミッタ・24フレームの無追加、窓付き離散curl (.02)、既存速度curl方向へのRodrigues局所回転 (.15 rad) を比較。両seedで局所回転後の速度長誤差は約5e-8未満。seed17の密度質量は196.86→192.11、ラプラシアンRMS .0206438→.0221306、高周波RMS .00344064→.00368843、投影カバレッジ4276→3895。両seedの接触シートで上昇プルームが低く広い形へ崩れ、細いビロウや層状巻き込みは確認できない。curl外力(.02)では高周波成分の増加はなく、画像も対照に近い。全独立CTest 1/1 passed。
 - **価値または懸念:** 離散渦度に沿う回転で速度長を保っても、圧力投影と浮力を経た煙の形は保たれず、現方式は明確な品質改善に失敗した。接触シート `build/smoke-pyro-volume-rnd/captures/vorticity_compare_contact.png` は対照的な形崩れを記録する。CPUコスト数値は異なるセルマスクのテスト実装であり比較不公平なので性能証拠ではない。
 - **仮説（未検証）:** いま不足しているのは単純な回転量ではなく、密度等値面や温度勾配へ整列した渦生成、かつsolverの投影/移流後にも保持される小スケール構造かもしれない。レンダラー側の低解像度・照明で構造が消えている可能性も別に検証が必要。
 - **次に確認すべきこと:** 回転強度を上げ続けず、まず格子上の密度高周波構造がsolver後も残るかを時間方向で測る。必要なら密度勾配に沿う渦方向をテスト比較するが、形状/質量の安定と接触シートの改善が両seedで出ない限り本番へ移さない。
+
 ## 2026-10-26: サブセル移流は小スケール密度を位相依存で消す
 - **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp` (`integrateStep`, `PyroFieldSet::sampleScalar`)、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`。
 - **確認できた事実:** 圧力・速度更新・レンダリングを除外したテストで3D周期密度を同じ変位で8回線形/製品三線形サンプルした。変位0.25セルで波長16/8/4/2セルの振幅保持は.880/.628/.153/.00379、0.5セルは.833/.521/.0622/.0000048、1セルは.959/.945/.952/.947。線形参照と製品 `sampleScalar()` は全条件で測定精度内に一致し、全独立CTest 1/1が42.70秒で成功。
 - **価値または懸念:** 移流補間のみでも高周波ほど危ういが、減衰は速度変位の小数部と波長/位相に依存する。整数セル移流が格子波を保持することから、単一の高周波減衰率で実煙の損失を説明できない。これは三線形サンプルの診断のみで、solverの散逸・圧力投影・速度進化・CPUレンダラーを含まない。
 - **仮説（未検証）:** 煙の微細構造には、サブセル移流で消えるより速く小スケール密度を作り直す項が必要な可能性がある。MacCormack/BFECC型補正や速度随伴詳細場を候補とできるが、形状のオーバーシュート、負密度、質量誤差を避けられるか未確認。
 - **次に確認すべきこと:** 同じ初期波形と速度変位で前進補正サンプルを試し、振幅保持、最大値/最小値、質量、非物理リンギングを計測する。その後、実際のPyro短系列と描画解像度で効果が残るかを評価し、性能予算も測る。
+
 ## 2026-10-26: 試験用BFECC補正は固定移流で高周波を回復しない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、Pyro密度の三線形移流診断。
 - **確認できた事実:** 0.25セル/stepの平行移流を8回、密度正弦波の波長8/4/2セルで一次三線形とテスト用BFECCを比較。線形振幅保持62.8/15.3/0.38%、制限付き60.7/11.5/0.12%、制限なし60.9/12.0/0.14%。制限付きの最小密度は非負だが質量変化は波長8で+9.57、波長4で-4.36。制限なしは+4.23/-12.05。独立CTest 1/1成功。
 - **価値または懸念:** この一様移流・有限窓ではBFECC補正に明確な利点がなく、制限が高周波を追加で抑え、質量誤差も残る。テスト補正コードだけの結果であり、非一様速度や流入/流出境界におけるBFECC一般の性能を否定するものではない。製品solverは変更していない。
 - **仮説（未検証）:** 条件依存の減衰が強いため、方法を採るなら実際の変化する速度場と境界を含め、逆追跡精度・補正リミッター・質量補正の組合せを評価する必要がある。対してvelocity-carried detail fieldは密度移流品質を変えずに細部を描く可能性があるが、粒子/場の一貫性やレンダリング費用は未評価。
 - **次に確認すべきこと:** 簡易BFECCを製品導入しない。以降の候補を比較する際は、一様移流と実Pyro連番の双方で振幅・重心・質量・局所最大最小を測り、どちらか一方だけの成功で採用判断しない。
+
 ## 2026-10-26: 速度随伴の2倍detail場は残るが煙状の巻きを作らない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、Pyroの3D密度/速度、CPU volume renderer。
 - **確認できた事実:** 本番 `setSources()` / `step()` 固定エミッタ16フレームの粗速度で64×96×64の独立detail場を移流し、32×48×32密度を高解像度再構成。無detail・静的detail・移流detail強度1.5/2.5の総密度はすべて1070.25。detail RMS .439→.427、高周波RMS .0732→.0665。画像high-pass RMSは.1194/.1410/.1265/.1441。目視は静的粒、移流縦筋、強度2.5の局所暗穴で、自然なビロウや層状の煙にはならない。補助detail 3配列は4.5 MiB、Debug移流処理は16フレーム3.94秒（この独立テストでの値）。製品CPU/GPU性能を示す値ではない。solver/renderer本体に変更なし。
 - **価値または懸念:** coarse densityと別の細部場は移流後も高周波を保てるが、密度変調とCPUボリューム積分は視覚上ストリーク/穴を作りやすい。現在の2倍解像度、密度乗算、固定ノイズではHoudini/C4D品質への有効な道筋としてまだ不十分。高コストも別途解決が必要。
 - **仮説（未検証）:** ノイズのスカラー値を密度へ直接乗算するより、密度等値面に沿った3D curl変位・細部の異方性・multiple-scatteringの組合せが丸いビロウを作れる可能性がある。ただし現在のCPU renderer設定では証拠がない。
 - **次に確認すべきこと:** まず今回のdetail場の位相/速度随伴方法を別シードでも再現し、密度断面も可視化する。次候補を試す場合は振幅を増やすだけにせず、ストリーク・暗穴・質量誤差を採用拒否条件に含める。見た目の改善がなければ細部場ルートを止め、solver密度自体を高解像度化するコスト対品質比較へ戻る。
+
 ## 2026-10-26: 密度法線変位は乗算ノイズより滑らかだが細部を足さない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× CPUボリューム再構成、移流detail場。
 - **確認できた事実:** 同一Pyro density・advected detailを density modulation と密度勾配法線方向の座標変位で比較。静的倍率detailの画像high-pass RMSは.1410、移流倍率は.1265、baseは.1194。法線変位0.02/0.04 mは.1181/.1246。質量補正前は+0.4/+3.0%、補正係数.996/.971で総質量1070.25へ戻した。0.04mでは投影占有画素+7%だが画像高周波は+4%だけで、視覚上は煙下部を少し広げる。静的ノイズは斑点、倍率detailは縦筋、法線変位は比較的滑らかだが層状巻き込みを作らない。solver/renderer製品コードの変更なし。
 - **価値または懸念:** 法線変位は点/穴状ノイズを避けやすい反面、detail周波数を視覚に変換しにくく、強度を上げるとプルーム輪郭の広がりに変わる。現在のCPU ray marcherおよび単一視点の実験では、DCC品質の根拠にならない。
 - **仮説（未検証）:** 法線変位の単一スカラー値ではなく、接線方向にも相関した空間ワープやcurlベクトル変位を使えば、表面を局所的に巻き込めるかもしれない。これは影/散乱応答やカメラ視点依存も含め別検証が必要。
 - **次に確認すべきこと:** この再構成方式は現段階で採用しない。継続するならcurlベクトルによる座標warpを弱い振幅から試し、複数視点、質量、occupancy、image high-pass、人工的な筋/穴を同時評価する。大きな形状拡大だけなら方法を打ち切る。
+
 
 
 ## 2026-10-26: 法線変位detailは複数視点で輪郭依存が見える
@@ -6855,12 +7303,14 @@
 - **次に確認すべきこと:** 今回の法線変位は採用候補にしない。次は3D curlベクトルwarpをテスト専用で複数視点・連続フレーム・質量重心込みで比較する。
 
 
+
 ## 2026-10-26: 3D curl warpは輪郭を細かくするがビロウを作らない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× CPU volume reconstruction。
 - **確認できた事実:** 同じ移流detailと密度を用い、解析的な発散ゼロcurl場で座標warp。0.75 cell低周波warpの画像high-pass RMSは0.1194→0.1195。周波数2倍・1.5 cell warpでは0.1666 (+39.6%)、mass correction 0.9969、占有画素は正面3897→4147/側面3889→3971/上面4728→5131。目視では輪郭の小突起が増えるが層状ビロウにはならない。独立CTest 1/1 passed (48.16 s)。接触シート `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_fine_curl_warp_contact.png`。
 - **価値または懸念:** Curl場のwarpはmulti-viewで輪郭変化を作れるが、単純な変位は密度内部に渦巻く構造を生まず、high-passだけでは品質を判定できない。今回の実装はテスト用再構成で製品solver/rendererに変更なし。
 - **仮説（未検証）:** 高品質化にはシミュレーション中に渦度/浮力/温度と結び付けた細部密度を作り、時間とともに形状を進化させる必要がありそうだが、描画解像度と散乱も結果に影響する。
 - **次に確認すべきこと:** 座標warpの振幅増加を続けない。次は時間発展する密度構造を短い連番で比較し、同一カメラ/照明で形状コヒーレンス、mass、重心、複数seedを測る。
+
 
 
 ## 2026-10-26: 時間変化curl warpは差分を増やすが煙形状を流さない
@@ -6871,12 +7321,14 @@
 - **次に確認すべきこと:** 次の研究では見た目だけの位相変更を止め、固定流れ場に対して3D detail密度場を同じ速度で移流しながら、渦度軸または密度等値面へ局所的に生成する案をテストし、質量・重心・連続フレームの巻き込みを評価する。
 
 
+
 ## 2026-10-26: 速度curlにgateした局所detail生成で巻き帯が現れる
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、2× detail場の移流/局所生成。
 - **確認できた事実:** 各substepで速度curl magnitudeと密度面の局所勾配からdetail sourceを作り、別スカラー場に加算後、同じvelocityで随伴移流。画像high-pass RMSはbase .1194、速度随伴detail .1265、局所生成 .1915。密度合計は1088.55 (+1.71%)、mass correction .9832。front/side/top占有画素3980/3987/4620 (base 3897/3889/4728)。視覚上front/sideに巻き帯、topにリング状の崩れ。3frame画像差分.002432、重心移動2.02px/pair (base .002320/1.94px)。5配列7.5MiB、Debug standalone detail更新約11.75s/16frame。独立CTest 1/1 passed (58.87 s)。接触シート `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_vorticity_generated_multiview.png`。
 - **価値または懸念:** Curl + density-gradient gatingは静的ノイズ/単純warpより煙状の巻き帯に近い形を初めて生んだが、上面は破綻し、時間変化の指標改善は小さい。単一seed・CPU再構成限定で、high-pass指標のみでは採用根拠にならない。計算費用もDebug test adapterの値であり、製品実装性能ではない。
 - **仮説（未検証）:** 生成を速度curlの絶対値だけでなく符号付き渦度軸/密度面接線へ整列し、細部sourceの正負ペアまたは平均ゼロ化を行えば、リング状の不整合を抑えて局所巻き込みを保てる可能性がある。
 - **次に確認すべきこと:** 独立seedで再現し、局所生成強度を低/中/高の3段階比較。各seedでfront/side/top、時間連番、mass/centroid、生成detailの積算量を確認する。形状巻き込みが複数seedで安定するまで本番solverへ移さない。
+
 
 
 ## 2026-10-26: 局所生成の巻き帯はnoise seedを変えても再現し、上面の崩れも固定
@@ -6887,12 +7339,14 @@
 - **次に確認すべきこと:** Pyro simulation seedも変えた複数trajectoryで再現するか確認し、生成方向を渦度軸に揃えた案とスカラーgateを比較。高周波画像指標だけで採用しない。
 
 
+
 ## 2026-10-26: detail sourceのnoise seed変更では巻き帯と上面ringが再現
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、vorticity-gated 2× detail field。
 - **確認できた事実:** 同じPyro source/速度密度履歴/初期detailを共有し、生成source noise phaseだけ29/83に変更。画像high-pass RMS .1915/.1876、front/side/top coverage3980/3987/4620 vs3986/3983/4577。raw mass1088.55/1091.59 (補正後1070.25)、adjacent image residual.002432/.002417、centroid motion2.022/2.029px/pair。front/side curl bandsとtop ring breakupは両方に再現。接触sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_vorticity_seed_comparison.png`。full standalone CTest1/1 passed (62.48s)。
 - **価値または懸念:** detail noise phaseへの依存は小さいが、同一solver trajectoryでの比較なのでPyro simulation seed/流れが変わる場合のロバスト性は何も示さない。top-view artifactも再現し、修正対象はseed noiseではない。
 - **仮説（未検証）:** density-gradient gateと渦度ベクトルの方向整列を分けて評価すると、リング状模様がスカラーsourceに起因するか方向成分に起因するか切り分けられる。
 - **次に確認すべきこと:** 次回は生成式のアブレーション（curl magnitudeのみ、density-gradientのみ、両方）を同じ場で比べ、必要ならその後にPyro source位置/速度を変えた異なる流れで再現性を見る。
+
 
 
 ## 2026-10-26: Curl/gradient gateの積は単独gateの方向性ringを弱める
@@ -6903,12 +7357,14 @@
 - **次に確認すべきこと:** vector-aligned sourceを既存combined gateと同一seed/flowで比較し、top-view ring、連続フレーム、mass/centroidを同時に採点する。
 
 
+
 ## 2026-10-26: Curl方向にphaseを揃えるとringが放射状spokeへ変わる
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、density/gradient/curl-gated detail generation。
 - **確認できた事実:** combined scalar gateに局所normalized curl方向でnoise位相を揃えるvariantを追加。image high-pass RMS .2211、front/side/top occupancy4033/4048/4824 (combined3980/3987/4620)、raw mass+2.70% (correction .9734)。front/sideで縦筋、上面で放射spokeが現れ、combinedのringより異方性artifactが強い。contact sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_generation_vector_alignment.png`。full CTest1/1 passed (72.12s)。13 scalar arrays19.5MiB、Debug update26.76s/16frames。
 - **価値または懸念:** Curl方向の局所整列は構造を増やすが、密度等値面の接線/曲率や渦の空間相関を表さず、画像high-pass最大でも視覚品質は悪化。
 - **仮説（未検証）:** 局所curl軸を直接使うより、密度面接線面上のanisotropic noiseか、渦度ベクトルポテンシャルから作る連続な発散ゼロdisplacementの方が方向の切替を滑らかにできる可能性。
 - **次に確認すべきこと:** 今回のcurl-aligned phase案は採用しない。次は局所noiseの向きを面接線へ投影して、方向の空間連続性・top view・時間連番を評価する。
+
 
 
 ## 2026-10-26: 密度面接線へのnoise射影はspokeを弱めるが画質を滑らかにする
@@ -6919,12 +7375,14 @@
 - **次に確認すべきこと:** この単一wavevector投影は不採用。次は複数帯域・位相を持つ接線場、または接線面上でのcurl potentialを比較し、3視点・時間連番・質量を同時評価する。
 
 
+
 ## 2026-10-26: 複数帯域の接線noiseは上面模様を散らすが細部も弱める
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、surface-tangent detail generation。
 - **確認できた事実:** wavevectorを密度接平面に射影した3帯域(.55/.30/.15)をsingle tangentと比較。image high-pass RMS .1561→.1359、front/side/top coverage3878/3866/4700 vs3860/3856/4691。top模様は拡散、front/side縦筋継続、細部はさらにsoft。mass correction1.0、temporal residual.002456、centroid motion2.012px/pair。接触sheet `build/smoke-pyro-volume-rnd/captures/pyro_volume_detail_multiband_tangent.png`。full CTest1/1 passed (81.32s)。17 arrays25.5MiB、Debug update35.44s/16frames。
 - **価値または懸念:** 接線面への多帯域化だけでは巻き込みが生まれず、top模様を散らすことと細部低下の交換になった。
 - **仮説（未検証）:** Detail場をsource injectionで蓄積するより、局所接線curl potentialの発散ゼロ変位として密度場を歪ませれば、筋/spotを避けつつ連続した巻きを作れる可能性がある。
 - **次に確認すべきこと:** 接線multi-bandを品質候補から外す。次はcurl potentialから得る連続な接線ベクトルwarpを、同じ密度/flowで比較し、top-viewと複数フレームで巻きの連続性を判定する。
+
 
 
 ## 2026-10-26: 接線curl potential warpは輪郭を保つが細部を消す
@@ -6935,12 +7393,14 @@
 - **次に確認すべきこと:** 本variantは不採用。続ける場合はmass correction前の誤差を含め、局所変位振幅と帯域を小さなfactorial sweepにし、3視点と時間連番で評価する。
 
 
+
 ## 2026-10-26: vorticity confinementの強度増加だけでは煙の巻き込みにならない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、`ArtifactCore/src/Simulation/PyroSimulation.cpp` の現行vorticity設定、Pyro volume rendering。
 - **確認できた事実:** fixtureに標準形 `ε h dt (N × ω)` (`ω=curl(u)`, `N=grad(|ω|)/|grad(|ω|)|`) のtest-only adapterを作り、同じ固定emitterでepsilon 1/2/4/8/16、現行実装、無効を比較。epsilon 1-4の3視点画像に明確なroll差はなく、mass 133.68→125.60。epsilon8/16ではmass118.84/116.42へ減少、divergence RMSは .01414→.03437。現行実装も滑らかなplume。contact sheet `build/smoke-pyro-volume-rnd/captures/pyro_vorticity_confinement_contact.png`。独立CTest1/1 passed (85.83s)。SideFX docsはdisturbance/shredding/turbulence/confinementを個別operatorとして説明し、Maxon docsはvoxel/substep依存のVorticityと空間scale/octave/frequencyを持つTurbulenceを分ける。出典: [SideFX](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html), [Maxon](https://help.maxon.net/c4d/2024/en-us/Content/html/OPBDSCENE-PBDSCENE_GROUP_PYROPROPERTIES.html), [Fedkiw et al.](https://physbam.stanford.edu/papers/stanford2001-01.pdf)。
 - **価値または懸念:** 単一の渦保持項はsmoke capの分解や複数スケール構造を代替しない。現行コードではcurl magnitudeのspatial gradientを作らず別の近似vectorで速度を変えているが、本fixtureの見た目だけから製品挙動全体を断定しない。
 - **仮説（未検証）:** Houdini/C4Dに近い見た目には、persistent なmulti-scale curl-noise turbulenceと、速度長を維持して流向を曲げるshreddingを別々に調整し、その後にvolume lighting/phaseを整える必要がある可能性が高い。
 - **次に確認すべきこと:** 次回は同じdensity mask・時間周波数・質量条件でcurl-noise turbulenceとspeed-preserving shreddingを比較し、低・高周波の寄与を分離する。現行solverへ移植しない。
+
 
 
 ## 2026-10-26: curl turbulenceとshreddingを同じ入力速度変化率で比較
@@ -6951,12 +7411,14 @@
 - **次に確認すべきこと:** 次回はvoxel resolutionとsubstep数を独立に変え、同じworld-space emitter、周波数、simulated timeで3視点とfield/mass/divergenceを測る。
 
 
+
 ## 2026-10-26: 解像度とsubstepは別に効くが高密度格子だけではbillowを作らない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、3D Pyro sourceとCPU volume render。
 - **確認できた事実:** world-space domain/emitter/settings/simulated timeを揃えて32×48×32と48×72×48を60/120Hz fixed stepで比較。pressure iterationsは12/24へgrid幅に応じて増やした。substep倍増時のworldMass差は約2%/1.2%、divergence RMSは.01324→.00791、.01022→.00651で約40%/36%低下。resolution増加時はworldMass+5〜6%、world-space density gradient RMS+28%だが3-view contact sheet `build/smoke-pyro-volume-rnd/captures/pyro_grid_substep_contact.png` でrollは現れず、front/top pixel coverageは減少。voxel high-frequency metricはresolution間で非比較。全CTest1/1 passed (92.25s)。
 - **価値または懸念:** 120Hzはこのsolverのprojection安定性を改善したが、短いplumeの見た目はほぼ変わらない。高解像度はvisual detailと同義でなく、solver shapingとrenderer light transport双方の不足が残る。
 - **仮説（未検証）:** 0.4sの固定source plumeは層状rollが発達する前に撮影されている可能性がある。一方で単純にsimulation timeを延ばすとsourceが積み上がるため、emit durationとpost-emission evolutionを独立に振る必要がある。
 - **次に確認すべきこと:** source pulseを固定時間だけ放出後に停止し、同じemitted massを静止/上昇させて複数秒追跡する。substepと解像度は比較結果のよかった条件に固定し、post-emissionでroll生成とmass dissipationを観察する。
+
 
 
 ## 2026-10-26: 短い高rate pulseは高く上がるが、停止後は大きなdensity損失が出る
@@ -6967,12 +7429,14 @@
 - **次に確認すべきこと:** 同一pulseでsource停止後、velocity CFLと境界通過fluxをframeごと測り、開境界の箱を広げたcaseと移流step制限caseを比較してmass lossを切り分ける。shape改善に進む前に基礎mass behaviorを説明する。
 
 
+
 ## 2026-10-26: pulse後のmass lossは境界流出ではなく速度条件に追従
 - **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp` の`integrateStep()`、`PyroSimulationSettings::advectionClamp`、Pyro standalone pulse diagnostic。
 - **確認できた事実:** 0.2s pulse後1.2sまで追い、source speed 60/120/240 × Open/Closed boundaryを比較。Openのmass retention67.9/59.7/48.4%、Closed67.6/59.2/47.6%。2 voxel boundary shellのdensity massは全条件ゼロ。pulse-end backtrace距離はdensity weighted .054/.104/.196 cell/step、最大<.38 cell。divergence RMSは.0027/.0054/.0107へ上昇。contact `build/smoke-pyro-volume-rnd/captures/pyro_trace_boundary_contact.png`、full CTest1/1 passed (97.18s)。コード上`integrateStep`は`position - velocity*dt`を直接sampleし、settingsの`advectionClamp`参照なし。
 - **価値または懸念:** 境界外へのflowを避けても大きなmass lossが残り、高速度ほど悪化する。境界漏出説はこの設定で棄却されるが、強流とdivergenceが同時変化するため、trilinear interpolation単独の寄与は分離されていない。advectionClampは名前に反しこのpathで効いていない。
 - **仮説（未検証）:** solver projection後に残る速度場の圧縮/膨張とtrilinear scalar backtraceの非保存性が重なり、密度を系統的に失う可能性がある。
 - **次に確認すべきこと:** 同じ速度サンプルを固定してscalar-only trilinear backtraceを行い、1) uniform translation, 2) measured projected Pyro velocity, 3) divergence-free projected velocityを比較する。次にprojection前後のdensity mass差を記録し、advection / projection / boundaryを定量分離する。
+
 
 
 ## 2026-10-26: 固定速度でのscalar移流だけでも約10%の密度massを失う
@@ -6982,12 +7446,14 @@
 - **仮説（未検証）:** velocityごとにdivergenceを除いても一様移動以外ではtrilinear sampling自体がmassを失い、別途mass-conserving remapが必要になる可能性。
 - **次に確認すべきこと:** 既知のanalytic divergence-free vortexと一様translationでscalar-only移流を比較し、次にproduction velocityでstepごとのdivergenceとmass fluxを記録する。mass補正やBFECCは独立に評価してから採否を判断する。
 
+
 ## 2026-10-26: 発散ゼロの非一様流れでsemi-Lagrangian移流が密度massを失う
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、`PyroFieldSet::sampleScalar()`、固定流速のbacktrace。
 - **確認できた事実:** 64³ closed domain内のGaussian densityを60 step移流。constant x translation (0.2 cell/step)でmass retention 99.9917%、離散streamfunctionのcurlで構成した渦場で93.1485%。centered discrete divergence RMSは0 / 4.18e-8。広いdomainにしplumeを境界から離すと、一様移流ではmassが保たれる。独立テストpass (2.69s)。
 - **価値または懸念:** 以前の32セル幅条件で一様移流77.5%だったのは境界近接が大きく混入していた。今回の条件では、速度が空間変化する場合にdeparture coordinate mapとtrilinear remapが組み合わさってmassを失う証拠が得られた。ただしこれを補間単独の誤差とは断定できない。
 - **仮説（未検証）:** limited BFECCは一様移流の形状を改善しても、variable-flowのmassを回復しきらず、局所clampが峰/谷やmassに別の偏りを作る可能性がある。
 - **次に確認すべきこと:** BFECCで得たmass/high-frequency改善がdensity renderと時間変化でも見た目の煙を改善するか、solverへ持ち込まず固定場の複数seed・渦強度で確認する。
+
 
 ## 2026-10-26: BFECCは固定発散ゼロ渦場でmassと細部を回復する
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の`MeasuresScalarMassLossForUniformAndAnalyticDivergenceFreeFlows`。
@@ -6996,12 +7462,14 @@
 - **仮説（未検証）:** 複数seed・渦強度でもlimited BFECCがmass retentionと高周波を安定して上げる一方、画面上では過剰に尖った煙や振動を作らない可能性がある。
 - **次に確認すべきこと:** test-only field adapterで渦強度とseedを振り、連続frameのdensity render、mass、高周波、min/maxを同時に採取する。見た目と時間安定性を確認してからproduction solverへの移植可否を決める。
 
+
 ## 2026-10-26: BFECCの高周波改善だけでは煙のbillowは生まれない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`、CPUVolumeRenderer、fixed analytic vortex transport。
 - **確認できた事実:** 同一の60-step固定渦場をsemi-Lagrangian / unlimited / limited BFECCで移流し、共通CPU volume設定で128²描画。coverageは3927/3496/3496、luminance sum 205700/201937/201937、luma stddev 29.57/31.21/31.21。contact `build/smoke-pyro-volume-rnd/captures/transport-bfecc-rnd/transport_bfecc_contact.png`。三画像とも滑らかな単塊で、BFECCは少しsharpだがroll/billowは生成しない。
 - **価値または懸念:** high-frequency RMS +13.9%という数値改善は目視上の煙形状改善と同じではない。移流精度の補正のみではHoudini/C4D級の巻き上がる煙にならず、燃料・温度浮力・vorticity/turbulenceからの形状形成が別に必要。
 - **仮説（未検証）:** 初期密度を単塊Gaussianではなく複数scaleの連続curl変形と熱上昇で生成し、BFECC移流を組み合わせると小scaleの減衰を抑えつつ連続billowへ発展する可能性。
 - **次に確認すべきこと:** 複数seedと渦強度で時間変化するテスト専用vortex/advectionを可視化し、現行curl/turbulence probeとの違いを調べる。BFECCはsolver側の長期効果とコストを測るまではproduction採用しない。
+
 
 ## 2026-10-26: 2D runtime curl-noise kickはseed依存の横流れを増やしbillowを作らない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の`MeasuresSeededCurlDisturbanceAcrossPlumeAndFrames`、production `LayerFluidRuntimeState` test harness。
@@ -7010,10 +7478,12 @@
 - **仮説（未検証）:** SideFXが分けている大scale turbulenceと小scale disturbance/shreddingのように、同じノイズ場を強めるのではなく、スケール別の力・control mask・速度長制約を分離しなければ煙らしいbillowが保てない可能性。
 - **次に確認すべきこと:** 現行2D solverのtop closed-boundary bandとmass lossを切り分け、renderer補正で隠すのではなく、outflow/headroomをtest-only adapterで比較する。その後に形状力を試す場合は各scaleの速度偏りとdivergenceを制御し、mass・centroid・temporal residual・目視を同時に合格条件にする。
 
+
 ## Donor behavior note: shaping operators should remain distinct
 - **確認できた事実:** SideFX Pyro Solver docs separate large-scale turbulence/churning from disturbance and shredding; shredding redirects velocity, and each operator supports its own control field. Maxon exposes turbulence and vorticity separately.
 - **価値または懸念:** Current test-only 2D adapter combines 3 frequency bands into one curl impulse. Its seed drift and divergence response should not be mistaken for the result of an individual Houdini/C4D operator.
 - **次に確認すべきこと:** Keep the simulation Core unchanged and compare independently masked low-frequency curl, high-frequency disturbance, and speed-preserving local rotation; track mass, centroid, divergence, temporal residual, and visible roll structure together.
+
 
 ## 2026-10-26: snapshot後の速度outflow補正は閉境界投影を変えられない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の`ComparesClosedTopDensitySpongeAndVelocityOutflowAdapters`、`FluidSolver2D::setBoundary()`。
@@ -7022,12 +7492,14 @@
 - **仮説（未検証）:** 上端の圧力条件・法線速度処理をprojection内で一貫してone-wayにするtest-only kernelなら、massを保持しつつ反射バンドを低減できる可能性がある。
 - **次に確認すべきこと:** 子repoを変更せず、standalone内に限定したprojection-boundary kernelまたは小さなsolver copyを作り、closed / density sponge / true one-way projectionを比較する。pressure residual、normal velocity、mass flux、centroid、render imageを同時に測る。
 
+
 ## 2026-10-26: test-only open-top projectionは発散を下げるが煙質を変えない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesClosedTopDensitySpongeAndVelocityOutflowAdapters`。
 - **確認できた事実:** 96×72、45frameでclosed / density sponge / snapshot velocity-only / 簡易open-top projectionを比較。frame44のclosed対projectionはmass 472.485/469.524、top8 mean density .118184/.111269、発散RMS .0155404/.00953461、上端フラックス指標 1.76132/.655216、visible pixels 180690/186686。投影試作は発散RMSを下げ、上部の描画広がりをわずかに変えたが、接触画像 `build/smoke-runtime-rnd/captures/top-open-projection-rnd/top_boundary_contact.png` では平滑なcapが残り、coherent billowは生成しない。focused GTest pass (5.63s)。
 - **価値または懸念:** 密度spongeは上部帯を大幅に消す代わりに質量を失い、投影境界変更は質量を保つが見た目への効きが弱い。試験カーネルは20 Jacobi iterationの簡易離散化で、保存的fluxやproduction solverとの等価性は未検証。数値上の発散改善だけを品質改善とみなさず、製品コードへ移さない。
 - **仮説（未検証）:** DCC級の巻き上がりには境界処理より、大きな渦を作る低周波churningと細部disturbanceを別の制御場・速度意味で組み合わせることが有効な可能性がある。
 - **次に確認すべきこと:** 2D runtime上で低周波のroll forcingと高周波disturbanceを独立にmask・強度制御し、seed複数・時系列・mass・divergence・描画を並列評価する。境界研究は、実装同値なpressure residual/flux検査ができる小型solver fixtureが必要になった場合に再開する。
+
 
 ## 2026-10-26: 低周波rollと高周波disturbanceの直接速度操作は質量・発散を崩す
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesIndependentRollAndFineDisturbanceOperators`。
@@ -7036,12 +7508,14 @@
 - **仮説（未検証）:** 粗いstreamfunctionで低周波循環を作り、solverのprojection/速度制限と組み合わせる、あるいは各substepでforce量を速度エネルギー・質量基準に正規化すれば、plume形状を動かしつつdriftを抑えられる可能性がある。
 - **次に確認すべきこと:** 低解像度の滑らかな循環potentialを速度加算ではなくbounded circulation constraintとして適用し、同じmass/centroidの条件でもbillowが残るか試験する。projection後の発散、速度RMS、質量保持、複数seed画像・3frame連番を必須評価にする。
 
+
 ## 2026-10-26: セル速度上限付き循環は発散を抑えるが質量正規化後の形状利得がない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesIndependentRollAndFineDisturbanceOperators`。
 - **確認できた事実:** 低周波curl kick後に各セルの速度長を元の速度長以下へ制限。baseline / bounded circulationのframe44 massはseed17で472.485/514.799、seed71で472.485/506.431。発散RMSはbaseline .0155404に対し.0153657/.0152601、隣接画像差分はbaseline .3763に対し.3819/.3872。描画時だけ密度をbaseline mass 472.485へ正規化するとvisible pixelsは178900/180563でbaseline180690と同程度以下。Focused test pass (23.69s)、画像 `build/smoke-runtime-rnd/captures/bounded-circulation-rnd/`。
 - **価値または懸念:** 上限処理で発散増加を抑えられる兆候はあるが密度mass driftは約+9%/+7%残り、mass normalizationは最終フレームだけの診断処理で保存性を証明しない。等質量描画で占有面積が増えず、billowの視覚的根拠もない。製品候補にはしない。
 - **仮説（未検証）:** 同じ速度上限に加え、simulation各frameで基準massを保つ保存的density transportを使えば、速度形状操作単独の輪郭効果を公平に比較できる可能性。ただし全体mass scalingは濃度を一様に変えるため、これだけを実solver解決策としない。
 - **次に確認すべきこと:** smoke densityをmass-conserving flux-form scalar advectionへ移すtest-only variantとsemi-Lagrangian baselineを同じvelocity history上で比較し、その後、循環制約が等質量条件でも渦構造を増やすか判定する。
+
 
 ## 2026-10-26: 重心追従の解析渦はcapを押し広げるがbillowを作らない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesIndependentRollAndFineDisturbanceOperators`、`build/smoke-runtime-rnd/captures/tracked-vortex-rnd/`。
@@ -7051,12 +7525,14 @@
 - **次に確認すべきこと:** 48×36×32の時間発展3D Pyro baselineを、sourceのworld-space寸法・単位体積あたりの投入量・時間刻みを一致させて複数解像度で比較し、renderer transferを固定してfront/sideのbillow曲率、density gradient、temporal coherence、CPU時間を測る。解像度と発生源をスケールしない比較はaliasingとsource-volume変化を混同するので避ける。
 - **参考:** SideFXはPyroのturbulenceを大規模なchurning、disturbance/shreddingを異なる役割の小規模形状制御として説明している。また解像度を上げると細部が増え、voxelより小さいshredding/turbulenceは見えないと明記している。[Pyro Solver (Sparse)](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html)、[Pyro look development](https://www.sidefx.com/docs/houdini/pyro/pyro_look.html)。
 
+
 ## 2026-10-26: 2D固定渦場でMUSCL flux-formは質量と螺旋detailを保つ
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesSemiLagrangianAndConservativeVortexTransport`。
 - **確認できた事実:** 96×72・固定解析streamfunction vortex・Gaussian scalar plume・60step・closed zero-flux境界を比較。semi-LagrangianとMUSCL双方に同じCFL substep=6を適用。first-order semi-Lagrangianはdensity sum 364.406、初期/保守法439.675に対し82.9%保持。minmod MUSCL flux-formはmass 439.675で相対誤差1e-4以下。peak正規化画像のhigh-pass RMSは.005479対.016089、gradient RMS .01567対.03127、最大密度 .6632対.9194。contact `build/smoke-runtime-rnd/captures/transport-2d-rnd/` ではsemi-Lagrangianは広い平滑塊、MUSCLは明瞭な螺旋を残す。focused test pass (.44s)。
 - **価値または懸念:** 固定渦場でbacktrace interpolationのmass lossを抑えながらscalar detailを保つtest-only証拠。ただし一次SLとminmod MUSCLは空間次数・数値拡散も異なるため、差を質量保存単独に帰せない。dynamic velocity、buoyancy/source、複数seed、性能は未検証。単一2D spiralをDCC級品質と判断しない。
 - **仮説（未検証）:** velocity limiterと小さなcell CFLを組み合わせたMUSCL scalar transportをdynamic plumeに使えば、時間発展時の渦の筋を残しながらmass driftを抑える可能性がある。
 - **次に確認すべきこと:** 同じruntime velocity snapshotsをsemi-Lagrangianとtest-only MUSCLに適用し、frameごとのmass、非負性、centroid、発散、複数seed・連番画像とDebug計算量を評価する。source injectionとdissipation量は別記録し、flux boundary accountingと区別する。
+
 
 ## 2026-10-26: production runtimeの速度履歴を再生するとSL mass増加とMUSCL筋状集中が出る
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
@@ -7065,12 +7541,14 @@
 - **仮説（未検証）:** 記録速度場を同じ境界離散化で再projectionして発散を抑え、runtime相当のsource injectionを両branchへ同量適用すると、MUSCLのmass保持が有用な煙の渦筋になる可能性がある。逆にprojection後もstreakが残れば、limiter/face fluxの設計が悪い可能性。
 - **次に確認すべきこと:** この同一velocity historyでtest-only pressure projection前後を比較し、velocity divergenceとmass、nonnegative、peak/clumping、視覚パターンを調べる。次段階でsourceを正確に分離・再生するまではdynamic plume候補として評価しない。
 
+
 ## 2026-10-26: runtime速度履歴の20回projectionは密度再生の問題を解消しない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
 - **確認できた事実:** 45frame記録velocityを各frameごとtest-onlyでclosed-boundary Jacobi projection (20 iterations) した後、同一scalarをSL/MUSCLで再生。divergence RMS mean/peakは未投影 .0154807/.0193612から.0127812/.0168891へ低下。初期mass207.254に対してSL502.255 (+142%)、MUSCL207.254。peak density .3583/3.664、high-pass RMS .04018/.05424。画像 `build/smoke-runtime-rnd/captures/runtime-velocity-projected-rnd/` ではSLの広いcapとMUSCLの集中したstreakが残り、質感は改善しない。focused test pass (1.97s)。
 - **価値または懸念:** 20 iteration pressure projection後もSL scalar mass増加とMUSCLのvisual clumpingは残った。画像はscalar replayなので製品runtime結果とは区別する。
 - **仮説（未検証）:** 20回で未解消のpressure residual、compressible runtime velocity、source欠落などのどれがscalar replayの差を支配するか未特定。
 - **次に確認すべきこと:** projection反復数と同一単位でのdivergence/residual評価を比較し、sourceを分離再生する。face/centered発散値を単位変換せず比較しない。
+
 
 ## 2026-10-26: pressure反復を80回に増やすとface divergenceとSL mass増加は下がるがstreakは残る
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
@@ -7079,12 +7557,14 @@
 - **仮説（未検証）:** source injectionやcompressibilityによりMUSCL scalarが局所集中する可能性はあるが、face/centered比較からは原因を特定できていない。
 - **次に確認すべきこと:** 同一単位に変換した速度発散とpressure residualを評価し、production velocityのcompressibilityとsource再生を分ける。face velocity/projector不整合は現時点で未立証として扱う。
 
+
 ## 2026-10-26: 同じ単位にしたface-flux発散とcentered発散は一致
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
 - **確認できた事実:** centered velocity差分にruntime backtraceと同じ `(width-2)/frameRate`, `(height-2)/frameRate` を掛けたcell/frame単位の発散と、左右上下のface-normal fluxから計算した発散を比較。未投影RMS .037615/.037615、80iteration投影後 .0257793/.0257793、各cellの最大差は約9e-7未満。focused test pass (2.40s)。
 - **価値または懸念:** 以前の.01548対.03762は異なる単位を比較していた。face velocity/projector離散化の不整合という推測は今回の証拠で支持されず、production変更の根拠にしない。
 - **仮説（未検証）:** scalar replayで見えたSL mass増加とMUSCL streakは、圧縮性、sourceを省いたreplay、limiterの局所集中などが関係し得るが原因寄与は未分離。
 - **次に確認すべきこと:** 同じvelocity history・同じ単位で各frameのemissionを両advection branchへ再生し、source積算量と移流後massを個別に測る。production相当sourceを含むMUSCL plumeが見た目を改善するか確認する。
+
 
 ## 2026-10-26: runtime source mapを両方式へ再生するとMUSCLは質量を保つが実plumeより細い
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
@@ -7093,12 +7573,14 @@
 - **仮説（未検証）:** 実runtimeの質量増加/首の太さの一部は、source injection前後のvelocity timingと、そのdensityに依存するbuoyancy feedbackがscalar-only replayで欠落するためかもしれない。
 - **次に確認すべきこと:** density buoyancyを無効にしたruntimeからvelocity-only historyを採り、正確に一致するsource replayと比較する。その後、full coupled runtimeのdensity snapshotsとの差分をsource・transport・feedbackへ切り分ける。production solver本体は触らずtest fixtureで調べる。
 
+
 ## 2026-10-26: buoyancy無効とsource sway位相ずらしでもruntime再生mass差が残る
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReplaysRuntimeVelocityHistoryWithTwoDensityTransportSchemes`。
 - **確認できた事実:** `settings.buoyancy=0` のproduction velocity historyをsource replay。source+dissipation期待mass446.953、actual runtime mass490.139。same-frame 1-backtrace SL445.332、1frame-lag SL450.942、source swayだけ15frameずらしたSL437.637、MUSCL446.953。focused test pass (2.41s)。source-phaseずらし画像でもplumeは線状、actual runtimeは首元が少し広い。
 - **価値または懸念:** buoyancy単独では+43.2 mass差を説明せず、1frame timing shiftでも一致しない。sourceの空間分布・積算とmass conservationは保つtest replayだが、velocity snapshotsはupdate後である。sway phase variantはsourceだけの位相変更で別runtime trajectoryではない。
 - **仮説（未検証）:** runtimeの速度source injectionはdensity weightingを伴い、そのframe内でprojection/advection/velocity updateと絡むため、post-update velocityで後からsource付きscalarを運ぶことが一致しない可能性。ほかにstep内部のsolver density diffusionとadvection順の作用も残る。
 - **次に確認すべきこと:** density-only/velocity-only componentの更新順を変更せず、solver snapshotからpre-density-advection fieldを取得できる既存hookがあるか調査する。なければ必要な観測をtest-only wrapperで再現し、density diffusion・velocity source・scalar backtraceの寄与を分離する。source/noise phase違いの2 runtime trajectoryも追加する。
+
 
 ## 2026-10-26: smoke runtime replayのsource位置とdensity step順序を修正
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`、`ArtifactCore/src/Physics/FluidSolver2D.cpp`。
@@ -7108,6 +7590,7 @@
 - **次に確認すべきこと:** ghost-cellとinterior-only massを分けて追跡し、品質評価をmass/centroid/時間連続性と画像で再実施する。solver本体は変更せずfixtureに限定する。
 - **追加検証:** 独立 smoke suite全20件を `ARTIFACT_SMOKE_RUNTIME_OUTPUT_DIR` 設定下で再実行し、20/20 passed。初回の環境変数なし実行はcapture directory前提の1件のみ失敗し、同testを変数設定後に単独再実行してpass、その後suite全体もpass。exact replayにはfieldwise assertを追加し、最大absolute density error 9.54e-7、RMS 3.83e-8。
 
+
 ## 2026-10-26: fixed-density 2D self-shadowだけでは煙の立体感が増えない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesFixedDensityOpticalDepthAndDirectionalSelfShadowRendering`。
 - **確認できた事実:** frame-34の同じproduction densityを使い、unlit optical depth、2D面内のdirectional self-shadow、ambient fill、density-gradient normalを比較。mean luminance excess / luma standard deviationは7.60/17.79、3.77/8.62、4.84/10.78、5.98/13.97。画像は `build/smoke-runtime-rnd/captures/fixed-field-light-rnd/`。direct shadowは露出とコントラストを下げ、ambient/gradient fillも無照明より立体的なbillowを増やさない。focused GTest pass。
@@ -7115,6 +7598,7 @@
 - **仮説（未検証）:** 2D密度を奥行き方向に変化させて2.5D volumeへ持ち上げ、既存CPU volume rendererで積分すると、単純な画面平面照明より奥行き情報に由来するシェーディングが得られる可能性がある。
 - **次に確認すべきこと:** 同じ2D emitter plumeをdepth varying 2.5D densityに展開し、CPU volume rendererのfront/side viewでdepth extrusion、shadow、scatteringを比較する。production runtimeとchild repoは変更しない。
 - **再検証:** optical-depth/self-shadow/gradient testを含め、独立runtime GTest 21件が環境変数設定下で全件pass（134.2秒）。docs日付監査と`git diff --check`もpass。
+
 
 ## 2026-10-26: 2D smoke densityを2.5D volumeへ展開してCPU volume render
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `RendersDepthVaryingVolumeFromTheSameTwoDimensionalSmokePlume` と standalone CMake設定。
@@ -7124,6 +7608,7 @@
 - **次に確認すべきこと:** existing Pyro volume testとの組み合わせで3D emitter plumeをmulti-frame/front-side captureし、単一2D source footprintで初期化した真正3D simulationと静的2.5D extrusionを比較する。mass、centroid、adjacent-frame change、front/side imageを並べ、production solverは変更しない。
 - **再検証:** 2.5D volume testを含むstandalone GTest 22件すべてpass（140.95秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
 
+
 ## 2026-10-26: 2D emitter footprintから動的3D Pyroを生成して比較
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesStaticTwoPointFiveDWithTimeEvolvingThreeDimensionalEmitter`、standalone CMake。
 - **確認できた事実:** 2D runtime emitterと同じworld-space center/radius/heightを持つ3D Pyro sourceを48×36×32 open domainに置き、36 frame×2 fixed step=1.2秒を進めた。2D runtimeも同時間進め、終端densityをGaussian depth envelopeで静的2.5D化し、同一CPU volume rendererでfront/sideを比較。Pyro baseline final mass/centroidY,Z=225.1/(14.14,15.50)、隣接field cosine/L1=0.9938/0.1473。既存方式のdensity-gated temporal curl (.0625)では捕捉frame mass213.7/219.4/217.1、cosine/L1=0.9944/0.1436、final Laplacian RMS=.02185（baseline .02341）。renderer densityScale7.2時のfront/side occupied pixelsはbaseline6423/6824、curl6207/6670。default scale1.8ではbaseline1204/1611でかなり暗い。画像は `build/smoke-runtime-rnd/captures/3d-emitter-rnd/`。
@@ -7131,6 +7616,7 @@
 - **仮説（未検証）:** DCC風の巻き込みにはvelocity curlの単純追加より、密度面に沿ったmulti-scale detailの時間移流/再生成、またはturbulenceの時間・空間スケール設計が必要。
 - **次に確認すべきこと:** Pyro source plumeを同じseed/frameで複数noise scale・strengthに対して密度mass、Laplacian、高周波energy、temporal L1とfront/side画像で比較する。質感が改善しない条件は見切り、production変更は保留。
 - **再検証:** 3D Pyro source/curl比較を含むstandalone smoke GTest 23件すべてpass（159.1秒）。docs日付監査と`git diff --check` pass。
+
 
 ## 2026-10-26: 3D smoke emitter footprint tradeoff
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `MeasuresMassNormalizedThreeDimensionalEmitterFootprintSweep`。
@@ -7140,6 +7626,7 @@
 - **次に確認すべきこと:** 同じPyro domain・同じ名目source volumeで単一sourceと二〜三個のoffset lobeを比較し、front/side volume render、密度mass、centroid、Laplacian、時間差分を記録する。
 - **再検証:** source footprint sweepを含むstandalone smoke GTest 24件すべてpass（54.5秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
 
+
 ## 2026-10-26: 3D smoke source間隔は形状を分離するがbillowを作らない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesSingleAndThreeLobedPyroEmitterAtMatchedNominalSourceVolume`。
 - **確認できた事実:** 半径.12の単一Pyro emitterと、半径.0832の3ローブを三角形配置し、中心間隔.10/.14/.22、72×1/60秒で比較。production radial source-kernelをvoxel上で積分して名目投入量を合わせると終端massは225.06/200.91/199.93/205.34。volume render densityScale7.2でfront/side occupied pixelsはsingle 6423/6824、tight 6909/6990、.14 7142/8027、wide 6973/10652。PNGは `build/smoke-runtime-rnd/captures/3d-emitter-topology-rnd/`。 focused test pass。
@@ -7147,6 +7634,7 @@
 - **仮説（未検証）:** 既存Pyroのsource-only plumeはsource topologyを変えるだけではrollを生みにくく、密度に連動する渦輸送・熱浮力またはdetailの時間発展が必要。
 - **次に確認すべきこと:** 間隔.14のfront/side時系列を確認し、lobe間で速度・vorticityが強くなる領域と密度界面の移動が対応するか計測する。続けてsource pulsingか既存velocity field由来のtest-only vorticity confinementを一因子ずつ加え、mass/centroid/temporal changeと同じレンダー画像を比較する。
 - **再検証:** このテストを含むstandalone smoke suite 25件すべてpass（54.98秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
+
 
 ## 2026-10-26: 周期放出は上昇とpuff分離を増やすが巻き込みは作らない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesSingleAndThreeLobedPyroEmitterAtMatchedNominalSourceVolume`。
@@ -7156,6 +7644,7 @@
 - **次に確認すべきこと:** 周期を0.1/0.2/0.4秒で振り、同じ平均入力に揃えて重心速度・周期ごとのmass残存率・時間隣接画像差分を比べる。続けてPyro velocityから計算するtest-only vorticity confinementを一因子として追加し、渦度とdensity interface curlが同期するか確認する。
 - **再検証:** cadence/capture変更後を含むstandalone smoke suite 25件すべてpass（54.56秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
 
+
 ## 2026-10-26: pulse periodは上昇高さとmass retentionを交換する
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の3-lobe pulse period sweep。
 - **確認できた事実:** spacing .14、50% duty、density/temperature/velocityをon中2倍・off中0にして周期.2/.4/.6秒を比較。全runは1.2秒で整数cycle数、nominal source integralは連続条件と同じ。終端mass/voxel-Y centroid/front-side occupied: continuous 199.94/11.76/7140,8024; .2 s 193.15/12.41/7969,8574; .4 s 182.25/13.11/8629,9014; .6 s 176.24/14.05/8526,8833。画像は `build/smoke-runtime-rnd/captures/3d-emitter-topology-rnd/` に噴出・休止の半周期ごと保存。focused GTest pass。
@@ -7163,6 +7652,7 @@
 - **仮説（未検証）:** 長いsource-off時間で浮力だけが残る期間が上昇を増し、同時にopen boundaryへの移動とdissipationがmassを減らす。
 - **次に確認すべきこと:** source-free buoyancy-only / velocity-decay-only controlでmass流出と重心を分け、次いでtest-only vorticity confinementをpulse phaseへ同期／非同期してbillow形成差を確認する。
 - **再検証:** cadence sweepを含むstandalone smoke suite 25件すべてpass（55.82秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
+
 
 ## 2026-10-26: Pyro post-pulse mass loss is flow-driven, while buoyancy response is weak
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `SeparatesBuoyancyAdvectionAndDensityDecayAfterEmitterPulse`。
@@ -7172,6 +7662,7 @@
 - **次に確認すべきこと:** 同じactive temperature support上でcurl vectorの向き・発散・density-gradientとの位置関係を計測し、test-only vorticity confinementを係数別に追加する。mass、重心、curl、front/side renderを並べ、単に横へ散らす条件を除外する。
 - **再検証:** active-cell temperature/velocity/curl計測とpressure iteration/buoyancy sweepを含むstandalone smoke suite 26件すべてpass（57.21秒、capture output directory設定済み）。docs日付監査と`git diff --check` pass。
 
+
 ## 2026-10-26: 標準vorticity confinementは残留curlをbillowへ変えずmass lossを増やす
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `SeparatesBuoyancyAdvectionAndDensityDecayAfterEmitterPulse`。
 - **確認できた事実:** 本番solverを変更せず、同じpulse-end velocityを引き継ぐsource-free branchへtest-onlyの物理単位標準式 `epsilon*h*dt*(N×curl(u))` を毎step適用した。全体適用epsilon2/8、温度supportかつ相対density-gradientで重み付けしたepsilon8を比較。無追加forceのmass retention/重心Yは47.05%/.396m、epsilon2は36.41%/.395m、epsilon8は26.94%/.320m、界面gate epsilon8は37.18%/.376m。画像ではどの条件も滑らかなpuffで折れたbillowは見えず、係数増加でmassが減り、界面gateはその損失をやや緩和した。focused test pass (1.80s)。
@@ -7180,6 +7671,7 @@
 - **次に確認すべきこと:** test-only multi-scale divergence-free noiseとdensity-only shreddingを別因子で比較し、density mass、重心、隣接frame coherence、front/side画像を同時評価する。
 - **再検証:** focused test 1件pass (1.80秒)、standalone smoke suite 26/26 pass (57.69秒)。文書日付監査と`git diff --check` pass。
 
+
 ## 2026-10-26: 密度だけの多帯域shreddingは輪郭を粗くするがbillowを作らない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `SeparatesBuoyancyAdvectionAndDensityDecayAfterEmitterPulse`。
 - **確認できた事実:** 同一pulse後の3D Pyro source-free branchesに、8-cell low-bandまたは8/4/2.5-cell multi-bandのsmooth 3D value noiseを、相対density-gradient gateと密度加重平均補正付きで毎step適用。振幅.12/.28。各step適用直後のmass誤差は最大6.8e-9以下で、branchのvelocity metricsは完全に一致。1秒後のcontrol / low.12 / multi.12 / multi.28 mass=20.19/22.86/20.93/22.06、density Laplacian RMS=.00595/.00957/.00645/.01016、centroidY=.396/.370/.394/.372m。0.5秒から1秒のnormalized density L1 change=.496/.479/.499/.489。画像は高振幅で内部と輪郭の粗さが増えるが、折れたbillowは現れない。focused test passed。
@@ -7187,6 +7679,7 @@
 - **仮説（未検証）:** 構造的な巻き帯には無相関のscalar textureではなく、velocity curl軸や密度界面接線に向きを合わせ、正負の密度transferを近傍で対にした局所detail生成が必要かもしれない。既存のPyro volume R&Dではcurl-gated detailにfront/side巻き帯が見られる一方、top ring artifactが出ているため、次はその方向整列とmass/temporal coherenceを独立fixtureで検証する価値がある。
 - **次に確認すべきこと:** 本番/child repositoryは触らず、root standalone内で界面法線方向と接線方向のdetail sourceを正負対にして比較し、front/side/top時系列、密度mass、centroid、視点間artifactを測る。
 - **再検証:** focused test pass; standalone smoke suite 26/26 pass (57.15秒)。文書日付監査と`git diff --check` pass。
+
 
 ## 2026-10-26: 2D density界面方向のscalar detailは強くしてもbillow化しない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ReportsVelocityAdvectedSmokeDetailAcrossFramesAndSeeds`。
@@ -7199,6 +7692,7 @@
 - **次に確認すべきこと:** render-only density scalarの強度掃引を続けない。次は別系統として、2D solverが作る既存curl/大スケールrollの実density fieldを同じsource/seedで比較し、形状の曲率・cap巻き込み・上部ROIのdensity-gradientを追う。そこでも構造が増えなければ2D-only表現の限界を認識し、depth-resolved volume evolutionを品質目標に含める必要性を整理する。
 - **再検証:** source-excluded ROI付きfocused test 1件pass (19.02秒)、standalone smoke suite 26/26 pass (69.08秒)。文書日付監査と`git diff --check` pass。
 
+
 ## 2026-10-26: 3D Pyro 解像度上昇は細部と質量保持を増すが、固定圧力反復では非圧縮性が悪化
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesResolutionScaledThreeDimensionalSmoke`、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の圧力投影回帰。
 - **確認できた事実:** 固定world domain/source/durationでvoxel step 1/24→1/48を比較すると、最終world density massは.00649→.00743、retentionは.750→.858、centroidYは.430→.495m、界面gradient RMSは3.30→4.73へ増加。front/side画像high-passは約.00249→.00265と小幅増加したが、目視ではどちらも滑らかなpuffで、C4D/Houdini風billowは現れない。固定pressure 8反復のdivergence RMSは.05395→.19231へ悪化。voxel48で反復を8→36にするとdivergence .19231→.06664まで改善する一方、mass retention .858→.810と可視coverageも低下し、72反復でも36から有意な改善はなかった。独立resolution testは7条件でpass (20.36s)。別の4つのPyro回帰もpassし、整合Jacobi operatorは8/32/96反復でRMS .06723/.00785/.000247、旧式は.1883/.2415/.2942。source/dissipation persistenceも通過。
@@ -7206,6 +7700,7 @@
 - **仮説（未検証）:** 解像度間で同程度のpressure residualを揃え、密度advect・buoyancy・vorticityを個別因子化した比較が必要。現状のPyro fieldに追加forceを足すだけでは構造的なbillow生成につながらない可能性がある。
 - **次に確認すべきこと:** pressure収束許容値を揃えたresolution sweepを行い、front/side/top時系列、world mass、重心、divergence、レンダリング指標を同時比較する。製品統合の判断は独立研究画像だけで行わない。
 - **再検証:** focused pressure/source regressions 4/4 passed (0.624s); resolution sweep 7条件は既存buildでpass (20.36s)。
+
 
 ## 2026-10-26: 反復数だけを揃えても3D Pyroの最終流れは収束比較にならない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesResolutionScaledThreeDimensionalSmoke`、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `ComparesCanonicalVorticityConfinementAgainstCurrentImplementation` / `ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` / `MeasuresScalarMassLossForUniformAndAnalyticDivergenceFreeFlows`。
@@ -7217,6 +7712,7 @@
 - **次に確認すべきこと:** 既存3D Pyro fieldを初期状態とする test-only multi-scale divergence-free perturbationを少数の世界単位振幅で比較し、pressure projection直後のdivergence、mass、front/side/top時系列と局所巻き込み指標を計測する。source移動とmass lossを分離し、見た目の折り返しがなければforce系の振幅掃引を終了する。
 - **再検証:** resolution focused GTest 1/1 pass (23.07s); canonical vorticity/projection focused tests 3/3 pass (2.86s); scalar advection fixed-flow GTest 1/1 pass (12.79s); matched curl/shred GTest 1/1 pass (3.20s)。
 
+
 ## 2026-10-26: 3D curl-based smoke細分化は短波長で密度高周波を増やすがbillowを作らない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` と `applyMatchedCurlTurbulenceOrShredding()`。
 - **確認できた事実:** 既存3D Pyro source/forces/projection/transportを保ち、密度依存vector potentialから作るcurl摂動を固定時間ステップ前に加えた。速度変更fractionを.15に揃え、全3 band波長を0.75/1/2倍（基準.36/.18/.09m）に変更、seed17/71で比較。速度長を保つshreddingのdensity high-frequency RMSは短/中/長波長でseed17 `.004323/.004080/.003780`、seed71 `.004093/.004004/.003805`。最短波長は両seedで質量もやや高い（113.77/113.91 vs 基準波長111.06/111.30）。長波長はseed17/71で108.13/112.90。時間cosineと発散には一貫した波長優位がなく、全画像は滑らかなpuff、折れたbillowなし。curl injectionでは短波長のRMSは.003527/.003281に留まり、長波長はseed71 divergence .0545、temporal cosine .9807まで悪化。GTest 26条件 pass (8.62s)。
@@ -7225,6 +7721,7 @@
 - **次に確認すべきこと:** 同じ3D source/seedで時間相関を短/中/長に変え、各frameの密度界面曲率・渦度軸整列・front/side/topの連続画像を測る。瞬間的な細かさではなく、連続した巻き帯の形成を判定基準にする。
 - **再検証:** `ArtifactCorePyroVolumeSmokeTest.ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` build + focused test pass (26 conditions, 8.62s)。
 
+
 ## 2026-10-26: 3D curl disturbanceの時間周波数を上げても渦構造は見えず、発散だけが一部低下
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding` / `applyMatchedCurlTurbulenceOrShredding()`。
 - **確認できた事実:** 前回の空間波長scale .75/1/2と速度変更fraction .05/.15を維持し、vector-potential phase速度を.5/1/2倍に追加sweep。合計74条件（2 seed）pass (24.45秒)。同じ空間波長scale1・fraction .15の速度保持shreddingで、time scale .5/1/2のdensity massはseed17 111.168/111.062/110.941、seed71 111.338/111.295/111.303。high-frequency RMSはseed17 .004100/.004080/.003995、seed71 .003960/.004004/.003983。隣接frame density cosineはseed17 .997646/.997651/.997646、seed71 .997921/.997926/.997889でほぼ同じ。divergence RMSはseed17 .00761/.00696/.00673、seed71 .01090/.00948/.00703と高frequency側で低下したが、画像はfront/side/topいずれも滑らかなpuffのままでfolded billowはなし。curl injectionも一貫したquality gainを示さない。capturesは `build/smoke-pyro-volume-rnd/captures/wavelength-time-sweep-rnd/`。
@@ -7232,6 +7729,7 @@
 - **仮説（未検証）:** 局所curlを速度へ継ぎ足すだけでなく、渦の輸送に合わせて渦度方向が伸長・回転し、密度の巻き帯を長く維持する必要がある可能性がある。
 - **次に確認すべきこと:** 上昇plume中の局所渦度ベクトルとdensity-gradientを時系列で追跡し、渦軸整列と界面曲率を計測する。連続した巻き帯が出ない条件では空間／時間noise parameter sweepを終了し、3D renderer・simulation couplingの不足を別評価する。
 - **再検証:** Pyro standalone target rebuild succeeded; 74-condition focused GTest passed (24.45s); front/side/top representative captures inspected。
+
 
 ## 2026-10-26: 密度界面に沿う渦度は既に強いが、追加curl/shredは整列を崩しbillow化しない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `measureDensityInterfaceVorticity()` と `ComparesEqualStrengthCurlTurbulenceAndSpeedPreservingShredding`。
@@ -7249,11 +7747,13 @@
 - **次に確認すべきこと:** 渦の材質移流を評価するには、solver内部のforce後・projection前速度をテストから観測する経路を設け、各substepの逆追跡を合成して密度界面特徴との一致を測る必要がある。新しい公開Core APIは追加せず、既存standalone testで再現できる観測手段があるか先に確認する。
 - **再検証:** 独立Pyro target rebuild成功、74条件pass (24.9s)。`build/smoke-pyro-volume-rnd/curvature-advection-rnd.log`。
 
+
 ## 2026-10-26: DCC煙の形状づくりは大／小スケールの別制御と時間分解能を組み合わせる
 - **関連:** Houdini PyroのShape controls、Cinema 4D Pyro SceneのTurbulence / Vorticity / Advection settings、ArtifactCore `PyroSimulation`。
 - **確認できた事実:** SideFXの公式look-development guideは、Turbulenceを大きなswirling/churning motion、Shreddingを小さな高周波detailとして役割分担し、両者を過剰に重ねるとhash状になると説明する。また、noiseの時間変化に対してsubstepsが足りないと高速変化へ追従できない。Maxonの公式Pyro Scene guideも、Vorticity Strengthと構造scale/frequency/octaves/smoothingを持つTurbulenceを別設定にし、高周波ほどsubstepsを増やす必要を説明する。参照: [SideFX Pyro look development](https://www.sidefx.com/docs/houdini/pyro/pyro_look.html), [Maxon Cinema 4D Pyro Scene](https://help.maxon.net/c4d/2025/en-us/Content/html/OPBDSCENE-PBDSCENE_GROUP_PYROPROPERTIES.html)。
 - **価値または懸念:** これまでの独立sweepは単一のcurl operatorまたはspeed-preserving shredを同じ速度変更率で比較しており、DCCにある「長寿命の大きなswirl + 独立した小スケールbreakup + 十分な時間サンプル」の組み合わせを評価していない。一方、追加curl強度だけではcurvatureの連続性が改善しなかったため、noiseを重ねるだけの実装は避ける。
 - **次に確認すべきこと:** test-only R&Dで、時間相関を固定したmulti-scale divergence-free large-swirlと、小振幅・短波長shreddingを別々に測り、frame substepsを合わせて比較する。密度/温度制御fieldの有無も分離し、mass・divergence・advection-compensated image detail・signed-curvature persistenceを同時に評価する。改善が再現した場合だけCoreへのAPI設計を検討する。
+
 
 ## 2026-10-26: 大渦と細部shreddingの分離は高周波量を増やすが、DCC風billowには届かない
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `ComparesSeparatedDccStyleSwirlAndShredding`。
@@ -7261,6 +7761,7 @@
 - **価値または懸念:** 大小scaleを分けても現fixtureでは十分条件にならず、density high-frequency増加のみを見た目品質向上と扱えない。高substep化も本条件では差を出さず、低周波curlの効果はseed間で一貫しない。test-onlyなのでCore/app既定には反映しない。
 - **次に確認すべきこと:** 見た目差が弱い主因を分けるため、2D Fluid smokeの粒子表現ではなくproduction 3D volume rendererへ渡す密度解像度・transfer curve・extinction/scattering/lightingのどれがdetailを潰すかを、同一density fieldのrender-only sweepで測る。solver側ではdensity/temperature control fieldと発生source profileを独立させる。
 - **再検証:** `ArtifactCorePyroVolumeSmokeTest.ComparesSeparatedDccStyleSwirlAndShredding` target build成功、focused test 1/1 pass (10 variants, 2 seeds, 10.887s)。
+
 
 ## 2026-10-26: Smoke転送応答は薄い煙の明るさを大きく左右する
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `ComparesFixedDensitySmokeTransferResponses`、`ArtifactCore/src/Render/VolumeRenderer.cpp` のSmoke transfer function / raymarch。
@@ -7270,12 +7771,14 @@
 - **次に確認すべきこと:** 3応答をforeground lumaまたは平均optical depthで合わせ、同じ固定場を複数カメラと異なる密度seedで再比較する。render-onlyでは転送関数を露出較正しても巻き帯が出ないなら、原因をsolver density detailへ戻す。production `VolumeRenderer` は変更しない。
 - **再検証:** `ArtifactCorePyroVolumeSmokeTest` target build成功。focused test 1/1 pass、capturesとlogは `build/smoke-pyro-volume-rnd/captures/render-response-rnd/` および `build/smoke-pyro-volume-rnd/render-response-rnd.log`。
 
+
 ## 2026-10-26: 露出一致では薄煙応答に小さな高周波差が残る
 - **関連:** `tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp` の `RendersProductionPyroDensityThroughCpuVolumeRenderer`、Core `CPUVolumeRenderer`。
 - **確認できた事実:** 同じPyro solver densityを使い、Core `CPUVolumeRenderer` のforeground lumaを合わせてfront/side/topを比較。組み込みSmokeの画像high-pass RMSは.1882/.1596/.2260、constant-albedoは.1891/.1621/.2298 (+0.5/1.6/6.1%)、thin-density-liftは.2169/.1727/.2505 (+15.3/8.2/10.8%)。薄煙liftは3視点で高周波指標が一貫して増えたが、contact sheetでも巻き込み/billowはなく、同一seed/時刻の単一densityに限る。Focused GTest 1/1 pass (2.36s)。capture `build/smoke-pyro-volume-rnd/captures/render-response-rnd/pyro/pyro_transfer_exposure_matched_contact.png`。
 - **価値または懸念:** `VolumeRenderer` は現Artifact 2D煙の描画経路ではなく、`CPUVolumeRenderer::render()` はcustom transfer callbackがあるとserial row loopへ切り替わる。したがってcallbackを製品設定へ接続する根拠も、CPU速度を主張する根拠もない。視覚的なbillow目標には達しない。
 - **仮説（未検証）:** thin-density-liftで閾値直近の密度寄与が増えた結果、固定露出でも輪郭の輝度勾配が強まった可能性がある。GPU/app経路と別Pyro seedでは未検証。
 - **次に確認すべきこと:** Core既定は変えない。App側の2D sprite drawと3D volume renderを混同せず、同一2D solver fieldから出すGPU particle densityの解像度上限を独立評価する。
+
 
 ## 2026-10-26: 2D smoke particleの40×40上限は円形spriteを粗く見せる
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の `kSmokeRenderSamplesPerAxis=40` と `prepareLayerSmokeRenderDataImpl()`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesSmokeParticleSamplingResolutionAtMatchedExposure`。
@@ -7285,6 +7788,7 @@
 - **次に確認すべきこと:** production capは維持。次は実際のparticle vertex streamを同じGPU rendererで描画し、40×40/64×48/96×72を同一field・同一exposureで比較し、GPU instance count・frame time・画面pixelのgrain/billow有無を記録する。実GPU条件に繋げられない場合はsimulation field/detail側の検証へ進む。
 - **再検証:** smoke runtime standalone target build成功、`ComparesSmokeParticleSamplingResolutionAtMatchedExposure` 1/1 pass。captures `build/smoke-runtime-rnd/captures/sampling-resolution-rnd/`、log `build/smoke-runtime-rnd/sampling-resolution-rnd.log`。
 
+
 ## 2026-10-26: 本番D3D12粒子描画でも高密度sampleは輪郭を滑らかにするがbillowは生まれない
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の本番smoke runtime。
 - **確認できた事実:** 同一production `LayerFluidRuntimeState` frame 44の96×72 solver fieldから本番40×40 particle streamとtest-only 64×48/96×72 resamplingを生成し、RTX 4070 Ti / D3D12 `ArtifactIRenderer` で768×576へ描画した。green exposureを約±1%に揃えると粒子数は150/295/672、image high-pass RMSは.001723/.002626/.004045、GPU draw + flush/wait平均は.292/.290/.301 ms（12回、Debug build、readback除外）。GPU画像では粒状の円境界が弱まり、plume輪郭と内部の連続性が上がるが、形状は直線的な煙柱のままで渦巻くbillowは出ない。focused GTest 1/1 pass (3.0s)、captures `build/smoke-runtime-rnd/captures/diligent-production-sampling-rnd/`。
@@ -7292,6 +7796,7 @@
 - **仮説（未検証）:** sample densityはsprite粒感を減らす補助策だが、Houdini/C4D風の巻き上がりには速度場・密度場のcoherentな大スケール渦構造が不足している。rendererだけの高密度化は煙柱の輪郭改善までに留まる。
 - **次に確認すべきこと:** production capは現状維持。次はroot standalone R&Dでproduction 2D velocity/densityから時間持続するconnected roll/fold構造をseed・複数frameで探索し、GPU粒子化の改善とsolverの形状改善を分けて判断する。テスト側はproduction emitter stateのままvelocity-aligned/resampled sample layoutsを比較し、GPU imageのmulti-frame stabilityも取る。
 - **再検証:** `ArtifactClonerGpuRenderContractTest` build成功。D3D12 focused test 1/1 pass。意図的に失敗した前段実験はtest-only手作りsampleに本番ジッター/座標スケールを揃えていなかったため、最終報告値から除外した。
+
 
 ## 2026-10-26: D3D12 2.5D volume raymarchは厚みと自己遮蔽を出すが、2D場の対称渦を引き継ぐ
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeDepthVaryingVolumeRaymarchOnDiligentRenderer` と `SmokeSamplingDensityQualityOnDiligentRenderer`。
@@ -7301,6 +7806,7 @@
 - **次に確認すべきこと:** 本番コードへ移植せず、standalone R&Dでdepth-resolved flowを作り、front/side/topの複数frame・複数seedを評価する。露出一致、方向別silhouette変化、時間相関、divergence、密度質量、GPU render時間を併記し、見た目のbillowが揃うまで統合判断を保留する。
 - **再検証:** `ArtifactClonerGpuRenderContractTest` target build成功。focused D3D12 GTests 2/2 pass (8.537s total); captures `build/smoke-runtime-rnd/captures/diligent-volume-smoke-rnd-20261026/`。
 
+
 ## 2026-10-26: production 2Dの密度・速度を3D Pyroへ移しても、奥行き方向の運動がなければbillowは増えない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `EvolvesProductionTwoDimensionalSmokeStateInsideDepthResolvedPyro` と `tests/Artifact/SmokeRuntimeStandalone/README.md`。
 - **確認できた事実:** 変更していないproduction 96×72 smoke runtimeをframe 28まで進め、densityとvelocityを48×36×32のopen Pyro domainへ写像した。Gaussian depth envelopeは局所density amplitudeを保持し、2D downward-positive Y velocityを反転、移流のgrid-rateをtarget Pyro resolutionへ換算した。source-free 3D Pyroを24×1/60秒進めたところ、step 0/8/16/24 massは2452.88/2442.84/2441.01/2313.65、density centroid Yは19.2119/22.6462/25.4226/27.424 voxel、Zは全時点15.5 voxel。8-step間のfield cosineは.837225/.881718/.862574、normalized L1は.52453/.454529/.444545。初期最大速度は62.9854 target voxels/s。focused standalone GTest 1/1 pass (2.235s)。front/side captureは時間とともに上昇・拡散するが、滑らかな柱／puffで折れたbillowは見えない。
@@ -7308,6 +7814,7 @@
 - **仮説（未検証）:** 深度層を独立に時間発展させるには、2D velocityの単純複製では足りず、density-supportに沿う時間相関したdivergence-free 3D velocityが必要。ただし既存noise/curl掃引はbillowを作っていないため、振幅を増すのでなく、固定した同一initial volumeで3D velocity RMSを対照比較し、前面の連結曲率・側面変位・divergence・mass・時間相関を評価すべき。
 - **次に確認すべきこと:** 同じproduction 2D初期状態からbaselineとanalytic 3D vector-potential curlのbranchを作り、追加velocity RMSをbaseの少量割合へ揃える。複数seedとfront/side/top時系列を保存し、構造的な巻き込みと質量/発散安定性が再現しない場合は2D派生volumeの統合を保留する。
 - **再検証:** standalone `ArtifactSmokeRuntimeStandaloneTest` target build成功、focused GTest 1/1 pass。captures `build/smoke-runtime-rnd/captures/depth-evolved-2d-state-v2-20261026/depth-evolved-2d-state-rnd/`。
+
 
 ## 2026-10-26: 2D smoke由来volumeへ15%の発散ゼロ奥行きcurlを加えてもbillowは現れない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `EvolvesProductionTwoDimensionalSmokeStateInsideDepthResolvedPyro`。
@@ -7317,6 +7824,7 @@
 - **次に確認すべきこと:** 現行curlはCore/Appへ移植しない。追加curl振幅の拡大は止め、source-free初期場で圧力反復を増やしてprojection residualを評価した後、同じ密度を温度に結合した buoyancy-only / density-only / no-force branchesを揃え、front/side/topの界面変形がbillowへ繋がるか確認する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功。focused GTest 1/1 pass; output `build/smoke-runtime-rnd/captures/depth-roll-projected-comparison-20261026/depth-evolved-2d-state-rnd/`。
 
+
 ## 2026-10-26: 圧力残差を下げても2D由来volumeにbillowは生じず、熱浮力も形を変えない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `EvolvesProductionTwoDimensionalSmokeStateInsideDepthResolvedPyro`。
 - **確認できた事実:** 同じproduction 2D由来の初期速度へcentered divergence / Jacobi pressure / centered gradient adapterを適用し、density-weighted divergence RMSは反復4/8/16/24/36/48/72で1.43771から1.06866/0.900949/0.703922/0.588447/0.480442/0.410336/0.322955へ低下。24反復と72反復で作った初期場を各自のsolver pressure iteration設定で24 step進化すると、終端発散RMSは.363914/.152773、massは2248.86/2324.01、Y centroidは27.343/26.483 voxel。高反復枝は発散が小さい一方でmassと上昇量が小さく、両方とも画像上に折れbillowは現れない。densityの1.5倍をtemperatureにしbuoyancy=.7を適用した枝は、24 step Y centroid 27.3408、mass 2281.13でcontrolの27.343、2248.86に近く、明確な渦巻き形状を作らない。focused standalone GTest 1/1 pass (8.78s)。front/side capturesは`build/smoke-runtime-rnd/captures/projection-buoyancy-20261026/depth-evolved-2d-state-rnd/`。
@@ -7324,6 +7832,7 @@
 - **仮説（未検証）:** 2D snapshot由来の密度と速度が3D熱対流の整合した初期状態でない可能性があり、billow評価には3D sourceから同時生成した温度・密度・速度の初期場、または高次圧力solverを独立条件にする必要がある。
 - **次に確認すべきこと:** 本比較はCore/Appへ移植しない。3D Pyro sourceが温度・密度を同時注入する既存standalone fixtureの同一時刻snapshotを複製し、速度場のみに関する変更と時間解像度を比較し、複数視点・複数時刻でfolded interfaceを確認する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功、focused GTest 1/1 pass (8.78s)。
+
 
 ## 2026-10-26: 3D source由来のpuffへ大スケールcurl forceを加えてもbillowは現れない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
@@ -7333,6 +7842,7 @@
 - **次に確認すべきこと:** 今回のcurlやfixed timestepはCore/Appへ反映しない。次の比較ではHoudiniのscale分離をヒントに、coherent low-frequency forceとhigh-frequency interface disturbanceを別々に生成し、同一solver・seed・物理時間でfront/side/top画像、密度mass、curl/divergence、速度RMS、時間相関を評価する。rendererのCPU referenceだけではなく、成果候補が現れた後に同じfieldでGPU viewport経路も照合する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (15.36s)。
 
+
 ## 2026-10-26: 3Dの時間相関value-noise curlも空間スケールを振るだけではbillowにならない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
 - **確認できた事実:** 固定sin波curlの代わりに、seed固定のsmooth 3D value-noise vector potentialを作り、そのcentered-difference curlをdensity-gated accelerationとしてsource-free 1.2秒間加えた。density-weighted force RMSを条件間で合わせ、大スケール(0.75/0.48/0.30 world unit) pulse .45/.08s、小スケール(.30/.20/.14)、multi-scale(.75/.40/.22/.13)を対照した。controlのterminal mass / Y centroid / divergence RMSは15.8958 / 13.0075 / .02923。large-slow 15.0566 / 12.8817 / .03792、large-pulsed 15.6777 / 13.0178 / .03735、fine-slow 15.7103 / 12.8637 / .03512、multiscale-slow 15.0465 / 12.8511 / .03358。front/side画像にあるのは小さなcapの偏り・coverage差で、折れbillowは見えない。focused test 1/1 pass (最適化後39.0s)。各voxelでpotentialを一度計算して隣接参照するようにし、同条件の計測を142.7sから39.0sへ短縮した。captures `build/smoke-runtime-rnd/captures/3d-source-noise-optimized-20261026/3d-source-rollup-rnd/`。
@@ -7340,6 +7850,7 @@
 - **仮説（未検証）:** Houdini資料の「large-scale turbulence」と「small-scale disturbance/shredding」の役割分離は参考になるが、目標に要る大きなbillowは速度場noiseだけでなく、source geometry、buoyancyによる密度差、境界・障害物との相互作用、移流schemeの組み合わせから生まれる可能性がある。現状のisolated puffから単純forceを足すだけでは不足かもしれない。
 - **次に確認すべきこと:** 今回のforceはCore/Appへ移植しない。連続emissionまたは浮力 plumeを使い、同じnoiseを「全density内」「密度界面の狭いgradient band」「界面外ambient」の各領域へ作用させる比較を行う。密度massに加えて界面の折り返し数／curvature proxy、front/side/top captureを評価し、force増加で単なるmass lossやcap変位になっていないことを確認する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (39.0s、値ノイズ場の隣接再利用後)。
+
 
 ## 2026-10-26: 密度界面やambientへ力を寄せてもsingle puffのbillowは現れない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
@@ -7349,6 +7860,7 @@
 - **次に確認すべきこと:** forceはCore/Appに反映しない。連続source plumeに対してemitter injection・ambient noise・interface-only noiseを同じseed、物理時間、支配速度で比較する。front/side/topに加え、密度等値面の曲率符号反転数またはinterface area、mass retention、divergence、CPU test runtimeを計測し、構造形成が再現する場合だけ統合候補にする。
 - **再検証:** standalone target rebuild成功、focused GTest 1/1 pass (30.44s)。
 
+
 ## 2026-10-26: 連続emissionのambient curlはseed依存で、折り返しを作らない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
 - **確認できた事実:** pulse-end snapshotから同じPyro sourceを再投入し続ける1.2秒のplume比較を、noise seed 17/29/71で繰り返した。side occupied pixelのmass-matched control差はstep 24/48/72で、seed17が+0.46%/+1.83%/+3.10%、seed29が-1.80%/-2.15%/-2.52%、seed71が+0.37%/+4.03%/+4.31%。2 seedは後半に広がり1 seedは一貫して狭くなるため、先の単一seedで見た+4.2%を再現性のある効果とは見なせない。step72のcontrolとseed71 side imageは少し幅が違う程度の滑らかなpuffで、folded billowはない。focused GTest 1/1 pass (47.95s); captures `build/smoke-runtime-rnd/captures/3d-source-gate-seeds-20261026/3d-source-rollup-rnd/`。
@@ -7356,6 +7868,7 @@
 - **仮説（未検証）:** 単純なcurl accelerationの細かな位相差が plume外形を動かすだけで、連続する不安定剪断や渦の巻き込みは作れていない可能性がある。source geometry、温度浮力、境界との相互作用が形状形成により強く寄与するかもしれない。
 - **次に確認すべきこと:** ambient curlはproductionへ反映しない。異なるsource geometryと温度・浮力を持つplume初期条件を比較し、front/side/top像と界面形状指標でroll-upがseedをまたいで再現するか調べる。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (47.95s)。
+
 
 ## 2026-10-26: source形状はplume幅を変えるが、温度差は低jetでより効く
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `ComparesThreeDimensionalSourceVelocityFieldsForSmokeRollup`。
@@ -7365,6 +7878,7 @@
 - **次に確認すべきこと:** current source-size sweepを別seedで再現し、domain/voxel resolutionを上げてprojection residualを一定水準へそろえた比較を行う。volume render shadow条件も校正し、front/side/topで巻き込みと時間安定性を確認する。source geometry APIやsolver変更は、そのあと結果が再現した場合にだけproduction候補にする。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` target rebuild成功、focused GTest 1/1 pass (56.06s)。
 
+
 ## 2026-10-26: Pyro vorticity confinementをcurl勾配×curlへ置き換えると軽いlobesが2 phaseで再現
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `RechecksPyroSourceShapeAcrossSeedsAtHigherResolution` と `MeasuresSingleStepPyroProjectionResidualByIterationCount`。
 - **確認できた事実:** 72x54x48 domain、pressure 96反復のhigh-resolution fixtureでcontrol/wide/tall sourceと2つのlateral-shear phaseを比較した。vorticity=0時のmass-matched side occupied pixelsはcontrol/wide/tallがphase17で3905/6122/5456、phase71で3918/6149/5543。wide/tallの幅差は両phaseで再現するが、画像はsmooth cap/columnで明確なfolded billowはない。同じwide sourceへdensity-gated Core vorticity strength 3/8を適用すると、strength 8のside occupancyは6350/6360、strength 0は6122/6149。Y centroidはstrength0の16.638/16.633からstrength8で16.983/16.990へ上がった。divergence RMSはstrength0の.02638/.02604からstrength8で.02724/.03768。front/side capturesに両phase共通の軽いstacked lobesが見えるが、deep curlではない。旧式のvorticity forceを1.5/3へ上げた時はdivergence .08-.16を生じ、同程度の外形変化しかなかった。新式を密度gateなしで試すとstrength8のdivergence RMSは.111/.151となり、mass-matched lumaも低下したため、density localizationを残した。単step pressure projection residualは同一velocityで、反復12/24/48/96に対し.60667/.54278/.44738/.31718（前値.72898）。
@@ -7373,6 +7887,7 @@
 - **次に確認すべきこと:** strength 8の更新を別domain scaleとsource geometryでstress testし、mass/界面面積/divergenceとfront/side/top captureの安定性を調べる。描画品質が再現した後にGPU viewportとのparityを確認する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功。高解像度Core confinement + projection check 2/2 pass (91.01s)、existing 3D source / continuous emission regression 1/1 pass (59.62s)。captures `build/smoke-runtime-rnd/captures/3d-source-production-curlconf-20261026-optimized/`。
 
+
 ## 2026-10-26: 高周波shearは表面複雑度を上げるが見た目の巻き込みは未確認
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp` の `RechecksPyroSourceShapeAcrossSeedsAtHigherResolution`。
 - **確認できた事実:** 72x54x48 / pressure 96 / 60 steps / seed 17・71で、wide source・density-gated vorticity strength 8に高周波shear（frequency multiplier 2.75）と低高周波の重ね合わせを加えた。step 60のnormalized surface complexityは低周波strength8の4.132/4.133に対し、高周波4.269/4.270、multiscale 4.178/4.228。mass-matched side occupancyは基準vorticity0の6122/6149に対し高周波6326/6380、multiscale 6342/6387。高周波seed17/71のdivergence RMSは.03975/.03053。side PNGの144x144表示では高周波とmultiscaleの差が明瞭に判別できず、全条件の水平slice peak指標は0。
@@ -7380,6 +7895,7 @@
 - **仮説（未検証）:** slice面積の単純なpeak判定は輪郭の局所的な巻き込みを捉えず、画像差が小さいのは解像度と可視化の不足も影響している可能性がある。
 - **次に確認すべきこと:** slice-peak指標を捨て、各高さの断面幅・界面曲率の連続プロファイルや高解像度画像を用いて、seed間で再現するbillowを評価する。高周波forcingはCoreに追加せず、独立R&D条件のまま保持する。
 - **再検証:** `ArtifactSmokeRuntimeStandaloneTest` rebuild成功、focused `RechecksPyroSourceShapeAcrossSeedsAtHigherResolution` 1/1 pass (121.786s)。captures `build/smoke-runtime-rnd/captures/3d-source-curl-frequency-20261026/3d-source-shape-highres-rnd/`。
+
 
 ## 2026-10-26: 2D smoke GPU samplingの密度とkernelを露出一致で比較
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer` とProduction `LayerFluidRuntimeState` / Diligent particle shader。
@@ -7391,12 +7907,14 @@
 - **D3D12照合:** 同じfocused GPU testをRTX 4070 Ti / D3D12でも1/1 pass。全9 variantのPNGはVulkan captureとSHA-256が各々一致し、露出・normalized HF RMS・tile指標も同値だった（GPU submit時間はrunごとに変動）。D3D12 log/captures: `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-d3d12-rnd.log`, `build/smoke-runtime-rnd/gpu-smoke-kernel-quality-d3d12-rnd/`。
 - **時間方向の確認:** production solverを独立に再実行し、frame20/32/44の各点でmanual 40x40 / 64x48 / 96x72を同一露出に正規化したD3D12画像を保存。露出は各frame内で約25264 / 30140 / 34515、particle countは40x40=119/144/163、64x48=241/290/325、96x72=542/649/734。各frameで3 samplingは可視成分1つを保ち、目視上はstemからcapへ少し非対称な変化が続くが、折り返しbillowはない。frame間露出変化はsourceの連続注入を含むため、sampling間の露出差ではない。追加captureは `build/smoke-runtime-rnd/gpu-smoke-temporal-sampling-rnd/`、focused test 1/1 pass。現在の簡易component/tile指標は時間コヒーレンスを測らない。
 
+
 ## 2026-10-27: 2D smoke低密度tailのサイト継続性と粒状感
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`。production solverのframe20/32/44をD3D12でレンダリング。
 - **確認できた事実:** production相当64x48・density cutoff .025と、64x48・cutoff .005かつalpha下限0のsoft-tailを比較した。各frame露出は約25264/30140/34515へ1%以内に一致。active-site Jaccard（frame20→32）はproduction .548、soft-tail .628、resample 96x72 .541で、frame32→44はそれぞれ .658/.671/.631。soft-tailは粒子数がframe44で325から443へ36%増えた一方、normalized HF RMSは.00596から.00763へ28%増えた。focused Diligent testは1/1 pass。画像とログは `build/smoke-runtime-rnd/gpu-smoke-threshold-rnd/` と同名の `.log` に保存。
 - **価値または懸念:** cutoffを下げるとactive-siteの連続性は改善したが、同じ露出で粒状・拡散感が増す。frame44の目視では広い低コントラストのhalo/capが見える一方、折り返すbillowはまだ確認できない。active-site Jaccardは閾値上の格子サンプル継続率であり、速度場や知覚上の時間安定性を直接測る値ではない。この実験だけではsoft-tailをproduction採用する根拠にならない。
 - **仮説（未検証）:** 密度を低い閾値で切らず、連続的なdensity-to-alpha写像とmass補正を併用すると、格子点の出入りを抑えながら露出と輪郭を保てる可能性がある。
 - **次に確認すべきこと:** cutoffなしのalpha連続写像を、露出・silhouette・active-site churn・GPU submit時間を揃えて比較する。結果が一貫した視覚改善を示すまではproduction cutoff .025を維持する。
+
 
 ## 2026-10-27: 2D smoke連続alphaと速度追従サンプルの比較
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp` の `SmokeSamplingDensityQualityOnDiligentRenderer`。production solverのframe20/32/44を同じD3D12 particle rendererへ入力。
@@ -7405,12 +7923,14 @@
 - **仮説（未検証）:** fixed-gridの微細粒状感は個々の格子点の存続より、点状kernelの重なり分布に支配される可能性がある。低周波の大きなdensity structuresを強調するには、2Dソルバーのscalar advection/diffusion、vorticity confinement、dissipation、発生sourceの空間・時間分布を順に分離して評価する方が有望。
 - **次に確認すべきこと:** emitter入力とsolver各段のfieldを固定seed・複数frameで保存し、注入、移流、curl/vorticity、dissipationの寄与を一因子ずつ比較する。粒子表示からvoxel/field shadingへ移る場合は別の実験レーンとして品質・GPU負荷を測り、production変更は視覚的なbillow改善が再現した場合に限る。
 
+
 ## 2026-10-27: 2D smoke solverの時間サブステップ比較
 - **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresSmokeEmitterAdvectionSubstepTradeoff`、production `ArtifactCore::FluidSolver2D::update` と同じ更新演算子。
 - **確認できた事実:** 72×88 grid、同一emitter pulse（12/60 frames）、総時間2秒、solver設定と2 seedsをそろえ、frame updateを1/2/4/8等分して比較した。frame12の最大移流速度は約3.06–3.55 grid cells/frame、frame60は約1.10–1.38。frame60 density massは1 substepで280–285、2で228–231、4で184–185、8で158–159となり、density-gradient RMSも約.0415から.0264へ低下。capture contact sheetでは全条件とも滑らかな単一plumeで、4/8分割がbillowを加えたとは確認できない。独立standalone target rebuild成功、focused test 1/1 pass。captures/logは `build/smoke-emitter-rnd/captures/advection-substeps-rnd/` と `build/smoke-emitter-rnd/advection-substeps-rnd.log`。
 - **価値または懸念:** 2D solverはframe内のCFLが3を越える初期区間でも単一 `update(dt)` を行う。一方で単純なsubstep増加は同じ総注入・総時間でも密度保持と勾配を下げ、projection・vorticity・diffusionも多く実行するので、単なるadvection精度改善ではなく別の全演算子軌跡になる。画像と指標に視覚改善はなく、本番に固定substepを増やす根拠はない。
 - **仮説（未検証）:** 高CFL由来の誤差と繰返しprojection/diffusionの影響を分けるには、同じframe速度場を凍結したpassive-scalar移流比較と、動的velocityの全solver substep比較を別々に保つ必要がある。Houdini PyroはCFLを用いてtrajectory tracingを分割し、別機能として低周波Turbulence・高周波Disturbance/Shreddingを公開しているため、Artifact側でもCFL移流と形状forceの効果を混同しないのが妥当。[SideFX Pyro Solver (Sparse)](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver_sparse.html)
 - **次に確認すべきこと:** fixed velocity fieldで1/2/4/8 substepのdensity-only輸送を比較し、mass・extrema・gradient保持を測って時間積分とsolver feedbackを切り分ける。その結果が安定して改善する場合だけdynamic solverとGPU renderで再評価する。
+
 
 ## 2026-10-27: 固定velocity場での2D scalar substep数と巻き込み
 - **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`。解析的streamfunctionから作った同じ2D velocity fieldで、Gaussian scalarだけを60 frames移流。
@@ -7419,12 +7939,14 @@
 - **仮説（未検証）:** low-CFL substepとlimited conservative flux transportを合わせると、渦形状を追いながら密度を保持できる可能性がある。先行するMUSCL replayではmassが保たれる一方、細く明るいstreakへ偏ったため、単に輸送法を変えるだけではplume volumeの見え方を保てない。
 - **次に確認すべきこと:** 同一固定velocity場・同一substep数でsemi-Lagrangianとlimited MUSCLを露出・mass-matched比較した後、source-coupled runtime velocity historyへ戻してdensity support / peak / silhouette / temporal coherenceを測る。production Coreの移流演算子はその前に変えない。
 
+
 ## 2026-10-27: 固定渦scalar輸送でMUSCLは質量を保つが今回の比較では有意な見た目改善なし
 - **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`、72×88固定velocity scalar fixture。
 - **確認できた事実:** 先行記録のMUSCL/Upwind集計にはmethod row→substep indexの誤りがあり、追加2行の計測では4/8両方に8/16 substepsを使っていた。修正後、fixture名も`MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`として独立テスト1/1 pass。semi-Lagrangianのframe60 massはseed17/71で223.778/228.791 (1 step)、219.732/218.479 (8 steps)。MUSCL 8-stepは218.586/218.555、4-stepは326.536/298.158。first-order upwind 4/8-stepは132.985/133.038 (seed17)、470.514/470.936 (seed71)。追加の一step収支では初期mass218.587、MUSCL raw flux和+0.01524、予測mass delta+0.00051だが、positivity clamp後は+0.20637。frameを2分割するとclamp-added massは0、final massは218.587で保存。1分割(CFL 3.55)の最小密度は-.00463、2分割(CFL約1.77)以上は負値なし。MUSCL 4-step branchのframe60質量増加はこのclamp機構と整合し、これが主因と考えられる。面速度divergence RMS .3618、総境界fluxはほぼ0。Coreのcentered projectionをこの別離散速度場へ使うと発散は改善しなかったので因果根拠に使わない。ログは`build/smoke-emitter-rnd/fixed-scalar-face-flux-rnd.log`。
 - **価値または懸念:** 以前のmass-growthを離散速度発散や境界条件へ帰属した記録は撤回する。確認したfixtureでは高CFL時の負密度clampが明示的な質量非保存要因だが、4-step長時間増加の全量をclampだけが説明するかはまだ比較が必要。first-order upwindは低精度の参考条件であり、MUSCL結果を代表しない。MUSCL 8-stepでもbillowや明瞭な品質改善はなく、製品solverへ採用する根拠はない。
 - **仮説（未検証）:** MUSCLは最大セルCFLをおよそ1以下に制限すればpositivity clampによる過剰な質量が減り、保守性を維持しやすい可能性がある。
 - **次に確認すべきこと:** MUSCLをsubstepごとの最大CFL≤1へ制限し、同じ60-frame固定渦で質量保存・peak・gradient・画像を再比較する。改善が出てもsource-coupled solverとGPU renderでplume volume、billow、時間一貫性を確認するまでは製品経路へ移さない。
+
 
 ## 2026-10-27: MAC face速度のCFLを個別に制約してscalarの正値性を確認
 - **関連:** `tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp` の `MeasuresFixedVelocityScalarTransportMethodsAcrossSubstepCounts`。同じanalytic vortex、Gaussian scalar、60 framesでMUSCLだけframe CFLを制約。
@@ -7433,12 +7955,14 @@
 - **仮説（未検証）:** 変動するsource、浮力、渦度閉じ込めを持つproduction smokeで、face-CFL計測に基づくbounded substepと密度の正値性制御を組み合わせると、mass driftと視覚的streakを抑えられる可能性がある。ただし拡散を抑えながらroll-upを保てるかは別に評価が必要。
 - **次に確認すべきこと:** production `FluidSolver2D` の実際のface/cell velocity、source injection、境界条件を追い、更新順の中でCFLがどの速度fieldを使って計算されているか調べる。次の独立比較は速度fieldごとのCFLを正しく揃えた低CFL/MAC対照に加え、mass/positivity-preserving flux correctionまたはBFECC/MacCormack再構成を1因子ずつ評価し、production captureを同じ時間・解像度で比較する。乱流らしい形が得られるまでは反映しない。
 
+
 ## 2026-10-27: production smokeのframe-rate/source coupling
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp::advanceLayerSmokeRuntime`、`ArtifactCore/src/Physics/FluidSolver2D.cpp::FluidSolver2D::update`、`tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp::MeasuresSmokeEmitterRateAcrossCompositionFrameRates`。
 - **確認できた事実:** Runtimeは各simulation frameで `emissionTimeScale = dt * 30` を計算し、source densityへ渡してからsolver更新、`exp(-dissipation*dt)`を適用する。Core solverは`dt = min(dt, .05)`に上限を設けるが内部substep/CFL判定はない。更新順はbuoyancy、vorticity confinement、velocity diffusion/projection/advection/projection、density diffusion/advection、finite guard。速度・密度ともcell-centered gridのsemi-Lagrangian backtraceを使う。source-only対照ではdensity injected massが10/15/20/30/60fpsの全条件で497.926と一致するが、以前のvelocityScale=`emissionTimeScale`ではvelocity impulse L1が322.185/214.790/161.092/107.395/53.698とほぼ1/fpsだった。RuntimeのvelocityScaleを1へ変更した後、Coreのdt上限対策としてRuntimeを`ceil(dt/.05)` substeps/frameへ分け、density retentionは全substeps後に1回適用した。実runtime比較で10/15/24/30/60fps・1.5/3秒の粒子重心Yは21.606/19.720/21.281/20.337/19.348、19.290/18.194/19.564/19.041/17.572、総alphaは73.42/76.18/77.16/78.86/82.56、59.10/71.55/72.17/69.98/75.92。dt上限対照では10/15fpsのsolver時間が実時間の半分/75%となり、1.5/3秒重心Yは31.115/24.481、23.452/20.559、alphaは62.45/68.59、54.43/62.05だった。substep候補は10/15fpsでも30fpsとの重心差4px・総alpha差20%以内の追加条件をpass。30fps画像は不変で、10fps 3秒captureは上部plume幅が30fps基準に近づいた。
 - **価値または懸念:** 速度scaleを1にするArtifact runtime変更により、source密度weightへdt factorが既に含まれる状態でのvelocity二重scaleを解消した。加えてframe dtを0.05秒以下のbounded solver stepsへ分け、10/15fpsで失われていたsolver時間を実時間まで進める。両方を合わせると低fpsの重心・密度が基準へ近づき、テストでは受け入れ幅を満たしたが完全一致ではない。低fpsは1 frameあたり最大20 solver callsとなり得るため、runtime性能を計測していない。煙のbillow生成も未達。
 - **仮説（未検証）:** GPU preview/Render Queueで10fps時のsubstep追加負荷は許容範囲に収まる可能性があるが、実測はない。またframe seek/checkpoint replayは逐次renderと同じsolver stateを再現できていない可能性が高い。
 - **次に確認すべきこと:** GPU preview/Render Queueの低fps steady-state CPU/GPU costを計測する。別のruntime fixtureでは連続frame、9/10 frame gap、11+ frame jump、backward seekを比較し、現行の最大8-frame catch-up/reset behaviorの画質・再現性を記録する。`fluidLastFrame_`の履歴欠落を直す場合は、checkpoint/memory/performanceを含めて設計する。
+
 
 ## 2026-10-27: smoke runtimeのframe gap/seekでsimulation stateが欠落
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp::advanceLayerSmokeRuntime` と `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresSmokeStateAcrossFrameGapsAndSeeks`。
@@ -7447,12 +7971,14 @@
 - **仮説（未検証）:** bounded sparse checkpointsとnearest-checkpoint replayを使えば、連続再生のfieldを保ちつつseek計算を抑えられる可能性がある。ただしFluidSnapshot2Dは複数grid bufferを持つため、checkpoint interval/countによるlayerごとのmemory costとsettings/FPS変更時の無効化が必要。
 - **次に確認すべきこと:** 1 frame snapshotの実メモリ量・copy cost、複数smoke layer時の保持量、checkpointのsettings identity/invalidation条件を確認する。先にRender Queueの連続frame保証とViewportが実際にどのjump経路を使うか確認し、仕様に必要なseek精度を決めてからcheckpoint案を試験する。
 
+
 ## 2026-10-26: 旧ArtifactCore LumaKey APIと現行Keying経路の契約差
 - **関連:** `ArtifactCore/include/ImageProcessing/LumaKey.ixx`、`ArtifactCore/src/ImageProcessing/LumaKey.cpp`、`ArtifactCore::Keying::processLumaKey`。
 - **確認できた事実:** 現行ソース検索では旧 `ArtifactCore::LumaKey::process` の宣言・実装以外にproduction call siteが見つからない。RGBA画像overloadはraw float4処理へ委譲し、現行keyerと異なるluma係数のチャンネル割当てでalphaだけを変更する。新しいKeying APIにはalpha mode契約があるが、旧APIにはない。
 - **価値または懸念:** 将来旧APIへ呼び出しを戻すと、現行Luma Keyと異なるmatteになり、premultiplied画像ではRGB/alphaの関係が崩れる可能性がある。現在の利用実績がないため、直ちに挙動を変えるよりAPIの役割を確認する必要がある。
 - **仮説（未検証）:** 旧APIは初期のimage processing facadeとして残存し、現行Artifact effectからは置き換えられている可能性がある。
 - **次に確認すべきこと:** 互換性と外部利用の有無を確認したうえで、非推奨化・削除、または新しいKeying APIへの転送のいずれかを決める。どの案でもstraight/premultipliedとRGB係数の契約をテストで明示する。
+
 
 ## 2026-10-26: IBK Keyerにforeground alpha-mode契約がない
 - **関連:** `ArtifactCore/include/ImageProcessing/Keying/IBKKeyer.ixx`、`ArtifactCore/src/ImageProcessing/Keying/IBKKeyer.cpp`、`Artifact/src/Effects/Keying/IBKKeyerEffect.cpp`、`tests/Artifact/KeyingEffectContractTest.cpp`。
@@ -7461,12 +7987,14 @@
 - **仮説（未検証）:** 実際のComposition入力が常にpremultipliedであるなら、IBKの現行CPU/GPU双方で半透明境界の色・matteが不整合になる可能性が高い。opaque-only fixturesでは露呈しない。
 - **次に確認すべきこと:** `IBKBuffers`へforeground alpha modeを導入し、CPUとGPUでstraight colorによるmatte/despill計算と入力表現に合わせた出力を行う。IBK GPU constant-buffer ABIを更新し、half-alpha straight/premultiplied等価性をCoreおよびArtifact wrapper契約で確認する。clean plateはopaque RGBとして扱うのか独立alpha modeを持たせるのかを先に固定する。
 
+
 ## 2026-10-26: IBKのPremultiplied RGB previewはalphaを二重適用するように見える
 - **関連:** `Artifact/src/Effects/Keying/IBKKeyerEffect.cpp` の `applyIBKPreview` mode 2 と `ArtifactCore/src/ImageProcessing/Keying/IBKKeyer.cpp`。
 - **確認できた事実:** `processIBK` は `outRGB = despilledRGB * keyedAlpha` を出力する。その後、preview mode 2は同じ出力RGBへもう一度 `pixel.rgb *= alpha` を適用し、alphaを1にする。property tooltipはmode 2を「Premultiplied RGB」と説明している。
 - **価値または懸念:** 透明領域の色を黒へ合成したような表示になるが、既にpremultipliedされた値へalphaを二重に掛けるため、soft edgeのRGBが期待より暗くなる可能性がある。
 - **仮説（未検証）:** mode 2の目的がalpha=1にしたpremultiplied RGB表示なら、追加乗算は不要かもしれない。逆に内部計算をstraight RGBへ変えるなら現在の乗算が正しい可能性があるため、IBK alpha convention確定後に判断する。
 - **次に確認すべきこと:** CPU/GPU双方で同じ半透明キー画素を作り、Finalのpremultiplied RGBとmode 2のRGBを比較する。alpha conventionを先に統一し、mode 2がFinal RGBを保ったalpha=1表示なのか、別のdark composite表示なのか仕様を決めてから修正する。
+
 
 ## 2026-10-26: Chroma KeyのDespill Mode 3がArtifact wrapperで選べない
 - **関連:** `Artifact/include/Effects/Keying/ChromaKeyEffect.ixx`、`Artifact/src/Effects/Keying/ChromaKeyEffect.cpp`、`ArtifactCore/src/ImageProcessing/ChromaKey.cpp`。
@@ -7475,12 +8003,14 @@
 - **仮説（未検証）:** setter clampは旧来3モードからの値が残る想定で2に据え置かれた可能性があるが、現在の公開option listとtooltipからは根拠を確認できない。
 - **次に確認すべきこと:** Artifact child repoでsetter上限を3へそろえ、wrapper propertyを3に設定・取得するテストを追加する。CPU/GPU両経路でTarget Neutral modeの出力を比較する。変更時は親の子gitlink運用手順に従う。
 
+
 ## 2026-10-27: FluidSnapshot2D sparse checkpointの精度とコスト
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresSmokeCheckpointCopyAndSparseReplayCost`、`ArtifactCore::FluidSnapshot2D`、`Artifact/src/Composition/ArtifactAbstractComposition.cpp::evaluateLayerComponentSimulation`。
 - **確認できた事実:** FluidSnapshot2Dは7つのfloat gridを値コピーする。96×72 / 128×96 / 192×144で1 snapshotは193,536 / 344,064 / 774,144 bytes。120-frame履歴のinterval 8 / 16 / 32では、15 / 8 / 4 checkpointsとなり容量は各解像度で2.90 / 1.55 / 0.77 MiB、5.16 / 2.75 / 1.38 MiB、11.61 / 6.19 / 3.10 MiB。Debugの64回平均snapshot+restoreは0.225 / 0.388 / 0.859 ms。target frame117へのcheckpoint replayでdensity RMSEは全条件0。192×144の6 / 22 replay framesは約0.71 / 2.64秒かかった。
 - **価値または懸念:** checkpointはsimulation stateを正確に再現できるが、grid解像度とlayer数に比例してメモリを使い、nearest checkpoint距離に比例する再生時間も高解像度で大きい。単一layer予算、実アプリのseek hitch、Bake serializationへ無条件に含める設計は避け、checkpoint budget・非永続runtime state・再生中更新との調停が要る。現計測はDebug standaloneで、production性能値ではない。
 - **仮説（未検証）:** Compositionの既存Component checkpointは煙solver stateを持たないため、煙用checkpointを同じseek判断点に結び付ければRender Queueのrange warmupやViewport seekを短縮できる。ただしcurrent Component Bake形式へ煙snapshotを入れる必要はなく、runtime-only checkpoint cacheとして別に持つ方が保存互換を保てる可能性がある。
 - **次に確認すべきこと:** runtime-only per-layer checkpoint APIをCompositionのframe evaluation順へ安全に統合できるか確認する。frame start / layer activation start、settings/FPS/stir revision changes、same-frame authoring edits、reset/bake/import、複数layer total byte budgetを含むinvalidation contractを先に決め、Composition View seekとRender Queue range renderが同一stateへ収束する独立テストを作る。Debug値だけでintervalやrelease performanceを決めない。
+
 
 ## 2026-10-27: per-layer runtime smoke checkpointing fixes bounded frame seeks
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`、`Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`、`Artifact/include/Layer/ArtifactLayerFluidRuntimeState.ixx`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresSmokeStateAcrossFrameGapsAndSeeks`。
@@ -7489,12 +8019,14 @@
 - **仮説（未検証）:** A composition-wide checkpoint budget or pooled reusable snapshot buffers could lower many-layer memory and allocation churn while retaining exact replay. Pooling requires copy-into-capacity support for all seven solver grids; it should be evaluated before raising checkpoint frequency or memory caps.
 - **次に確認すべきこと:** Capture GPU viewport frames for sequential playback, short forward/backward seeks, settings edits, and first seek at >120 frames; measure CPU simulation and allocation counts at 96×72/128×96/192×144 with 1/4/8 smoke layers. Then continue visual R&D toward folded billows; seek parity does not improve smoke morphology.
 
+
 ## 2026-10-27: production煙の解像度別projection残差と反復数適応
 - **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp` のproduction update stage、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` のsmoke runtime設定、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`。
 - **確認できた事実:** テスト専用compile defineでproduction solver内部のprojection前後・velocity advection後・density advection後を独立runtime harnessから観測した。frame28でvelocity advectionによりdivergence RMSは96×72 1.505→2.109、128×96 1.585→2.305、192×144 1.656→2.633へ増え、2回目projection後は1.625/1.723/1.846へ下がった。density centroidYはdensity advectionで約0.039〜0.040低下する。8→80 projection iterationsではpost-projection divergence RMSが各gridで.347→.168、.366→.230、.382→.304へ低下した。production runtimeの適応反復数20/24/40ではframe28 centroidY .4181/.4288/.4443、sigmaY .2280/.2319/.2312となり、96↔192 cross-grid density RMSEは.0755。同じ20反復固定時のRMSE .1023より改善した。base 8でもadaptive 8/12/28となり、centroidY .4642/.4762/.4711へ近づいた。独立focused tests 2件 pass。
 - **価値または懸念:** smoke runtimeだけで既存adaptive solverを有効化し、grid areaに応じて4,608 cellsごとに4反復を追加、40を上限とする候補を反映した。ユーザー指定base iterationが40超なら減らさない。共通FluidSolver既定や他クライアントは変更しない。解像度間のplume形状ドリフトは縮小するが、見た目はまだ滑らかなcolumn/capで、DCC級billowではない。Debug frame costの適応前後比較は未実施で、性能影響は未確認。
 - **仮説（未検証）:** 同一の目標projection residualに基づく適応反復が、固定iterationより解像度間のtrajectoryをさらに揃えられるかもしれないが、iteration数だけ揃えてもgrid依存の圧力演算子・移流誤差は残る。
 - **次に確認すべきこと:** DebugとRelease相当でframe costをgrid / base iteration別に計測し、既定96×72と高解像度での増分を確認する。GPU volume rendererと合わせた連続frame画像でcurl・mass・centroid・temporal coherenceを評価し、煙らしいbillowを作る次の候補は別因子で研究する。
+
 
 ## 2026-10-27: smoke adaptive iteration capを性能計測で28へ調整
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の `kSmokeMaximumAdaptiveSolverIterations`、独立runtime tests `MeasuresSmokeAdaptiveProjectionIterationCost` / `ComparesProductionSmokeMorphologyAtProjectionIterationCounts`。
@@ -7503,18 +8035,21 @@
 - **仮説（未検証）:** 圧力residualを停止条件として反復数を早期終了する方が、解像度ごとの固定capより同等の形態収束を低コストで得られる可能性がある。ただしresidual評価の追加走査コストと密度軌跡への影響は未計測。
 - **次に確認すべきこと:** DCC billowに向けてsolverの空間解像度とprojection精度だけに頼らず、production velocityへ局所的・seedableなcurl forceを結合する候補を一つずつ比較する。mass・centroid・時間連続性・画像を並べ、CPU/GPU costも別々に記録する。停止条件候補は既定solverと切り離したtest-only試作から評価する。
 
+
 ## 2026-10-27: divergence-free curl kickをprojection前へ移して比較
 - **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::FluidSolver2D::update` のstandalone-only pre-update hook、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresPreProjectionDensitySupportedCurlInjection`。
 - **確認できた事実:** 既存post-frame curl adapterとnoise bands/seed/strength/emitterをそろえ、production solverのbuoyancy/vorticity/projection前にdensity-windowed streamfunction curlを加えた。生成force自体のcentered divergence RMSは3.5e-10〜8.1e-10。frame44 baseline mass 475.65、velocity divergence RMS .01562に対し、pre-projection strength .5のmassはseed17/71で544.81/552.77、strength1は559.33/548.87、final divergenceは.02198〜.03075。粒子再構成high-passはbaseline 3.921に対しstrength .5で4.200/4.265、strength1で4.286/4.109。post-frame側も同程度以上の一部条件があり、seed間で効果が反転する。2つのmatched standalone tests pass、captureは`build/smoke-runtime-rnd/captures/curl-injection-order-compare/`。
 - **価値または懸念:** 注入forceは数値上ほぼ発散ゼロだが、projection後の速度場divergenceは増え、mass driftも約14〜18%。目視はS字の横曲がりが増えるだけで連続billowには至らない。high-passの増加はseedにより4.8〜9.3%程度で、post-frame版への一貫した優位なし。callbackと作業領域はstandalone専用define下だけでありproduction経路には入れない。
 - **仮説（未検証）:** curl forceの単純加算ではなく、現行solver velocityからのenstrophy transferやsubgrid stressを近似するvorticity-confinement/residual operatorなら、速度energyを上げ過ぎずにroll-upを補える可能性がある。ただし現在の2D stable-fluids operatorとGPU particle reconstructionの制約下で実用的かは不明。
 - **次に確認すべきこと:** seed varianceを含めて既存post-frame testを基準として残し、curl kick案は品質候補から外す。次は大scale trajectoryと小scale detailを切り分けた2D residual/vorticity-force実験か、既存3D Pyro fieldを煙emitterへ接続する価値・統合コスト調査を行う。
+
 ## 2026-10-27: C4D/Houdini級の煙品質は2D solver調整だけでは届かない
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` の2D smoke sampling/particle reconstruction、`ArtifactCore/src/Simulation/PyroSimulation.cpp`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::SeparatesBuoyancyAdvectionAndDensityDecayAfterEmitterPulse`。
 - **確認できた事実:** 2D smoke runtimeは最大64サンプル/軸でdensity fieldをbilinear samplingし、各サンプルをGaussianDensity particleへ変換してGPU particle rendererへ渡す。一方Pyroはdensity/temperature/velocityの3D voxel fieldをCPUで進化させる。standalone Pyro実験はvorticity confinementとdensity shreddingを別に比較しており、density shred振幅0.12では質量誤差約7e-9以下だが、post-pulse密度Laplacian RMSはcontrol .00595から単一band .00957へ増え、残存massも20.19から22.86へ変わった。これは細部が増える指標であり、見た目の品質改善を保証しない。さらに独立テスト`ComparesParticleReconstructionWithMatchedExposureDensityIntegration`でframe44の同じ2D密度を使い総露出を2%以内に一致させたところ、Gaussian粒子とshadowなしのscreen-space密度積分はvisible pixels 60,024/37,490、weighted centroid (389.70, 280.71)/(388.76, 297.46)、high-pass RMS .3751/.4258、silhouette IoU .6246となった。密度積分側は煙の広がりが狭く、重心が約17pxずれ、高周波量も約13.5%高い。これは軽量2D参照実装の結果でありproduction rendererや真の3D volume rendererとの性能・品質比較ではない。Houdini公式資料もlarge-scale turbulenceとhigh-frequency shreddingを別々の作用として説明し、vorticity confinementは強すぎると形を壊し得るとしている。
 - **価値または懸念:** 既存2D fieldを高iteration化・curl追加するだけではvolumeの奥行き、自己遮蔽、密度を積分したvolume shadingを作れない。2D composition layerのままDCC風レンダリングを狙うなら、simulation domain/rendererを3D化し2D layer outputへ投影する経路が候補になるが、現PyroはCPU simulationでGPU volume renderingとArtifact layer integrationが未完了で、統合は大きな機能境界になる。
 - **仮説（未検証）:** 2D source trajectoryに大きな渦を足すだけでは形の制約が残り、奥行き方向に異なるdensity/velocity構造を進化させる3D Pyroがbillow表現へ必要となる可能性がある。
 - **次に確認すべきこと:** 既存の同一2D plumeからのdepth-varying extrusion testとnative 3D Pyro testを使い、同じcamera、exposure、temporal samplesで2D particle、単純3D extrusion、3D-evolved Pyroの見た目・形態・CPUコストを比較する。現行2D密度積分のキャプチャは`build/smoke-runtime-rnd/captures/matched-exposure-density-integration-20261027/`に保存した。公式資料: [SideFX Pyro look development](https://www.sidefx.com/docs/houdini/pyro/pyro_look.html)、[SideFX Understanding how pyro works](https://www.sidefx.com/docs/houdini/pyro/background.html)、[Maxon Pyro scene](https://help.maxon.net/c4d/2023/en-us/Content/html/OPBDSCENE-PBDSCENE_GROUP_PYROPROPERTIES.html)。
+
 
 ## 2026-10-27: 同一2D煙からの2.5D/3D Pyro比較では正面品質が改善しない
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesTwoDimensionalSmokeWithMatchedExposureDepthEvolvedPyro`、`ArtifactCore::PyroSimulation`、`CPUVolumeRenderer`。
@@ -7523,12 +8058,14 @@
 - **仮説（未検証）:** Pyro品質差には速度乱流に加え、SideFXが区別する大規模turbulenceと小規模shredding、さらにvolume rendererのambient fill / shadow / scattering balanceが別々に関与する。現行Pyro設定にはvorticityはあるが、これらの個別shape controlsはまだない。
 - **次に確認すべきこと:** 同じvolume field・camera・matched exposureを固定し、shadow intensity / multiple scattering / ambient fillのlook-dev sweepを実施する。暗い影が改善しても3D shape制御の欠落は別課題として残し、velocity disturbance・density shreddingは独立指標付きのtest-only実験を続ける。キャプチャ: `build/smoke-runtime-rnd/captures/matched-2d-3d-pyro-20261027/`。
 
+
 ## 2026-10-27: Volume smoke look-devでshadow強度の未接続とambient fillを確認
 - **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx::VolumeRenderSettings`、`ArtifactCore/src/Render/VolumeRenderer.cpp::CPUVolumeRenderer::raymarch`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::SweepsVolumeSmokeShadowAmbientAndScatteringOnAFixedField`。
 - **確認できた事実:** `shadowIntensity` は0以下でshadow samplingを止める以外にraymarch照明へ使われておらず、0.25などの指定でも完全なshadowが掛かっていた。固定40×40×32のbillow状density、96²画像、同一カメラ・露出で、修正後のshadowIntensity 0 / 0.5 / 1 の平均輝度(byte luma)は19.73 / 13.33 / 6.88、0→0.5 / 0→1のmean absolute RGB差は6.42 / 12.86だった。新規 `ambientLightIntensity=0` は既定画を維持し、0.25を加えるとfull-shadow平均輝度は19.35へ戻るが、luma標準偏差はfull-shadow 0.775から0.830で、unshadowed 1.804より低く、fill過剰時は陰影が平坦になる。既存のmultiple scattering近似strengthを0→0.5にした差は平均RGB 0.69程度と小さい。Core smoke standalone全48テストが879.937秒で成功し、volume look-dev 3件も個別に成功した。CPU参照rendererの固定field実験で、GPU/App表示品質やDCC級billow品質を示すものではない。
 - **価値または懸念:** Core volume rendererはArtifact compositionへ未接続であり、UIへ同じノブを追加しても現行2D smoke表示には作用しない。今回の `shadowIntensity` 修正は既存設定の実動作を直し、`ambientLightIntensity` は0既定の追加look-dev軸として保持する。暗部を明るくするだけではbillow構造を作らず、fill強度を上げると照明コントラストを下げる。
 - **仮説（未検証）:** volume smokeの暗さは少量のambient fillまたはshadow intensityで改善し得るが、2D composition正面の渦・billow品質には3D solverのshape evolutionとdensity detailが依然必要である。
 - **次に確認すべきこと:** 3D Pyro snapshotでshadow 0.2–0.5、ambient 0.05–0.2、exposure matchedの外観・front/side統計を再比較し、解像度別CPUコストも記録する。Pyroにはtemperature/fuelと燃焼・発熱処理があり、Fire transfer functionもあるため、煙look-dev後は同じemitter/solverでsmoke-only / fire-only / fire+smokeを比較する。App統合やGPU移植はvolume layer/render pathが実在してから別途 parityを取る。captures: `build/smoke-runtime-rnd/captures/lookdev-sweep-20261027/`。
+
 
 ## 2026-10-27: 同一Pyro emitterのsmoke-only / fire-only / mixedを比較
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesSmokeFireAndCombinedLooksFromTheSamePyroEmitter`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::PyroSimulation::applyCombustion`、`ArtifactCore/src/Render/VolumeRenderer.cpp::TransferFunction::evaluate`。
@@ -7537,12 +8074,14 @@
 - **仮説（未検証）:** product向けの炎はsolverの基本燃焼を再利用し、art-direction設定とdensity/temperature/fuelに応じたtransfer controlsを分離して作るべきである。billow不足にはsource velocity調整だけでなくscale-separated turbulenceとdensity shreddingが必要と思われる。
 - **次に確認すべきこと:** exposure matched front/side画像で煙と炎の体積占有・時間変化を比較し、継続emitterとpulse emitterのburnoutを計測する。次にmultiscale velocity disturbanceとdensity detailを別々に投入し、mass retention、temporal coherence、silhouette/high-passを記録する。production codeへfire controlsを昇格するのはこのCPU look-devを反復し、Pyro domain/App rendering pathとの接続設計が明確になってから判断する。
 
+
 ## 2026-10-27: Pyro火炎比較にfuel-off対照を追加
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesSmokeFireAndCombinedLooksFromTheSamePyroEmitter`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::applyCombustion`、`ArtifactCore/src/Render/VolumeRenderer.cpp::TransferFunction::evaluate`。
 - **確認できた事実:** 同じ40×56×40 domain、同じsource density / temperature / velocity、同じ120 stepsでfuel=5.5とfuel=0だけを切り替えた。燃料ありでは終了field合計がdensity / temperature / fuel = 526.105 / 1419.51 / 422.641、燃料なしではdensity / temperature = 39.8767 / 650.206。したがって燃焼経路はこの条件でdensityを486.229、temperatureを769.301増やした。両ケースともsource temperatureがあるため、燃料なしでもFire transferの可視pixelは存在する。focused standalone testを再ビルドし、該当ケース1件が1.133秒で成功した。
 - **価値または懸念:** 「煙と炎を同じPyro emitterから出す」方針は燃料の燃焼による発熱・煙生成まで含めて妥当。ただし現行Fire transferはdensity / temperatureを参照し、fuelや反応率を直接参照しないため、単に温度のある煙も炎色になり得る。燃料場・燃焼状態と炎の見た目を分離制御したい場合、現在のvolume transfer APIではその関連付けを表現できない。ここでいうテストはCPU reference rendererであり、Artifact AppのPyro描画接続を示さない。
 - **仮説（未検証）:** 同時出力を保ちつつ炎を燃焼域へ限定するには、熱だけでなくfuel消費量またはreaction/emission fieldをrendererへ渡す設計が役立つ可能性がある。一方、燃料が燃え尽きた後に温度fieldを残して余熱を描く表現との分離も必要になる。
 - **次に確認すべきこと:** 継続emitterとpulse emitterを同じ条件で比較し、fuel burnout、熱の減衰、炎・煙の可視寿命を時系列で計測する。その結果を見て、reaction field追加が現行temperature/density transferを上回るか、test-only rendererで比較する。
+
 
 ## 2026-10-27: Pyro pulse / continuous放出の煙・炎寿命を計測
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesPulseAndContinuousPyroSmokeFireLifetime`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::integrateStep/applyCombustion`、`ArtifactCore/src/Render/VolumeRenderer.cpp`。
@@ -7551,12 +8090,14 @@
 - **仮説（未検証）:** 同一の積算source doseに揃えたうえで、放出時間・fuel/temperature比・coolingを振れば、炎の継続と煙尾の寿命を独立に調整できる領域が見つかる可能性がある。rendererへのreaction field追加要否もこの比較で評価できる。
 - **次に確認すべきこと:** pulse長とsource rateを相互補償して積算density / temperature / fuel injectionを揃え、停止後のfield lifetime、fire warmth、smoke occupancyを比較する。必要ならfuelなし高温source controlを追加し、温度由来の炎色と実燃焼由来の炎を分ける。
 
+
 ## 2026-10-27: Pyro放出スケジュールをscalar・velocityの積算入力量で比較
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesPulseAndContinuousPyroSmokeFireLifetime`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::integrateStep/applyCombustion`。
 - **確認できた事実:** 0.1秒pulse（rate 1）、1秒pulse（rate 3）、3秒continuous（rate 1）を比較し、sourceのdensity / temperature / fuel / velocity各値×放出frame数が nominal 180 frame-unitsとなる1秒pulseとcontinuousを対照化した。3秒終了時の1秒pulseはdensity/temp/fuel mass `806.469/1665.82/2.895`、continuousは`915.485/2217.84/414.166`。1秒pulseはfuelをほぼ使い切り、より高いtemperature / fuelの一時ピークを通った。frontのluma>12 pixel数はSmoke/Fire `977/948` 対 `905/895`、luma合計`71208/72599` 対 `67757/76143`、fire warmth`0.469/0.456`。画像ではpulse側が細長い炎・煙柱、continuous側は先端の広い形に見える。velocityを含む全source入力の積算を合わせた後も、燃焼・移流の非線形応答で最終fieldは一致しない。RelWithDebInfo focused test 1件pass。PNGは`build/smoke-runtime-rnd/captures/pyro-equal-dose-velocity-matched-20261027/pyro-lifetime-rnd/`。
 - **価値または懸念:** 単純なsource rate×duration一致は、燃焼を含むPyro結果の質量保存や画面露出の一致を意味しない。1秒pulseは最終fuelがほぼゼロでも、残留温度と密度により煙・炎pixelを連続条件と同程度に保った。見た目を調整する時は、発生量、反応率、冷却、速度場、転送関数を別々に記録する必要がある。
 - **仮説（未検証）:** source scheduleだけでも短く強い爆発的な火炎と、長く安定した炎柱を作り分けられる可能性があるが、source値を3倍にする瞬間入力は高温ピークを作り、品質・安定性・解像度依存性に注意が必要。renderer側のfuel/reaction gatingはまだ検証していない。
 - **次に確認すべきこと:** equal-integral条件のsource velocityだけを固定する補助比較を加え、細長さ・重心・occupancyが速度積算と燃焼ピークのどちらに支配されるかを分離する。続けてreaction-driven fire transfer候補をtest-onlyで比較し、現行temperature-only transferより燃焼域を明瞭に示せるか評価する。
+
 
 ## 2026-10-27: Pyro scalar doseを保ったvelocity impulseの形状差を分離
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesPulseAndContinuousPyroSmokeFireLifetime`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::integrateStep`。
@@ -7565,12 +8106,14 @@
 - **仮説（未検証）:** source velocityをdurationに反比例させるだけでは時間変化する移流場・圧力projectionを等価にできないため、DCC風のアート方向性にはsource emissionとsubstep forceを別パラメータとして調整する方が扱いやすい可能性がある。
 - **次に確認すべきこと:** 同じ初期pulse場を分岐してsource emissionを停止し、post-emission velocity / buoyancy / coolingを一つずつ固定・無効化する。こうして停止後のshape / mass / fire warmth変化を分離し、現行の燃焼係数をAPI化する前に必要な制御軸を絞る。
 
+
 ## 2026-10-27: Smoke / Fire look-devの温度寄与と燃料なし対照を確認
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesSmokeFireAndCombinedLooksFromTheSamePyroEmitter`、`ArtifactCore/src/Render/VolumeRenderer.cpp::CPUVolumeRenderer::raymarch/TransferFunction::evaluate`。
 - **確認できた事実:** HEADを確認し直し、以前から同一Pyro look-dev rendererへdensityとtemperatureの両fieldを渡していたことを確認した。「温度接続が欠けていた」という作業中の発言は誤認であり、これを訂正する。新たに同一fueled stateでtemperature有効／無効のFire transferを比較するとluma sumは`92855/77211`、visible pixelは`1038/992`、warmthは`.4119/.3998`、normalized RGB MAEは`.004246`。fuel=0 controlも正しい自分自身のtemperature fieldで描画し、luma/visible/warmthは`57706.7/699/.3861`。そのcontrolの終了density/temp massは`39.877/650.206`であり、fuelなしでも熱いsourceはFire transfer上で可視・暖色になった。温度上書きの誤りは追加control branchにだけあり、修正後にSmoke/Fire比較とpulse lifetime比較のfocused 2 testsが合計4.271秒でpass。
 - **価値または懸念:** 元のFire画像・温度対応測定は有効だったが、温度あり／なしの比較とfuel-off imageは今回が初回。`VolumeFieldSet`はfuel fieldを持つものの、rendererのraymarchはdensity / temperatureだけをsampleし、fuelや燃焼率で炎をgateしない。よって現行Fireは温度・密度から熱い気体の発光色を作り、反応域へ限定する燃料aware flame表示とは異なる。CPU reference look-devであり、App/GPUへの接続や品質parityの証拠ではない。
 - **仮説（未検証）:** 次の製品向けPyro描画契約ではfuel残量そのものより、substepで消費したfuel量またはreaction/emission rateをfieldとして出す方が、燃料を消費した場所の炎と既に燃え終わった高温煙を描き分けやすい可能性がある。
 - **次に確認すべきこと:** reaction fieldのtest-only prototypeを同じ3D Pyro pulseで作り、temperature-only Fire、fuel-threshold Fire、burn-rate Fireを同じ露出で比較する。燃料なし高温sourceがFire色を誤って出す面積、火炎占有、煙との合成差を評価してからCore APIへ昇格する。
+
 
 ## 2026-10-27: 残留fuel gateはhot-gas誤表示を抑えるが炎に穴を作る
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesSmokeFireAndCombinedLooksFromTheSamePyroEmitter`、`ArtifactCore/include/Render/VolumeRenderer.ixx::VolumeFieldSet`、`ArtifactCore/src/Render/VolumeRenderer.cpp::CPUVolumeRenderer::raymarch`。
@@ -7579,6 +8122,7 @@
 - **仮説（未検証）:** `applyCombustion`内で計算する`burned` amountまたはburn-rateをsnapshot可能な一時reaction fieldへ出せば、reaction域だけを炎色化しつつdensity/temperatureを煙・熱尾に残せる可能性がある。ただしtime step、source heat、火種なしの熱分解をどのrateで表すべきかは未検証。
 - **次に確認すべきこと:** test-only transferでfuel gateの係数とsoftnessを掃引し、穴／炎占有のtradeoffを数値化する。同時にCore APIでは`reactionRate`か`burnedFuel`のどちらがsnapshot/cacheに適するか、既存`PyroSimulationSettings`と`PyroFrameSnapshot`の責務を読み、最小の型追加で閉じられるか調査する。
 
+
 ## 2026-10-27: Pyro燃焼反応率をsnapshot・cache・Fire lookへ接続
 - **関連:** `ArtifactCore/include/Simulation/PyroSimulation.ixx`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::applyCombustion/integrateStep`、`ArtifactCore/include/Render/VolumeRenderer.ixx::VolumeFieldSet`、`ArtifactCore/src/Render/VolumeRenderer.cpp::CPUVolumeRenderer::raymarch`、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp::CarriesCombustionReactionIntoFireLookAndVersionedCheckpoints`。
 - **確認できた事実:** 燃焼反応率`burned / dt`をPyroのscalar fieldとして生成し、同じvelocityでscalar advectionし、frame snapshot・メモリ見積り・checkpointへ追加した。disk cacheはversion 2でreactionを保存し、version 1はreactionゼロとして読み込む。Fire transferはreaction fieldが接続された場合だけ反応率をemission/absorption gateに使い、fieldのない旧入力は従来挙動を維持する。新規Coreテストで燃料ありFireの表示、燃料なしhot gasの抑制、version 2 round trip、version 1 compatibilityを確認した。Debug standalone Core suite 21件すべてpass（156.5秒）。`SmokeRuntimeStandaloneTest`の既存Pyro smoke/fire比較とpulse寿命の2件もRelWithDebInfoでpassし、既存テストの指標は前回値と一致した。
@@ -7586,12 +8130,14 @@
 - **仮説（未検証）:** 反応率だけで炎を作るより、reactionから発光とopacityを分けて応答させ、temperatureからafterglowを別field/transferとして制御する方が、炎の芯と煙へ移る熱尾を独立に整えられる可能性がある。
 - **次に確認すべきこと:** 同じpulse/continuous Pyro fieldでtemperature-only、fuel gate、reaction gateを露出一致で比較し、炎の穴・占有・warmthと消火後の煙尾を測る。CoreのPyroと2D Smoke Emitterの実行経路を分けて記録し、実アプリで接続する際はplanned Pyro domain integration milestoneとGPU経路の責務を確認する。
 
+
 ## 2026-10-27: DCC Pyroは反応・炎寿命・描画のfieldを分けている
 - **関連:** SideFX [Pyro Solver](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver.html)、[Flames](https://www.sidefx.com/docs/houdini/pyro/flames.html)、[Pyro Shader](https://www.sidefx.com/docs/houdini/nodes/vop/pyroshader.html)、[Shading and rendering](https://www.sidefx.com/docs/houdini/pyro/shading)、Maxon [Pyro Scene 2026](https://help.maxon.net/c4d/2026/en-us/Content/html/OPBDSCENE-PBDSCENE_GROUP_PYROPROPERTIES.html)、`ArtifactCore` Pyro reaction/fire implementation。
 - **確認できた事実:** SideFXのPyro combustionはfuelからburn、temperature、densityを生成し、Flames controlsにはsoot、heat、expansionへの出力分岐がある。現行Houdiniの`flame` field説明では、値を燃料状reactantの残存寿命としてflowで移流し、寿命の残りに応じてsoot/heat/expansionを出し、fire emission fieldにも使う。Pyro Shaderはsmoke density、fire intensity、fire temperatureを別fieldとして受け、火の色と強度を別々に調整できる。Cinema 4D Pyro Sceneもsource側のdensity/temperature/fuelと環境側のfuel→density/temperature/pressure変換を個別に説明し、燃焼後densityによるsmokeを扱う。
 - **価値または懸念:** 今回追加した`reaction=burned/dt`は「現在反応している場所」を特定するためのfieldとしては有効で、hot non-burning gasをFire lookから除外できる。DCC全体を目指すにはこれ単独では足りず、燃焼が弱まった後にも視覚的な火炎を残すlifetime/heat representationと、fire intensity / fire color temperature / smoke densityの独立した描画制御が必要になりそう（DCC field semanticsからの設計推論）。
 - **仮説（未検証）:** 長く使える設計は単一のreaction thresholdではなく、燃焼rateから反応強度を得たうえで、別のadvected/decaying flame-life fieldを更新し、fire intensityとcolor temperatureをその状態から別々にrenderする形かもしれない。CPU 2D smoke emitterへこの3D Pyro field契約をそのまま適用できるかは未検証。
 - **次に確認すべきこと:** 同一pulseのPyro fieldにreaction-rate-onlyと短いadvected flame-life候補を追加し、停止後の炎残り・熱尾・smoke continuityを比較する。続けてRendererのfire intensity/source rampとtemperature-to-colorを別軸で掃引し、既存smoke extinction/exposureを固定して評価する。参照: [SideFX Pyro Solver](https://www.sidefx.com/docs/houdini/nodes/dop/pyrosolver.html), [SideFX Flames](https://www.sidefx.com/docs/houdini/pyro/flames.html), [SideFX Pyro Shader](https://www.sidefx.com/docs/houdini/nodes/vop/pyroshader.html), [Maxon Pyro Scene](https://help.maxon.net/c4d/2026/en-us/Content/html/OPBDSCENE-PBDSCENE_GROUP_PYROPROPERTIES.html)。
+
 
 ## 2026-10-27: advected flame-lifeはpulse停止後の炎をつなぐ
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesPulseAndContinuousPyroSmokeFireLifetime`、`ArtifactCore/include/Render/VolumeRenderer.ixx::VolumeRenderSettings::fireIntensityScale`、`ArtifactCore/src/Render/VolumeRenderer.cpp::CPUVolumeRenderer::raymarch`、`build/smoke-runtime-rnd/captures/pyro-flame-life-20261027/pyro-lifetime-rnd/`。
@@ -7602,6 +8148,7 @@
 - **価値または懸念:** tauはsource停止後の火炎残りを段階的に調整できる一方、このテスト形状は細い縦 plume のままであり、寿命を伸ばすだけでは自然な揺らぎや太い炎の輪郭は生まれない。`0.8s`以上では煙より炎尾が長く残る画面になり得る。数値は72x96 CPU reference look-dev・12倍発光の測定で、製品設定値やDCC品質を示さない。
 - **仮説（未検証）:** 炎の見栄えは寿命tau単独では決めず、sourceのfuel/temperature、advected flame-life、発光/色温度、煙の密度を独立に調整して同時評価する必要がある。これらは煙と同じPyro simulation fieldを共有できるが、Artist-facing controlsとproduction App integrationは未実装。
 - **次に確認すべきこと:** 同じ露出でfuel/temperatureとtauを小さな行列で振り、煙とのmixed render、火炎幅・穴・停止後寿命を比較する。scale-separated turbulenceを加えたときに細い尾の形がどう変わるかも調べ、Core APIへ昇格する前に調整値とcheckpoint要件を決める。
+
 
 ## 2026-10-27: 2D SmokeEmitterに独立temperature fieldを追加
 - **関連:** `ArtifactCore/include/Physics/FluidSolver2D.ixx`、`ArtifactCore/src/Physics/FluidSolver2D.cpp`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`、`tests/ArtifactCore/SmokeEmitterStandaloneTest.cpp::EmitsIndependentTemperatureAndCarriesItThroughSnapshots`。
@@ -7620,12 +8167,14 @@
 - **次に確認すべきこと:** 2024論文Fig.10のanalytical ray-traced Angenieux画像からsource positionsとghost centroidsを測り、同じdirection/画角で出力画像と照合する。有限source径の既知データでangular footprintを校正した後、実測Sellmeier/coating data、reference capture、GPU precompute/Core/App integrationの品質基準を順に評価する。
 - **確認できた事実（論文Fig.10比較）:** Bodonyi et al.の公開Fig.10にあるAngenieux red/green source markersから座標を概算し、directional source相当のsingle sampleでray-grid96/192を比較した。192時のghost luminance/centroidはsource Aが10.1684/(444.21,223.44)、source Bが20.8764/(360.56,141.68)。96→192の積分値差は+0.11%/+0.59%、centroid移動は2.34px/0.05pxだがpeakは大きく変わり、causticは未収束。比較画像は`tools/LensFlareLab/examples/paper-fig10-angenieux-position-sweep.png`、入力生成は`tools/LensFlareLab/make_fig10_comparison_chart.py`。source marker座標は画像からの推定で論文記載値ではなく、pixel-matched validationではない。
 
+
 ## 2026-10-27: 2D smoke/fire lookを共有temperatureから分岐
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`、`Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`。
 - **確認できた事実:** 2D Fluid runtimeはCore温度fieldをcheckpoint込みで保持できる。新しい独立ランタイム確認では、emitter temperatureを上げた場合に描画particleが冷たいsmokeより赤く、青みが減ることを検証した。対象のtemperature colorテストと既存density dissipationテストはpass。
 - **価値または懸念:** 熱の発生・上昇・冷却を煙密度と分けたうえで、同じ流れからsmokeとwarm fire tintを出せる。現在の粒子描画はAlpha blendのため、熱を色へ変換した初期look-devであり、発光や容積的な炎を示すものではない。初期値はemitter temperature / thermal buoyancy 0で従来の煙色を保つ。
 - **仮説（未検証）:** 炎と煙を別レイヤー化する前に、共通流体を保ち温度域で色と明るさを分ける比較が有効。ただし発光を含む炎にはCore GPU particle/volume描画への専用経路と露出管理が必要となる可能性が高い。
 - **次に確認すべきこと:** App本体のビルドを完了し、設定保存・復元を含むsmoke-only / fire-tint / mixedの画像比較を行う。warm tintが煤煙の色を壊さない温度範囲を測り、発光・fuel/reaction mask・専用blendの要否を判断する。
+
 
 ## 2026-10-27: 2D smoke/fireを別particle passに分離、燃焼fieldをlook-dev
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`、`Artifact/include/Layer/ArtifactLayerFluidRuntimeState.ixx`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`。
@@ -7636,12 +8185,14 @@
 - **仮説（未検証）:** 製品に本格的な2D flame controlsを追加する場合、temperature tint単独ではなく、bounded fuel + transient burn/reaction fieldをCore snapshot/cachingに組み込み、fire renderingから独立したsoot density/temperatureへ反映する必要がある。GPU particle alphaでは最終的にvolume extinction/emissionに及ばないため、volume-capable 2D compositorが本命となる可能性が高い。
 - **次に確認すべきこと:** test-only燃料source停止後にburn-rate/fire lifetimeを時間発展させ、thermal-only・reaction-only・combined画像でfire area、smoke area、temporal coherenceを同一露出比較する。数値と形状が安定したらCore field/snapshot APIとGPU render contractを設計する。
 
+
 ## 2026-10-27: 火炎ソース停止後の寿命field
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
 - **確認できた事実:** test-only fuel reaction prototypeを24 frame供給後30 frame無供給で進めると、反応量合計は停止時254.932から5/15/30 frame後129.144/18.0954/0.614738へ落ち、消火後画像の可視pixelは0。一方で未燃fuel 1.13045が残った。focused standalone testはpass。
 - **外部仕様:** SideFX Houdiniの`flame` fieldは移流する残存反応物の寿命を表し、Flame Lifespanで消費時間を調整する。sourceは`Maximum`合成でrefreshし、過剰な累積を避ける。
 - **価値または懸念:** 消火の見た目と未燃反応物を分ける必要性を示す。現在の結果は一条件のtest-only燃焼で、frame-rate収束、再着火、実GPU画像、C4D/Houdini相当の品質を証明しない。現行prototypeのfuel供給は加算式。
 - **次に確認すべきこと:** 同一velocity/source historyでfuel burnとremaining-lifetime flame（Maximum source, lifespan sweep, soot/temperature output ramps）を比較し、時間連続性とCore snapshot容量を測る。製品統合はその結果を得てから判断する。
+
 
 ## 2026-10-27: 寿命field制御とvolume再利用候補
 - **関連:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`、`ArtifactCore/include/Simulation/PyroSimulation.ixx`、`ArtifactCore/include/Render/VolumeRenderer.ixx`、`ArtifactCore/src/Render/VolumeRenderer.cpp`。
@@ -7650,6 +8201,7 @@
 - **価値または懸念:** 2D煙＋炎は同じdensity/velocity場から、炎の発光をreactionまたは寿命fieldで別制御する構造が自然。shallow-depth化は粒子輪郭を減らすが、既存CPU試作だけではDCC品質にならずGPU detail/transferの不足も見える。
 - **次に確認すべきこと:** Diligentでの3D texture upload、resource reuse、volume raymarch/render pass API、D3D12/Vulkanのshader portabilityをコードマップ化し、2D gridをshallow volumeへ再構成するGPU最小prototypeのコストと画質ゲートを決める。
 
+
 ## 2026-10-27: GPU volume renderingの既存境界
 - **関連:** `ArtifactCore/include/Graphics/Shader/Compute/Compute.ixx`、`ArtifactCore/src/Graphics/Compute.cpp`、`Artifact/src/Render/ArtifactIRenderer.cpp`、`Artifact/shaders/volumetricCloud_renderCS.hlsl`。
 - **確認できた事実:** Diligentのbackend-neutral APIは3D texture、HLSL Texture3D、texture updateを持つ。ArtifactCore `ComputeExecutor` はHLSL compute PSOの作成、texture-view binding、dispatchまで実装済み。Artifactのcloud raymarch HLSLファイルは存在するが現C++ runtimeにPSO/bindingのconsumerがなく、2D smokeのlive drawは粒子rendererを使う。
@@ -7657,17 +8209,20 @@
 - **仮説（未検証）:** FluidSolver2DをCPU authoritative stateのまま維持し、bounded packed field textureをrenderer lifetimeで再利用し、ComputeExecutorでshallow-depth extinction+reaction emissionを積分するのが最小の2D GPU volume prototypeになり得る。upload負荷とD3D12/Vulkan parityを先に測る必要がある。
 - **次に確認すべきこと:** `ArtifactIRenderer`のComposition View / Render Queue共有pass位置、Diligent texture update synchronization、shader HLSL inclusion/CMake targetを追い、既存 `ComputeExecutor` 利用コンピュータに倣った小さなGPU image testを設計する。
 
+
 ## 2026-10-27: Smoke solver fieldのnon-owning read API
 - **関連:** `ArtifactCore/include/Physics/FluidSolver2D.ixx`、`tests/ArtifactCore/PhysicsDeterminismTest.cpp`。
 - **確認できた事実:** `FluidSolver2D`はdensityとtemperatureを`NamedVector<float>`で所有している。新しいconst data accessorとelement countを追加し、次元・値対応をfocused contract testで検証した（MSBuild + test 1/1 pass）。返却pointerはresolution changeで無効になる。
 - **価値または懸念:** snapshotを使うfield copyなしにrendererへsource dataを渡せる。次段階のGPU upload自体は依然として毎frameの転送帯域を消費するため、persistent texture reuse・upload範囲縮小・必要な同期を測る必要がある。
 - **次に確認すべきこと:** Diligent texture updateとComputeExecutor dispatchの同期を確認し、煙の吸収と炎の発光を分けた同一volume passをD3D12/Vulkanで画像・時間・メモリ計測する。
 
+
 ## 2026-10-27: GPU volume R&Dへproduction runtime fieldを供給
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::SmokeDepthVaryingVolumeRaymarchOnDiligentRenderer`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`。
 - **確認できた事実:** GPU fixtureは手動生成flame fieldとsolver snapshotを使う状態から、production `advanceLayerSmokeRuntime()`後のdensity/flame lifetime storageを直接参照するようになった。RTX 4070 TiのD3D12/Vulkan focused testは各1/1 passし、frame-22 smoke+flame PNGは全RGBA値が一致した。目視では密度のある煙と赤橙発光を出すが、plumeは平滑でbillowが不足する。
 - **価値または懸念:** volume shader評価が本番solver fieldと切り離された模擬ソースに依存しなくなった。ただしCPU側でshallow 3D volumeへ膨張するR&D経路なので、production GPU upload/dispatchの性能・同期・実Composition順序は未検証。
 - **次に確認すべきこと:** production runtimeの時系列fieldをそのまま複数frame raymarchし、seek後の画素一致、視覚detail、GPU costを記録する。続いて再利用textureとrenderer target integrationを実装する。
+
 
 ## 2026-10-27: 共通Pyro volumeと効果別field profile
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::SmokeDepthVaryingVolumeRaymarchOnDiligentRenderer`、`ArtifactCore/include/Simulation/PyroSimulation.ixx`、2D Fluid runtime。
@@ -7677,6 +8232,7 @@
 - **ドナー根拠:** SideFXの資料は`density / temperature / fuel / burn/heat / divergence / velocity`の役割を分け、燃焼・加熱からdensityと膨張が生じる過程、煙・炎を別fieldとしてshaderに渡す構成を説明している ([Pyro effects](https://www.sidefx.com/docs/houdini/pyro/pyro.html), [Pyro shader rendering](https://www.sidefx.com/docs/houdini/pyro/shading.html))。Kim et al.のWavelet Turbulenceは低解像度運動に不足高周波を時間的に一貫して足す方法であり、現在の静的domain warpとは別方式 ([paper](https://www.cs.cornell.edu/~tedkim/WTURB/))。
 - **次に確認すべきこと:** 2D field契約と既存3D Pyro APIの重複・相違を一覧化し、solver共通化ではなくadapterでつなげる境界を検証する。その後、煙の時間的一貫性とbillowを改善し、production rendererに接続する前に爆発・蒸気・霧profileのCPU/GPU test fixtureを作る。
 
+
 ## 2026-10-27: Pyro effect profileと爆発膨張
 - **関連:** `ArtifactCore/include/Simulation/PyroSimulation.ixx`、`ArtifactCore/src/Simulation/PyroSimulation.cpp`、`tests/ArtifactCore/PhysicsDeterminismTest.cpp::PyroSourceTest.RadialExpansionSurvivesPressureProjectionDeterministically`。
 - **確認できた事実:** `PyroEffectKind` / `PyroEffectProfile` / `makePyroEffectProfile(kind, resolution)` でSmoke / Fire / Explosion / Steam / Fogのsimulation settings、source初期値、放出時間を提供する。`PyroSourceState::velocity`はgrid cells/secondであり、プリセットはgrid解像度に応じて移流速度と爆発radial velocityを拡大する。`radialVelocity`はpressure projection後にsource中心から外向きに注入し、collider処理後にdivergence fieldを更新する。baselineとの差、正の発散、同条件再現性をテストで検証した。
@@ -7684,17 +8240,20 @@
 - **価値または懸念:** 爆発の初期膨張を共通Pyro solverで表現し、同じ3D field schemaから5効果を別transferで表示できた。目視上Fireは細い黄炎、Explosionは橙色cloud、Smoke / Steam / Fogは滑らかなvolumeだが、煙・蒸気・霧のbillow detailは不足。Smoke vorticityを0.18から0.6へ上げるとdensity massは76.46から73.15へ下がり、視覚上の改善は小さく、渦度単独では高周波detailを作れなかった。lookdev初期値であり、DCC品質・Inspector調整・shock frontやproduction統合を保証しない。
 - **次に確認すべきこと:** solver共通化とは分離して、時間一貫性のあるwavelet/detail turbulenceとdensity shapingを研究し、同じcamera・exposureでhigh-frequency RMSとtemporal coherenceを比較する。次に2D Fluid runtime / 3D Pyro field adapter、GPU texture upload / raymarch rendererのcomposition経路を接続してparityを取る。
 
+
 ## 2026-10-27: Pyro transfer profileをDiligent volume raymarchへ展開
 - **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx`、`ArtifactCore/src/Render/VolumeRenderer.cpp`、`tests/Artifact/ClonerGpuRenderContractTest.cpp::PyroGpuVolumeRendererProducesDistinctTransferLooks`。
 - **確認できた事実:** 既存 `Render.VolumeRenderer` moduleへDiligent compute raymarcherを追加し、density / temperatureの3D textureとRGBA16F出力を再利用する。Smoke / Fire / Explosion / Steam / Fogのshader transferを持ち、Core DebugとArtifact GPU contract testのDebug buildが成功。`PyroGpuVolumeRendererProducesDistinctTransferLooks` はVulkan / RTX 4070 TiとD3D12で各1/1 passし、5枚すべてのPNG出力はbackend間でbyte-identical。test captureは `build/smoke-runtime-rnd/pyro-gpu-volume-20261027/` と `build/smoke-runtime-rnd/pyro-gpu-volume-20261027-d3d12/`。
 - **確認できた不具合と修正:** GPUテストが `GpuVolumeRenderer::render` 中に停止した。`Diligent::Box` のconstructor順は `MinX, MaxX, MinY, MaxY, MinZ, MaxZ` だが、コードがMin3値の後にMax3値を渡し、不正なtexture update範囲になっていた。各軸のMin/Max順へ直すと、同じGPUテストが両backendで完了した。
 - **仮説（未検証）:** 既存CPU Pyro fieldをDiligent volume raymarchへ渡す共通経路は、5種類の効果を同じshader/volume contractで見比べる足場になる可能性がある。一方、CPU→GPU field uploadは毎描画で発生し、GPU solver統合やproduction hot pathで許容できる性能かは分からない。
 
+
 ## 2026-10-27: 実Pyro solver fieldをGPU volume rendererへ接続したテスト
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::PyroGpuVolumeRendererRendersSimulationFields`、`ArtifactCore/include/Simulation/PyroSimulation.ixx`、`ArtifactCore/include/Render/VolumeRenderer.ixx`。
 - **確認できた事実:** 24³ PyroSimulationを48 fixed steps進め、得られたdensity / temperatureをGPU volume raymarcherへ直接渡すfocused testを追加した。Smoke / Fire / Explosion / Steam / Fogの5画像はすべて相異なり、Vulkan / RTX 4070 TiとD3D12でそれぞれ1/1 pass（約2.65s / 2.79s）。5画像はbackend間でbyte-identical。PNGは `build/smoke-runtime-rnd/pyro-sim-gpu-20261027-vulkan-48f/` と `build/smoke-runtime-rnd/pyro-sim-gpu-20261027-d3d12-48f/` に保存。このtestはsynthetic sphere fieldだけでなく実solver outputをGPU描画する経路を確認する。
 - **価値または懸念:** profile差がGPU transferだけでなくsolver出力を含む形で確認できた。目視では48 step後も煙・炎は塊状、爆発は滑らかな雲で、DCC品質のbillowには届かない。小さなdomain・48 frame・test cameraの契約検査であり、長時間の時間一貫性、composition接続、CPU→GPU upload性能は評価していない。
 - **次に確認すべきこと:** 同じsolver fieldをCPU reference rendererとGPU rendererで比較し、transfer / exposure / alphaの差を数値化する。その後、高周波の時間一貫したdetailとproduction composition pathを独立に評価する。
+
 
 ## 2026-10-27: GPU raymarchへ時間決定的な密度ディテールを追加
 - **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx::GpuVolumeRenderSettings`、`ArtifactCore/src/Render/VolumeRenderer.cpp::kVolumeRaymarchShader`、`tests/Artifact/ClonerGpuRenderContractTest.cpp::PyroGpuVolumeRendererRendersSimulationFields`。
@@ -7705,12 +8264,14 @@
 - **価値または懸念:** 色・吸収プロファイルをsolverから独立させられる。現在のcontract test入力は球状合成fieldのため見た目も滑らかな球状になり、solver由来の煙のbillow、炎の揺らぎ、爆発shock frontの品質は示さない。現状shaderの簡易transferはlookdevの開始点であり、複数散乱・時間一貫した細部・density shadowingは不足し、DCC品質やComposition接続を示さない。
 - **次に確認すべきこと:** 既存生成物のCMake再構成を避ける手順でfocused test executableをlink/runし、D3D12とVulkanで全5画像・透明度・数値差を確認する。その後、毎フレームCPU uploadを避けるfield ownershipとComposition texture output接続を設計し、同じvolumeを表示・保存・seekで再現する。
 
+
 ## 2026-10-27: カーブエディタ standalone ハーネスとハンドル0長の当たり判定
 - **関連:** `tests/Artifact/CurveEditorStandaloneTest.cpp`（新規）、`tests/Artifact/CMakeLists.txt`、`Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`、`Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`。
 - **確認できた事実:** `Widget.CurveEditor` は `Artifact.Event.Types` / `Event.Bus` / `Frame.Rate` / `Time.TimeRemap` / `Playback.State` にしか依存しないため、FxStudio の render contract と同じ方式（モジュール単体を test target でコンパイルし `ArtifactCore` + `ArtifactCorePlayback` にリンク）で `ArtifactAppRuntime` なしに実体を動かせる。カーブエディタは画面に翻訳対象文字列を描かない（トラック名と `F ` 接頭辞のみ）ため、ウィジェット画像の ja/en/zh/zh-TW マトリクスはこの面には適用されない。
 - **確認できた事実（コード上の当たり判定）:** `Impl::hitTestHandle` は選択キーの in/out ハンドルをキー中心からの距離で判定する。合成キーのように `inHandleFrame` / `outHandleFrame` が 0 だとハンドル位置がキー中心と一致し、選択済みキーを再度押したときに `MoveKey` ではなく `MoveHandleIn` が先に成立する。ハーネスのドラッグ契約では 25% ルール相当の非ゼロハンドルを与えて回避した。挿入キー（`insertKeyAt`）と `sampleSpeedGraph` は自動で非ゼロハンドルを作るため、通常の生成経路では表面化しにくい。
 - **価値または懸念:** ハーネスはビルド無しでは未検証。ビルド後に、0長ハンドルのキーを再クリックしたときの挙動（tangent 編集に入る）が UI 上で許容できるか、キー中心のクリックを優先すべきかを判断する必要がある。優先順位を変えるとハンドル編集の操作性に影響するため、単独の修正として扱うのが妥当。
 - **次に確認すべきこと:** ハーネスをビルドして `--ui` と contract を実行し、0長ハンドルのキーで再クリック→ドラッグした際の実際のモード遷移を確認する。速度グラフ（CE-14）は read-only 契約のみ検証しており、速度→値キーへの逆変換仕様は依然未定義。
+
 
 ## 2026-10-27: Scalar Fresnel propagation gives separate per-path A/B image evaluation
 - **関連:** Hullin et al. [Physically-Based Real-Time Lens Flare Rendering](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf)、Carbajal-Domínguez et al. [near-field scalar diffraction with angular spectrum and FFT](https://rmf.smf.mx/ojs/index.php/rmf-e/article/view/4636)、`tools/LensFlareLab/main.cpp`、`tools/LensFlareLab/EVALUATION.md`。
@@ -7723,11 +8284,13 @@
 - **追加検証 (2026-10-27):** 閾値超過source footprintを3x3から5x5の放射輝度binへ細分化できるようLabを更新した。同一の単一高輝度source、ray-grid 96で5x5は3x3に対しsensor内Y fluxが931.031から926.547へ低下、peakが4.233から2.818へ低下、centroidが約0.7px移動。3x3→5x5の相対L1差は4.24%。一部flux減少はsensor外へ移るghostによる。5x5は高密度比較であり、収束参照ではない。
 - **追加検証 (2026-10-27):** source binsを3x3/5x5で固定したray-grid 64/96/128 sweepでは、96→128のsensor内Y flux差は各0.27%/0.26%、画像L1差は2.07%/1.97%。64→128の画像L1差は各約3.0%。9方向 grid64/128は6.72/20.70秒。integrated fluxは安定してもpeakとsubpixel edgeは変動するため、96はこのlookdev chart用の妥協設定に留まり、optical accuracyの証拠ではない。
 
+
 ## 2026-10-27: Aperture-plane FrFT ghost texture look-development
 - **関連:** Hullin et al. [Physically-Based Real-Time Lens Flare Rendering](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf)、Ozaktas et al. [Digital Computation of the Fractional Fourier Transform](https://www.ee.bilkent.edu.tr/~haldun/publications/ozaktas108.pdf)、`tools/LensFlareLab/main.cpp`、`tools/LensFlareLab/EVALUATION.md`。
 - **確認できた事実:** standalone labでrayごとのstop crossingを保存し、256² polygon apertureをseparable direct-kernel 2D FrFTし、その強度でray weightを調整するlook-dev経路を実装した。α=0はgeometryとpixel-identical。Hullin Eq.5の既定RGB α (0.139806/0.126054/0.105427) では孤立9→8 ghostのimage L1がY flux比31.62%、全42 pathでは18.37%。path/source-bin/wavelength mapごとにray energy sumを保つが、sensor crop後Y fluxは+2.47%/+2.15%変化し、形状変化で一部光が画面端を越える。α=1のFourier endpointも確認した。256² RGB precomputeは約90ms。
 - **価値または懸念:** 6枚羽絞りと経路別aperture coordinateがnear-field ringingを形作るため、ghostに幾何レイトレースにない構造を加えられる。一方、α<0.01のkernelは256²で解像せずgeometry bypassする。FrFTは直接積分で高速chirp-convolutionではなく、ray-map normalizationも実写/物理エネルギー較正ではない。standalone look-devの結果でありCore/App frame pathへ移植する根拠にはならない。
 - **次に確認すべきこと:** 2024 sparse-polynomial論文のAngenieux ghost centroid、実レンズcapture、露出条件に照らしてaperture textureとorderを検証する。FrFTの独立な標準データとの数値誤差を測り、画面外を含む全出力面でエネルギー保存を評価してからCore/App向けcache/GPU設計を検討する。
+
 
 ## 2026-10-27: FrFT texture and field convergence follow-up
 - **関連:** `tools/LensFlareLab/main.cpp`、`tools/LensFlareLab/make_ghost_frft_sweep_chart.py`、`tools/LensFlareLab/EVALUATION.md`。
@@ -7735,11 +8298,13 @@
 - **価値または懸念:** The main isolated ghost is texture-resolution converged at 256, but the sparse ray-map normalization outlier is a sampling/low-energy path diagnostic rather than a global flux issue in this example. Adaptive sampling or a deliberate weak-map policy should be evaluated before claiming calibrated off-axis radiometry.
 - **次に確認すべきこと:** Compare normalization statistics per path over additional lens prescriptions, off-axis positions, source extent, and ray grids; then evaluate adaptive refinement or a low-energy map cutoff against preserved geometric flux and real capture references.
 
+
 ## 2026-10-27: FrFT finite-source and off-axis ray-grid evaluation
 - **関連:** Hullin et al. [Physically-Based Real-Time Lens Flare Rendering](https://matthias.hullin.net/publications/HullinEtAl-LensflareRendering-SIGGRAPH2011.pdf)、`tools/LensFlareLab/main.cpp`、`tools/LensFlareLab/EVALUATION.md`、`tools/LensFlareLab/examples/ghost-aperture-finite-source-sweep.png`。
 - **確認できた事実:** 9→8 open/center path at source sample counts 1/9/25 and grid48 has geometric peak 4.420/4.043/2.932, FrFT peak 4.584/4.121/3.034, while sensor-integrated Y changes by under 0.08%. 9→25 sample relative L1 is 4.33% geometric and 4.22% with FrFT. With normal source diffraction enabled and nine samples, full-image geometric-to-FrFT L1 is 2.91%. At the off-axis (0.1,0.1) source, grid64/96/128 compared to grid192 shows geometric Y error 7.08/3.71/1.76% and FrFT Y error 2.65/1.41/0.60%; grid192 is the maximum available, not ground truth.
 - **価値または懸念:** Finite angular extent substantially reduces caustic peaks without large total-flux drift and slightly softens the aperture ring. The off-axis path requires a denser ray grid than the centered case; a single fixed grid cannot guarantee similar error across field positions. The usual source diffraction reduces the full-frame relative difference, so ghost-only measurements remain important for tuning aperture texture.
 - **次に確認すべきこと:** Validate 5x5 source sampling against higher-order sampling or measured finite emitters, test off-axis at ray grids beyond 192, and compare against camera captures before claiming optical correctness or setting a production quality threshold.
+
 
 ## 2026-10-27: High-density off-axis ray-grid convergence
 - **関連:** `tools/LensFlareLab/main.cpp` (`rayGrid` cap), `tools/LensFlareLab/EVALUATION.md`、`tools/LensFlareLab/examples/ghost-aperture-offaxis-ray-grid-convergence-high.png`。
@@ -7747,12 +8312,14 @@
 - **価値または懸念:** Axial/source-center renders substantially understate the sampling needed for some off-axis ghost caustics. Flux and peak converge more slowly than centroid; visually stable location alone is not enough for radiometric quality.
 - **次に確認すべきこと:** Test higher grids or adaptive local refinement, compare HDR real-lens ghost captures at matching field points, and record peak/flux convergence separately before setting a production render budget.
 
+
 ## 2026-10-27: Lens ghost phase needs pupil-resolved optical path lengths
 - **関連:** `tools/LensFlareLab/main.cpp` (`traceGhostRay`, `--optical-path-report`)、`tools/LensFlareLab/EVALUATION.md`。
 - **確認できた事実:** The 9→8 Angenieux ghost path now has an opt-in diagnostic that accumulates refractive index × geometric segment length, including iris travel, and references each ray to a common plane 100 mm before the front surface. At source `(0.3834,0.3844)`, opposite half-radius x pupil samples differ by 1.516/1.523/1.538 mm at 610/550/460 nm, thousands of wave cycles. Enabling the report left the PFM byte-identical.
 - **仮説（未検証）:** A physically coherent ghost needs much denser pupil sampling than the current image-space caustic raster alone implies, plus complex Fresnel and coating phase. The common plane and current prescription are still approximate; this diagnostic does not establish a valid phase field or match a real lens capture.
 - **価値または懸念:** This establishes a numerical prerequisite and blocks treating the current aperture FrFT/zero-phase Fresnel modes as phase-correct. A naïve OPL-to-phase conversion at the existing grid could alias by thousands of cycles.
 - **次に確認すべきこと:** Compare wavelength-resolved OPL maps against an independent sequential optical path calculator, include complex thin-film reflection coefficients and a calibrated object reference wave, then study pupil sampling convergence before implementing coherent propagation.
+
 
 ## 2026-10-27: Per-path transport masks materially change ghost FrFT
 - **関連:** `tools/LensFlareLab/main.cpp` (`--ghost-frft-mask transport`)、`tools/LensFlareLab/make_ghost_transport_mask_comparison.py`、`tools/LensFlareLab/EVALUATION.md`。
@@ -7767,12 +8334,14 @@
 - **追加検証:** At fixed 225 source bins, pupil ray grids 64/96/128 differ by 1.83%/1.38% image L1 vs grid128 and shift centroid by up to ~0.8 px. This is comparable to residual source-grid error from 169 to 225 (0.83%), so increasing only source bins past ~169 gives diminishing returns until pupil-ray sampling also rises. At ray64 the measured 25/81/225 source-bin render times were ~0.25/0.35/0.71 s for a 3px emitter and ~0.45/1.08/2.43 s for a 7px emitter. A size-aware quality preset could bound CPU cost, but the thresholded Gaussian data is not enough to define a production rule.
 - **追加検証:** Finite-source size sweep at Gaussian radii 3/5/7 px shows 25-bin relative L1 vs 225 grows 2.47%/4.36%/4.39%, while 81-bin error is 1.61%/1.97%/2.12%. This points toward allocating source-direction samples by measured footprint extent rather than one global count. The current detector uses a 24px support and thresholded radiance, so validate the mapping with non-Gaussian and measured emitter profiles before selecting adaptive sampling.
 
+
 ## 2026-10-27: FrFT sensor crop can mimic ghost energy gain
 - **関連:** `tools/LensFlareLab/main.cpp`, `tools/LensFlareLab/EVALUATION.md`, Hullin et al. (2011) aperture FrFT model.
 - **確認できた事実:** At Fig. 10 source A with all 42 paths and ray grid 64/96/128/192, the triangle-integrated all-map energy estimate changed by +2.37%/+1.63%/+1.24%/+0.84% between geometric and FrFT modes, while sensor-visible energy changed by about +8.9%/+8.3%/+8.0%/+7.7%. The estimated off-sensor remainder decreased in the FrFT render. The 192-grid plate shows that energy moving onto the sensor together with aperture texture.
 - **価値または懸念:** A frame-only Y sum can mislabel redistribution from outside the sensor as a physical energy increase. The new report integrates mapped triangles before clipping and subtracts in-frame deposits to estimate the off-sensor remainder. The whole-plane estimate still has sampling error and does not include calibrated sensor/angular response; it is an internal conservation diagnostic, not optical validation.
 - **仮説（未検証）:** Normalizing the discrete FrFT weight with the same triangle quadrature used by rasterization may reduce the remaining sub-percent-to-two-percent sampling drift at coarse ray grids; this needs broader path/grid convergence before any change to normalization.
 - **次に確認すべきこと:** Compare triangle-quadrature normalization with the current valid-node normalization over multiple paths, source fields, and grids; retain the current model unless the full-plane error consistently falls without changing expected aperture texture.
+
 
 ## 2026-10-27: FrFT normalization should use the rasterizer's triangle quadrature
 - **関連:** `tools/LensFlareLab/main.cpp` (`--ghost-frft-normalization`), `make_frft_field_path_sweep.py`, `tools/LensFlareLab/EVALUATION.md`.
@@ -7781,34 +8350,40 @@
 - **仮説（未検証）:** A refinement-aware triangle quadrature could preserve the same whole-map consistency when adaptive cells are subdivided, provided edge-invalid cells and partial aperture coverage are integrated consistently.
 - **次に確認すべきこと:** Extend the normalization integral to adaptive center fans and partial-valid cells, compare whole-map/frame-window Y over multiple grids and source fields, then retain it only if image shape converges without introducing aperture-edge bias.
 
+
 ## 2026-10-27: 256-square aperture FrFT texture converges for the tested ghost
 - **関連:** Hullin et al. (2011) aperture FrFT, `tools/LensFlareLab/main.cpp` (`--ghost-frft-resolution`), `tools/LensFlareLab/make_ghost_frft_resolution_chart.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** For the 9→8 path at source `(0.3834,0.3844)` and ray grid 128, crop-relative L1 against 512² is 2.06%/1.62%/0.067% for 64²/128²/256². From 256² to 512², crop Y changes +0.00046%, peak +0.11%, and centroid 0.0027 px; three-band FrFT precompute rises from 90.57 ms to 744.75 ms.
 - **価値または懸念:** 256² is a useful offline cost/quality point for this polygon-aperture path. This does not establish convergence for transport masks, other paths, or measured optics, and 512² has roughly 8.2× precompute cost for negligible image change here.
 - **仮説（未検証）:** Texture-resolution requirements may be driven more by aperture-mask topology and ghost path than by field position alone; one shared default may be inefficient for weak or heavily clipped paths.
 - **次に確認すべきこと:** Repeat the same fixed-exposure/resolution comparison on transport masks, weak paths, and clipped off-axis paths before considering any per-path quality policy.
+
 ## 2026-10-27: Adaptive FrFT normalization follows the rasterized mesh
 - **関連:** `tools/LensFlareLab/main.cpp` (`--ghost-frft-normalization`, adaptive center fan)、`tools/LensFlareLab/EVALUATION.md`、`tools/LensFlareLab/examples/adaptive-frft-normalization-triangle.png`。
 - **確認できた事実:** At neutral source `(0.1,0.1)`, base grid 64, the adaptive plan refined 891/3969 cells and traced 3,564 edge rays identically for vertex and triangle modes. Triangle mode integrates the selected eight-triangle center fans and ordinary two-triangle cells; reported all-map Y is 83.3918 versus 86.2131 for vertex normalization. Sensor Y is 9.67245 versus 9.99158, relative L1 is 3.19%, and centroid moves 0.083 px.
 - **価値または懸念:** Adaptive FrFT normalization no longer changes integration rules between quality modes. Whole-map equality is by construction and does not validate the lens physics; refinement topology still uses preliminary vertex-normalized probe energy, so changing normalization does not alter its existing decisions.
 - **次に確認すべきこと:** Repeat at several fields, base grids, and clipped paths; compare adaptive triangle mode to dense uniform triangle-normalized references and measured camera captures before using it as a production quality claim.
 
+
 ## 2026-10-27: Adaptive triangle FrFT varies with field complexity
 - **関連:** `tools/LensFlareLab/main.cpp` (adaptive center fan and triangle FrFT normalization), `tools/LensFlareLab/EVALUATION.md`, `tools/LensFlareLab/examples/adaptive-field-upper-left.png`, `tools/LensFlareLab/examples/adaptive-field-center.png`.
 - **確認できた事実:** At neutral point sources `(0.1,0.1)` and `(0.5,0.5)`, adaptive base grid 64 versus uniform triangle-normalized grid 192 gives FrFT relative image L1 3.06% and 1.67%. Frame Y differs by -1.46% and +0.64%; centroids move 0.020 and 0.005 px. The corner refines 891/3969 cells (0.18%), while center refines 10,292/3969-equivalent source-ray cells across paths (2.06%). The corner adaptive L1 is slightly worse than uniform 96 (3.45% vs 3.06%); both improve on uniform 64.
 - **価値または懸念:** Refinement density follows ray-map complexity, not just source position, and coarse adaptive meshes can retain visible shape error even after full-field flux normalization. Uniform 192 is a dense comparison reference, not physical ground truth; timings and the exact center probe counts aggregate over many optical paths.
 - **次に確認すべきこと:** Compare path-resolved refinement counts and runtime with ray grids 96/128 at multiple fields, then test real lens captures before defining a default quality or adaptive budget.
+
 ## 2026-10-27: Adaptive refinement topology must ignore FrFT weights
 - **関連:** `tools/LensFlareLab/main.cpp` (`shouldRefineAdaptiveCell`), `tools/LensFlareLab/make_adaptive_refinement_comparison.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** Adaptive decisions previously compared FrFT-weighted vertex energies, so the optional aperture texture changed the mesh itself: at corner field, geometry refined 820 cells while FrFT refined 891. The energy-error criterion now uses raw optical-trace energy; geometry and FrFT both refine 820 cells at `(0.1,0.1)` and 10,148 cells at `(0.5,0.5)`. Against triangle-normalized uniform grid 512, adaptive64 FrFT L1 is 4.52%/5.52%; uniform192-to-512 changes by 2.23%/4.12%, showing the reference is not converged. One-shot wall times are 0.875/1.680 s adaptive64 versus 0.915/1.879 s uniform96 at corner/center, and adaptive costs 1.56–1.81x uniform64.
 - **価値または懸念:** FrFT toggling no longer alters refinement decisions, making mode comparisons interpretable. Adaptive refines image fidelity over uniform64 and was slightly faster than uniform96 in these runs, but it is not consistently better than uniform128/192, its CPU cost is above uniform64, and ray-grid512 is still an uncertain reference.
 - **次に確認すべきこと:** Repeat timing with warm-up and multiple runs; measure path-resolved cell counts and compare higher grids or measured camera captures before turning adaptive refinement into a default quality policy.
 
+
 ## 2026-10-27: Multi-source adaptive FrFT needs ghost-only and composite evaluation
 - **関連:** `tools/LensFlareLab/main.cpp` (automatic light detection and adaptive pupil tracing), `tools/LensFlareLab/make_adaptive_refinement_comparison.py`, `tools/LensFlareLab/EVALUATION.md`, `tools/LensFlareLab/examples/multilight-*.png`.
 - **確認できた事実:** A deterministic four-emitter color chart at scale 1024 auto-detected sources at `(0.383,0.384)`, `(0.657,0.217)`, `(0.185,0.265)`, `(0.814,0.696)`, with visible-path counts 42/32/25/29. Adaptive64 refined 135,503 cells (1.29%) across all paths and source bins. Against uniform96, adaptive FrFT L1 is 0.145% for the full composite (frame Y +0.079%, centroid +0.042px), but 1.59% for reflected ghosts only (Y +0.87%, centroid +0.189px). FrFT versus geometry on the same adaptive mesh is 1.57% L1 full-frame and 17.06% ghost-only. Adaptive64 took about 23s, uniform64 about 13s, and uniform96 26–29s in one-shot runs.
 - **価値または懸念:** Direct-source diffraction hides most adaptive/FrFT differences in the full image; ghost-only inspection exposes substantially stronger aperture effects. The adaptive option improves over uniform64 here but is expensive and only modestly faster than uniform96. The source chart is synthetic, not a measured camera capture, and some emitters populate few of the 9 source bins.
 - **次に確認すべきこと:** Repeat with warm-run medians and a measured multi-light lens capture; trace per-source/per-path errors and test whether denser source-bin sampling changes the weakest emitters before adjusting defaults.
+
 
 ## 2026-10-27: GPU Pyro Fire transferを燃焼反応fieldへ接続
 - **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx::GpuVolumeRenderSettings`、`ArtifactCore/src/Render/VolumeRenderer.cpp::GpuVolumeRenderer::render`、`tests/Artifact/ClonerGpuRenderContractTest.cpp::PyroGpuVolumeRendererRendersSimulationFields`。
@@ -7817,6 +8392,7 @@
 - **再検証と制約:** 最新の既存GPU contract executableをD3D12 / RTX 4070 Tiで5.04秒、Vulkanで3.96秒実行し、各1/1 pass。現sourceの完全rebuildも試したが、別変更の `ArtifactCore/src/Physics/FluidSolver2D.cpp` で未宣言 `constraintPreviousPositions_` によるC2065/C2660が出てArtifactCore buildが先に停止したため、この再buildでは新executableを作成できていない。未検証だったFire以外のupload省略最適化はsourceから戻し、テスト済みのreaction対応実装に揃えた。
 - **次に確認すべきこと:** reaction strengthを掃引し、同一密度fieldに対するfire coverage / brightness / smoke tailの差をD3D12/Vulkan両方で比較する。その後、GPU rendererをComposition render queueへ接続する境界を進める。
 
+
 ## 2026-10-27: 炎と煙は同一raymarchで別々の寄与を合成する
 - **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx`、`ArtifactCore/src/Render/VolumeRenderer.cpp`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
 - **確認できた事実:** 既存rendererは1回のraymarchに対して一つのtransfer kindを選択し、Fire transferのreaction gateは発光色に作用する。独立look-devには煙と炎を別々に描いて後から重ねる確認があったが、本番GPU rendererの混合transferは無かった。
@@ -7824,11 +8400,13 @@
 - **価値または懸念:** `FireAndSmoke` transferを実装し、CPU/GPU raymarchで煙散乱と炎発光を分離した。GPU test assertionは追加したが、最新ソースはFluidSolver2Dの無関係なビルドエラーにより未検証。煙と炎の光学係数・詳細形状は現時点で初期look-dev値であり、DCC品質を示すものではない。
 - **次に確認すべきこと:** independent targetまたは本番ターゲットでcompile/testし、同一Pyro snapshotのSmoke / Fire / FireAndSmokeをD3D12・Vulkanで比較する。反応率をゼロにした場合も煙が残ることをpixel contractで確認し、複数時刻で一体感・ flicker・白飛びを調整する。
 
+
 ## 2026-10-28: Pyroの画素数と格子数を分離して比較
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::PyroGpuVolumeRendererRendersSimulationFields`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::RendersSmokeFireExplosionSteamAndFogProfilesToDistinctVolumes`。
 - **確認できた事実:** 従来のGPU画像は96px・24³で、爆発sourceのY中心0.16とextent 0.45の組み合わせがdomain下端の外へはみ出していた。sourceをdomain中心へ移し、384px出力で24³と48³を比較した。48³煙のalpha>8 bboxは `(134,127)-(249,248)`、爆発は `(53,45)-(330,328)`。D3D12/Vulkanで48³の7画像はRGBA byte一致し、両testはpassした。
 - **価値または懸念:** 出力画像の大きさとsolver格子を個別に比較でき、画像端の欠けを避けた。ただし結果は丸く滑らかな塊で、48³化だけでは高周波の渦や炎形状は得られない。CPU固定カメラfixtureの変更は独立build設定のDiligent include不足で未検証。
 - **次に確認すべきこと:** simulation速度に沿って時間的に一貫する乱流・密度細部とvolume lightingを複数時刻で評価する。384px以上で動画像・領域境界・白飛び・実行時間を測り、Compositionへの統合後に実際の画面と書き出しを比較する。
+
 
 ## 2026-10-28: CPU volume lookdevでfocus distanceが画角に影響する可能性
 - **関連:** `ArtifactCore/include/Render/Camera.ixx::Camera`、`tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::RendersSmokeFireExplosionSteamAndFogProfilesToDistinctVolumes`。
@@ -7836,11 +8414,13 @@
 - **仮説（未検証）:** focus distanceを変えると意図しない画角の変化を生み、旧captureの上下の切れに寄与している可能性がある。今回の未実行CPU fixtureは `focusDist=1` の固定カメラで回避する。
 - **次に確認すべきこと:** 他のCamera利用箇所と期待仕様を確認し、同一vfovでfocus distanceを変えたときのray方向・被写界深度の挙動を独立テストする。共通Camera修正は利用先への影響を調べてから判断する。
 
+
 ## 2026-10-28: 高次密度移流は移動誤差を減らすが煙の渦を作らない
 - **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp`、`ArtifactCore/include/Simulation/PyroSimulation.ixx`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
 - **確認できた事実:** 周囲の元密度で制限した予測・逆移流補正を実solverの密度に適用すると、24 step一定速度fixtureのRMS誤差は0.0121406→0.00810148。再実行は一致し、値は有限・非負・1以下だった。64×128×64の連続煙5画像はD3D12/Vulkan間でRGBA byte一致し、既定offは従来画像と一致。
 - **価値または懸念:** 数値拡散の一部を抑える研究用の選択肢になるが、現状の連続煙は球状のまま。密度のみ高次で温度・燃料等は一次のため、炎や長時間でのfield間整合は未確認。初期確保済みscratchを使うが、既存の毎step field copyやmemory estimateのscratch不足は残る。
 - **次に確認すべきこと:** 発生源停止後、障害物、closed boundary、強い渦、炎と長尺再生で質量・非負性・temporal stability・速度・allocationを測る。sceneや保存契約へ接続する前に温度／燃料の扱いを検討する。
+
 
 ## 2026-10-28: Pyroのゼロcheckpoint間隔は毎frame保存されていた
 - **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp::setCacheInterval`、`PyroSimulation::step`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
@@ -7848,11 +8428,13 @@
 - **価値または懸念:** 高解像度R&D時の不要なcheckpoint保持を除去したが、正のintervalではcacheが増え続ける。`PyroDomain::memoryBudgetBytes` は現行solverで強制されず、移流処理も毎step複数の全fieldをコピー確保する。上記値は単一process実測でありGPU memoryや長時間利用を示さない。
 - **次に確認すべきこと:** 正のinterval使用時のbounded cacheとbudget契約を設計し、field snapshot scratchの再利用とallocation計測を行う。画像・checkpoint再生の決定性と各解像度でのmemory使用量を確認する。
 
+
 ## 2026-10-28: 端に触れない煙でも画面内で小さすぎる
 - **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx`、`ArtifactCore/src/Render/VolumeRenderer.cpp`、`tests/Artifact/ClonerGpuRenderContractTest.cpp::PyroGpuSmokeSequenceRemainsInFrame`。
 - **確認できた事実:** 縦長domainの連続煙は全域表示でも画像端に触れなかったが、384×768画像の重心は24～96 frameでY 652→624付近に集中した。固定矩形を指定するとY 510→448になり、96 frameの可視pixelは13,334→65,849。D3D12/Vulkan各testはpassし、5 frame中1 frameの1画素RGBに最大1/255差があった。
 - **価値または懸念:** 固定矩形は対象を大きく表示し、実時間frame間の自動追従による揺れを避ける。ただし既知の時間範囲向けで、煙が移動し続ければ矩形外へ出る可能性がある。拡大しても低解像度fieldの粗さは解消しない。
 - **次に確認すべきこと:** 実Composition cameraと座標変換を接続し、長尺のbounds・境界・スクラブを検証する。simulation grid、移流由来detail、照明、renderコストを同じカメラ範囲で評価する。
+
 
 ## 2026-10-28: GPU煙の自己遮蔽で平坦さを比較
 - **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx`、`ArtifactCore/src/Render/VolumeRenderer.cpp`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
@@ -7860,17 +8442,20 @@
 - **価値または懸念:** 平坦さは弱まったが、画像は依然として滑らかな球形であり、煙の渦・多重散乱・scene light連携はない。最大12回の追加sampleによるGPU時間と複数frameでの品質は未計測。
 - **次に確認すべきこと:** 異なる光方向と濃度、連続frame、実データの非対称な煙で比較し、GPU timingを測る。速度で移流される詳細形状と組み合わせた後にproduction導線を検討する。
 
+
 ## 2026-10-28: 単純なGPU座標ノイズは煙の筋を生む
 - **関連:** `ArtifactCore/src/Render/VolumeRenderer.cpp`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`、`build/smoke-runtime-rnd/pyro-warp-20261028-d3d12/`。
 - **確認できた事実:** 48³の同一solver fieldに3D noiseでdomain幅の9%の座標変形を加えた実験は、D3D12/Vulkanで各1/1 passし、煙画像はbackend間でRGBA byte一致。同じ時刻の再描画は一致し、1/30秒後のRGBA RMS差は0.72/0.72/0.72/0.64（8-bit）だった。無効時は前回画像とbyte一致した。
 - **価値または懸念:** 輪郭は変化したが、下側に筋状の不自然な形が現れたため、この実験実装は撤去した。2枚の近接時刻だけでは再生の連続性、速度追従、品質、GPUコストは判断できない。
 - **次に確認すべきこと:** 速度で運ばれる座標場またはsolver側の乱流を比較し、連番と照明を含めて視覚破綻とGPUコストを検証する。
 
+
 ## 2026-10-27: Pyro 渦度 scratch の固定容量再利用
 - **関連:** `ArtifactCore/include/Simulation/PyroSimulation.ixx`、`ArtifactCore/src/Simulation/PyroSimulation.cpp::applyVorticityConfinement`。
 - **確認できた事実:** 渦度 confinement が毎 fixed step に速度場全量の `std::vector<PyroVec3>` を構築していた。simulation 所有 scratch を domain resize 時に確保し、既存のコピー・計算順序を維持して再利用するよう変更した。Debug GPU contract target はビルド成功し、実 solver field の5効果描画テストは RTX 4070 Ti の D3D12 と Vulkan で各1/1 pass。
 - **価値または懸念:** 渦度を使う煙・炎・爆発の step ごとの大容量 allocation を避ける。ただし allocator instrumentationでの計測は未実施で、他の solver hot-path allocation がないことを示すものでもない。
 - **次に確認すべきこと:** allocation計測を加え、steady-state stepの残存確保を洗い出す。その後、温度/燃焼とvelocityに結び付く時間一貫 detail turbulenceを、renderer-only noiseと同じfield/cameraで比較する。
+
 ## 2026-10-27: Source-bin count should be interpreted through active support
 - **関連:** `tools/LensFlareLab/main.cpp` (`estimateLight`, `--source-samples`, `--source-report`), `make_finite_source_convergence_chart.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** For a synthetic multi-light source on path 10→8 at ray grid 96, requested bins 1/9/25/49/81/121/169/225 activate 1/9/9/21/29/45/57/69 spatial bins. Relative image L1 against 225 is 7.46/6.74/3.30/2.12/1.31/1.20/0.45/0%; 169→225 frame Y differs only about 0.009%, while ray-grid 64→128 at fixed 225 bins differs 2.28% L1. The sparse blue source activates 1/9 at requested 9 and 9/25 or 9/49 at higher settings; its 1 and 9 renders match exactly.
@@ -7878,22 +8463,26 @@
 - **次に確認すべきこと:** Evaluate a support-aware spatial partition or weighted direction sampling against the existing grid method using varied emitter sizes and measured source profiles; keep defaults unchanged until broad comparisons show stable benefit.
 
 \n
+
 ## 2026-10-27: Weighted quantile bins improve sparse emitter coverage
 - **関連:** `tools/LensFlareLab/main.cpp` (`estimateLight`, `--source-sampling`), `tools/LensFlareLab/EVALUATION.md`, `tools/LensFlareLab/examples/source-layout-fullcenter.png`, `tools/LensFlareLab/examples/source-layout-sparseblue.png`.
 - **確認できた事実:** At the two synthetic emitters tested, weighted quantile partitioning activates more source directions than equal-grid at the same requested count and lowers image L1 against the denser weighted reference. The equal-grid default remains byte-identical to prior PFM output. Weighted 49 was faster than equal-grid 169 in the centered sample, but weighted 225 cost more than equal-grid 225.
 - **価値または懸念:** Flux-weighted coordinate marginals place bins more usefully across sparse support, but this is a deterministic heuristic tested on only two emitters and one ghost path; denser output is not ground truth, and increased active-bin counts can raise render cost.
 - **次に確認すべきこと:** Test asymmetric multi-lobed sources, different extraction thresholds and paths, and measured lens/source captures before considering app or core integration.
 
+
 ## 2026-10-27: Weighted bins improve asymmetric multi-lobe source coverage
 - **関連:** `tools/LensFlareLab/main.cpp` (`estimateLight`), `tools/LensFlareLab/make_multilobe_source.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** On an asymmetric three-lobe synthetic emitter, paths 9→8 and 10→8, ray grid 96, weighted 9/49/225 bins activate 9/49/182 directions versus equal-grid 9/27/93. Against the weighted 225 reference, weighted 9/49 L1 is 3.08%/1.02% (9→8) and 2.14%/0.69% (10→8); equal-grid 9/49 is 7.70%/2.70% and 6.62%/1.96%. Equal-grid 225 differs from weighted 225 by 0.80–1.34%. A single 10→8 timing was 0.351–6.772 s weighted and 0.365–3.469 s equal-grid across 9–225 bins.
 - **価値または懸念:** The improvement repeats across a multi-lobe footprint and a second optical path, but weighted 49 is about 1.8× the equal-grid time for this case. Each dense layout remains a sampling-dependent reference rather than physical truth.
 - **次に確認すべきこと:** Sweep threshold and lobe separation, then compare against measured source/lens captures before promoting this mode beyond LensFlareLab.
+
 ## 2026-10-27: Weighted-bin benefit persists across threshold and lobe spacing sweeps
 - **関連:** `tools/LensFlareLab/main.cpp` (`estimateLight`), `tools/LensFlareLab/make_multilobe_source.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** For the synthetic three-lobe source on path 10→8, thresholds 0.85/2/4 kept weighted-49 L1 against weighted-225 at 0.694%/0.738%/0.726%, versus equal-grid-49 at 1.963%/1.963%/1.964%. Widening lobe offsets by 1.8× retained an advantage: weighted-49 L1 1.07% and weighted-9 2.59%, versus equal-grid 1.89% and 5.39%. At widened spacing, active bins at requested 49/225 were 49/194 weighted and 27/110 equal-grid.
 - **価値または懸念:** Results are stable across this limited threshold and emitter-spacing sweep, but high-count images remain layout-dependent; thresholds and profiles are synthetic, not captured optics.
 - **次に確認すべきこと:** Evaluate colored, clipped, and real lens-source captures; consider a faster weighted partition or bounded quality control if the measured cost remains too high.
+
 
 ## 2026-10-27: Weighted source bins retain RGB improvement on separated-color emitters
 - **関連:** `tools/LensFlareLab/make_multilobe_source.py` (`--color-separated`), `tools/LensFlareLab/measure_rgb_error.py`, `tools/LensFlareLab/EVALUATION.md`.
@@ -7901,11 +8490,13 @@
 - **価値または懸念:** The lower-resolution benefit persists by channel, including blue, but synthetic RGB spectra do not validate real glass/sensor spectral response. The 225-bin layout remains sampling-dependent.
 - **次に確認すべきこと:** Add clipped field positions and evaluate against calibrated flare captures with known lens, aperture, coating, and exposure metadata.
 
+
 ## 2026-10-27: Flag partial source footprints at image boundaries
 - **関連:** `tools/LensFlareLab/main.cpp` (`DetectedLight::touchesFrameBoundary`, `--source-report`), `tools/LensFlareLab/make_multilobe_source.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** For the asymmetric source at x=0.01/0.99, auto detection reported `touchesFrameBoundary=true`; a centered source reported false. The visible source flux was preserved by binning within float rounding, while only 63.1%/95.3% of the corresponding centered profile's thresholded luminance remained inside the frame. The 6→5 edge path showed lower L1 at weighted 49 than equal-grid 49 on both edges.
 - **価値または懸念:** The report now warns about truncated measurements without claiming to reconstruct unseen emitter energy. Boundary touch can indicate true clipping or a source physically reaching the frame; it is not a completion estimate.
 - **次に確認すべきこと:** Evaluate sources clipped on multiple edges, soft vignetting, and calibrated captures; determine whether source-shape extrapolation can be supported from reliable metadata rather than guessing.
+
 
 ## 2026-10-27: Direct-source Fraunhofer PSF depends on source extent and sensor crop
 - **関連:** `tools/LensFlareLab/main.cpp` (`makeDiffractionKernel`, `convolveSourceWithDiffraction`), `tools/LensFlareLab/make_source_diffraction_comparison.py`, `tools/LensFlareLab/make_aperture_diffraction_sweep.py`, `tools/LensFlareLab/EVALUATION.md`.
@@ -7913,11 +8504,13 @@
 - **価値または懸念:** Finite-source convolution and edge energy loss behave consistently with the sampled model; this does not validate the PSF against measured optics or infer energy outside the sensor.
 - **次に確認すべきこと:** Compare calibrated RAW captures across aperture and source extent; include black-level, sensor cover glass, aperture obstruction, and exposure response before tuning PSF amplitude.
 
+
 ## 2026-10-27: Sampled Fraunhofer PSF follows aperture and wavelength scale
 - **関連:** `tools/LensFlareLab/main.cpp` (`makeDiffractionKernel`), `tools/LensFlareLab/measure_source_psf.py`, `tools/LensFlareLab/EVALUATION.md`, `tools/LensFlareLab/examples/diffraction-aperture-radius-sweep.png`.
 - **確認できた事実:** For a near-point neutral source and six-blade aperture, changing radius 2.5→12.5 mm (approximately f/20→f/4) reduced red/green/blue r99.9 from 26.42/24/20 px to 5/5/4 px. Red remained broader than blue. Recovered per-channel PSF energy stayed within 0.002% of extracted source energy. The r50/r80 core is usually contained in the center pixel at the current sensor resolution.
 - **価値または懸念:** Aperture and wavelength scaling match the model's Fraunhofer assumptions, but this does not validate pixel integration or match a camera; most core energy is undersampled at 640-pixel width.
 - **次に確認すべきこと:** Compare box-integrated and current resampling against a measured monochromatic/panchromatic PSF before changing the convolution kernel; verify the same scaling under sensor-resolution and focal-length changes.
+
 
 ## 2026-10-27: Compare sensor-pixel accumulation for the direct Fraunhofer PSF
 - **関連:** `tools/LensFlareLab/main.cpp` (`makeDiffractionKernel`, `--diffraction-resampling`), `tools/LensFlareLab/compare_diffraction_resampling.py`, `tools/LensFlareLab/EVALUATION.md`.
@@ -7925,11 +8518,13 @@
 - **価値または懸念:** Sample-to-pixel binning exposes meaningful subpixel redistribution while preserving energy, but it is a discrete area-bin estimate rather than continuous integration through a measured sensor pixel response. Neither variant is yet validated against a real camera PSF.
 - **次に確認すべきこと:** Compare a true pixel-response integral and both sampling modes against calibrated point-source captures at multiple wavelengths, aperture settings, and sensor resolutions.
 
+
 ## 2026-10-27: Integrate sampled diffraction cells over detector pixels
 - **関連:** `tools/LensFlareLab/main.cpp` (`makeDiffractionKernel`), `tools/LensFlareLab/make_evaluation_chart.py`, `tools/LensFlareLab/compare_diffraction_resampling.py`.
 - **確認できた事実:** Replacing nearest-pixel accumulation with overlap-area integration preserved the tent default byte-for-byte. Across four source pixel phases, area-integrated and tent PSF energy differed by at most 0.00023%, while channel-wise normalized PSF L1 remained 3.85–5.51%. The radius-1 synthetic source itself varied in sampled flux with phase, so each A/B is paired within its own phase.
 - **価値または懸念:** Explicit cell overlap implements a clearer uniform-pixel-response model than point binning, but the FFT intensity is treated piecewise-constant and real intrapixel sensitivity is unknown. The source fixture generator now preserves fractional centers, which enables phase-sensitive comparisons without changing existing integer-center fixtures.
 - **次に確認すべきこと:** Compare against calibrated detector PSFs and a measured intrapixel response; separately converge the sampled FFT cell reconstruction under denser aperture sampling.
+
 
 ## 2026-10-27: Measure direct-source aperture FFT convergence
 - **関連:** `tools/LensFlareLab/main.cpp` (`Settings::diffractionResolution`, `makeDiffractionKernel`), `tools/LensFlareLab/compare_diffraction_resampling.py`, `tools/LensFlareLab/make_diffraction_resolution_chart.py`, `tools/LensFlareLab/EVALUATION.md`.
@@ -7937,11 +8532,13 @@
 - **価値または懸念:** 128² visibly aliases the core; 1024² is a useful quality/speed default for this fixture. The 4096² reference is a denser discretization, not optical ground truth, and the result covers only one stop, aperture radius, source, and sensor size.
 - **次に確認すべきこと:** Repeat resolution convergence across blade counts, aperture radii, source field positions, and image sizes; compare the PSF to measured lens/sensor captures before treating the default as a physical calibration.
 
+
 ## 2026-10-27: Extend diffraction-resolution convergence across apertures
 - **関連:** `tools/LensFlareLab/main.cpp` (`--diffraction-resolution`), `tools/LensFlareLab/compare_diffraction_resampling.py`, `tools/LensFlareLab/make_diffraction_resolution_chart.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** At aperture radii 2.5/4.545/12.5 mm with six blades and at five/ten blades with the 4.545 mm stop, 1024² produced <=0.106% RGB-channel PSF L1 against each same-condition 4096² reference; 2048² produced <=0.043%.
 - **価値または懸念:** The 1024² default's measured error stayed bounded across five synthetic conditions, but the dense binary-pupil reference is not measured optical truth and the sweep omits rotations, obscurations, field dependence, and sensor-size changes.
 - **次に確認すべきこと:** Add aperture rotation and central obstruction cases, then compare selected outputs against measured or independently generated high-quality PSF data.
+
 
 ## 2026-10-27: Video transition lab exposes inconsistent progress semantics
 - **関連:** `tests/ArtifactCore/TransitionRenderContractTest.cpp`, `tests/ArtifactCore/TransitionMcpMain.cpp`, `tests/ArtifactTestTransitionRenderer.h`, `tests/ArtifactTestTransitionBridge.h`, `ArtifactCore/include/Video/Transitions/*.ixx`, `ArtifactCore/src/Video/Transitions/*.cpp`, `Artifact/src/Layer/ArtifactNLETransitionBridge.cpp`.
@@ -7949,11 +8546,13 @@
 - **価値または懸念:** The lab makes these differences visible as PNG strips, per-progress grids and a JSON behaviour report instead of requiring an NLE project; the contract test therefore asserts only invariants that hold for all kinds (registration, determinism, frame shape, alpha, left-frame-only mutation, mixed output at 0.75, monotonic paged reveals) and records direction rather than blessing one. The in-place left-frame mutation (`process()` writes through `const_cast` on the left scanlines) means every caller must pass a copy, which the NLE bridge does. All numeric expectations above are derived from reading the code, not from a build: 未検証.
 - **次に確認すべきこと:** Build `ArtifactCoreTransitionRenderContractTest` and run the MCP self-check to confirm the derived endpoints and the `GlitchDisplace` p=0 rows against real output, then decide whether transitions should share one progress convention (A→B, pure endpoints) before touching any implementation; also decide whether `Transition::parameters` should be honoured or removed from the NLE model.
 
+
 ## 2026-10-27: Rotate the shared physical aperture in the LensFlareLab
 - **関連:** `tools/LensFlareLab/main.cpp` (`apertureRotationDegrees`, `regularPolygonApertureRadius`, `makeDiffractionKernel`, `clipIris`), `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** At six blades, direct 0° and 60° PSFs were byte-identical, as were -15° and 345°. For an off-axis 9→8 ghost, 15° and 30° changed RGB L1 by 10.34% and 13.47%; the 60° geometry and ghost-FrFT results were byte-identical to 0°. The shared rotation is applied to direct pupil diffraction, ray clipping, and ghost aperture masks.
 - **価値または懸念:** Aperture orientation is now a controllable look parameter with polygon symmetry preserved across the standalone model; this is not a calibration of actual stop orientation or blade-edge imperfections.
 - **次に確認すべきこと:** Compare rotated masks against lens photographs or measured PSFs, and evaluate blade rotation with central obstructions and wavelength-dependent coatings.
+
 
 ## 2026-10-27: Model a central pupil obstruction in the LensFlareLab
 - **関連:** `tools/LensFlareLab/main.cpp` (`RegularPolygonAperture`, `makeDiffractionKernel`, `clipIris`, `makeGhostApertureTexture`), `tools/LensFlareLab/EVALUATION.md`.
@@ -7961,17 +8560,20 @@
 - **価値または懸念:** One centered opaque disk now affects all three standalone pupil paths. Direct PSF normalization preserves unit energy and therefore does not model blocked-pupil throughput; no spiders, decenter, edge defects, or calibrated camera measurements are included.
 - **次に確認すべきこと:** Compare annular pupil predictions with measured obstructed-optic point sources and decide how exposure/throughput should combine with PSF normalization before any Core/App integration.
 
+
 ## 2026-10-27: Scale central-obstruction PSFs by sampled pupil throughput
 - **関連:** `tools/LensFlareLab/main.cpp` (`DiffractionKernel::pupilThroughput`, `makeDiffractionKernel`, `convolveSourceWithDiffraction`), `tools/LensFlareLab/compare_diffraction_resampling.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** Scaling the normalized FFT PSF by open-to-clear sampled pupil area yields throughput ratios 0.97275/0.89109/0.75500 at circular obstruction ratios 0.15/0.30/0.45, matching annular-hex area. At ratio 0.30 the isolated area-normalized PSF shape L1 is 2.01%; total flare RGB L1 is 32.14%. Ratio zero remains byte-identical to the earlier executable, and the 60° six-blade result is byte-identical to 0°.
 - **価値または懸念:** The direct source convolution now models relative blocked-pupil throughput separately from normalized PSF shape. It still omits absolute lens transmission, T-stop, sensor response, and measured optical aberrations.
 - **次に確認すべきこと:** Validate throughput and normalized PSF shape independently against calibrated RAW point-source captures across obstruction ratios, wavelengths, and aperture sizes.
 
+
 ## 2026-10-27: Diagnose air-surface coating response in LensFlareLab
 - **関連:** `tools/LensFlareLab/main.cpp` (`isAirGlassInterface`, `fresnelReflectance`, `traceGhostRay`, `--coating-report`), `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** Chief-ray 9→8 at field `(0.4,0.5)`, 550 nm: surface 9 air/glass reflection at 0.4° has R 0.0564 uncoated / 0.0064 with the illustrative single layer; returning reflection at surface 8 is glass/glass at 6.0°, with bare R 0.0006. Applying the air/glass MgF2-like layer there raised modeled R to 0.0340. After bypassing the layer at glass/glass interfaces, isolated-path RGB sums change from `(0.05567,0.06139,0.07539)` to `(0.01600,0.01479,0.02917)`. At the historical source `(0.3834,0.3844)`, uncoated/coated RGB sums are `(2.787,2.339,1.676)` / `(0.0529,0.0217,0.0805)`, reproducing the direction of the earlier standard-chart result.
 - **価値または懸念:** A per-interface report exposed a physically mismatched coating at a cemented glass/glass boundary; the corrected coating applies only at modeled air/glass surfaces. Material-specific multilayer coating data and calibrated camera captures remain unavailable.
 - **次に確認すべきこと:** Compare the air-surface single-layer model against per-surface coating prescriptions or RAW point-source captures before using it for absolute flare prediction or Core/App integration.
+
 
 ## 2026-10-27: カーブエディタハーネスの起動検証（モジュール所有・offscreen フォント・並列ビルド競合）
 - **関連:** `tests/Artifact/CurveEditorStandaloneTest.cpp`、`tests/Artifact/CMakeLists.txt`、`ArtifactCore/CMakeLists.txt`（`ARTIFACTCORE_ANALYZE_MODULES`）。
@@ -7982,11 +8584,13 @@
 - **価値または懸念:** ハーネスは CTest で 17/17 pass、`--ui` 起動も両プラットフォームで確認済み。ただし `offscreen` のフォント欠落は他のウィジェット画像テストにも同じ影響がありうる。また同一 build ツリーへの並列ビルドは依然として壊れやすい。
 - **次に確認すべきこと:** 他のウィジェット画像テストが offscreen で文字を描く場合に同じフォント導入が必要かを確認する。並列ビルド競合は CMake/MSBuild 側の依存順問題であり、恒久対策（CL_MPCount=1 の既定化またはモジュール依存の明示）を検討する。
 
+
 ## 2026-10-27: Measure coating sensitivity to spectral band count
 - **関連:** `tools/LensFlareLab/main.cpp` (`makeSpectralBands`), `tools/LensFlareLab/EVALUATION.md` (Coating response versus spectral sampling), `tools/LensFlareLab/examples/coating-spectrum-convergence.png`.
 - **確認できた事実:** At neutral 1 px source `(0.4,0.5)`, isolated path 9→8 and pupil grid 64, 3/7/15/31-band RGB L1 errors against a 61-band, 3 nm reference are 2.659/0.469/0.055/0.014% uncoated and 6.960/1.771/0.205/0.054% with the illustrative air-surface coating. These are errors within the same piecewise-linear RGB-derived source model, not measured spectral accuracy. The 61-band image set was compiled and rendered directly with clang++ and inspected in the convergence plate.
 - **価値または懸念:** Seven bands converge well for this path under the synthetic RGB basis; coating increases integration error by about 3.8x versus uncoated, making 15 bands a useful offline high-accuracy probe. Sensor response and actual source/coating spectra remain unknown.
 - **次に確認すべきこと:** Validate the same quadrature with measured source spectrum, sensor sensitivities, and per-surface thin-film data before adopting a spectral default or moving the model into Core/App.
+
 
 ## 2026-10-27: Check spectral convergence across flare paths and fields
 - **関連:** `tools/LensFlareLab/evaluate_spectral_convergence.py`, `tools/LensFlareLab/examples/coating-spectrum-field-path-convergence.csv`, `tools/LensFlareLab/EVALUATION.md`.
@@ -7994,11 +8598,13 @@
 - **価値または懸念:** The coating approximation makes wavelength quadrature path-dependent; seven bands are not a reliable global accuracy threshold for the current model. Thirty-one bands are a practical offline target (<0.3% versus the dense synthetic reference) for these tested cases, but cannot establish physical camera accuracy.
 - **次に確認すべきこと:** Repeat the sweep with calibrated per-surface coating spectra, measured illuminant SPD, sensor sensitivities, and reference RAW flare captures; expand ray-grid convergence jointly with spectral convergence before a default or Core/App integration decision.
 
+
 ## 2026-10-28: Measure scalar Fresnel ghost-distance sensitivity
 - **関連:** `tools/LensFlareLab/main.cpp` (`propagateFresnelPatch`), `tools/LensFlareLab/examples/ghost-fresnel-distance-field-study.png`, `tools/LensFlareLab/examples/ghost-fresnel-distance-field-study.csv`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** For isolated coated path 9→8 at 31 bands and ray-grid 128, scalar propagation at 50/100/200 mm changes image RGB L1 by 0.83/1.70/2.95% and max channel centroid by 0.052/0.079/0.118 px relative to geometric output. A 3×3 finite-source case has near-identical normalized sensitivity. Normalized input/output patch flux matches closely; captured-frame RGB flux differs by up to 0.12% due to cropping/redistribution.
 - **価値または懸念:** The distance control changes edge-ripple scale predictably, but source angular spread in this fixture did not decorrelate the pattern much. This supports keeping the parameter explicitly look-development only; the current zero-phase field reconstruction cannot infer physical propagation distance or compound-lens phase.
 - **次に確認すべきこと:** Compare with a measured point-source RAW flare and validated complex pupil/optical-path phase before calibrating distance or changing the Fresnel model.
+
 
 ## 2026-10-28: Separate ghost-edge color, ringing, and finite-source width
 - **関連:** `tools/LensFlareLab/measure_ghost_edge_profiles.py`, `tools/LensFlareLab/examples/ghost-fresnel-edge-profile-study.csv`, `tools/LensFlareLab/examples/ghost-fresnel-edge-finite-source-zoom.png`.
@@ -8006,11 +8612,13 @@
 - **価値または懸念:** In this synthetic case, source angular size dominates edge softness; wavelength sampling chiefly affects fringe amplitude and changes channel-edge separation only slightly. The 200 mm red 10–90% span includes a separate Fresnel lobe and must not be interpreted as Gaussian blur.
 - **次に確認すべきこと:** Validate the same profile measurements against a measured extended emitter / RAW flare and compare with a complex pupil phase model; retain fixture-coordinate dependence in future profile comparisons.
 
+
 ## 2026-10-28: Compare adaptive pupil sampling against a 512² ghost reference
 - **関連:** `tools/LensFlareLab/evaluate_ghost_raygrid_convergence.py`, `tools/LensFlareLab/examples/ghost-raygrid-convergence.csv`, `tools/LensFlareLab/examples/ghost-raygrid-convergence.png`.
 - **確認できた事実:** For one neutral 1 px source, 3 spectral bands, 42 ghost paths and 100 mm scalar propagation, uniform 64² RGB flux is 4.11% below the 512² geometric reference and 4.17% below the 512² Fresnel reference; normalized RGB shape L1 is 6.34% / 6.47%. The existing 64² adaptive mode (threshold 0.75 px) improves those errors to 1.44% / 1.50% flux and 2.40% / 2.57% shape, with centroid errors 0.044 / 0.032 px. Its diagnostic counted 10,292 refined cells (2.06%), 500,094 center rays and 41,168 edge rays. A separate four-field geometric study against uniform 128² found adaptive 64² lowers absolute RGB L1 from 3.88–4.09% to 1.75–2.90% and centroid error from 0.044–0.067 px to 0.032–0.038 px; at center normalized shape L1 changes slightly from 4.13% to 4.18%, while off-axis it improves from 5.45–5.51% to 2.30–2.72%. Render time is 1.6–1.9× uniform 64² and around 0.57× reference 128² for these CPU runs. The field polygons persist in geometric and Fresnel images across grids 32–512; at this tested field they are not specific to Fresnel propagation. The 512² reference itself gains 0.63–0.66% channel-summed flux over 256², so it is not a converged truth.
 - **価値または懸念:** Adaptive 64² is a strong speed/quality candidate in this synthetic case, but one source position and lens prescription cannot establish a general default. Current Fresnel/geometric shape differences remain around 9.2% at high grids, indicating a measurable model contribution beyond the sampling residual in this fixture.
 - **次に確認すべきこと:** Add more field positions and compare thresholds with matched render-time budgets; the current four-field study still averages all paths together and can hide regressions in individual weak ghosts. Then validate phase-sensitive fringes against a measured point-source RAW capture before promoting a sampling default or changing Core/App behavior.
+
 
 ## 2026-10-28: Fig. 10 ghost-path centroids need rendered-energy weighting
 - **関連:** `tools/LensFlareLab/main.cpp` (`GhostPathDiagnostic`, `--ghost-report-csv`), `tools/LensFlareLab/make_fig10_ghost_path_chart.py`, `tools/LensFlareLab/EVALUATION.md`.
@@ -8019,11 +8627,13 @@
 - **仮説（未検証）:** A spatial feature matcher could compare rendered ghost shapes to digitized paper panels, but marker and crop registration plus the paper's display transform would dominate error unless recovered.
 - **次に確認すべきこと:** Inspect the adaptive refinement criteria and find a way to reduce individual-path centroid error without erasing the all-field shape gains; then sweep more intermediate field positions. Compare against calibrated point-source captures before attributing the remaining polygon appearance to the optical model.
 
+
 ## 2026-10-28: Measure pixel-phase sensitivity of the direct diffraction PSF
 - **関連:** `tools/LensFlareLab/evaluate_diffraction_pixel_phase.py`, `tools/LensFlareLab/examples/diffraction-pixel-phase.csv`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** 以前の計測ソースはガウスの解析的画素積分で erf の引数を `sigma` ではなく `2*sigma` で割っており、指定した R=1 px 光源より広い画像を生成していた。この式を修正し、1024² PSFで8位相、4096²で4位相を再計測した。修正後の出力/入力輝度比は1.0000248–1.0000249、最大重心誤差は0.0035 px、r50は0.625–0.729 px。独立参照は1024 pupilを4096² FFTにゼロパディングし、9×サブピクセル積分を経てセンサー画素へ集約する。4位相すべてで pixel-area のRGB L1誤差は0.388–0.715%、tent は3.339–3.941%。NumPyで再実装した同一離散 pupil カーネルとC++出力との差は最大0.0026%だった。
 - **価値または懸念:** この合成・一様画素応答モデルでは画素面積積分が独立高密度参照により近いことを支持するため、LensFlareLabの直接回折既定値を pixel-area に変更した。参照は同じ離散二値 pupil を使い、実カメラの画素応答、収差、測定光源スペクトルを含まないため、光学的な実写精度の証明ではない。
 - **次に確認すべきこと:** より多い光源形状・開口条件で数値参照を広げ、将来 Core/App に移す判断前に測定PSFまたはRAWフレアと校正済み画素応答で検証する。
+
 
 ## 2026-10-28: Extend diffraction spectral sampling and expose RGB-basis color shifts
 - **関連:** `tools/LensFlareLab/main.cpp` (`makeSpectralBands`, `makeDiffractionKernel`, `convolveSourceWithDiffraction`), `tools/LensFlareLab/evaluate_direct_diffraction_spectral.py`, `tools/LensFlareLab/examples/direct-diffraction-spectral-convergence.png`.
@@ -8032,32 +8642,38 @@
 - **仮説（未検証）:** A colorimetric emission reconstruction and camera response matrix may preserve RGB identity under a wavelength-independent optical path while still allowing wavelength-dependent diffraction to create chromatic PSF shifts; validating that requires explicit RGB working-space and sensor assumptions.
 - **次に確認すべきこと:** Derive a defensible RGB-to-spectrum and sensor-response mapping from a published colorimetric standard, then rerun neutral and primary-color tests plus spectral convergence before considering any default or app integration change.
 
+
 ## 2026-10-28: Use a dual RGB basis for wavelength sampling energy consistency
 - **関連:** `tools/LensFlareLab/main.cpp` (`makeSpectralBands`), `tools/LensFlareLab/evaluate_direct_diffraction_spectral.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** A quadrature-weighted dual basis preserves integrated RGB channel totals when the optical transfer is wavelength-independent. In the 512² direct-diffraction study, primary-color RGB L1 against the 61-band result dropped from 40–72% to at most 0.124% at 3 bands; channel energy error remained below 0.00022% of removed source energy. The 3-band branch remains unchanged. A residual negative linear-RGB mass up to 0.0473% occurs for saturated inputs.
 - **価値または懸念:** This fixes a mathematical inconsistency in the previous interpolation and supports stable energy accounting, but it is an algebraic RGB reconstruction. CIE 1931 color matching functions describe a human standard observer and do not provide camera sensor sensitivity; RGB illumination spectra also remain underdetermined without a selected or measured basis. See CIE 018:2019 and Guarnera et al., Eurographics 2022, [RGB illumination spectral upsampling](https://diglib7.eg.org/items/7e4bf7d5-d288-41af-bf04-1346b4a1d9bf).
 - **次に確認すべきこと:** Before claiming colorimetric or photographic realism, define the RGB working space, emitter spectral basis, and camera response or validate against calibrated RAW point-source flare captures.
+
 ## 2026-10-28: Track source clipping separately from diffraction throughput
 - **関連:** `tools/LensFlareLab/evaluate_source_field_psf.py`, `tools/LensFlareLab/examples/source-field-psf.csv`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** In the synthetic 640×360, 1024² study, a σ=7 px source at x=4 has 74.0% of its full discrete energy on the sensor; after direct diffraction, 73.9% remains relative to full energy, or 99.83% relative to the visible source. The renderer agrees with convolution by its measured point PSF within 0.005% RGB L1 for all tested sizes and fields.
 - **価値または懸念:** Throughput alone conflates source clipping with PSF spill beyond the sensor. Reporting both denominators makes frame-boundary behavior interpretable without implying absolute camera efficiency. The fixture and renderer-derived kernel are not empirical optical validation.
 - **次に確認すべきこと:** Repeat with a calibrated emitter and measured camera point-spread/RAW data if using these edge ratios to tune photographic output.
+
 ## 2026-10-28: Treat RGB spectral leakage as signed basis error
 - **関連:** `tools/LensFlareLab/evaluate_spectral_field_psf.py`, `tools/LensFlareLab/examples/spectral-field-psf.csv`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** In the 1024² primary-color field sweep, the 61-band dual RGB basis produces up to 0.066% positive energy in non-primary channels and up to 0.066% negative linear-RGB mass relative to visible source energy. The main-channel PSF shape differs from 61 bands by at most 0.089% at 3 bands and 0.0086% at 15 bands. The 3-band primary path has no cross-channel output because it assigns one wavelength directly to each channel.
 - **価値または懸念:** Clamping or measuring only positive RGB hides signed reconstruction error; logarithmic visualization can make sub-0.1% leakage look prominent. CSV diagnostics should preserve signed and negative mass and clearly label enhanced displays. These are internal consistency results, not colorimetric accuracy.
 - **次に確認すべきこと:** Select a documented RGB working space, physically plausible emitter spectra, and sensor response before using cross-channel separation as a photographic color claim; compare calibrated RAW captures.
 
+
 ## 2026-10-28: A rendered high-resolution sensor image is not a continuous PSF reference
 - **関連:** `tools/LensFlareLab/evaluate_sensor_sampling.py`, `tools/LensFlareLab/evaluate_diffraction_supersampled_reference.py`, `tools/LensFlareLab/examples/sensor-sampling.csv`.
 - **確認できた事実:** A first attempt to compare a lower-resolution frame against block-summed higher-resolution detector pixels produced 4–9% L1 differences. The higher-resolution pixels already contain area-integrated energy, and the coarse-bin boundaries cut those cells; block sums or partial-cell reconstruction add a second sampling approximation. After centering the source phase and comparing each C++ render with the independent NumPy pupil-cell area integrator, error was 0.0004–0.0100% across 320–2560 pixel widths.
 - **価値または懸念:** Sensor-resolution cross-checks must distinguish raw irradiance samples from pixel-integrated measurements. A denser rendered sensor image cannot automatically serve as ground truth for another pitch. Physical radii, per-raster analytic binning, and phase-aware comparison are more reliable here.
 - **次に確認すべきこと:** Add source pixel-phase sweeps at each pitch and compare against integration of the same high-resolution pupil intensity cells directly into target detector cells; avoid re-integrating already aggregated output pixels.
+
 ## 2026-10-28: Compare pixel-phase PSF convergence across aperture FFT sizes
 - **関連:** `tools/LensFlareLab/evaluate_pixel_phase_convergence.py`, `tools/LensFlareLab/examples/diffraction-pixel-phase-convergence.csv`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** For the centered, analytically pixel-integrated R=1 px Gaussian and six-blade pupil, the maximum normalized crop RGB L1 against the same-phase 4096² result fell from 0.5922% at 128² to 0.0839% at 1024². Throughput phase variation stayed below 1.4×10⁻⁷ and centroid error below 0.0035 px.
 - **価値または懸念:** This isolates pupil FFT sampling from source pixel phase and indicates the standard 1024² PSF is close to the dense numerical result for this fixture. The 4096² image shares the same ideal binary-pupil assumptions and is not empirical lens validation; discrete-pixel encircled-radius quantiles remain phase-sensitive.
 - **次に確認すべきこと:** Compare against measured point-source RAW data or an independently measured aperture PSF before treating this numerical convergence as photographic accuracy.
+
 ## 2026-10-28: Validate synthetic wavefront aberrations through detector integration
 - **関連:** `tools/LensFlareLab/evaluate_wavefront_aberration_psf.py`, `tools/LensFlareLab/examples/wavefront-aberration-psf.csv`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** The controlled complex-pupil FFT agrees with the existing 1024² LensFlareLab zero-aberration output to 0.00237% RGB L1 and 0.00003% relative peak error. Across 1024²/2048² pupil FFTs the maximum RGB L1 was 0.1073% in the centered 97² detector crop. At 0.25 waves RMS, synthetic coma and spherical terms changed the detector-integrated PSF shape by 7.59% and 8.94%; defocus and astigmatism changed it by 1.72% and 0.50%.
@@ -8065,11 +8681,13 @@
 - **仮説（未検証）:** Prescription-derived or measured exit-pupil optical path data could replace synthetic Zernike coefficients and give a defensible field-dependent PSF, but the current ghost OPL ray map is spatially undersampled in phase and cannot be inserted directly.
 - **次に確認すべきこと:** Add a direct transmission wavefront export at the exit pupil or import measured interferometry/RAW calibration data; compare the resulting sensor-integrated PSFs before promoting this prototype into Core/App.
 
+
 ## 2026-10-28: Transition lab image check found and fixed real transition defects
 - **関連:** `ArtifactCore/include/Video/Transitions/*.ixx` (all 16), `ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`, `ArtifactCore/CMakeLists.txt` (transitive IFC references + Math.RandomStream), `tests/ArtifactCore/TransitionRenderContractTest.cpp`, `tests/ArtifactTestTransitionRenderer.h`, `tests/ArtifactTestTransitionBridge.h`, `tests/ArtifactCore/CMakeLists.txt`.
 - **確認できた事実:** Rendering every transition to PNG and inspecting the frames (not just reading the code) exposed six classes of defect, all now fixed and re-verified. (1) `Spin` added `ly * stride` to a row pointer already offset by `y * stride`, so it read rows `y + ly` — out of bounds, non-deterministic output, corrupt alpha and an access violation; it also fed written pixels back into itself. (2) `Zoom` computed `ly` but sampled `leftScan` (row `y`) at `lx`, ignoring the vertical mapping entirely. (3) `Wipe`, `LinearWipe`, `RadialWipe`, `GradientWipe` and `Flip` ran B→A (p=0 was the incoming frame). (4) `Doors` and `Cube` stopped at 50% and never reached the incoming frame. (5) `LightLeak`, `IrisWipe` and `GlitchDisplace` never reached a pure incoming frame at p=1, and `GlitchDisplace` displaced four full rows at p=0 because the row guard was true when `row.length == 0`. After the fixes the behaviour table is uniform: all 16 kinds report `p0=Left p1=Right dir=A->B p0 B%=0.0 p1 B%=100.0`, the p000 grid is 16 identical A tiles and the p100 grid is 16 identical B tiles. (6) `TransitionFactory` was empty in the test process: static registrars live in module implementation units and are not run for a static-library consumer, so every transition rendered as a passthrough until each module gained an exported `register<T>Transition()` hook that the lab calls. `lld-link` also rejects CMake's `CXXMODWEAKSYM` archive member for a module-interface static library, so the lab compiles the module sources into the executable instead of linking a helper library.
 - **価値または懸念:** The A/B diagnostic pair also had to change: the two ramps were exact complements, so any 50/50 blend (Crossfade, Zoom, Spin mid-progress) collapsed to a flat grey frame and hid the effect. The pair is now deliberately non-complementary (B is brighter and its blue channel differs), which restores visible structure while keeping every pixel distinguishable for exact-match classification. Resampling transitions (`Zoom`, `Spin`, `Flip`, `Cube`) now copy the left frame once per `process()` call, because the contract writes the result into the left frame it samples; that is a bounded per-frame allocation which an explicit output-buffer parameter on `AbstractTransition::process()` would remove. The `Transition` parameter map is still read by no implementation.
 - **次に確認すべきこと:** Decide whether `AbstractTransition::process()` should take an explicit output frame (removes the per-call copy and the in-place aliasing hazard for all future resampling transitions), and whether the NLE `Transition::parameters` map should be honoured or dropped. Re-run the Artifact NLE render path once the whole app is rebuilt, since only `ArtifactCoreVideo` and the two test targets have been compiled against the new transition code so far.
+
 
 ## 2026-10-28: Endpoint-exact progress contracts added to the transition lab
 - **関連:** `tests/ArtifactCore/TransitionRenderContractTest.cpp`, `ArtifactCore/include/Video/Transitions/{Dissolve,LinearWipe,GradientWipe,RadialWipe}Transition.ixx`.
@@ -8078,51 +8696,53 @@
 - **次に確認すべきこと:** Add a 0/1-only parameter sweep once `AbstractTransition::process()` can take an explicit output frame, so the resampling transitions no longer need a per-call copy; keep the 96x64 diagnostic size until then so the benchmark cost stays negligible.
 
 
+
 ## 2026-10-28: Direct-transmission OPD needs a consistent sequential ray model
 - **関連:** `tools/LensFlareLab/main.cpp` (`traceEntrancePupilRay`, `traceGhostRay`, `makeAngenieuxPrescription`), `tools/LensFlareLab/evaluate_wavefront_aberration_psf.py`.
 - **確認できた事実:** In the Lab, `traceEntrancePupilRay` back-traces from a stop-plane parameter through surfaces 6..0 and returns a point just before surface 0. `traceGhostRay` then consumes that origin and a field direction to evaluate a reflected path. This interface is tailored to ghost-path sampling and does not directly expose a sequential direct-transmission pupil ray or an exit-pupil reference-sphere OPD. A temporary independent prototype produced inconsistent focus and was discarded before committing any of its files or images.
 - **価値または懸念:** Assigning direct-transmission OPD from the ghost path's cumulative OPL, or using a sensor-plane path difference without the exit-pupil reference-sphere correction, can create plausible-looking but physically invalid PSFs. Ansys OpticStudio's OPD documentation and Lin (2024, DOI 10.1364/JOSAA.529814) both define the exit-pupil/reference-sphere correction as part of the wavefront calculation.
 - **仮説（未検証）:** A dedicated sequential transmission tracer that samples rays from a real object-side plane, follows all interfaces and stop clipping forward, and then back-traces image rays to the exit-pupil reference sphere could provide prescription-specific complex pupil data.
 - **次に確認すべきこと:** Implement and independently validate chief/marginal ray focus, longitudinal and lateral color, stop clipping, OPL reference-sphere correction, and convergence against a trusted optical-design package or measured PSF before describing the output as a prescription-derived wavefront.
-## 2026-10-28: Trace prescription-dependent direct geometric PSFs
-- **関連:** `tools/LensFlareLab/evaluate_direct_transmission_raytrace.py`, `tools/LensFlareLab/examples/direct-transmission-geometric-psf.png`, `tools/LensFlareLab/EVALUATION.md`.
-- **確認できた事実:** An independent sequential ray tracer now launches parallel bundles from an object-side plane, intersects all 14 spherical prescription surfaces, refracts using LensFlareLab's Cauchy approximation, clips once at the physical six-blade stop, and records sensor intercepts at 610/550/460 nm for 0/5/10 degree fields. At a 128² launch grid it transmits 520–556 rays in these cases. Median-centered r90 spans 5.19–20.01 µm; the on-axis blue bundle is 0.21 µm while 10-degree blue reaches 20.01 µm. The 64² to 128² r90 shift is as high as about 11%, so the plate is qualitative and not converged.
-- **価値または懸念:** This provides a prescription-dependent geometric image and visible field/spectral behavior, while avoiding the ghost-only ray helper. It does not calculate an exit-pupil OPD, coherent diffraction, coatings, polarization, calibrated glass spectra, or camera response. The bundled prescription and f/11 stop are assumed model data, not a measured lens sample.
-- **仮説（未検証）:** The unusually small on-axis blue geometric spot and broader off-axis blue bundle may be caused by the approximate Cauchy mapping and the inserted rear-group spacing as much as by the underlying design.
-- **次に確認すべきこと:** Sweep launch grid through 256/512 and validate chief/marginal rays, chromatic focus, and pupil mapping against an optical-design tool or measured lens before deriving the exit-pupil reference-sphere OPD and replacing the ideal-pupil diffraction model.
+
 ## 2026-10-28: Trace prescription-dependent direct geometric PSFs
 - **関連:** `tools/LensFlareLab/evaluate_direct_transmission_raytrace.py`, `tools/LensFlareLab/examples/direct-transmission-geometric-psf.png`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** An independent sequential ray tracer launches parallel bundles from an object-side plane, intersects all 14 spherical prescription surfaces, refracts using LensFlareLab's Cauchy approximation, clips once at the physical six-blade stop, and records sensor intercepts at 610/550/460 nm for 0/5/10 degree fields. At a 256² launch grid it transmits 2,134–2,172 rays per field/wavelength. Median-centered r90 spans 5.24–19.87 µm; the on-axis blue bundle is 0.23 µm while 10-degree blue reaches 19.87 µm. The 128² to 256² r90 shift is up to 6.1%, so the plate is useful for qualitative evaluation but not yet converged.
 - **価値または懸念:** This provides a prescription-dependent geometric image and visible field/spectral behavior, while avoiding the ghost-only ray helper. It does not calculate an exit-pupil OPD, coherent diffraction, coatings, polarization, calibrated glass spectra, or camera response. The bundled prescription and f/11 stop are assumed model data, not a measured lens sample.
 - **仮説（未検証）:** The unusually small on-axis blue geometric spot and broader off-axis blue bundle may be caused by the approximate Cauchy mapping and the inserted rear-group spacing as much as by the underlying design.
 - **次に確認すべきこと:** Sweep launch grid through 512 and validate chief/marginal rays, chromatic focus, and pupil mapping against an optical-design tool or measured lens before deriving the exit-pupil reference-sphere OPD and replacing the ideal-pupil diffraction model.
+
 ## 2026-10-28: Converge the prescription-derived geometric spot map
 - **関連:** `tools/LensFlareLab/evaluate_direct_transmission_raytrace.py`, `tools/LensFlareLab/examples/direct-transmission-geometric-psf.csv`, `tools/LensFlareLab/examples/direct-transmission-geometric-psf.png`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** Increasing the sequential geometric trace from a 256² launch grid (2,134–2,172 transmitted rays per case) to 512² (8,516–8,744 rays per case) changes r90 by at most 0.44% over 0/5/10 degree fields and 610/550/460 nm. The final 512² median-centered r90 range is 5.24–19.92 µm, with the largest value at 10 degrees/460 nm.
 - **価値または懸念:** This establishes sampling stability for the geometric ray image and produces a denser evaluation plate. It does not validate the assumed prescription, its approximate glass model, wavefront OPD, diffraction PSF, or camera match.
 - **次に確認すべきこと:** Validate the prescription and pupil coordinates independently, then derive OPD against the exit-pupil reference sphere and compare geometric and wave PSFs plus calibrated RAW captures.
+
 ## 2026-10-28: Turn ray spots into an area-binned geometric density view
 - **関連:** `tools/LensFlareLab/evaluate_direct_transmission_raytrace.py`, `tools/LensFlareLab/examples/direct-transmission-geometric-irradiance.png`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** The 512² sequential trace now also bins equal-weight transmitted rays into a 256² sensor-area grid per field and wavelength, then applies a two-bin Gaussian blur only for display. The density image exposes the same red/green/blue spectral shapes as the spot map while reducing the launch-grid lattice. CSV radii still use the unblurred ray coordinates.
 - **価値または懸念:** Area binning shows geometric ray concentration more clearly than point locations, but the per-band peak normalization and pseudo-RGB mapping remove relative spectral power information; blur width is only a visualization choice. This remains geometric optics, not a coherent PSF or camera-calibrated irradiance.
 - **次に確認すべきこと:** Derive physical ray weights and a validated spectral/camera response, then compare the geometric density and wave-optical PSF against calibrated RAW point-source images.
+
 ## 2026-10-28: Separate cos-fourth rolloff from prescription pupil clipping
 - **関連:** `tools/LensFlareLab/evaluate_direct_transmission_raytrace.py`, `tools/LensFlareLab/examples/direct-transmission-relative-illumination.png`, `tools/LensFlareLab/examples/direct-transmission-geometric-psf.csv`, `tools/LensFlareLab/EVALUATION.md`.
 - **確認できた事実:** Direct parallel ray bundles are sampled on equal-area planes perpendicular to each field direction. A Newton solve finds the chief ray through the physical stop center; the outgoing sensor angle gives a separate image-space cos^4 factor. At 512², the 550 nm relative transmitted pupil-area ratio is 0.983 at 10° and 0.552 at 12°; cos^4 is 0.992 and 0.990, respectively. Their product falls to 0.546 at 12°, so geometric pupil clipping dominates the strong edge drop in this assumed model. Relative pupil-area ratios across wavelengths at 12° are 0.529–0.563. Doubling launch density from 256² to 512² changes r90 by at most 0.76% over the 12 cases.
 - **価値または懸念:** Separating equal-area pupil transmission from cos^4 prevents counting the input bundle's projection twice and exposes the cause of edge falloff. The simplified product omits pupil-distortion Jacobian, Fresnel/coating transmission, image sensor response, and a measured lens prescription; it is not calibrated relative illumination.
 - **仮説（未検証）:** The sharp transition between 10° and 12° likely reflects a partial mechanical aperture cutoff in the supplied 100 mm lens/15 mm rear-gap model; verify the actual prescription and stop location before treating 12° as a production field boundary.
 - **次に確認すべきこと:** Validate pupil-area ratios against an optical design package or measured flat fields, then carry its pupil amplitude and exit-pupil OPD into the coherent PSF before changing the app renderer.
+
 ## 2026-10-28: Add sensor-pixel energy metrics to the prescription ray trace
 - **関連:** `tools/LensFlareLab/evaluate_direct_transmission_raytrace.py`, `tools/LensFlareLab/examples/direct-transmission-pixel-psf.png`, `tools/LensFlareLab/examples/direct-transmission-geometric-psf.csv`.
 - **確認できた事実:** Equal-weight transmitted rays can be grouped into 5 µm square pixels and their pixel-count energy radii reported. At the 512² launch grid, pixel-r90 spans 0–25.50 µm across the field/wavelength cases; the on-axis 460 nm spot is smaller than one pixel and therefore collapses to the central pixel in this discretization. The shared-scale image must center each field independently because chief-image positions differ substantially across the sensor.
 - **価値または懸念:** Pixel-area accumulation ties the geometric spot to a sensor sampling scale, but the 5 µm pitch is an illustrative assumption, and channel peak normalization/square-root display are for morphology only. It does not account for pixel aperture response, coherent diffraction, or calibrated radiometric weights.
 - **次に確認すべきこと:** Confirm the target sensor pixel pitch and compare a converged, physically weighted diffraction PSF convolved with pixel response against measured point-source captures before claiming realistic camera output.
+
 ## 2026-10-28: Estimate the virtual exit pupil and validate prescription OPL
 - **関連:** `tools/LensFlareLab/evaluate_prescription_wavefront.py`, `tools/LensFlareLab/evaluate_direct_transmission_raytrace.py`, `tools/LensFlareLab/examples/prescription-wavefront.csv`.
 - **確認できた事実:** Back-projecting stop-center ray pencils through the two lens groups places the assumed model's virtual entrance pupil at z=82.95261 mm with 1.72368× magnification, and its virtual exit pupil at z=−56.47356 mm with 4.12397× magnification. These imply f/6.3817 from the 100 mm EFL and imaged entrance pupil, versus f/6.3719 from the exit pupil/image distance (0.154% axial mismatch). Thus the physical stop semidiameter EFL/22 is not the complete system's effective f/11. At 512², image-centered exit-pupil reference OPD RMS is 0.145–0.273 µm for 0/5/10/12° fields and changes by at most 0.20% from 256². The chief-ray pupil decenter grows from 0 at axis to 3.989 mm at 12°. Adjacent ray OPL increments agree with the local eikonal relation to 0.000042–0.000058% RMS-relative error.
 - **価値または懸念:** This replaces an arbitrary-plane phase reference with paraxial conjugate-pupil estimates whose object/image-side f-numbers agree, but neither pupil map is validated against an optical design package. The prior ideal f/11 diffraction fixture is not the prescription's diffraction scale. Equal incident-plane ray weights still omit pupil Jacobian and Fresnel amplitude; this is not a coherent PSF or measured lens result.
 - **仮説（未検証）:** The 12° chief-ray pupil decenter may indicate significant field-dependent pupil aberration in the assumed model; determine whether it comes from the 15 mm rear-group gap or the prescription itself before fitting a production pupil map.
 - **次に確認すべきこと:** Compare both pupil locations, magnifications, field mapping, and reference-sphere OPD against an optical design tool or benchmark prescription; then add a Jacobian-weighted complex pupil and validate PSF against the ideal and measured point-source references.
+
 
 ## 2026-10-28: Exclude undefined pupil Jacobians from coherent amplitude
 - **関連:** `tools/LensFlareLab/evaluate_prescription_coherent_psf.py`, `tools/LensFlareLab/examples/prescription-coherent-psf.png`, `tools/LensFlareLab/examples/prescription-coherent-psf-pixels.csv`.
@@ -8131,12 +8751,14 @@
 - **仮説（未検証）:** The 12-degree throughput drop still likely reflects partial mechanical aperture clipping in the assumed 15 mm rear-gap model; compare the prescription and field pupil with optical-design software before assigning the edge response to a real lens.
 - **次に確認すべきこと:** Extend the converged pupil calculation to wavelength-dependent exit pupils/OPD, retain full-frame angular support with a sampling-efficient diffraction method, then compare the polychromatic PSFs with calibrated RAW point-source captures before considering Core/App integration.
 
+
 ## 2026-10-28: Refit the exit pupil and OPD independently by wavelength
 - **関連:** `tools/LensFlareLab/evaluate_prescription_polychromatic_psf.py`, `tools/LensFlareLab/examples/prescription-polychromatic-psf.png`, `tools/LensFlareLab/examples/prescription-polychromatic-psf.csv`.
 - **確認できた事実:** The 460/550/610 nm prototype recomputes the paraxial exit-pupil location, magnification, ray paths, reference-sphere OPD, and pupil-area weight per band. Relative to 550 nm, chief-image shifts are 0.03/0.01 px at 5°, 0.07/0.03 px at 10°, and 0.09/0.04 px at 12° for blue/red. Blue OPD RMS rises from 0.006 µm on axis to 0.428 µm at 12°, while red is 0.374 µm on axis and 0.179 µm at 12°. RGB plate bands are separately normalized for morphology.
 - **価値または懸念:** A single-wavelength pupil/OPD cannot support a color flare claim because refraction, focus, exit pupil, and chief-ray location vary with wavelength. The present numbers use an Abbe-derived Cauchy model and are not independently checked against full Sellmeier glass data or optical-design software. Per-channel normalization discards source and sensor spectral energy, and the PSFs cover only the central ±12 px.
 - **仮説（未検証）:** The non-monotonic field/wavelength OPD trends may be chromatic focus and off-axis aberration of the assumed double-Gauss prescription; compare against the source prescription's optical-design reference before fitting its chromatic signature.
 - **次に確認すべきこと:** Confirm prescription surfaces, glass dispersion, field-dependent pupil maps, and best-focus convention with an optical-design package; add the source/sensor spectral basis and a sampling-efficient wide-angle PSF before evaluating full-frame RGB flare against RAW captures.
+
 
 ## 2026-10-28: Prototype a coherent PSF from reflected-ghost OPL maps
 - **関連:** `tools/LensFlareLab/evaluate_ghost_wavefront_psf.py`, `tools/LensFlareLab/main.cpp` (`--optical-path-map-grid`), `tools/LensFlareLab/examples/ghost-wavefront-psf-20261028.png`.
@@ -8145,12 +8767,14 @@
 - **仮説（未検証）:** The decreasing PSF error suggests the fringe pattern approaches a stable result, but 5.20–9.15% L1 at 1024²→2048² is still too high to establish convergence; edge clipping may dominate the asymmetric shape.
 - **次に確認すべきこと:** Extend a single-wavelength pupil map to 4096² only if it is needed to establish sampling order, then reconstruct the ghost path's exit-pupil mapping and reference sphere before assigning detector-pixel scale or wiring this field into the renderer.
 
+
 ## 2026-10-28: Build ghost-specific exit-pupil PSF basis
 - **Related:** `tools/LensFlareLab/main.cpp`, `tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py`, `tools/LensFlareLab/examples/ghost-exit-pupil-psf-20261028.png`.
 - **Confirmed:** A shared rear-side plane carrying ray position, direction, and OPL supports a least-squares virtual exit-pupil fit and image-centered reference-sphere OPD for the 9-to-8 ghost. At 128^2 through 512^2, back-projected pupil RMS radius is about 0.0111 mm (this is not a plane-fit residual) and OPD RMS about 1.30-1.35 um.
 - **Value or concern:** This gives the ghost path a physical pupil coordinate and sensor-pixel scale, but its current scalar monochromatic PSF is not converged and omits coating phase, polarization, broadband coherence, and camera calibration.
 - **Unverified hypothesis:** The large phase-versus-flat PSF differences likely reflect the traced prescription aberrations, but the assumed prescription and pupil-plane adequacy need independent optical-design validation.
 - **Next check:** Compare ghost exit-pupil mapping and OPD with an optical-design reference, then converge wavelength-dependent PSFs and validate against calibrated point-source captures before Core/App promotion.
+
 
 ## 2026-10-28: Sample a reflected-ghost PSF on detector pixels
 - **Related:** `tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py`, `tools/LensFlareLab/examples/ghost-exit-pupil-psf-20261028.png`.
@@ -8159,12 +8783,14 @@
 - **Unverified hypothesis:** The remaining grid difference may come from local pupil Jacobian/amplitude interpolation or high-spatial-frequency OPL structure; compare pupil-plane OPD and complex amplitude on a shared grid to localize it.
 - **Next check:** Evaluate 1024^2 and finer maps, compare shared-grid OPD/amplitude against the 512^2 map, then include complex Fresnel phase and compare broadband results with measured lens references.
 
+
 ## 2026-10-28: Separate ghost PSF quadrature from ray-grid convergence
 - **Related:** `tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py`, `tools/LensFlareLab/examples/ghost-exit-pupil-550-convergence-20261028.png`, `tools/LensFlareLab/examples/ghost-exit-pupil-psf-wide-20261028.png`.
 - **Confirmed:** Direct Fraunhofer evaluation with 4x4 versus 8x8 detector subpixels agrees in 512^2 r50/r90 to displayed precision and phase/flat L1 within 0.03 percentage points. The 1024^2->2048^2 detector-crop PSF changes are 80.38/61.82/61.21% L1 at 460/550/610 nm. Across those wavelengths, piston/tilt-removed OPD residual RMS is 0.0330/0.0319/0.0326 um, amplitude L2 changes 32.2/32.4/31.8%, and support IoU is 41.1/39.5/40.3%.
 - **Value or concern:** Detector integration is now numerically stable at the tested subpixel rates, but path-specific amplitude/support mapping is not. Similar global OPD RMS must not be used to claim the ghost PSF has converged.
 - **Unverified hypothesis:** The remaining difference is likely dominated by amplitude/Jacobian and pupil-support interpolation, with a smaller contribution from high-spatial-frequency OPD error. The arbitrary Delaunay mesh and scalar Fresnel weighting need targeted inspection.
 - **Next check:** Visualize ray-mapped pupil support/Jacobian at shared physical scale, replace or validate the local interpolation with a deterministic structured-grid mapping, then repeat PSF convergence before modeling complex coating/polarization phase or integrating to the app.
+
 
 ## 2026-10-28: Hold the ghost pupil raster fixed across ray-map refinement
 - **Related:** `tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py`, `tools/LensFlareLab/examples/ghost-exit-pupil-common-grid-20261028.csv`.
@@ -8173,12 +8799,14 @@
 - **Unverified hypothesis:** Sparse support boundary changes may strongly affect coherent interference despite modest amplitude L2 over the shared support.
 - **Next check:** Compare identical support masks and controlled phase/amplitude substitutions on the shared physical pupil grid, and audit the local ray-to-pupil interpolation before using this PSF in Core/App.
 
+
 ## 2026-10-28: Ablate support and OPD contributions to the ghost PSF
 - **関連:** `tools/LensFlareLab/compare_ghost_pupil_ablation.py`, `tools/LensFlareLab/examples/ghost-pupil-ablation-1024-2048-20261028.png`.
 - **確認できた事実:** At 550 nm, 1024²→2048² normalized crop PSF L1 falls from 64.20% native to 25.76% on common support. Keeping common support and common amplitude while varying OPD gives 25.47%; keeping common support and common OPD while varying amplitude gives 0.84%. For 512²→1024² the corresponding values are 77.34%, 47.98%, 47.98%, and 0.72%.
 - **価値または懸念:** The experiment separates support and amplitude effects from mapped OPD sampling; the residual discrepancy is phase-sensitive. L1 is normalized within ±32 detector pixels at 2x2 subpixel quadrature, and does not prove which OPD estimate is physically correct.
 - **仮説（未検証）:** Ray-to-pupil interpolation or the exit-pupil/reference-sphere reconstruction may inject enough phase error to dominate these crop PSFs; the larger-grid phase difference is lower than at 512²→1024², consistent with gradual convergence but not yet establishing it.
 - **次に確認すべきこと:** Compare the Delaunay interpolation against a topology-preserving launch-grid triangulation and measure OPD residual maps and PSFs at matched physical coordinates before promoting the model into Core/App.
+
 
 ## 2026-10-28: Correct the reported ghost exit-pupil RMS meaning
 - **Related:** `tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py`, the three `ghost-exit-pupil-*.csv` reports, `tools/LensFlareLab/EVALUATION.md`.
@@ -8188,12 +8816,14 @@
 - **次に確認すべきこと:** Add a separate geometric validity criterion for the chosen pupil plane, compare wavefronts through an independent optical reference, and keep the scalar PSF diagnostic out of the renderer until those checks converge.
 
 
+
 ## 2026-10-28: production 2D smokeのtop absorptionを35%へ広げた
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
 - **確認できた事実:** 256×144 / frame95 / D3D12の同一runtime fieldで、top absorption band 20%→35%はdensity upper-third share .1503→.0457、output luma centroid .4699→.5516、visible pixels 80,069→70,847だった。production wrapperは3つのcomponent entry pointから35%を明示する。変更後のwrapper同等テストも256×144 / 384×216で実行済み。384×216 captureではS字plumeに加えて上側ループが残り、細かなbillow不足も解決していない。
 - **価値または懸念:** 画面上部に偏る密度比を約70%下げた一方、visible pixelsも約11.5%減り、上側の薄い煙が消えやすくなる。これは閉じたvelocity boundaryを変えないabsorbing-band近似で、C4D/Houdini相当のbillow形状にはならない。
 - **未検証の仮説:** 新規smoke componentの通常profileでは上部の帯状蓄積を軽くし、画面中央の形を読み取りやすくする見込み。高いemitter、長い再生、thermally buoyant smokeでは煙の欠落が目立つ可能性がある。
 - **次に確認すべきこと:** 単純な格子増加やtop absorptionではなく、速度境界と発生源に起因するplume形状を固定格子で比較する。実Composition viewport・thermal buoyancy条件・D3D12/Vulkanの再生整合性はまだ確認する。
+
 
 ## 2026-10-28: Test smooth OPD interpolation against linear mapping
 - **関連:** `tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py`, `tools/LensFlareLab/compare_ghost_pupil_ablation.py`, `tools/LensFlareLab/examples/ghost-pupil-ablation-clough-512-1024-20261028.png`.
@@ -8203,6 +8833,7 @@
 - **次に確認すべきこと:** Validate against a topology-preserving launch-grid interpolation or independent optical design wavefront samples; do not promote the cubic mode based on visual smoothness alone.
 
 
+
 ## 2026-10-28: 2D smoke gridを増やしてもbillow品質は解決しない
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`、`Artifact/src/Render/ArtifactIRenderer.cpp` の smoke volume raymarch、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
 - **確認できた事実:** Diligent GPU runtime testを正しいgrid overrideで実行。frame95 / 768×432出力で256×144はDebug CTest 40.68s、384×216は88.43s。captureは`build/smoke-runtime-rnd/verified-256x144-20261028/`と`verified-384x216-20261028/`。384格子はS字の巻き込み輪郭を少し明瞭にするが、広い上側ループと細かなbillow不足は残る。双方のfocused testはpass。所要時間はsimulation・setup・flush/readback込みで、GPU時間ではない。
@@ -8210,12 +8841,14 @@
 - **仮説（未検証）:** 2D solverの長いcoherent curlが画面上部の大きな輪を作り、単一平面をdepth warpしたvolume raymarchだけでは3D煙の小scale billowを再現しきれない可能性がある。
 - **次に確認すべきこと:** 解像度を固定してsource radius/count、buoyancy/vorticity、emitter swirlの一変数比較を行い、Density / Flame別画像とGPU timestampを記録する。その後volume shaderのmulti-scale detailをtest-onlyでablateする。
 
+
 ## 2026-10-28: Correct stop-constrained parallel ghost-ray sampling
 - **Related:** `tools/LensFlareLab/main.cpp`, `tools/LensFlareLab/validate_ghost_raytrace_reference.py`, `tools/LensFlareLab/examples/ghost-stop-shooting-comparison-192.png`.
 - **Confirmed:** The prior method back-traced from a stop point, then launched the ghost trace with the original field direction. Re-forwarding those launch positions produced a 0.680 mm RMS stop miss (p95 0.992 mm, max 1.113 mm) on a 64² pupil grid. Fixed-direction Newton shooting now solves the entrance position; a 192² Fig. 10 source-A image changed crop ghost luminance by -95.92% and centroid by 74.23 px. Independent float64 comparison of 64² ray-map samples gives exit-position RMS 0.286/0.273 µm and piston/tilt-removed OPL residual RMS 0.0422 µm.
 - **Value or concern:** The old geometric render is not a reliable quality reference because its sampled rays generally missed the intended stop coordinate. The corrected renderer is geometrically consistent, but the large radiometric/image-space change still needs a calibrated ground-truth or optical-design comparison before selecting exposure settings or integrating to Core/App.
 - **Unverified hypothesis:** The corrected 9→8 ghost footprint and flux are closer to the parallel-ray model used in published prescription-based work; current source/coating assumptions and exposure calibration may still dominate realism.
 - **Next check:** Compare corrected ghost position, footprint, spectral spread, aperture blocking, and reflected energy against the paper's analytical reference or a non-sequential optical trace; profile shooting cost at larger path sets and ray grids before any production-path integration.
+
 
 
 ## 2026-10-28: 2D smokeの上偏りとbillowは単一parameterで両立しない
@@ -8226,12 +8859,14 @@
 - **次に確認すべきこと:** emitter count/radiusと配置半径を一変数比較し、density / flame fieldの画素占有・重心を個別に記録する。その後、時間一貫性を保つvolume detail shaderのtest-only比較を行う。
 
 
+
 ## 2026-10-28: wider multi-emitter source lowers upper density without adding billows
 - **関連:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp` multi-emitter placement、production smoke volume test、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
 - **確認できた事実:** 128×128 / frame95 / 768×432 / Vulkan / outflow30/s・35%で、7 emitters radius.10 density.16 baselineのupper-third density share/luma centroid/visible-warm pixelsは.03744/.6067/61,826-274。7 emitters radius.16 density.0625では.02657/.6532/86,914-829、radius.20 density.04では.02336/.6665/103,916-1,095となり、source footprint拡大で総density mass約414から411の範囲を保ちつつ下半分の占有・warm pixelsが増えた。count1 / .04 / 1.0はcentroid .5960・upper-third .04186でより上へ偏った。広いsource画像は太い平滑な柱で細かなbillowを作らない。focused capturesはいずれもcheckpoint replay field deltas zero。
 - **価値または懸念:** 上部偏りは単純にsolver gridを増やすより、初期source footprintを広げる方が同じgrid costで改善する余地がある。ただし広げすぎると初期煙の見かけの太さ・炎占有を大きく変えるため、layer bounds/scaleとの連動と連続frameでの見え方が必要。
 - **仮説（未検証）:** temperature/flame injectionをsource densityから独立させれば、広い低密度sourceと鋭い炎sourceを併用でき、煙の占有範囲と火元の読みやすさを別々に制御できる可能性がある。
 - **次に確認すべきこと:** radius .16近傍のproduction property semanticsを確認し、temperature/flame footprintを独立化したR&D variantと現profileをframe時系列・seek・実Composition boundsで比較する。その後にshaderの時間一貫multi-scale detailを試す。
+
 
 ## 2026-10-28: Require source aspect and track full-path sampling convergence
 - **Related:** `tools/LensFlareLab/validate_ghost_raytrace_reference.py`, `tools/LensFlareLab/EVALUATION.md`, `tools/LensFlareLab/examples/ghost-fixed-direction-allpaths-grid-128-vs-192.png`.
@@ -8240,12 +8875,14 @@
 - **Unverified hypothesis:** Adaptive refinement or a cached entrance-pupil solve may reduce full-path render cost, but refinement must track both energy and boundary topology to avoid changing ghost flux.
 - **Next check:** Compare geometric and aperture-diffraction/FrFT output at 128²/192² for the same isolated source, then profile entrance-pupil solves by wavelength and path before deciding whether to share/cache launch maps.
 
+
 ## 2026-10-28: Compare wideband aperture FrFT on corrected ghost rays
 - **Related:** `tools/LensFlareLab/EVALUATION.md`, `tools/LensFlareLab/examples/ghost-frft-fixed-direction-edge-192.png`, `tools/LensFlareLab/examples/ghost-frft-normalization-fixed-rays-192.png`.
 - **Confirmed:** For source `(0.15,0.15)`, path 9→8, grid 192², and 31 bands, geometric vs aperture FrFT crop luminance was 0.35675 vs 0.32034 (-10.20%), RGB L1 45.99%, peak +74%, centroid shift 11.13 px. FrFT precompute was 8.61 s, total 19.4 s vs 10.35 s geometric. Triangle vs vertex normalization on shared ray maps differed only 1.15% RGB L1 and 0.0001 px centroid.
 - **Value or concern:** The transform adds plausible aperture-dependent chromatic structure, but its energy and centroid changes are large and cannot yet be treated as calibrated camera behavior. The normalization variant is comparatively stable in this one case.
 - **Unverified hypothesis:** Remaining divergence is more likely from the propagation model/scale and finite source assumptions than from triangle-vs-vertex normalization for this field.
 - **Next check:** Compare the wideband ghost footprint and spectral fringes against an analytical diffraction reference or a measured camera PSF, using the same prescription, source angle, and crop before promoting the transform to a default.
+
 
 
 ## 2026-10-28: 2D smoke profile changes shape over time and flame is off by default
@@ -8256,12 +8893,14 @@
 - **次に確認すべきこと:** Compare baseline and wider source at matched frames 30/60/95, record top-boundary crossing and flame occupancy, then test time-consistent breakup or a more physical velocity source before changing defaults. Decide whether default flame-on is desired for the smoke component after this visual evidence.
 
 
+
 ## 2026-10-28: Ray-mapped ghost PSF reference is not shape-converged
 - **Related:** `tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py`, `tools/LensFlareLab/compare_ghost_frft_exit_pupil_psf.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **Confirmed:** At 550 nm, 9→8 and a 640×360 point-source render, the common-pupil direct Fraunhofer crop changed by 26.85% L1 from 256²→512² ray maps and 25.86% from 512²→1024², despite stable ~23.4 µm pupil RMS and <1% amplitude L2 difference at the last step. FrFT-vs-reference L1 was 88.86% at 512², but the geometric baseline was already 66.35% away.
 - **Value or concern:** The reference cannot yet adjudicate which renderer is physically more accurate. Shape convergence is much more sensitive than low-order pupil metrics in this setup.
 - **Unverified hypothesis:** Support topology and phase interpolation/sampling drive the residual instability; a topology-preserving pupil reconstruction may converge better than the current Delaunay regrid.
 - **Next check:** Compare fixed-direction launch-grid interpolation against the current triangulation on identical rays; only then use the reference to tune FrFT or consider Core/App integration.
+
 
 
 ## 2026-10-28: temporal volume detail adds texture but does not break the smoke cap
@@ -8272,12 +8911,14 @@
 - **次に確認すべきこと:** Compare a velocity/source-model change against opt-in noise using identical frame sequences, then measure GPU timestamp and live composition output. Keep density detail off by default until the cap structure, performance, and temporal coherence are validated together.
 
 
+
 ## 2026-10-28: Ghost pupil amplitude convergence is support limited
 - **Related:** `tools/LensFlareLab/evaluate_ghost_exit_pupil_psf.py`, `tools/LensFlareLab/compare_ghost_pupil_jacobian.py`, `tools/LensFlareLab/EVALUATION.md`.
 - **Confirmed:** For the 550 nm center 9→8 case on a shared 512² pupil, replacing triangle-averaged area Jacobians with finite differences on the structured launch grid changes the 512²→1024² PSF L1 only from 23.966% to 23.972%, amplitude relative L2 from 76.050% to 76.036%, and leaves support IoU at 59.006%. On the same 512² map, the amplitude estimators differ by 0.437% relative L2 and the PSFs by 0.129% L1.
 - **Value or concern:** The area-Jacobian averaging choice is not the material source of cross-grid PSF instability in this fixture. Replacing it would add complexity without improving convergence.
 - **Unverified hypothesis:** The remaining mismatch is dominated by ray-map support topology and phase sampling close to clipped ghost boundaries.
 - **Next check:** Test a launch-grid-cell-preserving support reconstruction and quantify its convergence against higher-density maps before changing the reference method.
+
 
 
 ## 2026-10-28: Smoke component default can enable flame without increasing nominal source mass
@@ -8288,12 +8929,14 @@
 - **Next check:** Compare candidate velocity/source breakup against the current profile on matched frame sequences, then inspect in the live Composition viewport and measure GPU time before deciding whether to expose detail controls.
 
 
+
 ## 2026-10-28: Higher 2D smoke grid does not solve the cap and costs roughly 4x
 - **Related:** `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `ArtifactCore/src/Physics/FluidSolver2D.cpp`, and the production smoke-volume render path in `Artifact/src/Render/ArtifactIRenderer.cpp`.
 - **Confirmed:** Matched frame60 Diligent tests at 128² and 256² show a smooth cap/column in both. 256² test-reported frame wall is 33.6s versus 9.3s at 128² for the same replay fixture, while upper-third density share increases `.01685`→`.02691` and visible pixel coverage drops 94,159→78,833. A buoyancy `.05`→`.01` sweep changes upper-third mass modestly but does not change the visible silhouette. Replay field deltas are zero for each. A separate standalone test transfers a 96×72 2D state into a 48×36×32 Pyro volume; after 24 steps the baseline and test-only divergence-free depth-roll branch remain visually smooth columns, so extrusion alone did not generate billows.
 - **Value or concern:** The solver is a 2D semi-Lagrangian field with a 2.5D 24-step raymarch; simply raising grid size or extruding the field is expensive and does not create convincing 3D structure. Wall timing is test-level replay/render/readback, not a GPU timestamp. The standalone 3D source comparison is not exposure/mass matched and is not evidence that current Pyro production integration is ready.
 - **Unverified hypothesis:** A continuously emitting, genuinely evolving 3D Pyro domain may have a better path to Houdini/C4D-style volume shape than further tuning the 2D sheet; quality and interactive cost remain unproven.
 - **Next check:** Extend the isolated comparison so the same 2D emitter footprint drives continuous 3D source injection; match frame, initial/source mass, camera, output and exposure. Then capture a sequence and profile CPU/GPU before integrating a layer path.
+
 
 ## 2026-10-28: Continuous 3D smoke source matching needs integrated source mass
 - **Related:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, `ArtifactCore/src/Simulation/PyroSimulation.cpp`, and `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`.
@@ -8302,12 +8945,14 @@
 - **Unverified hypothesis:** A density-weighted, divergence-controlled mixing velocity field could merge adjacent lobes into rolling structures while preserving injected mass; this has not been tested in the production solver.
 - **Next check:** The standalone test CMake source now lists the missing `Graphics.Compute` / `Graphics.GPUcomputeContext` interfaces and their direct imports. After the user authorizes CMake regeneration, rebuild coherently and rerun the native tests; then compare velocity-field mixing, mass retention, temporal stability, and output images at matched resolution and exposure before production integration.
 
+
 ## 2026-10-28: Keep standalone smoke test module declarations aligned with imports
 - **Related:** `tests/Artifact/SmokeRuntimeStandalone/CMakeLists.txt`, `ArtifactCore/src/Render/VolumeRenderer.cpp`, and the `SmokeRuntimeCoreImplementation` target.
 - **Confirmed:** The standalone core implementation compiles `VolumeRenderer.cpp`, which imports `Graphics.Compute` and `Graphics.GPUcomputeContext`; the standalone module-interface list omitted both, along with `GPUComputeContext`'s `Graphics.GPU.Info` and `Graphics.GPUCapabilities` dependencies. Their interface paths are now included in the test target source list.
 - **Value or concern:** A test executable can link successfully against an older static archive even when current module interfaces fail to compile, producing misleading runtime failures. The source CMake fix is present, but generated build files and coherent link artifacts are not refreshed yet.
 - **Unverified hypothesis:** Registering the complete module dependency set will make the standalone R&D target compile and link from one code revision; further unresolved implementations or Diligent link dependencies may still surface.
 - **Next check:** After explicit authorization for CMake configure, regenerate the standalone target, compile its module interfaces and implementation archive, relink the test executable, and rerun the exact smoke comparison before interpreting any output.
+
 
 
 ## 2026-10-28: Preserve ray-grid connectivity in ghost pupil reconstruction
@@ -8318,12 +8963,14 @@
 - **Next check:** Compare mapped pupil support and ray energy with an independent optical trace, then evaluate the launch-cell phase PSF at additional fields and wavelengths before using it to revise FrFT or integrate to Core/App.
 
 
+
 ## 2026-10-28: Smoke/Pyro standalone project currently cannot validate the dirty experiment source
 - **Related:** `tests/Artifact/SmokeRuntimeStandalone/CMakeLists.txt`, `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`, and the generated `build/smoke-runtime-rnd/ArtifactSmokeRuntimeStandaloneTest.vcxproj`.
 - **Confirmed:** Compiling the generated Release test project without CMake regeneration reaches the test source but fails with 100+ member mismatches between its current expectations and the current Pyro/Smoke module IFC declarations. The source CMake file already contains additional GPU module interfaces that are absent from generated build inputs.
 - **Value or concern:** A stale generated project cannot provide evidence about current smoke/flame behavior; linking or running its older executable could silently mix source revisions.
 - **Unverified hypothesis:** Regenerating the isolated project and rebuilding all module interfaces plus the implementation archive from the same checkout may restore a valid independent test path; further dependency and source errors may remain.
 - **Next check:** After the required CMake regeneration is authorized, rebuild the standalone project coherently and run narrowly selected matched smoke/flame tests, inspecting their image sequence and quantitative upper-boundary occupancy.
+
 
 
 ## 2026-10-28: Smoke component has a 128-cell default and a separate 128-sample render ceiling
@@ -8334,12 +8981,14 @@
 - **Next check:** With a coherent independent build, compare 128/256/512 solver grids at matched layer bounds and output size, recording per-stage CPU/GPU time, visible coverage, upper-boundary density share, and smoke/fire image detail.
 
 
+
 ## 2026-10-28: DCC-style pyro quality needs separate shape operators and sparse compute
 - **Related:** `ArtifactCore/include/Simulation/PyroSimulation.ixx`, `ArtifactCore/src/Simulation/PyroSimulation.cpp`, and `docs/planned/MILESTONE_PYRO_DOMAIN_LAYER_INTEGRATION_2026-09-27.md`.
 - **Confirmed:** Current Pyro exposes vorticity confinement and dense per-cell fields. SideFX's official sparse Pyro/look-development documentation describes separate large-scale turbulence, cap-breaking disturbance, and velocity-redirecting shredding, plus active-region sparse solving to limit work. The existing 2D resolution sweep showed a 3.6× test-wall increase from 128² to 256² without fixing the cap.
 - **Value or concern:** Raising dense solver resolution alone is unlikely to reach DCC-quality billows at an interactive cost. Smoke shape detail and flame lick shaping need distinct, field-aware controls; sparse or GPU compute becomes relevant before large grids.
 - **Unverified hypothesis:** Resolution-scaled turbulence plus density-edge disturbance for smoke, and reaction-gated shredding for flame, may improve shape at lower base resolution than uniform grid growth. The first matched curl-noise experiment is now recorded in the following entry; it reduces upper smoke but does not yet make a billow, and the flame change is subtle.
 - **Next check:** Evaluate cap-edge smoke breakup and reaction-surface flame shredding on the production 2D velocity path with mass-matched captures and GPU timing.
+
 
 
 ## 2026-10-28: Smoke resolution helps coverage but not billow shape; flame shares the current quality gap
@@ -8350,12 +8999,14 @@
 - **Next check:** Implement independent opt-in shape operators in the Pyro experiment path, then run fixed-seed, fixed-mass, fixed-camera smoke and flame ablations with image captures, centroid/upper-band metrics, temporal difference, and cost. Keep the production default unchanged until both visual and performance evidence support promotion.
 
 
+
 ## 2026-10-28: Density-gated broad curl reduces upper smoke but costs mass; flame curl remains subtle
 - **Related:** `ArtifactCore/include/Simulation/PyroSimulation.ixx`, `ArtifactCore/src/Simulation/PyroSimulation.cpp`, and `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`.
 - **Confirmed:** Added opt-in deterministic curl forcing with separate smoke-density and flame-reaction gates and wavelength settings. At 40³ over a 90-frame continuous-source fixture, smoke strength3 with wavelength18 reduces upper-third density share from 0.21545 to 0.13516 and total density from 474.93 to 436.85; strength9 lowers upper share further to 0.01774 while density falls to 340.45. Flame strength3/wavelength7 gives upper share 0.17093 and mass460.23. Repeated strength3 runs produce identical fields and images. The focused R&D plus four existing focused smoke/flame cases pass.
 - **Value or concern:** The operator is a concrete additional Pyro shaping control and performs no per-cell buffer allocation. It spreads smoke out of the upper region at moderate strength, but visible images remain mostly a rounded puff; stronger values lose too much mass. Flame image differences are modest and do not demonstrate convincing lick formation. RelWithDebInfo CPU measurements fluctuated around 2.4 ms/frame across baseline and enabled cases; this fixture cannot resolve production cost.
 - **Unverified hypothesis:** The analytic curl field may become useful when coupled with cap-edge-aware smoke forcing and reaction-surface shredding for flame; independent gates alone do not create billow topology. No GPU version, production 2D runtime integration, or live viewport evaluation has been done.
 - **Next check:** Probe the production 2D velocity update with a similar low-frequency divergence-controlled force and a separate reaction-edge force, then compare same-source images and GPU timings. Retain current Pyro controls only as opt-in R&D until mass-preserving morphology and production performance are demonstrated.
+
 
 ## 2026-10-28: Production 2D top outflow reduces cap accumulation; curl gate is weak
 - **Related:** `ArtifactCore::FluidSolver2D`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, and `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`.
@@ -8364,12 +9015,14 @@
 - **Unverified hypothesis:** Combining moderate outflow with carefully tuned source footprint and separate flame reaction-surface shaping may improve perceived billows while retaining enough density. The current flame render still needs a convincing lick profile.
 - **Next check:** Compare artist-facing controls and matched-mass captures across multiple seeds/frames, then evaluate GPU rendering and actual viewport performance before promoting the R&D knobs to UI or claiming parity.
 
+
 ## 2026-10-28: Moderate top outflow promoted to the smoke runtime default
 - **Related:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`, `Artifact/include/Layer/ArtifactLayerFluidRuntimeState.ixx`, and the production 2D outflow sweep in `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp`.
 - **Confirmed:** The app explicitly passed 30/s over a .35 band, so it did not inherit the settings struct's 30/s/.20 defaults. The measured middle candidate 60/s/.30 lowers upper-third density share .2753→.1510 and retains about 85% of final density in the 128²/44-frame fixture. Runtime defaults and the three explicit call-site arguments were aligned to 60/s/.30. The independent runtime target rebuilt and three focused tests passed after the settings-struct change.
 - **Value or concern:** This directly reduces top-heavy accumulation at a moderate density cost. It does not address the low 128² simulation resolution, broad cap shape, or missing volumetric turbulence. The 256² capture previously cost 3.6× the test-reported wall and did not improve plume distribution, so blindly increasing shared fluid/liquid defaults is not justified.
 - **Unverified:** The Artifact app target has not been rebuilt after its call-site constant change, and the updated look has not been checked in a live Composition viewport.
 - **Next check:** Build the app and capture the default 60/s/.30 profile at matched source/camera/exposure. In parallel, design a smoke-specific resolution path or 3D Pyro runtime rather than changing settings shared with liquid simulation.
+
 
 ## 2026-10-28: 画像読み込み→タイムライン→トランスフォーム→レンダーキューの統合テスト
 - **関連:** `tests/Artifact/ArtifactPipelineIntegrationTest.cpp`, `tests/Artifact/CMakeLists.txt`, `ArtifactCore/CMakeLists.txt`（IFC 参照の補正）, `ArtifactCore/include/Render/Ray.ixx`.
@@ -8386,11 +9039,13 @@
 - **Build update:** The parent `Artifact` Debug target completed successfully after CMake regeneration, compiling and linking `ArtifactAbstractLayerFractureRuntime.cpp`. The independent capture helper now defaults to the production 60/s/.30 outflow profile; the same three focused tests pass and curl remains ineffective for top-share reduction (changes under .003). The Composition viewport has not yet been captured.
 - **現行既定値との補足比較:** 旧アプリ値30/s・35%帯との同条件比較では、新60/s・30%帯はmass 1011.94→1004.00（約0.8%減）、upper-third share .162594→.151005（約7.1%減）。先の15% mass減は30/s・20%帯をcontrolとした別sweepであり、旧アプリ値との比較ではない。修正した比較テストはpass。
 
+
 ## 2026-10-28: Production-profile 2D grid increase does not justify the cost
 - **Related:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresProductionGridResolutionCostAndUpperConcentration`, `Artifact/src/Layer/ArtifactAbstractLayerImpl.cpp`, and `docs/planned/MILESTONE_PYRO_DOMAIN_LAYER_INTEGRATION_2026-09-27.md`.
 - **Confirmed:** At frame 60 with the current 7-source profile and 60/s/.30 top outflow, matched-density captures at 128²/192²/256² have normalized mass .03131/.02936/.02714, upper-third share .02328/.03842/.03479, and CPU simulation 15.13/34.26/61.11 ms/frame. Higher resolutions sharpen the raster gradient metric but increase runtime 2.26×/4.04×, reduce visible pixel coverage, and keep the plume broadly cap/column shaped. The focused R&D test passes.
 - **Value or concern:** Blindly increasing the 2D grid does not meet the user's visual goal and is not viable for realtime CPU stepping at 256². The existing 3D Pyro component settings (default 64×64×32) still do not create a layer-owned `PyroSimulation` or reach the standalone `GpuVolumeRenderer` from Composition drawing.
 - **Next check:** Integrate the existing Pyro simulation with component settings, deterministic frame seek/checkpoint replay, and the existing Diligent renderer. Capture its real layer output and measure frame cost at multiple voxel resolutions before selecting a production default. Keep smoke and flame transfer/shape controls separate while sharing the 3D velocity simulation.
+
 
 ## 2026-10-28: One Pyro field can feed both fire and smoke lookdev
 - **Related:** `ArtifactCore/include/Render/VolumeRenderer.ixx`, `ArtifactCore/include/Simulation/PyroSimulation.ixx`, and `tests/Artifact/ClonerGpuRenderContractTest.cpp`.
@@ -8399,11 +9054,13 @@
 - **Unverified:** The new test was not run because the user asked to defer CMake/build/test execution. Existing Pyro solver pressure projection allocates a temporary `std::vector` inside each step, so direct production-frame integration needs an allocation-safe path first.
 - **Next check:** After the user authorizes target regeneration, run the focused D3D12/Vulkan contract and compare combined output, alpha bounds, and frame cost before connecting it to Composition.
 
+
 ## 2026-10-28: Pyro smoke vertical-distribution sweep is ready, not yet measured
 - **Related:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::PyroSmokeDistributionSweepReportsResolutionAndVerticalSpread` and `ArtifactCore/src/Simulation/PyroSimulation.cpp::applyCurlNoise`.
 - **Confirmed:** Existing experiments found that the 2D smoke runtime needs explicit top outflow to reduce upper accumulation; the 3D Pyro profile sweep now holds domain/grid/emission duration/render settings fixed while varying source height, buoyancy, and smoke turbulence, and logs mass, vertical centroid, upper/lower-third mass, and GPU captures.
 - **Value or concern:** These controls may improve composition and break up a broad cap, but stronger turbulence can redistribute or lose mass and does not add solver resolution. The sweep source was added without running it, as requested; there is no evidence yet that any condition improves the image.
 - **Next check:** Once target regeneration is allowed, run the D3D12/Vulkan focused test, compare all four captures at equal exposure, and only then select controls or build a denser adaptive voxel representation.
+
 
 ## 2026-10-28: Separate volume output resolution from solver resolution
 - **Related:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::PyroVolumeRenderResolutionSweepUsesTheSameSimulationField` and `ArtifactCore/src/Render/VolumeRenderer.cpp::GpuVolumeRenderer::render`.
@@ -8412,11 +9069,13 @@
 - **Unverified:** Test source was added but not built or run. PixelColor reads quantized output and gradient energy is a comparative metric, not a perceptual quality score.
 - **Next check:** Run at least the D3D12 focused test, inspect the three same-field captures, and separately sweep solver grid only if output sampling is not the limiting factor.
 
+
 ## 2026-10-28: Lift low-density smoke visibility with ambient fill
 - **Related:** `Artifact/src/Render/ArtifactIRenderer.cpp::ArtifactIRenderer::Impl::drawSmokeVolumeField` and captures under `build/smoke-runtime-rnd/production-2d-curl-noise-default-60-030/`.
 - **Confirmed:** Existing 768×576 production 2D captures show a broad upper cap rendered near the dark background while the narrow central column is much brighter. The volume shader computes smoke illumination as `ambientFill + (1-ambientFill)*lightTransmittance`; ambient fill is fixed at 0.30. An unverified proposal to raise it was withdrawn before any source edit remained.
 - **Value or concern:** This may make the upper cap brighter, but prior matched-field 2D look-dev (`2026-10-26: Shadow distance and ambient fill mainly remap global contrast in 2D smoke`) found that ambient fill primarily remaps brightness while leaving broad plume structure unchanged. No production constant change was retained; no shader edit remains from this hypothesis.
 - **Next check:** If visibility is tested, compare the same production field with mean luminance matched and evaluate cap readability separately from billow topology. Do not promote a global brightness change as a morphology or resolution fix.
+
 
 ## 2026-10-28: A test-only open-top pressure projection did not solve the 2D cap
 - **Related:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ComparesClosedTopDensitySpongeAndVelocityOutflowAdapters`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp::advanceLayerSmokeRuntime`, and `ArtifactCore/src/Physics/FluidSolver2D.cpp::setBoundary`.
@@ -8425,6 +9084,7 @@
 - **Unverified:** These are prior standalone captures, not a current live Composition viewport comparison, and no test was run in this turn.
 - **Next check:** Stop spending effort on top-boundary cosmetics. The remaining quality ceiling is 128² CPU field transport and a 2.5D renderer; compare a GPU-resident/adaptive higher-resolution 2D solve or a 3D Pyro layer against the current fixed-frame capture, with matched source mass, temporal sequence, and frame-time budget.
 
+
 ## 2026-10-28: Smoke quality work should attach to the existing GPU fluid milestone
 - **Related:** `ArtifactCore/src/Physics/FluidSolver2D.cpp`, `Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cpp`, `docs/planned/MILESTONE_PHYSICS_PRODUCTION_HARDENING.md` Phase 3.1, and `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`.
 - **Confirmed:** The production 2D fluid runtime constructs `ArtifactCore::FluidSolver2D` on CPU. The renderer can consume/upload the resulting density field, but this does not move advection or pressure projection to GPU. The physics hardening milestone already lists GPU pressure solve and density texture output as pending. The existing 128²→256² experiment multiplies measured CPU time by about 4.0 without materially changing the smooth cap/column morphology.
@@ -8432,12 +9092,14 @@
 - **Unverified hypothesis:** A bounded GPU-resident 2D solver with smoke-specific active-region/resolution policy may provide useful interactive detail sooner than connecting the current dense CPU Pyro volume; which path wins depends on matched visual and GPU-time captures.
 - **Next check:** Prototype the smallest isolated GPU advection/projection experiment behind the existing standalone R&D harness, compare 128² and higher grids at equal source, camera, exposure, and frame budget, and capture complete sequences. Do not promote production defaults or claim quality until the generated test target is coherent and those captures show billow improvement.
 
+
 ## 2026-10-28: Low-level smoke runtime defaults differ from new Fluid component defaults
 - **Related:** `Artifact/src/Layer/ArtifactAbstractLayerImpl.cpp`, `Artifact/include/Layer/ArtifactLayerFluidRuntimeState.ixx`, and the smoke standalone/GPU R&D tests.
 - **Confirmed:** New Fluid components use radius `.16`, density `.0625`, count `7`, and vertical velocity `-.75` in `ArtifactAbstractLayerImpl.cpp`; these values already reflect the tested broad-source profile. The lower-level `LayerSmokeRuntimeSettings` fallback still uses radius `.10`, density `.16`, and velocity `-1.0`. The GPU smoke test had copied the low-level fallback and therefore did not represent the new-component profile unless overrides were supplied.
 - **Value or concern:** Describing the settings-struct fallback as the production component default produced a misleading baseline and risked retesting an already-promoted source-profile change.
 - **Unverified hypothesis:** The broader profile's prior improvement to upper distribution should be rechecked under the current `.30` outflow band and actual Composition/render-scale conditions; earlier captures used a different top-outflow setup and did not establish billow quality.
 - **Next check:** Keep the GPU capture defaults aligned with the component values, retain the low-level fallback as its own explicit control, and compare both with matched camera/exposure, vertical-third mass/coverage, and complete frame sequences after the independent target is rebuilt coherently.
+
 
 ## 2026-10-28: GPU smoke detail strength does not control the base coordinate warp
 - **Related:** `Artifact/src/Render/ArtifactIRenderer.cpp::warpedFieldUv`, `sampleDensity`, and `tests/Artifact/ClonerGpuRenderContractTest.cpp::ProductionSmokeVolumeDrawsSmokeAndFlameFieldsOnDiligentRenderer`.
@@ -8450,12 +9112,14 @@
 - **Additional confirmed constraint:** The existing GPU velocity-guided shader experiment traces detail coordinates for four or ten frames: four-frame tracing adds soft streaks, while ten-frame tracing makes narrow ribbons; neither makes small billowing curls. A persistent GPU detail field would need per-layer ping-pong state and deterministic reset/replay on seek. The current smoke renderer's field/output textures are renderer-owned and reused across draws, so persistent detail cannot safely be added as another global texture pair without separating layer identity and lifetime.
 - **Next check:** Compare a stateless, current-velocity guided 2× render detail against a per-layer GPU ping-pong field in an isolated harness, measuring the actual source-to-render image sequence, seek/replay identity, upload bytes, GPU timestamp, and CPU extraction cost. The current evidence does not justify integrating either route into production.
 
+
 ## 2026-10-28: Add a production-aspect 384×216 point to the 2D smoke sweep
 - **Related:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresProductionGridResolutionCostAndUpperConcentration` and `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`.
 - **Confirmed:** Existing records already contain a production Diligent 256×144 versus 384×216 comparison at 768×432 output, frame 95, and matched component emitter settings. The higher grid clarifies some folds but leaves a large upper loop and missing fine billows; Debug wall time to frame 95 increases from 40.68 s to 88.43 s. The standalone CPU sweep separately measures solver cost and writes each field to the same 768×576 raster.
 - **Value or concern:** The first new proposal used a 384² square grid, which did not match the production aspect ratio and duplicated a higher-resolution render-path experiment. It was corrected to 384×216 so its CPU-side comparison can be read alongside the existing GPU captures. This is diagnostic only and does not change production defaults.
 - **Unverified:** The corrected standalone source has not been rebuilt or run. The existing production captures do not provide CPU-only simulation time.
 - **Next check:** After explicit authorization to regenerate/build/run, compare the standalone 128²–384×216 results at matched exposure and report CPU time with upper/middle/lower density shares. The current evidence already argues against a blind grid increase; a GPU-resident/adaptive solve or connected 3D Pyro runtime remains the quality path to evaluate.
+
 
 ## 2026-10-28: Compare smoke lift speed and top absorption in one factorial sweep
 - **Related:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::MeasuresSourcePlacementAndTopOutflowBandInteraction` and the source-Y / top-band GPU lookdev notes in the smoke emitter milestone.
@@ -8465,12 +9129,14 @@
 - **Unverified hypothesis:** Reducing upward speed may reduce top-heavy concentration while preserving more coherent visible smoke than changing the source position; no factorial result exists.
 - **Next check:** After explicit authorization to regenerate/build/run, inspect the four matched captures and evaluate upper-third share with total mass, visible area, and rendered luma. Keep defaults unchanged unless a candidate improves the readable silhouette without merely cropping it.
 
+
 ## 2026-10-28: Validate smoke distribution changes through the production volume shader
 - **Related:** `tests/Artifact/ClonerGpuRenderContractTest.cpp::MeasuresProductionSmokeSourceAndTopOutflowOnDiligentRenderer`.
 - **Confirmed:** The new source-height/top-band factorial in `SmokeRuntimeStandalone` renders solver density through a simplified CPU reference raster. That is useful for controlled solver comparison but does not include the production Diligent volume shader, so it cannot establish how the actual shaded plume reads.
 - **Value or concern:** Added the same 2×2 controls to the existing Diligent GPU test target, using the current 128² source profile, detail strength .9, and fixed output dimensions. It measures both field mass distribution and rendered luma distribution/coverage, and writes four actual-render captures. The target already exists, so no CMake registration change was made.
 - **Unverified:** The GPU fixture and its four captures have not been rebuilt or run. No visual improvement is claimed.
 - **Next check:** Once the user authorizes CMake/build/test execution, review all four captures alongside field and luma thirds. If moving the emitter or widening the removal band only crops the plume, reject that candidate; continue toward coherent billow detail instead.
+
 
 ## 2026-10-28: Test mass-normalized shape warping on the 2D production smoke field
 - **Related:** `tests/Artifact/SmokeRuntimeStandalone/SmokeRuntimeStandaloneTest.cpp::ExploresMassNormalizedProductionDensityWarp` and the 2D `drawSmokeVolumeField` lookdev path.
@@ -8480,12 +9146,14 @@
 - **Unverified hypothesis:** The next useful 2D quality step needs coherent time evolution coupled to the solver velocity or an advected secondary field, plus a genuine solver-grid quality control. Static image warps and stronger screen-space noise are insufficient.
 - **Next check:** After the user's execution gate is lifted, run the current matched solver-resolution GPU matrix and measure motion-aligned detail across a frame sequence. Keep the 3D Pyro GPU renderer as the candidate production-quality path only after Composition integration, temporal determinism, and measured performance are established.
 
+
 ## 2026-10-28: Smoke curl wavelength needs a controlled physical-scale sweep
 - **Related:** `tests/Artifact/PyroSmokeLookdevRAndTest.cpp::MatchedPhysicalSweepReportsFieldAndRenderedDistribution`, `ArtifactCore/src/Simulation/PyroSimulation.cpp::applyCurlNoise`, and the saved 2D / 48³ Pyro captures.
 - **Confirmed:** The saved 384×216 2D capture has a narrow rising column with a broad upper curl. The saved 48³ Pyro output is smoother at the edge but compact and nearly spherical. These images were reopened from disk; no new simulation was run. Pyro `applyCurlNoise` currently evaluates one smooth analytic curl field per profile; the existing lookdev matrix had effectively one physical wavelength.
 - **Value or concern:** The first source-only GPU lookdev matrix tested three solver curl wavelengths and held source, emission duration, buoyancy, camera, and transfer fixed for those cases. The follow-up below replaces its initial strength-one setup with a direct one-vs-two-octave comparison at standard wavelength and strength three, plus fine/coarse two-octave variants. Eight profiles per grid produce sixteen captures. It now also measures output alpha-gradient and high-pass RMS. Those values can increase from grain, so they are diagnostics to compare with the images and temporal continuity, not quality scores.
 - **Unverified:** Whether any wavelength forms coherent billows, improves vertical spread, or costs acceptably is unknown. The source has not been configured, built, or run under the user's explicit defer instruction.
 - **Next check:** Run the existing focused GPU target only after authorization; compare solver density and rendered alpha/luma distribution together with all sixteen captures and measured simulation/render time. For the standard wavelength, compare one versus two bands directly. If both remain sphere-like, the solver needs a richer/adaptive turbulence model or velocity-advected detail, not merely a larger grid.
+
 
 ## 2026-10-28: Add opt-in multi-band curl forcing for Pyro smoke R&D
 - **Related:** `ArtifactCore/include/Simulation/PyroSimulation.ixx::PyroSimulationSettings`, `ArtifactCore/src/Simulation/PyroSimulation.cpp::applyCurlNoise`, `tests/ArtifactCore/PhysicsDeterminismTest.cpp`, and `tests/Artifact/PyroSmokeLookdevRAndTest.cpp`.
@@ -8494,12 +9162,14 @@
 - **Unverified:** No build or test execution occurred, so compilation, the force response, CPU overhead, and whether the field becomes more billowy remain unknown. The test target is configured only through existing project registration and should be rebuilt only after explicit authorization.
 - **Next check:** Run focused Core determinism and GPU lookdev tests after authorization; inspect all 16 matched outputs, check motion continuity and upper/middle/lower distribution, and compare CPU time against the one-band standard-wavelength control. Keep the feature opt-in unless it improves coherent plume structure without unacceptable cost or aliasing.
 
+
 ## 2026-10-28: 統合テストで見つかったプリコンプ時刻と保存再読込の修正
 - **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cpp`, `Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerImpl.cpp`, `Artifact/src/Layer/ArtifactAbstractLayer.cpp`, `Artifact/src/Layer/ArtifactAbstractLayerPersistence.cpp`, `tests/Artifact/ArtifactPipelineIntegrationTest.cpp`.
 - **確認できた事実（原因）:** ① オフライン/レンダーキュー経路のプリコンプは `childComp->getThumbnailAtFrame()`（レイヤーサムネイル）で合成しており、トランスフォームも時刻も反映されない固定スナップショットだった。② `Id()` のデフォルトコンストラクタがランダム UUID を生成するため、`LayerID parentLayerId_` が未設定でも「親あり」になり、`clearParent()` もまたランダム id を代入していた。保存時は nil UUID が `"00000000-0000-0000-0000-000000000000"` として書かれ、importer の preflight が「unresolved layer parentId」で保存プロジェクトを拒否していた。
 - **変更:** ① `renderPrecompCompositionGPU()` を追加し、precomp レイヤー単位でキャッシュした `OffscreenCompositionRenderer` で子コンポジションをマップ済み子フレームで実レンダー。`renderToQImage()` は対象フレームへ seek し、描画後に元フレームへ復元する。GPU ターゲットが無い場合のみ従来のサムネイルへフォールバック。② `parentLayerId_` を `LayerID(Id::Nil())` で初期化、`clearParent()` でも nil を代入、直列化は nil を空文字にした。
 - **確認:** 子フレーム 3 は子レイヤー非表示（赤 0）、15/25 で赤重心 (256.7,112.0)→(395.7,165.5)、緑角度 16.0°→27.6° と子の移動・回転・タイムライン窓がプリコンプ内に反映。保存→再読込→再レンダーは `before=(160.6,108.5) area 6970` / `after` が完全一致。CTest は `ArtifactPipelineIntegrationTest` 8.21 秒、transition 2 件とも pass。
 - **注意:** この修正により、既存プロジェクトで「親なし」だったレイヤーの `hasParent()` が false になる（従来はランダム id のため true）。プリコンプのインタラクティブ表示経路（サムネイル）は未変更で、オフライン描画のみ実レンダーに切り替わっている点は未確認の残課題。
+
 
 ## 2026-10-28: ウィジェット向け仮想入力APIをアプリ内MCPに整備
 - **関連:** `Artifact/src/AppMain.cpp`（`ArtifactVirtualInput` / `ArtifactApplication` / `ArtifactUiControlMcpServer`）、`tools/ui_control_client.py`。
@@ -8515,12 +9185,14 @@
 - **未確認（重要）:** ビルド・実行はしていない。以下は未検証。① `ArtifactCompositionRenderWidget` は `WA_PaintOnScreen` + `nativeEvent` 経路で実入力を処理しており、`sendEvent` による合成クリックが本番と同じ結果になるか。② `QShortcutMap` を通る QAction 系ショートカット（メニューのアクセラレータ）は `sendEvent` では発火しない可能性が高く、`ShortcutBindings::matches()` を手で引く経路だけが確実。③ `keyPressEvent` 内で `QCursor::pos()` を直接読む箇所（`ArtifactCompositionRenderWidget.cpp` の gizmo 数値入力）は仮想ポインタ位置ではなく実カーソル位置を使う。④ ダイアログの重なり順は `topLevelWidgets()` の並び順に依存しており、背面に回ったフローティング窓が前面のウィンドウより先にヒットする可能性がある。⑤ `native: true` のスクリーンショットは他アプリのウィンドウが重なるとそれを写す。⑥ `ui.typeText` は文字ごとに `key` を割り当てているだけで、IME 入力・デッドキー・非ラテン文字の変換は再現しない。
 - **懸念:** `--ui-mcp-port` は localhost 限定・明示指定時のみだが、有効時は誰でもアプリを操作できる。製品ビルドで既定 ON にしないこと。
 - **次に確認すべきこと:** ビルド許可後に、タイムラインのクリップ ドラッグ、数値フィールドのスクラブ、ビューポートのパン／回転マーキーを実機で確認する。あわせて、メニューバーをクリック → `ui.listActions` → 項目座標クリックの往復、`ui.screenshot` の画素がホスト画面と一致するか、Ctrl 併用クリックが複数選択として通るかを確認する。②と③が問題になる場合は、仮想ポインタ位置を返す共有アクセサを用意し、`QCursor::pos()` の直読みをそこへ寄せる。
+
 ## 2026-10-28: 2.5D smoke shading can reveal density structure without changing opacity
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cpp::kSmokeVolumeRaymarchHlsl`, `Artifact/include/Render/ArtifactIRenderer.ixx::SmokeVolumeLook`, `tests/Artifact/SmokeVolumeLookdevRAndTest.cpp`。
 - **確認できた事実:** `FluidSolver2D` を60 frame進めた同一density fieldでVulkan / D3D12のlook A/Bを行った。raw-density tint rampとshadow-densityはalphaをpixel単位で変えず、fine detail frequency 0.42→0.90はmean horizontal luma gradientを約25.7%上げ、alpha massを約1.32%下げた。native imageではdense coreと細かな粒状構造が増えるが、rolling 3D billowには届かない。これは製品runtimeのflame/checkpoint経路を含まない単一frame field testである。
 - **価値または懸念:** Keeping color/scatter/shadow controls separate from density extinction permits volume shading experiments without perturbing the emitter's silhouette. Frequency raises edge structure but can read as grain instead of advected turbulent folds; image gradient alone is not a perceptual quality metric.
 - **仮説（未検証）:** Density-ramped tint combined with broad, time-coherent density warping may add layered billows with less grain than increasing scalar detail frequency alone.
 - **次に確認すべきこと:** 同じlookを製品runtimeのframe-30/60/95出力で比較し、密度・alpha・luma分布とwarm GPU timingの複数回統計を記録する。連続frameでbillowが時間的に成長し、視覚的に粒状ノイズへ崩れないことをnative画像で確認してから製品defaultsを判断する。
+
 
 ## 2026-10-28: 2D smoke solver curl beats stronger screen-space warp
 - **Related:** `tests/Artifact/SmokeVolumeLookdevRAndTest.cpp`, `Artifact/src/Render/ArtifactIRenderer.cpp`, `build/artifacts/smoke-lookdev-rnd/solver-curl-strength-contact-sheet.png`.
@@ -8529,17 +9201,20 @@
 - **Unverified hypothesis:** A .25-strength, one-octave profile may provide a useful quality/cost balance in the complete layer path with less breakup than .5.
 - **Next check:** Run matched frame-30/60/95 Composition captures through `LayerFluidRuntimeState` with flame off/on and gather repeated warm GPU timings. Keep product defaults unchanged until that gate passes.
 
+
 ## 2026-10-29: Coordinate SafeArea text output did not parse back
 - **Related:** `ArtifactCore/src/Coordinate/CoordinateProfile.cpp::CoordinateValue::toString` and `CoordinateValue::fromString`, plus `tests/ArtifactCore/CoordinateProfileContractTest.cpp`.
 - **Confirmed:** SafeArea formatting emits a `px` suffix (`safe + 8.00px`), while the parser previously passed the remaining `8.00px` directly to `QString::toDouble`, which yields zero. Added a narrow suffix strip and a text round-trip contract.
 - **Value or concern:** Coordinate values saved or edited through the formatted SafeArea representation could lose their offset on parsing.
 - **Next check:** Run the new coordinate contract target after the user's build/test restriction is lifted; include locale-sensitive decimal behavior if coordinate text is expected to follow application locale.
 
+
 ## 2026-10-29: ImageTransformCV has declared operations without definitions
 - **Related:** `ArtifactCore/include/Image/Transform/ImageTransformCV.ixx` and `ArtifactCore/src/Image/OpenCV/ImageTransformCV.cpp`.
 - **Confirmed:** Repository search finds a definition only for `convertToFloat32RGBA`; the public `scaleImage`, `rotateImage`, and `affineTransform` declarations have no matching definitions in ArtifactCore.
 - **Value or concern:** Callers that use those declarations may fail at link time; the single available conversion operation also previously emitted BGRA channel order despite its RGBA contract. The channel order is fixed in this task.
 - **Next check:** Determine whether scale/rotate/affine declarations are intentionally reserved or should be implemented, then add one contract test for each when ownership and interpolation/border semantics are agreed.
+
 
 ## 2026-10-30: Independent effect contracts added for Lofi and render/export candidates
 - **Related:** `tests/Artifact/VHSTapeEffectContractTest.cpp`, `tests/Artifact/LofiEffectContractTest.cpp`, `tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`, and new contract sources under `tests/Artifact` and `tests/ArtifactCore`.
@@ -8552,6 +9227,7 @@
 - **Video mux coverage clarification:** `tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp` builds a deterministic MJPEG AVI plus timed-tone WAV, renders an AAC 48 kHz stereo MP4 through Render Queue, and checks stream metadata, duration, sampled video frame colors, and decoded audio RMS windows. This task adds a second path using a corrupt external audio source; it expects the job to report `Audio mux failed`, then loads and decodes the retained video-only temporary MP4 and verifies its stream has no audio and its sampled frame has the expected color. The test is registered through the existing audio integration target but remains runtime-unverified because builds/tests are prohibited by repository instructions.
 - **Proxy failure contract clarification:** The new `NativeGenerationFailurePreservesFinalOutputAndRemovesPartialOutput` uses an existing but corrupt input with `backend=native`, verifies `started`/`progress` and the stable `FFmpeg C API proxy generation:` failure prefix, preserves the prior final output, and expects stale/partial output removal. The inspected Artifact child HEAD `62178530deeb06cc7154f770fa8b6b5a7c0172fd` equals the parent gitlink and opens the input before native encoder discovery, so this failure does not depend on available hardware encoders. Contract remains runtime-unverified.
 - **Tile source revision confirmation:** Artifact child HEAD `62178530deeb06cc7154f770fa8b6b5a7c0172fd` equals the parent gitlink. In that exact source, `ArtifactRenderQueueService` creates and logs a `TileGrid` in the GPU frame path but does not submit tile ROIs to drawing; the same source excludes `TileRenderMode::Tiled` from XPU mixed dispatch. The tile rendering and parity gap is therefore confirmed for the linked Artifact revision; no child code was modified.
+
 ## 2026-10-30: RenderQueue multi-channel tests must follow actual AOV source wiring
 - **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cpp::configureRendererChannelsForRenderQueueJob` / `renderOneFrameImpl`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`、`tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`。
 - **確認できた事実:** RenderQueue はジョブ準備時に renderer の全 auxiliary channel source を null にし、要求 channel を enable する。Composition Render Controller は GPU blend pipeline の各 AOV SRV を `setAuxiliaryChannelSource()` へ設定するが、RenderQueue 内には同等の設定呼び出しがない。renderer の multi-channel readback は Normal/Velocity/ObjectId/MaterialId 等を auxiliary source からのみ採取し、source が null なら対応 channel を生成しない。RenderQueue は要求 channel が欠けるとフレームを失敗させる。
@@ -8559,11 +9235,13 @@
 - **価値または懸念:** 要求AOVが出ない現状を「出力内容検証」の正常契約テストに混ぜると、実装・renderer設定とテストfixtureのどちらの欠落か切り分けにくい。RenderQueue に AOV source 統合が加わった段階で、実際のサンプル値・座標系・Cryptomatte payloadをQueue経由で再検証する必要がある。コード確認のみで、ビルド／実行は未実施。
 - **次に確認すべきこと:** RenderQueue が layer AOV target を所有または取得する設計が決まった後、Normal/Velocity/IDの非定数fixtureを追加し、EXR再読込値と元のtarget値の対応を確認する。
 
+
 ## 2026-10-30: Effect mix契約は共通実行経路を通して検証する
 - **関連:** `Artifact/include/Effects/ArtifactAbstractEffect.ixx`, `Artifact/src/Effects/ArtifactAbstractEffect.cpp::applyConfigured`, `tests/Artifact/LofiEffectContractTest.cpp`。
 - **確認できた事実:** 派生effectの`apply()`は効果本体を実行する仮想関数であり、Effect Mix／region／maskの合成は`ArtifactAbstractEffect::applyConfigured()`が行う。`applyCPUOnly()`はCPUモードを一時設定したうえで共通実行経路を通る。
 - **価値または懸念:** Mix=0のpassthroughや中間Mix比率を確認するテストで派生`apply()`を直接呼ぶと、共通合成を迂回して契約を測定できない。Old TVの新しいMixテストは`applyCPUOnly()`経由に統一した。コード確認のみで、テスト実行は未実施。
 - **次に確認すべきこと:** layer effectの独立テストでMix、Effect Region、Maskを検証するときは、共通適用APIと効果本体APIを意図的に使い分け、fixtureが測る層を明示する。
+
 
 ## 2026-10-30: Animated Effect Region coordinates can reactivate a disabled region
 - **関連:** `Artifact/src/Effects/ArtifactAbstractEffect.cpp::setContext`、`tests/Artifact/LofiEffectContractTest.cpp::AnimatedRegionDisableOverridesAnimatedCoordinates`。
@@ -8571,11 +9249,13 @@
 - **価値または懸念:** 有効フラグがfalseのままでも座標アニメーションで領域が復活すると、Effect Region UIと描画結果が食い違う。テストは「falseが座標より優先される」契約を追加したが、未実行かつ親のArtifactStudio側テストのみで、Artifactサブモジュールの実装修正は行っていない。
 - **次に確認すべきこと:** テスト実行許可後に独立Lofiターゲットを走らせて再現を確定し、修正する場合は座標更新とEnabled状態を同じ評価スナップショットとして適用する経路をArtifact所有者に確認する。
 
+
 ## 2026-10-30: Lens Distortion の CPU/GPU サンプラー境界を比較する
 - **関連:** `Artifact/src/Effects/LensDistortion/LensDistortionEffect.cpp::LensDistortionEffectCPUImpl::applyCPU` / `LensDistortionEffectGPUImpl::kHlsl`、`ArtifactCore/src/ImageProcessing/Distortion.cpp::sampleBilinear`。
 - **確認できた事実:** CPU の `sampleBilinear` は画像外座標を幅・高さで wrap する一方、GPU の `sampleLinear` は画像端へ clamp する。さらに最小寸法が 1 px の場合、CPU の `maxR` は `0.5`、GPU の `maxR` は最低 `1` となる。
 - **価値または懸念:** `transparentEdges=false` で境界を越えるワープ、または 1 px 寸法では CPU と GPU の出力が異なる可能性がある。今回の独立テストは CPU 契約だけを固定し、GPU parity は未検証である。
 - **次に確認すべきこと:** ビルド・GPU テストの実行が許可された後、同一の非定数画像を CPU / GPU に通し、透明端の有効・無効と 1 px 軸を含む寸法で画素比較する。仕様として wrap と clamp のどちらが正しいか決めてから、実装または許容誤差付き parity テストを検討する。
+
 
 ## 2026-10-30: Bevel の edgeMode は CPU/GPU 実装で未使用
 - **関連:** `Artifact/src/Effects/Bevel/BevelEffect.cpp::BevelEffectCPUImpl::applyCPU` / `BevelEffectGPUImpl::kHlsl`。
@@ -8583,11 +9263,13 @@
 - **価値または懸念:** UI の Edge Mode 切替は現状の両実装で出力へ影響しない。今回の契約テストは setter の状態のみを確認し、モード別出力を主張しない。
 - **次に確認すべきこと:** 意図する alpha bevel と edge bevel の入力・出力仕様を確認し、CPU/GPU 共通の非定数輪郭 fixture で mode 差を定義してから実装・統合テストする。実行確認は未実施。
 
+
 ## 2026-10-30: Glitch の BlockNoise パラメータが出力へ未接続
 - **関連:** `ArtifactCore/src/Graphics/Effect/GlitchCreativeEffect.cpp`、`ArtifactCore/include/Graphics/Effect/GlitchCreativeEffect.ixx`、`tests/ArtifactCore/ColorVibranceEffectTest.cpp`。
 - **確認できた事実:** Core の Glitch は `Amount` と `RGBSplit` を `process()` 内で読み取る。`BlockNoise` はクラス内 accessor と初期値付き parameter として宣言されるが、処理本体から呼ばれていない。
 - **価値または懸念:** UI／プリセットから Block Noise を変更しても画素へ反映されない可能性が高い。現状のテストは RGBSplit の色チャンネル順を追加し、BlockNoise の動作を保証していない。変更は子リポジトリ ArtifactCore に属するため、この作業では実装を変更していない。
 - **次に確認すべきこと:** BlockNoise の期待する空間パターンと Amount との合成仕様を定義し、子リポジトリの実装変更が明示的に許可された後、同じ固定入力・時刻で BlockNoise 0 と正値の画素差、および再現性・Alpha保持を契約化する。現状はコード読解のみで未実行。
+
 
 ## 2026-10-30: 派生Raster Effectの無効化経路を確認する
 - **関連:** `Artifact/src/Effects/ArtifactAbstractEffect.cpp::applyCPUOnly/applyConfigured/apply`、`Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactOldTVEffect::apply/ArtifactFilmGrungeEffect::apply`、`tests/Artifact/LofiEffectContractTest.cpp::DisabledOldTvIsAnExactPassthrough`。
@@ -8595,8 +9277,64 @@
 - **価値または懸念:** 無効状態の派生効果が共通API経由でも処理を通る可能性があり、既存Old TV契約と食い違う疑いがある。またFilmGrungeはCPU画素処理を持ちながらCPU対応をfalseと報告する可能性が高く、fallbackや実行可否判定との不整合が懸念される。どちらも実動作は未検証。修正する場合は Artifact 子リポジトリの変更が必要であり、この作業では触れていない。
 - **次に確認すべきこと:** 明示的なテスト実行許可後に`DisabledOldTvIsAnExactPassthrough`とFilmGrungeの`supportsCPU()`／CPU fallback経路を確認する。結果に基づき、共通適用層と各overrideの責務を整理し、子リポジトリの修正許可後に独立契約を整える。
 
+
 ## 2026-10-30: Creative Glitch の CPU/GPU ノイズ契約を分けて確認する
 - **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactGlitchEffect::apply` / `kGlitchComputeHlsl`、`tests/Artifact/LofiEffectContractTest.cpp`。
 - **確認できた事実:** CPU は固定 seed の `RandomStream` を行ごとに fork し、GPU shader は座標と salt から hash noise を計算する。Lofi の独立 CPU ケースは再現性、alpha、色チャンネルの空間サンプル、in-place、descriptor、empty input、単一列境界を確認する。加えて `ArtifactRenderQueueGlitchGpuEffectIntegrationTest` は GPU RenderQueue 出力を検証し、baseline との差、同一フレーム再現性、CPU reference との相違、alpha 維持を assert する。別の登録契約は generic node の登録を確認する。
 - **価値または懸念:** CPU/GPU が別の乱数生成方式を使うため、画素単位の完全一致は現行テスト契約ではなく、GPU integration test も CPU reference との非一致を期待する。GPU integration test は登録より先の描画経路を検証する一方、ビルド／実行は未確認である。
 - **次に確認すべきこと:** GPU テスト実行が許可された後、独立 CPU suite と `ArtifactRenderQueueGlitchGpuEffectIntegrationTest` の両方を実行して、契約が現在の実装で成立するか確認する。CPU/GPU 共通の視覚的意味論まで固定する必要が生じた場合は、row displacement・RGB separation・alpha の個別比較を追加する。
+
+## 2026-10-29: KuwaharaのAnisotropic設定はCPU経路で未使用
+- **関連:** `Artifact/src/Effects/Kuwahara/KuwaharaEffect.cpp` の `KuwaharaEffectCPUImpl::applyCPU` と `KuwaharaEffectGPUImpl::renderGPU`、`tests/Artifact/KuwaharaEffectContractTest.cpp`。
+- **確認できた事実:** `anisotropic_` はCPU/GPU実装へ同期され、GPU定数へ渡されるが、CPUの四象限平均処理内では参照されていない。
+- **価値または懸念:** CPUフォールバックとGPU経路でAnisotropic設定の効果が異なる可能性がある。実際にどの環境で差が出るかと意図された仕様は未検証。今回のテストはRadius/Sharpnessだけを対象とし、製品実装は変更していない。
+- **次に確認すべきこと:** 同じ非一様画像でCPU/GPU双方をAnisotropic on/offにして比較し、CPU側でも効果が必要か、UI/プロパティを経路に合わせて制限するかを判断する。
+
+
+## 2026-10-29: Physical Halationの拡散パスがRGB成分を上書きする可能性
+- **関連:** `ArtifactCore/include/ImageProcessing/Halation.ixx::PhysicalHalation::process` と `diffuse`、`tests/Artifact/PhysicalHalationEffectContractTest.cpp`。
+- **確認できた事実:** `process` は同じ `highlights` バッファに対して赤層用と緑・青層用の `diffuse` を順番に実行する。各 `diffuse` は入力の各成分を平均化後、倍率を掛けた値で全成分を書き戻す。
+- **価値または懸念:** 後段パスが前段で作った成分をゼロ倍率で上書きする可能性がある。拡散色の寄与が意図した二層モデルと一致するかは未検証で、製品実装は今回変更していない。
+- **次に確認すべきこと:** 固定seed不要の単一点入力を使い、各チャンネルの拡散半径と寄与を `PhysicalHalation::process` の独立テストで測定する。既存の `PhysicalHalationEffectContractTest` は効果量・閾値・アルファを確認し、この成分別契約はまだ検証していない。
+
+
+## 2026-10-29: ブロックモーション推定の部分重なり候補
+- **関連:** `Artifact/src/Effects/Rasterizer/PixelSortEffect.cpp`、`Artifact/src/Effects/Rasterizer/TrailFadeEffect.cpp` の前フレームブロック探索。
+- **確認できた事実:** 両実装は探索候補ごとにフレーム内へ入る画素だけを比較し、比較数で二乗差を平均する。候補の有効な重なり面積が少ない場合も、十分な面積がある候補と同じ条件で最小誤差を選ぶ。
+- **価値または懸念:** 未検証だが、部分重なりの少数画素が偶然一致すると、広い領域で安定した候補より優先され、画面端近くのモーションベクトルが不安定になる可能性がある。今回の同一フレーム契約テストは画素値を一意にして誤ったゼロ差候補を避けている。
+- **次に確認すべきこと:** 既知の平行移動を持つテクスチャで、各候補の比較数・平均誤差・推定ベクトルを計測し、重なり面積の下限または信頼度項を導入した場合の品質と端部挙動を比較する。今回の依頼範囲では製品実装は変更しない。
+
+
+## 2026-10-29: DecalEffect宣言が製品ターゲットに未接続
+- **関連:** `Artifact/include/Effects/Rasterizer/DecalEffect.ixx`、`Artifact/CMakeLists.txt`、既存の `SurfaceFX` テクスチャデカール経路。
+- **確認できた事実:** `DecalEffect.ixx` は `export module DecalEffect` としてクラス宣言・inline setter/property処理を持つが、Artifact の CMake モジュール／実装リストに登録されず、対応する `.cpp` も見当たらない。別に `SurfaceFX` の TextureDecal 実装経路が存在する。
+- **価値または懸念:** この宣言は独立した画像エフェクトとしてビルド・適用されることを現状保証できず、SurfaceFX のデカールとは責務が重複するように見える。用途と履歴を確認せずテストターゲットへ無理に追加すべきではない。
+- **次に確認すべきこと:** `DecalEffect` の生成・登録参照とコミット履歴を調べ、意図された旧宣言か未完了実装かを判定する。必要性が確認できた場合にのみ、対応する module / implementation / Effect Service 経路を決める。
+
+
+## 2026-10-29: Optics Compensationの中心座標単位が不一致の可能性
+- **関連:** `Artifact/include/Effects/OpticsCompensation/OpticsCompensationEffect.ixx`、`Artifact/src/Effects/OpticsCompensation/OpticsCompensationEffect.cpp`、`ArtifactCore/src/ImageProcessing/Distortion.cpp` の `makeOpticsCompensation`。
+- **確認できた事実:** Effect の Center X/Y setter は 0〜1 に clamp する。一方、Effect は値を画像幅・高さでスケールせず `makeOpticsCompensation` に渡し、同関数はピクセル座標 `sx/sy` を受けて `dx=(sx-cx)/cx`、`dy=(sy-cy)/cy` を計算する。`applyDisplacement` はピクセル座標を渡す。
+- **価値または懸念:** 公開 Center X/Y が正規化座標なら、中心指定と実際の歪み中心が一致しない可能性が高い。仕様の意図と既存プロジェクト互換性を確認する前に本番計算を変更しない。
+- **次に確認すべきこと:** Center X/Y の UI 表示・保存形式・過去の実装意図を確認し、正規化座標かピクセル座標かを確定してから契約テストと必要な変換修正を決める。
+
+
+## 2026-10-29: NoiseEffectは現状で画素処理を持たない
+- **関連:** `Artifact/include/Effects/Noise/NoiseEffect.ixx`、`Artifact/src/Effects/Glow/NoiseEffect.cpp`、`Artifact/CMakeLists.txt` の `ARTIFACT_EFFECTS_NOISE_MODULES` / `ARTIFACT_EFFECTS_NOISE_IMPL`。
+- **確認できた事実:** NoiseEffect の Impl は空で、コンストラクタはID・表示名・Rasterizer stage を設定するだけである。CPU/GPU impl の登録や画素処理は確認できず、同じ Noise target にある AddNoiseEffect とは別のクラスである。
+- **価値または懸念:** NoiseEffect を独立テストから直接 apply しても画素効果の契約を検証できない。UIまたはシリアライズに公開されている場合、実行時には何もしない効果として見える可能性がある。
+- **次に確認すべきこと:** NoiseEffect の EffectID を登録・生成するサービスや保存済みプロジェクトの参照を調べ、互換性上の残存クラスか、実装漏れかを判断する。
+
+
+## 2026-10-29: LUTEffectのソースが製品ターゲットへ未登録
+- **関連:** `Artifact/include/Effects/ColorCorrection/LUTEffect.ixx`、`Artifact/src/Effects/ColorCorrection/LUTEffect.cpp`、`Artifact/CMakeLists.txt` の `ARTIFACT_EFFECTS_COLOR_MODULES` / `ARTIFACT_EFFECTS_COLOR_IMPL`。
+- **確認できた事実:** LUTEffect のインターフェースと CPU 実装ファイルは存在するが、CMake の色効果モジュール・実装リストに登録されていない。ImageEffects 独立テストがリンクする `ArtifactEffectsColor` からも import できない。
+- **価値または懸念:** ソースの存在だけでは LUT 効果がビルド・配布されることを保証せず、独立テストの登録にも影響する。既存色補正スイート内には LUT の実出力テストが見当たらない。
+- **次に確認すべきこと:** LUTEffect を製品へ含める意図と、`ColorLUT` が属する ArtifactCore モジュールの利用条件を確認したうえで、CMake 登録と独立テストを追加するか判断する。
+
+
+## 2026-10-29: Gaussian Blur実装の公開ターゲット登録を確認する
+- **関連:** `Artifact/include/Effects/Blur/BlurEffect.ixx`、`Artifact/src/Effects/Blur/BlurEffect.cpp`、`Artifact/CMakeLists.txt` の `ARTIFACT_EFFECTS_BLUR_MODULES` / `ARTIFACT_EFFECTS_BLUR_IMPL`。
+- **確認できた事実:** `BlurEffect` のモジュールインターフェースと実装ファイルは存在する一方、公開CMakeのBlurライブラリ登録リストに両ファイルが含まれていない。既存 `ArtifactEffectsBlur` targetへリンクしても `Artifact.Effect.Rasterizer.Blur` をimportできないため、独立テストを登録すると未解決モジュールになる。
+- **価値または懸念:** 現状のテストからは当該Blur実装をビルド・利用できず、ソースの存在だけでは製品経路への収録を保証しない。今回のテスト拡張では、公開targetに登録済みの別Blur効果を対象とした。
+- **次に確認すべきこと:** `BlurEffect` を製品で利用する意図があるかを確認し、必要ならCMake targetへの登録・他のBlur APIとの重複・Renderer選択経路を設計単位でレビューする。実装が未使用なら削除候補として扱う前に参照と履歴を確認する。
