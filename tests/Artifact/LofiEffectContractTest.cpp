@@ -3338,6 +3338,81 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeCombinesGrainVignetteAndStainInStableOrder)
+{
+    constexpr int width = 5;
+    constexpr int height = 4;
+    constexpr float grainAmount = 0.08f;
+    constexpr float vignette = 0.45f;
+    constexpr float stain = 0.3f;
+    constexpr int seed = 997;
+    constexpr std::int64_t frame = 6;
+    constexpr std::array<float, 3> sourceRgb{0.3f, 0.45f, 0.6f};
+    constexpr std::array<float, 3> grainWeights{0.92f, 1.0f, 1.05f};
+    constexpr float alpha = 0.4f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4 + 0] = sourceRgb[0];
+        pixels[pixel * 4 + 1] = sourceRgb[1];
+        pixels[pixel * 4 + 2] = sourceRgb[2];
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(grainAmount));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("vignette"), QVariant(vignette));
+    effect.setPropertyValue(UniString("stain"), QVariant(stain));
+    effect.setPropertyValue(UniString("seed"), QVariant(seed));
+    for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                 "gateWeave"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    EffectContext context;
+    context.compositionFrame = frame;
+    effect.setContext(context);
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    const std::uint32_t frameSeed = static_cast<std::uint32_t>(
+        static_cast<std::uint64_t>(seed) * 1664525ull +
+        static_cast<std::uint64_t>(frame) * 1013904223ull);
+    for (int y = 0; y < height; ++y) {
+        const float ny = (2.0f * y / (height - 1)) - 1.0f;
+        for (int x = 0; x < width; ++x) {
+            const float nx = (2.0f * x / (width - 1)) - 1.0f;
+            const std::uint32_t blockHash = frameSeed ^
+                static_cast<std::uint32_t>(x * 73856093) ^
+                static_cast<std::uint32_t>(y * 19349663);
+            const float grain =
+                (static_cast<float>(blockHash & 0xffffu) / 32767.5f - 1.0f) *
+                grainAmount;
+            const float vignetteFactor = std::clamp(
+                1.0f - vignette * std::pow(nx * nx + ny * ny, 1.35f),
+                0.0f, 1.0f);
+            const float stainFactor = 1.0f + stain *
+                std::sin(nx * 4.7f + ny * 2.9f + static_cast<float>(seed));
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            for (std::size_t channel = 0; channel < sourceRgb.size(); ++channel) {
+                const float expected = sourceRgb[channel] * vignetteFactor *
+                    stainFactor + grain * grainWeights[channel];
+                EXPECT_NEAR(result[offset + channel], expected, 1.0e-6f)
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+            }
+            EXPECT_FLOAT_EQ(result[offset + 3], alpha)
+                << "x=" << x << " y=" << y;
+        }
+    }
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeZeroGateWeavePreservesEverySourceSample)
 {
     constexpr int width = 7;
