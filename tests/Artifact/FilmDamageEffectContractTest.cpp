@@ -399,3 +399,43 @@ TEST(FilmDamageEffectContractTest,
     }
     EXPECT_GT(burnPixels, 0);
 }
+
+TEST(FilmDamageEffectContractTest,
+     ScratchesCreateVerticalDamageAndPreserveAlpha)
+{
+    const auto source = makeFilmSurface();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::FilmDamageEffect effect;
+    setFilmProperty(effect, "Grain", QVariant(0.0));
+    setFilmProperty(effect, "Dust", QVariant(0.0));
+    setFilmProperty(effect, "Scratches", QVariant(1.0));
+    setFilmProperty(effect, "Gate Weave", QVariant(0.0));
+    setFilmProperty(effect, "Flicker", QVariant(0.0));
+    setFilmProperty(effect, "Film Burn", QVariant(0.0));
+    setFilmProperty(effect, "Evolution", QVariant(0.125));
+    setFilmProperty(effect, "Seed", QVariant(552));
+
+    effect.applyCPUOnly(source, output);
+
+    int changedPixels = 0;
+    int changedRows = 0;
+    for (int y = 0; y < kHeight; ++y) {
+        bool rowChanged = false;
+        for (int x = 0; x < kWidth; ++x) {
+            const auto actual = output.image().getPixel(x, y);
+            const auto input = source.image().getPixel(x, y);
+            EXPECT_FLOAT_EQ(actual.a(), input.a());
+            const bool changed =
+                std::abs(actual.r() - input.r()) > 1.0e-6f ||
+                std::abs(actual.g() - input.g()) > 1.0e-6f ||
+                std::abs(actual.b() - input.b()) > 1.0e-6f;
+            if (changed) {
+                ++changedPixels;
+                rowChanged = true;
+            }
+        }
+        changedRows += rowChanged ? 1 : 0;
+    }
+    EXPECT_GT(changedPixels, 0);
+    EXPECT_GT(changedRows, 1);
+}
