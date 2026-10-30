@@ -2197,6 +2197,17 @@ if(ARTIFACT_BUILD_TESTS)
             TIMEOUT 90
             RUN_SERIAL TRUE
         )
+        add_test(NAME ArtifactProxyWorkerMissingRequestContractTest
+            COMMAND $<TARGET_FILE:ArtifactProxyWorkerProtocolTest>
+                "--gtest_filter=ProxyWorkerProtocolTest.MissingRequestArgumentReturnsStructuredFailure"
+        )
+        set_tests_properties(ArtifactProxyWorkerMissingRequestContractTest PROPERTIES
+            ENVIRONMENT
+                "ARTIFACT_PROXY_WORKER_EXECUTABLE=${CMAKE_BINARY_DIR}/proxy-worker-package/$<CONFIG>/$<TARGET_FILE_NAME:ArtifactProxyWorker>"
+            LABELS "proxy;worker;protocol;missing-argument;contract"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
         add_test(NAME ArtifactProxyWorkerBatchFailureSummaryContractTest
             COMMAND $<TARGET_FILE:ArtifactProxyWorkerProtocolTest>
                 "--gtest_filter=ProxyWorkerProtocolTest.InvalidBatchJobsEachFailAndRetainBatchSummary"
@@ -2216,6 +2227,17 @@ if(ARTIFACT_BUILD_TESTS)
             ENVIRONMENT
                 "ARTIFACT_PROXY_WORKER_EXECUTABLE=${CMAKE_BINARY_DIR}/proxy-worker-package/$<CONFIG>/$<TARGET_FILE_NAME:ArtifactProxyWorker>"
             LABELS "proxy;worker;input-validation;output-retention;protocol;contract"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactProxyWorkerMediaFoundationAudioReencodeRejectionContractTest
+            COMMAND $<TARGET_FILE:ArtifactProxyWorkerProtocolTest>
+                "--gtest_filter=ProxyWorkerProtocolTest.MediaFoundationAudioReencodeRejectionPreservesExistingOutput"
+        )
+        set_tests_properties(ArtifactProxyWorkerMediaFoundationAudioReencodeRejectionContractTest PROPERTIES
+            ENVIRONMENT
+                "ARTIFACT_PROXY_WORKER_EXECUTABLE=${CMAKE_BINARY_DIR}/proxy-worker-package/$<CONFIG>/$<TARGET_FILE_NAME:ArtifactProxyWorker>"
+            LABELS "proxy;worker;mediafoundation;audio-reencode;failure;output-retention;contract"
             TIMEOUT 90
             RUN_SERIAL TRUE
         )
