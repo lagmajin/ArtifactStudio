@@ -576,7 +576,8 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
     }
 }
 
-TEST(LofiEffectContractTest, FilmGrungeCombinesPrimaryAndAdditionalMaskAlphas)
+TEST(LofiEffectContractTest,
+     FilmGrungeCombinesValidMasksAndIgnoresInvalidAdditionalMasks)
 {
     constexpr int width = 16;
     constexpr int height = 12;
@@ -627,6 +628,12 @@ TEST(LofiEffectContractTest, FilmGrungeCombinesPrimaryAndAdditionalMaskAlphas)
     effect.setMaskOpacity(0.5f);
     effect.addEffectMaskImage(firstMask);
     effect.addEffectMaskImage(secondMask);
+    constexpr std::array<float, 4> mismatchedMaskPixel{
+        0.0f, 0.0f, 0.0f, 1.0f};
+    auto mismatchedMask = makeShared<ImageF32x4_RGBA>();
+    mismatchedMask->setFromRGBA32F(mismatchedMaskPixel.data(), 1, 1);
+    effect.addEffectMaskImage(mismatchedMask);
+    effect.addEffectMaskImage(SharedPtr<ImageF32x4_RGBA>{});
     effect.applyCPUOnly(source, maskedEffect);
 
     const float* full = fullEffect.image().rgba32fData();
