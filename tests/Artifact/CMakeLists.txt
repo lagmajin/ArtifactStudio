@@ -610,6 +610,48 @@ artifact_add_test(ArtifactVHSTapeEffectContractTest
 set_tests_properties(ArtifactVHSTapeEffectContractTest PROPERTIES
     LABELS "effect;vhs;lofi;cpu;contract"
 )
+add_test(NAME ArtifactVHSTapeScanlineContractTest
+    COMMAND $<TARGET_FILE:ArtifactVHSTapeEffectContractTest>
+        "--gtest_filter=VHSTapeEffectContractTest.*Scanline*"
+)
+set_tests_properties(ArtifactVHSTapeScanlineContractTest PROPERTIES
+    LABELS "effect;vhs;scanline;cpu;contract"
+)
+add_test(NAME ArtifactVHSTapeColorBleedContractTest
+    COMMAND $<TARGET_FILE:ArtifactVHSTapeEffectContractTest>
+        "--gtest_filter=VHSTapeEffectContractTest.*ColorBleed*"
+)
+set_tests_properties(ArtifactVHSTapeColorBleedContractTest PROPERTIES
+    LABELS "effect;vhs;color-bleed;cpu;contract"
+)
+add_test(NAME ArtifactVHSTapeNoiseContractTest
+    COMMAND $<TARGET_FILE:ArtifactVHSTapeEffectContractTest>
+        "--gtest_filter=VHSTapeEffectContractTest.*NoiseAmount*"
+)
+set_tests_properties(ArtifactVHSTapeNoiseContractTest PROPERTIES
+    LABELS "effect;vhs;noise;cpu;contract"
+)
+add_test(NAME ArtifactVHSTapeOsdContractTest
+    COMMAND $<TARGET_FILE:ArtifactVHSTapeEffectContractTest>
+        "--gtest_filter=VHSTapeEffectContractTest.*Osd*"
+)
+set_tests_properties(ArtifactVHSTapeOsdContractTest PROPERTIES
+    LABELS "effect;vhs;osd;cpu;contract"
+)
+add_test(NAME ArtifactVHSTapeEvolutionContractTest
+    COMMAND $<TARGET_FILE:ArtifactVHSTapeEffectContractTest>
+        "--gtest_filter=VHSTapeEffectContractTest.*Evolution*:VHSTapeEffectContractTest.*Wobble*:VHSTapeEffectContractTest.*TrackingError*"
+)
+set_tests_properties(ArtifactVHSTapeEvolutionContractTest PROPERTIES
+    LABELS "effect;vhs;evolution;tracking;cpu;contract"
+)
+add_test(NAME ArtifactVHSTapePropertyContractTest
+    COMMAND $<TARGET_FILE:ArtifactVHSTapeEffectContractTest>
+        "--gtest_filter=VHSTapeEffectContractTest.*NumericProperties*:VHSTapeEffectContractTest.*PublishedPropertySchema*"
+)
+set_tests_properties(ArtifactVHSTapePropertyContractTest PROPERTIES
+    LABELS "effect;vhs;properties;cpu;contract"
+)
 
 artifact_add_test(ArtifactVignetteEffectContractTest
     SOURCES
