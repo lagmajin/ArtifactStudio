@@ -2363,7 +2363,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
     params.setFrameRate(30.0);
     params.setDurationFrames(2);
     params.setBackgroundColor(ArtifactCore::FloatColor(
-        0.1f, 0.2f, 0.3f, 1.0f));
+        0.0f, 0.0f, 0.0f, 0.0f));
     const auto composition = projects.createComposition(params);
     ASSERT_TRUE(composition.success);
 
@@ -2372,7 +2372,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
     layerParams.setWidth(width);
     layerParams.setHeight(height);
     layerParams.setColor(ArtifactCore::FloatColor(
-        0.72f, 0.48f, 0.26f, 1.0f));
+        0.72f, 0.48f, 0.26f, 0.55f));
     const auto layer = projects.addLayerToComposition(
         composition.id, layerParams);
     ASSERT_TRUE(layer.success);
@@ -2411,6 +2411,10 @@ TEST(RenderQueueLayerImageIntegrationTest,
     const QImage effected(framePath(effectedPath));
     ASSERT_EQ(baseline.size(), QSize(width, height));
     ASSERT_EQ(effected.size(), QSize(width, height));
+    const int centerAlpha = baseline.pixelColor(width / 2, height / 2).alpha();
+    EXPECT_GT(centerAlpha, 0);
+    EXPECT_LT(centerAlpha, 255)
+        << "fixture must exercise genuinely translucent source pixels";
     EXPECT_NE(effected, baseline)
         << "Old TV generic GPU dispatch must affect rendered RGB pixels";
     for (int y = 0; y < height; ++y) {
