@@ -3829,9 +3829,12 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesVignetteAcrossCompositionFrames)
     ArtifactFilmGrungeEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
     for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
-                                 "flicker", "gateWeave", "stain"}) {
+                                 "flicker", "gateWeave"}) {
         effect.setPropertyValue(UniString(property), QVariant(0.0f));
     }
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    effect.setPropertyValue(UniString("stain"), QVariant(0.15f));
+    effect.setPropertyValue(UniString("seed"), QVariant(1977));
     effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
     auto* vignette = effect.editableProperty(QStringLiteral("vignette"));
     ASSERT_NE(vignette, nullptr);
@@ -3855,12 +3858,21 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesVignetteAcrossCompositionFrames)
     ArtifactFilmGrungeEffect fixedEffect;
     fixedEffect.setComputeMode(ComputeMode::CPU);
     for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
-                                 "flicker", "gateWeave", "stain"}) {
+                                 "flicker", "gateWeave"}) {
         fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
     }
+    fixedEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    fixedEffect.setPropertyValue(UniString("stain"), QVariant(0.15f));
+    fixedEffect.setPropertyValue(UniString("seed"), QVariant(1977));
     fixedEffect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
     fixedEffect.setPropertyValue(UniString("vignette"), QVariant(0.25f));
+    ImageF32x4RGBAWithCache firstFixedFrame;
+    context.compositionFrame = 0;
+    fixedEffect.setContext(context);
+    fixedEffect.applyCPUOnly(source, firstFixedFrame);
+
     ImageF32x4RGBAWithCache fixedFrame;
+    context.compositionFrame = 30;
     fixedEffect.setContext(context);
     fixedEffect.applyCPUOnly(source, fixedFrame);
 
@@ -3873,19 +3885,22 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesVignetteAcrossCompositionFrames)
     const float* firstPixels = firstFrame.image().rgba32fData();
     const float* interpolatedPixels = interpolatedFrame.image().rgba32fData();
     const float* animatedPixels = animatedFrame.image().rgba32fData();
+    const float* firstFixedPixels = firstFixedFrame.image().rgba32fData();
     const float* fixedPixels = fixedFrame.image().rgba32fData();
     const float* interpolatedFixedPixels =
         interpolatedFixedFrame.image().rgba32fData();
     ASSERT_NE(firstPixels, nullptr);
     ASSERT_NE(interpolatedPixels, nullptr);
     ASSERT_NE(animatedPixels, nullptr);
+    ASSERT_NE(firstFixedPixels, nullptr);
     ASSERT_NE(fixedPixels, nullptr);
     ASSERT_NE(interpolatedFixedPixels, nullptr);
     for (std::size_t pixel = 0;
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
         for (std::size_t channel = 0; channel < 3; ++channel) {
             const std::size_t offset = pixel * 4 + channel;
-            EXPECT_FLOAT_EQ(firstPixels[offset], sourceValue);
+            EXPECT_FLOAT_EQ(firstPixels[offset], firstFixedPixels[offset])
+                << "first frame pixel=" << pixel << " channel=" << channel;
             EXPECT_FLOAT_EQ(animatedPixels[offset], fixedPixels[offset])
                 << "pixel=" << pixel << " channel=" << channel;
             EXPECT_FLOAT_EQ(interpolatedPixels[offset],
@@ -3897,13 +3912,35 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesVignetteAcrossCompositionFrames)
     }
     const std::size_t center =
         (static_cast<std::size_t>(height / 2) * width + width / 2) * 4;
-    EXPECT_NEAR(animatedPixels[center], sourceValue, 1.0e-6f);
-    EXPECT_NEAR(animatedPixels[0],
-                sourceValue * (1.0f - 0.25f * std::pow(2.0f, 1.35f)),
-                1.0e-6f);
-    EXPECT_NEAR(interpolatedPixels[center], sourceValue, 1.0e-6f);
-    EXPECT_NEAR(interpolatedPixels[0],
-                sourceValue * (1.0f - 0.125f * std::pow(2.0f, 1.35f)),
+    const auto expectedRed = [](const int x, const int y, const int frame,
+                                const float vignetteAmount) {
+        constexpr float grainAmount = 0.2f;
+        constexpr float stainAmount = 0.15f;
+        constexpr int seed = 1977;
+        const float nx = (2.0f * x / (width - 1)) - 1.0f;
+        const float ny = (2.0f * y / (height - 1)) - 1.0f;
+        const std::uint32_t frameSeed = static_cast<std::uint32_t>(
+            static_cast<std::uint64_t>(seed) * 1664525ull +
+            static_cast<std::uint64_t>(frame) * 1013904223ull);
+        const std::uint32_t blockHash = frameSeed ^
+            static_cast<std::uint32_t>(x * 73856093) ^
+            static_cast<std::uint32_t>(y * 19349663);
+        const float grain =
+            (static_cast<float>(blockHash & 0xffffu) / 32767.5f - 1.0f) *
+            grainAmount;
+        const float vignetteFactor = std::clamp(
+            1.0f - vignetteAmount * std::pow(nx * nx + ny * ny, 1.35f),
+            0.0f, 1.0f);
+        const float stainFactor = 1.0f + stainAmount *
+            std::sin(nx * 4.7f + ny * 2.9f + static_cast<float>(seed));
+        return sourceValue * vignetteFactor * stainFactor + grain * 0.92f;
+    };
+    EXPECT_NEAR(animatedPixels[center],
+                expectedRed(width / 2, height / 2, 30, 0.25f), 1.0e-6f);
+    EXPECT_NEAR(animatedPixels[0], expectedRed(0, 0, 30, 0.25f), 1.0e-6f);
+    EXPECT_NEAR(interpolatedPixels[center],
+                expectedRed(width / 2, height / 2, 15, 0.125f), 1.0e-6f);
+    EXPECT_NEAR(interpolatedPixels[0], expectedRed(0, 0, 15, 0.125f),
                 1.0e-6f);
 }
 
