@@ -2133,6 +2133,16 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 90
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactExportSessionContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.ExportSession*"
+    )
+    set_tests_properties(ArtifactExportSessionContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;session;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
 
     # Playback range service contract runs in its own process with a Core
     # event loop; it does not start playback or initialize a graphics device.
