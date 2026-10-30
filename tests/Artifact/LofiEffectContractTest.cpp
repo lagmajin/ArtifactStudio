@@ -2388,6 +2388,69 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeInPlaceProcessingMatchesOutOfPlaceAndPreservesAlpha)
+{
+    constexpr int width = 31;
+    constexpr int height = 19;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>(y * width + x) * 4;
+            pixels[offset + 0] = 0.15f + 0.01f * x;
+            pixels[offset + 1] = 0.2f + 0.015f * y;
+            pixels[offset + 2] = 0.8f - 0.01f * x;
+            pixels[offset + 3] = (x + y) % 3 == 0 ? 0.35f : 0.9f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache outOfPlace;
+    ImageF32x4RGBAWithCache inPlace(image);
+    EffectContext context;
+    context.compositionFrame = 27;
+    ArtifactFilmGrungeEffect outOfPlaceEffect;
+    ArtifactFilmGrungeEffect inPlaceEffect;
+    for (ArtifactFilmGrungeEffect* effect :
+         {&outOfPlaceEffect, &inPlaceEffect}) {
+        effect->setComputeMode(ComputeMode::CPU);
+        effect->setContext(context);
+        effect->setPropertyValue(UniString("grainAmount"), QVariant(0.18f));
+        effect->setPropertyValue(UniString("scratchAmount"), QVariant(0.75f));
+        effect->setPropertyValue(UniString("dustAmount"), QVariant(0.8f));
+        effect->setPropertyValue(UniString("flicker"), QVariant(0.3f));
+        effect->setPropertyValue(UniString("gateWeave"), QVariant(1.5f));
+        effect->setPropertyValue(UniString("vignette"), QVariant(0.35f));
+        effect->setPropertyValue(UniString("stain"), QVariant(0.6f));
+        effect->setPropertyValue(UniString("seed"), QVariant(23));
+    }
+    outOfPlaceEffect.applyCPUOnly(source, outOfPlace);
+    inPlaceEffect.applyCPUOnly(inPlace, inPlace);
+
+    const float* expected = outOfPlace.image().rgba32fData();
+    const float* actual = inPlace.image().rgba32fData();
+    ASSERT_NE(expected, nullptr);
+    ASSERT_NE(actual, nullptr);
+    bool observedEffect = false;
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(actual[offset + channel], expected[offset + channel])
+                << "pixel=" << pixel << " channel=" << channel;
+            observedEffect = observedEffect ||
+                std::abs(actual[offset + channel] - pixels[offset + channel]) >
+                    1.0e-5f;
+        }
+        EXPECT_FLOAT_EQ(actual[offset + 3], pixels[offset + 3])
+            << "alpha must be copied unchanged at pixel=" << pixel;
+    }
+    EXPECT_TRUE(observedEffect);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeSeedClampsAndControlsTheDeterministicOutput)
 {
     constexpr int width = 64;
