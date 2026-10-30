@@ -1970,7 +1970,7 @@ if(ARTIFACT_BUILD_TESTS)
             ArtifactAppRuntime
     )
     set_tests_properties(ArtifactLofiEffectContractTest PROPERTIES
-        LABELS "effect;lofi;old-tv;cpu;contract"
+        LABELS "effect;lofi;film-grunge;glitch;old-tv;cpu;contract"
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
