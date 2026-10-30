@@ -7,6 +7,7 @@
 
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
+import Artifact.Effect.Context;
 import Artifact.Effect.Rasterizer.Glitch;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
@@ -74,6 +75,67 @@ TEST(GlitchEffectContractTest, SeededChannelShiftIsRepeatableAndPreservesAlpha)
             EXPECT_FLOAT_EQ(a.g(), input.g());
         }
     }
+}
+
+TEST(GlitchEffectContractTest,
+     SeededScanlinesRepeatWithinAFrameAndChangeAcrossFrames)
+{
+    constexpr int width = 64;
+    constexpr int height = 48;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            pixels[offset] = static_cast<float>(x + 1) / (width + 1);
+            pixels[offset + 1] = static_cast<float>(y + 1) / (height + 1);
+            pixels[offset + 2] = static_cast<float>((x * 3 + y * 5) % 31) / 30.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 2) % 17) / 16.0f;
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    Artifact::GlitchEffect effect;
+    effect.setIntensity(0.0f);
+    effect.setScanlines(1.0f);
+    effect.setColorShift(0.0f);
+
+    Artifact::EffectContext context;
+    context.compositionFrame = 5;
+    effect.setContext(context);
+    ArtifactCore::ImageF32x4RGBAWithCache firstFrame;
+    ArtifactCore::ImageF32x4RGBAWithCache repeatedFrame;
+    effect.applyCPUOnly(source, firstFrame);
+    effect.applyCPUOnly(source, repeatedFrame);
+    context.compositionFrame = 6;
+    effect.setContext(context);
+    ArtifactCore::ImageF32x4RGBAWithCache nextFrame;
+    effect.applyCPUOnly(source, nextFrame);
+
+    const float* first = firstFrame.image().rgba32fData();
+    const float* repeated = repeatedFrame.image().rgba32fData();
+    const float* next = nextFrame.image().rgba32fData();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(repeated, nullptr);
+    ASSERT_NE(next, nullptr);
+    std::size_t changedFromPreviousFrame = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(first[offset + channel], repeated[offset + channel])
+                << "same-frame pixel=" << pixel << " channel=" << channel;
+            if (first[offset + channel] != next[offset + channel]) {
+                ++changedFromPreviousFrame;
+            }
+        }
+        EXPECT_FLOAT_EQ(first[offset + 3], pixels[offset + 3])
+            << "pixel=" << pixel;
+        EXPECT_FLOAT_EQ(next[offset + 3], pixels[offset + 3])
+            << "next-frame pixel=" << pixel;
+    }
+    EXPECT_GT(changedFromPreviousFrame, 0u);
 }
 
 TEST(GlitchEffectContractTest,
