@@ -218,6 +218,68 @@ TEST(TileGridContractTest, RepeatedBoundedPlansAdvanceAcrossPartialRoiTiles)
     EXPECT_EQ(cursor, 9u);
 }
 
+TEST(TileGridContractTest,
+     BoundedPlansCoverExactlyTheTilesIntersectingFractionalClippedRois)
+{
+    const TileGrid grid(11, 9, 4);
+    constexpr std::array<RenderROI, 7> rois{
+        RenderROI(0.0f, 0.0f, 4.0f, 4.0f),
+        RenderROI(3.5f, 3.5f, 2.0f, 2.0f),
+        RenderROI(-3.0f, -1.0f, 5.0f, 2.0f),
+        RenderROI(7.5f, 5.5f, 10.0f, 10.0f),
+        RenderROI(4.0f, 0.0f, 4.0f, 9.0f),
+        RenderROI(10.5f, 8.5f, 1.0f, 1.0f),
+        RenderROI(11.0f, 0.0f, 1.0f, 1.0f),
+    };
+
+    ASSERT_TRUE(grid.isValid());
+    for (const RenderROI& roi : rois) {
+        std::array<bool, 9> expected{};
+        int expectedCount = 0;
+        for (int tileY = 0; tileY < grid.gridHeight; ++tileY) {
+            for (int tileX = 0; tileX < grid.gridWidth; ++tileX) {
+                const QRectF tile = grid.tileRectClamped(TileKey{tileX, tileY});
+                const bool intersects =
+                    tile.right() > roi.x() && tile.x() < roi.right() &&
+                    tile.bottom() > roi.y() && tile.y() < roi.bottom();
+                const std::size_t ordinal =
+                    static_cast<std::size_t>(tileY * grid.gridWidth + tileX);
+                expected[ordinal] = intersects;
+                expectedCount += intersects ? 1 : 0;
+            }
+        }
+
+        EXPECT_EQ(grid.countTilesIntersecting(roi), expectedCount);
+        std::array<bool, 9> visited{};
+        std::uint64_t cursor = 0;
+        int visitedCount = 0;
+        for (int batch = 0; batch < static_cast<int>(visited.size()) &&
+                            visitedCount < expectedCount;
+             ++batch) {
+            const auto plan = grid.makeBoundedPlan(roi, 1, cursor);
+            ASSERT_EQ(plan.visibleDirtyTileCount, expectedCount);
+            ASSERT_EQ(plan.scheduledCount, 1);
+            const TileKey key = plan.tiles[0];
+            ASSERT_GE(key.tileX, 0);
+            ASSERT_LT(key.tileX, grid.gridWidth);
+            ASSERT_GE(key.tileY, 0);
+            ASSERT_LT(key.tileY, grid.gridHeight);
+            const std::size_t ordinal = static_cast<std::size_t>(
+                key.tileY * grid.gridWidth + key.tileX);
+            EXPECT_TRUE(expected[ordinal]) << "ROI=" << roi.x() << ","
+                                           << roi.y() << "," << roi.width()
+                                           << "," << roi.height();
+            EXPECT_FALSE(visited[ordinal]) << "tile repeated across batches";
+            visited[ordinal] = true;
+            ++visitedCount;
+            cursor = plan.nextTileOrdinal;
+        }
+
+        EXPECT_EQ(visitedCount, expectedCount);
+        EXPECT_EQ(visited, expected);
+    }
+}
+
 TEST(TileGridContractTest, InvalidGridDimensionsRemainEmpty)
 {
     for (const auto [width, height, tileSize] : std::array{
