@@ -657,6 +657,82 @@ TEST(LofiEffectContractTest, FilmGrungeMixInterpolatesSourceAndEffectPixels)
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeAnimatedMixInterpolatesAtCompositionFrames)
+{
+    const auto source = makePatternSurface();
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    const auto mix = effect.editableProperty(QStringLiteral("Effect Mix"));
+    ASSERT_TRUE(mix);
+    mix->addKeyFrame(RationalTime(0, 30), 0.0);
+    mix->addKeyFrame(RationalTime(30, 30), 1.0);
+
+    EffectContext context;
+    context.frameRate = 30.0;
+    context.compositionFrame = 0;
+    effect.setContext(context);
+    EXPECT_FLOAT_EQ(effect.mix(), 0.0f);
+    ImageF32x4RGBAWithCache zeroMix;
+    effect.applyCPUOnly(source, zeroMix);
+
+    context.compositionFrame = 15;
+    effect.setContext(context);
+    EXPECT_FLOAT_EQ(effect.mix(), 0.5f);
+    ImageF32x4RGBAWithCache halfMix;
+    effect.applyCPUOnly(source, halfMix);
+    const auto refreshedProperties = effect.editableProperties();
+    EXPECT_TRUE(mix->hasKeyFrames());
+    EXPECT_TRUE(std::find(refreshedProperties.begin(), refreshedProperties.end(), mix) !=
+                refreshedProperties.end())
+        << "refreshing editable properties must retain animated FilmGrunge Mix";
+
+    context.compositionFrame = 30;
+    effect.setContext(context);
+    EXPECT_FLOAT_EQ(effect.mix(), 1.0f);
+    ImageF32x4RGBAWithCache fullMix;
+    effect.applyCPUOnly(source, fullMix);
+
+    ArtifactFilmGrungeEffect fullAtHalfFrameEffect;
+    fullAtHalfFrameEffect.setComputeMode(ComputeMode::CPU);
+    context.compositionFrame = 15;
+    fullAtHalfFrameEffect.setContext(context);
+    ImageF32x4RGBAWithCache expectedHalfEffect;
+    fullAtHalfFrameEffect.applyCPUOnly(source, expectedHalfEffect);
+
+    ArtifactFilmGrungeEffect fullAtEndFrameEffect;
+    fullAtEndFrameEffect.setComputeMode(ComputeMode::CPU);
+    context.compositionFrame = 30;
+    fullAtEndFrameEffect.setContext(context);
+    ImageF32x4RGBAWithCache expectedFullEffect;
+    fullAtEndFrameEffect.applyCPUOnly(source, expectedFullEffect);
+
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* zeroPixels = zeroMix.image().rgba32fData();
+    const float* halfPixels = halfMix.image().rgba32fData();
+    const float* fullPixels = fullMix.image().rgba32fData();
+    const float* expectedHalfPixels = expectedHalfEffect.image().rgba32fData();
+    const float* expectedFullPixels = expectedFullEffect.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(zeroPixels, nullptr);
+    ASSERT_NE(halfPixels, nullptr);
+    ASSERT_NE(fullPixels, nullptr);
+    ASSERT_NE(expectedHalfPixels, nullptr);
+    ASSERT_NE(expectedFullPixels, nullptr);
+    constexpr std::size_t channelCount = 8 * 8 * 4;
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(zeroPixels[channel], sourcePixels[channel])
+            << "zero-mix channel=" << channel;
+        EXPECT_NEAR(halfPixels[channel],
+                    sourcePixels[channel] * 0.5f +
+                        expectedHalfPixels[channel] * 0.5f,
+                    1.0e-6f)
+            << "half-mix channel=" << channel;
+        EXPECT_FLOAT_EQ(fullPixels[channel], expectedFullPixels[channel])
+            << "full-mix channel=" << channel;
+    }
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeMixClampsFiniteValuesAndResetsNonFiniteValues)
 {
     constexpr int width = 12;
