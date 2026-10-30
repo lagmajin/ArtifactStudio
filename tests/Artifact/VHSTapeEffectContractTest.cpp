@@ -1147,7 +1147,9 @@ TEST(VHSTapeEffectContractTest,
 
     bool trackingChanged = false;
     bool bottomChanged = false;
+    int trackingDisturbedRows = 0;
     for (int y = 0; y < height; ++y) {
+        bool trackingRowChanged = false;
         for (int x = 0; x < width; ++x) {
             const std::size_t offset =
                 static_cast<std::size_t>((y * width + x) * 4);
@@ -1162,6 +1164,7 @@ TEST(VHSTapeEffectContractTest,
                              baselinePixels[offset + channel]) > 1.0e-5f;
             }
             trackingChanged = trackingChanged || trackingPixelChanged;
+            trackingRowChanged = trackingRowChanged || trackingPixelChanged;
             if (y < height - 20) {
                 EXPECT_FALSE(bottomPixelChanged)
                     << "bottom jitter modified upper pixel=" << x << "," << y;
@@ -1195,8 +1198,12 @@ TEST(VHSTapeEffectContractTest,
                 << "head-switch alpha must follow its green source pixel at "
                 << x << "," << y;
         }
+        trackingDisturbedRows += trackingRowChanged ? 1 : 0;
     }
     EXPECT_TRUE(trackingChanged);
+    EXPECT_GT(trackingDisturbedRows, 0);
+    EXPECT_LT(trackingDisturbedRows, height)
+        << "tracking error should remain a sparse set of disturbed rows";
     EXPECT_TRUE(bottomChanged);
 }
 
