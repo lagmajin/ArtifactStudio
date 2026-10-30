@@ -963,6 +963,11 @@ TEST(LofiEffectContractTest,
     stackEffect->setPropertyValue(UniString("vignette"), QVariant(0.3f));
     stackEffect->setPropertyValue(UniString("stain"), QVariant(0.15f));
     stackEffect->setPropertyValue(UniString("seed"), QVariant(431));
+    const auto stackMix =
+        stackEffect->editableProperty(QStringLiteral("Effect Mix"));
+    ASSERT_TRUE(stackMix);
+    stackMix->addKeyFrame(RationalTime(0, 30), 0.0);
+    stackMix->addKeyFrame(RationalTime(34, 30), 1.0);
     composition->addEffect(stackEffect);
 
     auto secondStackEffect = makeShared<ArtifactFilmGrungeEffect>();
@@ -990,6 +995,7 @@ TEST(LofiEffectContractTest,
     directEffect.setPropertyValue(UniString("vignette"), QVariant(0.3f));
     directEffect.setPropertyValue(UniString("stain"), QVariant(0.15f));
     directEffect.setPropertyValue(UniString("seed"), QVariant(431));
+    directEffect.setMix(0.5f);
     EffectContext directContext;
     directContext.compositionFrame = frame;
     directEffect.setContext(directContext);
@@ -1015,6 +1021,8 @@ TEST(LofiEffectContractTest,
 
     ASSERT_TRUE(applyCompositionFinalEffectsToBuffer(
         composition.get(), sourceImage));
+    EXPECT_FLOAT_EQ(stackEffect->mix(), 0.5f)
+        << "the Composition frame must evaluate the animated Effect Mix";
     EXPECT_EQ(sourceImage.width(), width);
     EXPECT_EQ(sourceImage.height(), height);
     EXPECT_EQ(sourceImage.colorDescriptor(), descriptor);
@@ -1026,6 +1034,12 @@ TEST(LofiEffectContractTest,
         EXPECT_FLOAT_EQ(actual[channel], expected[channel])
             << "composition stack channel=" << channel;
     }
+    EXPECT_TRUE(stackMix->hasKeyFrames());
+    const auto refreshedStackProperties = stackEffect->editableProperties();
+    EXPECT_TRUE(std::find(refreshedStackProperties.begin(),
+                          refreshedStackProperties.end(), stackMix) !=
+                refreshedStackProperties.end())
+        << "Composition rendering must retain the animated Effect Mix property";
 
     stackEffect->setEnabled(false);
     secondStackEffect->setEnabled(false);
