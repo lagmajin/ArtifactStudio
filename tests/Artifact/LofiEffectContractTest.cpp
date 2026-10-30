@@ -496,33 +496,6 @@ TEST(LofiEffectContractTest,
     verifyEffect(oldTv, gpuGenericKeyFromString("builtin.old_tv"));
 }
 
-TEST(LofiEffectContractTest,
-     OldTvOutputIsStableAcrossCompositionFrames)
-{
-    const auto source = makePatternSurface();
-    ImageF32x4RGBAWithCache frameZero;
-    ImageF32x4RGBAWithCache laterFrame;
-    ArtifactOldTVEffect effect;
-    effect.setComputeMode(ComputeMode::CPU);
-
-    EffectContext context;
-    context.compositionFrame = 0;
-    effect.setContext(context);
-    effect.applyCPUOnly(source, frameZero);
-    context.compositionFrame = 17;
-    effect.setContext(context);
-    effect.applyCPUOnly(source, laterFrame);
-
-    const float* first = frameZero.image().rgba32fData();
-    const float* later = laterFrame.image().rgba32fData();
-    ASSERT_NE(first, nullptr);
-    ASSERT_NE(later, nullptr);
-    for (std::size_t channel = 0; channel < 8 * 8 * 4; ++channel) {
-        EXPECT_FLOAT_EQ(first[channel], later[channel])
-            << "channel=" << channel;
-    }
-}
-
 TEST(LofiEffectContractTest, OldTvPreservesInputColorDescriptor)
 {
     constexpr std::array<float, 16> pixels{

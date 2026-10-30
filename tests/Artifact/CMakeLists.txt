@@ -717,6 +717,16 @@ set_tests_properties(ArtifactGlitchEffectContractTest PROPERTIES
     LABELS "effect;glitch;cpu;contract"
 )
 
+artifact_add_test(ArtifactOldTvEffectContractTest
+    SOURCES
+        OldTvEffectContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactOldTvEffectContractTest PROPERTIES
+    LABELS "effect;old-tv;cpu;contract"
+)
+
 artifact_add_test(ArtifactStripesEffectContractTest
     SOURCES
         StripesEffectContractTest.cpp
