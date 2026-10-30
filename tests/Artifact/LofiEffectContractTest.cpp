@@ -163,8 +163,6 @@ TEST(LofiEffectContractTest, GlitchCpuSeparatesRgbAroundTheGreenReferenceSample)
     ASSERT_NE(actual, nullptr);
     const std::size_t outputOffset =
         static_cast<std::size_t>((row * width + x) * 4);
-    const std::size_t sourceOffset =
-        static_cast<std::size_t>(row * width * 4);
     const float green = actual[outputOffset + 1];
     const int referenceX = static_cast<int>(std::lround(
         green * (width + 1))) - 1;
@@ -469,6 +467,66 @@ TEST(LofiEffectContractTest,
         EXPECT_FLOAT_EQ(result[channel], pixels[channel])
             << "channel=" << channel;
     }
+}
+
+TEST(LofiEffectContractTest, FilmGrungeMixInterpolatesSourceAndEffectPixels)
+{
+    constexpr int width = 48;
+    constexpr int height = 32;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>((x * 3 + y) % 23) / 22.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 5) % 19) / 18.0f;
+            pixels[offset + 2] = static_cast<float>((x * 7 + y * 2) % 29) / 28.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 3) % 11) / 10.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.35f));
+    effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.8f));
+    effect.setPropertyValue(UniString("dustAmount"), QVariant(0.7f));
+    effect.setPropertyValue(UniString("seed"), QVariant(129));
+    EffectContext context;
+    context.compositionFrame = 12;
+    effect.setContext(context);
+
+    ImageF32x4RGBAWithCache fullMix;
+    ImageF32x4RGBAWithCache halfMix;
+    ImageF32x4RGBAWithCache zeroMix;
+    effect.setMix(1.0f);
+    effect.applyCPUOnly(source, fullMix);
+    effect.setMix(0.5f);
+    effect.applyCPUOnly(source, halfMix);
+    effect.setMix(0.0f);
+    effect.applyCPUOnly(source, zeroMix);
+
+    const float* full = fullMix.image().rgba32fData();
+    const float* half = halfMix.image().rgba32fData();
+    const float* zero = zeroMix.image().rgba32fData();
+    ASSERT_NE(full, nullptr);
+    ASSERT_NE(half, nullptr);
+    ASSERT_NE(zero, nullptr);
+    bool effectChangedRgb = false;
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(zero[channel], pixels[channel])
+            << "zero mix channel=" << channel;
+        EXPECT_NEAR(half[channel],
+                    pixels[channel] * 0.5f + full[channel] * 0.5f,
+                    1.0e-6f)
+            << "half mix channel=" << channel;
+        if (channel % 4 != 3) {
+            effectChangedRgb = effectChangedRgb ||
+                std::abs(full[channel] - pixels[channel]) > 1.0e-5f;
+        }
+    }
+    EXPECT_TRUE(effectChangedRgb);
 }
 
 TEST(LofiEffectContractTest, FilmGrungeInPlaceMatchesOutOfPlaceAndKeepsIndependentStorage)
