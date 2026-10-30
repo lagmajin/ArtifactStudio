@@ -179,6 +179,7 @@ TEST(FilmDamageEffectContractTest,
     inPlace.setColorDescriptor(descriptor);
     ArtifactCore::ImageF32x4RGBAWithCache inPlaceSurface(inPlace);
     ArtifactCore::ImageF32x4RGBAWithCache outOfPlace;
+    ArtifactCore::ImageF32x4RGBAWithCache repeatedOutOfPlace;
     Artifact::FilmDamageEffect inPlaceEffect;
     Artifact::FilmDamageEffect outOfPlaceEffect;
     const auto configureDamagedEffect = [](Artifact::FilmDamageEffect& effect) {
@@ -193,24 +194,30 @@ TEST(FilmDamageEffectContractTest,
     configureDamagedEffect(outOfPlaceEffect);
 
     outOfPlaceEffect.applyCPUOnly(source, outOfPlace);
+    outOfPlaceEffect.applyCPUOnly(source, repeatedOutOfPlace);
     inPlaceEffect.applyCPUOnly(inPlaceSurface, inPlaceSurface);
 
     const float* original = source.image().rgba32fData();
     const float* baselinePixels = baseline.rgba32fData();
     const float* expected = outOfPlace.image().rgba32fData();
+    const float* repeated = repeatedOutOfPlace.image().rgba32fData();
     const float* actual = inPlaceSurface.image().rgba32fData();
     ASSERT_NE(original, nullptr);
     ASSERT_NE(baselinePixels, nullptr);
     ASSERT_NE(expected, nullptr);
+    ASSERT_NE(repeated, nullptr);
     ASSERT_NE(actual, nullptr);
     EXPECT_EQ(source.image().colorDescriptor(), descriptor);
     EXPECT_EQ(outOfPlace.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(repeatedOutOfPlace.image().colorDescriptor(), descriptor);
     EXPECT_EQ(inPlaceSurface.image().colorDescriptor(), descriptor);
     EXPECT_NE(actual, original);
     for (std::size_t channel = 0;
          channel < source.image().totalPixels() * 4; ++channel) {
         EXPECT_FLOAT_EQ(original[channel], baselinePixels[channel])
             << "source channel=" << channel;
+        EXPECT_FLOAT_EQ(repeated[channel], expected[channel])
+            << "repeat output channel=" << channel;
         EXPECT_FLOAT_EQ(actual[channel], expected[channel])
             << "output channel=" << channel;
     }
