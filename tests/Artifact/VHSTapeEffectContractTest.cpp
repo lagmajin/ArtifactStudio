@@ -1147,6 +1147,7 @@ TEST(VHSTapeEffectContractTest,
 
     bool trackingChanged = false;
     bool bottomChanged = false;
+    bool bottomLastRowChanged = false;
     int trackingDisturbedRows = 0;
     for (int y = 0; y < height; ++y) {
         bool trackingRowChanged = false;
@@ -1170,6 +1171,10 @@ TEST(VHSTapeEffectContractTest,
                     << "bottom jitter modified upper pixel=" << x << "," << y;
             } else {
                 bottomChanged = bottomChanged || bottomPixelChanged;
+                if (y == height - 1) {
+                    bottomLastRowChanged = bottomLastRowChanged ||
+                                           bottomPixelChanged;
+                }
             }
             int trackingSourceX = -1;
             int bottomSourceX = -1;
@@ -1205,6 +1210,8 @@ TEST(VHSTapeEffectContractTest,
     EXPECT_LT(trackingDisturbedRows, height)
         << "tracking error should remain a sparse set of disturbed rows";
     EXPECT_TRUE(bottomChanged);
+    EXPECT_TRUE(bottomLastRowChanged)
+        << "the maximum head-switch weight applies at the final image row";
 }
 
 } // namespace
