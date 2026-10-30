@@ -1007,22 +1007,33 @@ TEST(LofiEffectContractTest,
         }
     }
 
-    const auto renderAtFrame = [&](const std::int64_t frame) {
+    const auto renderAtFrame = [&](const std::int64_t frame,
+                                   const DetailLevel detail) {
         composition->goToFrame(frame);
         QImage output = source;
         EXPECT_TRUE(applyCompositionFinalEffectsToImage(
-            composition.get(), output, DetailLevel::High));
-        EXPECT_EQ(output.size(), QSize(width, height));
+            composition.get(), output, detail));
         return output;
     };
-    const QImage frame12 = renderAtFrame(12);
-    const QImage repeatedFrame12 = renderAtFrame(12);
-    const QImage frame13 = renderAtFrame(13);
+    const QImage frame12 = renderAtFrame(12, DetailLevel::High);
+    const QImage repeatedFrame12 = renderAtFrame(12, DetailLevel::High);
+    const QImage frame13 = renderAtFrame(13, DetailLevel::High);
+    const QImage lowFrame12 = renderAtFrame(12, DetailLevel::Low);
+    const QImage repeatedLowFrame12 = renderAtFrame(12, DetailLevel::Low);
+    const QImage mediumFrame12 = renderAtFrame(12, DetailLevel::Medium);
+    const QImage repeatedMediumFrame12 = renderAtFrame(12, DetailLevel::Medium);
 
+    EXPECT_EQ(frame12.size(), QSize(width, height));
+    EXPECT_EQ(lowFrame12.size(), QSize(24, 16));
+    EXPECT_EQ(mediumFrame12.size(), QSize(36, 24));
     EXPECT_EQ(frame12, repeatedFrame12)
         << "re-rendering the same composition frame must be deterministic";
     EXPECT_NE(frame12, frame13)
         << "changing the composition frame must change the FilmGrunge image";
+    EXPECT_EQ(lowFrame12, repeatedLowFrame12)
+        << "Low detail output must be deterministic at a fixed frame";
+    EXPECT_EQ(mediumFrame12, repeatedMediumFrame12)
+        << "Medium detail output must be deterministic at a fixed frame";
 }
 
 TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
