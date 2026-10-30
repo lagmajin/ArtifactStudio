@@ -886,6 +886,20 @@ TEST(LofiEffectContractTest,
     stackEffect->setPropertyValue(UniString("seed"), QVariant(431));
     composition->addEffect(stackEffect);
 
+    auto secondStackEffect = makeShared<ArtifactFilmGrungeEffect>();
+    ASSERT_TRUE(secondStackEffect);
+    secondStackEffect->setComputeMode(ComputeMode::CPU);
+    secondStackEffect->setPropertyValue(UniString("grainAmount"), QVariant(0.12f));
+    secondStackEffect->setPropertyValue(UniString("grainSize"), QVariant(2.0f));
+    secondStackEffect->setPropertyValue(UniString("scratchAmount"), QVariant(0.35f));
+    secondStackEffect->setPropertyValue(UniString("dustAmount"), QVariant(0.4f));
+    secondStackEffect->setPropertyValue(UniString("flicker"), QVariant(0.1f));
+    secondStackEffect->setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    secondStackEffect->setPropertyValue(UniString("vignette"), QVariant(0.15f));
+    secondStackEffect->setPropertyValue(UniString("stain"), QVariant(0.08f));
+    secondStackEffect->setPropertyValue(UniString("seed"), QVariant(932));
+    composition->addEffect(secondStackEffect);
+
     ArtifactFilmGrungeEffect directEffect;
     directEffect.setComputeMode(ComputeMode::CPU);
     directEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
@@ -901,8 +915,23 @@ TEST(LofiEffectContractTest,
     directContext.compositionFrame = frame;
     directEffect.setContext(directContext);
     const ImageF32x4RGBAWithCache directSource(sourceImage);
+    ImageF32x4RGBAWithCache directIntermediate;
     ImageF32x4RGBAWithCache directOutput;
-    directEffect.applyCPUOnly(directSource, directOutput);
+    directEffect.applyCPUOnly(directSource, directIntermediate);
+
+    ArtifactFilmGrungeEffect secondDirectEffect;
+    secondDirectEffect.setComputeMode(ComputeMode::CPU);
+    secondDirectEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.12f));
+    secondDirectEffect.setPropertyValue(UniString("grainSize"), QVariant(2.0f));
+    secondDirectEffect.setPropertyValue(UniString("scratchAmount"), QVariant(0.35f));
+    secondDirectEffect.setPropertyValue(UniString("dustAmount"), QVariant(0.4f));
+    secondDirectEffect.setPropertyValue(UniString("flicker"), QVariant(0.1f));
+    secondDirectEffect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    secondDirectEffect.setPropertyValue(UniString("vignette"), QVariant(0.15f));
+    secondDirectEffect.setPropertyValue(UniString("stain"), QVariant(0.08f));
+    secondDirectEffect.setPropertyValue(UniString("seed"), QVariant(932));
+    secondDirectEffect.setContext(directContext);
+    secondDirectEffect.applyCPUOnly(directIntermediate, directOutput);
     expectedImage = directOutput.image();
 
     ASSERT_TRUE(applyCompositionFinalEffectsToBuffer(
@@ -920,6 +949,7 @@ TEST(LofiEffectContractTest,
     }
 
     stackEffect->setEnabled(false);
+    secondStackEffect->setEnabled(false);
     ImageF32x4_RGBA disabledBuffer;
     disabledBuffer.setFromRGBA32F(pixels.data(), width, height);
     disabledBuffer.setColorDescriptor(descriptor);
