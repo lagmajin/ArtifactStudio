@@ -345,6 +345,47 @@ TEST(HalftoneEffectContractTest,
 }
 
 TEST(HalftoneEffectContractTest,
+     PartialCellsAverageOnlyTheirPresentPixels)
+{
+    constexpr int width = 12;
+    constexpr int height = 12;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if ((x >= 8 && y < 8) || (x < 8 && y >= 8)) {
+                const std::size_t offset =
+                    (static_cast<std::size_t>(y) * width + x) * 4;
+                pixels[offset] = 1.0f;
+                pixels[offset + 1] = 1.0f;
+                pixels[offset + 2] = 1.0f;
+                pixels[offset + 3] = 0.6f;
+            }
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::ArtifactHalftoneEffect effect;
+    effect.setComputeMode(Artifact::ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_FLOAT_EQ(output.image().getPixel(10, 4).r(), 0.0f)
+        << "the 4x8 right-edge cell must average only its 32 present white pixels";
+    EXPECT_FLOAT_EQ(output.image().getPixel(4, 10).r(), 0.0f)
+        << "the 8x4 bottom-edge cell must average only its 32 present white pixels";
+    EXPECT_FLOAT_EQ(output.image().getPixel(10, 10).r(), 1.0f)
+        << "the separate bottom-right cell remains dark-input paper";
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            EXPECT_FLOAT_EQ(output.image().getPixel(x, y).a(), 1.0f)
+                << "x=" << x << " y=" << y;
+        }
+    }
+}
+
+TEST(HalftoneEffectContractTest,
      CreativeHalftoneInPlaceMatchesOutOfPlaceWithoutChangingSource)
 {
     constexpr int width = 11;
