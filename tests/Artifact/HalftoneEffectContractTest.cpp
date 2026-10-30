@@ -163,6 +163,31 @@ TEST(HalftoneEffectContractTest,
 }
 
 TEST(HalftoneEffectContractTest,
+     ContrastControlsTheLumaDrivenDotRadius)
+{
+    const auto source = makeSolidSurface(0.5f, 0.4f);
+    ArtifactCore::ImageF32x4RGBAWithCache lowContrast;
+    ArtifactCore::ImageF32x4RGBAWithCache highContrast;
+    Artifact::HalftoneEffect effect;
+    effect.setDotSize(4.0f);
+    effect.setAngle(0.0f);
+
+    effect.setContrast(0.0f);
+    effect.applyCPUOnly(source, lowContrast);
+    effect.setContrast(3.0f);
+    effect.applyCPUOnly(source, highContrast);
+
+    const auto lowContrastSample = lowContrast.image().getPixel(1, 1);
+    const auto highContrastSample = highContrast.image().getPixel(1, 1);
+    EXPECT_FLOAT_EQ(lowContrastSample.r(), 0.0f)
+        << "zero contrast keeps the maximum dot radius";
+    EXPECT_FLOAT_EQ(highContrastSample.r(), 1.0f)
+        << "high contrast shrinks the dot below this sample";
+    EXPECT_FLOAT_EQ(lowContrastSample.a(), 1.0f);
+    EXPECT_FLOAT_EQ(highContrastSample.a(), 1.0f);
+}
+
+TEST(HalftoneEffectContractTest,
      CreativeHalftoneUsesEightPixelCellsAndWritesOpaqueMonochrome)
 {
     constexpr int width = 8;
