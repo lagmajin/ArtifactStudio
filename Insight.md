@@ -8582,3 +8582,9 @@
 - **確認できた事実:** `applyCPUOnly()` は `applyConfigured()` を呼び、後者は仮想 `apply()` を呼ぶ。`ArtifactAbstractEffect::apply()` には`enabled`判定がある一方、Old TV と FilmGrunge のoverride本体には同判定がない。既存Old TVテストは無効時の完全パススルーを期待している。加えて、基底クラスのコメントは独自`apply()`にCPU参照を持つeffectへ`supportsCPU()` overrideを求めるが、FilmGrungeはoverrideせず、基底実装は`cpuImpl_`の有無を返す。FilmGrungeのconstructorにも`setCPUImpl()`は見当たらない。コード経路の静的確認のみで、テスト実行はしていない。
 - **価値または懸念:** 無効状態の派生効果が共通API経由でも処理を通る可能性があり、既存Old TV契約と食い違う疑いがある。またFilmGrungeはCPU画素処理を持ちながらCPU対応をfalseと報告する可能性が高く、fallbackや実行可否判定との不整合が懸念される。どちらも実動作は未検証。修正する場合は Artifact 子リポジトリの変更が必要であり、この作業では触れていない。
 - **次に確認すべきこと:** 明示的なテスト実行許可後に`DisabledOldTvIsAnExactPassthrough`とFilmGrungeの`supportsCPU()`／CPU fallback経路を確認する。結果に基づき、共通適用層と各overrideの責務を整理し、子リポジトリの修正許可後に独立契約を整える。
+
+## 2026-10-30: Creative Glitch の CPU/GPU ノイズ契約を分けて確認する
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactGlitchEffect::apply` / `kGlitchComputeHlsl`、`tests/Artifact/LofiEffectContractTest.cpp`。
+- **確認できた事実:** CPU は固定 seed の `RandomStream` を行ごとに fork し、GPU shader は座標と salt から hash noise を計算する。既存の独立 Glitch ケースは CPU の再現性、alpha、色チャンネルの空間サンプル、in-place、descriptor、empty input、単一列境界を確認する。別の CTest は GPU generic node の登録を確認するが、shader の描画出力は実行しない。
+- **価値または懸念:** CPU/GPU が別の乱数生成方式を使うため、画素単位の完全一致は現在の契約から導けない。ノード登録テストも GPU の実出力や CPU/GPU の効果意味論までは保証しない。差異の許容範囲は未検証。
+- **次に確認すべきこと:** GPU 実行が許可された後、同一の非定数入力を両経路で処理し、row displacement、RGB channel separation、alpha preservation を個別に測る。seeded pixel parity を要求するか、視覚的特性だけを共通契約にするかを定めてからテスト基準を決める。
