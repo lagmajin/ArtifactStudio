@@ -603,6 +603,79 @@ TEST(LofiEffectContractTest,
     EXPECT_GT(displacedSamples, 0u);
 }
 
+TEST(LofiEffectContractTest,
+     FilmGrungeAnimatesGateWeaveWithColorAndAlphaInLockstep)
+{
+    constexpr int width = 32;
+    constexpr int height = 24;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const float pattern =
+                static_cast<float>((x * 3 + y * 7) % 47) / 46.0f;
+            pixels[offset] = static_cast<float>(x) / (width - 1);
+            pixels[offset + 1] = static_cast<float>(y) / (height - 1);
+            pixels[offset + 2] = pattern;
+            pixels[offset + 3] = pattern;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+
+    ArtifactFilmGrungeEffect animatedEffect;
+    animatedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "vignette", "stain"}) {
+        animatedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    auto* gateWeave =
+        animatedEffect.editableProperty(QStringLiteral("gateWeave"));
+    ASSERT_NE(gateWeave, nullptr);
+    gateWeave->addKeyFrame(RationalTime(0, 30), 0.0);
+    gateWeave->addKeyFrame(RationalTime(30, 30), 4.0);
+
+    EffectContext context;
+    context.compositionFrame = 15;
+    animatedEffect.setContext(context);
+    ImageF32x4RGBAWithCache animatedFrame;
+    animatedEffect.applyCPUOnly(source, animatedFrame);
+
+    ArtifactFilmGrungeEffect fixedEffect;
+    fixedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "vignette", "stain"}) {
+        fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    fixedEffect.setPropertyValue(UniString("gateWeave"), QVariant(2.0f));
+    fixedEffect.setContext(context);
+    ImageF32x4RGBAWithCache fixedFrame;
+    fixedEffect.applyCPUOnly(source, fixedFrame);
+
+    const float* animated = animatedFrame.image().rgba32fData();
+    const float* fixed = fixedFrame.image().rgba32fData();
+    ASSERT_NE(animated, nullptr);
+    ASSERT_NE(fixed, nullptr);
+    std::size_t displacedPixels = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            const std::size_t offset = pixel * 4 + channel;
+            EXPECT_FLOAT_EQ(animated[offset], fixed[offset])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+        if (std::abs(animated[pixel * 4 + 2] - pixels[pixel * 4 + 2]) >
+            1.0e-5f) {
+            ++displacedPixels;
+        }
+        EXPECT_FLOAT_EQ(animated[pixel * 4 + 2], animated[pixel * 4 + 3])
+            << "pixel=" << pixel;
+    }
+    EXPECT_GT(displacedPixels, 0u);
+}
+
 TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
 {
     constexpr int width = 18;
