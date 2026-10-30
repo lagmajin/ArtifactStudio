@@ -765,6 +765,73 @@ TEST(LofiEffectContractTest, FilmGrungeEffectRegionLimitsGrainToPixelCenters)
     EXPECT_TRUE(changedInside);
 }
 
+TEST(LofiEffectContractTest,
+     FilmGrungeEffectRegionBoundsCombinedEffectsAtFractionalPixelCenters)
+{
+    constexpr int width = 32;
+    constexpr int height = 20;
+    const QRectF region(7.25, 4.25, 13.5, 9.5);
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>((x * 3 + y) % 23) / 22.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 5) % 19) / 18.0f;
+            pixels[offset + 2] = static_cast<float>((x * 7 + y * 2) % 29) / 28.0f;
+            pixels[offset + 3] = static_cast<float>((x + y * 3) % 11) / 10.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.28f));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.7f));
+    effect.setPropertyValue(UniString("dustAmount"), QVariant(0.65f));
+    effect.setPropertyValue(UniString("flicker"), QVariant(0.2f));
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(3.0f));
+    effect.setPropertyValue(UniString("vignette"), QVariant(0.35f));
+    effect.setPropertyValue(UniString("stain"), QVariant(0.2f));
+    effect.setPropertyValue(UniString("seed"), QVariant(129));
+    EffectContext context;
+    context.compositionFrame = 11;
+    effect.setContext(context);
+    effect.setEffectRegion(region);
+
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    bool changedInside = false;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const bool inside = region.contains(QPointF(x + 0.5, y + 0.5));
+            for (int channel = 0; channel < 4; ++channel) {
+                if (inside) {
+                    if (channel < 3) {
+                        changedInside = changedInside ||
+                            std::abs(actual[offset + channel] -
+                                     pixels[offset + channel]) > 1.0e-5f;
+                    }
+                } else {
+                    EXPECT_FLOAT_EQ(actual[offset + channel],
+                                    pixels[offset + channel])
+                        << "outside fractional region x=" << x << " y=" << y
+                        << " channel=" << channel;
+                }
+            }
+        }
+    }
+    EXPECT_TRUE(changedInside)
+        << "combined FilmGrunge effects should alter pixels inside the region";
+}
+
 TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
 {
     constexpr int width = 24;
