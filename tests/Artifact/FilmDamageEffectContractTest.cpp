@@ -439,3 +439,82 @@ TEST(FilmDamageEffectContractTest,
     EXPECT_GT(changedPixels, 0);
     EXPECT_GT(changedRows, 1);
 }
+
+TEST(FilmDamageEffectContractTest,
+     GateWeaveDisplacesColorAndAlphaTogether)
+{
+    const auto source = makeFilmSurface();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::FilmDamageEffect effect;
+    setFilmProperty(effect, "Grain", QVariant(0.0));
+    setFilmProperty(effect, "Dust", QVariant(0.0));
+    setFilmProperty(effect, "Scratches", QVariant(0.0));
+    setFilmProperty(effect, "Gate Weave", QVariant(20.0));
+    setFilmProperty(effect, "Flicker", QVariant(0.0));
+    setFilmProperty(effect, "Film Burn", QVariant(0.0));
+    setFilmProperty(effect, "Evolution", QVariant(0.125));
+    setFilmProperty(effect, "Seed", QVariant(624));
+
+    effect.applyCPUOnly(source, output);
+
+    int changedColorPixels = 0;
+    int changedAlphaPixels = 0;
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto actual = output.image().getPixel(x, y);
+            const auto input = source.image().getPixel(x, y);
+            EXPECT_TRUE(std::isfinite(actual.a()));
+            changedAlphaPixels += std::abs(actual.a() - input.a()) > 1.0e-6f
+                ? 1 : 0;
+            const bool changed =
+                std::abs(actual.r() - input.r()) > 1.0e-6f ||
+                std::abs(actual.g() - input.g()) > 1.0e-6f ||
+                std::abs(actual.b() - input.b()) > 1.0e-6f;
+            changedColorPixels += changed ? 1 : 0;
+        }
+    }
+    EXPECT_GT(changedColorPixels, 0);
+    EXPECT_GT(changedAlphaPixels, 0);
+}
+
+TEST(FilmDamageEffectContractTest,
+     FlickerAppliesOneFrameWideRgbGainAndPreservesAlpha)
+{
+    const auto source = makeFilmSurface();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::FilmDamageEffect effect;
+    setFilmProperty(effect, "Grain", QVariant(0.0));
+    setFilmProperty(effect, "Dust", QVariant(0.0));
+    setFilmProperty(effect, "Scratches", QVariant(0.0));
+    setFilmProperty(effect, "Gate Weave", QVariant(0.0));
+    setFilmProperty(effect, "Flicker", QVariant(1.0));
+    setFilmProperty(effect, "Film Burn", QVariant(0.0));
+    setFilmProperty(effect, "Evolution", QVariant(0.125));
+    setFilmProperty(effect, "Seed", QVariant(212));
+
+    effect.applyCPUOnly(source, output);
+
+    float expectedGain = 0.0f;
+    bool hasExpectedGain = false;
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto actual = output.image().getPixel(x, y);
+            const auto input = source.image().getPixel(x, y);
+            const std::array<float, 3> inputRgb{input.r(), input.g(), input.b()};
+            const std::array<float, 3> outputRgb{actual.r(), actual.g(), actual.b()};
+            EXPECT_FLOAT_EQ(actual.a(), input.a());
+            for (std::size_t channel = 0; channel < inputRgb.size(); ++channel) {
+                const float gain = outputRgb[channel] / inputRgb[channel];
+                if (!hasExpectedGain) {
+                    expectedGain = gain;
+                    hasExpectedGain = true;
+                }
+                EXPECT_NEAR(gain, expectedGain, 1.0e-6f)
+                    << "pixel=" << y * kWidth + x
+                    << " channel=" << channel;
+            }
+        }
+    }
+    EXPECT_TRUE(hasExpectedGain);
+    EXPECT_GT(std::abs(expectedGain - 1.0f), 1.0e-4f);
+}
