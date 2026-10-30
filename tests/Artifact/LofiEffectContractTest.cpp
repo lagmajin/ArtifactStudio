@@ -243,6 +243,59 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     GlitchCpuPreservesColorDescriptorAndIndependentPixelStorage)
+{
+    constexpr int width = 19;
+    constexpr int height = 11;
+    constexpr std::size_t channelCount =
+        static_cast<std::size_t>(width) * height * 4;
+    std::array<float, channelCount> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = 0.08f + 0.01f * x;
+            pixels[offset + 1] = 0.12f + 0.015f * y;
+            pixels[offset + 2] = 0.2f + 0.005f * (x + y);
+            pixels[offset + 3] = 0.1f + 0.01f * ((x + y) % 20);
+        }
+    }
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float(
+        SurfaceColorPrimaries::DisplayP3_D65);
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    image.setColorDescriptor(descriptor);
+    ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactGlitchEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.width(), width);
+    ASSERT_EQ(output.height(), height);
+    EXPECT_EQ(source.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(output.image().colorDescriptor(), descriptor);
+    float* sourcePixels = source.image().rgba32fData();
+    float* outputPixels = output.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(outputPixels, nullptr);
+    ASSERT_NE(sourcePixels, outputPixels);
+    std::array<float, channelCount> outputSnapshot{};
+    std::copy_n(outputPixels, channelCount, outputSnapshot.begin());
+
+    std::fill_n(sourcePixels, channelCount, -7.0f);
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(outputPixels[channel], outputSnapshot[channel])
+            << "source mutation reached output channel=" << channel;
+    }
+    outputPixels[0] = 23.0f;
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(sourcePixels[channel], -7.0f)
+            << "output mutation reached source channel=" << channel;
+    }
+}
+
+TEST(LofiEffectContractTest,
      GlitchCpuEmptyInputReplacesPreviouslyPopulatedOutput)
 {
     const ImageF32x4RGBAWithCache source;
