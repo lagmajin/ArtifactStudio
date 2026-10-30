@@ -790,6 +790,56 @@ TEST(VHSTapeEffectContractTest, OsdTimecodeAdvancesWithEvolution)
 }
 
 TEST(VHSTapeEffectContractTest,
+     OsdTimecodeRollsFrameCounterAtTheOneSecondBoundary)
+{
+    constexpr int width = 320;
+    constexpr int height = 180;
+    constexpr std::size_t channelCount =
+        static_cast<std::size_t>(width) * height * 4;
+    std::array<float, channelCount> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset + 0] = 0.12f;
+        pixels[offset + 1] = 0.18f;
+        pixels[offset + 2] = 0.24f;
+        pixels[offset + 3] = 1.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height,
+                         SurfaceColorDescriptor::unknownBgra32Float());
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache lastFrameOfFirstSecond;
+    ImageF32x4RGBAWithCache firstFrameOfNextSecond;
+    const auto renderOsdAt = [&source](const double evolution,
+                                       ImageF32x4RGBAWithCache& output) {
+        VHSTapeEffect effect;
+        setNeutralTapeProperties(effect);
+        effect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+        effect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 0);
+        effect.setPropertyValue(UniString(QStringLiteral("Evolution")), evolution);
+        effect.applyCPUOnly(source, output);
+    };
+    renderOsdAt(0.999, lastFrameOfFirstSecond);
+    renderOsdAt(1.0, firstFrameOfNextSecond);
+
+    const float* before = lastFrameOfFirstSecond.image().rgba32fData();
+    const float* after = firstFrameOfNextSecond.image().rgba32fData();
+    ASSERT_NE(before, nullptr);
+    ASSERT_NE(after, nullptr);
+    bool timecodePixelsChanged = false;
+    for (std::size_t offset = 0; offset < channelCount; offset += 4) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            timecodePixelsChanged = timecodePixelsChanged ||
+                std::abs(before[offset + channel] - after[offset + channel]) >
+                    1.0e-5f;
+        }
+        EXPECT_FLOAT_EQ(before[offset + 3], 1.0f);
+        EXPECT_FLOAT_EQ(after[offset + 3], 1.0f);
+    }
+    EXPECT_TRUE(timecodePixelsChanged)
+        << "00:00:00:29 must advance to 00:00:01:00 at one second";
+}
+
+TEST(VHSTapeEffectContractTest,
      WobbleOutputIsRepeatableForSameSeedAndChangesForDifferentSeed)
 {
     constexpr int width = 32;
