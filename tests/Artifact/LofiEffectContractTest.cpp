@@ -4340,6 +4340,60 @@ TEST(LofiEffectContractTest,
     EXPECT_TRUE(observedJitter);
 }
 
+TEST(LofiEffectContractTest,
+     OldTvInteriorRowsAreStableWhenImageWidthChanges)
+{
+    constexpr int narrowWidth = 48;
+    constexpr int wideWidth = 64;
+    constexpr int height = 17;
+    std::array<float, narrowWidth * height * 4> narrowPixels{};
+    std::array<float, wideWidth * height * 4> widePixels{};
+    const auto fillPixels = [](auto& pixels, const int width) {
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const std::size_t offset =
+                    static_cast<std::size_t>((y * width + x) * 4);
+                pixels[offset + 0] = 0.12f + 0.006f * x + 0.001f * y;
+                pixels[offset + 1] = 0.24f + 0.008f * x + 0.002f * y;
+                pixels[offset + 2] = 0.36f + 0.010f * x + 0.003f * y;
+                pixels[offset + 3] = 0.1f + 0.01f * x + 0.005f * y;
+            }
+        }
+    };
+    fillPixels(narrowPixels, narrowWidth);
+    fillPixels(widePixels, wideWidth);
+    ImageF32x4_RGBA narrowImage;
+    narrowImage.setFromRGBA32F(narrowPixels.data(), narrowWidth, height);
+    ImageF32x4_RGBA wideImage;
+    wideImage.setFromRGBA32F(widePixels.data(), wideWidth, height);
+    const ImageF32x4RGBAWithCache narrowSource(narrowImage);
+    const ImageF32x4RGBAWithCache wideSource(wideImage);
+    ArtifactOldTVEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    ImageF32x4RGBAWithCache narrowOutput;
+    ImageF32x4RGBAWithCache wideOutput;
+    effect.applyCPUOnly(narrowSource, narrowOutput);
+    effect.applyCPUOnly(wideSource, wideOutput);
+
+    const float* narrowResult = narrowOutput.image().rgba32fData();
+    const float* wideResult = wideOutput.image().rgba32fData();
+    ASSERT_NE(narrowResult, nullptr);
+    ASSERT_NE(wideResult, nullptr);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 5; x < narrowWidth - 5; ++x) {
+            const std::size_t narrowOffset =
+                static_cast<std::size_t>((y * narrowWidth + x) * 4);
+            const std::size_t wideOffset =
+                static_cast<std::size_t>((y * wideWidth + x) * 4);
+            for (std::size_t channel = 0; channel < 4; ++channel) {
+                EXPECT_FLOAT_EQ(narrowResult[narrowOffset + channel],
+                                wideResult[wideOffset + channel])
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+            }
+        }
+    }
+}
+
 TEST(LofiEffectContractTest, OldTvSupportsInPlaceProcessingWithoutChangingAlpha)
 {
     constexpr int width = 9;
