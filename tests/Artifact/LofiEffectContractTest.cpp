@@ -421,6 +421,22 @@ TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
     }
 }
 
+TEST(LofiEffectContractTest, OldTvPublishesItsGenericGpuSpatialNode)
+{
+    ArtifactOldTVEffect effect;
+    GpuSpatialEffectStack stack;
+
+    ASSERT_TRUE(effect.supportsGPU());
+    EXPECT_EQ(effect.gpuRasterEffectDomain(), GpuRasterEffectDomain::Spatial);
+    ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
+
+    ASSERT_EQ(stack.count, 1u);
+    EXPECT_EQ(stack.nodes[0].kind, GpuSpatialEffectKind::Generic);
+    EXPECT_EQ(stack.nodes[0].genericKey, effect.gpuGenericKey());
+    EXPECT_EQ(stack.nodes[0].genericKey,
+              gpuGenericKeyFromString("builtin.old_tv"));
+}
+
 TEST(LofiEffectContractTest,
      OldTvOutputIsStableAcrossCompositionFrames)
 {
