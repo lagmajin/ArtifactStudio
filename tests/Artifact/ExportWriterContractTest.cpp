@@ -1035,10 +1035,10 @@ TEST(ExportWriterContractTest, MinimalTextCompositionProducesWriterSchemas)
         });
 }
 
-TEST(ExportWriterContractTest, SingleTextLayerProducesMinimalWriterSchemas)
+void expectSingleTextWriterSchema(const QString& writerName)
 {
     QTemporaryDir temporary;
-    ASSERT_TRUE(temporary.isValid());
+    ASSERT_TRUE(temporary.isValid()) << writerName.toStdString();
 
     auto& projects = Artifact::ArtifactProjectManager::getInstance();
     projects.closeCurrentProject();
@@ -1056,85 +1056,112 @@ TEST(ExportWriterContractTest, SingleTextLayerProducesMinimalWriterSchemas)
     compositionParams.setFrameRate(24.0);
     compositionParams.setDurationFrames(12);
     const auto composition = projects.createComposition(compositionParams);
-    ASSERT_TRUE(composition.success);
+    ASSERT_TRUE(composition.success) << writerName.toStdString();
 
     Artifact::ArtifactTextLayerInitParams textParams(QStringLiteral("OnlyLayer"));
     const auto textResult = projects.addLayerToComposition(
         composition.id, textParams);
-    ASSERT_TRUE(textResult.success);
+    ASSERT_TRUE(textResult.success) << writerName.toStdString();
     auto* textLayer = dynamic_cast<Artifact::ArtifactTextLayer*>(textResult.layer.get());
-    ASSERT_NE(textLayer, nullptr);
+    ASSERT_NE(textLayer, nullptr) << writerName.toStdString();
     const QString specialText = QStringLiteral("schema & <one-layer>");
     const QString escapedText =
         QStringLiteral("schema &amp; &lt;one-layer&gt;");
     textLayer->setText(ArtifactCore::UniString(specialText));
 
     const auto compositionResult = projects.findComposition(composition.id);
-    ASSERT_TRUE(compositionResult.success);
+    ASSERT_TRUE(compositionResult.success) << writerName.toStdString();
     const auto compositionPtr = compositionResult.ptr.lock();
-    ASSERT_TRUE(compositionPtr);
+    ASSERT_TRUE(compositionPtr) << writerName.toStdString();
     Artifact::ArtifactExportSession session(compositionPtr);
     QString error;
     ASSERT_TRUE(session.build(&error)) << error.toStdString();
-    ASSERT_EQ(session.snapshot().layers.size(), 1);
-    EXPECT_TRUE(session.snapshot().assets.isEmpty());
+    ASSERT_EQ(session.snapshot().layers.size(), 1) << writerName.toStdString();
+    EXPECT_TRUE(session.snapshot().assets.isEmpty()) << writerName.toStdString();
 
     const QString root = temporary.path();
-    const QString gameface = QDir(root).filePath(QStringLiteral("gameface"));
-    const QString noesis = QDir(root).filePath(QStringLiteral("noesis"));
-    const QString rmlui = QDir(root).filePath(QStringLiteral("rmlui"));
-    const QString unity = QDir(root).filePath(QStringLiteral("unity"));
-    const QString lottie = QDir(root).filePath(QStringLiteral("animation.json"));
-    ASSERT_TRUE(Artifact::ArtifactExportGamefaceWriter::write(
-        compositionPtr, gameface, {}, &error)) << error.toStdString();
-    ASSERT_TRUE(Artifact::ArtifactExportNoesisXamlWriter::write(
-        compositionPtr, noesis, {}, &error)) << error.toStdString();
-    ASSERT_TRUE(Artifact::ArtifactExportRmlUiWriter::write(
-        compositionPtr, rmlui, {}, &error)) << error.toStdString();
-    ASSERT_TRUE(Artifact::ArtifactExportUnityUxmlWriter::write(
-        compositionPtr, unity, {}, &error)) << error.toStdString();
-    ASSERT_TRUE(Artifact::ArtifactExportLottieWriter::write(
-        compositionPtr, lottie, {}, &error)) << error.toStdString();
+    if (writerName == QStringLiteral("Gameface")) {
+        const QString output = QDir(root).filePath(QStringLiteral("gameface"));
+        ASSERT_TRUE(Artifact::ArtifactExportGamefaceWriter::write(
+            compositionPtr, output, {}, &error)) << error.toStdString();
+        const QString markup = readTextFile(
+            QDir(output).filePath(QStringLiteral("index.html")));
+        EXPECT_EQ(markup.count(QStringLiteral("class=\"layer ")), 1);
+        EXPECT_TRUE(markup.contains(escapedText));
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        const QString output = QDir(root).filePath(QStringLiteral("noesis"));
+        ASSERT_TRUE(Artifact::ArtifactExportNoesisXamlWriter::write(
+            compositionPtr, output, {}, &error)) << error.toStdString();
+        const QString path = QDir(output).filePath(QStringLiteral("composition.xaml"));
+        ASSERT_TRUE(isWellFormedXml(path));
+        const QString markup = readTextFile(path);
+        EXPECT_EQ(markup.count(QStringLiteral("<TextBlock ")), 1);
+        EXPECT_TRUE(markup.contains(escapedText));
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        const QString output = QDir(root).filePath(QStringLiteral("rmlui"));
+        ASSERT_TRUE(Artifact::ArtifactExportRmlUiWriter::write(
+            compositionPtr, output, {}, &error)) << error.toStdString();
+        const QString path = QDir(output).filePath(QStringLiteral("composition.rml"));
+        ASSERT_TRUE(isWellFormedXml(path));
+        const QString markup = readTextFile(path);
+        EXPECT_EQ(markup.count(QStringLiteral("class=\"layer_0\"")), 1);
+        EXPECT_TRUE(markup.contains(escapedText));
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        const QString output = QDir(root).filePath(QStringLiteral("unity"));
+        ASSERT_TRUE(Artifact::ArtifactExportUnityUxmlWriter::write(
+            compositionPtr, output, {}, &error)) << error.toStdString();
+        const QString path = QDir(output).filePath(QStringLiteral("composition.uxml"));
+        ASSERT_TRUE(isWellFormedXml(path));
+        const QString markup = readTextFile(path);
+        EXPECT_EQ(markup.count(QStringLiteral("<ui:Label ")), 1);
+        EXPECT_TRUE(markup.contains(escapedText));
+    } else if (writerName == QStringLiteral("Lottie")) {
+        const QString output = QDir(root).filePath(QStringLiteral("animation.json"));
+        ASSERT_TRUE(Artifact::ArtifactExportLottieWriter::write(
+            compositionPtr, output, {}, &error)) << error.toStdString();
+        const QJsonDocument document = QJsonDocument::fromJson(readFileBytes(output));
+        ASSERT_TRUE(document.isObject());
+        const QJsonArray layers = document.object()
+            .value(QStringLiteral("layers")).toArray();
+        ASSERT_EQ(layers.size(), 1);
+        const QJsonObject textLayer = layers.front().toObject();
+        EXPECT_EQ(textLayer.value(QStringLiteral("nm")).toString(),
+                  QStringLiteral("OnlyLayer"));
+        const QJsonArray textKeyframes = textLayer.value(QStringLiteral("t"))
+            .toObject().value(QStringLiteral("d")).toObject()
+            .value(QStringLiteral("k")).toArray();
+        ASSERT_EQ(textKeyframes.size(), 1);
+        EXPECT_EQ(textKeyframes.front().toObject().value(QStringLiteral("s"))
+                      .toObject().value(QStringLiteral("t")).toString(),
+                  specialText);
+    } else {
+        FAIL() << "unknown writer: " << writerName.toStdString();
+    }
+}
 
-    const QString gamefaceHtml = readTextFile(
-        QDir(gameface).filePath(QStringLiteral("index.html")));
-    EXPECT_EQ(gamefaceHtml.count(QStringLiteral("class=\"layer ")), 1);
-    EXPECT_TRUE(gamefaceHtml.contains(escapedText));
+TEST(ExportWriterContractTest, SingleTextLayerProducesGamefaceSchema)
+{
+    expectSingleTextWriterSchema(QStringLiteral("Gameface"));
+}
 
-    const QString noesisPath = QDir(noesis).filePath(QStringLiteral("composition.xaml"));
-    ASSERT_TRUE(isWellFormedXml(noesisPath));
-    const QString noesisMarkup = readTextFile(noesisPath);
-    EXPECT_EQ(noesisMarkup.count(QStringLiteral("<TextBlock ")), 1);
-    EXPECT_TRUE(noesisMarkup.contains(escapedText));
+TEST(ExportWriterContractTest, SingleTextLayerProducesNoesisXamlSchema)
+{
+    expectSingleTextWriterSchema(QStringLiteral("NoesisXaml"));
+}
 
-    const QString rmlPath = QDir(rmlui).filePath(QStringLiteral("composition.rml"));
-    ASSERT_TRUE(isWellFormedXml(rmlPath));
-    const QString rmlMarkup = readTextFile(rmlPath);
-    EXPECT_EQ(rmlMarkup.count(QStringLiteral("class=\"layer_0\"")), 1);
-    EXPECT_TRUE(rmlMarkup.contains(escapedText));
+TEST(ExportWriterContractTest, SingleTextLayerProducesRmlUiSchema)
+{
+    expectSingleTextWriterSchema(QStringLiteral("RmlUi"));
+}
 
-    const QString unityPath = QDir(unity).filePath(QStringLiteral("composition.uxml"));
-    ASSERT_TRUE(isWellFormedXml(unityPath));
-    const QString unityMarkup = readTextFile(unityPath);
-    EXPECT_EQ(unityMarkup.count(QStringLiteral("<ui:Label ")), 1);
-    EXPECT_TRUE(unityMarkup.contains(escapedText));
+TEST(ExportWriterContractTest, SingleTextLayerProducesUnityUxmlSchema)
+{
+    expectSingleTextWriterSchema(QStringLiteral("UnityUxml"));
+}
 
-    const QJsonDocument lottieDocument =
-        QJsonDocument::fromJson(readFileBytes(lottie));
-    ASSERT_TRUE(lottieDocument.isObject());
-    const QJsonArray lottieLayers = lottieDocument.object()
-        .value(QStringLiteral("layers")).toArray();
-    ASSERT_EQ(lottieLayers.size(), 1);
-    const QJsonObject lottieTextLayer = lottieLayers.front().toObject();
-    EXPECT_EQ(lottieTextLayer.value(QStringLiteral("nm")).toString(),
-              QStringLiteral("OnlyLayer"));
-    const QJsonArray textKeyframes = lottieTextLayer.value(QStringLiteral("t"))
-        .toObject().value(QStringLiteral("d")).toObject()
-        .value(QStringLiteral("k")).toArray();
-    ASSERT_EQ(textKeyframes.size(), 1);
-    EXPECT_EQ(textKeyframes.front().toObject().value(QStringLiteral("s"))
-                  .toObject().value(QStringLiteral("t")).toString(),
-              specialText);
+TEST(ExportWriterContractTest, SingleTextLayerProducesLottieSchema)
+{
+    expectSingleTextWriterSchema(QStringLiteral("Lottie"));
 }
 
 TEST(ExportWriterContractTest, SingleShapeLayerProducesMinimalWriterSchemas)

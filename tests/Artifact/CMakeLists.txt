@@ -2335,11 +2335,61 @@ if(ARTIFACT_BUILD_TESTS)
     )
     add_test(NAME ArtifactExportWriterTextSchemaContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
-            "--gtest_filter=ExportWriterContractTest.SingleTextLayerProducesMinimalWriterSchemas"
+            "--gtest_filter=ExportWriterContractTest.SingleTextLayerProduces*Schema"
     )
     set_tests_properties(ArtifactExportWriterTextSchemaContractTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         LABELS "export;schema;text;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactExportGamefaceTextSchemaContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.SingleTextLayerProducesGamefaceSchema"
+    )
+    set_tests_properties(ArtifactExportGamefaceTextSchemaContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;gameface;schema;text;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactExportNoesisXamlTextSchemaContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.SingleTextLayerProducesNoesisXamlSchema"
+    )
+    set_tests_properties(ArtifactExportNoesisXamlTextSchemaContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;noesis-xaml;schema;text;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactExportRmlUiTextSchemaContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.SingleTextLayerProducesRmlUiSchema"
+    )
+    set_tests_properties(ArtifactExportRmlUiTextSchemaContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;rmlui;schema;text;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactExportUnityUxmlTextSchemaContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.SingleTextLayerProducesUnityUxmlSchema"
+    )
+    set_tests_properties(ArtifactExportUnityUxmlTextSchemaContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;unity-uxml;schema;text;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactExportLottieTextSchemaContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.SingleTextLayerProducesLottieSchema"
+    )
+    set_tests_properties(ArtifactExportLottieTextSchemaContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;lottie;schema;text;contract;cpu"
         TIMEOUT 90
         RUN_SERIAL TRUE
     )
