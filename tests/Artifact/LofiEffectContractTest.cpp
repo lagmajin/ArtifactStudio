@@ -177,6 +177,71 @@ TEST(LofiEffectContractTest, GlitchCpuInPlaceMatchesOutOfPlaceWithoutAliasing)
 }
 
 TEST(LofiEffectContractTest,
+     GlitchCpuCombinesSymmetricColorOffsetsAroundCenterAlpha)
+{
+    constexpr int width = 64;
+    constexpr int height = 15;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = 0.1f + 0.003f * x + 0.0002f * y;
+            pixels[offset + 1] = 0.2f + 0.004f * x + 0.0003f * y;
+            pixels[offset + 2] = 0.3f + 0.005f * x + 0.0004f * y;
+            pixels[offset + 3] = 0.1f + 0.006f * x + 0.0005f * y;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactGlitchEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (int y = 0; y < height; ++y) {
+        const int referenceX = width / 2;
+        const std::size_t referenceOffset =
+            static_cast<std::size_t>((y * width + referenceX) * 4);
+        const float referenceCenter =
+            (result[referenceOffset + 1] - 0.2f - 0.0003f * y) / 0.004f;
+        const int referenceSourceX = static_cast<int>(std::lround(referenceCenter));
+        const int rowOffset = referenceSourceX - referenceX;
+        const float referenceRight =
+            (result[referenceOffset + 2] - 0.3f - 0.0004f * y) / 0.005f;
+        const int referenceRightX = static_cast<int>(std::lround(referenceRight));
+        const int chromaOffset = referenceRightX - referenceSourceX;
+        ASSERT_GE(chromaOffset, 3) << "y=" << y;
+        ASSERT_LE(chromaOffset, 7) << "y=" << y;
+
+        for (int x = 0; x < width; ++x) {
+            const int centerX = std::clamp(x + rowOffset, 0, width - 1);
+            const int leftX = std::clamp(centerX - chromaOffset, 0, width - 1);
+            const int rightX = std::clamp(centerX + chromaOffset, 0, width - 1);
+            const std::size_t outputOffset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const std::size_t centerOffset =
+                static_cast<std::size_t>((y * width + centerX) * 4);
+            const std::size_t leftOffset =
+                static_cast<std::size_t>((y * width + leftX) * 4);
+            const std::size_t rightOffset =
+                static_cast<std::size_t>((y * width + rightX) * 4);
+            EXPECT_NEAR(result[outputOffset + 0], pixels[leftOffset + 0], 1.0e-6f)
+                << "left color sample x=" << x << " y=" << y;
+            EXPECT_NEAR(result[outputOffset + 1], pixels[centerOffset + 1], 1.0e-6f)
+                << "center green sample x=" << x << " y=" << y;
+            EXPECT_NEAR(result[outputOffset + 2], pixels[rightOffset + 2], 1.0e-6f)
+                << "right color sample x=" << x << " y=" << y;
+            EXPECT_FLOAT_EQ(result[outputOffset + 3], pixels[centerOffset + 3])
+                << "center alpha sample x=" << x << " y=" << y;
+        }
+    }
+}
+
+TEST(LofiEffectContractTest,
      GlitchCpuEmptyInputReplacesPreviouslyPopulatedOutput)
 {
     const ImageF32x4RGBAWithCache source;
