@@ -2064,6 +2064,15 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactCompositionFinalEffectStackContractTest
+        COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
+            "--gtest_filter=LofiEffectContractTest.FilmGrungeCompositionStackUsesCurrentFrameAndMatchesDirectCpuOutput"
+    )
+    set_tests_properties(ArtifactCompositionFinalEffectStackContractTest PROPERTIES
+        LABELS "composition;final-effect;stack;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactCreativeGlitchEffectContractTest
         COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
             "--gtest_filter=LofiEffectContractTest.*Glitch*"
