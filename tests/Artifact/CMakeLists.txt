@@ -1738,7 +1738,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
     add_test(NAME ArtifactRenderQueueOldTvGpuEffectIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
-            --gtest_filter=RenderQueueLayerImageIntegrationTest.OldTvGenericGpuNodeChangesPixelsAndPreservesOpaqueAlpha
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.OldTvGenericGpuNodeAppliesScanlineAndPreservesTranslucentAlphaRepeatably
     )
     set_tests_properties(ArtifactRenderQueueOldTvGpuEffectIntegrationTest PROPERTIES
         LABELS "render-queue;renderer;gpu;headless;effect;image;integration;contract;lofi"

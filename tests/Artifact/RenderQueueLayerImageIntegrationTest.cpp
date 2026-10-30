@@ -2327,7 +2327,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
-     OldTvGenericGpuNodeChangesPixelsAndPreservesOpaqueAlpha)
+     OldTvGenericGpuNodeAppliesScanlineAndPreservesTranslucentAlphaRepeatably)
 {
     QTemporaryDir projectRoot;
     ASSERT_TRUE(projectRoot.isValid());
@@ -2427,6 +2427,14 @@ TEST(RenderQueueLayerImageIntegrationTest,
         << "Old TV generic GPU dispatch must affect rendered RGB pixels";
     EXPECT_EQ(effected, repeatedEffect)
         << "Old TV GPU output must repeat exactly for the same source frame";
+    const QColor scanlinePixel = effected.pixelColor(width / 2, 40);
+    const QColor adjacentRowPixel = effected.pixelColor(width / 2, 41);
+    EXPECT_LT(scanlinePixel.red(), adjacentRowPixel.red())
+        << "GPU Old TV must darken every fourth scanline";
+    EXPECT_LT(scanlinePixel.green(), adjacentRowPixel.green())
+        << "GPU Old TV scanline must affect green consistently";
+    EXPECT_LT(scanlinePixel.blue(), adjacentRowPixel.blue())
+        << "GPU Old TV scanline must affect blue consistently";
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             EXPECT_EQ(effected.pixelColor(x, y).alpha(),
