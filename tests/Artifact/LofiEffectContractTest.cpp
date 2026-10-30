@@ -367,6 +367,63 @@ TEST(LofiEffectContractTest,
     }
 }
 
+TEST(LofiEffectContractTest, FilmGrungeActiveGrainPreservesOutOfRangeAlpha)
+{
+    constexpr int width = 24;
+    constexpr int height = 12;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>((x * 3 + y) % 17) / 16.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 2) % 13) / 12.0f;
+            pixels[offset + 2] = static_cast<float>((x * 5 + y * 3) % 19) / 18.0f;
+            pixels[offset + 3] =
+                x % 3 == 0 ? -0.5f : x % 3 == 1 ? 0.4f : 1.5f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.3f));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(1234));
+
+    effect.applyCPUOnly(source, output);
+
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    bool changedRgb = false;
+    bool observedNegativeAlpha = false;
+    bool observedAboveOneAlpha = false;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width * height); ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (int channel = 0; channel < 3; ++channel) {
+            EXPECT_TRUE(std::isfinite(actual[offset + channel]))
+                << "pixel=" << pixel << " channel=" << channel;
+            changedRgb = changedRgb ||
+                std::abs(actual[offset + channel] - pixels[offset + channel]) >
+                    1.0e-5f;
+        }
+        EXPECT_FLOAT_EQ(actual[offset + 3], pixels[offset + 3])
+            << "pixel=" << pixel;
+        observedNegativeAlpha = observedNegativeAlpha || pixels[offset + 3] < 0.0f;
+        observedAboveOneAlpha = observedAboveOneAlpha || pixels[offset + 3] > 1.0f;
+    }
+    EXPECT_TRUE(changedRgb);
+    EXPECT_TRUE(observedNegativeAlpha);
+    EXPECT_TRUE(observedAboveOneAlpha);
+}
+
 TEST(LofiEffectContractTest, FilmGrungeMixInterpolatesSourceAndEffectPixels)
 {
     constexpr int width = 48;
