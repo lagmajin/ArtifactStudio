@@ -2186,6 +2186,39 @@ if(ARTIFACT_BUILD_TESTS)
             TIMEOUT 90
             RUN_SERIAL TRUE
         )
+        add_test(NAME ArtifactProxyWorkerMalformedJsonContractTest
+            COMMAND $<TARGET_FILE:ArtifactProxyWorkerProtocolTest>
+                "--gtest_filter=ProxyWorkerProtocolTest.MalformedJsonReturnsStructuredFailure"
+        )
+        set_tests_properties(ArtifactProxyWorkerMalformedJsonContractTest PROPERTIES
+            ENVIRONMENT
+                "ARTIFACT_PROXY_WORKER_EXECUTABLE=${CMAKE_BINARY_DIR}/proxy-worker-package/$<CONFIG>/$<TARGET_FILE_NAME:ArtifactProxyWorker>"
+            LABELS "proxy;worker;protocol;malformed-input;contract"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactProxyWorkerBatchFailureSummaryContractTest
+            COMMAND $<TARGET_FILE:ArtifactProxyWorkerProtocolTest>
+                "--gtest_filter=ProxyWorkerProtocolTest.InvalidBatchJobsEachFailAndRetainBatchSummary"
+        )
+        set_tests_properties(ArtifactProxyWorkerBatchFailureSummaryContractTest PROPERTIES
+            ENVIRONMENT
+                "ARTIFACT_PROXY_WORKER_EXECUTABLE=${CMAKE_BINARY_DIR}/proxy-worker-package/$<CONFIG>/$<TARGET_FILE_NAME:ArtifactProxyWorker>"
+            LABELS "proxy;worker;batch;failure-summary;protocol;contract"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactProxyWorkerInputValidationRetentionContractTest
+            COMMAND $<TARGET_FILE:ArtifactProxyWorkerProtocolTest>
+                "--gtest_filter=ProxyWorkerProtocolTest.InvalidSingleJobFieldsAreRejectedBeforeExistingOutputsAreTouched"
+        )
+        set_tests_properties(ArtifactProxyWorkerInputValidationRetentionContractTest PROPERTIES
+            ENVIRONMENT
+                "ARTIFACT_PROXY_WORKER_EXECUTABLE=${CMAKE_BINARY_DIR}/proxy-worker-package/$<CONFIG>/$<TARGET_FILE_NAME:ArtifactProxyWorker>"
+            LABELS "proxy;worker;input-validation;output-retention;protocol;contract"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
     endif()
 
     artifact_add_test(ArtifactExportWriterContractTest
