@@ -693,6 +693,51 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                                .arg(framePath);
                 return false;
             }
+            const int alphaIndex = channelIndex("A");
+            const auto packedCryptomatteMatches =
+                [&spec, &pixels, &channelIndex, alphaIndex](
+                    const std::string& idChannel,
+                    const std::string& prefix) {
+                    const int idIndex = channelIndex(idChannel);
+                    const int redIndex = channelIndex(prefix + ".R");
+                    const int greenIndex = channelIndex(prefix + ".G");
+                    const int blueIndex = channelIndex(prefix + ".B");
+                    const int alphaIndex = channelIndex(prefix + ".A");
+                    if (idIndex < 0 || alphaIndex < 0 || redIndex < 0 || greenIndex < 0 ||
+                        blueIndex < 0 || alphaIndex < 0) {
+                        return false;
+                    }
+                    const auto component = [&pixels, &spec](
+                        std::size_t pixel, int channel) {
+                        return pixels[pixel *
+                                          static_cast<std::size_t>(spec.nchannels) +
+                                      static_cast<std::size_t>(channel)];
+                    };
+                    const std::size_t pixelCount =
+                        static_cast<std::size_t>(spec.width) *
+                        static_cast<std::size_t>(spec.height);
+                    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+                        const float id = component(pixel, idIndex);
+                        const float alpha = component(pixel, alphaIndex);
+                        const float coverage = id > 0.0f
+                            ? std::clamp(alpha, 0.0f, 1.0f) : 0.0f;
+                        if (component(pixel, redIndex) != id ||
+                            component(pixel, greenIndex) != coverage ||
+                            component(pixel, blueIndex) != 0.0f ||
+                            component(pixel, alphaIndex) != 0.0f) {
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+            if (!packedCryptomatteMatches("ObjectId", "CryptoObject00") ||
+                !packedCryptomatteMatches("MaterialId", "CryptoMaterial00")) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue Cryptomatte packed ID/coverage payload did not match its AOVs: %1")
+                               .arg(framePath);
+                return false;
+            }
             const int depthIndex = channelIndex("Depth");
             if (depthIndex < 0) {
                 input->close();
