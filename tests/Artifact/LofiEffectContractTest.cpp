@@ -2167,6 +2167,62 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeDustOnTinySurfaceStaysBoundedAndPreservesAlpha)
+{
+    constexpr int width = 2;
+    constexpr int height = 3;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    constexpr float alpha = 0.45f;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.7f;
+        pixels[pixel * 4 + 1] = 0.7f;
+        pixels[pixel * 4 + 2] = 0.7f;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("dustAmount"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(709));
+    EffectContext context;
+    context.compositionFrame = 5;
+    effect.setContext(context);
+
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_EQ(output.image().width(), width);
+    EXPECT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    bool observedDust = false;
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_TRUE(std::isfinite(result[offset + channel]))
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_LE(result[offset + channel], pixels[offset + channel])
+                << "dust should not brighten tiny surface pixels";
+            observedDust = observedDust ||
+                result[offset + channel] < pixels[offset + channel];
+        }
+        EXPECT_FLOAT_EQ(result[offset + 3], alpha) << "pixel=" << pixel;
+    }
+    EXPECT_TRUE(observedDust)
+        << "the single generated particle overlaps this tiny surface";
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeAnimatesDustAmountAgainstFixedFrameOutput)
 {
     constexpr int width = 128;
