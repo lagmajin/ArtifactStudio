@@ -170,6 +170,49 @@ TEST(PixelSortProEffectContractTest,
 }
 
 TEST(PixelSortProEffectContractTest,
+     MaximumSegmentSplitsLongEligibleRunsAtItsConfiguredLimit)
+{
+    constexpr int width = 6;
+    constexpr int height = 1;
+    constexpr std::array<float, width> inputValues{
+        0.6f, 0.1f, 0.5f, 0.9f, 0.3f, 0.7f};
+    constexpr std::array<float, width> expectedValues{
+        0.1f, 0.5f, 0.6f, 0.3f, 0.7f, 0.9f};
+    std::array<float, width * 4> pixels{};
+    for (int x = 0; x < width; ++x) {
+        const std::size_t offset = static_cast<std::size_t>(x) * 4;
+        pixels[offset] = inputValues[static_cast<std::size_t>(x)];
+        pixels[offset + 1] = inputValues[static_cast<std::size_t>(x)];
+        pixels[offset + 2] = inputValues[static_cast<std::size_t>(x)];
+        pixels[offset + 3] = static_cast<float>(x + 1) / 7.0f;
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::PixelSortProEffect effect;
+    setSortProperty(effect, "angle", 0.0f);
+    setSortProperty(effect, "maxSegment", 3.0f);
+    setSortProperty(effect, "lowThreshold", 0.0f);
+    setSortProperty(effect, "highThreshold", 1.0f);
+    setSortProperty(effect, "keyMode", 0.0f);
+    setSortProperty(effect, "descending", 0.0f);
+    setSortProperty(effect, "edgeProtection", 0.0f);
+    setSortProperty(effect, "mix", 1.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    for (int x = 0; x < width; ++x) {
+        const auto actual = output.image().getPixel(x, 0);
+        const std::size_t index = static_cast<std::size_t>(x);
+        EXPECT_FLOAT_EQ(actual.r(), expectedValues[index]) << "x=" << x;
+        EXPECT_FLOAT_EQ(actual.g(), expectedValues[index]) << "x=" << x;
+        EXPECT_FLOAT_EQ(actual.b(), expectedValues[index]) << "x=" << x;
+        EXPECT_FLOAT_EQ(actual.a(), pixels[index * 4 + 3]) << "x=" << x;
+    }
+}
+
+TEST(PixelSortProEffectContractTest,
      AngledSortingPreservesOriginalAlphaAtEveryPixel)
 {
     constexpr int width = 5;
