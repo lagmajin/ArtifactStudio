@@ -918,6 +918,19 @@ TEST(LofiEffectContractTest,
         EXPECT_FLOAT_EQ(actual[channel], expected[channel])
             << "composition stack channel=" << channel;
     }
+
+    stackEffect->setEnabled(false);
+    ImageF32x4_RGBA disabledBuffer;
+    disabledBuffer.setFromRGBA32F(pixels.data(), width, height);
+    disabledBuffer.setColorDescriptor(descriptor);
+    EXPECT_FALSE(applyCompositionFinalEffectsToBuffer(
+        composition.get(), disabledBuffer));
+    const float* disabledPixels = disabledBuffer.rgba32fData();
+    ASSERT_NE(disabledPixels, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(disabledPixels[channel], pixels[channel])
+            << "disabled composition effect changed channel=" << channel;
+    }
 }
 
 TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
