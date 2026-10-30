@@ -161,11 +161,16 @@ TEST(VHSTapeEffectContractTest, EmptyInputIsPreservedAndInPlaceProcessingStaysFi
     ImageF32x4_RGBA emptyImage;
     emptyImage.setFromRGBA32F(nullptr, 0, 4);
     const ImageF32x4RGBAWithCache emptySource(emptyImage);
-    ImageF32x4RGBAWithCache emptyOutput;
+    auto emptyOutput = makeUniformSurface();
+    ASSERT_FALSE(emptyOutput.image().isEmpty());
     VHSTapeEffect effect;
     setNeutralTapeProperties(effect);
     effect.applyCPUOnly(emptySource, emptyOutput);
     EXPECT_TRUE(emptyOutput.image().isEmpty());
+    EXPECT_EQ(emptyOutput.image().width(), emptySource.image().width());
+    EXPECT_EQ(emptyOutput.image().height(), emptySource.image().height());
+    EXPECT_EQ(emptyOutput.image().colorDescriptor(),
+              emptySource.image().colorDescriptor());
 
     auto inPlace = makeUniformSurface();
     effect.setPropertyValue(UniString(QStringLiteral("Scanline Intensity")), 0.25);
