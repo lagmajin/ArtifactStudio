@@ -762,23 +762,26 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                     hasObjectIdSample = true;
                 }
                 if (materialIdIndex >= 0 &&
+                    expectedObjectPixel &&
                     pixels[pixelBase + static_cast<std::size_t>(materialIdIndex)] ==
                         expectedMaterialId && expectedMaterialId > 0.0f) {
                     hasMaterialIdSample = true;
                 }
-                if (normalXIndex >= 0 && normalYIndex >= 0 && normalZIndex >= 0 &&
-                    (std::abs(pixels[pixelBase +
-                                     static_cast<std::size_t>(normalXIndex)]) >
-                         1.0e-5f ||
-                     std::abs(pixels[pixelBase +
-                                     static_cast<std::size_t>(normalYIndex)]) >
-                         1.0e-5f ||
-                     std::abs(pixels[pixelBase +
-                                     static_cast<std::size_t>(normalZIndex)]) >
-                         1.0e-5f)) {
+                const float normalX = pixels[
+                    pixelBase + static_cast<std::size_t>(normalXIndex)];
+                const float normalY = pixels[
+                    pixelBase + static_cast<std::size_t>(normalYIndex)];
+                const float normalZ = pixels[
+                    pixelBase + static_cast<std::size_t>(normalZIndex)];
+                const float normalLength = std::sqrt(
+                    normalX * normalX + normalY * normalY + normalZ * normalZ);
+                if (expectedObjectPixel && normalLength >= 0.8f &&
+                    normalLength <= 1.2f) {
                     hasNormalSample = true;
                 }
-                if (depthIndex >= 0 &&
+                if (expectedObjectPixel &&
+                    pixels[pixelBase + static_cast<std::size_t>(depthIndex)] >=
+                        0.0f &&
                     pixels[pixelBase + static_cast<std::size_t>(depthIndex)] <
                         1.0f - 1.0e-5f) {
                     hasDepthSample = true;
