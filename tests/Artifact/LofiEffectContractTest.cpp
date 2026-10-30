@@ -1164,6 +1164,10 @@ TEST(LofiEffectContractTest,
         const QImage repeatedFormattedOutput = renderFormattedFrame();
         EXPECT_EQ(formattedOutput, repeatedFormattedOutput)
             << "QImage format must retain fixed-frame determinism";
+        if (format == QImage::Format_ARGB32) {
+            EXPECT_EQ(formattedOutput, frame12)
+                << "equivalent straight-alpha channel layouts must render identically";
+        }
         if (!formattedSource.hasAlphaChannel()) {
             for (int y = 0; y < height; ++y) {
                 for (int x = 0; x < width; ++x) {
