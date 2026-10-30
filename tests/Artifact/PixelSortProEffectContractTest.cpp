@@ -74,6 +74,55 @@ TEST(PixelSortProEffectContractTest, SortsEligibleRunsAscendingAndPreservesSourc
     }
 }
 
+TEST(PixelSortProEffectContractTest, HueKeyModeSortsAnEligibleRunByColorHue)
+{
+    constexpr int width = 3;
+    constexpr std::array<std::array<float, 3>, width> inputColors{{
+        {{0.0f, 0.0f, 1.0f}}, // blue
+        {{1.0f, 0.0f, 0.0f}}, // red
+        {{0.0f, 1.0f, 0.0f}}, // green
+    }};
+    constexpr std::array<std::array<float, 3>, width> expectedColors{{
+        {{1.0f, 0.0f, 0.0f}}, // hue 0
+        {{0.0f, 1.0f, 0.0f}}, // hue 1/3
+        {{0.0f, 0.0f, 1.0f}}, // hue 2/3
+    }};
+    std::array<float, width * 4> pixels{};
+    for (int x = 0; x < width; ++x) {
+        const std::size_t offset = static_cast<std::size_t>(x) * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            pixels[offset + channel] =
+                inputColors[static_cast<std::size_t>(x)][channel];
+        }
+        pixels[offset + 3] = 0.2f + 0.2f * static_cast<float>(x);
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, 1);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::PixelSortProEffect effect;
+    setSortProperty(effect, "angle", 0.0f);
+    setSortProperty(effect, "maxSegment", static_cast<float>(width));
+    setSortProperty(effect, "lowThreshold", 0.0f);
+    setSortProperty(effect, "highThreshold", 1.0f);
+    setSortProperty(effect, "keyMode", 1.0f);
+    setSortProperty(effect, "descending", 0.0f);
+    setSortProperty(effect, "edgeProtection", 0.0f);
+    setSortProperty(effect, "mix", 1.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    for (int x = 0; x < width; ++x) {
+        const auto actual = output.image().getPixel(x, 0);
+        const auto& expected = expectedColors[static_cast<std::size_t>(x)];
+        EXPECT_FLOAT_EQ(actual.r(), expected[0]) << "x=" << x;
+        EXPECT_FLOAT_EQ(actual.g(), expected[1]) << "x=" << x;
+        EXPECT_FLOAT_EQ(actual.b(), expected[2]) << "x=" << x;
+        EXPECT_FLOAT_EQ(actual.a(), pixels[static_cast<std::size_t>(x) * 4 + 3])
+            << "x=" << x;
+    }
+}
+
 TEST(PixelSortProEffectContractTest, MixZeroLeavesRgbUnsorted)
 {
     const auto source = makeRepeatedLumaRows();
