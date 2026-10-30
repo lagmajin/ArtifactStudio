@@ -356,7 +356,8 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                      bool multiChannel = false,
                      bool deep = false,
                      const QString& expectedObjectName = QString(),
-                     const QString& expectedMaterialName = QString())
+                     const QString& expectedMaterialName = QString(),
+                     bool expectMotionVectors = false)
 {
     const QFileInfo requestedOutput(outputBasePath);
     if (!QDir().mkpath(requestedOutput.absolutePath())) {
@@ -723,9 +724,12 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             const int normalXIndex = channelIndex("Normal.X");
             const int normalYIndex = channelIndex("Normal.Y");
             const int normalZIndex = channelIndex("Normal.Z");
+            const int velocityXIndex = channelIndex("Velocity.X");
+            const int velocityYIndex = channelIndex("Velocity.Y");
             const int depthIndex = channelIndex("Depth");
             if (objectIdIndex < 0 || materialIdIndex < 0 || normalXIndex < 0 ||
-                normalYIndex < 0 || normalZIndex < 0 || depthIndex < 0) {
+                normalYIndex < 0 || normalZIndex < 0 || depthIndex < 0 ||
+                velocityXIndex < 0 || velocityYIndex < 0) {
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue EXR was missing required 3D AOV channels: %1")
@@ -736,6 +740,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             bool hasMaterialIdSample = false;
             bool hasNormalSample = false;
             bool hasDepthSample = false;
+            bool hasVelocitySample = false;
             const float expectedObjectId = expectedObjectName.isEmpty()
                 ? 0.0f
                 : ArtifactCore::Image::Cryptomatte::CryptoSample::nameToFloat(
@@ -777,13 +782,24 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                         1.0f - 1.0e-5f) {
                     hasDepthSample = true;
                 }
+                if (velocityXIndex >= 0 && velocityYIndex >= 0 &&
+                    (std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(velocityXIndex)]) >
+                         1.0e-6f ||
+                     std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(velocityYIndex)]) >
+                         1.0e-6f)) {
+                    hasVelocitySample = true;
+                }
             }
             if (!hasObjectIdSample || !hasMaterialIdSample || !hasNormalSample ||
-                !hasDepthSample) {
+                !hasDepthSample ||
+                (expectMotionVectors && frame > frameStart &&
+                 !hasVelocitySample)) {
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue EXR did not contain non-clear 3D ObjectId, "
-                    "MaterialId, Normal, and Depth samples: %1")
+                    "MaterialId, Normal, Depth, and expected Velocity samples: %1")
                                .arg(framePath);
                 return false;
             }
@@ -965,7 +981,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
     camera->setUseManualFov(true);
     camera->setFov(ArtifactCore::Units::Degrees{52.0f});
     camera->setNearClipPlane(ArtifactCore::Units::Pixels{80.0f});
-    camera->setFarClipPlane(ArtifactCore::Units::Pixels{900.0f});
+    camera->setFarClipPlane(ArtifactCore::Units::Pixels{3000.0f});
     camera->transform3D().setCurrentPosition(width / 2.0f, height / 2.0f);
     camera->transform3D().setCurrentPositionZ(1050.0f);
     ASSERT_TRUE(outputComposition->appendLayerTop(camera).success);
@@ -976,6 +992,17 @@ TEST(RenderQueueLayerImageIntegrationTest,
     model->transform3D().setCurrentPosition(width * 0.2f, height / 2.0f);
     model->transform3D().setCurrentPositionZ(0.0f);
     ASSERT_TRUE(outputComposition->appendLayerTop(model).success);
+    auto positionX = model->getProperty(QStringLiteral("transform.position.x"));
+    ASSERT_NE(positionX.get(), nullptr);
+    positionX->clearKeyFrames();
+    positionX->setAnimatable(true);
+    const auto keyframeTimeScale = model->keyframeTimeScale();
+    positionX->addKeyFrame(
+        ArtifactCore::RationalTime(0, keyframeTimeScale), width * 0.2,
+        ArtifactCore::InterpolationType::Linear);
+    positionX->addKeyFrame(
+        ArtifactCore::RationalTime(47, keyframeTimeScale), width * 0.28,
+        ArtifactCore::InterpolationType::Linear);
     const QString expectedMaterialName = model->materialSignature();
     ASSERT_FALSE(expectedMaterialName.isEmpty());
 
@@ -985,7 +1012,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
         queue, composition.id, QStringLiteral("ExrQueueOutput"),
         isolatedOutputPath(QStringLiteral("render_queue_exr.exr")),
         width, height, &failure, 0, 48, &eventLoopProbe, true, false,
-        model->id().toString(), expectedMaterialName))
+        model->id().toString(), expectedMaterialName, true))
         << failure.toStdString();
     ASSERT_TRUE(addAndRenderExr(
         queue, composition.id, QStringLiteral("DeepExrQueueOutput"),

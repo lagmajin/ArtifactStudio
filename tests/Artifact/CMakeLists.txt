@@ -1822,7 +1822,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
             --gtest_filter=RenderQueueLayerImageIntegrationTest.ExportKeepsGuiEventLoopResponsiveAndWritesReadableExr
     )
     set_tests_properties(ArtifactRenderQueueExrImageIntegrationTest PROPERTIES
-        LABELS "render-queue;renderer;gpu;gui;responsiveness;image;openexr;aov;3d;cryptomatte;deep;integration"
+        LABELS "render-queue;renderer;gpu;gui;responsiveness;image;openexr;aov;3d;cryptomatte;velocity;deep;integration"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
