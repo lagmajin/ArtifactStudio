@@ -2113,6 +2113,26 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 90
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactExportWriterTextSchemaContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.SingleTextLayerProducesMinimalWriterSchemas"
+    )
+    set_tests_properties(ArtifactExportWriterTextSchemaContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;schema;text;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactExportWriterShapeSchemaContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.SingleShapeLayerProducesMinimalWriterSchemas"
+    )
+    set_tests_properties(ArtifactExportWriterShapeSchemaContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;schema;shape;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
 
     # Playback range service contract runs in its own process with a Core
     # event loop; it does not start playback or initialize a graphics device.
