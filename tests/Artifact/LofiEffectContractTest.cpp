@@ -174,6 +174,23 @@ TEST(LofiEffectContractTest, GlitchCpuInPlaceMatchesOutOfPlaceWithoutAliasing)
     EXPECT_NE(sourcePixels, inPlacePixels);
 }
 
+TEST(LofiEffectContractTest,
+     GlitchCpuEmptyInputReplacesPreviouslyPopulatedOutput)
+{
+    const ImageF32x4RGBAWithCache source;
+    ImageF32x4RGBAWithCache output = makePatternSurface();
+    ASSERT_FALSE(output.image().isEmpty());
+    ArtifactGlitchEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_TRUE(output.image().isEmpty());
+    EXPECT_EQ(output.image().width(), source.image().width());
+    EXPECT_EQ(output.image().height(), source.image().height());
+    EXPECT_EQ(output.image().colorDescriptor(), source.image().colorDescriptor());
+}
+
 TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
 {
     const auto source = makePatternSurface();
