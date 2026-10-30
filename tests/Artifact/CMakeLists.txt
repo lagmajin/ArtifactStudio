@@ -2209,7 +2209,7 @@ if(ARTIFACT_BUILD_TESTS)
     )
     add_test(NAME ArtifactLofiOldTvEffectContractTest
         COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
-            "--gtest_filter=LofiEffectContractTest.*OldTv*:LofiEffectContractTest.AnimatedRegionEnabledTogglesWithoutCoordinateTracks:LofiEffectContractTest.AnimatedRegionCoordinatesMoveThePixelComposite:LofiEffectContractTest.AnimatedRegionDisableOverridesAnimatedCoordinates"
+            "--gtest_filter=LofiEffectContractTest.*OldTv*:LofiEffectContractTest.AnimatedRegionEnabledTogglesWithoutCoordinateTracks:LofiEffectContractTest.AnimatedRegionCoordinatesMoveThePixelComposite:LofiEffectContractTest.AnimatedRegionDisableOverridesAnimatedCoordinates:LofiEffectContractTest.AnimatedMixControlsOldTvCompositeAtCompositionFrames:LofiEffectContractTest.AnimatedEnabledSwitchesOldTvBypassAtCompositionFrames:LofiEffectContractTest.CommonEditablePropertiesReflectOldTvState:LofiEffectContractTest.AllowOverscanDoesNotExpandOldTvOutput"
     )
     set_tests_properties(ArtifactLofiOldTvEffectContractTest PROPERTIES
         LABELS "effect;lofi;old-tv;animation;composition;cpu;contract"
