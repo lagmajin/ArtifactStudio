@@ -330,14 +330,16 @@ TEST(LofiEffectContractTest, OldTvOutputDoesNotSharePixelStorageWithInput)
 }
 
 TEST(LofiEffectContractTest,
-     FilmGrungeZeroStrengthControlsPreserveTheInputExactly)
+     FilmGrungeZeroStrengthControlsPreserveNegativeAndHdrInputExactly)
 {
     constexpr int width = 7;
     constexpr int height = 5;
     std::array<float, width * height * 4> pixels{};
     for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
-        pixels[channel] = 0.1f + static_cast<float>(channel % 23) * 0.025f;
+        pixels[channel] = static_cast<float>(channel % 9) * 0.5f - 1.0f;
     }
+    EXPECT_LT(*std::min_element(pixels.begin(), pixels.end()), 0.0f);
+    EXPECT_GT(*std::max_element(pixels.begin(), pixels.end()), 1.0f);
     const auto descriptor =
         SurfaceColorDescriptor::linearStraightRgba32Float();
     ImageF32x4_RGBA image;
