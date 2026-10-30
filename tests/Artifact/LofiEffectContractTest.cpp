@@ -555,6 +555,60 @@ TEST(LofiEffectContractTest,
     }
 }
 
+TEST(LofiEffectContractTest,
+     FilmGrungeCpuSurfaceBridgeMatchesDirectCpuReference)
+{
+    const auto source = makePatternSurface();
+    ImageF32x4RGBAWithCache directCpuOutput;
+    ImageF32x4RGBAWithCache cpuSurfaceOutput;
+    ArtifactFilmGrungeEffect directCpuEffect;
+    ArtifactFilmGrungeEffect cpuSurfaceEffect;
+    const auto configureEffect = [](ArtifactFilmGrungeEffect& effect) {
+        effect.setPropertyValue(UniString("grainAmount"), QVariant(0.45f));
+        effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+        effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("dustAmount"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("seed"), QVariant(731));
+    };
+    configureEffect(directCpuEffect);
+    configureEffect(cpuSurfaceEffect);
+    directCpuEffect.setComputeMode(ComputeMode::CPU);
+    cpuSurfaceEffect.setComputeMode(ComputeMode::GPU);
+    EffectContext context;
+    context.compositionFrame = 9;
+    directCpuEffect.setContext(context);
+    cpuSurfaceEffect.setContext(context);
+
+    directCpuEffect.applyCPUOnly(source, directCpuOutput);
+    cpuSurfaceEffect.applyToCpuSurface(source, cpuSurfaceOutput);
+
+    EXPECT_EQ(cpuSurfaceEffect.computeMode(), ComputeMode::GPU)
+        << "CPU surface evaluation must preserve the configured backend";
+    ASSERT_EQ(cpuSurfaceOutput.width(), source.width());
+    ASSERT_EQ(cpuSurfaceOutput.height(), source.height());
+    ASSERT_EQ(directCpuOutput.image().colorDescriptor(),
+              cpuSurfaceOutput.image().colorDescriptor());
+    const float* expected = directCpuOutput.image().rgba32fData();
+    const float* actual = cpuSurfaceOutput.image().rgba32fData();
+    const float* original = source.image().rgba32fData();
+    ASSERT_NE(expected, nullptr);
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(original, nullptr);
+    bool changed = false;
+    for (std::size_t channel = 0; channel < 8u * 8u * 4u; ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], expected[channel])
+            << "channel=" << channel;
+        changed = changed ||
+            std::abs(actual[channel] - original[channel]) > 1.0e-5f;
+    }
+    EXPECT_TRUE(changed)
+        << "the CPU surface route must evaluate active FilmGrunge grain";
+}
+
 TEST(LofiEffectContractTest, FilmGrungeActiveGrainPreservesOutOfRangeAlpha)
 {
     constexpr int width = 24;
