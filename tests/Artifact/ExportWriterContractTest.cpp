@@ -1872,6 +1872,8 @@ TEST(ExportWriterContractTest,
     QStringList assetIds;
     QStringList assetNames;
     QStringList layerReferences;
+    QStringList firstSourceAssetNames;
+    QStringList secondSourceAssetNames;
     int firstCopyCount = 0;
     int secondCopyCount = 0;
     for (const QJsonValue& value : assets) {
@@ -1896,14 +1898,20 @@ TEST(ExportWriterContractTest,
         const QByteArray copiedBytes = readFileBytes(copiedPath);
         if (copiedBytes == firstBytes) {
             ++firstCopyCount;
+            firstSourceAssetNames.push_back(assetName);
         } else if (copiedBytes == secondBytes) {
             ++secondCopyCount;
+            secondSourceAssetNames.push_back(assetName);
         } else {
             ADD_FAILURE() << "external asset bytes match neither source";
         }
     }
     EXPECT_EQ(firstCopyCount, 2);
     EXPECT_EQ(secondCopyCount, 1);
+    ASSERT_EQ(firstSourceAssetNames.size(), 2);
+    ASSERT_EQ(secondSourceAssetNames.size(), 1);
+    EXPECT_EQ(firstSourceAssetNames.at(0), firstSourceAssetNames.at(1));
+    EXPECT_NE(firstSourceAssetNames.front(), secondSourceAssetNames.front());
     QStringList uniqueAssetNames = assetNames;
     uniqueAssetNames.removeDuplicates();
     EXPECT_EQ(uniqueAssetNames.size(), 2);
