@@ -421,6 +421,49 @@ TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
     }
 }
 
+TEST(LofiEffectContractTest,
+     OldTvCpuSurfaceBridgeUsesCpuReferenceForGpuConfiguredEffect)
+{
+    const auto source = makePatternSurface();
+    ImageF32x4RGBAWithCache directCpuOutput;
+    ImageF32x4RGBAWithCache cpuSurfaceOutput;
+    ArtifactOldTVEffect directCpuEffect;
+    ArtifactOldTVEffect cpuSurfaceEffect;
+    directCpuEffect.setComputeMode(ComputeMode::CPU);
+    cpuSurfaceEffect.setComputeMode(ComputeMode::GPU);
+    EffectContext context;
+    context.compositionFrame = 14;
+    directCpuEffect.setContext(context);
+    cpuSurfaceEffect.setContext(context);
+
+    ASSERT_TRUE(cpuSurfaceEffect.supportsCPU());
+    ASSERT_TRUE(cpuSurfaceEffect.supportsGPU());
+    directCpuEffect.applyCPUOnly(source, directCpuOutput);
+    cpuSurfaceEffect.applyToCpuSurface(source, cpuSurfaceOutput);
+
+    EXPECT_EQ(cpuSurfaceEffect.computeMode(), ComputeMode::GPU)
+        << "CPU surface evaluation must preserve the configured backend";
+    ASSERT_EQ(cpuSurfaceOutput.width(), source.width());
+    ASSERT_EQ(cpuSurfaceOutput.height(), source.height());
+    const float* expected = directCpuOutput.image().rgba32fData();
+    const float* actual = cpuSurfaceOutput.image().rgba32fData();
+    const float* original = source.image().rgba32fData();
+    ASSERT_NE(expected, nullptr);
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(original, nullptr);
+    const std::size_t componentCount =
+        static_cast<std::size_t>(source.width()) *
+        static_cast<std::size_t>(source.height()) * 4u;
+    bool changed = false;
+    for (std::size_t channel = 0; channel < componentCount; ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], expected[channel])
+            << "channel=" << channel;
+        changed = changed ||
+            std::abs(actual[channel] - original[channel]) > 1.0e-5f;
+    }
+    EXPECT_TRUE(changed) << "the CPU surface route must evaluate Old TV";
+}
+
 TEST(LofiEffectContractTest, OldTvPublishesItsGenericGpuSpatialNode)
 {
     ArtifactOldTVEffect effect;
