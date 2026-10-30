@@ -1178,6 +1178,10 @@ TEST(LofiEffectContractTest,
               QImage::Format_ARGB32_Premultiplied);
     ASSERT_NE(straightAlphaEdge.pixel(0, 0), premultipliedAlphaEdge.pixel(0, 0))
         << "fixture must contain premultiplied channel storage";
+    EXPECT_EQ(straightAlphaEdge.pixelColor(0, 0), QColor(220, 120, 40, 128));
+    EXPECT_EQ(premultipliedAlphaEdge.pixelColor(0, 0), QColor(220, 120, 40, 128));
+    EXPECT_EQ(straightAlphaEdge.pixelColor(1, 0), QColor(30, 180, 240, 64));
+    EXPECT_EQ(premultipliedAlphaEdge.pixelColor(1, 0), QColor(30, 180, 240, 64));
     composition->goToFrame(12);
     QImage straightAlphaOutput = straightAlphaEdge;
     QImage premultipliedAlphaOutput = premultipliedAlphaEdge;
