@@ -529,6 +529,58 @@ TEST(LofiEffectContractTest, FilmGrungeMixInterpolatesSourceAndEffectPixels)
     EXPECT_TRUE(effectChangedRgb);
 }
 
+TEST(LofiEffectContractTest, FilmGrungeEffectRegionLimitsGrainToPixelCenters)
+{
+    constexpr int width = 32;
+    constexpr int height = 20;
+    const QRectF region(8.0, 5.0, 12.0, 8.0);
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width * height); ++pixel) {
+        pixels[pixel * 4 + 0] = 0.25f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.75f;
+        pixels[pixel * 4 + 3] = 0.625f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.35f));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(129));
+    effect.setEffectRegion(region);
+
+    effect.applyCPUOnly(source, output);
+
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    bool changedInside = false;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const bool inside = region.contains(QPointF(x + 0.5, y + 0.5));
+            for (int channel = 0; channel < 3; ++channel) {
+                if (inside) {
+                    changedInside = changedInside ||
+                        std::abs(actual[offset + channel] - pixels[offset + channel]) >
+                            1.0e-5f;
+                } else {
+                    EXPECT_FLOAT_EQ(actual[offset + channel], pixels[offset + channel])
+                        << "outside region x=" << x << " y=" << y
+                        << " channel=" << channel;
+                }
+            }
+            EXPECT_FLOAT_EQ(actual[offset + 3], pixels[offset + 3])
+                << "x=" << x << " y=" << y;
+        }
+    }
+    EXPECT_TRUE(changedInside);
+}
+
 TEST(LofiEffectContractTest, FilmGrungeInPlaceMatchesOutOfPlaceAndKeepsIndependentStorage)
 {
     constexpr int width = 13;
