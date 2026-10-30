@@ -2169,6 +2169,15 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactLofiGpuNodeRegistrationContractTest
+        COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
+            "--gtest_filter=LofiEffectContractTest.CreativeLofiEffectsPublishTheirGenericGpuSpatialNodes"
+    )
+    set_tests_properties(ArtifactLofiGpuNodeRegistrationContractTest PROPERTIES
+        LABELS "effect;lofi;gpu-node;registration;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
     artifact_add_test(ArtifactCompositionFinalEffectStackContractTest
         SOURCES
             CompositionFinalEffectStackContractTest.cpp
