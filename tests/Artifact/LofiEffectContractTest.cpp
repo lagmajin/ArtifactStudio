@@ -2018,7 +2018,7 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
-     FilmGrungeDustAddsSharedRgbDamageWithoutErasingGrainChroma)
+     FilmGrungeDustAddsSharedRgbDamageAfterGrainVignetteAndStain)
 {
     constexpr int width = 96;
     constexpr int height = 72;
@@ -2044,8 +2044,8 @@ TEST(LofiEffectContractTest,
         effect.setPropertyValue(UniString("scratchAmount"), QVariant(0.0f));
         effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
         effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
-        effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
-        effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+        effect.setPropertyValue(UniString("vignette"), QVariant(0.25f));
+        effect.setPropertyValue(UniString("stain"), QVariant(0.15f));
         effect.setPropertyValue(UniString("seed"), QVariant(823));
         EffectContext context;
         context.compositionFrame = 19;
