@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <QVariant>
 
@@ -94,6 +96,49 @@ TEST(PixelSortProEffectContractTest, MixZeroLeavesRgbUnsorted)
             EXPECT_FLOAT_EQ(actual.b(), expected.b());
             EXPECT_FLOAT_EQ(actual.a(), expected.a());
         }
+    }
+}
+
+TEST(PixelSortProEffectContractTest,
+     EdgeProtectionReducesMixAtStrongLocalLumaTransitions)
+{
+    constexpr int width = 4;
+    constexpr std::array<float, width> inputValues{0.8f, 0.2f, 0.6f, 0.4f};
+    constexpr std::array<float, width> sortedValues{0.2f, 0.4f, 0.6f, 0.8f};
+    std::array<float, width * 4> pixels{};
+    for (int x = 0; x < width; ++x) {
+        const std::size_t offset = static_cast<std::size_t>(x) * 4;
+        pixels[offset] = inputValues[static_cast<std::size_t>(x)];
+        pixels[offset + 1] = inputValues[static_cast<std::size_t>(x)];
+        pixels[offset + 2] = inputValues[static_cast<std::size_t>(x)];
+        pixels[offset + 3] = 0.25f + 0.1f * static_cast<float>(x);
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, 1);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::PixelSortProEffect effect;
+    setSortProperty(effect, "angle", 0.0f);
+    setSortProperty(effect, "maxSegment", static_cast<float>(width));
+    setSortProperty(effect, "lowThreshold", 0.0f);
+    setSortProperty(effect, "highThreshold", 1.0f);
+    setSortProperty(effect, "edgeProtection", 1.0f);
+    setSortProperty(effect, "mix", 1.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    for (int x = 0; x < width; ++x) {
+        const float left = inputValues[static_cast<std::size_t>(std::max(0, x - 1))];
+        const float right = inputValues[static_cast<std::size_t>(std::min(width - 1, x + 1))];
+        const float edge = std::clamp(std::abs(right - left) * 4.0f, 0.0f, 1.0f);
+        const float expected = inputValues[static_cast<std::size_t>(x)] * edge +
+            sortedValues[static_cast<std::size_t>(x)] * (1.0f - edge);
+        const auto actual = output.image().getPixel(x, 0);
+        EXPECT_NEAR(actual.r(), expected, 1.0e-6f) << "x=" << x;
+        EXPECT_NEAR(actual.g(), expected, 1.0e-6f) << "x=" << x;
+        EXPECT_NEAR(actual.b(), expected, 1.0e-6f) << "x=" << x;
+        EXPECT_FLOAT_EQ(actual.a(), pixels[static_cast<std::size_t>(x) * 4 + 3])
+            << "x=" << x;
     }
 }
 
