@@ -354,7 +354,7 @@ TEST(VHSTapeEffectContractTest, ColorBleedSoftensHorizontalChromaEdgeAndPreserve
             bgra[offset] = 0.0f;
             bgra[offset + 1] = left ? 0.0f : 1.0f;
             bgra[offset + 2] = left ? 1.0f : 0.0f;
-            bgra[offset + 3] = static_cast<float>(y + 1) / 4.0f;
+            bgra[offset + 3] = static_cast<float>((x + y) % 3) / 2.0f;
         }
     }
     ImageF32x4_RGBA image;
