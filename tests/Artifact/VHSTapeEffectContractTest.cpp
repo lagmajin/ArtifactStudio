@@ -627,6 +627,46 @@ TEST(VHSTapeEffectContractTest,
     }
 }
 
+TEST(VHSTapeEffectContractTest,
+     SharpnessReductionPreservesPerPixelAlpha)
+{
+    constexpr int width = 33;
+    constexpr int height = 9;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>(y * width + x) * 4;
+            const float value = x < width / 2 ? 0.1f : 0.9f;
+            pixels[offset + 0] = value;
+            pixels[offset + 1] = 1.0f - value;
+            pixels[offset + 2] = value * 0.6f;
+            pixels[offset + 3] = static_cast<float>((x + y) % 17) / 16.0f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height,
+                         SurfaceColorDescriptor::unknownBgra32Float());
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Sharpness")), 0.0);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        EXPECT_FLOAT_EQ(result[pixel * 4 + 3], pixels[pixel * 4 + 3])
+            << "sharpness must not blur alpha at pixel=" << pixel;
+    }
+}
+
 TEST(VHSTapeEffectContractTest, OsdVisibilityAndModeChangeRenderedPixels)
 {
     constexpr int width = 320;
