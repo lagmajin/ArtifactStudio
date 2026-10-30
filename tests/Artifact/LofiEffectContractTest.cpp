@@ -652,7 +652,8 @@ TEST(LofiEffectContractTest,
             pixels[offset + 0] = static_cast<float>((x * 3 + y) % 17) / 16.0f;
             pixels[offset + 1] = static_cast<float>((x + y * 2) % 13) / 12.0f;
             pixels[offset + 2] = static_cast<float>((x * 5 + y * 3) % 19) / 18.0f;
-            pixels[offset + 3] = 0.6f;
+            pixels[offset + 3] =
+                x % 3 == 0 ? -0.5f : x % 3 == 1 ? 0.6f : 1.5f;
             firstMaskPixels[offset + 3] =
                 static_cast<float>((x + y) % 5) / 4.0f;
             secondMaskPixels[offset + 3] =
@@ -666,6 +667,7 @@ TEST(LofiEffectContractTest,
     effect.setComputeMode(ComputeMode::CPU);
     effect.setPropertyValue(UniString("grainAmount"), QVariant(0.35f));
     effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
     effect.setPropertyValue(UniString("seed"), QVariant(431));
     EffectContext context;
     context.compositionFrame = 17;
@@ -712,6 +714,8 @@ TEST(LofiEffectContractTest,
                         1.0e-6f)
                 << "pixel=" << pixel << " channel=" << channel;
         }
+        EXPECT_FLOAT_EQ(masked[pixel * 4 + 3], pixels[pixel * 4 + 3])
+            << "alpha pixel=" << pixel;
     }
 }
 
