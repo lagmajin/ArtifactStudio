@@ -2489,6 +2489,28 @@ if(ARTIFACT_BUILD_TESTS)
             RUN_SERIAL TRUE
         )
     endforeach()
+    add_test(NAME ArtifactExportWriterFinalFileWriteFailureContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.*ReportsFinalFileWriteFailure"
+    )
+    set_tests_properties(ArtifactExportWriterFinalFileWriteFailureContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;writer;file-write;failure;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
+    foreach(_writer_format IN ITEMS Gameface NoesisXaml RmlUi UnityUxml Lottie)
+        add_test(NAME ArtifactExport${_writer_format}FinalFileWriteFailureContractTest
+            COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+                "--gtest_filter=ExportWriterContractTest.${_writer_format}ReportsFinalFileWriteFailure"
+        )
+        set_tests_properties(ArtifactExport${_writer_format}FinalFileWriteFailureContractTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+            LABELS "export;${_writer_format};file-write;failure;contract;cpu"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
+    endforeach()
     add_test(NAME ArtifactExportWriterMissingImageAssetRetentionContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
             "--gtest_filter=ExportWriterContractTest.*MissingImageAsset*PreservesOutput:ExportWriterContractTest.MissingImageAssetFailureContractCoversAllWriters"

@@ -453,6 +453,102 @@ TEST(ExportWriterContractTest, LottieRejectsBlockedOutputParent)
     expectWriterRejectsBlockedOutputParent(QStringLiteral("Lottie"));
 }
 
+void expectWriterReportsFinalFileWriteFailure(const QString& writerName)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("FinalFileWriteFailureContractTest"),
+                           true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("FinalFileWriteFailureContract")));
+    compositionParams.setResolution(16, 16);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(1);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+
+    const QString outputDirectory = QDir(temporary.path()).filePath(writerName);
+    ASSERT_TRUE(QDir().mkpath(outputDirectory));
+    QString outputPath;
+    QString writerOutput = outputDirectory;
+    if (writerName == QStringLiteral("Gameface")) {
+        outputPath = QDir(outputDirectory).filePath(QStringLiteral("styles.css"));
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        outputPath = QDir(outputDirectory).filePath(
+            QStringLiteral("composition_styles.xaml"));
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        outputPath = QDir(outputDirectory).filePath(QStringLiteral("composition.rcss"));
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        outputPath = QDir(outputDirectory).filePath(QStringLiteral("composition.uss"));
+    } else if (writerName == QStringLiteral("Lottie")) {
+        outputPath = QDir(temporary.path()).filePath(QStringLiteral("animation.json"));
+        writerOutput = outputPath;
+    } else {
+        FAIL() << "unknown writer: " << writerName.toStdString();
+        return;
+    }
+    ASSERT_TRUE(QDir().mkpath(outputPath));
+
+    QString error;
+    bool succeeded = false;
+    if (writerName == QStringLiteral("Gameface")) {
+        succeeded = Artifact::ArtifactExportGamefaceWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        succeeded = Artifact::ArtifactExportNoesisXamlWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        succeeded = Artifact::ArtifactExportRmlUiWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        succeeded = Artifact::ArtifactExportUnityUxmlWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    } else {
+        succeeded = Artifact::ArtifactExportLottieWriter::write(
+            compositionPtr, writerOutput, {}, &error);
+    }
+    EXPECT_FALSE(succeeded);
+    EXPECT_FALSE(error.isEmpty());
+}
+
+TEST(ExportWriterContractTest, GamefaceReportsFinalFileWriteFailure)
+{
+    expectWriterReportsFinalFileWriteFailure(QStringLiteral("Gameface"));
+}
+
+TEST(ExportWriterContractTest, NoesisXamlReportsFinalFileWriteFailure)
+{
+    expectWriterReportsFinalFileWriteFailure(QStringLiteral("NoesisXaml"));
+}
+
+TEST(ExportWriterContractTest, RmlUiReportsFinalFileWriteFailure)
+{
+    expectWriterReportsFinalFileWriteFailure(QStringLiteral("RmlUi"));
+}
+
+TEST(ExportWriterContractTest, UnityUxmlReportsFinalFileWriteFailure)
+{
+    expectWriterReportsFinalFileWriteFailure(QStringLiteral("UnityUxml"));
+}
+
+TEST(ExportWriterContractTest, LottieReportsFinalFileWriteFailure)
+{
+    expectWriterReportsFinalFileWriteFailure(QStringLiteral("Lottie"));
+}
+
 TEST(ExportWriterContractTest, MinimalTextCompositionProducesWriterSchemas)
 {
     QTemporaryDir temporary;
