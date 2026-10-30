@@ -6,6 +6,7 @@
 
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Creative;
+import Graphics.SurfaceColorContract;
 import Artifact.Effect.Rasterizer.Halftone;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
@@ -401,6 +402,29 @@ TEST(HalftoneEffectContractTest,
     EXPECT_EQ(output.image().width(), source.image().width());
     EXPECT_EQ(output.image().height(), source.image().height());
     EXPECT_EQ(output.image().colorDescriptor(), source.image().colorDescriptor());
+}
+
+TEST(HalftoneEffectContractTest,
+     BothHalftoneVariantsPreserveTheInputColorDescriptor)
+{
+    const auto descriptor =
+        ArtifactCore::SurfaceColorDescriptor::linearStraightRgba32Float();
+    auto source = makeSolidSurface(0.5f, 0.4f);
+    auto sourceImage = source.image();
+    sourceImage.setColorDescriptor(descriptor);
+    const ArtifactCore::ImageF32x4RGBAWithCache describedSource(sourceImage);
+    ArtifactCore::ImageF32x4RGBAWithCache genericOutput;
+    ArtifactCore::ImageF32x4RGBAWithCache creativeOutput;
+    Artifact::HalftoneEffect genericEffect;
+    Artifact::ArtifactHalftoneEffect creativeEffect;
+    creativeEffect.setComputeMode(Artifact::ComputeMode::CPU);
+
+    genericEffect.applyCPUOnly(describedSource, genericOutput);
+    creativeEffect.applyCPUOnly(describedSource, creativeOutput);
+
+    EXPECT_EQ(describedSource.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(genericOutput.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(creativeOutput.image().colorDescriptor(), descriptor);
 }
 
 TEST(HalftoneEffectContractTest, SettersClampFiniteValuesAndResetNonFiniteValues)
