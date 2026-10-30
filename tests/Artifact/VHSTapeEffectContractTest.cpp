@@ -727,6 +727,35 @@ TEST(VHSTapeEffectContractTest,
     EXPECT_GT(unchangedAlphaPixels, 0);
 }
 
+TEST(VHSTapeEffectContractTest,
+     OsdClipsSafelyToSinglePixelSurfaces)
+{
+    constexpr std::array<float, 4> pixel{0.12f, 0.18f, 0.24f, 0.6f};
+    const auto descriptor = SurfaceColorDescriptor::unknownBgra32Float();
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixel.data(), 1, 1, descriptor);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+    effect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 3);
+    effect.setPropertyValue(UniString(QStringLiteral("Evolution")), 3599.999);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), 1);
+    ASSERT_EQ(output.image().height(), 1);
+    EXPECT_EQ(output.image().colorDescriptor(), descriptor);
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t channel = 0; channel < pixel.size(); ++channel) {
+        EXPECT_TRUE(std::isfinite(result[channel])) << "channel=" << channel;
+    }
+    EXPECT_GE(result[3], pixel[3]);
+    EXPECT_LE(result[3], 1.0f);
+}
+
 TEST(VHSTapeEffectContractTest, OsdTimecodeAdvancesWithEvolution)
 {
     constexpr int width = 320;
