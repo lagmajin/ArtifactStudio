@@ -98,6 +98,35 @@ TEST(PixelSortProEffectContractTest, MixZeroLeavesRgbUnsorted)
 }
 
 TEST(PixelSortProEffectContractTest,
+     DescendingSortReversesLumaOrderAndKeepsAlphaAtItsOriginalPixel)
+{
+    const auto source = makeRepeatedLumaRows();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::PixelSortProEffect effect;
+    setSortProperty(effect, "angle", 0.0f);
+    setSortProperty(effect, "maxSegment", 4.0f);
+    setSortProperty(effect, "lowThreshold", 0.0f);
+    setSortProperty(effect, "highThreshold", 1.0f);
+    setSortProperty(effect, "keyMode", 0.0f);
+    setSortProperty(effect, "descending", 1.0f);
+    setSortProperty(effect, "edgeProtection", 0.0f);
+    setSortProperty(effect, "mix", 1.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    constexpr std::array<float, kWidth> sorted{0.8f, 0.6f, 0.4f, 0.2f};
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto pixel = output.image().getPixel(x, y);
+            EXPECT_NEAR(pixel.r(), sorted[static_cast<std::size_t>(x)], 1.0e-6f);
+            EXPECT_NEAR(pixel.g(), sorted[static_cast<std::size_t>(x)], 1.0e-6f);
+            EXPECT_NEAR(pixel.b(), sorted[static_cast<std::size_t>(x)], 1.0e-6f);
+            EXPECT_FLOAT_EQ(pixel.a(), source.image().getPixel(x, y).a());
+        }
+    }
+}
+
+TEST(PixelSortProEffectContractTest,
      AngledSortingPreservesOriginalAlphaAtEveryPixel)
 {
     constexpr int width = 5;
