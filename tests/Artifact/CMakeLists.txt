@@ -1580,7 +1580,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
     add_test(NAME ArtifactVideoMuxFailureRetentionIntegrationTest
         COMMAND $<TARGET_FILE:ArtifactAudioLayerRenderIntegrationTest>
-            "--gtest_filter=AudioLayerRenderIntegrationTest.RendersSynchronizedVideoAndAudioLayersIntoMuxedMp4"
+            "--gtest_filter=AudioLayerRenderIntegrationTest.MuxFailureRetainsPlayableVideoOnlyOutput"
     )
     set_tests_properties(ArtifactVideoMuxFailureRetentionIntegrationTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=${_artifact_audio_test_qpa_platform}"

@@ -900,6 +900,49 @@ TEST(AudioLayerRenderIntegrationTest,
     EXPECT_GT(firstMuxedAudioSegment.frameCount(), 0);
     EXPECT_EQ(firstMuxedAudioSegment.sampleRate, 48000);
 
+}
+
+TEST(AudioLayerRenderIntegrationTest,
+     MuxFailureRetainsPlayableVideoOnlyOutput)
+{
+    QTemporaryDir root;
+    ASSERT_TRUE(root.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", root.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    if (!ArtifactCore::FFmpegEncoder::isCodecAvailable(QStringLiteral("mjpeg")) ||
+        !ArtifactCore::FFmpegEncoder::isEncoderAvailableByName(
+            QStringLiteral("mjpeg"))) {
+        GTEST_SKIP() << "FFmpeg MJPEG encoder is unavailable on this host";
+    }
+
+    constexpr int width = 320;
+    constexpr int height = 180;
+    ArtifactCore::FFmpegEncoderSettings videoSettings;
+    videoSettings.width = width;
+    videoSettings.height = height;
+    videoSettings.fps = 2.0;
+    videoSettings.videoCodec = QStringLiteral("mjpeg");
+    videoSettings.container = QStringLiteral("avi");
+    videoSettings.encoderName = QStringLiteral("mjpeg");
+    videoSettings.gopSize = 1;
+    videoSettings.maxBFrames = 0;
+    videoSettings.threadCount = 1;
+    const QString videoPath = root.filePath(QStringLiteral("mux-failure-video.avi"));
+    ArtifactCore::FFmpegEncoder videoEncoder;
+    ASSERT_TRUE(videoEncoder.open(videoPath, videoSettings))
+        << videoEncoder.lastError().toStdString();
+    ArtifactCore::ImageF32x4_RGBA videoFrame;
+    videoFrame.resize(width, height);
+    videoFrame.fill(ArtifactCore::FloatRGBA(0.9f, 0.08f, 0.04f, 1.0f));
+    for (int frame = 0; frame < 4; ++frame) {
+        ASSERT_TRUE(videoEncoder.addImage(videoFrame))
+            << videoEncoder.lastError().toStdString();
+    }
+    videoEncoder.close();
+    ASSERT_TRUE(QFileInfo::exists(videoPath));
+
     const QString invalidAudioPath = root.filePath(
         QStringLiteral("invalid-audio-source.bin"));
     QFile invalidAudioFile(invalidAudioPath);
@@ -907,36 +950,53 @@ TEST(AudioLayerRenderIntegrationTest,
     ASSERT_EQ(invalidAudioFile.write("not an audio stream"), 19);
     invalidAudioFile.close();
 
-    Artifact::ArtifactCompositionInitParams failedMuxCompositionParams;
-    failedMuxCompositionParams.setCompositionName(
-        ArtifactCore::UniString(QStringLiteral("InvalidExternalAudioMux")));
-    failedMuxCompositionParams.setResolution(width, height);
-    failedMuxCompositionParams.setFrameRate(2.0);
-    failedMuxCompositionParams.setDurationFrames(6);
-    const auto failedMuxComposition = projects.createComposition(
-        failedMuxCompositionParams);
-    ASSERT_TRUE(failedMuxComposition.success);
-    Artifact::ArtifactVideoInitParams failedMuxVideoParams(
-        QStringLiteral("Video without valid audio"));
-    failedMuxVideoParams.setVideoPath(videoPath);
-    const auto failedMuxVideoResult = projects.addLayerToComposition(
-        failedMuxComposition.id, failedMuxVideoParams);
-    ASSERT_TRUE(failedMuxVideoResult.success);
-    auto* failedMuxVideo = dynamic_cast<Artifact::ArtifactVideoLayer*>(
-        failedMuxVideoResult.layer.get());
-    ASSERT_NE(failedMuxVideo, nullptr);
-    waitForVideoLayer(failedMuxVideo);
-    ASSERT_TRUE(failedMuxVideo->isLoaded())
-        << failedMuxVideo->debugState().toStdString();
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
 
-    const QString failedMuxOutputPath = root.filePath(
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("VideoMuxFailureRetentionTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("VideoOnlyAfterMuxFailure")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(2.0);
+    compositionParams.setDurationFrames(4);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactVideoInitParams videoParams(
+        QStringLiteral("Video without valid audio"));
+    videoParams.setVideoPath(videoPath);
+    const auto videoResult = projects.addLayerToComposition(
+        composition.id, videoParams);
+    ASSERT_TRUE(videoResult.success);
+    auto* video = dynamic_cast<Artifact::ArtifactVideoLayer*>(
+        videoResult.layer.get());
+    ASSERT_NE(video, nullptr);
+    waitForVideoLayer(video);
+    ASSERT_TRUE(video->isLoaded()) << video->debugState().toStdString();
+
+    const QString outputPath = root.filePath(
         QStringLiteral("video-only-after-mux-failure.mp4"));
     QString muxFailure;
     ASSERT_TRUE(renderCompositionMp4WithAudio(
-        queue, failedMuxComposition.id, QStringLiteral("InvalidExternalAudioMux"),
-        failedMuxOutputPath, &muxFailure, 2.0,
-        QStringLiteral("aac"), true, invalidAudioPath))
-        << muxFailure.toStdString();
+        queue, composition.id, QStringLiteral("VideoOnlyAfterMuxFailure"),
+        outputPath, &muxFailure, 2.0, QStringLiteral("aac"), true,
+        invalidAudioPath)) << muxFailure.toStdString();
+
     const QString videoOnlyPath = root.filePath(
         QStringLiteral("video-only-after-mux-failure.__video_tmp__.mp4"));
     ASSERT_TRUE(QFileInfo::exists(videoOnlyPath))
