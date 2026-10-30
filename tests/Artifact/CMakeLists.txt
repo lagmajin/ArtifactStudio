@@ -2445,6 +2445,16 @@ if(ARTIFACT_BUILD_TESTS)
             RUN_SERIAL TRUE
         )
     endforeach()
+    add_test(NAME ArtifactExportLottieEmbeddedImageContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.LottieEmbedsSingleImageDataUriAndSourceBytes"
+    )
+    set_tests_properties(ArtifactExportLottieEmbeddedImageContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;lottie;image;embedded-asset;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactExportWriterInputValidationContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
             "--gtest_filter=ExportWriterContractTest.*Reject*MissingCompositionBeforeTouchingOutput*"

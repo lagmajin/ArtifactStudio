@@ -1727,6 +1727,75 @@ TEST(ExportWriterContractTest, SingleImageLayerProducesLottieSchema)
     expectSingleShapeOrImageWriterSchema(QStringLiteral("Lottie"), true);
 }
 
+TEST(ExportWriterContractTest, LottieEmbedsSingleImageDataUriAndSourceBytes)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+    const QString sourcePath = QDir(temporary.path()).filePath(
+        QStringLiteral("source/embedded.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(sourcePath).absolutePath()));
+    QImage sourceImage(3, 2, QImage::Format_RGBA8888);
+    sourceImage.fill(QColor(40, 120, 220, 255));
+    ASSERT_TRUE(sourceImage.save(sourcePath, "PNG"));
+    const QByteArray sourceBytes = readFileBytes(sourcePath);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("LottieEmbeddedImageContractTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("EmbeddedImageContract")));
+    compositionParams.setResolution(64, 36);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(1);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("EmbeddedImage"));
+    imageParams.setImagePath(sourcePath);
+    ASSERT_TRUE(projects.addLayerToComposition(composition.id, imageParams).success);
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+
+    Artifact::ArtifactLottieExportOptions options;
+    options.embedImages = true;
+    const QString outputPath = QDir(temporary.path()).filePath(
+        QStringLiteral("embedded.json"));
+    QString error;
+    ASSERT_TRUE(Artifact::ArtifactExportLottieWriter::write(
+        compositionPtr, outputPath, options, &error)) << error.toStdString();
+
+    const QJsonDocument document = QJsonDocument::fromJson(readFileBytes(outputPath));
+    ASSERT_TRUE(document.isObject());
+    const QJsonObject root = document.object();
+    const QJsonArray layers = root.value(QStringLiteral("layers")).toArray();
+    ASSERT_EQ(layers.size(), 1);
+    const QJsonObject imageLayer = layers.front().toObject();
+    EXPECT_EQ(imageLayer.value(QStringLiteral("ty")).toInt(), 2);
+    const QString layerAssetId = imageLayer.value(QStringLiteral("refId")).toString();
+    ASSERT_FALSE(layerAssetId.isEmpty());
+
+    const QJsonArray assets = root.value(QStringLiteral("assets")).toArray();
+    ASSERT_EQ(assets.size(), 1);
+    const QJsonObject asset = assets.front().toObject();
+    EXPECT_EQ(asset.value(QStringLiteral("id")).toString(), layerAssetId);
+    EXPECT_EQ(asset.value(QStringLiteral("w")).toInt(), 3);
+    EXPECT_EQ(asset.value(QStringLiteral("h")).toInt(), 2);
+    EXPECT_EQ(asset.value(QStringLiteral("e")).toInt(), 1);
+    const QString dataUri = asset.value(QStringLiteral("p")).toString();
+    const QString prefix = QStringLiteral("data:image/png;base64,");
+    ASSERT_TRUE(dataUri.startsWith(prefix));
+    EXPECT_EQ(QByteArray::fromBase64(dataUri.mid(prefix.size()).toLatin1()),
+              sourceBytes);
+}
+
 TEST(ExportWriterContractTest, SingleShapeLayerProducesMinimalWriterSchemas)
 {
     QTemporaryDir temporary;
