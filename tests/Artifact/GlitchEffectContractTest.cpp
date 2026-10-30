@@ -126,6 +126,33 @@ TEST(GlitchEffectContractTest,
 }
 
 TEST(GlitchEffectContractTest,
+     DisabledEffectIsAnExactDeepCopyEvenWithActiveParameters)
+{
+    const auto source = makeColorPattern();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::GlitchEffect effect;
+    effect.setIntensity(1.0f);
+    effect.setScanlines(1.0f);
+    effect.setColorShift(1.0f);
+    effect.setSeed(73);
+    effect.setEnabled(false);
+
+    effect.applyCPUOnly(source, output);
+
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* outputPixels = output.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(outputPixels, nullptr);
+    EXPECT_NE(outputPixels, sourcePixels);
+    EXPECT_EQ(output.image().colorDescriptor(),
+              source.image().colorDescriptor());
+    for (std::size_t channel = 0; channel < kWidth * kHeight * 4; ++channel) {
+        EXPECT_FLOAT_EQ(outputPixels[channel], sourcePixels[channel])
+            << "channel=" << channel;
+    }
+}
+
+TEST(GlitchEffectContractTest,
      SeededScanlinesRepeatWithinAFrameAndChangeAcrossFrames)
 {
     constexpr int width = 64;
