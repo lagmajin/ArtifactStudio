@@ -2447,7 +2447,7 @@ if(ARTIFACT_BUILD_TESTS)
     endforeach()
     add_test(NAME ArtifactExportWriterInputValidationContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
-            "--gtest_filter=ExportWriterContractTest.WritersRejectMissingCompositionBeforeTouchingOutputs"
+            "--gtest_filter=ExportWriterContractTest.*Reject*MissingCompositionBeforeTouchingOutput*"
     )
     set_tests_properties(ArtifactExportWriterInputValidationContractTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
@@ -2455,6 +2455,18 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 90
         RUN_SERIAL TRUE
     )
+    foreach(_writer_format IN ITEMS Gameface NoesisXaml RmlUi UnityUxml Lottie)
+        add_test(NAME ArtifactExport${_writer_format}InputValidationContractTest
+            COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+                "--gtest_filter=ExportWriterContractTest.${_writer_format}RejectsMissingCompositionBeforeTouchingOutput"
+        )
+        set_tests_properties(ArtifactExport${_writer_format}InputValidationContractTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+            LABELS "export;${_writer_format};input-validation;failure-retention;contract;cpu"
+            TIMEOUT 90
+            RUN_SERIAL TRUE
+        )
+    endforeach()
     add_test(NAME ArtifactExportSessionContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
             "--gtest_filter=ExportWriterContractTest.ExportSession*"

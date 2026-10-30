@@ -257,7 +257,7 @@ TEST(ExportWriterContractTest,
     EXPECT_EQ(readFileBytes(protectedPath), sentinel);
 }
 
-TEST(ExportWriterContractTest, WritersRejectMissingCompositionBeforeTouchingOutputs)
+void expectWriterRejectsMissingComposition(const QString& writerName)
 {
     QTemporaryDir temporary;
     ASSERT_TRUE(temporary.isValid());
@@ -286,53 +286,84 @@ TEST(ExportWriterContractTest, WritersRejectMissingCompositionBeforeTouchingOutp
     };
     const Artifact::ArtifactCompositionPtr missingComposition;
 
-    QString gamefacePath;
-    ASSERT_TRUE(createProtectedOutput(
-        QDir(temporary.path()).filePath(QStringLiteral("gameface")),
-        QStringLiteral("index.html"), gamefacePath));
-    expectRejectedWithoutMutation(gamefacePath, [&](QString* error) {
-        return Artifact::ArtifactExportGamefaceWriter::write(
-            missingComposition,
-            QDir(temporary.path()).filePath(QStringLiteral("gameface")), {}, error);
-    });
+    const QString outputDirectory = QDir(temporary.path()).filePath(writerName);
+    QString protectedPath;
+    if (writerName == QStringLiteral("Gameface")) {
+        ASSERT_TRUE(createProtectedOutput(outputDirectory,
+            QStringLiteral("index.html"), protectedPath));
+        expectRejectedWithoutMutation(protectedPath, [&](QString* error) {
+            return Artifact::ArtifactExportGamefaceWriter::write(
+                missingComposition, outputDirectory, {}, error);
+        });
+    } else if (writerName == QStringLiteral("NoesisXaml")) {
+        ASSERT_TRUE(createProtectedOutput(outputDirectory,
+            QStringLiteral("Main.xaml"), protectedPath));
+        expectRejectedWithoutMutation(protectedPath, [&](QString* error) {
+            return Artifact::ArtifactExportNoesisXamlWriter::write(
+                missingComposition, outputDirectory, {}, error);
+        });
+    } else if (writerName == QStringLiteral("RmlUi")) {
+        ASSERT_TRUE(createProtectedOutput(outputDirectory,
+            QStringLiteral("main.rml"), protectedPath));
+        expectRejectedWithoutMutation(protectedPath, [&](QString* error) {
+            return Artifact::ArtifactExportRmlUiWriter::write(
+                missingComposition, outputDirectory, {}, error);
+        });
+    } else if (writerName == QStringLiteral("UnityUxml")) {
+        ASSERT_TRUE(createProtectedOutput(outputDirectory,
+            QStringLiteral("Main.uxml"), protectedPath));
+        expectRejectedWithoutMutation(protectedPath, [&](QString* error) {
+            return Artifact::ArtifactExportUnityUxmlWriter::write(
+                missingComposition, outputDirectory, {}, error);
+        });
+    } else if (writerName == QStringLiteral("Lottie")) {
+        protectedPath = QDir(temporary.path()).filePath(
+            QStringLiteral("animation.json"));
+        ASSERT_TRUE(createProtectedOutput(temporary.path(),
+            QStringLiteral("animation.json"), protectedPath));
+        expectRejectedWithoutMutation(protectedPath, [&](QString* error) {
+            return Artifact::ArtifactExportLottieWriter::write(
+                missingComposition, protectedPath, {}, error);
+        });
+    } else {
+        FAIL() << "unknown writer: " << writerName.toStdString();
+    }
+}
 
-    QString noesisPath;
-    ASSERT_TRUE(createProtectedOutput(
-        QDir(temporary.path()).filePath(QStringLiteral("noesis")),
-        QStringLiteral("Main.xaml"), noesisPath));
-    expectRejectedWithoutMutation(noesisPath, [&](QString* error) {
-        return Artifact::ArtifactExportNoesisXamlWriter::write(
-            missingComposition,
-            QDir(temporary.path()).filePath(QStringLiteral("noesis")), {}, error);
-    });
+TEST(ExportWriterContractTest, WritersRejectMissingCompositionBeforeTouchingOutputs)
+{
+    for (const QString& writerName : {QStringLiteral("Gameface"),
+                                      QStringLiteral("NoesisXaml"),
+                                      QStringLiteral("RmlUi"),
+                                      QStringLiteral("UnityUxml"),
+                                      QStringLiteral("Lottie")}) {
+        expectWriterRejectsMissingComposition(writerName);
+    }
+}
 
-    QString rmlPath;
-    ASSERT_TRUE(createProtectedOutput(
-        QDir(temporary.path()).filePath(QStringLiteral("rml")),
-        QStringLiteral("main.rml"), rmlPath));
-    expectRejectedWithoutMutation(rmlPath, [&](QString* error) {
-        return Artifact::ArtifactExportRmlUiWriter::write(
-            missingComposition,
-            QDir(temporary.path()).filePath(QStringLiteral("rml")), {}, error);
-    });
+TEST(ExportWriterContractTest, GamefaceRejectsMissingCompositionBeforeTouchingOutput)
+{
+    expectWriterRejectsMissingComposition(QStringLiteral("Gameface"));
+}
 
-    QString unityPath;
-    ASSERT_TRUE(createProtectedOutput(
-        QDir(temporary.path()).filePath(QStringLiteral("unity")),
-        QStringLiteral("Main.uxml"), unityPath));
-    expectRejectedWithoutMutation(unityPath, [&](QString* error) {
-        return Artifact::ArtifactExportUnityUxmlWriter::write(
-            missingComposition,
-            QDir(temporary.path()).filePath(QStringLiteral("unity")), {}, error);
-    });
+TEST(ExportWriterContractTest, NoesisXamlRejectsMissingCompositionBeforeTouchingOutput)
+{
+    expectWriterRejectsMissingComposition(QStringLiteral("NoesisXaml"));
+}
 
-    QString lottiePath;
-    ASSERT_TRUE(createProtectedOutput(
-        temporary.path(), QStringLiteral("animation.json"), lottiePath));
-    expectRejectedWithoutMutation(lottiePath, [&](QString* error) {
-        return Artifact::ArtifactExportLottieWriter::write(
-            missingComposition, lottiePath, {}, error);
-    });
+TEST(ExportWriterContractTest, RmlUiRejectsMissingCompositionBeforeTouchingOutput)
+{
+    expectWriterRejectsMissingComposition(QStringLiteral("RmlUi"));
+}
+
+TEST(ExportWriterContractTest, UnityUxmlRejectsMissingCompositionBeforeTouchingOutput)
+{
+    expectWriterRejectsMissingComposition(QStringLiteral("UnityUxml"));
+}
+
+TEST(ExportWriterContractTest, LottieRejectsMissingCompositionBeforeTouchingOutput)
+{
+    expectWriterRejectsMissingComposition(QStringLiteral("Lottie"));
 }
 
 TEST(ExportWriterContractTest, MinimalTextCompositionProducesWriterSchemas)
