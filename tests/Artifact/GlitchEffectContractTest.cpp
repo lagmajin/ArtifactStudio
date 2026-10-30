@@ -494,6 +494,72 @@ TEST(GlitchEffectContractTest,
     }
 }
 
+TEST(GlitchEffectContractTest,
+     CreativeGlitchSingleRowClampsHorizontalChannelSamples)
+{
+    constexpr int width = 9;
+    constexpr int height = 1;
+    std::array<float, width * 4> pixels{};
+    for (int x = 0; x < width; ++x) {
+        const std::size_t offset = static_cast<std::size_t>(x) * 4;
+        pixels[offset] = 0.05f + static_cast<float>(x) * 0.07f;
+        pixels[offset + 1] = 0.1f + static_cast<float>(x) * 0.08f;
+        pixels[offset + 2] = 0.2f + static_cast<float>(x) * 0.06f;
+        pixels[offset + 3] = 0.15f + static_cast<float>(x) * 0.08f;
+    }
+    const auto descriptor =
+        ArtifactCore::SurfaceColorDescriptor::linearStraightRgba32Float();
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    image.setColorDescriptor(descriptor);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::ArtifactGlitchEffect effect;
+    effect.setComputeMode(Artifact::ComputeMode::CPU);
+
+    effect.apply(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    EXPECT_EQ(output.image().colorDescriptor(), descriptor);
+    const float* actual = output.image().rgba32fData();
+    const float* original = source.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(original, nullptr);
+    for (int x = 0; x < width; ++x) {
+        const std::size_t outputOffset = static_cast<std::size_t>(x) * 4;
+        int sourceX = -1;
+        for (int candidate = 0; candidate < width; ++candidate) {
+            const std::size_t sourceOffset =
+                static_cast<std::size_t>(candidate) * 4;
+            if (actual[outputOffset + 1] == pixels[sourceOffset + 1]) {
+                sourceX = candidate;
+                break;
+            }
+        }
+        ASSERT_GE(sourceX, 0) << "green channel must identify the sampled pixel";
+        EXPECT_FLOAT_EQ(actual[outputOffset + 3],
+                        pixels[static_cast<std::size_t>(sourceX) * 4 + 3]);
+
+        bool matchedClampedChannelPair = false;
+        for (int separation = 3; separation <= 7; ++separation) {
+            const int redX = std::clamp(sourceX + separation, 0, width - 1);
+            const int blueX = std::clamp(sourceX - separation, 0, width - 1);
+            const std::size_t redOffset = static_cast<std::size_t>(redX) * 4;
+            const std::size_t blueOffset = static_cast<std::size_t>(blueX) * 4;
+            matchedClampedChannelPair = matchedClampedChannelPair ||
+                (actual[outputOffset] == pixels[redOffset] &&
+                 actual[outputOffset + 2] == pixels[blueOffset + 2]);
+        }
+        EXPECT_TRUE(matchedClampedChannelPair)
+            << "x=" << x << " sampled green source x=" << sourceX;
+    }
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(original[channel], pixels[channel])
+            << "source channel=" << channel;
+    }
+}
+
 TEST(GlitchEffectContractTest, SettersClampAmountsAndSeed)
 {
     Artifact::GlitchEffect effect;
