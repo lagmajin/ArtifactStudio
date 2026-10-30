@@ -517,6 +517,8 @@ TEST(FilmDamageEffectContractTest,
 {
     const auto source = makeFilmSurface();
     ArtifactCore::ImageF32x4RGBAWithCache output;
+    ArtifactCore::ImageF32x4RGBAWithCache sameFrameKeyOutput;
+    ArtifactCore::ImageF32x4RGBAWithCache nextFrameKeyOutput;
     Artifact::FilmDamageEffect effect;
     setFilmProperty(effect, "Grain", QVariant(0.0));
     setFilmProperty(effect, "Dust", QVariant(0.0));
@@ -528,16 +530,26 @@ TEST(FilmDamageEffectContractTest,
     setFilmProperty(effect, "Seed", QVariant(212));
 
     effect.applyCPUOnly(source, output);
+    setFilmProperty(effect, "Evolution", QVariant(0.13));
+    effect.applyCPUOnly(source, sameFrameKeyOutput);
+    setFilmProperty(effect, "Evolution", QVariant(0.17));
+    effect.applyCPUOnly(source, nextFrameKeyOutput);
 
     float expectedGain = 0.0f;
+    float expectedNextFrameGain = 0.0f;
     bool hasExpectedGain = false;
+    bool hasExpectedNextFrameGain = false;
     for (int y = 0; y < kHeight; ++y) {
         for (int x = 0; x < kWidth; ++x) {
             const auto actual = output.image().getPixel(x, y);
+            const auto sameFrameKey = sameFrameKeyOutput.image().getPixel(x, y);
+            const auto nextFrameKey = nextFrameKeyOutput.image().getPixel(x, y);
             const auto input = source.image().getPixel(x, y);
             const std::array<float, 3> inputRgb{input.r(), input.g(), input.b()};
             const std::array<float, 3> outputRgb{actual.r(), actual.g(), actual.b()};
             EXPECT_FLOAT_EQ(actual.a(), input.a());
+            EXPECT_FLOAT_EQ(sameFrameKey.a(), input.a());
+            EXPECT_FLOAT_EQ(nextFrameKey.a(), input.a());
             for (std::size_t channel = 0; channel < inputRgb.size(); ++channel) {
                 const float gain = outputRgb[channel] / inputRgb[channel];
                 if (!hasExpectedGain) {
@@ -547,9 +559,28 @@ TEST(FilmDamageEffectContractTest,
                 EXPECT_NEAR(gain, expectedGain, 1.0e-6f)
                     << "pixel=" << y * kWidth + x
                     << " channel=" << channel;
+                EXPECT_FLOAT_EQ(outputRgb[channel],
+                                channel == 0 ? sameFrameKey.r() :
+                                channel == 1 ? sameFrameKey.g() : sameFrameKey.b())
+                    << "same frameKey pixel=" << y * kWidth + x
+                    << " channel=" << channel;
+
+                const float nextGain =
+                    (channel == 0 ? nextFrameKey.r() :
+                     channel == 1 ? nextFrameKey.g() : nextFrameKey.b()) /
+                    inputRgb[channel];
+                if (!hasExpectedNextFrameGain) {
+                    expectedNextFrameGain = nextGain;
+                    hasExpectedNextFrameGain = true;
+                }
+                EXPECT_NEAR(nextGain, expectedNextFrameGain, 1.0e-6f)
+                    << "next frameKey pixel=" << y * kWidth + x
+                    << " channel=" << channel;
             }
         }
     }
     EXPECT_TRUE(hasExpectedGain);
     EXPECT_GT(std::abs(expectedGain - 1.0f), 1.0e-4f);
+    EXPECT_TRUE(hasExpectedNextFrameGain);
+    EXPECT_GT(std::abs(expectedNextFrameGain - expectedGain), 1.0e-4f);
 }
