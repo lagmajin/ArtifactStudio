@@ -524,20 +524,36 @@ TEST(LofiEffectContractTest,
     EXPECT_TRUE(changed) << "the CPU surface route must evaluate Old TV";
 }
 
-TEST(LofiEffectContractTest, OldTvPublishesItsGenericGpuSpatialNode)
+TEST(LofiEffectContractTest,
+     CreativeLofiEffectsPublishTheirGenericGpuSpatialNodes)
 {
-    ArtifactOldTVEffect effect;
-    GpuSpatialEffectStack stack;
+    const auto verifyEffect = [](
+        ArtifactAbstractEffect& effect, const std::uint32_t expectedKey) {
+        EXPECT_TRUE(effect.supportsGPU());
+        EXPECT_EQ(effect.gpuRasterEffectDomain(),
+                  GpuRasterEffectDomain::Spatial);
 
-    ASSERT_TRUE(effect.supportsGPU());
-    EXPECT_EQ(effect.gpuRasterEffectDomain(), GpuRasterEffectDomain::Spatial);
-    ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
+        GpuSpatialEffectStack stack;
+        ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
+        ASSERT_EQ(stack.count, 1u);
+        EXPECT_EQ(stack.nodes[0].kind, GpuSpatialEffectKind::Generic);
+        EXPECT_EQ(stack.nodes[0].genericKey, expectedKey);
+        EXPECT_EQ(stack.nodes[0].genericKey, effect.gpuGenericKey());
 
-    ASSERT_EQ(stack.count, 1u);
-    EXPECT_EQ(stack.nodes[0].kind, GpuSpatialEffectKind::Generic);
-    EXPECT_EQ(stack.nodes[0].genericKey, effect.gpuGenericKey());
-    EXPECT_EQ(stack.nodes[0].genericKey,
-              gpuGenericKeyFromString("builtin.old_tv"));
+        GpuGenericShaderRecord record{};
+        ASSERT_TRUE(findGpuGenericShader(expectedKey, &record));
+        EXPECT_NE(record.shaderBody, nullptr);
+        ASSERT_NE(record.entryPoint, nullptr);
+        EXPECT_STREQ(record.entryPoint, "main");
+        EXPECT_EQ(record.resource, GpuGenericResourceKind::Filter);
+    };
+
+    ArtifactGlitchEffect glitch;
+    verifyEffect(glitch, gpuGenericKeyFromString("builtin.glitch"));
+    ArtifactHalftoneEffect halftone;
+    verifyEffect(halftone, gpuGenericKeyFromString("builtin.halftone"));
+    ArtifactOldTVEffect oldTv;
+    verifyEffect(oldTv, gpuGenericKeyFromString("builtin.old_tv"));
 }
 
 TEST(LofiEffectContractTest,
