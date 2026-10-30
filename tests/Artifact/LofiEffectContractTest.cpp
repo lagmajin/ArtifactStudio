@@ -1825,6 +1825,42 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeScratchProcessesTransparentRgbWithoutChangingAlpha)
+{
+    constexpr int width = 1;
+    constexpr int height = 1;
+    constexpr std::array<float, 4> pixels{0.25f, 0.5f, 0.75f, 0.0f};
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("scratchAmount"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("dustAmount"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("flicker"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("gateWeave"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("vignette"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("stain"), QVariant(0.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(1001));
+    EffectContext context;
+    context.compositionFrame = 4;
+    effect.setContext(context);
+
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(output.image().width(), width);
+    EXPECT_EQ(output.image().height(), height);
+    EXPECT_GT(result[0], pixels[0]);
+    EXPECT_GT(result[1], pixels[1]);
+    EXPECT_GT(result[2], pixels[2]);
+    EXPECT_FLOAT_EQ(result[3], 0.0f);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeScratchAmountAddsLocalizedSharedRgbDamage)
 {
     constexpr int width = 72;
