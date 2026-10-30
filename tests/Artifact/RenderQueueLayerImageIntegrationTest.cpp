@@ -743,12 +743,16 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             const int positionXIndex = channelIndex("Position.X");
             const int positionYIndex = channelIndex("Position.Y");
             const int positionZIndex = channelIndex("Position.Z");
+            const int emissionIndex = channelIndex("Emission");
+            const int uvUIndex = channelIndex("UV.U");
+            const int uvVIndex = channelIndex("UV.V");
             const int depthIndex = channelIndex("Depth");
             if (objectIdIndex < 0 || materialIdIndex < 0 || normalXIndex < 0 ||
                 normalYIndex < 0 || normalZIndex < 0 || depthIndex < 0 ||
                 velocityXIndex < 0 || velocityYIndex < 0 || albedoRIndex < 0 ||
                 albedoGIndex < 0 || albedoBIndex < 0 || positionXIndex < 0 ||
-                positionYIndex < 0 || positionZIndex < 0) {
+                positionYIndex < 0 || positionZIndex < 0 || emissionIndex < 0 ||
+                uvUIndex < 0 || uvVIndex < 0) {
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue EXR was missing required 3D AOV channels: %1")
@@ -762,6 +766,8 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             bool hasVelocitySample = false;
             bool hasAlbedoSample = false;
             bool hasPositionSample = false;
+            bool hasEmissionSample = false;
+            bool hasUvSample = false;
             const float expectedObjectId = expectedObjectName.isEmpty()
                 ? 0.0f
                 : ArtifactCore::Image::Cryptomatte::CryptoSample::nameToFloat(
@@ -829,6 +835,20 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                     hasPositionSample = true;
                 }
                 if (expectedObjectPixel &&
+                    pixels[pixelBase + static_cast<std::size_t>(emissionIndex)] >
+                        1.0e-5f) {
+                    hasEmissionSample = true;
+                }
+                if (expectedObjectPixel &&
+                    (std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(uvUIndex)]) >
+                         1.0e-5f ||
+                     std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(uvVIndex)]) >
+                         1.0e-5f)) {
+                    hasUvSample = true;
+                }
+                if (expectedObjectPixel &&
                     (std::abs(pixels[pixelBase +
                                      static_cast<std::size_t>(velocityXIndex)]) >
                          1.0e-6f ||
@@ -840,14 +860,15 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             }
             if (!hasObjectIdSample || !hasMaterialIdSample || !hasNormalSample ||
                 !hasDepthSample || !hasAlbedoSample || !hasPositionSample ||
+                !hasEmissionSample || !hasUvSample ||
                 (expectMotionVectors &&
                  ((frame > frameStart && !hasVelocitySample) ||
                   (frame == frameStart && hasVelocitySample)))) {
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue EXR did not contain non-clear 3D ObjectId, "
-                    "MaterialId, Normal, Depth, Albedo, Position, and expected "
-                    "Velocity samples: %1")
+                    "MaterialId, Normal, Depth, Albedo, Emission, Position, "
+                    "UV, and expected Velocity samples: %1")
                                .arg(framePath);
                 return false;
             }
@@ -1037,6 +1058,10 @@ TEST(RenderQueueLayerImageIntegrationTest,
     auto model = ArtifactCore::makeShared<Artifact::Artifact3DLayer>(
         Artifact::FixedGeometry3D::Cube);
     model->setLayerName(QStringLiteral("EXR AOV Test Cube"));
+    ASSERT_TRUE(model->setLayerPropertyValue(
+        QStringLiteral("material.emission.color"), QColor(255, 255, 255)));
+    ASSERT_TRUE(model->setLayerPropertyValue(
+        QStringLiteral("material.emissionStrength"), 2.0f));
     model->transform3D().setCurrentPosition(width * 0.2f, height / 2.0f);
     model->transform3D().setCurrentPositionZ(0.0f);
     ASSERT_TRUE(outputComposition->appendLayerTop(model).success);
