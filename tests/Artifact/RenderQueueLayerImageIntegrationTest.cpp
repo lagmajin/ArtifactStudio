@@ -2491,8 +2491,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
     QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
     QStandardPaths::setTestModeEnabled(true);
 
-    constexpr int width = 128;
-    constexpr int height = 80;
+    constexpr int width = 13;
+    constexpr int height = 11;
     auto& projects = Artifact::ArtifactProjectManager::getInstance();
     auto* queue = Artifact::ArtifactRenderQueueService::instance();
     ASSERT_NE(queue, nullptr);
@@ -2592,8 +2592,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
     EXPECT_GT(centerSource.alpha(), 0);
     EXPECT_LT(centerSource.alpha(), 255)
         << "the fixture must retain translucent source pixels";
-    EXPECT_NE(baseline.pixelColor(8, height / 2),
-              baseline.pixelColor(width - 8, height / 2))
+    EXPECT_NE(baseline.pixelColor(2, height / 2),
+              baseline.pixelColor(width - 3, height / 2))
         << "the fixture must expose horizontal color shifts";
     EXPECT_NE(effected, baseline)
         << "GPU Glitch must change the rendered horizontal color pattern";
