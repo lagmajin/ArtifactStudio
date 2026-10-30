@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <initializer_list>
 #include <limits>
 #include <QString>
 #include <QVariant>
@@ -314,4 +315,49 @@ TEST(FilmDamageEffectContractTest, ZeroDamageControlsLeaveTheSurfaceUnchanged)
             EXPECT_FLOAT_EQ(actual.a(), expected.a());
         }
     }
+}
+
+TEST(FilmDamageEffectContractTest,
+     DustAddsLocalizedRgbDamageAndPreservesAlpha)
+{
+    const auto source = makeFilmSurface();
+    ArtifactCore::ImageF32x4RGBAWithCache cleanOutput;
+    ArtifactCore::ImageF32x4RGBAWithCache dustyOutput;
+    Artifact::FilmDamageEffect cleanEffect;
+    Artifact::FilmDamageEffect dustyEffect;
+    for (auto* effect : {&cleanEffect, &dustyEffect}) {
+        setFilmProperty(*effect, "Grain", QVariant(0.0));
+        setFilmProperty(*effect, "Dust", QVariant(0.0));
+        setFilmProperty(*effect, "Scratches", QVariant(0.0));
+        setFilmProperty(*effect, "Gate Weave", QVariant(0.0));
+        setFilmProperty(*effect, "Flicker", QVariant(0.0));
+        setFilmProperty(*effect, "Film Burn", QVariant(0.0));
+        setFilmProperty(*effect, "Evolution", QVariant(0.125));
+        setFilmProperty(*effect, "Seed", QVariant(943));
+    }
+    setFilmProperty(dustyEffect, "Dust", QVariant(1.0));
+
+    cleanEffect.applyCPUOnly(source, cleanOutput);
+    dustyEffect.applyCPUOnly(source, dustyOutput);
+
+    int changedPixels = 0;
+    int unchangedPixels = 0;
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto clean = cleanOutput.image().getPixel(x, y);
+            const auto dusty = dustyOutput.image().getPixel(x, y);
+            const auto input = source.image().getPixel(x, y);
+            EXPECT_FLOAT_EQ(clean.r(), input.r());
+            EXPECT_FLOAT_EQ(clean.g(), input.g());
+            EXPECT_FLOAT_EQ(clean.b(), input.b());
+            EXPECT_FLOAT_EQ(dusty.a(), input.a());
+            const bool changed =
+                std::abs(dusty.r() - input.r()) > 1.0e-6f ||
+                std::abs(dusty.g() - input.g()) > 1.0e-6f ||
+                std::abs(dusty.b() - input.b()) > 1.0e-6f;
+            changed ? ++changedPixels : ++unchangedPixels;
+        }
+    }
+    EXPECT_GT(changedPixels, 0);
+    EXPECT_GT(unchangedPixels, 0);
 }
