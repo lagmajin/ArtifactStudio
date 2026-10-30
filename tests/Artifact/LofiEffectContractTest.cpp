@@ -1093,6 +1093,73 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeAnimatesFlickerAgainstFixedFrameExposure)
+{
+    constexpr int width = 12;
+    constexpr int height = 8;
+    constexpr float sourceValue = 0.4f;
+    constexpr float alpha = 0.65f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4] = sourceValue;
+        pixels[pixel * 4 + 1] = sourceValue;
+        pixels[pixel * 4 + 2] = sourceValue;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+
+    ArtifactFilmGrungeEffect animatedEffect;
+    animatedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "gateWeave", "vignette", "stain"}) {
+        animatedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    auto* flicker =
+        animatedEffect.editableProperty(QStringLiteral("flicker"));
+    ASSERT_NE(flicker, nullptr);
+    flicker->addKeyFrame(RationalTime(0, 30), 0.0);
+    flicker->addKeyFrame(RationalTime(30, 30), 0.5);
+
+    EffectContext context;
+    context.compositionFrame = 15;
+    animatedEffect.setContext(context);
+    ImageF32x4RGBAWithCache animatedFrame;
+    animatedEffect.applyCPUOnly(source, animatedFrame);
+
+    ArtifactFilmGrungeEffect fixedEffect;
+    fixedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "gateWeave", "vignette", "stain"}) {
+        fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    fixedEffect.setPropertyValue(UniString("flicker"), QVariant(0.25f));
+    fixedEffect.setContext(context);
+    ImageF32x4RGBAWithCache fixedFrame;
+    fixedEffect.applyCPUOnly(source, fixedFrame);
+
+    const float* animated = animatedFrame.image().rgba32fData();
+    const float* fixed = fixedFrame.image().rgba32fData();
+    ASSERT_NE(animated, nullptr);
+    ASSERT_NE(fixed, nullptr);
+    EXPECT_NE(animated[0], sourceValue)
+        << "the interpolated exposure flicker should affect RGB";
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(animated[offset + channel], fixed[offset + channel])
+                << "pixel=" << pixel << " channel=" << channel;
+            EXPECT_FLOAT_EQ(animated[offset + channel], animated[channel])
+                << "uniform exposure pixel=" << pixel << " channel=" << channel;
+        }
+        EXPECT_FLOAT_EQ(animated[offset + 3], alpha) << "pixel=" << pixel;
+    }
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeEmulsionStainAddsDeterministicSpatialColorVariation)
 {
     constexpr int width = 32;
