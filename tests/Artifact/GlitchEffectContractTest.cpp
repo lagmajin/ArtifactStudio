@@ -77,6 +77,40 @@ TEST(GlitchEffectContractTest, SeededChannelShiftIsRepeatableAndPreservesAlpha)
 }
 
 TEST(GlitchEffectContractTest,
+     SeededGlitchInPlaceMatchesOutOfPlaceWithoutChangingSource)
+{
+    const auto source = makeColorPattern();
+    auto inPlace = source;
+    const float* sourceBefore = source.image().rgba32fData();
+    ASSERT_NE(sourceBefore, nullptr);
+    std::array<float, kWidth * kHeight * 4> originalSource{};
+    std::copy_n(sourceBefore, originalSource.size(), originalSource.begin());
+    ArtifactCore::ImageF32x4RGBAWithCache outOfPlace;
+    Artifact::GlitchEffect effect;
+    effect.setIntensity(0.7f);
+    effect.setColorShift(0.8f);
+    effect.setScanlines(0.6f);
+    effect.setSeed(19);
+
+    effect.applyCPUOnly(source, outOfPlace);
+    effect.applyCPUOnly(inPlace, inPlace);
+
+    const float* sourcePixels = source.image().rgba32fData();
+    const float* outOfPlacePixels = outOfPlace.image().rgba32fData();
+    const float* inPlacePixels = inPlace.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ASSERT_NE(outOfPlacePixels, nullptr);
+    ASSERT_NE(inPlacePixels, nullptr);
+    EXPECT_NE(sourcePixels, inPlacePixels);
+    for (std::size_t channel = 0; channel < kWidth * kHeight * 4; ++channel) {
+        EXPECT_FLOAT_EQ(sourcePixels[channel], originalSource[channel])
+            << "source channel=" << channel;
+        EXPECT_FLOAT_EQ(inPlacePixels[channel], outOfPlacePixels[channel])
+            << "output channel=" << channel;
+    }
+}
+
+TEST(GlitchEffectContractTest,
      CreativeGlitchOffsetsRedAndBlueFromTheGreenSourcePixel)
 {
     constexpr int width = 64;
