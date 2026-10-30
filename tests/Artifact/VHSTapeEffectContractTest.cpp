@@ -81,6 +81,30 @@ TEST(VHSTapeEffectContractTest, NeutralSettingsUseBgraContractAndPreserveSource)
     }
 }
 
+TEST(VHSTapeEffectContractTest,
+     NeutralSettingsHandleSinglePixelSurfaceAndPreserveAlpha)
+{
+    constexpr std::array<float, 4> pixel = {0.1f, 0.35f, 0.8f, 0.4f};
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixel.data(), 1, 1);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), 1);
+    ASSERT_EQ(output.image().height(), 1);
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    EXPECT_NE(actual, source.image().rgba32fData());
+    EXPECT_NEAR(actual[0], pixel[2], 1.0e-6f);
+    EXPECT_NEAR(actual[1], pixel[1], 1.0e-6f);
+    EXPECT_NEAR(actual[2], pixel[0], 1.0e-6f);
+    EXPECT_NEAR(actual[3], pixel[3], 1.0e-6f);
+}
+
 TEST(VHSTapeEffectContractTest, ScanlineIntensityDarkensRowsAndPreservesAlphaContract)
 {
     const auto source = makeUniformSurface();
