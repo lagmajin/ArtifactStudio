@@ -1132,6 +1132,14 @@ TEST(LofiEffectContractTest,
     EXPECT_EQ(disabledOutput, source)
         << "a disabled rasterizer stack must leave the input image untouched";
 
+    effect->setEnabled(true);
+    effect->setPipelineStage(EffectPipelineStage::PreProcess);
+    QImage nonRasterizerOutput = source;
+    EXPECT_FALSE(applyCompositionFinalEffectsToImage(
+        composition.get(), nonRasterizerOutput, DetailLevel::High));
+    EXPECT_EQ(nonRasterizerOutput, source)
+        << "a non-rasterizer effect must not enter the rasterizer image path";
+
     QImage nullCompositionOutput = source;
     EXPECT_FALSE(applyCompositionFinalEffectsToImage(
         nullptr, nullCompositionOutput, DetailLevel::High));
