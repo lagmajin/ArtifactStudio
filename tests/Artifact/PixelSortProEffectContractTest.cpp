@@ -6,6 +6,7 @@
 
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Rasterizer.PixelSort;
+import Graphics.SurfaceColorContract;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
 import Utils.String.UniString;
@@ -116,6 +117,9 @@ TEST(PixelSortProEffectContractTest,
     }
     ArtifactCore::ImageF32x4_RGBA image;
     image.setFromRGBA32F(pixels.data(), width, height);
+    const auto descriptor =
+        ArtifactCore::SurfaceColorDescriptor::linearStraightRgba32Float();
+    image.setColorDescriptor(descriptor);
     const ArtifactCore::ImageF32x4RGBAWithCache source(image);
     ArtifactCore::ImageF32x4RGBAWithCache output;
     Artifact::PixelSortProEffect effect;
@@ -130,10 +134,19 @@ TEST(PixelSortProEffectContractTest,
 
     ASSERT_EQ(output.image().width(), width);
     ASSERT_EQ(output.image().height(), height);
+    EXPECT_EQ(source.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(output.image().colorDescriptor(), descriptor);
     const float* actual = output.image().rgba32fData();
+    const float* original = source.image().rgba32fData();
     ASSERT_NE(actual, nullptr);
+    ASSERT_NE(original, nullptr);
     for (std::size_t pixel = 0; pixel < source.image().totalPixels(); ++pixel) {
         EXPECT_FLOAT_EQ(actual[pixel * 4 + 3], pixels[pixel * 4 + 3])
             << "pixel=" << pixel;
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            EXPECT_FLOAT_EQ(original[pixel * 4 + channel],
+                            pixels[pixel * 4 + channel])
+                << "source pixel=" << pixel << " channel=" << channel;
+        }
     }
 }
