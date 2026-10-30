@@ -105,6 +105,35 @@ TEST(VHSTapeEffectContractTest,
     EXPECT_NEAR(actual[3], pixel[3], 1.0e-6f);
 }
 
+TEST(VHSTapeEffectContractTest,
+     OsdDrawingOnSinglePixelSurfaceRemainsFiniteAndDoesNotMutateSource)
+{
+    constexpr std::array<float, 4> pixel = {0.1f, 0.35f, 0.8f, 0.4f};
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixel.data(), 1, 1);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+    effect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 3);
+    effect.setPropertyValue(UniString(QStringLiteral("Evolution")), 3661.5);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), 1);
+    ASSERT_EQ(output.image().height(), 1);
+    const float* actual = output.image().rgba32fData();
+    const float* original = source.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(original, nullptr);
+    for (std::size_t channel = 0; channel < pixel.size(); ++channel) {
+        EXPECT_TRUE(std::isfinite(actual[channel])) << "channel=" << channel;
+        EXPECT_FLOAT_EQ(original[channel], pixel[channel])
+            << "source channel=" << channel;
+    }
+}
+
 TEST(VHSTapeEffectContractTest, ScanlineIntensityDarkensRowsAndPreservesAlphaContract)
 {
     const auto source = makeUniformSurface();
