@@ -774,6 +774,7 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
     const ImageF32x4RGBAWithCache source(image);
     ImageF32x4RGBAWithCache output;
     ImageF32x4RGBAWithCache otherFrameOutput;
+    ImageF32x4RGBAWithCache fineGrainOutput;
     ArtifactFilmGrungeEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
     effect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
@@ -789,13 +790,20 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
     context.compositionFrame = 13;
     effect.setContext(context);
     effect.applyCPUOnly(source, otherFrameOutput);
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    context.compositionFrame = 12;
+    effect.setContext(context);
+    effect.applyCPUOnly(source, fineGrainOutput);
 
     const float* result = output.image().rgba32fData();
     const float* otherFrame = otherFrameOutput.image().rgba32fData();
+    const float* fineGrain = fineGrainOutput.image().rgba32fData();
     ASSERT_NE(result, nullptr);
     ASSERT_NE(otherFrame, nullptr);
+    ASSERT_NE(fineGrain, nullptr);
     const float firstBlockSample = result[1];
     bool observedBlockVariation = false;
+    bool observedFineVariationWithinCoarseBlock = false;
     std::size_t changedByFrame = 0;
     for (int blockY = 0; blockY < height; blockY += 4) {
         for (int blockX = 0; blockX < width; blockX += 4) {
@@ -804,6 +812,7 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
             const std::array<float, 4> blockValue{
                 result[blockOffset + 0], result[blockOffset + 1],
                 result[blockOffset + 2], result[blockOffset + 3]};
+            const float fineBlockSample = fineGrain[blockOffset + 1];
             observedBlockVariation = observedBlockVariation ||
                 blockValue[1] != firstBlockSample;
             for (int y = blockY; y < std::min(blockY + 4, height); ++y) {
@@ -820,6 +829,11 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
                             << "other-frame grain block x=" << x << " y=" << y
                             << " channel=" << channel;
                     }
+                    observedFineVariationWithinCoarseBlock =
+                        observedFineVariationWithinCoarseBlock ||
+                        fineGrain[offset + 1] != fineBlockSample;
+                    EXPECT_FLOAT_EQ(fineGrain[offset + 3], alpha)
+                        << "fine grain alpha x=" << x << " y=" << y;
                     if (result[offset + 1] != otherFrame[offset + 1]) {
                         ++changedByFrame;
                     }
@@ -832,6 +846,7 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
         }
     }
     EXPECT_TRUE(observedBlockVariation);
+    EXPECT_TRUE(observedFineVariationWithinCoarseBlock);
     EXPECT_GT(changedByFrame, 0u);
 }
 
