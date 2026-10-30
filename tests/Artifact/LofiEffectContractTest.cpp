@@ -19,6 +19,7 @@ import Artifact.Effect.Context;
 import Graphics.SurfaceColorContract;
 import Image.ImageF32x4RGBAWithCache;
 import Image.ImageF32x4_RGBA;
+import Memory.SharedPtr;
 import Time.Rational;
 
 using namespace Artifact;
@@ -474,6 +475,73 @@ TEST(LofiEffectContractTest, FilmGrungeEffectRegionLimitsGrainToPixelCenters)
         }
     }
     EXPECT_TRUE(changedInside);
+}
+
+TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
+{
+    constexpr int width = 24;
+    constexpr int height = 16;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            pixels[offset + 0] = static_cast<float>((x * 3 + y) % 17) / 16.0f;
+            pixels[offset + 1] = static_cast<float>((x + y * 2) % 13) / 12.0f;
+            pixels[offset + 2] = static_cast<float>((x * 5 + y * 3) % 19) / 18.0f;
+            pixels[offset + 3] = 0.7f;
+        }
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.4f));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(987));
+    EffectContext context;
+    context.compositionFrame = 23;
+    effect.setContext(context);
+
+    ImageF32x4RGBAWithCache fullEffect;
+    ImageF32x4RGBAWithCache maskedEffect;
+    effect.applyCPUOnly(source, fullEffect);
+
+    constexpr std::array<float, 16> maskPixels{
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.25f,
+        0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 1.0f};
+    auto mask = makeShared<ImageF32x4_RGBA>();
+    mask->setFromRGBA32F(maskPixels.data(), 2, 2);
+    effect.setMaskImage(mask);
+    effect.setMaskEnabled(true);
+    effect.applyCPUOnly(source, maskedEffect);
+
+    const float* full = fullEffect.image().rgba32fData();
+    const float* masked = maskedEffect.image().rgba32fData();
+    ASSERT_NE(full, nullptr);
+    ASSERT_NE(masked, nullptr);
+    constexpr std::array<float, 4> maskAlpha{0.0f, 0.25f, 0.5f, 1.0f};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int maskX = std::min(
+                static_cast<int>((static_cast<float>(x) + 0.5f) * 2.0f / width),
+                1);
+            const int maskY = std::min(
+                static_cast<int>((static_cast<float>(y) + 0.5f) * 2.0f / height),
+                1);
+            const float alpha = maskAlpha[static_cast<std::size_t>(maskY * 2 + maskX)];
+            const std::size_t offset =
+                static_cast<std::size_t>((y * width + x) * 4);
+            for (int channel = 0; channel < 4; ++channel) {
+                EXPECT_NEAR(masked[offset + channel],
+                            pixels[offset + channel] * (1.0f - alpha) +
+                                full[offset + channel] * alpha,
+                            1.0e-6f)
+                    << "x=" << x << " y=" << y << " channel=" << channel;
+            }
+        }
+    }
 }
 
 TEST(LofiEffectContractTest, FilmGrungeInPlaceMatchesOutOfPlaceAndKeepsIndependentStorage)
