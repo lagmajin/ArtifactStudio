@@ -2351,6 +2351,16 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 90
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactExportWriterSvgPreRenderContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.ExportSessionClassifiesSingleSvgLayerForPreRender"
+    )
+    set_tests_properties(ArtifactExportWriterSvgPreRenderContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;svg;session;pre-render;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
 
     # Playback range service contract runs in its own process with a Core
     # event loop; it does not start playback or initialize a graphics device.

@@ -130,6 +130,72 @@ TEST(ExportWriterContractTest, ExportSessionRejectsMissingCompositionAndCanRetry
     EXPECT_FALSE(error.isEmpty());
 }
 
+TEST(ExportWriterContractTest,
+     ExportSessionClassifiesSingleSvgLayerForPreRender)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+    const QString svgPath = QDir(temporary.path()).filePath(
+        QStringLiteral("only-vector.svg"));
+    QFile svgFile(svgPath);
+    ASSERT_TRUE(svgFile.open(QIODevice::WriteOnly | QIODevice::Text));
+    const QByteArray svgBytes = QByteArrayLiteral(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"6\">"
+        "<rect width=\"8\" height=\"6\" fill=\"#4080c0\"/>"
+        "</svg>");
+    ASSERT_EQ(svgFile.write(svgBytes), svgBytes.size());
+    svgFile.close();
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("SingleSvgExportSessionContractTest"),
+                           true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("SingleSvgContract")));
+    compositionParams.setResolution(64, 36);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(1);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSvgInitParams svgParams(QStringLiteral("OnlySvg"));
+    svgParams.setSvgPath(svgPath);
+    const auto svgResult = projects.addLayerToComposition(
+        composition.id, svgParams);
+    ASSERT_TRUE(svgResult.success);
+
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+    Artifact::ArtifactExportSession session(compositionPtr);
+    QString error;
+    ASSERT_TRUE(session.build(&error)) << error.toStdString();
+
+    const auto& snapshot = session.snapshot();
+    ASSERT_EQ(snapshot.layers.size(), 1);
+    const auto& layer = snapshot.layers.front();
+    EXPECT_EQ(layer.name, QStringLiteral("OnlySvg"));
+    EXPECT_EQ(layer.serialized.value(QStringLiteral("svg.sourcePath")).toString(),
+              svgPath);
+    EXPECT_TRUE(layer.requiresPreRender);
+    EXPECT_EQ(layer.preRenderReason, QStringLiteral("SVGレイヤー"));
+    EXPECT_TRUE(snapshot.assets.isEmpty())
+        << "SVG source files are inputs to pre-rendering, not copied image assets";
+    EXPECT_TRUE(std::any_of(snapshot.warnings.cbegin(), snapshot.warnings.cend(),
+        [](const QString& warning) {
+            return warning.contains(QStringLiteral("OnlySvg")) &&
+                   warning.contains(QStringLiteral("SVGレイヤー"));
+        }));
+}
+
 TEST(ExportWriterContractTest, WritersRejectMissingCompositionBeforeTouchingOutputs)
 {
     QTemporaryDir temporary;
