@@ -313,6 +313,27 @@ TEST(LofiEffectContractTest, GlitchCpuSingleRowKeepsFiniteRgbAndSourceAlpha)
     }
 }
 
+TEST(LofiEffectContractTest, GlitchCpuReferencePreservesConfiguredComputeMode)
+{
+    const auto source = makePatternSurface();
+    ImageF32x4RGBAWithCache output;
+    ArtifactGlitchEffect effect;
+    effect.setComputeMode(ComputeMode::GPU);
+
+    ASSERT_TRUE(effect.supportsCPU());
+    ASSERT_TRUE(effect.supportsGPU());
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_EQ(effect.computeMode(), ComputeMode::GPU);
+    ASSERT_EQ(output.width(), source.width());
+    ASSERT_EQ(output.height(), source.height());
+    const float* pixels = output.image().rgba32fData();
+    ASSERT_NE(pixels, nullptr);
+    for (std::size_t channel = 0; channel < 8 * 8 * 4; ++channel) {
+        EXPECT_TRUE(std::isfinite(pixels[channel])) << "channel=" << channel;
+    }
+}
+
 TEST(LofiEffectContractTest, OldTvCpuReferencePreservesConfiguredComputeMode)
 {
     const auto source = makePatternSurface();
