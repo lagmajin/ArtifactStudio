@@ -45,6 +45,7 @@
 
 import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
+import Artifact.Application.Manager;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.Camera;
 import Artifact.Layer.InitParams;
@@ -53,6 +54,7 @@ import Artifact.Layer.Result;
 import Artifact.Layer.Shape;
 import Artifact.Layers.SolidImage;
 import Artifact.Layer.Text;
+import Artifact.Layers.Model3D;
 import Artifact.Generator.Particle;
 import Artifact.Project.Manager;
 import Artifact.Effect.Abstract;
@@ -694,6 +696,67 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 return false;
             }
             const int alphaIndex = channelIndex("A");
+            const int objectIdIndex = channelIndex("ObjectId");
+            const int materialIdIndex = channelIndex("MaterialId");
+            const int normalXIndex = channelIndex("Normal.X");
+            const int normalYIndex = channelIndex("Normal.Y");
+            const int normalZIndex = channelIndex("Normal.Z");
+            const int depthIndex = channelIndex("Depth");
+            if (objectIdIndex < 0 || materialIdIndex < 0 || normalXIndex < 0 ||
+                normalYIndex < 0 || normalZIndex < 0 || depthIndex < 0) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue EXR was missing required 3D AOV channels: %1")
+                               .arg(framePath);
+                return false;
+            }
+            bool hasObjectIdSample = false;
+            bool hasMaterialIdSample = false;
+            bool hasNormalSample = false;
+            bool hasDepthSample = false;
+            const std::size_t pixelCount =
+                static_cast<std::size_t>(spec.width) *
+                static_cast<std::size_t>(spec.height);
+            for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+                const std::size_t pixelBase = pixel *
+                    static_cast<std::size_t>(spec.nchannels);
+                if (objectIdIndex >= 0 &&
+                    pixels[pixelBase + static_cast<std::size_t>(objectIdIndex)] >
+                        0.0f) {
+                    hasObjectIdSample = true;
+                }
+                if (materialIdIndex >= 0 &&
+                    pixels[pixelBase + static_cast<std::size_t>(materialIdIndex)] >
+                        0.0f) {
+                    hasMaterialIdSample = true;
+                }
+                if (normalXIndex >= 0 && normalYIndex >= 0 && normalZIndex >= 0 &&
+                    (std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(normalXIndex)]) >
+                         1.0e-5f ||
+                     std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(normalYIndex)]) >
+                         1.0e-5f ||
+                     std::abs(pixels[pixelBase +
+                                     static_cast<std::size_t>(normalZIndex)]) >
+                         1.0e-5f)) {
+                    hasNormalSample = true;
+                }
+                if (depthIndex >= 0 &&
+                    pixels[pixelBase + static_cast<std::size_t>(depthIndex)] <
+                        1.0f - 1.0e-5f) {
+                    hasDepthSample = true;
+                }
+            }
+            if (!hasObjectIdSample || !hasMaterialIdSample || !hasNormalSample ||
+                !hasDepthSample) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue EXR did not contain non-clear 3D ObjectId, "
+                    "MaterialId, Normal, and Depth samples: %1")
+                               .arg(framePath);
+                return false;
+            }
             const auto packedCryptomatteMatches =
                 [&spec, &pixels, &channelIndex, alphaIndex](
                     const std::string& idChannel,
@@ -736,14 +799,6 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 input->close();
                 *failure = QStringLiteral(
                     "Render Queue Cryptomatte packed ID/coverage payload did not match its AOVs: %1")
-                               .arg(framePath);
-                return false;
-            }
-            const int depthIndex = channelIndex("Depth");
-            if (depthIndex < 0) {
-                input->close();
-                *failure = QStringLiteral(
-                    "Render Queue multi-channel EXR did not contain Depth: %1")
                                .arg(framePath);
                 return false;
             }
@@ -868,6 +923,30 @@ TEST(RenderQueueLayerImageIntegrationTest,
     const auto outputLayer = projects.addLayerToComposition(
         composition.id, outputLayerParams);
     ASSERT_TRUE(outputLayer.success);
+
+    auto* outputComposition =
+        Artifact::ArtifactApplicationManager::instance()
+            ->compositionManager()->compositionById(composition.id).get();
+    ASSERT_NE(outputComposition, nullptr);
+    auto camera = ArtifactCore::makeShared<Artifact::ArtifactCameraLayer>();
+    camera->setLayerName(QStringLiteral("EXR AOV Test Camera"));
+    camera->setActiveCamera(true);
+    camera->setProjectionMode(Artifact::ProjectionMode::Perspective);
+    camera->setUseManualFov(true);
+    camera->setFov(ArtifactCore::Units::Degrees{52.0f});
+    camera->setNearClipPlane(ArtifactCore::Units::Pixels{80.0f});
+    camera->setFarClipPlane(ArtifactCore::Units::Pixels{900.0f});
+    camera->transform3D().setCurrentPosition(width / 2.0f, height / 2.0f);
+    camera->transform3D().setCurrentPositionZ(1050.0f);
+    ASSERT_TRUE(outputComposition->appendLayerTop(camera).success);
+
+    auto model = ArtifactCore::makeShared<Artifact::Artifact3DLayer>(
+        Artifact::FixedGeometry3D::Cube);
+    model->setLayerName(QStringLiteral("EXR AOV Test Cube"));
+    model->transform3D().setCurrentPosition(width * 0.2f, height / 2.0f);
+    model->transform3D().setCurrentPositionZ(0.0f);
+    ASSERT_TRUE(outputComposition->appendLayerTop(model).success);
+
     QString failure;
     RenderQueueEventLoopProbe eventLoopProbe;
     ASSERT_TRUE(addAndRenderExr(
