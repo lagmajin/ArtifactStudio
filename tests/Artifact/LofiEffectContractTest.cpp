@@ -1586,6 +1586,56 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeUnitGrainSizeRetainsPixelScaleVariation)
+{
+    constexpr int width = 14;
+    constexpr int height = 9;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = 0.6f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(0.3f));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(593));
+    for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    EffectContext context;
+    context.compositionFrame = 31;
+    effect.setContext(context);
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    bool foundAdjacentPixelVariation = false;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x + 1 < width; ++x) {
+            const std::size_t left =
+                static_cast<std::size_t>((y * width + x) * 4);
+            const std::size_t right = left + 4;
+            foundAdjacentPixelVariation = foundAdjacentPixelVariation ||
+                result[left + 1] != result[right + 1];
+            EXPECT_FLOAT_EQ(result[left + 3], 0.6f)
+                << "x=" << x << " y=" << y;
+        }
+    }
+    EXPECT_TRUE(foundAdjacentPixelVariation)
+        << "grainSize 1 should permit grain variation at adjacent pixels";
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeGrainAmountScalesOutputAndClampsAtItsPropertyBounds)
 {
     constexpr int width = 16;
