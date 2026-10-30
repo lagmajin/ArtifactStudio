@@ -95,3 +95,45 @@ TEST(PixelSortProEffectContractTest, MixZeroLeavesRgbUnsorted)
         }
     }
 }
+
+TEST(PixelSortProEffectContractTest,
+     AngledSortingPreservesOriginalAlphaAtEveryPixel)
+{
+    constexpr int width = 5;
+    constexpr int height = 5;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            const float value = static_cast<float>((x * 3 + y * 2) % 9) / 10.0f;
+            pixels[offset] = value;
+            pixels[offset + 1] = value;
+            pixels[offset + 2] = value;
+            pixels[offset + 3] =
+                static_cast<float>(1 + y * width + x) / 26.0f;
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::PixelSortProEffect effect;
+    setSortProperty(effect, "angle", 45.0f);
+    setSortProperty(effect, "maxSegment", 5.0f);
+    setSortProperty(effect, "lowThreshold", 0.0f);
+    setSortProperty(effect, "highThreshold", 1.0f);
+    setSortProperty(effect, "edgeProtection", 0.0f);
+    setSortProperty(effect, "mix", 1.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    for (std::size_t pixel = 0; pixel < source.image().totalPixels(); ++pixel) {
+        EXPECT_FLOAT_EQ(actual[pixel * 4 + 3], pixels[pixel * 4 + 3])
+            << "pixel=" << pixel;
+    }
+}
