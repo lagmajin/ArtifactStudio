@@ -815,6 +815,78 @@ TEST(LofiEffectContractTest,
         << "four scratch columns may affect at most three columns each";
 }
 
+TEST(LofiEffectContractTest,
+     FilmGrungeAnimatesScratchAmountAgainstFixedFrameOutput)
+{
+    constexpr int width = 72;
+    constexpr int height = 32;
+    constexpr float alpha = 0.7f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+
+    ArtifactFilmGrungeEffect animatedEffect;
+    animatedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "dustAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        animatedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    auto* scratch =
+        animatedEffect.editableProperty(QStringLiteral("scratchAmount"));
+    ASSERT_NE(scratch, nullptr);
+    scratch->addKeyFrame(RationalTime(0, 30), 0.0);
+    scratch->addKeyFrame(RationalTime(30, 30), 1.0);
+
+    EffectContext context;
+    context.compositionFrame = 15;
+    animatedEffect.setContext(context);
+    ImageF32x4RGBAWithCache animatedFrame;
+    animatedEffect.applyCPUOnly(source, animatedFrame);
+
+    ArtifactFilmGrungeEffect fixedEffect;
+    fixedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "dustAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    fixedEffect.setPropertyValue(UniString("scratchAmount"), QVariant(0.5f));
+    fixedEffect.setContext(context);
+    ImageF32x4RGBAWithCache fixedFrame;
+    fixedEffect.applyCPUOnly(source, fixedFrame);
+
+    const float* animated = animatedFrame.image().rgba32fData();
+    const float* fixed = fixedFrame.image().rgba32fData();
+    ASSERT_NE(animated, nullptr);
+    ASSERT_NE(fixed, nullptr);
+    std::array<bool, width> changedColumns{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            const std::size_t offset = pixel * 4 + channel;
+            EXPECT_FLOAT_EQ(animated[offset], fixed[offset])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+        if (animated[pixel * 4 + 1] != 0.5f) {
+            changedColumns[pixel % width] = true;
+        }
+        EXPECT_FLOAT_EQ(animated[pixel * 4 + 3], alpha)
+            << "pixel=" << pixel;
+    }
+    const std::size_t changedColumnCount = static_cast<std::size_t>(
+        std::count(changedColumns.begin(), changedColumns.end(), true));
+    EXPECT_GT(changedColumnCount, 0u);
+    EXPECT_LE(changedColumnCount, 6u)
+        << "two animated scratch columns may affect at most three columns each";
+}
+
 TEST(LofiEffectContractTest, FilmGrungeDustAmountAddsLocalizedDeterministicDamage)
 {
     constexpr int width = 128;
@@ -872,6 +944,79 @@ TEST(LofiEffectContractTest, FilmGrungeDustAmountAddsLocalizedDeterministicDamag
         if (result[offset + 1] != baseline[offset + 1]) {
             ++changedPixels;
             EXPECT_LT(result[offset + 1], baseline[offset + 1])
+                << "dust should darken pixels";
+        }
+    }
+    EXPECT_GT(changedPixels, 0u);
+    EXPECT_LT(changedPixels, static_cast<std::size_t>(width) * height);
+}
+
+TEST(LofiEffectContractTest,
+     FilmGrungeAnimatesDustAmountAgainstFixedFrameOutput)
+{
+    constexpr int width = 128;
+    constexpr int height = 96;
+    constexpr float alpha = 0.7f;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        pixels[pixel * 4] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = alpha;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+
+    ArtifactFilmGrungeEffect animatedEffect;
+    animatedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        animatedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    auto* dust = animatedEffect.editableProperty(QStringLiteral("dustAmount"));
+    ASSERT_NE(dust, nullptr);
+    dust->addKeyFrame(RationalTime(0, 30), 0.0);
+    dust->addKeyFrame(RationalTime(30, 30), 1.0);
+
+    EffectContext context;
+    context.compositionFrame = 15;
+    animatedEffect.setContext(context);
+    ImageF32x4RGBAWithCache animatedFrame;
+    animatedEffect.applyCPUOnly(source, animatedFrame);
+
+    ArtifactFilmGrungeEffect fixedEffect;
+    fixedEffect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    fixedEffect.setPropertyValue(UniString("dustAmount"), QVariant(0.5f));
+    fixedEffect.setContext(context);
+    ImageF32x4RGBAWithCache fixedFrame;
+    fixedEffect.applyCPUOnly(source, fixedFrame);
+
+    const float* animated = animatedFrame.image().rgba32fData();
+    const float* fixed = fixedFrame.image().rgba32fData();
+    ASSERT_NE(animated, nullptr);
+    ASSERT_NE(fixed, nullptr);
+    std::size_t changedPixels = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            EXPECT_FLOAT_EQ(animated[offset + channel], fixed[offset + channel])
+                << "pixel=" << pixel << " channel=" << channel;
+        }
+        EXPECT_FLOAT_EQ(animated[offset], animated[offset + 1])
+            << "pixel=" << pixel << " R-G";
+        EXPECT_FLOAT_EQ(animated[offset + 1], animated[offset + 2])
+            << "pixel=" << pixel << " G-B";
+        EXPECT_FLOAT_EQ(animated[offset + 3], alpha) << "pixel=" << pixel;
+        if (animated[offset + 1] != 0.5f) {
+            ++changedPixels;
+            EXPECT_LT(animated[offset + 1], 0.5f)
                 << "dust should darken pixels";
         }
     }
