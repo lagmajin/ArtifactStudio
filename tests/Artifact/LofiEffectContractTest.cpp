@@ -1968,6 +1968,56 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeMixInterpolatesActiveGrainOnHdrRgb)
+{
+    constexpr std::array<float, 4> pixels{4.0f, -3.0f, 2.0f, 1.5f};
+    constexpr float grainAmount = 0.5f;
+    constexpr float mix = 0.4f;
+    constexpr int seed = 3841;
+    constexpr std::int64_t frame = 27;
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 1, 1);
+    const ImageF32x4RGBAWithCache source(image);
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(grainAmount));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(seed));
+    for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    effect.setMix(mix);
+    EffectContext context;
+    context.compositionFrame = frame;
+    effect.setContext(context);
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    const auto frameSeed = static_cast<std::uint32_t>(
+        static_cast<std::uint64_t>(seed) * 1664525ull +
+        static_cast<std::uint64_t>(frame) * 1013904223ull);
+    const float grain =
+        (static_cast<float>(frameSeed & 0xffffu) / 32767.5f - 1.0f) *
+        grainAmount;
+    constexpr std::array<float, 3> channelWeights{0.92f, 1.0f, 1.05f};
+    for (std::size_t channel = 0; channel < channelWeights.size(); ++channel) {
+        const float effectValue =
+            pixels[channel] + grain * channelWeights[channel];
+        const float expected = pixels[channel] * (1.0f - mix) +
+                               effectValue * mix;
+        EXPECT_NEAR(result[channel], expected, 1.0e-6f)
+            << "channel=" << channel;
+    }
+    EXPECT_GT(result[0], 1.0f);
+    EXPECT_LT(result[1], 0.0f);
+    EXPECT_GT(result[2], 1.0f);
+    EXPECT_FLOAT_EQ(result[3], pixels[3]);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeDustAddsSharedRgbDamageWithoutErasingGrainChroma)
 {
     constexpr int width = 96;
