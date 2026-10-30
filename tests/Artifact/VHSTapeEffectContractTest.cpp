@@ -197,6 +197,61 @@ TEST(VHSTapeEffectContractTest,
     }
 }
 
+TEST(VHSTapeEffectContractTest,
+     ScanlineGapTruncatesFractionalRowSpacingAtIntegerBoundaries)
+{
+    constexpr int width = 4;
+    constexpr int height = 7;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.6f;
+        pixels[pixel * 4 + 1] = 0.6f;
+        pixels[pixel * 4 + 2] = 0.6f;
+        pixels[pixel * 4 + 3] = 1.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    const auto renderWithGap = [&source](const double gap) {
+        VHSTapeEffect effect;
+        setNeutralTapeProperties(effect);
+        effect.setPropertyValue(UniString(QStringLiteral("Scanline Gap")), gap);
+        effect.setPropertyValue(
+            UniString(QStringLiteral("Scanline Intensity")), 0.5);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+    const auto gapTwo = renderWithGap(2.0);
+    const auto fractionalGap = renderWithGap(2.99);
+    const auto gapThree = renderWithGap(3.0);
+    const float* gapTwoPixels = gapTwo.image().rgba32fData();
+    const float* fractionalPixels = fractionalGap.image().rgba32fData();
+    const float* gapThreePixels = gapThree.image().rgba32fData();
+    ASSERT_NE(gapTwoPixels, nullptr);
+    ASSERT_NE(fractionalPixels, nullptr);
+    ASSERT_NE(gapThreePixels, nullptr);
+    for (int y = 0; y < height; ++y) {
+        const float expectedAtThree = y % 3 == 0 ? 0.3f : 0.6f;
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                static_cast<std::size_t>(y * width + x) * 4;
+            for (std::size_t channel = 0; channel < 4; ++channel) {
+                EXPECT_FLOAT_EQ(gapTwoPixels[offset + channel],
+                                fractionalPixels[offset + channel])
+                    << "2.99 row spacing truncates to 2; x=" << x << " y=" << y;
+            }
+            for (std::size_t channel = 0; channel < 3; ++channel) {
+                EXPECT_FLOAT_EQ(gapThreePixels[offset + channel], expectedAtThree)
+                    << "3.0 row spacing uses a three-row period; x=" << x
+                    << " y=" << y << " channel=" << channel;
+            }
+        }
+    }
+}
+
 TEST(VHSTapeEffectContractTest, EmptyInputIsPreservedAndInPlaceProcessingStaysFinite)
 {
     ImageF32x4_RGBA emptyImage;
