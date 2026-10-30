@@ -1933,7 +1933,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
             --gtest_filter=RenderQueueLayerImageIntegrationTest.XpuMixedCpuAndGpuFramesRenderThroughManagerQueue
     )
     set_tests_properties(ArtifactRenderQueueXpuMixedImageIntegrationTest PROPERTIES
-        LABELS "render-queue;renderer;gpu;headless;xpu;image;integration"
+        LABELS "render-queue;renderer;gpu;headless;xpu;cpu-fallback;failure-injection;asyncseq;bounded-write;image;integration"
         TIMEOUT 300
         RUN_SERIAL TRUE
     )
