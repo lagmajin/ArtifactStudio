@@ -989,6 +989,33 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeVignetteTreatsSinglePixelAsTheSurfaceCenter)
+{
+    constexpr std::array<float, 4> pixels{0.6f, 0.4f, 0.2f, 0.35f};
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 1, 1);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    for (const char* property : {"grainAmount", "scratchAmount", "dustAmount",
+                                 "flicker", "gateWeave", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    effect.setPropertyValue(UniString("vignette"), QVariant(1.0f));
+
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_FLOAT_EQ(result[channel], pixels[channel])
+            << "a one-pixel surface has no off-center pixel";
+    }
+    EXPECT_FLOAT_EQ(result[3], pixels[3]);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeProcessesSingleRowAndColumnWithFinitePixels)
 {
     constexpr int extent = 100;
