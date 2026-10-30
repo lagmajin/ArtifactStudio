@@ -361,3 +361,41 @@ TEST(FilmDamageEffectContractTest,
     EXPECT_GT(changedPixels, 0);
     EXPECT_GT(unchangedPixels, 0);
 }
+
+TEST(FilmDamageEffectContractTest,
+     FilmBurnAddsWarmRgbAndPreservesAlpha)
+{
+    const auto source = makeFilmSurface();
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::FilmDamageEffect effect;
+    setFilmProperty(effect, "Grain", QVariant(0.0));
+    setFilmProperty(effect, "Dust", QVariant(0.0));
+    setFilmProperty(effect, "Scratches", QVariant(0.0));
+    setFilmProperty(effect, "Gate Weave", QVariant(0.0));
+    setFilmProperty(effect, "Flicker", QVariant(0.0));
+    setFilmProperty(effect, "Film Burn", QVariant(1.0));
+    setFilmProperty(effect, "Evolution", QVariant(0.125));
+    setFilmProperty(effect, "Seed", QVariant(47));
+
+    effect.applyCPUOnly(source, output);
+
+    int burnPixels = 0;
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto actual = output.image().getPixel(x, y);
+            const auto input = source.image().getPixel(x, y);
+            const float redDelta = actual.r() - input.r();
+            const float greenDelta = actual.g() - input.g();
+            const float blueDelta = actual.b() - input.b();
+            EXPECT_TRUE(std::isfinite(actual.r()));
+            EXPECT_TRUE(std::isfinite(actual.g()));
+            EXPECT_TRUE(std::isfinite(actual.b()));
+            EXPECT_FLOAT_EQ(actual.a(), input.a());
+            EXPECT_GE(blueDelta, -1.0e-6f);
+            EXPECT_GE(greenDelta + 1.0e-6f, blueDelta);
+            EXPECT_GE(redDelta + 1.0e-6f, greenDelta);
+            burnPixels += redDelta > 1.0e-5f ? 1 : 0;
+        }
+    }
+    EXPECT_GT(burnPixels, 0);
+}
