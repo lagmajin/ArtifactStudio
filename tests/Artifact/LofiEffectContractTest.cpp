@@ -3,6 +3,7 @@
 #include <array>
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <cmath>
 #include <initializer_list>
 #include <limits>
@@ -1527,6 +1528,49 @@ TEST(LofiEffectContractTest,
         }
     }
     EXPECT_TRUE(observedGrain);
+}
+
+TEST(LofiEffectContractTest,
+     FilmGrungeGrainAppliesStableChannelSpecificChromaticWeights)
+{
+    constexpr std::array<float, 4> pixels{0.4f, 0.4f, 0.4f, 0.65f};
+    constexpr float grainAmount = 0.25f;
+    constexpr int seed = 123;
+    constexpr std::int64_t frame = 12;
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 1, 1);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache output;
+    ArtifactFilmGrungeEffect effect;
+    effect.setComputeMode(ComputeMode::CPU);
+    effect.setPropertyValue(UniString("grainAmount"), QVariant(grainAmount));
+    effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect.setPropertyValue(UniString("seed"), QVariant(seed));
+    for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                 "gateWeave", "vignette", "stain"}) {
+        effect.setPropertyValue(UniString(property), QVariant(0.0f));
+    }
+    EffectContext context;
+    context.compositionFrame = frame;
+    effect.setContext(context);
+
+    effect.applyCPUOnly(source, output);
+
+    const float* result = output.image().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    const auto frameSeed = static_cast<std::uint32_t>(
+        static_cast<std::uint64_t>(seed) * 1664525ull +
+        static_cast<std::uint64_t>(frame) * 1013904223ull);
+    const float grain =
+        (static_cast<float>(frameSeed & 0xffffu) / 32767.5f - 1.0f) *
+        grainAmount;
+    constexpr std::array<float, 3> channelWeights{0.92f, 1.0f, 1.05f};
+    for (std::size_t channel = 0; channel < channelWeights.size(); ++channel) {
+        EXPECT_NEAR(result[channel], pixels[channel] + grain * channelWeights[channel],
+                    1.0e-6f)
+            << "channel=" << channel;
+    }
+    EXPECT_FLOAT_EQ(result[3], pixels[3]);
 }
 
 TEST(LofiEffectContractTest,
