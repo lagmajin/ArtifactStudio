@@ -392,6 +392,64 @@ TEST(VHSTapeEffectContractTest, NoiseAmountPerturbsColorAndKeepsOutputFinite)
 }
 
 TEST(VHSTapeEffectContractTest,
+     NoiseAmountUsesConfiguredSeedDeterministically)
+{
+    constexpr int width = 32;
+    constexpr int height = 24;
+    constexpr std::size_t channelCount =
+        static_cast<std::size_t>(width) * height * 4;
+    std::array<float, channelCount> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset + 0] = 0.45f;
+        pixels[offset + 1] = 0.5f;
+        pixels[offset + 2] = 0.55f;
+        pixels[offset + 3] = 0.7f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache first;
+    ImageF32x4RGBAWithCache repeated;
+    ImageF32x4RGBAWithCache differentSeed;
+    const auto renderWithSeed = [&source](const int seed,
+                                          ImageF32x4RGBAWithCache& output) {
+        VHSTapeEffect effect;
+        setNeutralTapeProperties(effect);
+        effect.setPropertyValue(UniString(QStringLiteral("Noise Amount")), 1.0);
+        effect.setPropertyValue(UniString(QStringLiteral("Seed")), seed);
+        effect.setPropertyValue(UniString(QStringLiteral("Evolution")), 0.4);
+        effect.applyCPUOnly(source, output);
+    };
+
+    renderWithSeed(41, first);
+    renderWithSeed(41, repeated);
+    renderWithSeed(42, differentSeed);
+
+    const float* firstPixels = first.image().rgba32fData();
+    const float* repeatedPixels = repeated.image().rgba32fData();
+    const float* differentSeedPixels = differentSeed.image().rgba32fData();
+    ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(repeatedPixels, nullptr);
+    ASSERT_NE(differentSeedPixels, nullptr);
+    bool seedChangedOutput = false;
+    for (std::size_t offset = 0; offset < channelCount; offset += 4) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_FLOAT_EQ(firstPixels[offset + channel],
+                            repeatedPixels[offset + channel])
+                << "pixel=" << offset / 4 << " channel=" << channel;
+            seedChangedOutput = seedChangedOutput ||
+                std::abs(firstPixels[offset + channel] -
+                         differentSeedPixels[offset + channel]) > 1.0e-6f;
+        }
+        EXPECT_FLOAT_EQ(firstPixels[offset + 3], pixels[offset + 3]);
+        EXPECT_FLOAT_EQ(repeatedPixels[offset + 3], pixels[offset + 3]);
+        EXPECT_FLOAT_EQ(differentSeedPixels[offset + 3], pixels[offset + 3]);
+    }
+    EXPECT_TRUE(seedChangedOutput)
+        << "changing the configured seed should change tape noise";
+}
+
+TEST(VHSTapeEffectContractTest,
      HigherNoiseAmountIncreasesRgbNoiseEnergy)
 {
     constexpr int width = 64;
