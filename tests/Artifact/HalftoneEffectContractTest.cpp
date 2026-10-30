@@ -477,6 +477,22 @@ TEST(HalftoneEffectContractTest,
 }
 
 TEST(HalftoneEffectContractTest,
+     StandardHalftoneEmptyInputReplacesPreviouslyPopulatedOutput)
+{
+    const ArtifactCore::ImageF32x4RGBAWithCache source;
+    ArtifactCore::ImageF32x4RGBAWithCache output = makeSolidSurface(0.6f, 0.4f);
+    ASSERT_FALSE(output.image().isEmpty());
+    Artifact::HalftoneEffect effect;
+
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_TRUE(output.image().isEmpty());
+    EXPECT_EQ(output.image().width(), source.image().width());
+    EXPECT_EQ(output.image().height(), source.image().height());
+    EXPECT_EQ(output.image().colorDescriptor(), source.image().colorDescriptor());
+}
+
+TEST(HalftoneEffectContractTest,
      BothHalftoneVariantsPreserveTheInputColorDescriptor)
 {
     const auto descriptor =
