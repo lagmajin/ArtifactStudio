@@ -2678,6 +2678,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
         QStringLiteral("render_queue_old_tv_gpu_effect.png"));
     const QString repeatedEffectPath = isolatedOutputPath(
         QStringLiteral("render_queue_old_tv_gpu_effect_repeat.png"));
+    const QString nextFramePath = isolatedOutputPath(
+        QStringLiteral("render_queue_old_tv_gpu_next_frame.png"));
     const QString cpuReferencePath = isolatedOutputPath(
         QStringLiteral("render_queue_old_tv_gpu_cpu_reference.png"));
     QString failure;
@@ -2702,26 +2704,32 @@ TEST(RenderQueueLayerImageIntegrationTest,
         queue, composition.id, QStringLiteral("OldTvGpu"), repeatedEffectPath,
         width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
         << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("OldTvGpu"), nextFramePath,
+        width, height, validImage, &failure, 2, QStringLiteral("gpu"), 1))
+        << failure.toStdString();
     oldTv->setComputeMode(Artifact::ComputeMode::CPU);
     ASSERT_TRUE(addAndRender(
         queue, composition.id, QStringLiteral("OldTvGpu"), cpuReferencePath,
         width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
         << failure.toStdString();
 
-    const auto framePath = [](const QString& basePath) {
+    const auto framePath = [](const QString& basePath, int frameIndex = 0) {
         const QFileInfo info(basePath);
         return QDir(info.absolutePath()).filePath(
             QStringLiteral("%1_%2.png")
                 .arg(info.completeBaseName())
-                .arg(0, 4, 10, QLatin1Char('0')));
+                .arg(frameIndex, 4, 10, QLatin1Char('0')));
     };
     const QImage baseline(framePath(baselinePath));
     const QImage effected(framePath(effectedPath));
     const QImage repeatedEffect(framePath(repeatedEffectPath));
+    const QImage nextFrame(framePath(nextFramePath, 1));
     const QImage cpuReference(framePath(cpuReferencePath));
     ASSERT_EQ(baseline.size(), QSize(width, height));
     ASSERT_EQ(effected.size(), QSize(width, height));
     ASSERT_EQ(repeatedEffect.size(), QSize(width, height));
+    ASSERT_EQ(nextFrame.size(), QSize(width, height));
     ASSERT_EQ(cpuReference.size(), QSize(width, height));
     const int centerAlpha = baseline.pixelColor(width / 2, height / 2).alpha();
     EXPECT_GT(centerAlpha, 0);
@@ -2731,6 +2739,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
         << "Old TV generic GPU dispatch must affect rendered RGB pixels";
     EXPECT_EQ(effected, repeatedEffect)
         << "Old TV GPU output must repeat exactly for the same source frame";
+    EXPECT_EQ(effected, nextFrame)
+        << "coordinate-seeded Old TV noise and jitter must remain stable across composition frames";
     EXPECT_NE(effected, cpuReference)
         << "GPU mode must execute its distinct shader reference instead of silently using CPU output";
     bool gpuJitterMovesGradient = false;
