@@ -568,6 +568,7 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
     ImageF32x4RGBAWithCache maskedEffect;
     ImageF32x4RGBAWithCache opacityMaskedEffect;
     ImageF32x4RGBAWithCache invertedMaskedEffect;
+    ImageF32x4RGBAWithCache reDisabledMaskEffect;
     effect.applyCPUOnly(source, fullEffect);
 
     constexpr std::array<float, 16> maskPixels{
@@ -583,20 +584,26 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
     effect.applyCPUOnly(source, opacityMaskedEffect);
     effect.setMaskInverted(true);
     effect.applyCPUOnly(source, invertedMaskedEffect);
+    effect.setMaskEnabled(false);
+    effect.applyCPUOnly(source, reDisabledMaskEffect);
 
     const float* full = fullEffect.image().rgba32fData();
     const float* disabledMask = disabledMaskEffect.image().rgba32fData();
     const float* masked = maskedEffect.image().rgba32fData();
     const float* opacityMasked = opacityMaskedEffect.image().rgba32fData();
     const float* invertedMasked = invertedMaskedEffect.image().rgba32fData();
+    const float* reDisabledMask = reDisabledMaskEffect.image().rgba32fData();
     ASSERT_NE(full, nullptr);
     ASSERT_NE(disabledMask, nullptr);
     ASSERT_NE(masked, nullptr);
     ASSERT_NE(opacityMasked, nullptr);
     ASSERT_NE(invertedMasked, nullptr);
+    ASSERT_NE(reDisabledMask, nullptr);
     for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
         EXPECT_FLOAT_EQ(disabledMask[channel], full[channel])
             << "disabled mask channel=" << channel;
+        EXPECT_FLOAT_EQ(reDisabledMask[channel], full[channel])
+            << "re-disabled mask channel=" << channel;
     }
     constexpr std::array<float, 4> maskAlpha{0.0f, 0.25f, 0.5f, 1.0f};
     for (int y = 0; y < height; ++y) {
