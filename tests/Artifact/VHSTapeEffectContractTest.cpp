@@ -179,6 +179,55 @@ TEST(VHSTapeEffectContractTest, EmptyInputIsPreservedAndInPlaceProcessingStaysFi
     }
 }
 
+TEST(VHSTapeEffectContractTest,
+     InPlaceProcessingMatchesOutOfPlaceAndPreservesSource)
+{
+    constexpr int width = 5;
+    constexpr int height = 4;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < width * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        pixels[offset] = static_cast<float>(pixel + 1) / 22.0f;
+        pixels[offset + 1] = static_cast<float>(pixel + 2) / 23.0f;
+        pixels[offset + 2] = static_cast<float>(pixel + 3) / 24.0f;
+        pixels[offset + 3] = static_cast<float>(pixel + 1) / 21.0f;
+    }
+    const auto descriptor =
+        SurfaceColorDescriptor::linearStraightRgba32Float();
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    image.setColorDescriptor(descriptor);
+    const ImageF32x4RGBAWithCache source(image);
+    auto inPlace = source;
+    ImageF32x4RGBAWithCache outOfPlace;
+    VHSTapeEffect effect;
+    setNeutralTapeProperties(effect);
+    effect.setPropertyValue(UniString(QStringLiteral("Wobble")), 0.8);
+    effect.setPropertyValue(UniString(QStringLiteral("Scanline Intensity")), 0.25);
+    effect.setPropertyValue(UniString(QStringLiteral("Seed")), 31);
+    effect.setPropertyValue(UniString(QStringLiteral("Evolution")), 0.4);
+
+    effect.applyCPUOnly(source, outOfPlace);
+    effect.applyCPUOnly(inPlace, inPlace);
+
+    const float* original = source.image().rgba32fData();
+    const float* inPlacePixels = inPlace.image().rgba32fData();
+    const float* outOfPlacePixels = outOfPlace.image().rgba32fData();
+    ASSERT_NE(original, nullptr);
+    ASSERT_NE(inPlacePixels, nullptr);
+    ASSERT_NE(outOfPlacePixels, nullptr);
+    EXPECT_EQ(source.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(inPlace.image().colorDescriptor(), descriptor);
+    EXPECT_EQ(outOfPlace.image().colorDescriptor(), descriptor);
+    EXPECT_NE(inPlacePixels, original);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(original[channel], pixels[channel])
+            << "source channel=" << channel;
+        EXPECT_FLOAT_EQ(inPlacePixels[channel], outOfPlacePixels[channel])
+            << "output channel=" << channel;
+    }
+}
+
 TEST(VHSTapeEffectContractTest, NumericPropertiesClampAndRecoverFromNonFiniteValues)
 {
     VHSTapeEffect effect;
