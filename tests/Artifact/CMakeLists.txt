@@ -2321,6 +2321,16 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 90
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactExportWriterImageSchemaContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.SingleImageLayerProducesMinimalWriterSchemas"
+    )
+    set_tests_properties(ArtifactExportWriterImageSchemaContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;schema;image;assets;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactExportWriterInputValidationContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
             "--gtest_filter=ExportWriterContractTest.WritersRejectMissingCompositionBeforeTouchingOutputs"

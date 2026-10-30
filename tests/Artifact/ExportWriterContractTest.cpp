@@ -1105,3 +1105,135 @@ TEST(ExportWriterContractTest, SingleShapeLayerProducesMinimalWriterSchemas)
     EXPECT_EQ(shape.value(QStringLiteral("ty")).toInt(), 4);
     EXPECT_FALSE(shape.value(QStringLiteral("shapes")).toArray().isEmpty());
 }
+
+TEST(ExportWriterContractTest, SingleImageLayerProducesMinimalWriterSchemas)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("SingleImageExportContractTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    const QString sourcePath = QDir(temporary.path()).filePath(
+        QStringLiteral("source/only-image.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(sourcePath).absolutePath()));
+    QImage sourceImage(3, 2, QImage::Format_RGBA8888);
+    sourceImage.fill(QColor(40, 120, 220, 255));
+    ASSERT_TRUE(sourceImage.save(sourcePath, "PNG"));
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("SingleImageContract")));
+    compositionParams.setResolution(64, 36);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(12);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("OnlyImage"));
+    imageParams.setImagePath(sourcePath);
+    const auto imageResult = projects.addLayerToComposition(
+        composition.id, imageParams);
+    ASSERT_TRUE(imageResult.success);
+
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+    Artifact::ArtifactExportSession session(compositionPtr);
+    QString error;
+    ASSERT_TRUE(session.build(&error)) << error.toStdString();
+    ASSERT_EQ(session.snapshot().layers.size(), 1);
+    EXPECT_EQ(session.snapshot().layers.front().name, QStringLiteral("OnlyImage"));
+    ASSERT_EQ(session.snapshot().assets.size(), 1);
+    const QString relativeAssetPath =
+        session.snapshot().assets.front().relativePath;
+    EXPECT_TRUE(relativeAssetPath.startsWith(QStringLiteral("assets/")));
+
+    const QString root = temporary.path();
+    const QString gameface = QDir(root).filePath(QStringLiteral("gameface"));
+    const QString noesis = QDir(root).filePath(QStringLiteral("noesis"));
+    const QString rmlui = QDir(root).filePath(QStringLiteral("rmlui"));
+    const QString unity = QDir(root).filePath(QStringLiteral("unity"));
+    const QString lottie = QDir(root).filePath(QStringLiteral("animation.json"));
+    ASSERT_TRUE(Artifact::ArtifactExportGamefaceWriter::write(
+        compositionPtr, gameface, {}, &error)) << error.toStdString();
+    ASSERT_TRUE(Artifact::ArtifactExportNoesisXamlWriter::write(
+        compositionPtr, noesis, {}, &error)) << error.toStdString();
+    ASSERT_TRUE(Artifact::ArtifactExportRmlUiWriter::write(
+        compositionPtr, rmlui, {}, &error)) << error.toStdString();
+    ASSERT_TRUE(Artifact::ArtifactExportUnityUxmlWriter::write(
+        compositionPtr, unity, {}, &error)) << error.toStdString();
+    Artifact::ArtifactLottieExportOptions lottieOptions;
+    lottieOptions.embedImages = false;
+    ASSERT_TRUE(Artifact::ArtifactExportLottieWriter::write(
+        compositionPtr, lottie, lottieOptions, &error)) << error.toStdString();
+
+    const QString gamefaceHtml = readTextFile(
+        QDir(gameface).filePath(QStringLiteral("index.html")));
+    EXPECT_EQ(gamefaceHtml.count(QStringLiteral("class=\"layer ")), 1);
+    EXPECT_TRUE(gamefaceHtml.contains(relativeAssetPath));
+    const QString noesisPath = QDir(noesis).filePath(
+        QStringLiteral("composition.xaml"));
+    ASSERT_TRUE(isWellFormedXml(noesisPath));
+    const QString noesisMarkup = readTextFile(noesisPath);
+    EXPECT_EQ(noesisMarkup.count(QStringLiteral("<Image ")), 1);
+    EXPECT_TRUE(noesisMarkup.contains(relativeAssetPath));
+    const QString rmlPath = QDir(rmlui).filePath(
+        QStringLiteral("composition.rml"));
+    ASSERT_TRUE(isWellFormedXml(rmlPath));
+    const QString rmlMarkup = readTextFile(rmlPath);
+    EXPECT_EQ(rmlMarkup.count(QStringLiteral("<img ")), 1);
+    EXPECT_TRUE(rmlMarkup.contains(relativeAssetPath));
+    const QString unityPath = QDir(unity).filePath(
+        QStringLiteral("composition.uxml"));
+    ASSERT_TRUE(isWellFormedXml(unityPath));
+    EXPECT_EQ(readTextFile(unityPath).count(QStringLiteral("<ui:VisualElement ")),
+              1);
+    const QString unityStyles = readTextFile(QDir(unity).filePath(
+        QStringLiteral("composition.uss")));
+    EXPECT_TRUE(unityStyles.contains(relativeAssetPath));
+
+    const QByteArray sourceBytes = readFileBytes(sourcePath);
+    for (const QString& outputDirectory : {gameface, noesis, rmlui, unity}) {
+        const QString copiedAsset = QDir(outputDirectory).filePath(relativeAssetPath);
+        ASSERT_TRUE(QFileInfo::exists(copiedAsset)) << copiedAsset.toStdString();
+        EXPECT_EQ(readFileBytes(copiedAsset), sourceBytes)
+            << outputDirectory.toStdString();
+    }
+
+    const QJsonDocument lottieDocument =
+        QJsonDocument::fromJson(readFileBytes(lottie));
+    ASSERT_TRUE(lottieDocument.isObject());
+    const QJsonObject lottieRoot = lottieDocument.object();
+    const QJsonArray lottieLayers =
+        lottieRoot.value(QStringLiteral("layers")).toArray();
+    ASSERT_EQ(lottieLayers.size(), 1);
+    const QJsonObject lottieImageLayer = lottieLayers.front().toObject();
+    EXPECT_EQ(lottieImageLayer.value(QStringLiteral("nm")).toString(),
+              QStringLiteral("OnlyImage"));
+    EXPECT_EQ(lottieImageLayer.value(QStringLiteral("ty")).toInt(), 2);
+    const QString lottieAssetId =
+        lottieImageLayer.value(QStringLiteral("refId")).toString();
+    ASSERT_FALSE(lottieAssetId.isEmpty());
+    const QJsonArray lottieAssets =
+        lottieRoot.value(QStringLiteral("assets")).toArray();
+    ASSERT_EQ(lottieAssets.size(), 1);
+    const QJsonObject lottieAsset = lottieAssets.front().toObject();
+    EXPECT_EQ(lottieAsset.value(QStringLiteral("id")).toString(), lottieAssetId);
+    EXPECT_EQ(lottieAsset.value(QStringLiteral("u")).toString(),
+              QStringLiteral("assets/"));
+    EXPECT_EQ(lottieAsset.value(QStringLiteral("w")).toInt(), 3);
+    EXPECT_EQ(lottieAsset.value(QStringLiteral("h")).toInt(), 2);
+    const QString lottieAssetPath = QDir(root).filePath(
+        QStringLiteral("assets/") +
+        lottieAsset.value(QStringLiteral("p")).toString());
+    ASSERT_TRUE(QFileInfo::exists(lottieAssetPath));
+    EXPECT_EQ(readFileBytes(lottieAssetPath), sourceBytes);
+}
