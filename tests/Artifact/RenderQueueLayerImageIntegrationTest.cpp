@@ -354,7 +354,9 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                      int frameEnd = 2,
                      RenderQueueEventLoopProbe* eventLoopProbe = nullptr,
                      bool multiChannel = false,
-                     bool deep = false)
+                     bool deep = false,
+                     const QString& expectedObjectName = QString(),
+                     const QString& expectedMaterialName = QString())
 {
     const QFileInfo requestedOutput(outputBasePath);
     if (!QDir().mkpath(requestedOutput.absolutePath())) {
@@ -695,6 +697,26 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                                .arg(framePath);
                 return false;
             }
+            const auto manifestResolvesName = [](const QJsonObject& manifest,
+                                                 const QString& name) {
+                if (name.isEmpty()) {
+                    return true;
+                }
+                const QString expectedHash = QString::number(
+                    ArtifactCore::Image::Cryptomatte::CryptoSample::nameToId(
+                        name), 16).rightJustified(8, QLatin1Char('0'));
+                return manifest.value(name).toString() == expectedHash;
+            };
+            if (!manifestResolvesName(objectManifest.object(), expectedObjectName) ||
+                !manifestResolvesName(materialManifest.object(),
+                                      expectedMaterialName)) {
+                input->close();
+                *failure = QStringLiteral(
+                    "Render Queue EXR Cryptomatte manifest did not resolve the "
+                    "expected 3D object/material: %1")
+                               .arg(framePath);
+                return false;
+            }
             const int alphaIndex = channelIndex("A");
             const int objectIdIndex = channelIndex("ObjectId");
             const int materialIdIndex = channelIndex("MaterialId");
@@ -714,6 +736,14 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
             bool hasMaterialIdSample = false;
             bool hasNormalSample = false;
             bool hasDepthSample = false;
+            const float expectedObjectId = expectedObjectName.isEmpty()
+                ? 0.0f
+                : ArtifactCore::Image::Cryptomatte::CryptoSample::nameToFloat(
+                      expectedObjectName);
+            const float expectedMaterialId = expectedMaterialName.isEmpty()
+                ? 0.0f
+                : ArtifactCore::Image::Cryptomatte::CryptoSample::nameToFloat(
+                      expectedMaterialName);
             const std::size_t pixelCount =
                 static_cast<std::size_t>(spec.width) *
                 static_cast<std::size_t>(spec.height);
@@ -721,13 +751,13 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 const std::size_t pixelBase = pixel *
                     static_cast<std::size_t>(spec.nchannels);
                 if (objectIdIndex >= 0 &&
-                    pixels[pixelBase + static_cast<std::size_t>(objectIdIndex)] >
-                        0.0f) {
+                    pixels[pixelBase + static_cast<std::size_t>(objectIdIndex)] ==
+                        expectedObjectId && expectedObjectId > 0.0f) {
                     hasObjectIdSample = true;
                 }
                 if (materialIdIndex >= 0 &&
-                    pixels[pixelBase + static_cast<std::size_t>(materialIdIndex)] >
-                        0.0f) {
+                    pixels[pixelBase + static_cast<std::size_t>(materialIdIndex)] ==
+                        expectedMaterialId && expectedMaterialId > 0.0f) {
                     hasMaterialIdSample = true;
                 }
                 if (normalXIndex >= 0 && normalYIndex >= 0 && normalZIndex >= 0 &&
@@ -946,13 +976,16 @@ TEST(RenderQueueLayerImageIntegrationTest,
     model->transform3D().setCurrentPosition(width * 0.2f, height / 2.0f);
     model->transform3D().setCurrentPositionZ(0.0f);
     ASSERT_TRUE(outputComposition->appendLayerTop(model).success);
+    const QString expectedMaterialName = model->materialSignature();
+    ASSERT_FALSE(expectedMaterialName.isEmpty());
 
     QString failure;
     RenderQueueEventLoopProbe eventLoopProbe;
     ASSERT_TRUE(addAndRenderExr(
         queue, composition.id, QStringLiteral("ExrQueueOutput"),
         isolatedOutputPath(QStringLiteral("render_queue_exr.exr")),
-        width, height, &failure, 0, 48, &eventLoopProbe, true))
+        width, height, &failure, 0, 48, &eventLoopProbe, true, false,
+        model->id().toString(), expectedMaterialName))
         << failure.toStdString();
     ASSERT_TRUE(addAndRenderExr(
         queue, composition.id, QStringLiteral("DeepExrQueueOutput"),
