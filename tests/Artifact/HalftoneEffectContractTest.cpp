@@ -81,6 +81,37 @@ TEST(HalftoneEffectContractTest, BrightInputLeavesOnlyCellCentersDark)
 }
 
 TEST(HalftoneEffectContractTest,
+     BothHalftoneVariantsHandleSinglePixelSurfaces)
+{
+    constexpr std::array<float, 4> pixels{1.0f, 1.0f, 1.0f, 0.35f};
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 1, 1);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache standardOutput;
+    ArtifactCore::ImageF32x4RGBAWithCache creativeOutput;
+    Artifact::HalftoneEffect standardEffect;
+    standardEffect.setDotSize(4.0f);
+    standardEffect.setAngle(0.0f);
+    standardEffect.setContrast(1.0f);
+    Artifact::ArtifactHalftoneEffect creativeEffect;
+
+    standardEffect.applyCPUOnly(source, standardOutput);
+    creativeEffect.applyCPUOnly(source, creativeOutput);
+
+    for (const auto* output : {&standardOutput, &creativeOutput}) {
+        ASSERT_EQ(output->image().width(), 1);
+        ASSERT_EQ(output->image().height(), 1);
+        const float* actual = output->image().rgba32fData();
+        ASSERT_NE(actual, nullptr);
+        EXPECT_TRUE(std::isfinite(actual[0]));
+        EXPECT_TRUE(actual[0] == 0.0f || actual[0] == 1.0f);
+        EXPECT_FLOAT_EQ(actual[1], actual[0]);
+        EXPECT_FLOAT_EQ(actual[2], actual[0]);
+        EXPECT_FLOAT_EQ(actual[3], 1.0f);
+    }
+}
+
+TEST(HalftoneEffectContractTest,
      ConfiguredAngleChangesTheHalftoneDotMask)
 {
     constexpr int width = 16;

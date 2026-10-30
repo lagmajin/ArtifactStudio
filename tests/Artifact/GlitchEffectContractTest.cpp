@@ -384,6 +384,32 @@ TEST(GlitchEffectContractTest,
 }
 
 TEST(GlitchEffectContractTest,
+     GlitchHandlesSinglePixelSurfaceWithClampedSampling)
+{
+    constexpr std::array<float, 4> pixels{0.2f, 0.4f, 0.8f, 0.35f};
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), 1, 1);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    ArtifactCore::ImageF32x4RGBAWithCache output;
+    Artifact::GlitchEffect effect;
+    effect.setIntensity(1.0f);
+    effect.setScanlines(0.0f);
+    effect.setColorShift(1.0f);
+
+    effect.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), 1);
+    ASSERT_EQ(output.image().height(), 1);
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    EXPECT_NE(actual, source.image().rgba32fData());
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], pixels[channel])
+            << "channel=" << channel;
+    }
+}
+
+TEST(GlitchEffectContractTest,
      CreativeGlitchOffsetsRedAndBlueFromTheGreenSourcePixel)
 {
     constexpr int width = 64;
