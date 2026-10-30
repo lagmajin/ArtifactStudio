@@ -2020,6 +2020,15 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactCreativeGlitchEffectContractTest
+        COMMAND $<TARGET_FILE:ArtifactLofiEffectContractTest>
+            "--gtest_filter=LofiEffectContractTest.*Glitch*"
+    )
+    set_tests_properties(ArtifactCreativeGlitchEffectContractTest PROPERTIES
+        LABELS "effect;creative;glitch;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
 
     if(TARGET ArtifactProxyWorker AND TARGET ArtifactProxyWorkerPackage)
         artifact_add_test(ArtifactProxyWorkerProtocolTest
