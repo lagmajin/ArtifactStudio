@@ -1754,6 +1754,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 300
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactRenderQueueGlitchGpuEffectIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.GlitchGenericGpuNodeIsRepeatableDistinctAndPreservesAlpha
+    )
+    set_tests_properties(ArtifactRenderQueueGlitchGpuEffectIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;effect;image;integration;contract;lofi"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactRenderQueueExrImageIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.ExportKeepsGuiEventLoopResponsiveAndWritesReadableExr

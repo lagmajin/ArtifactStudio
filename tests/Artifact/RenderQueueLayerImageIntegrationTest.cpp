@@ -2483,6 +2483,141 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     GlitchGenericGpuNodeIsRepeatableDistinctAndPreservesAlpha)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 128;
+    constexpr int height = 80;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueGlitchGpuTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("GlitchGpu")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(2);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.0f, 0.0f, 0.0f, 0.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("GlitchGpuLayer"));
+    layerParams.setWidth(width);
+    layerParams.setHeight(height);
+    layerParams.setFillType(Artifact::ArtifactSolidFillType::LinearGradient);
+    layerParams.setGradientStartColor(ArtifactCore::FloatColor(
+        0.06f, 0.76f, 0.14f, 0.6f));
+    layerParams.setGradientEndColor(ArtifactCore::FloatColor(
+        0.91f, 0.18f, 0.72f, 0.6f));
+    layerParams.setGradientAngleDegrees(0.0f);
+    const auto layer = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(layer.success);
+
+    const QString baselinePath = isolatedOutputPath(
+        QStringLiteral("render_queue_glitch_gpu_baseline.png"));
+    const QString effectedPath = isolatedOutputPath(
+        QStringLiteral("render_queue_glitch_gpu.png"));
+    const QString repeatPath = isolatedOutputPath(
+        QStringLiteral("render_queue_glitch_gpu_repeat.png"));
+    const QString cpuReferencePath = isolatedOutputPath(
+        QStringLiteral("render_queue_glitch_gpu_cpu_reference.png"));
+    QString failure;
+    const auto validImage = [](const QImage& image) {
+        return !image.isNull();
+    };
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("GlitchGpu"), baselinePath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+
+    auto glitch = ArtifactCore::makeShared<Artifact::ArtifactGlitchEffect>();
+    ASSERT_NE(glitch, nullptr);
+    glitch->setComputeMode(Artifact::ComputeMode::GPU);
+    ASSERT_TRUE(glitch->supportsGPU());
+    layer.layer->addEffect(glitch);
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("GlitchGpu"), effectedPath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("GlitchGpu"), repeatPath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+    glitch->setComputeMode(Artifact::ComputeMode::CPU);
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("GlitchGpu"), cpuReferencePath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+
+    const auto framePath = [](const QString& basePath) {
+        const QFileInfo info(basePath);
+        return QDir(info.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(info.completeBaseName())
+                .arg(0, 4, 10, QLatin1Char('0')));
+    };
+    const QImage baseline(framePath(baselinePath));
+    const QImage effected(framePath(effectedPath));
+    const QImage repeat(framePath(repeatPath));
+    const QImage cpuReference(framePath(cpuReferencePath));
+    ASSERT_EQ(baseline.size(), QSize(width, height));
+    ASSERT_EQ(effected.size(), QSize(width, height));
+    ASSERT_EQ(repeat.size(), QSize(width, height));
+    ASSERT_EQ(cpuReference.size(), QSize(width, height));
+    const QColor centerSource = baseline.pixelColor(width / 2, height / 2);
+    EXPECT_GT(centerSource.alpha(), 0);
+    EXPECT_LT(centerSource.alpha(), 255)
+        << "the fixture must retain translucent source pixels";
+    EXPECT_NE(baseline.pixelColor(8, height / 2),
+              baseline.pixelColor(width - 8, height / 2))
+        << "the fixture must expose horizontal color shifts";
+    EXPECT_NE(effected, baseline)
+        << "GPU Glitch must change the rendered horizontal color pattern";
+    EXPECT_EQ(effected, repeat)
+        << "GPU Glitch must repeat for the same source frame";
+    EXPECT_NE(effected, cpuReference)
+        << "GPU mode must use the shader's independent row/shift sequence";
+    bool changedRgb = false;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const QColor sourcePixel = baseline.pixelColor(x, y);
+            const QColor outputPixel = effected.pixelColor(x, y);
+            changedRgb = changedRgb ||
+                outputPixel.red() != sourcePixel.red() ||
+                outputPixel.green() != sourcePixel.green() ||
+                outputPixel.blue() != sourcePixel.blue();
+            EXPECT_EQ(outputPixel.alpha(), sourcePixel.alpha())
+                << "GPU Glitch must preserve alpha at " << x << "," << y;
+        }
+    }
+    EXPECT_TRUE(changedRgb);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      OldTvGenericGpuNodeAppliesScanlineAndPreservesTranslucentAlphaRepeatably)
 {
     QTemporaryDir projectRoot;
