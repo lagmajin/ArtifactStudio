@@ -392,6 +392,59 @@ TEST(VHSTapeEffectContractTest, NoiseAmountPerturbsColorAndKeepsOutputFinite)
 }
 
 TEST(VHSTapeEffectContractTest,
+     HigherNoiseAmountIncreasesRgbNoiseEnergy)
+{
+    constexpr int width = 64;
+    constexpr int height = 48;
+    std::array<float, width * height * 4> pixels{};
+    for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+        pixels[offset] = 0.5f;
+        pixels[offset + 1] = 0.5f;
+        pixels[offset + 2] = 0.5f;
+        pixels[offset + 3] = 1.0f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache lowNoise;
+    ImageF32x4RGBAWithCache highNoise;
+    VHSTapeEffect lowEffect;
+    setNeutralTapeProperties(lowEffect);
+    lowEffect.setPropertyValue(UniString(QStringLiteral("Noise Amount")), 0.1);
+    lowEffect.applyCPUOnly(source, lowNoise);
+    VHSTapeEffect highEffect;
+    setNeutralTapeProperties(highEffect);
+    highEffect.setPropertyValue(UniString(QStringLiteral("Noise Amount")), 1.0);
+    highEffect.applyCPUOnly(source, highNoise);
+
+    double lowEnergy = 0.0;
+    double highEnergy = 0.0;
+    std::size_t sampleCount = 0;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const auto low = lowNoise.image().getPixel(x, y);
+            const auto high = highNoise.image().getPixel(x, y);
+            const std::array<float, 3> lowRgb{low.r(), low.g(), low.b()};
+            const std::array<float, 3> highRgb{high.r(), high.g(), high.b()};
+            for (const float channel : lowRgb) {
+                const double delta = static_cast<double>(channel) - 0.5;
+                lowEnergy += delta * delta;
+            }
+            for (const float channel : highRgb) {
+                const double delta = static_cast<double>(channel) - 0.5;
+                highEnergy += delta * delta;
+            }
+            sampleCount += 3;
+        }
+    }
+    ASSERT_GT(sampleCount, 0u);
+    const double lowRms = std::sqrt(lowEnergy / static_cast<double>(sampleCount));
+    const double highRms = std::sqrt(highEnergy / static_cast<double>(sampleCount));
+    EXPECT_GT(lowRms, 0.0);
+    EXPECT_GT(highRms, lowRms * 1.5);
+}
+
+TEST(VHSTapeEffectContractTest,
      ZeroSaturationProducesMonochromeAndPreservesAlpha)
 {
     constexpr int width = 7;
