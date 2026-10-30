@@ -1796,6 +1796,133 @@ TEST(ExportWriterContractTest, LottieEmbedsSingleImageDataUriAndSourceBytes)
               sourceBytes);
 }
 
+TEST(ExportWriterContractTest,
+     LottieExternalAssetsKeepUniqueReferencesAcrossBasenameCollisions)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+    const QString firstDirectory = QDir(temporary.path()).filePath(
+        QStringLiteral("first"));
+    const QString secondDirectory = QDir(temporary.path()).filePath(
+        QStringLiteral("second"));
+    ASSERT_TRUE(QDir().mkpath(firstDirectory));
+    ASSERT_TRUE(QDir().mkpath(secondDirectory));
+    const QString firstPath = QDir(firstDirectory).filePath(
+        QStringLiteral("shared.png"));
+    const QString secondPath = QDir(secondDirectory).filePath(
+        QStringLiteral("shared.png"));
+    QImage firstImage(2, 2, QImage::Format_RGBA8888);
+    firstImage.fill(QColor(220, 30, 60, 255));
+    QImage secondImage(2, 2, QImage::Format_RGBA8888);
+    secondImage.fill(QColor(20, 100, 230, 255));
+    ASSERT_TRUE(firstImage.save(firstPath, "PNG"));
+    ASSERT_TRUE(secondImage.save(secondPath, "PNG"));
+    const QByteArray firstBytes = readFileBytes(firstPath);
+    const QByteArray secondBytes = readFileBytes(secondPath);
+    ASSERT_NE(firstBytes, secondBytes);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("LottieExternalAssetsContractTest"),
+                           true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("ExternalAssetCollisionContract")));
+    compositionParams.setResolution(64, 36);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(1);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    for (const auto& [layerName, sourcePath] : {
+             std::pair<QString, QString>{QStringLiteral("First"), firstPath},
+             std::pair<QString, QString>{QStringLiteral("Second"), secondPath},
+             std::pair<QString, QString>{QStringLiteral("RepeatedFirst"), firstPath}}) {
+        Artifact::ArtifactImageInitParams imageParams(layerName);
+        imageParams.setImagePath(sourcePath);
+        ASSERT_TRUE(projects.addLayerToComposition(
+            composition.id, imageParams).success);
+    }
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+
+    Artifact::ArtifactLottieExportOptions options;
+    options.embedImages = false;
+    const QString outputPath = QDir(temporary.path()).filePath(
+        QStringLiteral("external/composition.json"));
+    QString error;
+    ASSERT_TRUE(Artifact::ArtifactExportLottieWriter::write(
+        compositionPtr, outputPath, options, &error)) << error.toStdString();
+
+    const QJsonDocument document = QJsonDocument::fromJson(readFileBytes(outputPath));
+    ASSERT_TRUE(document.isObject());
+    const QJsonObject root = document.object();
+    const QJsonArray layers = root.value(QStringLiteral("layers")).toArray();
+    const QJsonArray assets = root.value(QStringLiteral("assets")).toArray();
+    ASSERT_EQ(layers.size(), 3);
+    ASSERT_EQ(assets.size(), 3);
+
+    QStringList assetIds;
+    QStringList assetNames;
+    QStringList layerReferences;
+    int firstCopyCount = 0;
+    int secondCopyCount = 0;
+    for (const QJsonValue& value : assets) {
+        const QJsonObject asset = value.toObject();
+        const QString assetId = asset.value(QStringLiteral("id")).toString();
+        const QString assetName = asset.value(QStringLiteral("p")).toString();
+        ASSERT_FALSE(assetId.isEmpty());
+        ASSERT_FALSE(assetName.isEmpty());
+        EXPECT_EQ(asset.value(QStringLiteral("w")).toInt(), 2);
+        EXPECT_EQ(asset.value(QStringLiteral("h")).toInt(), 2);
+        EXPECT_EQ(asset.value(QStringLiteral("u")).toString(),
+                  QStringLiteral("assets/"));
+        EXPECT_EQ(QFileInfo(assetName).fileName(), assetName);
+        EXPECT_EQ(QDir::cleanPath(assetName), assetName);
+        EXPECT_FALSE(assetName.contains(QStringLiteral("..")));
+        assetIds.push_back(assetId);
+        assetNames.push_back(assetName);
+
+        const QString copiedPath = QDir(QFileInfo(outputPath).absolutePath())
+            .filePath(QStringLiteral("assets/") + assetName);
+        ASSERT_TRUE(QFileInfo::exists(copiedPath));
+        const QByteArray copiedBytes = readFileBytes(copiedPath);
+        if (copiedBytes == firstBytes) {
+            ++firstCopyCount;
+        } else if (copiedBytes == secondBytes) {
+            ++secondCopyCount;
+        } else {
+            ADD_FAILURE() << "external asset bytes match neither source";
+        }
+    }
+    EXPECT_EQ(firstCopyCount, 2);
+    EXPECT_EQ(secondCopyCount, 1);
+    QStringList uniqueAssetNames = assetNames;
+    uniqueAssetNames.removeDuplicates();
+    EXPECT_EQ(uniqueAssetNames.size(), 2);
+
+    for (const QJsonValue& value : layers) {
+        const QJsonObject layer = value.toObject();
+        ASSERT_EQ(layer.value(QStringLiteral("ty")).toInt(), 2);
+        const QString reference = layer.value(QStringLiteral("refId")).toString();
+        ASSERT_FALSE(reference.isEmpty());
+        layerReferences.push_back(reference);
+    }
+    QStringList uniqueReferences = layerReferences;
+    uniqueReferences.removeDuplicates();
+    EXPECT_EQ(uniqueReferences.size(), 3);
+    assetIds.sort();
+    layerReferences.sort();
+    EXPECT_EQ(layerReferences, assetIds);
+}
+
 TEST(ExportWriterContractTest, SingleShapeLayerProducesMinimalWriterSchemas)
 {
     QTemporaryDir temporary;

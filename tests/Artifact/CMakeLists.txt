@@ -2455,6 +2455,16 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 90
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactExportLottieExternalImageAssetsContractTest
+        COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
+            "--gtest_filter=ExportWriterContractTest.LottieExternalAssetsKeepUniqueReferencesAcrossBasenameCollisions"
+    )
+    set_tests_properties(ArtifactExportLottieExternalImageAssetsContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "export;lottie;image;external-assets;deduplication;contract;cpu"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactExportWriterInputValidationContractTest
         COMMAND $<TARGET_FILE:ArtifactExportWriterContractTest>
             "--gtest_filter=ExportWriterContractTest.*Reject*MissingCompositionBeforeTouchingOutput*"
