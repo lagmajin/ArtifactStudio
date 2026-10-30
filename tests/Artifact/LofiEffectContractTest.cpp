@@ -1381,6 +1381,87 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeGrainAmountScalesOutputAndClampsAtItsPropertyBounds)
+{
+    constexpr int width = 16;
+    constexpr int height = 8;
+    constexpr std::size_t channelCount =
+        static_cast<std::size_t>(width) * height * 4;
+    std::array<float, channelCount> pixels{};
+    for (std::size_t pixel = 0; pixel < channelCount / 4; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.4f;
+        pixels[pixel * 4 + 1] = 0.4f;
+        pixels[pixel * 4 + 2] = 0.4f;
+        pixels[pixel * 4 + 3] = 0.7f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    EffectContext context;
+    context.compositionFrame = 17;
+    const auto renderWithGrainAmount = [&](const QVariant& amount) {
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setContext(context);
+        for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                     "gateWeave", "vignette", "stain"}) {
+            effect.setPropertyValue(UniString(property), QVariant(0.0f));
+        }
+        effect.setPropertyValue(UniString("seed"), QVariant(1977));
+        effect.setPropertyValue(UniString("grainAmount"), amount);
+        ImageF32x4RGBAWithCache output;
+        effect.applyCPUOnly(source, output);
+        return output;
+    };
+
+    const auto noGrain = renderWithGrainAmount(QVariant(0.0f));
+    const auto halfGrain = renderWithGrainAmount(QVariant(0.25f));
+    const auto maximumGrain = renderWithGrainAmount(QVariant(0.5f));
+    const auto clampedLow = renderWithGrainAmount(QVariant(-1.0f));
+    const auto clampedHigh = renderWithGrainAmount(QVariant(1.0f));
+    const auto nonFinite = renderWithGrainAmount(
+        QVariant(std::numeric_limits<double>::quiet_NaN()));
+    const float* noGrainPixels = noGrain.image().rgba32fData();
+    const float* halfGrainPixels = halfGrain.image().rgba32fData();
+    const float* maximumGrainPixels = maximumGrain.image().rgba32fData();
+    const float* clampedLowPixels = clampedLow.image().rgba32fData();
+    const float* clampedHighPixels = clampedHigh.image().rgba32fData();
+    const float* nonFinitePixels = nonFinite.image().rgba32fData();
+    ASSERT_NE(noGrainPixels, nullptr);
+    ASSERT_NE(halfGrainPixels, nullptr);
+    ASSERT_NE(maximumGrainPixels, nullptr);
+    ASSERT_NE(clampedLowPixels, nullptr);
+    ASSERT_NE(clampedHighPixels, nullptr);
+    ASSERT_NE(nonFinitePixels, nullptr);
+    bool observedGrain = false;
+    for (std::size_t channel = 0; channel < channelCount; ++channel) {
+        EXPECT_FLOAT_EQ(noGrainPixels[channel], pixels[channel])
+            << "zero amount channel=" << channel;
+        EXPECT_FLOAT_EQ(clampedLowPixels[channel], noGrainPixels[channel])
+            << "low clamp channel=" << channel;
+        EXPECT_FLOAT_EQ(nonFinitePixels[channel], noGrainPixels[channel])
+            << "non-finite reset channel=" << channel;
+        EXPECT_FLOAT_EQ(clampedHighPixels[channel], maximumGrainPixels[channel])
+            << "high clamp channel=" << channel;
+        EXPECT_NEAR(halfGrainPixels[channel],
+                    noGrainPixels[channel] +
+                        (maximumGrainPixels[channel] - noGrainPixels[channel]) *
+                            0.5f,
+                    1.0e-6f)
+            << "half amount channel=" << channel;
+        if (channel % 4 != 3) {
+            observedGrain = observedGrain ||
+                std::abs(maximumGrainPixels[channel] - noGrainPixels[channel]) >
+                    1.0e-5f;
+        } else {
+            EXPECT_FLOAT_EQ(maximumGrainPixels[channel], pixels[channel])
+                << "alpha channel=" << channel;
+        }
+    }
+    EXPECT_TRUE(observedGrain);
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeScratchAmountAddsLocalizedSharedRgbDamage)
 {
     constexpr int width = 72;
