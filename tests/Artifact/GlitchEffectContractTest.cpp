@@ -142,6 +142,68 @@ TEST(GlitchEffectContractTest,
 }
 
 TEST(GlitchEffectContractTest,
+     ColorShiftAmountMonotonicallyAddsRedBlueSwaps)
+{
+    constexpr int width = 64;
+    constexpr int height = 8;
+    std::array<float, width * height * 4> pixels{};
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * width + x) * 4;
+            pixels[offset] = 0.1f + static_cast<float>(x) / 1000.0f;
+            pixels[offset + 1] = static_cast<float>(y + 1) / 10.0f;
+            pixels[offset + 2] = 0.8f - static_cast<float>(x) / 1000.0f;
+            pixels[offset + 3] = static_cast<float>(x + y + 1) / 80.0f;
+        }
+    }
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(image);
+    Artifact::GlitchEffect effect;
+    effect.setIntensity(0.0f);
+    effect.setScanlines(0.0f);
+    effect.setSeed(37);
+
+    ArtifactCore::ImageF32x4RGBAWithCache halfShift;
+    ArtifactCore::ImageF32x4RGBAWithCache fullShift;
+    effect.setColorShift(0.5f);
+    effect.applyCPUOnly(source, halfShift);
+    effect.setColorShift(1.0f);
+    effect.applyCPUOnly(source, fullShift);
+
+    const float* half = halfShift.image().rgba32fData();
+    const float* full = fullShift.image().rgba32fData();
+    ASSERT_NE(half, nullptr);
+    ASSERT_NE(full, nullptr);
+    std::size_t halfSwapCount = 0;
+    std::size_t fullSwapCount = 0;
+    for (std::size_t pixel = 0;
+         pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        const bool halfSwapped = half[offset] == pixels[offset + 2] &&
+            half[offset + 2] == pixels[offset];
+        const bool fullSwapped = full[offset] == pixels[offset + 2] &&
+            full[offset + 2] == pixels[offset];
+        halfSwapCount += halfSwapped ? 1u : 0u;
+        fullSwapCount += fullSwapped ? 1u : 0u;
+        if (halfSwapped) {
+            EXPECT_TRUE(fullSwapped) << "pixel=" << pixel;
+        }
+        EXPECT_FLOAT_EQ(half[offset + 1], pixels[offset + 1])
+            << "half-shift green pixel=" << pixel;
+        EXPECT_FLOAT_EQ(full[offset + 1], pixels[offset + 1])
+            << "full-shift green pixel=" << pixel;
+        EXPECT_FLOAT_EQ(half[offset + 3], pixels[offset + 3])
+            << "half-shift alpha pixel=" << pixel;
+        EXPECT_FLOAT_EQ(full[offset + 3], pixels[offset + 3])
+            << "full-shift alpha pixel=" << pixel;
+    }
+    EXPECT_GT(halfSwapCount, 0u);
+    EXPECT_GT(fullSwapCount, halfSwapCount);
+}
+
+TEST(GlitchEffectContractTest,
      IntensityControlsBlockDisplacementWithoutChangingAlpha)
 {
     constexpr int width = 64;
