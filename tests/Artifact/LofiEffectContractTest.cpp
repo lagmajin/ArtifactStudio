@@ -3616,9 +3616,11 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesGrainAmountAcrossCompositionFrame
     ArtifactFilmGrungeEffect effect;
     effect.setComputeMode(ComputeMode::CPU);
     for (const char* property : {"scratchAmount", "dustAmount", "flicker",
-                                 "gateWeave", "vignette", "stain"}) {
+                                 "gateWeave"}) {
         effect.setPropertyValue(UniString(property), QVariant(0.0f));
     }
+    effect.setPropertyValue(UniString("vignette"), QVariant(0.2f));
+    effect.setPropertyValue(UniString("stain"), QVariant(0.15f));
     effect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
     auto* grainAmount = effect.editableProperty(QStringLiteral("grainAmount"));
     ASSERT_NE(grainAmount, nullptr);
@@ -3642,13 +3644,22 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesGrainAmountAcrossCompositionFrame
     ArtifactFilmGrungeEffect fixedEffect;
     fixedEffect.setComputeMode(ComputeMode::CPU);
     for (const char* property : {"scratchAmount", "dustAmount", "flicker",
-                                 "gateWeave", "vignette", "stain"}) {
+                                 "gateWeave"}) {
         fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
     }
+    fixedEffect.setPropertyValue(UniString("vignette"), QVariant(0.2f));
+    fixedEffect.setPropertyValue(UniString("stain"), QVariant(0.15f));
     fixedEffect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
-    fixedEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.4f));
-    ImageF32x4RGBAWithCache fixedFrame;
+    ImageF32x4RGBAWithCache firstFixedFrame;
+    fixedEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.0f));
+    context.compositionFrame = 0;
     fixedEffect.setContext(context);
+    fixedEffect.applyCPUOnly(source, firstFixedFrame);
+
+    fixedEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.4f));
+    context.compositionFrame = 30;
+    fixedEffect.setContext(context);
+    ImageF32x4RGBAWithCache fixedFrame;
     fixedEffect.applyCPUOnly(source, fixedFrame);
 
     context.compositionFrame = 15;
@@ -3660,12 +3671,14 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesGrainAmountAcrossCompositionFrame
     const float* firstPixels = firstFrame.image().rgba32fData();
     const float* interpolatedPixels = interpolatedFrame.image().rgba32fData();
     const float* animatedPixels = animatedFrame.image().rgba32fData();
+    const float* firstFixedPixels = firstFixedFrame.image().rgba32fData();
     const float* fixedPixels = fixedFrame.image().rgba32fData();
     const float* interpolatedFixedPixels =
         interpolatedFixedFrame.image().rgba32fData();
     ASSERT_NE(firstPixels, nullptr);
     ASSERT_NE(interpolatedPixels, nullptr);
     ASSERT_NE(animatedPixels, nullptr);
+    ASSERT_NE(firstFixedPixels, nullptr);
     ASSERT_NE(fixedPixels, nullptr);
     ASSERT_NE(interpolatedFixedPixels, nullptr);
     std::size_t changedRgbSamples = 0;
@@ -3673,7 +3686,8 @@ TEST(LofiEffectContractTest, FilmGrungeAnimatesGrainAmountAcrossCompositionFrame
          pixel < static_cast<std::size_t>(width) * height; ++pixel) {
         for (std::size_t channel = 0; channel < 3; ++channel) {
             const std::size_t offset = pixel * 4 + channel;
-            EXPECT_FLOAT_EQ(firstPixels[offset], sourceValue);
+            EXPECT_FLOAT_EQ(firstPixels[offset], firstFixedPixels[offset])
+                << "first frame pixel=" << pixel << " channel=" << channel;
             EXPECT_TRUE(std::isfinite(animatedPixels[offset]))
                 << "pixel=" << pixel << " channel=" << channel;
             EXPECT_FLOAT_EQ(animatedPixels[offset], fixedPixels[offset])
