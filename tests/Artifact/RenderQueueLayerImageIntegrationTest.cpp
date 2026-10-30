@@ -2650,43 +2650,6 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
-     TileRenderSettingsExposeModeAndClampMinimumSize)
-{
-    auto* queue = Artifact::ArtifactRenderQueueService::instance();
-    ASSERT_NE(queue, nullptr);
-    const auto previousMode = queue->tileRenderMode();
-    const int previousTileSize = queue->tileSize();
-    struct RestoreTileSettings final {
-        Artifact::ArtifactRenderQueueService* queue;
-        Artifact::ArtifactRenderQueueService::TileRenderMode mode;
-        int tileSize;
-        ~RestoreTileSettings()
-        {
-            queue->setTileRenderMode(mode);
-            queue->setTileSize(tileSize);
-        }
-    } restore{queue, previousMode, previousTileSize};
-
-    queue->setTileRenderMode(
-        Artifact::ArtifactRenderQueueService::TileRenderMode::Tiled);
-    EXPECT_EQ(queue->tileRenderMode(),
-              Artifact::ArtifactRenderQueueService::TileRenderMode::Tiled);
-    queue->setTileRenderMode(
-        Artifact::ArtifactRenderQueueService::TileRenderMode::FullFrame);
-    EXPECT_EQ(queue->tileRenderMode(),
-              Artifact::ArtifactRenderQueueService::TileRenderMode::FullFrame);
-
-    queue->setTileSize(512);
-    EXPECT_EQ(queue->tileSize(), 512);
-    queue->setTileSize(64);
-    EXPECT_EQ(queue->tileSize(), 64);
-    queue->setTileSize(1);
-    EXPECT_EQ(queue->tileSize(), 64);
-    queue->setTileSize(-128);
-    EXPECT_EQ(queue->tileSize(), 64);
-}
-
-TEST(RenderQueueLayerImageIntegrationTest,
      HalftoneGenericGpuNodeRendersRepeatableDotPattern)
 {
     QTemporaryDir projectRoot;

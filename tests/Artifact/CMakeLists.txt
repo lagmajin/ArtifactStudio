@@ -137,6 +137,18 @@ set_tests_properties(ArtifactTileGridContractTest PROPERTIES
     LABELS "render;tile;roi;geometry;cpu;contract"
 )
 
+artifact_add_test(ArtifactTileRenderSettingsContractTest
+    SOURCES
+        TileRenderSettingsContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactTileRenderSettingsContractTest PROPERTIES
+    LABELS "render-queue;tile;settings;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactVideoEncoderBackendAliasContractTest
     SOURCES
         VideoEncoderBackendAliasContractTest.cpp
@@ -1848,15 +1860,6 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     set_tests_properties(ArtifactRenderQueueExrImageIntegrationTest PROPERTIES
         LABELS "render-queue;renderer;gpu;gui;responsiveness;image;openexr;aov;3d;cryptomatte;velocity;deep;integration"
         TIMEOUT 180
-        RUN_SERIAL TRUE
-    )
-    add_test(NAME ArtifactRenderQueueTileSettingsContractTest
-        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
-            --gtest_filter=RenderQueueLayerImageIntegrationTest.TileRenderSettingsExposeModeAndClampMinimumSize
-    )
-    set_tests_properties(ArtifactRenderQueueTileSettingsContractTest PROPERTIES
-        LABELS "render-queue;tile;settings;contract"
-        TIMEOUT 60
         RUN_SERIAL TRUE
     )
     add_test(NAME ArtifactExrWriterOutputContractTest
