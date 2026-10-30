@@ -1736,6 +1736,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 300
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactRenderQueueOldTvGpuEffectIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.OldTvGenericGpuNodeChangesPixelsAndPreservesOpaqueAlpha
+    )
+    set_tests_properties(ArtifactRenderQueueOldTvGpuEffectIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;effect;image;integration;contract;lofi"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactRenderQueueExrImageIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.ExportKeepsGuiEventLoopResponsiveAndWritesReadableExr
