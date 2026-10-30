@@ -2381,6 +2381,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
         QStringLiteral("render_queue_old_tv_gpu_baseline.png"));
     const QString effectedPath = isolatedOutputPath(
         QStringLiteral("render_queue_old_tv_gpu_effect.png"));
+    const QString repeatedEffectPath = isolatedOutputPath(
+        QStringLiteral("render_queue_old_tv_gpu_effect_repeat.png"));
     QString failure;
     const auto validImage = [](const QImage& image) {
         return !image.isNull();
@@ -2399,6 +2401,10 @@ TEST(RenderQueueLayerImageIntegrationTest,
         queue, composition.id, QStringLiteral("OldTvGpu"), effectedPath,
         width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
         << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("OldTvGpu"), repeatedEffectPath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
 
     const auto framePath = [](const QString& basePath) {
         const QFileInfo info(basePath);
@@ -2409,14 +2415,18 @@ TEST(RenderQueueLayerImageIntegrationTest,
     };
     const QImage baseline(framePath(baselinePath));
     const QImage effected(framePath(effectedPath));
+    const QImage repeatedEffect(framePath(repeatedEffectPath));
     ASSERT_EQ(baseline.size(), QSize(width, height));
     ASSERT_EQ(effected.size(), QSize(width, height));
+    ASSERT_EQ(repeatedEffect.size(), QSize(width, height));
     const int centerAlpha = baseline.pixelColor(width / 2, height / 2).alpha();
     EXPECT_GT(centerAlpha, 0);
     EXPECT_LT(centerAlpha, 255)
         << "fixture must exercise genuinely translucent source pixels";
     EXPECT_NE(effected, baseline)
         << "Old TV generic GPU dispatch must affect rendered RGB pixels";
+    EXPECT_EQ(effected, repeatedEffect)
+        << "Old TV GPU output must repeat exactly for the same source frame";
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             EXPECT_EQ(effected.pixelColor(x, y).alpha(),
