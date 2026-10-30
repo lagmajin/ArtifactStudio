@@ -1381,6 +1381,74 @@ TEST(LofiEffectContractTest, FilmGrungeGrainSizeDefinesSharedSpatialBlocks)
 }
 
 TEST(LofiEffectContractTest,
+     FilmGrungeGrainSizeRoundsAtHalfStepBoundaries)
+{
+    constexpr int width = 19;
+    constexpr int height = 13;
+    constexpr std::size_t pixelCount =
+        static_cast<std::size_t>(width) * height;
+    std::array<float, pixelCount * 4> pixels{};
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        pixels[pixel * 4 + 0] = 0.5f;
+        pixels[pixel * 4 + 1] = 0.5f;
+        pixels[pixel * 4 + 2] = 0.5f;
+        pixels[pixel * 4 + 3] = 0.75f;
+    }
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(pixels.data(), width, height);
+    const ImageF32x4RGBAWithCache source(image);
+    ImageF32x4RGBAWithCache sizeOne;
+    ImageF32x4RGBAWithCache belowHalfStep;
+    ImageF32x4RGBAWithCache sizeTwo;
+    ImageF32x4RGBAWithCache atHalfStep;
+    const auto renderWithGrainSize = [&source](const float grainSize,
+                                               ImageF32x4RGBAWithCache& output) {
+        ArtifactFilmGrungeEffect effect;
+        effect.setComputeMode(ComputeMode::CPU);
+        effect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+        effect.setPropertyValue(UniString("grainSize"), QVariant(grainSize));
+        effect.setPropertyValue(UniString("seed"), QVariant(77));
+        for (const char* property : {"scratchAmount", "dustAmount", "flicker",
+                                     "gateWeave", "vignette", "stain"}) {
+            effect.setPropertyValue(UniString(property), QVariant(0.0f));
+        }
+        EffectContext context;
+        context.compositionFrame = 18;
+        effect.setContext(context);
+        effect.applyCPUOnly(source, output);
+    };
+    renderWithGrainSize(1.0f, sizeOne);
+    renderWithGrainSize(1.49f, belowHalfStep);
+    renderWithGrainSize(2.0f, sizeTwo);
+    renderWithGrainSize(1.5f, atHalfStep);
+
+    const float* sizeOnePixels = sizeOne.image().rgba32fData();
+    const float* belowHalfStepPixels = belowHalfStep.image().rgba32fData();
+    const float* sizeTwoPixels = sizeTwo.image().rgba32fData();
+    const float* atHalfStepPixels = atHalfStep.image().rgba32fData();
+    ASSERT_NE(sizeOnePixels, nullptr);
+    ASSERT_NE(belowHalfStepPixels, nullptr);
+    ASSERT_NE(sizeTwoPixels, nullptr);
+    ASSERT_NE(atHalfStepPixels, nullptr);
+    bool observedBlockSizeChange = false;
+    for (std::size_t pixel = 0; pixel < pixelCount; ++pixel) {
+        const std::size_t offset = pixel * 4;
+        for (std::size_t channel = 0; channel < 4; ++channel) {
+            EXPECT_FLOAT_EQ(sizeOnePixels[offset + channel],
+                            belowHalfStepPixels[offset + channel])
+                << "grainSize 1.49 should round to block size 1";
+            EXPECT_FLOAT_EQ(sizeTwoPixels[offset + channel],
+                            atHalfStepPixels[offset + channel])
+                << "grainSize 1.5 should round to block size 2";
+        }
+        observedBlockSizeChange = observedBlockSizeChange ||
+            sizeOnePixels[offset + 1] != sizeTwoPixels[offset + 1];
+    }
+    EXPECT_TRUE(observedBlockSizeChange)
+        << "the rounded grain block size should change the spatial pattern";
+}
+
+TEST(LofiEffectContractTest,
      FilmGrungeGrainAmountScalesOutputAndClampsAtItsPropertyBounds)
 {
     constexpr int width = 16;
