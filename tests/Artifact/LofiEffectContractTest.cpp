@@ -9,8 +9,11 @@
 #include <limits>
 #include <utility>
 
+#include <QColor>
+#include <QImage>
 #include <QPointF>
 #include <QRectF>
+#include <QSize>
 #include <QString>
 #include <QVariant>
 
@@ -961,6 +964,65 @@ TEST(LofiEffectContractTest,
         EXPECT_FLOAT_EQ(disabledPixels[channel], pixels[channel])
             << "disabled composition effect changed channel=" << channel;
     }
+}
+
+TEST(LofiEffectContractTest,
+     FilmGrungeCompositionImagePathIsDeterministicPerFrame)
+{
+    constexpr int width = 48;
+    constexpr int height = 32;
+    ArtifactCompositionInitParams params(
+        UniString(QStringLiteral("FilmGrunge image path")),
+        FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(24);
+    auto composition = makeShared<ArtifactComposition3D>(
+        CompositionID(QStringLiteral("film-grunge-image-path")), params);
+    ASSERT_TRUE(composition);
+
+    auto effect = makeShared<ArtifactFilmGrungeEffect>();
+    ASSERT_TRUE(effect);
+    effect->setComputeMode(ComputeMode::CPU);
+    effect->setPropertyValue(UniString("grainAmount"), QVariant(0.5f));
+    effect->setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    effect->setPropertyValue(UniString("scratchAmount"), QVariant(0.4f));
+    effect->setPropertyValue(UniString("dustAmount"), QVariant(0.5f));
+    effect->setPropertyValue(UniString("flicker"), QVariant(0.35f));
+    effect->setPropertyValue(UniString("gateWeave"), QVariant(2.0f));
+    effect->setPropertyValue(UniString("vignette"), QVariant(0.4f));
+    effect->setPropertyValue(UniString("stain"), QVariant(0.2f));
+    effect->setPropertyValue(UniString("seed"), QVariant(731));
+    composition->addEffect(effect);
+
+    QImage source(width, height, QImage::Format_RGBA8888);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            source.setPixelColor(
+                x, y,
+                QColor((x * 17 + y * 3) % 256,
+                       (x * 5 + y * 19) % 256,
+                       (x * 11 + y * 7) % 256,
+                       64 + (x * 13 + y * 9) % 192));
+        }
+    }
+
+    const auto renderAtFrame = [&](const std::int64_t frame) {
+        composition->goToFrame(frame);
+        QImage output = source;
+        EXPECT_TRUE(applyCompositionFinalEffectsToImage(
+            composition.get(), output, DetailLevel::High));
+        EXPECT_EQ(output.size(), QSize(width, height));
+        return output;
+    };
+    const QImage frame12 = renderAtFrame(12);
+    const QImage repeatedFrame12 = renderAtFrame(12);
+    const QImage frame13 = renderAtFrame(13);
+
+    EXPECT_EQ(frame12, repeatedFrame12)
+        << "re-rendering the same composition frame must be deterministic";
+    EXPECT_NE(frame12, frame13)
+        << "changing the composition frame must change the FilmGrunge image";
 }
 
 TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
