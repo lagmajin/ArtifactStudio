@@ -244,6 +244,7 @@ TEST(VHSTapeEffectContractTest, NumericPropertiesClampAndRecoverFromNonFiniteVal
     effect.setPropertyValue(UniString(QStringLiteral("Saturation")), -1.0);
     effect.setPropertyValue(UniString(QStringLiteral("Sharpness")), 2.0);
     effect.setPropertyValue(UniString(QStringLiteral("Bottom Jitter")), 3.0);
+    effect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), -1);
     const auto value = [&effect](const QString& name) {
         for (const auto& property : effect.getProperties()) {
             if (property.getName() == name) return property.getValue().toDouble();
@@ -258,6 +259,17 @@ TEST(VHSTapeEffectContractTest, NumericPropertiesClampAndRecoverFromNonFiniteVal
     EXPECT_DOUBLE_EQ(value(QStringLiteral("Saturation")), 0.0);
     EXPECT_DOUBLE_EQ(value(QStringLiteral("Sharpness")), 1.0);
     EXPECT_DOUBLE_EQ(value(QStringLiteral("Bottom Jitter")), 2.0);
+    EXPECT_DOUBLE_EQ(value(QStringLiteral("OSD Mode")), 0.0);
+
+    effect.setPropertyValue(UniString(QStringLiteral("OSD Mode")), 9);
+    effect.setPropertyValue(UniString(QStringLiteral("Evolution")),
+                            std::numeric_limits<double>::quiet_NaN());
+    effect.setPropertyValue(UniString(QStringLiteral("Seed")), -37);
+    effect.setPropertyValue(UniString(QStringLiteral("Show OSD")), true);
+    EXPECT_DOUBLE_EQ(value(QStringLiteral("OSD Mode")), 3.0);
+    EXPECT_DOUBLE_EQ(value(QStringLiteral("Evolution")), 0.0);
+    EXPECT_DOUBLE_EQ(value(QStringLiteral("Seed")), -37.0);
+    EXPECT_DOUBLE_EQ(value(QStringLiteral("Show OSD")), 1.0);
 
     effect.setPropertyValue(UniString(QStringLiteral("Tracking Error")),
                             std::numeric_limits<double>::quiet_NaN());
