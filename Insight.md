@@ -8585,6 +8585,6 @@
 
 ## 2026-10-30: Creative Glitch の CPU/GPU ノイズ契約を分けて確認する
 - **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactGlitchEffect::apply` / `kGlitchComputeHlsl`、`tests/Artifact/LofiEffectContractTest.cpp`。
-- **確認できた事実:** CPU は固定 seed の `RandomStream` を行ごとに fork し、GPU shader は座標と salt から hash noise を計算する。既存の独立 Glitch ケースは CPU の再現性、alpha、色チャンネルの空間サンプル、in-place、descriptor、empty input、単一列境界を確認する。別の CTest は GPU generic node の登録を確認するが、shader の描画出力は実行しない。
-- **価値または懸念:** CPU/GPU が別の乱数生成方式を使うため、画素単位の完全一致は現在の契約から導けない。ノード登録テストも GPU の実出力や CPU/GPU の効果意味論までは保証しない。差異の許容範囲は未検証。
-- **次に確認すべきこと:** GPU 実行が許可された後、同一の非定数入力を両経路で処理し、row displacement、RGB channel separation、alpha preservation を個別に測る。seeded pixel parity を要求するか、視覚的特性だけを共通契約にするかを定めてからテスト基準を決める。
+- **確認できた事実:** CPU は固定 seed の `RandomStream` を行ごとに fork し、GPU shader は座標と salt から hash noise を計算する。Lofi の独立 CPU ケースは再現性、alpha、色チャンネルの空間サンプル、in-place、descriptor、empty input、単一列境界を確認する。加えて `ArtifactRenderQueueGlitchGpuEffectIntegrationTest` は GPU RenderQueue 出力を検証し、baseline との差、同一フレーム再現性、CPU reference との相違、alpha 維持を assert する。別の登録契約は generic node の登録を確認する。
+- **価値または懸念:** CPU/GPU が別の乱数生成方式を使うため、画素単位の完全一致は現行テスト契約ではなく、GPU integration test も CPU reference との非一致を期待する。GPU integration test は登録より先の描画経路を検証する一方、ビルド／実行は未確認である。
+- **次に確認すべきこと:** GPU テスト実行が許可された後、独立 CPU suite と `ArtifactRenderQueueGlitchGpuEffectIntegrationTest` の両方を実行して、契約が現在の実装で成立するか確認する。CPU/GPU 共通の視覚的意味論まで固定する必要が生じた場合は、row displacement・RGB separation・alpha の個別比較を追加する。
