@@ -506,6 +506,8 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
 
     ImageF32x4RGBAWithCache fullEffect;
     ImageF32x4RGBAWithCache maskedEffect;
+    ImageF32x4RGBAWithCache opacityMaskedEffect;
+    ImageF32x4RGBAWithCache invertedMaskedEffect;
     effect.applyCPUOnly(source, fullEffect);
 
     constexpr std::array<float, 16> maskPixels{
@@ -516,11 +518,19 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
     effect.setMaskImage(mask);
     effect.setMaskEnabled(true);
     effect.applyCPUOnly(source, maskedEffect);
+    effect.setMaskOpacity(0.5f);
+    effect.applyCPUOnly(source, opacityMaskedEffect);
+    effect.setMaskInverted(true);
+    effect.applyCPUOnly(source, invertedMaskedEffect);
 
     const float* full = fullEffect.image().rgba32fData();
     const float* masked = maskedEffect.image().rgba32fData();
+    const float* opacityMasked = opacityMaskedEffect.image().rgba32fData();
+    const float* invertedMasked = invertedMaskedEffect.image().rgba32fData();
     ASSERT_NE(full, nullptr);
     ASSERT_NE(masked, nullptr);
+    ASSERT_NE(opacityMasked, nullptr);
+    ASSERT_NE(invertedMasked, nullptr);
     constexpr std::array<float, 4> maskAlpha{0.0f, 0.25f, 0.5f, 1.0f};
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
@@ -531,6 +541,8 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
                 static_cast<int>((static_cast<float>(y) + 0.5f) * 2.0f / height),
                 1);
             const float alpha = maskAlpha[static_cast<std::size_t>(maskY * 2 + maskX)];
+            const float opacityAlpha = alpha * 0.5f;
+            const float invertedAlpha = (1.0f - alpha) * 0.5f;
             const std::size_t offset =
                 static_cast<std::size_t>((y * width + x) * 4);
             for (int channel = 0; channel < 4; ++channel) {
@@ -539,6 +551,18 @@ TEST(LofiEffectContractTest, FilmGrungeStretchesPrimaryEffectMaskAcrossSurface)
                                 full[offset + channel] * alpha,
                             1.0e-6f)
                     << "x=" << x << " y=" << y << " channel=" << channel;
+                EXPECT_NEAR(opacityMasked[offset + channel],
+                            pixels[offset + channel] * (1.0f - opacityAlpha) +
+                                full[offset + channel] * opacityAlpha,
+                            1.0e-6f)
+                    << "opacity x=" << x << " y=" << y
+                    << " channel=" << channel;
+                EXPECT_NEAR(invertedMasked[offset + channel],
+                            pixels[offset + channel] * (1.0f - invertedAlpha) +
+                                full[offset + channel] * invertedAlpha,
+                            1.0e-6f)
+                    << "inverted x=" << x << " y=" << y
+                    << " channel=" << channel;
             }
         }
     }
