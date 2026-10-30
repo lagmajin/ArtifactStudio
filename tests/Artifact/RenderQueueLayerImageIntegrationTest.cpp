@@ -2383,6 +2383,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
         QStringLiteral("render_queue_old_tv_gpu_effect.png"));
     const QString repeatedEffectPath = isolatedOutputPath(
         QStringLiteral("render_queue_old_tv_gpu_effect_repeat.png"));
+    const QString cpuReferencePath = isolatedOutputPath(
+        QStringLiteral("render_queue_old_tv_gpu_cpu_reference.png"));
     QString failure;
     const auto validImage = [](const QImage& image) {
         return !image.isNull();
@@ -2405,6 +2407,11 @@ TEST(RenderQueueLayerImageIntegrationTest,
         queue, composition.id, QStringLiteral("OldTvGpu"), repeatedEffectPath,
         width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
         << failure.toStdString();
+    oldTv->setComputeMode(Artifact::ComputeMode::CPU);
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("OldTvGpu"), cpuReferencePath,
+        width, height, validImage, &failure, 1, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
 
     const auto framePath = [](const QString& basePath) {
         const QFileInfo info(basePath);
@@ -2416,9 +2423,11 @@ TEST(RenderQueueLayerImageIntegrationTest,
     const QImage baseline(framePath(baselinePath));
     const QImage effected(framePath(effectedPath));
     const QImage repeatedEffect(framePath(repeatedEffectPath));
+    const QImage cpuReference(framePath(cpuReferencePath));
     ASSERT_EQ(baseline.size(), QSize(width, height));
     ASSERT_EQ(effected.size(), QSize(width, height));
     ASSERT_EQ(repeatedEffect.size(), QSize(width, height));
+    ASSERT_EQ(cpuReference.size(), QSize(width, height));
     const int centerAlpha = baseline.pixelColor(width / 2, height / 2).alpha();
     EXPECT_GT(centerAlpha, 0);
     EXPECT_LT(centerAlpha, 255)
@@ -2427,6 +2436,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
         << "Old TV generic GPU dispatch must affect rendered RGB pixels";
     EXPECT_EQ(effected, repeatedEffect)
         << "Old TV GPU output must repeat exactly for the same source frame";
+    EXPECT_NE(effected, cpuReference)
+        << "GPU mode must execute its distinct shader reference instead of silently using CPU output";
     const QColor scanlinePixel = effected.pixelColor(width / 2, 40);
     const QColor adjacentRowPixel = effected.pixelColor(width / 2, 41);
     EXPECT_LT(scanlinePixel.red(), adjacentRowPixel.red())
