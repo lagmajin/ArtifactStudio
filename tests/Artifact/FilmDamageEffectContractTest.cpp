@@ -211,6 +211,24 @@ TEST(FilmDamageEffectContractTest,
     }
 }
 
+TEST(FilmDamageEffectContractTest,
+     EmptyInputReplacesPreviouslyPopulatedOutput)
+{
+    ArtifactCore::ImageF32x4_RGBA emptyImage;
+    emptyImage.setFromRGBA32F(nullptr, 0, 4);
+    const ArtifactCore::ImageF32x4RGBAWithCache source(emptyImage);
+    auto output = makeFilmSurface();
+    ASSERT_FALSE(output.image().isEmpty());
+    Artifact::FilmDamageEffect effect;
+
+    effect.applyCPUOnly(source, output);
+
+    EXPECT_TRUE(output.image().isEmpty());
+    EXPECT_EQ(output.image().width(), source.image().width());
+    EXPECT_EQ(output.image().height(), source.image().height());
+    EXPECT_EQ(output.image().colorDescriptor(), source.image().colorDescriptor());
+}
+
 TEST(FilmDamageEffectContractTest, ZeroDamageControlsLeaveTheSurfaceUnchanged)
 {
     const auto source = makeFilmSurface();
