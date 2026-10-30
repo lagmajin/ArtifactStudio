@@ -196,6 +196,67 @@ TEST(ExportWriterContractTest,
         }));
 }
 
+TEST(ExportWriterContractTest,
+     ExportSessionMissingAssetPreservesExistingCopiedFile)
+{
+    QTemporaryDir temporary;
+    ASSERT_TRUE(temporary.isValid());
+    const QString sourcePath = QDir(temporary.path()).filePath(
+        QStringLiteral("source.png"));
+    QImage source(2, 2, QImage::Format_RGBA8888);
+    source.fill(QColor(64, 128, 192, 255));
+    ASSERT_TRUE(source.save(sourcePath));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("MissingAssetExportSessionContractTest"),
+                           true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("MissingAssetContract")));
+    compositionParams.setResolution(16, 16);
+    compositionParams.setFrameRate(24.0);
+    compositionParams.setDurationFrames(1);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("SourceImage"));
+    imageParams.setImagePath(sourcePath);
+    ASSERT_TRUE(projects.addLayerToComposition(composition.id, imageParams).success);
+
+    const auto compositionResult = projects.findComposition(composition.id);
+    ASSERT_TRUE(compositionResult.success);
+    const auto compositionPtr = compositionResult.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+    Artifact::ArtifactExportSession session(compositionPtr);
+    QString error;
+    ASSERT_TRUE(session.build(&error)) << error.toStdString();
+    ASSERT_EQ(session.snapshot().assets.size(), 1);
+    const QString relativePath = session.snapshot().assets.front().relativePath;
+    EXPECT_EQ(session.assetPathFor(sourcePath), relativePath);
+
+    ASSERT_TRUE(QFile::remove(sourcePath));
+    const QString outputDirectory = QDir(temporary.path()).filePath(
+        QStringLiteral("existing-output"));
+    const QString protectedPath = QDir(outputDirectory).filePath(relativePath);
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(protectedPath).absolutePath()));
+    const QByteArray sentinel = QByteArrayLiteral("existing asset survives");
+    QFile protectedAsset(protectedPath);
+    ASSERT_TRUE(protectedAsset.open(QIODevice::WriteOnly));
+    ASSERT_EQ(protectedAsset.write(sentinel), sentinel.size());
+    protectedAsset.close();
+
+    error.clear();
+    EXPECT_FALSE(session.copyAssets(outputDirectory, &error));
+    EXPECT_TRUE(error.contains(sourcePath));
+    EXPECT_EQ(readFileBytes(protectedPath), sentinel);
+}
+
 TEST(ExportWriterContractTest, WritersRejectMissingCompositionBeforeTouchingOutputs)
 {
     QTemporaryDir temporary;
