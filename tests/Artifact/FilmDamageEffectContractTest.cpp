@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <QVariant>
 
@@ -77,6 +78,54 @@ TEST(FilmDamageEffectContractTest, FixedSeedAndEvolutionRepeatRgbAndPreserveAlph
             EXPECT_FLOAT_EQ(a.a(), input.a());
         }
     }
+}
+
+TEST(FilmDamageEffectContractTest,
+     EvolutionUsesDeterministicTwentyFourStepPerSecondFrameKeys)
+{
+    const auto source = makeFilmSurface();
+    ArtifactCore::ImageF32x4RGBAWithCache first;
+    ArtifactCore::ImageF32x4RGBAWithCache sameFrameKey;
+    ArtifactCore::ImageF32x4RGBAWithCache nextFrameKey;
+    Artifact::FilmDamageEffect effect;
+    setFilmProperty(effect, "Grain", QVariant(0.35));
+    setFilmProperty(effect, "Dust", QVariant(0.0));
+    setFilmProperty(effect, "Scratches", QVariant(0.0));
+    setFilmProperty(effect, "Gate Weave", QVariant(0.0));
+    setFilmProperty(effect, "Flicker", QVariant(0.0));
+    setFilmProperty(effect, "Film Burn", QVariant(0.0));
+    setFilmProperty(effect, "Seed", QVariant(271));
+    setFilmProperty(effect, "Evolution", QVariant(0.125)); // frame key 3
+    effect.applyCPUOnly(source, first);
+
+    setFilmProperty(effect, "Evolution", QVariant(0.13)); // still frame key 3
+    effect.applyCPUOnly(source, sameFrameKey);
+    setFilmProperty(effect, "Evolution", QVariant(0.17)); // frame key 4
+    effect.applyCPUOnly(source, nextFrameKey);
+
+    const float* firstPixels = first.image().rgba32fData();
+    const float* samePixels = sameFrameKey.image().rgba32fData();
+    const float* nextPixels = nextFrameKey.image().rgba32fData();
+    ASSERT_NE(firstPixels, nullptr);
+    ASSERT_NE(samePixels, nullptr);
+    ASSERT_NE(nextPixels, nullptr);
+    bool changedAtNextFrameKey = false;
+    for (std::size_t pixel = 0; pixel < source.image().totalPixels(); ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            const std::size_t index = pixel * 4 + channel;
+            EXPECT_FLOAT_EQ(firstPixels[index], samePixels[index])
+                << "pixel=" << pixel << " channel=" << channel;
+            changedAtNextFrameKey = changedAtNextFrameKey ||
+                std::abs(firstPixels[index] - nextPixels[index]) > 1.0e-6f;
+        }
+        EXPECT_FLOAT_EQ(firstPixels[pixel * 4 + 3],
+                        source.image().rgba32fData()[pixel * 4 + 3]);
+        EXPECT_FLOAT_EQ(samePixels[pixel * 4 + 3],
+                        source.image().rgba32fData()[pixel * 4 + 3]);
+        EXPECT_FLOAT_EQ(nextPixels[pixel * 4 + 3],
+                        source.image().rgba32fData()[pixel * 4 + 3]);
+    }
+    EXPECT_TRUE(changedAtNextFrameKey);
 }
 
 TEST(FilmDamageEffectContractTest, ZeroDamageControlsLeaveTheSurfaceUnchanged)
