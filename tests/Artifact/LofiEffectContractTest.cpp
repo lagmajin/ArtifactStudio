@@ -2354,7 +2354,7 @@ TEST(LofiEffectContractTest,
 }
 
 TEST(LofiEffectContractTest,
-     FilmGrungeAnimatesScratchAmountAgainstFixedFrameOutput)
+     FilmGrungeAnimatesScratchAmountWithFixedColorTransforms)
 {
     constexpr int width = 72;
     constexpr int height = 32;
@@ -2373,10 +2373,13 @@ TEST(LofiEffectContractTest,
 
     ArtifactFilmGrungeEffect animatedEffect;
     animatedEffect.setComputeMode(ComputeMode::CPU);
-    for (const char* property : {"grainAmount", "dustAmount", "flicker",
-                                 "gateWeave", "vignette", "stain"}) {
+    for (const char* property : {"dustAmount", "flicker", "gateWeave"}) {
         animatedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
     }
+    animatedEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    animatedEffect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    animatedEffect.setPropertyValue(UniString("vignette"), QVariant(0.2f));
+    animatedEffect.setPropertyValue(UniString("stain"), QVariant(0.15f));
     auto* scratch =
         animatedEffect.editableProperty(QStringLiteral("scratchAmount"));
     ASSERT_NE(scratch, nullptr);
@@ -2391,18 +2394,27 @@ TEST(LofiEffectContractTest,
 
     ArtifactFilmGrungeEffect fixedEffect;
     fixedEffect.setComputeMode(ComputeMode::CPU);
-    for (const char* property : {"grainAmount", "dustAmount", "flicker",
-                                 "gateWeave", "vignette", "stain"}) {
+    for (const char* property : {"dustAmount", "flicker", "gateWeave"}) {
         fixedEffect.setPropertyValue(UniString(property), QVariant(0.0f));
     }
-    fixedEffect.setPropertyValue(UniString("scratchAmount"), QVariant(0.5f));
+    fixedEffect.setPropertyValue(UniString("grainAmount"), QVariant(0.2f));
+    fixedEffect.setPropertyValue(UniString("grainSize"), QVariant(1.0f));
+    fixedEffect.setPropertyValue(UniString("vignette"), QVariant(0.2f));
+    fixedEffect.setPropertyValue(UniString("stain"), QVariant(0.15f));
+    ImageF32x4RGBAWithCache noScratchFrame;
+    fixedEffect.setPropertyValue(UniString("scratchAmount"), QVariant(0.0f));
     fixedEffect.setContext(context);
+    fixedEffect.applyCPUOnly(source, noScratchFrame);
+
+    fixedEffect.setPropertyValue(UniString("scratchAmount"), QVariant(0.5f));
     ImageF32x4RGBAWithCache fixedFrame;
     fixedEffect.applyCPUOnly(source, fixedFrame);
 
     const float* animated = animatedFrame.image().rgba32fData();
+    const float* noScratch = noScratchFrame.image().rgba32fData();
     const float* fixed = fixedFrame.image().rgba32fData();
     ASSERT_NE(animated, nullptr);
+    ASSERT_NE(noScratch, nullptr);
     ASSERT_NE(fixed, nullptr);
     std::array<bool, width> changedColumns{};
     for (std::size_t pixel = 0;
@@ -2412,7 +2424,7 @@ TEST(LofiEffectContractTest,
             EXPECT_FLOAT_EQ(animated[offset], fixed[offset])
                 << "pixel=" << pixel << " channel=" << channel;
         }
-        if (animated[pixel * 4 + 1] != 0.5f) {
+        if (animated[pixel * 4 + 1] != noScratch[pixel * 4 + 1]) {
             changedColumns[pixel % width] = true;
         }
         EXPECT_FLOAT_EQ(animated[pixel * 4 + 3], alpha)
