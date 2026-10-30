@@ -986,6 +986,108 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     CompositionFinalEffectChangesQueuedOutputPixels)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 64;
+    constexpr int height = 36;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("CompositionFinalEffectQueueTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("CompositionFinalEffectQueue")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(2);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.12f, 0.22f, 0.32f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("FinalEffectQueueLayer"));
+    layerParams.setWidth(width);
+    layerParams.setHeight(height);
+    layerParams.setColor(ArtifactCore::FloatColor(
+        0.12f, 0.22f, 0.32f, 1.0f));
+    const auto layer = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(layer.success);
+
+    QString failure;
+    const QString baselineOutput = isolatedOutputPath(
+        QStringLiteral("composition_final_effect_baseline.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("CompositionFinalEffectQueue"),
+        baselineOutput, width, height,
+        [](const QImage& image) {
+            return image.pixelColor(image.width() / 2, image.height() / 2)
+                       .alpha() > 0;
+        }, &failure, 1)) << failure.toStdString();
+
+    const auto compositionObject = projects.findComposition(composition.id)
+                                       .ptr.lock();
+    ASSERT_TRUE(compositionObject);
+    auto finalBrightness =
+        ArtifactCore::makeShared<Artifact::BrightnessEffect>();
+    ASSERT_TRUE(finalBrightness);
+    finalBrightness->setBrightness(0.1f);
+    compositionObject->addEffect(finalBrightness);
+
+    const QString effectedOutput = isolatedOutputPath(
+        QStringLiteral("composition_final_effect_output.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("CompositionFinalEffectQueue"),
+        effectedOutput, width, height,
+        [](const QImage& image) {
+            return image.pixelColor(image.width() / 2, image.height() / 2)
+                       .alpha() > 0;
+        }, &failure, 1)) << failure.toStdString();
+
+    const auto framePath = [](const QString& outputPath) {
+        const QFileInfo info(outputPath);
+        return QDir(info.absolutePath()).filePath(
+            QStringLiteral("%1_0001.png").arg(info.completeBaseName()));
+    };
+    const QImage baseline(framePath(baselineOutput));
+    const QImage effected(framePath(effectedOutput));
+    ASSERT_FALSE(baseline.isNull());
+    ASSERT_FALSE(effected.isNull());
+    ASSERT_EQ(baseline.size(), QSize(width, height));
+    ASSERT_EQ(effected.size(), QSize(width, height));
+
+    const QPoint sample(width / 2, height / 2);
+    const QColor before = baseline.pixelColor(sample);
+    const QColor after = effected.pixelColor(sample);
+    EXPECT_GT(after.red(), before.red());
+    EXPECT_GT(after.green(), before.green());
+    EXPECT_GT(after.blue(), before.blue());
+    EXPECT_EQ(after.alpha(), before.alpha());
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      Production2DAnd3DParticlesRenderThroughManagerQueue)
 {
     QTemporaryDir projectRoot;

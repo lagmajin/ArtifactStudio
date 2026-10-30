@@ -1844,6 +1844,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 300
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactRenderQueueCompositionFinalEffectIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.CompositionFinalEffectChangesQueuedOutputPixels
+    )
+    set_tests_properties(ArtifactRenderQueueCompositionFinalEffectIntegrationTest PROPERTIES
+        LABELS "render-queue;composition;final-effect;gpu;image;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactRenderQueueAnimatedTransformGpuIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.AnimatedLayerTransformMovesPixelsAcrossGpuRenderedFrames
