@@ -8,280 +8,155 @@ find_package(GTest CONFIG REQUIRED)
 include("${CMAKE_CURRENT_LIST_DIR}/../StandaloneTestHelpers.cmake")
 
 set(ARTIFACT_CORE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../ArtifactCore")
+set(ARTIFACT_CORE_INCLUDE "${ARTIFACT_CORE_ROOT}/include")
 set(ARTIFACT_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
 
-artifact_add_standalone_module_interface(ColorSpaceModuleInterfaces
-    BASE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-    MODULES
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorSpace.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorGamutConversion.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorTransferFunction.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorConversion.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorACES.ixx"
-    INCLUDE_DIRS
-        "${ARTIFACT_CORE_ROOT}/include"
-        "${ARTIFACT_ROOT}/third_party/verdigris/src"
+if(NOT TARGET ArtifactCoreStandaloneFoundationModules)
+    artifact_add_standalone_module_interface(ArtifactCoreStandaloneFoundationModules
+        BASE_DIRS "${ARTIFACT_CORE_ROOT}"
+        MODULES
+            "${ARTIFACT_CORE_INCLUDE}/Container/ContainerDebug.ixx"
+            "${ARTIFACT_CORE_INCLUDE}/Container/ContainerDebugRegistry.ixx"
+            "${ARTIFACT_CORE_ROOT}/src/Core/ArtifactOptional.cppm"
+            "${ARTIFACT_CORE_INCLUDE}/Core/ArtifactArray.ixx"
+            "${ARTIFACT_CORE_INCLUDE}/Core/ArtifactString.ixx"
+            "${ARTIFACT_CORE_INCLUDE}/Container/NamedVector.ixx"
+            "${ARTIFACT_CORE_ROOT}/src/Memory/SharedPtr.cppm"
+            "${ARTIFACT_CORE_ROOT}/src/Memory/TrackedPtr.cppm"
+        INCLUDE_DIRS "${ARTIFACT_CORE_INCLUDE}"
+    )
+endif()
+
+artifact_add_standalone_module_interface(ArtifactCoreParallelFeatureModules
+    BASE_DIRS "${ARTIFACT_CORE_ROOT}"
+    MODULES "${ARTIFACT_CORE_INCLUDE}/Common/Parallel.ixx"
+    INCLUDE_DIRS "${ARTIFACT_CORE_INCLUDE}"
     LINK_LIBS Qt6::Core
 )
 
-artifact_add_standalone_module_implementation(ColorSpaceUnderTest
-    SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Color/ColorSpace.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Color/ColorConversion.cppm"
-    LINK_LIBS ColorSpaceModuleInterfaces Qt6::Core
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
+artifact_add_standalone_module_implementation(ArtifactCoreParallelImplementations
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Core/Parallel.cpp"
+    LINK_LIBS ArtifactCoreParallelFeatureModules Qt6::Core
+    INCLUDE_DIRS "${ARTIFACT_CORE_INCLUDE}"
 )
 
-if(MSVC)
-    add_dependencies(ColorSpaceUnderTest ColorSpaceModuleInterfaces)
-endif()
-
-artifact_add_standalone_gtest(ArtifactCoreColorSpaceTest
-    SOURCES ../ColorSpaceTest.cpp
-    LINK_LIBS ColorSpaceUnderTest ColorSpaceModuleInterfaces
-    LABELS "color;color-space;cpu;unit"
-)
-
-artifact_add_standalone_gtest(ArtifactCoreColorPipelineTest
-    SOURCES ../ColorPipelineStandaloneTest.cpp
-    LINK_LIBS ColorSpaceModuleInterfaces
-    LABELS "color;color-pipeline;cpu;unit"
-)
-
-artifact_add_standalone_gtest(ArtifactCoreColorTransferFunctionTest
-    SOURCES ../ColorTransferFunctionStandaloneTest.cpp
-    LINK_LIBS ColorSpaceModuleInterfaces
-    LABELS "color;color-transfer;cpu;unit"
-)
-
-artifact_add_standalone_gtest(ArtifactCoreColorConversionTest
-    SOURCES ../ColorConversionTest.cpp
-    LINK_LIBS ColorSpaceUnderTest ColorSpaceModuleInterfaces
-    LABELS "color;color-conversion;cpu;unit"
-)
-
-artifact_add_standalone_gtest(ArtifactCoreColorACESTest
-    SOURCES ../ColorACESContractTest.cpp
-    LINK_LIBS ColorSpaceUnderTest ColorSpaceModuleInterfaces
-    LABELS "color;color-aces;cpu;unit"
-)
-
-artifact_add_standalone_module_interface(ColorGamutConversionModuleInterfaces
-    BASE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-    MODULES "${ARTIFACT_CORE_ROOT}/include/Color/ColorGamutConversion.ixx"
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-)
-
-artifact_add_standalone_gtest(ArtifactCoreColorGamutConversionTest
-    SOURCES ../ColorGamutConversionTest.cpp
-    LINK_LIBS ColorGamutConversionModuleInterfaces
-    LABELS "color;color-gamut;cpu;unit"
-)
-
-artifact_add_standalone_module_interface(ColorBridgeModuleInterfaces
-    BASE_DIRS
-        "${ARTIFACT_CORE_ROOT}/include"
+artifact_add_standalone_module_interface(ArtifactCoreColorFeatureModules
+    BASE_DIRS "${ARTIFACT_CORE_ROOT}"
     MODULES
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorTransferFunction.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorGamutConversion.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/FloatColor.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/FloatRGBA.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorBridge.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/TaggedColor.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Graphics/SurfaceColorContract.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorACES.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorBlendMode.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorBridge.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorConversion.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorGamutConversion.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorHarmonizer.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorLuminance.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorLUT.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorSpace.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorTransferFunction.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/FloatColor.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/FloatRGBA.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/TaggedColor.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Color/ColorSwatch.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Graphics/SurfaceColorContract.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Image/ImageSurfaceView.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/Image/SurfacePixelConversion.ixx"
+        "${ARTIFACT_CORE_INCLUDE}/ImageProcessing/ColorTransform/Colorama.ixx"
     INCLUDE_DIRS
-        "${ARTIFACT_CORE_ROOT}/include"
+        "${ARTIFACT_CORE_INCLUDE}"
         "${ARTIFACT_ROOT}/third_party/verdigris/src"
-    LINK_LIBS Qt6::Gui
+    LINK_LIBS ArtifactCoreStandaloneFoundationModules ArtifactCoreParallelFeatureModules Qt6::Core Qt6::Gui
 )
 
-artifact_add_standalone_module_implementation(ColorBridgeUnderTest
+artifact_add_standalone_module_implementation(ArtifactCoreColorImplementations
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Color/FloatColor.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Color/FloatRGBA.cppm"
-    LINK_LIBS ColorBridgeModuleInterfaces Qt6::Gui
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-)
-
-if(MSVC)
-    add_dependencies(ColorBridgeUnderTest ColorBridgeModuleInterfaces)
-endif()
-
-artifact_add_standalone_gtest(ArtifactCoreColorBridgeTest
-    SOURCES ../ColorBridgeTest.cpp
-    LINK_LIBS ColorBridgeUnderTest ColorBridgeModuleInterfaces
-    LABELS "color;color-bridge;cpu;unit"
-)
-
-artifact_add_standalone_module_interface(ColoramaModuleInterfaces
-    BASE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-    MODULES
-        "${ARTIFACT_CORE_ROOT}/include/Common/Parallel.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/ImageProcessing/ColorTransform/Colorama.ixx"
-    INCLUDE_DIRS
-        "${ARTIFACT_CORE_ROOT}/include"
-        "${ARTIFACT_ROOT}/third_party/verdigris/src"
-    LINK_LIBS Qt6::Core Qt6::Gui
-)
-
-artifact_add_standalone_module_implementation(ColoramaUnderTest
-    SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Core/Parallel.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/ImageProcessing/ColorTransform/Colorama.cppm"
-    LINK_LIBS ColoramaModuleInterfaces Qt6::Core Qt6::Gui
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-)
-
-if(MSVC)
-    add_dependencies(ColoramaUnderTest ColoramaModuleInterfaces)
-endif()
-
-artifact_add_standalone_gtest(ArtifactCoreColoramaProcessorTest
-    SOURCES ../ColoramaProcessorContractTest.cpp
-    LINK_LIBS ColoramaUnderTest ColoramaModuleInterfaces
-    LABELS "color;colorama;cpu;unit"
-)
-
-artifact_add_standalone_module_interface(SurfaceConversionModuleInterfaces
-    BASE_DIRS
-        "${ARTIFACT_CORE_ROOT}/include"
-    MODULES
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorTransferFunction.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Graphics/SurfaceColorContract.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Image/ImageSurfaceView.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Image/SurfacePixelConversion.ixx"
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-)
-
-artifact_add_standalone_gtest(ArtifactCoreSurfacePixelConversionTest
-    SOURCES ../SurfacePixelConversionTest.cpp
-    LINK_LIBS SurfaceConversionModuleInterfaces
-    LABELS "color;color-conversion;surface;cpu;unit"
-)
-
-artifact_add_standalone_gtest(ArtifactCoreImageSurfaceViewTest
-    SOURCES ../ImageSurfaceViewTest.cpp
-    LINK_LIBS SurfaceConversionModuleInterfaces
-    LABELS "image;surface;cpu;unit"
-)
-
-artifact_add_standalone_module_interface(ColorLUTModuleInterfaces
-    BASE_DIRS
-        "${ARTIFACT_CORE_ROOT}"
-    MODULES
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorLUT.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Common/Parallel.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Container/ContainerDebug.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Container/ContainerDebugRegistry.ixx"
-        "${ARTIFACT_CORE_ROOT}/src/Core/ArtifactOptional.cppm"
-        "${ARTIFACT_CORE_ROOT}/include/Core/ArtifactArray.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Container/NamedVector.ixx"
-    INCLUDE_DIRS
-        "${ARTIFACT_CORE_ROOT}/include"
-        "${ARTIFACT_ROOT}/third_party/verdigris/src"
-    LINK_LIBS Qt6::Gui
-)
-
-artifact_add_standalone_module_implementation(ColorLUTUnderTest
-    SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Color/ColorLUT.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Core/Parallel.cppm"
-    LINK_LIBS ColorLUTModuleInterfaces Qt6::Gui
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-)
-
-if(MSVC)
-    add_dependencies(ColorLUTUnderTest ColorLUTModuleInterfaces)
-endif()
-
-artifact_add_standalone_gtest(ArtifactCoreColorLUTTest
-    SOURCES ../ColorLUTContractTest.cpp
-    LINK_LIBS ColorLUTUnderTest ColorLUTModuleInterfaces
-    LABELS "color;color-lut;cpu;unit"
-)
-
-artifact_add_standalone_module_interface(ColorBlendModeModuleInterfaces
-    BASE_DIRS
-        "${ARTIFACT_CORE_ROOT}/include"
-    MODULES
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorTransferFunction.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/FloatColor.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorConversion.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorLuminance.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorBlendMode.ixx"
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-)
-
-artifact_add_standalone_module_implementation(ColorBlendModeUnderTest
-    SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Color/FloatColor.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Color/ColorConversion.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Color/ColorLuminance.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Color/ColorBlendMode.cppm"
-    LINK_LIBS ColorBlendModeModuleInterfaces
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-)
-
-if(MSVC)
-    add_dependencies(ColorBlendModeUnderTest ColorBlendModeModuleInterfaces)
-endif()
-
-artifact_add_standalone_gtest(ArtifactCoreColorBlendModeTest
-    SOURCES ../ColorBlendModeStandaloneTest.cpp
-    LINK_LIBS ColorBlendModeUnderTest ColorBlendModeModuleInterfaces
-    LABELS "color;color-blend;cpu;unit"
-)
-
-artifact_add_standalone_module_interface(ColorLuminanceModuleInterfaces
-    BASE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-    MODULES
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorLuminance.ixx"
-)
-
-artifact_add_standalone_module_implementation(ColorLuminanceUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Color/ColorLuminance.cppm"
-    LINK_LIBS ColorLuminanceModuleInterfaces
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-)
-
-if(MSVC)
-    add_dependencies(ColorLuminanceUnderTest ColorLuminanceModuleInterfaces)
-endif()
-
-artifact_add_standalone_gtest(ArtifactCoreColorLuminanceTest
-    SOURCES ../ColorLuminanceContractTest.cpp
-    LINK_LIBS ColorLuminanceUnderTest ColorLuminanceModuleInterfaces
-    LABELS "color;color-luminance;cpu;unit"
-)
-
-artifact_add_standalone_module_interface(ColorHarmonizerModuleInterfaces
-    BASE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-    MODULES
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorTransferFunction.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/FloatColor.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorConversion.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Color/ColorHarmonizer.ixx"
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
-    LINK_LIBS Qt6::Core
-)
-
-artifact_add_standalone_module_implementation(ColorHarmonizerUnderTest
-    SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Color/FloatColor.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Color/ColorConversion.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Color/ColorBlendMode.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Color/ColorConversion.cpp"
         "${ARTIFACT_CORE_ROOT}/src/Color/ColorHarmonizer.cpp"
-    LINK_LIBS ColorHarmonizerModuleInterfaces Qt6::Core
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
+        "${ARTIFACT_CORE_ROOT}/src/Color/ColorLuminance.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Color/ColorLUT.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Color/ColorSpace.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Color/FloatColor.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Color/FloatRGBA.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Color/ColorSwatch.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/ImageProcessing/ColorTransform/Colorama.cpp"
+    LINK_LIBS ArtifactCoreColorFeatureModules ArtifactCoreStandaloneFoundationModules ArtifactCoreParallelImplementations Qt6::Core Qt6::Gui
+    INCLUDE_DIRS "${ARTIFACT_CORE_INCLUDE}"
 )
 
 if(MSVC)
-    add_dependencies(ColorHarmonizerUnderTest ColorHarmonizerModuleInterfaces)
+    add_dependencies(ArtifactCoreColorImplementations ArtifactCoreColorFeatureModules)
+    add_dependencies(ArtifactCoreParallelImplementations ArtifactCoreParallelFeatureModules)
+    add_dependencies(ArtifactCoreColorImplementations ArtifactCoreParallelFeatureModules)
+    set(_parallel_ifc_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/ArtifactCoreParallelFeatureModules.dir")
+    set_property(SOURCE "${ARTIFACT_CORE_ROOT}/src/Core/Parallel.cpp"
+        APPEND PROPERTY COMPILE_OPTIONS
+            "/reference;Core.Parallel=${_parallel_ifc_dir}/Core.Parallel.ifc")
+    set(_color_ifc_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/ArtifactCoreColorFeatureModules.dir")
+    get_target_property(_foundation_ifc_dir ArtifactCoreStandaloneFoundationModules ARTIFACT_STANDALONE_IFC_DIR)
+    set(_parallel_ifc_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/ArtifactCoreParallelFeatureModules.dir")
+    set_property(SOURCE "${ARTIFACT_CORE_ROOT}/src/Color/ColorLUT.cpp"
+        APPEND PROPERTY COMPILE_OPTIONS
+            "/reference;Core.Parallel=${_parallel_ifc_dir}/Core.Parallel.ifc")
+    set_property(SOURCE "${ARTIFACT_CORE_ROOT}/src/ImageProcessing/ColorTransform/Colorama.cpp"
+        APPEND PROPERTY COMPILE_OPTIONS
+            "/reference;Core.Parallel=${_parallel_ifc_dir}/Core.Parallel.ifc")
+    set_property(SOURCE "${ARTIFACT_CORE_ROOT}/src/Color/ColorSwatch.cpp"
+        APPEND PROPERTY COMPILE_OPTIONS
+            "/reference;Color.Swatch=${_color_ifc_dir}/Color.Swatch.ifc"
+            "/reference;Color.Float=${_color_ifc_dir}/Color.Float.ifc"
+            "/reference;Memory.TrackedPtr=${_foundation_ifc_dir}/Memory.TrackedPtr.ifc"
+            "/reference;Core.ArtifactString=${_foundation_ifc_dir}/Core.ArtifactString.ifc")
+    unset(_color_ifc_dir)
+    unset(_foundation_ifc_dir)
+    unset(_parallel_ifc_dir)
 endif()
 
-artifact_add_standalone_gtest(ArtifactCoreColorHarmonizerTest
-    SOURCES ../ColorHarmonizerContractTest.cpp
-    LINK_LIBS ColorHarmonizerUnderTest ColorHarmonizerModuleInterfaces
-    LABELS "color;color-harmonizer;cpu;unit"
+set(_color_test_targets
+    ArtifactCoreColorSpaceTest
+    ArtifactCoreColorPipelineTest
+    ArtifactCoreColorTransferFunctionTest
+    ArtifactCoreColorConversionTest
+    ArtifactCoreColorACESTest
+    ArtifactCoreColorGamutConversionTest
+    ArtifactCoreColorBridgeTest
+    ArtifactCoreColoramaProcessorTest
+    ArtifactCoreSurfacePixelConversionTest
+    ArtifactCoreImageSurfaceViewTest
+    ArtifactCoreColorLUTTest
+    ArtifactCoreColorBlendModeTest
+    ArtifactCoreColorLuminanceTest
+    ArtifactCoreColorHarmonizerTest
+    ArtifactCoreFloatRGBAContractTest
+    ArtifactCoreColorSwatchStandaloneTest
 )
+set(_color_test_sources
+    ColorSpaceTest.cpp
+    ColorPipelineStandaloneTest.cpp
+    ColorTransferFunctionStandaloneTest.cpp
+    ColorConversionTest.cpp
+    ColorACESContractTest.cpp
+    ColorGamutConversionTest.cpp
+    ColorBridgeTest.cpp
+    ColoramaProcessorContractTest.cpp
+    SurfacePixelConversionTest.cpp
+    ImageSurfaceViewTest.cpp
+    ColorLUTContractTest.cpp
+    ColorBlendModeStandaloneTest.cpp
+    ColorLuminanceContractTest.cpp
+    ColorHarmonizerContractTest.cpp
+    FloatRGBAContractTest.cpp
+    ColorSwatchStandaloneTest.cpp
+)
+foreach(_target _source IN ZIP_LISTS _color_test_targets _color_test_sources)
+    artifact_add_standalone_gtest(${_target}
+        SOURCES "${CMAKE_CURRENT_LIST_DIR}/../${_source}"
+        LINK_LIBS ArtifactCoreColorImplementations ArtifactCoreColorFeatureModules ArtifactCoreStandaloneFoundationModules Qt6::Core Qt6::Gui
+        LABELS "color;contract;standalone"
+    )
+endforeach()
+
+if(ARTIFACT_STANDALONE_GTEST_GROUP)
+    artifact_finalize_standalone_gtest_group("${ARTIFACT_STANDALONE_GTEST_GROUP}")
+endif()
 
 enable_testing()

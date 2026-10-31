@@ -24,7 +24,7 @@ artifact_add_standalone_module_interface(AudioDelayModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioDelayUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDelay.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDelay.cpp"
     LINK_LIBS AudioDelayModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

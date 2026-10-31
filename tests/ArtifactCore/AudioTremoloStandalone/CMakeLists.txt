@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioTremoloModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioTremoloUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTremolo.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTremolo.cpp"
     LINK_LIBS AudioTremoloModuleInterfaces Qt6::Core
     # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
     # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を

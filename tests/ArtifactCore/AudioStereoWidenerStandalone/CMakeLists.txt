@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioStereoWidenerModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioStereoWidenerUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioStereoWidener.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioStereoWidener.cpp"
     LINK_LIBS AudioStereoWidenerModuleInterfaces Qt6::Core
     # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
     # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を

@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioWaveformModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioWaveformUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioWaveform.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioWaveform.cpp"
     LINK_LIBS AudioWaveformModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

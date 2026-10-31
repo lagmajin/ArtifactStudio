@@ -17,7 +17,7 @@ artifact_add_standalone_module_interface(RationalTimeModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(RationalTimeUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Time/RationalTime.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Time/RationalTime.cpp"
     LINK_LIBS RationalTimeModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

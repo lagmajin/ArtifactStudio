@@ -2,9 +2,11 @@
 
 #include <limits>
 
+import Audio.Segment;
 import Audio.Spatial.Params;
 
 using namespace ArtifactCore::Audio::Spatial;
+using namespace ArtifactCore;
 
 namespace {
 constexpr float kNaN = std::numeric_limits<float>::quiet_NaN();

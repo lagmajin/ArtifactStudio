@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioBassTrebleModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioBassTrebleUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioBassTreble.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioBassTreble.cpp"
     LINK_LIBS AudioBassTrebleModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

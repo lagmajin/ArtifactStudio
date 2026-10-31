@@ -16,7 +16,7 @@ artifact_add_standalone_module_interface(FrameSkipTrackerModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(FrameSkipTrackerUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Frame/FrameSkipTracker.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Frame/FrameSkipTracker.cpp"
     LINK_LIBS FrameSkipTrackerModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioDCBlockerModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioDCBlockerUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDCBlocker.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDCBlocker.cpp"
     LINK_LIBS AudioDCBlockerModuleInterfaces Qt6::Core
     # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
     # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を

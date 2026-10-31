@@ -18,7 +18,7 @@ artifact_add_standalone_module_interface(AudioRasterizerModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioRasterizerUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioRasterizer.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioRasterizer.cpp"
     LINK_LIBS AudioRasterizerModuleInterfaces Qt6::Core Qt6::Gui
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

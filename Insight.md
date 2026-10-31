@@ -1,4 +1,4 @@
-**最終更新:** 2026-10-30
+**最終更新:** 2026-10-31
 
 ## 2026-10-30: 2D smoke curl A/B実測 — .25はほぼ中立、.5/2octは時間方向に荒れる
 - **関連:** `tests/Artifact/SmokeVolumeLookdevRAndTest.cpp::DensityRampAndShadowAblationPreservesTheSameVolume`、captures `out/rnd/smoke-lookdev-20261030/`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
@@ -9338,3 +9338,374 @@
 - **確認できた事実:** `BlurEffect` のモジュールインターフェースと実装ファイルは存在する一方、公開CMakeのBlurライブラリ登録リストに両ファイルが含まれていない。既存 `ArtifactEffectsBlur` targetへリンクしても `Artifact.Effect.Rasterizer.Blur` をimportできないため、独立テストを登録すると未解決モジュールになる。
 - **価値または懸念:** 現状のテストからは当該Blur実装をビルド・利用できず、ソースの存在だけでは製品経路への収録を保証しない。今回のテスト拡張では、公開targetに登録済みの別Blur効果を対象とした。
 - **次に確認すべきこと:** `BlurEffect` を製品で利用する意図があるかを確認し、必要ならCMake targetへの登録・他のBlur APIとの重複・Renderer選択経路を設計単位でレビューする。実装が未使用なら削除候補として扱う前に参照と履歴を確認する。
+
+## 2026-10-31: ArtifactCore standalone tests repeat module builds across isolated CMake projects
+- **関連:** `tests/ArtifactCore/*Standalone/CMakeLists.txt`、`tests/ArtifactCore/StandaloneTestHelpers.cmake`、`tests/ArtifactCore/CMakeLists.txt`。
+- **確認できた事実:** 166個のstandaloneディレクトリが個別の`project()`とCMake configure treeを持ち、共通helperは各プロジェクト内でだけtargetを作る。静的集計では少なくとも46種類のCore moduleが複数プロジェクトに登録され、`ArtifactArray.ixx`は69件、`ArtifactOptional.cppm`は67件、`ArtifactString.ixx`は51件で参照される。親のCore test graphはstandalone群の大半を登録していない。`ColorSpaceStandalone/README.md`は、フル`ArtifactCore`をリンクせず依存closureを明示する独立構成を意図として説明し、複数suiteを同じproject内でmodule target共有している。トップレベルCMakeの`ARTIFACT_USE_SCCACHE`は既定ONだが、MSVCとMSVC frontendではC++ module cache未対応を理由にlauncherを無効化し、standalone graphにもその設定は自動適用されない。`ARTIFACT_BUILD_TESTS`は既定OFFで、確認した`build_artifact_core.bat` / `run_build.bat`も`ArtifactCore`だけをbuildする。`tests/README.md`の標準手順は親CMakeのconfigure/build/ctestのみを案内し、standalone群の構成・選択方法は説明していない。
+- **価値または懸念:** 独立binary tree間ではIFC/BMIとobjectを通常共有しない。Data 7 suiteを一つのconfigure treeに束ねる `tests/ArtifactCore/DataStandalone` を追加し、MSVC 19.51 / VS 18 でconfigureと全target buildは成功。build logでは共通foundation module群を一回だけcompileした。CTestは7 suite中4 pass、3 fail（unterminated CSV quote、numeric prefix後続文字、DataCache上限置換の契約不一致）。
+- **追加調査:** さらに13のCore primitive/container suiteを同一graphへ加える試行をしたが、ArtifactCore submoduleのテンプレート実装に起因するcompile failure、既存contract testのcompile/runtime failure、module import漏れなど複数の独立問題が出たため、新projectへは残さなかった。ArtifactCore submoduleは変更していない。`ArtifactStringContractTest.cpp`には `Array` 使用に必要な直接module importを追加し、同suiteのcompileを確認した。
+- **次に確認すべきこと:** Data suiteの3 contract failureを個別の不具合修正として扱うか判断する。より広いsuite統合は、外部依存・module ownership・既存test compile failureを整理し、suiteごとにbuild可能性を確認して進める。現時点で166件の利用頻度・総ビルド時間の比較は未計測。
+
+## 2026-10-31: Audio standalone suiteの共有ビルドグラフ
+- **関連:** `tests/ArtifactCore/AudioStandalone/`、`tests/ArtifactCore/AudioSegmentStandalone/CMakeLists.txt`、`tests/ArtifactCore/AudioEffectBaseStandalone/CMakeLists.txt`。
+- **確認できた事実:** 47 Audio standalone projectsのCMake記載を集計すると280 module references中30 pathが複数projectで重複し、`AudioSegment.ixx`は38 suite、`ArtifactOptional.cppm`は27 suiteで参照される。Audio standalone CMakeの実在source拡張子誤記36件を `.cpp` に修正し、Vibratoを独立suiteと共有groupの両方でbuild/test成功確認。AudioStandalone groupへSegment、Effect base、Decibels、Volume、Vibrato、Spectrumに加え、BassTreble、BitCrusher、Chorus、DCBlocker、Tremolo、StereoWidener、Toneを追加。13 suite全体のbuild成功。CTestでは8 suite pass、Decibels 1件・Volume 3件・Chorus 3件・Tremolo 1件・Tone 1件が失敗。Chorus testの存在しない `setMix` 呼び出しは除去してコンパイルを復旧した。
+- **確認できた制約:** 複数effect suiteを追加検証したところ、各suiteのCMakeListsが参照する `src/Audio/Audio*.cppm` はArtifactCore submoduleの作業ツリーに存在せず、implementationを省くとeffect classの実装シンボルが未解決になった。統合対象から外し、ArtifactCore submoduleは変更していない。
+- **価値または懸念:** Build artifact共有は suiteを同一CMake graphへ配置すれば成立する一方、既存standalone CMakeのsource登録と実在ファイルがずれた例がある。参照リストだけを機械的に合流すると不完全なテストgraphになる。
+- **次に確認すべきこと:** 共有構成の全target buildと全46 suite CTestを後続確認する。40-suite時点で見つかった失敗契約も実装・要件と照合して分類する。
+
+## 2026-10-31: DataとAudioのCore module artifactを同一build treeで共有
+- **関連:** `tests/ArtifactCore/StandaloneSuite/`、`tests/ArtifactCore/DataStandalone/CMakeLists.txt`、`tests/ArtifactCore/AudioStandalone/CMakeLists.txt`。
+- **確認できた事実:** DataとAudioの共有基盤を `ArtifactCoreStandaloneFoundationModules` に統一し、Optional、Array、String、ContainerDebug/Registry、NamedVector、SharedPtrのsource ownerを一つにした。Data 7 suiteとAudio 46 suiteを同じ親CMake graphへ追加する `StandaloneSuite` を作成し、configure成功。生成CTest登録は53 unique suite namesである。
+- **未確認:** CMake configure graph上の共有target依存は生成されたが、ユーザーのconfigure限定指示に従ってcompile/buildとCTestは実行していない。したがって共有targetの実ビルドと全suiteのリンクは未検証。
+- **価値または懸念:** Audio単独graphとData単独graphでは同じCore moduleを別々に生成するが、親graphならその重複を解消できる。各subprojectの独立configure経路もconditional shared-target fallbackで維持した。
+- **次に確認すべきこと:** 明示的にbuild検証が許可された後、親graphの全targetをbuildし、Container/Memory/Coreの各module artifactが一度だけcompileされることをログで確認する。その後53 suiteのCTestを実行し、既知契約失敗と新規統合不具合を分類する。
+
+## 2026-10-31: Core value contract suites reuse the shared foundation target
+- **関連:** `tests/ArtifactCore/CoreValueStandalone/`、`tests/ArtifactCore/StandaloneSuite/CMakeLists.txt`。
+- **確認できた事実:** ArtifactOptional、ArtifactString、ArtifactExpected、DiskSizeの4 suiteを親graphに追加し、Data / Audioと同じ `ArtifactCoreStandaloneFoundationModules` を使うよう接続した。親graphとCoreValueStandaloneの単独configureが成功し、親の生成CTest listは57 unique suite registrations。
+- **未確認:** configureのみ実施。4 test executableのcompile/linkと実行結果、foundation IFCが実ビルドで一度のみ生成されることは未確認。
+- **価値または懸念:** Optional / Array / String / Container / SharedPtrを使う新しいCore suiteも親graphへ追加すれば、foundation module buildを共有できる。既存テストには契約失敗またはcompile failureの既知suiteもあるため、追加前にsourceとmodule importを静的照合し、実行許可後に個別suiteを段階検証する。
+- **次に確認すべきこと:** build許可後、まず4 suiteと共有foundation targetをbuildし、既存契約の成否を確認する。その後Array等の追加suiteを同じ依存graphへ広げる。
+
+## 2026-10-31: Core utility suites join the shared standalone graph
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/`、`tests/ArtifactCore/StandaloneSuite/CMakeLists.txt`。
+- **確認できた事実:** AssetSequence、CppLinq、DiagnosticRecorder、DiagnosticSnapshot、Path、TextEncoding、TextNumberの7 suiteを追加し、Result / Optional / Text / Diagnostic modulesを1 feature targetにまとめ、common Core / Container foundationへ接続した。親graphとCoreUtilityStandalone単独configureが成功。親の生成CTest listは64 unique suite registrations。
+- **未確認:** configureのみ実施。compile/link、module artifactの実際の単一生成、suite test結果は未確認。
+- **次に確認すべきこと:** build許可後にUtility feature targetと共有foundationをbuildし、compile errors / link ownershipを確認する。その後64 suiteのCTestを実施して契約失敗を分類する。
+
+## 2026-10-31: Core container and algorithm suites reuse common IFC targets
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`tests/ArtifactCore/StandaloneSuite/CMakeLists.txt`。
+- **確認できた事実:** ArtifactAlgorithms、ArtifactPtr、ArtifactRegex、ArtifactSet、ArtifactTupleの5 suiteをCoreUtility feature targetへ追加し、ArtifactUtilityを含むmodule群を一度だけ登録した。親graphとCoreUtilityStandalone単独configureが成功し、親graphの生成CTest listは69 unique suite registrations。
+- **未確認:** configure限定のため、これらの新規module群はcompile/link/test未確認。ArtifactTupleの既存standalone sourceにはmacro引数にcommaを含む `EXPECT_EQ` compile errorが以前の調査で見つかっているため、このsuiteは共有graphへ登録されるが、全target buildの成功を保証しない。
+- **次に確認すべきこと:** build許可後にCoreUtility feature targetをbuildし、既存source/API不整合と新しいtarget dependency errorsを分けて記録する。その後69 suite CTestを実行する。
+
+## 2026-10-31: ArtifactTuple contract test macro arguments corrected
+- **関連:** `tests/ArtifactCore/ArtifactTupleContractTest.cpp`。
+- **確認できた事実:** `EXPECT_EQ` / `EXPECT_NE` の第2引数に、型引数カンマを含む `Tuple<int, int, int>(...)` 式が直接渡されていた。また `tupleSizeV<Tuple<int, Tuple<std::string, bool>>>` も型引数カンマを含む式としてGoogleTestマクロへ直接渡されていた。
+- **変更:** tuple値を事前に変数化し、`tupleSizeV` 式を括弧で保護した。これでプリプロセッサによるマクロ引数分割を避ける形にした。
+- **未確認:** configureのみの制約を維持しており、コンパイル・テスト実行では確認していない。
+- **次に確認すべきこと:** build実行許可後にArtifactTuple standalone targetをコンパイルし、追加の型/API不整合がないか確認する。
+
+## 2026-10-31: ArtifactArray suite added to shared Core value graph
+- **関連:** `tests/ArtifactCore/CoreValueStandalone/CMakeLists.txt`、`tests/ArtifactCore/StandaloneSuite/`。
+- **確認できた事実:** ArtifactArray の standalone test は `Core.ArtifactArray` module を import し、既存共通 foundation target がその module interface を所有する。テスト実行ファイルを CoreValueStandalone に追加して同 target へリンクし、親 suite の構成と単独 CoreValue 構成を configure した。親生成物では新 executable が共通 foundation project を参照し、生成 CTest files 全体で70個の一意な suite registrationを確認した。
+- **未確認:** configureのみ。compile/link/test結果と、実ビルド時の IFC / object artifact生成回数は未確認。
+- **価値または懸念:** 既存の独立 suite project をまとめて実行するケースで、ArtifactArray moduleの重複生成を避けられる。標準 `std::vector` はこの既存テストのローカル変換ヘルパーでのみ使われ、製品コード変更ではない。
+- **次に確認すべきこと:** build許可後、ArtifactArray test executable と共有 foundation target をコンパイルし、suiteの契約結果を確認する。
+
+## 2026-10-31: HashMap, Span, and Variant suites share Core Utility modules
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`tests/ArtifactCore/StandaloneSuite/`。
+- **確認できた事実:** 既存 HashMap / Span / Variant contract suites の module closure は各 standalone CMake で示され、HashMap は `Core.ArtifactOptional` を import するため共通 foundationへ接続できる。3 module を `CoreUtilityFeatureModules` に追加し、各 test executable を同じ feature targetへリンクした。親構成と CoreUtility 単独構成の configure が成功し、親生成 CTest list には73 unique suite registrations、3つの生成 test project は全て `CoreUtilityFeatureModules` への project reference を持つ。
+- **未確認:** compile/link/testと実ビルドでのIFC/object生成回数は未確認。
+- **価値または懸念:** 3つの独立 configure graph を一つの親 graph へ統合し、共通 foundationと同じUtility feature graph上で module artifactを共有可能にした。
+- **次に確認すべきこと:** build許可後、CoreUtilityFeatureModulesおよび3 suiteを含む構成をビルドし、特に `.cppm` の HashMap module compile/link境界を確認する。
+
+## 2026-10-31: Callable and Chrono suites join shared Core Utility target
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`ArtifactFunction` / `ArtifactFunctionRef` / `ArtifactCallback` / `ArtifactChrono` standalone suites。
+- **確認できた事実:** 4 module は各 standalone CMake に独立登録され、今回確認した module宣言に `import` 依存はない。共通 Utility feature targetへ追加し、対応する既存 test sourcesを登録した。親とCoreUtility単独のconfigureが成功し、CTest生成物のunique suite registrationsは77。4 test projectは全て共通CoreUtilityFeatureModules projectを参照する。
+- **未確認:** module compile/linkとテスト実行、実ビルドでのartifact生成回数は未確認。
+- **価値または懸念:** 4 standalone projectのmodule interface buildをUtility共有graphへ集約できた。将来これらを個別projectでビルドする時は従来どおり独立生成されるため、一括実行には親suiteが必要。
+- **次に確認すべきこと:** build許可後にCoreUtility feature targetをビルドし、既存moduleのコンパイル互換性とsuite契約を確認する。
+
+## 2026-10-31: Numeric utility suites join shared Core Utility target
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、ArtifactSaturation / ArtifactMinMax standalone suites。
+- **確認できた事実:** ArtifactSaturation と Math.ArtifactMinMax は独立したmodule interfaceとして宣言され、テストはそれぞれのmoduleをimportしている。両moduleとテストを共通Utility feature targetへ追加した。親suite configureが成功し、CTest生成登録は79 unique suite、両test projectは共通CoreUtilityFeatureModulesを参照する。
+- **未確認:** compile/link/testと実ビルドでのartifact生成回数は未確認。
+- **価値または懸念:** 独立した数値utility testsも親suiteで実行する際に同じfeature targetへ集約可能になった。
+- **次に確認すべきこと:** build許可後に共有Utility targetをコンパイルし、契約テストを実行する。
+
+## 2026-10-31: Container foundation contract suites use the shared owner
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、NamedVector / ContainerDebug / ContainerDebugRegistry suites。
+- **確認できた事実:** 共通foundation targetは `Container.Debug`、`Container.Debug.Registry`、`Container.NamedVector` を含む一方、対応する standalone test executable は親suiteに未登録だった。3 suiteを追加し、各test projectが `ArtifactCoreStandaloneFoundationModules` を参照する生成 CMake projectを確認した。親configure成功後のCTest unique suite registrationsは82。
+- **未確認:** compile/link/testとIFC/objectの実ビルド生成回数は未確認。
+- **価値または懸念:** 既に共有graphが生成するfoundation moduleに対するテストを同じgraphで実行可能になった。独立Standalone projectを直接使う場合は引き続き個別生成となる。
+- **次に確認すべきこと:** build許可後に3 suiteとfoundation targetをまとめてビルドし、container debug registryのリンク境界も確認する。
+
+## 2026-10-31: SmallVector and ContainerAlgorithms reuse container modules
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、SmallVector / ContainerAlgorithms standalone suites。
+- **確認できた事実:** `Container.SmallVector` imports `Container.Debug`、`Container.NamedVector`、`Core.ArtifactArray`。`Container.Algorithms` imports NamedVector / SmallVector。これら依存はfoundationとfeature targetで所有されるため、両moduleと既存testsを共通Utility feature targetに追加した。親 configure後、CTest unique suite registrationsは84で両test projectがCoreUtilityFeatureModulesを参照する。
+- **未確認:** compile/link/testと実ビルドでのIFC/object生成回数は未確認。
+- **価値または懸念:** standalone suite単位に重複していたcontainer module closureを統合構成で再利用できる。
+- **次に確認すべきこと:** build許可後にCoreUtility feature graphをビルドし、SmallVectorとalgorithm contractsを実行する。
+
+## 2026-10-31: ArtifactMath and Float3 use the shared utility feature graph
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、ArtifactMath / Float3 standalone suites。
+- **確認できた事実:** `Core.ArtifactMath` と `Geometry.Float3` は外部module importを持たず、各standalone testは該当moduleをimportする。両moduleと既存test sourcesを共通CoreUtilityFeatureModulesへ追加した。親configure成功後のCTest registrationsは86 unique suiteで、両test projectが共通feature targetを参照する。
+- **未確認:** compile/link/testおよび実ビルド時artifact再利用は未確認。
+- **価値または懸念:** 独立したmath / geometry moduleの生成物も、親suiteで実行する際に一度のfeature target buildへ集約できる。
+- **次に確認すべきこと:** build許可後にCoreUtility feature target全体をコンパイルし、契約テストを実行する。
+
+## 2026-10-31: Qt Core utility modules get a separate shared feature target
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、ArtifactTimer / ArtifactRandom / Handle standalone suites。
+- **確認できた事実:** 3 module suites all require Qt Core, with no module imports between these three. A separate `CoreQtUtilityFeatureModules` target owns their interfaces and links Qt6::Core; each existing contract source is registered as an executable using that target. Parent and CoreUtility standalone configure succeeded; parent generated 89 unique suite registrations and all three Visual Studio test projects reference the shared Qt feature project.
+- **未確認:** compile/link/test results and actual IFC reuse at build time.
+- **価値または懸念:** Qt-dependent utilities can share module artifacts without adding Qt to the dependency interface of the main CoreUtilityFeatureModules target. CoreUtility standalone configuration now explicitly requires Qt6 Core.
+- **次に確認すべきこと:** build許可後にQt feature targetと3 suitesをビルドし、Qt include/link propagationを確認する。
+
+## 2026-10-31: Thread contract suite reuses Optional foundation module
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、ArtifactThread standalone suite。
+- **確認できた事実:** `Core.ArtifactThread` imports `Core.ArtifactOptional`, already owned by the common foundation target. Added a `CoreThreadFeatureModules` target linked to foundation and `Threads::Threads`, then registered the existing test source. Parent and standalone CoreUtility configure both succeeded; the generated test project references both shared targets and the parent CTest list has 90 unique registrations.
+- **未確認:** compile/link/test and the actual number of IFC/object outputs produced during build remain unverified.
+- **価値または懸念:** Thread suite shares Optional's module artifact while keeping thread-specific module/dependency ownership separate.
+- **次に確認すべきこと:** build許可後にThread feature targetを含むUtility suiteをビルドし、MSVC thread linkageを確認する。
+
+## 2026-10-31: HashValue implementation source path corrected and shared
+- **関連:** `tests/ArtifactCore/HashValueStandalone/CMakeLists.txt`、`tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`。
+- **確認できた事実:** ArtifactCoreには `src/Utils/HashValue.cpp` が存在し、参照されていた `.cppm` は存在しなかった。standalone helperのimplementation sourceを実在する `.cpp` に直し、親Utility graphではHashValue interfaceをQt Core feature targetに、実装を一つの implementation targetに集約した。親とCoreUtility単独configure成功。親のunique CTest registrationsは91で、HashValue test projectが双方の共有targetを参照する。
+- **未確認:** HashValue implementationとconsumerのcompile/link/test結果は未確認。
+- **価値または懸念:** standalone構成の明白なソースパス不整合を直し、親構成でHashValue module implementationの所有者を一つにした。ほかの standalone CMake にも `.cppm` と `.cpp` の参照不一致が残る可能性があり、全件監査は未完了。
+- **次に確認すべきこと:** build許可後にHashValue implementation targetをcompileし、module IFCとの接続を検証する。standalone CMake source path監査も継続する。
+
+## 2026-10-31: TextString suite reuses existing Core and Container modules
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、TextString standalone suite。
+- **確認できた事実:** `Utils.Text.String` imports `Core.ArtifactString`、`Container.NamedVector` and `Container.Debug.Registry`, all owned by the shared foundation target. The module and existing TextString contract source were added to the shared Utility feature graph. Parent configure succeeded; CTest contains 92 unique suite registrations and the generated TextString project references CoreUtilityFeatureModules.
+- **未確認:** compile/link/test and build-time IFC/object reuse remain unverified.
+- **価値または懸念:** TextString の独立suiteも、foundation moduleの共有graphと同じbuild treeで実行可能になった。
+- **次に確認すべきこと:** build許可後にUtility feature targetをcompileし、TextString contractを実行する。
+
+## 2026-10-31: Result and Utils.Optional tests join their existing feature modules
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、Result / Optional standalone suites。
+- **確認できた事実:** `CoreUtilityFeatureModules` already owns `Utils.Result` and `Utils.Optional`; their individual test executables were missing from the shared graph. Added both existing contract sources to the grouped source/suite lists and linked them through the feature target. Parent and CoreUtility standalone configure succeeded, parent CTest list has 94 unique suite registrations, and both generated projects reference CoreUtilityFeatureModules.
+- **未確認:** compile/link/test and build-time artifact reuse remain unverified.
+- **価値または懸念:** suite数だけが独立していた2 testも、既存feature module outputsを共有できる親graphから実行可能になった。
+- **次に確認すべきこと:** build許可後、Result / Utils.Optional test executablesをcompile・実行する。
+
+## 2026-10-31: Utility concepts suite shares Qt utility module target
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、UtilityConcepts standalone suite。
+- **確認できた事実:** UtilityConcepts standalone defines VectorLike, PointLike, StringLike and NumericLike modules and links Qt6::Core. Added those module interfaces and the existing contract test to the separate CoreQtUtilityFeatureModules target. Parent configure succeeded; CTest has 95 unique registrations and generated test project references the shared Qt feature target.
+- **未確認:** compile/link/test and actual build artifact reuse remain unverified.
+- **価値または懸念:** The four concept interfaces now have one owner in the combined utility graph rather than a suite-local target.
+- **次に確認すべきこと:** build許可後にQt utility feature targetとconcept contract suiteをcompile・実行する。
+
+## 2026-10-31: SharedPtr contract test uses common foundation target
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`SharedPtrStandalone`。
+- **確認できた事実:** `Memory.SharedPtr` is already owned by `ArtifactCoreStandaloneFoundationModules`, but its existing contract test was only registered in its standalone project. Added the same test source to CoreUtility and linked it to foundation. Parent configure succeeded; the generated test project references the common foundation, and parent CTest contains 96 unique suite registrations.
+- **未確認:** compile/link/test and physical IFC/object artifact reuse remain unverified.
+- **価値または懸念:** SharedPtr's contract test can now run alongside CoreValue, Utility, Data and Audio users of the same foundation artifact.
+- **次に確認すべきこと:** build許可後にfoundation targetとSharedPtr suiteをbuildし、module import / link boundaryを検証する。
+
+## 2026-10-31: Color standalone suites share module and implementation owners
+- **関連:** `tests/ArtifactCore/ColorSpaceStandalone/CMakeLists.txt`、`tests/ArtifactCore/StandaloneSuite/CMakeLists.txt`。
+- **確認できた事実:** The old ColorSpace graph declared nine interface targets and seven implementation targets, with repeated ColorTransferFunction, FloatColor, ColorConversion, Parallel and other module sources. Its configure failed because 15 implementation source references used `.cppm` while only `.cpp` sources existed. Corrected those paths and replaced the fragmented graph with one Color feature interface target, one Color implementation target, and reuse of the shared Core/Container foundation. Added all 14 color tests to the combined parent suite.
+- **検証:** Parent configure and a fresh standalone ColorSpace configure both succeeded. The parent generated 110 unique CTest registrations. All 14 generated Color test projects reference the same Color interface target, the same implementation target, and the shared foundation project. No build or test was run.
+- **価値または懸念:** The former per-area graph duplicated common module interfaces and implementations across multiple targets. Parent-suite builds now have one target owner per Color module source. Actual compile/link success and physical IFC/object generation counts remain unverified.
+- **次に確認すべきこと:** Build許可後にColor feature/implementation targetsをコンパイルし、C++ module dependency scanningと14 suitesの契約結果を確認する。
+
+## 2026-10-31: RationalTime and FrameSkipTracker share Qt utility implementation owner
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、RationalTime / FrameSkipTracker standalone CMake projects。
+- **確認できた事実:** Both interfaces are Qt Core based, and their actual module implementation paths are `.cpp` although their standalone CMake previously requested `.cppm`. Corrected both standalone paths; the combined Qt feature target owns their interfaces, and one implementation target owns HashValue, RationalTime, and FrameSkipTracker sources. Added explicit MSVC IFC references for `Time.Rational` and `Frame.SkipTracker` to the scanner-disabled implementation sources.
+- **検証:** Parent and CoreUtility standalone configure succeeded. Fresh standalone configures for RationalTime and FrameSkipTracker succeeded. Parent CTest has 112 unique suite registrations; generated implementation project names the `.cpp` sources and emits the expected IFC references. No build or tests were run.
+- **価値または懸念:** Two suites now share Qt and implementation target infrastructure with existing Qt utilities, while their module IFC ownership is explicit. Compilation and runtime behavior remain unverified.
+- **次に確認すべきこと:** Build許可後に `CoreQtUtilityImplementations` をcompileし、明示参照がMSVCで受理されることを確認する。
+
+## 2026-10-31: FrameRate and storage scale suites share serialization module closure
+- **関連:** `tests/ArtifactCore/FrameRateStandaloneSuite/`、FrameRateStandalone / FrameRateScaleStandalone。
+- **確認できた事実:** Both existing test projects declare overlapping Frame.Rate, UniString and StringConvertor interfaces, and each has a UniString implementation target. FrameRate's implementation additionally imports serialization modules. Corrected the stale `UniString.cppm` references to the existing `.cpp` source in both individual CMake projects; added a combined suite with one seven-module interface target and one UniString + FrameRate implementation target. MSVC `/reference` entries for both implementation sources point to the feature target IFC outputs.
+- **検証:** Parent and new combined FrameRate suite configure succeeded; both original focused standalone projects also configure successfully in fresh temp build trees. Parent CTest has 114 unique suite registrations, and both generated FrameRate test projects reference the same interface and implementation targets. No build or test was run.
+- **価値または懸念:** The common FrameRate/UniString module closure and implementation units now have one owner in the combined build graph. IFC compile/link and runtime results remain unverified.
+- **次に確認すべきこと:** Build許可後にFrameRate implementation targetをcompileし、serialization IFC importsとstorage scale testを検証する。
+
+## 2026-10-31: Geometry standalone suites share interface and implementation targets
+- **関連:** `tests/ArtifactCore/GeometryStandaloneSuite/`、RotationTurns / ResolutionRemap / BezierPathSampler / LayerAlignment / UniformScale suites。
+- **確認できた事実:** These five suites have distinct interface/implementation sources, with internal shared module imports between BezierCalculator / BezierPathSampler and LayerBoundsCalculator / LayerAlignment. Several individual projects referenced `.cppm` paths where the existing implementations are `.cpp`. Corrected those paths and grouped seven interface modules and seven implementation source files into one feature target and one implementation target; added explicit MSVC references for each implementation module and imported module.
+- **検証:** Combined parent and GeometryStandaloneSuite configure succeeded; fresh configure succeeded for each of the four corrected individual projects. Parent CTest contains 119 unique suite registrations and all five Geometry test projects reference the same interface and implementation targets. No build or tests were run.
+- **価値または懸念:** Five independent geometry projects now have one module owner per source in the combined build graph. Actual compilation, linking and IFC/object generation counts remain unverified.
+- **次に確認すべきこと:** Build許可後にGeometry implementation targetをcompileし、Bezier and layer bounds module referencesを確認する。
+
+## 2026-10-31: LayerBoundsCalculator contract suite uses the shared Geometry owner
+- **関連:** `tests/ArtifactCore/GeometryStandaloneSuite/CMakeLists.txt`。
+- **確認できた事実:** GeometryFeatureModules and GeometryImplementations already owned `Geometry.LayerBounds` and its implementation, but the existing `LayerBoundsCalculatorStandaloneTest.cpp` had not been registered. Added that executable to the shared Geometry graph. Parent configure succeeded; CTest contains 120 unique registrations and all six Geometry test projects reference the common interface and implementation targets.
+- **未確認:** compile/link/test and actual build artifact counts remain unverified.
+- **価値または懸念:** The module's existing contract suite now validates the module owner in the same combined build graph.
+- **次に確認すべきこと:** Build許可後にGeometry targetと6 suitesをcompile・実行する。
+
+## 2026-10-31: FloatRGBA and ColorSwatch suites join the shared Color graph
+- **関連:** `tests/ArtifactCore/ColorSpaceStandalone/CMakeLists.txt`、FloatRGBA / ColorSwatch standalone projects。
+- **確認できた事実:** FloatRGBA's interface and implementation sources were already owned by the shared Color targets but its contract test was not registered. ColorSwatch depends on Color.Float and Core.ArtifactString, plus Memory.TrackedPtr, whose interface imports the common NamedVector module. Added ColorSwatch and TrackedPtr to the Color feature target, its implementation source to the implementation target, and both existing tests to the shared graph. Corrected stale `.cppm` implementation references in both individual standalone CMake projects.
+- **検証:** Parent and fresh standalone configure for ColorSpace, FloatRGBA, and ColorSwatch succeeded. Parent CTest has 122 unique registrations; all 16 Color test projects reference the same feature and implementation targets. Generated MSVC project contains explicit references for ColorSwatch, FloatColor, TrackedPtr, and foundation ArtifactString. No build or tests were run.
+- **価値または懸念:** Two more color suites now reuse the existing shared Color module outputs; Swatch also links to common foundation modules. Build/link correctness remains unverified.
+- **次に確認すべきこと:** Build許可後にColor implementation targetをcompileし、TrackedPtr / Swatch IFC dependency chainを確認する。
+
+## 2026-10-31: RawImage suite reuses shared SharedPtr foundation
+- **関連:** `tests/ArtifactCore/RawImageStandalone/CMakeLists.txt`、`tests/ArtifactCore/StandaloneSuite/CMakeLists.txt`。
+- **確認できた事実:** RawImage imports `Memory.SharedPtr`, already owned by the common foundation. Its standalone implementation path incorrectly named `RawImage.cppm`; the existing source is `src/Image/RawImage.cpp`. Corrected the path, made the standalone project reuse/create the standard foundation conditionally, and added it to the parent graph with OpenCV as a focused image dependency.
+- **検証:** Parent and fresh standalone RawImage configure succeeded; parent CTest contains 123 unique registrations. The generated RawImage executable references the foundation, interface, and implementation projects, and the implementation project lists the actual `.cpp` source. Configure emits a non-fatal vcpkg OpenCV / FFmpeg package-name dev warning. No build or test was run.
+- **価値または懸念:** RawImage no longer duplicates SharedPtr module generation when run through the combined parent. OpenCV implementation compile/link remains unverified.
+- **次に確認すべきこと:** Build許可後にRawImage targetをビルドし、OpenCV headers/librariesとRawImage IFC接続を確認する。
+
+## 2026-10-31: Asset standalone CMake を共通 suite に接続
+- **関連:** 	ests/ArtifactCore/StandaloneSuite、AssetDatabaseStandalone、AssetMetaFileStandalone、AssetFingerprintStandalone。AssetType IFC を共通 interface target にまとめ、各 standalone の単独 configure も保つ構成を追加。実装 source の実ファイル拡張子を確認し CMake 登録を更新した。StandaloneSuite configure/generate は成功し、CTest 登録名は 126 件。AssetFingerprint は単独 module、AssetDatabase/MetaFile は別 module のため、AssetType 以外の共有効果は限定的。ビルド・テストは未実行。
+
+## 2026-10-31: standalone implementation source paths match checked-in files
+- **関連:** `AspectRatioStandalone`、`FileTypeDetectorStandalone`、`FormantExtractorStandalone`、`IdStandalone`、`MultipleTagStandalone`、`NameGeneratorStandalone`、`NoiseGeneratorStandalone`、`OpenExrStandalone`、`TagStandalone`。
+- **確認できた事実:** 9 standalone CMake projects referenced 14 production implementation paths that did not exist because the source files use `.cpp`, not `.cppm`; `MultipleTag` also had a misspelled source stem in its CMake path. Updated all paths to checked-in source names.
+- **検証:** All nine projects configured and generated successfully in independent temporary build directories. No build or tests were run. This path audit does not claim compilation or module linkage correctness.
+- **価値または懸念:** These focused projects can now reach CMake generation and name real production source files. Their distinct module closures still generate separately; parent-suite consolidation remains a separate opportunity.
+- **次に確認すべきこと:** After build authorization, verify module imports for these implementation sources, especially the shared UniString use in AspectRatio and Tag.
+## 2026-10-31: Crash report parser reuses CoreUtility module artifacts
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`StandaloneSuite`、`CoreCrashReportParser.ixx`。
+- **確認できた事実:** `CrashReportParser` imports `Core.Diagnostics.Snapshot`, `Utils.Result`, and `Core.ArtifactString`; the combined CoreUtility feature/foundation graph already owned those modules. Added the parser interface to that shared feature target and registered its existing test source there, keeping its standalone CMake project available for focused work.
+- **検証:** Parent configure/generate succeeded with 127 unique CTest names. Generated parser test project references `CoreUtilityFeatureModules`. A fresh independent CoreUtility configure/generate also succeeded. No build or tests were run.
+- **価値または懸念:** The combined suite no longer needs a separate parser interface target that would regenerate its dependencies. Module compile/link behavior remains unverified.
+- **次に確認すべきこと:** After build authorization, compile the parser test and verify its shared module imports.
+## 2026-10-31: DiagnosticEngine reuses the shared standalone foundation
+- **関連:** `tests/ArtifactCore/DiagnosticEngineStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** The diagnostic engine standalone had five foundation modules embedded in its interface target. Split those into the conventional conditional shared foundation target and left only ProjectDiagnostic / DiagnosticEngine in its feature interface. Added the project to the combined suite.
+- **検証:** Parent configure/generate succeeded with 128 unique test names. Generated implementation and executable projects reference the shared foundation; production implementation sources are present in the generated project. Independent DiagnosticEngine configure/generate also succeeded. No build or tests were run.
+- **価値または懸念:** The combined tree generates the common container/value module artifacts under the existing single-owner foundation target. The module compile/link result is unverified.
+- **次に確認すべきこと:** After build authorization, compile DiagnosticEngine and check the foundation IFC dependency chain.
+## 2026-10-31: NameMap and IdMap tests share CoreUtility module outputs
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** The NameMap and IdMap focused projects separately registered container modules already owned by CoreUtility's foundation and HashMap feature target. Added both interfaces to CoreUtilityFeatureModules and registered their existing test sources against that target.
+- **検証:** Parent configure/generate succeeded with 130 unique CTest names. Generated test projects reference CoreUtilityFeatureModules. Independent CoreUtility configure/generate succeeded. No build or tests were run.
+- **価値または懸念:** The combined project avoids separate generation of their shared debug, NamedVector, ArtifactArray, and HashMap module artifacts. Compile/link behavior remains unverified.
+- **次に確認すべきこと:** After build authorization, compile both container test targets and verify module dependency scanning.
+## 2026-10-31: NamedList test joins the shared CoreUtility graph
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** The focused NamedList project separately owns `Container.Debug`, `Core.ArtifactArray`, and ArtifactOptional implementation modules. CoreUtility already owns these through its shared foundation, so added the NamedList interface to its feature target and registered the existing test source there.
+- **検証:** Parent configure/generate succeeded with 131 unique CTest names. Generated NamedList test project references CoreUtilityFeatureModules. Independent CoreUtility configure/generate succeeded. No build or tests were run.
+- **価値または懸念:** The combined suite uses the existing single-owner common module outputs instead of defining another interface/implementation pair. Compilation and linking remain unverified.
+- **次に確認すべきこと:** After build authorization, compile the NamedList contract target and check its module imports.
+## 2026-10-31: profiling and diagnostic utility tests share CoreUtility targets
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** DebugIdentity and SessionLedger import the already shared NamedVector foundation plus Qt Core. PerformanceProfiler imports ArtifactString and NamedVector from the existing CoreUtility closure. Added their interfaces to the matching Qt / non-Qt feature targets and registered their existing test sources against those targets.
+- **検証:** Parent configure/generate succeeded with 134 unique CTest names. Generated projects reference CoreQtUtilityFeatureModules for DebugIdentity / SessionLedger and CoreUtilityFeatureModules for PerformanceProfiler. Independent CoreUtility configure/generate succeeded. No build or tests were run.
+- **価値または懸念:** Three focused test executables now consume shared module artifacts in the combined build. Module compile/link correctness remains unverified.
+- **次に確認すべきこと:** After build authorization, build these three test targets and inspect module scanner / IFC behavior.
+## 2026-10-31: NameGenerator shares the CoreUtility NameMap and foundation artifacts
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`NameGeneratorStandalone`、`StandaloneSuite`。
+- **確認できた事実:** NameGenerator depends on ArtifactString, Container.NameMap, and Container.Debug; the combined CoreUtility graph already owns those interfaces. Added its interface to the Qt utility target, its `.cpp` module implementation to the shared Qt utility implementation target, and its existing contract test to CoreUtility.
+- **検証:** Parent configure/generate succeeded with 135 unique CTest names; independent CoreUtility configure/generate succeeded. Generated project lists NameGenerator.cpp and explicit MSVC IFC references for its primary interface, NameMap, Debug, and ArtifactString. No build or tests were run.
+- **価値または懸念:** Its focused project no longer needs to own duplicate foundation and NameMap modules in the combined graph. The explicit IFC compile dependencies have only been checked in generated project metadata, not through compilation.
+- **次に確認すべきこと:** After build authorization, compile NameGenerator and inspect the actual MSVC module attachment / IFC behavior.
+## 2026-10-31: NoiseGenerator shares the Qt utility implementation target
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`NoiseGeneratorStandalone`、`StandaloneSuite`。
+- **確認できた事実:** NoiseGenerator is a Qt Core backed implementation with a standalone interface that does not import other modules. Added its interface to CoreQtUtilityFeatureModules, its `.cpp` implementation to CoreQtUtilityImplementations, and its existing test source to CoreUtility.
+- **検証:** Parent configure/generate succeeded with 136 unique CTest names. Generated test project references both shared Qt utility targets; generated implementation project lists NoiseGenerator.cpp and its explicit `Math.Noise` IFC reference. Independent CoreUtility configure/generate succeeded. No build or tests were run.
+- **価値または懸念:** The combined build no longer needs a standalone interface / implementation pair for this test. MSVC module attachment and compile result remain unverified.
+- **次に確認すべきこと:** After build authorization, compile NoiseGenerator's test target and verify the primary-interface IFC reference.
+## 2026-10-31: Tag contract test reuses Audio standalone string modules
+- **関連:** `tests/ArtifactCore/AudioStandalone/CMakeLists.txt`、`TagStandalone`、`StandaloneSuite`。
+- **確認できた事実:** Tag imports UniString and StringLike. AudioStandaloneValueModules already owns both, and AudioStandaloneValueImplementations already compiles UniString.cpp. Added Tag.ixx and Tag.cpp to those existing targets and registered TagContractTest in the combined Audio suite.
+- **検証:** Parent configure/generate and a fresh AudioStandalone configure/generate succeeded; parent CTest contains 137 unique names. Generated Tag test references the shared value module target; Tag.cpp has an explicit MSVC UniString IFC dependency. No build or tests were run.
+- **価値または懸念:** The combined graph reuses the existing UniString / StringLike module artifacts instead of generating a second Tag standalone closure. Actual compile/link remains unverified.
+- **次に確認すべきこと:** After build authorization, compile TagContractTest and verify its module implementation link.
+## 2026-10-31: AspectRatio shares FrameRate suite UniString artifacts
+- **関連:** `tests/ArtifactCore/FrameRateStandaloneSuite/CMakeLists.txt`、`AspectRatioStandalone`、`StandaloneSuite`。
+- **確認できた事実:** AspectRatio imports `Utils.String.UniString`; the FrameRate suite already owns UniString and StringConvertor interfaces plus the UniString implementation. Added AspectRatio interface and implementation to those shared targets and registered the existing contract test there.
+- **検証:** Parent configure/generate succeeded with 138 unique CTest names. A fresh FrameRate suite configure/generate succeeded. Generated AspectRatio test references the common implementation project; the implementation project lists AspectRatio.cpp with explicit AspectRatio and UniString IFC dependencies. No build or tests were run.
+- **価値または懸念:** The parent graph reuses the existing UniString IFC rather than generating a second copy for AspectRatio. Compilation and linking remain unverified.
+- **次に確認すべきこと:** After build authorization, compile the AspectRatio target and verify the combined FrameRate implementation library.
+## 2026-10-31: MultipleTag joins the shared CoreQtUtility targets
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`MultipleTagStandalone`、`StandaloneSuite`。
+- **確認できた事実:** MultipleTag's focused project has a Qt Core interface and implementation pair. Added its interface and implementation source to the existing CoreQtUtility feature / implementation targets and registered its contract test with CoreUtility.
+- **検証:** Parent configure/generate succeeded with 139 unique CTest names; a fresh CoreUtility configure/generate succeeded. Generated test references both shared Qt utility targets, and the implementation source has an explicit MSVC primary-interface IFC dependency. No build or tests were run.
+- **価値または懸念:** The combined project removes one standalone target pair while keeping the test individually selectable. Compilation and linking remain unverified.
+- **次に確認すべきこと:** After build authorization, compile MultipleTagContractTest and inspect its module attachment.
+## 2026-10-31: Id contract test reuses Audio analysis UUID artifacts
+- **関連:** `tests/ArtifactCore/AudioStandalone/CMakeLists.txt`、`IdStandalone`、`StandaloneSuite`。
+- **確認できた事実:** AudioStandaloneAnalysisModules already owns `Utils.Id`, and AudioStandaloneAnalysisImplementations already compiles `Id.cpp`. Registered the existing IdContractTest against those targets instead of adding another Id module/implementation pair.
+- **検証:** Parent and independent Audio configure/generate succeeded; parent CTest has 140 unique names. The generated Id test project references both Audio analysis targets. No build or tests were run.
+- **価値または懸念:** The combined build reuses the existing Boost UUID module and implementation artifacts. Compile/link remains unverified.
+- **次に確認すべきこと:** After build authorization, compile IdContractTest with the Audio analysis target graph.
+## 2026-10-31: Color and OpenEXR share Core.Parallel artifacts
+- **関連:** `tests/ArtifactCore/ColorSpaceStandalone/CMakeLists.txt`、`OpenExrStandalone`、`StandaloneSuite`。
+- **確認できた事実:** Color and OpenEXR both use `Core.Parallel` and its implementation. Extracted a dedicated Parallel interface / implementation target in the Color suite; OpenExrStandalone reuses it when present, and creates it for focused standalone configuration otherwise. Registered OpenEXR in the combined parent suite.
+- **検証:** Parent, independent Color, and independent OpenEXR configure/generate all succeeded. Parent CTest contains 141 unique names. Generated project metadata shows one `Parallel.cpp` owner; Color and OpenEXR both reference its interface and implementation targets, and OpenEXR's implementation sources carry explicit Core.Parallel IFC dependencies. No build or tests were run.
+- **価値または懸念:** The combined project no longer compiles `Parallel.cpp` and emits `Core.Parallel.ifc` separately for OpenEXR. OpenImageIO / TBB are now required by the parent configure through the OpenEXR suite. Compile/link correctness remains unverified.
+- **次に確認すべきこと:** After build authorization, build OpenEXR and Color targets and verify module imports plus external image I/O linkage.
+## 2026-10-31: DeepImageBuffer contract test reuses the OpenEXR image module graph
+- **関連:** `tests/ArtifactCore/OpenExrStandalone/CMakeLists.txt`、`DeepImageBufferContractTest.cpp`、`StandaloneSuite`。
+- **確認できた事実:** The existing DeepImageBuffer contract source was only registered in the full ArtifactCore test project. The OpenEXR standalone already owns the DeepImageBuffer interface and implementation alongside OpenEXR; registered the existing test source in that suite against those existing targets.
+- **検証:** Parent and independent OpenEXR configure/generate succeeded. Parent CTest has 142 unique names, and the generated DeepImageBuffer test project references OpenExrModuleInterfaces and OpenExrUnderTest. No build or tests were run.
+- **価値または懸念:** The test reuses the existing image module graph and remains individually selectable. It inherits OpenImageIO / TBB link dependencies from the combined OpenEXR implementation target. Compile/link remains unverified.
+- **次に確認すべきこと:** After build authorization, consider separating DeepImageBuffer implementation from OpenEXR I/O libraries if that target's dependency cost is material.
+## 2026-10-31: NameGenerator dependency isolated from general Qt utilities
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** NameGenerator imports Container.NameMap from CoreUtilityFeatureModules. Putting its interface in CoreQtUtilityFeatureModules caused every Qt utility consumer to inherit that full feature target. Split a dedicated CoreQtNameGeneratorFeatureModules / implementation pair that links CoreUtility and the shared foundation; general Qt utility targets no longer link CoreUtility.
+- **検証:** Parent and independent CoreUtility configure/generate succeeded; parent CTest remains 142 unique names. Generated Timer project does not reference CoreUtilityFeatureModules, while NameGenerator references its dedicated modules plus the required CoreUtility target. No build or tests were run.
+- **価値または懸念:** Qt-only tests avoid building the broad CoreUtility feature graph unless they need NameGenerator. The NameGenerator implementation / IFC compile remains unverified.
+- **次に確認すべきこと:** After build authorization, compile both an ordinary Qt utility test and NameGenerator to validate the reduced dependency graph.
+## 2026-10-31: DeepImageBuffer implementation is isolated from OpenImageIO / TBB
+- **関連:** `tests/ArtifactCore/OpenExrStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** Split DeepImageBuffer.cpp into `DeepImageBufferUnderTest`; `OpenExrUnderTest` now compiles only OpenEXR.cpp and links the DeepImageBuffer implementation target. DeepImageBufferContractTest links the isolated implementation, while the round-trip test links OpenExrUnderTest.
+- **検証:** Parent and independent OpenEXR configure/generate succeeded; 142 unique CTest names remain. Generated DeepImageBuffer project references DeepImageBufferUnderTest, OpenExrModuleInterfaces, and shared Parallel targets, with no OpenImageIO / TBB link dependency. OpenEXR implementation project references both DeepImageBufferUnderTest and the shared Parallel targets. No build or tests were run.
+- **価値または懸念:** DeepImageBuffer tests no longer inherit OpenImageIO / TBB link libraries. The OpenExrModuleInterfaces project still contains both module interfaces, but those IFCs have no OIIO link cost. Compile/link remains unverified.
+- **次に確認すべきこと:** After build authorization, compile both DeepImageBuffer and OpenEXR executables.## 2026-10-31: AnimationDynamics and SimulationSystem reuse Core utility module artifacts
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`AnimationDynamicsStandalone`、`SimulationSystemStandalone`、`StandaloneSuite`。
+- **確認できた事実:** Both module interfaces import only modules already present in `ArtifactCoreStandaloneFoundationModules` (`Core.ArtifactString`, `Container.NamedVector`, `Container.Debug`, `Memory.SharedPtr`). Added the interfaces to `CoreUtilityFeatureModules` and registered their existing test sources there.
+- **検証:** Configure/generate is pending for the authorized configure-only pass. No build or tests were run.
+- **価値または懸念:** Combined configuration now has one owner for these module artifacts while each contract suite remains individually selectable. Module compilation and linkage are unverified.
+- **次に確認すべきこと:** Configure the combined parent and independent CoreUtility project, then verify test count and generated target dependency references.
+## 2026-10-31: CoreValue feature modules reuse the CoreUtility target in the combined suite
+- **関連:** `tests/ArtifactCore/StandaloneSuite/CMakeLists.txt`、`CoreValueStandalone/CMakeLists.txt`、`CoreUtilityStandalone/CMakeLists.txt`。
+- **確認できた事実:** ArtifactExpected and DiskSize had a separate feature target despite using the same foundation modules as CoreUtility. The parent now adds CoreUtility before CoreValue, places those interfaces in CoreUtilityFeatureModules, and lets CoreValue use that existing target. CoreValue standalone configuration still creates CoreValueFeatureModules.
+- **検証:** Parent configure/generate and independent CoreValue configure/generate succeeded. Parent retains 144 unique CTest names. The generated ArtifactExpected test project links CoreUtilityFeatureModules; the independent configuration succeeded with its own target. No build or tests were run.
+- **価値または懸念:** The combined configuration avoids a duplicate feature interface target for two value modules while preserving focused standalone use. Compile/link remains unverified.
+- **次に確認すべきこと:** Check further standalone suites for interfaces already owned by a shared feature target before expanding the parent aggregator.
+## 2026-10-31: Core tests reuse Qt, thread, and foundation module targets
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`CoreValueStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** Added existing Random, Timer, Handle, and Thread contract tests to CoreUtility, linking the already-defined CoreQtUtilityFeatureModules or CoreThreadFeatureModules targets. Added the existing SharedPtr contract test to CoreValue, which links the shared foundation target. Array and Optional tests were already registered and were not duplicated.
+- **検証:** Combined parent configure/generate and independent CoreUtility configure/generate succeeded. Parent now has 149 unique CTest names. Generated project link dependencies reference the shared Qt utility and thread targets. No build or tests were run.
+- **価値または懸念:** These independently configurable suites can use the same module artifacts in the parent project. Compiler module import and linkage remain unverified.
+- **次に確認すべきこと:** Continue auditing other standalone projects for repeated module closure, with attention to feature libraries that can be registered without introducing another copy of existing tests.
+## 2026-10-31: Standalone suite target audit removed cross-suite module duplication
+- **関連:** `tests/ArtifactCore/StandaloneTestHelpers.cmake`、`StandaloneSuite`、`ColorSpaceStandalone`、`AudioStandalone`、`FrameRateStandaloneSuite`、`CoreUtilityStandalone`。
+- **確認できた事実:** Generated active Visual Studio targets previously compiled `Memory/TrackedPtr.cppm` in both Audio and Color, and compiled StringConvertor, UniString, and StringLike modules in Audio as well as their existing Color/Core utility/FrameRate owners. UniString.cpp was also listed by Audio and FrameRate. Added a shared string module/implementation target helper, moved those module interfaces and UniString.cpp to it, and moved TrackedPtr into the common foundation target.
+- **検証:** Parent configure/generate and independent Audio, FrameRate, CoreUtility, and Color configure/generate succeeded. A scan of active generated targets found 0 duplicate `.ixx`/`.cppm` owners among 162 module source entries and 0 duplicate production `.cpp` owners among 75 implementation entries. Parent remains at 149 unique CTest names. No build or tests were run.
+- **価値または懸念:** The combined tree now compiles each audited module and production implementation source in one owner target while focused projects retain their independent configuration paths. Compiler-level import and linkage remain unverified because builds were not run.
+- **次に確認すべきこと:** After build authorization, compile the shared string target and its Audio, FrameRate, CoreUtility, and Color consumers to verify the MSVC IFC references at compile time.
+## 2026-10-31: Combined suite production-source ownership audit is clean
+- **関連:** `tests/ArtifactCore/StandaloneSuite/build/CMakeFiles/TargetDirectories.txt`、generated Visual Studio projects for `StandaloneSuite`。
+- **確認できた事実:** Enumerated active targets from CMake's generated TargetDirectories and inspected their generated `ClCompile` source entries. Across 237 unique production sources (`.ixx`, `.cppm`, `.cpp`), no source file is compiled by more than one active target. This includes module implementation units after the shared string and TrackedPtr changes.
+- **検証:** The source ownership scan was read-only and used the most recent successful parent configure/generate output. Parent CTest still contains 149 unique names. No build or tests were run.
+- **価値または懸念:** Configure-time metadata now supports the intended single-owner compilation graph for the combined suite. It cannot establish compiler success, binary artifact reuse at link/runtime, or duplicate module work outside this parent project.
+- **次に確認すべきこと:** If the parent suite is intended to cover additional standalone projects, compare their source closures and external dependencies before adding them; avoid re-registering tests already represented by a different target name.
+## 2026-10-31: Removed duplicate CoreUtility test registrations discovered by source audit
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`CoreValueStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** A generated-project source audit found duplicate registrations for Random, Timer, Handle, Thread, and SharedPtr under different target names. The original CoreUtility already registered all five sources. Removed the extra registrations and the second SharedPtr registration from CoreValue; retained shared module target wiring. Corrected the combined suite count from 149 back to 144.
+- **検証:** Parent and independent CoreUtility configure/generate succeeded. Generated active targets contain 144 distinct test source files with 0 test-source duplicates, and 237 distinct production source files with 0 duplicate owners. No build or tests were run.
+- **価値または懸念:** This avoids adding duplicate tests while preserving artifact sharing. Earlier Insight entries that describe these five tests as newly added are historical notes from before the source audit and should be read with this correction.
+- **次に確認すべきこと:** Continue comparing generated source lists rather than relying on test target names, which can differ for the same test file.
+## 2026-10-31: Combined standalone suite now includes four unrepresented contract sources
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`AudioStandalone/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** Defaults and Numeric standalone tests were not represented in the combined suite; added their interfaces to the existing CoreUtility feature target. AllPassFilter depended on the existing Audio DelayLine module, and the LFO test used a small standalone interface; added both interfaces to AudioStandaloneCoreModules and registered their existing test sources there.
+- **検証:** Parent, independent Audio, and independent CoreUtility configure/generate succeeded. The generated parent contains 148 unique CTest names and 148 test sources; there are 0 repeated test-source owners and 0 repeated production-source owners across 241 production sources. No build or tests were run.
+- **価値または懸念:** These existing tests now run within the shared parent configuration, with AllPassFilter reusing Audio's DelayLine target. The new module imports and links remain uncompiled.
+- **次に確認すべきこと:** Continue the source-closure audit for remaining standalone suites; only migrate tests whose test source is absent from the parent and whose module ownership can stay single-target.
+## 2026-10-31: Geometry value suites share the Geometry feature targets
+- **関連:** `tests/ArtifactCore/GeometryStandaloneSuite/CMakeLists.txt`、`StandaloneSuite`。
+- **確認できた事実:** Position2D had a separate module and implementation target, while Size2D, Quaternion, and Matrix4x4 each had standalone interface projects. Added their existing interfaces to the Geometry feature target, Position2D.cpp to the Geometry implementation target, and registered the four existing test sources in that suite.
+- **検証:** Parent and independent Geometry configure/generate succeeded. Parent now has 152 unique test names and test sources; generated targets contain 246 production sources with no repeated owners. No build or tests were run.
+- **価値または懸念:** These geometry interfaces and Position2D implementation can be generated once in the combined target graph while preserving focused Geometry configuration. Compile/link remains unverified.
+- **次に確認すべきこと:** Continue the generated-target audit for remaining unrepresented suites; keep suites with specialized backends or external dependency closures out of the CPU geometry target.
+## 2026-10-31: Data interfaces share a single feature target
+- **関連:** `tests/ArtifactCore/DataStandalone/CMakeLists.txt`、`DataStandalone/README.md`、`StandaloneSuite`。
+- **確認できた事実:** The seven Data tests previously linked eight separate module interface targets arranged in a dependency chain. Consolidated the eight existing interfaces into `DataStandaloneModules`; each test now links that shared target and the common foundation.
+- **検証:** Parent and independent Data configure/generate succeeded. The generated active-target list contains one Data interface target and all 7 Data test targets; the parent remains at 152 unique CTest names. No build or tests were run.
+- **価値または懸念:** This reduces the Data module target graph from eight interface libraries to one and lets CMake scan the suite's module imports in one target. Compiler-level module dependency scanning and linking remain unverified.
+- **次に確認すべきこと:** After build authorization, compile `DataStandaloneModules` and all seven consumers to validate intra-target module dependency scanning under MSVC.
+## 2026-10-31: Standalone tests are grouped by feature in the combined project
+- **関連:** `tests/ArtifactCore/CoreUtilityStandalone/CMakeLists.txt`、`AudioStandalone/CMakeLists.txt`、generated parent test projects。
+- **確認できた事実:** The user selected feature-level grouping. The parent registers 152 test source files through 13 feature executables/CTest entries; each feature runs its GoogleTest cases in one process. Independent suite projects keep their per-suite executable configuration when configured separately.
+- **検証:** The combined Visual Studio CMake configure/generate completed successfully with `VSLANG=1033`; an independent CoreValue configure/generate also succeeded. Generated target metadata contains 13 feature targets and 13 unique CTest names. A static scan of the 152 grouped source files found no duplicate GoogleTest suite/test-name registrations. No build or tests were run.
+- **価値または懸念:** This reduces process/executable boundaries and combines build outputs by feature. Tests within one feature now share process state and failure isolation; compilation, linking, and runtime interaction are unverified.
+- **次に確認すべきこと:** After build authorization, build the 13 targets and run the grouped CTest entries, watching for source-level GTest name collisions or shared process state.
+## 2026-10-31: Keep Data module targets split for focused builds
+- **関連:** `tests/ArtifactCore/DataStandalone/CMakeLists.txt`、`DataStandalone/README.md`、`StandaloneSuite`。
+- **確認できた事実:** The attempted single Data interface target made a focused test depend on all eight Data interfaces, instead of only the transitive module closure represented by the original target graph. Restored the eight dependency-aware interface targets; the parent still compiles each source once and shares the common foundation.
+- **検証:** Parent and independent Data configure/generate are pending after restoring the graph. No build or tests were run.
+- **価値または懸念:** Preserves focused build behavior without losing the combined suite's shared foundation or module ownership. The earlier Insight entry describing one Data interface target is superseded by this correction.
+- **次に確認すべきこと:** Reconfigure parent and Data independently, then verify the Data target graph is restored and production sources remain single-owner.
+## 2026-10-31: Explicit IFC paths must follow a shared target's owner directory
+- **関連:** `tests/ArtifactCore/StandaloneTestHelpers.cmake`、`CoreUtilityStandalone/CMakeLists.txt`、`ColorSpaceStandalone/CMakeLists.txt`。
+- **確認できた事実:** In the combined parent, `ArtifactCoreStandaloneFoundationModules` is created at the parent binary directory, but NameGenerator and ColorSwatch hard-coded IFC paths relative to their child binary directories. Added a target property for each module interface's IFC output directory and changed those consumers to read it.
+- **検証:** Parent, independent ColorSpace, and independent CoreUtility configure/generate succeeded. Generated Visual Studio project metadata points to the parent's Foundation IFC directory in the combined configuration and to each focused project's Foundation directory in independent configurations. No build or tests were run.
+- **価値または懸念:** This fixes a configuration-success / compile-failure path mismatch for explicit MSVC module references. Actual IFC consumption remains unverified without compilation.
+- **次に確認すべきこと:** Continue checking generated `/reference` metadata for every cross-directory module target and compile when build authorization is available.
+## 2026-10-31: Generated module reference audit covers the combined project
+- **関連:** `tests/ArtifactCore/StandaloneSuite/build/CMakeFiles/TargetDirectories.txt`、all active generated Visual Studio projects.
+- **確認できた事実:** Mapped 170 module interfaces to their owning targets and inspected 164 generated `AdditionalModuleDependencies` IFC references across 232 active projects. Every reference resolves to the directory of the target that owns the module; there are 0 path mismatches and 0 unresolved module names.
+- **検証:** Read-only audit of the most recent successful parent configure/generate output. No build or tests were run.
+- **価値または懸念:** Together with the 0 duplicate production-source owners, configure metadata shows that the parent suite has one owner per production source and explicit MSVC IFC references point to those owners. Compiler consumption remains unverified.
+- **次に確認すべきこと:** Build verification remains the only way to validate actual MSVC IFC production and consumption; the user selected configure-only verification for this work.

@@ -23,9 +23,9 @@ artifact_add_standalone_module_interface(AudioSpatialRendererModuleInterfaces
 
 artifact_add_standalone_module_implementation(AudioSpatialRendererUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPanner.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/Spatial/SpeakerLayout.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/Spatial/SpatialRenderer.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPanner.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/Spatial/SpeakerLayout.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/Spatial/SpatialRenderer.cpp"
     LINK_LIBS AudioSpatialRendererModuleInterfaces Qt6::Core
 )
 

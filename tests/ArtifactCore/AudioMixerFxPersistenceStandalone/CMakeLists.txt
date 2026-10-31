@@ -43,15 +43,15 @@ artifact_add_standalone_module_interface(AudioMixerFxPersistenceModuleInterfaces
 
 artifact_add_standalone_module_implementation(AudioMixerFxPersistenceUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioMixer.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioBus.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioCompressor.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDownMixer.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPanner.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTremolo.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPingPongDelay.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Utils/Id.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioMixer.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioBus.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioCompressor.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDownMixer.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPanner.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTremolo.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPingPongDelay.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Utils/Id.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cpp"
     LINK_LIBS AudioMixerFxPersistenceModuleInterfaces Qt6::Core
     # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
     # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を

@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioExpanderModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioExpanderUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioExpander.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioExpander.cpp"
     LINK_LIBS AudioExpanderModuleInterfaces Qt6::Core
     # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
     # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を

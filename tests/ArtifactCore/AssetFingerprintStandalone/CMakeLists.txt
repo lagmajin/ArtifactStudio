@@ -17,7 +17,7 @@ artifact_add_standalone_module_interface(AssetFingerprintModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AssetFingerprintUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/AssetFingerprint.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/AssetFingerprint.cpp"
     LINK_LIBS AssetFingerprintModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )
@@ -31,5 +31,9 @@ artifact_add_standalone_gtest(ArtifactCoreAssetFingerprintContractTest
     LINK_LIBS AssetFingerprintUnderTest AssetFingerprintModuleInterfaces Qt6::Core
     LABELS "asset;fingerprint;cpu;contract;standalone"
 )
+
+if(ARTIFACT_STANDALONE_GTEST_GROUP)
+    artifact_finalize_standalone_gtest_group("${ARTIFACT_STANDALONE_GTEST_GROUP}")
+endif()
 
 enable_testing()

@@ -26,8 +26,8 @@ artifact_add_standalone_module_interface(FormantExtractorModuleInterfaces
 
 artifact_add_standalone_module_implementation(FormantExtractorUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioAnalyzer.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/FormantExtractor.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioAnalyzer.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/FormantExtractor.cpp"
     LINK_LIBS FormantExtractorModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

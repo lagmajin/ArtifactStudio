@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioReverbModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioReverbUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioReverb.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioReverb.cpp"
     LINK_LIBS AudioReverbModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

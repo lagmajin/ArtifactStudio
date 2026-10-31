@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioTapeSaturationModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioTapeSaturationUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTapeSaturation.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTapeSaturation.cpp"
     LINK_LIBS AudioTapeSaturationModuleInterfaces Qt6::Core
     # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
     # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を

@@ -19,7 +19,7 @@ artifact_add_standalone_module_interface(AudioWriterModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioWriterUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioWriter.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioWriter.cpp"
     LINK_LIBS AudioWriterModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

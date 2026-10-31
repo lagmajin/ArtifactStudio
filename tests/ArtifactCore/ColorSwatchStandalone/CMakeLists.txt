@@ -25,7 +25,7 @@ artifact_add_standalone_module_interface(ColorSwatchModuleInterfaces
 
 artifact_add_standalone_module_implementation(ColorSwatchUnderTest
     SOURCES
-        "${artifact_core_root}/src/Color/FloatColor.cppm"
+        "${artifact_core_root}/src/Color/FloatColor.cpp"
         "${artifact_core_root}/src/Color/ColorSwatch.cpp"
     LINK_LIBS ColorSwatchModuleInterfaces
     INCLUDE_DIRS "${artifact_core_include}"

@@ -19,7 +19,7 @@ artifact_add_standalone_module_interface(AudioRingBufferModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioRingBufferUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioRingBuffer.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioRingBuffer.cpp"
     LINK_LIBS AudioRingBufferModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

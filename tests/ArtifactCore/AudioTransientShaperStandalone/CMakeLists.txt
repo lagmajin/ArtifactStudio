@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioTransientShaperModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioTransientShaperUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTransientShaper.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTransientShaper.cpp"
     LINK_LIBS AudioTransientShaperModuleInterfaces Qt6::Core
     # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
     # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を

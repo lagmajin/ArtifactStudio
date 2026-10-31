@@ -19,7 +19,7 @@ artifact_add_standalone_module_interface(AudioDownMixerModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioDownMixerUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDownMixer.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDownMixer.cpp"
     LINK_LIBS AudioDownMixerModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

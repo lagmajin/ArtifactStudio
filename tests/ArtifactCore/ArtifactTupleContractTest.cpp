@@ -69,10 +69,14 @@ TEST(ArtifactTupleContractTest, MakeTupleForwardsMoveOnlyValues)
 TEST(ArtifactTupleContractTest, EqualityChecksHeadAndEveryTailElement)
 {
     const Tuple<int, int, int> baseline(1, 2, 3);
-    EXPECT_EQ(baseline, Tuple<int, int, int>(1, 2, 3));
-    EXPECT_NE(baseline, Tuple<int, int, int>(9, 2, 3));
-    EXPECT_NE(baseline, Tuple<int, int, int>(1, 9, 3));
-    EXPECT_NE(baseline, Tuple<int, int, int>(1, 2, 9));
+    const Tuple<int, int, int> equalValue(1, 2, 3);
+    const Tuple<int, int, int> differentHead(9, 2, 3);
+    const Tuple<int, int, int> differentMiddle(1, 9, 3);
+    const Tuple<int, int, int> differentTail(1, 2, 9);
+    EXPECT_EQ(baseline, equalValue);
+    EXPECT_NE(baseline, differentHead);
+    EXPECT_NE(baseline, differentMiddle);
+    EXPECT_NE(baseline, differentTail);
 }
 
 TEST(ArtifactTupleContractTest, CopyAndAssignmentPreserveIndependentElements)
@@ -90,7 +94,7 @@ TEST(ArtifactTupleContractTest, CopyAndAssignmentPreserveIndependentElements)
 TEST(ArtifactTupleContractTest, NestedTuplesRemainRegularElements)
 {
     const Tuple<int, Tuple<std::string, bool>> nested(1, Tuple<std::string, bool>("inner", true));
-    EXPECT_EQ(tupleSizeV<Tuple<int, Tuple<std::string, bool>>>, 2u);
+    EXPECT_EQ((tupleSizeV<Tuple<int, Tuple<std::string, bool>>>), 2u);
     EXPECT_EQ(artifactGet<0>(artifactGet<1>(nested)), "inner");
     EXPECT_TRUE(artifactGet<1>(artifactGet<1>(nested)));
 }

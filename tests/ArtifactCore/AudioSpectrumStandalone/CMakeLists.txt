@@ -26,7 +26,7 @@ artifact_add_standalone_module_interface(AudioSpectrumModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioSpectrumUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioSpectrum.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioSpectrum.cpp"
     LINK_LIBS AudioSpectrumModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

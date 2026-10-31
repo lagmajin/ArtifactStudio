@@ -17,7 +17,7 @@ artifact_add_standalone_module_interface(FileTypeDetectorModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(FileTypeDetectorUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/File/FileTypeDetector.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/File/FileTypeDetector.cpp"
     LINK_LIBS FileTypeDetectorModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

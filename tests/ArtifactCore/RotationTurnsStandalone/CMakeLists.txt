@@ -15,7 +15,7 @@ artifact_add_standalone_module_interface(RotationTurnsModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(RotationTurnsUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Math/RotationTurns.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Math/RotationTurns.cpp"
     LINK_LIBS RotationTurnsModuleInterfaces
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

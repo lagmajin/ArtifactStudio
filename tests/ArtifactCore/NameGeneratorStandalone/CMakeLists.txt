@@ -24,7 +24,7 @@ artifact_add_standalone_module_interface(NameGeneratorModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(NameGeneratorUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/NameGenerator.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/NameGenerator.cpp"
     LINK_LIBS NameGeneratorModuleInterfaces
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

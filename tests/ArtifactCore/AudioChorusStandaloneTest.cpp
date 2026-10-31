@@ -158,7 +158,6 @@ TEST(AudioChorusStandaloneTest, ChorusAndFlangerModesProduceDifferentResponses)
         chorus->setDelayMs(4.0f);
         chorus->setRate(8.0f);
         chorus->setDepth(0.8f);
-        chorus->setMix(1.0f);
     }
     chorusMode.setMode(AudioChorus::Mode::Chorus);
     flangerMode.setMode(AudioChorus::Mode::Flanger);

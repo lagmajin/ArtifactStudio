@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+import Core.ArtifactArray;
 import Core.ArtifactString;
 
 using namespace ArtifactCore;

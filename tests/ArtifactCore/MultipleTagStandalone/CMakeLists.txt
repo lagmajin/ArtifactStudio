@@ -17,7 +17,7 @@ artifact_add_standalone_module_interface(MultipleTagModuleInterface
 )
 
 artifact_add_standalone_module_implementation(MultipleTagModuleImplementation
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/MulitpleTag.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/MulitpleTag.cpp"
     LINK_LIBS MultipleTagModuleInterface Qt6::Core
 )
 

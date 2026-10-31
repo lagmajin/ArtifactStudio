@@ -26,6 +26,9 @@ function(artifact_add_standalone_module_interface target_name)
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
     )
+    set_property(TARGET ${target_name} PROPERTY
+        ARTIFACT_STANDALONE_IFC_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target_name}.dir")
     if(MSVC)
         target_compile_options(${target_name} PRIVATE
             /experimental:module /Zc:__cplusplus /permissive- /EHsc
@@ -84,6 +87,14 @@ function(artifact_add_standalone_gtest target_name)
         message(FATAL_ERROR "${target_name}: SOURCES must list at least one test source")
     endif()
 
+    if(ARTIFACT_STANDALONE_GTEST_GROUP)
+        set(_group_property_prefix "ARTIFACT_STANDALONE_GTEST_GROUP_${ARTIFACT_STANDALONE_GTEST_GROUP}")
+        set_property(GLOBAL APPEND PROPERTY "${_group_property_prefix}_SOURCES" ${ASGT_SOURCES})
+        set_property(GLOBAL APPEND PROPERTY "${_group_property_prefix}_LINK_LIBS" ${ASGT_LINK_LIBS})
+        set_property(GLOBAL APPEND PROPERTY "${_group_property_prefix}_LABELS" ${ASGT_LABELS})
+        return()
+    endif()
+
     add_executable(${target_name} ${ASGT_SOURCES})
     target_link_libraries(${target_name} PRIVATE GTest::gtest GTest::gtest_main ${ASGT_LINK_LIBS})
     set_target_properties(${target_name} PROPERTIES
@@ -99,5 +110,81 @@ function(artifact_add_standalone_gtest target_name)
     add_test(NAME ${target_name} COMMAND ${target_name})
     if(ASGT_LABELS)
         set_tests_properties(${target_name} PROPERTIES LABELS "${ASGT_LABELS}")
+    endif()
+endfunction()
+
+function(artifact_finalize_standalone_gtest_group target_name)
+    set(_group_property_prefix "ARTIFACT_STANDALONE_GTEST_GROUP_${target_name}")
+    get_property(_sources GLOBAL PROPERTY "${_group_property_prefix}_SOURCES")
+    get_property(_link_libs GLOBAL PROPERTY "${_group_property_prefix}_LINK_LIBS")
+    get_property(_labels GLOBAL PROPERTY "${_group_property_prefix}_LABELS")
+
+    if(NOT _sources)
+        message(FATAL_ERROR "${target_name}: no test sources were registered for this group")
+    endif()
+
+    list(REMOVE_DUPLICATES _sources)
+    list(REMOVE_DUPLICATES _link_libs)
+    list(REMOVE_DUPLICATES _labels)
+
+    add_executable(${target_name} ${_sources})
+    target_link_libraries(${target_name} PRIVATE GTest::gtest GTest::gtest_main ${_link_libs})
+    set_target_properties(${target_name} PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+    )
+    if(MSVC)
+        target_compile_options(${target_name} PRIVATE
+            /experimental:module /Zc:__cplusplus /permissive- /EHsc
+        )
+    endif()
+    add_test(NAME ${target_name} COMMAND ${target_name})
+    if(_labels)
+        set_tests_properties(${target_name} PROPERTIES LABELS "${_labels}")
+    endif()
+
+    set_property(GLOBAL PROPERTY "${_group_property_prefix}_SOURCES" "")
+    set_property(GLOBAL PROPERTY "${_group_property_prefix}_LINK_LIBS" "")
+    set_property(GLOBAL PROPERTY "${_group_property_prefix}_LABELS" "")
+endfunction()
+
+function(artifact_ensure_shared_string_modules)
+    if(TARGET ArtifactCoreSharedStringModules)
+        return()
+    endif()
+
+    find_package(Qt6 CONFIG REQUIRED COMPONENTS Core)
+    set(artifact_core_root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../../ArtifactCore")
+    set(artifact_core_include "${artifact_core_root}/include")
+
+    artifact_add_standalone_module_interface(ArtifactCoreSharedStringModules
+        BASE_DIRS "${artifact_core_include}"
+        MODULES
+            "${artifact_core_include}/Utils/StringConvertor.ixx"
+            "${artifact_core_include}/Utils/UniString.ixx"
+            "${artifact_core_include}/Utils/StringLike.ixx"
+        INCLUDE_DIRS "${artifact_core_include}"
+        LINK_LIBS Qt6::Core
+    )
+    set_property(TARGET ArtifactCoreSharedStringModules PROPERTY
+        ARTIFACT_STANDALONE_IFC_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/ArtifactCoreSharedStringModules.dir")
+
+    artifact_add_standalone_module_implementation(ArtifactCoreSharedStringImplementations
+        SOURCES "${artifact_core_root}/src/Utils/UniString.cpp"
+        LINK_LIBS ArtifactCoreSharedStringModules Qt6::Core
+        INCLUDE_DIRS "${artifact_core_include}"
+    )
+
+    if(MSVC)
+        add_dependencies(ArtifactCoreSharedStringImplementations ArtifactCoreSharedStringModules)
+        set(_artifact_core_shared_string_ifc_dir
+            "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/ArtifactCoreSharedStringModules.dir")
+        set_property(SOURCE "${artifact_core_root}/src/Utils/UniString.cpp"
+            APPEND PROPERTY COMPILE_OPTIONS
+                "/reference;Utils.String.UniString=${_artifact_core_shared_string_ifc_dir}/Utils.String.UniString.ifc"
+                "/reference;Utils.Convertor.String=${_artifact_core_shared_string_ifc_dir}/Utils.Convertor.String.ifc")
+        unset(_artifact_core_shared_string_ifc_dir)
     endif()
 endfunction()

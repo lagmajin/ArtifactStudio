@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioToneModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioToneUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTone.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioTone.cpp"
     LINK_LIBS AudioToneModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

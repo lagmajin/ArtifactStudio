@@ -19,7 +19,7 @@ artifact_add_standalone_module_interface(AudioPannerModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioPannerUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPanner.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPanner.cpp"
     LINK_LIBS AudioPannerModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

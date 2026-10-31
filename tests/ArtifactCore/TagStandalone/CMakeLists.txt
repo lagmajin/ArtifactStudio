@@ -25,8 +25,8 @@ artifact_add_standalone_module_interface(TagModuleInterfaces
 
 artifact_add_standalone_module_implementation(TagUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Utils/Tag.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Utils/Tag.cpp"
     LINK_LIBS TagModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

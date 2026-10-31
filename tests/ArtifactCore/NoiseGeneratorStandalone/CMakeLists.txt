@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(NoiseGeneratorModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(NoiseGeneratorUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Math/NoiseGenerator.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Math/NoiseGenerator.cpp"
     LINK_LIBS NoiseGeneratorModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

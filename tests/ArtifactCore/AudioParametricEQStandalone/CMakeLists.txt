@@ -26,7 +26,7 @@ artifact_add_standalone_module_interface(AudioParametricEQModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioParametricEQUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioParametricEQ.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioParametricEQ.cpp"
     LINK_LIBS AudioParametricEQModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

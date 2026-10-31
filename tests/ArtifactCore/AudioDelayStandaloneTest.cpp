@@ -24,6 +24,16 @@ AudioSegment makeMono(int sampleRate, QVector<float> samples)
     segment.channelData.push_back(std::move(samples));
     return segment;
 }
+
+AudioSegment makeStereo(int sampleRate, QVector<float> left, QVector<float> right)
+{
+    AudioSegment segment;
+    segment.sampleRate = sampleRate;
+    segment.layout = AudioChannelLayout::Stereo;
+    segment.startFrame = 50;
+    segment.channelData = {std::move(left), std::move(right)};
+    return segment;
+}
 }
 
 TEST(AudioDelayStandaloneTest, ExposesExpectedDefaultsAndParameters)

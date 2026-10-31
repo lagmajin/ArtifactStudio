@@ -19,7 +19,7 @@ artifact_add_standalone_module_interface(AudioCacheModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioCacheUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioCache.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioCache.cpp"
     LINK_LIBS AudioCacheModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

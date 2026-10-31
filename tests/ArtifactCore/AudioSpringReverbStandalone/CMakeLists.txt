@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioSpringReverbModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioSpringReverbUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioSpringReverb.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioSpringReverb.cpp"
     LINK_LIBS AudioSpringReverbModuleInterfaces Qt6::Core
     # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
     # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を

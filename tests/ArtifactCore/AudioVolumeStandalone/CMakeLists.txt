@@ -26,9 +26,9 @@ artifact_add_standalone_module_interface(AudioVolumeModuleInterfaces
 
 artifact_add_standalone_module_implementation(AudioVolumeUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDecibels.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioVolume.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioDecibels.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/AudioVolume.cpp"
     LINK_LIBS AudioVolumeModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

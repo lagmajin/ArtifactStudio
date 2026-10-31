@@ -21,7 +21,7 @@ artifact_add_standalone_module_interface(IdModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(IdUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/Id.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/Id.cpp"
     LINK_LIBS IdModuleInterfaces Qt6::Core Boost::boost
     INCLUDE_DIRS
         "${ARTIFACT_CORE_ROOT}/include"

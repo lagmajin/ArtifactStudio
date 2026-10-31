@@ -1,31 +1,18 @@
 # Standalone Color Space Tests
 
-**最終更新:** 2026-10-09
+**最終更新:** 2026-10-31
 
-This CMake project builds only the production color modules used by
-`ColorSpaceTest.cpp`, `ColorConversionTest.cpp`, `ColorACESContractTest.cpp`,
-`ColorBridgeTest.cpp`,
-`SurfacePixelConversionTest.cpp`, `ImageSurfaceViewTest.cpp`,
-`ColorLUTContractTest.cpp`, `ColorBlendModeStandaloneTest.cpp`,
-`ColorLuminanceContractTest.cpp`, and `ColorHarmonizerContractTest.cpp`. It does not load the ArtifactStudio
-top-level project or link the full `ArtifactCore` library.
+This project registers sixteen color contract suites. They share one feature
+module target and one module implementation target. When included in
+`StandaloneSuite`, they also reuse its common Core and Container foundation.
+The test executables remain independently selectable.
 
-`../StandaloneTestHelpers.cmake` contains the small reusable CMake helpers for
-module interfaces, module implementations, and GoogleTest executables. To add
-another independent test, add only its production module interface and
-implementation source files to this project and list its test source in an
-`artifact_add_standalone_gtest()` call. Keep the dependency closure explicit;
-do not link the full application or `ArtifactCore` just to make a test compile.
-For MSVC, `.cppm` implementation units are copied at configure time into this
-build directory with a `.cpp` suffix. This avoids MSVC/CMake treating the
-implementation attachment as another module interface; the production source
-remains the sole editable source of truth.
+`../StandaloneTestHelpers.cmake` provides the module and GoogleTest helpers.
+Color implementation sources use their actual `.cpp` paths. Keep this project
+independent of the full ArtifactStudio application and `ArtifactCore` library.
 
 Requirements: CMake 3.30 or newer, a C++23 compiler with C++ module support,
-Qt 6 Core and Gui, and GoogleTest's CMake package. Qt Gui is used by the
-ColorBridge, ColorLUT, ColorBlendMode, and ColorHarmonizer targets; the
-SurfacePixelConversion, ImageSurfaceView, and ColorLuminance targets use only
-dependency-free color and surface modules. The ACES suite reuses the ColorSpace module closure. On MSVC,
+Qt 6 Core and Gui, and GoogleTest's CMake package. On MSVC,
 use a recent compiler with experimental C++ modules enabled by the project's
 toolchain.
 

@@ -24,8 +24,8 @@ artifact_add_standalone_module_interface(AudioSimpleWavModuleInterfaces
 
 artifact_add_standalone_module_implementation(AudioSimpleWavUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Audio/SimpleWav.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Audio/SimpleWav.cpp"
     LINK_LIBS AudioSimpleWavModuleInterfaces Qt6::Core Qt6::Multimedia
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

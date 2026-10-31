@@ -20,7 +20,7 @@ artifact_add_standalone_module_interface(AudioSpeakerLayoutModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioSpeakerLayoutUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/Spatial/SpeakerLayout.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/Spatial/SpeakerLayout.cpp"
     LINK_LIBS AudioSpeakerLayoutModuleInterfaces Qt6::Core
 )
 

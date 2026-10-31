@@ -20,7 +20,7 @@ artifact_add_standalone_module_interface(BezierPathSamplerModuleInterfaces
 artifact_add_standalone_module_implementation(BezierPathSamplerUnderTest
     SOURCES
         "${ARTIFACT_CORE_ROOT}/src/Geometry/BezierCalculator.cpp"
-        "${ARTIFACT_CORE_ROOT}/src/Geometry/BezierPathSampler.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Geometry/BezierPathSampler.cpp"
     LINK_LIBS BezierPathSamplerModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

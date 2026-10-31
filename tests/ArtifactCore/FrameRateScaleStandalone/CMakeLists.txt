@@ -23,13 +23,19 @@ artifact_add_standalone_module_interface(FrameRateScaleModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(UniStringUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cpp"
     LINK_LIBS FrameRateScaleModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )
 
 if(MSVC)
     add_dependencies(UniStringUnderTest FrameRateScaleModuleInterfaces)
+    set(_frame_rate_scale_ifc_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/FrameRateScaleModuleInterfaces.dir")
+    set_property(SOURCE "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cpp"
+        APPEND PROPERTY COMPILE_OPTIONS
+            "/reference;Utils.String.UniString=${_frame_rate_scale_ifc_dir}/Utils.String.UniString.ifc"
+            "/reference;Utils.Convertor.String=${_frame_rate_scale_ifc_dir}/Utils.Convertor.String.ifc")
+    unset(_frame_rate_scale_ifc_dir)
 endif()
 
 artifact_add_standalone_gtest(ArtifactCoreFrameRateStorageScaleTest

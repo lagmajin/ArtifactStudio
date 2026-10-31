@@ -24,8 +24,8 @@ artifact_add_standalone_module_interface(AspectRatioModuleInterfaces
 
 artifact_add_standalone_module_implementation(AspectRatioUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Core/AspectRatio.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Core/AspectRatio.cpp"
     LINK_LIBS AspectRatioModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

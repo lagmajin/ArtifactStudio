@@ -17,7 +17,7 @@ artifact_add_standalone_module_interface(HashValueModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(HashValueUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/HashValue.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Utils/HashValue.cpp"
     LINK_LIBS HashValueModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

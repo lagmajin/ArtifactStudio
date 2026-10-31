@@ -19,8 +19,8 @@ artifact_add_standalone_module_interface(FloatRGBAModuleInterfaces
 
 artifact_add_standalone_module_implementation(FloatRGBAUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Color/FloatColor.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Color/FloatRGBA.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Color/FloatColor.cpp"
+        "${ARTIFACT_CORE_ROOT}/src/Color/FloatRGBA.cpp"
     LINK_LIBS FloatRGBAModuleInterfaces
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

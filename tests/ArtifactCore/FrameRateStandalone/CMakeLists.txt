@@ -28,7 +28,7 @@ artifact_add_standalone_module_interface(FrameRateModuleInterfaces
 
 artifact_add_standalone_module_implementation(FrameRateUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Utils/UniString.cpp"
         "${ARTIFACT_CORE_ROOT}/src/Frame/FrameRate.cpp"
     LINK_LIBS FrameRateModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"

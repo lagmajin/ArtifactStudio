@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 
+import Audio.Spatial.Math;
 import Audio.Spatial.SpeakerLayout;
 
 using namespace ArtifactCore;

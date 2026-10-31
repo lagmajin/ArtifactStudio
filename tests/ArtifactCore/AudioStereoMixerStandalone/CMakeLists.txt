@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioStereoMixerModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioStereoMixerUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioStereoMixer.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioStereoMixer.cpp"
     LINK_LIBS AudioStereoMixerModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

@@ -24,7 +24,7 @@ artifact_add_standalone_module_interface(AudioAnalyzerModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioAnalyzerUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioAnalyzer.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioAnalyzer.cpp"
     LINK_LIBS AudioAnalyzerModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

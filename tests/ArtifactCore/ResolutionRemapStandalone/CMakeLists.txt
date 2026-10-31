@@ -16,7 +16,7 @@ artifact_add_standalone_module_interface(ResolutionRemapModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(ResolutionRemapUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Geometry/ResolutionRemap.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Geometry/ResolutionRemap.cpp"
     LINK_LIBS ResolutionRemapModuleInterfaces Qt6::Gui
 )
 

@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioChorusModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioChorusUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioChorus.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioChorus.cpp"
     LINK_LIBS AudioChorusModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

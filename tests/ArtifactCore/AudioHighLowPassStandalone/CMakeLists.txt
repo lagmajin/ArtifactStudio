@@ -23,7 +23,7 @@ artifact_add_standalone_module_interface(AudioHighLowPassModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(AudioHighLowPassUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioHighLowPass.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioHighLowPass.cpp"
     LINK_LIBS AudioHighLowPassModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )
