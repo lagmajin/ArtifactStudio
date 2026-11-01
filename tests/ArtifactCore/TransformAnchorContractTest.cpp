@@ -75,11 +75,9 @@ QVector3D expectedMappedPoint3D(const LayerParams& params, double positionZ,
                      static_cast<float>(positionZ + scaledZ));
 }
 
-// ShapeLayer's content transform is currently
-//   p -> R.S.(p - anchor) + anchor + position,
-// so the anchor is both the pivot and an extra post-rotation offset. AE (and
-// makeLayerTransform2D) would be p -> R.S.(p - anchor) + position. Spelled out
-// here so the divergence is pinned rather than hidden inside the layer.
+// Shape content transforms follow the same AE order as makeLayerTransform2D:
+// p -> R.S.(p - anchor) + position, so the anchor is the pivot and lands on the
+// position.
 QPointF expectedShapeContentPoint(const QPointF& point, const QPointF& position,
                                   const QPointF& anchor, double rotation,
                                   const QPointF& scale)
@@ -89,8 +87,8 @@ QPointF expectedShapeContentPoint(const QPointF& point, const QPointF& position,
     const double s = std::sin(radians);
     const double scaledX = (point.x() - anchor.x()) * scale.x();
     const double scaledY = (point.y() - anchor.y()) * scale.y();
-    return QPointF(position.x() + anchor.x() + scaledX * c - scaledY * s,
-                   position.y() + anchor.y() + scaledX * s + scaledY * c);
+    return QPointF(position.x() + scaledX * c - scaledY * s,
+                   position.y() + scaledX * s + scaledY * c);
 }
 
 QRectF expectedShapeContentBounds(const QRectF& source, const QPointF& position,
@@ -766,7 +764,7 @@ TEST(TransformAnchorContractTest, TwoDimensionalAndCustomMatrixAgreeAcrossParame
     }
 }
 
-TEST(TransformAnchorContractTest, ShapeLayerContentTransformAppliesTheAnchorAsAnExtraOffset)
+TEST(TransformAnchorContractTest, ShapeLayerContentTransformUsesTheLayerTransformOrder)
 {
     const QRectF source(10.0, 20.0, 30.0, 40.0);
     const QPointF position(200.0, 100.0);
@@ -780,10 +778,10 @@ TEST(TransformAnchorContractTest, ShapeLayerContentTransformAppliesTheAnchorAsAn
     layer.setAnchorPoint({anchor.x(), anchor.y()});
     layer.setPosition({position.x(), position.y()});
 
-    // Without rotation or scale the anchor cancels out and only the position is
-    // left, so the shape sits at bounds + position rather than at the AE result.
+    // Without rotation or scale the content moves by position - anchor.
     const QRectF translated = layer.boundingRect();
-    const QRectF expectedTranslated = base.translated(position.x(), position.y());
+    const QRectF expectedTranslated = base.translated(position.x() - anchor.x(),
+                                                      position.y() - anchor.y());
     EXPECT_NEAR(translated.x(), expectedTranslated.x(), 1.0e-9);
     EXPECT_NEAR(translated.y(), expectedTranslated.y(), 1.0e-9);
     EXPECT_NEAR(translated.width(), expectedTranslated.width(), 1.0e-9);
