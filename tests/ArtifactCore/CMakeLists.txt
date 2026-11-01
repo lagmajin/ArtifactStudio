@@ -339,6 +339,26 @@ set_tests_properties(ArtifactCoreTransformHelperContractTest PROPERTIES
     LABELS "transform;2d;3d;coordinates;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreTransformAnchorContractTest
+    SOURCES
+        TransformAnchorContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+target_include_directories(ArtifactCoreTransformAnchorContractTest PRIVATE
+    "${CMAKE_SOURCE_DIR}/libs/DiligentEngine"
+    "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Common/interface"
+    "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
+)
+target_compile_definitions(ArtifactCoreTransformAnchorContractTest PRIVATE
+    "ARTIFACT_TRANSFORM_ANCHOR_BASELINE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/baselines/transform-anchor\""
+)
+set_tests_properties(ArtifactCoreTransformAnchorContractTest PROPERTIES
+    LABELS "transform;anchor;2d;3d;image;cpu;contract"
+    TIMEOUT 120
+    ENVIRONMENT "ARTIFACT_TRANSFORM_ANCHOR_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/transform-anchor;ARTIFACT_TRANSFORM_ANCHOR_BASELINE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/baselines/transform-anchor"
+)
+
 artifact_add_test(ArtifactCoreInputBindingContractTest
     SOURCES
         InputBindingContractTest.cpp

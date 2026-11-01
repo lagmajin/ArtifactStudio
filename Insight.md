@@ -1,5 +1,216 @@
 **最終更新:** 2026-10-31
 
+## 2026-10-31: Light intensityとarea size setterが非有限値を保持する
+- **関連:** `ArtifactCore/src/Transform/Light.cpp::setIntensity` / `setAreaSize`、`tests/ArtifactCore/LightContractTest.cpp`。
+- **確認できた事実:** 両setterは`std::max(value, lowerBound)`を使うが有限性検査をしない。NaN intensityとNaN/infinity area dimensionsを有限な0/1へfallbackするテストを追加した。未実行。
+- **価値または懸念:** radianceおよびarea light geometryに非有限値が伝播し、描画計算を壊す可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、各値の有限性を検証してからclampし、無効値・有限境界値双方を確認する。
+
+## 2026-10-31: Light::setGoboRotationが無限角度からNaNを作る
+- **関連:** `ArtifactCore/src/Transform/Light.cpp::Light::setGoboRotation`、`tests/ArtifactCore/LightContractTest.cpp`。
+- **確認できた事実:** setterは`std::fmod(degrees.value, 360)`を直接保存し、±infinity入力は有限性検査なしでNaNを生成する。非有限入力を0度へfallbackする期待テストを追加した。未実行。
+- **価値または懸念:** 不正なgobo回転が光源投影・texture transformへNaNを伝播する可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、入力有限性と回転domainを決めてから保存し、finite guardと既存wrap挙動を検証する。
+
+## 2026-10-31: Light::setRangeが非有限値からattenuationへNaNを伝播する
+- **関連:** `ArtifactCore/src/Transform/Light.cpp::Light::setRange`、`tests/ArtifactCore/LightContractTest.cpp`。
+- **確認できた事実:** `range <= 0`だけをfallbackし、NaNは比較を通過して4.5/rangeと75/(range²)へ入り、係数が非有限になる。非有限rangeをunit attenuation (1,0,0)へ戻す期待テストを追加した。未実行。
+- **価値または懸念:** 非有限係数が照明評価に流れ、レンダリング結果にNaNを伝播する可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、rangeを有限かつ正として検証し、無効値のfallbackと通常rangeを確認する。
+
+## 2026-10-31: LUT writerが非有限sampleを出力し既存fileを置換する
+- **関連:** `ArtifactCore/src/Color/LUTWriter.cpp::exportLUTToMemory` / `writeLUTToFile`、`tests/ArtifactCore/LUTWriterContractTest.cpp`。
+- **確認できた事実:** export前にdata pointerとgrid sizeだけを検査し、sample値は有限性検証なしにtextへformatする。NaN/infinityを拒否して既存fileを保持する契約テストを追加した。未実行。
+- **価値または懸念:** 無効な数値トークンを含むLUT assetを出力し、書込み失敗でも従来成果物を破壊する可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、全sample finite validationを出力前に行い、memory/file両APIで拒否と既存file保持を確認する。
+
+## 2026-10-31: LUT3D parserが不正／非有限sample componentを受理する
+- **関連:** `ArtifactCore/include/Color/Grading/LUTLoader.ixx::LUT3D::loadCube`、`tests/ArtifactCore/LUTLoaderContractTest.cpp`。
+- **確認できた事実:** sample値は`QString::toFloat()`の変換成否・finite性を確認せずdataへ格納し、sample数だけで完全性を判定する。不正文字列とNaN/±infinityを含むcubeを拒否し、以前のLUTを無効化するテストを追加した。現行実装との差は静的確認のみで未実行。
+- **価値または懸念:** typoや破損値が黒成分として静かに混入し、validと判定された誤ったcolor transformを出力する可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、各componentのparse成功・有限性を検証してから採用し、malformed/non-finite cube rejectionを確認する。
+
+## 2026-10-31: ProgressAggregatorが負のtotalFramesを保持する
+- **関連:** `ArtifactCore/src/Render/ProgressAggregator.cpp::registerWorker` / `setTotalFrames`、`tests/ArtifactCore/ProgressAggregatorContractTest.cpp`。
+- **確認できた事実:** 両関数は入力totalFramesを検査せずentryへ保存し、snapshotは各値をそのまま合算する。負値を0へclampする契約テストを追加した。現行実装との差は静的確認のみで未実行。
+- **価値または懸念:** farm全体の総frame数が負になり、進捗・残作業量の計算とUI表示が不正な値になる可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、登録・更新両経路で負値を拒否またはclampする仕様を定め、snapshotで検証する。
+
+## 2026-10-31: SafeWriteDryRunResultが未知risk enumを有効扱いする
+- **関連:** `ArtifactCore/include/AI/CommandIR.ixx::SafeWriteDryRunResult::isValid` / `safeWriteRiskLevelName`、`tests/ArtifactCore/CommandIRContractTest.cpp`。
+- **確認できた事実:** `isValid()`はriskLevelがHighでない限りwarnings不要とするため、列挙外の値もoperationNameがあればvalidになる。一方、表示関数は未知値をHighへfallbackする。未知値拒否の契約テストを追加した。未実行。
+- **価値または懸念:** 不正enumが低risk扱いでvalidationを通過し、serialization時にはHighとして表現される不整合が起こりうる。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、risk enumの有効範囲をvalidationし、未知値の拒否とvariant map出力を検証する。
+
+## 2026-10-31: 未設定InputBindingがunknown keyを一致扱いする
+- **関連:** `ArtifactCore/src/UI/InputOperator.cpp::InputBinding::matches`、`tests/ArtifactCore/InputBindingContractTest.cpp`。
+- **確認できた事実:** `matches()`はevent typeとkeyCodeの等値を検査するが、未設定の`keyCode_ == 0`を無効扱いしない。Qtのunknown keyに相当する0をKeyDown eventとして渡すと一致する契約テストを追加した。未実行。
+- **価値または懸念:** 空のbindingがunknown-key eventで実行され、設定未完了のactionが意図せず発火する可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、未設定keyを拒否する条件と既存のvalid key matchingを実装・検証する。
+
+## 2026-10-31: ActionManagerが確認拒否後にもActionExecutedを通知する
+- **関連:** `ArtifactCore/src/UI/InputOperator.cpp::ActionManager::executeAction` / `Action::execute`、`tests/ArtifactCore/ActionManagerContractTest.cpp`。
+- **確認できた事実:** `Action::execute()`はconfirm callbackがfalseならcallbackと`triggered`通知を行わずreturnする。一方、呼び出し側の`ActionManager::executeAction()`は戻り値を受けず、戻った後も`actionExecuted` signalと`ActionExecuted` eventを常に発行する。既存テストは拒否後にActionManagerChangedEventが空であることを期待するが、現行実装と静的に矛盾する。未実行。
+- **価値または懸念:** event subscriberがcancelled actionを完了済み操作として記録し、automationや履歴表示が誤動作する可能性がある。
+- **次に確認すべきこと:** ActionManagerのサブモジュール変更が明示依頼された後、Action::executeの成否を通知できるAPIへ揃え、拒否時にActionExecutedを出さない契約とsignal/event双方を確認する。
+
+## 2026-10-31: CoordinateProfileの数値パーサーが非有限値を受け入れる可能性
+- **関連:** `ArtifactCore/src/Coordinate/CoordinateProfile.cpp::CoordinateValue::fromString` / `CoordinateResolver::resolveExpression`、`tests/ArtifactCore/CoordinateProfileContractTest.cpp`。
+- **確認できた事実:** 両関数は`QString::toDouble()`の有限性を検査していない。NaN/infinity表記が非有限値として変換される場合、座標値またはexpression結果へ流れる。有限ゼロへfallbackするテストを追加した。Qtの文字列変換結果とテスト結果は未実行。
+- **価値または懸念:** 非有限座標が位置・変換計算へ伝播し、描画や入力判定の結果を不安定にする可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュールの変更が明示依頼された後、変換成否と有限性を検査して無効値を拒否し、Qtの各表記を対象suiteで検証する。
+
+## 2026-10-31: AssetMetaFile setterがfuture schemaをversion 1へdowngrade
+- **関連:** `ArtifactCore/src/Asset/AssetMetaFile.cpp::setType`（同型のsetUuid/setImportedAt等も含む）、`tests/ArtifactCore/AssetMetaFileContractTest.cpp`。
+- **確認できた事実:** `setType()`はasset objectを更新後、metadataのversionを常に1へ設定する。既存テストはfuture version 42の無変更load/save保持だけを確認していた。未来バージョンを保持した編集でversionとunknown future sectionを保つ期待テストを追加した。現行setterはversion期待に反する見込み、未実行。
+- **価値または懸念:** 将来schemaのsidecarを旧アプリで既知フィールド編集すると、version表示が1へ下がり、将来アプリが新形式の解釈やmigrationを誤る可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、初期空metadataにはversion 1を設定しつつ、既存のより新しいversionをsetterが下げない方針を確認して実装・検証する。
+
+## 2026-10-31: LocaleFormatting timecodeの非有限入力
+- **関連:** `ArtifactCore/include/Localization/LocaleFormatting.ixx::formatTimecode`、`tests/ArtifactCore/LocaleFormattingContractTest.cpp`。
+- **確認できた事実:** formatTimecodeは`fps <= 0`のみを拒否し、seconds*fpsおよびfpsをfinite判定せず`qRound64`へ渡す。seconds/fpsへNaN・±infinityを渡した場合にzero timecodeを期待するケースを追加した。現行結果は未実行で、非有限値のQt丸め結果も未確認。
+- **価値または懸念:** 非有限値の丸め結果が有効な時間表示として扱われ、極端な時刻やruntime依存の表示になる可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュールの変更依頼後、secondsとfps双方の有限性および積の範囲を検査し、invalid値をzero timecodeへfallbackする処理と対象テストを確認する。
+
+## 2026-10-31: ProgressAggregator reset後もstartedAtが残る
+- **関連:** `ArtifactCore/src/Render/ProgressAggregator.cpp::ProgressAggregator::reset`、`tests/ArtifactCore/ProgressAggregatorContractTest.cpp`。
+- **確認できた事実:** `reset()`はworkersをclearして`started_`をfalseにするが、`startedAt_`をdefault QDateTimeへ戻さない。snapshotはその値をそのまま公開する。reset直後の無効時刻と、次のworker登録後に有効時刻へ戻るテストを追加した。現行実装ではreset直後の期待に反する見込み、未実行。
+- **価値または懸念:** reset後の新しいjobが前回jobの開始時刻をsnapshotに見せるため、経過時間・ETAの基準と表示が古い状態を引き継ぐ可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュールの変更が明示依頼された後、resetでstartedAt_も初期化して対象suiteを実行する。
+
+## 2026-10-31: VolumeMask densityが公開範囲外でもalphaへ直結
+- **関連:** `ArtifactCore/include/Mask/VolumeMask.ixx::VolumeMaskSettings::density`、`ArtifactCore/src/Mask/VolumeMask.cpp::computeAlphaMask`、`tests/ArtifactCore/VolumeMaskContractTest.cpp`。
+- **確認できた事実:** 設定コメントはdensityを0〜1と説明するが、alpha計算はfalloff値へdensityをそのまま掛ける。1より大きい入力でalphaが1を超え、負値でalphaが負になる見込み。両側の範囲外入力を端点へ制限する期待テストを追加した（未実行）。
+- **価値または懸念:** mask alphaが通常の正規化範囲を外れ、後段合成・出力の不透明度として不正値になり得る。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、densityを有限値として[0,1]へclampし、非有限値の扱いも仕様化してテストする。
+
+## 2026-10-31: RandomStream chance(NaN)が乱数列を進める
+- **関連:** `ArtifactCore/include/Math/RandomStream.ixx::RandomStream::chance`、`tests/ArtifactCore/RandomStreamContractTest.cpp`。
+- **確認できた事実:** `chance()`は`probability <= 0`と`probability >= 1`を先に処理し、それ以外は`unitFloat()`を呼ぶ。NaNは両比較がfalseのため乱数状態を進めてfalseを返す。NaNでも状態を消費しない境界テストを追加した。
+- **価値または懸念:** 不正な確率値が後続の決定的乱数列をずらし、再現性ある処理に予期しない差を生む可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、確率が有限でない場合はfalseを返してstateを変えない扱いとし、有限範囲外・端点・NaNの挙動を検証する。
+
+## 2026-10-31: Camera投影setterが非有限値を通す
+- **関連:** `ArtifactCore/src/Transform/Camera.cpp::setFovY` / `setAspect` / `projectionMatrix`、`tests/ArtifactCore/CameraContractTest.cpp`。
+- **確認できた事実:** `setFovY()`は`std::clamp`、`setAspect()`は`std::max`で値を制限するが、NaNは比較によりそのまま残り、正のinfinityもaspectに保持される。新規テストで非有限入力後の状態とprojection matrixの有限性を期待した。現行実装では不一致見込み、未実行。
+- **価値または懸念:** 不正なcamera設定がprojection matrix全体へNaN/∞を伝播させ、後段の描画・bounds計算を壊す可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュールの変更が明示依頼された後、FOV/aspectの有限性を確認して既定値または有限境界へfallbackし、NaNと±infinityを検証する。
+
+## 2026-10-31: GroupContainer materializeのblend mode省略値不一致
+- **関連:** `Artifact/src/Composition/ArtifactCompositionNodes.cpp::CompositionNodeStore::getGroupContainer`、`Artifact/include/Composition/ArtifactCompositionNodes.ixx::GroupContainerNode`、`tests/Artifact/CompositionNodeStoreContractTest.cpp`。
+- **確認できた事実:** `GroupContainerNode`のメンバー既定値は`blendMode="normal"`。`getGroupContainer()`は保存propertiesからblendModeを読み、キーが無い場合に空QStringを設定する。省略propertiesのmaterialize結果が既定値を保つ期待テストを追加した。現行実装とは一致しない見込みだが未実行。
+- **価値または懸念:** 旧形式や疎な保存データのgroupをmaterializeした場合、通常合成モードではなく空のblend modeが下流へ渡る可能性がある。
+- **次に確認すべきこと:** Artifactサブモジュールの変更が明示依頼された後、キー未設定時はGroupContainerNodeの既定値`normal`を保持する修正を行い、明示設定`multiply`との両方を検証する。
+
+## 2026-10-31: InputBinding chord sequenceの設定経路が未確認
+- **関連:** `ArtifactCore/include/UI/InputOperator.ixx::InputBinding`、`ArtifactCore/src/UI/InputOperator.cpp::InputBinding::matchesChord`、`tests/ArtifactCore/InputBindingContractTest.cpp`。
+- **確認できた事実:** `InputBinding`は`isChord`と`firstKey`のsetterを公開する一方、`chordKeys_`はprivateで、追加・置換する公開APIが見当たらない。`matchesChord()`は入力長を`chordKeys_.size()+1`と比較し、後続キーをその配列と照合する。アクセス可能な単一キー列の条件テストを追加した。
+- **価値または懸念:** 現在の公開APIだけでは2キー以上のInputBinding列を組み立てられない可能性がある。ただし別のserialization/factory/friend経路が存在するかは未検証で、実際の利用可否は断定しない。
+- **次に確認すべきこと:** InputBindingの生成箇所・使用箇所を追い、複数キー列が別経路で投入されるか、またchord表現が意図的に単一キーかを確認する。
+
+## 2026-10-31: TimeCodeRangeが正の無限frame rateを受け入れる
+- **関連:** `ArtifactCore/src/Time/TimeCodeRange.cpp::setByFrameRange` / `durationRational`、`tests/ArtifactCore/TimeCodeRangeContractTest.cpp`。
+- **確認できた事実:** rate fallback条件は`fps > 0.0`のみで、正のinfinityは保持される。`durationRational()`はそのrateを`int64_t`へ変換する。NaNと±infinityの全てを30 fpsへfallbackし、有効性・秒数・有理 durationを確認するテストを追加した。正のinfinityでは現在の期待と不一致になる見込みだが未実行。
+- **価値または懸念:** 非有限rateからRationalTimeへ変換すると、整数scaleの範囲外変換になり未定義動作を招く可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュールの変更依頼後、rateを有限かつ正のときだけ受け入れる条件へ変更し、このテストを実行する。
+
+## 2026-10-31: AssetSequence duplicate frame Preserve policy
+- **関連:** `ArtifactCore/include/Asset/AssetSequence.ixx::detectSequences`、`tests/ArtifactCore/AssetSequenceDetectionContractTest.cpp`。
+- **確認できた事実:** Split経路は隣接するframe番号差が1でないとrunを分割するが、重複後の同じ番号から始まるrunは再びsequence化し得る。`shot_0001, shot_0001, shot_0002`では既存testが全てsingleを期待する一方、現行ループは先頭の1件をsingleへ移した後に残る`1,2`をsequenceへまとめる。Preserve経路も重複番号を拒否せず、重複fileをsequenceに格納する。Preserve側のsingle期待を追加したが、双方ともruntime未確認。
+- **価値または懸念:** 同じframe番号を名乗る複数fileが一つのsequenceに含まれると、代表fileやpattern解決が曖昧になる。既存Splitテストも現在のアルゴリズムと整合しない見込みである。
+- **次に確認すべきこと:** ArtifactCoreサブモジュールの変更が明示依頼された後、重複を含むbucket全体をsequence化せず、両missing-frame policyで元filenameを全てsingleとして保持するよう修正して対象suiteを実行する。
+
+## 2026-10-31: TimeCode parserのdrop-frame delimiter解釈
+- **関連:** `ArtifactCore/src/Time/TimeCode.cpp::TimeCode::setFromQString` / `Impl::fromHMSF`、`tests/ArtifactCore/TimeCodeRangeContractTest.cpp`。
+- **確認できた事実:** `setFromQString()`は入力中の`;`を`:`へ置換するが、`dropFrame` flagを有効にしない。`fromHMSF()`はflagがfalseならdrop count 0でframe番号を計算する。29.97 fpsにおける`00:01:00;02`がframe 1800となりsemicolon表示を維持するテストを追加した。現行実装ではframe 1802・non-drop表示になる見込みだが未実行。
+- **価値または懸念:** SMPTE drop-frameラベルを受け入れるコメントと実際のframe timeline conversionが一致しない可能性がある。
+- **次に確認すべきこと:** ArtifactCoreサブモジュール変更の明示依頼後、入力delimiterからdrop-frame modeを決定し、supported nominal ratesと通常colon入力の双方でparse/format往復を検証する。
+
+## 2026-10-31: Quaternion正規化の最大有限値overflow
+- **関連:** `ArtifactCore/include/Math/Quaternion.ixx::Quaternion::normalized`、`tests/ArtifactCore/QuaternionStandaloneTest.cpp`。
+- **確認できた事実:** `normalized()` は `sqrt(dot(*this))` を長さとして使い、`dot()` は各成分の平方和をfloatで計算する。最大有限float成分を含むQuaternionでは平方和がinfinityになり、逆長さが0となるため単位長を得られない。極値をスケールしてから正規化する期待ケースを追加した。
+- **価値または懸念:** 大きな有限変換値を含む回転がゼロQuaternionへ潰れる可能性がある。テストは現行計算から失敗見込みだが、未実行。
+- **次に確認すべきこと:** サブモジュール変更の明示依頼後、最大絶対成分でスケーリングする安定長さ計算を実装し、最大有限値・小さい正規値・通常値を確認する。
+
+## 2026-10-31: RationalTimeのINT64_MIN負数丸めで符号反転
+- **関連:** `ArtifactCore/src/Time/RationalTime.cpp::RationalTime::rescaledTo`、`tests/ArtifactCore/RationalTimeContractTest.cpp`。
+- **確認できた事実:** 負の分子を丸める分岐は `-numerator` を評価する。`numerator == INT64_MIN` ではこの符号反転がint64範囲外となり、未定義動作になる。既存テストのscale 1/2ケースに加え、scale 3で数学的に期待できる負の丸め値を検査するケースを追加した。
+- **価値または懸念:** 大きな負の時刻を別scaleへ変換すると、不正値や未定義動作になる可能性がある。新しいscale 3ケースは現在の実装で期待値に一致しない可能性が高いが、ビルド・実行は未確認。
+- **次に確認すべきこと:** サブモジュール変更の明示依頼後、絶対値を符号なしで扱うか商・剰余で丸める実装に修正し、対象境界をテストする。
+
+## 2026-10-31: AssetSequence Preserve走査のINT64_MAX加算
+- **関連:** `ArtifactCore/include/Asset/AssetSequence.ixx`、`tests/ArtifactCore/AssetSequenceDetectionContractTest.cpp`。
+- **確認できた事実:** Preserve policyの走査は各 `frame` の処理後に `expectedFrame = frame + 1` を行う。既存テストは末尾が `INT64_MAX` の連番を含むが、この加算は符号付き整数オーバーフローになり得る。
+- **価値または懸念:** 最大フレームを受け入れる契約と実装上の加算が一致していない可能性がある。テストは通常ビルドで期待結果を確認しても、未定義動作の不在は証明できない。
+- **次に確認すべきこと:** サブモジュール変更の明示依頼後、最終フレーム処理で `expectedFrame` を更新しない形へ修正し、signed-overflow sanitizerを含む対象テストで確認する。
+
+## 2026-10-31: TokenExpansion customResolverのresolved-emptyを直接検査
+- **関連:** `ArtifactCore/include/EnvironmentVariable/TokenExpansion.ixx`、`tests/ArtifactCore/TokenExpansionTest.cpp`。
+- **確認できた事実:** resolver契約はnull QStringを未解決、非null QStringを解決済みとして扱う。既存testではcustom値の優先とmanager由来の空値は確認していたが、customResolver由来の非null空値は直接検査していなかった。`${EMPTY_FROM_PROJECT}`を空へ展開するケースを追加した。
+- **価値または懸念:** project resolverが意図的に空値を返した場合、元トークンを残さず空置換される境界を明示する。
+- **次に確認すべきこと:** `TokenExpansionTest`をビルド・実行し、customResolverのnull（未解決fallback）と非null-empty（解決済みempty）の区別を確認する。
+
+## 2026-10-31: FrameRate JSON rationalのdouble整数精度境界
+- **関連:** `ArtifactCore/src/Frame/FrameRate.cpp`（`writeToJson` / `setFromJson`）、`tests/ArtifactCore/FrameRateContractTest.cpp`。
+- **確認できた事実:** rational numerator/denominatorはQJsonObjectへdoubleで書き、読込でもdoubleからint64へ変換する。JSON numberとしてdoubleが全整数を正確に保持できる範囲は`2^53`までで、これより大きいint64値は往復時の精度を失う。追加ケースでは最大安全整数`2^53−1`とその近傍分母をround-tripする。
+- **価値または懸念:** exact rationalメタデータのJSON境界で精度を保持する最も広い安全範囲をカバーする。int64全域の完全往復はJSON number表現では保証されず、現行仕様も文字列符号化を定めていない。
+- **次に確認すべきこと:** `FrameRateContractTest`をビルド・実行する。int64全域の永続化が要件なら、文字列形式やschema version移行を別途設計する。
+
+## 2026-10-31: AsyncFileWriter completion callbackの一回性を完了後に検査
+- **関連:** `ArtifactCore/src/IO/asio_async_file_writer.cpp`、`tests/ArtifactCore/AsyncFileWriterContractTest.cpp`。
+- **確認できた事実:** empty pathではenqueue時にfailure callbackを呼び、成功writeはthread pool task内でwrite結果後にcallbackを呼ぶ。managerのImpl destructorはthread poolをjoinする。追加ケースはsuccess/failure双方のcallback countをatomicで集計し、promiseは最初のcallbackだけで満たすため、重複callbackを例外終了にせず検出する。
+- **価値または懸念:** sleepで非同期完了を推測せずmanager destruction後の一回性を検査し、結果・file payloadも照合する。worker pool joinの既存意味を使ったテストで、runtime実行は未確認。
+- **次に確認すべきこと:** `AsyncFileWriterContractTest`をビルド・実行し、manager破棄時のqueued task完了と各callbackが一回であることを確認する。
+
+## 2026-10-31: TokenExpansionのframe padding幅上限を長い指定で検査
+- **関連:** `ArtifactCore/include/EnvironmentVariable/TokenExpansion.ixx`、`tests/ArtifactCore/TokenExpansionTest.cpp`。
+- **確認できた事実:** ExpansionContextの公開コメントは`$F<n>`の幅上限を10と定める。既存testは幅省略と幅2/4だけを確認していた。長い桁指定に対し、frame 42がちょうど10桁の`0000000042`になるケースを追加した。
+- **価値または懸念:** 指定桁数が異常に長いテンプレートでも出力長がboundedであることを検査できる。実装は各桁処理後にwidthを1..10へclampするので桁累積による整数overflowも避ける。
+- **次に確認すべきこと:** `TokenExpansionTest`をビルド・実行し、幅上限ケースを確認する。frame値自体のdouble→int変換は別契約として未評価。
+
+## 2026-10-31: ProgressAggregatorのoverall / worker progress分子差
+- **関連:** `ArtifactCore/include/Render/ProgressAggregator.ixx`、`ArtifactCore/src/Render/ProgressAggregator.cpp`、`tests/ArtifactCore/ProgressAggregatorContractTest.cpp`。
+- **確認できた事実:** workerの `progress()` は `completedFrames / totalFrames` を返す。aggregatorの `overallProgress` は `(completedFrames + failedFrames) / totalFrames` をworker横断で計算する。混在結果ケースのテストを追加し、total 4中complete 1・failed 1でoverall 0.5、worker 0.25を記録する。
+- **価値または懸念:** overallは失敗も「処理済み」として数え、worker値は成功分だけを表すため、UIの両指標が異なる意味を持つ。これは意図された用語分けかもしれず、ここでは現状を固定しただけで正誤判断はしていない。
+- **次に確認すべきこと:** 表示側がoverall / per-worker progressをどう説明・使用するか確認し、両値とも処理済み割合にするか、worker progressを成功割合として維持するか決める。
+
+## 2026-10-31: AspectRatioのINT_MIN pair入力を拒否する境界契約
+- **関連:** `ArtifactCore/src/Core/AspectRatio.cpp`、`tests/ArtifactCore/AspectRatioContractTest.cpp`。
+- **確認できた事実:** pair parserはwidth/heightがともに正の場合だけ `impl_` を更新する。正でない値を `std::gcd(int, int)` へ渡さない現在の分岐であるため、string入力の`INT_MIN`拒否を既存値保持として検査できる。直接constructorは値をそのまま保存し、`simplify()`の`std::gcd`へ`INT_MIN`を渡す。
+- **価値または懸念:** `std::gcd`の型要件では絶対値が型で表現できない引数が未定義動作となり得る。追加したconstructor assertionは現在の値保持をcharacterizeするだけで、安全性を保証しない。constructorの負値許可・正規化方針は既存契約だけでは未確定。
+- **次に確認すべきこと:** constructorで正値以外を拒否するかの仕様を決め、`INT_MIN`を含む不正値を安全に扱うよう実装してから、正規化結果または拒否後状態をテストする。
+
+## 2026-10-31: LUT writerの非有限サンプル拒否契約を決める
+- **関連:** `ArtifactCore/src/Color/LUTWriter.cpp`、`tests/ArtifactCore/LUTWriterContractTest.cpp`。
+- **確認できた事実:** `exportLUTToMemory()` はnull pointer・size・formatのみを検査し、サンプル値のfinite性は検査しない。`writeCubeFormat()` / `writeDiscreet3dlFormat()` は全値を小数6桁固定で `QTextStream` に渡す。既存ファイルへの書込みはcontent生成後にopenするため、生成失敗や無効引数では保持される。既存testは無効pointerと未対応format時のファイル保持を確認するが、NaN/Infinityサンプルの扱いは未確認。
+- **価値または懸念:** 非有限文字列の出力はreader互換性に依存し、意図せぬLUT破損を招く可能性がある。一方、有限値制約・許容範囲・reject時のerror文言は公開契約や設計判断として確定していないため、現在のtestへ出力を固定するべきではない。
+- **次に確認すべきこと:** exporterが非有限値を拒否するか、clamp/置換するかを決め、rejectならCube/3DL両形式のmemory結果と既存ファイル保持・error報告を契約化する。
+
+## 2026-10-31: TransferFunction fallbackの全符号特殊値を明示比較する
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** `encode()` / `decode()` の未知enumおよび `ACESlog` fallback は値を恒等返却する。既存testは負zeroの符号、NaN、通常値、および正負infinityの値を確認していたが、正zero/負zeroそれぞれの符号と両infinityについて両方向の一致をひとまとまりで確認していなかった。
+- **価値または懸念:** 無効enumが保存データ等から到達した場合の安全な恒等動作を、IEEE特殊値まで明示する。動作に変更を加えるものではなく、追加testのビルド・実行は未確認。
+- **次に確認すべきこと:** `ColorTransferFunctionStandaloneTest` をビルド・実行し、ACESlogと未知値の双方で両zero符号と正負infinityが維持されることを確認する。
+
+## 2026-10-31: Mesh bounds更新で全頂点が非有限の場合、前回boundsを保持する
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cpp::Mesh::updateBounds()`、`tests/ArtifactCore/MeshGeometryTest.cpp::BoundsRemainFiniteWhenEveryPositionIsNonFinite`。
+- **確認できた事実:** `updateBounds()` はposition attributeが空の場合、または有限座標を1点も見つけなかった場合に早期returnする。後者でも `impl_->minBounds` / `maxBounds` / sphere center / radius は更新されない。したがって、先に有限geometryでboundsを計算した後、全positionをNaN/Infinityへ置き換えて呼ぶと、以前のboundsが残る。
+- **価値または懸念:** invalid geometry更新後に古いboundsが有効値として見える可能性がある。一方、入力が全て非有限の時に前回の有効boundsを保持するのが意図されたfallbackかは未検証で、既存テストは初期状態から全非有限入力にするケースのみ確認している。
+- **次に確認すべきこと:** Mesh boundsの更新失敗時契約と呼び出し側の使用目的を確認し、空・全非有限 geometryでboundsをzeroへresetするか、有効な前回値を保持するかを決めてから契約テストを追加する。
+
+## 2026-10-31: UniformScaleの公開getterに実装定義が見つからない
+- **関連:** `ArtifactCore/include/Core/UniformScale.ixx`、`ArtifactCore/src/Core/UniformScale.cpp`、`tests/ArtifactCore/UniformScaleContractTest.cpp`。
+- **確認できた事実:** public interfaceは `float UniformScale::scale() const` を宣言し、単体テストから呼び出している。一方、ソース全体の検索では `UniformScale::scale()` の定義が見つからず、implementation unitには `Impl::scale()` の定義だけがある。
+- **価値または懸念:** 実行targetがこのAPIを参照するとlink時に未解決になる可能性が高い。現時点では当該targetをビルドしていないためlink errorは未確認であり、サブモジュール内の実装変更も未実施。
+- **次に確認すべきこと:** ArtifactCore担当範囲でgetterの定義と既存Standalone targetのlinkを確認し、必要ならサブモジュール変更を含む修正依頼として扱う。
+
+## 2026-10-30: 2D smoke curlのComposition View実測 — curl .25は中立、settings hash不一致がseek再現を壊す
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cpp`、`tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp::ProductionSmokeCurlABRendersThroughCompositionView`、captures `out/rnd/smoke-curl-20261030/`。
+- **確認できた事実:** production layer runtime に `ARTIFACT_SMOKE_CURL_STRENGTH_RND` / `_OCTAVES_RND` の開発用 override を追加し、実プロジェクト/Composition の `drawLayerForCompositionView` 経路で 128²・768×432・7 source（.20/.04, Y.90, vY-.75, outflow100/.35）を frame 30/60/95 で撮影した。Vulkan Debug の4条件（curl 0/.25 × flame on/off）はすべて pass。frame 95/flame on は visible 98,175→100,181、lumaThird top/middle/bottom 0.0375/0.3925/0.5700→0.0364/0.3832/0.5804、lumaCentroidY 0.6852→0.6887、horizontal luma gradient 0.001678→0.001723（+2.7%）。flame off も +2.8% で同傾向。目視では cap の左右 lobe が少し不規則になるだけで、細かな billow は出ない。
+- **価値または懸念:** 10-30 の standalone 結論「curl .25 は中立、.5/2oct は破綻」が production layer 経路でも再現した。一方で、override を advance 経路にだけ適用した最初の実装では、draw 経路の settings hash が curl 0 になり、毎drawで checkpoint が破棄され、curl .25 の 95→60 seek が全可視ピクセル不一致（最大251/255）になった。3経路へ同じ値を渡す修正後は curl 0/.25 とも replay changedPixels=0。time-varying solver force を production に載せるときは、settings hash を作る全経路の一致が seek 契約の前提になる。
+- **次に確認すべきこと:** curl .25 を default に上げる判断は、live UI viewport・D3D12・長時間再生・実時間予算を確認してから。今回の計測は Debug headless で simulation 118–122 ms/frame、draw 35–46 ms（初回 compile 420–460 ms）であり frame budget ではない。
+- **240 frame 追測:** 同じハーネスで endFrame=240 を curl 0/.25 で実行し、両方 pass・232 からの replay は 0。frame 240 は visible 59,579→62,386（+4.7%）、luma centroid 0.7174→0.7127、gradient 0.001564→0.001561（同等）。次 frame 平均絶対 luma 差は 0.001181→0.001659（+40%）。形状は両者とも細い柱が横に倒れる程度で、curl .25 は輪郭がわずかに不規則になるだけ。差分増が動きかちらつきかは連続画像・動き補償なしでは判定できないため、default 判断の材料にしない。
+
 ## 2026-10-30: 2D smoke curl A/B実測 — .25はほぼ中立、.5/2octは時間方向に荒れる
 - **関連:** `tests/Artifact/SmokeVolumeLookdevRAndTest.cpp::DensityRampAndShadowAblationPreservesTheSameVolume`、captures `out/rnd/smoke-lookdev-20261030/`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
 - **確認できた事実:** Vulkan headlessで frame 30/60/95 × curl 0 (1oct) / .25 (1oct) / .5 (2oct) を実行し、9ケースすべてpass。baseline lookのframe 95で、density mass 420.133 / 423.463 / 436.605、alpha mass 33,629.7 / 33,778.5 / 35,566.7、mean horizontal luma gradient 0.001739 / 0.001759 / 0.001864、alpha top-third share 0.03213 / 0.03173 / 0.02806、次frame相対alpha差 0.00632 / 0.00767 / 0.01788。frame 60では gradient 0.001558 / 0.001609 / 0.001828、次frame差 0.02195 / 0.02199 / 0.02711、top share 0.000302 / 0.000498 / 0.000900。curl .25は形状・質量・時間残差ともbaselineに近く、.5/2octはgradientを上げる代わりにframe 95で上三分割shareを12.7%下げ、次frame差を183%上げた。画像では .5/2octのframe 95に横方向のshearとdetached wispが出ており、数値の時間残差増加と一致する。
@@ -9339,6 +9550,7 @@
 - **価値または懸念:** 現状のテストからは当該Blur実装をビルド・利用できず、ソースの存在だけでは製品経路への収録を保証しない。今回のテスト拡張では、公開targetに登録済みの別Blur効果を対象とした。
 - **次に確認すべきこと:** `BlurEffect` を製品で利用する意図があるかを確認し、必要ならCMake targetへの登録・他のBlur APIとの重複・Renderer選択経路を設計単位でレビューする。実装が未使用なら削除候補として扱う前に参照と履歴を確認する。
 
+
 ## 2026-10-31: ArtifactCore standalone tests repeat module builds across isolated CMake projects
 - **関連:** `tests/ArtifactCore/*Standalone/CMakeLists.txt`、`tests/ArtifactCore/StandaloneTestHelpers.cmake`、`tests/ArtifactCore/CMakeLists.txt`。
 - **確認できた事実:** 166個のstandaloneディレクトリが個別の`project()`とCMake configure treeを持ち、共通helperは各プロジェクト内でだけtargetを作る。静的集計では少なくとも46種類のCore moduleが複数プロジェクトに登録され、`ArtifactArray.ixx`は69件、`ArtifactOptional.cppm`は67件、`ArtifactString.ixx`は51件で参照される。親のCore test graphはstandalone群の大半を登録していない。`ColorSpaceStandalone/README.md`は、フル`ArtifactCore`をリンクせず依存closureを明示する独立構成を意図として説明し、複数suiteを同じproject内でmodule target共有している。トップレベルCMakeの`ARTIFACT_USE_SCCACHE`は既定ONだが、MSVCとMSVC frontendではC++ module cache未対応を理由にlauncherを無効化し、standalone graphにもその設定は自動適用されない。`ARTIFACT_BUILD_TESTS`は既定OFFで、確認した`build_artifact_core.bat` / `run_build.bat`も`ArtifactCore`だけをbuildする。`tests/README.md`の標準手順は親CMakeのconfigure/build/ctestのみを案内し、standalone群の構成・選択方法は説明していない。
@@ -9709,3 +9921,109 @@
 - **検証:** Read-only audit of the most recent successful parent configure/generate output. No build or tests were run.
 - **価値または懸念:** Together with the 0 duplicate production-source owners, configure metadata shows that the parent suite has one owner per production source and explicit MSVC IFC references point to those owners. Compiler consumption remains unverified.
 - **次に確認すべきこと:** Build verification remains the only way to validate actual MSVC IFC production and consumption; the user selected configure-only verification for this work.
+## 2026-10-31: Media contract tests should separate packed-frame validity from planar YUV layout
+- **関連:** `ArtifactCore/include/Video/VideoFrame.ixx`、`tests/ArtifactCore/VideoFrameValidityContractTest.cpp`。
+- **確認できた事実:** `CpuVideoFrame` carries one `strideBytes` value. Its current `YUV420P` / `NV12` validity path treats storage as one byte per pixel and checks only `stride * height`; the type has no per-plane stride or offset fields. New tests now cover packed RGB/BGRA/float row widths, padded-row boundaries, and GPU lifetime rejection.
+- **価値または懸念:** Testing planar minimum buffer size without a plane-layout contract would encode an assumption rather than a stable API guarantee.
+- **次に確認すべきこと:** Define whether CPU YUV payloads are tightly packed or carry explicit plane strides/offsets, then add odd/even dimension, truncated-chroma, and padded-plane contract tests.
+## 2026-10-31: Guard invalid video pixel-format enum before stride arithmetic
+- **関連:** `ArtifactCore/include/Video/VideoFrame.ixx`、`tests/ArtifactCore/VideoFrameValidityContractTest.cpp`。
+- **確認できた事実:** `CpuVideoFrame::isValid()` maps known pixel formats to `bytesPerPixel`, but the switch has no `default`; a deserialized or externally cast unknown enum leaves the value zero, followed by `maxSize / bytesPerPixel`.
+- **価値または懸念:** Malformed metadata can reach undefined behavior instead of returning invalid. A regression test should expect `false`, but it cannot safely run before a production guard is added.
+- **次に確認すべきこと:** Add an explicit unknown-enum rejection in `CpuVideoFrame::isValid()`, then test an out-of-range enum value without allocating frame storage.
+
+## 2026-10-31: Probe media format recognition separately from decoding and editing
+- **関連:** `tools/AssetFormatProbe/`、`ArtifactCore/src/File/FileTypeDetector.cpp`、`ArtifactCore/src/Asset/AssetImporter.cpp`。
+- **確認できた事実:** The image detector/importer extension lists include formats whose actual decoding depends on OpenImageIO plugins. Extension recognition therefore does not establish decoder availability, preview support, or editable layer import. A standalone probe now reports OpenImageIO open/scanline outcomes and inspects PSD subimages / Aseprite frame-layer chunks without claiming application integration.
+- **価値または懸念:** A small standalone target avoids adding test dependencies to the ArtifactStudio module graph, and its bounded scanline reads avoid allocating full-resolution image buffers. Aseprite inspection is structural only; it does not validate an ArtifactStudio importer.
+- **次に確認すべきこと:** Build the probe separately and run it against a versioned sample set on each packaged platform; compare its decoder results with the app's preview/import paths before advertising support.
+
+## 2026-10-31: Handle .cube domain metadata before parsing LUT samples
+- **関連:** `ArtifactCore/include/Color/Grading/LUTLoader.ixx`、`tests/ArtifactCore/LUTLoaderContractTest.cpp`。
+- **確認できた事実:** `LUT3D::loadCube()` skips blank and `#` comment lines, but any other line after `LUT_3D_SIZE` with at least three tokens is parsed as an RGB sample. Therefore common `DOMAIN_MIN` / `DOMAIN_MAX` directives are currently converted as failed numeric values and advance the LUT data cursor. **未検証:** Whether the loader intends to support non-default domain ranges or merely ignore their directives.
+- **価値または懸念:** Such files can be rejected as oversized/incomplete data or silently receive incorrect LUT values. The current contract addition covers comments only and does not claim domain directive support.
+- **次に確認すべきこと:** Decide the supported `.cube` domain semantics; then add metadata recognition and tests for default and non-default ranges, including endpoint mapping in `apply()`.
+
+## 2026-10-31: カーブエディタのキー/ハンドル当たり判定と正規化ビューの不整合を修正
+- **関連:** `Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`、`tests/Artifact/CurveEditorStandaloneTest.cpp`。
+- **確認できた事実:** (1) `hitTestHandle` は選択キーのハンドルをキー中心からの距離で判定していたため、`inHandleFrame` / `outHandleFrame` が 0 の合成キーではキー中心のクリックが `MoveHandleIn` に取られていた。ハンドル位置がキー中心から `KEY_RADIUS` 未満の場合はハンドル候補から除外し、キー移動を優先するようにした。(2) `hitTestKey` は `dataToPixel()` で生値を変換しており、正規化表示ではキーがクリックできなかった。描画と同じ `trackToPixel()` に統一した。(3) マーキー選択 `selectKeysInDataRect` は生値と正規化データ矩形を比較しており、正規化表示で選択が成立しなかった。`displayValue()` で比較するようにした。(4) `setSelectedKey*Tangents` 系は `keyEditingEnabled_` を見ておらず、read-only / derived モードでもローカルにタンジェントを書き換えていた。全 7 API にガードを追加した。
+- **価値または懸念:** いずれも standalone ハーネスで再現・回帰テスト化した（`ZeroLengthHandlePressMovesTheKeyNotTheTangent`、`NormalizedViewKeepsKeysClickableAndSelectable`、`NormalizedDragMapsDisplayUnitsBackToValues`、`ReadOnlyModeSuppressesEveryTangentApi`）。2026-10-31 に Debug ビルド + 直接実行 + CTest で 85/85 pass を確認した（ソルバー 300 ケース、編集 300 操作の固定 seed ランダム契約、操作→キャプチャ→画素の 15 本、基準画像 52 枚の比較を含む）。ハーネス作成時に判明した widget の契約: Ctrl は **press 時点で insert ジェスチャ**になるため、スナップ付きドラッグは press を修飾なし・move のみ Ctrl で送る必要がある。キードラッグの press は `captureBufferCurve()` を呼び `bufferCurveVisible_` も true にするので、ドラッグ直後は buffer が既に表示されている。選択トラックは `QColor::lighter(130)` で描かれ、Qt は彩度も 0.15 下げる（例: `(255,128,64)` → `(255,179,140)`）。
+- **次に確認すべきこと:** 正規化表示でのクリック／マーキー／ドラッグをアプリ実機で確認し、GPU 側 `syncGpuCurveSnapshot()` の見た目と一致するか確認する。GPU 側は `editor->visualPoint()` を使うため座標は一致するが、buffer curve を参照していない（buffer は GPU snapshot に描かれない）ことをコード上で確認した。GPU 側のハンドル描画には derived モードと 0 長ハンドルの抑止を追加した。
+
+## 2026-10-31: CE-14 Speed グラフ編集の契約と書き戻し
+- **関連:** `Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`（`curveSpeedAt` / `solveCurveKeyValueForSpeed` / `setDerivedGraphMode`）、`Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`、`Artifact/src/Widgets/ArtifactTimelineWidget.cpp`（`collectCurveEditorSpeedPayload` / `applyCurveEditorSpeedMove`）。
+- **確認できた事実:** タイムラインの Speed グラフは Value keyframe 群から `|Δvalue|/Δframe*fps` の平均として導出される。既存 `collectCurveEditorSpeedPayload` の計算を `curveSpeedAt()` に一本化し、同じ関数系で「target speed から元 value を解く」`solveCurveKeyValueForSpeed()` を追加した。前後 key の value/frame/constant を固定した区分線形方程式を解析候補で解き、target を満たす候補のうち現在値に最も近いものを選ぶ。等スパンで target が現在平均と等しい場合は現在値を維持し、異なる場合は解なしとして編集を拒否する（値のジャンプを作らない）。`applyCurveEditorSpeedMove()` は解決した value を既存 `applyCurveEditorMove()` に渡すため、衝突検査と Undo スナップショット経路は Value 編集と同一。Speed モードでは interactionFinished の track 一括書き戻しを実行しない（speed 値が property へ流れ込むのを防ぐ）。
+- **価値または懸念:** Speed グラフは key move のみ編集可。挿入・削除・copy/paste・clone・tangent・数値 value 入力は `setDerivedGraphMode(true)` で拒否し、内蔵 frame/value エディタも非表示にした。水平ドラッグは「移動後 frame 配置で同じ target speed を解き直す」ため speed を保った retime になる。複数キーを同時に speed ドラッグすると各キーが個別に現在の property 状態へ解を当てるため、同一区間を共有するキー同士の target は厳密には連動しない。**検証:** `ArtifactCurveEditorStandaloneTest` 85/85 pass（speed math 11 本 + 16 シナリオ + EventBus 契約 4 本 + ランダム 2 本 + 操作→画素 15 本 + 基準画像回帰 4 本 + フレームイン/形状 5 本 + 選択/貼り付け 4 本含む）、`ArtifactTimelineWidget.cpp` はアプリ側プロジェクトで単一 TU コンパイル成功。ソルバーの数値は Python の独立実装でも同じ解（端点 200→-100、内部 60→70、等スパン 50→解なし、Constant 隣接 40→90）を確認した。実機のドラッグ・Undo/Redo・再読込は未実行。
+- **次に確認すべきこと:** アプリを起動して Speed モードでドラッグ→値カーブの変化→Undo/Redo→保存・再読込を確認する。等スパン plateau と複数キー同時ドラッグの意味論は、必要なら「後続キーを積分し直す」方式へ拡張する。GPU curve snapshot は buffer curve を描かないため、buffer 表示は widget 側パスのみで確認できる。
+## 2026-10-31: Curve editor focus owns visibility only, not selection
+- **関連:** `Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`（`focusTrack` / `setTracks` / `pruneSelection`）、`Artifact/src/Widgets/ArtifactTimelineWidget.cpp`（`refreshCurveEditorTracks`）、`tests/Artifact/CurveEditorStandaloneTest.cpp`。
+- **確認できた事実:** `focusTrack(trackIndex)` は visibility と view fit に加えて `selectedTrack_ = trackIndex; selectedKey_ = 0` を設定していたが、`selectedKeys_` は変更していなかった。タイムラインは `refreshCurveEditorTracks()` から毎回 `focusTrack(focusedCurveTrackIndex_)` を呼ぶため、キー編集や Undo のたびに primary key が 0 に戻り、インライン frame/value エディタと tangent 操作対象（selectedKeys_ 側）が食い違う状態になり得た。`focusTrack` から選択変更を削除し、選択はクリック／マーキー／A／Esc のみが変更するようにした。あわせて `setTracks()` が `pruneSelection()` を呼び、範囲外になった選択 index を落として primary を残存選択または -1 に再アンカーする。dual-track の copy/paste テストは「paste 先は対象トラックの key をクリックして選ぶ」操作に直した（focus では選ばれない）。
+- **価値または懸念:** timeline refresh が編集対象を壊さなくなり、インラインエディタ・tangent ボタン・選択ハイライトが同じ key を指す。`setTracks()` に短いトラックを渡しても dangling index で編集 API を呼ばない。standalone 85/85 pass、アプリ側 3 TU の単一コンパイル成功。実機の timeline refresh 下での編集は未確認。
+- **次に確認すべきこと:** アプリで key を選択→Inspector/Timeline 側の変更で refresh を発生させ、選択 key とインラインエディタが維持されること、Undo/Redo 後に選択が復元されることを確認する。`focusTrack(-1)`（All Channels）でも選択を保持する仕様にしたので、全チャンネル表示へ切り替えたときに選択が残るのが意図どおりか UI レビューする。
+
+## 2026-10-31: Shift marquee now adds to the curve editor selection
+- **関連:** `Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`（`marqueeAdditive_`）、`tests/Artifact/CurveEditorStandaloneTest.cpp`。
+- **確認できた事実:** `marqueeAdditive_` は `mousePressEvent` で常に false に設定され、他に true にする経路が無い未使用フィールドだった。Shift がクリック選択の追加修飾（Shift+click トグル）として使われているのに対し、Shift+ドラッグの箱選択だけが既存選択を置換していた。箱選択を additive にし、置換したい場合は Esc で解除してから箱選択する仕様にした。`ShiftMarqueeAddsToTheExistingSelection` と `EscapeThenMarqueeReplacesTheSelection` で固定。
+- **価値または懸念:** Shift の意味が「追加」で一貫し、複数回の箱選択で選択を積み上げられる。既存のマーキー関連テスト・シナリオは選択が空の状態から始まるため描画・基準画像に変化はない。standalone 85/85 pass、アプリ側カーブエディタ実装 TU のコンパイル成功。実機のタイムラインとの併用は未確認。
+- **次に確認すべきこと:** アプリで箱選択を連続して行い、タイムライン側のキー選択表示（painter markers）と一致するか確認する。箱選択中の Shift 解除（途中で Shift を離す）の扱いは、現状は press 時の修飾で決まるため追加のまま。
+
+## 2026-10-31: Curve editor paste anchors on the playhead when nothing is selected
+- **関連:** `Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`（`pasteCopiedKeys` / Ctrl+V ハンドラ）、`tests/Artifact/CurveEditorStandaloneTest.cpp`。
+- **確認できた事実:** Ctrl+V の外側ガードが `selectedTrack_ >= 0` を要求しており、キーをコピーした後に選択を外すと貼り付けが無反応だった。宛先を「選択トラック → コピー元トラック」の順で決め、選択キーがある場合だけその frame を、無い場合は `currentFrame_`（再生ヘッド）をアンカーにする AE 風の挙動へ変更した。あわせて `pasteCopiedKeys()` が false を返したときに `interactionStarted` だけ発行して `interactionFinished` を落としていた漏れを修正した（タイムラインのドラッグ状態が残る）。テストは `PasteWithoutSelectionAnchorsOnThePlayhead`（45 で貼ると 45/75/105）と、既存の別トラック貼り付けテストの「選択なし」節で固定した。
+- **価値または懸念:** キーを選択し直さなくても、再生ヘッド位置へコピーを貼れるようになった。貼り付け先がコピー元トラックになるため、別トラックへ貼るときは従来どおり対象トラックのキーをクリックして選ぶ必要がある（宛先トラックの自動判定はしない）。standalone 85/85 pass、アプリ側カーブエディタ実装 TU のコンパイル成功。実機のタイムラインとの併用は未確認。
+- **次に確認すべきこと:** アプリでキーをコピー→Esc→再生ヘッド移動→Ctrl+V を実行し、タイムラインの選択表示と Undo が破綻しないか確認する。貼り付け先を「最後にフォーカスしたトラック」にするかは UI 判断。
+
+## 2026-10-31: Curve editor F now frames the selected keys
+- **関連:** `Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`（`frameSelection`）、`Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`（`frameSelection` / F ハンドラ）、`tests/Artifact/CurveEditorStandaloneTest.cpp`。
+- **確認できた事実:** 公開 API `frameSelection()` を追加し、選択キー（複数トラック可）の frame/value 範囲に 10%・最低 5 単位のマージンを付けてビューを合わせる。正規化表示では y を -1.2..1.2 に固定し、x だけ選択範囲へ合わせる。選択が空、または選択が非表示トラックにある場合は可視キー全体へフォールバックし、キーが無ければ `fitToContent()`。F キーの動作を従来の「選択トラックにフォーカス」から `frameSelection()` に置き換えた（`focusTrack` が選択を変えなくなったため、F の旧分岐は実質トラック選択に依存しなくなっていた）。
+- **価値または懸念:** Maya/AE の「選択キーにフレームイン」と同じ操作感になり、`focusTrack`（可視性＋フィット）と `frameSelection`（選択範囲フィット）の責務も分かれた。`FKeyFramesTheSelection` を含む 4 本のビュー契約と、flat tangent 後のカーブ形状を列画素で見る 1 本で固定した。ただし F は既存の固定キー判定のままで、AGENTS の ShortcutBindings 移行は未実施（従来からの既知の乖離）。実機のタイムラインフォーカスとの併用は未確認。
+- **次に確認すべきこと:** アプリでキーを選択して F を押したとき、タイムラインのフォーカス表示・インスペクタの選択と矛盾しないか確認する。`frameSelection()` を Timeline の Fit ボタンへ接続するかは UI 判断（現状ボタンは `fitToContent`）。
+
+## 2026-10-31: Curve editor scenario baselines are stored in the repo and verified with a negative run
+- **関連:** `tests/Artifact/CurveEditorStandaloneTest.cpp`（`compareImages` / `writeBaselineDiff` / `storeOrCompareBaseline` / `RenderScenariosMatchStoredBaselines`）、`tests/Artifact/CMakeLists.txt`（`ARTIFACT_CURVE_EDITOR_BASELINE_DIR`）、`tests/Artifact/baselines/curve-editor/`（52 PNG、約 2.2 MB: シナリオ 16 + `operations/` 36）。
+- **確認できた事実:** 16 シナリオの描画を `tests/Artifact/baselines/curve-editor/` の PNG と比較する契約を追加した。判定は「チャネル差 > 12 の画素が 0.2% 以下、かつ平均絶対差 0.5 以下」。意図した変更時は `--update-baselines` で同じ場所を更新し、比較先は `--baseline-dir` / `ARTIFACT_CURVE_EDITOR_BASELINE_DIR` で差し替えられる。不一致時は capture dir に `baseline_<name>_{expected,actual,diff}.png` を出す。`writeCapturePair()` も同じ比較器を使い、操作の before/after 36 枚を `baselines/curve-editor/operations/` に保存・比較する（操作テストの描画も回帰対象）。比較器自体は合成画像（同一 / 4 レベル差 / 20x20 の赤ブロック / サイズ不一致）で単体契約化した。負例検証として、ベースラインのコピー 1 枚に矩形を描いた場合は `differingFraction=0.025` で、空ディレクトリを `--baseline-dir` にした場合は 16 件の `missing baseline` と 36 件の `missing operation baseline` で FAILED になることを確認した。オフスクリーン描画は同一マシン内で決定的で、初回比較は 52/52 一致した。
+- **価値または懸念:** 操作単位の画素契約（第5便）が「その操作が期待どおり描かれたか」を見るのに対し、基準画像は「無関係な描画が勝手に変わっていないか」を見る。両方あることで、buffer curve のストローク欠落のような実バグと、意図しない回帰を別々に検出できる。ベースラインはフォント・AA・テーマに依存するため、別マシン/別 Qt では差が出る可能性があり、その場合は `--update-baselines` で再生成する運用になる。ベースラインは現時点で未追跡（`git status` で `?? tests/Artifact/baselines/`）なので、回帰検出を共有するにはコミットが必要。
+- **次に確認すべきこと:** ベースラインをコミット対象に含めるか決める。CI 等の別環境で比較する場合は、フォント供給（offscreen の Segoe UI 読み込み）と Qt バージョンを揃えるか、許容差を環境別に設定する。
+
+## 2026-10-31: Operation-to-capture pixel contracts caught an unstroked buffer curve
+- **関連:** `tests/Artifact/CurveEditorStandaloneTest.cpp`（`countColorInBox` / `writeCapturePair` / `Interaction -> capture -> pixel result` の 10 本）、`Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`（`drawCurve` の pen 復元）。
+- **確認できた事実:** 操作の前後を `renderWidget()` でキャプチャし、期待する画素（選択キーの塗り、キー菱形の移動前後の位置、削除後の消失、挿入位置、プレイヘッド列、正規化前後のキー y、derived モードで消えるハンドル点、buffer ストローク、マーキー塗り、paste 先の選択キー）を色で検証する契約を 10 本追加した。さらに 4 本（ハンドルピンの移動、中間キー削除後のカーブ再計算、キー挿入後のカーブ再計算、フォーカスによる他トラックカーブの非表示/復帰）を追加し、列方向のストローク位置比較で「操作後にカーブがどこへ描き直されたか」まで検証している。各 before/after は `op_<name>_{before,after}.png` に保存する。このうち buffer の契約が**実バグ**を検出した: `drawCurve` は area fill を描く前に `p.setPen(Qt::NoPen)` とし、通常カーブは infinity ブロック内で pen を戻すが、buffer はそのブロックを飛ばすため `drawPath(path)` が線を描かず、buffer curve は半透明の塗りだけになっていた。最終 `drawPath` 前に pen を復元して修正した。
+- **価値または懸念:** データ状態の契約（キー配列・選択 index）では見えない描画不良を、操作とキャプチャの対応で検出できるようになった。色定数は widget の描画（`lighter(130)` の彩度低下、area fill の重なり、プレイヘッドがキー中心を覆う、`focusTrack` のフィット範囲）に依存するため、テストは「操作で何が変わるべきか」を対象点と前後比較で表現し、絶対色の一致には依存しすぎない形にした。実機 GPU curve snapshot は別経路で未検証。
+- **次に確認すべきこと:** 同じ操作→画素の型を GPU curve snapshot（`buildGpuCurveSnapshot`）へ広げるには Diligent デバイスが必要で、standalone では扱えない。buffer curve を GPU snapshot に描く実装を足す場合は、この 10 本と同じ期待色（alpha 合成）で widget 側との一致を確認する。
+
+## 2026-10-31: Curve editor EventBus contract is now pinned, and keyDeleted is still dead
+- **関連:** `Artifact/src/Widgets/ArtifactCurveEditorWidget.cpp`（`interactionStarted/Finished`、`keySelected/keyMoved/currentFrameChanged` 発行箇所）、`tests/Artifact/CurveEditorStandaloneTest.cpp`（`watchCurveEditorEvents`）、`Artifact/src/Widgets/ArtifactTimelineWidget.cpp`（各 subscribe ハンドラ）。
+- **確認できた事実:** ハーネスから `ArtifactCore::globalEventBus().subscribe<...>` でイベントを数えられるようにし、契約を固定した。(1) key ドラッグ 1 回で `InteractionStarted` 1 / `InteractionFinished` 1 / `KeyMoved` 1 / `KeySelected` 1（press 時の 1 回）。(2) tangent ボタン 1 回で Started/Finished 各 1、Moved 0。(3) derived モードの Delete/Backspace/X と拒否された tangent/数値入力はイベントを 0 個も出さない（タイムラインに空の Undo を作らない）。(4) playhead scrub は press で frameChanged 1（frame 25）、move で 2（frame 35）、release で Finished 1。一方 `CurveEditorKeyDeletedEvent` は widget 側に発行箇所が無く、タイムラインの購読ハンドラ（プロパティ keyframe を直接削除する経路）は現状到達しない。削除は `interactionFinished` の構造差分書き戻しだけで処理されている。
+- **価値または懸念:** タイムラインの Undo/refresh が依存するイベント列が回帰テストで固定された。`keyDeleted` を素朴に発行すると、ハンドラの直接削除と構造差分書き戻しが同じフレームを二重処理し、Undo も 2 本に分かれ得るため、発行するならタイムライン側の削除経路をイベント一本に寄せる設計変更が必要。無限プレビューは constant 端点で傾きを 0 に固定するよう修正し、`InfinityExtensionStaysFlatForConstantEdges` でピクセル契約化した。なお keyboard 操作（Delete/A/Esc/F/N/B/C/V/Shift+D）は今も widget 内の固定キー判定で、AGENTS の ShortcutBindings 規約への移行は未実施（`ShortcutId` の拡張が ArtifactCore 変更になるため、別スライスとして扱う）。
+- **次に確認すべきこと:** `keyDeleted` を活かすならタイムラインの削除書き戻しをイベント主体へ寄せ、Undo 1 本・多重削除なしを実機確認する。ShortcutBindings へ移行する場合は `CurveEditor.*` の ShortcutId、既定キー、設定画面表示、競合検出、モーダル優先順位をまとめて設計する。
+
+## 2026-10-31: Rejected actions still publish ActionExecuted
+- **関連:** `ArtifactCore/src/UI/InputOperator.cpp` (`Action::execute`, `ActionManager::executeAction`)、`tests/ArtifactCore/ActionManagerContractTest.cpp`。
+- **確認できた事実:** `Action::execute()` は confirm callback が false の場合にcallback実行と `triggered` 発行を省略してreturnする一方、`ActionManager::executeAction()` は戻り値を受け取らず、その直後に `actionExecuted` と `ActionManagerChangedEvent(ActionExecuted)` を無条件発行する。既存の拒否テストはcallback未実行だけを検査していたため、ActionExecuted eventが出ない期待を追加した。この期待は現行実装では不成立とソースから判断できるが、テストは実行していない。
+- **価値または懸念:** 拒否された操作が実行済みとして観測されると、イベント購読側の履歴・監査・UI状態が実際のaction結果と不一致になる可能性がある。確認callbackを manager と Action の双方で呼ぶ単純な修正は二重副作用を起こしうる。
+- **次に確認すべきこと:** ArtifactCore childの変更許可後に、確認判定と実行結果を一度だけ伝えるAPI形を検討し、拒否時に manager signals/events を抑制する回帰を実行する。
+
+## 2026-10-31: ArtifactString numeric conversion ignores range errors
+- **関連:** `ArtifactCore/include/Core/ArtifactString.ixx` (`String::toInt` / `String::toDouble`)、`tests/ArtifactCore/ArtifactStringContractTest.cpp` (`NumericConversionReportsOutOfRangeInputAsFailure`)。
+- **確認できた事実:** 両関数は `strtol` / `strtod` の末尾ポインタだけを見て `ok` を設定し、`errno == ERANGE` を確認していない。整数表現が `long` の範囲を超える入力や、double overflowする指数表現では末尾まで読み取られても失敗扱いされない可能性があり、既存の範囲外テスト期待と実装に不一致がある。テストは未実行。
+- **価値または懸念:** 呼び出し側が `ok` を検証しても範囲外の数値を有効値として受け取り、整数では実装依存の narrowing、浮動小数では infinity が通る可能性がある。
+- **次に確認すべきこと:** ArtifactCore childの変更許可後、`errno` を事前初期化して `ERANGE` を扱い、`toInt` の `int` 範囲も明示検証する修正を検討し、既存の範囲外テストを実行する。
+
+## 2026-11-01: アンカーポイント契約テスト追加中に見つかった経路差
+- **関連:** `tests/ArtifactCore/TransformAnchorContractTest.cpp`（新規）、`ArtifactCore/src/Transform/TransformHelper.cpp`、`ArtifactCore/src/Shape/ShapeLayer.cpp`、`Artifact/src/Widgets/ArtifactAnchorPointTool.cpp`、`Artifact/src/Layer/ArtifactAbstractLayerTransform.cpp`、`ArtifactCore/src/Animation/AnimatableTransform3D.cpp`。
+- **確認できた事実:** レイヤー transform は 2D/3D/独自 Matrix4x4/AnimatableTransform3D の 4 経路とも `T(position)·R·S·T(-anchor)` で一致（`TransformHelper.cpp:40-46, :64-70, :86-102`、`AnimatableTransform3D.cpp:830-847, :884-918`）。一方で次の差がある。(1) Shape コンテンツ行列は `T(position)·T(+anchor)·R·S·T(-anchor)` と `+anchor` が 1 回多い（`ShapeLayer.cpp:35-44`、`ShapeGroup.cpp:126-132, :257-265, :353-359`、`ArtifactShapeLayer.cpp:1384-1394` 他）。設計意図のコメントは無く、未確認。(2) アンカーポイントツールの「見た目維持」補正は `position += (newAnchor - oldAnchor)` の生差分で、回転・スケールを掛けていない（`ArtifactAnchorPointTool.cpp:219-229`）。同じ操作をギズモ側は R·S を掛けて補正している（`ArtifactCompositionRenderController.cpp:26644-26648`）ため、同一機能で結果が異なる。(3) `getLocalTransform4x4()` の 2D 分岐は `Q_UNUSED(anchorZ)` で anchorZ を捨てる（`ArtifactAbstractLayerTransform.cpp:921`）が、`getLocalTransform4x4At()` は anchorZ を適用する（`ArtifactLayerTransformSupport.cpp:117`）。(4) `getLocalTransform4x4At()` は `is3D()` を見ない。（5) `AnimatableTransform3D::anchorPosition()` は `getAllMatrix()` の m30/m31 を返すため、名前と違い「アンカー点の像」ではなく「原点の像」を返す（`AnimatableTransform3D.cpp:967-971`）。新テストは挙動を固定せず、この差を `AnimatedSnapshotCarriesBothMatricesAndAnchorCanvasPosition` でコメント付きの現状契約として記録するに留めた。(2)(3)(4) はテスト未追加。
+- **価値または懸念:** アンカーの合成順序そのものは各経路で揃っているので、実際にずれやすいのは「レイヤー transform とコンテンツ transform の二重適用（Shape）」「編集操作ごとの補正式（ツール vs ギズモ）」「2D/4x4 分岐ごとの anchorZ の有無」である。ここを取り違えると、静止画では一致してキーフレームや 3D 切替でだけずれる。ビルド・テスト実行は未実施。
+- **次に確認すべきこと:** Shape の `+anchor` が AE のシェイプグループ transform 相当の意図的仕様か、二重適用のバグかをユーザーに確認する。アンカーポイントツールの補正式をギズモ側と同じ R·S 補正へ寄せるか、24fps ハードコード（`ArtifactAnchorPointTool.cpp:165`）も含めて方針を決める。
+
+## 2026-11-01: AnimatableTransform3D の行列合成順が Diligent の行ベクトル規約と逆
+- **関連:** `ArtifactCore/src/Animation/AnimatableTransform3D.cpp`（`makeEulerRotation` :147-181、`getMatrix` :807-828、`getAllMatrix` :830-847、`getMatrixAt` :852-882、`getAllMatrixAt` :884-918、`anchorPosition` :967-977）、`libs/DiligentEngine/DiligentCore/Common/interface/BasicMath.hpp`（`Vector4::operator*(Matrix4x4)` :672-680、`MultiplyMatrix4x4Scalar` :81-104、`RotationZ` :1699-1711）。
+- **確認できた事実:** Diligent は行ベクトル規約（`out[i] = x*m[0][i] + y*m[1][i] + z*m[2][i] + w*m[3][i]`、積は `Result[r][c] = Σ A[r][k]B[k][c]`）なので、`A*B` では **A が先に適用される**。ところが `getMatrix`/`getAllMatrix` は列ベクトル前提のコメント（`// Construct Final Matrix (T * R * S * A)` :909）で `translation * rotation * scale * anchor` を積んでいる。実測（pos 120,85 / anchor 24,-13 / rot 37 / scale 1.7,0.65）では `getAllMatrix()` の変換が `p → R·S·(p + position) − anchor` になり、アンカー点は position ではなく (245.17, −5.95) に落ちた。`getMatrix()` も同様に position を先に足してから回転・拡縮する。さらに `makeEulerRotation` は RotationZ の転置（`m00=c, m01=-s, m10=s, m11=c`）を積むため、行ベクトルでは −rotation の回転になる。2D/3D/独自 Matrix4x4 の 3 経路は AE 順（`T·R·S·T(-anchor)`）で一致しているので、この 1 経路だけ規約が反転している。
+- **価値または懸念:** 現時点で `getMatrix()/getAllMatrix()/snapshot().matrix(WithAnchor)` を読むコードはリポジトリ内に無く（`anchorPosition()` が内部で使うのみで、3D レイヤーは自前で QMatrix4x4 を組む）、潜在バグとして留まっていた。行列を描画に使い始めた時点で、位置が倍に効き・回転が逆・スケールが平行移動に掛かる状態になる。
+- **修正（2026-11-01）:** ユーザー承認のもと ArtifactCore 側を修正した。(1) `makeEulerRotation` の X/Y/Z を Diligent の `RotationX/Y/Z` と同じ行ベクトル用符号へ変更（`m12=sx` 等へ転置を解消）。(2) `getMatrix()` / `getMatrixAt()` を `scale * rotation * translation`、`getAllMatrix()` / `getAllMatrixAt()` を `anchor * scale * rotation * translation` へ変更し、行ベクトルで AE 順（anchor → scale → rotate → translate）になるようにした。(3) `anchorPosition()` / `anchorPositionAt()` を「転置行の m30/m31」から「アンカー点を行列で写した座標」へ変更（`float3(anchor) * matrix`）。契約テストは `AnimatedMatrixAgreesWithTheOtherTransformPaths` / `AnimatedSnapshotExposesBothMatricesAndAnchorCanvasPosition` に置き換え、`getAllMatrix()` が 2D/3D/独自 Matrix4x4 の `expectedMappedPoint()` と一致し、アンカーが position に落ち、`anchorCanvasPosition` が position になることを固定した。Debug ビルドで 15/15 pass、4 枚のベースラインも変化なし（画像系テストはこの経路を使わない）。`Artifact/src` に `getMatrix()/anchorPosition()` の呼び出しは無いことを grep で確認済み。
+- **残る懸念:** `makeEulerRotation` の合成順は `rotationZ * rotationY * rotationX`（行ベクトルで Z→Y→X 適用）のまま。多軸回転時の意図した順序（AE は Z→Y→X か X→Y→Z か）は未確認で、回転X/Y/Z を同時に使う場面でのみ差が出る。
+
+## 2026-10-31: ArtifactMath NaN predicate lacks long double overload
+- **関連:** `ArtifactCore/include/Core/ArtifactMath.ixx` (`artifactIsNaN` overloads)、`tests/ArtifactCore/ArtifactMathContractTest.cpp` (`FiniteCheckHandlesLongDoubleNanAndInfinity`)。
+- **確認できた事実:** `artifactIsFinite` には float/double/long double overload があるが、`artifactIsNaN` には float/double overload と integral-only template しかない。long double を渡すと float/double への標準変換候補が並び、呼び出しが曖昧になる可能性がある（未コンパイルで未検証）。
+- **価値または懸念:** 数値型ごとの predicate API が非対称で、long double の NaN を直接判定できない可能性がある。
+- **次に確認すべきこと:** ArtifactCore child の変更許可後、long double overload を追加するか API 方針を決め、long double NaN の直接呼び出しをコンパイル検証する。
