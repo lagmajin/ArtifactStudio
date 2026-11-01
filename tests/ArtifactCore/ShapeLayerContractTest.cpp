@@ -26,6 +26,15 @@ void expectRect(const QRectF& actual, const QRectF& expected)
     EXPECT_DOUBLE_EQ(actual.height(), expected.height());
 }
 
+// PathShape::boundingRect() grows by half the stroke width (default 1.0) so the
+// outline is inside the reported bounds.
+QRectF paddedBounds(const QRectF& geometry)
+{
+    constexpr double kStrokePadding = 0.5;
+    return geometry.adjusted(-kStrokePadding, -kStrokePadding, kStrokePadding,
+                             kStrokePadding);
+}
+
 } // namespace
 
 TEST(ShapeLayerContractTest, EmptyLayerHasNoGeometryAndCanBeClearedRepeatedly)
@@ -46,7 +55,7 @@ TEST(ShapeLayerContractTest, PrimitiveFactoriesCreateExpectedBoundsAndHitRegions
 {
     ShapeLayer rectangle = makeRectangleLayer();
     ASSERT_EQ(rectangle.shapeCount(), 1);
-    expectRect(rectangle.boundingRect(), QRectF(10.0, 20.0, 30.0, 40.0));
+    expectRect(rectangle.boundingRect(), paddedBounds(QRectF(10.0, 20.0, 30.0, 40.0)));
     EXPECT_TRUE(rectangle.contains(QPointF(25.0, 40.0)));
     EXPECT_FALSE(rectangle.contains(QPointF(5.0, 40.0)));
 
@@ -67,15 +76,16 @@ TEST(ShapeLayerContractTest, LayerTransformUpdatesBoundsAndHitTestingTogether)
     layer.setPosition({5.0, -10.0});
     layer.setScale({2.0, 0.5});
 
-    expectRect(layer.boundingRect(), QRectF(25.0, 0.0, 60.0, 20.0));
+    // Padded geometry (9.5, 19.5, 31, 41) scaled by (2, 0.5) then moved by (5, -10).
+    expectRect(layer.boundingRect(), QRectF(24.0, -0.25, 62.0, 20.5));
     EXPECT_TRUE(layer.contains(QPointF(40.0, 10.0)));
     EXPECT_FALSE(layer.contains(QPointF(20.0, 10.0)));
 
     layer.setRotation(90.0);
     EXPECT_NEAR(layer.boundingRect().center().x(), -15.0, 1e-9);
     EXPECT_NEAR(layer.boundingRect().center().y(), 40.0, 1e-9);
-    EXPECT_NEAR(layer.boundingRect().width(), 20.0, 1e-9);
-    EXPECT_NEAR(layer.boundingRect().height(), 60.0, 1e-9);
+    EXPECT_NEAR(layer.boundingRect().width(), 20.5, 1e-9);
+    EXPECT_NEAR(layer.boundingRect().height(), 62.0, 1e-9);
     EXPECT_TRUE(layer.contains(QPointF(-15.0, 40.0)));
     EXPECT_FALSE(layer.contains(QPointF(10.0, 40.0)));
 }
@@ -102,8 +112,8 @@ TEST(ShapeLayerContractTest, CopyConstructionAndCloneDeepCopyShapesAndAssignFres
     copiedPath->path().setRectangle(QRectF(100.0, 100.0, 2.0, 2.0));
     clonedPath->path().clear();
 
-    expectRect(source.boundingRect(), QRectF(10.0, 20.0, 30.0, 40.0));
-    expectRect(copied.boundingRect(), QRectF(100.0, 100.0, 2.0, 2.0));
+    expectRect(source.boundingRect(), paddedBounds(QRectF(10.0, 20.0, 30.0, 40.0)));
+    expectRect(copied.boundingRect(), paddedBounds(QRectF(100.0, 100.0, 2.0, 2.0)));
     EXPECT_TRUE(cloned.boundingRect().isNull());
 }
 
@@ -121,12 +131,12 @@ TEST(ShapeLayerContractTest, CopyAssignmentPreservesDestinationIdentityAndReplac
     EXPECT_EQ(destination.name(), QStringLiteral("copied"));
     EXPECT_FALSE(destination.isVisible());
     ASSERT_EQ(destination.shapeCount(), 1);
-    expectRect(destination.boundingRect(), QRectF(10.0, 20.0, 30.0, 40.0));
+    expectRect(destination.boundingRect(), paddedBounds(QRectF(10.0, 20.0, 30.0, 40.0)));
 
     auto* destinationPath = dynamic_cast<PathShape*>(destination.content()->childAt(0));
     ASSERT_NE(destinationPath, nullptr);
     destinationPath->path().clear();
-    expectRect(source.boundingRect(), QRectF(10.0, 20.0, 30.0, 40.0));
+    expectRect(source.boundingRect(), paddedBounds(QRectF(10.0, 20.0, 30.0, 40.0)));
 }
 
 TEST(ShapeLayerContractTest, MoveConstructionAndAssignmentTransferOwnedGeometry)
@@ -139,14 +149,14 @@ TEST(ShapeLayerContractTest, MoveConstructionAndAssignmentTransferOwnedGeometry)
     EXPECT_EQ(moved.layerId(), transferredId);
     EXPECT_EQ(moved.name(), QStringLiteral("moving"));
     ASSERT_EQ(moved.shapeCount(), 1);
-    expectRect(moved.boundingRect(), QRectF(10.0, 20.0, 30.0, 40.0));
+    expectRect(moved.boundingRect(), paddedBounds(QRectF(10.0, 20.0, 30.0, 40.0)));
 
     ShapeLayer target = ShapeLayer::createEmpty();
     target = std::move(moved);
     EXPECT_EQ(target.layerId(), transferredId);
     EXPECT_EQ(target.name(), QStringLiteral("moving"));
     ASSERT_EQ(target.shapeCount(), 1);
-    expectRect(target.boundingRect(), QRectF(10.0, 20.0, 30.0, 40.0));
+    expectRect(target.boundingRect(), paddedBounds(QRectF(10.0, 20.0, 30.0, 40.0)));
 }
 
 TEST(ShapeLayerContractTest, NullShapeInsertionsDoNotChangeContent)

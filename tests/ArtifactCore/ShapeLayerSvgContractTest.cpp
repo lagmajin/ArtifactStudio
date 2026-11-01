@@ -57,10 +57,12 @@ TEST(ShapeLayerSvgContractTest, ExportImportRoundTripPreservesGeometryAndInlineS
 
     const ShapeLayer restored = ShapeLayer::fromSvg(svg);
     ASSERT_EQ(restored.shapeCount(), 1);
-    EXPECT_NEAR(restored.boundingRect().x(), 4.0, 1e-6);
-    EXPECT_NEAR(restored.boundingRect().y(), 8.0, 1e-6);
-    EXPECT_NEAR(restored.boundingRect().width(), 24.0, 1e-6);
-    EXPECT_NEAR(restored.boundingRect().height(), 16.0, 1e-6);
+    // Bounds include the outline: the restored stroke is 3.5 wide, so the
+    // geometry (4, 8, 24, 16) grows by 1.75 on every side.
+    EXPECT_NEAR(restored.boundingRect().x(), 2.25, 1e-6);
+    EXPECT_NEAR(restored.boundingRect().y(), 6.25, 1e-6);
+    EXPECT_NEAR(restored.boundingRect().width(), 27.5, 1e-6);
+    EXPECT_NEAR(restored.boundingRect().height(), 19.5, 1e-6);
 
     const PathShape* restoredPath = onlyPath(restored);
     ASSERT_NE(restoredPath, nullptr);
