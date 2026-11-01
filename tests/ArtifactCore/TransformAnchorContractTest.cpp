@@ -686,6 +686,57 @@ TEST(TransformAnchorContractTest, CustomMatrixAndQtPathsAgreeForAnchorsAcrossPar
     }
 }
 
+TEST(TransformAnchorContractTest, TwoDimensionalAndCustomMatrixAgreeAcrossParameterGrid)
+{
+    const std::array<double, 6> rotations{{-137.0, -45.0, 0.0, 33.0, 90.0, 181.0}};
+    const std::array<double, 4> scalesX{{-2.2, 0.5, 1.0, 1.75}};
+    const std::array<double, 4> scalesY{{-0.75, 0.3, 1.0, 2.4}};
+    const std::array<QPointF, 3> anchors{{
+        QPointF(0.0, 0.0), QPointF(24.0, -13.0), QPointF(160.0, 120.0)}};
+
+    for (const double rotation : rotations) {
+        for (const double scaleX : scalesX) {
+            for (const double scaleY : scalesY) {
+                for (const QPointF& anchor : anchors) {
+                    SCOPED_TRACE(::testing::Message()
+                                 << "rotation=" << rotation << " scaleX=" << scaleX
+                                 << " scaleY=" << scaleY << " anchor=(" << anchor.x()
+                                 << ", " << anchor.y() << ")");
+
+                    const QTransform planar = ArtifactCore::makeLayerTransform2D(
+                        31.0, -17.0, rotation, scaleX, scaleY, anchor.x(), anchor.y());
+                    const ArtifactCore::Matrix4x4 custom =
+                        ArtifactCore::makeLayerMatrix4x4(
+                            31.0, -17.0, 0.0, rotation, scaleX, scaleY, 1.0,
+                            anchor.x(), anchor.y(), 0.0);
+
+                    for (const QPointF& probe : sampleProbes()) {
+                        const QVector3D mapped = mapCustomMatrix(
+                            custom, QVector3D(static_cast<float>(probe.x()),
+                                              static_cast<float>(probe.y()), 0.0f));
+                        expectPointNear(planar.map(probe),
+                                        QPointF(mapped.x(), mapped.y()), 1.0e-3);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(TransformAnchorContractTest, AnchorFarOutsideTheLayerStillDefinesThePivot)
+{
+    const LayerParams params{-320.0, 480.0, -63.0, 2.5, 0.4, -1200.0, 900.0};
+    const QTransform transform = ArtifactCore::makeLayerTransform2D(
+        params.positionX, params.positionY, params.rotation,
+        params.scaleX, params.scaleY, params.anchorX, params.anchorY);
+
+    expectPointNear(transform.map(QPointF(params.anchorX, params.anchorY)),
+                    QPointF(params.positionX, params.positionY), 1.0e-9);
+    for (const QPointF& probe : sampleProbes()) {
+        expectPointNear(transform.map(probe), expectedMappedPoint(params, probe), 1.0e-9);
+    }
+}
+
 TEST(TransformAnchorContractTest, TwoDimensionalAndThreeDimensionalPathsAgreeOnTheZPlane)
 {
     for (const LayerParams& params : sampleLayerParams()) {
@@ -804,4 +855,18 @@ TEST(TransformAnchorContractTest, ParentCompositionKeepsTheChildAnchorMarkerOnTh
     const LayerParams parent{20.0, 40.0, -22.0, 0.9, 1.1, 0.0, 0.0};
     expectAndSaveAnchorImage(warpMarkerThroughHierarchy(child, parent),
                              QStringLiteral("anchor_parent_composition.png"));
+}
+
+TEST(TransformAnchorContractTest, AnchorNearTheLayerEdgeKeepsTheMarkerOnThePosition)
+{
+    const LayerParams params{120.0, 70.0, 25.0, 1.1, 1.1, 24.0, 26.0};
+    expectAndSaveAnchorImage(warpMarker(params),
+                             QStringLiteral("anchor_near_edge.png"));
+}
+
+TEST(TransformAnchorContractTest, FractionalAnchorKeepsTheMarkerOnTheRoundedPosition)
+{
+    const LayerParams params{120.5, 70.5, 30.0, 1.0, 1.0, 110.5, 80.25};
+    expectAndSaveAnchorImage(warpMarker(params),
+                             QStringLiteral("anchor_fractional.png"));
 }

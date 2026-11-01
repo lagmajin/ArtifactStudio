@@ -294,6 +294,11 @@ artifact_add_test(ArtifactCoreViewportTransformerContractTest
     LIBS
         ArtifactCore
 )
+target_include_directories(ArtifactCoreViewportTransformerContractTest PRIVATE
+    "${CMAKE_SOURCE_DIR}/libs/DiligentEngine"
+    "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Common/interface"
+    "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
+)
 set_tests_properties(ArtifactCoreViewportTransformerContractTest PROPERTIES
     LABELS "viewport;transform;coordinates;cpu;contract"
 )
