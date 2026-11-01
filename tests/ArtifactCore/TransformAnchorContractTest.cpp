@@ -13,6 +13,7 @@
 #include <QImage>
 #include <QMatrix4x4>
 #include <QPointF>
+#include <QRectF>
 #include <QString>
 #include <QTransform>
 #include <QVector3D>
@@ -27,6 +28,7 @@ import Math.Matrix4x4;
 import FloatRGBA;
 import Image.ImageF32x4_RGBA;
 import Animation.Transform3D;
+import Shape.Layer;
 
 namespace {
 
@@ -71,6 +73,47 @@ QVector3D expectedMappedPoint3D(const LayerParams& params, double positionZ,
     return QVector3D(static_cast<float>(params.positionX + scaledX * c - scaledY * s),
                      static_cast<float>(params.positionY + scaledX * s + scaledY * c),
                      static_cast<float>(positionZ + scaledZ));
+}
+
+// ShapeLayer's content transform is currently
+//   p -> R.S.(p - anchor) + anchor + position,
+// so the anchor is both the pivot and an extra post-rotation offset. AE (and
+// makeLayerTransform2D) would be p -> R.S.(p - anchor) + position. Spelled out
+// here so the divergence is pinned rather than hidden inside the layer.
+QPointF expectedShapeContentPoint(const QPointF& point, const QPointF& position,
+                                  const QPointF& anchor, double rotation,
+                                  const QPointF& scale)
+{
+    const double radians = rotation * kPi / 180.0;
+    const double c = std::cos(radians);
+    const double s = std::sin(radians);
+    const double scaledX = (point.x() - anchor.x()) * scale.x();
+    const double scaledY = (point.y() - anchor.y()) * scale.y();
+    return QPointF(position.x() + anchor.x() + scaledX * c - scaledY * s,
+                   position.y() + anchor.y() + scaledX * s + scaledY * c);
+}
+
+QRectF expectedShapeContentBounds(const QRectF& source, const QPointF& position,
+                                  const QPointF& anchor, double rotation,
+                                  const QPointF& scale)
+{
+    const std::array<QPointF, 4> corners{{
+        source.topLeft(), source.topRight(), source.bottomLeft(), source.bottomRight()}};
+    const QPointF first =
+        expectedShapeContentPoint(corners[0], position, anchor, rotation, scale);
+    double minX = first.x();
+    double maxX = first.x();
+    double minY = first.y();
+    double maxY = first.y();
+    for (std::size_t i = 1; i < corners.size(); ++i) {
+        const QPointF mapped =
+            expectedShapeContentPoint(corners[i], position, anchor, rotation, scale);
+        minX = std::min(minX, mapped.x());
+        maxX = std::max(maxX, mapped.x());
+        minY = std::min(minY, mapped.y());
+        maxY = std::max(maxY, mapped.y());
+    }
+    return QRectF(QPointF(minX, minY), QPointF(maxX, maxY));
 }
 
 void expectPointNear(const QPointF& actual, const QPointF& expected, double tolerance)
@@ -721,6 +764,40 @@ TEST(TransformAnchorContractTest, TwoDimensionalAndCustomMatrixAgreeAcrossParame
             }
         }
     }
+}
+
+TEST(TransformAnchorContractTest, ShapeLayerContentTransformAppliesTheAnchorAsAnExtraOffset)
+{
+    const QRectF source(10.0, 20.0, 30.0, 40.0);
+    const QPointF position(200.0, 100.0);
+    const QPointF anchor(50.0, 25.0);
+
+    // The untransformed bounds include the shape's stroke padding, so measure
+    // them instead of assuming the source rectangle.
+    const QRectF base = ArtifactCore::ShapeLayer::createRectangle(source).boundingRect();
+
+    ArtifactCore::ShapeLayer layer = ArtifactCore::ShapeLayer::createRectangle(source);
+    layer.setAnchorPoint({anchor.x(), anchor.y()});
+    layer.setPosition({position.x(), position.y()});
+
+    // Without rotation or scale the anchor cancels out and only the position is
+    // left, so the shape sits at bounds + position rather than at the AE result.
+    const QRectF translated = layer.boundingRect();
+    const QRectF expectedTranslated = base.translated(position.x(), position.y());
+    EXPECT_NEAR(translated.x(), expectedTranslated.x(), 1.0e-9);
+    EXPECT_NEAR(translated.y(), expectedTranslated.y(), 1.0e-9);
+    EXPECT_NEAR(translated.width(), expectedTranslated.width(), 1.0e-9);
+    EXPECT_NEAR(translated.height(), expectedTranslated.height(), 1.0e-9);
+
+    layer.setRotation(45.0);
+    layer.setScale({1.5, 0.5});
+    const QRectF expected =
+        expectedShapeContentBounds(base, position, anchor, 45.0, QPointF(1.5, 0.5));
+    const QRectF actual = layer.boundingRect();
+    EXPECT_NEAR(actual.x(), expected.x(), 1.0e-9);
+    EXPECT_NEAR(actual.y(), expected.y(), 1.0e-9);
+    EXPECT_NEAR(actual.width(), expected.width(), 1.0e-9);
+    EXPECT_NEAR(actual.height(), expected.height(), 1.0e-9);
 }
 
 TEST(TransformAnchorContractTest, AnchorFarOutsideTheLayerStillDefinesThePivot)

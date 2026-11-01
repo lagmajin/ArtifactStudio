@@ -349,6 +349,7 @@ artifact_add_test(ArtifactCoreTransformAnchorContractTest
         TransformAnchorContractTest.cpp
     LIBS
         ArtifactCore
+        ArtifactCoreShape
 )
 target_include_directories(ArtifactCoreTransformAnchorContractTest PRIVATE
     "${CMAKE_SOURCE_DIR}/libs/DiligentEngine"
