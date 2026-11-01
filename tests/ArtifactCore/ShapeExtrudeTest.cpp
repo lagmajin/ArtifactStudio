@@ -64,6 +64,8 @@ TEST(ShapeExtrudeTest, BevelAddsGeometryWithoutChangingDepthExtent)
     Mesh straight;
     ShapeExtrudeParams straightParams;
     straightParams.depth = 24.0f;
+    // The struct default bevels; this case needs the unbeveled baseline.
+    straightParams.bevelWidth = 0.0f;
     ASSERT_TRUE(extrudeContourMesh({rectangleContour()}, straightParams, straight));
 
     Mesh beveled;
