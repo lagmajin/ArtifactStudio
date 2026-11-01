@@ -81,6 +81,19 @@ TEST(RenderImageContractTest, AlphaBlendTransparentAndOpaquePixelsKeepExpectedEn
     expectPixelNear(base, 1, 0, FloatRGBA(0.80f, 0.60f, 0.40f, 1.0f));
 }
 
+TEST(RenderImageContractTest, AlphaBlendIsStableWhenImageAliasesAsOverlay)
+{
+    ImageF32x4_RGBA image = makeImage(2, 1, {
+        0.2f, 0.4f, 0.6f, 0.25f,
+        0.8f, 0.6f, 0.4f, 0.8f,
+    });
+
+    image.alphaBlend(image, 0.5f);
+
+    expectPixelNear(image, 0, 0, FloatRGBA(0.2f, 0.4f, 0.6f, 0.34375f));
+    expectPixelNear(image, 1, 0, FloatRGBA(0.8f, 0.6f, 0.4f, 0.88f));
+}
+
 TEST(RenderImageContractTest, AlphaBlendDimensionMismatchLeavesBaseUnchanged)
 {
     ImageF32x4_RGBA base = makeImage(

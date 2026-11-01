@@ -4,6 +4,8 @@
 #include <QLocale>
 #include <QString>
 
+#include <limits>
+
 import Localization.LocaleFormatting;
 
 using ArtifactCore::LocaleFormatting;
@@ -30,6 +32,10 @@ TEST(LocaleFormattingContractTest, FileSizeUsesBinaryUnitsAndLocaleDecimalSepara
 
 TEST(LocaleFormattingContractTest, FileSizeContinuesThroughTebibytesAndClampsAtLargestUnit)
 {
+    EXPECT_EQ(LocaleFormatting::formatFileSize(1024LL * 1024 * 1024, QLocale::c()),
+              QStringLiteral("1.00 GiB"));
+    EXPECT_EQ(LocaleFormatting::formatFileSize(10LL * 1024 * 1024 * 1024, QLocale::c()),
+              QStringLiteral("10.0 GiB"));
     EXPECT_EQ(LocaleFormatting::formatFileSize(1024LL * 1024 * 1024 * 1024, QLocale::c()),
               QStringLiteral("1.00 TiB"));
     EXPECT_EQ(LocaleFormatting::formatFileSize(1024LL * 1024 * 1024 * 1024 * 1024, QLocale::c()),
@@ -57,6 +63,20 @@ TEST(LocaleFormattingContractTest, TimecodeClampsNegativeTimeAndRejectsNonpositi
     EXPECT_EQ(LocaleFormatting::formatTimecode(-5.0, 24.0), QStringLiteral("00:00:00:00"));
     EXPECT_EQ(LocaleFormatting::formatTimecode(10.0, 0.0), QStringLiteral("00:00:00:00"));
     EXPECT_EQ(LocaleFormatting::formatTimecode(10.0, -24.0), QStringLiteral("00:00:00:00"));
+}
+
+TEST(LocaleFormattingContractTest, NonFiniteTimeOrRateReturnsZeroTimecode)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double infinity = std::numeric_limits<double>::infinity();
+    const QString zeroTimecode = QStringLiteral("00:00:00:00");
+
+    EXPECT_EQ(LocaleFormatting::formatTimecode(nan, 30.0), zeroTimecode);
+    EXPECT_EQ(LocaleFormatting::formatTimecode(infinity, 30.0), zeroTimecode);
+    EXPECT_EQ(LocaleFormatting::formatTimecode(-infinity, 30.0), zeroTimecode);
+    EXPECT_EQ(LocaleFormatting::formatTimecode(10.0, nan), zeroTimecode);
+    EXPECT_EQ(LocaleFormatting::formatTimecode(10.0, infinity), zeroTimecode);
+    EXPECT_EQ(LocaleFormatting::formatTimecode(10.0, -infinity), zeroTimecode);
 }
 
 TEST(LocaleFormattingContractTest, DurationFloorsToWholeSecondsAndClampsNegativeInput)

@@ -192,6 +192,17 @@ TEST(ArtifactMathContractTest, FmodUsesTruncatedQuotientRemainderSign)
     EXPECT_DOUBLE_EQ(artifactFmod(-7.0, -4.0), -3.0);
 }
 
+TEST(ArtifactMathContractTest, FmodPreservesNegativeZeroAndHandlesInfiniteDivisor)
+{
+    const double negativeZero = artifactFmod(-0.0, 3.0);
+    const double infinity = std::numeric_limits<double>::infinity();
+
+    EXPECT_DOUBLE_EQ(negativeZero, 0.0);
+    EXPECT_TRUE(std::signbit(negativeZero));
+    EXPECT_DOUBLE_EQ(artifactFmod(3.0, infinity), 3.0);
+    EXPECT_TRUE(std::isnan(artifactFmod(3.0, 0.0)));
+}
+
 TEST(ArtifactMathContractTest, HypotAvoidsIntermediateOverflowForLargeInputs)
 {
     EXPECT_DOUBLE_EQ(artifactHypot(3.0, 4.0), 5.0);
@@ -259,3 +270,97 @@ TEST(ArtifactMathContractTest, LerpPreservesFloatTypeAndEndpointValues)
     EXPECT_FLOAT_EQ(artifactLerp(1.0f, 3.0f, 1.0f), 3.0f);
 }
 
+
+TEST(ArtifactMathContractTest, ArithmeticPrimitivesAreUsableInConstantExpressions)
+{
+    static_assert(artifactMin(4, 9) == 4);
+    static_assert(artifactMax(-3, -8) == -3);
+    static_assert(artifactClamp(12, 0, 10) == 10);
+    static_assert(artifactClamp(-2, 0, 10) == 0);
+    static_assert(artifactLerp(2, 8, 0.5) == 5.0);
+
+    EXPECT_EQ(artifactClamp(5, 0, 10), 5);
+    EXPECT_DOUBLE_EQ(artifactLerp(2, 8, 0.25), 3.5);
+}
+
+TEST(ArtifactMathContractTest, ClampPropagatesNanAndPreservesNegativeZero)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double nanResult = artifactClamp(nan, 0.0, 1.0);
+    const double negativeZero = artifactClamp(-0.0, 0.0, 1.0);
+
+    EXPECT_TRUE(std::isnan(nanResult));
+    EXPECT_DOUBLE_EQ(negativeZero, 0.0);
+    EXPECT_TRUE(std::signbit(negativeZero));
+}
+
+TEST(ArtifactMathContractTest, AbsPreservesInfinityAndPropagatesNan)
+{
+    const double infinity = std::numeric_limits<double>::infinity();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    EXPECT_EQ(artifactAbs(-infinity), infinity);
+    EXPECT_TRUE(std::isnan(artifactAbs(nan)));
+}
+
+TEST(ArtifactMathContractTest, MinAndMaxPreserveFirstSignedZeroOnTies)
+{
+    const double negativeZero = -0.0;
+    const double positiveZero = 0.0;
+
+    const double minResult = artifactMin(negativeZero, positiveZero);
+    const double maxResult = artifactMax(negativeZero, positiveZero);
+    EXPECT_EQ(minResult, 0.0);
+    EXPECT_EQ(maxResult, 0.0);
+    EXPECT_TRUE(std::signbit(minResult));
+    EXPECT_TRUE(std::signbit(maxResult));
+
+    EXPECT_FALSE(std::signbit(artifactMin(positiveZero, negativeZero)));
+    EXPECT_FALSE(std::signbit(artifactMax(positiveZero, negativeZero)));
+}
+
+TEST(ArtifactMathContractTest, RoundPreservesLargeIntegralFloatAndNonFiniteValues)
+{
+    const double largeIntegral = 9007199254740992.0;
+    const double infinity = std::numeric_limits<double>::infinity();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    EXPECT_DOUBLE_EQ(artifactRound(largeIntegral), largeIntegral);
+    EXPECT_EQ(artifactRound(infinity), infinity);
+    EXPECT_EQ(artifactRound(-infinity), -infinity);
+    EXPECT_TRUE(std::isnan(artifactRound(nan)));
+}
+
+TEST(ArtifactMathContractTest, FiniteCheckHandlesLongDoubleNanAndInfinity)
+{
+    const long double infinity = std::numeric_limits<long double>::infinity();
+    const long double nan = std::numeric_limits<long double>::quiet_NaN();
+
+    EXPECT_FALSE(artifactIsFinite(infinity));
+    EXPECT_FALSE(artifactIsFinite(-infinity));
+    EXPECT_FALSE(artifactIsFinite(nan));
+}
+
+TEST(ArtifactMathContractTest, SqrtReturnsNanForNegativeFiniteAndPreservesInfinity)
+{
+    const double infinity = std::numeric_limits<double>::infinity();
+
+    EXPECT_TRUE(std::isnan(artifactSqrt(-1.0)));
+    EXPECT_EQ(artifactSqrt(infinity), infinity);
+}
+
+TEST(ArtifactMathContractTest, Atan2HandlesSignedZeroOriginAndInfiniteCoordinates)
+{
+    const double infinity = std::numeric_limits<double>::infinity();
+    const double quarterPi = 0.78539816339744830962;
+    const double positiveOrigin = artifactAtan2(0.0, 0.0);
+    const double negativeOrigin = artifactAtan2(-0.0, 0.0);
+
+    EXPECT_EQ(positiveOrigin, 0.0);
+    EXPECT_FALSE(std::signbit(positiveOrigin));
+    EXPECT_EQ(negativeOrigin, 0.0);
+    EXPECT_TRUE(std::signbit(negativeOrigin));
+    EXPECT_NEAR(artifactAtan2(infinity, infinity), quarterPi, 1e-12);
+    EXPECT_NEAR(artifactAtan2(-infinity, infinity), -quarterPi, 1e-12);
+    EXPECT_EQ(artifactAtan2(1.0, infinity), 0.0);
+}

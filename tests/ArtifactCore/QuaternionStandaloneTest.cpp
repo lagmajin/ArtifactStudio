@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 
 import Math.Quaternion;
 
@@ -105,6 +106,25 @@ TEST(QuaternionStandaloneTest, NearZeroNormalizationFallsBackToIdentity)
     EXPECT_FLOAT_EQ(value.y, 0.0f);
     EXPECT_FLOAT_EQ(value.z, 0.0f);
     EXPECT_FLOAT_EQ(value.w, 1.0f);
+}
+
+TEST(QuaternionStandaloneTest, MaximumFiniteComponentsNormalizeWithoutOverflow)
+{
+    const float maximum = std::numeric_limits<float>::max();
+    const Quaternion value(maximum, maximum * 0.5f, 0.0f, maximum * 0.25f);
+
+    const Quaternion normalized = value.normalized();
+    const float scaledLength = std::sqrt(1.0f + 0.25f + 0.0625f);
+
+    EXPECT_TRUE(std::isfinite(normalized.x));
+    EXPECT_TRUE(std::isfinite(normalized.y));
+    EXPECT_TRUE(std::isfinite(normalized.z));
+    EXPECT_TRUE(std::isfinite(normalized.w));
+    EXPECT_NEAR(normalized.x, 1.0f / scaledLength, 1.0e-6f);
+    EXPECT_NEAR(normalized.y, 0.5f / scaledLength, 1.0e-6f);
+    EXPECT_NEAR(normalized.z, 0.0f, 1.0e-6f);
+    EXPECT_NEAR(normalized.w, 0.25f / scaledLength, 1.0e-6f);
+    EXPECT_NEAR(normalized.length(), 1.0f, 1.0e-6f);
 }
 
 TEST(QuaternionStandaloneTest, ConjugateNegatesVectorPart)

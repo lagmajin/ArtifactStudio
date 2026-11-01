@@ -346,9 +346,11 @@ TEST(PhysicsLodSettingsContractTest, NonFiniteResolutionScalesStayWithinSupporte
 
     settings.softBodyGridScale = -std::numeric_limits<float>::infinity();
     settings.fluidResolutionScale = -std::numeric_limits<float>::infinity();
+    settings.targetHz = -std::numeric_limits<float>::infinity();
     scope.system().setPhysicsLODSettings(settings);
     EXPECT_FLOAT_EQ(scope.system().physicsLODSettings().softBodyGridScale, 0.25f);
     EXPECT_FLOAT_EQ(scope.system().physicsLODSettings().fluidResolutionScale, 0.125f);
+    EXPECT_FLOAT_EQ(scope.system().physicsLODSettings().targetHz, 0.0f);
 }
 
 TEST(PhysicsLodSettingsContractTest, FrozenLevelDoesNotAdvanceRegisteredSoftBodies)

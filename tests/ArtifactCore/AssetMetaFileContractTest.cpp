@@ -90,6 +90,52 @@ TEST(AssetMetaFileContractTest, SettersAndSavePreserveUnknownJsonFields)
               QStringLiteral("asset-extension"));
 }
 
+TEST(AssetMetaFileContractTest, LoadAndSavePreserveUnknownFutureSchemaVersion)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("future.png"));
+    const QJsonObject original{
+        {QStringLiteral("version"), 42},
+        {QStringLiteral("asset"), QJsonObject{
+            {QStringLiteral("sourcePath"), sourcePath},
+            {QStringLiteral("vendorToken"), QStringLiteral("future-asset-field")}}},
+        {QStringLiteral("futureSection"), QJsonObject{
+            {QStringLiteral("schema"), QStringLiteral("vendor-v9")},
+            {QStringLiteral("enabled"), true}}}};
+    ASSERT_TRUE(writeBytes(ArtifactAssetMetaFile::metaPathFor(sourcePath),
+                           QJsonDocument(original).toJson(QJsonDocument::Compact)));
+
+    auto meta = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(meta.isValid());
+    EXPECT_EQ(meta.toJson().value(QStringLiteral("version")).toInt(), 42);
+    ASSERT_TRUE(meta.save());
+
+    const auto reloaded = ArtifactAssetMetaFile::load(sourcePath);
+    EXPECT_TRUE(reloaded.isValid());
+    EXPECT_EQ(reloaded.toJson(), original);
+}
+
+TEST(AssetMetaFileContractTest, EditingFutureSchemaMetadataDoesNotDowngradeItsVersion)
+{
+    const QJsonObject original{
+        {QStringLiteral("version"), 42},
+        {QStringLiteral("asset"), QJsonObject{
+            {QStringLiteral("sourcePath"), QStringLiteral("/project/future.png")}}},
+        {QStringLiteral("futureSection"), QJsonObject{
+            {QStringLiteral("preserveToken"), QStringLiteral("future-v9")}}}};
+    auto meta = ArtifactAssetMetaFile::fromJson(
+        QJsonDocument(original).toJson(QJsonDocument::Compact));
+
+    meta.setType(AssetType::Audio);
+
+    EXPECT_EQ(meta.toJson().value(QStringLiteral("version")).toInt(), 42);
+    EXPECT_EQ(meta.type(), AssetType::Audio);
+    EXPECT_EQ(meta.toJson().value(QStringLiteral("futureSection")).toObject()
+                  .value(QStringLiteral("preserveToken")).toString(),
+              QStringLiteral("future-v9"));
+}
+
 TEST(AssetMetaFileContractTest, ImportedTimestampRemainsUtcAfterSidecarRoundTrip)
 {
     QTemporaryDir directory;
@@ -358,6 +404,19 @@ TEST(AssetMetaFileContractTest, AddingBlankTagLeavesMetadataUnchanged)
     meta.addTag(QStringLiteral(" \t "));
 
     EXPECT_EQ(meta.toJson(), before);
+}
+
+TEST(AssetMetaFileContractTest, AddingTrimmedDuplicateTagIsIdempotent)
+{
+    ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::fromJson(QByteArrayLiteral("{}"));
+    meta.addTag(QStringLiteral(" review "));
+    const QJsonObject afterFirstAdd = meta.toJson();
+
+    meta.addTag(QStringLiteral("review"));
+    meta.addTag(QStringLiteral("\treview\n"));
+
+    EXPECT_EQ(meta.tags(), (QStringList{QStringLiteral("review")}));
+    EXPECT_EQ(meta.toJson(), afterFirstAdd);
 }
 
 TEST(AssetMetaFileContractTest, RemovingTagClearsAllLegacyDuplicateEntries)

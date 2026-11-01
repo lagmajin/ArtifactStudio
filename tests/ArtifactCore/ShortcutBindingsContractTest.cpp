@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <array>
+
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QJsonObject>
@@ -19,6 +21,24 @@ QKeyEvent keyPress(int key, Qt::KeyboardModifiers modifiers = {},
 }
 
 } // namespace
+
+TEST(ShortcutBindingsContractTest, IdListCoversEveryOrdinalExactlyOnceWithDisplayName)
+{
+    const auto ids = ArtifactCore::allShortcutIds();
+    std::array<bool, static_cast<std::size_t>(ShortcutId::Count)> seen{};
+
+    for (const ShortcutId id : ids) {
+        const auto ordinal = static_cast<std::size_t>(id);
+        ASSERT_LT(ordinal, seen.size());
+        EXPECT_FALSE(seen[ordinal]) << ordinal;
+        seen[ordinal] = true;
+        EXPECT_FALSE(ArtifactCore::shortcutDisplayName(id).isEmpty()) << ordinal;
+    }
+
+    for (std::size_t ordinal = 0; ordinal < seen.size(); ++ordinal) {
+        EXPECT_TRUE(seen[ordinal]) << ordinal;
+    }
+}
 
 TEST(ShortcutBindingsContractTest, DefaultsCanBeOverriddenAndEventMatchingHonorsOverride)
 {
@@ -85,5 +105,28 @@ TEST(ShortcutBindingsContractTest, ChangeListenerCanBeRemovedAndEmptyOverrideDis
     EXPECT_EQ(notifications, 1);
     auto defaultEvent = keyPress(Qt::Key_Space);
     EXPECT_FALSE(bindings.matches(&defaultEvent, id));
+    bindings.resetToDefaults();
+}
+
+TEST(ShortcutBindingsContractTest, InvalidJsonValueDoesNotPartiallyReplaceOverrides)
+{
+    auto& bindings = ShortcutBindings::instance();
+    bindings.resetToDefaults();
+    const auto playbackId = ShortcutId::PlaybackToggle;
+    const auto undoId = ShortcutId::Undo;
+    const QKeySequence playbackCustom(Qt::CTRL | Qt::Key_P);
+    const QKeySequence undoCustom(Qt::ALT | Qt::Key_U);
+    bindings.setShortcut(playbackId, playbackCustom);
+    bindings.setShortcut(undoId, undoCustom);
+
+    const QJsonObject malformed{
+        {QStringLiteral("shortcuts"),
+         QJsonObject{
+             {QStringLiteral("PlaybackToggle"), QStringLiteral("Alt+F8")},
+             {QStringLiteral("Undo"), 17}}}};
+
+    EXPECT_FALSE(bindings.loadFromJson(malformed));
+    EXPECT_EQ(bindings.shortcut(playbackId), playbackCustom);
+    EXPECT_EQ(bindings.shortcut(undoId), undoCustom);
     bindings.resetToDefaults();
 }

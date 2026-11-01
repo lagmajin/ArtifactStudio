@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include <QString>
 
@@ -48,4 +49,46 @@ TEST(EasingLabCurveTest, DefaultCandidatesIncludeNewTypes) {
     EXPECT_TRUE(hasType(EasingType::Sine));
     EXPECT_TRUE(hasType(EasingType::Circular));
     EXPECT_FALSE(easingTypeToString(EasingType::Quartic).isEmpty());
+}
+
+TEST(EasingLabCurveTest, EveryEasingHasExactEndpointsAndClampsOutOfRangeInput)
+{
+    const EasingType types[]{
+        EasingType::Hold, EasingType::Linear, EasingType::EaseIn,
+        EasingType::EaseOut, EasingType::EaseInOut, EasingType::EaseOutIn,
+        EasingType::Smooth, EasingType::BackIn, EasingType::BackOut,
+        EasingType::BackInOut, EasingType::BounceIn, EasingType::BounceOut,
+        EasingType::BounceInOut, EasingType::ElasticIn, EasingType::ElasticOut,
+        EasingType::ElasticInOut, EasingType::Expo, EasingType::Quartic,
+        EasingType::Quintic, EasingType::Sine, EasingType::Circular,
+        EasingType::Bezier};
+
+    for (const EasingType type : types) {
+        SCOPED_TRACE(static_cast<int>(type));
+        EXPECT_FLOAT_EQ(evaluateEasing(type, 0.0f), 0.0f);
+        EXPECT_FLOAT_EQ(evaluateEasing(type, 1.0f), 1.0f);
+        EXPECT_FLOAT_EQ(evaluateEasing(type, -2.0f), 0.0f);
+        EXPECT_FLOAT_EQ(evaluateEasing(type, 3.0f), 1.0f);
+    }
+}
+
+TEST(EasingLabCurveTest, HoldSwitchesOnlyAtTheTerminalEndpoint)
+{
+    EXPECT_FLOAT_EQ(evaluateEasing(EasingType::Hold, 0.0f), 0.0f);
+    EXPECT_FLOAT_EQ(evaluateEasing(
+                        EasingType::Hold,
+                        std::nextafter(1.0f, 0.0f)),
+                    0.0f);
+    EXPECT_FLOAT_EQ(evaluateEasing(EasingType::Hold, 1.0f), 1.0f);
+}
+
+TEST(EasingLabCurveTest, InfiniteInputsClampToExactElasticEndpoints)
+{
+    const float negativeInfinity = -std::numeric_limits<float>::infinity();
+    const float positiveInfinity = std::numeric_limits<float>::infinity();
+
+    EXPECT_FLOAT_EQ(evaluateEasing(EasingType::ElasticIn, negativeInfinity), 0.0f);
+    EXPECT_FLOAT_EQ(evaluateEasing(EasingType::ElasticIn, positiveInfinity), 1.0f);
+    EXPECT_FLOAT_EQ(evaluateEasing(EasingType::ElasticOut, negativeInfinity), 0.0f);
+    EXPECT_FLOAT_EQ(evaluateEasing(EasingType::ElasticOut, positiveInfinity), 1.0f);
 }

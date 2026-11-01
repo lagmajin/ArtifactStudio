@@ -93,6 +93,18 @@ TEST(ArtifactTimerContractTest, NegativeTimeoutIsNotExpiredBeforeTimerStarts)
     EXPECT_FALSE(timer.hasExpired(-1));
 }
 
+TEST(ArtifactTimerContractTest, MinimumTimeoutRequiresAStartedTimer)
+{
+    ArtifactTimer timer;
+    constexpr qint64 minimumTimeout = std::numeric_limits<qint64>::min();
+
+    EXPECT_FALSE(timer.hasExpired(minimumTimeout));
+
+    timer.start();
+
+    EXPECT_TRUE(timer.hasExpired(minimumTimeout));
+}
+
 TEST(ArtifactTimerContractTest, NegativeTimeoutIsExpiredAfterStart)
 {
     ArtifactTimer timer;

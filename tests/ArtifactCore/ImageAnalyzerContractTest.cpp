@@ -219,6 +219,43 @@ TEST(ImageAnalyzerContractTest, LegacyFloatBufferAnalysisClampsChannelsAndExpose
     EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(statistics.red, 1.0f), 1.0f);
 }
 
+TEST(ImageAnalyzerContractTest, PercentileSelectsLowestOccupiedBinAtZeroRank)
+{
+    ChannelStatistics statistics;
+    statistics.totalPixels = 3;
+    statistics.rawHistogram[42] = 2;
+    statistics.rawHistogram[128] = 1;
+
+    const float lowestOccupied = 42.0f / 255.0f;
+    EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(statistics, 0.0f), lowestOccupied);
+    EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(statistics, 0.1f), lowestOccupied);
+    EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(
+                        statistics, -std::numeric_limits<float>::infinity()),
+                    lowestOccupied);
+    EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(statistics,
+                                              std::numeric_limits<float>::quiet_NaN()),
+                    lowestOccupied);
+    EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(
+                        statistics, std::numeric_limits<float>::infinity()),
+                    128.0f / 255.0f);
+}
+
+TEST(ImageAnalyzerContractTest, EmptyHistogramPercentileReturnsZero)
+{
+    const ChannelStatistics empty;
+    EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(empty, 0.0f), 0.0f);
+    EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(empty, 0.5f), 0.0f);
+}
+
+TEST(ImageAnalyzerContractTest, PercentileTargetSupportsMaximumPixelCount)
+{
+    ChannelStatistics statistics;
+    statistics.totalPixels = std::numeric_limits<int>::max();
+    statistics.rawHistogram[255] = std::numeric_limits<int>::max();
+
+    EXPECT_FLOAT_EQ(ImageAnalyzer::percentile(statistics, 1.0f), 1.0f);
+}
+
 TEST(ImageAnalyzerContractTest, LuminanceUsesRec709RgbWeightsAndIgnoresAlpha)
 {
     const std::array<float, 8> pixels = {
@@ -399,6 +436,51 @@ TEST(ImageAnalyzerContractTest, SpatialFrequencyReportsRequiredCountAndNormalize
     for (const float magnitude : magnitudes) {
         EXPECT_FLOAT_EQ(magnitude, -1.0f);
     }
+}
+
+TEST(ImageAnalyzerContractTest, SpatialFrequencyKeepsNormalizedDcForOddWidthRows)
+{
+    const std::array<float, 12> pixels = {
+        0.375f, 0.1f, 0.2f, 1.0f,
+        0.375f, 0.3f, 0.4f, 1.0f,
+        0.375f, 0.5f, 0.6f, 1.0f,
+    };
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    const ImageSurfaceView image{pixels.data(), 3, 1, 12u * sizeof(float),
+                                 SurfacePrecision::Float32, descriptor};
+    std::array<float, 3> magnitudes{};
+    std::size_t count = 0;
+
+    ASSERT_TRUE(ImageAnalyzer::analyzeSpatialFrequency(
+        image, ImageSpectrumChannel::Red, magnitudes.data(), magnitudes.size(), count));
+    EXPECT_EQ(count, magnitudes.size());
+    EXPECT_NEAR(magnitudes[0], 0.375f, 1e-6f);
+    EXPECT_NEAR(magnitudes[1], 0.0f, 1e-6f);
+    EXPECT_NEAR(magnitudes[2], 0.0f, 1e-6f);
+}
+
+TEST(ImageAnalyzerContractTest, SpatialFrequencyReportsTwoDimensionalCheckerboardPeak)
+{
+    const std::array<float, 16> pixels = {
+        0.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+    };
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    const ImageSurfaceView image{pixels.data(), 2, 2, 8u * sizeof(float),
+                                 SurfacePrecision::Float32, descriptor};
+    std::array<float, 4> magnitudes{};
+    std::size_t count = 0;
+
+    ASSERT_TRUE(ImageAnalyzer::analyzeSpatialFrequency(
+        image, ImageSpectrumChannel::Red, magnitudes.data(), magnitudes.size(), count));
+
+    EXPECT_EQ(count, 4u);
+    EXPECT_NEAR(magnitudes[0], 0.5f, 1e-6f);
+    EXPECT_NEAR(magnitudes[1], 0.0f, 1e-6f);
+    EXPECT_NEAR(magnitudes[2], 0.0f, 1e-6f);
+    EXPECT_NEAR(magnitudes[3], 0.5f, 1e-6f);
 }
 
 TEST(ImageAnalyzerContractTest, SpatialFrequencySelectsChannelsAndRejectsUnknownChannel)

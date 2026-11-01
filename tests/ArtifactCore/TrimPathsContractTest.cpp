@@ -86,6 +86,29 @@ TEST(TrimPathsContractTest, OffsetShiftsTheTrimWindowAndModesChoosePathScope)
     expectHorizontalExtent(simultaneous[1], 200.0, 250.0);
 }
 
+TEST(TrimPathsContractTest, CubicTrimKeepsCurveAndUsesTheArcLengthBoundaryPoint)
+{
+    ShapePath path;
+    path.moveTo(0.0, 0.0);
+    path.cubicTo(0.0, 100.0, 100.0, 100.0, 100.0, 0.0);
+    TrimPaths trim;
+    trim.setStart(0.0f);
+    trim.setEnd(50.0f);
+
+    const auto result = trim.process({path});
+
+    ASSERT_EQ(result.size(), 1u);
+    const auto segments = result.front().toSegments();
+    ASSERT_EQ(segments.size(), 1u);
+    EXPECT_DOUBLE_EQ(segments.front().p0.x(), 0.0);
+    EXPECT_DOUBLE_EQ(segments.front().p0.y(), 0.0);
+    EXPECT_NEAR(segments.front().p1.x(), 50.0, 1.0e-6);
+    EXPECT_NEAR(segments.front().p1.y(), 75.0, 1.0e-6);
+    EXPECT_NE(segments.front().cp1, segments.front().p0);
+    EXPECT_NE(segments.front().cp2, segments.front().p1);
+    EXPECT_FALSE(result.front().isClosed());
+}
+
 TEST(TrimPathsContractTest, ClampsInvalidParametersAndRoundTripsOperatorState)
 {
     TrimPaths trim;

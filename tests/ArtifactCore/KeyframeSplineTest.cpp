@@ -85,6 +85,27 @@ TEST(KeyframeSplineTest, BezierSymmetricMidpoint) {
     EXPECT_NEAR(interp.evaluate(0.5), 5.0f, 1e-3f);
 }
 
+TEST(KeyframeSplineTest, BezierControlPointsShapeTheValueCurve)
+{
+    KeyframeInterpolator<float> interp;
+    typename KeyframeInterpolator<float>::KeyframeEntry first;
+    first.time = 0.0;
+    first.value = 2.0f;
+    first.type = InterpolationType::Bezier;
+    first.cp1_x = 0.0f;
+    first.cp1_y = 0.0f;
+    first.cp2_x = 1.0f;
+    first.cp2_y = 0.0f;
+    typename KeyframeInterpolator<float>::KeyframeEntry second;
+    second.time = 1.0;
+    second.value = 10.0f;
+    interp.addKeyframe(first);
+    interp.addKeyframe(second);
+
+    // The chosen x controls keep t linear while the y controls produce t^3.
+    EXPECT_NEAR(interp.evaluate(0.5), 3.0f, 1.0e-5f);
+}
+
 TEST(KeyframeSplineTest, EmptyTrackReturnsDefaultValue)
 {
     KeyframeInterpolator<float> interp;
@@ -233,4 +254,19 @@ TEST(KeyframeSplineTest, ConstantAndSingleKeyTracksHaveZeroSpeed)
     EXPECT_FLOAT_EQ(single.evaluate(-100.0), 4.0f);
     EXPECT_FLOAT_EQ(single.evaluate(2.0), 4.0f);
     EXPECT_FLOAT_EQ(single.evaluate(100.0), 4.0f);
+}
+
+TEST(KeyframeSplineTest, ClearResetsTrackAndRestoresEmptyTrackBehavior)
+{
+    auto interp = makeKeys(InterpolationType::Linear);
+    ASSERT_FALSE(interp.isEmpty());
+    ASSERT_EQ(interp.size(), 4u);
+
+    interp.clear();
+
+    EXPECT_TRUE(interp.isEmpty());
+    EXPECT_EQ(interp.size(), 0u);
+    EXPECT_TRUE(interp.keyframes().empty());
+    EXPECT_FLOAT_EQ(interp.evaluate(1.5), 0.0f);
+    EXPECT_FLOAT_EQ(interp.speedAt(1.5), 0.0f);
 }

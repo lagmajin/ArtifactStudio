@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include <QString>
 #include <Qt>
 
@@ -33,6 +35,13 @@ TEST(InputBindingContractTest, MatchesOnlyKeyDownWithConfiguredKey)
     EXPECT_FALSE(binding.matches(keyEvent(InputEvent::Type::MouseDown, Qt::Key_K)));
 }
 
+TEST(InputBindingContractTest, UnconfiguredBindingDoesNotMatchUnknownKey)
+{
+    InputBinding binding(QStringLiteral("unconfigured-key-contract-test"));
+
+    EXPECT_FALSE(binding.matches(keyEvent(InputEvent::Type::KeyDown, 0)));
+}
+
 TEST(InputBindingContractTest, EnforcesRequiredAndForbiddenModifierMasks)
 {
     InputBinding binding(QStringLiteral("modifier-contract-test"));
@@ -64,4 +73,49 @@ TEST(InputBindingContractTest, RejectsWrongSideModifierWhenThatSideIsRequired)
     EXPECT_TRUE(binding.matches(keyEvent(
         InputEvent::Type::KeyDown, Qt::Key_Z,
         InputEvent::ModifierKey::LCtrl)));
+}
+
+TEST(InputBindingContractTest, RequiresEveryConfiguredModifier)
+{
+    InputBinding binding(QStringLiteral("combined-modifier-contract-test"));
+    binding.setKeyCode(Qt::Key_K);
+    binding.setRequiredModifiers(InputEvent::ModifierKey::LCtrl |
+                                 InputEvent::ModifierKey::LShift);
+
+    EXPECT_FALSE(binding.matches(keyEvent(
+        InputEvent::Type::KeyDown, Qt::Key_K,
+        InputEvent::ModifierKey::LCtrl)));
+    EXPECT_FALSE(binding.matches(keyEvent(
+        InputEvent::Type::KeyDown, Qt::Key_K,
+        InputEvent::ModifierKey::LShift)));
+    EXPECT_TRUE(binding.matches(keyEvent(
+        InputEvent::Type::KeyDown, Qt::Key_K,
+        InputEvent::ModifierKey::LCtrl | InputEvent::ModifierKey::LShift)));
+}
+
+TEST(InputBindingContractTest, ToStringCollapsesLeftAndRightModifiersInStableOrder)
+{
+    InputBinding binding(QStringLiteral("display-contract-test"));
+    binding.setKeyCode(Qt::Key_K);
+    binding.setModifiers(InputEvent::ModifierKey::LCtrl |
+                         InputEvent::ModifierKey::RCtrl |
+                         InputEvent::ModifierKey::LShift |
+                         InputEvent::ModifierKey::RAlt |
+                         InputEvent::ModifierKey::LMeta |
+                         InputEvent::ModifierKey::RMeta);
+
+    EXPECT_EQ(binding.toString(), QStringLiteral("Ctrl+Shift+Alt+Win+K"));
+}
+
+TEST(InputBindingContractTest, MatchesChordRequiresEnabledBindingAndExactKeySequence)
+{
+    InputBinding binding(QStringLiteral("chord-contract-test"));
+    binding.setFirstKey(Qt::Key_G);
+
+    EXPECT_FALSE(binding.matchesChord({Qt::Key_G}));
+    binding.setIsChord(true);
+    EXPECT_FALSE(binding.matchesChord({}));
+    EXPECT_TRUE(binding.matchesChord({Qt::Key_G}));
+    EXPECT_FALSE(binding.matchesChord({Qt::Key_R}));
+    EXPECT_FALSE(binding.matchesChord({Qt::Key_G, Qt::Key_R}));
 }

@@ -126,6 +126,34 @@ TEST(Float3StandaloneTest, NormalizationOfMaximumFiniteComponentsAvoidsOverflow)
     EXPECT_NEAR(normalized.length(), 1.0f, 1e-6f);
 }
 
+TEST(Float3StandaloneTest, MaximumFiniteMixedSignsNormalizeWithoutOverflow)
+{
+    const float maximum = std::numeric_limits<float>::max();
+    const float3<float> value(-maximum, maximum, maximum * 0.5f);
+
+    const float3<float> normalized = value.normalized();
+
+    EXPECT_NEAR(normalized.x, -2.0f / 3.0f, 1e-6f);
+    EXPECT_NEAR(normalized.y, 2.0f / 3.0f, 1e-6f);
+    EXPECT_NEAR(normalized.z, 1.0f / 3.0f, 1e-6f);
+    EXPECT_NEAR(normalized.length(), 1.0f, 1e-6f);
+}
+
+TEST(Float3StandaloneTest, LengthAndNormalizationAvoidUnderflowForSmallValues)
+{
+    const float component = std::numeric_limits<float>::min();
+    const float3<float> value(component, component, component);
+
+    const float3<float> normalized = value.normalized();
+    const float expectedComponent = 1.0f / std::sqrt(3.0f);
+
+    EXPECT_GT(value.length(), 0.0f);
+    EXPECT_NEAR(normalized.x, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.y, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.z, expectedComponent, 1e-6f);
+    EXPECT_NEAR(normalized.length(), 1.0f, 1e-6f);
+}
+
 TEST(Float3StandaloneTest, StreamOutputUsesTupleFormatting)
 {
     std::ostringstream stream;

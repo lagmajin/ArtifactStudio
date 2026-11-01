@@ -1,7 +1,10 @@
 #include <QApplication>
+#include <QColor>
 #include <QDir>
 #include <QFile>
 #include <QImage>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QKeyEvent>
 #include <QPaintEvent>
 #include <QShowEvent>
@@ -699,10 +702,276 @@ static int captureFlipbookSources(const QString& sequenceDirectory,
     return 0;
 }
 
+static bool checkLifeCurveEvaluation()
+{
+    Artifact::EmitterParams params;
+    params.mode = Artifact::EmissionMode::Triggered;
+    params.deterministic = false;
+    params.lifeMin = params.lifeMax = 2.0f;
+    params.speedMin = params.speedMax = 0.0f;
+    params.scaleMin = params.scaleMax = 0.0f;
+    params.scaleMidMin = params.scaleMidMax = 5.0f;
+    params.scaleEndMin = params.scaleEndMax = 10.0f;
+    params.opacityMin = params.opacityMax = 0.0f;
+    params.opacityMidMin = params.opacityMidMax = 0.5f;
+    params.opacityEndMin = params.opacityEndMax = 1.0f;
+    params.colorStart = QColor(0, 0, 0);
+    params.colorMid = QColor(128, 128, 128);
+    params.colorEnd = QColor(255, 255, 255);
+    params.scaleLifeCurve = 2;   // Ease In
+    params.opacityLifeCurve = 3; // Ease Out
+    params.colorLifeCurve = 1;   // Linear
+
+    Artifact::ParticleEmitter emitter;
+    emitter.setParams(params);
+    emitter.emitParticles(1);
+    emitter.update(0.5f); // 25% of a two-second life
+    if (emitter.particles().size() != 1) return false;
+    const auto& particle = emitter.particles().front();
+    if (std::abs(particle.scale - 0.625f) >= 0.001f ||
+        std::abs(particle.opacity - 0.4375f) >= 0.001f ||
+        std::abs(particle.color.red() - 64) > 1) return false;
+
+    // Old projects inherit the shared curve; an explicit identical curve on
+    // all channels must produce the same values for the same particle age.
+    params.lifeCurve = Artifact::ParticleLifeCurve::Smooth;
+    params.scaleLifeCurve = params.colorLifeCurve = params.opacityLifeCurve = 0;
+    Artifact::ParticleEmitter inherited;
+    inherited.setParams(params);
+    inherited.emitParticles(1);
+    inherited.update(0.5f);
+    params.scaleLifeCurve = params.colorLifeCurve = params.opacityLifeCurve = 4;
+    Artifact::ParticleEmitter explicitCurves;
+    explicitCurves.setParams(params);
+    explicitCurves.emitParticles(1);
+    explicitCurves.update(0.5f);
+    if (inherited.particles().size() != 1 || explicitCurves.particles().size() != 1)
+        return false;
+    const auto& legacy = inherited.particles().front();
+    const auto& explicitParticle = explicitCurves.particles().front();
+    return std::abs(legacy.scale - explicitParticle.scale) < 0.00001f &&
+           std::abs(legacy.opacity - explicitParticle.opacity) < 0.00001f &&
+           legacy.color == explicitParticle.color;
+}
+
+static int captureGpuShapes(const QString& outputDirectory)
+{
+    QDir output(outputDirectory);
+    if (!output.mkpath(QStringLiteral("."))) return 1;
+    constexpr int width = 800;
+    constexpr int height = 600;
+    Artifact::ArtifactIRenderer renderer;
+    renderer.initializeHeadless(width, height);
+    if (!renderer.isInitialized()) return 2;
+    renderer.setCanvasSize(static_cast<float>(width), static_cast<float>(height));
+    renderer.setViewportSize(static_cast<float>(width), static_cast<float>(height));
+    renderer.setClearColor(ArtifactCore::FloatColor(0.018f, 0.024f, 0.04f, 1.0f));
+
+    Artifact::ArtifactParticleLayer layer;
+    layer.loadPreset(QStringLiteral("fountain"));
+    const auto set = [&layer](const char* path, const QVariant& value) {
+        return layer.setLayerPropertyValue(QString::fromLatin1(path), value);
+    };
+    if (!set("particle.emitter.positionX", width / 2.0) ||
+        !set("particle.emitter.positionY", height / 2.0) ||
+        !set("particle.emitter.rate", 100.0) ||
+        !set("particle.emitter.speedMin", 0.0) ||
+        !set("particle.emitter.speedMax", 0.0) ||
+        !set("particle.emitter.scaleMin", 40.0) ||
+        !set("particle.emitter.scaleMax", 40.0) ||
+        !set("particle.render.fullParticleDensity", true)) {
+        renderer.destroy();
+        return 3;
+    }
+
+    struct ShapeCase { const char* name; int falloff; bool stretch; };
+    constexpr std::array<ShapeCase, 7> cases{{
+        {"soft_circle", 0, false}, {"gaussian", 1, false},
+        {"hard_circle", 2, false}, {"ring", 3, false},
+        {"stretched_ring", 3, true}, {"diamond", 4, false},
+        {"cross", 5, false}}};
+    QFile report(output.filePath(QStringLiteral("gpu_shapes_report.txt")));
+    if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        renderer.destroy();
+        return 4;
+    }
+    for (const auto& shape : cases) {
+        if (!set("particle.render.falloffMode", shape.falloff) ||
+            !set("particle.render.stretchEnabled", shape.stretch) ||
+            !set("particle.render.stretchFactor", 3.0)) {
+            renderer.destroy();
+            return 5;
+        }
+        layer.resetParticleSystem();
+        layer.play();
+        layer.goToFrame(1);
+        renderer.clear();
+        layer.draw(&renderer);
+        renderer.flushAndWait();
+        const QString state = renderer.particleDebugState();
+        const QImage image = renderer.readbackToImage().convertToFormat(QImage::Format_ARGB32);
+        if (image.isNull()) {
+            renderer.destroy();
+            return 6;
+        }
+        const QRgb background = image.pixel(0, 0);
+        std::uint64_t changed = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            const auto* row = reinterpret_cast<const QRgb*>(image.constScanLine(y));
+            for (int x = 0; x < image.width(); ++x) {
+                const QRgb pixel = row[x];
+                if (std::abs(qRed(pixel) - qRed(background)) > 8 ||
+                    std::abs(qGreen(pixel) - qGreen(background)) > 8 ||
+                    std::abs(qBlue(pixel) - qBlue(background)) > 8) ++changed;
+            }
+        }
+        const QString name = QString::fromLatin1(shape.name);
+        if (!image.save(output.filePath(name + QStringLiteral(".png")), "PNG")) {
+            renderer.destroy();
+            return 7;
+        }
+        report.write(QStringLiteral("%1 changed_pixels=%2 %3\n")
+                         .arg(name).arg(changed).arg(state).toUtf8());
+        if (changed == 0 || !state.contains(QStringLiteral("state=drawn"))) {
+            renderer.destroy();
+            return 8;
+        }
+    }
+    renderer.destroy();
+    return 0;
+}
+
+static int checkLifeCurvePersistence()
+{
+    if (!checkLifeCurveEvaluation()) {
+        qCritical("Independent particle life curves produced unexpected values");
+        return 23;
+    }
+    Artifact::ArtifactParticleLayer layer;
+    layer.loadPreset(QStringLiteral("fountain"));
+    if (!layer.setLayerPropertyValue(QStringLiteral("particle.particle.lifeCurve"), 3) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.particle.scaleLifeCurve"), 2) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.particle.colorLifeCurve"), 4) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.particle.opacityLifeCurve"), 5) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.falloffMode"), 3) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.ringInnerRadius"), 0.75) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.animateRingInnerRadius"), true) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.ringInnerRadiusEnd"), 0.25) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.colorIntensity"), 2.5) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.fullParticleDensity"), true) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.trailEnabled"), true) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.trailWidth"), 2.5) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.render.trailFade"), 0.25)) {
+        qCritical("Could not set particle life curve properties");
+        return 1;
+    }
+    QJsonObject saved = layer.toJson();
+    const auto checkTrailSettings = [](const QJsonObject& json) {
+        const QJsonObject render = json.value(QStringLiteral("renderSettings")).toObject();
+        return render.value(QStringLiteral("trailEnabled")).toBool(false) &&
+               render.value(QStringLiteral("trailWidth")).toDouble(-1.0) == 2.5 &&
+               render.value(QStringLiteral("trailFade")).toDouble(-1.0) == 0.25;
+    };
+    if (!checkTrailSettings(saved)) return 25;
+    if (saved.value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("falloffMode")).toInt(-1) != 3) return 8;
+    if (saved.value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("colorIntensity")).toDouble(-1.0) != 2.5) return 11;
+    if (saved.value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("ringInnerRadius")).toDouble(-1.0) != 0.75) return 14;
+    if (!saved.value(QStringLiteral("renderSettings")).toObject()
+             .value(QStringLiteral("fullParticleDensity")).toBool(false)) return 17;
+    if (!saved.value(QStringLiteral("renderSettings")).toObject()
+             .value(QStringLiteral("animateRingInnerRadius")).toBool(false) ||
+        saved.value(QStringLiteral("renderSettings")).toObject()
+             .value(QStringLiteral("ringInnerRadiusEnd")).toDouble(-1.0) != 0.25) return 20;
+    QJsonArray emitters = saved.value(QStringLiteral("emitters")).toArray();
+    if (emitters.isEmpty()) return 2;
+    const QJsonObject first = emitters.at(0).toObject();
+    if (first.value(QStringLiteral("lifeCurve")).toInt(-1) != 3 ||
+        first.value(QStringLiteral("scaleLifeCurve")).toInt(-1) != 2 ||
+        first.value(QStringLiteral("colorLifeCurve")).toInt(-1) != 4 ||
+        first.value(QStringLiteral("opacityLifeCurve")).toInt(-1) != 5) return 3;
+
+    Artifact::ArtifactParticleLayer restored;
+    restored.fromJsonProperties(saved);
+    if (!checkTrailSettings(restored.toJson())) return 26;
+    if (restored.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("falloffMode")).toInt(-1) != 3) return 9;
+    if (restored.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("colorIntensity")).toDouble(-1.0) != 2.5) return 12;
+    if (restored.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("ringInnerRadius")).toDouble(-1.0) != 0.75) return 15;
+    if (!restored.toJson().value(QStringLiteral("renderSettings")).toObject()
+             .value(QStringLiteral("fullParticleDensity")).toBool(false)) return 18;
+    if (!restored.toJson().value(QStringLiteral("renderSettings")).toObject()
+             .value(QStringLiteral("animateRingInnerRadius")).toBool(false) ||
+        restored.toJson().value(QStringLiteral("renderSettings")).toObject()
+             .value(QStringLiteral("ringInnerRadiusEnd")).toDouble(-1.0) != 0.25) return 21;
+    const QJsonArray roundTrip = restored.toJson().value(QStringLiteral("emitters")).toArray();
+    if (roundTrip.isEmpty()) return 4;
+    const QJsonObject reloaded = roundTrip.at(0).toObject();
+    if (reloaded.value(QStringLiteral("lifeCurve")).toInt(-1) != 3 ||
+        reloaded.value(QStringLiteral("scaleLifeCurve")).toInt(-1) != 2 ||
+        reloaded.value(QStringLiteral("colorLifeCurve")).toInt(-1) != 4 ||
+        reloaded.value(QStringLiteral("opacityLifeCurve")).toInt(-1) != 5) return 5;
+
+    QJsonObject legacyEmitter = first;
+    legacyEmitter.remove(QStringLiteral("scaleLifeCurve"));
+    legacyEmitter.remove(QStringLiteral("colorLifeCurve"));
+    legacyEmitter.remove(QStringLiteral("opacityLifeCurve"));
+    emitters.replace(0, legacyEmitter);
+    saved.insert(QStringLiteral("emitters"), emitters);
+    QJsonObject legacyRenderSettings = saved.value(QStringLiteral("renderSettings")).toObject();
+    legacyRenderSettings.remove(QStringLiteral("falloffMode"));
+    legacyRenderSettings.remove(QStringLiteral("colorIntensity"));
+    legacyRenderSettings.remove(QStringLiteral("ringInnerRadius"));
+    legacyRenderSettings.remove(QStringLiteral("animateRingInnerRadius"));
+    legacyRenderSettings.remove(QStringLiteral("ringInnerRadiusEnd"));
+    legacyRenderSettings.remove(QStringLiteral("fullParticleDensity"));
+    legacyRenderSettings.remove(QStringLiteral("trailEnabled"));
+    legacyRenderSettings.remove(QStringLiteral("trailWidth"));
+    legacyRenderSettings.remove(QStringLiteral("trailFade"));
+    saved.insert(QStringLiteral("renderSettings"), legacyRenderSettings);
+    Artifact::ArtifactParticleLayer legacy;
+    legacy.fromJsonProperties(saved);
+    const QJsonObject legacyRender = legacy.toJson().value(QStringLiteral("renderSettings")).toObject();
+    if (legacyRender.value(QStringLiteral("trailEnabled")).toBool(true) ||
+        legacyRender.value(QStringLiteral("trailWidth")).toDouble(-1.0) != 1.0 ||
+        legacyRender.value(QStringLiteral("trailFade")).toDouble(-1.0) != 0.5) return 27;
+    if (legacy.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("falloffMode")).toInt(-1) != 0) return 10;
+    if (legacy.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("colorIntensity")).toDouble(-1.0) != 1.0) return 13;
+    if (std::abs(legacy.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("ringInnerRadius")).toDouble(-1.0) - 0.6) > 0.00001) return 16;
+    if (legacy.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("fullParticleDensity")).toBool(true)) return 19;
+    if (legacy.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("animateRingInnerRadius")).toBool(true)) return 22;
+    const QJsonArray legacyRoundTrip = legacy.toJson().value(QStringLiteral("emitters")).toArray();
+    if (legacyRoundTrip.isEmpty()) return 6;
+    const QJsonObject inherited = legacyRoundTrip.at(0).toObject();
+    if (inherited.value(QStringLiteral("lifeCurve")).toInt(-1) != 3 ||
+        inherited.value(QStringLiteral("scaleLifeCurve")).toInt(-1) != 0 ||
+        inherited.value(QStringLiteral("colorLifeCurve")).toInt(-1) != 0 ||
+        inherited.value(QStringLiteral("opacityLifeCurve")).toInt(-1) != 0) return 7;
+    if (!layer.setLayerPropertyValue(QStringLiteral("particle.render.falloffMode"), 5) ||
+        layer.toJson().value(QStringLiteral("renderSettings")).toObject()
+            .value(QStringLiteral("falloffMode")).toInt(-1) != 5) return 24;
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
     const QStringList arguments = app.arguments();
+    if (arguments.size() == 2 && arguments[1] == QStringLiteral("--check-life-curves")) {
+        return checkLifeCurvePersistence();
+    }
+    if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-gpu-shapes")) {
+        return captureGpuShapes(arguments[2]);
+    }
     if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-firework")) {
         return captureFirework(arguments[2]);
     }

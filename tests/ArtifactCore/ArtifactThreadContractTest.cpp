@@ -288,3 +288,59 @@ TEST(ArtifactThreadContractTest, ConditionPredicateWaitRechecksAfterNotification
     notifier.join();
     EXPECT_TRUE(ready.load(std::memory_order_acquire));
 }
+
+TEST(ArtifactThreadContractTest, WakeAllReleasesEveryAlreadyWaitingThread)
+{
+    Cond condition;
+    std::atomic<int> waiting{0};
+    std::atomic<int> released{0};
+    std::atomic<bool> releasePredicate{false};
+    Thread first;
+    Thread second;
+    Thread third;
+
+    const auto worker = [&] {
+        Mutex mutex;
+        Lock lock(mutex);
+        waiting.fetch_add(1, std::memory_order_release);
+        condition.wait(lock, [&] {
+            return releasePredicate.load(std::memory_order_acquire);
+        });
+        released.fetch_add(1, std::memory_order_release);
+    };
+    first.start(worker);
+    second.start(worker);
+    third.start(worker);
+
+    const auto setupDeadline = std::chrono::steady_clock::now() +
+                               std::chrono::seconds(2);
+    while (waiting.load(std::memory_order_acquire) < 3 &&
+           std::chrono::steady_clock::now() < setupDeadline) {
+        std::this_thread::yield();
+    }
+    const bool allWorkersStarted = waiting.load(std::memory_order_acquire) == 3;
+
+    releasePredicate.store(true, std::memory_order_release);
+    condition.wakeAll();
+
+    const auto releaseDeadline = std::chrono::steady_clock::now() +
+                                 std::chrono::seconds(2);
+    while (released.load(std::memory_order_acquire) < 3 &&
+           std::chrono::steady_clock::now() < releaseDeadline) {
+        std::this_thread::yield();
+    }
+    const int releasedByFirstBroadcast = released.load(std::memory_order_acquire);
+
+    // Make cleanup bounded even if a regression leaves a waiter asleep.
+    for (int attempt = 0; attempt < 3 &&
+         released.load(std::memory_order_acquire) < 3; ++attempt) {
+        condition.wakeAll();
+    }
+    first.join();
+    second.join();
+    third.join();
+
+    EXPECT_TRUE(allWorkersStarted);
+    EXPECT_EQ(releasedByFirstBroadcast, 3);
+    EXPECT_EQ(released.load(std::memory_order_acquire), 3);
+}

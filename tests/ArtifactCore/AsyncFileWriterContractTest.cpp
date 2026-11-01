@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <memory>
@@ -51,6 +53,48 @@ TEST(AsyncFileWriterContractTest, CreatesParentDirectoriesAndCommitsByteArray)
     expectFileBytes(path, payload);
 }
 
+TEST(AsyncFileWriterContractTest, OverwriteReplacesLongerExistingFileWithoutTrailingBytes)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString path = tempDir.filePath(QStringLiteral("existing.bin"));
+    const QByteArray original("old contents that are longer");
+    const QByteArray replacement("new");
+    QFile existing(path);
+    ASSERT_TRUE(existing.open(QIODevice::WriteOnly));
+    ASSERT_EQ(existing.write(original), original.size());
+    existing.close();
+
+    AsioAsyncFileWriterManager writer;
+    auto result = enqueueWrite(writer, path, replacement);
+
+    ASSERT_EQ(result.wait_for(std::chrono::seconds(10)), std::future_status::ready);
+    const WriteResult outcome = result.get();
+    ASSERT_TRUE(outcome.success) << outcome.errorMessage.toStdString();
+    EXPECT_EQ(outcome.bytesWritten, static_cast<std::size_t>(replacement.size()));
+    expectFileBytes(path, replacement);
+}
+
+TEST(AsyncFileWriterContractTest, EmptyPayloadCommitsAsAnEmptyFile)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString path = tempDir.filePath(QStringLiteral("empty-output.bin"));
+    QFile existing(path);
+    ASSERT_TRUE(existing.open(QIODevice::WriteOnly));
+    ASSERT_EQ(existing.write(QByteArrayLiteral("old data")), 8);
+    existing.close();
+
+    AsioAsyncFileWriterManager writer;
+    auto result = enqueueWrite(writer, path, QByteArray{});
+
+    ASSERT_EQ(result.wait_for(std::chrono::seconds(10)), std::future_status::ready);
+    const WriteResult outcome = result.get();
+    ASSERT_TRUE(outcome.success) << outcome.errorMessage.toStdString();
+    EXPECT_EQ(outcome.bytesWritten, 0u);
+    expectFileBytes(path, QByteArray{});
+}
+
 TEST(AsyncFileWriterContractTest, QVectorAndStdVectorOverloadsWriteExactBytes)
 {
     QTemporaryDir tempDir;
@@ -85,6 +129,94 @@ TEST(AsyncFileWriterContractTest, QVectorAndStdVectorOverloadsWriteExactBytes)
     expectFileBytes(vectorPath, expected);
 }
 
+TEST(AsyncFileWriterContractTest, EmptyVectorOverloadsCommitEmptyFiles)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString qvectorPath = tempDir.filePath(QStringLiteral("empty-qvector.bin"));
+    const QString vectorPath = tempDir.filePath(QStringLiteral("empty-vector.bin"));
+    const QVector<unsigned char> qvector;
+    const std::vector<unsigned char> vector;
+    AsioAsyncFileWriterManager writer;
+    std::promise<WriteResult> qvectorPromise;
+    std::promise<WriteResult> vectorPromise;
+    auto qvectorResult = qvectorPromise.get_future();
+    auto vectorResult = vectorPromise.get_future();
+
+    writer.writeFileAsync(qvectorPath, qvector,
+        [&qvectorPromise](const WriteResult& value) { qvectorPromise.set_value(value); });
+    writer.writeFileAsync(vectorPath, vector,
+        [&vectorPromise](const WriteResult& value) { vectorPromise.set_value(value); });
+
+    ASSERT_EQ(qvectorResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    ASSERT_EQ(vectorResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    const WriteResult qvectorOutcome = qvectorResult.get();
+    const WriteResult vectorOutcome = vectorResult.get();
+    ASSERT_TRUE(qvectorOutcome.success) << qvectorOutcome.errorMessage.toStdString();
+    ASSERT_TRUE(vectorOutcome.success) << vectorOutcome.errorMessage.toStdString();
+    EXPECT_EQ(qvectorOutcome.bytesWritten, 0u);
+    EXPECT_EQ(vectorOutcome.bytesWritten, 0u);
+    expectFileBytes(qvectorPath, QByteArray{});
+    expectFileBytes(vectorPath, QByteArray{});
+}
+
+TEST(AsyncFileWriterContractTest, InputBuffersAreSnapshottedBeforeAsyncWrite)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString byteArrayPath = tempDir.filePath(QStringLiteral("byte-array.bin"));
+    const QString qvectorPath = tempDir.filePath(QStringLiteral("qvector-snapshot.bin"));
+    const QString vectorPath = tempDir.filePath(QStringLiteral("vector-snapshot.bin"));
+    const QByteArray expected("snapshot");
+    QByteArray byteArray = expected;
+    QVector<unsigned char> qvector;
+    std::vector<unsigned char> vector;
+    for (const char byte : expected) {
+        qvector.push_back(static_cast<unsigned char>(byte));
+        vector.push_back(static_cast<unsigned char>(byte));
+    }
+
+    AsioAsyncFileWriterManager writer;
+    std::promise<WriteResult> byteArrayPromise;
+    std::promise<WriteResult> qvectorPromise;
+    std::promise<WriteResult> vectorPromise;
+    auto byteArrayResult = byteArrayPromise.get_future();
+    auto qvectorResult = qvectorPromise.get_future();
+    auto vectorResult = vectorPromise.get_future();
+
+    writer.writeFileAsync(byteArrayPath, byteArray,
+        [&byteArrayPromise](const WriteResult& value) {
+            byteArrayPromise.set_value(value);
+        });
+    writer.writeFileAsync(qvectorPath, qvector,
+        [&qvectorPromise](const WriteResult& value) {
+            qvectorPromise.set_value(value);
+        });
+    writer.writeFileAsync(vectorPath, vector,
+        [&vectorPromise](const WriteResult& value) {
+            vectorPromise.set_value(value);
+        });
+
+    byteArray.fill('x');
+    qvector.fill(static_cast<unsigned char>('x'));
+    std::fill(vector.begin(), vector.end(), static_cast<unsigned char>('x'));
+
+    ASSERT_EQ(byteArrayResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    ASSERT_EQ(qvectorResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    ASSERT_EQ(vectorResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    EXPECT_TRUE(byteArrayResult.get().success);
+    EXPECT_TRUE(qvectorResult.get().success);
+    EXPECT_TRUE(vectorResult.get().success);
+    expectFileBytes(byteArrayPath, expected);
+    expectFileBytes(qvectorPath, expected);
+    expectFileBytes(vectorPath, expected);
+}
+
 TEST(AsyncFileWriterContractTest, EmptyPathCompletesWithFailureWithoutCreatingFile)
 {
     AsioAsyncFileWriterManager writer;
@@ -99,6 +231,44 @@ TEST(AsyncFileWriterContractTest, EmptyPathCompletesWithFailureWithoutCreatingFi
     EXPECT_TRUE(outcome.filePath.isEmpty());
     EXPECT_EQ(outcome.bytesWritten, 0u);
     EXPECT_FALSE(outcome.errorMessage.isEmpty());
+}
+
+TEST(AsyncFileWriterContractTest, CompletionCallbackRunsExactlyOnceForSuccessAndFailure)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString path = tempDir.filePath(QStringLiteral("callback.bin"));
+    const QByteArray payload("callback payload");
+    std::atomic<int> successCallbackCount{0};
+    std::atomic<int> failureCallbackCount{0};
+    std::promise<WriteResult> successPromise;
+    std::promise<WriteResult> failurePromise;
+    auto successResult = successPromise.get_future();
+    auto failureResult = failurePromise.get_future();
+
+    {
+        AsioAsyncFileWriterManager writer;
+        writer.writeFileAsync(path, payload,
+            [&successCallbackCount, &successPromise](const WriteResult& value) {
+                if (successCallbackCount.fetch_add(1) == 0) {
+                    successPromise.set_value(value);
+                }
+            });
+        writer.writeFileAsync(QString(), payload,
+            [&failureCallbackCount, &failurePromise](const WriteResult& value) {
+                if (failureCallbackCount.fetch_add(1) == 0) {
+                    failurePromise.set_value(value);
+                }
+            });
+    }
+
+    ASSERT_EQ(successResult.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+    ASSERT_EQ(failureResult.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+    EXPECT_TRUE(successResult.get().success);
+    EXPECT_FALSE(failureResult.get().success);
+    EXPECT_EQ(successCallbackCount.load(), 1);
+    EXPECT_EQ(failureCallbackCount.load(), 1);
+    expectFileBytes(path, payload);
 }
 
 TEST(AsyncFileWriterContractTest, WritingToDirectoryCompletesWithFailure)

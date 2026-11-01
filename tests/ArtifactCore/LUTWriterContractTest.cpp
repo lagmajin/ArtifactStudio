@@ -6,6 +6,7 @@
 #include <QString>
 
 #include <array>
+#include <limits>
 
 import Color.LUT;
 import Color.LUTWriter;
@@ -56,6 +57,24 @@ TEST(LUTWriterContractTest, DiscreetExportNumbersEntriesAndPreservesInputValues)
     EXPECT_FLOAT_EQ(values[23], 0.5f);
 }
 
+TEST(LUTWriterContractTest, CubeExportUsesCubicEntryCountForNonBinaryGridSize)
+{
+    std::array<float, 81> values{};
+    for (std::size_t index = 0; index < values.size(); ++index) {
+        values[index] = static_cast<float>(index) / 80.0f;
+    }
+
+    const QByteArray output = exportLUTToMemory(values.data(), 3, LUTFormat::Cube);
+
+    ASSERT_FALSE(output.isEmpty());
+    EXPECT_TRUE(output.startsWith(
+        "TITLE \"ArtifactStudio Exported LUT\"\n"
+        "LUT_3D_SIZE 3\n"));
+    EXPECT_TRUE(output.contains("0.000000 0.012500 0.025000\n"));
+    EXPECT_TRUE(output.endsWith("0.975000 0.987500 1.000000\n"));
+    EXPECT_EQ(output.count('\n'), 31);
+}
+
 TEST(LUTWriterContractTest, RejectsNullUnsupportedAndOutOfRangeInputs)
 {
     constexpr std::array<float, 24> values = {};
@@ -78,6 +97,11 @@ TEST(LUTWriterContractTest, FileExportReportsInvalidInputAndWritesMemoryPayload)
     QTemporaryDir directory;
     ASSERT_TRUE(directory.isValid());
     const QString filePath = directory.filePath(QStringLiteral("output.cube"));
+    {
+        QFile existing(filePath);
+        ASSERT_TRUE(existing.open(QIODevice::WriteOnly));
+        ASSERT_EQ(existing.write(QByteArrayLiteral("existing payload")), 16);
+    }
     EXPECT_FALSE(writeLUTToFile(filePath, nullptr, 2,
                                 LUTFormat::Cube, &error));
     EXPECT_EQ(error, QStringLiteral("Invalid LUT data or size"));
@@ -85,6 +109,11 @@ TEST(LUTWriterContractTest, FileExportReportsInvalidInputAndWritesMemoryPayload)
     EXPECT_FALSE(writeLUTToFile(filePath, values.data(), 2,
                                 LUTFormat::Csp, &error));
     EXPECT_EQ(error, QStringLiteral("Failed to generate LUT content"));
+
+    QFile preserved(filePath);
+    ASSERT_TRUE(preserved.open(QIODevice::ReadOnly));
+    EXPECT_EQ(preserved.readAll(), QByteArrayLiteral("existing payload"));
+    preserved.close();
 
     ASSERT_TRUE(writeLUTToFile(filePath, values.data(), 2, LUTFormat::Cube, &error))
         << error.toStdString();
@@ -105,4 +134,29 @@ TEST(LUTWriterContractTest, FileExportReportsOpenFailure)
     EXPECT_FALSE(writeLUTToFile(missingPath, values.data(), 2,
                                 LUTFormat::Cube, &error));
     EXPECT_TRUE(error.startsWith(QStringLiteral("Cannot open file:")));
+}
+
+TEST(LUTWriterContractTest, RejectsNonFiniteSamplesWithoutReplacingExistingFile)
+{
+    std::array<float, 24> values{};
+    values[7] = std::numeric_limits<float>::quiet_NaN();
+    EXPECT_TRUE(exportLUTToMemory(values.data(), 2, LUTFormat::Cube).isEmpty());
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("preserved.cube"));
+    const QByteArray original = QByteArrayLiteral("existing LUT contents");
+    QFile existing(path);
+    ASSERT_TRUE(existing.open(QIODevice::WriteOnly));
+    ASSERT_EQ(existing.write(original), original.size());
+    existing.close();
+
+    values[7] = std::numeric_limits<float>::infinity();
+    QString error;
+    EXPECT_FALSE(writeLUTToFile(path, values.data(), 2, LUTFormat::Cube, &error));
+    EXPECT_FALSE(error.isEmpty());
+
+    QFile preserved(path);
+    ASSERT_TRUE(preserved.open(QIODevice::ReadOnly));
+    EXPECT_EQ(preserved.readAll(), original);
 }

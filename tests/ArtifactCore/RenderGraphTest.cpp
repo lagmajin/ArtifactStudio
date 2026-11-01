@@ -23,6 +23,19 @@ struct InlineLauncher {
     }
 };
 
+struct TwoWayInlineLauncher {
+    std::size_t concurrency() const noexcept { return 2; }
+
+    template <typename F>
+    auto async(F&& task) -> std::future<decltype(task())>
+    {
+        std::packaged_task<decltype(task())()> packaged(std::forward<F>(task));
+        auto future = packaged.get_future();
+        packaged();
+        return future;
+    }
+};
+
 RenderResourceDescriptor transientTexture(const std::string& name)
 {
     return {name, RenderResourceKind::Texture,
@@ -134,6 +147,26 @@ TEST(RenderGraphCompileTest, DisabledPassesAreExcluded)
     ASSERT_EQ(compiled.executionLevels.size(), 1);
 }
 
+TEST(RenderGraphCompileTest, DisabledWriterDoesNotInitializeTransientResource)
+{
+    RenderGraph graph;
+    const auto token = graph.addResource(transientTexture("token"));
+
+    auto skippedWriter = graphicsPass("skippedWriter");
+    skippedWriter.enabled = false;
+    skippedWriter.writes = {token};
+    graph.addPass(skippedWriter);
+
+    auto reader = graphicsPass("reader");
+    reader.reads = {token};
+    graph.addPass(reader);
+
+    const CompiledRenderGraph compiled = graph.compile();
+
+    EXPECT_FALSE(compiled.valid);
+    EXPECT_FALSE(compiled.error.empty());
+}
+
 TEST(RenderGraphCompileTest, TransientReadBeforeWriteFails)
 {
     RenderGraph graph;
@@ -157,6 +190,48 @@ TEST(RenderGraphCompileTest, UnknownResourceFails)
     const CompiledRenderGraph compiled = graph.compile();
     EXPECT_FALSE(compiled.valid);
     EXPECT_FALSE(compiled.error.empty());
+}
+
+TEST(RenderGraphCompileTest, ExternalResourceCanBeReadAndWrittenByOnePass)
+{
+    RenderGraph graph;
+    const auto external = graph.addResource(externalTexture("in-place"));
+    auto inPlace = graphicsPass("in-place");
+    inPlace.reads = {external};
+    inPlace.writes = {external};
+    graph.addPass(inPlace);
+
+    const CompiledRenderGraph compiled = graph.compile();
+
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    ASSERT_EQ(compiled.passOrder.size(), 1);
+    EXPECT_EQ(passNames(graph, compiled.passOrder),
+              (std::vector<std::string>{"in-place"}));
+    ASSERT_EQ(compiled.executionLevels.size(), 1);
+    EXPECT_EQ(compiled.executionLevels.front().size(), 1);
+}
+
+TEST(RenderGraphCompileTest, ExternalReadIsOrderedBeforeItsLaterOverwrite)
+{
+    RenderGraph graph;
+    const auto external = graph.addResource(externalTexture("external"));
+
+    auto readExisting = graphicsPass("readExisting");
+    readExisting.reads = {external};
+    graph.addPass(readExisting);
+
+    auto overwrite = graphicsPass("overwrite");
+    overwrite.writes = {external};
+    graph.addPass(overwrite);
+
+    const CompiledRenderGraph compiled = graph.compile();
+
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    EXPECT_EQ(passNames(graph, compiled.passOrder),
+              (std::vector<std::string>{"readExisting", "overwrite"}));
+    ASSERT_EQ(compiled.executionLevels.size(), 2);
+    EXPECT_EQ(compiled.executionLevels[0].size(), 1);
+    EXPECT_EQ(compiled.executionLevels[1].size(), 1);
 }
 
 TEST(RenderGraphCompileTest, EmptyGraphCompiles)
@@ -313,6 +388,27 @@ TEST(RenderGraphExecuteTest, InvalidGraphAndEmptyExecutorFail)
     EXPECT_EQ(error, "render graph executor is empty");
 }
 
+TEST(RenderGraphExecuteTest, MutationAfterCompileRejectsStalePlanBeforeExecution)
+{
+    RenderGraph graph;
+    graph.addPass(graphicsPass("compiled-pass"));
+    const CompiledRenderGraph compiled = graph.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+
+    graph.addPass(graphicsPass("late-pass"));
+
+    int calls = 0;
+    std::string error;
+    EXPECT_FALSE(graph.execute(compiled,
+                               [&](const RenderGraphExecutionContext&) {
+                                   ++calls;
+                                   return true;
+                               },
+                               &error));
+    EXPECT_EQ(calls, 0);
+    EXPECT_EQ(error, "compiled render graph is stale");
+}
+
 TEST(RenderGraphParallelTest, DiamondRunsWithInlineLauncher)
 {
     RenderGraph graph;
@@ -381,6 +477,53 @@ TEST(RenderGraphParallelTest, FailurePropagates)
         CompiledRenderGraph{},
         [](const RenderGraphExecutionContext&) { return true; }, launcher,
         &error));
+}
+
+TEST(RenderGraphParallelTest, FailedParallelLevelJoinsPeersAndSkipsDependents)
+{
+    RenderGraph graph;
+    const auto input = graph.addResource(externalTexture("input"));
+    const auto leftOutput = graph.addResource(transientTexture("leftOutput"));
+    const auto rightOutput = graph.addResource(transientTexture("rightOutput"));
+
+    auto emit = graphicsPass("emit");
+    emit.reads = {input};
+    emit.writes = {leftOutput, rightOutput};
+    graph.addPass(emit);
+    auto readLeft = graphicsPass("readLeft");
+    readLeft.reads = {leftOutput};
+    readLeft.parallelSafe = true;
+    graph.addPass(readLeft);
+    auto readRight = graphicsPass("readRight");
+    readRight.reads = {rightOutput};
+    readRight.parallelSafe = true;
+    graph.addPass(readRight);
+    auto dependent = graphicsPass("dependent");
+    dependent.reads = {leftOutput, rightOutput};
+    graph.addPass(dependent);
+
+    const CompiledRenderGraph compiled = graph.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    ASSERT_EQ(compiled.executionLevels.size(), 3u);
+    ASSERT_EQ(compiled.executionLevels[1].size(), 2u);
+
+    TwoWayInlineLauncher launcher;
+    std::vector<std::string> calls;
+    std::string error;
+    EXPECT_FALSE(graph.executeParallel(
+        compiled,
+        [&](const RenderGraphExecutionContext& context) {
+            calls.push_back(context.descriptor.name);
+            return context.descriptor.name != "readLeft";
+        },
+        launcher, &error));
+
+    EXPECT_EQ(calls.size(), 3u);
+    EXPECT_NE(std::find(calls.begin(), calls.end(), "emit"), calls.end());
+    EXPECT_NE(std::find(calls.begin(), calls.end(), "readLeft"), calls.end());
+    EXPECT_NE(std::find(calls.begin(), calls.end(), "readRight"), calls.end());
+    EXPECT_EQ(std::find(calls.begin(), calls.end(), "dependent"), calls.end());
+    EXPECT_EQ(error, "render pass executor failed");
 }
 
 TEST(RenderGraphDiagnosticTest, SnapshotMarksScheduledAndDisabled)

@@ -94,6 +94,18 @@ TEST(TestImageGeneratorContractTest, RgbGradientDividesColumnsAndBrightensToward
     expectPixel(pixels, 6, 5, 0, 0.0f, 0.0f, 1.0f);
 }
 
+TEST(TestImageGeneratorContractTest, RgbGradientAssignsUnevenRemainderColumnsToBlue)
+{
+    auto pixels = makeBuffer(5, 2);
+    TestImageGenerator::rgbGradient(pixels.data(), 5, 2);
+
+    expectPixel(pixels, 5, 0, 0, 1.0f, 0.0f, 0.0f);
+    expectPixel(pixels, 5, 1, 0, 0.0f, 1.0f, 0.0f);
+    expectPixel(pixels, 5, 2, 0, 0.0f, 0.0f, 1.0f);
+    expectPixel(pixels, 5, 4, 0, 0.0f, 0.0f, 1.0f);
+    expectPixel(pixels, 5, 4, 1, 0.0f, 0.0f, 0.0f);
+}
+
 TEST(TestImageGeneratorContractTest, CheckerboardClampsCellSizeAndAlternatesCells)
 {
     auto pixels = makeBuffer(4, 2);

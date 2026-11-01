@@ -122,6 +122,31 @@ TEST(AudioDelayStandaloneTest, ImpulseAppearsAfterConfiguredDelayInFrames)
     EXPECT_FLOAT_EQ(segment.channelData[0][2], 0.0f);
 }
 
+TEST(AudioDelayStandaloneTest, FeedbackTailContinuesAcrossSegmentBoundaries)
+{
+    AudioDelay delay;
+    delay.setDelayTimeMs(1.0f);
+    delay.setFeedback(0.5f);
+    delay.setMix(1.0f);
+
+    auto first = makeMono(1000, QVector<float>{1.0f});
+    delay.process(first);
+    auto second = makeMono(1000, QVector<float>{0.0f});
+    second.startFrame = 51;
+    delay.process(second);
+    auto third = makeMono(1000, QVector<float>{0.0f});
+    third.startFrame = 52;
+    delay.process(third);
+    auto fourth = makeMono(1000, QVector<float>{0.0f});
+    fourth.startFrame = 53;
+    delay.process(fourth);
+
+    EXPECT_FLOAT_EQ(first.channelData[0][0], 0.0f);
+    EXPECT_FLOAT_EQ(second.channelData[0][0], 1.0f);
+    EXPECT_FLOAT_EQ(third.channelData[0][0], 0.5f);
+    EXPECT_FLOAT_EQ(fourth.channelData[0][0], 0.25f);
+}
+
 TEST(AudioDelayStandaloneTest, StereoDelayHistoryRemainsIndependentPerChannel)
 {
     AudioDelay delay;

@@ -33,6 +33,31 @@ TEST(ColorCurvesContractTest, SortsPointsAndEvaluatesPiecewiseLinearSegments)
     EXPECT_FLOAT_EQ(curve.evaluate(2.0f), 1.0f);
 }
 
+TEST(ColorCurvesContractTest, EmptyCurveReturnsInputAndSinglePointIsConstant)
+{
+    ColorCurve curve;
+    curve.setPoints({});
+    EXPECT_FLOAT_EQ(curve.evaluate(-0.25f), -0.25f);
+    EXPECT_FLOAT_EQ(curve.evaluate(1.25f), 1.25f);
+
+    curve.setPoints({CurvePoint{.input = 0.4f, .output = 0.7f}});
+    EXPECT_FLOAT_EQ(curve.evaluate(-1.0f), 0.7f);
+    EXPECT_FLOAT_EQ(curve.evaluate(0.4f), 0.7f);
+    EXPECT_FLOAT_EQ(curve.evaluate(2.0f), 0.7f);
+}
+
+TEST(ColorCurvesContractTest, DuplicateInputCoordinatesUseZeroLengthSegmentFallback)
+{
+    ColorCurve curve;
+    curve.setPoints({
+        CurvePoint{.input = 0.0f, .output = 0.25f},
+        CurvePoint{.input = 0.0f, .output = 0.75f},
+        CurvePoint{.input = 1.0f, .output = 1.0f},
+    });
+
+    EXPECT_FLOAT_EQ(curve.evaluate(0.0f), 0.25f);
+}
+
 TEST(ColorCurvesContractTest, SmoothPointsUseCubicTangentsAndLutClampsOutputs)
 {
     ColorCurve curve;

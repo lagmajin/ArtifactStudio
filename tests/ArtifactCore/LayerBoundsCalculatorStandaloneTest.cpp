@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include <QPointF>
 #include <QRectF>
 
@@ -54,6 +56,16 @@ TEST(LayerBoundsCalculatorStandaloneTest, NegativeScaleFlipsCornerCoordinates)
     EXPECT_DOUBLE_EQ(corners.topRight.x(), -15.0);
     EXPECT_DOUBLE_EQ(corners.bottomRight.x(), -15.0);
     EXPECT_DOUBLE_EQ(corners.bottomRight.y(), 11.0);
+}
+
+TEST(LayerBoundsCalculatorStandaloneTest, ContainsWorksForNegativeScaleMirroring)
+{
+    const auto corners = LayerBoundsCalculator2D::calculate(
+        {5.0, 7.0}, {}, 10.0f, 4.0f, 0.0f, -2.0f, 1.0f);
+
+    EXPECT_TRUE(LayerBoundsCalculator2D::contains(corners, {-5.0, 9.0}));
+    EXPECT_TRUE(LayerBoundsCalculator2D::contains(corners, {-15.0, 11.0}));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {6.0, 9.0}));
 }
 
 TEST(LayerBoundsCalculatorStandaloneTest, AabbForUnrotatedRectangleMatchesItsCorners)
@@ -138,10 +150,41 @@ TEST(LayerBoundsCalculatorStandaloneTest,
     EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {3.01, 9.0}));
 }
 
+TEST(LayerBoundsCalculatorStandaloneTest,
+     RotatedZeroWidthRectangleRejectsPointsOutsideItsSegment)
+{
+    const auto corners = LayerBoundsCalculator2D::calculate(
+        {3.0, 4.0}, {}, 0.0f, 10.0f, 45.0f);
+    const QPointF midpoint(
+        (corners.topLeft.x() + corners.bottomLeft.x()) * 0.5,
+        (corners.topLeft.y() + corners.bottomLeft.y()) * 0.5);
+    const QPointF beyondEnd(
+        corners.topLeft.x() + (corners.bottomLeft.x() - corners.topLeft.x()) * 2.0,
+        corners.topLeft.y() + (corners.bottomLeft.y() - corners.topLeft.y()) * 2.0);
+
+    EXPECT_TRUE(LayerBoundsCalculator2D::contains(corners, midpoint));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, beyondEnd));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(
+        corners, {midpoint.x() + 0.01, midpoint.y() + 0.01}));
+}
+
 TEST(LayerBoundsCalculatorStandaloneTest, NegativeRotationProducesExpectedEquivalentOrientation)
 {
     const auto positive = LayerBoundsCalculator2D::calculate({}, {}, 10.0f, 20.0f, 270.0f);
     const auto negative = LayerBoundsCalculator2D::calculate({}, {}, 10.0f, 20.0f, -90.0f);
     EXPECT_NEAR(positive.bottomRight.x(), negative.bottomRight.x(), 1e-5);
     EXPECT_NEAR(positive.bottomRight.y(), negative.bottomRight.y(), 1e-5);
+}
+
+TEST(LayerBoundsCalculatorStandaloneTest, ContainsRejectsNonFiniteQueryPoints)
+{
+    const auto corners = LayerBoundsCalculator2D::calculate(
+        {0.0, 0.0}, {}, 10.0f, 10.0f, 0.0f);
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double infinity = std::numeric_limits<double>::infinity();
+
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {nan, 5.0}));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {5.0, nan}));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {infinity, 5.0}));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {5.0, -infinity}));
 }

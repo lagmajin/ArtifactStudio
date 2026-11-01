@@ -53,6 +53,26 @@ TEST(CompositionFinalEffectContractTest,
     EXPECT_FLOAT_EQ(effect.getOpacity(), 0.0f);
 }
 
+TEST(CompositionFinalEffectContractTest,
+     ParameterArrayReplacesExistingValuesSkipsMalformedEntriesAndUsesLastDuplicate)
+{
+    CompositionFinalEffect effect(FinalEffectType::Exposure);
+    effect.setParameter(QStringLiteral("stale"), 9.0f);
+
+    QJsonArray parameters;
+    parameters.append(QJsonObject{{QStringLiteral("key"), QStringLiteral("stops")},
+                                  {QStringLiteral("value"), 1.0}});
+    parameters.append(QJsonObject{{QStringLiteral("key"), QStringLiteral("stops")},
+                                  {QStringLiteral("value"), 2.5}});
+    parameters.append(QJsonObject{{QStringLiteral("key"), QStringLiteral("missing-value")}});
+    parameters.append(QStringLiteral("not an object"));
+    effect.fromJson(QJsonObject{{QStringLiteral("parameters"), parameters}});
+
+    EXPECT_FALSE(effect.getParameters().contains(QStringLiteral("stale")));
+    EXPECT_FLOAT_EQ(effect.getParameter(QStringLiteral("stops")), 2.5f);
+    EXPECT_FALSE(effect.getParameters().contains(QStringLiteral("missing-value")));
+}
+
 TEST(CompositionFinalEffectStackContractTest,
      OrderEnabledSelectionLookupAndRemovalRemainConsistent)
 {
@@ -78,6 +98,16 @@ TEST(CompositionFinalEffectStackContractTest,
     EXPECT_EQ(stack.getEffect(1)->getType(), FinalEffectType::Exposure);
     EXPECT_EQ(stack.getEffect(2)->getType(), FinalEffectType::LUT);
     EXPECT_EQ(stack.getEnabledEffects().size(), 2u);
+
+    auto* vignette = stack.getEffect(0);
+    auto* exposure = stack.getEffect(1);
+    auto* lut = stack.getEffect(2);
+    stack.moveEffect(-1, 0);
+    stack.moveEffect(0, 3);
+    stack.moveEffect(1, 1);
+    EXPECT_EQ(stack.getEffect(0), vignette);
+    EXPECT_EQ(stack.getEffect(1), exposure);
+    EXPECT_EQ(stack.getEffect(2), lut);
 
     stack.removeEffect(QStringLiteral("LUT"));
     stack.removeEffect(-1);

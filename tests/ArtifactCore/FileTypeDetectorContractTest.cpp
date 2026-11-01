@@ -345,3 +345,16 @@ TEST(FileTypeDetectorContractTest, BinaryMagicFallsBackToKnownImageExtension)
     EXPECT_EQ(detector.detectByMagicNumber(path), FileType::Binary);
     EXPECT_EQ(detector.detect(path), FileType::Image);
 }
+
+TEST(FileTypeDetectorContractTest, BinaryMagicFallsBackToKnownTextExtension)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("notes.txt"));
+    ASSERT_TRUE(writeBytes(path, QByteArray::fromHex("00010203")));
+
+    const FileTypeDetector detector;
+    EXPECT_EQ(detector.detectByMagicNumber(path), FileType::Binary);
+    EXPECT_EQ(detector.detectByExtension(path), FileType::Text);
+    EXPECT_EQ(detector.detect(path), FileType::Text);
+}

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -326,6 +327,20 @@ TEST(ArtifactStringContractTest, AsciiSplitPreservesEmptySegmentsIncludingEmptyI
               (std::vector<std::string>{""}));
 }
 
+TEST(ArtifactStringContractTest, AsciiHelpersAcceptDefaultConstructedEmptyView)
+{
+    const StringView empty;
+
+    EXPECT_TRUE(asciiLower(empty).isEmpty());
+    EXPECT_TRUE(asciiUpper(empty).isEmpty());
+    EXPECT_TRUE(asciiTrimmed(empty).isEmpty());
+
+    const auto fields = asciiSplit(empty, ',');
+    ASSERT_EQ(fields.size(), 1u);
+    EXPECT_TRUE(fields[0].isEmpty());
+    EXPECT_TRUE(asciiJoin(fields, StringView("/")).isEmpty());
+}
+
 TEST(ArtifactStringContractTest, AsciiJoinUsesSeparatorBetweenPartsOnly)
 {
     Array<String> parts{"a", "", "b"};
@@ -464,3 +479,134 @@ TEST(ArtifactStringContractTest, AsciiTrimPreservesUtf8NonBreakingSpaces)
     }
 }
 
+
+TEST(ArtifactStringContractTest, SearchOffsetsAtAndBeyondEndReturnNotFound)
+{
+    const String value("ababa");
+    constexpr int notFound = -1;
+    const size_t sizeNotFound = static_cast<size_t>(-1);
+
+    EXPECT_EQ(value.indexOf('a', value.length()), notFound);
+    EXPECT_EQ(value.indexOf('a', value.length() + 1), notFound);
+    EXPECT_EQ(value.indexOf("ba", value.length()), notFound);
+    EXPECT_EQ(value.indexOf(std::string_view("ba"), value.length() + 1), notFound);
+    EXPECT_EQ(value.find('a', value.length()), sizeNotFound);
+    EXPECT_EQ(value.find(std::string_view("a"), value.length() + 100), sizeNotFound);
+}
+
+TEST(ArtifactStringContractTest, MovedFromStringsRemainReusableAcrossStorageModes)
+{
+    String smallSource("short");
+    String smallDestination(std::move(smallSource));
+    EXPECT_TRUE(smallSource.isEmpty());
+    EXPECT_EQ(smallSource.data()[0], '\0');
+    smallSource.append("again");
+    EXPECT_EQ(smallSource, "again");
+    EXPECT_EQ(smallSource.data()[smallSource.length()], '\0');
+
+    String largeSource(std::string(64, 'L'));
+    String largeDestination(std::move(largeSource));
+    EXPECT_EQ(largeDestination.length(), 64u);
+    EXPECT_TRUE(largeSource.isEmpty());
+    EXPECT_EQ(largeSource.capacity(), String::kSmallCapacity);
+    EXPECT_EQ(largeSource.data()[0], '\0');
+    largeSource.append("reused");
+    EXPECT_EQ(largeSource, "reused");
+    EXPECT_EQ(largeSource.data()[largeSource.length()], '\0');
+}
+
+TEST(ArtifactStringContractTest, NumericConversionRejectsWhitespaceAndSignOnlyInputs)
+{
+    bool integerOk = true;
+    bool doubleOk = true;
+
+    EXPECT_EQ(String(" \t\r\n").toInt(&integerOk), 0);
+    EXPECT_FALSE(integerOk);
+    EXPECT_EQ(String("+").toInt(&integerOk), 0);
+    EXPECT_FALSE(integerOk);
+    EXPECT_DOUBLE_EQ(String(" \t\r\n").toDouble(&doubleOk), 0.0);
+    EXPECT_FALSE(doubleOk);
+    EXPECT_DOUBLE_EQ(String("-").toDouble(&doubleOk), 0.0);
+    EXPECT_FALSE(doubleOk);
+}
+
+TEST(ArtifactStringContractTest, PrefixSuffixAndOrderingHandleEmptyAndEqualValues)
+{
+    const String empty;
+    const String value("artifact");
+    const String equal("artifact");
+
+    EXPECT_TRUE(empty.startsWith(""));
+    EXPECT_TRUE(empty.endsWith(StringView{}));
+    EXPECT_TRUE(value.startsWith(StringView{}));
+    EXPECT_TRUE(value.endsWith(""));
+    EXPECT_TRUE(value.startsWith("artifact"));
+    EXPECT_TRUE(value.endsWith("artifact"));
+    EXPECT_FALSE(value.startsWith("artifacts"));
+    EXPECT_FALSE(value.endsWith("artifactx"));
+
+    EXPECT_FALSE(value < equal);
+    EXPECT_FALSE(equal < value);
+    EXPECT_LT(String("art"), value);
+    EXPECT_FALSE(value < String("art"));
+}
+
+TEST(ArtifactStringContractTest, ViewSlicesClampHugeCountsAndPreserveEmbeddedNullBytes)
+{
+    constexpr char bytes[] = {'a', '\0', 'b'};
+    const String value(bytes, sizeof(bytes));
+    const std::size_t hugeCount = static_cast<std::size_t>(-1);
+
+    EXPECT_EQ(toStdString(value.mid(1, hugeCount)), std::string("\0b", 2));
+    EXPECT_EQ(toStdString(value.mid(2, hugeCount)), std::string("b", 1));
+    EXPECT_TRUE(value.mid(value.length(), hugeCount).isEmpty());
+    EXPECT_TRUE(value.mid(value.length() + 1, 1).isEmpty());
+    EXPECT_EQ(toStdString(value.left(hugeCount)), std::string(bytes, sizeof(bytes)));
+    EXPECT_EQ(toStdString(value.right(2)), std::string("\0b", 2));
+}
+
+TEST(ArtifactStringContractTest, NumberFormattingUsesDefaultPrecisionAndPreservesNegativeZero)
+{
+    EXPECT_EQ(String::number(1.2), "1.20");
+    EXPECT_EQ(String::number(-0.0), "-0.00");
+    EXPECT_EQ(String::number(12.345, 0), "12");
+}
+
+TEST(ArtifactStringContractTest, IntegerNumberFormattingCoversZeroAndSignedLimits)
+{
+    EXPECT_EQ(String::number(0), "0");
+    EXPECT_EQ(String::number(std::numeric_limits<int>::min()),
+              std::to_string(std::numeric_limits<int>::min()));
+    EXPECT_EQ(String::number(std::numeric_limits<int>::max()),
+              std::to_string(std::numeric_limits<int>::max()));
+}
+
+TEST(ArtifactStringContractTest, CopiesAreIndependentAcrossInlineAndHeapStorage)
+{
+    String smallOriginal("small");
+    String smallCopy(smallOriginal);
+    smallCopy.append(" copy");
+    EXPECT_EQ(smallCopy, "small copy");
+    EXPECT_EQ(smallOriginal, "small");
+
+    String largeOriginal(std::string(64, 'L'));
+    String largeCopy;
+    largeCopy = largeOriginal;
+    largeCopy.replace(0, 1, "X");
+    EXPECT_EQ(largeCopy.at(0), 'X');
+    EXPECT_EQ(largeOriginal.at(0), 'L');
+    EXPECT_EQ(largeOriginal.length(), 64u);
+}
+
+TEST(ArtifactStringContractTest, PrefixAndSuffixViewsCompareExplicitBytesAcrossNulls)
+{
+    constexpr char bytes[] = {'a', '\0', 'b'};
+    const String value(bytes, sizeof(bytes));
+    const StringView prefix(bytes, 2);
+    const std::string_view suffix(bytes + 1, 2);
+
+    EXPECT_TRUE(value.startsWith(prefix));
+    EXPECT_TRUE(value.endsWith(suffix));
+    EXPECT_FALSE(value.startsWith(StringView(bytes + 1, 2)));
+    EXPECT_FALSE(value.endsWith(std::string_view(bytes, 2)));
+}

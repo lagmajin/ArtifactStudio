@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <limits>
 
 import Graphics.SurfaceColorContract;
 import Image.ImageF32x4_RGBA;
@@ -51,6 +52,37 @@ TEST(ChromaSpreadGlowContractTest, ThresholdEqualityIsSelectedAndBelowThresholdI
     EXPECT_FLOAT_EQ(pixels[3], 0.2f);
     EXPECT_FLOAT_EQ(pixels[7], 0.4f);
     EXPECT_FLOAT_EQ(pixels[11], 0.6f);
+}
+
+TEST(ChromaSpreadGlowContractTest, NonFiniteThresholdUsesTheDefaultThreshold)
+{
+    auto image = makeBgraImage({
+        0.4f, 0.4f, 0.4f, 0.2f,
+        0.6f, 0.6f, 0.6f, 0.8f,
+        0.3f, 0.3f, 0.3f, 1.0f,
+    });
+    ChromaSpreadGlowSettings settings;
+    settings.threshold = std::numeric_limits<float>::quiet_NaN();
+    settings.glowRadius = 0.0f;
+    settings.intensity = 0.5f;
+    settings.aberrationScale = 1.0f;
+    settings.dispersionSteps = 1;
+    ChromaSpreadGlow effect;
+    effect.process(image, settings);
+
+    const float* pixels = image.rgba32fData();
+    EXPECT_FLOAT_EQ(pixels[0], 0.4f);
+    EXPECT_FLOAT_EQ(pixels[1], 0.4f);
+    EXPECT_FLOAT_EQ(pixels[2], 0.4f);
+    EXPECT_FLOAT_EQ(pixels[4], 0.9f);
+    EXPECT_FLOAT_EQ(pixels[5], 0.9f);
+    EXPECT_FLOAT_EQ(pixels[6], 0.9f);
+    EXPECT_FLOAT_EQ(pixels[3], 0.2f);
+    EXPECT_FLOAT_EQ(pixels[7], 0.8f);
+    EXPECT_FLOAT_EQ(pixels[8], 0.3f);
+    EXPECT_FLOAT_EQ(pixels[9], 0.3f);
+    EXPECT_FLOAT_EQ(pixels[10], 0.3f);
+    EXPECT_FLOAT_EQ(pixels[11], 1.0f);
 }
 
 TEST(ChromaSpreadGlowContractTest, ZeroIntensityLeavesBrightAndDarkPixelsUnchanged)

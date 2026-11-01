@@ -91,6 +91,21 @@ TEST(AspectRatioContractTest, ParsesDecimalBelowOne)
     expectAspect(aspect, QStringLiteral("5:8"), 0.625);
 }
 
+TEST(AspectRatioContractTest, ParsesExactDecimalAboveTwoAsReducedFraction)
+{
+    AspectRatio aspect;
+    aspect.setFromString(UniString(QStringLiteral("2.4")));
+    expectAspect(aspect, QStringLiteral("12:5"), 2.4);
+}
+
+TEST(AspectRatioContractTest, ParsesScientificNotationAsDecimalRatio)
+{
+    AspectRatio aspect;
+    aspect.setFromString(UniString(QStringLiteral("1.25e1")));
+
+    expectAspect(aspect, QStringLiteral("25:2"), 12.5);
+}
+
 TEST(AspectRatioContractTest, SmallPositiveDecimalUsesBestBoundedPositiveApproximation)
 {
     AspectRatio aspect;
@@ -154,6 +169,21 @@ TEST(AspectRatioContractTest, OutOfRangeIntegerPairComponentPreservesCurrentValu
 
     aspect.setFromString(UniString(QStringLiteral("16:2147483648")));
     expectAspect(aspect, QStringLiteral("16:9"), 16.0 / 9.0);
+}
+
+TEST(AspectRatioContractTest, MinimumIntegerPairComponentsPreserveCurrentValue)
+{
+    AspectRatio aspect(16, 9);
+    constexpr int minimum = std::numeric_limits<int>::min();
+
+    aspect.setFromString(UniString(QString::number(minimum) + QStringLiteral(":9")));
+    expectAspect(aspect, QStringLiteral("16:9"), 16.0 / 9.0);
+
+    aspect.setFromString(UniString(QStringLiteral("9/") + QString::number(minimum)));
+    expectAspect(aspect, QStringLiteral("16:9"), 16.0 / 9.0);
+
+    const AspectRatio constructed(minimum, 9);
+    EXPECT_EQ(constructed.toString().toQString(), QStringLiteral("-2147483648:9"));
 }
 
 TEST(AspectRatioContractTest, NonPositiveDecimalDoesNotReplaceCurrentValue)

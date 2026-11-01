@@ -81,3 +81,80 @@ TEST(LayerLockManagerContractTest, PurgesExpiredLocksAndPublishesExpiry)
     EXPECT_EQ(changes.back().layerId, layer);
     EXPECT_EQ(changes.back().clientId, QStringLiteral("client-expiring"));
 }
+
+TEST(LayerLockManagerContractTest, SameClientReacquireRefreshesOwnerMetadata)
+{
+    LayerLockManager manager;
+    std::vector<LayerLockChangedEvent> changes;
+    auto subscription = ArtifactCore::globalEventBus().subscribe<LayerLockChangedEvent>(
+        [&](const auto& event) { changes.push_back(event); });
+    ASSERT_TRUE(subscription.connected());
+
+    const QString layer = QStringLiteral("reacquired-lock-contract-layer");
+    ASSERT_TRUE(manager.acquireLock(layer, QStringLiteral("same-client"),
+                                    QStringLiteral("old-user"),
+                                    QStringLiteral("Old User")));
+    ASSERT_TRUE(manager.acquireLock(layer, QStringLiteral("same-client"),
+                                    QStringLiteral("new-user"),
+                                    QStringLiteral("New User")));
+
+    const auto* info = manager.lockInfo(layer);
+    ASSERT_NE(info, nullptr);
+    EXPECT_EQ(info->clientId, QStringLiteral("same-client"));
+    EXPECT_EQ(info->userId, QStringLiteral("new-user"));
+    EXPECT_EQ(info->userName, QStringLiteral("New User"));
+    ASSERT_EQ(changes.size(), 2u);
+    EXPECT_EQ(changes[0].kind, LayerLockChangeKind::Acquired);
+    EXPECT_EQ(changes[1].kind, LayerLockChangeKind::Acquired);
+    EXPECT_EQ(changes[1].layerId, layer);
+    EXPECT_EQ(changes[1].clientId, QStringLiteral("same-client"));
+}
+
+TEST(LayerLockManagerContractTest, OwnerReleaseRemovesLockAndPublishesReleasedChange)
+{
+    LayerLockManager manager;
+    std::vector<LayerLockChangedEvent> changes;
+    auto subscription = ArtifactCore::globalEventBus().subscribe<LayerLockChangedEvent>(
+        [&](const auto& event) { changes.push_back(event); });
+    ASSERT_TRUE(subscription.connected());
+
+    const QString layer = QStringLiteral("owner-release-contract-layer");
+    const QString client = QStringLiteral("owner-release-client");
+    ASSERT_TRUE(manager.acquireLock(layer, client, QStringLiteral("user"),
+                                    QStringLiteral("User")));
+    ASSERT_EQ(manager.activeLocks().size(), 1);
+
+    EXPECT_TRUE(manager.releaseLock(layer, client));
+
+    EXPECT_FALSE(manager.isLocked(layer));
+    EXPECT_EQ(manager.lockInfo(layer), nullptr);
+    EXPECT_TRUE(manager.activeLocks().isEmpty());
+    ASSERT_EQ(changes.size(), 2u);
+    EXPECT_EQ(changes[0].kind, LayerLockChangeKind::Acquired);
+    EXPECT_EQ(changes[1].kind, LayerLockChangeKind::Released);
+    EXPECT_EQ(changes[1].layerId, layer);
+    EXPECT_EQ(changes[1].clientId, client);
+}
+
+TEST(LayerLockManagerContractTest, RepeatedReleaseDoesNotPublishDuplicateChanges)
+{
+    LayerLockManager manager;
+    std::vector<LayerLockChangedEvent> changes;
+    auto subscription = ArtifactCore::globalEventBus().subscribe<LayerLockChangedEvent>(
+        [&](const auto& event) { changes.push_back(event); });
+    ASSERT_TRUE(subscription.connected());
+
+    const QString layer = QStringLiteral("repeated-release-contract-layer");
+    const QString client = QStringLiteral("repeated-release-client");
+    ASSERT_TRUE(manager.acquireLock(layer, client, QStringLiteral("user"),
+                                    QStringLiteral("User")));
+    ASSERT_TRUE(manager.releaseLock(layer, client));
+
+    EXPECT_FALSE(manager.releaseLock(layer, client));
+    manager.onRemoteLockReleased(layer, client);
+
+    ASSERT_EQ(changes.size(), 2u);
+    EXPECT_EQ(changes[0].kind, LayerLockChangeKind::Acquired);
+    EXPECT_EQ(changes[1].kind, LayerLockChangeKind::Released);
+    EXPECT_FALSE(manager.isLocked(layer));
+}

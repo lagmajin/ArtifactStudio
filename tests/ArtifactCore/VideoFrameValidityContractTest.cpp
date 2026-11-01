@@ -26,8 +26,60 @@ TEST(VideoFrameValidityContractTest, CpuFrameRequiresPositiveDimensionsAndStorag
     EXPECT_FALSE(frame.isValid());
     frame.strideBytes = 8;
 
+    frame.strideBytes = 9;
+    EXPECT_FALSE(frame.isValid());
+    frame.strideBytes = 8;
+
     frame.meta.height = 0;
     EXPECT_FALSE(frame.isValid());
+}
+
+TEST(VideoFrameValidityContractTest, CpuFrameAcceptsPaddedRowsAtExactStorageSize)
+{
+    CpuVideoFrame frame;
+    frame.meta.width = 2;
+    frame.meta.height = 2;
+    frame.meta.pixelFormat = VideoFramePixelFormat::RGB24;
+    frame.strideBytes = 8;
+    frame.bytes.resize(16);
+
+    EXPECT_TRUE(frame.isValid());
+
+    frame.bytes.resize(24);
+    EXPECT_TRUE(frame.isValid());
+
+    frame.bytes.resize(15);
+    EXPECT_FALSE(frame.isValid());
+}
+
+TEST(VideoFrameValidityContractTest, CpuFrameUsesPixelFormatStorageWidth)
+{
+    CpuVideoFrame rgb;
+    rgb.meta.width = 2;
+    rgb.meta.height = 1;
+    rgb.meta.pixelFormat = VideoFramePixelFormat::RGB24;
+    rgb.strideBytes = 6;
+    rgb.bytes.resize(6);
+    EXPECT_TRUE(rgb.isValid());
+
+    CpuVideoFrame bgra;
+    bgra.meta.width = 2;
+    bgra.meta.height = 1;
+    bgra.meta.pixelFormat = VideoFramePixelFormat::BGRA8;
+    bgra.strideBytes = 8;
+    bgra.bytes.resize(8);
+    EXPECT_TRUE(bgra.isValid());
+
+    CpuVideoFrame rgba32f;
+    rgba32f.meta.width = 2;
+    rgba32f.meta.height = 1;
+    rgba32f.meta.pixelFormat = VideoFramePixelFormat::RGBA32F;
+    rgba32f.strideBytes = 32;
+    rgba32f.bytes.resize(32);
+    EXPECT_TRUE(rgba32f.isValid());
+
+    --rgba32f.strideBytes;
+    EXPECT_FALSE(rgba32f.isValid());
 }
 
 TEST(VideoFrameValidityContractTest, VulkanFrameRequiresDimensionsImageAndLifetime)
@@ -59,6 +111,9 @@ TEST(VideoFrameValidityContractTest, VulkanFrameRejectsMismatchedHandleVariant)
 
     frame.handle = VulkanVideoFrameHandle{.image = &image};
     EXPECT_TRUE(frame.isValid());
+
+    frame.lifetime.reset();
+    EXPECT_FALSE(frame.isValid());
 }
 
 TEST(VideoFrameValidityContractTest, D3D12FrameRequiresTextureFenceAndLifetime)
@@ -74,6 +129,9 @@ TEST(VideoFrameValidityContractTest, D3D12FrameRequiresTextureFenceAndLifetime)
 
     frame.lifetime = SharedPtr<void>(std::make_shared<int>(1));
     EXPECT_TRUE(frame.isValid());
+
+    frame.lifetime.reset();
+    EXPECT_FALSE(frame.isValid());
 }
 
 TEST(VideoFrameValidityContractTest, D3D12FrameRejectsMissingTextureOrFence)
@@ -132,4 +190,3 @@ TEST(VideoFrameValidityContractTest, DecodedFrameVariantDistinguishesCpuGpuAndEm
     ASSERT_TRUE(std::holds_alternative<GpuVideoFrame>(decodedGpu));
     EXPECT_TRUE(std::get<GpuVideoFrame>(decodedGpu).isValid());
 }
-

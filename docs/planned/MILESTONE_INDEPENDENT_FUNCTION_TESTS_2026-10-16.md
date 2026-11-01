@@ -1,6 +1,6 @@
 # 独立機能テスト拡充マイルストーン
 
-**最終更新:** 2026-10-25
+**最終更新:** 2026-10-31
 **ステータス:** In Progress
 
 ## 目的
@@ -608,3 +608,113 @@
 - #708 ArtifactFunctionRefが`int`戻りcallableを`double()` signatureでborrowし、呼び出し時に戻り値を変換する契約を追加。既存suiteは同型戻り値とreference returnを確認するが、戻り型変換は未確認。
 
 - #709 AbstractPropertyのInteger modulation結果が小数部分を最近接整数へ丸める契約を追加。既存のmodulation testはFloatの範囲clampを確認するが、Integer専用のrounding分岐は未確認。
+
+- #844 TimeCodeRange::setByFrameRange()のNaNおよび±infinity frame rateを30 fpsへfallbackし、validity・秒数・RationalTime durationを有限に保つ契約を追加。正のinfinityは現行実装で受け入れられるため差異をInsightへ記録。未ビルド・未実行.
+
+- #845 AudioMixer::connect()がprimary bus routing cycleを拒否し、既存source routeと前段経路を維持する契約を追加。未ビルド・未実行.
+
+- #846 AssetSequence MissingFramePolicy::Preserveでも同一frame numberの複数fileをsequence化せず、元filenameを全てsingleとして返す契約を追加。現行Preserve loopとの差異をInsightへ記録。未ビルド・未実行.
+
+- #847 AsyncFileWriterのQVector/std::vector両overloadに空入力を渡し、success callback・0 bytes・空file作成を確認する契約を追加。未ビルド・未実行.
+
+- #848 TimeCode::setFromQString()が29.97 fpsのdrop-frame delimiter `;` を認識し、`00:01:00;02`をframe 1800へ変換して同じdrop-frame表示へ戻す契約を追加。現行実装との差異をInsightへ記録。未ビルド・未実行.
+
+- #849 LayerLockManagerでowner release後の再releaseと同じremote releaseがロック状態を変えずReleased eventを重複発行しない契約を追加。未ビルド・未実行.
+
+- #850 CameraのFOV/aspect setterへNaN/infinityを渡しても投影状態とprojection matrixが有限値を保つ契約を追加。現行経路との差異をInsightへ記録。未ビルド・未実行.
+
+- #851 Camera::pan()がeyeとtargetを同じcamera-plane変位で移動し、orbit距離とforward方向を維持する契約を追加。未ビルド・未実行.
+
+- #852 RandomStream::chance(NaN)がfalseを返し、確率判定に乱数状態を消費しない契約を追加。現行比較との差異をInsightへ記録。未ビルド・未実行.
+
+- #853 VolumeMaskSettings::densityの公開0〜1範囲に合わせ、範囲外densityでもcomputeAlphaMask()のalphaを0/1端点へclampする契約を追加。現行実装との差異をInsightへ記録。未ビルド・未実行.
+
+- #854 VolumeMaskGenerator::renderToAlpha()へ空・1点・2点の輪郭を渡した場合、出力寸法/typeを保った全透明maskを返す契約を追加。未ビルド・未実行.
+
+- #855 AssetSequence Split方針でduplicate frameが連続runの末尾または中央にある場合も、該当group全体をsequence化せず全fileをsingleにする契約を追加。現行処理との差異をInsightへ記録。未ビルド・未実行.
+
+- #856 ProgressAggregator::reset()後のsnapshotではstartedAtを無効化し、次worker登録時に新しい計測開始時刻を設定する契約を追加。現行resetとの差異をInsightへ記録。未ビルド・未実行.
+
+- #857 LiveStabilizer::setParams()が構造体設定を値として保持し、呼び出し側sourceを後から変更しても状態が変化しない契約を追加。未ビルド・未実行.
+
+- #858 LocaleFormatting::formatTimecode()へNaNおよび±infinityのseconds/fpsを渡した場合にzero timecodeへfallbackする契約を追加。未ビルド・未実行.
+
+- #859 AssetMetaFileのfuture schema version 42を保持したmetadataに既知setterでtypeを更新しても、versionと未知futureSectionをdowngrade/dropしない契約を追加。未ビルド・未実行.
+
+- #860 EffectSequenceのstage順検査でdisabled effectを無視し、有効effect同士の逆順は拒否する契約を追加。未ビルド・未実行.
+
+- #861 EffectSequenceの空入力を有効なstage順として受け入れ、空sort結果も空のままであること、およびnull entryをvalidationで無視する契約を追加。未ビルド・未実行.
+
+- #862 AudioMixer primary routeのnull/foreign/master/self endpointを適切なresultで拒否し、既存routeを保持する契約と、disconnectの2回目をNoRouteとする冪等性契約を追加。未ビルド・未実行.
+
+- #863 CoordinateValue::fromString()とCoordinateResolver::resolveExpression()へNaN/infinity表記を渡した場合、非有限座標を0へfallbackする契約を追加。現行実装はtoDouble()結果のfinite検査をしないため差異をInsightへ記録。未ビルド・未実行.
+
+- #864 FrameCacheへ同一frame keyの大きいentryを再投入したとき、entry数を重複させずmemory usageを置換後の正確な合計に更新し、別frameを保持する契約を追加。未ビルド・未実行.
+
+- #865 ActionManagerの実行時parameter overrideがcallbackへ反映されても、Actionに保存済みのproperty値は変更しない契約を追加。未ビルド・未実行.
+
+- #866 InputBindingの未設定keyCodeがKeyDown eventのunknown key（0）に誤一致しない契約を追加。現行matches()は未設定keyとevent keyの同値だけを判定するため差異をInsightへ記録。未ビルド・未実行.
+
+- #867 SafeWriteDryRunResultが定義外SafeWriteRiskLevel値を拒否する契約を追加。現行isValid()はHigh以外を警告不要扱いするためunknown enumも受け入れる差異をInsightへ記録。未ビルド・未実行.
+
+- #868 ProgressAggregatorのregisterWorker/setTotalFramesが負のtotalFramesを0へclampし、snapshot全体・worker双方の合計値を非負に保つ契約を追加。現行実装は負値をそのまま保持するため差異をInsightへ記録。未ビルド・未実行.
+
+- #869 FrameCacheで世代更新により隠れたstale frameを同一keyの新entryで置換した後、新世代entryが可視でstale generation cleanup後も保持される契約を追加。未ビルド・未実行.
+
+- #870 KeyMapへ同じActionを別keyで再登録するとき、binding count/action indexは一つのまま旧key indexを除き、新しいdescriptionとkeyを公開する契約を追加。未ビルド・未実行.
+
+- #871 AsyncFileWriterのQByteArray/QVector/std::vector各overloadで、enqueue後に呼び出し元bufferを変更しても保存内容は呼び出し時のsnapshotを維持する契約を追加。未ビルド・未実行.
+
+- #872 AssetImporterでsemantic video extension（.mp4）がPNG image signatureより優先され、Video metadataとして登録されimage metadataを生成しない契約を追加。未ビルド・未実行.
+
+- #873 Image proxyを生成したassetをproxy generation無効設定で再importしても、同じasset ID・proxy sidecar entry・生成済みproxy fileを保持する契約を追加。未ビルド・未実行.
+
+- #874 AudioMixerで同一sidechain source/targetの再登録がamount/pre-fader設定を一件のsend上で置換し、remove後の再removeをNoSendとする契約を追加。未ビルド・未実行.
+
+- #875 LUT3Dがcube sample componentの非数値入力を拒否し、既にロード済みのLUTを含む部分状態をinvalidateする契約を追加。現行parserはtoFloat()成否を確認せず0として採用するため差異をInsightへ記録。未ビルド・未実行.
+
+- #876 LUT writerがNaN/infinity sampleをmemory/file exportで拒否し、不正出力で既存fileを置換しない契約を追加。現行writerはsample finite検査なしでserializeするため差異をInsightへ記録。未ビルド・未実行.
+
+- #877 LUT3D loaderがNaNおよび±infinity sample componentを拒否し、loaded LUTを無効化する契約を追加。現行parserは変換成否・finite性を確認しないため差異をInsightへ記録。未ビルド・未実行.
+
+- #878 SafeWriteExecutionPlanがHigh risk警告不足およびwouldFail dry-runを拒否し、confirmation required=falseでは理由・previewなしでも有効となる契約を追加。未ビルド・未実行.
+
+- #879 Light::setRange()がNaN入力を有限なunit attenuation fallback（1,0,0）へ戻す契約を追加。現行実装はrange由来係数へNaNを伝播するため差異をInsightへ記録。未ビルド・未実行.
+
+- #880 Light::setGoboRotation()がinfinityを受け取った場合に0度へfallbackし、回転状態を有限に保つ契約を追加。現行fmodは非有限値をrotationへ伝播するため差異をInsightへ記録。未ビルド・未実行.
+
+- #881 Light::setIntensity()のNaNとsetAreaSize()のNaN/infinityを有限な下限値（0 intensity、1 pixel area）へfallbackする契約を追加。現行maxは非有限値を保持するため差異をInsightへ記録。未ビルド・未実行.
+
+- #882 ArtifactMathのmin/max/clamp/lerpがconstexpr contextで利用できることをstatic_assertで固定し、実行時の境界値とintegral-to-floating interpolationも確認する契約を追加。未ビルド・未実行.
+
+- #883 ArtifactStringのchar/substring検索が開始位置lengthおよびlength超過で見つからず、find系はsize_t(-1)、indexOf系は-1を返す境界契約を追加。未ビルド・未実行.
+
+- #884 ArtifactStringをinline/heap storageからmoveした後、sourceが空・終端NUL付きの再利用可能な状態にあり、append後も文字列とterminatorを保つ契約を追加。未ビルド・未実行.
+
+- #885 ArtifactStringの整数・浮動小数変換が空白のみ／符号のみの入力を失敗として報告し、失敗時に既定値を返す境界契約を追加。未ビルド・未実行.
+
+- #886 ArtifactStringのprefix/suffix判定が空・完全一致・対象より長い入力を処理し、bytewise orderingが同値とstrict prefixを一貫して扱う契約を追加。未ビルド・未実行.
+
+- #887 ArtifactStringのmid/left/rightが巨大countを安全に範囲へclampし、埋め込みNULを含むbyte sliceの長さと内容を保持し、終端以降のmidを空にする契約を追加。未ビルド・未実行.
+
+- #888 ArtifactString::number(double)の既定小数精度2桁、負のゼロの符号保持、精度0の丸め出力を契約化。未ビルド・未実行.
+
+- #889 ArtifactString::number(int)が0とintの最小・最大値を符号・桁落ちなく10進表記する契約を追加。未ビルド・未実行.
+
+- #890 ArtifactStringのcopy constructorとcopy assignmentがinline/heap storageの双方で独立した内容を持ち、コピー側のappend/replaceが元を変更しない契約を追加。未ビルド・未実行.
+
+- #891 ArtifactStringのStringView/string_view prefix・suffix判定が埋め込みNULを含む明示byte長を尊重し、異なる先頭／末尾byte列を拒否する契約を追加。未ビルド・未実行.
+
+- #892 ArtifactMath::artifactClampがNaNを保持し、上下限内の負のゼロの符号も保存する契約を追加。未ビルド・未実行.
+
+- #893 ArtifactMath::artifactAbsが負の無限大を正の無限大へ写し、NaNをNaNのまま伝播する契約を追加。未ビルド・未実行.
+
+- #894 ArtifactMathのartifactMin/artifactMaxが比較上同値の±0を受け取ったとき、順序に関係なく先頭引数を選択し、その符号を保持する契約を追加。未ビルド・未実行.
+
+- #895 ArtifactMath::artifactRoundが2^53の大きな整数値を変えず、±infinityの符号とNaNを保持する契約を追加。未ビルド・未実行.
+
+- #896 ArtifactMath::artifactIsFinite(long double)が±infinityとNaNを非有限として拒否する境界契約を追加。未ビルド・未実行.
+
+- #897 ArtifactMath::artifactSqrtが負の有限入力でNaNを返し、正のinfinityを保持する契約を追加。未ビルド・未実行.
+
+- #898 ArtifactMath::artifactAtan2が原点でyの符号付きゼロを保ち、±infinity座標の対角象限と有限/infinite比の極限角を返す契約を追加。未ビルド・未実行.

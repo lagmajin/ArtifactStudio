@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <QString>
 #include <QVariant>
+#include <QtGlobal>
 
 #include <functional>
 
@@ -81,6 +82,13 @@ TEST(TokenExpansionTest, FramePadding)
               QStringLiteral("seq.5.png"));
 }
 
+TEST(TokenExpansionTest, FramePaddingWidthIsCappedAtTenDigits)
+{
+    EXPECT_EQ(expandTokens(QStringLiteral("frame_$F999999999999999999999.png"),
+                           makeContext(42.0)),
+              QStringLiteral("frame_0000000042.png"));
+}
+
 TEST(TokenExpansionTest, FrameNamedVariableNotConfusedWithFrame)
 {
     // $FRAME はフレームトークンではなく変数として扱う
@@ -108,11 +116,49 @@ TEST(TokenExpansionTest, CustomResolverTakesPrecedence)
               QStringLiteral("/home/tester"));
 }
 
+TEST(TokenExpansionTest, CustomResolverCanResolveANameToAnEmptyString)
+{
+    ExpansionContext ctx = makeContext();
+    ctx.customResolver = [](const QString& name) -> QString {
+        return name == QStringLiteral("EMPTY_FROM_PROJECT")
+            ? QStringLiteral("")
+            : QString();
+    };
+
+    EXPECT_EQ(expandTokens(QStringLiteral("before/${EMPTY_FROM_PROJECT}/after"), ctx),
+              QStringLiteral("before//after"));
+}
+
 TEST(TokenExpansionTest, EmptyVariableValueResolvesToEmptyString)
 {
     // 空文字列は「解決されたが空」。未解決 (元のまま) とは区別される。
     EXPECT_EQ(expandTokens(QStringLiteral("a/${EMPTY_VAR}/b"), makeContext()),
               QStringLiteral("a//b"));
+}
+
+TEST(TokenExpansionTest, UnsetRevisionChangesOnlyWhenAnExistingVariableIsRemoved)
+{
+    auto* manager = EnvironmentVariableManager::instance();
+    const QString name = QStringLiteral("ARTIFACT_TEST_ENV_UNSET_REVISION");
+    const bool hadOriginalValue = manager->hasVariable(name);
+    const QVariant originalValue = manager->getVariable(name);
+    manager->unsetVariable(name);
+    const quint64 revisionAfterEnsuringAbsent = manager->revision();
+
+    EXPECT_FALSE(manager->unsetVariable(name));
+    EXPECT_EQ(manager->revision(), revisionAfterEnsuringAbsent);
+
+    manager->setVariable(name, QStringLiteral("temporary"));
+    EXPECT_EQ(manager->revision(), revisionAfterEnsuringAbsent + 1);
+    EXPECT_TRUE(manager->unsetVariable(name));
+    EXPECT_FALSE(manager->hasVariable(name));
+    EXPECT_EQ(manager->revision(), revisionAfterEnsuringAbsent + 2);
+    EXPECT_FALSE(manager->unsetVariable(name));
+    EXPECT_EQ(manager->revision(), revisionAfterEnsuringAbsent + 2);
+
+    if (hadOriginalValue) {
+        manager->setVariable(name, originalValue);
+    }
 }
 
 TEST(TokenExpansionTest, MixedTokensInOneString)

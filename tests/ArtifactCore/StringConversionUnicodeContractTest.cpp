@@ -5,10 +5,12 @@
 #include <string>
 
 import Utils.Convertor.String;
+import Utils.String;
 
 using ArtifactCore::toStdString;
 using ArtifactCore::toStdU16String;
 using ArtifactCore::toStdU32String;
+using ArtifactCore::toQString;
 
 TEST(StringConversionUnicodeContractTest, EmptyStringProducesEmptyStandardStrings)
 {
@@ -58,4 +60,39 @@ TEST(StringConversionUnicodeContractTest, Utf32LengthCountsCodePointsRatherThanU
     EXPECT_EQ(input.size(), 4);
     EXPECT_EQ(toStdU16String(input).size(), 4u);
     EXPECT_EQ(toStdU32String(input).size(), 2u);
+}
+
+TEST(StringConversionUnicodeContractTest, PreservesEmbeddedNullAcrossUtf8Utf16AndUtf32)
+{
+    const QChar codeUnits[] = {QChar(u'A'), QChar(u'\0'), QChar(u'B')};
+    const QString input(codeUnits, 3);
+
+    const std::string utf8 = toStdString(input);
+    ASSERT_EQ(utf8.size(), 3u);
+    EXPECT_EQ(utf8[0], 'A');
+    EXPECT_EQ(utf8[1], '\0');
+    EXPECT_EQ(utf8[2], 'B');
+
+    const std::u16string utf16 = toStdU16String(input);
+    ASSERT_EQ(utf16.size(), 3u);
+    EXPECT_EQ(utf16[0], u'A');
+    EXPECT_EQ(utf16[1], u'\0');
+    EXPECT_EQ(utf16[2], u'B');
+
+    const std::u32string utf32 = toStdU32String(input);
+    ASSERT_EQ(utf32.size(), 3u);
+    EXPECT_EQ(utf32[0], U'A');
+    EXPECT_EQ(utf32[1], U'\0');
+    EXPECT_EQ(utf32[2], U'B');
+}
+
+TEST(StringConversionUnicodeContractTest, Utf8InputConversionPreservesEmbeddedNull)
+{
+    const std::string input("A\0B", 3);
+    const QString converted = toQString(input);
+
+    ASSERT_EQ(converted.size(), 3);
+    EXPECT_EQ(converted[0], QChar(u'A'));
+    EXPECT_EQ(converted[1], QChar(u'\0'));
+    EXPECT_EQ(converted[2], QChar(u'B'));
 }

@@ -34,6 +34,26 @@ TEST(RandomStreamContractTest, SeedsReproduceSequencesAndZeroUsesDefaultSeed)
     }
 }
 
+TEST(RandomStreamContractTest, ReseedingRestartsTheSequence)
+{
+    RandomStream stream{0x8f3a21ull};
+    std::array<uint64_t, 8> initial{};
+    for (auto& value : initial) {
+        value = stream.nextU64();
+    }
+
+    stream.seed(0x8f3a21ull);
+    for (const auto expected : initial) {
+        EXPECT_EQ(stream.nextU64(), expected);
+    }
+
+    stream.seed(0);
+    RandomStream defaultSeed{RandomStream::defaultSeed()};
+    for (int index = 0; index < 8; ++index) {
+        EXPECT_EQ(stream.nextU64(), defaultSeed.nextU64());
+    }
+}
+
 TEST(RandomStreamContractTest, UnitAndRangeMethodsRespectHalfOpenAndInclusiveBounds)
 {
     RandomStream stream{42};
@@ -79,6 +99,15 @@ TEST(RandomStreamContractTest, BoundaryChancesDoNotConsumeRandomState)
     EXPECT_EQ(stream.nextU64(), reference.nextU64());
 }
 
+TEST(RandomStreamContractTest, NonFiniteChanceDoesNotConsumeRandomState)
+{
+    RandomStream stream{77};
+    const auto initialState = stream.state();
+
+    EXPECT_FALSE(stream.chance(std::numeric_limits<float>::quiet_NaN()));
+    EXPECT_EQ(stream.state(), initialState);
+}
+
 TEST(RandomStreamContractTest, ForksAreRepeatableAndLeaveTheParentUnchanged)
 {
     RandomStream parent{1234};
@@ -116,6 +145,23 @@ TEST(RandomStreamContractTest, ShuffleAndPickStayWithinTheirInputCollections)
     const std::array<int, 4> fixed{11, 22, 33, 44};
     const int& fixedSelected = a.pick(fixed);
     EXPECT_NE(std::find(fixed.begin(), fixed.end(), fixedSelected), fixed.end());
+}
+
+TEST(RandomStreamContractTest, ShufflingEmptyOrSingleElementInputDoesNotConsumeState)
+{
+    RandomStream stream{314};
+    const auto initialState = stream.state();
+    std::vector<int> empty;
+    std::vector<int> single{42};
+
+    stream.shuffle(empty);
+    EXPECT_TRUE(empty.empty());
+    EXPECT_EQ(stream.state(), initialState);
+
+    stream.shuffle(single);
+    ASSERT_EQ(single.size(), 1u);
+    EXPECT_EQ(single.front(), 42);
+    EXPECT_EQ(stream.state(), initialState);
 }
 
 TEST(RandomStreamContractTest, JitterAndGaussianHelpersStayFiniteAndRespectScale)

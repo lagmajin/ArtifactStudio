@@ -19,6 +19,7 @@ import Asset.Database;
 import Asset.Import.Setting;
 import Asset.Importer;
 import Asset.VectorImport;
+import File.TypeDetector;
 import AssetType;
 
 using namespace ArtifactCore;
@@ -168,6 +169,25 @@ TEST(AssetImporterContractTest, VectorAssetFileExtractsSvgViewBoxAndBasicNodeSum
     EXPECT_EQ(result.nodeSummary.textNodes, 1);
     EXPECT_EQ(result.nodeSummary.imageNodes, 1);
     EXPECT_EQ(result.nodeSummary.totalNodes, 4);
+}
+
+TEST(AssetImporterContractTest, VectorAssetFileAcceptsCommaSeparatedViewBox)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("comma-viewbox.svg"));
+    ASSERT_TRUE(writeTextFile(
+        sourcePath,
+        QByteArrayLiteral("<svg viewBox=\"0, 0, 12.5, 7.25\"><path/></svg>")));
+
+    const VectorAssetFile asset(sourcePath);
+    const auto& result = asset.importResult();
+
+    ASSERT_EQ(result.pages.size(), 1);
+    EXPECT_EQ(result.sourceSize, QSize(13, 8));
+    EXPECT_DOUBLE_EQ(result.pages.front().bounds.width(), 12.5);
+    EXPECT_DOUBLE_EQ(result.pages.front().bounds.height(), 7.25);
+    EXPECT_EQ(result.nodeSummary.pathNodes, 1);
 }
 
 TEST(AssetImporterContractTest, VectorAssetFileReportsMalformedSvgAsPartialIssue)
@@ -338,6 +358,23 @@ TEST(AssetImporterContractTest, RejectsMissingFilesAndUnsupportedExtensions)
     EXPECT_TRUE(AssetImporter::importFile(missing, settings).isNull());
     EXPECT_TRUE(AssetImporter::importFile(unsupported, settings).isNull());
     EXPECT_TRUE(AssetDatabase::instance().findAssetByPath(unsupported).isNull());
+}
+
+TEST(AssetImporterContractTest, ArchiveIsDetectedButRejectedWithoutImportSideEffects)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString archivePath = directory.filePath(QStringLiteral("package.zip"));
+    ASSERT_TRUE(writeTextFile(archivePath, QByteArray::fromHex("504b0304")));
+
+    const FileTypeDetector detector;
+    EXPECT_EQ(detector.detect(archivePath), FileType::Archive);
+    EXPECT_FALSE(AssetImporter::isSupported(QStringLiteral("zip")));
+
+    const AssetImportSettings settings;
+    EXPECT_TRUE(AssetImporter::importFile(archivePath, settings).isNull());
+    EXPECT_TRUE(AssetDatabase::instance().findAssetByPath(archivePath).isNull());
+    EXPECT_FALSE(QFile::exists(ArtifactAssetMetaFile::metaPathFor(archivePath)));
 }
 
 TEST(AssetImporterContractTest, RejectsDirectoriesEvenWhenTheirSuffixIsSupported)
@@ -531,6 +568,61 @@ TEST(AssetImporterContractTest, ImportsPngAndPersistsDecodedImageMetadata)
     EXPECT_FALSE(meta.customValue(QStringLiteral("image/pixelType")).toString().isEmpty());
 }
 
+TEST(AssetImporterContractTest, ImageImportRegistersGeneratedProxyInSidecar)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("proxy-source.png"));
+    ASSERT_TRUE(writeTextFile(sourcePath, onePixelPng()));
+
+    AssetImportSettings settings;
+    settings.generateProxyOnImport = true;
+    settings.proxyResolution = QSize(1, 1);
+    const QUuid id = AssetImporter::importFile(sourcePath, settings);
+    ASSERT_FALSE(id.isNull());
+    RegisteredAssetGuard cleanup(AssetDatabase::instance(), id);
+
+    const ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(meta.isValid());
+    ASSERT_EQ(meta.proxyResolutions(), (QStringList{QStringLiteral("configured")}));
+    const QString proxyPath = meta.proxyPath(QStringLiteral("configured"));
+    ASSERT_FALSE(proxyPath.isEmpty());
+    EXPECT_TRUE(QFileInfo::exists(proxyPath));
+    EXPECT_GT(QFileInfo(proxyPath).size(), 0);
+    EXPECT_NE(QFileInfo(proxyPath).absoluteFilePath(),
+              QFileInfo(sourcePath).absoluteFilePath());
+}
+
+TEST(AssetImporterContractTest, ReimportWithoutProxyGenerationPreservesExistingProxy)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("proxy-reimport.png"));
+    ASSERT_TRUE(writeTextFile(sourcePath, onePixelPng()));
+
+    AssetImportSettings initialSettings;
+    initialSettings.generateProxyOnImport = true;
+    initialSettings.proxyResolution = QSize(1, 1);
+    const QUuid id = AssetImporter::importFile(sourcePath, initialSettings);
+    ASSERT_FALSE(id.isNull());
+    RegisteredAssetGuard cleanup(AssetDatabase::instance(), id);
+
+    const ArtifactAssetMetaFile before = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(before.proxyResolutions().contains(QStringLiteral("configured")));
+    const QString originalProxy = before.proxyPath(QStringLiteral("configured"));
+    ASSERT_FALSE(originalProxy.isEmpty());
+    ASSERT_TRUE(QFileInfo::exists(originalProxy));
+
+    AssetImportSettings subsequentSettings;
+    subsequentSettings.generateProxyOnImport = false;
+    EXPECT_EQ(AssetImporter::importFile(sourcePath, subsequentSettings), id);
+
+    const ArtifactAssetMetaFile after = ArtifactAssetMetaFile::load(sourcePath);
+    EXPECT_EQ(after.proxyPath(QStringLiteral("configured")), originalProxy);
+    EXPECT_TRUE(after.proxyResolutions().contains(QStringLiteral("configured")));
+    EXPECT_TRUE(QFileInfo::exists(originalProxy));
+}
+
 TEST(AssetImporterContractTest, ContentTypeOverridesImageExtensionForTextPayload)
 {
     QTemporaryDir directory;
@@ -550,6 +642,25 @@ TEST(AssetImporterContractTest, ContentTypeOverridesImageExtensionForTextPayload
     EXPECT_FALSE(meta.customValue(QStringLiteral("image/width")).isValid());
 }
 
+TEST(AssetImporterContractTest, SemanticVideoExtensionWinsOverImageSignature)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("still.mp4"));
+    ASSERT_TRUE(writeTextFile(sourcePath, onePixelPng()));
+
+    const AssetImportSettings settings;
+    const QUuid id = AssetImporter::importFile(sourcePath, settings);
+    ASSERT_FALSE(id.isNull());
+    RegisteredAssetGuard cleanup(AssetDatabase::instance(), id);
+
+    EXPECT_EQ(AssetDatabase::instance().getAssetInfo(id).type, AssetType::Video);
+    const ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(meta.isValid());
+    EXPECT_EQ(meta.type(), AssetType::Video);
+    EXPECT_FALSE(meta.customValue(QStringLiteral("image/width")).isValid());
+}
+
 TEST(AssetImporterContractTest, RejectsBinaryPayloadWithSupportedImageExtensionWithoutSideEffects)
 {
     QTemporaryDir directory;
@@ -562,4 +673,34 @@ TEST(AssetImporterContractTest, RejectsBinaryPayloadWithSupportedImageExtensionW
     EXPECT_TRUE(AssetDatabase::instance().findAssetByPath(sourcePath).isNull());
     EXPECT_FALSE(QFile::exists(
         ArtifactAssetMetaFile::metaPathFor(sourcePath)));
+}
+
+TEST(AssetImporterContractTest,
+     FailedReimportKeepsPreviouslyRegisteredAssetAndSidecar)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("mutable.png"));
+    ASSERT_TRUE(writeTextFile(sourcePath, onePixelPng()));
+
+    const AssetImportSettings settings;
+    const QUuid id = AssetImporter::importFile(sourcePath, settings);
+    ASSERT_FALSE(id.isNull());
+    RegisteredAssetGuard cleanup(AssetDatabase::instance(), id);
+
+    auto beforeFailure = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(beforeFailure.isValid());
+    beforeFailure.setCustomValue(QStringLiteral("review/owner"),
+                                 QStringLiteral("artist"));
+    ASSERT_TRUE(beforeFailure.save());
+
+    ASSERT_TRUE(writeTextFile(sourcePath, QByteArrayLiteral("not a PNG payload")));
+    EXPECT_TRUE(AssetImporter::importFile(sourcePath, settings).isNull());
+
+    EXPECT_EQ(AssetDatabase::instance().findAssetByPath(sourcePath), id);
+    const auto afterFailure = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(afterFailure.isValid());
+    EXPECT_EQ(afterFailure.uuid(), id);
+    EXPECT_EQ(afterFailure.customValue(QStringLiteral("review/owner")).toString(),
+              QStringLiteral("artist"));
 }

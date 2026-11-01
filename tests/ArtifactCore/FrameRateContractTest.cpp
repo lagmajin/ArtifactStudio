@@ -197,6 +197,8 @@ TEST(FrameRateContractTest, InvalidRationalStringsPreserveExistingExactRate)
                                     QStringLiteral("-24/1"),
                                     QStringLiteral("24/-1"),
                                     QStringLiteral("29.97/1"),
+                                    QStringLiteral("24000.5/1001"),
+                                    QStringLiteral("24000/1001.5"),
                                     QStringLiteral("30000/1001.5"),
                                     QStringLiteral("9223372036854775808/1")};
 
@@ -249,6 +251,21 @@ TEST(FrameRateContractTest, JsonRoundTripPreservesExactAndFloatRates)
     EXPECT_EQ(exactRestored.denominator(), 1001);
     EXPECT_FALSE(plainRestored.hasExactRational());
     EXPECT_FLOAT_EQ(plainRestored.framerate(), 25.0f);
+}
+
+TEST(FrameRateContractTest, JsonRoundTripPreservesLargestExactlyRepresentableRationalIntegers)
+{
+    constexpr std::int64_t largestExactlyRepresentableInteger = 9007199254740991LL;
+    const auto exact = FrameRate::fromRational(
+        largestExactlyRepresentableInteger,
+        largestExactlyRepresentableInteger - 2);
+
+    const auto restored = FrameRate::fromJsonStatic(exact.toJson());
+
+    ASSERT_TRUE(restored.hasExactRational());
+    EXPECT_EQ(restored.numerator(), largestExactlyRepresentableInteger);
+    EXPECT_EQ(restored.denominator(), largestExactlyRepresentableInteger - 2);
+    EXPECT_DOUBLE_EQ(restored.exactFps(), exact.exactFps());
 }
 
 TEST(FrameRateContractTest, JsonAcceptsLegacyFpsAndValueFields)
@@ -454,6 +471,20 @@ TEST(FrameRateContractTest, FractionalRationalJsonDoesNotTruncateExistingRate)
     EXPECT_EQ(rate.numerator(), 30000);
     EXPECT_EQ(rate.denominator(), 1001);
     EXPECT_NEAR(rate.exactFps(), 30000.0 / 1001.0, 1e-12);
+}
+
+TEST(FrameRateContractTest, FractionalRationalJsonDenominatorDoesNotTruncateExistingRate)
+{
+    auto rate = FrameRate::fromRational(24000, 1001);
+    const QJsonObject fractional{{QStringLiteral("numerator"), 30000.0},
+                                 {QStringLiteral("denominator"), 1001.5}};
+
+    rate.setFromJson(fractional);
+
+    EXPECT_TRUE(rate.hasExactRational());
+    EXPECT_EQ(rate.numerator(), 24000);
+    EXPECT_EQ(rate.denominator(), 1001);
+    EXPECT_NEAR(rate.exactFps(), 24000.0 / 1001.0, 1e-12);
 }
 
 TEST(FrameRateContractTest, FloatJsonUpdateClearsPreviouslyExactRateMetadata)

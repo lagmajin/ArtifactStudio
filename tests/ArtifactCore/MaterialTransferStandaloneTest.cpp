@@ -6,6 +6,8 @@
 #include "../../ArtifactCore/include/Simulation/MaterialDust.hpp"
 #include "../../ArtifactCore/include/Simulation/MaterialTransferTransaction.hpp"
 
+#include <limits>
+
 using namespace ArtifactCore::Experimental::MaterialTransfer;
 
 int main() {
@@ -56,6 +58,11 @@ int main() {
         ledger.probe(key) != LedgerStatus::Duplicate) return 9;
     Occurrence invalid[1]{};
     if (ledger.restore(invalid) || ledger.probe(key) != LedgerStatus::Duplicate) return 10;
+    Occurrence oversized[2]{{9, 10, 11}, {12, 13, 14}};
+    if (ledger.restore(oversized) || ledger.probe(key) != LedgerStatus::Duplicate)
+        return 30;
+    if (!ledger.restore({}) || ledger.probe(key) != LedgerStatus::Available)
+        return 31;
     const float damage[2]{0.2f, 0.8f};
     AttributeColumn columns[1]{{100, AttributeOwner::Fragment,
         AttributeUnit::Dimensionless, std::span<const float>{damage}}};
@@ -112,6 +119,20 @@ int main() {
         AttributeUnit::Seconds, sourceIndices, inherited,
         MissingAttribute::UseDefault, 0.5f);
     if (transfer != AttributeTransferStatus::TypeOrUnitMismatch) return 23;
+    const std::size_t operationIndices[2]{0, 1};
+    float operationValues[2]{1.0f, std::numeric_limits<float>::max()};
+    float operationScratch[2]{-1.0f, -1.0f};
+    transfer = applyFloatAttribute(operationValues, 2, operationIndices,
+        FloatAttributeOperation::Add, std::numeric_limits<float>::max(),
+        operationScratch);
+    if (transfer != AttributeTransferStatus::InvalidInput ||
+        operationValues[0] != 1.0f ||
+        operationValues[1] != std::numeric_limits<float>::max()) return 32;
+    transfer = applyFloatAttribute(operationValues, 2, operationIndices,
+        FloatAttributeOperation::Set, 0.5f, std::span<float>{operationScratch, 1});
+    if (transfer != AttributeTransferStatus::Defer ||
+        operationValues[0] != 1.0f ||
+        operationValues[1] != std::numeric_limits<float>::max()) return 33;
     request.sourceDomain = Domain::Fragment;
     request.targetDomain = Domain::Particle;
     request.mode = Mode::SpawnSecondary;

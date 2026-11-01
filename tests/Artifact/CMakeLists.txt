@@ -395,6 +395,12 @@ add_executable(ArtifactCurveEditorStandaloneTest
 )
 artifact_curve_editor_sources(ArtifactCurveEditorStandaloneTest)
 target_link_libraries(ArtifactCurveEditorStandaloneTest PRIVATE GTest::gtest)
+# Baseline PNGs live next to the test source so CI and local runs compare the
+# same reference images. Override with --baseline-dir or
+# ARTIFACT_CURVE_EDITOR_BASELINE_DIR; regenerate with --update-baselines.
+target_compile_definitions(ArtifactCurveEditorStandaloneTest PRIVATE
+    "ARTIFACT_CURVE_EDITOR_BASELINE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/baselines/curve-editor\""
+)
 if(WIN32)
     add_custom_command(TARGET ArtifactCurveEditorStandaloneTest POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
@@ -1486,6 +1492,15 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactMotionBlurLayerCombinationContractTest
+        COMMAND $<TARGET_FILE:ArtifactPostProcessPassContractTest>
+            "--gtest_filter=PostProcessPassGpuContractTest.MotionBlurPreservesStaticLayerAndBlursMultipleMovingLayerRegions"
+    )
+    set_tests_properties(ArtifactMotionBlurLayerCombinationContractTest PROPERTIES
+        LABELS "renderer;gpu;postprocess;motion-blur;layers;headless;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactFinalPostProcessContractTest
         COMMAND $<TARGET_FILE:ArtifactPostProcessPassContractTest>
             "--gtest_filter=FinalPostProcessContractTest.*:PostProcessPassGpuContractTest.*Lut*"
@@ -1976,6 +1991,26 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactCompositionViewSmokeCurlIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.ProductionSmokeCurlABRendersThroughCompositionView
+    )
+    set_tests_properties(ArtifactCompositionViewSmokeCurlIntegrationTest PROPERTIES
+        LABELS "composition-view;smoke;fluid;renderer;gpu;headless;image;integration;contract"
+        TIMEOUT 900
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactCompositionViewSmokeCurlLongRunIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.ProductionSmokeCurlABRendersThroughCompositionView
+    )
+    set_tests_properties(ArtifactCompositionViewSmokeCurlLongRunIntegrationTest PROPERTIES
+        LABELS "composition-view;smoke;fluid;renderer;gpu;headless;image;integration;stress;contract"
+        TIMEOUT 1800
+        RUN_SERIAL TRUE
+        ENVIRONMENT
+            "ARTIFACT_SMOKE_CURL_STRENGTH_RND=0.25;ARTIFACT_SMOKE_CURL_OCTAVES_RND=2;ARTIFACT_SMOKE_AB_FLAME_RND=1;ARTIFACT_SMOKE_AB_END_FRAME_RND=240"
+    )
     add_test(NAME ArtifactRenderQueueTextLayerImageIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.ProductionTextLayerRendersThroughManagerQueue
@@ -2141,29 +2176,6 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     )
     set_tests_properties(ArtifactTextGlyphRenderContractTest PROPERTIES
         LABELS "animation;renderer;gpu;text;headless;contract"
-    )
-endif()
-
-# Exercise the production compute passes with a headless Vulkan device and
-# inspect their output textures without starting the application renderer.
-if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
-    artifact_add_test(ArtifactPostProcessPassContractTest
-        SOURCES
-            PostProcessPassContractTest.cpp
-        LIBS
-            ArtifactRender
-    )
-    target_include_directories(ArtifactPostProcessPassContractTest PRIVATE
-        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngine/interface"
-        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngineVulkan/interface"
-        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Common/interface"
-        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Platforms/interface"
-        "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
-    )
-    set_tests_properties(ArtifactPostProcessPassContractTest PROPERTIES
-        LABELS "renderer;gpu;postprocess;dof;motion-blur;headless;contract"
-        TIMEOUT 60
-        RUN_SERIAL TRUE
     )
 endif()
 
@@ -2992,6 +3004,17 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST
         ENVIRONMENT
             "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
         LABELS "layer;model3d;light;occlusion;depth;renderer;gpu;composition;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactMotionBlurLayerCombinationIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.MotionBlurComposes2D25DAnd3DLayersWithStaticShapeAndText"
+    )
+    set_tests_properties(ArtifactMotionBlurLayerCombinationIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "motion-blur;layer;solid-2d;2.5d;shape;text;model3d;renderer;gpu;composition;integration;contract"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )

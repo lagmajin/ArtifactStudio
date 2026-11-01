@@ -47,7 +47,13 @@ TEST(DiskSizeStandaloneTest, ScalesAtBinaryUnitBoundaries)
 TEST(DiskSizeStandaloneTest, RoundingAcrossUnitBoundaryPromotesToNextUnit)
 {
     constexpr std::uint64_t oneMiB = 1024ull * 1024;
+    constexpr std::uint64_t oneGiB = 1024ull * 1024 * 1024;
+    constexpr std::uint64_t oneTiB = 1024ull * 1024 * 1024 * 1024;
+    EXPECT_EQ(toStdString(DiskSize::formatBytes(oneMiB - 52)), "1023.9 KB");
+    EXPECT_EQ(toStdString(DiskSize::formatBytes(oneMiB - 51)), "1.0 MB");
     EXPECT_EQ(toStdString(DiskSize::formatBytes(oneMiB - 1)), "1.0 MB");
+    EXPECT_EQ(toStdString(DiskSize::formatBytes(oneGiB - 1)), "1.0 GB");
+    EXPECT_EQ(toStdString(DiskSize::formatBytes(oneTiB - 1)), "1.0 TB");
 }
 
 TEST(DiskSizeStandaloneTest, FormatsFractionalUnitsToOneDecimalPlace)

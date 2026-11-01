@@ -109,6 +109,29 @@ TEST(SchemaMigrationContractTest, SameVersionRequestSucceedsAsNoOp)
     EXPECT_EQ(data, original);
 }
 
+TEST(SchemaMigrationContractTest, PathQueriesDoNotInvokeMigrationCallbacks)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.QueryOnly");
+    int callbackCalls = 0;
+    registry.registerMigration(typeName, 5, 8,
+        [&callbackCalls](const QJsonObject& input) {
+            ++callbackCalls;
+            QJsonObject output = input;
+            output.insert(QStringLiteral("migrated"), true);
+            return output;
+        });
+
+    EXPECT_TRUE(registry.hasMigrationPath(typeName, 5, 8));
+    EXPECT_EQ(callbackCalls, 0);
+
+    QJsonObject data{{QStringLiteral("stable"), 17}};
+    ASSERT_TRUE(registry.migrate(typeName, 5, 8, data));
+    EXPECT_EQ(callbackCalls, 1);
+    EXPECT_EQ(data.value(QStringLiteral("stable")).toInt(), 17);
+    EXPECT_TRUE(data.value(QStringLiteral("migrated")).toBool());
+}
+
 TEST(SchemaMigrationContractTest, ReRegisteringMigrationEdgeReplacesCallback)
 {
     auto& registry = SchemaMigrationRegistry::instance();

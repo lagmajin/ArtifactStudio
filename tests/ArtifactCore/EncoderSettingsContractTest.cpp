@@ -116,6 +116,23 @@ TEST(EncoderSettingsContractTest,
 }
 
 TEST(EncoderSettingsContractTest,
+     RecommendedBitrateScalesWithResolutionFrameRateAndH265Factor)
+{
+    EncoderSettings settings;
+    settings.setWidth(1280);
+    settings.setHeight(720);
+    settings.setFrameRate(30.0);
+
+    EXPECT_EQ(settings.getRecommendedBitrate(), 184);
+
+    settings.setVideoCodec(VideoCodec::H265);
+    EXPECT_EQ(settings.getRecommendedBitrate(), 110);
+
+    settings.setWidth(640);
+    EXPECT_EQ(settings.getRecommendedBitrate(), 55);
+}
+
+TEST(EncoderSettingsContractTest,
      DropFrameValidationDependsOnRateAndOutputModeCodecRequirements)
 {
     EncoderSettings settings;

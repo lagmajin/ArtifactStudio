@@ -114,3 +114,78 @@ TEST(InputSurfaceManagerContractTest, DisarmingAndResetRestoreDefinedDefaults)
     EXPECT_TRUE(reset.targetId.isEmpty());
     EXPECT_TRUE(reset.context.isEmpty());
 }
+
+TEST(InputSurfaceManagerContractTest, NoOpUpdatesDoNotPublishStateChanges)
+{
+    auto& manager = *InputSurfaceManager::instance();
+    manager.reset();
+
+    std::vector<InputSurfaceStateChangedEvent> changes;
+    auto subscription = ArtifactCore::globalEventBus().subscribe<InputSurfaceStateChangedEvent>(
+        [&](const auto& event) { changes.push_back(event); });
+    ASSERT_TRUE(subscription.connected());
+
+    manager.setMode(InputSurfaceMode::Off);
+    manager.setArmed(false);
+    manager.setLivePreviewEnabled(false);
+    manager.setStepEntryEnabled(false);
+    manager.setQuantizeToFrameEnabled(true);
+    manager.setTransportFrame(-1);
+    manager.setStepFrame(-1);
+    manager.setContext(QString());
+    manager.setTargetId(QString());
+    manager.commitCapture();
+    manager.cancelCapture();
+    manager.reset();
+
+    EXPECT_TRUE(changes.empty());
+}
+
+TEST(InputSurfaceManagerContractTest, RetargetingPendingCapturePublishesBothStateSnapshots)
+{
+    auto& manager = *InputSurfaceManager::instance();
+    manager.reset();
+
+    std::vector<InputSurfaceStateChangedEvent> changes;
+    auto subscription = ArtifactCore::globalEventBus().subscribe<InputSurfaceStateChangedEvent>(
+        [&](const auto& event) { changes.push_back(event); });
+    ASSERT_TRUE(subscription.connected());
+
+    manager.beginRealTimeCapture(QStringLiteral("layer-a"),
+                                 QStringLiteral("Timeline"), 12);
+    manager.beginRealTimeCapture(QStringLiteral("layer-b"),
+                                 QStringLiteral("Composition"), 18);
+
+    const auto state = manager.state();
+    EXPECT_TRUE(state.capturePending);
+    EXPECT_EQ(state.targetId, QStringLiteral("layer-b"));
+    EXPECT_EQ(state.context, QStringLiteral("Composition"));
+    EXPECT_EQ(state.transportFrame, 18);
+    ASSERT_EQ(changes.size(), 2u);
+    EXPECT_EQ(changes[1].reason, QStringLiteral("beginRealTimeCapture"));
+    EXPECT_EQ(changes[1].previous.targetId, QStringLiteral("layer-a"));
+    EXPECT_EQ(changes[1].previous.context, QStringLiteral("Timeline"));
+    EXPECT_EQ(changes[1].current.targetId, QStringLiteral("layer-b"));
+    EXPECT_EQ(changes[1].current.context, QStringLiteral("Composition"));
+    EXPECT_EQ(changes[1].current.transportFrame, 18);
+
+    manager.reset();
+}
+
+TEST(InputSurfaceManagerContractTest, StepCaptureClampsItsFrameWithoutChangingTransportFrame)
+{
+    auto& manager = *InputSurfaceManager::instance();
+    manager.reset();
+    manager.setTransportFrame(27);
+
+    manager.beginStepEntry(QStringLiteral("shape-9"),
+                           QStringLiteral("Composition"), -8);
+
+    const auto state = manager.state();
+    EXPECT_EQ(state.mode, InputSurfaceMode::StepEntry);
+    EXPECT_TRUE(state.capturePending);
+    EXPECT_EQ(state.stepFrame, 0);
+    EXPECT_EQ(state.transportFrame, 27);
+    EXPECT_EQ(state.targetId, QStringLiteral("shape-9"));
+    manager.reset();
+}

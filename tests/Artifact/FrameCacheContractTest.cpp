@@ -51,6 +51,56 @@ TEST(FrameCacheContractTest, MemoryLimitEvictsUntilTheNewEntryFits)
     EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(3)));
 }
 
+TEST(FrameCacheContractTest,
+     ReplacingFrameUpdatesMemoryAccountingWithoutDuplicatingTheKey)
+{
+    Artifact::FrameCache cache;
+    cache.setMaxFrameCount(2);
+    cache.setMaxMemoryBytes(48);
+    const auto replacedFrame = ArtifactCore::FramePosition(1);
+    auto original = makeEntry(1);
+    auto unaffected = makeEntry(2);
+    cache.put(original);
+    cache.put(unaffected);
+
+    auto replacement = ArtifactCore::makeShared<Artifact::FrameCacheEntry>(
+        2, 1, replacedFrame);
+    ASSERT_EQ(original->memorySize, 16u);
+    ASSERT_EQ(replacement->memorySize, 32u);
+    cache.put(replacement);
+
+    EXPECT_EQ(cache.currentFrameCount(), 2);
+    EXPECT_EQ(cache.currentMemoryUsage(), 48u);
+    EXPECT_EQ(cache.get(replacedFrame).get(), replacement.get());
+    EXPECT_EQ(cache.get(ArtifactCore::FramePosition(2)).get(), unaffected.get());
+}
+
+TEST(FrameCacheContractTest, LoweringConfiguredLimitsEvictsExistingOldestFrames)
+{
+    Artifact::FrameCache cache;
+    cache.setPolicy(Artifact::CachePolicy::FIFO);
+    cache.put(makeEntry(1));
+    cache.put(makeEntry(2));
+    cache.put(makeEntry(3));
+    ASSERT_EQ(cache.currentFrameCount(), 3);
+    ASSERT_EQ(cache.currentMemoryUsage(), 48u);
+
+    cache.setMaxMemoryBytes(32);
+
+    EXPECT_EQ(cache.currentFrameCount(), 2);
+    EXPECT_EQ(cache.currentMemoryUsage(), 32u);
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(1)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(2)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(3)));
+
+    cache.setMaxFrameCount(1);
+
+    EXPECT_EQ(cache.currentFrameCount(), 1);
+    EXPECT_EQ(cache.currentMemoryUsage(), 16u);
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(2)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(3)));
+}
+
 TEST(FrameCacheContractTest, LruPolicyEvictsLeastRecentlyAccessedFrame)
 {
     Artifact::FrameCache cache;
@@ -138,6 +188,38 @@ TEST(FrameCacheContractTest, TargetedInvalidationHonorsCompositionRangeLayerAndE
     EXPECT_EQ(cache.currentFrameCount(), 3);
 }
 
+TEST(FrameCacheContractTest, TargetedInvalidationOrMatchesIdsWithinEachDependencyKind)
+{
+    Artifact::FrameCache cache;
+    const auto add = [&cache](int frame, const QString& layer,
+                              const QString& effect) {
+        auto entry = makeEntry(frame);
+        entry->compositionId = QStringLiteral("comp-a");
+        entry->layerIds = QStringList{layer};
+        entry->effectIds = QStringList{effect};
+        cache.put(entry);
+    };
+    add(30, QStringLiteral("layer-a"), QStringLiteral("fx-a"));
+    add(31, QStringLiteral("layer-b"), QStringLiteral("fx-b"));
+    add(32, QStringLiteral("layer-a"), QStringLiteral("fx-other"));
+    add(33, QStringLiteral("layer-other"), QStringLiteral("fx-b"));
+
+    Artifact::FrameCacheInvalidation invalidation;
+    invalidation.compositionId = QStringLiteral("comp-a");
+    invalidation.range = {30, 33};
+    invalidation.layerIds = QStringList{
+        QStringLiteral("layer-a"), QStringLiteral("layer-b")};
+    invalidation.effectIds = QStringList{
+        QStringLiteral("fx-a"), QStringLiteral("fx-b")};
+    cache.invalidate(invalidation);
+
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(30)));
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(31)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(32)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(33)));
+    EXPECT_EQ(cache.currentFrameCount(), 2);
+}
+
 TEST(FrameCacheContractTest, FullCompositionInvalidationIgnoresFrameRange)
 {
     Artifact::FrameCache cache;
@@ -178,6 +260,32 @@ TEST(FrameCacheContractTest, GenerationBumpHidesOldEntriesUntilStaleEntriesAreRe
     cache.invalidateStaleGenerations(cache.generation());
     EXPECT_EQ(cache.currentFrameCount(), 0);
     EXPECT_EQ(cache.currentMemoryUsage(), 0u);
+}
+
+TEST(FrameCacheContractTest,
+     ReplacingStaleFrameMakesNewGenerationVisibleAndRetainable)
+{
+    Artifact::FrameCache cache;
+    const auto frame = ArtifactCore::FramePosition(12);
+    auto stale = makeEntry(12);
+    cache.put(stale);
+
+    const auto currentGeneration = cache.bumpGeneration(
+        QStringLiteral("device-recreated"));
+    EXPECT_EQ(stale->generation, currentGeneration - 1u);
+    EXPECT_EQ(cache.get(frame).get(), nullptr);
+    ASSERT_EQ(cache.currentFrameCount(), 1);
+
+    auto refreshed = makeEntry(12);
+    cache.put(refreshed);
+
+    EXPECT_EQ(refreshed->generation, currentGeneration);
+    EXPECT_EQ(cache.currentFrameCount(), 1);
+    EXPECT_EQ(cache.currentMemoryUsage(), refreshed->memorySize);
+    EXPECT_EQ(cache.get(frame).get(), refreshed.get());
+    cache.invalidateStaleGenerations(currentGeneration);
+    EXPECT_EQ(cache.get(frame).get(), refreshed.get());
+    EXPECT_EQ(cache.currentFrameCount(), 1);
 }
 
 TEST(FrameCacheContractTest, ProgressiveRendererUpgradesThroughRequestedQualities)

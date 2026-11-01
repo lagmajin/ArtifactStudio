@@ -3,6 +3,8 @@
 #include <QJsonObject>
 #include <QString>
 
+#include <cmath>
+
 import Coordinate.Profile;
 
 using namespace ArtifactCore;
@@ -137,4 +139,35 @@ TEST(CoordinateProfileContractTest, ExpressionResolverSupportsPixelsPercentAndCa
     EXPECT_DOUBLE_EQ(CoordinateResolver::resolveExpression(QStringLiteral("25%"), space), 480.0);
     EXPECT_DOUBLE_EQ(CoordinateResolver::resolveExpression(QStringLiteral("w-10"), space), 1910.0);
     EXPECT_DOUBLE_EQ(CoordinateResolver::resolveExpression(QStringLiteral("h+20"), space), 1100.0);
+}
+
+TEST(CoordinateProfileContractTest, ExpressionResolverSupportsMultiplicationAndDivisionWithDimensions)
+{
+    CoordinateSpace space;
+    space.canvasWidth = 1920.0;
+    space.canvasHeight = 1080.0;
+
+    EXPECT_DOUBLE_EQ(CoordinateResolver::resolveExpression(QStringLiteral("w/2"), space), 960.0);
+    EXPECT_DOUBLE_EQ(CoordinateResolver::resolveExpression(QStringLiteral("h*0.5"), space), 540.0);
+}
+
+TEST(CoordinateProfileContractTest,
+     NonFiniteCoordinateTextFallsBackToFiniteZero)
+{
+    const auto nanPixels = CoordinateValue::fromString(QStringLiteral("nan px"));
+    const auto infinitePercent = CoordinateValue::fromString(QStringLiteral("inf%"));
+
+    EXPECT_EQ(nanPixels.unit, CoordinateUnit::Pixels);
+    EXPECT_EQ(infinitePercent.unit, CoordinateUnit::Percent);
+    EXPECT_TRUE(std::isfinite(nanPixels.value));
+    EXPECT_TRUE(std::isfinite(infinitePercent.value));
+    EXPECT_DOUBLE_EQ(nanPixels.value, 0.0);
+    EXPECT_DOUBLE_EQ(infinitePercent.value, 0.0);
+
+    CoordinateSpace space;
+    space.canvasWidth = 1920.0;
+    EXPECT_DOUBLE_EQ(
+        CoordinateResolver::resolveExpression(QStringLiteral("nanpx"), space), 0.0);
+    EXPECT_DOUBLE_EQ(
+        CoordinateResolver::resolveExpression(QStringLiteral("inf%"), space), 0.0);
 }

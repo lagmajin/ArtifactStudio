@@ -6,6 +6,7 @@
 #include <QMap>
 #include <QtGlobal>
 
+#include <limits>
 #include <utility>
 
 import Image.Raw;
@@ -86,6 +87,35 @@ TEST(RawImageContractTest, RejectsPixelBufferShorterThanDescribedImage)
     image.data.fill(0, 15);
 
     EXPECT_EQ(image.getPixelTypeSizeInBytes(), 4);
+    EXPECT_FALSE(image.isValid());
+}
+
+TEST(RawImageContractTest, RequiresEnoughBytesForEveryPixelAndChannel)
+{
+    RawImage image;
+    image.width = 2;
+    image.height = 2;
+    image.channels = 4;
+    image.pixelType = QStringLiteral("half");
+    image.data.fill(0, 31);
+    EXPECT_FALSE(image.isValid());
+
+    image.data.push_back(0);
+    EXPECT_TRUE(image.isValid());
+
+    image.data.push_back(0);
+    EXPECT_TRUE(image.isValid());
+}
+
+TEST(RawImageContractTest, RejectsImageByteCountThatWouldOverflow)
+{
+    RawImage image;
+    image.width = std::numeric_limits<int>::max();
+    image.height = std::numeric_limits<int>::max();
+    image.channels = std::numeric_limits<int>::max();
+    image.pixelType = QStringLiteral("double");
+    image.data = {0};
+
     EXPECT_FALSE(image.isValid());
 }
 

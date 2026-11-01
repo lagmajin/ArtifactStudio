@@ -136,3 +136,16 @@ TEST(ThresholdEffectContractTest, NullOrEmptyInputIsSafe)
     EXPECT_EQ(sentinel, original);
 }
 
+TEST(ThresholdEffectContractTest, NegativeDimensionsLeaveInputUnchanged)
+{
+    Threshold effect;
+    ThresholdSettings settings;
+    float4 sentinel = grayscale(0.25f, 0.75f);
+    const float4 original = sentinel;
+
+    effect.process(&sentinel, -1, 1, settings);
+    effect.process(&sentinel, 1, -1, settings);
+
+    EXPECT_EQ(sentinel, original);
+}
+

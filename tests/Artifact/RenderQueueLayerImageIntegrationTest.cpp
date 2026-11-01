@@ -29,11 +29,13 @@
 #include <QtGlobal>
 
 #include <OpenImageIO/imageio.h>
+#include <OpenImageIO/deepdata.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <functional>
 #include <limits>
@@ -568,7 +570,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                 static_cast<std::size_t>(spec.height) *
                 static_cast<std::size_t>(spec.nchannels));
             const bool readOk = input->read_image(
-                OIIO::TypeDesc::FLOAT, pixels.data());
+                0, 0, 0, spec.nchannels, OIIO::span<float>(pixels));
             if (!readOk || pixels.empty()) {
                 input->close();
                 *failure = QStringLiteral(
@@ -1970,6 +1972,330 @@ TEST(RenderQueueLayerImageIntegrationTest,
     ASSERT_GT(centroid(softwareReference).count, 10);
     EXPECT_EQ(softwareAfterDrawing, softwareReference)
         << "software fallback must retain the explicitly requested simulation start";
+}
+
+namespace {
+
+struct SmokeImageStats final {
+    int visiblePixels = 0;
+    double alphaThirdTop = 0.0;
+    double alphaThirdMiddle = 0.0;
+    double alphaThirdBottom = 0.0;
+    double lumaThirdTop = 0.0;
+    double lumaThirdMiddle = 0.0;
+    double lumaThirdBottom = 0.0;
+    double lumaCentroidY = 0.0;
+    double meanHorizontalLumaGradient = 0.0;
+};
+
+SmokeImageStats measureSmokeImage(const QImage& source)
+{
+    SmokeImageStats stats;
+    const QImage image = source.convertToFormat(QImage::Format_ARGB32);
+    if (image.isNull() || image.width() <= 0 || image.height() <= 0) return stats;
+    double alphaSum = 0.0;
+    double lumaSum = 0.0;
+    double lumaWeightedY = 0.0;
+    for (int y = 0; y < image.height(); ++y) {
+        const double third = static_cast<double>(y) /
+                             static_cast<double>(image.height());
+        for (int x = 0; x < image.width(); ++x) {
+            const QRgb pixel = image.pixel(x, y);
+            const double luma = (0.2126 * qRed(pixel) + 0.7152 * qGreen(pixel) +
+                                 0.0722 * qBlue(pixel)) / 255.0;
+            if (luma <= 0.01) continue;
+            ++stats.visiblePixels;
+            const int alpha = qAlpha(pixel);
+            alphaSum += static_cast<double>(alpha) / 255.0;
+            lumaSum += luma;
+            lumaWeightedY += luma * static_cast<double>(y);
+            if (third < 1.0 / 3.0) {
+                stats.alphaThirdTop += static_cast<double>(alpha) / 255.0;
+                stats.lumaThirdTop += luma;
+            } else if (third < 2.0 / 3.0) {
+                stats.alphaThirdMiddle += static_cast<double>(alpha) / 255.0;
+                stats.lumaThirdMiddle += luma;
+            } else {
+                stats.alphaThirdBottom += static_cast<double>(alpha) / 255.0;
+                stats.lumaThirdBottom += luma;
+            }
+        }
+    }
+    if (alphaSum > 0.0) {
+        stats.alphaThirdTop /= alphaSum;
+        stats.alphaThirdMiddle /= alphaSum;
+        stats.alphaThirdBottom /= alphaSum;
+    }
+    if (lumaSum > 0.0) {
+        stats.lumaThirdTop /= lumaSum;
+        stats.lumaThirdMiddle /= lumaSum;
+        stats.lumaThirdBottom /= lumaSum;
+        stats.lumaCentroidY = lumaWeightedY / lumaSum /
+                              static_cast<double>(image.height());
+    }
+    int gradientSamples = 0;
+    double gradientSum = 0.0;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 1; x < image.width(); ++x) {
+            const QRgb left = image.pixel(x - 1, y);
+            const QRgb right = image.pixel(x, y);
+            if (qAlpha(left) <= 8 && qAlpha(right) <= 8) continue;
+            const double leftLuma = 0.2126 * qRed(left) + 0.7152 * qGreen(left) +
+                                    0.0722 * qBlue(left);
+            const double rightLuma = 0.2126 * qRed(right) + 0.7152 * qGreen(right) +
+                                     0.0722 * qBlue(right);
+            gradientSum += std::abs(rightLuma - leftLuma) / 255.0;
+            ++gradientSamples;
+        }
+    }
+    if (gradientSamples > 0) {
+        stats.meanHorizontalLumaGradient = gradientSum / gradientSamples;
+    }
+    return stats;
+}
+
+} // namespace
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     ProductionSmokeCurlABRendersThroughCompositionView)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    bool strengthOk = false;
+    const float curlStrength = qEnvironmentVariable(
+        "ARTIFACT_SMOKE_CURL_STRENGTH_RND").toFloat(&strengthOk);
+    const float smokeCurl = strengthOk ? curlStrength : 0.0f;
+    const int curlOctaves =
+        qEnvironmentVariableIntValue("ARTIFACT_SMOKE_CURL_OCTAVES_RND") > 0
+            ? qEnvironmentVariableIntValue("ARTIFACT_SMOKE_CURL_OCTAVES_RND")
+            : 1;
+    const bool flameEnabled =
+        qEnvironmentVariableIntValue("ARTIFACT_SMOKE_AB_FLAME_RND") != 0;
+    const int requestedEndFrame = qEnvironmentVariableIntValue(
+        "ARTIFACT_SMOKE_AB_END_FRAME_RND");
+    const int endFrame = std::clamp(
+        requestedEndFrame > 95 ? requestedEndFrame : 95, 95, 300);
+
+    QString captureRoot = qEnvironmentVariable(
+        "ARTIFACT_SMOKE_AB_CAPTURE_DIR_RND");
+    if (captureRoot.isEmpty()) {
+        captureRoot = QDir(projectRoot.path()).filePath(
+            QStringLiteral("smoke-curl-ab"));
+    }
+    ASSERT_TRUE(QDir().mkpath(captureRoot));
+
+    constexpr int width = 768;
+    constexpr int height = 432;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("SmokeCurlCompositionView"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("SmokeCurl")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(std::max(150, endFrame + 10));
+    compositionParams.setBackgroundColor(
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(
+        QStringLiteral("SmokeEmitter"));
+    layerParams.setWidth(width);
+    layerParams.setHeight(height);
+    layerParams.setColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    const auto created = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(created.success);
+    const std::pair<const char*, QVariant> properties[] = {
+        {"component.fluid.enabled", QVariant(true)},
+        {"component.fluid.mode", QVariant(0)},
+        {"component.fluid.gridWidth", QVariant(128)},
+        {"component.fluid.gridHeight", QVariant(128)},
+        {"component.fluid.emitterX", QVariant(0.5)},
+        {"component.fluid.emitterY", QVariant(0.90)},
+        {"component.fluid.emitterRadius", QVariant(0.20)},
+        {"component.fluid.emitterCount", QVariant(7)},
+        {"component.fluid.emitterDensity", QVariant(0.04)},
+        {"component.fluid.emitterVelocityY", QVariant(-0.75)},
+        {"component.fluid.emitterTemperature",
+         QVariant(flameEnabled ? 1.0 : 0.0)},
+        {"component.fluid.thermalBuoyancy", QVariant(0.0)},
+        {"component.fluid.densityDissipationPerSecond", QVariant(2.5)},
+        {"component.fluid.smokeColor",
+         QVariant(QColor::fromRgbF(0.42f, 0.72f, 1.0f, 1.0f))},
+    };
+    for (const auto& [path, value] : properties) {
+        ASSERT_TRUE(created.layer->setLayerPropertyValue(
+            QString::fromLatin1(path), value)) << "property=" << path;
+    }
+
+    const auto compositionObject = projects.findComposition(composition.id)
+                                       .ptr.lock();
+    ASSERT_NE(compositionObject, nullptr);
+    Artifact::DiligentDeviceManager viewDevice;
+    viewDevice.initializeHeadless();
+    ASSERT_NE(viewDevice.device(), nullptr);
+    Artifact::OffscreenCompositionRenderer viewRenderer(
+        viewDevice.device(), viewDevice.immediateContext(), width, height);
+    auto* previewRenderer = viewRenderer.renderer();
+    ASSERT_NE(previewRenderer, nullptr);
+
+    const auto renderCurrentFrame = [&](int frame) {
+        viewRenderer.renderFrame(ArtifactCore::FramePosition(frame),
+                                 compositionObject.get());
+        previewRenderer->setClearColor(compositionObject->backgroundColor());
+        previewRenderer->clear();
+        Artifact::drawLayerForCompositionView(created.layer.get(),
+                                              previewRenderer);
+        previewRenderer->flush();
+        return previewRenderer->readbackToImage(
+            ArtifactCore::SurfaceChannelOrder::BGRA);
+    };
+
+    std::vector<int> captureFrames{30, 60, 95};
+    if (endFrame > 95) {
+        captureFrames.push_back(endFrame - 8);
+        captureFrames.push_back(endFrame);
+    }
+    const int replayFrame = endFrame > 95 ? endFrame - 8 : 60;
+    const std::size_t replayIndex = endFrame > 95 ? 3 : 1;
+    std::vector<QImage> frameImages(captureFrames.size());
+    QElapsedTimer frameTimer;
+    double simulationNanoseconds = 0.0;
+    std::size_t captureIndex = 0;
+    compositionObject->resetLayerComponentSimulation();
+    for (int frame = 0; frame <= endFrame; ++frame) {
+        frameTimer.start();
+        compositionObject->goToFrame(frame);
+        compositionObject->evaluateLayerComponentSimulation(
+            ArtifactCore::FramePosition(frame), false);
+        simulationNanoseconds +=
+            static_cast<double>(frameTimer.nsecsElapsed());
+        if (captureIndex >= captureFrames.size() ||
+            frame != captureFrames[captureIndex]) {
+            continue;
+        }
+        frameTimer.start();
+        const QImage image = renderCurrentFrame(frame);
+        const double drawMs =
+            static_cast<double>(frameTimer.nsecsElapsed()) / 1.0e6;
+        ASSERT_FALSE(image.isNull());
+        frameImages[captureIndex] = image;
+        const SmokeImageStats stats = measureSmokeImage(image);
+        std::printf(
+            "smoke-curl-frame frame=%d curl=%.3f octaves=%d flame=%d "
+            "visible=%d coverThird=%.5f/%.5f/%.5f "
+            "lumaThird=%.5f/%.5f/%.5f lumaCentroidY=%.4f "
+            "gradient=%.6f drawMs=%.2f\n",
+            captureFrames[captureIndex], smokeCurl, curlOctaves,
+            flameEnabled ? 1 : 0, stats.visiblePixels, stats.alphaThirdTop,
+            stats.alphaThirdMiddle, stats.alphaThirdBottom,
+            stats.lumaThirdTop, stats.lumaThirdMiddle, stats.lumaThirdBottom,
+            stats.lumaCentroidY, stats.meanHorizontalLumaGradient, drawMs);
+        const QString fileName = QStringLiteral(
+            "smoke-curl-%1-oct%2-flame%3-frame%4.png")
+            .arg(smokeCurl, 0, 'f', 2)
+            .arg(curlOctaves)
+            .arg(flameEnabled ? 1 : 0)
+            .arg(captureFrames[captureIndex], 3, 10, QLatin1Char('0'));
+        EXPECT_TRUE(image.save(QDir(captureRoot).filePath(fileName), "PNG"));
+        EXPECT_GT(stats.visiblePixels, 100);
+        ++captureIndex;
+    }
+    ASSERT_EQ(captureIndex, captureFrames.size());
+    const double simulationMsPerFrame =
+        simulationNanoseconds / 1.0e6 / static_cast<double>(endFrame + 1);
+
+    const QImage repeatedEndFrame = renderCurrentFrame(endFrame);
+    ASSERT_FALSE(repeatedEndFrame.isNull());
+    EXPECT_EQ(repeatedEndFrame, frameImages.back())
+        << "drawing the same simulated frame twice must be identical";
+
+    compositionObject->goToFrame(endFrame + 1);
+    compositionObject->evaluateLayerComponentSimulation(
+        ArtifactCore::FramePosition(endFrame + 1), false);
+    const QImage nextFrameImage = renderCurrentFrame(endFrame + 1);
+    ASSERT_FALSE(nextFrameImage.isNull());
+    double nextFrameMeanAbsLumaDiff = 0.0;
+    int nextFrameChangedPixels = 0;
+    if (nextFrameImage.size() == frameImages.back().size()) {
+        const QImage previous =
+            frameImages.back().convertToFormat(QImage::Format_ARGB32);
+        const QImage next = nextFrameImage.convertToFormat(QImage::Format_ARGB32);
+        double lumaDiffSum = 0.0;
+        for (int y = 0; y < previous.height(); ++y) {
+            for (int x = 0; x < previous.width(); ++x) {
+                const QRgb a = previous.pixel(x, y);
+                const QRgb b = next.pixel(x, y);
+                if (a != b) ++nextFrameChangedPixels;
+                const double lumaA =
+                    (0.2126 * qRed(a) + 0.7152 * qGreen(a) +
+                     0.0722 * qBlue(a)) / 255.0;
+                const double lumaB =
+                    (0.2126 * qRed(b) + 0.7152 * qGreen(b) +
+                     0.0722 * qBlue(b)) / 255.0;
+                lumaDiffSum += std::abs(lumaB - lumaA);
+            }
+        }
+        nextFrameMeanAbsLumaDiff =
+            lumaDiffSum /
+            static_cast<double>(previous.width() * previous.height());
+    }
+    std::printf(
+        "smoke-curl-temporal curl=%.3f from=%d to=%d "
+        "meanAbsLumaDiff=%.6f changedPixels=%d\n",
+        smokeCurl, endFrame, endFrame + 1, nextFrameMeanAbsLumaDiff,
+        nextFrameChangedPixels);
+    EXPECT_GT(nextFrameChangedPixels, 0)
+        << "advancing an active smoke simulation must change rendered pixels";
+    EXPECT_GT(nextFrameMeanAbsLumaDiff, 0.0)
+        << "the next smoke frame must differ from the captured end frame";
+
+    compositionObject->goToFrame(replayFrame);
+    compositionObject->evaluateLayerComponentSimulation(
+        ArtifactCore::FramePosition(replayFrame), false);
+    const QImage replayedImage = renderCurrentFrame(replayFrame);
+    ASSERT_FALSE(replayedImage.isNull());
+    int replayChangedPixels = 0;
+    int replayMaxChannelDiff = 0;
+    if (replayedImage.size() == frameImages[replayIndex].size()) {
+        const QImage expected =
+            frameImages[replayIndex].convertToFormat(QImage::Format_ARGB32);
+        const QImage actual =
+            replayedImage.convertToFormat(QImage::Format_ARGB32);
+        for (int y = 0; y < expected.height(); ++y) {
+            for (int x = 0; x < expected.width(); ++x) {
+                const QRgb a = expected.pixel(x, y);
+                const QRgb b = actual.pixel(x, y);
+                if (a == b) continue;
+                ++replayChangedPixels;
+                replayMaxChannelDiff = std::max(
+                    replayMaxChannelDiff,
+                    std::max({std::abs(qRed(a) - qRed(b)),
+                              std::abs(qGreen(a) - qGreen(b)),
+                              std::abs(qBlue(a) - qBlue(b)),
+                              std::abs(qAlpha(a) - qAlpha(b))}));
+            }
+        }
+    }
+    std::printf(
+        "smoke-curl-replay curl=%.3f frame=%d changedPixels=%d "
+        "maxChannelDiff=%d\n",
+        smokeCurl, replayFrame, replayChangedPixels, replayMaxChannelDiff);
+    EXPECT_EQ(replayedImage, frameImages[replayIndex])
+        << "checkpoint replay must reproduce the same smoke image";
+
+    std::printf(
+        "smoke-curl-summary curl=%.3f octaves=%d flame=%d "
+        "simulationMsPerFrame=%.3f\n",
+        smokeCurl, curlOctaves, flameEnabled ? 1 : 0, simulationMsPerFrame);
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
@@ -3774,7 +4100,8 @@ TEST(ExrWriterOutputContractTest,
             ? -1 : static_cast<int>(found - spec.channelnames.begin());
     };
     std::vector<float> pixels(static_cast<std::size_t>(spec.nchannels) * 2);
-    ASSERT_TRUE(input->read_image(OIIO::TypeDesc::FLOAT, pixels.data()));
+    ASSERT_TRUE(input->read_image(0, 0, 0, spec.nchannels,
+                                  OIIO::span<float>(pixels)));
     for (const auto& [name, finiteValue] : {
              std::pair{std::string("Depth"), 0.75f},
              std::pair{std::string("Velocity.X"), -3.0f},
@@ -3940,7 +4267,8 @@ TEST(ExrWriterOutputContractTest,
     std::vector<float> pixels(static_cast<std::size_t>(spec.width) *
                               static_cast<std::size_t>(spec.height) *
                               static_cast<std::size_t>(spec.nchannels));
-    ASSERT_TRUE(input->read_image(OIIO::TypeDesc::FLOAT, pixels.data()));
+    ASSERT_TRUE(input->read_image(0, 0, 0, spec.nchannels,
+                                  OIIO::span<float>(pixels)));
     for (const auto [name, expected] : {
              std::pair{"R", std::array{0.125f, 0.25f}},
              std::pair{"G", std::array{0.375f, 0.5f}},
@@ -4036,7 +4364,8 @@ TEST(ExrWriterOutputContractTest,
     ASSERT_GE(unusedAIndex, 0);
 
     std::vector<float> pixels(static_cast<std::size_t>(spec.nchannels) * 4u);
-    ASSERT_TRUE(input->read_image(OIIO::TypeDesc::FLOAT, pixels.data()));
+    ASSERT_TRUE(input->read_image(0, 0, 0, spec.nchannels,
+                                  OIIO::span<float>(pixels)));
     const auto sample = [&pixels, &spec](int x, int channel) {
         return pixels[static_cast<std::size_t>(x) *
                           static_cast<std::size_t>(spec.nchannels) +

@@ -51,3 +51,35 @@ TEST(EffectSequenceOrderingStandaloneTest, KeepsInsertionOrderWithinSameStage)
     EXPECT_EQ(sorted[2].get(), third.get());
     EXPECT_TRUE(Artifact::ArtifactAbstractEffect::isStageOrderValid(sorted));
 }
+
+TEST(EffectSequenceOrderingStandaloneTest,
+     IgnoresDisabledEffectsWhenValidatingEnabledStageOrder)
+{
+    auto preprocess = ArtifactCore::makeShared<OrderingEffect>();
+    auto rasterizer = ArtifactCore::makeShared<OrderingEffect>();
+    auto disabledPreprocess = ArtifactCore::makeShared<OrderingEffect>();
+    preprocess->setPipelineStage(Artifact::EffectPipelineStage::PreProcess);
+    rasterizer->setPipelineStage(Artifact::EffectPipelineStage::Rasterizer);
+    disabledPreprocess->setPipelineStage(Artifact::EffectPipelineStage::PreProcess);
+    disabledPreprocess->setEnabled(false);
+
+    const std::vector<Artifact::ArtifactAbstractEffectPtr> input{
+        preprocess, rasterizer, disabledPreprocess};
+    EXPECT_TRUE(Artifact::ArtifactAbstractEffect::isStageOrderValid(input));
+    EXPECT_FALSE(Artifact::ArtifactAbstractEffect::isStageOrderValid(
+        {rasterizer, preprocess}));
+}
+
+TEST(EffectSequenceOrderingStandaloneTest,
+     EmptyAndNullEntriesDoNotInvalidateStageOrder)
+{
+    const std::vector<Artifact::ArtifactAbstractEffectPtr> empty;
+    EXPECT_TRUE(Artifact::ArtifactAbstractEffect::isStageOrderValid(empty));
+    EXPECT_TRUE(Artifact::ArtifactAbstractEffect::sortedByStage(empty).empty());
+
+    auto preprocess = ArtifactCore::makeShared<OrderingEffect>();
+    preprocess->setPipelineStage(Artifact::EffectPipelineStage::PreProcess);
+    const std::vector<Artifact::ArtifactAbstractEffectPtr> withNulls{
+        nullptr, preprocess, nullptr};
+    EXPECT_TRUE(Artifact::ArtifactAbstractEffect::isStageOrderValid(withNulls));
+}

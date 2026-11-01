@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -39,6 +40,30 @@ TEST(PreviewDescriptorContractTest,
     EXPECT_TRUE(descriptor.canPreviewInternally);
     EXPECT_TRUE(descriptor.canPreviewWithSystem);
     EXPECT_TRUE(descriptor.isPreviewable());
+}
+
+TEST(PreviewDescriptorContractTest,
+     RelativeExistingFileIsResolvedToAbsolutePathAndKeepsItsDisplayName)
+{
+    const QString temporaryTemplate = QDir::currentPath() +
+        QStringLiteral("/preview-descriptor-relative-XXXXXX");
+    QTemporaryDir directory(temporaryTemplate);
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("notes.txt"));
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+    ASSERT_NE(file.write(QByteArrayLiteral("relative preview contract")), -1);
+    file.close();
+
+    const QString relativePath = QDir::current().relativeFilePath(path);
+    ASSERT_FALSE(QDir::isAbsolutePath(relativePath));
+    const PreviewDescriptor descriptor = makePreviewDescriptor(relativePath);
+
+    EXPECT_TRUE(descriptor.exists);
+    EXPECT_EQ(descriptor.filePath, QFileInfo(path).absoluteFilePath());
+    EXPECT_EQ(descriptor.displayName, QStringLiteral("notes.txt"));
+    EXPECT_EQ(descriptor.fileType, FileType::Text);
+    EXPECT_TRUE(descriptor.canPreviewInternally);
 }
 
 TEST(PreviewDescriptorContractTest,
@@ -87,5 +112,26 @@ TEST(PreviewDescriptorContractTest,
     PreviewDescriptor descriptor;
     EXPECT_FALSE(descriptor.isPreviewable());
     descriptor.canPreviewWithSystem = true;
+    EXPECT_TRUE(descriptor.isPreviewable());
+}
+
+TEST(PreviewDescriptorContractTest, ReadableArchiveUsesSystemPreviewWithoutInternalSupport)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("package.zip"));
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+    ASSERT_EQ(file.write(QByteArrayLiteral("opaque archive bytes")), 20);
+    file.close();
+
+    const PreviewDescriptor descriptor = makePreviewDescriptor(path);
+
+    EXPECT_TRUE(descriptor.exists);
+    EXPECT_FALSE(descriptor.isDirectory);
+    EXPECT_TRUE(descriptor.readable);
+    EXPECT_EQ(descriptor.fileType, FileType::Archive);
+    EXPECT_FALSE(descriptor.canPreviewInternally);
+    EXPECT_TRUE(descriptor.canPreviewWithSystem);
     EXPECT_TRUE(descriptor.isPreviewable());
 }

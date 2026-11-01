@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <functional>
+
 #include <QString>
 
 import Property.Path;
@@ -41,6 +43,16 @@ TEST(PropertyPathTest, PrefixAndRelativeOperationsUseWholeSegments)
     EXPECT_EQ(path.relativeTo(prefix).toString(), QStringLiteral("hue"));
     EXPECT_FALSE(path.relativeTo(partial).isValid());
     EXPECT_TRUE(prefix.relativeTo(prefix).isEmpty());
+}
+
+TEST(PropertyPathTest, EmptyPathActsAsRootPrefix)
+{
+    const PropertyPath path(QStringLiteral("layer.transform.opacity"));
+    const PropertyPath root;
+
+    EXPECT_TRUE(path.startsWith(root));
+    EXPECT_EQ(path.relativeTo(root), path);
+    EXPECT_TRUE(root.relativeTo(root).isEmpty());
 }
 
 TEST(PropertyPathTest, AppendAndEmptyPathPreserveValueSemantics)
@@ -89,4 +101,49 @@ TEST(PropertyPathTest, TwoPartConstructorAcceptsEitherPartIndependently)
 
     EXPECT_EQ(propertyOnly.toString(), QStringLiteral("opacity"));
     EXPECT_EQ(ownerOnly.toString(), QStringLiteral("layer.transform"));
+}
+
+TEST(PropertyPathTest, SegmentFactoriesRejectValuesThatBreakCanonicalSegmentation)
+{
+    const PropertyPath path(QStringLiteral("layer.transform"));
+    const PropertyPath appendedDelimiter =
+        path.appended(QStringLiteral("rotation.angle"));
+    const PropertyPath appendedEmpty = path.appended(QStringLiteral("..."));
+    const PropertyPath fromDottedSegment = PropertyPath::fromSegments(
+        {QStringLiteral("layer"), QStringLiteral("transform.angle")});
+    const PropertyPath fromEmptySegment = PropertyPath::fromSegments(
+        {QStringLiteral("layer"), QString(), QStringLiteral("opacity")});
+
+    EXPECT_FALSE(appendedDelimiter.isValid());
+    EXPECT_FALSE(appendedEmpty.isValid());
+    EXPECT_FALSE(fromDottedSegment.isValid());
+    EXPECT_FALSE(fromEmptySegment.isValid());
+}
+
+TEST(PropertyPathTest, SegmentFactoryRoundTripPreservesSegmentBoundaries)
+{
+    const PropertyPath fromSegments = PropertyPath::fromSegments(
+        {QStringLiteral("layer"), QStringLiteral("transform"),
+         QStringLiteral("rotation")});
+    const PropertyPath fromString(QStringLiteral("layer.transform.rotation"));
+
+    ASSERT_TRUE(fromSegments.isValid());
+    EXPECT_EQ(fromSegments, fromString);
+    EXPECT_EQ(fromSegments.depth(), fromString.depth());
+    for (int index = 0; index < fromString.depth(); ++index) {
+        EXPECT_EQ(fromSegments.segment(index), fromString.segment(index));
+    }
+}
+
+TEST(PropertyPathTest, EquivalentNormalizedPathsHaveEqualHashes)
+{
+    const PropertyPath normalized(QStringLiteral("layer.transform.opacity"));
+    const PropertyPath withRepeatedSeparators(
+        QStringLiteral("..layer...transform.opacity."));
+
+    ASSERT_EQ(normalized, withRepeatedSeparators);
+    EXPECT_EQ(PropertyPath::Hash{}(normalized),
+              PropertyPath::Hash{}(withRepeatedSeparators));
+    EXPECT_EQ(std::hash<PropertyPath>{}(normalized),
+              std::hash<PropertyPath>{}(withRepeatedSeparators));
 }

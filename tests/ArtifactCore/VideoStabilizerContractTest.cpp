@@ -2,6 +2,7 @@
 
 #include <QImage>
 #include <QMatrix3x3>
+#include <QSize>
 #include <QVector3D>
 #include <QtGui/QRgb>
 
@@ -59,4 +60,42 @@ TEST(VideoStabilizerContractTest,
     EXPECT_EQ(afterReset.pixel(0, 0), source.pixel(0, 0));
     EXPECT_EQ(afterReset.pixel(1, 0), source.pixel(1, 0));
     EXPECT_EQ(afterReset.pixel(2, 1), source.pixel(2, 1));
+}
+
+TEST(VideoStabilizerContractTest, SingleFrameHistoryReturnsEachCurrentFrame)
+{
+    ArtifactCore::LiveStabilizer stabilizer;
+    stabilizer.setMaxHistorySize(1);
+
+    QImage first(2, 1, QImage::Format_ARGB32);
+    first.setPixel(0, 0, qRgba(10, 20, 30, 40));
+    first.setPixel(1, 0, qRgba(50, 60, 70, 80));
+    QImage second(2, 1, QImage::Format_ARGB32);
+    second.setPixel(0, 0, qRgba(90, 100, 110, 120));
+    second.setPixel(1, 0, qRgba(130, 140, 150, 160));
+
+    EXPECT_EQ(stabilizer.processFrame(first), first);
+    EXPECT_EQ(stabilizer.processFrame(second), second);
+}
+
+TEST(VideoStabilizerContractTest, LiveStabilizerStoresParameterSnapshotByValue)
+{
+    ArtifactCore::LiveStabilizer stabilizer;
+    ArtifactCore::StabilizerParams requested;
+    requested.smoothingWindowSize = 7;
+    requested.stabilizeTranslation = false;
+    requested.featureParams.maxFeatures = 42;
+    requested.outputSize = QSize(640, 360);
+
+    stabilizer.setParams(requested);
+    requested.smoothingWindowSize = 99;
+    requested.stabilizeTranslation = true;
+    requested.featureParams.maxFeatures = 1000;
+    requested.outputSize = QSize(1, 1);
+
+    const auto& stored = stabilizer.params();
+    EXPECT_EQ(stored.smoothingWindowSize, 7);
+    EXPECT_FALSE(stored.stabilizeTranslation);
+    EXPECT_EQ(stored.featureParams.maxFeatures, 42);
+    EXPECT_EQ(stored.outputSize, QSize(640, 360));
 }

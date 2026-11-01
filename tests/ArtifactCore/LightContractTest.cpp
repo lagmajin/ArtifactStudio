@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <limits>
 
 import Core.Light;
@@ -28,6 +29,20 @@ TEST(LightContractTest, DirectionNormalizesAndZeroInputKeepsLastValidDirection)
     EXPECT_FLOAT_EQ(light.direction().y, -1.0f);
 }
 
+TEST(LightContractTest, NonFiniteDirectionKeepsLastValidDirection)
+{
+    Light light;
+    light.setDirection(WorldVector3{3.0f, 0.0f, 4.0f});
+    const WorldVector3 expected = light.direction();
+
+    light.setDirection(WorldVector3{
+        std::numeric_limits<float>::quiet_NaN(), 1.0f, 0.0f});
+
+    EXPECT_FLOAT_EQ(light.direction().x, expected.x);
+    EXPECT_FLOAT_EQ(light.direction().y, expected.y);
+    EXPECT_FLOAT_EQ(light.direction().z, expected.z);
+}
+
 TEST(LightContractTest, RangeAndAttenuationClampAndRestoreKnownCoefficients)
 {
     Light light(LightType::Point);
@@ -45,6 +60,20 @@ TEST(LightContractTest, RangeAndAttenuationClampAndRestoreKnownCoefficients)
     EXPECT_FLOAT_EQ(light.attenuationConstant(), 0.0f);
     EXPECT_FLOAT_EQ(light.attenuationLinear(), 2.0f);
     EXPECT_FLOAT_EQ(light.attenuationQuadratic(), 0.0f);
+}
+
+TEST(LightContractTest, NonFiniteRangeRestoresFiniteUnitAttenuationFallback)
+{
+    Light light(LightType::Point);
+    light.setRange(Pixels{10.0f});
+
+    light.setRange(Pixels{std::numeric_limits<float>::quiet_NaN()});
+
+    EXPECT_FLOAT_EQ(light.attenuationConstant(), 1.0f);
+    EXPECT_FLOAT_EQ(light.attenuationLinear(), 0.0f);
+    EXPECT_FLOAT_EQ(light.attenuationQuadratic(), 0.0f);
+    EXPECT_TRUE(std::isfinite(light.attenuationLinear()));
+    EXPECT_TRUE(std::isfinite(light.attenuationQuadratic()));
 }
 
 TEST(LightContractTest, SpotAreaAndGoboSettingsRespectTheirRanges)
@@ -71,6 +100,43 @@ TEST(LightContractTest, SpotAreaAndGoboSettingsRespectTheirRanges)
     EXPECT_FLOAT_EQ(light.goboRotation().value, 90.0f);
     light.setGoboInvert(true);
     EXPECT_TRUE(light.goboInvert());
+}
+
+TEST(LightContractTest, SpotAngleClampsBelowOneDegreeBeforeDerivingInnerCutoff)
+{
+    Light light(LightType::Spot);
+
+    light.setSpotAngle(Degrees{-45.0f});
+
+    EXPECT_FLOAT_EQ(light.spotInnerCutoff().value, 0.8f);
+    EXPECT_FLOAT_EQ(light.spotOuterCutoff().value, 1.0f);
+}
+
+TEST(LightContractTest, NonFiniteGoboRotationFallsBackToZero)
+{
+    Light light(LightType::Spot);
+    light.setGoboRotation(Degrees{45.0f});
+
+    light.setGoboRotation(Degrees{std::numeric_limits<float>::infinity()});
+
+    EXPECT_FLOAT_EQ(light.goboRotation().value, 0.0f);
+    EXPECT_TRUE(std::isfinite(light.goboRotation().value));
+}
+
+TEST(LightContractTest, NonFiniteIntensityAndAreaSizeUseFiniteSafeValues)
+{
+    Light light(LightType::Area);
+    light.setIntensity(std::numeric_limits<float>::quiet_NaN());
+    light.setAreaSize(
+        Pixels{std::numeric_limits<float>::quiet_NaN()},
+        Pixels{std::numeric_limits<float>::infinity()});
+
+    EXPECT_FLOAT_EQ(light.intensity(), 0.0f);
+    EXPECT_FLOAT_EQ(light.areaWidth().value, 1.0f);
+    EXPECT_FLOAT_EQ(light.areaHeight().value, 1.0f);
+    EXPECT_TRUE(std::isfinite(light.intensity()));
+    EXPECT_TRUE(std::isfinite(light.areaWidth().value));
+    EXPECT_TRUE(std::isfinite(light.areaHeight().value));
 }
 
 TEST(LightContractTest, RadianceAndShadowSettingsPreserveExplicitValues)

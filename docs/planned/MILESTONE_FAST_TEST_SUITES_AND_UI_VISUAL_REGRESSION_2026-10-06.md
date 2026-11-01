@@ -1,6 +1,6 @@
 # Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画
 
-**最終更新:** 2026-10-16
+**最終更新:** 2026-10-31
 
 ## 進捗 2026-10-15 — ArtifactScript / Layer integration fixture
 
@@ -350,6 +350,10 @@
 ## 進捗 2026-10-11 — AudioDelay standalone executable
 
 - 未テストのCPU `AudioDelay`に独立CMake実行プログラムと7ケースを新設。default／clamp、1-frame impulse delay、dry mix、bypass、invalid sample rate、JSON roundtripを対象にする。ソース読解で遅延読出しindexに不整合の疑いあり。ビルド・実行は未実施。
+
+## 進捗 2026-10-31 — AudioDelay ring-boundary regression
+
+- 1-sample delayのfeedback tailを4つの連続segmentに分け、`0 → 1 → 0.5 → 0.25`となる契約ケースを追加。delay read positionをwrite positionから遅延sample数だけ戻す循環indexにし、固定capacity ringの末尾で遅延sampleを捨てる問題を修正。ビルド・テスト未実施。
 
 ## 進捗 2026-10-11 — AudioCompressor standalone executable
 

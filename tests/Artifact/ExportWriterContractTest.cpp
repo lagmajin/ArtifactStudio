@@ -130,6 +130,18 @@ TEST(ExportWriterContractTest, ExportSessionRejectsMissingCompositionAndCanRetry
     EXPECT_FALSE(error.isEmpty());
 }
 
+TEST(ExportWriterContractTest, LottieRejectsBlankOutputPathBeforeCompositionValidation)
+{
+    const QString outputPath = QStringLiteral(" \t ");
+    QString error;
+
+    const bool succeeded = Artifact::ArtifactExportLottieWriter::write(
+        Artifact::ArtifactCompositionPtr{}, outputPath, {}, &error);
+
+    EXPECT_FALSE(succeeded);
+    EXPECT_EQ(error, QStringLiteral("出力先が指定されていません。"));
+}
+
 TEST(ExportWriterContractTest,
      ExportSessionClassifiesSingleSvgLayerForPreRender)
 {

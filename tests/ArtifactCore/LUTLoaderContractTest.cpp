@@ -74,6 +74,36 @@ TEST(LUTLoaderContractTest, LoadsCubeAndAppliesTrilinearIdentityWithoutChangingA
     EXPECT_EQ(interpolated.alpha(), 73);
 }
 
+TEST(LUTLoaderContractTest, IgnoresCommentLinesWhenReadingCubeValues)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("commented.cube"));
+    const QByteArray cube =
+        "# Header comment does not count as a LUT sample\n"
+        "TITLE \"Commented identity\"\n"
+        "LUT_3D_SIZE 2\n"
+        "# Samples follow in blue-fastest order\n"
+        "0 0 0\n"
+        "0 0 1\n"
+        "0 1 0\n"
+        "0 1 1\n"
+        "1 0 0\n"
+        "1 0 1\n"
+        "1 1 0\n"
+        "1 1 1\n";
+    ASSERT_TRUE(writeTextFile(path, cube));
+
+    LUT3D lut;
+    ASSERT_TRUE(lut.loadFromFile(path));
+    EXPECT_TRUE(lut.isValid());
+    EXPECT_EQ(lut.name(), QStringLiteral("Commented identity"));
+
+    QImage input(1, 1, QImage::Format_RGBA8888);
+    input.setPixelColor(0, 0, QColor(32, 96, 224, 117));
+    EXPECT_EQ(lut.apply(input).pixelColor(0, 0), QColor(32, 96, 224, 117));
+}
+
 TEST(LUTLoaderContractTest, ReloadResetsDataCursorAndOptionalTitle)
 {
     QTemporaryDir directory;
@@ -126,4 +156,56 @@ TEST(LUTLoaderContractTest, IncompleteCubeInvalidatesPartialData)
     QImage input(1, 1, QImage::Format_RGBA8888);
     input.setPixelColor(0, 0, QColor(24, 48, 96, 128));
     EXPECT_EQ(lut.apply(input).pixelColor(0, 0), QColor(24, 48, 96, 128));
+}
+
+TEST(LUTLoaderContractTest, MalformedSampleInvalidatesPreviouslyLoadedData)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString identityPath = directory.filePath(QStringLiteral("identity.cube"));
+    const QString malformedPath = directory.filePath(QStringLiteral("malformed.cube"));
+    ASSERT_TRUE(writeTextFile(identityPath, kIdentityLut));
+    QByteArray malformed = kIdentityLut;
+    malformed.replace("0 0 0\n", "not-a-number 0 0\n");
+    ASSERT_TRUE(writeTextFile(malformedPath, malformed));
+
+    LUT3D lut;
+    ASSERT_TRUE(lut.loadFromFile(identityPath));
+    ASSERT_TRUE(lut.isValid());
+    EXPECT_FALSE(lut.loadFromFile(malformedPath));
+    EXPECT_FALSE(lut.isValid());
+    EXPECT_EQ(lut.size(), 0);
+    EXPECT_TRUE(lut.name().isEmpty());
+}
+
+TEST(LUTLoaderContractTest, NonFiniteSamplesInvalidateCubeData)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString identityPath = directory.filePath(QStringLiteral("identity.cube"));
+    ASSERT_TRUE(writeTextFile(identityPath, kIdentityLut));
+
+    const struct {
+        const char* name;
+        const char* token;
+    } cases[] = {
+        {"nan", "nan"},
+        {"positive-infinity", "inf"},
+        {"negative-infinity", "-inf"},
+    };
+
+    LUT3D lut;
+    for (const auto& testCase : cases) {
+        SCOPED_TRACE(testCase.name);
+        const QString path = directory.filePath(
+            QString::fromLatin1(testCase.name) + QStringLiteral(".cube"));
+        QByteArray contents = kIdentityLut;
+        contents.replace("0 0 0\n", QByteArray(testCase.token) + " 0 0\n");
+        ASSERT_TRUE(writeTextFile(path, contents));
+        ASSERT_TRUE(lut.loadFromFile(identityPath));
+
+        EXPECT_FALSE(lut.loadFromFile(path));
+        EXPECT_FALSE(lut.isValid());
+        EXPECT_EQ(lut.size(), 0);
+    }
 }

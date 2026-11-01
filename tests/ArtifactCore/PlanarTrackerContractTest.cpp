@@ -68,6 +68,28 @@ TEST(PlanarTrackerContractTest,
     expectTranslation(result);
 }
 
+TEST(PlanarTrackerContractTest, IdenticalFramesProduceIdentityProjection)
+{
+    const cv::Mat frame = makeTexturedFrame();
+    const auto corners = referenceCorners();
+    const ArtifactCore::PlanarTracker tracker;
+
+    const auto result = tracker.track(frame, frame, corners);
+
+    ASSERT_TRUE(result.valid);
+    ASSERT_EQ(result.homography.rows, 3);
+    ASSERT_EQ(result.homography.cols, 3);
+    ASSERT_EQ(result.homography.type(), CV_64F);
+    EXPECT_GE(result.inlierCount, 4);
+    EXPECT_GE(result.confidence, 0.15);
+    EXPECT_LE(result.confidence, 1.0);
+    for (std::size_t index = 0; index < corners.size(); ++index) {
+        SCOPED_TRACE(index);
+        EXPECT_NEAR(result.corners[index].x, corners[index].x, 0.1f);
+        EXPECT_NEAR(result.corners[index].y, corners[index].y, 0.1f);
+    }
+}
+
 TEST(PlanarTrackerContractTest,
      AcceptsSupportedGrayBgrAndBgraFrameFormats)
 {

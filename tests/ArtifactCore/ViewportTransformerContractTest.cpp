@@ -82,6 +82,19 @@ TEST(ViewportTransformerContractTest, FitAndFillUseExpectedUniformScaleAndCenter
     expectNear(constants.rotation, 0.0f);
 }
 
+TEST(ViewportTransformerContractTest, FillHonorsMarginsAndCentersWithinTheViewport)
+{
+    ViewportTransformer view;
+    view.SetCanvasSize(800.0f, 600.0f);
+    view.SetViewportSize(1000.0f, 700.0f);
+
+    view.FillCanvasToViewport(50.0f);
+
+    expectNear(view.GetZoom(), 1.125f);
+    expectNear(view.GetPan().x, 50.0f);
+    expectNear(view.GetPan().y, 12.5f);
+}
+
 TEST(ViewportTransformerContractTest, ResetClampsAndNdcUseTopLeftOrigin)
 {
     ViewportTransformer view;
@@ -104,4 +117,55 @@ TEST(ViewportTransformerContractTest, ResetClampsAndNdcUseTopLeftOrigin)
     expectNear(topLeft.y, 1.0f);
     expectNear(bottomRight.x, 1.0f);
     expectNear(bottomRight.y, -1.0f);
+}
+
+TEST(ViewportTransformerContractTest, FitLeavesViewUnchangedWhenNoUsableViewportAreaExists)
+{
+    ViewportTransformer view;
+    view.SetCanvasSize(800.0f, 600.0f);
+    view.SetViewportSize(1000.0f, 700.0f);
+    view.SetPan(32.0f, -18.0f);
+    view.SetZoom(1.4f);
+
+    const float2 originalPan = view.GetPan();
+    const float originalZoom = view.GetZoom();
+    view.FitCanvasToViewport(400.0f);
+    expectNear(view.GetZoom(), originalZoom);
+    expectNear(view.GetPan().x, originalPan.x);
+    expectNear(view.GetPan().y, originalPan.y);
+
+    view.SetViewportSize(0.0f, 0.0f);
+    view.FitCanvasToViewport();
+    expectNear(view.GetZoom(), originalZoom);
+    expectNear(view.GetPan().x, originalPan.x);
+    expectNear(view.GetPan().y, originalPan.y);
+}
+
+TEST(ViewportTransformerContractTest, FillLeavesViewUnchangedWhenNoUsableViewportAreaExists)
+{
+    ViewportTransformer view;
+    view.SetCanvasSize(800.0f, 600.0f);
+    view.SetViewportSize(1000.0f, 700.0f);
+    view.SetPan(-24.0f, 35.0f);
+    view.SetZoom(1.6f);
+
+    const float2 originalPan = view.GetPan();
+    const float originalZoom = view.GetZoom();
+    view.FillCanvasToViewport(400.0f);
+    expectNear(view.GetZoom(), originalZoom);
+    expectNear(view.GetPan().x, originalPan.x);
+    expectNear(view.GetPan().y, originalPan.y);
+
+    view.SetViewportSize(0.0f, 0.0f);
+    view.FillCanvasToViewport();
+    expectNear(view.GetZoom(), originalZoom);
+    expectNear(view.GetPan().x, originalPan.x);
+    expectNear(view.GetPan().y, originalPan.y);
+
+    view.SetViewportSize(1000.0f, 700.0f);
+    view.SetCanvasSize(0.0f, 600.0f);
+    view.FillCanvasToViewport();
+    expectNear(view.GetZoom(), originalZoom);
+    expectNear(view.GetPan().x, originalPan.x);
+    expectNear(view.GetPan().y, originalPan.y);
 }

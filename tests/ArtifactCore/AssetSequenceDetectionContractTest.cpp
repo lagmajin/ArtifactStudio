@@ -70,6 +70,47 @@ TEST(AssetSequenceDetectionContractTest, EmptyInputProducesNoSequencesOrSingles)
     EXPECT_TRUE(result.singles.empty());
 }
 
+TEST(AssetSequenceDetectionContractTest, DuplicateFrameNumbersDoNotFormAContiguousRun)
+{
+    const auto result = detectSequences(names({
+        "shot_0001.png", "shot_0001.png", "shot_0002.png"}));
+
+    EXPECT_TRUE(result.sequences.empty());
+    ASSERT_EQ(result.singles.size(), 3u);
+    EXPECT_EQ(toStdString(result.singles[0]), "shot_0001.png");
+    EXPECT_EQ(toStdString(result.singles[1]), "shot_0001.png");
+    EXPECT_EQ(toStdString(result.singles[2]), "shot_0002.png");
+}
+
+TEST(AssetSequenceDetectionContractTest, DuplicateFrameNumbersAtRunEndOrMiddleDemoteTheWholeGroup)
+{
+    const std::vector<std::vector<String>> duplicateGroups{
+        names({"shot_0001.png", "shot_0002.png", "shot_0002.png"}),
+        names({"shot_0001.png", "shot_0002.png", "shot_0002.png",
+               "shot_0003.png"}),
+    };
+
+    for (const auto& filenames : duplicateGroups) {
+        const auto result = detectSequences(filenames);
+
+        EXPECT_TRUE(result.sequences.empty());
+        ASSERT_EQ(result.singles.size(), filenames.size());
+    }
+}
+
+TEST(AssetSequenceDetectionContractTest, PreservePolicyDoesNotGroupDuplicateFrameNumbers)
+{
+    const auto result = detectSequences(
+        names({"shot_0001.png", "shot_0001.png", "shot_0002.png"}),
+        2, MissingFramePolicy::Preserve);
+
+    EXPECT_TRUE(result.sequences.empty());
+    ASSERT_EQ(result.singles.size(), 3u);
+    EXPECT_EQ(toStdString(result.singles[0]), "shot_0001.png");
+    EXPECT_EQ(toStdString(result.singles[1]), "shot_0001.png");
+    EXPECT_EQ(toStdString(result.singles[2]), "shot_0002.png");
+}
+
 TEST(AssetSequenceDetectionContractTest, NonpositiveMinimumRunLengthStillRequiresTwoFrames)
 {
     for (const int minimum : {0, -1, std::numeric_limits<int>::min()}) {
@@ -165,6 +206,25 @@ TEST(AssetSequenceDetectionContractTest, EnforcesMinimumRunLengthAndRejectsOvers
     ASSERT_EQ(threeFrameMinimum.sequences.size(), 1u);
     EXPECT_EQ(toStdString(threeFrameMinimum.sequences.front().prefix), "triple_");
     ASSERT_EQ(threeFrameMinimum.singles.size(), 2u);
+}
+
+TEST(AssetSequenceDetectionContractTest, SplitPolicyAppliesMinimumLengthToEachContiguousRun)
+{
+    const auto result = detectSequences(
+        names({"plate_0001.exr", "plate_0002.exr", "plate_0005.exr",
+               "plate_0006.exr", "plate_0007.exr"}),
+        3, MissingFramePolicy::Split);
+
+    ASSERT_EQ(result.sequences.size(), 1u);
+    const auto& sequence = result.sequences.front();
+    EXPECT_EQ(sequence.firstFrame, 5);
+    EXPECT_EQ(sequence.lastFrame, 7);
+    ASSERT_EQ(sequence.filenames.size(), 3u);
+    EXPECT_EQ(toStdString(sequence.filenames.front()), "plate_0005.exr");
+    EXPECT_EQ(toStdString(sequence.filenames.back()), "plate_0007.exr");
+    ASSERT_EQ(result.singles.size(), 2u);
+    EXPECT_EQ(toStdString(result.singles[0]), "plate_0001.exr");
+    EXPECT_EQ(toStdString(result.singles[1]), "plate_0002.exr");
 }
 
 TEST(AssetSequenceDetectionContractTest, AcceptsAdjacentEighteenDigitFrameNumbers)

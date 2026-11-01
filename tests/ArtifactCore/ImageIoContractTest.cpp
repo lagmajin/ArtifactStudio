@@ -298,6 +298,35 @@ TEST(ImageIoContractTest, FailedExportPreservesExistingOutput)
     EXPECT_EQ(preservedOutput.readAll(), originalContents);
 }
 
+TEST(ImageIoContractTest, ImageBufExportRejectsFewerThanThreeChannelsWithoutReplacingOutput)
+{
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+    const QString outputPath = temporaryDirectory.filePath(
+        QStringLiteral("existing-two-channel.exr"));
+    const QByteArray originalContents("preserve-existing-imagebuf-output");
+    QFile existingOutput(outputPath);
+    ASSERT_TRUE(existingOutput.open(QIODevice::WriteOnly));
+    ASSERT_EQ(existingOutput.write(originalContents), originalContents.size());
+    existingOutput.close();
+
+    const OIIO::ImageSpec sourceSpec(1, 1, 2, OIIO::TypeDesc::FLOAT);
+    OIIO::ImageBuf source(sourceSpec);
+    const std::array<float, 2> sourcePixel{0.25f, 0.75f};
+    ASSERT_TRUE(source.set_pixels(OIIO::ROI::All(), OIIO::TypeDesc::FLOAT,
+                                  sourcePixel.data()));
+
+    ImageExporter exporter;
+    const ImageExportResult result = exporter.write(
+        source, outputPath, ImageExportOptions{});
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.errorStage, QStringLiteral("prepare"));
+
+    QFile preservedOutput(outputPath);
+    ASSERT_TRUE(preservedOutput.open(QIODevice::ReadOnly));
+    EXPECT_EQ(preservedOutput.readAll(), originalContents);
+}
+
 TEST(ImageIoContractTest, ImportsAnExportedImageWithoutStartingTheApplication)
 {
     QTemporaryDir temporaryDirectory;

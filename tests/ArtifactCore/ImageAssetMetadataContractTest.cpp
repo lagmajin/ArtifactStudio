@@ -2,6 +2,7 @@
 
 #include <QByteArray>
 #include <QColor>
+#include <QColorSpace>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -72,6 +73,8 @@ TEST(ImageAssetMetadataContractTest, RefreshesDimensionsAndBasicImageMetadata)
     EXPECT_EQ(image.meta().getValue(UniString("width")).toQString(), QStringLiteral("128"));
     EXPECT_EQ(image.meta().getValue(UniString("height")).toQString(), QStringLiteral("128"));
     EXPECT_EQ(image.meta().getValue(UniString("channels")).toQString(), QStringLiteral("4"));
+    EXPECT_EQ(image.meta().getValue(UniString("bitDepth")).toQString(),
+              QString::number(image.imageMeta().bitDepth));
 
     image.unload();
     EXPECT_FALSE(image.isLoaded());
@@ -140,6 +143,33 @@ TEST(ImageAssetMetadataContractTest, FailedRefreshPreservesPreviouslyDecodedMeta
     EXPECT_EQ(image.meta().getValue(UniString("height")).toQString(), previousHeight);
 }
 
+TEST(ImageAssetMetadataContractTest,
+     SuccessfulRefreshReplacesMetadataAfterSourceDimensionsChange)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("resized-source.png"));
+    ASSERT_TRUE(writeFile(path, checkerPng()));
+
+    ImageAssetFile image(path);
+    ASSERT_TRUE(image.refreshMetadata());
+    ASSERT_EQ(image.imageMeta().width, 128);
+    ASSERT_EQ(image.imageMeta().height, 128);
+    ASSERT_FALSE(image.isLoaded());
+
+    ASSERT_TRUE(writeFile(path, onePixelPng()));
+    ASSERT_TRUE(image.refreshMetadata());
+
+    EXPECT_TRUE(image.isImageMetadataValid());
+    EXPECT_FALSE(image.isLoaded());
+    EXPECT_EQ(image.imageMeta().width, 1);
+    EXPECT_EQ(image.imageMeta().height, 1);
+    EXPECT_EQ(image.meta().getValue(UniString("width")).toQString(),
+              QStringLiteral("1"));
+    EXPECT_EQ(image.meta().getValue(UniString("height")).toQString(),
+              QStringLiteral("1"));
+}
+
 TEST(ImageImporterContractTest, ReadsImageAndResetsAfterClose)
 {
     QTemporaryDir directory;
@@ -177,6 +207,51 @@ TEST(ImageImporterContractTest, OpenRejectsMissingFile)
     ImageImporter importer;
     EXPECT_FALSE(importer.open(directory.filePath(QStringLiteral("missing.png"))));
     EXPECT_FALSE(importer.readImage().isValid());
+}
+
+TEST(ImageImporterContractTest,
+     PreservesEmbeddedIccProfileInDecodedRawImage)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("profiled.png"));
+
+    QImage sourceImage(2, 1, QImage::Format_RGBA8888);
+    sourceImage.fill(QColor(80, 120, 160, 255));
+    sourceImage.setColorSpace(QColorSpace(QColorSpace::SRgb));
+    ASSERT_FALSE(sourceImage.colorSpace().iccProfile().isEmpty());
+    ASSERT_TRUE(sourceImage.save(path, "PNG"));
+
+    ImageImporter importer;
+    ASSERT_TRUE(importer.open(path));
+    const RawImage decoded = importer.readImage();
+
+    ASSERT_TRUE(decoded.isValid());
+    EXPECT_FALSE(decoded.iccProfileData.isEmpty());
+    EXPECT_TRUE(decoded.metadata.value(QStringLiteral("ICCProfile"))
+                    .startsWith(QStringLiteral("embedded (")));
+}
+
+TEST(ImageImporterContractTest, CanOpenValidSourceAgainAfterMissingPathFailure)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString validPath = directory.filePath(QStringLiteral("valid.png"));
+    const QString missingPath = directory.filePath(QStringLiteral("missing.png"));
+    ASSERT_TRUE(writeFile(validPath, checkerPng()));
+
+    ImageImporter importer;
+    ASSERT_TRUE(importer.open(validPath));
+    ASSERT_TRUE(importer.readImage().isValid());
+
+    EXPECT_FALSE(importer.open(missingPath));
+    EXPECT_FALSE(importer.readImage().isValid());
+
+    ASSERT_TRUE(importer.open(validPath));
+    const RawImage recovered = importer.readImage();
+    ASSERT_TRUE(recovered.isValid());
+    EXPECT_EQ(recovered.width, 128);
+    EXPECT_EQ(recovered.height, 128);
 }
 
 TEST(ImageImporterContractTest, DefersDecodeFailureUntilRead)

@@ -73,7 +73,9 @@ import Artifact.Layer.Camera;
 import Artifact.Layer.AdjustableLayer;
 import Artifact.Layers.Model3D;
 import Artifact.Layer.Particle;
+import Artifact.Layer.Image;
 import Artifact.Layer.Solid2D;
+import Artifact.Layer.Shape;
 import Artifact.Layer.Text;
 import Layer.Blend;
 import Artifact.Service.Playback;
@@ -2674,6 +2676,352 @@ TEST(Model3DLightCompositionIntegrationTest,
 
     EXPECT_FALSE(diligentErrorDetected.load(std::memory_order_relaxed))
         << "Diligent reported an error while exercising effect-expanded LOD";
+}
+
+TEST(Model3DLightCompositionIntegrationTest,
+     MotionBlurComposes2D25DAnd3DLayersWithStaticShapeAndText)
+{
+    auto& app = application();
+    auto* settings = ArtifactCore::ArtifactAppSettings::instance();
+    ASSERT_NE(settings, nullptr);
+    struct MotionBlurSettingsRestore final {
+        ArtifactCore::ArtifactAppSettings* settings = nullptr;
+        bool enabled = false;
+        double shutterAngle = 180.0;
+        int sampleCount = 8;
+        ~MotionBlurSettingsRestore()
+        {
+            if (!settings) return;
+            settings->setTimelineMotionBlurActive(enabled);
+            settings->setTimelineMotionBlurShutterAngle(shutterAngle);
+            settings->setTimelineMotionBlurSampleCount(sampleCount);
+        }
+    } settingsRestore{settings, settings->timelineMotionBlurActive(),
+                      settings->timelineMotionBlurShutterAngle(),
+                      settings->timelineMotionBlurSampleCount()};
+
+    constexpr int width = 320;
+    constexpr int height = 240;
+    QWidget host;
+    host.resize(width, height);
+    host.show();
+    app.processEvents();
+
+    Artifact::CompositionRenderController controller;
+    controller.initialize(&host);
+    ASSERT_TRUE(controller.isInitialized());
+    ASSERT_NE(controller.renderer(), nullptr);
+    struct ControllerCleanup final {
+        Artifact::CompositionRenderController& controller;
+        ~ControllerCleanup()
+        {
+            controller.stop();
+            controller.destroy();
+        }
+    } cleanup{controller};
+
+    Artifact::ArtifactCompositionInitParams params(
+        ArtifactCore::UniString(QStringLiteral("MotionBlurLayerCombination")),
+        ArtifactCore::FloatColor(0.015f, 0.02f, 0.03f, 1.0f));
+    params.setResolution(width, height);
+    params.setDurationFrames(3);
+    auto composition = ArtifactCore::makeShared<Artifact::ArtifactComposition3D>(
+        ArtifactCore::CompositionID(QStringLiteral("motion-blur-layer-combination")),
+        params);
+    ASSERT_TRUE(composition);
+
+    auto staticSolid = ArtifactCore::makeShared<Artifact::ArtifactSolid2DLayer>();
+    ASSERT_TRUE(staticSolid);
+    staticSolid->setLayerName(QStringLiteral("Static green solid"));
+    staticSolid->setSize(54, 38);
+    staticSolid->setColor(ArtifactCore::FloatColor(0.05f, 0.9f, 0.12f, 1.0f));
+    staticSolid->transform2D().setPosition(12.0f, 180.0f);
+    ASSERT_TRUE(composition->appendLayerBottom(staticSolid).success);
+
+    auto twoPointFiveDLayer =
+        ArtifactCore::makeShared<Artifact::ArtifactSolid2DLayer>();
+    ASSERT_TRUE(twoPointFiveDLayer);
+    twoPointFiveDLayer->setLayerName(QStringLiteral("Animated 2.5D solid"));
+    twoPointFiveDLayer->setSize(42, 32);
+    twoPointFiveDLayer->setColor(
+        ArtifactCore::FloatColor(0.9f, 0.05f, 0.75f, 1.0f));
+    ASSERT_TRUE(twoPointFiveDLayer->setLayerPropertyValue(
+        QStringLiteral("layer.2_5d.enabled"), true));
+    ASSERT_TRUE(twoPointFiveDLayer->setLayerPropertyValue(
+        QStringLiteral("layer.2_5d.motionBlurEnabled"), true));
+    ASSERT_TRUE(twoPointFiveDLayer->setLayerPropertyValue(
+        QStringLiteral("layer.2_5d.motionBlurShutterAngle"), 360.0));
+    ASSERT_TRUE(twoPointFiveDLayer->setLayerPropertyValue(
+        QStringLiteral("layer.2_5d.motionBlurSamples"), 8));
+    auto twoPointFiveDX = twoPointFiveDLayer->getProperty(
+        QStringLiteral("transform.position.x"));
+    ASSERT_NE(twoPointFiveDX.get(), nullptr);
+    twoPointFiveDX->clearKeyFrames();
+    twoPointFiveDX->setAnimatable(true);
+    const auto twoPointFiveDKeyScale = twoPointFiveDLayer->keyframeTimeScale();
+    twoPointFiveDX->addKeyFrame(
+        ArtifactCore::RationalTime(0, twoPointFiveDKeyScale), 118.0,
+        ArtifactCore::InterpolationType::Linear);
+    twoPointFiveDX->addKeyFrame(
+        ArtifactCore::RationalTime(2, twoPointFiveDKeyScale), 194.0,
+        ArtifactCore::InterpolationType::Linear);
+    twoPointFiveDLayer->transform2D().setPosition(156.0f, 42.0f);
+    ASSERT_TRUE(composition->appendLayerTop(twoPointFiveDLayer).success);
+
+    auto staticShape = ArtifactCore::makeShared<Artifact::ArtifactShapeLayer>();
+    ASSERT_TRUE(staticShape);
+    staticShape->setLayerName(QStringLiteral("Static yellow ellipse shape"));
+    staticShape->setShapeType(Artifact::ShapeType::Ellipse);
+    staticShape->setSize(48, 36);
+    staticShape->setFillColor(ArtifactCore::FloatColor(0.95f, 0.8f, 0.05f, 1.0f));
+    staticShape->transform2D().setPosition(82.0f, 180.0f);
+    ASSERT_TRUE(composition->appendLayerTop(staticShape).success);
+
+    auto staticImage = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(staticImage);
+    staticImage->setLayerName(QStringLiteral("Static blue image"));
+    QImage imageFixture(40, 36, QImage::Format_RGBA8888);
+    imageFixture.fill(QColor(24, 72, 240, 255));
+    staticImage->setFromQImage(imageFixture);
+    staticImage->transform2D().setPosition(260.0f, 124.0f);
+    ASSERT_TRUE(composition->appendLayerTop(staticImage).success);
+
+    auto text = ArtifactCore::makeShared<Artifact::ArtifactTextLayer>();
+    ASSERT_TRUE(text);
+    text->setLayerName(QStringLiteral("Static text overlay"));
+    text->setText(ArtifactCore::UniString(QStringLiteral("STATIC")));
+    text->setFontSize(22.0f);
+    text->setTextColor(ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+    text->transform2D().setPosition(232.0f, 190.0f);
+    ASSERT_TRUE(composition->appendLayerTop(text).success);
+
+    auto camera = ArtifactCore::makeShared<Artifact::ArtifactCameraLayer>();
+    ASSERT_TRUE(camera);
+    camera->setLayerName(QStringLiteral("Motion blur integration camera"));
+    camera->setActiveCamera(true);
+    camera->setProjectionMode(Artifact::ProjectionMode::Perspective);
+    camera->setUseManualFov(true);
+    camera->setFov(ArtifactCore::Units::Degrees{52.0f});
+    camera->setNearClipPlane(ArtifactCore::Units::Pixels{80.0f});
+    camera->setFarClipPlane(ArtifactCore::Units::Pixels{3000.0f});
+    camera->transform3D().setCurrentPosition(width / 2.0f, height / 2.0f);
+    camera->transform3D().setCurrentPositionZ(1050.0f);
+    ASSERT_TRUE(composition->appendLayerTop(camera).success);
+
+    auto model = ArtifactCore::makeShared<Artifact::Artifact3DLayer>(
+        Artifact::FixedGeometry3D::Cube);
+    ASSERT_TRUE(model);
+    model->setLayerName(QStringLiteral("Animated emissive 3D cube"));
+    model->transform3D().setCurrentScale(70.0f, 70.0f, 70.0f);
+    model->transform3D().setCurrentPosition(width * 0.36f, height * 0.46f);
+    model->transform3D().setCurrentPositionZ(0.0f);
+    ASSERT_TRUE(model->setLayerPropertyValue(
+        QStringLiteral("material.emission.color"), QColor(255, 35, 15)));
+    ASSERT_TRUE(model->setLayerPropertyValue(
+        QStringLiteral("material.emissionStrength"), 2.0f));
+    auto positionX = model->getProperty(QStringLiteral("transform.position.x"));
+    ASSERT_NE(positionX.get(), nullptr);
+    positionX->clearKeyFrames();
+    positionX->setAnimatable(true);
+    const auto keyScale = model->keyframeTimeScale();
+    positionX->addKeyFrame(ArtifactCore::RationalTime(0, keyScale),
+                           width * 0.36, ArtifactCore::InterpolationType::Linear);
+    positionX->addKeyFrame(ArtifactCore::RationalTime(2, keyScale),
+                           width * 0.64, ArtifactCore::InterpolationType::Linear);
+    ASSERT_TRUE(composition->appendLayerBottom(model).success);
+
+    auto verticalModel = ArtifactCore::makeShared<Artifact::Artifact3DLayer>(
+        Artifact::FixedGeometry3D::Cube);
+    ASSERT_TRUE(verticalModel);
+    verticalModel->setLayerName(QStringLiteral("Vertically animated 3D cube"));
+    verticalModel->transform3D().setCurrentScale(46.0f, 46.0f, 46.0f);
+    verticalModel->transform3D().setCurrentPosition(width * 0.57f,
+                                                    height * 0.42f);
+    verticalModel->transform3D().setCurrentPositionZ(-120.0f);
+    ASSERT_TRUE(verticalModel->setLayerPropertyValue(
+        QStringLiteral("material.emission.color"), QColor(20, 240, 255)));
+    ASSERT_TRUE(verticalModel->setLayerPropertyValue(
+        QStringLiteral("material.emissionStrength"), 2.0f));
+    auto positionY =
+        verticalModel->getProperty(QStringLiteral("transform.position.y"));
+    ASSERT_NE(positionY.get(), nullptr);
+    positionY->clearKeyFrames();
+    positionY->setAnimatable(true);
+    positionY->addKeyFrame(ArtifactCore::RationalTime(0, keyScale),
+                           height * 0.28, ArtifactCore::InterpolationType::Linear);
+    positionY->addKeyFrame(ArtifactCore::RationalTime(2, keyScale),
+                           height * 0.58, ArtifactCore::InterpolationType::Linear);
+    ASSERT_TRUE(composition->appendLayerBottom(verticalModel).success);
+
+    composition->setFramePosition(ArtifactCore::FramePosition(1));
+    controller.setComposition(composition);
+    controller.start();
+    const auto renderFrame = [&]() {
+        const quint64 previousSerial = controller.currentFrameSerial();
+        const quint64 previousPresent =
+            controller.renderer()->presentSuccessCount();
+        controller.markRenderDirty();
+        controller.renderOneFrame();
+        QElapsedTimer timeout;
+        timeout.start();
+        while (controller.renderer()->presentSuccessCount() <= previousPresent &&
+               timeout.elapsed() < 5000) {
+            app.processEvents(QEventLoop::AllEvents, 10);
+        }
+        EXPECT_GT(controller.currentFrameSerial(), previousSerial);
+        EXPECT_GT(controller.renderer()->presentSuccessCount(), previousPresent);
+        return controller.renderer()->readbackToImage();
+    };
+
+    settings->setTimelineMotionBlurActive(false);
+    (void)renderFrame(); // establish the previous-frame transform state
+    const QImage withoutMotionBlur = renderFrame();
+    ASSERT_FALSE(withoutMotionBlur.isNull());
+
+    settings->setTimelineMotionBlurShutterAngle(360.0);
+    settings->setTimelineMotionBlurSampleCount(16);
+    settings->setTimelineMotionBlurActive(true);
+    const QImage withMotionBlur = renderFrame();
+    ASSERT_FALSE(withMotionBlur.isNull());
+    ASSERT_EQ(withMotionBlur.size(), withoutMotionBlur.size());
+
+    int changedPixels = 0;
+    int baselineGreenPixels = 0;
+    int blurredGreenPixels = 0;
+    int baselineTextPixels = 0;
+    int blurredTextPixels = 0;
+    int baselineShapePixels = 0;
+    int blurredShapePixels = 0;
+    int baselineRedModelPixels = 0;
+    int baselineCyanModelPixels = 0;
+    int baselineImagePixels = 0;
+    int blurredImagePixels = 0;
+    for (int y = 0; y < withoutMotionBlur.height(); ++y) {
+        for (int x = 0; x < withoutMotionBlur.width(); ++x) {
+            const QColor before = withoutMotionBlur.pixelColor(x, y);
+            const QColor after = withMotionBlur.pixelColor(x, y);
+            if (std::abs(before.red() - after.red()) > 3 ||
+                std::abs(before.green() - after.green()) > 3 ||
+                std::abs(before.blue() - after.blue()) > 3) {
+                ++changedPixels;
+            }
+            if (before.green() > before.red() * 2 &&
+                before.green() > before.blue() * 1.3 &&
+                before.green() > 80) {
+                ++baselineGreenPixels;
+            }
+            if (after.green() > after.red() * 2 &&
+                after.green() > after.blue() * 1.3 && after.green() > 80) {
+                ++blurredGreenPixels;
+            }
+            if (before.red() > 150 && before.green() > 150 &&
+                before.blue() > 150) {
+                ++baselineTextPixels;
+            }
+            if (after.red() > 150 && after.green() > 150 &&
+                after.blue() > 150) {
+                ++blurredTextPixels;
+            }
+            if (before.red() > 100 && before.green() > 100 &&
+                before.blue() < 100) {
+                ++baselineShapePixels;
+            }
+            if (after.red() > 100 && after.green() > 100 &&
+                after.blue() < 100) {
+                ++blurredShapePixels;
+            }
+            if (before.red() > before.green() * 1.3 &&
+                before.red() > before.blue() * 1.3 && before.red() > 60) {
+                ++baselineRedModelPixels;
+            }
+            if (before.green() > before.red() * 1.3 &&
+                before.blue() > before.red() * 1.3 && before.green() > 60) {
+                ++baselineCyanModelPixels;
+            }
+            if (before.blue() > before.red() * 1.8 &&
+                before.blue() > before.green() * 1.8 && before.blue() > 80) {
+                ++baselineImagePixels;
+            }
+            if (after.blue() > after.red() * 1.8 &&
+                after.blue() > after.green() * 1.8 && after.blue() > 80) {
+                ++blurredImagePixels;
+            }
+        }
+    }
+    EXPECT_GT(changedPixels, 0)
+        << "The animated 3D layers should change when timeline motion blur is enabled";
+    EXPECT_GT(baselineGreenPixels, 0)
+        << "The static solid 2D layer should be visible in the baseline";
+    EXPECT_NEAR(blurredGreenPixels, baselineGreenPixels,
+                qMax(2, baselineGreenPixels / 20))
+        << "Static 2D content should remain stable while the 3D layer blurs";
+    EXPECT_GT(baselineTextPixels, 0)
+        << "The static text layer should be visible in the baseline";
+    EXPECT_NEAR(blurredTextPixels, baselineTextPixels,
+                qMax(2, baselineTextPixels / 20))
+        << "The static text layer should remain stable while the 3D layer blurs";
+    EXPECT_GT(baselineShapePixels, 0)
+        << "The static shape layer should be visible in the baseline";
+    EXPECT_GT(baselineRedModelPixels, 0)
+        << "The foreground animated 3D layer should be visible";
+    EXPECT_GT(baselineCyanModelPixels, 0)
+        << "The deeper animated 3D layer should remain visible outside the "
+           "foreground occlusion";
+    EXPECT_GT(baselineImagePixels, 0)
+        << "The static image layer should be visible in the baseline";
+    EXPECT_NEAR(blurredImagePixels, baselineImagePixels,
+                qMax(2, baselineImagePixels / 20))
+        << "The static image should remain stable while motion blur is active";
+    EXPECT_NEAR(blurredShapePixels, baselineShapePixels,
+                qMax(2, baselineShapePixels / 20))
+        << "The static shape layer should remain stable while the 3D layer blurs";
+
+    // Exercise the camera-owned switch independently from the timeline-wide
+    // switch using the same real layer stack and motion-vector render target.
+    settings->setTimelineMotionBlurActive(false);
+    camera->setBlurAmount(ArtifactCore::Units::Percent{100.0f});
+    camera->setMotionBlur(true);
+    const QImage cameraMotionBlur = renderFrame();
+    ASSERT_FALSE(cameraMotionBlur.isNull());
+    int cameraBlurChangedPixels = 0;
+    for (int y = 0; y < withoutMotionBlur.height(); ++y) {
+        for (int x = 0; x < withoutMotionBlur.width(); ++x) {
+            const QColor before = withoutMotionBlur.pixelColor(x, y);
+            const QColor after = cameraMotionBlur.pixelColor(x, y);
+            if (std::abs(before.red() - after.red()) > 3 ||
+                std::abs(before.green() - after.green()) > 3 ||
+                std::abs(before.blue() - after.blue()) > 3) {
+                ++cameraBlurChangedPixels;
+            }
+        }
+    }
+    EXPECT_GT(cameraBlurChangedPixels, 0)
+        << "Camera-layer motion blur should affect the animated 3D layer "
+           "without the timeline-wide switch";
+
+    camera->setMotionBlur(false);
+    ASSERT_TRUE(twoPointFiveDLayer->setLayerPropertyValue(
+        QStringLiteral("layer.2_5d.motionBlurEnabled"), false));
+    const QImage withoutLayerMotionBlur = renderFrame();
+    ASSERT_FALSE(withoutLayerMotionBlur.isNull());
+    ASSERT_TRUE(twoPointFiveDLayer->setLayerPropertyValue(
+        QStringLiteral("layer.2_5d.motionBlurEnabled"), true));
+    const QImage withLayerMotionBlur = renderFrame();
+    ASSERT_FALSE(withLayerMotionBlur.isNull());
+    int layerBlurChangedPixels = 0;
+    for (int y = 0; y < withoutLayerMotionBlur.height(); ++y) {
+        for (int x = 0; x < withoutLayerMotionBlur.width(); ++x) {
+            const QColor before = withoutLayerMotionBlur.pixelColor(x, y);
+            const QColor after = withLayerMotionBlur.pixelColor(x, y);
+            if (std::abs(before.red() - after.red()) > 3 ||
+                std::abs(before.green() - after.green()) > 3 ||
+                std::abs(before.blue() - after.blue()) > 3) {
+                ++layerBlurChangedPixels;
+            }
+        }
+    }
+    EXPECT_GT(layerBlurChangedPixels, 0)
+        << "The per-layer 2.5D shutter should blur the animated 2D solid";
 }
 
 TEST(Model3DLightCompositionIntegrationTest,

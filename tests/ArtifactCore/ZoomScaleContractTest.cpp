@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <limits>
+#include <utility>
+
 import Core.Scale.Zoom;
 
 using ArtifactCore::ZoomScale2D;
@@ -15,6 +18,16 @@ TEST(ZoomScaleContractTest, ConstructionAndSetScaleClampToDefaultBounds)
     EXPECT_FLOAT_EQ(low.scale(), 4.0f);
     low.setScale(0.0f);
     EXPECT_FLOAT_EQ(low.scale(), 0.1f);
+}
+
+TEST(ZoomScaleContractTest, SetScaleClampsInfiniteValuesToConfiguredBounds)
+{
+    ZoomScale2D scale;
+    scale.setScale(std::numeric_limits<float>::infinity());
+    EXPECT_FLOAT_EQ(scale.scale(), scale.maxScale());
+
+    scale.setScale(-std::numeric_limits<float>::infinity());
+    EXPECT_FLOAT_EQ(scale.scale(), scale.minScale());
 }
 
 TEST(ZoomScaleContractTest, IncrementalAndMultiplicativeOperationsRespectConfiguredBounds)
@@ -62,8 +75,24 @@ TEST(ZoomScaleContractTest, ValueArithmeticCopiesLimitsAndDoesNotMutateSource)
     ZoomScale2D assigned;
     assigned = source;
     EXPECT_EQ(assigned, source);
+    EXPECT_FLOAT_EQ(assigned.minScale(), source.minScale());
+    EXPECT_FLOAT_EQ(assigned.maxScale(), source.maxScale());
     assigned.setScale(1.0f);
     EXPECT_FLOAT_EQ(source.scale(), 1.5f);
+}
+
+TEST(ZoomScaleContractTest, MoveAssignmentTransfersScaleAndConfiguredBounds)
+{
+    ZoomScale2D source(1.5f);
+    source.setMinScale(0.75f);
+    source.setMaxScale(2.0f);
+
+    ZoomScale2D destination(4.0f);
+    destination = std::move(source);
+
+    EXPECT_FLOAT_EQ(destination.scale(), 1.5f);
+    EXPECT_FLOAT_EQ(destination.minScale(), 0.75f);
+    EXPECT_FLOAT_EQ(destination.maxScale(), 2.0f);
 }
 
 TEST(ZoomScaleContractTest, ResetRestoresDefaultScaleAndEqualityTracksScale)

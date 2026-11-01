@@ -1,12 +1,39 @@
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <utility>
+
+#include <QString>
 
 import Time.Code;
 import TimeCodeRange;
 
 using ArtifactCore::TimeCode;
 using ArtifactCore::TimeCodeRange;
+
+TEST(TimeCodeRangeContractTest, TimeCodeConstructorPreservesFrameEndpointsAndStartRate)
+{
+    const TimeCodeRange range(TimeCode(25, 24.0), TimeCode(49, 24.0));
+
+    EXPECT_TRUE(range.isValid());
+    EXPECT_EQ(range.startTimeCode().frame(), 25);
+    EXPECT_EQ(range.stopTimeCode().frame(), 49);
+    EXPECT_DOUBLE_EQ(range.fps(), 24.0);
+    EXPECT_EQ(range.durationFrames(), 24);
+    EXPECT_TRUE(range.containsFrame(25));
+    EXPECT_FALSE(range.containsFrame(49));
+}
+
+TEST(TimeCodeContractTest, ParsingDropFrameSeparatorAppliesDropFrameNumbering)
+{
+    TimeCode timecode(0, 29.97);
+
+    timecode.setFromQString(QStringLiteral("00:01:00;02"));
+
+    EXPECT_TRUE(timecode.isDropFrame());
+    EXPECT_EQ(timecode.frame(), 1800);
+    EXPECT_EQ(timecode.toString(), QStringLiteral("00:01:00;02"));
+}
 
 TEST(TimeCodeRangeContractTest, UsesHalfOpenFrameMembershipAndPreservesRate)
 {
@@ -56,6 +83,60 @@ TEST(TimeCodeRangeContractTest, IntersectionAndUnionHandleOverlapAdjacencyAndDis
     EXPECT_EQ(unionRange.startTimeCode().frame(), 10);
     EXPECT_EQ(unionRange.stopTimeCode().frame(), 50);
     EXPECT_EQ(unionRange.fps(), 30.0);
+}
+
+TEST(TimeCodeRangeContractTest, EmptyAndInvalidRangesDoNotOverlapValidRanges)
+{
+    TimeCodeRange valid;
+    valid.setByFrameRange(0, 30, 30.0);
+    TimeCodeRange empty;
+    empty.setByFrameRange(12, 12, 30.0);
+    TimeCodeRange reversed;
+    reversed.setByFrameRange(20, 10, 30.0);
+
+    EXPECT_TRUE(empty.isValid());
+    EXPECT_EQ(empty.durationFrames(), 0);
+    EXPECT_FALSE(empty.overlaps(valid));
+    EXPECT_FALSE(valid.overlaps(empty));
+
+    EXPECT_FALSE(reversed.isValid());
+    EXPECT_FALSE(reversed.overlaps(valid));
+    EXPECT_FALSE(valid.overlaps(reversed));
+}
+
+TEST(TimeCodeRangeContractTest, NonPositiveFrameRateFallsBackToThirtyFramesPerSecond)
+{
+    TimeCodeRange zeroRate;
+    zeroRate.setByFrameRange(0, 15, 0.0);
+    EXPECT_TRUE(zeroRate.isValid());
+    EXPECT_DOUBLE_EQ(zeroRate.fps(), 30.0);
+    EXPECT_DOUBLE_EQ(zeroRate.durationSeconds(), 0.5);
+
+    TimeCodeRange negativeRate;
+    negativeRate.setByFrameRange(0, 30, -24.0);
+    EXPECT_DOUBLE_EQ(negativeRate.fps(), 30.0);
+    EXPECT_DOUBLE_EQ(negativeRate.durationSeconds(), 1.0);
+}
+
+TEST(TimeCodeRangeContractTest, NonFiniteFrameRateFallsBackToThirtyFramesPerSecond)
+{
+    const double nonFiniteRates[] = {
+        std::numeric_limits<double>::quiet_NaN(),
+        std::numeric_limits<double>::infinity(),
+        -std::numeric_limits<double>::infinity(),
+    };
+
+    for (const double rate : nonFiniteRates) {
+        TimeCodeRange range;
+        range.setByFrameRange(0, 60, rate);
+
+        EXPECT_DOUBLE_EQ(range.fps(), 30.0);
+        EXPECT_TRUE(range.isValid());
+        EXPECT_DOUBLE_EQ(range.durationSeconds(), 2.0);
+        const auto rationalDuration = range.durationRational();
+        EXPECT_EQ(rationalDuration.value(), 60);
+        EXPECT_EQ(rationalDuration.scale(), 30);
+    }
 }
 
 TEST(TimeCodeRangeContractTest, TrimAndOffsetClampWithoutReversingEndpoints)

@@ -157,6 +157,100 @@ TEST(CompositionNodeStoreContractTest, ChangingChildOrderIsVisibleAndRejectsInva
     EXPECT_EQ(store.node(QStringLiteral("first"))->order, 1);
 }
 
+TEST(CompositionNodeStoreContractTest, PropertyUpdatesMergeAndRejectUnknownNodesAtomically)
+{
+    Artifact::CompositionNodeStore store;
+    auto node = makeNode(QStringLiteral("layer"));
+    node.properties = QJsonObject{
+        {QStringLiteral("opacity"), 0.5},
+        {QStringLiteral("extension"), QStringLiteral("preserved")},
+    };
+    ASSERT_TRUE(store.addNode(node));
+
+    EXPECT_FALSE(store.setProperties(QStringLiteral("missing"),
+                                     QJsonObject{{QStringLiteral("opacity"), 1.0}}));
+    ASSERT_NE(store.node(QStringLiteral("layer")), nullptr);
+    EXPECT_DOUBLE_EQ(store.node(QStringLiteral("layer"))->properties
+                         .value(QStringLiteral("opacity")).toDouble(), 0.5);
+
+    ASSERT_TRUE(store.setProperties(QStringLiteral("layer"),
+                                    QJsonObject{{QStringLiteral("opacity"), 0.8},
+                                                {QStringLiteral("enabled"), true}}));
+    const QJsonObject& properties = store.node(QStringLiteral("layer"))->properties;
+    EXPECT_DOUBLE_EQ(properties.value(QStringLiteral("opacity")).toDouble(), 0.8);
+    EXPECT_EQ(properties.value(QStringLiteral("extension")).toString(),
+              QStringLiteral("preserved"));
+    EXPECT_TRUE(properties.value(QStringLiteral("enabled")).toBool());
+}
+
+TEST(CompositionNodeStoreContractTest, GroupContainerMaterializesStoredPropertiesAndOrderedChildren)
+{
+    Artifact::CompositionNodeStore store;
+    auto group = makeNode(QStringLiteral("group"));
+    group.kind = Artifact::CompositionNodeKind::GroupContainer;
+    group.properties = QJsonObject{
+        {QStringLiteral("outputMode"),
+         static_cast<int>(Artifact::GroupContainerOutputMode::Single)},
+        {QStringLiteral("activeChildId"), QStringLiteral("first")},
+        {QStringLiteral("enabled"), false},
+        {QStringLiteral("opacity"), 0.35},
+        {QStringLiteral("blendMode"), QStringLiteral("multiply")},
+    };
+    ASSERT_TRUE(store.addNode(group));
+    ASSERT_TRUE(store.addNode(makeNode(QStringLiteral("later"),
+                                      QStringLiteral("group"), 8)));
+    ASSERT_TRUE(store.addNode(makeNode(QStringLiteral("first"),
+                                      QStringLiteral("group"), 2)));
+
+    Artifact::GroupContainerNode materialized;
+    ASSERT_TRUE(store.getGroupContainer(QStringLiteral("group"), materialized));
+
+    EXPECT_EQ(materialized.outputMode(), Artifact::GroupContainerOutputMode::Single);
+    EXPECT_EQ(materialized.activeChildId(), QStringLiteral("first"));
+    EXPECT_FALSE(materialized.enabled());
+    EXPECT_DOUBLE_EQ(materialized.opacity(), 0.35);
+    EXPECT_EQ(materialized.blendMode(), QStringLiteral("multiply"));
+    EXPECT_EQ(materialized.children(),
+              (std::vector<QString>{QStringLiteral("first"), QStringLiteral("later")}));
+}
+
+TEST(CompositionNodeStoreContractTest, GroupContainerMaterializationUsesDefaultsForOmittedProperties)
+{
+    Artifact::CompositionNodeStore store;
+    auto group = makeNode(QStringLiteral("group"));
+    group.kind = Artifact::CompositionNodeKind::GroupContainer;
+    ASSERT_TRUE(store.addNode(group));
+
+    Artifact::GroupContainerNode materialized;
+    ASSERT_TRUE(store.getGroupContainer(QStringLiteral("group"), materialized));
+
+    EXPECT_EQ(materialized.outputMode(), Artifact::GroupContainerOutputMode::All);
+    EXPECT_TRUE(materialized.activeChildId().isEmpty());
+    EXPECT_TRUE(materialized.enabled());
+    EXPECT_DOUBLE_EQ(materialized.opacity(), 1.0);
+    EXPECT_EQ(materialized.blendMode(), QStringLiteral("normal"));
+    EXPECT_TRUE(materialized.children().empty());
+}
+
+TEST(CompositionNodeStoreContractTest, FailedGroupMaterializationLeavesOutputUntouched)
+{
+    Artifact::CompositionNodeStore store;
+    ASSERT_TRUE(store.addNode(makeNode(QStringLiteral("layer"))));
+    Artifact::GroupContainerNode output;
+    output.setActiveChildId(QStringLiteral("preserved"));
+    output.setOpacity(0.6);
+    ASSERT_TRUE(output.addChild(QStringLiteral("existing-child")));
+
+    EXPECT_FALSE(store.getGroupContainer(QStringLiteral("missing"), output));
+    EXPECT_EQ(output.activeChildId(), QStringLiteral("preserved"));
+    EXPECT_DOUBLE_EQ(output.opacity(), 0.6);
+    EXPECT_EQ(output.children(), (std::vector<QString>{QStringLiteral("existing-child")}));
+
+    EXPECT_FALSE(store.getGroupContainer(QStringLiteral("layer"), output));
+    EXPECT_EQ(output.activeChildId(), QStringLiteral("preserved"));
+    EXPECT_DOUBLE_EQ(output.opacity(), 0.6);
+}
+
 TEST(CompositionNodeStoreContractTest, JsonImportKeepsValidNodesAndSkipsInvalidReferences)
 {
     QJsonArray json;

@@ -8,6 +8,7 @@
 
 #include <QByteArray>
 #include <QColor>
+#include <QColorSpace>
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QFile>
@@ -2322,6 +2323,43 @@ TEST(StillImageLayerRoundTripTest, SixteenBitGrayscaleKeepsSubEightBitStepsAndOp
     EXPECT_GT(rgba[4u] - rgba[0u], 1e-7f)
         << "Adjacent 16-bit grayscale samples should not collapse to one 8-bit value";
     EXPECT_GT(rgba[8u], rgba[4u]);
+}
+
+TEST(StillImageLayerRoundTripTest,
+     EmbeddedIccProfileWithoutConversionRecordsFallback)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    QImage sourceImage(2, 1, QImage::Format_RGBA8888);
+    sourceImage.fill(QColor(80, 120, 160, 255));
+    sourceImage.setColorSpace(QColorSpace(QColorSpace::SRgb));
+    ASSERT_FALSE(sourceImage.colorSpace().iccProfile().isEmpty());
+
+    const QString imagePath = dir.filePath(QStringLiteral("embedded-icc.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 1)));
+
+    const auto events = ArtifactCore::FallbackTracker::instance()
+                            ->getEventsByCategory(
+                                ArtifactCore::FallbackCategory::Image);
+    bool foundIccDiagnostic = false;
+    for (const auto& event : events) {
+        if (event.originalId != imagePath) {
+            continue;
+        }
+        foundIccDiagnostic =
+            event.resolvedId == QStringLiteral("icc-profile-unconverted-named-space") ||
+            event.resolvedId == QStringLiteral("icc-profile-unconverted-unmapped");
+        if (foundIccDiagnostic) break;
+    }
+    EXPECT_TRUE(foundIccDiagnostic)
+        << "An embedded ICC profile that is not converted should be "
+           "classified in image fallback diagnostics";
 }
 
 TEST(StillImageLayerRoundTripTest, TwoChannelGrayAlphaPngExpandsAndPreservesAlpha)

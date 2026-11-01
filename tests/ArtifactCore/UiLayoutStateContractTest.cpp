@@ -2,15 +2,18 @@
 
 #include <QByteArray>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QSettings>
 #include <QTemporaryDir>
 
 import UI.Layout.State;
 import Core.FastSettingsStore;
+import Serialization.SchemaMigration;
 
 namespace {
 
 using ArtifactCore::UiLayoutState;
+using ArtifactCore::Serialization::SchemaMigrationRegistry;
 
 UiLayoutState sampleState()
 {
@@ -54,6 +57,24 @@ TEST(UiLayoutStateContractTest, MissingJsonFieldsUseEmptyPayloadsAndCurrentVersi
     EXPECT_TRUE(restored.state.isEmpty());
     EXPECT_TRUE(restored.dockState.isEmpty());
     EXPECT_EQ(restored.version, 2);
+    EXPECT_TRUE(restored.isEmpty());
+}
+
+TEST(UiLayoutStateContractTest, WrongTypedJsonFieldsUseSafeDefaults)
+{
+    const UiLayoutState restored = UiLayoutState::fromJson(QJsonObject{
+        {QStringLiteral("layoutKey"), 17},
+        {QStringLiteral("version"), QStringLiteral("legacy")},
+        {QStringLiteral("geometry_b64"), 23},
+        {QStringLiteral("state_b64"), true},
+        {QStringLiteral("dockState_b64"), QJsonValue(QJsonValue::Null)},
+    });
+
+    EXPECT_TRUE(restored.layoutKey.isEmpty());
+    EXPECT_EQ(restored.version, 2);
+    EXPECT_TRUE(restored.geometry.isEmpty());
+    EXPECT_TRUE(restored.state.isEmpty());
+    EXPECT_TRUE(restored.dockState.isEmpty());
     EXPECT_TRUE(restored.isEmpty());
 }
 
@@ -107,6 +128,24 @@ TEST(UiLayoutStateContractTest, FastSettingsStoreRoundTripPersistsAllThreePayloa
     EXPECT_EQ(restored.version, original.version);
 }
 
+TEST(UiLayoutStateContractTest, MissingFastSettingsPrefixUsesEmptyCurrentState)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    ArtifactCore::FastSettingsStore store(
+        directory.filePath(QStringLiteral("settings.cbor")));
+
+    const UiLayoutState restored = UiLayoutState::loadFromStore(
+        store, QStringLiteral("layouts/not-saved"));
+
+    EXPECT_TRUE(restored.layoutKey.isEmpty());
+    EXPECT_TRUE(restored.geometry.isEmpty());
+    EXPECT_TRUE(restored.state.isEmpty());
+    EXPECT_TRUE(restored.dockState.isEmpty());
+    EXPECT_EQ(restored.version, 2);
+    EXPECT_TRUE(restored.isEmpty());
+}
+
 TEST(UiLayoutStateContractTest, SerializableDeserializeReplacesWholeState)
 {
     UiLayoutState destination(QStringLiteral("old"));
@@ -120,4 +159,39 @@ TEST(UiLayoutStateContractTest, SerializableDeserializeReplacesWholeState)
     EXPECT_EQ(destination.state, source.state);
     EXPECT_EQ(destination.dockState, source.dockState);
     EXPECT_EQ(destination.version, source.version);
+}
+
+TEST(UiLayoutStateContractTest, VersionOneMigrationAddsDockPayloadAndPreservesExistingData)
+{
+    auto& migrations = SchemaMigrationRegistry::instance();
+    QJsonObject legacy{
+        {QStringLiteral("layoutKey"), QStringLiteral("legacy-composition")},
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("geometry_b64"),
+         QString::fromLatin1(QByteArray("geometry").toBase64())},
+        {QStringLiteral("state_b64"),
+         QString::fromLatin1(QByteArray("main-window-state").toBase64())},
+        {QStringLiteral("vendorExtension"),
+         QJsonObject{{QStringLiteral("dockMode"), QStringLiteral("compact")},
+                     {QStringLiteral("restoreToken"), 17}}},
+    };
+
+    ASSERT_TRUE(migrations.hasMigrationPath(QStringLiteral("UiLayoutState"), 1, 2));
+    ASSERT_TRUE(migrations.migrate(QStringLiteral("UiLayoutState"), 1, 2, legacy));
+
+    EXPECT_EQ(legacy.value(QStringLiteral("version")).toInt(), 2);
+    EXPECT_EQ(legacy.value(QStringLiteral("layoutKey")).toString(),
+              QStringLiteral("legacy-composition"));
+    EXPECT_EQ(legacy.value(QStringLiteral("geometry_b64")).toString(),
+              QString::fromLatin1(QByteArray("geometry").toBase64()));
+    EXPECT_EQ(legacy.value(QStringLiteral("state_b64")).toString(),
+              QString::fromLatin1(QByteArray("main-window-state").toBase64()));
+    EXPECT_EQ(legacy.value(QStringLiteral("dockState_b64")).toString(),
+              QString());
+    EXPECT_EQ(legacy.value(QStringLiteral("vendorExtension")).toObject()
+                  .value(QStringLiteral("dockMode")).toString(),
+              QStringLiteral("compact"));
+    EXPECT_EQ(legacy.value(QStringLiteral("vendorExtension")).toObject()
+                  .value(QStringLiteral("restoreToken")).toInt(),
+              17);
 }

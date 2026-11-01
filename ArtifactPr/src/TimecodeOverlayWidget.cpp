@@ -31,6 +31,7 @@ void TimecodeOverlayWidget::setVisible(bool visible) {
 }
 
 QString TimecodeOverlayWidget::frameToTimecode(int frame, int fps) {
+    frame = qMax(0, frame);
     if (fps <= 0) fps = 30;
     const int totalSeconds = frame / fps;
     const int h = totalSeconds / 3600;

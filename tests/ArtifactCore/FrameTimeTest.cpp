@@ -494,6 +494,19 @@ TEST(FrameRangeTest, InclusiveOverlapAndAdjacentTouchHaveDistinctIntersections)
     EXPECT_FALSE(range.intersected(adjacent).isValid());
 }
 
+TEST(FrameRangeTest, TouchesDoesNotWrapAtInt64Endpoint)
+{
+    constexpr int64_t minimum = std::numeric_limits<int64_t>::min();
+    constexpr int64_t maximum = std::numeric_limits<int64_t>::max();
+    const FrameRange high(maximum - 1, maximum);
+    const FrameRange low(minimum, minimum + 1);
+    const FrameRange adjacentHigh(maximum - 1, maximum - 1);
+
+    EXPECT_FALSE(high.touches(low));
+    EXPECT_FALSE(low.touches(high));
+    EXPECT_TRUE(adjacentHigh.touches(FrameRange(maximum, maximum)));
+}
+
 TEST(FrameRangeTest, NonMutatingShiftExpandAndShrinkKeepSourceRange)
 {
     const FrameRange range(10, 20);

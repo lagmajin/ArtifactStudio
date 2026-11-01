@@ -41,6 +41,77 @@ TEST(MeshGeometryTest, QuadNormalsPointUp) {
     }
 }
 
+TEST(MeshGeometryTest, RenderDataSnapshotMutationDoesNotChangeCachedData) {
+    auto mesh = makeQuad();
+    auto uvs = mesh->vertexAttributes().add<QVector2D>("uv");
+    ASSERT_NE(uvs, nullptr);
+    for (int index = 0; index < mesh->vertexCount(); ++index) {
+        (*uvs)[index] = QVector2D(static_cast<float>(index),
+                                  static_cast<float>(index + 10));
+    }
+
+    Mesh::RenderData returned = mesh->generateRenderData();
+    ASSERT_EQ(returned.positions.size(), 6);
+    ASSERT_EQ(returned.uvs.size(), 6);
+    returned.positions[0] = QVector3D(99.0f, 98.0f, 97.0f);
+    returned.uvs[0] = QVector2D(-5.0f, -6.0f);
+    returned.indices[0] = 5;
+
+    const Mesh::RenderData cachedAgain = mesh->generateRenderData();
+
+    EXPECT_EQ(cachedAgain.positions[0], QVector3D(0.0f, 0.0f, 0.0f));
+    EXPECT_EQ(cachedAgain.uvs[0], QVector2D(0.0f, 10.0f));
+    EXPECT_EQ(cachedAgain.indices[0], 0u);
+}
+
+TEST(MeshGeometryTest, SinglePolygonQuadNormalsUseFanTriangulation) {
+    auto mesh = makeShared<Mesh>();
+    mesh->setVertexCount(4);
+    auto posAttr = mesh->vertexAttributes().add<QVector3D>("position");
+    (*posAttr)[0] = QVector3D(0.0f, 0.0f, 0.0f);
+    (*posAttr)[1] = QVector3D(1.0f, 0.0f, 0.0f);
+    (*posAttr)[2] = QVector3D(1.0f, 1.0f, 0.0f);
+    (*posAttr)[3] = QVector3D(0.0f, 1.0f, 0.0f);
+    mesh->addPolygon({0, 1, 2, 3});
+
+    mesh->computeVertexNormals();
+
+    const auto normals = mesh->vertexAttributes().get<QVector3D>("normal");
+    ASSERT_NE(normals, nullptr);
+    ASSERT_EQ(normals->size(), 4);
+    for (int index = 0; index < normals->size(); ++index) {
+        EXPECT_FLOAT_EQ((*normals)[index].x(), 0.0f);
+        EXPECT_FLOAT_EQ((*normals)[index].y(), 0.0f);
+        EXPECT_FLOAT_EQ((*normals)[index].z(), 1.0f);
+    }
+}
+
+TEST(MeshGeometryTest, SharedVertexNormalsUseAreaWeightedFaceContributions) {
+    auto mesh = makeShared<Mesh>();
+    mesh->setVertexCount(5);
+    auto posAttr = mesh->vertexAttributes().add<QVector3D>("position");
+    (*posAttr)[0] = QVector3D(0.0f, 0.0f, 0.0f);
+    (*posAttr)[1] = QVector3D(1.0f, 0.0f, 0.0f);
+    (*posAttr)[2] = QVector3D(0.0f, 1.0f, 0.0f);
+    (*posAttr)[3] = QVector3D(0.0f, 2.0f, 0.0f);
+    (*posAttr)[4] = QVector3D(0.0f, 0.0f, 1.0f);
+    mesh->addPolygon({0, 1, 2});
+    mesh->addPolygon({0, 3, 4});
+
+    mesh->computeVertexNormals();
+
+    const auto normals = mesh->vertexAttributes().get<QVector3D>("normal");
+    ASSERT_NE(normals, nullptr);
+    const float inverseLength = 1.0f / std::sqrt(5.0f);
+    EXPECT_NEAR((*normals)[0].x(), 2.0f * inverseLength, 1e-6f);
+    EXPECT_FLOAT_EQ((*normals)[0].y(), 0.0f);
+    EXPECT_NEAR((*normals)[0].z(), inverseLength, 1e-6f);
+    EXPECT_FLOAT_EQ((*normals)[1].z(), 1.0f);
+    EXPECT_FLOAT_EQ((*normals)[2].z(), 1.0f);
+    EXPECT_FLOAT_EQ((*normals)[3].x(), 1.0f);
+    EXPECT_FLOAT_EQ((*normals)[4].x(), 1.0f);
+}
+
 TEST(MeshGeometryTest, DegenerateTriangleFallsBackFinite) {
     auto mesh = makeShared<Mesh>();
     mesh->setVertexCount(3);
@@ -57,6 +128,48 @@ TEST(MeshGeometryTest, DegenerateTriangleFallsBackFinite) {
         EXPECT_TRUE(std::isfinite((*normals)[i].y()));
         EXPECT_TRUE(std::isfinite((*normals)[i].z()));
         EXPECT_FLOAT_EQ((*normals)[i].z(), 1.0f);
+    }
+}
+
+TEST(MeshGeometryTest, OpposingFaceContributionsCancelToFallbackNormals) {
+    auto mesh = makeShared<Mesh>();
+    mesh->setVertexCount(3);
+    auto posAttr = mesh->vertexAttributes().add<QVector3D>("position");
+    (*posAttr)[0] = QVector3D(0.0f, 0.0f, 0.0f);
+    (*posAttr)[1] = QVector3D(1.0f, 0.0f, 0.0f);
+    (*posAttr)[2] = QVector3D(0.0f, 1.0f, 0.0f);
+    mesh->addPolygon({0, 1, 2});
+    mesh->addPolygon({0, 2, 1});
+
+    mesh->computeVertexNormals();
+
+    const auto normals = mesh->vertexAttributes().get<QVector3D>("normal");
+    ASSERT_NE(normals, nullptr);
+    ASSERT_EQ(normals->size(), 3);
+    for (int index = 0; index < normals->size(); ++index) {
+        EXPECT_EQ((*normals)[index], QVector3D(0.0f, 0.0f, 1.0f));
+    }
+}
+
+TEST(MeshGeometryTest, NonFiniteTrianglePositionsProduceFiniteFallbackNormals) {
+    auto mesh = makeShared<Mesh>();
+    mesh->setVertexCount(3);
+    auto posAttr = mesh->vertexAttributes().add<QVector3D>("position");
+    (*posAttr)[0] = QVector3D(0.0f, 0.0f, 0.0f);
+    (*posAttr)[1] = QVector3D(std::numeric_limits<float>::quiet_NaN(), 1.0f, 0.0f);
+    (*posAttr)[2] = QVector3D(0.0f, 1.0f, 0.0f);
+    mesh->addPolygon({0, 1, 2});
+
+    mesh->computeVertexNormals();
+
+    const auto normals = mesh->vertexAttributes().get<QVector3D>("normal");
+    ASSERT_NE(normals, nullptr);
+    ASSERT_EQ(normals->size(), 3);
+    for (int index = 0; index < normals->size(); ++index) {
+        EXPECT_TRUE(std::isfinite((*normals)[index].x()));
+        EXPECT_TRUE(std::isfinite((*normals)[index].y()));
+        EXPECT_TRUE(std::isfinite((*normals)[index].z()));
+        EXPECT_EQ((*normals)[index], QVector3D(0.0f, 0.0f, 1.0f));
     }
 }
 
@@ -85,6 +198,25 @@ TEST(MeshGeometryTest, BoundingSphereCoversBox) {
     EXPECT_NEAR(mesh->boundingSphereRadius(), std::sqrt(14.0), 1e-5);
 }
 
+TEST(MeshGeometryTest, BoundsRecomputeAfterVertexPositionsChange) {
+    auto mesh = makeShared<Mesh>();
+    mesh->setVertexCount(2);
+    auto posAttr = mesh->vertexAttributes().add<QVector3D>("position");
+    (*posAttr)[0] = QVector3D(0.0f, 0.0f, 0.0f);
+    (*posAttr)[1] = QVector3D(2.0f, 4.0f, 6.0f);
+    mesh->updateBounds();
+    ASSERT_EQ(mesh->boundingBoxMax(), QVector3D(2.0f, 4.0f, 6.0f));
+
+    (*posAttr)[0] = QVector3D(-2.0f, 1.0f, 0.0f);
+    (*posAttr)[1] = QVector3D(4.0f, 3.0f, 2.0f);
+    mesh->updateBounds();
+
+    EXPECT_EQ(mesh->boundingBoxMin(), QVector3D(-2.0f, 1.0f, 0.0f));
+    EXPECT_EQ(mesh->boundingBoxMax(), QVector3D(4.0f, 3.0f, 2.0f));
+    EXPECT_EQ(mesh->boundingSphereCenter(), QVector3D(1.0f, 2.0f, 1.0f));
+    EXPECT_NEAR(mesh->boundingSphereRadius(), std::sqrt(11.0), 1.0e-5);
+}
+
 TEST(MeshGeometryTest, BoundsIgnoreNonFinitePositions)
 {
     auto mesh = makeShared<Mesh>();
@@ -102,6 +234,24 @@ TEST(MeshGeometryTest, BoundsIgnoreNonFinitePositions)
     EXPECT_FLOAT_EQ(mesh->boundingBoxMax().y(), 0.0f);
     EXPECT_FLOAT_EQ(mesh->boundingSphereCenter().x(), 1.0f);
     EXPECT_FLOAT_EQ(mesh->boundingSphereRadius(), 3.0f);
+}
+
+TEST(MeshGeometryTest, BoundsRemainFiniteWhenEveryPositionIsNonFinite)
+{
+    auto mesh = makeShared<Mesh>();
+    mesh->setVertexCount(3);
+    auto posAttr = mesh->vertexAttributes().add<QVector3D>("position");
+    (*posAttr)[0] = QVector3D(std::numeric_limits<float>::quiet_NaN(), 1.0f, 2.0f);
+    (*posAttr)[1] = QVector3D(std::numeric_limits<float>::infinity(), 3.0f, 4.0f);
+    (*posAttr)[2] = QVector3D(5.0f, 6.0f,
+                              -std::numeric_limits<float>::infinity());
+
+    mesh->updateBounds();
+
+    EXPECT_EQ(mesh->boundingBoxMin(), QVector3D(0.0f, 0.0f, 0.0f));
+    EXPECT_EQ(mesh->boundingBoxMax(), QVector3D(0.0f, 0.0f, 0.0f));
+    EXPECT_EQ(mesh->boundingSphereCenter(), QVector3D(0.0f, 0.0f, 0.0f));
+    EXPECT_FLOAT_EQ(mesh->boundingSphereRadius(), 0.0f);
 }
 
 TEST(MeshGeometryTest, NormalGenerationSkipsInvalidPolygonIndices)

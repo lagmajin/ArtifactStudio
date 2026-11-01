@@ -1090,3 +1090,93 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
     EXPECT_FLOAT_EQ(output[background + 3], 0.0f)
         << "Foreground alpha must not bleed across the depth discontinuity";
 }
+
+TEST_F(PostProcessPassGpuContractTest,
+       MotionBlurPreservesStaticLayerAndBlursMultipleMovingLayerRegions)
+{
+    Artifact::MotionBlurPass pass;
+    ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
+    ASSERT_TRUE(pass.ready());
+
+    // Post-composite fixture: static background and mark, plus independently
+    // moving objects at different depths and in different directions.
+    std::array<float, kPixelCount * 4> color{};
+    std::array<float, kPixelCount * 2> velocity{};
+    std::array<float, kPixelCount> depth{};
+    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
+        color[pixel * 4 + 2] = 0.2f;
+        color[pixel * 4 + 3] = 1.0f;
+        depth[pixel] = 0.8f;
+    }
+
+    const auto setPixel = [&](unsigned x, unsigned y, float r, float g, float b,
+                              float z, float vx, float vy) {
+        const auto pixel = pixelOffset(x, y) / 4;
+        color[pixel * 4] = r;
+        color[pixel * 4 + 1] = g;
+        color[pixel * 4 + 2] = b;
+        color[pixel * 4 + 3] = 1.0f;
+        depth[pixel] = z;
+        velocity[pixel * 2] = vx;
+        velocity[pixel * 2 + 1] = vy;
+    };
+    setPixel(2, 2, 0.0f, 1.0f, 0.0f, 0.8f, 0.0f, 0.0f); // static mark
+    setPixel(2, 4, 0.0f, 0.0f, 0.2f, 0.2f, 2.0f, 0.0f);
+    setPixel(3, 4, 0.0f, 0.0f, 0.2f, 0.2f, 2.0f, 0.0f);
+    setPixel(4, 4, 1.0f, 0.0f, 0.0f, 0.2f, 2.0f, 0.0f); // horizontal motion
+    setPixel(5, 4, 0.0f, 0.0f, 0.2f, 0.2f, 2.0f, 0.0f);
+    setPixel(6, 5, 0.0f, 0.0f, 0.2f, 0.5f, 0.0f, 2.0f);
+    setPixel(6, 6, 1.0f, 1.0f, 0.0f, 0.5f, 0.0f, 2.0f); // vertical motion
+    setPixel(6, 7, 0.0f, 0.0f, 0.2f, 0.5f, 0.0f, 2.0f);
+
+    auto colorTexture = createTexture(
+        gpu_.device(), "Motion blur layer-combination color", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_SHADER_RESOURCE, color.data(), kWidth * 4 * sizeof(float));
+    auto velocityTexture = createTexture(
+        gpu_.device(), "Motion blur layer-combination velocity", TEX_FORMAT_RG32_FLOAT,
+        BIND_SHADER_RESOURCE, velocity.data(), kWidth * 2 * sizeof(float));
+    auto depthTexture = createTexture(
+        gpu_.device(), "Motion blur layer-combination depth", TEX_FORMAT_R32_FLOAT,
+        BIND_SHADER_RESOURCE, depth.data(), kWidth * sizeof(float));
+    auto outputTexture = createTexture(
+        gpu_.device(), "Motion blur layer-combination output", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, nullptr, 0);
+    ASSERT_NE(colorTexture, nullptr);
+    ASSERT_NE(velocityTexture, nullptr);
+    ASSERT_NE(depthTexture, nullptr);
+    ASSERT_NE(outputTexture, nullptr);
+
+    auto* colorSrv = colorTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* velocitySrv = velocityTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* depthSrv = depthTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
+    ASSERT_NE(colorSrv, nullptr);
+    ASSERT_NE(velocitySrv, nullptr);
+    ASSERT_NE(depthSrv, nullptr);
+    ASSERT_NE(outputUav, nullptr);
+
+    Artifact::MotionBlurSettings settings;
+    settings.enabled = true;
+    settings.shutterAngle = 360.0f;
+    settings.velocityScale = 1.0f;
+    settings.sampleCount = 8;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
+                           outputUav, kWidth, kHeight, settings));
+
+    std::array<float, kPixelCount * 4> output{};
+    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, output));
+    const auto stationary = pixelOffset(2, 2);
+    const auto redCenter = pixelOffset(4, 4);
+    const auto redTrail = pixelOffset(3, 4);
+    const auto yellowCenter = pixelOffset(6, 6);
+    const auto yellowTrail = pixelOffset(6, 5);
+    EXPECT_FLOAT_EQ(output[stationary], 0.0f);
+    EXPECT_FLOAT_EQ(output[stationary + 1], 1.0f)
+        << "Zero-velocity layer content should remain unchanged";
+    EXPECT_LT(output[redCenter], 1.0f);
+    EXPECT_GT(output[redTrail], 0.0f)
+        << "Horizontal motion should produce a horizontal trail";
+    EXPECT_LT(output[yellowCenter], 1.0f);
+    EXPECT_GT(output[yellowTrail], 0.0f)
+        << "Vertical motion should produce a vertical trail";
+}

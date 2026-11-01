@@ -1,4 +1,4 @@
-**最終更新:** 2026-10-09
+**最終更新:** 2026-10-31
 
 # Artifact 2D ParticleLayer Playground
 
@@ -30,6 +30,33 @@ project after `ArtifactAppRuntime` is defined.
 - **6**: explosion burst (firework)
 - **7**: leaves carried by steady wind and turbulence
 - **Up / Down**: raise or lower the selected emitter's rate
+
+## Life curve persistence check
+
+Check independent size, color, and opacity curve evaluation and GPU particle
+falloff, ring radius, color intensity, density LOD, and trail settings through the layer's
+property API and JSON round-trip, including
+defaults for older JSON files:
+
+```powershell
+<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --check-life-curves
+```
+
+This checks numerical curve evaluation and persistence, not the visual output
+or GPU rendering.
+
+## GPU shape capture
+
+Capture production-layer Soft Circle, Gaussian, Hard Circle, Ring,
+stretched Ring, Diamond, and Cross through the headless Diligent renderer:
+
+```powershell
+<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-gpu-shapes <output-directory>
+```
+
+The command writes seven PNGs and `gpu_shapes_report.txt`, failing if a draw is
+empty. The images still need visual comparison; this is not an HDR or blend
+equation test.
 
 ## GPU particle capture
 

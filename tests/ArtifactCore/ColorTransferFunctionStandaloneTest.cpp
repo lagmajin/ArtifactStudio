@@ -2545,6 +2545,33 @@ TEST(ColorTransferFunctionStandaloneTest,
 }
 
 TEST(ColorTransferFunctionStandaloneTest,
+     UnknownTransferFunctionValuesFallBackToIdentityForEverySignedZeroAndInfinity)
+{
+    constexpr std::array<TransferFunction, 2> fallbackTransfers = {
+        TransferFunction::ACESlog,
+        static_cast<TransferFunction>(-1),
+    };
+    const float positiveInfinity = std::numeric_limits<float>::infinity();
+    const std::array<float, 2> zeros = {0.0f, -0.0f};
+    const std::array<float, 2> infinities = {positiveInfinity, -positiveInfinity};
+
+    for (const TransferFunction transfer : fallbackTransfers) {
+        for (const float zero : zeros) {
+            const float encoded = ColorTransferFunction::encode(zero, transfer);
+            const float decoded = ColorTransferFunction::decode(zero, transfer);
+            EXPECT_FLOAT_EQ(encoded, zero);
+            EXPECT_FLOAT_EQ(decoded, zero);
+            EXPECT_EQ(std::signbit(encoded), std::signbit(zero));
+            EXPECT_EQ(std::signbit(decoded), std::signbit(zero));
+        }
+        for (const float infinity : infinities) {
+            EXPECT_EQ(ColorTransferFunction::encode(infinity, transfer), infinity);
+            EXPECT_EQ(ColorTransferFunction::decode(infinity, transfer), infinity);
+        }
+    }
+}
+
+TEST(ColorTransferFunctionStandaloneTest,
      EveryImplementedTransferFunctionHasNonIdentityEncodeAndDecodePaths)
 {
     constexpr std::array<TransferFunction, 15> implementedTransfers = {

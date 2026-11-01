@@ -73,6 +73,7 @@ TEST(ActionManagerContractTest, ExecutionMergesStoredPropertiesWithCallOverrides
     EXPECT_EQ(observed.value(QStringLiteral("mode")).toString(),
               QStringLiteral("stored"));
     EXPECT_EQ(observed.value(QStringLiteral("value")).toInt(), 7);
+    EXPECT_EQ(action->property(QStringLiteral("value")).toInt(), 1);
     EXPECT_EQ(confirmed, observed);
 
     ASSERT_EQ(changes.size(), 1u);
@@ -92,10 +93,41 @@ TEST(ActionManagerContractTest, ConfirmationCanRejectExecutionAndMissingActionDe
     int executions = 0;
     action->setExecuteCallback([&](const QVariantMap&) { ++executions; });
     action->setConfirmCallback([](const QVariantMap&) { return false; });
+
+    std::vector<ActionManagerChangedEvent> changes;
+    auto subscription = ArtifactCore::globalEventBus().subscribe<ActionManagerChangedEvent>(
+        [&](const auto& event) {
+            if (event.actionId == id) changes.push_back(event);
+        });
+    ASSERT_TRUE(subscription.connected());
+
     manager->executeAction(id);
     EXPECT_EQ(executions, 0);
+    EXPECT_TRUE(changes.empty());
     EXPECT_FALSE(manager->confirmAction(id));
     EXPECT_TRUE(manager->confirmAction(uniqueActionId("missing")));
 
     manager->unregisterAction(id);
+}
+
+TEST(ActionManagerContractTest, UnregisterPublishesOnceAndRepeatedUnregisterIsNoOp)
+{
+    auto* manager = ActionManager::instance();
+    const QString id = uniqueActionId("unregister-idempotent");
+    ASSERT_NE(manager->registerAction(id, QStringLiteral("Remove me")), nullptr);
+
+    std::vector<ActionManagerChangedEvent> changes;
+    auto subscription = ArtifactCore::globalEventBus().subscribe<ActionManagerChangedEvent>(
+        [&](const auto& event) {
+            if (event.actionId == id) changes.push_back(event);
+        });
+    ASSERT_TRUE(subscription.connected());
+
+    manager->unregisterAction(id);
+    manager->unregisterAction(id);
+
+    EXPECT_EQ(manager->getAction(id), nullptr);
+    ASSERT_EQ(changes.size(), 1u);
+    EXPECT_EQ(changes.front().kind, ActionManagerChangeKind::ActionUnregistered);
+    EXPECT_EQ(changes.front().actionId, id);
 }

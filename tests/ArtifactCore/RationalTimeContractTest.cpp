@@ -48,6 +48,7 @@ TEST(RationalTimeStandaloneTest, RescalingMinimumNumeratorDoesNotNegateOverflow)
 
     EXPECT_EQ(RationalTime(minimum, 1).rescaledTo(1), minimum);
     EXPECT_EQ(RationalTime(minimum, 2).rescaledTo(1), minimum / 2);
+    EXPECT_EQ(RationalTime(minimum, 3).rescaledTo(1), minimum / 3 - 1);
 }
 
 TEST(RationalTimeStandaloneTest, InvalidFrameRatesReturnSafeResults)

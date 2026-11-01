@@ -209,6 +209,23 @@ TEST(CommandIRContractTest, EmptyAndUnsupportedTypesHaveDistinctFailureContracts
     EXPECT_FALSE(CommandIR::isSupportedType(QStringLiteral(" DELETE_LAYER ")));
 }
 
+TEST(CommandIRContractTest, DirectRequestsNormalizeTypeForValidationAndUndoLabel)
+{
+    CommandRequest request;
+    request.type = QStringLiteral("  set_property  ");
+    request.target = {{QStringLiteral("layerId"), QStringLiteral("layer-1")},
+                      {QStringLiteral("propertyPath"), QStringLiteral("transform.opacity")}};
+    request.arguments = {{QStringLiteral("value"), 0.5}};
+
+    const CommandResult result = CommandIR::validate(request);
+
+    EXPECT_TRUE(result.valid) << result.error.toStdString();
+    EXPECT_TRUE(result.success);
+    EXPECT_FALSE(result.executed);
+    EXPECT_EQ(result.type, request.type);
+    EXPECT_EQ(result.undoLabel, QStringLiteral("Set Property"));
+}
+
 TEST(CommandIRContractTest, CommandResultVariantMapRoundTripPreservesDiagnostics)
 {
     CommandResult original;
@@ -228,4 +245,71 @@ TEST(CommandIRContractTest, CommandResultVariantMapRoundTripPreservesDiagnostics
     EXPECT_EQ(restored.undoLabel, original.undoLabel);
     EXPECT_EQ(restored.diagnostics, original.diagnostics);
     EXPECT_EQ(restored.details, original.details);
+}
+
+TEST(CommandIRContractTest, SafeWriteDryRunRequiresWarningsForHighRiskOperations)
+{
+    SafeWriteDryRunResult dryRun;
+    dryRun.operationName = QStringLiteral("replace_project_assets");
+    EXPECT_TRUE(dryRun.isValid());
+
+    dryRun.riskLevel = SafeWriteRiskLevel::High;
+    EXPECT_FALSE(dryRun.isValid());
+    dryRun.warnings = {QStringLiteral("Existing files may be replaced.")};
+    EXPECT_TRUE(dryRun.isValid());
+
+    dryRun.wouldFail = true;
+    EXPECT_FALSE(dryRun.isValid());
+}
+
+TEST(CommandIRContractTest, SafeWriteDryRunRejectsUnknownRiskLevel)
+{
+    SafeWriteDryRunResult dryRun;
+    dryRun.operationName = QStringLiteral("replace_project_assets");
+    dryRun.riskLevel = static_cast<SafeWriteRiskLevel>(999);
+
+    EXPECT_FALSE(dryRun.isValid());
+    EXPECT_EQ(safeWriteRiskLevelName(dryRun.riskLevel), QStringLiteral("High"));
+}
+
+TEST(CommandIRContractTest, SafeWriteConfirmationAndPlanRequireMatchingOperation)
+{
+    SafeWriteConfirmationPayload confirmation;
+    confirmation.operationName = QStringLiteral("replace_project_assets");
+    EXPECT_FALSE(confirmation.isValid());
+    confirmation.reason = QStringLiteral("User requested asset replacement.");
+    EXPECT_FALSE(confirmation.isValid());
+    confirmation.previewMessage = QStringLiteral("3 assets will be replaced.");
+    EXPECT_TRUE(confirmation.isValid());
+
+    SafeWriteExecutionPlan plan;
+    plan.dryRun.operationName = confirmation.operationName;
+    plan.dryRun.riskLevel = SafeWriteRiskLevel::High;
+    plan.dryRun.warnings = {QStringLiteral("Existing files may be replaced.")};
+    plan.confirmation = confirmation;
+    EXPECT_TRUE(plan.isValid());
+
+    plan.confirmation.operationName = QStringLiteral("different_operation");
+    EXPECT_FALSE(plan.isValid());
+}
+
+TEST(CommandIRContractTest,
+     ExecutionPlanRequiresValidDryRunAndHonorsOptionalConfirmation)
+{
+    SafeWriteConfirmationPayload confirmation;
+    confirmation.operationName = QStringLiteral("refresh_asset_metadata");
+    confirmation.required = false;
+    EXPECT_TRUE(confirmation.isValid());
+
+    SafeWriteExecutionPlan plan;
+    plan.dryRun.operationName = confirmation.operationName;
+    plan.dryRun.riskLevel = SafeWriteRiskLevel::High;
+    plan.confirmation = confirmation;
+    EXPECT_FALSE(plan.isValid());
+
+    plan.dryRun.warnings = {QStringLiteral("Metadata may be updated.")};
+    EXPECT_TRUE(plan.isValid());
+
+    plan.dryRun.wouldFail = true;
+    EXPECT_FALSE(plan.isValid());
 }

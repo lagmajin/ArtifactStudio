@@ -5,6 +5,8 @@
 #include <glm/glm.hpp>
 
 #include <cmath>
+#include <initializer_list>
+#include <limits>
 
 import Core.Camera;
 import Math.Vec;
@@ -69,6 +71,23 @@ TEST(CameraContractTest, OrbitAndDollyClampPitchAndMinimumDistance)
     expectNear(camera.distance().value, 0.01f);
 }
 
+TEST(CameraContractTest, PanMovesEyeAndTargetTogetherWithoutChangingOrbitDistance)
+{
+    Camera camera;
+    camera.pan(WorldLength{2.0f}, WorldLength{-3.0f});
+
+    expectNear(camera.target().x, 2.0f);
+    expectNear(camera.target().y, -3.0f);
+    expectNear(camera.target().z, 0.0f);
+    expectNear(camera.position().x, 2.0f);
+    expectNear(camera.position().y, -3.0f);
+    expectNear(camera.position().z, 5.0f);
+    expectNear(camera.distance().value, 5.0f);
+    expectNear(camera.forward().x, 0.0f);
+    expectNear(camera.forward().y, 0.0f);
+    expectNear(camera.forward().z, -1.0f);
+}
+
 TEST(CameraContractTest, OrthographicViewsPointTowardTheirTargets)
 {
     Camera camera;
@@ -90,6 +109,32 @@ TEST(CameraContractTest, OrthographicViewsPointTowardTheirTargets)
     expectNear(camera.pitch().value, -89.9f);
 }
 
+TEST(CameraContractTest, LookAtDerivesOrbitStateAndZeroOrbitReconstructsEye)
+{
+    Camera camera;
+    const WorldPoint3 eye{3.0f, 2.0f, 5.0f};
+    const WorldPoint3 target{1.0f, -1.0f, 0.0f};
+    camera.lookAt(eye, target);
+
+    expectNear(camera.position().x, eye.x);
+    expectNear(camera.position().y, eye.y);
+    expectNear(camera.position().z, eye.z);
+    expectNear(camera.target().x, target.x);
+    expectNear(camera.target().y, target.y);
+    expectNear(camera.target().z, target.z);
+    expectNear(camera.distance().value, std::sqrt(38.0f));
+    expectNear(camera.yaw().value,
+               std::atan2(-2.0f, -5.0f) * 180.0f / 3.14159265358979323846f);
+    expectNear(camera.pitch().value,
+               std::atan2(-3.0f, std::sqrt(29.0f)) *
+                   180.0f / 3.14159265358979323846f);
+
+    camera.orbit(Degrees{0.0f}, Degrees{0.0f});
+    expectNear(camera.position().x, eye.x);
+    expectNear(camera.position().y, eye.y);
+    expectNear(camera.position().z, eye.z);
+}
+
 TEST(CameraContractTest, FitToSphereCentersTargetAndComputesPerspectiveDistance)
 {
     Camera camera;
@@ -108,6 +153,24 @@ TEST(CameraContractTest, FitToSphereCentersTargetAndComputesPerspectiveDistance)
     expectNear(camera.position().z, center.z + expectedDistance);
 }
 
+TEST(CameraContractTest, FitToSphereClampsZeroAndNegativeRadiusToMinimumDistance)
+{
+    Camera camera;
+    const WorldPoint3 center{2.0f, -3.0f, 4.0f};
+
+    for (const float radius : {0.0f, -2.0f}) {
+        camera.fitToSphere(center, WorldLength{radius});
+
+        expectNear(camera.target().x, center.x);
+        expectNear(camera.target().y, center.y);
+        expectNear(camera.target().z, center.z);
+        expectNear(camera.distance().value, 0.01f);
+        EXPECT_TRUE(std::isfinite(camera.position().x));
+        EXPECT_TRUE(std::isfinite(camera.position().y));
+        EXPECT_TRUE(std::isfinite(camera.position().z));
+    }
+}
+
 TEST(CameraContractTest, ProjectionInputsClampToFiniteSupportedRanges)
 {
     Camera camera;
@@ -118,6 +181,22 @@ TEST(CameraContractTest, ProjectionInputsClampToFiniteSupportedRanges)
     camera.setAspect(-1.0f);
     expectNear(camera.aspect(), 0.001f);
 
+    const auto projection = camera.projectionMatrix();
+    for (int column = 0; column < 4; ++column) {
+        for (int row = 0; row < 4; ++row) {
+            EXPECT_TRUE(std::isfinite(projection[column][row]));
+        }
+    }
+}
+
+TEST(CameraContractTest, NonFiniteProjectionInputsDoNotPoisonCameraState)
+{
+    Camera camera;
+    camera.setFovY(Degrees{std::numeric_limits<float>::quiet_NaN()});
+    camera.setAspect(std::numeric_limits<float>::infinity());
+
+    EXPECT_TRUE(std::isfinite(camera.fovY().value));
+    EXPECT_TRUE(std::isfinite(camera.aspect()));
     const auto projection = camera.projectionMatrix();
     for (int column = 0; column < 4; ++column) {
         for (int row = 0; row < 4; ++row) {

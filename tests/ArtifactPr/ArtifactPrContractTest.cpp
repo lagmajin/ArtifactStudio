@@ -156,6 +156,13 @@ TEST(ArtifactPrClipEffectsTest, ZeroLengthSpanIsIgnored)
     EXPECT_DOUBLE_EQ(ArtifactPr::transitionOpacityFactor(spans, 50), 1.0);
 }
 
+TEST(ArtifactPrClipEffectsTest, NegativeLengthSpanIsIgnored)
+{
+    const QVector<ArtifactPr::TransitionFadeSpan> spans{
+        span(50, -1, true, ArtifactPr::TransitionFadeCurve::Linear)};
+    EXPECT_DOUBLE_EQ(ArtifactPr::transitionOpacityFactor(spans, 50), 1.0);
+}
+
 // =====================================================================
 // Effect parameter reading
 // =====================================================================
@@ -353,6 +360,23 @@ TEST(ArtifactPrSequenceCompositorTest, LayerOpacityScalesTheBlendWeight)
     EXPECT_LT(pixel.g(), 0.05f);
 }
 
+TEST(ArtifactPrSequenceCompositorTest, TransparentSourcePixelPreservesBackgroundColor)
+{
+    const QSize canvasSize(8, 8);
+    const ArtifactCore::FloatRGBA background(0.2f, 0.4f, 0.6f, 1.0f);
+
+    ArtifactPr::CompositeLayer layer;
+    layer.frame = solidImage(8, 8, ArtifactCore::FloatRGBA(1.0f, 0.0f, 0.0f, 0.0f));
+    layer.opacity = 1.0;
+
+    const auto canvas = ArtifactPr::composeSequenceLayers(canvasSize, {layer}, background);
+    const ArtifactCore::FloatRGBA pixel = canvas.getPixel(4, 4);
+    EXPECT_NEAR(pixel.r(), background.r(), 1e-5f);
+    EXPECT_NEAR(pixel.g(), background.g(), 1e-5f);
+    EXPECT_NEAR(pixel.b(), background.b(), 1e-5f);
+    EXPECT_NEAR(pixel.a(), background.a(), 1e-5f);
+}
+
 TEST(ArtifactPrSequenceCompositorTest, TopLayerWinsAndZeroOpacityLayerIsSkipped)
 {
     const QSize canvasSize(16, 16);
@@ -458,6 +482,20 @@ TEST(ArtifactPrTimecodeTest, NonPositiveFrameRateFallsBackToThirty)
 {
     EXPECT_EQ(TimecodeOverlayWidget::frameToTimecode(10, 0), QStringLiteral("00:00:00:10"));
     EXPECT_EQ(TimecodeOverlayWidget::frameToTimecode(10, -5), QStringLiteral("00:00:00:10"));
+}
+
+TEST(ArtifactPrTimecodeTest, NegativeFramesClampToTheTimelineOrigin)
+{
+    EXPECT_EQ(TimecodeOverlayWidget::frameToTimecode(-1, 30),
+              QStringLiteral("00:00:00:00"));
+    EXPECT_EQ(TimecodeOverlayWidget::frameToTimecode(-300, 30),
+              QStringLiteral("00:00:00:00"));
+}
+
+TEST(ArtifactPrTimecodeTest, LargeHourFieldExpandsWithoutOverflow)
+{
+    EXPECT_EQ(TimecodeOverlayWidget::frameToTimecode(2147483647, 1),
+              QStringLiteral("596523:14:07:00"));
 }
 
 // =====================================================================

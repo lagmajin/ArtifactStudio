@@ -1,6 +1,6 @@
 # UiLayoutState Test Coverage Gap
 
-**最終更新:** 2026-10-29
+**最終更新:** 2026-10-31
 
 ## 調査
 
@@ -9,3 +9,7 @@
 ## 追加したテスト
 
 `tests/ArtifactCore/UiLayoutStateContractTest.cpp` を独立ターゲットとして登録した。任意バイナリの JSON 往復、欠落フィールドの既定値、QSettings prefix 間の分離、FastSettingsStore の永続化往復、ISerializable deserialize による完全置換を確認する。テストは外部 UI や実アプリ設定を変更せず、一時ディレクトリ内の INI / CBOR ストアに限定する。ビルド・テスト実行は行っていない。
+
+## 追加拡充（2026-10-31）
+
+`UiLayoutState` が登録する schema v1→v2 migration を通し、既存 layout key / geometry / main-window state の保持、ADS dock state payload の空値補完、version 更新を検査するケースを追加した。ビルド・テスト未実施。

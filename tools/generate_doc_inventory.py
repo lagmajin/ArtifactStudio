@@ -326,7 +326,7 @@ def main():
 
     print("\nGenerating index...")
     index_content = generate_index(all_files)
-    with open(OUTPUT, "w", encoding="utf-8") as f:
+    with open(OUTPUT, "w", encoding="utf-8", newline="\n") as f:
         f.write(index_content)
     print(f"Output: {OUTPUT}")
     print(f"Size: {len(index_content)} chars")

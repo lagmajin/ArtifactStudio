@@ -24,6 +24,33 @@ TEST(ImageTransformCVContractTest, ConvertsEightBitBgrToNormalizedFloatRgba)
     EXPECT_FLOAT_EQ(pixel[3], 1.0f);
 }
 
+TEST(ImageTransformCVContractTest, ConvertsStridedBgrRoiAcrossRows)
+{
+    cv::Mat backing(2, 4, CV_8UC3, cv::Scalar(255, 255, 255));
+    cv::Mat input = backing(cv::Rect(1, 0, 2, 2));
+    input.at<cv::Vec3b>(0, 0) = cv::Vec3b(0, 64, 255);
+    input.at<cv::Vec3b>(0, 1) = cv::Vec3b(32, 128, 224);
+    input.at<cv::Vec3b>(1, 0) = cv::Vec3b(16, 80, 240);
+    input.at<cv::Vec3b>(1, 1) = cv::Vec3b(48, 160, 192);
+    ASSERT_GT(input.step, static_cast<std::size_t>(input.cols * input.elemSize()));
+
+    const cv::Mat output = convertToFloat32RGBA(input);
+
+    ASSERT_EQ(output.type(), CV_32FC4);
+    ASSERT_EQ(output.rows, 2);
+    ASSERT_EQ(output.cols, 2);
+    const auto first = output.at<cv::Vec4f>(0, 0);
+    EXPECT_FLOAT_EQ(first[0], 1.0f);
+    EXPECT_NEAR(first[1], 64.0f / 255.0f, 1e-6f);
+    EXPECT_FLOAT_EQ(first[2], 0.0f);
+    EXPECT_FLOAT_EQ(first[3], 1.0f);
+    const auto last = output.at<cv::Vec4f>(1, 1);
+    EXPECT_NEAR(last[0], 192.0f / 255.0f, 1e-6f);
+    EXPECT_NEAR(last[1], 160.0f / 255.0f, 1e-6f);
+    EXPECT_NEAR(last[2], 48.0f / 255.0f, 1e-6f);
+    EXPECT_FLOAT_EQ(last[3], 1.0f);
+}
+
 TEST(ImageTransformCVContractTest, ConvertsEightBitGrayscaleToEqualRgbAndOpaqueAlpha)
 {
     cv::Mat input(1, 1, CV_8UC1, cv::Scalar(128));
@@ -36,6 +63,21 @@ TEST(ImageTransformCVContractTest, ConvertsEightBitGrayscaleToEqualRgbAndOpaqueA
     EXPECT_FLOAT_EQ(pixel[0], pixel[1]);
     EXPECT_FLOAT_EQ(pixel[1], pixel[2]);
     EXPECT_FLOAT_EQ(pixel[3], 1.0f);
+}
+
+TEST(ImageTransformCVContractTest, ConvertsEightBitFourChannelInputWithoutReordering)
+{
+    cv::Mat input(1, 1, CV_8UC4);
+    input.at<cv::Vec4b>(0, 0) = cv::Vec4b(10, 20, 30, 40);
+
+    const cv::Mat output = convertToFloat32RGBA(input);
+
+    ASSERT_EQ(output.type(), CV_32FC4);
+    const auto pixel = output.at<cv::Vec4f>(0, 0);
+    EXPECT_NEAR(pixel[0], 10.0f / 255.0f, 1e-6f);
+    EXPECT_NEAR(pixel[1], 20.0f / 255.0f, 1e-6f);
+    EXPECT_NEAR(pixel[2], 30.0f / 255.0f, 1e-6f);
+    EXPECT_NEAR(pixel[3], 40.0f / 255.0f, 1e-6f);
 }
 
 TEST(ImageTransformCVContractTest, Float32InputIsNotRescaled)
@@ -67,6 +109,27 @@ TEST(ImageTransformCVContractTest, Float32FourChannelInputIsPreservedWithoutCopy
     for (int channel = 0; channel < 4; ++channel) {
         EXPECT_FLOAT_EQ(actual[channel], expected[channel]);
     }
+}
+
+TEST(ImageTransformCVContractTest, StridedFloat32RoiPreservesViewAndStorageAliasing)
+{
+    cv::Mat backing(2, 4, CV_32FC4, cv::Scalar(0.0f, 0.0f, 0.0f, 1.0f));
+    cv::Mat input = backing(cv::Rect(1, 0, 2, 2));
+    input.at<cv::Vec4f>(0, 0) = cv::Vec4f(0.1f, 0.2f, 0.3f, 0.4f);
+    input.at<cv::Vec4f>(1, 1) = cv::Vec4f(0.5f, 0.6f, 0.7f, 0.8f);
+    ASSERT_GT(input.step, static_cast<std::size_t>(input.cols * input.elemSize()));
+
+    const cv::Mat output = convertToFloat32RGBA(input);
+
+    ASSERT_EQ(output.type(), CV_32FC4);
+    EXPECT_EQ(output.data, input.data);
+    EXPECT_EQ(output.step, input.step);
+    EXPECT_EQ(output.rows, input.rows);
+    EXPECT_EQ(output.cols, input.cols);
+    EXPECT_FLOAT_EQ(output.at<cv::Vec4f>(1, 1)[2], 0.7f);
+
+    input.at<cv::Vec4f>(0, 0)[1] = 0.9f;
+    EXPECT_FLOAT_EQ(output.at<cv::Vec4f>(0, 0)[1], 0.9f);
 }
 
 TEST(ImageTransformCVContractTest, UnsupportedChannelCountThrows)

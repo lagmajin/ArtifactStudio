@@ -1,8 +1,10 @@
-**ステータス:** CE-1〜CE-13 実装済み、Speed グラフ編集と runtime／回帰検証が未完了
+**ステータス:** CE-1〜CE-14 実装済み（CE-14 は key move による retime / speed 書き戻しのみ）、runtime／実機検証が未完了
 
-最終更新: 2026-08-15
+**最終更新:** 2026-10-31
 
 2026-07-25: CE-8〜CE-13 のソース実装を再確認。常設数値入力、Buffer／Normalize／Cycle／Snap、Curve Copy/Paste まで実装済み。ビルド・ランタイム検証は未実施。
+
+2026-10-31: CE-14 の契約を定義して実装。Speed グラフは key move のみ編集可（挿入・削除・copy/paste・clone・tangent・数値 value 入力は derived モードで拒否）。speed→source value の逆変換は `curveSpeedAt()` / `solveCurveKeyValueForSpeed()` に一本化。あわせて `focusTrack()` から選択変更を外し（timeline refresh が毎回 primary key を 0 に戻していた）、`setTracks()` で無効な選択 index を剪定し、derived track のドラッグ値を 0 でクランプ。**検証:** `ArtifactCurveEditorStandaloneTest` を Debug ビルドし、直接実行と CTest の両方で 85/85 pass。`ArtifactTimelineWidget.cpp` / `ArtifactCurveEditorWidget.cpp` / `ArtifactCurveEditorWidget.ixx` はアプリ側プロジェクトでも単一 TU コンパイル成功。アプリを起動しての Speed モード実機操作は未実行。
 
 # M-CURVE-ED: カーブエディタ改善 — DCC いいとこどり計画
 
@@ -29,9 +31,9 @@
 - カーブエディタの新規キーは **専用 KeyMap（"CurveEditor"）を InputOperator に登録する方式を正規とし**、タイムライン側 QShortcut と衝突しない割り当てにする。
 - 割り当て案（Blender Graph Editor 準拠、衝突回避）:
   - `G` = grab（選択キー移動モード）、`B` = マーキー選択、`X` / `Delete` = キー削除
-  - `Ctrl+Click` = キー挿入（Blender 方式）、`A` = 全選択/解除（現行は focusTrack(-1) → 選択全解除に変更）
+  - `Ctrl+Click` = キー挿入（Blender 方式）、`A` = 全選択/解除、`Shift+drag` = マーキー（既存選択に追加。置換は Esc 後）
   - `V` = tangent タイプメニュー（Auto/Flat/Linear/Step/Break/Unify）※ タイムラインのツール V（Selection）とはカーブエディタアクティブ時のみ有効としてコンテキスト分離
-  - `F` = fit/フォーカス（現行維持）、`Home` = 全表示
+  - `F` = 選択キーにフレームイン（未選択時は可視キー全体）。`frameSelection()` を公開 API とし、正規化表示では y を -1.2..1.2 に固定する。
   - `Ctrl+C` / `Ctrl+V` = キー コピー/ペースト（後段フェーズ）
 - 既存の widget 内 `keyPressEvent` 直処理（Delete/F/A）も KeyMap へ段階移行する（本マイルストーンでは新規分のみ KeyMap 登録）。
 
@@ -68,7 +70,13 @@
 - [x] **CE-11**: サイクル表示（pre/post を点線、Maya Infinity / AE LoopOut 相当。`roving` フラグと整合）。
 - [x] **CE-12**: スナップ（整数フレーム/値/隣接キー/グリッド）。
 - [x] **CE-13**: キーの Copy/Paste（同トラック・別トラック間）。
-- [ ] **CE-14**: Speed グラフの編集可（read-only 解除。別途設計）。
+- [x] **CE-14**: Speed グラフの編集可（key move のみ。2026-10-31 実装、standalone 85/85 pass、実機操作は未確認）。
+  - 契約: Speed グラフの各 key は「隣接する非 Constant 区間の平均絶対スロープ × fps」(`curveSpeedAt()`)。
+  - 縦ドラッグは `solveCurveKeyValueForSpeed()` で元プロパティの key value を逆算する（前後 key・frame・constant は固定、現在値に最も近い解を選ぶ）。
+  - 横ドラッグは元 keyframe のフレーム移動。移動後の frame 配置で同じ target speed を解き直すため、水平ドラッグは speed を保ったまま retime する。
+  - 挿入・削除・copy/paste・clone・tangent 操作・数値 value 入力は `ArtifactCurveEditorWidget::setDerivedGraphMode(true)` で拒否。内蔵 frame/value エディタは derived モードで非表示。
+  - 書き戻しは `applyCurveEditorSpeedMove()`（`ArtifactTimelineWidget.cpp`）が `applyCurveEditorMove()` の衝突検査・Undo スナップショット経路を再利用する。interactionFinished の track 一括書き戻しは Speed モードでは実行しない（derived 数値を property に書かない）。
+  - 既知の制限: 複数 key を同時に speed ドラッグした場合、各 key は個別に現在の property 状態へ解を当てる。等スパンの隣接区間では target speed に対して解が plateau になり、現在値が既に target を満たす場合は現在値を維持する。到達不能な target（負値、隣接が許す最小平均未満）は編集を拒否する。
 
 ## 非目標（スコープ外）
 - タイムライン painter 側のキーフレーム編集（dope sheet）の変更。
@@ -80,6 +88,52 @@
 - Undo/Redo でタンジェント・挿入・移動が往復すること。
 - タイムライン表示（Tab 往復）でカーブとドープシートのキー位置が一致すること。
 - 新規キーが "CurveEditor" KeyMap 経由で動作し、タイムライン側 QShortcut と両立すること。
+
+## テスト＆実装ループ（2026-10-31 拡充）
+
+対象: `tests/Artifact/CurveEditorStandaloneTest.cpp`（`ArtifactCurveEditorStandaloneTest`、CTest 登録済み）。
+
+1. `cmake --build build --target ArtifactCurveEditorStandaloneTest --config Debug` でハーネスだけをビルドする（`ArtifactAppRuntime` はリンクしない）。
+2. `ctest --test-dir build -C Debug -R ArtifactCurveEditorStandaloneTest --output-on-failure` で契約 85 本を実行する。
+3. `build/tests/Artifact/.../ArtifactCurveEditorStandaloneTest --ui` で 16 シナリオを切り替えて目視確認する（1〜9 キー、F frame、N normalize、B buffer、A all、Esc clear）。
+4. 失敗時は `ARTIFACT_CURVE_EDITOR_CAPTURE_DIR` の PNG（シナリオ別 + contact sheet + `op_*` の before/after）を見て、ピクセル契約とロジック契約のどちらが落ちたかを切り分ける。
+5. 意図した描画変更なら `ArtifactCurveEditorStandaloneTest --update-baselines` で `tests/Artifact/baselines/curve-editor/`（シナリオ 16 枚 + `operations/` の before/after 36 枚）を更新する。比較は `--baseline-dir` / `ARTIFACT_CURVE_EDITOR_BASELINE_DIR` で差し替え可能。失敗時は `baseline_*_{expected,actual,diff}.png` が capture dir に出る。判定は「チャネル差 > 12 の画素が 0.2% 以下、平均絶対差 0.5 以下」。
+
+**2026-10-31 実行結果:** Debug ビルド成功（`build/tests/Artifact/Debug/ArtifactCurveEditorStandaloneTest.exe` 再生成）、直接実行 85/85 pass、`ctest -R ArtifactCurveEditorStandaloneTest` 1/1 pass。アプリ側は `MSBuild /t:ClCompile /p:SelectedFiles=...` で .ixx / カーブエディタ実装 / タイムライン実装の 3 TU がコンパイル成功。初回実行で落ちたテストはすべてテスト側の想定違い（Ctrl は press 時点で insert ジェスチャになる、キードラッグ開始で buffer が自動表示される、選択トラックは `QColor::lighter(130)` で彩度も下がる、`focusTrack()` は選択を変えないので paste 先は対象トラックの key をクリックして決める）で、実装契約を変えたのは `focusTrack()` の選択非干渉化のみ。
+
+**追加契約（第2便）:** `FocusTrackDoesNotClobberTheSelection`、`SetTracksPrunesStaleSelection`、`DerivedGraphModeClampsSpeedToZero`、`DerivedGraphModeCanBeTurnedOff`、`XKeyDeletesEverySelectedKey`、`PasteOnTheSameTrackAnchorsOnTheSelection`、`SolveSpeedHandlesDecimalFrameRates`、`SolveSpeedHandlesDecreasingNeighbours`、`SolveSpeedIsIdempotentForUnequalSpans`。
+
+**追加契約（第3便）:** `KeyDragPublishesInteractionAndMoveEvents`、`TangentEditPublishesOneInteraction`、`RejectedEditsPublishNoInteractionEvents`、`PlayheadScrubPublishesFrameChanges`（EventBus の Undo 契約）、`SelectAllOnlySelectsVisibleTracks`、`FitToContentIgnoresHiddenTracks`、`MarqueeSkipsHiddenTracks`、`InfinityExtensionStaysFlatForConstantEdges`。あわせて constant 端点が Infinity プレビューへ傾きを漏らさないよう描画を修正。
+
+**追加契約（第4便）:** `SpeedSolverRoundTripsOnRandomCurves`（300 ケース、解けたら `curveSpeedAt` が target に戻る）、`RandomizedEditSequenceKeepsInvariants`（固定 seed 300 操作、キー frame の単調性・選択 index と primary の整合・選択数 ≤ 総キー数を毎回検査）。
+
+**追加契約（第5便・操作→キャプチャ→画素）:** `ClickPaintsTheSelectionHighlightOnTheClickedKey`、`KeyDragRepaintsTheDiamondAtTheNewPosition`、`DeleteRemovesThePaintedKey`、`InsertPaintsANewDiamondAtTheClickPoint`、`PlayheadScrubRepaintsAtTheNewFrame`、`NormalizedToggleRepaintsKeyPositions`、`DerivedModeStopsPaintingTangentHandles`、`BufferCurveIsPaintedAtThePreEditPosition`、`MarqueeIsPaintedOnlyWhileDragging`、`PastePaintsSelectedKeysAtTheDestination`。各テストは before/after を `op_<name>_{before,after}.png` に保存する。この追加で **buffer curve が塗りだけでストロークされていない実バグ**を検出し修正した（area fill が pen を `Qt::NoPen` にしたまま buffer は infinity ブロックを飛ばすため、`drawPath` が線を描いていなかった）。
+
+**追加契約（第6便・基準画像回帰）:** `RenderScenariosMatchStoredBaselines`（16 シナリオを `tests/Artifact/baselines/curve-editor/` と比較、`--update-baselines` で更新、失敗時は expected/actual/diff を保存）、`ImageDiffSeparatesNoiseFromRealChanges`（比較器の単体契約）、`MultiKeyDragRepaintsEverySelectedKey`、`SelectAllHighlightsEveryKeyAndEscapeClearsIt`。負例検証として、ベースラインのコピー 1 枚に矩形を描いて `--baseline-dir` で流し、`differingFraction=0.025` で FAILED になることを確認した。
+
+**追加契約（第7便・フレームインと形状）:** `FrameSelectionFitsTheSelectedKey`、`FrameSelectionUsesEverySelectedKey`、`FrameSelectionFallsBackToVisibleKeys`、`FKeyFramesTheSelection`（`frameSelection()` API と F キー）、`FlatTangentsRepaintTheCurveShape`（flat tangent 後に frame 15 のカーブが直線より上へ描き直されることを列画素で検証）。F は従来の「選択トラックにフォーカス」から「選択キーにフレームイン（未選択時は全可視キー）」へ変更。
+
+**追加契約（第8便・描画再計算）:** `HandleDragMovesThePaintedHandlePin`（ハンドル点が旧位置から消え新位置に描かれる）、`DeleteMiddleKeyRecomputesThePaintedCurve`（中間キー削除で frame 25 のカーブが大きく下へ再描画）、`InsertKeyRecomputesThePaintedCurve`（挿入した 45/25 キーにより frame 42 のカーブが下へ）、`FocusTrackHidesAndRestoresTheOtherCurve`（フォーカスで他トラックのカーブが消え、解除で戻る）。あわせて `writeCapturePair()` が操作の before/after も `baselines/curve-editor/operations/` に保存・比較するようにし、基準画像の**欠落時**は空ディレクトリを `--baseline-dir` にして 16 件の `missing baseline` と 36 件の `missing operation baseline` で FAILED になることを確認した。
+
+**追加契約（第9便・貼り付け位置）:** `PasteWithoutSelectionAnchorsOnThePlayhead`（コピー後に選択を外し、再生ヘッド 45 で Ctrl+V → 45/75/105 に貼られ、source track が選択先になる）。あわせて `CopyPasteAcrossTracksAnchorsOnTheSelection` の「選択なし paste」節を新仕様へ更新。実装では Ctrl+V の外側ガードから「選択トラック必須」を外し、`pasteCopiedKeys()` が「選択トラック → コピー元トラック」の順で宛先を決め、選択キーが無ければ `currentFrame_` をアンカーにする。`pasteCopiedKeys()` が失敗したときに `interactionFinished` を発行しない漏れも修正した。
+
+**追加契約（第10便・マーキー追加選択）:** `ShiftMarqueeAddsToTheExistingSelection`（既存選択 + 箱で囲んだキーが両方残る）、`EscapeThenMarqueeReplacesTheSelection`（Esc 後は箱のキーだけ）。未使用だった `marqueeAdditive_` を有効化し、Shift は他の選択操作と同じく追加修飾として扱う。
+
+契約グループ:
+
+総数 85 本。
+
+- Speed math: `curveSpeedAt` の区間平均・Constant 除外・端点、`solveCurveKeyValueForSpeed` の端点/内部解・到達不能・等スパン plateau・方向維持・小数 fps・減少方向・冪等性。
+- 当たり判定: 0 長ハンドルでキー移動、非 0 ハンドルでタンジェント、正規化ビューのクリック/マーキー/ドラッグ。
+- 編集規則: derived モードの構造編集拒否・キー移動許可・0 クランプ・解除、read-only の tangent 拒否、copy/paste（別トラック/同一トラック/未選択時は再生ヘッド）、clone、Backspace/X 削除、Ctrl スナップ、reorder 後の選択再構築、内蔵数値エディタ、focus の選択非干渉、setTracks の選択剪定。
+- 表示・ナビゲーション: buffer toggle、正規化 API、double-click focus、wheel 軸分離、pan、visible トラックのみの A/fit/marquee、constant 端点の infinity。
+- EventBus: ドラッグ/タンジェントの Started/Finished/Moved/Selected、拒否操作の無発行、scrub の frame 通知。
+- 操作→キャプチャ→画素: click/drag/delete/insert/scrub/normalized/derived/buffer/marquee/paste/handle drag/focus の before/after PNG と、期待位置の色検証。複数キー同時ドラッグ、A 全選択ハイライト、Esc 解除、キー削除/挿入後のカーブ再計算も含む。
+- 基準画像回帰: 16 シナリオ + 操作 before/after 36 枚と `tests/Artifact/baselines/curve-editor/` の比較、比較器単体契約、`--update-baselines` 更新経路。`writeCapturePair()` が操作画像も保存・比較する。
+- フレームイン/形状: 選択キーへの `frameSelection()` と F、flat tangent 後のカーブ位置変化。
+- Render: 16 シナリオの PNG、背景/グリッド/カーブ/プレイヘッド/定数ステップ/マーキー/buffer/選択ハイライトのピクセル契約。
+
+ハーネスに含めないもの: `QInputDialog` を開く `promptSetSelectedKeyFrame()` の対話結果（内蔵スピンボックス側で frame/value 編集は検証済み）、GPU curve snapshot の見た目一致（別経路）。
 
 ## 2026-07-25 実装監査
 
@@ -95,8 +149,16 @@
 - Speed グラフは引き続き read-only で、速度カーブを編集して元の keyframe へ書き戻す契約は未実装。
 - ビルド／runtime／Undo-Redo／再生・export での評価カーブ一致はこの監査では実行していない。
 
-判定: **通常の Value カーブ編集と主要 DCC 操作は実装済み。Speed 編集、実機検証、回帰検証は pending。**
+判定（2026-08-15 時点）: **通常の Value カーブ編集と主要 DCC 操作は実装済み。Speed 編集、実機検証、回帰検証は pending。**
 
-### CE-14 調査追記 2026-08-15
+### CE-14 契約（2026-10-31 更新）
 
-Speed graph は現在の Value keyframe 群から区間速度をサンプリングして生成する派生表示であり、Speed上の1点を移動しても、元の値・時間キーフレームへ一意に逆変換できない。したがって既存の `keyMoved(track, key, frame, value)` をそのままSpeedへ接続する実装は行わず、速度編集の契約（速度を変更した区間の再積分、境界条件、値域、Undo単位）を先に定義する必要がある。
+2026-08-15 の調査メモは「速度1点から元 keyframe へ一意に逆変換できない」と結論していたが、2026-10-31 に境界条件を固定して一意化した。
+
+- 速度の定義: key i の速度 = 隣接する有効区間（`keys[i-1].constant` と `keys[i].constant` を除外）の `|Δvalue| / Δframe * fps` の平均。`curveSpeedAt()` が唯一の定義元。
+- 逆変換: 前後 key の value / frame / constant を固定し、key i の value だけを未知数として解く。区間は 1〜2 本なので区分線形方程式になり、解析解の候補（前後より外側2本、内側2本）を評価して target を満たすもののうち現在値に最も近いものを採用する。
+- 唯一性が崩れるのは「前後区間のフレーム幅が等しく、かつ target が現在の平均と異なる」場合。この場合は解なしとして編集を拒否する（値のジャンプを作らない）。target が現在の平均と等しい場合は現在値を維持する。
+- 端点 key は有効区間が1本なので一意。値の増減方向は現在の符号を維持する。
+- 時間移動は「移動後の frame 配置で同じ target speed を解き直す」と定義する。したがって水平ドラッグは speed を保った retime、垂直ドラッグは frame を固定した速度変更になる。
+- Undo は既存の `CurveEditorInteractionStarted/Finished` スナップショット経路（1 interaction = 1 command）をそのまま使う。
+- 実装: `curveSpeedAt()` / `solveCurveKeyValueForSpeed()`（`Widget.CurveEditor`、standalone で契約テスト済み）、`applyCurveEditorSpeedMove()`（タイムライン）、`ArtifactCurveEditorWidget::setDerivedGraphMode()`（構造編集・tangent 編集の拒否）。
