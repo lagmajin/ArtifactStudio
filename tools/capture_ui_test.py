@@ -85,6 +85,22 @@ def parse_args() -> argparse.Namespace:
         help="show a raster source with a Cloner in the Composition View",
     )
     parser.add_argument(
+        "--components",
+        action="store_true",
+        help="exercise the Cloner Layer Component through virtual pointer events",
+    )
+    parser.add_argument(
+        "--component",
+        choices=("cloner",),
+        default=None,
+        help="component used by --components (default: cloner)",
+    )
+    parser.add_argument(
+        "--components-no-window",
+        action="store_true",
+        help="run component integration checks without showing a window or capturing a screenshot",
+    )
+    parser.add_argument(
         "--cloner-backend",
         choices=("cpu", "gpu"),
         default="cpu",
@@ -214,7 +230,8 @@ def main() -> int:
     args = parse_args()
     isolated_fixtures = sum((
         bool(args.timeline or args.curve_editor), args.render_manager,
-        args.cloner, args.tracker, args.contents_viewer is not None,
+        args.cloner, args.components, args.tracker,
+        args.contents_viewer is not None,
     ))
     if isolated_fixtures > 1:
         print("capture_ui_test: choose only one isolated fixture", file=sys.stderr)
@@ -235,6 +252,15 @@ def main() -> int:
         return 2
     if args.cloner and (args.timeline or args.curve_editor):
         print("capture_ui_test: --cloner cannot be combined with Timeline fixtures", file=sys.stderr)
+        return 2
+    if args.component is not None and not args.components:
+        print("capture_ui_test: --component requires --components", file=sys.stderr)
+        return 2
+    if args.components_no_window and not args.components:
+        print(
+            "capture_ui_test: --components-no-window requires --components",
+            file=sys.stderr,
+        )
         return 2
     plain_modifier_fixture = (
         args.cloner_plain_translation or args.cloner_plain_rotation or
@@ -368,6 +394,9 @@ def main() -> int:
     if cloner_fixture_path is not None:
         cloner_fixture_path.unlink(missing_ok=True)
     tracker_result_path = output_path.with_suffix(".result.txt")
+    components_result_path = output_path.with_suffix(".components-result.txt")
+    if args.components:
+        components_result_path.unlink(missing_ok=True)
     if args.tracker:
         tracker_result_path.unlink(missing_ok=True)
 
@@ -380,6 +409,10 @@ def main() -> int:
         "ARTIFACT_UI_TEST_CONTENTS_VIEWER",
         "ARTIFACT_UI_TEST_CONTENTS_VIEWER_PATH",
         "ARTIFACT_UI_TEST_CLONER",
+        "ARTIFACT_UI_TEST_COMPONENTS",
+        "ARTIFACT_UI_TEST_COMPONENT",
+        "ARTIFACT_UI_TEST_COMPONENTS_RESULT_PATH",
+        "ARTIFACT_UI_TEST_COMPONENTS_NO_WINDOW",
         "ARTIFACT_UI_TEST_TRACKER",
         "ARTIFACT_UI_TEST_PROJECT_ROOT",
         "ARTIFACT_UI_TEST_CLONER_RENDER_OUTPUT",
@@ -396,19 +429,23 @@ def main() -> int:
         "ARTIFACT_STARTUP_SCREENSHOT_NATIVE_WINDOW",
     ):
         environment.pop(fixture_flag, None)
-    environment["ARTIFACT_STARTUP_SCREENSHOT"] = "1"
     environment["ARTIFACT_UI_TEST_FORCE_SHUTDOWN"] = "1"
-    environment["ARTIFACT_STARTUP_SCREENSHOT_PATH"] = str(output_path)
+    if args.components_no_window:
+        environment.pop("ARTIFACT_STARTUP_SCREENSHOT", None)
+        environment.pop("ARTIFACT_STARTUP_SCREENSHOT_PATH", None)
+    else:
+        environment["ARTIFACT_STARTUP_SCREENSHOT"] = "1"
+        environment["ARTIFACT_STARTUP_SCREENSHOT_PATH"] = str(output_path)
     fixture_root: Path | None = None
     console_log_file = None
     console_log_path = (
         Path(f"{output_path}.console.log")
-        if args.contents_viewer is not None else None
+        if args.contents_viewer is not None or args.components else None
     )
     if console_log_path is not None:
         console_log_path.parent.mkdir(parents=True, exist_ok=True)
         console_log_file = console_log_path.open("wb")
-    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.tracker or args.contents_viewer:
+    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.components or args.tracker or args.contents_viewer:
         fixture_root = Path(tempfile.mkdtemp(
             prefix="artifact_ui_test_", dir=output_path.parent
         )).resolve()
@@ -461,6 +498,18 @@ def main() -> int:
         if args.cloner_plain_chain:
             environment["ARTIFACT_UI_TEST_CLONER_PLAIN_CHAIN"] = "1"
         environment["ARTIFACT_STARTUP_SCREENSHOT_NATIVE_WINDOW"] = "1"
+    if args.components:
+        environment["ARTIFACT_UI_TEST_COMPONENTS"] = "1"
+        environment["ARTIFACT_UI_TEST_COMPONENT"] = args.component or "cloner"
+        environment["ARTIFACT_UI_TEST_COMPONENTS_RESULT_PATH"] = str(
+            components_result_path
+        )
+        if args.components_no_window:
+            environment["ARTIFACT_UI_TEST_COMPONENTS_NO_WINDOW"] = "1"
+        else:
+            environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = (
+                "inspectorComponentsSurface"
+            )
     if args.tracker:
         environment["ARTIFACT_UI_TEST_TRACKER"] = "1"
         environment["ARTIFACT_UI_TEST_TRACKER_RESULT_PATH"] = str(
@@ -519,11 +568,69 @@ def main() -> int:
     renderer_stable_observations = 0
     try:
         while time.monotonic() < deadline:
+            if args.components_no_window:
+                exit_code = process.poll()
+                if exit_code is not None:
+                    if not components_result_path.is_file():
+                        print(
+                            "capture_ui_test: app exited before writing the component result "
+                            f"(exit code {exit_code})",
+                            file=sys.stderr,
+                        )
+                        return 1
+                    component_lines = [
+                        line.strip()
+                        for line in components_result_path.read_text(
+                            encoding="utf-8", errors="replace"
+                        ).splitlines()
+                        if line.strip()
+                    ]
+                    expected_components = 1
+                    if (
+                        exit_code != 0 or
+                        len(component_lines) != expected_components or
+                        any(not line.startswith("pass ")
+                            for line in component_lines)
+                    ):
+                        print(
+                            "capture_ui_test: Layer Components fixture failed: "
+                            + " | ".join(component_lines),
+                            file=sys.stderr,
+                        )
+                        return 1
+                    print(f"{args.language}: " + " | ".join(component_lines))
+                    return 0
+                time.sleep(0.1)
+                continue
             if output_path.is_file():
                 size = output_path.stat().st_size
                 if size > 0 and size == previous_size:
                     stable_observations += 1
                     if stable_observations >= 2:
+                        if args.components:
+                            if not components_result_path.is_file():
+                                time.sleep(0.1)
+                                continue
+                            component_lines = [
+                                line.strip()
+                                for line in components_result_path.read_text(
+                                    encoding="utf-8", errors="replace"
+                                ).splitlines()
+                                if line.strip()
+                            ]
+                            expected_components = 1
+                            if (
+                                len(component_lines) != expected_components or
+                                any(not line.startswith("pass ")
+                                    for line in component_lines)
+                            ):
+                                print(
+                                    "capture_ui_test: Layer Components fixture failed: "
+                                    + " | ".join(component_lines),
+                                    file=sys.stderr,
+                                )
+                                return 1
+                            component_result = " | ".join(component_lines)
                         if renderer_output_path is not None:
                             if not renderer_output_path.is_file():
                                 pass
@@ -757,6 +864,9 @@ def main() -> int:
                                     )
                                     return 1
                         if not args.tracker:
+                            if args.components:
+                                print(f"{output_path} ({component_result})")
+                                return 0
                             print(output_path)
                             if renderer_output_path is not None:
                                 print(renderer_output_path)
