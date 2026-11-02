@@ -25,6 +25,9 @@
                 "value": "x64",
                 "strategy": "external"
             },
+            "environment": {
+                "VSLANG": "1033"
+            },
             "cacheVariables": {
                 "DILIGENT_NO_RADIENT": "ON",
                 "VCPKG_INSTALLED_DIR": "${sourceDir}/out/vcpkg_installed",
@@ -136,7 +139,10 @@
         {
             "name": "x64-Debug-Agent",
             "configurePreset": "x64-Debug-Agent",
-            "jobs": 1
+            "jobs": 1,
+            "environment": {
+                "VSLANG": "1033"
+            }
         }
     ]
 }

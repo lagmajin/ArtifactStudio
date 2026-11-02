@@ -1671,6 +1671,36 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactAudioLayerProjectReloadIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactAudioLayerRenderIntegrationTest>
+            "--gtest_filter=AudioLayerRenderIntegrationTest.MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload"
+    )
+    set_tests_properties(ArtifactAudioLayerProjectReloadIntegrationTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=${_artifact_audio_test_qpa_platform}"
+        LABELS "audio;layer;project;serialization;mute;mix;cpu;integration;contract"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactAudioLayerSeekAlignmentIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactAudioLayerRenderIntegrationTest>
+            "--gtest_filter=AudioLayerRenderIntegrationTest.CompositionAudioBlocksStayAlignedAcrossForwardAndBackwardSeeks"
+    )
+    set_tests_properties(ArtifactAudioLayerSeekAlignmentIntegrationTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=${_artifact_audio_test_qpa_platform}"
+        LABELS "audio;layer;composition;seek;cpu;integration;contract"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactAudioLayerSourceRecoveryIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactAudioLayerRenderIntegrationTest>
+            "--gtest_filter=AudioLayerRenderIntegrationTest.MissingSourceStopsAudioAndRelinkRestoresCompositionOutput"
+    )
+    set_tests_properties(ArtifactAudioLayerSourceRecoveryIntegrationTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=${_artifact_audio_test_qpa_platform}"
+        LABELS "audio;layer;source;failure;relink;recovery;cpu;integration;contract"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactVideoMuxFailureRetentionIntegrationTest
         COMMAND $<TARGET_FILE:ArtifactAudioLayerRenderIntegrationTest>
             "--gtest_filter=AudioLayerRenderIntegrationTest.MuxFailureRetainsPlayableVideoOnlyOutput"
@@ -2751,6 +2781,21 @@ if(ARTIFACT_BUILD_TESTS)
         ENVIRONMENT
             "QT_QPA_PLATFORM=offscreen;ARTIFACT_KEYING_REAL_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/fixtures/keying/voa-green-screen-frame-2s.jpg"
         LABELS "project;serialization;cpu;contract;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+
+    artifact_add_test(ArtifactShapeLayerProjectIntegrationTest
+        SOURCES
+            ShapeLayerProjectIntegrationTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactShapeLayerProjectIntegrationTest PROPERTIES
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "shape;layer;project;animation;serialization;cpu;integration"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
