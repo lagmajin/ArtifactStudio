@@ -10043,3 +10043,22 @@
 - **確認できた事実:** `artifactIsFinite` には float/double/long double overload があるが、`artifactIsNaN` には float/double overload と integral-only template しかない。long double を渡すと float/double への標準変換候補が並び、呼び出しが曖昧になる可能性がある（未コンパイルで未検証）。
 - **価値または懸念:** 数値型ごとの predicate API が非対称で、long double の NaN を直接判定できない可能性がある。
 - **次に確認すべきこと:** ArtifactCore child の変更許可後、long double overload を追加するか API 方針を決め、long double NaN の直接呼び出しをコンパイル検証する。
+
+## 2026-11-02: Audio受入ビルドでMSVC include一覧が大量出力
+- **関連:** `out/build/x64-Debug-Agent`、MSVC 19.51、Ninja、`CMakeLists.txt` のMSVC/Ninja `/showIncludes` 契約。
+- **確認できた事実:** `VSLANG=1033` を設定して既存Debug treeのAudio統合テストtargetをビルドしたが、CMake再構成後もconfigure出力とcl.exe出力に日本語の「メモ: インクルード ファイル:」が大量に出た。再構成後は数千ファイルのmodule dependency scanへ広がったため停止した。変更したsourceのcompileやAudioテスト実行には到達していない。
+- **確認・追加:** configure/build preset双方に `VSLANG=1033` を設定して再configureしたが、cl.exeは日本語出力を維持し、CMakeが `CMAKE_CXX_CL_SHOWINCLUDES_PREFIX` に書いた値も不正な文字列になった。Windows SDK `rc.exe` のbinをPATHへ足すとリンク段階へ進んだが、既存 `ArtifactAbstractLayerBounds.cpp` と `ArtifactAbstractLayerEffectPersistence.cpp` がMSVC 19.51で `Animation.Transform3D` IFC import中に `C1116`。現在も `ArtifactAbstractLayerBounds.cpp.obj` 単独で同じ失敗を再現し、Audioテスト実行ファイルは生成されない。失敗targetの `CXX_MODULE_STD` はOFFで、生成modmapに `std` IFC参照はない。別clang-cl treeはOpenMP/glslcの明示指定後にconfigureしたが、生成C++ module graphの依存cycleでbuild停止。Microsoft C++ Teamは、third-party header後に `import std` を使うpartitioned C++23 moduleのC1001/C1116修正を14.52 Preview更新で案内しているが、今回の条件とは一致を確認できず、toolset更新で解消するかは未検証。
+- **価値または懸念:** `/showIncludes` prefixの不整合はログを数十MBに膨らませるうえ、今のMSVC toolsetではアプリランタイムの既存module import errorがAudio受入targetのlinkを止める。テスト翻訳単位compile成功は実行可能性の証明にはならない。
+- **次に確認すべきこと:** 別toolsetが利用可能なら同じAudio test targetで比較し、MSVC 19.51の `C1116` が解消するか確認する。解消しない場合は必要な `Animation.Transform3D` import連鎖を切り分け、実targetのlinkとAudio test実行まで確認する。
+
+## 2026-11-02: Audio source欠落後のproject relink経路を保持する
+- **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cpp::ArtifactAudioLayer::loadFromPath`、`ArtifactAudioLayer::Impl::sharedPcm_`、`tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp::MissingSourceStopsAudioAndRelinkRestoresCompositionOutput`。
+- **確認できた事実:** 実WAVを参照するprojectを保存し、source削除後にprojectを新規読込するケースを追加したところ、非空pathの読込失敗時に `isLoaded_ = false` だけが設定され、`sourcePath_` が空のまま残るため、欠落sourceの場所をlayerが保持できない問題を確認した。失敗時のload path保持、古いsource asset identity/shared PCM/sample metadata/de-click/resampled cacheのクリア、`changed()` 発行を実装し、Audio Layer実装単位と統合テスト翻訳単位のMSVC compileは成功した。
+- **価値または懸念:** 以前の観察では失敗時に前source identityやPCMも残っていたが、通常のlayer音声出力は `isLoaded_` を確認して旧PCMを遮断していた。現在は要求pathを保持し、ロード状態とキャッシュを無効化して再リンク可能にする。project save/reloadを含む受け入れテストの実行とUI上の復旧導線は未確認。
+- **次に確認すべきこと:** 追加したproject reload / missing source / relinkの実行テストを通す。現環境ではMSVC 19.51の既存 `ArtifactAbstractLayerBounds.cpp` / `ArtifactAbstractLayerEffectPersistence.cpp` が `Animation.Transform3D` IFC import中に `C1116` となりリンクが止まるため、再現を独立して切り分ける。
+
+## 2026-11-04: Layer Components UI integration runs headless with resolved layout and routed state
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp` (`getComponentPropertyGroups`)、`Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cpp` (`routedPropertyMetaTable`)、`Artifact/src/AppMain.cpp`（Layer Components fixture）、`tools/capture_ui_test.py`。
+- **確認できた事実:** Layout の UI トグルは `component.layout.enabled` を `getComponentPropertyGroups()` から取得し、setter 後は `syncRoutedPropertyCache()` で Inspector 向け値を更新する。しかしプロパティグループと routed metadata の両方に Layout enabled が欠けていた。両方へ登録すると、UI 仮想クリックで Layout を有効化し設定面を開けるようになった。また、Qt ウィンドウを一度も `show()` しない状態では dock 内部レイアウトが未確定で、Layout のテスト座標に Script ボタンが重なった。`Qt::WA_DontShowOnScreen` を設定して show / dock activation を行うと、OS画面に出さずに配置を確定できた。
+- **価値または懸念:** 仮想入力テストは送信イベント数だけでなく、意図したボタンが実際に受信したこと、コンポーネントが有効になったこと、設定面が表示されたことまで検証できる。Physics / Script / Layout / Cloner / Fluid の5種類を ja / en / zh / zh-TW で全20ケース実行し成功した。
+- **次に確認すべきこと:** 画面外で他の dock/widget を仮想イベント操作する統合テストを追加する場合も、画面外配置後にレイアウトを確定し、実際の receiver を結果条件に含める。

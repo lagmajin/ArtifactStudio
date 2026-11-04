@@ -508,6 +508,329 @@ TEST(AudioLayerRenderIntegrationTest,
                 0.5, 0.08);
 }
 
+TEST(AudioLayerRenderIntegrationTest,
+     MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload)
+{
+    QTemporaryDir root;
+    ASSERT_TRUE(root.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", root.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    const QString tone440 = root.filePath(QStringLiteral("reload-tone-440.wav"));
+    const QString tone880 = root.filePath(QStringLiteral("reload-tone-880.wav"));
+    ASSERT_TRUE(writeFixtureWav(tone440, 440.0, 9000.0));
+    ASSERT_TRUE(writeFixtureWav(tone880, 880.0, 9000.0));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("AudioLayerProjectReload"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("AudioReloadComposition")));
+    compositionParams.setResolution(64, 64);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(3);
+    const auto compositionResult = projects.createComposition(compositionParams);
+    ASSERT_TRUE(compositionResult.success);
+
+    Artifact::ArtifactAudioInitParams firstParams(QStringLiteral("Tone 440"));
+    firstParams.setAudioPath(tone440);
+    const auto firstResult = projects.addLayerToComposition(
+        compositionResult.id, firstParams);
+    ASSERT_TRUE(firstResult.success);
+    auto* first = dynamic_cast<Artifact::ArtifactAudioLayer*>(firstResult.layer.get());
+    ASSERT_NE(first, nullptr);
+    const auto firstLayerId = first->id();
+    first->setTimelineWindow(ArtifactCore::FramePosition(0),
+                             ArtifactCore::FramePosition(3));
+    first->setVolume(0.6f);
+    first->setPan(-0.25f);
+
+    Artifact::ArtifactAudioInitParams secondParams(QStringLiteral("Tone 880"));
+    secondParams.setAudioPath(tone880);
+    const auto secondResult = projects.addLayerToComposition(
+        compositionResult.id, secondParams);
+    ASSERT_TRUE(secondResult.success);
+    auto* second = dynamic_cast<Artifact::ArtifactAudioLayer*>(secondResult.layer.get());
+    ASSERT_NE(second, nullptr);
+    const auto secondLayerId = second->id();
+    second->setTimelineWindow(ArtifactCore::FramePosition(0),
+                              ArtifactCore::FramePosition(3));
+    second->setVolume(0.35f);
+    second->setMuted(true);
+    ASSERT_TRUE(first->isLoaded());
+    ASSERT_TRUE(second->isLoaded());
+
+    const auto composition = projects.findComposition(compositionResult.id).ptr.lock();
+    ASSERT_TRUE(composition);
+    ArtifactCore::AudioSegment mutedMix;
+    ASSERT_TRUE(composition->getAudio(mutedMix,
+                                      ArtifactCore::FramePosition(0),
+                                      4800, 48000));
+    const double mutedRms = rms(mutedMix.channelData[0]);
+    EXPECT_GT(mutedRms, 0.05);
+
+    second->setMuted(false);
+    ArtifactCore::AudioSegment unmutedMix;
+    ASSERT_TRUE(composition->getAudio(unmutedMix,
+                                      ArtifactCore::FramePosition(0),
+                                      4800, 48000));
+    EXPECT_GT(rms(unmutedMix.channelData[0]), mutedRms * 1.2);
+
+    second->setMuted(true);
+    const QString projectPath =
+        root.filePath(QStringLiteral("audio-roundtrip.artifact"));
+    const auto saveResult = projects.saveToFile(projectPath);
+    ASSERT_TRUE(saveResult.success) << saveResult.errorMessage.toStdString();
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    const auto restoredComposition =
+        projects.findComposition(compositionResult.id).ptr.lock();
+    ASSERT_TRUE(restoredComposition);
+    auto* restoredFirst = dynamic_cast<Artifact::ArtifactAudioLayer*>(
+        restoredComposition->layerById(firstLayerId).get());
+    auto* restoredSecond = dynamic_cast<Artifact::ArtifactAudioLayer*>(
+        restoredComposition->layerById(secondLayerId).get());
+    ASSERT_NE(restoredFirst, nullptr);
+    ASSERT_NE(restoredSecond, nullptr);
+    EXPECT_EQ(restoredFirst->sourcePath(), tone440);
+    EXPECT_EQ(restoredSecond->sourcePath(), tone880);
+    EXPECT_FLOAT_EQ(restoredFirst->volume(), 0.6f);
+    EXPECT_FLOAT_EQ(restoredFirst->pan(), -0.25f);
+    EXPECT_FLOAT_EQ(restoredSecond->volume(), 0.35f);
+    EXPECT_TRUE(restoredSecond->isMuted());
+    ASSERT_TRUE(restoredFirst->isLoaded());
+    ASSERT_TRUE(restoredSecond->isLoaded());
+
+    ArtifactCore::AudioSegment restoredMix;
+    ASSERT_TRUE(restoredComposition->getAudio(restoredMix,
+                                              ArtifactCore::FramePosition(0),
+                                              4800, 48000));
+    ASSERT_EQ(restoredMix.channelData.size(), mutedMix.channelData.size());
+    ASSERT_EQ(restoredMix.channelData[0].size(), mutedMix.channelData[0].size());
+    EXPECT_NEAR(rms(restoredMix.channelData[0]), mutedRms, 1.0e-4);
+    for (qsizetype frame = 0; frame < mutedMix.channelData[0].size(); ++frame) {
+        EXPECT_NEAR(restoredMix.channelData[0][frame],
+                    mutedMix.channelData[0][frame], 1.0e-5f)
+            << "sample differs at frame " << frame;
+    }
+
+    QString renderFailure;
+    const QString renderedPath = root.filePath(QStringLiteral("reloaded-audio.wav"));
+    ASSERT_TRUE(renderCompositionWav(
+        queue, compositionResult.id, QStringLiteral("AudioReloadComposition"),
+        renderedPath, &renderFailure)) << renderFailure.toStdString();
+    ArtifactCore::SimpleWav renderedWav;
+    ASSERT_TRUE(renderedWav.loadFromFile(renderedPath));
+    ASSERT_EQ(renderedWav.sampleRate(), 48000);
+    ASSERT_EQ(renderedWav.frameCount(), 4800);
+    EXPECT_NEAR(rms(renderedWav.getAudioData()), mutedRms, 0.002);
+}
+
+TEST(AudioLayerRenderIntegrationTest,
+     CompositionAudioBlocksStayAlignedAcrossForwardAndBackwardSeeks)
+{
+    QTemporaryDir root;
+    ASSERT_TRUE(root.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", root.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    const QString sourcePath = root.filePath(QStringLiteral("seek-tones.wav"));
+    ASSERT_TRUE(writeFixtureWavWithTimedTones(sourcePath));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("AudioSeekAlignment"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("AudioSeekComposition")));
+    compositionParams.setResolution(64, 64);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(90);
+    const auto compositionResult = projects.createComposition(compositionParams);
+    ASSERT_TRUE(compositionResult.success);
+
+    Artifact::ArtifactAudioInitParams audioParams(QStringLiteral("Timed Tones"));
+    audioParams.setAudioPath(sourcePath);
+    const auto layerResult = projects.addLayerToComposition(
+        compositionResult.id, audioParams);
+    ASSERT_TRUE(layerResult.success);
+    auto* audio = dynamic_cast<Artifact::ArtifactAudioLayer*>(layerResult.layer.get());
+    ASSERT_NE(audio, nullptr);
+    audio->setTimelineWindow(ArtifactCore::FramePosition(0),
+                             ArtifactCore::FramePosition(90));
+    ASSERT_TRUE(audio->isLoaded());
+
+    const auto composition = projects.findComposition(compositionResult.id).ptr.lock();
+    ASSERT_TRUE(composition);
+    constexpr int samplesPerFrame = 1600; // 48 kHz / 30 fps
+    const auto readFrame = [&](int frame) {
+        composition->goToFrame(frame);
+        ArtifactCore::AudioSegment segment;
+        EXPECT_TRUE(composition->getAudio(
+            segment, ArtifactCore::FramePosition(frame), samplesPerFrame, 48000));
+        return segment;
+    };
+
+    const auto firstActiveBaseline = readFrame(15); // 0.5 sec
+    const auto silenceBaseline = readFrame(45);     // 1.5 sec
+    const auto secondActiveBaseline = readFrame(69); // 2.3 sec
+    ASSERT_GE(firstActiveBaseline.channelCount(), 1);
+    ASSERT_GE(silenceBaseline.channelCount(), 1);
+    ASSERT_GE(secondActiveBaseline.channelCount(), 1);
+    EXPECT_GT(rms(firstActiveBaseline.channelData[0]), 0.1);
+    EXPECT_LT(rms(silenceBaseline.channelData[0]), 1.0e-6);
+    EXPECT_GT(rms(secondActiveBaseline.channelData[0]), 0.1);
+
+    // Deliberately seek across the second tone, silence, and first tone in a
+    // non-monotonic order, then revisit both active regions.
+    const int seekFrames[] = {69, 45, 15, 69, 15};
+    for (const int frame : seekFrames) {
+        const auto actual = readFrame(frame);
+        const ArtifactCore::AudioSegment* expected = nullptr;
+        if (frame == 69) {
+            expected = &secondActiveBaseline;
+        } else if (frame == 45) {
+            expected = &silenceBaseline;
+        } else {
+            expected = &firstActiveBaseline;
+        }
+        ASSERT_EQ(actual.channelData.size(), expected->channelData.size());
+        ASSERT_EQ(actual.channelData[0].size(), expected->channelData[0].size());
+        for (qsizetype sample = 0; sample < actual.channelData[0].size(); ++sample) {
+            EXPECT_NEAR(actual.channelData[0][sample],
+                        expected->channelData[0][sample], 1.0e-6f)
+                << "frame " << frame << ", sample " << sample;
+        }
+    }
+}
+
+TEST(AudioLayerRenderIntegrationTest,
+     MissingSourceStopsAudioAndRelinkRestoresCompositionOutput)
+{
+    QTemporaryDir root;
+    ASSERT_TRUE(root.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", root.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    const QString originalPath = root.filePath(QStringLiteral("original-440.wav"));
+    const QString relinkedPath = root.filePath(QStringLiteral("relinked-880.wav"));
+    ASSERT_TRUE(writeFixtureWav(originalPath, 440.0));
+    ASSERT_TRUE(writeFixtureWav(relinkedPath, 880.0));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        ~Cleanup() { projects.closeCurrentProject(); }
+    } cleanup{projects};
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("AudioSourceRecovery"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("AudioSourceRecoveryComposition")));
+    compositionParams.setResolution(64, 64);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(3);
+    const auto compositionResult = projects.createComposition(compositionParams);
+    ASSERT_TRUE(compositionResult.success);
+
+    Artifact::ArtifactAudioInitParams audioParams(QStringLiteral("Recoverable Audio"));
+    audioParams.setAudioPath(originalPath);
+    const auto layerResult = projects.addLayerToComposition(
+        compositionResult.id, audioParams);
+    ASSERT_TRUE(layerResult.success);
+    auto* audio = dynamic_cast<Artifact::ArtifactAudioLayer*>(layerResult.layer.get());
+    ASSERT_NE(audio, nullptr);
+    const auto audioLayerId = audio->id();
+    audio->setTimelineWindow(ArtifactCore::FramePosition(0),
+                             ArtifactCore::FramePosition(3));
+    ASSERT_TRUE(audio->isLoaded());
+
+    const auto composition = projects.findComposition(compositionResult.id).ptr.lock();
+    ASSERT_TRUE(composition);
+    ArtifactCore::AudioSegment originalOutput;
+    ASSERT_TRUE(composition->getAudio(originalOutput,
+                                      ArtifactCore::FramePosition(0), 4800, 48000));
+    ASSERT_GE(originalOutput.channelCount(), 1);
+    const QVector<float> originalSamples = originalOutput.channelData[0];
+    ASSERT_GT(rms(originalSamples), 0.05);
+
+    const QString projectPath =
+        root.filePath(QStringLiteral("missing-audio-source.artifact"));
+    const auto saveResult = projects.saveToFile(projectPath);
+    ASSERT_TRUE(saveResult.success) << saveResult.errorMessage.toStdString();
+    ASSERT_TRUE(QFile::remove(originalPath));
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    const auto restoredComposition =
+        projects.findComposition(compositionResult.id).ptr.lock();
+    ASSERT_TRUE(restoredComposition);
+    audio = dynamic_cast<Artifact::ArtifactAudioLayer*>(
+        restoredComposition->layerById(audioLayerId).get());
+    ASSERT_NE(audio, nullptr);
+    EXPECT_FALSE(audio->isLoaded());
+    EXPECT_EQ(audio->sourcePath(), originalPath)
+        << "the missing source path must survive project reload for relinking";
+    ArtifactCore::AudioSegment failedLayerOutput;
+    EXPECT_FALSE(audio->getAudio(failedLayerOutput,
+                                 ArtifactCore::FramePosition(0), 4800, 48000));
+    EXPECT_TRUE(failedLayerOutput.channelData.empty());
+
+    ArtifactCore::AudioSegment missingSourceOutput;
+    EXPECT_FALSE(restoredComposition->getAudio(
+        missingSourceOutput, ArtifactCore::FramePosition(0), 4800, 48000));
+    for (const auto& channel : missingSourceOutput.channelData) {
+        EXPECT_LT(rms(channel), 1.0e-7);
+    }
+
+    ASSERT_TRUE(audio->loadFromPath(relinkedPath));
+    EXPECT_TRUE(audio->isLoaded());
+    EXPECT_EQ(audio->sourcePath(), relinkedPath);
+    ArtifactCore::AudioSegment recoveredOutput;
+    ASSERT_TRUE(restoredComposition->getAudio(
+        recoveredOutput, ArtifactCore::FramePosition(0), 4800, 48000));
+    ASSERT_GE(recoveredOutput.channelCount(), 1);
+    EXPECT_GT(rms(recoveredOutput.channelData[0]), 0.05);
+    ASSERT_EQ(recoveredOutput.channelData[0].size(), originalSamples.size());
+    double differenceSquared = 0.0;
+    for (qsizetype sample = 0; sample < originalSamples.size(); ++sample) {
+        const double difference = recoveredOutput.channelData[0][sample] -
+                                  originalSamples[sample];
+        differenceSquared += difference * difference;
+    }
+    EXPECT_GT(std::sqrt(differenceSquared / originalSamples.size()), 0.02);
+}
+
 TEST(AudioLayerRenderIntegrationTest, OverlappingSamplesMixInCompositionOutput)
 {
     QTemporaryDir root;
