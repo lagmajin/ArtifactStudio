@@ -87,11 +87,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--components",
         action="store_true",
-        help="exercise the Cloner Layer Component through virtual pointer events",
+        help="exercise a Layer Component through virtual pointer events",
     )
     parser.add_argument(
         "--component",
-        choices=("cloner",),
+        choices=("cloner", "layout", "physics", "fluid", "script"),
         default=None,
         help="component used by --components (default: cloner)",
     )

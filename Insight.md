@@ -10050,3 +10050,9 @@
 - **確認できた事実:** 実WAVを参照するprojectを保存し、source削除後にprojectを新規読込するケースを追加したところ、非空pathの読込失敗時に `isLoaded_ = false` だけが設定され、`sourcePath_` が空のまま残るため、欠落sourceの場所をlayerが保持できない問題を確認した。失敗時のload path保持、古いsource asset identity/shared PCM/sample metadata/de-click/resampled cacheのクリア、`changed()` 発行を実装し、Audio Layer実装単位と統合テスト翻訳単位のMSVC compileは成功した。
 - **価値または懸念:** 以前の観察では失敗時に前source identityやPCMも残っていたが、通常のlayer音声出力は `isLoaded_` を確認して旧PCMを遮断していた。現在は要求pathを保持し、ロード状態とキャッシュを無効化して再リンク可能にする。project save/reloadを含む受け入れテストの実行とUI上の復旧導線は未確認。
 - **次に確認すべきこと:** 追加したproject reload / missing source / relinkの実行テストを通す。現環境ではMSVC 19.51の既存 `ArtifactAbstractLayerBounds.cpp` / `ArtifactAbstractLayerEffectPersistence.cpp` が `Animation.Transform3D` IFC import中に `C1116` となりリンクが止まるため、再現を独立して切り分ける。
+
+## 2026-11-04: Layer Components UI integration runs headless with resolved layout and routed state
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp` (`getComponentPropertyGroups`)、`Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cpp` (`routedPropertyMetaTable`)、`Artifact/src/AppMain.cpp`（Layer Components fixture）、`tools/capture_ui_test.py`。
+- **確認できた事実:** Layout の UI トグルは `component.layout.enabled` を `getComponentPropertyGroups()` から取得し、setter 後は `syncRoutedPropertyCache()` で Inspector 向け値を更新する。しかしプロパティグループと routed metadata の両方に Layout enabled が欠けていた。両方へ登録すると、UI 仮想クリックで Layout を有効化し設定面を開けるようになった。また、Qt ウィンドウを一度も `show()` しない状態では dock 内部レイアウトが未確定で、Layout のテスト座標に Script ボタンが重なった。`Qt::WA_DontShowOnScreen` を設定して show / dock activation を行うと、OS画面に出さずに配置を確定できた。
+- **価値または懸念:** 仮想入力テストは送信イベント数だけでなく、意図したボタンが実際に受信したこと、コンポーネントが有効になったこと、設定面が表示されたことまで検証できる。Physics / Script / Layout / Cloner / Fluid の5種類を ja / en / zh / zh-TW で全20ケース実行し成功した。
+- **次に確認すべきこと:** 画面外で他の dock/widget を仮想イベント操作する統合テストを追加する場合も、画面外配置後にレイアウトを確定し、実際の receiver を結果条件に含める。
