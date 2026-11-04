@@ -288,6 +288,16 @@ set_tests_properties(ArtifactCoreTimeCodeRangeContractTest PROPERTIES
     LABELS "time;timecode;range;cpu;contract"
 )
 
+artifact_add_test(ArtifactCorePlaybackClockContractTest
+    SOURCES
+        PlaybackClockContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCorePlaybackClockContractTest PROPERTIES
+    LABELS "playback;clock;state;time;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreViewportTransformerContractTest
     SOURCES
         ViewportTransformerContractTest.cpp
@@ -1178,6 +1188,17 @@ artifact_add_test(ArtifactCoreRotationTurnsContractTest
 )
 set_tests_properties(ArtifactCoreRotationTurnsContractTest PROPERTIES
     LABELS "math;rotation;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreMcpBridgeStandaloneTest
+    SOURCES
+        McpBridgeStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreMcpBridgeStandaloneTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "mcp;jsonrpc;tooling;standalone;cpu;contract"
 )
 
 artifact_add_test(ArtifactCoreRotoMaskContractTest

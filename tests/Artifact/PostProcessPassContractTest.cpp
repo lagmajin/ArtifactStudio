@@ -3,10 +3,15 @@
 #include <DeviceContext.h>
 #include <Texture.h>
 #include <TextureView.h>
+#include <QString>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstring>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <memory>
 
@@ -66,6 +71,22 @@ bool readbackRgba32f(
     std::array<float, kPixelCount * 4>& pixels);
 
 std::size_t pixelOffset(unsigned x, unsigned y);
+
+bool writeMotionBlurPpm(const std::filesystem::path& path,
+                        const std::array<float, kPixelCount * 4>& pixels)
+{
+    std::ofstream image(path, std::ios::binary);
+    if (!image) return false;
+    image << "P6\n" << kWidth << ' ' << kHeight << "\n255\n";
+    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            const auto value = static_cast<unsigned char>(std::clamp(
+                pixels[pixel * 4 + channel], 0.0f, 1.0f) * 255.0f + 0.5f);
+            image.put(static_cast<char>(value));
+        }
+    }
+    return image.good();
+}
 
 TEST(FinalPostProcessContractTest, StackRequiresAnEnabledLutAndClearResetsIt)
 {
@@ -1165,6 +1186,14 @@ TEST_F(PostProcessPassGpuContractTest,
 
     std::array<float, kPixelCount * 4> output{};
     ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, output));
+    if (const char* outputDirectory = std::getenv("ARTIFACT_MOTION_BLUR_IMAGE_DIR")) {
+        const std::filesystem::path directory(outputDirectory);
+        std::error_code error;
+        std::filesystem::create_directories(directory, error);
+        ASSERT_FALSE(error) << "Could not create image output directory: " << error.message();
+        ASSERT_TRUE(writeMotionBlurPpm(directory / "motion-blur-input.ppm", color));
+        ASSERT_TRUE(writeMotionBlurPpm(directory / "motion-blur-output.ppm", output));
+    }
     const auto stationary = pixelOffset(2, 2);
     const auto redCenter = pixelOffset(4, 4);
     const auto redTrail = pixelOffset(3, 4);

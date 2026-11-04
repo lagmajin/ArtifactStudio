@@ -1,6 +1,6 @@
 # 独立機能テスト拡充マイルストーン
 
-**最終更新:** 2026-10-31
+**最終更新:** 2026-11-03
 **ステータス:** In Progress
 
 ## 目的
@@ -718,3 +718,5 @@
 - #897 ArtifactMath::artifactSqrtが負の有限入力でNaNを返し、正のinfinityを保持する契約を追加。未ビルド・未実行.
 
 - #898 ArtifactMath::artifactAtan2が原点でyの符号付きゼロを保ち、±infinity座標の対角象限と有限/infinite比の極限角を返す契約を追加。未ビルド・未実行.
+
+- #899 直接テストが存在しなかったCore `Playback.Clock` に`ArtifactCorePlaybackClockContractTest`を新設。既定状態、FrameRate指定、start/pause/resume/stopの順序付きevent reason、無効遷移の無通知、setFrame/setPositionとstop時のstart frame復帰、30/24fpsのtimecode、speed/逆再生、loop設定とendpoint保持、audio sync無効時のno-op・offset記録・可視変化なしの無通知、drop frame gap計数とreset、copy/move独立性、snapshot/statistics、resetの保持項目を検証する。time依存の進行量はassertせず、停止/Pauseで凍結したclockのみを使う。`ArtifactCore`単独targetとして`tests/ArtifactCore/CMakeLists.txt`へ登録。既存14ケースを`PlaybackClock.cpp`と突合し、全件が実装と整合することを確認したうえで、setFrameRate/setPositionの通知理由、通知`current`と観測`snapshot()`の一致、再生中`reset()`と`setFrame()`の挙動、自己代入・自己move代入、move済みクロックのコピー、timecodeの時:分:秒整形、`deltaTime()`、逆順loop端点保持の10ケースを追加（計24ケース）。ループ折り返しと負frameのtimecodeは実時間依存・不正形式のため未カバー。実装側に未修正の指摘5件（move済みclockのnull参照、`start()`前`deltaTime()`のepoch基準、負frameのtimecode、再生中`setPlaybackSpeed()`の二重適用、loop端点逆順の黙示受理）を `docs/analysis/REPORT_PLAYBACK_CLOCK_CONTRACT_TEST_2026-11-03.md` と `Insight.md` に記録。未ビルド・未実行.
