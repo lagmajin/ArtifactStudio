@@ -1,4 +1,10 @@
-**最終更新:** 2026-10-31
+**最終更新:** 2026-11-04
+
+## 2026-11-04: モーションブラーGPU出力の視覚受入チェック
+- **関連:** `tests/Artifact/PostProcessPassContractTest.cpp`、`tests/motion_blur_visual/`、`artifacts/motion-blur-quality/`。
+- **確認できた事実:** headless Vulkan 上で既存の複数レイヤー MotionBlur GPU ケースを実行し、PPM 入出力を保存した。Python のルールベース画像認識は静止マーク保持、水平／垂直残像の両端と中心、隣接行／列への漏れなし、入力に残像なしをすべて検出した。ArtifactPostProcessPassContractTest の対象ケースは PASS。
+- **価値または懸念:** 数値 assertion に加えて目視できる画像と機械判定結果を残せる。認識は固定 fixture 専用であり、一般的な画質評価ではない。レビュー用 PNG は表示のために拡大・ガンマ補正した派生画像で、厳密な出力は PPM。
+- **次に確認すべきこと:** 追加の遮蔽・シャッター位相・サンプル密度 fixture をこの出力形式へ加える際、認識条件をケースごとに定義する。
 
 ## 2026-10-31: Light intensityとarea size setterが非有限値を保持する
 - **関連:** `ArtifactCore/src/Transform/Light.cpp::setIntensity` / `setAreaSize`、`tests/ArtifactCore/LightContractTest.cpp`。
