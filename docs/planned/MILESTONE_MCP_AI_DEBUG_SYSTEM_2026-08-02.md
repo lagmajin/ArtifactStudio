@@ -2,10 +2,18 @@
 
 **ステータス:** Protocol and tool surface substantial / live integration acceptance pending
 
-**最終更新:** 2026-10-02
+**最終更新:** 2026-11-03
 **日付**: 2026-08-02
 **統合元**: `MILESTONE_MCP_LIVE_DEBUG`, `MILESTONE_MCP_DEBUG_BREAKPOINTS`, `MILESTONE_AI_DEBUGGER_EXTENSIONS`
 **先行成果**: `DEBUG_MCP_PSEUDO_BREAKPOINT_PLAN_2026-06-04`（初期構想）, `DEBUG_AGENT_RESIDENT_VERTICAL_SLICE_2026-07-26`（常駐 Debug Agent 実装済み）
+
+## 進捗 2026-11-03 — 統合 MCP サーバーの protocol conformance 契約テスト
+
+- `tests/ArtifactCore/McpBridgeStandaloneTest.cpp` を追加し、`tests/ArtifactCore/CMakeLists.txt` に `ArtifactCoreMcpBridgeStandaloneTest` として cTest 登録した（label: `mcp;jsonrpc;tooling;standalone;cpu;contract`）。Artifact.exe へ接続せず `ArtifactCore` のみへリンクする。
+- 検証範囲は protocol conformance と `tools/list` まで。JSON-RPC framing（`Content-Length` が UTF-8 byte 数、連結 frame の分割、途中到達 frame の保持、`handleFrame` の parse error `-32700`）、method dispatch（`initialize` / `ping` / `tools/list` / `tools/call` / method not found `-32601` / invalid request `-32600` / unknown tool `-32602`）、`id` の echo、request `params.context` の反映、および `debug.*` 全58 tool の掲載・名称一意性・`inputSchema` 妥当性を検証する。
+- `debug.*` tool の一覧は「追加は許容・削除／改名のみ違反」として契約に固定した。個別 handler の runtime 挙動（app 状態・property・trace 実データ）は本 suite の対象外で、引き続き未検証。
+- 検査中に不具合を1件検出し、修正済み。`McpBridge::toInputSchema()` は内部 type `array` のみを `array` へ写し、`array<string>` / `array<int>` を `string` へ落としていたため、`debug.query` の `select` と `debug.regression.detect` の期待値配列が外部 MCP クライアントには文字列型として通知されていた。`ArtifactCore/include/AI/McpBridge.ixx` の `toInputSchema()` を拡張し、要素型つき指定を含む配列型を `array`（`items` 付き）として公開するようにした。あわせて `toJsonSchemaScalarType()` を分離して型変換を一箇所に集約している。
+- ビルド・実行は未実施（AGENTS.md によりビルド／テストの実行はユーザー明示指示が必要）。静的なコード確認に基づく記述。
 
 ## 現行コード監査 (2026-08-15)
 

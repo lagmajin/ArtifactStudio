@@ -6,6 +6,12 @@
 - **価値または懸念:** 数値 assertion に加えて目視できる画像と機械判定結果を残せる。認識は固定 fixture 専用であり、一般的な画質評価ではない。レビュー用 PNG は表示のために拡大・ガンマ補正した派生画像で、厳密な出力は PPM。
 - **次に確認すべきこと:** 追加の遮蔽・シャッター位相・サンプル密度 fixture をこの出力形式へ加える際、認識条件をケースごとに定義する。
 
+## 2026-11-03: McpBridge::toInputSchemaが配列型パラメータを文字列型として通知していた（修正済み）
+- **関連:** `ArtifactCore/include/AI/McpBridge.ixx::McpBridge::toInputSchema` / `toJsonSchemaScalarType`、`tests/ArtifactCore/McpBridgeStandaloneTest.cpp`。
+- **確認できた事実:** 内部parameters配列のtypeは`int`/`number`→`number`、`bool`/`boolean`→`boolean`、`array`→`array`、それ以外は一律`string`へ写す実装だった。`debug.query`の`select`（`array<string>`）と`debug.regression.detect`の`expectedAddedFrames`/`expectedRemovedFrames`（`array<int>`）は`string`へ落ちていた。`toInputSchema()`を拡張し、`array`で始まる型を`array`（`<...>`があれば`items`付き）として公開し、型変換を`toJsonSchemaScalarType()`へ集約した。アプリ内ToolBridge経路は内部型を直接使うため影響を受けていなかった。ビルド・実行は未実施。
+- **価値または懸念:** 修正前は外部クライアントのschema自動生成が配列引数を壊し、`debug.query`のselect指定や回帰比較の期待値が渡らない可能性があった。同一の変換が他に存在する場合は同じ手順で点検する必要がある。
+- **次に確認すべきこと:** ビルド・実行で`ArtifactCoreMcpBridgeStandaloneTest`を走らせ、配列型パラメータが`array`として公開されることを確認する。併せて、`toInputSchema()`以外に内部type→JSON Schema変換を持つ箇所がないか点検する。
+
 ## 2026-10-31: Light intensityとarea size setterが非有限値を保持する
 - **関連:** `ArtifactCore/src/Transform/Light.cpp::setIntensity` / `setAreaSize`、`tests/ArtifactCore/LightContractTest.cpp`。
 - **確認できた事実:** 両setterは`std::max(value, lowerBound)`を使うが有限性検査をしない。NaN intensityとNaN/infinity area dimensionsを有限な0/1へfallbackするテストを追加した。未実行。
@@ -10056,6 +10062,12 @@
 - **確認できた事実:** 実WAVを参照するprojectを保存し、source削除後にprojectを新規読込するケースを追加したところ、非空pathの読込失敗時に `isLoaded_ = false` だけが設定され、`sourcePath_` が空のまま残るため、欠落sourceの場所をlayerが保持できない問題を確認した。失敗時のload path保持、古いsource asset identity/shared PCM/sample metadata/de-click/resampled cacheのクリア、`changed()` 発行を実装し、Audio Layer実装単位と統合テスト翻訳単位のMSVC compileは成功した。
 - **価値または懸念:** 以前の観察では失敗時に前source identityやPCMも残っていたが、通常のlayer音声出力は `isLoaded_` を確認して旧PCMを遮断していた。現在は要求pathを保持し、ロード状態とキャッシュを無効化して再リンク可能にする。project save/reloadを含む受け入れテストの実行とUI上の復旧導線は未確認。
 - **次に確認すべきこと:** 追加したproject reload / missing source / relinkの実行テストを通す。現環境ではMSVC 19.51の既存 `ArtifactAbstractLayerBounds.cpp` / `ArtifactAbstractLayerEffectPersistence.cpp` が `Animation.Transform3D` IFC import中に `C1116` となりリンクが止まるため、再現を独立して切り分ける。
+
+## 2026-11-03: PlaybackClock の境界契約（move済みnull参照・開始前deltaTime・負frame timecode・速度二重適用・loop端点逆順）
+- **関連:** `ArtifactCore/include/Playback/PlaybackClock.ixx`（公開API）、`ArtifactCore/src/Playback/PlaybackClock.cpp`（実装）、`tests/ArtifactCore/PlaybackClockContractTest.cpp`（新規契約テスト）、`docs/analysis/REPORT_PLAYBACK_CLOCK_CONTRACT_TEST_2026-11-03.md`。
+- **確認できた事実:** ソース読解で確認した（実行による確認は未実施）。(1) move 済みの `PlaybackClock` は `impl_` が null になり（`PlaybackClock.cpp:234-237`, `:277-284`）、公開メソッドは全て `impl_->mutex_` を前提とする実装で null ガードを持たない（例 `state()` `:359-362`）。move 済みオブジェクトへのメソッド呼び出しは null 参照になる。コピー（`:225-232`）だけは `if (other.impl_)` で既定値へ落ちる。(2) `deltaTime()`（`:640-651`）の基準は `lastUpdateTime_` で、これは `start()`（`:295`）でしか初期化されない。既定構築の clock は epoch 起点なので、`start()` 前の `deltaTime()` は epoch からの経過時間を返す。(3) `timecode()`（`:609-625`）は負フレームで負の秒・分をそのまま出力し `00:00:-1:00` という不正形式になる。(4) 再生中の `setPlaybackSpeed()`（`:446-472`）は `startTime_ = now - frameToTime(currentFrame - startFrame_)` で位置を保つが、`calculateElapsedTime()` は `(now - startTime_) * playbackSpeed_`（`:104-118`）で速度を掛けるため、速度変更後に経過時間が speed 倍で再解釈される（相対フレーム位置が飛ぶという影響は未検証の推定）。(5) `setLoopRange()`（`:483-495`）は端点順序を検証せず `looping_ = true` にする。折り返し条件は `loopEnd_ > loopStart_`（`:135`）なので、逆順端点では `isLooping()` が真でも折り返さない。(6) 本番利用者は無い。`Artifact/src/Composition/ArtifactAbstractComposition.cpp:2312` の `//PlaybackClock playbackClock_;` はコメントアウトのままで、`Artifact` / `ArtifactCore` にインスタンス生成は無い。`ArtifactPlaybackService::setPlaybackClockProvider()`（`Artifact/include/Service/ArtifactPlaybackService.ixx:209`）は別の `std::function<double()>` 注入で、このクラスとは無関係。
+- **価値または懸念:** 現状は到達経路の無い公開 API の境界不備であり、再生 Transport（`ArtifactPlaybackService`）へ `PlaybackClock` を接続する段階で顕在化する。(1) は value 型を `std::optional` やコンテナで保持する実装や、戻り値として move する実装で踏み得上やすい。(2) は `deltaTime()` を再生前のプリウォーム用途で呼ぶと epoch 基準の巨大値で上書きされ、初回 delta が壊れる。(4) は速度変更のたびに再生位置が飛ぶ形になり、逆再生と併用すると症状を追う.INSTANCE 化される public API（`LIBRARY_DLL_API`）なので接続前に契約と null ガードを固めるのが安い。
+- **次に確認すべきこと:** ArtifactCore child の変更許可が得られたら、(1) は全公開メソッドの null ガードまたは「move 済みは使用不可」を API として明示、(2) は `lastUpdateTime_` の既定構築時初期化、(3) は負フレームの丸め・符号処理、(4) は再アンカー計算を speed で割る補正、(5) は端点順序の検証と `isLooping()` の意味整理、の順に直す。同じとき `tests/ArtifactCore/PlaybackClockContractTest.cpp` の24ケースを実行して、期待値が実装と一致することを確認したい。
 
 ## 2026-11-04: Layer Components UI integration runs headless with resolved layout and routed state
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp` (`getComponentPropertyGroups`)、`Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cpp` (`routedPropertyMetaTable`)、`Artifact/src/AppMain.cpp`（Layer Components fixture）、`tools/capture_ui_test.py`。
