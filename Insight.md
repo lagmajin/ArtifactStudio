@@ -6,11 +6,11 @@
 - **価値または懸念:** 動画全体の差分だけでは一部の段落が静止／消失しても他行の動きで合格するため、複数行テキストでは行ごとの時間変化を独立して検査する。CPU backend のアニメーション欠落は現在の観測であり、原因は未特定。rich-text selector summary の0件も診断・観測上のギャップで、selector の実評価失敗とはまだ断定できない。以前の54フレームはテスト設定が `resolutionPreset=Composition` を残し、960×540描画を640×360 rawvideo入力として渡した寸法不一致だった。リッチテキストfixtureでは明示的な `<p>` 段落を使う。
 - **次に確認すべきこと:** pipe encoder の GPU 受入は確認済み。CPU backend の動画静止をレンダー経路とフレーム時刻適用に分けて調査する。native encoder はこの環境で H.264 encoder 初期化に失敗したため未検証。画素ベース検査は文字内容の正確性をOCRで保証するものではない。
 
-## 2026-11-04: モーションブラーGPU受入テストの画像認識レポート
-- **関連:** `tests/Artifact/PostProcessPassContractTest.cpp`、`tests/motion_blur_visual/`。
-- **確認できた事実:** 既存のheadless Vulkan契約テストはGPU readback後に静止マークと水平・垂直の残像を数値でassertしていたが、比較・レビュー可能な画像を保存する経路はなかった。テスト出力をPPMで任意保存し、Python標準ライブラリだけで位置・色の特徴を認識する実行ラッパーと手順を追加した。GPU実行・画像出力はまだ未検証。
-- **価値または懸念:** 再現可能な視覚成果物と機械判定を一度に残せる。現状の認識は fixture に特化したルールベース判定であり、一般的な画質評価や画像モデルによる意味認識ではない。
-- **次に確認すべきこと:** 既存のテスト実行ファイルを指定してVulkan環境で実行し、PNG/PPM画像と認識結果を確認する。誤検出があれば実画像としきい値を合わせる。
+## 2026-11-04: モーションブラーGPU出力の視覚受入チェック
+- **関連:** `tests/Artifact/PostProcessPassContractTest.cpp`、`tests/motion_blur_visual/`、`artifacts/motion-blur-quality/`。
+- **確認できた事実:** headless Vulkan 上で既存の複数レイヤー MotionBlur GPU ケースを実行し、PPM 入出力を保存した。Python のルールベース画像認識は静止マーク保持、水平／垂直残像の両端と中心、隣接行／列への漏れなし、入力に残像なしをすべて検出した。ArtifactPostProcessPassContractTest の対象ケースは PASS。
+- **価値または懸念:** 数値 assertion に加えて目視できる画像と機械判定結果を残せる。認識は固定 fixture 専用であり、一般的な画質評価ではない。レビュー用 PNG は表示のために拡大・ガンマ補正した派生画像で、厳密な出力は PPM。
+- **次に確認すべきこと:** 追加の遮蔽・シャッター位相・サンプル密度 fixture をこの出力形式へ加える際、認識条件をケースごとに定義する。
 
 ## 2026-11-03: McpBridge::toInputSchemaが配列型パラメータを文字列型として通知していた（修正済み）
 - **関連:** `ArtifactCore/include/AI/McpBridge.ixx::McpBridge::toInputSchema` / `toJsonSchemaScalarType`、`tests/ArtifactCore/McpBridgeStandaloneTest.cpp`。
