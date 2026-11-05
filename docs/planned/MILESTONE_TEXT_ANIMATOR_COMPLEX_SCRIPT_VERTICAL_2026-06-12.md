@@ -1,6 +1,19 @@
 > **統合先** — 2026-08-04: 全体の判断は [MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md](MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md) および supporting slice を参照。この文書は複雑文字・縦書きの詳細仕様として維持する。
 
-**最終更新:** 2026-10-02
+**最終更新:** 2026-11-05
+
+## 2026-11-05 動画書き出し画像検査
+
+- [x] `tools/test_text_animation_video.py` と `ArtifactUiTest` fixture を追加。Latin ligature、Japanese、Arabic、Hebrew、Devanagari、emoji ZWJ を含む3段落の Text Layer に6 animator stack を設定し、Render Queue の H.264 MP4 書き出しを起動する。指定範囲は24フレーム。
+- [x] Render Queue の完了通知が戻らない場合に備え、fixture は240秒で失敗結果を書いて終了する watchdog を持つ。
+- [x] OpenCV で出力動画をデコードし、解像度・fps・フレーム数、各サンプルの3行の文字領域・画面端への接触、各行別のフレーム間差分を検査する。MP4、代表フレーム、JSON レポート、アプリログを指定ディレクトリに保存する。
+- [x] Render Queue job の `resolutionPreset` を `Custom` にし、rawvideo の入力寸法と実描画寸法を一致させる。テスト fixture は改行を明示的な HTML 段落として渡し、3段落を保証する。
+- [x] 6 animator（position／rotation／opacity／scale／tracking／skew）を重ね、Cluster／Line／Tag selector、Center-out／Reverse／Random order、regex／time expression／Wiggly selector を組み合わせる。fixture は適用 animator stack と selector summary を結果 JSON に記録する。
+- [x] Windows の `ArtifactUiTest.exe` を GPU render + FFmpeg pipe encoder で実行。OpenCV が H.264 MP4 の640×360・12fps・24フレーム、各サンプルでの3段落表示、画面端への接触なし、各行とも6組すべてで可視差分を確認し、代表フレームを目視した。実行例: `out/test-artifacts/text-animation-complex-stack/text-animation-video-20261105-051442-19900`。
+- [x] CPU backend も実行。MP4と24フレームは出力されたが、6組すべての画像差分が0でanimated-text acceptanceに失敗した。失敗レポートに行別差分と全サンプルの境界を保存する。原因は未調査。
+- [ ] CPU backend の動画で複雑文字 animator が静止する原因を調査し、受入可能な挙動を確認する。
+- [ ] rich-text animator の selector boundary summary が `clusters=0 lines=0` を返す診断ギャップを調べる。動画上の行描画は別の画像検査で確認済み。
+- [ ] native encoder はこの環境で H.264 encoder 初期化に失敗したため、native encoder 経路は未検証。
 
 ## 2026-10-02 現行コード再監査
 
@@ -534,6 +547,17 @@ AE の弱点を避けるため、まず debug surface を入れる。
 - grapheme cluster と glyph cluster を UI 上で区別して扱える
 - selector の対象単位が常に明示される
 - 縦書きを property と layout contract で扱える
+- 複雑文字を含む6 animator stack が Render Queue の動画として出力され、複数フレームの画像解析で行ごとの表示・非クリッピング・時間変化を確認できる
+
+動画出力 fixture の実行例:
+
+```powershell
+python tools/test_text_animation_video.py `
+  --exe <build>/bin/Debug/ArtifactUiTest.exe `
+  --output-dir <test-artifacts>/text-animation
+```
+
+画像解析には `opencv-python` と `numpy` が必要。これは shaping 品質の OCR 判定ではなく、出力フレームの可視文字領域と時間変化を確認する統合 smoke test である。
 
 ## Execution Slice
 

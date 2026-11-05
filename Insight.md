@@ -1,4 +1,10 @@
-**最終更新:** 2026-11-04
+**最終更新:** 2026-11-05
+
+## 2026-11-05: 複雑文字アニメーションの各行を独立して動画検査する
+- **関連:** `Artifact/src/AppMain.cpp` の `TextAnimationVideoFixture`、`tools/test_text_animation_video.py`、Render Queue の encoder / range diagnostics。
+- **確認できた事実:** 6 animator（position／rotation／opacity／scale／tracking／skew）へ Cluster／Line／Tag 単位、Center-out／Reverse／Random order、regex、時間expression、Wiggly selector を組み合わせた。GPU render + FFmpeg pipe encoder の出力は640×360・12fps・24フレームで、OpenCV は3行すべてに対して6サンプル組の全てで差分を検出し、代表フレームを目視できた。CPU backend も24フレームを出力したが、サンプルした6組の可視差分は全行0で失敗を検出した。selector summary は rich-text 描画では `clusters=0 lines=0` を返し、画像上で見える3行と一致しない。
+- **価値または懸念:** 動画全体の差分だけでは一部の段落が静止／消失しても他行の動きで合格するため、複数行テキストでは行ごとの時間変化を独立して検査する。CPU backend のアニメーション欠落は現在の観測であり、原因は未特定。rich-text selector summary の0件も診断・観測上のギャップで、selector の実評価失敗とはまだ断定できない。以前の54フレームはテスト設定が `resolutionPreset=Composition` を残し、960×540描画を640×360 rawvideo入力として渡した寸法不一致だった。リッチテキストfixtureでは明示的な `<p>` 段落を使う。
+- **次に確認すべきこと:** pipe encoder の GPU 受入は確認済み。CPU backend の動画静止をレンダー経路とフレーム時刻適用に分けて調査する。native encoder はこの環境で H.264 encoder 初期化に失敗したため未検証。画素ベース検査は文字内容の正確性をOCRで保証するものではない。
 
 ## 2026-11-04: モーションブラーGPU受入テストの画像認識レポート
 - **関連:** `tests/Artifact/PostProcessPassContractTest.cpp`、`tests/motion_blur_visual/`。
