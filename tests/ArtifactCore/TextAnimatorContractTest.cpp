@@ -1524,6 +1524,225 @@ TEST(TextAnimatorContractTest,
     EXPECT_EQ(glyphs[0].offsetPosition, QPointF(3.0, 0.0));
 }
 
+TEST(TextAnimatorContractTest, ComplexStackCombinesSelectorsExpressionWigglyAndTime)
+{
+    const auto glyphs = makeGlyphs(QStringLiteral("abcdefghijkl"));
+
+    AnimatorSelectorSet rangeSet;
+    rangeSet.range.units = SelectorUnits::Index;
+    rangeSet.range.start = 0.0f;
+    rangeSet.range.end = 5.0f;
+    rangeSet.range.shape = SelectorShape::Square;
+    rangeSet.properties.position = QPointF(6.0, -3.0);
+    rangeSet.properties.baselineShift = 4.0f;
+
+    AnimatorSelectorSet expressionSet;
+    expressionSet.range.shape = SelectorShape::Square;
+    expressionSet.expression.enabled = true;
+    expressionSet.expression.expression = QStringLiteral("textIndex / textTotal");
+    expressionSet.properties.opacity = 0.2f;
+
+    AnimatorSelectorSet wigglySet;
+    wigglySet.range.shape = SelectorShape::Square;
+    wigglySet.wiggly.enabled = true;
+    wigglySet.wiggly.wigglesPerSecond = 3.0f;
+    wigglySet.wiggly.correlation = 0.0f;
+    wigglySet.wiggly.seed = 4242;
+    wigglySet.properties.rotation = 25.0f;
+    wigglySet.properties.anchorPoint = QPointF(2.0, -1.0);
+
+    const std::vector<AnimatorSelectorSet> sets{rangeSet, expressionSet, wigglySet};
+
+    auto evaluateAt = [&](const float time) {
+        auto animated = glyphs;
+        TextAnimatorEngine::applyAnimatorSets(
+            animated, sets, time, QStringLiteral("abcdefghijkl"));
+        return animated;
+    };
+
+    const auto first = evaluateAt(1.25f);
+    const auto repeat = evaluateAt(1.25f);
+    const auto later = evaluateAt(2.5f);
+
+    ASSERT_EQ(first.size(), glyphs.size());
+    for (size_t index = 0; index < first.size(); ++index) {
+        EXPECT_EQ(first[index].offsetPosition, repeat[index].offsetPosition)
+            << "glyph=" << index;
+        EXPECT_FLOAT_EQ(first[index].offsetRotation,
+                        repeat[index].offsetRotation)
+            << "glyph=" << index;
+        EXPECT_FLOAT_EQ(first[index].offsetOpacity, repeat[index].offsetOpacity)
+            << "glyph=" << index;
+        EXPECT_TRUE(std::isfinite(first[index].offsetPosition.x()));
+        EXPECT_TRUE(std::isfinite(first[index].offsetPosition.y()));
+        EXPECT_TRUE(std::isfinite(first[index].offsetRotation));
+        EXPECT_TRUE(std::isfinite(first[index].offsetScaleX));
+        EXPECT_TRUE(std::isfinite(first[index].offsetScaleY));
+        EXPECT_GE(first[index].offsetOpacity, 0.0f);
+        EXPECT_LE(first[index].offsetOpacity, 1.0f);
+        EXPECT_GT(first[index].offsetScaleX, 0.0f);
+        EXPECT_GT(first[index].offsetScaleY, 0.0f);
+    }
+
+    bool wigglyMovedWithTime = false;
+    for (size_t index = 0; index < first.size(); ++index) {
+        wigglyMovedWithTime =
+            wigglyMovedWithTime ||
+            first[index].offsetRotation != later[index].offsetRotation;
+    }
+    EXPECT_TRUE(wigglyMovedWithTime);
+
+    // The range selector alone covers glyphs 0..5 and leaves the tail alone;
+    // the expression-set opacity applies to every glyph in the full stack.
+    const std::vector<AnimatorSelectorSet> rangeOnlySets{rangeSet};
+    auto rangeOnly = glyphs;
+    TextAnimatorEngine::applyAnimatorSets(
+        rangeOnly, rangeOnlySets, 0.0f, QStringLiteral("abcdefghijkl"));
+    EXPECT_FLOAT_EQ(rangeOnly[0].offsetPosition.x(), 6.0f);
+    EXPECT_FLOAT_EQ(rangeOnly[0].offsetPosition.y(), 1.0f);
+    EXPECT_FLOAT_EQ(rangeOnly[5].offsetPosition.x(), 6.0f);
+    EXPECT_FLOAT_EQ(rangeOnly[6].offsetPosition.x(), 0.0f);
+    EXPECT_FLOAT_EQ(rangeOnly[6].offsetPosition.y(), 0.0f);
+    EXPECT_FLOAT_EQ(rangeOnly[11].offsetPosition.x(), 0.0f);
+    EXPECT_FLOAT_EQ(rangeOnly[11].offsetPosition.y(), 0.0f);
+    for (size_t index = 0; index < first.size(); ++index) {
+        EXPECT_LT(first[index].offsetOpacity, 1.0f) << "glyph=" << index;
+    }
+}
+
+TEST(TextAnimatorContractTest, ExtremeAnimatorValuesStayBoundedOverTimeSweep)
+{
+    const auto glyphs = makeGlyphs(QStringLiteral("abcdefgh"));
+    AnimatorSelectorSet set;
+    set.range.units = SelectorUnits::Index;
+    set.range.start = 0.0f;
+    set.range.end = 7.0f;
+    set.range.shape = SelectorShape::RampUp;
+    set.wiggly.enabled = true;
+    set.wiggly.wigglesPerSecond = 6.0f;
+    set.wiggly.correlation = 10.0f;
+    set.wiggly.seed = 987654;
+    set.expression.enabled = true;
+    set.expression.expression = QStringLiteral("textIndex / textTotal");
+    set.combine = SelectorCombineMode::Max;
+    set.properties.position = QPointF(100000.0, -100000.0);
+    set.properties.tracking = 100000.0f;
+    set.properties.rotation = 360000.0f;
+    set.properties.skew = -360000.0f;
+    set.properties.scale = 8.0f;
+    set.properties.scaleX = 8.0f;
+    set.properties.scaleY = 8.0f;
+    set.properties.opacity = 0.0f;
+    set.properties.blur = 10000.0f;
+    set.properties.z = 100000.0f;
+    set.properties.baselineShift = 100000.0f;
+    set.properties.anchorPoint = QPointF(100000.0, -100000.0);
+    const std::vector<AnimatorSelectorSet> sets{set};
+
+    for (const float time : {0.0f, 0.1f, 0.5f, 1.0f, 2.5f, 10.0f}) {
+        auto animated = glyphs;
+        TextAnimatorEngine::applyAnimatorSets(
+            animated, sets, time, QStringLiteral("abcdefgh"));
+        ASSERT_EQ(animated.size(), glyphs.size());
+        for (size_t index = 0; index < animated.size(); ++index) {
+            const auto& glyph = animated[index];
+            EXPECT_TRUE(std::isfinite(glyph.offsetPosition.x()))
+                << "time=" << time << " glyph=" << index;
+            EXPECT_TRUE(std::isfinite(glyph.offsetPosition.y()))
+                << "time=" << time << " glyph=" << index;
+            EXPECT_TRUE(std::isfinite(glyph.offsetRotation));
+            EXPECT_TRUE(std::isfinite(glyph.offsetSkew));
+            EXPECT_TRUE(std::isfinite(glyph.offsetScaleX));
+            EXPECT_TRUE(std::isfinite(glyph.offsetScaleY));
+            EXPECT_TRUE(std::isfinite(glyph.offsetBlur));
+            EXPECT_TRUE(std::isfinite(glyph.offsetZ));
+            EXPECT_GE(glyph.offsetOpacity, 0.0f);
+            EXPECT_LE(glyph.offsetOpacity, 1.0f);
+        }
+    }
+}
+
+TEST(TextAnimatorContractTest, BaselineShiftMovesOnlySelectedGlyphsVertically)
+{
+    auto glyphs = makeGlyphs(QStringLiteral("abc"));
+    RangeSelector selector;
+    selector.units = SelectorUnits::Index;
+    selector.start = 1.0f;
+    selector.end = 1.0f;
+    selector.shape = SelectorShape::Square;
+    AnimatorProperties properties;
+    properties.baselineShift = 12.0f;
+
+    TextAnimatorEngine::applyAnimator(glyphs, selector, WigglySelector{},
+                                      properties, 0.0f);
+
+    ASSERT_EQ(glyphs.size(), 3u);
+    EXPECT_FLOAT_EQ(glyphs[0].offsetPosition.y(), 0.0f);
+    EXPECT_FLOAT_EQ(glyphs[1].offsetPosition.y(), 12.0f);
+    EXPECT_FLOAT_EQ(glyphs[2].offsetPosition.y(), 0.0f);
+    EXPECT_FLOAT_EQ(glyphs[1].offsetPosition.x(), 0.0f);
+
+    auto weightedGlyphs = makeGlyphs(QStringLiteral("ab"));
+    RangeSelector allGlyphs;
+    allGlyphs.shape = SelectorShape::Square;
+    const float weights[] = {0.25f, 0.25f};
+    TextAnimatorEngine::applyAnimator(weightedGlyphs, allGlyphs,
+                                      WigglySelector{}, properties, 0.0f,
+                                      weights);
+    ASSERT_EQ(weightedGlyphs.size(), 2u);
+    EXPECT_FLOAT_EQ(weightedGlyphs[0].offsetPosition.y(), 3.0f);
+    EXPECT_FLOAT_EQ(weightedGlyphs[1].offsetPosition.y(), 3.0f);
+}
+
+TEST(TextAnimatorContractTest, AnchorPointOffsetsTheRotationPivot)
+{
+    auto glyphs = makeGlyphs(QStringLiteral("ab"));
+    glyphs[0].bounds = QRectF(0.0, 0.0, 2.0, 2.0);
+    glyphs[1].bounds = QRectF(10.0, 0.0, 2.0, 2.0);
+    RangeSelector selector;
+    selector.shape = SelectorShape::Square;
+    selector.anchorGrouping = AnchorPointGrouping::Character;
+    AnimatorProperties properties;
+    properties.rotation = 90.0f;
+    properties.anchorPoint = QPointF(5.0, 0.0);
+
+    TextAnimatorEngine::applyAnimator(glyphs, selector, WigglySelector{},
+                                      properties, 0.0f);
+
+    ASSERT_EQ(glyphs.size(), 2u);
+    EXPECT_NEAR(glyphs[0].offsetPosition.x(), 5.0f, 1e-5f);
+    EXPECT_NEAR(glyphs[0].offsetPosition.y(), -5.0f, 1e-5f);
+    EXPECT_NEAR(glyphs[1].offsetPosition.x(), 5.0f, 1e-5f);
+    EXPECT_NEAR(glyphs[1].offsetPosition.y(), -5.0f, 1e-5f);
+}
+
+TEST(TextAnimatorContractTest, ZeroAnchorPointKeepsTheGroupingPivot)
+{
+    auto grouped = makeGlyphs(QStringLiteral("ab"));
+    grouped[0].bounds = QRectF(0.0, 0.0, 2.0, 2.0);
+    grouped[1].bounds = QRectF(10.0, 0.0, 2.0, 2.0);
+    auto defaulted = grouped;
+    RangeSelector selector;
+    selector.shape = SelectorShape::Square;
+    selector.anchorGrouping = AnchorPointGrouping::Character;
+    AnimatorProperties properties;
+    properties.rotation = 90.0f;
+
+    TextAnimatorEngine::applyAnimator(grouped, selector, WigglySelector{},
+                                      properties, 0.0f);
+    TextAnimatorEngine::applyAnimator(defaulted, selector, WigglySelector{},
+                                      properties, 0.0f);
+
+    for (size_t index = 0; index < grouped.size(); ++index) {
+        EXPECT_NEAR(grouped[index].offsetPosition.x(),
+                    defaulted[index].offsetPosition.x(), 1e-6f);
+        EXPECT_NEAR(grouped[index].offsetPosition.y(),
+                    defaulted[index].offsetPosition.y(), 1e-6f);
+        EXPECT_NEAR(grouped[index].offsetPosition.x(), 0.0f, 1e-5f);
+        EXPECT_NEAR(grouped[index].offsetPosition.y(), 0.0f, 1e-5f);
+    }
+}
+
 TEST(TextAnimatorContractTest, AnchorGroupingChangesRotationPivot)
 {
     auto characterAnchored = makeGlyphs(QStringLiteral("ab"));

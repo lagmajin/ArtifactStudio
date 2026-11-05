@@ -70,6 +70,19 @@ if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
+artifact_add_test(ArtifactTextAnimatorLayerContractTest
+    SOURCES
+        TextAnimatorLayerContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactTextAnimatorLayerContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "text;layer;animation;serialization;undo;cpu;contract"
+    TIMEOUT 90
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactShapeLayerAnimationPersistenceContractTest
     SOURCES
         ShapeLayerAnimationPersistenceContractTest.cpp
@@ -2196,6 +2209,7 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     )
     target_compile_definitions(ArtifactTextGlyphRenderContractTest PRIVATE
         ARTIFACT_TEXT_TEST_USE_VULKAN=1
+        ARTIFACT_TEXT_ANIMATOR_BASELINE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/baselines/text-animator"
     )
     target_include_directories(ArtifactTextGlyphRenderContractTest PRIVATE
         "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngine/interface"
@@ -2205,7 +2219,9 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
         "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
     )
     set_tests_properties(ArtifactTextGlyphRenderContractTest PROPERTIES
-        LABELS "animation;renderer;gpu;text;headless;contract"
+        ENVIRONMENT
+            "ARTIFACT_TEXT_ANIMATOR_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/text-animator"
+        LABELS "animation;renderer;gpu;text;headless;image;contract"
     )
 endif()
 
