@@ -559,3 +559,48 @@ TEST(ArtifactPrEditorEngineTest,
     EXPECT_EQ(engine->currentSequence().markers[1].name,
               QStringLiteral("New branch"));
 }
+
+TEST(ArtifactPrEditorEngineTest,
+     NleSplitPartitionsNonzeroSourceRangeAndUndoRestoresTheWholeClip)
+{
+    auto* engine = freshEngine();
+    const QString trackId = engine->currentSequence().videoTracks[0].id;
+    ArtifactPr::DemoClip source = makeClip(QStringLiteral("split-source"), 0, 40);
+    source.sourceIn = 17;
+    source.sourceOut = 57;
+    ASSERT_TRUE(engine->editSourceRange(trackId, source, false, false));
+
+    const QString clipId = engine->currentSequence().videoTracks[0].clips[0].id;
+    engine->selectClip(clipId);
+    const QJsonObject beforeSplit = engine->nleSnapshot();
+    engine->seekToFrame(17); // 17 frames into the 40-frame timeline range.
+    engine->splitClipAtPlayhead();
+
+    const QJsonObject afterSplit = engine->nleSnapshot();
+    const ArtifactPr::DemoSequence splitSequence = engine->currentSequence();
+    ASSERT_EQ(splitSequence.videoTracks[0].clips.size(), 2);
+    const auto left = splitSequence.videoTracks[0].clips[0];
+    const auto right = splitSequence.videoTracks[0].clips[1];
+    EXPECT_EQ(left.id, clipId);
+    EXPECT_EQ(left.startFrame, 0);
+    EXPECT_EQ(left.duration, 17);
+    EXPECT_EQ(left.sourceIn, 17);
+    EXPECT_EQ(left.sourceOut, 34);
+    EXPECT_EQ(right.startFrame, 17);
+    EXPECT_EQ(right.duration, 23);
+    EXPECT_EQ(right.sourceIn, 34);
+    EXPECT_EQ(right.sourceOut, 57);
+
+    engine->undo();
+    EXPECT_EQ(engine->nleSnapshot(), beforeSplit);
+    ASSERT_EQ(engine->currentSequence().videoTracks[0].clips.size(), 1);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].duration, 40);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].sourceIn, 17);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].sourceOut, 57);
+
+    engine->redo();
+    EXPECT_EQ(engine->nleSnapshot(), afterSplit);
+    ASSERT_EQ(engine->currentSequence().videoTracks[0].clips.size(), 2);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[1].sourceIn, 34);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[1].sourceOut, 57);
+}

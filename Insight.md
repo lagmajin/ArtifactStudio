@@ -12804,3 +12804,10 @@
 - **Added check:** Create a plan, change clip reverse state and add a marker, then compare the unchanged plan snapshot with the updated live snapshot and a newly created plan; also verify the captured frame range stays fixed.
 - **Value or concern:** Detects render/export jobs accidentally observing mutable editor state after dispatch. Test not run.
 - **Next:** Run `ArtifactPrEditorEngineTest.RenderPlanSnapshotStaysFrozenWhileTheLiveProjectContinuesEditing` when test execution is authorized.
+
+## 2026-11-09: EditorEngine NLE split source-range partition
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleSplitPartitionsNonzeroSourceRangeAndUndoRestoresTheWholeClip`.
+- **Confirmed:** EditorEngine tests have no NLE-backed split coverage for nonzero source offsets or for treating left-trim plus right-clip creation as one undoable edit.
+- **Added check:** Split a selected 40-frame clip with source range [17,57) at its 17-frame timeline boundary; assert contiguous left/right source and timeline ranges, then compare full snapshots after undo and redo.
+- **Value or concern:** Detects off-by-offset errors, gaps/overlaps at the split, or partial undo of the two-step operation. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.NleSplitPartitionsNonzeroSourceRangeAndUndoRestoresTheWholeClip` when test execution is authorized.
