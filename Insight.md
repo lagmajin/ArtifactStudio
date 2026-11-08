@@ -12601,3 +12601,10 @@
 - **Added check:** Write a valid two-pixel image, attempt to overwrite the same path with an infinite sample, then reload and compare the original dimensions and all pixel components.
 - **Value or concern:** Verifies data preservation across validation failure at a persistent-file boundary. Test not run; overwrite atomicity is being asserted as a safety contract.
 - **Next:** Run `OpenExrRoundTripTest.InvalidOverwritePreservesExistingImage` when test execution is authorized.
+
+## 2026-11-09: Surround 7.1 to mono downmix
+- **Related:** `tests/ArtifactCore/AudioDownMixerStandaloneTest.cpp::Surround71ToMonoAveragesEveryChannel`.
+- **Confirmed:** Mono downmix coverage verifies stereo and 5.1 inputs, but does not assert that 7.1 rear channels contribute to the mono result.
+- **Added check:** Downmix two frames with distinct, increasing values in all eight 7.1 channels; verify the all-channel average and preservation of sample rate and start frame.
+- **Value or concern:** Detects omitted or misordered rear channels in the wider surround-to-mono path. Test not run.
+- **Next:** Run `AudioDownMixerStandaloneTest.Surround71ToMonoAveragesEveryChannel` when test execution is authorized.
