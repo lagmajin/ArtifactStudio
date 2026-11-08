@@ -15,3 +15,15 @@ TEST(ArtifactFunctionRefTest, InvokesBorrowedCallable)
     multiplier = 4;
     EXPECT_EQ(ref(3), 12);
 }
+
+TEST(ArtifactFunctionRefTest, ConvertsReturnValueFromBorrowedCallableAndKeepsItsState)
+{
+    int calls = 0;
+    auto nextValue = [&calls]() { return ++calls; };
+    ArtifactFunctionRef<double()> ref(nextValue);
+
+    EXPECT_TRUE(ref.isValid());
+    EXPECT_DOUBLE_EQ(ref(), 1.0);
+    EXPECT_DOUBLE_EQ(ref(), 2.0);
+    EXPECT_EQ(calls, 2);
+}

@@ -12531,3 +12531,10 @@
 - **Added check:** Apply a fixed 24-operation start/stop/reset/restart sequence and verify expected running state, nonnegative elapsed duration, start monotonicity, and exact elapsed freeze on stop after every operation.
 - **Value or concern:** Detects accumulated-state leakage or transition-order regressions across repeated lifecycle changes. Test not run.
 - **Next:** Run `ArtifactChronoContractTest.MixedStopwatchTransitionsPreserveStateInvariants` when test execution is authorized.
+
+## 2026-11-08: ArtifactFunctionRef convertible return and borrowed state
+- **Related:** `tests/ArtifactCore/ArtifactFunctionRefTest.cpp::ConvertsReturnValueFromBorrowedCallableAndKeepsItsState`.
+- **Confirmed:** ArtifactFunctionRef coverage previously contained one same-signature borrowed call; the planned test inventory also identified callable return conversion as unverified.
+- **Added check:** Borrow a stateful callable returning `int` through an `ArtifactFunctionRef<double()>`, verify converted successive results and that invocation updates the original callable's captured state.
+- **Value or concern:** Covers callable result convertibility together with non-owning state forwarding. Test not run.
+- **Next:** Run `ArtifactFunctionRefTest.ConvertsReturnValueFromBorrowedCallableAndKeepsItsState` when test execution is authorized.
