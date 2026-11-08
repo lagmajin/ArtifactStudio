@@ -471,3 +471,55 @@ TEST(ArtifactPrEditorEngineTest,
                   QStringLiteral("Keep this state")) << invalid.filename;
     }
 }
+
+TEST(ArtifactPrEditorEngineTest,
+     NleEditsUndoRedoAcrossSnapshotsAndDiscardTheAbandonedRedoBranch)
+{
+    auto* engine = freshEngine();
+    const QJsonObject initialSnapshot = engine->nleSnapshot();
+    const QString trackId = engine->currentSequence().videoTracks[0].id;
+
+    ArtifactPr::DemoClip source = makeClip(QStringLiteral("undo-source"), 0, 24);
+    source.sourceIn = 8;
+    source.sourceOut = 32;
+    ASSERT_TRUE(engine->editSourceRange(trackId, source, false, false));
+    const QJsonObject afterInsert = engine->nleSnapshot();
+    const QString clipId = engine->currentSequence().videoTracks[0].clips[0].id;
+
+    engine->addMarker(12, QStringLiteral("Undo marker"));
+    const QJsonObject afterMarker = engine->nleSnapshot();
+    engine->setClipReversed(clipId, true);
+    const QJsonObject afterReverse = engine->nleSnapshot();
+    EXPECT_TRUE(engine->currentSequence().videoTracks[0].clips[0].reversed);
+
+    engine->undo();
+    EXPECT_EQ(engine->nleSnapshot(), afterMarker);
+    EXPECT_FALSE(engine->currentSequence().videoTracks[0].clips[0].reversed);
+    engine->undo();
+    EXPECT_EQ(engine->nleSnapshot(), afterInsert);
+    EXPECT_TRUE(engine->currentSequence().markers.isEmpty());
+    engine->undo();
+    EXPECT_EQ(engine->nleSnapshot(), initialSnapshot);
+    EXPECT_TRUE(engine->currentSequence().videoTracks[0].clips.isEmpty());
+
+    engine->redo();
+    EXPECT_EQ(engine->nleSnapshot(), afterInsert);
+    engine->redo();
+    EXPECT_EQ(engine->nleSnapshot(), afterMarker);
+    engine->redo();
+    EXPECT_EQ(engine->nleSnapshot(), afterReverse);
+    EXPECT_TRUE(engine->currentSequence().videoTracks[0].clips[0].reversed);
+
+    engine->undo();
+    EXPECT_EQ(engine->nleSnapshot(), afterMarker);
+    engine->addMarker(20, QStringLiteral("New branch"));
+    const QJsonObject branchedSnapshot = engine->nleSnapshot();
+    ASSERT_NE(branchedSnapshot, afterReverse);
+
+    // A new command after undo must clear the old redo branch.
+    engine->redo();
+    EXPECT_EQ(engine->nleSnapshot(), branchedSnapshot);
+    ASSERT_EQ(engine->currentSequence().markers.size(), 2);
+    EXPECT_EQ(engine->currentSequence().markers[1].name,
+              QStringLiteral("New branch"));
+}

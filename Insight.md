@@ -12790,3 +12790,10 @@
 - **Added check:** Save a nontrivial open project, then try malformed JSON and an array root; after each rejection compare the NLE snapshot, project/sequence identity, playhead, marker, and active save path with their pre-attempt state.
 - **Value or concern:** Detects partial mutation or path retargeting on invalid-file failure paths. Test not run.
 - **Next:** Run `ArtifactPrEditorEngineTest.RejectedProjectFilesLeaveTheOpenProjectAndPlayheadUntouched` when test execution is authorized.
+
+## 2026-11-09: EditorEngine mixed NLE undo/redo branch
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleEditsUndoRedoAcrossSnapshotsAndDiscardTheAbandonedRedoBranch`.
+- **Confirmed:** EditorEngine tests cover NLE snapshot restoration directly but do not exercise the undo stack across clip insertion, marker addition, and clip property changes.
+- **Added check:** Capture exact snapshots across three edits, undo and redo through the full sequence, then create a new marker after undo and verify redo cannot reapply the abandoned branch.
+- **Value or concern:** Detects cross-command history ordering, projection restoration, and stale redo-branch retention. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.NleEditsUndoRedoAcrossSnapshotsAndDiscardTheAbandonedRedoBranch` when test execution is authorized.
