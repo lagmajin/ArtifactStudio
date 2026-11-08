@@ -12622,3 +12622,10 @@
 - **Added check:** Keep the detector signal exclusively in stereo sidechain channel two, split program and sidechain into irregular blocks including one-frame blocks, and compare every output sample and final gain reduction with one continuous mono-sidechain reference.
 - **Value or concern:** Combines channel aggregation with envelope continuity across block boundaries. Test not run.
 - **Next:** Run `AudioCompressorStandaloneTest.StereoSidechainInIrregularBlocksMatchesContinuousMonoReference` when test execution is authorized.
+
+## 2026-11-09: AudioDownMixer ragged 7.1 to mono input
+- **Related:** `tests/ArtifactCore/AudioDownMixerStandaloneTest.cpp::Surround71ToMonoUsesOnlyFramesPresentInEveryChannel`.
+- **Confirmed:** Ragged channel lengths are covered for same-layout stereo normalization, and 7.1-to-mono averaging is covered with equal channel lengths; their interaction during layout conversion is not tested.
+- **Added check:** Make only the eighth 7.1 channel shorter, convert to mono, and assert the output contains only the shared frame with the average of all eight channels and preserved timing metadata.
+- **Value or concern:** Covers multi-channel frame-bound selection and channel aggregation together, guarding against out-of-range reads or partial-frame output. Test not run.
+- **Next:** Run `AudioDownMixerStandaloneTest.Surround71ToMonoUsesOnlyFramesPresentInEveryChannel` when test execution is authorized.
