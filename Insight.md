@@ -12370,3 +12370,10 @@
 - **Added check:** Map timeline frames 0 through 12 at 30000/1001 FPS into a ten-frame 24000/1001 sequence and assert each expected prior-frame index and verify the decoded frame has the matching unique pixel color.
 - **Value or concern:** Detects rounding drift and off-by-one transitions across both index calculation and decoded frame selection. Test not run.
 - **Next:** Run `ImageSequenceSourceContractTest.ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting` when test execution is authorized.
+
+## 2026-11-08: Sequence playback scaled-delta overflow
+- **Related:** `tests/ArtifactCore/SequenceGroupContractTest.cpp::FiniteAdvanceWhosePlaybackScaledDeltaOverflowsAtBothPlaybackBoundaries`.
+- **Confirmed:** SequencePlayer tests cover non-finite deltas and duration derivation overflow, but not a finite maximum delta whose multiplication by playback rate overflows during active playback.
+- **Added check:** Advance forward and reverse players by `double::max()` at the configured 2x rate; require finite positions clamped to their respective completion boundaries.
+- **Value or concern:** Protects playback state from derived non-finite arithmetic at both ends of the timeline. Test not run.
+- **Next:** Run `SequenceGroupContractTest.FiniteAdvanceWhosePlaybackScaledDeltaOverflowsAtBothPlaybackBoundaries` when test execution is authorized.
