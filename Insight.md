@@ -12650,3 +12650,10 @@
 - **Added check:** Supply a string for proxy width alongside valid height, JPEG quality, boolean options, and color space; assert only width falls back while every valid field is retained.
 - **Value or concern:** Detects whole-object fallback behavior that could silently discard otherwise recoverable user settings. Test not run.
 - **Next:** Run `AssetImportSettingsTest.InvalidFieldFallsBackWithoutDiscardingValidSettings` when test execution is authorized.
+
+## 2026-11-09: ResolutionRemap degenerate bounds
+- **Related:** `tests/ArtifactCore/ResolutionRemapStandaloneTest.cpp::DegenerateBoundsRemainDegenerateAfterRemapping`.
+- **Confirmed:** Bounds remapping checks positive and signed extents against transform mapping, but zero-width, zero-height, and point bounds are not covered.
+- **Added check:** Exercise those three degenerate shapes under all five remap policies, compare against the policy transform, and assert zero extents remain zero.
+- **Value or concern:** Guards against normalization or scaling introducing artificial area for line and point geometry. Test not run.
+- **Next:** Run `ArtifactCoreResolutionRemapStandaloneTest.DegenerateBoundsRemainDegenerateAfterRemapping` when test execution is authorized.

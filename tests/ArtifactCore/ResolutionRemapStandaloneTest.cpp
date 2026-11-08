@@ -180,6 +180,39 @@ TEST(ResolutionRemapStandaloneTest, ImpactUsesSafeAspectForZeroHeight)
     EXPECT_DOUBLE_EQ(impact.newAspectRatio, 0.0);
 }
 
+TEST(ResolutionRemapStandaloneTest, DegenerateBoundsRemainDegenerateAfterRemapping)
+{
+    const std::array<QRectF, 3> bounds = {
+        QRectF(25.0, 40.0, 0.0, 15.0),
+        QRectF(25.0, 40.0, 20.0, 0.0),
+        QRectF(25.0, 40.0, 0.0, 0.0),
+    };
+    const std::array policies = {
+        RemapPolicy::CenterLocked,
+        RemapPolicy::TopLeftLocked,
+        RemapPolicy::StretchToFit,
+        RemapPolicy::FitWithPadding,
+        RemapPolicy::FitWithCrop,
+    };
+
+    for (const auto policy : policies) {
+        const QTransform transform = ResolutionRemap::remapTransform(
+            kOldSize, kLandscapeToPortrait, policy);
+        for (const QRectF& sourceBounds : bounds) {
+            const QRectF actual = ResolutionRemap::remapBounds(
+                sourceBounds, kOldSize, kLandscapeToPortrait, policy);
+            const QRectF expected = transform.mapRect(sourceBounds);
+            EXPECT_NEAR(actual.x(), expected.x(), 1e-9);
+            EXPECT_NEAR(actual.y(), expected.y(), 1e-9);
+            EXPECT_NEAR(actual.width(), expected.width(), 1e-9);
+            EXPECT_NEAR(actual.height(), expected.height(), 1e-9);
+            if (sourceBounds.width() == 0.0)
+                EXPECT_DOUBLE_EQ(actual.width(), 0.0);
+            if (sourceBounds.height() == 0.0)
+                EXPECT_DOUBLE_EQ(actual.height(), 0.0);
+        }
+    }
+}
 TEST(ResolutionRemapStandaloneTest, TransformMatchesPositionMappingForEachPolicy)
 {
     const QPointF point(30.0, 20.0);
