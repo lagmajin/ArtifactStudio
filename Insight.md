@@ -12426,3 +12426,10 @@
 - **Added check:** Send one contextual failure through both combinators; assert the mapper callbacks remain uncalled and code, message, operation, object ID, source location, and trace ID are unchanged.
 - **Value or concern:** Protects diagnostic fidelity through compositional error paths. Test not run.
 - **Next:** Run `ResultContractTest.TransformAndThenShortCircuitFailuresWithoutLosingDiagnosticContext` when test execution is authorized.
+
+## 2026-11-08: ArtifactArray mixed mutation model sequence
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::MixedDeterministicMutationsMatchIndependentVectorModel`.
+- **Confirmed:** Array coverage has targeted mutation, aliasing, capacity, and lifetime tests, but no single deterministic sequence cross-checking interactions among these state changes against an independent model.
+- **Added check:** Apply 1,600 seeded append/prepend/insert/remove/take/replace/removeOne/reserve/squeeze operations and compare size and full contents with `std::vector` after every step.
+- **Value or concern:** Detects cumulative ordering or storage-state regressions that isolated examples can miss. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.MixedDeterministicMutationsMatchIndependentVectorModel` when test execution is authorized.

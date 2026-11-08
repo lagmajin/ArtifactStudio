@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstddef>
 #include <memory>
+#include <random>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -502,5 +505,82 @@ TEST(ArtifactArrayContractTest, ConstDataAndIterationExposeReadOnlyStorage)
     EXPECT_EQ(values.data(), values.constData());
     EXPECT_EQ(values.constEnd() - values.constBegin(), 3);
     EXPECT_EQ(toVector(values), (std::vector<int>{3, 6, 9}));
+}
+
+TEST(ArtifactArrayContractTest,
+     MixedDeterministicMutationsMatchIndependentVectorModel)
+{
+    Array<int> actual;
+    std::vector<int> expected;
+    std::mt19937 generator(0xA22A91u);
+    std::uniform_int_distribution<int> operationDistribution(0, 7);
+    std::uniform_int_distribution<int> valueDistribution(-50, 50);
+
+    for (int step = 0; step < 1600; ++step) {
+        const int operation = operationDistribution(generator);
+        const int value = valueDistribution(generator);
+        const std::size_t index = expected.empty()
+            ? 0u
+            : static_cast<std::size_t>(generator()) % (expected.size() + 1u);
+
+        switch (operation) {
+        case 0:
+            actual.append(value);
+            expected.push_back(value);
+            break;
+        case 1:
+            actual.prepend(value);
+            expected.insert(expected.begin(), value);
+            break;
+        case 2:
+            actual.insert(index, value);
+            expected.insert(expected.begin() + static_cast<std::ptrdiff_t>(index), value);
+            break;
+        case 3: {
+            const std::size_t removeIndex = expected.empty()
+                ? 1u
+                : static_cast<std::size_t>(generator()) % (expected.size() + 2u);
+            actual.removeAt(removeIndex);
+            if (removeIndex < expected.size()) {
+                expected.erase(expected.begin() +
+                               static_cast<std::ptrdiff_t>(removeIndex));
+            }
+            break;
+        }
+        case 4:
+            if (!expected.empty()) {
+                const std::size_t takeIndex =
+                    static_cast<std::size_t>(generator()) % expected.size();
+                EXPECT_EQ(actual.takeAt(takeIndex), expected[takeIndex])
+                    << "step=" << step;
+                expected.erase(expected.begin() +
+                               static_cast<std::ptrdiff_t>(takeIndex));
+            }
+            break;
+        case 5: {
+            const std::size_t replaceIndex = expected.empty()
+                ? 0u
+                : static_cast<std::size_t>(generator()) % (expected.size() + 1u);
+            actual.replace(replaceIndex, value);
+            if (replaceIndex < expected.size()) expected[replaceIndex] = value;
+            break;
+        }
+        case 6: {
+            actual.removeOne(value);
+            const auto found = std::find(expected.begin(), expected.end(), value);
+            if (found != expected.end()) expected.erase(found);
+            break;
+        }
+        case 7:
+            if (step % 2 == 0)
+                actual.reserve(actual.size() + static_cast<std::size_t>(generator() % 9u));
+            else
+                actual.squeeze();
+            break;
+        }
+
+        EXPECT_EQ(actual.size(), expected.size()) << "step=" << step;
+        EXPECT_EQ(toVector(actual), expected) << "step=" << step;
+    }
 }
 
