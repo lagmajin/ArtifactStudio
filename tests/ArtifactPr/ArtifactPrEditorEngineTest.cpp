@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QTemporaryDir>
+#include <QUndoStack>
 #include <QVector>
 
 #include <cstring>
@@ -674,6 +675,46 @@ TEST(ArtifactPrEditorEngineTest,
     ASSERT_EQ(engine->currentSequence().videoTracks[0].clips.size(), 2);
     EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[1].sourceIn, 34);
     EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[1].sourceOut, 57);
+}
+
+TEST(ArtifactPrEditorEngineTest,
+     NleMovePreservesSourceRangeAndUndoRedoRestoresTimelinePlacement)
+{
+    auto* engine = freshEngine();
+    const QString trackId = engine->currentSequence().videoTracks[0].id;
+    ArtifactPr::DemoClip source = makeClip(QStringLiteral("move-source"), 0, 40);
+    source.sourceIn = 23;
+    source.sourceOut = 63;
+    ASSERT_TRUE(engine->editSourceRange(trackId, source, false, false));
+
+    const QString clipId = engine->currentSequence().videoTracks[0].clips[0].id;
+    const QJsonObject beforeMove = engine->nleSnapshot();
+    const int undoCountBeforeMove = engine->undoStack()->count();
+    engine->moveClip(clipId, 100);
+
+    const QJsonObject afterMove = engine->nleSnapshot();
+    ASSERT_NE(afterMove, beforeMove);
+    ASSERT_EQ(engine->currentSequence().videoTracks[0].clips.size(), 1);
+    const auto moved = engine->currentSequence().videoTracks[0].clips[0];
+    EXPECT_EQ(moved.startFrame, 100);
+    EXPECT_EQ(moved.duration, 40);
+    EXPECT_EQ(moved.sourceIn, 23);
+    EXPECT_EQ(moved.sourceOut, 63);
+    EXPECT_EQ(engine->undoStack()->count(), undoCountBeforeMove + 1);
+
+    engine->undo();
+    EXPECT_EQ(engine->nleSnapshot(), beforeMove);
+    ASSERT_EQ(engine->currentSequence().videoTracks[0].clips.size(), 1);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].startFrame, 0);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].sourceIn, 23);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].sourceOut, 63);
+
+    engine->redo();
+    EXPECT_EQ(engine->nleSnapshot(), afterMove);
+    ASSERT_EQ(engine->currentSequence().videoTracks[0].clips.size(), 1);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].startFrame, 100);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].sourceIn, 23);
+    EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[0].sourceOut, 63);
 }
 
 TEST(ArtifactPrEditorEngineTest,

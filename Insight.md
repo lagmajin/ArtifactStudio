@@ -35,6 +35,13 @@
 - **価値または懸念:** zoom操作でrowを再生成する回帰やclipの表示状態・選択状態が失われる回帰を検出する。テスト未実行。
 - **次に確認すること:** `ArtifactPrTimelinePanelTest.ZoomRefreshKeepsClipWidgetIdentityAndUpdatesItsWidth` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: NLE moveのsource/timeline範囲分離と履歴
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cpp::EditorEngine::moveClip`、`tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleMovePreservesSourceRangeAndUndoRedoRestoresTimelinePlacement`。
+- **確認できた事実:** NLE clipにはsource rangeとtimeline rangeが別々に保存され、`moveClip`はtimeline位置をLinkingService経由で変更し、前後snapshotをundo commandへ渡す。既存NLEテストにはsplit時の両範囲検査があるが、通常moveのsource範囲保持とundo/redoはない。
+- **追加した確認:** source range [23,63) のclipをtimeline frame 0から100へ移動し、duration/source範囲保持を確認した後、snapshotと表示範囲がundo/redoで元位置・移動位置へ戻ることを確認する。
+- **価値または懸念:** 移動がsource trimを誤って変更する回帰や、NLE snapshot・legacy表示・undo履歴間の不整合を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrEditorEngineTest.NleMovePreservesSourceRangeAndUndoRedoRestoresTimelinePlacement` をテスト実行が許可された際に実行する。
+
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
 - **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。
