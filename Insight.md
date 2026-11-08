@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 巨大画像拒否時のactive layer state保持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::OversizedImageFailuresPreserveActiveSourceAndLayerState`、静止画受入表IMG-12／IMG-13。
+- **確認できた事実:** 辺長上限と総画素数上限の既存テストは初期状態のlayerに入力し、placeholderとdiagnosticを確認する。既存file sourceがある状態で失敗した候補sourceを拒否し、現在source stateを保つ遷移は確認していなかった。
+- **追加した確認:** 正常sourceをload後、辺長超過と64M画素超過を順に適用し、source path／ID／version、全RGBA buffer値、source metadata、表示pixel、opacity、positionが維持されるか検査する。
+- **価値または懸念:** header preflight拒否時に正常な編集対象がplaceholderや新pathへ部分置換される回帰を検出する。runtime未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.OversizedImageFailuresPreserveActiveSourceAndLayerState` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: Source上書き時のpixelとmetadata snapshot同期
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion`、静止画受入表OP-08、制作準備文書の「Source version更新時のmetadata同期」。
 - **確認できた事実:** 既存同一path上書きテストは同じ寸法・RGBA layoutの色差とsource versionのみを確認し、header layoutが変わる上書き時のsource metadata更新を確認していなかった。実装契約はpixel bufferと同じversion由来のmetadata snapshotを採用する。

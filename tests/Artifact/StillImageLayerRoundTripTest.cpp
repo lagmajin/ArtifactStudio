@@ -5077,3 +5077,77 @@ TEST(StillImageLayerRoundTripTest, RejectsDecodedPixelBudgetOverLimitBeforeDecod
     EXPECT_EQ(layer.toQImage().size(), QSize(256, 256));
     expectDimensionFallbackRecorded(imagePath);
 }
+
+TEST(StillImageLayerRoundTripTest,
+     OversizedImageFailuresPreserveActiveSourceAndLayerState)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString validPath = dir.filePath(QStringLiteral("valid-active.png"));
+    const QString dimensionLimitPath =
+        dir.filePath(QStringLiteral("dimension-limit.png"));
+    const QString pixelBudgetPath =
+        dir.filePath(QStringLiteral("pixel-budget.png"));
+    const QColor activeColor(45, 105, 165, 255);
+    QImage validImage(2, 1, QImage::Format_RGBA8888);
+    validImage.setPixelColor(0, 0, activeColor);
+    validImage.setPixelColor(1, 0, QColor(185, 125, 65, 192));
+    ASSERT_TRUE(validImage.save(validPath, "PNG"));
+    ASSERT_TRUE(writeBase64Fixture(
+        dimensionLimitPath,
+        QByteArrayLiteral("iVBORw0KGgoAAAANSUhEUgAAQAEAAAABCAYAAADJXd1mAAAADUlEQVR4nGPg5GD/DwABTgEYKZ81xwAAAABJRU5ErkJggg==")));
+    ASSERT_TRUE(writeBase64Fixture(
+        pixelBudgetPath,
+        QByteArrayLiteral("iVBORw0KGgoAAAANSUhEUgAAIAAAACABCAYAAAC59hn8AAAADUlEQVR4nGPg5GD/DwABTgEYKZ81xwAAAABJRU5ErkJggg==")));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(validPath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 1)));
+    layer.setOpacity(0.65f);
+    layer.transform2D().setPosition(17.0f, -9.0f);
+    const QUuid sourceId = layer.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const std::uint64_t sourceVersion = layer.sourceVersion();
+    const QJsonObject sourceMetadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    const float* originalBuffer = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(originalBuffer, nullptr);
+    const std::array<float, 8> originalPixels{
+        originalBuffer[0], originalBuffer[1], originalBuffer[2], originalBuffer[3],
+        originalBuffer[4], originalBuffer[5], originalBuffer[6], originalBuffer[7]};
+
+    EXPECT_FALSE(layer.loadFromPath(dimensionLimitPath));
+    EXPECT_EQ(layer.sourcePath(), validPath);
+    EXPECT_EQ(layer.sourceAssetId(), sourceId);
+    EXPECT_EQ(layer.sourceVersion(), sourceVersion);
+    EXPECT_EQ(layer.currentFrameBuffer().width(), 2);
+    EXPECT_EQ(layer.currentFrameBuffer().height(), 1);
+    EXPECT_EQ(layer.toJson()
+                  .value(QStringLiteral("image.sourceMetadata")).toObject(),
+              sourceMetadata);
+    const float* afterDimensionFailure =
+        layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(afterDimensionFailure, nullptr);
+    for (std::size_t index = 0; index < originalPixels.size(); ++index) {
+        EXPECT_FLOAT_EQ(afterDimensionFailure[index], originalPixels[index]);
+    }
+
+    EXPECT_FALSE(layer.loadFromPath(pixelBudgetPath));
+    EXPECT_EQ(layer.sourcePath(), validPath);
+    EXPECT_EQ(layer.sourceAssetId(), sourceId);
+    EXPECT_EQ(layer.sourceVersion(), sourceVersion);
+    EXPECT_EQ(layer.currentFrameBuffer().width(), 2);
+    EXPECT_EQ(layer.currentFrameBuffer().height(), 1);
+    EXPECT_EQ(layer.toJson()
+                  .value(QStringLiteral("image.sourceMetadata")).toObject(),
+              sourceMetadata);
+    EXPECT_EQ(layer.toQImage().pixelColor(0, 0), activeColor);
+    EXPECT_NEAR(layer.opacity(), 0.65f, 1e-6f);
+    float x = 0.0f;
+    float y = 0.0f;
+    layer.transform2D().position(x, y);
+    EXPECT_NEAR(x, 17.0f, 1e-6f);
+    EXPECT_NEAR(y, -9.0f, 1e-6f);
+}
