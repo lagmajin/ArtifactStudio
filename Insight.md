@@ -12545,3 +12545,10 @@
 - **Added check:** Parse the standard decimal representation of `std::numeric_limits<double>::max()` through CSV and verify `getFloat()` returns that exact finite value.
 - **Value or concern:** Distinguishes valid upper-bound conversion from range-error fallback and infinity. Test not run.
 - **Next:** Run `DataTableStandaloneTest.FloatGetterAcceptsLargestFiniteNumericText` when test execution is authorized.
+
+## 2026-11-09: AudioAnalyzer opposite maximum stereo samples
+- **Related:** `tests/ArtifactCore/AudioAnalyzerStandaloneTest.cpp::OppositeMaximumFiniteStereoSamplesKeepMetricsFinite`.
+- **Confirmed:** Analyzer coverage exercises maximum finite samples in mono and ordinary multi-channel inputs, but does not combine opposite maximum values across stereo channels.
+- **Added check:** Analyze two stereo frames whose channels contain opposite maximum finite float values; assert RMS and peak stay at the maximum and every FFT magnitude remains finite.
+- **Value or concern:** Stresses accumulation across frames/channels and FFT cancellation at the finite-input limit. Test not run.
+- **Next:** Run `AudioAnalyzerStandaloneTest.OppositeMaximumFiniteStereoSamplesKeepMetricsFinite` when test execution is authorized.
