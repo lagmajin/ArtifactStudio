@@ -42,6 +42,13 @@
 - **価値または懸念:** 移動がsource trimを誤って変更する回帰や、NLE snapshot・legacy表示・undo履歴間の不整合を検出する。テスト未実行。
 - **次に確認すること:** `ArtifactPrEditorEngineTest.NleMovePreservesSourceRangeAndUndoRedoRestoresTimelinePlacement` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: Audio project reloadの全channel PCM parity
+- **関連:** `tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp::MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload`。
+- **確認できた事実:** この統合テストは複数Audio Layerのsource、volume、pan、muteを保存・再読込し、channel数は比較するが、sample parityをchannel 0だけで比較していた。
+- **追加した確認:** 保存前後の各channelごとにframe数を確認し、すべてのPCM sampleを比較する。
+- **価値または懸念:** mono入力がpanで複数出力channelへ展開される場合など、片channelのみの欠落・ずれをreload後の統合経路で捕捉できる。テスト未実行。
+- **次に確認すること:** `AudioLayerRenderIntegrationTest.MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload` をテスト実行が許可された際に実行する。
+
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
 - **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。
