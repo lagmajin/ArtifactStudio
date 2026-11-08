@@ -12713,3 +12713,10 @@
 - **Added check:** Intersect and union overlapping 24fps and 30fps intervals, verify durations and half-open boundaries using timecodes in both rates, and compare operand-reversed results.
 - **Value or concern:** Detects comparing raw frame indices instead of elapsed time and catches operand-order-dependent results. Test not run.
 - **Next:** Run `TimeCodeRangeContractTest.IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates` when test execution is authorized.
+
+## 2026-11-09: TimeCodeRange mixed-rate interval algebra
+- **Related:** `tests/ArtifactCore/TimeCodeRangeContractTest.cpp::IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates`.
+- **Confirmed:** Interval intersection/union tests use equal frame rates; cross-rate membership is tested separately, so endpoint conversion and interval algebra are not exercised together.
+- **Added check:** Intersect and union overlapping 24fps and 30fps intervals, verify durations and half-open boundaries using timecodes in both rates, and compare operand-reversed results.
+- **Value or concern:** Detects comparing raw frame indices instead of elapsed time and catches operand-order-dependent results. Test not run.
+- **Next:** Run `TimeCodeRangeContractTest.IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates` when test execution is authorized.
