@@ -12461,3 +12461,10 @@
 - **Added check:** Trigger a guarded nested execution and verify confirmation and callback invocation for both parameter sets, plus post-order publication of the nested and outer executed events.
 - **Value or concern:** Covers synchronous reentrancy across confirmation, user callback, and EventBus publication. Test not run.
 - **Next:** Run `ActionManagerContractTest.CallbackCanReenterExecutionAndEventsRemainPostOrder` when test execution is authorized.
+
+## 2026-11-08: KeyMap dual-index rebind transaction sequence
+- **Related:** `tests/ArtifactCore/KeyMapContractTest.cpp::RebindConflictsKeepBothIndexesConsistentAcrossJsonRoundTrip`.
+- **Confirmed:** Existing tests isolate chord conflict rejection, same-action rebind, and JSON restoration; they do not exercise those operations as a sequence while checking both chord and action lookup indexes.
+- **Added check:** Create a conflict, successfully rebind an action to free its former chord, claim that chord with another action, reject a second conflicting rebind, and round-trip the resulting map through JSON while checking both lookup indexes.
+- **Value or concern:** Protects the coupled index state against partial updates through successful and rejected mutations and serialization. Test not run.
+- **Next:** Run `KeyMapContractTest.RebindConflictsKeepBothIndexesConsistentAcrossJsonRoundTrip` when test execution is authorized.
