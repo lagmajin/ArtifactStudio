@@ -12566,3 +12566,10 @@
 - **Added check:** Grow a move-only vector, insert an interior value, remove adjacent matches by predicate, then grow/insert again and take an interior element while checking exact surviving ownership and order.
 - **Value or concern:** Exercises move assignment and destruction across reallocation and compaction transitions. Test not run.
 - **Next:** Run `SmallVectorStandaloneTest.MoveOnlyElementsSurviveMixedGrowthInsertRemovalAndTakeAt` when test execution is authorized.
+
+## 2026-11-09: Integer property modulation negative rounding and bounds
+- **Related:** `tests/ArtifactCore/AbstractPropertyModulationTest.cpp::RoundsNegativeModulationAndClampsIntegerBounds`.
+- **Confirmed:** Integer modulation coverage checks one positive fractional result; it does not exercise negative rounding or integer min/max clipping after modulation.
+- **Added check:** Evaluate negative fractional modulation plus values beyond both configured bounds through the same router/property path, and assert rounded and clamped integer outputs.
+- **Value or concern:** Covers sign-sensitive rounding and post-modulation range enforcement at the integer conversion boundary. Test not run.
+- **Next:** Run `AbstractPropertyModulationTest.RoundsNegativeModulationAndClampsIntegerBounds` when test execution is authorized.
