@@ -866,6 +866,55 @@ TEST(AssetDatabaseContractTest, OutOfRangeAssetTypeIsRejectedWithoutChangingInde
     EXPECT_TRUE(database.findAssetByPath(rejectedPath).isNull());
 }
 
+TEST(AssetDatabaseContractTest, RelinkUnregisterAndReloadKeepBothIndexesCoherent)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString firstPath = directory.filePath(QStringLiteral("first.png"));
+    const QString secondPath = directory.filePath(QStringLiteral("second.wav"));
+    const QString movedPath = directory.filePath(QStringLiteral("moved-first.png"));
+    const QString replacementPath = directory.filePath(QStringLiteral("replacement.wav"));
+    ASSERT_TRUE(createSourceFile(firstPath));
+    ASSERT_TRUE(createSourceFile(secondPath));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+
+    const QUuid firstId = QUuid::createUuid();
+    const QUuid secondId = QUuid::createUuid();
+    ASSERT_EQ(database.registerAsset(firstPath, AssetType::Image, firstId), firstId);
+    ASSERT_EQ(database.registerAsset(secondPath, AssetType::Audio, secondId), secondId);
+
+    EXPECT_FALSE(database.relinkAssetPath(firstPath, secondPath));
+    EXPECT_EQ(database.findAssetByPath(firstPath), firstId);
+    EXPECT_EQ(database.findAssetByPath(secondPath), secondId);
+
+    ASSERT_TRUE(database.relinkAssetPath(firstPath, movedPath));
+    EXPECT_TRUE(database.findAssetByPath(firstPath).isNull());
+    EXPECT_EQ(database.findAssetByPath(movedPath), firstId);
+    EXPECT_EQ(database.getAssetInfo(firstId).type, AssetType::Image);
+    EXPECT_EQ(database.getAssetInfo(firstId).name, QStringLiteral("moved-first.png"));
+
+    const QByteArray snapshot = database.toJson();
+    database.clear();
+    ASSERT_TRUE(database.fromJson(snapshot));
+    EXPECT_TRUE(database.findAssetByPath(firstPath).isNull());
+    EXPECT_EQ(database.findAssetByPath(movedPath), firstId);
+    EXPECT_EQ(database.findAssetByPath(secondPath), secondId);
+    EXPECT_EQ(database.getAssetInfo(firstId).type, AssetType::Image);
+    EXPECT_EQ(database.getAssetInfo(secondId).type, AssetType::Audio);
+
+    database.unregisterAsset(secondId);
+    EXPECT_TRUE(database.findAssetByPath(secondPath).isNull());
+    EXPECT_TRUE(database.getAssetInfo(secondId).id.isNull());
+    const QUuid replacementId = database.registerAsset(replacementPath, AssetType::Data);
+    ASSERT_FALSE(replacementId.isNull());
+    EXPECT_EQ(database.findAssetByPath(replacementPath), replacementId);
+    EXPECT_TRUE(database.findAssetByPath(secondPath).isNull());
+    EXPECT_EQ(database.allAssets().size(), 2);
+}
+
 TEST(AssetDatabaseContractTest, JsonLoadSkipsOutOfRangeAssetTypes)
 {
     QTemporaryDir directory;

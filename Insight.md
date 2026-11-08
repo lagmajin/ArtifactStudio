@@ -12517,3 +12517,10 @@
 - **Added check:** Establish a known access order across four entries, shrink capacity to two, and assert the two most-recent frames remain with memory usage matching their payloads.
 - **Value or concern:** Covers capacity reconfiguration, LRU cleanup, and byte accounting in one state transition. Test not run.
 - **Next:** Run `AudioCacheStandaloneTest.ShrinkingCapacityKeepsMostRecentlyUsedFramesAndMemoryCount` when test execution is authorized.
+
+## 2026-11-08: AssetDatabase dual-index mutation and reload sequence
+- **Related:** `tests/ArtifactCore/AssetDatabaseContractTest.cpp::RelinkUnregisterAndReloadKeepBothIndexesCoherent`.
+- **Confirmed:** AssetDatabase tests cover relink collision atomicity, JSON round-trip, and unregister/path reuse separately; they do not combine these transitions while checking both lookup directions.
+- **Added check:** Start from an isolated database, reject a colliding relink, move an asset, round-trip the database through JSON, unregister a second asset, then reuse a new path and verify UUID lookups, path lookups, types, names, and final count.
+- **Value or concern:** Checks stale path-index cleanup and identity metadata consistency across successful, rejected, and restored state changes. Test not run.
+- **Next:** Run `AssetDatabaseContractTest.RelinkUnregisterAndReloadKeepBothIndexesCoherent` when test execution is authorized.
