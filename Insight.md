@@ -12377,3 +12377,10 @@
 - **Added check:** Advance forward and reverse players by `double::max()` at the configured 2x rate; require finite positions clamped to their respective completion boundaries.
 - **Value or concern:** Protects playback state from derived non-finite arithmetic at both ends of the timeline. Test not run.
 - **Next:** Run `SequenceGroupContractTest.FiniteAdvanceWhosePlaybackScaledDeltaOverflowsAtBothPlaybackBoundaries` when test execution is authorized.
+
+## 2026-11-08: Concurrent weak-lock lifetime boundary
+- **Related:** `tests/ArtifactCore/SharedPtrContractTest.cpp::ConcurrentWeakLocksRemainValidUntilLastOwnerAndThenExpire`.
+- **Confirmed:** Existing SharedPtr tests cover weak lock and expiration sequentially, but not simultaneous locks while the final strong owner is released.
+- **Added check:** Four workers repeatedly lock one weak pointer while the owner is reset; require all observed values to remain valid, the custom deleter to run exactly once, and the weak pointer to expire afterward.
+- **Value or concern:** Exercises control-block synchronization and lifetime transition under contention. The initial successful lock wait is bounded; test not run.
+- **Next:** Run `SharedPtrContractTest.ConcurrentWeakLocksRemainValidUntilLastOwnerAndThenExpire` when test execution is authorized.
