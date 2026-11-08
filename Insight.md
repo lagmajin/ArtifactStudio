@@ -12367,6 +12367,6 @@
 ## 2026-11-08: Fractional image sequence frame-rate mapping
 - **Related:** `tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting`.
 - **Confirmed:** Existing source/timeline conversion coverage uses integer frame rates; it does not cover the common 24000/1001 to 30000/1001 rate conversion over consecutive frame boundaries.
-- **Added check:** Map timeline frames 0 through 12 at 30000/1001 FPS into a ten-frame 24000/1001 sequence and assert each expected prior-frame index.
-- **Value or concern:** Detects rounding drift and off-by-one transitions in rational-rate conversion. Test not run.
+- **Added check:** Map timeline frames 0 through 12 at 30000/1001 FPS into a ten-frame 24000/1001 sequence and assert each expected prior-frame index and verify the decoded frame has the matching unique pixel color.
+- **Value or concern:** Detects rounding drift and off-by-one transitions across both index calculation and decoded frame selection. Test not run.
 - **Next:** Run `ImageSequenceSourceContractTest.ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting` when test execution is authorized.

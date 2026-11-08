@@ -975,7 +975,14 @@ TEST(ImageSequenceSourceContractTest,
     for (int index = 0; index < 10; ++index) {
         const QString path = directory.filePath(
             QStringLiteral("fractional_%1.png").arg(index));
-        ASSERT_TRUE(writeFile(path, checkerPng()));
+        QImage frame(1, 1, QImage::Format_RGBA8888);
+        const QColor expectedColor(index, 255 - index, index * 17, 255);
+        frame.setPixelColor(0, 0, expectedColor);
+        QByteArray encodedFrame;
+        QBuffer buffer(&encodedFrame);
+        ASSERT_TRUE(buffer.open(QIODevice::WriteOnly));
+        ASSERT_TRUE(frame.save(&buffer, "PNG"));
+        ASSERT_TRUE(writeFile(path, encodedFrame));
         framePaths.push_back(path);
     }
 
@@ -990,6 +997,12 @@ TEST(ImageSequenceSourceContractTest,
         EXPECT_EQ(source.frameIndexAtTime(
                       static_cast<qint64>(timelineFrame), timelineRate),
                   expectedIndices[timelineFrame])
+            << "timeline frame=" << timelineFrame;
+        const QImage decoded = source.frameAt(expectedIndices[timelineFrame]);
+        ASSERT_FALSE(decoded.isNull()) << "timeline frame=" << timelineFrame;
+        const int sourceIndex = expectedIndices[timelineFrame];
+        EXPECT_EQ(decoded.pixelColor(0, 0),
+                  QColor(sourceIndex, 255 - sourceIndex, sourceIndex * 17, 255))
             << "timeline frame=" << timelineFrame;
     }
 }
