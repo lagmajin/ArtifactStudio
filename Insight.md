@@ -12412,3 +12412,10 @@
 - **Added check:** Four producers record 1,600 events while the test thread repeatedly drains batches; require all sequence numbers to be contiguous, all events to be recovered exactly once, and the recorder to end empty.
 - **Value or concern:** Exercises synchronization between concurrent append and drain without relying on timing-specific batch sizes. Test not run.
 - **Next:** Run `DiagnosticRecorderStandaloneTest.ConcurrentDrainAndRecordingDeliverEveryEventExactlyOnce` when test execution is authorized.
+
+## 2026-11-08: Session ledger recovery filtering after persistence
+- **Related:** `tests/ArtifactCore/SessionLedgerStandaloneTest.cpp::RecoverableEntriesRetainTheirFilteringAndOrderAfterFileRoundTrip`.
+- **Confirmed:** SessionLedger tests cover recoverable filtering and file round-trip separately; the round-trip case does not query the filtered recovery view afterward.
+- **Added check:** Persist mixed project-open, crash, render-failure, recoverable recovery-entry, and recovery-point records; after reload require only the recoverable entry kinds in insertion order and preserve checkpoint metadata.
+- **Value or concern:** Checks derived recovery behavior across serialization, including exclusion of nonrecoverable events. Test not run.
+- **Next:** Run `SessionLedgerStandaloneTest.RecoverableEntriesRetainTheirFilteringAndOrderAfterFileRoundTrip` when test execution is authorized.
