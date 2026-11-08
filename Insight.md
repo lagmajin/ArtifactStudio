@@ -12776,3 +12776,10 @@
 - **Added check:** Place a transition start equidistant from a one-second boundary, then assert transition priority, both second-boundary directions, inclusive/exclusive custom threshold behavior, legacy playhead priority, and snap-disabled bypass.
 - **Value or concern:** Guards ordering and boundary behavior across the extended snap candidate set. Test not run.
 - **Next:** Run `ArtifactPrEditorEngineTest.ExtendedSnappingPrioritizesTransitionsThenHonorsSecondThreshold` when test execution is authorized.
+
+## 2026-11-09: EditorEngine complex project round-trip projection
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::ProjectSaveLoadRoundTripPreservesMultipleTrimmedClipsAndMarkers`.
+- **Confirmed:** The existing save/load case creates a legacy clip but verifies only the NLE JSON snapshot after reload; it does not assert that clips and marker data are reconstructed into the active legacy sequence.
+- **Added check:** Create two NLE-backed clips with distinct source trims and playback speeds (including reverse playback), add a Unicode-named marker, save/reload, and assert both the exact NLE snapshot and the reconstructed active sequence fields.
+- **Value or concern:** Detects persistence gaps between the serialized NLE store and the legacy sequence projection used by UI consumers. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.ProjectSaveLoadRoundTripPreservesMultipleTrimmedClipsAndMarkers` when test execution is authorized.

@@ -358,3 +358,66 @@ TEST(ArtifactPrEditorEngineTest, ProjectSaveLoadRoundTripRestoresTheNleStore)
     EXPECT_EQ(engine->nleSnapshot(), snapshot);
     EXPECT_FALSE(engine->projectFilePath().isEmpty());
 }
+
+TEST(ArtifactPrEditorEngineTest,
+     ProjectSaveLoadRoundTripPreservesMultipleTrimmedClipsAndMarkers)
+{
+    auto* engine = freshEngine();
+    const QString trackId = engine->currentSequence().videoTracks[0].id;
+
+    ArtifactPr::DemoClip first = makeClip(QStringLiteral("first-source"), 0, 30);
+    first.sourceIn = 12;
+    first.sourceOut = 42;
+    first.speed = 1.5;
+    first.reversed = true;
+    ASSERT_TRUE(engine->editSourceRange(trackId, first, false, false));
+
+    const auto firstClip = engine->currentSequence().videoTracks[0].clips[0];
+    EXPECT_EQ(firstClip.startFrame, 0);
+    EXPECT_EQ(firstClip.duration, 20);
+    EXPECT_EQ(firstClip.sourceIn, 12);
+    EXPECT_EQ(firstClip.sourceOut, 42);
+    EXPECT_DOUBLE_EQ(firstClip.speed, 1.5);
+    EXPECT_TRUE(firstClip.reversed);
+
+    engine->seekToFrame(firstClip.startFrame + firstClip.duration);
+    ArtifactPr::DemoClip second = makeClip(QStringLiteral("second-source"), 0, 24);
+    second.sourceIn = 5;
+    second.sourceOut = 29;
+    second.speed = 2.0;
+    ASSERT_TRUE(engine->editSourceRange(trackId, second, false, false));
+
+    engine->addMarker(19, QStringLiteral("Cue 🎬"), QStringLiteral("before cut"));
+    const ArtifactPr::DemoSequence beforeSave = engine->currentSequence();
+    ASSERT_EQ(beforeSave.videoTracks[0].clips.size(), 2);
+    ASSERT_EQ(beforeSave.markers.size(), 1);
+    const QJsonObject nleSnapshot = engine->nleSnapshot();
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("complex-roundtrip.artifactpr"));
+    ASSERT_TRUE(engine->saveProject(path));
+
+    engine->newProject();
+    ASSERT_TRUE(engine->loadProject(path));
+
+    EXPECT_EQ(engine->nleSnapshot(), nleSnapshot);
+    const ArtifactPr::DemoSequence restored = engine->currentSequence();
+    ASSERT_EQ(restored.videoTracks.size(), 1);
+    ASSERT_EQ(restored.videoTracks[0].clips.size(), 2);
+    EXPECT_EQ(restored.videoTracks[0].clips[0].sourceFile,
+              beforeSave.videoTracks[0].clips[0].sourceFile);
+    EXPECT_EQ(restored.videoTracks[0].clips[0].sourceIn, 12);
+    EXPECT_EQ(restored.videoTracks[0].clips[0].sourceOut, 42);
+    EXPECT_EQ(restored.videoTracks[0].clips[0].duration, 20);
+    EXPECT_DOUBLE_EQ(restored.videoTracks[0].clips[0].speed, 1.5);
+    EXPECT_TRUE(restored.videoTracks[0].clips[0].reversed);
+    EXPECT_EQ(restored.videoTracks[0].clips[1].sourceIn, 5);
+    EXPECT_EQ(restored.videoTracks[0].clips[1].sourceOut, 29);
+    EXPECT_EQ(restored.videoTracks[0].clips[1].duration, 12);
+    EXPECT_DOUBLE_EQ(restored.videoTracks[0].clips[1].speed, 2.0);
+    ASSERT_EQ(restored.markers.size(), 1);
+    EXPECT_EQ(restored.markers[0].position, 19);
+    EXPECT_EQ(restored.markers[0].name, QStringLiteral("Cue 🎬"));
+    EXPECT_EQ(restored.markers[0].comment, QStringLiteral("before cut"));
+}
