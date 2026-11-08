@@ -12664,3 +12664,10 @@
 - **Added check:** Register the full equal-length graph with the lower-version path first, reversing the existing fixture order, then assert migration selects it and preserves the expected terminal marker.
 - **Value or concern:** Detects iteration-order dependent tie resolution that a single graph construction order could miss. Test not run.
 - **Next:** Run `ArtifactCoreSchemaMigrationContractTest.EqualLengthPathsRemainDeterministicWhenLowerVersionIsRegisteredFirst` when test execution is authorized.
+
+## 2026-11-09: ArtifactHashMap throwing insertion at growth threshold
+- **Related:** `tests/ArtifactCore/ArtifactHashMapContractTest.cpp::ThrowingMappedConstructionDuringGrowthKeepsMapUsable`.
+- **Confirmed:** Rehash boundary and move-only mapped values are tested separately, but an exception from mapped-value construction during the insertion that crosses the load threshold is not covered.
+- **Added check:** Fill a four-bucket map to its 75% boundary, force the fourth mapped construction to throw, verify all prior entries and size remain intact, then retry successfully and verify all values after growth.
+- **Value or concern:** Exercises exception cleanup together with bucket growth and collision-independent lookup integrity. Test not run.
+- **Next:** Run `ArtifactHashMapContractTest.ThrowingMappedConstructionDuringGrowthKeepsMapUsable` when test execution is authorized.
