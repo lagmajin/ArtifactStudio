@@ -55,3 +55,15 @@ TEST(AutoExposureEffectContractTest, PropertyUpdatesUseStableNames)
     effect.setPropertyValue(ArtifactCore::UniString("Unknown"), QVariant(1.0));
     EXPECT_FLOAT_EQ(effect.middleGray(), 0.32f);
 }
+
+TEST(AutoExposureEffectContractTest,
+     PropertyUpdatesRespectTheSameLowerBoundsAsDirectSetters)
+{
+    Artifact::AutoExposureEffect effect;
+
+    effect.setPropertyValue(ArtifactCore::UniString("MiddleGray"), QVariant(0.0));
+    effect.setPropertyValue(ArtifactCore::UniString("AdaptationSpeed"), QVariant(-2.0));
+
+    EXPECT_FLOAT_EQ(effect.middleGray(), 0.01f);
+    EXPECT_FLOAT_EQ(effect.adaptationSpeed(), 0.01f);
+}

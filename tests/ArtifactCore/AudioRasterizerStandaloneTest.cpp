@@ -2,6 +2,8 @@
 
 #include <QVector>
 
+#include <algorithm>
+#include <cmath>
 #include <limits>
 
 import Audio.Rasterizer;
@@ -110,6 +112,59 @@ TEST(AudioRasterizerStandaloneTest, InterleavedThreeChannelUnevenBinsIncludeEver
     ASSERT_EQ(result.binCount(), 2);
     EXPECT_EQ(result.minValues, (QVector<float>{-0.6f, -1.4f}));
     EXPECT_EQ(result.maxValues, (QVector<float>{0.5f, 1.5f}));
+}
+
+TEST(AudioRasterizerStandaloneTest, InterleavedRangesMatchPerFrameOracleForUnevenLayouts)
+{
+    for (int frameCount = 1; frameCount <= 32; ++frameCount) {
+        for (int channels = 1; channels <= 4; ++channels) {
+            QVector<float> samples;
+            samples.reserve(frameCount * channels);
+            for (int frame = 0; frame < frameCount; ++frame) {
+                for (int channel = 0; channel < channels; ++channel) {
+                    const int pattern = (frame * 13 + channel * 7) % 29 - 14;
+                    float value = static_cast<float>(pattern) * 0.25f;
+                    if ((frame + 2 * channel) % 19 == 0) {
+                        value = ((frame + channel) % 2 == 0)
+                            ? std::numeric_limits<float>::quiet_NaN()
+                            : std::numeric_limits<float>::infinity();
+                    }
+                    samples.push_back(value);
+                }
+            }
+
+            for (int requestedBins = 1; requestedBins <= frameCount + 2; ++requestedBins) {
+                const int bins = std::min(requestedBins, frameCount);
+                QVector<float> expectedMin(bins, std::numeric_limits<float>::infinity());
+                QVector<float> expectedMax(bins, -std::numeric_limits<float>::infinity());
+                for (int frame = 0; frame < frameCount; ++frame) {
+                    const int bin = frame * bins / frameCount;
+                    for (int channel = 0; channel < channels; ++channel) {
+                        const float value = samples.at(frame * channels + channel);
+                        if (!std::isfinite(value)) continue;
+                        expectedMin[bin] = std::min(expectedMin[bin], value);
+                        expectedMax[bin] = std::max(expectedMax[bin], value);
+                    }
+                }
+                for (int bin = 0; bin < bins; ++bin) {
+                    if (!std::isfinite(expectedMin[bin])) {
+                        expectedMin[bin] = 0.0f;
+                        expectedMax[bin] = 0.0f;
+                    }
+                }
+
+                const auto actual = AudioRasterizer::rasterizeInterleaved(
+                    samples, channels, requestedBins);
+                ASSERT_EQ(actual.binCount(), bins);
+                EXPECT_EQ(actual.minValues, expectedMin)
+                    << "frames=" << frameCount << ", channels=" << channels
+                    << ", requestedBins=" << requestedBins;
+                EXPECT_EQ(actual.maxValues, expectedMax)
+                    << "frames=" << frameCount << ", channels=" << channels
+                    << ", requestedBins=" << requestedBins;
+            }
+        }
+    }
 }
 
 TEST(AudioRasterizerStandaloneTest, InterleavedBinCountAboveFrameCountProducesOneBinPerFrame)

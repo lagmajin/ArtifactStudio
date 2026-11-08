@@ -117,6 +117,18 @@ set_tests_properties(ArtifactLODManagerContractTest PROPERTIES
     LABELS "render;lod;zoom;cpu;contract"
 )
 
+artifact_add_test(ArtifactTimelinePropertyGroupContractTest
+    SOURCES
+        ArtifactTimelinePropertyGroupContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactTimelinePropertyGroupContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "timeline;property-groups;cpu;contract"
+    TIMEOUT 30
+)
+
 artifact_add_test(ArtifactRenderContextLodContractTest
     SOURCES
         RenderContextLodContractTest.cpp

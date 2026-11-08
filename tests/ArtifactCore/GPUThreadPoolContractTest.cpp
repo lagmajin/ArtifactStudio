@@ -68,6 +68,42 @@ TEST(GPUThreadPoolContractTest, DrainBudgetPreservesFifoOrderAndUpdatesHandlesAn
     EXPECT_EQ(complete.completed, 3u);
 }
 
+TEST(GPUThreadPoolContractTest,
+     DrainBudgetLeavesReentrantlyEnqueuedJobForTheNextDrain)
+{
+    GPUThreadPool pool(2);
+    std::vector<int> order;
+    GPUJobHandle followup;
+    const auto first = pool.enqueue([&] { order.push_back(1); });
+    ASSERT_TRUE(first.isValid());
+
+    const auto executor = [&](const GPUThreadPool::GPUJob& job) {
+        job();
+        if (!followup.isValid()) {
+            followup = pool.enqueue([&] { order.push_back(2); });
+        }
+        return true;
+    };
+
+    EXPECT_EQ(pool.drain(executor, 1), 1u);
+    EXPECT_EQ(order, (std::vector<int>{1}));
+    EXPECT_TRUE(first.isCompleted());
+    ASSERT_TRUE(followup.isValid());
+    EXPECT_FALSE(followup.isSubmitted());
+    auto snapshot = pool.snapshot();
+    EXPECT_EQ(snapshot.queued, 1u);
+    EXPECT_EQ(snapshot.submitted, 1u);
+    EXPECT_EQ(snapshot.completed, 1u);
+
+    EXPECT_EQ(pool.drain(executor, 1), 1u);
+    EXPECT_EQ(order, (std::vector<int>{1, 2}));
+    EXPECT_TRUE(followup.isCompleted());
+    snapshot = pool.snapshot();
+    EXPECT_EQ(snapshot.queued, 0u);
+    EXPECT_EQ(snapshot.submitted, 2u);
+    EXPECT_EQ(snapshot.completed, 2u);
+}
+
 TEST(GPUThreadPoolContractTest, ExecutorRejectionMarksFailedWithoutRunningQueuedJob)
 {
     GPUThreadPool pool;
@@ -131,6 +167,34 @@ TEST(GPUThreadPoolContractTest, CancelPendingCancelsOnlyQueuedJobsAndClearResets
     EXPECT_EQ(stats.failed, 0u);
     EXPECT_EQ(stats.cancelled, 0u);
     EXPECT_TRUE(completed.isCompleted());
+}
+
+TEST(GPUThreadPoolContractTest,
+     ReentrantCancelPendingKeepsSubmittedJobAndCancelsRemainingQueue)
+{
+    GPUThreadPool pool(3);
+    int firstExecutions = 0;
+    int queuedExecutions = 0;
+    const auto submitted = pool.enqueue([&] { ++firstExecutions; });
+    const auto queued = pool.enqueue([&] { ++queuedExecutions; });
+
+    const auto processed = pool.drain([&](const GPUThreadPool::GPUJob& job) {
+        job();
+        pool.cancelPending();
+        return true;
+    });
+
+    EXPECT_EQ(processed, 1u);
+    EXPECT_EQ(firstExecutions, 1);
+    EXPECT_EQ(queuedExecutions, 0);
+    EXPECT_TRUE(submitted.isSubmitted());
+    EXPECT_TRUE(submitted.isCompleted());
+    EXPECT_TRUE(queued.isCancelled());
+    const auto stats = pool.snapshot();
+    EXPECT_EQ(stats.queued, 0u);
+    EXPECT_EQ(stats.submitted, 1u);
+    EXPECT_EQ(stats.completed, 1u);
+    EXPECT_EQ(stats.cancelled, 1u);
 }
 
 TEST(GPUThreadPoolContractTest, NormalizesZeroCapacityToOne)

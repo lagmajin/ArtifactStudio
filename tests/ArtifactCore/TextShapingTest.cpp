@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 import Text.ShapingBackend;
 import Text.Style;
@@ -523,6 +524,96 @@ TEST(TextShapingClusterTest, RegionalIndicatorPairIsOneCluster)
   const auto result = backend.shape(makeRequest(flag));
   ASSERT_EQ(result.contract.clusters.size(), 1)
       << "clusters=" << result.contract.clusters.size();
+}
+
+TEST(TextShapingContractTest,
+     MixedBidiAndComplexGraphemesKeepCoverageAndGlyphMappingsConsistent)
+{
+  QtShapingBackend backend;
+  const QString family = QString::fromUtf8(
+      "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+      "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6");
+  const QString text = QStringLiteral("e") + marks() + QStringLiteral(" ") +
+      hebrew() + QStringLiteral(" ") + family + QStringLiteral(" ") + arabic();
+  const auto result = backend.shape(makeRequest(text));
+  const auto codepoints = text.toUcs4();
+  const int codepointCount = static_cast<int>(codepoints.size());
+  std::vector<int> utf16Offsets;
+  utf16Offsets.reserve(codepoints.size() + 1);
+  int utf16Offset = 0;
+  for (const uint codepoint : codepoints) {
+    utf16Offsets.push_back(utf16Offset);
+    utf16Offset += codepoint > 0xFFFFu ? 2 : 1;
+  }
+  utf16Offsets.push_back(utf16Offset);
+
+  ASSERT_GT(codepointCount, 0);
+  ASSERT_FALSE(result.contract.bidiRuns.isEmpty());
+  ASSERT_FALSE(result.contract.clusters.isEmpty());
+  std::vector<int> bidiCoverage(static_cast<std::size_t>(codepointCount), 0);
+  for (int visualOrder = 0;
+       visualOrder < result.contract.bidiRuns.size(); ++visualOrder) {
+    const auto& run = result.contract.bidiRuns.at(visualOrder);
+    EXPECT_EQ(run.visualOrder, visualOrder);
+    ASSERT_GE(run.logicalStart, 0);
+    ASSERT_GT(run.logicalLength, 0);
+    ASSERT_LE(run.logicalStart + run.logicalLength, codepointCount);
+    for (int logical = run.logicalStart;
+         logical < run.logicalStart + run.logicalLength; ++logical) {
+      ++bidiCoverage[static_cast<std::size_t>(logical)];
+    }
+  }
+  for (const int coverage : bidiCoverage) {
+    EXPECT_EQ(coverage, 1);
+  }
+
+  int nextLogicalStart = 0;
+  bool sawEmojiCluster = false;
+  bool sawCombiningCluster = false;
+  for (int clusterIndex = 0;
+       clusterIndex < result.contract.clusters.size(); ++clusterIndex) {
+    const auto& cluster = result.contract.clusters.at(clusterIndex);
+    EXPECT_EQ(cluster.logicalStart, nextLogicalStart);
+    EXPECT_GT(cluster.logicalLength, 0);
+    EXPECT_GE(cluster.visualStart, 0);
+    EXPECT_GT(cluster.visualLength, 0);
+    EXPECT_LE(cluster.visualStart + cluster.visualLength, codepointCount);
+    nextLogicalStart += cluster.logicalLength;
+    sawEmojiCluster = sawEmojiCluster || cluster.isEmojiSequence;
+    sawCombiningCluster = sawCombiningCluster ||
+        (cluster.scriptTag == QStringLiteral("Latn") &&
+         cluster.logicalLength == 2);
+  }
+  EXPECT_EQ(nextLogicalStart, codepointCount);
+  EXPECT_TRUE(sawEmojiCluster);
+  EXPECT_TRUE(sawCombiningCluster);
+
+  ASSERT_FALSE(result.glyphs.empty());
+  ASSERT_EQ(result.logicalToVisual.size(),
+            static_cast<qsizetype>(result.glyphs.size()));
+  ASSERT_EQ(result.visualToLogical.size(),
+            static_cast<qsizetype>(result.glyphs.size()));
+  std::vector<bool> seenVisual(result.glyphs.size(), false);
+  for (int logicalGlyph = 0;
+       logicalGlyph < result.logicalToVisual.size(); ++logicalGlyph) {
+    const int visualGlyph = result.logicalToVisual.at(logicalGlyph);
+    ASSERT_GE(visualGlyph, 0);
+    ASSERT_LT(visualGlyph, result.visualToLogical.size());
+    EXPECT_FALSE(seenVisual[static_cast<std::size_t>(visualGlyph)]);
+    seenVisual[static_cast<std::size_t>(visualGlyph)] = true;
+    EXPECT_EQ(result.visualToLogical.at(visualGlyph), logicalGlyph);
+  }
+
+  for (const GlyphItem& glyph : result.glyphs) {
+    ASSERT_GE(glyph.clusterIndex, 0);
+    ASSERT_LT(glyph.clusterIndex, result.contract.clusters.size());
+    const auto& cluster = result.contract.clusters.at(glyph.clusterIndex);
+    EXPECT_EQ(glyph.clusterId, cluster.clusterId);
+    const int start = utf16Offsets[static_cast<std::size_t>(cluster.logicalStart)];
+    const int end = utf16Offsets[static_cast<std::size_t>(
+        cluster.logicalStart + cluster.logicalLength)];
+    EXPECT_EQ(glyph.clusterText, text.mid(start, end - start));
+  }
 }
 
 // --- 4. backend parity ---------------------------------------------------

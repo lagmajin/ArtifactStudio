@@ -118,3 +118,89 @@ TEST(ShapeLayerSvgContractTest, PresentationAttributesStillImportWithoutInlineSt
     EXPECT_NEAR(imported.boundingRect().width(), 8.0, 1e-6);
     EXPECT_NEAR(imported.boundingRect().height(), 6.0, 1e-6);
 }
+
+TEST(ShapeLayerSvgContractTest, PathTranslationMovesGeometryAndBoundsTogether)
+{
+    const QString svg = QStringLiteral(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\">"
+        "<path d=\"M 2 3 L 10 3 L 10 9 L 2 9 Z\" "
+        "transform=\"translate(7,-4)\" fill=\"#ff000000\" stroke=\"none\" />"
+        "</svg>");
+
+    const ShapeLayer imported = ShapeLayer::fromSvg(svg);
+    ASSERT_NE(onlyPath(imported), nullptr);
+
+    EXPECT_TRUE(imported.contains(QPointF(10.0, 1.0)));
+    EXPECT_FALSE(imported.contains(QPointF(3.0, 4.0)));
+    EXPECT_NEAR(imported.boundingRect().x(), 9.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().y(), -1.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().width(), 8.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().height(), 6.0, 1e-6);
+}
+
+TEST(ShapeLayerSvgContractTest, RotationAroundExplicitPivotMovesPrimitiveAndBoundsTogether)
+{
+    const QString svg = QStringLiteral(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\">"
+        "<rect x=\"4\" y=\"0\" width=\"2\" height=\"2\" "
+        "transform=\"rotate(90, 4, 0)\" fill=\"#ff000000\" stroke=\"none\" />"
+        "</svg>");
+
+    const ShapeLayer imported = ShapeLayer::fromSvg(svg);
+
+    EXPECT_TRUE(imported.contains(QPointF(3.0, 1.0)));
+    EXPECT_FALSE(imported.contains(QPointF(5.5, 1.0)));
+    EXPECT_NEAR(imported.boundingRect().x(), 2.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().y(), 0.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().width(), 2.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().height(), 2.0, 1e-6);
+}
+
+TEST(ShapeLayerSvgContractTest,
+     TransformListComposesTranslationBeforeNonUniformScale)
+{
+    const QString svg = QStringLiteral(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\">"
+        "<rect x=\"1\" y=\"2\" width=\"3\" height=\"4\" "
+        "transform=\"translate(7,-4) scale(2,3)\" "
+        "fill=\"#ff000000\" stroke=\"none\" />"
+        "</svg>");
+
+    const ShapeLayer imported = ShapeLayer::fromSvg(svg);
+
+    EXPECT_TRUE(imported.contains(QPointF(10.0, 3.0)));
+    EXPECT_FALSE(imported.contains(QPointF(4.0, 3.0)));
+    EXPECT_NEAR(imported.boundingRect().x(), 9.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().y(), 2.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().width(), 6.0, 1e-6);
+    EXPECT_NEAR(imported.boundingRect().height(), 12.0, 1e-6);
+}
+
+TEST(ShapeLayerSvgContractTest, RelativePathCommandsAccumulateFromCurrentPoint)
+{
+    const QString svg = QStringLiteral(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\">"
+        "<path d=\"M 10 10 l 5 0 l 0 5 z\" fill=\"#ff000000\" stroke=\"none\" />"
+        "</svg>");
+
+    const ShapeLayer imported = ShapeLayer::fromSvg(svg);
+
+    ASSERT_EQ(imported.shapeCount(), 1);
+    EXPECT_TRUE(imported.contains(QPointF(11.0, 11.0)));
+    EXPECT_FALSE(imported.contains(QPointF(2.0, 2.0)));
+}
+
+TEST(ShapeLayerSvgContractTest, ImplicitLinePairsAcceptCommaSeparatedExponentCoordinates)
+{
+    const QString svg = QStringLiteral(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\">"
+        "<path d=\"M1e1,1e1 1.5e1,1e1 1.5e1,1.5e1z\" "
+        "fill=\"#ff000000\" stroke=\"none\" />"
+        "</svg>");
+
+    const ShapeLayer imported = ShapeLayer::fromSvg(svg);
+
+    ASSERT_EQ(imported.shapeCount(), 1);
+    EXPECT_TRUE(imported.contains(QPointF(14.0, 11.0)));
+    EXPECT_FALSE(imported.contains(QPointF(9.0, 9.0)));
+}

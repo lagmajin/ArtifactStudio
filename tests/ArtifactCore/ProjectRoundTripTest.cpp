@@ -1,16 +1,23 @@
 #include <gtest/gtest.h>
 
+#include <array>
+
+#include <QByteArray>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
+#include <QSize>
 #include <QString>
 #include <QVariant>
 
 import Project.ProjectVisitor;
 import Project.MetadataCollector;
 import Composition.ParametricComposition;
+import Image.ImageF32x4_RGBA;
 import Memory.SharedPtr;
 import Utils.Id;
+import Utils.Optional;
 
 using namespace ArtifactCore;
 
@@ -75,6 +82,13 @@ ParametricCompositionDefinition makeSampleDefinition()
     binding.targetParameterKey = QStringLiteral("opacity");
     EXPECT_TRUE(definition.addDataBinding(binding));
     return definition;
+}
+
+ImageF32x4_RGBA makeSinglePixelImage(const std::array<float, 4>& rgba)
+{
+    ImageF32x4_RGBA image;
+    image.setFromRGBA32F(rgba.data(), 1, 1);
+    return image;
 }
 
 } // namespace
@@ -381,6 +395,139 @@ TEST(ProjectInstanceTest, EvaluateFallsBackToTransparentWithoutInputs)
     EXPECT_EQ(context.timeKey(), 2500000);
 }
 
+TEST(ProjectInstanceTest, RenderContextTimeKeyRoundsAtMicrosecondBoundaries)
+{
+    ParametricCompositionRenderContext context;
+
+    context.timeSeconds = 0.0000004;
+    EXPECT_EQ(context.timeKey(), 0);
+    context.timeSeconds = 0.0000006;
+    EXPECT_EQ(context.timeKey(), 1);
+    context.timeSeconds = -0.0000004;
+    EXPECT_EQ(context.timeKey(), 0);
+    context.timeSeconds = -0.0000006;
+    EXPECT_EQ(context.timeKey(), -1);
+
+    context.timeSeconds = 1.0000014;
+    EXPECT_EQ(context.timeKey(), 1000001);
+    context.timeSeconds = 1.0000016;
+    EXPECT_EQ(context.timeKey(), 1000002);
+}
+
+TEST(ProjectInstanceTest, EvaluationResolutionFallbackAndCacheKeysStayCoherent)
+{
+    const auto definition = makeSampleDefinition();
+    const SharedPtr<const ParametricCompositionDefinition> shared =
+        makeShared<ParametricCompositionDefinition>(definition);
+    ParametricCompositionInstance instance(shared);
+
+    const ImageF32x4_RGBA embeddedImage = makeSinglePixelImage(
+        std::array<float, 4>{1.0f, 0.0f, 0.0f, 1.0f});
+    instance.addInputBinding(ParametricCompositionInputBinding::fromImage(
+        embeddedImage, QStringLiteral("input")));
+
+    ParametricCompositionRenderContext context;
+    context.timeSeconds = 1.25;
+    context.outputSize = QSize(3, 2);
+
+    const auto embeddedEvaluation = instance.evaluate(
+        context, ParametricCompositionInputResolver{});
+    ASSERT_TRUE(embeddedEvaluation.inputResolved);
+    EXPECT_FALSE(embeddedEvaluation.usedTransparentFallback);
+    ASSERT_TRUE(embeddedEvaluation.resolvedInputs.contains(QStringLiteral("input")));
+    EXPECT_EQ(embeddedEvaluation.image.width(), 3);
+    EXPECT_EQ(embeddedEvaluation.image.height(), 2);
+
+    const ImageF32x4_RGBA resolverImage = makeSinglePixelImage(
+        std::array<float, 4>{0.0f, 1.0f, 0.0f, 1.0f});
+    ParametricCompositionInputResolver resolver;
+    resolver.resolve = [resolverImage](
+        const ParametricCompositionInputBinding&,
+        const ParametricCompositionRenderContext&) -> Optional<ImageF32x4_RGBA> {
+        return resolverImage;
+    };
+
+    const auto resolvedEvaluation = instance.evaluate(context, resolver);
+    ASSERT_TRUE(resolvedEvaluation.inputResolved);
+    EXPECT_FALSE(resolvedEvaluation.usedTransparentFallback);
+    EXPECT_EQ(resolvedEvaluation.cacheKey.inputFrameHashes,
+              instance.evaluate(context, resolver).cacheKey.inputFrameHashes);
+    EXPECT_NE(resolvedEvaluation.cacheKey.inputFrameHashes,
+              embeddedEvaluation.cacheKey.inputFrameHashes)
+        << "resolver output must take precedence over the embedded image";
+
+    ParametricCompositionInputResolver emptyResolver;
+    emptyResolver.resolve = [](const ParametricCompositionInputBinding&,
+                               const ParametricCompositionRenderContext&)
+        -> Optional<ImageF32x4_RGBA> {
+        return {};
+    };
+    const auto fallbackEvaluation = instance.evaluate(context, emptyResolver);
+    EXPECT_EQ(fallbackEvaluation.cacheKey.inputFrameHashes,
+              embeddedEvaluation.cacheKey.inputFrameHashes);
+
+    auto laterContext = context;
+    laterContext.timeSeconds += 0.000001;
+    const auto laterEvaluation = instance.evaluate(laterContext, resolver);
+    EXPECT_NE(laterEvaluation.cacheKey.timeKey, resolvedEvaluation.cacheKey.timeKey);
+    EXPECT_EQ(laterEvaluation.cacheKey.inputFrameHashes,
+              resolvedEvaluation.cacheKey.inputFrameHashes);
+
+    instance.setParameterOverride(QStringLiteral("opacity"), 0.5);
+    const auto parameterEvaluation = instance.evaluate(context, resolver);
+    EXPECT_NE(parameterEvaluation.cacheKey.parameterHash,
+              resolvedEvaluation.cacheKey.parameterHash);
+    EXPECT_EQ(parameterEvaluation.cacheKey.inputFrameHashes,
+              resolvedEvaluation.cacheKey.inputFrameHashes);
+}
+
+TEST(ProjectInstanceTest, EvaluationCacheKeyIncludesOutputResolution)
+{
+    const auto definition = makeSampleDefinition();
+    const SharedPtr<const ParametricCompositionDefinition> shared =
+        makeShared<ParametricCompositionDefinition>(definition);
+    ParametricCompositionInstance instance(shared);
+
+    ParametricCompositionRenderContext smallContext;
+    smallContext.timeSeconds = 2.0;
+    smallContext.outputSize = QSize(3, 2);
+    ParametricCompositionRenderContext largeContext = smallContext;
+    largeContext.outputSize = QSize(6, 2);
+
+    const auto smallEvaluation = instance.evaluate(
+        smallContext, ParametricCompositionInputResolver{});
+    const auto largeEvaluation = instance.evaluate(
+        largeContext, ParametricCompositionInputResolver{});
+
+    EXPECT_FALSE(smallEvaluation.inputResolved);
+    EXPECT_FALSE(largeEvaluation.inputResolved);
+    EXPECT_TRUE(smallEvaluation.usedTransparentFallback);
+    EXPECT_TRUE(largeEvaluation.usedTransparentFallback);
+    EXPECT_EQ(smallEvaluation.image.width(), 3);
+    EXPECT_EQ(smallEvaluation.image.height(), 2);
+    EXPECT_EQ(largeEvaluation.image.width(), 6);
+    EXPECT_EQ(largeEvaluation.image.height(), 2);
+    EXPECT_NE(smallEvaluation.cacheKey.toString(),
+              largeEvaluation.cacheKey.toString())
+        << "different output resolutions must not alias one cached evaluation";
+}
+
+TEST(ProjectInstanceTest, CacheKeyHashSeparatesInputNameAndDigestBoundaries)
+{
+    ParametricCompositionCacheKey first;
+    first.definitionId = QStringLiteral("comp.cache-boundary");
+    first.inputFrameHashes.insert(QStringLiteral("ab"), QByteArrayLiteral("c"));
+    first.parameterHash = QByteArrayLiteral("parameters");
+    first.timeKey = 123;
+
+    ParametricCompositionCacheKey second = first;
+    second.inputFrameHashes.clear();
+    second.inputFrameHashes.insert(QStringLiteral("a"), QByteArrayLiteral("bc"));
+
+    // A naive key+digest concatenation would feed "abc" for both inputs.
+    EXPECT_NE(first.toString(), second.toString());
+}
+
 TEST(ProjectBindingTest, ConnectionAndCycleRules)
 {
     const ParametricCompositionInputBinding emptyText =
@@ -463,4 +610,80 @@ TEST(ProjectBundleTest, BundleRoundTripPreservesProject)
     EXPECT_FALSE(compositionJson.isEmpty());
     EXPECT_TRUE(parametricCompositionBundleToCompositionJson(
                     ParametricCompositionBundle{}).isEmpty());
+}
+
+TEST(ProjectBundleTest, LegacyBundleMigrationIsStableAcrossCompositionExport)
+{
+    QJsonObject legacyInput;
+    legacyInput.insert(QStringLiteral("displayName"), QStringLiteral("Source"));
+    legacyInput.insert(QStringLiteral("role"),
+                       static_cast<int>(ParametricCompositionSlotRole::Input));
+    legacyInput.insert(QStringLiteral("kind"),
+                       static_cast<int>(ParametricCompositionSlotKind::SourceLayer));
+    legacyInput.insert(QStringLiteral("valueType"), QStringLiteral("RGBA"));
+    legacyInput.insert(QStringLiteral("defaultValue"), QStringLiteral("layer-A"));
+
+    QJsonObject legacyOutput;
+    legacyOutput.insert(QStringLiteral("displayName"), QStringLiteral("Result"));
+    legacyOutput.insert(QStringLiteral("role"),
+                        static_cast<int>(ParametricCompositionSlotRole::Output));
+    legacyOutput.insert(QStringLiteral("kind"),
+                        static_cast<int>(ParametricCompositionSlotKind::RGBA));
+    legacyOutput.insert(QStringLiteral("valueType"), QStringLiteral("RGBA"));
+    legacyOutput.insert(QStringLiteral("defaultValue"), 7);
+
+    QJsonObject templateSlots;
+    templateSlots.insert(QStringLiteral("input"), legacyInput);
+    templateSlots.insert(QStringLiteral("output"), legacyOutput);
+    templateSlots.insert(QStringLiteral("malformed"), QStringLiteral("skip me"));
+
+    QJsonObject legacyBundle;
+    legacyBundle.insert(QStringLiteral("bundleTitle"), QStringLiteral("Legacy shot"));
+    legacyBundle.insert(QStringLiteral("templateSlots"), templateSlots);
+    legacyBundle.insert(QStringLiteral("vendorExtension"),
+                        QJsonObject{{QStringLiteral("revision"), 9}});
+
+    const ParametricCompositionBundle migrated =
+        ParametricCompositionBundle::fromJson(legacyBundle);
+    EXPECT_EQ(migrated.bundleTitle, QStringLiteral("Legacy shot"));
+    EXPECT_EQ(migrated.metadata.value(QStringLiteral("vendorExtension"))
+                  .toObject().value(QStringLiteral("revision")).toInt(), 9);
+
+    const QJsonArray slots = migrated.definition.value(QStringLiteral("slots")).toArray();
+    ASSERT_EQ(slots.size(), 2);
+    EXPECT_EQ(slots[0].toObject().value(QStringLiteral("slotId")).toString(),
+              QStringLiteral("input"));
+    EXPECT_EQ(slots[0].toObject().value(QStringLiteral("displayName")).toString(),
+              QStringLiteral("Source"));
+    EXPECT_EQ(slots[1].toObject().value(QStringLiteral("slotId")).toString(),
+              QStringLiteral("output"));
+    EXPECT_EQ(slots[1].toObject().value(QStringLiteral("role")).toInt(),
+              static_cast<int>(ParametricCompositionSlotRole::Output));
+
+    const QJsonArray slotValues =
+        migrated.instance.value(QStringLiteral("slotValues")).toArray();
+    ASSERT_EQ(slotValues.size(), 2);
+    EXPECT_EQ(slotValues[0].toObject().value(QStringLiteral("slotId")).toString(),
+              QStringLiteral("input"));
+    EXPECT_EQ(slotValues[0].toObject().value(QStringLiteral("value")).toString(),
+              QStringLiteral("layer-A"));
+    EXPECT_EQ(slotValues[1].toObject().value(QStringLiteral("value")).toInt(), 7);
+
+    const ParametricCompositionBundle restored =
+        ParametricCompositionBundle::fromJson(migrated.toJson());
+    EXPECT_EQ(restored.definition, migrated.definition);
+    EXPECT_EQ(restored.instance, migrated.instance);
+    EXPECT_EQ(restored.metadata.value(QStringLiteral("vendorExtension")),
+              migrated.metadata.value(QStringLiteral("vendorExtension")));
+
+    const QJsonObject compositionJson =
+        parametricCompositionBundleToCompositionJson(restored);
+    EXPECT_EQ(compositionJson.value(QStringLiteral("displayName")).toString(),
+              QStringLiteral("Legacy shot"));
+    EXPECT_EQ(compositionJson.value(QStringLiteral("slots")).toArray(), slots);
+    EXPECT_EQ(compositionJson.value(QStringLiteral("slotValues")).toArray(),
+              slotValues);
+    EXPECT_EQ(compositionJson.value(QStringLiteral("bundleMetadata"))
+                  .toObject().value(QStringLiteral("vendorExtension")),
+              migrated.metadata.value(QStringLiteral("vendorExtension")));
 }

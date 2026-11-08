@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <initializer_list>
@@ -156,6 +159,224 @@ TEST(AssetSequenceDetectionContractTest, PreservePolicyReportsAbsentFrameNumbers
     ASSERT_EQ(withGap.sequences.size(), 1u);
     EXPECT_EQ(withGap.sequences.front().missingFrames,
               (std::vector<int64_t>{11}));
+}
+
+TEST(AssetSequenceDetectionContractTest, GroupingIsInvariantAcrossEveryInputPermutation)
+{
+    constexpr std::array<const char*, 7> inputNames = {
+        "shot_0005.exr", "other_0009.png", "shot_0001.exr", "shot_0002.exr",
+        "notes.txt", "shot_0004.exr", "other_0010.png",
+    };
+
+    for (const auto policy : {MissingFramePolicy::Split, MissingFramePolicy::Preserve}) {
+        std::vector<String> baselineInput;
+        baselineInput.reserve(inputNames.size());
+        for (const char* filename : inputNames) {
+            baselineInput.emplace_back(filename);
+        }
+        const auto baseline = detectSequences(baselineInput, 2, policy);
+
+        std::array<std::size_t, inputNames.size()> permutation{};
+        for (std::size_t index = 0; index < permutation.size(); ++index) {
+            permutation[index] = index;
+        }
+        std::size_t permutationCount = 0;
+        do {
+            std::vector<String> shuffledInput;
+            shuffledInput.reserve(inputNames.size());
+            for (const std::size_t index : permutation) {
+                shuffledInput.emplace_back(inputNames[index]);
+            }
+
+            const auto actual = detectSequences(shuffledInput, 2, policy);
+            ASSERT_EQ(actual.sequences.size(), baseline.sequences.size());
+            ASSERT_EQ(actual.singles.size(), baseline.singles.size());
+            for (std::size_t sequenceIndex = 0;
+                 sequenceIndex < baseline.sequences.size(); ++sequenceIndex) {
+                const auto& expected = baseline.sequences[sequenceIndex];
+                const auto& observed = actual.sequences[sequenceIndex];
+                EXPECT_EQ(observed.prefix, expected.prefix);
+                EXPECT_EQ(observed.suffix, expected.suffix);
+                EXPECT_EQ(observed.padding, expected.padding);
+                EXPECT_EQ(observed.firstFrame, expected.firstFrame);
+                EXPECT_EQ(observed.lastFrame, expected.lastFrame);
+                EXPECT_EQ(observed.filenames, expected.filenames);
+                EXPECT_EQ(observed.missingFrames, expected.missingFrames);
+            }
+            for (std::size_t singleIndex = 0; singleIndex < baseline.singles.size(); ++singleIndex) {
+                EXPECT_EQ(actual.singles[singleIndex], baseline.singles[singleIndex]);
+            }
+            ++permutationCount;
+        } while (std::next_permutation(permutation.begin(), permutation.end()));
+
+        EXPECT_EQ(permutationCount, 5040u);
+        ASSERT_EQ(baseline.singles.size(), 1u);
+        EXPECT_EQ(toStdString(baseline.singles.front()), "notes.txt");
+        if (policy == MissingFramePolicy::Split) {
+            ASSERT_EQ(baseline.sequences.size(), 3u);
+            EXPECT_EQ(toStdString(baseline.sequences[0].prefix), "other_");
+            EXPECT_EQ(baseline.sequences[0].firstFrame, 9);
+            EXPECT_EQ(baseline.sequences[0].lastFrame, 10);
+            EXPECT_EQ(toStdString(baseline.sequences[1].prefix), "shot_");
+            EXPECT_EQ(baseline.sequences[1].firstFrame, 1);
+            EXPECT_EQ(baseline.sequences[1].lastFrame, 2);
+            EXPECT_EQ(baseline.sequences[2].firstFrame, 4);
+            EXPECT_EQ(baseline.sequences[2].lastFrame, 5);
+            EXPECT_TRUE(baseline.sequences[0].missingFrames.empty());
+            EXPECT_TRUE(baseline.sequences[1].missingFrames.empty());
+        } else {
+            ASSERT_EQ(baseline.sequences.size(), 2u);
+            EXPECT_EQ(toStdString(baseline.sequences[0].prefix), "other_");
+            EXPECT_EQ(baseline.sequences[0].firstFrame, 9);
+            EXPECT_EQ(baseline.sequences[0].lastFrame, 10);
+            EXPECT_EQ(toStdString(baseline.sequences[1].prefix), "shot_");
+            EXPECT_EQ(baseline.sequences[1].firstFrame, 1);
+            EXPECT_EQ(baseline.sequences[1].lastFrame, 5);
+            EXPECT_EQ(baseline.sequences[1].missingFrames,
+                      (std::vector<std::int64_t>{3}));
+        }
+    }
+}
+
+TEST(AssetSequenceDetectionContractTest,
+     GroupAndSingleOrderingIsInvariantAcrossMixedInputPermutations)
+{
+    constexpr std::array<const char*, 5> inputNames = {
+        "shot_0003.png", "notes-b.txt", "shot_0001.png",
+        "shot_0004.png", "notes-a.txt",
+    };
+    std::vector<String> baselineInput;
+    baselineInput.reserve(inputNames.size());
+    for (const char* filename : inputNames) {
+        baselineInput.emplace_back(filename);
+    }
+    const auto baseline = detectSequences(baselineInput);
+    ASSERT_EQ(baseline.sequences.size(), 1u);
+    ASSERT_EQ(baseline.singles.size(), 3u);
+
+    std::array<std::size_t, inputNames.size()> permutation{};
+    for (std::size_t index = 0; index < permutation.size(); ++index) {
+        permutation[index] = index;
+    }
+    std::size_t permutationCount = 0;
+    do {
+        std::vector<String> shuffledInput;
+        shuffledInput.reserve(inputNames.size());
+        for (const std::size_t index : permutation) {
+            shuffledInput.emplace_back(inputNames[index]);
+        }
+
+        const auto actual = detectSequences(shuffledInput);
+        ASSERT_EQ(actual.sequences.size(), baseline.sequences.size());
+        ASSERT_EQ(actual.singles.size(), baseline.singles.size());
+        EXPECT_EQ(actual.sequences.front().filenames,
+                  baseline.sequences.front().filenames);
+        EXPECT_EQ(actual.singles, baseline.singles);
+        ++permutationCount;
+    } while (std::next_permutation(permutation.begin(), permutation.end()));
+
+    EXPECT_EQ(permutationCount, 120u);
+}
+
+TEST(AssetSequenceDetectionContractTest,
+     ExhaustiveSmallFrameSubsetsMatchIndependentGapPolicyModel)
+{
+    struct ExpectedGroup {
+        std::vector<int> frames;
+        std::vector<std::int64_t> missingFrames;
+    };
+    const auto filenameFor = [](int frame) {
+        std::string digits = std::to_string(frame);
+        digits.insert(digits.begin(), 4u - digits.size(), '0');
+        return String("plate_" + digits + ".exr");
+    };
+    constexpr int firstFrame = 100;
+    constexpr int frameDomainSize = 8;
+    constexpr int subsetCount = 1 << frameDomainSize;
+    constexpr std::array policies = {
+        MissingFramePolicy::Split,
+        MissingFramePolicy::Preserve,
+    };
+
+    for (const MissingFramePolicy policy : policies) {
+        for (int minimumRunLength = 2; minimumRunLength <= 4; ++minimumRunLength) {
+            for (int mask = 0; mask < subsetCount; ++mask) {
+                SCOPED_TRACE(testing::Message()
+                             << "policy=" << static_cast<int>(policy)
+                             << " min=" << minimumRunLength
+                             << " mask=" << mask);
+                std::vector<int> selectedFrames;
+                std::vector<String> input;
+                for (int offset = 0; offset < frameDomainSize; ++offset) {
+                    if ((mask & (1 << offset)) == 0) continue;
+                    selectedFrames.push_back(firstFrame + offset);
+                    input.emplace_back(filenameFor(firstFrame + offset));
+                }
+                std::reverse(input.begin(), input.end());
+
+                std::vector<ExpectedGroup> expectedGroups;
+                std::vector<int> expectedSingles;
+                if (policy == MissingFramePolicy::Preserve &&
+                    static_cast<int>(selectedFrames.size()) >= minimumRunLength) {
+                    ExpectedGroup group;
+                    group.frames = selectedFrames;
+                    for (int frame = selectedFrames.front();
+                         frame <= selectedFrames.back(); ++frame) {
+                        if ((mask & (1 << (frame - firstFrame))) == 0) {
+                            group.missingFrames.push_back(frame);
+                        }
+                    }
+                    expectedGroups.push_back(std::move(group));
+                } else if (policy == MissingFramePolicy::Preserve) {
+                    expectedSingles = selectedFrames;
+                } else {
+                    for (std::size_t begin = 0; begin < selectedFrames.size();) {
+                        std::size_t end = begin + 1;
+                        while (end < selectedFrames.size() &&
+                               selectedFrames[end] == selectedFrames[end - 1] + 1) {
+                            ++end;
+                        }
+                        if (end - begin >= static_cast<std::size_t>(minimumRunLength)) {
+                            ExpectedGroup group;
+                            group.frames.assign(selectedFrames.begin() + begin,
+                                                selectedFrames.begin() + end);
+                            expectedGroups.push_back(std::move(group));
+                        } else {
+                            expectedSingles.insert(expectedSingles.end(),
+                                selectedFrames.begin() + begin,
+                                selectedFrames.begin() + end);
+                        }
+                        begin = end;
+                    }
+                }
+
+                const auto actual = detectSequences(input, minimumRunLength, policy);
+                ASSERT_EQ(actual.sequences.size(), expectedGroups.size());
+                ASSERT_EQ(actual.singles.size(), expectedSingles.size());
+                for (std::size_t groupIndex = 0;
+                     groupIndex < expectedGroups.size(); ++groupIndex) {
+                    const auto& expected = expectedGroups[groupIndex];
+                    const auto& sequence = actual.sequences[groupIndex];
+                    ASSERT_FALSE(expected.frames.empty());
+                    EXPECT_EQ(sequence.firstFrame, expected.frames.front());
+                    EXPECT_EQ(sequence.lastFrame, expected.frames.back());
+                    EXPECT_EQ(sequence.padding, 4);
+                    EXPECT_EQ(sequence.missingFrames, expected.missingFrames);
+                    ASSERT_EQ(sequence.filenames.size(), expected.frames.size());
+                    for (std::size_t frameIndex = 0;
+                         frameIndex < expected.frames.size(); ++frameIndex) {
+                        EXPECT_EQ(toStdString(sequence.filenames[frameIndex]),
+                                  toStdString(filenameFor(expected.frames[frameIndex])));
+                    }
+                }
+                for (std::size_t singleIndex = 0;
+                     singleIndex < expectedSingles.size(); ++singleIndex) {
+                    EXPECT_EQ(toStdString(actual.singles[singleIndex]),
+                              toStdString(filenameFor(expectedSingles[singleIndex])));
+                }
+            }
+        }
+    }
 }
 
 TEST(AssetSequenceDetectionContractTest, PreservePolicyStillEnforcesMinimumRunLength)

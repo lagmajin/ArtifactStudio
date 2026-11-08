@@ -105,6 +105,37 @@ TEST(AudioSpectrumStandaloneTest, StereoLoudnessUsesMeanChannelEnergy)
     EXPECT_FLOAT_EQ(spectrum.getWaveform()[0], 0.25f);
 }
 
+TEST(AudioSpectrumStandaloneTest, MismatchedChannelLengthsIgnoreEveryChannelTail)
+{
+    AudioSegment mismatched;
+    mismatched.sampleRate = 48000;
+    mismatched.layout = AudioChannelLayout::Stereo;
+    mismatched.channelData.push_back(QVector<float>{0.5f, 0.25f, 500.0f, -500.0f});
+    mismatched.channelData.push_back(QVector<float>{-0.25f, 0.5f});
+
+    AudioSegment explicitlyTrimmed;
+    explicitlyTrimmed.sampleRate = mismatched.sampleRate;
+    explicitlyTrimmed.layout = mismatched.layout;
+    explicitlyTrimmed.channelData.push_back(QVector<float>{0.5f, 0.25f});
+    explicitlyTrimmed.channelData.push_back(QVector<float>{-0.25f, 0.5f});
+
+    ASSERT_EQ(mismatched.frameCount(), 2);
+    AudioSpectrum actualSpectrum;
+    AudioSpectrum expectedSpectrum;
+    actualSpectrum.setBins(4);
+    expectedSpectrum.setBins(4);
+    actualSpectrum.process(mismatched);
+    expectedSpectrum.process(explicitlyTrimmed);
+
+    EXPECT_FLOAT_EQ(actualSpectrum.getMomentaryLufs(), expectedSpectrum.getMomentaryLufs());
+    EXPECT_FLOAT_EQ(actualSpectrum.getShortTermLufs(), expectedSpectrum.getShortTermLufs());
+    EXPECT_FLOAT_EQ(actualSpectrum.getIntegratedLufs(), expectedSpectrum.getIntegratedLufs());
+    EXPECT_FLOAT_EQ(actualSpectrum.getPeakDb(), expectedSpectrum.getPeakDb());
+    EXPECT_FLOAT_EQ(actualSpectrum.getTruePeakDb(), expectedSpectrum.getTruePeakDb());
+    EXPECT_EQ(actualSpectrum.getSpectrum(), expectedSpectrum.getSpectrum());
+    EXPECT_EQ(actualSpectrum.getWaveform(), expectedSpectrum.getWaveform());
+}
+
 TEST(AudioSpectrumStandaloneTest, SurroundLfeChannelDoesNotContributeToLoudness)
 {
     AudioSpectrum spectrum;
@@ -192,6 +223,29 @@ TEST(AudioSpectrumStandaloneTest, ContiguousBlocksMatchWholeSegmentLoudness)
                 wholeSpectrum.getIntegratedLufs(), 1e-5f);
     EXPECT_NEAR(splitSpectrum.getShortTermLufs(),
                 wholeSpectrum.getShortTermLufs(), 1e-5f);
+}
+
+TEST(AudioSpectrumStandaloneTest, ShortTermWindowWeightsOnlyThePortionBeforeItsCutoff)
+{
+    AudioSpectrum spectrum;
+    auto earlier = makeMono(2, constantSamples(0.1f, 4), 0);
+    auto later = makeMono(2, constantSamples(0.5f, 4), 4);
+    spectrum.process(earlier);
+    spectrum.process(later);
+
+    // The six-frame short-term window at frame 8 is [2, 8): two frames
+    // from the first block and all four frames from the second block.
+    constexpr double expectedShortTermMeanSquare =
+        (0.01 * 2.0 + 0.25 * 4.0) / 6.0;
+    constexpr double expectedIntegratedMeanSquare =
+        (0.01 * 4.0 + 0.25 * 4.0) / 8.0;
+    const float expectedShortTerm = static_cast<float>(
+        -0.691 + 10.0 * std::log10(expectedShortTermMeanSquare));
+    const float expectedIntegrated = static_cast<float>(
+        -0.691 + 10.0 * std::log10(expectedIntegratedMeanSquare));
+
+    EXPECT_NEAR(spectrum.getShortTermLufs(), expectedShortTerm, 1e-4f);
+    EXPECT_NEAR(spectrum.getIntegratedLufs(), expectedIntegrated, 1e-4f);
 }
 
 TEST(AudioSpectrumStandaloneTest, IntegratedWindowContinuesAcrossInt64FrameBoundary)

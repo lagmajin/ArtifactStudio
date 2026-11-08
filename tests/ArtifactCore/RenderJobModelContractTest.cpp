@@ -4,8 +4,19 @@
 #include <QPersistentModelIndex>
 #include <QString>
 
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstddef>
+#include <condition_variable>
+#include <future>
 #include <limits>
+#include <mutex>
+#include <utility>
+#include <vector>
 
+import Core.Render.MFR.Dispatcher;
+import Core.Render.MFR.Job;
 import Render.JobModel;
 import Utils.Id;
 
@@ -292,6 +303,375 @@ TEST(RenderJobModelContractTest, MfrSettingsAcceptZeroLimitsAndCanBeDisabled)
     EXPECT_EQ(job->mfrConcurrentFrames, 0);
     EXPECT_EQ(job->mfrMemoryLimitMB, 0u);
     EXPECT_EQ(job->mfrRetryBackoffMs, 0);
+}
+
+TEST(MfrDispatcherContractTest, RetriesSelectedFramesAndContinuesAfterPermanentFailure)
+{
+    using namespace ArtifactCore::Render::MFR;
+
+    MFRJobConfig config;
+    config.startFrame = -3;
+    config.endFrame = 8;
+    config.frameStep = 2;
+    config.maxConcurrentFrames = 4;
+    config.framesAreDependent = true;
+    config.maxRetryCount = 1;
+    config.continueOnError = true;
+
+    constexpr std::array<int, 6> expectedFrames = {-3, -1, 1, 3, 5, 7};
+    std::array<int, expectedFrames.size()> attempts{};
+    std::vector<std::pair<int, int>> progress;
+    MFRDispatcher dispatcher;
+    const MFRJobResult result = dispatcher.executeBlocking(
+        config,
+        [&attempts, &expectedFrames](int frame) {
+            const auto found = std::find(expectedFrames.begin(), expectedFrames.end(), frame);
+            if (found == expectedFrames.end()) {
+                return false;
+            }
+            const auto index = static_cast<std::size_t>(found - expectedFrames.begin());
+            const int attempt = attempts[index]++;
+            if (frame == 3) {
+                return false;
+            }
+            return frame != -1 || attempt > 0;
+        },
+        [&progress](const MFRProgress& current) {
+            progress.emplace_back(current.completedFrames.load(),
+                                  current.failedFrames.load());
+        });
+
+    ASSERT_EQ(result.frames.size(), expectedFrames.size());
+    EXPECT_EQ(result.completedCount, 5);
+    EXPECT_EQ(result.failedCount, 1);
+    EXPECT_FALSE(result.cancelled);
+    for (std::size_t index = 0; index < expectedFrames.size(); ++index) {
+        EXPECT_EQ(result.frames[index].frameNumber, expectedFrames[index]);
+        EXPECT_EQ(result.frames[index].success, expectedFrames[index] != 3);
+    }
+    EXPECT_EQ(attempts, (std::array<int, 6>{1, 2, 1, 2, 1, 1}));
+    ASSERT_EQ(progress.size(), expectedFrames.size());
+    EXPECT_EQ(progress.back().first + progress.back().second,
+              static_cast<int>(expectedFrames.size()));
+}
+
+TEST(MfrDispatcherContractTest,
+     SparseFrameRangeUsesWideArithmeticAcrossIntegerBoundaries)
+{
+    using namespace ArtifactCore::Render::MFR;
+
+    MFRJobConfig config;
+    config.startFrame = std::numeric_limits<int>::min();
+    config.endFrame = std::numeric_limits<int>::max();
+    config.frameStep = std::numeric_limits<int>::max();
+    config.maxConcurrentFrames = 1;
+
+    std::vector<int> renderedFrames;
+    MFRDispatcher dispatcher;
+    const MFRJobResult result = dispatcher.executeBlocking(
+        config, [&renderedFrames](int frame) {
+            renderedFrames.push_back(frame);
+            return true;
+        });
+
+    EXPECT_EQ(renderedFrames,
+              (std::vector<int>{std::numeric_limits<int>::min(), -1,
+                                std::numeric_limits<int>::max() - 1}));
+    ASSERT_EQ(result.frames.size(), 3u);
+    EXPECT_EQ(result.frames[0].frameNumber, std::numeric_limits<int>::min());
+    EXPECT_EQ(result.frames[1].frameNumber, -1);
+    EXPECT_EQ(result.frames[2].frameNumber, std::numeric_limits<int>::max() - 1);
+    EXPECT_EQ(result.completedCount, 3);
+    EXPECT_EQ(result.failedCount, 0);
+    EXPECT_FALSE(result.cancelled);
+}
+
+TEST(MfrDispatcherContractTest,
+     DependentFramesWaitForTheCurrentFrameRetryBeforeStartingLaterFrames)
+{
+    using namespace ArtifactCore::Render::MFR;
+
+    MFRJobConfig config;
+    config.startFrame = 0;
+    config.endFrame = 2;
+    config.maxConcurrentFrames = 1;
+    config.framesAreDependent = true;
+    config.maxRetryCount = 1;
+
+    std::mutex mutex;
+    std::condition_variable changed;
+    int activeCallbacks = 0;
+    int maximumActiveCallbacks = 0;
+    int frameZeroAttempts = 0;
+    bool laterFrameStarted = false;
+    std::vector<int> callOrder;
+
+    MFRDispatcher dispatcher;
+    const MFRJobResult result = dispatcher.executeBlocking(
+        config,
+        [&](int frame) {
+            bool failThisAttempt = false;
+            {
+                std::unique_lock lock(mutex);
+                ++activeCallbacks;
+                maximumActiveCallbacks =
+                    std::max(maximumActiveCallbacks, activeCallbacks);
+                callOrder.push_back(frame);
+                if (frame != 0) {
+                    laterFrameStarted = true;
+                    changed.notify_all();
+                } else if (frameZeroAttempts++ == 0) {
+                    changed.wait_for(lock, std::chrono::milliseconds(100),
+                                     [&] { return laterFrameStarted; });
+                    failThisAttempt = true;
+                }
+                --activeCallbacks;
+            }
+            changed.notify_all();
+            return !failThisAttempt;
+        });
+
+    EXPECT_EQ(result.completedCount, 3);
+    EXPECT_EQ(result.failedCount, 0);
+    EXPECT_FALSE(result.cancelled);
+    EXPECT_EQ(frameZeroAttempts, 2);
+    EXPECT_EQ(maximumActiveCallbacks, 1);
+    EXPECT_EQ(callOrder, (std::vector<int>{0, 0, 1, 2}));
+    ASSERT_EQ(result.frames.size(), 3u);
+    for (const auto& frame : result.frames) EXPECT_TRUE(frame.success);
+}
+
+TEST(MfrDispatcherContractTest, CancellationStopsNewFramesAfterInFlightFramesFinish)
+{
+    using namespace ArtifactCore::Render::MFR;
+
+    MFRJobConfig config;
+    config.startFrame = 10;
+    config.endFrame = 19;
+    config.maxConcurrentFrames = 2;
+    config.maxRetryCount = 0;
+
+    MFRDispatcher dispatcher;
+    std::mutex gateMutex;
+    std::condition_variable gateChanged;
+    int startedFrames = 0;
+    bool releaseFrames = false;
+    std::vector<int> frameNumbers;
+    std::vector<std::pair<int, int>> progress;
+
+    auto resultFuture = std::async(std::launch::async,
+        [&dispatcher, &config, &gateMutex, &gateChanged, &startedFrames,
+         &releaseFrames, &frameNumbers, &progress] {
+            return dispatcher.executeBlocking(
+                config,
+                [&gateMutex, &gateChanged, &startedFrames, &releaseFrames,
+                 &frameNumbers](int frame) {
+                    std::unique_lock lock(gateMutex);
+                    frameNumbers.push_back(frame);
+                    ++startedFrames;
+                    gateChanged.notify_all();
+                    gateChanged.wait(lock, [&releaseFrames] {
+                        return releaseFrames;
+                    });
+                    return true;
+                },
+                [&progress](const MFRProgress& current) {
+                    progress.emplace_back(current.completedFrames.load(),
+                                          current.failedFrames.load());
+                });
+        });
+
+    std::unique_lock gateLock(gateMutex);
+    const bool bothWorkersStarted = gateChanged.wait_for(
+        gateLock, std::chrono::seconds(5), [&startedFrames] {
+            return startedFrames == 2;
+        });
+    if (!bothWorkersStarted) {
+        releaseFrames = true;
+        gateLock.unlock();
+        gateChanged.notify_all();
+        (void)resultFuture.get();
+        FAIL() << "both frame workers did not enter the gated callback";
+        return;
+    }
+
+    gateLock.unlock();
+    dispatcher.cancel();
+    {
+        std::lock_guard lock(gateMutex);
+        releaseFrames = true;
+    }
+    gateChanged.notify_all();
+
+    const MFRJobResult result = resultFuture.get();
+    EXPECT_EQ(result.completedCount, 2);
+    EXPECT_EQ(result.failedCount, 0);
+    EXPECT_TRUE(result.cancelled);
+    ASSERT_EQ(result.frames.size(), 10u);
+    EXPECT_EQ(std::count_if(result.frames.begin(), result.frames.end(),
+                            [](const auto& frame) { return frame.success; }), 2);
+    ASSERT_EQ(frameNumbers.size(), 2u);
+    std::sort(frameNumbers.begin(), frameNumbers.end());
+    EXPECT_EQ(frameNumbers, (std::vector<int>{10, 11}));
+    ASSERT_EQ(progress.size(), 2u);
+    EXPECT_EQ(progress.back().first, 2);
+    EXPECT_EQ(progress.back().second, 0);
+}
+
+TEST(MfrDispatcherContractTest,
+     AsyncCancellationWaitsForInflightFrameAndSkipsUnstartedFrames)
+{
+    using namespace ArtifactCore::Render::MFR;
+
+    MFRJobConfig config;
+    config.startFrame = 20;
+    config.endFrame = 29;
+    config.maxConcurrentFrames = 1;
+
+    MFRDispatcher dispatcher;
+    std::mutex gateMutex;
+    std::condition_variable gateChanged;
+    bool frameEntered = false;
+    bool releaseFrame = false;
+    std::vector<int> frameNumbers;
+
+    auto resultFuture = dispatcher.executeAsync(
+        config, [&gateMutex, &gateChanged, &frameEntered, &releaseFrame,
+                 &frameNumbers](int frame) {
+            std::unique_lock lock(gateMutex);
+            frameNumbers.push_back(frame);
+            frameEntered = true;
+            gateChanged.notify_all();
+            gateChanged.wait(lock, [&releaseFrame] { return releaseFrame; });
+            return true;
+        });
+
+    std::unique_lock lock(gateMutex);
+    const bool entered = gateChanged.wait_for(
+        lock, std::chrono::seconds(5), [&frameEntered] { return frameEntered; });
+    if (!entered) {
+        releaseFrame = true;
+        lock.unlock();
+        gateChanged.notify_all();
+        (void)resultFuture.get();
+        FAIL() << "the asynchronous frame callback did not start";
+        return;
+    }
+
+    dispatcher.cancel();
+    releaseFrame = true;
+    lock.unlock();
+    gateChanged.notify_all();
+
+    const MFRJobResult result = resultFuture.get();
+    EXPECT_TRUE(result.cancelled);
+    EXPECT_EQ(result.completedCount, 1);
+    EXPECT_EQ(result.failedCount, 0);
+    ASSERT_EQ(frameNumbers.size(), 1u);
+    EXPECT_EQ(frameNumbers.front(), 20);
+    ASSERT_EQ(result.frames.size(), 10u);
+    EXPECT_TRUE(result.frames.front().success);
+    for (std::size_t index = 1; index < result.frames.size(); ++index) {
+        EXPECT_FALSE(result.frames[index].success);
+    }
+}
+
+TEST(MfrDispatcherContractTest,
+     AsyncProgressCallbackExceptionDoesNotAbandonRemainingFrames)
+{
+    using namespace ArtifactCore::Render::MFR;
+
+    MFRJobConfig config;
+    config.startFrame = 4;
+    config.endFrame = 7;
+    config.maxConcurrentFrames = 1;
+
+    int progressCalls = 0;
+    std::vector<int> renderedFrames;
+    MFRDispatcher dispatcher;
+    auto resultFuture = dispatcher.executeAsync(
+        config, [&renderedFrames](int frame) {
+            renderedFrames.push_back(frame);
+            return true;
+        }, [&progressCalls](const MFRProgress&) {
+            ++progressCalls;
+            if (progressCalls == 1) throw 1;
+        });
+
+    const MFRJobResult result = resultFuture.get();
+    EXPECT_EQ(renderedFrames, (std::vector<int>{4, 5, 6, 7}));
+    EXPECT_EQ(progressCalls, 4);
+    EXPECT_EQ(result.completedCount, 4);
+    EXPECT_EQ(result.failedCount, 0);
+    EXPECT_FALSE(result.cancelled);
+    ASSERT_EQ(result.frames.size(), 4u);
+    for (std::size_t index = 0; index < result.frames.size(); ++index) {
+        EXPECT_TRUE(result.frames[index].success);
+        EXPECT_EQ(result.frames[index].frameNumber, 4 + static_cast<int>(index));
+    }
+}
+
+TEST(MfrDispatcherContractTest,
+     CancellationBeforeRetryPreventsAnotherAttemptOfTheFailedFrame)
+{
+    using namespace ArtifactCore::Render::MFR;
+
+    MFRJobConfig config;
+    config.startFrame = 7;
+    config.endFrame = 7;
+    config.maxConcurrentFrames = 1;
+    config.maxRetryCount = 3;
+    config.retryBackoffMs = 100;
+
+    MFRDispatcher dispatcher;
+    std::mutex gateMutex;
+    std::condition_variable gateChanged;
+    bool firstAttemptEntered = false;
+    bool releaseFirstAttempt = false;
+    int attempts = 0;
+
+    auto resultFuture = std::async(std::launch::async,
+        [&dispatcher, &config, &gateMutex, &gateChanged, &firstAttemptEntered,
+         &releaseFirstAttempt, &attempts] {
+            return dispatcher.executeBlocking(config, [&](int frame) {
+                std::unique_lock lock(gateMutex);
+                EXPECT_EQ(frame, 7);
+                ++attempts;
+                firstAttemptEntered = true;
+                gateChanged.notify_all();
+                gateChanged.wait(lock, [&releaseFirstAttempt] {
+                    return releaseFirstAttempt;
+                });
+                return false;
+            });
+        });
+
+    std::unique_lock lock(gateMutex);
+    const bool attemptEntered = gateChanged.wait_for(
+        lock, std::chrono::seconds(5), [&firstAttemptEntered] {
+            return firstAttemptEntered;
+        });
+    if (!attemptEntered) {
+        releaseFirstAttempt = true;
+        lock.unlock();
+        gateChanged.notify_all();
+        (void)resultFuture.get();
+        FAIL() << "the first retryable frame attempt did not start";
+        return;
+    }
+
+    dispatcher.cancel();
+    releaseFirstAttempt = true;
+    lock.unlock();
+    gateChanged.notify_all();
+
+    const MFRJobResult result = resultFuture.get();
+    EXPECT_EQ(attempts, 1);
+    EXPECT_EQ(result.completedCount, 0);
+    EXPECT_EQ(result.failedCount, 1);
+    ASSERT_EQ(result.frames.size(), 1u);
+    EXPECT_EQ(result.frames.front().frameNumber, 7);
+    EXPECT_FALSE(result.frames.front().success);
 }
 
 TEST(RenderJobModelContractTest,

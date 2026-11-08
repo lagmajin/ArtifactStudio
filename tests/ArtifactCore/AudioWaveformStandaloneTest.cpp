@@ -2,6 +2,7 @@
 
 #include <QVector>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -163,6 +164,50 @@ TEST(AudioWaveformStandaloneTest, TrailingRemainderFramesContributeToLastBin)
 
     ASSERT_EQ(waveform.getWaveformData().size(), 4u);
     EXPECT_GT(waveform.getWaveformData().back(), 0.0f);
+}
+
+TEST(AudioWaveformStandaloneTest, LastUnevenBucketIncludesAllTrailingFramesInItsRms)
+{
+    AudioWaveform waveform;
+    waveform.setResolution(4);
+    auto segment = makeMono(48000, QVector<float>{
+        1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 3.0f, 3.0f});
+
+    waveform.process(segment);
+
+    const auto& bins = waveform.getWaveformData();
+    ASSERT_EQ(bins.size(), 4u);
+    EXPECT_FLOAT_EQ(bins[0], 1.0f);
+    EXPECT_FLOAT_EQ(bins[1], 0.0f);
+    EXPECT_FLOAT_EQ(bins[2], 0.0f);
+    EXPECT_NEAR(bins[3], std::sqrt((3.0f * 3.0f + 3.0f * 3.0f) / 4.0f),
+                1e-6f);
+}
+
+TEST(AudioWaveformStandaloneTest, EveryFrameMapsToExactlyOneBinAcrossUnevenPartitions)
+{
+    for (int frameCount = 1; frameCount <= 32; ++frameCount) {
+        for (int resolution = 1; resolution <= frameCount; ++resolution) {
+            for (int impulseFrame = 0; impulseFrame < frameCount; ++impulseFrame) {
+                QVector<float> samples(frameCount, 0.0f);
+                samples[impulseFrame] = 1.0f;
+                auto segment = makeMono(48000, std::move(samples));
+
+                AudioWaveform waveform;
+                waveform.setResolution(resolution);
+                waveform.process(segment);
+
+                const auto& bins = waveform.getWaveformData();
+                ASSERT_EQ(bins.size(), static_cast<std::size_t>(resolution));
+                const auto activeBins = std::count_if(
+                    bins.begin(), bins.end(), [](float value) { return value > 0.0f; });
+                EXPECT_EQ(activeBins, 1)
+                    << "frames=" << frameCount << ", resolution=" << resolution
+                    << ", impulse=" << impulseFrame;
+            }
+        }
+    }
 }
 
 TEST(AudioWaveformStandaloneTest, BypassPreservesInputAndPreviousWaveform)

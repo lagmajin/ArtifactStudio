@@ -449,6 +449,7 @@ set_tests_properties(ArtifactCoreIESProfileContractTest PROPERTIES
 artifact_add_test(ArtifactCoreActionManagerContractTest
     SOURCES
         ActionManagerContractTest.cpp
+        EventBusContractTest.cpp
     LIBS
         ArtifactCore
 )
@@ -780,6 +781,96 @@ set_tests_properties(ArtifactCoreSchemaMigrationContractTest PROPERTIES
     LABELS "serialization;schema-migration;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreSerializationEnvelopeContractTest
+    SOURCES
+        SerializationEnvelopeContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreSerializationEnvelopeContractTest PROPERTIES
+    LABELS "serialization;envelope;migration;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreJsonSerializableAdapterContractTest
+    SOURCES
+        JsonSerializableAdapterContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreJsonSerializableAdapterContractTest PROPERTIES
+    LABELS "serialization;json-adapter;registry;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreProjectSerializerContractTest
+    SOURCES
+        ProjectSerializerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreProjectSerializerContractTest PROPERTIES
+    LABELS "serialization;project-serializer;json;cbor;cpu;contract"
+)
+
+artifact_add_test(ArtifactCorePropertyRegistryReadOnlyAdapterContractTest
+    SOURCES
+        PropertyRegistryReadOnlyAdapterContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCorePropertyRegistryReadOnlyAdapterContractTest PROPERTIES
+    LABELS "property;registry;read-only;cpu;contract"
+)
+
+artifact_add_test(ArtifactCorePropertyLinkManagerContractTest
+    SOURCES
+        PropertyLinkManagerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCorePropertyLinkManagerContractTest PROPERTIES
+    LABELS "property;links;mapping;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreLayeredConfigStoreContractTest
+    SOURCES
+        LayeredConfigStoreContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreLayeredConfigStoreContractTest PROPERTIES
+    LABELS "configuration;layers;serialization;cpu;contract"
+)
+
+artifact_add_test(ArtifactCorePluginRegistryContractTest
+    SOURCES
+        PluginRegistryContractTest.cpp
+    LIBS
+        ArtifactCorePlugin
+)
+set_tests_properties(ArtifactCorePluginRegistryContractTest PROPERTIES
+    LABELS "plugin;registry;lifecycle;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreLocalizationContractTest
+    SOURCES
+        LocalizationContractTest.cpp
+    LIBS
+        ArtifactCoreLocalization
+)
+set_tests_properties(ArtifactCoreLocalizationContractTest PROPERTIES
+    LABELS "localization;translations;plural;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreSplitDocumentStoreContractTest
+    SOURCES
+        SplitDocumentStoreContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreSplitDocumentStoreContractTest PROPERTIES
+    LABELS "serialization;split-document;json;cbor;filesystem;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreAssetImportSettingsTest
     SOURCES
         AssetImportSettingsTest.cpp
@@ -828,6 +919,16 @@ artifact_add_test(ArtifactCoreAssetImporterContractTest
 )
 set_tests_properties(ArtifactCoreAssetImporterContractTest PROPERTIES
     LABELS "asset;import;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreDataExpressionBridgeContractTest
+    SOURCES
+        DataExpressionBridgeContractTest.cpp
+    LIBS
+        ArtifactCoreData
+)
+set_tests_properties(ArtifactCoreDataExpressionBridgeContractTest PROPERTIES
+    LABELS "data;csv;expression;property-bridge;cpu;contract"
 )
 
 artifact_add_test(ArtifactCoreImageAssetMetadataContractTest
@@ -1754,6 +1855,83 @@ set_tests_properties(ArtifactCoreProgressAggregatorContractTest PROPERTIES
     TIMEOUT 30
 )
 
+artifact_add_test(ArtifactCoreCheckpointStoreContractTest
+    SOURCES
+        CheckpointStoreContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreCheckpointStoreContractTest PROPERTIES
+    LABELS "render-farm;checkpoint;filesystem;cpu;contract;core"
+    TIMEOUT 30
+)
+
+artifact_add_test(ArtifactCoreRenderFarmMasterCheckpointContractTest
+    SOURCES
+        RenderFarmMasterCheckpointContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderFarmMasterCheckpointContractTest PROPERTIES
+    LABELS "render-farm;checkpoint;master;filesystem;cpu;contract;core"
+    TIMEOUT 30
+)
+
+artifact_add_test(ArtifactCoreRenderFarmMasterRetryContractTest
+    SOURCES
+        RenderFarmMasterRetryContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderFarmMasterRetryContractTest PROPERTIES
+    LABELS "render-farm;retry;master;threading;cpu;contract;core"
+    TIMEOUT 30
+)
+
+artifact_add_test(ArtifactCoreRenderFarmMasterTemplateContractTest
+    SOURCES
+        RenderFarmMasterTemplateContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderFarmMasterTemplateContractTest PROPERTIES
+    LABELS "render-farm;templates;serialization;cpu;contract;core"
+    TIMEOUT 30
+)
+
+artifact_add_test(ArtifactCoreRenderFarmMasterQueueContractTest
+    SOURCES
+        RenderFarmMasterQueueContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderFarmMasterQueueContractTest PROPERTIES
+    LABELS "render-farm;queue;scheduling;dependencies;cpu;contract;core"
+    TIMEOUT 30
+)
+
+artifact_add_test(ArtifactCoreRenderFarmMasterPauseContractTest
+    SOURCES
+        RenderFarmMasterPauseContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderFarmMasterPauseContractTest PROPERTIES
+    LABELS "render-farm;pause;resume;concurrency;cpu;contract;core"
+    TIMEOUT 30
+)
+
+artifact_add_test(ArtifactCoreRenderFarmWorkerContractTest
+    SOURCES
+        RenderFarmWorkerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderFarmWorkerContractTest PROPERTIES
+    LABELS "render-farm;worker;cancellation;threading;cpu;contract;core"
+    TIMEOUT 30
+)
+
 artifact_add_test(ArtifactCoreAcousticGenerationTest
     SOURCES
         AcousticGenerationTest.cpp
@@ -1775,6 +1953,17 @@ artifact_add_test(ArtifactCoreProjectRoundTripTest
 )
 set_tests_properties(ArtifactCoreProjectRoundTripTest PROPERTIES
     LABELS "project;serialization;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreClipboardManagerContractTest
+    SOURCES
+        ClipboardManagerContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreClipboardManagerContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "clipboard;serialization;cpu;contract"
 )
 
 artifact_add_test(ArtifactCoreCompositionTransformTimeContractTest

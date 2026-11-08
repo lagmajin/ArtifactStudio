@@ -328,3 +328,40 @@ TEST(AudioCacheStandaloneTest, ProviderFailureDoesNotAbortLaterPrefetchFrames)
     EXPECT_EQ(cache.getCacheSize(), 2u);
 }
 
+TEST(AudioCacheStandaloneTest, ProviderReplacementDuringCallbackAppliesToNextPrefetchOnly)
+{
+    AudioCache cache;
+    std::vector<int64_t> originalProviderFrames;
+    std::vector<int64_t> replacementProviderFrames;
+    bool replaced = false;
+    cache.setPrefetchProvider(
+        [&](int64_t frame, AudioSegment& out) {
+            originalProviderFrames.push_back(frame);
+            out = makeMono({static_cast<float>(frame)});
+            if (!replaced) {
+                replaced = true;
+                cache.setPrefetchProvider(
+                    [&replacementProviderFrames](int64_t replacementFrame,
+                                                 AudioSegment& replacementOut) {
+                        replacementProviderFrames.push_back(replacementFrame);
+                        replacementOut = makeMono(
+                            {static_cast<float>(replacementFrame * 10)});
+                        return true;
+                    });
+            }
+            return true;
+        });
+
+    EXPECT_NO_THROW(cache.prefetch(10, 3));
+    EXPECT_EQ(originalProviderFrames, (std::vector<int64_t>{10, 11, 12}));
+    EXPECT_TRUE(replacementProviderFrames.empty());
+    EXPECT_NO_THROW(cache.prefetch(20, 2));
+    EXPECT_EQ(replacementProviderFrames, (std::vector<int64_t>{20, 21}));
+
+    AudioSegment out;
+    ASSERT_TRUE(cache.getCached(10, out));
+    EXPECT_FLOAT_EQ(out.channelData[0][0], 10.0f);
+    ASSERT_TRUE(cache.getCached(20, out));
+    EXPECT_FLOAT_EQ(out.channelData[0][0], 200.0f);
+}
+

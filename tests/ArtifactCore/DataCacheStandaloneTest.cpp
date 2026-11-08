@@ -192,6 +192,38 @@ TEST(DataCacheStandaloneTest, EvictionKeepsMostRecentlyAccessedEntry)
     resetCache(cache);
 }
 
+TEST(DataCacheStandaloneTest,
+     ShrinkingCapacityEvictsMultipleLeastRecentlyUsedEntriesOnNextPut)
+{
+    auto& cache = DataCache::instance();
+    resetCache(cache);
+    cache.setMaxEntries(4);
+    const auto refreshed = makeSource("refreshed-before-shrink.csv");
+    const auto second = makeSource("second-before-shrink.csv");
+    const auto third = makeSource("third-before-shrink.csv");
+    const auto fourth = makeSource("fourth-before-shrink.csv");
+    cache.put(String("refreshed-before-shrink.csv"), refreshed, 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    cache.put(String("second-before-shrink.csv"), second, 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    cache.put(String("third-before-shrink.csv"), third, 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    cache.put(String("fourth-before-shrink.csv"), fourth, 1);
+    EXPECT_EQ(cache.get(String("refreshed-before-shrink.csv")), refreshed);
+
+    cache.setMaxEntries(2);
+    const auto newest = makeSource("newest-after-shrink.csv");
+    cache.put(String("newest-after-shrink.csv"), newest, 1);
+
+    EXPECT_EQ(cache.size(), 2);
+    EXPECT_EQ(cache.get(String("refreshed-before-shrink.csv")), refreshed);
+    EXPECT_EQ(cache.get(String("newest-after-shrink.csv")), newest);
+    EXPECT_EQ(cache.get(String("second-before-shrink.csv")), nullptr);
+    EXPECT_EQ(cache.get(String("third-before-shrink.csv")), nullptr);
+    EXPECT_EQ(cache.get(String("fourth-before-shrink.csv")), nullptr);
+    resetCache(cache);
+}
+
 TEST(DataCacheStandaloneTest, MaxEntriesAndTtlConfigurationRoundTrip)
 {
     auto& cache = DataCache::instance();
@@ -232,4 +264,42 @@ TEST(DataCacheStandaloneTest, CacheHitDoesNotExtendLoadedEntryTtl)
 
     EXPECT_EQ(cache.get(String("fixed-ttl.csv")), nullptr);
     cache.setTtlMs(0);
+}
+
+TEST(DataCacheStandaloneTest, ConcurrentIndependentUpdatesRemainReadable)
+{
+    auto& cache = DataCache::instance();
+    resetCache(cache);
+    constexpr int workerCount = 8;
+    constexpr int updatesPerWorker = 200;
+    cache.setMaxEntries(workerCount * 2);
+
+    std::thread workers[workerCount];
+    for (int worker = 0; worker < workerCount; ++worker) {
+        workers[worker] = std::thread([worker, &cache] {
+            const std::string key = "parallel-" + std::to_string(worker) + ".csv";
+            const String uri(key.c_str());
+            const auto source = makeCsvDataSource(uri);
+
+            for (int update = 0; update < updatesPerWorker; ++update) {
+                cache.put(uri, source, update);
+                EXPECT_EQ(cache.get(uri), source);
+                if (update % 17 == 0) {
+                    cache.invalidate(uri);
+                }
+            }
+            cache.put(uri, source, updatesPerWorker);
+        });
+    }
+
+    for (auto& worker : workers) {
+        worker.join();
+    }
+
+    EXPECT_EQ(cache.size(), workerCount);
+    for (int worker = 0; worker < workerCount; ++worker) {
+        const std::string key = "parallel-" + std::to_string(worker) + ".csv";
+        EXPECT_NE(cache.get(String(key.c_str())), nullptr);
+    }
+    resetCache(cache);
 }

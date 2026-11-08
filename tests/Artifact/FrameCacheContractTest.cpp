@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
 
-#include <stdexcept>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <stdexcept>
+#include <thread>
 #include <vector>
 
 #include <QString>
@@ -117,6 +121,86 @@ TEST(FrameCacheContractTest, LruPolicyEvictsLeastRecentlyAccessedFrame)
     EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(3)));
 }
 
+TEST(FrameCacheContractTest,
+     LfuEvictionIgnoresStaleFrequencyCandidatesAfterKeyReuse)
+{
+    Artifact::FrameCache cache;
+    cache.setMaxFrameCount(3);
+    cache.setPolicy(Artifact::CachePolicy::LFU);
+    const auto removedFrame = ArtifactCore::FramePosition(20);
+    cache.put(makeEntry(100));
+    cache.put(makeEntry(10));
+    cache.put(makeEntry(20));
+    for (int access = 0; access < 3; ++access)
+        ASSERT_TRUE(cache.get(removedFrame));
+    ASSERT_EQ(cache.cacheHitCount(), 3u);
+
+    cache.invalidate(removedFrame);
+    auto reinserted = makeEntry(20);
+    cache.put(reinserted);
+    for (int access = 0; access < 4; ++access)
+        ASSERT_TRUE(cache.get(removedFrame));
+    ASSERT_EQ(cache.cacheHitCount(), 7u);
+
+    cache.put(makeEntry(200));
+
+    EXPECT_EQ(cache.currentFrameCount(), 3);
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(10)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(20)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(100)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(200)));
+    EXPECT_EQ(cache.get(removedFrame).get(), reinserted.get());
+}
+
+TEST(FrameCacheContractTest,
+     ConcurrentUniqueFrameInsertionAndLookupRemainConsistent)
+{
+    constexpr int workerCount = 6;
+    constexpr int framesPerWorker = 128;
+    constexpr int totalFrames = workerCount * framesPerWorker;
+    Artifact::FrameCache cache;
+    cache.setMaxFrameCount(totalFrames);
+    cache.setMaxMemoryBytes(static_cast<std::size_t>(totalFrames) * 16u);
+
+    std::atomic<int> ready{0};
+    std::atomic<bool> start{false};
+    std::atomic<int> missingOrMismatchedFrames{0};
+    std::thread workers[workerCount];
+    for (int worker = 0; worker < workerCount; ++worker) {
+        workers[worker] = std::thread([&, worker] {
+            ready.fetch_add(1, std::memory_order_release);
+            while (!start.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+
+            for (int localFrame = 0; localFrame < framesPerWorker; ++localFrame) {
+                const int frameNumber = worker * framesPerWorker + localFrame;
+                auto entry = makeEntry(frameNumber);
+                cache.put(entry);
+                const auto retrieved = cache.get(entry->frame);
+                if (retrieved.get() != entry.get()) {
+                    missingOrMismatchedFrames.fetch_add(
+                        1, std::memory_order_relaxed);
+                }
+            }
+        });
+    }
+
+    while (ready.load(std::memory_order_acquire) != workerCount) {
+        std::this_thread::yield();
+    }
+    start.store(true, std::memory_order_release);
+    for (auto& worker : workers) worker.join();
+
+    EXPECT_EQ(missingOrMismatchedFrames.load(std::memory_order_relaxed), 0);
+    EXPECT_EQ(cache.currentFrameCount(), totalFrames);
+    EXPECT_EQ(cache.currentMemoryUsage(),
+              static_cast<std::size_t>(totalFrames) * 16u);
+    EXPECT_EQ(cache.cacheHitCount(), static_cast<std::size_t>(totalFrames));
+    EXPECT_EQ(cache.cacheMissCount(), 0u);
+    EXPECT_FLOAT_EQ(cache.hitRate(), 1.0f);
+}
+
 TEST(FrameCacheContractTest, RejectsEntryLargerThanConfiguredMemoryBudget)
 {
     Artifact::FrameCache cache;
@@ -188,6 +272,35 @@ TEST(FrameCacheContractTest, TargetedInvalidationHonorsCompositionRangeLayerAndE
     EXPECT_EQ(cache.currentFrameCount(), 3);
 }
 
+TEST(FrameCacheContractTest,
+     CompositionRangeInvalidationWithoutDependencyIdsRemovesAllMatchingFrames)
+{
+    Artifact::FrameCache cache;
+    const auto add = [&cache](int frame, const QString& composition,
+                              const QString& layer, const QString& effect) {
+        auto entry = makeEntry(frame);
+        entry->compositionId = composition;
+        entry->layerIds = QStringList{layer};
+        entry->effectIds = QStringList{effect};
+        cache.put(entry);
+    };
+    add(40, QStringLiteral("comp-a"), QStringLiteral("layer-a"), QStringLiteral("fx-a"));
+    add(41, QStringLiteral("comp-a"), QStringLiteral("layer-b"), QStringLiteral("fx-b"));
+    add(42, QStringLiteral("comp-a"), QStringLiteral("layer-c"), QStringLiteral("fx-c"));
+    add(43, QStringLiteral("comp-b"), QStringLiteral("layer-a"), QStringLiteral("fx-a"));
+
+    Artifact::FrameCacheInvalidation invalidation;
+    invalidation.compositionId = QStringLiteral("comp-a");
+    invalidation.range = {40, 41};
+    cache.invalidate(invalidation);
+
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(40)));
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(41)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(42)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(43)));
+    EXPECT_EQ(cache.currentFrameCount(), 2);
+}
+
 TEST(FrameCacheContractTest, TargetedInvalidationOrMatchesIdsWithinEachDependencyKind)
 {
     Artifact::FrameCache cache;
@@ -245,6 +358,26 @@ TEST(FrameCacheContractTest, FullCompositionInvalidationIgnoresFrameRange)
     EXPECT_EQ(cache.currentFrameCount(), 1);
 }
 
+TEST(FrameCacheContractTest,
+     TargetedInvalidationDoesNotNarrowLargeFramePositionsIntoRange)
+{
+    Artifact::FrameCache cache;
+    const auto aliasedFrameNumber = (std::int64_t{1} << 32) + 10;
+    auto aliasedFrame = ArtifactCore::makeShared<Artifact::FrameCacheEntry>(
+        1, 1, ArtifactCore::FramePosition(aliasedFrameNumber));
+    aliasedFrame->compositionId = QStringLiteral("comp-wide-frame");
+    cache.put(aliasedFrame);
+
+    Artifact::FrameCacheInvalidation invalidation;
+    invalidation.compositionId = QStringLiteral("comp-wide-frame");
+    invalidation.range = {10, 10};
+    cache.invalidate(invalidation);
+
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(aliasedFrameNumber)))
+        << "a frame outside FrameRange's int domain must not alias frame 10";
+    EXPECT_EQ(cache.currentFrameCount(), 1);
+}
+
 TEST(FrameCacheContractTest, GenerationBumpHidesOldEntriesUntilStaleEntriesAreRemoved)
 {
     Artifact::FrameCache cache;
@@ -286,6 +419,41 @@ TEST(FrameCacheContractTest,
     cache.invalidateStaleGenerations(currentGeneration);
     EXPECT_EQ(cache.get(frame).get(), refreshed.get());
     EXPECT_EQ(cache.currentFrameCount(), 1);
+}
+
+TEST(FrameCacheContractTest,
+     SizeEvictionSkipsStalePriorityCandidateAfterGenerationReplacement)
+{
+    Artifact::FrameCache cache;
+    cache.setPolicy(Artifact::CachePolicy::Size);
+    cache.setMaxFrameCount(2);
+    const auto replacedFrame = ArtifactCore::FramePosition(20);
+    auto staleSmall = makeEntry(20);
+    auto smallerLive = ArtifactCore::makeShared<Artifact::FrameCacheEntry>(
+        2, 1, ArtifactCore::FramePosition(21));
+    cache.put(staleSmall);
+    cache.put(smallerLive);
+
+    cache.bumpGeneration(QStringLiteral("device-recreated"));
+    auto refreshedLarge = ArtifactCore::makeShared<Artifact::FrameCacheEntry>(
+        3, 1, replacedFrame);
+    cache.put(refreshedLarge);
+    ASSERT_EQ(refreshedLarge->memorySize, 48u);
+    ASSERT_EQ(cache.currentFrameCount(), 2);
+
+    cache.put(makeEntry(22));
+
+    EXPECT_EQ(cache.currentFrameCount(), 2);
+    EXPECT_EQ(cache.currentMemoryUsage(), 64u);
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(21)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(22)));
+    EXPECT_EQ(cache.get(replacedFrame).get(), refreshedLarge.get());
+
+    cache.invalidateStaleGenerations(cache.generation());
+    EXPECT_EQ(cache.currentFrameCount(), 2);
+    EXPECT_EQ(cache.currentMemoryUsage(), 64u);
+    EXPECT_EQ(cache.get(replacedFrame).get(), refreshedLarge.get());
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(22)));
 }
 
 TEST(FrameCacheContractTest, ProgressiveRendererUpgradesThroughRequestedQualities)

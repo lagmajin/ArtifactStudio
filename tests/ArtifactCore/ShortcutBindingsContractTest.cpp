@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstddef>
 
 #include <QKeyEvent>
 #include <QKeySequence>
@@ -108,6 +109,59 @@ TEST(ShortcutBindingsContractTest, ChangeListenerCanBeRemovedAndEmptyOverrideDis
     bindings.resetToDefaults();
 }
 
+TEST(ShortcutBindingsContractTest, ListenerCanRemoveItselfDuringNotification)
+{
+    auto& bindings = ShortcutBindings::instance();
+    bindings.resetToDefaults();
+    int notifications = 0;
+    std::size_t token = 0;
+    token = bindings.addChangeListener([&](ShortcutId) {
+        ++notifications;
+        bindings.removeChangeListener(token);
+    });
+
+    bindings.setShortcut(ShortcutId::PlaybackToggle, QKeySequence(Qt::Key_Q));
+    bindings.setShortcut(ShortcutId::PlaybackToggle, QKeySequence(Qt::Key_W));
+
+    EXPECT_EQ(notifications, 1);
+    EXPECT_EQ(bindings.shortcut(ShortcutId::PlaybackToggle), QKeySequence(Qt::Key_W));
+    bindings.resetToDefaults();
+}
+
+TEST(ShortcutBindingsContractTest,
+     ListenerCanRegisterAnotherListenerDuringNotification)
+{
+    auto& bindings = ShortcutBindings::instance();
+    bindings.resetToDefaults();
+    const auto id = ShortcutId::PlaybackToggle;
+    int originalListenerNotifications = 0;
+    int addedListenerNotifications = 0;
+    bool addedListener = false;
+    std::size_t addedToken = 0;
+
+    const auto originalToken = bindings.addChangeListener([&](ShortcutId changed) {
+        EXPECT_EQ(changed, id);
+        ++originalListenerNotifications;
+        if (!addedListener) {
+            addedListener = true;
+            addedToken = bindings.addChangeListener([&](ShortcutId addedChange) {
+                EXPECT_EQ(addedChange, id);
+                ++addedListenerNotifications;
+            });
+        }
+    });
+
+    bindings.setShortcut(id, QKeySequence(Qt::Key_Q));
+    EXPECT_NE(addedToken, 0u);
+    bindings.setShortcut(id, QKeySequence(Qt::Key_W));
+
+    EXPECT_EQ(originalListenerNotifications, 2);
+    EXPECT_GE(addedListenerNotifications, 1);
+    bindings.removeChangeListener(originalToken);
+    bindings.removeChangeListener(addedToken);
+    bindings.resetToDefaults();
+}
+
 TEST(ShortcutBindingsContractTest, InvalidJsonValueDoesNotPartiallyReplaceOverrides)
 {
     auto& bindings = ShortcutBindings::instance();
@@ -128,5 +182,26 @@ TEST(ShortcutBindingsContractTest, InvalidJsonValueDoesNotPartiallyReplaceOverri
     EXPECT_FALSE(bindings.loadFromJson(malformed));
     EXPECT_EQ(bindings.shortcut(playbackId), playbackCustom);
     EXPECT_EQ(bindings.shortcut(undoId), undoCustom);
+    bindings.resetToDefaults();
+}
+
+TEST(ShortcutBindingsContractTest, LoadingPartialJsonResetsOmittedOverridesToDefaults)
+{
+    auto& bindings = ShortcutBindings::instance();
+    bindings.resetToDefaults();
+
+    const auto playbackId = ShortcutId::PlaybackToggle;
+    const auto undoId = ShortcutId::Undo;
+    bindings.setShortcut(playbackId, QKeySequence(Qt::CTRL | Qt::Key_P));
+    bindings.setShortcut(undoId, QKeySequence(Qt::ALT | Qt::Key_U));
+
+    const QJsonObject partial{
+        {QStringLiteral("shortcuts"),
+         QJsonObject{{QStringLiteral("PlaybackToggle"), QStringLiteral("Ctrl+J")}}}};
+    ASSERT_TRUE(bindings.loadFromJson(partial));
+
+    EXPECT_EQ(bindings.shortcut(playbackId), QKeySequence(Qt::CTRL | Qt::Key_J));
+    EXPECT_EQ(bindings.shortcut(undoId), bindings.defaultShortcut(undoId));
+
     bindings.resetToDefaults();
 }

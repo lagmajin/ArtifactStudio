@@ -159,6 +159,35 @@ TEST(ArtifactHashMapContractTest, CollisionChainsSupportLookupAndRemoval)
     EXPECT_TRUE(map.empty());
 }
 
+TEST(ArtifactHashMapContractTest,
+     ErasingHeadMiddleAndTailOfCollisionChainKeepsRemainingNodesReachable)
+{
+    ArtifactHashMap<int, std::string, ConstantHash> map;
+    map.tryEmplace(1, std::string("one"));
+    map.tryEmplace(2, std::string("two"));
+    map.tryEmplace(3, std::string("three"));
+    map.tryEmplace(4, std::string("four"));
+
+    EXPECT_EQ(map.erase(4), 1u); // chain head
+    EXPECT_EQ(map.erase(2), 1u); // chain middle
+    EXPECT_EQ(map.erase(1), 1u); // chain tail
+    ASSERT_EQ(map.size(), 1u);
+    ASSERT_NE(map.find(3), map.end());
+    EXPECT_EQ(map.find(3)->second, "three");
+    EXPECT_EQ(map.erase(4), 0u);
+    EXPECT_EQ(map.erase(2), 0u);
+    EXPECT_EQ(map.erase(1), 0u);
+
+    EXPECT_TRUE(map.tryEmplace(4, std::string("four again")).second);
+    EXPECT_TRUE(map.tryEmplace(2, std::string("two again")).second);
+    EXPECT_TRUE(map.tryEmplace(1, std::string("one again")).second);
+    ASSERT_EQ(map.size(), 4u);
+    EXPECT_EQ(map.find(1)->second, "one again");
+    EXPECT_EQ(map.find(2)->second, "two again");
+    EXPECT_EQ(map.find(3)->second, "three");
+    EXPECT_EQ(map.find(4)->second, "four again");
+}
+
 TEST(ArtifactHashMapContractTest, EraseReturnsZeroForMissingAndOneForExistingKey)
 {
     ArtifactHashMap<int, int> map;
@@ -468,6 +497,48 @@ TEST(ArtifactHashMapContractTest, DeterministicOperationsMatchStandardMapModel)
 
         EXPECT_EQ(actual.size(), expected.size()) << "step=" << step;
         for (int candidate = -48; candidate <= 48; ++candidate) {
+            const auto expectedEntry = expected.find(candidate);
+            const auto actualEntry = actual.find(candidate);
+            EXPECT_EQ(actualEntry != actual.end(), expectedEntry != expected.end())
+                << "step=" << step << " key=" << candidate;
+            if (expectedEntry != expected.end() && actualEntry != actual.end()) {
+                EXPECT_EQ(actualEntry->second, expectedEntry->second)
+                    << "step=" << step << " key=" << candidate;
+            }
+        }
+    }
+}
+
+TEST(ArtifactHashMapContractTest,
+     DeterministicCollisionOperationsMatchStandardMapModel)
+{
+    ArtifactHashMap<int, int, ConstantHash> actual;
+    std::unordered_map<int, int> expected;
+    std::mt19937 generator(0xC0111510u);
+    std::uniform_int_distribution<int> operationDistribution(0, 2);
+    std::uniform_int_distribution<int> keyDistribution(-64, 64);
+    std::uniform_int_distribution<int> valueDistribution(-1000, 1000);
+
+    for (int step = 0; step < 1600; ++step) {
+        const int operation = operationDistribution(generator);
+        const int key = keyDistribution(generator);
+        const int value = valueDistribution(generator);
+
+        if (operation == 0) {
+            const auto [entry, inserted] = actual.tryEmplace(key, value);
+            const auto [expectedEntry, expectedInserted] =
+                expected.try_emplace(key, value);
+            EXPECT_EQ(inserted, expectedInserted) << "step=" << step;
+            EXPECT_EQ(entry->second, expectedEntry->second) << "step=" << step;
+        } else if (operation == 1) {
+            EXPECT_EQ(actual.erase(key), expected.erase(key)) << "step=" << step;
+        } else {
+            actual[key] = value;
+            expected[key] = value;
+        }
+
+        EXPECT_EQ(actual.size(), expected.size()) << "step=" << step;
+        for (int candidate = -64; candidate <= 64; ++candidate) {
             const auto expectedEntry = expected.find(candidate);
             const auto actualEntry = actual.find(candidate);
             EXPECT_EQ(actualEntry != actual.end(), expectedEntry != expected.end())

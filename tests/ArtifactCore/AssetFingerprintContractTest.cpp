@@ -182,6 +182,33 @@ TEST(AssetFingerprintContractTest, RecomputesHashAfterSamePathContentChanges)
     EXPECT_NE(AssetFingerprint::calculateFastHash(path), before);
 }
 
+TEST(AssetFingerprintContractTest,
+     FastHashFollowsRetargetedFileSymlinkWithoutPathCaching)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString firstTarget = directory.filePath(QStringLiteral("first-target.bin"));
+    const QString secondTarget = directory.filePath(QStringLiteral("second-target.bin"));
+    const QString linkPath = directory.filePath(QStringLiteral("current.bin"));
+    ASSERT_TRUE(writeFile(firstTarget, QByteArrayLiteral("target-a")));
+    ASSERT_TRUE(writeFile(secondTarget, QByteArrayLiteral("target-b")));
+
+    if (!QFile::link(firstTarget, linkPath) || !QFileInfo(linkPath).isSymLink()) {
+        GTEST_SKIP() << "file symlink creation is unavailable on this platform";
+    }
+    const QString firstHash = AssetFingerprint::calculateFastHash(linkPath);
+    ASSERT_FALSE(firstHash.isEmpty());
+    EXPECT_EQ(firstHash, AssetFingerprint::calculateFastHash(firstTarget));
+
+    ASSERT_TRUE(QFile::remove(linkPath));
+    ASSERT_TRUE(QFile::link(secondTarget, linkPath));
+    ASSERT_TRUE(QFileInfo(linkPath).isSymLink());
+
+    const QString secondHash = AssetFingerprint::calculateFastHash(linkPath);
+    EXPECT_EQ(secondHash, AssetFingerprint::calculateFastHash(secondTarget));
+    EXPECT_NE(secondHash, firstHash);
+}
+
 TEST(AssetFingerprintContractTest, MiddleSampleStartsOnlyAboveThreeMebibytes)
 {
     QTemporaryDir directory;

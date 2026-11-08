@@ -6,6 +6,9 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSize>
 #include <QTemporaryDir>
 #include <QString>
@@ -56,6 +59,21 @@ public:
 private:
     AssetDatabase& database_;
     QUuid id_;
+};
+
+class AssetDatabaseSnapshotGuard {
+public:
+    explicit AssetDatabaseSnapshotGuard(AssetDatabase& database)
+        : database_(database), snapshot_(database.toJson())
+    {
+        database_.clear();
+    }
+
+    ~AssetDatabaseSnapshotGuard() { database_.fromJson(snapshot_); }
+
+private:
+    AssetDatabase& database_;
+    QByteArray snapshot_;
 };
 
 } // namespace
@@ -419,6 +437,93 @@ TEST(AssetImporterContractTest, ImportsJsonAsDataAndWritesMatchingSidecar)
     EXPECT_TRUE(meta.proxyResolutions().isEmpty());
 }
 
+TEST(AssetImporterContractTest,
+     ExistingSidecarUuidRestoresIdentityWhenDatabaseStartsEmpty)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("restored.json"));
+    ASSERT_TRUE(writeTextFile(sourcePath,
+                              QByteArrayLiteral("{\"scene\":true}")));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    AssetDatabaseSnapshotGuard restoreDatabase(database);
+    const QUuid persistedId = QUuid::createUuid();
+    QJsonObject assetObject{
+        {QStringLiteral("uuid"), persistedId.toString(QUuid::WithoutBraces)},
+        {QStringLiteral("type"), QStringLiteral("Data")},
+        {QStringLiteral("sourcePath"), QFileInfo(sourcePath).absoluteFilePath()},
+        {QStringLiteral("importedAt"),
+         QStringLiteral("2026-01-02T03:04:05Z")},
+    };
+    QJsonObject sidecar{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("asset"), assetObject},
+        {QStringLiteral("tags"), QJsonArray{QStringLiteral("restored")}},
+        {QStringLiteral("custom"),
+         QJsonObject{{QStringLiteral("review/owner"), QStringLiteral("artist")}}},
+    };
+    ASSERT_TRUE(writeTextFile(
+        ArtifactAssetMetaFile::metaPathFor(sourcePath),
+        QJsonDocument(sidecar).toJson(QJsonDocument::Compact)));
+
+    const AssetImportSettings settings;
+    const QUuid importedId = AssetImporter::importFile(sourcePath, settings);
+
+    EXPECT_EQ(importedId, persistedId);
+    EXPECT_EQ(database.findAssetByPath(sourcePath), persistedId);
+    const auto persistedMeta = ArtifactAssetMetaFile::load(sourcePath);
+    EXPECT_EQ(persistedMeta.uuid(), persistedId);
+    EXPECT_EQ(persistedMeta.tags(), (QStringList{QStringLiteral("restored")}));
+    EXPECT_EQ(persistedMeta.customValue(QStringLiteral("review/owner")).toString(),
+              QStringLiteral("artist"));
+}
+
+TEST(AssetImporterContractTest,
+     SidecarUuidCollisionAllocatesAndPersistsANewAssetIdentity)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString existingPath = directory.filePath(QStringLiteral("existing.json"));
+    const QString importedPath = directory.filePath(QStringLiteral("imported.json"));
+    ASSERT_TRUE(writeTextFile(existingPath, QByteArrayLiteral("{\"existing\":true}")));
+    ASSERT_TRUE(writeTextFile(importedPath, QByteArrayLiteral("{\"imported\":true}")));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    AssetDatabaseSnapshotGuard restoreDatabase(database);
+    const QUuid collidingId = QUuid::createUuid();
+    ASSERT_EQ(database.registerAsset(existingPath, AssetType::Data, collidingId),
+              collidingId);
+    const QJsonObject sidecar{
+        {QStringLiteral("version"), 1},
+        {QStringLiteral("asset"), QJsonObject{
+             {QStringLiteral("uuid"), collidingId.toString(QUuid::WithoutBraces)},
+             {QStringLiteral("type"), QStringLiteral("Data")},
+             {QStringLiteral("sourcePath"), QFileInfo(importedPath).absoluteFilePath()},
+             {QStringLiteral("importedAt"), QStringLiteral("2026-01-02T03:04:05Z")}}},
+        {QStringLiteral("tags"), QJsonArray{QStringLiteral("keep-me")}},
+    };
+    ASSERT_TRUE(writeTextFile(
+        ArtifactAssetMetaFile::metaPathFor(importedPath),
+        QJsonDocument(sidecar).toJson(QJsonDocument::Compact)));
+
+    const AssetImportSettings settings;
+    const QUuid importedId = AssetImporter::importFile(importedPath, settings);
+
+    ASSERT_FALSE(importedId.isNull());
+    EXPECT_NE(importedId, collidingId)
+        << "one UUID must not identify assets at two different source paths";
+    EXPECT_EQ(database.findAssetByPath(existingPath), collidingId);
+    EXPECT_EQ(database.findAssetByPath(importedPath), importedId);
+    EXPECT_EQ(database.getAssetInfo(importedId).absolutePath,
+              QFileInfo(importedPath).absoluteFilePath());
+
+    const auto repairedSidecar = ArtifactAssetMetaFile::load(importedPath);
+    ASSERT_TRUE(repairedSidecar.isValid());
+    EXPECT_EQ(repairedSidecar.uuid(), importedId);
+    EXPECT_EQ(repairedSidecar.tags(), (QStringList{QStringLiteral("keep-me")}));
+}
+
 TEST(AssetImporterContractTest, ImportsLottieJsonAsDataWithoutGeneratingImageProxy)
 {
     QTemporaryDir directory;
@@ -481,6 +586,12 @@ TEST(AssetImporterContractTest, ReimportKeepsAssetIdentityAndOriginalImportTime)
     const QDateTime originalImportTime =
         ArtifactAssetMetaFile::load(sourcePath).importedAt();
     ASSERT_TRUE(originalImportTime.isValid());
+
+    auto& database = AssetDatabase::instance();
+    const QByteArray savedDatabase = database.toJson();
+    database.clear();
+    ASSERT_TRUE(database.fromJson(savedDatabase));
+    EXPECT_EQ(database.findAssetByPath(sourcePath), firstId);
 
     const QUuid secondId = AssetImporter::importFile(sourcePath, settings);
     const ArtifactAssetMetaFile meta = ArtifactAssetMetaFile::load(sourcePath);
@@ -642,6 +753,97 @@ TEST(AssetImporterContractTest, ContentTypeOverridesImageExtensionForTextPayload
     EXPECT_FALSE(meta.customValue(QStringLiteral("image/width")).isValid());
 }
 
+TEST(AssetImporterContractTest,
+     ReimportReclassifiesChangedPayloadAndRemovesStaleImageMetadata)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("changing.png"));
+    ASSERT_TRUE(writeTextFile(sourcePath, onePixelPng()));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    AssetDatabaseSnapshotGuard restoreDatabase(database);
+    const AssetImportSettings settings;
+    const QUuid originalId = AssetImporter::importFile(sourcePath, settings);
+    ASSERT_FALSE(originalId.isNull());
+    ASSERT_EQ(database.getAssetInfo(originalId).type, AssetType::Image);
+    auto imageMeta = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_EQ(imageMeta.type(), AssetType::Image);
+    ASSERT_TRUE(imageMeta.customValue(QStringLiteral("image/width")).isValid());
+    imageMeta.addTag(QStringLiteral("reviewed"));
+    ASSERT_TRUE(imageMeta.save());
+
+    ASSERT_TRUE(writeTextFile(sourcePath, QByteArrayLiteral("plain text payload")));
+    const QUuid reimportedId = AssetImporter::importFile(sourcePath, settings);
+
+    EXPECT_EQ(reimportedId, originalId);
+    EXPECT_EQ(database.getAssetInfo(originalId).type, AssetType::Data);
+    const auto dataMeta = ArtifactAssetMetaFile::load(sourcePath);
+    EXPECT_EQ(dataMeta.uuid(), originalId);
+    EXPECT_EQ(dataMeta.type(), AssetType::Data);
+    EXPECT_FALSE(dataMeta.customValue(QStringLiteral("image/width")).isValid());
+    EXPECT_FALSE(dataMeta.customValue(QStringLiteral("image/height")).isValid());
+    EXPECT_EQ(dataMeta.tags(), (QStringList{QStringLiteral("reviewed")}));
+}
+
+TEST(AssetImporterContractTest,
+     ReimportCanRestoreImageClassificationAfterTemporaryDataPayload)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("roundtrip.png"));
+    ASSERT_TRUE(writeTextFile(sourcePath, onePixelPng()));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    AssetDatabaseSnapshotGuard restoreDatabase(database);
+    AssetImportSettings initialSettings;
+    initialSettings.generateProxyOnImport = true;
+    initialSettings.proxyResolution = QSize(1, 1);
+    const QUuid originalId = AssetImporter::importFile(sourcePath, initialSettings);
+    ASSERT_FALSE(originalId.isNull());
+    const QDateTime originalImportTime =
+        ArtifactAssetMetaFile::load(sourcePath).importedAt();
+    ASSERT_TRUE(originalImportTime.isValid());
+    const ArtifactAssetMetaFile initialMeta = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(initialMeta.proxyResolutions().contains(QStringLiteral("configured")));
+    const QString originalProxyPath =
+        initialMeta.proxyPath(QStringLiteral("configured"));
+    ASSERT_FALSE(originalProxyPath.isEmpty());
+    ASSERT_TRUE(QFileInfo::exists(originalProxyPath));
+    auto originalMeta = ArtifactAssetMetaFile::load(sourcePath);
+    originalMeta.addTag(QStringLiteral("reviewed"));
+    ASSERT_TRUE(originalMeta.save());
+
+    const AssetImportSettings noProxyGeneration;
+
+    ASSERT_TRUE(writeTextFile(sourcePath, QByteArrayLiteral("temporary text payload")));
+    ASSERT_EQ(AssetImporter::importFile(sourcePath, noProxyGeneration), originalId);
+    ASSERT_EQ(database.getAssetInfo(originalId).type, AssetType::Data);
+    const auto dataMeta = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_EQ(dataMeta.type(), AssetType::Data);
+    EXPECT_FALSE(dataMeta.customValue(QStringLiteral("image/width")).isValid());
+    EXPECT_EQ(dataMeta.proxyPath(QStringLiteral("configured")), originalProxyPath);
+    EXPECT_TRUE(QFileInfo::exists(originalProxyPath));
+
+    ASSERT_TRUE(writeTextFile(sourcePath, onePixelPng()));
+    EXPECT_EQ(AssetImporter::importFile(sourcePath, noProxyGeneration), originalId);
+
+    const AssetInfo restoredInfo = database.getAssetInfo(originalId);
+    EXPECT_EQ(restoredInfo.type, AssetType::Image);
+    EXPECT_EQ(database.findAssetByPath(sourcePath), originalId);
+    const auto restoredMeta = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(restoredMeta.isValid());
+    EXPECT_EQ(restoredMeta.uuid(), originalId);
+    EXPECT_EQ(restoredMeta.type(), AssetType::Image);
+    EXPECT_EQ(restoredMeta.importedAt(), originalImportTime);
+    EXPECT_EQ(restoredMeta.tags(), (QStringList{QStringLiteral("reviewed")}));
+    EXPECT_EQ(restoredMeta.customValue(QStringLiteral("image/width")).toInt(), 1);
+    EXPECT_EQ(restoredMeta.customValue(QStringLiteral("image/height")).toInt(), 1);
+    EXPECT_EQ(restoredMeta.proxyPath(QStringLiteral("configured")), originalProxyPath);
+    EXPECT_TRUE(restoredMeta.proxyResolutions().contains(QStringLiteral("configured")));
+    EXPECT_TRUE(QFileInfo::exists(originalProxyPath));
+}
+
 TEST(AssetImporterContractTest, SemanticVideoExtensionWinsOverImageSignature)
 {
     QTemporaryDir directory;
@@ -693,6 +895,11 @@ TEST(AssetImporterContractTest,
     beforeFailure.setCustomValue(QStringLiteral("review/owner"),
                                  QStringLiteral("artist"));
     ASSERT_TRUE(beforeFailure.save());
+    const QString sidecarPath = ArtifactAssetMetaFile::metaPathFor(sourcePath);
+    QFile sidecarBeforeFile(sidecarPath);
+    ASSERT_TRUE(sidecarBeforeFile.open(QIODevice::ReadOnly));
+    const QByteArray sidecarBefore = sidecarBeforeFile.readAll();
+    ASSERT_FALSE(sidecarBefore.isEmpty());
 
     ASSERT_TRUE(writeTextFile(sourcePath, QByteArrayLiteral("not a PNG payload")));
     EXPECT_TRUE(AssetImporter::importFile(sourcePath, settings).isNull());
@@ -701,6 +908,12 @@ TEST(AssetImporterContractTest,
     const auto afterFailure = ArtifactAssetMetaFile::load(sourcePath);
     ASSERT_TRUE(afterFailure.isValid());
     EXPECT_EQ(afterFailure.uuid(), id);
+    EXPECT_EQ(afterFailure.type(), AssetType::Image);
+    EXPECT_EQ(afterFailure.customValue(QStringLiteral("image/width")).toInt(), 1);
+    EXPECT_EQ(afterFailure.customValue(QStringLiteral("image/height")).toInt(), 1);
     EXPECT_EQ(afterFailure.customValue(QStringLiteral("review/owner")).toString(),
               QStringLiteral("artist"));
+    QFile sidecarAfterFile(sidecarPath);
+    ASSERT_TRUE(sidecarAfterFile.open(QIODevice::ReadOnly));
+    EXPECT_EQ(sidecarAfterFile.readAll(), sidecarBefore);
 }

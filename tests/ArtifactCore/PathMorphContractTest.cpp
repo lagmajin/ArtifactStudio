@@ -3,6 +3,8 @@
 #include <QLineF>
 #include <QPainterPath>
 
+#include <cstddef>
+
 import Core.Mask.PathMorph;
 
 using ArtifactCore::MorphCorrespondence;
@@ -75,12 +77,50 @@ TEST(PathMorphContractTest, OpenPathSamplingPreservesEndpoints)
     EXPECT_FALSE(sample.closed);
 }
 
+TEST(PathMorphContractTest, CubicCurveSamplingUsesApproximatelyEqualArcLengthSteps)
+{
+    QPainterPath path;
+    path.moveTo(0.0, 0.0);
+    path.cubicTo(0.0, 100.0, 100.0, 100.0, 100.0, 0.0);
+
+    const auto sample = PathMorphEngine::samplePath(path, 5);
+
+    ASSERT_EQ(sample.subpaths.size(), 1u);
+    const auto& points = sample.subpaths.front();
+    ASSERT_EQ(points.size(), 5u);
+    EXPECT_EQ(points.front(), QPointF(0.0, 0.0));
+    EXPECT_EQ(points.back(), QPointF(100.0, 0.0));
+    EXPECT_NEAR(points[2].x(), 50.0, 1.0e-5);
+    EXPECT_NEAR(points[2].y(), 75.0, 1.0e-5);
+
+    const double targetStep = QLineF(points.front(), points[1]).length();
+    for (std::size_t index = 1; index + 1 < points.size(); ++index) {
+        EXPECT_NEAR(QLineF(points[index], points[index + 1]).length(),
+                    targetStep, 1.0e-4)
+            << "segment=" << index;
+    }
+}
+
 TEST(PathMorphContractTest, SamplingRetainsSubpathOrderAndSeparateContours)
 {
     const auto sample = PathMorphEngine::samplePath(twoRectangles(0.0), 4);
     ASSERT_EQ(sample.subpaths.size(), 2u);
     EXPECT_EQ(sample.subpaths[0].front(), QPointF(0.0, 0.0));
     EXPECT_EQ(sample.subpaths[1].front(), QPointF(20.0, 0.0));
+}
+
+TEST(PathMorphContractTest, MixedOpenAndClosedContoursAreNotReportedAsFullyClosed)
+{
+    QPainterPath path = rectangle(0.0, 0.0, 10.0, 10.0);
+    path.moveTo(20.0, 0.0);
+    path.lineTo(30.0, 0.0);
+
+    const auto sample = PathMorphEngine::samplePath(path, 5);
+
+    ASSERT_EQ(sample.subpaths.size(), 2u);
+    EXPECT_FALSE(sample.closed);
+    EXPECT_EQ(sample.subpaths[0].front(), sample.subpaths[0].back());
+    EXPECT_NE(sample.subpaths[1].front(), sample.subpaths[1].back());
 }
 
 TEST(PathMorphContractTest, InterpolationReturnsExactInputsAtAndBeyondEndpoints)
@@ -141,4 +181,26 @@ TEST(PathMorphContractTest, FeatureInterpolationPairsContoursByAreaInsteadOfInpu
     EXPECT_EQ(result.elementCount(), 18);
     EXPECT_NEAR(result.boundingRect().left(), 10.0, 1e-5);
     EXPECT_NEAR(result.boundingRect().right(), 70.0, 1e-5);
+}
+
+TEST(PathMorphContractTest,
+     FeatureInterpolationUsesCentroidToDisambiguateEqualAreaContours)
+{
+    QPainterPath first;
+    first.addRect(0.0, 0.0, 5.0, 5.0);
+    first.addRect(20.0, 0.0, 5.0, 5.0);
+
+    // Both contours have equal area. Their input order is reversed, while
+    // each contour's intended partner remains the one nearest its centroid.
+    QPainterPath second;
+    second.addRect(30.0, 10.0, 5.0, 5.0);
+    second.addRect(10.0, 10.0, 5.0, 5.0);
+
+    const auto result = PathMorphEngine::interpolateByFeature(first, second, 0.5f, 8);
+
+    ASSERT_EQ(result.elementCount(), 18);
+    EXPECT_NEAR(result.boundingRect().left(), 5.0, 1e-5);
+    EXPECT_NEAR(result.boundingRect().right(), 30.0, 1e-5);
+    EXPECT_NEAR(result.boundingRect().top(), 5.0, 1e-5);
+    EXPECT_NEAR(result.boundingRect().bottom(), 10.0, 1e-5);
 }

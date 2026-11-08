@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cmath>
+#include <limits>
 
 import Artifact.Effect.Abstract;
 import Artifact.Effect.Transform.Bend;
@@ -105,5 +106,43 @@ TEST(BendTransformEffectContractTest, LargeBendKeepsOutputFiniteAndWithinSourceB
         EXPECT_TRUE(std::isfinite(actual[channel])) << "channel=" << channel;
         EXPECT_GE(actual[channel], 0.0f) << "channel=" << channel;
         EXPECT_LE(actual[channel], 1.0f) << "channel=" << channel;
+    }
+}
+
+TEST(BendTransformEffectContractTest,
+     ParameterLimitsAndNonFiniteFallbackKeepTheEffectSafe)
+{
+    BendTransform effect;
+    effect.setAngle(1000.0f);
+    effect.setDirection(-400.0f);
+    effect.setSize(0.0f);
+    EXPECT_FLOAT_EQ(effect.angle(), 720.0f);
+    EXPECT_FLOAT_EQ(effect.direction(), -360.0f);
+    EXPECT_FLOAT_EQ(effect.size(), 0.01f);
+
+    effect.setAngle(std::numeric_limits<float>::quiet_NaN());
+    effect.setDirection(std::numeric_limits<float>::infinity());
+    effect.setSize(-std::numeric_limits<float>::infinity());
+    EXPECT_FLOAT_EQ(effect.angle(), 0.0f);
+    EXPECT_FLOAT_EQ(effect.direction(), 0.0f);
+    EXPECT_FLOAT_EQ(effect.size(), 100.0f);
+    effect.setAngle(-std::numeric_limits<float>::infinity());
+    effect.setDirection(-std::numeric_limits<float>::infinity());
+    EXPECT_FLOAT_EQ(effect.angle(), 0.0f);
+    EXPECT_FLOAT_EQ(effect.direction(), 0.0f);
+
+    const auto source = makeCoordinateSurface();
+    const float* sourcePixels = source.image().rgba32fData();
+    ASSERT_NE(sourcePixels, nullptr);
+    ImageF32x4RGBAWithCache output;
+    effect.applyCPUOnly(source, output);
+    ASSERT_EQ(output.image().width(), kWidth);
+    ASSERT_EQ(output.image().height(), kHeight);
+    const float* actual = output.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    for (std::size_t channel = 0;
+         channel < static_cast<std::size_t>(kWidth * kHeight * 4); ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], sourcePixels[channel])
+            << "channel=" << channel;
     }
 }

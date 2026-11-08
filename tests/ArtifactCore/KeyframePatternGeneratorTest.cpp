@@ -123,6 +123,33 @@ TEST(KeyframePatternGeneratorTest, StepUsesConstantInterpolationAndIncludesBothE
     }
 }
 
+TEST(KeyframePatternGeneratorTest,
+     BeatSyncKeepsRoundedKeysOrderedInsidePartialFinalBeat)
+{
+    KeyframePatternRequest request;
+    request.preset = KeyframePatternPreset::BeatSync;
+    request.baseValue = 0.0;
+    request.targetValue = 1.0;
+    request.startFrame = 10.0;
+    request.endFrame = 35.0;
+    request.bpm = 120.0;
+    request.frameScale = 24;
+
+    const auto result = KeyframePatternGenerator::generate(request);
+
+    ASSERT_FALSE(result.keyframes.isEmpty());
+    double previousFrame = request.startFrame;
+    for (const auto& keyframe : result.keyframes) {
+        const double frame = static_cast<double>(keyframe.time.value());
+        EXPECT_GE(frame, request.startFrame);
+        EXPECT_LE(frame, request.endFrame);
+        EXPECT_GE(frame, previousFrame);
+        previousFrame = frame;
+    }
+    EXPECT_DOUBLE_EQ(static_cast<double>(result.keyframes.back().time.value()),
+                     request.endFrame);
+}
+
 TEST(KeyframePatternGeneratorTest, ShakeUsesSeedForRepeatableBoundedSamples)
 {
     KeyframePatternRequest request;

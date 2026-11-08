@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstdint>
+#include <limits>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -260,6 +263,76 @@ TEST(PlaybackClockContractTest, PlaybackSpeedTracksDirectionAndSuppressesDuplica
     EXPECT_TRUE(clock.isReversePlaying());
 }
 
+TEST(PlaybackClockContractTest, ChangingSpeedWhilePausedKeepsTheCurrentFrame)
+{
+    PlaybackClock clock;
+    clock.setFrameRate(FrameRate(24.0f));
+    clock.setFrame(0);
+    clock.start();
+
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::seconds(2);
+    std::int64_t frameBeforePause = 0;
+    while (std::chrono::steady_clock::now() < deadline) {
+        frameBeforePause = clock.currentFrame();
+        if (frameBeforePause >= 6) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_GE(frameBeforePause, 6)
+        << "the clock should advance enough to detect a re-anchor jump";
+
+    clock.pause();
+    const std::int64_t pausedFrame = clock.currentFrame();
+    ASSERT_GE(pausedFrame, 6);
+
+    clock.setPlaybackSpeed(2.0);
+
+    EXPECT_EQ(clock.currentFrame(), pausedFrame)
+        << "changing speed should alter subsequent time progression, not reinterpret elapsed time";
+    EXPECT_DOUBLE_EQ(clock.playbackSpeed(), 2.0);
+}
+
+TEST(PlaybackClockContractTest,
+     ChangingSpeedAndDirectionWhilePlayingKeepsFramePositionContinuous)
+{
+    PlaybackClock clock;
+    clock.setFrameRate(FrameRate(60.0f));
+    clock.setFrame(100);
+    clock.start();
+
+    const auto waitForFrame = [&clock](const auto& predicate) {
+        const auto deadline = std::chrono::steady_clock::now() +
+                              std::chrono::seconds(2);
+        while (std::chrono::steady_clock::now() < deadline) {
+            if (predicate(clock.currentFrame())) return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return predicate(clock.currentFrame());
+    };
+
+    ASSERT_TRUE(waitForFrame([](std::int64_t frame) { return frame >= 106; }));
+    const std::int64_t beforeSpeedChange = clock.currentFrame();
+    clock.setPlaybackSpeed(2.0);
+    const std::int64_t afterSpeedChange = clock.currentFrame();
+    EXPECT_GE(afterSpeedChange, beforeSpeedChange - 1);
+    EXPECT_LE(afterSpeedChange, beforeSpeedChange + 1)
+        << "a speed change must re-anchor elapsed time at the observed frame";
+
+    ASSERT_TRUE(waitForFrame([afterSpeedChange](std::int64_t frame) {
+        return frame >= afterSpeedChange + 4;
+    }));
+    const std::int64_t beforeDirectionChange = clock.currentFrame();
+    clock.setPlaybackSpeed(-1.0);
+    const std::int64_t afterDirectionChange = clock.currentFrame();
+    EXPECT_GE(afterDirectionChange, beforeDirectionChange - 1);
+    EXPECT_LE(afterDirectionChange, beforeDirectionChange + 1)
+        << "switching to reverse must not reinterpret elapsed time as negative progress";
+
+    EXPECT_TRUE(waitForFrame([afterDirectionChange](std::int64_t frame) {
+        return frame <= afterDirectionChange - 4;
+    })) << "the clock should continue in reverse after the continuous direction change";
+}
+
 TEST(PlaybackClockContractTest, LoopRangeEnablesLoopingAndClearRetainsEndpoints)
 {
     EventRecorder recorder;
@@ -287,6 +360,84 @@ TEST(PlaybackClockContractTest, LoopRangeEnablesLoopingAndClearRetainsEndpoints)
     recorder.clear();
     clock.clearLoopRange();
     EXPECT_TRUE(recorder.events().empty());
+}
+
+TEST(PlaybackClockContractTest,
+     PlaybackWrapsWithinStoredLoopEndpointsInBothDirections)
+{
+    PlaybackClock clock(FrameRate(30.0f));
+    clock.setFrame(15);
+    clock.setLoopRange(10, 20);
+    clock.start();
+
+    const auto observeWrap = [&clock](bool reverse) {
+        const auto deadline = std::chrono::steady_clock::now() +
+                              std::chrono::seconds(2);
+        std::int64_t previous = clock.currentFrame();
+        bool observedWrap = false;
+        while (std::chrono::steady_clock::now() < deadline) {
+            const std::int64_t current = clock.currentFrame();
+            EXPECT_GE(current, 10) << "loop frame escaped below its start";
+            EXPECT_LE(current, 20) << "loop frame escaped above its end";
+            if (reverse) {
+                observedWrap = observedWrap ||
+                    (previous <= 12 && current >= 18);
+            } else {
+                observedWrap = observedWrap ||
+                    (previous >= 18 && current <= 12);
+            }
+            previous = current;
+            if (observedWrap) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return observedWrap;
+    };
+
+    EXPECT_TRUE(observeWrap(false))
+        << "forward playback should wrap from the high endpoint to the low endpoint";
+    clock.setPlaybackSpeed(-1.0);
+    EXPECT_TRUE(observeWrap(true))
+        << "reverse playback should wrap from the low endpoint to the high endpoint";
+    clock.stop();
+}
+
+TEST(PlaybackClockContractTest,
+     PausingNearLoopEndFreezesFrameAndResumeContinuesThroughWrap)
+{
+    PlaybackClock clock(FrameRate(30.0f));
+    clock.setFrame(18);
+    clock.setLoopRange(10, 20);
+    clock.setPlaybackSpeed(0.5);
+    clock.start();
+
+    const auto waitForFrame = [&clock](const auto& predicate) {
+        const auto deadline = std::chrono::steady_clock::now() +
+                              std::chrono::seconds(2);
+        while (std::chrono::steady_clock::now() < deadline) {
+            if (predicate(clock.currentFrame())) return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return predicate(clock.currentFrame());
+    };
+
+    ASSERT_TRUE(waitForFrame([](std::int64_t frame) { return frame >= 19; }));
+    clock.pause();
+    const std::int64_t pausedFrame = clock.currentFrame();
+    ASSERT_TRUE(clock.isPaused());
+    ASSERT_GE(pausedFrame, 19);
+    ASSERT_LT(pausedFrame, 20);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    EXPECT_EQ(clock.currentFrame(), pausedFrame)
+        << "loop evaluation must not advance a paused clock";
+
+    clock.resume();
+    ASSERT_TRUE(waitForFrame([pausedFrame](std::int64_t frame) {
+        return frame < pausedFrame;
+    })) << "resumed playback should cross the loop end and continue at its start";
+    EXPECT_GE(clock.currentFrame(), 10);
+    EXPECT_LT(clock.currentFrame(), 20);
+    clock.stop();
 }
 
 TEST(PlaybackClockContractTest, AudioSyncIgnoresCallsWhileDisabled)
@@ -550,6 +701,34 @@ TEST(PlaybackClockContractTest, PublishedSnapshotMatchesTheObservedSnapshot)
     EXPECT_EQ(published.droppedFrameCount, observed.droppedFrameCount);
 }
 
+TEST(PlaybackClockContractTest,
+     StateChangeObserverCanReenterClockAndPublishNestedChange)
+{
+    PlaybackClock clock;
+    std::vector<PlaybackClockStateChangedEvent> observed;
+    bool nestedChangeRequested = false;
+    auto subscription = ArtifactCore::globalEventBus()
+        .subscribe<PlaybackClockStateChangedEvent>(
+            [&](const PlaybackClockStateChangedEvent& event) {
+                observed.push_back(event);
+                if (!nestedChangeRequested && event.current.currentFrame == 12) {
+                    nestedChangeRequested = true;
+                    clock.setFrame(24);
+                }
+            });
+    ASSERT_TRUE(subscription.connected());
+
+    clock.setFrame(12);
+
+    ASSERT_EQ(observed.size(), 2u);
+    EXPECT_EQ(observed[0].reason, QStringLiteral("setFrame"));
+    EXPECT_EQ(observed[0].current.currentFrame, 12);
+    EXPECT_EQ(observed[1].reason, QStringLiteral("setFrame"));
+    EXPECT_EQ(observed[1].previous.currentFrame, 12);
+    EXPECT_EQ(observed[1].current.currentFrame, 24);
+    EXPECT_EQ(clock.currentFrame(), 24);
+}
+
 TEST(PlaybackClockContractTest, ResetWhilePlayingReturnsToTheStartFrame)
 {
     EventRecorder recorder;
@@ -664,6 +843,23 @@ TEST(PlaybackClockContractTest, DeltaTimeIsMeasuredFromTheLastUpdate)
     EXPECT_GE(second.count(), 0);
 }
 
+TEST(PlaybackClockContractTest, DeltaTimeAppliesForwardReverseAndStoppedSpeeds)
+{
+    PlaybackClock clock;
+
+    // deltaTime() reports a duration scaled by playbackSpeed(), regardless
+    // of whether transport has been started. Zero speed therefore freezes
+    // the returned delta; reverse speed returns a non-positive delta.
+    clock.setPlaybackSpeed(0.0);
+    EXPECT_EQ(clock.deltaTime().count(), 0);
+
+    clock.setPlaybackSpeed(-1.0);
+    EXPECT_LE(clock.deltaTime().count(), 0);
+
+    clock.setPlaybackSpeed(2.0);
+    EXPECT_GE(clock.deltaTime().count(), 0);
+}
+
 TEST(PlaybackClockContractTest, LoopRangeEndpointsAreStoredVerbatim)
 {
     EventRecorder recorder;
@@ -677,4 +873,95 @@ TEST(PlaybackClockContractTest, LoopRangeEndpointsAreStoredVerbatim)
     EXPECT_TRUE(clock.isLooping());
     ASSERT_EQ(recorder.events().size(), 1u);
     EXPECT_EQ(recorder.events()[0].reason, QStringLiteral("setLoopRange"));
+}
+
+TEST(PlaybackClockContractTest,
+     ForwardAndReversePlaybackWrapLargeAudioSyncOvershootsIntoLoopRange)
+{
+    const auto verifyWrappedOvershoot = [](double speed) {
+        PlaybackClock clock;
+        clock.setFrameRate(FrameRate(1.0f));
+        clock.setFrame(0);
+        clock.setLoopRange(10, 20);
+        clock.setPlaybackSpeed(speed);
+        clock.setAudioSyncEnabled(true);
+        clock.start();
+        clock.syncToAudioClock(std::chrono::seconds(25));
+
+        const auto wrappedFrame = clock.currentFrame();
+        EXPECT_GE(wrappedFrame, 10);
+        EXPECT_LT(wrappedFrame, 20);
+    };
+
+    verifyWrappedOvershoot(1.0);
+    verifyWrappedOvershoot(-1.0);
+}
+
+
+TEST(PlaybackClockContractTest,
+     ForwardLoopWrapsFrameDistanceAcrossSignedIntegerLimits)
+{
+    PlaybackClock clock(FrameRate(1.0f));
+    const std::int64_t loopStart = std::numeric_limits<std::int64_t>::min();
+    const std::int64_t loopEnd = loopStart + 10;
+
+    clock.setLoopRange(loopStart, loopEnd);
+    clock.setFrame(std::numeric_limits<std::int64_t>::max());
+
+    // Keep the clock stopped: updateCurrentFrame() then uses zero elapsed time,
+    // making the integer boundary case deterministic.
+    const std::int64_t wrappedFrame = clock.currentFrame();
+
+    // Mathematically, (INT64_MAX - (INT64_MIN + 10)) mod 10 == 5.
+    // The loop is half-open, so the wrapped frame is start + 5.
+    EXPECT_EQ(wrappedFrame, loopStart + 5);
+    EXPECT_GE(wrappedFrame, loopStart);
+    EXPECT_LT(wrappedFrame, loopEnd);
+}
+
+TEST(PlaybackClockContractTest,
+     ReverseLoopWrapsFrameDistanceAcrossSignedIntegerLimits)
+{
+    PlaybackClock clock(FrameRate(1.0f));
+    const std::int64_t loopEnd = std::numeric_limits<std::int64_t>::max();
+    const std::int64_t loopStart = loopEnd - 10;
+
+    clock.setLoopRange(loopStart, loopEnd);
+    clock.setPlaybackSpeed(-1.0);
+    clock.setFrame(std::numeric_limits<std::int64_t>::min());
+
+    // Mathematically, (loopStart - INT64_MIN) mod 10 == 5.
+    // Reverse wrap maps that distance to end - 5.
+    const std::int64_t wrappedFrame = clock.currentFrame();
+    EXPECT_EQ(wrappedFrame, loopEnd - 5);
+    EXPECT_GE(wrappedFrame, loopStart);
+    EXPECT_LT(wrappedFrame, loopEnd);
+}
+
+
+TEST(PlaybackClockContractTest,
+     ReversePlaybackAtLoopStartWrapsToLastIncludedFrame)
+{
+    PlaybackClock clock(FrameRate(1.0f));
+    clock.setLoopRange(10, 20);
+    clock.setPlaybackSpeed(-1.0);
+    clock.setFrame(10);
+
+    // The loop is [10, 20): reverse playback at its first frame wraps to 19,
+    // the last included frame, rather than the excluded end frame 20.
+    EXPECT_EQ(clock.currentFrame(), 19);
+}
+
+TEST(PlaybackClockContractTest,
+     ForwardPlaybackAtLoopEndWrapsToFirstIncludedFrame)
+{
+    PlaybackClock clock(FrameRate(1.0f));
+    clock.setLoopRange(10, 20);
+    clock.setFrame(20);
+
+    // The loop interval is half-open [10, 20), so the exact excluded end
+    // must wrap to the first included frame even while transport is stopped.
+    EXPECT_EQ(clock.currentFrame(), 10);
+    EXPECT_GE(clock.currentFrame(), clock.loopStartFrame());
+    EXPECT_LT(clock.currentFrame(), clock.loopEndFrame());
 }

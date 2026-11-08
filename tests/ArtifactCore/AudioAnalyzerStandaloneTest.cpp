@@ -2,7 +2,9 @@
 
 #include <QVector>
 
+#include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <utility>
 
@@ -111,6 +113,33 @@ TEST(AudioAnalyzerStandaloneTest, StereoMetricsUseAllChannelsAndSpectrumUsesThei
         EXPECT_FLOAT_EQ(bin, 0.0f);
 }
 
+TEST(AudioAnalyzerStandaloneTest, MismatchedChannelLengthsIgnoreEveryChannelTailAfterShortest)
+{
+    AudioSegment mismatched;
+    mismatched.sampleRate = 48000;
+    mismatched.layout = AudioChannelLayout::Stereo;
+    mismatched.channelData.push_back(QVector<float>{0.5f, 0.25f, 500.0f, -500.0f});
+    mismatched.channelData.push_back(QVector<float>{-0.25f, 0.5f});
+
+    AudioSegment explicitlyTrimmed;
+    explicitlyTrimmed.sampleRate = mismatched.sampleRate;
+    explicitlyTrimmed.layout = mismatched.layout;
+    explicitlyTrimmed.channelData.push_back(QVector<float>{0.5f, 0.25f});
+    explicitlyTrimmed.channelData.push_back(QVector<float>{-0.25f, 0.5f});
+
+    ASSERT_EQ(mismatched.frameCount(), 2);
+    AudioAnalyzer analyzer(8);
+    const auto actual = analyzer.analyze(mismatched);
+    const auto expected = analyzer.analyze(explicitlyTrimmed);
+
+    EXPECT_FLOAT_EQ(actual.rms, expected.rms);
+    EXPECT_FLOAT_EQ(actual.peak, expected.peak);
+    EXPECT_EQ(actual.spectrum, expected.spectrum);
+    EXPECT_FLOAT_EQ(actual.lowIntensity, expected.lowIntensity);
+    EXPECT_FLOAT_EQ(actual.midIntensity, expected.midIntensity);
+    EXPECT_FLOAT_EQ(actual.highIntensity, expected.highIntensity);
+}
+
 TEST(AudioAnalyzerStandaloneTest, SpectrumHasHalfSizePlusOneFiniteMagnitudeBins)
 {
     AudioAnalyzer analyzer(16);
@@ -122,6 +151,62 @@ TEST(AudioAnalyzerStandaloneTest, SpectrumHasHalfSizePlusOneFiniteMagnitudeBins)
         EXPECT_TRUE(std::isfinite(bin));
         EXPECT_GE(bin, 0.0f);
     }
+}
+
+TEST(AudioAnalyzerStandaloneTest, BinCenteredTonePeaksAtItsFrequencyWithHammingGain)
+{
+    constexpr int fftSize = 128;
+    constexpr int toneBin = 11;
+    constexpr float amplitude = 0.8f;
+    constexpr double pi = 3.14159265358979323846;
+    QVector<float> samples;
+    samples.reserve(fftSize);
+    for (int frame = 0; frame < fftSize; ++frame) {
+        const double phase = 2.0 * pi * toneBin * frame / fftSize;
+        samples.push_back(amplitude * static_cast<float>(std::sin(phase)));
+    }
+
+    AudioAnalyzer analyzer(fftSize);
+    const auto result = analyzer.analyze(makeMono(std::move(samples)));
+
+    ASSERT_EQ(result.spectrum.size(), fftSize / 2 + 1);
+    const auto peak = std::max_element(result.spectrum.begin(), result.spectrum.end());
+    ASSERT_NE(peak, result.spectrum.end());
+    EXPECT_EQ(std::distance(result.spectrum.begin(), peak), toneBin);
+
+    // Hamming coherent gain is sum(window) / N = 0.54 - 0.46 / N.
+    const float expectedPeak = amplitude * (0.54f - 0.46f / fftSize);
+    EXPECT_NEAR(result.spectrum[toneBin], expectedPeak, 1e-3f);
+    EXPECT_NEAR(result.rms, amplitude / std::sqrt(2.0f), 1e-6f);
+    EXPECT_NEAR(result.peak, amplitude, 1e-6f);
+}
+
+TEST(AudioAnalyzerStandaloneTest,
+     DCAndNyquistBinsUseTheSameOneSidedAmplitudeScaleAsInteriorBins)
+{
+    constexpr int fftSize = 128;
+    constexpr float amplitude = 0.75f;
+    constexpr int nyquistBin = fftSize / 2;
+    QVector<float> dcSamples;
+    QVector<float> nyquistSamples;
+    dcSamples.reserve(fftSize);
+    nyquistSamples.reserve(fftSize);
+    for (int frame = 0; frame < fftSize; ++frame) {
+        dcSamples.push_back(amplitude);
+        nyquistSamples.push_back(frame % 2 == 0 ? amplitude : -amplitude);
+    }
+
+    AudioAnalyzer analyzer(fftSize);
+    const auto dc = analyzer.analyze(makeMono(std::move(dcSamples)));
+    const auto nyquist = analyzer.analyze(makeMono(std::move(nyquistSamples)));
+    ASSERT_EQ(dc.spectrum.size(), static_cast<std::size_t>(nyquistBin + 1));
+    ASSERT_EQ(nyquist.spectrum.size(), static_cast<std::size_t>(nyquistBin + 1));
+
+    // Hamming coherent gain is sum(window) / N. DC and Nyquist are not
+    // mirrored bins, so one-sided amplitude normalization must not double them.
+    const float expectedAmplitude = amplitude * (0.54f - 0.46f / fftSize);
+    EXPECT_NEAR(dc.spectrum.front(), expectedAmplitude, 1e-3f);
+    EXPECT_NEAR(nyquist.spectrum.back(), expectedAmplitude, 1e-3f);
 }
 
 TEST(AudioAnalyzerStandaloneTest, NonFiniteInputIsExcludedFromPeakAndSanitizedForFft)
@@ -182,6 +267,21 @@ TEST(AudioAnalyzerStandaloneTest, RMSAndPeakUseAllFramesWhenFFTTruncatesInput)
     EXPECT_FLOAT_EQ(result.rms, std::sqrt(0.5f));
     EXPECT_FLOAT_EQ(result.peak, 1.0f);
     EXPECT_EQ(result.spectrum.size(), 2u);
+}
+
+TEST(AudioAnalyzerStandaloneTest, TruncatedFFTUsesLeadingWindowButMetricsIncludeLatePeak)
+{
+    AudioAnalyzer analyzer(8);
+    const auto full = analyzer.analyze(makeMono(
+        QVector<float>{0.25f, -0.5f, 0.75f, -1.0f, 0.5f, 0.0f, 0.25f, -0.5f, 4.0f}));
+    const auto fftWindowOnly = analyzer.analyze(makeMono(
+        QVector<float>{0.25f, -0.5f, 0.75f, -1.0f, 0.5f, 0.0f, 0.25f, -0.5f}));
+
+    EXPECT_NEAR(full.rms, std::sqrt(18.4375f / 9.0f), 1e-6f);
+    EXPECT_FLOAT_EQ(full.peak, 4.0f);
+    EXPECT_EQ(full.spectrum, fftWindowOnly.spectrum);
+    EXPECT_TRUE(std::any_of(full.spectrum.begin(), full.spectrum.end(),
+                            [](float bin) { return bin > 0.0f; }));
 }
 
 TEST(AudioAnalyzerStandaloneTest, BandIntensitiesAverageBinsClampedToNyquist)
