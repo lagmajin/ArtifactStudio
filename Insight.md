@@ -12384,3 +12384,10 @@
 - **Added check:** Four workers repeatedly lock one weak pointer while the owner is reset; require all observed values to remain valid, the custom deleter to run exactly once, and the weak pointer to expire afterward.
 - **Value or concern:** Exercises control-block synchronization and lifetime transition under contention. The initial successful lock wait is bounded; test not run.
 - **Next:** Run `SharedPtrContractTest.ConcurrentWeakLocksRemainValidUntilLastOwnerAndThenExpire` when test execution is authorized.
+
+## 2026-11-08: Property link snapshot under callback clear
+- **Related:** `tests/ArtifactCore/PropertyLinkManagerContractTest.cpp::FanOutUsesStableLinkSnapshotWhenMapperClearsTheManager`.
+- **Confirmed:** Existing fan-out coverage verifies that adding a link from a mapper affects only the next update pass. It does not cover clearing all registrations from inside a mapper.
+- **Added check:** Clear the manager during the first custom mapping; require remaining links in the current snapshot to update, the registration list to become empty, and subsequent passes to leave prior targets unchanged.
+- **Value or concern:** Exercises reentrant structural mutation and update-pass snapshot consistency. Test not run.
+- **Next:** Run `PropertyLinkManagerContractTest.FanOutUsesStableLinkSnapshotWhenMapperClearsTheManager` when test execution is authorized.

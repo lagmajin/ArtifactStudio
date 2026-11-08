@@ -207,3 +207,38 @@ TEST(PropertyLinkManagerContractTest,
     manager.updateTargets(source.get());
     EXPECT_FLOAT_EQ(callbackAddedTarget->getValue().toFloat(), 0.375f);
 }
+
+TEST(PropertyLinkManagerContractTest,
+     FanOutUsesStableLinkSnapshotWhenMapperClearsTheManager)
+{
+    LinkManagerReset reset;
+    auto& manager = PropertyLinkManager::instance();
+    manager.clear();
+
+    Property source(QStringLiteral("source"), 0.625f);
+    Property mapperTarget(QStringLiteral("mapper-target"), 0.0f);
+    Property laterTarget(QStringLiteral("later-target"), -1.0f);
+    PropertyLink clearingMapper;
+    clearingMapper.source = source.get();
+    clearingMapper.target = mapperTarget.get();
+    clearingMapper.type = LinkType::Custom;
+    clearingMapper.customMapper = [&manager](const QVariant& value) {
+        manager.clear();
+        return value;
+    };
+    manager.addLink(clearingMapper);
+    manager.addLink(source.get(), laterTarget.get(), LinkType::Direct);
+
+    manager.updateTargets(source.get());
+
+    EXPECT_FLOAT_EQ(mapperTarget->getValue().toFloat(), 0.625f);
+    EXPECT_FLOAT_EQ(laterTarget->getValue().toFloat(), 0.625f)
+        << "clearing registrations during a callback does not invalidate the current pass";
+    EXPECT_TRUE(manager.links().empty());
+
+    source->setValue(0.875f);
+    manager.updateTargets(source.get());
+    EXPECT_FLOAT_EQ(mapperTarget->getValue().toFloat(), 0.625f);
+    EXPECT_FLOAT_EQ(laterTarget->getValue().toFloat(), 0.625f)
+        << "cleared registrations do not participate in later passes";
+}
