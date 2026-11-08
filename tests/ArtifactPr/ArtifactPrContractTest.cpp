@@ -199,6 +199,34 @@ TEST(ArtifactPrClipEffectsTest, ImageEffectFastPathOnlySeesImageEffectIds)
     EXPECT_TRUE(ArtifactPr::hasEnabledImageEffects(effects({{"fx.rotate.enabled", "true"}})));
 }
 
+TEST(ArtifactPrClipEffectsTest,
+     GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels)
+{
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.resize(5, 1);
+    image.setPixel(0, 0, ArtifactCore::FloatRGBA(1.0f, 0.0f, 0.0f, 1.0f));
+    for (int x = 1; x < 5; ++x) {
+        image.setPixel(x, 0, ArtifactCore::FloatRGBA(0.0f, 1.0f, 0.0f, 0.0f));
+    }
+
+    const bool applied = ArtifactPr::applyClipEffects(
+        image, effects({{"fx.gaussianBlur.enabled", "1"},
+                        {"fx.gaussianBlur.radius", "1"}}));
+
+    ASSERT_TRUE(applied);
+    const ArtifactCore::FloatRGBA blurredEdge = image.getPixel(1, 0);
+    EXPECT_GT(blurredEdge.a(), 0.0f);
+    EXPECT_LT(blurredEdge.a(), 1.0f);
+    EXPECT_NEAR(blurredEdge.r(), 1.0f, 1e-4f);
+    EXPECT_NEAR(blurredEdge.g(), 0.0f, 1e-5f);
+    EXPECT_NEAR(blurredEdge.b(), 0.0f, 1e-5f);
+
+    const ArtifactCore::FloatRGBA transparentTail = image.getPixel(4, 0);
+    EXPECT_NEAR(transparentTail.a(), 0.0f, 1e-6f);
+    EXPECT_NEAR(transparentTail.r(), 0.0f, 1e-6f);
+    EXPECT_NEAR(transparentTail.g(), 0.0f, 1e-6f);
+}
+
 // =====================================================================
 // Audio effect parameters
 // =====================================================================

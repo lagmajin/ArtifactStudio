@@ -12832,3 +12832,10 @@
 - **Added check:** Fit a solid 3x1 frame into 7x7; assert the 1px scaled height rounds to 2px and the five padding rows divide as two before and three after.
 - **Value or concern:** Detects fit rounding and center-offset regressions that even-dimension geometry cannot expose. Test not run.
 - **Next:** Run `ArtifactPrContractTest.AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide` when test execution is authorized.
+
+## 2026-11-09: ClipEffects transparent hidden-RGB blur edge
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels`.
+- **Confirmed:** `applyClipEffects` premultiplies before blur and unpremultiplies afterward, but the ArtifactPr contract tests do not directly verify hidden RGB isolation at a transparency edge.
+- **Added check:** Blur an opaque red pixel adjacent to fully transparent pixels carrying green RGB; assert the partially visible edge stays red and the transparent tail remains zero-alpha/zero-RGB.
+- **Value or concern:** Detects colored halos caused by filtering straight RGB without respecting alpha association. Test not run.
+- **Next:** Run `ArtifactPrContractTest.GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels` when test execution is authorized.
