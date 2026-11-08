@@ -12468,3 +12468,10 @@
 - **Added check:** Create a conflict, successfully rebind an action to free its former chord, claim that chord with another action, reject a second conflicting rebind, and round-trip the resulting map through JSON while checking both lookup indexes.
 - **Value or concern:** Protects the coupled index state against partial updates through successful and rejected mutations and serialization. Test not run.
 - **Next:** Run `KeyMapContractTest.RebindConflictsKeepBothIndexesConsistentAcrossJsonRoundTrip` when test execution is authorized.
+
+## 2026-11-08: AudioCompressor sidechain block partition invariance
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::SidechainProcessingInIrregularBlocksMatchesContinuousRun`.
+- **Confirmed:** Compressor tests compare continuous processing with irregular blocks for the program detector, and separately test sidechain detector behavior, but do not combine sidechain detection with block-partition equivalence.
+- **Added check:** Process the same 16-frame program and sidechain signals continuously and across irregular block boundaries; compare every output sample and final gain reduction.
+- **Value or concern:** Detects sidechain envelope or alignment state that changes at process-call boundaries. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.SidechainProcessingInIrregularBlocksMatchesContinuousRun` when test execution is authorized.
