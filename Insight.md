@@ -12580,3 +12580,10 @@
 - **Added check:** Convert 3x3 luma and 2x2 chroma ROI views backed by wider matrices, with distinct values at each row and column; verify output dimensions and samples spanning all rows.
 - **Value or concern:** Detects accidental flat-buffer assumptions that skip OpenCV row stride or read neighboring padding. Test not run.
 - **Next:** Run `ImageYUV420ContractTest.FromPlanesRespectsNonContiguousInputRowStrides` when test execution is authorized.
+
+## 2026-11-09: BGRA readback with multi-pixel padded rows
+- **Related:** `tests/ArtifactCore/PixelChannelOrderStandaloneTest.cpp::GpuBgraReadbackHandlesMultiplePixelsAndPaddedRows`.
+- **Confirmed:** BGRA readback coverage uses one pixel per row with padding; the multi-pixel padded-row case exists only for RGBA input.
+- **Added check:** Read a 2x2 BGRA buffer with two padding floats after each row, then verify all canonical backing values and selected logical pixel channels from both rows.
+- **Value or concern:** Exercises horizontal pixel stepping, row stride, and BGRA-to-logical-RGBA access together. Test not run.
+- **Next:** Run `PixelChannelOrderStandaloneTest.GpuBgraReadbackHandlesMultiplePixelsAndPaddedRows` when test execution is authorized.
