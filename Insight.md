@@ -12419,3 +12419,10 @@
 - **Added check:** Persist mixed project-open, crash, render-failure, recoverable recovery-entry, and recovery-point records; after reload require only the recoverable entry kinds in insertion order and preserve checkpoint metadata.
 - **Value or concern:** Checks derived recovery behavior across serialization, including exclusion of nonrecoverable events. Test not run.
 - **Next:** Run `SessionLedgerStandaloneTest.RecoverableEntriesRetainTheirFilteringAndOrderAfterFileRoundTrip` when test execution is authorized.
+
+## 2026-11-08: Result failure diagnostic context propagation
+- **Related:** `tests/ArtifactCore/ResultContractTest.cpp::TransformAndThenShortCircuitFailuresWithoutLosingDiagnosticContext`.
+- **Confirmed:** Existing transform and andThen failure tests assert that the error code survives, while context-field preservation is covered only during direct failure construction.
+- **Added check:** Send one contextual failure through both combinators; assert the mapper callbacks remain uncalled and code, message, operation, object ID, source location, and trace ID are unchanged.
+- **Value or concern:** Protects diagnostic fidelity through compositional error paths. Test not run.
+- **Next:** Run `ResultContractTest.TransformAndThenShortCircuitFailuresWithoutLosingDiagnosticContext` when test execution is authorized.
