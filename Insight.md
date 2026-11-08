@@ -12447,3 +12447,10 @@
 - **Added check:** Across 24 cycles, add 96 values under one hash, remove alternating values, compare lookups and size with `std::unordered_set`, and periodically remove the remainder before reuse.
 - **Value or concern:** Exercises repeated chain unlinking and rebuilding through the same heavily colliding buckets. Test not run.
 - **Next:** Run `ArtifactSetContractTest.CollisionChainsSurviveRepeatedGrowthRemovalAndReuse` when test execution is authorized.
+
+## 2026-11-08: ArtifactString mixed byte mutation model sequence
+- **Related:** `tests/ArtifactCore/ArtifactStringContractTest.cpp::DeterministicMixedMutationsMatchByteStringModel`.
+- **Confirmed:** String tests cover explicit embedded-NUL behavior and individual append, replace, clear, and copy cases, but no deterministic sequence cross-checks their cumulative interactions against a byte-string model.
+- **Added check:** Apply 2,400 seeded append/replace/clear/copy operations using short payloads that include embedded NUL bytes; compare length, full bytes, and trailing terminator after each operation.
+- **Value or concern:** Exercises byte length and null termination while repeated changes cross the inline/heap storage boundary. Test not run.
+- **Next:** Run `ArtifactStringContractTest.DeterministicMixedMutationsMatchByteStringModel` when test execution is authorized.
