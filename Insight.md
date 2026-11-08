@@ -12552,3 +12552,10 @@
 - **Added check:** Analyze two stereo frames whose channels contain opposite maximum finite float values; assert RMS and peak stay at the maximum and every FFT magnitude remains finite.
 - **Value or concern:** Stresses accumulation across frames/channels and FFT cancellation at the finite-input limit. Test not run.
 - **Next:** Run `AudioAnalyzerStandaloneTest.OppositeMaximumFiniteStereoSamplesKeepMetricsFinite` when test execution is authorized.
+
+## 2026-11-09: AudioSpectrum short-term metric at int64 frame boundary
+- **Related:** `tests/ArtifactCore/AudioSpectrumStandaloneTest.cpp::IntegratedWindowContinuesAcrossInt64FrameBoundary`.
+- **Confirmed:** The existing regression feeds contiguous segments across `qint64` maximum and asserts the integrated loudness, while the separate short-term window metric is not checked at that boundary.
+- **Added check:** Assert short-term loudness equals the independently computed mean-square level after the same cross-boundary segment sequence.
+- **Value or concern:** Extends overflow/continuity coverage to the second window accumulator without adding time-dependent behavior. Test not run.
+- **Next:** Run `AudioSpectrumStandaloneTest.IntegratedWindowContinuesAcrossInt64FrameBoundary` when test execution is authorized.

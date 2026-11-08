@@ -261,6 +261,7 @@ TEST(AudioSpectrumStandaloneTest, IntegratedWindowContinuesAcrossInt64FrameBound
     const float meanSquare = (0.25f * 0.25f + 0.5f * 0.5f) * 0.5f;
     const float expected = static_cast<float>(-0.691 + 10.0 * std::log10(meanSquare));
     EXPECT_NEAR(spectrum.getIntegratedLufs(), expected, 1e-4f);
+    EXPECT_NEAR(spectrum.getShortTermLufs(), expected, 1e-4f);
 }
 
 TEST(AudioSpectrumStandaloneTest, DiscontinuousSegmentsRestartIntegratedWindow)
