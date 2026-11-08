@@ -12741,3 +12741,10 @@
 - **Added check:** Analyze a repeated 4-column cosine sample, assert its normalized DC and two expected conjugate-bin magnitudes, and verify all other 2D bins are zero.
 - **Value or concern:** Detects frequency-axis ordering, normalization, and conjugate-bin errors that DC-only and Nyquist-only patterns can miss. Test not run.
 - **Next:** Run `ImageAnalyzerContractTest.SpatialFrequencySeparatesConjugateBinsForKnownIntermediateFrequency` when test execution is authorized.
+
+## 2026-11-09: Layer bounds combined transform AABB oracle
+- **Related:** `tests/ArtifactCore/LayerBoundsCalculatorStandaloneTest.cpp::CombinedAnchorRotationAndMirroredScaleProduceCornerDerivedAabb`.
+- **Confirmed:** Bounds tests cover anchor, rotation, nonuniform scale, mirrored scale, and AABB independently, but do not derive an AABB from corners produced by all those transform components together.
+- **Added check:** Calculate corners from translated/anchored, rotated, nonuniform mirrored geometry; derive min/max directly from those four points, compare all AABB edges, and verify every corner is contained.
+- **Value or concern:** Detects composition-order or sign errors between transform calculation and AABB aggregation. Test not run.
+- **Next:** Run `LayerBoundsCalculatorStandaloneTest.CombinedAnchorRotationAndMirroredScaleProduceCornerDerivedAabb` when test execution is authorized.
