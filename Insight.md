@@ -12391,3 +12391,10 @@
 - **Added check:** Clear the manager during the first custom mapping; require remaining links in the current snapshot to update, the registration list to become empty, and subsequent passes to leave prior targets unchanged.
 - **Value or concern:** Exercises reentrant structural mutation and update-pass snapshot consistency. Test not run.
 - **Next:** Run `PropertyLinkManagerContractTest.FanOutUsesStableLinkSnapshotWhenMapperClearsTheManager` when test execution is authorized.
+
+## 2026-11-08: Concurrent diagnostic recording with bounded history
+- **Related:** `tests/ArtifactCore/DiagnosticRecorderStandaloneTest.cpp::ConcurrentProducersKeepTheBoundedHistoryAsAContiguousSequenceWindow`.
+- **Confirmed:** Existing recorder tests cover bounded eviction and event sequence ordering separately, but not concurrent producers crossing the retention limit.
+- **Added check:** Four synchronized producers record 2,000 events into a 128-event history; verify the newest retained sequence window is contiguous and every retained event has producer metadata.
+- **Value or concern:** Checks sequence allocation, concurrent insertion, and eviction consistency as one invariant. Test not run.
+- **Next:** Run `DiagnosticRecorderStandaloneTest.ConcurrentProducersKeepTheBoundedHistoryAsAContiguousSequenceWindow` when test execution is authorized.
