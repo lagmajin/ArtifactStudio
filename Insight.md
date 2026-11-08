@@ -12482,3 +12482,10 @@
 - **Added check:** Compare both channels from one 127-frame stereo processing call against seven irregular blocks using identical LFO, delay, depth, and feedback settings.
 - **Value or concern:** Exercises phase and per-channel delay/feedback state across varying block boundaries. Test not run.
 - **Next:** Run `AudioChorusStandaloneTest.StereoLfoAndDelayHistorySurviveIrregularBlockBoundaries` when test execution is authorized.
+
+## 2026-11-08: Cascaded audio filter block partition invariance
+- **Related:** `tests/ArtifactCore/AudioHighLowPassStandaloneTest.cpp::CascadedFiltersMatchAcrossIrregularBlockBoundaries`.
+- **Confirmed:** Existing tests check low-pass state across blocks and verify high-pass then low-pass composition in a single segment; they do not compare the cascade's two internal histories across irregular blocks.
+- **Added check:** Compare a 97-sample impulse/tone/transient signal processed continuously and in irregular blocks with both filters enabled; assert every output sample matches.
+- **Value or concern:** Covers state continuity at both stages of the cascade and at boundaries adjacent to transients. Test not run.
+- **Next:** Run `AudioHighLowPassStandaloneTest.CascadedFiltersMatchAcrossIrregularBlockBoundaries` when test execution is authorized.
