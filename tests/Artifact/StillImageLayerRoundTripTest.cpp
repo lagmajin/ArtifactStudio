@@ -1129,6 +1129,94 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave)
+{
+    QTemporaryDir originalRoot;
+    QTemporaryDir relocatedRoot;
+    ASSERT_TRUE(originalRoot.isValid());
+    ASSERT_TRUE(relocatedRoot.isValid());
+    isolateProjectRoot(originalRoot);
+
+    const QColor firstColor(30, 90, 150, 255);
+    const QColor secondColor(190, 130, 70, 255);
+    const QString firstPath = originalRoot.filePath(QStringLiteral("move-0001.png"));
+    const QString secondPath = originalRoot.filePath(QStringLiteral("move-0002.png"));
+    const QString projectPath = originalRoot.filePath(QStringLiteral("moving-sequence.artifact"));
+    const QString relocatedFirstPath =
+        relocatedRoot.filePath(QStringLiteral("move-0001.png"));
+    const QString relocatedSecondPath =
+        relocatedRoot.filePath(QStringLiteral("move-0002.png"));
+    const QString relocatedProjectPath =
+        relocatedRoot.filePath(QStringLiteral("moving-sequence.artifact"));
+
+    QImage frame(2, 1, QImage::Format_RGBA8888);
+    frame.fill(firstColor);
+    ASSERT_TRUE(frame.save(firstPath, "PNG"));
+    frame.fill(secondColor);
+    ASSERT_TRUE(frame.save(secondPath, "PNG"));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("MovingImageSequence"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(makeCompositionParams());
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams layerParams(
+        QStringLiteral("MovingSequenceLayer"), Artifact::LayerType::Image);
+    const auto added = projects.addLayerToComposition(composition.id, layerParams);
+    ASSERT_TRUE(added.success);
+    auto* imageLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(added.layer.get());
+    ASSERT_NE(imageLayer, nullptr);
+    const auto layerId = imageLayer->id();
+    ASSERT_TRUE(imageLayer->setImageSequence(
+        QStringList{firstPath, secondPath}, 24.0));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+
+    ASSERT_TRUE(QFile::copy(projectPath, relocatedProjectPath));
+    ASSERT_TRUE(QFile::copy(firstPath, relocatedFirstPath));
+    ASSERT_TRUE(QFile::copy(secondPath, relocatedSecondPath));
+    ASSERT_TRUE(QFile::remove(firstPath));
+    ASSERT_TRUE(QFile::remove(secondPath));
+    EXPECT_FALSE(QFileInfo::exists(firstPath));
+    EXPECT_FALSE(QFileInfo::exists(secondPath));
+
+    projects.closeCurrentProject();
+    isolateProjectRoot(relocatedRoot);
+    ASSERT_TRUE(projects.loadFromFile(relocatedProjectPath));
+
+    const auto findRestoredLayer = [&]() -> Artifact::ArtifactImageLayer* {
+        const auto restoredComposition =
+            projects.findComposition(composition.id).ptr.lock();
+        if (!restoredComposition) return nullptr;
+        return dynamic_cast<Artifact::ArtifactImageLayer*>(
+            restoredComposition->layerById(layerId).get());
+    };
+    auto* relocatedLayer = findRestoredLayer();
+    ASSERT_NE(relocatedLayer, nullptr);
+    ASSERT_EQ(relocatedLayer->sequenceFramePaths(),
+              QStringList({relocatedFirstPath, relocatedSecondPath}));
+    EXPECT_EQ(relocatedLayer->sourcePath(), relocatedFirstPath);
+    EXPECT_DOUBLE_EQ(relocatedLayer->sequenceFrameRate(), 24.0);
+    relocatedLayer->goToFrame(1);
+    EXPECT_EQ(waitForSequenceFrame(*relocatedLayer, 1).pixelColor(0, 0),
+              secondColor);
+
+    ASSERT_TRUE(projects.saveToFile(relocatedProjectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(relocatedProjectPath));
+    relocatedLayer = findRestoredLayer();
+    ASSERT_NE(relocatedLayer, nullptr);
+    EXPECT_EQ(relocatedLayer->sequenceFramePaths(),
+              QStringList({relocatedFirstPath, relocatedSecondPath}));
+    relocatedLayer->goToFrame(0);
+    EXPECT_EQ(waitForSequenceFrame(*relocatedLayer, 0).pixelColor(0, 0),
+              firstColor);
+}
+
+TEST(StillImageLayerRoundTripTest,
      MissingImageSequenceFrameDoesNotKeepStalePixels)
 {
     QTemporaryDir dir;

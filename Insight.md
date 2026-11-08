@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: ImageSequence のプロジェクト移動後の参照維持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 既存の連番プロジェクト再読込テストは欠落フレームのslot維持を確認していたが、保存済みプロジェクトと画像を別ルートへ移して旧画像を削除する遷移は扱っていなかった。
+- **追加した確認:** 移動先ルートからプロジェクトを開き、両フレームの参照先・frame rate・デコード画素を検査し、再保存と再読込後も参照先と画素が維持されるテストを追加した。
+- **価値または懸念:** 古い絶対パスが残っていても同じマシン上で偶然読み込める状態を避け、プロジェクト移動後の再保存まで含む参照復旧を記録する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
 - **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。
