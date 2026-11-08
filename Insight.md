@@ -12692,3 +12692,10 @@
 - **Added check:** Commit history across consecutive frames, then begin an earlier frame and assert history is invalidated and the generation advances once.
 - **Value or concern:** Guards against reusing future-frame accumulation after a timeline seek to an earlier frame. Test not run.
 - **Next:** Run `RenderPipelineContractTest.GITemporalHistoryResetsWhenFrameMovesBackward` when test execution is authorized.
+
+## 2026-11-09: CSV source reload replaces delimiter and schema together
+- **Related:** `tests/ArtifactCore/CsvDataSourceStandaloneTest.cpp::ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange`.
+- **Confirmed:** Reload tests cover new rows under the existing one-column schema and clear state on failure, but not a successful transition that changes both delimiter and column count.
+- **Added check:** Reload a two-column comma file as a three-column semicolon file and verify new headers, values, typed getters, removal of the old lookup, row/column metadata, and file size.
+- **Value or concern:** Detects stale header indexes or metadata surviving a successful source replacement. Test not run.
+- **Next:** Run `CsvDataSourceStandaloneTest.ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange` when test execution is authorized.
