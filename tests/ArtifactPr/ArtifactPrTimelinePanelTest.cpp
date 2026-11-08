@@ -6,10 +6,13 @@
 // singleton, so the stable object names below are the panel's public contract.
 #include <gtest/gtest.h>
 
+#include <QJsonObject>
 #include <QLabel>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QSlider>
 #include <QString>
+#include <QUndoStack>
 #include <QWidget>
 
 #include "ArtifactPrTestApp.h"
@@ -146,4 +149,37 @@ TEST(ArtifactPrTimelinePanelTest, PanelRefreshesAfterTheSequenceChanges)
     emptied.videoTracks[0].clips.clear();
     engine->setCurrentSequence(emptied);
     EXPECT_EQ(panel.findChild<QWidget*>(clipName), nullptr);
+}
+
+TEST(ArtifactPrTimelinePanelTest,
+     ProgrammaticMuteSoloRefreshDoesNotWriteBackIntoNleHistory)
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    engine->newProject();
+    ArtifactPrTimelinePanel panel;
+
+    const QJsonObject snapshotBefore = engine->nleSnapshot();
+    const int undoCountBefore = engine->undoStack()->count();
+    ArtifactPr::DemoSequence sequence = engine->currentSequence();
+    ASSERT_EQ(sequence.audioTracks.size(), 1);
+    const QString trackId = sequence.audioTracks[0].id;
+    sequence.audioTracks[0].muted = true;
+    sequence.audioTracks[0].solo = true;
+    engine->setCurrentSequence(sequence);
+
+    const QString trackName =
+        QStringLiteral("artifactpr.timeline.track.%1").arg(trackId);
+    QWidget* trackWidget = panel.findChild<QWidget*>(trackName);
+    ASSERT_NE(trackWidget, nullptr);
+    const auto buttons = trackWidget->findChildren<QPushButton*>();
+    ASSERT_EQ(buttons.size(), 2);
+    EXPECT_EQ(buttons[0]->text(), QStringLiteral("M"));
+    EXPECT_EQ(buttons[1]->text(), QStringLiteral("S"));
+    EXPECT_TRUE(buttons[0]->isChecked());
+    EXPECT_TRUE(buttons[1]->isChecked());
+
+    // Refreshing from model state must only update the controls. It must not
+    // feed toggled events back into EditorEngine and create NLE edits.
+    EXPECT_EQ(engine->nleSnapshot(), snapshotBefore);
+    EXPECT_EQ(engine->undoStack()->count(), undoCountBefore);
 }

@@ -21,6 +21,13 @@
 - **価値または懸念:** 透過背景のalpha合成、layer opacityの適用、下層から上層への合成順を1つの厳密な数値oracleで確認できる。テスト未実行。
 - **次に確認すること:** `ArtifactPrSequenceCompositorTest.StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: Timeline mute/solo同期のNLE履歴保護
+- **関連:** `ArtifactPr/src/TimelinePanel.cpp::updateTimelineGeometry`、`tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp::ProgrammaticMuteSoloRefreshDoesNotWriteBackIntoNleHistory`。
+- **確認できた事実:** Timeline panelはsequenceChanged時にtrack mute/soloボタンのcheck状態をモデルから更新し、toggledの逆流を防ぐため`QSignalBlocker`を使う。既存panelテストは表示とclip追加・削除を確認するが、この逆流防止やNLE undo履歴への影響は検査していない。
+- **追加した確認:** modelのaudio trackをmute/solo状態にしてpanelをrefreshし、両ボタン表示が同期する一方、NLE snapshotとundo件数が変化しないことを確認する。
+- **価値または懸念:** model→UI反映が意図しないUI→model編集を起こし、履歴・永続状態を汚染する回帰を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrTimelinePanelTest.ProgrammaticMuteSoloRefreshDoesNotWriteBackIntoNleHistory` をテスト実行が許可された際に実行する。
+
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
 - **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。
