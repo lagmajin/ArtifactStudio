@@ -12440,3 +12440,10 @@
 - **Added check:** Insert a reference to the final element into a full array at an earlier index; verify the original value is captured correctly through both growth and element shifting.
 - **Value or concern:** Covers a lifetime and aliasing boundary that isolated append/insert cases do not exercise. Test not run.
 - **Next:** Run `ArtifactArrayContractTest.InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap` when test execution is authorized.
+
+## 2026-11-08: ArtifactSet collision-chain growth and reuse cycles
+- **Related:** `tests/ArtifactCore/ArtifactSetContractTest.cpp::CollisionChainsSurviveRepeatedGrowthRemovalAndReuse`.
+- **Confirmed:** Existing tests cover a fixed collision chain and a separate deterministic operation sequence with ordinary hashing; they do not repeatedly combine a constant-hash chain, growth, selective removal, complete clearing, and reuse against a membership model.
+- **Added check:** Across 24 cycles, add 96 values under one hash, remove alternating values, compare lookups and size with `std::unordered_set`, and periodically remove the remainder before reuse.
+- **Value or concern:** Exercises repeated chain unlinking and rebuilding through the same heavily colliding buckets. Test not run.
+- **Next:** Run `ArtifactSetContractTest.CollisionChainsSurviveRepeatedGrowthRemovalAndReuse` when test execution is authorized.
