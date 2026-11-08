@@ -180,6 +180,48 @@ TEST(AudioSimpleWavStandaloneTest, LoadsDataChunkBeforeFormatChunk)
     EXPECT_FLOAT_EQ(wav.getAudioData()[1], -2345.0f / 32768.0f);
 }
 
+TEST(AudioSimpleWavStandaloneTest,
+     LoadsOddSizedDataChunkBeforeFormatAndHonorsPadding)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    QByteArray wave;
+    wave.append("RIFF", 4);
+    appendU32(wave, 0);
+    wave.append("WAVE", 4);
+    wave.append("data", 4);
+    appendU32(wave, 3);
+    wave.append(char(0));
+    wave.append(char(128));
+    wave.append(char(255));
+    wave.append(char(0)); // RIFF word-alignment padding for the odd data chunk.
+    wave.append("fmt ", 4);
+    appendU32(wave, 16);
+    appendU16(wave, 1);
+    appendU16(wave, 1);
+    appendU32(wave, 48000);
+    appendU32(wave, 48000);
+    appendU16(wave, 1);
+    appendU16(wave, 8);
+    const quint32 riffSize = static_cast<quint32>(wave.size() - 8);
+    for (int shift = 0; shift < 32; shift += 8)
+        wave[4 + shift / 8] = static_cast<char>((riffSize >> shift) & 0xff);
+
+    const QString path = dir.filePath("odd_data_before_fmt.wav");
+    ASSERT_TRUE(writeFile(path, wave));
+    SimpleWav wav;
+    ASSERT_TRUE(wav.loadFromFile(path));
+
+    EXPECT_EQ(wav.sampleRate(), 48000);
+    EXPECT_EQ(wav.channelCount(), 1);
+    EXPECT_EQ(wav.frameCount(), 3);
+    ASSERT_EQ(wav.getAudioData().size(), 3);
+    EXPECT_FLOAT_EQ(wav.getAudioData()[0], -1.0f);
+    EXPECT_FLOAT_EQ(wav.getAudioData()[1], 0.0f);
+    EXPECT_FLOAT_EQ(wav.getAudioData()[2], 127.0f / 128.0f);
+}
+
 TEST(AudioSimpleWavStandaloneTest, SkipsOddSizedUnknownChunkAndItsPadding)
 {
     QTemporaryDir dir;

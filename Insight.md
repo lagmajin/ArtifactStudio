@@ -12727,3 +12727,10 @@
 - **Added check:** Compare a whole 1800-frame render against repeating block sizes 1/127/11/257/3/64, with impulses immediately before and after a boundary and a later tail impulse; assert every sample matches.
 - **Value or concern:** Detects delay/history advancement errors caused by irregular callback sizes or block-edge input handling. Test not run.
 - **Next:** Run `AudioReverbStandaloneTest.IrregularBlocksPreserveReverbHistoryAcrossImpulseBoundaries` when test execution is authorized.
+
+## 2026-11-09: WAV odd-sized data chunk before format chunk
+- **Related:** `tests/ArtifactCore/AudioSimpleWavStandaloneTest.cpp::LoadsOddSizedDataChunkBeforeFormatAndHonorsPadding`.
+- **Confirmed:** The WAV suite separately covers data-before-format ordering and padding after an odd-sized unknown chunk, but not an odd-sized data chunk whose padding must be skipped before finding the format chunk.
+- **Added check:** Construct a RIFF file with three unsigned 8-bit mono samples, the required alignment byte, and a following `fmt ` chunk; verify metadata and all normalized samples.
+- **Value or concern:** Detects chunk scanning that treats payload bytes as the next chunk header or forgets data-chunk word alignment. Test not run.
+- **Next:** Run `AudioSimpleWavStandaloneTest.LoadsOddSizedDataChunkBeforeFormatAndHonorsPadding` when test execution is authorized.
