@@ -12342,3 +12342,10 @@
 - **Added check:** Build a Lerp-based fan-out DAG, append a later operation, select the earlier Lerp result, and assert operation count, validity, HLSL reference order, and function return target.
 - **Value or concern:** Covers graph reuse and explicit output selection in one compact contract case. Test not run.
 - **Next:** Run `ArtifactCorePointwiseFusionGraphContractTest` when test execution is authorized.
+
+## 2026-11-08: Cyclic schema migration path coverage
+- **Related:** `tests/ArtifactCore/SerializationEnvelopeContractTest.cpp::MigrationPathSearchHandlesCyclesWithoutRepeatingTransforms`.
+- **Confirmed:** Existing migration tests cover unreachable paths, shortest-path selection, and reentrant registration, but not a reachable target in a graph that also contains a cycle.
+- **Added check:** Query and execute a 0→1→2 migration while the graph also contains 1→0; verify path discovery is side-effect free and execution applies each selected transform exactly once.
+- **Value or concern:** Guards migration graph traversal against revisiting versions while retaining a valid route. Test not run.
+- **Next:** Run `SerializationEnvelopeContractTest.MigrationPathSearchHandlesCyclesWithoutRepeatingTransforms` when test execution is authorized.

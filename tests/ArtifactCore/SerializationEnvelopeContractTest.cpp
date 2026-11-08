@@ -262,3 +262,36 @@ TEST(SerializationEnvelopeContractTest,
     ASSERT_TRUE(registry.migrate(typeName, 1, 2, data));
     EXPECT_TRUE(data.value(QStringLiteral("secondStep")).toBool());
 }
+
+TEST(SerializationEnvelopeContractTest,
+     MigrationPathSearchHandlesCyclesWithoutRepeatingTransforms)
+{
+    const QString typeName =
+        QStringLiteral("SerializationEnvelopeContractTest.CyclicGraph");
+    auto& registry = SchemaMigrationRegistry::instance();
+    std::vector<QString> executedSteps;
+    const auto step = [&executedSteps](const QString& name) {
+        return [&executedSteps, name](const QJsonObject& input) {
+            executedSteps.push_back(name);
+            QJsonObject output = input;
+            output.insert(QStringLiteral("lastStep"), name);
+            return output;
+        };
+    };
+
+    registry.registerMigration(typeName, 0, 1, step(QStringLiteral("forward")));
+    registry.registerMigration(typeName, 1, 0, step(QStringLiteral("cycle")));
+    registry.registerMigration(typeName, 1, 2, step(QStringLiteral("target")));
+
+    EXPECT_TRUE(registry.hasMigrationPath(typeName, 0, 2));
+    EXPECT_TRUE(executedSteps.empty());
+
+    QJsonObject data{{QStringLiteral("seed"), 31}};
+    ASSERT_TRUE(registry.migrate(typeName, 0, 2, data));
+    EXPECT_EQ(executedSteps,
+              (std::vector<QString>{QStringLiteral("forward"),
+                                    QStringLiteral("target")}));
+    EXPECT_EQ(data.value(QStringLiteral("seed")).toInt(), 31);
+    EXPECT_EQ(data.value(QStringLiteral("lastStep")).toString(),
+              QStringLiteral("target"));
+}
