@@ -12510,3 +12510,10 @@
 - **Added check:** Gate three threads on one mutex-protected permit, issue wakeOne and assert exactly one has returned, then set shutdown and use wakeAll to release and join the remainder.
 - **Value or concern:** Checks waiter cardinality and cleanup under a synchronized multi-threaded condition-variable transition. Test not run.
 - **Next:** Run `ArtifactThreadContractTest.WakeOneReleasesOnlyOneWaiterBeforeWakeAll` when test execution is authorized.
+
+## 2026-11-08: AudioCache capacity shrink trim and accounting
+- **Related:** `tests/ArtifactCore/AudioCacheStandaloneTest.cpp::ShrinkingCapacityKeepsMostRecentlyUsedFramesAndMemoryCount`.
+- **Confirmed:** Existing cache tests cover capacity during insertion and LRU victim selection, but do not reduce the configured capacity after the cache is already populated.
+- **Added check:** Establish a known access order across four entries, shrink capacity to two, and assert the two most-recent frames remain with memory usage matching their payloads.
+- **Value or concern:** Covers capacity reconfiguration, LRU cleanup, and byte accounting in one state transition. Test not run.
+- **Next:** Run `AudioCacheStandaloneTest.ShrinkingCapacityKeepsMostRecentlyUsedFramesAndMemoryCount` when test execution is authorized.

@@ -158,6 +158,32 @@ TEST(AudioCacheStandaloneTest, CacheHitRefreshesEntryBeforeLruEviction)
     EXPECT_TRUE(cache.getCached(3, out));
 }
 
+TEST(AudioCacheStandaloneTest, ShrinkingCapacityKeepsMostRecentlyUsedFramesAndMemoryCount)
+{
+    AudioCache cache;
+    cache.setMaxCacheFrames(4);
+    for (int64_t frame = 1; frame <= 4; ++frame) {
+        cache.addCache(frame, makeMono({static_cast<float>(frame)}));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+
+    AudioSegment accessed;
+    ASSERT_TRUE(cache.getCached(1, accessed));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    ASSERT_TRUE(cache.getCached(3, accessed));
+
+    cache.setMaxCacheFrames(2);
+
+    EXPECT_EQ(cache.getMaxCacheFrames(), 2);
+    EXPECT_EQ(cache.getCacheSize(), 2u);
+    EXPECT_EQ(cache.getMemoryUsage(), 2u * sizeof(float));
+    AudioSegment out;
+    EXPECT_TRUE(cache.getCached(1, out));
+    EXPECT_FALSE(cache.getCached(2, out));
+    EXPECT_TRUE(cache.getCached(3, out));
+    EXPECT_FALSE(cache.getCached(4, out));
+}
+
 TEST(AudioCacheStandaloneTest, ClearRemovesAllFramesAndMemoryUsage)
 {
     AudioCache cache;
