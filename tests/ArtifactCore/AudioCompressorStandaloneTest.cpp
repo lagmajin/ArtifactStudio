@@ -292,6 +292,29 @@ TEST(AudioCompressorStandaloneTest, EnabledSidechainControlsProgramSignalLevel)
     EXPECT_LT(compressor.getGainReduction(), 1.0f);
 }
 
+TEST(AudioCompressorStandaloneTest, StereoSidechainUsesLoudestChannelForDetection)
+{
+    AudioCompressor stereoSidechainCompressor;
+    configureFastCompressor(stereoSidechainCompressor);
+    stereoSidechainCompressor.setSideChain(true);
+    auto stereoProgram = makeMono(1000, QVector<float>{0.25f});
+    auto stereoSidechain = makeStereo(
+        1000, QVector<float>{0.0f}, QVector<float>{1.0f});
+    stereoSidechainCompressor.process(stereoProgram, &stereoSidechain);
+
+    AudioCompressor monoSidechainCompressor;
+    configureFastCompressor(monoSidechainCompressor);
+    monoSidechainCompressor.setSideChain(true);
+    auto monoProgram = makeMono(1000, QVector<float>{0.25f});
+    auto monoSidechain = makeMono(1000, QVector<float>{1.0f});
+    monoSidechainCompressor.process(monoProgram, &monoSidechain);
+
+    EXPECT_FLOAT_EQ(stereoProgram.channelData[0][0],
+                    monoProgram.channelData[0][0]);
+    EXPECT_FLOAT_EQ(stereoSidechainCompressor.getGainReduction(),
+                    monoSidechainCompressor.getGainReduction());
+}
+
 TEST(AudioCompressorStandaloneTest, DisabledSidechainUsesProgramDetector)
 {
     AudioCompressor compressor;

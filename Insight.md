@@ -12608,3 +12608,10 @@
 - **Added check:** Downmix two frames with distinct, increasing values in all eight 7.1 channels; verify the all-channel average and preservation of sample rate and start frame.
 - **Value or concern:** Detects omitted or misordered rear channels in the wider surround-to-mono path. Test not run.
 - **Next:** Run `AudioDownMixerStandaloneTest.Surround71ToMonoAveragesEveryChannel` when test execution is authorized.
+
+## 2026-11-09: AudioCompressor stereo sidechain channel detection
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::StereoSidechainUsesLoudestChannelForDetection`.
+- **Confirmed:** External sidechain tests use mono sidechain data; stereo program linking is covered separately, but sidechain channel aggregation is not.
+- **Added check:** Put the loud detector signal only in the second channel of a stereo sidechain and compare program output and gain reduction with an equivalent mono loud-sidechain run.
+- **Value or concern:** Detects ignoring non-first sidechain channels or applying different detector gain based on sidechain layout. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.StereoSidechainUsesLoudestChannelForDetection` when test execution is authorized.
