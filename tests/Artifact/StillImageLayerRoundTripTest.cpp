@@ -2897,6 +2897,56 @@ TEST(StillImageLayerRoundTripTest, SixteenBitGrayscaleKeepsSubEightBitStepsAndOp
 }
 
 TEST(StillImageLayerRoundTripTest,
+     SixteenBitRgbaPngKeepsFloatPrecisionChannelsAndAlpha)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    QImage sourceImage(3, 1, QImage::Format_RGBA64);
+    sourceImage.setPixelColor(
+        0, 0, QColor::fromRgba64(0x8000, 0x9000, 0xA000, 0xFFFF));
+    sourceImage.setPixelColor(
+        1, 0, QColor::fromRgba64(0x8001, 0x9001, 0xA001, 0xFFFF));
+    sourceImage.setPixelColor(
+        2, 0, QColor::fromRgba64(0x4000, 0x6000, 0x8000, 0x8000));
+    const QString imagePath = dir.filePath(QStringLiteral("rgba16.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(3, 1)));
+
+    const auto& buffer = layer.currentFrameBuffer();
+    ASSERT_EQ(buffer.width(), 3);
+    ASSERT_EQ(buffer.height(), 1);
+    const float* rgba = buffer.rgba32fData();
+    ASSERT_NE(rgba, nullptr);
+    for (int x = 0; x < 3; ++x) {
+        const std::size_t offset = static_cast<std::size_t>(x) * 4u;
+        EXPECT_TRUE(std::isfinite(rgba[offset]));
+        EXPECT_TRUE(std::isfinite(rgba[offset + 1u]));
+        EXPECT_TRUE(std::isfinite(rgba[offset + 2u]));
+        EXPECT_TRUE(std::isfinite(rgba[offset + 3u]));
+        EXPECT_LT(rgba[offset], rgba[offset + 1u]);
+        EXPECT_LT(rgba[offset + 1u], rgba[offset + 2u]);
+    }
+
+    EXPECT_GT(rgba[4u], rgba[0u]);
+    EXPECT_GT(rgba[4u] - rgba[0u], 1e-7f)
+        << "Adjacent 16-bit RGBA samples must survive the layer decode as distinct floats";
+    EXPECT_NEAR(rgba[3u], 1.0f, 1e-6f);
+    EXPECT_NEAR(rgba[7u], 1.0f, 1e-6f);
+    EXPECT_NEAR(rgba[11u], 32768.0f / 65535.0f, 1e-5f);
+
+    const QJsonObject metadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("channelCount")).toInt(), 4);
+    EXPECT_EQ(metadata.value(QStringLiteral("alphaChannel")).toInt(), 3);
+    EXPECT_EQ(metadata.value(QStringLiteral("bitsPerChannel")).toInt(), 16);
+}
+
+TEST(StillImageLayerRoundTripTest,
      EmbeddedIccProfileWithoutConversionRecordsFallback)
 {
     QTemporaryDir dir;

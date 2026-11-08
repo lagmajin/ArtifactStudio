@@ -49,6 +49,13 @@
 - **価値または懸念:** source clear後にAsset IDやsequence cacheが残って再decode・古い画素を復活させる回帰を、一つの遷移で検出する。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.EmptySourceClearsImageState` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: 16-bit RGBA Importer結果のImageLayer接続
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SixteenBitRgbaPngKeepsFloatPrecisionChannelsAndAlpha`、`tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::PreservesTrueSixteenBitPngChannelValues`、静止画受入表IMG-03。
+- **確認できた事実:** Core Importer suiteには16-bit RGBA PNGのchannel value厳密検査がある一方、ImageLayer suiteの16-bit精度ケースはgrayscaleのみで、RGBA channel order・alpha・metadataのlayer接続を確認していなかった。
+- **追加した確認:** 16-bit RGBA PNGの隣接16-bit色値を含む3画素をArtifactImageLayerへ読み、float bufferで値の差・channel order・alphaを、source metadataで4-channel／alpha位置／16-bit depthを検査する。
+- **価値または懸念:** OIIO importerの精度がLayerのworking bufferまで8-bitへ量子化されず届く境界を固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SixteenBitRgbaPngKeepsFloatPrecisionChannelsAndAlpha` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
 - **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。
