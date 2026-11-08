@@ -12524,3 +12524,10 @@
 - **Added check:** Start from an isolated database, reject a colliding relink, move an asset, round-trip the database through JSON, unregister a second asset, then reuse a new path and verify UUID lookups, path lookups, types, names, and final count.
 - **Value or concern:** Checks stale path-index cleanup and identity metadata consistency across successful, rejected, and restored state changes. Test not run.
 - **Next:** Run `AssetDatabaseContractTest.RelinkUnregisterAndReloadKeepBothIndexesCoherent` when test execution is authorized.
+
+## 2026-11-08: Stopwatch mixed transition invariant sequence
+- **Related:** `tests/ArtifactCore/ArtifactChronoContractTest.cpp::MixedStopwatchTransitionsPreserveStateInvariants`.
+- **Confirmed:** Stopwatch tests cover start, stop, reset, and restart independently plus two start/stop cycles, but do not compose repeated mixed transitions in one state sequence.
+- **Added check:** Apply a fixed 24-operation start/stop/reset/restart sequence and verify expected running state, nonnegative elapsed duration, start monotonicity, and exact elapsed freeze on stop after every operation.
+- **Value or concern:** Detects accumulated-state leakage or transition-order regressions across repeated lifecycle changes. Test not run.
+- **Next:** Run `ArtifactChronoContractTest.MixedStopwatchTransitionsPreserveStateInvariants` when test execution is authorized.
