@@ -966,6 +966,34 @@ TEST(ImageSequenceSourceContractTest, ConvertsTimelineFramesUsingSourceAndTimeli
     EXPECT_EQ(source.frameIndexAtTime(10, 24.0), 5);
 }
 
+TEST(ImageSequenceSourceContractTest,
+     ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    QStringList framePaths;
+    for (int index = 0; index < 10; ++index) {
+        const QString path = directory.filePath(
+            QStringLiteral("fractional_%1.png").arg(index));
+        ASSERT_TRUE(writeFile(path, checkerPng()));
+        framePaths.push_back(path);
+    }
+
+    ImageSequenceSource source;
+    source.setFrameRate(24000.0 / 1001.0);
+    ASSERT_TRUE(source.openFramePaths(framePaths));
+
+    constexpr std::array expectedIndices{0, 0, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8, 9};
+    constexpr double timelineRate = 30000.0 / 1001.0;
+    for (std::size_t timelineFrame = 0;
+         timelineFrame < expectedIndices.size(); ++timelineFrame) {
+        EXPECT_EQ(source.frameIndexAtTime(
+                      static_cast<qint64>(timelineFrame), timelineRate),
+                  expectedIndices[timelineFrame])
+            << "timeline frame=" << timelineFrame;
+    }
+}
+
 TEST(ImageSequenceSourceContractTest, ConvertsTimeToSequenceIndexAcrossSparseSourceFrames)
 {
     QTemporaryDir directory;
