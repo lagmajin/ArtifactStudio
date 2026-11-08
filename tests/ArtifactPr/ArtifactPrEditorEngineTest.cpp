@@ -277,6 +277,77 @@ TEST(ArtifactPrEditorEngineTest, RenderPlanAudioClipsRespectMuteSoloEnabledAndGa
               QStringLiteral("1"));
 }
 
+TEST(ArtifactPrEditorEngineTest,
+     RenderPlanDerivedMediaInputsStayFrozenAcrossLiveSequenceEdits)
+{
+    auto* engine = freshEngine();
+    ArtifactPr::DemoSequence sequence = engine->currentSequence();
+    const QString videoTrackId = sequence.videoTracks[0].id;
+
+    ArtifactPr::DemoClip left = makeClip(QStringLiteral("frozen-left"), 0, 30);
+    left.effects.insert(QStringLiteral("fx.glow.enabled"), QStringLiteral("1"));
+    left.effects.insert(QStringLiteral("fx.glow.intensity"), QStringLiteral("0.75"));
+    ArtifactPr::DemoClip right = makeClip(QStringLiteral("frozen-right"), 30, 30);
+    sequence.videoTracks[0].clips.append(left);
+    sequence.videoTracks[0].clips.append(right);
+
+    ArtifactPr::Transition transition;
+    transition.id = QStringLiteral("frozen-transition");
+    transition.trackId = videoTrackId;
+    transition.leftClipId = left.id;
+    transition.rightClipId = right.id;
+    transition.startFrame = 25;
+    transition.duration = 10;
+    sequence.transitions.append(transition);
+
+    ArtifactPr::DemoClip audio = makeClip(QStringLiteral("frozen-audio"), 4, 40);
+    audio.volume = 0.5;
+    audio.effects.insert(QStringLiteral("fx.audioGain.enabled"), QStringLiteral("1"));
+    audio.effects.insert(QStringLiteral("fx.audioGain.gainDb"),
+                         QStringLiteral("6.020599913279624"));
+    audio.effects.insert(QStringLiteral("fx.audioEqualizer.enabled"), QStringLiteral("1"));
+    audio.effects.insert(QStringLiteral("fx.audioEqualizer.lowDb"), QStringLiteral("3.5"));
+    sequence.audioTracks[0].clips.append(audio);
+    engine->setCurrentSequence(sequence);
+
+    const ArtifactPr::RenderPlan frozen =
+        engine->createRenderPlan(ArtifactPr::RenderQualityPreset::Full);
+    ASSERT_EQ(frozen.transitions.size(), 1);
+    ASSERT_TRUE(frozen.clipEffects.contains(left.id));
+    ASSERT_EQ(frozen.audioClips.size(), 1);
+    EXPECT_NEAR(frozen.audioClips[0].volume, 1.0, 1e-9);
+    EXPECT_DOUBLE_EQ(frozen.audioClips[0].eqLowDb, 3.5);
+
+    sequence = engine->currentSequence();
+    sequence.transitions.clear();
+    sequence.videoTracks[0].clips[0].effects.insert(
+        QStringLiteral("fx.glow.intensity"), QStringLiteral("1.5"));
+    sequence.audioTracks[0].muted = true;
+    sequence.audioTracks[0].clips[0].volume = 1.7;
+    sequence.audioTracks[0].clips[0].effects.insert(
+        QStringLiteral("fx.audioEqualizer.lowDb"), QStringLiteral("-8"));
+    engine->setCurrentSequence(sequence);
+
+    // Mutating the live project must not alter any derived inputs already
+    // handed to an export job. A new plan observes the complete new state.
+    ASSERT_EQ(frozen.transitions.size(), 1);
+    EXPECT_EQ(frozen.transitions[0].id, QStringLiteral("frozen-transition"));
+    EXPECT_EQ(frozen.clipEffects.value(left.id)
+                  .value(QStringLiteral("fx.glow.intensity")).toString(),
+              QStringLiteral("0.75"));
+    ASSERT_EQ(frozen.audioClips.size(), 1);
+    EXPECT_NEAR(frozen.audioClips[0].volume, 1.0, 1e-9);
+    EXPECT_DOUBLE_EQ(frozen.audioClips[0].eqLowDb, 3.5);
+
+    const ArtifactPr::RenderPlan refreshed =
+        engine->createRenderPlan(ArtifactPr::RenderQualityPreset::Full);
+    EXPECT_TRUE(refreshed.transitions.isEmpty());
+    EXPECT_EQ(refreshed.clipEffects.value(left.id)
+                  .value(QStringLiteral("fx.glow.intensity")).toString(),
+              QStringLiteral("1.5"));
+    EXPECT_TRUE(refreshed.audioClips.isEmpty());
+}
+
 TEST(ArtifactPrEditorEngineTest, SnapToNearestUsesPlayheadAndClipEdges)
 {
     auto* engine = freshEngine();

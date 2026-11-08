@@ -1,4 +1,4 @@
-**最終更新:** 2026-11-08
+**最終更新:** 2026-11-09
 
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
@@ -6,6 +6,13 @@
 - **追加した確認:** alphaが0、半透明、1.0の4画素に全色調補正を同時適用し、alphaが画素ごとに維持されること、RGB各成分が最終posterize段階の5レベル値に揃うことを検証する。
 - **価値または懸念:** 個別effectでは見逃す処理順の入れ替えや、不透明度を色調補正が誤変更する回帰を捕捉できる。テスト未実行。
 - **次に確認すること:** `ArtifactPrContractTest.CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: RenderPlan 派生入力の編集後スナップショット
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cpp::EditorEngine::createRenderPlan`、`tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RenderPlanDerivedMediaInputsStayFrozenAcrossLiveSequenceEdits`。
+- **確認できた事実:** RenderPlanはNLE snapshotのほかにtransition、clip effects、audio clip mix情報を個別配列・mapへ展開して返す。既存snapshot isolationテストはNLE JSONとframe rangeを確認し、別テストはaudioフィルタやeffect収集を確認するが、生成済み派生入力の後続編集に対する不変性をまとめて検証していない。
+- **追加した確認:** plan作成後にlive sequenceのtransition削除、映像glow変更、audio track mute・volume・EQ変更を行い、古いplanの全派生入力が維持され、新しいplanだけが編集後状態を反映することを確認する。
+- **価値または懸念:** Export開始後の編集がすでに構築されたrender/audio jobへ漏れる回帰を、NLE snapshot一致だけではなく実消費入力で検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrEditorEngineTest.RenderPlanDerivedMediaInputsStayFrozenAcrossLiveSequenceEdits` をテスト実行が許可された際に実行する。
 
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
