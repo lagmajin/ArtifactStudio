@@ -12559,3 +12559,10 @@
 - **Added check:** Assert short-term loudness equals the independently computed mean-square level after the same cross-boundary segment sequence.
 - **Value or concern:** Extends overflow/continuity coverage to the second window accumulator without adding time-dependent behavior. Test not run.
 - **Next:** Run `AudioSpectrumStandaloneTest.IntegratedWindowContinuesAcrossInt64FrameBoundary` when test execution is authorized.
+
+## 2026-11-09: SmallVector mixed move-only mutations
+- **Related:** `tests/ArtifactCore/SmallVectorStandaloneTest.cpp::MoveOnlyElementsSurviveMixedGrowthInsertRemovalAndTakeAt`.
+- **Confirmed:** SmallVector tests exercise move-only elements through growth, insert, and takeAt, and separately test adjacent removeIf matches with copyable integers; they do not combine compaction with move-only ownership.
+- **Added check:** Grow a move-only vector, insert an interior value, remove adjacent matches by predicate, then grow/insert again and take an interior element while checking exact surviving ownership and order.
+- **Value or concern:** Exercises move assignment and destruction across reallocation and compaction transitions. Test not run.
+- **Next:** Run `SmallVectorStandaloneTest.MoveOnlyElementsSurviveMixedGrowthInsertRemovalAndTakeAt` when test execution is authorized.
