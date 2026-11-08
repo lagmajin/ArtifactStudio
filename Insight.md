@@ -12643,3 +12643,10 @@
 - **Added check:** Assert invalidity for a 2x2 RGBA frame with a 7-byte stride and for padded rows whose storage stops one byte before the final pixel's end.
 - **Value or concern:** Guards against row overlap and out-of-bounds scanline/pixel access at the frame validity boundary. Test not run.
 - **Next:** Run `CpuFrameViewContractTest.RejectsStrideAndStorageThatCannotAddressLastPixel` when test execution is authorized.
+
+## 2026-11-09: AssetImportSettings field-local JSON fallback
+- **Related:** `tests/ArtifactCore/AssetImportSettingsTest.cpp::InvalidFieldFallsBackWithoutDiscardingValidSettings`.
+- **Confirmed:** Settings tests cover all-malformed JSON fallback and partial valid JSON defaults, but not mixed input where one field has a wrong type and the remaining fields are valid.
+- **Added check:** Supply a string for proxy width alongside valid height, JPEG quality, boolean options, and color space; assert only width falls back while every valid field is retained.
+- **Value or concern:** Detects whole-object fallback behavior that could silently discard otherwise recoverable user settings. Test not run.
+- **Next:** Run `AssetImportSettingsTest.InvalidFieldFallsBackWithoutDiscardingValidSettings` when test execution is authorized.
