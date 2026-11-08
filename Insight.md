@@ -12475,3 +12475,10 @@
 - **Added check:** Process the same 16-frame program and sidechain signals continuously and across irregular block boundaries; compare every output sample and final gain reduction.
 - **Value or concern:** Detects sidechain envelope or alignment state that changes at process-call boundaries. Test not run.
 - **Next:** Run `AudioCompressorStandaloneTest.SidechainProcessingInIrregularBlocksMatchesContinuousRun` when test execution is authorized.
+
+## 2026-11-08: AudioChorus stereo irregular block invariance
+- **Related:** `tests/ArtifactCore/AudioChorusStandaloneTest.cpp::StereoLfoAndDelayHistorySurviveIrregularBlockBoundaries`.
+- **Confirmed:** Existing Chorus tests cover LFO continuity across fixed-width mono blocks and independent stereo histories separately, but not their interaction across irregular boundaries with feedback enabled.
+- **Added check:** Compare both channels from one 127-frame stereo processing call against seven irregular blocks using identical LFO, delay, depth, and feedback settings.
+- **Value or concern:** Exercises phase and per-channel delay/feedback state across varying block boundaries. Test not run.
+- **Next:** Run `AudioChorusStandaloneTest.StereoLfoAndDelayHistorySurviveIrregularBlockBoundaries` when test execution is authorized.
