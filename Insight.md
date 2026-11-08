@@ -21,6 +21,13 @@
 - **価値または懸念:** 移動復元時のcandidate priorityを画像の実体選択として検査する。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: Shared source identityのlocalizeは対象レイヤーに限定
+- **関連:** `ArtifactImageLayer::localizeSourceIdentity()/relinkSourceIdentityToShared()`、`tests/Artifact/StillImageLayerRoundTripTest.cpp::LocalizingOneLayerLeavesOtherSharedSourceIdentityUnchanged`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のOP-07。
+- **確認できた事実:** 既存テストは単一レイヤー内のlocalize/relink結果だけを確認し、同じsource identityを参照する複数レイヤー間の分離は扱っていなかった。受入マトリクスOP-07は複数layerを使ったShared／Localizedを未実行としている。
+- **追加した確認:** 同一ファイルを読む2レイヤーが同じIDで開始し、一方をlocalizeするとそのIDだけが分岐する。shared IDをinvalidateすると共有側だけが新画素／versionへ進み、localized側は保持され、relink後にlocalized側も新しいshared画素へ追いつくことを検査する。
+- **価値または懸念:** local identity操作の影響範囲とdecoded payload/version invalidationの分離を複数利用者境界で固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.LocalizingOneLayerLeavesOtherSharedSourceIdentityUnchanged` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
 - **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。

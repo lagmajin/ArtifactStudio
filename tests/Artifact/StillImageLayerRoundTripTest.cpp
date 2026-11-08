@@ -2112,6 +2112,65 @@ TEST(StillImageLayerRoundTripTest, SourceIdentityCanBeLocalizedAndRelinked)
     EXPECT_FALSE(layer.relinkSourceIdentityToShared());
 }
 
+TEST(StillImageLayerRoundTripTest,
+     LocalizingOneLayerLeavesOtherSharedSourceIdentityUnchanged)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor sourceColor(65, 155, 225, 255);
+    const QColor updatedColor(205, 95, 45, 255);
+    const QString imagePath = dir.filePath(QStringLiteral("shared-source.png"));
+    QImage sourceImage(2, 2, QImage::Format_RGBA8888);
+    sourceImage.fill(sourceColor);
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer firstLayer;
+    Artifact::ArtifactImageLayer secondLayer;
+    ASSERT_TRUE(firstLayer.loadFromPath(imagePath));
+    ASSERT_TRUE(secondLayer.loadFromPath(imagePath));
+    ASSERT_EQ(waitForImage(firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              sourceColor);
+    ASSERT_EQ(waitForImage(secondLayer, QSize(2, 2)).pixelColor(0, 0),
+              sourceColor);
+
+    const QUuid sharedSourceId = firstLayer.sourceAssetId();
+    ASSERT_FALSE(sharedSourceId.isNull());
+    ASSERT_EQ(secondLayer.sourceAssetId(), sharedSourceId);
+    const std::uint64_t initialSharedVersion = secondLayer.sourceVersion();
+    ASSERT_GT(initialSharedVersion, 0u);
+    EXPECT_FALSE(firstLayer.isSourceIdentityLocalized());
+    EXPECT_FALSE(secondLayer.isSourceIdentityLocalized());
+
+    ASSERT_TRUE(firstLayer.localizeSourceIdentity());
+    EXPECT_TRUE(firstLayer.isSourceIdentityLocalized());
+    EXPECT_NE(firstLayer.sourceAssetId(), sharedSourceId);
+    EXPECT_FALSE(secondLayer.isSourceIdentityLocalized());
+    EXPECT_EQ(secondLayer.sourceAssetId(), sharedSourceId);
+    const std::uint64_t localizedVersion = firstLayer.sourceVersion();
+
+    sourceImage.fill(updatedColor);
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+    const std::uint64_t updatedSharedVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sharedSourceId);
+    ASSERT_GT(updatedSharedVersion, initialSharedVersion);
+    EXPECT_EQ(waitForImage(secondLayer, QSize(2, 2)).pixelColor(0, 0),
+              updatedColor);
+    EXPECT_EQ(secondLayer.sourceVersion(), updatedSharedVersion);
+    EXPECT_EQ(firstLayer.sourceVersion(), localizedVersion);
+    EXPECT_EQ(waitForImage(firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              sourceColor);
+
+    ASSERT_TRUE(firstLayer.relinkSourceIdentityToShared());
+    EXPECT_FALSE(firstLayer.isSourceIdentityLocalized());
+    EXPECT_EQ(firstLayer.sourceAssetId(), sharedSourceId);
+    EXPECT_FALSE(secondLayer.isSourceIdentityLocalized());
+    EXPECT_EQ(secondLayer.sourceAssetId(), sharedSourceId);
+    EXPECT_EQ(waitForImage(firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              updatedColor);
+}
+
 TEST(StillImageLayerRoundTripTest, EmptyLayerRejectsSourceIdentityOperations)
 {
     QTemporaryDir dir;
