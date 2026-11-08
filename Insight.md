@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: SourceCrop aspect-fit変換の非対称境界
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceCropAspectTransformMapsOffCenterCropAndInverts`、静止画受入表OP-03。
+- **確認できた事実:** 既存テストはcropのaspect-fit中心配置とsource crop boundsを個別に確認するが、off-center crop領域の四隅・中心が同じ変換で期待座標に写るか、および逆変換の往復を一つの数値oracleで検証していなかった。
+- **追加した確認:** 3:4の非対称cropを12:6 outputへaspect保持でfitし、左右余白を含む四隅と内部点の座標、および逆写像を検査する。
+- **価値または懸念:** crop中心、aspect fit時のoffset、x/y scaleのずれを固定する。layerのrotation/pan/zoom合成と実レンダリングは別途runtime確認が必要。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SourceCropAspectTransformMapsOffCenterCropAndInverts` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: Float EXRのHDR値をImageLayerへ接続
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FloatExrPreservesHdrAndNegativeValuesInLayerBuffer`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のIMG-04。
 - **確認できた事実:** 静止画受入表IMG-04ではhalf/float EXRの負値・1超過値とlayer decode精度が未実行。既存ケースはCore側のEXR出力契約またはImageLayerの整数画像decodeを個別に確認していた。

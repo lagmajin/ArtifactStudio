@@ -24,6 +24,7 @@
 #include <QString>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QTransform>
 #include <QVariant>
 #include <QVector3D>
 #include <QVector4D>
@@ -2674,6 +2675,45 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_NEAR(center.y(), 4.0, 1e-9);
     EXPECT_NEAR(bottomRight.x(), 8.0, 1e-9);
     EXPECT_NEAR(bottomRight.y(), 6.0, 1e-9);
+}
+
+TEST(StillImageLayerRoundTripTest,
+     SourceCropAspectTransformMapsOffCenterCropAndInverts)
+{
+    Artifact::SourceCrop crop;
+    crop.setEnabled(true);
+    crop.setCropRect(QRectF(1.0, 2.0, 3.0, 4.0));
+    crop.setPreserveAspect(true);
+
+    const QSizeF sourceSize(8.0, 8.0);
+    const QSizeF outputSize(12.0, 6.0);
+    const QTransform transform =
+        crop.sourceToOutputTransform(sourceSize, outputSize);
+    ASSERT_FALSE(transform.isIdentity());
+
+    // The 3:4 crop fits inside the 2:1 output at 1.5x, leaving 3 units
+    // of horizontal padding on either side.
+    const auto expectMapped = [&transform](const QPointF& source,
+                                          const QPointF& expected) {
+        const QPointF mapped = transform.map(source);
+        EXPECT_NEAR(mapped.x(), expected.x(), 1e-9);
+        EXPECT_NEAR(mapped.y(), expected.y(), 1e-9);
+    };
+    expectMapped(QPointF(1.0, 2.0), QPointF(3.75, 0.0));
+    expectMapped(QPointF(4.0, 2.0), QPointF(8.25, 0.0));
+    expectMapped(QPointF(1.0, 6.0), QPointF(3.75, 6.0));
+    expectMapped(QPointF(4.0, 6.0), QPointF(8.25, 6.0));
+    expectMapped(QPointF(2.5, 4.0), QPointF(6.0, 3.0));
+
+    bool invertible = false;
+    const QTransform inverse = transform.inverted(&invertible);
+    ASSERT_TRUE(invertible);
+    for (const QPointF& point : {QPointF(1.0, 2.0), QPointF(4.0, 6.0),
+                                 QPointF(2.5, 4.0)}) {
+        const QPointF roundTrip = inverse.map(transform.map(point));
+        EXPECT_NEAR(roundTrip.x(), point.x(), 1e-9);
+        EXPECT_NEAR(roundTrip.y(), point.y(), 1e-9);
+    }
 }
 
 TEST(StillImageLayerRoundTripTest,
