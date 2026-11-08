@@ -14,6 +14,13 @@
 - **価値または懸念:** 混在する相対復元とabsolute fallback、sequence index保持、再リンク後の永続化を同じproject lifecycleで固定する。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.MovingProjectKeepsMissingSequenceSlotForRelinkAndResave` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: 保存Asset IDとsource path候補の優先順位
+- **関連:** `ArtifactImageLayer::fromJsonProperties()`、`tests/Artifact/StillImageLayerRoundTripTest.cpp::SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 契約書は既存ファイルへ解決できる保存Asset IDがimporter設定pathより優先され、ID先が使えない場合は相対path等の候補を使うとしている。既存テストはsource IDによるversion invalidationを同一path上で検査するが、異なる既存path同士の選択は検査していない。
+- **追加した確認:** JSONのsource pathを別画像へ向けても登録済Asset IDの画像が選ばれることと、ID先ファイル削除後はJSON path候補へfallbackすることを画素・source path・identityで照合する。
+- **価値または懸念:** 移動復元時のcandidate priorityを画像の実体選択として検査する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
 - **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。

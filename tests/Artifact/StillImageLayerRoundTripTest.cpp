@@ -526,6 +526,52 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor registeredColor(35, 95, 155, 255);
+    const QColor fallbackColor(195, 135, 75, 255);
+    const QString registeredPath =
+        dir.filePath(QStringLiteral("registered-source.png"));
+    const QString fallbackPath =
+        dir.filePath(QStringLiteral("relative-candidate.png"));
+    QImage image(1, 1, QImage::Format_RGBA8888);
+    image.fill(registeredColor);
+    ASSERT_TRUE(image.save(registeredPath, "PNG"));
+    image.fill(fallbackColor);
+    ASSERT_TRUE(image.save(fallbackPath, "PNG"));
+
+    Artifact::ArtifactImageLayer source;
+    ASSERT_TRUE(source.loadFromPath(registeredPath));
+    ASSERT_EQ(waitForImage(source, QSize(1, 1)).pixelColor(0, 0),
+              registeredColor);
+    const QUuid sourceId = source.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+
+    QJsonObject state = source.toJson();
+    ASSERT_EQ(QUuid(state.value(QStringLiteral("image.sourceAssetId")).toString()),
+              sourceId);
+    state[QStringLiteral("image.sourcePath")] = fallbackPath;
+
+    Artifact::ArtifactImageLayer assetIdResolved;
+    assetIdResolved.fromJsonProperties(state);
+    ASSERT_EQ(waitForImage(assetIdResolved, QSize(1, 1)).pixelColor(0, 0),
+              registeredColor);
+    EXPECT_EQ(assetIdResolved.sourcePath(), registeredPath);
+    EXPECT_EQ(assetIdResolved.sourceAssetId(), sourceId);
+
+    ASSERT_TRUE(QFile::remove(registeredPath));
+    Artifact::ArtifactImageLayer pathFallback;
+    pathFallback.fromJsonProperties(state);
+    EXPECT_EQ(pathFallback.sourcePath(), fallbackPath);
+    EXPECT_EQ(waitForImage(pathFallback, QSize(1, 1)).pixelColor(0, 0),
+              fallbackColor);
+}
+
+TEST(StillImageLayerRoundTripTest,
      ImageBufferInputReplacesFileSourceAndClearsIdentity)
 {
     QTemporaryDir dir;
