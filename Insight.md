@@ -12825,3 +12825,10 @@
 - **Added check:** Process a three-band composite signal continuously and in a repeating uneven block pattern using separately configured equalizers; compare every output sample exactly.
 - **Value or concern:** Detects filter-state resets or off-by-one state advancement at decoder boundaries. Test not run.
 - **Next:** Run `ArtifactPrContractTest.EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries` when test execution is authorized.
+
+## 2026-11-09: Sequence compositor fractional fit and odd padding
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide`.
+- **Confirmed:** Aspect-fit coverage checks an exactly scaled frame with even padding, but not fractional destination rounding or odd leftover padding.
+- **Added check:** Fit a solid 3x1 frame into 7x7; assert the 1px scaled height rounds to 2px and the five padding rows divide as two before and three after.
+- **Value or concern:** Detects fit rounding and center-offset regressions that even-dimension geometry cannot expose. Test not run.
+- **Next:** Run `ArtifactPrContractTest.AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide` when test execution is authorized.

@@ -390,6 +390,33 @@ TEST(ArtifactPrSequenceCompositorTest, LayerIsAspectFitCenteredOverTheBackground
     EXPECT_LT(inside.b(), 0.1f);
 }
 
+TEST(ArtifactPrSequenceCompositorTest,
+     AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide)
+{
+    const QSize canvasSize(7, 7);
+    const ArtifactCore::FloatRGBA background(0.1f, 0.2f, 0.3f, 1.0f);
+
+    ArtifactPr::CompositeLayer layer;
+    layer.frame = solidImage(3, 1, ArtifactCore::FloatRGBA(0.0f, 1.0f, 0.0f, 1.0f));
+    layer.opacity = 1.0;
+
+    const auto canvas = ArtifactPr::composeSequenceLayers(canvasSize, {layer}, background);
+    ASSERT_EQ(canvas.width(), 7);
+    ASSERT_EQ(canvas.height(), 7);
+
+    // The fit scale is 7/3, so the 1px source height rounds to 2px. The five
+    // remaining rows are split as two before and three after the fitted image.
+    const ArtifactCore::FloatRGBA topPadding = canvas.getPixel(3, 1);
+    const ArtifactCore::FloatRGBA fittedFirstRow = canvas.getPixel(3, 2);
+    const ArtifactCore::FloatRGBA fittedLastRow = canvas.getPixel(3, 3);
+    const ArtifactCore::FloatRGBA bottomPadding = canvas.getPixel(3, 4);
+
+    EXPECT_NEAR(topPadding.g(), background.g(), 1e-5f);
+    EXPECT_NEAR(fittedFirstRow.g(), 1.0f, 1e-5f);
+    EXPECT_NEAR(fittedLastRow.g(), 1.0f, 1e-5f);
+    EXPECT_NEAR(bottomPadding.g(), background.g(), 1e-5f);
+}
+
 TEST(ArtifactPrSequenceCompositorTest, LayerOpacityScalesTheBlendWeight)
 {
     const QSize canvasSize(16, 16);
