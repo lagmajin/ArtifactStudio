@@ -12398,3 +12398,10 @@
 - **Added check:** Four synchronized producers record 2,000 events into a 128-event history; verify the newest retained sequence window is contiguous and every retained event has producer metadata.
 - **Value or concern:** Checks sequence allocation, concurrent insertion, and eviction consistency as one invariant. Test not run.
 - **Next:** Run `DiagnosticRecorderStandaloneTest.ConcurrentProducersKeepTheBoundedHistoryAsAContiguousSequenceWindow` when test execution is authorized.
+
+## 2026-11-08: Asset database symlink aliases during JSON restore
+- **Related:** `tests/ArtifactCore/AssetDatabaseContractTest.cpp::JsonLoadMergesSymlinkParentAndCanonicalPathAliasesByFirstIdentity`.
+- **Confirmed:** JSON restoration tests cover lexical canonical aliases, while symlink canonicalization is covered separately during relink. The combined restore path is not covered.
+- **Added check:** Restore two records whose paths differ only through a directory symlink; require the first UUID to own the canonical record, both paths to resolve to it, and the duplicate UUID to remain absent.
+- **Value or concern:** Exercises canonical path deduplication and identity index consistency during deserialization. Skips where directory symlinks are unavailable; test not run.
+- **Next:** Run `AssetDatabaseContractTest.JsonLoadMergesSymlinkParentAndCanonicalPathAliasesByFirstIdentity` on a platform with directory symlink support when test execution is authorized.
