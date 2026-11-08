@@ -554,6 +554,77 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString imagePath = dir.filePath(QStringLiteral("changing-layout.png"));
+    QImage rgbSource(2, 1, QImage::Format_RGB888);
+    rgbSource.setPixelColor(0, 0, QColor(20, 60, 100));
+    rgbSource.setPixelColor(1, 0, QColor(140, 180, 220));
+    ASSERT_TRUE(rgbSource.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 1)));
+    const QUuid sourceId = layer.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const std::uint64_t firstVersion = layer.sourceVersion();
+    ASSERT_GT(firstVersion, 0u);
+    const QJsonObject firstMetadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(firstMetadata.value(QStringLiteral("channelCount")).toInt(), 4);
+    EXPECT_EQ(firstMetadata.value(QStringLiteral("alphaChannel")).toInt(), -1);
+    EXPECT_EQ(firstMetadata.value(QStringLiteral("bitsPerChannel")).toInt(), 8);
+    EXPECT_EQ(firstMetadata.value(QStringLiteral("channelNames")).toArray().size(), 3);
+
+    QImage rgbaSource(3, 1, QImage::Format_RGBA64);
+    rgbaSource.setPixelColor(
+        0, 0, QColor::fromRgba64(0x1000, 0x3000, 0x5000, 0x4000));
+    rgbaSource.setPixelColor(
+        1, 0, QColor::fromRgba64(0x7000, 0x9000, 0xB000, 0x8000));
+    rgbaSource.setPixelColor(
+        2, 0, QColor::fromRgba64(0xD000, 0xA000, 0x6000, 0xC000));
+    ASSERT_TRUE(rgbaSource.save(imagePath, "PNG"));
+
+    const std::uint64_t secondVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sourceId);
+    ASSERT_GT(secondVersion, firstVersion);
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(3, 1)));
+    EXPECT_EQ(layer.sourceVersion(), secondVersion);
+
+    const float* rgba = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(rgba, nullptr);
+    EXPECT_NEAR(rgba[0], 4096.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[1], 12288.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[2], 20480.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[3], 16384.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[4], 28672.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[5], 36864.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[6], 45056.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[7], 32768.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[8], 53248.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[9], 40960.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[10], 24576.0f / 65535.0f, 1e-5f);
+    EXPECT_NEAR(rgba[11], 49152.0f / 65535.0f, 1e-5f);
+
+    const QJsonObject secondMetadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(secondMetadata.value(QStringLiteral("channelCount")).toInt(), 4);
+    EXPECT_EQ(secondMetadata.value(QStringLiteral("alphaChannel")).toInt(), 3);
+    EXPECT_EQ(secondMetadata.value(QStringLiteral("bitsPerChannel")).toInt(), 16);
+    const QJsonArray channelNames =
+        secondMetadata.value(QStringLiteral("channelNames")).toArray();
+    ASSERT_EQ(channelNames.size(), 4);
+    EXPECT_EQ(channelNames.at(0).toString(), QStringLiteral("R"));
+    EXPECT_EQ(channelNames.at(1).toString(), QStringLiteral("G"));
+    EXPECT_EQ(channelNames.at(2).toString(), QStringLiteral("B"));
+    EXPECT_EQ(channelNames.at(3).toString(), QStringLiteral("A"));
+}
+
+TEST(StillImageLayerRoundTripTest,
      SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing)
 {
     QTemporaryDir dir;
