@@ -12573,3 +12573,10 @@
 - **Added check:** Evaluate negative fractional modulation plus values beyond both configured bounds through the same router/property path, and assert rounded and clamped integer outputs.
 - **Value or concern:** Covers sign-sensitive rounding and post-modulation range enforcement at the integer conversion boundary. Test not run.
 - **Next:** Run `AbstractPropertyModulationTest.RoundsNegativeModulationAndClampsIntegerBounds` when test execution is authorized.
+
+## 2026-11-09: ImageYUV420 non-contiguous plane strides
+- **Related:** `tests/ArtifactCore/ImageYUV420ContractTest.cpp::FromPlanesRespectsNonContiguousInputRowStrides`.
+- **Confirmed:** Plane conversion checks odd-sized chroma geometry and normalized float conversion using contiguous matrices, but does not exercise OpenCV ROI planes whose row step exceeds their visible width.
+- **Added check:** Convert 3x3 luma and 2x2 chroma ROI views backed by wider matrices, with distinct values at each row and column; verify output dimensions and samples spanning all rows.
+- **Value or concern:** Detects accidental flat-buffer assumptions that skip OpenCV row stride or read neighboring padding. Test not run.
+- **Next:** Run `ImageYUV420ContractTest.FromPlanesRespectsNonContiguousInputRowStrides` when test execution is authorized.
