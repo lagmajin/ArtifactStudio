@@ -12594,3 +12594,10 @@
 - **Added check:** Apply an inverted red curve to a 2x2 RGBA image with different RGB/alpha values, including fully transparent and fully opaque pixels, and assert every resulting pixel.
 - **Value or concern:** Covers per-pixel traversal, selected-channel transformation, alpha invariance, and transparent-pixel handling together. Test not run.
 - **Next:** Run `ColorCurvesContractTest.MultiPixelApplyPreservesAlphaAndPixelOrder` when test execution is authorized.
+
+## 2026-11-09: OpenEXR invalid overwrite preservation
+- **Related:** `tests/ArtifactCore/OpenExrStandalone/OpenExrRoundTripTest.cpp::InvalidOverwritePreservesExistingImage`.
+- **Confirmed:** OpenEXR tests reject null, invalid-dimension, and non-finite writes, and separately cover a valid round trip; they do not check whether a rejected write leaves an existing destination intact.
+- **Added check:** Write a valid two-pixel image, attempt to overwrite the same path with an infinite sample, then reload and compare the original dimensions and all pixel components.
+- **Value or concern:** Verifies data preservation across validation failure at a persistent-file boundary. Test not run; overwrite atomicity is being asserted as a safety contract.
+- **Next:** Run `OpenExrRoundTripTest.InvalidOverwritePreservesExistingImage` when test execution is authorized.

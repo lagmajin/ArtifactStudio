@@ -5,6 +5,7 @@
 #include <QString>
 
 #include <cmath>
+#include <limits>
 #include <vector>
 
 import Image.OpenEXR;
@@ -51,4 +52,36 @@ TEST(OpenExrRoundTripTest, RejectsInvalidWriteInputs)
     EXPECT_FALSE(exr.writeRGBA32F(path, pixel, 0, 1));
     EXPECT_FALSE(exr.writeRGBA32F(path, nonFinitePixel, 1, 1));
     EXPECT_FALSE(exr.writeRGBA32F(QString(), pixel, 1, 1));
+}
+
+TEST(OpenExrRoundTripTest, InvalidOverwritePreservesExistingImage)
+{
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+
+    const QString path = QDir(temporaryDirectory.path()).filePath(
+        QStringLiteral("preserved.exr"));
+    const std::vector<float> original{
+        0.125f, 0.25f, 0.5f, 1.0f,
+        2.0f, 4.0f, 8.0f, 0.75f,
+    };
+    const std::vector<float> invalid{
+        9.0f, 8.0f, std::numeric_limits<float>::infinity(), 1.0f,
+    };
+
+    OpenExr exr;
+    ASSERT_TRUE(exr.writeRGBA32F(path, original.data(), 2, 1));
+    EXPECT_FALSE(exr.writeRGBA32F(path, invalid.data(), 1, 1));
+
+    std::vector<float> restored;
+    int width = 0;
+    int height = 0;
+    ASSERT_TRUE(exr.readRGBA32F(path, restored, width, height));
+    EXPECT_EQ(width, 2);
+    EXPECT_EQ(height, 1);
+    ASSERT_EQ(restored.size(), original.size());
+    for (std::size_t index = 0; index < original.size(); ++index) {
+        EXPECT_NEAR(restored[index], original[index], 1.0e-6f)
+            << "component " << index;
+    }
 }
