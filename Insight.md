@@ -12685,3 +12685,10 @@
 - **Added check:** Parse semicolon-delimited headerless input with a separator inside a quoted cell, embedded CRLF, a blank physical record, and a trailing empty field; verify both complete rows and the three-column shape.
 - **Value or concern:** Detects delimiter-counting or record-boundary state leaking across quoted line breaks and empty terminal cells. Test not run.
 - **Next:** Run `CsvParserStandaloneTest.AutoDetectionHandlesQuotedCrlfAndEmptyTrailingCellInHeaderlessRows` when test execution is authorized.
+
+## 2026-11-09: GI temporal history backward frame seek
+- **Related:** `tests/ArtifactCore/RenderPipelineContractTest.cpp::GITemporalHistoryResetsWhenFrameMovesBackward`.
+- **Confirmed:** Temporal history tests cover sequential frames, a forward frame gap, and an explicit camera cut, but not a backward timeline seek.
+- **Added check:** Commit history across consecutive frames, then begin an earlier frame and assert history is invalidated and the generation advances once.
+- **Value or concern:** Guards against reusing future-frame accumulation after a timeline seek to an earlier frame. Test not run.
+- **Next:** Run `RenderPipelineContractTest.GITemporalHistoryResetsWhenFrameMovesBackward` when test execution is authorized.
