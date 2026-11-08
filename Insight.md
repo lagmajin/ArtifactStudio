@@ -56,6 +56,13 @@
 - **価値または懸念:** source generationをまたぐ旧worker完了が新sequenceの同一index cacheを上書きする競合を検出する。タイミング依存のためruntimeで繰り返し検証が必要。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion` をテスト実行が許可された際に実行し、異なるworker負荷でも安定性を確認する。
 
+## 2026-11-09: Image Sequence project reload後のgap slot復帰
+- **関連:** `Artifact/src/Project/ArtifactProjectExporter.cpp` / importerのsequence relative path、`tests/Artifact/StillImageLayerRoundTripTest.cpp::ImageSequenceProjectReloadPreservesGapAndRestoresItsFrameSlot`。
+- **確認できた事実:** sequence単体では欠番、frame decode、保存JSONの正規化がテストされ、still imageではProject Manager経由の保存・再読込・missing recoveryがテストされているが、連番のslot関係を含めた一連のProject Manager往復はない。source relocation計画もsequence slotと再読込後relinkの受入を残課題としている。
+- **追加した確認:** middle frameだけ欠けた3-slot sequenceをProject Managerで保存・再読込し、順序・frame rate・両端frameを確認した後、欠けた元pathへ画像を戻し、同じslotをdecodeできることを確認する。
+- **価値または懸念:** path正規化・欠番保持・再読込・sequence reader再生成の横断不整合を捕捉する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ImageSequenceProjectReloadPreservesGapAndRestoresItsFrameSlot` をテスト実行が許可された際に実行する。
+
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
 - **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。

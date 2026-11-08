@@ -1060,6 +1060,75 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     ImageSequenceProjectReloadPreservesGapAndRestoresItsFrameSlot)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor firstColor(35, 75, 115, 255);
+    const QColor restoredGapColor(175, 125, 65, 255);
+    const QColor lastColor(65, 155, 205, 255);
+    const QString firstPath = dir.filePath(QStringLiteral("sequence-0001.png"));
+    const QString gapPath = dir.filePath(QStringLiteral("sequence-0002.png"));
+    const QString lastPath = dir.filePath(QStringLiteral("sequence-0003.png"));
+    const QString projectPath = dir.filePath(QStringLiteral("sequence-project.artifact"));
+
+    QImage frame(1, 1, QImage::Format_RGBA8888);
+    frame.fill(firstColor);
+    ASSERT_TRUE(frame.save(firstPath, "PNG"));
+    frame.fill(lastColor);
+    ASSERT_TRUE(frame.save(lastPath, "PNG"));
+    ASSERT_FALSE(QFileInfo::exists(gapPath));
+    const QStringList framePaths{firstPath, gapPath, lastPath};
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("ImageSequenceGapRoundTrip"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(makeCompositionParams());
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams layerParams(
+        QStringLiteral("SequenceLayer"), Artifact::LayerType::Image);
+    const auto added = projects.addLayerToComposition(composition.id, layerParams);
+    ASSERT_TRUE(added.success);
+    auto* imageLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(added.layer.get());
+    ASSERT_NE(imageLayer, nullptr);
+    const auto layerId = imageLayer->id();
+    ASSERT_TRUE(imageLayer->setImageSequence(framePaths, 24.0));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto restoredComposition = projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(restoredComposition);
+    auto* restoredLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        restoredComposition->layerById(layerId).get());
+    ASSERT_NE(restoredLayer, nullptr);
+    ASSERT_TRUE(restoredLayer->isImageSequence());
+    EXPECT_EQ(restoredLayer->sequenceFramePaths(), framePaths);
+    EXPECT_DOUBLE_EQ(restoredLayer->sequenceFrameRate(), 24.0);
+
+    restoredLayer->goToFrame(0);
+    EXPECT_EQ(waitForSequenceFrame(*restoredLayer, 0).pixelColor(0, 0), firstColor);
+    restoredLayer->goToFrame(2);
+    EXPECT_EQ(waitForSequenceFrame(*restoredLayer, 2).pixelColor(0, 0), lastColor);
+
+    // The absent middle file must keep its sequence index through project
+    // reload. Restoring that path should make the same slot decodable again.
+    frame.fill(restoredGapColor);
+    ASSERT_TRUE(frame.save(gapPath, "PNG"));
+    ASSERT_TRUE(restoredLayer->setImageSequence(framePaths, 24.0));
+    restoredLayer->goToFrame(1);
+    EXPECT_EQ(waitForSequenceFrame(*restoredLayer, 1).pixelColor(0, 0),
+              restoredGapColor);
+    EXPECT_EQ(restoredLayer->sequenceCachedFrameIndex(), 1);
+}
+
+TEST(StillImageLayerRoundTripTest,
      MissingImageSequenceFrameDoesNotKeepStalePixels)
 {
     QTemporaryDir dir;
