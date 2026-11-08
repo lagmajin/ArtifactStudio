@@ -2104,7 +2104,8 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(result.pixelColor(3, 0).alpha(), 0);
 }
 
-TEST(StillImageLayerRoundTripTest, MissingSourceCanBeRelinkedAfterProjectReload)
+TEST(StillImageLayerRoundTripTest,
+     MissingSourceCanBeRelinkedToNewPathAfterProjectReloadAndResaved)
 {
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
@@ -2131,6 +2132,7 @@ TEST(StillImageLayerRoundTripTest, MissingSourceCanBeRelinkedAfterProjectReload)
         QStringLiteral("opacity"), QVariant(0.35)));
 
     const QString missingPath = dir.filePath(QStringLiteral("moved-away.png"));
+    const QString relinkedPath = dir.filePath(QStringLiteral("relinked-source.png"));
     ASSERT_FALSE(imageLayer->loadFromPath(missingPath));
     const QString projectPath = dir.filePath(QStringLiteral("missing-source.artifact"));
     ASSERT_TRUE(projects.saveToFile(projectPath).success);
@@ -2156,15 +2158,37 @@ TEST(StillImageLayerRoundTripTest, MissingSourceCanBeRelinkedAfterProjectReload)
     QImage restoredSource(2, 1, QImage::Format_RGBA8888);
     const QColor restoredColor(45, 135, 205, 255);
     restoredSource.fill(restoredColor);
-    ASSERT_TRUE(restoredSource.save(missingPath, "PNG"));
-    ASSERT_TRUE(loadedImageLayer->loadFromPath(missingPath));
+    ASSERT_TRUE(restoredSource.save(relinkedPath, "PNG"));
+    ASSERT_TRUE(loadedImageLayer->loadFromPath(relinkedPath));
     ASSERT_TRUE(waitForImageBuffer(*loadedImageLayer, QSize(2, 1)));
-    EXPECT_EQ(loadedImageLayer->sourcePath(), missingPath);
+    EXPECT_EQ(loadedImageLayer->sourcePath(), relinkedPath);
+    const QUuid relinkedSourceId = loadedImageLayer->sourceAssetId();
+    ASSERT_FALSE(relinkedSourceId.isNull());
     EXPECT_NEAR(loadedImageLayer->opacity(), 0.35f, 1e-6f);
     loadedImageLayer->transform2D().position(x, y);
     EXPECT_FLOAT_EQ(x, 18.0f);
     EXPECT_FLOAT_EQ(y, -6.0f);
     EXPECT_EQ(waitForImage(*loadedImageLayer, QSize(2, 1)).pixelColor(1, 0),
+              restoredColor);
+
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto reloadedComposition =
+        projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(reloadedComposition);
+    const auto reloadedLayerBase = reloadedComposition->frontMostLayer();
+    auto* reloadedImageLayer =
+        dynamic_cast<Artifact::ArtifactImageLayer*>(reloadedLayerBase.get());
+    ASSERT_NE(reloadedImageLayer, nullptr);
+    EXPECT_EQ(reloadedImageLayer->sourcePath(), relinkedPath);
+    EXPECT_EQ(reloadedImageLayer->sourceAssetId(), relinkedSourceId);
+    EXPECT_FALSE(QFileInfo::exists(missingPath));
+    EXPECT_NEAR(reloadedImageLayer->opacity(), 0.35f, 1e-6f);
+    reloadedImageLayer->transform2D().position(x, y);
+    EXPECT_FLOAT_EQ(x, 18.0f);
+    EXPECT_FLOAT_EQ(y, -6.0f);
+    EXPECT_EQ(waitForImage(*reloadedImageLayer, QSize(2, 1)).pixelColor(0, 0),
               restoredColor);
 }
 

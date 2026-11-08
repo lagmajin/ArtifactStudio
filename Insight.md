@@ -35,6 +35,13 @@
 - **価値または懸念:** source identity fallbackと色解釈値の永続化を同じproject lifecycleで固定する。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.MovingStillImageProjectPreservesInputInterpretationAfterResave` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: Missing静止画の別path relink後round-trip
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MissingSourceCanBeRelinkedToNewPathAfterProjectReloadAndResaved`、静止画受入表IMG-14／OP-09。
+- **確認できた事実:** 既存テストはproject reload後にmissingだった元pathへ画像を戻して復旧するが、別pathへrelinkした後の保存・再読込を検査していなかった。
+- **追加した確認:** 新しいpathへ画像をrelinkし、pathとAsset IDを得た後にprojectを再保存・再読込する。旧pathが欠落したまま、新path、identity、pixel、opacity、transformが維持されることを確認する。
+- **価値または懸念:** missing recovery後に古い参照が復活する回帰と、relink結果がserializationで失われる回帰を合わせて検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MissingSourceCanBeRelinkedToNewPathAfterProjectReloadAndResaved` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
 - **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。
