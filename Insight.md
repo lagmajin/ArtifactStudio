@@ -12734,3 +12734,10 @@
 - **Added check:** Construct a RIFF file with three unsigned 8-bit mono samples, the required alignment byte, and a following `fmt ` chunk; verify metadata and all normalized samples.
 - **Value or concern:** Detects chunk scanning that treats payload bytes as the next chunk header or forgets data-chunk word alignment. Test not run.
 - **Next:** Run `AudioSimpleWavStandaloneTest.LoadsOddSizedDataChunkBeforeFormatAndHonorsPadding` when test execution is authorized.
+
+## 2026-11-09: ImageAnalyzer intermediate spatial frequency bins
+- **Related:** `tests/ArtifactCore/ImageAnalyzerContractTest.cpp::SpatialFrequencySeparatesConjugateBinsForKnownIntermediateFrequency`.
+- **Confirmed:** Spatial-frequency coverage checks normalized DC, odd-width DC, and a two-dimensional Nyquist checkerboard, but not an intermediate sinusoidal frequency and its conjugate bin pair.
+- **Added check:** Analyze a repeated 4-column cosine sample, assert its normalized DC and two expected conjugate-bin magnitudes, and verify all other 2D bins are zero.
+- **Value or concern:** Detects frequency-axis ordering, normalization, and conjugate-bin errors that DC-only and Nyquist-only patterns can miss. Test not run.
+- **Next:** Run `ImageAnalyzerContractTest.SpatialFrequencySeparatesConjugateBinsForKnownIntermediateFrequency` when test execution is authorized.
