@@ -12699,3 +12699,10 @@
 - **Added check:** Reload a two-column comma file as a three-column semicolon file and verify new headers, values, typed getters, removal of the old lookup, row/column metadata, and file size.
 - **Value or concern:** Detects stale header indexes or metadata surviving a successful source replacement. Test not run.
 - **Next:** Run `CsvDataSourceStandaloneTest.ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange` when test execution is authorized.
+
+## 2026-11-09: Split project corrupt child atomicity
+- **Related:** `tests/ArtifactCore/ProjectSerializerContractTest.cpp::SplitFacadePreservesCallerOutputsForCorruptOrMissingChild`.
+- **Confirmed:** Split load tests verify caller outputs remain untouched when a child document is missing, but not when a present child fails to decode.
+- **Added check:** Corrupt one child JSON after a successful split-store round-trip, assert both caller outputs remain unchanged, then repeat after removing that child.
+- **Value or concern:** Covers parse failure and missing-file failure at the same multi-document transaction boundary. Test not run.
+- **Next:** Run `ProjectSerializerContractTest.SplitFacadePreservesCallerOutputsForCorruptOrMissingChild` when test execution is authorized.
