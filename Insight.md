@@ -12818,3 +12818,10 @@
 - **Added check:** Add a crossfade over a cut between two adjacent NLE clips, reject exact and partial duplicates without snapshot changes, then undo/redo the accepted transition.
 - **Value or concern:** Detects duplicate transitions entering project state or rejected edits polluting the undo stack. Test not run.
 - **Next:** Run `ArtifactPrEditorEngineTest.TransitionOverlapGuardIsAtomicAndTheAcceptedEditIsUndoable` when test execution is authorized.
+
+## 2026-11-09: ClipEqualizer decoder-segment continuity
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries`.
+- **Confirmed:** ClipEqualizer response tests process whole signals in one call, while SequenceAudioRenderer depends on filter delay state persisting between decoder segments.
+- **Added check:** Process a three-band composite signal continuously and in a repeating uneven block pattern using separately configured equalizers; compare every output sample exactly.
+- **Value or concern:** Detects filter-state resets or off-by-one state advancement at decoder boundaries. Test not run.
+- **Next:** Run `ArtifactPrContractTest.EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries` when test execution is authorized.

@@ -15,6 +15,7 @@
 #include <QVariant>
 #include <QVector>
 
+#include <algorithm>
 #include <cmath>
 #include <initializer_list>
 #include <utility>
@@ -300,6 +301,50 @@ TEST(ArtifactPrClipEffectsTest, MidPeakingBoostRaisesOneKilohertzEnergy)
     equalizer.process(samples.data(), kFrames);
 
     EXPECT_GT(rms(samples, kFrames / 2), before * 2.0);
+}
+
+TEST(ArtifactPrClipEffectsTest,
+     EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries)
+{
+    constexpr int kSampleRate = 48000;
+    constexpr int kFrameCount = 4099;
+    std::vector<float> input(kFrameCount);
+    for (int frame = 0; frame < kFrameCount; ++frame) {
+        const double time = static_cast<double>(frame) / kSampleRate;
+        input[frame] = 0.35f * static_cast<float>(std::sin(2.0 * kPi * 100.0 * time))
+            + 0.2f * static_cast<float>(std::sin(2.0 * kPi * 1000.0 * time))
+            + 0.1f * static_cast<float>(std::sin(2.0 * kPi * 8000.0 * time));
+    }
+
+    ArtifactPr::ClipEqualizer continuousEqualizer;
+    continuousEqualizer.sampleRate = kSampleRate;
+    continuousEqualizer.lowDb = 6.0;
+    continuousEqualizer.midDb = -3.0;
+    continuousEqualizer.highDb = 4.0;
+    continuousEqualizer.configure();
+    ASSERT_TRUE(continuousEqualizer.active);
+    std::vector<float> continuousOutput = input;
+    continuousEqualizer.process(continuousOutput.data(), kFrameCount);
+
+    ArtifactPr::ClipEqualizer segmentedEqualizer;
+    segmentedEqualizer.sampleRate = kSampleRate;
+    segmentedEqualizer.lowDb = 6.0;
+    segmentedEqualizer.midDb = -3.0;
+    segmentedEqualizer.highDb = 4.0;
+    segmentedEqualizer.configure();
+    std::vector<float> segmentedOutput = input;
+    constexpr int kBlockSizes[]{1, 31, 509, 7, 64};
+    int start = 0;
+    int blockIndex = 0;
+    while (start < kFrameCount) {
+        const int count = std::min(kBlockSizes[blockIndex % 5],
+                                   kFrameCount - start);
+        segmentedEqualizer.process(segmentedOutput.data() + start, count);
+        start += count;
+        ++blockIndex;
+    }
+
+    EXPECT_EQ(segmentedOutput, continuousOutput);
 }
 
 // =====================================================================
