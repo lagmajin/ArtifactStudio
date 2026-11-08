@@ -604,3 +604,48 @@ TEST(ArtifactPrEditorEngineTest,
     EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[1].sourceIn, 34);
     EXPECT_EQ(engine->currentSequence().videoTracks[0].clips[1].sourceOut, 57);
 }
+
+TEST(ArtifactPrEditorEngineTest,
+     TransitionOverlapGuardIsAtomicAndTheAcceptedEditIsUndoable)
+{
+    auto* engine = freshEngine();
+    const QString trackId = engine->currentSequence().videoTracks[0].id;
+
+    ArtifactPr::DemoClip leftSource = makeClip(QStringLiteral("transition-left"), 0, 30);
+    ASSERT_TRUE(engine->editSourceRange(trackId, leftSource, false, false));
+    const QString leftClipId = engine->currentSequence().videoTracks[0].clips[0].id;
+
+    engine->seekToFrame(30);
+    ArtifactPr::DemoClip rightSource = makeClip(QStringLiteral("transition-right"), 0, 30);
+    ASSERT_TRUE(engine->editSourceRange(trackId, rightSource, false, false));
+    const QString rightClipId = engine->currentSequence().videoTracks[0].clips[1].id;
+    const QJsonObject beforeTransition = engine->nleSnapshot();
+
+    engine->addTransition(trackId, leftClipId, rightClipId, 25,
+                          ArtifactPr::TransitionType::Crossfade, 10);
+    const QJsonObject acceptedTransition = engine->nleSnapshot();
+    ASSERT_NE(acceptedTransition, beforeTransition);
+    ASSERT_EQ(engine->currentSequence().transitions.size(), 1);
+    EXPECT_EQ(engine->currentSequence().transitions[0].startFrame, 25);
+    EXPECT_EQ(engine->currentSequence().transitions[0].duration, 10);
+
+    // Both an exact duplicate and a partially overlapping interval for the
+    // same pair must be rejected without changing the stored edit.
+    engine->addTransition(trackId, leftClipId, rightClipId, 25,
+                          ArtifactPr::TransitionType::WipeLeft, 10);
+    engine->addTransition(trackId, leftClipId, rightClipId, 30,
+                          ArtifactPr::TransitionType::DipToBlack, 8);
+    EXPECT_EQ(engine->nleSnapshot(), acceptedTransition);
+    ASSERT_EQ(engine->currentSequence().transitions.size(), 1);
+    EXPECT_EQ(engine->currentSequence().transitions[0].type,
+              ArtifactPr::TransitionType::Crossfade);
+
+    engine->undo();
+    EXPECT_EQ(engine->nleSnapshot(), beforeTransition);
+    EXPECT_TRUE(engine->currentSequence().transitions.isEmpty());
+    engine->redo();
+    EXPECT_EQ(engine->nleSnapshot(), acceptedTransition);
+    ASSERT_EQ(engine->currentSequence().transitions.size(), 1);
+    EXPECT_EQ(engine->currentSequence().transitions[0].type,
+              ArtifactPr::TransitionType::Crossfade);
+}

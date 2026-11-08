@@ -12811,3 +12811,10 @@
 - **Added check:** Split a selected 40-frame clip with source range [17,57) at its 17-frame timeline boundary; assert contiguous left/right source and timeline ranges, then compare full snapshots after undo and redo.
 - **Value or concern:** Detects off-by-offset errors, gaps/overlaps at the split, or partial undo of the two-step operation. Test not run.
 - **Next:** Run `ArtifactPrEditorEngineTest.NleSplitPartitionsNonzeroSourceRangeAndUndoRestoresTheWholeClip` when test execution is authorized.
+
+## 2026-11-09: EditorEngine transition overlap atomicity
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::TransitionOverlapGuardIsAtomicAndTheAcceptedEditIsUndoable`.
+- **Confirmed:** Transition creation has a same-pair interval-overlap guard, but no EditorEngine test verifies duplicate/partial-overlap rejection or its interaction with undo history.
+- **Added check:** Add a crossfade over a cut between two adjacent NLE clips, reject exact and partial duplicates without snapshot changes, then undo/redo the accepted transition.
+- **Value or concern:** Detects duplicate transitions entering project state or rejected edits polluting the undo stack. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.TransitionOverlapGuardIsAtomicAndTheAcceptedEditIsUndoable` when test execution is authorized.
