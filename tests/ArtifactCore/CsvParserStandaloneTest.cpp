@@ -447,6 +447,30 @@ TEST(CsvParserStandaloneTest, EqualNonCommaDelimiterCountsPreferSemicolon)
     EXPECT_EQ(cell(result, 0, 1), "2\t3|4");
 }
 
+TEST(CsvParserStandaloneTest,
+     AutoDetectionHandlesQuotedCrlfAndEmptyTrailingCellInHeaderlessRows)
+{
+    CsvParseOptions options;
+    options.hasHeader = false;
+    const auto result = CsvParser::parseString(
+        "\"part;one\";\"line1\r\nline2\";tail\r\n"
+        "\r\n"
+        "next;row;",
+        options);
+
+    ASSERT_TRUE(result.ok()) << result.errorMessage;
+    EXPECT_TRUE(result.headers.empty());
+    ASSERT_EQ(result.rows.size(), 2u);
+    EXPECT_EQ(result.rowCount, 2);
+    EXPECT_EQ(result.columnCount, 3);
+    EXPECT_EQ(cell(result, 0, 0), "part;one");
+    EXPECT_EQ(cell(result, 0, 1), "line1\r\nline2");
+    EXPECT_EQ(cell(result, 0, 2), "tail");
+    EXPECT_EQ(cell(result, 1, 0), "next");
+    EXPECT_EQ(cell(result, 1, 1), "row");
+    EXPECT_EQ(cell(result, 1, 2), "");
+}
+
 TEST(CsvParserStandaloneTest, DelimiterDetectionDefaultsToCommaWhenOnlyQuotedSeparatorsExist)
 {
     EXPECT_EQ(CsvParser::detectDelimiter("\"a;b|c\""), ',');

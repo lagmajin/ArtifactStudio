@@ -12678,3 +12678,10 @@
 - **Added check:** Fill to the observed capacity, throw from copying the next value during append, verify size and every prior value remain intact, then retry and verify growth and ordering.
 - **Value or concern:** Checks array recovery after a constructor exception at a reallocation boundary. Test not run.
 - **Next:** Run `ArtifactArrayContractTest.ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry` when test execution is authorized.
+
+## 2026-11-09: CSV auto-detection with quoted CRLF and trailing empty cell
+- **Related:** `tests/ArtifactCore/CsvParserStandaloneTest.cpp::AutoDetectionHandlesQuotedCrlfAndEmptyTrailingCellInHeaderlessRows`.
+- **Confirmed:** Auto-detection, quoted separators/CRLF, headerless parsing, and trailing empty cells each have coverage, but their combined interaction across multiple records is not covered.
+- **Added check:** Parse semicolon-delimited headerless input with a separator inside a quoted cell, embedded CRLF, a blank physical record, and a trailing empty field; verify both complete rows and the three-column shape.
+- **Value or concern:** Detects delimiter-counting or record-boundary state leaking across quoted line breaks and empty terminal cells. Test not run.
+- **Next:** Run `CsvParserStandaloneTest.AutoDetectionHandlesQuotedCrlfAndEmptyTrailingCellInHeaderlessRows` when test execution is authorized.
