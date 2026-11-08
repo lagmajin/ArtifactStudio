@@ -14,6 +14,13 @@
 - **価値または懸念:** Export開始後の編集がすでに構築されたrender/audio jobへ漏れる回帰を、NLE snapshot一致だけではなく実消費入力で検出する。テスト未実行。
 - **次に確認すること:** `ArtifactPrEditorEngineTest.RenderPlanDerivedMediaInputsStayFrozenAcrossLiveSequenceEdits` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: SequenceCompositor 半透明背景の積層alpha oracle
+- **関連:** `ArtifactPr/src/SequenceCompositor.cpp::composeSequenceLayers`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle`。
+- **確認できた事実:** 既存の積層source-over oracleはopaque背景を使い、RGBの累積を検証するが、最終alphaが常に1のため背景と複数レイヤーのalpha合成を検証しない。
+- **追加した確認:** 半透明背景にsource alphaとlayer opacityの異なる3レイヤーを重ね、premultiplied accumulationから導くRGB・alphaをcompositorの結果と比較する。1x1入力でfit resizeの影響を排除する。
+- **価値または懸念:** 透過背景のalpha合成、layer opacityの適用、下層から上層への合成順を1つの厳密な数値oracleで確認できる。テスト未実行。
+- **次に確認すること:** `ArtifactPrSequenceCompositorTest.StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle` をテスト実行が許可された際に実行する。
+
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
 - **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。

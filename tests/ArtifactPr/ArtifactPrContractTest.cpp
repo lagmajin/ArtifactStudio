@@ -587,6 +587,57 @@ TEST(ArtifactPrSequenceCompositorTest,
     EXPECT_NEAR(pixel.a(), 1.0f, 1e-5f);
 }
 
+TEST(ArtifactPrSequenceCompositorTest,
+     StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle)
+{
+    const QSize canvasSize(1, 1);
+    const ArtifactCore::FloatRGBA background(0.2f, 0.4f, 0.6f, 0.35f);
+
+    ArtifactPr::CompositeLayer bottom;
+    bottom.frame = solidImage(1, 1, ArtifactCore::FloatRGBA(0.9f, 0.1f, 0.2f, 0.5f));
+    bottom.opacity = 0.6;
+
+    ArtifactPr::CompositeLayer middle;
+    middle.frame = solidImage(1, 1, ArtifactCore::FloatRGBA(0.2f, 0.8f, 0.3f, 0.4f));
+    middle.opacity = 0.75;
+
+    ArtifactPr::CompositeLayer top;
+    top.frame = solidImage(1, 1, ArtifactCore::FloatRGBA(0.1f, 0.2f, 1.0f, 0.2f));
+    top.opacity = 0.5;
+
+    const auto canvas = ArtifactPr::composeSequenceLayers(
+        canvasSize, {bottom, middle, top}, background);
+    const ArtifactCore::FloatRGBA pixel = canvas.getPixel(0, 0);
+
+    // Composite in premultiplied form so the oracle covers both accumulated
+    // coverage and straight-RGB reconstruction over a non-opaque base.
+    float expectedAlpha = background.a();
+    float expectedPremultipliedR = background.r() * expectedAlpha;
+    float expectedPremultipliedG = background.g() * expectedAlpha;
+    float expectedPremultipliedB = background.b() * expectedAlpha;
+    const auto sourceOver = [&](const ArtifactCore::FloatRGBA& source,
+                                float layerOpacity) {
+        const float sourceAlpha = source.a() * layerOpacity;
+        const float remaining = 1.0f - sourceAlpha;
+        expectedPremultipliedR = source.r() * sourceAlpha
+            + expectedPremultipliedR * remaining;
+        expectedPremultipliedG = source.g() * sourceAlpha
+            + expectedPremultipliedG * remaining;
+        expectedPremultipliedB = source.b() * sourceAlpha
+            + expectedPremultipliedB * remaining;
+        expectedAlpha = sourceAlpha + expectedAlpha * remaining;
+    };
+    sourceOver(ArtifactCore::FloatRGBA(0.9f, 0.1f, 0.2f, 0.5f), 0.6f);
+    sourceOver(ArtifactCore::FloatRGBA(0.2f, 0.8f, 0.3f, 0.4f), 0.75f);
+    sourceOver(ArtifactCore::FloatRGBA(0.1f, 0.2f, 1.0f, 0.2f), 0.5f);
+
+    ASSERT_GT(expectedAlpha, 0.0f);
+    EXPECT_NEAR(pixel.r(), expectedPremultipliedR / expectedAlpha, 1e-5f);
+    EXPECT_NEAR(pixel.g(), expectedPremultipliedG / expectedAlpha, 1e-5f);
+    EXPECT_NEAR(pixel.b(), expectedPremultipliedB / expectedAlpha, 1e-5f);
+    EXPECT_NEAR(pixel.a(), expectedAlpha, 1e-5f);
+}
+
 TEST(ArtifactPrSequenceCompositorTest, EmptyLayerFrameIsIgnored)
 {
     const QSize canvasSize(8, 8);
