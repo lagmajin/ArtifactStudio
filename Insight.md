@@ -12335,3 +12335,10 @@
 - **Added check:** Embed a 3-frame GIF with 100/200/300 ms delays; verify it is reported as a 3-frame sequence at 5 FPS and yields red/green/blue pixels in order. The case skips if Qt's GIF image plugin is unavailable.
 - **Value or concern:** Exercises animation metadata and decoded subframe mapping together. Pillow inspection confirmed the fixture's frame count, delays, and colors; Qt test behavior is unverified because tests are not run.
 - **Next:** Run `ImageSequenceSourceContractTest.AnimatedGifUsesAverageFrameDelayAndExposesEverySubframe` on a Qt installation with the GIF plugin when test execution is authorized.
+
+## 2026-11-08: Pointwise Fusion shared DAG output selection
+- **Related:** `tests/ArtifactCore/PointwiseFusionGraphContractTest.cpp::PreservesSharedOperandsAndExplicitEarlierOutputInCombinedGraph`.
+- **Confirmed:** Existing Pointwise Fusion contract tests cover typed emission and explicit output separately, but do not combine shared operands, dependent operations, and an output selected before the graph's final insertion.
+- **Added check:** Build a Lerp-based fan-out DAG, append a later operation, select the earlier Lerp result, and assert operation count, validity, HLSL reference order, and function return target.
+- **Value or concern:** Covers graph reuse and explicit output selection in one compact contract case. Test not run.
+- **Next:** Run `ArtifactCorePointwiseFusionGraphContractTest` when test execution is authorized.
