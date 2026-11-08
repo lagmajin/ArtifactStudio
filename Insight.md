@@ -49,6 +49,13 @@
 - **価値または懸念:** mono入力がpanで複数出力channelへ展開される場合など、片channelのみの欠落・ずれをreload後の統合経路で捕捉できる。テスト未実行。
 - **次に確認すること:** `AudioLayerRenderIntegrationTest.MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: Image Sequence source replacement中のstale decode拒否
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` のsequence prefetch generation、`tests/Artifact/StillImageLayerRoundTripTest.cpp::ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion`。
+- **確認できた事実:** sequenceフレームの個別decode完了は非同期で、sequence切替時にgenerationを進めて旧結果の反映を避ける設計である。既存テストはmissing frame、同一パス差し替え、corrupt frameを確認するが、旧sequenceのdecodeを保留したまま別sequenceへ切り替えるケースはない。
+- **追加した確認:** 旧sequenceの大きな次frameを要求した直後に別path群へsequenceを置換し、新sequenceの同じindexをdecodeする。遅延イベントを処理した後も新sequenceのpixelとcached indexが維持されることを確認する。
+- **価値または懸念:** source generationをまたぐ旧worker完了が新sequenceの同一index cacheを上書きする競合を検出する。タイミング依存のためruntimeで繰り返し検証が必要。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion` をテスト実行が許可された際に実行し、異なるworker負荷でも安定性を確認する。
+
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
 - **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。

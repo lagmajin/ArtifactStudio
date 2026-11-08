@@ -1005,6 +1005,61 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QSize frameSize(2048, 2048);
+    const QColor oldFirstColor(25, 65, 105, 255);
+    const QColor oldLateColor(205, 45, 75, 255);
+    const QColor newFirstColor(45, 155, 85, 255);
+    const QColor newTargetColor(225, 195, 35, 255);
+    const QString oldFirstPath = dir.filePath(QStringLiteral("old-0001.png"));
+    const QString oldLatePath = dir.filePath(QStringLiteral("old-0002.png"));
+    const QString newFirstPath = dir.filePath(QStringLiteral("new-0001.png"));
+    const QString newTargetPath = dir.filePath(QStringLiteral("new-0002.png"));
+
+    QImage frame(frameSize, QImage::Format_RGBA8888);
+    frame.fill(oldFirstColor);
+    ASSERT_TRUE(frame.save(oldFirstPath, "PNG"));
+    frame.fill(oldLateColor);
+    ASSERT_TRUE(frame.save(oldLatePath, "PNG"));
+    frame.fill(newFirstColor);
+    ASSERT_TRUE(frame.save(newFirstPath, "PNG"));
+    frame.fill(newTargetColor);
+    ASSERT_TRUE(frame.save(newTargetPath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.setImageSequence(
+        QStringList{oldFirstPath, oldLatePath}, 0.0));
+    EXPECT_EQ(waitForSequenceFrame(layer, 0).pixelColor(31, 47), oldFirstColor);
+
+    // Request a large frame from the old sequence, then replace its source
+    // list before that asynchronous request is guaranteed to have completed.
+    layer.goToFrame(1);
+    QCoreApplication::processEvents();
+    QThread::msleep(1);
+    ASSERT_TRUE(layer.setImageSequence(
+        QStringList{newFirstPath, newTargetPath}, 0.0));
+    layer.goToFrame(1);
+
+    EXPECT_EQ(waitForSequenceFrame(layer, 1).pixelColor(31, 47), newTargetColor);
+
+    // Drain delayed callbacks after the new frame has appeared: an old decode
+    // must not overwrite the same frame index in the replacement sequence.
+    QElapsedTimer settleTimer;
+    settleTimer.start();
+    while (settleTimer.elapsed() < 500) {
+        QCoreApplication::processEvents();
+        QThread::msleep(2);
+    }
+    EXPECT_EQ(layer.sequenceCachedFrameIndex(), 1);
+    EXPECT_EQ(layer.toQImage().pixelColor(31, 47), newTargetColor);
+}
+
+TEST(StillImageLayerRoundTripTest,
      MissingImageSequenceFrameDoesNotKeepStalePixels)
 {
     QTemporaryDir dir;
