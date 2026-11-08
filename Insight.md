@@ -12671,3 +12671,10 @@
 - **Added check:** Fill a four-bucket map to its 75% boundary, force the fourth mapped construction to throw, verify all prior entries and size remain intact, then retry successfully and verify all values after growth.
 - **Value or concern:** Exercises exception cleanup together with bucket growth and collision-independent lookup integrity. Test not run.
 - **Next:** Run `ArtifactHashMapContractTest.ThrowingMappedConstructionDuringGrowthKeepsMapUsable` when test execution is authorized.
+
+## 2026-11-09: ArtifactArray throwing append at capacity boundary
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry`.
+- **Confirmed:** Array tests cover aliased insertion across growth, non-trivial lifetimes, and deterministic mixed mutations, but not failed element construction while append crosses capacity.
+- **Added check:** Fill to the observed capacity, throw from copying the next value during append, verify size and every prior value remain intact, then retry and verify growth and ordering.
+- **Value or concern:** Checks array recovery after a constructor exception at a reallocation boundary. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry` when test execution is authorized.

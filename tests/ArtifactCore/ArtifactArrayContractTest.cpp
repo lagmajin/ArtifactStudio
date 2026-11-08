@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -29,6 +30,25 @@ struct TrackedValue {
     ~TrackedValue() { --liveCount; }
 
     bool operator==(const TrackedValue&) const = default;
+};
+struct ConditionallyThrowingValue {
+    static inline bool shouldThrow = false;
+
+    explicit ConditionallyThrowingValue(int input) : value(input) {
+        if (shouldThrow) throw std::runtime_error("value construction failed");
+    }
+    ConditionallyThrowingValue(const ConditionallyThrowingValue& other)
+        : value(other.value)
+    {
+        if (shouldThrow) throw std::runtime_error("value copy failed");
+    }
+    ConditionallyThrowingValue(ConditionallyThrowingValue&& other) noexcept
+        : value(other.value) {}
+    ConditionallyThrowingValue& operator=(const ConditionallyThrowingValue&) = default;
+    ConditionallyThrowingValue& operator=(
+        ConditionallyThrowingValue&&) noexcept = default;
+
+    int value;
 };
 
 template <typename T>
@@ -432,6 +452,34 @@ TEST(ArtifactArrayContractTest,
     EXPECT_EQ(values,
               (Array<std::string>{"first", "last", "middle", "last"}));
     EXPECT_GT(values.capacity(), 3u);
+}
+
+TEST(ArtifactArrayContractTest,
+     ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry)
+{
+    Array<ConditionallyThrowingValue> values;
+    int nextValue = 0;
+    while (values.capacity() == 0 || values.size() < values.capacity()) {
+        values.append(ConditionallyThrowingValue{nextValue++});
+    }
+    ASSERT_EQ(values.size(), values.capacity());
+    const std::size_t fullCapacity = values.capacity();
+
+    const ConditionallyThrowingValue candidate{nextValue};
+    ConditionallyThrowingValue::shouldThrow = true;
+    EXPECT_THROW(values.append(candidate), std::runtime_error);
+    ConditionallyThrowingValue::shouldThrow = false;
+
+    ASSERT_EQ(values.size(), fullCapacity);
+    for (std::size_t index = 0; index < values.size(); ++index)
+        EXPECT_EQ(values[index].value, static_cast<int>(index));
+
+    values.append(candidate);
+    ASSERT_EQ(values.size(), fullCapacity + 1);
+    EXPECT_GT(values.capacity(), fullCapacity);
+    for (std::size_t index = 0; index < fullCapacity; ++index)
+        EXPECT_EQ(values[index].value, static_cast<int>(index));
+    EXPECT_EQ(values[fullCapacity].value, nextValue);
 }
 
 TEST(ArtifactArrayContractTest, InsertAtBeginningAndEndAcceptsBoundaryIndices)
