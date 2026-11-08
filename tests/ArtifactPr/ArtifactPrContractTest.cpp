@@ -403,6 +403,47 @@ TEST(ArtifactPrSequenceCompositorTest, TopLayerWinsAndZeroOpacityLayerIsSkipped)
     EXPECT_GT(pixel.b(), 0.9f);
 }
 
+TEST(ArtifactPrSequenceCompositorTest,
+     StackedSourceAlphaAndLayerOpacityMatchSourceOverOracle)
+{
+    const QSize canvasSize(16, 16);
+    const ArtifactCore::FloatRGBA background(0.1f, 0.2f, 0.3f, 1.0f);
+
+    ArtifactPr::CompositeLayer bottom;
+    bottom.frame = solidImage(16, 16, ArtifactCore::FloatRGBA(1.0f, 0.0f, 0.0f, 0.5f));
+    bottom.opacity = 0.5;
+
+    ArtifactPr::CompositeLayer middle;
+    middle.frame = solidImage(16, 16, ArtifactCore::FloatRGBA(0.0f, 1.0f, 0.0f, 0.25f));
+    middle.opacity = 0.8;
+
+    ArtifactPr::CompositeLayer top;
+    top.frame = solidImage(16, 16, ArtifactCore::FloatRGBA(0.0f, 0.0f, 1.0f, 0.75f));
+    top.opacity = 0.4;
+
+    const auto canvas = ArtifactPr::composeSequenceLayers(
+        canvasSize, {bottom, middle, top}, background);
+    const ArtifactCore::FloatRGBA pixel = canvas.getPixel(8, 8);
+
+    // Apply source-over independently at each layer: effective source alpha
+    // is source alpha times layer opacity. The opaque background keeps the
+    // expected output alpha at one while exercising RGB accumulation order.
+    const float afterBottomR = 1.0f * 0.25f + background.r() * 0.75f;
+    const float afterBottomG = background.g() * 0.75f;
+    const float afterBottomB = background.b() * 0.75f;
+    const float afterMiddleR = afterBottomR * 0.8f;
+    const float afterMiddleG = 1.0f * 0.2f + afterBottomG * 0.8f;
+    const float afterMiddleB = afterBottomB * 0.8f;
+    const float expectedR = afterMiddleR * 0.7f;
+    const float expectedG = afterMiddleG * 0.7f;
+    const float expectedB = 1.0f * 0.3f + afterMiddleB * 0.7f;
+
+    EXPECT_NEAR(pixel.r(), expectedR, 1e-5f);
+    EXPECT_NEAR(pixel.g(), expectedG, 1e-5f);
+    EXPECT_NEAR(pixel.b(), expectedB, 1e-5f);
+    EXPECT_NEAR(pixel.a(), 1.0f, 1e-5f);
+}
+
 TEST(ArtifactPrSequenceCompositorTest, EmptyLayerFrameIsIgnored)
 {
     const QSize canvasSize(8, 8);

@@ -12758,7 +12758,14 @@
 
 ## 2026-11-09: Renderer sequence frame content progression
 - **Related:** `tests/ArtifactRendererCli/test_cli.py::test_diagnostic_render_writes_png_sequence_and_completion_events`.
-- **Confirmed:** The diagnostic sequence test checks two frame filenames, dimensions, and pixels from the first frame, while the renderer draws a frame-dependent card position and labels each frame.
-- **Added check:** Decode both consecutive PNGs and require their pixel arrays to differ, proving the sequence contains frame-specific rendered content rather than duplicate images.
+- **Confirmed:** The diagnostic sequence test checks sequence filenames, dimensions, and pixels from the first frame, while the renderer draws a frame-dependent card position and labels each frame.
+- **Added check:** Decode the first and third PNGs in a three-frame sequence and require their pixel arrays to differ, proving frame-position-dependent content is rendered even when a one-pixel-wide movement would otherwise be truncated by integer division.
 - **Value or concern:** Detects an output loop that repeats one cached/stale frame despite generating correctly numbered files. Test not run.
 - **Next:** Run `ArtifactRendererCliContractTest` when test execution is authorized.
+
+## 2026-11-09: ArtifactPr stacked alpha and opacity oracle
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::StackedSourceAlphaAndLayerOpacityMatchSourceOverOracle`.
+- **Confirmed:** Sequence compositor coverage checks layer opacity, transparent pixels, and opaque top-layer order separately, but not the accumulated result of multiple partially transparent layers with independent layer opacity.
+- **Added check:** Stack three solid layers with distinct source alpha and layer opacity over an opaque non-black background; compare all output RGBA channels against independently accumulated source-over expectations.
+- **Value or concern:** Detects alpha/opacity multiplication, compositing order, and channel accumulation errors that single-layer and opaque-layer cases can miss. Test not run.
+- **Next:** Run `ArtifactPrContractTest` when test execution is authorized.
