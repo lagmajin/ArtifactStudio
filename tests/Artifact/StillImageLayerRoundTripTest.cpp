@@ -31,6 +31,9 @@
 
 #include <opencv2/core.hpp>
 
+#include <OpenImageIO/imagebuf.h>
+#include <OpenImageIO/imageio.h>
+
 import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
 import Artifact.Effect.Abstract;
@@ -2944,6 +2947,49 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(metadata.value(QStringLiteral("channelCount")).toInt(), 4);
     EXPECT_EQ(metadata.value(QStringLiteral("alphaChannel")).toInt(), 3);
     EXPECT_EQ(metadata.value(QStringLiteral("bitsPerChannel")).toInt(), 16);
+}
+
+TEST(StillImageLayerRoundTripTest,
+     FloatExrPreservesHdrAndNegativeValuesInLayerBuffer)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString imagePath = dir.filePath(QStringLiteral("hdr-float.exr"));
+    const OIIO::ImageSpec spec(3, 1, 4, OIIO::TypeDesc::FLOAT);
+    OIIO::ImageBuf source(spec);
+    const std::array<float, 12> pixels{
+        -0.25f, 0.125f, 0.5f, 1.0f,
+        0.25f, 1.5f, 3.0f, 0.75f,
+        4.0f, 2.0f, -1.0f, 0.5f};
+    ASSERT_TRUE(source.set_pixels(OIIO::ROI::All(), OIIO::TypeDesc::FLOAT,
+                                  pixels.data()));
+    ASSERT_TRUE(source.write(imagePath.toUtf8().constData()));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(3, 1)));
+
+    const auto& buffer = layer.currentFrameBuffer();
+    ASSERT_EQ(buffer.width(), 3);
+    ASSERT_EQ(buffer.height(), 1);
+    const float* rgba = buffer.rgba32fData();
+    ASSERT_NE(rgba, nullptr);
+    EXPECT_NEAR(rgba[0], -0.25f, 1e-6f);
+    EXPECT_NEAR(rgba[1], 0.125f, 1e-6f);
+    EXPECT_NEAR(rgba[3], 1.0f, 1e-6f);
+    EXPECT_NEAR(rgba[5], 1.5f, 1e-6f);
+    EXPECT_NEAR(rgba[6], 3.0f, 1e-6f);
+    EXPECT_NEAR(rgba[8], 4.0f, 1e-6f);
+    EXPECT_NEAR(rgba[10], -1.0f, 1e-6f);
+    EXPECT_NEAR(rgba[11], 0.5f, 1e-6f);
+
+    const QJsonObject metadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("channelCount")).toInt(), 4);
+    EXPECT_EQ(metadata.value(QStringLiteral("alphaChannel")).toInt(), 3);
+    EXPECT_EQ(metadata.value(QStringLiteral("bitsPerChannel")).toInt(), 32);
 }
 
 TEST(StillImageLayerRoundTripTest,

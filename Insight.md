@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: Float EXRのHDR値をImageLayerへ接続
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FloatExrPreservesHdrAndNegativeValuesInLayerBuffer`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のIMG-04。
+- **確認できた事実:** 静止画受入表IMG-04ではhalf/float EXRの負値・1超過値とlayer decode精度が未実行。既存ケースはCore側のEXR出力契約またはImageLayerの整数画像decodeを個別に確認していた。
+- **追加した確認:** OpenImageIOでfloat RGBA EXRを生成し、ArtifactImageLayerのRGBA32F bufferで負値・HDR値・alphaと32-bit source metadataを照合する。
+- **価値または懸念:** EXR importerからlayer working bufferへ値が届く統合境界を検査する。ICC/working-space変換との相互作用は本テストの対象外。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FloatExrPreservesHdrAndNegativeValuesInLayerBuffer` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ImageSequence のプロジェクト移動後の参照維持
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
 - **確認できた事実:** 既存の連番プロジェクト再読込テストは欠落フレームのslot維持を確認していたが、保存済みプロジェクトと画像を別ルートへ移して旧画像を削除する遷移は扱っていなかった。
