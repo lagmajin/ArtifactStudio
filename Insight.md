@@ -42,6 +42,13 @@
 - **価値または懸念:** missing recovery後に古い参照が復活する回帰と、relink結果がserializationで失われる回帰を合わせて検出する。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.MissingSourceCanBeRelinkedToNewPathAfterProjectReloadAndResaved` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: source clearでsequence identityとcacheも破棄
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::EmptySourceClearsImageState`、`docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md` の「空source pathの正式clear操作」。
+- **確認できた事実:** 既存clearテストは`setFromQImage()`で作ったbufferを空pathで消すのみで、file-backed source identity、sequence frame list、sequence decoded cacheは通していなかった。
+- **追加した確認:** file sourceをsequenceへ切り替えて第2frameをdecodeした後、空pathでsource ID・sequence状態・frame list・bufferが消えること、JSONからも空状態が戻ること、clearの再適用で空状態が維持されることを検査する。
+- **価値または懸念:** source clear後にAsset IDやsequence cacheが残って再decode・古い画素を復活させる回帰を、一つの遷移で検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.EmptySourceClearsImageState` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
 - **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。

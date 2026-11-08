@@ -1849,16 +1849,53 @@ TEST(StillImageLayerRoundTripTest, EmptySourceClearsImageState)
     ASSERT_TRUE(dir.isValid());
     isolateProjectRoot(dir);
 
+    const QColor firstColor(30, 120, 200, 255);
+    const QColor secondColor(190, 90, 45, 255);
+    const QString firstPath = dir.filePath(QStringLiteral("clear-0001.png"));
+    const QString secondPath = dir.filePath(QStringLiteral("clear-0002.png"));
     QImage sourceImage(2, 2, QImage::Format_RGBA8888);
-    sourceImage.fill(QColor(30, 120, 200, 255));
+    sourceImage.fill(firstColor);
+    ASSERT_TRUE(sourceImage.save(firstPath, "PNG"));
+    sourceImage.fill(secondColor);
+    ASSERT_TRUE(sourceImage.save(secondPath, "PNG"));
+
     Artifact::ArtifactImageLayer layer;
-    layer.setFromQImage(sourceImage);
-    ASSERT_TRUE(layer.hasCurrentFrameBuffer());
+    ASSERT_TRUE(layer.loadFromPath(firstPath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 2)));
+    const QUuid sourceId = layer.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+
+    const QStringList sequencePaths{firstPath, secondPath};
+    ASSERT_TRUE(layer.setImageSequence(sequencePaths, 24.0));
+    layer.goToFrame(1);
+    EXPECT_EQ(waitForSequenceFrame(layer, 1).pixelColor(0, 0), secondColor);
+    ASSERT_TRUE(layer.isImageSequence());
+    ASSERT_EQ(layer.sequenceFramePaths(), sequencePaths);
+
+    EXPECT_TRUE(layer.loadFromPath(QString()));
+    EXPECT_TRUE(layer.sourcePath().isEmpty());
+    EXPECT_TRUE(layer.sourceAssetId().isNull());
+    EXPECT_FALSE(layer.isImageSequence());
+    EXPECT_TRUE(layer.sequenceFramePaths().isEmpty());
+    EXPECT_FALSE(layer.hasCurrentFrameBuffer());
+    EXPECT_EQ(layer.toQImage().size(), QSize(256, 256));
+
+    const QJsonObject clearedState = layer.toJson();
+    EXPECT_TRUE(clearedState.value(QStringLiteral("image.sourcePath"))
+                    .toString().isEmpty());
+    EXPECT_TRUE(clearedState.value(QStringLiteral("image.sequencePaths"))
+                    .toArray().isEmpty());
+
+    Artifact::ArtifactImageLayer restored;
+    restored.fromJsonProperties(clearedState);
+    EXPECT_TRUE(restored.sourcePath().isEmpty());
+    EXPECT_TRUE(restored.sourceAssetId().isNull());
+    EXPECT_FALSE(restored.isImageSequence());
+    EXPECT_FALSE(restored.hasCurrentFrameBuffer());
 
     EXPECT_TRUE(layer.loadFromPath(QString()));
     EXPECT_TRUE(layer.sourcePath().isEmpty());
     EXPECT_FALSE(layer.hasCurrentFrameBuffer());
-    EXPECT_EQ(layer.toQImage().size(), QSize(256, 256));
 }
 
 TEST(StillImageLayerRoundTripTest, CorruptPayloadRetainsPathAndProvidesPlaceholder)
