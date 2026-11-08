@@ -12503,3 +12503,10 @@
 - **Added check:** Load three frames of six-channel 16-bit PCM with a two-frame limit; verify all twelve retained samples preserve interleaved order and normalization.
 - **Value or concern:** Covers frame-size arithmetic and multichannel sample alignment at the truncation boundary. Test not run.
 - **Next:** Run `AudioSimpleWavStandaloneTest.MaxFramesTruncatesSixChannelPcmOnlyAtFrameBoundaries` when test execution is authorized.
+
+## 2026-11-08: Condition wakeOne waiter cardinality
+- **Related:** `tests/ArtifactCore/ArtifactThreadContractTest.cpp::WakeOneReleasesOnlyOneWaiterBeforeWakeAll`.
+- **Confirmed:** Condition coverage verifies a stored notification consumed by a later waiter, predicate rechecking, and wakeAll release, but does not assert how many of several predicate waiters one wakeOne releases.
+- **Added check:** Gate three threads on one mutex-protected permit, issue wakeOne and assert exactly one has returned, then set shutdown and use wakeAll to release and join the remainder.
+- **Value or concern:** Checks waiter cardinality and cleanup under a synchronized multi-threaded condition-variable transition. Test not run.
+- **Next:** Run `ArtifactThreadContractTest.WakeOneReleasesOnlyOneWaiterBeforeWakeAll` when test execution is authorized.
