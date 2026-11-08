@@ -8,10 +8,13 @@
 // project save/load round trip.
 #include <gtest/gtest.h>
 
+#include <QFile>
 #include <QJsonObject>
 #include <QString>
 #include <QTemporaryDir>
 #include <QVector>
+
+#include <cstring>
 
 #include "ArtifactPrTestApp.h"
 
@@ -420,4 +423,51 @@ TEST(ArtifactPrEditorEngineTest,
     EXPECT_EQ(restored.markers[0].position, 19);
     EXPECT_EQ(restored.markers[0].name, QStringLiteral("Cue 🎬"));
     EXPECT_EQ(restored.markers[0].comment, QStringLiteral("before cut"));
+}
+
+TEST(ArtifactPrEditorEngineTest,
+     RejectedProjectFilesLeaveTheOpenProjectAndPlayheadUntouched)
+{
+    auto* engine = freshEngine();
+    engine->addMarker(47, QStringLiteral("Keep this state"), QStringLiteral("baseline"));
+    engine->seekToFrame(83);
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString savedPath = directory.filePath(QStringLiteral("open-project.artifactpr"));
+    ASSERT_TRUE(engine->saveProject(savedPath));
+
+    const QJsonObject snapshotBefore = engine->nleSnapshot();
+    const QString projectIdBefore = engine->currentProject().id;
+    const QString sequenceIdBefore = engine->currentSequence().id;
+    const QString projectPathBefore = engine->projectFilePath();
+    const auto frameBefore = engine->currentFrame();
+
+    const struct InvalidProjectCase {
+        const char* filename;
+        const char* contents;
+    } cases[] = {
+        {"malformed.artifactpr", "{invalid"},
+        {"non-object-root.artifactpr", "[]"},
+    };
+
+    for (const auto& invalid : cases) {
+        SCOPED_TRACE(invalid.filename);
+        const QString invalidPath = directory.filePath(QString::fromLatin1(invalid.filename));
+        QFile file(invalidPath);
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+        ASSERT_EQ(file.write(invalid.contents),
+                  static_cast<qint64>(std::strlen(invalid.contents)));
+        file.close();
+
+        EXPECT_FALSE(engine->loadProject(invalidPath)) << invalid.filename;
+        EXPECT_EQ(engine->nleSnapshot(), snapshotBefore) << invalid.filename;
+        EXPECT_EQ(engine->currentProject().id, projectIdBefore) << invalid.filename;
+        EXPECT_EQ(engine->currentSequence().id, sequenceIdBefore) << invalid.filename;
+        EXPECT_EQ(engine->currentFrame(), frameBefore) << invalid.filename;
+        EXPECT_EQ(engine->projectFilePath(), projectPathBefore) << invalid.filename;
+        ASSERT_EQ(engine->currentSequence().markers.size(), 1);
+        EXPECT_EQ(engine->currentSequence().markers[0].name,
+                  QStringLiteral("Keep this state")) << invalid.filename;
+    }
 }

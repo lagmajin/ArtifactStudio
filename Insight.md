@@ -12783,3 +12783,10 @@
 - **Added check:** Create two NLE-backed clips with distinct source trims and playback speeds (including reverse playback), add a Unicode-named marker, save/reload, and assert both the exact NLE snapshot and the reconstructed active sequence fields.
 - **Value or concern:** Detects persistence gaps between the serialized NLE store and the legacy sequence projection used by UI consumers. Test not run.
 - **Next:** Run `ArtifactPrEditorEngineTest.ProjectSaveLoadRoundTripPreservesMultipleTrimmedClipsAndMarkers` when test execution is authorized.
+
+## 2026-11-09: EditorEngine failed-load state preservation
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RejectedProjectFilesLeaveTheOpenProjectAndPlayheadUntouched`.
+- **Confirmed:** Project persistence coverage exercises successful save/load, but not whether parse errors and a non-object JSON root leave the currently open project intact.
+- **Added check:** Save a nontrivial open project, then try malformed JSON and an array root; after each rejection compare the NLE snapshot, project/sequence identity, playhead, marker, and active save path with their pre-attempt state.
+- **Value or concern:** Detects partial mutation or path retargeting on invalid-file failure paths. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.RejectedProjectFilesLeaveTheOpenProjectAndPlayheadUntouched` when test execution is authorized.
