@@ -12356,3 +12356,10 @@
 - **Added check:** Send a complete length prefix and partial payload, require a timeout with no delivery, then send the remainder plus another full frame and verify both messages and an empty pending buffer.
 - **Value or concern:** Covers stream framing state across receive calls and verifies the next frame remains aligned. Test not run.
 - **Next:** Run `IPCChannelContractTest.LocalSocketRetainsPartialPayloadAndFollowingFrameAcrossReceiveTimeout` when test execution is authorized.
+
+## 2026-11-08: Split store late-failure atomicity in both formats
+- **Related:** `tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::FailedLateUnsafeChildDoesNotPartiallyReplaceExistingStore`.
+- **Confirmed:** The late unsafe-child rollback case previously exercised JSON only, while split-store save/load has separate JSON and CBOR manifests and child files.
+- **Added check:** Run the same valid-store → late unsafe child rejection → reload-last-good assertions for JSON and CBOR with independent store paths.
+- **Value or concern:** Extends the atomic replacement invariant across both serialization encodings. Test not run.
+- **Next:** Run `SplitDocumentStoreContractTest.FailedLateUnsafeChildDoesNotPartiallyReplaceExistingStore` when test execution is authorized.

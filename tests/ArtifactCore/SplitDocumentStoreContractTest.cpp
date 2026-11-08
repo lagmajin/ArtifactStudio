@@ -437,25 +437,32 @@ TEST(SplitDocumentStoreContractTest, FailedLateUnsafeChildDoesNotPartiallyReplac
 {
     QTemporaryDir temporaryDirectory;
     ASSERT_TRUE(temporaryDirectory.isValid());
-    const QString storePath = temporaryDirectory.filePath(QStringLiteral("store"));
-    const auto originalManifest = manifest(QStringLiteral("last-good"));
-    const auto originalChildren = childDocuments(QStringLiteral("scene-original"));
-    ASSERT_TRUE(SplitDocumentStore::save(
-        storePath, originalManifest, originalChildren, SerializationFormat::Json));
+    for (const auto format : {SerializationFormat::Json, SerializationFormat::Cbor}) {
+        SCOPED_TRACE(format == SerializationFormat::Json ? "JSON" : "CBOR");
+        const QString storePath = temporaryDirectory.filePath(
+            format == SerializationFormat::Json ? QStringLiteral("json-store")
+                                                : QStringLiteral("cbor-store"));
+        const auto originalManifest = manifest(QStringLiteral("last-good"));
+        const auto originalChildren = childDocuments(QStringLiteral("scene-original"));
+        ASSERT_TRUE(SplitDocumentStore::save(
+            storePath, originalManifest, originalChildren, format));
 
-    const QMap<QString, QJsonObject> replacementChildren{
-        {QStringLiteral("scene"), QJsonObject{{QStringLiteral("id"), QStringLiteral("replacement")}}},
-        {QStringLiteral("zz..unsafe"), QJsonObject{{QStringLiteral("payload"), QStringLiteral("reject")}}},
-    };
-    EXPECT_FALSE(SplitDocumentStore::save(
-        storePath, manifest(QStringLiteral("replacement")), replacementChildren,
-        SerializationFormat::Json));
+        const QMap<QString, QJsonObject> replacementChildren{
+            {QStringLiteral("scene"),
+             QJsonObject{{QStringLiteral("id"), QStringLiteral("replacement")}}},
+            {QStringLiteral("zz..unsafe"),
+             QJsonObject{{QStringLiteral("payload"), QStringLiteral("reject")}}},
+        };
+        EXPECT_FALSE(SplitDocumentStore::save(
+            storePath, manifest(QStringLiteral("replacement")), replacementChildren,
+            format));
 
-    QJsonObject loadedManifest;
-    QMap<QString, QJsonObject> loadedChildren;
-    ASSERT_TRUE(SplitDocumentStore::load(storePath, loadedManifest, loadedChildren));
-    EXPECT_EQ(loadedManifest.value(QStringLiteral("title")).toString(), "last-good");
-    EXPECT_EQ(loadedChildren, originalChildren);
+        QJsonObject loadedManifest;
+        QMap<QString, QJsonObject> loadedChildren;
+        ASSERT_TRUE(SplitDocumentStore::load(storePath, loadedManifest, loadedChildren));
+        EXPECT_EQ(loadedManifest.value(QStringLiteral("title")).toString(), "last-good");
+        EXPECT_EQ(loadedChildren, originalChildren);
+    }
 }
 
 TEST(SplitDocumentStoreContractTest,
