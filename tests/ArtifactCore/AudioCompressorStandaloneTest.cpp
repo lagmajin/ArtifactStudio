@@ -219,6 +219,47 @@ TEST(AudioCompressorStandaloneTest, SidechainProcessingInIrregularBlocksMatchesC
     EXPECT_FLOAT_EQ(blocked.getGainReduction(), continuous.getGainReduction());
 }
 
+TEST(AudioCompressorStandaloneTest,
+     StereoSidechainInIrregularBlocksMatchesContinuousMonoReference)
+{
+    const QVector<float> programInput{
+        0.9f, 0.7f, 0.4f, 0.8f, 0.6f, 0.2f, 0.5f, 0.9f,
+        0.3f, 0.1f, 0.7f, 0.6f, 0.2f, 0.8f, 0.4f, 0.1f,
+    };
+    const QVector<float> sidechainInput{
+        1.0f, 0.8f, 0.0f, 0.0f, 0.9f, 0.7f, 0.0f, 1.0f,
+        0.0f, 0.0f, 0.8f, 0.0f, 0.0f, 0.9f, 0.0f, 0.0f,
+    };
+
+    AudioCompressor continuous;
+    configureFastCompressor(continuous);
+    continuous.setSideChain(true);
+    auto continuousProgram = makeMono(1000, programInput);
+    auto continuousSidechain = makeMono(1000, sidechainInput);
+    continuous.process(continuousProgram, &continuousSidechain);
+
+    AudioCompressor blocked;
+    configureFastCompressor(blocked);
+    blocked.setSideChain(true);
+    constexpr int boundaries[] = {0, 1, 5, 6, 11, 16};
+    QVector<float> blockedOutput;
+    blockedOutput.reserve(programInput.size());
+    for (int block = 1; block < 6; ++block) {
+        const int start = boundaries[block - 1];
+        const int length = boundaries[block] - start;
+        auto program = makeMono(1000, programInput.mid(start, length));
+        auto stereoSidechain = makeStereo(
+            1000, QVector<float>(length, 0.0f),
+            sidechainInput.mid(start, length));
+        blocked.process(program, &stereoSidechain);
+        for (const float sample : program.channelData[0])
+            blockedOutput.push_back(sample);
+    }
+
+    EXPECT_EQ(blockedOutput, continuousProgram.channelData[0]);
+    EXPECT_FLOAT_EQ(blocked.getGainReduction(), continuous.getGainReduction());
+}
+
 TEST(AudioCompressorStandaloneTest, SampleRateChangeResetsPreviousEnvelopeHistory)
 {
     AudioCompressor withHistory;

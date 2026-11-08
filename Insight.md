@@ -12615,3 +12615,10 @@
 - **Added check:** Put the loud detector signal only in the second channel of a stereo sidechain and compare program output and gain reduction with an equivalent mono loud-sidechain run.
 - **Value or concern:** Detects ignoring non-first sidechain channels or applying different detector gain based on sidechain layout. Test not run.
 - **Next:** Run `AudioCompressorStandaloneTest.StereoSidechainUsesLoudestChannelForDetection` when test execution is authorized.
+
+## 2026-11-09: AudioCompressor stereo sidechain block continuity
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::StereoSidechainInIrregularBlocksMatchesContinuousMonoReference`.
+- **Confirmed:** Irregular-block continuity is tested with a mono external sidechain, while stereo sidechain aggregation is checked only for a single sample.
+- **Added check:** Keep the detector signal exclusively in stereo sidechain channel two, split program and sidechain into irregular blocks including one-frame blocks, and compare every output sample and final gain reduction with one continuous mono-sidechain reference.
+- **Value or concern:** Combines channel aggregation with envelope continuity across block boundaries. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.StereoSidechainInIrregularBlocksMatchesContinuousMonoReference` when test execution is authorized.
