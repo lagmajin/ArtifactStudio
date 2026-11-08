@@ -12349,3 +12349,10 @@
 - **Added check:** Query and execute a 0→1→2 migration while the graph also contains 1→0; verify path discovery is side-effect free and execution applies each selected transform exactly once.
 - **Value or concern:** Guards migration graph traversal against revisiting versions while retaining a valid route. Test not run.
 - **Next:** Run `SerializationEnvelopeContractTest.MigrationPathSearchHandlesCyclesWithoutRepeatingTransforms` when test execution is authorized.
+
+## 2026-11-08: Local socket partial payload recovery
+- **Related:** `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::LocalSocketRetainsPartialPayloadAndFollowingFrameAcrossReceiveTimeout`.
+- **Confirmed:** Existing local socket tests exercise a fragmented length prefix, coalesced frames, and oversized-frame discard, but not timeout and continuation after a complete prefix with only part of its payload available.
+- **Added check:** Send a complete length prefix and partial payload, require a timeout with no delivery, then send the remainder plus another full frame and verify both messages and an empty pending buffer.
+- **Value or concern:** Covers stream framing state across receive calls and verifies the next frame remains aligned. Test not run.
+- **Next:** Run `IPCChannelContractTest.LocalSocketRetainsPartialPayloadAndFollowingFrameAcrossReceiveTimeout` when test execution is authorized.
