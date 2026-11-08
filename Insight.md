@@ -12496,3 +12496,10 @@
 - **Added check:** Process distinct 73-frame stereo envelopes continuously and across seven irregular blocks, then compare each channel both ways and against an independently processed mono reference.
 - **Value or concern:** Detects block-boundary state resets and cross-channel envelope coupling in the same run. Test not run.
 - **Next:** Run `AudioExpanderStandaloneTest.StereoChannelsRemainIndependentAcrossIrregularBlocks` when test execution is authorized.
+
+## 2026-11-08: SimpleWav multichannel frame truncation
+- **Related:** `tests/ArtifactCore/AudioSimpleWavStandaloneTest.cpp::MaxFramesTruncatesSixChannelPcmOnlyAtFrameBoundaries`.
+- **Confirmed:** Max-frame truncation is tested with interleaved stereo PCM, but not with a channel count above two where a partial-frame cutoff would discard or misalign more samples.
+- **Added check:** Load three frames of six-channel 16-bit PCM with a two-frame limit; verify all twelve retained samples preserve interleaved order and normalization.
+- **Value or concern:** Covers frame-size arithmetic and multichannel sample alignment at the truncation boundary. Test not run.
+- **Next:** Run `AudioSimpleWavStandaloneTest.MaxFramesTruncatesSixChannelPcmOnlyAtFrameBoundaries` when test execution is authorized.

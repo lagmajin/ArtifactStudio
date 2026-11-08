@@ -247,6 +247,36 @@ TEST(AudioSimpleWavStandaloneTest, MaxFramesTruncatesAtCompleteInterleavedFrames
     EXPECT_EQ(wav.getAudioData().size(), 4);
 }
 
+TEST(AudioSimpleWavStandaloneTest, MaxFramesTruncatesSixChannelPcmOnlyAtFrameBoundaries)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QByteArray pcm = pcm16({
+        100, -100, 200, -200, 300, -300,
+        400, -400, 500, -500, 600, -600,
+        700, -700, 800, -800, 900, -900,
+    });
+    const QString path = dir.filePath("surround.wav");
+    ASSERT_TRUE(writeFile(path, makeWave(1, 6, 48000, 16, pcm)));
+    SimpleWav wav;
+
+    ASSERT_TRUE(wav.loadFromFile(path, 2));
+
+    EXPECT_EQ(wav.channelCount(), 6);
+    EXPECT_EQ(wav.frameCount(), 2);
+    ASSERT_EQ(wav.getAudioData().size(), 12);
+    constexpr qint16 expectedSamples[] = {
+        100, -100, 200, -200, 300, -300,
+        400, -400, 500, -500, 600, -600,
+    };
+    for (int sample = 0; sample < 12; ++sample) {
+        EXPECT_NEAR(wav.getAudioData()[sample],
+                    static_cast<float>(expectedSamples[sample]) / 32768.0f,
+                    1e-7f)
+            << "interleaved sample=" << sample;
+    }
+}
+
 TEST(AudioSimpleWavStandaloneTest, ZeroMaxFramesLeavesInputUntruncated)
 {
     QTemporaryDir dir;
