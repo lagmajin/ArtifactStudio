@@ -12720,3 +12720,10 @@
 - **Added check:** Intersect and union overlapping 24fps and 30fps intervals, verify durations and half-open boundaries using timecodes in both rates, and compare operand-reversed results.
 - **Value or concern:** Detects comparing raw frame indices instead of elapsed time and catches operand-order-dependent results. Test not run.
 - **Next:** Run `TimeCodeRangeContractTest.IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates` when test execution is authorized.
+
+## 2026-11-09: AudioReverb irregular block continuity
+- **Related:** `tests/ArtifactCore/AudioReverbStandaloneTest.cpp::IrregularBlocksPreserveReverbHistoryAcrossImpulseBoundaries`.
+- **Confirmed:** Reverb output is compared across fixed 300-frame blocks, but not across uneven blocks or impulses placed at block boundaries.
+- **Added check:** Compare a whole 1800-frame render against repeating block sizes 1/127/11/257/3/64, with impulses immediately before and after a boundary and a later tail impulse; assert every sample matches.
+- **Value or concern:** Detects delay/history advancement errors caused by irregular callback sizes or block-edge input handling. Test not run.
+- **Next:** Run `AudioReverbStandaloneTest.IrregularBlocksPreserveReverbHistoryAcrossImpulseBoundaries` when test execution is authorized.
