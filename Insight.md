@@ -12433,3 +12433,10 @@
 - **Added check:** Apply 1,600 seeded append/prepend/insert/remove/take/replace/removeOne/reserve/squeeze operations and compare size and full contents with `std::vector` after every step.
 - **Value or concern:** Detects cumulative ordering or storage-state regressions that isolated examples can miss. Test not run.
 - **Next:** Run `ArtifactArrayContractTest.MixedDeterministicMutationsMatchIndependentVectorModel` when test execution is authorized.
+
+## 2026-11-08: ArtifactArray aliased insert during reallocation
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap`.
+- **Confirmed:** Existing aliased insert coverage reserves spare capacity before shifting; append aliasing is covered across reallocation, but insert does not combine both conditions.
+- **Added check:** Insert a reference to the final element into a full array at an earlier index; verify the original value is captured correctly through both growth and element shifting.
+- **Value or concern:** Covers a lifetime and aliasing boundary that isolated append/insert cases do not exercise. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap` when test execution is authorized.

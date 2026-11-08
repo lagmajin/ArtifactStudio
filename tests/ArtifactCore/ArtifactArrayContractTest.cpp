@@ -420,6 +420,20 @@ TEST(ArtifactArrayContractTest, InsertCanReadAliasedElementAfterShifting)
     EXPECT_EQ(values, (Array<std::string>{"first", "last", "middle", "last"}));
 }
 
+TEST(ArtifactArrayContractTest,
+     InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap)
+{
+    Array<std::string> values{"first", "middle", "last"};
+    ASSERT_EQ(values.capacity(), values.size());
+    const std::string& inserted = values[2];
+
+    values.insert(1, inserted);
+
+    EXPECT_EQ(values,
+              (Array<std::string>{"first", "last", "middle", "last"}));
+    EXPECT_GT(values.capacity(), 3u);
+}
+
 TEST(ArtifactArrayContractTest, InsertAtBeginningAndEndAcceptsBoundaryIndices)
 {
     Array<int> values{2, 3};
