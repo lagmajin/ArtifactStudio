@@ -69,6 +69,25 @@ TEST(CpuFrameViewContractTest, CpuFrameValidityRejectsMissingDimensionsOrStorage
     EXPECT_FALSE(frame.isValid());
 }
 
+TEST(CpuFrameViewContractTest, RejectsStrideAndStorageThatCannotAddressLastPixel)
+{
+    CpuVideoFrame shortStride;
+    shortStride.meta.width = 2;
+    shortStride.meta.height = 2;
+    shortStride.meta.pixelFormat = VideoFramePixelFormat::RGBA8;
+    shortStride.strideBytes = 7;
+    shortStride.bytes.resize(14);
+    EXPECT_FALSE(shortStride.isValid());
+
+    CpuVideoFrame truncatedStorage;
+    truncatedStorage.meta.width = 2;
+    truncatedStorage.meta.height = 2;
+    truncatedStorage.meta.pixelFormat = VideoFramePixelFormat::RGBA8;
+    truncatedStorage.strideBytes = 12;
+    truncatedStorage.bytes.resize(19);
+    EXPECT_FALSE(truncatedStorage.isValid());
+}
+
 TEST(CpuFrameViewContractTest, FrameMetadataRemainsAttachedToCpuVariant)
 {
     CpuVideoFrame cpu;

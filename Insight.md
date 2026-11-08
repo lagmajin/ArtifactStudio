@@ -12636,3 +12636,10 @@
 - **Added check:** Generate a full-range tube with taper start 0 and end 1; verify the first ring collapses to one centerline point, the next ring has positive radius, and every position and normal component is finite.
 - **Value or concern:** Covers degenerate surface geometry at a taper endpoint while checking neighboring ring integrity. Test not run.
 - **Next:** Run `PathTubeTrimTest.ZeroTaperEndpointCollapsesWithoutNonFiniteVertices` when test execution is authorized.
+
+## 2026-11-09: CpuFrameView undersized stride and final pixel storage
+- **Related:** `tests/ArtifactCore/CpuFrameViewContractTest.cpp::RejectsStrideAndStorageThatCannotAddressLastPixel`.
+- **Confirmed:** CPU frame tests verify padded row reads and reject missing storage, but do not cover a stride shorter than one packed RGBA row or storage ending before the final pixel.
+- **Added check:** Assert invalidity for a 2x2 RGBA frame with a 7-byte stride and for padded rows whose storage stops one byte before the final pixel's end.
+- **Value or concern:** Guards against row overlap and out-of-bounds scanline/pixel access at the frame validity boundary. Test not run.
+- **Next:** Run `CpuFrameViewContractTest.RejectsStrideAndStorageThatCannotAddressLastPixel` when test execution is authorized.
