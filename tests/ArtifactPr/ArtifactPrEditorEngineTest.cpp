@@ -284,6 +284,41 @@ TEST(ArtifactPrEditorEngineTest, SnappingCanBeDisabled)
     engine->setSnapEnabled(true);
 }
 
+TEST(ArtifactPrEditorEngineTest,
+     ExtendedSnappingPrioritizesTransitionsThenHonorsSecondThreshold)
+{
+    auto* engine = freshEngine();
+    ArtifactPr::DemoSequence sequence = engine->currentSequence();
+
+    ArtifactPr::Transition transition;
+    transition.id = QStringLiteral("snap_transition");
+    transition.trackId = sequence.videoTracks[0].id;
+    transition.leftClipId = QStringLiteral("left");
+    transition.rightClipId = QStringLiteral("right");
+    transition.startFrame = 64;
+    transition.duration = 20;
+    sequence.transitions.append(transition);
+    engine->setCurrentSequence(sequence);
+
+    // The transition start (64) and previous one-second boundary (60) are
+    // equally close; transition edges have priority in the extended snap.
+    EXPECT_EQ(engine->snapToNearestEx(62, false, 4), 64);
+    EXPECT_EQ(engine->snapToNearestEx(82, true, 2), 84);
+
+    // With no nearer transition, both neighboring second boundaries are
+    // eligible, and the caller's threshold is inclusive.
+    EXPECT_EQ(engine->snapToNearestEx(91, false, 1), 90);
+    EXPECT_EQ(engine->snapToNearestEx(119, false, 1), 120);
+    EXPECT_EQ(engine->snapToNearestEx(94, false, 4), 90);
+    EXPECT_EQ(engine->snapToNearestEx(94, false, 3), 94);
+
+    // Legacy targets keep their fixed-priority behavior, and disabling snap
+    // bypasses both the legacy and extended candidates.
+    EXPECT_EQ(engine->snapToNearestEx(4, false, 100), 0);
+    engine->setSnapEnabled(false);
+    EXPECT_EQ(engine->snapToNearestEx(62, false, 100), 62);
+}
+
 TEST(ArtifactPrEditorEngineTest, NleSnapshotRoundTripsThroughRestore)
 {
     auto* engine = freshEngine();

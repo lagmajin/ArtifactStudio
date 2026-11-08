@@ -12769,3 +12769,10 @@
 - **Added check:** Stack three solid layers with distinct source alpha and layer opacity over an opaque non-black background; compare all output RGBA channels against independently accumulated source-over expectations.
 - **Value or concern:** Detects alpha/opacity multiplication, compositing order, and channel accumulation errors that single-layer and opaque-layer cases can miss. Test not run.
 - **Next:** Run `ArtifactPrContractTest` when test execution is authorized.
+
+## 2026-11-09: EditorEngine extended snap precedence and threshold
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::ExtendedSnappingPrioritizesTransitionsThenHonorsSecondThreshold`.
+- **Confirmed:** Existing tests cover legacy playhead/clip/marker snapping, but the extended API's transition-edge precedence, previous/next second boundaries, caller threshold edge, and disabled path were untested.
+- **Added check:** Place a transition start equidistant from a one-second boundary, then assert transition priority, both second-boundary directions, inclusive/exclusive custom threshold behavior, legacy playhead priority, and snap-disabled bypass.
+- **Value or concern:** Guards ordering and boundary behavior across the extended snap candidate set. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.ExtendedSnappingPrioritizesTransitionsThenHonorsSecondThreshold` when test execution is authorized.
