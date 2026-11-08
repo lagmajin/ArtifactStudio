@@ -2,11 +2,13 @@
 
 #include <array>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 import Core.Diagnostics.Recorder;
 import Core.Diagnostics.Snapshot;
@@ -438,6 +440,60 @@ TEST_F(DiagnosticRecorderStandaloneTest,
         EXPECT_EQ(recent[index].operation, "record");
         EXPECT_NE(recent[index].component.find("worker-"), std::string::npos);
     }
+}
+
+TEST_F(DiagnosticRecorderStandaloneTest,
+       ConcurrentDrainAndRecordingDeliverEveryEventExactlyOnce)
+{
+    constexpr std::size_t workerCount = 4;
+    constexpr std::uint64_t eventsPerWorker = 400;
+    constexpr std::uint64_t expectedEventCount = workerCount * eventsPerWorker;
+    recorder().setMaxEvents(static_cast<std::size_t>(expectedEventCount + 1));
+    recorder().record(event(CoreDiagnosticSeverity::Info, "seed", "seed", "seed"));
+    const std::uint64_t initialSequence = recorder().latestSequence();
+    ASSERT_EQ(recorder().drain().size(), 1u);
+
+    std::atomic<std::size_t> readyWorkers{0};
+    std::atomic<std::size_t> finishedWorkers{0};
+    std::atomic<bool> start{false};
+    std::array<std::thread, workerCount> workers;
+    for (std::size_t workerIndex = 0; workerIndex < workerCount; ++workerIndex) {
+        workers[workerIndex] = std::thread([&, workerIndex] {
+            readyWorkers.fetch_add(1, std::memory_order_release);
+            while (!start.load(std::memory_order_acquire))
+                std::this_thread::yield();
+            for (std::uint64_t index = 0; index < eventsPerWorker; ++index) {
+                recorder().record(event(
+                    CoreDiagnosticSeverity::Info,
+                    "producer-" + std::to_string(workerIndex),
+                    "event-" + std::to_string(index), "concurrent-record"));
+            }
+            finishedWorkers.fetch_add(1, std::memory_order_release);
+        });
+    }
+
+    while (readyWorkers.load(std::memory_order_acquire) != workerCount)
+        std::this_thread::yield();
+    start.store(true, std::memory_order_release);
+
+    std::vector<DiagnosticEvent> drainedEvents;
+    while (finishedWorkers.load(std::memory_order_acquire) != workerCount ||
+           recorder().size() != 0) {
+        auto batch = recorder().drain();
+        drainedEvents.insert(drainedEvents.end(), batch.begin(), batch.end());
+        if (batch.empty()) std::this_thread::yield();
+    }
+    for (auto& worker : workers) worker.join();
+
+    ASSERT_EQ(drainedEvents.size(), expectedEventCount);
+    for (std::size_t index = 0; index < drainedEvents.size(); ++index) {
+        EXPECT_EQ(drainedEvents[index].sequence, initialSequence + index + 1)
+            << "drained event index=" << index;
+        EXPECT_EQ(drainedEvents[index].operation, "concurrent-record");
+        EXPECT_NE(drainedEvents[index].component.find("producer-"),
+                  std::string::npos);
+    }
+    EXPECT_EQ(recorder().size(), 0u);
 }
 
 TEST_F(DiagnosticRecorderStandaloneTest, AllocateTraceIdReturnsIncreasingValues)

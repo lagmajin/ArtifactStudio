@@ -12405,3 +12405,10 @@
 - **Added check:** Restore two records whose paths differ only through a directory symlink; require the first UUID to own the canonical record, both paths to resolve to it, and the duplicate UUID to remain absent.
 - **Value or concern:** Exercises canonical path deduplication and identity index consistency during deserialization. Skips where directory symlinks are unavailable; test not run.
 - **Next:** Run `AssetDatabaseContractTest.JsonLoadMergesSymlinkParentAndCanonicalPathAliasesByFirstIdentity` on a platform with directory symlink support when test execution is authorized.
+
+## 2026-11-08: Diagnostic drain under concurrent recording
+- **Related:** `tests/ArtifactCore/DiagnosticRecorderStandaloneTest.cpp::ConcurrentDrainAndRecordingDeliverEveryEventExactlyOnce`.
+- **Confirmed:** Recorder coverage now checks producer concurrency with bounded eviction, and drain behavior in isolation, but not the concurrent destructive-read boundary.
+- **Added check:** Four producers record 1,600 events while the test thread repeatedly drains batches; require all sequence numbers to be contiguous, all events to be recovered exactly once, and the recorder to end empty.
+- **Value or concern:** Exercises synchronization between concurrent append and drain without relying on timing-specific batch sizes. Test not run.
+- **Next:** Run `DiagnosticRecorderStandaloneTest.ConcurrentDrainAndRecordingDeliverEveryEventExactlyOnce` when test execution is authorized.
