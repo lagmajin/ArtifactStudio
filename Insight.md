@@ -28,6 +28,13 @@
 - **価値または懸念:** local identity操作の影響範囲とdecoded payload/version invalidationの分離を複数利用者境界で固定する。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.LocalizingOneLayerLeavesOtherSharedSourceIdentityUnchanged` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: 移転した静止画のInput Interpretation保存
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingStillImageProjectPreservesInputInterpretationAfterResave`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のIMG-09、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 静止画受入表はICC／色空間metadataの保存・再読込とworking-space結果を未実行とし、移転契約はsource metadataの保存・再読込保持を求める。既存ImageLayerテストはInput Interpretation文字列の直接JSON往復までで、project移転後の復元は確認していない。
+- **追加した確認:** projectとsource imageを新しいrootへ移して旧画像を削除し、相対pathで復旧後に色空間名・transfer名が保持されること、再保存／再読込後もpath・設定・画素が同じであることを検査する。
+- **価値または懸念:** source identity fallbackと色解釈値の永続化を同じproject lifecycleで固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingStillImageProjectPreservesInputInterpretationAfterResave` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
 - **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。

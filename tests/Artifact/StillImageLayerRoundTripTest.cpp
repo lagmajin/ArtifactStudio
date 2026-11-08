@@ -1363,6 +1363,87 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     MovingStillImageProjectPreservesInputInterpretationAfterResave)
+{
+    QTemporaryDir originalRoot;
+    QTemporaryDir relocatedRoot;
+    ASSERT_TRUE(originalRoot.isValid());
+    ASSERT_TRUE(relocatedRoot.isValid());
+    isolateProjectRoot(originalRoot);
+
+    const QString originalImagePath =
+        originalRoot.filePath(QStringLiteral("interpreted-source.png"));
+    const QString originalProjectPath =
+        originalRoot.filePath(QStringLiteral("interpreted-project.artifact"));
+    const QString relocatedImagePath =
+        relocatedRoot.filePath(QStringLiteral("interpreted-source.png"));
+    const QString relocatedProjectPath =
+        relocatedRoot.filePath(QStringLiteral("interpreted-project.artifact"));
+    const QColor sourceColor(45, 125, 205, 255);
+    QImage sourceImage(2, 1, QImage::Format_RGBA8888);
+    sourceImage.fill(sourceColor);
+    ASSERT_TRUE(sourceImage.save(originalImagePath, "PNG"));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("MovingInterpretedStillImage"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(makeCompositionParams());
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactLayerInitParams layerParams(
+        QStringLiteral("InterpretedStillImage"), Artifact::LayerType::Image);
+    const auto added = projects.addLayerToComposition(composition.id, layerParams);
+    ASSERT_TRUE(added.success);
+    auto* imageLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(added.layer.get());
+    ASSERT_NE(imageLayer, nullptr);
+    const auto layerId = imageLayer->id();
+    ASSERT_TRUE(imageLayer->loadFromPath(originalImagePath));
+    ASSERT_TRUE(waitForImageBuffer(*imageLayer, QSize(2, 1)));
+    imageLayer->setInputInterpretation(QStringLiteral("Portable Space"),
+                                       QStringLiteral("scene-linear"));
+    const QColor interpretedPixel =
+        waitForImage(*imageLayer, QSize(2, 1)).pixelColor(0, 0);
+    ASSERT_TRUE(projects.saveToFile(originalProjectPath).success);
+
+    ASSERT_TRUE(QFile::copy(originalProjectPath, relocatedProjectPath));
+    ASSERT_TRUE(QFile::copy(originalImagePath, relocatedImagePath));
+    ASSERT_TRUE(QFile::remove(originalImagePath));
+    projects.closeCurrentProject();
+    isolateProjectRoot(relocatedRoot);
+    ASSERT_TRUE(projects.loadFromFile(relocatedProjectPath));
+
+    const auto findRestoredLayer = [&]() -> Artifact::ArtifactImageLayer* {
+        const auto restoredComposition =
+            projects.findComposition(composition.id).ptr.lock();
+        if (!restoredComposition) return nullptr;
+        return dynamic_cast<Artifact::ArtifactImageLayer*>(
+            restoredComposition->layerById(layerId).get());
+    };
+    auto* relocatedLayer = findRestoredLayer();
+    ASSERT_NE(relocatedLayer, nullptr);
+    EXPECT_EQ(relocatedLayer->sourcePath(), relocatedImagePath);
+    EXPECT_EQ(relocatedLayer->inputColorSpace(), QStringLiteral("Portable Space"));
+    EXPECT_EQ(relocatedLayer->inputTransferFunction(),
+              QStringLiteral("scene-linear"));
+    EXPECT_EQ(waitForImage(*relocatedLayer, QSize(2, 1)).pixelColor(0, 0),
+              interpretedPixel);
+
+    ASSERT_TRUE(projects.saveToFile(relocatedProjectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(relocatedProjectPath));
+    relocatedLayer = findRestoredLayer();
+    ASSERT_NE(relocatedLayer, nullptr);
+    EXPECT_EQ(relocatedLayer->sourcePath(), relocatedImagePath);
+    EXPECT_EQ(relocatedLayer->inputColorSpace(), QStringLiteral("Portable Space"));
+    EXPECT_EQ(relocatedLayer->inputTransferFunction(),
+              QStringLiteral("scene-linear"));
+    EXPECT_EQ(waitForImage(*relocatedLayer, QSize(2, 1)).pixelColor(1, 0),
+              interpretedPixel);
+}
+
+TEST(StillImageLayerRoundTripTest,
      MissingImageSequenceFrameDoesNotKeepStalePixels)
 {
     QTemporaryDir dir;
