@@ -183,3 +183,44 @@ TEST(ArtifactPrTimelinePanelTest,
     EXPECT_EQ(engine->nleSnapshot(), snapshotBefore);
     EXPECT_EQ(engine->undoStack()->count(), undoCountBefore);
 }
+
+TEST(ArtifactPrTimelinePanelTest,
+     ZoomRefreshKeepsClipWidgetIdentityAndUpdatesItsWidth)
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    engine->newProject();
+    ArtifactPrTimelinePanel panel;
+
+    auto* zoom = panel.findChild<QSlider*>(QStringLiteral("zoomSlider_"));
+    ASSERT_NE(zoom, nullptr);
+    // Set the shared frame-width state deterministically before adding clips.
+    zoom->setValue(10);
+    zoom->setValue(5);
+
+    ArtifactPr::DemoSequence sequence = engine->currentSequence();
+    const ArtifactPr::DemoClip clip = fixtureClip(QStringLiteral("zoom_stable_clip"));
+    sequence.videoTracks[0].clips.append(clip);
+    engine->setCurrentSequence(sequence);
+
+    const QString clipName = QStringLiteral("artifactpr.timeline.clip.%1").arg(clip.id);
+    QWidget* originalWidget = panel.findChild<QWidget*>(clipName);
+    ASSERT_NE(originalWidget, nullptr);
+    EXPECT_EQ(originalWidget->minimumWidth(), 180);
+    engine->selectClip(clip.id);
+
+    // A same-structure zoom refresh should adjust geometry in place, keeping
+    // the selected clip widget alive instead of rebuilding the timeline row.
+    zoom->setValue(10);
+    QWidget* zoomedWidget = panel.findChild<QWidget*>(clipName);
+    ASSERT_NE(zoomedWidget, nullptr);
+    EXPECT_EQ(zoomedWidget, originalWidget);
+    EXPECT_EQ(zoomedWidget->minimumWidth(), 360);
+    EXPECT_EQ(engine->selectedClipId(), clip.id);
+
+    zoom->setValue(5);
+    QWidget* restoredWidget = panel.findChild<QWidget*>(clipName);
+    EXPECT_EQ(restoredWidget, originalWidget);
+    ASSERT_NE(restoredWidget, nullptr);
+    EXPECT_EQ(restoredWidget->minimumWidth(), 180);
+    EXPECT_EQ(engine->selectedClipId(), clip.id);
+}

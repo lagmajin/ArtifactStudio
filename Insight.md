@@ -28,6 +28,13 @@
 - **価値または懸念:** model→UI反映が意図しないUI→model編集を起こし、履歴・永続状態を汚染する回帰を検出する。テスト未実行。
 - **次に確認すること:** `ArtifactPrTimelinePanelTest.ProgrammaticMuteSoloRefreshDoesNotWriteBackIntoNleHistory` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: Timeline zoom refreshのwidget identity保持
+- **関連:** `ArtifactPr/src/TimelinePanel.cpp::refreshTimeline` / `updateTimelineGeometry`、`tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp::ZoomRefreshKeepsClipWidgetIdentityAndUpdatesItsWidth`。
+- **確認できた事実:** Timeline panelは構造signatureが同じズーム変更でwidget treeを再構築せず、clip widgetのminimum/maximum widthを更新する。既存UIテストはzoom labelの倍率のみを確認しており、widget identity、幅、選択状態の維持は確認していない。
+- **追加した確認:** frame幅を既知値に初期化した上でclipを選択し、1x→2x→1xのzoom refresh中に同一widgetが維持され、幅が比例更新され、選択clipが変わらないことを確認する。
+- **価値または懸念:** zoom操作でrowを再生成する回帰やclipの表示状態・選択状態が失われる回帰を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrTimelinePanelTest.ZoomRefreshKeepsClipWidgetIdentityAndUpdatesItsWidth` をテスト実行が許可された際に実行する。
+
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
 - **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。
