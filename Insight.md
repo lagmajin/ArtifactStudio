@@ -12748,3 +12748,10 @@
 - **Added check:** Calculate corners from translated/anchored, rotated, nonuniform mirrored geometry; derive min/max directly from those four points, compare all AABB edges, and verify every corner is contained.
 - **Value or concern:** Detects composition-order or sign errors between transform calculation and AABB aggregation. Test not run.
 - **Next:** Run `LayerBoundsCalculatorStandaloneTest.CombinedAnchorRotationAndMirroredScaleProduceCornerDerivedAabb` when test execution is authorized.
+
+## 2026-11-09: AudioDeEsser irregular detector continuity
+- **Related:** `tests/ArtifactCore/AudioDeEsserStandaloneTest.cpp::DetectorAndFilterStateMatchAcrossIrregularBlockBoundaries`.
+- **Confirmed:** DeEsser tests cover frequency behavior and per-channel state isolation, but not whether detector/filter state produces identical output when one signal is split at uneven callback boundaries.
+- **Added check:** Compare one 4097-frame render with block sizes 1/31/257/7/509/64 while high-frequency amplitude alternates across detector threshold regions over a low-frequency bed.
+- **Value or concern:** Detects block-boundary resets or state advancement errors in both detector and filter paths. Test not run.
+- **Next:** Run `AudioDeEsserStandaloneTest.DetectorAndFilterStateMatchAcrossIrregularBlockBoundaries` when test execution is authorized.
