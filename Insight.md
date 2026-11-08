@@ -12657,3 +12657,10 @@
 - **Added check:** Exercise those three degenerate shapes under all five remap policies, compare against the policy transform, and assert zero extents remain zero.
 - **Value or concern:** Guards against normalization or scaling introducing artificial area for line and point geometry. Test not run.
 - **Next:** Run `ArtifactCoreResolutionRemapStandaloneTest.DegenerateBoundsRemainDegenerateAfterRemapping` when test execution is authorized.
+
+## 2026-11-09: SchemaMigration equal-length path alternate registration order
+- **Related:** `tests/ArtifactCore/SchemaMigrationContractTest.cpp::EqualLengthPathsRemainDeterministicWhenLowerVersionIsRegisteredFirst`.
+- **Confirmed:** A tie-break test verifies the lower next-version path, but its registration sequence inserts that path after the higher next-version edge; the opposite registration order is not independently tested.
+- **Added check:** Register the full equal-length graph with the lower-version path first, reversing the existing fixture order, then assert migration selects it and preserves the expected terminal marker.
+- **Value or concern:** Detects iteration-order dependent tie resolution that a single graph construction order could miss. Test not run.
+- **Next:** Run `ArtifactCoreSchemaMigrationContractTest.EqualLengthPathsRemainDeterministicWhenLowerVersionIsRegisteredFirst` when test execution is authorized.
