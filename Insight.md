@@ -12587,3 +12587,10 @@
 - **Added check:** Read a 2x2 BGRA buffer with two padding floats after each row, then verify all canonical backing values and selected logical pixel channels from both rows.
 - **Value or concern:** Exercises horizontal pixel stepping, row stride, and BGRA-to-logical-RGBA access together. Test not run.
 - **Next:** Run `PixelChannelOrderStandaloneTest.GpuBgraReadbackHandlesMultiplePixelsAndPaddedRows` when test execution is authorized.
+
+## 2026-11-09: ColorCurves multi-pixel alpha and ordering
+- **Related:** `tests/ArtifactCore/ColorCurvesContractTest.cpp::MultiPixelApplyPreservesAlphaAndPixelOrder`.
+- **Confirmed:** ColorCurves verifies alpha preservation and channel modes for one pixel, but does not check that a multi-pixel image keeps pixel positions and distinct alpha values while applying a channel curve.
+- **Added check:** Apply an inverted red curve to a 2x2 RGBA image with different RGB/alpha values, including fully transparent and fully opaque pixels, and assert every resulting pixel.
+- **Value or concern:** Covers per-pixel traversal, selected-channel transformation, alpha invariance, and transparent-pixel handling together. Test not run.
+- **Next:** Run `ColorCurvesContractTest.MultiPixelApplyPreservesAlphaAndPixelOrder` when test execution is authorized.
