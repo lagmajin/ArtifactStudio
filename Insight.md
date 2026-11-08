@@ -12538,3 +12538,10 @@
 - **Added check:** Borrow a stateful callable returning `int` through an `ArtifactFunctionRef<double()>`, verify converted successive results and that invocation updates the original callable's captured state.
 - **Value or concern:** Covers callable result convertibility together with non-owning state forwarding. Test not run.
 - **Next:** Run `ArtifactFunctionRefTest.ConvertsReturnValueFromBorrowedCallableAndKeepsItsState` when test execution is authorized.
+
+## 2026-11-09: DataTable maximum finite numeric text
+- **Related:** `tests/ArtifactCore/DataTableStandaloneTest.cpp::FloatGetterAcceptsLargestFiniteNumericText`.
+- **Confirmed:** Float getter tests cover ordinary exponent notation and overflow text fallback, but do not pin conversion at the largest finite `double` boundary.
+- **Added check:** Parse the standard decimal representation of `std::numeric_limits<double>::max()` through CSV and verify `getFloat()` returns that exact finite value.
+- **Value or concern:** Distinguishes valid upper-bound conversion from range-error fallback and infinity. Test not run.
+- **Next:** Run `DataTableStandaloneTest.FloatGetterAcceptsLargestFiniteNumericText` when test execution is authorized.
