@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -159,5 +160,56 @@ TEST(PathTubeTrimTest, TrimmedRingsKeepCenterlineAndEvaluateTaperAtPathParameter
                         1.0e-5)
                 << "ring=" << ring << " side=" << side;
         }
+    }
+}
+
+TEST(PathTubeTrimTest, ZeroTaperEndpointCollapsesWithoutNonFiniteVertices) {
+    PathTubeSettings settings = makeTubeSettings();
+    settings.taperStart = 0.0f;
+    settings.taperEnd = 1.0f;
+    const auto mesh = Procedural3DGenerators::generatePathTube(settings);
+
+    constexpr std::size_t sides = 3;
+    ASSERT_EQ(mesh.vertices.size() % sides, 0u);
+    const std::size_t ringCount = mesh.vertices.size() / sides;
+    ASSERT_GT(ringCount, 1u);
+
+    std::array<double, 3> startCenter{};
+    for (std::size_t side = 0; side < sides; ++side) {
+        const auto& vertex = mesh.vertices[side];
+        startCenter[0] += vertex.px / sides;
+        startCenter[1] += vertex.py / sides;
+        startCenter[2] += vertex.pz / sides;
+    }
+
+    for (const auto& vertex : mesh.vertices) {
+        EXPECT_TRUE(std::isfinite(vertex.px));
+        EXPECT_TRUE(std::isfinite(vertex.py));
+        EXPECT_TRUE(std::isfinite(vertex.pz));
+        EXPECT_TRUE(std::isfinite(vertex.nx));
+        EXPECT_TRUE(std::isfinite(vertex.ny));
+        EXPECT_TRUE(std::isfinite(vertex.nz));
+    }
+    for (std::size_t side = 0; side < sides; ++side) {
+        const auto& vertex = mesh.vertices[side];
+        EXPECT_NEAR(vertex.px, startCenter[0], 1.0e-6);
+        EXPECT_NEAR(vertex.py, startCenter[1], 1.0e-6);
+        EXPECT_NEAR(vertex.pz, startCenter[2], 1.0e-6);
+    }
+
+    const std::size_t nextRing = sides;
+    std::array<double, 3> nextCenter{};
+    for (std::size_t side = 0; side < sides; ++side) {
+        const auto& vertex = mesh.vertices[nextRing + side];
+        nextCenter[0] += vertex.px / sides;
+        nextCenter[1] += vertex.py / sides;
+        nextCenter[2] += vertex.pz / sides;
+    }
+    for (std::size_t side = 0; side < sides; ++side) {
+        const auto& vertex = mesh.vertices[nextRing + side];
+        const double dx = vertex.px - nextCenter[0];
+        const double dy = vertex.py - nextCenter[1];
+        const double dz = vertex.pz - nextCenter[2];
+        EXPECT_GT(std::sqrt(dx * dx + dy * dy + dz * dz), 0.0);
     }
 }

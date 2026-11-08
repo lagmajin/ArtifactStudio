@@ -12629,3 +12629,10 @@
 - **Added check:** Make only the eighth 7.1 channel shorter, convert to mono, and assert the output contains only the shared frame with the average of all eight channels and preserved timing metadata.
 - **Value or concern:** Covers multi-channel frame-bound selection and channel aggregation together, guarding against out-of-range reads or partial-frame output. Test not run.
 - **Next:** Run `AudioDownMixerStandaloneTest.Surround71ToMonoUsesOnlyFramesPresentInEveryChannel` when test execution is authorized.
+
+## 2026-11-09: PathTube zero-radius taper endpoint
+- **Related:** `tests/ArtifactCore/PathTubeTrimTest.cpp::ZeroTaperEndpointCollapsesWithoutNonFiniteVertices`.
+- **Confirmed:** PathTube tests verify nonzero taper radii, trim ring mapping, topology, and ranges, but do not exercise a taper beginning at zero radius.
+- **Added check:** Generate a full-range tube with taper start 0 and end 1; verify the first ring collapses to one centerline point, the next ring has positive radius, and every position and normal component is finite.
+- **Value or concern:** Covers degenerate surface geometry at a taper endpoint while checking neighboring ring integrity. Test not run.
+- **Next:** Run `PathTubeTrimTest.ZeroTaperEndpointCollapsesWithoutNonFiniteVertices` when test execution is authorized.
