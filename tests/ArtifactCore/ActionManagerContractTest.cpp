@@ -165,3 +165,42 @@ TEST(ActionManagerContractTest,
     EXPECT_EQ(std::count(changes.begin(), changes.end(),
                          ActionManagerChangeKind::ActionUnregistered), 1);
 }
+
+TEST(ActionManagerContractTest, CallbackCanReenterExecutionAndEventsRemainPostOrder)
+{
+    auto* manager = ActionManager::instance();
+    const QString id = uniqueActionId("reentrant-execution");
+    auto* action = manager->registerAction(id, QStringLiteral("Reentrant"));
+    ASSERT_NE(action, nullptr);
+
+    std::vector<int> confirmations;
+    std::vector<int> executions;
+    std::vector<int> publishedValues;
+    action->setConfirmCallback([&](const QVariantMap& params) {
+        const int value = params.value(QStringLiteral("value")).toInt();
+        confirmations.push_back(value);
+        return true;
+    });
+    action->setExecuteCallback([&](const QVariantMap& params) {
+        const int value = params.value(QStringLiteral("value")).toInt();
+        executions.push_back(value);
+        if (value == 1) {
+            manager->executeAction(id, QVariantMap{{QStringLiteral("value"), 2}});
+        }
+    });
+
+    auto subscription = ArtifactCore::globalEventBus().subscribe<ActionManagerChangedEvent>(
+        [&](const auto& event) {
+            if (event.actionId == id && event.kind == ActionManagerChangeKind::ActionExecuted) {
+                publishedValues.push_back(event.params.value(QStringLiteral("value")).toInt());
+            }
+        });
+    ASSERT_TRUE(subscription.connected());
+
+    manager->executeAction(id, QVariantMap{{QStringLiteral("value"), 1}});
+
+    EXPECT_EQ(confirmations, (std::vector<int>{1, 2}));
+    EXPECT_EQ(executions, (std::vector<int>{1, 2}));
+    EXPECT_EQ(publishedValues, (std::vector<int>{2, 1}));
+    manager->unregisterAction(id);
+}

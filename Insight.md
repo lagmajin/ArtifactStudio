@@ -12454,3 +12454,10 @@
 - **Added check:** Apply 2,400 seeded append/replace/clear/copy operations using short payloads that include embedded NUL bytes; compare length, full bytes, and trailing terminator after each operation.
 - **Value or concern:** Exercises byte length and null termination while repeated changes cross the inline/heap storage boundary. Test not run.
 - **Next:** Run `ArtifactStringContractTest.DeterministicMixedMutationsMatchByteStringModel` when test execution is authorized.
+
+## 2026-11-08: ActionManager reentrant execution ordering
+- **Related:** `tests/ArtifactCore/ActionManagerContractTest.cpp::CallbackCanReenterExecutionAndEventsRemainPostOrder`.
+- **Confirmed:** Existing ActionManager coverage checks parameter overrides, confirmation rejection, and unregister during an executed-event callback; it does not cover a callback synchronously executing the same action again.
+- **Added check:** Trigger a guarded nested execution and verify confirmation and callback invocation for both parameter sets, plus post-order publication of the nested and outer executed events.
+- **Value or concern:** Covers synchronous reentrancy across confirmation, user callback, and EventBus publication. Test not run.
+- **Next:** Run `ActionManagerContractTest.CallbackCanReenterExecutionAndEventsRemainPostOrder` when test execution is authorized.
