@@ -1363,7 +1363,7 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
-     MovingStillImageProjectPreservesInputInterpretationAfterResave)
+     MovingStillImageProjectPreservesSourceMetadataAndInterpretationAfterResave)
 {
     QTemporaryDir originalRoot;
     QTemporaryDir relocatedRoot;
@@ -1382,6 +1382,8 @@ TEST(StillImageLayerRoundTripTest,
     const QColor sourceColor(45, 125, 205, 255);
     QImage sourceImage(2, 1, QImage::Format_RGBA8888);
     sourceImage.fill(sourceColor);
+    sourceImage.setColorSpace(QColorSpace(QColorSpace::SRgb));
+    ASSERT_FALSE(sourceImage.colorSpace().iccProfile().isEmpty());
     ASSERT_TRUE(sourceImage.save(originalImagePath, "PNG"));
 
     auto& projects = Artifact::ArtifactProjectManager::getInstance();
@@ -1405,6 +1407,10 @@ TEST(StillImageLayerRoundTripTest,
                                        QStringLiteral("scene-linear"));
     const QColor interpretedPixel =
         waitForImage(*imageLayer, QSize(2, 1)).pixelColor(0, 0);
+    const QJsonObject originalMetadata = imageLayer->toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    ASSERT_GT(originalMetadata.value(QStringLiteral("iccProfileBytes")).toInt(),
+              0);
     ASSERT_TRUE(projects.saveToFile(originalProjectPath).success);
 
     ASSERT_TRUE(QFile::copy(originalProjectPath, relocatedProjectPath));
@@ -1427,6 +1433,9 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(relocatedLayer->inputColorSpace(), QStringLiteral("Portable Space"));
     EXPECT_EQ(relocatedLayer->inputTransferFunction(),
               QStringLiteral("scene-linear"));
+    EXPECT_EQ(relocatedLayer->toJson()
+                  .value(QStringLiteral("image.sourceMetadata")).toObject(),
+              originalMetadata);
     EXPECT_EQ(waitForImage(*relocatedLayer, QSize(2, 1)).pixelColor(0, 0),
               interpretedPixel);
 
@@ -1439,6 +1448,9 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(relocatedLayer->inputColorSpace(), QStringLiteral("Portable Space"));
     EXPECT_EQ(relocatedLayer->inputTransferFunction(),
               QStringLiteral("scene-linear"));
+    EXPECT_EQ(relocatedLayer->toJson()
+                  .value(QStringLiteral("image.sourceMetadata")).toObject(),
+              originalMetadata);
     EXPECT_EQ(waitForImage(*relocatedLayer, QSize(2, 1)).pixelColor(1, 0),
               interpretedPixel);
 }
