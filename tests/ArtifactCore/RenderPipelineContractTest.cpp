@@ -1003,7 +1003,7 @@ TEST(RenderPipelineContractTest, GITemporalHistoryResetsWhenFrameMovesBackward)
     state.commitHistory();
     const auto sequentialGeneration = state.generation();
 
-    state.beginFrame(39);
+    state.beginFrame(40);
 
     EXPECT_FALSE(state.historyValid());
     EXPECT_EQ(state.generation(), sequentialGeneration + 1u);
