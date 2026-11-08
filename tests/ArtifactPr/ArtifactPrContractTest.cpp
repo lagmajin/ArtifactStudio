@@ -227,6 +227,49 @@ TEST(ArtifactPrClipEffectsTest,
     EXPECT_NEAR(transparentTail.g(), 0.0f, 1e-6f);
 }
 
+TEST(ArtifactPrClipEffectsTest,
+     CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast)
+{
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.resize(4, 1);
+    image.setPixel(0, 0, ArtifactCore::FloatRGBA(0.13f, 0.37f, 0.82f, 0.0f));
+    image.setPixel(1, 0, ArtifactCore::FloatRGBA(0.71f, 0.22f, 0.46f, 0.25f));
+    image.setPixel(2, 0, ArtifactCore::FloatRGBA(0.34f, 0.79f, 0.18f, 0.6f));
+    image.setPixel(3, 0, ArtifactCore::FloatRGBA(0.93f, 0.51f, 0.27f, 1.0f));
+
+    const float alphaBefore[] = {
+        image.getPixel(0, 0).a(), image.getPixel(1, 0).a(),
+        image.getPixel(2, 0).a(), image.getPixel(3, 0).a(),
+    };
+    const bool applied = ArtifactPr::applyClipEffects(
+        image, effects({{"fx.brightnessContrast.enabled", "1"},
+                        {"fx.brightnessContrast.brightness", "0.08"},
+                        {"fx.brightnessContrast.contrast", "1.25"},
+                        {"fx.hueSaturation.enabled", "1"},
+                        {"fx.hueSaturation.hue", "37"},
+                        {"fx.hueSaturation.saturation", "0.72"},
+                        {"fx.hueSaturation.lightness", "0.12"},
+                        {"fx.colorWheels.enabled", "1"},
+                        {"fx.colorWheels.shadowsR", "0.06"},
+                        {"fx.colorWheels.midtonesG", "0.04"},
+                        {"fx.colorWheels.highlightsB", "0.03"},
+                        {"fx.posterize.enabled", "1"},
+                        {"fx.posterize.levels", "5"}}));
+
+    ASSERT_TRUE(applied);
+    constexpr float posterStep = 0.25f; // five levels include both 0 and 1.
+    for (int x = 0; x < 4; ++x) {
+        const ArtifactCore::FloatRGBA pixel = image.getPixel(x, 0);
+        EXPECT_FLOAT_EQ(pixel.a(), alphaBefore[x]) << "pixel " << x;
+        EXPECT_NEAR(pixel.r() / posterStep,
+                    std::round(pixel.r() / posterStep), 1e-5f) << "red pixel " << x;
+        EXPECT_NEAR(pixel.g() / posterStep,
+                    std::round(pixel.g() / posterStep), 1e-5f) << "green pixel " << x;
+        EXPECT_NEAR(pixel.b() / posterStep,
+                    std::round(pixel.b() / posterStep), 1e-5f) << "blue pixel " << x;
+    }
+}
+
 // =====================================================================
 // Audio effect parameters
 // =====================================================================

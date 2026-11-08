@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-08
 
+## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
+- **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
+- **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。
+- **追加した確認:** alphaが0、半透明、1.0の4画素に全色調補正を同時適用し、alphaが画素ごとに維持されること、RGB各成分が最終posterize段階の5レベル値に揃うことを検証する。
+- **価値または懸念:** 個別effectでは見逃す処理順の入れ替えや、不透明度を色調補正が誤変更する回帰を捕捉できる。テスト未実行。
+- **次に確認すること:** `ArtifactPrContractTest.CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast` をテスト実行が許可された際に実行する。
+
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
 - **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。
