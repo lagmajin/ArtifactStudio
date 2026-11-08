@@ -12489,3 +12489,10 @@
 - **Added check:** Compare a 97-sample impulse/tone/transient signal processed continuously and in irregular blocks with both filters enabled; assert every output sample matches.
 - **Value or concern:** Covers state continuity at both stages of the cascade and at boundaries adjacent to transients. Test not run.
 - **Next:** Run `AudioHighLowPassStandaloneTest.CascadedFiltersMatchAcrossIrregularBlockBoundaries` when test execution is authorized.
+
+## 2026-11-08: AudioExpander stereo block and channel state interaction
+- **Related:** `tests/ArtifactCore/AudioExpanderStandaloneTest.cpp::StereoChannelsRemainIndependentAcrossIrregularBlocks`.
+- **Confirmed:** Existing tests verify mono envelope continuity across blocks and stereo channel independence in separate cases; they do not combine irregular block boundaries with independent per-channel reference runs.
+- **Added check:** Process distinct 73-frame stereo envelopes continuously and across seven irregular blocks, then compare each channel both ways and against an independently processed mono reference.
+- **Value or concern:** Detects block-boundary state resets and cross-channel envelope coupling in the same run. Test not run.
+- **Next:** Run `AudioExpanderStandaloneTest.StereoChannelsRemainIndependentAcrossIrregularBlocks` when test execution is authorized.
