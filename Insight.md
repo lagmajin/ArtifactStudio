@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: Pixel aspect表示boundsとcrop／fit復元
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::PixelAspectChangesDisplayWidthUnlessFitToLayer`、静止画受入表IMG-08／OP-03。
+- **確認できた事実:** 既存テストはpixel aspectによる表示幅とfit時の幅を確認するが、bounds全体、crop適用時のsource pixel rectとbounds維持、JSON復元後のcrop／fit結果を組み合わせて検証していなかった。制作準備文書ではboundsをComposition View、Render Controller、hit-test等で共有するとしている。
+- **追加した確認:** 1.5 pixel aspectの4x2 sourceについて非fit boundsを6x2、crop後も同bounds、fit時は4x2と照合し、crop rectとfit設定のJSON往復も確認する。
+- **価値または懸念:** 表示rectとcrop座標系の混同、およびproject復元後のfit/aspect不整合を検出する。実素材のpreview／Render Queue pixel parityはruntime未確認。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.PixelAspectChangesDisplayWidthUnlessFitToLayer` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: SourceCrop aspect-fit変換の非対称境界
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceCropAspectTransformMapsOffCenterCropAndInverts`、静止画受入表OP-03。
 - **確認できた事実:** 既存テストはcropのaspect-fit中心配置とsource crop boundsを個別に確認するが、off-center crop領域の四隅・中心が同じ変換で期待座標に写るか、および逆変換の往復を一つの数値oracleで検証していなかった。

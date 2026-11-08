@@ -228,13 +228,37 @@ TEST(StillImageLayerRoundTripTest, PixelAspectChangesDisplayWidthUnlessFitToLaye
     const auto pixelAspectLayout = layer.sourceCropDrawLayout();
     EXPECT_DOUBLE_EQ(pixelAspectLayout.outputLocalRect.width(), 6.0);
     EXPECT_DOUBLE_EQ(pixelAspectLayout.outputLocalRect.height(), 2.0);
-    EXPECT_DOUBLE_EQ(layer.localBounds().width(), 6.0);
+    EXPECT_DOUBLE_EQ(pixelAspectLayout.outputLocalRect.x(), 0.0);
+    EXPECT_DOUBLE_EQ(pixelAspectLayout.outputLocalRect.y(), 0.0);
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 6.0, 2.0));
+
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropWidth"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropHeight"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(true)));
+    const auto croppedPixelAspectLayout = layer.sourceCropDrawLayout();
+    EXPECT_TRUE(croppedPixelAspectLayout.cropped);
+    EXPECT_EQ(croppedPixelAspectLayout.sourcePixelRect, QRect(1, 0, 2, 2));
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 6.0, 2.0));
 
     layer.setFitToLayer(true);
     const auto fitLayout = layer.sourceCropDrawLayout();
     EXPECT_DOUBLE_EQ(fitLayout.outputLocalRect.width(), 4.0);
     EXPECT_DOUBLE_EQ(fitLayout.outputLocalRect.height(), 2.0);
-    EXPECT_DOUBLE_EQ(layer.localBounds().width(), 4.0);
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 4.0, 2.0));
+
+    Artifact::ArtifactImageLayer restored;
+    restored.fromJsonProperties(layer.toJson());
+    EXPECT_TRUE(restored.fitToLayer());
+    EXPECT_EQ(restored.sourceCropDrawLayout().sourcePixelRect,
+              QRect(1, 0, 2, 2));
+    EXPECT_EQ(restored.localBounds(), QRectF(0.0, 0.0, 4.0, 2.0));
 }
 
 TEST(StillImageLayerRoundTripTest,
