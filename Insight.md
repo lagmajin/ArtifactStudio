@@ -12797,3 +12797,10 @@
 - **Added check:** Capture exact snapshots across three edits, undo and redo through the full sequence, then create a new marker after undo and verify redo cannot reapply the abandoned branch.
 - **Value or concern:** Detects cross-command history ordering, projection restoration, and stale redo-branch retention. Test not run.
 - **Next:** Run `ArtifactPrEditorEngineTest.NleEditsUndoRedoAcrossSnapshotsAndDiscardTheAbandonedRedoBranch` when test execution is authorized.
+
+## 2026-11-09: EditorEngine render-plan snapshot isolation
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RenderPlanSnapshotStaysFrozenWhileTheLiveProjectContinuesEditing`.
+- **Confirmed:** `createRenderPlan` copies the NLE snapshot for export, but tests do not verify that a plan remains unchanged after later edits to the live editor state.
+- **Added check:** Create a plan, change clip reverse state and add a marker, then compare the unchanged plan snapshot with the updated live snapshot and a newly created plan; also verify the captured frame range stays fixed.
+- **Value or concern:** Detects render/export jobs accidentally observing mutable editor state after dispatch. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.RenderPlanSnapshotStaysFrozenWhileTheLiveProjectContinuesEditing` when test execution is authorized.

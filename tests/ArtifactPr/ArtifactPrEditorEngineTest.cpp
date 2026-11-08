@@ -170,6 +170,42 @@ TEST(ArtifactPrEditorEngineTest, RenderPlanClampsTheRequestedRange)
     EXPECT_TRUE(inverted.isValid());
 }
 
+TEST(ArtifactPrEditorEngineTest,
+     RenderPlanSnapshotStaysFrozenWhileTheLiveProjectContinuesEditing)
+{
+    auto* engine = freshEngine();
+    const QString trackId = engine->currentSequence().videoTracks[0].id;
+    ArtifactPr::DemoClip source = makeClip(QStringLiteral("frozen-plan-source"), 0, 40);
+    source.sourceIn = 7;
+    source.sourceOut = 47;
+    ASSERT_TRUE(engine->editSourceRange(trackId, source, false, false));
+    const QString clipId = engine->currentSequence().videoTracks[0].clips[0].id;
+    engine->addMarker(11, QStringLiteral("Before plan"));
+
+    const ArtifactPr::RenderPlan frozenPlan = engine->createRenderPlan(
+        ArtifactPr::RenderQualityPreset::Full, 5, 25);
+    ASSERT_TRUE(frozenPlan.isValid());
+    const QJsonObject snapshotAtPlanCreation = engine->nleSnapshot();
+    EXPECT_EQ(frozenPlan.nleSnapshot, snapshotAtPlanCreation);
+    EXPECT_EQ(frozenPlan.startFrame, 5);
+    EXPECT_EQ(frozenPlan.endFrame, 25);
+
+    engine->setClipReversed(clipId, true);
+    engine->addMarker(19, QStringLiteral("After plan"));
+    const QJsonObject liveSnapshotAfterEdits = engine->nleSnapshot();
+    EXPECT_NE(liveSnapshotAfterEdits, snapshotAtPlanCreation);
+
+    // The exporter receives a value snapshot and must not observe edits made
+    // after plan creation; a subsequently created plan sees the new state.
+    EXPECT_EQ(frozenPlan.nleSnapshot, snapshotAtPlanCreation);
+    const ArtifactPr::RenderPlan refreshedPlan = engine->createRenderPlan(
+        ArtifactPr::RenderQualityPreset::Full, 5, 25);
+    EXPECT_EQ(refreshedPlan.nleSnapshot, liveSnapshotAfterEdits);
+    EXPECT_NE(refreshedPlan.nleSnapshot, frozenPlan.nleSnapshot);
+    EXPECT_EQ(frozenPlan.startFrame, 5);
+    EXPECT_EQ(frozenPlan.endFrame, 25);
+}
+
 TEST(ArtifactPrEditorEngineTest, RenderPlanAudioClipsRespectMuteSoloEnabledAndGain)
 {
     auto* engine = freshEngine();
