@@ -1217,6 +1217,106 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     MovingProjectKeepsMissingSequenceSlotForRelinkAndResave)
+{
+    QTemporaryDir originalRoot;
+    QTemporaryDir relocatedRoot;
+    ASSERT_TRUE(originalRoot.isValid());
+    ASSERT_TRUE(relocatedRoot.isValid());
+    isolateProjectRoot(originalRoot);
+
+    const QColor firstColor(35, 85, 135, 255);
+    const QColor lastColor(195, 145, 95, 255);
+    const QColor relinkedColor(75, 185, 125, 255);
+    const QString firstPath = originalRoot.filePath(QStringLiteral("mixed-0001.png"));
+    const QString missingPath = originalRoot.filePath(QStringLiteral("mixed-0002.png"));
+    const QString lastPath = originalRoot.filePath(QStringLiteral("mixed-0003.png"));
+    const QString projectPath = originalRoot.filePath(QStringLiteral("mixed-sequence.artifact"));
+    const QString relocatedFirstPath =
+        relocatedRoot.filePath(QStringLiteral("mixed-0001.png"));
+    const QString relocatedLastPath =
+        relocatedRoot.filePath(QStringLiteral("mixed-0003.png"));
+    const QString relocatedMissingPath =
+        relocatedRoot.filePath(QStringLiteral("relinked-middle.png"));
+    const QString relocatedProjectPath =
+        relocatedRoot.filePath(QStringLiteral("mixed-sequence.artifact"));
+
+    QImage frame(1, 1, QImage::Format_RGBA8888);
+    frame.fill(firstColor);
+    ASSERT_TRUE(frame.save(firstPath, "PNG"));
+    frame.fill(lastColor);
+    ASSERT_TRUE(frame.save(lastPath, "PNG"));
+    ASSERT_FALSE(QFileInfo::exists(missingPath));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("MixedImageSequenceRelocation"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(makeCompositionParams());
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams layerParams(
+        QStringLiteral("MixedSequenceLayer"), Artifact::LayerType::Image);
+    const auto added = projects.addLayerToComposition(composition.id, layerParams);
+    ASSERT_TRUE(added.success);
+    auto* imageLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(added.layer.get());
+    ASSERT_NE(imageLayer, nullptr);
+    const auto layerId = imageLayer->id();
+    const QStringList originalFramePaths{firstPath, missingPath, lastPath};
+    ASSERT_TRUE(imageLayer->setImageSequence(originalFramePaths, 24.0));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+
+    ASSERT_TRUE(QFile::copy(projectPath, relocatedProjectPath));
+    ASSERT_TRUE(QFile::copy(firstPath, relocatedFirstPath));
+    ASSERT_TRUE(QFile::copy(lastPath, relocatedLastPath));
+    ASSERT_TRUE(QFile::remove(firstPath));
+    ASSERT_TRUE(QFile::remove(lastPath));
+
+    projects.closeCurrentProject();
+    isolateProjectRoot(relocatedRoot);
+    ASSERT_TRUE(projects.loadFromFile(relocatedProjectPath));
+    const auto findRestoredLayer = [&]() -> Artifact::ArtifactImageLayer* {
+        const auto restoredComposition =
+            projects.findComposition(composition.id).ptr.lock();
+        if (!restoredComposition) return nullptr;
+        return dynamic_cast<Artifact::ArtifactImageLayer*>(
+            restoredComposition->layerById(layerId).get());
+    };
+
+    auto* relocatedLayer = findRestoredLayer();
+    ASSERT_NE(relocatedLayer, nullptr);
+    ASSERT_EQ(relocatedLayer->sequenceFramePaths(),
+              QStringList({relocatedFirstPath, missingPath, relocatedLastPath}));
+    EXPECT_DOUBLE_EQ(relocatedLayer->sequenceFrameRate(), 24.0);
+    relocatedLayer->goToFrame(0);
+    EXPECT_EQ(waitForSequenceFrame(*relocatedLayer, 0).pixelColor(0, 0), firstColor);
+    relocatedLayer->goToFrame(2);
+    EXPECT_EQ(waitForSequenceFrame(*relocatedLayer, 2).pixelColor(0, 0), lastColor);
+
+    frame.fill(relinkedColor);
+    ASSERT_TRUE(frame.save(relocatedMissingPath, "PNG"));
+    const QStringList relinkedFramePaths{
+        relocatedFirstPath, relocatedMissingPath, relocatedLastPath};
+    ASSERT_TRUE(relocatedLayer->setImageSequence(relinkedFramePaths, 24.0));
+    relocatedLayer->goToFrame(1);
+    EXPECT_EQ(waitForSequenceFrame(*relocatedLayer, 1).pixelColor(0, 0),
+              relinkedColor);
+
+    ASSERT_TRUE(projects.saveToFile(relocatedProjectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(relocatedProjectPath));
+    relocatedLayer = findRestoredLayer();
+    ASSERT_NE(relocatedLayer, nullptr);
+    EXPECT_EQ(relocatedLayer->sequenceFramePaths(), relinkedFramePaths);
+    EXPECT_DOUBLE_EQ(relocatedLayer->sequenceFrameRate(), 24.0);
+    relocatedLayer->goToFrame(1);
+    EXPECT_EQ(waitForSequenceFrame(*relocatedLayer, 1).pixelColor(0, 0),
+              relinkedColor);
+}
+
+TEST(StillImageLayerRoundTripTest,
      MissingImageSequenceFrameDoesNotKeepStalePixels)
 {
     QTemporaryDir dir;

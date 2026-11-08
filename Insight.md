@@ -7,6 +7,13 @@
 - **価値または懸念:** 古い絶対パスが残っていても同じマシン上で偶然読み込める状態を避け、プロジェクト移動後の再保存まで含む参照復旧を記録する。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave` をテスト実行が許可された際に実行する。
 
+## 2026-11-09: 移動後のImageSequenceで欠落slotを再リンクして保存
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingProjectKeepsMissingSequenceSlotForRelinkAndResave`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** Source Relocation契約はsequence候補をslotごとに解決し、相対候補が無い欠落slotでは元pathを維持する。既存の移動テストは全フレームの相対復元、欠番テストは同じproject rootで欠番slot復元を別々に検査していた。
+- **追加した確認:** 先頭・末尾だけが移動先で存在し、中間slotの元pathだけ欠落する状態でprojectを開く。slot順とrateを確認し、中間slotを別名pathへ置き換えて再生、保存、再読込後も全slotと画素が保たれるか検査する。
+- **価値または懸念:** 混在する相対復元とabsolute fallback、sequence index保持、再リンク後の永続化を同じproject lifecycleで固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingProjectKeepsMissingSequenceSlotForRelinkAndResave` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
 - **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
 - **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。
