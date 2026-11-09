@@ -701,6 +701,9 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     constexpr std::array<float, 12> slotUvs{
         0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f,
         0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f};
+    constexpr std::array<float, 12> mirroredSlotUvs{
+        1.0f, 0.0f, 0.0f, 0.0f, 0.5f, 1.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.5f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -714,7 +717,8 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("material-slot-selection"), vertices.data(), 6,
-        indices.data(), 6, nullptr, materialIndices.data(), slotUvs.data()));
+        indices.data(), 6, nullptr, materialIndices.data(), slotUvs.data(),
+        nullptr, mirroredSlotUvs.data()));
 
     ArtifactCore::RTPbrMaterial leftMaterial;
     leftMaterial.baseColor[0] = 0.0f;
@@ -768,6 +772,21 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     blueTexture.fill(QColor(0, 0, 255, 255));
     ASSERT_TRUE(redTexture.save(redTexturePath, "PNG"));
     ASSERT_TRUE(blueTexture.save(blueTexturePath, "PNG"));
+    const auto anisotropyUvMapPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-anisotropy-uv.png"));
+    QImage anisotropyUvMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(anisotropyUvMap.isNull());
+    for (int y = 0; y < anisotropyUvMap.height(); ++y) {
+        auto* row = anisotropyUvMap.scanLine(y);
+        for (int x = 0; x < anisotropyUvMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < anisotropyUvMap.width() / 2 ? 255 : 128;
+            pixel[1] = x < anisotropyUvMap.width() / 2 ? 128 : 255;
+            pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(anisotropyUvMap.save(anisotropyUvMapPath, "PNG"));
 
     leftMaterial.emissionColor[0] = leftMaterial.emissionColor[1] =
         leftMaterial.emissionColor[2] = 1.0f;
@@ -1764,6 +1783,44 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     }
     EXPECT_GT(rightAnisotropyRotationResponse, 0.001f)
         << "slot 1 anisotropy rotation should change its specular response";
+
+    leftMaterial.anisotropyTexture =
+        ArtifactCore::UniString(anisotropyUvMapPath);
+    leftMaterial.anisotropyTextureUvSet = 0;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> slotUv0Pixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(slotUv0Pixels));
+    const float slotUv0Difference = std::max(
+        std::fabs(slotUv0Pixels[0][0] - slotUv0Pixels[1][0]),
+        std::max(std::fabs(slotUv0Pixels[0][1] - slotUv0Pixels[1][1]),
+                 std::fabs(slotUv0Pixels[0][2] - slotUv0Pixels[1][2])));
+    EXPECT_GT(slotUv0Difference, 0.02f)
+        << "anisotropy UV0 map should distinguish material slots";
+
+    rightMaterial.anisotropyTextureUvSet = 1;
+    std::array<std::array<float, 4>, 2> mixedSlotUvPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(mixedSlotUvPixels));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(mixedSlotUvPixels[0][channel], slotUv0Pixels[0][channel],
+                    0.04f)
+            << "slot 1 UV selection should preserve slot 0, channel " << channel;
+        EXPECT_NEAR(mixedSlotUvPixels[1][channel], slotUv0Pixels[0][channel],
+                    0.04f)
+            << "slot 1 UV1 should mirror slot 0 UV0, channel " << channel;
+    }
+
+    leftMaterial.anisotropyTextureUvSet = 1;
+    rightMaterial.anisotropyTextureUvSet = 0;
+    std::array<std::array<float, 4>, 2> reversedSlotUvPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(reversedSlotUvPixels));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(reversedSlotUvPixels[0][channel], slotUv0Pixels[1][channel],
+                    0.04f)
+            << "slot 0 UV1 should mirror slot 1 UV0, channel " << channel;
+        EXPECT_NEAR(reversedSlotUvPixels[1][channel], slotUv0Pixels[0][channel],
+                    0.04f)
+            << "slot 0 UV selection should preserve slot 1, channel " << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
