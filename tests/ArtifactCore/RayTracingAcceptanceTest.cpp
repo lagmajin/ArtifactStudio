@@ -695,14 +695,20 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
         QStringLiteral("transparent.png"));
     const auto opaquePath = opacityDirectory.filePath(
         QStringLiteral("opaque.png"));
+    const auto halfAlphaPath = opacityDirectory.filePath(
+        QStringLiteral("half-alpha.png"));
     QImage transparentImage(2, 2, QImage::Format_RGBA8888);
     QImage opaqueImage(2, 2, QImage::Format_RGBA8888);
+    QImage halfAlphaImage(2, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(transparentImage.isNull());
     ASSERT_FALSE(opaqueImage.isNull());
+    ASSERT_FALSE(halfAlphaImage.isNull());
     transparentImage.fill(QColor(255, 255, 255, 0));
     opaqueImage.fill(QColor(255, 255, 255, 255));
+    halfAlphaImage.fill(QColor(255, 255, 255, 128));
     ASSERT_TRUE(transparentImage.save(transparentPath, "PNG"));
     ASSERT_TRUE(opaqueImage.save(opaquePath, "PNG"));
+    ASSERT_TRUE(halfAlphaImage.save(halfAlphaPath, "PNG"));
 
     ArtifactCore::RTPbrMaterial leftMaterial;
     leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
@@ -755,6 +761,46 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
     const auto rightCutoutPixel = pixelAt(24, 16);
     EXPECT_GT(leftOpaquePixel[0], leftOpaquePixel[2] + 0.5f);
     EXPECT_GT(rightCutoutPixel[2], rightCutoutPixel[1] + 0.5f);
+
+    leftMaterial.opacityTexture = ArtifactCore::UniString(halfAlphaPath);
+    leftMaterial.alphaCutoff = 0.4f;
+    rightMaterial.opacityTexture = ArtifactCore::UniString(halfAlphaPath);
+    rightMaterial.alphaCutoff = 0.6f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftBelowCutoffPixel = pixelAt(8, 16);
+    const auto rightAboveCutoffPixel = pixelAt(24, 16);
+    EXPECT_GT(leftBelowCutoffPixel[0], leftBelowCutoffPixel[2] + 0.5f)
+        << "the left slot's lower cutoff should retain a half-alpha texel";
+    EXPECT_GT(rightAboveCutoffPixel[2], rightAboveCutoffPixel[1] + 0.5f)
+        << "the right slot's higher cutoff should cut out that same texel";
+
+    leftMaterial.alphaCutoff = 0.6f;
+    rightMaterial.alphaCutoff = 0.4f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftAboveCutoffPixel = pixelAt(8, 16);
+    const auto rightBelowCutoffPixel = pixelAt(24, 16);
+    EXPECT_GT(leftAboveCutoffPixel[2], leftAboveCutoffPixel[0] + 0.5f)
+        << "the left slot's higher cutoff should cut out the half-alpha texel";
+    EXPECT_GT(rightBelowCutoffPixel[1], rightBelowCutoffPixel[2] + 0.5f)
+        << "the right slot's lower cutoff should retain that same texel";
 }
 
 TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs) {
