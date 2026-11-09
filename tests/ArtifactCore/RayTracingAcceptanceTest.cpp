@@ -8213,6 +8213,47 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
               0.001f)
         << "area-light transmission should respond to its shadow sampling "
            "setting";
+
+    QTemporaryDir transmissionShadowOpacityDirectory;
+    ASSERT_TRUE(transmissionShadowOpacityDirectory.isValid());
+    const auto transparentShadowPath =
+        transmissionShadowOpacityDirectory.filePath(
+            QStringLiteral("transparent-area-shadow.png"));
+    const auto opaqueShadowPath =
+        transmissionShadowOpacityDirectory.filePath(
+            QStringLiteral("opaque-area-shadow.png"));
+    QImage transparentShadowImage(2, 2, QImage::Format_RGBA8888);
+    QImage opaqueShadowImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(transparentShadowImage.isNull());
+    ASSERT_FALSE(opaqueShadowImage.isNull());
+    transparentShadowImage.fill(QColor(255, 255, 255, 0));
+    opaqueShadowImage.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(transparentShadowImage.save(transparentShadowPath, "PNG"));
+    ASSERT_TRUE(opaqueShadowImage.save(opaqueShadowPath, "PNG"));
+
+    areaShadowBlockerMaterial.alphaMode = 1;
+    areaShadowBlockerMaterial.alphaCutoff = 0.5f;
+    areaShadowBlockerMaterial.opacityTexture =
+        ArtifactCore::UniString(transparentShadowPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-transmission-area-shadow-blocker"),
+        areaShadowBlockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    const auto maskedAreaShadowPassPixel = traceAreaBacklightShadow(0.0f);
+    EXPECT_NEAR(maskedAreaShadowPassPixel[1],
+                unshadowedAreaBacklightPixel[1], 0.02f)
+        << "a cutout blocker should pass area-light transmission shadow rays";
+
+    areaShadowBlockerMaterial.opacityTexture =
+        ArtifactCore::UniString(opaqueShadowPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-transmission-area-shadow-blocker"),
+        areaShadowBlockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    const auto maskedAreaShadowBlockPixel = traceAreaBacklightShadow(0.0f);
+    EXPECT_NEAR(maskedAreaShadowBlockPixel[1],
+                partiallyShadowedAreaBacklightPixel[1], 0.02f)
+        << "an opaque masked blocker should preserve its area-light shadow";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
