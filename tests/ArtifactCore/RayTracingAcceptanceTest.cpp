@@ -4787,6 +4787,8 @@ TEST_F(RayTracingAcceptanceTest,
                 << reason << ", channel " << channel;
         }
     };
+    expectSameRgb(traceThinFilm(0.0f, 1.33f), glassIor,
+                  "zero film thickness should preserve dielectric Fresnel");
     expectSameRgb(traceThinFilm(0.0f, 1.33f),
                  traceThinFilm(-10.0f, 1.33f),
                  "negative film thickness should clamp to zero");
