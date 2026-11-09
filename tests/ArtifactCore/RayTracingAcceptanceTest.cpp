@@ -2784,6 +2784,59 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
 
     material.baseColorTexture = ArtifactCore::UniString(
         QString::fromStdString(baseColorPath.string()));
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfFactorBaseColorLeft = pixelAt(8, 16);
+    const auto halfFactorBaseColorRight = pixelAt(24, 16);
+
+    QImage halfLinearBaseColorImage = baseColorImage;
+    for (int y = 0; y < halfLinearBaseColorImage.height(); ++y) {
+        auto* row = halfLinearBaseColorImage.scanLine(y);
+        for (int x = 0; x < halfLinearBaseColorImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool right = x >= halfLinearBaseColorImage.width() / 2;
+            pixel[0] = right ? 0 : 188;
+            pixel[2] = right ? 188 : 0;
+        }
+    }
+    const auto halfLinearBaseColorPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(
+            QStringLiteral("base-color-half-linear.png")).toStdString());
+    ASSERT_TRUE(halfLinearBaseColorImage.save(
+        QString::fromStdString(halfLinearBaseColorPath.string()), "PNG"));
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 1.0f;
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(halfLinearBaseColorPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfLinearTextureLeft = pixelAt(8, 16);
+    const auto halfLinearTextureRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfLinearTextureLeft[channel],
+                    halfFactorBaseColorLeft[channel], 0.025f)
+            << "base-color factor should multiply the decoded texture, left "
+            << "channel " << channel;
+        EXPECT_NEAR(halfLinearTextureRight[channel],
+                    halfFactorBaseColorRight[channel], 0.025f)
+            << "base-color factor should multiply the decoded texture, right "
+            << "channel " << channel;
+    }
+
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(baseColorPath.string()));
     material.baseColorUvOffsetU = 0.5f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-color-surface-maps"), material));
