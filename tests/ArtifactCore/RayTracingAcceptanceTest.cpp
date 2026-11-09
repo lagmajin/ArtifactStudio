@@ -1544,6 +1544,66 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
         << "rotating scalar anisotropy should rotate the tangent-space highlight";
 }
 
+TEST_F(RayTracingAcceptanceTest, UsesIorForDielectricFresnelReflectance) {
+    constexpr std::array<float, 9> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-ior-fresnel", vertexBuffer.RawPtr(), 3,
+                indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+
+    ArtifactCore::RTSceneLight normalIncidenceLight;
+    normalIncidenceLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    normalIncidenceLight.directionIntensity[2] = 1.0f;
+    normalIncidenceLight.directionIntensity[3] = 4.0f;
+    normalIncidenceLight.colorAttenuationConstant[0] = 1.0f;
+    normalIncidenceLight.colorAttenuationConstant[1] = 1.0f;
+    normalIncidenceLight.colorAttenuationConstant[2] = 1.0f;
+    normalIncidenceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &normalIncidenceLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.5f;
+    material.roughness = 0.35f;
+    const auto traceIor = [&](const float ior) {
+        material.ior = ior;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+
+    const auto belowUnityIor = traceIor(0.5f);
+    const auto unityIor = traceIor(1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowUnityIor[channel], unityIor[channel], 1.0e-5f)
+            << "IOR values below one should clamp to one, channel " << channel;
+    }
+    const auto glassIor = traceIor(1.5f);
+    const auto highIor = traceIor(3.0f);
+    EXPECT_GT(glassIor[0], unityIor[0] + 0.001f)
+        << "dielectric Fresnel reflectance should increase above IOR one";
+    EXPECT_GT(highIor[0], glassIor[0] + 0.001f)
+        << "higher dielectric IOR should increase normal-incidence reflectance";
+}
+
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) {
     constexpr std::array<float, 24> vertices{
         -0.9f, -0.9f,  0.4f, 0.9f, -0.9f,  0.4f,
