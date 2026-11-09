@@ -1155,6 +1155,82 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << "changing slot 1 clearcoat IOR should preserve slot 0, channel "
             << channel;
     }
+
+    const auto noClearcoatPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-clearcoat-none.png"));
+    const auto fullClearcoatPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-clearcoat-full.png"));
+    QImage noClearcoatMap(2, 2, QImage::Format_RGBA8888);
+    QImage fullClearcoatMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(noClearcoatMap.isNull());
+    ASSERT_FALSE(fullClearcoatMap.isNull());
+    noClearcoatMap.fill(QColor(0, 0, 0, 255));
+    fullClearcoatMap.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(noClearcoatMap.save(noClearcoatPath, "PNG"));
+    ASSERT_TRUE(fullClearcoatMap.save(fullClearcoatPath, "PNG"));
+
+    leftMaterial.clearcoatIOR = 1.5f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString(noClearcoatPath);
+    rightMaterial = leftMaterial;
+    rightMaterial.clearcoatTexture = ArtifactCore::UniString(fullClearcoatPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto noClearcoatLeftPixel = pixelAt(8, 16);
+    const auto fullClearcoatRightPixel = pixelAt(24, 16);
+
+    leftMaterial.clearcoatTexture =
+        ArtifactCore::UniString(fullClearcoatPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto fullClearcoatLeftPixel = pixelAt(8, 16);
+    const auto unchangedFullClearcoatRightPixel = pixelAt(24, 16);
+    const float leftClearcoatMapDifference = std::max(
+        std::fabs(fullClearcoatLeftPixel[0] - noClearcoatLeftPixel[0]),
+        std::max(std::fabs(fullClearcoatLeftPixel[1] - noClearcoatLeftPixel[1]),
+                 std::fabs(fullClearcoatLeftPixel[2] - noClearcoatLeftPixel[2])));
+    EXPECT_GT(leftClearcoatMapDifference, 0.001f)
+        << "slot 0 clearcoat map should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedFullClearcoatRightPixel[channel],
+                    fullClearcoatRightPixel[channel], 0.01f)
+            << "changing slot 0 clearcoat map should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString(noClearcoatPath);
+    rightMaterial.clearcoatTexture = ArtifactCore::UniString(noClearcoatPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedNoClearcoatLeftPixel = pixelAt(8, 16);
+    const auto noClearcoatRightPixel = pixelAt(24, 16);
+    const float rightClearcoatMapDifference = std::max(
+        std::fabs(noClearcoatRightPixel[0] - fullClearcoatRightPixel[0]),
+        std::max(std::fabs(noClearcoatRightPixel[1] - fullClearcoatRightPixel[1]),
+                 std::fabs(noClearcoatRightPixel[2] - fullClearcoatRightPixel[2])));
+    EXPECT_GT(rightClearcoatMapDifference, 0.001f)
+        << "slot 1 clearcoat map should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedNoClearcoatLeftPixel[channel],
+                    noClearcoatLeftPixel[channel], 0.01f)
+            << "changing slot 1 clearcoat map should preserve slot 0, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
