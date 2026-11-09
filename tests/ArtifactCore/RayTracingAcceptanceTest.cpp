@@ -715,6 +715,46 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
         << "occlusion UV1 mirroring should select the occluded texels on the right";
 }
 
+TEST_F(RayTracingAcceptanceTest, InterpolatesSrgbVertexColorsAcrossTriangles) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 16> vertexColors{
+        1.0f, 0.05f, 0.05f, 1.0f, 0.05f, 1.0f, 0.05f, 1.0f,
+        0.05f, 1.0f, 0.05f, 1.0f, 1.0f, 0.05f, 0.05f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-srgb-vertex-colors", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-srgb-vertex-colors"), vertices.data(), 4,
+        indices.data(), 6, nullptr, nullptr, nullptr, vertexColors.data()));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.8f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-srgb-vertex-colors"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+
+    const auto leftPixel = pixelAt(8, 16);
+    const auto rightPixel = pixelAt(24, 16);
+    EXPECT_GT(leftPixel[0], leftPixel[1] + 0.01f)
+        << "the interpolated left-side vertex color should remain red-dominant";
+    EXPECT_GT(rightPixel[1], rightPixel[0] + 0.01f)
+        << "the interpolated right-side vertex color should remain green-dominant";
+}
+
 TEST_F(RayTracingAcceptanceTest,
        SelectsMipLevelsForMinifiedOcclusionTextures) {
     constexpr std::array<float, 12> vertices{
