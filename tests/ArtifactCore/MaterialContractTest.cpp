@@ -322,6 +322,14 @@ TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
         ArtifactCore::UniString(QStringLiteral("maps/anisotropy.png")));
     source.setAnisotropyTextureUvTransform(
         MaterialTextureUvTransform{2.0f, 0.5f, 45.0f, 0.1f, 0.2f, 1});
+    source.setMetallicTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/metallic.png")));
+    source.setMetallicTextureUvTransform(
+        MaterialTextureUvTransform{1.5f, 0.75f, 30.0f, 0.2f, -0.3f, 1});
+    source.setRoughnessTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/roughness.png")));
+    source.setRoughnessTextureUvTransform(
+        MaterialTextureUvTransform{0.5f, 2.0f, -15.0f, -0.4f, 0.6f, 0});
 
     Material copy(source);
     source.setBaseColor(QColor(200, 40, 20));
@@ -331,6 +339,10 @@ TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
     source.setThinWall(false);
     source.setAnisotropyTexture(ArtifactCore::UniString{});
     source.setAnisotropyTextureUvTransform(MaterialTextureUvTransform{});
+    source.setMetallicTexture(ArtifactCore::UniString{});
+    source.setMetallicTextureUvTransform(MaterialTextureUvTransform{});
+    source.setRoughnessTexture(ArtifactCore::UniString{});
+    source.setRoughnessTextureUvTransform(MaterialTextureUvTransform{});
 
     EXPECT_EQ(copy.baseColor(), QColor(24, 96, 192));
     EXPECT_TRUE(copy.hasBaseColorTexture());
@@ -345,6 +357,18 @@ TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
     EXPECT_FLOAT_EQ(copy.anisotropyTextureUvTransform().scaleU, 2.0f);
     EXPECT_FLOAT_EQ(copy.anisotropyTextureUvTransform().scaleV, 0.5f);
     EXPECT_EQ(copy.anisotropyTextureUvTransform().uvSet, 1);
+    EXPECT_EQ(copy.metallicTexture().toQString(),
+              QStringLiteral("maps/metallic.png"));
+    EXPECT_FLOAT_EQ(copy.metallicTextureUvTransform().scaleU, 1.5f);
+    EXPECT_FLOAT_EQ(copy.metallicTextureUvTransform().rotationDegrees, 30.0f);
+    EXPECT_FLOAT_EQ(copy.metallicTextureUvTransform().offsetV, -0.3f);
+    EXPECT_EQ(copy.metallicTextureUvTransform().uvSet, 1);
+    EXPECT_EQ(copy.roughnessTexture().toQString(),
+              QStringLiteral("maps/roughness.png"));
+    EXPECT_FLOAT_EQ(copy.roughnessTextureUvTransform().scaleV, 2.0f);
+    EXPECT_FLOAT_EQ(copy.roughnessTextureUvTransform().rotationDegrees, -15.0f);
+    EXPECT_FLOAT_EQ(copy.roughnessTextureUvTransform().offsetU, -0.4f);
+    EXPECT_EQ(copy.roughnessTextureUvTransform().uvSet, 0);
 
     Material assigned;
     assigned = copy;
@@ -362,6 +386,14 @@ TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
               QStringLiteral("maps/anisotropy.png"));
     EXPECT_FLOAT_EQ(assigned.anisotropyTextureUvTransform().rotationDegrees,
                     45.0f);
+    EXPECT_EQ(assigned.metallicTexture().toQString(),
+              QStringLiteral("maps/metallic.png"));
+    EXPECT_FLOAT_EQ(assigned.metallicTextureUvTransform().scaleV, 0.75f);
+    EXPECT_FLOAT_EQ(assigned.metallicTextureUvTransform().offsetU, 0.2f);
+    EXPECT_EQ(assigned.roughnessTexture().toQString(),
+              QStringLiteral("maps/roughness.png"));
+    EXPECT_FLOAT_EQ(assigned.roughnessTextureUvTransform().scaleU, 0.5f);
+    EXPECT_FLOAT_EQ(assigned.roughnessTextureUvTransform().offsetV, 0.6f);
 }
 
 TEST(MaterialContractTest, MoveTransfersStateAndMovedFromObjectCanBeReassigned)
