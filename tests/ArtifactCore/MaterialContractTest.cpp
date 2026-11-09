@@ -588,6 +588,129 @@ TEST(MaterialContractTest, ScalarTextureUvTransformsRemainIndependent)
     }
 }
 
+TEST(MaterialContractTest, ScalarTextureUvTransformsSanitizeInvalidInputs)
+{
+    Material material;
+    struct TransformAccessors {
+        const char* name;
+        void (Material::*setScale)(float);
+        float (Material::*scale)() const;
+        void (Material::*setOffsetU)(float);
+        float (Material::*offsetU)() const;
+        void (Material::*setOffsetV)(float);
+        float (Material::*offsetV)() const;
+        void (Material::*setRotation)(float);
+        float (Material::*rotation)() const;
+        void (Material::*setUvSet)(int);
+        int (Material::*uvSet)() const;
+    };
+    const std::array<TransformAccessors, 9> transforms{{
+        {"base color", &Material::setBaseColorUvScale,
+         &Material::baseColorUvScale, &Material::setBaseColorUvOffsetU,
+         &Material::baseColorUvOffsetU, &Material::setBaseColorUvOffsetV,
+         &Material::baseColorUvOffsetV, &Material::setBaseColorUvRotationDegrees,
+         &Material::baseColorUvRotationDegrees, &Material::setBaseColorUvSet,
+         &Material::baseColorUvSet},
+        {"metallic-roughness", &Material::setMetallicRoughnessUvScale,
+         &Material::metallicRoughnessUvScale,
+         &Material::setMetallicRoughnessUvOffsetU,
+         &Material::metallicRoughnessUvOffsetU,
+         &Material::setMetallicRoughnessUvOffsetV,
+         &Material::metallicRoughnessUvOffsetV,
+         &Material::setMetallicRoughnessUvRotationDegrees,
+         &Material::metallicRoughnessUvRotationDegrees,
+         &Material::setMetallicRoughnessUvSet,
+         &Material::metallicRoughnessUvSet},
+        {"normal", &Material::setNormalUvScale, &Material::normalUvScale,
+         &Material::setNormalUvOffsetU, &Material::normalUvOffsetU,
+         &Material::setNormalUvOffsetV, &Material::normalUvOffsetV,
+         &Material::setNormalUvRotationDegrees, &Material::normalUvRotationDegrees,
+         &Material::setNormalUvSet, &Material::normalUvSet},
+        {"occlusion", &Material::setOcclusionTextureUvScale,
+         &Material::occlusionTextureUvScale,
+         &Material::setOcclusionTextureUvOffsetU,
+         &Material::occlusionTextureUvOffsetU,
+         &Material::setOcclusionTextureUvOffsetV,
+         &Material::occlusionTextureUvOffsetV,
+         &Material::setOcclusionTextureUvRotationDegrees,
+         &Material::occlusionTextureUvRotationDegrees,
+         &Material::setOcclusionTextureUvSet,
+         &Material::occlusionTextureUvSet},
+        {"emission", &Material::setEmissionTextureUvScale,
+         &Material::emissionTextureUvScale,
+         &Material::setEmissionTextureUvOffsetU,
+         &Material::emissionTextureUvOffsetU,
+         &Material::setEmissionTextureUvOffsetV,
+         &Material::emissionTextureUvOffsetV,
+         &Material::setEmissionTextureUvRotationDegrees,
+         &Material::emissionTextureUvRotationDegrees,
+         &Material::setEmissionTextureUvSet,
+         &Material::emissionTextureUvSet},
+        {"opacity", &Material::setOpacityTextureUvScale,
+         &Material::opacityTextureUvScale,
+         &Material::setOpacityTextureUvOffsetU,
+         &Material::opacityTextureUvOffsetU,
+         &Material::setOpacityTextureUvOffsetV,
+         &Material::opacityTextureUvOffsetV,
+         &Material::setOpacityTextureUvRotationDegrees,
+         &Material::opacityTextureUvRotationDegrees,
+         &Material::setOpacityTextureUvSet,
+         &Material::opacityTextureUvSet},
+        {"clearcoat", &Material::setClearcoatTextureUvScale,
+         &Material::clearcoatTextureUvScale,
+         &Material::setClearcoatTextureUvOffsetU,
+         &Material::clearcoatTextureUvOffsetU,
+         &Material::setClearcoatTextureUvOffsetV,
+         &Material::clearcoatTextureUvOffsetV,
+         &Material::setClearcoatTextureUvRotationDegrees,
+         &Material::clearcoatTextureUvRotationDegrees,
+         &Material::setClearcoatTextureUvSet,
+         &Material::clearcoatTextureUvSet},
+        {"clearcoat roughness", &Material::setClearcoatRoughnessTextureUvScale,
+         &Material::clearcoatRoughnessTextureUvScale,
+         &Material::setClearcoatRoughnessTextureUvOffsetU,
+         &Material::clearcoatRoughnessTextureUvOffsetU,
+         &Material::setClearcoatRoughnessTextureUvOffsetV,
+         &Material::clearcoatRoughnessTextureUvOffsetV,
+         &Material::setClearcoatRoughnessTextureUvRotationDegrees,
+         &Material::clearcoatRoughnessTextureUvRotationDegrees,
+         &Material::setClearcoatRoughnessTextureUvSet,
+         &Material::clearcoatRoughnessTextureUvSet},
+        {"clearcoat normal", &Material::setClearcoatNormalUvScale,
+         &Material::clearcoatNormalUvScale,
+         &Material::setClearcoatNormalUvOffsetU,
+         &Material::clearcoatNormalUvOffsetU,
+         &Material::setClearcoatNormalUvOffsetV,
+         &Material::clearcoatNormalUvOffsetV,
+         &Material::setClearcoatNormalUvRotationDegrees,
+         &Material::clearcoatNormalUvRotationDegrees,
+         &Material::setClearcoatNormalUvSet,
+         &Material::clearcoatNormalUvSet},
+    }};
+
+    for (const auto& transform : transforms) {
+        (material.*transform.setScale)(std::numeric_limits<float>::infinity());
+        (material.*transform.setOffsetU)(
+            std::numeric_limits<float>::quiet_NaN());
+        (material.*transform.setOffsetV)(
+            std::numeric_limits<float>::infinity());
+        (material.*transform.setRotation)(
+            std::numeric_limits<float>::quiet_NaN());
+        (material.*transform.setUvSet)(2);
+
+        EXPECT_FLOAT_EQ((material.*transform.scale)(), 1.0f)
+            << transform.name << " scale fallback";
+        EXPECT_FLOAT_EQ((material.*transform.offsetU)(), 0.0f)
+            << transform.name << " U offset fallback";
+        EXPECT_FLOAT_EQ((material.*transform.offsetV)(), 0.0f)
+            << transform.name << " V offset fallback";
+        EXPECT_FLOAT_EQ((material.*transform.rotation)(), 0.0f)
+            << transform.name << " rotation fallback";
+        EXPECT_EQ((material.*transform.uvSet)(), 0)
+            << transform.name << " UV set fallback";
+    }
+}
+
 TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
 {
     Material source;
