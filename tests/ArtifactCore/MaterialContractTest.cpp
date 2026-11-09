@@ -104,6 +104,44 @@ TEST(MaterialContractTest, PrincipledShadingControlsClampAndFallback)
     EXPECT_FLOAT_EQ(material.environmentIntensity(), 1.0f);
 }
 
+TEST(MaterialContractTest, ColorAndEmissionInputsUseStableFallbacks)
+{
+    Material material;
+    material.setBaseColor(QColor{});
+    material.setEmissionColor(QColor{});
+    material.setEmissionStrength(-1.0f);
+
+    EXPECT_EQ(material.baseColor(), QColor(255, 255, 255));
+    EXPECT_EQ(material.emissionColor(), QColor(0, 0, 0));
+    EXPECT_FLOAT_EQ(material.emissionStrength(), 0.0f);
+
+    material.setEmissionColor(QColor(20, 80, 160));
+    material.setEmissionStrength(4.5f);
+    EXPECT_EQ(material.emissionColor(), QColor(20, 80, 160));
+    EXPECT_FLOAT_EQ(material.emissionStrength(), 4.5f);
+}
+
+TEST(MaterialContractTest, MaterialGraphJsonPresenceIgnoresWhitespaceOnlyText)
+{
+    Material material;
+    EXPECT_FALSE(material.hasMaterialGraphJson());
+
+    material.setMaterialGraphJson(
+        ArtifactCore::UniString(QStringLiteral(" \n\t ")));
+    EXPECT_FALSE(material.hasMaterialGraphJson());
+    EXPECT_EQ(material.materialGraphJson().toQString(),
+              QStringLiteral(" \n\t "));
+
+    const QString graph = QStringLiteral(
+        "{\"nodes\":[{\"type\":\"principled\"}],\"links\":[]}");
+    material.setMaterialGraphJson(ArtifactCore::UniString(graph));
+    EXPECT_TRUE(material.hasMaterialGraphJson());
+    EXPECT_EQ(material.materialGraphJson().toQString(), graph);
+
+    material.setMaterialGraphJson(ArtifactCore::UniString{});
+    EXPECT_FALSE(material.hasMaterialGraphJson());
+}
+
 TEST(MaterialContractTest, TextureUvTransformsAreIndependentAndSanitized)
 {
     Material material;
