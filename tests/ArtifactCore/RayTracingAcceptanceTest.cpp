@@ -3452,6 +3452,33 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
     EXPECT_GT(leftEmission[0], leftEmission[1] + 0.2f);
     EXPECT_GT(rightEmission[1], rightEmission[0] + 0.2f);
 
+    QImage emissionWithTransparentTexels = emissionImage;
+    for (int y = 0; y < emissionWithTransparentTexels.height(); ++y) {
+        auto* row = emissionWithTransparentTexels.scanLine(y);
+        for (int x = 0; x < emissionWithTransparentTexels.width() / 2; ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const QString transparentEmissionPath = temporaryDirectory.filePath(
+        QStringLiteral("emission-transparent-texels.png"));
+    ASSERT_TRUE(emissionWithTransparentTexels.save(
+        transparentEmissionPath, "PNG"));
+    material.emissionTexture = ArtifactCore::UniString(transparentEmissionPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentTexelEmission = pixelAt(8, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(transparentTexelEmission[channel], leftEmission[channel],
+                    0.01f)
+            << "emission texture alpha should not modulate RGB, channel "
+            << channel;
+    }
+
     constexpr std::array<float, 8 * 2 * 4> hdrPixels = [] {
         std::array<float, 8 * 2 * 4> pixels{};
         for (int y = 0; y < 2; ++y) {
