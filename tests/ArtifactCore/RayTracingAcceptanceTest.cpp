@@ -3649,6 +3649,62 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
         << "occlusion UV1 mirroring should select the occluded texels on the right";
 
     material.occlusionTextureUvSet = 0;
+    const auto verticalAoPath = temporaryDirectory.filePath(
+        QStringLiteral("ao-v-ramp.png"));
+    QImage verticalAoImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalAoImage.isNull());
+    for (int y = 0; y < verticalAoImage.height(); ++y) {
+        auto* row = verticalAoImage.scanLine(y);
+        for (int x = 0; x < verticalAoImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = y < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalAoImage.save(verticalAoPath, "PNG"));
+    material.occlusionTexture = ArtifactCore::UniString(verticalAoPath);
+    material.occlusionTextureUvOffsetU = 0.0f;
+    material.occlusionTextureUvOffsetV = 0.0f;
+    material.occlusionTextureUvScale = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto aoV0Top = pixelAt(8, 8);
+    const auto aoV0Bottom = pixelAt(8, 24);
+    EXPECT_GT(std::fabs(aoV0Top[0] - aoV0Bottom[0]), 0.05f)
+        << "occlusion red channel should vary between vertical UV samples";
+
+    material.occlusionTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_NEAR(pixelAt(8, 8)[0], aoV0Bottom[0], 0.025f)
+        << "occlusion V offset should mirror the top sample";
+    EXPECT_NEAR(pixelAt(8, 24)[0], aoV0Top[0], 0.025f)
+        << "occlusion V offset should mirror the bottom sample";
+
+    material.occlusionTextureUvOffsetV = 0.0f;
+    material.occlusionTextureUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_NEAR(pixelAt(8, 8)[0], aoV0Bottom[0], 0.025f)
+        << "occlusion V scale should repeat the bottom sample on top";
+    EXPECT_NEAR(pixelAt(8, 24)[0], aoV0Top[0], 0.025f)
+        << "occlusion V scale should repeat the top sample on bottom";
+
+    material.occlusionTexture = ArtifactCore::UniString(texturePath);
+    material.occlusionTextureUvScale = 1.0f;
+    material.occlusionTextureUvOffsetV = 0.0f;
     material.occlusionStrength = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("ao-uv-sampling"), material));
