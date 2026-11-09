@@ -400,6 +400,45 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
         << "clearcoat normal UV rotation should change the coat reflection "
            "direction";
 
+    const auto captureClearcoatRoughness = [this, &coatedMaterial](
+                                               float clearcoatRoughness) {
+        coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+        coatedMaterial.clearcoatRoughness = clearcoatRoughness;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumClearcoatRoughnessPixel =
+        captureClearcoatRoughness(0.0f);
+    const auto belowMinimumClearcoatRoughnessPixel =
+        captureClearcoatRoughness(-0.5f);
+    const auto maximumClearcoatRoughnessPixel =
+        captureClearcoatRoughness(1.0f);
+    const auto aboveMaximumClearcoatRoughnessPixel =
+        captureClearcoatRoughness(1.5f);
+    const float clearcoatRoughnessResponse = std::max(
+        std::fabs(maximumClearcoatRoughnessPixel[0] -
+                  minimumClearcoatRoughnessPixel[0]),
+        std::max(std::fabs(maximumClearcoatRoughnessPixel[1] -
+                           minimumClearcoatRoughnessPixel[1]),
+                 std::fabs(maximumClearcoatRoughnessPixel[2] -
+                           minimumClearcoatRoughnessPixel[2])));
+    EXPECT_GT(clearcoatRoughnessResponse, 0.001f)
+        << "the fixture should distinguish minimum and maximum clearcoat roughness";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumClearcoatRoughnessPixel[channel],
+                    minimumClearcoatRoughnessPixel[channel], 1.0e-5f)
+            << "clearcoat roughness below zero should clamp to zero";
+        EXPECT_NEAR(aboveMaximumClearcoatRoughnessPixel[channel],
+                    maximumClearcoatRoughnessPixel[channel], 1.0e-5f)
+            << "clearcoat roughness above one should clamp to one";
+    }
+
     auto captureClearcoatIor = [this, &coatedMaterial](float clearcoatIOR) {
         coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
         coatedMaterial.clearcoatNormalStrength = 1.0f;
