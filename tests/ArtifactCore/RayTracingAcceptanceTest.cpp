@@ -716,8 +716,10 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
     const auto rightHdrEmission = pixelAt(24, 16);
     EXPECT_GT(leftHdrEmission[0], 3.5f);
     EXPECT_LT(leftHdrEmission[1], 0.1f);
+    EXPECT_NEAR(leftHdrEmission[2], 0.25f, 0.02f);
     EXPECT_GT(rightHdrEmission[1], 1.5f);
     EXPECT_LT(rightHdrEmission[0], 0.1f);
+    EXPECT_NEAR(rightHdrEmission[2], 0.25f, 0.02f);
 }
 
 TEST_F(RayTracingAcceptanceTest,
