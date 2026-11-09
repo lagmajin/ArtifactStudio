@@ -1468,6 +1468,82 @@ TEST_F(RayTracingAcceptanceTest, SelectsAnisotropyTextureUvSet) {
     }
 }
 
+TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-scalar-anisotropy-rotation", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = 0.8f;
+    material.baseColor[1] = 0.45f;
+    material.baseColor[2] = 0.2f;
+    material.metallic = 1.0f;
+    material.roughness = 0.3f;
+    material.anisotropy = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto isotropicPixel = pixelAt(16, 16);
+    material.anisotropyRotationDegrees = 90.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedIsotropicPixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedIsotropicPixel[channel], isotropicPixel[channel], 1.0e-5f)
+            << "anisotropy rotation should not affect an isotropic material, channel "
+            << channel;
+    }
+
+    material.anisotropy = 1.0f;
+    material.anisotropyRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto horizontalAnisotropyPixel = pixelAt(16, 16);
+
+    material.anisotropyRotationDegrees = 90.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto verticalAnisotropyPixel = pixelAt(16, 16);
+    const float anisotropyRotationDifference = std::max(
+        std::fabs(horizontalAnisotropyPixel[0] - verticalAnisotropyPixel[0]),
+        std::max(std::fabs(horizontalAnisotropyPixel[1] - verticalAnisotropyPixel[1]),
+                 std::fabs(horizontalAnisotropyPixel[2] - verticalAnisotropyPixel[2])));
+    EXPECT_GT(anisotropyRotationDifference, 0.001f)
+        << "rotating scalar anisotropy should rotate the tangent-space highlight";
+}
+
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) {
     constexpr std::array<float, 24> vertices{
         -0.9f, -0.9f,  0.4f, 0.9f, -0.9f,  0.4f,
