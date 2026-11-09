@@ -500,6 +500,40 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
                     maximumSheenRoughnessPixel[channel], 1.0e-5f)
             << "sheen roughness above one should clamp to one";
     }
+
+    const auto captureSheenTint = [this, &coatedMaterial](
+                                      std::size_t tintChannel, float tint) {
+        coatedMaterial.sheenTint[0] = 1.0f;
+        coatedMaterial.sheenTint[1] = 1.0f;
+        coatedMaterial.sheenTint[2] = 1.0f;
+        coatedMaterial.sheenTint[tintChannel] = tint;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        const auto minimumSheenTintPixel = captureSheenTint(tintChannel, 0.0f);
+        const auto belowMinimumSheenTintPixel =
+            captureSheenTint(tintChannel, -0.5f);
+        const auto maximumSheenTintPixel = captureSheenTint(tintChannel, 1.0f);
+        const auto aboveMaximumSheenTintPixel =
+            captureSheenTint(tintChannel, 1.5f);
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(belowMinimumSheenTintPixel[channel],
+                        minimumSheenTintPixel[channel], 1.0e-5f)
+                << "sheen tint below zero should clamp to zero, tint channel "
+                << tintChannel << ", output channel " << channel;
+            EXPECT_NEAR(aboveMaximumSheenTintPixel[channel],
+                        maximumSheenTintPixel[channel], 1.0e-5f)
+                << "sheen tint above one should clamp to one, tint channel "
+                << tintChannel << ", output channel " << channel;
+        }
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
