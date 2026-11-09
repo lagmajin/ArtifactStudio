@@ -5542,6 +5542,38 @@ TEST_F(RayTracingAcceptanceTest,
     expectSameRgb(traceThinFilm(400.0f, 2.5f),
                  traceThinFilm(400.0f, 3.0f),
                  "film IOR above 2.5 should clamp to 2.5");
+
+    const auto traceGrazingThinFilm = [&](const float thicknessNm) {
+        material.ior = 1.5f;
+        material.thinFilmThickness = thicknessNm;
+        material.thinFilmIOR = 1.33f;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera grazingCamera;
+        grazingCamera.origin[0] = 2.0f;
+        grazingCamera.origin[2] = -1.0f;
+        grazingCamera.target[2] = 0.0f;
+        grazingCamera.verticalFovDegrees = 60.0f;
+        EXPECT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize, grazingCamera));
+        return pixelAt(kRayTraceTestImageSize / 2,
+                       kRayTraceTestImageSize / 2);
+    };
+    const auto grazingNoFilmPixel = traceGrazingThinFilm(0.0f);
+    const auto grazingThinFilmPixel = traceGrazingThinFilm(400.0f);
+    float grazingThinFilmResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        grazingThinFilmResponse = std::max(
+            grazingThinFilmResponse,
+            std::fabs(grazingThinFilmPixel[channel] -
+                      grazingNoFilmPixel[channel]));
+    }
+    EXPECT_GT(grazingThinFilmResponse, 0.001f)
+        << "thin-film interference should affect dielectric reflection at a "
+           "grazing view angle";
 }
 
 TEST_F(RayTracingAcceptanceTest,
