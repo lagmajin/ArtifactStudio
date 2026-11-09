@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 連番切替後のcrop出力とthumbnail整合性
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail`、静止画受入表OP-03／IMG-02。
+- **確認できた事実:** 既存テストは連番の要求フレーム表示、cropのsource pixel選択、thumbnail境界をそれぞれ確認するが、非同期フレーム切替後にcrop出力とthumbnailの両方が新フレームへ更新されるケースはなかった。
+- **追加した確認:** 半透明を含む異なる画素の2フレームを連番として読み込み、中央2 pixel cropを適用する。各フレーム切替後、透明な外側、crop内のRGBA、同サイズthumbnailを検査する。
+- **価値または懸念:** sequence decode完了後のcrop cache／thumbnailが旧フレーム由来のまま残る回帰を検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail` をテスト実行が許可された際に実行し、両フレームのcrop／thumbnail一致を確認する。
+
 ## 2026-11-09: survivor matte の全設定を削除・保存往復で検査
 - **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp::RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip`、matte参照の整合性。
 - **確認できた事実:** 既存ケースはdangling参照の削除とsurvivorのID・source layer・opacity・invertを確認するが、source asset path、enabled、type、per-reference blend mode、fit modeの保持は確認していなかった。

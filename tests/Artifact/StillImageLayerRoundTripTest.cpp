@@ -1323,6 +1323,64 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor firstFrameColors[] = {
+        QColor(10, 20, 30, 255), QColor(20, 80, 140, 128),
+        QColor(40, 100, 160, 255), QColor(50, 60, 70, 255)};
+    const QColor secondFrameColors[] = {
+        QColor(110, 120, 130, 255), QColor(180, 40, 70, 96),
+        QColor(70, 190, 50, 200), QColor(150, 160, 170, 255)};
+    const QString firstPath = dir.filePath(QStringLiteral("crop-sequence-1.png"));
+    const QString secondPath = dir.filePath(QStringLiteral("crop-sequence-2.png"));
+    for (const auto& [path, colors] : {
+             std::pair{firstPath, firstFrameColors},
+             std::pair{secondPath, secondFrameColors}}) {
+        QImage frame(4, 1, QImage::Format_RGBA8888);
+        for (int x = 0; x < frame.width(); ++x) {
+            frame.setPixelColor(x, 0, colors[x]);
+        }
+        ASSERT_TRUE(frame.save(path, "PNG"));
+    }
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.setImageSequence(QStringList{firstPath, secondPath}, 0.0));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropWidth"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropHeight"), QVariant(1.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(true)));
+
+    const auto expectCroppedFrame = [&](qint64 frameIndex,
+                                        const QColor* expectedColors) {
+        layer.goToFrame(frameIndex);
+        const QImage cropped = waitForSequenceFrame(layer, frameIndex);
+        ASSERT_EQ(cropped.size(), QSize(4, 1));
+        const QImage thumbnail = layer.getThumbnail(4, 1);
+        ASSERT_EQ(thumbnail.size(), QSize(4, 1));
+        for (int x = 0; x < cropped.width(); ++x) {
+            const QColor expected = x >= 1 && x <= 2
+                ? expectedColors[x]
+                : QColor(0, 0, 0, 0);
+            EXPECT_EQ(cropped.pixelColor(x, 0), expected) << "x=" << x;
+            EXPECT_EQ(thumbnail.pixelColor(x, 0), expected) << "x=" << x;
+        }
+    };
+
+    expectCroppedFrame(0, firstFrameColors);
+    expectCroppedFrame(1, secondFrameColors);
+}
+
+TEST(StillImageLayerRoundTripTest,
      ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion)
 {
     QTemporaryDir dir;
