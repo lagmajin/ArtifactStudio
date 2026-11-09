@@ -596,6 +596,50 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
                 << tintChannel << ", output channel " << channel;
         }
     }
+
+    const auto captureSpecular = [&](float specular) {
+        coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+        coatedMaterial.clearcoat = 0.0f;
+        coatedMaterial.sheen = 0.0f;
+        coatedMaterial.metallic = 0.0f;
+        coatedMaterial.ior = 1.5f;
+        coatedMaterial.specular = specular;
+        coatedMaterial.specularTint[0] = coatedMaterial.specularTint[1] =
+            coatedMaterial.specularTint[2] = 1.0f;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumSpecular = captureSpecular(0.0f);
+    const auto belowMinimumSpecular = captureSpecular(-0.5f);
+    const auto defaultSpecular = captureSpecular(0.5f);
+    const auto nonFiniteSpecular = captureSpecular(
+        std::numeric_limits<float>::quiet_NaN());
+    const auto maximumSpecular = captureSpecular(1.0f);
+    const auto aboveMaximumSpecular = captureSpecular(1.5f);
+    float specularResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumSpecular[channel], minimumSpecular[channel],
+                    1.0e-5f)
+            << "specular below zero should clamp to zero, channel " << channel;
+        EXPECT_NEAR(nonFiniteSpecular[channel], defaultSpecular[channel],
+                    1.0e-5f)
+            << "non-finite specular should use its 0.5 fallback, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumSpecular[channel], maximumSpecular[channel],
+                    1.0e-5f)
+            << "specular above one should clamp to one, channel " << channel;
+        specularResponse = std::max(
+            specularResponse,
+            std::fabs(maximumSpecular[channel] - minimumSpecular[channel]));
+    }
+    EXPECT_GT(specularResponse, 0.001f)
+        << "the specular factor should measurably scale dielectric reflection";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
