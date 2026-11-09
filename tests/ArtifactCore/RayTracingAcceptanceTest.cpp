@@ -2991,6 +2991,14 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
          {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
+    QTemporaryDir normalMapDirectory;
+    ASSERT_TRUE(normalMapDirectory.isValid());
+    const QString parityNormalMapPath = normalMapDirectory.filePath(
+        QStringLiteral("parity-normal.png"));
+    QImage parityNormalMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(parityNormalMap.isNull());
+    parityNormalMap.fill(QColor(153, 128, 242, 255));
+    ASSERT_TRUE(parityNormalMap.save(parityNormalMapPath, "PNG"));
     for (size_t probeIndex = 0; probeIndex < materialProbes.size();
          ++probeIndex) {
         const auto& probe = materialProbes[probeIndex];
@@ -3006,6 +3014,8 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                                  QColor::fromRgbF(probe.sheenTint[0],
                                                   probe.sheenTint[1],
                                                   probe.sheenTint[2]));
+        if (probeIndex + 1 == materialProbes.size())
+            renderer.setNormalTexture(parityNormalMapPath);
         rasterProbePixels[probeIndex] = renderCenterPixel();
 
         ArtifactCore::RTPbrMaterial rtMaterial;
@@ -3022,6 +3032,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.sheenRoughness = probe.sheenRoughness;
         std::copy(probe.sheenTint.begin(), probe.sheenTint.end(),
                   rtMaterial.sheenTint);
+        if (probeIndex + 1 == materialProbes.size())
+            rtMaterial.normalTexture = ArtifactCore::UniString(
+                parityNormalMapPath);
         ASSERT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString(kHdrParityGeometryId), rtMaterial));
         ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -3046,7 +3059,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                     sizeof(rtProbePixels[probeIndex]));
         context_->UnmapTextureSubresource(traceStagingTexture, 0, 0);
         for (size_t channel = 0; channel < 3; ++channel) {
-            const float parityTolerance = probeIndex >= 5 && probeIndex < 8
+            const float parityTolerance = probeIndex >= 5 && probeIndex < 9
                 ? 0.05f
                 : std::max(0.015f,
                            std::fabs(rasterProbePixels[probeIndex][channel]) *
