@@ -878,6 +878,56 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         << "changing slot 1 normal map should preserve slot 0 shading";
     EXPECT_GT(std::fabs(tiltedRightPixel[0] - flatRightPixel[0]), 0.01f)
         << "slot 1 normal map should change its shading";
+
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatNormalStrength = 1.0f;
+    leftMaterial.clearcoatNormalUvSet = 0;
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString(flatNormalPath);
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto flatCoatLeftPixel = pixelAt(8, 16);
+    const auto flatCoatRightPixel = pixelAt(24, 16);
+
+    leftMaterial.clearcoatNormalTexture =
+        ArtifactCore::UniString(tiltedNormalPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tiltedCoatLeftPixel = pixelAt(8, 16);
+    const auto unchangedCoatRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(tiltedCoatLeftPixel[0] - flatCoatLeftPixel[0]), 0.01f)
+        << "slot 0 clearcoat-normal map should change its coated lobe";
+    EXPECT_NEAR(unchangedCoatRightPixel[0], flatCoatRightPixel[0], 0.01f)
+        << "changing slot 0 clearcoat-normal map should preserve slot 1";
+
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString(flatNormalPath);
+    rightMaterial.clearcoatNormalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedCoatLeftPixel = pixelAt(8, 16);
+    const auto tiltedCoatRightPixel = pixelAt(24, 16);
+    EXPECT_NEAR(unchangedCoatLeftPixel[0], flatCoatLeftPixel[0], 0.01f)
+        << "changing slot 1 clearcoat-normal map should preserve slot 0";
+    EXPECT_GT(std::fabs(tiltedCoatRightPixel[0] - flatCoatRightPixel[0]), 0.01f)
+        << "slot 1 clearcoat-normal map should change its coated lobe";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
