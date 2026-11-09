@@ -4598,6 +4598,75 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     EXPECT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), boxPbrMaterial));
 }
+
+TEST_F(RayTracingAcceptanceTest,
+       ClampsCameraVerticalFieldOfViewToSupportedRange) {
+    constexpr std::array<float, 12> vertices{
+        -1.0f, -1.0f, 0.0f, 1.0f, -1.0f, 0.0f,
+         1.0f,  1.0f, 0.0f, -1.0f, 1.0f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("camera-fov-clamp", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
+    material.emissionColor[0] = material.emissionColor[1] =
+        material.emissionColor[2] = 1.0f;
+    material.emissionStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("camera-fov-clamp"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+
+    const auto traceFov = [&](const float verticalFovDegrees) {
+        ArtifactCore::RTRayCamera camera;
+        camera.verticalFovDegrees = verticalFovDegrees;
+        EXPECT_TRUE(manager_->traceCamera(context_.RawPtr(),
+                                          kRayTraceTestImageSize,
+                                          kRayTraceTestImageSize, camera));
+        return readOutputPixels();
+    };
+    const auto belowMinimum = traceFov(0.5f);
+    const auto atMinimum = traceFov(1.0f);
+    const auto atMaximum = traceFov(179.0f);
+    const auto aboveMaximum = traceFov(240.0f);
+    const auto expectedPixelCount = static_cast<size_t>(
+        kRayTraceTestImageSize * kRayTraceTestImageSize);
+    ASSERT_EQ(belowMinimum.size(), expectedPixelCount);
+    ASSERT_EQ(atMinimum.size(), expectedPixelCount);
+    ASSERT_EQ(atMaximum.size(), expectedPixelCount);
+    ASSERT_EQ(aboveMaximum.size(), expectedPixelCount);
+
+    const auto maximumImageDifference = [](
+        const std::vector<std::array<float, 4>>& lhs,
+        const std::vector<std::array<float, 4>>& rhs) {
+        EXPECT_EQ(lhs.size(), rhs.size());
+        const auto count = std::min(lhs.size(), rhs.size());
+        float maximumDifference = 0.0f;
+        for (size_t pixel = 0; pixel < count; ++pixel) {
+            for (size_t channel = 0; channel < 4; ++channel) {
+                maximumDifference = std::max(
+                    maximumDifference,
+                    std::fabs(lhs[pixel][channel] - rhs[pixel][channel]));
+            }
+        }
+        return maximumDifference;
+    };
+    EXPECT_LE(maximumImageDifference(belowMinimum, atMinimum), 1.0e-5f)
+        << "FOV values below 1 degree should match the 1 degree lower bound";
+    EXPECT_LE(maximumImageDifference(atMaximum, aboveMaximum), 1.0e-5f)
+        << "FOV values above 179 degrees should match the 179 degree upper bound";
+}
+
 TEST_F(RayTracingAcceptanceTest, TracesUnindexedTriangleAndRejectsMalformedGeometry) {
     constexpr std::array<float, 9> triangleVertices{-0.8f, -0.8f, 0.0f, 0.8f, -0.8f,
                                                     0.0f,  0.0f,  0.8f, 0.0f};
