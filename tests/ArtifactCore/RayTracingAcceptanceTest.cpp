@@ -2968,6 +2968,131 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
 }
 
 TEST_F(RayTracingAcceptanceTest,
+       SelectsMaskedShadowOpacityTexturePerMaterialSlot) {
+    constexpr std::array<float, 12> receiverVertices{
+        -1.2f, -1.0f, 0.4f, 1.2f, -1.0f, 0.4f,
+         1.2f,  1.0f, 0.4f, -1.2f, 1.0f, 0.4f};
+    constexpr std::array<std::uint32_t, 6> receiverIndices{
+        0, 2, 1, 0, 3, 2};
+    constexpr std::array<float, 24> blockerVertices{
+        -0.35f, -0.3f, 0.0f, -0.22f, -0.3f, 0.0f,
+        -0.22f,  0.3f, 0.0f, -0.35f,  0.3f, 0.0f,
+         0.22f, -0.3f, 0.0f,  0.35f, -0.3f, 0.0f,
+         0.35f,  0.3f, 0.0f,  0.22f,  0.3f, 0.0f};
+    constexpr std::array<std::uint32_t, 12> blockerIndices{
+        0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7};
+    constexpr std::array<std::uint32_t, 4> blockerMaterialIndices{0, 0, 1, 1};
+    constexpr std::array<float, 16> blockerUvs{
+        0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
+    auto receiverVertexBuffer = makeBuffer(
+        receiverVertices.data(), sizeof(receiverVertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto receiverIndexBuffer = makeBuffer(
+        receiverIndices.data(), sizeof(receiverIndices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto blockerVertexBuffer = makeBuffer(
+        blockerVertices.data(), sizeof(blockerVertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto blockerIndexBuffer = makeBuffer(
+        blockerIndices.data(), sizeof(blockerIndices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(receiverVertexBuffer, nullptr);
+    ASSERT_NE(receiverIndexBuffer, nullptr);
+    ASSERT_NE(blockerVertexBuffer, nullptr);
+    ASSERT_NE(blockerIndexBuffer, nullptr);
+    addGeometry("multi-slot-shadow-receiver", receiverVertexBuffer.RawPtr(), 4,
+                receiverIndexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                receiverVertices.data(), receiverIndices.data());
+    addGeometry("multi-slot-shadow-blockers", blockerVertexBuffer.RawPtr(), 8,
+                blockerIndexBuffer.RawPtr(), 12, float4x4::Identity(), 1, 1,
+                blockerVertices.data(), blockerIndices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        blockerVertices.data(), 8, blockerIndices.data(), 12, nullptr,
+        blockerMaterialIndices.data(), blockerUvs.data()));
+
+    QTemporaryDir opacityDirectory;
+    ASSERT_TRUE(opacityDirectory.isValid());
+    const auto transparentPath = opacityDirectory.filePath(
+        QStringLiteral("transparent-shadow.png"));
+    const auto opaquePath = opacityDirectory.filePath(
+        QStringLiteral("opaque-shadow.png"));
+    QImage transparentImage(2, 2, QImage::Format_RGBA8888);
+    QImage opaqueImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(transparentImage.isNull());
+    ASSERT_FALSE(opaqueImage.isNull());
+    transparentImage.fill(QColor(255, 255, 255, 0));
+    opaqueImage.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(transparentImage.save(transparentPath, "PNG"));
+    ASSERT_TRUE(opaqueImage.save(opaquePath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial receiverMaterial;
+    receiverMaterial.baseColor[0] = receiverMaterial.baseColor[1] =
+        receiverMaterial.baseColor[2] = 0.8f;
+    receiverMaterial.roughness = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-receiver"),
+        receiverMaterial));
+    ArtifactCore::RTPbrMaterial slot0Material;
+    slot0Material.alphaMode = 1;
+    slot0Material.alphaCutoff = 0.5f;
+    slot0Material.opacityTexture = ArtifactCore::UniString(opaquePath);
+    ArtifactCore::RTPbrMaterial slot1Material = slot0Material;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+
+    const auto traceReceiverGreen = [&](const float lightX) {
+        ArtifactCore::RTSceneLight pointLight;
+        pointLight.positionType[0] = lightX;
+        pointLight.positionType[2] = -1.0f;
+        pointLight.positionType[3] =
+            static_cast<float>(ArtifactCore::LightType::Point);
+        pointLight.directionIntensity[3] = 24.0f;
+        pointLight.colorAttenuationConstant[1] = 1.0f;
+        pointLight.colorAttenuationConstant[3] = 1.0f;
+        pointLight.shadowParams[0] = 0.0f;
+        manager_->setSceneLights(context_.RawPtr(), &pointLight, 1);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16)[1];
+    };
+
+    slot0Material.opacityTexture = ArtifactCore::UniString(transparentPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    const float leftSlotOpen = traceReceiverGreen(-1.0f);
+    slot0Material.opacityTexture = ArtifactCore::UniString(opaquePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    const float leftSlotBlocked = traceReceiverGreen(-1.0f);
+    EXPECT_GT(leftSlotOpen, leftSlotBlocked + 0.02f)
+        << "slot 0 opacity should control the left blocker shadow";
+
+    slot1Material.opacityTexture = ArtifactCore::UniString(transparentPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float rightSlotOpen = traceReceiverGreen(1.0f);
+    slot1Material.opacityTexture = ArtifactCore::UniString(opaquePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float rightSlotBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(rightSlotOpen, rightSlotBlocked + 0.02f)
+        << "slot 1 opacity should control the right blocker shadow";
+}
+
+TEST_F(RayTracingAcceptanceTest,
        SelectsLinearMipLevelsForMinifiedMetallicRoughnessTextures) {
     constexpr std::array<float, 12> vertices{
         -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
