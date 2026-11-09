@@ -1728,6 +1728,38 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
                  std::fabs(glassIorThin[2] - glassIorThick[2])));
     EXPECT_GT(thinWallDifference, 0.001f)
         << "thin-wall transmission should apply its adjusted dielectric Fresnel";
+
+    const auto traceTransmission = [&](const float transmission) {
+        material.ior = 1.5f;
+        material.thinWall = 0.0f;
+        material.transmission = transmission;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-thin-wall-transmission"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto zeroTransmission = traceTransmission(0.0f);
+    const auto negativeTransmission = traceTransmission(-0.5f);
+    const auto fullTransmission = traceTransmission(1.0f);
+    const auto excessTransmission = traceTransmission(1.5f);
+    const float transmissionResponse = std::max(
+        std::fabs(fullTransmission[0] - zeroTransmission[0]),
+        std::max(std::fabs(fullTransmission[1] - zeroTransmission[1]),
+                 std::fabs(fullTransmission[2] - zeroTransmission[2])));
+    EXPECT_GT(transmissionResponse, 0.001f)
+        << "the fixture should distinguish zero from full transmission";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(negativeTransmission[channel], zeroTransmission[channel],
+                    1.0e-5f)
+            << "negative transmission should clamp to zero, channel " << channel;
+        EXPECT_NEAR(excessTransmission[channel], fullTransmission[channel],
+                    1.0e-5f)
+            << "transmission above one should clamp to one, channel " << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
