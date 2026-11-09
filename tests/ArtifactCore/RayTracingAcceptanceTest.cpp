@@ -6191,6 +6191,29 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
             << "clearcoat UV1 should mirror the right sample, channel " << channel;
     }
 
+    material.clearcoatTexture = ArtifactCore::UniString(clearcoatMapPath);
+    material.clearcoatTextureUvSet = 0;
+    material.clearcoatTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto amountRotatedLeft = pixelAt(8, 16);
+    const auto amountRotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(amountRotatedLeft[channel], amountUv0Right[channel], 0.035f)
+            << "clearcoat amount UV rotation should mirror the left sample, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(amountRotatedRight[channel], amountUv0Left[channel], 0.035f)
+            << "clearcoat amount UV rotation should mirror the right sample, "
+               "channel "
+            << channel;
+    }
+    material.clearcoatTextureUvRotationDegrees = 0.0f;
+
     material.clearcoatTextureUvSet = 0;
     material.clearcoat = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
@@ -6402,6 +6425,30 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
             << "clearcoat roughness UV1 should mirror the right sample, channel "
             << channel;
     }
+
+    material.clearcoatRoughnessTextureUvSet = 0;
+    material.clearcoatRoughnessTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessRotatedLeft = pixelAt(8, 16);
+    const auto roughnessRotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughnessRotatedLeft[channel], roughnessUv0Right[channel],
+                    0.035f)
+            << "clearcoat roughness UV rotation should mirror the left sample, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(roughnessRotatedRight[channel], roughnessUv0Left[channel],
+                    0.035f)
+            << "clearcoat roughness UV rotation should mirror the right sample, "
+               "channel "
+            << channel;
+    }
+    material.clearcoatRoughnessTextureUvRotationDegrees = 0.0f;
 
     material.clearcoatTexture = ArtifactCore::UniString();
     material.clearcoat = 1.0f;
