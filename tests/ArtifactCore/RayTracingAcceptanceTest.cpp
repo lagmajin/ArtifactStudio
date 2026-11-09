@@ -4309,16 +4309,14 @@ TEST_F(RayTracingAcceptanceTest,
         material.subsurfaceColor[channel] = 1.0f;
     }
     const auto neutralSubsurfaceColorPixel = traceSubsurface(1.0f);
-    std::array<float, 4> zeroRedSubsurfaceColorPixel{};
+    std::array<std::array<float, 4>, 3> zeroSubsurfaceColorPixels{};
     for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
         material.subsurfaceColor[0] = 1.0f;
         material.subsurfaceColor[1] = 1.0f;
         material.subsurfaceColor[2] = 1.0f;
         material.subsurfaceColor[tintChannel] = 0.0f;
         const auto tintedSubsurfacePixel = traceSubsurface(1.0f);
-        if (tintChannel == 0) {
-            zeroRedSubsurfaceColorPixel = tintedSubsurfacePixel;
-        }
+        zeroSubsurfaceColorPixels[tintChannel] = tintedSubsurfacePixel;
         EXPECT_LT(tintedSubsurfacePixel[tintChannel],
                   neutralSubsurfaceColorPixel[tintChannel] - 0.001f)
             << "subsurface color should reduce its matching output channel "
@@ -4332,19 +4330,25 @@ TEST_F(RayTracingAcceptanceTest,
             }
         }
     }
-    material.subsurfaceColor[0] = -0.5f;
-    const auto belowMinimumSubsurfaceColorPixel = traceSubsurface(1.0f);
-    material.subsurfaceColor[0] = 1.5f;
-    const auto aboveMaximumSubsurfaceColorPixel = traceSubsurface(1.0f);
-    for (std::size_t channel = 0; channel < 3; ++channel) {
-        EXPECT_NEAR(belowMinimumSubsurfaceColorPixel[channel],
-                    zeroRedSubsurfaceColorPixel[channel], 1.0e-5f)
-            << "subsurface color below zero should clamp to zero, channel "
-            << channel;
-        EXPECT_NEAR(aboveMaximumSubsurfaceColorPixel[channel],
-                    neutralSubsurfaceColorPixel[channel], 1.0e-5f)
-            << "subsurface color above one should clamp to one, channel "
-            << channel;
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        material.subsurfaceColor[0] = 1.0f;
+        material.subsurfaceColor[1] = 1.0f;
+        material.subsurfaceColor[2] = 1.0f;
+        material.subsurfaceColor[tintChannel] = -0.5f;
+        const auto belowMinimumSubsurfaceColorPixel = traceSubsurface(1.0f);
+        material.subsurfaceColor[tintChannel] = 1.5f;
+        const auto aboveMaximumSubsurfaceColorPixel = traceSubsurface(1.0f);
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(belowMinimumSubsurfaceColorPixel[channel],
+                        zeroSubsurfaceColorPixels[tintChannel][channel],
+                        1.0e-5f)
+                << "subsurface color channel " << tintChannel
+                << " below zero should clamp, output channel " << channel;
+            EXPECT_NEAR(aboveMaximumSubsurfaceColorPixel[channel],
+                        neutralSubsurfaceColorPixel[channel], 1.0e-5f)
+                << "subsurface color channel " << tintChannel
+                << " above one should clamp, output channel " << channel;
+        }
     }
     for (std::size_t invalidChannel = 0; invalidChannel < 3; ++invalidChannel) {
         material.subsurfaceColor[0] = 1.0f;
