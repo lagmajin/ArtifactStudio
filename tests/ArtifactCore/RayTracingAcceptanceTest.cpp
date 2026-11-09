@@ -1580,6 +1580,67 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     EXPECT_GT(std::fabs(tintedSheenRightPixels[1][0] - whiteSheenPixels[1][0]),
               0.001f)
         << "slot 1 sheen tint should change its reflection response";
+
+    ArtifactCore::RTSceneLight subsurfaceLight;
+    subsurfaceLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    subsurfaceLight.directionIntensity[2] = 1.0f;
+    subsurfaceLight.directionIntensity[3] = 4.0f;
+    subsurfaceLight.colorAttenuationConstant[0] = 1.0f;
+    subsurfaceLight.colorAttenuationConstant[1] = 1.0f;
+    subsurfaceLight.colorAttenuationConstant[2] = 1.0f;
+    subsurfaceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &subsurfaceLight, 1);
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.specular = 0.0f;
+    leftMaterial.emissionColor[0] = leftMaterial.emissionColor[1] =
+        leftMaterial.emissionColor[2] = 0.0f;
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.subsurfaceColor[0] = leftMaterial.subsurfaceColor[1] =
+        leftMaterial.subsurfaceColor[2] = 1.0f;
+    leftMaterial.subsurfaceRadius[0] = leftMaterial.subsurfaceRadius[1] =
+        leftMaterial.subsurfaceRadius[2] = 1.0f;
+    leftMaterial.subsurface = 0.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noSubsurfacePixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noSubsurfacePixels));
+    leftMaterial.subsurface = 1.0f;
+    std::array<std::array<float, 4>, 2> leftSubsurfacePixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftSubsurfacePixels));
+    float leftSubsurfaceResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSubsurfaceResponse = std::max(leftSubsurfaceResponse,
+            std::fabs(leftSubsurfacePixels[0][channel] -
+                      noSubsurfacePixels[0][channel]));
+        EXPECT_NEAR(leftSubsurfacePixels[1][channel],
+                    noSubsurfacePixels[1][channel], 0.01f)
+            << "changing slot 0 subsurface should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSubsurfaceResponse, 0.001f)
+        << "slot 0 subsurface should change its diffuse response";
+
+    leftMaterial.subsurface = 0.0f;
+    rightMaterial.subsurface = 1.0f;
+    std::array<std::array<float, 4>, 2> rightSubsurfacePixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightSubsurfacePixels));
+    float rightSubsurfaceResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightSubsurfacePixels[0][channel],
+                    noSubsurfacePixels[0][channel], 0.01f)
+            << "changing slot 1 subsurface should preserve slot 0, channel "
+            << channel;
+        rightSubsurfaceResponse = std::max(rightSubsurfaceResponse,
+            std::fabs(rightSubsurfacePixels[1][channel] -
+                      noSubsurfacePixels[1][channel]));
+    }
+    EXPECT_GT(rightSubsurfaceResponse, 0.001f)
+        << "slot 1 subsurface should change its diffuse response";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
