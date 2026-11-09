@@ -3568,6 +3568,25 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
     EXPECT_GT(grazingThinWallDifference, 0.001f)
         << "thin-wall transmission should adjust Fresnel at grazing view angles";
 
+    const auto belowMinimumThinWall = traceThinWall(1.5f, -0.5f);
+    const auto nonFiniteThinWall = traceThinWall(
+        1.5f, std::numeric_limits<float>::quiet_NaN());
+    const auto aboveMaximumThinWall = traceThinWall(1.5f, 1.5f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumThinWall[channel], glassIorThick[channel],
+                    1.0e-5f)
+            << "thin-wall amount below zero should clamp to the solid path, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteThinWall[channel], glassIorThick[channel],
+                    1.0e-5f)
+            << "non-finite thin-wall amount should use the zero fallback, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumThinWall[channel], glassIorThin[channel],
+                    1.0e-5f)
+            << "thin-wall amount above one should clamp to the thin path, channel "
+            << channel;
+    }
+
     const auto traceTransmission = [&](const float transmission) {
         material.ior = 1.5f;
         material.thinWall = 0.0f;
@@ -3585,6 +3604,10 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
     const auto negativeTransmission = traceTransmission(-0.5f);
     const auto fullTransmission = traceTransmission(1.0f);
     const auto excessTransmission = traceTransmission(1.5f);
+    const auto nonFiniteTransmission = traceTransmission(
+        std::numeric_limits<float>::quiet_NaN());
+    const auto infiniteTransmission = traceTransmission(
+        std::numeric_limits<float>::infinity());
     const float transmissionResponse = std::max(
         std::fabs(fullTransmission[0] - zeroTransmission[0]),
         std::max(std::fabs(fullTransmission[1] - zeroTransmission[1]),
@@ -3598,6 +3621,14 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
         EXPECT_NEAR(excessTransmission[channel], fullTransmission[channel],
                     1.0e-5f)
             << "transmission above one should clamp to one, channel " << channel;
+        EXPECT_NEAR(nonFiniteTransmission[channel], zeroTransmission[channel],
+                    1.0e-5f)
+            << "non-finite transmission should use its zero fallback, channel "
+            << channel;
+        EXPECT_NEAR(infiniteTransmission[channel], zeroTransmission[channel],
+                    1.0e-5f)
+            << "infinite transmission should use its zero fallback, channel "
+            << channel;
     }
 
     constexpr std::array<float, 9> reversedNormals{
