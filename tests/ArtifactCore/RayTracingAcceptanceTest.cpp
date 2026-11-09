@@ -4864,6 +4864,62 @@ TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
             << "changing slot 1 IOR should preserve slot 0, channel "
             << channel;
     }
+
+    leftMaterial.ior = 1.0f;
+    leftMaterial.transmission = 1.0f;
+    rightMaterial.ior = 3.0f;
+    rightMaterial.transmission = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto mixedLeftPixel = pixelAt(8, 16);
+    const auto mixedRightPixel = pixelAt(24, 16);
+
+    leftMaterial.ior = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto highFresnelLeftPixel = pixelAt(8, 16);
+    const auto preservedOpaqueRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(highFresnelLeftPixel[0] - mixedLeftPixel[0]), 0.001f)
+        << "slot 0 IOR should affect the transmissive slot's Fresnel response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(preservedOpaqueRightPixel[channel], mixedRightPixel[channel],
+                    0.01f)
+            << "changing slot 0 IOR should preserve opaque slot 1, channel "
+            << channel;
+    }
+
+    rightMaterial.transmission = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftAfterRightTransmission = pixelAt(8, 16);
+    const auto highIorTransmissionRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(highIorTransmissionRightPixel[0] - mixedRightPixel[0]),
+              0.001f)
+        << "transmission should activate through slot 1's high-IOR Fresnel";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(leftAfterRightTransmission[channel], highFresnelLeftPixel[channel],
+                    0.01f)
+            << "changing slot 1 transmission should preserve slot 0, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
