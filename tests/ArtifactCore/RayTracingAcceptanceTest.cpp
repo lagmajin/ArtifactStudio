@@ -4331,8 +4331,6 @@ TEST_F(RayTracingAcceptanceTest,
     const auto belowMinimumSubsurfaceColorPixel = traceSubsurface(1.0f);
     material.subsurfaceColor[0] = 1.5f;
     const auto aboveMaximumSubsurfaceColorPixel = traceSubsurface(1.0f);
-    material.subsurfaceColor[0] = std::numeric_limits<float>::quiet_NaN();
-    const auto nonFiniteSubsurfaceColorPixel = traceSubsurface(1.0f);
     for (std::size_t channel = 0; channel < 3; ++channel) {
         EXPECT_NEAR(belowMinimumSubsurfaceColorPixel[channel],
                     zeroRedSubsurfaceColorPixel[channel], 1.0e-5f)
@@ -4342,10 +4340,21 @@ TEST_F(RayTracingAcceptanceTest,
                     neutralSubsurfaceColorPixel[channel], 1.0e-5f)
             << "subsurface color above one should clamp to one, channel "
             << channel;
-        EXPECT_NEAR(nonFiniteSubsurfaceColorPixel[channel],
-                    neutralSubsurfaceColorPixel[channel], 1.0e-5f)
-            << "non-finite subsurface color should use its white fallback, channel "
-            << channel;
+    }
+    for (std::size_t invalidChannel = 0; invalidChannel < 3; ++invalidChannel) {
+        material.subsurfaceColor[0] = 1.0f;
+        material.subsurfaceColor[1] = 1.0f;
+        material.subsurfaceColor[2] = 1.0f;
+        material.subsurfaceColor[invalidChannel] =
+            std::numeric_limits<float>::quiet_NaN();
+        const auto nonFiniteSubsurfaceColorPixel = traceSubsurface(1.0f);
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(nonFiniteSubsurfaceColorPixel[channel],
+                        neutralSubsurfaceColorPixel[channel], 1.0e-5f)
+                << "non-finite subsurface color channel " << invalidChannel
+                << " should use its white fallback without changing channel "
+                << channel;
+        }
     }
     for (std::size_t channel = 0; channel < 3; ++channel) {
         material.subsurfaceColor[channel] = 1.0f;
