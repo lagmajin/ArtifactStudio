@@ -4458,6 +4458,35 @@ TEST_F(RayTracingAcceptanceTest, SelectsAnisotropyTextureUvSet) {
             << "anisotropy factor should multiply the texture blue strength, "
                "channel " << channel;
     }
+
+    QImage alphaChangedAnisotropyMap = halfBlueAnisotropyMap;
+    for (int y = 0; y < alphaChangedAnisotropyMap.height(); ++y) {
+        auto* row = alphaChangedAnisotropyMap.scanLine(y);
+        for (int x = 0; x < alphaChangedAnisotropyMap.width(); ++x) {
+            row[x * 4 + 3] = x < alphaChangedAnisotropyMap.width() / 2
+                ? 0
+                : 96;
+        }
+    }
+    const QString alphaChangedAnisotropyMapPath = textureDirectory.filePath(
+        QStringLiteral("anisotropy-alpha-changed.png"));
+    ASSERT_TRUE(alphaChangedAnisotropyMap.save(
+        alphaChangedAnisotropyMapPath, "PNG"));
+    material.anisotropyTexture =
+        ArtifactCore::UniString(alphaChangedAnisotropyMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto alphaChangedPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(alphaChangedPixel[channel], halfTextureBlue[channel], 0.02f)
+            << "anisotropy alpha should not affect shading, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
