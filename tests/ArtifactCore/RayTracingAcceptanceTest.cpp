@@ -3,6 +3,7 @@
 #include <DeviceContext.h>
 #include <EngineFactoryVk.h>
 #include <QColor>
+#include <QFileInfo>
 #include <QImage>
 #include <QString>
 #include <QTemporaryDir>
@@ -2786,11 +2787,12 @@ TEST_F(RayTracingAcceptanceTest,
         nullptr, highDensityUvs1.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-emission-minified-checker.png";
+        tempDirectory.filePath(QStringLiteral("emission-checker.png"));
     const auto averagePath =
-        tempDirectory / "artifact-rt-emission-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("emission-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -2812,8 +2814,8 @@ TEST_F(RayTracingAcceptanceTest,
             averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
@@ -2823,8 +2825,7 @@ TEST_F(RayTracingAcceptanceTest,
         material.emissionColor[2] = 1.0f;
     material.emissionStrength = 1.0f;
     for (const float uvScale : {0.5f, 1.0f, 4.0f}) {
-        material.emissionTexture = ArtifactCore::UniString(
-            QString::fromStdString(checkerPath.string()));
+        material.emissionTexture = ArtifactCore::UniString(checkerPath);
         material.emissionTextureUvScale = uvScale;
         ASSERT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
@@ -2836,8 +2837,7 @@ TEST_F(RayTracingAcceptanceTest,
             pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
             pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
 
-        material.emissionTexture = ArtifactCore::UniString(
-            QString::fromStdString(averagePath.string()));
+        material.emissionTexture = ArtifactCore::UniString(averagePath);
         ASSERT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
         ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -2854,8 +2854,7 @@ TEST_F(RayTracingAcceptanceTest,
 
     material.emissionTextureUvSet = 1;
     material.emissionTextureUvScale = 1.0f;
-    material.emissionTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.emissionTexture = ArtifactCore::UniString(checkerPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -2865,8 +2864,7 @@ TEST_F(RayTracingAcceptanceTest,
     const std::array<float, 5> uv1CheckerSamples{
         pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
         pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
-    material.emissionTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.emissionTexture = ArtifactCore::UniString(averagePath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -2879,10 +2877,6 @@ TEST_F(RayTracingAcceptanceTest,
             << "high-density UV1 emission sample " << index
             << " should select the linear-light mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -2909,11 +2903,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto checkerPath = tempDirectory /
-        "artifact-rt-clearcoat-roughness-minified-checker.png";
-    const auto averagePath = tempDirectory /
-        "artifact-rt-clearcoat-roughness-minified-average.png";
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
+    const auto checkerPath =
+        tempDirectory.filePath(QStringLiteral("clearcoat-checker.png"));
+    const auto averagePath =
+        tempDirectory.filePath(QStringLiteral("clearcoat-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -2934,18 +2929,16 @@ TEST_F(RayTracingAcceptanceTest,
             averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.roughness = 0.8f;
     material.clearcoat = 1.0f;
     material.clearcoatRoughness = 0.5f;
-    material.clearcoatTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
-    material.clearcoatRoughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.clearcoatTexture = ArtifactCore::UniString(checkerPath);
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString(checkerPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-clearcoat-roughness-mip"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -2956,10 +2949,8 @@ TEST_F(RayTracingAcceptanceTest,
         pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
         pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
 
-    material.clearcoatTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
-    material.clearcoatRoughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.clearcoatTexture = ArtifactCore::UniString(averagePath);
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString(averagePath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-clearcoat-roughness-mip"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -2971,10 +2962,6 @@ TEST_F(RayTracingAcceptanceTest,
             << "minified clearcoat-roughness sample " << index
             << " should match its linear mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -3001,11 +2988,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-normal-minified-direction-checker.png";
+        tempDirectory.filePath(QStringLiteral("normal-checker.png"));
     const auto averageDirectionPath =
-        tempDirectory / "artifact-rt-normal-minified-average-direction.png";
+        tempDirectory.filePath(QStringLiteral("normal-average-direction.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage averageDirection(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -3028,16 +3016,14 @@ TEST_F(RayTracingAcceptanceTest,
             averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(averageDirection.save(
-        QString::fromStdString(averageDirectionPath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(averageDirection.save(averageDirectionPath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.roughness = 0.5f;
     material.normalStrength = 1.0f;
-    material.normalTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.normalTexture = ArtifactCore::UniString(checkerPath);
     const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
                                     const int x) {
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
@@ -3064,8 +3050,7 @@ TEST_F(RayTracingAcceptanceTest,
     const float filteredRoughness = std::sqrt(std::sqrt(
         baseAlpha * baseAlpha + std::min(2.0f * normalVariance, 0.2f)));
     material.roughness = filteredRoughness;
-    material.normalTexture = ArtifactCore::UniString(
-        QString::fromStdString(averageDirectionPath.string()));
+    material.normalTexture = ArtifactCore::UniString(averageDirectionPath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         const float reference = traceAndSample(material, 14 + index);
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
@@ -3079,16 +3064,14 @@ TEST_F(RayTracingAcceptanceTest,
     material.clearcoat = 1.0f;
     material.clearcoatRoughness = 0.5f;
     material.clearcoatNormalStrength = 1.0f;
-    material.clearcoatNormalTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(checkerPath);
     std::array<float, 5> coatCheckerSamples{};
     for (int index = 0; index < static_cast<int>(coatCheckerSamples.size()); ++index) {
         coatCheckerSamples[static_cast<std::size_t>(index)] =
             traceAndSample(material, 14 + index);
     }
     material.clearcoatRoughness = filteredRoughness;
-    material.clearcoatNormalTexture = ArtifactCore::UniString(
-        QString::fromStdString(averageDirectionPath.string()));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(averageDirectionPath);
     for (int index = 0; index < static_cast<int>(coatCheckerSamples.size()); ++index) {
         EXPECT_NEAR(coatCheckerSamples[static_cast<std::size_t>(index)],
                     traceAndSample(material, 14 + index), 0.04f)
@@ -3102,20 +3085,15 @@ TEST_F(RayTracingAcceptanceTest,
         coatScalarSamples[static_cast<std::size_t>(index)] =
             traceAndSample(material, 14 + index);
     }
-    const auto missingCoatNormalPath = checkerPath.string() + ".missing.png";
-    ASSERT_FALSE(std::filesystem::exists(missingCoatNormalPath));
-    material.clearcoatNormalTexture = ArtifactCore::UniString(
-        QString::fromStdString(missingCoatNormalPath));
+    const auto missingCoatNormalPath = checkerPath + QStringLiteral(".missing.png");
+    ASSERT_FALSE(QFileInfo::exists(missingCoatNormalPath));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(missingCoatNormalPath);
     for (int index = 0; index < static_cast<int>(coatScalarSamples.size()); ++index) {
         EXPECT_NEAR(coatScalarSamples[static_cast<std::size_t>(index)],
                     traceAndSample(material, 14 + index), 0.01f)
             << "a missing clearcoat-normal map should preserve scalar coat shading, sample "
             << index;
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averageDirectionPath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedOpacityTextures) {
