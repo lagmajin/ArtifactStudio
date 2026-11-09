@@ -10959,6 +10959,27 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
             << "clearcoat-normal V offset should swap the bottom sample, channel "
             << channel;
     }
+
+    material.clearcoatNormalUvOffsetV = 0.0f;
+    material.clearcoatNormalUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto coatNormalVScaleTop = pixelAt(12, 8);
+    const auto coatNormalVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(coatNormalVScaleTop[channel], coatNormalV0Bottom[channel],
+                    0.04f)
+            << "clearcoat-normal V scale should swap the top sample, channel "
+            << channel;
+        EXPECT_NEAR(coatNormalVScaleBottom[channel], coatNormalV0Top[channel],
+                    0.04f)
+            << "clearcoat-normal V scale should swap the bottom sample, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
