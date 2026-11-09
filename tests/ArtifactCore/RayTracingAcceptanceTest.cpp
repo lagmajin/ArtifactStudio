@@ -1740,6 +1740,86 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     EXPECT_GT(rightSlotClearcoatRoughnessResponse, 0.001f)
         << "slot 1 clearcoat roughness should change its reflection response";
 
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughness = 0.4f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noSlotSheenPixels));
+    leftMaterial.sheen = 1.0f;
+    std::array<std::array<float, 4>, 2> leftSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftSlotSheenPixels));
+    float leftSlotSheenResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotSheenResponse = std::max(leftSlotSheenResponse,
+            std::fabs(leftSlotSheenPixels[0][channel] -
+                      noSlotSheenPixels[0][channel]));
+        EXPECT_NEAR(leftSlotSheenPixels[1][channel],
+                    noSlotSheenPixels[1][channel], 0.01f)
+            << "changing slot 0 sheen should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotSheenResponse, 0.001f)
+        << "slot 0 sheen should change its reflection response";
+    leftMaterial.sheen = 0.0f;
+    rightMaterial.sheen = 1.0f;
+    std::array<std::array<float, 4>, 2> rightSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightSlotSheenPixels));
+    float rightSlotSheenResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightSlotSheenPixels[0][channel],
+                    noSlotSheenPixels[0][channel], 0.01f)
+            << "changing slot 1 sheen should preserve slot 0, channel "
+            << channel;
+        rightSlotSheenResponse = std::max(rightSlotSheenResponse,
+            std::fabs(rightSlotSheenPixels[1][channel] -
+                      noSlotSheenPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotSheenResponse, 0.001f)
+        << "slot 1 sheen should change its reflection response";
+
+    leftMaterial.sheen = rightMaterial.sheen = 1.0f;
+    leftMaterial.sheenRoughness = rightMaterial.sheenRoughness = 0.2f;
+    std::array<std::array<float, 4>, 2> smoothSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(smoothSlotSheenPixels));
+    leftMaterial.sheenRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughLeftSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughLeftSlotSheenPixels));
+    float leftSlotSheenRoughnessResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotSheenRoughnessResponse = std::max(
+            leftSlotSheenRoughnessResponse,
+            std::fabs(roughLeftSlotSheenPixels[0][channel] -
+                      smoothSlotSheenPixels[0][channel]));
+        EXPECT_NEAR(roughLeftSlotSheenPixels[1][channel],
+                    smoothSlotSheenPixels[1][channel], 0.01f)
+            << "changing slot 0 sheen roughness should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotSheenRoughnessResponse, 0.001f)
+        << "slot 0 sheen roughness should change its reflection response";
+    leftMaterial.sheenRoughness = 0.2f;
+    rightMaterial.sheenRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughRightSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughRightSlotSheenPixels));
+    float rightSlotSheenRoughnessResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughRightSlotSheenPixels[0][channel],
+                    smoothSlotSheenPixels[0][channel], 0.01f)
+            << "changing slot 1 sheen roughness should preserve slot 0, channel "
+            << channel;
+        rightSlotSheenRoughnessResponse = std::max(
+            rightSlotSheenRoughnessResponse,
+            std::fabs(roughRightSlotSheenPixels[1][channel] -
+                      smoothSlotSheenPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotSheenRoughnessResponse, 0.001f)
+        << "slot 1 sheen roughness should change its reflection response";
+
     leftMaterial.subsurface = 0.0f;
     leftMaterial.clearcoat = 0.0f;
     leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
