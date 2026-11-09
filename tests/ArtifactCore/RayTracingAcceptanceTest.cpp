@@ -3521,6 +3521,41 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
     EXPECT_GT(uv0Difference, 0.02f)
         << "the roughness map's red channel should distinguish the two UV0 halves";
 
+    QImage roughnessOtherChannelsChanged = roughnessMap;
+    for (int y = 0; y < roughnessOtherChannelsChanged.height(); ++y) {
+        auto* row = roughnessOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < roughnessOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[1] = 0;
+            pixel[2] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const QString roughnessOtherChannelsPath = textureDirectory.filePath(
+        QStringLiteral("independent-roughness-other-channels.png"));
+    ASSERT_TRUE(roughnessOtherChannelsChanged.save(
+        roughnessOtherChannelsPath, "PNG"));
+    material.roughnessTexture =
+        ArtifactCore::UniString(roughnessOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto otherChannelsChangedLeft = pixelAt(8, 16);
+    const auto otherChannelsChangedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(otherChannelsChangedLeft[channel], uv0Left[channel], 0.02f)
+            << "roughness should read red independently, left channel "
+            << channel;
+        EXPECT_NEAR(otherChannelsChangedRight[channel], uv0Right[channel], 0.02f)
+            << "roughness should read red independently, right channel "
+            << channel;
+    }
+    material.roughnessTexture = ArtifactCore::UniString(roughnessMapPath);
+
     const QString halfRoughnessMapPath = textureDirectory.filePath(
         QStringLiteral("independent-roughness-half.png"));
     QImage halfRoughnessMap(8, 2, QImage::Format_RGBA8888);
