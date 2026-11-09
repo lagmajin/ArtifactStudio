@@ -2825,6 +2825,41 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
         << "packed metallic-roughness green should vary roughness while red "
            "and blue remain constant";
 
+    QImage transparentPackedMap = greenRoughnessMap;
+    for (int y = 0; y < transparentPackedMap.height(); ++y) {
+        auto* row = transparentPackedMap.scanLine(y);
+        for (int x = 0; x < transparentPackedMap.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const auto transparentPackedMapPath = surfaceMapDirectory.filePath(
+        QStringLiteral("transparent-packed-map.png"));
+    ASSERT_TRUE(transparentPackedMap.save(
+        transparentPackedMapPath, "PNG"));
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(transparentPackedMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentPackedLeft = pixelAt(8, 16);
+    const auto transparentPackedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(transparentPackedLeft[channel], packedRoughnessLeft[channel],
+                    0.01f)
+            << "packed metallic-roughness alpha should not change RGB input, "
+               "left channel " << channel;
+        EXPECT_NEAR(transparentPackedRight[channel],
+                    packedRoughnessRight[channel], 0.01f)
+            << "packed metallic-roughness alpha should not change RGB input, "
+               "right channel " << channel;
+    }
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(greenRoughnessMapPath);
+
     material.roughness = 0.5f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-color-surface-maps"), material));
