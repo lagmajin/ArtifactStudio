@@ -7138,6 +7138,38 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     EXPECT_NEAR(mappedLeft[0], flatLeft[0], 0.03f);
     EXPECT_LT(mappedRight[0], flatRight[0] - 0.05f);
 
+    QImage transparentNormalImage = normalImage;
+    for (int y = 0; y < transparentNormalImage.height(); ++y) {
+        auto* row = transparentNormalImage.scanLine(y);
+        for (int x = 0; x < transparentNormalImage.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const auto transparentNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(QStringLiteral("normal-map-alpha-zero.png"))
+            .toStdString());
+    ASSERT_TRUE(transparentNormalImage.save(
+        QString::fromStdString(transparentNormalPath.string()), "PNG"));
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(transparentNormalPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(pixelAt(8, 16)[channel], mappedLeft[channel], 0.01f)
+            << "normal-map alpha should not change the RGB normal, left channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(24, 16)[channel], mappedRight[channel], 0.01f)
+            << "normal-map alpha should not change the RGB normal, right channel "
+            << channel;
+    }
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(normalPath.string()));
+
     material.normalStrength = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-normal-map"), material));
