@@ -10557,10 +10557,90 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     EXPECT_NEAR(shiftedNormalRight[0], unshiftedNormalLeft[0], 0.03f)
         << "normal-map U offset should wrap the flat texels onto the right";
 
+    const auto verticalNormalPath = normalMapDirectory.filePath(
+        QStringLiteral("normal-map-v-ramp.png"));
+    QImage verticalNormalImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalNormalImage.isNull());
+    for (int y = 0; y < verticalNormalImage.height(); ++y) {
+        auto* row = verticalNormalImage.scanLine(y);
+        for (int x = 0; x < verticalNormalImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool tilted = y >= verticalNormalImage.height() / 2;
+            pixel[0] = tilted ? 255 : 128;
+            pixel[1] = 128;
+            pixel[2] = tilted ? 128 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalNormalImage.save(
+        QString::fromStdString(verticalNormalPath.string()), "PNG"));
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(verticalNormalPath.string()));
+    material.normalUvRotationDegrees = 0.0f;
+    material.normalUvScale = 1.0f;
+    material.normalUvOffsetU = 0.0f;
+    material.normalUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto normalV0Top = pixelAt(12, 8);
+    const auto normalV0Bottom = pixelAt(12, 24);
+    const float normalV0Difference = std::max(
+        std::fabs(normalV0Top[0] - normalV0Bottom[0]),
+        std::max(std::fabs(normalV0Top[1] - normalV0Bottom[1]),
+                 std::fabs(normalV0Top[2] - normalV0Bottom[2])));
+    EXPECT_GT(normalV0Difference, 0.02f)
+        << "normal texture should distinguish flat and tilted V samples";
+
+    material.normalUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto normalVOffsetTop = pixelAt(12, 8);
+    const auto normalVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(normalVOffsetTop[channel], normalV0Bottom[channel], 0.04f)
+            << "normal-map V offset should mirror the top sample, channel "
+            << channel;
+        EXPECT_NEAR(normalVOffsetBottom[channel], normalV0Top[channel], 0.04f)
+            << "normal-map V offset should mirror the bottom sample, channel "
+            << channel;
+    }
+
+    material.normalUvOffsetV = 0.0f;
+    material.normalUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto normalVScaleTop = pixelAt(12, 8);
+    const auto normalVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(normalVScaleTop[channel], normalV0Bottom[channel], 0.04f)
+            << "normal-map V scale should repeat the bottom sample on top, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(normalVScaleBottom[channel], normalV0Top[channel], 0.04f)
+            << "normal-map V scale should repeat the top sample on bottom, "
+               "channel "
+            << channel;
+    }
+
     material.normalTexture = ArtifactCore::UniString(
         QString::fromStdString(normalMapDirectory.filePath(
             QStringLiteral("missing-normal.png")).toStdString()));
     material.normalUvRotationDegrees = 0.0f;
+    material.normalUvScale = 1.0f;
+    material.normalUvOffsetU = 0.0f;
+    material.normalUvOffsetV = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-normal-map"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
