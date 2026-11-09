@@ -1604,21 +1604,44 @@ TEST_F(RayTracingAcceptanceTest,
     EXPECT_GT(highIor[0], glassIor[0] + 0.001f)
         << "higher dielectric IOR should increase normal-incidence reflectance";
 
-    material.ior = 1.5f;
-    material.thinFilmIOR = 1.33f;
-    material.thinFilmThickness = 400.0f;
-    ASSERT_TRUE(manager_->setInstancePbrMaterial(
-        ArtifactCore::UniString("pbr-ior-fresnel"), material));
-    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
-    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
-    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
-                                        kRayTraceTestImageSize,
-                                        kRayTraceTestImageSize));
-    const auto thinFilmPixel = pixelAt(16, 16);
+    const auto traceThinFilm = [&](const float thicknessNm, const float filmIor) {
+        material.ior = 1.5f;
+        material.thinFilmThickness = thicknessNm;
+        material.thinFilmIOR = filmIor;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto thinFilmPixel = traceThinFilm(400.0f, 1.33f);
     EXPECT_GT(thinFilmPixel[1], thinFilmPixel[0] + 0.001f)
         << "thin-film interference should tint the dielectric reflection green";
     EXPECT_GT(thinFilmPixel[1], thinFilmPixel[2] + 0.001f)
         << "thin-film interference should separate wavelength-dependent reflectance";
+
+    const auto expectSameRgb = [](const auto& lhs, const auto& rhs,
+                                  const char* reason) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(lhs[channel], rhs[channel], 1.0e-5f)
+                << reason << ", channel " << channel;
+        }
+    };
+    expectSameRgb(traceThinFilm(0.0f, 1.33f),
+                 traceThinFilm(-10.0f, 1.33f),
+                 "negative film thickness should clamp to zero");
+    expectSameRgb(traceThinFilm(1000.0f, 1.33f),
+                 traceThinFilm(1200.0f, 1.33f),
+                 "film thickness above 1000 nm should clamp to 1000 nm");
+    expectSameRgb(traceThinFilm(400.0f, 1.0f),
+                 traceThinFilm(400.0f, 0.5f),
+                 "film IOR below one should clamp to one");
+    expectSameRgb(traceThinFilm(400.0f, 2.5f),
+                 traceThinFilm(400.0f, 3.0f),
+                 "film IOR above 2.5 should clamp to 2.5");
 }
 
 TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
