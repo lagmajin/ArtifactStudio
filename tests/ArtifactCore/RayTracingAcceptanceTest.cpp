@@ -832,12 +832,19 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
     ASSERT_TRUE(temporaryDirectory.isValid());
     const auto texturePath =
         temporaryDirectory.filePath(QStringLiteral("ao-uv-test.png"));
-    QImage aoImage(8, 2, QImage::Format_Grayscale8);
+    QImage aoImage(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(aoImage.isNull());
     for (int y = 0; y < aoImage.height(); ++y) {
         auto* row = aoImage.scanLine(y);
-        std::fill(row, row + 4, static_cast<uchar>(0));
-        std::fill(row + 4, row + 8, static_cast<uchar>(255));
+        for (int x = 0; x < aoImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const uchar red = x < 4 ? 0 : 255;
+            const uchar inverse = x < 4 ? 255 : 0;
+            pixel[0] = red;
+            pixel[1] = inverse;
+            pixel[2] = inverse;
+            pixel[3] = 255;
+        }
     }
     ASSERT_TRUE(aoImage.save(texturePath, "PNG"));
 
