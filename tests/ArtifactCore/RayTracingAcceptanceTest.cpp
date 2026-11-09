@@ -928,6 +928,73 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         << "changing slot 1 clearcoat-normal map should preserve slot 0";
     EXPECT_GT(std::fabs(tiltedCoatRightPixel[0] - flatCoatRightPixel[0]), 0.01f)
         << "slot 1 clearcoat-normal map should change its coated lobe";
+
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 1.0f;
+    leftMaterial.sheenRoughness = 0.4f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString(redTexturePath);
+    rightMaterial = leftMaterial;
+    rightMaterial.sheenColorTexture = ArtifactCore::UniString(blueTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto redSheenLeftPixel = pixelAt(8, 16);
+    const auto blueSheenRightPixel = pixelAt(24, 16);
+
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString(blueTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto blueSheenLeftPixel = pixelAt(8, 16);
+    const auto unchangedBlueSheenRightPixel = pixelAt(24, 16);
+    const float leftSheenMapDifference = std::max(
+        std::fabs(blueSheenLeftPixel[0] - redSheenLeftPixel[0]),
+        std::max(std::fabs(blueSheenLeftPixel[1] - redSheenLeftPixel[1]),
+                 std::fabs(blueSheenLeftPixel[2] - redSheenLeftPixel[2])));
+    EXPECT_GT(leftSheenMapDifference, 0.001f)
+        << "slot 0 sheen-color map should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedBlueSheenRightPixel[channel],
+                    blueSheenRightPixel[channel], 0.01f)
+            << "changing slot 0 sheen-color map should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString(redTexturePath);
+    rightMaterial.sheenColorTexture = ArtifactCore::UniString(redTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedRedSheenLeftPixel = pixelAt(8, 16);
+    const auto redSheenRightPixel = pixelAt(24, 16);
+    const float rightSheenMapDifference = std::max(
+        std::fabs(redSheenRightPixel[0] - blueSheenRightPixel[0]),
+        std::max(std::fabs(redSheenRightPixel[1] - blueSheenRightPixel[1]),
+                 std::fabs(redSheenRightPixel[2] - blueSheenRightPixel[2])));
+    EXPECT_GT(rightSheenMapDifference, 0.001f)
+        << "slot 1 sheen-color map should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRedSheenLeftPixel[channel],
+                    redSheenLeftPixel[channel], 0.01f)
+            << "changing slot 1 sheen-color map should preserve slot 0, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
