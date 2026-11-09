@@ -5,6 +5,7 @@
 #include <QColor>
 #include <QImage>
 #include <QString>
+#include <QTemporaryDir>
 #include <QVector3D>
 #include <RefCntAutoPtr.hpp>
 #include <Texture.h>
@@ -29,6 +30,7 @@ import Graphics.RayTracingManager;
 import Graphics.GPUcomputeContext;
 import Graphics.MeshRenderer;
 import Core.Light;
+import Image.OpenEXR;
 import IO.ImageImporter;
 import Mesh;
 import Utils.String.UniString;
@@ -625,7 +627,7 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
     std::filesystem::remove(dielectricMapPath, ignored);
 }
 
-TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
+TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
     constexpr std::array<float, 12> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
          0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
@@ -647,8 +649,10 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
         ArtifactCore::UniString("pbr-emission-texture"), vertices.data(), 4,
         indices.data(), 6, nullptr, nullptr, uvs.data()));
 
-    const auto texturePath = std::filesystem::temp_directory_path() /
-                             "artifact-rt-emission-texture.png";
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+    const QString texturePath = temporaryDirectory.filePath(
+        QStringLiteral("emission-srgb.png"));
     QImage emissionImage(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(emissionImage.isNull());
     for (int y = 0; y < emissionImage.height(); ++y) {
@@ -661,8 +665,7 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
             pixel[3] = 255;
         }
     }
-    ASSERT_TRUE(emissionImage.save(
-        QString::fromStdString(texturePath.string()), "PNG"));
+    ASSERT_TRUE(emissionImage.save(texturePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
@@ -671,8 +674,7 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
     material.emissionColor[0] = material.emissionColor[1] =
         material.emissionColor[2] = 1.0f;
     material.emissionStrength = 1.0f;
-    material.emissionTexture = ArtifactCore::UniString(
-        QString::fromStdString(texturePath.string()));
+    material.emissionTexture = ArtifactCore::UniString(texturePath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-emission-texture"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -684,8 +686,38 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
     const auto rightEmission = pixelAt(24, 16);
     EXPECT_GT(leftEmission[0], leftEmission[1] + 0.2f);
     EXPECT_GT(rightEmission[1], rightEmission[0] + 0.2f);
-    std::error_code ignored;
-    std::filesystem::remove(texturePath, ignored);
+
+    constexpr std::array<float, 8 * 2 * 4> hdrPixels = [] {
+        std::array<float, 8 * 2 * 4> pixels{};
+        for (int y = 0; y < 2; ++y) {
+            for (int x = 0; x < 8; ++x) {
+                const size_t offset = static_cast<size_t>(y * 8 + x) * 4;
+                pixels[offset + 0] = x < 4 ? 4.0f : 0.0f;
+                pixels[offset + 1] = x < 4 ? 0.0f : 2.0f;
+                pixels[offset + 2] = 0.25f;
+                pixels[offset + 3] = 1.0f;
+            }
+        }
+        return pixels;
+    }();
+    const QString hdrTexturePath = temporaryDirectory.filePath(
+        QStringLiteral("emission-hdr.exr"));
+    ArtifactCore::OpenExr exr;
+    ASSERT_TRUE(exr.writeRGBA32F(hdrTexturePath, hdrPixels.data(), 8, 2));
+    material.emissionTexture = ArtifactCore::UniString(hdrTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    ASSERT_TRUE(saveOutputFrame("26-pbr-hdr-emission-texture.exr-source.png"));
+    const auto leftHdrEmission = pixelAt(8, 16);
+    const auto rightHdrEmission = pixelAt(24, 16);
+    EXPECT_GT(leftHdrEmission[0], 3.5f);
+    EXPECT_LT(leftHdrEmission[1], 0.1f);
+    EXPECT_GT(rightHdrEmission[1], 1.5f);
+    EXPECT_LT(rightHdrEmission[0], 0.1f);
 }
 
 TEST_F(RayTracingAcceptanceTest,
