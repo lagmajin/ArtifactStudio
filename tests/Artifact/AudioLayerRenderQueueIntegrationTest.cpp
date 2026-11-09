@@ -625,12 +625,17 @@ TEST(AudioLayerRenderIntegrationTest,
                                               ArtifactCore::FramePosition(0),
                                               4800, 48000));
     ASSERT_EQ(restoredMix.channelData.size(), mutedMix.channelData.size());
-    ASSERT_EQ(restoredMix.channelData[0].size(), mutedMix.channelData[0].size());
     EXPECT_NEAR(rms(restoredMix.channelData[0]), mutedRms, 1.0e-4);
-    for (qsizetype frame = 0; frame < mutedMix.channelData[0].size(); ++frame) {
-        EXPECT_NEAR(restoredMix.channelData[0][frame],
-                    mutedMix.channelData[0][frame], 1.0e-5f)
-            << "sample differs at frame " << frame;
+    for (qsizetype channel = 0; channel < mutedMix.channelData.size(); ++channel) {
+        ASSERT_EQ(restoredMix.channelData[channel].size(),
+                  mutedMix.channelData[channel].size())
+            << "channel " << channel;
+        for (qsizetype frame = 0; frame < mutedMix.channelData[channel].size(); ++frame) {
+            EXPECT_NEAR(restoredMix.channelData[channel][frame],
+                        mutedMix.channelData[channel][frame], 1.0e-5f)
+                << "sample differs at channel " << channel
+                << ", frame " << frame;
+        }
     }
 
     QString renderFailure;

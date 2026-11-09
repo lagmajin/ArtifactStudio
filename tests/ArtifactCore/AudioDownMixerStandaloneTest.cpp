@@ -279,6 +279,46 @@ TEST(AudioDownMixerStandaloneTest, Surround51ToMonoAveragesEveryChannel)
     EXPECT_EQ(output.channelData[0], (QVector<float>{3.5f, 7.0f}));
 }
 
+TEST(AudioDownMixerStandaloneTest, Surround71ToMonoAveragesEveryChannel)
+{
+    AudioDownMixer mixer;
+    mixer.setTargetLayout(AudioChannelLayout::Mono);
+    const auto source = makeSegment(
+        AudioChannelLayout::Surround71,
+        {{1.0f, 2.0f}, {2.0f, 4.0f}, {3.0f, 6.0f}, {4.0f, 8.0f},
+         {5.0f, 10.0f}, {6.0f, 12.0f}, {7.0f, 14.0f}, {8.0f, 16.0f}},
+        96000, 1234);
+
+    const auto output = mixer.process(source);
+
+    EXPECT_EQ(output.layout, AudioChannelLayout::Mono);
+    EXPECT_EQ(output.sampleRate, 96000);
+    EXPECT_EQ(output.startFrame, 1234);
+    ASSERT_EQ(output.channelData.size(), 1);
+    EXPECT_EQ(output.channelData[0], (QVector<float>{4.5f, 9.0f}));
+}
+
+TEST(AudioDownMixerStandaloneTest,
+     Surround71ToMonoUsesOnlyFramesPresentInEveryChannel)
+{
+    AudioDownMixer mixer;
+    mixer.setTargetLayout(AudioChannelLayout::Mono);
+    const auto source = makeSegment(
+        AudioChannelLayout::Surround71,
+        {{1.0f, 2.0f}, {2.0f, 4.0f}, {3.0f, 6.0f}, {4.0f, 8.0f},
+         {5.0f, 10.0f}, {6.0f, 12.0f}, {7.0f, 14.0f}, {8.0f}},
+        96000, 1234);
+
+    const auto output = mixer.process(source);
+
+    EXPECT_EQ(output.layout, AudioChannelLayout::Mono);
+    EXPECT_EQ(output.sampleRate, 96000);
+    EXPECT_EQ(output.startFrame, 1234);
+    ASSERT_EQ(output.channelData.size(), 1);
+    EXPECT_EQ(output.channelData[0], (QVector<float>{4.5f}));
+    EXPECT_EQ(output.frameCount(), 1);
+}
+
 TEST(AudioDownMixerStandaloneTest, ExplicitChannelMapReordersDuplicatesAndSilencesInvalidIndices)
 {
     AudioDownMixer mixer;

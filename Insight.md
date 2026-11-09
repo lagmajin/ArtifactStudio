@@ -135,6 +135,1021 @@
 - **Confirmed:** transformed sprites, atlas sprites, and textured triangles have separate packet variants but use the transformed-sprite PSO in the submitter. Solid rectangles, gradients, glyph text, and cloner grid draws use separate packet and/or submit paths. The layer API dispatches through these operations, so one layer-level `is2D()` switch cannot create alpha- and shape-correct velocity coverage.
 - **Value or concern:** a physical 2D vector pass must carry previous/current transform data through every relevant draw packet and preserve each packet's sampled alpha/geometry. A center-point or bounding-box velocity fill would leak across transparent pixels and occlusions.
 - **Next:** map packet variants to their GPU pipelines and decide whether a shared per-draw velocity output or a dedicated coverage-preserving replay is the smaller complete implementation. Keep cloner instances and glyph offset transforms in the acceptance scope.
+**最終更新:** 2026-11-09
+
+## 2026-11-09: 標準CMYKのK channelとopaque alpha
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha`、静止画受入表IMG-10、制作準備文書のStandard CMYK decode契約。
+- **確認できた事実:** 契約はC/M/Y/K channel名を標準CMYKとして検出しRGB変換した後にopaque alphaを設定するが、受入表の実素材decodeは未実行であり、現在のLayer testsにもCMYK fixtureがない。
+- **追加した確認:** OpenImageIOでC/M/Y/K名付きfloat EXRを生成し、ゼロCMYのK=0/K=1をwhite/black端点へ変換し、両pixelのRGBA alphaが1で、metadataのalphaChannelは未宣言かつchannel名を保持することを検査する。
+- **価値または懸念:** Kが第4ch alphaとして誤用される回帰と、channel metadata／pixel conversionの解離を検出する。ICC色管理付きCMYKの精密変換は別契約。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 巨大画像拒否時のactive layer state保持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::OversizedImageFailuresPreserveActiveSourceAndLayerState`、静止画受入表IMG-12／IMG-13。
+- **確認できた事実:** 辺長上限と総画素数上限の既存テストは初期状態のlayerに入力し、placeholderとdiagnosticを確認する。既存file sourceがある状態で失敗した候補sourceを拒否し、現在source stateを保つ遷移は確認していなかった。
+- **追加した確認:** 正常sourceをload後、辺長超過と64M画素超過を順に適用し、source path／ID／version、全RGBA buffer値、source metadata、表示pixel、opacity、positionが維持されるか検査する。
+- **価値または懸念:** header preflight拒否時に正常な編集対象がplaceholderや新pathへ部分置換される回帰を検出する。runtime未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.OversizedImageFailuresPreserveActiveSourceAndLayerState` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Source上書き時のpixelとmetadata snapshot同期
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion`、静止画受入表OP-08、制作準備文書の「Source version更新時のmetadata同期」。
+- **確認できた事実:** 既存同一path上書きテストは同じ寸法・RGBA layoutの色差とsource versionのみを確認し、header layoutが変わる上書き時のsource metadata更新を確認していなかった。実装契約はpixel bufferと同じversion由来のmetadata snapshotを採用する。
+- **追加した確認:** 2x1 RGB888から3x1 16-bit RGBAへ同一path上書きし、AssetManager version invalidation後にdimensions、float pixels、alpha semantics、bit depth、channel namesが新sourceと一致することを検査する。
+- **価値または懸念:** 古いheader metadataと新pixel payloadの混在、古いdecoded shapeの再利用を検出する。非同期scheduleの競合順序やGPU cache反映はruntime受入で別途確認が必要。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Pixel aspect表示boundsとcrop／fit復元
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::PixelAspectChangesDisplayWidthUnlessFitToLayer`、静止画受入表IMG-08／OP-03。
+- **確認できた事実:** 既存テストはpixel aspectによる表示幅とfit時の幅を確認するが、bounds全体、crop適用時のsource pixel rectとbounds維持、JSON復元後のcrop／fit結果を組み合わせて検証していなかった。制作準備文書ではboundsをComposition View、Render Controller、hit-test等で共有するとしている。
+- **追加した確認:** 1.5 pixel aspectの4x2 sourceについて非fit boundsを6x2、crop後も同bounds、fit時は4x2と照合し、crop rectとfit設定のJSON往復も確認する。
+- **価値または懸念:** 表示rectとcrop座標系の混同、およびproject復元後のfit/aspect不整合を検出する。実素材のpreview／Render Queue pixel parityはruntime未確認。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.PixelAspectChangesDisplayWidthUnlessFitToLayer` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: SourceCrop aspect-fit変換の非対称境界
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceCropAspectTransformMapsOffCenterCropAndInverts`、静止画受入表OP-03。
+- **確認できた事実:** 既存テストはcropのaspect-fit中心配置とsource crop boundsを個別に確認するが、off-center crop領域の四隅・中心が同じ変換で期待座標に写るか、および逆変換の往復を一つの数値oracleで検証していなかった。
+- **追加した確認:** 3:4の非対称cropを12:6 outputへaspect保持でfitし、左右余白を含む四隅と内部点の座標、および逆写像を検査する。
+- **価値または懸念:** crop中心、aspect fit時のoffset、x/y scaleのずれを固定する。layerのrotation/pan/zoom合成と実レンダリングは別途runtime確認が必要。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SourceCropAspectTransformMapsOffCenterCropAndInverts` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Float EXRのHDR値をImageLayerへ接続
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FloatExrPreservesHdrAndNegativeValuesInLayerBuffer`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のIMG-04。
+- **確認できた事実:** 静止画受入表IMG-04ではhalf/float EXRの負値・1超過値とlayer decode精度が未実行。既存ケースはCore側のEXR出力契約またはImageLayerの整数画像decodeを個別に確認していた。
+- **追加した確認:** OpenImageIOでfloat RGBA EXRを生成し、ArtifactImageLayerのRGBA32F bufferで負値・HDR値・alphaと32-bit source metadataを照合する。
+- **価値または懸念:** EXR importerからlayer working bufferへ値が届く統合境界を検査する。ICC/working-space変換との相互作用は本テストの対象外。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FloatExrPreservesHdrAndNegativeValuesInLayerBuffer` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: ImageSequence のプロジェクト移動後の参照維持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 既存の連番プロジェクト再読込テストは欠落フレームのslot維持を確認していたが、保存済みプロジェクトと画像を別ルートへ移して旧画像を削除する遷移は扱っていなかった。
+- **追加した確認:** 移動先ルートからプロジェクトを開き、両フレームの参照先・frame rate・デコード画素を検査し、再保存と再読込後も参照先と画素が維持されるテストを追加した。
+- **価値または懸念:** 古い絶対パスが残っていても同じマシン上で偶然読み込める状態を避け、プロジェクト移動後の再保存まで含む参照復旧を記録する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 移動後のImageSequenceで欠落slotを再リンクして保存
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingProjectKeepsMissingSequenceSlotForRelinkAndResave`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** Source Relocation契約はsequence候補をslotごとに解決し、相対候補が無い欠落slotでは元pathを維持する。既存の移動テストは全フレームの相対復元、欠番テストは同じproject rootで欠番slot復元を別々に検査していた。
+- **追加した確認:** 先頭・末尾だけが移動先で存在し、中間slotの元pathだけ欠落する状態でprojectを開く。slot順とrateを確認し、中間slotを別名pathへ置き換えて再生、保存、再読込後も全slotと画素が保たれるか検査する。
+- **価値または懸念:** 混在する相対復元とabsolute fallback、sequence index保持、再リンク後の永続化を同じproject lifecycleで固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingProjectKeepsMissingSequenceSlotForRelinkAndResave` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 保存Asset IDとsource path候補の優先順位
+- **関連:** `ArtifactImageLayer::fromJsonProperties()`、`tests/Artifact/StillImageLayerRoundTripTest.cpp::SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 契約書は既存ファイルへ解決できる保存Asset IDがimporter設定pathより優先され、ID先が使えない場合は相対path等の候補を使うとしている。既存テストはsource IDによるversion invalidationを同一path上で検査するが、異なる既存path同士の選択は検査していない。
+- **追加した確認:** JSONのsource pathを別画像へ向けても登録済Asset IDの画像が選ばれることと、ID先ファイル削除後はJSON path候補へfallbackすることを画素・source path・identityで照合する。
+- **価値または懸念:** 移動復元時のcandidate priorityを画像の実体選択として検査する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Shared source identityのlocalizeは対象レイヤーに限定
+- **関連:** `ArtifactImageLayer::localizeSourceIdentity()/relinkSourceIdentityToShared()`、`tests/Artifact/StillImageLayerRoundTripTest.cpp::LocalizingOneLayerLeavesOtherSharedSourceIdentityUnchanged`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のOP-07。
+- **確認できた事実:** 既存テストは単一レイヤー内のlocalize/relink結果だけを確認し、同じsource identityを参照する複数レイヤー間の分離は扱っていなかった。受入マトリクスOP-07は複数layerを使ったShared／Localizedを未実行としている。
+- **追加した確認:** 同一ファイルを読む2レイヤーが同じIDで開始し、一方をlocalizeするとそのIDだけが分岐する。shared IDをinvalidateすると共有側だけが新画素／versionへ進み、localized側は保持され、relink後にlocalized側も新しいshared画素へ追いつくことを検査する。
+- **価値または懸念:** local identity操作の影響範囲とdecoded payload/version invalidationの分離を複数利用者境界で固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.LocalizingOneLayerLeavesOtherSharedSourceIdentityUnchanged` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 移転した静止画のICC metadataとInput Interpretation保存
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingStillImageProjectPreservesSourceMetadataAndInterpretationAfterResave`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のIMG-09、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 静止画受入表はICC／色空間metadataの保存・再読込とworking-space結果を未実行とし、移転契約はsource metadataの保存・再読込保持を求める。既存ImageLayerテストはInput Interpretation文字列の直接JSON往復までで、project移転後の復元は確認していない。
+- **追加した確認:** ICC付きsource imageとprojectを新しいrootへ移して旧画像を削除し、相対pathで復旧後にICC metadata・色空間名・transfer名が保持されること、再保存／再読込後もpath・metadata・設定・画素が同じであることを検査する。
+- **価値または懸念:** source identity fallbackとICC／色解釈値の永続化を同じproject lifecycleで固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingStillImageProjectPreservesSourceMetadataAndInterpretationAfterResave` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Missing静止画の別path relink後round-trip
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MissingSourceCanBeRelinkedToNewPathAfterProjectReloadAndResaved`、静止画受入表IMG-14／OP-09。
+- **確認できた事実:** 既存テストはproject reload後にmissingだった元pathへ画像を戻して復旧するが、別pathへrelinkした後の保存・再読込を検査していなかった。
+- **追加した確認:** 新しいpathへ画像をrelinkし、pathとAsset IDを得た後にprojectを再保存・再読込する。旧pathが欠落したまま、新path、identity、pixel、opacity、transformが維持されることを確認する。
+- **価値または懸念:** missing recovery後に古い参照が復活する回帰と、relink結果がserializationで失われる回帰を合わせて検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MissingSourceCanBeRelinkedToNewPathAfterProjectReloadAndResaved` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: source clearでsequence identityとcacheも破棄
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::EmptySourceClearsImageState`、`docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md` の「空source pathの正式clear操作」。
+- **確認できた事実:** 既存clearテストは`setFromQImage()`で作ったbufferを空pathで消すのみで、file-backed source identity、sequence frame list、sequence decoded cacheは通していなかった。
+- **追加した確認:** file sourceをsequenceへ切り替えて第2frameをdecodeした後、空pathでsource ID・sequence状態・frame list・bufferが消えること、JSONからも空状態が戻ること、clearの再適用で空状態が維持されることを検査する。
+- **価値または懸念:** source clear後にAsset IDやsequence cacheが残って再decode・古い画素を復活させる回帰を、一つの遷移で検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.EmptySourceClearsImageState` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 16-bit RGBA Importer結果のImageLayer接続
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SixteenBitRgbaPngKeepsFloatPrecisionChannelsAndAlpha`、`tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::PreservesTrueSixteenBitPngChannelValues`、静止画受入表IMG-03。
+- **確認できた事実:** Core Importer suiteには16-bit RGBA PNGのchannel value厳密検査がある一方、ImageLayer suiteの16-bit精度ケースはgrayscaleのみで、RGBA channel order・alpha・metadataのlayer接続を確認していなかった。
+- **追加した確認:** 16-bit RGBA PNGの隣接16-bit色値を含む3画素をArtifactImageLayerへ読み、float bufferで値の差・channel order・alphaを、source metadataで4-channel／alpha位置／16-bit depthを検査する。
+- **価値または懸念:** OIIO importerの精度がLayerのworking bufferまで8-bitへ量子化されず届く境界を固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SixteenBitRgbaPngKeepsFloatPrecisionChannelsAndAlpha` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
+- **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
+- **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。
+- **追加した確認:** alphaが0、半透明、1.0の4画素に全色調補正を同時適用し、alphaが画素ごとに維持されること、RGB各成分が最終posterize段階の5レベル値に揃うことを検証する。
+- **価値または懸念:** 個別effectでは見逃す処理順の入れ替えや、不透明度を色調補正が誤変更する回帰を捕捉できる。テスト未実行。
+- **次に確認すること:** `ArtifactPrContractTest.CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: RenderPlan 派生入力の編集後スナップショット
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cpp::EditorEngine::createRenderPlan`、`tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RenderPlanDerivedMediaInputsStayFrozenAcrossLiveSequenceEdits`。
+- **確認できた事実:** RenderPlanはNLE snapshotのほかにtransition、clip effects、audio clip mix情報を個別配列・mapへ展開して返す。既存snapshot isolationテストはNLE JSONとframe rangeを確認し、別テストはaudioフィルタやeffect収集を確認するが、生成済み派生入力の後続編集に対する不変性をまとめて検証していない。
+- **追加した確認:** plan作成後にlive sequenceのtransition削除、映像glow変更、audio track mute・volume・EQ変更を行い、古いplanの全派生入力が維持され、新しいplanだけが編集後状態を反映することを確認する。
+- **価値または懸念:** Export開始後の編集がすでに構築されたrender/audio jobへ漏れる回帰を、NLE snapshot一致だけではなく実消費入力で検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrEditorEngineTest.RenderPlanDerivedMediaInputsStayFrozenAcrossLiveSequenceEdits` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: SequenceCompositor 半透明背景の積層alpha oracle
+- **関連:** `ArtifactPr/src/SequenceCompositor.cpp::composeSequenceLayers`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle`。
+- **確認できた事実:** 既存の積層source-over oracleはopaque背景を使い、RGBの累積を検証するが、最終alphaが常に1のため背景と複数レイヤーのalpha合成を検証しない。
+- **追加した確認:** 半透明背景にsource alphaとlayer opacityの異なる3レイヤーを重ね、premultiplied accumulationから導くRGB・alphaをcompositorの結果と比較する。1x1入力でfit resizeの影響を排除する。
+- **価値または懸念:** 透過背景のalpha合成、layer opacityの適用、下層から上層への合成順を1つの厳密な数値oracleで確認できる。テスト未実行。
+- **次に確認すること:** `ArtifactPrSequenceCompositorTest.StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Timeline mute/solo同期のNLE履歴保護
+- **関連:** `ArtifactPr/src/TimelinePanel.cpp::updateTimelineGeometry`、`tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp::ProgrammaticMuteSoloRefreshDoesNotWriteBackIntoNleHistory`。
+- **確認できた事実:** Timeline panelはsequenceChanged時にtrack mute/soloボタンのcheck状態をモデルから更新し、toggledの逆流を防ぐため`QSignalBlocker`を使う。既存panelテストは表示とclip追加・削除を確認するが、この逆流防止やNLE undo履歴への影響は検査していない。
+- **追加した確認:** modelのaudio trackをmute/solo状態にしてpanelをrefreshし、両ボタン表示が同期する一方、NLE snapshotとundo件数が変化しないことを確認する。
+- **価値または懸念:** model→UI反映が意図しないUI→model編集を起こし、履歴・永続状態を汚染する回帰を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrTimelinePanelTest.ProgrammaticMuteSoloRefreshDoesNotWriteBackIntoNleHistory` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Timeline zoom refreshのwidget identity保持
+- **関連:** `ArtifactPr/src/TimelinePanel.cpp::refreshTimeline` / `updateTimelineGeometry`、`tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp::ZoomRefreshKeepsClipWidgetIdentityAndUpdatesItsWidth`。
+- **確認できた事実:** Timeline panelは構造signatureが同じズーム変更でwidget treeを再構築せず、clip widgetのminimum/maximum widthを更新する。既存UIテストはzoom labelの倍率のみを確認しており、widget identity、幅、選択状態の維持は確認していない。
+- **追加した確認:** frame幅を既知値に初期化した上でclipを選択し、1x→2x→1xのzoom refresh中に同一widgetが維持され、幅が比例更新され、選択clipが変わらないことを確認する。
+- **価値または懸念:** zoom操作でrowを再生成する回帰やclipの表示状態・選択状態が失われる回帰を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrTimelinePanelTest.ZoomRefreshKeepsClipWidgetIdentityAndUpdatesItsWidth` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: NLE moveのsource/timeline範囲分離と履歴
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cpp::EditorEngine::moveClip`、`tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleMovePreservesSourceRangeAndUndoRedoRestoresTimelinePlacement`。
+- **確認できた事実:** NLE clipにはsource rangeとtimeline rangeが別々に保存され、`moveClip`はtimeline位置をLinkingService経由で変更し、前後snapshotをundo commandへ渡す。既存NLEテストにはsplit時の両範囲検査があるが、通常moveのsource範囲保持とundo/redoはない。
+- **追加した確認:** source range [23,63) のclipをtimeline frame 0から100へ移動し、duration/source範囲保持を確認した後、snapshotと表示範囲がundo/redoで元位置・移動位置へ戻ることを確認する。
+- **価値または懸念:** 移動がsource trimを誤って変更する回帰や、NLE snapshot・legacy表示・undo履歴間の不整合を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrEditorEngineTest.NleMovePreservesSourceRangeAndUndoRedoRestoresTimelinePlacement` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Audio project reloadの全channel PCM parity
+- **関連:** `tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp::MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload`。
+- **確認できた事実:** この統合テストは複数Audio Layerのsource、volume、pan、muteを保存・再読込し、channel数は比較するが、sample parityをchannel 0だけで比較していた。
+- **追加した確認:** 保存前後の各channelごとにframe数を確認し、すべてのPCM sampleを比較する。
+- **価値または懸念:** mono入力がpanで複数出力channelへ展開される場合など、片channelのみの欠落・ずれをreload後の統合経路で捕捉できる。テスト未実行。
+- **次に確認すること:** `AudioLayerRenderIntegrationTest.MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Image Sequence source replacement中のstale decode拒否
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` のsequence prefetch generation、`tests/Artifact/StillImageLayerRoundTripTest.cpp::ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion`。
+- **確認できた事実:** sequenceフレームの個別decode完了は非同期で、sequence切替時にgenerationを進めて旧結果の反映を避ける設計である。既存テストはmissing frame、同一パス差し替え、corrupt frameを確認するが、旧sequenceのdecodeを保留したまま別sequenceへ切り替えるケースはない。
+- **追加した確認:** 旧sequenceの大きな次frameを要求した直後に別path群へsequenceを置換し、新sequenceの同じindexをdecodeする。遅延イベントを処理した後も新sequenceのpixelとcached indexが維持されることを確認する。
+- **価値または懸念:** source generationをまたぐ旧worker完了が新sequenceの同一index cacheを上書きする競合を検出する。タイミング依存のためruntimeで繰り返し検証が必要。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion` をテスト実行が許可された際に実行し、異なるworker負荷でも安定性を確認する。
+
+## 2026-11-09: Image Sequence project reload後のgap slot復帰
+- **関連:** `Artifact/src/Project/ArtifactProjectExporter.cpp` / importerのsequence relative path、`tests/Artifact/StillImageLayerRoundTripTest.cpp::ImageSequenceProjectReloadPreservesGapAndRestoresItsFrameSlot`。
+- **確認できた事実:** sequence単体では欠番、frame decode、保存JSONの正規化がテストされ、still imageではProject Manager経由の保存・再読込・missing recoveryがテストされているが、連番のslot関係を含めた一連のProject Manager往復はない。source relocation計画もsequence slotと再読込後relinkの受入を残課題としている。
+- **追加した確認:** middle frameだけ欠けた3-slot sequenceをProject Managerで保存・再読込し、順序・frame rate・両端frameを確認した後、欠けた元pathへ画像を戻し、同じslotをdecodeできることを確認する。
+- **価値または懸念:** path正規化・欠番保持・再読込・sequence reader再生成の横断不整合を捕捉する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ImageSequenceProjectReloadPreservesGapAndRestoresItsFrameSlot` をテスト実行が許可された際に実行する。
+
+## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
+- **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
+- **確認できた事実:** `play()` は `hasReverse` が有効な場合にoverride値を `playback_.reverse` へ設定する一方、開始端点の初期化条件は引数 `reverse` を直接参照している。既存overrideテストはrateとstagger intervalだけを検査していた。
+- **追加した検査:** reverse override=true と `play(false)`、reverse override=false と `play(true)` の両方を実行する。effective directionに合うduration/zero開始、0.25秒後の方向別time進行、Playing状態を検査する。
+- **価値または懸念:** API引数とoverrideが衝突する場合の方向・開始境界・進捗の整合を固定する。現実装では初期端点判定がoverride方向と食い違う可能性がある。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreSequenceGroupContractTest.ReverseOverrideControlsPlaybackDirectionAndInitialBoundary` を実行し、既存の実行系と照合する。
+
+## 2026-11-08: RenderFarmWorker reuse clears progress-callback cancellation
+- **関連:** `ArtifactCore/src/Render/RenderFarmWorker.cpp::RenderFarmWorker::Impl::execute`、`tests/ArtifactCore/RenderFarmWorkerContractTest.cpp::ReuseAfterProgressCallbackCancellationResetsCancelFlagAndProgress`。
+- **確認できた事実:** workerは各execute開始時にcancel flagとframe countersをresetする。既存専用testsは一回のcancelまたは一回の失敗集計を確認していたが、同一workerで次jobを続ける遷移は確認していない。
+- **追加した検査:** 最初のframe完了後のprogress callbackからworkerをcancelし、そのjobが1 frameでCancelledになることを確認する。その同じworkerに新jobを直ちに渡し、全frame実行・Completed状態・新しいprogress counters・callback二回を照合する。
+- **価値または懸念:** callbackからのreentrant cancel後もworkerを再利用でき、cancel latchや過去jobの進捗が残らないことを決定的に検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreRenderFarmWorkerContractTest.ReuseAfterProgressCallbackCancellationResetsCancelFlagAndProgress` を実行する。
+
+## 2026-11-08: RenderFarmWorker aggregates stepped-frame failures and progress
+- **関連:** `ArtifactCore/src/Render/RenderFarmWorker.cpp::RenderFarmWorker::Impl::execute`、`tests/ArtifactCore/RenderFarmWorkerContractTest.cpp::SteppedRangeContinuesAfterFalseAndThrownFramesAndAggregatesProgress`。
+- **確認できた事実:** workerはstep付き半開rangeを走査し、false戻りと例外をそれぞれfailed frameとして数え、frameごとに進捗を発行して最後に集計結果を返す。worker専用suiteにこの組合せはなかった。
+- **追加した検査:** `{2,9,3}` が frame 2,5,8 を一度ずつ処理し、中央frameのfalseと最終frameのthrow後も走査が継続することを確認する。3つのprogress snapshot、最終成功／失敗数、error summary、完了callback数を照合する。
+- **価値または懸念:** stepped partition、異なる失敗形態、例外隔離、途中／最終進捗集計を独立に検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreRenderFarmWorkerContractTest.SteppedRangeContinuesAfterFalseAndThrownFramesAndAggregatesProgress` を実行する。
+
+## 2026-11-08: RenderFarmWorker cancellation stops after the in-flight frame
+- **関連:** `ArtifactCore/src/Render/RenderFarmWorker.cpp::RenderFarmWorker::Impl::execute/start/cancel`、`tests/ArtifactCore/RenderFarmWorkerContractTest.cpp::CancellationCompletesInflightFrameAndRejectsConcurrentStart`。
+- **確認できた事実:** worker専用契約suiteはなく、Master統合testsのみだった。workerは同期start内のframe callbackを完了させてから次iterationでcancel flagを確認し、Rendering中の二重startは無視する。
+- **追加した検査:** 先頭frame callbackをpromiseで停止し、その間に進捗値と競合start拒否を確認する。cancel後にin-flight frameを解放し、Cancelled状態、remaining frame未実行、progress値、進捗・完了callback各一回を照合する。独立CMake test targetも登録する。
+- **価値または懸念:** frame境界での協調cancel、単一workerの再入防止、部分進捗と最終結果の整合を決定的な同期で確認する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreRenderFarmWorkerContractTest.CancellationCompletesInflightFrameAndRejectsConcurrentStart` を実行する。
+
+## 2026-11-08: Paused PlaybackClock resumes through a loop boundary
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::PlaybackClock::pause/resume` と `Impl::updateCurrentFrame`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::PausingNearLoopEndFreezesFrameAndResumeContinuesThroughWrap`。
+- **確認できた事実:** 既存 pause/resume tests は通常再生のframe保持を確認し、loop設定 tests は端点保存を確認する。loop境界近くのpause duration補正とwrap再開の組合せはなかった。
+- **追加した検査:** `[10,20)` loopの19 frame付近でpauseし、250msの待機中にframeが不変であること、resume後 bounded wait でwrapして範囲内のframeへ進むことを確認する。
+- **価値または懸念:** pause時刻・paused duration・loop wrapによるstart time再基準化の相互作用を検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCorePlaybackClockContractTest.PausingNearLoopEndFreezesFrameAndResumeContinuesThroughWrap` を実行し、時間依存挙動の安定性を確認する。
+
+## 2026-11-08: PlaybackClock loop wrapping is observed in both directions
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::PlaybackClock::Impl::updateCurrentFrame`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::PlaybackWrapsWithinStoredLoopEndpointsInBothDirections`、`docs/analysis/REPORT_PLAYBACK_CLOCK_CONTRACT_TEST_2026-11-03.md`。
+- **確認できた事実:** loop設定の保存／解除は既存テストにあるが、時間経過によるwrap分岐は11/03監査でも未検証と記録されている。実装は `currentFrame()` 読出し時に forward/reverse 各々のwrapを行う。
+- **追加した検査:** `[10,20]` loopを30fpsで再生し、各観測frameが端点内にあることと、2秒以内にforward高端→低端、速度反転後にreverse低端→高端を観測することを確認する。
+- **価値または懸念:** 時間由来のframe更新、loop modulo、逆方向への速度変更を一つのbounded runtime契約で検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCorePlaybackClockContractTest.PlaybackWrapsWithinStoredLoopEndpointsInBothDirections` を実行し、時間依存の安定性を確認する。
+
+## 2026-11-08: Layer reload continues after one dirty layer rejects changes
+- **関連:** `ArtifactCore/src/Configuration/LayeredConfigStore.cpp::reloadChangedLayers`、`ArtifactCore/src/Core/FastSettingsStore.cpp::FastSettingsStore::reload`、`tests/ArtifactCore/LayeredConfigStoreContractTest.cpp::ReloadContinuesAcrossLayersWhenOneLayerHasLocalChanges`。
+- **確認できた事実:** `reloadChangedLayers(false)` は変更時刻のある各persistent layerを処理し、dirty storeのreload失敗後も走査を続けてaggregate failureを返す。既存テストはUser layer単独のdirty拒否と明示discardを確認していた。
+- **追加した検査:** User/Project双方の外部更新後にUserだけをlocal dirtyにする。通常reloadはfalseを返し、Userのlocal値を保ったままProjectの外部値を反映することを確認し、明示discard retryではUserも外部値へ更新されることを確認する。
+- **価値または懸念:** 複数layerの部分成功・優先順位・dirty値保護・明示discardを一つの状態遷移で検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreLayeredConfigStoreContractTest.ReloadContinuesAcrossLayersWhenOneLayerHasLocalChanges` を実行する。
+
+## 2026-11-08: RotoMask raster stages match an independent pixel oracle
+- **関連:** `ArtifactCore/src/Mask/RotoMask.cpp::RotoMask::rasterize`、`tests/ArtifactCore/RotoMaskContractTest.cpp::RasterizeComposesFeatherExpansionOpacityAndInversionInOrder`。
+- **確認できた事実:** rasterizeはpolygon fill後にfeather、expansion、opacity、inversionを順に適用する。既存画素テストは反転maskへのopacity適用を一点・背景点で確認するのみ。
+- **追加した検査:** 7x7矩形の全pixelを比較し、単純な矩形mask、edge-clamped separable 3x3 blur、square dilation、opacity適用、反転を独立配列で順に計算する。
+- **価値または懸念:** 複数mask処理段の順序・境界clamp・全画素の合成値を同時に検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreRotoMaskContractTest.RasterizeComposesFeatherExpansionOpacityAndInversionInOrder` を実行する。
+
+## 2026-11-08: AsyncFileWriter remains usable after a failed write
+- **関連:** `ArtifactCore/src/IO/asio_async_file_writer.cpp::AsioAsyncFileWriterManager::Impl::enqueueBytes`、`tests/ArtifactCore/AsyncFileWriterContractTest.cpp::WriterRemainsUsableAfterAWriteFailure`。
+- **確認できた事実:** 失敗するdirectory pathへの書込後もmanagerのthread_poolは稼働し続け、次のwriteも同じenqueue経路を通る。既存ケースはdirectoryへの失敗自体を検査するが、同じmanagerの後続処理は確認していない。
+- **追加した検査:** directoryへの書込失敗を受け取った後、同じmanagerで別ファイルへ書き込む。失敗／成功双方のcallbackが一度だけ呼ばれ、成功結果のbyte数とファイル内容が一致することを検査する。
+- **価値または懸念:** worker queueが一度のI/O失敗で停止・破損せず、後続要求を処理できることをfailure recovery経路で確認する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreAsyncFileWriterContractTest.WriterRemainsUsableAfterAWriteFailure` を実行する。
+
+## 2026-11-08: ThreadPool destruction drains running work
+- **関連:** `ArtifactCore/include/Common/ThreadPool.ixx::ThreadPool::~ThreadPool`、`tests/ArtifactCore/ThreadPoolContractTest.cpp::DestructorWaitsForAlreadyRunningTasksToFinish`。
+- **確認できた事実:** destructorはenqueue停止状態を設定してから `task_group::wait()` を呼ぶ。既存suiteはfuture結果、引数転送、waitAll、例外、最小concurrencyを確認するが、destructorと実行中taskの境界は扱わない。
+- **追加した検査:** concurrency 1のworker taskをpromiseでblockし、別threadからpoolを破棄する。task release前にdestruction futureが完了しないこと、release後にtask結果が得られdestructionが期限内に完了することを確認する。
+- **価値または懸念:** pool lifetimeとsubmitted taskの同期を直接検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreThreadPoolContractTest.DestructorWaitsForAlreadyRunningTasksToFinish` を実行する。
+
+## 2026-11-08: FrameCache concurrent insertion and lookup accounting
+- **関連:** `Artifact/src/Render/ArtifactFrameCache.cpp::FrameCache::put/get/recordAccess`、`tests/Artifact/FrameCacheContractTest.cpp::ConcurrentUniqueFrameInsertionAndLookupRemainConsistent`。
+- **確認できた事実:** FrameCacheのcache操作・統計は同じQMutexで保護される。既存契約はeviction候補の遅延queue、generation、quality進行などを覆うが、同一cache instanceへの並行した一意frame put/get stressは見当たらなかった。
+- **追加した検査:** 6 threadがそれぞれ128 unique frameをput直後にgetする。全entryが収まるcount/byte budgetを設定し、同一pointer取得、最終entry数・memory usage、hit/miss countとhit rateを検査する。
+- **価値または懸念:** storage、LRU/LFU candidate更新、共有統計のmutex境界を並行操作で照合する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactFrameCacheContractTest.ConcurrentUniqueFrameInsertionAndLookupRemainConsistent` を実行する。
+
+## 2026-11-08: Sequential translucent blend stack reference coverage
+- **関連:** `ArtifactCore/src/Color/ColorBlendMode.cpp::composeBlendResult/ColorBlendMode::blend`、`tests/ArtifactCore/ColorBlendModeStandaloneTest.cpp::SequentialTranslucentLayersMatchIndependentPremultipliedReference`。
+- **確認できた事実:** 既存blend coverageは各pairのmode formula、alpha、opacity境界を扱うが、前段blendのstraight RGBとalphaが次段backdropになる複数layer連鎖の独立参照比較はなかった。
+- **追加した検査:** transparent baseからNormal、Multiply、Screenの半透明3段を順に合成し、各段で独立計算したpremultiplied source-over参照値とRGB/alphaを照合する。入力baseの不変性も確認する。
+- **価値または懸念:** layer順、累積alpha、各段のblend backdrop引継ぎをまとめて検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreColorBlendModeTest.SequentialTranslucentLayersMatchIndependentPremultipliedReference` を実行する。
+
+## 2026-11-08: UndoManager collaboration push rejection preserves redo state
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::UndoManager::push`、`tests/Artifact/UndoManagerContractTest.cpp::RejectedCollaborativePushRestoresStateAndPreservesRedoBranch`。
+- **確認できた事実:** pushにはcommand実行前の`preflight.push` callbackと、redo適用後の`apply` callbackがある。既存のpending collaboration testsはoptimistic operation後のrejectを扱うが、push時点の両callback拒否は別経路。
+- **追加した検査:** undo branchとredo branchが両方ある状態で、preflight拒否とapply拒否をそれぞれ実行する。値・stack count・current version・pending stateが維持され、apply拒否時は実行済みcommandがundo補償され、拒否後に元redo branchを再生できることを確認する。
+- **価値または懸念:** collaboration acceptance gatesの失敗境界と既存履歴保持を検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactUndoManagerContractTest.RejectedCollaborativePushRestoresStateAndPreservesRedoBranch` を実行する。
+
+## 2026-11-08: Timeline Text Animator group recognition uses every property path
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineKeyframeModel.cpp::shouldHideTimelinePropertyGroup(PropertyGroup)`、`Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp::isTimelineTextAnimatorLayerPropertyGroup`、`tests/Artifact/ArtifactTimelinePropertyGroupContractTest.cpp`。
+- **確認できた事実:** 現行例外は空でない全propertyが `text.animators.<numeric-index>.*` 配下の場合だけ表示する。単なる表示名一致や通常propertyを含むgroupは例外にならない。専用契約テストは見当たらなかった。
+- **追加した検査:** 複数の正当な動的propertyを持つ任意表示名のgroupだけ表示し、Animator表示名だけの偽装、通常propertyとの混在、不正index、空groupを非表示にするケースを追加する。`ArtifactTimelinePropertyGroupContractTest` targetを `ArtifactAppRuntime` にリンクして登録する。
+- **価値または懸念:** 2026-09-26承認済みのTimeline例外と、Components等への表示名誤分類防止を直接検査する。ビルド・テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactTimelinePropertyGroupContractTest` を実行し、MSVC module import / target link統合も確認する。
+
+## 2026-11-08: Shared ring concurrent writers preserve per-writer stream
+- **関連:** `ArtifactCore/src/IPC/SharedMemoryRingBuffer.cpp::write/read`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::ConcurrentWritersOnOneHandleDeliverEachPerWriterSequenceExactlyOnce`。
+- **確認できた事実:** 同一ring handleの各writeはhandle-local mutexで保護され、別handleのreaderは共有read indexを進める。既存stream stressは単一writer threadと単一readerを検査していた。
+- **追加した検査:** 4 writer threadが同じproducer handleから各300件を投稿し、別handleのreaderが順序を混ぜて受け取る。全itemの一意性、欠落なし、writer内sequence順、flags一致、write/read統計を検査し、full時retryと10秒deadlineでboundedにする。
+- **価値または懸念:** handle-local writer serializationとshared-memory readerの相互作用をwrapが反復する条件で検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreSharedMemoryRingBufferContractTest.ConcurrentWritersOnOneHandleDeliverEachPerWriterSequenceExactlyOnce` を実行する。
+
+## 2026-11-08: CheckpointStore concurrent save and remove linearization
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::save/remove/checkpointExists/listCheckpoints`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp::ConcurrentSaveAndRemoveLeaveOneLinearizableFinalState`。
+- **確認できた事実:** 同一CheckpointStore instanceのsave/remove/存在・一覧操作は同じmutexで直列化される。saveとremoveの実行順は競合時に不定だが、最終状態は順序に対応する。
+- **追加した検査:** baselineを保存してからsaveとremoveを同時開始する競合を64回行う。双方の操作成功、存在判定とload/listの一致を確認し、存在する場合は完全なreplacement checkpointであることを確認する。
+- **価値または懸念:** filesystem上の同一checkpointに対する書込・削除競合で、部分JSONやindex不整合が現れないことを検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreCheckpointStoreContractTest.ConcurrentSaveAndRemoveLeaveOneLinearizableFinalState` を実行する。
+
+## 2026-11-08: AssetManager concurrent payload publication deduplicates by key
+- **関連:** `ArtifactCore/src/Asset/AssetManager.cpp::publishDecodedPayload/decodedPayload`、`tests/ArtifactCore/AssetManagerContractTest.cpp::ConcurrentPublishersForSamePayloadKeyReceiveOneCanonicalPayload`。
+- **確認できた事実:** 同一asset/version/representation keyへのpublishはmutex下で行われ、先着payloadをweak cacheへ登録し、後続publisherには同じ既存payloadを返す。representation文字列はtrim後にkey化される。
+- **追加した検査:** 12 publisherをbarrierで同時開始し、それぞれ異なるpayloadを同じversionとtrim等価representationでpublishする。全返却pointerとcache lookupが同一canonical payloadを指し、そのpayloadが候補のいずれかであることを確認する。
+- **価値または懸念:** 同時デコードの重複結果統合、key正規化、弱参照cache保持を同時に検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `AssetManagerContractTest.ConcurrentPublishersForSamePayloadKeyReceiveOneCanonicalPayload` を実行する。
+
+## 2026-11-08: DataCache capacity shrink performs repeated LRU eviction
+- **関連:** `ArtifactCore/include/Data/DataCache.ixx::setMaxEntries/put/evictIfNeeded`、`tests/ArtifactCore/DataCacheStandaloneTest.cpp::ShrinkingCapacityEvictsMultipleLeastRecentlyUsedEntriesOnNextPut`。
+- **確認できた事実:** 既存のevictionテストはcapacity到達時の単一entry evictionを確認する。`put`時のevict loopはcapacityを後から縮めた場合も現在サイズが新capacity未満になるまで繰り返しevictする。
+- **追加した検査:** 4件登録後に最古entryだけを再アクセスしてLRU順を更新し、capacityを2へ縮小後に新規putする。再アクセス済みentryと新規entryだけ残り、他の3件が消えることを確認する。
+- **価値または懸念:** 動的capacity変更後の複数回evictionとaccess順保持を一つのケースで検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `DataCacheStandaloneTest.ShrinkingCapacityEvictsMultipleLeastRecentlyUsedEntriesOnNextPut` を実行する。
+
+## 2026-11-08: Schema migration equal-length route selection
+- **関連:** `ArtifactCore/include/Serialization/SchemaMigration.ixx::findPath`、`tests/ArtifactCore/SchemaMigrationContractTest.cpp::EqualLengthPathsChooseTheLowestNextVersionRegardlessOfRegistrationOrder`。
+- **確認できた事実:** 既存の最短経路テストは長さが異なる分岐を確認するが、等長経路の tie を扱っていなかった。現在の探索は `std::map` の遷移先version順に幅優先で走査するため、同階層の候補では小さいversionが先に訪問される。
+- **追加した検査:** 数値順と逆の順番で分岐edgeを登録し、同じ2段の経路を組み立てる。migration結果が小さい中間versionを通る経路となることを確認する。
+- **価値または懸念:** 同じ最短長の候補がある場合の決定性を固定する。tie-break が公開仕様として意図されたものかは未確認であり、テスト実行も未実施。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.EqualLengthPathsChooseTheLowestNextVersionRegardlessOfRegistrationOrder` を実行し、tie-break を契約として維持する意図を確認する。
+
+## 2026-11-08: EventBus synchronous callback exception skips dispatch tail
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::publishRaw`、`tests/ArtifactCore/EventBusContractTest.cpp::PublishPropagatesCallbackExceptionAndSkipsRemainingCallbacksAndHook`。
+- **確認できた事実:** 同期publishはsubscriber callbackを順に実行し、例外を捕捉しない。callback例外が起きると残りsubscriberとpublish hookに到達せず、例外は呼び出し元へ伝播する。
+- **追加した検査:** 最初のcallbackだけ一度例外を投げる設定で、後続callbackとhookが呼ばれないことを確認する。次のpublishでは全callbackが処理され、hookにdelivered数2が渡ることを確認する。
+- **価値または懸念:** queued drain側の例外検査では覆わない同期publishの伝播と、次回dispatchの再利用性、hookの成功完了時のみ実行される境界を固定する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.PublishPropagatesCallbackExceptionAndSkipsRemainingCallbacksAndHook` を実行する。
+
+## 2026-11-08: EventBus drain callback exception preserves later queued events
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::drain/publishRaw`、`tests/ArtifactCore/EventBusContractTest.cpp::DrainPropagatesCallbackExceptionAndKeepsLaterEventsQueued`。
+- **確認できた事実:** `drain`はqueueからbatchを先に取り出し、callback例外を捕捉せず伝播する。例外発生時にbatch内の後続eventはローカルbatchとともに破棄され得る一方、batchに取り出されなかった共有queueのeventは残る。
+- **追加した検査:** `drain(1)`で最初のcallbackが例外を投げる条件にし、例外型・呼び出し回数・後続2件のqueue保持を確認する。続くdrainでその2件を順序どおり処理し、queueが空になることも確認する。
+- **価値または懸念:** callback例外がdrain呼び出し元へ伝播する境界と、未取得queue eventを後から処理できることを固定する。batch途中で例外が発生した場合の残りeventの扱いは別途明示仕様がないため、このテストでは断定しない。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.DrainPropagatesCallbackExceptionAndKeepsLaterEventsQueued` を実行する。
+
+## 2026-11-08: EventBus move assignment replaces queued state
+- **関連:** `ArtifactCore/include/Event/EventBus.ixx::EventBus move assignment/impl_`、`tests/ArtifactCore/EventBusContractTest.cpp::MoveAssignmentReplacesOldQueueAndTransfersSourcePendingEvents`。
+- **確認できた事実:** pending queueはEventBus handleではなく`Impl`内に保持され、default move assignmentはdestinationのSharedPtrをsourceのImplへ置換する。既存move construction testはqueueを移すが、代入先に旧pending eventがある場合を確認していなかった。
+- **追加した検査:** destinationに旧queued eventを1件、sourceにordered eventsを2件入れてmove assignする。旧eventが残らずsourceの2件だけがdestinationで順序どおりdispatchされ、moved-from sourceのclear/postが移譲済みqueueへ影響しないことを確認する。
+- **価値または懸念:** old Impl queueの破棄、source queue ownership移譲、moved-from handle isolationを検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.MoveAssignmentReplacesOldQueueAndTransfersSourcePendingEvents` を実行する。
+
+## 2026-11-08: EventBus priority queue remains ordered after concurrent clear
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::enqueueRaw/clearQueue/drain`、`tests/ArtifactCore/EventBusContractTest.cpp::ConcurrentPriorityPostsAndClearKeepQueueOrderingAndStableTies`。
+- **確認できた事実:** concurrent clear testはNormal priorityだけを扱い、priority別insert orderingをclear競合と組み合わせていなかった。enqueueはpriority降順で安定同順位挿入し、clearは共有queueをmutex下で消去する。
+- **追加した検査:** High/Normal/Lowのpre-clear markerと、priorityを交互に投稿する4 producer、clear threadを同時開始する。clear後に各priority markerを確定投稿し、drain結果全体のpriority降順、producerごとの同priority sequence順、race event重複なし、clear return後に投稿開始したrace eventが各1件届くことを確認する。
+- **価値または懸念:** priority insertionとqueue clearの相互作用、queue再利用後の順序・stable tieを検査する。race eventはclearとの線形化結果に従って保持/破棄いずれも許容する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ConcurrentPriorityPostsAndClearKeepQueueOrderingAndStableTies` を実行する。
+
+## 2026-11-08: EventBus concurrent post and clearQueue linearization
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::enqueueRaw/clearQueue`、`tests/ArtifactCore/EventBusContractTest.cpp::ConcurrentPostAndClearQueueRespectOperationLinearization`。
+- **確認できた事実:** enqueueとclearQueueはいずれも同じqueue mutexで直列化される。clearより前に完了した投稿はqueue上にあり、clear完了後の投稿は後からenqueueされる。clearと同時に競合した投稿の勝敗はlock順で不定。
+- **追加した検査:** 先行投稿16件、6 producerによる384件の競合投稿、clearQueueを同時開始し、その後clear完了後に16件を投稿する。先行分は0配信、競合分は0または1回、後続分は必ず1回配信され、queueが空になることを確認する。
+- **価値または懸念:** queue mutexの線形化境界、race outcomesの適切な許容、確定順序の投稿の欠落・重複を検出する。競合phaseの各event retentionは全保持を要求しない。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ConcurrentPostAndClearQueueRespectOperationLinearization` を実行する。
+
+## 2026-11-08: EventBus concurrent producer-consumer exact-once delivery
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::enqueueRaw/drain`、`tests/ArtifactCore/EventBusContractTest.cpp::ConcurrentProducersAndDrainerPreserveEveryPerProducerSequence`。
+- **確認できた事実:** 既存並行enqueue testは全producer join後にdrainするため、queueMutexのproducer競合とconsumerのbatch dequeueが同時に動く状態を検査していなかった。
+- **追加した検査:** 4 producerが各128件をpostしつつconsumerが`drain(17)`を反復する。有限deadline内にproducer完了・queue空へ到達すること、drain総数512、per-producer sequenceの単調性、全eventのexactly-onceを確認する。
+- **価値または懸念:** enqueueとbatch drainのmutex境界、途中空queueのproducer継続、event loss/duplication/order regressionsを検出する。consumerは5秒でboundedし、失敗時もthreadをjoinする。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ConcurrentProducersAndDrainerPreserveEveryPerProducerSequence` を実行する。
+
+## 2026-11-08: EventBus Subscription destructor removes only its record
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::Subscription::~Subscription/disconnect`、`tests/ArtifactCore/EventBusContractTest.cpp::SubscriptionDestructorDisconnectsOnlyItsOwnRecord`。
+- **確認できた事実:** Subscription destructorはdisconnectを呼び、record単位でactive flagを下げ、weak ownerが生きていればentryからそのIDを除く。既存testは明示disconnectを扱うが、scope exitで他subscriptionを保ったまま解除されることを直接確認していなかった。
+- **追加した検査:** EventBus copy alias経由で一時subscriptionを登録しscope exitする。共有subscriber countが2から1へ下がり、aliasからpublishしてpersistent callbackだけが一度呼ばれることを確認する。
+- **価値または懸念:** RAII lifetime cleanupが共有Impl上で対象recordに限定されることを検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.SubscriptionDestructorDisconnectsOnlyItsOwnRecord` を実行する。
+
+## 2026-11-08: EventBus Subscription move assignment transfers one registration
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::Subscription::operator=/disconnect`、`tests/ArtifactCore/EventBusContractTest.cpp::SubscriptionMoveAssignmentDisconnectsOldRecordAndTransfersOwnership`。
+- **確認できた事実:** move assignmentはself assignmentを避け、先にdestination subscriptionをdisconnectしてからsourceのWeakPtr/recordをmoveする。既存テストはSubscription destructor/disconnectを扱うがmove assignmentの単一登録権移譲は未検査。
+- **追加した検査:** 2 subscriptionをmove assignし、旧recordがdisconnectされ新recordだけが一度通知すること、sourceがemptyになること、self move assignmentが現subscriptionを保つこと、最終disconnect後にsubscriber countが0になることを確認する。
+- **価値または懸念:** RAII登録の二重解除・漏れ・self move破壊を検出する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.SubscriptionMoveAssignmentDisconnectsOldRecordAndTransfersOwnership` を実行する。
+
+## 2026-11-08: EventBus move assignment retains old shared state through aliases
+- **関連:** `ArtifactCore/include/Event/EventBus.ixx::default move assignment/SharedPtr<Impl>`、`tests/ArtifactCore/EventBusContractTest.cpp::MoveAssignmentPreservesReplacedStateWhileAnotherCopyOwnsIt`。
+- **確認できた事実:** EventBus copies share `Impl` via SharedPtr; Subscription keeps a WeakPtr to that Impl and a separate strong record. move assignment replaces only destination's strong pointer, so any other EventBus alias should keep the old registry alive.
+- **追加した検査:** destinationの旧stateをaliasが保持したままsource stateをmove assignする。旧subscriptionはaliasから引き続きdispatchでき、destinationではsource subscriptionのみdispatchされる。旧subscriptionをdisconnectしてもsource側stateに影響しないことを確認する。
+- **価値または懸念:** move assignment時の旧state lifetimeと複数Impl間のsubscription isolationを検査する。previous test's expected disconnected state applies only when replaced Impl has no remaining owner. テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.MoveAssignmentPreservesReplacedStateWhileAnotherCopyOwnsIt` を実行する。
+
+## 2026-11-08: EventBus move assignment leaves replaced subscription reporting connected
+- **関連:** `ArtifactCore/include/Event/EventBus.ixx::EventBus move assignment/Subscription`、`ArtifactCore/src/Event/EventBus.cpp::Subscription::connected`、`tests/ArtifactCore/EventBusContractTest.cpp::MoveAssignmentInvalidatesSubscriptionsFromReplacedDestination`。
+- **確認できた事実:** default move assignmentはdestinationの旧`SharedPtr<Impl>`を置き換える。旧SubscriptionはそのImplへのWeakPtrと独立したrecord SharedPtrを持つ。`connected()`はrecordのactive flagだけを確認し、WeakPtrの失効を確認しない。
+- **追加した検査:** destinationの旧subscriptionとsourceのsubscriptionを分け、move assignment後に旧subscriptionだけがdisconnected、移譲先subscriptionは継続し、旧subscriptionのdisconnectが新stateへ影響しないことを要求する。
+- **価値または懸念:** owner handleを失った旧subscriptionのstale `connected()==true` を検出する。現行コードを静的に読む限り、最初のdisconnected assertionは失敗する見込み。子repoの製品実装は変更せず、テスト未実行。
+- **次に確認すべきこと:** 許可された時点で当該テストを実行し、失敗を確認した後にSubscriptionの所有者失効契約をAPI設計で確定する。
+
+## 2026-11-08: EventBus move construction transfers shared runtime state
+- **関連:** `ArtifactCore/include/Event/EventBus.ixx::EventBus move operations`、`ArtifactCore/src/Event/EventBus.cpp` のnull-Impl guard、`tests/ArtifactCore/EventBusContractTest.cpp::MoveConstructionTransfersStateAndLeavesSourceInert`。
+- **確認できた事実:** move constructorはdefaultで`SharedPtr<Impl>`を移し、sourceは空handleになる。publish/post/subscribe/drain/clear等は空Implを扱うguardを持つ。既存testsはcopy handle共有を検査するがmove-from挙動は未確認。
+- **追加した検査:** queued event、subscription、publish hookを持つsourceをmove constructし、destinationでqueue dispatch・subscriber・hookが継続すること、source APIが安全なno-opとなりdestination stateを変えないことを検査する。
+- **価値または懸念:** shared runtime stateの所有権移譲とmoved-from handleの安全性をまとめて確認する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.MoveConstructionTransfersStateAndLeavesSourceInert` を実行する。
+
+## 2026-11-08: EventBus value copies share the same implementation state
+- **関連:** `ArtifactCore/include/Event/EventBus.ixx::EventBus copy operations/impl_`、`tests/ArtifactCore/EventBusContractTest.cpp::CopiesShareSubscriptionsQueueHooksAndClearState`。
+- **確認できた事実:** copy constructor/assignmentはdefaultで、EventBusは`SharedPtr<Impl>`を保持する。既存テストは単一handle内のregistry/queue/hookを検査し、copy handle間の共有状態は未確認だった。
+- **追加した検査:** originalでsubscribeしたhandlerへcopyがpostしoriginalがdrainする。hookを片方で設定して他方のpublishで観測し、post/clearQueue/clear後の状態変化を両方から確認する。clear後にcopyで再subscribeしoriginalからpublishできることも検査する。
+- **価値または懸念:** EventBus copyのhandle semanticsと、共有Impl内のregistry・queue・hookの一貫性を明示する。これはdefault copy + SharedPtr構造から導いた仕様で、テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.CopiesShareSubscriptionsQueueHooksAndClearState` を実行する。
+
+## 2026-11-08: EventBus clear from registered-type iteration
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::forEachRegisteredType/clear`、`tests/ArtifactCore/EventBusContractTest.cpp::ClearFromRegisteredTypeCallbackInvalidatesAllSnapshotEntriesSafely`。
+- **確認できた事実:** `forEachRegisteredType` はregistry lock解放後にentry snapshotを走査する。`clear()` はregistry全entryのsubscriberをinactive化してregistryを消し、queueも消去する。既存ケースは単一typeのclearと、走査callbackからの個別unsubscribe/追加を扱うが、複数entry snapshot中の全clearは未検査。
+- **追加した検査:** 2 event typeを登録し各typeのqueued eventも積んでから、type列挙callbackの初回呼び出しで`clear()`する。snapshot走査が両entryを完了し、2番目のsubscriber countは0、subscription/queueは空になり、両typeを再登録して再publishできることを確認する。
+- **価値または懸念:** callback中のregistry全消去、entry lifetime、lock再入、queue clearing、後続再構築をまとめて検査する。snapshot順はunorderedなので、走査先頭entryの型を固定せずcount変化だけを期待する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ClearFromRegisteredTypeCallbackInvalidatesAllSnapshotEntriesSafely` を実行する。
+
+## 2026-11-08: EventBus registered-type iteration tolerates callback mutation
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::forEachRegisteredType/Subscription::disconnect/subscribeRaw`、`tests/ArtifactCore/EventBusContractTest.cpp::RegisteredTypeIterationUsesSnapshotAndAllowsRegistryMutation`。
+- **確認できた事実:** `forEachRegisteredType` はentry一覧をsnapshotしてregistry lockを解放後にcallbackを呼ぶ。subscriber countもentry lockの外でcallbackに渡される。既存テストはこのenumeration APIを呼んでいなかった。
+- **追加した検査:** 走査callbackから現在唯一のsubscriptionを解除し、別event typeを登録して`subscriberCount`を再入呼び出しする。現在の走査は開始時snapshotの1 typeだけを返し、次回走査は置換後のtype/countを返すことを確認する。
+- **価値または懸念:** registry snapshot iteration中のdeadlock、invalid iteration、消去entryの残存、新規entryの早期混入を検出する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.RegisteredTypeIterationUsesSnapshotAndAllowsRegistryMutation` を実行する。
+
+## 2026-11-08: EventBus queued events resolve subscribers at drain time
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::enqueueRaw/drain/publishRaw`、`tests/ArtifactCore/EventBusContractTest.cpp::QueuedEventsUseCurrentSubscribersAtDrainTimeAfterReplacement`。
+- **確認できた事実:** `QueuedEvent` はtype/payload/dispatch/originのみを保持し、subscriber recordを保存しない。drainが`publishRaw`を呼んでその時点のregistryをlookupする。
+- **追加した検査:** 旧subscriptionでeventをpost後にdisconnectし、新subscriptionへ置換して別eventをpostする。drainでは旧callbackが呼ばれず、現在のsubscriptionが両方のqueued payloadを受け取ることを確認する。
+- **価値または懸念:** queued eventのsubscriber binding時点を明確にし、disconnect済みcallbackの遅延呼び出しとsubscription交換後のregistry再利用を検出する。これは現行実装から推定した契約であり、製品仕様の明文化は未確認。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.QueuedEventsUseCurrentSubscribersAtDrainTimeAfterReplacement` を実行し、設計意図と一致するか確認する。
+
+## 2026-11-08: EventBus concurrent producers preserve priority and local FIFO
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::enqueueRaw`、`tests/ArtifactCore/EventBusContractTest.cpp::ConcurrentProducersPreservePriorityAndPerProducerFifo`。
+- **確認できた事実:** enqueue はqueue mutexで直列化し、より高いpriorityの前へ挿入する一方、同priority要素の後ろに挿入する。複数producer間の相対順はmutex取得順で決まるため事前に固定できない。既存テストは単一producerのpriority/FIFOのみを検査していた。
+- **追加した検査:** 6 producerがHigh/Normal/Lowを交互に24組投稿する。全件drain後、priorityが降順であること、各producerの各priority内sequenceが昇順であること、全360 eventが一度ずつ存在することを確認する。
+- **価値または懸念:** 競合enqueueにおけるpriority再配置、producer内のhappens-before FIFO、イベント欠落・重複を検査する。異なるproducer間の同priority順序には不安定な期待を置かない。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ConcurrentProducersPreservePriorityAndPerProducerFifo` を実行する。
+
+## 2026-11-08: EventBus clear resets queued and subscriber state during drain
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::clear/publishRaw/drain`、`tests/ArtifactCore/EventBusContractTest.cpp::ClearDuringDrainFinishesInflightCallbackAndResetsQueuedDispatchState`。
+- **確認できた事実:** `clear()` はregistry entryのsubscriberをinactive化してregistryを消し、共有queueも消去する。`drain` はすでに取り出したbatchを保持するが、各queued dispatchはその時点のregistryを再参照する。既存testは`clearQueue`のみでsubscriber registryを維持する場合を検査していた。
+- **追加した検査:** drainが3件をbatch化した後、最初のcallbackがinflightの間に別threadから`clear()`する。inflight callbackは完了し、残りbatchと未取得queueは配信されず、subscriptionが切断されることを確認する。さらにclear後の新規subscribe/publishが動作することを確認する。
+- **価値または懸念:** `clear`とdrainの同時実行におけるcallback寿命、batch dispatch時のregistry再確認、queue/subscriber再構築を検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ClearDuringDrainFinishesInflightCallbackAndResetsQueuedDispatchState` を実行する。
+
+## 2026-11-08: EventBus clearQueue races with an active drain batch
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::drain/clearQueue`、`tests/ArtifactCore/EventBusContractTest.cpp::ClearQueueDuringDrainKeepsBatchAndDropsEventsNotYetTaken`。
+- **確認できた事実:** `drain(maxEvents)` はqueue lock下で上限分をlocal batchへ移し、lock解放後にdispatchする。`clearQueue` は共有queueだけを消す。既存queue testsは逐次drain/clearのみ。
+- **追加した検査:** 4 eventを積み、drain threadが2件のbatchを取得して最初のcallback内で停止中に、別threadから`clearQueue`する。queueに残った2件だけが破棄され、すでにbatch化された2件は順にdispatchされることを確認する。
+- **価値または懸念:** batch ownershipと共有queueのclear境界、並行時のevent欠落・余剰配信を検査する。timeout経路もcallbackを解放してthreadをjoinする。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ClearQueueDuringDrainKeepsBatchAndDropsEventsNotYetTaken` を実行する。
+
+## 2026-11-08: EventBus queue priority and bounded drain contracts
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::enqueueRaw/drain`、`ArtifactCore/include/Event/EventBus.ixx::post/drain`、`tests/ArtifactCore/EventBusContractTest.cpp`。
+- **確認できた事実:** queueはpriority順に挿入され、同priorityでは既存要素の後ろに入る。`drain(maxEvents)` はdispatch callbackの外でqueue batchを取り出し、callbackが追加したeventも上限に余裕があれば次batchで処理する。既存EventBusテストは即時publishのみでqueue APIの直接検査がなかった。
+- **追加した検査:** High/Normal/Lowの順と同priority内FIFO、drain上限後の残件保持を確認する。またcallbackからpostしたeventが現在の`drain(1)`上限を越えず残り、次のdrainで一度処理されることを確認する。
+- **価値または懸念:** 優先度安定性、上限の定義、再入enqueue時の欠落・重複を検出する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.EventBusContractTest.*` を実行する。
+
+## 2026-11-08: EventBus publish hook replacement preserves inflight callback
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::publishRaw/setPublishHook/clearPublishHook`、`tests/ArtifactCore/EventBusContractTest.cpp::ClearingPublishHookDuringInvocationKeepsOnlyInflightCopy`。
+- **確認できた事実:** `publishRaw` はhookをhook mutex下でコピーし、mutex解放後に実行する。既存EventBusテストはsubscriber callbackを扱うが、debug hookの交換・消去寿命を検査していなかった。
+- **追加した検査:** hookをpublisher threadで停止させ、別threadから`clearPublishHook()`を呼んだ後にinflight hookを完了させる。現在の呼び出しは1回完了し、その後のpublishでは再呼び出しされないことを確認する。
+- **価値または懸念:** hook function objectのコピー寿命とmutex外callback契約を検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ClearingPublishHookDuringInvocationKeepsOnlyInflightCopy` を実行する。
+
+## 2026-11-08: EventBus concurrent publishers deliver exact-once events
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::publishRaw`、`tests/ArtifactCore/EventBusContractTest.cpp::ConcurrentPublishersDeliverEveryEventOnceWithOverlappingCallbacks`。
+- **確認できた事実:** `publishRaw` は共有registry/entryを保護する短いlockの後にcallbackを呼び、dispatch全体を直列化しない。既存EventBus直接テストは一publisher内の再入と解除のみを扱う。
+- **追加した検査:** 8 publisher threadが各32個の識別eventをpublishする。最初のcallbackでbarrierを使い、8 callbackの並行実行を保証した後、各event IDが厳密に1回届き、publisherごとのdelivered数も一致することを確認する。
+- **価値または懸念:** 同一subscriberへの同時callback dispatch、event payload混線、欠落・重複、暗黙の直列化を検出する。callback側の状態はatomicにし、検査自体のdata raceを避ける。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ConcurrentPublishersDeliverEveryEventOnceWithOverlappingCallbacks` を実行する。
+
+## 2026-11-08: EventBus disconnect during an in-flight callback
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::publishRaw/Subscription::disconnect`、`tests/ArtifactCore/EventBusContractTest.cpp::DisconnectDuringInflightCallbackAllowsItToFinishAndBlocksFutureDispatch`。
+- **確認できた事実:** publish中はsubscriber recordのshared snapshotを保持し、callbackをentry mutexの外で呼び出す。disconnectはrecordのactive flagを下げ、registryから除去する。既存テストはdispatch開始前の同一thread解除とnested publishを確認するが、別threadのdisconnectと実行中callbackの重なりは未確認だった。
+- **追加した検査:** callbackをpromiseで停止し、publisher threadがcallback内にいる間にsubscriptionをdisconnectする。in-flight callbackが1回完了しpublish delivered数が1となること、以後のpublishではcallbackが呼ばれないことを確認する。
+- **価値または懸念:** snapshotが保持するcallback lifetimeとatomic active状態の境界を明示する。期待契約は解除時点ですでに開始したcallbackを中断せず、その後のdispatchだけを抑止すること。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.DisconnectDuringInflightCallbackAllowsItToFinishAndBlocksFutureDispatch` を実行する。
+
+## 2026-11-08: EventBus dispatch mutation and nested publish contracts
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::publishRaw/Subscription::disconnect`、`tests/ArtifactCore/EventBusContractTest.cpp`、`tests/ArtifactCore/CMakeLists.txt::ArtifactCoreActionManagerContractTest`。
+- **確認できた事実:** `publishRaw` はsubscriberのsnapshotを作ってからcallbackを実行し、dispatch直前に各recordのactive状態を再確認する。callback呼び出し中にentry mutexを保持しない。既存テストは上位のActionManagerイベント配信のみを使い、EventBusの直接的な再入・dispatch mutation suiteはなかった。
+- **追加した検査:** dispatch snapshotに含まれたsubscriberを先行callbackから解除した場合、同一dispatch内でも呼ばれず以降も不在であること、およびcallback中のnested publishが同期dispatchされ外側publishへ戻ることを直接検査する。
+- **価値または懸念:** snapshotとsubscription lifetimeの境界、callback中の同期再入を検査する。既存ArtifactCoreActionManagerContractTest targetへ専用テストソースを追加した。未ビルド・未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.EventBusContractTest.*` を実行する。
+
+## 2026-11-08: ArtifactHashMap collision-chain erase topology
+- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm::erase/tryEmplace`、`tests/ArtifactCore/ArtifactHashMapContractTest.cpp::ErasingHeadMiddleAndTailOfCollisionChainKeepsRemainingNodesReachable`。
+- **確認できた事実:** `ConstantHash` は複数keyを同一bucketへ集められる。既存 `CollisionChainsSupportLookupAndRemoval` はデフォルトhashの1/2/3を使うため、実際のcollision link削除を行っていなかった。
+- **追加した検査:** 強制衝突チェーンのhead・middle・tailを順に削除し、残存ノードが探索可能であること、削除済みkeyが不在であること、各位置へ再挿入後にsize/valueが整合することを確認する。
+- **価値または懸念:** linked collision chain の前リンク更新と再挿入経路の退行を検出する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreArtifactHashMapContractTest.ErasingHeadMiddleAndTailOfCollisionChainKeepsRemainingNodesReachable` を実行する。
+
+## 2026-11-08: Background task fan-out releases every dependent
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::ResolveDependencies/WorkerLoop`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::FanOutDependentsAllRunAfterTheirSharedPrerequisite`。
+- **確認できた事実:** dependency resolver は pending queue 内の各taskを独立に評価し、完了済みdependencyを持つtaskを実行可能状態に保つ。既存テストはfan-inと単一dependentを確認するが、同じ prerequisite を複数dependentが共有するfan-outを直接検査していなかった。
+- **追加した検査:** 1つの実行中 prerequisite にHigh/Critical priorityの2 dependentを登録し、解放前は両方Pendingかつ未実行、解放後は両方Completedで各実行回数が1になることを確認する。
+- **価値または懸念:** queue内の複数dependentが、共通dependency完了後にどちらかを取りこぼさず解放されるかを検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreBackgroundTaskWorkerPoolContractTest.FanOutDependentsAllRunAfterTheirSharedPrerequisite` を実行する。
+
+## 2026-11-08: Restarted worker pool reuses completed dependency snapshots
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::Start/Shutdown/SubmitTask/DependenciesCompleted`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::RestartedPoolResolvesDependencyFromPreviouslyCompletedSnapshot`。
+- **確認できた事実:** `Shutdown` は worker を停止するが `snapshots_` を保持し、task は停止中でも submit できる。既存再起動テストは停止前後にsnapshotが残ることを検査する一方、停止後にそのsnapshotを依存先として使っていなかった。
+- **追加した検査:** prerequisite を一度完了して pool を停止し、停止中にそのIDを依存先とする dependent を登録する。再開後に dependent が完了し、prerequisite は再実行されず各実行回数が1であることを確認する。
+- **価値または懸念:** snapshot保持が観測だけでなく dependency scheduling に実際に機能するかを検査する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreBackgroundTaskWorkerPoolContractTest.RestartedPoolResolvesDependencyFromPreviouslyCompletedSnapshot` を実行する。
+
+## 2026-11-08: Background task fan-in waits for every prerequisite
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::DependenciesCompleted/ResolveDependencies`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::FanInDependencyWaitsUntilEveryPrerequisiteCompletes`。
+- **確認できた事実:** dependency 判定は各 dependency snapshot が `Completed` であることをすべて要求する。既存の成功経路テストは dependent に prerequisite を1件だけ設定していた。
+- **追加した検査:** 2 worker で2 prerequisite を並行して停止し、片方だけを解放・完了させても dependent が `Pending` のままであること、両方目の完了後にのみ dependent が走ることを確認する。
+- **価値または懸念:** fan-in の全依存AND条件と、1 prerequisite の早期完了で dependent が誤起動しないことを検査する。失敗時のcleanupではブロック中のtaskを解放してからpoolをshutdownする。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreBackgroundTaskWorkerPoolContractTest.FanInDependencyWaitsUntilEveryPrerequisiteCompletes` を実行する。
+
+## 2026-11-08: Background task cancellation races with token cleanup
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::CancelTask/ExecuteTask`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::CancelTaskRacingWithCompletionLeavesOneConsistentTerminalSnapshot`。
+- **確認できた事実:** `ExecuteTask` は stack 上の `CancelToken` のポインタを map に登録し、終了時に mutex 下で erase する。`CancelTask` も同 mutex 下でのみ token を参照する。既存テストは実行中 token 到達と queued cancellation を別々に確認していた。
+- **追加した検査:** 32回、task body の解放と別 thread の `CancelTask` を同時に競合させる。body が観測した token 状態に対応する Completed/Cancelled snapshot、開始・終了時刻、完了後の late cancel の無変化を確認する。
+- **価値または懸念:** stack token pointer の寿命境界と終端 snapshot の一貫性を高頻度で検査する。競合の勝者はスケジューリング依存なので、両方の正当な結果を許容する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreBackgroundTaskWorkerPoolContractTest.CancelTaskRacingWithCompletionLeavesOneConsistentTerminalSnapshot` を実行する。
+
+## 2026-11-08: ActionManager supports removal from its executed-event callback
+- **関連:** `ArtifactCore/src/UI/InputOperator.cpp::ActionManager::executeAction/unregisterAction`、`tests/ArtifactCore/ActionManagerContractTest.cpp::ExecutedEventCanSynchronouslyUnregisterItsAction`。
+- **確認できた事実:** `executeAction` は action callback と `Action::triggered` の完了後に `ActionExecuted` event を発行する。event listener は同期的に同じ action の unregister を要求し得る。既存テストは通常の登録・実行・解除を別々に検査していた。
+- **追加した検査:** `ActionExecuted` listener の中で同じ ID を解除し、execute callback が一度走ること、終了後に action が存在しないこと、実行・解除イベントが各一度だけ観測されることを確認する。
+- **価値または懸念:** event 経由の再入状態変更に対する ActionManager の寿命・通知境界を検出する。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreActionManagerContractTest.ExecutedEventCanSynchronouslyUnregisterItsAction` を実行する。
+
+## 2026-11-08: PluginRegistry tombstone snapshots and reregistration
+- **関連:** `ArtifactCore/src/Plugin/PluginRegistry.cpp::unregisterPlugin/registerPlugin`、`tests/ArtifactCore/PluginRegistryContractTest.cpp::UnregisterRetainsDescriptorTombstoneAndReregistrationResetsLifecycle`。
+- **確認できた事実:** `unregisterPlugin` は entry を消去せず `Unloaded` にし、active set から外す。`registerPlugin` は同じ ID の entry を置換し、`Registered` 状態に戻す。既存テストは state と active listing を見るが、`allPlugins` / category listing の tombstone 整合は検査していなかった。
+- **追加した検査:** unregister を二度呼んだ後に descriptor が全件・カテゴリ一覧に残り、active 一覧から外れること、別カテゴリ descriptor で再登録すると旧カテゴリから消えて状態が `Registered` に戻ることを確認する。
+- **価値または懸念:** tombstone を使う利用側が一覧 API 間の挙動変更を検出できる。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で追加した `PluginRegistryContractTest` を実行する。
+
+## 2026-11-08: Concurrent AudioBufferQueue clear preserves surviving items and capacity
+- **関連:** `ArtifactCore/include/Audio/AudioBufferQueue.ixx::push/pop/clear`、`tests/ArtifactCore/AudioBufferQueueStandaloneTest.cpp::ConcurrentClearAndDrainKeepSurvivingSegmentsCoherentAndQueueReusable`。
+- **確認できた事実:** queue操作は同じ`QMutex`で直列化される。既存suiteはproducer/consumer同時実行、逐次clear、満杯からのclearを別々に確認するが、clearとpush/popが同時に動く契約は未確認。
+- **追加した検査:** producer、consumer、clearerを同時実行し、clearで破棄されるitemは許容しながら、消費されたsegmentのpayload破損・重複がないことを確認する。終了後は100 slotを再充填し、満杯状態まで回復することを検査する。
+- **価値または懸念:** clear競合時の破損やmutex境界の回帰、および容量が再利用可能なことを検出する。テスト未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `AudioBufferQueueStandaloneTest.ConcurrentClearAndDrainKeepSurvivingSegmentsCoherentAndQueueReusable` を実行する。
+
+## 2026-11-08: FrameCache size eviction ignores superseded size candidates after generation refresh
+- **関連:** `Artifact/src/Render/ArtifactFrameCache.cpp::FrameCache::put/Impl::evictOne`、`tests/Artifact/FrameCacheContractTest.cpp::SizeEvictionSkipsStalePriorityCandidateAfterGenerationReplacement`。
+- **確認できた事実:** Size policyのpriority queueは候補を遅延管理し、eviction時に候補サイズと現在entryのサイズを照合してstale候補を捨てる。同じkeyのputは現在entryを差し替えるが、古いsize候補はqueueに残る。既存世代置換テストはcleanup保持を検査するが、Size eviction候補との交差を検査しない。
+- **追加した検査:** 小さいentryを世代更新後に同keyの大きなentryで置換し、別の中サイズentryと容量競合させる。古い小サイズ候補が新entryへ誤結合せず、中サイズentryがevictされ、新世代置換entryと追加entryが保持されることを確認する。
+- **価値または懸念:** 遅延priority queueの古い候補が、同frame keyの再利用後に新しいcache entryを誤って選ぶ回帰を検出する。production codeは子repository配下のため変更していない。テスト未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `FrameCacheContractTest.SizeEvictionSkipsStalePriorityCandidateAfterGenerationReplacement` を実行する。
+
+## 2026-11-08: Independent CheckpointStore instances need coherent shared-file saves
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::CheckpointStore::save/load`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp::IndependentStoreInstancesKeepCheckpointReadableDuringConcurrentSaves`。
+- **確認できた事実:** `CheckpointStore` は各instanceが個別mutexを持ち、`save()`は共通job pathの`checkpoint.json`を`QFile::WriteOnly`で直接開く。既存concurrency testはreader/writerが同一instanceを共有するため、このmutexで全操作が直列化される。
+- **追加した検査:** 2つの独立writer instanceが同一jobへ異なるgenerationの大きなfailure manifestを繰り返し保存し、第三のreader instanceが並行loadする。成功した各読み出しのprogressとfailure recordsが一つのgenerationから成ること、欠落・破損読込やsave失敗がないことを期待する。
+- **価値または懸念:** Store instance間の非同期保存で既存checkpointが一時的に読めなくなる、または複数generationが混ざる回帰を検出する。異なるinstance共有の排他・atomic replaceは現行実装で確認できず、contract期待は未検証。テスト未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `CheckpointStoreContractTest.IndependentStoreInstancesKeepCheckpointReadableDuringConcurrentSaves` を実行し、CheckpointStoreのinstance間競合が実際に発生するか確認する。
+
+## 2026-11-08: AsyncFileWriter shutdown drains concurrent same-target submissions
+- **関連:** `ArtifactCore/src/IO/asio_async_file_writer.cpp::AsioAsyncFileWriterManager::Impl::enqueueBytes/~Impl`、`tests/ArtifactCore/AsyncFileWriterContractTest.cpp::ConcurrentSameTargetWritesAreFullyReportedWhenManagerIsDestroyed`。
+- **確認できた事実:** 既存suiteは複数producerの異なるtargetへのshutdown時drainと、2件の同一target concurrent commitを別々に確認する。writerはthread poolへtaskをpostし、destructorは停止フラグを立ててthread poolをjoinする。
+- **追加した検査:** 4 producerから同一pathへ48件を同時enqueueし、全producer完了後すぐmanagerを破棄する。各callbackが成功またはfailureで1回だけ実行され、結果のbytes/errorが整合することを確認する。成功があれば最終fileが成功payloadの完全なsnapshotと一致し、成功がなければfileが作られていないことを確認する。
+- **価値または懸念:** concurrent enqueue、atomic file replacement、shutdown drainが交差した際の欠落通知・部分file・callback重複を捕捉する。テスト未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `AsyncFileWriterContractTest.ConcurrentSameTargetWritesAreFullyReportedWhenManagerIsDestroyed` を実行する。
+
+## 2026-11-08: Asset localization and invalidation share one payload-version boundary
+- **関連:** `ArtifactCore/src/Asset/AssetManager.cpp::localizeSource/invalidateSource`、`tests/ArtifactCore/AssetManagerContractTest.cpp::ConcurrentLocalizationAndInvalidationFollowOneVersionBoundary`。
+- **確認できた事実:** localizationはsource version/use countを複製し、payload weak-keyをlocalized IDへ複製する。invalidationは元IDのversionを進め、元ID prefixのpayloadのみ削除する。双方とも同じregistry mutexを使う。既存testsはpayload継承とinvalidateを逐次に検査する。
+- **追加した検査:** localizeとinvalidateをbarrierで同時開始する。両順序を許容し、元source versionが一度進み、所有権がlocalized sourceへ一度移ることを確認する。localize先行なら旧versionとpayloadが維持され、invalidate先行なら新versionと空cacheになることを検査する。
+- **価値または懸念:** invalidation境界をまたぐsource localizationで、payloadとversionが異なる順序から混ざる回帰を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `AssetManagerContractTest.ConcurrentLocalizationAndInvalidationFollowOneVersionBoundary` を実行する。
+
+## 2026-11-08: SplitDocumentStore load must reject case aliases to one child file
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::SplitDocumentStore::load`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::LoadRejectsCaseAliasesOnlyWhenTheyShareAChildFile`。
+- **確認できた事実:** save側にはcase-insensitive filesystem上で異なる名前が同じfileへ解決される場合の拒否testがある。load側のmanifest duplicate checkはQString完全一致のみで、child file pathを開く前にcase aliasを検出しない。
+- **追加した検査:** filesystemのcase sensitivityをprobeし、JSON/CBORのmanifestに`Scene`と`scene`の2参照を注入する。両名が物理的に別fileなら異なるcontentでround-tripし、同一fileへaliasするfilesystemではload拒否を期待する。
+- **価値または懸念:** importされたmanifestがcase aliasを持つ場合に、異なるlogical documentが同一child payloadへ化ける挙動を検出する。現行loadはcase-insensitive環境で双方を受理する見込み。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `SplitDocumentStoreContractTest.LoadRejectsCaseAliasesOnlyWhenTheyShareAChildFile` を実行する。
+
+## 2026-11-08: AudioMixer bus removal prunes every graph reference
+- **関連:** `ArtifactCore/src/Audio/AudioMixer.cpp::AudioMixer::removeBus`、`tests/ArtifactCore/AudioMixerRoutingTest.cpp::RemovingBusPrunesPrimarySidechainAndVcaReferencesTogether`。
+- **確認できた事実:** removeBusはsource routeを消し、incoming primary routesをmasterへ戻し、関連sidechain sendとVCA membershipを消す。既存testsはprimary route、sidechain、VCAの個別操作を広く確認するが、一つのbusを削除した後の横断的cleanupとmix結果を合わせて検査していない。
+- **追加した検査:** victim busをprimary target/source、sidechain target/source、VCA memberとして同時に参照し、remove後にsource routesがmasterへ戻ること、victimを含むsendとVCA memberだけ消えること、surviving send/memberと通常mix outputが保たれることを検査する。
+- **価値または懸念:** bus removal後にrouting/send/VCA各indexの一部だけが残る回帰や、残存busのmix変化を捕捉する。テスト未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `AudioMixerRoutingTest.RemovingBusPrunesPrimarySidechainAndVcaReferencesTogether` を実行する。
+
+## 2026-11-08: RenderFarm checkpoint frontier must not follow out-of-order completion count
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange/saveCheckpoint/runJob`、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp::OutOfOrderCompletionDoesNotAdvanceResumePastAnUnfinishedFrame`。
+- **確認できた事実:** rangeは複数workerへ連続subrangeとして分割される。checkpoint保存値は`request.range.startFrame + totalProgress.completed`で計算され、frameごとのEveryNFrames checkpointがある。既存restart testは最終frameがfailedの連続実行を確認するが、先行frameが未完了のまま後続frameだけ完了する順序は固定していない。
+- **追加した検査:** frame 0のrender callbackをgateで停止し、別workerのframe 1を成功させてcheckpointを観測する。frame 0をfailureとして解放後に新masterでresumeし、未完了frame 0が実際に再実行されることと成功出力を確認する。resume境界が0を越えない期待を追加する。
+- **価値または懸念:** 完了件数を連続完了frontierと誤認し、out-of-order時に未完了frameをcheckpoint resumeで飛ばす回帰を検出する。現行計算ではframe 1だけ完了した時点でexclusive boundary 1となる見込み。テスト未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `RenderFarmMasterCheckpointContractTest.OutOfOrderCompletionDoesNotAdvanceResumePastAnUnfinishedFrame` を実行する。
+
+## 2026-11-08: RenderFarm range splitting must handle fewer frames than workers
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::Impl::splitRange/runJob`、`tests/ArtifactCore/RenderFarmMasterRetryContractTest.cpp::MoreWorkersThanFramesStillRendersEveryScheduledFrameExactlyOnce`。
+- **確認できた事実:** `splitRange`は`baseChunk`を最低1にした後、`remainder = totalFrames - baseChunk * parts`を算出して各chunkへ加える。frame数2・worker数4ではremainderが負になる。local worker dispatchは要求rangeをworker数でsplitする。既存suiteはworker数4のrange4など同数か、worker1のrangeを主に扱う。
+- **追加した検査:** 4 workerへ2 frameを割り当て、成功jobがrequested frame 20と21を各一度だけrenderすることをcallback記録から確認する。
+- **価値または懸念:** workerがframe数を上回る場合に負長chunkやrequested range外frameを作る回帰を検出する。現行計算では20/21以外のframeがdispatchされる見込み。テスト未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `RenderFarmMasterRetryContractTest.MoreWorkersThanFramesStillRendersEveryScheduledFrameExactlyOnce` を実行する。
+
+## 2026-11-08: LFU eviction must discard stale frequency records after frame-key reuse
+- **関連:** `Artifact/src/Render/ArtifactFrameCache.cpp::Impl::evictOne/FrameCache::invalidate/put`、`tests/Artifact/FrameCacheContractTest.cpp::LfuEvictionIgnoresStaleFrequencyCandidatesAfterKeyReuse`。
+- **確認できた事実:** LFU priority queueは候補をlazyに残す。invalidateはframe keyのaccess countをeraseするが、候補queueはそのまま残る。putは同じframe keyのaccess countを0へ戻してからaccessを記録する。
+- **追加した検査:** frame 20を複数回touchしてinvalidateし、同じkeyへ再挿入して他frameより高いfrequencyにする。capacity追加時に古いfrequency候補が再利用keyへ誤結合せず、本当にleast-frequently-usedの別frame 10がevictされることを確認する。
+- **価値または懸念:** lazy LFU candidateと同じframe keyの世代再利用が交差した際に、頻繁に使われるentryが誤evictされる回帰を検出する。テスト未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `FrameCacheContractTest.LfuEvictionIgnoresStaleFrequencyCandidatesAfterKeyReuse` を実行する。
+
+## 2026-11-08: ProgressAggregator ETA must saturate beyond int milliseconds
+- **関連:** `ArtifactCore/src/Render/ProgressAggregator.cpp::ProgressAggregator::snapshot`、`ArtifactCore/include/Render/ProgressAggregator.ixx::FarmProgressSnapshot::estimatedRemainingMs`、`tests/ArtifactCore/ProgressAggregatorContractTest.cpp::EtaEstimateSaturatesWhenRemainingTimeExceedsIntegerRange`。
+- **確認できた事実:** snapshotは残りframe数/rateからdouble ETAを算出し、範囲検査なしで`int`へcastする。公開フィールドもint milliseconds。大きいremaining workまたは長いelapsedでestimateがint上限を超える組み合わせは既存testsにない。
+- **追加した検査:** worker totalを`INT_MAX`とし、1 frameを最低5msかけた観測から残り時間をINT_MAX超へ導く。ETA millisecondsがINT_MAXへ飽和し、completion時刻が有効なままであることを期待する。
+- **価値または懸念:** 浮動小数から範囲外integer変換した時の負値・不定表示を検出する。飽和期待はmilliseconds公開型の表現範囲から導いた契約で、現行実装では直接castされるため失敗する見込み。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `ProgressAggregatorContractTest.EtaEstimateSaturatesWhenRemainingTimeExceedsIntegerRange` を実行する。
+
+## 2026-11-08: Localization replacement without en.json drops prior English fallback
+- **関連:** `ArtifactCore/src/Localization/Localization.cpp::LocalizationManager::loadFromDirectory`、`tests/ArtifactCore/LocalizationContractTest.cpp::DirectoryWithoutEnglishCatalogDropsPreviousFallbackAndLocale`。
+- **確認できた事実:** loadFromDirectoryは新directory内に`en.json`がない場合、既存fallback_をclearせず、旧translations_のEnglish localeも置換しない。既存directory reload testは新directoryに別のen catalogがあるケースを扱う。
+- **追加した検査:** en/ja catalogをロード後、enを含まず新しいjaのみを持つdirectoryへ切り替える。available localeはjaのみとなり、旧fallback keyが復活せず、diagnosticsのmissing/loaded/untranslated key一覧が新catalogに一致することを検査する。
+- **価値または懸念:** fallback sourceが削除されたcatalog reload後も旧英語文字列やlocale選択肢が残る回帰を検出する。現行実装は旧fallbackを維持する見込み。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `LocalizationContractTest.DirectoryWithoutEnglishCatalogDropsPreviousFallbackAndLocale` を実行する。
+
+## 2026-11-08: Truncated shared frame packet does not block later frames
+- **関連:** `ArtifactCore/src/IPC/RenderFarmSharedBuffer.cpp::readNextFrame`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::TruncatedFramePacketIsConsumedAndNextValidFrameCanBeRead`。
+- **確認できた事実:** `readNextFrame` は共有ringからentryを先に消費し、frame header長不足を `Invalid frame packet` として返す。追加テストはraw ring handleで短いentryを注入し、失敗検出・pending解消後に別producer handleが送るvalid float frameを正常受信することを確認する。未実行。
+- **価値または懸念:** 単一の破損frame headerがconsumerを永久に停滞させず、後続frameのframe numberとpixel内容を保つ回復性を固定する。
+- **次に確認すべきこと:** `ArtifactCoreSharedMemoryRingBufferContractTest` を許可されたタイミングで実行し、上位frame packet parse failure後のrecoveryを確認する。
+
+## 2026-11-08: Rejected collaborative undo and redo restore stack transitions
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::UndoManager::undo/redo/rejectCollaborativeOperation`、`tests/Artifact/UndoManagerContractTest.cpp::RejectingPendingCollaborativeUndoAndRedoRestoresBothStackTransitions`。
+- **確認できた事実:** pending Undo rejection は commandをredoしてredo→undoへ戻し、pending Redo rejection は commandをundoしてundo→redoへ戻す。既存追加テストはpush rejectionのみだった。新テストはsequence付きredoとundoの双方を拒否し、それぞれの値、stack数、version/dirty状態を確認後、残ったredo branchを通常実行する。未実行。
+- **価値または懸念:** collaboration sequenceの拒否が undo/redo のstack方向と保存versionを取り違えないことを対称な状態遷移で固定する。
+- **次に確認すべきこと:** `ArtifactUndoManagerContractTest` を許可されたタイミングで実行し、pending Undo/Redo rejection後のbranchとversionを確認する。
+
+## 2026-11-08: Rejected collaborative push restores prior redo branch
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::UndoManager::push/rejectCollaborativeOperation`、`tests/Artifact/UndoManagerContractTest.cpp::RejectingPendingCollaborativePushRestoresPriorRedoBranchAndVersion`。
+- **確認できた事実:** sequence付き optimistic push は既存redo stackをpending edit内へ退避し、rejectは commandをundoしてその枝と前versionを戻す。追加テストでは既存redo branchのある状態でpushをpending化し、wrong client/sequence拒否、正しいreject後の値・undo/redo数・version/dirty状態、旧redoの実行を確認する。未実行。
+- **価値または懸念:** collaboration acknowledgmentの相関不一致や拒否が、楽観適用前のローカル履歴枝を破壊しない契約を固定する。
+- **次に確認すべきこと:** `ArtifactUndoManagerContractTest` を許可されたタイミングで実行し、pending identity検証とredo branch復元を確認する。
+
+## 2026-11-08: Action recording replay builds a macro atomically
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::beginActionRecording/endActionRecording/replayActionRecording`、`tests/Artifact/UndoManagerContractTest.cpp::ActionRecordingReplayIsAtomicAndProducesOneUndoableMacro`。
+- **確認できた事実:** 記録は5〜10件のserializable commandをportable JSONへ収録し、replayは全entryをfactoryで構築した後にMacroUndoCommandとしてpushする。追加テストは5件を一つのundo transactionとして再生・undo/redoし、最後のentryをunknown typeへ差し替えた拒否ケースで現在値、stack、versionを不変に保つことを要求する。未実行。
+- **価値または懸念:** automation recordingの後半データ破損や互換性切れで、先行操作が部分適用されたり既存historyを汚したりしない契約を固定する。
+- **次に確認すべきこと:** `ArtifactUndoManagerContractTest` を許可されたタイミングで実行し、action recordingの一括復元・macro undo/redoと不正entry拒否を確認する。
+
+## 2026-11-08: Corrupt offloaded undo entry remains retryable
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::OffloadedUndoCommand::restore/UndoManager::undo`、`tests/Artifact/UndoManagerContractTest.cpp::CorruptOffloadedCommandCanBeRetriedWithoutLosingUndoState`。
+- **確認できた事実:** OffloadedUndoCommand は undo/redoごとにファイルを復元し、復元失敗を lastOperationSucceeded=false として報告する。追加テストでは2件目をredo stackへ移動後、最古offload fileを破損し、undo失敗時の値・stack数・version・dirty状態保持を要求する。元ファイルを戻した後の再試行と両entryのredoも確認する。未実行。
+- **価値または懸念:** 外部ファイル障害で履歴entryが消失したり version が進んだりせず、原因解消後に同じ操作を再試行できる復旧契約を固定する。
+- **次に確認すべきこと:** `ArtifactUndoManagerContractTest` を許可されたタイミングで実行し、offloadファイル破損から復旧・redoまでを確認する。
+
+## 2026-11-08: Invalid session history load leaves current undo state untouched
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::loadSessionHistory`、`tests/Artifact/UndoManagerContractTest.cpp::FailedSessionHistoryLoadKeepsExistingValueBranchesAndVersion`。
+- **確認できた事実:** `loadSessionHistory` はentryを一時vectorへ全件復元し、全件検証後にundo stackを置換する。追加テストは有効entryに続く不正typed entryでloadを失敗させ、既存のproject value、undo/redo両stack数、current version、saved/dirty状態が保持され、元の枝を引き続きundo/redoできることを要求する。未実行。
+- **価値または懸念:** 部分的に有効な履歴ファイルが現在の操作履歴を半端に置き換えない transaction境界を固定する。
+- **次に確認すべきこと:** `ArtifactUndoManagerContractTest` を許可されたタイミングで実行し、後半entry不正時の履歴・状態保持を確認する。
+
+## 2026-11-08: Session history reload preserves current project state and undo branch
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::saveSessionHistory/loadSessionHistory`、`tests/Artifact/UndoManagerContractTest.cpp::SessionHistoryReloadRestoresUndoableBranchWithoutReapplyingCurrentState`。
+- **確認できた事実:** session history保存はundo stackをserializeし、redo stackを含めない。loadはfactoryでcommandを再構築して履歴に置くが実行はしない。追加テストでは2 edit後にundoした状態を保存し、独立して復元済みのproject valueを変えずにload、再構成された1件のundo/redoとredo branch除外を確認する。未実行。
+- **価値または懸念:** project stateの復元とundo historyの復元が二重適用にならず、branch位置に対応した操作履歴を保持することを固定する。
+- **次に確認すべきこと:** `ArtifactUndoManagerContractTest` を許可されたタイミングで実行し、session historyの再ロード後も値・undo/redo状態が整合することを確認する。
+
+## 2026-11-08: Initial macro push failure compensates partial and prior edits
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::MacroUndoCommand::redo/UndoManager::push`、`tests/Artifact/UndoManagerContractTest.cpp::FailedInitialMacroPushCompensatesPartialChildAndAllEarlierEdits`。
+- **確認できた事実:** MacroUndoCommand は失敗した子自身の部分適用を補償し、その後すでに成功した子を逆順にundoする。既存テストは macro redo の再実行失敗と macro undo の失敗を扱うが、push初回の失敗が未検査だった。追加テストでは3番目の子が状態変更後に失敗し、全値復元と空のundo/redo履歴を要求する。未実行。
+- **価値または懸念:** 一度も履歴に記録されない複合操作が、部分成功状態をプロジェクトへ残さないことを初回実行経路で固定する。
+- **次に確認すべきこと:** `ArtifactUndoManagerContractTest` を許可されたタイミングで実行し、partial childと複数先行childの補償順を確認する。
+
+## 2026-11-08: WorkerPool restart resumes stopped queue with dependency ordering
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::Start/Shutdown/SubmitTask/WorkerLoop`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::RestartRetainsCompletedSnapshotsAndRunsStoppedQueueDependenciesOnce`。
+- **確認できた事実:** `Shutdown` は worker/scheduler を join し、pending deque と snapshots を消去しない。`Start` は再度 thread を起動する。新規契約テストでは完了snapshotを作った後に二重Shutdownし、停止中にdependentをprerequisiteより先にqueue、再起動して依存順・一度だけの実行・既存snapshot保持を確認する。テスト未実行。
+- **価値または懸念:** WorkerPool lifecycle の再利用で queued work が欠落／重複せず、停止中の投入を依存制約付きで処理することを固定する。
+- **次に確認すべきこと:** `ArtifactCoreBackgroundTaskWorkerPoolContractTest` を許可されたタイミングで実行し、shutdown/restartを跨ぐtask graphを確認する。
+
+## 2026-11-08: IPCChannel shared-memory zero-copy works across handles
+- **関連:** `ArtifactCore/src/IPC/IPCChannel.cpp::create/sendZeroCopy/receiveZeroCopy`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::SharedMemoryZeroCopyRoundTripPreservesRawBinaryPayloadAcrossHandles`。
+- **確認できた事実:** IPCChannel の SharedMemory 経路は ring buffer を直接使い、zero-copy API は raw bytes を送受信する。IPCChannelのwrapper向けテストがなかったため、producer/consumerを別々のchannel handleとして作り、NUL/高bit byteを含む固定payloadのpending byte数と完全一致を確認するケースを追加。未実行。
+- **価値または懸念:** ring module単体のテストだけでは確認できない、IPCChannel transport選択・別handle接続・zero-copy境界の統合契約を固定する。
+- **次に確認すべきこと:** `ArtifactCoreSharedMemoryRingBufferContractTest` を許可されたタイミングで実行し、shared-memory channel wrapper経由のraw payloadを確認する。
+
+## 2026-11-08: IPCChannel socket framing handles fragmented and coalesced input
+- **関連:** `ArtifactCore/src/IPC/IPCChannel.cpp::receive/receiveBlocking`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::LocalSocketReassemblesFragmentedLengthPrefixAndRetainsCoalescedMessages`。
+- **確認できた事実:** LocalSocket/TCP receive path は4-byte QDataStream length prefix を内部 `receiveBuffer` に追加し、1回に1 messageを消費する。追加テストは2-byteの分割prefixとcoalesced 2つ目frameを受信し、buffer済みframeの `receiveBlocking(0)` 取得を要求する。現行実装はsocketを先に待ち、readyでなければbufferを解析せず空を返すため不一致がある。また outbound `send` と非SharedMemory `sendZeroCopy` が同じlength-prefixed frameを送ることも同じLocalSocket testで検査する。テスト未実行。
+- **価値または懸念:** OSのread境界とmessage境界のずれ、内部bufferのblocking取得、双方向send framingとzero-copy fallbackを一つの実socket契約で固定する。blocking取得にはテストで検出する未修正の挙動差がある。
+- **次に確認すべきこと:** `ArtifactCoreSharedMemoryRingBufferContractTest` を許可されたタイミングで実行し、socket受信の断片化と内部残留bufferのblocking取得を確認する。
+
+## 2026-11-08: Shared frame producer must enforce consumer frame dimensions
+- **関連:** `ArtifactCore/src/IPC/RenderFarmSharedBuffer.cpp::createConsumer/openProducer/writeFrame`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::RejectsOversizedFrameWithoutPoisoningTheNextPacket`。
+- **確認できた事実:** `createConsumer` は configured width × height からリングの `maxEntrySize` を決めるが、`openProducer` は `SharedMemoryRingBuffer::open` 経由で最大 entry サイズをリング全容量へ設定する。`writeFrame` 自身は pixel bytes と総容量しか比較しない。追加テストは2×2上限の consumer に3×2を送った際の拒否と、その後の有効 frame が正しく届くことを要求する。静的コード上は不一致があり、テスト未実行。
+- **価値または懸念:** consumer のフレーム寸法設定が producer 側にも適用され、過大 packet が共有リングを消費したり後続 frame をずらしたりしない境界を固定する。実装修正は依頼範囲外なので行っていない。
+- **次に確認すべきこと:** `ArtifactCoreSharedMemoryRingBufferContractTest` を許可されたタイミングで実行し、現在の不一致を再現後、producer-open 時の上限伝達方法を設計して修正する。
+
+## 2026-11-08: RenderFarm shared frame packets preserve float image identity
+- **関連:** `ArtifactCore/src/IPC/RenderFarmSharedBuffer.cpp::writeFrame/readFrame`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::FrameSequenceSkipPreservesExactFloatPixelsAndFrameIdentity`。
+- **確認できた事実:** RenderFarmSharedBuffer は ImageF32x4_RGBA をフレームpacketへコピーし、`readFrame(n)` は n より古いフレームを消費して最初の n 以上を返す。専用テストがなかったため、追加テストで別 consumer/producer handle 間に2 frameを送り、skip後の frame number・timestamp・2x2 float BGRA payload全component・empty状態を確認する。テスト未実行。
+- **価値または懸念:** リング自体のbyte列契約と上位frame packetの寸法・識別・pixel round tripを別々に検査し、IPC境界の画像破損や誤frame配送を検出する。
+- **次に確認すべきこと:** `ArtifactCoreSharedMemoryRingBufferContractTest` を許可されたタイミングで実行し、専用IPC module importを含む契約テストを確認する。
+
+## 2026-11-08: Scheduler re-evaluates a successful multi-level dependency chain
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::dependenciesSatisfied` / queued-job scheduler、`tests/ArtifactCore/RenderFarmMasterQueueContractTest.cpp::SchedulerResolvesForwardDependencyChainAcrossMultipleQueuePasses`。
+- **確認できた事実:** 既存 queue 契約テストは forward dependency 1段と失敗依存の枝刈りを扱う。追加テストでは leaf / middle を prerequisite より先に queue し、独立 ready job も含む成功グラフで、各完了後の再評価と優先順位を検証する。テスト未実行。
+- **価値または懸念:** 複数回の worker scheduler pass をまたぐ dependency readiness と、ready な独立ジョブの優先順位が同時に崩れないことを固定する。
+- **次に確認すべきこと:** `ArtifactCoreRenderFarmMasterQueueContractTest` を許可されたタイミングで実行し、依存鎖の全 job の実行順と完了結果を確認する。
+
+## 2026-11-08: Concurrent checkpoint reads preserve snapshot generations
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::CheckpointStore::save/load`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp::ConcurrentReadersObserveCoherentCheckpointGenerations`。
+- **確認できた事実:** 同一 `CheckpointStore` の save/load は共通 mutex を使う。追加テストでは3 writer が1,800世代の整合した進捗・失敗記録を同じ job ID に保存し、同時 reader が各読取で同一世代の値を受け取るか検証する。テスト未実行。
+- **価値または懸念:** checkpoint のディスク書込み中に読取が割り込み、JSONの部分状態や異なる世代のフィールドを返さないという永続化境界を並行条件で固定する。
+- **次に確認すべきこと:** `ArtifactCoreCheckpointStoreContractTest` を許可されたタイミングで実行し、writer競合中の全 snapshot と最終保存内容を確認する。
+
+## 2026-11-08: Valid checkpoint save repairs a malformed persisted record
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::CheckpointStore::save/load`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp::ValidSaveRepairsMalformedCheckpointForTheSameJob`。
+- **確認できた事実:** `load` は破損 JSON を拒否し、`save` は同じ job ID の checkpoint path を開いて内容を置き換える。追加テストでは破損ファイルを読み込み拒否した後、有効な進捗と failure manifest を保存して再読込する回復経路を確認する。テスト未実行。
+- **価値または懸念:** crash/部分書込み後に再開できない破損 checkpoint を次回の有効な保存で修復できるという運用上の回復動作を固定する。
+- **次に確認すべきこと:** `ArtifactCoreCheckpointStoreContractTest` を許可されたタイミングで実行し、同一 job ID の破損から保存・復旧までを確認する。
+
+## 2026-11-08: Frame callback success still requires valid sequence outputs
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::validateOutputArtifact`、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp::SuccessfulFrameCallbacksDoNotAcceptMissingOrEmptySequenceOutputs`。
+- **確認できた事実:** frame callback が全件 `true` を返しても、sequence 出力検証は各 frame の通常ファイルと非ゼロサイズを要求する。追加したテストでは1 frame に空ファイル、別 frame に出力なしを用意し、完了結果が成功扱いされないことを検証する。テスト未実行。
+- **価値または懸念:** renderer の成功通知だけでは不完全な成果物を完了扱いできないという、callback と filesystem の境界契約を固定する。
+- **次に確認すべきこと:** `ArtifactCoreRenderFarmMasterCheckpointContractTest` を許可されたタイミングで実行し、両方の不正出力を排除する完了検証を確認する。
+
+## 2026-11-08: Checkpoint resume revalidates zero-byte frame outputs
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange`、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp::CompletedCheckpointRerendersZeroByteFrameButKeepsValidOutputs`。
+- **確認できた事実:** 再開時に既存出力は通常ファイルかつサイズが正の場合だけスキップされる。追加した契約テストは完了 checkpoint の後で中間 frame の出力を空ファイルに置き換え、空ファイルの frame だけを再描画し、他の有効出力を維持することを検証する。テスト未実行。
+- **価値または懸念:** 部分書き込みなどで残った空ファイルを完了済み成果物と誤認しない再開契約を固定する。
+- **次に確認すべきこと:** `ArtifactCoreRenderFarmMasterCheckpointContractTest` を許可されたタイミングで実行し、checkpoint 完了状態と実ファイル検査の組み合わせを確認する。
+
+## 2026-11-08: Clipboard layer bundle system round trip
+- **関連:** `ArtifactCore/include/Clipboard/ClipboardManager.ixx::copyLayerBundle` / `parseClipboardObject` / `syncFromSystemClipboard`、`tests/ArtifactCore/ClipboardManagerContractTest.cpp::LayerBundleSurvivesSystemClipboardRoundTripWithMetadata`。
+- **確認できた事実:** `copyLayerBundle` emits a `project-bundle` envelope whose layer payload is in `layers`; `parseClipboardObject` currently accepts `project-bundle` only when an `items` array exists. No clipboard contract test exists. Added an offscreen QApplication test that copies a two-layer bundle with extension metadata, reloads it from the system clipboard, and checks type, description, layer payload, and metadata. Static code indicates the current parser rejects that emitted bundle; test not run.
+- **価値または懸念:** layer copy/paste across the OS clipboard boundary should preserve the app's own bundle format and forward-compatible metadata; the test exposes the writer/reader shape mismatch.
+- **次に確認すべきこと:** `ArtifactCoreClipboardManagerContractTest`を許可されたタイミングで実行し、現状の往復結果を確認する。必要なparser修正はテスト拡充依頼の範囲外。
+
+## 2026-11-08: SVG transform-list composition order
+- **関連:** `ArtifactCore/src/Shape/ShapeLayer.cpp::parseSvgTransform` / SVG element import、`tests/ArtifactCore/ShapeLayerSvgContractTest.cpp::TransformListComposesTranslationBeforeNonUniformScale`。
+- **確認できた事実:** SVG importer tests cover individual translation and explicit-pivot rotation, but no attribute combines multiple transforms. Added test imports a rectangle with `translate(7,-4) scale(2,3)` and verifies transformed containment and the expected bounds `(9,2,6,12)`, distinguishing transform-list multiplication order from applying translation after scaling.
+- **価値または懸念:** SVGのtransformリスト解釈を単独operationの正しさから分離し、translate/scaleの合成順序とgeometry/boundsの一貫性を固定する。未実行。
+- **次に確認すべきこと:** `ArtifactCoreShapeLayerSvgContractTest`を許可されたタイミングで実行し、合成後の内部点判定と4辺のboundsを確認する。
+
+## 2026-11-08: Asset proxy survives payload reclassification round trip
+- **関連:** `ArtifactCore/src/Asset/AssetImporter.cpp::AssetImporter::importFile`、`tests/ArtifactCore/AssetImporterContractTest.cpp::ReimportCanRestoreImageClassificationAfterTemporaryDataPayload`。
+- **確認できた事実:** 既存testは同じsource pathのimage→data→image再分類でUUID、import time、tag、image metadataを検査する。別testは同型再import時にproxyを再生成しなくても保持する。追加変更は最初のimage importだけでproxyを生成し、その後proxy generationを無効のままdata→imageへ往復し、同じproxy path・sidecar entry・実ファイルの保持を両段階で検査する。未実行。
+- **価値または懸念:** payload再分類が通常のmetadata・asset identityだけでなく既存の高コスト派生proxy参照を壊さないことを複数回のreimportを通して検証する。
+- **次に確認すべきこと:** `ArtifactCoreAssetImporterContractTest`を許可されたタイミングで実行し、proxy生成後のimage/data往復でidentityとproxy実体が保持されるか確認する。
+
+## 2026-11-08: Shared ring sequence read across wrap padding
+- **関連:** `ArtifactCore/src/IPC/SharedMemoryRingBuffer.cpp::SharedMemoryRingBuffer::readSequence` / `read`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::ReadSequenceSkipsOldEntriesAndWrapPaddingBeforeTarget`。
+- **確認できた事実:** 既存testsはphysical ring wrap後のFIFO転送と、連続領域内で古いsequenceを飛ばす`readSequence`を別々に確認する。追加testは固定サイズentryでtailをentry未満にしてwrap marker/paddingを発生させた後、目標sequenceまでに残る古いentryを読み飛ばし、wrap padding後のtargetを取得する。skip分とtargetのread統計、empty状態も確認する。未実行。
+- **価値または懸念:** sequence検索がphysical paddingをデータとして誤読する、padding後のsequenceを見失う、skipしたentryを統計へ反映しない回帰を組み合わせで検出する。
+- **次に確認すべきこと:** `ArtifactCoreSharedMemoryRingBufferContractTest`を許可されたタイミングで実行し、wrap後targetとqueue/statisticsを確認する。
+
+## 2026-11-08: PlaybackClock loop wrap after audio sync overshoot
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::PlaybackClock::Impl::updateCurrentFrame` / `syncToAudioClock`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::ForwardAndReversePlaybackWrapLargeAudioSyncOvershootsIntoLoopRange`。
+- **確認できた事実:** loop range testsは端点の保存・clear・snapshotを検査するが、frame計算が範囲を越えた時のwrap動作は直接確認しない。追加testはaudio syncを有効化し、1fps時計へ25秒を同期して`[10,20)`の範囲を大きくovershootさせ、forward/reverse双方で`currentFrame()`がloop内へ戻ることを検査する。未実行。
+- **価値または懸念:** 大きな時間差同期後のmodulo wrap、reverse方向のunderflow wrap、loop端点の排他性を統合した実時間境界で確認する。OSスケジューリング差を避けるため位相値ではなく範囲内性を期待する。
+- **次に確認すべきこと:** `ArtifactCorePlaybackClockContractTest`を許可されたタイミングで実行し、forward/reverse双方でloop範囲内へwrapするか確認する。
+
+## 2026-11-08: MFR dependent-frame retry barrier
+- **関連:** `ArtifactCore/include/Render/MFR/MFRDispatcher.ixx::MFRDispatcher::executeBlocking`、`tests/ArtifactCore/RenderJobModelContractTest.cpp::DependentFramesWaitForTheCurrentFrameRetryBeforeStartingLaterFrames`。
+- **確認できた事実:** 既存MFR dispatcher testは依存フレーム設定でretry回数と最終結果を検査するが、frame callbackの実開始順・同時実行数を直接検査していない。追加testはmax concurrencyを3に設定しつつdependent modeを有効化し、最初のframe callbackをcondition-variable gateで待たせてから一度失敗させる。retry完了後に後続frameが進み、call orderが`0,0,1,2`、最大同時callback数が1であることを確認する。未実行。
+- **価値または懸念:** dependent flagの処理が外れて並列化される、またはretry中に後続frameが先行する回帰を、時間sleepの偶然でなく通知可能なgateで検出する。
+- **次に確認すべきこと:** `ArtifactCoreRenderJobModelContractTest`を許可されたタイミングで実行し、callback順序・retry barrier・最大同時数を確認する。
+
+## 2026-11-08: PropertyLink inverse integer mapping
+- **関連:** `ArtifactCore/include/Property/PropertyLinkManager.ixx::LinkType::Inverse`、`ArtifactCore/src/Property/PropertyLinkManager.cpp::PropertyLinkManager::updateTargets`、`tests/ArtifactCore/PropertyLinkManagerContractTest.cpp::IntegerInverseUsesNumericNegation`。
+- **確認できた事実:** enum commentはInverseを`1.0 - x`または`-x`と記述する。現行実装はfloat/doubleとboolのみ分岐し、整数QVariantのInverse出力を設定しない。既存testにはfloatとboolのcaseがあるが、整数値での期待動作はない。追加testは整数7から-7へのmappingを要求する。未実行。
+- **価値または懸念:** 整数プロパティのリンクでInverseが無効値のままtargetを更新しない型分岐欠落を、明示された数値逆転契約として捕捉する。
+- **次に確認すべきこと:** `ArtifactCorePropertyLinkManagerContractTest`を許可されたタイミングで実行し、整数Inverseが-7を反映することを確認する。実装修正は今回のテスト拡充範囲外。
+
+## 2026-11-08: SoftBody snapshot volume triangle validation
+- **関連:** `ArtifactCore/src/Physics/SoftBodySolver.cppm::SoftBodySolver::canRestoreSnapshot` / `update`、`tests/ArtifactCore/PhysicsDeterminismTest.cpp::RejectsInvalidVolumeTrianglesWithoutMutatingState`。
+- **確認できた事実:** snapshot復元検証はconstraint indexとgrid shapeを検査する一方、volume triangle indexやrestAreaのfinite性は検査しない。pressure updateは有効時にtriangle indexを直接points配列へ使い、restAreaを除算分母に用いる。追加testは負index、point数超過index、NaN restAreaを個別に拒否し、solver状態が不変であることを確認する。未実行。
+- **価値または懸念:** 破損checkpointがpressure update時の範囲外アクセスや非有限シミュレーション値の発生源になる回帰を、復元境界で捉える。
+- **次に確認すべきこと:** `ArtifactCorePhysicsDeterminismTest`を許可されたタイミングで実行し、全ての不正triangleが拒否されlive stateが保持されるか確認する。
+
+## 2026-11-08: RenderGraph same-pass resource lifetime overlap
+- **関連:** `ArtifactCore/include/Graphics/RenderGraph.ixx::RenderResourceLifetimeRange`、`tests/ArtifactCore/RenderGraphTest.cpp::ResourcesUsedOnOppositeSidesOfSamePassCannotShareAllocation`。
+- **確認できた事実:** RenderGraphは各transientのfirst/last passとallocation slotを公開し、既存testsは同一pass内で同時使用されるresource、およびpass間で重ならないresourceのaliasを検査する。追加testはhandoff passが旧resourceをreadしつつ新resourceをwriteする構成にし、両lifetimeが同じpass indexで接し、そのpassをまたいで物理slotを共有しないことを確認する。未実行。
+- **価値または懸念:** lifetime終端を排他的と誤認して同じpass内のread/write resourceへ同じ一時allocationを割り当てる回帰を検出する。特に実行levelを跨ぐstrict happens-before判定との境界を固定する。
+- **次に確認すべきこと:** `ArtifactCoreRenderGraphTest`を許可されたタイミングで実行し、handoff passのlastPass/firstPass一致と別allocation slotを確認する。
+
+## 2026-11-08: SplitDocumentStore duplicate child references
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::SplitDocumentStore::load`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::RejectsDuplicateChildReferencesInJsonAndCborManifests`。
+- **確認できた事実:** 読込処理はmanifestの`_documents`を順に検証し、既出名を`QSet`で検出して拒否する。既存suiteはsave側のunsafe名やload側のroot参照を検査するが、同一childを複数回列挙するmanifestを検査していない。追加testはJSON/CBOR双方のmanifestを書き換えて重複参照を作り、load拒否を確認する。未実行。
+- **価値または懸念:** 重複参照を受理した場合の曖昧なdocument inventoryや、将来の読み込み副作用の二重適用を防ぐ契約をフォーマット横断で固定する。
+- **次に確認すべきこと:** `ArtifactCoreSplitDocumentStoreContractTest`相当の登録suiteを許可されたタイミングで実行し、JSON/CBOR両形式で重複参照が拒否されることを確認する。
+
+## 2026-11-08: DeepImageBuffer partial unpack failure cleanup
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::unpackDeepImage`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::UnpackClearsPartiallyRestoredImageWhenMatchingBuffersContainNonFiniteSample`。
+- **確認できた事実:** packed CPU/GPU sample配列で対応するdepthがともに無限大でも構造整合性検査は通る。その後のsample復元で非有限depthが拒否された場合、unpack処理は既に復元したpixelを含む出力全体を空へ戻す。追加testは2pixel中1pixelを先に復元させてから失敗を発生させ、寸法とsample数を含むcleanupを確認する。未実行。
+- **価値または懸念:** 破損payloadが途中pixelで失敗した際に、呼び出し側へ部分復元状態を漏らす回帰を捕捉する。
+- **次に確認すべきこと:** `ArtifactCoreDeepImageBufferContractTest`を許可されたタイミングで実行し、拒否後の出力が空であることを確認する。
+
+## 2026-11-07: DeepImageBuffer flat/deep compositing boundary oracle
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::compositeFlatOverDeep` / `compositeDeepOverFlat`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::FlatAndDeepCompositingMatchIndependentFrontToBackAlphaOracle`。
+- **確認できた事実:** 既存testはDeepSample内部のfront-to-back flatten、merge、holdout、DOFを検査するが、flat RGBAをdeepへ挿入する両公開APIを直接呼んでいない。追加testはflat front + 2 deep back samples、および2 deep front samples + flat backを構成し、depth orderとpremultiplied RGB/alphaを独立したtransmittance式で照合する。未実行。
+- **価値または懸念:** deep/flat境界でfront/back順序の逆転、alpha二重適用、後続層transmittance誤りが起きると、Deep sample内部の単体testは通っても最終RGBAが誤る回帰を検出する。
+- **次に確認すべきこと:** `ArtifactCoreDeepImageBufferContractTest`を許可されたタイミングで実行し、両向きのflat/deep compositing結果をoracleと比較する。
+
+## 2026-11-07: DeepImageBuffer packed offsets lacked sparse multi-pixel round-trip coverage
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::packDeepImage` / `unpackDeepImage`、`ArtifactCore/include/Image/DeepImageBuffer.ixx::DeepImagePacked`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::PackedOffsetsRoundTripAcrossEmptyPixelsAndVariableSampleCounts`。
+- **確認できた事実:** 既存packed round-tripは2pixelそれぞれ1 sampleで、連続offsetだけを確認する。追加testは3×2画像に0/1/2/3 samplesのpixelをinterleaveし、空pixelを含むprefix-sum offsets/counts、GPU/CPU count一致、全DeepSample fieldのunpack復元、repack後offsetを検査する。未実行。
+- **価値または懸念:** sparse imageでoffsetが詰まる、empty pixelが次sampleをずらす、variable countがrow boundaryをまたいで混線する、holdout/depthBack/coverageを落とす回帰を検出する。
+- **次に確認すべきこと:** ArtifactCoreDeepImageBufferContractTestを許可されたタイミングで実行し、期待prefix sumと全sampleの復元を確認する。
+
+## 2026-11-07: DeepImageBuffer interval clipとmatte境界の複合契約が未検証
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::clipDepthRange` / `toDepthMatteRGBA`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::ClippedDepthIntervalsAndMatteExportAgreeAtNearAndFarBoundaries`。
+- **確認できた事実:** clip testはpoint sampleのinclusive端点を確認し、matte testもpoint sampleの単一深度を確認する。追加caseはquery `[3,5]` にnear境界をまたいで終端が3のinterval、far境界をまたいで始点が5のinterval、query外interval、holdoutを置き、clip後の3 sampleとmatte alpha 0.6を期待する。未実行。
+- **価値または懸念:** intervalを深度範囲で誤って切り詰める／外す、clipとmatteで端点包含が不一致になる、holdoutがcoverage matteへ加算される回帰をAPI間で検出する。alpha期待値は透過率 `(1-.4*.5)*(1-.5)` の補数。
+- **次に確認すべきこと:** ArtifactCoreDeepImageBufferContractTestを許可されたタイミングで実行し、clip残存sampleとmatte alphaを照合する。
+
+## 2026-11-07: DeepImageBuffer ranked RGBA export had no direct contract test
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::toRankedRGBA`、`ArtifactCore/include/Image/DeepImageBuffer.ixx`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::RankedRGBAExportsPerPixelSamplesWithEffectivePremultipliedAlpha`。
+- **確認できた事実:** DeepImageBuffer suiteはflatten・matte・holdout・packed data・merge・flat/deep composite・DOFを検査するが、depth rank別RGBA exportを直接呼ばない。追加testは2pixelの異なるsample数とdepth、out-of-order追加、holdout sample、部分coverageを使い、rank 0〜2のpremultiplied RGBA、rank 3のtransparent default、出力buffer不足を検査する。未実行。
+- **価値または懸念:** GPUへ渡すdepth rank layerでpixel間rankを誤混合する、holdoutを色として出す、effective alphaからcoverageを落とす、sample不足rankを前回出力値のまま残す回帰を検出する。
+- **次に確認すべきこと:** ArtifactCoreDeepImageBufferContractTestを許可されたタイミングで実行し、rank別の全pixel出力とinvalid buffer拒否を確認する。
+
+## 2026-11-07: DeepImageBuffer multi-pixel flat/deep composite oracle
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::compositeFlatOverDeep` / `mergeDeepOver` / `toFlatRGBA`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::MultiPixelFlatOverDeepCompositionMatchesPerPixelOracle`。
+- **確認できた事実:** 既存の独立flat/deep alpha oracleは1×1で両方向APIを検査する。追加testは2×2バッファにpixel別flat alpha、pixel別deep sample color/alpha/coverage、far-to-near挿入順を与え、flat-over-deepのpremultiplied RGB/alphaを各pixelについて独立式で比較する。未実行。
+- **価値または懸念:** row-stride/index計算、pixelごとのsample混線、merge時depth sort漏れ、alpha coverage合成の誤りを、単一pixelの数値oracleでは見つけにくい組合せで捕捉する。
+- **次に確認すべきこと:** ArtifactCoreDeepImageBufferContractTestを許可されたタイミングで実行し、2×2の全channelで独立oracleと一致することを確認する。
+
+## 2026-11-07: MpmSolver2D snapshot restore replay lacks direct contract coverage
+- **関連:** `ArtifactCore/src/Physics/MpmSolver2D.cpp::snapshot` / `canRestoreSnapshot` / `restoreSnapshot`、`tests/ArtifactCore/PhysicsDeterminismTest.cpp::MpmSnapshotTest.RestoreReplaysParticleAndClockStateExactly`。
+- **確認できた事実:** PhysicsDeterminism suite has exact replay tests for fluid and liquid snapshots, but no direct `MpmSolver2D::restoreSnapshot` test; existing MPM references in PhysicsLodSettingsContractTest exercise material forwarding and time state. Added case advances two identically configured CPU solvers, checkpoints after 8 steps, deliberately advances the destination 3 extra steps, restores, then compares every snapshot scalar and particle field after 16 more steps. Not run.
+- **価値または懸念:** MPM checkpoint completeness is tested end-to-end across particle position/velocity, deformation matrices, APIC state, material/color fields, fracture indices, grid geometry, and accumulated time. Exact equality relies on deterministic same-platform CPU execution with the same initial config and timestep sequence.
+- **次に確認すべきこと:** `ArtifactCorePhysicsDeterminismTest`を許可されたタイミングで実行し、MPM snapshot restoreが連続実行とbit-exactに一致するか確認する。
+
+## 2026-11-07: FluidSolver2D snapshot restore accepts non-finite grid values
+- **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cpp::canRestoreSnapshot` / `restoreSnapshot`、`tests/ArtifactCore/PhysicsDeterminismTest.cpp::RejectsNonFiniteGridFieldsWithoutMutatingLiveSolver`。
+- **確認できた事実:** `canRestoreSnapshot`は寸法と9配列の長さだけを確認し、grid値のfinite性を検証しない。`restoreSnapshot`は検証後にdensity/velocity/curl/temperature全配列をそのままsolver stateへ代入する。追加testは9配列の各先頭値を別々にNaNへ変え、canRestore/restore拒否とsolver全gridの不変性を要求する。現行実装では受理してNaNを状態へコピーする見込み。未実行。
+- **価値または懸念:** 壊れたsnapshot一要素がsolver全体のsimulation stateへ伝播し、以後の更新・表示を非有限化する回帰を検出する。各scratch/current gridも別々に検証し、一部配列だけのvalidation漏れを捕捉する。
+- **次に確認すべきこと:** `ArtifactCorePhysicsDeterminismTest`を許可されたタイミングで実行し、各grid fieldの非有限値を拒否し状態が原子的に保たれるか確認する。
+
+## 2026-11-07: DeepImageBufferの重複holdout interval境界が未検証
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::applyDeepHoldout`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::OverlappingHoldoutIntervalsMultiplyCoverageAtInclusiveDepthBoundaries`。
+- **確認できた事実:** 既存holdout testは1pixel、単一matteでforeground不変と単一sample低減を検査する。追加testは2pixelでholdout intervalを複数配置し、境界接触のinclusive扱い、重複intervalの透過率積、範囲外sampleの不変、holdout属性を持つtarget sampleの不変を個別に照合する。未実行。
+- **価値または懸念:** matte intervalの端点比較、複数matteの合成順／二重alpha適用、pixel index混線、holdout sample自身の誤減衰を組み合わせて検出する。期待値はコードコメントの「at or behind」契約と、透過率積の式から導出。
+- **次に確認すべきこと:** ArtifactCoreDeepImageBufferContractTestを許可されたタイミングで実行し、各pixel/sampleのalphaとcoverageを確認する。
+
+## 2026-11-07: ShapePath のmove-only zero-length contour sampling
+- **関連:** `ArtifactCore/src/Shape/ShapePath.cpp::sampleEquidistant` / `interpolate`、`tests/ArtifactCore/ShapeLayerContractTest.cpp::MoveOnlyDegeneratePathKeepsItsLocationWhenSampledAndInterpolated`。
+- **確認できた事実:** `sampleEquidistant`は全長がほぼ0の場合にflatten先頭segmentのstartを返すが、move-only pathはsegmentを持たず、空flattenのfallbackとして(0,0)を繰り返す。`interpolate`は各subpathを同APIでサンプルする。追加testはmoveTo(5,7)の3サンプルがすべて(5,7)であり、そこから(1,1)〜(9,1)の直線への50%補間が(3,4),(5,4),(7,4)になることを期待する。未実行。
+- **価値または懸念:** move-only contourがpath morph時に原点へ瞬間移動する回帰／現状不具合を検出し、degenerate geometryのsample位置保持を固定する。期待はmoveTo位置をゼロ長pathの代表点とする幾何学契約に基づく。
+- **次に確認すべきこと:** `ArtifactCoreShapeLayerContractTest`を許可されたタイミングで実行し、move-only pathのsamplingとinterpolationを確認する。
+
+## 2026-11-08: DeepImageBuffer merge sample capのpixel別・prune後順序が未検証
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::mergeDeepOver` / `DeepImageBuffer::prune` / `sortSamplesByDepth`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::MergeSampleLimitIsPerPixelAfterPruningAndStableDepthSort`。
+- **確認できた事実:** 既存merge testは1pixelでsample capを確認する。追加testは2×2でpixelごとに異なるsample数を作り、alpha 0 sampleのprune後に上位2件が残ること、他pixelのcap独立、同depth時にfront側の安定順序が維持されること、空pixelが空のまま出力されることを検査する。未実行。
+- **価値または懸念:** 全画像に一括capを適用する誤り、prune前にcapして有効sampleを落とす順序逆転、同depth tieの不安定化、空pixelのsample leakageをまとめて捕捉する。
+- **次に確認すべきこと:** ArtifactCoreDeepImageBufferContractTestを許可されたタイミングで実行し、各pixelの保持sample sequenceを確認する。
+
+## 2026-11-08: DeepImageBuffer DOF代表深度がzero coverage sampleに引かれる疑い
+- **関連:** `ArtifactCore/src/Image/DeepImageBuffer.cpp::toDepthOfFieldRGBA`、`tests/ArtifactCore/DeepImageBufferContractTest.cpp::DepthOfFieldChoosesFocusDepthFromFirstVisibleSample`。
+- **確認できた事実:** DOF flattenは `alpha*coverage` で寄与を計算する一方、blur radius用representative depthの探索は `alpha>0` とholdout除外だけを確認し、coverageを見ない。追加testは中央pixelに近いdepth `-2` のcoverage 0 sampleとfocal depth 0の緑sampleをdepth順で置き、可視sample基準でradius 0となるため中央pixelは緑のままという期待を検査する。現行条件ではcoverage 0 sampleがradius 2を選ぶ見込み。未実行。
+- **価値または懸念:** 寄与しないtransparent/deep sampleがDOF blur範囲を決めて可視pixelを不必要に混ぜる回帰を検出する。sample color/alpha flattenとの整合を基準にzero effective alphaを不可視と解釈する。
+- **次に確認すべきこと:** ArtifactCoreDeepImageBufferContractTestを許可されたタイミングで実行し、代表深度選択とalpha/coverage flattenの整合を確認する。
+
+## 2026-11-07: ShapePathのBezier弧長等間隔samplingが未検証
+- **関連:** `ArtifactCore/src/Shape/ShapePath.cpp::sampleEquidistant` / `pointAtLength` / `flatten`、`tests/ArtifactCore/ShapeLayerContractTest.cpp::EquidistantSamplingCorrectsNonUniformQuadraticAndCubicParameterSpeed`。
+- **確認できた事実:** 既存sampling testは直線path上の等距離点を検査する。追加testは幾何学的には0〜10の同じ線分だがパラメータ速度が異なる二次Bezier `P0=P1=0,P2=10` と三次Bezier `P0=P1=P2=0,P3=10` を使い、5点が0, 2.5, 5, 7.5, 10へ等間隔となることを独立座標oracleで確認する。未実行。
+- **価値または懸念:** path morph correspondenceやstroke samplingでBezier parameter tを等間隔距離と誤認する退行を、曲線の近似誤差を持ち込まず厳密な直線距離で検出する。
+- **次に確認すべきこと:** ArtifactCoreShapeLayerContractTestを許可されたタイミングで実行し、二次／三次Bezier双方のarc-length samplingを確認する。
+
+## 2026-11-07: Asset sequence gap policy の全small-subset組合せ
+- **関連:** `ArtifactCore/include/Asset/AssetSequence.ixx::detectSequences`、`tests/ArtifactCore/AssetSequenceDetectionContractTest.cpp`。
+- **確認できた事実:** 既存suiteは入力permutation不変性、特定gap、duplicate、minimum run length、Split/Preserve個別例、整数端を検査する。一方、複数runの長さとgap配置を全組合せで照合する独立oracleはない。追加testは8連続frameの全256 subsetについて、minimum length 2〜4と両policyを総当たりし、逆順入力を独立したrun/missing-frameモデルと比較する。1536ケース、未実行。
+- **価値または懸念:** 連続runの分割、短run singles化、Preserve時の欠損frame列挙が、単独の代表例だけでなく相互作用する全small-patternで正しいかを検査する。domainを8 frameに限定して列挙を小さく保ち、int64 overflow境界は既存専用caseへ委ねる。
+- **次に確認すべきこと:** `ArtifactCoreAssetSequenceDetectionContractTest`を許可されたタイミングで実行し、oracleと実装のpolicy別一致を確認する。
+
+## 2026-11-07: AspectRatio decimal parser の有限値両端境界
+- **関連:** `ArtifactCore/src/Core/AspectRatio.cpp::setFromString`、`tests/ArtifactCore/AspectRatioContractTest.cpp`。
+- **確認できた事実:** decimal parserは`denom=1..100`で`ratio * denom`を`int`へ変換し、範囲判定を変換後にしか行わない。有限でもint numeratorで表現不能な値では、範囲外浮動小数点→整数変換を実行する。追加testは`1e20`から最大有限doubleまでで既存16:9値が保持されることを要求する。また、`1e-20`では全denominatorで丸め後numeratorが0となり、現行コードは探索初期値1:1を採用するが、既存の`0.0001` testは最小正近似1:100を期待するため、より小さな正数でも同じ境界契約を要求する。未実行。
+- **価値または懸念:** 極端な入力での整数変換未定義動作と、bounded approximationが入力の桁により不連続に1:1へ戻る回帰を検出する。巨大値拒否と小値の1:100 clampは、int numerator制約および既存最小正近似testからの推論。
+- **次に確認すべきこと:** `ArtifactCoreAspectRatioContractTest`を許可されたタイミングで実行し、有限double両端に対する拒否／clamp方針を確認する。
+
+## 2026-11-07: RenderFarm queue永続化の複合request round-tripが未検証
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::requestToJson` / `requestFromJson` / `loadQueue`、`tests/ArtifactCore/RenderFarmMasterQueueContractTest.cpp`。
+- **確認できた事実:** 既存queue testはpriority/cancel後のjob順とpriorityを保存JSONで検査するが、再ロード後のjob identity、composition/output metadata、range step、dependencies、worker constraints、timeout、audio、capability、payload、renderer executableは未検証。追加testは既存active blockerの間に残存queueを別fileへ複製し、clear後にloadQueueで復元、rendererを実行せず再保存snapshotからrequest fieldを検査する。未実行。
+- **価値または懸念:** process restart後に一部fieldだけ既定値へ戻る、dependency順やworker制約が消える、payloadが変形する回帰を一つのend-to-end契約で検出する。テストはqueued jobをactive blockerで保留するため、外部renderer実行には依存しない。
+- **次に確認すべきこと:** `ArtifactCoreRenderFarmMasterQueueContractTest`を許可されたタイミングで実行し、save/load/save後のrequest JSONが等価かを確認する。
+
+## 2026-11-07: RenderFarm queue loader が未対応の将来schemaを受理する疑い
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::saveQueue` / `loadQueue` / `requestFromJson`、`tests/ArtifactCore/RenderFarmMasterQueueContractTest.cpp`。
+- **確認できた事実:** saveはobject形式に `schemaVersion: 1` を書くが、loadはrootのjobs配列のみを取り出し、schema versionを読まずrequestを個別投入する。追加testはversion 99と構造上有効なjobのqueue fileを、別job実行中にloadし、未対応形式の拒否とpending queue不変を要求する。現行loaderはjobを取り込みtrueを返す見込み。未実行。
+- **価値または懸念:** 将来schemaでfield意味が変わった際に、古いloaderが未知形式をversion 1相当として実行する互換性事故を検出する。version fieldの保存がschema契約を示すという推論に基づく。legacy bare-array形式の扱いは本testで変更要求していない。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterQueueContractTestを許可されたタイミングで実行し、future schema拒否と既存pending queueの保持を確認する。
+
+## 2026-11-07: SplitDocumentStore load がrootDocument参照を検証しない
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::save/load`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp`。
+- **確認できた事実:** `save`はmanifestに`rootDocument`がある場合、文字列でありchildren mapに存在することを要求する。一方`load`は`_documents`の子文書名のみを読み、root pointerの型・安全性・存在を検証しない。追加testは有効storeのmanifestを改変し、child一覧にない名前、traversal文字列、数値型の各参照先をloadが拒否することを期待する。現行loadでは受理する見込み。未実行。
+- **価値または懸念:** 分割プロジェクトのrootを指すmanifestが壊れた場合、見かけ上のload成功後にroot不在や不正参照を下流が処理する事故を検出する。rootDocumentはsave側が既に要求する形式から、load側にも対称な検証を期待する推論。
+- **次に確認すべきこと:** `ArtifactCoreSplitDocumentStoreContractTest`を許可されたタイミングで実行し、rootDocument契約と不正load時のcaller出力保持を確認する。
+
+## 2026-11-07: SchemaMigration path query と失敗時の非変更契約
+- **関連:** `ArtifactCore/include/Serialization/SchemaMigration.ixx::hasMigrationPath` / `migrate`、`tests/ArtifactCore/SerializationEnvelopeContractTest.cpp`。
+- **確認できた事実:** `hasMigrationPath`と`migrate`は探索関数を共有するが、変換関数実行は`apply=true`の場合に限られる。経路探索完了前に変換を開始しない構造。既存のenvelope migration testは成功する線形chainのみで、非実行path queryとunreachable targetを直接検査していなかった。追加testは0→1→3 chainについて、0→2 query/migrate失敗で入力・call count不変、成功path queryも変換を呼ばず、その後のmigrateだけが2段変換を実行することを確認する。未実行。
+- **価値または懸念:** UIやvalidationがmigration可能性を照会しただけでpayload変換を実行したり、存在しないtarget versionへの失敗でデータが部分変更されたりする回帰を検出する。
+- **次に確認すべきこと:** `ArtifactCoreSerializationEnvelopeContractTest`を許可されたタイミングで実行し、query/execution分離と失敗時の入力保持を確認する。
+
+## 2026-11-07: 不正UTF-8 byteのQString入力置換契約が未検証
+- **関連:** `ArtifactCore/include/Utils/String.ixx::toQString(std::string)`、`tests/ArtifactCore/StringConversionUnicodeContractTest.cpp`。
+- **確認できた事実:** `std::string` overloadは明示長さを指定して`QString::fromUtf8`を呼び出す。既存testは有効UTF-8とembedded NULを扱うが、UTF-8として不正なcontinuation byteは未検証。追加testはASCII前後に孤立continuation byteを置き、QString上でU+FFFDへ置換され、再度UTF-8化してもその置換文字と隣接ASCIIが保たれることを期待する。未実行。
+- **価値または懸念:** 外部・破損入力を文字列境界で受けた際、不正byteを含む値が黙って切り詰められたり、周辺テキストまで失われたりする回帰を検出する。期待値はQtのUTF-8 decoder replacement behaviorに基づく。
+- **次に確認すべきこと:** `ArtifactCoreStringConversionUnicodeContractTest`を許可されたタイミングで実行し、使用中Qt版の不正byte置換を確認する。
+
+## 2026-11-07: QString孤立surrogateのUTF変換契約が未検証
+- **関連:** `ArtifactCore/include/Utils/StringConvertor.ixx::toStdString` / `toStdU32String`、`tests/ArtifactCore/StringConversionUnicodeContractTest.cpp`。
+- **確認できた事実:** 既存suiteは通常のBMP・補助面文字とembedded NULを検査するが、孤立surrogateを含むQStringは扱っていなかった。UTF-8経路は`QString::toUtf8()`、UTF-32経路は`QString::toUcs4()`に委譲される。追加testは不対high/low surrogateが各々U+FFFDに置換され、隣接するASCII文字が維持されることを期待する。未実行。
+- **価値または懸念:** 不正UTF-16コード単位がUTF-8/UTF-32へ漏出したり、正常な隣接文字を壊したりする変換回帰を検出する。置換期待はQt APIのUnicode変換契約に基づく。
+- **次に確認すべきこと:** `ArtifactCoreStringConversionUnicodeContractTest`を許可されたタイミングで実行し、使用中Qt版の孤立surrogate置換結果を確認する。
+
+## 2026-11-07: RetryPolicy backoff算術のstrategy・上限・極端attempt matrix
+- **関連:** `ArtifactCore/include/Render/RenderFarmTypes.ixx::RetryPolicy::backoffMs`、`tests/ArtifactCore/RenderFarmMasterRetryContractTest.cpp`。
+- **確認できた事実:** backoff計算はattempt 1以下を0、initial/maxを範囲clampし、Linearをlong long積、Exponentialをlong doubleと非有限判定で上限へ飽和させる。既存retry統合testはbackoffを0に設定し、計算単体は未検査。追加testはFixed/Linear/Exponentialの境界、INT_MAX attempt、exponential cap、NaN/∞ factor、negative initial/maxを検査する。未実行。
+- **価値または懸念:** 設定値や極端なattempt数で整数overflow・非有限pow・意図しないsleep時間が起きないことを短時間で検査する。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterRetryContractTestを許可されたタイミングで実行し、全strategyの期待ミリ秒値を確認する。
+
+## 2026-11-07: SequenceDefinition validation が非有限入力と派生overflowを拒否する契約
+- **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequenceDefinition::isValid`、`tests/ArtifactCore/SequenceGroupContractTest.cpp`、`docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md`。
+- **確認できた事実:** `isValid()` はtiming値・phase durationの非負性のみを比較し、`+infinity`は比較を通る。phase `startOffset` はvalidation対象外。既存testは負値のinvalid timingを扱うがNaN/±infinityを組み合わせていなかった。追加matrixはstart delay、element interval、playback rate、phase duration、phase startOffsetの各々にNaN/±infinityを入れる。さらに各要素はfiniteでもphase duration加算またはstagger interval乗算で派生durationがinfiniteになるケースを加えた。未実行。
+- **価値または懸念:** durationやphase timeが無限/NaNとなりplaybackが完了不能・不安定になる定義を再生前に拒否する。finite validationはruntime non-finite advance保護とdefinition validation責務からの推論であり、offsetに意図的な無限時刻を許す仕様は設計文書に記載がない。
+- **次に確認すべきこと:** ArtifactCoreSequenceGroupContractTestを許可されたタイミングで実行し、非有限入力と派生duration overflowを確認する。
+
+## 2026-11-07: RenderFarm resubmit のterminal failureからfresh range再実行
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::resubmitJob` / `submitJob`、`tests/ArtifactCore/RenderFarmMasterRetryContractTest.cpp`。
+- **確認できた事実:** `resubmitJob` は履歴requestをコピーし、新job IDを付けてsubmitする。Retry testは一回のjob内のframe retryとterminal failureを扱うが、job完了後の履歴から再投入する経路は未検査。追加caseは3 frame中の中央frameだけ初回terminal failureにし、resubmit後に全rangeが再び実行され、新job resultが成功・failure manifest空となることを検査する。未実行。
+- **価値または懸念:** 失敗jobのhistory copyが元のterminal failure状態を持ち越したり、failed frameだけ再実行してrange全体の処理・result resetを壊したりする回帰を検出する。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterRetryContractTestを許可されたタイミングで実行し、2回目の全range再実行とfresh resultを確認する。
+
+## 2026-11-07: PropertyRegistry owner解除後のread-only再問い合わせと列挙
+- **関連:** `ArtifactCore/include/Property/Property.ixx::PropertyRegistry::unregisterOwner` / `PropertyRegistryReadOnlyAdapter`、`tests/ArtifactCore/PropertyRegistryReadOnlyAdapterContractTest.cpp`。
+- **確認できた事実:** `unregisterOwner` はowner entryをhashから削除する。既存testはowner登録中のqueryとsnapshot安定性、unknown pathを確認するが、所有者の破棄・unregister後にfresh queryと全件列挙から消えるかは確認していなかった。追加caseはowner scope終了後にowner/property query、listOwners、queryAllOwners、queryAllPropertiesからownerPathが除外されることを検査する。unregister後に過去snapshotのproperty handleは参照しない。
+- **価値または懸念:** property owner lifecycle終了後もread-only APIが古いownerを新規問い合わせ結果へ返す回帰を検出する。既存registryのentry削除動作をadapterの全query面へ接続する契約である。
+- **次に確認すべきこと:** ArtifactCorePropertyRegistryReadOnlyAdapterContractTestを許可されたタイミングで実行し、unregister後の各query面を確認する。
+
+## 2026-11-07: SplitDocumentStore の子load失敗時に出力が部分更新される疑い
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::load`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp`、`tests/ArtifactCore/ProjectSerializerContractTest.cpp`。
+- **確認できた事実:** split loadは開始時に出力childrenをclearし、manifestをcaller objectへ読み込み、子文書を順にcaller mapへ挿入する。後続childが欠落/破損した場合falseで戻るが、先行出力のrollback処理はない。ProjectSerializerには失敗時もcaller QJsonObjectを維持する既存testがある。追加caseは先頭childだけ有効で次childが欠落するstoreを作り、false時にmanifestとchildren両方が入力時のsentinelのままという原子性契約を確認する。未実行。
+- **価値または懸念:** split projectの途中read failure後に呼び出し側へ部分document群が誤って残る回帰を捕捉する。期待は同じserialization API内の既存 failed-load preservation testとの一貫性に基づく。
+- **次に確認すべきこと:** ArtifactCoreSplitDocumentStoreContractTestを許可されたタイミングで実行し、後続child欠損時の出力状態を確認する。
+
+## 2026-11-07: SplitDocumentStore の遅い不正childで保存が部分更新される疑い
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::save`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp`。
+- **確認できた事実:** `save` はQMap順にchildを書き、各childの安全な名前かどうかを直前に検証する。manifestはすべてのchild書き込み後に保存される。従って安全な `scene` の後に不正名 `zz..unsafe` を置くと、後者の拒否より先に既存sceneファイルが上書きされうる。追加testは失敗後も旧manifestと全childが維持されることを要求する。未実行。
+- **価値または懸念:** 不正な後続childによる失敗が、最後に有効だったsplit storeを混在状態へ変える回帰を捕捉する。これはsave失敗時に既存storeを維持するroot-reference testの期待を一般化するもの。
+- **次に確認すべきこと:** ArtifactCoreSplitDocumentStoreContractTestを許可されたタイミングで実行し、既存childが部分更新されないことを確認する。
+
+## 2026-11-07: AssetImporter のImage→Data→Image再分類復帰が未検証
+- **関連:** `ArtifactCore/src/Asset/AssetImporter.cpp::importFile`、`ArtifactCore/src/Asset/AssetMetaFile.cpp`、`tests/ArtifactCore/AssetImporterContractTest.cpp`。
+- **確認できた事実:** 既存caseはImage payloadをtext payloadへ置換した一方向の再分類で、database/sidecar typeのData化とimage metadata削除を確認する。追加caseは同じ `.png` pathを有効PNGからtext、同じ有効PNGへ戻す3回のimportを通し、UUID、初回import時刻、user tagを維持しながらdatabase/sidecar typeと画像寸法metadataがImageへ復帰することを検査する。未実行。
+- **価値または懸念:** 可変生成物や編集中ファイルを再importする際の双方向type遷移が、sidecarのuser dataとasset identityを保ち、derived metadataを再構築することを一つの状態遷移列で固定する。復帰時にdimensionが再計算される期待は既存のfresh Image import契約と一方向再分類契約からの推論。
+- **次に確認すべきこと:** ArtifactCoreAssetImporterContractTestを許可されたタイミングで実行し、Image→Data→Imageの連続再import結果を確認する。
+
+## 2026-11-07: ProjectSerializer経由の旧schema JSON/CBOR migration統合が未検証
+- **関連:** `ArtifactCore/src/Serialization/ProjectSerializer.cpp::loadSerializable`、`ArtifactCore/include/Serialization/Envelope.ixx::deserializeEnvelope`、`ArtifactCore/include/Serialization/SchemaMigration.ixx`、`tests/ArtifactCore/ProjectSerializerContractTest.cpp`。
+- **確認できた事実:** 既存ProjectSerializer caseは現行schemaのenvelope file round-tripを行い、migration caseはregistry dataを直接変換する。追加testはlegacy version 1のenvelopeをJSONとCBORの各ファイルとして保存し、ProjectSerializerで読み込み、2段migration後の型付きnote fieldsと未知extension field保持を検査する。未実行。
+- **価値または懸念:** document format detection/read、envelope validation、migration chain選択・適用、factory生成、domain deserializeの統合境界を検査し、個別unit testでは見つからない接続不整合を捕捉する。migrationはtest固有type名で登録し、既存suiteのglobal registry entryと衝突しない。
+- **次に確認すべきこと:** ArtifactCoreProjectSerializerContractTestを許可されたタイミングで実行し、JSON/CBOR双方でlegacy noteがschema 3相当へ復元されるか確認する。
+
+## 2026-11-07: LayeredConfigStore の永続layer reload後のprecedence復元
+- **関連:** `ArtifactCore/src/Configuration/LayeredConfigStore.cpp::saveLayer` / `unloadLayer` / `loadLayer` / `value` / `sourceLayer`、`tests/ArtifactCore/LayeredConfigStoreContractTest.cpp`。
+- **確認できた事実:** effective valueはSystem→User→Project→Sessionの順で上書きされ、`unloadLayer(Project)`はwritable layerをsyncしてから外す。既存testは値の削除による一時的fallbackと失敗reload時の保持を扱うが、User/ProjectのCBOR保存とunload/reloadを跨ぐ複合遷移は未確認。追加testは同一keyにUser=11/Project=22/Session=33を保存し、Session削除・Project unload・Project reload・Project key削除の各段で値とsourceLayerを照合する。未実行。
+- **価値または懸念:** プロジェクト切替・再ロード時に上位設定が残留したり、下位ユーザー値を覆ったりせず、overlayのsource追跡が永続化後にも一貫するかを検出する。
+- **次に確認すべきこと:** ArtifactCoreLayeredConfigStoreContractTestを許可されたタイミングで実行し、全段のCBOR layer復元とsourceLayer遷移を確認する。
+
+## 2026-11-07: JsonArraySerializableAdapter の失敗後状態保持と回復
+- **関連:** `ArtifactCore/include/Serialization/JsonSerializableAdapter.ixx::JsonArraySerializableAdapter::deserialize`、`tests/ArtifactCore/JsonSerializableAdapterContractTest.cpp`。
+- **確認できた事実:** array adapterは`items`がarrayでなければfalseを返し、値の変換・代入前に終了する。既存testは初期状態で誤shapeを拒否した後に正常値を読むが、既に値を持つadapterへの再度の失敗が既存値を保つかは未検査。追加caseは成功済み値のserialize snapshotを取り、不正shape後の不変性と次の正常deserialize成功を検査する。未実行。
+- **価値または懸念:** 長寿命adapterやload retryで1つの破損項目が直前の有効値を空値に置換しないことを状態遷移として固定する。現行の早期return実装から期待結果を確認でき、schema validatorへ拡張する際の回帰防止になる。
+- **次に確認すべきこと:** ArtifactCoreJsonSerializableAdapterContractTestを許可されたタイミングで実行し、失敗後のvalue保持と後続回復を確認する。
+
+## 2026-11-07: Localization directory reload が削除localeとfallback keyを保持する疑い
+- **関連:** `ArtifactCore/src/Localization/Localization.cpp::loadFromDirectory` / `loadFromFile`、`tests/ArtifactCore/LocalizationContractTest.cpp`。
+- **確認できた事実:** `loadFromDirectory` は指定dir内のJSONを順に読み込むが、最初に `translations_` を全消去しない。`loadFromFile` は存在するlocaleのみ置換するため、新directoryから消えたlocaleの翻訳はtranslations mapに残る。一方、英語ファイルがあればfallback mapは新しい英語mapへ置換される。追加testはen+ja directoryからenのみのdirectoryへ切替後、ja locale/keyが利用可能扱い・翻訳結果・`loadedKeys`に残らず、`missingKeys` / `untranslatedKeys`と英語切替診断が更新され、英語fallbackの削除keyも復活しない期待を検査する。未実行。
+- **価値または懸念:** locale catalog更新・reload時に削除済み言語や文字列がメモリ上に残り続ける問題を、locale一覧・翻訳・fallbackの3面から検出する。`loadFromDirectory` がmerge APIとして意図されているなら期待動作の再検討が必要だが、`reload()`が同directoryを再読込する実装から置換動作を推論した。
+- **次に確認すべきこと:** ArtifactCoreLocalizationContractTestを許可されたタイミングで実行し、directory置換後の旧locale消去と英語fallbackを確認する。
+
+## 2026-11-07: ProgressAggregator のtotal縮小時に正規化progressが100%超過する疑い
+- **関連:** `ArtifactCore/src/Render/ProgressAggregator.cpp::snapshot`、`ArtifactCore/include/Render/ProgressAggregator.ixx::WorkerProgressSnapshot::progress`、`ArtifactCore/include/Render/RenderFarmTypes.ixx::RenderJobProgress::progress`、`tests/ArtifactCore/ProgressAggregatorContractTest.cpp`。
+- **確認できた事実:** `setTotalFrames` は total を更新するだけで既存 completed/failed数を保持する。snapshotのoverallProgressは `(completed+failed)/total`、worker progressは `completed/total` をそのまま返す。一方 `RenderJobProgress::progress()` は同じ種類のnormalized valueを0〜1へclampする。追加testは完了3・失敗1の後にtotalを4から2へ縮め、生カウントを保ちながら両表示progressが1.0に飽和することを期待する。未実行。
+- **価値または懸念:** worker totalの再割当てやrange縮小後もUI progressが100%を越えないことを、workerとfarm全体の両方で検出する。clamp期待は同じRenderFarm型内の既存 `RenderJobProgress::progress()` との整合からの推論で、snapshot側が率直な比率を意図するかは未確認。
+- **次に確認すべきこと:** ArtifactCoreProgressAggregatorContractTestを許可されたタイミングで実行し、縮小後の正規化契約を確認する。
+
+## 2026-11-07: RenderFarm checkpoint boundary が先行failure frameを飛ばす疑い
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange` / `saveCheckpoint` / checkpoint restore、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp`。
+- **確認できた事実:** frame失敗は`completed`を増やさずfailure manifestへ記録するが、その後のframe成功はcompletedを増やす。interval checkpointはその件数を`request.range.startFrame + completed`としてexclusive境界へ保存し、resumeは境界未満を既完了としてskipする。追加caseはframe 0 terminal failure、frame 1成功とsequence出力を作り、再開時にframe 0を再試行し最終的に両出力を揃える契約を確認する。現行処理では保存境界が1となりframe 0がskipされる可能性が高い。未実行。
+- **価値または懸念:** 非連続の成功数を連続prefix boundaryとして扱う誤りをfailure recoveryと実ファイル検証を跨いで検出する。再開でheld failureを自動retryしない製品仕様なら期待動作は変わるが、その場合もskip済みmissing outputに対する明示的なterminal resultが必要。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterCheckpointContractTestを許可されたタイミングで実行し、failure frameの再試行とcheckpoint boundary計算を確認する。
+
+## 2026-11-07: CheckpointStore の破損・job identity mismatch 読み込み隔離
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::load`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp`。
+- **確認できた事実:** `load(jobId)` はJSON parse失敗、object以外、埋め込みjobId不一致を空optionalで返す。既存テストはpath-like ID拒否と正しいcheckpoint往復を扱うが、これら3つのファイル破損形状を直接検査していなかった。追加caseはそれぞれの無効文書を配置し、拒否と別jobの正常load継続を確認する。未実行。
+- **価値または懸念:** 部分書き込みや外部編集で壊れた一件が別jobの読み込み可否へ波及しないことを確認できる。`listCheckpoints()` は存在するcheckpointファイルを数えるだけで文書妥当性を検査しないため、このテストでは一覧の意味を追加で規定せず、job単位のload契約に限定した。
+- **次に確認すべきこと:** ArtifactCoreCheckpointStoreContractTestを許可されたタイミングで実行し、3種類の無効payloadの拒否と健全jobの独立性を確認する。
+
+## 2026-11-07: PropertyLinkManager の循環更新は明示source単位
+- **関連:** `ArtifactCore/src/Property/PropertyLinkManager.cpp::updateTargets`、`tests/ArtifactCore/PropertyLinkManagerContractTest.cpp`。
+- **確認できた事実:** `updateTargets(source)` は指定sourceに一致するlinkだけをvector順に一巡し、target更新後にtarget側linkを再帰実行しない。既存testは複数変換と無効endpointを確認するが、連鎖・循環の伝播境界は未確認だった。追加testは3つのpropertyをcycleで接続し、一段ずつ明示的にsource更新した場合に限り値が伝播することを検査する。未実行。
+- **価値または懸念:** cycleで再帰的な更新が起きないことと、source起点で一段ずつ同期する現在のAPI意味を固定する。これは実装の観察からの契約化であり、UI層が連鎖更新を必要とするかは別途仕様確認が必要。
+- **次に確認すべきこと:** ArtifactCorePropertyLinkManagerContractTestを許可されたタイミングで実行し、cycle内の各段の値を確認する。
+
+## 2026-11-07: RandomStable selector rank と visual glyph order の合成境界
+- **関連:** `ArtifactCore/src/Text/TextAnimator.cpp::evaluateSelector`、`buildDomainOrderRanks`、`tests/ArtifactCore/TextAnimatorContractTest.cpp`。
+- **確認できた事実:** 既存テストは各selector orderのrank選択と、Logical/Visualの単独差を確認するが、Visual順へ並べ替えたglyph配列にseed付きRandomStable orderを重ねるケースはなかった。追加caseは permutationの全rankを1つずつ選択し、期待glyphのweightだけが1になることを検査する。未実行。
+- **価値または懸念:** レイアウト順とstable random rank mappingが合成された際の二重並べ替え・誤glyph選択を検知する。Visual順のcontextは既にglyph配列自体が視覚順であるという既存Logical/Visual testの形に合わせている。
+- **次に確認すべきこと:** ArtifactCoreTextAnimatorContractTestを許可されたタイミングで実行し、全rankのmappingを確認する。
+
+## 2026-11-07: MotionTracker JSON round-trip contract coverage
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cpp::toJson/fromJson`、`tests/ArtifactCore/TrackingDataContractTest.cpp`。
+- **確認できた事実:** `fromJson` は `impl_->result.normalize()` を最後に呼び、フレーム、点、homography、失敗時刻、ソースメタデータ、設定、領域を復元する。対応テストがなく、今回これらを組み合わせた往復ケースを追加した。テストは未実行。
+- **価値または懸念:** 保存フィールド間の不整合や復元後の補間ずれを、単項目のJSON検査より広く検知できる。
+- **次に確認すべきこと:** ArtifactCoreテストを実行できるタイミングで、この往復ケースと既存トラッキング契約群を実行する。`resultRef()` は非const参照としても使えるため、外部コードが正規化されていない結果を直接注入し得る点は別途API責務を確認する。
+
+## 2026-11-07: Pyro checkpointのfield長がresolutionと整合しない
+- **関連:** `ArtifactCore/src/Simulation/PyroSimulation.cpp::loadCheckpointSnapshot` / `loadCheckpointFromDisk`、`tests/ArtifactCore/PyroVolumeStandalone/PyroVolumeSmokeTest.cpp`。
+- **確認できた事実:** v3 loader は各fieldの宣言要素数を読み込んで resize するが、`resolution.width * height * depth` や他fieldの長さとの一致を検証しない。全payloadを読める短いdensity配列でも、そのまま `fields_` に移され得る。後半fieldの途中で切れたpayloadは、本体fieldへ代入する前に読み取り失敗となる。また同standalone testの既存legacy fixtureはversion 1を書いて成功を期待するが、現行loaderのheader guardはversion 3以外を拒否する。
+- **価値または懸念:** 不整合なcacheを成功扱いすると、解像度のcell数とstorage長がずれ、後続シミュレーションで範囲外アクセスや破損を招く可能性がある。field-length不一致を拒否し、frame indexと全ライブfieldを維持するテストを追加したが、実行は未実施。v1 fixtureとの静的矛盾も既存suiteの失敗候補となる。
+- **次に確認すべきこと:** ArtifactCoreサブモジュールの変更が明示依頼された後、resolution overflowを含むサイズ検証とcheckpoint読込の原子性を実装し、正常・切断・不一致payloadを実行検証する。
+
+## 2026-11-07: RenderFarm stepped range checkpoint boundary drifts
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::saveCheckpoint` / `executeJob`、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp`。
+- **確認できた事実:** `saveCheckpoint(baseFrame)` は `baseFrame + completedFrameCount` を `completedUpToFrame` として保存する。`executeJob` 終了時は range の開始フレームを base に渡す一方、step付きrangeの完了数は実際の絶対フレーム差ではない。
+- **価値または懸念:** `[10,16)` step 2 の完了後に正しい排他的境界16でなく13を保存し得る。再提出時に13から再開して、予定外の13/15を処理する危険がある。再現する checkpoint/re-submit 契約テストを追加したが、実行は未実施。
+- **次に確認すべきこと:** ArtifactCoreサブモジュールの変更が明示依頼された後、step付きrangeで保存境界が正規化され、再提出で予定フレームだけが維持されることを修正・実行確認する。
+
+## 2026-11-07: ZoomScale2Dの境界setterで最小値が最大値を超えられる
+- **関連:** `ArtifactCore/src/Transform/ZoomScale.cpp::ZoomScale2D::Impl::setMinScale` / `setMaxScale`、`tests/ArtifactCore/ZoomScaleContractTest.cpp`。
+- **確認できた事実:** `setMaxScale()` と `setMinScale()` は互いの境界を検証・調整しない。既定状態から `setMaxScale(0.5f)`、続いて `setMinScale(0.75f)` とすると `minScale() > maxScale()` となり、`scale_` は0.75へ更新されて最大値を超える。
+- **価値または懸念:** 呼び出し順により有効なzoom区間を保てず、後続の `std::clamp` が前提とする `low <= high` も破られる。境界の矛盾をどう拒否・正規化するかはAPI契約として未決定。
+- **次に確認すべきこと:** 境界値の不正入力に対する期待動作を決めたうえで、逆順設定と既存scaleの維持／補正を契約テスト化する。実装変更は未実施。
+
+## 2026-11-07: FrameRangeのINT64_MIN timecode整形で符号反転が範囲外になる
+- **関連:** `ArtifactCore/src/Frame/FrameRange.cpp::FrameRange::toTimecode(double)` / `toTimecode(const FrameRate&)`、`tests/ArtifactCore/FrameTimeTest.cpp`。
+- **確認できた事実:** 両整形経路は負フレームの絶対値を `-frame` で求める。`frame == INT64_MIN` は符号付き64bitに正の絶対値を表現できず、オーバーフローする。今回、オーバーフローを起こさない `INT64_MIN + 1` と `INT64_MAX` の端点を int のTimeCode上限へ飽和させるテストを追加した。
+- **価値または懸念:** 最小フレームの範囲端を整形すると未定義動作になり得る。drop-frame overloadではTimeCode側の大きなフレーム番号計算も境界評価が必要。
+- **次に確認すべきこと:** ArtifactCore実装変更の明示依頼後、符号反転を避けた飽和変換とdrop-frame経路を検討し、両toTimecode overloadで最小／最大境界を検証する。
+
+## 2026-11-05: 複雑文字アニメーションの各行を独立して動画検査する
+- **関連:** `Artifact/src/AppMain.cpp` の `TextAnimationVideoFixture`、`tools/test_text_animation_video.py`、Render Queue の encoder / range diagnostics。
+- **確認できた事実:** 6 animator（position／rotation／opacity／scale／tracking／skew）へ Cluster／Line／Tag 単位、Center-out／Reverse／Random order、regex、時間expression、Wiggly selector を組み合わせた。GPU render + FFmpeg pipe encoder の出力は640×360・12fps・24フレームで、OpenCV は3行すべてに対して6サンプル組の全てで差分を検出し、代表フレームを目視できた。CPU backend も24フレームを出力したが、サンプルした6組の可視差分は全行0で失敗を検出した。selector summary は rich-text 描画では `clusters=0 lines=0` を返し、画像上で見える3行と一致しない。
+- **価値または懸念:** 動画全体の差分だけでは一部の段落が静止／消失しても他行の動きで合格するため、複数行テキストでは行ごとの時間変化を独立して検査する。CPU backend のアニメーション欠落は現在の観測であり、原因は未特定。rich-text selector summary の0件も診断・観測上のギャップで、selector の実評価失敗とはまだ断定できない。以前の54フレームはテスト設定が `resolutionPreset=Composition` を残し、960×540描画を640×360 rawvideo入力として渡した寸法不一致だった。リッチテキストfixtureでは明示的な `<p>` 段落を使う。
+- **次に確認すべきこと:** pipe encoder の GPU 受入は確認済み。CPU backend の動画静止をレンダー経路とフレーム時刻適用に分けて調査する。native encoder はこの環境で H.264 encoder 初期化に失敗したため未検証。画素ベース検査は文字内容の正確性をOCRで保証するものではない。
 
 ## 2026-11-04: モーションブラーGPU出力の視覚受入チェック
 - **関連:** `tests/Artifact/PostProcessPassContractTest.cpp`、`tests/motion_blur_visual/`、`artifacts/motion-blur-quality/`。
@@ -507,6 +1522,90 @@
 - **価値または懸念:** grid resolutionに比例する係数補正を採用すると、設定値の意味を変えたうえ解像度間の形状整合性もわずかに損なう。したがって現時点では本番solverのvorticity設定へ係数スケーリングを追加する根拠はない。また解像度変更でcentroidとnormalized massが大きく変化するため、vorticity以外に注入カーネル・境界・輸送の離散化差がありそうだが、原因はまだ分離していない。
 - **仮説（未検証）:** injection kernelの正規化やvelocity/density advectionの境界条件を単独要因として切り分ければ、解像度間のプルーム形状差を縮められる可能性がある。
 - **次に確認すべきこと:** emitter injection直後、1 frame輸送後、28 frame後を別々に採取し、cell-area normalized density mass・centroid・profileを比較する。source injection、buoyancy、advection、vorticityを一要因ずつ無効化し、どの段で解像度依存性が発生するか独立harnessで特定してから形態改善を検討する。
+
+## 2026-11-08: RenderFarmWorker isolates progress observer exceptions
+- **関連:** `ArtifactCore/src/Render/RenderFarmWorker.cpp::RenderFarmWorker::Impl::execute`、`tests/ArtifactCore/RenderFarmWorkerContractTest.cpp::ProgressCallbackExceptionDoesNotStrandWorkerOrPreventReuse`。
+- **確認できた事実:** `renderFrame` の例外は失敗数へ集約される一方、`onProgress_` の例外は捕捉されず、state 更新・完了通知・再利用経路まで到達しない。
+- **価値または懸念:** observer の例外で worker が Rendering のまま残る可能性を、残フレーム処理・完了通知・次回 start を含めて検出できる。進捗 callback は例外を外へ漏らさず隔離する、というテスト上の契約を置く。
+- **次に確認すべきこと:** テスト実行が許可された時点で `ArtifactCoreRenderFarmWorkerContractTest.ProgressCallbackExceptionDoesNotStrandWorkerOrPreventReuse` を実行する。
+
+## 2026-11-08: PlaybackClock loop arithmetic at int64 limits
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::PlaybackClock::Impl::updateCurrentFrame`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::ForwardLoopWrapsFrameDistanceAcrossSignedIntegerLimits / ReverseLoopWrapsFrameDistanceAcrossSignedIntegerLimits`。
+- **確認できた事実:** ループ wrap は `currentFrame - loopEnd` の符号付き `int64_t` 差分を使う。既存テストは大きな時間 overshoot を確認するが、整数端点を跨ぐ距離は確認していない。
+- **価値または懸念:** 任意の `int64_t` frame と狭い loop 範囲の組み合わせで、forward / reverse の両方向で、整数端点を跨ぐ距離からループ範囲に戻ることを検証する。現在の実装では差分が符号付き範囲を超え得るため、未定義動作を含む可能性がある（未検証）。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCorePlaybackClockContractTest.ForwardLoopWrapsFrameDistanceAcrossSignedIntegerLimits / ReverseLoopWrapsFrameDistanceAcrossSignedIntegerLimits` を実行する。
+
+## 2026-11-08: Reverse PlaybackClock exact loop-boundary wrap
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::PlaybackClock::Impl::updateCurrentFrame`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::ReversePlaybackAtLoopStartWrapsToLastIncludedFrame`。
+- **確認できた事実:** reverse wrap は `loopEnd - (underflow % loopLength)` を計算する。underflow が 0 のとき結果は loop end になる。既存の oversized audio-sync テストは終点未満を期待するが、この開始境界ちょうどのケースは扱っていない。
+- **価値または懸念:** `[loopStart, loopEnd)` の排他的終端を reverse 方向でも維持するかを停止時計で決定的に検証する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCorePlaybackClockContractTest.ReversePlaybackAtLoopStartWrapsToLastIncludedFrame` を実行する。
+
+## 2026-11-08: EventBus subscription snapshot generation
+- **関連:** `ArtifactCore/src/Event/EventBus.cpp::EventBus::publishRaw`、`tests/ArtifactCore/EventBusContractTest.cpp::SubscriberAddedDuringDispatchJoinsNestedButNotInflightSnapshot`。
+- **確認できた事実:** publish は subscriber record を snapshot に複製してから callback を呼ぶ。既存テストは dispatch 中の disconnect や queued dispatch 時点の購読者を確認するが、callback が新規購読した場合の現行 dispatch への適用可否は確認していない。
+- **価値または懸念:** dispatch の開始時点で確定した購読者集合を維持し、callback 中に追加された購読が外側 snapshot には入らず、callback 内の nested publish が取得する新しい snapshot から参加することを検証する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreEventBusContractTest.SubscriberAddedDuringDispatchJoinsNestedButNotInflightSnapshot` を実行する。
+
+## 2026-11-08: ThreadPool concurrent enqueue exact-once contract
+- **関連:** `ArtifactCore/include/Common/ThreadPool.ixx::ThreadPool::enqueue/waitAll`、`tests/ArtifactCore/ThreadPoolContractTest.cpp::ConcurrentProducersEnqueueEveryTaskExactlyOnceBeforeWaitAllReturns`。
+- **確認できた事実:** 既存 suite は個別 enqueue/future、複数の void task、例外伝搬、破棄時の実行中 task 待機を確認するが、同時 producer による enqueue と全 future 回収を一体で検証していない。
+- **価値または懸念:** barrier で揃えた 4 producer が同時に enqueue する 512 個の一意な仕事について、`waitAll()` 後に全 future が結果を返し、各 task の実行回数がちょうど 1 回であることを検証する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreThreadPoolContractTest.ConcurrentProducersEnqueueEveryTaskExactlyOnceBeforeWaitAllReturns` を実行する。
+
+## 2026-11-08: AsyncFileWriter callback reentrant enqueue
+- **関連:** `ArtifactCore/src/IO/asio_async_file_writer.cpp::AsioAsyncFileWriterManager::Impl::enqueueBytes`、`tests/ArtifactCore/AsyncFileWriterContractTest.cpp::CompletionCallbackCanEnqueueAndAwaitASecondWriteOnTheSameManager`。
+- **確認できた事実:** write completion callback は Asio thread-pool handler 内で呼ばれる。既存テストは完了回数、失敗後の再利用、shutdown 中の排出を扱うが、callback が同一 manager に次の write を再投入する経路は確認していない。
+- **価値または懸念:** callback thread からの再入 enqueue が deadlock せず、連鎖した両 write の結果・ファイル内容・callback 回数が整合することを検証する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreAsyncFileWriterContractTest.CompletionCallbackCanEnqueueAndAwaitASecondWriteOnTheSameManager` を実行する。
+
+## 2026-11-08: RandomStream reversed full-domain range parity
+- **関連:** `ArtifactCore/include/Math/RandomStream.ixx::RandomStream::rangeInclusive`、`tests/ArtifactCore/RandomStreamContractTest.cpp::InclusiveRangeCoversTheFullSignedIntDomainWithoutOverflow`。
+- **確認できた事実:** 既存契約テストは全 signed-int domain の forward endpoint order を raw rejection-sampling stream と比較する。通常サイズの範囲では逆順 endpoint も検査するが、全域逆順での値・state 同一性は確認していない。
+- **価値または懸念:** `[INT_MIN, INT_MAX]` と逆順入力 `[INT_MAX, INT_MIN]` が各 sample で同じ値を返し、同じ rejection draw 数で state を進めることを検証する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreRandomStreamContractTest.InclusiveRangeCoversTheFullSignedIntDomainWithoutOverflow` を実行する。
+
+## 2026-11-08: PlanarTracker mixed channel frame-pair coverage
+- **関連:** `ArtifactCore/src/Tracking/PlanarTracker.cpp::PlanarTracker::track`、`tests/ArtifactCore/PlanarTrackerContractTest.cpp::AcceptsDifferentSupportedChannelCountsAcrossFramePair`。
+- **確認できた事実:** tracker は previous/current を個別に gray 化し、既存テストは gray・BGR・BGRA の同形式ペアを確認する。前後で channel 数が違うペアは未確認。
+- **価値または懸念:** gray→BGR と BGRA→gray の translation を同じ射影精度で追跡できるか検証し、片側形式の誤った前提を検出する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCorePlanarTrackerContractTest.AcceptsDifferentSupportedChannelCountsAcrossFramePair` を実行する。
+
+## 2026-11-08: ViewOrientationNavigator non-finite animation deltas
+- **関連:** `ArtifactCore/src/UI/ViewOrientationNavigator.cpp::ViewOrientationNavigator::update`、`tests/ArtifactCore/ViewOrientationNavigatorContractTest.cpp::NonFiniteDeltaCannotCorruptAnimationAndPositiveInfinityCompletesIt`。
+- **確認できた事実:** update は delta を `std::max(0, delta)` で下限 clamp してから補間する。既存ケースは負の有限 delta と即時 snap を確認するが、NaN / ±infinity は確認していない。
+- **価値または懸念:** NaN と負 infinity が進行を変えず、正 infinity が正規化された target へ収束して animation を終えることを検証する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreViewOrientationNavigatorContractTest.NonFiniteDeltaCannotCorruptAnimationAndPositiveInfinityCompletesIt` を実行する。
+
+## 2026-11-08: ViewportTransformer NaN rotation containment
+- **関連:** `ArtifactCore/src/Transform/ViewportTransformer.cpp::SetRotation/CanvasToViewport/ViewportToCanvas/CanvasToNDC`、`tests/ArtifactCore/ViewportTransformerContractTest.cpp::NonFiniteRotationDoesNotPropagateIntoCoordinateTransforms`。
+- **確認できた事実:** `SetRotation` は `std::clamp` で範囲制限し、各変換は rotation を三角関数へ渡す。既存テストは有限の回転境界と座標往復を検証するが、NaN 入力は確認していない。
+- **価値または懸念:** NaN rotation が画面座標・逆変換・NDC に伝播し、有限な view state を壊さないという数値不変条件を検査する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreViewportTransformerContractTest.NonFiniteRotationDoesNotPropagateIntoCoordinateTransforms` を実行する。
+
+## 2026-11-08: ViewOrientationNavigator antipodal snap interpolation
+- **関連:** `ArtifactCore/src/UI/ViewOrientationNavigator.cpp::snapTo/update`、`tests/ArtifactCore/ViewOrientationNavigatorContractTest.cpp::HalfwaySnapToOppositeHotspotStaysFiniteAndReachesTarget`。
+- **確認できた事実:** 既存テストは face/corner hotspot の向き、通常角度の animation、retargeting、外部姿勢を確認するが、初期前方から反対方向への 180 度 snap の中間 quaternion を確認していない。
+- **価値または懸念:** 180 度差の slerp 中間姿勢が正規化されたまま両端方向の中間に位置し、最終的に target へ収束することを確認する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreViewOrientationNavigatorContractTest.HalfwaySnapToOppositeHotspotStaysFiniteAndReachesTarget` を実行する。
+
+## 2026-11-08: ViewportTransformer non-finite zoom containment
+- **関連:** `ArtifactCore/src/Transform/ViewportTransformer.cpp::SetZoom/ZoomAroundViewportPoint`、`tests/ArtifactCore/ViewportTransformerContractTest.cpp::NonFiniteZoomDoesNotCorruptScalePanOrViewportCoordinates`。
+- **確認できた事実:** 両 API は zoom に下限 clamp を行うが、正 infinity は保持され得る。既存テストは有限の zoom 境界・anchor grid を扱うが、NaN / ±infinity を確認していない。
+- **価値または懸念:** 非有限 zoom が scale・pan・投影 anchor を非有限化せず、zoom-around-anchor の座標不変条件を壊さないことを検査する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreViewportTransformerContractTest.NonFiniteZoomDoesNotCorruptScalePanOrViewportCoordinates` を実行する。
+
+## 2026-11-08: TimeCodeRange constructor mixed endpoint rates
+- **関連:** `ArtifactCore/src/Time/TimeCodeRange.cpp::TimeCodeRange(const TimeCode&, const TimeCode&)`、`tests/ArtifactCore/TimeCodeRangeContractTest.cpp::ConstructorKeepsFrameEndpointsAndUsesStartRateWhenEndpointRatesDiffer`。
+- **確認できた事実:** constructor は開始 frame と終了 frame をそのまま格納し、range の fps には start の fps を使う。既存テストは両 TimeCode を同 rate で作っており、rate 選択を区別しない。
+- **価値または懸念:** 異なる rate の endpoint を渡した場合も endpoint frame を再解釈せず、range の単一 rate を start から導く挙動を明示する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreTimeCodeRangeContractTest.ConstructorKeepsFrameEndpointsAndUsesStartRateWhenEndpointRatesDiffer` を実行する。
+
+## 2026-11-08: TimeCodeRange membership across frame rates
+- **関連:** `ArtifactCore/src/Time/TimeCodeRange.cpp::TimeCodeRange::contains`、`tests/ArtifactCore/TimeCodeRangeContractTest.cpp::ContainsTimeCodeComparesElapsedTimeAcrossDifferentFrameRates`。
+- **確認できた事実:** `contains(TimeCode)` は TimeCode の fps を参照せず frame 数だけを比較する。既存テストの queried TimeCode と range は同じ fps。
+- **価値または懸念:** 24fps の [1s, 2s) range に対して30fpsの0.9s / 1.5s / 約1.67s / 2.1sを照合し、frame-rate mismatch で所属判定がずれないことを検査する。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreTimeCodeRangeContractTest.ContainsTimeCodeComparesElapsedTimeAcrossDifferentFrameRates` を実行する。
 
 # Insight Register
 
@@ -10217,6 +11316,12 @@
 - **価値または懸念:** 現状は到達経路の無い公開 API の境界不備であり、再生 Transport（`ArtifactPlaybackService`）へ `PlaybackClock` を接続する段階で顕在化する。(1) は value 型を `std::optional` やコンテナで保持する実装や、戻り値として move する実装で踏み得上やすい。(2) は `deltaTime()` を再生前のプリウォーム用途で呼ぶと epoch 基準の巨大値で上書きされ、初回 delta が壊れる。(4) は速度変更のたびに再生位置が飛ぶ形になり、逆再生と併用すると症状を追う.INSTANCE 化される public API（`LIBRARY_DLL_API`）なので接続前に契約と null ガードを固めるのが安い。
 - **次に確認すべきこと:** ArtifactCore child の変更許可が得られたら、(1) は全公開メソッドの null ガードまたは「move 済みは使用不可」を API として明示、(2) は `lastUpdateTime_` の既定構築時初期化、(3) は負フレームの丸め・符号処理、(4) は再アンカー計算を speed で割る補正、(5) は端点順序の検証と `isLooping()` の意味整理、の順に直す。同じとき `tests/ArtifactCore/PlaybackClockContractTest.cpp` の24ケースを実行して、期待値が実装と一致することを確認したい。
 
+## 2026-11-07: PlaybackClock speed change のpaused-position continuity test
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::setPlaybackSpeed` / `calculateElapsedTime`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::ChangingSpeedWhilePausedKeepsTheCurrentFrame`、`docs/analysis/REPORT_PLAYBACK_CLOCK_CONTRACT_TEST_2026-11-03.md`。
+- **確認できた事実:** 実装コメントはspeed変更時にcurrent frameを保持すると記載する。再生中に速度を変えるとstartTimeを`frameToTime(currentFrame - startFrame)`だけ戻し、paused/playing elapsed計算で新speedを掛けるため、過去のframe offsetも新speedで再スケールされる。追加testはbounded waitで非zero frameまで進めて一時停止し、2xへ変更した直後のframe不変を要求する。時間待ちを含むruntime testであり未実行。
+- **価値または懸念:** 速度変更を未来の進行率変更として扱い、paused/current positionを飛ばさない契約を検査する。frameが6に達しない場合は2秒で明示失敗し、固定sleep durationに期待値を依存させない。
+- **次に確認すべきこと:** `ArtifactCorePlaybackClockContractTest`を許可されたタイミングで実行し、速度変更の連続性とscheduler負荷下の安定性を確認する。
+
 ## 2026-11-04: Layer Components UI integration runs headless with resolved layout and routed state
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cpp` (`getComponentPropertyGroups`)、`Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cpp` (`routedPropertyMetaTable`)、`Artifact/src/AppMain.cpp`（Layer Components fixture）、`tools/capture_ui_test.py`。
 - **確認できた事実:** Layout の UI トグルは `component.layout.enabled` を `getComponentPropertyGroups()` から取得し、setter 後は `syncRoutedPropertyCache()` で Inspector 向け値を更新する。しかしプロパティグループと routed metadata の両方に Layout enabled が欠けていた。両方へ登録すると、UI 仮想クリックで Layout を有効化し設定面を開けるようになった。また、Qt ウィンドウを一度も `show()` しない状態では dock 内部レイアウトが未確定で、Layout のテスト座標に Script ボタンが重なった。`Qt::WA_DontShowOnScreen` を設定して show / dock activation を行うと、OS画面に出さずに配置を確定できた。
@@ -10244,3 +11349,1824 @@
 - **確認できた事実:** `Artifact3DLayer::draw()` builds current and previous model matrices from `currentFrame()` as integer `RationalTime`s, then submits those matrices through `drawMesh()`. Before matrix construction, `evaluateSkinAnimation()` calls `setAnimationTime()`. Skin-only assets use `IModelAnimationImporter::updateSkinPose(..., impl_->mesh_)` to mutate the layer's shared mesh; node-only or blend-shape assets import a whole evaluated mesh and assign it to `impl_->mesh_`. The cached animation key is integer `currentFrame()`. By contrast, `getGlobalTransform4x4At(RationalTime)` can evaluate a 3D transform at rational time without changing the cursor, but the production mesh draw does not call it.
 - **価値または懸念:** A fractional shutter implementation that repeatedly calls `setAnimationTime()` on one layer would mutate shared mesh/importer state and can make sample order affect geometry, velocity, later UI draws, or MFR workers. A transform-only override can cover rigid 3D motion but will not produce fractional skeletal deformation.
 - **次に確認すべきこと:** Determine whether the USD/skin evaluator can emit into caller-owned pose buffers and whether node/blend-shape evaluation can return immutable sample meshes without replacing layer state. Define separate rigid-transform and deforming-mesh sample contracts before connecting repeated scene draws.
+## 2026-11-07: TrimPaths の10分割弧長近似が非対称カーブの境界をずらす
+- **関連:** `ArtifactCore/include/Shape/TrimPaths.ixx::segmentLength` / `trimSegments`、`tests/ArtifactCore/TrimPathsContractTest.cpp::AsymmetricCubicHalfTrimUsesTheArcLengthMidpoint`。
+- **確認できた事実:** `segmentLength()` は各 cubic を10個の直線で近似し、`trimSegments()` はその近似長から得た比率をBezierのパラメータ t として使用する。既存の50% cubic test は対称曲線のため t=0.5 と弧長中点が一致し、この近似誤差を見分けられない。非対称 cubic (0,0),(0,160),(15,-20),(100,0) を独立な高精度数値積分で照合すると、真の半弧長点はおよそ (22.789982,45.251455) / t=0.55027。一方、現行の10分割法では半分 trim の境界を t=0.5 付近に置く見込み。テスト未実行。
+- **価値または懸念:** 非対称なシェイプで Trim Paths の割合が目視上ずれる可能性がある。曲線分割数を増やすだけでは精度とコストの交換が残るため、適応積分または弧長テーブルの方式検討が必要。
+- **次に確認すべきこと:** 追加した期待値テストを実行して誤差を実測し、必要なら許容誤差ベースの弧長評価を設計レビューする。
+## 2026-11-07: SVG path の相対コマンドが絶対座標として解析される
+- **関連:** `ArtifactCore/src/Shape/ShapeLayer.cpp::parseSvgPathData`、`tests/ArtifactCore/ShapeLayerSvgContractTest.cpp::RelativePathCommandsAccumulateFromCurrentPoint`。
+- **確認できた事実:** パーサーはコマンド文字を `toUpper()` で大文字化してから `M` / `L` / `Q` / `C` として処理する。従って SVG の相対 `l` / `q` / `c` も現在点からの差分でなく絶対座標として読まれる。追加した契約テストは `M 10 10 l 5 0 l 0 5 z` の三角形が (11,11) を含み、(2,2) を含まないことを期待し、この不一致を検出する。テストは未実行。
+- **価値または懸念:** 一般的な SVG 作成ツールは相対コマンドを出力し得るため、現在はインポート形状が変わる可能性がある。修正には相対・絶対コマンドを区別した座標累積と、複数点コマンド後の現在点管理が必要。
+- **次に確認すべきこと:** ArtifactCore 側の変更が許可された作業で相対座標解析を修正し、相対移動・線・曲線、暗黙の反復、閉パスを含む SVG テスト群を実行する。
+
+## 2026-11-07: ZoomScale2D の NaN setter が scale の有限範囲を壊す
+- **関連:** `ArtifactCore/src/Transform/ZoomScale.cpp::ZoomScale2D::Impl::setScale`、`tests/ArtifactCore/ZoomScaleContractTest.cpp::NaNScaleCannotBreakFiniteConfiguredRangeInvariant`。
+- **確認できた事実:** `setScale()` は `std::clamp(scale, minScale_, maxScale_)` を直接使う。NaN は `<` / `>` 比較がいずれも false のため clamp を通過し、scale に NaN が保存される。追加したテストは有限かつ設定 min/max 内という invariant を検査する。テスト未実行。
+- **価値または懸念:** NaN scale は後続のズーム演算や UI 変換へ伝播し得る。非有限入力の扱い（前値維持または既定値への復帰）は API 契約として要検討。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で setter と演算子の非有限入力規則を決め、NaN / ±infinity を含めて検証する。
+
+## 2026-11-07: PathMorph の open contour sample が closed と報告される
+- **関連:** `ArtifactCore/src/Mask/PathMorph.cpp::PathMorphEngine::samplePath`、`tests/ArtifactCore/PathMorphContractTest.cpp::OpenPathSamplingPreservesEndpoints`。
+- **確認できた事実:** `decomposePainterPath()` が contour ごとの閉状態を endpoint 間距離で判定している一方、`samplePath()` は `subpaths` が1つでもあれば全体フラグ `sample.closed` を true にする。既存テストは単一 open line で false を要求しており、実装と契約が矛盾している。
+- **価値または懸念:** open path を closed と扱う利用側では、補間結果に意図しない閉線が加わる可能性がある。テストは未実行のため、実際の failure は実行環境で未確認。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で `sample.closed` の集約規則（全 contour が closed のとき true か、別表現にするか）を決め、open / closed の混在 contour を含めて検証する。
+
+## 2026-11-07: RotoMask Step 補間が中間 keyframe の一致時刻で前値を返す可能性
+- **関連:** `ArtifactCore/src/Mask/RotoMask.cpp::AnimatedValue<T>::valueAt`、`tests/ArtifactCore/RotoMaskContractTest.cpp::StepInterpolationTakesTheNewValueAtAnInteriorKeyframe`。
+- **確認できた事実:** 区間探索は `time >= keyframes_[i].time && time <= keyframes_[i + 1].time` と両端を含め、Step は現在区間の始点値を返す。3つ以上の keyframe で中間点時刻が前区間の終点にもなるため、その時刻に前値を返す経路がある。追加テストは 0 / 10 / 20 の位置 keyframe で前後と一致時刻の値を区別する。テスト未実行。
+- **価値または懸念:** 離散的な Step animation が指定 keyframe に到達しても新値へ切り替わらない可能性がある。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で区間端の選択規則を修正し、Step / Linear の中間点・最終点の一致境界を検証する。
+
+## 2026-11-07: RandomStream の full-int range で符号付き加算が overflow し得る
+- **関連:** `ArtifactCore/include/Math/RandomStream.ixx::RandomStream::rangeInclusive`、`tests/ArtifactCore/RandomStreamContractTest.cpp::InclusiveRangeCoversTheFullSignedIntDomainWithoutOverflow`。
+- **確認できた事実:** 関数は `value % span` を `int` に変換した後 `minValue` を加算する。全 signed-int 範囲では offset の上半分が `int` に表現できず、その後の加算も signed-int 範囲を超える可能性がある。追加テストは同 seed の raw stream と rejection sampling を照合し、期待値の加算を `int64_t` で実行する。テスト未実行。
+- **価値または懸念:** 全整数範囲の抽選が不正値や未定義動作となる可能性があり、range API の契約を壊す。
+- **次に確認すべきこと:** 実装修正が許可された作業で offset 加算を広い符号付き型で行い、INT_MIN / INT_MAX を含む全域と reversed bounds を確認する。
+
+## 2026-11-07: AudioWaveform の固定幅 bucket が末尾の端数 frame を捨てる
+- **関連:** `ArtifactCore/src/Audio/AudioWaveform.cpp::AudioWaveform::process`、`tests/ArtifactCore/AudioWaveformStandaloneTest.cpp::LastUnevenBucketIncludesAllTrailingFramesInItsRms`。
+- **確認できた事実:** bucket 幅を `frames / resolution` として切り捨て、全 bucket の開始を `i * step` にしている。`frames=10`、`resolution=4` では各2 frameを4 bucket処理するため、末尾2 frameが走査されない。追加テストは最後の bucket に4 frameを含めた独立 RMS を期待する。未実行。
+- **価値または懸念:** 波形表示で segment 末尾のピークが消える可能性がある。既存の trailing sample 契約にも反する。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で bucket 分割の remainder 規則を実装し、frameCount / resolution の全剰余組み合わせと各 frame の一意割り当てを検証する。
+
+## 2026-11-07: AudioSpectrum の loudness / peak が最短チャンネル以降も走査する
+- **関連:** `ArtifactCore/src/Audio/AudioSpectrum.cpp::AudioSpectrum::process`、`tests/ArtifactCore/AudioSpectrumStandaloneTest.cpp::MismatchedChannelLengthsIgnoreEveryChannelTail`。
+- **確認できた事実:** `AudioSegment::frameCount()` は最短チャンネル長を返すが、`AudioSpectrum::process` の loudness / peak / true peak ループは各チャンネル全体を走査している。追加したテストは長い側の余剰部分に大きな値を置き、短い側と揃えた入力との測定値一致を要求する。テスト未実行のため失敗は未確認。
+- **価値または懸念:** 同一セグメント内で FFT / waveform が有効フレーム範囲を使う一方、レベル計測は尾を含むため、表示と測定結果が食い違う可能性がある。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で各 channel の走査上限を `frames` に揃え、mismatched / empty channel の組み合わせを検証する。
+
+## 2026-11-07: SequencePlayer に非有限 advance delta を渡すと時間状態が破損する
+- **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::advance`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::NonFiniteAdvanceDoesNotCorruptPlaybackProgress`。
+- **確認できた事実:** `advance()` は `deltaSeconds <= 0` のみを拒否する。NaN は比較を通過して再生時刻へ伝播し、正の無限大は duration 比較を満たして完了状態にする。追加テストは進行中のプレイヤーに NaN / ±infinity をそれぞれ渡し、有限時刻と Playing 状態の維持を要求する。テスト未実行。
+- **価値または懸念:** 無効な tick 値により後続の位相評価へ NaN が伝播したり、単一 tick で再生が誤完了する可能性がある。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で非有限 delta を無視する規則を実装し、有限の正値・0・負値の既存境界も含めて検証する。
+
+## 2026-11-07: ParametricComposition cache key が出力解像度を区別しない
+- **関連:** `ArtifactCore/src/Composition/ParametricComposition.cpp::ParametricCompositionCacheKey::toString` / `ParametricCompositionInstance::evaluate`、`tests/ArtifactCore/ProjectRoundTripTest.cpp::EvaluationCacheKeyIncludesOutputResolution`。
+- **確認できた事実:** `evaluate()` は `RenderContext::outputSize` を最終画像サイズへ適用する一方、`toString()` の key schema は definition ID・入力画像hash・parameter hash・time keyだけを含む。resolved image は resize 後にhash化されるため寸法差が間接反映されるが、transparent fallback の入力hashは固定値で出力寸法を表さない。追加テストはこの fallback 経路で3x2と6x2の出力サイズとkeyの差を要求する。テスト未実行。
+- **価値または懸念:** 解像度が違う出力が同じcache identityを持ち、上位cache利用者が誤ったサイズの結果を再利用する可能性がある。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業でcache keyへ出力幅・高さを追加し、既存cache schema versionの移行と同時に同一解像度の安定性を検証する。
+
+## 2026-11-07: TrimPaths の部分トリムが subpath 間に接続線を作る
+- **関連:** `ArtifactCore/include/Shape/TrimPaths.ixx::segmentsToPath`、`tests/ArtifactCore/TrimPathsContractTest.cpp::PartialTrimPreservesGapsBetweenSubpaths`。
+- **確認できた事実:** `ShapePath::toSegments()` は `moveTo()` で始まる別 subpath 間の距離を segment に含めない。一方、`TrimPaths::segmentsToPath()` は最初の segment だけ `moveTo()` し、その後は各 segment の `p0` を確認せず `lineTo()` / `cubicTo()` で連結する。追加テストは10単位ずつ離れた二本の線を部分トリムし、長さ10と二つ目の segment の開始点保持を要求する。テスト未実行。
+- **価値または懸念:** 部分トリムで本来存在しない線が生成され、形状・stroke・長さが大きく変わる可能性がある。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で discontinuous segment ごとの新しい subpath を出力し、line/cubic 混在および trim境界が subpath 間にある条件を検証する。
+
+## 2026-11-07: RationalTime の境界 rescale に丸め中間値 overflow がある
+- **関連:** `ArtifactCore/src/Time/RationalTime.cpp::RationalTime::rescaledTo`、`tests/ArtifactCore/FrameTimeTest.cpp::RescaledToAvoidsIntermediateOverflowNearSignedLimits`。
+- **確認できた事実:** 乗算に成功した後、正数では `numerator + denominator / 2`、負数では `-numerator` を符号付き int64 で評価する。`RationalTime(INT64_MAX, 3).rescaledTo(1)` は丸め用の `+1` で overflow し、`RationalTime(INT64_MIN, 3).rescaledTo(1)` は絶対値化で overflow する。一方で期待される丸め結果 `3074457345618258602` / `-3074457345618258603` は int64 に収まる。回帰テストを追加したが未実行。
+- **価値または懸念:** UBSan で未定義動作となるうえ、フレーム換算で誤った巨大値・符号反転を返す可能性がある。
+- **次に確認すべきこと:** overflow しない商・剰余ベースの half-away-from-zero rounding へ置換し、int64 両端と分母の大小・偶奇を含めて検証する。
+
+## 2026-11-07: NLE clip の正の無限大 speed が時間写像へ伝播する
+- **関連:** `ArtifactCore/src/NLE/Core.cpp::timelineFrameToSourceFrame` / `sourceFrameToTimelineFrame`、`tests/ArtifactCore/NLETest.cpp::InvalidClipSpeedsFallBackToUnitRateInBothMappingDirections`。
+- **確認できた事実:** 両写像は `clip.speed > 0.0` のみを調べるため、`+infinity` は fallback せず `llround(offset * speed)` または `llround(offset / speed)` に渡る。追加テストでは zero / 負数 / NaN / ±infinity を unit-rate mapping と比較し、未実行。
+- **価値または懸念:** `+infinity` は時間写像の丸め関数へ非有限値を渡し、逆写像も timeline start に張り付く可能性がある。正の有限値だけを有効 speed とする validation が必要。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で `std::isfinite(speed) && speed > 0` を一貫して適用し、速度極小・極大・reversed 組み合わせも検証する。
+
+## 2026-11-07: Viewport Fit/Fill が回転後のキャンバス bounds を無視する
+- **関連:** `ArtifactCore/src/Transform/ViewportTransformer.cpp::FitCanvasToViewport` / `FillCanvasToViewport`、`tests/ArtifactCore/ViewportTransformerContractTest.cpp::FitAndFillUseRotatedCanvasBounds`。
+- **確認できた事実:** 両メソッドは canvas の未回転 width / height と viewport の available width / height だけから zoom を算出し、既存 rotation は考慮しない。回転した長方形の軸平行 bounds は `|w cosθ| + |h sinθ|` / `|w sinθ| + |h cosθ|` となる。追加テストは複数角度でこの独立式から Fit/Fill zoom と center pan を照合する。未実行。
+- **価値または懸念:** 回転中に Fit はキャンバスを viewport 内へ収められず、Fill は意図した利用可能領域を覆う zoom を選ばない可能性がある。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で回転 bounds を用いた Fit/Fill を実装し、0/±90 度および非直角回転と margin を含めて検証する。
+
+## 2026-11-07: OpenCV 16-bit 整数画像が 8-bit 係数で正規化される
+- **関連:** `ArtifactCore/src/Image/OpenCV/ImageTransformCV.cpp::convertToFloat32RGBA`、`tests/ArtifactCore/ImageTransformCVContractTest.cpp::NormalizesSixteenBitGrayscaleAcrossItsFullRange`。
+- **確認できた事実:** `input.depth() != CV_32F` の全てに `convertTo(..., 1.0 / 255.0)` を適用するため、CV_16U 最大値65535はfloat値257となる。追加テストは0 / 32768 / 65535を0..1へ正規化したgray RGBA値として期待する。未実行。
+- **価値または懸念:** 16-bit素材は上限を超えた値を持ち、後段の色域変換・合成で色が壊れる可能性がある。depth ごとの最大値係数と、符号付き整数・64-bit float の受け入れ方針を定める必要がある。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で受け入れるdepth一覧を決め、CV_8U / CV_16U / CV_32F / unsupported depth の境界を検証する。
+
+## 2026-11-07: Render Farm のretry attemptと最終failure manifestが一致しない
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::recordFrameFailure` / `executeLocalRange`、`ArtifactCore/include/Render/RenderFarmTypes.ixx::FailureManifest`、`tests/ArtifactCore/RenderFarmMasterRetryContractTest.cpp`。
+- **確認できた事実:** `recordFrameFailure()` は失敗ごとに `addFailure(frame, 1, ...)` を呼ぶためattempt値を常に1で記録する。retry後の成功時にその記録を除去せず、`FailureManifest::totalRetries` を更新するコードも見当たらない。追加テストは並列4 frameで回復成功3件・retry exhausted 1件を混ぜ、実attempt数、retry総数、最終failureだけのheld manifestを検証する。未実行。
+- **価値または懸念:** 成功したframeが失敗一覧に残り、再試行回数とheld状態が実際の実行結果に合わない可能性がある。追加テストは現行実装で失敗する可能性が高く、実装修正は子リポジトリ作業のため今回の範囲外。
+- **次に確認すべきこと:** ArtifactCore の明示許可済み作業で、retry途中の記録方針（履歴保持か最終失敗のみか）を決め、実attempt値・retry総数・成功時の解決・exhaustion時heldを一貫して更新する。
+
+## 2026-11-07: BackgroundTaskWorkerPool の CancelTask が pending task を対象にしない
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::CancelTask` / `pendingTasks_`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::CancelTaskRemovesQueuedTaskBeforeExecution`。
+- **確認できた事実:** `CancelTask()` は running task 用の `cancelTokens_` だけを検索し、未開始の task は pending queue から検索・削除しない。追加テストは単一 worker をゲートで占有し、後続 task を pending のままキャンセルして、実行されず Cancelled 終端になる契約を検査する。未実行。
+- **価値または懸念:** UI や呼び出し側が queued task をキャンセルしても、その処理が後から実行され得る。pending task の snapshot 状態遷移と queue removal を同時に行う必要がある。
+- **次に確認すべきこと:** ArtifactCore 実装変更が許可された作業で、pending / running の両状態における単体キャンセル、カテゴリキャンセル、ClearQueue の終端状態と race を検証する。
+
+## 2026-11-07: ImageSequenceSource の frame cache が同サイズ・同mtime差し替えを検知しない
+- **関連:** `ArtifactCore/src/Media/ImageSequenceSource.cpp::frameAt` / `tryFrameAt`、`tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::InvalidatesSameSizeReplacementWhenModificationTimeIsPreserved`。
+- **確認できた事実:** cache hit は path index ごとの file size と `lastModified().toMSecsSinceEpoch()` だけで判定する。追加テストは同じ長さの異なる PNG へ差し替え、mtime をミリ秒精度で元と一致させて古い画素が再利用されないことを要求する。現行判定では stale cache hit になる見込み。未実行。
+- **価値または懸念:** 外部ツールや同期処理がmtimeを保持して上書きすると、sequence previewが古い画素を返す可能性がある。内容fingerprintの追加はフレーム毎のI/O／hot-path制約との両立を別途設計する必要がある。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で、watcher世代・明示invalidate・安価なfile identityなどを利用し、通常scrubのI/Oを増やさないstale detection案を評価する。
+
+## 2026-11-07: SharedMemoryRingBuffer の persistent 設定が利用されていない
+- **関連:** `ArtifactCore/include/IPC/SharedMemoryRingBuffer.ixx::Config::persistent`、`ArtifactCore/src/IPC/SharedMemoryRingBuffer.cpp::create` / `Impl::detach`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::PersistentBufferReopensAfterFinalHandleClosesAndKeepsCommittedEntry`。
+- **確認できた事実:** `persistent` は Config に存在し、milestone は `true=全プロセス終了後も残す` と定義しているが、SharedMemoryRingBuffer 実装内でこの値を参照する箇所は見当たらない。追加テストは全 handle を閉じた後に再 open し、entry sequence・flags・binary payload を復旧する契約を検査する。未実行。
+- **価値または懸念:** 最終 handle detach 後の再接続・異常終了 recovery が OS の共有メモリ寿命に依存し、persistent 指定を満たさない可能性がある。テストは現行の detach lifecycle で失敗する可能性が高い。
+- **次に確認すべきこと:** ArtifactCore の明示許可済み作業で、各OS上の共有メモリ名の寿命と semaphore cleanup を調べ、persistent時の所有権・明示削除・stale segment recovery を定義して検証する。
+
+## 2026-11-07: CSV 自動区切り判定が引用セル内の区切り候補に引きずられる
+- **関連:** `ArtifactCore/include/Data/CsvParser.ixx::detectDelimiter`、`tests/ArtifactCore/CsvParserStandaloneTest.cpp::AutomaticDetectionDoesNotOutvoteDelimiterWithQuotedCandidates`。
+- **確認できた事実:** `detectDelimiter()` は引用符の内外を追跡するが、実装の引用状態判定を全入力上で走査し、候補数の優劣を決める。追加ケースでは2個のセミコロンが実区切りである一方、引用された1セル内のカンマが5個ある。実装を静的に追うとカンマを選び、RFC 4180準拠という Data milestone の期待と既存「引用内区切りを無視」テストに反する見込み。テスト未実行。
+- **価値または懸念:** 引用テキスト内の自然文やリストに候補記号が多い CSV が誤った列数で読み込まれる可能性がある。区切り検出と構文解析で引用符・escape の扱いがずれないよう確認が必要。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で、候補カウントをRFC準拠の引用状態で行い、各対応区切り・引用内複数候補・二重引用符・複数行セルを組み合わせて検証する。
+
+## 2026-11-07: Data expression と Property bridge の結合境界に直接テストがなかった
+- **関連:** `ArtifactCore/include/Data/DataPropertyBridge.ixx`、`ArtifactCore/include/Data/ExpressionDataFunctions.ixx`、`tests/ArtifactCore/DataExpressionBridgeContractTest.cpp`。
+- **確認できた事実:** 既存 test tree に両moduleをimportするテストがなく、単体suiteはCsvParser / DataSource / DataCacheまでで止まっていた。追加した統合ケースは一時CSVをregistry経由で読み込み、Property owner metadata・各列の型と3行preview/ellipsis、expression row/column/value lookup、source unregister後のproperty・watcher・lookup cleanupまで追う。未ビルド・未実行。
+- **価値または懸念:** 個々のtable/parserテストでは見えない URI 索引・cache・bridge lifecycle 間の接続不整合を検出できる。数値列名をfixtureに使うため、ExpressionDataFunctionsのindex-to-column-name規則を変更する場合は仕様を先に確認する必要がある。
+- **次に確認すべきこと:** ArtifactCoreDataをlinkする新test targetをビルドし、実行してmodule exposure・CSV registration・FileWatcher cleanupを確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: Data Property owner path の正規化で異なる URI が衝突し得る
+- **関連:** `ArtifactCore/include/Data/DataPropertyBridge.ixx::sanitizePath` / `registerDataSource` / `unregisterSource`、`tests/ArtifactCore/DataExpressionBridgeContractTest.cpp::SanitizedOwnerPathCollisionDoesNotCoupleSources`。
+- **確認できた事実:** URI の `/` と `\` は `.` に置換され、元々の `.` は保持される。そのため `.../nested/source.csv` と `.../nested.source.csv` は同じ正規化 owner path になる。PropertyRegistry は owner path をkeyとしてsnapshotを上書きし、unregisterも同じkeyを削除する。追加テストは両URIの独立ownerと片側解除後の相手側snapshot/value保持を要求する。未実行。
+- **価値または懸念:** 2つの別データソースを同時登録すると Property view の一方が隠れ、片方の解除で他方のProperty snapshotまで消える可能性が高い。
+- **次に確認すべきこと:** ArtifactCore 実装修正が許可された作業で、URIを可逆にescapeするか安定IDをowner pathに使い、既存property path利用者への互換性と再登録動作を決めて衝突回帰を検証する。
+
+## 2026-11-07: SplitDocumentStore の保存形式・安全性を直接検証する suite がなかった
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx`、`ArtifactCore/include/Serialization/SerializationDocument.ixx`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp`。
+- **確認できた事実:** test tree に SplitDocumentStore をimportするcaseはなく、Data persistence milestoneはJSON/CBORのsplit保存とmanifestを実装済みとして記載している。追加suiteはネストchildの両format往復、両方向のformat再保存、root child不在の保存拒否、traversal child名拒否後の既存store保持を検査する。`findManifest()` はCBORをJSONより先に探索するため、CBOR→JSON再保存では古いCBORが優先される見込み。未実行。
+- **価値または懸念:** 上位Project serializerに依存せず、manifest/child file単位のformatと拒否経路を切り分けられる。CBOR→JSON順のテストは現実装では失敗する可能性が高い。各childは個別にQSaveFile commitされるため、複数child途中で書込みが失敗した場合のstore全体atomicityはこのsuiteだけでは保証しない。
+- **次に確認すべきこと:** ArtifactCore test build許可後にsuiteを実行し、Windows/MSVC module import・CBOR detect・QTemporaryDir cleanupを確認する。複数child保存のtransaction semanticsは別途仕様を決めてから検証する。
+
+## 2026-11-07: SerializationEnvelope のmigration連携を直接確認するテストがなかった
+- **関連:** `ArtifactCore/include/Serialization/SerializationEnvelope.ixx::readEnvelope` / `deserializeEnvelope`、`tests/ArtifactCore/SerializationEnvelopeContractTest.cpp`。
+- **確認できた事実:** SchemaMigrationRegistryの単体テストはある一方、Envelopeがmigration後にISerializableへdeserializeし、現versionのenvelopeを再生成する統合テストはなかった。追加テストはversion shape/range、invalid入力時のoutput保持、連鎖migrationと未知field保持、unknown/future/unmigratable/deserializer失敗を確認する。未実行。
+- **価値または懸念:** envelope validation、型factory、migration registry、型固有deserializeの境界を一つの永続化契約として追える。migration/factory registryはprocess-globalなので、test type名はsuite固有にして他テストと衝突しないようにした。
+- **次に確認すべきこと:** ArtifactCore test build許可後にtargetを実行し、C++ module import・global registry lifecycle・migration chain fixtureを検証する。
+
+## 2026-11-07: JsonSerializableAdapter の動的factory経由round-tripが未検証だった
+- **関連:** `ArtifactCore/include/Serialization/JsonSerializableAdapter.ixx`、`ArtifactCore/include/Serialization/SerializationRegistry.ixx`、`tests/ArtifactCore/JsonSerializableAdapterContractTest.cpp`。
+- **確認できた事実:** test tree にJsonSerializableAdapter / JsonArraySerializableAdapterを直接使うcaseがなかった。追加suiteは登録factoryの生成、version/type metadata、object `fromJson`、`fromJsonStatic`、array adapter、envelopeからの動的再生成とserializeを検証する。未実行。
+- **価値または懸念:** template branch選択とregistry/envelopeの接続を実際の型で検査できる。static boolを返す`fromJson` branchはadapter自身の`value_`へ値を戻す仕組みがAPI上見えないため、今回の契約fixtureは値を返す変換形式に限定した。
+- **次に確認すべきこと:** ArtifactCore test build許可後にtargetを実行し、MSVC module template instantiationと各adapter branchを確認する。bool変換branchの intended contract は別途設計確認する。
+
+## 2026-11-07: ProjectSerializer facade に直接テストがなかった
+- **関連:** `ArtifactCore/include/Serialization/ProjectSerializer.ixx`、`ArtifactCore/src/Serialization/ProjectSerializer.cpp`、`tests/ArtifactCore/ProjectSerializerContractTest.cpp`。
+- **確認できた事実:** `ProjectSerializer` の JSON/CBOR format facade、artifact専用CBOR helper、Serializable envelope file I/Oを直接使うtestがなかった。追加suiteはsingle documentの保存/format検出/load、artifact helperとJSON拒否、Serializableのenvelope file往復、missing file errorとoutput保持を検査する。未実行。
+- **価値または懸念:** 既に単体検査したSerializationDocument / Envelope / Registryを、実際にアプリが呼ぶfacadeとimplementation module越しに統合できる。C++ module targetとstatic libraryの公開境界は未ビルドのため未確認。
+- **次に確認すべきこと:** ArtifactCore test build許可後にtargetを実行し、ProjectSerializer implementation linkage、JSON/CBOR detection、error outputを確認する。
+
+## 2026-11-07: PropertyRegistryReadOnlyAdapter のsnapshot contractが未検証だった
+- **関連:** `ArtifactCore/include/Property/Property.ixx::PropertyRegistryReadOnlyAdapter`、`tests/ArtifactCore/PropertyRegistryReadOnlyAdapterContractTest.cpp`。
+- **確認できた事実:** test tree にread-only adapterの直接呼び出しがなかった。追加caseはnested owner path、owner metadata/count、property type/current value、値更新後もcurrentValue snapshotが不変でproperty handleは最新値を指すこと、全owner/property列挙、missing pathを確認する。global ownerはRAII unregisterする。未実行。
+- **価値または懸念:** UIを介さずProperty RegistryからRPC/CLI/headlessへ公開するread-only境界の整合性を確認できる。queryAllPropertiesはowner descriptorのreadOnly設定に関係なく常にread-onlyを返す実装であり、その意図が将来変わる場合は契約を再評価する。
+- **次に確認すべきこと:** ArtifactCore test build許可後にtargetを実行し、Property module API・global registry isolation・QVariant snapshot behaviorを確認する。
+
+## 2026-11-07: ArtifactPluginRegistry の状態遷移・再登録契約が未検証だった
+- **関連:** `ArtifactCore/include/Plugin/PluginRegistry.ixx`、`ArtifactCore/src/Plugin/PluginRegistry.cpp`、`tests/ArtifactCore/PluginRegistryContractTest.cpp`。
+- **確認できた事実:** registry APIに対する直接testがなかった。追加suiteはunknown/registered/active/inactive/unloaded transition、unloaded後の再登録、invalid descriptor replacementの無影響、same IDのdescriptor/category置換とactive listing解除を検証する。未実行。
+- **価値または懸念:** plugin managerの外部load/unload実装に入る前のregistry状態、category query、active indexの同期を確かめられる。unregisterはentry自体を消さずUnloadedとして保持する現行契約を明文化する。
+- **次に確認すべきこと:** ArtifactCorePlugin targetを用いるtestをビルド・実行し、module export/linkとprocess-global registryの隔離を確認する。
+
+## 2026-11-07: LocalizationManager のfallback・plural統合経路に直接テストがなかった
+- **関連:** `ArtifactCore/include/Utils/Localization.ixx::LocalizationManager`、`ArtifactCore/src/Localization/Localization.cpp`、`tests/ArtifactCore/LocalizationContractTest.cpp`。
+- **確認できた事実:** test treeにLocalizationManagerの直接testがなく、追加suiteは一時locale directoryからのnested JSON flatteningと`_` key除外、zh-TW→zh→en fallback、missing/untranslated key一覧、Russian/Arabic plural categories、category別→`.other`→呼出側fallbackの順を検査する。未実行。
+- **価値または懸念:** locale catalog loadingと実際のtranslation/plural APIを一つのfixtureで横断できる。シングルトンのcatalogを各test前後にclearする。`pluralCategoryFor`は有限・小範囲の値を対象とし、巨大値やNaNの境界挙動は今回の契約範囲外。
+- **次に確認すべきこと:** `ArtifactCoreLocalization`をlinkするtest targetをビルド・実行し、module linkage、locale file loading、Event.Busを介したlanguage切替を確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: RenderFarm stepped checkpoint の途中復元で境界と進捗がずれる可能性
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::saveCheckpoint` / `executeJob`、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp::MidRangeSteppedCheckpointResumesAtNextScheduledFrameWithoutOvercounting`。
+- **確認できた事実:** step=2の全範囲完了後の再投入は既存テストで扱われるが、途中checkpointからの再開は未カバー。実装は`baseFrame + completedCount`をexclusive boundaryとして保存する一方、stepped rangeでは次の予定frameが`startFrame + completedCount * step`となる。またrestore時にboundary差をそのまま完了frame数としてprogressへ加える。追加テストは[10,16) step=2を2 frame後にcancelし、boundary=14、resume時はframe14のみ描画、最終renderedFrames=3を要求する。静的推論のみで未実行。
+- **価値または懸念:** 途中resumeでの重複描画とprogress超過を同一契約テストで検出できる。テストは既存の`ArtifactCoreRenderFarmMasterCheckpointContractTest` targetに含まれる。
+- **次に確認すべきこと:** テスト実行が許可された後に失敗箇所を確定し、実装修正は別途依頼範囲に含まれる場合に限って行う。
+
+## 2026-11-07: RenderFarm job template JSON round-trip の直接テストがなかった
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::requestToJson` / `requestFromJson` / `saveJobTemplates` / `loadJobTemplates`、`tests/ArtifactCore/RenderFarmMasterTemplateContractTest.cpp`。
+- **確認できた事実:** 既存のRenderFarmMaster suiteはcheckpointとretryに集中し、template APIの直接testがなかった。追加suiteは正規化名、range/scheduling/dependency/worker filters、timeouts、nested capability・renderer payloadを保存・再読込し、欠損renderer情報と空範囲の不正レコードをスキップする契約を検査する。未実行。
+- **価値または懸念:** renderer callbackを含まない永続化境界を、複数の実運用フィールドを使って検証できる。保存形式の現行条件としてrenderer executableとpayloadが必須であることをfixtureが明示する。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterTemplateContractTestをビルド・実行し、JSON型変換、module linkage、QFile temporary-file handlingを確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: RenderFarm queue scheduler の依存待ちと優先度の組合せが未検証
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::submitJob` queue insertion / ready-job selection、`tests/ArtifactCore/RenderFarmMasterQueueContractTest.cpp`。
+- **確認できた事実:** test treeにRenderFarmMasterのqueue scheduler直接テストはなかった。追加suiteは実行中のblocking job中に、未投入 prerequisite に依存する高優先度job、独立した中優先度job、低優先度prerequisiteを投入し、優先度順でreadyなjobを選び、prerequisite完了後にdependentを実行する順序を検査する。同期点と5秒上限付きblockingを使い、固定sleepを使わない。未実行。
+- **価値または懸念:** queue順序・forward dependency・実行可能性フィルタを横断して検証する。テストはworkerCount=1に固定し、並列frame完了順による非決定性を避ける。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterQueueContractTestを実行し、job completion orderingと優先度・dependency semanticsを確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: RenderFarm pause/resume のframe境界同期が未検証
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange` pause condition、`RenderFarmMaster::pause` / `resume`、`tests/ArtifactCore/RenderFarmMasterPauseContractTest.cpp`。
+- **確認できた事実:** RenderFarmMasterの既存テストにpause/resume caseがなかった。追加suiteはframe 0のrender callbackを制御可能な条件変数で止めた状態でpauseし、完了進捗を観測後にpause中frame 1が開始しないこと、resume後に[0,1,2]を一度ずつ完了することを検査する。解除経路とcallback waitにtimeoutを設け、fatal assertion前にpauseを解除する。未実行。
+- **価値または懸念:** UI経由では見えにくいframe境界の協調停止、progress通知、resume wakeupの相互作用を同期的に検証できる。pause中にframe 1が来ない確認は100ms bounded waitなので、実行環境負荷による影響をテスト実行時に確認する必要がある。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterPauseContractTestを実行し、pause待機とresume後のprogress/callback順を確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: RenderFarm queued priority mutation と persistence 同期が未検証
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::setQueuedJobPriority` / `setQueuedJobPriorities` / `cancelJobs` / `clearQueuedJobs` / `saveQueue`、`tests/ArtifactCore/RenderFarmMasterQueueContractTest.cpp::PriorityBatchAndCancellationPersistTheExactRemainingQueue`。
+- **確認できた事実:** 追加したqueue scheduler testはready job選択とdependency順に集中し、queued item変更後の永続ファイルを確認していなかった。追加ケースは実行中jobでqueueを固定し、単体・一括priority変更、存在しないID混在のcancel、JSON上のpriority順と残存ID、clear後の空queue保存を検査する。未実行。
+- **価値または懸念:** in-memory queueと再起動用snapshotのずれや、混在した有効／無効IDのcount誤りを一つの管理シナリオで検出できる。テストjobは現行saveQueueの条件に合わせrenderer payloadとexecutableを持つ。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterQueueContractTestを実行し、filesystem updateとcallback/queue lockingの動作を確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: RenderFarm dependency failure のtransitive pruning が未検証
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::dependencyFailed` と queue drain loop、`tests/ArtifactCore/RenderFarmMasterQueueContractTest.cpp::FailedDependencyPrunesTransitiveJobsWithoutStarvingIndependentQueue`。
+- **確認できた事実:** 既存のqueue testは未解決依存が成功 prerequisite後に実行される順を扱うが、failure時の依存job除去と依存の連鎖は扱わなかった。追加suiteはroot job失敗、2段のdependentがrenderされないこと、独立jobと末尾sentinelが完了すること、completion success列を検査する。sentinelによりqueue drain後の観測点を作る。未実行。
+- **価値または懸念:** dependency failure propagationが独立queue workを止めず、失敗jobを含むdependency chainが実処理へ漏れないことをworker 1台の決定的なシナリオで確認できる。依存失敗でpruneされたjobには現行実装上onCompleted callbackがないため、その通知仕様はこのtestの保証範囲に含めていない。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterQueueContractTestを実行し、prune順、sentinel到達、成功／失敗callback順を確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: PropertyLinkManager の変換と不正endpoint経路に直接テストがなかった
+- **関連:** `ArtifactCore/include/Property/PropertyLinkManager.ixx`、`ArtifactCore/src/Property/PropertyLinkManager.cpp`、`tests/ArtifactCore/PropertyLinkManagerContractTest.cpp`。
+- **確認できた事実:** test treeにPropertyLinkManagerをimportするcaseがなかった。追加suiteはDirect複数target、Float/Bool Inverse、Scale、Offset、Custom mapper、対象外String型、null source/target、mapper不在、`updateTargets(nullptr)`、links列挙とclearを確認する。未実行。
+- **価値または懸念:** QVariantの実型分岐と複数mappingを一つのsource updateで横断でき、無効変換がtargetを初期値のまま維持する契約を可視化する。singletonにraw property pointerを保持するため、fixture guardがsuite終了前にlinksをclearする。
+- **次に確認すべきこと:** ArtifactCorePropertyLinkManagerContractTestをビルド・実行し、C++ module linkage、QVariant type conversion、global singleton cleanupを確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: ImageSequenceSource の非同期prefetch generation invalidationが未検証
+- **関連:** `ArtifactCore/src/Media/ImageSequenceSource.cpp::resetPrefetchState` / `prefetchFrame` / `tryFrameAt`、`tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::ReopeningSequenceDiscardsCompletedAndInFlightPrefetchFromPreviousGeneration`。
+- **確認できた事実:** sequence再open時にgenerationを進めてprefetch完了queueを破棄し、旧generationのworker結果を捨てる実装がある一方、既存テストは同期decode cache中心でこの競合を直接確認していなかった。追加caseは旧sequenceのred frameをprefetch開始後にblue frame sequenceへ再openし、両fixtureのサイズとmtimeを同一にした条件でasync tryFrameAtがblueを返すことを5秒上限で待つ。metadata検証だけでは旧画像を除外できないため、generation invalidationを直接要求する。未実行。
+- **価値または懸念:** close/reopenと遅延worker完了が重なる時に、同じsequence indexへ古いframeが混入しないことを実データで検証できる。TaskSystemのscheduler負荷で完了待ち時間が変わり得るため、timeout内での実行安定性確認が必要。
+- **次に確認すべきこと:** ArtifactCoreImageAssetMetadataContractTestを実行し、TaskSystemの非同期完了、generation discard、QImage fixture decodeを確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: LayeredConfigStore と ConfigSchema の統合テストがなかった
+- **関連:** `ArtifactCore/include/Configuration/LayeredConfigStore.ixx`、`ArtifactCore/src/Configuration/LayeredConfigStore.cpp`、`tests/ArtifactCore/LayeredConfigStoreContractTest.cpp`。
+- **確認できた事実:** test treeにLayeredConfigStore/ConfigSchemaをimportする直接テストがなかった。追加suiteはschema type/range/allowed-values/unknown validation、System defaultsのfirst-write-only、System/User/Project/Sessionの上書き順とsourceLayer、ネストJSON flatteningと`_`文書キー除外、schema validator接続後の拒否値保持、System CBOR exportからProjectへのmerge importを検査する。User/Projectは一時ファイルへ差し替え、fixture destructorで以前のpathへ戻す。未実行。
+- **価値または懸念:** 設定読取とstartup import、schema validator、層間移送の境界を横断できる。singletonの設定層を変更するため、テストは既存層状態を復元し、設定変更は一時ファイルへ限定する。既存validator自体を取得するAPIがないため終了時に空へ戻す。
+- **次に確認すべきこと:** ArtifactCoreLayeredConfigStoreContractTestをビルド・実行し、Qt CBOR型変換、singleton restore、layer precedence/import semanticsを確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: PreComposeManager の階層index lifecycleに直接テストがなかった
+- **関連:** `ArtifactCore/include/Composition/PreCompose.ixx::PreComposeManager`、`ArtifactCore/src/Composition/PreCompose.cpp`、`tests/ArtifactCore/CompositionTransformTimeContractTest.cpp::PreComposeManagerContractTest`。
+- **確認できた事実:** 既存テストはNestedTimeUtilsの層時間変換を確認するが、PreComposeManagerのprecompose/register/unregister/unprecompose/restoreを通る状態遷移は直接検査していなかった。追加caseは重複選択拒否、2段nestingとparent/reference index、循環nesting判定、誤ったunregisterの無影響、keepComposition付き解除後のrestore、最終cleanupを検査する。CMakeの既存composition/time targetを使用し、未実行。
+- **価値または懸念:** parent-child nesting info、child-to-layer逆引き、time offset mapの複数indexが操作を跨いで同期するかを確認できる。managerはsingletonでreset APIがないため、全IDをUUIDで生成し、fixtureで作成したlayerだけを解除して共有状態を残さない。
+- **次に確認すべきこと:** ArtifactCoreCompositionTransformTimeContractTestを実行し、lifecycle順序、index cleanup、module linkageを確認する。実行はユーザーのビルド／テスト許可待ち。
+
+## 2026-11-07: drop-frame の分境界 round-trip が未検証
+- **関連:** `ArtifactCore/src/Time/TimeCode.cpp::toHMSF` / `setFromQString`、`tests/ArtifactCore/FrameTimeTest.cpp::TimeCodeTest`。
+- **確認できた事実:** 既存ケースは29.97fps/59.94fpsの10分境界を検査するが、各分のdrop後の境界や時境界前後を連続して往復する検査はなかった。29.97と59.94について、drop数を含む標準式で0〜120分の各分境界frameを求め、その前後5frameをtoString→setFromQStringしてframeと表記が一致するテストを追加した。未実行。
+- **価値または懸念:** 2-frame / 4-frame drop補正の境界計算、10分ごとの補正リセット、時繰り上がりを同一契約で広く検査できる。ラベルから同じframeへの往復は確認するが、禁止されるdrop-frameラベルの入力拒否は現行parser仕様が不明なため対象外。
+- **次に確認すべきこと:** ArtifactCoreのFrameTimeTestを許可されたタイミングで実行し、全分境界の往復を確認する。parserに不正ラベル検証を持たせる要件は別途仕様化が必要。
+## 2026-11-07: AudioMixer の stable bus ID による forward route 復元が未検証
+- **関連:** `ArtifactCore/src/Audio/AudioMixer.cpp::AudioMixer::deserialize`、`tests/ArtifactCore/AudioMixerRoutingTest.cpp`。
+- **確認できた事実:** deserializer は bus を先に全件生成し、その後 routing edge を解決する二段階処理で、`targetId` を表示名より先に解決する。既存テストは送信・VCAのserializationを扱うが、参照先より前に参照元が並ぶ配列と、保存後の表示名変更を組み合わせたroute復元ケースはなかった。今回、bus配列を参照元先行に並べ替え、target名だけを変更し、stable IDでrouteが復元されることを検査するテストを追加した。未実行。
+- **価値または懸念:** deserializeの二段階構築、ID優先解決、名前変更耐性を同一シナリオで検査する。C-AUD-1の基本routing整理に該当し、既存 `ArtifactCoreAudioMixerRoutingTest` targetを再利用する。
+- **次に確認すべきこと:** ArtifactCoreAudioMixerRoutingTestを許可されたタイミングで実行し、forward referenceとrenamed targetの復元を確認する。
+## 2026-11-07: AudioMixer の deserialize 完全置換と不正入力の非破壊性が未検証
+- **関連:** `ArtifactCore/src/Audio/AudioMixer.cpp::AudioMixer::deserialize`、`tests/ArtifactCore/AudioMixerRoutingTest.cpp`。
+- **確認できた事実:** 実装は入力 `buses` がarrayであることを先に検査し、その後既存routing/send/VCA membershipとmaster以外のbusを消して完全状態を復元する。既存テストは初回restore中心で、既存mixerへ別stateを重ねた際のstale bus/edge除去、空graphへの置換、形式不正入力時の既存state保持を合わせて検査していなかった。今回、2 bus routingの置換、stale bus除去、空graph化、`buses`不在時の拒否とMaster保持を確認するcaseを追加した。未実行。
+- **価値または懸念:** 複数回loadするアプリ経路で別projectのroutingが漏れる回帰と、早期入力検査前に状態を破壊する回帰の双方を検知できる。既存 `ArtifactCoreAudioMixerRoutingTest` targetを再利用する。
+- **次に確認すべきこと:** ArtifactCoreAudioMixerRoutingTestを許可されたタイミングで実行し、完全置換と無効文書時の状態保持を確認する。
+## 2026-11-07: AsyncFileWriter manager shutdown drain の並行要求数が未検証
+- **関連:** `ArtifactCore/src/IO/asio_async_file_writer.cpp::AsioAsyncFileWriterManager::Impl::~Impl` / `enqueueBytes`、`tests/ArtifactCore/AsyncFileWriterContractTest.cpp`。
+- **確認できた事実:** manager破棄でstoppingを立て、thread_poolをjoinするため、処理中・queue待ちのwrite taskは成功またはshutdown failureをcallbackで返してから破棄が戻る設計。既存caseは成功1件と失敗1件を破棄境界で確認するが、多数の並行要求のcallback全件 drain、callback重複、failure resultの形は検査していなかった。今回、異なる48 targetへpayloadを書き、enqueue直後にmanagerを破棄し、全callbackが一回だけ完了して成功なら全payload、失敗なら0 bytesと理由を返すことを確認するcaseを追加した。未実行。
+- **価値または懸念:** destructor/joinとworker queueのshutdown競合をまとまった要求数で検査し、許容されるsuccess/failureどちらでもcallbackの完全性を判定できる。OSの並行スケジューリングは変動するが、結果を一方へ固定せずrace outcomeに依存しない。
+- **次に確認すべきこと:** ArtifactCoreAsyncFileWriterContractTestを許可されたタイミングで実行し、callback drainとファイル結果を確認する。
+## 2026-11-07: AssetImporter が既存 sidecar UUID を空Databaseへ復元しない疑い
+- **関連:** `ArtifactCore/src/Asset/AssetImporter.cpp::importFile`、`ArtifactCore/src/Asset/AssetMetaFile.cpp`、`tests/ArtifactCore/AssetImporterContractTest.cpp`。
+- **確認できた事実:** importer は有効なsidecarを読む前に `registerAsset(absolutePath, type)` を呼び、新規Databaseでは新しいUUIDを採番する。sidecarが既に有効な場合、`meta.setUuid(id)` は実行されないため既存sidecar UUIDとの一致が保たれない見込み。追加テストは空Databaseへ既知UUIDの有効sidecarを用意し、import戻り値・path index・sidecar UUIDの一致とユーザmetadata保持を要求する。実行は未実施。
+- **価値または懸念:** 永続sidecarと再構築されたin-memory AssetDatabase間のidentity乖離を検知する。期待動作はsidecar UUIDをasset identityの永続源とみなす推論であり、契約の明示確認が必要。テストはこの不一致を検出する可能性が高いが、実行結果は未確認。ArtifactCore実装には手を加えていない。
+- **次に確認すべきこと:** ArtifactCore側の作業が明示された後、テストを実行して不一致を確認し、既存UUID衝突時の方針（別assetがUUIDを所有する場合の再採番とsidecar修復）を含めて修正契約を決める。
+## 2026-11-07: 同一pathのpayload再判定でAssetImporterのtypeとmetadataが古いままになる疑い
+- **関連:** `ArtifactCore/src/Asset/AssetImporter.cpp::importFile`、`ArtifactCore/src/Asset/AssetDatabase.cpp::registerAsset`、`tests/ArtifactCore/AssetImporterContractTest.cpp`。
+- **確認できた事実:** fresh importでは `.png` の拡張子でもtext payloadを `AssetType::Data` と判定する既存テストがある。一方、同じpathをImageとして登録後、内容をtextへ置換して再importすると `registerAsset()` は既存pathのAssetInfoを更新せず、既存sidecarも有効なら importer は type を更新しない。画像metadataの削除APIも見当たらない。追加caseは同じpathのPNG→text再import後にUUIDを維持しつつDatabase/sidecarをDataへ揃え、古い画像metadataを除去し、user tagを保持する期待を置く。未実行。
+- **価値または懸念:** fresh importのcontent-first分類と同一path reimportの再分類結果が一致するかを検査し、type driftとstale metadataの双方を検出できる。期待する再分類動作はfresh importの既存契約からの推論であり、現在の実装では失敗する可能性が高い。ArtifactCore実装は変更していない。
+- **次に確認すべきこと:** ArtifactCore側の作業が明示された後、テストを実行して再分類の期待を確認し、metadataの未知キーやuser dataを保ったまま旧type由来metadataをどう整理するかを決める。
+## 2026-11-07: RenderFarm resume が異なるframe countの再利用job IDを識別しない疑い
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::submitJob` checkpoint restore、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp`。
+- **確認できた事実:** checkpointには `totalFrames` が保存されるが、resume側は `completedUpToFrame` を新rangeへclampして進捗を復元し、保存済み `totalFrames` を比較しない。追加caseは同一job IDで `[10,20)` を完了後、異なる5フレーム `[0,5)` を再投入し、古いexclusive end=20が新jobを完了扱いせず新しい5frameを実レンダーすることを期待する。checkpoint/store既存targetの統合テストであり、未実行。
+- **価値または懸念:** job ID再利用やrequest範囲編集後に古いcheckpointが新しい成果物をskipする事故を検出する。job IDがimmutable request identityであり、変更時は新IDを必須とする製品契約なら期待動作が異なるため、その場合はsubmit-time validationで明示的に拒否すべきだが、現行APIにはその検証が見当たらない。ArtifactCore実装は変更していない。
+- **次に確認すべきこと:** ArtifactCore側の作業が明示された後、このcaseを実行し、request identity mismatch時のcheckpoint無効化／拒否方針を決める。
+## 2026-11-07: RenderFarm checkpoint が同数frameの絶対range変更を識別しない疑い
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::runJob` checkpoint restore、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp`。
+- **確認できた事実:** 既存checkpointは `totalFrames` とexclusive `completedUpToFrame` を持つ。restore処理は進捗endを新rangeへclampするが、既存testはframe countが異なるrange再利用だけを検査する。追加caseは10 frame `[100,110)` 完了後、同じjob IDと同じframe countで `[0,10)` を投入し、後者の10 frameも実レンダーされることを期待する。現行clampでは古い110が新end 10となり、全frameを完了済み扱いする見込み。未実行。
+- **価値または懸念:** job IDの再利用やrange編集後に古いcheckpointが新しいframe群をskipするデータ欠落を、frame countだけの照合では見つからない座標ずれとして捕捉する。既存のframe count変更testの対称ケース。job IDがimmutable request identityなら、再renderではなく不一致拒否を明示する設計も可能。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterCheckpointContractTestを許可されたタイミングで実行し、same-count shifted-rangeを誤って完了扱いしないことを確認する。
+
+## 2026-11-07: 新しいRenderFarmMasterで失敗frame checkpointを再開する統合契約
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::runJob` / `saveCheckpoint` / `executeLocalRange`、`ArtifactCore/src/Render/CheckpointStore.cpp`、`tests/ArtifactCore/RenderFarmMasterCheckpointContractTest.cpp::NewMasterResumesLastFailedFrameFromPersistedCheckpointAndOutputFiles`。
+- **確認できた事実:** 既存resume testsは同じmaster instanceでresubmitする。追加testは最初のmasterがrange先頭2frameを出力後、最終frameを失敗させてcheckpointを保存し、master破棄後に同じcheckpoint directoryとjob requestで新masterを作る。既存出力2枚をskipし、最後のframeだけを再描画し、held failureを解消することを検査する。未実行。
+- **価値または懸念:** process restart相当でのcheckpoint read、成功済みoutput再利用、失敗frame再試行、failure manifest更新の接続を通し、単一master内のresubmitだけでは見えないメモリ状態依存を検出する。継続済みprogressは連続prefixで、失敗frameはrange末尾とし、既存の非連続成功frame境界問題とは分けている。
+- **次に確認すべきこと:** ArtifactCoreRenderFarmMasterCheckpointContractTestを許可されたタイミングで実行し、restart後にframe 0/1をskipしframe 2だけを再描画することを確認する。
+
+## 2026-11-07: CommandIR special array field のwrong type診断が一般arrayと不一致
+- **関連:** `ArtifactCore/include/AI/CommandIR.ixx::CommandIR::validate`、`tests/ArtifactCore/CommandIRContractTest.cpp`。
+- **確認できた事実:** 一般の `filePaths[]` fieldは、既存テストでscalar payloadを `invalid_type` と診断する。一方 `keys[]` と `batches[]` は専用分岐で先に `toList()` し、文字列・map・数値などの不正型を空配列と同じ `missing` と記録する。今回、両special fieldに3種類のwrong shapeを与え、一般array fieldと同じ `invalid_type` を期待するmatrix testを追加した。現行コードでは診断期待が不一致となる見込み。未実行。
+- **価値または懸念:** API利用者が空配列とpayload schema errorを区別し、修正可能な診断を得られるかを固定する。`invalid_type` 統一の期待は既存 `filePaths[]` testからの一貫性推論であり、テスト実行結果は未確認。
+- **次に確認すべきこと:** ArtifactCore側の実装変更が明示された後、CommandIR targetを実行し、diagnostic taxonomyを統一するかを判断する。
+## 2026-11-07: LayeredConfigStore の不正CBOR reload失敗時に既存layerを保持する契約
+- **関連:** `ArtifactCore/src/Configuration/LayeredConfigStore.cpp::loadLayer`、`ArtifactCore/src/Core/FastSettingsStore.cpp::loadFromDiskUnlocked`、`tests/ArtifactCore/LayeredConfigStoreContractTest.cpp`。
+- **確認できた事実:** LayeredConfigStoreは一時FastSettingsStoreをopenし、その成功後にのみ既存layer store/pathを差し替える。FastSettingsStoreは有効CBORでもmapでないpayloadを拒否する。追加テストはロード済みUser layerへ値を持たせた後、scalar CBORを別pathから読み込み、失敗時にloaded状態・元path・可視値・sourceLayerが保持されることを検査する。既存targetを使用し未実行。
+- **価値または懸念:** 壊れた設定ファイルや誤った形式を読み込んだ際に、現在のユーザー設定が空のlayerへ置換されないことを境界越しに確認する。testはJSON不正でなく、FastSettingsStoreがmap形式を要求するCBOR型不整合を意図的に作る。
+- **次に確認すべきこと:** ArtifactCoreLayeredConfigStoreContractTestを許可されたタイミングで実行し、CBOR parse failure後の旧layer保持と一時fileの扱いを確認する。
+## 2026-11-07: CommandIR catalog test がgeneric undo-label fallbackを許容していた
+- **関連:** `ArtifactCore/include/AI/CommandIR.ixx::supportedCommands` / `undoLabelForType`、`tests/ArtifactCore/CommandIRContractTest.cpp`。
+- **確認できた事実:** 既存catalog testは各labelが空でないことだけを確認する。`undoLabelForType` は未知のcommandでgeneric `Command` を返すため、新commandをcatalogへ追加し専用label mappingを忘れても既存testを通過する。今回、全supported commandについてgeneric fallbackではない明示labelを要求する契約testを追加した。現行catalog各項目には個別mappingがあることをコード上で確認済み、未実行。
+- **価値または懸念:** UIやhistoryへ露出するcommand名が汎用ラベルへ退行するのを、catalog追加時に自動検出できる。execution dispatcherはArtifact側にあるため、親test tree内のCore catalog契約に限定している。
+- **次に確認すべきこと:** ArtifactCoreCommandIRContractTestを許可されたタイミングで実行し、全catalog label契約を確認する。
+## 2026-11-07: DataExpressionFunctions::dataGet が非数値CSVセルで例外を投げる
+- **関連:** `ArtifactCore/include/Data/ExpressionDataFunctions.ixx::dataGet`、`ArtifactCore/include/Data/CsvDataSource.ixx`、`tests/ArtifactCore/DataExpressionBridgeContractTest.cpp`。
+- **確認できた事実:** CSV sourceはheader行を除外してtableへ読み込む。`dataGet` は有効セル文字列をそのまま `std::stod` へ渡し、例外処理がない。追加テストはheader `0` / data `not-a-number` のCSVを登録し、expression callbackが例外を出さず0を返す契約を検査する。現状実装では `std::invalid_argument` が出る見込み。未実行。
+- **価値または懸念:** user-authored CSVの一つの文字列セルが式評価全体を中断する回帰を検知する。zero fallbackは関数が既に未登録URI・不足引数・範囲外で0を返す挙動との一貫性からの推論で、意図的に文字列セルを数値式へ渡す場合の明示仕様は未確認。
+- **次に確認すべきこと:** ArtifactCoreDataExpressionBridgeContractTestを許可されたタイミングで実行し、非数値セルと数値prefix/非有限文字列のconversion contractを検討する。
+## 2026-11-07: RenderGraph compiled plan のcopy/move identity lifecycleが未検証
+- **関連:** `ArtifactCore/include/Graphics/RenderGraph.ixx::RenderGraph` copy/move constructor / assignment、`tests/ArtifactCore/RenderGraphTest.cpp`。
+- **確認できた事実:** compiled planはgraph identityとrevisionに束縛される。copy操作は新identityを生成し、move操作はidentityをdestinationへ移しsourceへ新identityを割り当てる実装。既存testはcompile後のgraph mutationによるstale plan拒否のみで、copy/move lifecycleを直接検査していなかった。追加testはcopy/move constructorとassignmentの4経路を通り、copy側とmoved-from側がexecutor実行前にstale拒否され、move destinationは元planを実行できることを検査する。未実行。
+- **価値または懸念:** graphの所有権移送や複製後に古いcompiled scheduleを誤ったgraph descriptorへ実行する回帰を検出する。expected identity policyはheader内の明示実装に基づく。
+- **次に確認すべきこと:** ArtifactCoreRenderGraphTestを許可されたタイミングで実行し、4操作後のidentity／revisionとexecutor呼び出し回数を確認する。
+
+## 2026-11-08: CommandSandbox絶対パスallowlist/blocklistの大文字小文字契約
+- **関連:** `ArtifactCore/include/AI/CommandSandbox.ixx::matchesAllowedProgram`、`tests/ArtifactCore/CommandSandboxContractTest.cpp::AbsoluteAllowlistAndBlocklistPathMatchingIgnoresCase`。
+- **確認できた事実:** absolute path照合は両policy listとも `normalizePath(...).toLower()` で比較する。既存testは同名別directoryの拒否を確認するが、大小文字を変えた同一pathのallow/block判定は確認していなかった。追加testは作成済みのtemporary executable pathの一文字の大小を変えてallowlistで許可され、同じ変種をblocklistへ置くと拒否される契約を追加した。未実行。
+- **価値または懸念:** Windows上のpath casing表現差によるallow/blockの不一致を捕捉する。比較実装の契約を固定する目的であり、Linux/macOS上での実行時filesystem semanticsとの整合は実行環境ごとに確認が必要。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreCommandSandboxContractTest` を実行し、Windows path case-insensitive比較を確認する。
+
+## 2026-11-08: Checkpoint progress field JSON types
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::CheckpointStore::Impl::fromJson` / `CheckpointStore::load`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp::RejectsCheckpointWithWrongTypedProgressFields`。
+- **確認できた事実:** load はトップレベルがobjectでjobIdが一致するかを確認するが、`completedUpToFrame` 等のJSON value typeを検証せず `toInt(-1)` で既定値へ変換する。既存testはsyntax error、array payload、jobId不一致を拒否する。追加testはjobIdが一致していてもframe progressが文字列の文書を拒否する契約を置く。現状実装ではロード成功となる見込み。未実行。
+- **価値または懸念:** truncationや手編集でcheckpoint fieldがwrong typeになったとき、壊れた進捗を有効snapshotとして再開に使う問題を検出する。全fieldのschema/version validation方針は未確定であり、今回は数値progress fieldの型崩れに限定する。
+- **次に確認すべきこと:** `ArtifactCoreCheckpointStoreContractTest`を許可されたタイミングで実行し、typed JSON corruptionを拒否する期待とschema compatibilityを確認する。
+
+## 2026-11-08: ShortcutBindings listener self-removal during notification
+- **関連:** `ArtifactCore/src/UI/ShortcutBindings.cpp::ShortcutBindings::setShortcut`、`tests/ArtifactCore/ShortcutBindingsContractTest.cpp::ListenerCanRemoveItselfDuringNotification`。
+- **確認できた事実:** listener registrationはtokenを返し、remove APIがある。通知は内部 `QHash` を直接range iterationしてcallbackを呼ぶ。既存testは通知外でremoveするが、通知中のcallback自身によるremoveを検査しない。追加testはlistenerが初回通知時に自己解除し、次回のshortcut変更では再通知されないことを要求する。iterator mutationの安全性を含め未実行。
+- **価値または懸念:** callbackから解除可能なsubscription lifecycleを、外部解除とは別の再入パターンで検証し、通知中のcontainer iterator invalidationや重複通知を発見する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreShortcutBindingsContractTest` を実行し、自己解除中のiteration安全性を確認する。
+
+## 2026-11-08: RotoMask inverted raster opacity ordering
+- **関連:** `ArtifactCore/src/Mask/RotoMask.cpp::RotoMask::rasterize`、`tests/ArtifactCore/RotoMaskContractTest.cpp::RasterizeAppliesOpacityToTheInvertedMask`、`docs/spec/SPEC_MASK_OPERATIONS_REQUIREMENTS_2026-07-31.md`。
+- **確認できた事実:** マスク要求仕様は `opacity` と `inverted` を属性として定義する。現行rasterizerは二値maskへopacityを乗算した後に `1 - value` でinvertする。追加testは四角形をラスタライズし、inversion後の外側値もopacity 0.5に制限されること、内側は0になることを期待する。現行処理順では外側が1、内側が0.5となる見込み。未実行。
+- **価値または懸念:** invertとopacityを別々に試すだけでは見逃す、複合属性の演算順序を検出する。opacityが最終合成強度として働くべきとの期待は仕様文面からの推論であり、明示された数式契約はないため未検証。
+- **次に確認すべきこと:** `ArtifactCoreRotoMaskContractTest`を許可されたタイミングで実行し、仕様上のopacity/invert順序を確認する。
+
+## 2026-11-08: FastSettingsStore failed forced reload preserves unsaved snapshot
+- **関連:** `ArtifactCore/src/Core/FastSettingsStore.cpp::FastSettingsStore::Impl::loadFromDiskUnlocked` / `FastSettingsStore::reload`、`tests/ArtifactCore/FastSettingsStoreContractTest.cpp::FailedDiscardingReloadPreservesDirtyLocalSnapshotAndRetryState`。
+- **確認できた事実:** 既存契約は壊れたCBORからのreload失敗後にclean storeの既ロード値を保持することを要求する。新testはさらにローカル未保存値とpending operationがある状態で壊れたCBORへ `reload(true)` を行い、失敗後も値・dirty flag・operation数が保持される期待を追加する。現行 `loadFromDiskUnlocked` はparse前にcache/dirty/pendingをclearするため、この期待を満たさない見込み。未実行。
+- **価値または懸念:** 明示discard reloadであっても、新スナップショットを読み込めなかった場合に復旧可能なローカル値まで失う問題を検出する。保持期待は既存のfailed reload契約と失敗原子的なreload semanticsに基づく。
+- **次に確認すべきこと:** `ArtifactCoreFastSettingsStoreContractTest`を許可されたタイミングで実行し、失敗時にdirty operationを保持できるか確認する。
+
+## 2026-11-08: DepthMask falloff domain invariants
+- **関連:** `ArtifactCore/src/Mask/DepthMask.cpp::DepthMaskCalculator::computeAlpha`、`tests/ArtifactCore/DepthMaskContractTest.cpp::EveryFalloffStaysBoundedMonotonicAndInvertComplementary`。
+- **確認できた事実:** 実装はHard / Linear / Smoothの3曲線を提供し、rangeを `[0,1]` にclampした後にinvertで `1 - alpha` を返す。既存testは各曲線の代表点とinvertの単一sampleを検査する。追加testは各曲線をnear〜farの101点で走査し、範囲内・非減少・invert complementを検証し、両endpointも確認する。未実行。
+- **価値または懸念:** 単一の中点だけでは見つからないcurve overshoot、局所的な非単調、曲線別invert不整合を小さな決定的domain sweepで検出する。
+- **次に確認すべきこと:** `ArtifactCoreDepthMaskContractTest`を許可されたタイミングで実行し、全曲線のdomain invariantsを確認する。
+
+## 2026-11-08: VolumeMask closed-contour render integration
+- **関連:** `ArtifactCore/src/Mask/VolumeMask.cpp::generateDistanceField` / `computeAlphaMask` / `renderToAlpha`、`tests/ArtifactCore/VolumeMaskContractTest.cpp::ClosedContourRenderComposesDistanceFalloffAndInversion`。
+- **確認できた事実:** 既存testはdistance field生成、falloff計算、invert、`renderToAlpha`の無効輪郭を分離して検査するが、有効輪郭で全段を通すcaseがない。追加testは10x10の矩形輪郭を線形falloff、thickness 3、density 0.8、invertで描き、内部最大密度、境界から1pxの部分値、外部反転値を確認する。未実行。
+- **価値または懸念:** 有効なOpenCV contour入力から距離場・alpha・反転出力までのデータ型、寸法、境界距離の連携回帰を検出する。距離Transformの1px境界値はOpenCVの離散画素距離契約に基づく。
+- **次に確認すべきこと:** `ArtifactCoreVolumeMaskContractTest`を許可されたタイミングで実行し、統合結果の境界画素と内部/外部値を確認する。
+
+## 2026-11-08: ViewOrientationNavigator mid-animation retarget
+- **関連:** `ArtifactCore/src/UI/ViewOrientationNavigator.cpp::snapTo` / `update`、`tests/ArtifactCore/ViewOrientationNavigatorContractTest.cpp::RetargetingAnActiveSnapContinuesFromTheCurrentOrientation`。
+- **確認できた事実:** `snapTo` はアニメーション中でもstartを現currentへ置き換え、elapsedを0へ戻して新targetへ遷移する。既存testは一回のsnap完了と負delta/immediate snapを検査するが、進行中の再ターゲットは検査しない。追加testはRightへ30%進んだ中間姿勢を保持してTopへ再snapし、retarget直後・zero-delta後の連続性と最終目標到達を確認する。未実行。
+- **価値または懸念:** ユーザーがアニメーション中に別hotspotを選んだ際の姿勢jump、古いtarget継続、完了状態ずれを検出する。
+- **次に確認すべきこと:** `ArtifactCoreViewOrientationNavigatorContractTest`を許可されたタイミングで実行し、再ターゲット連続性を確認する。
+
+## 2026-11-08: PathTube trim ring parameters and topology
+- **関連:** `ArtifactCore/src/Geometry/Procedural3DGenerators.cpp::generatePathTube`、`tests/ArtifactCore/PathTubeTrimTest.cpp::TrimMapsEveryRingAcrossRequestedRangeAndKeepsAdjacentRingTopology`。
+- **確認できた事実:** PathTubeは各ring vertexの`v`へtrim後path parameter `te`を保存し、各path sampleのindex blockは次のringへ接続する。既存trim testsはmesh空判定、vertex数、bounds clampのみを確認する。追加testは要求trim区間の端点を含む全ringの`v`と、各index blockが範囲内かつ対応する隣接ringに限定されることを検査する。Draft qualityではsidesが3へclampされるためその契約を使用。未実行。
+- **価値または懸念:** Z boundsが一見正しくてもUV/path parameter mappingがfull rangeのまま、またはmesh topologyが飛びringを接続するtrim回帰を検出する。
+- **次に確認すべきこと:** `ArtifactCorePathTubeTrimTest`を許可されたタイミングで実行し、全ring parameterとtriangle index blockを確認する。
+
+## 2026-11-08: ImageImporter same-path decode recovery lifecycle
+- **関連:** `ArtifactCore/src/IO/Image/ImageImporter.cpp::ImageImporter::open` / `readImage`、`tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::ReopeningChangedSourceTransitionsValidInvalidAndValidWithoutStalePixels`。
+- **確認できた事実:** 既存testsはmissing path open failure後の回復と、decode失敗をreadまで遅延することを別々に確認する。追加testは同じimporter instanceとsame pathで有効PNGをdecode後、ファイルを不正payloadへ置換してread失敗、さらに有効な1px PNGへ置換して正常復旧する3段階を検査する。未実行。
+- **価値または懸念:** source contentが外部変更されたとき、decode failure後に以前のpixel dataを誤って返す、またはdecoder stateが復旧しない回帰を捕捉する。ファイル置換は一時ディレクトリ内の明示的な逐次書き換えで行う。
+- **次に確認すべきこと:** `ArtifactCoreImageAssetMetadataContractTest`を許可されたタイミングで実行し、valid→invalid→valid source transitionを確認する。
+
+## 2026-11-08: FrameMotion inverse transform domain coverage
+- **関連:** `ArtifactCore/src/Video/Stabilizer.cpp::FrameMotion::toMatrix` / `FrameMotion::inverted`、`tests/ArtifactCore/VideoStabilizerContractTest.cpp::FrameMotionInverseRoundTripsAcrossRotationScaleAndTranslationDomain`。
+- **確認できた事実:** 既存testは正のquarter-turn rotation、scale 2、単一pointでforward/inverse round-tripを確認する。追加testは複数の角度（境界を含む）、正のscale 0.125〜3.75、複数位置を組み合わせてround-tripを検証する。未実行。
+- **価値または懸念:** 逆行列の符号・translation項の誤りや、小さいscaleでの許容誤差問題を単一例より広い決定的なdomainで捕捉する。scaleゼロや負値は現行APIの入力契約が明確でないため含めていない。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreVideoStabilizerContractTest` を実行し、全角度・scale組合せの数値誤差を確認する。
+
+## 2026-11-08: BatchStabilizer single-image output contract
+- **関連:** `ArtifactCore/src/Video/Stabilizer.cpp::BatchStabilizer::process` / `VideoStabilizer::getStabilizedFrame`、`tests/ArtifactCore/VideoStabilizerContractTest.cpp::BatchStabilizerProcessesSingleImageAndWritesPixelPreservingOutput`、`docs/analysis/MEDIA_VIDEO_IO_AUDIT_2026-08-02.md`。
+- **確認できた事実:** 監査文書はBatchStabilizerの単一画像入出力処理を実装済みと記載する。processは1枚の画像をaddFrameしstabilize成功後にframe 0を取得するが、getStabilizedFrameはsmoothedMotions_にindexがある場合だけ画像を返し、smoothMotionsはmotions_が空ならsmoothedMotions_を作らない。1枚入力ではmotions_が空のため、出力画像はnullになる見込み。未実行。
+- **価値または懸念:** 一時PNGを入力して出力ディレクトリ生成・process成功・全画素保存まで検査し、文書上の単一画像I/O契約と1フレーム処理間の不整合を露呈させる。test追加だけでは実装不整合は解消しない。動画対応を広げず、既記載の単一画像契約を対象にする。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreVideoStabilizerContractTest` を実行する。失敗した場合、単一画像処理の恒等変換をどの層で保証するかを決めてから別作業として修正する。
+
+## 2026-11-08: RenderFarm pause-before-first-frame transition
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange`、`tests/ArtifactCore/RenderFarmMasterPauseContractTest.cpp::JobSubmittedWhilePausedDoesNotStartUntilResume`。
+- **確認できた事実:** 既存pause testはframe 0のcallbackへ入った後pauseし、そのframe完了後に後続frameが止まることを確認する。実装は各frameのcallback前にpaused condition variableを待つ。追加testはmasterを先にpauseし、rangeをsubmitした後の短い観察窓でcallback未開始を確認し、resume後にframe 10〜12が順序通り完了することを要求する。未実行。
+- **価値または懸念:** pause開始時に処理中frameが存在しないケースで、最初のframeがpauseをすり抜ける競合やresume後のrange欠落を検出する。pause状態中にthread schedulerが遅延する環境では100ms観察窓だけだと未開始を誤認する可能性があり、必要ならCI実行結果を踏まえて同期条件を強化する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreRenderFarmMasterPauseContractTest` を実行し、異なるworker scheduling下でもpause-before-startを再現可能に確認する。
+
+## 2026-11-08: Checkpoint fractional frame progress rejection
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::CheckpointStore::Impl::fromJson` / `CheckpointStore::load`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp::RejectsFractionalFrameProgressInsteadOfLoadingFallbackInteger`。
+- **確認できた事実:** checkpoint progressのJSON型誤りを拒否する既存追加testは文字列を対象にする。追加testはJSON数値型でも整数でない`completedUpToFrame`を含むdocumentを拒否する期待を加える。fromJsonは`toInt(-1)`を使いloadはjobId以外のschema値をvalidateしないため、不正値が`-1`へ変換されたsnapshotとして返る見込み。未実行。
+- **価値または懸念:** JSONの型だけでなくint domain違反を検出し、fractional frame cursorが有効checkpointとして復元される問題を捕捉する。進捗値の許容範囲（例: `-1` sentinelとtotalFramesの関係）は別途仕様化が必要。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreCheckpointStoreContractTest` を実行し、fractional numeric valueが拒否されることを確認する。
+
+## 2026-11-08: Split load failure atomicity across formats
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::SplitDocumentStore::load`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::FailedChildLoadPreservesCallerOutputsForJsonAndCbor`。
+- **確認できた事実:** 既存のsplit load失敗時のcaller出力保持testはJSONだけを使っていた。テストをJSONとCBORの両方で同じ壊れた子文書シナリオを通すよう拡張した。`SplitDocumentStore::load`は両形式ともmanifestを読み、children mapを順次構築する共通経路を使う。未実行。
+- **価値または懸念:** format検出、manifest suffix、子document suffixの違いをまたいでも部分読込失敗時の保持契約が崩れないことを検証する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreSplitDocumentStoreContractTest` を実行し、JSON/CBOR双方のfailure atomicityを確認する。
+
+## 2026-11-08: Clipboard invalid external payload clears stale bundle cache
+- **関連:** `ArtifactCore/include/Clipboard/ClipboardManager.ixx::ClipboardManager::syncFromSystemClipboard`、`tests/ArtifactCore/ClipboardManagerContractTest.cpp::LayerBundleSurvivesSystemClipboardRoundTripWithMetadata`。
+- **確認できた事実:** 既存testは有効なlayer bundleをsystem clipboardへ往復するが、続いて不正payloadを読み込ませた状態遷移を検査していなかった。既存caseを、有効bundle読込後に不正な`layers`型を持つ外部payloadへ置換し、内部type・description・cached layersが空になることも確認するよう拡張した。sync実装はparse failure時にinternalClip_とcachedLayers_をclearする。未実行。
+- **価値または懸念:** 外部clipboardを他アプリが変更した後に、古いコピー内容を誤って貼り付ける状態残留を検出する。GUI clipboard backendに依存するためoffscreen platformでの実行確認が必要。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreClipboardManagerContractTest` を実行し、有効→不正payload遷移後のclipboard cache invalidationを確認する。
+
+## 2026-11-08: Clipboard bundle-to-keyframe type transition
+- **関連:** `ArtifactCore/include/Clipboard/ClipboardManager.ixx::copyKeyframes` / `syncFromSystemClipboard`、`tests/ArtifactCore/ClipboardManagerContractTest.cpp::LayerBundleSurvivesSystemClipboardRoundTripWithMetadata`。
+- **確認できた事実:** 既存testを、有効bundleのsystem clipboard往復後に不正payloadで内部cacheをclearし、その後に順不同frameを持つkeyframe payloadへ切り替える複合状態遷移へ拡張した。内部paste順序とproperty path、system MIME JSONのmin/max frame metadataを検査する。未実行。
+- **価値または懸念:** clipboard type間の切替でlayer cacheやbundle metadataが漏れる問題、および入力順に依存したframe範囲計算の回帰を同じnative clipboard lifecycleで検出する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreClipboardManagerContractTest` を実行し、offscreen clipboardでbundle→invalid→keyframesの遷移と出力envelopeを確認する。
+
+## 2026-11-08: Localization plural numeric domain boundaries
+- **関連:** `ArtifactCore/src/Localization/Localization.cpp::pluralCategoryFor`、`tests/ArtifactCore/LocalizationContractTest.cpp::PluralRulesHandleNonFiniteAndValuesBeyondIntRange`。
+- **確認できた事実:** 既存plural testsは通常整数、小数、ロシア語/アラビア語の代表境界を検査する。実装は`fabs(count)`を`int`へ変換し、剰余を計算する。追加testは英語・ロシア語・アラビア語でNaN/±infinityをOtherに分類する期待と、INT_MAXを超える値のロシア語/アラビア語categoriesを検証する。未実行。
+- **価値または懸念:** 非有限doubleからintへの変換による未定義動作と、32-bit整数域を超える値の誤分類を検出する。非有限値をOtherとする期待はplural count APIの防御的契約として置き、実装変更時にも維持すべき安全域とする。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreLocalizationContractTest` を実行し、UBSanを含む構成が利用可能なら非有限変換も診断する。
+
+## 2026-11-08: Tracking normalization-to-projection integration
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cpp::TrackResult::normalize` / `TrackResult::interpolateAt` / `TrackFrame::projectPoint`、`tests/ArtifactCore/TrackingDataContractTest.cpp::NormalizeMergesNearDuplicateFramesBeforePointAndHomographyInterpolation`。
+- **確認できた事実:** 既存testsはnormalize sorting/sanitization、point interpolation、homography projectionを別々に確認する。追加testはout-of-order framesに1ns未満の近接重複を含め、後続sampleが採用された後、共有point IDとhomographyを中間時刻で補間し、補間homographyでpoint投影する一連の経路を検査する。未実行。
+- **価値または懸念:** frame deduplicationの選択、時間範囲、point lookup、homography補間正規化が別々には正しくても連結時にずれる回帰を独立期待値で検出する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreTrackingDataContractTest` を実行し、近接frame統合からprojective projectionまでを確認する。
+
+## 2026-11-08: PlanarTracker strided ROI input coverage
+- **関連:** `ArtifactCore/src/Tracking/PlanarTracker.cpp::PlanarTracker::track`、`tests/ArtifactCore/PlanarTrackerContractTest.cpp::TracksTranslatedNonContinuousRoiViewsWithDifferentParentOffsets`。
+- **確認できた事実:** 既存PlanarTracker testsはgray/BGR/BGRA、translation/projective motion、invalid inputsを検査するが、親Matの部分領域でrow strideがwidthを超える入力を検査しない。追加testは異なるparent dimensionsとROI offsetsを持つ非continuous previous/current grayscale viewに既知translationを適用し、corner projectionを照合する。未実行。
+- **価値または懸念:** optical flowとfeature extractionがROIの行strideや親画像offsetを無視して誤った画素を読む回帰を検出する。既存の乱数seedと角座標許容差を再利用して決定性を保つ。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCorePlanarTrackerContractTest` を実行し、異なる親strideのROI間のmotion estimationを確認する。
+
+## 2026-11-08: PluginRegistry concurrent lifecycle snapshots
+- **関連:** `ArtifactCore/src/Plugin/PluginRegistry.cpp::registerPlugin` / `activatePlugin` / `activePlugins`、`tests/ArtifactCore/PluginRegistryContractTest.cpp::ConcurrentRegistrationActivationAndSnapshotQueriesRetainEveryPlugin`。
+- **確認できた事実:** 既存PluginRegistry testsは登録・有効化・解除・descriptor置換の遷移を単一threadで検査する。実装はすべて同じmutexを共有する。追加testは8 workersが固有IDの登録・有効化・問い合わせを並行実行する間にactive/all snapshotsを反復取得し、完了後に192 pluginの状態・category・active listingを確認する。未実行。
+- **価値または懸念:** 同時hash/set更新時の欠落・状態不整合を決定的な最終状態照合と並行snapshot利用で検出する。実行時間はworkloadに依存するが小さな固定上限であり、sanitizer構成でも価値がある。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCorePluginRegistryContractTest` を通常およびThreadSanitizer構成で実行し、並行snapshotとlifecycleの整合を確認する。
+
+## 2026-11-08: Shared ring buffer recovery after checksum failure
+- **関連:** `ArtifactCore` shared memory ring buffer read/write paths、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::CorruptPayloadFailsChecksumAndConsumesEntry`。
+- **確認できた事実:** 既存testはpayload破損をchecksum mismatchとして検出し、entryを消費してreaderが停止しないことを確認する。追加testは同じringで直後に正常payloadを書き戻し、sequenceの前進、flags/dataの一致、empty状態、writes/reads countersを照合する。未実行。
+- **価値または懸念:** 不正entryの消費後にring head/tail、capacity accounting、checksum pathが正常な読み書きへ復帰するかを単発の破損検査より強く確認する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreSharedMemoryRingBufferContractTest` を実行し、corrupt→recovery stream transitionを確認する。
+
+## 2026-11-08: Background task failed-dependency scheduling
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::DependenciesCompleted` / `WorkerLoop`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::FailedDependencyNeverRunsDependentAndLeavesIndependentWorkAvailable`。
+- **確認できた事実:** 既存dependency testはprerequisite成功後にdependentが動き、独立taskが待たされないことを確認する。追加testはprerequisiteが例外でFailedとなるケースでもdependent bodyが実行されず、独立taskがCompletedとなることを要求する。現行実装はFailed dependencyを未完了としてpending queueへ戻す。未実行。
+- **価値または懸念:** worker数不足やpriority schedulingによりfailure dependencyが誤ってsuccess扱いとなる回帰を防ぎ、dependencyのfailure gateを独立workの進行と組み合わせて確認する。テストはdependentのterminal stateを固定せず、「実行されない」と「独立taskが進む」の契約に限定する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreBackgroundTaskWorkerPoolContractTest` を実行し、失敗依存taskが実行されず無関係workが進行することを確認する。
+
+## 2026-11-08: Worker pool ClearQueue terminal cancellation contract
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::ClearQueue` / `CancelTask`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::ClearQueueCancelsRunningAndPendingTasksWithoutExecutingQueuedWork`。
+- **確認できた事実:** APIコメントはClearQueueについて実行中taskをcancelすると記載する。既存testは個別の実行中task cancelと個別のqueued task cancelを分けて検査する。追加testは1 workerが実行中taskで塞がれた状態でqueued taskを追加し、ClearQueue後に両方がCancelledとなりqueued bodyが実行されない期待を置く。実装はpendingTasks_だけを走査し、queued taskのsnapshotを更新せず、実行中tokenへも到達しないため期待を満たさない見込み。未実行。
+- **価値または懸念:** bulk queue clear後に実行中処理が継続すること、または消去済みtaskがPending snapshotのまま残る状態管理不整合を検出する。APIコメントから導いた期待であり、ユーザーが停止を期待するtaskと完了させるtaskを一括ClearQueueする際の意味を固定する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreBackgroundTaskWorkerPoolContractTest` を実行し、running/pending双方の終端遷移を確認する。
+
+## 2026-11-08: Concurrent worker-pool submissions at capacity
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::SubmitTask`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::ConcurrentSubmissionsNeverExceedPendingCapacity`。
+- **確認できた事実:** 既存capacity testは単一threadから上限超過を拒否することを確認する。追加testはworkerを起動しないpoolへ12 threadsから同時にtaskをsubmitし、capacity 5に対してaccepted 5、rejected 7、snapshot/pending 5件すべてPendingとなる期待を置く。SubmitTaskはqueue mutex内でcapacity検査・snapshot登録・enqueueを行う。未実行。
+- **価値または懸念:** 並行producer間でcapacity判定が原子的に守られること、拒否されたtaskがsnapshotへ部分登録されないことを合わせて検査する。固定小規模のbarrier競合でありsleep timingに依存しない。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreBackgroundTaskWorkerPoolContractTest` を実行し、concurrent submissionsのbackpressure契約を確認する。
+
+## 2026-11-08: Concurrent settings persistence during writes
+- **関連:** `ArtifactCore/src/Core/FastSettingsStore.cpp::setValue` / `sync`、`tests/ArtifactCore/FastSettingsStoreContractTest.cpp::ConcurrentSyncAndWritersPersistEveryAcceptedEntry`。
+- **確認できた事実:** 既存testは4 writerが異なる256 keyを書いた後、メモリ上の内容を確認する。追加testは4 writerと同期保存threadを同時に走らせ、完了後にsyncして別storeでCBORを再読込し、全256 key/valueを照合する。実装ではsetValueとsyncが同じshared mutexの排他ロックを使う。未実行。
+- **価値または懸念:** 複数writerとQSaveFileによる保存が競合した際に、内部状態の整合だけでなく、最終永続化物の欠落・破損がないことを検査する。保存threadの反復回数はwriterの完了まで進むため固定sleepには依存しない。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreFastSettingsStoreContractTest` を実行し、同時sync後のCBOR再読込と全entry保持を確認する。
+
+## 2026-11-08: Layered config external reload conflict and retry
+- **関連:** `ArtifactCore/src/Configuration/LayeredConfigStore.cpp::reloadChangedLayers`、`tests/ArtifactCore/LayeredConfigStoreContractTest.cpp::ChangedLayerRejectsDirtyReloadThenDiscardsOnlyOnExplicitRetry`。
+- **確認できた事実:** 既存testは不正なlayer load後に現在のpath/valueを保つことと、複数layerの優先順位を確認する。追加testは外部writerによるCBOR更新をmtime差分で検出させ、local dirty時の通常reload拒否と値保持、その後のdiscard指定reloadでexternal valueへ切替わることを確認する。未実行。
+- **価値または懸念:** file change検出、dirty保護、再試行時のlastModified更新、source layer維持という複数の状態遷移を一連で検査する。mtimeの粒度差を避けるためテスト内で未来時刻へ明示設定する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreLayeredConfigStoreContractTest` を実行し、変更検出からdiscard retryまでの遷移を確認する。
+
+## 2026-11-08: Audio buffer queue multi-producer/multi-consumer delivery
+- **関連:** `ArtifactCore/include/Audio/AudioBufferQueue.ixx::push` / `pop`、`tests/ArtifactCore/AudioBufferQueueStandaloneTest.cpp::MultipleProducersAndConsumersDeliverEverySegmentExactlyOnce`。
+- **確認できた事実:** 既存並行testは1 producerと1 consumerのFIFOを検査する。追加testは4 producersが合計2048件をpushし、3 consumersが同時にpopする。frame idとstereo payloadで同一性を照合し、全idの出現回数がちょうど1、queueが空になることを要求する。未実行。
+- **価値または懸念:** 複数consumerによる重複popや複数producer間の欠落、payloadとmetadataの取り違えを順序非依存で検出する。停止時の無限待ちを避けるため共通期限を設ける。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreAudioBufferQueueStandaloneTest` を実行し、MPMC delivery accountingを確認する。
+
+## 2026-11-08: Audio waveform trailing remainder test already exposes a likely gap
+- **関連:** `ArtifactCore/src/Audio/AudioWaveform.cpp::AudioWaveform::process`、`tests/ArtifactCore/AudioWaveformStandaloneTest.cpp::LastUnevenBucketIncludesAllTrailingFramesInItsRms`。
+- **確認できた事実:** 既存testは10 frame / 4 binの最後のbinがframe 8・9の寄与を含むことを期待する。実装は`step = frames / resolution`を2とし、各binを最大2 frameしか走査しないため、frame 8・9へ到達しないように読める。テスト・実装とも未実行で、結果は未検証。
+- **価値または懸念:** 既存の難しい回帰テスト自体が実装との不一致を示している可能性があり、同じ期待を重複するテスト追加より、このケースを実行できる時に結果確認する価値が高い。
+- **次に確認すべきこと:** 許可されたタイミングで`AudioWaveformStandaloneTest`を実行し、このtail remainder assertionの実際の結果を確認する。
+
+## 2026-11-08: CommandSandbox process execution path coverage
+- **関連:** `ArtifactCore/include/AI/CommandSandbox.ixx::run` / `buildEnvironment`、`tests/ArtifactCore/CommandSandboxContractTest.cpp::RunStartsAllowlistedTestExecutableAndCapturesItsOutput`。
+- **確認できた事実:** 既存CommandSandbox contract testsはdryRunによるpolicy/plan検証が中心で、`run()`の実プロセス起動、完了判定、stdout/stderr回収を直接確認していない。追加testは現在のGoogleTest実行ファイルを絶対pathでallowし、`--gtest_list_tests`で子起動し、終了状態とcaptured suite名を検査する。未実行。
+- **価値または懸念:** validation成功からQProcess起動・終了監視・結果変換までの経路を統合して検査する。外部shellや任意system executableを使わず、現在のtest binaryだけを子プロセスとして起動する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreCommandSandboxContractTest` を実行し、child processの起動とstdout captureを確認する。
+
+## 2026-11-08: CommandSandbox combined output limit ambiguity
+- **関連:** `ArtifactCore/include/AI/CommandSandbox.ixx::CommandSandbox::run` / `appendLimited`、`tests/ArtifactCore/CommandSandboxContractTest.cpp`。
+- **確認できた事実:** property metadataは`maxOutputBytes`を「Maximum amount of stdout/stderr captured」と説明する一方、`run()`はstdoutとstderrそれぞれへ個別に同じ上限を渡す。現状のprocess execution testはstdout captureを検査するが、両stream合計の上限は検査しない。
+- **価値または懸念:** 設定名と説明を合計上限と読む場合、両stream合計が2倍まで蓄積しうる可能性がある。説明がstreamごとの上限を意図するかは未検証であり、期待値を勝手に固定すると誤った契約を作る。
+- **次に確認すべきこと:** CommandSandboxの出力量契約を決め、stdout/stderr個別・合算の境界を区別する子process testを追加する。
+
+## 2026-11-08: CommandSandbox timeout termination path
+- **関連:** `ArtifactCore/include/AI/CommandSandbox.ixx::CommandSandbox::run`、`tests/ArtifactCore/CommandSandboxContractTest.cpp::RunKillsTimedOutChildAndReportsTerminalTimeout`。
+- **確認できた事実:** 追加済みprocess testはchild start/completion/stdout captureを検査する。run実装は期限超過で`QProcess::kill()`後に終了待ちし、`timedOut`と`finished`を返すが、この分岐のtestはなかった。新testは現在のGoogleTest executableを専用filterでchild起動し、helperだけを5秒sleepさせ、1.5秒timeout後の状態を確認する。未実行。
+- **価値または懸念:** deadline検出からprocess kill、terminal result serializationまでの複合経路を検査する。helperは通常のsuite実行では即時returnするが、子processのkill挙動はplatform差の確認が必要。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreCommandSandboxContractTest` を実行し、timeout後にchildが終了し`timedOut`がtrueとなることを確認する。
+
+## 2026-11-08: Tracking homography interpolation can cross a singular scale
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cpp::TrackResult::interpolateAt`、`tests/ArtifactCore/TrackingDataContractTest.cpp::SingularInterpolatedHomographyFallsBackWithoutLosingPointInterpolation`。
+- **確認できた事実:** 既存testは有効homography同士の通常補間とprojectionを確認する。追加testはprojective-equivalentなidentity行列とその-1倍を端点にし、中間線形補間のnormalizerが0となるケースでidentity fallbackを期待する。同じ中間時刻でtracked pointは独立して補間され、homography不在時のprojectionはcaller outputを保持することも照合する。未実行。
+- **価値または懸念:** projective homogeneous scaleの符号差で起こる数値特異性に対するfallbackと、homography失敗がpoint trackingへ波及しないことを同時に検査する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreTrackingDataContractTest` を実行し、singular midpoint fallbackとpoint interpolationの両立を確認する。
+
+## 2026-11-08: ZoomScale arithmetic mutators and nonfinite values
+- **関連:** `ArtifactCore/src/Transform/ZoomScale.cpp::ZoomIn` / `ZoomOut` / arithmetic operators、`tests/ArtifactCore/ZoomScaleContractTest.cpp::NonFiniteArithmeticInputsPreserveConfiguredRangeInvariant`。
+- **確認できた事実:** 既存testは`setScale(NaN)`でscaleが有限範囲内に残る契約を確認する。追加testはNaNを各incremental/multiplicative mutatorへ入力し、同じ有限範囲不変条件を確認する。実装は各経路で`std::clamp`へ結果を渡すが、NaNは上下限比較を通過し、そのまま残る可能性がある。未実行。
+- **価値または懸念:** setter以外の公開変更経路にNaNが入った際、zoom状態が以後の計算へ伝播する回帰を検出する。非有限入力でscaleを保持するか境界へ寄せるかは規定していないため、テストは有限範囲の不変条件だけに限定する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreZoomScaleContractTest` を実行し、全mutatorの有限範囲不変条件を確認する。
+
+## 2026-11-08: Multi-frame dispatcher retry前のキャンセル
+- **関連:** `ArtifactCore/include/Render/MFR/MFRDispatcher.ixx::executeBlocking`、`tests/ArtifactCore/RenderJobModelContractTest.cpp::CancellationBeforeRetryPreventsAnotherAttemptOfTheFailedFrame`。
+- **確認できた事実:** 既存dispatcher testsはframe retry、依存順序、成功中frameのcancelを検査する。追加testは最初の失敗callbackをgateで停止し、解放前にcancelを要求して、試行1回・完了0件・失敗1件を期待する。実装は各attemptの開始時にcancel状態を確認するが、retry backoff中はその確認前にsleepする。未実行。
+- **価値または懸念:** timing raceに依存せず、失敗中frameからretry待ちへ移る境界でcancelが次attemptを抑止するか検査する。100msのbackoffで追加時間をboundedにする。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreRenderJobModelContractTest` を実行し、cancelが現在frameのretryを抑止することを確認する。
+
+## 2026-11-08: Property read-only snapshot lifetime across owner removal
+- **関連:** `ArtifactCore/include/Property/Property.ixx::PropertyRegistryReadOnlyAdapter::queryProperty`、`tests/ArtifactCore/PropertyRegistryReadOnlyAdapterContractTest.cpp::PreviouslyReturnedPropertySnapshotKeepsItsValueAndHandleAfterOwnerRemoval`。
+- **確認できた事実:** 既存testはowner登録中のsnapshot値分離と、unregister後の再query結果を確認する。追加testはquery済みsnapshotを保持したままownerを破棄し、registryからの検索が無効になった後もsnapshot値とSharedPtr property handleが有効であることを期待する。未実行。
+- **価値または懸念:** Registryの登録寿命とconsumerが保持するread snapshotの寿命が独立していることを確認し、外部read-only利用者のuse-after-free回帰を検出する。Snapshotの`currentValue`は取得時コピー、`property`は共有handleという2種類の寿命を別々に照合する。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCorePropertyRegistryReadOnlyAdapterContractTest` を実行し、owner解除後の保持handleと検索切り離しを確認する。
+
+## 2026-11-08: Shortcut listener registration during notification
+- **関連:** `ArtifactCore/src/UI/ShortcutBindings.cpp::setShortcut` / `addChangeListener`、`tests/ArtifactCore/ShortcutBindingsContractTest.cpp::ListenerCanRegisterAnotherListenerDuringNotification`。
+- **確認できた事実:** 既存testは通知中にlistenerが自分自身を解除できることを確認する。追加testは既存listener callbackが別listenerを登録し、次のshortcut変更通知時に新listenerが通知を受けることを確認する。初回通知内で新listenerまで呼ばれるかは契約に固定しない。未実行。
+- **価値または懸念:** callback内でlistener containerが変更されるreentrant経路を検査し、iterator invalidationやcallback lifetime破損を検出する。実装はQHashを直接range iterateしながらcallbackを呼ぶため、実行時の安全性は未検証。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactCoreShortcutBindingsContractTest` を実行し、listener追加中の通知と次回通知を確認する。
+
+## 2026-11-08: Arabic plural rules for negative counts and fractions
+- **関連:** `ArtifactCore/src/Localization/Localization.cpp::pluralCategoryFor`、`tests/ArtifactCore/LocalizationContractTest.cpp::RussianAndArabicPluralRulesResolveCategoryKeysAndFallbacks`。
+- **確認できた事実:** 既存Arabic plural assertionsは0、1、2、3、11、100の非負整数を確認している。追加assertionsは負数を絶対値ベースで同じcategoryへ分類し、非整数の正負値をOtherへ分類する期待を検査する。実装は`fabs`後に整数性を判定する。未実行。
+- **価値または懸念:** APIへ符号付き値やfractional countが渡ったときの分類を明示し、Arabicだけの負数／fractional分岐漏れを防ぐ。負数を絶対値扱いにする期待は現行実装に合わせた契約であり、利用側が負countを渡すべきかは別途未規定。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreLocalizationContractTest`を実行し、追加したcategory assertionsを確認する。
+
+## 2026-11-08: Async file writer callback-driven follow-up
+- **関連:** `ArtifactCore/src/IO/asio_async_file_writer.cpp::AsioAsyncFileWriterManager::Impl::enqueueBytes`、`tests/ArtifactCore/AsyncFileWriterContractTest.cpp::CompletionCallbackCanEnqueueAndAwaitAFollowupWrite`。
+- **確認できた事実:** 既存testは複数書込みの並列処理、callbackのexactly-once、manager破棄時のaccepted job drainを確認する。追加testは最初の書込みcallback内から同じmanagerへ次の書込みを登録し、両方の完了結果とファイル内容を照合する。実装はworker callbackからthread_poolへ追加jobをpostする。未実行。
+- **価値または懸念:** callbackを使う利用側が完了イベントから次の永続化段階を開始する再入経路を検査する。両段階を別promiseで待つため、最初の成功通知だけで連鎖全体が完了したと誤認しない。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreAsyncFileWriterContractTest`を実行し、callback内submit後に2件目のcallbackも完了することを確認する。
+
+## 2026-11-08: Checkpoint failure-record parsing must be all-or-nothing
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::CheckpointStore::Impl::fromJson` / `CheckpointStore::load`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp::RejectsMalformedFailureRecordInsteadOfSilentlyDroppingFields`。
+- **確認できた事実:** 既存契約testはcheckpointの進捗フィールドが誤型または小数の場合、load拒否を期待している。追加testは有効レコードとframe誤型レコードが同じfailure配列にあるcheckpointの拒否を期待する。現実装の`toInt()`は誤型を既定値へ変換し、loadはjobId一致だけでOptionalを返すため、拒否期待を満たさない可能性が高い。未実行。
+- **価値または懸念:** 破損したfailure履歴を有効なcheckpointとして部分復元し、無効frameを0へ変換するデータ損失を検出する。failure array全体を拒否するか不正recordだけを隔離するかはcheckpoint schemaの契約確認が必要だが、隣接する進捗フィールドtestの厳格方針に合わせた期待を置く。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreCheckpointStoreContractTest`を実行し、実装が本当に破損recordを受け入れるか確認する。必要ならschema validation方針を明示してからproduction側を直す。
+
+## 2026-11-08: Property link fan-out uses one source snapshot
+- **関連:** `ArtifactCore/src/Property/PropertyLinkManager.cpp::PropertyLinkManager::updateTargets`、`tests/ArtifactCore/PropertyLinkManagerContractTest.cpp::FanOutUsesStableSourceSnapshotWhenMapperMutatesSource`。
+- **確認できた事実:** 既存testは複数target、Custom mapping、循環linkを別々に検査する。追加testは最初のCustom mapperがsource値を書き換えるfan-outを作り、同じ呼び出し中の後続Direct targetが当初値を受け取り、次回の明示updateでは新値を受け取る期待を置く。実装はfan-out開始時にsource QVariantを一度取得し、全linkへ共有する。未実行。
+- **価値または懸念:** 複数targetの一回の同期更新がmapper副作用で途中から異なる入力値へ切り替わらないことを確認する。Custom mapperがsourceを変更する再入を許容すべきかはAPIに明記されていないが、source snapshot方式を既に採る実装契約としてテストする。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCorePropertyLinkManagerContractTest`を実行し、同一fan-out内のsnapshot一貫性と次回更新反映を確認する。
+
+## 2026-11-08: Data expression source can recover after unregister
+- **関連:** `ArtifactCore/include/Data/DataPropertyBridge.ixx::registerDataSource` / `unregisterSource`、`ArtifactCore/include/Data/ExpressionDataFunctions.ixx::registerDataSource`、`tests/ArtifactCore/DataExpressionBridgeContractTest.cpp::UnregisterAndReregisterSameUriLoadsReplacementFileContents`。
+- **確認できた事実:** 既存testは初回CSV registration、unregister後のmissing-source結果、複数URIのowner isolationを検査する。追加testは同一URIをunregisterしてcacheをinvalidateし、ファイル内容を差し替えて同じexpression indexへ再登録し、Bridge直接読み取りと`dataGet`の双方が新値を返す期待を置く。未実行。
+- **価値または懸念:** cacheとexpression index mappingをまたぐsource lifecycleで、古いDataSourceが残留せず同じURIから再利用できることを確認する。FileWatcherはdetached polling threadを使用するが、このtestは監視発火を待たず同期unregisterによるcache invalidationを使う。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreDataExpressionBridgeContractTest`を実行し、同一URI再登録後の最新CSV値とowner/watcher cleanupを確認する。
+
+## 2026-11-08: GPU thread pool drain budget with reentrant enqueue
+- **関連:** `ArtifactCore/src/Graphics/GPUThreadPool.cpp::GPUThreadPool::drain` / `enqueue`、`tests/ArtifactCore/GPUThreadPoolContractTest.cpp::DrainBudgetLeavesReentrantlyEnqueuedJobForTheNextDrain`。
+- **確認できた事実:** 既存drain testは開始前にqueue済みのjobに対するFIFOとbudgetを確認する。追加testはexecutorが実行中に同じpoolへfollow-up jobをenqueueし、budget=1のdrain終了時に追加jobがqueuedのまま残り、次のdrainで完了することと両時点のstatistics/handle stateを検査する。実装はexecutor呼び出し前にqueue lockを外し、processed数でbudgetを数える。未実行。
+- **価値または懸念:** GPU executorやjob callbackが追加作業をqueueする再入経路でも、一回のdrainが指定予算を超えて処理しないことを確かめる。follow-up jobを異なるexecutor処理回で実行するため、単なる初期queue FIFO testでは検出できない境界である。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreGPUThreadPoolContractTest`を実行し、budget境界でqueued/submitted/completedとhandle状態が一致することを確認する。
+
+## 2026-11-08: Expression data indices need checked numeric conversion
+- **関連:** `ArtifactCore/include/Data/ExpressionDataFunctions.ixx::registerFunctions`、`tests/ArtifactCore/DataExpressionBridgeContractTest.cpp::NonFiniteAndUnrepresentableIndicesReturnZeroWithoutThrowing`。
+- **確認できた事実:** 既存testは存在しないURI、引数不足、存在しないrow、非数値CSV cellを扱う。追加testはNaN、±infinity、int範囲外doubleをrow/column/URI indexへ与え、zeroを返す期待を置く。現実装は全引数を範囲検査せず`static_cast<int>`するため、浮動小数点から表現不能な整数への変換で未定義動作が生じる可能性がある。未実行。
+- **価値または懸念:** expression runtimeから不正数値が渡った場合に、index変換で未定義動作を起こさず安全に欠損値へ落ちることを要求する。テストは未定義動作を誘発し得る入力を意図的に境界APIへ渡すため、ASan/UBSan等での実行が有効。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreDataExpressionBridgeContractTest`を実行し、可能ならundefined-behavior sanitizerも有効にして範囲外変換を確認する。
+
+## 2026-11-08: Shared-memory ring reset and physical-tail reuse
+- **関連:** `ArtifactCore/src/IPC/SharedMemoryRingBuffer.cpp::reset` / `write` / `read`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::ResetAtPhysicalTailAllowsReuseAcrossTheNextWrap`。
+- **確認できた事実:** 既存ring testsは通常のphysical wrap、長時間SPSC wrap、独立capacity model、pending reset破棄をそれぞれ確認する。追加testは短いentryをdrainし続け、次entryが物理末尾直前へ収まる位置でqueueへ一件残してresetし、その直後の再利用writeが次wrap paddingを越えて正常readできることと累積statsを照合する。未実行。
+- **価値または懸念:** queue resetでread indexだけを進めた後、write indexの絶対sequenceと物理末尾paddingが整合するかを、既存の通常wrap/reset単体ケースより厳しい組合せで確認する。resetで破棄したentryはread counterへ算入しない契約も検査する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreSharedMemoryRingBufferContractTest`を実行し、tail位置reset後のwrap再利用、payload/sequence、statsを確認する。
+
+## 2026-11-08: Clipboard reader accepts its dedicated keyframe-easing MIME
+- **関連:** `ArtifactCore/include/Clipboard/ClipboardManager.ixx::copyKeyframeEasing` / `syncToSystemClipboard` / `syncFromSystemClipboard`、`tests/ArtifactCore/ClipboardManagerContractTest.cpp::LayerBundleSurvivesSystemClipboardRoundTripWithMetadata`。
+- **確認できた事実:** `copyKeyframeEasing`は`application/x-artifact-keyframe-easing`形式へenvelopeを書き出す。既存system clipboard testはgeneric envelopeを含むsystem roundtripを行う。追加部分はgeneric MIMEとtextを除去し、専用MIMEだけをsystem clipboardへ戻してeasing dataを復元する期待を置く。`syncFromSystemClipboard`はkeyframe easing MIMEを候補から読まないため現状では失敗する見込み。未実行。
+- **価値または懸念:** producerが明示的に発行する専用clipboard formatをconsumerも単独で読めることを検査し、他アプリ・汎用MIME除去後のeasing paste不能を検出する。単なるcopy API roundtripではgeneric JSONが欠落経路を覆い隠すため、専用MIMEだけのケースに限定する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreClipboardManagerContractTest`を実行し、専用MIME単独の復元が現状失敗することを確認する。
+
+## 2026-11-08: Property snapshots remain attached across owner-path reuse
+- **関連:** `ArtifactCore/include/Property/Property.ixx::PropertyRegistryReadOnlyAdapter::queryProperty` / `PropertyRegistry::registerOwner`、`tests/ArtifactCore/PropertyRegistryReadOnlyAdapterContractTest.cpp::ReregisteringOwnerPathDoesNotRetargetPreviouslyReturnedSnapshots`。
+- **確認できた事実:** 既存testはowner unregister後もread snapshotのvalue copyとproperty shared handleを保持する。追加testは同じowner pathを別のowner/groupで再登録し、新しいquery snapshotが新valueを指す一方、旧snapshot handleは旧property値を保ち、双方のsnapshot currentValueは取得時copyとして不変であることを確認する。未実行。
+- **価値または懸念:** Owner pathは再利用可能なregistry keyであり、同じ文字列を使う新generationの登録が以前に返したconsumer handleを誤ってretargetしないことを確認する。Registry membershipの寿命、property handleの寿命、snapshot currentValueの寿命を独立して照合する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCorePropertyRegistryReadOnlyAdapterContractTest`を実行し、path再利用後の旧新snapshot分離を確認する。
+
+## 2026-11-08: NLE edit history is scoped to one project store
+- **関連:** `ArtifactCore/src/NLE/Core.cpp::NLEEditHistory::setStore` / `undo` / `redo`、`tests/ArtifactCore/NLETest.cpp::SwitchingProjectStoresClearsBothHistoryBranches`。
+- **確認できた事実:** 既存NLE history testsはstate復元、depth上限、redo branch切捨てを確認する。追加testはundo/redo両branchがある状態から別NLEProjectStoreへ切り替え、旧履歴が消え各storeのscene状態を保つこと、次に同一store pointerを再設定しても新履歴が維持されることを確認する。実装は異なるpointerへの切替時だけclearする。未実行。
+- **価値または懸念:** プロジェクト切替後に旧プロジェクトのsnapshotを新しいstoreへ適用する誤操作を防ぎ、同一storeの冗長bindでは利用中historyを破棄しない契約を一度の状態遷移列で検査する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreNLETest`を実行し、store切替によるundo/redo branch隔離を確認する。
+
+## 2026-11-08: Random stream mid-state copy supports exact replay
+- **関連:** `ArtifactCore/include/Math/RandomStream.ixx::RandomStream::state` / value copy、`tests/ArtifactCore/RandomStreamContractTest.cpp::CopyingMidstreamStateReplaysMixedOperationsExactly`。
+- **確認できた事実:** 既存testは同seed再現、reseed、fork、各種distribution helperを個別に検査する。追加testは混合APIを消費した途中状態を別streamへcopy assignmentし、unit/range/chance/Gaussian/shuffle後の出力・並び・stateが一致することを照合する。実装はstream状態を単一uint64値として保持し、暗黙copy/assignmentを持つ。未実行。
+- **価値または懸念:** 長時間simulationのcheckpoint/replayや決定論的分岐で、途中stateを複製したstreamが異なるhelper呼出し順を含めて同一列を生成することを確かめる。integer full-domain samplerのrejection loopを両streamで同期させ、後続stateも比較して状態消費数の差を検知する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreRandomStreamContractTest`を実行し、mid-stream assignment後のmixed sequence再現を確認する。
+
+## 2026-11-08: View orientation accepts scaled external quaternions
+- **関連:** `ArtifactCore/src/UI/ViewOrientationNavigator.cpp::setCurrentOrientation` / `snapTo` / `update`、`tests/ArtifactCore/ViewOrientationNavigatorContractTest.cpp::ExternalOrientationIsNormalizedAndClassifiedBeforeTheNextSnap`。
+- **確認できた事実:** 既存navigator testsは軸方向判定、duration、negative delta、active snap retargetingを確認するが、public setterへのorientation注入を直接検査しない。追加testは長さ2のscaled identityを設定し、unit normalization、Front hotspot分類、次snapの始点保持、中間unit quaternion、target到達を連続して照合する。実装はsetterでorientationをnormalizeし、静止時のtarget/startも同時更新する。未実行。
+- **価値または懸念:** 別viewport/controller由来の非正規化rotationを受け取っても、hotspot stateと後続SLERPの開始姿勢が破綻しないことを確認する。identity orientationがFront hotspotとなる座標契約を明示し、単に最終targetだけを見る既存snap testよりsetter統合経路を広く検査する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreViewOrientationNavigatorContractTest`を実行し、scaled input正規化と後続animated snapを確認する。
+
+## 2026-11-08: Render farm cancellation wakes a paused worker
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange` / `cancelAll`、`tests/ArtifactCore/RenderFarmMasterPauseContractTest.cpp::CancellingWhilePausedWakesWorkerWithoutStartingAnotherFrame`。
+- **確認できた事実:** 既存pause testsはpause後にresumeして残りframeを処理する経路を確認する。追加testはframe 0をgateで停止し、pauseを設定してからreleaseし、完了通知を待ってcancelAllする。以後frame 1が開始せずworker busyが解除されることを期待する。実装はpause wait predicateにcancelledを含め、cancelAllからpauseCv_へnotifyする。未実行。
+- **価値または懸念:** pause中のworkerがresumeされない限り永久停止し、manager shutdown/destructorも塞ぐような条件変数のwakeup欠落を検出する。frame callbackのgateと進捗condition variableでpause境界を同期し、固定sleepだけでcancelタイミングを当てない。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreRenderFarmMasterPauseContractTest`を実行し、cancel後にworkerが終了し、次frame callbackが呼ばれないことを確認する。
+
+## 2026-11-08: DataCache concurrent map access contract
+- **関連:** `ArtifactCore/include/Data/DataCache.ixx::get` / `put` / `invalidate`、`tests/ArtifactCore/DataCacheStandaloneTest.cpp::ConcurrentIndependentUpdatesRemainReadable`。
+- **確認できた事実:** 既存DataCache tests cover TTL、LRU、replacement、invalidationを単一threadで検査する。追加testは8 workerが別々のkeyへ反復put/get/invalidateし、join後に各workerが最終putしたentryが保持されることを検査する。これらのentry操作はmutex保護される。test未実行。
+- **価値または懸念:** 同時のunordered_map insert/find/eraseがkey間で干渉しないことを実操作で検査する。`size`と設定getter/setterはmutex保護されていないため、並行中には呼ばずjoin後にのみ確認する。
+- **次に確認すべきこと:** 許可されたタイミングでDataCache standalone suiteを実行し、並行更新後のentry数と各keyの可読性を確認する。
+
+## 2026-11-08: ProjectSerializer split-store facade failure atomicity
+- **関連:** `ArtifactCore/src/Serialization/ProjectSerializer.cpp::saveSplit` / `loadSplit` / `isSplitDirectory`、`tests/ArtifactCore/ProjectSerializerContractTest.cpp::SplitFacadeDetectsStoreAndPreservesCallerOutputsWhenChildIsMissing`。
+- **確認できた事実:** SplitDocumentStore単体testsはJSON/CBORの保存読込と子文書欠落時の出力保持を検査するが、ProjectSerializerのsplit facadeは既存testで未使用。追加testはfacade経由のJSON store保存・検出・roundtrip後、child削除時にloadSplitが失敗し、両出力引数を保持することを検査する。test未実行。
+- **価値または懸念:** 下位store単体の正しさだけでなく、実アプリが使うfacadeの委譲、split directory判定、失敗時atomicityを一連のファイル操作で検査する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreProjectSerializerContractTest`を実行し、JSON split facadeの完全読込と部分失敗時の出力保持を確認する。
+
+## 2026-11-08: Layered configuration import is failure-atomic and additive
+- **関連:** `ArtifactCore/src/Configuration/LayeredConfigStore.cpp::importLayer`、`tests/ArtifactCore/LayeredConfigStoreContractTest.cpp::ImportLayerRejectsMalformedInputAtomicallyThenMergesValidKeys`。
+- **確認できた事実:** `importLayer`は入力全体を一時`FastSettingsStore`へopenしてから対象層へbatch適用する。既存contract testsはlayer precedenceとreload失敗を扱うが、importLayer自体の動作を検査しない。追加testは非map CBORの拒否後に既存値が維持されること、valid importが上書き・新規追加・対象層限定の既存値保持を行い、保存後に全値を復元できることを検査する。未実行。
+- **価値または懸念:** 入力デコード失敗がtargetを部分更新しないことと、importがreplaceではなくkey mergeであることを一連のレイヤー／永続化操作で固定する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreLayeredConfigStoreContractTest`を実行し、malformed input後の値保持、valid importのmerge、保存後の復元を確認する。
+
+## 2026-11-08: Plugin descriptor replacement snapshots stay coherent
+- **関連:** `ArtifactCore/src/Plugin/PluginRegistry.cpp::registerPlugin` / `pluginById`、`tests/ArtifactCore/PluginRegistryContractTest.cpp::ConcurrentReplacementReturnsOnlyCompleteDescriptorSnapshots`。
+- **確認できた事実:** 既存並行testは異なるIDを登録しながらsnapshot queryするが、同じIDのdescriptor差し替えは検査しない。追加testは同一IDを2 writerが異なるname/version/category/API versionで反復登録する間、readerが返された各copyのfield tupleがどちらか一方の完全descriptorであることを検査する。未実行。
+- **価値または懸念:** 個々のfieldが異なる登録generationから混在する破損snapshotと、entry更新中の読み取り競合を検出する。各snapshotはpluginById呼出し時点の単独descriptorに対して検査し、別呼出し間で状態が不変とは仮定しない。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCorePluginRegistryContractTest`を実行し、競合置換中の全snapshotが二つの有効descriptorのいずれかであることを確認する。
+
+## 2026-11-08: Render farm cancellation suppresses retry after in-flight failure
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange` / `cancelJob`、`tests/ArtifactCore/RenderFarmMasterRetryContractTest.cpp::CancellingAnInFlightFailedFramePreventsItsRetry`。
+- **確認できた事実:** retry suiteは複数attempt、terminal failureの再投入を検査するが、実行中frameをcancelしてから失敗callbackが戻る経路を直接扱わない。追加testはcondition variableでcallbackを停止し、job cancel後にcallbackを失敗で解放し、worker終了と単一attemptを確認する。test未実行。
+- **価値または懸念:** cancellationがin-flight処理の戻り後に次のretry attemptへ漏れないことを固定する。sleep timingではなくcallback gateでcancelとfailureの順序を決める。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreRenderFarmMasterRetryContractTest`を実行し、cancel後に同じframeのretryが開始されないことを確認する。
+
+## 2026-11-08: Asset relink preserves imported metadata through snapshot restore
+- **関連:** `ArtifactCore/src/Asset/AssetDatabase.cpp::relinkAssetPath` / `fromJson` / `toJson`、`tests/ArtifactCore/AssetDatabaseContractTest.cpp::ChainedRelinkKeepsIndexesConsistentAcrossSnapshotRestore`。
+- **確認できた事実:** 既存testは2 assetを登録し、一件を別pathへrelinkしてcollision rejection後にsnapshot restoreする。拡張testは初期assetをJSON metadata付きで読み込み、relink前後とsnapshot再読込後のmetadata保持も確認する。未実行。
+- **価値または懸念:** Identity/path indexのrelink連鎖とside metadataの寿命を同じシナリオで検査し、path変更をmetadataの誤消失へ結びつける回帰を検出する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreAssetDatabaseContractTest`を実行し、relink後およびJSON snapshot復元後もmetadataが維持されることを確認する。
+
+## 2026-11-08: Asset reimport after database snapshot restoration
+- **関連:** `ArtifactCore/src/Asset/AssetImporter.cpp::importFile`、`ArtifactCore/src/Asset/AssetDatabase.cpp::toJson` / `fromJson`、`tests/ArtifactCore/AssetImporterContractTest.cpp::ReimportKeepsAssetIdentityAndOriginalImportTime`。
+- **確認できた事実:** 既存testは同じprocess registryに登録済みのassetを再importし、UUIDとsidecar import timestampの維持を検査する。拡張testは再import前にdatabase snapshotを生成し、registryをclearしてsnapshot restoreした後もpath lookup identityが保たれ、reimportが同じUUIDとimport timeを維持することを検査する。未実行。
+- **価値または懸念:** AssetDatabase persistenceとAssetImporter reimportが同じidentity lifecycleに収束することを検査し、単一プロセス内の重複importだけでは見つけにくいrestore境界のずれを検出する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreAssetImporterContractTest`を実行し、snapshot restore後のpath lookup、再import identity、sidecar timestampを確認する。
+
+## 2026-11-08: GPU thread pool cancellation during executor reentry
+- **関連:** `ArtifactCore/src/Graphics/GPUThreadPool.cpp::drain` / `cancelPending`、`tests/ArtifactCore/GPUThreadPoolContractTest.cpp::ReentrantCancelPendingKeepsSubmittedJobAndCancelsRemainingQueue`。
+- **確認できた事実:** 既存testはdrain完了後にqueued jobsをcancelする。追加testはexecutorがdequeued jobを実行中に`cancelPending()`を再入呼出しし、current handleはCompleted、残りjobはCancelledで、各execution countとsnapshot statisticsが一致することを検査する。test未実行。
+- **価値または懸念:** executor callback中はpool mutex外であるというdrain設計と、currently-submitted jobとstill-pending jobsの境界を統合して検査し、deadlock・誤取消・統計ずれを検出する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreGPUThreadPoolContractTest`を実行し、reentrant cancellation後のhandle states、job counts、statisticsを確認する。
+
+## 2026-11-08: Schema migration path snapshot survives concurrent edge replacement
+- **関連:** `ArtifactCore/include/Serialization/SchemaMigration.ixx::findPath`、`tests/ArtifactCore/SchemaMigrationContractTest.cpp::ConcurrentReregistrationDoesNotChangeAnInFlightPathSnapshot`。
+- **確認できた事実:** 既存testはmigration callback自身がregistryへedgeを再登録したとき、進行中pathは元callback、次回pathはreplacementを使うことを検査する。追加testは別threadのmigration callbackをcondition-variable gateで停止し、その間にedgeを差し替え、同じ二世代の結果を確認する。未実行。
+- **価値または懸念:** path snapshotがcallback実行中のregistry lockを保持せず、並行変更から進行中migrationの選択edgeを分離することを同期的に検査する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreSchemaMigrationContractTest`を実行し、in-flight処理の旧edgeと次回処理の新edge選択を確認する。
+
+## 2026-11-08: Property read-only metadata differs between enumeration and lookup
+- **関連:** `ArtifactCore/include/Property/Property.ixx::PropertyRegistryReadOnlyAdapter::queryProperty` / `queryAllProperties`、`tests/ArtifactCore/PropertyRegistryReadOnlyAdapterContractTest.cpp::WritableOwnerStateMatchesAcrossOwnerSingleAndEnumeratedQueries`。
+- **確認できた事実:** `queryProperty` はowner descriptorのreadOnly値を返し、`queryAllProperties` は全propertyへ無条件でtrueを設定する。拡張testは同じwritable ownerのowner snapshot・個別property query・一覧property queryの状態整合を検査する。現実装では一覧のreadOnly assertionが失敗する見込み。未実行。
+- **価値または懸念:** 同じpropertyを検索方法で取得したconsumerが矛盾する編集可否metadataを受け取る契約不整合を検出する。read-only adapter自身の権限とowner descriptor上のreadOnly属性は別概念なので、API定義を合わせて確認する必要がある。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCorePropertyRegistryReadOnlyAdapterContractTest`を実行し、不一致を再現する。契約を保つ場合は一覧queryがowner descriptorから属性を反映する必要がある。
+
+## 2026-11-08: Nested undo macro rollback spans both transaction levels
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::MacroUndoCommand::redo` / `UndoManager::redo`、`tests/Artifact/UndoManagerContractTest.cpp::NestedMacroFailureCompensatesEachLevelAndPreservesRedoBranch`。
+- **確認できた事実:** 既存testsは単一macro内の部分redo/undo補償を確認する。追加testは外側macroの先行command、内側macroの成功child、状態変更後に失敗する内側childを組み合わせ、undoで基底値へ戻した後のredo失敗が全階層で補償され、redo branchを保持する期待を検査する。未実行。
+- **価値または懸念:** failure compensationを再帰的にネストしたとき、内側macroが既に復元した値へ外側managerがさらに不正undoを適用しないこと、およびmanager stackの失敗状態が保持されることを一連のtransactionで検査する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactUndoManagerContractTest`を実行し、値、undo/redo stack、ネストmacroの失敗後状態を確認する。
+
+## 2026-11-08: Resolution remap bounds and transform remain equivalent
+- **関連:** `ArtifactCore/src/Geometry/ResolutionRemap.cpp::remapBounds` / `remapTransform`、`tests/ArtifactCore/ResolutionRemapStandaloneTest.cpp::BoundsMappingMatchesTransformForEveryPolicyAndSignedExtent`。
+- **確認できた事実:** 既存testはremapBoundsでStretchの正boundsとTopLeftの負extentを個別検査し、position/transform equivalenceは全policyで別testにある。追加testは全5 policyとpositive/negative extentの組み合わせでbounds API結果をtransform mapRect oracleと照合する。未実行。
+- **価値または懸念:** 移行処理でtransform一括適用を使う場合とgeometry bounds remapを使う場合が、aspect ratioによるpadding/croppingや符号付き矩形でも一致することを組み合わせて検査する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreResolutionRemapStandaloneTest`を実行し、全policyのbounds equivalenceを確認する。
+
+## 2026-11-08: Render graph joins parallel peers after executor exception
+- **関連:** `ArtifactCore/include/Graphics/RenderGraph.ixx::executeParallel`、`tests/ArtifactCore/RenderGraphTest.cpp::ThrownParallelExecutorJoinsPeersAndSkipsDependents`。
+- **確認できた事実:** 既存testは並列executorがfalseを返した場合のpeer joinと後続level抑止を検査する。追加testは同じ依存グラフで一方のparallel-safe executorが例外を投げ、他方のpeerも完了し、dependent passが実行されず標準エラーへ正規化されることを検査する。未実行。
+- **価値または懸念:** executorの戻り値失敗と例外失敗が異なる並列経路を通るため、例外の吸収・join・依存境界を個別に固定する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreRenderGraphTest`を実行し、peer完了とdependent抑止を確認する。
+
+## 2026-11-08: Render farm pause gates a retry attempt
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange`、`tests/ArtifactCore/RenderFarmMasterRetryContractTest.cpp::PauseBetweenFailedAttemptAndRetryResumesTheSameFrame`。
+- **確認できた事実:** 既存testはframe中のpause、paused jobの開始抑止、pause中cancel、cancelによるretry抑止を別々に検査する。追加testは最初のframe attemptが失敗を返す直前にpauseし、pause中に同一frameのretryが始まらず、resume後に成功することを確認する。未実行。
+- **価値または懸念:** frame境界のpause testでは覆えないattempt境界を同期的に固定し、pause後にretry/backoff処理が誤って進む回帰を検出する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreRenderFarmMasterRetryContractTest`を実行し、pause中のattempt数が1のままでresume後に2となることを確認する。
+
+## 2026-11-08: Playback clock observers may reenter during state publication
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::publishSnapshotChange`、`ArtifactCore/src/Event/EventBus.cpp::publishRaw`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::StateChangeObserverCanReenterClockAndPublishNestedChange`。
+- **確認できた事実:** PlaybackClock の各 setter は snapshot 比較と mutex 解放後に同期 EventBus へ通知し、EventBus は subscriber list の snapshot を mutex 解放後に配信する。追加testは subscriber が通知 callback 内で別 frame を設定し、nested event と最終状態が順序通り記録されることを検査する。未実行。
+- **価値または懸念:** Clock mutex または subscriber registry mutex を callback 実行中に保持してしまう将来の変更が、再入 deadlock や subscriber 配列の無効化を起こす回帰を検出する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCorePlaybackClockContractTest`を実行し、nested setFrame が完了し2つのsnapshot transitionが届くことを確認する。
+
+## 2026-11-08: Command sandbox caps both process output streams
+- **関連:** `ArtifactCore/include/AI/CommandSandbox.ixx::run` / `appendLimited`、`tests/ArtifactCore/CommandSandboxContractTest.cpp::RunCapsStdoutAndStderrIndependentlyAndReportsTruncation`。
+- **確認できた事実:** 既存testはself child processのtimeoutとstdout captureを検査する。追加testはchild helperからstdoutとstderr各8192 bytesを出力し、設定した1024-byte上限で両方が個別に切り詰められ、truncation metadataが立つことを確認する。未実行。
+- **価値または懸念:** process pipeのready-read分割や片stream先行の影響を含む実経路で、片方の大量出力が他方の捕捉または上限を壊さないことを検査する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreCommandSandboxContractTest`を実行し、両streamのbyte数、truncation flag、正常終了を確認する。
+
+## 2026-11-08: Command sandbox filters the child process environment
+- **関連:** `ArtifactCore/include/AI/CommandSandbox.ixx::buildEnvironment`、`tests/ArtifactCore/CommandSandboxContractTest.cpp::RunPassesOnlyExplicitlyAllowlistedEnvironmentVariables`。
+- **確認できた事実:** 実行経路は system environment から allowlist のkeyだけを新しい QProcessEnvironment にコピーし、PATHがなければ追加する。追加testは親へ一時secretを設定し、allowlist除外時に子へ渡らず、明示 allow 時にだけ子から観測できることを確認する。test未実行。
+- **価値または懸念:** policy JSONの設定値だけでなく、実際の子プロセス境界で環境変数隔離を検証し、allowlist漏れや過剰継承を検出する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreCommandSandboxContractTest`を実行し、deny / allow 両ケースと環境復元を確認する。
+
+## 2026-11-08: Audio analyzer scales one-sided edge bins
+- **関連:** `ArtifactCore/src/Audio/AudioAnalyzer.cpp::analyze`、`tests/ArtifactCore/AudioAnalyzerStandaloneTest.cpp::DCAndNyquistBinsUseTheSameOneSidedAmplitudeScaleAsInteriorBins`。
+- **確認できた事実:** analyzer は全 spectrum bin のFFT magnitudeを一律 `N/2` で正規化し、既存testはinterior binのHamming coherent gainを確認する。DCとNyquistはone-sided spectrumで鏡像binを持たないため、同じtone amplitudeを保つ標準振幅解釈ではinterior binのように2倍化してはならない。追加testは定数信号と交互符号のNyquist信号を検査する。未実行で現コードでは失敗する見込み。
+- **価値または懸念:** 低域DC成分やNyquist近傍で表示スペクトルと帯域強度が過大になる正規化回帰を検出する。採用するSpectrum値の定義は既存UI consumerとの確認が必要。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreAudioAnalyzerStandaloneTest`を実行し、DC / Nyquist値をinterior toneの振幅定義と照合する。
+
+## 2026-11-08: Localization catalog reload is atomic to readers
+- **関連:** `ArtifactCore/src/Localization/Localization.cpp::loadFromDirectory` / `translate`、`tests/ArtifactCore/LocalizationContractTest.cpp::ConcurrentReadersObserveOnlyCompleteCatalogsDuringDirectoryReload`。
+- **確認できた事実:** directory reload は write lock の下でlocale JSONを再ロードし、translate は read lock の下で現在localeとfallbackを参照する。追加testは同じkeyを持つ2 catalogを繰り返し切り替えながらreaderを並行させ、generation値がいずれか一方の完全catalog値であり、必須keyが欠落しないことを確認する。未実行。
+- **価値または懸念:** reload時のlocale map / fallback更新とtranslation lookupが排他的に保護され、半端なcatalog状態を返さない契約を複合操作で検査する。reload失敗時のrollback契約は別途未確認。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreLocalizationContractTest`を実行し、並行読取時に不正値がなく、全reload完了後のcatalog値も正しいことを確認する。
+
+## 2026-11-08: JSON adapter registrations keep per-registration metadata
+- **関連:** `ArtifactCore/include/Serialization/JsonSerializableAdapter.ixx::registerJsonSerializableType`、`tests/ArtifactCore/JsonSerializableAdapterContractTest.cpp::RegistrationsForOneValueTypeKeepIndependentEnvelopeMetadata`。
+- **確認できた事実:** registration factory は名前ごとにregistryへ保存されるが、adapter のtype nameとschema versionは `T` 単位のinline static fieldsに設定される。追加testは同じC++ value typeを異なるtype name/versionで登録し、それぞれのfactory生成値とenvelopeが登録時metadataを維持する期待を検査する。現コードでは最後の登録値で両方が上書きされる見込み。未実行。
+- **価値または懸念:** registry key分離とadapter metadataの所有粒度が一致しない問題を検出する。複数type alias登録を意図的に禁止するAPI契約がある場合は、その制約を明示する必要がある。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreJsonSerializableAdapterContractTest`を実行し、2つの登録が独立したenvelope headerを生成するか確認する。
+
+## 2026-11-08: Command factory supports reentrant registration replacement
+- **関連:** `ArtifactCore/include/Command/SerializableCommand.ixx::CommandFactory::create` / `registerCommand`、`tests/ArtifactCore/CommandIRContractTest.cpp::CommandFactoryCreatorCanReplaceItsOwnRegistrationWithoutChangingInFlightCreate`。
+- **確認できた事実:** `create` はmutex内でfactory callableをcopyしてからmutexを解放し、creatorを呼ぶ。追加testはcreator自身が同じtype registrationをreplacementへ差し替える状況で、現在のcreateが旧creator結果を返し、次回createがreplacementを返すことを確認する。未実行。
+- **価値または懸念:** factory callback中の再入登録を通じ、registry lock境界とin-flight callable snapshot semanticsを一つの操作で固定する。回帰でlockをcallback中まで保持するとdeadlockするため、このケースの実行timeoutを含むsuite運用が必要。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreCommandIRContractTest`を実行し、creator callbackからの同一key差替えと両世代のfactory結果を確認する。
+
+## 2026-11-08: Path morph uses centroid to match equal-area contours
+- **関連:** `ArtifactCore/src/Mask/PathMorph.cpp::interpolateByFeature`、`tests/ArtifactCore/PathMorphContractTest.cpp::FeatureInterpolationUsesCentroidToDisambiguateEqualAreaContours`。
+- **確認できた事実:** feature interpolation は面積とcentroidを計算するが、sort comparator は面積絶対値のみを比較する。既存testは面積の異なる輪郭の順序入替えを扱う。追加testは同面積で空間位置の異なる輪郭を反対順に入力し、近傍centroid同士が補間されて中間frameに輪郭が重ならず残る期待を検査する。現コードでは入力順のtie依存で重なり、失敗する見込み。未実行。
+- **価値または懸念:** 同じ面積の複数形状を持つモーフで、面積だけのtie-breakが誤った輪郭を結び、形状が一か所へ潰れる回帰を検出する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCorePathMorphContractTest`を実行し、equal-area contour permutation後も中間frameの2輪郭が分離することを確認する。
+
+## 2026-11-08: Clipboard import honors MIME precedence and fails closed
+- **関連:** `ArtifactCore/include/Clipboard/ClipboardManager.ixx::syncFromSystemClipboard`、`tests/ArtifactCore/ClipboardManagerContractTest.cpp::SystemClipboardRoundTripPreservesBundleAndKeyframePayloads`。
+- **確認できた事実:** clipboard import は generic Artifact JSON MIMEを型別MIMEとtextより優先し、選択payloadが壊れていれば内部clipとcached layerを空にする。既存testは単一payloadのroundtripと単独invalid textを扱う。追加scenarioは有効なgeneric MIMEと異なるtext payloadの競合、および壊れたgeneric MIMEと有効text fallbackの組み合わせを検査する。未実行。
+- **価値または懸念:** clipboard managerがどのpayload sourceを信頼するかを固定し、 stale/invalid high-priority dataに対する誤った低優先fallbackを検出する。
+- **次に確認すべきこと:** 許可されたタイミングで`ArtifactCoreClipboardManagerContractTest`を実行し、優先source選択とmalformed input後の空状態を確認する。
+
+## 2026-11-08: Moved-from aspect ratio can be reused through parsing
+- **関連:** `ArtifactCore/src/Core/AspectRatio.cpp::setFromString`、`tests/ArtifactCore/AspectRatioContractTest.cpp::MovedFromObjectCanBeReusedByParsing`。
+- **確認できた事実:** 既存契約testはmove構築／代入後のsourceについて `ratio()` と `toString()` が `1:1` のfallbackを返すことを確認する。`setFromString` は `impl_` のnullを確認せず、入力が有効なら `impl_` を参照する。
+- **追加した検査:** move後のsourceに有効な比率をparseし、destinationが保持値を維持しつつsourceが再利用できる期待を追加した。現実装ではnull dereferenceとなる見込み。未実行。
+- **価値または懸念:** AspectRatioの他のconst accessorが許容するmoved-from fallbackと、mutatorの再利用安全性の差を表面化する。期待契約を維持するには実装側で状態再生成が必要だが、今回はtest追加のみ。
+- **次に確認すべきこと:** 許可されたタイミングで `AspectRatioContractTest` を実行し、moved-from再利用ケースの失敗を再現する。
+
+## 2026-11-08: Copy assignment reinitializes moved-from AspectRatio
+- **関連:** `ArtifactCore/src/Core/AspectRatio.cpp::operator=(const AspectRatio&)`、`tests/ArtifactCore/AspectRatioContractTest.cpp::CopyAssignmentReinitializesMovedFromObject`。
+- **確認できた事実:** move構築後のsourceは既存契約でaccessorが安全なfallbackを返す。copy assignmentは受け側の既存`impl_`を参照せず、右辺から新しい実装状態を作る。
+- **追加した検査:** moved-from sourceへ別の有効なAspectRatioをcopy assignし、sourceの再初期化、replacementの不変性、move済みdestinationの独立性を検査する。
+- **価値または懸念:** PImpl所有状態の移動後に、標準的な代入操作でオブジェクトを再利用できることを固定する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `AspectRatioContractTest` を実行する。
+
+## 2026-11-08: Mixed keyframe interpolation is insertion-order invariant
+- **関連:** `ArtifactCore/include/Geometry/Interpolate.ixx::KeyframeInterpolator::addKeyframe/evaluate`、`tests/ArtifactCore/KeyframeContractTest.cpp::MixedInterpolationCurveIsInvariantAcrossInsertionPermutations`。
+- **確認できた事実:** `addKeyframe`は各挿入後に時刻順sortし、Hermite/Catmull-Romは隣接キーも参照する。既存testは3キーのlinear trackで逆順・中間順挿入を確認するが、補間方式混在の全順列は扱っていない。
+- **追加した検査:** 非等間隔4キーにHermite、Catmull-Rom、非対称Bezierを混在させ、全24挿入順で0.25刻みの37時点を基準曲線と比較する。
+- **価値または懸念:** 曲線の近傍参照を含め、キー登録順に依存したsort・評価回帰を複合的に検出する。時刻は一意にしており、同時刻キーの未定義な順序は対象外。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `KeyframeContractTest` を実行し、全挿入順で曲線値が一致することを確認する。
+
+## 2026-11-08: Camera pose stream interpolation skips failed solve frames
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cpp::CameraPoseStream::normalize/interpolatePoseAt`、`tests/ArtifactCore/TrackingDataContractTest.cpp::CameraPoseStreamNormalizesThenInterpolatesAcrossFailedFramesAndClamps`。
+- **確認できた事実:** TrackingDataContractTestはTrackResultを中心に扱い、CameraPoseStream専用のtestはなかった。CameraPoseStreamは非有限時刻を削除して時刻順へ並べ、interpolatePoseAtはinvalid姿勢を飛ばし有効姿勢間を線形補間する。範囲外は最初／最後の有効姿勢を返し、非有限queryはfalseを返す。
+- **追加した検査:** unsortedな2有効姿勢、途中の失敗姿勢、NaN時刻を混ぜて正規化し、失敗点を飛ばしたpose・reprojection error補間、valid/failed数、平均error、両端クランプ、および非有限query時のout保持をまとめて確認する。
+- **価値または懸念:** solverが失敗するフレームを含む時間列で、正常姿勢の補間が壊れず診断値も一貫する契約を検査する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `TrackingDataContractTest` を実行し、各補間値と端点結果を確認する。
+
+## 2026-11-08: Camera pose stream JSON decode is transactional
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cpp::cameraPoseStreamToJson/cameraPoseStreamFromJson`、`tests/ArtifactCore/TrackingDataContractTest.cpp::CameraPoseStreamJsonRoundTripIsOrderedAndMalformedFrameIsTransactional`。
+- **確認できた事実:** writerは入力streamのcopyをnormalizeしてJSON化する。readerは一時`decoded`へ設定と全frameを検証し、最後に成功時だけ呼び出し側streamへmove代入する。既存testsにCameraPoseStreamのJSON round-trip／失敗時保持はなかった。
+- **追加した検査:** 非既定solver設定と逆順frameのJSON round-tripで全主要値・frame順・caller側の順序維持を検査し、復元後に1 frameのrotation配列を短くしたJSONが失敗し、既存のstream内容を保持することを検査する。
+- **価値または懸念:** 途中まで読み込んだ設定やframeが既存結果へ部分反映される破損を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `TrackingDataContractTest` を実行し、正常round-tripとmalformed frame拒否後の状態保持を確認する。
+
+## 2026-11-08: Arc-length tangent follows an independent curve derivative
+- **関連:** `ArtifactCore/src/Geometry/BezierPathSampler.cpp::tangentAtArcLength`、`tests/ArtifactCore/BezierArcLengthTest.cpp::ArcLengthTangentsMatchDenseIndependentDerivativeReference`。
+- **確認できた事実:** 既存testsは直線のarc-length tangentとBezierCalculatorの単一parameterでのanalytic tangentを確認する。samplerの曲線arc-length tangent経路はarc-length tableからparameterを逆引きしてanalytic derivativeを使う。
+- **追加した検査:** 非対称強曲率cubicについて高密度50000分割の独立積算から複数のnormalized arc-length位置のparameterを逆算し、cubic微分の正規化方向とsampler tangentを比較する。同時に出力接線の単位長も確認する。
+- **価値または懸念:** arc-length→parameter逆引きとsegment接線計算の組み合わせの誤差・方向ずれを検出する。参照積算は有限分割なので比較許容差を0.02に設定。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `BezierArcLengthTest` を実行し、曲線上の5箇所で方向一致を確認する。
+
+## 2026-11-08: All view-orientation hotspots round-trip through generated poses
+- **関連:** `ArtifactCore/src/UI/ViewOrientationNavigator.cpp::orientationForHotspot/resolveHotspotFromDirection`、`tests/ArtifactCore/ViewOrientationNavigatorContractTest.cpp::EveryHotspotOrientationRoundTripsThroughItsCameraPositionDirection`。
+- **確認できた事実:** hotspot enumには6面・12辺・8頂点があり、既存testsは分類方向を数例検査している。orientation生成とdirection分類はそれぞれの全候補をswitch/符号判定で実装する。
+- **追加した検査:** 26候補すべてについて生成quaternionをcamera position方向へ変換し、単位quaternion・期待方向との整合・directionからhotspotを再分類した時に同じorientationへ戻ることを照合する。
+- **価値または懸念:** 方向符号、面／辺／頂点の対応、quaternion基底の反転を一括で検出する。期待方向一覧はhotspotの命名軸に基づき、未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `ViewOrientationNavigatorContractTest` を実行し、全26方向がラウンドトリップすることを確認する。
+
+## 2026-11-08: Path tube trim parameter also controls tapered radius
+- **関連:** `ArtifactCore/src/Geometry/Procedural3DGenerators.cpp::generatePathTube`、`tests/ArtifactCore/PathTubeTrimTest.cpp::TrimmedRingsKeepCenterlineAndEvaluateTaperAtPathParameter`。
+- **確認できた事実:** trim testは全ringの`v`が指定trim範囲を線形に覆い、隣接ring間indexが有効であることを確認する。generatorはtrim後のpath parameter `te`をcenterline評価と`taperStart + (taperEnd-taperStart)*te`の両方へ渡す。
+- **追加した検査:** trim端／中点ringで頂点重心からcenterlineを独立推定し、Z位置と全頂点の半径をpath parameterから算出した期待値と照合する。
+- **価値または懸念:** trim範囲を切り出したときtaperが局所0..1へ誤って再正規化される、またはtrim位置と中心線がずれる回帰を検出する。現test helperの設定ではDraft品質がsidesを3へclampするため、テストも3頂点ringとして扱う。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `PathTubeTrimTest` を実行し、3箇所のcenterline/radius期待値を確認する。
+
+## 2026-11-08: Adding static RotoMask topology preserves animated tracks
+- **関連:** `ArtifactCore/src/Mask/RotoMask.cpp::RotoMask::addVertex/addKeyframe/sampleVertices`、`tests/ArtifactCore/RotoMaskContractTest.cpp::AddingStaticVertexAfterAnimatedSnapshotsPreservesExistingTracks`。
+- **確認できた事実:** RotoMaskは頂点別position/tangent trackと属性trackのkeyframe時刻を統合する。既存testはreverse、keyframe snapshot、copyを扱うが、複数propertyのsnapshot後に新頂点を追加するケースはない。
+- **追加した検査:** 既存頂点位置・opacityの0/10秒キーから5秒snapshotを作成後、新頂点と非ゼロtangentを追加し、統合key時刻と各時刻の既存補間値、新頂点の静的geometry、opacityを照合する。
+- **価値または懸念:** トポロジー編集後に既存アニメーションが崩れる、または新頂点のconstant valueが過去のkey時刻に引きずられる回帰を検出する。新頂点は未アニメーションの静的geometryとして扱う想定。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `RotoMaskContractTest` を実行する。
+
+## 2026-11-08: Beat-synced keys stay ordered within a partial final beat
+- **関連:** `ArtifactCore/include/Animation/KeyframePatternGenerator.ixx::BeatSync`、`tests/ArtifactCore/KeyframePatternGeneratorTest.cpp::BeatSyncKeepsRoundedKeysOrderedInsidePartialFinalBeat`。
+- **確認できた事実:** BeatSyncはbeat start/mid/endを整数frameのRationalTimeへ丸めて追加する。最終beatが要求endFrameより前に始まる場合、midはclampされず`endFrame`を越える可能性がある。既存suiteは全presetの順序を汎用検査するが、部分最終拍の範囲境界を狙っていない。
+- **追加した検査:** 24fps・120BPM・10..35 frameの部分拍で、全キー時刻が範囲内かつ単調非減少で、最終キーがendFrameに一致することを検査する。現実装では最後のbeat mid keyが38 frameとなり失敗する見込み。未実行。
+- **価値または懸念:** downstream keyframe trackに範囲外のキーが混ざり、最終拍のbase復帰より後にtargetキーが置かれる回帰を検出する。
+- **次に確認すべきこと:** 許可されたタイミングで `KeyframePatternGeneratorTest` を実行し、部分拍のキー順・端点を確認する。
+
+## 2026-11-08: Asset payload publish races safely with invalidation
+- **関連:** `ArtifactCore/src/Asset/AssetManager.cpp::publishDecodedPayload/invalidateSource`、`tests/ArtifactCore/AssetManagerContractTest.cpp::ConcurrentInvalidateAndStalePublishLeaveNoPayloadInCurrentRegistry`。
+- **確認できた事実:** publishはregistryの現version一致時のみweak payloadを登録し、invalidateは同一mutex下でversionを増やしてasset prefix配下のpayloadを削除する。既存testsは各処理を逐次に検査する。
+- **追加した検査:** 同一asset/versionに対するpublishとinvalidateをbarrierで同時開始し、両方join後にversionが一度だけ増加し、旧版・新版ともcache missで、旧versionの後続publishも拒否されることを確認する。競合結果のpublish handleはpublish先行またはinvalidate先行のどちらかのみ許可する。
+- **価値または懸念:** 古いdecode処理の完了がasset invalidationを越えてcurrent cacheへ再公開される競合を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `AssetManagerContractTest` を実行し、両スレッドの順序にかかわらず失効versionのpayloadが残らないことを確認する。
+
+## 2026-11-08: Collaboration operation dedupe keys separate field boundaries
+- **関連:** `ArtifactCore/src/Collaborate/CollaborationSession.cppm::CollabOperationData::dedupeKey/processRemoteOperation`、`tests/ArtifactCore/CollaborationSessionTest.cpp::DelimiterCharactersInOperationFieldsDoNotCollideInDeduplication`。
+- **確認できた事実:** sequence付き操作以外のdedupe keyはclientId/type/layerId/timestampを`|`で連結する。operation typeは未知値もforward-compatibleに許容され、各fieldのdelimiter禁止は型・validatorに定義されていない。
+- **追加した検査:** `clientId="peer|x", type="property.set"`と`clientId="peer", type="x|property.set"`の異なるversion操作を作り、同じtimestamp/layerでも異なるkeyとして双方がlogへ入る期待を追加した。現実装ではdedupe keyが一致し、後の操作を重複として落とす見込み。未実行。
+- **価値または懸念:** field連結境界の曖昧さによる別client／typeの操作誤抑制を検出する。衝突しないencodingへの変更は実装作業として別途必要。
+- **次に確認すべきこと:** 許可されたタイミングで `CollaborationSessionTest` を実行し、2操作が別々に記録されることを確認する。
+
+## 2026-11-08: Future serialization envelopes skip migration callbacks
+- **関連:** `ArtifactCore/include/Serialization/SerializationEnvelope.ixx::deserializeEnvelope`、`tests/ArtifactCore/SerializationEnvelopeContractTest.cpp::RejectsFutureVersionBeforeRunningMigrationCallbacks`。
+- **確認できた事実:** deserializeは型factoryで現行schemaVersionを取得した後、入力版が現行版を上回る場合に移行registryへ進む前に拒否する。既存テストはfuture envelopeが拒否されることを確認するが、拒否前にcallbackが走らないことまでは明示していない。
+- **追加した検査:** version 3入力と2→3 migration callbackを登録し、deserialize失敗およびcallback呼び出し回数0を確認する。
+- **価値または懸念:** 将来版データを現行コードが誤って書き換える、または副作用を持つmigrationを呼ぶ変更を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `SerializationEnvelopeContractTest` を実行する。
+
+## 2026-11-08: Existing JSON adapter instances retain registration metadata
+- **関連:** `ArtifactCore/include/Serialization/JsonSerializableAdapter.ixx::JsonSerializableAdapter<T>`、`tests/ArtifactCore/JsonSerializableAdapterContractTest.cpp::RegistrationsForOneValueTypeKeepIndependentEnvelopeMetadata`。
+- **確認できた事実:** adapterのtypeName/schemaVersionは`T`ごとのinline static値で保持され、登録時に更新される。既存テストは複数aliasを登録後にfactory生成して独立性を検査するため、生成済みadapterに後続登録が及ぼす影響を切り分けていなかった。
+- **追加した検査:** 最初のaliasのadapterを生成・envelope化してから2つ目のaliasを登録し、既存instanceのidentity/versionと両envelopeのmetadataを再確認する。
+- **価値または懸念:** 登録順やfactory生成時期による型metadataの書き換わりを検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `JsonSerializableAdapterContractTest` を実行する。
+
+## 2026-11-08: Snapshot version advancement invalidates prior decoded payloads
+- **関連:** `ArtifactCore/src/Asset/AssetManager.cpp::restoreSourceRegistrySnapshot`、`tests/ArtifactCore/AssetManagerContractTest.cpp::SnapshotMergeKeepsMaximumVersionAndExistingUseCount`、`docs/planned/MILESTONE_ASSET_INSTANCE_SHARING_2026-06-16.md`。
+- **確認できた事実:** 設計記録はregistry snapshotにpayloadを保存せず、source versionをcache世代境界としている。restoreは既存versionとの最大値を採用するが、version上昇時にdecoded payload mapを消去する処理は実装上見当たらない。
+- **追加した検査:** version 2相当の現行世代でRGBA payloadを公開後、version 7のsnapshotをrestoreし、旧versionと復元versionの双方でcache lookupがmissになることを既存merge契約に追加した。未実行。
+- **価値または懸念:** project snapshot restore後に過去のprocess内decode結果を新世代または旧世代経由で誤利用する回帰を検出する。期待契約の妥当性と、cache cleanupがrestore経路で必要かはruntime確認が残る。
+- **次に確認すべきこと:** 許可されたタイミングで `AssetManagerContractTest.SnapshotMergeKeepsMaximumVersionAndExistingUseCount` を実行し、restore時の旧payload invalidation契約を確かめる。
+
+## 2026-11-08: Failed macro deserialization preserves the prior command tree
+- **関連:** `Artifact/src/Undo/UndoManager.cpp::MacroUndoCommand::deserialize`、`tests/Artifact/UndoManagerContractTest.cpp::FailedMacroDeserializationPreservesExistingCommandTree`。
+- **確認できた事実:** deserializeは最初にlabelを書き換え、その後既存childrenをclearしてから各childを順次生成する。途中の不正entryやfactory失敗でfalseを返す場合、以前のmacro状態へ戻す処理は見当たらない。
+- **追加した検査:** 既存のserializable childを持つmacroへ、有効childの後に未知commandを含むJSONをdeserializeし、失敗時にlabel・serialized tree・元のmacroのredo動作が保持されることを期待する。
+- **価値または懸念:** nested macroやsession history復元で部分的なcommand treeが残る破損を検出する。現実装では失敗後にlabelとchildrenが変わり、この検査は失敗する見込み。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactUndoManagerContractTest.FailedMacroDeserializationPreservesExistingCommandTree` を実行する。
+
+## 2026-11-08: Split document names cannot alias on case-insensitive filesystems
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::SplitDocumentStore::save/isSafeDocumentName`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::RejectsDocumentNamesThatCollideOnCaseInsensitiveFilesystems`。
+- **確認できた事実:** saveはdocument nameのpath traversalを拒否するが、異なる名前がfilesystem上で同じpathへ解決されるかは検査せず、child fileを順次書き込む。document名の重複検査は文字列完全一致のmanifest load時のみ行われる。
+- **追加した検査:** probe fileでfilesystemのcase sensitivityを判定し、case-insensitive環境では`Scene`と`scene`を別文書として保存する要求が拒否されること、case-sensitive環境では双方を完全にround-tripできることを確認する。
+- **価値または懸念:** Windows等で異なるlogical documentが同じchild fileを上書きし、load時に同一内容へ化ける回帰を検出する。現実装ではcase-insensitive環境で保存成功し、往復内容を保てない見込み。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `SplitDocumentStoreContractTest.RejectsDocumentNamesThatCollideOnCaseInsensitiveFilesystems` を実行する。
+
+## 2026-11-08: Concurrent plugin lifecycle transitions preserve coherent snapshots
+- **関連:** `ArtifactCore/src/Plugin/PluginRegistry.cpp::registerPlugin/activatePlugin/deactivatePlugin/unregisterPlugin/activePlugins`、`tests/ArtifactCore/PluginRegistryContractTest.cpp::ConcurrentLifecycleTransitionsKeepActiveSnapshotsCoherent`。
+- **確認できた事実:** registryの各mutationとqueryは同一mutexで保護される。既存stress testは同一ID descriptorの同時置換とpluginById snapshotの整合性、別testは逐次lifecycleを検査する。
+- **追加した検査:** 複数writerが同一IDへ2種類のdescriptor置換とactivate/deactivate/unregisterを混在させ、並行readerがactive listの一意性、Active状態、およびdescriptor field tupleの整合性を繰り返し確認する。
+- **価値または懸念:** lifecycle操作が置換と競合した際にactive indexとdescriptor stateが食い違う回帰を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `PluginRegistryContractTest.ConcurrentLifecycleTransitionsKeepActiveSnapshotsCoherent` を実行する。
+
+## 2026-11-08: Mixed sequence and unparsed singles remain permutation-stable
+- **関連:** `ArtifactCore/include/Asset/AssetSequence.ixx::detectSequences`、`tests/ArtifactCore/AssetSequenceDetectionContractTest.cpp::GroupAndSingleOrderingIsInvariantAcrossMixedInputPermutations`。
+- **確認できた事実:** 既存permutation testは複数prefix/suffixと1個のunparsed filenameでgrouping/single順序を比較する。detectorはgroup bucket由来singletonを先に追加し、unparsed namesを最後に入力順で追加する。
+- **追加した検査:** 連続runから分離されるframe singletonと2件のunparsed fileを含む5入力について全120 permutationを比較し、sequence memberとsingles順序が一致することを要求する。
+- **価値または懸念:** 同一入力集合の検出結果が呼出側のdirectory enumeration順で揺れる回帰を検出する。現実装ではunparsed singleの並びが入力順に従うため、期待を満たさない見込み。出力順の正式契約は今後確認が必要。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `AssetSequenceDetectionContractTest.GroupAndSingleOrderingIsInvariantAcrossMixedInputPermutations` を実行し、single順序の安定性要件を確認する。
+
+## 2026-11-08: Async sequence access refreshes a changed frame without showing stale pixels
+- **関連:** `ArtifactCore/src/Media/ImageSequenceSource.cpp::ImageSequenceSource::tryFrameAt/prefetchFrame`、`tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::TryFrameAtDropsStaleSameSizeFrameBeforeAsyncRefresh`。
+- **確認できた事実:** ImageSequenceSourceは同期`frameAt()`と非同期`tryFrameAt()`でdecoded cacheとprefetch cacheの両方を使う。既存同サイズ置換テストは同期読み出し経路を検査している。
+- **追加した検査:** red frameをcacheした後、同じbyte size・変更時刻の異なるblue frameへ差し替える。最初の`tryFrameAt()`はstale imageを返さずfalse/nullとなり、その後bounded wait内に非同期prefetch経由でblue pixelへ更新されることを確認する。
+- **価値または懸念:** cache metadata drift時に旧画像を一瞬表示する非同期scrub回帰を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `ImageSequenceSourceContractTest.TryFrameAtDropsStaleSameSizeFrameBeforeAsyncRefresh` を実行する。
+
+## 2026-11-08: Active playback speed and direction changes preserve frame continuity
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::setPlaybackSpeed`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::ChangingSpeedAndDirectionWhilePlayingKeepsFramePositionContinuous`、`docs/analysis/REPORT_PLAYBACK_CLOCK_CONTRACT_TEST_2026-11-03.md`。
+- **確認できた事実:** 既存テストはpause中のspeed変更でframe保持を確認する。実装はplaying/paused中に`startTime_`を再基準化し、その後のelapsedへ新speedを掛ける。11/03静的監査も再生中speed変更による二重適用とframe jumpの可能性を指摘している。
+- **追加した検査:** 60fpsで一定量進んだ後、再生中に1x→2x→-1xと変更し、各変更直後のframeが直前値から最大1 frame以内で連続すること、その後の観測で各方向へ進むことをbounded waitで確認する。
+- **価値または懸念:** speed multiplierの再適用または符号反転で再生位置が飛ぶ回帰を検出する。現実装ではtime re-anchor時に新speedが累積elapsedへ適用され、jumpが発生する見込み。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `PlaybackClockContractTest.ChangingSpeedAndDirectionWhilePlayingKeepsFramePositionContinuous` を実行する。
+
+## 2026-11-08: Render farm pause at a checkpoint boundary resumes without duplicate frames
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::executeLocalRange/saveCheckpoint`、`tests/ArtifactCore/RenderFarmMasterPauseContractTest.cpp::PauseAtCheckpointBoundaryResumeContinuesWithoutDuplicatingFrames`、`docs/planned/MILESTONES_BACKLOG.md` の render queue checkpoint/resume 項目。
+- **確認できた事実:** suiteはpause後のframe完了とcheckpoint resumeを別々に検査している。workerは成功frameを進捗へ反映し、checkpoint interval到達時にexclusive completed boundaryを保存した後、次frameの前にpause waitへ入る。
+- **追加した検査:** 5..9 frame rangeを2-frame checkpoint intervalで実行し、frame 6 callback内でpauseする。保存boundaryが7、pause中に追加frameが始まらないこと、resume後のframe列が5,6,7,8で重複しないことを検査する。
+- **価値または懸念:** pause waitとperiodic checkpointの順序が逆転し、completed boundaryやresume後のframe順が崩れる回帰を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `RenderFarmMasterPauseContractTest.PauseAtCheckpointBoundaryResumeContinuesWithoutDuplicatingFrames` を実行する。
+
+## 2026-11-08: Queue restoration rejects a malformed batch without partial append
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::loadQueue/requestFromJson`、`tests/ArtifactCore/RenderFarmMasterQueueContractTest.cpp::MalformedQueueEntryDoesNotPartiallyAppendEarlierValidJobs`、`docs/planned/MILESTONES_BACKLOG.md` のqueue persistence項目。
+- **確認できた事実:** `loadQueue`はjobs配列を順に処理し、復元できないentryをcontinueで飛ばして、有効entryを直ちに`submitJob()`する。戻り値は1件でも追加すればtrueとなる。既存テストは未知schemaを一括拒否するが、対応schema内の不正entryによる部分追加は検査していない。
+- **追加した検査:** 既存queueに1件を保持した状態で、有効jobの後に空rangeの不正jobを含むschema 1 documentを読み込ませ、読み込み拒否と既存queueの完全維持を期待する。
+- **価値または懸念:** 破損したqueue fileから前半だけを投入し、保存pathも書き換わる部分復元を検出する。現実装は有効prefixを追加してtrueを返す見込み。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `RenderFarmMasterQueueContractTest.MalformedQueueEntryDoesNotPartiallyAppendEarlierValidJobs` を実行する。
+
+## 2026-11-08: MFR sparse frame ranges preserve integer boundary arithmetic
+- **関連:** `ArtifactCore/include/Render/MFR/MFRDispatcher.ixx`、`tests/ArtifactCore/RenderJobModelContractTest.cpp::SparseFrameRangeUsesWideArithmeticAcrossIntegerBoundaries`。
+- **確認できた事実:** dispatcherはinclusive frame rangeのspanとindex計算を`long long`へ拡張している。既存契約は負rangeとstepを検査するが、`int`の両端を跨ぐ疎なrangeは未確認だった。
+- **追加した検査:** `INT_MIN..INT_MAX`を`INT_MAX` stepで列挙し、3件のframe番号と完了状態を単一workerで順序どおり検査する。
+- **価値または懸念:** signed intの加算・減算 overflowでframe列が壊れる回帰を小さい有限ケースで検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで該当MFR dispatcher contract testを実行する。
+
+## 2026-11-08: MFR async cancellation is verified through its public wrapper
+- **関連:** `ArtifactCore/include/Render/MFR/MFRDispatcher.ixx::executeAsync/executeBlocking/cancel`、`tests/ArtifactCore/RenderJobModelContractTest.cpp::AsyncCancellationWaitsForInflightFrameAndSkipsUnstartedFrames`。
+- **確認できた事実:** dispatcherの既存キャンセル契約はblocking APIを直接実行するものだった。async wrapperは共有stateをfuture内のworkerへ渡してblocking実行へ委譲する。
+- **追加した検査:** async callbackをgateで停止し、実行中frameを保ったままdispatcherをcancelする。解放後にin-flight frameのみ成功し、未開始frameを処理せずfutureがcancelled結果で完了することを検査する。
+- **価値または懸念:** async wrapperのstate共有・キャンセル反映・future完了境界の回帰をblocking testから独立して検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `MfrDispatcherContractTest.AsyncCancellationWaitsForInflightFrameAndSkipsUnstartedFrames` を実行する。
+
+## 2026-11-08: MFR async progress callback exceptions do not stop frame dispatch
+- **関連:** `ArtifactCore/include/Render/MFR/MFRDispatcher.ixx::executeAsync/executeBlocking`、`tests/ArtifactCore/RenderJobModelContractTest.cpp::AsyncProgressCallbackExceptionDoesNotAbandonRemainingFrames`。
+- **確認できた事実:** progress callbackはworker内で呼び出され、dispatcherは例外をcatchしてworker loopの継続を意図している。async APIでこの境界を検査する契約テストは未確認だった。
+- **追加した検査:** 最初のprogress callbackだけがthrowするasync jobで、残りframeのrender、全progress通知、futureの正常完了と最終集計を検査する。
+- **価値または懸念:** progress observerの例外によるworker終了、future例外化、frame欠落の回帰を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `MfrDispatcherContractTest.AsyncProgressCallbackExceptionDoesNotAbandonRemainingFrames` を実行する。
+
+## 2026-11-08: Oversized IPC frames must not poison subsequent socket messages
+- **関連:** `ArtifactCore/src/IPC/IPCChannel.cpp::IPCChannel::receive`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::OversizedLocalSocketFrameDoesNotBlockFollowingValidMessage`。
+- **確認できた事実:** LocalSocket receiveはlength prefixが`bufferSize`を超えると空を返すが、受信bufferからそのframeを取り除かない。後続の有効frameも同じprefixを再解釈するため、現実装ではstreamが停止する見込み。
+- **追加した検査:** 上限16 bytesのchannelへ17 bytesのframeと5 bytesの有効frameを連結送信し、超過frameを公開せず後続messageを受信できることを期待する。
+- **価値または懸念:** 不正なpeer packetが接続中の全後続messageを永久に隠すframing desynchronizationを検出する。期待動作は未確認のprotocol policyで、テスト未実行。
+- **次に確認すべきこと:** 設計上のoversize policyを確認し、許可されたタイミングで `IPCChannelContractTest.OversizedLocalSocketFrameDoesNotBlockFollowingValidMessage` を実行する。
+
+## 2026-11-08: Worker pool shutdown preserves queued work across restart
+- **関連:** `ArtifactCore/include/Thread/BackgroundTaskWorkerPool.ixx::Shutdown/Start/WorkerLoop`、`tests/ArtifactCore/BackgroundTaskWorkerPoolContractTest.cpp::ShutdownWaitsForRunningTaskAndRestartResumesPendingTask`。
+- **確認できた事実:** poolはShutdown時にrunning flagを下げてworkerをjoinし、pending queueはclearしない。既存restart testは停止済みqueueの依存解決を検査するが、active workerとのshutdown競合は扱っていない。
+- **追加した検査:** 1 workerをgateで停止中に別threadからShutdownし、join待ちを確認する。解放後は実行中taskのみ完了し、pending taskは次のStart後に一度だけ実行されることを検査する。
+- **価値または懸念:** shutdownが処理中taskを途中で失わせる、pending queueを破棄する、再起動で二重実行する回帰を検出する。未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `BackgroundTaskWorkerPoolContractTest.ShutdownWaitsForRunningTaskAndRestartResumesPendingTask` を実行する。
+
+## 2026-11-08: Zero-copy receive capacity failure must preserve the framed message
+- **関連:** `ArtifactCore/src/IPC/IPCChannel.cpp::IPCChannel::receiveZeroCopy/receive`、`tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::ZeroCopyReceiveKeepsMessageWhenDestinationBufferIsTooSmall`。
+- **確認できた事実:** `receiveZeroCopy`は先に`receive()`でmessageを取り出し、その後にcaller buffer容量を確認する。容量不足時はfalseとreceived=0を返すが、messageは既に消費される。
+- **追加した検査:** LocalSocketへbinary messageを送り、完全なframeがdeviceに到着したことを確認後、小さなbufferで失敗させ、十分なbufferで同じbinary messageを再取得することを期待する。
+- **価値または懸念:** capacity retryが不可能になりmessageを失うAPI契約上の問題を検出する。容量不足時に保持するpolicyは未確認、未実行。
+- **次に確認すべきこと:** 許可されたタイミングで `IPCChannelContractTest.ZeroCopyReceiveKeepsMessageWhenDestinationBufferIsTooSmall` を実行する。
+
+## 2026-11-08: Sequence interval overrides preserve non-forward element ordering
+- **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::phaseStartTime/orderedIndex`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ElementIntervalOverridePreservesCenterOutAndOutsideInOrder`。
+- **確認できた事実:** `SequenceDefinition::orderedIndex` implements Forward, Reverse, CenterOut, OutsideIn. `SequencePlayer::orderedIndex` used by interval override only handles Reverse and otherwise returns the clamped element index. Existing override test exercises only the default Forward order.
+- **追加した検査:** 4-element CenterOut and OutsideIn sequences use independently specified order ranks and an overridden element interval; each first phase start must retain its order position and phase offset.
+- **価値または懸念:** Interval override changing the temporal order of CenterOut/OutsideIn sequences is detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `SequenceGroupContractTest.ElementIntervalOverridePreservesCenterOutAndOutsideInOrder` を実行する。
+
+## 2026-11-08: KeyMap JSON import rejects malformed nested entries transactionally
+- **関連:** `ArtifactCore/src/UI/InputOperator.cpp::KeyMap::fromJSON`、`tests/ArtifactCore/KeyMapContractTest.cpp::MalformedBindingEntryDoesNotPartiallyReplaceExistingMap`。
+- **確認できた事実:** fromJSON validates the root object and bindings array type before mutation, but then changes name/context, clears current bindings, and silently skips entries whose actionId cannot resolve. Existing malformed JSON tests cover invalid roots and a non-array bindings field only.
+- **追加した検査:** Existing map state is seeded, then import is given a valid replacement binding followed by a binding whose actionId has the wrong JSON type. The import should reject the document and preserve metadata, indexes, and original binding.
+- **価値または懸念:** Malformed nested data causing partial map replacement is detected. Unknown-action compatibility policy remains distinct and untested. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `KeyMapContractTest.MalformedBindingEntryDoesNotPartiallyReplaceExistingMap` を実行する。
+
+## 2026-11-08: Final effect stack import ignores non-object array entries
+- **関連:** `ArtifactCore/src/Composition/CompositionFinalEffect.cpp::CompositionFinalEffectStack::fromJson`、`tests/ArtifactCore/CompositionFinalEffectStackContractTest.cpp::StackImportSkipsNonObjectEntriesAndPreservesValidEffectOrder`。
+- **確認できた事実:** stack import clears current state and calls `toObject()` for every array value without first checking `isObject()`. A scalar therefore creates a default Custom effect through `createFromJson`. Existing tests cover valid roundtrip and empty input, not mixed malformed entries.
+- **追加した検査:** Replacing a preexisting stack from an array containing two valid effect objects interleaved with string and number values must retain only the two valid effects in source order.
+- **価値または懸念:** Corrupt scalar entries silently becoming visible no-op Custom effects, and disturbing the intended effect list, are detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `CompositionFinalEffectStackContractTest.StackImportSkipsNonObjectEntriesAndPreservesValidEffectOrder` を実行する。
+
+## 2026-11-08: Repeater rotations accumulate around the configured pivot
+- **関連:** `ArtifactCore/include/Shape/Repeater.ixx::Repeater::process`、`tests/ArtifactCore/RepeaterContractTest.cpp::RotationAccumulatesPerCopyAroundTheConfiguredAnchor`。
+- **確認できた事実:** process computes `rotation_ * (copy index + offset)` and applies the matrix around anchorPoint. Existing geometry tests check translation and scale but not rotation or anchor pivot.
+- **追加した検査:** A non-square 10x4 rectangle is repeated three times at 0/90/180 degrees around anchor (2,1), checking each bounding rectangle and ensuring input geometry remains unchanged.
+- **価値または懸念:** Rotation direction, per-copy accumulation, pivot placement, and accidental source mutation regressions are detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `RepeaterContractTest.RotationAccumulatesPerCopyAroundTheConfiguredAnchor` を実行する。
+
+## 2026-11-08: Scatter rejects non-finite displacement amounts safely
+- **関連:** `ArtifactCore/src/ImageProcessing/Scatter.cpp::Scatter::process`、`tests/ArtifactCore/ScatterEffectContractTest.cpp::NonFiniteAmountLeavesPixelsUntouched`。
+- **確認できた事実:** process multiplies random displacement by `settings.amount`, converts resulting float coordinates to int, then clamps them. It does not validate finiteness before conversion. Existing tests cover zero and large finite amounts, not NaN or infinities.
+- **追加した検査:** NaN, positive infinity, and negative infinity amounts are applied to unique pixels and expected to leave the source unchanged.
+- **価値または懸念:** Non-finite configuration reaching floating-point-to-integer conversion, which can have undefined or implementation-specific results, is covered by a deterministic no-op contract. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `ScatterEffectContractTest.NonFiniteAmountLeavesPixelsUntouched` を実行する。
+
+## 2026-11-08: Repeater JSON values must fit the destination float type
+- **関連:** `ArtifactCore/include/Shape/Repeater.ixx::Repeater::fromJson/process`、`tests/ArtifactCore/RepeaterContractTest.cpp::FiniteJsonValuesOutsideFloatRangePreserveUsableTransforms`。
+- **確認できた事実:** JSON numeric helper rejects non-finite doubles, but finite values are cast to float for offset and rotation without checking float range. A finite `1e300` can therefore become infinity before geometry processing.
+- **追加した検査:** Seed finite offset and rotation, deserialize finite double values outside float range, require the existing finite settings to remain, then verify generated bounds are finite.
+- **価値または懸念:** Finite JSON values overflowing narrower transform properties and poisoning generated paths are detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `RepeaterContractTest.FiniteJsonValuesOutsideFloatRangePreserveUsableTransforms` を実行する。
+
+## 2026-11-08: Creative effect adapter keeps repeated output stable for fixed host context
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactCoreCreativeEffect::apply/onContextUpdated`、`tests/Artifact/CreativeEffectAdapterContractTest.cpp::CoreOldTvAdapterMatchesTheDirectCoreEffect`。
+- **確認できた事実:** Adapter increments its internal time only when no host context has been set. The direct-core comparison test sets a host time and checks one adapter application, but not repeated applications at the same context.
+- **追加した検査:** Apply the same time-dependent Old TV adapter twice to identical input with one fixed host context and compare every RGBA float output.
+- **価値または懸念:** Adapter-local time accidentally advancing despite host-owned context, or nondeterministic repeated evaluation, is detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `CreativeEffectAdapterContractTest.CoreOldTvAdapterMatchesTheDirectCoreEffect` を実行する。
+
+## 2026-11-08: Bend transform parameter sanitization preserves identity on invalid input
+- **関連:** `Artifact/include/Effects/Transform/BendTransform.ixx::BendTransformCPUImpl::setAngle/setDirection/setSize`、`tests/Artifact/BendTransformEffectContractTest.cpp::ParameterLimitsAndNonFiniteFallbackKeepTheEffectSafe`。
+- **確認できた事実:** CPU and GPU impl setters clamp finite ranges and replace non-finite values with defaults; the contract suite checks geometric extremes but not setter limits or invalid values.
+- **追加した検査:** Assert finite over-range clamping, NaN and both infinity signs fallback, then apply the resulting zero-angle defaults to a coordinate surface and require exact RGBA identity.
+- **価値または懸念:** Invalid numeric input leaking into displacement math, or invalid setters producing unexpected geometry, is covered. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `BendTransformEffectContractTest.ParameterLimitsAndNonFiniteFallbackKeepTheEffectSafe` を実行する。
+## 2026-11-08: AutoExposure property updates honor direct setter lower bounds
+- **関連:** `Artifact/AutoExposureEffect::setPropertyValue`、`tests/Artifact/AutoExposureEffectContractTest.cpp::PropertyUpdatesRespectTheSameLowerBoundsAsDirectSetters`。
+- **確認できた事実:** Direct setters clamp MiddleGray to [0.01, 1.0] and AdaptationSpeed to a 0.01 minimum, while `setPropertyValue` assigns converted values directly. Existing tests separately cover direct setter limits and in-range property updates.
+- **追加した検査:** Update both properties through their stable property names with below-minimum values and require the same lower bounds as direct setters.
+- **価値または懸念:** UI or serialized property updates bypassing setter validation are detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `AutoExposureEffectContractTest.PropertyUpdatesRespectTheSameLowerBoundsAsDirectSetters` を実行する。
+## 2026-11-08: Targeted frame invalidation must preserve 64-bit frame identity
+- **関連:** `Artifact/src/Render/ArtifactFrameCache.cpp::FrameCache::invalidate(FrameCacheInvalidation)`、`tests/Artifact/FrameCacheContractTest.cpp::TargetedInvalidationDoesNotNarrowLargeFramePositionsIntoRange`。
+- **確認できた事実:** Cache keys use `FramePosition` with a 64-bit frame value, while `FrameRange` endpoints are `int`. Targeted invalidation narrows each key to `int` before comparing. A frame at 2^32+10 can therefore alias range frame 10 on the current platform.
+- **追加した検査:** Cache frame 2^32+10 for a composition, invalidate only range 10..10, and require the wide frame to remain present.
+- **価値または懸念:** Narrowing-induced invalidation of an unrelated cached frame is covered. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `FrameCacheContractTest.TargetedInvalidationDoesNotNarrowLargeFramePositionsIntoRange` を実行する。
+## 2026-11-08: Rational range duration must preserve fractional frame rates
+- **関連:** `ArtifactCore/src/Time/TimeCodeRange.cpp::durationRational`、`tests/ArtifactCore/TimeCodeRangeContractTest.cpp::RationalDurationPreservesFractionalFrameRateSemantics`。
+- **確認できた事実:** `durationSeconds()` divides by the stored double fps, while `durationRational()` casts fps to `int64_t` before constructing the RationalTime scale. For 29.97 fps, that rational duration uses scale 29 and diverges substantially from the seconds duration.
+- **追加した検査:** Compare both duration representations for a 300-frame range at 29.97 fps within a small numeric tolerance.
+- **価値または懸念:** Fractional broadcast frame rates silently producing a different rational interval are detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `TimeCodeRangeContractTest.RationalDurationPreservesFractionalFrameRateSemantics` を実行する。
+## 2026-11-08: HashMap model comparison under a single collision chain
+- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm::emplaceImpl/erase/rehash`、`tests/ArtifactCore/ArtifactHashMapContractTest.cpp::DeterministicCollisionOperationsMatchStandardMapModel`。
+- **確認できた事実:** The existing deterministic differential test uses default hashing; collision behavior is otherwise covered by short fixed insertion and removal examples. ConstantHash forces every key through one chain while growth, update, and erase operations interleave.
+- **追加した検査:** Run a seeded 1,600-step insert/update/erase sequence with every key hashing identically, comparing size and all key/value lookups to `std::unordered_map` after each operation.
+- **価値または懸念:** Long collision-chain corruption during rehash or mixed mutation is checked against an independent model. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `ArtifactHashMapContractTest.DeterministicCollisionOperationsMatchStandardMapModel` を実行する。
+## 2026-11-08: Schema migration callbacks may reenter the registry
+- **関連:** `ArtifactCore/include/Serialization/SchemaMigration.ixx::SchemaMigrationRegistry::findPath/migrate`、`tests/ArtifactCore/SerializationEnvelopeContractTest.cpp::MigrationCallbackCanRegisterAnotherMigrationWithoutDeadlocking`。
+- **確認できた事実:** `findPath` copies the version graph while holding the mutex, then invokes migration callbacks after releasing the lock. Existing tests cover path queries and callback counts but not registry reentry during transformation.
+- **追加した検査:** A migration callback registers the next-version migration; verify the initial transform returns and the newly registered path can then be queried and applied.
+- **価値または懸念:** A future refactor that executes user callbacks under the registry mutex would deadlock this deterministic reentry case. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `SerializationEnvelopeContractTest.MigrationCallbackCanRegisterAnotherMigrationWithoutDeadlocking` を実行する。
+## 2026-11-08: Clipboard frame bounds ignore malformed keyframe entries
+- **関連:** `ArtifactCore/include/Clipboard/ClipboardManager.ixx::ClipboardManager::copyKeyframes`、`tests/ArtifactCore/ClipboardManagerContractTest.cpp::SystemClipboardRoundTripPreservesBundleAndKeyframePayloads`。
+- **確認できた事実:** The copy path skips non-object array elements, then converts each object frame through QVariant::toLongLong without checking that the frame exists and is numeric. Missing or nonnumeric values can therefore enter sourceFrameStart/sourceFrameEnd as zero.
+- **追加した検査:** Mix valid frames 9 and 3 with an object missing frame and an object with a nonnumeric frame; require clipboard range metadata to remain 3..9.
+- **価値または懸念:** Malformed clipboard entries silently shifting keyframe range metadata are detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `ClipboardManagerContractTest.SystemClipboardRoundTripPreservesBundleAndKeyframePayloads` を実行する。
+## 2026-11-08: Clipboard keyframe parser validates array elements
+- **関連:** `ArtifactCore/include/Clipboard/ClipboardManager.ixx::parseClipboardObject`、`tests/ArtifactCore/ClipboardManagerContractTest.cpp::SystemClipboardRoundTripPreservesBundleAndKeyframePayloads`。
+- **確認できた事実:** The keyframes branch checks that `keyframes` is a nonempty array and that `propertyPath` is nonempty, but does not inspect array element types or required frame fields. The same test already verifies malformed layer payload rejection.
+- **追加した検査:** Load an external clipboard keyframes envelope containing one valid object and one scalar element; require the clipboard manager to clear/reject the malformed payload.
+- **価値または懸念:** Partially malformed keyframe arrays being accepted as valid paste data are detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `ClipboardManagerContractTest.SystemClipboardRoundTripPreservesBundleAndKeyframePayloads` を実行する。
+## 2026-11-08: Render queue prunes cyclic dependents after an external failure
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::dependencyFailed/submitJob`、`tests/ArtifactCore/RenderFarmMasterQueueContractTest.cpp::FailedExternalPrerequisitePrunesCyclicDependentsAndQueueContinues`。
+- **確認できた事実:** The scheduler removes a queued request when any dependency has a failed result, records that request as failed, then scans again. Existing tests cover acyclic transitive failure propagation and unresolved forward chains, but not a cycle broken by an independently failing prerequisite.
+- **追加した検査:** Queue a two-job cycle where one node also depends on a failing prerequisite; require both cyclic jobs to remain unrendered while an independent job and a trailing sentinel complete in priority order.
+- **価値または懸念:** Failed-result propagation through a cyclic wait graph and scheduler forward progress are checked together. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `RenderFarmMasterQueueContractTest.FailedExternalPrerequisitePrunesCyclicDependentsAndQueueContinues` を実行する。
+## 2026-11-08: Planar YUV frame validation includes chroma storage
+- **関連:** `ArtifactCore/include/Video/VideoFrame.ixx::CpuVideoFrame::isValid`、`tests/ArtifactCore/VideoFrameValidityContractTest.cpp::CpuPlanarYuvFramesRequireStorageForChromaPlanes`。
+- **確認できた事実:** RGB formats validate stride against bytes-per-pixel and total storage against stride times height. YUV420P and NV12 currently share a one-byte-per-pixel branch, which only accounts for the luma plane and accepts a 2x2 frame backed by four bytes.
+- **追加した検査:** For both planar formats, require 2x2 frames with stride 2 to reject four bytes and accept six bytes, then require padded 4x2 frames with stride 8 to reject luma-only storage and accept all 24 plane bytes.
+- **価値または懸念:** Truncated YUV frames being considered valid before plane access are detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `VideoFrameValidityContractTest.CpuPlanarYuvFramesRequireStorageForChromaPlanes` を実行する。
+## 2026-11-08: Property link fan-out snapshots callback-mutable links
+- **関連:** `ArtifactCore/src/Property/PropertyLinkManager.cpp::updateTargets`、`tests/ArtifactCore/PropertyLinkManagerContractTest.cpp::FanOutUsesStableLinkSnapshotWhenMapperAddsAnotherLink`。
+- **確認できた事実:** `updateTargets` invokes user-provided custom mappers while iterating the manager-owned `std::vector<PropertyLink>`. Existing coverage verifies a mapper can mutate the source value while fan-out uses a stable source-value copy, but manager link-list mutation is not covered.
+- **追加した検査:** During a custom mapper, append a new link; require existing fan-out to complete deterministically and the appended link to participate only on the next explicit update.
+- **価値または懸念:** Callback-driven vector reallocation/iterator invalidation and same-pass membership ambiguity are exposed. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `PropertyLinkManagerContractTest.FanOutUsesStableLinkSnapshotWhenMapperAddsAnotherLink` を実行する。
+## 2026-11-08: Frame cache invalidation without dependency filters
+- **関連:** `Artifact/src/Render/ArtifactFrameCache.cpp::FrameCache::invalidate(const FrameCacheInvalidation&)`、`tests/Artifact/FrameCacheContractTest.cpp::CompositionRangeInvalidationWithoutDependencyIdsRemovesAllMatchingFrames`。
+- **確認できた事実:** An empty `layerIds` or `effectIds` list matches any entry for that dependency kind. Existing targeted-invalidation coverage supplies both dependency filters, leaving the documented composition/range-only path untested.
+- **追加した検査:** Invalidate a composition range with no layer/effect filters; entries with different dependency metadata inside the range must be removed, while another composition and an out-of-range frame remain.
+- **価値または懸念:** This catches accidental interpretation of omitted filters as “match nothing” and checks composition/range isolation together. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `FrameCacheContractTest.CompositionRangeInvalidationWithoutDependencyIdsRemovesAllMatchingFrames` を実行する。
+## 2026-11-08: Schema migration chooses the shortest valid route
+- **関連:** `ArtifactCore/include/Serialization/SchemaMigration.ixx::SchemaMigrationRegistry::findPath`、`tests/ArtifactCore/SerializationEnvelopeContractTest.cpp::MigrationChoosesShortestPathWhenSeveralRoutesReachTargetVersion`。
+- **確認できた事実:** `findPath` searches the version graph breadth-first, but existing tests cover only a single chain and path existence, not competing routes.
+- **追加した検査:** Register a three-step route and a two-step route from the same source to target; assert only the two callbacks on the shorter route run and the final data reflects that route.
+- **価値または懸念:** Prevents accidental traversal of unnecessary schema transforms when multiple valid paths converge. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `SerializationEnvelopeContractTest.MigrationChoosesShortestPathWhenSeveralRoutesReachTargetVersion` を実行する。
+## 2026-11-08: Render progress callbacks can replace themselves
+- **関連:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::Impl::emitProgress`、`tests/ArtifactCore/RenderFarmMasterPauseContractTest.cpp::ProgressCallbackCanReplaceItselfForLaterFrames`。
+- **確認できた事実:** `emitProgress` copies the configured callback under `callbackMutex_` and invokes that copy after unlocking. Existing master tests use callbacks to observe progress, but do not reconfigure the callback from within itself.
+- **追加した検査:** The first frame's progress callback installs a replacement; on a two-frame single-worker job, require exactly one call to each callback and successful completion.
+- **価値または懸念:** This checks callback self-reconfiguration without deadlocking and verifies that replacement takes effect on the next progress event. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `RenderFarmMasterPauseContractTest.ProgressCallbackCanReplaceItselfForLaterFrames` を実行する。
+## 2026-11-08: Serialization factories may register types reentrantly
+- **関連:** `ArtifactCore/include/Serialization/SerializationRegistry.ixx::SerializationRegistry::create/registerType`、`tests/ArtifactCore/JsonSerializableAdapterContractTest.cpp::FactoryCanRegisterAnotherTypeReentrantly`。
+- **確認できた事実:** `create` copies the selected factory while holding the registry mutex, then invokes it after releasing the lock. Existing adapter tests create registered types but do not reenter registry mutation from a factory.
+- **追加した検査:** A factory registers another adapter type while being invoked; require the outer adapter's own metadata to remain correct and the nested type to be immediately creatable.
+- **価値または懸念:** Guards against moving user factory execution under the registry lock and checks reentrant registration end to end. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `JsonSerializableAdapterContractTest.FactoryCanRegisterAnotherTypeReentrantly` を実行する。
+## 2026-11-08: Checkpoint loader rejects a malformed failure collection
+- **関連:** `ArtifactCore/src/Render/CheckpointStore.cpp::CheckpointStore::Impl::fromJson`、`tests/ArtifactCore/CheckpointStoreContractTest.cpp::RejectsWrongTypedFailureCollectionInsteadOfTreatingItAsEmpty`。
+- **確認できた事実:** `fromJson` converts the top-level `failures` value with `toArray()` without checking its JSON type; non-array data therefore becomes an empty collection. Existing malformed-checkpoint tests exercise bad record elements but not a wrong-typed collection.
+- **追加した検査:** Write a structurally valid checkpoint whose `failures` field is an object; require load to reject it rather than silently discard failure data.
+- **価値または懸念:** Corruption that would hide recorded render failures is detected. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `CheckpointStoreContractTest.RejectsWrongTypedFailureCollectionInsteadOfTreatingItAsEmpty` を実行する。
+## 2026-11-08: Creative effect adapter supports aliased input and output
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactCoreCreativeEffect::apply`、`tests/Artifact/CreativeEffectAdapterContractTest.cpp::CoreMirrorAdapterSupportsInPlaceSourceDestinationAliasing`。
+- **確認できた事実:** `apply` copies source pixels into channel buffers before assigning the processed image to the destination. Existing adapter tests use distinct source and destination wrappers, so input/output aliasing is not covered.
+- **追加した検査:** Process identical mirror inputs once out-of-place and once with the same wrapper as source and destination; compare dimensions and every RGBA channel.
+- **価値または懸念:** Detects accidental early destination writes that would corrupt source data during an in-place effect application. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `CreativeEffectAdapterContractTest.CoreMirrorAdapterSupportsInPlaceSourceDestinationAliasing` を実行する。
+## 2026-11-08: Forward playback wraps at the excluded loop endpoint
+- **関連:** `ArtifactCore/src/Playback/PlaybackClock.cpp::PlaybackClock::Impl::updateCurrentFrame`、`tests/ArtifactCore/PlaybackClockContractTest.cpp::ForwardPlaybackAtLoopEndWrapsToFirstIncludedFrame`。
+- **確認できた事実:** Existing coverage exercises large audio-sync overshoot and reverse playback exactly at the loop start, but does not set the stopped clock exactly to the forward loop end.
+- **追加した検査:** With a half-open loop `[10,20)`, set the stopped clock to frame 20 and require normalization to frame 10, inside the loop.
+- **価値または懸念:** The exact forward boundary is checked without timing or scheduler tolerances. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `PlaybackClockContractTest.ForwardPlaybackAtLoopEndWrapsToFirstIncludedFrame` を実行する。
+## 2026-11-08: Failed progress reports leave a worker marked rendering
+- **関連:** `ArtifactCore/src/Render/ProgressAggregator.cpp::ProgressAggregator::reportFrameFailed`、`tests/ArtifactCore/ProgressAggregatorContractTest.cpp::FailedFramesCountAsProcessedWorkAndClearCurrentFrame`。
+- **確認できた事実:** `reportFrameFailed` clears `currentFrame` and increments `failedFrames`, but does not change `state`; the existing test expects `activeWorkers == 0` and `idleWorkers == 1` immediately after failure. Snapshot classifies every `Rendering` state as active.
+- **追加した検査:** なし。既存 assertion がこの不整合を既に検出するため、追加は重複になる。
+- **価値または懸念:** The existing contract test appears to fail against the current implementation; test/build execution is prohibited by the repository instructions.
+- **次に確認すべきこと:** 将来の明示された実装作業で、失敗後の state 遷移の期待値と実装を照合する。
+## 2026-11-08: File watcher callback replaces its own subscription
+- **関連:** `ArtifactCore/include/Data/FileWatcher.ixx::FileWatcher::pollLoop/watch/unwatch`、`tests/ArtifactCore/FileWatcherStandaloneTest.cpp::CallbackCanReplaceItsOwnRegistrationForTheNextChange`。
+- **確認できた事実:** FileWatcher dispatches callback snapshots after releasing its mutex. Existing tests separately cover self-unwatch and callback replacement, but not their reentrant combination.
+- **追加した検査:** The first timestamp callback unregisters itself and registers a replacement; a second timestamp change must reach only that replacement, with each callback invoked exactly once.
+- **価値または懸念:** Covers callback snapshot lifetime together with subscription mutation across successive poll cycles. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `FileWatcherStandaloneTest.CallbackCanReplaceItsOwnRegistrationForTheNextChange` を実行する。
+## 2026-11-08: Split project children must match manifest encoding
+- **関連:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::SplitDocumentStore::load`、`tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::RejectsChildDocumentsEncodedInAFormatDifferentFromTheirManifest`。
+- **確認できた事実:** The loader detects the manifest format and reads every referenced child using that same format. Existing coverage tests JSON and CBOR round trips independently, but not a store whose manifest and child encodings disagree.
+- **追加した検査:** For both JSON and CBOR manifests, replace a referenced child with a valid document encoded in the other format; require split-store loading to reject the mixed-format store.
+- **価値または懸念:** Detects partial format conversion or damaged child files that could otherwise make one split project unreadable. Test not run.
+- **次に確認すべきこと:** 許可されたタイミングで `SplitDocumentStoreContractTest.RejectsChildDocumentsEncodedInAFormatDifferentFromTheirManifest` を実行する。
+
+## 2026-11-08: Ring buffer rejects corrupt shared headers
+- **Related:** `ArtifactCore/src/IPC/SharedMemoryRingBuffer.cpp::SharedMemoryRingBuffer::Impl::bindExisting`, `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::RejectsCorruptSharedHeadersWithoutBreakingTheOwnerHandle`.
+- **Confirmed:** `bindExisting()` validates shared-memory magic, version, and capacity before treating the mapped region as ring data. Existing tests cover payload checksum corruption but not header corruption during open.
+- **Added check:** Corrupt each header field individually, require a second handle to reject open, restore the value, and verify the owner handle can still read its pending entry.
+- **Value or concern:** Detects invalid shared segments being attached with the wrong layout and regressions where a rejected attach disrupts the existing owner. Test not run.
+- **Next:** Run `SharedMemoryRingBufferContractTest.RejectsCorruptSharedHeadersWithoutBreakingTheOwnerHandle` when test execution is authorized.
+
+## 2026-11-08: Ring buffer notification permits track entry transitions
+- **Related:** `ArtifactCore/src/IPC/SharedMemoryRingBuffer.cpp::SharedMemoryRingBuffer::write/read` and `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::SeparateHandlesExposeOneWriteAndReadNotificationPerCommittedEntry`.
+- **Confirmed:** Each successful write releases `writeReady`, each successful read releases `readComplete`, and both semaphore handles are exposed for peer synchronization. Existing ring tests validate payload transfer but not these notification permits.
+- **Added check:** Across separate handles, verify each of two committed entries exposes exactly one write-ready permit and each consumed entry exposes exactly one read-complete permit, with no stale permit before or after each transition.
+- **Value or concern:** Protects the semaphore synchronization contract independently of payload correctness. Test not run.
+- **Next:** Run `SharedMemoryRingBufferContractTest.SeparateHandlesExposeOneWriteAndReadNotificationPerCommittedEntry` when test execution is authorized.
+
+## 2026-11-08: IPCChannel preserves framing after an empty message
+- **Related:** `ArtifactCore/src/IPC/IPCChannel.cpp::IPCChannel::receive`, `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::EmptyLocalSocketFrameDoesNotConsumeFollowingMessageBoundary`.
+- **Confirmed:** Local socket messages use a 32-bit length prefix. The receive API returns an empty `QByteArray` for a zero-length payload, the same value used when no complete message is available. Existing framing tests cover fragmented prefixes and coalesced non-empty messages but not a zero-length frame before a non-empty frame.
+- **Added check:** Send a coalesced zero-length frame followed by a non-empty frame; confirm the first receive is empty and the next receive returns the second payload without losing frame alignment.
+- **Value or concern:** Exercises an ambiguous boundary case where a valid message resembles the no-message result. Test not run.
+- **Next:** Run `IPCChannelContractTest.EmptyLocalSocketFrameDoesNotConsumeFollowingMessageBoundary` when test execution is authorized.
+
+## 2026-11-08: RenderFarm rejects zero-dimension frame packets
+- **Related:** `ArtifactCore/src/IPC/RenderFarmSharedBuffer.cpp::RenderFarmSharedBuffer::readNextFrame`, `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::ZeroDimensionFramePacketIsRejectedAndNextValidFrameCanBeRead`.
+- **Confirmed:** The frame reader verifies magic and that payload byte length matches width and height, but does not explicitly require either dimension to be nonzero. Existing malformed-packet coverage checks only a packet shorter than the header.
+- **Added check:** Feed a header-only packet with valid magic and width zero, require rejection and consumption, then verify a subsequent valid 1x1 float frame is intact.
+- **Value or concern:** Prevents zero-area data from being reported as a successfully decoded frame and checks recovery without using dimensions that could trigger a large allocation. This may expose a reader validation gap; test not run.
+- **Next:** Run `RenderFarmSharedBufferContractTest.ZeroDimensionFramePacketIsRejectedAndNextValidFrameCanBeRead` when test execution is authorized.
+
+## 2026-11-08: RenderFarm rejects overflowing frame dimensions
+- **Related:** `ArtifactCore/src/IPC/RenderFarmSharedBuffer.cpp::RenderFarmSharedBuffer::readNextFrame`, `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::OverflowingFrameDimensionsAreRejectedWithoutConstructingAnImage`.
+- **Confirmed:** The reader multiplies untrusted 32-bit width and height values in `std::size_t`, compares the wrapped byte count with packet length, then casts dimensions to `int` for image construction. It does not check configured width/height bounds.
+- **Added check:** A header-only packet uses width `0xC0000000` and height `0x40000000`, whose computed float pixel byte count wraps to zero on ordinary 32-bit and 64-bit `size_t`; require rejection against a 4x4 consumer configuration. The width converts to a negative `int` on MSVC, avoiding large image allocation in this reproducer.
+- **Value or concern:** Exercises arithmetic overflow and dimension-bound validation without sending a large payload. This is expected to expose unsafe validation; test not run.
+- **Next:** Run `RenderFarmSharedBufferContractTest.OverflowingFrameDimensionsAreRejectedWithoutConstructingAnImage` when test execution is authorized.
+
+## 2026-11-08: Split store child directory symlink boundary
+- **Related:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::SplitDocumentStore::save`, `tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::SaveDoesNotFollowDocumentsSymlinkOutsideTheStore`.
+- **Confirmed:** Save constructs child paths under `store/documents` and validates logical names, while existing traversal tests do not cover a symlink at the child directory itself.
+- **Added check:** Where directory symlink creation is available, point `store/documents` to a sibling outside directory and require save to fail without creating the child or manifest outside the store. The test skips when the platform cannot create directory symlinks.
+- **Value or concern:** Covers filesystem indirection bypassing lexical traversal checks. The current implementation may follow the link; test not run.
+- **Next:** Run `SplitDocumentStoreContractTest.SaveDoesNotFollowDocumentsSymlinkOutsideTheStore` when test execution is authorized.
+
+## 2026-11-08: Split store load child directory symlink boundary
+- **Related:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::SplitDocumentStore::load`, `tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::LoadDoesNotFollowDocumentsSymlinkOutsideTheStore`.
+- **Confirmed:** Load joins manifest child names under `store/documents`; the existing new symlink test covers save redirection only.
+- **Added check:** Create a manifest in the store that references `scene`, place a matching child only in a sibling directory, link `store/documents` to that directory, and require loading to reject the external child.
+- **Value or concern:** Covers read-side path escape through filesystem indirection as well as the previously recorded save-side boundary. Test skips if directory symlink creation is unavailable; test not run.
+- **Next:** Run `SplitDocumentStoreContractTest.LoadDoesNotFollowDocumentsSymlinkOutsideTheStore` when test execution is authorized.
+
+## 2026-11-08: Future asset metadata survives an edited disk round trip
+- **Related:** `ArtifactCore/src/Asset/AssetMetaFile.cpp::ArtifactAssetMetaFile::load/save/setType`, `tests/ArtifactCore/AssetMetaFileContractTest.cpp::EditingAndSavingFutureSchemaMetadataPreservesVersionAndUnknownFields`.
+- **Confirmed:** Existing tests separately verify save/load preservation of unknown future schema fields and that editing future metadata does not downgrade its version in memory.
+- **Added check:** Persist version-42 metadata with nested unknown fields, load it, edit a known asset field, save, reload, and verify the known edit, original version, and unknown subtree together.
+- **Value or concern:** Protects forward-compatible metadata through the full user edit and persistence path, where an in-memory-only check could miss serialization loss. Test not run.
+- **Next:** Run `AssetMetaFileContractTest.EditingAndSavingFutureSchemaMetadataPreservesVersionAndUnknownFields` when test execution is authorized.
+
+## 2026-11-08: Import reconciles a colliding sidecar UUID
+- **Related:** `ArtifactCore/src/Asset/AssetImporter.cpp::AssetImporter::importFile`, `tests/ArtifactCore/AssetImporterContractTest.cpp::SidecarUuidCollisionAllocatesAndPersistsANewAssetIdentity`.
+- **Confirmed:** Existing tests verify restoring a sidecar UUID into an empty database and verify that AssetDatabase allocates distinct IDs for preferred-UUID collisions, but do not combine those conditions through import.
+- **Added check:** Register one source with the UUID stored in a second source sidecar, import the second source, require distinct path identities, and verify the rewritten sidecar UUID matches the newly registered ID while preserving tags.
+- **Value or concern:** Covers identity reconciliation across the database index and persisted metadata when an imported sidecar collides with another asset. Current importer may leave the old UUID in the sidecar; test not run.
+- **Next:** Run `AssetImporterContractTest.SidecarUuidCollisionAllocatesAndPersistsANewAssetIdentity` when test execution is authorized.
+
+## 2026-11-08: RenderFarm worker range increment at INT_MAX
+- **Related:** `ArtifactCore/src/Render/RenderFarmWorker.cpp::RenderFarmWorker::Impl::execute`, `tests/ArtifactCore/RenderFarmWorkerContractTest.cpp::SteppedRangeNearIntMaximumDoesNotWrapIntoExtraFrames`.
+- **Confirmed:** `RenderFrameRange::count()` calculates in `long long`, but worker iteration increments the frame variable as `int`. No worker test exercises a stepped range adjacent to `INT_MAX`.
+- **Added check:** Render `[INT_MAX-1, INT_MAX)` at step 2 and require one callback, one completed frame, and Completed state. An unexpected second callback cancels the job to bound the regression case.
+- **Value or concern:** Detects next-frame arithmetic wrapping beyond the exclusive upper bound; signed overflow behavior is undefined in C++. Test not run.
+- **Next:** Run `RenderFarmWorkerContractTest.SteppedRangeNearIntMaximumDoesNotWrapIntoExtraFrames` when test execution is authorized.
+
+## 2026-11-08: Asset identity survives missing-file materialization
+- **Related:** `ArtifactCore/src/Asset/AssetDatabase.cpp::normalizedAssetPath/registerAsset/findAssetByPath`, `tests/ArtifactCore/AssetDatabaseContractTest.cpp::MissingAssetIdentitySurvivesMaterializationThroughSymlinkedParent`.
+- **Confirmed:** Missing paths fall back to cleaned absolute paths; existing paths use canonical paths. Existing tests cover missing-path registration and symlink-free path normalization separately.
+- **Added check:** Register a not-yet-created file beneath a symlinked parent, create it through that alias, then verify lookup and re-registration resolve to the original ID without duplicating the asset. The test skips if directory symlinks are unavailable.
+- **Value or concern:** Exercises an identity transition where canonicalization behavior changes once the leaf exists. Test not run.
+- **Next:** Run `AssetDatabaseContractTest.MissingAssetIdentitySurvivesMaterializationThroughSymlinkedParent` when test execution is authorized.
+
+## 2026-11-08: RenderFarm master partitions stepped ranges near INT_MAX
+- **Related:** `ArtifactCore/src/Render/RenderFarmMaster.cpp::Impl::splitRange/executeLocalRange`, `tests/ArtifactCore/RenderFarmMasterRetryContractTest.cpp::MultiWorkerSteppedRangeNearIntMaximumKeepsEveryFrameInBounds`.
+- **Confirmed:** Existing retry tests cover ordinary ranges and worker counts larger than the frame count; direct worker coverage now exercises the integer upper bound, but master partitioning has no equivalent integration case.
+- **Added check:** Split `[INT_MAX-5, INT_MAX)` with step 2 across two workers and require exactly the three scheduled frame numbers, each once, with successful completion.
+- **Value or concern:** Covers partition boundary arithmetic together with parallel local execution at the signed frame-number limit. Test not run.
+- **Next:** Run `RenderFarmMasterRetryContractTest.MultiWorkerSteppedRangeNearIntMaximumKeepsEveryFrameInBounds` when test execution is authorized.
+
+## 2026-11-08: RenderFrameRange count spans the full int domain
+- **Related:** `ArtifactCore/include/Render/RenderFarmTypes.ixx::RenderFrameRange::count`, `tests/ArtifactCore/RenderFarmWorkerContractTest.cpp::FrameRangeCountUsesWideArithmeticCeilingDivisionAndSaturation`.
+- **Confirmed:** `count()` widens endpoint subtraction to `long long`, rounds partial steps upward, and saturates at `INT_MAX`; current worker tests indirectly inspect small counts but do not cover the full int domain.
+- **Added check:** Cover full-domain saturation, ceiling division over an `INT_MIN` to `INT_MAX` span, near-maximum stepped count, and invalid/empty ranges.
+- **Value or concern:** Guards the shared range-count primitive against overflow and off-by-one regressions at signed limits. Test not run.
+- **Next:** Run `RenderFarmWorkerContractTest.FrameRangeCountUsesWideArithmeticCeilingDivisionAndSaturation` when test execution is authorized.
+
+## 2026-11-08: Asset database skips duplicate paths before reserving IDs
+- **Related:** `ArtifactCore/src/Asset/AssetDatabase.cpp::AssetDatabase::fromJson`, `tests/ArtifactCore/AssetDatabaseContractTest.cpp::JsonLoadReusesIdentityFromARecordRejectedForDuplicateCanonicalPath`.
+- **Confirmed:** JSON load rejects an entry when either its UUID is already accepted or its normalized path already has an accepted ID. Existing tests cover duplicate UUID and duplicate canonical path independently.
+- **Added check:** Accept ID A at path P, reject ID B at a canonical alias of P, then accept B at distinct path Q; verify both path indexes and asset types before and after snapshot round trip.
+- **Value or concern:** Exercises order-sensitive record acceptance where a rejected row must not leave a partial UUID or path index behind. Test not run.
+- **Next:** Run `AssetDatabaseContractTest.JsonLoadReusesIdentityFromARecordRejectedForDuplicateCanonicalPath` when test execution is authorized.
+
+## 2026-11-08: Split store resave removes children from the active manifest
+- **Related:** `ArtifactCore/include/Serialization/SplitDocumentStore.ixx::SplitDocumentStore::save/load`, `tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::ResaveDoesNotReloadChildrenRemovedFromTheNewManifest`.
+- **Confirmed:** Each save rewrites `_documents` from the supplied child map; load iterates that manifest list rather than enumerating the directory. Existing tests cover format-switch manifest precedence but not removal of a child during same-format resave.
+- **Added check:** In JSON and CBOR, save scene+timeline, resave with scene only, then verify the new manifest and loaded child map contain only scene.
+- **Value or concern:** Ensures stale unreferenced child files cannot be resurrected by a later load after a project resave. Test not run.
+- **Next:** Run `SplitDocumentStoreContractTest.ResaveDoesNotReloadChildrenRemovedFromTheNewManifest` when test execution is authorized.
+
+## 2026-11-08: Serialization factory replacement preserves in-flight snapshots
+- **Related:** `ArtifactCore/include/Serialization/SerializationRegistry.ixx::SerializationRegistry::create/registerType`, `tests/ArtifactCore/JsonSerializableAdapterContractTest.cpp::ConcurrentFactoryReplacementAffectsOnlySubsequentCreateCalls`.
+- **Confirmed:** `create()` copies a factory while holding the registry mutex and invokes it after releasing the lock. Existing coverage tests reentrant registration, but not concurrent replacement during an already-running factory call.
+- **Added check:** Block the original factory after lookup, replace it from another thread, require replacement to finish before releasing the original, then verify the in-flight call returns the original product and the next call returns the replacement product.
+- **Value or concern:** Covers registry lock boundaries and stable factory snapshots under concurrent mutation. Test not run.
+- **Next:** Run `JsonSerializableAdapterContractTest.ConcurrentFactoryReplacementAffectsOnlySubsequentCreateCalls` when test execution is authorized.
+
+## 2026-11-08: Asset relink canonicalizes symlink destinations
+- **Related:** `ArtifactCore/src/Asset/AssetDatabase.cpp::AssetDatabase::relinkAssetPath/normalizedAssetPath`, `tests/ArtifactCore/AssetDatabaseContractTest.cpp::RelinkResolvesSymlinkTargetsBeforeCollisionAndIndexUpdates`.
+- **Confirmed:** Relink normalizes old and new paths before collision checks and updates both maps on success. Existing coverage tests direct-path collision and lexical aliases of the same current file.
+- **Added check:** Through a directory symlink, first target an already registered asset and require atomic rejection, then target a distinct existing file and require successful move to the canonical identity while preserving both assets.
+- **Value or concern:** Exercises filesystem alias resolution, collision protection, and successful index transition together. Test skips if directory symlinks are unavailable; test not run.
+- **Next:** Run `AssetDatabaseContractTest.RelinkResolvesSymlinkTargetsBeforeCollisionAndIndexUpdates` when test execution is authorized.
+
+## 2026-11-08: Asset fingerprint follows a retargeted symlink
+- **Related:** `ArtifactCore/src/Utils/AssetFingerprint.cpp::AssetFingerprint::calculateFastHash`, `tests/ArtifactCore/AssetFingerprintContractTest.cpp::FastHashFollowsRetargetedFileSymlinkWithoutPathCaching`.
+- **Confirmed:** Fingerprint tests cover same-path content replacement and sampled content behavior, but not replacing a symlink target while keeping the queried path unchanged.
+- **Added check:** Point one symlink path at two same-size files in turn; verify each fast hash matches the current target and differs from the previous target. The test skips when file symlinks are unavailable.
+- **Value or concern:** Protects against stale path-only hash caching when filesystem indirection changes the underlying asset. Test not run.
+- **Next:** Run `AssetFingerprintContractTest.FastHashFollowsRetargetedFileSymlinkWithoutPathCaching` when test execution is authorized.
+
+## 2026-11-08: Asset registration isolates preferred ID collisions
+- **Related:** `ArtifactCore/src/Asset/AssetDatabase.cpp::AssetDatabase::registerAsset`, `tests/ArtifactCore/AssetDatabaseContractTest.cpp::ConflictingPreferredIdGetsFreshIdentityWithoutDamagingFirstAsset`.
+- **Confirmed:** `registerAsset` generates a fresh UUID when a preferred UUID already belongs to another normalized path. Existing coverage checks duplicate UUID filtering during JSON load, but not the registration API collision path or subsequent index removal.
+- **Added check:** Register two different files with the same preferred UUID; verify distinct identities, correct path and type lookup, then unregister the second and verify the first remains intact.
+- **Value or concern:** Guards identity and path-index consistency across an ID collision. Test not run.
+- **Next:** Run `AssetDatabaseContractTest.ConflictingPreferredIdGetsFreshIdentityWithoutDamagingFirstAsset` when test execution is authorized.
+
+## 2026-11-08: Ring buffer rejects corrupted entry lengths and recovers
+- **Related:** `ArtifactCore/src/IPC/SharedMemoryRingBuffer.cpp::SharedMemoryRingBuffer::read`, `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::OversizedCorruptEntryLengthIsRejectedAndRingRecovers`.
+- **Confirmed:** `read` checks the shared entry payload size against `maxEntrySize` before constructing a payload, then advances the read index to the committed write index on malformed entries. Existing corruption coverage damages payload bytes for checksum validation but does not exercise malformed entry length.
+- **Added check:** Corrupt a committed entry header to exceed the configured maximum; verify the read reports a corrupt entry, drops the unread region, and allows a subsequent valid write/read.
+- **Value or concern:** Covers hostile or torn shared-memory metadata and proves recovery without reading an out-of-bounds payload. Test not run.
+- **Next:** Run `SharedMemoryRingBufferContractTest.OversizedCorruptEntryLengthIsRejectedAndRingRecovers` when test execution is authorized.
+
+## 2026-11-08: Retry backoff fractional and clamp boundaries
+- **Related:** `ArtifactCore/include/Render/RenderFarmTypes.ixx::RetryPolicy::backoffMs`, `tests/ArtifactCore/RenderFarmMasterRetryContractTest.cpp::BackoffStrategiesClampAttemptsFactorsAndArithmeticOverflow`.
+- **Confirmed:** Existing checks cover integer exponential factors, invalid non-finite factors, and arithmetic saturation; implementation truncates fractional milliseconds and clamps the initial delay to the configured maximum.
+- **Added check:** Assert fractional-factor truncation, factor values at or below one falling back to a constant delay, and an initial delay above the maximum being clamped even at the largest attempt count.
+- **Value or concern:** Makes rounding and invalid-factor normalization observable so policy changes cannot silently shift retry timing.
+- **Next:** Run `RenderFarmMasterRetryContractTest.BackoffStrategiesClampAttemptsFactorsAndArithmeticOverflow` when test execution is authorized.
+
+## 2026-11-08: Oversized serialized document read guard
+- **Related:** `ArtifactCore/include/Serialization/SerializationDocument.ixx::SerializationDocument::readFile`, `tests/ArtifactCore/ProjectSerializerContractTest.cpp::OversizedDocumentIsRejectedBeforeReplacingCallerOutput`.
+- **Confirmed:** `readFile` checks the file size against the 256 MiB cap before `readAll()`. Existing ProjectSerializer contract tests cover missing files and format mismatches but do not directly exercise this resource boundary.
+- **Added check:** Resize an empty temporary file to one byte over the cap; verify load fails with the size error and leaves a pre-populated output object unchanged.
+- **Value or concern:** Protects callers from accidentally loading oversized or adversarial project documents. The test uses a sparse file; filesystem support and test runtime remain unverified because tests are not run.
+- **Next:** Run `ProjectSerializerContractTest.OversizedDocumentIsRejectedBeforeReplacingCallerOutput` when test execution is authorized.
+
+## 2026-11-08: Corrupt serialized document decode failures
+- **Related:** `ArtifactCore/include/Serialization/SerializationDocument.ixx::SerializationDocument::decode/readFile`, `tests/ArtifactCore/ProjectSerializerContractTest.cpp::CorruptJsonAndCborPreserveCallerOutputAndReportDecodeFailure`.
+- **Confirmed:** Format auto-detection routes JSON and CBOR to separate decoders; failed decode reports a stable error and only assigns the output object on success. Existing file-level tests cover a missing file and oversized input, but not corrupt payloads in both formats.
+- **Added check:** Load truncated JSON and a CBOR map header with missing entries; verify both are rejected, preserve the caller's JSON, and report the decode error.
+- **Value or concern:** Guards corrupted project files at the persistence boundary. Test not run.
+- **Next:** Run `ProjectSerializerContractTest.CorruptJsonAndCborPreserveCallerOutputAndReportDecodeFailure` when test execution is authorized.
+
+## 2026-11-08: Single numbered still frame classification
+- **Related:** `ArtifactCore/src/Media/ImageSequenceSource.cpp::ImageSequenceSource::open/metadata`, `tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::ASingleNumberedImagePathRemainsOneStillFrameNotASequence`.
+- **Confirmed:** Numeric filenames are parsed for source frame numbering, while `metadata.isSequence` is based on the number of opened frame entries. Existing tests exercise multi-frame sequences and gaps but not the one-file numbered-name boundary.
+- **Added check:** Open a lone `shot_0042.png` and verify one decoded still frame, source frame/index mapping, zero missing frames, and `isSequence == false`.
+- **Value or concern:** Prevents a sequence-like filename from changing single-image behavior when no sibling frames exist. Test not run.
+- **Next:** Run `ImageSequenceSourceContractTest.ASingleNumberedImagePathRemainsOneStillFrameNotASequence` when test execution is authorized.
+
+## 2026-11-08: Invalid ImageSequence FPS setter inputs
+- **Related:** `ArtifactCore/src/Media/ImageSequenceSource.cpp::ImageSequenceSource::setFrameRate`, `tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::InvalidFrameRatesDoNotReplaceTheLastValidRequestedRate`.
+- **Confirmed:** The planned test inventory calls for negative/NaN rejection without changing the current FPS. The current setter maps nonpositive and NaN values to 24, while positive infinity passes its `fps > 0` check and becomes the stored rate.
+- **Added check:** Set a valid 48 FPS value, then submit negative, NaN, positive-infinity, and negative-infinity values; require the last valid value to remain 48.
+- **Value or concern:** Makes invalid floating-point state transitions observable. Based on source inspection the current implementation appears inconsistent with this contract; the test is intentionally a regression detector and has not been run. Setter behavior may require a later implementation fix.
+- **Next:** Run `ImageSequenceSourceContractTest.InvalidFrameRatesDoNotReplaceTheLastValidRequestedRate` when test execution is authorized, then address any confirmed mismatch under user authorization.
+
+## 2026-11-08: Explicit ImageSequence FPS survives file reopen
+- **Related:** `ArtifactCore/src/Media/ImageSequenceSource.cpp::ImageSequenceSource::open/close`, `tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::ExplicitFrameRateSurvivesSingleFileOpenCloseAndReopen`.
+- **Confirmed:** Explicit FPS is stored separately from the active rate and restored by `open` and `close`. Existing coverage verifies explicit missing-frame paths across `openFramePaths`/close/reopen but not the single-file `open` path.
+- **Added check:** Set 48 FPS, open a single image, close and reopen it; assert the active rate and metadata retain 48 throughout.
+- **Value or concern:** Protects user-selected timing across single-source lifecycle transitions. Test not run.
+- **Next:** Run `ImageSequenceSourceContractTest.ExplicitFrameRateSurvivesSingleFileOpenCloseAndReopen` when test execution is authorized.
+
+## 2026-11-08: Animated GIF delay and subframe coverage
+- **Related:** `ArtifactCore/src/Media/ImageSequenceSource.cpp::ImageSequenceSource::open/readSequenceFrame`, `tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::AnimatedGifUsesAverageFrameDelayAndExposesEverySubframe`.
+- **Confirmed:** GIF opening expands animated subframes and computes a source FPS from all frame delays. Existing ImageSequence tests cover numbered files, directories, cache, and sparse timing but no animated GIF.
+- **Added check:** Embed a 3-frame GIF with 100/200/300 ms delays; verify it is reported as a 3-frame sequence at 5 FPS and yields red/green/blue pixels in order. The case skips if Qt's GIF image plugin is unavailable.
+- **Value or concern:** Exercises animation metadata and decoded subframe mapping together. Pillow inspection confirmed the fixture's frame count, delays, and colors; Qt test behavior is unverified because tests are not run.
+- **Next:** Run `ImageSequenceSourceContractTest.AnimatedGifUsesAverageFrameDelayAndExposesEverySubframe` on a Qt installation with the GIF plugin when test execution is authorized.
+
+## 2026-11-08: Pointwise Fusion shared DAG output selection
+- **Related:** `tests/ArtifactCore/PointwiseFusionGraphContractTest.cpp::PreservesSharedOperandsAndExplicitEarlierOutputInCombinedGraph`.
+- **Confirmed:** Existing Pointwise Fusion contract tests cover typed emission and explicit output separately, but do not combine shared operands, dependent operations, and an output selected before the graph's final insertion.
+- **Added check:** Build a Lerp-based fan-out DAG, append a later operation, select the earlier Lerp result, and assert operation count, validity, HLSL reference order, and function return target.
+- **Value or concern:** Covers graph reuse and explicit output selection in one compact contract case. Test not run.
+- **Next:** Run `ArtifactCorePointwiseFusionGraphContractTest` when test execution is authorized.
+
+## 2026-11-08: Cyclic schema migration path coverage
+- **Related:** `tests/ArtifactCore/SerializationEnvelopeContractTest.cpp::MigrationPathSearchHandlesCyclesWithoutRepeatingTransforms`.
+- **Confirmed:** Existing migration tests cover unreachable paths, shortest-path selection, and reentrant registration, but not a reachable target in a graph that also contains a cycle.
+- **Added check:** Query and execute a 0→1→2 migration while the graph also contains 1→0; verify path discovery is side-effect free and execution applies each selected transform exactly once.
+- **Value or concern:** Guards migration graph traversal against revisiting versions while retaining a valid route. Test not run.
+- **Next:** Run `SerializationEnvelopeContractTest.MigrationPathSearchHandlesCyclesWithoutRepeatingTransforms` when test execution is authorized.
+
+## 2026-11-08: Local socket partial payload recovery
+- **Related:** `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::LocalSocketRetainsPartialPayloadAndFollowingFrameAcrossReceiveTimeout`.
+- **Confirmed:** Existing local socket tests exercise a fragmented length prefix, coalesced frames, and oversized-frame discard, but not timeout and continuation after a complete prefix with only part of its payload available.
+- **Added check:** Send a complete length prefix and partial payload, require a timeout with no delivery, then send the remainder plus another full frame and verify both messages and an empty pending buffer.
+- **Value or concern:** Covers stream framing state across receive calls and verifies the next frame remains aligned. Test not run.
+- **Next:** Run `IPCChannelContractTest.LocalSocketRetainsPartialPayloadAndFollowingFrameAcrossReceiveTimeout` when test execution is authorized.
+
+## 2026-11-08: Split store late-failure atomicity in both formats
+- **Related:** `tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::FailedLateUnsafeChildDoesNotPartiallyReplaceExistingStore`.
+- **Confirmed:** The late unsafe-child rollback case previously exercised JSON only, while split-store save/load has separate JSON and CBOR manifests and child files.
+- **Added check:** Run the same valid-store → late unsafe child rejection → reload-last-good assertions for JSON and CBOR with independent store paths.
+- **Value or concern:** Extends the atomic replacement invariant across both serialization encodings. Test not run.
+- **Next:** Run `SplitDocumentStoreContractTest.FailedLateUnsafeChildDoesNotPartiallyReplaceExistingStore` when test execution is authorized.
+
+## 2026-11-08: Fractional image sequence frame-rate mapping
+- **Related:** `tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting`.
+- **Confirmed:** Existing source/timeline conversion coverage uses integer frame rates; it does not cover the common 24000/1001 to 30000/1001 rate conversion over consecutive frame boundaries.
+- **Added check:** Map timeline frames 0 through 12 at 30000/1001 FPS into a ten-frame 24000/1001 sequence and assert each expected prior-frame index and verify the decoded frame has the matching unique pixel color.
+- **Value or concern:** Detects rounding drift and off-by-one transitions across both index calculation and decoded frame selection. Test not run.
+- **Next:** Run `ImageSequenceSourceContractTest.ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting` when test execution is authorized.
+
+## 2026-11-08: Sequence playback scaled-delta overflow
+- **Related:** `tests/ArtifactCore/SequenceGroupContractTest.cpp::FiniteAdvanceWhosePlaybackScaledDeltaOverflowsAtBothPlaybackBoundaries`.
+- **Confirmed:** SequencePlayer tests cover non-finite deltas and duration derivation overflow, but not a finite maximum delta whose multiplication by playback rate overflows during active playback.
+- **Added check:** Advance forward and reverse players by `double::max()` at the configured 2x rate; require finite positions clamped to their respective completion boundaries.
+- **Value or concern:** Protects playback state from derived non-finite arithmetic at both ends of the timeline. Test not run.
+- **Next:** Run `SequenceGroupContractTest.FiniteAdvanceWhosePlaybackScaledDeltaOverflowsAtBothPlaybackBoundaries` when test execution is authorized.
+
+## 2026-11-08: Concurrent weak-lock lifetime boundary
+- **Related:** `tests/ArtifactCore/SharedPtrContractTest.cpp::ConcurrentWeakLocksRemainValidUntilLastOwnerAndThenExpire`.
+- **Confirmed:** Existing SharedPtr tests cover weak lock and expiration sequentially, but not simultaneous locks while the final strong owner is released.
+- **Added check:** Four workers repeatedly lock one weak pointer while the owner is reset; require all observed values to remain valid, the custom deleter to run exactly once, and the weak pointer to expire afterward.
+- **Value or concern:** Exercises control-block synchronization and lifetime transition under contention. The initial successful lock wait is bounded; test not run.
+- **Next:** Run `SharedPtrContractTest.ConcurrentWeakLocksRemainValidUntilLastOwnerAndThenExpire` when test execution is authorized.
+
+## 2026-11-08: Property link snapshot under callback clear
+- **Related:** `tests/ArtifactCore/PropertyLinkManagerContractTest.cpp::FanOutUsesStableLinkSnapshotWhenMapperClearsTheManager`.
+- **Confirmed:** Existing fan-out coverage verifies that adding a link from a mapper affects only the next update pass. It does not cover clearing all registrations from inside a mapper.
+- **Added check:** Clear the manager during the first custom mapping; require remaining links in the current snapshot to update, the registration list to become empty, and subsequent passes to leave prior targets unchanged.
+- **Value or concern:** Exercises reentrant structural mutation and update-pass snapshot consistency. Test not run.
+- **Next:** Run `PropertyLinkManagerContractTest.FanOutUsesStableLinkSnapshotWhenMapperClearsTheManager` when test execution is authorized.
+
+## 2026-11-08: Concurrent diagnostic recording with bounded history
+- **Related:** `tests/ArtifactCore/DiagnosticRecorderStandaloneTest.cpp::ConcurrentProducersKeepTheBoundedHistoryAsAContiguousSequenceWindow`.
+- **Confirmed:** Existing recorder tests cover bounded eviction and event sequence ordering separately, but not concurrent producers crossing the retention limit.
+- **Added check:** Four synchronized producers record 2,000 events into a 128-event history; verify the newest retained sequence window is contiguous and every retained event has producer metadata.
+- **Value or concern:** Checks sequence allocation, concurrent insertion, and eviction consistency as one invariant. Test not run.
+- **Next:** Run `DiagnosticRecorderStandaloneTest.ConcurrentProducersKeepTheBoundedHistoryAsAContiguousSequenceWindow` when test execution is authorized.
+
+## 2026-11-08: Asset database symlink aliases during JSON restore
+- **Related:** `tests/ArtifactCore/AssetDatabaseContractTest.cpp::JsonLoadMergesSymlinkParentAndCanonicalPathAliasesByFirstIdentity`.
+- **Confirmed:** JSON restoration tests cover lexical canonical aliases, while symlink canonicalization is covered separately during relink. The combined restore path is not covered.
+- **Added check:** Restore two records whose paths differ only through a directory symlink; require the first UUID to own the canonical record, both paths to resolve to it, and the duplicate UUID to remain absent.
+- **Value or concern:** Exercises canonical path deduplication and identity index consistency during deserialization. Skips where directory symlinks are unavailable; test not run.
+- **Next:** Run `AssetDatabaseContractTest.JsonLoadMergesSymlinkParentAndCanonicalPathAliasesByFirstIdentity` on a platform with directory symlink support when test execution is authorized.
+
+## 2026-11-08: Diagnostic drain under concurrent recording
+- **Related:** `tests/ArtifactCore/DiagnosticRecorderStandaloneTest.cpp::ConcurrentDrainAndRecordingDeliverEveryEventExactlyOnce`.
+- **Confirmed:** Recorder coverage now checks producer concurrency with bounded eviction, and drain behavior in isolation, but not the concurrent destructive-read boundary.
+- **Added check:** Four producers record 1,600 events while the test thread repeatedly drains batches; require all sequence numbers to be contiguous, all events to be recovered exactly once, and the recorder to end empty.
+- **Value or concern:** Exercises synchronization between concurrent append and drain without relying on timing-specific batch sizes. Test not run.
+- **Next:** Run `DiagnosticRecorderStandaloneTest.ConcurrentDrainAndRecordingDeliverEveryEventExactlyOnce` when test execution is authorized.
+
+## 2026-11-08: Session ledger recovery filtering after persistence
+- **Related:** `tests/ArtifactCore/SessionLedgerStandaloneTest.cpp::RecoverableEntriesRetainTheirFilteringAndOrderAfterFileRoundTrip`.
+- **Confirmed:** SessionLedger tests cover recoverable filtering and file round-trip separately; the round-trip case does not query the filtered recovery view afterward.
+- **Added check:** Persist mixed project-open, crash, render-failure, recoverable recovery-entry, and recovery-point records; after reload require only the recoverable entry kinds in insertion order and preserve checkpoint metadata.
+- **Value or concern:** Checks derived recovery behavior across serialization, including exclusion of nonrecoverable events. Test not run.
+- **Next:** Run `SessionLedgerStandaloneTest.RecoverableEntriesRetainTheirFilteringAndOrderAfterFileRoundTrip` when test execution is authorized.
+
+## 2026-11-08: Result failure diagnostic context propagation
+- **Related:** `tests/ArtifactCore/ResultContractTest.cpp::TransformAndThenShortCircuitFailuresWithoutLosingDiagnosticContext`.
+- **Confirmed:** Existing transform and andThen failure tests assert that the error code survives, while context-field preservation is covered only during direct failure construction.
+- **Added check:** Send one contextual failure through both combinators; assert the mapper callbacks remain uncalled and code, message, operation, object ID, source location, and trace ID are unchanged.
+- **Value or concern:** Protects diagnostic fidelity through compositional error paths. Test not run.
+- **Next:** Run `ResultContractTest.TransformAndThenShortCircuitFailuresWithoutLosingDiagnosticContext` when test execution is authorized.
+
+## 2026-11-08: ArtifactArray mixed mutation model sequence
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::MixedDeterministicMutationsMatchIndependentVectorModel`.
+- **Confirmed:** Array coverage has targeted mutation, aliasing, capacity, and lifetime tests, but no single deterministic sequence cross-checking interactions among these state changes against an independent model.
+- **Added check:** Apply 1,600 seeded append/prepend/insert/remove/take/replace/removeOne/reserve/squeeze operations and compare size and full contents with `std::vector` after every step.
+- **Value or concern:** Detects cumulative ordering or storage-state regressions that isolated examples can miss. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.MixedDeterministicMutationsMatchIndependentVectorModel` when test execution is authorized.
+
+## 2026-11-08: ArtifactArray aliased insert during reallocation
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap`.
+- **Confirmed:** Existing aliased insert coverage reserves spare capacity before shifting; append aliasing is covered across reallocation, but insert does not combine both conditions.
+- **Added check:** Insert a reference to the final element into a full array at an earlier index; verify the original value is captured correctly through both growth and element shifting.
+- **Value or concern:** Covers a lifetime and aliasing boundary that isolated append/insert cases do not exercise. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap` when test execution is authorized.
+
+## 2026-11-08: ArtifactSet collision-chain growth and reuse cycles
+- **Related:** `tests/ArtifactCore/ArtifactSetContractTest.cpp::CollisionChainsSurviveRepeatedGrowthRemovalAndReuse`.
+- **Confirmed:** Existing tests cover a fixed collision chain and a separate deterministic operation sequence with ordinary hashing; they do not repeatedly combine a constant-hash chain, growth, selective removal, complete clearing, and reuse against a membership model.
+- **Added check:** Across 24 cycles, add 96 values under one hash, remove alternating values, compare lookups and size with `std::unordered_set`, and periodically remove the remainder before reuse.
+- **Value or concern:** Exercises repeated chain unlinking and rebuilding through the same heavily colliding buckets. Test not run.
+- **Next:** Run `ArtifactSetContractTest.CollisionChainsSurviveRepeatedGrowthRemovalAndReuse` when test execution is authorized.
+
+## 2026-11-08: ArtifactString mixed byte mutation model sequence
+- **Related:** `tests/ArtifactCore/ArtifactStringContractTest.cpp::DeterministicMixedMutationsMatchByteStringModel`.
+- **Confirmed:** String tests cover explicit embedded-NUL behavior and individual append, replace, clear, and copy cases, but no deterministic sequence cross-checks their cumulative interactions against a byte-string model.
+- **Added check:** Apply 2,400 seeded append/replace/clear/copy operations using short payloads that include embedded NUL bytes; compare length, full bytes, and trailing terminator after each operation.
+- **Value or concern:** Exercises byte length and null termination while repeated changes cross the inline/heap storage boundary. Test not run.
+- **Next:** Run `ArtifactStringContractTest.DeterministicMixedMutationsMatchByteStringModel` when test execution is authorized.
+
+## 2026-11-08: ActionManager reentrant execution ordering
+- **Related:** `tests/ArtifactCore/ActionManagerContractTest.cpp::CallbackCanReenterExecutionAndEventsRemainPostOrder`.
+- **Confirmed:** Existing ActionManager coverage checks parameter overrides, confirmation rejection, and unregister during an executed-event callback; it does not cover a callback synchronously executing the same action again.
+- **Added check:** Trigger a guarded nested execution and verify confirmation and callback invocation for both parameter sets, plus post-order publication of the nested and outer executed events.
+- **Value or concern:** Covers synchronous reentrancy across confirmation, user callback, and EventBus publication. Test not run.
+- **Next:** Run `ActionManagerContractTest.CallbackCanReenterExecutionAndEventsRemainPostOrder` when test execution is authorized.
+
+## 2026-11-08: KeyMap dual-index rebind transaction sequence
+- **Related:** `tests/ArtifactCore/KeyMapContractTest.cpp::RebindConflictsKeepBothIndexesConsistentAcrossJsonRoundTrip`.
+- **Confirmed:** Existing tests isolate chord conflict rejection, same-action rebind, and JSON restoration; they do not exercise those operations as a sequence while checking both chord and action lookup indexes.
+- **Added check:** Create a conflict, successfully rebind an action to free its former chord, claim that chord with another action, reject a second conflicting rebind, and round-trip the resulting map through JSON while checking both lookup indexes.
+- **Value or concern:** Protects the coupled index state against partial updates through successful and rejected mutations and serialization. Test not run.
+- **Next:** Run `KeyMapContractTest.RebindConflictsKeepBothIndexesConsistentAcrossJsonRoundTrip` when test execution is authorized.
+
+## 2026-11-08: AudioCompressor sidechain block partition invariance
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::SidechainProcessingInIrregularBlocksMatchesContinuousRun`.
+- **Confirmed:** Compressor tests compare continuous processing with irregular blocks for the program detector, and separately test sidechain detector behavior, but do not combine sidechain detection with block-partition equivalence.
+- **Added check:** Process the same 16-frame program and sidechain signals continuously and across irregular block boundaries; compare every output sample and final gain reduction.
+- **Value or concern:** Detects sidechain envelope or alignment state that changes at process-call boundaries. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.SidechainProcessingInIrregularBlocksMatchesContinuousRun` when test execution is authorized.
+
+## 2026-11-08: AudioChorus stereo irregular block invariance
+- **Related:** `tests/ArtifactCore/AudioChorusStandaloneTest.cpp::StereoLfoAndDelayHistorySurviveIrregularBlockBoundaries`.
+- **Confirmed:** Existing Chorus tests cover LFO continuity across fixed-width mono blocks and independent stereo histories separately, but not their interaction across irregular boundaries with feedback enabled.
+- **Added check:** Compare both channels from one 127-frame stereo processing call against seven irregular blocks using identical LFO, delay, depth, and feedback settings.
+- **Value or concern:** Exercises phase and per-channel delay/feedback state across varying block boundaries. Test not run.
+- **Next:** Run `AudioChorusStandaloneTest.StereoLfoAndDelayHistorySurviveIrregularBlockBoundaries` when test execution is authorized.
+
+## 2026-11-08: Cascaded audio filter block partition invariance
+- **Related:** `tests/ArtifactCore/AudioHighLowPassStandaloneTest.cpp::CascadedFiltersMatchAcrossIrregularBlockBoundaries`.
+- **Confirmed:** Existing tests check low-pass state across blocks and verify high-pass then low-pass composition in a single segment; they do not compare the cascade's two internal histories across irregular blocks.
+- **Added check:** Compare a 97-sample impulse/tone/transient signal processed continuously and in irregular blocks with both filters enabled; assert every output sample matches.
+- **Value or concern:** Covers state continuity at both stages of the cascade and at boundaries adjacent to transients. Test not run.
+- **Next:** Run `AudioHighLowPassStandaloneTest.CascadedFiltersMatchAcrossIrregularBlockBoundaries` when test execution is authorized.
+
+## 2026-11-08: AudioExpander stereo block and channel state interaction
+- **Related:** `tests/ArtifactCore/AudioExpanderStandaloneTest.cpp::StereoChannelsRemainIndependentAcrossIrregularBlocks`.
+- **Confirmed:** Existing tests verify mono envelope continuity across blocks and stereo channel independence in separate cases; they do not combine irregular block boundaries with independent per-channel reference runs.
+- **Added check:** Process distinct 73-frame stereo envelopes continuously and across seven irregular blocks, then compare each channel both ways and against an independently processed mono reference.
+- **Value or concern:** Detects block-boundary state resets and cross-channel envelope coupling in the same run. Test not run.
+- **Next:** Run `AudioExpanderStandaloneTest.StereoChannelsRemainIndependentAcrossIrregularBlocks` when test execution is authorized.
+
+## 2026-11-08: SimpleWav multichannel frame truncation
+- **Related:** `tests/ArtifactCore/AudioSimpleWavStandaloneTest.cpp::MaxFramesTruncatesSixChannelPcmOnlyAtFrameBoundaries`.
+- **Confirmed:** Max-frame truncation is tested with interleaved stereo PCM, but not with a channel count above two where a partial-frame cutoff would discard or misalign more samples.
+- **Added check:** Load three frames of six-channel 16-bit PCM with a two-frame limit; verify all twelve retained samples preserve interleaved order and normalization.
+- **Value or concern:** Covers frame-size arithmetic and multichannel sample alignment at the truncation boundary. Test not run.
+- **Next:** Run `AudioSimpleWavStandaloneTest.MaxFramesTruncatesSixChannelPcmOnlyAtFrameBoundaries` when test execution is authorized.
+
+## 2026-11-08: Condition wakeOne waiter cardinality
+- **Related:** `tests/ArtifactCore/ArtifactThreadContractTest.cpp::WakeOneReleasesOnlyOneWaiterBeforeWakeAll`.
+- **Confirmed:** Condition coverage verifies a stored notification consumed by a later waiter, predicate rechecking, and wakeAll release, but does not assert how many of several predicate waiters one wakeOne releases.
+- **Added check:** Gate three threads on one mutex-protected permit, issue wakeOne and assert exactly one has returned, then set shutdown and use wakeAll to release and join the remainder.
+- **Value or concern:** Checks waiter cardinality and cleanup under a synchronized multi-threaded condition-variable transition. Test not run.
+- **Next:** Run `ArtifactThreadContractTest.WakeOneReleasesOnlyOneWaiterBeforeWakeAll` when test execution is authorized.
+
+## 2026-11-08: AudioCache capacity shrink trim and accounting
+- **Related:** `tests/ArtifactCore/AudioCacheStandaloneTest.cpp::ShrinkingCapacityKeepsMostRecentlyUsedFramesAndMemoryCount`.
+- **Confirmed:** Existing cache tests cover capacity during insertion and LRU victim selection, but do not reduce the configured capacity after the cache is already populated.
+- **Added check:** Establish a known access order across four entries, shrink capacity to two, and assert the two most-recent frames remain with memory usage matching their payloads.
+- **Value or concern:** Covers capacity reconfiguration, LRU cleanup, and byte accounting in one state transition. Test not run.
+- **Next:** Run `AudioCacheStandaloneTest.ShrinkingCapacityKeepsMostRecentlyUsedFramesAndMemoryCount` when test execution is authorized.
+
+## 2026-11-08: AssetDatabase dual-index mutation and reload sequence
+- **Related:** `tests/ArtifactCore/AssetDatabaseContractTest.cpp::RelinkUnregisterAndReloadKeepBothIndexesCoherent`.
+- **Confirmed:** AssetDatabase tests cover relink collision atomicity, JSON round-trip, and unregister/path reuse separately; they do not combine these transitions while checking both lookup directions.
+- **Added check:** Start from an isolated database, reject a colliding relink, move an asset, round-trip the database through JSON, unregister a second asset, then reuse a new path and verify UUID lookups, path lookups, types, names, and final count.
+- **Value or concern:** Checks stale path-index cleanup and identity metadata consistency across successful, rejected, and restored state changes. Test not run.
+- **Next:** Run `AssetDatabaseContractTest.RelinkUnregisterAndReloadKeepBothIndexesCoherent` when test execution is authorized.
+
+## 2026-11-08: Stopwatch mixed transition invariant sequence
+- **Related:** `tests/ArtifactCore/ArtifactChronoContractTest.cpp::MixedStopwatchTransitionsPreserveStateInvariants`.
+- **Confirmed:** Stopwatch tests cover start, stop, reset, and restart independently plus two start/stop cycles, but do not compose repeated mixed transitions in one state sequence.
+- **Added check:** Apply a fixed 24-operation start/stop/reset/restart sequence and verify expected running state, nonnegative elapsed duration, start monotonicity, and exact elapsed freeze on stop after every operation.
+- **Value or concern:** Detects accumulated-state leakage or transition-order regressions across repeated lifecycle changes. Test not run.
+- **Next:** Run `ArtifactChronoContractTest.MixedStopwatchTransitionsPreserveStateInvariants` when test execution is authorized.
+
+## 2026-11-08: ArtifactFunctionRef convertible return and borrowed state
+- **Related:** `tests/ArtifactCore/ArtifactFunctionRefTest.cpp::ConvertsReturnValueFromBorrowedCallableAndKeepsItsState`.
+- **Confirmed:** ArtifactFunctionRef coverage previously contained one same-signature borrowed call; the planned test inventory also identified callable return conversion as unverified.
+- **Added check:** Borrow a stateful callable returning `int` through an `ArtifactFunctionRef<double()>`, verify converted successive results and that invocation updates the original callable's captured state.
+- **Value or concern:** Covers callable result convertibility together with non-owning state forwarding. Test not run.
+- **Next:** Run `ArtifactFunctionRefTest.ConvertsReturnValueFromBorrowedCallableAndKeepsItsState` when test execution is authorized.
+
+## 2026-11-09: DataTable maximum finite numeric text
+- **Related:** `tests/ArtifactCore/DataTableStandaloneTest.cpp::FloatGetterAcceptsLargestFiniteNumericText`.
+- **Confirmed:** Float getter tests cover ordinary exponent notation and overflow text fallback, but do not pin conversion at the largest finite `double` boundary.
+- **Added check:** Parse the standard decimal representation of `std::numeric_limits<double>::max()` through CSV and verify `getFloat()` returns that exact finite value.
+- **Value or concern:** Distinguishes valid upper-bound conversion from range-error fallback and infinity. Test not run.
+- **Next:** Run `DataTableStandaloneTest.FloatGetterAcceptsLargestFiniteNumericText` when test execution is authorized.
+
+## 2026-11-09: AudioAnalyzer opposite maximum stereo samples
+- **Related:** `tests/ArtifactCore/AudioAnalyzerStandaloneTest.cpp::OppositeMaximumFiniteStereoSamplesKeepMetricsFinite`.
+- **Confirmed:** Analyzer coverage exercises maximum finite samples in mono and ordinary multi-channel inputs, but does not combine opposite maximum values across stereo channels.
+- **Added check:** Analyze two stereo frames whose channels contain opposite maximum finite float values; assert RMS and peak stay at the maximum and every FFT magnitude remains finite.
+- **Value or concern:** Stresses accumulation across frames/channels and FFT cancellation at the finite-input limit. Test not run.
+- **Next:** Run `AudioAnalyzerStandaloneTest.OppositeMaximumFiniteStereoSamplesKeepMetricsFinite` when test execution is authorized.
+
+## 2026-11-09: AudioSpectrum short-term metric at int64 frame boundary
+- **Related:** `tests/ArtifactCore/AudioSpectrumStandaloneTest.cpp::IntegratedWindowContinuesAcrossInt64FrameBoundary`.
+- **Confirmed:** The existing regression feeds contiguous segments across `qint64` maximum and asserts the integrated loudness, while the separate short-term window metric is not checked at that boundary.
+- **Added check:** Assert short-term loudness equals the independently computed mean-square level after the same cross-boundary segment sequence.
+- **Value or concern:** Extends overflow/continuity coverage to the second window accumulator without adding time-dependent behavior. Test not run.
+- **Next:** Run `AudioSpectrumStandaloneTest.IntegratedWindowContinuesAcrossInt64FrameBoundary` when test execution is authorized.
+
+## 2026-11-09: SmallVector mixed move-only mutations
+- **Related:** `tests/ArtifactCore/SmallVectorStandaloneTest.cpp::MoveOnlyElementsSurviveMixedGrowthInsertRemovalAndTakeAt`.
+- **Confirmed:** SmallVector tests exercise move-only elements through growth, insert, and takeAt, and separately test adjacent removeIf matches with copyable integers; they do not combine compaction with move-only ownership.
+- **Added check:** Grow a move-only vector, insert an interior value, remove adjacent matches by predicate, then grow/insert again and take an interior element while checking exact surviving ownership and order.
+- **Value or concern:** Exercises move assignment and destruction across reallocation and compaction transitions. Test not run.
+- **Next:** Run `SmallVectorStandaloneTest.MoveOnlyElementsSurviveMixedGrowthInsertRemovalAndTakeAt` when test execution is authorized.
+
+## 2026-11-09: Integer property modulation negative rounding and bounds
+- **Related:** `tests/ArtifactCore/AbstractPropertyModulationTest.cpp::RoundsNegativeModulationAndClampsIntegerBounds`.
+- **Confirmed:** Integer modulation coverage checks one positive fractional result; it does not exercise negative rounding or integer min/max clipping after modulation.
+- **Added check:** Evaluate negative fractional modulation plus values beyond both configured bounds through the same router/property path, and assert rounded and clamped integer outputs.
+- **Value or concern:** Covers sign-sensitive rounding and post-modulation range enforcement at the integer conversion boundary. Test not run.
+- **Next:** Run `AbstractPropertyModulationTest.RoundsNegativeModulationAndClampsIntegerBounds` when test execution is authorized.
+
+## 2026-11-09: ImageYUV420 non-contiguous plane strides
+- **Related:** `tests/ArtifactCore/ImageYUV420ContractTest.cpp::FromPlanesRespectsNonContiguousInputRowStrides`.
+- **Confirmed:** Plane conversion checks odd-sized chroma geometry and normalized float conversion using contiguous matrices, but does not exercise OpenCV ROI planes whose row step exceeds their visible width.
+- **Added check:** Convert 3x3 luma and 2x2 chroma ROI views backed by wider matrices, with distinct values at each row and column; verify output dimensions and samples spanning all rows.
+- **Value or concern:** Detects accidental flat-buffer assumptions that skip OpenCV row stride or read neighboring padding. Test not run.
+- **Next:** Run `ImageYUV420ContractTest.FromPlanesRespectsNonContiguousInputRowStrides` when test execution is authorized.
+
+## 2026-11-09: BGRA readback with multi-pixel padded rows
+- **Related:** `tests/ArtifactCore/PixelChannelOrderStandaloneTest.cpp::GpuBgraReadbackHandlesMultiplePixelsAndPaddedRows`.
+- **Confirmed:** BGRA readback coverage uses one pixel per row with padding; the multi-pixel padded-row case exists only for RGBA input.
+- **Added check:** Read a 2x2 BGRA buffer with two padding floats after each row, then verify all canonical backing values and selected logical pixel channels from both rows.
+- **Value or concern:** Exercises horizontal pixel stepping, row stride, and BGRA-to-logical-RGBA access together. Test not run.
+- **Next:** Run `PixelChannelOrderStandaloneTest.GpuBgraReadbackHandlesMultiplePixelsAndPaddedRows` when test execution is authorized.
+
+## 2026-11-09: ColorCurves multi-pixel alpha and ordering
+- **Related:** `tests/ArtifactCore/ColorCurvesContractTest.cpp::MultiPixelApplyPreservesAlphaAndPixelOrder`.
+- **Confirmed:** ColorCurves verifies alpha preservation and channel modes for one pixel, but does not check that a multi-pixel image keeps pixel positions and distinct alpha values while applying a channel curve.
+- **Added check:** Apply an inverted red curve to a 2x2 RGBA image with different RGB/alpha values, including fully transparent and fully opaque pixels, and assert every resulting pixel.
+- **Value or concern:** Covers per-pixel traversal, selected-channel transformation, alpha invariance, and transparent-pixel handling together. Test not run.
+- **Next:** Run `ColorCurvesContractTest.MultiPixelApplyPreservesAlphaAndPixelOrder` when test execution is authorized.
+
+## 2026-11-09: OpenEXR invalid overwrite preservation
+- **Related:** `tests/ArtifactCore/OpenExrStandalone/OpenExrRoundTripTest.cpp::InvalidOverwritePreservesExistingImage`.
+- **Confirmed:** OpenEXR tests reject null, invalid-dimension, and non-finite writes, and separately cover a valid round trip; they do not check whether a rejected write leaves an existing destination intact.
+- **Added check:** Write a valid two-pixel image, attempt to overwrite the same path with an infinite sample, then reload and compare the original dimensions and all pixel components.
+- **Value or concern:** Verifies data preservation across validation failure at a persistent-file boundary. Test not run; overwrite atomicity is being asserted as a safety contract.
+- **Next:** Run `OpenExrRoundTripTest.InvalidOverwritePreservesExistingImage` when test execution is authorized.
+
+## 2026-11-09: Surround 7.1 to mono downmix
+- **Related:** `tests/ArtifactCore/AudioDownMixerStandaloneTest.cpp::Surround71ToMonoAveragesEveryChannel`.
+- **Confirmed:** Mono downmix coverage verifies stereo and 5.1 inputs, but does not assert that 7.1 rear channels contribute to the mono result.
+- **Added check:** Downmix two frames with distinct, increasing values in all eight 7.1 channels; verify the all-channel average and preservation of sample rate and start frame.
+- **Value or concern:** Detects omitted or misordered rear channels in the wider surround-to-mono path. Test not run.
+- **Next:** Run `AudioDownMixerStandaloneTest.Surround71ToMonoAveragesEveryChannel` when test execution is authorized.
+
+## 2026-11-09: AudioCompressor stereo sidechain channel detection
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::StereoSidechainUsesLoudestChannelForDetection`.
+- **Confirmed:** External sidechain tests use mono sidechain data; stereo program linking is covered separately, but sidechain channel aggregation is not.
+- **Added check:** Put the loud detector signal only in the second channel of a stereo sidechain and compare program output and gain reduction with an equivalent mono loud-sidechain run.
+- **Value or concern:** Detects ignoring non-first sidechain channels or applying different detector gain based on sidechain layout. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.StereoSidechainUsesLoudestChannelForDetection` when test execution is authorized.
+
+## 2026-11-09: AudioCompressor stereo sidechain block continuity
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::StereoSidechainInIrregularBlocksMatchesContinuousMonoReference`.
+- **Confirmed:** Irregular-block continuity is tested with a mono external sidechain, while stereo sidechain aggregation is checked only for a single sample.
+- **Added check:** Keep the detector signal exclusively in stereo sidechain channel two, split program and sidechain into irregular blocks including one-frame blocks, and compare every output sample and final gain reduction with one continuous mono-sidechain reference.
+- **Value or concern:** Combines channel aggregation with envelope continuity across block boundaries. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.StereoSidechainInIrregularBlocksMatchesContinuousMonoReference` when test execution is authorized.
+
+## 2026-11-09: AudioDownMixer ragged 7.1 to mono input
+- **Related:** `tests/ArtifactCore/AudioDownMixerStandaloneTest.cpp::Surround71ToMonoUsesOnlyFramesPresentInEveryChannel`.
+- **Confirmed:** Ragged channel lengths are covered for same-layout stereo normalization, and 7.1-to-mono averaging is covered with equal channel lengths; their interaction during layout conversion is not tested.
+- **Added check:** Make only the eighth 7.1 channel shorter, convert to mono, and assert the output contains only the shared frame with the average of all eight channels and preserved timing metadata.
+- **Value or concern:** Covers multi-channel frame-bound selection and channel aggregation together, guarding against out-of-range reads or partial-frame output. Test not run.
+- **Next:** Run `AudioDownMixerStandaloneTest.Surround71ToMonoUsesOnlyFramesPresentInEveryChannel` when test execution is authorized.
+
+## 2026-11-09: PathTube zero-radius taper endpoint
+- **Related:** `tests/ArtifactCore/PathTubeTrimTest.cpp::ZeroTaperEndpointCollapsesWithoutNonFiniteVertices`.
+- **Confirmed:** PathTube tests verify nonzero taper radii, trim ring mapping, topology, and ranges, but do not exercise a taper beginning at zero radius.
+- **Added check:** Generate a full-range tube with taper start 0 and end 1; verify the first ring collapses to one centerline point, the next ring has positive radius, and every position and normal component is finite.
+- **Value or concern:** Covers degenerate surface geometry at a taper endpoint while checking neighboring ring integrity. Test not run.
+- **Next:** Run `PathTubeTrimTest.ZeroTaperEndpointCollapsesWithoutNonFiniteVertices` when test execution is authorized.
+
+## 2026-11-09: CpuFrameView undersized stride and final pixel storage
+- **Related:** `tests/ArtifactCore/CpuFrameViewContractTest.cpp::RejectsStrideAndStorageThatCannotAddressLastPixel`.
+- **Confirmed:** CPU frame tests verify padded row reads and reject missing storage, but do not cover a stride shorter than one packed RGBA row or storage ending before the final pixel.
+- **Added check:** Assert invalidity for a 2x2 RGBA frame with a 7-byte stride and for padded rows whose storage stops one byte before the final pixel's end.
+- **Value or concern:** Guards against row overlap and out-of-bounds scanline/pixel access at the frame validity boundary. Test not run.
+- **Next:** Run `CpuFrameViewContractTest.RejectsStrideAndStorageThatCannotAddressLastPixel` when test execution is authorized.
+
+## 2026-11-09: AssetImportSettings field-local JSON fallback
+- **Related:** `tests/ArtifactCore/AssetImportSettingsTest.cpp::InvalidFieldFallsBackWithoutDiscardingValidSettings`.
+- **Confirmed:** Settings tests cover all-malformed JSON fallback and partial valid JSON defaults, but not mixed input where one field has a wrong type and the remaining fields are valid.
+- **Added check:** Supply a string for proxy width alongside valid height, JPEG quality, boolean options, and color space; assert only width falls back while every valid field is retained.
+- **Value or concern:** Detects whole-object fallback behavior that could silently discard otherwise recoverable user settings. Test not run.
+- **Next:** Run `AssetImportSettingsTest.InvalidFieldFallsBackWithoutDiscardingValidSettings` when test execution is authorized.
+
+## 2026-11-09: ResolutionRemap degenerate bounds
+- **Related:** `tests/ArtifactCore/ResolutionRemapStandaloneTest.cpp::DegenerateBoundsRemainDegenerateAfterRemapping`.
+- **Confirmed:** Bounds remapping checks positive and signed extents against transform mapping, but zero-width, zero-height, and point bounds are not covered.
+- **Added check:** Exercise those three degenerate shapes under all five remap policies, compare against the policy transform, and assert zero extents remain zero.
+- **Value or concern:** Guards against normalization or scaling introducing artificial area for line and point geometry. Test not run.
+- **Next:** Run `ArtifactCoreResolutionRemapStandaloneTest.DegenerateBoundsRemainDegenerateAfterRemapping` when test execution is authorized.
+
+## 2026-11-09: SchemaMigration equal-length path alternate registration order
+- **Related:** `tests/ArtifactCore/SchemaMigrationContractTest.cpp::EqualLengthPathsRemainDeterministicWhenLowerVersionIsRegisteredFirst`.
+- **Confirmed:** A tie-break test verifies the lower next-version path, but its registration sequence inserts that path after the higher next-version edge; the opposite registration order is not independently tested.
+- **Added check:** Register the full equal-length graph with the lower-version path first, reversing the existing fixture order, then assert migration selects it and preserves the expected terminal marker.
+- **Value or concern:** Detects iteration-order dependent tie resolution that a single graph construction order could miss. Test not run.
+- **Next:** Run `ArtifactCoreSchemaMigrationContractTest.EqualLengthPathsRemainDeterministicWhenLowerVersionIsRegisteredFirst` when test execution is authorized.
+
+## 2026-11-09: ArtifactHashMap throwing insertion at growth threshold
+- **Related:** `tests/ArtifactCore/ArtifactHashMapContractTest.cpp::ThrowingMappedConstructionDuringGrowthKeepsMapUsable`.
+- **Confirmed:** Rehash boundary and move-only mapped values are tested separately, but an exception from mapped-value construction during the insertion that crosses the load threshold is not covered.
+- **Added check:** Fill a four-bucket map to its 75% boundary, force the fourth mapped construction to throw, verify all prior entries and size remain intact, then retry successfully and verify all values after growth.
+- **Value or concern:** Exercises exception cleanup together with bucket growth and collision-independent lookup integrity. Test not run.
+- **Next:** Run `ArtifactHashMapContractTest.ThrowingMappedConstructionDuringGrowthKeepsMapUsable` when test execution is authorized.
+
+## 2026-11-09: ArtifactArray throwing append at capacity boundary
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry`.
+- **Confirmed:** Array tests cover aliased insertion across growth, non-trivial lifetimes, and deterministic mixed mutations, but not failed element construction while append crosses capacity.
+- **Added check:** Fill to the observed capacity, throw from copying the next value during append, verify size and every prior value remain intact, then retry and verify growth and ordering.
+- **Value or concern:** Checks array recovery after a constructor exception at a reallocation boundary. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry` when test execution is authorized.
+
+## 2026-11-09: CSV auto-detection with quoted CRLF and trailing empty cell
+- **Related:** `tests/ArtifactCore/CsvParserStandaloneTest.cpp::AutoDetectionHandlesQuotedCrlfAndEmptyTrailingCellInHeaderlessRows`.
+- **Confirmed:** Auto-detection, quoted separators/CRLF, headerless parsing, and trailing empty cells each have coverage, but their combined interaction across multiple records is not covered.
+- **Added check:** Parse semicolon-delimited headerless input with a separator inside a quoted cell, embedded CRLF, a blank physical record, and a trailing empty field; verify both complete rows and the three-column shape.
+- **Value or concern:** Detects delimiter-counting or record-boundary state leaking across quoted line breaks and empty terminal cells. Test not run.
+- **Next:** Run `CsvParserStandaloneTest.AutoDetectionHandlesQuotedCrlfAndEmptyTrailingCellInHeaderlessRows` when test execution is authorized.
+
+## 2026-11-09: GI temporal history backward frame seek
+- **Related:** `tests/ArtifactCore/RenderPipelineContractTest.cpp::GITemporalHistoryResetsWhenFrameMovesBackward`.
+- **Confirmed:** Temporal history tests cover sequential frames, a forward frame gap, and an explicit camera cut, but not a backward timeline seek.
+- **Added check:** Commit history across consecutive frames, then begin an earlier frame and assert history is invalidated and the generation advances once.
+- **Value or concern:** Guards against reusing future-frame accumulation after a timeline seek to an earlier frame. Test not run.
+- **Next:** Run `RenderPipelineContractTest.GITemporalHistoryResetsWhenFrameMovesBackward` when test execution is authorized.
+
+## 2026-11-09: CSV source reload replaces delimiter and schema together
+- **Related:** `tests/ArtifactCore/CsvDataSourceStandaloneTest.cpp::ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange`.
+- **Confirmed:** Reload tests cover new rows under the existing one-column schema and clear state on failure, but not a successful transition that changes both delimiter and column count.
+- **Added check:** Reload a two-column comma file as a three-column semicolon file and verify new headers, values, typed getters, removal of the old lookup, row/column metadata, and file size.
+- **Value or concern:** Detects stale header indexes or metadata surviving a successful source replacement. Test not run.
+- **Next:** Run `CsvDataSourceStandaloneTest.ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange` when test execution is authorized.
+
+## 2026-11-09: Split project corrupt child atomicity
+- **Related:** `tests/ArtifactCore/ProjectSerializerContractTest.cpp::SplitFacadePreservesCallerOutputsForCorruptOrMissingChild`.
+- **Confirmed:** Split load tests verify caller outputs remain untouched when a child document is missing, but not when a present child fails to decode.
+- **Added check:** Corrupt one child JSON after a successful split-store round-trip, assert both caller outputs remain unchanged, then repeat after removing that child.
+- **Value or concern:** Covers parse failure and missing-file failure at the same multi-document transaction boundary. Test not run.
+- **Next:** Run `ProjectSerializerContractTest.SplitFacadePreservesCallerOutputsForCorruptOrMissingChild` when test execution is authorized.
+
+## 2026-11-09: TimeCodeRange mixed-rate interval algebra
+- **Related:** `tests/ArtifactCore/TimeCodeRangeContractTest.cpp::IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates`.
+- **Confirmed:** Interval intersection/union tests use equal frame rates; cross-rate membership is tested separately, so endpoint conversion and interval algebra are not exercised together.
+- **Added check:** Intersect and union overlapping 24fps and 30fps intervals, verify durations and half-open boundaries using timecodes in both rates, and compare operand-reversed results.
+- **Value or concern:** Detects comparing raw frame indices instead of elapsed time and catches operand-order-dependent results. Test not run.
+- **Next:** Run `TimeCodeRangeContractTest.IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates` when test execution is authorized.
+
+## 2026-11-09: TimeCodeRange mixed-rate interval algebra
+- **Related:** `tests/ArtifactCore/TimeCodeRangeContractTest.cpp::IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates`.
+- **Confirmed:** Interval intersection/union tests use equal frame rates; cross-rate membership is tested separately, so endpoint conversion and interval algebra are not exercised together.
+- **Added check:** Intersect and union overlapping 24fps and 30fps intervals, verify durations and half-open boundaries using timecodes in both rates, and compare operand-reversed results.
+- **Value or concern:** Detects comparing raw frame indices instead of elapsed time and catches operand-order-dependent results. Test not run.
+- **Next:** Run `TimeCodeRangeContractTest.IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates` when test execution is authorized.
+
+## 2026-11-09: AudioReverb irregular block continuity
+- **Related:** `tests/ArtifactCore/AudioReverbStandaloneTest.cpp::IrregularBlocksPreserveReverbHistoryAcrossImpulseBoundaries`.
+- **Confirmed:** Reverb output is compared across fixed 300-frame blocks, but not across uneven blocks or impulses placed at block boundaries.
+- **Added check:** Compare a whole 1800-frame render against repeating block sizes 1/127/11/257/3/64, with impulses immediately before and after a boundary and a later tail impulse; assert every sample matches.
+- **Value or concern:** Detects delay/history advancement errors caused by irregular callback sizes or block-edge input handling. Test not run.
+- **Next:** Run `AudioReverbStandaloneTest.IrregularBlocksPreserveReverbHistoryAcrossImpulseBoundaries` when test execution is authorized.
+
+## 2026-11-09: WAV odd-sized data chunk before format chunk
+- **Related:** `tests/ArtifactCore/AudioSimpleWavStandaloneTest.cpp::LoadsOddSizedDataChunkBeforeFormatAndHonorsPadding`.
+- **Confirmed:** The WAV suite separately covers data-before-format ordering and padding after an odd-sized unknown chunk, but not an odd-sized data chunk whose padding must be skipped before finding the format chunk.
+- **Added check:** Construct a RIFF file with three unsigned 8-bit mono samples, the required alignment byte, and a following `fmt ` chunk; verify metadata and all normalized samples.
+- **Value or concern:** Detects chunk scanning that treats payload bytes as the next chunk header or forgets data-chunk word alignment. Test not run.
+- **Next:** Run `AudioSimpleWavStandaloneTest.LoadsOddSizedDataChunkBeforeFormatAndHonorsPadding` when test execution is authorized.
+
+## 2026-11-09: ImageAnalyzer intermediate spatial frequency bins
+- **Related:** `tests/ArtifactCore/ImageAnalyzerContractTest.cpp::SpatialFrequencySeparatesConjugateBinsForKnownIntermediateFrequency`.
+- **Confirmed:** Spatial-frequency coverage checks normalized DC, odd-width DC, and a two-dimensional Nyquist checkerboard, but not an intermediate sinusoidal frequency and its conjugate bin pair.
+- **Added check:** Analyze a repeated 4-column cosine sample, assert its normalized DC and two expected conjugate-bin magnitudes, and verify all other 2D bins are zero.
+- **Value or concern:** Detects frequency-axis ordering, normalization, and conjugate-bin errors that DC-only and Nyquist-only patterns can miss. Test not run.
+- **Next:** Run `ImageAnalyzerContractTest.SpatialFrequencySeparatesConjugateBinsForKnownIntermediateFrequency` when test execution is authorized.
+
+## 2026-11-09: Layer bounds combined transform AABB oracle
+- **Related:** `tests/ArtifactCore/LayerBoundsCalculatorStandaloneTest.cpp::CombinedAnchorRotationAndMirroredScaleProduceCornerDerivedAabb`.
+- **Confirmed:** Bounds tests cover anchor, rotation, nonuniform scale, mirrored scale, and AABB independently, but do not derive an AABB from corners produced by all those transform components together.
+- **Added check:** Calculate corners from translated/anchored, rotated, nonuniform mirrored geometry; derive min/max directly from those four points, compare all AABB edges, and verify every corner is contained.
+- **Value or concern:** Detects composition-order or sign errors between transform calculation and AABB aggregation. Test not run.
+- **Next:** Run `LayerBoundsCalculatorStandaloneTest.CombinedAnchorRotationAndMirroredScaleProduceCornerDerivedAabb` when test execution is authorized.
+
+## 2026-11-09: AudioDeEsser irregular detector continuity
+- **Related:** `tests/ArtifactCore/AudioDeEsserStandaloneTest.cpp::DetectorAndFilterStateMatchAcrossIrregularBlockBoundaries`.
+- **Confirmed:** DeEsser tests cover frequency behavior and per-channel state isolation, but not whether detector/filter state produces identical output when one signal is split at uneven callback boundaries.
+- **Added check:** Compare one 4097-frame render with block sizes 1/31/257/7/509/64 while high-frequency amplitude alternates across detector threshold regions over a low-frequency bed.
+- **Value or concern:** Detects block-boundary resets or state advancement errors in both detector and filter paths. Test not run.
+- **Next:** Run `AudioDeEsserStandaloneTest.DetectorAndFilterStateMatchAcrossIrregularBlockBoundaries` when test execution is authorized.
+
+## 2026-11-09: Renderer sequence frame content progression
+- **Related:** `tests/ArtifactRendererCli/test_cli.py::test_diagnostic_render_writes_png_sequence_and_completion_events`.
+- **Confirmed:** The diagnostic sequence test checks sequence filenames, dimensions, and pixels from the first frame, while the renderer draws a frame-dependent card position and labels each frame.
+- **Added check:** Decode the first and third PNGs in a three-frame sequence and require their pixel arrays to differ, proving frame-position-dependent content is rendered even when a one-pixel-wide movement would otherwise be truncated by integer division.
+- **Value or concern:** Detects an output loop that repeats one cached/stale frame despite generating correctly numbered files. Test not run.
+- **Next:** Run `ArtifactRendererCliContractTest` when test execution is authorized.
+
+## 2026-11-09: ArtifactPr stacked alpha and opacity oracle
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::StackedSourceAlphaAndLayerOpacityMatchSourceOverOracle`.
+- **Confirmed:** Sequence compositor coverage checks layer opacity, transparent pixels, and opaque top-layer order separately, but not the accumulated result of multiple partially transparent layers with independent layer opacity.
+- **Added check:** Stack three solid layers with distinct source alpha and layer opacity over an opaque non-black background; compare all output RGBA channels against independently accumulated source-over expectations.
+- **Value or concern:** Detects alpha/opacity multiplication, compositing order, and channel accumulation errors that single-layer and opaque-layer cases can miss. Test not run.
+- **Next:** Run `ArtifactPrContractTest` when test execution is authorized.
+
+## 2026-11-09: EditorEngine extended snap precedence and threshold
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::ExtendedSnappingPrioritizesTransitionsThenHonorsSecondThreshold`.
+- **Confirmed:** Existing tests cover legacy playhead/clip/marker snapping, but the extended API's transition-edge precedence, previous/next second boundaries, caller threshold edge, and disabled path were untested.
+- **Added check:** Place a transition start equidistant from a one-second boundary, then assert transition priority, both second-boundary directions, inclusive/exclusive custom threshold behavior, legacy playhead priority, and snap-disabled bypass.
+- **Value or concern:** Guards ordering and boundary behavior across the extended snap candidate set. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.ExtendedSnappingPrioritizesTransitionsThenHonorsSecondThreshold` when test execution is authorized.
+
+## 2026-11-09: EditorEngine complex project round-trip projection
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::ProjectSaveLoadRoundTripPreservesMultipleTrimmedClipsAndMarkers`.
+- **Confirmed:** The existing save/load case creates a legacy clip but verifies only the NLE JSON snapshot after reload; it does not assert that clips and marker data are reconstructed into the active legacy sequence.
+- **Added check:** Create two NLE-backed clips with distinct source trims and playback speeds (including reverse playback), add a Unicode-named marker, save/reload, and assert both the exact NLE snapshot and the reconstructed active sequence fields.
+- **Value or concern:** Detects persistence gaps between the serialized NLE store and the legacy sequence projection used by UI consumers. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.ProjectSaveLoadRoundTripPreservesMultipleTrimmedClipsAndMarkers` when test execution is authorized.
+
+## 2026-11-09: EditorEngine failed-load state preservation
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RejectedProjectFilesLeaveTheOpenProjectAndPlayheadUntouched`.
+- **Confirmed:** Project persistence coverage exercises successful save/load, but not whether parse errors and a non-object JSON root leave the currently open project intact.
+- **Added check:** Save a nontrivial open project, then try malformed JSON and an array root; after each rejection compare the NLE snapshot, project/sequence identity, playhead, marker, and active save path with their pre-attempt state.
+- **Value or concern:** Detects partial mutation or path retargeting on invalid-file failure paths. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.RejectedProjectFilesLeaveTheOpenProjectAndPlayheadUntouched` when test execution is authorized.
+
+## 2026-11-09: EditorEngine mixed NLE undo/redo branch
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleEditsUndoRedoAcrossSnapshotsAndDiscardTheAbandonedRedoBranch`.
+- **Confirmed:** EditorEngine tests cover NLE snapshot restoration directly but do not exercise the undo stack across clip insertion, marker addition, and clip property changes.
+- **Added check:** Capture exact snapshots across three edits, undo and redo through the full sequence, then create a new marker after undo and verify redo cannot reapply the abandoned branch.
+- **Value or concern:** Detects cross-command history ordering, projection restoration, and stale redo-branch retention. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.NleEditsUndoRedoAcrossSnapshotsAndDiscardTheAbandonedRedoBranch` when test execution is authorized.
+
+## 2026-11-09: EditorEngine render-plan snapshot isolation
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RenderPlanSnapshotStaysFrozenWhileTheLiveProjectContinuesEditing`.
+- **Confirmed:** `createRenderPlan` copies the NLE snapshot for export, but tests do not verify that a plan remains unchanged after later edits to the live editor state.
+- **Added check:** Create a plan, change clip reverse state and add a marker, then compare the unchanged plan snapshot with the updated live snapshot and a newly created plan; also verify the captured frame range stays fixed.
+- **Value or concern:** Detects render/export jobs accidentally observing mutable editor state after dispatch. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.RenderPlanSnapshotStaysFrozenWhileTheLiveProjectContinuesEditing` when test execution is authorized.
+
+## 2026-11-09: EditorEngine NLE split source-range partition
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleSplitPartitionsNonzeroSourceRangeAndUndoRestoresTheWholeClip`.
+- **Confirmed:** EditorEngine tests have no NLE-backed split coverage for nonzero source offsets or for treating left-trim plus right-clip creation as one undoable edit.
+- **Added check:** Split a selected 40-frame clip with source range [17,57) at its 17-frame timeline boundary; assert contiguous left/right source and timeline ranges, then compare full snapshots after undo and redo.
+- **Value or concern:** Detects off-by-offset errors, gaps/overlaps at the split, or partial undo of the two-step operation. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.NleSplitPartitionsNonzeroSourceRangeAndUndoRestoresTheWholeClip` when test execution is authorized.
+
+## 2026-11-09: EditorEngine transition overlap atomicity
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::TransitionOverlapGuardIsAtomicAndTheAcceptedEditIsUndoable`.
+- **Confirmed:** Transition creation has a same-pair interval-overlap guard, but no EditorEngine test verifies duplicate/partial-overlap rejection or its interaction with undo history.
+- **Added check:** Add a crossfade over a cut between two adjacent NLE clips, reject exact and partial duplicates without snapshot changes, then undo/redo the accepted transition.
+- **Value or concern:** Detects duplicate transitions entering project state or rejected edits polluting the undo stack. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.TransitionOverlapGuardIsAtomicAndTheAcceptedEditIsUndoable` when test execution is authorized.
+
+## 2026-11-09: ClipEqualizer decoder-segment continuity
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries`.
+- **Confirmed:** ClipEqualizer response tests process whole signals in one call, while SequenceAudioRenderer depends on filter delay state persisting between decoder segments.
+- **Added check:** Process a three-band composite signal continuously and in a repeating uneven block pattern using separately configured equalizers; compare every output sample exactly.
+- **Value or concern:** Detects filter-state resets or off-by-one state advancement at decoder boundaries. Test not run.
+- **Next:** Run `ArtifactPrContractTest.EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries` when test execution is authorized.
+
+## 2026-11-09: Sequence compositor fractional fit and odd padding
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide`.
+- **Confirmed:** Aspect-fit coverage checks an exactly scaled frame with even padding, but not fractional destination rounding or odd leftover padding.
+- **Added check:** Fit a solid 3x1 frame into 7x7; assert the 1px scaled height rounds to 2px and the five padding rows divide as two before and three after.
+- **Value or concern:** Detects fit rounding and center-offset regressions that even-dimension geometry cannot expose. Test not run.
+- **Next:** Run `ArtifactPrContractTest.AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide` when test execution is authorized.
+
+## 2026-11-09: ClipEffects transparent hidden-RGB blur edge
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels`.
+- **Confirmed:** `applyClipEffects` premultiplies before blur and unpremultiplies afterward, but the ArtifactPr contract tests do not directly verify hidden RGB isolation at a transparency edge.
+- **Added check:** Blur an opaque red pixel adjacent to fully transparent pixels carrying green RGB; assert the partially visible edge stays red and the transparent tail remains zero-alpha/zero-RGB.
+- **Value or concern:** Detects colored halos caused by filtering straight RGB without respecting alpha association. Test not run.
+- **Next:** Run `ArtifactPrContractTest.GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels` when test execution is authorized.

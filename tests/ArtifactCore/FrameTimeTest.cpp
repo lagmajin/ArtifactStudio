@@ -340,6 +340,42 @@ TEST(TimeCodeTest, SixtyNominalDropFrameUsesFourFrameTenMinuteCorrection)
     EXPECT_EQ(parsed.frame(), 35964);
 }
 
+TEST(TimeCodeTest, DropFrameRoundTripsAroundEveryMinuteAndTenMinuteBoundary)
+{
+    struct RateCase {
+        double fps;
+        int nominalFps;
+        int dropCount;
+    };
+    for (const RateCase rate : {RateCase{29.97, 30, 2},
+                                RateCase{59.94, 60, 4}}) {
+        const int framesPerTenMinutes = rate.nominalFps * 600 - rate.dropCount * 9;
+        const int framesPerHour = framesPerTenMinutes * 6;
+        for (int minute = 0; minute <= 120; ++minute) {
+            const int boundaryFrame = rate.nominalFps * 60 * minute -
+                rate.dropCount * (minute - minute / 10);
+            EXPECT_LE(boundaryFrame, framesPerHour * 2);
+            for (int delta = -5; delta <= 5; ++delta) {
+                const int frame = boundaryFrame + delta;
+                if (frame < 0) continue;
+                SCOPED_TRACE(::testing::Message()
+                             << "fps=" << rate.fps << " minute=" << minute
+                             << " frame=" << frame);
+                TimeCode original(frame, rate.fps);
+                original.setDropFrame(true);
+                const QString label = original.toString();
+                ASSERT_TRUE(label.contains(QLatin1Char(';')));
+
+                TimeCode parsed(0, rate.fps);
+                parsed.setDropFrame(true);
+                parsed.setFromQString(label);
+                EXPECT_EQ(parsed.frame(), frame);
+                EXPECT_EQ(parsed.toString(), label);
+            }
+        }
+    }
+}
+
 TEST(TimeCodeTest, NonpositiveFrameRatesUseThirtyFpsFallback)
 {
     for (const double fps : {0.0, -24.0, std::numeric_limits<double>::quiet_NaN()}) {
@@ -507,6 +543,16 @@ TEST(FrameRangeTest, TouchesDoesNotWrapAtInt64Endpoint)
     EXPECT_TRUE(adjacentHigh.touches(FrameRange(maximum, maximum)));
 }
 
+TEST(FrameRangeTest, TimecodeFormattingSaturatesLargeSignedFrameEndpoints)
+{
+    constexpr std::int64_t minimum = std::numeric_limits<std::int64_t>::min();
+    constexpr std::int64_t maximum = std::numeric_limits<std::int64_t>::max();
+    const FrameRange extreme(minimum + 1, maximum);
+
+    EXPECT_EQ(extreme.toTimecode(30.0),
+              QStringLiteral("-19884:06:28:07 - 19884:06:28:07"));
+}
+
 TEST(FrameRangeTest, NonMutatingShiftExpandAndShrinkKeepSourceRange)
 {
     const FrameRange range(10, 20);
@@ -585,6 +631,15 @@ TEST(RationalTimeTest, RescaledToRoundsHalfAwayFromZero)
     EXPECT_EQ(RationalTime(45, 15).rescaledTo(30), 90);
 }
 
+TEST(RationalTimeTest, RescaledToAvoidsIntermediateOverflowNearSignedLimits)
+{
+    constexpr std::int64_t maximum = std::numeric_limits<std::int64_t>::max();
+    constexpr std::int64_t minimum = std::numeric_limits<std::int64_t>::min();
+
+    EXPECT_EQ(RationalTime(maximum, 3).rescaledTo(1), 3074457345618258602LL);
+    EXPECT_EQ(RationalTime(minimum, 3).rescaledTo(1), -3074457345618258603LL);
+}
+
 TEST(RationalTimeTest, NonpositiveScalesUseSafeFallbacks)
 {
     EXPECT_EQ(RationalTime(7, 0).scale(), 1);
@@ -638,6 +693,48 @@ TEST(RationalTimeTest, ComparesEquivalentAndCrossScaleSignedFractions)
 
     EXPECT_EQ(twoThirds - half, RationalTime(1, 6));
     EXPECT_EQ(half - twoThirds, RationalTime(-1, 6));
+}
+
+TEST(RationalTimeTest, SignedCrossScaleArithmeticMatchesLongDoubleOracle)
+{
+    for (std::int64_t leftValue = -5; leftValue <= 5; ++leftValue) {
+        for (std::int64_t leftScale = 1; leftScale <= 7; ++leftScale) {
+            const RationalTime left(leftValue, leftScale);
+            const long double leftSeconds =
+                static_cast<long double>(leftValue) / leftScale;
+
+            for (std::int64_t rightValue = -5; rightValue <= 5; ++rightValue) {
+                for (std::int64_t rightScale = 1; rightScale <= 7; ++rightScale) {
+                    const RationalTime right(rightValue, rightScale);
+                    const long double rightSeconds =
+                        static_cast<long double>(rightValue) / rightScale;
+                    const auto sum = left + right;
+                    const auto difference = left - right;
+                    const bool oracleLess =
+                        static_cast<long double>(leftValue) * rightScale <
+                        static_cast<long double>(rightValue) * leftScale;
+                    const bool oracleEqual =
+                        static_cast<long double>(leftValue) * rightScale ==
+                        static_cast<long double>(rightValue) * leftScale;
+
+                    EXPECT_NEAR(sum.toSeconds(),
+                                static_cast<double>(leftSeconds + rightSeconds), 1e-12)
+                        << leftValue << '/' << leftScale << " + "
+                        << rightValue << '/' << rightScale;
+                    EXPECT_NEAR(difference.toSeconds(),
+                                static_cast<double>(leftSeconds - rightSeconds), 1e-12)
+                        << leftValue << '/' << leftScale << " - "
+                        << rightValue << '/' << rightScale;
+                    EXPECT_EQ(left < right, oracleLess)
+                        << leftValue << '/' << leftScale << " < "
+                        << rightValue << '/' << rightScale;
+                    EXPECT_EQ(left == right, oracleEqual)
+                        << leftValue << '/' << leftScale << " == "
+                        << rightValue << '/' << rightScale;
+                }
+            }
+        }
+    }
 }
 
 TEST(FrameOffsetTest, ArithmeticAndTimeConversion)

@@ -993,6 +993,22 @@ TEST(RenderPipelineContractTest, GIFrameResourceDescriptorsMatchEveryResourceLay
     }
 }
 
+TEST(RenderPipelineContractTest, GITemporalHistoryResetsWhenFrameMovesBackward)
+{
+    GIAccumulationState state;
+    state.beginFrame(40);
+    state.commitHistory();
+    state.beginFrame(41);
+    ASSERT_TRUE(state.historyValid());
+    state.commitHistory();
+    const auto sequentialGeneration = state.generation();
+
+    state.beginFrame(40);
+
+    EXPECT_FALSE(state.historyValid());
+    EXPECT_EQ(state.generation(), sequentialGeneration + 1u);
+}
+
 TEST(RenderPipelineContractTest, GITemporalHistoryResetsOnDiscontinuityAndCameraCut)
 {
     GIAccumulationState state;

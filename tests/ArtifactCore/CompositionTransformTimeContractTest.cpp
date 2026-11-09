@@ -5,11 +5,14 @@
 
 #include <QSize>
 #include <QString>
+#include <QUuid>
 #include <QMatrix4x4>
 #include <QTransform>
+#include <QVector>
 #include <QVector3D>
 
 import Composition.Registry;
+import Composition.PreCompose;
 import Composition.ParametricComposition;
 import Container.NameMap;
 import Transform;
@@ -19,6 +22,7 @@ import Layer.Matte;
 import Time.Rational;
 import Time.TimeRemap;
 import Frame.Rate;
+import Utils.Id;
 
 using namespace ArtifactCore;
 
@@ -35,6 +39,48 @@ class RegistryGuard {
 public:
     RegistryGuard() { CompositionRegistry::global().clear(); }
     ~RegistryGuard() { CompositionRegistry::global().clear(); }
+};
+
+class PreComposeManagerGuard {
+public:
+    PreComposeManagerGuard(PreComposeManager& manager, CompositionID root,
+                           CompositionID child, LayerID parentLayer)
+        : manager_(manager)
+        , root_(root)
+        , child_(child)
+        , parentLayer_(parentLayer)
+    {}
+
+    ~PreComposeManagerGuard()
+    {
+        if (!nestedLayer_.isNil() && manager_.isPrecomposeLayer(nestedLayer_)) {
+            manager_.unregisterPrecompLayer(child_, nestedLayer_, grandchild_);
+        }
+        if (fullyRemoved_ || parentLayer_.isNil() || child_.isNil()) return;
+        if (!manager_.isPrecomposeLayer(parentLayer_)) {
+            manager_.restorePrecompose(root_, parentLayer_, child_);
+        }
+        if (manager_.isPrecomposeLayer(parentLayer_)) {
+            manager_.unprecompose(root_, parentLayer_);
+        }
+    }
+
+    void setNestedLayer(LayerID layer, CompositionID child)
+    {
+        nestedLayer_ = layer;
+        grandchild_ = child;
+    }
+
+    void markFullyRemoved() { fullyRemoved_ = true; }
+
+private:
+    PreComposeManager& manager_;
+    CompositionID root_;
+    CompositionID child_;
+    LayerID parentLayer_;
+    LayerID nestedLayer_;
+    CompositionID grandchild_;
+    bool fullyRemoved_ = false;
 };
 
 } // namespace
@@ -292,6 +338,130 @@ TEST(RationalTimeTest, ArithmeticAndComparisonAcrossScales)
     EXPECT_TRUE(copied == assigned);
 }
 
+TEST(NestedTimeUtilsTest, ConvertsBetweenSiblingInstancesThroughMultipleLevels)
+{
+    const auto makeLayerId = [] {
+        return LayerID(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    };
+    const LayerID sourceInnerLayer = makeLayerId();
+    const LayerID outerLayer = makeLayerId();
+    const LayerID targetInnerLayer = makeLayerId();
+    auto& manager = PreComposeManager::instance();
+    manager.setPrecomposeLayerStartFrame(sourceInnerLayer, 7.0);
+    manager.setPrecomposeLayerStartFrame(outerLayer, 20.0);
+    manager.setPrecomposeLayerStartFrame(targetInnerLayer, 12.0);
+
+    const QVector<LayerID> sourceToAncestor{sourceInnerLayer, outerLayer};
+    const QVector<LayerID> targetToAncestor{targetInnerLayer, outerLayer};
+    const QVector<LayerID> ancestorToTarget{outerLayer, targetInnerLayer};
+    const QVector<LayerID> ancestorToSource{outerLayer, sourceInnerLayer};
+    const double targetTime = NestedTimeUtils::convertTimeThroughLayerPath(
+        10.0, sourceToAncestor, ancestorToTarget);
+    EXPECT_DOUBLE_EQ(targetTime, 5.0);
+
+    const double roundTripped = NestedTimeUtils::convertTimeThroughLayerPath(
+        targetTime, targetToAncestor, ancestorToSource);
+    EXPECT_DOUBLE_EQ(roundTripped, 10.0);
+    EXPECT_DOUBLE_EQ(
+        NestedTimeUtils::convertTimeThroughLayerPath(
+            10.0, QVector<LayerID>{sourceInnerLayer, LayerID{}},
+            ancestorToTarget),
+        10.0);
+    EXPECT_DOUBLE_EQ(
+        NestedTimeUtils::convertTimeThroughLayerPath(
+            std::numeric_limits<double>::infinity(), sourceToAncestor,
+            ancestorToTarget),
+        0.0);
+}
+
+TEST(PreComposeManagerContractTest,
+     NestedRegistrationUncomposeAndRestoreKeepIndexesAndHierarchyConsistent)
+{
+    const auto makeCompositionId = [] {
+        return CompositionID(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    };
+    const auto makeLayerId = [] {
+        return LayerID(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    };
+
+    auto& manager = PreComposeManager::instance();
+    const CompositionID root = makeCompositionId();
+    const CompositionID otherRoot = makeCompositionId();
+    const LayerID selectedLayer = makeLayerId();
+
+    const PreComposeResult invalid = manager.precompose(
+        root, QVector<LayerID>{selectedLayer, selectedLayer});
+    EXPECT_FALSE(invalid.success);
+    EXPECT_FALSE(invalid.errorMessage.isEmpty());
+
+    PreComposeOptions options;
+    options.name = QStringLiteral("Nested contract");
+    const PreComposeResult first = manager.precompose(
+        root, QVector<LayerID>{selectedLayer}, options);
+    ASSERT_TRUE(first.success);
+    ASSERT_FALSE(first.newCompositionId.isNil());
+    ASSERT_FALSE(first.newLayerId.isNil());
+    ASSERT_EQ(first.movedLayerIds, QVector<LayerID>{selectedLayer});
+
+    const CompositionID child = first.newCompositionId;
+    PreComposeManagerGuard cleanup(manager, root, child, first.newLayerId);
+    const CompositionID grandchild = makeCompositionId();
+    const LayerID nestedLayer = makeLayerId();
+    cleanup.setNestedLayer(nestedLayer, grandchild);
+    manager.setPrecomposeLayerStartFrame(first.newLayerId, 18.0);
+    manager.registerPrecompLayer(child, nestedLayer, grandchild);
+    manager.setPrecomposeLayerStartFrame(nestedLayer, 5.0);
+
+    EXPECT_TRUE(manager.isPrecomposeLayer(first.newLayerId));
+    EXPECT_TRUE(manager.isPrecomposeLayer(nestedLayer));
+    EXPECT_EQ(manager.getSourceCompositionId(first.newLayerId), child);
+    EXPECT_EQ(manager.getSourceCompositionId(nestedLayer), grandchild);
+    EXPECT_EQ(manager.getCompositionHierarchy(grandchild),
+              (QVector<CompositionID>{root, child, grandchild}));
+    EXPECT_EQ(manager.getAllParentCompositions(grandchild),
+              (QVector<CompositionID>{child, root}));
+    const CompositionNesting grandchildNesting = manager.getCompositionNesting(grandchild);
+    EXPECT_EQ(grandchildNesting.parentCompositionId, child);
+    EXPECT_EQ(grandchildNesting.parentLayerId, nestedLayer);
+    EXPECT_EQ(grandchildNesting.nestingLevel, 2);
+    EXPECT_FALSE(manager.canNestComposition(root, grandchild));
+    EXPECT_TRUE(manager.canNestComposition(otherRoot, grandchild));
+
+    const auto childRefs = manager.getPrecompLayersForChild(child);
+    ASSERT_EQ(childRefs.size(), 1);
+    EXPECT_EQ(childRefs.front().parentCompId, root);
+    EXPECT_EQ(childRefs.front().precompLayerId, first.newLayerId);
+    EXPECT_FALSE(manager.unregisterPrecompLayer(root, first.newLayerId, grandchild));
+    EXPECT_TRUE(manager.isPrecomposeLayer(first.newLayerId));
+    EXPECT_DOUBLE_EQ(manager.precomposeLayerStartFrame(first.newLayerId), 18.0);
+    EXPECT_DOUBLE_EQ(manager.precomposeLayerStartFrame(nestedLayer), 5.0);
+
+    const UnprecomposeOptions keepChildComposition{true, true};
+    ASSERT_TRUE(manager.unprecompose(root, first.newLayerId, keepChildComposition));
+    EXPECT_FALSE(manager.isPrecomposeLayer(first.newLayerId));
+    EXPECT_TRUE(manager.getPrecompLayersForChild(child).isEmpty());
+    EXPECT_EQ(manager.getCompositionHierarchy(child), QVector<CompositionID>{child});
+
+    ASSERT_TRUE(manager.restorePrecompose(root, first.newLayerId, child));
+    EXPECT_TRUE(manager.isPrecomposeLayer(first.newLayerId));
+    EXPECT_EQ(manager.getSourceCompositionId(first.newLayerId), child);
+    EXPECT_EQ(manager.getCompositionHierarchy(child),
+              (QVector<CompositionID>{root, child}));
+    EXPECT_EQ(manager.getPrecompLayersForChild(child).size(), 1);
+    EXPECT_FALSE(manager.canNestComposition(root, child));
+
+    ASSERT_TRUE(manager.unregisterPrecompLayer(child, nestedLayer, grandchild));
+    EXPECT_FALSE(manager.isPrecomposeLayer(nestedLayer));
+    EXPECT_DOUBLE_EQ(manager.precomposeLayerStartFrame(nestedLayer), 0.0);
+    EXPECT_TRUE(manager.getPrecompLayersForChild(grandchild).isEmpty());
+    EXPECT_EQ(manager.getCompositionHierarchy(grandchild), QVector<CompositionID>{grandchild});
+    ASSERT_TRUE(manager.unprecompose(root, first.newLayerId));
+    EXPECT_FALSE(manager.isPrecomposeLayer(first.newLayerId));
+    EXPECT_DOUBLE_EQ(manager.precomposeLayerStartFrame(first.newLayerId), 0.0);
+    EXPECT_TRUE(manager.getPrecompLayersForChild(child).isEmpty());
+    cleanup.markFullyRemoved();
+}
+
 TEST(TimeRemapProcessorTest, EmptyMappingIsIdentity)
 {
     TimeRemapProcessor processor;
@@ -384,6 +554,73 @@ TEST(TimeRemapProcessorTest, PresetsMapAndInvert)
     EXPECT_EQ(wide.getSourceFrameIndex(1000.0), 299);
     EXPECT_EQ(wide.getSourceFrameIndex(-1000.0), 0);
     EXPECT_EQ(halfSpeed.getSourceFrameIndex(-1000.0), 0);
+}
+
+TEST(TimeRemapProcessorTest, EasingModesMapQuarterPointsAndLocalSpeeds)
+{
+    using Interpolation = TimeRemapKeyframe::Interpolation;
+    struct EasingCase {
+        Interpolation interpolation;
+        double expectedAtQuarter;
+        double expectedSpeedAtQuarter;
+    };
+    const std::array<EasingCase, 6> cases = {{
+        {Interpolation::Linear, 4.0, 2.0},
+        {Interpolation::Bezier, 4.0, 2.0},
+        {Interpolation::EaseIn, 2.5, 1.0},
+        {Interpolation::EaseOut, 5.5, 3.0},
+        {Interpolation::EaseInOut, 3.0, 2.0},
+        {Interpolation::Hold, 2.0, 0.0},
+    }};
+
+    for (const EasingCase& easing : cases) {
+        TimeRemapProcessor processor;
+        TimeRemapKeyframe start;
+        start.outputTime = 0.0;
+        start.sourceTime = 2.0;
+        start.interpolation = easing.interpolation;
+        TimeRemapKeyframe end;
+        end.outputTime = 4.0;
+        end.sourceTime = 10.0;
+        processor.setKeyframes({start, end});
+
+        EXPECT_DOUBLE_EQ(processor.mapOutputToSource(0.0), 2.0);
+        EXPECT_NEAR(processor.mapOutputToSource(1.0),
+                    easing.expectedAtQuarter, 1.0e-10)
+            << "interpolation=" << static_cast<int>(easing.interpolation);
+        EXPECT_NEAR(processor.getSpeedAtTime(1.0),
+                    easing.expectedSpeedAtQuarter, 1.0e-6)
+            << "interpolation=" << static_cast<int>(easing.interpolation);
+        EXPECT_DOUBLE_EQ(processor.mapOutputToSource(4.0), 10.0);
+        EXPECT_DOUBLE_EQ(processor.mapOutputToSource(-1.0), 2.0);
+        EXPECT_DOUBLE_EQ(processor.mapOutputToSource(5.0), 10.0);
+    }
+}
+
+TEST(TimeRemapProcessorTest, NonlinearInverseRoundTripsIncreasingAndReverseMappings)
+{
+    for (const bool reversed : {false, true}) {
+        TimeRemapProcessor processor;
+        TimeRemapKeyframe start;
+        start.outputTime = 2.0;
+        start.sourceTime = reversed ? 20.0 : 0.0;
+        start.interpolation = TimeRemapKeyframe::Interpolation::EaseIn;
+        TimeRemapKeyframe middle;
+        middle.outputTime = 6.0;
+        middle.sourceTime = reversed ? 8.0 : 12.0;
+        middle.interpolation = TimeRemapKeyframe::Interpolation::EaseOut;
+        TimeRemapKeyframe end;
+        end.outputTime = 10.0;
+        end.sourceTime = reversed ? 0.0 : 20.0;
+        processor.setKeyframes({start, middle, end});
+
+        for (const double outputTime : {2.5, 4.0, 5.5, 6.0, 6.5, 8.0, 9.5}) {
+            const double sourceTime = processor.mapOutputToSource(outputTime);
+            EXPECT_NEAR(processor.mapSourceToOutput(sourceTime), outputTime,
+                        2.0e-5)
+                << "reversed=" << reversed << " outputTime=" << outputTime;
+        }
+    }
 }
 
 TEST(TimeRemapProcessorTest, BlendClampFrameConvertAndReset)

@@ -4,6 +4,8 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
+#include <utility>
 #include <vector>
 
 import Math.RandomStream;
@@ -82,6 +84,70 @@ TEST(RandomStreamContractTest, UnitAndRangeMethodsRespectHalfOpenAndInclusiveBou
     EXPECT_EQ(stream.rangeInclusive(9, 9), 9);
 }
 
+TEST(RandomStreamContractTest, FloatRangeStaysFiniteAcrossTheFullFiniteDomain)
+{
+    const float maximum = std::numeric_limits<float>::max();
+    const std::array<std::pair<float, float>, 3> ranges = {{
+        {-maximum, maximum},
+        {maximum, -maximum},
+        {-maximum, 0.0f},
+    }};
+
+    RandomStream stream{0x6a09e667f3bcc909ull};
+    for (const auto& [first, second] : ranges) {
+        const float lower = std::min(first, second);
+        const float upper = std::max(first, second);
+        for (int sample = 0; sample < 8; ++sample) {
+            const float value = stream.range(first, second);
+            EXPECT_TRUE(std::isfinite(value))
+                << "range=[" << first << "," << second << "] sample=" << sample;
+            EXPECT_GE(value, lower)
+                << "range=[" << first << "," << second << "] sample=" << sample;
+            EXPECT_LE(value, upper)
+                << "range=[" << first << "," << second << "] sample=" << sample;
+        }
+    }
+}
+
+TEST(RandomStreamContractTest, InclusiveRangeCoversTheFullSignedIntDomainWithoutOverflow)
+{
+    constexpr int minimum = std::numeric_limits<int>::min();
+    constexpr int maximum = std::numeric_limits<int>::max();
+    constexpr std::uint64_t span =
+        static_cast<std::uint64_t>(static_cast<std::int64_t>(maximum) -
+                                   static_cast<std::int64_t>(minimum)) + 1u;
+    constexpr std::uint64_t limit = std::numeric_limits<std::uint64_t>::max() -
+        (std::numeric_limits<std::uint64_t>::max() % span);
+
+    RandomStream actual{0x4d595df4d0f33173ull};
+    RandomStream reversed{0x4d595df4d0f33173ull};
+    RandomStream rawStream{0x4d595df4d0f33173ull};
+    bool observedUpperHalf = false;
+    bool observedLowerHalf = false;
+    for (int sample = 0; sample < 1024; ++sample) {
+        std::uint64_t raw = rawStream.nextU64();
+        while (raw >= limit) {
+            raw = rawStream.nextU64();
+        }
+        const auto offset = static_cast<std::int64_t>(raw % span);
+        const int expected = static_cast<int>(static_cast<std::int64_t>(minimum) + offset);
+
+        const int value = actual.rangeInclusive(minimum, maximum);
+        EXPECT_EQ(value, expected) << "sample=" << sample;
+        EXPECT_EQ(reversed.rangeInclusive(maximum, minimum), value)
+            << "reversed endpoint order sample=" << sample;
+        EXPECT_EQ(reversed.state(), actual.state())
+            << "reversed endpoint order must consume the same random draws sample="
+            << sample;
+        EXPECT_GE(value, minimum) << "sample=" << sample;
+        EXPECT_LE(value, maximum) << "sample=" << sample;
+        observedLowerHalf = observedLowerHalf || value < 0;
+        observedUpperHalf = observedUpperHalf || value >= 0;
+    }
+    EXPECT_TRUE(observedLowerHalf);
+    EXPECT_TRUE(observedUpperHalf);
+}
+
 TEST(RandomStreamContractTest, BoundaryChancesDoNotConsumeRandomState)
 {
     RandomStream stream{77};
@@ -124,6 +190,44 @@ TEST(RandomStreamContractTest, ForksAreRepeatableAndLeaveTheParentUnchanged)
         otherDiffers = otherDiffers || value != other.nextU64();
     }
     EXPECT_TRUE(otherDiffers);
+}
+
+TEST(RandomStreamContractTest,
+     CopyingMidstreamStateReplaysMixedOperationsExactly)
+{
+    RandomStream source{0x8f3a21c5d7e9ull};
+    (void)source.nextU64();
+    (void)source.rangeInclusive(-1000, 1000);
+    (void)source.gaussian(2.0f, 0.75f);
+
+    RandomStream replay{17};
+    replay = source;
+    const auto copiedState = source.state();
+    EXPECT_EQ(replay.state(), copiedState);
+
+    const double sourceUnit = source.unitDouble();
+    EXPECT_DOUBLE_EQ(replay.unitDouble(), sourceUnit);
+    const int sourceRange = source.rangeInclusive(
+        std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+    EXPECT_EQ(replay.rangeInclusive(
+                  std::numeric_limits<int>::min(),
+                  std::numeric_limits<int>::max()),
+              sourceRange);
+    const bool sourceChance = source.chance(0.37f);
+    EXPECT_EQ(replay.chance(0.37f), sourceChance);
+    EXPECT_FLOAT_EQ(replay.gaussian(-3.0f, 1.25f),
+                    source.gaussian(-3.0f, 1.25f));
+
+    std::vector<int> sourceValues{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    std::vector<int> replayValues = sourceValues;
+    source.shuffle(sourceValues);
+    replay.shuffle(replayValues);
+    EXPECT_EQ(replayValues, sourceValues);
+    EXPECT_EQ(replay.state(), source.state());
+
+    const auto replayNext = replay.nextU64();
+    const auto sourceNext = source.nextU64();
+    EXPECT_EQ(replayNext, sourceNext);
 }
 
 TEST(RandomStreamContractTest, ShuffleAndPickStayWithinTheirInputCollections)

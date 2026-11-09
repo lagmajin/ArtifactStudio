@@ -9,6 +9,7 @@
 
 import Physics.SoftBody;
 import Physics.Fluid;
+import Physics.Mpm2D;
 import Physics.SandSim2D;
 import Core.Simulation.Pyro;
 import Container.NamedVector;
@@ -55,6 +56,58 @@ void expectSameLiquidState(const LiquidSnapshot2D& a,
         EXPECT_EQ(a.particles[i].collisionImpact,
                   b.particles[i].collisionImpact);
     }
+}
+
+void expectSameMpmSnapshot(const MpmSnapshot2D& actual,
+                           const MpmSnapshot2D& expected)
+{
+    EXPECT_EQ(actual.gridOrigin.x, expected.gridOrigin.x);
+    EXPECT_EQ(actual.gridOrigin.y, expected.gridOrigin.y);
+    EXPECT_EQ(actual.accumulatedTime, expected.accumulatedTime);
+    EXPECT_EQ(actual.particleGridColumns, expected.particleGridColumns);
+    EXPECT_EQ(actual.particleGridRows, expected.particleGridRows);
+    EXPECT_EQ(actual.physicsWorldAccumulator, expected.physicsWorldAccumulator);
+    EXPECT_EQ(actual.solverGridCellSize, expected.solverGridCellSize);
+    EXPECT_EQ(actual.solverGridColumns, expected.solverGridColumns);
+    EXPECT_EQ(actual.solverGridRows, expected.solverGridRows);
+    EXPECT_EQ(actual.gridExpansionLimitReached, expected.gridExpansionLimitReached);
+    EXPECT_EQ(actual.fracturedIndices, expected.fracturedIndices);
+    ASSERT_EQ(actual.particles.size(), expected.particles.size());
+    for (std::size_t index = 0; index < actual.particles.size(); ++index) {
+        const auto& lhs = actual.particles[index];
+        const auto& rhs = expected.particles[index];
+        EXPECT_EQ(lhs.pos.x, rhs.pos.x);
+        EXPECT_EQ(lhs.pos.y, rhs.pos.y);
+        EXPECT_EQ(lhs.vel.x, rhs.vel.x);
+        EXPECT_EQ(lhs.vel.y, rhs.vel.y);
+        EXPECT_EQ(lhs.mass, rhs.mass);
+        EXPECT_EQ(lhs.volume0, rhs.volume0);
+        EXPECT_EQ(lhs.F.m00, rhs.F.m00);
+        EXPECT_EQ(lhs.F.m01, rhs.F.m01);
+        EXPECT_EQ(lhs.F.m10, rhs.F.m10);
+        EXPECT_EQ(lhs.F.m11, rhs.F.m11);
+        EXPECT_EQ(lhs.Fp.m00, rhs.Fp.m00);
+        EXPECT_EQ(lhs.Fp.m01, rhs.Fp.m01);
+        EXPECT_EQ(lhs.Fp.m10, rhs.Fp.m10);
+        EXPECT_EQ(lhs.Fp.m11, rhs.Fp.m11);
+        EXPECT_EQ(lhs.C.m00, rhs.C.m00);
+        EXPECT_EQ(lhs.C.m01, rhs.C.m01);
+        EXPECT_EQ(lhs.C.m10, rhs.C.m10);
+        EXPECT_EQ(lhs.C.m11, rhs.C.m11);
+        EXPECT_EQ(lhs.plasticStrain, rhs.plasticStrain);
+        EXPECT_EQ(lhs.active, rhs.active);
+        EXPECT_EQ(lhs.r, rhs.r);
+        EXPECT_EQ(lhs.g, rhs.g);
+        EXPECT_EQ(lhs.b, rhs.b);
+    }
+}
+
+void configureMpmReplaySolver(MpmSolver2D& solver)
+{
+    EXPECT_TRUE(solver.setGrid(1.0f, 16, 16));
+    solver.setMaterial(12000.0f, 0.2f);
+    solver.setGravity(0.0f, 9.8f);
+    solver.addParticlesGrid(8.0f, 7.0f, 2.0f, 2.0f, 3, 3, 1000.0f);
 }
 
 void expectSameSurfaceSnapshot(const LiquidSurfaceSnapshot2D& a,
@@ -219,6 +272,43 @@ TEST(SoftBodySnapshotTest, RejectsInvalidGridShapeWithoutMutatingState)
     EXPECT_TRUE(after.points[0].isPinned);
     EXPECT_EQ(after.gridColumns, before.gridColumns);
     EXPECT_EQ(after.gridRows, before.gridRows);
+}
+
+TEST(SoftBodySnapshotTest,
+     RejectsInvalidVolumeTrianglesWithoutMutatingState)
+{
+    const float notANumber = std::numeric_limits<float>::quiet_NaN();
+    const std::array invalidTriangles{
+        SoftBodyVolumeTriangle{-1, 0, 1, 1.0f},
+        SoftBodyVolumeTriangle{0, 1, 4, 1.0f},
+        SoftBodyVolumeTriangle{0, 1, 2, notANumber},
+    };
+
+    for (const auto& invalidTriangle : invalidTriangles) {
+        SoftBodySolver solver;
+        solver.buildGrid(0.0f, 0.0f, 2.0f, 2.0f, 2, 2);
+        solver.setPressureStiffness(0.5f);
+        const SoftBodySnapshot before = solver.snapshot();
+
+        SoftBodySnapshot invalid = before;
+        invalid.volumeTriangles.push_back(invalidTriangle);
+
+        EXPECT_FALSE(solver.canRestoreSnapshot(invalid));
+        EXPECT_FALSE(solver.restoreSnapshot(invalid));
+
+        const SoftBodySnapshot after = solver.snapshot();
+        ASSERT_EQ(after.points.size(), before.points.size());
+        for (std::size_t index = 0; index < before.points.size(); ++index) {
+            EXPECT_FLOAT_EQ(after.points[index].x, before.points[index].x);
+            EXPECT_FLOAT_EQ(after.points[index].y, before.points[index].y);
+            EXPECT_FLOAT_EQ(after.points[index].prevX, before.points[index].prevX);
+            EXPECT_FLOAT_EQ(after.points[index].prevY, before.points[index].prevY);
+        }
+        EXPECT_EQ(after.constraints.size(), before.constraints.size());
+        EXPECT_TRUE(after.volumeTriangles.empty());
+        EXPECT_EQ(after.gridColumns, before.gridColumns);
+        EXPECT_EQ(after.gridRows, before.gridRows);
+    }
 }
 
 TEST(SoftBodySnapshotTest, RestoresGridAndWindStateAndClampsAccumulatedTime)
@@ -461,6 +551,79 @@ TEST(PyroTurbulenceTest, SmokeCurlOctavesAreBoundedDistinctAndDeterministic)
     EXPECT_GT(maximumVelocityDifference, 1.0e-5f);
 }
 
+TEST(PyroDeterminismTest,
+     FixedStepAccumulatorProducesIdenticalFieldStateForEquivalentPartitions)
+{
+    constexpr double fixedStep = 1.0 / 64.0;
+    PyroDomain domain{};
+    domain.min = {-0.8f, -0.8f, -0.8f};
+    domain.max = {0.8f, 0.8f, 0.8f};
+    domain.voxelSize = 0.1f;
+    domain.fixedTimeStep = fixedStep;
+
+    PyroSimulationSettings settings{};
+    settings.dissipation = 0.02f;
+    settings.coolingRate = 0.1f;
+    settings.buoyancy = 0.3f;
+    settings.vorticity = 0.15f;
+    settings.pressureIterations = 8.0f;
+    settings.smokeTurbulence = 0.2f;
+    settings.smokeTurbulenceScale = 7.0f;
+    settings.highOrderDensityAdvection = true;
+
+    PyroSourceState source{};
+    source.position = {0.0f, -0.2f, 0.0f};
+    source.extent = {0.3f, 0.3f, 0.3f};
+    source.velocity = {0.1f, -0.3f, 0.05f};
+    source.density = 0.7f;
+    source.temperature = 0.3f;
+    source.fuel = 0.2f;
+    const std::array sources{source};
+
+    PyroSimulation singleStepUpdates(domain);
+    PyroSimulation partitionedUpdates(domain);
+    const auto configure = [&](PyroSimulation& simulation) {
+        simulation.setFixedTimeStep(fixedStep);
+        simulation.setCacheInterval(0);
+        simulation.setSettings(settings);
+        simulation.setSources(sources);
+    };
+    configure(singleStepUpdates);
+    configure(partitionedUpdates);
+
+    for (int step = 0; step < 16; ++step) {
+        singleStepUpdates.step(fixedStep);
+    }
+    for (const int stepCount : {3, 5, 8}) {
+        partitionedUpdates.step(fixedStep * stepCount);
+    }
+
+    EXPECT_EQ(singleStepUpdates.frameIndex(), 16u);
+    EXPECT_EQ(partitionedUpdates.frameIndex(), 16u);
+    EXPECT_DOUBLE_EQ(singleStepUpdates.timeSeconds(), 16.0 * fixedStep);
+    EXPECT_DOUBLE_EQ(partitionedUpdates.timeSeconds(), 16.0 * fixedStep);
+
+    const auto& singleFields = singleStepUpdates.fields();
+    const auto& partitionedFields = partitionedUpdates.fields();
+    EXPECT_EQ(singleFields.densityStorage(), partitionedFields.densityStorage());
+    EXPECT_EQ(singleFields.temperatureStorage(),
+              partitionedFields.temperatureStorage());
+    EXPECT_EQ(singleFields.fuelStorage(), partitionedFields.fuelStorage());
+    EXPECT_EQ(singleFields.reactionStorage(), partitionedFields.reactionStorage());
+    EXPECT_EQ(singleFields.pressureStorage(), partitionedFields.pressureStorage());
+    EXPECT_EQ(singleFields.divergenceStorage(),
+              partitionedFields.divergenceStorage());
+
+    const auto& singleVelocity = singleFields.velocityStorage();
+    const auto& partitionedVelocity = partitionedFields.velocityStorage();
+    ASSERT_EQ(singleVelocity.size(), partitionedVelocity.size());
+    for (std::size_t index = 0; index < singleVelocity.size(); ++index) {
+        EXPECT_EQ(singleVelocity[index].x, partitionedVelocity[index].x);
+        EXPECT_EQ(singleVelocity[index].y, partitionedVelocity[index].y);
+        EXPECT_EQ(singleVelocity[index].z, partitionedVelocity[index].z);
+    }
+}
+
 TEST(FluidDeterminismTest, ZeroDeltaIsNoOpAndLargeDeltaStaysFinite)
 {
     FluidSolver2D solver(32, 32);
@@ -541,6 +704,87 @@ TEST(FluidSnapshotTest, RejectsMismatchedResolutionWithoutMutation)
     solver.getVelocity(7, 5, vx, vy);
     EXPECT_EQ(vx, before.velocityX[7 + 5 * 16]);
     EXPECT_EQ(vy, before.velocityY[7 + 5 * 16]);
+}
+
+TEST(FluidSnapshotTest, RejectsNonFiniteGridFieldsWithoutMutatingLiveSolver)
+{
+    FluidSolver2D solver(8, 8);
+    solver.addDensity(3, 4, 0.75f);
+    solver.addVelocity(3, 4, -0.5f, 0.25f);
+    const FluidSnapshot2D before = solver.snapshot();
+
+    using SnapshotMutator = void (*)(FluidSnapshot2D&);
+    const std::array<SnapshotMutator, 9> corruptions{
+        [](FluidSnapshot2D& state) { state.density[0] = std::numeric_limits<float>::quiet_NaN(); },
+        [](FluidSnapshot2D& state) { state.densityPrev[0] = std::numeric_limits<float>::quiet_NaN(); },
+        [](FluidSnapshot2D& state) { state.velocityX[0] = std::numeric_limits<float>::quiet_NaN(); },
+        [](FluidSnapshot2D& state) { state.velocityY[0] = std::numeric_limits<float>::quiet_NaN(); },
+        [](FluidSnapshot2D& state) { state.velocityXPrev[0] = std::numeric_limits<float>::quiet_NaN(); },
+        [](FluidSnapshot2D& state) { state.velocityYPrev[0] = std::numeric_limits<float>::quiet_NaN(); },
+        [](FluidSnapshot2D& state) { state.curl[0] = std::numeric_limits<float>::quiet_NaN(); },
+        [](FluidSnapshot2D& state) { state.temperature[0] = std::numeric_limits<float>::quiet_NaN(); },
+        [](FluidSnapshot2D& state) { state.temperaturePrev[0] = std::numeric_limits<float>::quiet_NaN(); },
+    };
+    const auto expectSameGrid = [](const FluidSnapshot2D& actual,
+                                   const FluidSnapshot2D& expected) {
+        EXPECT_TRUE(std::equal(actual.density.begin(), actual.density.end(),
+                               expected.density.begin(), expected.density.end()));
+        EXPECT_TRUE(std::equal(actual.densityPrev.begin(), actual.densityPrev.end(),
+                               expected.densityPrev.begin(), expected.densityPrev.end()));
+        EXPECT_TRUE(std::equal(actual.velocityX.begin(), actual.velocityX.end(),
+                               expected.velocityX.begin(), expected.velocityX.end()));
+        EXPECT_TRUE(std::equal(actual.velocityY.begin(), actual.velocityY.end(),
+                               expected.velocityY.begin(), expected.velocityY.end()));
+        EXPECT_TRUE(std::equal(actual.velocityXPrev.begin(), actual.velocityXPrev.end(),
+                               expected.velocityXPrev.begin(), expected.velocityXPrev.end()));
+        EXPECT_TRUE(std::equal(actual.velocityYPrev.begin(), actual.velocityYPrev.end(),
+                               expected.velocityYPrev.begin(), expected.velocityYPrev.end()));
+        EXPECT_TRUE(std::equal(actual.curl.begin(), actual.curl.end(),
+                               expected.curl.begin(), expected.curl.end()));
+        EXPECT_TRUE(std::equal(actual.temperature.begin(), actual.temperature.end(),
+                               expected.temperature.begin(), expected.temperature.end()));
+        EXPECT_TRUE(std::equal(actual.temperaturePrev.begin(), actual.temperaturePrev.end(),
+                               expected.temperaturePrev.begin(), expected.temperaturePrev.end()));
+    };
+
+    for (const SnapshotMutator corrupt : corruptions) {
+        FluidSnapshot2D invalid = before;
+        corrupt(invalid);
+        EXPECT_FALSE(solver.canRestoreSnapshot(invalid));
+        EXPECT_FALSE(solver.restoreSnapshot(invalid));
+        expectSameGrid(solver.snapshot(), before);
+    }
+}
+
+TEST(MpmSnapshotTest, RestoreReplaysParticleAndClockStateExactly)
+{
+    MpmSolver2D uninterrupted;
+    MpmSolver2D restored;
+    configureMpmReplaySolver(uninterrupted);
+    configureMpmReplaySolver(restored);
+    ASSERT_EQ(uninterrupted.particleCount(), 9);
+    ASSERT_EQ(restored.particleCount(), 9);
+
+    constexpr float timeStep = 1.0f / 60.0f;
+    for (int step = 0; step < 8; ++step) {
+        uninterrupted.update(timeStep);
+        restored.update(timeStep);
+    }
+    const MpmSnapshot2D checkpoint = uninterrupted.snapshot();
+    ASSERT_TRUE(restored.canRestoreSnapshot(checkpoint));
+
+    // Move the destination away from the checkpoint to prove restore replaces
+    // the complete continuation state before replay begins.
+    for (int step = 0; step < 3; ++step) {
+        restored.update(timeStep);
+    }
+    ASSERT_TRUE(restored.restoreSnapshot(checkpoint));
+
+    for (int step = 0; step < 16; ++step) {
+        uninterrupted.update(timeStep);
+        restored.update(timeStep);
+    }
+    expectSameMpmSnapshot(restored.snapshot(), uninterrupted.snapshot());
 }
 
 TEST(LiquidDeterminismTest, IdenticalInputsProduceIdenticalStates)

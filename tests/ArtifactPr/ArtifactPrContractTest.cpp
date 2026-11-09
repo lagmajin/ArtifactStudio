@@ -15,6 +15,7 @@
 #include <QVariant>
 #include <QVector>
 
+#include <algorithm>
 #include <cmath>
 #include <initializer_list>
 #include <utility>
@@ -198,6 +199,77 @@ TEST(ArtifactPrClipEffectsTest, ImageEffectFastPathOnlySeesImageEffectIds)
     EXPECT_TRUE(ArtifactPr::hasEnabledImageEffects(effects({{"fx.rotate.enabled", "true"}})));
 }
 
+TEST(ArtifactPrClipEffectsTest,
+     GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels)
+{
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.resize(5, 1);
+    image.setPixel(0, 0, ArtifactCore::FloatRGBA(1.0f, 0.0f, 0.0f, 1.0f));
+    for (int x = 1; x < 5; ++x) {
+        image.setPixel(x, 0, ArtifactCore::FloatRGBA(0.0f, 1.0f, 0.0f, 0.0f));
+    }
+
+    const bool applied = ArtifactPr::applyClipEffects(
+        image, effects({{"fx.gaussianBlur.enabled", "1"},
+                        {"fx.gaussianBlur.radius", "1"}}));
+
+    ASSERT_TRUE(applied);
+    const ArtifactCore::FloatRGBA blurredEdge = image.getPixel(1, 0);
+    EXPECT_GT(blurredEdge.a(), 0.0f);
+    EXPECT_LT(blurredEdge.a(), 1.0f);
+    EXPECT_NEAR(blurredEdge.r(), 1.0f, 1e-4f);
+    EXPECT_NEAR(blurredEdge.g(), 0.0f, 1e-5f);
+    EXPECT_NEAR(blurredEdge.b(), 0.0f, 1e-5f);
+
+    const ArtifactCore::FloatRGBA transparentTail = image.getPixel(4, 0);
+    EXPECT_NEAR(transparentTail.a(), 0.0f, 1e-6f);
+    EXPECT_NEAR(transparentTail.r(), 0.0f, 1e-6f);
+    EXPECT_NEAR(transparentTail.g(), 0.0f, 1e-6f);
+}
+
+TEST(ArtifactPrClipEffectsTest,
+     CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast)
+{
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.resize(4, 1);
+    image.setPixel(0, 0, ArtifactCore::FloatRGBA(0.13f, 0.37f, 0.82f, 0.0f));
+    image.setPixel(1, 0, ArtifactCore::FloatRGBA(0.71f, 0.22f, 0.46f, 0.25f));
+    image.setPixel(2, 0, ArtifactCore::FloatRGBA(0.34f, 0.79f, 0.18f, 0.6f));
+    image.setPixel(3, 0, ArtifactCore::FloatRGBA(0.93f, 0.51f, 0.27f, 1.0f));
+
+    const float alphaBefore[] = {
+        image.getPixel(0, 0).a(), image.getPixel(1, 0).a(),
+        image.getPixel(2, 0).a(), image.getPixel(3, 0).a(),
+    };
+    const bool applied = ArtifactPr::applyClipEffects(
+        image, effects({{"fx.brightnessContrast.enabled", "1"},
+                        {"fx.brightnessContrast.brightness", "0.08"},
+                        {"fx.brightnessContrast.contrast", "1.25"},
+                        {"fx.hueSaturation.enabled", "1"},
+                        {"fx.hueSaturation.hue", "37"},
+                        {"fx.hueSaturation.saturation", "0.72"},
+                        {"fx.hueSaturation.lightness", "0.12"},
+                        {"fx.colorWheels.enabled", "1"},
+                        {"fx.colorWheels.shadowsR", "0.06"},
+                        {"fx.colorWheels.midtonesG", "0.04"},
+                        {"fx.colorWheels.highlightsB", "0.03"},
+                        {"fx.posterize.enabled", "1"},
+                        {"fx.posterize.levels", "5"}}));
+
+    ASSERT_TRUE(applied);
+    constexpr float posterStep = 0.25f; // five levels include both 0 and 1.
+    for (int x = 0; x < 4; ++x) {
+        const ArtifactCore::FloatRGBA pixel = image.getPixel(x, 0);
+        EXPECT_FLOAT_EQ(pixel.a(), alphaBefore[x]) << "pixel " << x;
+        EXPECT_NEAR(pixel.r() / posterStep,
+                    std::round(pixel.r() / posterStep), 1e-5f) << "red pixel " << x;
+        EXPECT_NEAR(pixel.g() / posterStep,
+                    std::round(pixel.g() / posterStep), 1e-5f) << "green pixel " << x;
+        EXPECT_NEAR(pixel.b() / posterStep,
+                    std::round(pixel.b() / posterStep), 1e-5f) << "blue pixel " << x;
+    }
+}
+
 // =====================================================================
 // Audio effect parameters
 // =====================================================================
@@ -302,6 +374,50 @@ TEST(ArtifactPrClipEffectsTest, MidPeakingBoostRaisesOneKilohertzEnergy)
     EXPECT_GT(rms(samples, kFrames / 2), before * 2.0);
 }
 
+TEST(ArtifactPrClipEffectsTest,
+     EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries)
+{
+    constexpr int kSampleRate = 48000;
+    constexpr int kFrameCount = 4099;
+    std::vector<float> input(kFrameCount);
+    for (int frame = 0; frame < kFrameCount; ++frame) {
+        const double time = static_cast<double>(frame) / kSampleRate;
+        input[frame] = 0.35f * static_cast<float>(std::sin(2.0 * kPi * 100.0 * time))
+            + 0.2f * static_cast<float>(std::sin(2.0 * kPi * 1000.0 * time))
+            + 0.1f * static_cast<float>(std::sin(2.0 * kPi * 8000.0 * time));
+    }
+
+    ArtifactPr::ClipEqualizer continuousEqualizer;
+    continuousEqualizer.sampleRate = kSampleRate;
+    continuousEqualizer.lowDb = 6.0;
+    continuousEqualizer.midDb = -3.0;
+    continuousEqualizer.highDb = 4.0;
+    continuousEqualizer.configure();
+    ASSERT_TRUE(continuousEqualizer.active);
+    std::vector<float> continuousOutput = input;
+    continuousEqualizer.process(continuousOutput.data(), kFrameCount);
+
+    ArtifactPr::ClipEqualizer segmentedEqualizer;
+    segmentedEqualizer.sampleRate = kSampleRate;
+    segmentedEqualizer.lowDb = 6.0;
+    segmentedEqualizer.midDb = -3.0;
+    segmentedEqualizer.highDb = 4.0;
+    segmentedEqualizer.configure();
+    std::vector<float> segmentedOutput = input;
+    constexpr int kBlockSizes[]{1, 31, 509, 7, 64};
+    int start = 0;
+    int blockIndex = 0;
+    while (start < kFrameCount) {
+        const int count = std::min(kBlockSizes[blockIndex % 5],
+                                   kFrameCount - start);
+        segmentedEqualizer.process(segmentedOutput.data() + start, count);
+        start += count;
+        ++blockIndex;
+    }
+
+    EXPECT_EQ(segmentedOutput, continuousOutput);
+}
+
 // =====================================================================
 // CPU sequence compositor
 // =====================================================================
@@ -343,6 +459,33 @@ TEST(ArtifactPrSequenceCompositorTest, LayerIsAspectFitCenteredOverTheBackground
     EXPECT_GT(inside.r(), 0.9f);
     EXPECT_LT(inside.g(), 0.1f);
     EXPECT_LT(inside.b(), 0.1f);
+}
+
+TEST(ArtifactPrSequenceCompositorTest,
+     AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide)
+{
+    const QSize canvasSize(7, 7);
+    const ArtifactCore::FloatRGBA background(0.1f, 0.2f, 0.3f, 1.0f);
+
+    ArtifactPr::CompositeLayer layer;
+    layer.frame = solidImage(3, 1, ArtifactCore::FloatRGBA(0.0f, 1.0f, 0.0f, 1.0f));
+    layer.opacity = 1.0;
+
+    const auto canvas = ArtifactPr::composeSequenceLayers(canvasSize, {layer}, background);
+    ASSERT_EQ(canvas.width(), 7);
+    ASSERT_EQ(canvas.height(), 7);
+
+    // The fit scale is 7/3, so the 1px source height rounds to 2px. The five
+    // remaining rows are split as two before and three after the fitted image.
+    const ArtifactCore::FloatRGBA topPadding = canvas.getPixel(3, 1);
+    const ArtifactCore::FloatRGBA fittedFirstRow = canvas.getPixel(3, 2);
+    const ArtifactCore::FloatRGBA fittedLastRow = canvas.getPixel(3, 3);
+    const ArtifactCore::FloatRGBA bottomPadding = canvas.getPixel(3, 4);
+
+    EXPECT_NEAR(topPadding.g(), background.g(), 1e-5f);
+    EXPECT_NEAR(fittedFirstRow.g(), 1.0f, 1e-5f);
+    EXPECT_NEAR(fittedLastRow.g(), 1.0f, 1e-5f);
+    EXPECT_NEAR(bottomPadding.g(), background.g(), 1e-5f);
 }
 
 TEST(ArtifactPrSequenceCompositorTest, LayerOpacityScalesTheBlendWeight)
@@ -401,6 +544,98 @@ TEST(ArtifactPrSequenceCompositorTest, TopLayerWinsAndZeroOpacityLayerIsSkipped)
     EXPECT_LT(pixel.r(), 0.05f);
     EXPECT_LT(pixel.g(), 0.05f);
     EXPECT_GT(pixel.b(), 0.9f);
+}
+
+TEST(ArtifactPrSequenceCompositorTest,
+     StackedSourceAlphaAndLayerOpacityMatchSourceOverOracle)
+{
+    const QSize canvasSize(16, 16);
+    const ArtifactCore::FloatRGBA background(0.1f, 0.2f, 0.3f, 1.0f);
+
+    ArtifactPr::CompositeLayer bottom;
+    bottom.frame = solidImage(16, 16, ArtifactCore::FloatRGBA(1.0f, 0.0f, 0.0f, 0.5f));
+    bottom.opacity = 0.5;
+
+    ArtifactPr::CompositeLayer middle;
+    middle.frame = solidImage(16, 16, ArtifactCore::FloatRGBA(0.0f, 1.0f, 0.0f, 0.25f));
+    middle.opacity = 0.8;
+
+    ArtifactPr::CompositeLayer top;
+    top.frame = solidImage(16, 16, ArtifactCore::FloatRGBA(0.0f, 0.0f, 1.0f, 0.75f));
+    top.opacity = 0.4;
+
+    const auto canvas = ArtifactPr::composeSequenceLayers(
+        canvasSize, {bottom, middle, top}, background);
+    const ArtifactCore::FloatRGBA pixel = canvas.getPixel(8, 8);
+
+    // Apply source-over independently at each layer: effective source alpha
+    // is source alpha times layer opacity. The opaque background keeps the
+    // expected output alpha at one while exercising RGB accumulation order.
+    const float afterBottomR = 1.0f * 0.25f + background.r() * 0.75f;
+    const float afterBottomG = background.g() * 0.75f;
+    const float afterBottomB = background.b() * 0.75f;
+    const float afterMiddleR = afterBottomR * 0.8f;
+    const float afterMiddleG = 1.0f * 0.2f + afterBottomG * 0.8f;
+    const float afterMiddleB = afterBottomB * 0.8f;
+    const float expectedR = afterMiddleR * 0.7f;
+    const float expectedG = afterMiddleG * 0.7f;
+    const float expectedB = 1.0f * 0.3f + afterMiddleB * 0.7f;
+
+    EXPECT_NEAR(pixel.r(), expectedR, 1e-5f);
+    EXPECT_NEAR(pixel.g(), expectedG, 1e-5f);
+    EXPECT_NEAR(pixel.b(), expectedB, 1e-5f);
+    EXPECT_NEAR(pixel.a(), 1.0f, 1e-5f);
+}
+
+TEST(ArtifactPrSequenceCompositorTest,
+     StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle)
+{
+    const QSize canvasSize(1, 1);
+    const ArtifactCore::FloatRGBA background(0.2f, 0.4f, 0.6f, 0.35f);
+
+    ArtifactPr::CompositeLayer bottom;
+    bottom.frame = solidImage(1, 1, ArtifactCore::FloatRGBA(0.9f, 0.1f, 0.2f, 0.5f));
+    bottom.opacity = 0.6;
+
+    ArtifactPr::CompositeLayer middle;
+    middle.frame = solidImage(1, 1, ArtifactCore::FloatRGBA(0.2f, 0.8f, 0.3f, 0.4f));
+    middle.opacity = 0.75;
+
+    ArtifactPr::CompositeLayer top;
+    top.frame = solidImage(1, 1, ArtifactCore::FloatRGBA(0.1f, 0.2f, 1.0f, 0.2f));
+    top.opacity = 0.5;
+
+    const auto canvas = ArtifactPr::composeSequenceLayers(
+        canvasSize, {bottom, middle, top}, background);
+    const ArtifactCore::FloatRGBA pixel = canvas.getPixel(0, 0);
+
+    // Composite in premultiplied form so the oracle covers both accumulated
+    // coverage and straight-RGB reconstruction over a non-opaque base.
+    float expectedAlpha = background.a();
+    float expectedPremultipliedR = background.r() * expectedAlpha;
+    float expectedPremultipliedG = background.g() * expectedAlpha;
+    float expectedPremultipliedB = background.b() * expectedAlpha;
+    const auto sourceOver = [&](const ArtifactCore::FloatRGBA& source,
+                                float layerOpacity) {
+        const float sourceAlpha = source.a() * layerOpacity;
+        const float remaining = 1.0f - sourceAlpha;
+        expectedPremultipliedR = source.r() * sourceAlpha
+            + expectedPremultipliedR * remaining;
+        expectedPremultipliedG = source.g() * sourceAlpha
+            + expectedPremultipliedG * remaining;
+        expectedPremultipliedB = source.b() * sourceAlpha
+            + expectedPremultipliedB * remaining;
+        expectedAlpha = sourceAlpha + expectedAlpha * remaining;
+    };
+    sourceOver(ArtifactCore::FloatRGBA(0.9f, 0.1f, 0.2f, 0.5f), 0.6f);
+    sourceOver(ArtifactCore::FloatRGBA(0.2f, 0.8f, 0.3f, 0.4f), 0.75f);
+    sourceOver(ArtifactCore::FloatRGBA(0.1f, 0.2f, 1.0f, 0.2f), 0.5f);
+
+    ASSERT_GT(expectedAlpha, 0.0f);
+    EXPECT_NEAR(pixel.r(), expectedPremultipliedR / expectedAlpha, 1e-5f);
+    EXPECT_NEAR(pixel.g(), expectedPremultipliedG / expectedAlpha, 1e-5f);
+    EXPECT_NEAR(pixel.b(), expectedPremultipliedB / expectedAlpha, 1e-5f);
+    EXPECT_NEAR(pixel.a(), expectedAlpha, 1e-5f);
 }
 
 TEST(ArtifactPrSequenceCompositorTest, EmptyLayerFrameIsIgnored)

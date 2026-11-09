@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -28,6 +31,25 @@ struct TrackedValue {
     ~TrackedValue() { --liveCount; }
 
     bool operator==(const TrackedValue&) const = default;
+};
+struct ConditionallyThrowingValue {
+    static inline bool shouldThrow = false;
+
+    explicit ConditionallyThrowingValue(int input) : value(input) {
+        if (shouldThrow) throw std::runtime_error("value construction failed");
+    }
+    ConditionallyThrowingValue(const ConditionallyThrowingValue& other)
+        : value(other.value)
+    {
+        if (shouldThrow) throw std::runtime_error("value copy failed");
+    }
+    ConditionallyThrowingValue(ConditionallyThrowingValue&& other) noexcept
+        : value(other.value) {}
+    ConditionallyThrowingValue& operator=(const ConditionallyThrowingValue&) = default;
+    ConditionallyThrowingValue& operator=(
+        ConditionallyThrowingValue&&) noexcept = default;
+
+    int value;
 };
 
 struct alignas(64) OverAlignedValue {
@@ -439,6 +461,48 @@ TEST(ArtifactArrayContractTest, InsertCanReadAliasedElementAfterShifting)
     EXPECT_EQ(values, (Array<std::string>{"first", "last", "middle", "last"}));
 }
 
+TEST(ArtifactArrayContractTest,
+     InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap)
+{
+    Array<std::string> values{"first", "middle", "last"};
+    ASSERT_EQ(values.capacity(), values.size());
+    const std::string& inserted = values[2];
+
+    values.insert(1, inserted);
+
+    EXPECT_EQ(values,
+              (Array<std::string>{"first", "last", "middle", "last"}));
+    EXPECT_GT(values.capacity(), 3u);
+}
+
+TEST(ArtifactArrayContractTest,
+     ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry)
+{
+    Array<ConditionallyThrowingValue> values;
+    int nextValue = 0;
+    while (values.capacity() == 0 || values.size() < values.capacity()) {
+        values.append(ConditionallyThrowingValue{nextValue++});
+    }
+    ASSERT_EQ(values.size(), values.capacity());
+    const std::size_t fullCapacity = values.capacity();
+
+    const ConditionallyThrowingValue candidate{nextValue};
+    ConditionallyThrowingValue::shouldThrow = true;
+    EXPECT_THROW(values.append(candidate), std::runtime_error);
+    ConditionallyThrowingValue::shouldThrow = false;
+
+    ASSERT_EQ(values.size(), fullCapacity);
+    for (std::size_t index = 0; index < values.size(); ++index)
+        EXPECT_EQ(values[index].value, static_cast<int>(index));
+
+    values.append(candidate);
+    ASSERT_EQ(values.size(), fullCapacity + 1);
+    EXPECT_GT(values.capacity(), fullCapacity);
+    for (std::size_t index = 0; index < fullCapacity; ++index)
+        EXPECT_EQ(values[index].value, static_cast<int>(index));
+    EXPECT_EQ(values[fullCapacity].value, nextValue);
+}
+
 TEST(ArtifactArrayContractTest, InsertAtBeginningAndEndAcceptsBoundaryIndices)
 {
     Array<int> values{2, 3};
@@ -563,5 +627,82 @@ TEST(ArtifactArrayContractTest, ConstDataAndIterationExposeReadOnlyStorage)
     EXPECT_EQ(values.data(), values.constData());
     EXPECT_EQ(values.constEnd() - values.constBegin(), 3);
     EXPECT_EQ(toVector(values), (std::vector<int>{3, 6, 9}));
+}
+
+TEST(ArtifactArrayContractTest,
+     MixedDeterministicMutationsMatchIndependentVectorModel)
+{
+    Array<int> actual;
+    std::vector<int> expected;
+    std::mt19937 generator(0xA22A91u);
+    std::uniform_int_distribution<int> operationDistribution(0, 7);
+    std::uniform_int_distribution<int> valueDistribution(-50, 50);
+
+    for (int step = 0; step < 1600; ++step) {
+        const int operation = operationDistribution(generator);
+        const int value = valueDistribution(generator);
+        const std::size_t index = expected.empty()
+            ? 0u
+            : static_cast<std::size_t>(generator()) % (expected.size() + 1u);
+
+        switch (operation) {
+        case 0:
+            actual.append(value);
+            expected.push_back(value);
+            break;
+        case 1:
+            actual.prepend(value);
+            expected.insert(expected.begin(), value);
+            break;
+        case 2:
+            actual.insert(index, value);
+            expected.insert(expected.begin() + static_cast<std::ptrdiff_t>(index), value);
+            break;
+        case 3: {
+            const std::size_t removeIndex = expected.empty()
+                ? 1u
+                : static_cast<std::size_t>(generator()) % (expected.size() + 2u);
+            actual.removeAt(removeIndex);
+            if (removeIndex < expected.size()) {
+                expected.erase(expected.begin() +
+                               static_cast<std::ptrdiff_t>(removeIndex));
+            }
+            break;
+        }
+        case 4:
+            if (!expected.empty()) {
+                const std::size_t takeIndex =
+                    static_cast<std::size_t>(generator()) % expected.size();
+                EXPECT_EQ(actual.takeAt(takeIndex), expected[takeIndex])
+                    << "step=" << step;
+                expected.erase(expected.begin() +
+                               static_cast<std::ptrdiff_t>(takeIndex));
+            }
+            break;
+        case 5: {
+            const std::size_t replaceIndex = expected.empty()
+                ? 0u
+                : static_cast<std::size_t>(generator()) % (expected.size() + 1u);
+            actual.replace(replaceIndex, value);
+            if (replaceIndex < expected.size()) expected[replaceIndex] = value;
+            break;
+        }
+        case 6: {
+            actual.removeOne(value);
+            const auto found = std::find(expected.begin(), expected.end(), value);
+            if (found != expected.end()) expected.erase(found);
+            break;
+        }
+        case 7:
+            if (step % 2 == 0)
+                actual.reserve(actual.size() + static_cast<std::size_t>(generator() % 9u));
+            else
+                actual.squeeze();
+            break;
+        }
+
+        EXPECT_EQ(actual.size(), expected.size()) << "step=" << step;
+        EXPECT_EQ(toVector(actual), expected) << "step=" << step;
+    }
 }
 

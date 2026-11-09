@@ -107,3 +107,37 @@ TEST(PointwiseFusionGraphContractTest, EmitsFallbackExpressionsForUnwiredOperati
     EXPECT_TRUE(graph.isValid());
     EXPECT_NE(graph.emitHlslBody().find("float4 value_1 = 0;"), std::string::npos);
 }
+
+TEST(PointwiseFusionGraphContractTest,
+     PreservesSharedOperandsAndExplicitEarlierOutputInCombinedGraph)
+{
+    PointwiseFusionGraph graph;
+    const auto source = graph.addInput("source");
+    const auto tint = graph.addInput("tint");
+    const auto weight = graph.addInput("weight", PointwiseValueType::Float1);
+    const auto blended = graph.addOperation(PointwiseOperationKind::Lerp,
+                                            {source, tint, weight});
+    const auto masked = graph.addOperation(PointwiseOperationKind::Multiply,
+                                           {blended, source});
+    graph.addOperation(PointwiseOperationKind::Add, {blended, masked});
+    graph.setOutput(blended);
+
+    ASSERT_TRUE(graph.isValid());
+    ASSERT_EQ(graph.operationCount(), 7u);
+    EXPECT_EQ(graph.finalValue().id, blended.id);
+    EXPECT_EQ(graph.finalValue().type, PointwiseValueType::Float4);
+
+    const std::string body = graph.emitHlslBody();
+    const auto blendOffset = body.find(
+        "float4 value_4 = lerp(value_1, value_2, value_3);");
+    const auto maskOffset = body.find("float4 value_5 = value_4 * value_1;");
+    const auto laterOffset = body.find("float4 value_6 = value_4 + value_5;");
+    ASSERT_NE(blendOffset, std::string::npos);
+    ASSERT_NE(maskOffset, std::string::npos);
+    ASSERT_NE(laterOffset, std::string::npos);
+    EXPECT_LT(blendOffset, maskOffset);
+    EXPECT_LT(maskOffset, laterOffset);
+
+    const std::string function = graph.emitHlslFunction("combined", blended);
+    EXPECT_NE(function.find("return value_4;"), std::string::npos);
+}

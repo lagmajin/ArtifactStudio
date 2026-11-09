@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QString>
+#include <QStringList>
 #include <limits>
 #include <type_traits>
 #include <utility>
@@ -120,6 +121,13 @@ TEST(AspectRatioContractTest, DecimalBelowSmallestPositiveApproximationUsesOneTo
     expectAspect(aspect, QStringLiteral("1:100"), 0.01);
 }
 
+TEST(AspectRatioContractTest, TinyPositiveDecimalStillUsesSmallestPositiveApproximation)
+{
+    AspectRatio aspect(16, 9);
+    aspect.setFromString(UniString(QStringLiteral("1e-20")));
+    expectAspect(aspect, QStringLiteral("1:100"), 0.01);
+}
+
 TEST(AspectRatioContractTest, TrimsWhitespaceAroundInput)
 {
     AspectRatio aspect;
@@ -195,6 +203,21 @@ TEST(AspectRatioContractTest, NonPositiveDecimalDoesNotReplaceCurrentValue)
     expectAspect(aspect, QStringLiteral("4:3"), 4.0 / 3.0);
 }
 
+TEST(AspectRatioContractTest, UnrepresentablyLargeFiniteDecimalPreservesCurrentValue)
+{
+    AspectRatio aspect(16, 9);
+    const QStringList oversizedRatios{
+        QStringLiteral("1e20"),
+        QStringLiteral("1e100"),
+        QStringLiteral("1.7976931348623157e308"),
+    };
+
+    for (const QString& ratio : oversizedRatios) {
+        aspect.setFromString(UniString(ratio));
+        expectAspect(aspect, QStringLiteral("16:9"), 16.0 / 9.0);
+    }
+}
+
 TEST(AspectRatioContractTest, ZeroDenominatorUsesSafeRatioFallback)
 {
     const AspectRatio aspect(16, 0);
@@ -242,5 +265,29 @@ TEST(AspectRatioContractTest, MoveAssignmentReplacesDestination)
     destination = std::move(source);
     expectAspect(destination, QStringLiteral("7:3"), 7.0 / 3.0);
     expectAspect(source, QStringLiteral("1:1"), 1.0);
+}
+
+TEST(AspectRatioContractTest, MovedFromObjectCanBeReusedByParsing)
+{
+    AspectRatio source(16, 9);
+    AspectRatio destination(std::move(source));
+
+    source.setFromString(UniString(QStringLiteral("4:3")));
+
+    expectAspect(destination, QStringLiteral("16:9"), 16.0 / 9.0);
+    expectAspect(source, QStringLiteral("4:3"), 4.0 / 3.0);
+}
+
+TEST(AspectRatioContractTest, CopyAssignmentReinitializesMovedFromObject)
+{
+    AspectRatio source(16, 9);
+    AspectRatio destination(std::move(source));
+    const AspectRatio replacement(5, 4);
+
+    source = replacement;
+
+    expectAspect(destination, QStringLiteral("16:9"), 16.0 / 9.0);
+    expectAspect(source, QStringLiteral("5:4"), 1.25);
+    expectAspect(replacement, QStringLiteral("5:4"), 1.25);
 }
 

@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <functional>
 #include <memory>
+#include <string>
+#include <vector>
 
 import Data.DataSource;
 import Data.DataTable;
@@ -137,4 +140,33 @@ TEST(DataSourceStandaloneTest, DispatchUsesOnlyFinalExtensionAfterMultipleDots)
     ASSERT_NE(source, nullptr);
     EXPECT_EQ(toStdString(source->info().uri),
               "folder.with.dots/archive.part.standalone-final");
+}
+
+TEST(DataSourceStandaloneTest, ReplacementFactoryReceivesUnmodifiedUriAndIsUsedForFutureOpens)
+{
+    auto& registry = DataSourceRegistry::instance();
+    const String extension(".standalone-replacement-contract");
+    const String uri("C:/assets/multi.part archive.standalone-replacement-contract");
+    std::vector<std::string> factoryCalls;
+
+    registry.registerFormat(extension, [&factoryCalls](const String& receivedUri) {
+        factoryCalls.emplace_back(toStdString(receivedUri));
+        return sourceFactory()(receivedUri);
+    });
+    const auto first = registry.open(uri);
+    ASSERT_NE(first, nullptr);
+
+    registry.registerFormat(extension, [&factoryCalls](const String& receivedUri) {
+        factoryCalls.emplace_back("replacement:" + toStdString(receivedUri));
+        return sourceFactory()(receivedUri);
+    });
+    const auto second = registry.open(uri);
+
+    ASSERT_NE(second, nullptr);
+    EXPECT_EQ(factoryCalls.size(), 2u);
+    EXPECT_EQ(factoryCalls[0], "C:/assets/multi.part archive.standalone-replacement-contract");
+    EXPECT_EQ(factoryCalls[1], "replacement:C:/assets/multi.part archive.standalone-replacement-contract");
+    EXPECT_NE(first, second);
+    EXPECT_EQ(toStdString(second->info().uri),
+              "C:/assets/multi.part archive.standalone-replacement-contract");
 }

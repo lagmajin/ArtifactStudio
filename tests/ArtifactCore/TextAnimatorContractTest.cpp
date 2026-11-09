@@ -815,6 +815,40 @@ TEST(TextAnimatorContractTest, SelectorOrderRanksDriveGlyphEvaluation)
     }
 }
 
+TEST(TextAnimatorContractTest, RandomStableOrderRanksComposeWithVisualGlyphOrder)
+{
+    auto glyphs = makeGlyphs(QStringLiteral("abcdef"));
+    std::swap(glyphs[0], glyphs[4]);
+    std::swap(glyphs[1], glyphs[5]);
+    constexpr int seed = 271828;
+    const auto permutation = TextAnimatorEngine::createOrderMap(
+        6, SelectorOrder::RandomStable, seed);
+    ASSERT_EQ(permutation.size(), glyphs.size());
+
+    const SelectorEvaluationContext context{
+        QStringLiteral("abcdef"), glyphs, TextSelectorOrder::Visual};
+    RangeSelector selector;
+    selector.units = SelectorUnits::Index;
+    selector.order = SelectorOrder::RandomStable;
+    selector.seed = seed;
+    selector.start = 0.0f;
+    selector.end = 0.0f;
+    selector.shape = SelectorShape::Square;
+
+    for (size_t rank = 0; rank < permutation.size(); ++rank) {
+        const size_t selectedGlyph = static_cast<size_t>(permutation[rank]);
+        selector.start = static_cast<float>(rank);
+        selector.end = static_cast<float>(rank);
+        const auto singleRank = TextAnimatorEngine::evaluateSelector(context, selector);
+        ASSERT_EQ(singleRank.weights.size(), glyphs.size());
+        for (size_t glyph = 0; glyph < glyphs.size(); ++glyph) {
+            const float expected = glyph == selectedGlyph ? 1.0f : 0.0f;
+            EXPECT_FLOAT_EQ(singleRank.weights[static_cast<qsizetype>(glyph)], expected)
+                << "rank=" << rank << " glyph=" << glyph;
+        }
+    }
+}
+
 TEST(TextAnimatorContractTest, ReverseOrderSelectsWholeGlyphClusters)
 {
     auto glyphs = makeGlyphs(QStringLiteral("abcde"));

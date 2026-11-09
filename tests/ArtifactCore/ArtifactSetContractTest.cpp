@@ -510,3 +510,43 @@ TEST(ArtifactSetContractTest, DeterministicOperationSequenceMatchesStandardSetMo
     }
 }
 
+TEST(ArtifactSetContractTest, CollisionChainsSurviveRepeatedGrowthRemovalAndReuse)
+{
+    HashSet<int, ConstantHash> actual;
+    std::unordered_set<int> expected;
+
+    for (int cycle = 0; cycle < 24; ++cycle) {
+        const int base = cycle * 128;
+        for (int offset = 0; offset < 96; ++offset) {
+            const int value = base + offset;
+            EXPECT_EQ(actual.add(value), expected.insert(value).second)
+                << "cycle=" << cycle << " offset=" << offset;
+        }
+
+        for (int offset = 1; offset < 96; offset += 2) {
+            const int value = base + offset;
+            EXPECT_EQ(actual.remove(value), expected.erase(value) != 0)
+                << "cycle=" << cycle << " offset=" << offset;
+        }
+
+        for (int offset = 0; offset < 96; ++offset) {
+            const int value = base + offset;
+            EXPECT_EQ(actual.contains(value), expected.contains(value))
+                << "cycle=" << cycle << " offset=" << offset;
+        }
+
+        if (cycle % 3 == 2) {
+            for (int offset = 0; offset < 96; offset += 2) {
+                const int value = base + offset;
+                EXPECT_TRUE(actual.remove(value)) << "cycle=" << cycle << " offset=" << offset;
+                expected.erase(value);
+            }
+            EXPECT_TRUE(actual.isEmpty()) << "cycle=" << cycle;
+            expected.clear();
+        }
+
+        EXPECT_EQ(actual.size(), expected.size()) << "cycle=" << cycle;
+        for (int value : expected) EXPECT_TRUE(actual.contains(value)) << "value=" << value;
+    }
+}
+

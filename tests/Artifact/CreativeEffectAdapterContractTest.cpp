@@ -66,6 +66,57 @@ TEST(CreativeEffectAdapterContractTest,
 }
 
 TEST(CreativeEffectAdapterContractTest,
+     CoreMirrorAdapterSupportsInPlaceSourceDestinationAliasing)
+{
+    constexpr int width = 4;
+    constexpr int height = 1;
+    constexpr std::array<float, width * height * 4> pixels{
+        0.1f, 0.9f, 0.2f, 0.0f,
+        0.3f, 0.7f, 0.4f, 0.2f,
+        0.6f, 0.4f, 0.6f, 0.4f,
+        0.9f, 0.1f, 0.8f, 0.6f};
+    const auto makeImage = [&] {
+        ArtifactCore::ImageF32x4_RGBA image;
+        image.setFromRGBA32F(pixels.data(), width, height);
+        return ArtifactCore::ImageF32x4RGBAWithCache(image);
+    };
+
+    const auto source = makeImage();
+    ArtifactCore::ImageF32x4RGBAWithCache referenceOutput;
+    Artifact::ArtifactCoreCreativeEffect referenceEffect(
+        "Mirror", "builtin.test_mirror_reference", "Mirror Reference");
+    referenceEffect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("Angle")),
+                                     QVariant(0.0));
+    referenceEffect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("CenterX")),
+                                     QVariant(0.5));
+    referenceEffect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("CenterY")),
+                                     QVariant(0.5));
+    referenceEffect.applyCPUOnly(source, referenceOutput);
+
+    auto inPlace = makeImage();
+    Artifact::ArtifactCoreCreativeEffect inPlaceEffect(
+        "Mirror", "builtin.test_mirror_in_place", "Mirror In Place");
+    inPlaceEffect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("Angle")),
+                                   QVariant(0.0));
+    inPlaceEffect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("CenterX")),
+                                   QVariant(0.5));
+    inPlaceEffect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("CenterY")),
+                                   QVariant(0.5));
+    inPlaceEffect.applyCPUOnly(inPlace, inPlace);
+
+    ASSERT_EQ(inPlace.image().width(), referenceOutput.image().width());
+    ASSERT_EQ(inPlace.image().height(), referenceOutput.image().height());
+    const float* actual = inPlace.image().rgba32fData();
+    const float* expected = referenceOutput.image().rgba32fData();
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(actual[channel], expected[channel])
+            << "channel=" << channel;
+    }
+}
+
+TEST(CreativeEffectAdapterContractTest,
      CoreOldTvAdapterMatchesTheDirectCoreEffect)
 {
     constexpr int width = 5;
@@ -139,5 +190,16 @@ TEST(CreativeEffectAdapterContractTest,
         EXPECT_FLOAT_EQ(actual[offset + 1], expectedGreen->data()[pixel]);
         EXPECT_FLOAT_EQ(actual[offset + 2], expectedBlue->data()[pixel]);
         EXPECT_FLOAT_EQ(actual[offset + 3], expectedAlpha->data()[pixel]);
+    }
+
+    ArtifactCore::ImageF32x4RGBAWithCache repeatedOutput;
+    adapter.applyCPUOnly(source, repeatedOutput);
+    ASSERT_EQ(repeatedOutput.image().width(), width);
+    ASSERT_EQ(repeatedOutput.image().height(), height);
+    const float* repeated = repeatedOutput.image().rgba32fData();
+    ASSERT_NE(repeated, nullptr);
+    for (std::size_t channel = 0; channel < pixels.size(); ++channel) {
+        EXPECT_FLOAT_EQ(repeated[channel], actual[channel])
+            << "host context should keep the same effect time; channel=" << channel;
     }
 }

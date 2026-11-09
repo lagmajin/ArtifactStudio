@@ -2,7 +2,9 @@
 
 #include <QImage>
 #include <QMatrix3x3>
+#include <QPointF>
 #include <QSize>
+#include <QTemporaryDir>
 #include <QVector3D>
 #include <QtGui/QRgb>
 
@@ -33,6 +35,47 @@ TEST(VideoStabilizerContractTest,
     EXPECT_NEAR(mapped.y(), -0.5f, 1.0e-5f);
     EXPECT_NEAR(restored.x(), source.x(), 1.0e-5f);
     EXPECT_NEAR(restored.y(), source.y(), 1.0e-5f);
+}
+
+TEST(VideoStabilizerContractTest,
+     FrameMotionInverseRoundTripsAcrossRotationScaleAndTranslationDomain)
+{
+    const double rotations[] = {
+        -3.141592653589793, -1.2, -0.01, 0.0, 0.7, 1.5707963267948966,
+        3.141592653589793
+    };
+    const double scales[] = {0.125, 0.5, 1.0, 3.75};
+    const QPointF points[] = {
+        QPointF(0.0, 0.0), QPointF(1.25, -2.0), QPointF(-17.0, 8.5)
+    };
+
+    for (const double rotation : rotations) {
+        for (const double scale : scales) {
+            ArtifactCore::FrameMotion motion;
+            motion.x = -23.5;
+            motion.y = 11.25;
+            motion.rotation = rotation;
+            motion.scale = scale;
+
+            const QMatrix3x3 forward = motion.toMatrix();
+            const QMatrix3x3 inverse = motion.inverted().toMatrix();
+            for (const QPointF& point : points) {
+                const float mappedX = forward(0, 0) * point.x()
+                    + forward(0, 1) * point.y() + forward(0, 2);
+                const float mappedY = forward(1, 0) * point.x()
+                    + forward(1, 1) * point.y() + forward(1, 2);
+                const float restoredX = inverse(0, 0) * mappedX
+                    + inverse(0, 1) * mappedY + inverse(0, 2);
+                const float restoredY = inverse(1, 0) * mappedX
+                    + inverse(1, 1) * mappedY + inverse(1, 2);
+
+                EXPECT_NEAR(restoredX, point.x(), 2.0e-4f)
+                    << "rotation=" << rotation << " scale=" << scale;
+                EXPECT_NEAR(restoredY, point.y(), 2.0e-4f)
+                    << "rotation=" << rotation << " scale=" << scale;
+            }
+        }
+    }
 }
 
 TEST(VideoStabilizerContractTest,
@@ -98,4 +141,40 @@ TEST(VideoStabilizerContractTest, LiveStabilizerStoresParameterSnapshotByValue)
     EXPECT_FALSE(stored.stabilizeTranslation);
     EXPECT_EQ(stored.featureParams.maxFeatures, 42);
     EXPECT_EQ(stored.outputSize, QSize(640, 360));
+}
+
+TEST(VideoStabilizerContractTest,
+     BatchStabilizerProcessesSingleImageAndWritesPixelPreservingOutput)
+{
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+
+    const QString inputPath = temporaryDirectory.filePath("source.png");
+    const QString outputPath = temporaryDirectory.filePath("nested/result.png");
+    QImage source(4, 3, QImage::Format_ARGB32);
+    for (int y = 0; y < source.height(); ++y) {
+        for (int x = 0; x < source.width(); ++x) {
+            source.setPixel(x, y, qRgba(20 + x * 30, 40 + y * 40,
+                                       15 + x * 7 + y * 9, 255));
+        }
+    }
+    ASSERT_TRUE(source.save(inputPath));
+
+    ArtifactCore::BatchStabilizer stabilizer;
+    stabilizer.setInputFile(inputPath);
+    stabilizer.setOutputFile(outputPath);
+    ArtifactCore::StabilizerParams params;
+    params.outputSize = source.size();
+    stabilizer.setParams(params);
+
+    ASSERT_TRUE(stabilizer.process());
+    const QImage output(outputPath);
+    ASSERT_FALSE(output.isNull());
+    ASSERT_EQ(output.size(), source.size());
+    for (int y = 0; y < source.height(); ++y) {
+        for (int x = 0; x < source.width(); ++x) {
+            EXPECT_EQ(output.pixel(x, y), source.pixel(x, y))
+                << "pixel (" << x << ", " << y << ")";
+        }
+    }
 }

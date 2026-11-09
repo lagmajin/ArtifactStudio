@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <limits>
 #include <utility>
 
@@ -28,6 +29,56 @@ TEST(ZoomScaleContractTest, SetScaleClampsInfiniteValuesToConfiguredBounds)
 
     scale.setScale(-std::numeric_limits<float>::infinity());
     EXPECT_FLOAT_EQ(scale.scale(), scale.minScale());
+}
+
+TEST(ZoomScaleContractTest, NaNScaleCannotBreakFiniteConfiguredRangeInvariant)
+{
+    ZoomScale2D scale(1.5f);
+    scale.setMinScale(0.5f);
+    scale.setMaxScale(2.0f);
+
+    scale.setScale(std::numeric_limits<float>::quiet_NaN());
+
+    EXPECT_TRUE(std::isfinite(scale.scale()));
+    EXPECT_GE(scale.scale(), scale.minScale());
+    EXPECT_LE(scale.scale(), scale.maxScale());
+}
+
+TEST(ZoomScaleContractTest,
+     NonFiniteArithmeticInputsPreserveConfiguredRangeInvariant)
+{
+    const auto expectFiniteInRange = [](const char* operation, auto mutate) {
+        SCOPED_TRACE(operation);
+        ZoomScale2D scale(1.5f);
+        scale.setMinScale(0.5f);
+        scale.setMaxScale(2.0f);
+
+        mutate(scale);
+
+        EXPECT_TRUE(std::isfinite(scale.scale()));
+        EXPECT_GE(scale.scale(), scale.minScale());
+        EXPECT_LE(scale.scale(), scale.maxScale());
+    };
+    const float notANumber = std::numeric_limits<float>::quiet_NaN();
+
+    expectFiniteInRange("ZoomIn", [notANumber](ZoomScale2D& scale) {
+        scale.ZoomIn(notANumber);
+    });
+    expectFiniteInRange("ZoomOut", [notANumber](ZoomScale2D& scale) {
+        scale.ZoomOut(notANumber);
+    });
+    expectFiniteInRange("operator+=", [notANumber](ZoomScale2D& scale) {
+        scale += notANumber;
+    });
+    expectFiniteInRange("operator-=", [notANumber](ZoomScale2D& scale) {
+        scale -= notANumber;
+    });
+    expectFiniteInRange("operator*=", [notANumber](ZoomScale2D& scale) {
+        scale *= notANumber;
+    });
+    expectFiniteInRange("operator/=", [notANumber](ZoomScale2D& scale) {
+        scale /= notANumber;
+    });
 }
 
 TEST(ZoomScaleContractTest, IncrementalAndMultiplicativeOperationsRespectConfiguredBounds)

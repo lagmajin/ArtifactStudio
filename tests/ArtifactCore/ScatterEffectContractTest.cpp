@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <limits>
 
 import ImageProcessing.Scatter;
 
@@ -73,5 +74,33 @@ TEST(ScatterEffectContractTest, ZeroAndNegativeDimensionsLeaveBufferUntouched)
     effect.process(&pixel, -1, 1, {});
     effect.process(&pixel, 1, -1, {});
     EXPECT_EQ(pixel, original);
+}
+
+TEST(ScatterEffectContractTest,
+     NonFiniteAmountLeavesPixelsUntouched)
+{
+    std::array<float4, 30> original{};
+    for (std::size_t index = 0; index < original.size(); ++index) {
+        const float value = static_cast<float>(index) + 0.25f;
+        original[index] = {value, -value, value * 0.5f,
+                           static_cast<float>(index % 7u) / 6.0f};
+    }
+
+    const std::array<float, 3> invalidAmounts = {
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(),
+        -std::numeric_limits<float>::infinity(),
+    };
+    for (const float amount : invalidAmounts) {
+        auto pixels = original;
+        ScatterSettings settings;
+        settings.amount = amount;
+        settings.seed = 41;
+
+        Scatter effect;
+        effect.process(pixels.data(), 6, 5, settings);
+
+        EXPECT_EQ(pixels, original) << "amount=" << amount;
+    }
 }
 

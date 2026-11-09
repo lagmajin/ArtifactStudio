@@ -1,5 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <utility>
+
+#include <QJsonObject>
 #include <QString>
 #include <QStringList>
 #include <QVariant>
@@ -7,10 +11,36 @@
 #include <QVariantMap>
 
 import Core.AI.CommandIR;
+import Command.Serializable;
 
 using namespace ArtifactCore;
 
 namespace {
+
+class FactoryProbeCommand final : public SerializableCommand {
+public:
+    FactoryProbeCommand(QString type, QString generation)
+        : type_(std::move(type)), generation_(std::move(generation)) {}
+
+    QString commandType() const override { return type_; }
+    QJsonObject serialize() const override
+    {
+        return {{QStringLiteral("generation"), generation_}};
+    }
+    bool deserialize(const QJsonObject& data) override
+    {
+        generation_ = data.value(QStringLiteral("generation")).toString();
+        return !generation_.isEmpty();
+    }
+    void undo() override {}
+    void redo() override {}
+
+    const QString& generation() const { return generation_; }
+
+private:
+    QString type_;
+    QString generation_;
+};
 
 QVariantMap commandForSpec(const QVariantMap& spec)
 {
@@ -46,6 +76,34 @@ QVariantMap commandForSpec(const QVariantMap& spec)
 }
 
 } // namespace
+
+TEST(CommandIRContractTest,
+     CommandFactoryCreatorCanReplaceItsOwnRegistrationWithoutChangingInFlightCreate)
+{
+    auto& factory = CommandFactory::instance();
+    const QString type =
+        QStringLiteral("CommandIRContractTest.ReentrantFactoryGeneration");
+    factory.registerCommand(type, [&factory, type] {
+        factory.registerCommand(type, [type] {
+            return std::make_unique<FactoryProbeCommand>(
+                type, QStringLiteral("replacement"));
+        });
+        return std::make_unique<FactoryProbeCommand>(
+            type, QStringLiteral("in-flight"));
+    });
+
+    auto inFlight = factory.create(type);
+    ASSERT_NE(inFlight, nullptr);
+    auto* inFlightProbe = dynamic_cast<FactoryProbeCommand*>(inFlight.get());
+    ASSERT_NE(inFlightProbe, nullptr);
+    EXPECT_EQ(inFlightProbe->generation(), QStringLiteral("in-flight"));
+
+    auto subsequent = factory.create(type);
+    ASSERT_NE(subsequent, nullptr);
+    auto* subsequentProbe = dynamic_cast<FactoryProbeCommand*>(subsequent.get());
+    ASSERT_NE(subsequentProbe, nullptr);
+    EXPECT_EQ(subsequentProbe->generation(), QStringLiteral("replacement"));
+}
 
 TEST(CommandIRContractTest, VariantMapParsingTrimsTypeAndPreservesRequestPayload)
 {
@@ -91,6 +149,20 @@ TEST(CommandIRContractTest, SupportedCommandCatalogHasUniqueDescribedTypes)
             << type.toStdString();
         EXPECT_FALSE(CommandIR::undoLabelForType(type).trimmed().isEmpty())
             << type.toStdString();
+    }
+}
+
+TEST(CommandIRContractTest,
+     EverySupportedCommandHasAnExplicitNonGenericUndoLabel)
+{
+    for (const QVariant& value : CommandIR::supportedCommands()) {
+        const QString type =
+            value.toMap().value(QStringLiteral("type")).toString();
+        const QString undoLabel = CommandIR::undoLabelForType(type);
+        SCOPED_TRACE(type.toStdString());
+        EXPECT_FALSE(undoLabel.isEmpty());
+        EXPECT_NE(undoLabel, QStringLiteral("Command"))
+            << "catalog additions must add a user-facing undo label";
     }
 }
 
@@ -174,6 +246,49 @@ TEST(CommandIRContractTest, RequiredArrayFieldsUsePayloadNamesAndRejectInvalidSh
     EXPECT_FALSE(emptyLayerIds.valid);
     EXPECT_EQ(emptyLayerIds.diagnostics.value(QStringLiteral("layerIds[]")).toString(),
               QStringLiteral("missing"));
+}
+
+TEST(CommandIRContractTest,
+     SpecializedRequiredArraysReportWrongPayloadTypesConsistently)
+{
+    const struct {
+        const char* commandType;
+        const char* arrayField;
+    } cases[] = {
+        {"set_keyframes", "keys"},
+        {"batch_set_keyframes", "batches"},
+    };
+    const QVariantList wrongShapes{
+        QStringLiteral("not-an-array"),
+        QVariantMap{{QStringLiteral("not"), QStringLiteral("an array")}},
+        42,
+    };
+
+    for (const auto& testCase : cases) {
+        for (const QVariant& wrongShape : wrongShapes) {
+            QVariantMap command{
+                {QStringLiteral("type"), QString::fromLatin1(testCase.commandType)},
+                {QStringLiteral("target"), QVariantMap{
+                    {QStringLiteral("layerId"), QStringLiteral("layer-1")},
+                    {QStringLiteral("propertyPath"), QStringLiteral("transform.position")},
+                }},
+                {QString::fromLatin1(testCase.arrayField), wrongShape},
+            };
+            const CommandResult result =
+                CommandIR::validate(CommandIR::fromVariantMap(command));
+            SCOPED_TRACE(QStringLiteral("%1 field=%2 type=%3")
+                             .arg(QString::fromLatin1(testCase.commandType),
+                                  QString::fromLatin1(testCase.arrayField),
+                                  QString::fromLatin1(wrongShape.typeName()))
+                             .toStdString());
+            EXPECT_FALSE(result.valid);
+            EXPECT_EQ(result.diagnostics
+                          .value(QString::fromLatin1(testCase.arrayField) +
+                                 QStringLiteral("[]"))
+                          .toString(),
+                      QStringLiteral("invalid_type"));
+        }
+    }
 }
 
 TEST(CommandIRContractTest, ReadOnlyClassificationMatchesExactTypesOnly)

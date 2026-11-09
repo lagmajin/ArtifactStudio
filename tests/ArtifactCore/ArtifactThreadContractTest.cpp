@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <future>
@@ -343,4 +344,60 @@ TEST(ArtifactThreadContractTest, WakeAllReleasesEveryAlreadyWaitingThread)
     EXPECT_TRUE(allWorkersStarted);
     EXPECT_EQ(releasedByFirstBroadcast, 3);
     EXPECT_EQ(released.load(std::memory_order_acquire), 3);
+}
+
+TEST(ArtifactThreadContractTest, WakeOneReleasesOnlyOneWaiterBeforeWakeAll)
+{
+    constexpr int waiterCount = 3;
+    Mutex mutex;
+    Cond condition;
+    std::atomic<int> waiting{0};
+    std::atomic<int> released{0};
+    int permits = 0;
+    bool shutdown = false;
+    std::array<std::thread, waiterCount> waiters;
+
+    for (auto& waiter : waiters) {
+        waiter = std::thread([&] {
+            Lock lock(mutex);
+            waiting.fetch_add(1, std::memory_order_release);
+            condition.wait(lock, [&] { return shutdown || permits > 0; });
+            if (permits > 0) --permits;
+            released.fetch_add(1, std::memory_order_release);
+        });
+    }
+
+    const auto setupDeadline = std::chrono::steady_clock::now() +
+                               std::chrono::seconds(2);
+    while (waiting.load(std::memory_order_acquire) < waiterCount &&
+           std::chrono::steady_clock::now() < setupDeadline) {
+        std::this_thread::yield();
+    }
+    const bool allWaitersStarted =
+        waiting.load(std::memory_order_acquire) == waiterCount;
+
+    {
+        Lock lock(mutex);
+        ++permits;
+        condition.wakeOne();
+    }
+
+    const auto oneReleaseDeadline = std::chrono::steady_clock::now() +
+                                    std::chrono::seconds(2);
+    while (released.load(std::memory_order_acquire) < 1 &&
+           std::chrono::steady_clock::now() < oneReleaseDeadline) {
+        std::this_thread::yield();
+    }
+    const int releasedAfterWakeOne = released.load(std::memory_order_acquire);
+
+    {
+        Lock lock(mutex);
+        shutdown = true;
+        condition.wakeAll();
+    }
+    for (auto& waiter : waiters) waiter.join();
+
+    EXPECT_TRUE(allWaitersStarted);
+    EXPECT_EQ(releasedAfterWakeOne, 1);
+    EXPECT_EQ(released.load(std::memory_order_acquire), waiterCount);
 }

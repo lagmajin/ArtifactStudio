@@ -62,6 +62,25 @@ TEST(StringConversionUnicodeContractTest, Utf32LengthCountsCodePointsRatherThanU
     EXPECT_EQ(toStdU32String(input).size(), 2u);
 }
 
+TEST(StringConversionUnicodeContractTest, InvalidSurrogatesBecomeUnicodeReplacementCharacters)
+{
+    const QChar codeUnits[] = {
+        QChar(static_cast<ushort>(0xD800)), // Unpaired high surrogate.
+        QChar(u'A'),
+        QChar(static_cast<ushort>(0xDC00)), // Unpaired low surrogate.
+    };
+    const QString input(codeUnits, 3);
+
+    const std::string utf8 = toStdString(input);
+    EXPECT_EQ(utf8, std::string("\xEF\xBF\xBD" "A" "\xEF\xBF\xBD"));
+
+    const std::u32string utf32 = toStdU32String(input);
+    ASSERT_EQ(utf32.size(), 3u);
+    EXPECT_EQ(utf32[0], static_cast<char32_t>(0xFFFD));
+    EXPECT_EQ(utf32[1], U'A');
+    EXPECT_EQ(utf32[2], static_cast<char32_t>(0xFFFD));
+}
+
 TEST(StringConversionUnicodeContractTest, PreservesEmbeddedNullAcrossUtf8Utf16AndUtf32)
 {
     const QChar codeUnits[] = {QChar(u'A'), QChar(u'\0'), QChar(u'B')};
@@ -95,4 +114,13 @@ TEST(StringConversionUnicodeContractTest, Utf8InputConversionPreservesEmbeddedNu
     EXPECT_EQ(converted[0], QChar(u'A'));
     EXPECT_EQ(converted[1], QChar(u'\0'));
     EXPECT_EQ(converted[2], QChar(u'B'));
+}
+
+TEST(StringConversionUnicodeContractTest, InvalidUtf8BytesBecomeReplacementCharacters)
+{
+    const std::string input("A\x80" "B", 3);
+    const QString converted = toQString(input);
+
+    EXPECT_EQ(converted, QString::fromUtf8("A\xEF\xBF\xBD" "B"));
+    EXPECT_EQ(toStdString(converted), std::string("A\xEF\xBF\xBD" "B"));
 }

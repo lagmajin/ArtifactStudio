@@ -4768,3 +4768,183 @@ TEST(ArtifactCorePyroVolumeSmokeTest,
   std::filesystem::remove_all(cacheDirectory, cleanupError);
   EXPECT_FALSE(cleanupError);
 }
+
+TEST(ArtifactCorePyroVolumeSmokeTest,
+     RejectsLateTruncatedCheckpointWithoutMutatingLiveFields) {
+  using namespace ArtifactCore;
+
+  PyroDomain domain;
+  domain.min = {0.0f, 0.0f, 0.0f};
+  domain.max = {1.0f, 1.0f, 1.0f};
+  domain.voxelSize = 0.5f;
+  PyroSimulation simulation(domain);
+  const auto cacheDirectory = std::filesystem::temp_directory_path() /
+      ("ArtifactPyroTruncatedCheckpoint-" + std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  simulation.setCacheDirectory(cacheDirectory);
+  simulation.step(domain.fixedTimeStep);
+  ASSERT_EQ(simulation.frameIndex(), 1u);
+
+  auto& fields = simulation.fields();
+  ASSERT_EQ(fields.cellCount(), 8u);
+  for (std::size_t index = 0; index < fields.cellCount(); ++index) {
+    const float value = static_cast<float>(index + 1);
+    fields.densityStorage()[index] = value * 0.1f;
+    fields.temperatureStorage()[index] = value * 0.2f;
+    fields.fuelStorage()[index] = value * 0.3f;
+    fields.reactionStorage()[index] = value * 0.4f;
+    fields.pressureStorage()[index] = value * 0.5f;
+    fields.divergenceStorage()[index] = value * 0.6f;
+    fields.velocityStorage()[index] = {value, -value, value * 0.25f};
+  }
+  const auto densityBefore = fields.densityStorage();
+  const auto temperatureBefore = fields.temperatureStorage();
+  const auto fuelBefore = fields.fuelStorage();
+  const auto reactionBefore = fields.reactionStorage();
+  const auto pressureBefore = fields.pressureStorage();
+  const auto divergenceBefore = fields.divergenceStorage();
+  const auto velocityBefore = fields.velocityStorage();
+
+  const auto truncatedPath = cacheDirectory / "42.pyroc";
+  std::filesystem::create_directories(cacheDirectory);
+  {
+    std::ofstream out(truncatedPath, std::ios::binary);
+    ASSERT_TRUE(out.good());
+    const std::uint32_t magic = 0x5059524Fu;
+    const std::uint32_t version = 3;
+    const PyroResolution resolution{2, 2, 2};
+    out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+    out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    out.write(reinterpret_cast<const char*>(&resolution), sizeof(resolution));
+    const std::vector<float> completeField(8, 0.25f);
+    const auto writeVector = [&out](const auto& values) {
+      const std::uint64_t size = values.size();
+      out.write(reinterpret_cast<const char*>(&size), sizeof(size));
+      out.write(reinterpret_cast<const char*>(values.data()),
+                static_cast<std::streamsize>(values.size() * sizeof(values[0])));
+    };
+    for (int field = 0; field < 5; ++field) {
+      writeVector(completeField);
+    }
+    const std::uint64_t declaredDivergenceSize = 8;
+    const float oneDivergenceValue = 0.75f;
+    out.write(reinterpret_cast<const char*>(&declaredDivergenceSize),
+              sizeof(declaredDivergenceSize));
+    out.write(reinterpret_cast<const char*>(&oneDivergenceValue),
+              sizeof(oneDivergenceValue));
+  }
+
+  const auto status = simulation.loadCheckpointFromDisk(42);
+
+  EXPECT_TRUE(status.supported);
+  EXPECT_FALSE(status.loaded);
+  EXPECT_FALSE(status.reason.empty());
+  EXPECT_EQ(simulation.frameIndex(), 1u);
+  EXPECT_EQ(simulation.fields().resolution().width, 2);
+  EXPECT_EQ(simulation.fields().resolution().height, 2);
+  EXPECT_EQ(simulation.fields().resolution().depth, 2);
+  EXPECT_EQ(simulation.fields().densityStorage(), densityBefore);
+  EXPECT_EQ(simulation.fields().temperatureStorage(), temperatureBefore);
+  EXPECT_EQ(simulation.fields().fuelStorage(), fuelBefore);
+  EXPECT_EQ(simulation.fields().reactionStorage(), reactionBefore);
+  EXPECT_EQ(simulation.fields().pressureStorage(), pressureBefore);
+  EXPECT_EQ(simulation.fields().divergenceStorage(), divergenceBefore);
+  const auto& velocityAfter = simulation.fields().velocityStorage();
+  ASSERT_EQ(velocityAfter.size(), velocityBefore.size());
+  for (std::size_t index = 0; index < velocityAfter.size(); ++index) {
+    EXPECT_EQ(velocityAfter[index].x, velocityBefore[index].x);
+    EXPECT_EQ(velocityAfter[index].y, velocityBefore[index].y);
+    EXPECT_EQ(velocityAfter[index].z, velocityBefore[index].z);
+  }
+
+  std::error_code cleanupError;
+  std::filesystem::remove_all(cacheDirectory, cleanupError);
+  EXPECT_FALSE(cleanupError);
+}
+
+TEST(ArtifactCorePyroVolumeSmokeTest,
+     RejectsCheckpointWhoseFieldLengthsDoNotMatchResolution) {
+  using namespace ArtifactCore;
+
+  PyroDomain domain;
+  domain.min = {0.0f, 0.0f, 0.0f};
+  domain.max = {1.0f, 1.0f, 1.0f};
+  domain.voxelSize = 0.5f;
+  PyroSimulation simulation(domain);
+  const auto cacheDirectory = std::filesystem::temp_directory_path() /
+      ("ArtifactPyroMismatchedCheckpoint-" + std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  simulation.setCacheDirectory(cacheDirectory);
+  simulation.step(domain.fixedTimeStep);
+  ASSERT_EQ(simulation.frameIndex(), 1u);
+
+  auto& fields = simulation.fields();
+  ASSERT_EQ(fields.cellCount(), 8u);
+  for (std::size_t index = 0; index < fields.cellCount(); ++index) {
+    const float value = static_cast<float>(index + 1);
+    fields.densityStorage()[index] = value * 0.1f;
+    fields.temperatureStorage()[index] = value * 0.2f;
+    fields.fuelStorage()[index] = value * 0.3f;
+    fields.reactionStorage()[index] = value * 0.4f;
+    fields.pressureStorage()[index] = value * 0.5f;
+    fields.divergenceStorage()[index] = value * 0.6f;
+    fields.velocityStorage()[index] = {value, -value, value * 0.25f};
+  }
+  const auto densityBefore = fields.densityStorage();
+  const auto temperatureBefore = fields.temperatureStorage();
+  const auto fuelBefore = fields.fuelStorage();
+  const auto reactionBefore = fields.reactionStorage();
+  const auto pressureBefore = fields.pressureStorage();
+  const auto divergenceBefore = fields.divergenceStorage();
+  const auto velocityBefore = fields.velocityStorage();
+
+  std::filesystem::create_directories(cacheDirectory);
+  {
+    std::ofstream out(cacheDirectory / "43.pyroc", std::ios::binary);
+    ASSERT_TRUE(out.good());
+    const std::uint32_t magic = 0x5059524Fu;
+    const std::uint32_t version = 3;
+    const PyroResolution resolution{2, 2, 2};
+    out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+    out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    out.write(reinterpret_cast<const char*>(&resolution), sizeof(resolution));
+    const std::vector<float> shortDensity(7, 0.25f);
+    const std::vector<float> completeField(8, 0.5f);
+    const std::vector<PyroVec3> completeVelocity(8, PyroVec3{1.0f, 2.0f, 3.0f});
+    const auto writeVector = [&out](const auto& values) {
+      const std::uint64_t size = values.size();
+      out.write(reinterpret_cast<const char*>(&size), sizeof(size));
+      out.write(reinterpret_cast<const char*>(values.data()),
+                static_cast<std::streamsize>(values.size() * sizeof(values[0])));
+    };
+    writeVector(shortDensity);
+    for (int field = 0; field < 6; ++field) {
+      writeVector(completeField);
+    }
+    writeVector(completeVelocity);
+  }
+
+  const auto status = simulation.loadCheckpointFromDisk(43);
+
+  EXPECT_TRUE(status.supported);
+  EXPECT_FALSE(status.loaded);
+  EXPECT_FALSE(status.reason.empty());
+  EXPECT_EQ(simulation.frameIndex(), 1u);
+  EXPECT_EQ(simulation.fields().densityStorage(), densityBefore);
+  EXPECT_EQ(simulation.fields().temperatureStorage(), temperatureBefore);
+  EXPECT_EQ(simulation.fields().fuelStorage(), fuelBefore);
+  EXPECT_EQ(simulation.fields().reactionStorage(), reactionBefore);
+  EXPECT_EQ(simulation.fields().pressureStorage(), pressureBefore);
+  EXPECT_EQ(simulation.fields().divergenceStorage(), divergenceBefore);
+  const auto& velocityAfter = simulation.fields().velocityStorage();
+  ASSERT_EQ(velocityAfter.size(), velocityBefore.size());
+  for (std::size_t index = 0; index < velocityAfter.size(); ++index) {
+    EXPECT_EQ(velocityAfter[index].x, velocityBefore[index].x);
+    EXPECT_EQ(velocityAfter[index].y, velocityBefore[index].y);
+    EXPECT_EQ(velocityAfter[index].z, velocityBefore[index].z);
+  }
+
+  std::error_code cleanupError;
+  std::filesystem::remove_all(cacheDirectory, cleanupError);
+  EXPECT_FALSE(cleanupError);
+}

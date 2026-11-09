@@ -237,6 +237,72 @@ TEST(ColorBlendModeContractTest, NormalBlendMatchesOpacityGridForTranslucentBase
     }
 }
 
+TEST(ColorBlendModeContractTest,
+     SequentialTranslucentLayersMatchIndependentPremultipliedReference)
+{
+    const auto referenceChannel = [](const float base, const float source,
+                                     const BlendMode mode) {
+        switch (mode) {
+        case BlendMode::Normal: return source;
+        case BlendMode::Multiply: return base * source;
+        case BlendMode::Screen: return 1.0f - (1.0f - base) * (1.0f - source);
+        default: return base;
+        }
+    };
+    const auto referenceComposite = [&](const FloatColor& base,
+                                        const FloatColor& source,
+                                        const BlendMode mode,
+                                        const float opacity) {
+        const float outAlpha = opacity + base.a() * (1.0f - opacity);
+        const auto channel = [&](const float baseValue, const float sourceValue) {
+            const float blended = referenceChannel(baseValue, sourceValue, mode);
+            const float premultiplied =
+                baseValue * base.a() * (1.0f - opacity) +
+                (blended * base.a() + sourceValue * (1.0f - base.a())) * opacity;
+            return outAlpha <= 1e-6f ? 0.0f : premultiplied / outAlpha;
+        };
+        return FloatColor(channel(base.r(), source.r()),
+                          channel(base.g(), source.g()),
+                          channel(base.b(), source.b()), outAlpha);
+    };
+
+    const FloatColor transparentBase(0.91f, 0.08f, 0.73f, 0.0f);
+    const FloatColor first(0.2f, 0.75f, 0.35f, 1.0f);
+    const FloatColor second(0.8f, 0.3f, 0.6f, 1.0f);
+    const FloatColor third(0.4f, 0.9f, 0.15f, 1.0f);
+    constexpr float firstOpacity = 0.28f;
+    constexpr float secondOpacity = 0.63f;
+    constexpr float thirdOpacity = 0.41f;
+
+    FloatColor expected = referenceComposite(
+        transparentBase, first, BlendMode::Normal, firstOpacity);
+    FloatColor actual = ColorBlendMode::blend(
+        transparentBase, first, BlendMode::Normal, firstOpacity);
+    EXPECT_NEAR(actual.r(), expected.r(), 1e-6f);
+    EXPECT_NEAR(actual.g(), expected.g(), 1e-6f);
+    EXPECT_NEAR(actual.b(), expected.b(), 1e-6f);
+    EXPECT_NEAR(actual.a(), expected.a(), 1e-6f);
+
+    expected = referenceComposite(expected, second, BlendMode::Multiply,
+                                  secondOpacity);
+    actual = ColorBlendMode::blend(actual, second, BlendMode::Multiply,
+                                   secondOpacity);
+    EXPECT_NEAR(actual.r(), expected.r(), 1e-6f);
+    EXPECT_NEAR(actual.g(), expected.g(), 1e-6f);
+    EXPECT_NEAR(actual.b(), expected.b(), 1e-6f);
+    EXPECT_NEAR(actual.a(), expected.a(), 1e-6f);
+
+    expected = referenceComposite(expected, third, BlendMode::Screen,
+                                  thirdOpacity);
+    actual = ColorBlendMode::blend(actual, third, BlendMode::Screen,
+                                   thirdOpacity);
+    EXPECT_NEAR(actual.r(), expected.r(), 1e-6f);
+    EXPECT_NEAR(actual.g(), expected.g(), 1e-6f);
+    EXPECT_NEAR(actual.b(), expected.b(), 1e-6f);
+    EXPECT_NEAR(actual.a(), expected.a(), 1e-6f);
+    EXPECT_EQ(transparentBase, FloatColor(0.91f, 0.08f, 0.73f, 0.0f));
+}
+
 TEST(ColorBlendModeContractTest, HslModesReplaceOnlyTheirNamedComponents)
 {
     const auto baseRgb = ColorConversion::HSLToRGB({30.0f, 0.6f, 0.4f});

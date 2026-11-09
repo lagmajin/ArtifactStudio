@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <array>
+
 #include <QMatrix4x4>
 #include <QVector3D>
 
@@ -76,4 +78,38 @@ TEST(DepthMaskContractTest, NonIncreasingDistanceRangeReturnsInvertDependentFall
     EXPECT_FLOAT_EQ(alphaAtCameraDepth(100.0f, settings), 0.0f);
     settings.invert = true;
     EXPECT_FLOAT_EQ(alphaAtCameraDepth(-100.0f, settings), 1.0f);
+}
+
+TEST(DepthMaskContractTest, EveryFalloffStaysBoundedMonotonicAndInvertComplementary)
+{
+    constexpr std::array falloffs{
+        DepthFalloffCurve::Hard,
+        DepthFalloffCurve::Linear,
+        DepthFalloffCurve::Smooth,
+    };
+
+    for (const auto falloff : falloffs) {
+        DepthMaskSettings settings;
+        settings.nearDistance = 3.0f;
+        settings.farDistance = 17.0f;
+        settings.falloff = falloff;
+
+        float previous = -1.0f;
+        for (int sample = 0; sample <= 100; ++sample) {
+            const float depth = 3.0f + 14.0f * static_cast<float>(sample) / 100.0f;
+            const float regular = alphaAtCameraDepth(depth, settings);
+            EXPECT_GE(regular, 0.0f);
+            EXPECT_LE(regular, 1.0f);
+            EXPECT_GE(regular, previous);
+            previous = regular;
+
+            settings.invert = true;
+            const float inverted = alphaAtCameraDepth(depth, settings);
+            EXPECT_NEAR(inverted, 1.0f - regular, 1.0e-6f);
+            settings.invert = false;
+        }
+
+        EXPECT_FLOAT_EQ(alphaAtCameraDepth(3.0f, settings), 0.0f);
+        EXPECT_FLOAT_EQ(alphaAtCameraDepth(17.0f, settings), 1.0f);
+    }
 }

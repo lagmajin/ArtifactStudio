@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -52,6 +53,16 @@ struct DestructionTrackedMapped {
     ~DestructionTrackedMapped() { ++*destructionCount; }
 
     int* destructionCount;
+};
+
+struct ConditionallyThrowingMapped {
+    static inline bool shouldThrow = false;
+
+    explicit ConditionallyThrowingMapped(int input) : value(input) {
+        if (shouldThrow) throw std::runtime_error("mapped construction failed");
+    }
+
+    int value;
 };
 
 } // namespace
@@ -159,6 +170,35 @@ TEST(ArtifactHashMapContractTest, CollisionChainsSupportLookupAndRemoval)
     EXPECT_TRUE(map.empty());
 }
 
+TEST(ArtifactHashMapContractTest,
+     ErasingHeadMiddleAndTailOfCollisionChainKeepsRemainingNodesReachable)
+{
+    ArtifactHashMap<int, std::string, ConstantHash> map;
+    map.tryEmplace(1, std::string("one"));
+    map.tryEmplace(2, std::string("two"));
+    map.tryEmplace(3, std::string("three"));
+    map.tryEmplace(4, std::string("four"));
+
+    EXPECT_EQ(map.erase(4), 1u); // chain head
+    EXPECT_EQ(map.erase(2), 1u); // chain middle
+    EXPECT_EQ(map.erase(1), 1u); // chain tail
+    ASSERT_EQ(map.size(), 1u);
+    ASSERT_NE(map.find(3), map.end());
+    EXPECT_EQ(map.find(3)->second, "three");
+    EXPECT_EQ(map.erase(4), 0u);
+    EXPECT_EQ(map.erase(2), 0u);
+    EXPECT_EQ(map.erase(1), 0u);
+
+    EXPECT_TRUE(map.tryEmplace(4, std::string("four again")).second);
+    EXPECT_TRUE(map.tryEmplace(2, std::string("two again")).second);
+    EXPECT_TRUE(map.tryEmplace(1, std::string("one again")).second);
+    ASSERT_EQ(map.size(), 4u);
+    EXPECT_EQ(map.find(1)->second, "one again");
+    EXPECT_EQ(map.find(2)->second, "two again");
+    EXPECT_EQ(map.find(3)->second, "three");
+    EXPECT_EQ(map.find(4)->second, "four again");
+}
+
 TEST(ArtifactHashMapContractTest, EraseReturnsZeroForMissingAndOneForExistingKey)
 {
     ArtifactHashMap<int, int> map;
@@ -202,6 +242,37 @@ TEST(ArtifactHashMapContractTest, CustomInitialBucketCountRehashesAtLoadFactorBo
     for (int key = 0; key < 4; ++key) {
         ASSERT_TRUE(map.contains(key));
         EXPECT_EQ(map.at(key).value(), key * 10);
+    }
+}
+
+TEST(ArtifactHashMapContractTest,
+     ThrowingMappedConstructionDuringGrowthKeepsMapUsable)
+{
+    ArtifactHashMap<int, ConditionallyThrowingMapped> map(4);
+    for (int key = 0; key < 3; ++key) {
+        ASSERT_TRUE(map.tryEmplace(key, key * 10).second);
+    }
+    ASSERT_EQ(map.bucket_count(), 4u);
+    ASSERT_EQ(map.size(), 3u);
+
+    ConditionallyThrowingMapped::shouldThrow = true;
+    EXPECT_THROW(map.tryEmplace(3, 30), std::runtime_error);
+    ConditionallyThrowingMapped::shouldThrow = false;
+
+    ASSERT_EQ(map.size(), 3u);
+    for (int key = 0; key < 3; ++key) {
+        ASSERT_TRUE(map.contains(key));
+        ASSERT_TRUE(map.at(key).has_value());
+        EXPECT_EQ(map.at(key)->value, key * 10);
+    }
+    EXPECT_FALSE(map.contains(3));
+
+    ASSERT_TRUE(map.tryEmplace(3, 30).second);
+    ASSERT_EQ(map.size(), 4u);
+    EXPECT_GT(map.bucket_count(), 4u);
+    for (int key = 0; key < 4; ++key) {
+        ASSERT_TRUE(map.at(key).has_value());
+        EXPECT_EQ(map.at(key)->value, key * 10);
     }
 }
 
@@ -468,6 +539,48 @@ TEST(ArtifactHashMapContractTest, DeterministicOperationsMatchStandardMapModel)
 
         EXPECT_EQ(actual.size(), expected.size()) << "step=" << step;
         for (int candidate = -48; candidate <= 48; ++candidate) {
+            const auto expectedEntry = expected.find(candidate);
+            const auto actualEntry = actual.find(candidate);
+            EXPECT_EQ(actualEntry != actual.end(), expectedEntry != expected.end())
+                << "step=" << step << " key=" << candidate;
+            if (expectedEntry != expected.end() && actualEntry != actual.end()) {
+                EXPECT_EQ(actualEntry->second, expectedEntry->second)
+                    << "step=" << step << " key=" << candidate;
+            }
+        }
+    }
+}
+
+TEST(ArtifactHashMapContractTest,
+     DeterministicCollisionOperationsMatchStandardMapModel)
+{
+    ArtifactHashMap<int, int, ConstantHash> actual;
+    std::unordered_map<int, int> expected;
+    std::mt19937 generator(0xC0111510u);
+    std::uniform_int_distribution<int> operationDistribution(0, 2);
+    std::uniform_int_distribution<int> keyDistribution(-64, 64);
+    std::uniform_int_distribution<int> valueDistribution(-1000, 1000);
+
+    for (int step = 0; step < 1600; ++step) {
+        const int operation = operationDistribution(generator);
+        const int key = keyDistribution(generator);
+        const int value = valueDistribution(generator);
+
+        if (operation == 0) {
+            const auto [entry, inserted] = actual.tryEmplace(key, value);
+            const auto [expectedEntry, expectedInserted] =
+                expected.try_emplace(key, value);
+            EXPECT_EQ(inserted, expectedInserted) << "step=" << step;
+            EXPECT_EQ(entry->second, expectedEntry->second) << "step=" << step;
+        } else if (operation == 1) {
+            EXPECT_EQ(actual.erase(key), expected.erase(key)) << "step=" << step;
+        } else {
+            actual[key] = value;
+            expected[key] = value;
+        }
+
+        EXPECT_EQ(actual.size(), expected.size()) << "step=" << step;
+        for (int candidate = -64; candidate <= 64; ++candidate) {
             const auto expectedEntry = expected.find(candidate);
             const auto actualEntry = actual.find(candidate);
             EXPECT_EQ(actualEntry != actual.end(), expectedEntry != expected.end())

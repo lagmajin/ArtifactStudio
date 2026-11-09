@@ -115,6 +115,45 @@ TEST(KeyMapContractTest, JsonRoundTripRestoresNameContextAndRegisteredBindings)
     actions->unregisterAction(id);
 }
 
+TEST(KeyMapContractTest,
+     MalformedBindingEntryDoesNotPartiallyReplaceExistingMap)
+{
+    auto* actions = ActionManager::instance();
+    const QString id = actionId("malformed-binding-transaction");
+    Action* action = actions->registerAction(id, QStringLiteral("Transactional"));
+    ASSERT_NE(action, nullptr);
+
+    {
+        KeyMap map(QStringLiteral("Existing map"));
+        map.setContext(QStringLiteral("Timeline"));
+        InputBinding* original = map.addBinding(
+            Qt::Key_K, InputEvent::ModifierKey::LCtrl, action,
+            QStringLiteral("original"));
+        ASSERT_NE(original, nullptr);
+
+        const QString malformed = QStringLiteral(
+            "{\"name\":\"Replacement\","
+            "\"context\":\"Composition\","
+            "\"bindings\":["
+            "{\"key\":76,\"modifiers\":0,\"actionId\":\"%1\","
+            "\"description\":\"new\"},"
+            "{\"key\":77,\"modifiers\":0,\"actionId\":17,"
+            "\"description\":\"invalid\"}]}")
+            .arg(id);
+
+        EXPECT_FALSE(map.fromJSON(malformed));
+        EXPECT_EQ(map.name(), QStringLiteral("Existing map"));
+        EXPECT_EQ(map.context(), QStringLiteral("Timeline"));
+        ASSERT_EQ(map.allBindings().size(), 1u);
+        EXPECT_EQ(map.findBinding(Qt::Key_K, InputEvent::ModifierKey::LCtrl),
+                  original);
+        EXPECT_EQ(map.findBinding(Qt::Key_L, InputEvent::ModifierKey::NoModifier),
+                  nullptr);
+    }
+
+    actions->unregisterAction(id);
+}
+
 TEST(KeyMapContractTest, LeftAndRightModifierBindingsRemainDistinct)
 {
     auto* actions = ActionManager::instance();
@@ -175,4 +214,71 @@ TEST(KeyMapContractTest, ReaddingSameActionReplacesItsBindingWithoutDuplicateInd
     }
 
     actions->unregisterAction(id);
+}
+
+TEST(KeyMapContractTest, RebindConflictsKeepBothIndexesConsistentAcrossJsonRoundTrip)
+{
+    auto* actions = ActionManager::instance();
+    const QString firstId = actionId("index-sequence-first");
+    const QString secondId = actionId("index-sequence-second");
+    const QString thirdId = actionId("index-sequence-third");
+    Action* firstAction = actions->registerAction(firstId, QStringLiteral("First"));
+    Action* secondAction = actions->registerAction(secondId, QStringLiteral("Second"));
+    Action* thirdAction = actions->registerAction(thirdId, QStringLiteral("Third"));
+    ASSERT_NE(firstAction, nullptr);
+    ASSERT_NE(secondAction, nullptr);
+    ASSERT_NE(thirdAction, nullptr);
+
+    {
+        KeyMap map(QStringLiteral("Index sequence"));
+        const auto control = InputEvent::ModifierKey::LCtrl;
+        const auto shift = InputEvent::ModifierKey::LShift;
+        InputBinding* firstOriginal = map.addBinding(Qt::Key_K, control, firstAction);
+        InputBinding* secondOriginal = map.addBinding(Qt::Key_L, control, secondAction);
+        ASSERT_NE(firstOriginal, nullptr);
+        ASSERT_NE(secondOriginal, nullptr);
+
+        EXPECT_EQ(map.addBinding(Qt::Key_K, control, thirdAction), nullptr);
+        EXPECT_TRUE(map.findBindingsForAction(thirdId).empty());
+        EXPECT_EQ(map.findBinding(Qt::Key_K, control), firstOriginal);
+        EXPECT_EQ(map.findBinding(Qt::Key_L, control), secondOriginal);
+
+        InputBinding* firstReplacement = map.addBinding(Qt::Key_M, shift, firstAction);
+        ASSERT_NE(firstReplacement, nullptr);
+        EXPECT_EQ(map.findBinding(Qt::Key_K, control), nullptr);
+        EXPECT_EQ(map.findBinding(Qt::Key_M, shift), firstReplacement);
+        ASSERT_EQ(map.findBindingsForAction(firstId).size(), 1u);
+        EXPECT_EQ(map.findBindingsForAction(firstId).front(), firstReplacement);
+        EXPECT_EQ(map.findBindingsForAction(secondId).front(), secondOriginal);
+
+        InputBinding* thirdBinding = map.addBinding(Qt::Key_K, control, thirdAction);
+        ASSERT_NE(thirdBinding, nullptr);
+        EXPECT_EQ(map.addBinding(Qt::Key_M, shift, secondAction), nullptr);
+        EXPECT_EQ(map.findBinding(Qt::Key_L, control), secondOriginal);
+        EXPECT_EQ(map.findBinding(Qt::Key_M, shift), firstReplacement);
+        ASSERT_EQ(map.findBindingsForAction(secondId).size(), 1u);
+        EXPECT_EQ(map.findBindingsForAction(secondId).front(), secondOriginal);
+        EXPECT_EQ(map.findBindingsForAction(thirdId).front(), thirdBinding);
+        ASSERT_EQ(map.allBindings().size(), 3u);
+
+        KeyMap restored(QStringLiteral("Old map"));
+        ASSERT_TRUE(restored.fromJSON(map.toJSON()));
+        EXPECT_EQ(restored.allBindings().size(), 3u);
+        InputBinding* restoredThird = restored.findBinding(Qt::Key_K, control);
+        InputBinding* restoredSecond = restored.findBinding(Qt::Key_L, control);
+        InputBinding* restoredFirst = restored.findBinding(Qt::Key_M, shift);
+        ASSERT_NE(restoredThird, nullptr);
+        ASSERT_NE(restoredSecond, nullptr);
+        ASSERT_NE(restoredFirst, nullptr);
+        EXPECT_EQ(restoredThird->actionId(), thirdId);
+        EXPECT_EQ(restoredSecond->actionId(), secondId);
+        EXPECT_EQ(restoredFirst->actionId(), firstId);
+        EXPECT_EQ(restored.findBindingsForAction(firstId).size(), 1u);
+        EXPECT_EQ(restored.findBindingsForAction(secondId).size(), 1u);
+        EXPECT_EQ(restored.findBindingsForAction(thirdId).size(), 1u);
+    }
+
+    actions->unregisterAction(firstId);
+    actions->unregisterAction(secondId);
+    actions->unregisterAction(thirdId);
 }

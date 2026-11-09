@@ -3,6 +3,8 @@
 #include <QJsonObject>
 #include <QVector>
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cmath>
 #include <initializer_list>
@@ -168,6 +170,44 @@ TEST(AudioReverbStandaloneTest, ProcessingInBlocksPreservesDelayHistory)
         auto block = makeMono(48000, input.mid(start, 300));
         segmentedReverb.process(block);
         segmentedOutput += block.channelData[0];
+    }
+
+    ASSERT_EQ(segmentedOutput.size(), wholeBlock.channelData[0].size());
+    EXPECT_EQ(segmentedOutput, wholeBlock.channelData[0]);
+}
+
+TEST(AudioReverbStandaloneTest,
+     IrregularBlocksPreserveReverbHistoryAcrossImpulseBoundaries)
+{
+    QVector<float> input(1800, 0.0f);
+    input[0] = 1.0f;
+    input[127] = -0.5f;
+    input[128] = 0.25f;
+    input[801] = 0.75f;
+
+    AudioReverb wholeBlockReverb;
+    wholeBlockReverb.setDecay(0.87f);
+    wholeBlockReverb.setMix(1.0f);
+    auto wholeBlock = makeMono(48000, input);
+    wholeBlockReverb.process(wholeBlock);
+
+    AudioReverb segmentedReverb;
+    segmentedReverb.setDecay(0.87f);
+    segmentedReverb.setMix(1.0f);
+    constexpr std::array<int, 6> blockSizes{1, 127, 11, 257, 3, 64};
+    QVector<float> segmentedOutput;
+    segmentedOutput.reserve(input.size());
+    int start = 0;
+    std::size_t blockIndex = 0;
+    while (start < input.size()) {
+        const int count = std::min(blockSizes[blockIndex % blockSizes.size()],
+                                   static_cast<int>(input.size()) - start);
+        auto block = makeMono(48000, input.mid(start, count));
+        block.startFrame += start;
+        segmentedReverb.process(block);
+        segmentedOutput += block.channelData[0];
+        start += count;
+        ++blockIndex;
     }
 
     ASSERT_EQ(segmentedOutput.size(), wholeBlock.channelData[0].size());

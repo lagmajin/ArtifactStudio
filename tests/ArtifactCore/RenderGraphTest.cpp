@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <future>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 import Graphics.RenderGraph;
@@ -34,6 +37,21 @@ struct TwoWayInlineLauncher {
         packaged();
         return future;
     }
+};
+
+struct ThrowOnSecondDispatchLauncher {
+    std::size_t concurrency() const noexcept { return 2; }
+
+    template <typename F>
+    auto async(F&& task) -> std::future<decltype(task())>
+    {
+        if (dispatchCount++ == 1) {
+            throw std::runtime_error("simulated dispatch failure");
+        }
+        return std::async(std::launch::deferred, std::forward<F>(task));
+    }
+
+    std::size_t dispatchCount = 0;
 };
 
 RenderResourceDescriptor transientTexture(const std::string& name)
@@ -276,6 +294,79 @@ TEST(RenderGraphAliasTest, NonOverlappingTransientsShareSlot)
     EXPECT_EQ(compiled.allocationSlotCount, 2);
 }
 
+TEST(RenderGraphAliasTest, NonOverlappingTexturesWithDifferentDimensionsDoNotAlias)
+{
+    RenderGraph graph;
+    const auto first = graph.addResource(transientTexture("first"));
+    const auto fence = graph.addResource(transientTexture("fence"));
+    auto largerDescriptor = transientTexture("second");
+    largerDescriptor.width = 640;
+    largerDescriptor.byteSize = 640u * 180u * 4u;
+    const auto second = graph.addResource(largerDescriptor);
+
+    auto produceFirst = graphicsPass("produceFirst");
+    produceFirst.writes = {first};
+    graph.addPass(produceFirst);
+    auto consumeFirst = graphicsPass("consumeFirst");
+    consumeFirst.reads = {first};
+    consumeFirst.writes = {fence};
+    graph.addPass(consumeFirst);
+    auto produceSecond = graphicsPass("produceSecond");
+    produceSecond.reads = {fence};
+    produceSecond.writes = {second};
+    graph.addPass(produceSecond);
+    auto consumeSecond = graphicsPass("consumeSecond");
+    consumeSecond.reads = {second};
+    graph.addPass(consumeSecond);
+
+    const CompiledRenderGraph compiled = graph.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    const auto* firstLifetime = compiled.lifetime(first);
+    const auto* secondLifetime = compiled.lifetime(second);
+    ASSERT_NE(firstLifetime, nullptr);
+    ASSERT_NE(secondLifetime, nullptr);
+    EXPECT_NE(firstLifetime->allocationSlot, secondLifetime->allocationSlot);
+    EXPECT_EQ(compiled.allocationSlotCount, 3u)
+        << "the overlapping fence needs one slot and incompatible textures need distinct slots";
+}
+
+TEST(RenderGraphAliasTest, UnknownFormatTexturesDoNotAliasAcrossNonOverlappingLifetimes)
+{
+    RenderGraph graph;
+    auto firstDescriptor = transientTexture("first-unknown-format");
+    firstDescriptor.format = 0;
+    const auto first = graph.addResource(firstDescriptor);
+    const auto fence = graph.addResource(transientTexture("fence"));
+    auto secondDescriptor = transientTexture("second-unknown-format");
+    secondDescriptor.format = 0;
+    const auto second = graph.addResource(secondDescriptor);
+
+    auto produceFirst = graphicsPass("produceFirst");
+    produceFirst.writes = {first};
+    graph.addPass(produceFirst);
+    auto consumeFirst = graphicsPass("consumeFirst");
+    consumeFirst.reads = {first};
+    consumeFirst.writes = {fence};
+    graph.addPass(consumeFirst);
+    auto produceSecond = graphicsPass("produceSecond");
+    produceSecond.reads = {fence};
+    produceSecond.writes = {second};
+    graph.addPass(produceSecond);
+    auto consumeSecond = graphicsPass("consumeSecond");
+    consumeSecond.reads = {second};
+    graph.addPass(consumeSecond);
+
+    const CompiledRenderGraph compiled = graph.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    const auto* firstLifetime = compiled.lifetime(first);
+    const auto* secondLifetime = compiled.lifetime(second);
+    ASSERT_NE(firstLifetime, nullptr);
+    ASSERT_NE(secondLifetime, nullptr);
+    EXPECT_NE(firstLifetime->allocationSlot, secondLifetime->allocationSlot);
+    EXPECT_EQ(compiled.allocationSlotCount, 3u)
+        << "unknown texture formats are not proven compatible for aliasing";
+}
+
 TEST(RenderGraphAliasTest, OverlappingTransientsUseSeparateSlots)
 {
     RenderGraph graph;
@@ -297,6 +388,35 @@ TEST(RenderGraphAliasTest, OverlappingTransientsUseSeparateSlots)
     ASSERT_NE(secondLifetime, nullptr);
     EXPECT_NE(firstLifetime->allocationSlot, secondLifetime->allocationSlot);
     EXPECT_EQ(compiled.allocationSlotCount, 2);
+}
+
+TEST(RenderGraphAliasTest,
+     ResourcesUsedOnOppositeSidesOfSamePassCannotShareAllocation)
+{
+    RenderGraph graph;
+    const auto first = graph.addResource(transientTexture("first"));
+    const auto second = graph.addResource(transientTexture("second"));
+
+    auto produceFirst = graphicsPass("produceFirst");
+    produceFirst.writes = {first};
+    graph.addPass(produceFirst);
+    auto handoff = graphicsPass("readFirstWriteSecond");
+    handoff.reads = {first};
+    handoff.writes = {second};
+    graph.addPass(handoff);
+    auto consumeSecond = graphicsPass("consumeSecond");
+    consumeSecond.reads = {second};
+    graph.addPass(consumeSecond);
+
+    const CompiledRenderGraph compiled = graph.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    const auto* firstLifetime = compiled.lifetime(first);
+    const auto* secondLifetime = compiled.lifetime(second);
+    ASSERT_NE(firstLifetime, nullptr);
+    ASSERT_NE(secondLifetime, nullptr);
+    EXPECT_EQ(firstLifetime->lastPass, secondLifetime->firstPass);
+    EXPECT_NE(firstLifetime->allocationSlot, secondLifetime->allocationSlot)
+        << "the handoff pass reads the first resource while writing the second";
 }
 
 TEST(RenderGraphAliasTest, ExternalResourcesKeepDedicatedSlots)
@@ -409,6 +529,93 @@ TEST(RenderGraphExecuteTest, MutationAfterCompileRejectsStalePlanBeforeExecution
     EXPECT_EQ(error, "compiled render graph is stale");
 }
 
+TEST(RenderGraphExecuteTest,
+     CompiledPlanIdentityFollowsMoveButNotCopy)
+{
+    RenderGraph original;
+    original.addPass(graphicsPass("identity-bound-pass"));
+    const CompiledRenderGraph compiled = original.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+
+    RenderGraph copied(original);
+    int copiedExecutorCalls = 0;
+    std::string error;
+    EXPECT_FALSE(copied.execute(
+        compiled,
+        [&](const RenderGraphExecutionContext&) {
+            ++copiedExecutorCalls;
+            return true;
+        },
+        &error));
+    EXPECT_EQ(copiedExecutorCalls, 0);
+    EXPECT_EQ(error, "compiled render graph is stale");
+
+    RenderGraph copyAssigned;
+    copyAssigned = original;
+    int copyAssignedExecutorCalls = 0;
+    error.clear();
+    EXPECT_FALSE(copyAssigned.execute(
+        compiled,
+        [&](const RenderGraphExecutionContext&) {
+            ++copyAssignedExecutorCalls;
+            return true;
+        },
+        &error));
+    EXPECT_EQ(copyAssignedExecutorCalls, 0);
+    EXPECT_EQ(error, "compiled render graph is stale");
+
+    RenderGraph moved(std::move(original));
+    int movedExecutorCalls = 0;
+    error.clear();
+    EXPECT_TRUE(moved.execute(
+        compiled,
+        [&](const RenderGraphExecutionContext& context) {
+            ++movedExecutorCalls;
+            return context.descriptor.name == "identity-bound-pass";
+        },
+        &error));
+    EXPECT_EQ(movedExecutorCalls, 1);
+    EXPECT_TRUE(error.empty());
+
+    RenderGraph moveAssigned;
+    moveAssigned = std::move(moved);
+    int moveAssignedExecutorCalls = 0;
+    error.clear();
+    EXPECT_TRUE(moveAssigned.execute(
+        compiled,
+        [&](const RenderGraphExecutionContext& context) {
+            ++moveAssignedExecutorCalls;
+            return context.descriptor.name == "identity-bound-pass";
+        },
+        &error));
+    EXPECT_EQ(moveAssignedExecutorCalls, 1);
+    EXPECT_TRUE(error.empty());
+
+    int moveAssignedFromExecutorCalls = 0;
+    error.clear();
+    EXPECT_FALSE(moved.execute(
+        compiled,
+        [&](const RenderGraphExecutionContext&) {
+            ++moveAssignedFromExecutorCalls;
+            return true;
+        },
+        &error));
+    EXPECT_EQ(moveAssignedFromExecutorCalls, 0);
+    EXPECT_EQ(error, "compiled render graph is stale");
+
+    int movedFromExecutorCalls = 0;
+    error.clear();
+    EXPECT_FALSE(original.execute(
+        compiled,
+        [&](const RenderGraphExecutionContext&) {
+            ++movedFromExecutorCalls;
+            return true;
+        },
+        &error));
+    EXPECT_EQ(movedFromExecutorCalls, 0);
+    EXPECT_EQ(error, "compiled render graph is stale");
+}
+
 TEST(RenderGraphParallelTest, DiamondRunsWithInlineLauncher)
 {
     RenderGraph graph;
@@ -479,6 +686,86 @@ TEST(RenderGraphParallelTest, FailurePropagates)
         &error));
 }
 
+TEST(RenderGraphParallelTest, DispatchFailureJoinsPendingWorkThenFallsBackToSerial)
+{
+    RenderGraph graph;
+    const auto input = graph.addResource(externalTexture("input"));
+    const auto outputA = graph.addResource(transientTexture("outputA"));
+    const auto outputB = graph.addResource(transientTexture("outputB"));
+    const auto outputC = graph.addResource(transientTexture("outputC"));
+
+    auto produce = graphicsPass("produce");
+    produce.reads = {input};
+    produce.writes = {outputA, outputB, outputC};
+    graph.addPass(produce);
+    for (const auto& [name, output] : std::array{
+             std::pair{"consumeA", outputA},
+             std::pair{"consumeB", outputB},
+             std::pair{"consumeC", outputC}}) {
+        auto consumer = graphicsPass(name);
+        consumer.reads = {output};
+        consumer.parallelSafe = true;
+        graph.addPass(consumer);
+    }
+
+    const CompiledRenderGraph compiled = graph.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    ASSERT_EQ(compiled.executionLevels.size(), 2u);
+    ASSERT_EQ(compiled.executionLevels[1].size(), 3u);
+
+    ThrowOnSecondDispatchLauncher launcher;
+    std::vector<std::string> calls;
+    std::string error;
+    EXPECT_TRUE(graph.executeParallel(
+        compiled,
+        [&](const RenderGraphExecutionContext& context) {
+            calls.push_back(context.descriptor.name);
+            return true;
+        },
+        launcher, &error));
+
+    EXPECT_EQ(launcher.dispatchCount, 2u);
+    EXPECT_EQ(calls, (std::vector<std::string>{
+        "produce", "consumeA", "consumeB", "consumeC"}));
+    EXPECT_TRUE(error.empty());
+}
+
+TEST(RenderGraphParallelTest, RejectsMutatedExecutionLevelWithResourceDependency)
+{
+    RenderGraph graph;
+    const auto resource = graph.addResource(transientTexture("dependent-resource"));
+    auto producer = graphicsPass("producer");
+    producer.writes = {resource};
+    const auto producerHandle = graph.addPass(producer);
+    auto consumer = graphicsPass("consumer");
+    consumer.reads = {resource};
+    const auto consumerHandle = graph.addPass(consumer);
+
+    CompiledRenderGraph compiled = graph.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    ASSERT_EQ(compiled.passOrder,
+              (std::vector<RenderPassHandle>{producerHandle, consumerHandle}));
+
+    // Preserve the flattened pass order while corrupting only the level
+    // partition: the producer and its consumer are now declared concurrent.
+    compiled.executionLevels = {{producerHandle, consumerHandle}};
+    compiled.passOrderLevels = {0, 0};
+
+    TwoWayInlineLauncher launcher;
+    int executorCalls = 0;
+    std::string error;
+    EXPECT_FALSE(graph.executeParallel(
+        compiled,
+        [&](const RenderGraphExecutionContext&) {
+            ++executorCalls;
+            return true;
+        },
+        launcher, &error));
+    EXPECT_EQ(executorCalls, 0);
+    EXPECT_EQ(error,
+              "compiled render graph execution level contains dependent passes");
+}
+
 TEST(RenderGraphParallelTest, FailedParallelLevelJoinsPeersAndSkipsDependents)
 {
     RenderGraph graph;
@@ -515,6 +802,56 @@ TEST(RenderGraphParallelTest, FailedParallelLevelJoinsPeersAndSkipsDependents)
         [&](const RenderGraphExecutionContext& context) {
             calls.push_back(context.descriptor.name);
             return context.descriptor.name != "readLeft";
+        },
+        launcher, &error));
+
+    EXPECT_EQ(calls.size(), 3u);
+    EXPECT_NE(std::find(calls.begin(), calls.end(), "emit"), calls.end());
+    EXPECT_NE(std::find(calls.begin(), calls.end(), "readLeft"), calls.end());
+    EXPECT_NE(std::find(calls.begin(), calls.end(), "readRight"), calls.end());
+    EXPECT_EQ(std::find(calls.begin(), calls.end(), "dependent"), calls.end());
+    EXPECT_EQ(error, "render pass executor failed");
+}
+
+TEST(RenderGraphParallelTest, ThrownParallelExecutorJoinsPeersAndSkipsDependents)
+{
+    RenderGraph graph;
+    const auto input = graph.addResource(externalTexture("input"));
+    const auto leftOutput = graph.addResource(transientTexture("leftOutput"));
+    const auto rightOutput = graph.addResource(transientTexture("rightOutput"));
+
+    auto emit = graphicsPass("emit");
+    emit.reads = {input};
+    emit.writes = {leftOutput, rightOutput};
+    graph.addPass(emit);
+    auto readLeft = graphicsPass("readLeft");
+    readLeft.reads = {leftOutput};
+    readLeft.parallelSafe = true;
+    graph.addPass(readLeft);
+    auto readRight = graphicsPass("readRight");
+    readRight.reads = {rightOutput};
+    readRight.parallelSafe = true;
+    graph.addPass(readRight);
+    auto dependent = graphicsPass("dependent");
+    dependent.reads = {leftOutput, rightOutput};
+    graph.addPass(dependent);
+
+    const CompiledRenderGraph compiled = graph.compile();
+    ASSERT_TRUE(compiled.valid) << compiled.error;
+    ASSERT_EQ(compiled.executionLevels.size(), 3u);
+    ASSERT_EQ(compiled.executionLevels[1].size(), 2u);
+
+    TwoWayInlineLauncher launcher;
+    std::vector<std::string> calls;
+    std::string error;
+    EXPECT_FALSE(graph.executeParallel(
+        compiled,
+        [&](const RenderGraphExecutionContext& context) {
+            calls.push_back(context.descriptor.name);
+            if (context.descriptor.name == "readLeft") {
+                throw std::runtime_error("simulated pass failure");
+            }
+            return true;
         },
         launcher, &error));
 

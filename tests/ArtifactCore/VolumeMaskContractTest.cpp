@@ -156,3 +156,25 @@ TEST(VolumeMaskContractTest, InvertMakesZeroDistanceBoundaryOpaque)
     ASSERT_EQ(alpha.type(), CV_32FC1);
     EXPECT_FLOAT_EQ(alpha.at<float>(0, 0), 1.0f);
 }
+
+TEST(VolumeMaskContractTest, ClosedContourRenderComposesDistanceFalloffAndInversion)
+{
+    const std::vector<cv::Point> contour{
+        cv::Point(2, 2), cv::Point(7, 2), cv::Point(7, 7), cv::Point(2, 7),
+    };
+    VolumeMaskSettings settings;
+    settings.thickness = 3.0f;
+    settings.density = 0.8f;
+    settings.falloffCurve = VolumeFalloffCurve::Linear;
+    settings.invert = true;
+
+    cv::Mat output;
+    VolumeMaskGenerator::renderToAlpha(contour, 10, 10, &output, settings);
+
+    ASSERT_EQ(output.type(), CV_32FC1);
+    ASSERT_EQ(output.rows, 10);
+    ASSERT_EQ(output.cols, 10);
+    EXPECT_FLOAT_EQ(output.at<float>(4, 4), 0.2f);
+    EXPECT_NEAR(output.at<float>(4, 2), 1.0f - 0.8f / 3.0f, 1.0e-6f);
+    EXPECT_FLOAT_EQ(output.at<float>(0, 0), 1.0f);
+}

@@ -396,7 +396,7 @@ class ArtifactRendererCliContractTest(unittest.TestCase):
                 path=str(output_directory), format="png", width=16, height=16
             )
             job["composition"]["frameStart"] = 7
-            job["composition"]["frameEnd"] = 9
+            job["composition"]["frameEnd"] = 10
             summary_path = Path(directory) / "summary.json"
             event_log_path = Path(directory) / "events.jsonl"
             job["diagnostics"].update(
@@ -410,6 +410,7 @@ class ArtifactRendererCliContractTest(unittest.TestCase):
             png_paths = [
                 output_directory / "Example_Composition_0007.png",
                 output_directory / "Example_Composition_0008.png",
+                output_directory / "Example_Composition_0009.png",
             ]
             self.assertEqual(
                 sorted(path.name for path in output_directory.glob("*.png")),
@@ -431,6 +432,15 @@ class ArtifactRendererCliContractTest(unittest.TestCase):
                 sum(1 for red, green, blue, alpha in pixels if blue > red + 35 and blue > green + 35 and alpha == 255),
                 20,
             )
+            last_width, last_height, last_pixels = self.read_rgba_png(
+                png_paths[-1]
+            )
+            self.assertEqual((last_width, last_height), (16, 16))
+            self.assertNotEqual(
+                pixels,
+                last_pixels,
+                "sequence frames must reflect their own timeline position",
+            )
 
             events = [
                 json.loads(line)
@@ -438,15 +448,15 @@ class ArtifactRendererCliContractTest(unittest.TestCase):
             ]
             self.assertEqual(
                 [event["event"] for event in events],
-                ["renderStarted", "renderProgress", "renderProgress", "renderCompleted"],
+                ["renderStarted", "renderProgress", "renderProgress", "renderProgress", "renderCompleted"],
             )
             self.assertEqual(
-                [event["progress"] for event in events], [0, 0, 50, 100]
+                [event["progress"] for event in events], [0, 0, 33, 66, 100]
             )
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
             self.assertEqual(summary["jobId"], job["jobId"])
             self.assertEqual(summary["frameStart"], 7)
-            self.assertEqual(summary["frameEnd"], 9)
+            self.assertEqual(summary["frameEnd"], 10)
 
     def test_sequence_filename_normalizes_name_and_keeps_large_frame_number(self):
         with tempfile.TemporaryDirectory() as directory:

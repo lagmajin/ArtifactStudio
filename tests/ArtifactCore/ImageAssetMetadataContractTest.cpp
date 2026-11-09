@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
+#include <QBuffer>
 #include <QColor>
 #include <QColorSpace>
 #include <QDateTime>
@@ -10,10 +11,19 @@
 #include <QFileInfo>
 #include <QIODevice>
 #include <QImage>
+#include <QImageReader>
+#include <QPoint>
 #include <QTemporaryDir>
 #include <QString>
 #include <QStringList>
 #include <QSize>
+
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <array>
+#include <chrono>
+#include <thread>
 
 import ImageAsset;
 import Image.Raw;
@@ -49,6 +59,61 @@ QByteArray blueOnePixelPng()
 {
     return QByteArray::fromBase64(QByteArrayLiteral(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/5ncLrgAAAABJRU5ErkJggg=="));
+}
+
+QByteArray jpegWithExifOrientation(const QImage& image, int orientation)
+{
+    QByteArray jpeg;
+    QBuffer buffer(&jpeg);
+    if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "JPEG", 100)) {
+        return {};
+    }
+
+    QByteArray exif("Exif\0\0", 6);
+    exif.append("II", 2);
+    exif.append(static_cast<char>(0x2a));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(8));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(1)); // one IFD entry
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0x12)); // Exif orientation tag 0x0112
+    exif.append(static_cast<char>(0x01));
+    exif.append(static_cast<char>(3)); // SHORT
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(1));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(orientation));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0)); // next IFD offset
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+
+    const int app1Length = exif.size() + 2;
+    QByteArray app1;
+    app1.append(static_cast<char>(0xff));
+    app1.append(static_cast<char>(0xe1));
+    app1.append(static_cast<char>((app1Length >> 8) & 0xff));
+    app1.append(static_cast<char>(app1Length & 0xff));
+    app1.append(exif);
+    return jpeg.left(2) + app1 + jpeg.mid(2);
+}
+
+QColor decodedPixel(const RawImage& image, int x, int y)
+{
+    const qsizetype offset =
+        (static_cast<qsizetype>(y) * image.width + x) * image.channels;
+    return QColor(static_cast<unsigned char>(image.data[offset]),
+                  static_cast<unsigned char>(image.data[offset + 1]),
+                  static_cast<unsigned char>(image.data[offset + 2]),
+                  static_cast<unsigned char>(image.data[offset + 3]));
 }
 
 } // namespace
@@ -232,6 +297,148 @@ TEST(ImageImporterContractTest,
                     .startsWith(QStringLiteral("embedded (")));
 }
 
+TEST(ImageImporterContractTest, PreservesUnassociatedRgbForTranslucentPngPixels)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("translucent.png"));
+    QImage sourceImage(1, 1, QImage::Format_RGBA8888);
+    sourceImage.setPixelColor(0, 0, QColor(220, 100, 20, 50));
+    ASSERT_TRUE(sourceImage.save(path, "PNG"));
+
+    ImageImporter importer;
+    ASSERT_TRUE(importer.open(path));
+    const RawImage decoded = importer.readImage();
+
+    ASSERT_TRUE(decoded.isValid());
+    ASSERT_EQ(decoded.pixelType, QStringLiteral("uint16"));
+    ASSERT_EQ(decoded.data.size(), 4 * static_cast<int>(sizeof(std::uint16_t)));
+    std::uint16_t rgba[4]{};
+    std::memcpy(rgba, decoded.data.constData(), sizeof(rgba));
+
+    // The source red channel exceeds alpha. Premultiplication would make it
+    // smaller than alpha, so this relation checks raw straight-alpha storage.
+    EXPECT_GT(rgba[0], rgba[3]);
+    EXPECT_GT(rgba[1], rgba[2]);
+    EXPECT_GT(rgba[2], 0);
+}
+
+TEST(ImageImporterContractTest, PreservesTrueSixteenBitPngChannelValues)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("sixteen-bit.png"));
+    QImage sourceImage(1, 1, QImage::Format_RGBA64);
+    sourceImage.setPixelColor(
+        0, 0, QColor::fromRgba64(12345, 23456, 34567, 45678));
+    ASSERT_TRUE(sourceImage.save(path, "PNG"));
+
+    ImageImporter importer;
+    ASSERT_TRUE(importer.open(path));
+    const RawImage decoded = importer.readImage();
+
+    ASSERT_TRUE(decoded.isValid());
+    ASSERT_EQ(decoded.pixelType, QStringLiteral("uint16"));
+    ASSERT_EQ(decoded.data.size(), 4 * static_cast<int>(sizeof(std::uint16_t)));
+    std::uint16_t rgba[4]{};
+    std::memcpy(rgba, decoded.data.constData(), sizeof(rgba));
+    EXPECT_EQ(rgba[0], 12345);
+    EXPECT_EQ(rgba[1], 23456);
+    EXPECT_EQ(rgba[2], 34567);
+    EXPECT_EQ(rgba[3], 45678);
+}
+
+TEST(ImageImporterContractTest, AppliesAllExifOrientationTransformsToPixelsAndDimensions)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+
+    constexpr int sourceWidth = 64;
+    constexpr int sourceHeight = 32;
+    QImage source(sourceWidth, sourceHeight, QImage::Format_RGB32);
+    const std::array<QColor, 4> sourceColors{
+        QColor(240, 20, 20), QColor(20, 240, 20),
+        QColor(20, 20, 240), QColor(240, 240, 20)};
+    for (int y = 0; y < sourceHeight; ++y) {
+        for (int x = 0; x < sourceWidth; ++x) {
+            const int quadrant = (y >= sourceHeight / 2 ? 2 : 0) +
+                                 (x >= sourceWidth / 2 ? 1 : 0);
+            source.setPixelColor(x, y, sourceColors[static_cast<std::size_t>(quadrant)]);
+        }
+    }
+
+    const std::array<QPoint, 4> sourceCenters{
+        QPoint(16, 8), QPoint(48, 8), QPoint(16, 24), QPoint(48, 24)};
+    for (int orientation = 1; orientation <= 8; ++orientation) {
+        const QString path = directory.filePath(
+            QStringLiteral("orientation-%1.jpg").arg(orientation));
+        ASSERT_TRUE(writeFile(path, jpegWithExifOrientation(source, orientation)))
+            << "orientation=" << orientation;
+
+        ImageImporter importer;
+        ASSERT_TRUE(importer.open(path));
+        const RawImage decoded = importer.readImage();
+        ASSERT_TRUE(decoded.isValid()) << "orientation=" << orientation;
+        const bool swapsDimensions = orientation >= 5;
+        const int expectedWidth = swapsDimensions ? sourceHeight : sourceWidth;
+        const int expectedHeight = swapsDimensions ? sourceWidth : sourceHeight;
+        ASSERT_EQ(decoded.width, expectedWidth) << "orientation=" << orientation;
+        ASSERT_EQ(decoded.height, expectedHeight) << "orientation=" << orientation;
+        ASSERT_EQ(decoded.channels, 4);
+        ASSERT_EQ(decoded.pixelType, QStringLiteral("uint8"));
+
+        if (orientation == 6) {
+            ImageAssetFile asset(path);
+            ASSERT_TRUE(asset.refreshMetadata());
+            EXPECT_EQ(asset.imageMeta().width, expectedWidth);
+            EXPECT_EQ(asset.imageMeta().height, expectedHeight);
+        }
+
+        for (std::size_t quadrant = 0; quadrant < sourceCenters.size(); ++quadrant) {
+            const int x = sourceCenters[quadrant].x();
+            const int y = sourceCenters[quadrant].y();
+            int destinationX = x;
+            int destinationY = y;
+            switch (orientation) {
+            case 2: destinationX = sourceWidth - 1 - x; break;
+            case 3:
+                destinationX = sourceWidth - 1 - x;
+                destinationY = sourceHeight - 1 - y;
+                break;
+            case 4: destinationY = sourceHeight - 1 - y; break;
+            case 5:
+                destinationX = y;
+                destinationY = x;
+                break;
+            case 6:
+                destinationX = sourceHeight - 1 - y;
+                destinationY = x;
+                break;
+            case 7:
+                destinationX = sourceHeight - 1 - y;
+                destinationY = sourceWidth - 1 - x;
+                break;
+            case 8:
+                destinationX = y;
+                destinationY = sourceWidth - 1 - x;
+                break;
+            default: break;
+            }
+
+            const QColor actual = decodedPixel(decoded, destinationX, destinationY);
+            const QColor expected = sourceColors[quadrant];
+            EXPECT_NEAR(actual.red(), expected.red(), 45)
+                << "orientation=" << orientation << " quadrant=" << quadrant;
+            EXPECT_NEAR(actual.green(), expected.green(), 45)
+                << "orientation=" << orientation << " quadrant=" << quadrant;
+            EXPECT_NEAR(actual.blue(), expected.blue(), 45)
+                << "orientation=" << orientation << " quadrant=" << quadrant;
+            EXPECT_EQ(actual.alpha(), 255)
+                << "orientation=" << orientation << " quadrant=" << quadrant;
+        }
+    }
+}
+
 TEST(ImageImporterContractTest, CanOpenValidSourceAgainAfterMissingPathFailure)
 {
     QTemporaryDir directory;
@@ -264,6 +471,33 @@ TEST(ImageImporterContractTest, DefersDecodeFailureUntilRead)
     ImageImporter importer;
     EXPECT_TRUE(importer.open(path));
     EXPECT_FALSE(importer.readImage().isValid());
+}
+
+TEST(ImageImporterContractTest,
+     ReopeningChangedSourceTransitionsValidInvalidAndValidWithoutStalePixels)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("mutable-source.png"));
+    ASSERT_TRUE(writeFile(path, checkerPng()));
+
+    ImageImporter importer;
+    ASSERT_TRUE(importer.open(path));
+    const RawImage initial = importer.readImage();
+    ASSERT_TRUE(initial.isValid());
+    EXPECT_EQ(initial.width, 128);
+    EXPECT_EQ(initial.height, 128);
+
+    ASSERT_TRUE(writeFile(path, QByteArrayLiteral("not an image anymore")));
+    ASSERT_TRUE(importer.open(path));
+    EXPECT_FALSE(importer.readImage().isValid());
+
+    ASSERT_TRUE(writeFile(path, onePixelPng()));
+    ASSERT_TRUE(importer.open(path));
+    const RawImage recovered = importer.readImage();
+    ASSERT_TRUE(recovered.isValid());
+    EXPECT_EQ(recovered.width, 1);
+    EXPECT_EQ(recovered.height, 1);
 }
 
 TEST(ImageSequenceSourceContractTest, PreservesExplicitMissingFrameSlots)
@@ -349,6 +583,110 @@ TEST(ImageSequenceSourceContractTest, MapsNumberedFilesAcrossGaps)
     EXPECT_EQ(source.frameIndexAtTime(100, 24.0), 1);
 }
 
+TEST(ImageSequenceSourceContractTest,
+     ASingleNumberedImagePathRemainsOneStillFrameNotASequence)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("shot_0042.png"));
+    ASSERT_TRUE(writeFile(path, checkerPng()));
+
+    ImageSequenceSource source;
+    ASSERT_TRUE(source.open(path));
+
+    const SourceMetadata metadata = source.metadata();
+    EXPECT_EQ(source.frameCount(), 1);
+    EXPECT_EQ(source.sourceFrameNumberAt(0), 42);
+    EXPECT_EQ(source.sequenceIndexForSourceFrame(42), 0);
+    EXPECT_EQ(metadata.frameStart, 42);
+    EXPECT_EQ(metadata.frameEnd, 42);
+    EXPECT_EQ(metadata.missingFrameCount, 0);
+    EXPECT_FALSE(metadata.isSequence);
+    EXPECT_TRUE(metadata.hasVideo);
+    const QImage frame = source.frameAt(0);
+    ASSERT_FALSE(frame.isNull());
+    EXPECT_EQ(frame.size(), QSize(128, 128));
+}
+
+TEST(ImageSequenceSourceContractTest,
+     InvalidFrameRatesDoNotReplaceTheLastValidRequestedRate)
+{
+    ImageSequenceSource source;
+    source.setFrameRate(48.0);
+    ASSERT_DOUBLE_EQ(source.frameRate(), 48.0);
+
+    const double invalidRates[] = {
+        -1.0,
+        std::numeric_limits<double>::quiet_NaN(),
+        std::numeric_limits<double>::infinity(),
+        -std::numeric_limits<double>::infinity(),
+    };
+    for (const double invalidRate : invalidRates) {
+        source.setFrameRate(invalidRate);
+        EXPECT_DOUBLE_EQ(source.frameRate(), 48.0) << invalidRate;
+    }
+}
+
+TEST(ImageSequenceSourceContractTest,
+     ExplicitFrameRateSurvivesSingleFileOpenCloseAndReopen)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("single.png"));
+    ASSERT_TRUE(writeFile(path, checkerPng()));
+
+    ImageSequenceSource source;
+    source.setFrameRate(48.0);
+    ASSERT_TRUE(source.open(path));
+    EXPECT_DOUBLE_EQ(source.frameRate(), 48.0);
+    EXPECT_DOUBLE_EQ(source.metadata().frameRate, 48.0);
+
+    source.close();
+    EXPECT_DOUBLE_EQ(source.frameRate(), 48.0);
+    ASSERT_TRUE(source.open(path));
+    EXPECT_DOUBLE_EQ(source.frameRate(), 48.0);
+    EXPECT_DOUBLE_EQ(source.metadata().frameRate, 48.0);
+}
+
+TEST(ImageSequenceSourceContractTest,
+     AnimatedGifUsesAverageFrameDelayAndExposesEverySubframe)
+{
+    if (!QImageReader::supportedImageFormats().contains(QByteArrayLiteral("gif"))) {
+        GTEST_SKIP() << "Qt GIF image plugin is unavailable";
+    }
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("timed.gif"));
+    const QByteArray gif = QByteArray::fromBase64(QByteArrayLiteral(
+        "R0lGODlhAQABAIEAAP8AAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQICgAAACwAAAAA"
+        "AQABAAAIBAABBAQAIfkECBQAAAAsAAAAAAEAAQCBAP8AAAAAAAAAAAAACAQAAQQEACH5BAgeAAAA"
+        "LAAAAAABAAEAgQAA/wAAAAAAAAAAAAgEAAEEBAA7"));
+    ASSERT_TRUE(writeFile(path, gif));
+
+    QImageReader reader(path);
+    ASSERT_TRUE(reader.canRead());
+    ASSERT_TRUE(reader.supportsAnimation());
+    ASSERT_EQ(reader.imageCount(), 3);
+
+    ImageSequenceSource source;
+    ASSERT_TRUE(source.open(path));
+    EXPECT_EQ(source.frameCount(), 3);
+    EXPECT_TRUE(source.metadata().isSequence);
+    EXPECT_DOUBLE_EQ(source.frameRate(), 5.0)
+        << "three frames with 100+200+300 ms delays average to 5 FPS";
+
+    const QColor expectedColors[] = {QColor(255, 0, 0), QColor(0, 255, 0),
+                                     QColor(0, 0, 255)};
+    for (qint64 index = 0; index < 3; ++index) {
+        EXPECT_EQ(source.sourceFrameNumberAt(index), index);
+        const QImage frame = source.frameAt(index);
+        ASSERT_FALSE(frame.isNull()) << "subframe=" << index;
+        EXPECT_EQ(frame.pixelColor(0, 0), expectedColors[index])
+            << "subframe=" << index;
+    }
+}
+
 TEST(ImageSequenceSourceContractTest, CachesDecodedFramesAndExplicitlyClearsCache)
 {
     QTemporaryDir directory;
@@ -379,6 +717,47 @@ TEST(ImageSequenceSourceContractTest, CachesDecodedFramesAndExplicitlyClearsCach
     EXPECT_EQ(source.frameCacheBytes(), 0u);
     EXPECT_EQ(source.frameCacheHitCount(), 0u);
     EXPECT_EQ(source.frameCacheMissCount(), 0u);
+}
+
+TEST(ImageSequenceSourceContractTest,
+     ReopeningSequenceDiscardsCompletedAndInFlightPrefetchFromPreviousGeneration)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString oldPath = directory.filePath(QStringLiteral("old_red.png"));
+    const QString newPath = directory.filePath(QStringLiteral("new_blue.png"));
+    ASSERT_TRUE(writeFile(oldPath, onePixelPng()));
+    ASSERT_TRUE(writeFile(newPath, blueOnePixelPng()));
+    ASSERT_EQ(QFileInfo(oldPath).size(), QFileInfo(newPath).size());
+    constexpr qint64 sharedTimestampMs = 1700000000000LL;
+    const auto setModifiedTime = [sharedTimestampMs](const QString& path) {
+        QFile file(path);
+        return file.open(QIODevice::ReadWrite) &&
+               file.setFileTime(QDateTime::fromMSecsSinceEpoch(sharedTimestampMs),
+                                QFileDevice::FileModificationTime);
+    };
+    ASSERT_TRUE(setModifiedTime(oldPath));
+    ASSERT_TRUE(setModifiedTime(newPath));
+    ASSERT_EQ(QFileInfo(oldPath).lastModified().toMSecsSinceEpoch(), sharedTimestampMs);
+    ASSERT_EQ(QFileInfo(newPath).lastModified().toMSecsSinceEpoch(), sharedTimestampMs);
+
+    ImageSequenceSource source;
+    ASSERT_TRUE(source.openFramePaths({oldPath}));
+    source.prefetchFrame(0);
+    ASSERT_TRUE(source.openFramePaths({newPath}));
+
+    QImage frame;
+    bool ready = false;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!ready && std::chrono::steady_clock::now() < deadline) {
+        ready = source.tryFrameAt(0, frame);
+        if (!ready) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    ASSERT_TRUE(ready) << "the new generation's prefetch should eventually complete";
+    ASSERT_FALSE(frame.isNull());
+    EXPECT_EQ(frame.pixelColor(0, 0).red(), 0);
+    EXPECT_EQ(frame.pixelColor(0, 0).blue(), 255);
 }
 
 TEST(ImageSequenceSourceContractTest, KeepsDecodedFrameCacheWithinCapacity)
@@ -468,6 +847,102 @@ TEST(ImageSequenceSourceContractTest, InvalidatesSameSizeReplacementByModificati
     EXPECT_EQ(source.frameCacheMissCount(), 2u);
 }
 
+TEST(ImageSequenceSourceContractTest,
+     InvalidatesSameSizeReplacementWhenModificationTimeIsPreserved)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("same_metadata.png"));
+    const QByteArray firstImage = onePixelPng();
+    const QByteArray replacementImage = blueOnePixelPng();
+    ASSERT_EQ(firstImage.size(), replacementImage.size());
+    ASSERT_TRUE(writeFile(path, firstImage));
+
+    constexpr qint64 fixedTimestampMs = 1700000000000LL;
+    const auto setModifiedTime = [&path](qint64 millisecondsSinceEpoch) {
+        QFile file(path);
+        return file.open(QIODevice::ReadWrite) &&
+               file.setFileTime(QDateTime::fromMSecsSinceEpoch(millisecondsSinceEpoch),
+                                QFileDevice::FileModificationTime);
+    };
+    ASSERT_TRUE(setModifiedTime(fixedTimestampMs));
+    const QFileInfo originalInfo(path);
+    ASSERT_TRUE(originalInfo.exists());
+    const qint64 originalSize = originalInfo.size();
+    const qint64 originalTimestampMs =
+        originalInfo.lastModified().toMSecsSinceEpoch();
+    ASSERT_EQ(originalTimestampMs, fixedTimestampMs);
+
+    ImageSequenceSource source;
+    ASSERT_TRUE(source.openFramePaths({path}));
+    const QImage originalFrame = source.frameAt(0);
+    ASSERT_FALSE(originalFrame.isNull());
+    EXPECT_EQ(originalFrame.pixelColor(0, 0).red(), 255);
+    EXPECT_EQ(originalFrame.pixelColor(0, 0).blue(), 0);
+
+    ASSERT_TRUE(writeFile(path, replacementImage));
+    ASSERT_TRUE(setModifiedTime(fixedTimestampMs));
+    const QFileInfo replacementInfo(path);
+    ASSERT_EQ(replacementInfo.size(), originalSize);
+    ASSERT_EQ(replacementInfo.lastModified().toMSecsSinceEpoch(),
+              originalTimestampMs);
+
+    const QImage replacementFrame = source.frameAt(0);
+    ASSERT_FALSE(replacementFrame.isNull());
+    EXPECT_EQ(replacementFrame.pixelColor(0, 0).red(), 0);
+    EXPECT_EQ(replacementFrame.pixelColor(0, 0).blue(), 255);
+    EXPECT_EQ(source.frameCacheMissCount(), 2u);
+    EXPECT_EQ(source.frameCacheHitCount(), 0u);
+}
+
+TEST(ImageSequenceSourceContractTest,
+     TryFrameAtDropsStaleSameSizeFrameBeforeAsyncRefresh)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("async-replacement.png"));
+    const QByteArray originalImage = onePixelPng();
+    const QByteArray replacementImage = blueOnePixelPng();
+    ASSERT_EQ(originalImage.size(), replacementImage.size());
+    ASSERT_TRUE(writeFile(path, originalImage));
+
+    const auto setModifiedTime = [&path](qint64 millisecondsSinceEpoch) {
+        QFile file(path);
+        return file.open(QIODevice::ReadWrite) &&
+               file.setFileTime(QDateTime::fromMSecsSinceEpoch(millisecondsSinceEpoch),
+                                QFileDevice::FileModificationTime);
+    };
+    ASSERT_TRUE(setModifiedTime(1700000000000LL));
+
+    ImageSequenceSource source;
+    ASSERT_TRUE(source.openFramePaths({path}));
+    const QImage originalFrame = source.frameAt(0);
+    ASSERT_FALSE(originalFrame.isNull());
+    EXPECT_EQ(originalFrame.pixelColor(0, 0).red(), 255);
+    EXPECT_EQ(originalFrame.pixelColor(0, 0).blue(), 0);
+
+    ASSERT_TRUE(writeFile(path, replacementImage));
+    ASSERT_TRUE(setModifiedTime(1700000010000LL));
+    ASSERT_EQ(QFileInfo(path).size(), originalImage.size());
+
+    QImage refreshedFrame;
+    EXPECT_FALSE(source.tryFrameAt(0, refreshedFrame));
+    EXPECT_TRUE(refreshedFrame.isNull())
+        << "a stale cached pixel must not be returned while the new frame is loading";
+
+    bool ready = false;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!ready && std::chrono::steady_clock::now() < deadline) {
+        ready = source.tryFrameAt(0, refreshedFrame);
+        if (!ready) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    ASSERT_TRUE(ready) << "the replacement frame should eventually finish prefetch";
+    ASSERT_FALSE(refreshedFrame.isNull());
+    EXPECT_EQ(refreshedFrame.pixelColor(0, 0).red(), 0);
+    EXPECT_EQ(refreshedFrame.pixelColor(0, 0).blue(), 255);
+}
+
 TEST(ImageSequenceSourceContractTest, ConvertsTimelineFramesUsingSourceAndTimelineRates)
 {
     QTemporaryDir directory;
@@ -489,6 +964,91 @@ TEST(ImageSequenceSourceContractTest, ConvertsTimelineFramesUsingSourceAndTimeli
     EXPECT_EQ(source.frameIndexAtTime(2, 24.0), 1);
     EXPECT_EQ(source.frameIndexAtTime(3, 24.0), 1);
     EXPECT_EQ(source.frameIndexAtTime(10, 24.0), 5);
+}
+
+TEST(ImageSequenceSourceContractTest,
+     ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    QStringList framePaths;
+    for (int index = 0; index < 10; ++index) {
+        const QString path = directory.filePath(
+            QStringLiteral("fractional_%1.png").arg(index));
+        QImage frame(1, 1, QImage::Format_RGBA8888);
+        const QColor expectedColor(index, 255 - index, index * 17, 255);
+        frame.setPixelColor(0, 0, expectedColor);
+        QByteArray encodedFrame;
+        QBuffer buffer(&encodedFrame);
+        ASSERT_TRUE(buffer.open(QIODevice::WriteOnly));
+        ASSERT_TRUE(frame.save(&buffer, "PNG"));
+        ASSERT_TRUE(writeFile(path, encodedFrame));
+        framePaths.push_back(path);
+    }
+
+    ImageSequenceSource source;
+    source.setFrameRate(24000.0 / 1001.0);
+    ASSERT_TRUE(source.openFramePaths(framePaths));
+
+    constexpr std::array expectedIndices{0, 0, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8, 9};
+    constexpr double timelineRate = 30000.0 / 1001.0;
+    for (std::size_t timelineFrame = 0;
+         timelineFrame < expectedIndices.size(); ++timelineFrame) {
+        EXPECT_EQ(source.frameIndexAtTime(
+                      static_cast<qint64>(timelineFrame), timelineRate),
+                  expectedIndices[timelineFrame])
+            << "timeline frame=" << timelineFrame;
+        const QImage decoded = source.frameAt(expectedIndices[timelineFrame]);
+        ASSERT_FALSE(decoded.isNull()) << "timeline frame=" << timelineFrame;
+        const int sourceIndex = expectedIndices[timelineFrame];
+        EXPECT_EQ(decoded.pixelColor(0, 0),
+                  QColor(sourceIndex, 255 - sourceIndex, sourceIndex * 17, 255))
+            << "timeline frame=" << timelineFrame;
+    }
+}
+
+TEST(ImageSequenceSourceContractTest, ConvertsTimeToSequenceIndexAcrossSparseSourceFrames)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString firstPath = directory.filePath(QStringLiteral("shot_0100.png"));
+    const QString laterPath = directory.filePath(QStringLiteral("shot_0104.png"));
+    ASSERT_TRUE(writeFile(firstPath, checkerPng()));
+    ASSERT_TRUE(writeFile(laterPath, checkerPng()));
+
+    ImageSequenceSource source;
+    source.setFrameRate(30.0);
+    ASSERT_TRUE(source.open(firstPath));
+
+    // Time mapping returns the position in the opened sequence, not the filename frame number.
+    EXPECT_EQ(source.frameIndexAtTime(0, 24.0), 0);
+    EXPECT_EQ(source.frameIndexAtTime(1, 24.0), 1);
+    EXPECT_EQ(source.frameIndexAtTime(2, 24.0), 1);
+    EXPECT_EQ(source.frameIndexAtTime(3, 24.0), 1);
+    EXPECT_EQ(source.sourceFrameNumberAt(source.frameIndexAtTime(1, 24.0)), 104);
+    EXPECT_EQ(source.sequenceIndexForSourceFrame(104), 1);
+    EXPECT_EQ(source.sequenceIndexForSourceFrame(101), -1);
+}
+
+TEST(ImageSequenceSourceContractTest, SaturatesUnrepresentableTimelinePositionsToLastFrame)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    QStringList framePaths;
+    for (int index = 0; index < 3; ++index) {
+        const QString path = directory.filePath(
+            QStringLiteral("overflow_%1.png").arg(index));
+        ASSERT_TRUE(writeFile(path, checkerPng()));
+        framePaths.push_back(path);
+    }
+
+    ImageSequenceSource source;
+    source.setFrameRate(30.0);
+    ASSERT_TRUE(source.openFramePaths(framePaths));
+
+    EXPECT_EQ(source.frameIndexAtTime(std::numeric_limits<qint64>::max(), 24.0),
+              2);
+    EXPECT_EQ(source.frameIndexAtTime(1, std::numeric_limits<double>::min()), 2);
 }
 
 TEST(ImageSequenceSourceContractTest, FailedReopenClearsPreviouslyOpenedSequence)

@@ -109,6 +109,34 @@ TEST(CsvDataSourceStandaloneTest, ReloadReadsUpdatedFileContents)
               static_cast<std::int64_t>(std::filesystem::file_size(file.path())));
 }
 
+TEST(CsvDataSourceStandaloneTest,
+     ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange)
+{
+    TemporaryCsv file;
+    file.write("name,count\nwidget,3\n");
+    CsvDataSource source(file.path());
+    ASSERT_TRUE(source.isValid());
+    ASSERT_EQ(source.table().columnCount(), 2);
+
+    file.write("title;enabled;rank\nreplacement;true;7\nsecond;false;9\n");
+
+    ASSERT_TRUE(source.reload()) << source.lastError().toStdString();
+    ASSERT_TRUE(source.isValid());
+    EXPECT_EQ(source.table().columnCount(), 3);
+    EXPECT_EQ(source.table().rowCount(), 2);
+    EXPECT_EQ(source.table().columnName(0), "title");
+    EXPECT_EQ(source.table().columnName(1), "enabled");
+    EXPECT_EQ(source.table().columnName(2), "rank");
+    EXPECT_EQ(source.table().columnIndexByName(String("name")), -1);
+    EXPECT_EQ(source.table().getString(0, String("title")), "replacement");
+    EXPECT_TRUE(source.table().getBool(0, String("enabled")));
+    EXPECT_EQ(source.table().getInt(1, String("rank")), 9);
+    EXPECT_EQ(source.info().rowCount, 2);
+    EXPECT_EQ(source.info().columnCount, 3);
+    EXPECT_EQ(source.info().fileSize,
+              static_cast<std::int64_t>(std::filesystem::file_size(file.path())));
+}
+
 TEST(CsvDataSourceStandaloneTest, ReloadFailureClearsPreviouslyLoadedTable)
 {
     TemporaryCsv file;

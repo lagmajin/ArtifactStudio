@@ -11,6 +11,8 @@
 #include <QString>
 
 #include <cstdint>
+#include <atomic>
+#include <thread>
 #include <utility>
 
 import Asset.Database;
@@ -232,6 +234,121 @@ TEST(AssetManagerContractTest, DecodedPayloadIsVersionScopedAndWeaklyCached)
                                      QStringLiteral("transient")).get(), nullptr);
 }
 
+TEST(AssetManagerContractTest,
+     ConcurrentInvalidateAndStalePublishLeaveNoPayloadInCurrentRegistry)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("race-cache.png"));
+    ASSERT_TRUE(createSourceFile(path));
+
+    AssetManager manager;
+    const QUuid assetId = manager.acquireSource(path, AssetType::Image);
+    ASSERT_FALSE(assetId.isNull());
+    RegisteredAssetGuard cleanup(assetId);
+    const std::uint64_t originalVersion = manager.sourceVersion(assetId);
+    ASSERT_NE(originalVersion, 0u);
+
+    const auto payload = makeShared<int>(42);
+    const SharedPtr<void> opaquePayload = payload;
+    std::atomic<int> ready{0};
+    std::atomic<bool> start{false};
+    SharedPtr<void> publishResult;
+    std::uint64_t invalidatedVersion = 0;
+
+    std::thread publisher([&] {
+        ready.fetch_add(1, std::memory_order_release);
+        while (!start.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        publishResult = manager.publishDecodedPayload(
+            assetId, originalVersion, QStringLiteral("RGBA"), opaquePayload);
+    });
+    std::thread invalidator([&] {
+        ready.fetch_add(1, std::memory_order_release);
+        while (!start.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        invalidatedVersion = manager.invalidateSource(assetId);
+    });
+
+    while (ready.load(std::memory_order_acquire) != 2) {
+        std::this_thread::yield();
+    }
+    start.store(true, std::memory_order_release);
+    publisher.join();
+    invalidator.join();
+
+    EXPECT_EQ(invalidatedVersion, originalVersion + 1);
+    EXPECT_EQ(manager.sourceVersion(assetId), originalVersion + 1);
+    EXPECT_EQ(manager.decodedPayload(assetId, originalVersion,
+                                     QStringLiteral("RGBA")).get(), nullptr);
+    EXPECT_EQ(manager.decodedPayload(assetId, originalVersion + 1,
+                                     QStringLiteral("RGBA")).get(), nullptr);
+    EXPECT_FALSE(manager.publishDecodedPayload(
+        assetId, originalVersion, QStringLiteral("RGBA"), opaquePayload));
+    EXPECT_TRUE(publishResult.get() == nullptr || publishResult.get() == payload.get());
+}
+
+TEST(AssetManagerContractTest,
+     ConcurrentPublishersForSamePayloadKeyReceiveOneCanonicalPayload)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("deduplicated-payload.png"));
+    ASSERT_TRUE(createSourceFile(path));
+
+    AssetManager manager;
+    const QUuid assetId = manager.acquireSource(path, AssetType::Image);
+    ASSERT_FALSE(assetId.isNull());
+    RegisteredAssetGuard cleanup(assetId);
+    const std::uint64_t version = manager.sourceVersion(assetId);
+    ASSERT_NE(version, 0u);
+
+    constexpr int publisherCount = 12;
+    std::atomic<int> ready{0};
+    std::atomic<bool> start{false};
+    SharedPtr<void> results[publisherCount];
+    SharedPtr<int> candidates[publisherCount];
+    for (int publisher = 0; publisher < publisherCount; ++publisher) {
+        candidates[publisher] = makeShared<int>(publisher);
+    }
+
+    std::thread publishers[publisherCount];
+    for (int publisher = 0; publisher < publisherCount; ++publisher) {
+        publishers[publisher] = std::thread([&, publisher] {
+            ready.fetch_add(1, std::memory_order_release);
+            while (!start.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+            results[static_cast<std::size_t>(publisher)] = manager.publishDecodedPayload(
+                assetId, version, QStringLiteral(" RGBA "),
+                SharedPtr<void>(candidates[publisher]));
+        });
+    }
+
+    while (ready.load(std::memory_order_acquire) != publisherCount) {
+        std::this_thread::yield();
+    }
+    start.store(true, std::memory_order_release);
+    for (auto& publisher : publishers) {
+        publisher.join();
+    }
+
+    ASSERT_NE(results[0].get(), nullptr);
+    for (const auto& result : results) {
+        EXPECT_EQ(result.get(), results[0].get());
+    }
+    const auto cached = manager.decodedPayload(assetId, version, QStringLiteral("RGBA"));
+    EXPECT_EQ(cached.get(), results[0].get());
+    bool canonicalWasSubmitted = false;
+    for (const auto& candidate : candidates) {
+        canonicalWasSubmitted = canonicalWasSubmitted ||
+                                candidate.get() == results[0].get();
+    }
+    EXPECT_TRUE(canonicalWasSubmitted);
+}
+
 TEST(AssetManagerContractTest, InvalidatingOneSourcePreservesOtherSourcesPayloads)
 {
     QTemporaryDir directory;
@@ -341,6 +458,72 @@ TEST(AssetManagerContractTest, LocalizationMovesOwnershipAndCarriesDecodedPayloa
     EXPECT_EQ(manager.useCount(localizedId), 0);
 }
 
+TEST(AssetManagerContractTest,
+     ConcurrentLocalizationAndInvalidationFollowOneVersionBoundary)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("localized-race.png"));
+    ASSERT_TRUE(createSourceFile(path));
+
+    AssetManager manager;
+    const QUuid originalId = manager.acquireSource(path, AssetType::Image);
+    ASSERT_FALSE(originalId.isNull());
+    RegisteredAssetGuard cleanup(originalId);
+    const std::uint64_t originalVersion = manager.sourceVersion(originalId);
+    const auto payload = makeShared<int>(29);
+    ASSERT_TRUE(manager.publishDecodedPayload(
+        originalId, originalVersion, QStringLiteral("RGBA"),
+        SharedPtr<void>(payload)));
+
+    std::atomic<int> ready{0};
+    std::atomic<bool> start{false};
+    QUuid localizedId;
+    std::uint64_t invalidatedVersion = 0;
+    std::thread localizer([&] {
+        ready.fetch_add(1, std::memory_order_release);
+        while (!start.load(std::memory_order_acquire))
+            std::this_thread::yield();
+        localizedId = manager.localizeSource(originalId);
+    });
+    std::thread invalidator([&] {
+        ready.fetch_add(1, std::memory_order_release);
+        while (!start.load(std::memory_order_acquire))
+            std::this_thread::yield();
+        invalidatedVersion = manager.invalidateSource(originalId);
+    });
+
+    while (ready.load(std::memory_order_acquire) != 2)
+        std::this_thread::yield();
+    start.store(true, std::memory_order_release);
+    localizer.join();
+    invalidator.join();
+
+    ASSERT_FALSE(localizedId.isNull());
+    EXPECT_NE(localizedId, originalId);
+    EXPECT_EQ(invalidatedVersion, originalVersion + 1);
+    EXPECT_EQ(manager.sourceVersion(originalId), originalVersion + 1);
+    EXPECT_EQ(manager.useCount(originalId), 0);
+    EXPECT_EQ(manager.useCount(localizedId), 1);
+    EXPECT_TRUE(manager.isLocalizedSource(localizedId));
+    EXPECT_EQ(manager.decodedPayload(originalId, originalVersion,
+                                     QStringLiteral("RGBA")).get(), nullptr);
+
+    const std::uint64_t localizedVersion = manager.sourceVersion(localizedId);
+    if (localizedVersion == originalVersion) {
+        EXPECT_EQ(manager.decodedPayload(localizedId, localizedVersion,
+                                         QStringLiteral("RGBA")).get(),
+                  payload.get());
+    } else {
+        EXPECT_EQ(localizedVersion, originalVersion + 1);
+        EXPECT_EQ(manager.decodedPayload(localizedId, localizedVersion,
+                                         QStringLiteral("RGBA")).get(), nullptr);
+    }
+
+    EXPECT_TRUE(manager.releaseSource(localizedId));
+    EXPECT_EQ(manager.useCount(localizedId), 0);
+}
+
 TEST(AssetManagerContractTest, LocalizationRejectsReleasedSourceWithoutSideEffects)
 {
     QTemporaryDir directory;
@@ -443,9 +626,26 @@ TEST(AssetManagerContractTest, SnapshotMergeKeepsMaximumVersionAndExistingUseCou
     ASSERT_TRUE(manager.restoreSourceRegistrySnapshot(makeSnapshot(1)));
     EXPECT_EQ(manager.sourceVersion(assetId), currentVersion);
     EXPECT_EQ(manager.useCount(assetId), 1);
+
+    auto oldPayload = makeShared<int>(73);
+    const SharedPtr<void> opaqueOldPayload = oldPayload;
+    ASSERT_TRUE(manager.publishDecodedPayload(
+        assetId, currentVersion, QStringLiteral("RGBA"), opaqueOldPayload));
+
+    // A stale snapshot must not roll back the source generation or evict its
+    // current decoded payload.
+    ASSERT_TRUE(manager.restoreSourceRegistrySnapshot(makeSnapshot(1)));
+    EXPECT_EQ(manager.sourceVersion(assetId), currentVersion);
+    EXPECT_EQ(manager.decodedPayload(assetId, currentVersion,
+                                     QStringLiteral("RGBA")).get(), oldPayload.get());
+
+    // Advancing the generation makes every prior-generation payload stale.
     ASSERT_TRUE(manager.restoreSourceRegistrySnapshot(makeSnapshot(7)));
     EXPECT_EQ(manager.sourceVersion(assetId), 7u);
     EXPECT_EQ(manager.useCount(assetId), 1);
+    EXPECT_EQ(manager.decodedPayload(assetId, currentVersion,
+                                     QStringLiteral("RGBA")).get(), nullptr);
+    EXPECT_EQ(manager.decodedPayload(assetId, 7, QStringLiteral("RGBA")).get(), nullptr);
 }
 
 TEST(AssetManagerContractTest, SourceRegistryRestoreAcceptsLegacySchemaVersions)

@@ -3,6 +3,10 @@
 #include <QRectF>
 #include <QString>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <limits>
 #include <memory>
 
 import Shape.Group;
@@ -17,6 +21,41 @@ using ArtifactCore::PathShape;
 using ArtifactCore::ShapeElement;
 using ArtifactCore::ShapeGroup;
 using ArtifactCore::ShapePath;
+using ArtifactCore::ShapeTransform;
+
+QPointF mapByTransform(const QPointF& point, const ShapeTransform& transform)
+{
+    const double scaledX = (point.x() - transform.anchor.x) * transform.scale.x;
+    const double scaledY = (point.y() - transform.anchor.y) * transform.scale.y;
+    const double radians = transform.rotation * 3.14159265358979323846 / 180.0;
+    const double cosine = std::cos(radians);
+    const double sine = std::sin(radians);
+    return QPointF(transform.position.x + cosine * scaledX - sine * scaledY,
+                   transform.position.y + sine * scaledX + cosine * scaledY);
+}
+
+QRectF transformedCornerBounds(const QRectF& rect,
+                               const ShapeTransform& child,
+                               const ShapeTransform& nested,
+                               const ShapeTransform& root)
+{
+    const std::array<QPointF, 4> corners = {
+        rect.topLeft(), rect.topRight(), rect.bottomLeft(), rect.bottomRight()};
+    double left = std::numeric_limits<double>::infinity();
+    double top = std::numeric_limits<double>::infinity();
+    double right = -std::numeric_limits<double>::infinity();
+    double bottom = -std::numeric_limits<double>::infinity();
+    for (QPointF point : corners) {
+        point = mapByTransform(point, child);
+        point = mapByTransform(point, nested);
+        point = mapByTransform(point, root);
+        left = std::min(left, point.x());
+        top = std::min(top, point.y());
+        right = std::max(right, point.x());
+        bottom = std::max(bottom, point.y());
+    }
+    return QRectF(left, top, right - left, bottom - top);
+}
 
 std::unique_ptr<PathShape> rectanglePath(const QRectF& rect)
 {
@@ -130,6 +169,43 @@ TEST(ShapeGroupContractTest, ProcessedPathsComposeNestedGroupAndPathTransforms)
     EXPECT_NEAR(bounds.height(), 10.0, 1e-9);
 }
 
+TEST(ShapeGroupContractTest, NestedRotatedAnchoredTransformsMatchIndependentCornerMapping)
+{
+    const QRectF geometry(2.0, -3.0, 11.0, 7.0);
+    ShapeGroup root;
+    root.transform().anchor = {3.0, -2.0};
+    root.transform().position = {9.0, 4.0};
+    root.transform().scale = {-1.2, 0.75};
+    root.transform().rotation = 31.0;
+
+    auto nested = std::make_unique<ShapeGroup>();
+    nested->transform().anchor = {1.0, 2.0};
+    nested->transform().position = {-5.0, 8.0};
+    nested->transform().scale = {0.5, 2.0};
+    nested->transform().rotation = -47.0;
+    auto path = rectanglePath(geometry);
+    path->transform().anchor = {2.0, 3.0};
+    path->transform().position = {4.0, -6.0};
+    path->transform().scale = {1.25, -0.8};
+    path->transform().rotation = 18.0;
+    const ShapeTransform childTransform = path->transform();
+    const ShapeTransform nestedTransform = nested->transform();
+    const ShapeTransform rootTransform = root.transform();
+    nested->addChild(std::move(path));
+    root.addChild(std::move(nested));
+
+    const auto processed = root.processedPaths();
+
+    ASSERT_EQ(processed.size(), 1u);
+    const QRectF expected = transformedCornerBounds(
+        geometry, childTransform, nestedTransform, rootTransform);
+    const QRectF actual = processed.front().boundingRect();
+    EXPECT_NEAR(actual.left(), expected.left(), 1.0e-8);
+    EXPECT_NEAR(actual.top(), expected.top(), 1.0e-8);
+    EXPECT_NEAR(actual.right(), expected.right(), 1.0e-8);
+    EXPECT_NEAR(actual.bottom(), expected.bottom(), 1.0e-8);
+}
+
 TEST(ShapeGroupContractTest, ProcessedPathsExcludeInvisibleChildrenAndGroups)
 {
     ShapeGroup root;
@@ -203,5 +279,66 @@ TEST(ShapeGroupContractTest, CloneDeepCopiesHierarchyTransformsAndOperatorState)
     auto* clonedPath = dynamic_cast<PathShape*>(cloned->childAt(0));
     ASSERT_NE(clonedPath, nullptr);
     clonedPath->path().clear();
+    EXPECT_FALSE(sourcePath->path().isEmpty());
+}
+
+TEST(ShapeGroupContractTest, ClonePreservesNestedParentChainAndIsolatesEveryLevel)
+{
+    ShapeGroup source;
+    source.transform().position = {10.0, 0.0};
+
+    auto nested = std::make_unique<ShapeGroup>();
+    nested->setName(QStringLiteral("nested"));
+    nested->transform().position = {0.0, 20.0};
+    auto inner = std::make_unique<ShapeGroup>();
+    inner->transform().position = {-2.0, 3.0};
+    auto path = rectanglePath(QRectF(0.0, 0.0, 5.0, 5.0));
+    path->transform().position = {1.0, 2.0};
+    PathShape* sourcePath = path.get();
+    inner->addChild(std::move(path));
+    ShapeGroup* sourceInner = inner.get();
+    nested->addChild(std::move(inner));
+    ShapeGroup* sourceNested = nested.get();
+    source.addChild(std::move(nested));
+
+    std::unique_ptr<ShapeElement> cloneElement = source.clone();
+    auto* clone = dynamic_cast<ShapeGroup*>(cloneElement.get());
+    ASSERT_NE(clone, nullptr);
+    ASSERT_EQ(clone->childCount(), 1);
+    auto* cloneNested = dynamic_cast<ShapeGroup*>(clone->childAt(0));
+    ASSERT_NE(cloneNested, nullptr);
+    ASSERT_EQ(cloneNested->childCount(), 1);
+    auto* cloneInner = dynamic_cast<ShapeGroup*>(cloneNested->childAt(0));
+    ASSERT_NE(cloneInner, nullptr);
+    ASSERT_EQ(cloneInner->childCount(), 1);
+    auto* clonePath = dynamic_cast<PathShape*>(cloneInner->childAt(0));
+    ASSERT_NE(clonePath, nullptr);
+
+    EXPECT_NE(cloneNested, sourceNested);
+    EXPECT_NE(cloneInner, sourceInner);
+    EXPECT_NE(clonePath, sourcePath);
+    EXPECT_EQ(cloneNested->parent(), clone);
+    EXPECT_EQ(cloneInner->parent(), cloneNested);
+    EXPECT_EQ(clonePath->parent(), cloneInner);
+    EXPECT_EQ(cloneNested->name(), QStringLiteral("nested"));
+
+    auto sourcePaths = source.processedPaths();
+    auto clonePaths = clone->processedPaths();
+    ASSERT_EQ(sourcePaths.size(), 1u);
+    ASSERT_EQ(clonePaths.size(), 1u);
+    EXPECT_NEAR(sourcePaths.front().boundingRect().x(), 9.0, 1.0e-9);
+    EXPECT_NEAR(sourcePaths.front().boundingRect().y(), 25.0, 1.0e-9);
+    EXPECT_NEAR(clonePaths.front().boundingRect().x(), 9.0, 1.0e-9);
+    EXPECT_NEAR(clonePaths.front().boundingRect().y(), 25.0, 1.0e-9);
+
+    cloneNested->transform().position.x = 100.0;
+    clonePaths = clone->processedPaths();
+    ASSERT_EQ(clonePaths.size(), 1u);
+    EXPECT_NEAR(clonePaths.front().boundingRect().x(), 109.0, 1.0e-9);
+    clonePath->path().clear();
+    EXPECT_TRUE(clone->processedPaths().empty());
+    sourcePaths = source.processedPaths();
+    ASSERT_EQ(sourcePaths.size(), 1u);
+    EXPECT_NEAR(sourcePaths.front().boundingRect().x(), 9.0, 1.0e-9);
     EXPECT_FALSE(sourcePath->path().isEmpty());
 }

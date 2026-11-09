@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include <QJsonObject>
 #include <QPointF>
 #include <QString>
@@ -71,6 +73,42 @@ TEST(RepeaterContractTest, AppliesScalePerCopyAndReversesCompositeOrderWhenReque
     expectHorizontalExtent(belowComposite[2], 0.0, 10.0);
 }
 
+TEST(RepeaterContractTest,
+     RotationAccumulatesPerCopyAroundTheConfiguredAnchor)
+{
+    ShapePath inputPath;
+    inputPath.setRectangle(0.0, 0.0, 10.0, 4.0);
+    const std::vector<ShapePath> input{inputPath};
+    Repeater repeater;
+    repeater.setCopies(3);
+    repeater.setAnchorPoint(QPointF(2.0, 1.0));
+    repeater.setPosition(QPointF(0.0, 0.0));
+    repeater.setScale(QPointF(1.0, 1.0));
+    repeater.setRotation(90.0f);
+
+    const auto copies = repeater.process(input);
+    ASSERT_EQ(copies.size(), 3u);
+
+    const auto firstBounds = copies[0].boundingRect();
+    EXPECT_DOUBLE_EQ(firstBounds.left(), 0.0);
+    EXPECT_DOUBLE_EQ(firstBounds.right(), 10.0);
+    EXPECT_DOUBLE_EQ(firstBounds.top(), 0.0);
+    EXPECT_DOUBLE_EQ(firstBounds.bottom(), 4.0);
+
+    const auto secondBounds = copies[1].boundingRect();
+    EXPECT_NEAR(secondBounds.left(), -1.0, 1e-12);
+    EXPECT_NEAR(secondBounds.right(), 3.0, 1e-12);
+    EXPECT_NEAR(secondBounds.top(), -1.0, 1e-12);
+    EXPECT_NEAR(secondBounds.bottom(), 9.0, 1e-12);
+
+    const auto thirdBounds = copies[2].boundingRect();
+    EXPECT_NEAR(thirdBounds.left(), -6.0, 1e-12);
+    EXPECT_NEAR(thirdBounds.right(), 4.0, 1e-12);
+    EXPECT_NEAR(thirdBounds.top(), -2.0, 1e-12);
+    EXPECT_NEAR(thirdBounds.bottom(), 2.0, 1e-12);
+    EXPECT_EQ(input.front().boundingRect(), inputPath.boundingRect());
+}
+
 TEST(RepeaterContractTest, ZeroCopiesAndEmptyInputReturnWithoutCreatingGeometry)
 {
     const std::vector<ShapePath> input{rectanglePath()};
@@ -113,4 +151,32 @@ TEST(RepeaterContractTest, SerializationCloneAndRestorationPreserveSettings)
     EXPECT_EQ(restored.copies(), 10000);
     EXPECT_FLOAT_EQ(restored.startOpacity(), 0.0f);
     EXPECT_FLOAT_EQ(restored.endOpacity(), 1.0f);
+}
+
+TEST(RepeaterContractTest,
+     FiniteJsonValuesOutsideFloatRangePreserveUsableTransforms)
+{
+    Repeater repeater;
+    repeater.setCopies(2);
+    repeater.setOffset(0.25f);
+    repeater.setRotation(15.0f);
+    repeater.setPosition(QPointF(3.0, 0.0));
+
+    repeater.fromJson(QJsonObject{
+        {QStringLiteral("offset"), 1.0e300},
+        {QStringLiteral("rotation"), -1.0e300},
+    });
+
+    EXPECT_FLOAT_EQ(repeater.offset(), 0.25f);
+    EXPECT_FLOAT_EQ(repeater.rotation(), 15.0f);
+
+    const auto copies = repeater.process(std::vector<ShapePath>{rectanglePath()});
+    ASSERT_EQ(copies.size(), 2u);
+    for (const auto& copy : copies) {
+        const auto bounds = copy.boundingRect();
+        EXPECT_TRUE(std::isfinite(bounds.left()));
+        EXPECT_TRUE(std::isfinite(bounds.right()));
+        EXPECT_TRUE(std::isfinite(bounds.top()));
+        EXPECT_TRUE(std::isfinite(bounds.bottom()));
+    }
 }
