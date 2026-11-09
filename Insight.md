@@ -24,7 +24,7 @@
 ## 2026-11-09: Source上書き時のpixelとmetadata snapshot同期
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion`、静止画受入表OP-08、制作準備文書の「Source version更新時のmetadata同期」。
 - **確認できた事実:** 既存同一path上書きテストは同じ寸法・RGBA layoutの色差とsource versionのみを確認し、header layoutが変わる上書き時のsource metadata更新を確認していなかった。実装契約はpixel bufferと同じversion由来のmetadata snapshotを採用する。
-- **追加した確認:** 2x1 RGB888から3x1 16-bit RGBAへ同一path上書きし、AssetManager version invalidation後にdimensions、float pixels、alpha semantics、bit depth、channel namesが新sourceと一致することを検査する。
+- **追加した確認:** sRGB ICC付き2x1 RGB888からprofileなし3x1 16-bit RGBAへ同一path上書きし、AssetManager version invalidation後にdimensions、float pixels、alpha semantics、bit depth、channel namesとICC byte metadataが新sourceと一致することを検査する。
 - **価値または懸念:** 古いheader metadataと新pixel payloadの混在、古いdecoded shapeの再利用を検出する。非同期scheduleの競合順序やGPU cache反映はruntime受入で別途確認が必要。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion` をテスト実行が許可された際に実行する。
 

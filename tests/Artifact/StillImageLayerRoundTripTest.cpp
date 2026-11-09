@@ -564,6 +564,8 @@ TEST(StillImageLayerRoundTripTest,
     QImage rgbSource(2, 1, QImage::Format_RGB888);
     rgbSource.setPixelColor(0, 0, QColor(20, 60, 100));
     rgbSource.setPixelColor(1, 0, QColor(140, 180, 220));
+    rgbSource.setColorSpace(QColorSpace(QColorSpace::SRgb));
+    ASSERT_FALSE(rgbSource.colorSpace().iccProfile().isEmpty());
     ASSERT_TRUE(rgbSource.save(imagePath, "PNG"));
 
     Artifact::ArtifactImageLayer layer;
@@ -578,6 +580,7 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(firstMetadata.value(QStringLiteral("channelCount")).toInt(), 4);
     EXPECT_EQ(firstMetadata.value(QStringLiteral("alphaChannel")).toInt(), -1);
     EXPECT_EQ(firstMetadata.value(QStringLiteral("bitsPerChannel")).toInt(), 8);
+    EXPECT_GT(firstMetadata.value(QStringLiteral("iccProfileBytes")).toInt(), 0);
     EXPECT_EQ(firstMetadata.value(QStringLiteral("channelNames")).toArray().size(), 3);
 
     QImage rgbaSource(3, 1, QImage::Format_RGBA64);
@@ -615,6 +618,7 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(secondMetadata.value(QStringLiteral("channelCount")).toInt(), 4);
     EXPECT_EQ(secondMetadata.value(QStringLiteral("alphaChannel")).toInt(), 3);
     EXPECT_EQ(secondMetadata.value(QStringLiteral("bitsPerChannel")).toInt(), 16);
+    EXPECT_EQ(secondMetadata.value(QStringLiteral("iccProfileBytes")).toInt(), 0);
     const QJsonArray channelNames =
         secondMetadata.value(QStringLiteral("channelNames")).toArray();
     ASSERT_EQ(channelNames.size(), 4);
