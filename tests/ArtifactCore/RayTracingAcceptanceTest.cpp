@@ -8372,6 +8372,23 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                         geometricCoatNormalPixels[1][0]), 0.01f)
         << "full clearcoat-normal strength should perturb the geometric normal";
 
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    material.normalStrength = 1.0f;
+    const auto clearcoatWithBaseNormalPixels =
+        captureClearcoatNormalStrength(1.0f);
+    for (std::size_t sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(clearcoatWithBaseNormalPixels[sampleIndex][channel],
+                        clearcoatNormalUv0Pixels[sampleIndex][channel], 0.01f)
+                << "changing the base normal map should preserve independent "
+                   "clearcoat shading, sample "
+                << sampleIndex << ", channel " << channel;
+        }
+    }
+    material.normalTexture = ArtifactCore::UniString();
+    material.normalStrength = 0.0f;
+
     QImage greenPerturbedClearcoatNormal = moderateNormalImage;
     for (int y = 0; y < greenPerturbedClearcoatNormal.height(); ++y) {
         auto* row = greenPerturbedClearcoatNormal.scanLine(y);
