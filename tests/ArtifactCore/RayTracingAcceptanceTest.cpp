@@ -4638,6 +4638,21 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
                                         kRayTraceTestImageSize));
     EXPECT_LE(maximumGreenDifference(cappedSceneLightsImage), 1.0e-5f)
         << "ray tracing should use only the first eight scene lights";
+
+    auto negativeIntensityLight = ambientLights[0];
+    negativeIntensityLight.directionIntensity[3] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &negativeIntensityLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto negativeIntensityImage = readOutputPixels();
+    negativeIntensityLight.directionIntensity[3] = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &negativeIntensityLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_LE(maximumGreenDifference(negativeIntensityImage), 1.0e-5f)
+        << "negative scene-light intensity should clamp to zero";
 }
 
 TEST_F(RayTracingAcceptanceTest,
