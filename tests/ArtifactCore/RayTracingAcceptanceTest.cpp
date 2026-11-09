@@ -5440,6 +5440,31 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
                "channel " << channel;
     }
 
+    blockerMaterial.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(cutoffEqualMapPath.string()));
+    blockerMaterial.opacity = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto combinedAlphaAtCutoffPixel = pixelAt(24, 16);
+    EXPECT_NEAR(combinedAlphaAtCutoffPixel[1], opaqueBlockerPixel[1], 0.02f)
+        << "half-alpha base-color texture times full opacity should block";
+
+    blockerMaterial.opacity = 0.99f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto combinedAlphaBelowCutoffPixel = pixelAt(24, 16);
+    EXPECT_NEAR(combinedAlphaBelowCutoffPixel[1], transparentBlockerPixel[1],
+                0.02f)
+        << "half-alpha base-color texture times scalar opacity should pass below cutoff";
+
 }
 
 TEST_F(RayTracingAcceptanceTest,
