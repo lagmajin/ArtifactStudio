@@ -4417,6 +4417,47 @@ TEST_F(RayTracingAcceptanceTest, SelectsAnisotropyTextureUvSet) {
     EXPECT_GT(anisotropyDirectionDifference, 0.001f)
         << "anisotropy texture red/green direction channels should rotate the "
            "specular lobe while blue strength stays constant";
+
+    material.anisotropy = 0.5f;
+    material.anisotropyTexture = ArtifactCore::UniString(anisotropyMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfScalarFullTexture = pixelAt(24, 16);
+
+    QImage halfBlueAnisotropyMap = anisotropyMap;
+    for (int y = 0; y < halfBlueAnisotropyMap.height(); ++y) {
+        auto* row = halfBlueAnisotropyMap.scanLine(y);
+        for (int x = halfBlueAnisotropyMap.width() / 2;
+             x < halfBlueAnisotropyMap.width(); ++x) {
+            row[x * 4 + 2] = 128;
+        }
+    }
+    const QString halfBlueAnisotropyMapPath = textureDirectory.filePath(
+        QStringLiteral("anisotropy-half-strength.png"));
+    ASSERT_TRUE(halfBlueAnisotropyMap.save(
+        halfBlueAnisotropyMapPath, "PNG"));
+    material.anisotropy = 1.0f;
+    material.anisotropyTexture =
+        ArtifactCore::UniString(halfBlueAnisotropyMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfTextureBlue = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfTextureBlue[channel],
+                    halfScalarFullTexture[channel], 0.035f)
+            << "anisotropy factor should multiply the texture blue strength, "
+               "channel " << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
