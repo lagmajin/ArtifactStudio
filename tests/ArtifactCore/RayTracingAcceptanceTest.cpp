@@ -3279,6 +3279,42 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
     EXPECT_GT(uv0Difference, 0.02f)
         << "the metallic map's red channel should distinguish the two UV0 halves";
 
+    QImage metallicOtherChannelsChanged = metallicMap;
+    for (int y = 0; y < metallicOtherChannelsChanged.height(); ++y) {
+        auto* row = metallicOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < metallicOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[1] = 0;
+            pixel[2] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const QString metallicOtherChannelsPath = textureDirectory.filePath(
+        QStringLiteral("independent-metallic-other-channels.png"));
+    ASSERT_TRUE(metallicOtherChannelsChanged.save(
+        metallicOtherChannelsPath, "PNG"));
+    material.metallicTexture =
+        ArtifactCore::UniString(metallicOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto otherChannelsChangedLeft = pixelAt(8, 16);
+    const auto otherChannelsChangedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(otherChannelsChangedLeft[channel], uv0Left[channel], 0.02f)
+            << "independent metallic should read red only, left channel "
+            << channel;
+        EXPECT_NEAR(otherChannelsChangedRight[channel], uv0Right[channel],
+                    0.02f)
+            << "independent metallic should read red only, right channel "
+            << channel;
+    }
+    material.metallicTexture = ArtifactCore::UniString(metallicMapPath);
+
     const QString halfMetallicMapPath = textureDirectory.filePath(
         QStringLiteral("independent-metallic-half.png"));
     QImage halfMetallicMap(8, 2, QImage::Format_RGBA8888);
