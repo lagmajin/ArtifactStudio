@@ -668,8 +668,12 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
         0.0f, std::numeric_limits<float>::quiet_NaN());
     const auto enabledClearcoat = captureLobeAmounts(1.0f, 0.0f);
     const auto enabledSheen = captureLobeAmounts(0.0f, 1.0f);
+    const auto enabledClearcoatAndSheen = captureLobeAmounts(1.0f, 1.0f);
     float clearcoatResponse = 0.0f;
     float sheenResponse = 0.0f;
+    float combinedLobeResponse = 0.0f;
+    float combinedVsClearcoatResponse = 0.0f;
+    float combinedVsSheenResponse = 0.0f;
     for (std::size_t channel = 0; channel < 3; ++channel) {
         EXPECT_NEAR(invalidClearcoat[channel], noPrincipledLobes[channel],
                     1.0e-5f)
@@ -685,11 +689,29 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
         sheenResponse = std::max(
             sheenResponse,
             std::fabs(enabledSheen[channel] - noPrincipledLobes[channel]));
+        combinedLobeResponse = std::max(
+            combinedLobeResponse,
+            std::fabs(enabledClearcoatAndSheen[channel] -
+                      noPrincipledLobes[channel]));
+        combinedVsClearcoatResponse = std::max(
+            combinedVsClearcoatResponse,
+            std::fabs(enabledClearcoatAndSheen[channel] -
+                      enabledClearcoat[channel]));
+        combinedVsSheenResponse = std::max(
+            combinedVsSheenResponse,
+            std::fabs(enabledClearcoatAndSheen[channel] -
+                      enabledSheen[channel]));
     }
     EXPECT_GT(clearcoatResponse, 0.001f)
         << "the fixture should respond to a finite clearcoat amount";
     EXPECT_GT(sheenResponse, 0.001f)
         << "the fixture should respond to a finite sheen amount";
+    EXPECT_GT(combinedLobeResponse, 0.001f)
+        << "the fixture should respond when clearcoat and sheen are both enabled";
+    EXPECT_GT(combinedVsClearcoatResponse, 0.001f)
+        << "sheen should contribute alongside clearcoat";
+    EXPECT_GT(combinedVsSheenResponse, 0.001f)
+        << "clearcoat should contribute alongside sheen";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
