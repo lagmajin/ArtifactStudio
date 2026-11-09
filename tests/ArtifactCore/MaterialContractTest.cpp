@@ -263,9 +263,18 @@ TEST(MaterialContractTest, MaterialXDocumentRoundTripsUtf8AndSetsMaterialType)
     ASSERT_TRUE(source.saveMaterialXDocument(path));
 
     Material loaded;
+    loaded.setType(MaterialType::PBR);
+    loaded.setMaterialXDocument(
+        ArtifactCore::UniString(QStringLiteral("previous document")));
     EXPECT_FALSE(loaded.loadMaterialXDocument(QString{}));
+    EXPECT_EQ(loaded.type(), MaterialType::PBR);
+    EXPECT_EQ(loaded.materialXDocument().toQString(),
+              QStringLiteral("previous document"));
     EXPECT_FALSE(loaded.loadMaterialXDocument(
         temporaryDirectory.filePath(QStringLiteral("missing.mtlx"))));
+    EXPECT_EQ(loaded.type(), MaterialType::PBR);
+    EXPECT_EQ(loaded.materialXDocument().toQString(),
+              QStringLiteral("previous document"));
     ASSERT_TRUE(loaded.loadMaterialXDocument(path));
     EXPECT_EQ(loaded.materialXDocument().toQString(), document);
     EXPECT_EQ(loaded.type(), MaterialType::MaterialX);
@@ -713,6 +722,11 @@ TEST(MaterialContractTest, AdvancedPbrStateCopiesAcrossConstructionAndAssignment
     source.setOpacity(0.7f);
     source.setAlphaMode(MaterialAlphaMode::Masked);
     source.setAlphaCutoff(0.42f);
+    source.setType(MaterialType::MaterialX);
+    source.setMaterialXDocument(ArtifactCore::UniString(QStringLiteral(
+        "<materialx version=\"1.38\"><material name=\"paint\"/></materialx>")));
+    source.setMaterialGraphJson(ArtifactCore::UniString(QStringLiteral(
+        "{\"nodes\":[{\"type\":\"principled\"}],\"links\":[]}")));
 
     Material copy(source);
     source = Material{};
@@ -761,6 +775,15 @@ TEST(MaterialContractTest, AdvancedPbrStateCopiesAcrossConstructionAndAssignment
     EXPECT_FLOAT_EQ(copy.opacity(), 0.7f);
     EXPECT_EQ(copy.alphaMode(), MaterialAlphaMode::Masked);
     EXPECT_FLOAT_EQ(copy.alphaCutoff(), 0.42f);
+    EXPECT_EQ(copy.type(), MaterialType::MaterialX);
+    EXPECT_EQ(copy.materialXDocument().toQString(),
+              QStringLiteral(
+                  "<materialx version=\"1.38\"><material name=\"paint\"/>"
+                  "</materialx>"));
+    EXPECT_EQ(copy.materialGraphJson().toQString(),
+              QStringLiteral(
+                  "{\"nodes\":[{\"type\":\"principled\"}],"
+                  "\"links\":[]}"));
 
     Material assigned;
     assigned = copy;
@@ -774,6 +797,8 @@ TEST(MaterialContractTest, AdvancedPbrStateCopiesAcrossConstructionAndAssignment
     EXPECT_EQ(assigned.subsurfaceRadius(), QVector3D(2.0f, 0.8f, 0.2f));
     EXPECT_EQ(assigned.opacityTexture().toQString(),
               QStringLiteral("maps/opacity.png"));
+    EXPECT_EQ(assigned.type(), MaterialType::MaterialX);
+    EXPECT_TRUE(assigned.hasMaterialGraphJson());
 }
 
 TEST(MaterialContractTest, MoveTransfersStateAndMovedFromObjectCanBeReassigned)
