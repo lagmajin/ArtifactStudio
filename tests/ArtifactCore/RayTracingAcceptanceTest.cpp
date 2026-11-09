@@ -1604,6 +1604,66 @@ TEST_F(RayTracingAcceptanceTest, UsesIorForDielectricFresnelReflectance) {
         << "higher dielectric IOR should increase normal-incidence reflectance";
 }
 
+TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
+    constexpr std::array<float, 9> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-thin-wall-transmission", vertexBuffer.RawPtr(), 3,
+                indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+
+    ArtifactCore::RTSceneLight zeroAmbientLight;
+    zeroAmbientLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Ambient);
+    manager_->setSceneLights(context_.RawPtr(), &zeroAmbientLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 1.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.5f;
+    material.roughness = 0.2f;
+    material.transmission = 1.0f;
+    const auto traceThinWall = [&](const float ior, const float thinWall) {
+        material.ior = ior;
+        material.thinWall = thinWall;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+
+    const auto unityIorThick = traceThinWall(1.0f, 0.0f);
+    const auto unityIorThin = traceThinWall(1.0f, 1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unityIorThin[channel], unityIorThick[channel], 1.0e-5f)
+            << "thin-wall mode should match the solid path at IOR one, channel "
+            << channel;
+    }
+
+    const auto glassIorThick = traceThinWall(1.5f, 0.0f);
+    const auto glassIorThin = traceThinWall(1.5f, 1.0f);
+    const float thinWallDifference = std::max(
+        std::fabs(glassIorThin[0] - glassIorThick[0]),
+        std::max(std::fabs(glassIorThin[1] - glassIorThick[1]),
+                 std::fabs(glassIorThin[2] - glassIorThick[2])));
+    EXPECT_GT(thinWallDifference, 0.001f)
+        << "thin-wall transmission should apply its adjusted dielectric Fresnel";
+}
+
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) {
     constexpr std::array<float, 24> vertices{
         -0.9f, -0.9f,  0.4f, 0.9f, -0.9f,  0.4f,
