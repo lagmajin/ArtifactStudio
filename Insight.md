@@ -3,8 +3,9 @@
 ## 2026-11-10: RT shadow any-hit scalar opacity coverage
 - **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `kAnyHitShaderSource`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の `SelectsMaskedShadowOpacityTexturePerMaterialSlot`。
 - **確認できた事実:** RTMaterial packing は `material.opacity` を `material.alpha.x` に格納し、`material.baseColorAlpha` は `material.baseColor.a` に格納する。shadow any-hit の alpha 積は `baseColor.a`、`alpha.x`（scalar opacity）、vertex alpha、baseColor texture alpha、opacity texture alphaを乗算しているため、scalar opacity の影レイ経路は実装済みだった。既存 shadow slot test は opacity texture のslot選択を確認するが、scalar opacity の slot 独立性は未確認。
-- **価値または懸念:** RT shadow shader の経路は実装上 primary mask と同じ scalar opacity を評価する。独立テストを追加すれば、material slot 選択を通じたこの parity を将来回帰から守れる。
-- **次に確認すべきこと:** 既存の slot shadow fixtureへ scalar opacity の低値／高値とslot反転検証を加え、許可された時点で実行する。
+- **追加した確認:** 既存の slot shadow fixtureへ scalar opacity の低値／高値、および `baseColorAlpha * opacity` が cutoff をまたぐ組み合わせを両slotで反転する検証を追加した。
+- **価値または懸念:** RT shadow shader の経路は実装上 primary mask と同じ scalar opacity を評価する。合成alphaとmaterial slot選択の両方を影テストで回帰検出できる。
+- **次に確認すべきこと:** `SelectsMaskedShadowOpacityTexturePerMaterialSlot` を実行して追加したshadow応答を確認する。
 
 ## 2026-11-09: RT solid transmission の TIR 到達条件
 - **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `directTransmissionDirection`／`transmissionIsTir`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の透過受け入れ。
