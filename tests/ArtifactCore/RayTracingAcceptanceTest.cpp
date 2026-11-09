@@ -2298,12 +2298,25 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-shadow-receiver"), receiverMaterial));
 
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto whiteMapPath = tempDirectory / "artifact-rt-shadow-opacity-white.png";
-    const auto blackMapPath = tempDirectory / "artifact-rt-shadow-opacity-black.png";
-    for (const auto& item : std::array<std::pair<std::filesystem::path, QColor>, 2>{
+    QTemporaryDir shadowOpacityDirectory;
+    ASSERT_TRUE(shadowOpacityDirectory.isValid());
+    const auto whiteMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(QStringLiteral("opaque.png"))
+            .toStdString());
+    const auto transparentMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(QStringLiteral("transparent.png"))
+            .toStdString());
+    const auto cutoffEqualMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(QStringLiteral("cutoff-equal.png"))
+            .toStdString());
+    const auto belowCutoffMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(QStringLiteral("below-cutoff.png"))
+            .toStdString());
+    for (const auto& item : std::array<std::pair<std::filesystem::path, QColor>, 4>{
              std::pair{whiteMapPath, QColor(255, 255, 255, 255)},
-             std::pair{blackMapPath, QColor(0, 0, 0, 255)}}) {
+             std::pair{transparentMapPath, QColor(0, 0, 0, 0)},
+             std::pair{cutoffEqualMapPath, QColor(255, 255, 255, 128)},
+             std::pair{belowCutoffMapPath, QColor(255, 255, 255, 127)}}) {
         QImage image(2, 2, QImage::Format_RGBA8888);
         ASSERT_FALSE(image.isNull());
         image.fill(item.second);
@@ -2336,7 +2349,7 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     const auto opaqueBlockerPixel = pixelAt(24, 16);
 
     blockerMaterial.opacityTexture = ArtifactCore::UniString(
-        QString::fromStdString(blackMapPath.string()));
+        QString::fromStdString(transparentMapPath.string()));
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -2347,6 +2360,33 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     const auto transparentBlockerPixel = pixelAt(24, 16);
     EXPECT_GT(transparentBlockerPixel[1], opaqueBlockerPixel[1] + 0.02f)
         << "a cutout blocker should not terminate the receiver's shadow ray";
+
+    blockerMaterial.alphaCutoff = 128.0f / 255.0f;
+    blockerMaterial.opacityTexture = ArtifactCore::UniString(
+        QString::fromStdString(cutoffEqualMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto cutoffEqualPixel = pixelAt(24, 16);
+    EXPECT_NEAR(cutoffEqualPixel[1], opaqueBlockerPixel[1], 0.02f)
+        << "alpha equal to the cutoff should block the shadow ray";
+
+    blockerMaterial.opacityTexture = ArtifactCore::UniString(
+        QString::fromStdString(belowCutoffMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto belowCutoffPixel = pixelAt(24, 16);
+    EXPECT_NEAR(belowCutoffPixel[1], transparentBlockerPixel[1], 0.02f)
+        << "alpha below the cutoff should pass the shadow ray";
 
     QTemporaryDir missingOpacityDirectory;
     ASSERT_TRUE(missingOpacityDirectory.isValid());
@@ -2366,9 +2406,6 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
                "channel " << channel;
     }
 
-    std::error_code ignored;
-    std::filesystem::remove(whiteMapPath, ignored);
-    std::filesystem::remove(blackMapPath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
