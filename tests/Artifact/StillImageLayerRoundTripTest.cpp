@@ -722,6 +722,77 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor previousColor(35, 95, 155, 255);
+    const QColor restoredColor(195, 135, 75, 255);
+    const QColor laterPreviousFileColor(70, 180, 95, 255);
+    const QString previousPath =
+        dir.filePath(QStringLiteral("previous-source.png"));
+    const QString restoredPath =
+        dir.filePath(QStringLiteral("restored-source.png"));
+    const auto waitForColor = [](Artifact::ArtifactImageLayer& target,
+                                 const QColor& expectedColor) {
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            const QImage decoded = target.toQImage();
+            if (decoded.size() == QSize(2, 2) &&
+                decoded.pixelColor(0, 0) == expectedColor) {
+                return decoded;
+            }
+            QThread::msleep(1);
+        }
+        return target.toQImage();
+    };
+    QImage image(2, 2, QImage::Format_RGBA8888);
+    image.fill(previousColor);
+    ASSERT_TRUE(image.save(previousPath, "PNG"));
+    image.fill(restoredColor);
+    ASSERT_TRUE(image.save(restoredPath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(previousPath));
+    ASSERT_EQ(waitForColor(layer, previousColor).pixelColor(0, 0),
+              previousColor);
+    const auto previousSourceId = layer.sourceAssetId();
+    ASSERT_FALSE(previousSourceId.isNull());
+
+    Artifact::ArtifactImageLayer serializedSource;
+    ASSERT_TRUE(serializedSource.loadFromPath(restoredPath));
+    ASSERT_EQ(waitForColor(serializedSource, restoredColor).pixelColor(0, 0),
+              restoredColor);
+    const auto restoredSourceId = serializedSource.sourceAssetId();
+    ASSERT_FALSE(restoredSourceId.isNull());
+    ASSERT_NE(restoredSourceId, previousSourceId);
+    const QJsonObject restoredState = serializedSource.toJson();
+
+    layer.fromJsonProperties(restoredState);
+    ASSERT_EQ(layer.sourcePath(), restoredPath);
+    ASSERT_EQ(layer.sourceAssetId(), restoredSourceId);
+    ASSERT_EQ(waitForColor(layer, restoredColor).pixelColor(0, 0),
+              restoredColor);
+    const std::uint64_t restoredVersion = layer.sourceVersion();
+    ASSERT_GT(restoredVersion, 0u);
+    EXPECT_EQ(ArtifactCore::AssetManager::instance().useCount(previousSourceId),
+              0);
+
+    image.fill(laterPreviousFileColor);
+    ASSERT_TRUE(image.save(previousPath, "PNG"));
+    (void)ArtifactCore::AssetManager::instance().invalidateSource(previousSourceId);
+    EXPECT_EQ(layer.sourcePath(), restoredPath);
+    EXPECT_EQ(layer.sourceAssetId(), restoredSourceId);
+    EXPECT_EQ(layer.sourceVersion(), restoredVersion);
+    EXPECT_EQ(waitForColor(layer, restoredColor).pixelColor(0, 0),
+              restoredColor);
+}
+
+TEST(StillImageLayerRoundTripTest,
      ImageBufferInputReplacesFileSourceAndClearsIdentity)
 {
     QTemporaryDir dir;

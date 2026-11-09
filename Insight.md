@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 既存ImageLayerへのJSON復元時のsource切替
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity`、静止画保存復元契約。
+- **確認できた事実:** source identityのJSON復元テストは新しいImageLayerへの復元を確認するが、source Aを読込済みの既存instanceへsource BのJSONを適用し、Aの参照を解放してBだけを維持するケースはなかった。制作準備文書は復元時に旧sourceを再decodeしないとする。
+- **追加した確認:** 既存layerへBのserialized stateを適用し、Bのpath／identity／pixel、旧source use countが0になることを確認する。その後Aのファイルを変更・invalidateしてもlayerのB identity／version／pixelsが変わらないことを検査する。
+- **価値または懸念:** JSON復元で旧source参照が残る、または旧source invalidationが新しいlayer状態へ漏れる回帰を検出する。test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity` を実行し、旧source releaseとJSON restore後の切替をruntimeで検証する。
+
 ## 2026-11-09: Project reload後のlocalized/shared source分離
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink`、静止画受入表OP-07／OP-09。
 - **確認できた事実:** 既存localize testは同一Project session中の共有ID分離・source更新隔離・shared relinkを確認し、既存Project round-trip testsはsource path／pixel復元を確認するが、localized identityを保存・再読込した後に共有sourceの更新を受ける側だけが更新される統合ケースはなかった。
