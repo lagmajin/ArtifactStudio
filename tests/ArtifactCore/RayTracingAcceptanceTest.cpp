@@ -3510,6 +3510,22 @@ TEST_F(RayTracingAcceptanceTest,
     const auto minimumSubsurfaceIor = traceSubsurface(1.0f);
     EXPECT_NEAR(belowMinimumSubsurfaceIor[0], minimumSubsurfaceIor[0], 1.0e-5f)
         << "subsurface IOR below one should clamp to one";
+    material.subsurfaceIOR = 2.0f;
+    const auto maximumSubsurfaceIor = traceSubsurface(1.0f);
+    const float subsurfaceIorResponse = std::max(
+        std::fabs(maximumSubsurfaceIor[0] - minimumSubsurfaceIor[0]),
+        std::max(std::fabs(maximumSubsurfaceIor[1] - minimumSubsurfaceIor[1]),
+                 std::fabs(maximumSubsurfaceIor[2] - minimumSubsurfaceIor[2])));
+    EXPECT_GT(subsurfaceIorResponse, 0.001f)
+        << "subsurface IOR should change the diffuse Fresnel response";
+    material.subsurfaceIOR = 2.5f;
+    const auto aboveMaximumSubsurfaceIor = traceSubsurface(1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(aboveMaximumSubsurfaceIor[channel],
+                    maximumSubsurfaceIor[channel], 1.0e-5f)
+            << "subsurface IOR above two should clamp to two, channel "
+            << channel;
+    }
 
     material.subsurfaceIOR = 1.4f;
     material.subsurfaceAnisotropy = 0.9f;
