@@ -1,5 +1,6 @@
 #include <QColor>
 #include <QString>
+#include <QVector3D>
 
 #include <gtest/gtest.h>
 
@@ -72,6 +73,35 @@ TEST(MaterialContractTest, AlphaAndTransmissionControlsRemainIndependent)
     EXPECT_TRUE(material.thinWall());
     EXPECT_FLOAT_EQ(material.thinFilmThickness(), 420.0f);
     EXPECT_FLOAT_EQ(material.thinFilmIOR(), 1.8f);
+}
+
+TEST(MaterialContractTest, PrincipledShadingControlsClampAndFallback)
+{
+    Material material;
+    material.setClearcoatIOR(0.5f);
+    material.setClearcoatNormalStrength(2.0f);
+    material.setSheen(-0.25f);
+    material.setSheenRoughness(std::numeric_limits<float>::quiet_NaN());
+    material.setSubsurface(2.0f);
+    material.setSubsurfaceIOR(std::numeric_limits<float>::infinity());
+    material.setSubsurfaceAnisotropy(-2.0f);
+    material.setSubsurfaceRadius(QVector3D(
+        -1.0f, 20.0f, std::numeric_limits<float>::quiet_NaN()));
+    material.setEnvironmentIntensity(8.0f);
+
+    EXPECT_FLOAT_EQ(material.clearcoatIOR(), 1.0f);
+    EXPECT_FLOAT_EQ(material.clearcoatNormalStrength(), 1.0f);
+    EXPECT_FLOAT_EQ(material.sheen(), 0.0f);
+    EXPECT_FLOAT_EQ(material.sheenRoughness(), 0.5f);
+    EXPECT_FLOAT_EQ(material.subsurface(), 1.0f);
+    EXPECT_FLOAT_EQ(material.subsurfaceIOR(), 1.4f);
+    EXPECT_FLOAT_EQ(material.subsurfaceAnisotropy(), -0.9f);
+    EXPECT_EQ(material.subsurfaceRadius(), QVector3D(0.0f, 10.0f, 0.1f));
+    EXPECT_FLOAT_EQ(material.environmentIntensity(), 4.0f);
+
+    material.setEnvironmentIntensity(
+        std::numeric_limits<float>::quiet_NaN());
+    EXPECT_FLOAT_EQ(material.environmentIntensity(), 1.0f);
 }
 
 TEST(MaterialContractTest, TextureUvTransformsAreIndependentAndSanitized)
