@@ -3424,6 +3424,84 @@ TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
 }
 
 TEST_F(RayTracingAcceptanceTest,
+       AppliesDiffuseRoughnessToBurleyDiffuseLighting) {
+    constexpr std::array<float, 9> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-diffuse-roughness", vertexBuffer.RawPtr(), 3,
+                indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+
+    ArtifactCore::RTSceneLight obliqueLight;
+    obliqueLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    obliqueLight.directionIntensity[0] = 0.6f;
+    obliqueLight.directionIntensity[2] = 0.8f;
+    obliqueLight.directionIntensity[3] = 4.0f;
+    obliqueLight.colorAttenuationConstant[0] = 1.0f;
+    obliqueLight.colorAttenuationConstant[1] = 1.0f;
+    obliqueLight.colorAttenuationConstant[2] = 1.0f;
+    obliqueLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &obliqueLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.metallic = 0.0f;
+    material.specular = 0.0f;
+    material.ior = 1.0f;
+    const auto traceDiffuseRoughness = [&](float diffuseRoughness) {
+        material.diffuseRoughness = diffuseRoughness;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-diffuse-roughness"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+
+    const auto smoothDiffusePixel = traceDiffuseRoughness(0.0f);
+    const auto roughDiffusePixel = traceDiffuseRoughness(1.0f);
+    const float diffuseRoughnessResponse = std::max(
+        std::fabs(roughDiffusePixel[0] - smoothDiffusePixel[0]),
+        std::max(std::fabs(roughDiffusePixel[1] - smoothDiffusePixel[1]),
+                 std::fabs(roughDiffusePixel[2] - smoothDiffusePixel[2])));
+    EXPECT_GT(diffuseRoughnessResponse, 0.001f)
+        << "diffuse roughness should change the direct Oren-Nayar response";
+
+    const auto belowMinimumDiffuseRoughness = traceDiffuseRoughness(-0.5f);
+    const auto aboveMaximumDiffuseRoughness = traceDiffuseRoughness(1.5f);
+    const auto nonFiniteDiffuseRoughness = traceDiffuseRoughness(
+        std::numeric_limits<float>::quiet_NaN());
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumDiffuseRoughness[channel],
+                    smoothDiffusePixel[channel], 1.0e-5f)
+            << "diffuse roughness below zero should clamp to zero, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumDiffuseRoughness[channel],
+                    roughDiffusePixel[channel], 1.0e-5f)
+            << "diffuse roughness above one should clamp to one, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteDiffuseRoughness[channel],
+                    smoothDiffusePixel[channel], 1.0e-5f)
+            << "non-finite diffuse roughness should use its zero fallback, channel "
+            << channel;
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest,
        AppliesSubsurfaceAmountAndRgbRadiusToDiffuseLighting) {
     constexpr std::array<float, 9> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
