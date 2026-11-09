@@ -2148,8 +2148,11 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
         ArtifactCore::UniString("masked-alpha-surfaces"), vertices.data(), 8,
         indices.data(), 12, nullptr, materialIndices.data(), uvs.data()));
 
-    const auto texturePath = std::filesystem::temp_directory_path() /
-                             "artifact-rt-masked-opacity.png";
+    QTemporaryDir maskedOpacityDirectory;
+    ASSERT_TRUE(maskedOpacityDirectory.isValid());
+    const auto texturePath = std::filesystem::path(
+        maskedOpacityDirectory.filePath(QStringLiteral("masked-opacity.png"))
+            .toStdString());
     QImage opacityImage(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(opacityImage.isNull());
     for (int y = 0; y < opacityImage.height(); ++y) {
@@ -2158,7 +2161,7 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
             auto* pixel = row + x * 4;
             const uchar value = x < 4 ? 0 : 255;
             pixel[0] = pixel[1] = pixel[2] = value;
-            pixel[3] = 255;
+            pixel[3] = value;
         }
     }
     ASSERT_TRUE(opacityImage.save(
@@ -2246,8 +2249,6 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     const auto aboveCutoffPixel = pixelAt(24, 16);
     EXPECT_GT(aboveCutoffPixel[0], aboveCutoffPixel[2] + 0.5f)
         << "alpha just above the cutoff should keep the front surface";
-    std::error_code ignored;
-    std::filesystem::remove(texturePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
