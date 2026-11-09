@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 正常sourceからcorrupt replacementへの失敗遷移
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits`、静止画受入表IMG-13、制作準備文書のfull decode failure契約。
+- **確認できた事実:** 既存corrupt payload testは初期状態のlayerで要求path保持とplaceholder生成を確認する。計画文書はdecode failure時に旧source identity/cacheを破棄して要求source pathへplaceholderを対応させるとする。
+- **追加した確認:** file-backed画像表示中にcorrupt PNGをloadし、旧Asset IDとpixelが残らずcorrupt path／placeholderへ遷移する一方、opacityとpositionは維持されるか検査する。
+- **価値または懸念:** failure後に前sourceの実画素やidentityが誤表示・誤保存される回帰を検出する。診断eventのstage詳細は本テストの対象外。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: 未知4ch EXRのopaque fallbackと診断
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics`、静止画受入表IMG-10、制作準備文書のOIIO alpha channel semantics契約。
 - **確認できた事実:** 契約はOIIO alpha metadataがない4ch素材の第4chをalphaと見なさずopaque alphaを補完し、`ambiguous-channel-semantics`を記録するとしている。CMYKのK channelは標準CMYK変換、未知の4ch構成は診断付きfallbackで扱う。

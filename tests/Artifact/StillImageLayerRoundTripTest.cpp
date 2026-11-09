@@ -2023,6 +2023,47 @@ TEST(StillImageLayerRoundTripTest, CorruptPayloadRetainsPathAndProvidesPlacehold
     EXPECT_EQ(placeholder.size(), QSize(256, 256));
 }
 
+TEST(StillImageLayerRoundTripTest,
+     CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString validPath = dir.filePath(QStringLiteral("active-valid.png"));
+    const QString corruptPath = dir.filePath(QStringLiteral("replacement-corrupt.png"));
+    QImage validImage(2, 1, QImage::Format_RGBA8888);
+    validImage.fill(QColor(45, 115, 185, 255));
+    ASSERT_TRUE(validImage.save(validPath, "PNG"));
+    QFile corruptFile(corruptPath);
+    ASSERT_TRUE(corruptFile.open(QIODevice::WriteOnly));
+    ASSERT_EQ(corruptFile.write(QByteArrayLiteral("not a PNG payload")),
+              qsizetype(17));
+    corruptFile.close();
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(validPath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 1)));
+    const QUuid previousSourceId = layer.sourceAssetId();
+    ASSERT_FALSE(previousSourceId.isNull());
+    layer.setOpacity(0.4f);
+    layer.transform2D().setPosition(-13.0f, 22.0f);
+
+    EXPECT_FALSE(layer.loadFromPath(corruptPath));
+    EXPECT_EQ(layer.sourcePath(), corruptPath);
+    EXPECT_NE(layer.sourceAssetId(), previousSourceId);
+    ASSERT_TRUE(layer.hasCurrentFrameBuffer());
+    const QImage placeholder = layer.toQImage();
+    EXPECT_EQ(placeholder.size(), QSize(256, 256));
+    EXPECT_NE(placeholder.pixelColor(0, 0), QColor(45, 115, 185, 255));
+    EXPECT_NEAR(layer.opacity(), 0.4f, 1e-6f);
+    float x = 0.0f;
+    float y = 0.0f;
+    layer.transform2D().position(x, y);
+    EXPECT_NEAR(x, -13.0f, 1e-6f);
+    EXPECT_NEAR(y, 22.0f, 1e-6f);
+}
+
 TEST(StillImageLayerRoundTripTest, ActiveCropLeavesPixelsOutsideCropTransparent)
 {
     QTemporaryDir dir;
