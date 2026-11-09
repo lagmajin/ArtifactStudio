@@ -3665,6 +3665,47 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     const auto missingNormalRight = pixelAt(24, 16);
     EXPECT_NEAR(missingNormalRight[0], flatRight[0], 0.01f)
         << "a missing normal map should fall back to the geometric normal";
+
+    material.normalTexture = ArtifactCore::UniString();
+    material.normalStrength = 0.0f;
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.2f;
+    material.clearcoatNormalStrength = 1.0f;
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    material.clearcoatNormalUvRotationDegrees = 0.0f;
+    material.clearcoatNormalUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto clearcoatNormalUv0Left = pixelAt(8, 16);
+    const auto clearcoatNormalUv0Right = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(clearcoatNormalUv0Left[0] -
+                        clearcoatNormalUv0Right[0]), 0.02f)
+        << "the clearcoat-normal map should distinguish the UV0 halves";
+
+    material.clearcoatNormalUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto clearcoatNormalUv1Left = pixelAt(8, 16);
+    const auto clearcoatNormalUv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(clearcoatNormalUv1Left[channel],
+                    clearcoatNormalUv0Right[channel], 0.035f)
+            << "clearcoat-normal UV1 should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(clearcoatNormalUv1Right[channel],
+                    clearcoatNormalUv0Left[channel], 0.035f)
+            << "clearcoat-normal UV1 should mirror the right sample, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
