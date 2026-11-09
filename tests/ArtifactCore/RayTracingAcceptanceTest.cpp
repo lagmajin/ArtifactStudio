@@ -1731,11 +1731,22 @@ TEST_F(RayTracingAcceptanceTest,
     const auto burleyDiffusePixel = traceSubsurface(0.0f);
     const auto mixedDiffusePixel = traceSubsurface(0.5f);
     const auto subsurfaceDiffusePixel = traceSubsurface(1.0f);
+    const auto negativeSubsurfacePixel = traceSubsurface(-0.5f);
+    const auto nonFiniteSubsurfacePixel = traceSubsurface(
+        std::numeric_limits<float>::quiet_NaN());
     EXPECT_GT(subsurfaceDiffusePixel[0], subsurfaceDiffusePixel[1] + 0.01f)
         << "the red subsurface radius should exceed the green radius response";
     EXPECT_GT(subsurfaceDiffusePixel[1], subsurfaceDiffusePixel[2] + 0.01f)
         << "the green subsurface radius should exceed the blue radius response";
     for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(negativeSubsurfacePixel[channel],
+                    burleyDiffusePixel[channel], 1.0e-5f)
+            << "negative subsurface amount should clamp to zero, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteSubsurfacePixel[channel],
+                    burleyDiffusePixel[channel], 1.0e-5f)
+            << "non-finite subsurface amount should use the zero fallback, channel "
+            << channel;
         EXPECT_GT(mixedDiffusePixel[channel],
                   subsurfaceDiffusePixel[channel] + 0.001f)
             << "a partial subsurface amount should blend from Burley diffuse, channel "
