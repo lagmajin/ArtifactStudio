@@ -1487,6 +1487,126 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
     }
 }
 
+TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-clearcoat-texture-uv-set", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data(),
+        nullptr, mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString clearcoatMapPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-ramp.png"));
+    QImage clearcoatMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(clearcoatMap.isNull());
+    for (int y = 0; y < clearcoatMap.height(); ++y) {
+        auto* row = clearcoatMap.scanLine(y);
+        for (int x = 0; x < clearcoatMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(clearcoatMap.save(clearcoatMapPath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.roughness = 0.4f;
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.2f;
+    material.clearcoatTexture = ArtifactCore::UniString(clearcoatMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto amountUv0Left = pixelAt(8, 16);
+    const auto amountUv0Right = pixelAt(24, 16);
+    const float amountUv0Difference = std::max(
+        std::fabs(amountUv0Left[0] - amountUv0Right[0]),
+        std::max(std::fabs(amountUv0Left[1] - amountUv0Right[1]),
+                 std::fabs(amountUv0Left[2] - amountUv0Right[2])));
+    EXPECT_GT(amountUv0Difference, 0.02f)
+        << "the clearcoat map should distinguish the two UV0 halves";
+
+    material.clearcoatTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto amountUv1Left = pixelAt(8, 16);
+    const auto amountUv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(amountUv1Left[channel], amountUv0Right[channel], 0.035f)
+            << "clearcoat UV1 should mirror the left sample, channel " << channel;
+        EXPECT_NEAR(amountUv1Right[channel], amountUv0Left[channel], 0.035f)
+            << "clearcoat UV1 should mirror the right sample, channel " << channel;
+    }
+
+    material.clearcoatTexture = ArtifactCore::UniString();
+    material.clearcoatRoughness = 1.0f;
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString(clearcoatMapPath);
+    material.clearcoatRoughnessTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv0Left = pixelAt(8, 16);
+    const auto roughnessUv0Right = pixelAt(24, 16);
+    const float roughnessUv0Difference = std::max(
+        std::fabs(roughnessUv0Left[0] - roughnessUv0Right[0]),
+        std::max(std::fabs(roughnessUv0Left[1] - roughnessUv0Right[1]),
+                 std::fabs(roughnessUv0Left[2] - roughnessUv0Right[2])));
+    EXPECT_GT(roughnessUv0Difference, 0.02f)
+        << "the clearcoat roughness map should distinguish the UV0 halves";
+
+    material.clearcoatRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv1Left = pixelAt(8, 16);
+    const auto roughnessUv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughnessUv1Left[channel], roughnessUv0Right[channel],
+                    0.035f)
+            << "clearcoat roughness UV1 should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(roughnessUv1Right[channel], roughnessUv0Left[channel],
+                    0.035f)
+            << "clearcoat roughness UV1 should mirror the right sample, channel "
+            << channel;
+    }
+}
+
 TEST_F(RayTracingAcceptanceTest,
        SelectsMipLevelsForMinifiedSheenColorAndRoughnessTextures) {
     constexpr std::array<float, 12> vertices{
