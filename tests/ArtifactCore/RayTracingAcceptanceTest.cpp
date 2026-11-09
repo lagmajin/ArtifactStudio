@@ -5073,9 +5073,55 @@ TEST_F(RayTracingAcceptanceTest, SelectsAnisotropyTextureUvSet) {
             << "preserving the shading tangent frame, right channel " << channel;
     }
 
+    material.anisotropyTextureUvRotationDegrees = 0.0f;
+    material.anisotropyTextureUvScaleU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledMapLeft = pixelAt(8, 16);
+    const auto scaledMapRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledMapLeft[channel], horizontalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture U scale should repeat the first texel half, "
+            << "left channel " << channel;
+        EXPECT_NEAR(scaledMapRight[channel], horizontalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture U scale should repeat the first texel half, "
+            << "right channel " << channel;
+    }
+
+    material.anisotropyTextureUvScaleU = 1.0f;
+    material.anisotropyTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetMapLeft = pixelAt(8, 16);
+    const auto offsetMapRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetMapLeft[channel], verticalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture U offset should swap the left direction "
+            << "sample, channel " << channel;
+        EXPECT_NEAR(offsetMapRight[channel], horizontalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture U offset should swap the right direction "
+            << "sample, channel " << channel;
+    }
+
     material.anisotropy = 0.5f;
     material.anisotropyTexture = ArtifactCore::UniString(anisotropyMapPath);
     material.anisotropyTextureUvRotationDegrees = 0.0f;
+    material.anisotropyTextureUvScaleU = 1.0f;
+    material.anisotropyTextureUvOffsetU = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
