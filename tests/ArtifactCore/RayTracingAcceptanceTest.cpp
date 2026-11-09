@@ -4300,6 +4300,30 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
                "sample, channel " << channel;
     }
 
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.metallicRoughnessUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMapRotatedLeft = pixelAt(8, 16);
+    const auto packedMapRotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedMapRotatedLeft[channel], packedMapUv0Right[channel],
+                    0.035f)
+            << "packed metallic-roughness UV rotation should mirror the left "
+               "sample, channel "
+            << channel;
+        EXPECT_NEAR(packedMapRotatedRight[channel], packedMapUv0Left[channel],
+                    0.035f)
+            << "packed metallic-roughness UV rotation should mirror the right "
+               "sample, channel "
+            << channel;
+    }
+    material.metallicRoughnessUvRotationDegrees = 0.0f;
+
     const auto verticalPackedMapPath = surfaceMapDirectory.filePath(
         QStringLiteral("packed-metallic-roughness-v-ramp.png"));
     QImage verticalPackedMap(2, 8, QImage::Format_RGBA8888);
