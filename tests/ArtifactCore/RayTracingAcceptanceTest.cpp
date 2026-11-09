@@ -2208,6 +2208,38 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    rightMaterial.sheenRoughnessTextureUvSet = 0;
+    rightMaterial.sheenRoughnessTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenRoughnessOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotSheenRoughnessOffsetLeft = pixelAt(8, 16);
+    const float slotSheenRoughnessOffsetDifference = std::max(
+        std::fabs(slotSheenRoughnessOffsetRight[0] -
+                  slotSheenRoughnessUv0Right[0]),
+        std::max(std::fabs(slotSheenRoughnessOffsetRight[1] -
+                           slotSheenRoughnessUv0Right[1]),
+                 std::fabs(slotSheenRoughnessOffsetRight[2] -
+                           slotSheenRoughnessUv0Right[2])));
+    EXPECT_GT(slotSheenRoughnessOffsetDifference, 0.001f)
+        << "slot 1 sheen-roughness UV offset should change its response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(slotSheenRoughnessOffsetRight[channel],
+                    slotSheenRoughnessUv0Left[channel], 0.035f)
+            << "slot 1 sheen-roughness UV offset should sample the smooth half, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(unchangedSlotSheenRoughnessOffsetLeft[channel],
+                    slotSheenRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 sheen-roughness UV offset should preserve slot 0, "
+               "channel "
+            << channel;
+    }
+
     leftMaterial.sheen = 0.0f;
     leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
     leftMaterial.clearcoat = 1.0f;
