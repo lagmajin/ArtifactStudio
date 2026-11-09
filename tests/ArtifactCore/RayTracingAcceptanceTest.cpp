@@ -4384,6 +4384,14 @@ TEST_F(RayTracingAcceptanceTest,
             << "subsurface IOR above two should clamp to two, channel "
             << channel;
     }
+    material.subsurfaceIOR = std::numeric_limits<float>::quiet_NaN();
+    const auto nonFiniteSubsurfaceIor = traceSubsurface(1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(nonFiniteSubsurfaceIor[channel],
+                    subsurfaceDiffusePixel[channel], 1.0e-5f)
+            << "non-finite subsurface IOR should use 1.4, channel "
+            << channel;
+    }
 
     material.subsurfaceIOR = 1.4f;
     material.subsurfaceAnisotropy = -0.9f;
