@@ -145,6 +145,38 @@ TEST(MaterialContractTest, TextureMapPathsAndPresenceFlagsRemainIndependent)
     EXPECT_TRUE(material.hasRoughnessTexture());
 }
 
+TEST(MaterialContractTest, TextureUvSetSelectorsStayPerMapAndLimitToUv0OrUv1)
+{
+    Material material;
+    material.setBaseColorUvSet(1);
+    material.setMetallicRoughnessUvSet(0);
+    material.setNormalUvSet(1);
+    material.setOcclusionTextureUvSet(0);
+    material.setEmissionTextureUvSet(1);
+    material.setOpacityTextureUvSet(0);
+    material.setClearcoatTextureUvSet(1);
+    material.setClearcoatRoughnessTextureUvSet(0);
+    material.setClearcoatNormalUvSet(1);
+
+    EXPECT_EQ(material.baseColorUvSet(), 1);
+    EXPECT_EQ(material.metallicRoughnessUvSet(), 0);
+    EXPECT_EQ(material.normalUvSet(), 1);
+    EXPECT_EQ(material.occlusionTextureUvSet(), 0);
+    EXPECT_EQ(material.emissionTextureUvSet(), 1);
+    EXPECT_EQ(material.opacityTextureUvSet(), 0);
+    EXPECT_EQ(material.clearcoatTextureUvSet(), 1);
+    EXPECT_EQ(material.clearcoatRoughnessTextureUvSet(), 0);
+    EXPECT_EQ(material.clearcoatNormalUvSet(), 1);
+
+    material.setBaseColorUvSet(2);
+    material.setNormalUvSet(-1);
+    material.setClearcoatTextureUvSet(7);
+
+    EXPECT_EQ(material.baseColorUvSet(), 0);
+    EXPECT_EQ(material.normalUvSet(), 0);
+    EXPECT_EQ(material.clearcoatTextureUvSet(), 0);
+}
+
 TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
 {
     Material source;
