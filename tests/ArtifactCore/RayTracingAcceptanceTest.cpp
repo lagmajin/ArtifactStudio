@@ -995,6 +995,101 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << "changing slot 1 sheen-color map should preserve slot 0, channel "
             << channel;
     }
+
+    const auto smoothSheenRoughnessPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-sheen-roughness-smooth.png"));
+    const auto roughSheenRoughnessPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-sheen-roughness-rough.png"));
+    QImage smoothSheenRoughnessMap(2, 2, QImage::Format_RGBA8888);
+    QImage roughSheenRoughnessMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(smoothSheenRoughnessMap.isNull());
+    ASSERT_FALSE(roughSheenRoughnessMap.isNull());
+    smoothSheenRoughnessMap.fill(QColor(0, 0, 0, 255));
+    roughSheenRoughnessMap.fill(QColor(0, 255, 0, 255));
+    ASSERT_TRUE(smoothSheenRoughnessMap.save(smoothSheenRoughnessPath, "PNG"));
+    ASSERT_TRUE(roughSheenRoughnessMap.save(roughSheenRoughnessPath, "PNG"));
+
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 1.0f;
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 1.0f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString();
+    leftMaterial.sheenRoughness = 1.0f;
+    leftMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(smoothSheenRoughnessPath);
+    rightMaterial = leftMaterial;
+    rightMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(roughSheenRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothSheenLeftPixel = pixelAt(8, 16);
+    const auto roughSheenRightPixel = pixelAt(24, 16);
+
+    leftMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(roughSheenRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughSheenLeftPixel = pixelAt(8, 16);
+    const auto unchangedRoughSheenRightPixel = pixelAt(24, 16);
+    const float leftSheenRoughnessDifference = std::max(
+        std::fabs(roughSheenLeftPixel[0] - smoothSheenLeftPixel[0]),
+        std::max(std::fabs(roughSheenLeftPixel[1] - smoothSheenLeftPixel[1]),
+                 std::fabs(roughSheenLeftPixel[2] - smoothSheenLeftPixel[2])));
+    EXPECT_GT(leftSheenRoughnessDifference, 0.001f)
+        << "slot 0 sheen roughness map should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughSheenRightPixel[channel],
+                    roughSheenRightPixel[channel], 0.01f)
+            << "changing slot 0 sheen roughness map should preserve slot 1, "
+               "channel "
+            << channel;
+    }
+
+    leftMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(smoothSheenRoughnessPath);
+    rightMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(smoothSheenRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedSmoothSheenLeftPixel = pixelAt(8, 16);
+    const auto smoothSheenRightPixel = pixelAt(24, 16);
+    const float rightSheenRoughnessDifference = std::max(
+        std::fabs(smoothSheenRightPixel[0] - roughSheenRightPixel[0]),
+        std::max(std::fabs(smoothSheenRightPixel[1] - roughSheenRightPixel[1]),
+                 std::fabs(smoothSheenRightPixel[2] - roughSheenRightPixel[2])));
+    EXPECT_GT(rightSheenRoughnessDifference, 0.001f)
+        << "slot 1 sheen roughness map should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSmoothSheenLeftPixel[channel],
+                    smoothSheenLeftPixel[channel], 0.01f)
+            << "changing slot 1 sheen roughness map should preserve slot 0, "
+               "channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
