@@ -9598,6 +9598,72 @@ TEST_F(RayTracingAcceptanceTest,
         << "slot 0 cutoff just above alpha should pass the shadow ray";
     EXPECT_NEAR(rightEqualCutoffBlocked, rightSlotBlocked, 0.02f)
         << "alpha equal to slot 1 cutoff should retain the shadow blocker";
+
+    const auto alphaUvRampPath = opacityDirectory.filePath(
+        QStringLiteral("slot-shadow-alpha-uv-ramp.png"));
+    QImage alphaUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(alphaUvRamp.isNull());
+    for (int y = 0; y < alphaUvRamp.height(); ++y) {
+        auto* row = alphaUvRamp.scanLine(y);
+        for (int x = 0; x < alphaUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            pixel[3] = x < alphaUvRamp.width() / 2 ? 0 : 255;
+        }
+    }
+    ASSERT_TRUE(alphaUvRamp.save(alphaUvRampPath, "PNG"));
+
+    constexpr std::array<float, 16> constantShadowUvs{
+        0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f,
+        0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f};
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        blockerVertices.data(), 8, blockerIndices.data(), 12, nullptr,
+        blockerMaterialIndices.data(), constantShadowUvs.data()));
+    for (int slotIndex = 0; slotIndex < 2; ++slotIndex) {
+        auto& slotMaterial = slotIndex == 0 ? slot0Material : slot1Material;
+        slotMaterial.alphaMode = 1;
+        slotMaterial.alphaCutoff = 0.5f;
+        slotMaterial.opacity = 1.0f;
+        slotMaterial.baseColorAlpha = 1.0f;
+        slotMaterial.opacityTexture = ArtifactCore::UniString(alphaUvRampPath);
+        slotMaterial.opacityTextureUvOffsetU = 0.0f;
+        ASSERT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("multi-slot-shadow-blockers"),
+            slotMaterial, slotIndex));
+    }
+    const float leftUvRampOpen = traceReceiverGreen(-1.0f);
+    const float rightUvRampOpen = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftUvRampOpen, leftSlotBlocked + 0.02f)
+        << "transparent opacity texels should pass the slot 0 shadow ray";
+    EXPECT_GT(rightUvRampOpen, rightSlotBlocked + 0.02f)
+        << "transparent opacity texels should pass the slot 1 shadow ray";
+
+    slot0Material.opacityTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    const float leftUvRampOffsetBlocked = traceReceiverGreen(-1.0f);
+    const float unchangedRightUvRampOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftUvRampOffsetBlocked, leftSlotBlocked, 0.02f)
+        << "slot 0 opacity UV offset should move its shadow sample to opaque texels";
+    EXPECT_NEAR(unchangedRightUvRampOpen, rightUvRampOpen, 0.02f)
+        << "slot 0 opacity UV offset should preserve slot 1 shadow transmission";
+
+    slot0Material.opacityTextureUvOffsetU = 0.0f;
+    slot1Material.opacityTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float unchangedLeftUvRampOpen = traceReceiverGreen(-1.0f);
+    const float rightUvRampOffsetBlocked = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(unchangedLeftUvRampOpen, leftUvRampOpen, 0.02f)
+        << "slot 1 opacity UV offset should preserve slot 0 shadow transmission";
+    EXPECT_NEAR(rightUvRampOffsetBlocked, rightSlotBlocked, 0.02f)
+        << "slot 1 opacity UV offset should move its shadow sample to opaque texels";
 }
 
 TEST_F(RayTracingAcceptanceTest,
