@@ -2304,6 +2304,47 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
         << "the left slot's higher scalar opacity should retain its surface";
     EXPECT_GT(rightScalarCutoutPixel[2], rightScalarCutoutPixel[1] + 0.5f)
         << "the right slot's lower scalar opacity should cut out its surface";
+
+    leftMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
+    rightMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
+    leftMaterial.opacity = rightMaterial.opacity = 1.0f;
+    leftMaterial.alphaMode = 0;
+    rightMaterial.alphaMode = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftOpaqueModePixel = pixelAt(8, 16);
+    const auto rightMaskedModePixel = pixelAt(24, 16);
+    EXPECT_GT(leftOpaqueModePixel[0], leftOpaqueModePixel[2] + 0.5f)
+        << "opaque mode on slot 0 should retain its transparent-textured surface";
+    EXPECT_GT(rightMaskedModePixel[2], rightMaskedModePixel[1] + 0.5f)
+        << "masked mode on slot 1 should cut out its transparent texture";
+
+    leftMaterial.alphaMode = 1;
+    rightMaterial.alphaMode = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftMaskedModePixel = pixelAt(8, 16);
+    const auto rightOpaqueModePixel = pixelAt(24, 16);
+    EXPECT_GT(leftMaskedModePixel[2], leftMaskedModePixel[0] + 0.5f)
+        << "masked mode on slot 0 should cut out its transparent texture";
+    EXPECT_GT(rightOpaqueModePixel[1], rightOpaqueModePixel[2] + 0.5f)
+        << "opaque mode on slot 1 should retain its transparent-textured surface";
 }
 
 TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs) {
