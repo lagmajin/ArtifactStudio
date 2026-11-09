@@ -4374,10 +4374,16 @@ TEST_F(RayTracingAcceptanceTest,
     const auto backwardScatterPixel = traceSubsurface(1.0f);
     material.subsurfaceAnisotropy = 0.8f;
     const auto forwardScatterPixel = traceSubsurface(1.0f);
-    EXPECT_GT(backwardScatterPixel[0], subsurfaceDiffusePixel[0] + 0.01f)
-        << "negative subsurface anisotropy should strengthen the backscatter response";
-    EXPECT_GT(subsurfaceDiffusePixel[0], forwardScatterPixel[0] + 0.01f)
-        << "positive subsurface anisotropy should suppress the backscatter response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_GT(backwardScatterPixel[channel],
+                  subsurfaceDiffusePixel[channel])
+            << "negative subsurface anisotropy should strengthen backscatter, channel "
+            << channel;
+        EXPECT_GT(subsurfaceDiffusePixel[channel],
+                  forwardScatterPixel[channel])
+            << "positive subsurface anisotropy should suppress backscatter, channel "
+            << channel;
+    }
 
     material.subsurfaceAnisotropy = 0.0f;
     material.subsurfaceIOR = 0.5f;
