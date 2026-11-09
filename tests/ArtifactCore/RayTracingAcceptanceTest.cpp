@@ -6997,8 +6997,10 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         int aoValue = -1;
         std::array<float, 3> clearcoatTint{1.0f, 1.0f, 1.0f};
         std::array<float, 3> specularTint{1.0f, 1.0f, 1.0f};
+        float thinFilmThickness = 0.0f;
+        float thinFilmIOR = 1.33f;
     };
-    constexpr std::array<MaterialProbe, 20> materialProbes{{
+    constexpr std::array<MaterialProbe, 22> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -7030,7 +7032,13 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
          {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
          {0.0f, 1.0f, 1.0f}},
-        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}}}};
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 400.0f, 1.33f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 400.0f, 2.0f}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -7064,6 +7072,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         renderer.setSpecularTint(
             QColor::fromRgbF(probe.specularTint[0], probe.specularTint[1],
                              probe.specularTint[2]));
+        renderer.setThinFilm(probe.thinFilmThickness, probe.thinFilmIOR);
         renderer.setPrincipledFactors(0.5f, probe.ior, 0.0f,
                                       probe.clearcoat,
                                       probe.clearcoatRoughness, probe.sheen);
@@ -7096,6 +7105,8 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.specular = 0.5f;
         std::copy(probe.specularTint.begin(), probe.specularTint.end(),
                   rtMaterial.specularTint);
+        rtMaterial.thinFilmThickness = probe.thinFilmThickness;
+        rtMaterial.thinFilmIOR = probe.thinFilmIOR;
         rtMaterial.ior = probe.ior;
         rtMaterial.sheen = probe.sheen;
         rtMaterial.clearcoat = probe.clearcoat;
@@ -7177,6 +7188,30 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     EXPECT_GT(sheenTintDifference, 0.005f);
     EXPECT_GT(rtSheenTintDifference, 0.005f)
         << "RT sheen response should vary with sheen tint";
+    float rasterThinFilmDifference = 0.0f;
+    float rtThinFilmDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterThinFilmDifference += std::fabs(
+            rasterProbePixels[20][channel] - rasterProbePixels[19][channel]);
+        rtThinFilmDifference += std::fabs(
+            rtProbePixels[20][channel] - rtProbePixels[19][channel]);
+    }
+    EXPECT_GT(rasterThinFilmDifference, 0.001f)
+        << "Raster specular response should vary with thin-film thickness";
+    EXPECT_GT(rtThinFilmDifference, 0.001f)
+        << "RT specular response should vary with thin-film thickness";
+    float rasterThinFilmIorDifference = 0.0f;
+    float rtThinFilmIorDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterThinFilmIorDifference += std::fabs(
+            rasterProbePixels[21][channel] - rasterProbePixels[20][channel]);
+        rtThinFilmIorDifference += std::fabs(
+            rtProbePixels[21][channel] - rtProbePixels[20][channel]);
+    }
+    EXPECT_GT(rasterThinFilmIorDifference, 0.001f)
+        << "Raster specular response should vary with thin-film IOR";
+    EXPECT_GT(rtThinFilmIorDifference, 0.001f)
+        << "RT specular response should vary with thin-film IOR";
     EXPECT_GT(probeLuminance(rasterProbePixels[9]),
               probeLuminance(rasterProbePixels[10]) + 0.001f)
         << "lower AO should reduce the Raster sheen IBL response";
