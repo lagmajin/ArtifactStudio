@@ -10,6 +10,7 @@ import Material.Material;
 namespace {
 
 using ArtifactCore::Material;
+using ArtifactCore::MaterialAlphaMode;
 using ArtifactCore::MaterialPresetKind;
 using ArtifactCore::MaterialTextureUvTransform;
 
@@ -50,6 +51,25 @@ TEST(MaterialContractTest, PbrScalarsClampOutOfRangeAndNonFiniteInputs)
     EXPECT_FLOAT_EQ(material.clearcoat(), 1.0f);
     EXPECT_FLOAT_EQ(material.anisotropy(), -1.0f);
     EXPECT_FLOAT_EQ(material.anisotropyRotationDegrees(), 0.0f);
+}
+
+TEST(MaterialContractTest, AlphaAndTransmissionControlsRemainIndependent)
+{
+    Material material;
+    material.setOpacity(0.35f);
+    material.setAlphaMode(MaterialAlphaMode::Masked);
+    material.setAlphaCutoff(0.72f);
+    material.setTransmission(0.8f);
+    material.setThinWall(true);
+    material.setThinFilm(420.0f, 1.8f);
+
+    EXPECT_FLOAT_EQ(material.opacity(), 0.35f);
+    EXPECT_EQ(material.alphaMode(), MaterialAlphaMode::Masked);
+    EXPECT_FLOAT_EQ(material.alphaCutoff(), 0.72f);
+    EXPECT_FLOAT_EQ(material.transmission(), 0.8f);
+    EXPECT_TRUE(material.thinWall());
+    EXPECT_FLOAT_EQ(material.thinFilmThickness(), 420.0f);
+    EXPECT_FLOAT_EQ(material.thinFilmIOR(), 1.8f);
 }
 
 TEST(MaterialContractTest, TextureUvTransformsAreIndependentAndSanitized)
