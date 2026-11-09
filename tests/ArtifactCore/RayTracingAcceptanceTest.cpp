@@ -1697,6 +1697,46 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     EXPECT_GT(rightSubsurfaceResponse, 0.001f)
         << "slot 1 subsurface should change its diffuse response";
 
+    leftMaterial.subsurface = rightMaterial.subsurface = 1.0f;
+    leftMaterial.subsurfaceAnisotropy = rightMaterial.subsurfaceAnisotropy = 0.0f;
+    std::array<std::array<float, 4>, 2> isotropicSubsurfaceSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(isotropicSubsurfaceSlotPixels));
+    leftMaterial.subsurfaceAnisotropy = -0.8f;
+    std::array<std::array<float, 4>, 2> backwardLeftSubsurfaceSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(backwardLeftSubsurfaceSlotPixels));
+    float leftSubsurfaceAnisotropyResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSubsurfaceAnisotropyResponse = std::max(
+            leftSubsurfaceAnisotropyResponse,
+            std::fabs(backwardLeftSubsurfaceSlotPixels[0][channel] -
+                      isotropicSubsurfaceSlotPixels[0][channel]));
+        EXPECT_NEAR(backwardLeftSubsurfaceSlotPixels[1][channel],
+                    isotropicSubsurfaceSlotPixels[1][channel], 0.01f)
+            << "changing slot 0 subsurface anisotropy should preserve slot 1, "
+               "channel "
+            << channel;
+    }
+    EXPECT_GT(leftSubsurfaceAnisotropyResponse, 0.001f)
+        << "slot 0 subsurface anisotropy should change its diffuse response";
+    leftMaterial.subsurfaceAnisotropy = 0.0f;
+    rightMaterial.subsurfaceAnisotropy = 0.8f;
+    std::array<std::array<float, 4>, 2> forwardRightSubsurfaceSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(forwardRightSubsurfaceSlotPixels));
+    float rightSubsurfaceAnisotropyResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(forwardRightSubsurfaceSlotPixels[0][channel],
+                    isotropicSubsurfaceSlotPixels[0][channel], 0.01f)
+            << "changing slot 1 subsurface anisotropy should preserve slot 0, "
+               "channel "
+            << channel;
+        rightSubsurfaceAnisotropyResponse = std::max(
+            rightSubsurfaceAnisotropyResponse,
+            std::fabs(forwardRightSubsurfaceSlotPixels[1][channel] -
+                      isotropicSubsurfaceSlotPixels[1][channel]));
+    }
+    EXPECT_GT(rightSubsurfaceAnisotropyResponse, 0.001f)
+        << "slot 1 subsurface anisotropy should change its diffuse response";
+
     ArtifactCore::RTSceneLight slotDiffuseRoughnessLight;
     slotDiffuseRoughnessLight.positionType[3] =
         static_cast<float>(ArtifactCore::LightType::Directional);
