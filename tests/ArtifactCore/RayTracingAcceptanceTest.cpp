@@ -6895,11 +6895,97 @@ TEST_F(RayTracingAcceptanceTest, SelectsAnisotropyTextureUvSet) {
             << "sample, channel " << channel;
     }
 
+    const QString verticalAnisotropyDirectionPath =
+        textureDirectory.filePath(
+            QStringLiteral("anisotropy-direction-v-ramp.png"));
+    QImage verticalAnisotropyDirectionMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalAnisotropyDirectionMap.isNull());
+    for (int y = 0; y < verticalAnisotropyDirectionMap.height(); ++y) {
+        auto* row = verticalAnisotropyDirectionMap.scanLine(y);
+        for (int x = 0; x < verticalAnisotropyDirectionMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool vertical =
+                y >= verticalAnisotropyDirectionMap.height() / 2;
+            pixel[0] = vertical ? 128 : 255;
+            pixel[1] = vertical ? 255 : 128;
+            pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalAnisotropyDirectionMap.save(
+        verticalAnisotropyDirectionPath, "PNG"));
+    material.anisotropyTexture = ArtifactCore::UniString(
+        verticalAnisotropyDirectionPath);
+    material.anisotropyTextureUvRotationDegrees = 0.0f;
+    material.anisotropyTextureUvScaleU = 1.0f;
+    material.anisotropyTextureUvScaleV = 1.0f;
+    material.anisotropyTextureUvOffsetU = 0.0f;
+    material.anisotropyTextureUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto directionV0Top = pixelAt(12, 8);
+    const auto directionV0Bottom = pixelAt(12, 24);
+    const float directionV0Difference = std::max(
+        std::fabs(directionV0Top[0] - directionV0Bottom[0]),
+        std::max(std::fabs(directionV0Top[1] - directionV0Bottom[1]),
+                 std::fabs(directionV0Top[2] - directionV0Bottom[2])));
+    EXPECT_GT(directionV0Difference, 0.001f)
+        << "anisotropy direction channels should vary over the V axis";
+
+    material.anisotropyTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto directionVOffsetTop = pixelAt(12, 8);
+    const auto directionVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(directionVOffsetTop[channel], directionV0Bottom[channel],
+                    0.04f)
+            << "anisotropy V offset should mirror the top sample, channel "
+            << channel;
+        EXPECT_NEAR(directionVOffsetBottom[channel], directionV0Top[channel],
+                    0.04f)
+            << "anisotropy V offset should mirror the bottom sample, channel "
+            << channel;
+    }
+
+    material.anisotropyTextureUvOffsetV = 0.0f;
+    material.anisotropyTextureUvScaleV = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto directionVScaleTop = pixelAt(12, 8);
+    const auto directionVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(directionVScaleTop[channel], directionV0Bottom[channel],
+                    0.04f)
+            << "anisotropy V scale should repeat the bottom sample on top, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(directionVScaleBottom[channel], directionV0Top[channel],
+                    0.04f)
+            << "anisotropy V scale should repeat the top sample on bottom, "
+               "channel "
+            << channel;
+    }
+
     material.anisotropy = 0.5f;
     material.anisotropyTexture = ArtifactCore::UniString(anisotropyMapPath);
     material.anisotropyTextureUvRotationDegrees = 0.0f;
     material.anisotropyTextureUvScaleU = 1.0f;
+    material.anisotropyTextureUvScaleV = 1.0f;
     material.anisotropyTextureUvOffsetU = 0.0f;
+    material.anisotropyTextureUvOffsetV = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
