@@ -2825,6 +2825,46 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
         << "packed metallic-roughness green should vary roughness while red "
            "and blue remain constant";
 
+    material.roughness = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfFactorPackedRoughness = pixelAt(24, 16);
+
+    QImage halfGreenRoughnessMap = greenRoughnessMap;
+    for (int y = 0; y < halfGreenRoughnessMap.height(); ++y) {
+        auto* row = halfGreenRoughnessMap.scanLine(y);
+        for (int x = halfGreenRoughnessMap.width() / 2;
+             x < halfGreenRoughnessMap.width(); ++x) {
+            row[x * 4 + 1] = 128;
+        }
+    }
+    const auto halfGreenRoughnessMapPath = surfaceMapDirectory.filePath(
+        QStringLiteral("half-green-roughness.png"));
+    ASSERT_TRUE(halfGreenRoughnessMap.save(
+        halfGreenRoughnessMapPath, "PNG"));
+    material.roughness = 1.0f;
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(halfGreenRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfTexelPackedRoughness = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfTexelPackedRoughness[channel],
+                    halfFactorPackedRoughness[channel], 0.035f)
+            << "packed G roughness factor should multiply sampled roughness, "
+               "channel " << channel;
+    }
+
     material.baseColor[0] = material.baseColor[1] =
         material.baseColor[2] = 1.0f;
     material.metallic = 1.0f;
