@@ -845,6 +845,21 @@ TEST(MaterialContractTest, AdvancedPbrStateCopiesAcrossConstructionAndAssignment
     source.setOpacity(0.7f);
     source.setAlphaMode(MaterialAlphaMode::Masked);
     source.setAlphaCutoff(0.42f);
+    source.setUvScaleU(1.5f);
+    source.setUvScaleV(0.75f);
+    source.setUvOffsetU(0.1f);
+    source.setUvOffsetV(-0.2f);
+    source.setUvRotationDegrees(35.0f);
+    source.setBaseColorUvScale(2.0f);
+    source.setBaseColorUvOffsetU(0.3f);
+    source.setBaseColorUvOffsetV(0.4f);
+    source.setBaseColorUvRotationDegrees(45.0f);
+    source.setBaseColorUvSet(1);
+    source.setClearcoatNormalUvScale(0.5f);
+    source.setClearcoatNormalUvOffsetU(-0.6f);
+    source.setClearcoatNormalUvOffsetV(0.7f);
+    source.setClearcoatNormalUvRotationDegrees(-55.0f);
+    source.setClearcoatNormalUvSet(0);
     source.setType(MaterialType::MaterialX);
     source.setMaterialXDocument(ArtifactCore::UniString(QStringLiteral(
         "<materialx version=\"1.38\"><material name=\"paint\"/></materialx>")));
@@ -898,6 +913,21 @@ TEST(MaterialContractTest, AdvancedPbrStateCopiesAcrossConstructionAndAssignment
     EXPECT_FLOAT_EQ(copy.opacity(), 0.7f);
     EXPECT_EQ(copy.alphaMode(), MaterialAlphaMode::Masked);
     EXPECT_FLOAT_EQ(copy.alphaCutoff(), 0.42f);
+    EXPECT_FLOAT_EQ(copy.uvScaleU(), 1.5f);
+    EXPECT_FLOAT_EQ(copy.uvScaleV(), 0.75f);
+    EXPECT_FLOAT_EQ(copy.uvOffsetU(), 0.1f);
+    EXPECT_FLOAT_EQ(copy.uvOffsetV(), -0.2f);
+    EXPECT_FLOAT_EQ(copy.uvRotationDegrees(), 35.0f);
+    EXPECT_FLOAT_EQ(copy.baseColorUvScale(), 2.0f);
+    EXPECT_FLOAT_EQ(copy.baseColorUvOffsetU(), 0.3f);
+    EXPECT_FLOAT_EQ(copy.baseColorUvOffsetV(), 0.4f);
+    EXPECT_FLOAT_EQ(copy.baseColorUvRotationDegrees(), 45.0f);
+    EXPECT_EQ(copy.baseColorUvSet(), 1);
+    EXPECT_FLOAT_EQ(copy.clearcoatNormalUvScale(), 0.5f);
+    EXPECT_FLOAT_EQ(copy.clearcoatNormalUvOffsetU(), -0.6f);
+    EXPECT_FLOAT_EQ(copy.clearcoatNormalUvOffsetV(), 0.7f);
+    EXPECT_FLOAT_EQ(copy.clearcoatNormalUvRotationDegrees(), -55.0f);
+    EXPECT_EQ(copy.clearcoatNormalUvSet(), 0);
     EXPECT_EQ(copy.type(), MaterialType::MaterialX);
     EXPECT_EQ(copy.materialXDocument().toQString(),
               QStringLiteral(
@@ -920,6 +950,12 @@ TEST(MaterialContractTest, AdvancedPbrStateCopiesAcrossConstructionAndAssignment
     EXPECT_EQ(assigned.subsurfaceRadius(), QVector3D(2.0f, 0.8f, 0.2f));
     EXPECT_EQ(assigned.opacityTexture().toQString(),
               QStringLiteral("maps/opacity.png"));
+    EXPECT_FLOAT_EQ(assigned.uvScaleU(), 1.5f);
+    EXPECT_FLOAT_EQ(assigned.uvRotationDegrees(), 35.0f);
+    EXPECT_FLOAT_EQ(assigned.baseColorUvScale(), 2.0f);
+    EXPECT_EQ(assigned.baseColorUvSet(), 1);
+    EXPECT_FLOAT_EQ(assigned.clearcoatNormalUvOffsetV(), 0.7f);
+    EXPECT_EQ(assigned.clearcoatNormalUvSet(), 0);
     EXPECT_EQ(assigned.type(), MaterialType::MaterialX);
     EXPECT_TRUE(assigned.hasMaterialGraphJson());
 }
