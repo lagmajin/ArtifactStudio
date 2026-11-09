@@ -1760,11 +1760,24 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
         for (int x = 0; x < clearcoatMap.width(); ++x) {
             auto* pixel = row + x * 4;
             pixel[0] = x < 4 ? 0 : 255;
-            pixel[1] = pixel[2] = 255;
+            pixel[1] = x < 4 ? 0 : 255;
+            pixel[2] = 255;
             pixel[3] = 255;
         }
     }
     ASSERT_TRUE(clearcoatMap.save(clearcoatMapPath, "PNG"));
+    const QString smoothRoughnessPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-roughness-smooth.png"));
+    const QString roughRoughnessPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-roughness-rough.png"));
+    QImage smoothRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    QImage roughRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(smoothRoughnessMap.isNull());
+    ASSERT_FALSE(roughRoughnessMap.isNull());
+    smoothRoughnessMap.fill(QColor(128, 0, 255, 255));
+    roughRoughnessMap.fill(QColor(128, 255, 255, 255));
+    ASSERT_TRUE(smoothRoughnessMap.save(smoothRoughnessPath, "PNG"));
+    ASSERT_TRUE(roughRoughnessMap.save(roughRoughnessPath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] =
@@ -1857,6 +1870,36 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
     EXPECT_GT(roughnessUv0Difference, 0.02f)
         << "the clearcoat roughness map should distinguish the UV0 halves";
 
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(smoothRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothRoughnessLeft = pixelAt(8, 16);
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(roughRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughRoughnessRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughnessUv0Left[channel], smoothRoughnessLeft[channel],
+                    0.035f)
+            << "clearcoat roughness should sample the G=0 reference, channel "
+            << channel;
+        EXPECT_NEAR(roughnessUv0Right[channel], roughRoughnessRight[channel],
+                    0.035f)
+            << "clearcoat roughness should sample the G=1 reference, channel "
+            << channel;
+    }
+
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString(clearcoatMapPath);
     material.clearcoatRoughnessTextureUvSet = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
