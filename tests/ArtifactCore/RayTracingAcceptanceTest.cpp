@@ -2199,6 +2199,30 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     EXPECT_GT(cutoutPixel[2], cutoutPixel[0] + 0.5f);
     EXPECT_GT(opaquePixel[0], opaquePixel[2] + 0.5f);
 
+    frontMaterial.alphaMode = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto opaqueModePixel = pixelAt(8, 16);
+    EXPECT_GT(opaqueModePixel[0], opaqueModePixel[2] + 0.5f)
+        << "opaque alpha mode should keep the masked front surface";
+
+    frontMaterial.alphaMode = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto restoredCutoutPixel = pixelAt(8, 16);
+    EXPECT_GT(restoredCutoutPixel[2], restoredCutoutPixel[0] + 0.5f)
+        << "restoring mask mode should rebuild BLAS alpha-test flags";
+
     frontMaterial.opacityTextureUvRotationDegrees = 180.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
