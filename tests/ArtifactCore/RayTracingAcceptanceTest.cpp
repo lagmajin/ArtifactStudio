@@ -4661,6 +4661,14 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
                                         kRayTraceTestImageSize,
                                         kRayTraceTestImageSize));
     const auto pointLightImage = readOutputPixels();
+    auto attenuatedPointLight = pointReferenceLight;
+    attenuatedPointLight.attenuationSpot[0] = 2.0f;
+    manager_->setSceneLights(context_.RawPtr(), &attenuatedPointLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_GT(maximumGreenDifference(pointLightImage), 0.01f)
+        << "linear point-light attenuation should reduce illumination with distance";
     auto zeroSizedAreaLight = greenAreaLight;
     zeroSizedAreaLight.shadowParams[0] = -1.0f;
     zeroSizedAreaLight.shadowParams[1] = 0.0f;
