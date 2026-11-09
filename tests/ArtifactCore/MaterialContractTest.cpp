@@ -149,24 +149,56 @@ TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
 {
     Material source;
     source.setBaseColor(QColor(24, 96, 192));
+    source.setBaseColorTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/base-color.png")));
     source.setMetallic(0.75f);
     source.setRoughness(0.2f);
+    source.setAlphaMode(MaterialAlphaMode::Blended);
+    source.setThinWall(true);
+    source.setAnisotropyTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/anisotropy.png")));
+    source.setAnisotropyTextureUvTransform(
+        MaterialTextureUvTransform{2.0f, 0.5f, 45.0f, 0.1f, 0.2f, 1});
 
     Material copy(source);
     source.setBaseColor(QColor(200, 40, 20));
+    source.setBaseColorTexture(ArtifactCore::UniString{});
     source.setMetallic(0.1f);
+    source.setAlphaMode(MaterialAlphaMode::Opaque);
+    source.setThinWall(false);
+    source.setAnisotropyTexture(ArtifactCore::UniString{});
+    source.setAnisotropyTextureUvTransform(MaterialTextureUvTransform{});
 
     EXPECT_EQ(copy.baseColor(), QColor(24, 96, 192));
+    EXPECT_TRUE(copy.hasBaseColorTexture());
+    EXPECT_EQ(copy.baseColorTexture().toQString(),
+              QStringLiteral("maps/base-color.png"));
     EXPECT_FLOAT_EQ(copy.metallic(), 0.75f);
     EXPECT_FLOAT_EQ(copy.roughness(), 0.2f);
+    EXPECT_EQ(copy.alphaMode(), MaterialAlphaMode::Blended);
+    EXPECT_TRUE(copy.thinWall());
+    EXPECT_EQ(copy.anisotropyTexture().toQString(),
+              QStringLiteral("maps/anisotropy.png"));
+    EXPECT_FLOAT_EQ(copy.anisotropyTextureUvTransform().scaleU, 2.0f);
+    EXPECT_FLOAT_EQ(copy.anisotropyTextureUvTransform().scaleV, 0.5f);
+    EXPECT_EQ(copy.anisotropyTextureUvTransform().uvSet, 1);
 
     Material assigned;
     assigned = copy;
     copy.setRoughness(0.9f);
+    copy.setAnisotropyTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/other-anisotropy.png")));
 
     EXPECT_EQ(assigned.baseColor(), QColor(24, 96, 192));
+    EXPECT_TRUE(assigned.hasBaseColorTexture());
     EXPECT_FLOAT_EQ(assigned.metallic(), 0.75f);
     EXPECT_FLOAT_EQ(assigned.roughness(), 0.2f);
+    EXPECT_EQ(assigned.alphaMode(), MaterialAlphaMode::Blended);
+    EXPECT_TRUE(assigned.thinWall());
+    EXPECT_EQ(assigned.anisotropyTexture().toQString(),
+              QStringLiteral("maps/anisotropy.png"));
+    EXPECT_FLOAT_EQ(assigned.anisotropyTextureUvTransform().rotationDegrees,
+                    45.0f);
 }
 
 TEST(MaterialContractTest, MoveTransfersStateAndMovedFromObjectCanBeReassigned)
