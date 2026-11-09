@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
+#include <QColor>
+#include <QImage>
 #include <QMatrix4x4>
 #include <QRectF>
 #include <QString>
@@ -1159,3 +1161,188 @@ TEST(Particle3DRenderContractTest, TwoDimensionalParticleStillRendersWithoutDept
     EXPECT_GT(redPixels, 0)
         << "the 2D particle path must continue drawing with depth disabled";
 }
+
+namespace {
+
+// 2x2 flipbook atlas: TL red, TR green, BL blue, BR white.
+QImage makeQuadrantAtlas()
+{
+    QImage atlas(16, 16, QImage::Format_RGBA8888);
+    const QColor colors[4] = {
+        QColor(255, 0, 0, 255), QColor(0, 255, 0, 255),
+        QColor(0, 0, 255, 255), QColor(255, 255, 255, 255)};
+    for (int y = 0; y < atlas.height(); ++y) {
+        for (int x = 0; x < atlas.width(); ++x) {
+            const int cell = (y / 8) * 2 + (x / 8);
+            atlas.setPixelColor(x, y, colors[cell]);
+        }
+    }
+    return atlas;
+}
+
+ArtifactCore::ParticleTextureId registerAtlas(
+    Artifact::ArtifactIRenderer& renderer, const QImage& atlas)
+{
+    ArtifactCore::ParticleTextureUpload upload;
+    upload.rgba8 = atlas.constBits();
+    upload.width = atlas.width();
+    upload.height = atlas.height();
+    upload.rowStride = static_cast<int>(atlas.bytesPerLine());
+    return renderer.registerParticleTexture(upload);
+}
+
+struct AtlasSample {
+    bool ready = false;
+    float r = 0.0f;
+    float g = 0.0f;
+    float b = 0.0f;
+    float a = 0.0f;
+};
+
+AtlasSample renderTexturedParticle(Artifact::ArtifactIRenderer& renderer,
+                                   std::uint64_t textureId, int spriteFrame,
+                                   int rows, int cols, float tintR = 1.0f,
+                                   float tintG = 1.0f, float tintB = 1.0f)
+{
+    constexpr int width = 96;
+    constexpr int height = 96;
+    renderer.setCanvasSize(static_cast<float>(width), static_cast<float>(height));
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    renderer.reset3DCameraMatrices();
+    renderer.clear();
+
+    ArtifactCore::ParticleRenderData data;
+    data.textureId = textureId;
+    data.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
+    data.options.billboard = ArtifactCore::ParticleBillboardPolicy::ScreenAligned;
+    data.options.depthTest = false;
+    data.options.depthWrite = false;
+    data.particles.emplace_back();
+    auto& particle = data.particles.back();
+    particle.px = static_cast<float>(width) * 0.5f;
+    particle.py = static_cast<float>(height) * 0.5f;
+    particle.pz = 0.0f;
+    particle.r = tintR;
+    particle.g = tintG;
+    particle.b = tintB;
+    particle.a = 1.0f;
+    particle.size = 20.0f;
+    particle.lifetime = 1.0f;
+    particle.spriteFrame = spriteFrame;
+    particle.spriteRows = rows;
+    particle.spriteCols = cols;
+    // position.w is the per-particle atlas flag: 1 samples the bound atlas.
+    particle.pad0 = textureId != 0 ? 1.0f : 0.0f;
+    renderer.drawParticles(data);
+    renderer.flushAndWait();
+
+    AtlasSample sample;
+    const auto image = renderer.readbackToImageF32();
+    if (image.width() != width || image.height() != height) {
+        return sample;
+    }
+    sample.ready = true;
+    const auto pixel = image.getPixel(width / 2, height / 2);
+    sample.r = pixel.r();
+    sample.g = pixel.g();
+    sample.b = pixel.b();
+    sample.a = pixel.a();
+    return sample;
+}
+
+} // namespace
+
+TEST(Particle3DRenderContractTest, TexturedParticleSamplesFlipbookAtlasCell)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+    auto& renderer = headlessRenderer->renderer();
+    const QImage atlas = makeQuadrantAtlas();
+    const auto textureId = registerAtlas(renderer, atlas);
+    ASSERT_NE(textureId, 0u)
+        << "a straight-alpha RGBA8 atlas must register with the GPU renderer";
+
+    const auto topLeft = renderTexturedParticle(renderer, textureId, 0, 2, 2);
+    ASSERT_TRUE(topLeft.ready);
+    EXPECT_GT(topLeft.r, 0.8f);
+    EXPECT_LT(topLeft.g, 0.2f);
+    EXPECT_LT(topLeft.b, 0.2f);
+    EXPECT_TRUE(renderer.particleDebugState().contains(QStringLiteral("textured=1")))
+        << "the particle draw must report the textured shader path";
+
+    const auto topRight = renderTexturedParticle(renderer, textureId, 1, 2, 2);
+    ASSERT_TRUE(topRight.ready);
+    EXPECT_LT(topRight.r, 0.2f);
+    EXPECT_GT(topRight.g, 0.8f)
+        << "spriteFrame 1 must sample the top-right atlas cell";
+
+    const auto bottomLeft = renderTexturedParticle(renderer, textureId, 2, 2, 2);
+    ASSERT_TRUE(bottomLeft.ready);
+    EXPECT_LT(bottomLeft.r, 0.2f);
+    EXPECT_GT(bottomLeft.b, 0.8f)
+        << "spriteFrame 2 must sample the bottom-left atlas cell";
+}
+
+TEST(Particle3DRenderContractTest, UnknownParticleTextureIdFallsBackToProcedural)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+    auto& renderer = headlessRenderer->renderer();
+    const auto sample = renderTexturedParticle(
+        renderer, 0xFFFFFFFFull, 0, 1, 1, 1.0f, 0.0f, 0.0f);
+    ASSERT_TRUE(sample.ready);
+    EXPECT_GT(sample.r, 0.8f);
+    EXPECT_LT(sample.g, 0.2f)
+        << "an unknown texture id must not sample a white default texture";
+    EXPECT_GT(sample.a, 0.5f);
+    EXPECT_TRUE(renderer.particleDebugState().contains(QStringLiteral("textured=0")))
+        << "the stale-id draw must report the procedural path";
+}
+
+TEST(Particle3DRenderContractTest, ReleasedParticleTextureFallsBackToProcedural)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+    auto& renderer = headlessRenderer->renderer();
+    const QImage atlas = makeQuadrantAtlas();
+    const auto textureId = registerAtlas(renderer, atlas);
+    ASSERT_NE(textureId, 0u);
+    renderer.releaseParticleTexture(textureId);
+
+    const auto sample = renderTexturedParticle(
+        renderer, textureId, 0, 2, 2, 1.0f, 0.0f, 0.0f);
+    ASSERT_TRUE(sample.ready);
+    EXPECT_GT(sample.r, 0.8f);
+    EXPECT_LT(sample.g, 0.2f);
+    EXPECT_TRUE(renderer.particleDebugState().contains(QStringLiteral("textured=0")));
+}
+
+TEST(Particle3DRenderContractTest, ParticleTextureIdsAreUniqueAndGenerationIsStable)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+    auto& renderer = headlessRenderer->renderer();
+    const QImage atlas = makeQuadrantAtlas();
+    const auto first = registerAtlas(renderer, atlas);
+    ASSERT_NE(first, 0u);
+    // registerParticleTexture() lazily creates the particle renderer, so read
+    // the generation after the first registration instead of assuming a draw
+    // already happened.
+    const std::uint64_t generation = renderer.particleTextureGeneration();
+    EXPECT_NE(generation, 0u);
+
+    const auto second = registerAtlas(renderer, atlas);
+    EXPECT_NE(second, 0u);
+    EXPECT_NE(first, second)
+        << "each upload must receive a distinct opaque id";
+    EXPECT_EQ(renderer.particleTextureGeneration(), generation)
+        << "registering a texture must not change the renderer generation";
+
+    renderer.releaseParticleTexture(first);
+    renderer.releaseParticleTexture(second);
+}
+

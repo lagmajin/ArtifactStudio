@@ -1,5 +1,19 @@
 # Milestone: Core Container Replacement
 
+**最終更新:** 2026-11-09
+
+## Update 2026-11-09 — HashSet contract hardening
+
+- `HashSet` copy, move, and swap now keep stateful hash/equality functors paired with their stored buckets.
+- Copying rebuilds the same observable iteration order; `values()` returns oldest-to-newest insertion order as its contract tests specify.
+- Expanded the standalone contract coverage for stateful functors. All 29 tests passed on MSVC 19.51.
+
+## Update 2026-11-09 — ArtifactArray memory and aliasing hardening
+
+- `Array<T>` uses correctly aligned storage for over-aligned elements. Reallocation now cleans up partial construction on exceptions and preserves the old buffer until all elements are relocated; `squeeze()` releases storage for an empty array.
+- Self-append and aliased append / insert / replace inputs are staged before growth or shifting. Fixed the typed `Optional<T&>` return in `find()` that prevented its missing-value path from instantiating.
+- Added alignment and throwing-copy coverage; the standalone ArtifactArray contract suite passes on MSVC 19.51.
+
 ## Goal
 
 Reduce direct use of `std` and Qt core containers in domain code by growing ArtifactCore-owned container APIs first, then migrating call sites gradually.

@@ -1,6 +1,6 @@
 # M-TXT-ANIM-1: Text Animator の追加ワークフロー仕上げ（AE 風個別追加・Timeline 露出）
 
-**最終更新:** 2026-10-06
+**最終更新:** 2026-11-05
 
 **ステータス:** In Progress（P1 の個別プロパティ追加と P2 の Timeline 左ペイン露出は 2026-09-26 に実装・静的確認済み。ビルド・実機は未確認）
 
@@ -24,7 +24,7 @@
 実装前差分（2026-09-21 時点）:
 
 - Timeline 左ペインの標準プロパティグループは `Transform` のみに限定されている（`computeTimelineHiddenLayerPropertyGroup`）。そのため Animator グループは Timeline の行表示では非表示で、キーフレーム編集は Inspector 経由になる。2026-08 の分析で「Text Animator timeline 未配線」とされたのはこのポリシーに起因する。
-- 追加は「プリセット全体」または「空の Animator」のみで、AE の「Animate ▼」に相当する個別プロパティ（Position / Opacity / Scale / Rotation / Fill Color / Stroke Color / Tracking / Skew / Blur）を1個の Animator として追加する導線がない。
+- 追加は「プリセット全体」または「空の Animator」のみで、AE の「Animate ▼」に相当する個別プロパティ（Position / Baseline Shift / Anchor Point / Opacity / Scale / Rotation / Fill Color / Stroke Color / Stroke Width / Tracking / Skew / Blur / Z）を1個の Animator として追加する導線がない。
 - `docs/spec/SPEC_TEXT_TOOL_REQUIREMENTS_2026-07-31.md` の 5.2 は Text Animator を「未実装」としたままだった（2026-09-21 に照合済みとして更新）。
 
 ## Phase 計画
@@ -47,12 +47,14 @@
 
 ### P1 — 個別プロパティ追加導線
 
-- Timeline 左ペイン右クリックの `Text Animator` サブメニュー、または Inspector の Animator count エディタに、個別プロパティ（Position / Scale / Rotation / Opacity / Fill Color / Stroke Color / Tracking / Skew / Blur）を1プロパティ＝1 Animator として追加する項目を追加する。
+- Timeline 左ペイン右クリックの `Text Animator` サブメニュー、または Inspector の Animator count エディタに、個別プロパティ（Position / Baseline Shift / Anchor Point / Scale / Rotation / Opacity / Fill Color / Stroke Color / Stroke Width / Tracking / Skew / Blur / Z）を1プロパティ＝1 Animator として追加する項目を追加する。
 - 個別追加は `ArtifactTextLayer::addAnimatorProperty()` に集約し、構造変更の Undo は完全な Animator stack snapshot を扱う `SetTextAnimatorStackCommand` へ畳む。
 - 追加直後は Range Selector（Start/End/Offset/Shape）を既定値のまま残し、対象プロパティは neutral 値で初期化する。効果はユーザーが値を変更するか、キーフレームを設定して作る。
 - **実装メモ（2026-09-26）:** `ArtifactTextLayer::addAnimatorProperty()` を追加し、Position / Scale / Rotation / Opacity / Fill Color / Stroke Color / Tracking / Skew / Blur を1項目＝1 Animatorとして末尾へ追加する。Inspector の `+` メニューと Timeline 左ペイン右クリックの `Text Animator > Animate` の両方から同じIDへ接続した。構造変更は汎用プロパティ値Undoではなく、既存の `SetTextAnimatorStackCommand` に before/after snapshot を渡して1 Undoへ畳む。Inspectorは複数対象を1 Macro Undoへまとめ、Default／Preset追加、末尾Animator削除、Preset stack置換／Clearも同じ経路を使う。これにより削除・置換前のAnimator名、Selector、プロパティ値、キーフレームをUndoで復元する。TimelineのPreset置換／Clearに加え、Composition Viewport右クリックのDefault Animator追加もmutation guard・完全スタックUndo・`LayerChangedEvent`を通る経路へ統一した。`SetTextAnimatorStackCommand` の Undo/Redo 本体も `text.animators` の既存プロパティ変更通知を発行し、レイヤーdirty・再描画・Timeline更新を復元後に再評価させる。単一レイヤー操作は既存の `layer.stack` 共同編集プロトコルへ載る。複数選択Macroは全対象のmutation guardを通すが、現在の共同編集batchがstack子コマンドを未対応のため共同編集セッション中はpreflightで安全に拒否される。新規 signal/slot は追加していない。
 - **UX調整（2026-10-06）:** 単独プロパティ追加の初期値を neutral に統一した。Position / Rotation / Tracking / Skew / Blur は 0、Scale / Opacity は 1、Fill Color は現在の文字色、Stroke Color は現在の線色かつ幅 0 とし、追加だけでテキストの見た目が変わらないようにした。通常の Inspector にあった Preset 選択行を外し、プリセットは追加メニュー内の `Presets` に集約した。Inspector と Timeline のメニューでは空の Animator と個別プロパティ追加を先に示し、プリセット適用はどちらも既存スタックへ追加する動作に統一した。静的差分確認のみ。実機確認は未実施。
 - Timelineのプロパティ表示名はcamelCaseを分割し、`positionX` / `fillColor` / `strokeColor` を `Position X` / `Fill Color` / `Stroke Color` と表示する。
+- **実装メモ（2026-11-05）:** `addAnimatorProperty()` に `strokeWidth` と `z` を追加し、Timeline 右クリックの `Animate` と Inspector の `+` メニューの両表へ露出した。両プロパティは `text.animators.<i>.strokeWidth` / `.z` の setter・clamp・serialization が既に実装済みで、UI から到達できなかっただけだった。Stroke Width は stroke チャンネル有効時のみ加算されるため、追加時に現在の文字線色で `strokeEnabled = true`、幅 0 を設定する（追加だけでは見た目が変わらない）。Z は 0 初期値。`ArtifactTextAnimatorLayerContractTest.StrokeWidthAndZAreReachableFromAddProperty` で追加・snapshot を固定した。描画経路の確認: 製品のテキスト描画は `ArtifactIRenderer::drawGlyphsTransformed`（`Artifact/src/Render/ArtifactIRenderer.cpp:7254`）から `PrimitiveRenderer2D::drawGlyphsTransformed` へ入り、`offsetScaleX/Y`・`offsetSkew`・`offsetZ`・fill/stroke override・`offsetStrokeWidth`・`offsetBlur` をすべて消費する（`PrimitiveRenderer2D.cpp:2544-2714`）。したがって今回の2種を含む全チャンネルがビューポート経路に載る。`DiligentImmediateSubmitter::submitGlyphTextTransformed` と `ArtifactTextGlyphSubmitter` は単純テキスト／テスト専用の別経路で、そちらは `{basePosition, offsetPosition, offsetRotation, offsetScale, offsetOpacity, rect}` のみを扱う。実機での見え方は未確認。
+- **実装メモ（2026-11-05・2）:** `Baseline Shift` と `Anchor Point` を animator プロパティとして追加した。`AnimatorProperties` に `baselineShift`（Y 方向の直接シフト）と `anchorPoint`（グループ化ピボットへのオフセット）を追加し、`TextAnimatorEngine::applyAnimator` は位置加算と `glyphCenter - (anchorPoints[i] + props.anchorPoint)` のピボット計算で反映する（`ArtifactCore/src/Text/TextAnimator.cpp:704-737`）。描画側は既存の `offsetPosition` と各変換経路だけで完結するため、新しい GlyphItem フィールドもレンダラ変更も不要。追加IDは `baselineShift` / `anchorPoint` で、プロパティパスは `baselineShift` / `anchorPointX` / `anchorPointY`、clamp は ±100000、serialization と `animatableTextAnimatorPropertySuffixes()`（26項目へ更新）にも登録した。`TextAnimatorContractTest.BaselineShiftMovesOnlySelectedGlyphsVertically` / `AnchorPointOffsetsTheRotationPivot` / `ZeroAnchorPointKeepsTheGroupingPivot` と `TextAnimatorLayerContractTest.BaselineShiftAndAnchorPointPersist` で固定。ビルド・実機は未確認。
 
 ### P2 — Timeline 左ペインへの Animator グループ露出
 
