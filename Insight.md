@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 既存ImageLayerへのsourceなしJSON clear
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState`、制作準備文書「sourceなしJSONの再読込状態修正」。
+- **確認できた事実:** `loadFromPath("")`は旧sourceをclearし、空layerへのsourceなしJSON復元も確認されているが、file-backedな既存instanceへsourceなしJSONを適用した後のidentity解放・旧画像非復活は未確認だった。
+- **追加した確認:** sourceなしlayerのJSONを既存file-backed layerへ適用し、path／identity／sequence／bufferのclear、placeholder状態、旧sourceのuse count解放を検査する。旧fileのoverwrite／invalidate後もclear状態が維持されることを確認する。
+- **価値または懸念:** JSON復元中の旧source prefetchや参照が残って画像を再表示する回帰を検出する。100msのevent settleを含むが、test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState` を実行し、source-less restore後のstale state非復活を検証する。
+
 ## 2026-11-09: HDR EXR画素のProject save/reload保持
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FloatExrHdrPixelsSurviveProjectSaveAndReload`、静止画受入表IMG-04／OP-09。
 - **確認できた事実:** 既存float EXR testは単独ImageLayerのdecode後に負値・1超過値を確認し、Project round-trip testは8-bit画像を扱うが、float HDR値とsource identityを同一Project往復で検査するテストはなかった。

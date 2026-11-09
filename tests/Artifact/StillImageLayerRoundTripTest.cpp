@@ -793,6 +793,57 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor originalColor(45, 115, 185, 255);
+    const QColor overwrittenColor(195, 75, 35, 255);
+    const QString imagePath = dir.filePath(QStringLiteral("source-to-clear.png"));
+    QImage sourceImage(3, 2, QImage::Format_RGBA8888);
+    sourceImage.fill(originalColor);
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, sourceImage.size()));
+    ASSERT_EQ(waitForImage(layer, sourceImage.size()).pixelColor(0, 0),
+              originalColor);
+    const auto previousSourceId = layer.sourceAssetId();
+    ASSERT_FALSE(previousSourceId.isNull());
+
+    Artifact::ArtifactImageLayer sourceLessState;
+    ASSERT_TRUE(sourceLessState.loadFromPath(QString()));
+    const QJsonObject state = sourceLessState.toJson();
+    EXPECT_TRUE(state.value(QStringLiteral("image.sourcePath")).toString().isEmpty());
+    layer.fromJsonProperties(state);
+
+    EXPECT_TRUE(layer.sourcePath().isEmpty());
+    EXPECT_TRUE(layer.sourceAssetId().isNull());
+    EXPECT_FALSE(layer.isImageSequence());
+    EXPECT_FALSE(layer.hasCurrentFrameBuffer());
+    EXPECT_EQ(layer.toQImage().size(), QSize(256, 256));
+    EXPECT_EQ(ArtifactCore::AssetManager::instance().useCount(previousSourceId),
+              0);
+
+    sourceImage.fill(overwrittenColor);
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+    (void)ArtifactCore::AssetManager::instance().invalidateSource(previousSourceId);
+    QElapsedTimer settleTimer;
+    settleTimer.start();
+    while (settleTimer.elapsed() < 100) {
+        QCoreApplication::processEvents();
+        QThread::msleep(1);
+    }
+    EXPECT_TRUE(layer.sourcePath().isEmpty());
+    EXPECT_TRUE(layer.sourceAssetId().isNull());
+    EXPECT_FALSE(layer.hasCurrentFrameBuffer());
+    EXPECT_EQ(layer.toQImage().size(), QSize(256, 256));
+}
+
+TEST(StillImageLayerRoundTripTest,
      ImageBufferInputReplacesFileSourceAndClearsIdentity)
 {
     QTemporaryDir dir;
