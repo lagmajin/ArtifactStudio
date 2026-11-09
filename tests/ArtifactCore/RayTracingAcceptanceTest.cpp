@@ -4456,6 +4456,13 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     nonFiniteMaterial.roughness = nan;
     nonFiniteMaterial.ior = nan;
     nonFiniteMaterial.emissionStrength = infinity;
+    nonFiniteMaterial.normalUvRotationDegrees = infinity;
+    nonFiniteMaterial.normalUvOffsetU = nan;
+    nonFiniteMaterial.metallicTextureUvScaleU = infinity;
+    nonFiniteMaterial.roughnessTextureUvOffsetV = nan;
+    nonFiniteMaterial.clearcoatNormalUvScale = nan;
+    nonFiniteMaterial.sheenColorTextureUvScaleU = infinity;
+    nonFiniteMaterial.anisotropyTextureUvOffsetU = nan;
     EXPECT_FALSE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), nonFiniteMaterial));
     EXPECT_TRUE(manager_->setInstancePbrMaterial(
