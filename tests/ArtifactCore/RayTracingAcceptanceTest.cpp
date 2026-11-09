@@ -2993,6 +2993,8 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
     const auto belowMinimumAnisotropyPixel = captureAnisotropy(-2.0f);
     const auto maximumAnisotropyPixel = captureAnisotropy(1.0f);
     const auto aboveMaximumAnisotropyPixel = captureAnisotropy(2.0f);
+    const auto nonFiniteAnisotropyPixel = captureAnisotropy(
+        std::numeric_limits<float>::quiet_NaN());
     for (std::size_t channel = 0; channel < 3; ++channel) {
         EXPECT_NEAR(belowMinimumAnisotropyPixel[channel],
                     minimumAnisotropyPixel[channel], 1.0e-5f)
@@ -3000,6 +3002,9 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
         EXPECT_NEAR(aboveMaximumAnisotropyPixel[channel],
                     maximumAnisotropyPixel[channel], 1.0e-5f)
             << "anisotropy above 1 should clamp to 1";
+        EXPECT_NEAR(nonFiniteAnisotropyPixel[channel],
+                    isotropicPixel[channel], 1.0e-5f)
+            << "non-finite anisotropy should use its zero fallback";
     }
 
     const auto captureSpecularTint = [&](std::size_t tintChannel, float tint) {
