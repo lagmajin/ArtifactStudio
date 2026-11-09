@@ -1433,6 +1433,81 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << "changing slot 1 clearcoat map should preserve slot 0, channel "
             << channel;
     }
+
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    rightMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = rightMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallicTexture = ArtifactCore::UniString();
+    leftMaterial.roughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallic = rightMaterial.metallic = 0.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 0.5f;
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString();
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = rightMaterial.sheen = 0.0f;
+    leftMaterial.specular = rightMaterial.specular = 0.5f;
+    leftMaterial.ior = rightMaterial.ior = 1.5f;
+    leftMaterial.specularTint[0] = leftMaterial.specularTint[1] =
+        leftMaterial.specularTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto whiteSpecularLeftPixel = pixelAt(8, 16);
+    const auto whiteSpecularRightPixel = pixelAt(24, 16);
+
+    leftMaterial.specularTint[0] = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tintedSpecularLeftPixel = pixelAt(8, 16);
+    const auto unchangedSpecularRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(tintedSpecularLeftPixel[0] - whiteSpecularLeftPixel[0]),
+              0.001f)
+        << "slot 0 specular tint should change its reflection response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSpecularRightPixel[channel],
+                    whiteSpecularRightPixel[channel], 0.01f)
+            << "changing slot 0 specular tint should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.specularTint[0] = 1.0f;
+    rightMaterial.specularTint[0] = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedWhiteSpecularLeftPixel = pixelAt(8, 16);
+    const auto tintedSpecularRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(tintedSpecularRightPixel[0] - whiteSpecularRightPixel[0]),
+              0.001f)
+        << "slot 1 specular tint should change its reflection response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedWhiteSpecularLeftPixel[channel],
+                    whiteSpecularLeftPixel[channel], 0.01f)
+            << "changing slot 1 specular tint should preserve slot 0, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
