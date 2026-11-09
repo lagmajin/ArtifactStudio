@@ -7024,6 +7024,10 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     ArtifactCore::RTPbrMaterial defaultMaterial;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), defaultMaterial));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto defaultMaterialImage = readOutputPixels();
     ArtifactCore::RTPbrMaterial nonFiniteMaterial;
     const float nan = std::numeric_limits<float>::quiet_NaN();
     const float infinity = std::numeric_limits<float>::infinity();
@@ -7041,6 +7045,22 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     nonFiniteMaterial.anisotropyTextureUvOffsetU = nan;
     EXPECT_FALSE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), nonFiniteMaterial));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto imageAfterRejectedMaterial = readOutputPixels();
+    ASSERT_EQ(imageAfterRejectedMaterial.size(), defaultMaterialImage.size());
+    float maximumRejectedUpdateDifference = 0.0f;
+    for (size_t pixel = 0; pixel < defaultMaterialImage.size(); ++pixel) {
+        for (size_t channel = 0; channel < defaultMaterialImage[pixel].size();
+             ++channel) {
+            maximumRejectedUpdateDifference = std::max(
+                maximumRejectedUpdateDifference,
+                std::fabs(imageAfterRejectedMaterial[pixel][channel] -
+                          defaultMaterialImage[pixel][channel]));
+        }
+    }
+    EXPECT_LE(maximumRejectedUpdateDifference, 1.0e-5f);
     EXPECT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), boxPbrMaterial));
 
