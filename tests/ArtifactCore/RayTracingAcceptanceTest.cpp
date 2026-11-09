@@ -3918,19 +3918,31 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
     ASSERT_TRUE(textureDirectory.isValid());
     const QString clearcoatMapPath = textureDirectory.filePath(
         QStringLiteral("clearcoat-ramp.png"));
+    const QString clearcoatRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-roughness-ramp.png"));
     QImage clearcoatMap(8, 2, QImage::Format_RGBA8888);
+    QImage clearcoatRoughnessMap(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(clearcoatMap.isNull());
+    ASSERT_FALSE(clearcoatRoughnessMap.isNull());
     for (int y = 0; y < clearcoatMap.height(); ++y) {
         auto* row = clearcoatMap.scanLine(y);
+        auto* roughnessRow = clearcoatRoughnessMap.scanLine(y);
         for (int x = 0; x < clearcoatMap.width(); ++x) {
             auto* pixel = row + x * 4;
             pixel[0] = x < 4 ? 0 : 255;
-            pixel[1] = x < 4 ? 0 : 255;
+            pixel[1] = 0;
             pixel[2] = 255;
             pixel[3] = 255;
+
+            auto* roughnessPixel = roughnessRow + x * 4;
+            roughnessPixel[0] = 0;
+            roughnessPixel[1] = x < 4 ? 0 : 255;
+            roughnessPixel[2] = 255;
+            roughnessPixel[3] = 255;
         }
     }
     ASSERT_TRUE(clearcoatMap.save(clearcoatMapPath, "PNG"));
+    ASSERT_TRUE(clearcoatRoughnessMap.save(clearcoatRoughnessMapPath, "PNG"));
     const QString smoothRoughnessPath = textureDirectory.filePath(
         QStringLiteral("clearcoat-roughness-smooth.png"));
     const QString roughRoughnessPath = textureDirectory.filePath(
@@ -4018,7 +4030,8 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
 
     material.clearcoatTexture = ArtifactCore::UniString();
     material.clearcoatRoughness = 1.0f;
-    material.clearcoatRoughnessTexture = ArtifactCore::UniString(clearcoatMapPath);
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(clearcoatRoughnessMapPath);
     material.clearcoatRoughnessTextureUvSet = 0;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
@@ -4064,7 +4077,8 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
             << channel;
     }
 
-    material.clearcoatRoughnessTexture = ArtifactCore::UniString(clearcoatMapPath);
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(clearcoatRoughnessMapPath);
     material.clearcoatRoughnessTextureUvSet = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
