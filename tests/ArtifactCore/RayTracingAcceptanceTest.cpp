@@ -2058,6 +2058,24 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
             << "metallic-map U offset should mirror the right sample, channel "
             << channel;
     }
+
+    material.metallicTextureUvOffsetU = 0.0f;
+    material.metallicTextureUvScaleU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledLeft = pixelAt(8, 16);
+    const auto scaledRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledLeft[channel], uv0Left[channel], 0.035f)
+            << "metallic-map U scale should keep the left texel on the dark half";
+        EXPECT_NEAR(scaledRight[channel], uv0Left[channel], 0.035f)
+            << "metallic-map U scale should repeat the dark half on the right";
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
@@ -2155,6 +2173,24 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
         EXPECT_NEAR(offsetRight[channel], uv0Left[channel], 0.035f)
             << "roughness-map U offset should mirror the right sample, channel "
             << channel;
+    }
+
+    material.roughnessTextureUvOffsetU = 0.0f;
+    material.roughnessTextureUvScaleU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledLeft = pixelAt(8, 16);
+    const auto scaledRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledLeft[channel], uv0Left[channel], 0.035f)
+            << "roughness-map U scale should keep the left texel on the dark half";
+        EXPECT_NEAR(scaledRight[channel], uv0Left[channel], 0.035f)
+            << "roughness-map U scale should repeat the dark half on the right";
     }
 }
 
