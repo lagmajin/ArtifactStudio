@@ -976,6 +976,94 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    const auto slotSurfaceUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-surface-uv-ramp.png"));
+    QImage slotSurfaceUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotSurfaceUvRamp.isNull());
+    for (int y = 0; y < slotSurfaceUvRamp.height(); ++y) {
+        auto* row = slotSurfaceUvRamp.scanLine(y);
+        for (int x = 0; x < slotSurfaceUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotSurfaceUvRamp.save(slotSurfaceUvRampPath, "PNG"));
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    rightMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = rightMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    rightMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    rightMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallicTexture = rightMaterial.metallicTexture =
+        ArtifactCore::UniString(slotSurfaceUvRampPath);
+    leftMaterial.roughnessTexture = rightMaterial.roughnessTexture =
+        ArtifactCore::UniString(slotSurfaceUvRampPath);
+    leftMaterial.metallic = rightMaterial.metallic = 1.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 1.0f;
+    leftMaterial.metallicTextureUvSet = rightMaterial.metallicTextureUvSet = 0;
+    leftMaterial.roughnessTextureUvSet = rightMaterial.roughnessTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotMetallicRoughnessUv0Left = pixelAt(8, 16);
+    const auto slotMetallicRoughnessUv0Right = pixelAt(24, 16);
+
+    rightMaterial.metallicTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightMetallicUv1Pixel = pixelAt(24, 16);
+    const auto unchangedMetallicUv0Left = pixelAt(8, 16);
+    const float rightMetallicUvRoutingDifference = std::max(
+        std::fabs(rightMetallicUv1Pixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightMetallicUv1Pixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightMetallicUv1Pixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightMetallicUvRoutingDifference, 0.001f)
+        << "slot 1 metallic UV set should affect only its material response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedMetallicUv0Left[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 metallic UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.metallicTextureUvSet = 0;
+    rightMaterial.roughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightRoughnessUv1Pixel = pixelAt(24, 16);
+    const auto unchangedRoughnessUv0Left = pixelAt(8, 16);
+    const float rightRoughnessUvRoutingDifference = std::max(
+        std::fabs(rightRoughnessUv1Pixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightRoughnessUv1Pixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightRoughnessUv1Pixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightRoughnessUvRoutingDifference, 0.001f)
+        << "slot 1 roughness UV set should affect only its material response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughnessUv0Left[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 roughness UV set should preserve slot 0, channel "
+            << channel;
+    }
+
     const auto smoothRoughnessPath = slotTextureDirectory.filePath(
         QStringLiteral("slot-roughness-smooth.png"));
     const auto roughRoughnessPath = slotTextureDirectory.filePath(
