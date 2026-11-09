@@ -2533,6 +2533,39 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    rightMaterial.clearcoatRoughnessTextureUvSet = 0;
+    rightMaterial.clearcoatRoughnessTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatRoughnessOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotClearcoatRoughnessOffsetLeft = pixelAt(8, 16);
+    const float slotClearcoatRoughnessOffsetDifference = std::max(
+        std::fabs(slotClearcoatRoughnessOffsetRight[0] -
+                  slotClearcoatRoughnessUv0Right[0]),
+        std::max(
+            std::fabs(slotClearcoatRoughnessOffsetRight[1] -
+                      slotClearcoatRoughnessUv0Right[1]),
+            std::fabs(slotClearcoatRoughnessOffsetRight[2] -
+                      slotClearcoatRoughnessUv0Right[2])));
+    EXPECT_GT(slotClearcoatRoughnessOffsetDifference, 0.001f)
+        << "slot 1 clearcoat-roughness UV offset should change its response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(slotClearcoatRoughnessOffsetRight[channel],
+                    slotClearcoatRoughnessUv0Left[channel], 0.035f)
+            << "slot 1 clearcoat-roughness UV offset should sample the smooth "
+               "half, channel "
+            << channel;
+        EXPECT_NEAR(unchangedSlotClearcoatRoughnessOffsetLeft[channel],
+                    slotClearcoatRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 clearcoat-roughness UV offset should preserve slot 0, "
+               "channel "
+            << channel;
+    }
+
     leftMaterial.emissionTexture = ArtifactCore::UniString();
     rightMaterial.emissionTexture = ArtifactCore::UniString();
     leftMaterial.emissionStrength = rightMaterial.emissionStrength = 0.0f;
