@@ -4041,6 +4041,32 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
             << "sheen tint should multiply the linearized color texture, channel "
             << channel;
     }
+
+    QImage transparentSheenColor = halfLinearSheenColor;
+    for (int y = 0; y < transparentSheenColor.height(); ++y) {
+        auto* row = transparentSheenColor.scanLine(y);
+        for (int x = 0; x < transparentSheenColor.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const QString transparentSheenColorPath = textureDirectory.filePath(
+        QStringLiteral("sheen-color-transparent.png"));
+    ASSERT_TRUE(transparentSheenColor.save(transparentSheenColorPath, "PNG"));
+    material.sheenColorTexture = ArtifactCore::UniString(transparentSheenColorPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentMapPixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(transparentMapPixel[channel],
+                    halfLinearTextureWhiteTint[channel], 0.02f)
+            << "sheen color alpha should not affect its RGB response, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
