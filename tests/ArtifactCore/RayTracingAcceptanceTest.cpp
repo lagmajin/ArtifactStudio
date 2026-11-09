@@ -5131,6 +5131,17 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     EXPECT_GT(opaqueModePixel[0], opaqueModePixel[2] + 0.5f)
         << "opaque alpha mode should keep the masked front surface";
 
+    frontMaterial.alphaMode = 2;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto blendedModePixel = pixelAt(8, 16);
+    EXPECT_GT(blendedModePixel[0], blendedModePixel[2] + 0.5f)
+        << "blended alpha mode should not use binary masked ray cutout";
+
     frontMaterial.alphaMode = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
