@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: file source version更新後のGPU surface cache parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FileSourceVersionInvalidationRebuildsSurfaceCache`、静止画受入表OP-08。
+- **確認できた事実:** ImageLayerの同path overwrite testはdecoded pixel／metadataを、layer surface cache testはメモリ上の画像再設定を別々に確認するが、AssetManager version invalidationから非同期decode、GPU surface cache更新までを繋いだケースはなかった。
+- **追加した確認:** 同じpathのPNGを別画素で上書きしsource versionをinvalidate、decode済みpixelが置き換わるまで待機した後、surface signature変更、更新後bypassとの完全一致、cache reuseを確認するheadless GPU testを追加した。
+- **価値または懸念:** decode結果が新しくてもGPU surfaceが旧versionを保持する不整合を検出する。headless deviceなしではskipし、test実行は未許可のため未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.FileSourceVersionInvalidationRebuildsSurfaceCache` を実行し、AssetManager invalidate後の非同期 decode とGPU cache parityをruntimeで確認する。
+
 ## 2026-11-09: 画像再設定後のlayer surface cache無効化
 - **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity`、静止画受入表OP-08。
 - **確認できた事実:** 既存テストはfile-backed sourceのversion invalidation後にdecoded pixel／metadataが更新されること、surface cacheのeffect revision invalidationを別々に確認するが、同じlayerへ異なる画像bufferを再設定した際のsurface cache更新とbypass parityは直接確認していなかった。

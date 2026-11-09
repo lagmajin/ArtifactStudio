@@ -27,6 +27,7 @@ import Artifact.Layer.Shape;
 import Artifact.Render.CompositionViewDrawing;
 import Artifact.Render.Context;
 import Artifact.Render.IRenderer;
+import Asset.Manager;
 import Color.Float;
 import Memory.SharedPtr;
 import Composition3D;
@@ -362,6 +363,116 @@ TEST(LayerSurfaceCacheParityContractTest,
     ASSERT_FALSE(replacementBypass.isNull());
     EXPECT_FALSE(imagesMatchExactly(replacementBypass, originalBypass))
         << "the replacement source should produce different output pixels";
+    EXPECT_TRUE(imagesMatchExactly(replacementCached, replacementBypass));
+
+    const QImage replacementReuse = draw(&cache);
+    EXPECT_EQ(cache.value(ownerId).cacheSignature, replacementSignature);
+    EXPECT_TRUE(imagesMatchExactly(replacementReuse, replacementCached));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
+     FileSourceVersionInvalidationRebuildsSurfaceCache)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString imagePath = directory.filePath(QStringLiteral("source.png"));
+    QImage original(24, 16, QImage::Format_RGBA8888);
+    original.fill(QColor(225, 40, 30, 255));
+    ASSERT_TRUE(original.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    const auto waitForSize = [&layer](const QSize expectedSize) {
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            (void)layer.toQImage();
+            const auto& buffer = layer.currentFrameBuffer();
+            if (!buffer.isEmpty() &&
+                buffer.width() == expectedSize.width() &&
+                buffer.height() == expectedSize.height()) {
+                return true;
+            }
+            QThread::msleep(1);
+        }
+        return false;
+    };
+    ASSERT_TRUE(waitForSize(original.size()));
+    const auto sourceId = layer.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const std::uint64_t originalVersion = layer.sourceVersion();
+    ASSERT_GT(originalVersion, 0u);
+    layer.setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    const QString ownerId = layer.id().toString();
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> cache;
+
+    const auto draw = [&renderer, &layer](
+                          QHash<QString, Artifact::LayerSurfaceCacheEntry>* entries) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            &layer, &renderer, 1.0f, nullptr, entries, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage originalCached = draw(&cache);
+    ASSERT_FALSE(originalCached.isNull());
+    ASSERT_TRUE(cache.contains(ownerId));
+    const QString originalSignature = cache.value(ownerId).cacheSignature;
+    ASSERT_FALSE(originalSignature.isEmpty());
+    const QImage originalBypass = draw(nullptr);
+    ASSERT_FALSE(originalBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(originalCached, originalBypass));
+
+    QImage replacement(24, 16, QImage::Format_RGBA8888);
+    replacement.fill(QColor(20, 165, 235, 255));
+    ASSERT_TRUE(replacement.save(imagePath, "PNG"));
+    const std::uint64_t replacementVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sourceId);
+    ASSERT_GT(replacementVersion, originalVersion);
+    QElapsedTimer replacementTimeout;
+    replacementTimeout.start();
+    bool replacementPixelsReady = false;
+    while (replacementTimeout.elapsed() < 5000) {
+        QCoreApplication::processEvents();
+        const QImage decoded = layer.toQImage();
+        if (decoded.size() == replacement.size() &&
+            decoded.pixelColor(0, 0) == replacement.pixelColor(0, 0)) {
+            replacementPixelsReady = true;
+            break;
+        }
+        QThread::msleep(1);
+    }
+    ASSERT_TRUE(replacementPixelsReady)
+        << "the updated file pixels should replace the previously decoded image";
+    ASSERT_EQ(layer.sourceVersion(), replacementVersion);
+
+    const QImage replacementCached = draw(&cache);
+    ASSERT_FALSE(replacementCached.isNull());
+    const QString replacementSignature = cache.value(ownerId).cacheSignature;
+    EXPECT_NE(replacementSignature, originalSignature)
+        << "source version must participate in the layer surface cache identity";
+    const QImage replacementBypass = draw(nullptr);
+    ASSERT_FALSE(replacementBypass.isNull());
+    EXPECT_FALSE(imagesMatchExactly(replacementBypass, originalBypass))
+        << "the updated source should produce different output pixels";
     EXPECT_TRUE(imagesMatchExactly(replacementCached, replacementBypass));
 
     const QImage replacementReuse = draw(&cache);
