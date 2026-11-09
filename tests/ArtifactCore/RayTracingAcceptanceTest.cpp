@@ -1584,7 +1584,7 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     ArtifactCore::RTSceneLight subsurfaceLight;
     subsurfaceLight.positionType[3] =
         static_cast<float>(ArtifactCore::LightType::Directional);
-    subsurfaceLight.directionIntensity[2] = 1.0f;
+    subsurfaceLight.directionIntensity[2] = -1.0f;
     subsurfaceLight.directionIntensity[3] = 4.0f;
     subsurfaceLight.colorAttenuationConstant[0] = 1.0f;
     subsurfaceLight.colorAttenuationConstant[1] = 1.0f;
@@ -1641,6 +1641,48 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     }
     EXPECT_GT(rightSubsurfaceResponse, 0.001f)
         << "slot 1 subsurface should change its diffuse response";
+
+    leftMaterial.subsurface = 0.0f;
+    leftMaterial.specular = 0.5f;
+    leftMaterial.roughness = 0.35f;
+    leftMaterial.ior = 1.5f;
+    leftMaterial.anisotropy = 0.0f;
+    leftMaterial.anisotropyRotationDegrees = 0.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> isotropicPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(isotropicPixels));
+    leftMaterial.anisotropy = 1.0f;
+    std::array<std::array<float, 4>, 2> leftAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftAnisotropyPixels));
+    float leftAnisotropyResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftAnisotropyResponse = std::max(leftAnisotropyResponse,
+            std::fabs(leftAnisotropyPixels[0][channel] -
+                      isotropicPixels[0][channel]));
+        EXPECT_NEAR(leftAnisotropyPixels[1][channel],
+                    isotropicPixels[1][channel], 0.01f)
+            << "changing slot 0 anisotropy should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftAnisotropyResponse, 0.001f)
+        << "slot 0 anisotropy should change its specular response";
+
+    leftMaterial.anisotropy = 0.0f;
+    rightMaterial.anisotropy = 1.0f;
+    std::array<std::array<float, 4>, 2> rightAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightAnisotropyPixels));
+    float rightAnisotropyResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightAnisotropyPixels[0][channel],
+                    isotropicPixels[0][channel], 0.01f)
+            << "changing slot 1 anisotropy should preserve slot 0, channel "
+            << channel;
+        rightAnisotropyResponse = std::max(rightAnisotropyResponse,
+            std::fabs(rightAnisotropyPixels[1][channel] -
+                      isotropicPixels[1][channel]));
+    }
+    EXPECT_GT(rightAnisotropyResponse, 0.001f)
+        << "slot 1 anisotropy should change its specular response";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
