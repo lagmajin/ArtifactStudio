@@ -1990,6 +1990,24 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
                     1.0e-5f)
             << "transmission above one should clamp to one, channel " << channel;
     }
+
+    constexpr std::array<float, 9> reversedNormals{
+        0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f};
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-thin-wall-transmission"), vertices.data(),
+        3, indices.data(), 3, reversedNormals.data()));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto reversedNormalTransmission = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(reversedNormalTransmission[channel], fullTransmission[channel],
+                    1.0e-5f)
+            << "face-forward shading should preserve transmission for reversed "
+               "vertex normals, channel " << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,

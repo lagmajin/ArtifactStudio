@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: RT solid transmission の TIR 到達条件
+- **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `directTransmissionDirection`／`transmissionIsTir`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の透過受け入れ。
+- **確認できた事実:** shader は `worldNormal` を `WorldRayDirection()` と同じ半球へ向け直し、`viewDirection = -WorldRayDirection()` を使う。solid transmission の屈折方向には `refract(-viewDirection, worldNormal, rcp(max(IOR, 1.0f)))` を渡すため、eta は常に 1 以下に制限される。
+- **未検証の仮説:** 通常の外側カメラからのレイではこの eta／法線向きの組み合わせにより TIR 条件（屈折方向の長さがほぼゼロ）へ到達できず、`transmissionIsTir` 分岐が実質的に休眠している可能性がある。内部視点や負スケール等を含む例外経路は未確認。
+- **価値または懸念:** 内部から外へ向かうレイを将来扱う場合、入射側／出射側 IOR を識別しないと TIR と transmission Fresnel が正しく評価されない可能性がある。今回の受け入れ変更では shader を変更しない。
+- **次に確認すること:** 屈折方向を反転した内部視点 fixture を独立 RT acceptance に構成できるか検討し、TIR で transmission energy が消え反射側へ移ることを確認する。その前に `worldNormal` の front/backface 契約と既存 closed-volume fixture を監査する。
+
 ## 2026-11-09: float EXR上書き後のHDR surface cache更新
 - **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues`、静止画受入表IMG-04／OP-08。
 - **確認できた事実:** float EXRの負値／1超過値はImageLayer単体とProject round-tripで確認され、source version invalidation後のGPU surface cache再構築はPNGで確認されている。HDR値を持つEXRの同path overwriteをGPU cacheまで通したケースはなかった。
