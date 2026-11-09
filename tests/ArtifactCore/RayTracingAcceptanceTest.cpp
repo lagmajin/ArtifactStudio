@@ -2447,6 +2447,35 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    rightMaterial.clearcoatTextureUvSet = 0;
+    rightMaterial.clearcoatTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotClearcoatOffsetLeft = pixelAt(8, 16);
+    const float slotClearcoatOffsetDifference = std::max(
+        std::fabs(slotClearcoatOffsetRight[0] - slotClearcoatUv0Right[0]),
+        std::max(
+            std::fabs(slotClearcoatOffsetRight[1] - slotClearcoatUv0Right[1]),
+            std::fabs(slotClearcoatOffsetRight[2] - slotClearcoatUv0Right[2])));
+    EXPECT_GT(slotClearcoatOffsetDifference, 0.001f)
+        << "slot 1 clearcoat UV offset should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(slotClearcoatOffsetRight[channel],
+                    slotClearcoatUv0Left[channel], 0.035f)
+            << "slot 1 clearcoat UV offset should move to the zero-factor half, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(unchangedSlotClearcoatOffsetLeft[channel],
+                    slotClearcoatUv0Left[channel], 0.01f)
+            << "slot 1 clearcoat UV offset should preserve slot 0, channel "
+            << channel;
+    }
+
     const auto slotClearcoatRoughnessUvRampPath =
         slotTextureDirectory.filePath(
             QStringLiteral("slot-clearcoat-roughness-uv-ramp.png"));
