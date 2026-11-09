@@ -6849,7 +6849,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         float clearcoatRoughness = 0.2f;
         int aoValue = -1;
     };
-    constexpr std::array<MaterialProbe, 11> materialProbes{{
+    constexpr std::array<MaterialProbe, 13> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -6866,7 +6866,11 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.8f, 0.15f,
          {1.0f, 0.07f, 0.02f}, 0.0f, 0.2f, 255},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.8f, 0.15f,
-         {1.0f, 0.07f, 0.02f}, 0.0f, 0.2f, 64}}};
+         {1.0f, 0.07f, 0.02f}, 0.0f, 0.2f, 64},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.05f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.85f}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -7003,6 +7007,14 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     EXPECT_GT(probeLuminance(rtProbePixels[9]),
               probeLuminance(rtProbePixels[10]) + 0.001f)
         << "lower AO should reduce the RT sheen IBL response";
+    EXPECT_GT(std::fabs(probeLuminance(rasterProbePixels[11]) -
+                        probeLuminance(rasterProbePixels[12])),
+              0.002f)
+        << "Raster clearcoat response should vary with clearcoat roughness";
+    EXPECT_GT(std::fabs(probeLuminance(rtProbePixels[11]) -
+                        probeLuminance(rtProbePixels[12])),
+              0.002f)
+        << "RT clearcoat response should vary with clearcoat roughness";
 
     auto nonUniformTransform = float4x4::Identity();
     nonUniformTransform.m00 = 2.0f;
