@@ -644,6 +644,11 @@ TEST(ArtifactProjectRoundTripTest,
     target.layer->addMatteReference(matte);
     Artifact::LayerMatteReference survivingMatte;
     survivingMatte.sourceLayerId = survivingSource.layer->id();
+    survivingMatte.sourceAssetPath = QStringLiteral("asset://surviving-matte");
+    survivingMatte.enabled = true;
+    survivingMatte.type = Artifact::MatteType::InverseLuma;
+    survivingMatte.blendMode = Artifact::MatteBlendMode::Difference;
+    survivingMatte.fitMode = Artifact::MatteFitMode::Original;
     survivingMatte.opacity = 0.35f;
     survivingMatte.invert = true;
     target.layer->addMatteReference(survivingMatte);
@@ -663,6 +668,13 @@ TEST(ArtifactProjectRoundTripTest,
     EXPECT_EQ(referencesAfterRemoval.front().sourceLayerId,
               survivingSource.layer->id());
     EXPECT_EQ(referencesAfterRemoval.front().id, survivingMatte.id);
+    EXPECT_EQ(referencesAfterRemoval.front().sourceAssetPath,
+              survivingMatte.sourceAssetPath);
+    EXPECT_TRUE(referencesAfterRemoval.front().enabled);
+    EXPECT_EQ(referencesAfterRemoval.front().type, Artifact::MatteType::InverseLuma);
+    EXPECT_EQ(referencesAfterRemoval.front().blendMode,
+              Artifact::MatteBlendMode::Difference);
+    EXPECT_EQ(referencesAfterRemoval.front().fitMode, Artifact::MatteFitMode::Original);
     EXPECT_FLOAT_EQ(referencesAfterRemoval.front().opacity, 0.35f);
     EXPECT_TRUE(referencesAfterRemoval.front().invert);
     EXPECT_TRUE(target.layer->hasEnabledExternalMatteReference());
@@ -693,6 +705,13 @@ TEST(ArtifactProjectRoundTripTest,
     EXPECT_EQ(reloadedReferences.front().sourceLayerId,
               survivingSource.layer->id());
     EXPECT_EQ(reloadedReferences.front().id, survivingMatte.id);
+    EXPECT_EQ(reloadedReferences.front().sourceAssetPath,
+              survivingMatte.sourceAssetPath);
+    EXPECT_TRUE(reloadedReferences.front().enabled);
+    EXPECT_EQ(reloadedReferences.front().type, Artifact::MatteType::InverseLuma);
+    EXPECT_EQ(reloadedReferences.front().blendMode,
+              Artifact::MatteBlendMode::Difference);
+    EXPECT_EQ(reloadedReferences.front().fitMode, Artifact::MatteFitMode::Original);
     EXPECT_FLOAT_EQ(reloadedReferences.front().opacity, 0.35f);
     EXPECT_TRUE(reloadedReferences.front().invert);
 }

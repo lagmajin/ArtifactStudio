@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: survivor matte の全設定を削除・保存往復で検査
+- **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp::RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip`、matte参照の整合性。
+- **確認できた事実:** 既存ケースはdangling参照の削除とsurvivorのID・source layer・opacity・invertを確認するが、source asset path、enabled、type、per-reference blend mode、fit modeの保持は確認していなかった。
+- **追加した確認:** dangling参照削除直後とProject save/reload後の双方で、survivorの全設定値を比較する。InverseLuma／Difference／Originalを組み合わせ、default値だけで通るassertを避ける。
+- **価値または懸念:** matte source削除時の参照再構築やJSON往復で設定が初期化・欠落する回帰を検出する。これはメタデータ永続化の検査であり、実際のレンダリング結果は検査しない。テスト未実行。
+- **次に確認すること:** `ArtifactProjectRoundTripTest.RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip` を実行し、削除後／再読込後の値を確認する。
+
 ## 2026-11-09: 既存ImageLayerへのsourceなしJSON clear
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState`、制作準備文書「sourceなしJSONの再読込状態修正」。
 - **確認できた事実:** `loadFromPath("")`は旧sourceをclearし、空layerへのsourceなしJSON復元も確認されているが、file-backedな既存instanceへsourceなしJSONを適用した後のidentity解放・旧画像非復活は未確認だった。
