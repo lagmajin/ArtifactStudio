@@ -4485,6 +4485,26 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     invalidCamera.up[2] = 1.0f;
     EXPECT_FALSE(manager_->traceCamera(context_.RawPtr(), kRayTraceTestImageSize,
                                        kRayTraceTestImageSize, invalidCamera));
+    const auto dispatchCountBeforeInvalidCameras =
+        manager_->capabilities().traceDispatchCount;
+    invalidCamera = ArtifactCore::RTRayCamera{};
+    invalidCamera.target[0] = invalidCamera.origin[0];
+    invalidCamera.target[1] = invalidCamera.origin[1];
+    invalidCamera.target[2] = invalidCamera.origin[2];
+    EXPECT_FALSE(manager_->traceCamera(context_.RawPtr(), kRayTraceTestImageSize,
+                                       kRayTraceTestImageSize, invalidCamera));
+    invalidCamera = ArtifactCore::RTRayCamera{};
+    invalidCamera.origin[0] = std::numeric_limits<float>::infinity();
+    EXPECT_FALSE(manager_->traceCamera(context_.RawPtr(), kRayTraceTestImageSize,
+                                       kRayTraceTestImageSize, invalidCamera));
+    invalidCamera = ArtifactCore::RTRayCamera{};
+    invalidCamera.verticalFovDegrees =
+        std::numeric_limits<float>::quiet_NaN();
+    EXPECT_FALSE(manager_->traceCamera(context_.RawPtr(), kRayTraceTestImageSize,
+                                       kRayTraceTestImageSize, invalidCamera));
+    EXPECT_EQ(manager_->capabilities().traceDispatchCount,
+              dispatchCountBeforeInvalidCameras)
+        << "invalid camera inputs should be rejected before ray dispatch";
     ArtifactCore::RTRayCamera offsetCamera;
     offsetCamera.origin[0] = 4.0f;
     offsetCamera.target[0] = 4.0f;
