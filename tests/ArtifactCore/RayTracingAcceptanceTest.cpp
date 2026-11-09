@@ -2115,6 +2115,41 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     EXPECT_GT(halfStrengthDrop, 0.005f);
     EXPECT_LT(halfStrengthDrop, fullStrengthDrop - 0.005f);
     EXPECT_NEAR(zeroStrengthRight[0], flatRight[0], 0.01f);
+
+    const auto rotatedNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(QStringLiteral("normal-map-uniform.png"))
+            .toStdString());
+    QImage rotatedNormalImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(rotatedNormalImage.isNull());
+    rotatedNormalImage.fill(QColor(204, 128, 230, 255));
+    ASSERT_TRUE(rotatedNormalImage.save(
+        QString::fromStdString(rotatedNormalPath.string()), "PNG"));
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(rotatedNormalPath.string()));
+    material.normalStrength = 1.0f;
+    material.normalUvRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unrotatedNormal = pixelAt(24, 16);
+
+    material.normalUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedNormal = pixelAt(24, 16);
+    const float rotationResponse = std::max(
+        std::fabs(unrotatedNormal[0] - rotatedNormal[0]),
+        std::max(std::fabs(unrotatedNormal[1] - rotatedNormal[1]),
+                 std::fabs(unrotatedNormal[2] - rotatedNormal[2])));
+    EXPECT_GT(rotationResponse, 0.02f)
+        << "rotating the normal UV frame should rotate the sampled tangent-space direction";
 }
 
 TEST_F(RayTracingAcceptanceTest,
