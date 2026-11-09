@@ -974,7 +974,7 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
     EXPECT_NEAR(rightHdrEmission[2], 0.25f, 0.02f);
 }
 
-TEST_F(RayTracingAcceptanceTest, SelectsSheenColorTextureUvSet) {
+TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
     constexpr std::array<float, 12> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
          0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
@@ -991,11 +991,11 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenColorTextureUvSet) {
         BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
     ASSERT_NE(vertexBuffer, nullptr);
     ASSERT_NE(indexBuffer, nullptr);
-    addGeometry("pbr-sheen-color-uv-set", vertexBuffer.RawPtr(), 4,
+    addGeometry("pbr-sheen-texture-uv-set", vertexBuffer.RawPtr(), 4,
                 indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
-        ArtifactCore::UniString("pbr-sheen-color-uv-set"), vertices.data(), 4,
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), vertices.data(), 4,
         indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
         mirroredUvs1.data()));
 
@@ -1023,7 +1023,7 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenColorTextureUvSet) {
     material.sheenRoughness = 0.5f;
     material.sheenColorTexture = ArtifactCore::UniString(sheenColorMapPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
-        ArtifactCore::UniString("pbr-sheen-color-uv-set"), material));
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
     ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
     ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
@@ -1039,7 +1039,7 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenColorTextureUvSet) {
 
     material.sheenColorTextureUvSet = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
-        ArtifactCore::UniString("pbr-sheen-color-uv-set"), material));
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
     ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
     ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
@@ -1052,6 +1052,46 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenColorTextureUvSet) {
             << channel;
         EXPECT_NEAR(uv1Right[channel], uv0Left[channel], 0.035f)
             << "sheen color UV1 should mirror the right sample, channel "
+            << channel;
+    }
+
+    material.sheenColorTexture = ArtifactCore::UniString();
+    material.sheenRoughness = 1.0f;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenColorMapPath);
+    material.sheenRoughnessTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv0Left = pixelAt(8, 16);
+    const auto roughnessUv0Right = pixelAt(24, 16);
+    const float roughnessUv0Difference = std::max(
+        std::fabs(roughnessUv0Left[0] - roughnessUv0Right[0]),
+        std::max(std::fabs(roughnessUv0Left[1] - roughnessUv0Right[1]),
+                 std::fabs(roughnessUv0Left[2] - roughnessUv0Right[2])));
+    EXPECT_GT(roughnessUv0Difference, 0.02f)
+        << "the sheen roughness map should distinguish the two UV0 halves";
+
+    material.sheenRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv1Left = pixelAt(8, 16);
+    const auto roughnessUv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughnessUv1Left[channel], roughnessUv0Right[channel],
+                    0.035f)
+            << "sheen roughness UV1 should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(roughnessUv1Right[channel], roughnessUv0Left[channel],
+                    0.035f)
+            << "sheen roughness UV1 should mirror the right sample, channel "
             << channel;
     }
 }
