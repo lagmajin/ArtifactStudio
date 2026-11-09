@@ -4653,6 +4653,24 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
                                         kRayTraceTestImageSize));
     EXPECT_LE(maximumGreenDifference(negativeIntensityImage), 1.0e-5f)
         << "negative scene-light intensity should clamp to zero";
+
+    auto pointReferenceLight = greenPointLight;
+    pointReferenceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &pointReferenceLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto pointLightImage = readOutputPixels();
+    auto zeroSizedAreaLight = greenAreaLight;
+    zeroSizedAreaLight.shadowParams[0] = -1.0f;
+    zeroSizedAreaLight.shadowParams[1] = 0.0f;
+    zeroSizedAreaLight.shadowParams[2] = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &zeroSizedAreaLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_LE(maximumGreenDifference(pointLightImage), 1.0e-5f)
+        << "an area light with zero dimensions should use the point-light path";
 }
 
 TEST_F(RayTracingAcceptanceTest,
