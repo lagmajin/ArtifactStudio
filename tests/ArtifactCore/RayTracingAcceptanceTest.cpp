@@ -2785,6 +2785,46 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
                "sample, channel " << channel;
     }
 
+    const auto greenRoughnessMapPath = surfaceMapDirectory.filePath(
+        QStringLiteral("green-roughness.png"));
+    QImage greenRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(greenRoughnessMap.isNull());
+    for (int y = 0; y < greenRoughnessMap.height(); ++y) {
+        auto* row = greenRoughnessMap.scanLine(y);
+        for (int x = 0; x < greenRoughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = x < greenRoughnessMap.width() / 2 ? 0 : 255;
+            pixel[2] = 0;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(greenRoughnessMap.save(greenRoughnessMapPath, "PNG"));
+    material.baseColorTexture = ArtifactCore::UniString{};
+    material.metallic = 0.0f;
+    material.roughness = 1.0f;
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(greenRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedRoughnessLeft = pixelAt(8, 16);
+    const auto packedRoughnessRight = pixelAt(24, 16);
+    const float packedRoughnessDifference = std::max(
+        std::fabs(packedRoughnessLeft[0] - packedRoughnessRight[0]),
+        std::max(std::fabs(packedRoughnessLeft[1] - packedRoughnessRight[1]),
+                 std::fabs(packedRoughnessLeft[2] - packedRoughnessRight[2])));
+    EXPECT_GT(packedRoughnessDifference, 0.02f)
+        << "packed metallic-roughness green should vary roughness while red "
+           "and blue remain constant";
+
+    material.metallic = 1.0f;
+    material.roughness = 0.6f;
     material.metallicRoughnessUvOffsetU = 0.0f;
     material.baseColorTexture = ArtifactCore::UniString(
         QString::fromStdString(baseColorPath.string()));
