@@ -6850,7 +6850,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         int aoValue = -1;
         std::array<float, 3> clearcoatTint{1.0f, 1.0f, 1.0f};
     };
-    constexpr std::array<MaterialProbe, 14> materialProbes{{
+    constexpr std::array<MaterialProbe, 16> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -6874,7 +6874,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
          {1.0f, 1.0f, 1.0f}, 1.0f, 0.85f},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
          {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f, -1,
-         {0.02f, 0.1f, 1.0f}}}};
+         {0.02f, 0.1f, 1.0f}},
+        {0.0f, -0.5f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {0.0f, 1.0f, 1.5f, {0.7f, 0.4f, 0.2f}}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -7037,6 +7039,16 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         << "Raster clearcoat response should vary with clearcoat tint";
     EXPECT_GT(rtClearcoatTintDifference, 0.005f)
         << "RT clearcoat response should vary with clearcoat tint";
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rasterProbePixels[14][channel],
+                    rasterProbePixels[0][channel], 1.0e-5f)
+            << "negative Raster base roughness should clamp to the 0.04 "
+               "shader floor, channel " << channel;
+        EXPECT_NEAR(rtProbePixels[14][channel], rtProbePixels[0][channel],
+                    1.0e-5f)
+            << "negative RT base roughness should clamp to the 0.04 shader "
+               "floor, channel " << channel;
+    }
 
     auto nonUniformTransform = float4x4::Identity();
     nonUniformTransform.m00 = 2.0f;
