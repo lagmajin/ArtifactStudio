@@ -5339,6 +5339,17 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     EXPECT_NEAR(opaqueModeBlockerPixel[1], opaqueBlockerPixel[1], 0.02f)
         << "opaque alpha mode should ignore transparent opacity texture in shadows";
 
+    blockerMaterial.alphaMode = 2;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto blendedModeBlockerPixel = pixelAt(24, 16);
+    EXPECT_NEAR(blendedModeBlockerPixel[1], opaqueBlockerPixel[1], 0.02f)
+        << "blended alpha mode should not use binary masked shadow cutout";
+
     blockerMaterial.alphaMode = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
