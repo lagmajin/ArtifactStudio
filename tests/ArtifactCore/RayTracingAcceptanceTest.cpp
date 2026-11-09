@@ -1607,6 +1607,31 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
                  std::fabs(horizontalAnisotropyPixel[2] - verticalAnisotropyPixel[2])));
     EXPECT_GT(anisotropyRotationDifference, 0.001f)
         << "rotating scalar anisotropy should rotate the tangent-space highlight";
+
+    const auto captureAnisotropy = [&](float anisotropy) {
+        material.anisotropy = anisotropy;
+        material.anisotropyRotationDegrees = 0.0f;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumAnisotropyPixel = captureAnisotropy(-1.0f);
+    const auto belowMinimumAnisotropyPixel = captureAnisotropy(-2.0f);
+    const auto maximumAnisotropyPixel = captureAnisotropy(1.0f);
+    const auto aboveMaximumAnisotropyPixel = captureAnisotropy(2.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumAnisotropyPixel[channel],
+                    minimumAnisotropyPixel[channel], 1.0e-5f)
+            << "anisotropy below -1 should clamp to -1";
+        EXPECT_NEAR(aboveMaximumAnisotropyPixel[channel],
+                    maximumAnisotropyPixel[channel], 1.0e-5f)
+            << "anisotropy above 1 should clamp to 1";
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
