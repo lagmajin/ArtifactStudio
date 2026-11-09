@@ -1351,6 +1351,29 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    rightMaterial.normalUvOffsetU = 0.0f;
+    rightMaterial.normalUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalScaleRight = pixelAt(24, 16);
+    const auto unchangedSlotNormalScaleLeft = pixelAt(8, 16);
+    const float slotNormalScaleDifference = std::max(
+        std::fabs(slotNormalScaleRight[0] - slotNormalOffset0Right[0]),
+        std::max(std::fabs(slotNormalScaleRight[1] - slotNormalOffset0Right[1]),
+                 std::fabs(slotNormalScaleRight[2] - slotNormalOffset0Right[2])));
+    EXPECT_GT(slotNormalScaleDifference, 0.001f)
+        << "slot 1 normal UV scale should change its sampled texels";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotNormalScaleLeft[channel], slotNormalOffset0Left[channel],
+                    0.01f)
+            << "slot 1 normal UV scale should preserve slot 0, channel "
+            << channel;
+    }
+
     leftMaterial.normalTexture = ArtifactCore::UniString();
     leftMaterial.clearcoat = 1.0f;
     leftMaterial.clearcoatRoughness = 0.2f;
@@ -1514,6 +1537,31 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         EXPECT_NEAR(unchangedSlotCoatNormalOffsetLeft[channel],
                     slotCoatNormalOffset0Left[channel], 0.01f)
             << "slot 1 clearcoat-normal UV offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.clearcoatNormalUvOffsetU = 0.0f;
+    rightMaterial.clearcoatNormalUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalScaleRight = pixelAt(24, 16);
+    const auto unchangedSlotCoatNormalScaleLeft = pixelAt(8, 16);
+    const float slotCoatNormalScaleDifference = std::max(
+        std::fabs(slotCoatNormalScaleRight[0] - slotCoatNormalOffset0Right[0]),
+        std::max(std::fabs(slotCoatNormalScaleRight[1] -
+                           slotCoatNormalOffset0Right[1]),
+                 std::fabs(slotCoatNormalScaleRight[2] -
+                           slotCoatNormalOffset0Right[2])));
+    EXPECT_GT(slotCoatNormalScaleDifference, 0.001f)
+        << "slot 1 clearcoat-normal UV scale should change its sampled texels";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotCoatNormalScaleLeft[channel],
+                    slotCoatNormalOffset0Left[channel], 0.01f)
+            << "slot 1 clearcoat-normal UV scale should preserve slot 0, channel "
             << channel;
     }
 
