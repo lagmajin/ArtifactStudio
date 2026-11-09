@@ -1755,6 +1755,15 @@ TEST_F(RayTracingAcceptanceTest,
             << "a partial subsurface amount should remain below Burley diffuse, channel "
             << channel;
     }
+
+    material.subsurfaceAnisotropy = -0.8f;
+    const auto backwardScatterPixel = traceSubsurface(1.0f);
+    material.subsurfaceAnisotropy = 0.8f;
+    const auto forwardScatterPixel = traceSubsurface(1.0f);
+    EXPECT_GT(backwardScatterPixel[0], subsurfaceDiffusePixel[0] + 0.01f)
+        << "negative subsurface anisotropy should strengthen the backscatter response";
+    EXPECT_GT(subsurfaceDiffusePixel[0], forwardScatterPixel[0] + 0.01f)
+        << "positive subsurface anisotropy should suppress the backscatter response";
 }
 
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) {
