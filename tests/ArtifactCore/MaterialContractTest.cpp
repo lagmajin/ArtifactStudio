@@ -59,6 +59,46 @@ TEST(MaterialContractTest, PbrScalarsClampOutOfRangeAndNonFiniteInputs)
     EXPECT_FLOAT_EQ(material.anisotropyRotationDegrees(), 0.0f);
 }
 
+TEST(MaterialContractTest, RemainingPbrScalarsUseStableFallbacks)
+{
+    Material material;
+    material.setDiffuseRoughness(2.0f);
+    material.setSpecular(-1.0f);
+    material.setClearcoat(std::numeric_limits<float>::quiet_NaN());
+    material.setClearcoatRoughness(std::numeric_limits<float>::infinity());
+    material.setOpacity(-1.0f);
+    material.setAlphaCutoff(2.0f);
+    material.setNormalStrength(-2.0f);
+    material.setOcclusionStrength(-1.0f);
+    material.setEmissionStrength(-1.0f);
+
+    EXPECT_FLOAT_EQ(material.diffuseRoughness(), 1.0f);
+    EXPECT_FLOAT_EQ(material.specular(), 0.0f);
+    EXPECT_FLOAT_EQ(material.clearcoat(), 0.0f);
+    EXPECT_FLOAT_EQ(material.clearcoatRoughness(), 0.03f);
+    EXPECT_FLOAT_EQ(material.opacity(), 0.0f);
+    EXPECT_FLOAT_EQ(material.alphaCutoff(), 1.0f);
+    EXPECT_FLOAT_EQ(material.normalStrength(), 0.0f);
+    EXPECT_FLOAT_EQ(material.occlusionStrength(), 0.0f);
+    EXPECT_FLOAT_EQ(material.emissionStrength(), 0.0f);
+
+    material.setDiffuseRoughness(std::numeric_limits<float>::quiet_NaN());
+    material.setSpecular(std::numeric_limits<float>::infinity());
+    material.setOpacity(std::numeric_limits<float>::quiet_NaN());
+    material.setAlphaCutoff(std::numeric_limits<float>::infinity());
+    material.setNormalStrength(std::numeric_limits<float>::quiet_NaN());
+    material.setOcclusionStrength(std::numeric_limits<float>::quiet_NaN());
+    material.setEmissionStrength(std::numeric_limits<float>::infinity());
+
+    EXPECT_FLOAT_EQ(material.diffuseRoughness(), 0.0f);
+    EXPECT_FLOAT_EQ(material.specular(), 0.5f);
+    EXPECT_FLOAT_EQ(material.opacity(), 1.0f);
+    EXPECT_FLOAT_EQ(material.alphaCutoff(), 0.5f);
+    EXPECT_FLOAT_EQ(material.normalStrength(), 1.0f);
+    EXPECT_FLOAT_EQ(material.occlusionStrength(), 1.0f);
+    EXPECT_FLOAT_EQ(material.emissionStrength(), 0.0f);
+}
+
 TEST(MaterialContractTest, AlphaAndTransmissionControlsRemainIndependent)
 {
     Material material;
