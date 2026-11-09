@@ -693,6 +693,45 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     const auto rightRedTexturePixel = pixelAt(24, 16);
     EXPECT_GT(leftBlueTexturePixel[2], leftBlueTexturePixel[0] + 0.5f);
     EXPECT_GT(rightRedTexturePixel[0], rightRedTexturePixel[2] + 0.5f);
+
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    rightMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    rightMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    rightMaterial.baseColor[0] = rightMaterial.baseColor[1] =
+        rightMaterial.baseColor[2] = 1.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 1.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString(redTexturePath);
+    rightMaterial.baseColorTexture = ArtifactCore::UniString(blueTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftRedBaseColorPixel = pixelAt(8, 16);
+    const auto rightBlueBaseColorPixel = pixelAt(24, 16);
+    EXPECT_GT(leftRedBaseColorPixel[0], leftRedBaseColorPixel[2] + 0.01f);
+    EXPECT_GT(rightBlueBaseColorPixel[2], rightBlueBaseColorPixel[0] + 0.01f);
+
+    leftMaterial.baseColorTexture = ArtifactCore::UniString(blueTexturePath);
+    rightMaterial.baseColorTexture = ArtifactCore::UniString(redTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftBlueBaseColorPixel = pixelAt(8, 16);
+    const auto rightRedBaseColorPixel = pixelAt(24, 16);
+    EXPECT_GT(leftBlueBaseColorPixel[2], leftBlueBaseColorPixel[0] + 0.01f);
+    EXPECT_GT(rightRedBaseColorPixel[0], rightRedBaseColorPixel[2] + 0.01f);
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
