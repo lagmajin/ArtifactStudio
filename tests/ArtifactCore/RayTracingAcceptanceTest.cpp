@@ -4285,11 +4285,18 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
     };
     const auto minimumAnisotropyPixel = captureAnisotropy(-1.0f);
     const auto belowMinimumAnisotropyPixel = captureAnisotropy(-2.0f);
+    const auto negativeAnisotropyPixel = captureAnisotropy(-0.75f);
+    const auto zeroAnisotropyPixel = captureAnisotropy(0.0f);
+    const auto positiveAnisotropyPixel = captureAnisotropy(0.75f);
     const auto maximumAnisotropyPixel = captureAnisotropy(1.0f);
     const auto aboveMaximumAnisotropyPixel = captureAnisotropy(2.0f);
     const auto nonFiniteAnisotropyPixel = captureAnisotropy(
         std::numeric_limits<float>::quiet_NaN());
     for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(zeroAnisotropyPixel[channel], isotropicPixel[channel],
+                    1.0e-5f)
+            << "zero anisotropy should match the isotropic baseline, channel "
+            << channel;
         EXPECT_NEAR(belowMinimumAnisotropyPixel[channel],
                     minimumAnisotropyPixel[channel], 1.0e-5f)
             << "anisotropy below -1 should clamp to -1";
@@ -4300,6 +4307,13 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
                     isotropicPixel[channel], 1.0e-5f)
             << "non-finite anisotropy should use its zero fallback";
     }
+    const float anisotropySignDifference = std::max(
+        std::fabs(negativeAnisotropyPixel[0] - positiveAnisotropyPixel[0]),
+        std::max(std::fabs(negativeAnisotropyPixel[1] - positiveAnisotropyPixel[1]),
+                 std::fabs(negativeAnisotropyPixel[2] - positiveAnisotropyPixel[2])));
+    EXPECT_GT(anisotropySignDifference, 0.001f)
+        << "positive and negative anisotropy should produce distinct tangent "
+           "lobe responses";
 
     const auto captureSpecularTint = [&](std::size_t tintChannel, float tint) {
         material.anisotropy = 0.0f;
