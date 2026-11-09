@@ -4467,7 +4467,8 @@ TEST_F(RayTracingAcceptanceTest,
     material.roughness = 0.04f;
     material.transmission = 1.0f;
     material.thinWall = 0.0f;
-    const auto traceInternalView = [&](const float ior) {
+    const auto traceInternalView = [&](
+        const float ior, const std::array<float, 3>& target) {
         material.ior = ior;
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString("pbr-internal-critical-angle"), material));
@@ -4477,9 +4478,9 @@ TEST_F(RayTracingAcceptanceTest,
         camera.origin[0] = 0.0f;
         camera.origin[1] = 0.0f;
         camera.origin[2] = 1.0f;
-        camera.target[0] = 0.6f;
-        camera.target[1] = 0.5f;
-        camera.target[2] = 0.3755f;
+        camera.target[0] = target[0];
+        camera.target[1] = target[1];
+        camera.target[2] = target[2];
         camera.verticalFovDegrees = 0.1f;
         EXPECT_TRUE(manager_->traceCamera(
             context_.RawPtr(), kRayTraceTestImageSize, kRayTraceTestImageSize,
@@ -4487,18 +4488,27 @@ TEST_F(RayTracingAcceptanceTest,
         return pixelAt(16, 16);
     };
 
-    // The ray enters the boundary from its interior at about 51 degrees,
-    // beyond the glass-to-air critical angle (about 42 degrees).
-    const auto airReference = traceInternalView(1.0f);
-    const auto glassInternalView = traceInternalView(1.5f);
+    // The below-critical ray enters at 30 degrees. The second ray enters at
+    // about 51 degrees, beyond the glass-to-air critical angle (about 42).
+    const auto airReference = traceInternalView(
+        1.0f, {0.6f, 0.5f, 0.3755f});
+    const auto subcriticalGlassView = traceInternalView(
+        1.5f, {0.5f, 0.0f, 0.1339746f});
+    const auto glassInternalView = traceInternalView(
+        1.5f, {0.6f, 0.5f, 0.3755f});
     const float airReferenceEnergy = airReference[0] + airReference[1] +
                                      airReference[2];
+    const float subcriticalGlassEnergy = subcriticalGlassView[0] +
+                                         subcriticalGlassView[1] +
+                                         subcriticalGlassView[2];
     const float glassInternalEnergy = glassInternalView[0] +
                                       glassInternalView[1] +
                                       glassInternalView[2];
     EXPECT_GT(airReferenceEnergy, 0.05f)
         << "the unity-IOR reference should transmit the fallback sky";
-    EXPECT_LT(glassInternalEnergy, airReferenceEnergy * 0.1f)
+    EXPECT_GT(subcriticalGlassEnergy, 0.05f)
+        << "an internal view below the critical angle should transmit the sky";
+    EXPECT_LT(glassInternalEnergy, subcriticalGlassEnergy * 0.1f)
         << "an above-critical internal view should not transmit the exterior sky";
 }
 

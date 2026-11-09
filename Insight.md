@@ -15,7 +15,7 @@
 - **未検証の仮説:** 通常の外側カメラからのレイではこの eta／法線向きの組み合わせにより TIR 条件（屈折方向の長さがほぼゼロ）へ到達できず、`transmissionIsTir` 分岐が実質的に休眠している可能性がある。内部視点や負スケール等を含む例外経路は未確認。
 - **価値または懸念:** 内部から外へ向かうレイを将来扱う場合、入射側／出射側 IOR を識別しないと TIR と transmission Fresnel が正しく評価されない可能性がある。今回の受け入れ変更では shader を変更しない。
 - **次に確認すること:** 屈折方向を反転した内部視点 fixture を独立 RT acceptance に構成できるか検討し、TIR で transmission energy が消え反射側へ移ることを確認する。その前に `worldNormal` の front/backface 契約と既存 closed-volume fixture を監査する。
-- **進捗 (2026-11-10):** 内部視点を模した half-space 境界、臨界角超過の camera ray、IOR=1 基準と IOR=1.5 の transmitted-sky energy 比較を `StopsTransmissionSkyForInternalViewAboveCriticalAngle` に追加した。テストは未実行。現行 source では eta が `1 / IOR` に固定されるため、glass側のenergy低下期待は失敗する可能性が高い。
+- **進捗 (2026-11-10):** 内部視点を模した half-space 境界で、IOR=1 基準、IOR=1.5 の臨界角未満30°、超過約51°の transmitted-sky energy を比較する `StopsTransmissionSkyForInternalViewAboveCriticalAngle` を追加した。テストは未実行。現行 source では eta が `1 / IOR` に固定されるため、超過角glass側のenergy低下期待は失敗する可能性が高い。
 
 ## 2026-11-09: float EXR上書き後のHDR surface cache更新
 - **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues`、静止画受入表IMG-04／OP-08。
