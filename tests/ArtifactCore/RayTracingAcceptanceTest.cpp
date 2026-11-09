@@ -2263,6 +2263,47 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
         << "the left slot's higher cutoff should cut out the half-alpha texel";
     EXPECT_GT(rightBelowCutoffPixel[1], rightBelowCutoffPixel[2] + 0.5f)
         << "the right slot's lower cutoff should retain that same texel";
+
+    leftMaterial.alphaCutoff = rightMaterial.alphaCutoff = 0.5f;
+    leftMaterial.opacityTexture = ArtifactCore::UniString();
+    rightMaterial.opacityTexture = ArtifactCore::UniString();
+    leftMaterial.opacity = 0.4f;
+    rightMaterial.opacity = 0.6f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftScalarCutoutPixel = pixelAt(8, 16);
+    const auto rightScalarOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(leftScalarCutoutPixel[2], leftScalarCutoutPixel[0] + 0.5f)
+        << "the left slot's lower scalar opacity should cut out its surface";
+    EXPECT_GT(rightScalarOpaquePixel[1], rightScalarOpaquePixel[2] + 0.5f)
+        << "the right slot's higher scalar opacity should retain its surface";
+
+    leftMaterial.opacity = 0.6f;
+    rightMaterial.opacity = 0.4f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftScalarOpaquePixel = pixelAt(8, 16);
+    const auto rightScalarCutoutPixel = pixelAt(24, 16);
+    EXPECT_GT(leftScalarOpaquePixel[0], leftScalarOpaquePixel[2] + 0.5f)
+        << "the left slot's higher scalar opacity should retain its surface";
+    EXPECT_GT(rightScalarCutoutPixel[2], rightScalarCutoutPixel[1] + 0.5f)
+        << "the right slot's lower scalar opacity should cut out its surface";
 }
 
 TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs) {
