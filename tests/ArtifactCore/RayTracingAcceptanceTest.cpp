@@ -8107,6 +8107,74 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
         }
     }
     EXPECT_LE(maximumRejectedUpdateDifference, 1.0e-5f);
+
+    using Material = ArtifactCore::RTPbrMaterial;
+    const std::array nonFiniteScalars{
+        std::pair{"baseColorAlpha", &Material::baseColorAlpha},
+        std::pair{"diffuseRoughness", &Material::diffuseRoughness},
+        std::pair{"specular", &Material::specular},
+        std::pair{"thinFilmThickness", &Material::thinFilmThickness},
+        std::pair{"thinFilmIOR", &Material::thinFilmIOR},
+        std::pair{"transmission", &Material::transmission},
+        std::pair{"clearcoat", &Material::clearcoat},
+        std::pair{"clearcoatRoughness", &Material::clearcoatRoughness},
+        std::pair{"clearcoatIOR", &Material::clearcoatIOR},
+        std::pair{"clearcoatNormalStrength", &Material::clearcoatNormalStrength},
+        std::pair{"sheen", &Material::sheen},
+        std::pair{"sheenRoughness", &Material::sheenRoughness},
+        std::pair{"subsurface", &Material::subsurface},
+        std::pair{"subsurfaceIOR", &Material::subsurfaceIOR},
+        std::pair{"subsurfaceAnisotropy", &Material::subsurfaceAnisotropy},
+        std::pair{"anisotropy", &Material::anisotropy},
+        std::pair{"anisotropyRotationDegrees", &Material::anisotropyRotationDegrees},
+        std::pair{"emissionStrength", &Material::emissionStrength},
+        std::pair{"opacity", &Material::opacity},
+        std::pair{"alphaCutoff", &Material::alphaCutoff},
+        std::pair{"thinWall", &Material::thinWall},
+        std::pair{"normalStrength", &Material::normalStrength},
+        std::pair{"occlusionStrength", &Material::occlusionStrength},
+        std::pair{"baseColorUvScale", &Material::baseColorUvScale},
+        std::pair{"baseColorUvRotationDegrees", &Material::baseColorUvRotationDegrees},
+        std::pair{"metallicRoughnessUvRotationDegrees",
+                  &Material::metallicRoughnessUvRotationDegrees},
+        std::pair{"clearcoatNormalUvRotationDegrees",
+                  &Material::clearcoatNormalUvRotationDegrees},
+        std::pair{"sheenColorTextureUvScaleU",
+                  &Material::sheenColorTextureUvScaleU},
+        std::pair{"sheenRoughnessTextureUvOffsetV",
+                  &Material::sheenRoughnessTextureUvOffsetV},
+        std::pair{"anisotropyTextureUvRotationDegrees",
+                  &Material::anisotropyTextureUvRotationDegrees},
+        std::pair{"metallicTextureUvScaleU", &Material::metallicTextureUvScaleU},
+        std::pair{"roughnessTextureUvOffsetV", &Material::roughnessTextureUvOffsetV},
+    };
+    for (const auto& [fieldName, member] : nonFiniteScalars) {
+        Material candidate = defaultMaterial;
+        candidate.*member = nan;
+        EXPECT_FALSE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("box-object"), candidate))
+            << "non-finite " << fieldName << " should sanitize to the default";
+    }
+
+    const std::array nonFiniteColorArrays{
+        std::pair{"baseColor", &Material::baseColor},
+        std::pair{"specularTint", &Material::specularTint},
+        std::pair{"clearcoatTint", &Material::clearcoatTint},
+        std::pair{"sheenTint", &Material::sheenTint},
+        std::pair{"subsurfaceRadius", &Material::subsurfaceRadius},
+        std::pair{"subsurfaceColor", &Material::subsurfaceColor},
+        std::pair{"emissionColor", &Material::emissionColor},
+    };
+    for (const auto& [fieldName, member] : nonFiniteColorArrays) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            Material candidate = defaultMaterial;
+            (candidate.*member)[channel] = nan;
+            EXPECT_FALSE(manager_->setInstancePbrMaterial(
+                ArtifactCore::UniString("box-object"), candidate))
+                << "non-finite " << fieldName << " channel " << channel
+                << " should sanitize to the default";
+        }
+    }
     EXPECT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), boxPbrMaterial));
 
