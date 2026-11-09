@@ -2094,6 +2094,68 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
         EXPECT_NEAR(rotatedRight[channel], uv0Left[channel], 0.035f)
             << "metallic-map 180-degree rotation should mirror the right sample";
     }
+
+    const QString verticalMetallicMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-metallic-vertical.png"));
+    QImage verticalMetallicMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalMetallicMap.isNull());
+    for (int y = 0; y < verticalMetallicMap.height(); ++y) {
+        auto* row = verticalMetallicMap.scanLine(y);
+        const uchar red = y < 4 ? 0 : 255;
+        for (int x = 0; x < verticalMetallicMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = red;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalMetallicMap.save(verticalMetallicMapPath, "PNG"));
+    material.metallicTexture = ArtifactCore::UniString(verticalMetallicMapPath);
+    material.metallicTextureUvRotationDegrees = 0.0f;
+    material.metallicTextureUvScaleV = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uvVTop = pixelAt(16, 8);
+    const auto uvVBottom = pixelAt(16, 24);
+    EXPECT_GT(std::fabs(uvVTop[0] - uvVBottom[0]), 0.02f)
+        << "the vertical metallic map should distinguish its V samples";
+
+    material.metallicTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetVTop = pixelAt(16, 8);
+    const auto offsetVBottom = pixelAt(16, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetVTop[channel], uvVBottom[channel], 0.035f)
+            << "metallic-map V offset should mirror the top sample";
+        EXPECT_NEAR(offsetVBottom[channel], uvVTop[channel], 0.035f)
+            << "metallic-map V offset should mirror the bottom sample";
+    }
+
+    material.metallicTextureUvOffsetV = 0.0f;
+    material.metallicTextureUvScaleV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledVTop = pixelAt(16, 8);
+    const auto scaledVBottom = pixelAt(16, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledVTop[channel], scaledVBottom[channel], 0.035f)
+            << "metallic-map V scale should compress samples into one half";
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
@@ -2227,6 +2289,68 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
             << "roughness-map 180-degree rotation should mirror the left sample";
         EXPECT_NEAR(rotatedRight[channel], uv0Left[channel], 0.035f)
             << "roughness-map 180-degree rotation should mirror the right sample";
+    }
+
+    const QString verticalRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-roughness-vertical.png"));
+    QImage verticalRoughnessMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalRoughnessMap.isNull());
+    for (int y = 0; y < verticalRoughnessMap.height(); ++y) {
+        auto* row = verticalRoughnessMap.scanLine(y);
+        const uchar red = y < 4 ? 0 : 255;
+        for (int x = 0; x < verticalRoughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = red;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalRoughnessMap.save(verticalRoughnessMapPath, "PNG"));
+    material.roughnessTexture = ArtifactCore::UniString(verticalRoughnessMapPath);
+    material.roughnessTextureUvRotationDegrees = 0.0f;
+    material.roughnessTextureUvScaleV = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uvVTop = pixelAt(16, 8);
+    const auto uvVBottom = pixelAt(16, 24);
+    EXPECT_GT(std::fabs(uvVTop[0] - uvVBottom[0]), 0.02f)
+        << "the vertical roughness map should distinguish its V samples";
+
+    material.roughnessTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetVTop = pixelAt(16, 8);
+    const auto offsetVBottom = pixelAt(16, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetVTop[channel], uvVBottom[channel], 0.035f)
+            << "roughness-map V offset should mirror the top sample";
+        EXPECT_NEAR(offsetVBottom[channel], uvVTop[channel], 0.035f)
+            << "roughness-map V offset should mirror the bottom sample";
+    }
+
+    material.roughnessTextureUvOffsetV = 0.0f;
+    material.roughnessTextureUvScaleV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledVTop = pixelAt(16, 8);
+    const auto scaledVBottom = pixelAt(16, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledVTop[channel], scaledVBottom[channel], 0.035f)
+            << "roughness-map V scale should compress samples into one half";
     }
 }
 
