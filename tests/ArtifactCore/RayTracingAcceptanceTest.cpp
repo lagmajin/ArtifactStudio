@@ -2076,6 +2076,24 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
         EXPECT_NEAR(scaledRight[channel], uv0Left[channel], 0.035f)
             << "metallic-map U scale should repeat the dark half on the right";
     }
+
+    material.metallicTextureUvScaleU = 1.0f;
+    material.metallicTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedLeft = pixelAt(8, 16);
+    const auto rotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedLeft[channel], uv0Right[channel], 0.035f)
+            << "metallic-map 180-degree rotation should mirror the left sample";
+        EXPECT_NEAR(rotatedRight[channel], uv0Left[channel], 0.035f)
+            << "metallic-map 180-degree rotation should mirror the right sample";
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
@@ -2191,6 +2209,24 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
             << "roughness-map U scale should keep the left texel on the dark half";
         EXPECT_NEAR(scaledRight[channel], uv0Left[channel], 0.035f)
             << "roughness-map U scale should repeat the dark half on the right";
+    }
+
+    material.roughnessTextureUvScaleU = 1.0f;
+    material.roughnessTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedLeft = pixelAt(8, 16);
+    const auto rotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedLeft[channel], uv0Right[channel], 0.035f)
+            << "roughness-map 180-degree rotation should mirror the left sample";
+        EXPECT_NEAR(rotatedRight[channel], uv0Left[channel], 0.035f)
+            << "roughness-map 180-degree rotation should mirror the right sample";
     }
 }
 
