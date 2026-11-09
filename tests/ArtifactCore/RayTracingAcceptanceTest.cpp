@@ -1804,6 +1804,40 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
             << "clearcoat UV1 should mirror the right sample, channel " << channel;
     }
 
+    material.clearcoatTextureUvSet = 0;
+    material.clearcoat = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto disabledMapLeft = pixelAt(8, 16);
+    const auto disabledMapRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(disabledMapLeft[channel], disabledMapRight[channel], 0.035f)
+            << "zero clearcoat factor should disable the amount map, channel "
+            << channel;
+    }
+
+    material.clearcoat = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfFactorLeft = pixelAt(8, 16);
+    const auto halfFactorRight = pixelAt(24, 16);
+    const float halfFactorDifference = std::max(
+        std::fabs(halfFactorLeft[0] - halfFactorRight[0]),
+        std::max(std::fabs(halfFactorLeft[1] - halfFactorRight[1]),
+                 std::fabs(halfFactorLeft[2] - halfFactorRight[2])));
+    EXPECT_GT(halfFactorDifference, 0.005f)
+        << "a partial clearcoat factor should retain a map response";
+    EXPECT_LT(halfFactorDifference, amountUv0Difference)
+        << "a partial clearcoat factor should reduce the full-factor map response";
+
     material.clearcoatTexture = ArtifactCore::UniString();
     material.clearcoatRoughness = 1.0f;
     material.clearcoatRoughnessTexture = ArtifactCore::UniString(clearcoatMapPath);
