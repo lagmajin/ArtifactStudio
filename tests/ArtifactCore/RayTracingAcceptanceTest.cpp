@@ -1702,6 +1702,54 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
                     maximumAnisotropyPixel[channel], 1.0e-5f)
             << "anisotropy above 1 should clamp to 1";
     }
+
+    const auto captureSpecularTint = [&](std::size_t tintChannel, float tint) {
+        material.anisotropy = 0.0f;
+        material.metallic = 0.0f;
+        material.ior = 1.5f;
+        material.specularTint[0] = 1.0f;
+        material.specularTint[1] = 1.0f;
+        material.specularTint[2] = 1.0f;
+        material.specularTint[tintChannel] = tint;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        const auto minimumSpecularTintPixel =
+            captureSpecularTint(tintChannel, 0.0f);
+        const auto belowMinimumSpecularTintPixel =
+            captureSpecularTint(tintChannel, -0.5f);
+        const auto maximumSpecularTintPixel =
+            captureSpecularTint(tintChannel, 1.0f);
+        const auto aboveMaximumSpecularTintPixel =
+            captureSpecularTint(tintChannel, 1.5f);
+        const float specularTintResponse = std::max(
+            std::fabs(maximumSpecularTintPixel[0] -
+                      minimumSpecularTintPixel[0]),
+            std::max(std::fabs(maximumSpecularTintPixel[1] -
+                               minimumSpecularTintPixel[1]),
+                     std::fabs(maximumSpecularTintPixel[2] -
+                               minimumSpecularTintPixel[2])));
+        EXPECT_GT(specularTintResponse, 0.001f)
+            << "the fixture should respond to specular tint channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(belowMinimumSpecularTintPixel[channel],
+                        minimumSpecularTintPixel[channel], 1.0e-5f)
+                << "specular tint below zero should clamp to zero, tint channel "
+                << tintChannel << ", output channel " << channel;
+            EXPECT_NEAR(aboveMaximumSpecularTintPixel[channel],
+                        maximumSpecularTintPixel[channel], 1.0e-5f)
+                << "specular tint above one should clamp to one, tint channel "
+                << tintChannel << ", output channel " << channel;
+        }
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
