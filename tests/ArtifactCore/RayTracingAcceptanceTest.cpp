@@ -5919,6 +5919,44 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
     }
     EXPECT_GT(layeredTransmissionResponse, 0.001f)
         << "transmission should contribute alongside clearcoat and sheen";
+
+    ArtifactCore::RTSceneLight greenAreaBacklight;
+    greenAreaBacklight.positionType[2] = 1.0f;
+    greenAreaBacklight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Area);
+    greenAreaBacklight.directionIntensity[2] = -1.0f;
+    greenAreaBacklight.directionIntensity[3] = 32.0f;
+    greenAreaBacklight.colorAttenuationConstant[1] = 1.0f;
+    greenAreaBacklight.colorAttenuationConstant[3] = 1.0f;
+    greenAreaBacklight.shadowParams[0] = -1.0f;
+    greenAreaBacklight.shadowParams[1] = 0.8f;
+    greenAreaBacklight.shadowParams[2] = 0.8f;
+    greenAreaBacklight.shadowParams[3] = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &greenAreaBacklight, 1);
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 1.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.0f;
+    material.clearcoat = 0.0f;
+    material.sheen = 0.0f;
+    material.thinWall = 1.0f;
+    const auto traceAreaLightTransmission = [&](const float transmission) {
+        material.transmission = transmission;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto opaqueAreaBacklightPixel = traceAreaLightTransmission(0.0f);
+    const auto transmittedAreaBacklightPixel = traceAreaLightTransmission(1.0f);
+    EXPECT_GT(transmittedAreaBacklightPixel[1],
+              opaqueAreaBacklightPixel[1] + 0.001f)
+        << "a green area backlight should contribute through a transmissive "
+           "thin-wall material";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
