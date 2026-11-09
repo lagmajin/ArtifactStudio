@@ -5869,7 +5869,94 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
             << channel;
     }
 
+    const QString verticalSheenRoughnessPath = textureDirectory.filePath(
+        QStringLiteral("sheen-roughness-v-ramp.png"));
+    QImage verticalSheenRoughnessMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalSheenRoughnessMap.isNull());
+    for (int y = 0; y < verticalSheenRoughnessMap.height(); ++y) {
+        auto* row = verticalSheenRoughnessMap.scanLine(y);
+        for (int x = 0; x < verticalSheenRoughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = 0;
+            pixel[2] = 255;
+            pixel[3] = y < 4 ? 0 : 255;
+        }
+    }
+    ASSERT_TRUE(verticalSheenRoughnessMap.save(
+        verticalSheenRoughnessPath, "PNG"));
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(verticalSheenRoughnessPath);
     material.sheenRoughnessTextureUvSet = 0;
+    material.sheenRoughnessTextureUvScaleU = 1.0f;
+    material.sheenRoughnessTextureUvScaleV = 1.0f;
+    material.sheenRoughnessTextureUvOffsetU = 0.0f;
+    material.sheenRoughnessTextureUvOffsetV = 0.0f;
+    material.sheenRoughnessTextureUvRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto sheenRoughnessV0Top = pixelAt(12, 8);
+    const auto sheenRoughnessV0Bottom = pixelAt(12, 24);
+    const float sheenRoughnessV0Difference = std::max(
+        std::fabs(sheenRoughnessV0Top[0] - sheenRoughnessV0Bottom[0]),
+        std::max(std::fabs(sheenRoughnessV0Top[1] - sheenRoughnessV0Bottom[1]),
+                 std::fabs(sheenRoughnessV0Top[2] - sheenRoughnessV0Bottom[2])));
+    EXPECT_GT(sheenRoughnessV0Difference, 0.02f)
+        << "sheen roughness alpha should vary across the vertical UV ramp";
+
+    material.sheenRoughnessTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto sheenRoughnessVOffsetTop = pixelAt(12, 8);
+    const auto sheenRoughnessVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(sheenRoughnessVOffsetTop[channel],
+                    sheenRoughnessV0Bottom[channel], 0.04f)
+            << "sheen roughness V offset should mirror the top sample, channel "
+            << channel;
+        EXPECT_NEAR(sheenRoughnessVOffsetBottom[channel],
+                    sheenRoughnessV0Top[channel], 0.04f)
+            << "sheen roughness V offset should mirror the bottom sample, "
+               "channel "
+            << channel;
+    }
+
+    material.sheenRoughnessTextureUvOffsetV = 0.0f;
+    material.sheenRoughnessTextureUvScaleV = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto sheenRoughnessVScaleTop = pixelAt(12, 8);
+    const auto sheenRoughnessVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(sheenRoughnessVScaleTop[channel],
+                    sheenRoughnessV0Bottom[channel], 0.04f)
+            << "sheen roughness V scale should repeat the bottom sample on top, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(sheenRoughnessVScaleBottom[channel],
+                    sheenRoughnessV0Top[channel], 0.04f)
+            << "sheen roughness V scale should repeat the top sample on bottom, "
+               "channel "
+            << channel;
+    }
+
+    material.sheenRoughnessTextureUvSet = 0;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenRoughnessMapPath);
+    material.sheenRoughnessTextureUvScaleV = 1.0f;
+    material.sheenRoughnessTextureUvOffsetV = 0.0f;
     material.sheenRoughness = 0.5f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
