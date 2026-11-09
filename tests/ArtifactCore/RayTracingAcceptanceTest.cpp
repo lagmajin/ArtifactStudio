@@ -1723,6 +1723,47 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     }
     EXPECT_GT(rightAnisotropyTextureResponse, 0.001f)
         << "slot 1 anisotropy texture should change its specular response";
+
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    leftMaterial.anisotropy = 1.0f;
+    leftMaterial.anisotropyRotationDegrees = 0.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> unrotatedAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(unrotatedAnisotropyPixels));
+    leftMaterial.anisotropyRotationDegrees = 90.0f;
+    std::array<std::array<float, 4>, 2> leftRotatedAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftRotatedAnisotropyPixels));
+    float leftAnisotropyRotationResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftAnisotropyRotationResponse = std::max(
+            leftAnisotropyRotationResponse,
+            std::fabs(leftRotatedAnisotropyPixels[0][channel] -
+                      unrotatedAnisotropyPixels[0][channel]));
+        EXPECT_NEAR(leftRotatedAnisotropyPixels[1][channel],
+                    unrotatedAnisotropyPixels[1][channel], 0.01f)
+            << "rotating slot 0 anisotropy should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftAnisotropyRotationResponse, 0.001f)
+        << "slot 0 anisotropy rotation should change its specular response";
+
+    leftMaterial.anisotropyRotationDegrees = 0.0f;
+    rightMaterial.anisotropyRotationDegrees = 90.0f;
+    std::array<std::array<float, 4>, 2> rightRotatedAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightRotatedAnisotropyPixels));
+    float rightAnisotropyRotationResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightRotatedAnisotropyPixels[0][channel],
+                    unrotatedAnisotropyPixels[0][channel], 0.01f)
+            << "rotating slot 1 anisotropy should preserve slot 0, channel "
+            << channel;
+        rightAnisotropyRotationResponse = std::max(
+            rightAnisotropyRotationResponse,
+            std::fabs(rightRotatedAnisotropyPixels[1][channel] -
+                      unrotatedAnisotropyPixels[1][channel]));
+    }
+    EXPECT_GT(rightAnisotropyRotationResponse, 0.001f)
+        << "slot 1 anisotropy rotation should change its specular response";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
