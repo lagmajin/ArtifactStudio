@@ -8275,6 +8275,32 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
             std::fabs(greenPerturbedClearcoatRight[2] - clearcoatNormalUv0Right[2])));
     EXPECT_GT(clearcoatNormalGreenResponse, 0.001f)
         << "clearcoat-normal green should contribute to coat tangent-space shading";
+
+    QImage transparentClearcoatNormal = moderateNormalImage;
+    for (int y = 0; y < transparentClearcoatNormal.height(); ++y) {
+        auto* row = transparentClearcoatNormal.scanLine(y);
+        for (int x = 0; x < transparentClearcoatNormal.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const auto transparentClearcoatNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(
+            QStringLiteral("clearcoat-normal-alpha-zero.png"))
+            .toStdString());
+    ASSERT_TRUE(transparentClearcoatNormal.save(
+        QString::fromStdString(transparentClearcoatNormalPath.string()), "PNG"));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(transparentClearcoatNormalPath.string()));
+    const auto transparentClearcoatNormalPixels =
+        captureClearcoatNormalStrength(1.0f);
+    for (std::size_t sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(transparentClearcoatNormalPixels[sampleIndex][channel],
+                        clearcoatNormalUv0Pixels[sampleIndex][channel], 0.01f)
+                << "clearcoat-normal alpha should not change RGB shading, sample "
+                << sampleIndex << ", channel " << channel;
+        }
+    }
     material.clearcoatNormalTexture = ArtifactCore::UniString(
         QString::fromStdString(moderateNormalPath.string()));
 
