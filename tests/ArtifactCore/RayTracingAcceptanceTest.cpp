@@ -4570,6 +4570,11 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
                  std::fabs(glassIorThin[2] - glassIorThick[2])));
     EXPECT_GT(thinWallDifference, 0.001f)
         << "thin-wall transmission should apply its adjusted dielectric Fresnel";
+    const auto rgbEnergy = [](const std::array<float, 4>& pixel) {
+        return pixel[0] + pixel[1] + pixel[2];
+    };
+    EXPECT_GT(rgbEnergy(glassIorThick), rgbEnergy(glassIorThin) + 0.001f)
+        << "thin-wall Fresnel should reduce transmitted energy at normal view";
 
     const auto traceGrazingThinWall = [&](const float thinWall) {
         material.ior = 1.5f;
@@ -4597,6 +4602,8 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
                  std::fabs(grazingThin[2] - grazingThick[2])));
     EXPECT_GT(grazingThinWallDifference, 0.001f)
         << "thin-wall transmission should adjust Fresnel at grazing view angles";
+    EXPECT_GT(rgbEnergy(grazingThick), rgbEnergy(grazingThin) + 0.001f)
+        << "thin-wall Fresnel should reduce transmitted energy at grazing view";
 
     const auto belowMinimumThinWall = traceThinWall(1.5f, -0.5f);
     const auto nonFiniteThinWall = traceThinWall(
