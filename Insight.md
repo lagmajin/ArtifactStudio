@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: Input Interpretation別layer surface cache keyとbypass parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity`、静止画受入表OP-06。
+- **確認できた事実:** 制作準備文書はlayer surface cacheへsource versionと入力色解釈を反映するとする。既存layer surface parity testsはLOD、effect revision、cached/bypass pixel parityを確認するが、input color space／transfer変更は扱っていなかった。
+- **追加した確認:** 同じRGBA layerでcolor spaceだけ、次にtransfer functionだけ変え、cache signatureが各変更で分かれること、同設定のcache reuseが安定すること、各設定のGPU outputがcache bypassと完全一致することを検査する。
+- **価値または懸念:** 異なる色解釈結果のsurface cache誤共有と、key分離後のcached rendering差を同じ境界で検出する。headless Diligent deviceがない環境では既存テスト方式に合わせskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: 16-bit RGBA layerへの異解像度fractional mask適用
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer`、静止画受入表OP-04／IMG-03。
 - **確認できた事実:** 既存Layer testsは8-bit alphaへのmask opacity適用、またはopaque sourceへの異解像度mask補間を別ケースで確認する。16-bit source alphaにfractional maskを異解像度から補間し、RGBとalpha積算をfloat bufferで併せて検査するケースはなかった。
