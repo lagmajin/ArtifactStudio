@@ -858,6 +858,89 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     EXPECT_GT(leftBlueTexturePixel[2], leftBlueTexturePixel[0] + 0.5f);
     EXPECT_GT(rightRedTexturePixel[0], rightRedTexturePixel[2] + 0.5f);
 
+    const auto slotEmissionUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-emission-uv-ramp.png"));
+    QImage slotEmissionUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotEmissionUvRamp.isNull());
+    for (int y = 0; y < slotEmissionUvRamp.height(); ++y) {
+        auto* row = slotEmissionUvRamp.scanLine(y);
+        for (int x = 0; x < slotEmissionUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 255 : 0;
+            pixel[1] = 0;
+            pixel[2] = x < 4 ? 0 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotEmissionUvRamp.save(slotEmissionUvRampPath, "PNG"));
+    leftMaterial.emissionTexture = ArtifactCore::UniString(slotEmissionUvRampPath);
+    leftMaterial.emissionTextureUvSet = 0;
+    leftMaterial.emissionTextureUvOffsetU = 0.0f;
+    leftMaterial.emissionTextureUvScale = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionUv0Left = pixelAt(8, 16);
+    const auto slotEmissionUv0Right = pixelAt(24, 16);
+    EXPECT_GT(slotEmissionUv0Left[0], slotEmissionUv0Left[2] + 0.5f)
+        << "slot 0 emission map should sample its red UV0 half";
+    EXPECT_GT(slotEmissionUv0Right[2], slotEmissionUv0Right[0] + 0.5f)
+        << "slot 1 emission map should sample its blue UV0 half";
+
+    rightMaterial.emissionTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotEmissionUv1Left = pixelAt(8, 16);
+    EXPECT_GT(slotEmissionUv1Right[0], slotEmissionUv1Right[2] + 0.5f)
+        << "slot 1 emission UV set should mirror its sample into the red texels";
+    EXPECT_GT(unchangedSlotEmissionUv1Left[0],
+              unchangedSlotEmissionUv1Left[2] + 0.5f)
+        << "slot 1 emission UV set should preserve slot 0";
+
+    rightMaterial.emissionTextureUvSet = 0;
+    rightMaterial.emissionTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotEmissionOffsetLeft = pixelAt(8, 16);
+    EXPECT_GT(slotEmissionOffsetRight[0], slotEmissionOffsetRight[2] + 0.5f)
+        << "slot 1 emission U offset should move its sample into red texels";
+    EXPECT_GT(unchangedSlotEmissionOffsetLeft[0],
+              unchangedSlotEmissionOffsetLeft[2] + 0.5f)
+        << "slot 1 emission U offset should preserve slot 0";
+
+    rightMaterial.emissionTextureUvOffsetU = 0.0f;
+    rightMaterial.emissionTextureUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionScaleRight = pixelAt(24, 16);
+    const auto unchangedSlotEmissionScaleLeft = pixelAt(8, 16);
+    EXPECT_GT(slotEmissionScaleRight[0], slotEmissionScaleRight[2] + 0.5f)
+        << "slot 1 emission UV scale should move its sample into red texels";
+    EXPECT_GT(unchangedSlotEmissionScaleLeft[0],
+              unchangedSlotEmissionScaleLeft[2] + 0.5f)
+        << "slot 1 emission UV scale should preserve slot 0";
+    rightMaterial.emissionTextureUvScale = 1.0f;
+
     leftMaterial.emissionTexture = ArtifactCore::UniString();
     rightMaterial.emissionTexture = ArtifactCore::UniString();
     leftMaterial.emissionStrength = 0.0f;
