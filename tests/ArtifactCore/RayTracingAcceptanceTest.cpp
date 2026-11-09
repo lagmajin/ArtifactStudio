@@ -5754,6 +5754,25 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
     EXPECT_GT(uv0Difference, 0.02f)
         << "the sheen color map should distinguish the two UV0 halves";
 
+    material.sheenColorTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedColorLeft = pixelAt(8, 16);
+    const auto rotatedColorRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedColorLeft[channel], uv0Right[channel], 0.035f)
+            << "sheen color UV rotation should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(rotatedColorRight[channel], uv0Left[channel], 0.035f)
+            << "sheen color UV rotation should mirror the right sample, channel "
+            << channel;
+    }
+    material.sheenColorTextureUvRotationDegrees = 0.0f;
+
     material.sheenColorTextureUvSet = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
