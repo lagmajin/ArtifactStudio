@@ -4063,6 +4063,49 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
             << "zero emission strength should suppress scalar emission, channel "
             << channel;
     }
+
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.2f;
+    material.sheen = 1.0f;
+    material.sheenRoughness = 0.25f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto layeredWithoutEmission = pixelAt(16, 16);
+
+    material.emissionStrength = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto layeredWithEmission = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        const float layeredEmissionContribution =
+            layeredWithEmission[channel] - layeredWithoutEmission[channel];
+        EXPECT_TRUE(std::isfinite(layeredEmissionContribution))
+            << "layered emission contribution should remain finite, channel "
+            << channel;
+        EXPECT_GE(layeredEmissionContribution, 0.0f)
+            << "layered emission contribution should be non-negative, channel "
+            << channel;
+        EXPECT_LE(layeredEmissionContribution, scalarColorEmission[channel] +
+                                                  0.01f)
+            << "coat and sheen should not amplify emission beyond its bare "
+            << "response, channel " << channel;
+    }
+    EXPECT_LT(layeredWithEmission[0] - layeredWithoutEmission[0],
+              scalarColorEmission[0] - 0.001f)
+        << "clearcoat and sheen should attenuate emitted red energy";
+    EXPECT_LT(layeredWithEmission[1] - layeredWithoutEmission[1],
+              scalarColorEmission[1] - 0.001f)
+        << "clearcoat and sheen should attenuate emitted green energy";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
