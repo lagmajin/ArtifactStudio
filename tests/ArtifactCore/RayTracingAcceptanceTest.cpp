@@ -701,6 +701,20 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
             combinedVsSheenResponse,
             std::fabs(enabledClearcoatAndSheen[channel] -
                       enabledSheen[channel]));
+        EXPECT_TRUE(std::isfinite(enabledClearcoatAndSheen[channel]))
+            << "combined clearcoat and sheen output should remain finite, "
+            << "channel " << channel;
+        EXPECT_GE(enabledClearcoatAndSheen[channel], 0.0f)
+            << "combined clearcoat and sheen radiance should be non-negative, "
+            << "channel " << channel;
+        const float isolatedLobeEnergyEnvelope =
+            noPrincipledLobes[channel] +
+            std::fabs(enabledClearcoat[channel] - noPrincipledLobes[channel]) +
+            std::fabs(enabledSheen[channel] - noPrincipledLobes[channel]);
+        EXPECT_LE(enabledClearcoatAndSheen[channel],
+                  isolatedLobeEnergyEnvelope + 0.01f)
+            << "combined clearcoat and sheen should stay within the additive "
+            << "isolated-lobe energy envelope, channel " << channel;
     }
     EXPECT_GT(clearcoatResponse, 0.001f)
         << "the fixture should respond to a finite clearcoat amount";
