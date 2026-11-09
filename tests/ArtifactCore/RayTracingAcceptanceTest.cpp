@@ -4273,6 +4273,7 @@ TEST_F(RayTracingAcceptanceTest,
     const auto burleyDiffusePixel = traceSubsurface(0.0f);
     const auto mixedDiffusePixel = traceSubsurface(0.5f);
     const auto subsurfaceDiffusePixel = traceSubsurface(1.0f);
+    const auto aboveMaximumSubsurfacePixel = traceSubsurface(1.5f);
     const auto negativeSubsurfacePixel = traceSubsurface(-0.5f);
     const auto nonFiniteSubsurfacePixel = traceSubsurface(
         std::numeric_limits<float>::quiet_NaN());
@@ -4281,6 +4282,10 @@ TEST_F(RayTracingAcceptanceTest,
     EXPECT_GT(subsurfaceDiffusePixel[1], subsurfaceDiffusePixel[2] + 0.01f)
         << "the green subsurface radius should exceed the blue radius response";
     for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(aboveMaximumSubsurfacePixel[channel],
+                    subsurfaceDiffusePixel[channel], 1.0e-5f)
+            << "subsurface amount above one should clamp to one, channel "
+            << channel;
         EXPECT_NEAR(negativeSubsurfacePixel[channel],
                     burleyDiffusePixel[channel], 1.0e-5f)
             << "negative subsurface amount should clamp to zero, channel "
