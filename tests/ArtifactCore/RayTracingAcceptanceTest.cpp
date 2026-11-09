@@ -2654,6 +2654,20 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                  std::fabs(unrotatedNormal[2] - rotatedNormal[2])));
     EXPECT_GT(rotationResponse, 0.02f)
         << "rotating the normal UV frame should rotate the sampled tangent-space direction";
+
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(normalMapDirectory.filePath(
+            QStringLiteral("missing-normal.png")).toStdString()));
+    material.normalUvRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingNormalRight = pixelAt(24, 16);
+    EXPECT_NEAR(missingNormalRight[0], flatRight[0], 0.01f)
+        << "a missing normal map should fall back to the geometric normal";
 }
 
 TEST_F(RayTracingAcceptanceTest,
