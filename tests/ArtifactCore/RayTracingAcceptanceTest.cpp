@@ -1371,14 +1371,14 @@ TEST_F(RayTracingAcceptanceTest,
     const auto tempDirectory = std::filesystem::temp_directory_path();
     const auto checkerPath = tempDirectory / "artifact-rt-pbr-minified-checker.png";
     const auto averagePath = tempDirectory / "artifact-rt-pbr-minified-average.png";
-    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
-    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage checker(textureWidth, textureHeight, QImage::Format_RGBA8888);
+    QImage average(textureWidth, textureHeight, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
     ASSERT_FALSE(average.isNull());
-    for (int y = 0; y < textureSize; ++y) {
+    for (int y = 0; y < textureHeight; ++y) {
         auto* checkerRow = checker.scanLine(y);
         auto* averageRow = average.scanLine(y);
-        for (int x = 0; x < textureSize; ++x) {
+        for (int x = 0; x < textureWidth; ++x) {
             const uchar checkerValue = ((x + y) & 1) != 0 ? 255 : 0;
             auto* checkerPixel = checkerRow + x * 4;
             auto* averagePixel = averageRow + x * 4;
