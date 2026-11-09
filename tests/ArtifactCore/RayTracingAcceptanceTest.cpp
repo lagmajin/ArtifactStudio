@@ -3138,11 +3138,12 @@ TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedOpacityTextures) {
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto checkerPath =
-        tempDirectory / "artifact-rt-opacity-minified-checker.png";
-    const auto averagePath =
-        tempDirectory / "artifact-rt-opacity-minified-average.png";
+    QTemporaryDir opacityMipDirectory;
+    ASSERT_TRUE(opacityMipDirectory.isValid());
+    const auto checkerPath = std::filesystem::path(
+        opacityMipDirectory.filePath(QStringLiteral("checker.png")).toStdString());
+    const auto averagePath = std::filesystem::path(
+        opacityMipDirectory.filePath(QStringLiteral("average.png")).toStdString());
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -3198,9 +3199,6 @@ TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedOpacityTextures) {
             << "minified opacity checker sample " << i
             << " should match its average-alpha mip";
     }
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) {
