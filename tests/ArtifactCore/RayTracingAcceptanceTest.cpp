@@ -4671,6 +4671,23 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
                                         kRayTraceTestImageSize));
     EXPECT_LE(maximumGreenDifference(pointLightImage), 1.0e-5f)
         << "an area light with zero dimensions should use the point-light path";
+
+    auto rectangularAreaLight = greenAreaLight;
+    rectangularAreaLight.shadowParams[0] = -1.0f;
+    rectangularAreaLight.shadowParams[3] = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &rectangularAreaLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rectangularAreaImage = readOutputPixels();
+    auto diskAreaLight = rectangularAreaLight;
+    diskAreaLight.shadowParams[3] = 1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &diskAreaLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_GT(maximumGreenDifference(rectangularAreaImage), 0.001f)
+        << "disk and rectangular area-light sampling should produce distinct illumination";
 }
 
 TEST_F(RayTracingAcceptanceTest,
