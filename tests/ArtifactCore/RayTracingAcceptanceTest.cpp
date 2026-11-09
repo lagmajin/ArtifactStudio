@@ -7505,6 +7505,44 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                     nonFiniteRasterFilmIor[channel], 1.0e-5f)
             << "non-finite Raster film IOR should use its 1.33 fallback";
     }
+
+    const QVector3D neutralSubsurfaceRadius(1.0f, 1.0f, 1.0f);
+    const auto captureRasterSubsurface = [&](float weight, const QColor& color) {
+        renderer.setSubsurfaceFactors(weight, color, neutralSubsurfaceRadius,
+                                      1.4f, 0.0f);
+        return renderCenterPixel();
+    };
+    const QColor whiteSubsurfaceColor(255, 255, 255);
+    const auto burleyDiffuse = captureRasterSubsurface(
+        0.0f, whiteSubsurfaceColor);
+    const auto fullRasterSubsurface = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor);
+    float rasterSubsurfaceResponse = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterSubsurfaceResponse = std::max(
+            rasterSubsurfaceResponse,
+            std::fabs(fullRasterSubsurface[channel] - burleyDiffuse[channel]));
+    }
+    EXPECT_GT(rasterSubsurfaceResponse, 0.001f)
+        << "Raster subsurface weight should change direct diffuse response";
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        std::array<float, 3> tint{1.0f, 1.0f, 1.0f};
+        tint[tintChannel] = 0.0f;
+        const auto zeroTintChannel = captureRasterSubsurface(
+            1.0f, QColor::fromRgbF(tint[0], tint[1], tint[2]));
+        EXPECT_LT(zeroTintChannel[tintChannel],
+                  fullRasterSubsurface[tintChannel] - 0.001f)
+            << "Raster subsurface tint should reduce its channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(zeroTintChannel[channel],
+                            fullRasterSubsurface[channel], 1.0e-5f)
+                    << "Raster subsurface tint channel " << tintChannel
+                    << " should preserve output channel " << channel;
+            }
+        }
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
