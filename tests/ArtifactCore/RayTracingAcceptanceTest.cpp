@@ -6850,7 +6850,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         int aoValue = -1;
         std::array<float, 3> clearcoatTint{1.0f, 1.0f, 1.0f};
     };
-    constexpr std::array<MaterialProbe, 16> materialProbes{{
+    constexpr std::array<MaterialProbe, 18> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -6876,7 +6876,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
          {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f, -1,
          {0.02f, 0.1f, 1.0f}},
         {0.0f, -0.5f, 1.5f, {0.7f, 0.4f, 0.2f}},
-        {0.0f, 1.0f, 1.5f, {0.7f, 0.4f, 0.2f}}}};
+        {0.0f, 1.0f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {-0.5f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {1.5f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -7048,6 +7050,24 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                     1.0e-5f)
             << "negative RT base roughness should clamp to the 0.04 shader "
                "floor, channel " << channel;
+    }
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rasterProbePixels[16][channel],
+                    rasterProbePixels[2][channel], 1.0e-5f)
+            << "negative Raster metallic should clamp to zero, channel "
+            << channel;
+        EXPECT_NEAR(rtProbePixels[16][channel], rtProbePixels[2][channel],
+                    1.0e-5f)
+            << "negative RT metallic should clamp to zero, channel "
+            << channel;
+        EXPECT_NEAR(rasterProbePixels[17][channel],
+                    rasterProbePixels[4][channel], 1.0e-5f)
+            << "Raster metallic above one should clamp to one, channel "
+            << channel;
+        EXPECT_NEAR(rtProbePixels[17][channel], rtProbePixels[4][channel],
+                    1.0e-5f)
+            << "RT metallic above one should clamp to one, channel "
+            << channel;
     }
 
     auto nonUniformTransform = float4x4::Identity();
