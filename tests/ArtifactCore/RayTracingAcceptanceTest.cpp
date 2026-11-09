@@ -941,6 +941,22 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         << "slot 1 emission UV scale should preserve slot 0";
     rightMaterial.emissionTextureUvScale = 1.0f;
 
+    rightMaterial.emissionTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionRotationRight = pixelAt(24, 16);
+    const auto unchangedSlotEmissionRotationLeft = pixelAt(8, 16);
+    EXPECT_GT(slotEmissionRotationRight[0], slotEmissionRotationRight[2] + 0.5f)
+        << "slot 1 emission UV rotation should move its sample into red texels";
+    EXPECT_GT(unchangedSlotEmissionRotationLeft[0],
+              unchangedSlotEmissionRotationLeft[2] + 0.5f)
+        << "slot 1 emission UV rotation should preserve slot 0";
+    rightMaterial.emissionTextureUvRotationDegrees = 0.0f;
+
     leftMaterial.emissionTexture = ArtifactCore::UniString();
     rightMaterial.emissionTexture = ArtifactCore::UniString();
     leftMaterial.emissionStrength = 0.0f;
@@ -3705,6 +3721,18 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
     material.occlusionTexture = ArtifactCore::UniString(texturePath);
     material.occlusionTextureUvScale = 1.0f;
     material.occlusionTextureUvOffsetV = 0.0f;
+    material.occlusionTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_NEAR(pixelAt(8, 16)[0], openPixel[0], 0.025f)
+        << "occlusion 180-degree UV rotation should mirror the left sample";
+    EXPECT_NEAR(pixelAt(24, 16)[0], occludedPixel[0], 0.025f)
+        << "occlusion 180-degree UV rotation should mirror the right sample";
+    material.occlusionTextureUvRotationDegrees = 0.0f;
     material.occlusionStrength = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("ao-uv-sampling"), material));
