@@ -1508,6 +1508,78 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << "changing slot 1 specular tint should preserve slot 0, channel "
             << channel;
     }
+
+    const auto captureMaterialSlotPixels = [&](auto& pixels) {
+        if (!manager_->setInstancePbrMaterial(
+                ArtifactCore::UniString("material-slot-selection"),
+                leftMaterial, 0) ||
+            !manager_->setInstancePbrMaterial(
+                ArtifactCore::UniString("material-slot-selection"),
+                rightMaterial, 1) ||
+            !manager_->buildTLAS(context_.RawPtr()) ||
+            !manager_->ensurePipelineAndSBT(context_.RawPtr()) ||
+            !manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                     kRayTraceTestImageSize)) {
+            return false;
+        }
+        pixels[0] = pixelAt(8, 16);
+        pixels[1] = pixelAt(24, 16);
+        return true;
+    };
+
+    leftMaterial.specularTint[0] = rightMaterial.specularTint[0] = 1.0f;
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = rightMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatTint[0] = leftMaterial.clearcoatTint[1] =
+        leftMaterial.clearcoatTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> whiteClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(whiteClearcoatPixels));
+    leftMaterial.clearcoatTint[0] = 0.0f;
+    std::array<std::array<float, 4>, 2> tintedClearcoatLeftPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(tintedClearcoatLeftPixels));
+    EXPECT_GT(std::fabs(tintedClearcoatLeftPixels[0][0] -
+                        whiteClearcoatPixels[0][0]), 0.001f)
+        << "slot 0 clearcoat tint should change its reflection response";
+    EXPECT_NEAR(tintedClearcoatLeftPixels[1][0], whiteClearcoatPixels[1][0],
+                0.01f)
+        << "changing slot 0 clearcoat tint should preserve slot 1";
+    leftMaterial.clearcoatTint[0] = 1.0f;
+    rightMaterial.clearcoatTint[0] = 0.0f;
+    std::array<std::array<float, 4>, 2> tintedClearcoatRightPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(tintedClearcoatRightPixels));
+    EXPECT_NEAR(tintedClearcoatRightPixels[0][0], whiteClearcoatPixels[0][0],
+                0.01f)
+        << "changing slot 1 clearcoat tint should preserve slot 0";
+    EXPECT_GT(std::fabs(tintedClearcoatRightPixels[1][0] -
+                        whiteClearcoatPixels[1][0]), 0.001f)
+        << "slot 1 clearcoat tint should change its reflection response";
+
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = rightMaterial.sheen = 1.0f;
+    leftMaterial.sheenRoughness = rightMaterial.sheenRoughness = 0.4f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> whiteSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(whiteSheenPixels));
+    leftMaterial.sheenTint[0] = 0.0f;
+    std::array<std::array<float, 4>, 2> tintedSheenLeftPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(tintedSheenLeftPixels));
+    EXPECT_GT(std::fabs(tintedSheenLeftPixels[0][0] - whiteSheenPixels[0][0]),
+              0.001f)
+        << "slot 0 sheen tint should change its reflection response";
+    EXPECT_NEAR(tintedSheenLeftPixels[1][0], whiteSheenPixels[1][0], 0.01f)
+        << "changing slot 0 sheen tint should preserve slot 1";
+    leftMaterial.sheenTint[0] = 1.0f;
+    rightMaterial.sheenTint[0] = 0.0f;
+    std::array<std::array<float, 4>, 2> tintedSheenRightPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(tintedSheenRightPixels));
+    EXPECT_NEAR(tintedSheenRightPixels[0][0], whiteSheenPixels[0][0], 0.01f)
+        << "changing slot 1 sheen tint should preserve slot 0";
+    EXPECT_GT(std::fabs(tintedSheenRightPixels[1][0] - whiteSheenPixels[1][0]),
+              0.001f)
+        << "slot 1 sheen tint should change its reflection response";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
