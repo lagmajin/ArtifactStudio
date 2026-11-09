@@ -1709,6 +1709,63 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    const auto slotClearcoatRoughnessUvRampPath =
+        slotTextureDirectory.filePath(
+            QStringLiteral("slot-clearcoat-roughness-uv-ramp.png"));
+    QImage slotClearcoatRoughnessUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotClearcoatRoughnessUvRamp.isNull());
+    for (int y = 0; y < slotClearcoatRoughnessUvRamp.height(); ++y) {
+        auto* row = slotClearcoatRoughnessUvRamp.scanLine(y);
+        for (int x = 0; x < slotClearcoatRoughnessUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = x < 4 ? 0 : 255;
+            pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotClearcoatRoughnessUvRamp.save(
+        slotClearcoatRoughnessUvRampPath, "PNG"));
+    leftMaterial.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(slotClearcoatRoughnessUvRampPath);
+    leftMaterial.clearcoatRoughnessTextureUvSet = 0;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatRoughnessUv0Left = pixelAt(8, 16);
+    const auto slotClearcoatRoughnessUv0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatRoughnessUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotClearcoatRoughnessLeft = pixelAt(8, 16);
+    const float slotClearcoatRoughnessUvRoutingDifference = std::max(
+        std::fabs(slotClearcoatRoughnessUv1Right[0] -
+                  slotClearcoatRoughnessUv0Right[0]),
+        std::max(std::fabs(slotClearcoatRoughnessUv1Right[1] -
+                           slotClearcoatRoughnessUv0Right[1]),
+                 std::fabs(slotClearcoatRoughnessUv1Right[2] -
+                           slotClearcoatRoughnessUv0Right[2])));
+    EXPECT_GT(slotClearcoatRoughnessUvRoutingDifference, 0.001f)
+        << "slot 1 clearcoat-roughness UV set should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotClearcoatRoughnessLeft[channel],
+                    slotClearcoatRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 clearcoat-roughness UV set should preserve slot 0, channel "
+            << channel;
+    }
+
     leftMaterial.emissionTexture = ArtifactCore::UniString();
     rightMaterial.emissionTexture = ArtifactCore::UniString();
     leftMaterial.emissionStrength = rightMaterial.emissionStrength = 0.0f;
@@ -1723,6 +1780,8 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     leftMaterial.normalTexture = ArtifactCore::UniString();
     leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
     leftMaterial.clearcoatTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatRoughnessTextureUvSet = 0;
     leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
     leftMaterial.sheenColorTexture = ArtifactCore::UniString();
     leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
