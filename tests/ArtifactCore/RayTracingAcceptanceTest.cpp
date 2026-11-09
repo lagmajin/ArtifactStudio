@@ -4194,7 +4194,93 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
                "sample, channel " << channel;
     }
 
+    const auto verticalPackedMapPath = surfaceMapDirectory.filePath(
+        QStringLiteral("packed-metallic-roughness-v-ramp.png"));
+    QImage verticalPackedMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalPackedMap.isNull());
+    for (int y = 0; y < verticalPackedMap.height(); ++y) {
+        auto* row = verticalPackedMap.scanLine(y);
+        for (int x = 0; x < verticalPackedMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = y < 4 ? 0 : 255;
+            pixel[2] = 128;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalPackedMap.save(verticalPackedMapPath, "PNG"));
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.baseColorTexture = ArtifactCore::UniString{};
+    material.metallic = 0.0f;
+    material.roughness = 1.0f;
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(verticalPackedMapPath);
     material.metallicRoughnessUvOffsetU = 0.0f;
+    material.metallicRoughnessUvOffsetV = 0.0f;
+    material.metallicRoughnessUvScale = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedV0Top = pixelAt(12, 8);
+    const auto packedV0Bottom = pixelAt(12, 24);
+    const float packedV0Difference = std::max(
+        std::fabs(packedV0Top[0] - packedV0Bottom[0]),
+        std::max(std::fabs(packedV0Top[1] - packedV0Bottom[1]),
+                 std::fabs(packedV0Top[2] - packedV0Bottom[2])));
+    EXPECT_GT(packedV0Difference, 0.02f)
+        << "packed G roughness should vary between vertical UV samples";
+
+    material.metallicRoughnessUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedVOffsetTop = pixelAt(12, 8);
+    const auto packedVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedVOffsetTop[channel], packedV0Bottom[channel], 0.04f)
+            << "packed metallic-roughness V offset should mirror the top "
+               "sample, channel "
+            << channel;
+        EXPECT_NEAR(packedVOffsetBottom[channel], packedV0Top[channel], 0.04f)
+            << "packed metallic-roughness V offset should mirror the bottom "
+               "sample, channel "
+            << channel;
+    }
+
+    material.metallicRoughnessUvOffsetV = 0.0f;
+    material.metallicRoughnessUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedVScaleTop = pixelAt(12, 8);
+    const auto packedVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedVScaleTop[channel], packedV0Bottom[channel], 0.04f)
+            << "packed metallic-roughness V scale should repeat the bottom "
+               "sample on top, channel "
+            << channel;
+        EXPECT_NEAR(packedVScaleBottom[channel], packedV0Top[channel], 0.04f)
+            << "packed metallic-roughness V scale should repeat the top "
+               "sample on bottom, channel "
+            << channel;
+    }
+
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.metallicRoughnessUvOffsetV = 0.0f;
+    material.metallicRoughnessUvScale = 1.0f;
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(metallicMapPath.string());
+    material.metallic = 1.0f;
     material.roughness = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-color-surface-maps"), material));
