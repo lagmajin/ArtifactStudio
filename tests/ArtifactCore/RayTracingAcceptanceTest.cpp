@@ -7411,6 +7411,53 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                     smoothRasterDiffuse[channel], 1.0e-5f)
             << "non-finite Raster diffuse roughness should use its zero fallback";
     }
+
+    renderer.setPrincipledFactors(0.5f, 1.5f, 0.0f, 0.0f, 0.04f);
+    const auto captureRasterThinFilm = [&](float thicknessNm, float filmIor) {
+        renderer.setThinFilm(thicknessNm, filmIor);
+        return renderCenterPixel();
+    };
+    const auto noRasterThinFilm = captureRasterThinFilm(0.0f, 1.33f);
+    const auto enabledRasterThinFilm = captureRasterThinFilm(400.0f, 1.33f);
+    float rasterThinFilmResponse = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterThinFilmResponse = std::max(
+            rasterThinFilmResponse,
+            std::fabs(enabledRasterThinFilm[channel] - noRasterThinFilm[channel]));
+    }
+    EXPECT_GT(rasterThinFilmResponse, 0.001f)
+        << "Raster specular response should vary with finite film thickness";
+    const auto belowRasterFilmThickness = captureRasterThinFilm(-10.0f, 1.33f);
+    const auto maximumRasterFilmThickness = captureRasterThinFilm(1000.0f, 1.33f);
+    const auto aboveRasterFilmThickness = captureRasterThinFilm(1200.0f, 1.33f);
+    const auto nonFiniteRasterFilmThickness = captureRasterThinFilm(
+        std::numeric_limits<float>::quiet_NaN(), 1.33f);
+    const auto minimumRasterFilmIor = captureRasterThinFilm(400.0f, 1.0f);
+    const auto belowRasterFilmIor = captureRasterThinFilm(400.0f, 0.5f);
+    const auto maximumRasterFilmIor = captureRasterThinFilm(400.0f, 2.5f);
+    const auto aboveRasterFilmIor = captureRasterThinFilm(400.0f, 3.0f);
+    const auto nonFiniteRasterFilmIor = captureRasterThinFilm(
+        400.0f, std::numeric_limits<float>::quiet_NaN());
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowRasterFilmThickness[channel],
+                    noRasterThinFilm[channel], 1.0e-5f)
+            << "Raster film thickness below zero should clamp to zero";
+        EXPECT_NEAR(maximumRasterFilmThickness[channel],
+                    aboveRasterFilmThickness[channel], 1.0e-5f)
+            << "Raster film thickness above 1000 nm should clamp to 1000 nm";
+        EXPECT_NEAR(nonFiniteRasterFilmThickness[channel],
+                    noRasterThinFilm[channel], 1.0e-5f)
+            << "non-finite Raster film thickness should use its zero fallback";
+        EXPECT_NEAR(minimumRasterFilmIor[channel],
+                    belowRasterFilmIor[channel], 1.0e-5f)
+            << "Raster film IOR below one should clamp to one";
+        EXPECT_NEAR(maximumRasterFilmIor[channel],
+                    aboveRasterFilmIor[channel], 1.0e-5f)
+            << "Raster film IOR above 2.5 should clamp to 2.5";
+        EXPECT_NEAR(enabledRasterThinFilm[channel],
+                    nonFiniteRasterFilmIor[channel], 1.0e-5f)
+            << "non-finite Raster film IOR should use its 1.33 fallback";
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
