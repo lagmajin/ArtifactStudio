@@ -399,6 +399,32 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
     EXPECT_GT(coatNormalRotationDifference, 0.001f)
         << "clearcoat normal UV rotation should change the coat reflection "
            "direction";
+
+    auto captureClearcoatIor = [this, &coatedMaterial](float clearcoatIOR) {
+        coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+        coatedMaterial.clearcoatNormalStrength = 1.0f;
+        coatedMaterial.clearcoatIOR = clearcoatIOR;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumClearcoatIorPixel = captureClearcoatIor(1.0f);
+    const auto belowMinimumClearcoatIorPixel = captureClearcoatIor(0.5f);
+    const auto maximumClearcoatIorPixel = captureClearcoatIor(2.0f);
+    const auto aboveMaximumClearcoatIorPixel = captureClearcoatIor(3.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumClearcoatIorPixel[channel],
+                    minimumClearcoatIorPixel[channel], 1.0e-5f)
+            << "clearcoat IOR below 1.0 should clamp to the lower bound";
+        EXPECT_NEAR(aboveMaximumClearcoatIorPixel[channel],
+                    maximumClearcoatIorPixel[channel], 1.0e-5f)
+            << "clearcoat IOR above 2.0 should clamp to the upper bound";
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
