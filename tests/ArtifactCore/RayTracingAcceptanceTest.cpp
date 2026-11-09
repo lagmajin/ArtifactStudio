@@ -613,9 +613,23 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     leftMaterial.emissionStrength = 1.0f;
     ArtifactCore::RTPbrMaterial rightMaterial = leftMaterial;
     rightMaterial.emissionColor[0] = 0.0f;
-    rightMaterial.emissionColor[2] = 1.0f;
+    rightMaterial.specular = 0.0f;
+    rightMaterial.ior = 1.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto initialRightPixel = pixelAt(24, 16);
+    EXPECT_LT(std::max(initialRightPixel[0],
+                       std::max(initialRightPixel[1], initialRightPixel[2])),
+              0.05f)
+        << "the initial second material slot should produce no emission";
+
+    rightMaterial.emissionColor[2] = 1.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
