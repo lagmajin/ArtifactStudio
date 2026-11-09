@@ -1,5 +1,6 @@
 #include <QColor>
 #include <QString>
+#include <QTemporaryDir>
 #include <QVector3D>
 
 #include <gtest/gtest.h>
@@ -15,6 +16,7 @@ namespace {
 using ArtifactCore::Material;
 using ArtifactCore::MaterialAlphaMode;
 using ArtifactCore::MaterialPresetKind;
+using ArtifactCore::MaterialType;
 using ArtifactCore::MaterialTextureUvTransform;
 
 TEST(MaterialContractTest, StudioPresetsKeepTheirPbrCharacter)
@@ -140,6 +142,31 @@ TEST(MaterialContractTest, MaterialGraphJsonPresenceIgnoresWhitespaceOnlyText)
 
     material.setMaterialGraphJson(ArtifactCore::UniString{});
     EXPECT_FALSE(material.hasMaterialGraphJson());
+}
+
+TEST(MaterialContractTest, MaterialXDocumentRoundTripsUtf8AndSetsMaterialType)
+{
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+
+    const QString document = QStringLiteral(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<materialx version=\"1.38\"><material name=\"陶器\"/></materialx>");
+    const QString path = temporaryDirectory.filePath(
+        QStringLiteral("test-material.mtlx"));
+    Material source;
+    source.setMaterialXDocument(ArtifactCore::UniString(document));
+
+    EXPECT_FALSE(source.saveMaterialXDocument(QString{}));
+    ASSERT_TRUE(source.saveMaterialXDocument(path));
+
+    Material loaded;
+    EXPECT_FALSE(loaded.loadMaterialXDocument(QString{}));
+    EXPECT_FALSE(loaded.loadMaterialXDocument(
+        temporaryDirectory.filePath(QStringLiteral("missing.mtlx"))));
+    ASSERT_TRUE(loaded.loadMaterialXDocument(path));
+    EXPECT_EQ(loaded.materialXDocument().toQString(), document);
+    EXPECT_EQ(loaded.type(), MaterialType::MaterialX);
 }
 
 TEST(MaterialContractTest, TextureUvTransformsAreIndependentAndSanitized)
