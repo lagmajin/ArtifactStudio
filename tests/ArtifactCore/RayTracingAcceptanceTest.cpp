@@ -5648,6 +5648,47 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
             << "face-forward shading should preserve transmission for reversed "
                "vertex normals, channel " << channel;
     }
+
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-thin-wall-transmission"),
+        vertices.data(), 3, indices.data(), 3, normals.data()));
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.2f;
+    material.sheen = 1.0f;
+    material.sheenRoughness = 0.25f;
+    material.transmission = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto layeredFullTransmission = pixelAt(16, 16);
+
+    material.transmission = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto layeredZeroTransmission = pixelAt(16, 16);
+    float layeredTransmissionResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_TRUE(std::isfinite(layeredFullTransmission[channel]))
+            << "layered transmission should remain finite, channel " << channel;
+        EXPECT_GE(layeredFullTransmission[channel], 0.0f)
+            << "layered transmission should remain non-negative, channel "
+            << channel;
+        layeredTransmissionResponse = std::max(
+            layeredTransmissionResponse,
+            std::fabs(layeredFullTransmission[channel] -
+                      layeredZeroTransmission[channel]));
+    }
+    EXPECT_GT(layeredTransmissionResponse, 0.001f)
+        << "transmission should contribute alongside clearcoat and sheen";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
