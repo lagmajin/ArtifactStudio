@@ -225,6 +225,30 @@ TEST(MaterialContractTest, ColorAndEmissionInputsUseStableFallbacks)
     EXPECT_FLOAT_EQ(material.emissionStrength(), 4.5f);
 }
 
+TEST(MaterialContractTest, PrincipledTintColorsUseIndependentWhiteFallbacks)
+{
+    Material material;
+    material.setSpecularTint(QColor{});
+    material.setClearcoatTint(QColor{});
+    material.setSheenTint(QColor{});
+    material.setSubsurfaceColor(QColor{});
+
+    EXPECT_EQ(material.specularTint(), QColor(255, 255, 255));
+    EXPECT_EQ(material.clearcoatTint(), QColor(255, 255, 255));
+    EXPECT_EQ(material.sheenTint(), QColor(255, 255, 255));
+    EXPECT_EQ(material.subsurfaceColor(), QColor(255, 255, 255));
+
+    material.setSpecularTint(QColor(25, 60, 95));
+    material.setClearcoatTint(QColor(110, 145, 180));
+    material.setSheenTint(QColor(195, 130, 65));
+    material.setSubsurfaceColor(QColor(220, 80, 45));
+
+    EXPECT_EQ(material.specularTint(), QColor(25, 60, 95));
+    EXPECT_EQ(material.clearcoatTint(), QColor(110, 145, 180));
+    EXPECT_EQ(material.sheenTint(), QColor(195, 130, 65));
+    EXPECT_EQ(material.subsurfaceColor(), QColor(220, 80, 45));
+}
+
 TEST(MaterialContractTest, MaterialGraphJsonPresenceIgnoresWhitespaceOnlyText)
 {
     Material material;
