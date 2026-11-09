@@ -2421,7 +2421,7 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
                 const size_t offset = static_cast<size_t>(y * 8 + x) * 4;
                 pixels[offset + 0] = x < 4 ? 4.0f : 0.0f;
                 pixels[offset + 1] = x < 4 ? 0.0f : 2.0f;
-                pixels[offset + 2] = 0.25f;
+                pixels[offset + 2] = x < 4 ? 0.25f : 0.0f;
                 pixels[offset + 3] = 1.0f;
             }
         }
@@ -2446,8 +2446,68 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
     EXPECT_NEAR(leftHdrEmission[2], 0.25f, 0.02f);
     EXPECT_GT(rightHdrEmission[1], 1.5f);
     EXPECT_LT(rightHdrEmission[0], 0.1f);
-    EXPECT_NEAR(rightHdrEmission[2], 0.25f, 0.02f);
+    EXPECT_LT(rightHdrEmission[2], 0.02f)
+        << "zero-valued HDR texture channels should suppress scalar emission";
 
+    material.emissionColor[0] = 0.5f;
+    material.emissionColor[1] = 0.25f;
+    material.emissionColor[2] = 0.75f;
+    material.emissionStrength = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto modulatedHdrEmission = pixelAt(8, 16);
+    EXPECT_NEAR(modulatedHdrEmission[0], 4.0f * 0.214041f * 2.0f, 0.03f)
+        << "HDR emission red should multiply the sRGB-decoded scalar color and strength";
+    EXPECT_LT(modulatedHdrEmission[1], 0.02f);
+    EXPECT_NEAR(modulatedHdrEmission[2], 0.25f * 0.522522f * 2.0f, 0.03f)
+        << "HDR emission blue should modulate its independent scalar channel";
+
+    constexpr std::array<float, 8 * 2 * 4> sanitizedHdrPixels = [] {
+        std::array<float, 8 * 2 * 4> pixels{};
+        for (int y = 0; y < 2; ++y) {
+            for (int x = 0; x < 8; ++x) {
+                const size_t offset = static_cast<size_t>(y * 8 + x) * 4;
+                pixels[offset + 0] = x < 4
+                    ? std::numeric_limits<float>::quiet_NaN() : -1.0f;
+                pixels[offset + 1] = 0.5f;
+                pixels[offset + 2] = 0.25f;
+                pixels[offset + 3] = 1.0f;
+            }
+        }
+        return pixels;
+    }();
+    const QString sanitizedHdrTexturePath = temporaryDirectory.filePath(
+        QStringLiteral("emission-sanitized.exr"));
+    ASSERT_TRUE(exr.writeRGBA32F(sanitizedHdrTexturePath,
+                                 sanitizedHdrPixels.data(), 8, 2));
+    material.emissionTexture = ArtifactCore::UniString(sanitizedHdrTexturePath);
+    material.emissionColor[0] = material.emissionColor[1] =
+        material.emissionColor[2] = 1.0f;
+    material.emissionStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto nonFiniteHdrEmission = pixelAt(8, 16);
+    const auto negativeHdrEmission = pixelAt(24, 16);
+    EXPECT_NEAR(nonFiniteHdrEmission[0], 0.0f, 1.0e-5f)
+        << "non-finite HDR emission texture red should sanitize to zero";
+    EXPECT_NEAR(negativeHdrEmission[0], 0.0f, 1.0e-5f)
+        << "negative HDR emission texture red should sanitize to zero";
+    EXPECT_NEAR(nonFiniteHdrEmission[1], 0.5f, 0.02f);
+    EXPECT_NEAR(nonFiniteHdrEmission[2], 0.25f, 0.02f);
+    EXPECT_NEAR(negativeHdrEmission[1], 0.5f, 0.02f);
+    EXPECT_NEAR(negativeHdrEmission[2], 0.25f, 0.02f);
+
+    material.emissionColor[0] = material.emissionColor[1] =
+        material.emissionColor[2] = 1.0f;
+    material.emissionStrength = 1.0f;
     material.emissionTexture = ArtifactCore::UniString();
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-emission-texture"), material));
