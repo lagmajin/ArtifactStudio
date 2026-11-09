@@ -921,6 +921,102 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    const auto smoothRoughnessPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-roughness-smooth.png"));
+    const auto roughRoughnessPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-roughness-rough.png"));
+    QImage smoothRoughnessMap(2, 2, QImage::Format_RGBA8888);
+    QImage roughRoughnessMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(smoothRoughnessMap.isNull());
+    ASSERT_FALSE(roughRoughnessMap.isNull());
+    smoothRoughnessMap.fill(QColor(51, 51, 51, 255));
+    roughRoughnessMap.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(smoothRoughnessMap.save(smoothRoughnessPath, "PNG"));
+    ASSERT_TRUE(roughRoughnessMap.save(roughRoughnessPath, "PNG"));
+
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallicTexture = ArtifactCore::UniString();
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 1.0f;
+    leftMaterial.roughnessTexture = ArtifactCore::UniString(smoothRoughnessPath);
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString();
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    rightMaterial = leftMaterial;
+    rightMaterial.roughnessTexture = ArtifactCore::UniString(roughRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothRoughnessLeftPixel = pixelAt(8, 16);
+    const auto roughRoughnessRightPixel = pixelAt(24, 16);
+
+    leftMaterial.roughnessTexture = ArtifactCore::UniString(roughRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughRoughnessLeftPixel = pixelAt(8, 16);
+    const auto unchangedRoughRoughnessRightPixel = pixelAt(24, 16);
+    const float leftRoughnessMapDifference = std::max(
+        std::fabs(roughRoughnessLeftPixel[0] - smoothRoughnessLeftPixel[0]),
+        std::max(std::fabs(roughRoughnessLeftPixel[1] -
+                           smoothRoughnessLeftPixel[1]),
+                 std::fabs(roughRoughnessLeftPixel[2] -
+                           smoothRoughnessLeftPixel[2])));
+    EXPECT_GT(leftRoughnessMapDifference, 0.001f)
+        << "slot 0 roughness map should change its specular response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughRoughnessRightPixel[channel],
+                    roughRoughnessRightPixel[channel], 0.01f)
+            << "changing slot 0 roughness map should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.roughnessTexture = ArtifactCore::UniString(smoothRoughnessPath);
+    rightMaterial.roughnessTexture = ArtifactCore::UniString(smoothRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedSmoothRoughnessLeftPixel = pixelAt(8, 16);
+    const auto smoothRoughnessRightPixel = pixelAt(24, 16);
+    const float rightRoughnessMapDifference = std::max(
+        std::fabs(smoothRoughnessRightPixel[0] - roughRoughnessRightPixel[0]),
+        std::max(std::fabs(smoothRoughnessRightPixel[1] -
+                           roughRoughnessRightPixel[1]),
+                 std::fabs(smoothRoughnessRightPixel[2] -
+                           roughRoughnessRightPixel[2])));
+    EXPECT_GT(rightRoughnessMapDifference, 0.001f)
+        << "slot 1 roughness map should change its specular response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSmoothRoughnessLeftPixel[channel],
+                    smoothRoughnessLeftPixel[channel], 0.01f)
+            << "changing slot 1 roughness map should preserve slot 0, channel "
+            << channel;
+    }
+    leftMaterial.roughnessTexture = ArtifactCore::UniString();
+    rightMaterial.roughnessTexture = ArtifactCore::UniString();
+
     const auto flatNormalPath = slotTextureDirectory.filePath(
         QStringLiteral("slot-normal-flat.png"));
     const auto tiltedNormalPath = slotTextureDirectory.filePath(
