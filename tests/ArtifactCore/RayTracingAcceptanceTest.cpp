@@ -3,6 +3,7 @@
 #include <DeviceContext.h>
 #include <EngineFactoryVk.h>
 #include <QColor>
+#include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QString>
@@ -3919,31 +3920,33 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     const auto transmittedPixel = renderCenterPixel();
     EXPECT_NEAR(transmittedPixel[0], 0.24f, 0.008f);
 
-    const char* configuredOutputDir = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
-    const auto outputDir = configuredOutputDir && configuredOutputDir[0] != '\0'
-        ? std::filesystem::path(configuredOutputDir)
-        : std::filesystem::current_path() / "ray-tracing-frames";
-    std::filesystem::create_directories(outputDir);
-    const auto hdrPath = outputDir / "mesh-renderer-hdr-source.hdr";
-    std::ofstream hdrFile(hdrPath, std::ios::binary);
-    ASSERT_TRUE(hdrFile.is_open());
-    hdrFile << "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 4 +X 8\n";
+    const auto hdrPath = aoInputDirectory.filePath(
+        QStringLiteral("mesh-renderer-hdr-source.hdr"));
+    QFile hdrFile(hdrPath);
+    ASSERT_TRUE(hdrFile.open(QIODevice::WriteOnly));
+    constexpr char hdrHeader[] =
+        "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 4 +X 8\n";
+    ASSERT_EQ(hdrFile.write(hdrHeader, sizeof(hdrHeader) - 1),
+              static_cast<qint64>(sizeof(hdrHeader) - 1));
     constexpr std::array<std::uint8_t, 4> rgbePixel{128, 32, 8, 131};
     for (int y = 0; y < 4; ++y) {
         constexpr std::array<std::uint8_t, 4> scanlineHeader{2, 2, 0, 8};
-        hdrFile.write(reinterpret_cast<const char*>(scanlineHeader.data()),
-                       static_cast<std::streamsize>(scanlineHeader.size()));
+        ASSERT_EQ(hdrFile.write(
+                      reinterpret_cast<const char*>(scanlineHeader.data()),
+                      static_cast<qint64>(scanlineHeader.size())),
+                  static_cast<qint64>(scanlineHeader.size()));
         for (std::uint8_t channel : rgbePixel) {
             const std::array<std::uint8_t, 2> run{136, channel};
-            hdrFile.write(reinterpret_cast<const char*>(run.data()),
-                           static_cast<std::streamsize>(run.size()));
+            ASSERT_EQ(hdrFile.write(reinterpret_cast<const char*>(run.data()),
+                                    static_cast<qint64>(run.size())),
+                      static_cast<qint64>(run.size()));
         }
     }
+    ASSERT_TRUE(hdrFile.flush());
     hdrFile.close();
-    ASSERT_TRUE(hdrFile.good());
 
     ArtifactCore::ImageImporter hdrImporter;
-    ASSERT_TRUE(hdrImporter.open(QString::fromStdString(hdrPath.string())));
+    ASSERT_TRUE(hdrImporter.open(hdrPath));
     const auto hdrImage = hdrImporter.readImage();
     ASSERT_TRUE(hdrImage.isValid());
     EXPECT_TRUE(hdrImage.isHDR);
@@ -3955,8 +3958,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     EXPECT_NEAR(decodedHdrPixel[1], 1.0f, 0.01f);
     EXPECT_NEAR(decodedHdrPixel[2], 0.25f, 0.01f);
 
-    const auto hdrPathString = QString::fromStdString(hdrPath.string());
-    ASSERT_TRUE(renderer.setEnvironmentMap(hdrPathString, 1.0f));
+    ASSERT_TRUE(renderer.setEnvironmentMap(hdrPath, 1.0f));
     ASSERT_TRUE(renderer.hasEnvironmentMap());
     instance.color[0] = 1.0f;
     instance.color[1] = 0.0f;
@@ -3965,7 +3967,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     renderer.setPbrFactors(1.0f, 0.04f, 1.0f, 1.0f);
     renderer.setPrincipledFactors(0.5f, 1.5f, 0.0f, 0.0f, 0.04f);
     const auto hdrLitPixel = renderCenterPixel();
-    ASSERT_TRUE(renderer.setEnvironmentMap(hdrPathString, 0.25f));
+    ASSERT_TRUE(renderer.setEnvironmentMap(hdrPath, 0.25f));
     const auto quarterIntensityPixel = renderCenterPixel();
     EXPECT_GT(hdrLitPixel[0], 2.0f);
     EXPECT_NEAR(hdrLitPixel[0] - 0.24f,
