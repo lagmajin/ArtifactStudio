@@ -2429,7 +2429,7 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
     leftMaterial.opacityTexture = ArtifactCore::UniString(uvSetRampPath);
     rightMaterial.opacityTexture = ArtifactCore::UniString(uvSetRampPath);
     leftMaterial.opacityTextureUvSet = 0;
-    rightMaterial.opacityTextureUvSet = 1;
+    rightMaterial.opacityTextureUvSet = 0;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-opacity-material-slots"),
         leftMaterial, 0));
@@ -2440,11 +2440,23 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
     ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
     ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
                                         kRayTraceTestImageSize));
-    const auto uv0SlotPixel = pixelAt(8, 16);
-    const auto uv1SlotPixel = pixelAt(24, 16);
-    EXPECT_GT(uv0SlotPixel[0], uv0SlotPixel[2] + 0.5f)
+    const auto uv0SlotOpaquePixel = pixelAt(8, 16);
+    const auto uv0SlotCutoutPixel = pixelAt(24, 16);
+    EXPECT_GT(uv0SlotOpaquePixel[0], uv0SlotOpaquePixel[2] + 0.5f)
         << "the left slot should sample its opaque UV0 half";
-    EXPECT_GT(uv1SlotPixel[1], uv1SlotPixel[2] + 0.5f)
+    EXPECT_GT(uv0SlotCutoutPixel[2], uv0SlotCutoutPixel[1] + 0.5f)
+        << "the right slot should cut out its transparent UV0 half";
+
+    rightMaterial.opacityTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1SlotOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(uv1SlotOpaquePixel[1], uv1SlotOpaquePixel[2] + 0.5f)
         << "the right slot should independently sample its mirrored UV1 half";
 
     leftMaterial.opacityTexture = ArtifactCore::UniString(opaquePath);
