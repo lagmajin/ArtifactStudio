@@ -348,6 +348,22 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
                  std::fabs(coatedPixel[2] - basePixel[2])));
     EXPECT_GT(maximumChannelDifference, 0.001f);
 
+    coatedMaterial.clearcoatRoughness = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughCoatedPixel = pixelAt(16, 16);
+    const float clearcoatRoughnessDifference = std::max(
+        std::fabs(roughCoatedPixel[0] - coatedPixel[0]),
+        std::max(std::fabs(roughCoatedPixel[1] - coatedPixel[1]),
+                 std::fabs(roughCoatedPixel[2] - coatedPixel[2])));
+    EXPECT_GT(clearcoatRoughnessDifference, 0.001f)
+        << "clearcoat roughness should change the direct-light reflection response";
+    coatedMaterial.clearcoatRoughness = 0.2f;
+
     QTemporaryDir coatNormalDirectory;
     ASSERT_TRUE(coatNormalDirectory.isValid());
     const QString coatNormalPath = coatNormalDirectory.filePath(
