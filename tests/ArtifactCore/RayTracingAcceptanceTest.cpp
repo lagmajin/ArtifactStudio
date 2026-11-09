@@ -2029,6 +2029,35 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    rightMaterial.sheenColorTextureUvSet = 0;
+    rightMaterial.sheenColorTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotSheenOffsetLeft = pixelAt(8, 16);
+    const float slotSheenOffsetDifference = std::max(
+        std::fabs(slotSheenOffsetRight[0] - slotSheenUv0Right[0]),
+        std::max(std::fabs(slotSheenOffsetRight[1] - slotSheenUv0Right[1]),
+                 std::fabs(slotSheenOffsetRight[2] - slotSheenUv0Right[2])));
+    EXPECT_GT(slotSheenOffsetDifference, 0.001f)
+        << "slot 1 sheen-color UV offset should change its sampled texel";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(slotSheenOffsetRight[channel], slotSheenUv0Left[channel],
+                    0.035f)
+            << "slot 1 sheen-color UV offset should move its sample to red, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(unchangedSlotSheenOffsetLeft[channel],
+                    slotSheenUv0Left[channel], 0.01f)
+            << "slot 1 sheen-color UV offset should preserve slot 0, channel "
+            << channel;
+    }
+    rightMaterial.sheenColorTextureUvOffsetU = 0.0f;
+
     const auto smoothSheenRoughnessPath = slotTextureDirectory.filePath(
         QStringLiteral("slot-sheen-roughness-smooth.png"));
     const auto roughSheenRoughnessPath = slotTextureDirectory.filePath(
