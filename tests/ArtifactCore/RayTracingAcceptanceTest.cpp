@@ -1956,6 +1956,8 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
     constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
                                        1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -1969,7 +1971,8 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("pbr-normal-map"), vertices.data(), 4,
-        indices.data(), 6, nullptr, nullptr, uvs.data()));
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
 
     const auto normalPath = std::filesystem::temp_directory_path() /
                             "artifact-rt-normal-map.png";
@@ -2024,6 +2027,21 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                                         kRayTraceTestImageSize));
     const auto disabledRight = pixelAt(24, 16);
     EXPECT_NEAR(disabledRight[0], flatRight[0], 0.01f);
+
+    material.normalStrength = 1.0f;
+    material.normalUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1Left = pixelAt(8, 16);
+    const auto uv1Right = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(uv1Left[0] - flatLeft[0]), 0.05f)
+        << "UV1 mirroring should select the tilted normal texels on the left";
+    EXPECT_NEAR(uv1Right[0], flatRight[0], 0.03f)
+        << "UV1 mirroring should select the flat normal texels on the right";
     std::error_code ignored;
     std::filesystem::remove(normalPath, ignored);
 }
