@@ -1,4 +1,5 @@
 #include <QColor>
+#include <QString>
 
 #include <gtest/gtest.h>
 
@@ -6,6 +7,7 @@
 #include <utility>
 
 import Material.Material;
+import Utils.String.UniString;
 
 namespace {
 
@@ -110,6 +112,37 @@ TEST(MaterialContractTest, TextureUvTransformsAreIndependentAndSanitized)
     EXPECT_FLOAT_EQ(sheen.offsetU, 17.0f);
     EXPECT_FLOAT_EQ(sheen.offsetV, -23.0f);
     EXPECT_EQ(sheen.uvSet, 0);
+}
+
+TEST(MaterialContractTest, TextureMapPathsAndPresenceFlagsRemainIndependent)
+{
+    Material material;
+    material.setBaseColorTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/base-color.png")));
+    material.setMetallicRoughnessTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/packed-mr.png")));
+    material.setMetallicTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/metallic.png")));
+    material.setRoughnessTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/roughness.png")));
+
+    EXPECT_TRUE(material.hasBaseColorTexture());
+    EXPECT_TRUE(material.hasMetallicRoughnessTexture());
+    EXPECT_TRUE(material.hasMetallicTexture());
+    EXPECT_TRUE(material.hasRoughnessTexture());
+    EXPECT_EQ(material.baseColorTexture().toQString(),
+              QStringLiteral("maps/base-color.png"));
+    EXPECT_EQ(material.metallicRoughnessTexture().toQString(),
+              QStringLiteral("maps/packed-mr.png"));
+    EXPECT_EQ(material.metallicTexture().toQString(),
+              QStringLiteral("maps/metallic.png"));
+    EXPECT_EQ(material.roughnessTexture().toQString(),
+              QStringLiteral("maps/roughness.png"));
+
+    material.setMetallicTexture(ArtifactCore::UniString(QStringLiteral("  ")));
+    EXPECT_FALSE(material.hasMetallicTexture());
+    EXPECT_TRUE(material.hasMetallicRoughnessTexture());
+    EXPECT_TRUE(material.hasRoughnessTexture());
 }
 
 TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
