@@ -9616,10 +9616,14 @@ TEST_F(RayTracingAcceptanceTest,
     constexpr std::array<float, 16> constantShadowUvs{
         0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f,
         0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f};
+    constexpr std::array<float, 16> opaqueShadowUvs{
+        0.75f, 0.5f, 0.75f, 0.5f, 0.75f, 0.5f, 0.75f, 0.5f,
+        0.75f, 0.5f, 0.75f, 0.5f, 0.75f, 0.5f, 0.75f, 0.5f};
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("multi-slot-shadow-blockers"),
         blockerVertices.data(), 8, blockerIndices.data(), 12, nullptr,
-        blockerMaterialIndices.data(), constantShadowUvs.data()));
+        blockerMaterialIndices.data(), constantShadowUvs.data(), nullptr,
+        opaqueShadowUvs.data()));
     for (int slotIndex = 0; slotIndex < 2; ++slotIndex) {
         auto& slotMaterial = slotIndex == 0 ? slot0Material : slot1Material;
         slotMaterial.alphaMode = 1;
@@ -9627,6 +9631,7 @@ TEST_F(RayTracingAcceptanceTest,
         slotMaterial.opacity = 1.0f;
         slotMaterial.baseColorAlpha = 1.0f;
         slotMaterial.opacityTexture = ArtifactCore::UniString(alphaUvRampPath);
+        slotMaterial.opacityTextureUvSet = 0;
         slotMaterial.opacityTextureUvOffsetU = 0.0f;
         ASSERT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString("multi-slot-shadow-blockers"),
@@ -9638,6 +9643,22 @@ TEST_F(RayTracingAcceptanceTest,
         << "transparent opacity texels should pass the slot 0 shadow ray";
     EXPECT_GT(rightUvRampOpen, rightSlotBlocked + 0.02f)
         << "transparent opacity texels should pass the slot 1 shadow ray";
+
+    slot1Material.opacityTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float unchangedLeftUvSetOpen = traceReceiverGreen(-1.0f);
+    const float rightUvSetBlocked = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(unchangedLeftUvSetOpen, leftUvRampOpen, 0.02f)
+        << "slot 1 opacity UV set should preserve slot 0 shadow transmission";
+    EXPECT_NEAR(rightUvSetBlocked, rightSlotBlocked, 0.02f)
+        << "slot 1 opacity UV set should sample opaque texels in its shadow ray";
+
+    slot1Material.opacityTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
 
     slot0Material.opacityTextureUvOffsetU = 0.5f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
