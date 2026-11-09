@@ -4227,6 +4227,44 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
     EXPECT_GT(roughnessUv0Difference, 0.02f)
         << "the clearcoat roughness map should distinguish the UV0 halves";
 
+    QImage clearcoatRoughnessOtherChannelsChanged = clearcoatRoughnessMap;
+    for (int y = 0; y < clearcoatRoughnessOtherChannelsChanged.height(); ++y) {
+        auto* row = clearcoatRoughnessOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < clearcoatRoughnessOtherChannelsChanged.width();
+             ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[2] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const QString clearcoatRoughnessOtherChannelsPath =
+        textureDirectory.filePath(
+            QStringLiteral("clearcoat-roughness-other-channels.png"));
+    ASSERT_TRUE(clearcoatRoughnessOtherChannelsChanged.save(
+        clearcoatRoughnessOtherChannelsPath, "PNG"));
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(clearcoatRoughnessOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto changedRoughnessOtherChannelsLeft = pixelAt(8, 16);
+    const auto changedRoughnessOtherChannelsRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(changedRoughnessOtherChannelsLeft[channel],
+                    roughnessUv0Left[channel], 0.02f)
+            << "clearcoat roughness should read green independently, left "
+            << "channel " << channel;
+        EXPECT_NEAR(changedRoughnessOtherChannelsRight[channel],
+                    roughnessUv0Right[channel], 0.02f)
+            << "clearcoat roughness should read green independently, right "
+            << "channel " << channel;
+    }
+
     material.clearcoatRoughnessTexture =
         ArtifactCore::UniString(smoothRoughnessPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
