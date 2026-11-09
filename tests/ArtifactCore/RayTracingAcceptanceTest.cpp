@@ -867,6 +867,77 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
     ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
     ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
                                         kRayTraceTestImageSize));
+    const auto baseColorUv0Left = pixelAt(8, 16);
+    const auto baseColorUv0Right = pixelAt(24, 16);
+    EXPECT_GT(baseColorUv0Left[0], baseColorUv0Left[2] + 0.1f);
+    EXPECT_GT(baseColorUv0Right[2], baseColorUv0Right[0] + 0.1f);
+
+    material.baseColorUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorOffsetLeft = pixelAt(8, 16);
+    const auto baseColorOffsetRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(baseColorOffsetLeft[channel], baseColorUv0Right[channel],
+                    0.035f)
+            << "base-color U offset should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(baseColorOffsetRight[channel], baseColorUv0Left[channel],
+                    0.035f)
+            << "base-color U offset should mirror the right sample, channel "
+            << channel;
+    }
+
+    material.baseColorUvOffsetU = 0.0f;
+    material.baseColorTexture = ArtifactCore::UniString{};
+    material.metallicRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(metallicMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMapUv0Left = pixelAt(8, 16);
+    const auto packedMapUv0Right = pixelAt(24, 16);
+    EXPECT_GT(packedMapUv0Left[0], packedMapUv0Left[2] + 0.1f);
+    EXPECT_GT(packedMapUv0Right[2], packedMapUv0Right[0] + 0.1f);
+
+    material.metallicRoughnessUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMapOffsetLeft = pixelAt(8, 16);
+    const auto packedMapOffsetRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedMapOffsetLeft[channel], packedMapUv0Right[channel],
+                    0.035f)
+            << "packed metallic-roughness U offset should mirror the left "
+               "sample, channel " << channel;
+        EXPECT_NEAR(packedMapOffsetRight[channel], packedMapUv0Left[channel],
+                    0.035f)
+            << "packed metallic-roughness U offset should mirror the right "
+               "sample, channel " << channel;
+    }
+
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(baseColorPath.string()));
+    material.metallicRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(dielectricMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
     const auto dielectricRight = pixelAt(24, 16);
     const float rightMapDifference = std::max(
         std::fabs(dielectricRight[0] - mappedMetallicRight[0]),
