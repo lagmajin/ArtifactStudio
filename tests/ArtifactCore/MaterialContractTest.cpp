@@ -279,11 +279,26 @@ TEST(MaterialContractTest, TextureMapPathsAndPresenceFlagsRemainIndependent)
         ArtifactCore::UniString(QStringLiteral("maps/metallic.png")));
     material.setRoughnessTexture(
         ArtifactCore::UniString(QStringLiteral("maps/roughness.png")));
+    material.setNormalTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/normal.png")));
+    material.setOcclusionTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/occlusion.png")));
+    material.setEmissionTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/emission.png")));
+    material.setOpacityTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/opacity.png")));
+    material.setClearcoatTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/clearcoat.png")));
 
     EXPECT_TRUE(material.hasBaseColorTexture());
     EXPECT_TRUE(material.hasMetallicRoughnessTexture());
     EXPECT_TRUE(material.hasMetallicTexture());
     EXPECT_TRUE(material.hasRoughnessTexture());
+    EXPECT_TRUE(material.hasNormalTexture());
+    EXPECT_TRUE(material.hasOcclusionTexture());
+    EXPECT_TRUE(material.hasEmissionTexture());
+    EXPECT_TRUE(material.hasOpacityTexture());
+    EXPECT_TRUE(material.hasClearcoatTexture());
     EXPECT_EQ(material.baseColorTexture().toQString(),
               QStringLiteral("maps/base-color.png"));
     EXPECT_EQ(material.metallicRoughnessTexture().toQString(),
@@ -292,9 +307,37 @@ TEST(MaterialContractTest, TextureMapPathsAndPresenceFlagsRemainIndependent)
               QStringLiteral("maps/metallic.png"));
     EXPECT_EQ(material.roughnessTexture().toQString(),
               QStringLiteral("maps/roughness.png"));
+    EXPECT_EQ(material.normalTexture().toQString(),
+              QStringLiteral("maps/normal.png"));
+    EXPECT_EQ(material.occlusionTexture().toQString(),
+              QStringLiteral("maps/occlusion.png"));
+    EXPECT_EQ(material.emissionTexture().toQString(),
+              QStringLiteral("maps/emission.png"));
+    EXPECT_EQ(material.opacityTexture().toQString(),
+              QStringLiteral("maps/opacity.png"));
+    EXPECT_EQ(material.clearcoatTexture().toQString(),
+              QStringLiteral("maps/clearcoat.png"));
 
     material.setMetallicTexture(ArtifactCore::UniString(QStringLiteral("  ")));
     EXPECT_FALSE(material.hasMetallicTexture());
+    EXPECT_TRUE(material.hasMetallicRoughnessTexture());
+    EXPECT_TRUE(material.hasRoughnessTexture());
+
+    const ArtifactCore::UniString whitespacePath(QStringLiteral(" \t "));
+    material.setBaseColorTexture(whitespacePath);
+    material.setNormalTexture(whitespacePath);
+    material.setOcclusionTexture(whitespacePath);
+    material.setEmissionTexture(whitespacePath);
+    material.setOpacityTexture(whitespacePath);
+    material.setClearcoatTexture(whitespacePath);
+    EXPECT_FALSE(material.hasBaseColorTexture());
+    EXPECT_FALSE(material.hasNormalTexture());
+    EXPECT_FALSE(material.hasOcclusionTexture());
+    EXPECT_FALSE(material.hasEmissionTexture());
+    EXPECT_FALSE(material.hasOpacityTexture());
+    EXPECT_FALSE(material.hasClearcoatTexture());
+    EXPECT_EQ(material.baseColorTexture().toQString(),
+              whitespacePath.toQString());
     EXPECT_TRUE(material.hasMetallicRoughnessTexture());
     EXPECT_TRUE(material.hasRoughnessTexture());
 }
