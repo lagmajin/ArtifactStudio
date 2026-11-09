@@ -3317,6 +3317,30 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     EXPECT_LT(halfStrengthDrop, fullStrengthDrop - 0.005f);
     EXPECT_NEAR(zeroStrengthRight[0], flatRight[0], 0.01f);
 
+    material.normalStrength = -0.5f;
+    manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material);
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto negativeStrengthRight = pixelAt(24, 16);
+    EXPECT_NEAR(negativeStrengthRight[0], zeroStrengthRight[0], 0.01f)
+        << "negative normal strength should clamp to zero";
+
+    material.normalStrength = std::numeric_limits<float>::quiet_NaN();
+    manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material);
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto nonFiniteStrengthRight = pixelAt(24, 16);
+    EXPECT_NEAR(nonFiniteStrengthRight[0], fullStrengthRight[0], 0.01f)
+        << "non-finite normal strength should use its full-strength fallback";
+
     const auto rotatedNormalPath = std::filesystem::path(
         normalMapDirectory.filePath(QStringLiteral("normal-map-uniform.png"))
             .toStdString());
