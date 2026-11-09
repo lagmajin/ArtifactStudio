@@ -1054,6 +1054,25 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
         EXPECT_NEAR(uv1Right[channel], uv0Left[channel], 0.035f)
             << "metallic UV1 should mirror the right sample, channel " << channel;
     }
+
+    material.metallicTextureUvSet = 0;
+    material.metallicTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetLeft = pixelAt(8, 16);
+    const auto offsetRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetLeft[channel], uv0Right[channel], 0.035f)
+            << "metallic-map U offset should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(offsetRight[channel], uv0Left[channel], 0.035f)
+            << "metallic-map U offset should mirror the right sample, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
@@ -1132,6 +1151,25 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
             << "roughness UV1 should mirror the left sample, channel " << channel;
         EXPECT_NEAR(uv1Right[channel], uv0Left[channel], 0.035f)
             << "roughness UV1 should mirror the right sample, channel " << channel;
+    }
+
+    material.roughnessTextureUvSet = 0;
+    material.roughnessTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetLeft = pixelAt(8, 16);
+    const auto offsetRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetLeft[channel], uv0Right[channel], 0.035f)
+            << "roughness-map U offset should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(offsetRight[channel], uv0Left[channel], 0.035f)
+            << "roughness-map U offset should mirror the right sample, channel "
+            << channel;
     }
 }
 
