@@ -7507,16 +7507,17 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     }
 
     const QVector3D neutralSubsurfaceRadius(1.0f, 1.0f, 1.0f);
-    const auto captureRasterSubsurface = [&](float weight, const QColor& color) {
-        renderer.setSubsurfaceFactors(weight, color, neutralSubsurfaceRadius,
+    const auto captureRasterSubsurface = [&](float weight, const QColor& color,
+                                             const QVector3D& radius) {
+        renderer.setSubsurfaceFactors(weight, color, radius,
                                       1.4f, 0.0f);
         return renderCenterPixel();
     };
     const QColor whiteSubsurfaceColor(255, 255, 255);
     const auto burleyDiffuse = captureRasterSubsurface(
-        0.0f, whiteSubsurfaceColor);
+        0.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius);
     const auto fullRasterSubsurface = captureRasterSubsurface(
-        1.0f, whiteSubsurfaceColor);
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius);
     float rasterSubsurfaceResponse = 0.0f;
     for (size_t channel = 0; channel < 3; ++channel) {
         rasterSubsurfaceResponse = std::max(
@@ -7529,7 +7530,8 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         std::array<float, 3> tint{1.0f, 1.0f, 1.0f};
         tint[tintChannel] = 0.0f;
         const auto zeroTintChannel = captureRasterSubsurface(
-            1.0f, QColor::fromRgbF(tint[0], tint[1], tint[2]));
+            1.0f, QColor::fromRgbF(tint[0], tint[1], tint[2]),
+            neutralSubsurfaceRadius);
         EXPECT_LT(zeroTintChannel[tintChannel],
                   fullRasterSubsurface[tintChannel] - 0.001f)
             << "Raster subsurface tint should reduce its channel "
@@ -7539,6 +7541,25 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                 EXPECT_NEAR(zeroTintChannel[channel],
                             fullRasterSubsurface[channel], 1.0e-5f)
                     << "Raster subsurface tint channel " << tintChannel
+                    << " should preserve output channel " << channel;
+            }
+        }
+    }
+    for (std::size_t radiusChannel = 0; radiusChannel < 3; ++radiusChannel) {
+        std::array<float, 3> radius{1.0f, 1.0f, 1.0f};
+        radius[radiusChannel] = 0.0f;
+        const auto zeroRadiusChannel = captureRasterSubsurface(
+            1.0f, whiteSubsurfaceColor,
+            QVector3D(radius[0], radius[1], radius[2]));
+        EXPECT_LT(zeroRadiusChannel[radiusChannel],
+                  fullRasterSubsurface[radiusChannel] - 0.001f)
+            << "Raster subsurface radius should reduce its channel "
+            << radiusChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != radiusChannel) {
+                EXPECT_NEAR(zeroRadiusChannel[channel],
+                            fullRasterSubsurface[channel], 1.0e-5f)
+                    << "Raster subsurface radius channel " << radiusChannel
                     << " should preserve output channel " << channel;
             }
         }
