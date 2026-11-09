@@ -5246,31 +5246,74 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     material.clearcoat = 1.0f;
     material.clearcoatRoughness = 0.2f;
     material.clearcoatNormalStrength = 1.0f;
-    material.clearcoatNormalTexture = ArtifactCore::UniString(
-        QString::fromStdString(moderateNormalPath.string()));
+    const auto captureClearcoatNormalStrength = [this, &material](
+                                                    float strength) {
+        material.clearcoatNormalStrength = strength;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-normal-map"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return std::array<std::array<float, 4>, 2>{
+            pixelAt(8, 16), pixelAt(24, 16)};
+    };
+    material.clearcoatNormalTexture = ArtifactCore::UniString();
     material.clearcoatNormalUvRotationDegrees = 0.0f;
     material.clearcoatNormalUvSet = 0;
-    ASSERT_TRUE(manager_->setInstancePbrMaterial(
-        ArtifactCore::UniString("pbr-normal-map"), material));
-    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
-    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
-    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
-                                        kRayTraceTestImageSize));
-    const auto clearcoatNormalUv0Left = pixelAt(8, 16);
-    const auto clearcoatNormalUv0Right = pixelAt(24, 16);
+    const auto geometricCoatNormalPixels = captureClearcoatNormalStrength(1.0f);
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    const auto clearcoatNormalUv0Pixels = captureClearcoatNormalStrength(1.0f);
+    const auto& clearcoatNormalUv0Left = clearcoatNormalUv0Pixels[0];
+    const auto& clearcoatNormalUv0Right = clearcoatNormalUv0Pixels[1];
     EXPECT_GT(std::fabs(clearcoatNormalUv0Left[0] -
                         clearcoatNormalUv0Right[0]), 0.02f)
         << "the clearcoat-normal map should distinguish the UV0 halves";
+    EXPECT_GT(std::fabs(clearcoatNormalUv0Right[0] -
+                        geometricCoatNormalPixels[1][0]), 0.01f)
+        << "full clearcoat-normal strength should perturb the geometric normal";
+
+    const auto zeroClearcoatNormalStrength =
+        captureClearcoatNormalStrength(0.0f);
+    const auto halfClearcoatNormalStrength =
+        captureClearcoatNormalStrength(0.5f);
+    const auto aboveMaximumClearcoatNormalStrength =
+        captureClearcoatNormalStrength(1.5f);
+    const auto negativeClearcoatNormalStrength =
+        captureClearcoatNormalStrength(-0.5f);
+    const auto nonFiniteClearcoatNormalStrength =
+        captureClearcoatNormalStrength(
+            std::numeric_limits<float>::quiet_NaN());
+    const float fullStrengthResponse = std::fabs(
+        clearcoatNormalUv0Right[0] - geometricCoatNormalPixels[1][0]);
+    const float halfStrengthResponse = std::fabs(
+        halfClearcoatNormalStrength[1][0] - geometricCoatNormalPixels[1][0]);
+    EXPECT_GT(halfStrengthResponse, 0.005f);
+    EXPECT_LT(halfStrengthResponse, fullStrengthResponse - 0.005f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(zeroClearcoatNormalStrength[0][channel],
+                    geometricCoatNormalPixels[0][channel], 0.01f)
+            << "zero clearcoat-normal strength should restore the geometric normal";
+        EXPECT_NEAR(zeroClearcoatNormalStrength[1][channel],
+                    geometricCoatNormalPixels[1][channel], 0.01f)
+            << "zero clearcoat-normal strength should restore the geometric normal";
+        EXPECT_NEAR(negativeClearcoatNormalStrength[1][channel],
+                    zeroClearcoatNormalStrength[1][channel], 0.01f)
+            << "negative clearcoat-normal strength should clamp to zero";
+        EXPECT_NEAR(aboveMaximumClearcoatNormalStrength[1][channel],
+                    clearcoatNormalUv0Right[channel], 0.01f)
+            << "clearcoat-normal strength above one should clamp to one";
+        EXPECT_NEAR(nonFiniteClearcoatNormalStrength[1][channel],
+                    clearcoatNormalUv0Right[channel], 0.01f)
+            << "non-finite clearcoat-normal strength should use its full-strength fallback";
+    }
 
     material.clearcoatNormalUvSet = 1;
-    ASSERT_TRUE(manager_->setInstancePbrMaterial(
-        ArtifactCore::UniString("pbr-normal-map"), material));
-    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
-    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
-    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
-                                        kRayTraceTestImageSize));
-    const auto clearcoatNormalUv1Left = pixelAt(8, 16);
-    const auto clearcoatNormalUv1Right = pixelAt(24, 16);
+    const auto clearcoatNormalUv1Pixels = captureClearcoatNormalStrength(1.0f);
+    const auto& clearcoatNormalUv1Left = clearcoatNormalUv1Pixels[0];
+    const auto& clearcoatNormalUv1Right = clearcoatNormalUv1Pixels[1];
     for (std::size_t channel = 0; channel < 3; ++channel) {
         EXPECT_NEAR(clearcoatNormalUv1Left[channel],
                     clearcoatNormalUv0Right[channel], 0.035f)
