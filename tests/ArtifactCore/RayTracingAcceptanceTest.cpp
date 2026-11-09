@@ -6999,8 +6999,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         std::array<float, 3> specularTint{1.0f, 1.0f, 1.0f};
         float thinFilmThickness = 0.0f;
         float thinFilmIOR = 1.33f;
+        float normalStrength = 1.0f;
     };
-    constexpr std::array<MaterialProbe, 22> materialProbes{{
+    constexpr std::array<MaterialProbe, 24> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -7038,7 +7039,13 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
          {1.0f, 1.0f, 1.0f}, 400.0f, 1.33f},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
          {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
-         {1.0f, 1.0f, 1.0f}, 400.0f, 2.0f}}};
+         {1.0f, 1.0f, 1.0f}, 400.0f, 2.0f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 0.0f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 1.0f}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -7068,7 +7075,8 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         instance.color[1] = probe.baseColor[1];
         instance.color[2] = probe.baseColor[2];
         renderer.updateInstanceData(&instance, 1);
-        renderer.setPbrFactors(probe.metallic, probe.roughness, 1.0f, 1.0f);
+        renderer.setPbrFactors(probe.metallic, probe.roughness,
+                               probe.normalStrength, 1.0f);
         renderer.setSpecularTint(
             QColor::fromRgbF(probe.specularTint[0], probe.specularTint[1],
                              probe.specularTint[2]));
@@ -7084,7 +7092,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
             QColor::fromRgbF(probe.clearcoatTint[0],
                              probe.clearcoatTint[1],
                              probe.clearcoatTint[2]));
-        if (probeIndex == 8)
+        if (probeIndex == 8 || probeIndex >= 22)
             renderer.setNormalTexture(parityNormalMapPath);
         else if (probeIndex >= 9)
             renderer.setNormalTexture(QString{});
@@ -7102,6 +7110,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.baseColor[2] = probe.baseColor[2];
         rtMaterial.metallic = probe.metallic;
         rtMaterial.roughness = probe.roughness;
+        rtMaterial.normalStrength = probe.normalStrength;
         rtMaterial.specular = 0.5f;
         std::copy(probe.specularTint.begin(), probe.specularTint.end(),
                   rtMaterial.specularTint);
@@ -7116,7 +7125,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.sheenRoughness = probe.sheenRoughness;
         std::copy(probe.sheenTint.begin(), probe.sheenTint.end(),
                   rtMaterial.sheenTint);
-        if (probeIndex == 8)
+        if (probeIndex == 8 || probeIndex >= 22)
             rtMaterial.normalTexture = ArtifactCore::UniString(
                 parityNormalMapPath);
         if (probe.aoValue >= 0) {
@@ -7212,6 +7221,18 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         << "Raster specular response should vary with thin-film IOR";
     EXPECT_GT(rtThinFilmIorDifference, 0.001f)
         << "RT specular response should vary with thin-film IOR";
+    float rasterNormalStrengthDifference = 0.0f;
+    float rtNormalStrengthDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterNormalStrengthDifference += std::fabs(
+            rasterProbePixels[23][channel] - rasterProbePixels[22][channel]);
+        rtNormalStrengthDifference += std::fabs(
+            rtProbePixels[23][channel] - rtProbePixels[22][channel]);
+    }
+    EXPECT_GT(rasterNormalStrengthDifference, 0.001f)
+        << "Raster normal mapping should respond to normal strength";
+    EXPECT_GT(rtNormalStrengthDifference, 0.001f)
+        << "RT normal mapping should respond to normal strength";
     EXPECT_GT(probeLuminance(rasterProbePixels[9]),
               probeLuminance(rasterProbePixels[10]) + 0.001f)
         << "lower AO should reduce the Raster sheen IBL response";
