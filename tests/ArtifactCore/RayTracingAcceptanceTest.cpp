@@ -621,6 +621,49 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
         std::max(std::fabs(dielectricRight[1] - mappedMetallicRight[1]),
                  std::fabs(dielectricRight[2] - mappedMetallicRight[2])));
     EXPECT_GT(rightMapDifference, 0.01f);
+
+    QTemporaryDir linearColorDirectory;
+    ASSERT_TRUE(linearColorDirectory.isValid());
+    const QString linearExrPath = linearColorDirectory.filePath(
+        QStringLiteral("linear-base-color.exr"));
+    const QString srgbReferencePath = linearColorDirectory.filePath(
+        QStringLiteral("srgb-base-color.png"));
+    constexpr std::array<float, 16> linearBaseColorPixels{
+        0.25f, 0.5f, 0.75f, 1.0f,
+        0.25f, 0.5f, 0.75f, 1.0f,
+        0.25f, 0.5f, 0.75f, 1.0f,
+        0.25f, 0.5f, 0.75f, 1.0f};
+    ArtifactCore::OpenExr exr;
+    ASSERT_TRUE(exr.writeRGBA32F(linearExrPath, linearBaseColorPixels.data(),
+                                 2, 2));
+    QImage srgbReference(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(srgbReference.isNull());
+    srgbReference.fill(QColor(137, 188, 225, 255));
+    ASSERT_TRUE(srgbReference.save(srgbReferencePath, "PNG"));
+
+    material.baseColorTexture = ArtifactCore::UniString(srgbReferencePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto srgbReferencePixel = pixelAt(16, 16);
+
+    material.baseColorTexture = ArtifactCore::UniString(linearExrPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto linearExrPixel = pixelAt(16, 16);
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(linearExrPixel[channel], srgbReferencePixel[channel], 0.02f)
+            << "linear float base-color channel " << channel
+            << " should match its sRGB-encoded PNG reference";
+    }
+
     std::error_code ignored;
     std::filesystem::remove(baseColorPath, ignored);
     std::filesystem::remove(metallicMapPath, ignored);
