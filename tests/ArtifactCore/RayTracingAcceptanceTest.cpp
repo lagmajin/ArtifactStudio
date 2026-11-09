@@ -406,8 +406,8 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
                                                float clearcoatRoughness) {
         coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
         coatedMaterial.clearcoatRoughness = clearcoatRoughness;
-        manager_->setInstancePbrMaterial(
-            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
         EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
         EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
         EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
@@ -445,8 +445,8 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
         coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
         coatedMaterial.clearcoatNormalStrength = 1.0f;
         coatedMaterial.clearcoatIOR = clearcoatIOR;
-        manager_->setInstancePbrMaterial(
-            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
         EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
         EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
         EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
@@ -640,6 +640,56 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
     }
     EXPECT_GT(specularResponse, 0.001f)
         << "the specular factor should measurably scale dielectric reflection";
+
+    const auto captureLobeAmounts = [&](float clearcoat, float sheen) {
+        coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+        coatedMaterial.clearcoatRoughness = 0.2f;
+        coatedMaterial.clearcoatIOR = 1.5f;
+        coatedMaterial.clearcoat = clearcoat;
+        coatedMaterial.sheenRoughness = 0.25f;
+        coatedMaterial.sheen = sheen;
+        coatedMaterial.clearcoatTint[0] = coatedMaterial.clearcoatTint[1] =
+            coatedMaterial.clearcoatTint[2] = 1.0f;
+        coatedMaterial.sheenTint[0] = coatedMaterial.sheenTint[1] =
+            coatedMaterial.sheenTint[2] = 1.0f;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto noPrincipledLobes = captureLobeAmounts(0.0f, 0.0f);
+    const auto invalidClearcoat = captureLobeAmounts(
+        std::numeric_limits<float>::quiet_NaN(), 0.0f);
+    const auto invalidSheen = captureLobeAmounts(
+        0.0f, std::numeric_limits<float>::quiet_NaN());
+    const auto enabledClearcoat = captureLobeAmounts(1.0f, 0.0f);
+    const auto enabledSheen = captureLobeAmounts(0.0f, 1.0f);
+    float clearcoatResponse = 0.0f;
+    float sheenResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(invalidClearcoat[channel], noPrincipledLobes[channel],
+                    1.0e-5f)
+            << "non-finite clearcoat should use its zero fallback, channel "
+            << channel;
+        EXPECT_NEAR(invalidSheen[channel], noPrincipledLobes[channel],
+                    1.0e-5f)
+            << "non-finite sheen should use its zero fallback, channel "
+            << channel;
+        clearcoatResponse = std::max(
+            clearcoatResponse,
+            std::fabs(enabledClearcoat[channel] - noPrincipledLobes[channel]));
+        sheenResponse = std::max(
+            sheenResponse,
+            std::fabs(enabledSheen[channel] - noPrincipledLobes[channel]));
+    }
+    EXPECT_GT(clearcoatResponse, 0.001f)
+        << "the fixture should respond to a finite clearcoat amount";
+    EXPECT_GT(sheenResponse, 0.001f)
+        << "the fixture should respond to a finite sheen amount";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
