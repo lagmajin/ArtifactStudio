@@ -493,17 +493,18 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
             captureClearcoatTint(tintChannel, 1.0f);
         const auto aboveMaximumClearcoatTintPixel =
             captureClearcoatTint(tintChannel, 1.5f);
-        const float clearcoatTintResponse = std::max(
-            std::fabs(maximumClearcoatTintPixel[0] -
-                      minimumClearcoatTintPixel[0]),
-            std::max(std::fabs(maximumClearcoatTintPixel[1] -
-                               minimumClearcoatTintPixel[1]),
-                     std::fabs(maximumClearcoatTintPixel[2] -
-                               minimumClearcoatTintPixel[2])));
-        EXPECT_GT(clearcoatTintResponse, 0.001f)
-            << "the fixture should respond to clearcoat tint channel "
+        EXPECT_GT(std::fabs(maximumClearcoatTintPixel[tintChannel] -
+                            minimumClearcoatTintPixel[tintChannel]),
+                  0.001f)
+            << "clearcoat tint should affect its matching output channel "
             << tintChannel;
         for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(maximumClearcoatTintPixel[channel],
+                            minimumClearcoatTintPixel[channel], 1.0e-5f)
+                    << "clearcoat tint channel " << tintChannel
+                    << " should not alter output channel " << channel;
+            }
             EXPECT_NEAR(belowMinimumClearcoatTintPixel[channel],
                         minimumClearcoatTintPixel[channel], 1.0e-5f)
                 << "clearcoat tint below zero should clamp to zero, tint channel "
