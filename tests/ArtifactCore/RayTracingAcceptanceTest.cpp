@@ -3898,7 +3898,45 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
     EXPECT_GT(roughnessUv0Difference, 0.02f)
         << "the sheen roughness map should distinguish the two UV0 halves";
 
+    QImage sheenRoughnessOtherChannelsChanged = sheenRoughnessMap;
+    for (int y = 0; y < sheenRoughnessOtherChannelsChanged.height(); ++y) {
+        auto* row = sheenRoughnessOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < sheenRoughnessOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 0;
+            pixel[1] = 255;
+            pixel[2] = 0;
+        }
+    }
+    const QString sheenRoughnessOtherChannelsPath = textureDirectory.filePath(
+        QStringLiteral("sheen-roughness-other-channels.png"));
+    ASSERT_TRUE(sheenRoughnessOtherChannelsChanged.save(
+        sheenRoughnessOtherChannelsPath, "PNG"));
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenRoughnessOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto otherChannelsChangedLeft = pixelAt(8, 16);
+    const auto otherChannelsChangedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(otherChannelsChangedLeft[channel], roughnessUv0Left[channel],
+                    0.02f)
+            << "sheen roughness should read alpha independently, left channel "
+            << channel;
+        EXPECT_NEAR(otherChannelsChangedRight[channel],
+                    roughnessUv0Right[channel], 0.02f)
+            << "sheen roughness should read alpha independently, right channel "
+            << channel;
+    }
+
     material.sheenRoughnessTextureUvSet = 1;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenRoughnessMapPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
