@@ -1224,6 +1224,42 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     EXPECT_GT(std::fabs(tiltedRightPixel[0] - flatRightPixel[0]), 0.01f)
         << "slot 1 normal map should change its shading";
 
+    leftMaterial.normalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    leftMaterial.normalUvSet = 0;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalUv0Left = pixelAt(8, 16);
+    const auto slotNormalUv0Right = pixelAt(24, 16);
+
+    rightMaterial.normalUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotNormalLeft = pixelAt(8, 16);
+    const float slotNormalUvRoutingDifference = std::max(
+        std::fabs(slotNormalUv1Right[0] - slotNormalUv0Right[0]),
+        std::max(std::fabs(slotNormalUv1Right[1] - slotNormalUv0Right[1]),
+                 std::fabs(slotNormalUv1Right[2] - slotNormalUv0Right[2])));
+    EXPECT_GT(slotNormalUvRoutingDifference, 0.001f)
+        << "slot 1 normal UV set should change its tangent-space shading";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotNormalLeft[channel], slotNormalUv0Left[channel],
+                    0.01f)
+            << "slot 1 normal UV set should preserve slot 0, channel "
+            << channel;
+    }
+
     leftMaterial.normalTexture = ArtifactCore::UniString();
     leftMaterial.clearcoat = 1.0f;
     leftMaterial.clearcoatRoughness = 0.2f;
@@ -1273,6 +1309,43 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         << "changing slot 1 clearcoat-normal map should preserve slot 0";
     EXPECT_GT(std::fabs(tiltedCoatRightPixel[0] - flatCoatRightPixel[0]), 0.01f)
         << "slot 1 clearcoat-normal map should change its coated lobe";
+
+    leftMaterial.clearcoatNormalTexture =
+        ArtifactCore::UniString(tiltedNormalPath);
+    leftMaterial.clearcoatNormalUvSet = 0;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalUv0Left = pixelAt(8, 16);
+    const auto slotCoatNormalUv0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatNormalUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotCoatNormalLeft = pixelAt(8, 16);
+    const float slotCoatNormalUvRoutingDifference = std::max(
+        std::fabs(slotCoatNormalUv1Right[0] - slotCoatNormalUv0Right[0]),
+        std::max(std::fabs(slotCoatNormalUv1Right[1] - slotCoatNormalUv0Right[1]),
+                 std::fabs(slotCoatNormalUv1Right[2] - slotCoatNormalUv0Right[2])));
+    EXPECT_GT(slotCoatNormalUvRoutingDifference, 0.001f)
+        << "slot 1 clearcoat-normal UV set should change its coated tangent frame";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotCoatNormalLeft[channel],
+                    slotCoatNormalUv0Left[channel], 0.01f)
+            << "slot 1 clearcoat-normal UV set should preserve slot 0, channel "
+            << channel;
+    }
 
     leftMaterial.clearcoat = 0.0f;
     leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
