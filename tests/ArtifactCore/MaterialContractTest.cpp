@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <limits>
 #include <utility>
 
@@ -324,6 +325,132 @@ TEST(MaterialContractTest, TextureUvSetSelectorsStayPerMapAndLimitToUv0OrUv1)
     EXPECT_EQ(material.baseColorUvSet(), 0);
     EXPECT_EQ(material.normalUvSet(), 0);
     EXPECT_EQ(material.clearcoatTextureUvSet(), 0);
+}
+
+TEST(MaterialContractTest, ScalarTextureUvTransformsRemainIndependent)
+{
+    Material material;
+    material.setBaseColorUvScale(2.0f);
+    material.setBaseColorUvOffsetU(0.1f);
+    material.setBaseColorUvOffsetV(0.2f);
+    material.setBaseColorUvRotationDegrees(10.0f);
+    material.setBaseColorUvSet(1);
+    material.setMetallicRoughnessUvScale(3.0f);
+    material.setMetallicRoughnessUvOffsetU(0.3f);
+    material.setMetallicRoughnessUvOffsetV(0.4f);
+    material.setMetallicRoughnessUvRotationDegrees(20.0f);
+    material.setMetallicRoughnessUvSet(0);
+    material.setNormalUvScale(4.0f);
+    material.setNormalUvOffsetU(0.5f);
+    material.setNormalUvOffsetV(0.6f);
+    material.setNormalUvRotationDegrees(30.0f);
+    material.setNormalUvSet(1);
+    material.setOcclusionTextureUvScale(5.0f);
+    material.setOcclusionTextureUvOffsetU(0.7f);
+    material.setOcclusionTextureUvOffsetV(0.8f);
+    material.setOcclusionTextureUvRotationDegrees(40.0f);
+    material.setOcclusionTextureUvSet(0);
+    material.setEmissionTextureUvScale(6.0f);
+    material.setEmissionTextureUvOffsetU(0.9f);
+    material.setEmissionTextureUvOffsetV(1.0f);
+    material.setEmissionTextureUvRotationDegrees(50.0f);
+    material.setEmissionTextureUvSet(1);
+    material.setOpacityTextureUvScale(7.0f);
+    material.setOpacityTextureUvOffsetU(1.1f);
+    material.setOpacityTextureUvOffsetV(1.2f);
+    material.setOpacityTextureUvRotationDegrees(60.0f);
+    material.setOpacityTextureUvSet(0);
+    material.setClearcoatTextureUvScale(8.0f);
+    material.setClearcoatTextureUvOffsetU(1.3f);
+    material.setClearcoatTextureUvOffsetV(1.4f);
+    material.setClearcoatTextureUvRotationDegrees(70.0f);
+    material.setClearcoatTextureUvSet(1);
+    material.setClearcoatRoughnessTextureUvScale(9.0f);
+    material.setClearcoatRoughnessTextureUvOffsetU(1.5f);
+    material.setClearcoatRoughnessTextureUvOffsetV(1.6f);
+    material.setClearcoatRoughnessTextureUvRotationDegrees(80.0f);
+    material.setClearcoatRoughnessTextureUvSet(0);
+    material.setClearcoatNormalUvScale(10.0f);
+    material.setClearcoatNormalUvOffsetU(1.7f);
+    material.setClearcoatNormalUvOffsetV(1.8f);
+    material.setClearcoatNormalUvRotationDegrees(90.0f);
+    material.setClearcoatNormalUvSet(1);
+
+    struct UvSnapshot {
+        const char* name;
+        float scale;
+        float offsetU;
+        float offsetV;
+        float rotationDegrees;
+        int uvSet;
+    };
+    const std::array<UvSnapshot, 9> expected{{
+        {"base color", 2.0f, 0.1f, 0.2f, 10.0f, 1},
+        {"metallic-roughness", 3.0f, 0.3f, 0.4f, 20.0f, 0},
+        {"normal", 4.0f, 0.5f, 0.6f, 30.0f, 1},
+        {"occlusion", 5.0f, 0.7f, 0.8f, 40.0f, 0},
+        {"emission", 6.0f, 0.9f, 1.0f, 50.0f, 1},
+        {"opacity", 7.0f, 1.1f, 1.2f, 60.0f, 0},
+        {"clearcoat", 8.0f, 1.3f, 1.4f, 70.0f, 1},
+        {"clearcoat roughness", 9.0f, 1.5f, 1.6f, 80.0f, 0},
+        {"clearcoat normal", 10.0f, 1.7f, 1.8f, 90.0f, 1},
+    }};
+    const std::array<UvSnapshot, 9> actual{{
+        {"base color", material.baseColorUvScale(),
+         material.baseColorUvOffsetU(), material.baseColorUvOffsetV(),
+         material.baseColorUvRotationDegrees(), material.baseColorUvSet()},
+        {"metallic-roughness", material.metallicRoughnessUvScale(),
+         material.metallicRoughnessUvOffsetU(),
+         material.metallicRoughnessUvOffsetV(),
+         material.metallicRoughnessUvRotationDegrees(),
+         material.metallicRoughnessUvSet()},
+        {"normal", material.normalUvScale(), material.normalUvOffsetU(),
+         material.normalUvOffsetV(), material.normalUvRotationDegrees(),
+         material.normalUvSet()},
+        {"occlusion", material.occlusionTextureUvScale(),
+         material.occlusionTextureUvOffsetU(),
+         material.occlusionTextureUvOffsetV(),
+         material.occlusionTextureUvRotationDegrees(),
+         material.occlusionTextureUvSet()},
+        {"emission", material.emissionTextureUvScale(),
+         material.emissionTextureUvOffsetU(),
+         material.emissionTextureUvOffsetV(),
+         material.emissionTextureUvRotationDegrees(),
+         material.emissionTextureUvSet()},
+        {"opacity", material.opacityTextureUvScale(),
+         material.opacityTextureUvOffsetU(), material.opacityTextureUvOffsetV(),
+         material.opacityTextureUvRotationDegrees(),
+         material.opacityTextureUvSet()},
+        {"clearcoat", material.clearcoatTextureUvScale(),
+         material.clearcoatTextureUvOffsetU(),
+         material.clearcoatTextureUvOffsetV(),
+         material.clearcoatTextureUvRotationDegrees(),
+         material.clearcoatTextureUvSet()},
+        {"clearcoat roughness", material.clearcoatRoughnessTextureUvScale(),
+         material.clearcoatRoughnessTextureUvOffsetU(),
+         material.clearcoatRoughnessTextureUvOffsetV(),
+         material.clearcoatRoughnessTextureUvRotationDegrees(),
+         material.clearcoatRoughnessTextureUvSet()},
+        {"clearcoat normal", material.clearcoatNormalUvScale(),
+         material.clearcoatNormalUvOffsetU(),
+         material.clearcoatNormalUvOffsetV(),
+         material.clearcoatNormalUvRotationDegrees(),
+         material.clearcoatNormalUvSet()},
+    }};
+
+    for (std::size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_FLOAT_EQ(actual[index].scale, expected[index].scale)
+            << actual[index].name << " scale";
+        EXPECT_FLOAT_EQ(actual[index].offsetU, expected[index].offsetU)
+            << actual[index].name << " U offset";
+        EXPECT_FLOAT_EQ(actual[index].offsetV, expected[index].offsetV)
+            << actual[index].name << " V offset";
+        EXPECT_FLOAT_EQ(actual[index].rotationDegrees,
+                        expected[index].rotationDegrees)
+            << actual[index].name << " rotation";
+        EXPECT_EQ(actual[index].uvSet, expected[index].uvSet)
+            << actual[index].name << " UV set";
+    }
 }
 
 TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
