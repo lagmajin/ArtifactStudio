@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: HDR EXR画素のProject save/reload保持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FloatExrHdrPixelsSurviveProjectSaveAndReload`、静止画受入表IMG-04／OP-09。
+- **確認できた事実:** 既存float EXR testは単独ImageLayerのdecode後に負値・1超過値を確認し、Project round-trip testは8-bit画像を扱うが、float HDR値とsource identityを同一Project往復で検査するテストはなかった。
+- **追加した確認:** 負値、fractional値、1超過値を含む3x1 float EXRをProject内ImageLayerへ読み込み、save/reload後もRGBA全成分、source path／asset ID、32-bit／channel metadataが保持されることを検査する。
+- **価値または懸念:** project serializationが高精度sourceを8-bit化・差替え・誤復元する回帰を検出する。test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FloatExrHdrPixelsSurviveProjectSaveAndReload` を実行し、OIIO EXR decodeとProject reloadの値一致を確認する。
+
 ## 2026-11-09: 連番差替えテストでstale decode競合を確認
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion`、連番再生受入。
 - **確認できた事実:** 既存ケースは大きい旧フレームを要求してから1ms待ってsequenceを差し替えるが、差し替え時点で旧decodeが未完了だったことをassertしていなかった。

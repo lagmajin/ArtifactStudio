@@ -3403,6 +3403,79 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     FloatExrHdrPixelsSurviveProjectSaveAndReload)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString imagePath = dir.filePath(QStringLiteral("project-hdr.exr"));
+    const QString projectPath =
+        dir.filePath(QStringLiteral("project-hdr.artifact"));
+    const OIIO::ImageSpec spec(3, 1, 4, OIIO::TypeDesc::FLOAT);
+    OIIO::ImageBuf source(spec);
+    const std::array<float, 12> expectedPixels{
+        -0.25f, 0.125f, 0.5f, 1.0f,
+        0.25f, 1.5f, 3.0f, 0.75f,
+        4.0f, 2.0f, -1.0f, 0.5f};
+    ASSERT_TRUE(source.set_pixels(OIIO::ROI::All(), OIIO::TypeDesc::FLOAT,
+                                  expectedPixels.data()));
+    ASSERT_TRUE(source.write(imagePath.toUtf8().constData()));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("FloatExrProjectRoundTrip"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(makeCompositionParams());
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactLayerInitParams layerParams(
+        QStringLiteral("HdrImage"), Artifact::LayerType::Image);
+    const auto added = projects.addLayerToComposition(composition.id, layerParams);
+    ASSERT_TRUE(added.success);
+    auto* imageLayer =
+        dynamic_cast<Artifact::ArtifactImageLayer*>(added.layer.get());
+    ASSERT_NE(imageLayer, nullptr);
+    const auto layerId = imageLayer->id();
+    ASSERT_TRUE(imageLayer->loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(*imageLayer, QSize(3, 1)));
+    const auto sourceId = imageLayer->sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const float* loadedPixels = imageLayer->currentFrameBuffer().rgba32fData();
+    ASSERT_NE(loadedPixels, nullptr);
+    for (std::size_t index = 0; index < expectedPixels.size(); ++index) {
+        EXPECT_FLOAT_EQ(loadedPixels[index], expectedPixels[index])
+            << "source decode component " << index;
+    }
+
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto restoredComposition =
+        projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(restoredComposition);
+    auto* restoredLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        restoredComposition->layerById(layerId).get());
+    ASSERT_NE(restoredLayer, nullptr);
+    ASSERT_TRUE(waitForImageBuffer(*restoredLayer, QSize(3, 1)));
+    EXPECT_EQ(restoredLayer->sourcePath(), imagePath);
+    EXPECT_EQ(restoredLayer->sourceAssetId(), sourceId);
+
+    const float* restoredPixels =
+        restoredLayer->currentFrameBuffer().rgba32fData();
+    ASSERT_NE(restoredPixels, nullptr);
+    for (std::size_t index = 0; index < expectedPixels.size(); ++index) {
+        EXPECT_FLOAT_EQ(restoredPixels[index], expectedPixels[index])
+            << "restored component " << index;
+    }
+    const QJsonObject metadata = restoredLayer->toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("bitsPerChannel")).toInt(), 32);
+    EXPECT_EQ(metadata.value(QStringLiteral("channelCount")).toInt(), 4);
+}
+
+TEST(StillImageLayerRoundTripTest,
      StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha)
 {
     QTemporaryDir dir;
