@@ -1681,6 +1681,71 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
         << "thin-wall transmission should apply its adjusted dielectric Fresnel";
 }
 
+TEST_F(RayTracingAcceptanceTest,
+       AppliesSubsurfaceAmountAndRgbRadiusToDiffuseLighting) {
+    constexpr std::array<float, 9> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-subsurface-diffuse", vertexBuffer.RawPtr(), 3,
+                indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+
+    ArtifactCore::RTSceneLight normalIncidenceLight;
+    normalIncidenceLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    normalIncidenceLight.directionIntensity[2] = 1.0f;
+    normalIncidenceLight.directionIntensity[3] = 4.0f;
+    normalIncidenceLight.colorAttenuationConstant[0] = 1.0f;
+    normalIncidenceLight.colorAttenuationConstant[1] = 1.0f;
+    normalIncidenceLight.colorAttenuationConstant[2] = 1.0f;
+    normalIncidenceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &normalIncidenceLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 1.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.0f;
+    material.roughness = 0.5f;
+    const auto traceSubsurface = [&](const float amount) {
+        material.subsurface = amount;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-subsurface-diffuse"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+
+    const auto burleyDiffusePixel = traceSubsurface(0.0f);
+    const auto mixedDiffusePixel = traceSubsurface(0.5f);
+    const auto subsurfaceDiffusePixel = traceSubsurface(1.0f);
+    EXPECT_GT(subsurfaceDiffusePixel[0], subsurfaceDiffusePixel[1] + 0.01f)
+        << "the red subsurface radius should exceed the green radius response";
+    EXPECT_GT(subsurfaceDiffusePixel[1], subsurfaceDiffusePixel[2] + 0.01f)
+        << "the green subsurface radius should exceed the blue radius response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_GT(mixedDiffusePixel[channel],
+                  subsurfaceDiffusePixel[channel] + 0.001f)
+            << "a partial subsurface amount should blend from Burley diffuse, channel "
+            << channel;
+        EXPECT_LT(mixedDiffusePixel[channel], burleyDiffusePixel[channel] - 0.001f)
+            << "a partial subsurface amount should remain below Burley diffuse, channel "
+            << channel;
+    }
+}
+
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) {
     constexpr std::array<float, 24> vertices{
         -0.9f, -0.9f,  0.4f, 0.9f, -0.9f,  0.4f,
