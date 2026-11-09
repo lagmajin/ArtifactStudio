@@ -1341,6 +1341,72 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    const auto slotSheenUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-sheen-uv-ramp.png"));
+    QImage slotSheenUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotSheenUvRamp.isNull());
+    for (int y = 0; y < slotSheenUvRamp.height(); ++y) {
+        auto* row = slotSheenUvRamp.scanLine(y);
+        for (int x = 0; x < slotSheenUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 255 : 0;
+            pixel[1] = 0;
+            pixel[2] = x < 4 ? 0 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotSheenUvRamp.save(slotSheenUvRampPath, "PNG"));
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 0.5f;
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 1.0f;
+    leftMaterial.sheenRoughness = 0.4f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString(slotSheenUvRampPath);
+    leftMaterial.sheenColorTextureUvSet = 0;
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenUv0Left = pixelAt(8, 16);
+    const auto slotSheenUv0Right = pixelAt(24, 16);
+
+    rightMaterial.sheenColorTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotSheenLeft = pixelAt(8, 16);
+    const float slotSheenUvRoutingDifference = std::max(
+        std::fabs(slotSheenUv1Right[0] - slotSheenUv0Right[0]),
+        std::max(std::fabs(slotSheenUv1Right[1] - slotSheenUv0Right[1]),
+                 std::fabs(slotSheenUv1Right[2] - slotSheenUv0Right[2])));
+    EXPECT_GT(slotSheenUvRoutingDifference, 0.001f)
+        << "slot 1 sheen-color UV set should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotSheenLeft[channel], slotSheenUv0Left[channel],
+                    0.01f)
+            << "slot 1 sheen-color UV set should preserve slot 0, channel "
+            << channel;
+    }
+
     const auto smoothSheenRoughnessPath = slotTextureDirectory.filePath(
         QStringLiteral("slot-sheen-roughness-smooth.png"));
     const auto roughSheenRoughnessPath = slotTextureDirectory.filePath(
@@ -1574,6 +1640,72 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         EXPECT_NEAR(unchangedNoClearcoatLeftPixel[channel],
                     noClearcoatLeftPixel[channel], 0.01f)
             << "changing slot 1 clearcoat map should preserve slot 0, channel "
+            << channel;
+    }
+
+    const auto slotClearcoatUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-clearcoat-uv-ramp.png"));
+    QImage slotClearcoatUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotClearcoatUvRamp.isNull());
+    for (int y = 0; y < slotClearcoatUvRamp.height(); ++y) {
+        auto* row = slotClearcoatUvRamp.scanLine(y);
+        for (int x = 0; x < slotClearcoatUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const uchar value = x < 4 ? 0 : 255;
+            pixel[0] = pixel[1] = pixel[2] = value;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotClearcoatUvRamp.save(slotClearcoatUvRampPath, "PNG"));
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 0.5f;
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatIOR = 1.5f;
+    leftMaterial.clearcoatTexture =
+        ArtifactCore::UniString(slotClearcoatUvRampPath);
+    leftMaterial.clearcoatTextureUvSet = 0;
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString();
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatUv0Left = pixelAt(8, 16);
+    const auto slotClearcoatUv0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotClearcoatLeft = pixelAt(8, 16);
+    const float slotClearcoatUvRoutingDifference = std::max(
+        std::fabs(slotClearcoatUv1Right[0] - slotClearcoatUv0Right[0]),
+        std::max(std::fabs(slotClearcoatUv1Right[1] - slotClearcoatUv0Right[1]),
+                 std::fabs(slotClearcoatUv1Right[2] - slotClearcoatUv0Right[2])));
+    EXPECT_GT(slotClearcoatUvRoutingDifference, 0.001f)
+        << "slot 1 clearcoat UV set should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotClearcoatLeft[channel], slotClearcoatUv0Left[channel],
+                    0.01f)
+            << "slot 1 clearcoat UV set should preserve slot 0, channel "
             << channel;
     }
 
