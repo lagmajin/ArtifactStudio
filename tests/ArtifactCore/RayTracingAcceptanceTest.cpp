@@ -799,10 +799,17 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
         ArtifactCore::UniString("pbr-color-surface-maps"), vertices.data(), 4,
         indices.data(), 6, nullptr, nullptr, uvs.data()));
 
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto baseColorPath = tempDirectory / "artifact-rt-basecolor-map.png";
-    const auto metallicMapPath = tempDirectory / "artifact-rt-metallic-map.png";
-    const auto dielectricMapPath = tempDirectory / "artifact-rt-dielectric-map.png";
+    QTemporaryDir surfaceMapDirectory;
+    ASSERT_TRUE(surfaceMapDirectory.isValid());
+    const auto baseColorPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(QStringLiteral("base-color.png"))
+            .toStdString());
+    const auto metallicMapPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(QStringLiteral("metallic.png"))
+            .toStdString());
+    const auto dielectricMapPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(QStringLiteral("dielectric.png"))
+            .toStdString());
     QImage baseColorImage(8, 2, QImage::Format_RGBA8888);
     QImage metallicImage(8, 2, QImage::Format_RGBA8888);
     QImage dielectricImage(8, 2, QImage::Format_RGBA8888);
@@ -973,10 +980,6 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
                "factors, channel " << channel;
     }
 
-    std::error_code ignored;
-    std::filesystem::remove(baseColorPath, ignored);
-    std::filesystem::remove(metallicMapPath, ignored);
-    std::filesystem::remove(dielectricMapPath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
