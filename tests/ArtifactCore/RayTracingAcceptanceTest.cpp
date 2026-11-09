@@ -4435,6 +4435,73 @@ TEST_F(RayTracingAcceptanceTest,
                  "film IOR above 2.5 should clamp to 2.5");
 }
 
+TEST_F(RayTracingAcceptanceTest,
+       StopsTransmissionSkyForInternalViewAboveCriticalAngle) {
+    constexpr std::array<float, 12> vertices{
+        -4.0f, -4.0f, 0.0f, 4.0f, -4.0f, 0.0f,
+         4.0f,  4.0f, 0.0f, -4.0f,  4.0f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 2, 1, 0, 3, 2};
+    constexpr std::array<float, 12> outwardNormals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-internal-critical-angle", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), outwardNormals.data());
+
+    ArtifactCore::RTSceneLight zeroAmbientLight;
+    zeroAmbientLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Ambient);
+    manager_->setSceneLights(context_.RawPtr(), &zeroAmbientLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 1.0f;
+    material.metallic = 0.0f;
+    material.roughness = 0.04f;
+    material.transmission = 1.0f;
+    material.thinWall = 0.0f;
+    const auto traceInternalView = [&](const float ior) {
+        material.ior = ior;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-internal-critical-angle"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera camera;
+        camera.origin[0] = 0.0f;
+        camera.origin[1] = 0.0f;
+        camera.origin[2] = 1.0f;
+        camera.target[0] = 0.6f;
+        camera.target[1] = 0.5f;
+        camera.target[2] = 0.3755f;
+        camera.verticalFovDegrees = 0.1f;
+        EXPECT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize, kRayTraceTestImageSize,
+            camera));
+        return pixelAt(16, 16);
+    };
+
+    // The ray enters the boundary from its interior at about 51 degrees,
+    // beyond the glass-to-air critical angle (about 42 degrees).
+    const auto airReference = traceInternalView(1.0f);
+    const auto glassInternalView = traceInternalView(1.5f);
+    const float airReferenceEnergy = airReference[0] + airReference[1] +
+                                     airReference[2];
+    const float glassInternalEnergy = glassInternalView[0] +
+                                      glassInternalView[1] +
+                                      glassInternalView[2];
+    EXPECT_GT(airReferenceEnergy, 0.05f)
+        << "the unity-IOR reference should transmit the fallback sky";
+    EXPECT_LT(glassInternalEnergy, airReferenceEnergy * 0.1f)
+        << "an above-critical internal view should not transmit the exterior sky";
+}
+
 TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
     constexpr std::array<float, 9> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
