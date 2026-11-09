@@ -3377,6 +3377,35 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
         << "rotating the normal UV frame should rotate the sampled tangent-space direction";
 
     material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(normalPath.string()));
+    material.normalUvRotationDegrees = 0.0f;
+    material.normalUvOffsetU = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unshiftedNormalLeft = pixelAt(8, 16);
+    const auto unshiftedNormalRight = pixelAt(24, 16);
+
+    material.normalUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto shiftedNormalLeft = pixelAt(8, 16);
+    const auto shiftedNormalRight = pixelAt(24, 16);
+    EXPECT_NEAR(shiftedNormalLeft[0], unshiftedNormalRight[0], 0.03f)
+        << "normal-map U offset should move the tilted texels to the left";
+    EXPECT_NEAR(shiftedNormalRight[0], unshiftedNormalLeft[0], 0.03f)
+        << "normal-map U offset should wrap the flat texels onto the right";
+
+    material.normalTexture = ArtifactCore::UniString(
         QString::fromStdString(normalMapDirectory.filePath(
             QStringLiteral("missing-normal.png")).toStdString()));
     material.normalUvRotationDegrees = 0.0f;
