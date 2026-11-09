@@ -240,6 +240,42 @@ TEST(MaterialContractTest, TextureMapPathsAndPresenceFlagsRemainIndependent)
     EXPECT_TRUE(material.hasRoughnessTexture());
 }
 
+TEST(MaterialContractTest, IndependentMetallicAndRoughnessMapsKeepTheirTransforms)
+{
+    Material material;
+    material.setMetallicTextureUvTransform(
+        MaterialTextureUvTransform{2.0f, 0.5f, 45.0f, 1.0f, -2.0f, 1});
+    material.setRoughnessTextureUvTransform(
+        MaterialTextureUvTransform{0.25f, 3.0f, -90.0f, -4.0f, 5.0f, 0});
+
+    const auto metallic = material.metallicTextureUvTransform();
+    EXPECT_FLOAT_EQ(metallic.scaleU, 2.0f);
+    EXPECT_FLOAT_EQ(metallic.scaleV, 0.5f);
+    EXPECT_FLOAT_EQ(metallic.rotationDegrees, 45.0f);
+    EXPECT_FLOAT_EQ(metallic.offsetU, 1.0f);
+    EXPECT_FLOAT_EQ(metallic.offsetV, -2.0f);
+    EXPECT_EQ(metallic.uvSet, 1);
+
+    const auto roughness = material.roughnessTextureUvTransform();
+    EXPECT_FLOAT_EQ(roughness.scaleU, 0.25f);
+    EXPECT_FLOAT_EQ(roughness.scaleV, 3.0f);
+    EXPECT_FLOAT_EQ(roughness.rotationDegrees, -90.0f);
+    EXPECT_FLOAT_EQ(roughness.offsetU, -4.0f);
+    EXPECT_FLOAT_EQ(roughness.offsetV, 5.0f);
+    EXPECT_EQ(roughness.uvSet, 0);
+
+    material.setMetallicTextureUvTransform(MaterialTextureUvTransform{
+        std::numeric_limits<float>::quiet_NaN(), -1.0f,
+        std::numeric_limits<float>::infinity(), 20.0f, -20.0f, 2});
+    const auto sanitizedMetallic = material.metallicTextureUvTransform();
+    EXPECT_FLOAT_EQ(sanitizedMetallic.scaleU, 1.0f);
+    EXPECT_FLOAT_EQ(sanitizedMetallic.scaleV, 0.01f);
+    EXPECT_FLOAT_EQ(sanitizedMetallic.rotationDegrees, 0.0f);
+    EXPECT_FLOAT_EQ(sanitizedMetallic.offsetU, 10.0f);
+    EXPECT_FLOAT_EQ(sanitizedMetallic.offsetV, -10.0f);
+    EXPECT_EQ(sanitizedMetallic.uvSet, 0);
+}
+
 TEST(MaterialContractTest, TextureUvSetSelectorsStayPerMapAndLimitToUv0OrUv1)
 {
     Material material;
