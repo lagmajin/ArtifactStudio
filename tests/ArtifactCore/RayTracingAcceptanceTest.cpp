@@ -1662,6 +1662,65 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         << "slot 1 subsurface should change its diffuse response";
 
     leftMaterial.subsurface = 0.0f;
+    leftMaterial.specular = 0.0f;
+    leftMaterial.specularTint[0] = leftMaterial.specularTint[1] =
+        leftMaterial.specularTint[2] = 1.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 0.35f;
+    leftMaterial.ior = 1.5f;
+    leftMaterial.transmission = 0.0f;
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString{};
+    leftMaterial.baseColorTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicTexture = ArtifactCore::UniString{};
+    leftMaterial.roughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.normalTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.anisotropy = 0.0f;
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noSlotSpecularPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noSlotSpecularPixels));
+    leftMaterial.specular = 1.0f;
+    std::array<std::array<float, 4>, 2> leftSlotSpecularPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftSlotSpecularPixels));
+    float leftSlotSpecularResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotSpecularResponse = std::max(leftSlotSpecularResponse,
+            std::fabs(leftSlotSpecularPixels[0][channel] -
+                      noSlotSpecularPixels[0][channel]));
+        EXPECT_NEAR(leftSlotSpecularPixels[1][channel],
+                    noSlotSpecularPixels[1][channel], 0.01f)
+            << "changing slot 0 specular should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotSpecularResponse, 0.001f)
+        << "slot 0 specular should change its dielectric reflection";
+    leftMaterial.specular = 0.0f;
+    rightMaterial.specular = 1.0f;
+    std::array<std::array<float, 4>, 2> rightSlotSpecularPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightSlotSpecularPixels));
+    float rightSlotSpecularResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightSlotSpecularPixels[0][channel],
+                    noSlotSpecularPixels[0][channel], 0.01f)
+            << "changing slot 1 specular should preserve slot 0, channel "
+            << channel;
+        rightSlotSpecularResponse = std::max(rightSlotSpecularResponse,
+            std::fabs(rightSlotSpecularPixels[1][channel] -
+                      noSlotSpecularPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotSpecularResponse, 0.001f)
+        << "slot 1 specular should change its dielectric reflection";
+
+    leftMaterial.subsurface = 0.0f;
     leftMaterial.clearcoat = 0.0f;
     leftMaterial.clearcoatRoughness = 0.2f;
     leftMaterial.clearcoatTint[0] = leftMaterial.clearcoatTint[1] =
