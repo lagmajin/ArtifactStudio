@@ -2445,6 +2445,24 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
     EXPECT_GT(halfStrengthPixel[0], occludedPixel[0] + 0.005f)
         << "half occlusion strength should retain more response than full strength";
 
+    const auto halfOcclusionMapPath = temporaryDirectory.filePath(
+        QStringLiteral("ao-half-occlusion.png"));
+    QImage halfOcclusionMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(halfOcclusionMap.isNull());
+    halfOcclusionMap.fill(QColor(128, 128, 128, 255));
+    ASSERT_TRUE(halfOcclusionMap.save(halfOcclusionMapPath, "PNG"));
+    material.occlusionTexture = ArtifactCore::UniString(halfOcclusionMapPath);
+    material.occlusionStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfMapPixel = pixelAt(8, 16);
+    EXPECT_NEAR(halfMapPixel[0], halfStrengthPixel[0], 0.015f)
+        << "occlusion strength should linearly mix the red channel with white";
+
     const auto occludedSlotPath = temporaryDirectory.filePath(
         QStringLiteral("ao-slot-occluded.png"));
     const auto openSlotPath = temporaryDirectory.filePath(
