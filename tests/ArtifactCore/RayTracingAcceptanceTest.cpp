@@ -715,6 +715,51 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
     EXPECT_GT(removedMapDifference, 0.02f)
         << "clearing the base-color map should restore the scalar material color";
 
+    QTemporaryDir missingTextureDirectory;
+    ASSERT_TRUE(missingTextureDirectory.isValid());
+    material.baseColorTexture = ArtifactCore::UniString(
+        missingTextureDirectory.filePath(QStringLiteral("missing-base.png")));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingBaseColorPixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(missingBaseColorPixel[channel],
+                    clearedBaseColorMapPixel[channel], 0.01f)
+            << "a missing base-color map should preserve scalar color, channel "
+            << channel;
+    }
+
+    material.baseColorTexture = ArtifactCore::UniString();
+    material.metallicRoughnessTexture = ArtifactCore::UniString();
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scalarSurfacePixel = pixelAt(16, 16);
+
+    material.metallicRoughnessTexture = ArtifactCore::UniString(
+        missingTextureDirectory.filePath(
+            QStringLiteral("missing-metallic-roughness.png")));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingSurfacePixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(missingSurfacePixel[channel], scalarSurfacePixel[channel],
+                    0.01f)
+            << "a missing metallic-roughness map should preserve scalar "
+               "factors, channel " << channel;
+    }
+
     std::error_code ignored;
     std::filesystem::remove(baseColorPath, ignored);
     std::filesystem::remove(metallicMapPath, ignored);
