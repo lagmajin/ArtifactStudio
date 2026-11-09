@@ -2748,6 +2748,42 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
     EXPECT_GT(baseColorUv0Left[0], baseColorUv0Left[2] + 0.1f);
     EXPECT_GT(baseColorUv0Right[2], baseColorUv0Right[0] + 0.1f);
 
+    QImage transparentBaseColorImage = baseColorImage;
+    for (int y = 0; y < transparentBaseColorImage.height(); ++y) {
+        auto* row = transparentBaseColorImage.scanLine(y);
+        for (int x = 0; x < transparentBaseColorImage.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const auto transparentBaseColorPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(
+            QStringLiteral("base-color-zero-alpha.png")).toStdString());
+    ASSERT_TRUE(transparentBaseColorImage.save(
+        QString::fromStdString(transparentBaseColorPath.string()), "PNG"));
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(transparentBaseColorPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroAlphaBaseColorLeft = pixelAt(8, 16);
+    const auto zeroAlphaBaseColorRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(zeroAlphaBaseColorLeft[channel], baseColorUv0Left[channel],
+                    0.02f)
+            << "opaque base-color shading should ignore texture alpha, left "
+            << "channel " << channel;
+        EXPECT_NEAR(zeroAlphaBaseColorRight[channel], baseColorUv0Right[channel],
+                    0.02f)
+            << "opaque base-color shading should ignore texture alpha, right "
+            << "channel " << channel;
+    }
+
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(baseColorPath.string()));
     material.baseColorUvOffsetU = 0.5f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-color-surface-maps"), material));
