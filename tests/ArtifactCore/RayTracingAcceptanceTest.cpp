@@ -2974,8 +2974,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         std::array<float, 3> sheenTint{1.0f, 1.0f, 1.0f};
         float clearcoat = 0.0f;
         float clearcoatRoughness = 0.2f;
+        int aoValue = -1;
     };
-    constexpr std::array<MaterialProbe, 9> materialProbes{{
+    constexpr std::array<MaterialProbe, 11> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -2988,7 +2989,11 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.8f, 0.15f,
          {0.02f, 0.1f, 1.0f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
-         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f}}};
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.8f, 0.15f,
+         {1.0f, 0.07f, 0.02f}, 0.0f, 0.2f, 255},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.8f, 0.15f,
+         {1.0f, 0.07f, 0.02f}, 0.0f, 0.2f, 64}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -2999,6 +3004,18 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     ASSERT_FALSE(parityNormalMap.isNull());
     parityNormalMap.fill(QColor(153, 128, 242, 255));
     ASSERT_TRUE(parityNormalMap.save(parityNormalMapPath, "PNG"));
+    const QString aoWhitePath = normalMapDirectory.filePath(
+        QStringLiteral("parity-ao-white.png"));
+    const QString aoDarkPath = normalMapDirectory.filePath(
+        QStringLiteral("parity-ao-dark.png"));
+    QImage aoWhiteImage(1, 1, QImage::Format_Grayscale8);
+    QImage aoDarkImage(1, 1, QImage::Format_Grayscale8);
+    ASSERT_FALSE(aoWhiteImage.isNull());
+    ASSERT_FALSE(aoDarkImage.isNull());
+    aoWhiteImage.fill(255);
+    aoDarkImage.fill(64);
+    ASSERT_TRUE(aoWhiteImage.save(aoWhitePath, "PNG"));
+    ASSERT_TRUE(aoDarkImage.save(aoDarkPath, "PNG"));
     for (size_t probeIndex = 0; probeIndex < materialProbes.size();
          ++probeIndex) {
         const auto& probe = materialProbes[probeIndex];
@@ -3014,8 +3031,16 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                                  QColor::fromRgbF(probe.sheenTint[0],
                                                   probe.sheenTint[1],
                                                   probe.sheenTint[2]));
-        if (probeIndex + 1 == materialProbes.size())
+        if (probeIndex == 8)
             renderer.setNormalTexture(parityNormalMapPath);
+        else if (probeIndex >= 9)
+            renderer.setNormalTexture(QString{});
+        if (probe.aoValue == 255)
+            renderer.setOcclusionTexture(aoWhitePath);
+        else if (probe.aoValue >= 0)
+            renderer.setOcclusionTexture(aoDarkPath);
+        else
+            renderer.setOcclusionTexture(QString{});
         rasterProbePixels[probeIndex] = renderCenterPixel();
 
         ArtifactCore::RTPbrMaterial rtMaterial;
@@ -3032,9 +3057,14 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.sheenRoughness = probe.sheenRoughness;
         std::copy(probe.sheenTint.begin(), probe.sheenTint.end(),
                   rtMaterial.sheenTint);
-        if (probeIndex + 1 == materialProbes.size())
+        if (probeIndex == 8)
             rtMaterial.normalTexture = ArtifactCore::UniString(
                 parityNormalMapPath);
+        if (probe.aoValue >= 0) {
+            rtMaterial.occlusionTexture = ArtifactCore::UniString(
+                probe.aoValue == 255 ? aoWhitePath : aoDarkPath);
+            rtMaterial.occlusionStrength = 1.0f;
+        }
         ASSERT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString(kHdrParityGeometryId), rtMaterial));
         ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -3059,7 +3089,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                     sizeof(rtProbePixels[probeIndex]));
         context_->UnmapTextureSubresource(traceStagingTexture, 0, 0);
         for (size_t channel = 0; channel < 3; ++channel) {
-            const float parityTolerance = probeIndex >= 5 && probeIndex < 9
+            const float parityTolerance = probeIndex >= 5
                 ? 0.05f
                 : std::max(0.015f,
                            std::fabs(rasterProbePixels[probeIndex][channel]) *
@@ -3071,6 +3101,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                 << channel;
         }
     }
+    renderer.setOcclusionTexture(QString{});
     const auto probeLuminance = [](const std::array<float, 4>& pixel) {
         return pixel[0] * 0.2126f + pixel[1] * 0.7152f +
                pixel[2] * 0.0722f;
@@ -3093,6 +3124,12 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
             rasterProbePixels[5][channel] - rasterProbePixels[7][channel]);
     }
     EXPECT_GT(sheenTintDifference, 0.005f);
+    EXPECT_GT(probeLuminance(rasterProbePixels[9]),
+              probeLuminance(rasterProbePixels[10]) + 0.001f)
+        << "lower AO should reduce the Raster sheen IBL response";
+    EXPECT_GT(probeLuminance(rtProbePixels[9]),
+              probeLuminance(rtProbePixels[10]) + 0.001f)
+        << "lower AO should reduce the RT sheen IBL response";
 
     auto nonUniformTransform = float4x4::Identity();
     nonUniformTransform.m00 = 2.0f;
