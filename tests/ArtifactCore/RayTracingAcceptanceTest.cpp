@@ -4001,6 +4001,29 @@ TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedOpacityTextures) {
             << "minified opacity checker sample " << i
             << " should match its average-alpha mip";
     }
+
+    const auto traceObliqueMipSample = [&](const std::filesystem::path& path) {
+        material.opacityTexture = ArtifactCore::UniString(
+            QString::fromStdString(path.string()));
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("opacity-minified-mip-selection"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera camera;
+        camera.origin[0] = 1.5f;
+        camera.origin[2] = -1.0f;
+        camera.target[2] = 0.0f;
+        camera.verticalFovDegrees = 60.0f;
+        EXPECT_TRUE(manager_->traceCamera(context_.RawPtr(),
+                                          kRayTraceTestImageSize,
+                                          kRayTraceTestImageSize, camera));
+        return pixelAt(16, 16)[0];
+    };
+    const float obliqueCheckerSample = traceObliqueMipSample(checkerPath);
+    const float obliqueAverageSample = traceObliqueMipSample(averagePath);
+    EXPECT_NEAR(obliqueCheckerSample, obliqueAverageSample, 0.025f)
+        << "an oblique camera should resolve the minified checker to its "
+           "average-alpha mip";
 }
 
 TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) {
