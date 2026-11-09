@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: EXIF orientationのImageLayer統合
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ExifOrientationSixReorientsLayerPixelsAndBounds`、静止画受入表IMG-07。
+- **確認できた事実:** Core importer contractはEXIF orientation 1〜8の画素座標変換と寸法を検査するが、ImageLayer testにはorientation fixtureからdecoded buffer、QImage、boundsまでをつなぐケースがない。
+- **追加した確認:** EXIF orientation 6付き64x32 4象限JPEGをArtifactImageLayerで読み、32x64への寸法交換、境界から離れた4象限色の回転先、localBounds、source metadataのorientation値を検査する。
+- **価値または懸念:** importerの向き補正とlayer frame geometry／metadataの不整合を検出する。JPEG圧縮のため色値比較はCore testと同程度の許容幅を使う。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ExifOrientationSixReorientsLayerPixelsAndBounds` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: 正常sourceからcorrupt replacementへの失敗遷移
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits`、静止画受入表IMG-13、制作準備文書のfull decode failure契約。
 - **確認できた事実:** 既存corrupt payload testは初期状態のlayerで要求path保持とplaceholder生成を確認する。計画文書はdecode failure時に旧source identity/cacheを破棄して要求source pathへplaceholderを対応させるとする。

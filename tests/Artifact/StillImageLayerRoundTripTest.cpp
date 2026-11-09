@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <utility>
 
+#include <QBuffer>
 #include <QByteArray>
 #include <QColor>
 #include <QColorSpace>
@@ -182,6 +184,51 @@ bool writeBase64Fixture(const QString& path, const QByteArray& base64)
     QFile file(path);
     return bytes.size() == 70 && file.open(QIODevice::WriteOnly) &&
            file.write(bytes) == bytes.size();
+}
+
+QByteArray jpegWithExifOrientation(const QImage& image, int orientation)
+{
+    QByteArray jpeg;
+    QBuffer buffer(&jpeg);
+    if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "JPEG", 100)) {
+        return {};
+    }
+
+    QByteArray exif("Exif\0\0", 6);
+    exif.append("II", 2);
+    exif.append(static_cast<char>(0x2a));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(8));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(1));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0x12));
+    exif.append(static_cast<char>(0x01));
+    exif.append(static_cast<char>(3));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(1));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(orientation));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+
+    const int app1Length = exif.size() + 2;
+    QByteArray app1;
+    app1.append(static_cast<char>(0xff));
+    app1.append(static_cast<char>(0xe1));
+    app1.append(static_cast<char>((app1Length >> 8) & 0xff));
+    app1.append(static_cast<char>(app1Length & 0xff));
+    app1.append(exif);
+    return jpeg.left(2) + app1 + jpeg.mid(2);
 }
 
 void expectDimensionFallbackRecorded(const QString& imagePath)
@@ -3298,6 +3345,60 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_TRUE(foundIccDiagnostic)
         << "An embedded ICC profile that is not converted should be "
            "classified in image fallback diagnostics";
+}
+
+TEST(StillImageLayerRoundTripTest,
+     ExifOrientationSixReorientsLayerPixelsAndBounds)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    QImage source(64, 32, QImage::Format_RGB32);
+    const std::array<QColor, 4> colors{
+        QColor(240, 20, 20), QColor(20, 240, 20),
+        QColor(20, 20, 240), QColor(240, 240, 20)};
+    for (int y = 0; y < source.height(); ++y) {
+        for (int x = 0; x < source.width(); ++x) {
+            const std::size_t quadrant =
+                static_cast<std::size_t>((y >= source.height() / 2 ? 2 : 0) +
+                                         (x >= source.width() / 2 ? 1 : 0));
+            source.setPixelColor(x, y, colors[quadrant]);
+        }
+    }
+
+    const QString imagePath = dir.filePath(QStringLiteral("orientation-6.jpg"));
+    const QByteArray jpeg = jpegWithExifOrientation(source, 6);
+    ASSERT_FALSE(jpeg.isEmpty());
+    QFile imageFile(imagePath);
+    ASSERT_TRUE(imageFile.open(QIODevice::WriteOnly));
+    ASSERT_EQ(imageFile.write(jpeg), jpeg.size());
+    imageFile.close();
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(32, 64)));
+
+    const QImage decoded = waitForImage(layer, QSize(32, 64));
+    ASSERT_EQ(decoded.size(), QSize(32, 64));
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 32.0, 64.0));
+    const std::array<QPoint, 4> sourceCenters{
+        QPoint(16, 8), QPoint(48, 8), QPoint(16, 24), QPoint(48, 24)};
+    for (std::size_t quadrant = 0; quadrant < sourceCenters.size(); ++quadrant) {
+        const QPoint sourcePoint = sourceCenters[quadrant];
+        const QPoint destinationPoint(source.height() - 1 - sourcePoint.y(),
+                                      sourcePoint.x());
+        const QColor actual = decoded.pixelColor(destinationPoint);
+        const QColor expected = colors[quadrant];
+        EXPECT_NEAR(actual.red(), expected.red(), 45) << "quadrant=" << quadrant;
+        EXPECT_NEAR(actual.green(), expected.green(), 45) << "quadrant=" << quadrant;
+        EXPECT_NEAR(actual.blue(), expected.blue(), 45) << "quadrant=" << quadrant;
+        EXPECT_EQ(actual.alpha(), 255) << "quadrant=" << quadrant;
+    }
+
+    const QJsonObject metadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("orientation")).toInt(), 6);
 }
 
 TEST(StillImageLayerRoundTripTest, TwoChannelGrayAlphaPngExpandsAndPreservesAlpha)
