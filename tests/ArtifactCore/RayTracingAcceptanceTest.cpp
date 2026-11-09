@@ -1260,6 +1260,43 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    leftMaterial.normalUvRotationDegrees = 0.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalRotation0Left = pixelAt(8, 16);
+    const auto slotNormalRotation0Right = pixelAt(24, 16);
+
+    rightMaterial.normalUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalRotation180Right = pixelAt(24, 16);
+    const auto unchangedSlotNormalRotationLeft = pixelAt(8, 16);
+    const float slotNormalRotationDifference = std::max(
+        std::fabs(slotNormalRotation180Right[0] - slotNormalRotation0Right[0]),
+        std::max(std::fabs(slotNormalRotation180Right[1] -
+                           slotNormalRotation0Right[1]),
+                 std::fabs(slotNormalRotation180Right[2] -
+                           slotNormalRotation0Right[2])));
+    EXPECT_GT(slotNormalRotationDifference, 0.001f)
+        << "slot 1 normal UV rotation should rotate its tangent-space response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotNormalRotationLeft[channel],
+                    slotNormalRotation0Left[channel], 0.01f)
+            << "slot 1 normal UV rotation should preserve slot 0, channel "
+            << channel;
+    }
+
     leftMaterial.normalTexture = ArtifactCore::UniString();
     leftMaterial.clearcoat = 1.0f;
     leftMaterial.clearcoatRoughness = 0.2f;
@@ -1344,6 +1381,44 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         EXPECT_NEAR(unchangedSlotCoatNormalLeft[channel],
                     slotCoatNormalUv0Left[channel], 0.01f)
             << "slot 1 clearcoat-normal UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoatNormalUvRotationDegrees = 0.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalRotation0Left = pixelAt(8, 16);
+    const auto slotCoatNormalRotation0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatNormalUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalRotation180Right = pixelAt(24, 16);
+    const auto unchangedSlotCoatNormalRotationLeft = pixelAt(8, 16);
+    const float slotCoatNormalRotationDifference = std::max(
+        std::fabs(slotCoatNormalRotation180Right[0] -
+                  slotCoatNormalRotation0Right[0]),
+        std::max(std::fabs(slotCoatNormalRotation180Right[1] -
+                           slotCoatNormalRotation0Right[1]),
+                 std::fabs(slotCoatNormalRotation180Right[2] -
+                           slotCoatNormalRotation0Right[2])));
+    EXPECT_GT(slotCoatNormalRotationDifference, 0.001f)
+        << "slot 1 clearcoat-normal UV rotation should rotate its tangent-space response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotCoatNormalRotationLeft[channel],
+                    slotCoatNormalRotation0Left[channel], 0.01f)
+            << "slot 1 clearcoat-normal UV rotation should preserve slot 0, channel "
             << channel;
     }
 
