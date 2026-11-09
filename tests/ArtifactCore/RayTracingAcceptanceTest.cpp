@@ -1010,6 +1010,18 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     const auto factorCutoutPixel = pixelAt(24, 16);
     EXPECT_GT(factorCutoutPixel[2], factorCutoutPixel[0] + 0.5f)
         << "base color alpha * scalar opacity must be below alpha cutoff";
+
+    frontMaterial.baseColorAlpha = 0.8f;
+    frontMaterial.opacity = 0.625f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto cutoffBoundaryPixel = pixelAt(24, 16);
+    EXPECT_GT(cutoffBoundaryPixel[0], cutoffBoundaryPixel[2] + 0.5f)
+        << "alpha equal to the cutoff should keep the front surface";
     std::error_code ignored;
     std::filesystem::remove(texturePath, ignored);
 }
