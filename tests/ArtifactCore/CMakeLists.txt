@@ -1,6 +1,17 @@
 # ArtifactCore Tests
 
 if(ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactCoreMaterialContractTest
+        SOURCES
+            MaterialContractTest.cpp
+        LIBS
+            ArtifactCore
+    )
+    set_tests_properties(ArtifactCoreMaterialContractTest PROPERTIES
+        LABELS "core;material;pbr;cpu;contract;standalone"
+        TIMEOUT 30
+    )
+
     add_subdirectory(MeshShaderLodStandalone)
 endif()
 
