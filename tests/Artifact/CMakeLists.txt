@@ -83,6 +83,19 @@ set_tests_properties(ArtifactTextAnimatorLayerContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
+artifact_add_test(ArtifactMotionBlurLayerPersistenceContractTest
+    SOURCES
+        MotionBlurLayerPersistenceContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactMotionBlurLayerPersistenceContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "motion-blur;layer;camera;serialization;undo;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactShapeLayerAnimationPersistenceContractTest
     SOURCES
         ShapeLayerAnimationPersistenceContractTest.cpp

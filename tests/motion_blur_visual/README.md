@@ -1,12 +1,18 @@
 # Motion Blur Image Quality Check
 
-**最終更新:** 2026-11-04
+**最終更新:** 2026-11-05
 
-This independent headless GPU check runs only the motion-blur multi-layer fixture,
-writes the GPU input and output as PPM images, and applies deterministic image
-recognition checks to the output. It checks that the static green mark survives,
-the red object leaves a horizontal trail, the yellow object leaves a vertical
-trail, and the unblurred input does not already contain the red trail.
+This independent headless GPU check runs two motion-blur fixtures, writes the GPU
+input and output as PPM images, and applies deterministic image recognition
+checks to the output. The multi-layer fixture checks that the static green mark
+survives, the red object leaves a horizontal trail, the yellow object leaves a
+vertical trail, and the unblurred input does not already contain the red trail.
+The rotation fixture uses a tangential velocity field: the centre marker must
+stay sharp, a left-edge marker must smear vertically above and below, and no
+horizontal trail may appear.
+
+The rotation fixture writes `motion-blur-rotation-input.ppm` and
+`motion-blur-rotation-output.ppm` next to the multi-layer pair.
 
 Build `ArtifactPostProcessPassContractTest` using the repository's configured
 build tree, then run the checker directly:

@@ -69,8 +69,8 @@ struct TrackedValueEqual {
     }
 };
 
-template <typename T, typename Hasher>
-Array<T> toArray(const HashSet<T, Hasher>& values)
+template <typename T, typename Hasher, typename KeyEqual>
+Array<T> toArray(const HashSet<T, Hasher, KeyEqual>& values)
 {
     Array<T> result;
     for (const T& value : values) result.append(value);
@@ -335,6 +335,55 @@ TEST(ArtifactSetContractTest, SwapKeepsStatefulHashersWithTheirBuckets)
 
     EXPECT_TRUE(first.contains(13));
     EXPECT_TRUE(second.contains(5));
+}
+
+TEST(ArtifactSetContractTest, CopyPreservesStatefulHasherAndEquality)
+{
+    InstanceSaltedHash::nextSalt = 0;
+    HashSet<int, InstanceSaltedHash> source;
+    ASSERT_TRUE(source.add(5));
+
+    HashSet<int, InstanceSaltedHash> copied(source);
+    EXPECT_TRUE(copied.contains(5));
+    EXPECT_TRUE(copied.add(21));
+    EXPECT_TRUE(copied.contains(21));
+
+    InstanceModeEqual::nextMode = 1;
+    HashSet<int, ConstantHash, InstanceModeEqual> tensEquivalent;
+    ASSERT_TRUE(tensEquivalent.add(12));
+    HashSet<int, ConstantHash, InstanceModeEqual> copiedEquality(tensEquivalent);
+    EXPECT_TRUE(copiedEquality.contains(22));
+    EXPECT_FALSE(copiedEquality.add(32));
+}
+
+TEST(ArtifactSetContractTest, CopyAssignmentPreservesStatefulHashers)
+{
+    InstanceSaltedHash::nextSalt = 0;
+    HashSet<int, InstanceSaltedHash> source;
+    ASSERT_TRUE(source.add(11));
+    HashSet<int, InstanceSaltedHash> assigned;
+    assigned = source;
+
+    EXPECT_TRUE(assigned.contains(11));
+    EXPECT_TRUE(assigned.add(27));
+    EXPECT_TRUE(assigned.contains(27));
+}
+
+TEST(ArtifactSetContractTest, MoveOperationsKeepStatefulFunctorsWithTheirBuckets)
+{
+    InstanceSaltedHash::nextSalt = 0;
+    HashSet<int, InstanceSaltedHash> source;
+    ASSERT_TRUE(source.add(19));
+
+    HashSet<int, InstanceSaltedHash> moved(std::move(source));
+    EXPECT_TRUE(moved.contains(19));
+    EXPECT_TRUE(moved.add(35));
+    EXPECT_TRUE(moved.contains(35));
+
+    HashSet<int, InstanceSaltedHash> assigned;
+    assigned = std::move(moved);
+    EXPECT_TRUE(assigned.contains(19));
+    EXPECT_TRUE(assigned.contains(35));
 }
 
 TEST(ArtifactSetContractTest, SwapKeepsStatefulEqualityWithItsMembership)
