@@ -3790,6 +3790,31 @@ TEST(StillImageLayerRoundTripTest,
         EXPECT_EQ(actual.alpha(), 255) << "quadrant=" << quadrant;
     }
 
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropWidth"), QVariant(16.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropHeight"), QVariant(32.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(true)));
+    const QImage cropped = layer.toQImage();
+    ASSERT_EQ(cropped.size(), QSize(32, 64));
+    const QColor croppedBlue = cropped.pixelColor(8, 16);
+    EXPECT_NEAR(croppedBlue.red(), colors[2].red(), 45);
+    EXPECT_NEAR(croppedBlue.green(), colors[2].green(), 45);
+    EXPECT_NEAR(croppedBlue.blue(), colors[2].blue(), 45);
+    EXPECT_EQ(croppedBlue.alpha(), 255);
+    EXPECT_EQ(cropped.pixelColor(24, 16).alpha(), 0)
+        << "the crop rectangle is expressed in orientation-corrected pixels";
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 32.0, 64.0));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(false)));
+    EXPECT_EQ(layer.toQImage(), decoded)
+        << "disabling crop should restore the complete orientation-corrected image";
+
     const QJsonObject metadata = layer.toJson()
         .value(QStringLiteral("image.sourceMetadata")).toObject();
     EXPECT_EQ(metadata.value(QStringLiteral("orientation")).toInt(), 6);

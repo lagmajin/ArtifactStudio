@@ -108,9 +108,9 @@
 ## 2026-11-09: EXIF orientationのImageLayer統合
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ExifOrientationSixReorientsLayerPixelsAndBounds`、静止画受入表IMG-07。
 - **確認できた事実:** Core importer contractはEXIF orientation 1〜8の画素座標変換と寸法を検査するが、ImageLayer testにはorientation fixtureからdecoded buffer、QImage、boundsまでをつなぐケースがない。
-- **追加した確認:** EXIF orientation 6付き64x32 4象限JPEGを読み、32x64への寸法交換、色の回転先、localBounds、metadataを検査後、同pathをEXIFなしJPEGで上書きし、version invalidation後に64x32へ戻ること、新画素と非6 orientation metadataへの更新を確認する。
-- **価値または懸念:** importerの向き補正に加え、source versionをまたぐgeometry／metadata stale stateを検出する。JPEG圧縮のため色値比較はCore testと同程度の許容幅を使う。テスト未実行。
-- **次に確認すること:** `StillImageLayerRoundTripTest.ExifOrientationSixReorientsLayerPixelsAndBounds` をテスト実行が許可された際に実行する。
+- **追加した確認:** EXIF orientation 6付き64x32 4象限JPEGを読み、32x64への寸法交換、色の回転先、localBounds、metadataを検査する。補正後の左上象限だけをcropし、青い画素が残りcrop外は透明になること、crop解除で完全な画像へ戻ることも確認する。同pathをEXIFなしJPEGで上書きし、version invalidation後に64x32へ戻ること、新画素と非6 orientation metadataへの更新を確認する。
+- **価値または懸念:** orientation座標変換とsource cropの順序不整合に加え、source versionをまたぐgeometry／metadata stale stateを検出する。JPEG圧縮のため色値比較はCore testと同程度の許容幅を使う。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ExifOrientationSixReorientsLayerPixelsAndBounds` をテスト実行が許可された際に実行し、orientation補正後cropとsource更新の両境界を確認する。
 
 ## 2026-11-09: 正常sourceからcorrupt replacementへの失敗遷移
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits`、静止画受入表IMG-13、制作準備文書のfull decode failure契約。
