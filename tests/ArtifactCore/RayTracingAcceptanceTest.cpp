@@ -2375,6 +2375,23 @@ TEST_F(RayTracingAcceptanceTest,
             << " should match its normalized direction and variance-filtered roughness";
     }
 
+    material.clearcoatNormalTexture = ArtifactCore::UniString();
+    std::array<float, 5> coatScalarSamples{};
+    for (int index = 0; index < static_cast<int>(coatScalarSamples.size()); ++index) {
+        coatScalarSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+    const auto missingCoatNormalPath = checkerPath.string() + ".missing.png";
+    ASSERT_FALSE(std::filesystem::exists(missingCoatNormalPath));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(missingCoatNormalPath));
+    for (int index = 0; index < static_cast<int>(coatScalarSamples.size()); ++index) {
+        EXPECT_NEAR(coatScalarSamples[static_cast<std::size_t>(index)],
+                    traceAndSample(material, 14 + index), 0.01f)
+            << "a missing clearcoat-normal map should preserve scalar coat shading, sample "
+            << index;
+    }
+
     std::error_code ignored;
     std::filesystem::remove(checkerPath, ignored);
     std::filesystem::remove(averageDirectionPath, ignored);
