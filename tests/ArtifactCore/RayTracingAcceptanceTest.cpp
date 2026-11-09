@@ -4381,6 +4381,42 @@ TEST_F(RayTracingAcceptanceTest, SelectsAnisotropyTextureUvSet) {
             << "anisotropy UV1 should mirror the right sample, channel "
             << channel;
     }
+
+    const QString anisotropyDirectionMapPath = textureDirectory.filePath(
+        QStringLiteral("anisotropy-direction.png"));
+    QImage anisotropyDirectionMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(anisotropyDirectionMap.isNull());
+    for (int y = 0; y < anisotropyDirectionMap.height(); ++y) {
+        auto* row = anisotropyDirectionMap.scanLine(y);
+        for (int x = 0; x < anisotropyDirectionMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool vertical = x >= anisotropyDirectionMap.width() / 2;
+            pixel[0] = vertical ? 128 : 255;
+            pixel[1] = vertical ? 255 : 128;
+            pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(anisotropyDirectionMap.save(anisotropyDirectionMapPath, "PNG"));
+    material.anisotropyTexture = ArtifactCore::UniString(
+        anisotropyDirectionMapPath);
+    material.anisotropyTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto horizontalDirectionPixel = pixelAt(8, 16);
+    const auto verticalDirectionPixel = pixelAt(24, 16);
+    const float anisotropyDirectionDifference = std::max(
+        std::fabs(horizontalDirectionPixel[0] - verticalDirectionPixel[0]),
+        std::max(std::fabs(horizontalDirectionPixel[1] - verticalDirectionPixel[1]),
+                 std::fabs(horizontalDirectionPixel[2] - verticalDirectionPixel[2])));
+    EXPECT_GT(anisotropyDirectionDifference, 0.001f)
+        << "anisotropy texture red/green direction channels should rotate the "
+           "specular lobe while blue strength stays constant";
 }
 
 TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
