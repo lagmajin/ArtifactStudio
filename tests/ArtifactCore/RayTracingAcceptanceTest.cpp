@@ -972,6 +972,31 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
     EXPECT_GT(rightHdrEmission[1], 1.5f);
     EXPECT_LT(rightHdrEmission[0], 0.1f);
     EXPECT_NEAR(rightHdrEmission[2], 0.25f, 0.02f);
+
+    material.emissionTexture = ArtifactCore::UniString();
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scalarEmission = pixelAt(16, 16);
+
+    material.emissionTexture = ArtifactCore::UniString(
+        temporaryDirectory.filePath(QStringLiteral("missing-emission.png")));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingTextureEmission = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(missingTextureEmission[channel], scalarEmission[channel],
+                    0.01f)
+            << "a missing emission texture should preserve scalar emission, "
+               "channel " << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
