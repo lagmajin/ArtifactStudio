@@ -1056,6 +1056,21 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     EXPECT_GT(cutoutPixel[2], cutoutPixel[0] + 0.5f);
     EXPECT_GT(opaquePixel[0], opaquePixel[2] + 0.5f);
 
+    frontMaterial.opacityTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedCutoutPixel = pixelAt(8, 16);
+    const auto rotatedOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(rotatedCutoutPixel[0], rotatedCutoutPixel[2] + 0.5f)
+        << "rotating the opacity map should move its opaque half onto the left side";
+    EXPECT_GT(rotatedOpaquePixel[2], rotatedOpaquePixel[0] + 0.5f)
+        << "rotating the opacity map should move its cutout half onto the right side";
+
+    frontMaterial.opacityTextureUvRotationDegrees = 0.0f;
     frontMaterial.baseColorAlpha = 0.7f;
     frontMaterial.opacity = 0.7f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
