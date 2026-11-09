@@ -7564,6 +7564,31 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
             }
         }
     }
+    const QVector3D maximumSubsurfaceRadius(10.0f, 10.0f, 10.0f);
+    const auto maximumRadiusResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, maximumSubsurfaceRadius);
+    const QVector3D overMaximumSubsurfaceRadius(20.0f, 20.0f, 20.0f);
+    const auto overMaximumRadiusResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, overMaximumSubsurfaceRadius);
+    const QVector3D infiniteSubsurfaceRadius(
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::infinity());
+    const QVector3D defaultSubsurfaceRadius(1.0f, 0.2f, 0.1f);
+    const auto nonFiniteRadiusResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, infiniteSubsurfaceRadius);
+    const auto defaultRadiusResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, defaultSubsurfaceRadius);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(overMaximumRadiusResponse[channel],
+                    maximumRadiusResponse[channel], 1.0e-5f)
+            << "Raster subsurface radius above ten should clamp to ten, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteRadiusResponse[channel],
+                    defaultRadiusResponse[channel], 1.0e-5f)
+            << "non-finite Raster subsurface radius should use its channel "
+            << "default, channel " << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
