@@ -2993,17 +2993,18 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
             captureSpecularTint(tintChannel, 1.0f);
         const auto aboveMaximumSpecularTintPixel =
             captureSpecularTint(tintChannel, 1.5f);
-        const float specularTintResponse = std::max(
-            std::fabs(maximumSpecularTintPixel[0] -
-                      minimumSpecularTintPixel[0]),
-            std::max(std::fabs(maximumSpecularTintPixel[1] -
-                               minimumSpecularTintPixel[1]),
-                     std::fabs(maximumSpecularTintPixel[2] -
-                               minimumSpecularTintPixel[2])));
-        EXPECT_GT(specularTintResponse, 0.001f)
-            << "the fixture should respond to specular tint channel "
+        EXPECT_GT(std::fabs(maximumSpecularTintPixel[tintChannel] -
+                            minimumSpecularTintPixel[tintChannel]),
+                  0.001f)
+            << "specular tint should affect its matching output channel "
             << tintChannel;
         for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(maximumSpecularTintPixel[channel],
+                            minimumSpecularTintPixel[channel], 1.0e-5f)
+                    << "specular tint channel " << tintChannel
+                    << " should not alter output channel " << channel;
+            }
             EXPECT_NEAR(belowMinimumSpecularTintPixel[channel],
                         minimumSpecularTintPixel[channel], 1.0e-5f)
                 << "specular tint below zero should clamp to zero, tint channel "
