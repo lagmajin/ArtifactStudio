@@ -5944,6 +5944,40 @@ TEST_F(RayTracingAcceptanceTest,
         << "slot 0 base-color alpha times scalar opacity is above cutoff";
     EXPECT_GT(rightCombinedAlphaOpen, rightSlotBlocked + 0.02f)
         << "slot 1 base-color alpha times scalar opacity is below cutoff";
+
+    slot0Material.alphaMode = 0;
+    slot1Material.alphaMode = 1;
+    slot0Material.opacityTexture = ArtifactCore::UniString(transparentPath);
+    slot1Material.opacityTexture = ArtifactCore::UniString(transparentPath);
+    slot0Material.opacity = slot1Material.opacity = 1.0f;
+    slot0Material.baseColorAlpha = slot1Material.baseColorAlpha = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftOpaqueModeBlocked = traceReceiverGreen(-1.0f);
+    const float rightMaskedModeOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftOpaqueModeBlocked, leftSlotBlocked, 0.02f)
+        << "opaque mode on slot 0 should ignore transparent shadow alpha";
+    EXPECT_GT(rightMaskedModeOpen, rightSlotBlocked + 0.02f)
+        << "masked mode on slot 1 should pass its transparent shadow";
+
+    slot0Material.alphaMode = 1;
+    slot1Material.alphaMode = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftMaskedModeOpen = traceReceiverGreen(-1.0f);
+    const float rightOpaqueModeBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftMaskedModeOpen, leftSlotBlocked + 0.02f)
+        << "masked mode on slot 0 should pass its transparent shadow";
+    EXPECT_NEAR(rightOpaqueModeBlocked, rightSlotBlocked, 0.02f)
+        << "opaque mode on slot 1 should ignore transparent shadow alpha";
 }
 
 TEST_F(RayTracingAcceptanceTest,
