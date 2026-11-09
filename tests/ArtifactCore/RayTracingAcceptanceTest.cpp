@@ -7934,6 +7934,39 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                                         kRayTraceTestImageSize));
     const auto fullStrengthRight = pixelAt(24, 16);
 
+    QImage greenPerturbedNormalImage = moderateNormalImage;
+    for (int y = 0; y < greenPerturbedNormalImage.height(); ++y) {
+        auto* row = greenPerturbedNormalImage.scanLine(y);
+        for (int x = greenPerturbedNormalImage.width() / 2;
+             x < greenPerturbedNormalImage.width(); ++x) {
+            row[x * 4 + 1] = 204;
+        }
+    }
+    const auto greenPerturbedNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(
+            QStringLiteral("normal-map-green-perturbed.png")).toStdString());
+    ASSERT_TRUE(greenPerturbedNormalImage.save(
+        QString::fromStdString(greenPerturbedNormalPath.string()), "PNG"));
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(greenPerturbedNormalPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto greenPerturbedRight = pixelAt(24, 16);
+    const float greenChannelResponse = std::max(
+        std::fabs(greenPerturbedRight[0] - fullStrengthRight[0]),
+        std::max(std::fabs(greenPerturbedRight[1] - fullStrengthRight[1]),
+                 std::fabs(greenPerturbedRight[2] - fullStrengthRight[2])));
+    EXPECT_GT(greenChannelResponse, 0.001f)
+        << "normal-map green should contribute to tangent-space shading";
+
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+
     material.normalStrength = 0.5f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-normal-map"), material));
