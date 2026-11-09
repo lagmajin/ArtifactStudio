@@ -233,6 +233,35 @@ TEST(FileWatcherStandaloneTest, CallbackCanUnwatchItsOwnPath)
     EXPECT_FALSE(watcher.isWatching(path));
 }
 
+TEST(FileWatcherStandaloneTest,
+     CallbackCanReplaceItsOwnRegistrationForTheNextChange)
+{
+    TemporaryFile file;
+    WatchCleanup cleanup;
+    auto oldCallbackCount = std::make_shared<std::atomic_int>(0);
+    auto newCallbackCount = std::make_shared<std::atomic_int>(0);
+    auto& watcher = FileWatcher::instance();
+    const String path(file.path().string());
+    watcher.watch(path,
+        [oldCallbackCount, newCallbackCount, path, &watcher](const String&) {
+            watcher.unwatch(path);
+            watcher.watch(path, [newCallbackCount](const String&) {
+                newCallbackCount->fetch_add(1);
+            }, 5);
+            oldCallbackCount->fetch_add(1);
+        }, 5);
+
+    file.changeTimestamp();
+    ASSERT_TRUE(waitForCount(oldCallbackCount, 1));
+    ASSERT_TRUE(watcher.isWatching(path));
+    file.changeTimestamp();
+    ASSERT_TRUE(waitForCount(newCallbackCount, 1));
+
+    EXPECT_EQ(oldCallbackCount->load(), 1);
+    EXPECT_EQ(newCallbackCount->load(), 1);
+    EXPECT_TRUE(watcher.isWatching(path));
+}
+
 TEST(FileWatcherStandaloneTest, DeletedPathDoesNotTriggerOnTimestampPolling)
 {
     TemporaryFile file;

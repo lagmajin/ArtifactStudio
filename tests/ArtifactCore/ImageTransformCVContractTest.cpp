@@ -3,6 +3,7 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/types.hpp>
 
+#include <cstdint>
 #include <stdexcept>
 
 import Image:ImageTransform;
@@ -63,6 +64,60 @@ TEST(ImageTransformCVContractTest, ConvertsEightBitGrayscaleToEqualRgbAndOpaqueA
     EXPECT_FLOAT_EQ(pixel[0], pixel[1]);
     EXPECT_FLOAT_EQ(pixel[1], pixel[2]);
     EXPECT_FLOAT_EQ(pixel[3], 1.0f);
+}
+
+TEST(ImageTransformCVContractTest, NormalizesSixteenBitGrayscaleAcrossItsFullRange)
+{
+    cv::Mat input(1, 3, CV_16UC1);
+    input.at<std::uint16_t>(0, 0) = 0;
+    input.at<std::uint16_t>(0, 1) = 32768;
+    input.at<std::uint16_t>(0, 2) = 65535;
+
+    const cv::Mat output = convertToFloat32RGBA(input);
+
+    ASSERT_EQ(output.type(), CV_32FC4);
+    EXPECT_NEAR(output.at<cv::Vec4f>(0, 0)[0], 0.0f, 1e-6f);
+    EXPECT_NEAR(output.at<cv::Vec4f>(0, 1)[0], 32768.0f / 65535.0f, 1e-6f);
+    EXPECT_NEAR(output.at<cv::Vec4f>(0, 2)[0], 1.0f, 1e-6f);
+    for (int column = 0; column < input.cols; ++column) {
+        const auto pixel = output.at<cv::Vec4f>(0, column);
+        EXPECT_FLOAT_EQ(pixel[0], pixel[1]);
+        EXPECT_FLOAT_EQ(pixel[1], pixel[2]);
+        EXPECT_FLOAT_EQ(pixel[3], 1.0f);
+    }
+}
+
+TEST(ImageTransformCVContractTest, NormalizesStridedSixteenBitRgbaChannelsAcrossRows)
+{
+    cv::Mat backing(2, 4, CV_16UC4, cv::Scalar(65535, 65535, 65535, 65535));
+    cv::Mat input = backing(cv::Rect(1, 0, 2, 2));
+    input.at<cv::Vec<std::uint16_t, 4>>(0, 0) = {0, 1, 32768, 65535};
+    input.at<cv::Vec<std::uint16_t, 4>>(0, 1) = {65535, 32768, 1, 0};
+    input.at<cv::Vec<std::uint16_t, 4>>(1, 0) = {257, 514, 771, 1028};
+    input.at<cv::Vec<std::uint16_t, 4>>(1, 1) = {32767, 32768, 32769, 65534};
+    ASSERT_GT(input.step, static_cast<std::size_t>(input.cols * input.elemSize()));
+
+    const cv::Mat output = convertToFloat32RGBA(input);
+
+    ASSERT_EQ(output.type(), CV_32FC4);
+    ASSERT_EQ(output.rows, 2);
+    ASSERT_EQ(output.cols, 2);
+    const std::uint16_t expected[2][2][4] = {
+        {{0, 1, 32768, 65535}, {65535, 32768, 1, 0}},
+        {{257, 514, 771, 1028}, {32767, 32768, 32769, 65534}},
+    };
+    for (int row = 0; row < input.rows; ++row) {
+        for (int column = 0; column < input.cols; ++column) {
+            const auto actual = output.at<cv::Vec4f>(row, column);
+            for (int channel = 0; channel < 4; ++channel) {
+                EXPECT_NEAR(actual[channel],
+                            static_cast<float>(expected[row][column][channel]) / 65535.0f,
+                            1.0e-6f)
+                    << "row=" << row << " column=" << column
+                    << " channel=" << channel;
+            }
+        }
+    }
 }
 
 TEST(ImageTransformCVContractTest, ConvertsEightBitFourChannelInputWithoutReordering)

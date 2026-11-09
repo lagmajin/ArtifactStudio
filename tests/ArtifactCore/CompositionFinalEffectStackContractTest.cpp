@@ -155,4 +155,32 @@ TEST(CompositionFinalEffectStackContractTest,
     EXPECT_EQ(restored.getEffectCount(), 0);
 }
 
+TEST(CompositionFinalEffectStackContractTest,
+     StackImportSkipsNonObjectEntriesAndPreservesValidEffectOrder)
+{
+    CompositionFinalEffectStack stack;
+    stack.addEffect(std::make_unique<CompositionFinalEffect>(
+        FinalEffectType::Grain));
+
+    QJsonArray entries;
+    entries.append(QJsonObject{{QStringLiteral("type"),
+                                static_cast<int>(FinalEffectType::Exposure)},
+                               {QStringLiteral("name"), QStringLiteral("First")}});
+    entries.append(QStringLiteral("not an effect object"));
+    entries.append(42);
+    entries.append(QJsonObject{{QStringLiteral("type"),
+                                static_cast<int>(FinalEffectType::LUT)},
+                               {QStringLiteral("name"), QStringLiteral("Second")}});
+
+    stack.fromJson(QJsonObject{{QStringLiteral("effects"), entries}});
+
+    ASSERT_EQ(stack.getEffectCount(), 2);
+    ASSERT_NE(stack.getEffect(0), nullptr);
+    ASSERT_NE(stack.getEffect(1), nullptr);
+    EXPECT_EQ(stack.getEffect(0)->getType(), FinalEffectType::Exposure);
+    EXPECT_EQ(stack.getEffect(0)->getName(), QStringLiteral("First"));
+    EXPECT_EQ(stack.getEffect(1)->getType(), FinalEffectType::LUT);
+    EXPECT_EQ(stack.getEffect(1)->getName(), QStringLiteral("Second"));
+}
+
 } // namespace

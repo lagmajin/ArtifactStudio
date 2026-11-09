@@ -4,7 +4,10 @@
 #include <QString>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cmath>
+#include <limits>
 #include <thread>
 #include <vector>
 
@@ -121,6 +124,30 @@ TEST(ProgressAggregatorContractTest, UpdatingWorkerTotalRecalculatesProgressWith
     EXPECT_FLOAT_EQ(worker->progress(), 0.25f);
 }
 
+TEST(ProgressAggregatorContractTest,
+     ShrinkingWorkerTotalBelowProcessedWorkKeepsProgressBounded)
+{
+    ProgressAggregator aggregator;
+    aggregator.registerWorker(QStringLiteral("shrinking-total"), true, 4);
+    aggregator.reportFrameCompleted(QStringLiteral("shrinking-total"), 10);
+    aggregator.reportFrameCompleted(QStringLiteral("shrinking-total"), 11);
+    aggregator.reportFrameCompleted(QStringLiteral("shrinking-total"), 12);
+    aggregator.reportFrameFailed(QStringLiteral("shrinking-total"), 13,
+                                 QStringLiteral("terminal failure"));
+
+    aggregator.setTotalFrames(QStringLiteral("shrinking-total"), 2);
+
+    const auto snapshot = aggregator.snapshot();
+    ASSERT_EQ(snapshot.totalFrames, 2);
+    EXPECT_EQ(snapshot.totalCompletedFrames, 3);
+    EXPECT_EQ(snapshot.totalFailedFrames, 1);
+    EXPECT_FLOAT_EQ(snapshot.overallProgress, 1.0f);
+    ASSERT_EQ(snapshot.workers.size(), 1u);
+    EXPECT_EQ(snapshot.workers.front().completedFrames, 3);
+    EXPECT_EQ(snapshot.workers.front().failedFrames, 1);
+    EXPECT_FLOAT_EQ(snapshot.workers.front().progress(), 1.0f);
+}
+
 TEST(ProgressAggregatorContractTest, RegisteringAnExistingWorkerIdReplacesItsEntry)
 {
     ProgressAggregator aggregator;
@@ -207,6 +234,24 @@ TEST(ProgressAggregatorContractTest, ZeroFrameWorkerKeepsProgressAtZeroAfterComp
     EXPECT_TRUE(std::isfinite(worker->progress()));
 }
 
+TEST(ProgressAggregatorContractTest,
+     EtaEstimateSaturatesWhenRemainingTimeExceedsIntegerRange)
+{
+    ProgressAggregator aggregator;
+    aggregator.registerWorker(QStringLiteral("long-running"), true,
+                              std::numeric_limits<int>::max());
+    aggregator.reportFrameStarted(QStringLiteral("long-running"), 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    aggregator.reportFrameCompleted(QStringLiteral("long-running"), 0);
+
+    const auto snapshot = aggregator.snapshot();
+    ASSERT_EQ(snapshot.totalFrames, std::numeric_limits<int>::max());
+    ASSERT_EQ(snapshot.totalCompletedFrames, 1);
+    EXPECT_EQ(snapshot.estimatedRemainingMs,
+              std::numeric_limits<int>::max());
+    EXPECT_TRUE(snapshot.estimatedCompletion.isValid());
+}
+
 TEST(ProgressAggregatorContractTest, NegativeWorkerTotalsAreClampedToZero)
 {
     ProgressAggregator aggregator;
@@ -257,6 +302,64 @@ TEST(ProgressAggregatorContractTest, ConcurrentFrameCompletionsAreCountedExactly
     ASSERT_NE(worker, nullptr);
     EXPECT_EQ(worker->completedFrames, threadCount * completionsPerThread);
     EXPECT_NE(worker->lastUpdated, QDateTime{});
+}
+
+TEST(ProgressAggregatorContractTest, ConcurrentSnapshotsPreserveCrossWorkerAggregateInvariants)
+{
+    constexpr int workerCount = 4;
+    constexpr int completionsPerWorker = 500;
+    ProgressAggregator aggregator;
+    for (int workerIndex = 0; workerIndex < workerCount; ++workerIndex) {
+        aggregator.registerWorker(QStringLiteral("snapshot-%1").arg(workerIndex),
+                                  workerIndex == 0,
+                                  completionsPerWorker);
+    }
+
+    std::atomic<bool> start{false};
+    std::atomic<int> finishedWorkers{0};
+    std::vector<std::thread> reporters;
+    reporters.reserve(workerCount);
+    for (int workerIndex = 0; workerIndex < workerCount; ++workerIndex) {
+        reporters.emplace_back([&aggregator, &start, &finishedWorkers, workerIndex] {
+            const QString workerId =
+                QStringLiteral("snapshot-%1").arg(workerIndex);
+            while (!start.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+            for (int frame = 0; frame < completionsPerWorker; ++frame) {
+                aggregator.reportFrameCompleted(workerId, frame);
+                if ((frame & 15) == 0) {
+                    std::this_thread::yield();
+                }
+            }
+            finishedWorkers.fetch_add(1, std::memory_order_release);
+        });
+    }
+
+    bool snapshotsConsistent = true;
+    start.store(true, std::memory_order_release);
+    do {
+        const auto snapshot = aggregator.snapshot();
+        int workerCompletedSum = 0;
+        for (const auto& worker : snapshot.workers) {
+            workerCompletedSum += worker.completedFrames;
+        }
+        snapshotsConsistent = snapshotsConsistent &&
+            snapshot.totalWorkers == workerCount &&
+            snapshot.totalFrames == workerCount * completionsPerWorker &&
+            snapshot.totalCompletedFrames == workerCompletedSum &&
+            snapshot.activeWorkers + snapshot.idleWorkers == snapshot.totalWorkers;
+    } while (finishedWorkers.load(std::memory_order_acquire) < workerCount);
+
+    for (auto& reporter : reporters) {
+        reporter.join();
+    }
+
+    EXPECT_TRUE(snapshotsConsistent);
+    const auto finalSnapshot = aggregator.snapshot();
+    EXPECT_EQ(finalSnapshot.totalCompletedFrames,
+              workerCount * completionsPerWorker);
+    EXPECT_FLOAT_EQ(finalSnapshot.overallProgress, 1.0f);
 }
 
 TEST(ProgressAggregatorContractTest, ResetClearsStartTimeUntilAWorkerIsRegisteredAgain)

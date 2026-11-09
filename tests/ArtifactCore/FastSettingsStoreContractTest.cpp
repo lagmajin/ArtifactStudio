@@ -10,6 +10,7 @@
 #include <QVariant>
 
 #include <array>
+#include <atomic>
 #include <thread>
 #include <type_traits>
 #include <utility>
@@ -107,6 +108,31 @@ TEST(FastSettingsStoreContractTest, FailedReloadPreservesPreviouslyLoadedValues)
 
     EXPECT_FALSE(store.reload(true));
     EXPECT_EQ(store.valueString(QStringLiteral("value")), QStringLiteral("known-good"));
+}
+
+TEST(FastSettingsStoreContractTest,
+     FailedDiscardingReloadPreservesDirtyLocalSnapshotAndRetryState)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("settings.cbor"));
+    FastSettingsStore store(path);
+    store.setValue(QStringLiteral("value"), QStringLiteral("disk-snapshot"));
+    ASSERT_TRUE(store.sync());
+    store.setValue(QStringLiteral("value"), QStringLiteral("local-unsaved"));
+    ASSERT_TRUE(store.isDirty());
+    ASSERT_EQ(store.pendingOperations(), 1);
+
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    ASSERT_EQ(file.write(QByteArray::fromHex("ff00ff00")), 4);
+    file.close();
+
+    EXPECT_FALSE(store.reload(true));
+    EXPECT_EQ(store.valueString(QStringLiteral("value")),
+              QStringLiteral("local-unsaved"));
+    EXPECT_TRUE(store.isDirty());
+    EXPECT_EQ(store.pendingOperations(), 1);
 }
 
 TEST(FastSettingsStoreContractTest, FailedSyncRetainsDirtyValuesForRetry)
@@ -320,6 +346,75 @@ TEST(FastSettingsStoreContractTest, ConcurrentWritersRetainEveryDistinctEntry)
             const QString key = QStringLiteral("worker-%1-item-%2")
                                     .arg(worker).arg(item);
             EXPECT_EQ(store.valueInt64(key), worker * 1000 + item);
+        }
+    }
+}
+
+TEST(FastSettingsStoreContractTest,
+     ConcurrentSyncAndWritersPersistEveryAcceptedEntry)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("settings.cbor"));
+    FastSettingsStore store(path);
+    store.setAutoSyncThreshold(1024);
+
+    constexpr int writerCount = 4;
+    constexpr int entriesPerWriter = 64;
+    std::atomic<int> readyWorkers{0};
+    std::atomic<int> activeWriters{writerCount};
+    std::atomic<bool> startWorkers{false};
+    std::atomic<int> syncFailures{0};
+    std::array<std::thread, writerCount> writers;
+    for (int worker = 0; worker < writerCount; ++worker) {
+        writers[static_cast<std::size_t>(worker)] = std::thread([&store, worker,
+            &readyWorkers, &startWorkers, &activeWriters] {
+            readyWorkers.fetch_add(1, std::memory_order_release);
+            while (!startWorkers.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+            for (int item = 0; item < entriesPerWriter; ++item) {
+                const QString key = QStringLiteral("writer-%1-entry-%2")
+                                        .arg(worker).arg(item);
+                store.setValue(key, worker * 1000 + item);
+            }
+            activeWriters.fetch_sub(1, std::memory_order_release);
+        });
+    }
+    std::thread synchronizer([&store, &readyWorkers, &startWorkers,
+                              &activeWriters, &syncFailures] {
+        readyWorkers.fetch_add(1, std::memory_order_release);
+        while (!startWorkers.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        while (activeWriters.load(std::memory_order_acquire) > 0) {
+            if (!store.sync()) {
+                syncFailures.fetch_add(1, std::memory_order_relaxed);
+            }
+            std::this_thread::yield();
+        }
+    });
+
+    while (readyWorkers.load(std::memory_order_acquire) != writerCount + 1) {
+        std::this_thread::yield();
+    }
+    startWorkers.store(true, std::memory_order_release);
+    for (auto& writer : writers) {
+        writer.join();
+    }
+    synchronizer.join();
+
+    EXPECT_EQ(syncFailures.load(std::memory_order_relaxed), 0);
+    ASSERT_TRUE(store.sync());
+    EXPECT_FALSE(store.isDirty());
+
+    FastSettingsStore restored(path);
+    ASSERT_EQ(restored.size(), writerCount * entriesPerWriter);
+    for (int worker = 0; worker < writerCount; ++worker) {
+        for (int item = 0; item < entriesPerWriter; ++item) {
+            const QString key = QStringLiteral("writer-%1-entry-%2")
+                                    .arg(worker).arg(item);
+            EXPECT_EQ(restored.valueInt64(key), worker * 1000 + item);
         }
     }
 }

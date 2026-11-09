@@ -115,6 +115,45 @@ TEST(KeyMapContractTest, JsonRoundTripRestoresNameContextAndRegisteredBindings)
     actions->unregisterAction(id);
 }
 
+TEST(KeyMapContractTest,
+     MalformedBindingEntryDoesNotPartiallyReplaceExistingMap)
+{
+    auto* actions = ActionManager::instance();
+    const QString id = actionId("malformed-binding-transaction");
+    Action* action = actions->registerAction(id, QStringLiteral("Transactional"));
+    ASSERT_NE(action, nullptr);
+
+    {
+        KeyMap map(QStringLiteral("Existing map"));
+        map.setContext(QStringLiteral("Timeline"));
+        InputBinding* original = map.addBinding(
+            Qt::Key_K, InputEvent::ModifierKey::LCtrl, action,
+            QStringLiteral("original"));
+        ASSERT_NE(original, nullptr);
+
+        const QString malformed = QStringLiteral(
+            "{\"name\":\"Replacement\","
+            "\"context\":\"Composition\","
+            "\"bindings\":["
+            "{\"key\":76,\"modifiers\":0,\"actionId\":\"%1\","
+            "\"description\":\"new\"},"
+            "{\"key\":77,\"modifiers\":0,\"actionId\":17,"
+            "\"description\":\"invalid\"}]}")
+            .arg(id);
+
+        EXPECT_FALSE(map.fromJSON(malformed));
+        EXPECT_EQ(map.name(), QStringLiteral("Existing map"));
+        EXPECT_EQ(map.context(), QStringLiteral("Timeline"));
+        ASSERT_EQ(map.allBindings().size(), 1u);
+        EXPECT_EQ(map.findBinding(Qt::Key_K, InputEvent::ModifierKey::LCtrl),
+                  original);
+        EXPECT_EQ(map.findBinding(Qt::Key_L, InputEvent::ModifierKey::NoModifier),
+                  nullptr);
+    }
+
+    actions->unregisterAction(id);
+}
+
 TEST(KeyMapContractTest, LeftAndRightModifierBindingsRemainDistinct)
 {
     auto* actions = ActionManager::instance();

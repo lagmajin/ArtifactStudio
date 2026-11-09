@@ -82,6 +82,48 @@ TEST(VideoFrameValidityContractTest, CpuFrameUsesPixelFormatStorageWidth)
     EXPECT_FALSE(rgba32f.isValid());
 }
 
+TEST(VideoFrameValidityContractTest,
+     CpuPlanarYuvFramesRequireStorageForChromaPlanes)
+{
+    CpuVideoFrame yuv420;
+    yuv420.meta.width = 2;
+    yuv420.meta.height = 2;
+    yuv420.meta.pixelFormat = VideoFramePixelFormat::YUV420P;
+    yuv420.strideBytes = 2;
+    yuv420.bytes.resize(4);
+    EXPECT_FALSE(yuv420.isValid())
+        << "the luma plane alone does not contain the two chroma planes";
+    yuv420.bytes.resize(6);
+    EXPECT_TRUE(yuv420.isValid());
+    yuv420.meta.width = 4;
+    yuv420.meta.height = 2;
+    yuv420.strideBytes = 8;
+    yuv420.bytes.resize(16);
+    EXPECT_FALSE(yuv420.isValid())
+        << "padded luma rows still require padded chroma storage";
+    yuv420.bytes.resize(24);
+    EXPECT_TRUE(yuv420.isValid());
+
+    CpuVideoFrame nv12;
+    nv12.meta.width = 2;
+    nv12.meta.height = 2;
+    nv12.meta.pixelFormat = VideoFramePixelFormat::NV12;
+    nv12.strideBytes = 2;
+    nv12.bytes.resize(4);
+    EXPECT_FALSE(nv12.isValid())
+        << "the interleaved chroma plane is also required";
+    nv12.bytes.resize(6);
+    EXPECT_TRUE(nv12.isValid());
+    nv12.meta.width = 4;
+    nv12.meta.height = 2;
+    nv12.strideBytes = 8;
+    nv12.bytes.resize(16);
+    EXPECT_FALSE(nv12.isValid())
+        << "padded luma rows still require the interleaved chroma row";
+    nv12.bytes.resize(24);
+    EXPECT_TRUE(nv12.isValid());
+}
+
 TEST(VideoFrameValidityContractTest, VulkanFrameRequiresDimensionsImageAndLifetime)
 {
     int image = 0;

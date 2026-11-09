@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <utility>
@@ -63,6 +64,56 @@ TEST(KeyframeContractTest, InsertionOrderIsSortedAndOutsideTimesClampToEndpoints
     EXPECT_DOUBLE_EQ(keys[2].time, 8.0);
     EXPECT_FLOAT_EQ(track.evaluate(-1.0), 20.0f);
     EXPECT_FLOAT_EQ(track.evaluate(9.0), 80.0f);
+}
+
+TEST(KeyframeContractTest, MixedInterpolationCurveIsInvariantAcrossInsertionPermutations)
+{
+    const std::array<Track::KeyframeEntry, 4> keys = [] {
+        std::array<Track::KeyframeEntry, 4> values{};
+        values[0].time = 0.0;
+        values[0].value = -2.0f;
+        values[0].type = InterpolationType::Hermite;
+        values[1].time = 1.5;
+        values[1].value = 4.0f;
+        values[1].type = InterpolationType::CatmullRom;
+        values[2].time = 4.0;
+        values[2].value = 1.0f;
+        values[2].type = InterpolationType::Bezier;
+        values[2].cp1_x = 0.15f;
+        values[2].cp1_y = 0.9f;
+        values[2].cp2_x = 0.8f;
+        values[2].cp2_y = 0.2f;
+        values[3].time = 9.0;
+        values[3].value = 7.0f;
+        return values;
+    }();
+
+    Track baseline;
+    for (const auto& key : keys) {
+        baseline.addKeyframe(key);
+    }
+    std::array<float, 37> expected{};
+    for (std::size_t sample = 0; sample < expected.size(); ++sample) {
+        expected[sample] = baseline.evaluate(static_cast<double>(sample) * 0.25);
+    }
+
+    std::array<std::size_t, 4> permutation{0, 1, 2, 3};
+    std::size_t permutationCount = 0;
+    do {
+        Track track;
+        for (const std::size_t index : permutation) {
+            track.addKeyframe(keys[index]);
+        }
+        ASSERT_EQ(track.size(), keys.size());
+        for (std::size_t sample = 0; sample < expected.size(); ++sample) {
+            EXPECT_NEAR(track.evaluate(static_cast<double>(sample) * 0.25),
+                        expected[sample], 1.0e-6f)
+                << "permutation=" << permutationCount << " sample=" << sample;
+        }
+        ++permutationCount;
+    } while (std::next_permutation(permutation.begin(), permutation.end()));
+
+    EXPECT_EQ(permutationCount, 24u);
 }
 
 TEST(KeyframeContractTest, ExactOuterKeyTimesReturnTheirStoredValues)
@@ -262,6 +313,62 @@ TEST(KeyframeContractTest, BezierInterpolatorUsesOutgoingKeyCustomHandles)
     track.addKeyframe(last);
 
     EXPECT_NEAR(track.evaluate(0.5), 0.7625f, 1e-4f);
+}
+
+TEST(KeyframeContractTest, AsymmetricBezierMatchesIndependentCubicInversionAcrossTimeSpan)
+{
+    constexpr double startTime = 11.0;
+    constexpr double duration = 13.0;
+    constexpr float startValue = -3.0f;
+    constexpr float endValue = 7.0f;
+    constexpr double cp1x = 0.18;
+    constexpr double cp1y = 0.82;
+    constexpr double cp2x = 0.67;
+    constexpr double cp2y = 0.24;
+
+    const auto cubicCoordinate = [](double parameter, double firstControl,
+                                    double secondControl) {
+        const double complement = 1.0 - parameter;
+        return 3.0 * complement * complement * parameter * firstControl +
+               3.0 * complement * parameter * parameter * secondControl +
+               parameter * parameter * parameter;
+    };
+
+    Track track;
+    Track::KeyframeEntry first;
+    first.time = startTime;
+    first.value = startValue;
+    first.type = InterpolationType::Bezier;
+    first.cp1_x = static_cast<float>(cp1x);
+    first.cp1_y = static_cast<float>(cp1y);
+    first.cp2_x = static_cast<float>(cp2x);
+    first.cp2_y = static_cast<float>(cp2y);
+    Track::KeyframeEntry last;
+    last.time = startTime + duration;
+    last.value = endValue;
+    track.addKeyframe(first);
+    track.addKeyframe(last);
+
+    for (int sample = 1; sample < 20; ++sample) {
+        const double alpha = static_cast<double>(sample) / 20.0;
+        double low = 0.0;
+        double high = 1.0;
+        for (int iteration = 0; iteration < 60; ++iteration) {
+            const double parameter = (low + high) * 0.5;
+            if (cubicCoordinate(parameter, cp1x, cp2x) < alpha) {
+                low = parameter;
+            } else {
+                high = parameter;
+            }
+        }
+
+        const double parameter = (low + high) * 0.5;
+        const double eased = cubicCoordinate(parameter, cp1y, cp2y);
+        const double expected = startValue + (endValue - startValue) * eased;
+        const double time = startTime + duration * alpha;
+        EXPECT_NEAR(track.evaluate(time), expected, 2.0e-4)
+            << "normalized time=" << alpha << " absolute time=" << time;
+    }
 }
 
 TEST(KeyframeContractTest, ClearResetsContentsAndSpeed)

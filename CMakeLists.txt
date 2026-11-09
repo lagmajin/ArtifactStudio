@@ -153,6 +153,14 @@ if(ARTIFACT_BUILD_LENS_FLARE_LAB)
     add_subdirectory(tools/LensFlareLab)
 endif()
 
+# Cryptomatte multi-ID / coverage native pass research lab. The target links
+# ArtifactCore so it can exercise the shipped Cryptomatte API, and it compares
+# that API against an independent specification reference model. It is a
+# measurement tool, not a shipping target, so it stays opt-in. The
+# subdirectory is added below, next to the other standalone tools, because it
+# needs the ArtifactCore target to exist.
+option(ARTIFACT_BUILD_CRYPTOMATTE_LAB "Build the standalone Cryptomatte research lab" OFF)
+
 if(ARTIFACT_USE_LLD)
     if(NOT WIN32 OR NOT MSVC)
         message(FATAL_ERROR "ARTIFACT_USE_LLD currently requires the Windows MSVC frontend")
@@ -1160,6 +1168,9 @@ add_subdirectory(tools/Particle2DPlayground)
 add_subdirectory(tools/Particle3DPlayground)
 add_subdirectory(tools/Light3DPlayground)
 add_subdirectory(tools/VideoPreviewBench)
+if(ARTIFACT_BUILD_CRYPTOMATTE_LAB)
+    add_subdirectory(tools/CryptoMatteLab)
+endif()
 add_subdirectory(ArtifactRenderer)
 add_subdirectory(artifacts-plugin-runner)
 # ArtifactPr is an opt-in target: it is a supported application, but building

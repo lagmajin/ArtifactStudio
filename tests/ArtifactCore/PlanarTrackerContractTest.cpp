@@ -5,8 +5,10 @@
 
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <utility>
+#include <vector>
 
 import ArtifactCore.Tracking.PlanarTracker;
 
@@ -68,6 +70,44 @@ TEST(PlanarTrackerContractTest,
     expectTranslation(result);
 }
 
+TEST(PlanarTrackerContractTest,
+     EstimatesProjectiveMotionDespiteASeededOcclusion)
+{
+    const cv::Mat previous = makeTexturedFrame();
+    const cv::Mat expectedHomography = (cv::Mat_<double>(3, 3) <<
+        0.98, 0.035, 7.0,
+        -0.025, 1.02, -4.0,
+        0.00035, -0.00022, 1.0);
+    cv::Mat current;
+    cv::warpPerspective(previous, current, expectedHomography, previous.size(),
+                        cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
+    // Remove a sizeable textured region so LK supplies outliers as well as
+    // inliers to the RANSAC homography estimator.
+    cv::rectangle(current, cv::Rect(164, 108, 78, 72), cv::Scalar(255),
+                  cv::FILLED);
+    const auto sourceCorners = referenceCorners();
+    std::vector<cv::Point2f> expectedCorners;
+    cv::perspectiveTransform(
+        std::vector<cv::Point2f>(sourceCorners.begin(), sourceCorners.end()),
+        expectedCorners, expectedHomography);
+    ASSERT_EQ(expectedCorners.size(), sourceCorners.size());
+
+    const ArtifactCore::PlanarTracker tracker;
+    const auto result = tracker.track(previous, current, sourceCorners);
+
+    ASSERT_TRUE(result.valid);
+    ASSERT_EQ(result.homography.rows, 3);
+    ASSERT_EQ(result.homography.cols, 3);
+    EXPECT_EQ(result.homography.type(), CV_64F);
+    EXPECT_GE(result.inlierCount, 4);
+    EXPECT_GE(result.confidence, 0.15);
+    for (std::size_t index = 0; index < sourceCorners.size(); ++index) {
+        SCOPED_TRACE(index);
+        EXPECT_NEAR(result.corners[index].x, expectedCorners[index].x, 1.5f);
+        EXPECT_NEAR(result.corners[index].y, expectedCorners[index].y, 1.5f);
+    }
+}
+
 TEST(PlanarTrackerContractTest, IdenticalFramesProduceIdentityProjection)
 {
     const cv::Mat frame = makeTexturedFrame();
@@ -110,6 +150,45 @@ TEST(PlanarTrackerContractTest,
         expectTranslation(tracker.track(previousColor, currentColor,
                                         referenceCorners()));
     }
+}
+
+TEST(PlanarTrackerContractTest,
+     AcceptsDifferentSupportedChannelCountsAcrossFramePair)
+{
+    const cv::Mat previousGray = makeTexturedFrame();
+    const cv::Mat currentGray = translated(previousGray);
+    cv::Mat previousBgra;
+    cv::Mat currentBgr;
+    cv::cvtColor(previousGray, previousBgra, cv::COLOR_GRAY2BGRA);
+    cv::cvtColor(currentGray, currentBgr, cv::COLOR_GRAY2BGR);
+    ASSERT_NE(previousBgra.channels(), currentBgr.channels());
+
+    const ArtifactCore::PlanarTracker tracker;
+    expectTranslation(tracker.track(previousBgra, currentBgr, referenceCorners()));
+    expectTranslation(tracker.track(previousGray, previousBgra, referenceCorners()));
+}
+
+TEST(PlanarTrackerContractTest,
+     TracksTranslatedNonContinuousRoiViewsWithDifferentParentOffsets)
+{
+    const cv::Mat source = makeTexturedFrame();
+    const cv::Mat moved = translated(source);
+    cv::Mat previousParent(211, 319, CV_8UC1, cv::Scalar(0));
+    cv::Mat currentParent(223, 337, CV_8UC1, cv::Scalar(0));
+    cv::Mat previousRoi = previousParent(cv::Rect(17, 9, source.cols, source.rows));
+    cv::Mat currentRoi = currentParent(cv::Rect(31, 14, source.cols, source.rows));
+    source.copyTo(previousRoi);
+    moved.copyTo(currentRoi);
+
+    ASSERT_FALSE(previousRoi.isContinuous());
+    ASSERT_FALSE(currentRoi.isContinuous());
+    ASSERT_GT(previousRoi.step[0], static_cast<std::size_t>(previousRoi.cols));
+    ASSERT_GT(currentRoi.step[0], static_cast<std::size_t>(currentRoi.cols));
+
+    const ArtifactCore::PlanarTracker tracker;
+    const auto result = tracker.track(previousRoi, currentRoi, referenceCorners());
+
+    expectTranslation(result);
 }
 
 TEST(PlanarTrackerContractTest,

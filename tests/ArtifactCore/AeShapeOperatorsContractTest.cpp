@@ -120,3 +120,53 @@ TEST(AeShapeOperatorsContractTest, RoundedCornersPreserveRadiusAndIgnoreEmptyInp
     ASSERT_NE(clone, nullptr);
     EXPECT_DOUBLE_EQ(clone->toJson().value(QStringLiteral("radius")).toDouble(), 4.0);
 }
+
+TEST(AeShapeOperatorsContractTest, HandDrawnWobbleIsDeterministicAndPreservesContourTopology)
+{
+    ShapePath closed;
+    closed.setRectangle(0.0, 0.0, 20.0, 12.0);
+    closed.setName(QStringLiteral("closed"));
+    ShapePath open;
+    open.moveTo(30.0, 2.0);
+    open.lineTo(37.0, 8.0);
+    open.lineTo(45.0, 3.0);
+    open.setName(QStringLiteral("open"));
+    const std::vector<ShapePath> input{closed, open};
+
+    HandDrawnWobble wobble;
+    wobble.setWobbleAmount(3.5f);
+    wobble.setWobbleFrequency(1.7f);
+    wobble.setPressureJitter(0.65f);
+    wobble.setGapProbability(0.0f);
+
+    const auto first = wobble.process(input);
+    const auto repeated = wobble.process(input);
+    ASSERT_EQ(first.size(), input.size());
+    ASSERT_EQ(repeated.size(), first.size());
+    for (std::size_t pathIndex = 0; pathIndex < first.size(); ++pathIndex) {
+        EXPECT_EQ(first[pathIndex].isClosed(), input[pathIndex].isClosed());
+        ASSERT_EQ(first[pathIndex].commands().size(), repeated[pathIndex].commands().size());
+        for (std::size_t commandIndex = 0;
+             commandIndex < first[pathIndex].commands().size(); ++commandIndex) {
+            const auto& firstCommand = first[pathIndex].commands()[commandIndex];
+            const auto& repeatedCommand = repeated[pathIndex].commands()[commandIndex];
+            EXPECT_EQ(firstCommand.type, repeatedCommand.type);
+            const int pointCount = firstCommand.type == ArtifactCore::PathCommandType::CubicTo
+                ? 3
+                : (firstCommand.type == ArtifactCore::PathCommandType::QuadTo ? 2 :
+                   (firstCommand.type == ArtifactCore::PathCommandType::Close ? 0 : 1));
+            for (int pointIndex = 0; pointIndex < pointCount; ++pointIndex) {
+                EXPECT_EQ(firstCommand.points[pointIndex],
+                          repeatedCommand.points[pointIndex]);
+            }
+        }
+    }
+    ASSERT_EQ(first[0].toSegments().size(), closed.toSegments().size());
+    ASSERT_EQ(first[1].toSegments().size(), open.toSegments().size());
+
+    wobble.setGapProbability(0.95f);
+    const auto gapped = wobble.process(input);
+    ASSERT_EQ(gapped.size(), 2u);
+    EXPECT_TRUE(gapped[0].isClosed());
+    EXPECT_FALSE(gapped[1].isClosed());
+}

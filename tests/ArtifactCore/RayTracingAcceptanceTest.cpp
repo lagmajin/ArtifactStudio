@@ -829,14 +829,14 @@ TEST_F(RayTracingAcceptanceTest,
         tempDirectory / "artifact-rt-anisotropy-minified-checker.png";
     const auto averagePath =
         tempDirectory / "artifact-rt-anisotropy-minified-average.png";
-    QImage checker(textureWidth, textureHeight, QImage::Format_RGBA8888);
-    QImage average(textureWidth, textureHeight, QImage::Format_RGBA8888);
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
     ASSERT_FALSE(average.isNull());
-    for (int y = 0; y < textureHeight; ++y) {
+    for (int y = 0; y < textureSize; ++y) {
         auto* checkerRow = checker.scanLine(y);
         auto* averageRow = average.scanLine(y);
-        for (int x = 0; x < textureWidth; ++x) {
+        for (int x = 0; x < textureSize; ++x) {
             auto* checkerPixel = checkerRow + x * 4;
             auto* averagePixel = averageRow + x * 4;
             checkerPixel[0] = averagePixel[0] = 128;

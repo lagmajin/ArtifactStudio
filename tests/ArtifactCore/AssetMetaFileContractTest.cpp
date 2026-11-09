@@ -136,6 +136,46 @@ TEST(AssetMetaFileContractTest, EditingFutureSchemaMetadataDoesNotDowngradeItsVe
               QStringLiteral("future-v9"));
 }
 
+TEST(AssetMetaFileContractTest,
+     EditingAndSavingFutureSchemaMetadataPreservesVersionAndUnknownFields)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("future-schema.png"));
+    const QJsonObject futureFields{
+        {QStringLiteral("nested"), QJsonObject{
+             {QStringLiteral("token"), QStringLiteral("vendor-v9")},
+             {QStringLiteral("revision"), 17}}},
+        {QStringLiteral("features"), QJsonArray{
+             QStringLiteral("new-color-model"), QStringLiteral("extended-proxy")}},
+    };
+    const QJsonObject original{
+        {QStringLiteral("version"), 42},
+        {QStringLiteral("asset"), QJsonObject{
+             {QStringLiteral("sourcePath"), sourcePath},
+             {QStringLiteral("type"), QStringLiteral("Image")}}},
+        {QStringLiteral("futureSection"), futureFields},
+    };
+    auto initial = ArtifactAssetMetaFile::fromJson(
+        QJsonDocument(original).toJson(QJsonDocument::Compact), sourcePath);
+    ASSERT_TRUE(initial.save());
+
+    auto edited = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(edited.isValid());
+    edited.setType(AssetType::Audio);
+    ASSERT_TRUE(edited.save());
+
+    const auto reloaded = ArtifactAssetMetaFile::load(sourcePath);
+    ASSERT_TRUE(reloaded.isValid());
+    EXPECT_EQ(reloaded.toJson().value(QStringLiteral("version")).toInt(), 42);
+    EXPECT_EQ(reloaded.type(), AssetType::Audio);
+    EXPECT_EQ(reloaded.toJson().value(QStringLiteral("futureSection")).toObject(),
+              futureFields);
+    EXPECT_EQ(reloaded.toJson().value(QStringLiteral("asset")).toObject()
+                  .value(QStringLiteral("sourcePath")).toString(),
+              sourcePath);
+}
+
 TEST(AssetMetaFileContractTest, ImportedTimestampRemainsUtcAfterSidecarRoundTrip)
 {
     QTemporaryDir directory;

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <QByteArray>
+#include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QVector>
@@ -127,6 +128,82 @@ TEST(AsyncFileWriterContractTest, QVectorAndStdVectorOverloadsWriteExactBytes)
     EXPECT_EQ(vectorOutcome.bytesWritten, 3u);
     expectFileBytes(qvectorPath, expected);
     expectFileBytes(vectorPath, expected);
+}
+
+TEST(AsyncFileWriterContractTest, ConcurrentWritesToDistinctTargetsRemainIsolated)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    ASSERT_TRUE(QDir().mkpath(tempDir.filePath(QStringLiteral("parallel"))));
+    constexpr int writeCount = 12;
+    AsioAsyncFileWriterManager writer;
+    std::vector<QString> paths;
+    std::vector<QByteArray> payloads;
+    std::vector<std::future<WriteResult>> results;
+    paths.reserve(writeCount);
+    payloads.reserve(writeCount);
+    results.reserve(writeCount);
+
+    for (int writeIndex = 0; writeIndex < writeCount; ++writeIndex) {
+        paths.push_back(tempDir.filePath(
+            QStringLiteral("parallel/output-%1.bin").arg(writeIndex)));
+        QByteArray payload(64 * 1024 + writeIndex * 997, '\0');
+        for (qsizetype byteIndex = 0; byteIndex < payload.size(); ++byteIndex) {
+            payload[byteIndex] = static_cast<char>(
+                (writeIndex * 31 + byteIndex * 17 + byteIndex / 251) & 0xff);
+        }
+        payloads.push_back(std::move(payload));
+        results.push_back(enqueueWrite(writer, paths.back(), payloads.back()));
+    }
+
+    for (int writeIndex = 0; writeIndex < writeCount; ++writeIndex) {
+        ASSERT_EQ(results[writeIndex].wait_for(std::chrono::seconds(10)),
+                  std::future_status::ready)
+            << "write=" << writeIndex;
+        const WriteResult outcome = results[writeIndex].get();
+        ASSERT_TRUE(outcome.success) << outcome.errorMessage.toStdString();
+        EXPECT_EQ(outcome.filePath, paths[writeIndex]);
+        EXPECT_EQ(outcome.bytesWritten,
+                  static_cast<std::size_t>(payloads[writeIndex].size()));
+        expectFileBytes(paths[writeIndex], payloads[writeIndex]);
+    }
+}
+
+TEST(AsyncFileWriterContractTest, ConcurrentWritesToSameTargetCommitOneWholePayload)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString path = tempDir.filePath(QStringLiteral("shared-target.bin"));
+    QByteArray firstPayload(2 * 1024 * 1024, 'a');
+    QByteArray secondPayload(2 * 1024 * 1024, 'b');
+    firstPayload[0] = 'A';
+    firstPayload[firstPayload.size() - 1] = 'Z';
+    secondPayload[0] = 'B';
+    secondPayload[secondPayload.size() - 1] = 'Y';
+
+    AsioAsyncFileWriterManager writer;
+    auto firstResult = enqueueWrite(writer, path, firstPayload);
+    auto secondResult = enqueueWrite(writer, path, secondPayload);
+
+    ASSERT_EQ(firstResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    ASSERT_EQ(secondResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    const WriteResult firstOutcome = firstResult.get();
+    const WriteResult secondOutcome = secondResult.get();
+    ASSERT_TRUE(firstOutcome.success) << firstOutcome.errorMessage.toStdString();
+    ASSERT_TRUE(secondOutcome.success) << secondOutcome.errorMessage.toStdString();
+    EXPECT_EQ(firstOutcome.bytesWritten,
+              static_cast<std::size_t>(firstPayload.size()));
+    EXPECT_EQ(secondOutcome.bytesWritten,
+              static_cast<std::size_t>(secondPayload.size()));
+
+    QFile finalFile(path);
+    ASSERT_TRUE(finalFile.open(QIODevice::ReadOnly));
+    const QByteArray committedPayload = finalFile.readAll();
+    EXPECT_TRUE(committedPayload == firstPayload || committedPayload == secondPayload)
+        << "same-target writes may finish in either order, but the committed file "
+           "must match one complete input snapshot";
 }
 
 TEST(AsyncFileWriterContractTest, EmptyVectorOverloadsCommitEmptyFiles)
@@ -271,6 +348,193 @@ TEST(AsyncFileWriterContractTest, CompletionCallbackRunsExactlyOnceForSuccessAnd
     expectFileBytes(path, payload);
 }
 
+TEST(AsyncFileWriterContractTest,
+     CompletionCallbackCanEnqueueAndAwaitAFollowupWrite)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString firstPath = tempDir.filePath(QStringLiteral("first.bin"));
+    const QString secondPath = tempDir.filePath(QStringLiteral("second.bin"));
+    const QByteArray firstPayload("first stage");
+    const QByteArray secondPayload("callback followup");
+    std::promise<WriteResult> firstPromise;
+    std::promise<WriteResult> secondPromise;
+    auto firstResult = firstPromise.get_future();
+    auto secondResult = secondPromise.get_future();
+    AsioAsyncFileWriterManager writer;
+
+    writer.writeFileAsync(firstPath, firstPayload,
+        [&writer, &firstPromise, &secondPromise, secondPath, secondPayload](
+            const WriteResult& value) {
+            firstPromise.set_value(value);
+            writer.writeFileAsync(secondPath, secondPayload,
+                [&secondPromise](const WriteResult& followup) {
+                    secondPromise.set_value(followup);
+                });
+        });
+
+    ASSERT_EQ(firstResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    const WriteResult firstOutcome = firstResult.get();
+    ASSERT_TRUE(firstOutcome.success) << firstOutcome.errorMessage.toStdString();
+    ASSERT_EQ(secondResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    const WriteResult secondOutcome = secondResult.get();
+    ASSERT_TRUE(secondOutcome.success) << secondOutcome.errorMessage.toStdString();
+    EXPECT_EQ(firstOutcome.filePath, firstPath);
+    EXPECT_EQ(secondOutcome.filePath, secondPath);
+    expectFileBytes(firstPath, firstPayload);
+    expectFileBytes(secondPath, secondPayload);
+}
+
+TEST(AsyncFileWriterContractTest,
+     DestructionCompletesEveryAcceptedConcurrentWriteExactlyOnce)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    constexpr int writeCount = 48;
+    std::vector<QString> paths;
+    std::vector<QByteArray> payloads;
+    std::vector<std::shared_ptr<std::promise<WriteResult>>> promises;
+    std::vector<std::future<WriteResult>> results;
+    std::vector<std::shared_ptr<std::atomic<int>>> callbackCounts;
+    paths.reserve(writeCount);
+    payloads.reserve(writeCount);
+    promises.reserve(writeCount);
+    results.reserve(writeCount);
+    callbackCounts.reserve(writeCount);
+
+    for (int index = 0; index < writeCount; ++index) {
+        paths.push_back(tempDir.filePath(
+            QStringLiteral("shutdown/write-%1.bin").arg(index)));
+        payloads.emplace_back(128 * 1024, static_cast<char>('a' + index % 26));
+        promises.push_back(std::make_shared<std::promise<WriteResult>>());
+        results.push_back(promises.back()->get_future());
+        callbackCounts.push_back(std::make_shared<std::atomic<int>>(0));
+    }
+
+    {
+        AsioAsyncFileWriterManager writer;
+        for (int index = 0; index < writeCount; ++index) {
+            writer.writeFileAsync(paths[index], payloads[index],
+                [promise = promises[index], count = callbackCounts[index]](
+                    const WriteResult& value) {
+                    if (count->fetch_add(1) == 0) promise->set_value(value);
+                });
+        }
+        // Leaving scope requests shutdown while writes can still be queued or
+        // active. The manager must drain every accepted callback before return.
+    }
+
+    for (int index = 0; index < writeCount; ++index) {
+        ASSERT_EQ(results[index].wait_for(std::chrono::seconds(0)),
+                  std::future_status::ready)
+            << "write=" << index;
+        const WriteResult outcome = results[index].get();
+        EXPECT_EQ(callbackCounts[index]->load(), 1) << "write=" << index;
+        EXPECT_EQ(outcome.filePath, paths[index]) << "write=" << index;
+        if (outcome.success) {
+            EXPECT_EQ(outcome.bytesWritten,
+                      static_cast<std::size_t>(payloads[index].size()))
+                << "write=" << index;
+            expectFileBytes(paths[index], payloads[index]);
+        } else {
+            EXPECT_EQ(outcome.bytesWritten, 0u) << "write=" << index;
+            EXPECT_FALSE(outcome.errorMessage.isEmpty()) << "write=" << index;
+        }
+    }
+}
+
+TEST(AsyncFileWriterContractTest,
+     ConcurrentSameTargetWritesAreFullyReportedWhenManagerIsDestroyed)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    constexpr int producerCount = 4;
+    constexpr int writesPerProducer = 12;
+    constexpr int writeCount = producerCount * writesPerProducer;
+    const QString path = tempDir.filePath(QStringLiteral("shutdown/shared.bin"));
+
+    std::vector<QByteArray> payloads;
+    std::vector<std::shared_ptr<std::promise<WriteResult>>> promises;
+    std::vector<std::future<WriteResult>> results;
+    std::vector<std::shared_ptr<std::atomic<int>>> callbackCounts;
+    payloads.reserve(writeCount);
+    promises.reserve(writeCount);
+    results.reserve(writeCount);
+    callbackCounts.reserve(writeCount);
+    for (int index = 0; index < writeCount; ++index) {
+        payloads.emplace_back(64 * 1024, static_cast<char>('a' + index % 26));
+        promises.push_back(std::make_shared<std::promise<WriteResult>>());
+        results.push_back(promises.back()->get_future());
+        callbackCounts.push_back(std::make_shared<std::atomic<int>>(0));
+    }
+
+    std::atomic<int> readyProducers{0};
+    std::atomic<bool> begin{false};
+    std::vector<QByteArray> successfulPayloads;
+    successfulPayloads.reserve(writeCount);
+    {
+        AsioAsyncFileWriterManager writer;
+        std::thread producers[producerCount];
+        for (int producerIndex = 0; producerIndex < producerCount;
+             ++producerIndex) {
+            producers[producerIndex] = std::thread([&, producerIndex] {
+                readyProducers.fetch_add(1, std::memory_order_release);
+                while (!begin.load(std::memory_order_acquire))
+                    std::this_thread::yield();
+
+                for (int offset = 0; offset < writesPerProducer; ++offset) {
+                    const int index = producerIndex * writesPerProducer + offset;
+                    writer.writeFileAsync(
+                        path, payloads[index],
+                        [promise = promises[index], count = callbackCounts[index]](
+                            const WriteResult& value) {
+                            if (count->fetch_add(1, std::memory_order_relaxed) == 0)
+                                promise->set_value(value);
+                        });
+                }
+            });
+        }
+
+        while (readyProducers.load(std::memory_order_acquire) != producerCount)
+            std::this_thread::yield();
+        begin.store(true, std::memory_order_release);
+        for (auto& producer : producers) producer.join();
+        // Manager shutdown starts with every same-target write accepted.
+    }
+
+    for (int index = 0; index < writeCount; ++index) {
+        ASSERT_EQ(results[index].wait_for(std::chrono::seconds(0)),
+                  std::future_status::ready)
+            << "write=" << index;
+        const WriteResult outcome = results[index].get();
+        EXPECT_EQ(callbackCounts[index]->load(std::memory_order_relaxed), 1)
+            << "write=" << index;
+        EXPECT_EQ(outcome.filePath, path) << "write=" << index;
+        if (outcome.success) {
+            EXPECT_EQ(outcome.bytesWritten,
+                      static_cast<std::size_t>(payloads[index].size()))
+                << "write=" << index;
+            successfulPayloads.push_back(payloads[index]);
+        } else {
+            EXPECT_EQ(outcome.bytesWritten, 0u) << "write=" << index;
+            EXPECT_FALSE(outcome.errorMessage.isEmpty()) << "write=" << index;
+        }
+    }
+
+    QFile finalFile(path);
+    if (successfulPayloads.empty()) {
+        EXPECT_FALSE(QFile::exists(path));
+    } else {
+        ASSERT_TRUE(finalFile.open(QIODevice::ReadOnly));
+        const QByteArray committedPayload = finalFile.readAll();
+        EXPECT_TRUE(std::find(successfulPayloads.begin(),
+                              successfulPayloads.end(), committedPayload) !=
+                    successfulPayloads.end());
+    }
+}
+
 TEST(AsyncFileWriterContractTest, WritingToDirectoryCompletesWithFailure)
 {
     QTemporaryDir tempDir;
@@ -284,4 +548,93 @@ TEST(AsyncFileWriterContractTest, WritingToDirectoryCompletesWithFailure)
     EXPECT_EQ(outcome.filePath, tempDir.path());
     EXPECT_EQ(outcome.bytesWritten, 0u);
     EXPECT_FALSE(outcome.errorMessage.isEmpty());
+}
+
+TEST(AsyncFileWriterContractTest,
+     CompletionCallbackCanEnqueueAndAwaitASecondWriteOnTheSameManager)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString firstPath = tempDir.filePath(QStringLiteral("callback/first.bin"));
+    const QString secondPath = tempDir.filePath(QStringLiteral("callback/second.bin"));
+    const QByteArray firstPayload = QByteArrayLiteral("first");
+    const QByteArray secondPayload = QByteArrayLiteral("queued from callback");
+    auto firstPromise = std::make_shared<std::promise<WriteResult>>();
+    auto secondPromise = std::make_shared<std::promise<WriteResult>>();
+    auto firstResult = firstPromise->get_future();
+    auto secondResult = secondPromise->get_future();
+    std::atomic<int> firstCallbackCount{0};
+    std::atomic<int> secondCallbackCount{0};
+    AsioAsyncFileWriterManager writer;
+
+    writer.writeFileAsync(firstPath, firstPayload,
+        [&writer, secondPath, secondPayload, firstPromise, secondPromise,
+         &firstCallbackCount, &secondCallbackCount](const WriteResult& result) {
+            firstCallbackCount.fetch_add(1, std::memory_order_relaxed);
+            firstPromise->set_value(result);
+            writer.writeFileAsync(secondPath, secondPayload,
+                [secondPromise, &secondCallbackCount](const WriteResult& chainedResult) {
+                    secondCallbackCount.fetch_add(1, std::memory_order_relaxed);
+                    secondPromise->set_value(chainedResult);
+                });
+        });
+
+    ASSERT_EQ(firstResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    const WriteResult first = firstResult.get();
+    ASSERT_TRUE(first.success) << first.errorMessage.toStdString();
+    EXPECT_EQ(first.bytesWritten, static_cast<std::size_t>(firstPayload.size()));
+
+    ASSERT_EQ(secondResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    const WriteResult second = secondResult.get();
+    ASSERT_TRUE(second.success) << second.errorMessage.toStdString();
+    EXPECT_EQ(second.bytesWritten, static_cast<std::size_t>(secondPayload.size()));
+    EXPECT_EQ(firstCallbackCount.load(std::memory_order_relaxed), 1);
+    EXPECT_EQ(secondCallbackCount.load(std::memory_order_relaxed), 1);
+    expectFileBytes(firstPath, firstPayload);
+    expectFileBytes(secondPath, secondPayload);
+}
+
+TEST(AsyncFileWriterContractTest, WriterRemainsUsableAfterAWriteFailure)
+{
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    const QString successfulPath = tempDir.filePath(QStringLiteral("after-failure.bin"));
+    const QByteArray payload("writer recovered after failure");
+    std::atomic<int> failedCallbackCount{0};
+    std::atomic<int> successfulCallbackCount{0};
+    std::promise<WriteResult> failurePromise;
+    std::promise<WriteResult> successPromise;
+    auto failureResult = failurePromise.get_future();
+    auto successResult = successPromise.get_future();
+    AsioAsyncFileWriterManager writer;
+
+    writer.writeFileAsync(tempDir.path(), QByteArrayLiteral("cannot replace a directory"),
+        [&failedCallbackCount, &failurePromise](const WriteResult& value) {
+            failedCallbackCount.fetch_add(1, std::memory_order_relaxed);
+            failurePromise.set_value(value);
+        });
+
+    ASSERT_EQ(failureResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    const WriteResult failed = failureResult.get();
+    ASSERT_FALSE(failed.success);
+    EXPECT_EQ(failed.bytesWritten, 0u);
+    EXPECT_FALSE(failed.errorMessage.isEmpty());
+
+    writer.writeFileAsync(successfulPath, payload,
+        [&successfulCallbackCount, &successPromise](const WriteResult& value) {
+            successfulCallbackCount.fetch_add(1, std::memory_order_relaxed);
+            successPromise.set_value(value);
+        });
+
+    ASSERT_EQ(successResult.wait_for(std::chrono::seconds(10)),
+              std::future_status::ready);
+    const WriteResult succeeded = successResult.get();
+    ASSERT_TRUE(succeeded.success) << succeeded.errorMessage.toStdString();
+    EXPECT_EQ(succeeded.bytesWritten, static_cast<std::size_t>(payload.size()));
+    EXPECT_EQ(failedCallbackCount.load(std::memory_order_relaxed), 1);
+    EXPECT_EQ(successfulCallbackCount.load(std::memory_order_relaxed), 1);
+    expectFileBytes(successfulPath, payload);
 }

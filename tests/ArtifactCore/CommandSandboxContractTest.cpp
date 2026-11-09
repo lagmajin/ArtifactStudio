@@ -1,5 +1,12 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <iostream>
+#include <string>
+#include <thread>
+
+#include <QCoreApplication>
+#include <QByteArray>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -84,6 +91,172 @@ TEST(CommandSandboxContractTest, DryRunValidatesWithoutStartingOrFinishingAProce
               QDir::cleanPath(directory.path()));
 }
 
+TEST(CommandSandboxContractTest,
+     RunStartsAllowlistedTestExecutableAndCapturesItsOutput)
+{
+    const QString executable = QCoreApplication::applicationFilePath();
+    ASSERT_FALSE(executable.isEmpty());
+    ASSERT_TRUE(QFile::exists(executable));
+
+    CommandSandbox sandbox;
+    sandbox.setAllowedPrograms({executable});
+    sandbox.setWorkingDirectory(QCoreApplication::applicationDirPath());
+
+    const QVariantMap result = sandbox.run(
+        executable, {QStringLiteral("--gtest_list_tests")}).toMap();
+
+    EXPECT_TRUE(result.value(QStringLiteral("allowed")).toBool());
+    EXPECT_TRUE(result.value(QStringLiteral("started")).toBool());
+    EXPECT_TRUE(result.value(QStringLiteral("finished")).toBool());
+    EXPECT_FALSE(result.value(QStringLiteral("timedOut")).toBool());
+    EXPECT_TRUE(result.value(QStringLiteral("ok")).toBool());
+    EXPECT_EQ(result.value(QStringLiteral("exitCode")).toInt(), 0);
+    EXPECT_EQ(result.value(QStringLiteral("arguments")).toStringList(),
+              (QStringList{QStringLiteral("--gtest_list_tests")}));
+    EXPECT_TRUE(result.value(QStringLiteral("stdout")).toString()
+                    .contains(QStringLiteral("CommandSandboxContractTest.")));
+    EXPECT_TRUE(result.value(QStringLiteral("stderr")).toString().isEmpty());
+}
+
+TEST(CommandSandboxContractTest, ChildProcessSleepHelper)
+{
+    const QStringList arguments = QCoreApplication::arguments();
+    if (!arguments.contains(QStringLiteral(
+            "--gtest_filter=CommandSandboxContractTest.ChildProcessSleepHelper"))) {
+        return;
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+}
+
+TEST(CommandSandboxContractTest, ChildProcessOutputHelper)
+{
+    const QStringList arguments = QCoreApplication::arguments();
+    if (!arguments.contains(QStringLiteral(
+            "--gtest_filter=CommandSandboxContractTest.ChildProcessOutputHelper"))) {
+        return;
+    }
+
+    const std::string output(8192, 'x');
+    std::cout.write(output.data(), static_cast<std::streamsize>(output.size()));
+    std::cout.flush();
+    std::cerr.write(output.data(), static_cast<std::streamsize>(output.size()));
+    std::cerr.flush();
+}
+
+TEST(CommandSandboxContractTest, ChildProcessEnvironmentHelper)
+{
+    const QStringList arguments = QCoreApplication::arguments();
+    if (!arguments.contains(QStringLiteral(
+            "--gtest_filter=CommandSandboxContractTest.ChildProcessEnvironmentHelper"))) {
+        return;
+    }
+
+    if (qEnvironmentVariableIsSet("ARTIFACT_SANDBOX_TEST_SECRET")) {
+        std::cout << "SANDBOX_ENV_PRESENT:"
+                  << qgetenv("ARTIFACT_SANDBOX_TEST_SECRET").constData();
+    } else {
+        std::cout << "SANDBOX_ENV_ABSENT";
+    }
+    std::cout.flush();
+}
+
+TEST(CommandSandboxContractTest,
+     RunPassesOnlyExplicitlyAllowlistedEnvironmentVariables)
+{
+    constexpr auto key = "ARTIFACT_SANDBOX_TEST_SECRET";
+    const bool hadPreviousValue = qEnvironmentVariableIsSet(key);
+    const QByteArray previousValue = qgetenv(key);
+    struct EnvironmentRestore {
+        const char* key;
+        bool hadPreviousValue;
+        QByteArray previousValue;
+        ~EnvironmentRestore()
+        {
+            if (hadPreviousValue) {
+                qputenv(key, previousValue);
+            } else {
+                qunsetenv(key);
+            }
+        }
+    } restore{key, hadPreviousValue, previousValue};
+    ASSERT_TRUE(qputenv(key, QByteArrayLiteral("private-child-value")));
+
+    const QString executable = QCoreApplication::applicationFilePath();
+    ASSERT_FALSE(executable.isEmpty());
+    ASSERT_TRUE(QFile::exists(executable));
+
+    CommandSandbox sandbox;
+    sandbox.setAllowedPrograms({executable});
+    sandbox.setWorkingDirectory(QCoreApplication::applicationDirPath());
+    sandbox.setAllowedEnvironmentKeys({QStringLiteral("PATH")});
+    const QVariantMap denied = sandbox.run(executable, {
+        QStringLiteral(
+            "--gtest_filter=CommandSandboxContractTest.ChildProcessEnvironmentHelper")
+    }).toMap();
+    ASSERT_TRUE(denied.value(QStringLiteral("ok")).toBool());
+    EXPECT_TRUE(denied.value(QStringLiteral("stdout")).toString()
+                    .contains(QStringLiteral("SANDBOX_ENV_ABSENT")));
+    EXPECT_FALSE(denied.value(QStringLiteral("stdout")).toString()
+                     .contains(QStringLiteral("private-child-value")));
+
+    sandbox.setAllowedEnvironmentKeys({QStringLiteral("PATH"),
+                                       QString::fromLatin1(key)});
+    const QVariantMap allowed = sandbox.run(executable, {
+        QStringLiteral(
+            "--gtest_filter=CommandSandboxContractTest.ChildProcessEnvironmentHelper")
+    }).toMap();
+    ASSERT_TRUE(allowed.value(QStringLiteral("ok")).toBool());
+    EXPECT_TRUE(allowed.value(QStringLiteral("stdout")).toString()
+                    .contains(QStringLiteral("SANDBOX_ENV_PRESENT:private-child-value")));
+}
+
+TEST(CommandSandboxContractTest,
+     RunCapsStdoutAndStderrIndependentlyAndReportsTruncation)
+{
+    const QString executable = QCoreApplication::applicationFilePath();
+    ASSERT_FALSE(executable.isEmpty());
+    ASSERT_TRUE(QFile::exists(executable));
+
+    CommandSandbox sandbox;
+    sandbox.setAllowedPrograms({executable});
+    sandbox.setWorkingDirectory(QCoreApplication::applicationDirPath());
+    sandbox.setMaxOutputBytes(1024);
+
+    const QVariantMap result = sandbox.run(executable, {
+        QStringLiteral(
+            "--gtest_filter=CommandSandboxContractTest.ChildProcessOutputHelper")
+    }).toMap();
+
+    ASSERT_TRUE(result.value(QStringLiteral("started")).toBool());
+    ASSERT_TRUE(result.value(QStringLiteral("finished")).toBool());
+    EXPECT_TRUE(result.value(QStringLiteral("ok")).toBool());
+    EXPECT_TRUE(result.value(QStringLiteral("outputTruncated")).toBool());
+    EXPECT_EQ(result.value(QStringLiteral("stdout")).toString().toUtf8().size(), 1024);
+    EXPECT_EQ(result.value(QStringLiteral("stderr")).toString().toUtf8().size(), 1024);
+}
+
+TEST(CommandSandboxContractTest, RunKillsTimedOutChildAndReportsTerminalTimeout)
+{
+    const QString executable = QCoreApplication::applicationFilePath();
+    ASSERT_FALSE(executable.isEmpty());
+    ASSERT_TRUE(QFile::exists(executable));
+
+    CommandSandbox sandbox;
+    sandbox.setAllowedPrograms({executable});
+    sandbox.setWorkingDirectory(QCoreApplication::applicationDirPath());
+    sandbox.setDefaultTimeoutMs(1500);
+
+    const QVariantMap result = sandbox.run(executable, {
+        QStringLiteral("--gtest_filter=CommandSandboxContractTest.ChildProcessSleepHelper")});
+
+    EXPECT_TRUE(result.value(QStringLiteral("allowed")).toBool());
+    EXPECT_TRUE(result.value(QStringLiteral("started")).toBool());
+    EXPECT_TRUE(result.value(QStringLiteral("finished")).toBool());
+    EXPECT_TRUE(result.value(QStringLiteral("timedOut")).toBool());
+    EXPECT_FALSE(result.value(QStringLiteral("ok")).toBool());
+}
+
 TEST(CommandSandboxContractTest, RejectsEmptyMissingAndNonAllowlistedPrograms)
 {
     CommandSandbox sandbox;
@@ -125,6 +298,62 @@ TEST(CommandSandboxContractTest, EmptyAllowlistFailsClosedInsteadOfDisablingVali
     EXPECT_FALSE(result.value(QStringLiteral("started")).toBool());
     EXPECT_EQ(result.value(QStringLiteral("error")).toString(),
               QStringLiteral("Program is not on the allowlist: %1").arg(program));
+}
+
+TEST(CommandSandboxContractTest, AbsoluteAllowlistDoesNotAuthorizeSameNamedProgramElsewhere)
+{
+    QTemporaryDir trustedDirectory;
+    QTemporaryDir otherDirectory;
+    ASSERT_TRUE(trustedDirectory.isValid());
+    ASSERT_TRUE(otherDirectory.isValid());
+    const QString trustedProgram = createProgramFile(
+        trustedDirectory, QStringLiteral("tool.exe"));
+    const QString otherProgram = createProgramFile(
+        otherDirectory, QStringLiteral("tool.exe"));
+    ASSERT_FALSE(trustedProgram.isEmpty());
+    ASSERT_FALSE(otherProgram.isEmpty());
+    ASSERT_NE(QDir::cleanPath(trustedProgram), QDir::cleanPath(otherProgram));
+
+    CommandSandbox sandbox;
+    sandbox.setAllowedPrograms({trustedProgram});
+
+    const QVariantMap trusted = dryRun(sandbox, trustedProgram);
+    const QVariantMap other = dryRun(sandbox, otherProgram);
+
+    EXPECT_TRUE(trusted.value(QStringLiteral("allowed")).toBool());
+    EXPECT_FALSE(other.value(QStringLiteral("allowed")).toBool());
+    EXPECT_EQ(other.value(QStringLiteral("error")).toString(),
+              QStringLiteral("Program is not on the allowlist: %1").arg(otherProgram));
+}
+
+TEST(CommandSandboxContractTest, AbsoluteAllowlistAndBlocklistPathMatchingIgnoresCase)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString program = createProgramFile(directory, QStringLiteral("tool.exe"));
+    ASSERT_FALSE(program.isEmpty());
+
+    QString alternateCasePath = program;
+    for (qsizetype index = 0; index < alternateCasePath.size(); ++index) {
+        const QChar character = alternateCasePath.at(index);
+        if (character.isLetter()) {
+            alternateCasePath[index] = character.isLower() ? character.toUpper()
+                                                            : character.toLower();
+            break;
+        }
+    }
+    ASSERT_NE(alternateCasePath, program);
+
+    CommandSandbox sandbox;
+    sandbox.setAllowedPrograms({alternateCasePath});
+    const QVariantMap allowedByCaseInsensitivePath = dryRun(sandbox, program);
+    EXPECT_TRUE(allowedByCaseInsensitivePath.value(QStringLiteral("allowed")).toBool());
+
+    sandbox.setBlockedPrograms({alternateCasePath});
+    const QVariantMap blockedByCaseInsensitivePath = dryRun(sandbox, program);
+    EXPECT_FALSE(blockedByCaseInsensitivePath.value(QStringLiteral("allowed")).toBool());
+    EXPECT_EQ(blockedByCaseInsensitivePath.value(QStringLiteral("error")).toString(),
+              QStringLiteral("Program is blocked by policy: %1").arg(program));
 }
 
 TEST(CommandSandboxContractTest, BlocklistOverridesAllowlistAndShellPolicyOverridesBoth)

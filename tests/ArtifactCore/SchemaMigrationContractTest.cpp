@@ -1,6 +1,11 @@
 #include <gtest/gtest.h>
 
 #include <stdexcept>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 #include <QJsonObject>
@@ -211,6 +216,41 @@ TEST(SchemaMigrationContractTest, ChoosesTheShortestAvailableForwardPath)
     EXPECT_EQ(data.value(QStringLiteral("steps")).toInt(), 2);
 }
 
+TEST(SchemaMigrationContractTest,
+     EqualLengthPathsChooseTheLowestNextVersionRegardlessOfRegistrationOrder)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName =
+        QStringLiteral("SchemaMigrationContractTest.EqualLengthPaths");
+    registry.registerMigration(typeName, 0, 2, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("route"), QStringLiteral("via-2"));
+        return output;
+    });
+    registry.registerMigration(typeName, 2, 5, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("completedThrough"), 2);
+        return output;
+    });
+    registry.registerMigration(typeName, 0, 1, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("route"), QStringLiteral("via-1"));
+        return output;
+    });
+    registry.registerMigration(typeName, 1, 5, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("completedThrough"), 1);
+        return output;
+    });
+
+    QJsonObject data;
+    ASSERT_TRUE(registry.hasMigrationPath(typeName, 0, 5));
+    ASSERT_TRUE(registry.migrate(typeName, 0, 5, data));
+    EXPECT_EQ(data.value(QStringLiteral("route")).toString(),
+              QStringLiteral("via-1"));
+    EXPECT_EQ(data.value(QStringLiteral("completedThrough")).toInt(), 1);
+}
+
 TEST(SchemaMigrationContractTest, AvailableVersionsAreSortedAndDeduplicated)
 {
     auto& registry = SchemaMigrationRegistry::instance();
@@ -243,4 +283,129 @@ TEST(SchemaMigrationContractTest, FailedCallbackLeavesInputUnchanged)
 
     EXPECT_THROW(registry.migrate(typeName, 0, 2, data), std::runtime_error);
     EXPECT_EQ(data, original);
+}
+
+TEST(SchemaMigrationContractTest,
+     CallbackReregistrationAffectsOnlySubsequentMigrationPathSnapshots)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.PathSnapshot");
+    registry.registerMigration(typeName, 1, 2, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("selectedEdge"), QStringLiteral("original"));
+        return output;
+    });
+    registry.registerMigration(typeName, 0, 1,
+        [&registry, typeName](const QJsonObject& input) {
+            QJsonObject output = input;
+            output.insert(QStringLiteral("firstEdge"), true);
+            registry.registerMigration(typeName, 1, 2,
+                [](const QJsonObject& updatedInput) {
+                    QJsonObject updatedOutput = updatedInput;
+                    updatedOutput.insert(QStringLiteral("selectedEdge"),
+                                         QStringLiteral("replacement"));
+                    return updatedOutput;
+                });
+            return output;
+        });
+
+    QJsonObject firstResult;
+    ASSERT_TRUE(registry.migrate(typeName, 0, 2, firstResult));
+    EXPECT_TRUE(firstResult.value(QStringLiteral("firstEdge")).toBool());
+    EXPECT_EQ(firstResult.value(QStringLiteral("selectedEdge")).toString(),
+              QStringLiteral("original"));
+
+    QJsonObject secondResult;
+    ASSERT_TRUE(registry.migrate(typeName, 0, 2, secondResult));
+    EXPECT_TRUE(secondResult.value(QStringLiteral("firstEdge")).toBool());
+    EXPECT_EQ(secondResult.value(QStringLiteral("selectedEdge")).toString(),
+              QStringLiteral("replacement"));
+}
+
+TEST(SchemaMigrationContractTest,
+     ConcurrentReregistrationDoesNotChangeAnInFlightPathSnapshot)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.ConcurrentSnapshot");
+    std::mutex gateMutex;
+    std::condition_variable gateChanged;
+    bool firstCallbackEntered = false;
+    bool releaseFirstCallback = false;
+    bool replacementRegistered = false;
+    std::atomic<bool> shouldBlockFirstCallback{true};
+
+    registry.registerMigration(typeName, 1, 2, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("edgeGeneration"), QStringLiteral("original"));
+        return output;
+    });
+    registry.registerMigration(typeName, 0, 1,
+        [&gateMutex, &gateChanged, &firstCallbackEntered, &releaseFirstCallback,
+         &shouldBlockFirstCallback](const QJsonObject& input) {
+            if (shouldBlockFirstCallback.exchange(false, std::memory_order_acq_rel)) {
+                std::unique_lock lock(gateMutex);
+                firstCallbackEntered = true;
+                gateChanged.notify_all();
+                gateChanged.wait(lock, [&] { return releaseFirstCallback; });
+            }
+            QJsonObject output = input;
+            output.insert(QStringLiteral("firstEdge"), true);
+            return output;
+        });
+
+    QJsonObject inFlightResult;
+    bool inFlightSucceeded = false;
+    std::thread migrationThread([&] {
+        inFlightSucceeded = registry.migrate(typeName, 0, 2, inFlightResult);
+    });
+
+    bool entered = false;
+    {
+        std::unique_lock lock(gateMutex);
+        entered = gateChanged.wait_for(lock, std::chrono::seconds(5),
+            [&] { return firstCallbackEntered; });
+    }
+    std::thread registrationThread;
+    bool replacementCompletedBeforeRelease = false;
+    if (entered) {
+        registrationThread = std::thread([&] {
+            registry.registerMigration(typeName, 1, 2, [](const QJsonObject& input) {
+                QJsonObject output = input;
+                output.insert(QStringLiteral("edgeGeneration"),
+                              QStringLiteral("replacement"));
+                return output;
+            });
+            {
+                std::lock_guard lock(gateMutex);
+                replacementRegistered = true;
+            }
+            gateChanged.notify_all();
+        });
+        std::unique_lock lock(gateMutex);
+        replacementCompletedBeforeRelease = gateChanged.wait_for(
+            lock, std::chrono::seconds(5), [&] { return replacementRegistered; });
+    }
+    {
+        std::lock_guard lock(gateMutex);
+        releaseFirstCallback = true;
+    }
+    gateChanged.notify_all();
+    migrationThread.join();
+    if (registrationThread.joinable()) {
+        registrationThread.join();
+    }
+
+    EXPECT_TRUE(entered) << "migration callback should block after its path is snapshotted";
+    EXPECT_TRUE(replacementCompletedBeforeRelease)
+        << "registry mutation should finish while the migration callback is blocked";
+    ASSERT_TRUE(inFlightSucceeded);
+    EXPECT_TRUE(inFlightResult.value(QStringLiteral("firstEdge")).toBool());
+    EXPECT_EQ(inFlightResult.value(QStringLiteral("edgeGeneration")).toString(),
+              QStringLiteral("original"));
+
+    QJsonObject subsequentResult;
+    ASSERT_TRUE(registry.migrate(typeName, 0, 2, subsequentResult));
+    EXPECT_TRUE(subsequentResult.value(QStringLiteral("firstEdge")).toBool());
+    EXPECT_EQ(subsequentResult.value(QStringLiteral("edgeGeneration")).toString(),
+              QStringLiteral("replacement"));
 }

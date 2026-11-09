@@ -363,6 +363,24 @@ TEST(CsvParserStandaloneTest, AutomaticDetectionIgnoresSeparatorsInsideQuotes)
     EXPECT_EQ(cell(result, 0, 1), "one;two,three");
 }
 
+TEST(CsvParserStandaloneTest, AutomaticDetectionDoesNotOutvoteDelimiterWithQuotedCandidates)
+{
+    const auto result = CsvParser::parseString(
+        "name;note\r\n"
+        "Ada;\"one,two,three\r\nfour; five and \"\"quoted\"\"\"\r\n"
+        "Grace;\"short note\"");
+
+    ASSERT_TRUE(result.ok());
+    ASSERT_EQ(result.columnCount, 2);
+    ASSERT_EQ(result.rowCount, 2);
+    EXPECT_EQ(toStdString(result.headers[0]), "name");
+    EXPECT_EQ(toStdString(result.headers[1]), "note");
+    EXPECT_EQ(cell(result, 0, 0), "Ada");
+    EXPECT_EQ(cell(result, 0, 1), "one,two,three\r\nfour; five and \"quoted\"");
+    EXPECT_EQ(cell(result, 1, 0), "Grace");
+    EXPECT_EQ(cell(result, 1, 1), "short note");
+}
+
 TEST(CsvParserStandaloneTest, EmptyInteriorCellsKeepTheirColumnPositions)
 {
     const auto result = CsvParser::parseString("a,b,c\n1,,3");

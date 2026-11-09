@@ -3,6 +3,7 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <algorithm>
 #include <vector>
 
 import Event.Bus;
@@ -130,4 +131,37 @@ TEST(ActionManagerContractTest, UnregisterPublishesOnceAndRepeatedUnregisterIsNo
     ASSERT_EQ(changes.size(), 1u);
     EXPECT_EQ(changes.front().kind, ActionManagerChangeKind::ActionUnregistered);
     EXPECT_EQ(changes.front().actionId, id);
+}
+
+TEST(ActionManagerContractTest,
+     ExecutedEventCanSynchronouslyUnregisterItsAction)
+{
+    auto* manager = ActionManager::instance();
+    const QString id = uniqueActionId("unregister-during-executed-event");
+    auto* action = manager->registerAction(id, QStringLiteral("Self removing"));
+    ASSERT_NE(action, nullptr);
+
+    int executionCount = 0;
+    action->setExecuteCallback([&](const QVariantMap&) { ++executionCount; });
+
+    std::vector<ActionManagerChangeKind> changes;
+    auto subscription = ArtifactCore::globalEventBus().subscribe<ActionManagerChangedEvent>(
+        [&](const auto& event) {
+            if (event.actionId != id) return;
+            changes.push_back(event.kind);
+            if (event.kind == ActionManagerChangeKind::ActionExecuted) {
+                manager->unregisterAction(id);
+            }
+        });
+    ASSERT_TRUE(subscription.connected());
+
+    manager->executeAction(id);
+
+    EXPECT_EQ(executionCount, 1);
+    EXPECT_EQ(manager->getAction(id), nullptr);
+    ASSERT_EQ(changes.size(), 2u);
+    EXPECT_EQ(std::count(changes.begin(), changes.end(),
+                         ActionManagerChangeKind::ActionExecuted), 1);
+    EXPECT_EQ(std::count(changes.begin(), changes.end(),
+                         ActionManagerChangeKind::ActionUnregistered), 1);
 }

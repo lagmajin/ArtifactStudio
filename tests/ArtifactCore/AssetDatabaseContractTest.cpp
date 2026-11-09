@@ -109,6 +109,35 @@ TEST(AssetDatabaseContractTest, MissingSourceCanBeRegisteredByAbsolutePath)
     EXPECT_EQ(database.findAssetByPath(missingPath), id);
 }
 
+TEST(AssetDatabaseContractTest,
+     MissingAssetIdentitySurvivesMaterializationThroughSymlinkedParent)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString realDirectory = directory.filePath(QStringLiteral("real"));
+    const QString aliasDirectory = directory.filePath(QStringLiteral("alias"));
+    ASSERT_TRUE(QDir().mkpath(realDirectory));
+    if (!QFile::link(realDirectory, aliasDirectory) ||
+        !QFileInfo(aliasDirectory).isSymLink()) {
+        GTEST_SKIP() << "directory symlink creation is unavailable on this platform";
+    }
+
+    const QString missingPath = QDir(aliasDirectory).filePath(QStringLiteral("late.png"));
+    ASSERT_FALSE(QFileInfo::exists(missingPath));
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid id = database.registerAsset(missingPath, AssetType::Image);
+    ASSERT_FALSE(id.isNull());
+
+    ASSERT_TRUE(createSourceFile(missingPath));
+
+    EXPECT_EQ(database.findAssetByPath(missingPath), id)
+        << "materializing a missing source must not change its registered identity";
+    EXPECT_EQ(database.registerAsset(missingPath, AssetType::Image), id);
+    EXPECT_EQ(database.allAssets().size(), 1);
+}
+
 TEST(AssetDatabaseContractTest, RelinkPreservesIdentityAndRejectsCollisionsAtomically)
 {
     QTemporaryDir directory;
@@ -161,6 +190,120 @@ TEST(AssetDatabaseContractTest, RelinkToCanonicalAliasOfCurrentPathIsRejected)
     EXPECT_EQ(database.findAssetByPath(alias), id);
     EXPECT_EQ(database.getAssetInfo(id).absolutePath, before.absolutePath);
     EXPECT_EQ(database.getAssetInfo(id).name, before.name);
+}
+
+TEST(AssetDatabaseContractTest,
+     RelinkResolvesSymlinkTargetsBeforeCollisionAndIndexUpdates)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString realDirectory = directory.filePath(QStringLiteral("real"));
+    const QString aliasDirectory = directory.filePath(QStringLiteral("alias"));
+    ASSERT_TRUE(QDir().mkpath(realDirectory));
+    if (!QFile::link(realDirectory, aliasDirectory) ||
+        !QFileInfo(aliasDirectory).isSymLink()) {
+        GTEST_SKIP() << "directory symlink creation is unavailable on this platform";
+    }
+
+    const QString oldPath = directory.filePath(QStringLiteral("old.png"));
+    const QString occupiedPath = QDir(realDirectory).filePath(QStringLiteral("occupied.png"));
+    const QString relocatedPath = QDir(realDirectory).filePath(QStringLiteral("renamed.png"));
+    const QString occupiedAlias = QDir(aliasDirectory).filePath(QStringLiteral("occupied.png"));
+    const QString relocatedAlias = QDir(aliasDirectory).filePath(QStringLiteral("renamed.png"));
+    ASSERT_TRUE(createSourceFile(oldPath));
+    ASSERT_TRUE(createSourceFile(occupiedPath));
+    ASSERT_TRUE(createSourceFile(relocatedPath));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid movingId = database.registerAsset(oldPath, AssetType::Image);
+    const QUuid occupiedId = database.registerAsset(occupiedPath, AssetType::Audio);
+    ASSERT_FALSE(movingId.isNull());
+    ASSERT_FALSE(occupiedId.isNull());
+
+    EXPECT_FALSE(database.relinkAssetPath(oldPath, occupiedAlias));
+    EXPECT_EQ(database.findAssetByPath(oldPath), movingId);
+    EXPECT_EQ(database.findAssetByPath(occupiedPath), occupiedId);
+    EXPECT_EQ(database.allAssets().size(), 2);
+
+    EXPECT_TRUE(database.relinkAssetPath(oldPath, relocatedAlias));
+    EXPECT_TRUE(database.findAssetByPath(oldPath).isNull());
+    EXPECT_EQ(database.findAssetByPath(relocatedAlias), movingId);
+    EXPECT_EQ(database.findAssetByPath(relocatedPath), movingId);
+    EXPECT_EQ(database.findAssetByPath(occupiedAlias), occupiedId);
+    const AssetInfo relocated = database.getAssetInfo(movingId);
+    EXPECT_EQ(relocated.absolutePath, QFileInfo(relocatedPath).canonicalFilePath());
+    EXPECT_EQ(relocated.name, QStringLiteral("renamed.png"));
+    EXPECT_EQ(database.allAssets().size(), 2);
+}
+
+TEST(AssetDatabaseContractTest,
+     ChainedRelinkKeepsIndexesConsistentAcrossSnapshotRestore)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString originalPath = directory.filePath(QStringLiteral("source.png"));
+    const QString occupiedPath = directory.filePath(QStringLiteral("occupied.png"));
+    const QString relocatedPath = directory.filePath(QStringLiteral("nested/renamed.png"));
+    ASSERT_TRUE(createSourceFile(originalPath));
+    ASSERT_TRUE(createSourceFile(occupiedPath));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid sourceId = QUuid::createUuid();
+    const QUuid occupiedId = QUuid::createUuid();
+    ASSERT_FALSE(sourceId.isNull());
+    ASSERT_FALSE(occupiedId.isNull());
+    const QJsonObject sourceMetadata{
+        {QStringLiteral("colorSpace"), QStringLiteral("ACEScg")},
+        {QStringLiteral("sourceRevision"), QStringLiteral("rev-17")},
+    };
+    const QJsonArray initialAssets{
+        QJsonObject{
+            {QStringLiteral("id"), sourceId.toString()},
+            {QStringLiteral("name"), QStringLiteral("source.png")},
+            {QStringLiteral("path"), originalPath},
+            {QStringLiteral("type"), static_cast<int>(AssetType::Image)},
+            {QStringLiteral("metadata"), sourceMetadata},
+        },
+        QJsonObject{
+            {QStringLiteral("id"), occupiedId.toString()},
+            {QStringLiteral("name"), QStringLiteral("occupied.png")},
+            {QStringLiteral("path"), occupiedPath},
+            {QStringLiteral("type"), static_cast<int>(AssetType::Audio)},
+        },
+    };
+    ASSERT_TRUE(database.fromJson(
+        QJsonDocument(initialAssets).toJson(QJsonDocument::Compact)));
+    ASSERT_TRUE(QDir().mkpath(directory.filePath(QStringLiteral("nested"))));
+
+    ASSERT_TRUE(database.relinkAssetPath(originalPath, relocatedPath));
+    EXPECT_FALSE(database.relinkAssetPath(relocatedPath, occupiedPath));
+    EXPECT_EQ(database.findAssetByPath(originalPath), QUuid());
+    EXPECT_EQ(database.findAssetByPath(relocatedPath), sourceId);
+    EXPECT_EQ(database.findAssetByPath(occupiedPath), occupiedId);
+    EXPECT_EQ(database.getAssetInfo(sourceId).type, AssetType::Image);
+    EXPECT_EQ(database.getAssetInfo(sourceId).name, QStringLiteral("renamed.png"));
+    EXPECT_EQ(database.getAssetInfo(sourceId).metadata.value(QStringLiteral("colorSpace")),
+              QStringLiteral("ACEScg"));
+    EXPECT_EQ(database.getAssetInfo(sourceId).metadata.value(QStringLiteral("sourceRevision")),
+              QStringLiteral("rev-17"));
+
+    const QByteArray snapshot = database.toJson();
+    ASSERT_TRUE(database.fromJson(snapshot));
+    ASSERT_EQ(database.allAssets().size(), 2);
+    EXPECT_EQ(database.findAssetByPath(originalPath), QUuid());
+    EXPECT_EQ(database.findAssetByPath(relocatedPath), sourceId);
+    EXPECT_EQ(database.findAssetByPath(occupiedPath), occupiedId);
+    EXPECT_EQ(database.getAssetInfo(sourceId).absolutePath,
+              QFileInfo(relocatedPath).canonicalFilePath());
+    EXPECT_EQ(database.getAssetInfo(occupiedId).type, AssetType::Audio);
+    EXPECT_EQ(database.getAssetInfo(sourceId).metadata.value(QStringLiteral("colorSpace")),
+              QStringLiteral("ACEScg"));
+    EXPECT_EQ(database.getAssetInfo(sourceId).metadata.value(QStringLiteral("sourceRevision")),
+              QStringLiteral("rev-17"));
 }
 
 TEST(AssetDatabaseContractTest, JsonLoadFiltersDuplicateAndMalformedEntries)
@@ -225,6 +368,52 @@ TEST(AssetDatabaseContractTest, JsonLoadFiltersDuplicateAndMalformedEntries)
     const QByteArray malformed = QByteArrayLiteral("{");
     EXPECT_FALSE(database.fromJson(malformed));
     EXPECT_EQ(database.getAssetInfo(id).absolutePath, loaded.absolutePath);
+}
+
+TEST(AssetDatabaseContractTest,
+     JsonLoadReusesIdentityFromARecordRejectedForDuplicateCanonicalPath)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    ASSERT_TRUE(QDir(directory.path()).mkpath(QStringLiteral("nested")));
+    const QString firstPath = directory.filePath(QStringLiteral("shared.png"));
+    const QString canonicalAlias =
+        directory.filePath(QStringLiteral("nested/../shared.png"));
+    const QString secondPath = directory.filePath(QStringLiteral("second.png"));
+    ASSERT_TRUE(createSourceFile(firstPath));
+    ASSERT_TRUE(createSourceFile(secondPath));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid firstId = QUuid::createUuid();
+    const QUuid reusableId = QUuid::createUuid();
+    const QJsonArray entries{
+        QJsonObject{{QStringLiteral("id"), firstId.toString()},
+                    {QStringLiteral("path"), firstPath},
+                    {QStringLiteral("type"), static_cast<int>(AssetType::Image)}},
+        QJsonObject{{QStringLiteral("id"), reusableId.toString()},
+                    {QStringLiteral("path"), canonicalAlias},
+                    {QStringLiteral("type"), static_cast<int>(AssetType::Audio)}},
+        QJsonObject{{QStringLiteral("id"), reusableId.toString()},
+                    {QStringLiteral("path"), secondPath},
+                    {QStringLiteral("type"), static_cast<int>(AssetType::Audio)}},
+    };
+
+    ASSERT_TRUE(database.fromJson(
+        QJsonDocument(entries).toJson(QJsonDocument::Compact)));
+    ASSERT_EQ(database.allAssets().size(), 2);
+    EXPECT_EQ(database.findAssetByPath(firstPath), firstId);
+    EXPECT_EQ(database.findAssetByPath(canonicalAlias), firstId);
+    EXPECT_EQ(database.findAssetByPath(secondPath), reusableId);
+    EXPECT_EQ(database.getAssetInfo(firstId).type, AssetType::Image);
+    EXPECT_EQ(database.getAssetInfo(reusableId).type, AssetType::Audio);
+
+    const QByteArray snapshot = database.toJson();
+    ASSERT_TRUE(database.fromJson(snapshot));
+    ASSERT_EQ(database.allAssets().size(), 2);
+    EXPECT_EQ(database.findAssetByPath(firstPath), firstId);
+    EXPECT_EQ(database.findAssetByPath(secondPath), reusableId);
 }
 
 TEST(AssetDatabaseContractTest, JsonLoadKeepsOnlyStringMetadataValues)
@@ -508,6 +697,39 @@ TEST(AssetDatabaseContractTest, CanonicalAliasRegistrationKeepsOriginalTypeAndId
     EXPECT_NE(aliasId, secondPreferredId);
     EXPECT_EQ(database.getAssetInfo(firstId).type, AssetType::Image);
     EXPECT_EQ(database.allAssets().size(), 1);
+}
+
+TEST(AssetDatabaseContractTest, ConflictingPreferredIdGetsFreshIdentityWithoutDamagingFirstAsset)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString firstPath = directory.filePath(QStringLiteral("first.png"));
+    const QString secondPath = directory.filePath(QStringLiteral("second.wav"));
+    ASSERT_TRUE(createSourceFile(firstPath));
+    ASSERT_TRUE(createSourceFile(secondPath));
+
+    AssetDatabase& database = AssetDatabase::instance();
+    DatabaseSnapshotGuard restore(database);
+    database.clear();
+    const QUuid preferredId = QUuid::createUuid();
+    const QUuid firstId = database.registerAsset(firstPath, AssetType::Image, preferredId);
+    ASSERT_EQ(firstId, preferredId);
+
+    const QUuid secondId = database.registerAsset(secondPath, AssetType::Audio, preferredId);
+    ASSERT_FALSE(secondId.isNull());
+    EXPECT_NE(secondId, firstId);
+    EXPECT_EQ(database.findAssetByPath(firstPath), firstId);
+    EXPECT_EQ(database.findAssetByPath(secondPath), secondId);
+    EXPECT_EQ(database.getAssetInfo(firstId).type, AssetType::Image);
+    EXPECT_EQ(database.getAssetInfo(firstId).absolutePath,
+              QFileInfo(firstPath).canonicalFilePath());
+    EXPECT_EQ(database.getAssetInfo(secondId).type, AssetType::Audio);
+    EXPECT_EQ(database.allAssets().size(), 2);
+
+    database.unregisterAsset(secondId);
+    EXPECT_TRUE(database.findAssetByPath(secondPath).isNull());
+    EXPECT_EQ(database.findAssetByPath(firstPath), firstId);
+    EXPECT_EQ(database.getAssetInfo(firstId).id, firstId);
 }
 
 TEST(AssetDatabaseContractTest, MissingUuidLookupAndUnregisterLeaveDatabaseUnchanged)

@@ -5,6 +5,7 @@
 #include <QSize>
 #include <QTransform>
 
+#include <array>
 #include <cmath>
 #include <initializer_list>
 
@@ -199,4 +200,38 @@ TEST(ResolutionRemapStandaloneTest, EmptySizeProducesIdentityTransform)
     const QTransform transform = ResolutionRemap::remapTransform(
         kOldSize, QSize(), RemapPolicy::FitWithPadding);
     EXPECT_EQ(transform.map(QPointF(12.0, 34.0)), QPointF(12.0, 34.0));
+}
+
+TEST(ResolutionRemapStandaloneTest,
+     BoundsMappingMatchesTransformForEveryPolicyAndSignedExtent)
+{
+    const std::array<QRectF, 2> bounds = {
+        QRectF(20.0, 10.0, 30.0, 20.0),
+        QRectF(80.0, 40.0, -20.0, -10.0),
+    };
+    const std::array policies = {
+        RemapPolicy::CenterLocked,
+        RemapPolicy::TopLeftLocked,
+        RemapPolicy::StretchToFit,
+        RemapPolicy::FitWithPadding,
+        RemapPolicy::FitWithCrop,
+    };
+
+    for (const auto policy : policies) {
+        const QTransform transform = ResolutionRemap::remapTransform(
+            kOldSize, kLandscapeToPortrait, policy);
+        for (const QRectF& sourceBounds : bounds) {
+            const QRectF expected = transform.mapRect(sourceBounds.normalized());
+            const QRectF actual = ResolutionRemap::remapBounds(
+                sourceBounds, kOldSize, kLandscapeToPortrait, policy);
+            EXPECT_NEAR(actual.x(), expected.x(), 1e-9)
+                << "policy=" << static_cast<int>(policy);
+            EXPECT_NEAR(actual.y(), expected.y(), 1e-9)
+                << "policy=" << static_cast<int>(policy);
+            EXPECT_NEAR(actual.width(), expected.width(), 1e-9)
+                << "policy=" << static_cast<int>(policy);
+            EXPECT_NEAR(actual.height(), expected.height(), 1e-9)
+                << "policy=" << static_cast<int>(policy);
+        }
+    }
 }

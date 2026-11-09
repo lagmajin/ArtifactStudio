@@ -106,6 +106,36 @@ TEST(CollaborationSessionTest, OperationEchoDeduplicationAndVersions)
     EXPECT_EQ(session.pendingLocalOperationCount(), 0);
 }
 
+TEST(CollaborationSessionTest,
+     DelimiterCharactersInOperationFieldsDoNotCollideInDeduplication)
+{
+    CollaborationSession session;
+    session.setLocalIdentity(QStringLiteral("local-1"), QStringLiteral("u0"),
+                             QStringLiteral("Local"), QStringLiteral("#ffffff"));
+
+    CollabOperationData first;
+    first.clientId = QStringLiteral("peer|x");
+    first.type = QStringLiteral("property.set");
+    first.layerId = QStringLiteral("layer-1");
+    first.timestampMs = kT0;
+    first.version = 4;
+
+    CollabOperationData second;
+    second.clientId = QStringLiteral("peer");
+    second.type = QStringLiteral("x|property.set");
+    second.layerId = QStringLiteral("layer-1");
+    second.timestampMs = kT0;
+    second.version = 5;
+
+    EXPECT_NE(first.dedupeKey(), second.dedupeKey());
+    EXPECT_TRUE(session.processRemoteOperation(first));
+    EXPECT_TRUE(session.processRemoteOperation(second));
+    ASSERT_EQ(session.operationLog().size(), 2);
+    EXPECT_EQ(session.operationLog()[0].clientId, first.clientId);
+    EXPECT_EQ(session.operationLog()[1].clientId, second.clientId);
+    EXPECT_EQ(session.latestVersion(), 5);
+}
+
 TEST(CollaborationSessionTest, HistoryIngestionFillsVersionGaps)
 {
     CollaborationSession session;
