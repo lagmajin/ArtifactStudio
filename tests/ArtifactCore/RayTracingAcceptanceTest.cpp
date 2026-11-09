@@ -2276,6 +2276,40 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
             << "a missing emission texture should preserve scalar emission, "
                "channel " << channel;
     }
+
+    material.emissionTexture = ArtifactCore::UniString();
+    material.emissionColor[0] = 0.5f;
+    material.emissionColor[1] = 0.25f;
+    material.emissionColor[2] = 0.0f;
+    material.emissionStrength = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scalarColorEmission = pixelAt(16, 16);
+    EXPECT_NEAR(scalarColorEmission[0], 0.42808f, 0.01f)
+        << "scalar emission red should convert sRGB 0.5 to linear and scale by strength";
+    EXPECT_NEAR(scalarColorEmission[1], 0.10175f, 0.01f)
+        << "scalar emission green should convert sRGB 0.25 to linear and scale by strength";
+    EXPECT_NEAR(scalarColorEmission[2], 0.0f, 0.01f);
+
+    material.emissionStrength = -1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto negativeEmissionStrength = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(negativeEmissionStrength[channel], 0.0f, 1.0e-5f)
+            << "negative emission strength should clamp to zero, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
