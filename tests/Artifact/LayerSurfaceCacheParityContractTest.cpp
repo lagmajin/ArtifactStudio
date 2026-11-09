@@ -301,6 +301,75 @@ TEST(LayerSurfaceCacheParityContractTest,
 }
 
 TEST(LayerSurfaceCacheParityContractTest,
+     ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QImage original(24, 16, QImage::Format_RGBA8888);
+    original.fill(QColor(230, 45, 35, 255));
+    QImage replacement(24, 16, QImage::Format_RGBA8888);
+    replacement.fill(QColor(25, 170, 235, 255));
+
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(layer);
+    layer->setFromQImage(original);
+    ASSERT_TRUE(layer->hasCurrentFrameBuffer());
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    const QString ownerId = layer->id().toString();
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> cache;
+
+    const auto draw = [&](QHash<QString, Artifact::LayerSurfaceCacheEntry>* entries) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            layer.get(), &renderer, 1.0f, nullptr, entries, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage originalCached = draw(&cache);
+    ASSERT_FALSE(originalCached.isNull());
+    ASSERT_TRUE(cache.contains(ownerId));
+    const QString originalSignature = cache.value(ownerId).cacheSignature;
+    ASSERT_FALSE(originalSignature.isEmpty());
+    const QImage originalBypass = draw(nullptr);
+    ASSERT_FALSE(originalBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(originalCached, originalBypass));
+
+    layer->setFromQImage(replacement);
+    ASSERT_TRUE(layer->hasCurrentFrameBuffer());
+    const QImage replacementCached = draw(&cache);
+    ASSERT_FALSE(replacementCached.isNull());
+    const QString replacementSignature = cache.value(ownerId).cacheSignature;
+    EXPECT_NE(replacementSignature, originalSignature)
+        << "replacing source pixels must invalidate the cached layer surface";
+    EXPECT_FALSE(imagesMatchExactly(replacementCached, originalCached))
+        << "the cached surface must not keep the previous source pixels";
+    const QImage replacementBypass = draw(nullptr);
+    ASSERT_FALSE(replacementBypass.isNull());
+    EXPECT_FALSE(imagesMatchExactly(replacementBypass, originalBypass))
+        << "the replacement source should produce different output pixels";
+    EXPECT_TRUE(imagesMatchExactly(replacementCached, replacementBypass));
+
+    const QImage replacementReuse = draw(&cache);
+    EXPECT_EQ(cache.value(ownerId).cacheSignature, replacementSignature);
+    EXPECT_TRUE(imagesMatchExactly(replacementReuse, replacementCached));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
      StaticGpuSurfaceCacheSeparatesResolutionLODsAndReusesCurrentLevel)
 {
     constexpr int width = 96;

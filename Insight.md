@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 画像再設定後のlayer surface cache無効化
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity`、静止画受入表OP-08。
+- **確認できた事実:** 既存テストはfile-backed sourceのversion invalidation後にdecoded pixel／metadataが更新されること、surface cacheのeffect revision invalidationを別々に確認するが、同じlayerへ異なる画像bufferを再設定した際のsurface cache更新とbypass parityは直接確認していなかった。
+- **追加した確認:** cacheを構築した同じlayerへ異なる色の画像を設定し、signature更新、旧画素の不再利用、更新後のcache reuse、cache bypassとの完全一致を確認するGPU contract testを追加した。
+- **価値または懸念:** source pixels更新時にlayer surface cacheが古い画像を保持する回帰を検出する。headless Diligent deviceがない環境ではskipする。file watcher経由の非同期decode race自体は未検証。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: Input Interpretation別layer surface cache keyとbypass parity
 - **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity`、静止画受入表OP-06。
 - **確認できた事実:** 制作準備文書はlayer surface cacheへsource versionと入力色解釈を反映するとする。既存layer surface parity testsはLOD、effect revision、cached/bypass pixel parityを確認するが、input color space／transfer変更は扱っていなかった。
