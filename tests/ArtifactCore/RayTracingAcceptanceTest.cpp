@@ -646,6 +646,117 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     EXPECT_GT(rightPixel[2], rightPixel[0] + 0.5f);
 }
 
+TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
+    constexpr std::array<float, 24> frontVertices{
+        -0.9f, -0.9f, 0.4f, 0.0f, -0.9f, 0.4f,
+         0.0f,  0.9f, 0.4f, -0.9f,  0.9f, 0.4f,
+         0.0f, -0.9f, 0.4f, 0.9f, -0.9f, 0.4f,
+         0.9f,  0.9f, 0.4f, 0.0f,  0.9f, 0.4f};
+    constexpr std::array<std::uint32_t, 12> frontIndices{
+        0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7};
+    constexpr std::array<std::uint32_t, 4> materialIndices{0, 0, 1, 1};
+    constexpr std::array<float, 16> frontUvs{
+        0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 12> backVertices{
+        -0.9f, -0.9f, -0.4f, 0.9f, -0.9f, -0.4f,
+         0.9f,  0.9f, -0.4f, -0.9f, 0.9f, -0.4f};
+    constexpr std::array<std::uint32_t, 6> backIndices{0, 1, 2, 0, 2, 3};
+    auto frontVertexBuffer = makeBuffer(
+        frontVertices.data(), sizeof(frontVertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto frontIndexBuffer = makeBuffer(
+        frontIndices.data(), sizeof(frontIndices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto backVertexBuffer = makeBuffer(
+        backVertices.data(), sizeof(backVertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto backIndexBuffer = makeBuffer(
+        backIndices.data(), sizeof(backIndices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(frontVertexBuffer, nullptr);
+    ASSERT_NE(frontIndexBuffer, nullptr);
+    ASSERT_NE(backVertexBuffer, nullptr);
+    ASSERT_NE(backIndexBuffer, nullptr);
+    addGeometry("masked-opacity-material-slots", frontVertexBuffer.RawPtr(), 8,
+                frontIndexBuffer.RawPtr(), 12, float4x4::Identity(), 1, 1,
+                frontVertices.data(), frontIndices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        frontVertices.data(), 8, frontIndices.data(), 12, nullptr,
+        materialIndices.data(), frontUvs.data()));
+    addGeometry("masked-opacity-slot-background", backVertexBuffer.RawPtr(), 4,
+                backIndexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                backVertices.data(), backIndices.data());
+
+    QTemporaryDir opacityDirectory;
+    ASSERT_TRUE(opacityDirectory.isValid());
+    const auto transparentPath = opacityDirectory.filePath(
+        QStringLiteral("transparent.png"));
+    const auto opaquePath = opacityDirectory.filePath(
+        QStringLiteral("opaque.png"));
+    QImage transparentImage(2, 2, QImage::Format_RGBA8888);
+    QImage opaqueImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(transparentImage.isNull());
+    ASSERT_FALSE(opaqueImage.isNull());
+    transparentImage.fill(QColor(255, 255, 255, 0));
+    opaqueImage.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(transparentImage.save(transparentPath, "PNG"));
+    ASSERT_TRUE(opaqueImage.save(opaquePath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial leftMaterial;
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.0f;
+    leftMaterial.emissionColor[0] = 1.0f;
+    leftMaterial.emissionStrength = 1.0f;
+    leftMaterial.alphaMode = 1;
+    leftMaterial.alphaCutoff = 0.5f;
+    leftMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
+    ArtifactCore::RTPbrMaterial rightMaterial = leftMaterial;
+    rightMaterial.emissionColor[0] = 0.0f;
+    rightMaterial.emissionColor[1] = 1.0f;
+    rightMaterial.opacityTexture = ArtifactCore::UniString(opaquePath);
+    ArtifactCore::RTPbrMaterial backgroundMaterial;
+    backgroundMaterial.baseColor[0] = backgroundMaterial.baseColor[1] =
+        backgroundMaterial.baseColor[2] = 0.0f;
+    backgroundMaterial.emissionColor[2] = 1.0f;
+    backgroundMaterial.emissionStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-slot-background"),
+        backgroundMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftCutoutPixel = pixelAt(8, 16);
+    const auto rightOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(leftCutoutPixel[2], leftCutoutPixel[0] + 0.5f);
+    EXPECT_GT(rightOpaquePixel[1], rightOpaquePixel[2] + 0.5f);
+
+    leftMaterial.opacityTexture = ArtifactCore::UniString(opaquePath);
+    rightMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftOpaquePixel = pixelAt(8, 16);
+    const auto rightCutoutPixel = pixelAt(24, 16);
+    EXPECT_GT(leftOpaquePixel[0], leftOpaquePixel[2] + 0.5f);
+    EXPECT_GT(rightCutoutPixel[2], rightCutoutPixel[1] + 0.5f);
+}
+
 TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs) {
     constexpr std::array<float, 12> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
