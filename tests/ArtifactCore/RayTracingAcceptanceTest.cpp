@@ -5565,6 +5565,38 @@ TEST_F(RayTracingAcceptanceTest,
     const float rightSlotBlocked = traceReceiverGreen(1.0f);
     EXPECT_GT(rightSlotOpen, rightSlotBlocked + 0.02f)
         << "slot 1 opacity should control the right blocker shadow";
+
+    slot0Material.opacityTexture = ArtifactCore::UniString();
+    slot1Material.opacityTexture = ArtifactCore::UniString();
+    slot0Material.opacity = 0.0f;
+    slot1Material.opacity = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftScalarOpen = traceReceiverGreen(-1.0f);
+    const float rightScalarBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftScalarOpen, leftSlotBlocked + 0.02f)
+        << "zero scalar opacity on slot 0 should pass its shadow ray";
+    EXPECT_NEAR(rightScalarBlocked, rightSlotBlocked, 0.02f)
+        << "full scalar opacity on slot 1 should preserve its blocker shadow";
+
+    slot0Material.opacity = 1.0f;
+    slot1Material.opacity = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftScalarBlocked = traceReceiverGreen(-1.0f);
+    const float rightScalarOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftScalarBlocked, leftSlotBlocked, 0.02f)
+        << "full scalar opacity on slot 0 should preserve its blocker shadow";
+    EXPECT_GT(rightScalarOpen, rightSlotBlocked + 0.02f)
+        << "zero scalar opacity on slot 1 should pass its shadow ray";
 }
 
 TEST_F(RayTracingAcceptanceTest,
