@@ -5957,6 +5957,58 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
               opaqueAreaBacklightPixel[1] + 0.001f)
         << "a green area backlight should contribute through a transmissive "
            "thin-wall material";
+
+    constexpr std::array<float, 12> areaShadowBlockerVertices{
+        0.08f, -0.06f, 0.5f, 0.12f, -0.06f, 0.5f,
+        0.12f,  0.06f, 0.5f, 0.08f,  0.06f, 0.5f};
+    constexpr std::array<std::uint32_t, 6> areaShadowBlockerIndices{
+        0, 1, 2, 0, 2, 3};
+    auto areaShadowBlockerVertexBuffer = makeBuffer(
+        areaShadowBlockerVertices.data(), sizeof(areaShadowBlockerVertices),
+        3u * sizeof(float), BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE,
+        BUFFER_MODE_STRUCTURED);
+    auto areaShadowBlockerIndexBuffer = makeBuffer(
+        areaShadowBlockerIndices.data(), sizeof(areaShadowBlockerIndices),
+        sizeof(std::uint32_t), BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE,
+        BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(areaShadowBlockerVertexBuffer, nullptr);
+    ASSERT_NE(areaShadowBlockerIndexBuffer, nullptr);
+    addGeometry("pbr-transmission-area-shadow-blocker",
+                areaShadowBlockerVertexBuffer.RawPtr(), 4,
+                areaShadowBlockerIndexBuffer.RawPtr(), 6,
+                float4x4::Identity(), 1, 1,
+                areaShadowBlockerVertices.data(),
+                areaShadowBlockerIndices.data());
+    ArtifactCore::RTPbrMaterial areaShadowBlockerMaterial;
+    areaShadowBlockerMaterial.baseColor[0] =
+        areaShadowBlockerMaterial.baseColor[1] =
+            areaShadowBlockerMaterial.baseColor[2] = 0.0f;
+    areaShadowBlockerMaterial.metallic = 0.0f;
+    areaShadowBlockerMaterial.specular = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-transmission-area-shadow-blocker"),
+        areaShadowBlockerMaterial));
+
+    greenAreaBacklight.positionType[0] = 0.2f;
+    greenAreaBacklight.shadowParams[1] = 0.1f;
+    greenAreaBacklight.shadowParams[2] = 0.1f;
+    const auto traceAreaBacklightShadow = [&](const float shadowSamples) {
+        greenAreaBacklight.shadowParams[0] = shadowSamples;
+        manager_->setSceneLights(context_.RawPtr(), &greenAreaBacklight, 1);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto unshadowedAreaBacklightPixel = traceAreaBacklightShadow(-1.0f);
+    const auto partiallyShadowedAreaBacklightPixel =
+        traceAreaBacklightShadow(0.0f);
+    EXPECT_GT(unshadowedAreaBacklightPixel[1],
+              partiallyShadowedAreaBacklightPixel[1] + 0.001f)
+        << "an opaque blocker should reduce area-light transmission while the "
+           "straight-through camera ray misses it";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
