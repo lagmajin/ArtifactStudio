@@ -653,6 +653,8 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
     constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
     constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
                                        1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -666,7 +668,8 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("ao-uv-sampling"), vertices.data(), 4,
-        indices.data(), 6, nullptr, nullptr, uvs.data()));
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
 
     QTemporaryDir temporaryDirectory;
     ASSERT_TRUE(temporaryDirectory.isValid());
@@ -696,6 +699,20 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
     const auto occludedPixel = pixelAt(8, 16);
     const auto openPixel = pixelAt(24, 16);
     EXPECT_GT(openPixel[0], occludedPixel[0] + 0.05f);
+
+    material.occlusionTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1LeftPixel = pixelAt(8, 16);
+    const auto uv1RightPixel = pixelAt(24, 16);
+    EXPECT_NEAR(uv1LeftPixel[0], openPixel[0], 0.025f)
+        << "occlusion UV1 mirroring should select the open texels on the left";
+    EXPECT_NEAR(uv1RightPixel[0], occludedPixel[0], 0.025f)
+        << "occlusion UV1 mirroring should select the occluded texels on the right";
 }
 
 TEST_F(RayTracingAcceptanceTest,
