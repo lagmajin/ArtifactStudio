@@ -870,6 +870,29 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
         << "occlusion UV1 mirroring should select the open texels on the left";
     EXPECT_NEAR(uv1RightPixel[0], occludedPixel[0], 0.025f)
         << "occlusion UV1 mirroring should select the occluded texels on the right";
+
+    material.occlusionTextureUvSet = 0;
+    material.occlusionStrength = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroStrengthPixel = pixelAt(8, 16);
+
+    material.occlusionStrength = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfStrengthPixel = pixelAt(8, 16);
+    EXPECT_GT(zeroStrengthPixel[0], halfStrengthPixel[0] + 0.005f)
+        << "zero occlusion strength should restore the unoccluded response";
+    EXPECT_GT(halfStrengthPixel[0], occludedPixel[0] + 0.005f)
+        << "half occlusion strength should retain more response than full strength";
 }
 
 TEST_F(RayTracingAcceptanceTest, InterpolatesSrgbVertexColorsAcrossTriangles) {
