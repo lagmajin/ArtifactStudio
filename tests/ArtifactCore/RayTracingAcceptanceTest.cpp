@@ -1662,10 +1662,97 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         << "slot 1 subsurface should change its diffuse response";
 
     leftMaterial.subsurface = 0.0f;
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatTint[0] = leftMaterial.clearcoatTint[1] =
+        leftMaterial.clearcoatTint[2] = 1.0f;
+    leftMaterial.specular = 0.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noSlotClearcoatPixels));
+    leftMaterial.clearcoat = 1.0f;
+    std::array<std::array<float, 4>, 2> leftSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftSlotClearcoatPixels));
+    float leftSlotClearcoatResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotClearcoatResponse = std::max(leftSlotClearcoatResponse,
+            std::fabs(leftSlotClearcoatPixels[0][channel] -
+                      noSlotClearcoatPixels[0][channel]));
+        EXPECT_NEAR(leftSlotClearcoatPixels[1][channel],
+                    noSlotClearcoatPixels[1][channel], 0.01f)
+            << "changing slot 0 clearcoat should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotClearcoatResponse, 0.001f)
+        << "slot 0 clearcoat should change its reflection response";
+    leftMaterial.clearcoat = 0.0f;
+    rightMaterial.clearcoat = 1.0f;
+    std::array<std::array<float, 4>, 2> rightSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightSlotClearcoatPixels));
+    float rightSlotClearcoatResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightSlotClearcoatPixels[0][channel],
+                    noSlotClearcoatPixels[0][channel], 0.01f)
+            << "changing slot 1 clearcoat should preserve slot 0, channel "
+            << channel;
+        rightSlotClearcoatResponse = std::max(rightSlotClearcoatResponse,
+            std::fabs(rightSlotClearcoatPixels[1][channel] -
+                      noSlotClearcoatPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotClearcoatResponse, 0.001f)
+        << "slot 1 clearcoat should change its reflection response";
+
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = rightMaterial.clearcoatRoughness = 0.2f;
+    std::array<std::array<float, 4>, 2> smoothSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(smoothSlotClearcoatPixels));
+    leftMaterial.clearcoatRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughLeftSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughLeftSlotClearcoatPixels));
+    float leftSlotClearcoatRoughnessResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotClearcoatRoughnessResponse = std::max(
+            leftSlotClearcoatRoughnessResponse,
+            std::fabs(roughLeftSlotClearcoatPixels[0][channel] -
+                      smoothSlotClearcoatPixels[0][channel]));
+        EXPECT_NEAR(roughLeftSlotClearcoatPixels[1][channel],
+                    smoothSlotClearcoatPixels[1][channel], 0.01f)
+            << "changing slot 0 clearcoat roughness should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotClearcoatRoughnessResponse, 0.001f)
+        << "slot 0 clearcoat roughness should change its reflection response";
+    leftMaterial.clearcoatRoughness = 0.2f;
+    rightMaterial.clearcoatRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughRightSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughRightSlotClearcoatPixels));
+    float rightSlotClearcoatRoughnessResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughRightSlotClearcoatPixels[0][channel],
+                    smoothSlotClearcoatPixels[0][channel], 0.01f)
+            << "changing slot 1 clearcoat roughness should preserve slot 0, channel "
+            << channel;
+        rightSlotClearcoatRoughnessResponse = std::max(
+            rightSlotClearcoatRoughnessResponse,
+            std::fabs(roughRightSlotClearcoatPixels[1][channel] -
+                      smoothSlotClearcoatPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotClearcoatRoughnessResponse, 0.001f)
+        << "slot 1 clearcoat roughness should change its reflection response";
+
+    leftMaterial.subsurface = 0.0f;
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
     leftMaterial.specular = 0.5f;
     leftMaterial.roughness = 0.35f;
     leftMaterial.ior = 1.5f;
     leftMaterial.anisotropy = 0.0f;
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
     leftMaterial.anisotropyRotationDegrees = 0.0f;
     rightMaterial = leftMaterial;
     std::array<std::array<float, 4>, 2> isotropicPixels{};
