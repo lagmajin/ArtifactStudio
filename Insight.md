@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: float EXR上書き後のHDR surface cache更新
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues`、静止画受入表IMG-04／OP-08。
+- **確認できた事実:** float EXRの負値／1超過値はImageLayer単体とProject round-tripで確認され、source version invalidation後のGPU surface cache再構築はPNGで確認されている。HDR値を持つEXRの同path overwriteをGPU cacheまで通したケースはなかった。
+- **追加した確認:** float EXRの同一pathへHDR画素を書き、GPU surface cacheを構築する。上書き後にsource identityをinvalidateし、decoded float値とversion、cache signature、描画変化、bypass parity、新surface reuseを検査するheadless testを追加する。
+- **価値または懸念:** EXR float decode、AssetManager version、GPU surface cache invalidationの連結回帰を検出する。GPU readbackはdisplay rangeに制限されるため、HDR値の保持はCPU float bufferでも独立してassertする。headless deviceがない環境はskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues` を実行し、HDR bufferとsource更新後のcache parityを確認する。
+
 ## 2026-11-09: shared／localized source更新とGPU surface cache分離
 - **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink`、静止画受入表OP-07／OP-08。
 - **確認できた事実:** 既存テストはsource version更新後の単一layer GPU cache再構築と、localize後のCPU画素隔離を別々に確認するが、同一sourceを参照する二layerのGPU cacheを並行して保持し、shared update／relinkを通した比較はなかった。
