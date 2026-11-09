@@ -8683,10 +8683,36 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     };
     material.clearcoatNormalTexture = ArtifactCore::UniString();
     material.clearcoatNormalUvRotationDegrees = 0.0f;
+    material.clearcoatNormalUvScale = 1.0f;
+    material.clearcoatNormalUvOffsetU = 0.0f;
+    material.clearcoatNormalUvOffsetV = 0.0f;
     material.clearcoatNormalUvSet = 0;
     const auto geometricCoatNormalPixels = captureClearcoatNormalStrength(1.0f);
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    material.normalStrength = 1.0f;
+    material.normalUvRotationDegrees = 0.0f;
+    material.normalUvScale = 1.0f;
+    material.normalUvOffsetU = 0.0f;
+    material.normalUvOffsetV = 0.0f;
+    const auto baseNormalFallbackCoatPixels =
+        captureClearcoatNormalStrength(1.0f);
     material.clearcoatNormalTexture = ArtifactCore::UniString(
         QString::fromStdString(moderateNormalPath.string()));
+    const auto explicitCoatNormalWithBaseMapPixels =
+        captureClearcoatNormalStrength(1.0f);
+    for (std::size_t sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(baseNormalFallbackCoatPixels[sampleIndex][channel],
+                        explicitCoatNormalWithBaseMapPixels[sampleIndex][channel],
+                        0.01f)
+                << "the base normal fallback should match the same explicit "
+                   "coat-normal map, sample "
+                << sampleIndex << ", channel " << channel;
+        }
+    }
+    material.normalTexture = ArtifactCore::UniString();
+    material.normalStrength = 0.0f;
     const auto clearcoatNormalUv0Pixels = captureClearcoatNormalStrength(1.0f);
     const auto& clearcoatNormalUv0Left = clearcoatNormalUv0Pixels[0];
     const auto& clearcoatNormalUv0Right = clearcoatNormalUv0Pixels[1];
