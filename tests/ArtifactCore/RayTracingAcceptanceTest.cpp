@@ -3463,6 +3463,36 @@ TEST_F(RayTracingAcceptanceTest,
             << channel;
     }
 
+    constexpr std::array<float, 3> defaultSubsurfaceRadius{1.0f, 0.2f, 0.1f};
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        material.subsurfaceRadius[channel] = 1.0f;
+        material.subsurfaceColor[channel] = 1.0f;
+    }
+    const auto neutralSubsurfaceColorPixel = traceSubsurface(1.0f);
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        material.subsurfaceColor[0] = 1.0f;
+        material.subsurfaceColor[1] = 1.0f;
+        material.subsurfaceColor[2] = 1.0f;
+        material.subsurfaceColor[tintChannel] = 0.0f;
+        const auto tintedSubsurfacePixel = traceSubsurface(1.0f);
+        EXPECT_LT(tintedSubsurfacePixel[tintChannel],
+                  neutralSubsurfaceColorPixel[tintChannel] - 0.001f)
+            << "subsurface color should reduce its matching output channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(tintedSubsurfacePixel[channel],
+                            neutralSubsurfaceColorPixel[channel], 1.0e-5f)
+                    << "subsurface color channel " << tintChannel
+                    << " should not alter output channel " << channel;
+            }
+        }
+    }
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        material.subsurfaceColor[channel] = 1.0f;
+        material.subsurfaceRadius[channel] = defaultSubsurfaceRadius[channel];
+    }
+
     material.subsurfaceAnisotropy = -0.8f;
     const auto backwardScatterPixel = traceSubsurface(1.0f);
     material.subsurfaceAnisotropy = 0.8f;
