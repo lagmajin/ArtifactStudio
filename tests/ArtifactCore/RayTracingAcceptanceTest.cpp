@@ -3449,6 +3449,105 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
         << "right-slot opacity UV scale should preserve the left slot";
     rightMaterial.opacityTextureUvScale = 1.0f;
 
+    const auto verticalOpacityPath = opacityDirectory.filePath(
+        QStringLiteral("vertical-alpha-ramp.png"));
+    QImage verticalOpacityImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalOpacityImage.isNull());
+    for (int y = 0; y < verticalOpacityImage.height(); ++y) {
+        auto* row = verticalOpacityImage.scanLine(y);
+        for (int x = 0; x < verticalOpacityImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            pixel[3] = y < 4 ? 0 : 255;
+        }
+    }
+    ASSERT_TRUE(verticalOpacityImage.save(verticalOpacityPath, "PNG"));
+    leftMaterial.opacityTexture = ArtifactCore::UniString(verticalOpacityPath);
+    rightMaterial.opacityTexture = ArtifactCore::UniString(verticalOpacityPath);
+    leftMaterial.opacityTextureUvSet = 0;
+    rightMaterial.opacityTextureUvSet = 0;
+    rightMaterial.opacityTextureUvScale = 1.0f;
+    rightMaterial.opacityTextureUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto verticalOpacityLeftTop = pixelAt(8, 8);
+    const auto verticalOpacityLeftBottom = pixelAt(8, 24);
+    const auto verticalOpacityRightTop = pixelAt(24, 8);
+    const auto verticalOpacityRightBottom = pixelAt(24, 24);
+    EXPECT_GT(std::fabs(verticalOpacityRightTop[1] -
+                        verticalOpacityRightBottom[1]), 0.5f)
+        << "the vertical alpha ramp should cut out only one right-slot half";
+
+    rightMaterial.opacityTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(pixelAt(24, 8)[channel], verticalOpacityRightBottom[channel],
+                    0.025f)
+            << "right-slot opacity V offset should swap the top sample, channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(24, 24)[channel], verticalOpacityRightTop[channel],
+                    0.025f)
+            << "right-slot opacity V offset should swap the bottom sample, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(8, 8)[channel], verticalOpacityLeftTop[channel],
+                    0.025f)
+            << "right-slot opacity V offset should preserve left-slot top, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(8, 24)[channel], verticalOpacityLeftBottom[channel],
+                    0.025f)
+            << "right-slot opacity V offset should preserve left-slot bottom, "
+               "channel "
+            << channel;
+    }
+
+    rightMaterial.opacityTextureUvOffsetV = 0.0f;
+    rightMaterial.opacityTextureUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(pixelAt(24, 8)[channel], verticalOpacityRightBottom[channel],
+                    0.025f)
+            << "right-slot opacity V scale should repeat the bottom sample "
+               "on top, channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(24, 24)[channel], verticalOpacityRightTop[channel],
+                    0.025f)
+            << "right-slot opacity V scale should repeat the top sample on "
+               "bottom, channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(8, 8)[channel], verticalOpacityLeftTop[channel],
+                    0.025f)
+            << "right-slot opacity V scale should preserve left-slot top, "
+            << "channel " << channel;
+        EXPECT_NEAR(pixelAt(8, 24)[channel], verticalOpacityLeftBottom[channel],
+                    0.025f)
+            << "right-slot opacity V scale should preserve left-slot bottom, "
+            << "channel " << channel;
+    }
+    rightMaterial.opacityTextureUvScale = 1.0f;
+    rightMaterial.opacityTextureUvOffsetV = 0.0f;
+
     leftMaterial.opacityTexture = ArtifactCore::UniString(opaquePath);
     rightMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
