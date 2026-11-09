@@ -1581,8 +1581,8 @@ TEST_F(RayTracingAcceptanceTest,
     material.roughness = 0.35f;
     const auto traceIor = [&](const float ior) {
         material.ior = ior;
-        EXPECT_TRUE(manager_->setInstancePbrMaterial(
-            ArtifactCore::UniString("pbr-ior-fresnel"), material));
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material);
         EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
         EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
         EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
@@ -1718,8 +1718,8 @@ TEST_F(RayTracingAcceptanceTest,
     material.roughness = 0.5f;
     const auto traceSubsurface = [&](const float amount) {
         material.subsurface = amount;
-        EXPECT_TRUE(manager_->setInstancePbrMaterial(
-            ArtifactCore::UniString("pbr-subsurface-diffuse"), material));
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-subsurface-diffuse"), material);
         EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
         EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
         EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
@@ -1764,6 +1764,32 @@ TEST_F(RayTracingAcceptanceTest,
         << "negative subsurface anisotropy should strengthen the backscatter response";
     EXPECT_GT(subsurfaceDiffusePixel[0], forwardScatterPixel[0] + 0.01f)
         << "positive subsurface anisotropy should suppress the backscatter response";
+
+    material.subsurfaceAnisotropy = 0.0f;
+    material.subsurfaceIOR = 0.5f;
+    const auto belowMinimumSubsurfaceIor = traceSubsurface(1.0f);
+    material.subsurfaceIOR = 1.0f;
+    const auto minimumSubsurfaceIor = traceSubsurface(1.0f);
+    EXPECT_NEAR(belowMinimumSubsurfaceIor[0], minimumSubsurfaceIor[0], 1.0e-5f)
+        << "subsurface IOR below one should clamp to one";
+
+    material.subsurfaceIOR = 1.4f;
+    material.subsurfaceAnisotropy = 0.9f;
+    const auto maximumSubsurfaceAnisotropy = traceSubsurface(1.0f);
+    material.subsurfaceAnisotropy = 2.0f;
+    const auto overMaximumSubsurfaceAnisotropy = traceSubsurface(1.0f);
+    EXPECT_NEAR(overMaximumSubsurfaceAnisotropy[0],
+                maximumSubsurfaceAnisotropy[0], 1.0e-5f)
+        << "subsurface anisotropy above 0.9 should clamp to 0.9";
+
+    material.subsurfaceAnisotropy = 0.0f;
+    material.subsurfaceRadius[0] = 10.0f;
+    const auto maximumSubsurfaceRadius = traceSubsurface(1.0f);
+    material.subsurfaceRadius[0] = 20.0f;
+    const auto overMaximumSubsurfaceRadius = traceSubsurface(1.0f);
+    EXPECT_NEAR(overMaximumSubsurfaceRadius[0],
+                maximumSubsurfaceRadius[0], 1.0e-5f)
+        << "subsurface radius above ten should clamp to ten";
 }
 
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) {
