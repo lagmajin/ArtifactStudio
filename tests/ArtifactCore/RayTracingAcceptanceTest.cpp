@@ -5491,6 +5491,9 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     constexpr std::array<float, 16> transparentBlockerVertexColors{
         1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
         1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f};
+    constexpr std::array<float, 16> partialBlockerVertexColors{
+        1.0f, 1.0f, 1.0f, 0.6f, 1.0f, 1.0f, 1.0f, 0.6f,
+        1.0f, 1.0f, 1.0f, 0.6f, 1.0f, 1.0f, 1.0f, 0.6f};
 
     auto receiverVertexBuffer = makeBuffer(
         receiverVertices.data(), sizeof(receiverVertices), 3u * sizeof(float),
@@ -5695,6 +5698,44 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
             << "full vertex alpha should block the masked shadow ray, channel "
             << channel;
     }
+
+    blockerMaterial.baseColorAlpha = 0.9f;
+    blockerMaterial.opacity = 0.9f;
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerVertices.data(),
+        4, blockerIndices.data(), 6, nullptr, nullptr, blockerUvs.data(),
+        partialBlockerVertexColors.data()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto combinedVertexMaterialAlphaOpen = pixelAt(24, 16);
+    EXPECT_NEAR(combinedVertexMaterialAlphaOpen[1],
+                transparentBlockerPixel[1], 0.02f)
+        << "0.9 base alpha * 0.9 opacity * 0.6 vertex alpha should pass below cutoff";
+
+    blockerMaterial.opacity = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto combinedVertexMaterialAlphaBlocked = pixelAt(24, 16);
+    EXPECT_NEAR(combinedVertexMaterialAlphaBlocked[1],
+                opaqueBlockerPixel[1], 0.02f)
+        << "0.9 base alpha * full opacity * 0.6 vertex alpha should block above cutoff";
+
+    blockerMaterial.baseColorAlpha = 1.0f;
+    blockerMaterial.opacity = 1.0f;
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerVertices.data(),
+        4, blockerIndices.data(), 6, nullptr, nullptr, blockerUvs.data(),
+        opaqueBlockerVertexColors.data()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
 
     blockerMaterial.baseColorTexture = ArtifactCore::UniString(
         QString::fromStdString(transparentMapPath.string()));
