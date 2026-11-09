@@ -573,16 +573,18 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
         const auto maximumSheenTintPixel = captureSheenTint(tintChannel, 1.0f);
         const auto aboveMaximumSheenTintPixel =
             captureSheenTint(tintChannel, 1.5f);
-        const float sheenTintResponse = std::max(
-            std::fabs(maximumSheenTintPixel[0] - minimumSheenTintPixel[0]),
-            std::max(std::fabs(maximumSheenTintPixel[1] -
-                               minimumSheenTintPixel[1]),
-                     std::fabs(maximumSheenTintPixel[2] -
-                               minimumSheenTintPixel[2])));
-        EXPECT_GT(sheenTintResponse, 0.001f)
-            << "the fixture should respond to sheen tint channel "
+        EXPECT_GT(std::fabs(maximumSheenTintPixel[tintChannel] -
+                            minimumSheenTintPixel[tintChannel]),
+                  0.001f)
+            << "sheen tint should affect its matching output channel "
             << tintChannel;
         for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(maximumSheenTintPixel[channel],
+                            minimumSheenTintPixel[channel], 1.0e-5f)
+                    << "sheen tint channel " << tintChannel
+                    << " should not alter output channel " << channel;
+            }
             EXPECT_NEAR(belowMinimumSheenTintPixel[channel],
                         minimumSheenTintPixel[channel], 1.0e-5f)
                 << "sheen tint below zero should clamp to zero, tint channel "
