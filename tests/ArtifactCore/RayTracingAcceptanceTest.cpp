@@ -3604,6 +3604,21 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
             << "negative emission strength should clamp to zero, channel "
             << channel;
     }
+
+    material.emissionStrength = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroEmissionStrength = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(zeroEmissionStrength[channel], 0.0f, 1.0e-5f)
+            << "zero emission strength should suppress scalar emission, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
