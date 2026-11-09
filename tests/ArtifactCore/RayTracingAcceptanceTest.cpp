@@ -3121,6 +3121,115 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
     }
 }
 
+TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
+    constexpr std::array<float, 18> vertices{
+        -0.9f, -0.9f, 0.0f, 0.0f, -0.9f, 0.0f, -0.45f, 0.9f, 0.0f,
+         0.0f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.45f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 3, 4, 5};
+    constexpr std::array<std::uint32_t, 2> materialIndices{0, 1};
+    constexpr std::array<float, 18> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("transmission-material-slots", vertexBuffer.RawPtr(), 6,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("transmission-material-slots"), vertices.data(),
+        6, indices.data(), 6, normals.data(), materialIndices.data()));
+
+    ArtifactCore::RTSceneLight zeroAmbientLight;
+    zeroAmbientLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Ambient);
+    manager_->setSceneLights(context_.RawPtr(), &zeroAmbientLight, 1);
+
+    ArtifactCore::RTPbrMaterial leftMaterial;
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.specular = 0.5f;
+    leftMaterial.roughness = 0.2f;
+    leftMaterial.ior = 1.5f;
+    leftMaterial.transmission = 0.0f;
+    ArtifactCore::RTPbrMaterial rightMaterial = leftMaterial;
+    rightMaterial.transmission = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroTransmissionLeftPixel = pixelAt(8, 16);
+    const auto fullTransmissionRightPixel = pixelAt(24, 16);
+
+    leftMaterial.transmission = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto fullTransmissionLeftPixel = pixelAt(8, 16);
+    const auto unchangedFullTransmissionRightPixel = pixelAt(24, 16);
+    const float leftTransmissionDifference = std::max(
+        std::fabs(fullTransmissionLeftPixel[0] - zeroTransmissionLeftPixel[0]),
+        std::max(std::fabs(fullTransmissionLeftPixel[1] -
+                           zeroTransmissionLeftPixel[1]),
+                 std::fabs(fullTransmissionLeftPixel[2] -
+                           zeroTransmissionLeftPixel[2])));
+    EXPECT_GT(leftTransmissionDifference, 0.001f)
+        << "slot 0 transmission should change its shading response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedFullTransmissionRightPixel[channel],
+                    fullTransmissionRightPixel[channel], 0.01f)
+            << "changing slot 0 transmission should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.transmission = 0.0f;
+    rightMaterial.transmission = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedZeroTransmissionLeftPixel = pixelAt(8, 16);
+    const auto zeroTransmissionRightPixel = pixelAt(24, 16);
+    const float rightTransmissionDifference = std::max(
+        std::fabs(zeroTransmissionRightPixel[0] -
+                  fullTransmissionRightPixel[0]),
+        std::max(std::fabs(zeroTransmissionRightPixel[1] -
+                           fullTransmissionRightPixel[1]),
+                 std::fabs(zeroTransmissionRightPixel[2] -
+                           fullTransmissionRightPixel[2])));
+    EXPECT_GT(rightTransmissionDifference, 0.001f)
+        << "slot 1 transmission should change its shading response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedZeroTransmissionLeftPixel[channel],
+                    zeroTransmissionLeftPixel[channel], 0.01f)
+            << "changing slot 1 transmission should preserve slot 0, channel "
+            << channel;
+    }
+}
+
 TEST_F(RayTracingAcceptanceTest,
        AppliesSubsurfaceAmountAndRgbRadiusToDiffuseLighting) {
     constexpr std::array<float, 9> vertices{
