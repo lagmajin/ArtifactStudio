@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: shared／localized source更新とGPU surface cache分離
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink`、静止画受入表OP-07／OP-08。
+- **確認できた事実:** 既存テストはsource version更新後の単一layer GPU cache再構築と、localize後のCPU画素隔離を別々に確認するが、同一sourceを参照する二layerのGPU cacheを並行して保持し、shared update／relinkを通した比較はなかった。
+- **追加した確認:** 同じfile／source identityの2 layerを作り、一方をlocalizeしてから双方のGPU surface cacheを構築する。shared source更新後にshared側だけがcache signature／画素を更新し、localized側は旧画素とcache signatureを保つこと、sharedへrelinkした後は更新画素でcacheを再構築することをbypass parityとともに検査する。
+- **価値または懸念:** AssetManagerのsource identity／versionとGPU surface cacheの相互作用における誤共有・stale surfaceを検出する。Diligent headless deviceがない環境は既存suiteと同じくskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink` を実行し、共有更新・localized保持・relink後のpixel／signature／bypass parityを確認する。
+
 ## 2026-11-09: rasterizer effect変更後のGPU surface cache再構築
 - **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity`、静止画受入表OP-05。
 - **確認できた事実:** 既存GPU parity testは同じGlow設定でcache build／reuseとbypassの一致を確認するが、surface cache保持中にeffect parameterを変更した後のsignature更新や描画差分を確認していなかった。

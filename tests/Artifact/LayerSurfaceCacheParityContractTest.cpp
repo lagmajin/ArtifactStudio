@@ -558,6 +558,141 @@ TEST(LayerSurfaceCacheParityContractTest,
 }
 
 TEST(LayerSurfaceCacheParityContractTest,
+     LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString imagePath = directory.filePath(QStringLiteral("shared.png"));
+    const QColor originalColor(225, 40, 30, 255);
+    const QColor updatedColor(20, 165, 235, 255);
+    QImage source(24, 16, QImage::Format_RGBA8888);
+    source.fill(originalColor);
+    ASSERT_TRUE(source.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer localizedLayer;
+    Artifact::ArtifactImageLayer sharedLayer;
+    ASSERT_TRUE(localizedLayer.loadFromPath(imagePath));
+    ASSERT_TRUE(sharedLayer.loadFromPath(imagePath));
+    const auto waitForPixel = [](Artifact::ArtifactImageLayer& layer,
+                                 const QColor expected) {
+        QElapsedTimer timeout;
+        timeout.start();
+        while (timeout.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            const QImage image = layer.toQImage();
+            if (image.size() == QSize(24, 16) &&
+                image.pixelColor(0, 0) == expected) {
+                return true;
+            }
+            QThread::msleep(1);
+        }
+        return false;
+    };
+    ASSERT_TRUE(waitForPixel(localizedLayer, originalColor));
+    ASSERT_TRUE(waitForPixel(sharedLayer, originalColor));
+
+    const auto sharedSourceId = localizedLayer.sourceAssetId();
+    ASSERT_FALSE(sharedSourceId.isNull());
+    ASSERT_EQ(sharedLayer.sourceAssetId(), sharedSourceId);
+    const std::uint64_t originalSharedVersion = sharedLayer.sourceVersion();
+    ASSERT_GT(originalSharedVersion, 0u);
+    ASSERT_TRUE(localizedLayer.localizeSourceIdentity());
+    const auto localizedSourceId = localizedLayer.sourceAssetId();
+    ASSERT_NE(localizedSourceId, sharedSourceId);
+    const std::uint64_t localizedVersion = localizedLayer.sourceVersion();
+    localizedLayer.setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    sharedLayer.setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+
+    const QString localizedOwnerId = localizedLayer.id().toString();
+    const QString sharedOwnerId = sharedLayer.id().toString();
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> localizedCache;
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> sharedCache;
+    const auto draw = [&renderer](
+                          Artifact::ArtifactImageLayer& layer,
+                          QHash<QString, Artifact::LayerSurfaceCacheEntry>* cache) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            &layer, &renderer, 1.0f, nullptr, cache, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage localizedInitial = draw(localizedLayer, &localizedCache);
+    const QImage sharedInitial = draw(sharedLayer, &sharedCache);
+    ASSERT_FALSE(localizedInitial.isNull());
+    ASSERT_FALSE(sharedInitial.isNull());
+    ASSERT_TRUE(localizedCache.contains(localizedOwnerId));
+    ASSERT_TRUE(sharedCache.contains(sharedOwnerId));
+    const QString localizedInitialSignature =
+        localizedCache.value(localizedOwnerId).cacheSignature;
+    const QString sharedInitialSignature =
+        sharedCache.value(sharedOwnerId).cacheSignature;
+    ASSERT_FALSE(localizedInitialSignature.isEmpty());
+    ASSERT_FALSE(sharedInitialSignature.isEmpty());
+    EXPECT_TRUE(imagesMatchExactly(localizedInitial,
+                                   draw(localizedLayer, nullptr)));
+    EXPECT_TRUE(imagesMatchExactly(sharedInitial, draw(sharedLayer, nullptr)));
+
+    source.fill(updatedColor);
+    ASSERT_TRUE(source.save(imagePath, "PNG"));
+    const std::uint64_t updatedSharedVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sharedSourceId);
+    ASSERT_GT(updatedSharedVersion, originalSharedVersion);
+    ASSERT_TRUE(waitForPixel(sharedLayer, updatedColor));
+    EXPECT_EQ(sharedLayer.sourceVersion(), updatedSharedVersion);
+    EXPECT_EQ(localizedLayer.sourceVersion(), localizedVersion);
+    ASSERT_TRUE(waitForPixel(localizedLayer, originalColor));
+
+    const QImage sharedUpdated = draw(sharedLayer, &sharedCache);
+    ASSERT_FALSE(sharedUpdated.isNull());
+    const QString sharedUpdatedSignature =
+        sharedCache.value(sharedOwnerId).cacheSignature;
+    EXPECT_NE(sharedUpdatedSignature, sharedInitialSignature)
+        << "the shared layer cache must track the invalidated source version";
+    EXPECT_FALSE(imagesMatchExactly(sharedUpdated, sharedInitial));
+    EXPECT_TRUE(imagesMatchExactly(sharedUpdated, draw(sharedLayer, nullptr)));
+
+    const QImage localizedAfterSharedUpdate =
+        draw(localizedLayer, &localizedCache);
+    EXPECT_EQ(localizedCache.value(localizedOwnerId).cacheSignature,
+              localizedInitialSignature);
+    EXPECT_TRUE(imagesMatchExactly(localizedAfterSharedUpdate,
+                                   localizedInitial));
+    EXPECT_TRUE(imagesMatchExactly(localizedAfterSharedUpdate,
+                                   draw(localizedLayer, nullptr)));
+
+    ASSERT_TRUE(localizedLayer.relinkSourceIdentityToShared());
+    EXPECT_EQ(localizedLayer.sourceAssetId(), sharedSourceId);
+    ASSERT_TRUE(waitForPixel(localizedLayer, updatedColor));
+    EXPECT_EQ(localizedLayer.sourceVersion(), updatedSharedVersion);
+
+    const QImage relinkedCached = draw(localizedLayer, &localizedCache);
+    const QString relinkedSignature =
+        localizedCache.value(localizedOwnerId).cacheSignature;
+    EXPECT_NE(relinkedSignature, localizedInitialSignature)
+        << "relinking to the updated shared identity must rebuild its cached surface";
+    EXPECT_FALSE(imagesMatchExactly(relinkedCached, localizedInitial));
+    EXPECT_TRUE(imagesMatchExactly(relinkedCached, draw(localizedLayer, nullptr)));
+    EXPECT_TRUE(imagesMatchExactly(relinkedCached, sharedUpdated));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
      StaticGpuSurfaceCacheSeparatesResolutionLODsAndReusesCurrentLevel)
 {
     constexpr int width = 96;
