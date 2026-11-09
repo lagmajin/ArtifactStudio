@@ -3406,6 +3406,29 @@ TEST(StillImageLayerRoundTripTest,
     const QJsonObject metadata = layer.toJson()
         .value(QStringLiteral("image.sourceMetadata")).toObject();
     EXPECT_EQ(metadata.value(QStringLiteral("orientation")).toInt(), 6);
+
+    const QUuid sourceId = layer.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const std::uint64_t orientedVersion = layer.sourceVersion();
+    ASSERT_GT(orientedVersion, 0u);
+    const QColor replacementColor(35, 145, 205);
+    QImage replacement(64, 32, QImage::Format_RGB32);
+    replacement.fill(replacementColor);
+    ASSERT_TRUE(replacement.save(imagePath, "JPEG", 100));
+
+    const std::uint64_t replacementVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sourceId);
+    ASSERT_GT(replacementVersion, orientedVersion);
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(64, 32)));
+    EXPECT_EQ(layer.sourceVersion(), replacementVersion);
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 64.0, 32.0));
+    const QJsonObject replacementMetadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_NE(replacementMetadata.value(QStringLiteral("orientation")).toInt(), 6);
+    const QColor refreshed = waitForImage(layer, QSize(64, 32)).pixelColor(32, 16);
+    EXPECT_NEAR(refreshed.red(), replacementColor.red(), 45);
+    EXPECT_NEAR(refreshed.green(), replacementColor.green(), 45);
+    EXPECT_NEAR(refreshed.blue(), replacementColor.blue(), 45);
 }
 
 TEST(StillImageLayerRoundTripTest, TwoChannelGrayAlphaPngExpandsAndPreservesAlpha)
