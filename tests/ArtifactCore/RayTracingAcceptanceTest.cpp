@@ -5142,6 +5142,24 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     ASSERT_TRUE(saveOutputFrame("11-transmission-environment.png"));
     const auto environmentTransmissionPixel = pixelAt(8, 16);
     EXPECT_GT(environmentTransmissionPixel[0], neutralTransmissionPixel[0] + 0.10f);
+    glassPbrMaterial.transmission = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("box-object"), glassPbrMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroTransmissionEnvironmentPixel = pixelAt(8, 16);
+    const float environmentTransmissionResponse = std::max(
+        std::fabs(environmentTransmissionPixel[0] -
+                  zeroTransmissionEnvironmentPixel[0]),
+        std::max(std::fabs(environmentTransmissionPixel[1] -
+                           zeroTransmissionEnvironmentPixel[1]),
+                 std::fabs(environmentTransmissionPixel[2] -
+                           zeroTransmissionEnvironmentPixel[2])));
+    EXPECT_GT(environmentTransmissionResponse, 0.01f)
+        << "environment transmission should respond to the material amount";
     manager_->setEnvironmentLighting(context_.RawPtr(), nullptr, nullptr,
                                      nullptr, false, 1.0f, 0.0f);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(ArtifactCore::UniString("box-object"),
