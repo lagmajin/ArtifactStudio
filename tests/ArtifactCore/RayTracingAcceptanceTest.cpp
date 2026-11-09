@@ -4564,10 +4564,13 @@ TEST_F(RayTracingAcceptanceTest,
         1.0f, {0.6819984f, 0.0f, 0.2686463f});
     const auto subcriticalGlassView = traceInternalView(
         1.5f, {0.6427876f, 0.0f, 0.2339556f});
+    const auto lowerIorInternalView = traceInternalView(
+        1.33f, {0.6819984f, 0.0f, 0.2686463f});
     const auto glassInternalView = traceInternalView(
         1.5f, {0.6819984f, 0.0f, 0.2686463f});
     for (const auto& sample :
-         std::array{airReference, subcriticalGlassView, glassInternalView}) {
+         std::array{airReference, subcriticalGlassView, lowerIorInternalView,
+                    glassInternalView}) {
         for (std::size_t channel = 0; channel < sample.size(); ++channel) {
             EXPECT_TRUE(std::isfinite(sample[channel]))
                 << "internal transmission sample channel " << channel
@@ -4582,6 +4585,9 @@ TEST_F(RayTracingAcceptanceTest,
     const float subcriticalGlassEnergy = subcriticalGlassView[0] +
                                          subcriticalGlassView[1] +
                                          subcriticalGlassView[2];
+    const float lowerIorInternalEnergy = lowerIorInternalView[0] +
+                                         lowerIorInternalView[1] +
+                                         lowerIorInternalView[2];
     const float glassInternalEnergy = glassInternalView[0] +
                                       glassInternalView[1] +
                                       glassInternalView[2];
@@ -4589,8 +4595,13 @@ TEST_F(RayTracingAcceptanceTest,
         << "the unity-IOR reference should transmit the fallback sky";
     EXPECT_GT(subcriticalGlassEnergy, 0.05f)
         << "an internal view below the critical angle should transmit the sky";
+    EXPECT_GT(lowerIorInternalEnergy, 0.05f)
+        << "43 degrees should remain below the critical angle for IOR 1.33";
     EXPECT_LT(glassInternalEnergy, subcriticalGlassEnergy * 0.1f)
         << "an above-critical internal view should not transmit the exterior sky";
+    EXPECT_LT(glassInternalEnergy, lowerIorInternalEnergy * 0.1f)
+        << "the same internal angle should become totally reflecting as IOR "
+           "increases above its critical-angle threshold";
 }
 
 TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
