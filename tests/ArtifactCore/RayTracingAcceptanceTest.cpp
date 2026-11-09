@@ -4696,6 +4696,35 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
                                         kRayTraceTestImageSize));
     EXPECT_GT(maximumGreenDifference(rectangularAreaImage), 0.001f)
         << "disk and rectangular area-light sampling should produce distinct illumination";
+
+    auto coneReferenceLight = greenPointLight;
+    coneReferenceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &coneReferenceLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto pointInsideConePixel = pixelAt(24, 16);
+    auto innerConeLight = coneReferenceLight;
+    innerConeLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Spot);
+    innerConeLight.directionIntensity[2] = 1.0f;
+    innerConeLight.attenuationSpot[2] = 0.8f;
+    innerConeLight.attenuationSpot[3] = 0.7f;
+    manager_->setSceneLights(context_.RawPtr(), &innerConeLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_NEAR(pixelAt(24, 16)[1], pointInsideConePixel[1], 0.01f)
+        << "a spot sample inside the inner cone should retain full point-light intensity";
+
+    innerConeLight.attenuationSpot[2] = 0.95f;
+    innerConeLight.attenuationSpot[3] = 0.9f;
+    manager_->setSceneLights(context_.RawPtr(), &innerConeLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_LT(pixelAt(24, 16)[1], pointInsideConePixel[1] - 0.01f)
+        << "a spot sample outside the outer cone should be attenuated";
 }
 
 TEST_F(RayTracingAcceptanceTest,
