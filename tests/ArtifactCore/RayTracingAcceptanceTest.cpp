@@ -4094,6 +4094,42 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
     EXPECT_GT(amountUv0Difference, 0.02f)
         << "the clearcoat map should distinguish the two UV0 halves";
 
+    QImage clearcoatOtherChannelsChanged = clearcoatMap;
+    for (int y = 0; y < clearcoatOtherChannelsChanged.height(); ++y) {
+        auto* row = clearcoatOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < clearcoatOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[1] = 255;
+            pixel[2] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const QString clearcoatOtherChannelsChangedPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-other-channels-changed.png"));
+    ASSERT_TRUE(clearcoatOtherChannelsChanged.save(
+        clearcoatOtherChannelsChangedPath, "PNG"));
+    material.clearcoatTexture =
+        ArtifactCore::UniString(clearcoatOtherChannelsChangedPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto changedOtherChannelsLeft = pixelAt(8, 16);
+    const auto changedOtherChannelsRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(changedOtherChannelsLeft[channel], amountUv0Left[channel],
+                    0.02f)
+            << "clearcoat factor should read red independently, left channel "
+            << channel;
+        EXPECT_NEAR(changedOtherChannelsRight[channel], amountUv0Right[channel],
+                    0.02f)
+            << "clearcoat factor should read red independently, right channel "
+            << channel;
+    }
+
     material.clearcoatTextureUvSet = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
