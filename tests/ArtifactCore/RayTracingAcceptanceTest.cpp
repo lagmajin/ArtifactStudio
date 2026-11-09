@@ -3084,6 +3084,40 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
     EXPECT_GT(uv1SlotOpaquePixel[1], uv1SlotOpaquePixel[2] + 0.5f)
         << "the right slot should independently sample its mirrored UV1 half";
 
+    rightMaterial.opacityTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetUv1SlotCutoutPixel = pixelAt(24, 16);
+    const auto unchangedUv0SlotOpaquePixel = pixelAt(8, 16);
+    EXPECT_GT(offsetUv1SlotCutoutPixel[2], offsetUv1SlotCutoutPixel[1] + 0.5f)
+        << "right-slot opacity U offset should move its sample into the cutout";
+    EXPECT_GT(unchangedUv0SlotOpaquePixel[0],
+              unchangedUv0SlotOpaquePixel[2] + 0.5f)
+        << "right-slot opacity U offset should preserve the left slot";
+
+    rightMaterial.opacityTextureUvOffsetU = 0.0f;
+    rightMaterial.opacityTextureUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledUv1SlotCutoutPixel = pixelAt(24, 16);
+    const auto unchangedScaledUv0SlotOpaquePixel = pixelAt(8, 16);
+    EXPECT_GT(scaledUv1SlotCutoutPixel[2], scaledUv1SlotCutoutPixel[1] + 0.5f)
+        << "right-slot opacity UV scale should move its sample into the cutout";
+    EXPECT_GT(unchangedScaledUv0SlotOpaquePixel[0],
+              unchangedScaledUv0SlotOpaquePixel[2] + 0.5f)
+        << "right-slot opacity UV scale should preserve the left slot";
+    rightMaterial.opacityTextureUvScale = 1.0f;
+
     leftMaterial.opacityTexture = ArtifactCore::UniString(opaquePath);
     rightMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
