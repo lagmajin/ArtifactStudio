@@ -6849,8 +6849,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         float clearcoatRoughness = 0.2f;
         int aoValue = -1;
         std::array<float, 3> clearcoatTint{1.0f, 1.0f, 1.0f};
+        std::array<float, 3> specularTint{1.0f, 1.0f, 1.0f};
     };
-    constexpr std::array<MaterialProbe, 18> materialProbes{{
+    constexpr std::array<MaterialProbe, 20> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -6878,7 +6879,11 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         {0.0f, -0.5f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 1.0f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {-0.5f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
-        {1.5f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}}}};
+        {1.5f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {0.0f, 1.0f, 1.0f}},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -6909,6 +6914,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         instance.color[2] = probe.baseColor[2];
         renderer.updateInstanceData(&instance, 1);
         renderer.setPbrFactors(probe.metallic, probe.roughness, 1.0f, 1.0f);
+        renderer.setSpecularTint(
+            QColor::fromRgbF(probe.specularTint[0], probe.specularTint[1],
+                             probe.specularTint[2]));
         renderer.setPrincipledFactors(0.5f, probe.ior, 0.0f,
                                       probe.clearcoat,
                                       probe.clearcoatRoughness, probe.sheen);
@@ -6939,6 +6947,8 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.metallic = probe.metallic;
         rtMaterial.roughness = probe.roughness;
         rtMaterial.specular = 0.5f;
+        std::copy(probe.specularTint.begin(), probe.specularTint.end(),
+                  rtMaterial.specularTint);
         rtMaterial.ior = probe.ior;
         rtMaterial.sheen = probe.sheen;
         rtMaterial.clearcoat = probe.clearcoat;
@@ -7046,6 +7056,11 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         << "Raster clearcoat response should vary with clearcoat tint";
     EXPECT_GT(rtClearcoatTintDifference, 0.005f)
         << "RT clearcoat response should vary with clearcoat tint";
+    EXPECT_GT(std::fabs(rasterProbePixels[18][0] - rasterProbePixels[19][0]),
+              0.001f)
+        << "Raster specular response should vary with specular tint";
+    EXPECT_GT(std::fabs(rtProbePixels[18][0] - rtProbePixels[19][0]), 0.001f)
+        << "RT specular response should vary with specular tint";
     for (size_t channel = 0; channel < 3; ++channel) {
         EXPECT_NEAR(rasterProbePixels[14][channel],
                     rasterProbePixels[0][channel], 1.0e-5f)
