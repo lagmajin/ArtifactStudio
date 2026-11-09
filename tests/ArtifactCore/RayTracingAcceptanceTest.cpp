@@ -4099,6 +4099,33 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
     EXPECT_LT(halfFactorDifference, amountUv0Difference)
         << "a partial clearcoat factor should reduce the full-factor map response";
 
+    QImage halfRedClearcoatMap = clearcoatMap;
+    for (int y = 0; y < halfRedClearcoatMap.height(); ++y) {
+        auto* row = halfRedClearcoatMap.scanLine(y);
+        for (int x = halfRedClearcoatMap.width() / 2;
+             x < halfRedClearcoatMap.width(); ++x) {
+            row[x * 4] = 128;
+        }
+    }
+    const QString halfRedClearcoatMapPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-half-red.png"));
+    ASSERT_TRUE(halfRedClearcoatMap.save(halfRedClearcoatMapPath, "PNG"));
+    material.clearcoat = 1.0f;
+    material.clearcoatTexture = ArtifactCore::UniString(halfRedClearcoatMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfMapRedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfMapRedRight[channel], halfFactorRight[channel], 0.035f)
+            << "clearcoat factor should multiply texture red, channel "
+            << channel;
+    }
+
     material.clearcoatTexture = ArtifactCore::UniString();
     material.clearcoatRoughness = 1.0f;
     material.clearcoatRoughnessTexture =
