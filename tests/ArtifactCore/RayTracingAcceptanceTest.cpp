@@ -7371,6 +7371,46 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                     0.01f)
             << "Directional cubemap raster/RT channel " << channel;
     }
+
+    ArtifactCore::Light diffuseLight(ArtifactCore::LightType::Directional);
+    diffuseLight.setDirection({0.0f, 0.0f, 1.0f});
+    diffuseLight.setColor({1.0f, 1.0f, 1.0f});
+    diffuseLight.setIntensity(4.0f);
+    diffuseLight.setCastsShadows(false);
+    renderer.setSceneLights(std::vector<ArtifactCore::Light>{diffuseLight});
+    instance.color[0] = instance.color[1] = instance.color[2] = 0.7f;
+    renderer.updateInstanceData(&instance, 1);
+    renderer.setPbrFactors(0.0f, 1.0f, 1.0f, 1.0f);
+    renderer.setPrincipledFactors(0.0f, 1.5f, 0.0f, 0.0f, 0.04f);
+    const auto captureRasterDiffuseRoughness = [&](float diffuseRoughness) {
+        renderer.setDiffuseRoughness(diffuseRoughness);
+        return renderCenterPixel();
+    };
+    const auto smoothRasterDiffuse = captureRasterDiffuseRoughness(0.0f);
+    const auto roughRasterDiffuse = captureRasterDiffuseRoughness(1.0f);
+    float rasterDiffuseRoughnessResponse = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterDiffuseRoughnessResponse = std::max(
+            rasterDiffuseRoughnessResponse,
+            std::fabs(roughRasterDiffuse[channel] - smoothRasterDiffuse[channel]));
+    }
+    EXPECT_GT(rasterDiffuseRoughnessResponse, 0.001f)
+        << "Raster diffuse roughness should change direct diffuse response";
+    const auto belowRangeRasterDiffuse = captureRasterDiffuseRoughness(-0.5f);
+    const auto aboveRangeRasterDiffuse = captureRasterDiffuseRoughness(1.5f);
+    const auto nonFiniteRasterDiffuse = captureRasterDiffuseRoughness(
+        std::numeric_limits<float>::quiet_NaN());
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowRangeRasterDiffuse[channel],
+                    smoothRasterDiffuse[channel], 1.0e-5f)
+            << "Raster diffuse roughness below zero should clamp to zero";
+        EXPECT_NEAR(aboveRangeRasterDiffuse[channel],
+                    roughRasterDiffuse[channel], 1.0e-5f)
+            << "Raster diffuse roughness above one should clamp to one";
+        EXPECT_NEAR(nonFiniteRasterDiffuse[channel],
+                    smoothRasterDiffuse[channel], 1.0e-5f)
+            << "non-finite Raster diffuse roughness should use its zero fallback";
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
