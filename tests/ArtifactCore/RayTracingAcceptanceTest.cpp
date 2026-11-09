@@ -6005,10 +6005,17 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
     const auto unshadowedAreaBacklightPixel = traceAreaBacklightShadow(-1.0f);
     const auto partiallyShadowedAreaBacklightPixel =
         traceAreaBacklightShadow(0.0f);
+    const auto filteredAreaBacklightShadowPixel =
+        traceAreaBacklightShadow(2.0f);
     EXPECT_GT(unshadowedAreaBacklightPixel[1],
               partiallyShadowedAreaBacklightPixel[1] + 0.001f)
         << "an opaque blocker should reduce area-light transmission while the "
            "straight-through camera ray misses it";
+    EXPECT_GT(std::fabs(filteredAreaBacklightShadowPixel[1] -
+                        partiallyShadowedAreaBacklightPixel[1]),
+              0.001f)
+        << "area-light transmission should respond to its shadow sampling "
+           "setting";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
