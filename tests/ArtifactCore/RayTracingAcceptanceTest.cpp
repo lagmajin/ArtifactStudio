@@ -732,6 +732,85 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     const auto rightRedBaseColorPixel = pixelAt(24, 16);
     EXPECT_GT(leftBlueBaseColorPixel[2], leftBlueBaseColorPixel[0] + 0.01f);
     EXPECT_GT(rightRedBaseColorPixel[0], rightRedBaseColorPixel[2] + 0.01f);
+
+    const auto dielectricMapPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-dielectric.png"));
+    const auto metallicMapPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-metallic.png"));
+    QImage dielectricMap(2, 2, QImage::Format_RGBA8888);
+    QImage metallicMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(dielectricMap.isNull());
+    ASSERT_FALSE(metallicMap.isNull());
+    dielectricMap.fill(QColor(255, 255, 0, 255));
+    metallicMap.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(dielectricMap.save(dielectricMapPath, "PNG"));
+    ASSERT_TRUE(metallicMap.save(metallicMapPath, "PNG"));
+
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.metallic = 1.0f;
+    leftMaterial.roughness = 0.6f;
+    leftMaterial.metallicRoughnessTexture =
+        ArtifactCore::UniString(dielectricMapPath);
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto dielectricLeftPixel = pixelAt(8, 16);
+    const auto dielectricRightPixel = pixelAt(24, 16);
+
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString(metallicMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto metallicLeftPixel = pixelAt(8, 16);
+    const auto unchangedRightPixel = pixelAt(24, 16);
+    const float leftSlotMetallicDifference = std::max(
+        std::fabs(metallicLeftPixel[0] - dielectricLeftPixel[0]),
+        std::max(std::fabs(metallicLeftPixel[1] - dielectricLeftPixel[1]),
+                 std::fabs(metallicLeftPixel[2] - dielectricLeftPixel[2])));
+    EXPECT_GT(leftSlotMetallicDifference, 0.01f)
+        << "changing slot 0 metallic data should change its shading";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRightPixel[channel], dielectricRightPixel[channel],
+                    0.01f)
+            << "changing slot 0 metallic data should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString(dielectricMapPath);
+    rightMaterial.metallicRoughnessTexture = ArtifactCore::UniString(metallicMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedLeftPixel = pixelAt(8, 16);
+    const auto metallicRightPixel = pixelAt(24, 16);
+    const float rightSlotMetallicDifference = std::max(
+        std::fabs(metallicRightPixel[0] - dielectricRightPixel[0]),
+        std::max(std::fabs(metallicRightPixel[1] - dielectricRightPixel[1]),
+                 std::fabs(metallicRightPixel[2] - dielectricRightPixel[2])));
+    EXPECT_GT(rightSlotMetallicDifference, 0.01f)
+        << "changing slot 1 metallic data should change its shading";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedLeftPixel[channel], dielectricLeftPixel[channel],
+                    0.01f)
+            << "changing slot 1 metallic data should preserve slot 0, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
