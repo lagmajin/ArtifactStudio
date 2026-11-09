@@ -464,6 +464,42 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
                     maximumClearcoatIorPixel[channel], 1.0e-5f)
             << "clearcoat IOR above 2.0 should clamp to the upper bound";
     }
+
+    const auto captureSheenRoughness = [this, &coatedMaterial](
+                                          float sheenRoughness) {
+        coatedMaterial.clearcoat = 0.0f;
+        coatedMaterial.sheen = 1.0f;
+        coatedMaterial.sheenRoughness = sheenRoughness;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumSheenRoughnessPixel = captureSheenRoughness(0.0f);
+    const auto belowMinimumSheenRoughnessPixel = captureSheenRoughness(-0.5f);
+    const auto maximumSheenRoughnessPixel = captureSheenRoughness(1.0f);
+    const auto aboveMaximumSheenRoughnessPixel = captureSheenRoughness(1.5f);
+    const float sheenRoughnessResponse = std::max(
+        std::fabs(maximumSheenRoughnessPixel[0] -
+                  minimumSheenRoughnessPixel[0]),
+        std::max(std::fabs(maximumSheenRoughnessPixel[1] -
+                           minimumSheenRoughnessPixel[1]),
+                 std::fabs(maximumSheenRoughnessPixel[2] -
+                           minimumSheenRoughnessPixel[2])));
+    EXPECT_GT(sheenRoughnessResponse, 0.001f)
+        << "the fixture should distinguish minimum and maximum sheen roughness";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumSheenRoughnessPixel[channel],
+                    minimumSheenRoughnessPixel[channel], 1.0e-5f)
+            << "sheen roughness below zero should clamp to zero";
+        EXPECT_NEAR(aboveMaximumSheenRoughnessPixel[channel],
+                    maximumSheenRoughnessPixel[channel], 1.0e-5f)
+            << "sheen roughness above one should clamp to one";
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
