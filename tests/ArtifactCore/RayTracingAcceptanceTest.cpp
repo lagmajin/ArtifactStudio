@@ -3796,18 +3796,30 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
     ASSERT_TRUE(textureDirectory.isValid());
     const QString sheenColorMapPath = textureDirectory.filePath(
         QStringLiteral("sheen-color.png"));
+    const QString sheenRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("sheen-roughness-alpha.png"));
     QImage sheenColorMap(8, 2, QImage::Format_RGBA8888);
+    QImage sheenRoughnessMap(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(sheenColorMap.isNull());
+    ASSERT_FALSE(sheenRoughnessMap.isNull());
     for (int y = 0; y < sheenColorMap.height(); ++y) {
         auto* row = sheenColorMap.scanLine(y);
+        auto* roughnessRow = sheenRoughnessMap.scanLine(y);
         for (int x = 0; x < sheenColorMap.width(); ++x) {
             auto* pixel = row + x * 4;
             const uchar value = x < 4 ? 0 : 255;
             pixel[0] = pixel[1] = pixel[2] = value;
             pixel[3] = 255;
+
+            auto* roughnessPixel = roughnessRow + x * 4;
+            roughnessPixel[0] = 255;
+            roughnessPixel[1] = 0;
+            roughnessPixel[2] = 255;
+            roughnessPixel[3] = value;
         }
     }
     ASSERT_TRUE(sheenColorMap.save(sheenColorMapPath, "PNG"));
+    ASSERT_TRUE(sheenRoughnessMap.save(sheenRoughnessMapPath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] =
@@ -3851,7 +3863,7 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
     material.sheenColorTexture = ArtifactCore::UniString();
     material.sheenRoughness = 1.0f;
     material.sheenRoughnessTexture =
-        ArtifactCore::UniString(sheenColorMapPath);
+        ArtifactCore::UniString(sheenRoughnessMapPath);
     material.sheenRoughnessTextureUvSet = 0;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
