@@ -1487,6 +1487,76 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
         << "zero occlusion strength should restore the unoccluded response";
     EXPECT_GT(halfStrengthPixel[0], occludedPixel[0] + 0.005f)
         << "half occlusion strength should retain more response than full strength";
+
+    const auto occludedSlotPath = temporaryDirectory.filePath(
+        QStringLiteral("ao-slot-occluded.png"));
+    const auto openSlotPath = temporaryDirectory.filePath(
+        QStringLiteral("ao-slot-open.png"));
+    QImage occludedSlotMap(2, 2, QImage::Format_RGBA8888);
+    QImage openSlotMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(occludedSlotMap.isNull());
+    ASSERT_FALSE(openSlotMap.isNull());
+    occludedSlotMap.fill(QColor(0, 0, 0, 255));
+    openSlotMap.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(occludedSlotMap.save(occludedSlotPath, "PNG"));
+    ASSERT_TRUE(openSlotMap.save(openSlotPath, "PNG"));
+
+    constexpr std::array<std::uint32_t, 2> materialIndices{0, 1};
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("ao-uv-sampling"), vertices.data(), 4,
+        indices.data(), 6, nullptr, materialIndices.data(), uvs.data(), nullptr,
+        mirroredUvs1.data()));
+    ArtifactCore::RTPbrMaterial occludedSlotMaterial;
+    occludedSlotMaterial.baseColor[0] = occludedSlotMaterial.baseColor[1] =
+        occludedSlotMaterial.baseColor[2] = 0.7f;
+    occludedSlotMaterial.occlusionTexture =
+        ArtifactCore::UniString(occludedSlotPath);
+    occludedSlotMaterial.occlusionStrength = 1.0f;
+    ArtifactCore::RTPbrMaterial openSlotMaterial = occludedSlotMaterial;
+    openSlotMaterial.occlusionTexture = ArtifactCore::UniString(openSlotPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), occludedSlotMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), openSlotMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto openLeftSlotPixel = pixelAt(8, 16);
+    const auto occludedRightSlotPixel = pixelAt(24, 16);
+
+    occludedSlotMaterial.occlusionTexture = ArtifactCore::UniString(openSlotPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), occludedSlotMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedOpenLeftSlotPixel = pixelAt(8, 16);
+    const auto openRightSlotPixel = pixelAt(24, 16);
+    EXPECT_GT(openRightSlotPixel[0], occludedRightSlotPixel[0] + 0.005f)
+        << "slot 0 occlusion map should change its shading response";
+    EXPECT_NEAR(unchangedOpenLeftSlotPixel[0], openLeftSlotPixel[0], 0.025f)
+        << "changing slot 0 occlusion map should preserve slot 1";
+
+    occludedSlotMaterial.occlusionTexture =
+        ArtifactCore::UniString(occludedSlotPath);
+    openSlotMaterial.occlusionTexture =
+        ArtifactCore::UniString(occludedSlotPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), occludedSlotMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), openSlotMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto occludedLeftSlotPixel = pixelAt(8, 16);
+    const auto unchangedOpenRightSlotPixel = pixelAt(24, 16);
+    EXPECT_GT(openLeftSlotPixel[0], occludedLeftSlotPixel[0] + 0.005f)
+        << "slot 1 occlusion map should change its shading response";
+    EXPECT_NEAR(unchangedOpenRightSlotPixel[0], openRightSlotPixel[0], 0.025f)
+        << "changing slot 1 occlusion map should preserve slot 0";
 }
 
 TEST_F(RayTracingAcceptanceTest, InterpolatesSrgbVertexColorsAcrossTriangles) {
