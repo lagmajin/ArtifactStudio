@@ -7000,8 +7000,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         float thinFilmThickness = 0.0f;
         float thinFilmIOR = 1.33f;
         float normalStrength = 1.0f;
+        float clearcoatNormalStrength = 1.0f;
     };
-    constexpr std::array<MaterialProbe, 24> materialProbes{{
+    constexpr std::array<MaterialProbe, 26> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -7045,7 +7046,13 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
          {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 0.0f},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
          {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
-         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 1.0f}}};
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 1.0f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 1.0f, 0.0f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 1.0f, 1.0f}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -7091,11 +7098,14 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         renderer.setClearcoatTint(
             QColor::fromRgbF(probe.clearcoatTint[0],
                              probe.clearcoatTint[1],
-                             probe.clearcoatTint[2]));
-        if (probeIndex == 8 || probeIndex >= 22)
+                             probe.clearcoatTint[2]),
+            probe.clearcoatNormalStrength);
+        if (probeIndex == 8 || (probeIndex >= 22 && probeIndex <= 23))
             renderer.setNormalTexture(parityNormalMapPath);
         else if (probeIndex >= 9)
             renderer.setNormalTexture(QString{});
+        renderer.setClearcoatNormalTexture(
+            probeIndex >= 24 ? parityNormalMapPath : QString{});
         if (probe.aoValue == 255)
             renderer.setOcclusionTexture(aoWhitePath);
         else if (probe.aoValue >= 0)
@@ -7125,8 +7135,12 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.sheenRoughness = probe.sheenRoughness;
         std::copy(probe.sheenTint.begin(), probe.sheenTint.end(),
                   rtMaterial.sheenTint);
-        if (probeIndex == 8 || probeIndex >= 22)
+        if (probeIndex == 8 || (probeIndex >= 22 && probeIndex <= 23))
             rtMaterial.normalTexture = ArtifactCore::UniString(
+                parityNormalMapPath);
+        rtMaterial.clearcoatNormalStrength = probe.clearcoatNormalStrength;
+        if (probeIndex >= 24)
+            rtMaterial.clearcoatNormalTexture = ArtifactCore::UniString(
                 parityNormalMapPath);
         if (probe.aoValue >= 0) {
             rtMaterial.occlusionTexture = ArtifactCore::UniString(
@@ -7233,6 +7247,18 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         << "Raster normal mapping should respond to normal strength";
     EXPECT_GT(rtNormalStrengthDifference, 0.001f)
         << "RT normal mapping should respond to normal strength";
+    float rasterClearcoatNormalStrengthDifference = 0.0f;
+    float rtClearcoatNormalStrengthDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterClearcoatNormalStrengthDifference += std::fabs(
+            rasterProbePixels[25][channel] - rasterProbePixels[24][channel]);
+        rtClearcoatNormalStrengthDifference += std::fabs(
+            rtProbePixels[25][channel] - rtProbePixels[24][channel]);
+    }
+    EXPECT_GT(rasterClearcoatNormalStrengthDifference, 0.001f)
+        << "Raster clearcoat normal mapping should respond to its strength";
+    EXPECT_GT(rtClearcoatNormalStrengthDifference, 0.001f)
+        << "RT clearcoat normal mapping should respond to its strength";
     EXPECT_GT(probeLuminance(rasterProbePixels[9]),
               probeLuminance(rasterProbePixels[10]) + 0.001f)
         << "lower AO should reduce the Raster sheen IBL response";
