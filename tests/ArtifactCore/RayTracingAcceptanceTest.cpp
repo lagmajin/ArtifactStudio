@@ -2932,6 +2932,42 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
         << "packed metallic-roughness green should vary roughness while red "
            "and blue remain constant";
 
+    QImage packedRoughnessOtherChannelsChanged = greenRoughnessMap;
+    for (int y = 0; y < packedRoughnessOtherChannelsChanged.height(); ++y) {
+        auto* row = packedRoughnessOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < packedRoughnessOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 0;
+            pixel[2] = 255;
+        }
+    }
+    const auto packedRoughnessOtherChannelsPath =
+        surfaceMapDirectory.filePath(
+            QStringLiteral("packed-roughness-other-channels.png"));
+    ASSERT_TRUE(packedRoughnessOtherChannelsChanged.save(
+        packedRoughnessOtherChannelsPath, "PNG"));
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(packedRoughnessOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedOtherChannelsLeft = pixelAt(8, 16);
+    const auto packedOtherChannelsRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedOtherChannelsLeft[channel], packedRoughnessLeft[channel],
+                    0.02f)
+            << "packed roughness should read green independently, left channel "
+            << channel;
+        EXPECT_NEAR(packedOtherChannelsRight[channel],
+                    packedRoughnessRight[channel], 0.02f)
+            << "packed roughness should read green independently, right channel "
+            << channel;
+    }
+
     QImage transparentPackedMap = greenRoughnessMap;
     for (int y = 0; y < transparentPackedMap.height(); ++y) {
         auto* row = transparentPackedMap.scanLine(y);
