@@ -465,6 +465,54 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
             << "clearcoat IOR above 2.0 should clamp to the upper bound";
     }
 
+    const auto captureClearcoatTint = [this, &coatedMaterial](
+                                          std::size_t tintChannel, float tint) {
+        coatedMaterial.clearcoat = 1.0f;
+        coatedMaterial.sheen = 0.0f;
+        coatedMaterial.clearcoatTint[0] = 1.0f;
+        coatedMaterial.clearcoatTint[1] = 1.0f;
+        coatedMaterial.clearcoatTint[2] = 1.0f;
+        coatedMaterial.clearcoatTint[tintChannel] = tint;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        const auto minimumClearcoatTintPixel =
+            captureClearcoatTint(tintChannel, 0.0f);
+        const auto belowMinimumClearcoatTintPixel =
+            captureClearcoatTint(tintChannel, -0.5f);
+        const auto maximumClearcoatTintPixel =
+            captureClearcoatTint(tintChannel, 1.0f);
+        const auto aboveMaximumClearcoatTintPixel =
+            captureClearcoatTint(tintChannel, 1.5f);
+        const float clearcoatTintResponse = std::max(
+            std::fabs(maximumClearcoatTintPixel[0] -
+                      minimumClearcoatTintPixel[0]),
+            std::max(std::fabs(maximumClearcoatTintPixel[1] -
+                               minimumClearcoatTintPixel[1]),
+                     std::fabs(maximumClearcoatTintPixel[2] -
+                               minimumClearcoatTintPixel[2])));
+        EXPECT_GT(clearcoatTintResponse, 0.001f)
+            << "the fixture should respond to clearcoat tint channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(belowMinimumClearcoatTintPixel[channel],
+                        minimumClearcoatTintPixel[channel], 1.0e-5f)
+                << "clearcoat tint below zero should clamp to zero, tint channel "
+                << tintChannel << ", output channel " << channel;
+            EXPECT_NEAR(aboveMaximumClearcoatTintPixel[channel],
+                        maximumClearcoatTintPixel[channel], 1.0e-5f)
+                << "clearcoat tint above one should clamp to one, tint channel "
+                << tintChannel << ", output channel " << channel;
+        }
+    }
+
     const auto captureSheenRoughness = [this, &coatedMaterial](
                                           float sheenRoughness) {
         coatedMaterial.clearcoat = 0.0f;
