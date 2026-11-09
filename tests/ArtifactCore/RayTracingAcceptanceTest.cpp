@@ -2118,6 +2118,52 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
     EXPECT_GT(uv0Difference, 0.02f)
         << "the metallic map's red channel should distinguish the two UV0 halves";
 
+    const QString halfMetallicMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-metallic-half.png"));
+    QImage halfMetallicMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(halfMetallicMap.isNull());
+    for (int y = 0; y < halfMetallicMap.height(); ++y) {
+        auto* row = halfMetallicMap.scanLine(y);
+        for (int x = 0; x < halfMetallicMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 128;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(halfMetallicMap.save(halfMetallicMapPath, "PNG"));
+
+    constexpr float halfMetallicFactor = 128.0f / 255.0f;
+    material.metallic = halfMetallicFactor;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto factorScaledLeft = pixelAt(8, 16);
+    const auto factorScaledRight = pixelAt(24, 16);
+
+    material.metallic = 1.0f;
+    material.metallicTexture = ArtifactCore::UniString(halfMetallicMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto mapScaledLeft = pixelAt(8, 16);
+    const auto mapScaledRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(factorScaledLeft[channel], mapScaledLeft[channel], 0.035f)
+            << "metallic scalar should multiply the sampled red channel, left "
+               "output channel " << channel;
+        EXPECT_NEAR(factorScaledRight[channel], mapScaledRight[channel], 0.035f)
+            << "metallic scalar and a half-valued map should produce the same "
+               "effective factor, output channel " << channel;
+    }
+
+    material.metallicTexture = ArtifactCore::UniString(metallicMapPath);
+    material.metallic = 1.0f;
     material.metallicTextureUvSet = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-metallic-uv-set"), material));
@@ -2313,6 +2359,53 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
                  std::fabs(uv0Left[2] - uv0Right[2])));
     EXPECT_GT(uv0Difference, 0.02f)
         << "the roughness map's red channel should distinguish the two UV0 halves";
+
+    const QString halfRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-roughness-half.png"));
+    QImage halfRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(halfRoughnessMap.isNull());
+    for (int y = 0; y < halfRoughnessMap.height(); ++y) {
+        auto* row = halfRoughnessMap.scanLine(y);
+        for (int x = 0; x < halfRoughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 128;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(halfRoughnessMap.save(halfRoughnessMapPath, "PNG"));
+
+    constexpr float halfRoughnessFactor = 128.0f / 255.0f;
+    material.roughness = halfRoughnessFactor;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto factorScaledLeft = pixelAt(8, 16);
+    const auto factorScaledRight = pixelAt(24, 16);
+
+    material.roughness = 1.0f;
+    material.roughnessTexture = ArtifactCore::UniString(halfRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto mapScaledLeft = pixelAt(8, 16);
+    const auto mapScaledRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(factorScaledLeft[channel], mapScaledLeft[channel], 0.035f)
+            << "roughness scalar should multiply the sampled red channel, left "
+               "output channel " << channel;
+        EXPECT_NEAR(factorScaledRight[channel], mapScaledRight[channel], 0.035f)
+            << "roughness scalar and a half-valued map should produce the same "
+               "effective factor, output channel " << channel;
+    }
+
+    material.roughnessTexture = ArtifactCore::UniString(roughnessMapPath);
+    material.roughness = 1.0f;
 
     material.roughnessTextureUvSet = 1;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
