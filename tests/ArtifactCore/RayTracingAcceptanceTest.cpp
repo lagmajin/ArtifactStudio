@@ -2408,6 +2408,31 @@ TEST_F(RayTracingAcceptanceTest,
     EXPECT_GT(highIor[0], glassIor[0] + 0.001f)
         << "higher dielectric IOR should increase normal-incidence reflectance";
 
+    const auto traceGrazingIor = [&](const float ior) {
+        material.ior = ior;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera grazingCamera;
+        grazingCamera.origin[0] = 2.0f;
+        grazingCamera.origin[2] = -1.0f;
+        grazingCamera.target[2] = 0.0f;
+        grazingCamera.verticalFovDegrees = 60.0f;
+        EXPECT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize, grazingCamera));
+        return pixelAt(kRayTraceTestImageSize / 2,
+                       kRayTraceTestImageSize / 2);
+    };
+    const auto grazingUnityIor = traceGrazingIor(1.0f);
+    const auto grazingGlassIor = traceGrazingIor(1.5f);
+    const auto grazingHighIor = traceGrazingIor(3.0f);
+    EXPECT_GT(grazingGlassIor[0], grazingUnityIor[0] + 0.001f)
+        << "dielectric Fresnel should respond to IOR at grazing view angles";
+    EXPECT_GT(grazingHighIor[0], grazingGlassIor[0] + 0.001f)
+        << "grazing-view reflectance should rise with dielectric IOR";
+
     const auto traceThinFilm = [&](const float thicknessNm, const float filmIor) {
         material.ior = 1.5f;
         material.thinFilmThickness = thicknessNm;
