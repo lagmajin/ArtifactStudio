@@ -2516,6 +2516,106 @@ TEST(StillImageLayerRoundTripTest,
               updatedColor);
 }
 
+TEST(StillImageLayerRoundTripTest,
+     ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor originalColor(55, 145, 215, 255);
+    const QColor updatedColor(215, 105, 45, 255);
+    QImage sourceImage(2, 2, QImage::Format_RGBA8888);
+    sourceImage.fill(originalColor);
+    const QString imagePath = dir.filePath(QStringLiteral("localized-roundtrip.png"));
+    const QString projectPath = dir.filePath(QStringLiteral("localized-roundtrip.artifact"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("LocalizedSourceRoundTrip"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(makeCompositionParams());
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams firstParams(
+        QStringLiteral("LocalizedImage"), Artifact::LayerType::Image);
+    Artifact::ArtifactLayerInitParams secondParams(
+        QStringLiteral("SharedImage"), Artifact::LayerType::Image);
+    const auto firstAdded =
+        projects.addLayerToComposition(composition.id, firstParams);
+    const auto secondAdded =
+        projects.addLayerToComposition(composition.id, secondParams);
+    ASSERT_TRUE(firstAdded.success);
+    ASSERT_TRUE(secondAdded.success);
+    auto* firstLayer =
+        dynamic_cast<Artifact::ArtifactImageLayer*>(firstAdded.layer.get());
+    auto* secondLayer =
+        dynamic_cast<Artifact::ArtifactImageLayer*>(secondAdded.layer.get());
+    ASSERT_NE(firstLayer, nullptr);
+    ASSERT_NE(secondLayer, nullptr);
+    const auto firstLayerId = firstLayer->id();
+    const auto secondLayerId = secondLayer->id();
+    ASSERT_TRUE(firstLayer->loadFromPath(imagePath));
+    ASSERT_TRUE(secondLayer->loadFromPath(imagePath));
+    ASSERT_EQ(waitForImage(*firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+    ASSERT_EQ(waitForImage(*secondLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+
+    const auto sharedSourceId = firstLayer->sourceAssetId();
+    ASSERT_FALSE(sharedSourceId.isNull());
+    ASSERT_EQ(secondLayer->sourceAssetId(), sharedSourceId);
+    const std::uint64_t originalSharedVersion = secondLayer->sourceVersion();
+    ASSERT_GT(originalSharedVersion, 0u);
+    ASSERT_TRUE(firstLayer->localizeSourceIdentity());
+    const auto localizedSourceId = firstLayer->sourceAssetId();
+    ASSERT_NE(localizedSourceId, sharedSourceId);
+    const std::uint64_t localizedVersion = firstLayer->sourceVersion();
+    ASSERT_GT(localizedVersion, 0u);
+
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto restoredComposition =
+        projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(restoredComposition);
+    firstLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        restoredComposition->layerById(firstLayerId).get());
+    secondLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        restoredComposition->layerById(secondLayerId).get());
+    ASSERT_NE(firstLayer, nullptr);
+    ASSERT_NE(secondLayer, nullptr);
+    EXPECT_TRUE(firstLayer->isSourceIdentityLocalized());
+    EXPECT_EQ(firstLayer->sourceAssetId(), localizedSourceId);
+    EXPECT_FALSE(secondLayer->isSourceIdentityLocalized());
+    EXPECT_EQ(secondLayer->sourceAssetId(), sharedSourceId);
+    ASSERT_EQ(waitForImage(*firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+    ASSERT_EQ(waitForImage(*secondLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+
+    sourceImage.fill(updatedColor);
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+    const std::uint64_t updatedSharedVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sharedSourceId);
+    ASSERT_GT(updatedSharedVersion, originalSharedVersion);
+    ASSERT_EQ(waitForImage(*secondLayer, QSize(2, 2)).pixelColor(0, 0),
+              updatedColor);
+    EXPECT_EQ(secondLayer->sourceVersion(), updatedSharedVersion);
+    EXPECT_EQ(firstLayer->sourceVersion(), localizedVersion);
+    ASSERT_EQ(waitForImage(*firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+
+    ASSERT_TRUE(firstLayer->relinkSourceIdentityToShared());
+    EXPECT_FALSE(firstLayer->isSourceIdentityLocalized());
+    EXPECT_EQ(firstLayer->sourceAssetId(), sharedSourceId);
+    EXPECT_EQ(waitForImage(*firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              updatedColor);
+}
+
 TEST(StillImageLayerRoundTripTest, EmptyLayerRejectsSourceIdentityOperations)
 {
     QTemporaryDir dir;

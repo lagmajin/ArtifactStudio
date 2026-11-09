@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: Project reload後のlocalized/shared source分離
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink`、静止画受入表OP-07／OP-09。
+- **確認できた事実:** 既存localize testは同一Project session中の共有ID分離・source更新隔離・shared relinkを確認し、既存Project round-trip testsはsource path／pixel復元を確認するが、localized identityを保存・再読込した後に共有sourceの更新を受ける側だけが更新される統合ケースはなかった。
+- **追加した確認:** 同じsourceを使う2 layerのうち1つをlocalizeしてProject保存・再読込し、identityの保持、shared側だけのversion／pixel更新、localized側の保持、relink後の更新画素取得を検査する。
+- **価値または懸念:** serializationがshared/localized ownershipを混同し、再読込後に誤ったsource invalidationを受ける回帰を検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink` を実行し、Project lifecycleをまたいだsource identity contractを確認する。
+
 ## 2026-11-09: device再初期化をまたぐstatic layer GPU cache parity
 - **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization`、静止画受入表OP-10。
 - **確認できた事実:** 既存のdevice recovery testはheadless device managerのdestroy／再初期化を3回確認し、static layer GPU cache testはLOD・effect revisionのhit／missとbypass parityを確認するが、cache保持中のrenderer device再初期化後に同じlayerを描く統合ケースはなかった。
