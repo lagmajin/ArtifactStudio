@@ -3419,6 +3419,119 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
 
 }
 
+TEST_F(RayTracingAcceptanceTest, SelectsMetallicAndRoughnessTextureUvSetsTogether) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-metallic-roughness-uv-sets", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-metallic-roughness-uv-sets"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data(),
+        nullptr, mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString metallicMapPath = textureDirectory.filePath(
+        QStringLiteral("combined-metallic.png"));
+    const QString roughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("combined-roughness.png"));
+    auto makeHorizontalRamp = [](const QString& path) {
+        QImage map(8, 2, QImage::Format_RGBA8888);
+        if (map.isNull()) {
+            return false;
+        }
+        for (int y = 0; y < map.height(); ++y) {
+            auto* row = map.scanLine(y);
+            for (int x = 0; x < map.width(); ++x) {
+                auto* pixel = row + x * 4;
+                pixel[0] = x < 4 ? 0 : 255;
+                pixel[1] = pixel[2] = pixel[3] = 255;
+            }
+        }
+        return map.save(path, "PNG");
+    };
+    ASSERT_TRUE(makeHorizontalRamp(metallicMapPath));
+    ASSERT_TRUE(makeHorizontalRamp(roughnessMapPath));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.metallic = 1.0f;
+    material.roughness = 1.0f;
+    material.metallicTexture = ArtifactCore::UniString(metallicMapPath);
+    material.roughnessTexture = ArtifactCore::UniString(roughnessMapPath);
+    const ArtifactCore::UniString geometryName(
+        "pbr-metallic-roughness-uv-sets");
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(geometryName, material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto bothUv0Left = pixelAt(8, 16);
+    const auto bothUv0Right = pixelAt(24, 16);
+    EXPECT_GT(std::max(std::fabs(bothUv0Left[0] - bothUv0Right[0]),
+                       std::max(std::fabs(bothUv0Left[1] - bothUv0Right[1]),
+                                std::fabs(bothUv0Left[2] - bothUv0Right[2]))),
+              0.02f)
+        << "both independent maps should contribute while using UV0";
+
+    material.metallicTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(geometryName, material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto metallicUv1Left = pixelAt(8, 16);
+    const auto metallicUv1Right = pixelAt(24, 16);
+    float metallicRoutingDifference = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        metallicRoutingDifference = std::max(
+            metallicRoutingDifference,
+            std::fabs(metallicUv1Left[channel] - bothUv0Left[channel]));
+        metallicRoutingDifference = std::max(
+            metallicRoutingDifference,
+            std::fabs(metallicUv1Right[channel] - bothUv0Right[channel]));
+    }
+    EXPECT_GT(metallicRoutingDifference, 0.02f)
+        << "switching metallic to UV1 should affect output with roughness still on UV0";
+
+    material.metallicTextureUvSet = 0;
+    material.roughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(geometryName, material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv1Left = pixelAt(8, 16);
+    const auto roughnessUv1Right = pixelAt(24, 16);
+    float roughnessRoutingDifference = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        roughnessRoutingDifference = std::max(
+            roughnessRoutingDifference,
+            std::fabs(roughnessUv1Left[channel] - bothUv0Left[channel]));
+        roughnessRoutingDifference = std::max(
+            roughnessRoutingDifference,
+            std::fabs(roughnessUv1Right[channel] - bothUv0Right[channel]));
+    }
+    EXPECT_GT(roughnessRoutingDifference, 0.02f)
+        << "switching roughness to UV1 should affect output with metallic still on UV0";
+}
+
 TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
     constexpr std::array<float, 12> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
