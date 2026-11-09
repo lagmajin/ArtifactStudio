@@ -1623,6 +1623,24 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     EXPECT_GT(transparentBlockerPixel[1], opaqueBlockerPixel[1] + 0.02f)
         << "a cutout blocker should not terminate the receiver's shadow ray";
 
+    QTemporaryDir missingOpacityDirectory;
+    ASSERT_TRUE(missingOpacityDirectory.isValid());
+    blockerMaterial.opacityTexture = ArtifactCore::UniString(
+        missingOpacityDirectory.filePath(QStringLiteral("missing-opacity.png")));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingOpacityPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(missingOpacityPixel[channel], opaqueBlockerPixel[channel],
+                    0.02f)
+            << "a missing opacity map should fall back to scalar opacity, "
+               "channel " << channel;
+    }
+
     std::error_code ignored;
     std::filesystem::remove(whiteMapPath, ignored);
     std::filesystem::remove(blackMapPath, ignored);
