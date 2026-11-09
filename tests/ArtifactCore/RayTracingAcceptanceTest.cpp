@@ -3856,6 +3856,27 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
             << "clearcoat-normal UV1 should mirror the right sample, channel "
             << channel;
     }
+
+    material.clearcoatNormalUvSet = 0;
+    material.clearcoatNormalUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto shiftedClearcoatNormalLeft = pixelAt(8, 16);
+    const auto shiftedClearcoatNormalRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(shiftedClearcoatNormalLeft[channel],
+                    clearcoatNormalUv0Right[channel], 0.035f)
+            << "clearcoat-normal U offset should move the tilted texels left, channel "
+            << channel;
+        EXPECT_NEAR(shiftedClearcoatNormalRight[channel],
+                    clearcoatNormalUv0Left[channel], 0.035f)
+            << "clearcoat-normal U offset should wrap the flat texels right, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
