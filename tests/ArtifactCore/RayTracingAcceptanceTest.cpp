@@ -3808,8 +3808,8 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     EXPECT_NEAR(specularPixel[1], 0.135f, 0.004f);
     EXPECT_NEAR(specularPixel[2], 0.0675f, 0.004f);
 
-    const auto aoOutputDir = std::filesystem::current_path() / "ray-tracing-frames";
-    std::filesystem::create_directories(aoOutputDir);
+    QTemporaryDir aoInputDirectory;
+    ASSERT_TRUE(aoInputDirectory.isValid());
     constexpr std::array<float, 4> aoTestRoughnesses{0.04f, 0.2f, 0.5f, 0.9f};
     constexpr std::array<int, 5> aoTestValues{0, 64, 128, 192, 255};
     std::array<std::array<float, aoTestValues.size()>,
@@ -3831,12 +3831,10 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
             const int aoValue = aoTestValues[aoIndex];
             QImage aoImage(1, 1, QImage::Format_Grayscale8);
             aoImage.fill(aoValue);
-            const auto aoTexturePath = aoOutputDir /
-                ("mesh-renderer-ao-" + std::to_string(aoValue) + ".png");
-            ASSERT_TRUE(aoImage.save(
-                QString::fromStdString(aoTexturePath.string()), "PNG"));
-            renderer.setOcclusionTexture(
-                QString::fromStdString(aoTexturePath.string()));
+            const auto aoTexturePath = aoInputDirectory.filePath(
+                QStringLiteral("mesh-renderer-ao-%1.png").arg(aoValue));
+            ASSERT_TRUE(aoImage.save(aoTexturePath, "PNG"));
+            renderer.setOcclusionTexture(aoTexturePath);
             const auto occludedPixel = renderCenterPixel();
             const float retention = occludedPixel[0] /
                 std::max(unoccludedPixel[0], 1.0e-5f);
@@ -3876,14 +3874,13 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     constexpr std::array<std::uint8_t, 4> spatialAoValues{32, 96, 160, 224};
     std::memcpy(spatialAoImage.scanLine(0), spatialAoValues.data(),
                 spatialAoValues.size());
-    const auto spatialAoTexturePath = aoOutputDir / "mesh-renderer-spatial-ao.png";
-    ASSERT_TRUE(spatialAoImage.save(
-        QString::fromStdString(spatialAoTexturePath.string()), "PNG"));
+    const auto spatialAoTexturePath = aoInputDirectory.filePath(
+        QStringLiteral("mesh-renderer-spatial-ao.png"));
+    ASSERT_TRUE(spatialAoImage.save(spatialAoTexturePath, "PNG"));
     renderer.setPbrFactors(0.0f, 0.2f, 1.0f, 1.0f);
     const auto leftUnoccluded = renderPixelAt(20, height / 2);
     const auto rightUnoccluded = renderPixelAt(44, height / 2);
-    renderer.setOcclusionTexture(
-        QString::fromStdString(spatialAoTexturePath.string()));
+    renderer.setOcclusionTexture(spatialAoTexturePath);
     const auto leftSpatiallyOccluded = renderPixelAt(20, height / 2);
     const auto rightSpatiallyOccluded = renderPixelAt(44, height / 2);
     const float leftSpatialRetention = leftSpatiallyOccluded[0] /
@@ -3896,8 +3893,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     renderer.setUvTransform(0.5f, 0.0f, 1.0f, 1.0f, 0.0f);
     const auto shiftedLeftUnoccluded = renderPixelAt(20, height / 2);
     const auto shiftedRightUnoccluded = renderPixelAt(44, height / 2);
-    renderer.setOcclusionTexture(
-        QString::fromStdString(spatialAoTexturePath.string()));
+    renderer.setOcclusionTexture(spatialAoTexturePath);
     const auto shiftedLeftOccluded = renderPixelAt(20, height / 2);
     const auto shiftedRightOccluded = renderPixelAt(44, height / 2);
     const float shiftedLeftRetention = shiftedLeftOccluded[0] /
