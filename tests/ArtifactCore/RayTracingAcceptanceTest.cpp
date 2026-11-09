@@ -7010,11 +7010,16 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     EXPECT_GT(std::fabs(probeLuminance(rasterProbePixels[5]) -
                         probeLuminance(rasterProbePixels[6])), 0.002f);
     float sheenTintDifference = 0.0f;
+    float rtSheenTintDifference = 0.0f;
     for (size_t channel = 0; channel < 3; ++channel) {
         sheenTintDifference += std::fabs(
             rasterProbePixels[5][channel] - rasterProbePixels[7][channel]);
+        rtSheenTintDifference += std::fabs(
+            rtProbePixels[5][channel] - rtProbePixels[7][channel]);
     }
     EXPECT_GT(sheenTintDifference, 0.005f);
+    EXPECT_GT(rtSheenTintDifference, 0.005f)
+        << "RT sheen response should vary with sheen tint";
     EXPECT_GT(probeLuminance(rasterProbePixels[9]),
               probeLuminance(rasterProbePixels[10]) + 0.001f)
         << "lower AO should reduce the Raster sheen IBL response";
