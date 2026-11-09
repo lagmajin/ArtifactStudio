@@ -5543,6 +5543,36 @@ TEST_F(RayTracingAcceptanceTest,
                  traceThinFilm(400.0f, 3.0f),
                  "film IOR above 2.5 should clamp to 2.5");
 
+    const auto traceTransmissiveThinFilm = [&](const float thicknessNm) {
+        material.baseColor[0] = material.baseColor[1] =
+            material.baseColor[2] = 1.0f;
+        material.metallic = 0.0f;
+        material.roughness = 0.2f;
+        material.ior = 1.5f;
+        material.transmission = 1.0f;
+        material.thinFilmThickness = thicknessNm;
+        material.thinFilmIOR = 1.33f;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto noFilmTransmissionPixel = traceTransmissiveThinFilm(0.0f);
+    const auto thinFilmTransmissionPixel = traceTransmissiveThinFilm(400.0f);
+    float thinFilmTransmissionResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        thinFilmTransmissionResponse = std::max(
+            thinFilmTransmissionResponse,
+            std::fabs(thinFilmTransmissionPixel[channel] -
+                      noFilmTransmissionPixel[channel]));
+    }
+    EXPECT_GT(thinFilmTransmissionResponse, 0.001f)
+        << "thin-film Fresnel should affect the transmitted environment energy";
+
     const auto traceGrazingThinFilm = [&](const float thicknessNm) {
         material.ior = 1.5f;
         material.thinFilmThickness = thicknessNm;
