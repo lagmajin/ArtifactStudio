@@ -1249,6 +1249,86 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     rightMaterial.metallicTextureUvScaleU = 1.0f;
     rightMaterial.roughnessTextureUvScaleU = 1.0f;
 
+    const auto slotSurfaceVTexturePath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-surface-v-ramp.png"));
+    QImage slotSurfaceVTexture(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotSurfaceVTexture.isNull());
+    for (int y = 0; y < slotSurfaceVTexture.height(); ++y) {
+        auto* row = slotSurfaceVTexture.scanLine(y);
+        for (int x = 0; x < slotSurfaceVTexture.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = y < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotSurfaceVTexture.save(slotSurfaceVTexturePath, "PNG"));
+    leftMaterial.metallicTexture = rightMaterial.metallicTexture =
+        ArtifactCore::UniString(slotSurfaceVTexturePath);
+    leftMaterial.roughnessTexture = rightMaterial.roughnessTexture =
+        ArtifactCore::UniString(slotSurfaceVTexturePath);
+    rightMaterial.metallicTextureUvOffsetV = 0.0f;
+    rightMaterial.roughnessTextureUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotMetallicRoughnessV0Left = pixelAt(8, 16);
+    const auto slotMetallicRoughnessV0Right = pixelAt(24, 16);
+
+    rightMaterial.metallicTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightMetallicVOffsetPixel = pixelAt(24, 16);
+    const auto unchangedMetallicVOffsetLeft = pixelAt(8, 16);
+    const float rightMetallicVOffsetDifference = std::max(
+        std::fabs(rightMetallicVOffsetPixel[0] - slotMetallicRoughnessV0Right[0]),
+        std::max(std::fabs(rightMetallicVOffsetPixel[1] -
+                           slotMetallicRoughnessV0Right[1]),
+                 std::fabs(rightMetallicVOffsetPixel[2] -
+                           slotMetallicRoughnessV0Right[2])));
+    EXPECT_GT(rightMetallicVOffsetDifference, 0.001f)
+        << "slot 1 metallic V offset should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedMetallicVOffsetLeft[channel],
+                    slotMetallicRoughnessV0Left[channel], 0.01f)
+            << "slot 1 metallic V offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.metallicTextureUvOffsetV = 0.0f;
+    rightMaterial.roughnessTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightRoughnessVOffsetPixel = pixelAt(24, 16);
+    const auto unchangedRoughnessVOffsetLeft = pixelAt(8, 16);
+    const float rightRoughnessVOffsetDifference = std::max(
+        std::fabs(rightRoughnessVOffsetPixel[0] - slotMetallicRoughnessV0Right[0]),
+        std::max(std::fabs(rightRoughnessVOffsetPixel[1] -
+                           slotMetallicRoughnessV0Right[1]),
+                 std::fabs(rightRoughnessVOffsetPixel[2] -
+                           slotMetallicRoughnessV0Right[2])));
+    EXPECT_GT(rightRoughnessVOffsetDifference, 0.001f)
+        << "slot 1 roughness V offset should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughnessVOffsetLeft[channel],
+                    slotMetallicRoughnessV0Left[channel], 0.01f)
+            << "slot 1 roughness V offset should preserve slot 0, channel "
+            << channel;
+    }
+    rightMaterial.roughnessTextureUvOffsetV = 0.0f;
+
     const auto smoothRoughnessPath = slotTextureDirectory.filePath(
         QStringLiteral("slot-roughness-smooth.png"));
     const auto roughRoughnessPath = slotTextureDirectory.filePath(
