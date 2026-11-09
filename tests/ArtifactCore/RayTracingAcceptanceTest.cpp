@@ -1808,6 +1808,59 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     }
     EXPECT_GT(rightDiffuseRoughnessSlotResponse, 0.001f)
         << "slot 1 diffuse roughness should change its direct diffuse response";
+
+    leftMaterial.diffuseRoughness = rightMaterial.diffuseRoughness = 0.0f;
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = rightMaterial.sheen = 0.0f;
+    leftMaterial.clearcoatRoughness = rightMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.sheenRoughness = rightMaterial.sheenRoughness = 0.25f;
+    leftMaterial.clearcoatTint[0] = leftMaterial.clearcoatTint[1] =
+        leftMaterial.clearcoatTint[2] = 1.0f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noLayeredLobesSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noLayeredLobesSlotPixels));
+    leftMaterial.clearcoat = 1.0f;
+    leftMaterial.sheen = 1.0f;
+    std::array<std::array<float, 4>, 2> leftLayeredLobesSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftLayeredLobesSlotPixels));
+    float leftLayeredLobesResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftLayeredLobesResponse = std::max(
+            leftLayeredLobesResponse,
+            std::fabs(leftLayeredLobesSlotPixels[0][channel] -
+                      noLayeredLobesSlotPixels[0][channel]));
+        EXPECT_NEAR(leftLayeredLobesSlotPixels[1][channel],
+                    noLayeredLobesSlotPixels[1][channel], 0.01f)
+            << "enabling clearcoat and sheen on slot 0 should preserve slot 1, "
+               "channel "
+            << channel;
+    }
+    EXPECT_GT(leftLayeredLobesResponse, 0.001f)
+        << "slot 0 clearcoat/sheen combination should change its response";
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = 0.0f;
+    rightMaterial.clearcoat = 1.0f;
+    rightMaterial.sheen = 1.0f;
+    std::array<std::array<float, 4>, 2> rightLayeredLobesSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightLayeredLobesSlotPixels));
+    float rightLayeredLobesResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightLayeredLobesSlotPixels[0][channel],
+                    noLayeredLobesSlotPixels[0][channel], 0.01f)
+            << "enabling clearcoat and sheen on slot 1 should preserve slot 0, "
+               "channel "
+            << channel;
+        rightLayeredLobesResponse = std::max(
+            rightLayeredLobesResponse,
+            std::fabs(rightLayeredLobesSlotPixels[1][channel] -
+                      noLayeredLobesSlotPixels[1][channel]));
+    }
+    EXPECT_GT(rightLayeredLobesResponse, 0.001f)
+        << "slot 1 clearcoat/sheen combination should change its response";
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = rightMaterial.sheen = 0.0f;
     manager_->setSceneLights(context_.RawPtr(), &subsurfaceLight, 1);
 
     leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
