@@ -3917,6 +3917,47 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
             << "sheen roughness UV1 should mirror the right sample, channel "
             << channel;
     }
+
+    material.sheenRoughnessTextureUvSet = 0;
+    material.sheenRoughness = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfScalarFullAlpha = pixelAt(24, 16);
+
+    QImage halfAlphaSheenRoughnessMap = sheenRoughnessMap;
+    for (int y = 0; y < halfAlphaSheenRoughnessMap.height(); ++y) {
+        auto* row = halfAlphaSheenRoughnessMap.scanLine(y);
+        for (int x = halfAlphaSheenRoughnessMap.width() / 2;
+             x < halfAlphaSheenRoughnessMap.width(); ++x) {
+            row[x * 4 + 3] = 128;
+        }
+    }
+    const QString halfAlphaSheenRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("sheen-roughness-half-alpha.png"));
+    ASSERT_TRUE(halfAlphaSheenRoughnessMap.save(
+        halfAlphaSheenRoughnessMapPath, "PNG"));
+    material.sheenRoughness = 1.0f;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(halfAlphaSheenRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfAlphaFullScalar = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfAlphaFullScalar[channel], halfScalarFullAlpha[channel],
+                    0.035f)
+            << "sheen roughness scalar should multiply texture alpha, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
