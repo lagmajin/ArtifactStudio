@@ -1090,6 +1090,71 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
                "channel "
             << channel;
     }
+
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatIOR = 1.0f;
+    rightMaterial = leftMaterial;
+    rightMaterial.clearcoatIOR = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto lowIorLeftPixel = pixelAt(8, 16);
+    const auto highIorRightPixel = pixelAt(24, 16);
+
+    leftMaterial.clearcoatIOR = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto highIorLeftPixel = pixelAt(8, 16);
+    const auto unchangedHighIorRightPixel = pixelAt(24, 16);
+    const float leftClearcoatIorDifference = std::max(
+        std::fabs(highIorLeftPixel[0] - lowIorLeftPixel[0]),
+        std::max(std::fabs(highIorLeftPixel[1] - lowIorLeftPixel[1]),
+                 std::fabs(highIorLeftPixel[2] - lowIorLeftPixel[2])));
+    EXPECT_GT(leftClearcoatIorDifference, 0.001f)
+        << "slot 0 clearcoat IOR should change its reflection response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedHighIorRightPixel[channel],
+                    highIorRightPixel[channel], 0.01f)
+            << "changing slot 0 clearcoat IOR should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoatIOR = 1.0f;
+    rightMaterial.clearcoatIOR = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedLowIorLeftPixel = pixelAt(8, 16);
+    const auto lowIorRightPixel = pixelAt(24, 16);
+    const float rightClearcoatIorDifference = std::max(
+        std::fabs(lowIorRightPixel[0] - highIorRightPixel[0]),
+        std::max(std::fabs(lowIorRightPixel[1] - highIorRightPixel[1]),
+                 std::fabs(lowIorRightPixel[2] - highIorRightPixel[2])));
+    EXPECT_GT(rightClearcoatIorDifference, 0.001f)
+        << "slot 1 clearcoat IOR should change its reflection response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedLowIorLeftPixel[channel], lowIorLeftPixel[channel],
+                    0.01f)
+            << "changing slot 1 clearcoat IOR should preserve slot 0, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
