@@ -6848,8 +6848,9 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         float clearcoat = 0.0f;
         float clearcoatRoughness = 0.2f;
         int aoValue = -1;
+        std::array<float, 3> clearcoatTint{1.0f, 1.0f, 1.0f};
     };
-    constexpr std::array<MaterialProbe, 13> materialProbes{{
+    constexpr std::array<MaterialProbe, 14> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -6870,7 +6871,10 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
          {1.0f, 1.0f, 1.0f}, 1.0f, 0.05f},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
-         {1.0f, 1.0f, 1.0f}, 1.0f, 0.85f}}};
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.85f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f, -1,
+         {0.02f, 0.1f, 1.0f}}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
     QTemporaryDir normalMapDirectory;
@@ -6908,6 +6912,10 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                                  QColor::fromRgbF(probe.sheenTint[0],
                                                   probe.sheenTint[1],
                                                   probe.sheenTint[2]));
+        renderer.setClearcoatTint(
+            QColor::fromRgbF(probe.clearcoatTint[0],
+                             probe.clearcoatTint[1],
+                             probe.clearcoatTint[2]));
         if (probeIndex == 8)
             renderer.setNormalTexture(parityNormalMapPath);
         else if (probeIndex >= 9)
@@ -6931,6 +6939,8 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.sheen = probe.sheen;
         rtMaterial.clearcoat = probe.clearcoat;
         rtMaterial.clearcoatRoughness = probe.clearcoatRoughness;
+        std::copy(probe.clearcoatTint.begin(), probe.clearcoatTint.end(),
+                  rtMaterial.clearcoatTint);
         rtMaterial.sheenRoughness = probe.sheenRoughness;
         std::copy(probe.sheenTint.begin(), probe.sheenTint.end(),
                   rtMaterial.sheenTint);
@@ -7015,6 +7025,18 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                         probeLuminance(rtProbePixels[12])),
               0.002f)
         << "RT clearcoat response should vary with clearcoat roughness";
+    float rasterClearcoatTintDifference = 0.0f;
+    float rtClearcoatTintDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterClearcoatTintDifference += std::fabs(
+            rasterProbePixels[8][channel] - rasterProbePixels[13][channel]);
+        rtClearcoatTintDifference += std::fabs(
+            rtProbePixels[8][channel] - rtProbePixels[13][channel]);
+    }
+    EXPECT_GT(rasterClearcoatTintDifference, 0.005f)
+        << "Raster clearcoat response should vary with clearcoat tint";
+    EXPECT_GT(rtClearcoatTintDifference, 0.005f)
+        << "RT clearcoat response should vary with clearcoat tint";
 
     auto nonUniformTransform = float4x4::Identity();
     nonUniformTransform.m00 = 2.0f;
