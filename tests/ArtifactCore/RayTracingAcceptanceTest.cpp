@@ -2360,6 +2360,9 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     constexpr std::array<float, 16> uvs{
         0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 16> mirroredUvs1{
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -2373,7 +2376,8 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("masked-alpha-surfaces"), vertices.data(), 8,
-        indices.data(), 12, nullptr, materialIndices.data(), uvs.data()));
+        indices.data(), 12, nullptr, materialIndices.data(), uvs.data(),
+        nullptr, mirroredUvs1.data()));
 
     QTemporaryDir maskedOpacityDirectory;
     ASSERT_TRUE(maskedOpacityDirectory.isValid());
@@ -2465,6 +2469,21 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
         << "rotating the opacity map should move its cutout half onto the right side";
 
     frontMaterial.opacityTextureUvRotationDegrees = 0.0f;
+    frontMaterial.opacityTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1OpaquePixel = pixelAt(8, 16);
+    const auto uv1CutoutPixel = pixelAt(24, 16);
+    EXPECT_GT(uv1OpaquePixel[0], uv1OpaquePixel[2] + 0.5f)
+        << "opacity UV1 mirroring should move the opaque texels to the left";
+    EXPECT_GT(uv1CutoutPixel[2], uv1CutoutPixel[0] + 0.5f)
+        << "opacity UV1 mirroring should move the cutout texels to the right";
+
+    frontMaterial.opacityTextureUvSet = 0;
     frontMaterial.baseColorAlpha = 0.7f;
     frontMaterial.opacity = 0.7f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
