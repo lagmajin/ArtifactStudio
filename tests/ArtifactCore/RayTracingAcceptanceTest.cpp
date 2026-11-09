@@ -4488,14 +4488,14 @@ TEST_F(RayTracingAcceptanceTest,
         return pixelAt(16, 16);
     };
 
-    // The below-critical ray enters at 30 degrees. The second ray enters at
-    // about 51 degrees, beyond the glass-to-air critical angle (about 42).
+    // For IOR 1.5 the glass-to-air critical angle is about 41.81 degrees.
+    // Bracket it with internal incidence at 40 and 43 degrees.
     const auto airReference = traceInternalView(
-        1.0f, {0.6f, 0.5f, 0.3755f});
+        1.0f, {0.6819984f, 0.0f, 0.2686463f});
     const auto subcriticalGlassView = traceInternalView(
-        1.5f, {0.5f, 0.0f, 0.1339746f});
+        1.5f, {0.6427876f, 0.0f, 0.2339556f});
     const auto glassInternalView = traceInternalView(
-        1.5f, {0.6f, 0.5f, 0.3755f});
+        1.5f, {0.6819984f, 0.0f, 0.2686463f});
     const float airReferenceEnergy = airReference[0] + airReference[1] +
                                      airReference[2];
     const float subcriticalGlassEnergy = subcriticalGlassView[0] +
