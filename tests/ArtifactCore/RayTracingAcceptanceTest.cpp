@@ -5052,8 +5052,30 @@ TEST_F(RayTracingAcceptanceTest, SelectsAnisotropyTextureUvSet) {
         << "anisotropy texture red/green direction channels should rotate the "
            "specular lobe while blue strength stays constant";
 
+    material.anisotropyTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedMapLeft = pixelAt(8, 16);
+    const auto rotatedMapRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedMapLeft[channel], verticalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture UV rotation should swap sampled texels while "
+            << "preserving the shading tangent frame, left channel " << channel;
+        EXPECT_NEAR(rotatedMapRight[channel], horizontalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture UV rotation should swap sampled texels while "
+            << "preserving the shading tangent frame, right channel " << channel;
+    }
+
     material.anisotropy = 0.5f;
     material.anisotropyTexture = ArtifactCore::UniString(anisotropyMapPath);
+    material.anisotropyTextureUvRotationDegrees = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
