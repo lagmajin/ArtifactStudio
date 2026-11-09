@@ -1502,6 +1502,61 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    const auto slotSheenRoughnessUvRampPath =
+        slotTextureDirectory.filePath(
+            QStringLiteral("slot-sheen-roughness-uv-ramp.png"));
+    QImage slotSheenRoughnessUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotSheenRoughnessUvRamp.isNull());
+    for (int y = 0; y < slotSheenRoughnessUvRamp.height(); ++y) {
+        auto* row = slotSheenRoughnessUvRamp.scanLine(y);
+        for (int x = 0; x < slotSheenRoughnessUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            pixel[3] = x < 4 ? 0 : 255;
+        }
+    }
+    ASSERT_TRUE(slotSheenRoughnessUvRamp.save(
+        slotSheenRoughnessUvRampPath, "PNG"));
+    leftMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(slotSheenRoughnessUvRampPath);
+    leftMaterial.sheenRoughnessTextureUvSet = 0;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenRoughnessUv0Left = pixelAt(8, 16);
+    const auto slotSheenRoughnessUv0Right = pixelAt(24, 16);
+
+    rightMaterial.sheenRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenRoughnessUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotSheenRoughnessLeft = pixelAt(8, 16);
+    const float slotSheenRoughnessUvRoutingDifference = std::max(
+        std::fabs(slotSheenRoughnessUv1Right[0] -
+                  slotSheenRoughnessUv0Right[0]),
+        std::max(std::fabs(slotSheenRoughnessUv1Right[1] -
+                           slotSheenRoughnessUv0Right[1]),
+                 std::fabs(slotSheenRoughnessUv1Right[2] -
+                           slotSheenRoughnessUv0Right[2])));
+    EXPECT_GT(slotSheenRoughnessUvRoutingDifference, 0.001f)
+        << "slot 1 sheen-roughness UV set should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotSheenRoughnessLeft[channel],
+                    slotSheenRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 sheen-roughness UV set should preserve slot 0, channel "
+            << channel;
+    }
+
     leftMaterial.sheen = 0.0f;
     leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
     leftMaterial.clearcoat = 1.0f;
