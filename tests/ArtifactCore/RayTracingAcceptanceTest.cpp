@@ -4220,6 +4220,48 @@ TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
             << channel;
     }
 
+    material.clearcoatRoughness = 0.5f;
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(roughRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfScalarFullGreen = pixelAt(24, 16);
+
+    QImage halfGreenClearcoatRoughnessMap = roughRoughnessMap;
+    for (int y = 0; y < halfGreenClearcoatRoughnessMap.height(); ++y) {
+        auto* row = halfGreenClearcoatRoughnessMap.scanLine(y);
+        for (int x = halfGreenClearcoatRoughnessMap.width() / 2;
+             x < halfGreenClearcoatRoughnessMap.width(); ++x) {
+            row[x * 4 + 1] = 128;
+        }
+    }
+    const QString halfGreenClearcoatRoughnessPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-roughness-half-green.png"));
+    ASSERT_TRUE(halfGreenClearcoatRoughnessMap.save(
+        halfGreenClearcoatRoughnessPath, "PNG"));
+    material.clearcoatRoughness = 1.0f;
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(halfGreenClearcoatRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfGreenFullScalar = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfGreenFullScalar[channel], halfScalarFullGreen[channel],
+                    0.035f)
+            << "clearcoat roughness scalar should multiply texture green, "
+            << "channel " << channel;
+    }
+
     material.clearcoatRoughnessTexture =
         ArtifactCore::UniString(clearcoatRoughnessMapPath);
     material.clearcoatRoughnessTextureUvSet = 1;
