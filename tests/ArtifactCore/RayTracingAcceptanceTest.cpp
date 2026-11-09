@@ -347,6 +347,42 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
         std::max(std::fabs(coatedPixel[1] - basePixel[1]),
                  std::fabs(coatedPixel[2] - basePixel[2])));
     EXPECT_GT(maximumChannelDifference, 0.001f);
+
+    QTemporaryDir coatNormalDirectory;
+    ASSERT_TRUE(coatNormalDirectory.isValid());
+    const QString coatNormalPath = coatNormalDirectory.filePath(
+        QStringLiteral("coat-normal.png"));
+    QImage coatNormalImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(coatNormalImage.isNull());
+    coatNormalImage.fill(QColor(204, 128, 230, 255));
+    ASSERT_TRUE(coatNormalImage.save(coatNormalPath, "PNG"));
+    coatedMaterial.clearcoatNormalTexture =
+        ArtifactCore::UniString(coatNormalPath);
+    coatedMaterial.clearcoatNormalStrength = 1.0f;
+    coatedMaterial.clearcoatNormalUvRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unrotatedCoatNormalPixel = pixelAt(16, 16);
+
+    coatedMaterial.clearcoatNormalUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedCoatNormalPixel = pixelAt(16, 16);
+    const float coatNormalRotationDifference = std::max(
+        std::fabs(unrotatedCoatNormalPixel[0] - rotatedCoatNormalPixel[0]),
+        std::max(std::fabs(unrotatedCoatNormalPixel[1] - rotatedCoatNormalPixel[1]),
+                 std::fabs(unrotatedCoatNormalPixel[2] - rotatedCoatNormalPixel[2])));
+    EXPECT_GT(coatNormalRotationDifference, 0.001f)
+        << "clearcoat normal UV rotation should change the coat reflection "
+           "direction";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
