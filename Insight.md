@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: rasterizer effect変更後のGPU surface cache再構築
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity`、静止画受入表OP-05。
+- **確認できた事実:** 既存GPU parity testは同じGlow設定でcache build／reuseとbypassの一致を確認するが、surface cache保持中にeffect parameterを変更した後のsignature更新や描画差分を確認していなかった。
+- **追加した確認:** cacheを構築してからGlow sigmaとgainを変更し、cache signature更新、pixel output変化、bypassとの完全一致、新設定でのcache reuseを検査するheadless testを追加する。
+- **価値または懸念:** effect revisionがcache keyへ伝わらず旧surfaceを再利用する回帰を検出する。Diligent headless deviceがない環境は既存suiteと同じくskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity` を実行し、設定変更時のsignature／画素変化とbypass parityを検証する。
+
 ## 2026-11-09: 連番切替後のcrop出力とthumbnail整合性
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail`、静止画受入表OP-03／IMG-02。
 - **確認できた事実:** 既存テストは連番の要求フレーム表示、cropのsource pixel選択、thumbnail境界をそれぞれ確認するが、非同期フレーム切替後にcrop出力とthumbnailの両方が新フレームへ更新されるケースはなかった。

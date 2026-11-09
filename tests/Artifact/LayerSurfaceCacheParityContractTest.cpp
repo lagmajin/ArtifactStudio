@@ -228,6 +228,83 @@ TEST(LayerSurfaceCacheParityContractTest,
 }
 
 TEST(LayerSurfaceCacheParityContractTest,
+     ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity)
+{
+    constexpr int width = 96;
+    constexpr int height = 96;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QImage source(48, 48, QImage::Format_RGBA8888);
+    source.fill(Qt::transparent);
+    for (int y = 14; y < 34; ++y) {
+        for (int x = 14; x < 34; ++x) {
+            source.setPixelColor(x, y, QColor(255, 205, 90, 255));
+        }
+    }
+
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(layer);
+    layer->setLayerName(QStringLiteral("Effect Revision Cache"));
+    layer->setFromQImage(source);
+    ASSERT_TRUE(layer->hasCurrentFrameBuffer());
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    auto glow = ArtifactCore::makeShared<Artifact::GlowEffect>();
+    glow->setBaseSigma(3.0f);
+    glow->setGlowGain(1.0f);
+    layer->addEffect(glow);
+
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> cache;
+    const QString cacheOwnerId = layer->id().toString();
+    const auto draw = [&](QHash<QString, Artifact::LayerSurfaceCacheEntry>* entries) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            layer.get(), &renderer, 1.0f, nullptr, entries, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage initialCached = draw(&cache);
+    ASSERT_FALSE(initialCached.isNull());
+    ASSERT_TRUE(cache.contains(cacheOwnerId));
+    const QString initialSignature = cache.value(cacheOwnerId).cacheSignature;
+    ASSERT_FALSE(initialSignature.isEmpty());
+    const QImage initialBypass = draw(nullptr);
+    ASSERT_FALSE(initialBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(initialCached, initialBypass));
+
+    glow->setBaseSigma(9.0f);
+    glow->setGlowGain(3.0f);
+    const QImage changedCached = draw(&cache);
+    ASSERT_FALSE(changedCached.isNull());
+    const QString changedSignature = cache.value(cacheOwnerId).cacheSignature;
+    EXPECT_NE(changedSignature, initialSignature)
+        << "changing rasterizer effect parameters must invalidate the cached surface";
+    EXPECT_FALSE(imagesMatchExactly(changedCached, initialCached))
+        << "the changed Glow parameters must affect the rendered pixels";
+
+    const QImage changedBypass = draw(nullptr);
+    ASSERT_FALSE(changedBypass.isNull());
+    EXPECT_FALSE(imagesMatchExactly(changedBypass, initialBypass));
+    EXPECT_TRUE(imagesMatchExactly(changedCached, changedBypass));
+
+    const QImage changedReuse = draw(&cache);
+    EXPECT_EQ(cache.value(cacheOwnerId).cacheSignature, changedSignature);
+    EXPECT_TRUE(imagesMatchExactly(changedReuse, changedBypass));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
      InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity)
 {
     constexpr int width = 64;
