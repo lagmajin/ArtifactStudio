@@ -5656,6 +5656,27 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     const auto aboveCutoffPixel = pixelAt(24, 16);
     EXPECT_GT(aboveCutoffPixel[0], aboveCutoffPixel[2] + 0.5f)
         << "alpha just above the cutoff should keep the front surface";
+
+    frontMaterial.opacityTexture = ArtifactCore::UniString{};
+    frontMaterial.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(texturePath.string()));
+    frontMaterial.baseColorAlpha = 1.0f;
+    frontMaterial.opacity = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorTextureCutoutPixel = pixelAt(8, 16);
+    const auto baseColorTextureOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(baseColorTextureCutoutPixel[2],
+              baseColorTextureCutoutPixel[0] + 0.5f)
+        << "zero base-color texture alpha should continue the ray to the rear";
+    EXPECT_GT(baseColorTextureOpaquePixel[0],
+              baseColorTextureOpaquePixel[2] + 0.5f)
+        << "full base-color texture alpha should keep the masked front surface";
 }
 
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
