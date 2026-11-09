@@ -1420,6 +1420,16 @@ TEST(StillImageLayerRoundTripTest,
     Artifact::ArtifactImageLayer layer;
     ASSERT_TRUE(layer.setImageSequence(
         QStringList{oldFirstPath, oldLatePath}, 0.0));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropWidth"), QVariant(256.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropHeight"), QVariant(256.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(true)));
     EXPECT_EQ(waitForSequenceFrame(layer, 0).pixelColor(31, 47), oldFirstColor);
 
     // Request a high-entropy frame from the old sequence and verify that it is
@@ -1433,7 +1443,14 @@ TEST(StillImageLayerRoundTripTest,
         QStringList{newFirstPath, newTargetPath}, 0.0));
     layer.goToFrame(1);
 
-    EXPECT_EQ(waitForSequenceFrame(layer, 1).pixelColor(31, 47), newTargetColor);
+    const QImage replacementFrame = waitForSequenceFrame(layer, 1);
+    EXPECT_EQ(replacementFrame.pixelColor(31, 47), newTargetColor);
+    EXPECT_EQ(replacementFrame.pixelColor(128, 128), newTargetColor);
+    EXPECT_EQ(replacementFrame.pixelColor(512, 512), QColor(0, 0, 0, 0));
+    const QImage replacementThumbnail = layer.getThumbnail(64, 64);
+    ASSERT_EQ(replacementThumbnail.size(), QSize(64, 64));
+    EXPECT_EQ(replacementThumbnail.pixelColor(1, 1), newTargetColor);
+    EXPECT_EQ(replacementThumbnail.pixelColor(32, 32), QColor(0, 0, 0, 0));
 
     // Drain delayed callbacks after the new frame has appeared: an old decode
     // must not overwrite the same frame index in the replacement sequence.
@@ -1444,7 +1461,12 @@ TEST(StillImageLayerRoundTripTest,
         QThread::msleep(2);
     }
     EXPECT_EQ(layer.sequenceCachedFrameIndex(), 1);
-    EXPECT_EQ(layer.toQImage().pixelColor(31, 47), newTargetColor);
+    const QImage settledFrame = layer.toQImage();
+    EXPECT_EQ(settledFrame.pixelColor(31, 47), newTargetColor);
+    EXPECT_EQ(settledFrame.pixelColor(512, 512), QColor(0, 0, 0, 0));
+    const QImage settledThumbnail = layer.getThumbnail(64, 64);
+    EXPECT_EQ(settledThumbnail.pixelColor(1, 1), newTargetColor);
+    EXPECT_EQ(settledThumbnail.pixelColor(32, 32), QColor(0, 0, 0, 0));
 }
 
 TEST(StillImageLayerRoundTripTest,
