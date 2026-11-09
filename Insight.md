@@ -4,6 +4,7 @@
 - **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `kAnyHitShaderSource`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の `SelectsMaskedShadowOpacityTexturePerMaterialSlot`。
 - **確認できた事実:** RTMaterial packing は `material.opacity` を `material.alpha.x` に格納し、`material.baseColorAlpha` は `material.baseColor.a` に格納する。shadow any-hit の alpha 積は `baseColor.a`、`alpha.x`（scalar opacity）、vertex alpha、baseColor texture alpha、opacity texture alphaを乗算しているため、scalar opacity の影レイ経路は実装済みだった。既存 shadow slot test は opacity texture のslot選択を確認するが、scalar opacity の slot 独立性は未確認。
 - **追加した確認:** slot shadow fixtureへ scalar opacity の低値／高値、および `baseColorAlpha * opacity` が cutoff をまたぐ組み合わせを両slotで反転する検証を追加した。単一shadow fixtureにも half-alpha base-color texture と scalar opacity の積が cutoff 直上／直下になる検証を追加した。
+- **追加した確認:** primary rayで既存のOPAQUE/MASK切替を確認済みだったため、shadow rayにも同じ透明opacity textureを使い、OPAQUEは遮蔽しMASKは透過する差を追加した。
 - **価値または懸念:** RT shadow shader の経路は実装上 primary mask と同じ scalar opacity を評価する。合成alpha、base-color texture、material slot選択の影響を影テストで回帰検出できる。
 - **次に確認すべきこと:** `MaskedOpacityTexturePassesShadowRay` と `SelectsMaskedShadowOpacityTexturePerMaterialSlot` を実行して追加したshadow応答を確認する。
 

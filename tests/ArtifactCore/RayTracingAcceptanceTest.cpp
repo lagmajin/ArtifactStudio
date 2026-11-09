@@ -5328,6 +5328,21 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     EXPECT_GT(transparentBlockerPixel[1], opaqueBlockerPixel[1] + 0.02f)
         << "a cutout blocker should not terminate the receiver's shadow ray";
 
+    blockerMaterial.alphaMode = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto opaqueModeBlockerPixel = pixelAt(24, 16);
+    EXPECT_NEAR(opaqueModeBlockerPixel[1], opaqueBlockerPixel[1], 0.02f)
+        << "opaque alpha mode should ignore transparent opacity texture in shadows";
+
+    blockerMaterial.alphaMode = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+
     blockerMaterial.alphaCutoff = 128.0f / 255.0f;
     blockerMaterial.opacityTexture = ArtifactCore::UniString(
         QString::fromStdString(cutoffEqualMapPath.string()));
