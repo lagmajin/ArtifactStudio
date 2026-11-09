@@ -5978,6 +5978,41 @@ TEST_F(RayTracingAcceptanceTest,
         << "masked mode on slot 0 should pass its transparent shadow";
     EXPECT_NEAR(rightOpaqueModeBlocked, rightSlotBlocked, 0.02f)
         << "opaque mode on slot 1 should ignore transparent shadow alpha";
+
+    slot0Material.alphaMode = slot1Material.alphaMode = 1;
+    slot0Material.opacityTexture = ArtifactCore::UniString();
+    slot1Material.opacityTexture = ArtifactCore::UniString();
+    slot0Material.baseColorAlpha = slot1Material.baseColorAlpha = 1.0f;
+    slot0Material.opacity = slot1Material.opacity = 0.45f;
+    slot0Material.alphaCutoff = 0.4f;
+    slot1Material.alphaCutoff = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftLowCutoffBlocked = traceReceiverGreen(-1.0f);
+    const float rightHighCutoffOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftLowCutoffBlocked, leftSlotBlocked, 0.02f)
+        << "slot 0's lower alpha cutoff should retain 0.45 opacity";
+    EXPECT_GT(rightHighCutoffOpen, rightSlotBlocked + 0.02f)
+        << "slot 1's higher alpha cutoff should pass 0.45 opacity";
+
+    slot0Material.alphaCutoff = 0.5f;
+    slot1Material.alphaCutoff = 0.4f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftHighCutoffOpen = traceReceiverGreen(-1.0f);
+    const float rightLowCutoffBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftHighCutoffOpen, leftSlotBlocked + 0.02f)
+        << "slot 0's higher alpha cutoff should pass 0.45 opacity";
+    EXPECT_NEAR(rightLowCutoffBlocked, rightSlotBlocked, 0.02f)
+        << "slot 1's lower alpha cutoff should retain 0.45 opacity";
 }
 
 TEST_F(RayTracingAcceptanceTest,
