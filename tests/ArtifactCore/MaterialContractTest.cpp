@@ -581,6 +581,115 @@ TEST(MaterialContractTest, CopyConstructionAndAssignmentOwnIndependentState)
     EXPECT_FLOAT_EQ(assigned.roughnessTextureUvTransform().offsetV, 0.6f);
 }
 
+TEST(MaterialContractTest, AdvancedPbrStateCopiesAcrossConstructionAndAssignment)
+{
+    Material source;
+    source.setThinFilm(520.0f, 2.1f);
+    source.setIOR(1.7f);
+    source.setTransmission(0.8f);
+    source.setThinWall(true);
+    source.setClearcoat(0.75f);
+    source.setClearcoatRoughness(0.35f);
+    source.setClearcoatIOR(1.8f);
+    source.setClearcoatNormalStrength(0.6f);
+    source.setClearcoatTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/coat.png")));
+    source.setClearcoatRoughnessTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/coat-roughness.png")));
+    source.setClearcoatNormalTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/coat-normal.png")));
+    source.setSheen(0.65f);
+    source.setSheenRoughness(0.25f);
+    source.setSheenTint(QColor(180, 120, 80));
+    source.setSheenColorTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/sheen-color.png")));
+    source.setSheenColorTextureUvTransform(
+        MaterialTextureUvTransform{2.0f, 0.5f, 35.0f, 0.1f, 0.2f, 1});
+    source.setSheenRoughnessTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/sheen-roughness.png")));
+    source.setSheenRoughnessTextureUvTransform(
+        MaterialTextureUvTransform{0.75f, 1.5f, -25.0f, -0.3f, 0.4f, 0});
+    source.setSubsurface(0.4f);
+    source.setSubsurfaceIOR(1.6f);
+    source.setSubsurfaceAnisotropy(-0.3f);
+    source.setSubsurfaceColor(QColor(210, 90, 60));
+    source.setSubsurfaceRadius(QVector3D(2.0f, 0.8f, 0.2f));
+    source.setNormalTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/normal.png")));
+    source.setOcclusionTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/occlusion.png")));
+    source.setOcclusionStrength(0.45f);
+    source.setEmissionTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/emission.png")));
+    source.setEmissionStrength(2.5f);
+    source.setOpacityTexture(
+        ArtifactCore::UniString(QStringLiteral("maps/opacity.png")));
+    source.setOpacity(0.7f);
+    source.setAlphaMode(MaterialAlphaMode::Masked);
+    source.setAlphaCutoff(0.42f);
+
+    Material copy(source);
+    source = Material{};
+
+    EXPECT_FLOAT_EQ(copy.thinFilmThickness(), 520.0f);
+    EXPECT_FLOAT_EQ(copy.thinFilmIOR(), 2.1f);
+    EXPECT_FLOAT_EQ(copy.ior(), 1.7f);
+    EXPECT_FLOAT_EQ(copy.transmission(), 0.8f);
+    EXPECT_TRUE(copy.thinWall());
+    EXPECT_FLOAT_EQ(copy.clearcoat(), 0.75f);
+    EXPECT_FLOAT_EQ(copy.clearcoatRoughness(), 0.35f);
+    EXPECT_FLOAT_EQ(copy.clearcoatIOR(), 1.8f);
+    EXPECT_FLOAT_EQ(copy.clearcoatNormalStrength(), 0.6f);
+    EXPECT_EQ(copy.clearcoatTexture().toQString(),
+              QStringLiteral("maps/coat.png"));
+    EXPECT_EQ(copy.clearcoatRoughnessTexture().toQString(),
+              QStringLiteral("maps/coat-roughness.png"));
+    EXPECT_EQ(copy.clearcoatNormalTexture().toQString(),
+              QStringLiteral("maps/coat-normal.png"));
+    EXPECT_FLOAT_EQ(copy.sheen(), 0.65f);
+    EXPECT_FLOAT_EQ(copy.sheenRoughness(), 0.25f);
+    EXPECT_EQ(copy.sheenTint(), QColor(180, 120, 80));
+    EXPECT_EQ(copy.sheenColorTexture().toQString(),
+              QStringLiteral("maps/sheen-color.png"));
+    EXPECT_FLOAT_EQ(copy.sheenColorTextureUvTransform().scaleU, 2.0f);
+    EXPECT_EQ(copy.sheenColorTextureUvTransform().uvSet, 1);
+    EXPECT_EQ(copy.sheenRoughnessTexture().toQString(),
+              QStringLiteral("maps/sheen-roughness.png"));
+    EXPECT_FLOAT_EQ(copy.sheenRoughnessTextureUvTransform().rotationDegrees,
+                    -25.0f);
+    EXPECT_EQ(copy.sheenRoughnessTextureUvTransform().uvSet, 0);
+    EXPECT_FLOAT_EQ(copy.subsurface(), 0.4f);
+    EXPECT_FLOAT_EQ(copy.subsurfaceIOR(), 1.6f);
+    EXPECT_FLOAT_EQ(copy.subsurfaceAnisotropy(), -0.3f);
+    EXPECT_EQ(copy.subsurfaceColor(), QColor(210, 90, 60));
+    EXPECT_EQ(copy.subsurfaceRadius(), QVector3D(2.0f, 0.8f, 0.2f));
+    EXPECT_EQ(copy.normalTexture().toQString(), QStringLiteral("maps/normal.png"));
+    EXPECT_EQ(copy.occlusionTexture().toQString(),
+              QStringLiteral("maps/occlusion.png"));
+    EXPECT_FLOAT_EQ(copy.occlusionStrength(), 0.45f);
+    EXPECT_EQ(copy.emissionTexture().toQString(),
+              QStringLiteral("maps/emission.png"));
+    EXPECT_FLOAT_EQ(copy.emissionStrength(), 2.5f);
+    EXPECT_EQ(copy.opacityTexture().toQString(),
+              QStringLiteral("maps/opacity.png"));
+    EXPECT_FLOAT_EQ(copy.opacity(), 0.7f);
+    EXPECT_EQ(copy.alphaMode(), MaterialAlphaMode::Masked);
+    EXPECT_FLOAT_EQ(copy.alphaCutoff(), 0.42f);
+
+    Material assigned;
+    assigned = copy;
+    copy = Material{};
+    EXPECT_EQ(assigned.clearcoatTexture().toQString(),
+              QStringLiteral("maps/coat.png"));
+    EXPECT_FLOAT_EQ(assigned.sheen(), 0.65f);
+    EXPECT_EQ(assigned.sheenColorTexture().toQString(),
+              QStringLiteral("maps/sheen-color.png"));
+    EXPECT_FLOAT_EQ(assigned.subsurface(), 0.4f);
+    EXPECT_EQ(assigned.subsurfaceRadius(), QVector3D(2.0f, 0.8f, 0.2f));
+    EXPECT_EQ(assigned.opacityTexture().toQString(),
+              QStringLiteral("maps/opacity.png"));
+}
+
 TEST(MaterialContractTest, MoveTransfersStateAndMovedFromObjectCanBeReassigned)
 {
     Material source;
