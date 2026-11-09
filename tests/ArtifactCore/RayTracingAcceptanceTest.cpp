@@ -1661,6 +1661,65 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     EXPECT_GT(rightSubsurfaceResponse, 0.001f)
         << "slot 1 subsurface should change its diffuse response";
 
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicTexture = ArtifactCore::UniString{};
+    leftMaterial.roughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.normalTexture = ArtifactCore::UniString{};
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.specular = 0.0f;
+    leftMaterial.roughness = 1.0f;
+    leftMaterial.anisotropy = 0.0f;
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    leftMaterial.transmission = 0.0f;
+    leftMaterial.subsurface = 0.0f;
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString{};
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> whiteBaseColorPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(whiteBaseColorPixels));
+    leftMaterial.baseColor[1] = leftMaterial.baseColor[2] = 0.0f;
+    std::array<std::array<float, 4>, 2> redLeftBaseColorPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(redLeftBaseColorPixels));
+    float leftBaseColorResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftBaseColorResponse = std::max(leftBaseColorResponse,
+            std::fabs(redLeftBaseColorPixels[0][channel] -
+                      whiteBaseColorPixels[0][channel]));
+        EXPECT_NEAR(redLeftBaseColorPixels[1][channel],
+                    whiteBaseColorPixels[1][channel], 0.01f)
+            << "changing slot 0 base color should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftBaseColorResponse, 0.001f)
+        << "slot 0 base color should change its diffuse response";
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    rightMaterial.baseColor[0] = rightMaterial.baseColor[1] = 0.0f;
+    std::array<std::array<float, 4>, 2> blueRightBaseColorPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(blueRightBaseColorPixels));
+    float rightBaseColorResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(blueRightBaseColorPixels[0][channel],
+                    whiteBaseColorPixels[0][channel], 0.01f)
+            << "changing slot 1 base color should preserve slot 0, channel "
+            << channel;
+        rightBaseColorResponse = std::max(rightBaseColorResponse,
+            std::fabs(blueRightBaseColorPixels[1][channel] -
+                      whiteBaseColorPixels[1][channel]));
+    }
+    EXPECT_GT(rightBaseColorResponse, 0.001f)
+        << "slot 1 base color should change its diffuse response";
+
     leftMaterial.subsurface = 0.0f;
     leftMaterial.specular = 0.0f;
     leftMaterial.specularTint[0] = leftMaterial.specularTint[1] =
