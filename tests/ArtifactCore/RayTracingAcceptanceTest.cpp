@@ -592,6 +592,9 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
          0.0f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.45f, 0.9f, 0.0f};
     constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 3, 4, 5};
     constexpr std::array<std::uint32_t, 2> materialIndices{0, 1};
+    constexpr std::array<float, 12> slotUvs{
+        0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f,
+        0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -605,7 +608,7 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("material-slot-selection"), vertices.data(), 6,
-        indices.data(), 6, nullptr, materialIndices.data()));
+        indices.data(), 6, nullptr, materialIndices.data(), slotUvs.data()));
 
     ArtifactCore::RTPbrMaterial leftMaterial;
     leftMaterial.baseColor[0] = 0.0f;
@@ -811,6 +814,70 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << "changing slot 1 metallic data should preserve slot 0, channel "
             << channel;
     }
+
+    const auto flatNormalPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-normal-flat.png"));
+    const auto tiltedNormalPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-normal-tilted.png"));
+    QImage flatNormal(2, 2, QImage::Format_RGBA8888);
+    QImage tiltedNormal(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(flatNormal.isNull());
+    ASSERT_FALSE(tiltedNormal.isNull());
+    flatNormal.fill(QColor(128, 128, 255, 255));
+    tiltedNormal.fill(QColor(204, 128, 230, 255));
+    ASSERT_TRUE(flatNormal.save(flatNormalPath, "PNG"));
+    ASSERT_TRUE(tiltedNormal.save(tiltedNormalPath, "PNG"));
+
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallic = rightMaterial.metallic = 0.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 0.5f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.normalTexture = ArtifactCore::UniString(flatNormalPath);
+    leftMaterial.normalStrength = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto flatLeftPixel = pixelAt(8, 16);
+    const auto flatRightPixel = pixelAt(24, 16);
+
+    leftMaterial.normalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tiltedLeftPixel = pixelAt(8, 16);
+    const auto unchangedFlatRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(tiltedLeftPixel[0] - flatLeftPixel[0]), 0.01f)
+        << "slot 0 normal map should change its shading";
+    EXPECT_NEAR(unchangedFlatRightPixel[0], flatRightPixel[0], 0.01f)
+        << "changing slot 0 normal map should preserve slot 1 shading";
+
+    leftMaterial.normalTexture = ArtifactCore::UniString(flatNormalPath);
+    rightMaterial.normalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedFlatLeftPixel = pixelAt(8, 16);
+    const auto tiltedRightPixel = pixelAt(24, 16);
+    EXPECT_NEAR(unchangedFlatLeftPixel[0], flatLeftPixel[0], 0.01f)
+        << "changing slot 1 normal map should preserve slot 0 shading";
+    EXPECT_GT(std::fabs(tiltedRightPixel[0] - flatRightPixel[0]), 0.01f)
+        << "slot 1 normal map should change its shading";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
