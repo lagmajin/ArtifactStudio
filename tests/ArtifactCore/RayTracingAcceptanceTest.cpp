@@ -1147,6 +1147,56 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    rightMaterial.roughnessTextureUvSet = 0;
+    rightMaterial.metallicTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightMetallicOffsetPixel = pixelAt(24, 16);
+    const auto unchangedMetallicOffsetLeft = pixelAt(8, 16);
+    const float rightMetallicOffsetDifference = std::max(
+        std::fabs(rightMetallicOffsetPixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightMetallicOffsetPixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightMetallicOffsetPixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightMetallicOffsetDifference, 0.001f)
+        << "slot 1 metallic U offset should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedMetallicOffsetLeft[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 metallic U offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.metallicTextureUvOffsetU = 0.0f;
+    rightMaterial.roughnessTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightRoughnessOffsetPixel = pixelAt(24, 16);
+    const auto unchangedRoughnessOffsetLeft = pixelAt(8, 16);
+    const float rightRoughnessOffsetDifference = std::max(
+        std::fabs(rightRoughnessOffsetPixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightRoughnessOffsetPixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightRoughnessOffsetPixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightRoughnessOffsetDifference, 0.001f)
+        << "slot 1 roughness U offset should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughnessOffsetLeft[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 roughness U offset should preserve slot 0, channel "
+            << channel;
+    }
+
     const auto smoothRoughnessPath = slotTextureDirectory.filePath(
         QStringLiteral("slot-roughness-smooth.png"));
     const auto roughRoughnessPath = slotTextureDirectory.filePath(
