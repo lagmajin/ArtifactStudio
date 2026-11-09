@@ -7508,9 +7508,10 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
 
     const QVector3D neutralSubsurfaceRadius(1.0f, 1.0f, 1.0f);
     const auto captureRasterSubsurface = [&](float weight, const QColor& color,
-                                             const QVector3D& radius) {
+                                             const QVector3D& radius,
+                                             float ior = 1.4f) {
         renderer.setSubsurfaceFactors(weight, color, radius,
-                                      1.4f, 0.0f);
+                                      ior, 0.0f);
         return renderCenterPixel();
     };
     const QColor whiteSubsurfaceColor(255, 255, 255);
@@ -7589,6 +7590,43 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
             << "non-finite Raster subsurface radius should use its channel "
             << "default, channel " << channel;
     }
+    const auto minimumIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.0f);
+    const auto belowMinimumIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 0.5f);
+    const auto maximumIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 2.0f);
+    const auto aboveMaximumIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 3.0f);
+    const auto nonFiniteIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius,
+        std::numeric_limits<float>::quiet_NaN());
+    const auto defaultIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f);
+    float minimumIorEffect = 0.0f;
+    float maximumIorEffect = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumIorResponse[channel],
+                    minimumIorResponse[channel], 1.0e-5f)
+            << "Raster subsurface IOR below one should clamp to one, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumIorResponse[channel],
+                    maximumIorResponse[channel], 1.0e-5f)
+            << "Raster subsurface IOR above two should clamp to two, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteIorResponse[channel],
+                    defaultIorResponse[channel], 1.0e-5f)
+            << "non-finite Raster subsurface IOR should use 1.4, channel "
+            << channel;
+        minimumIorEffect = std::max(minimumIorEffect,
+            std::fabs(minimumIorResponse[channel] - maximumIorResponse[channel]));
+        maximumIorEffect = std::max(maximumIorEffect,
+            std::fabs(maximumIorResponse[channel] - defaultIorResponse[channel]));
+    }
+    EXPECT_GT(minimumIorEffect, 0.001f)
+        << "Raster subsurface IOR should change direct diffuse response";
+    EXPECT_GT(maximumIorEffect, 0.001f)
+        << "Raster subsurface IOR should respond through its supported range";
 }
 
 TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
