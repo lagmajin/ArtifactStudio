@@ -1989,8 +1989,11 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
         indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
         mirroredUvs1.data()));
 
-    const auto normalPath = std::filesystem::temp_directory_path() /
-                            "artifact-rt-normal-map.png";
+    QTemporaryDir normalMapDirectory;
+    ASSERT_TRUE(normalMapDirectory.isValid());
+    const auto normalPath = std::filesystem::path(
+        normalMapDirectory.filePath(QStringLiteral("normal-map.png"))
+            .toStdString());
     QImage normalImage(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(normalImage.isNull());
     for (int y = 0; y < normalImage.height(); ++y) {
@@ -2005,6 +2008,25 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
         }
     }
     ASSERT_TRUE(normalImage.save(QString::fromStdString(normalPath.string()), "PNG"));
+
+    const auto moderateNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(QStringLiteral("normal-map-moderate.png"))
+            .toStdString());
+    QImage moderateNormalImage(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(moderateNormalImage.isNull());
+    for (int y = 0; y < moderateNormalImage.height(); ++y) {
+        auto* row = moderateNormalImage.scanLine(y);
+        for (int x = 0; x < moderateNormalImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool tilted = x >= 4;
+            pixel[0] = tilted ? 204 : 128;
+            pixel[1] = 128;
+            pixel[2] = tilted ? 230 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(moderateNormalImage.save(
+        QString::fromStdString(moderateNormalPath.string()), "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
@@ -2057,8 +2079,42 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
         << "UV1 mirroring should select the tilted normal texels on the left";
     EXPECT_NEAR(uv1Right[0], flatRight[0], 0.03f)
         << "UV1 mirroring should select the flat normal texels on the right";
-    std::error_code ignored;
-    std::filesystem::remove(normalPath, ignored);
+
+    material.normalUvSet = 0;
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    material.normalStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto fullStrengthRight = pixelAt(24, 16);
+
+    material.normalStrength = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfStrengthRight = pixelAt(24, 16);
+
+    material.normalStrength = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroStrengthRight = pixelAt(24, 16);
+    const float fullStrengthDrop = flatRight[0] - fullStrengthRight[0];
+    const float halfStrengthDrop = flatRight[0] - halfStrengthRight[0];
+    EXPECT_GT(fullStrengthDrop, 0.02f);
+    EXPECT_GT(halfStrengthDrop, 0.005f);
+    EXPECT_LT(halfStrengthDrop, fullStrengthDrop - 0.005f);
+    EXPECT_NEAR(zeroStrengthRight[0], flatRight[0], 0.01f);
 }
 
 TEST_F(RayTracingAcceptanceTest,
