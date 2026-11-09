@@ -5751,11 +5751,28 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     const auto belowCutoffMapPath = std::filesystem::path(
         shadowOpacityDirectory.filePath(QStringLiteral("below-cutoff.png"))
             .toStdString());
+    const auto transparentBaseColorMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(
+            QStringLiteral("base-color-transparent-alpha.png"))
+            .toStdString());
+    const auto opaqueBaseColorMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(
+            QStringLiteral("base-color-opaque-alpha.png"))
+            .toStdString());
     for (const auto& item : std::array<std::pair<std::filesystem::path, QColor>, 4>{
              std::pair{whiteMapPath, QColor(255, 255, 255, 255)},
              std::pair{transparentMapPath, QColor(0, 0, 0, 0)},
              std::pair{cutoffEqualMapPath, QColor(255, 255, 255, 128)},
              std::pair{belowCutoffMapPath, QColor(255, 255, 255, 127)}}) {
+        QImage image(2, 2, QImage::Format_RGBA8888);
+        ASSERT_FALSE(image.isNull());
+        image.fill(item.second);
+        ASSERT_TRUE(image.save(QString::fromStdString(item.first.string()), "PNG"));
+    }
+    for (const auto& item :
+         std::array<std::pair<std::filesystem::path, QColor>, 2>{
+             std::pair{transparentBaseColorMapPath, QColor(255, 255, 255, 0)},
+             std::pair{opaqueBaseColorMapPath, QColor(0, 0, 0, 255)}}) {
         QImage image(2, 2, QImage::Format_RGBA8888);
         ASSERT_FALSE(image.isNull());
         image.fill(item.second);
@@ -5945,7 +5962,7 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
         ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
 
     blockerMaterial.baseColorTexture = ArtifactCore::UniString(
-        QString::fromStdString(transparentMapPath.string()));
+        QString::fromStdString(transparentBaseColorMapPath.string()));
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -5961,7 +5978,7 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     }
 
     blockerMaterial.baseColorTexture = ArtifactCore::UniString(
-        QString::fromStdString(whiteMapPath.string()));
+        QString::fromStdString(opaqueBaseColorMapPath.string()));
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
