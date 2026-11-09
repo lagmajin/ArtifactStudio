@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 16-bit RGBA layerへの異解像度fractional mask適用
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer`、静止画受入表OP-04／IMG-03。
+- **確認できた事実:** 既存Layer testsは8-bit alphaへのmask opacity適用、またはopaque sourceへの異解像度mask補間を別ケースで確認する。16-bit source alphaにfractional maskを異解像度から補間し、RGBとalpha積算をfloat bufferで併せて検査するケースはなかった。
+- **追加した確認:** 16-bit RGBA PNG 3x1に対して2x1の0.25/0.75 maskをopacity 0.4で適用し、0.25/0.5/0.75の補間値、RGB不変、元alphaとの合成値、QImage／thumbnail一致を確認する。
+- **価値または懸念:** decode精度、mask resampling、straight RGB保持、source alphaの累積が連なる境界をfloat精度で検査する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: ICC fallback後のQImage／thumbnail画素一致
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::EmbeddedIccProfileWithoutConversionRecordsFallback`、静止画受入マトリクスのThumbnail／Qt境界。
 - **確認できた事実:** 既存ICC testはfallback diagnosticを確認するが、working-space済み`currentFrameBuffer()`から`toQImage()`とthumbnailへ渡る色／alpha境界を比較していない。

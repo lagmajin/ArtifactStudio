@@ -4311,6 +4311,59 @@ TEST(StillImageLayerRoundTripTest, SegmentationMaskInterpolatesAlphaAndKeepsRgb)
 }
 
 TEST(StillImageLayerRoundTripTest,
+     FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    QImage sourceImage(3, 1, QImage::Format_RGBA64);
+    sourceImage.setPixelColor(
+        0, 0, QColor::fromRgba64(0x1234, 0x5678, 0x9ABC, 0x4000));
+    sourceImage.setPixelColor(
+        1, 0, QColor::fromRgba64(0x2345, 0x6789, 0xABCD, 0x8000));
+    sourceImage.setPixelColor(
+        2, 0, QColor::fromRgba64(0x3456, 0x789A, 0xBCDE, 0xC000));
+    const QString imagePath = dir.filePath(QStringLiteral("mask-alpha16.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(3, 1)));
+    std::array<float, 12> originalPixels{};
+    const float* original = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(original, nullptr);
+    for (std::size_t index = 0; index < originalPixels.size(); ++index) {
+        originalPixels[index] = original[index];
+    }
+
+    ArtifactCore::DepthMap mask;
+    mask.resize(2, 1);
+    mask.setValue(0, 0, 0.25f);
+    mask.setValue(1, 0, 0.75f);
+    constexpr float maskOpacity = 0.4f;
+    ASSERT_TRUE(layer.applySegmentationMask(mask, maskOpacity));
+
+    const float* result = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    const std::array<float, 3> resampledMask{0.25f, 0.5f, 0.75f};
+    for (std::size_t pixel = 0; pixel < resampledMask.size(); ++pixel) {
+        const std::size_t offset = pixel * 4u;
+        EXPECT_FLOAT_EQ(result[offset], originalPixels[offset]);
+        EXPECT_FLOAT_EQ(result[offset + 1u], originalPixels[offset + 1u]);
+        EXPECT_FLOAT_EQ(result[offset + 2u], originalPixels[offset + 2u]);
+        const float alphaMultiplier =
+            (1.0f - maskOpacity) + maskOpacity * resampledMask[pixel];
+        EXPECT_NEAR(result[offset + 3u],
+                    originalPixels[offset + 3u] * alphaMultiplier, 1e-6f);
+    }
+
+    const QImage converted = layer.toQImage();
+    ASSERT_EQ(converted.size(), QSize(3, 1));
+    EXPECT_EQ(layer.getThumbnail(3, 1), converted);
+}
+
+TEST(StillImageLayerRoundTripTest,
      SegmentationMaskResamplesDifferentDimensionsBilinearly)
 {
     QImage sourceImage(3, 1, QImage::Format_RGBA8888);
