@@ -5398,7 +5398,7 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
         for (int x = 0; x < opacityImage.width(); ++x) {
             auto* pixel = row + x * 4;
             const uchar value = x < 4 ? 0 : 255;
-            pixel[0] = pixel[1] = pixel[2] = value;
+            pixel[0] = pixel[1] = pixel[2] = 255 - value;
             pixel[3] = value;
         }
     }
