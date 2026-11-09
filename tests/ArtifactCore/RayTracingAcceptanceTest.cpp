@@ -3958,6 +3958,51 @@ TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
             << "sheen roughness scalar should multiply texture alpha, channel "
             << channel;
     }
+
+    const QString whiteSheenColorPath = textureDirectory.filePath(
+        QStringLiteral("sheen-color-white.png"));
+    const QString halfLinearSheenColorPath = textureDirectory.filePath(
+        QStringLiteral("sheen-color-half-linear.png"));
+    QImage whiteSheenColor(2, 2, QImage::Format_RGBA8888);
+    QImage halfLinearSheenColor(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(whiteSheenColor.isNull());
+    ASSERT_FALSE(halfLinearSheenColor.isNull());
+    whiteSheenColor.fill(QColor(255, 255, 255, 255));
+    halfLinearSheenColor.fill(QColor(188, 188, 188, 255));
+    ASSERT_TRUE(whiteSheenColor.save(whiteSheenColorPath, "PNG"));
+    ASSERT_TRUE(halfLinearSheenColor.save(halfLinearSheenColorPath, "PNG"));
+    material.sheenRoughnessTexture = ArtifactCore::UniString();
+    material.sheenRoughness = 0.5f;
+    material.sheenColorTexture = ArtifactCore::UniString(whiteSheenColorPath);
+    material.sheenTint[0] = material.sheenTint[1] =
+        material.sheenTint[2] = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfTintWhiteTexture = pixelAt(16, 16);
+
+    material.sheenColorTexture =
+        ArtifactCore::UniString(halfLinearSheenColorPath);
+    material.sheenTint[0] = material.sheenTint[1] =
+        material.sheenTint[2] = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfLinearTextureWhiteTint = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfLinearTextureWhiteTint[channel],
+                    halfTintWhiteTexture[channel], 0.025f)
+            << "sheen tint should multiply the linearized color texture, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
