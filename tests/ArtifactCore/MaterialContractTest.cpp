@@ -37,6 +37,49 @@ TEST(MaterialContractTest, StudioPresetsKeepTheirPbrCharacter)
     EXPECT_FLOAT_EQ(glass.metallic(), 0.0f);
     EXPECT_FLOAT_EQ(glass.roughness(), 0.08f);
     EXPECT_FLOAT_EQ(glass.transmission(), 0.82f);
+
+    EXPECT_EQ(matte.baseColor(), QColor(180, 180, 180));
+    EXPECT_FLOAT_EQ(matte.specular(), 0.35f);
+    EXPECT_FLOAT_EQ(matte.transmission(), 0.0f);
+    EXPECT_FLOAT_EQ(matte.ior(), 1.45f);
+    EXPECT_EQ(metal.baseColor(), QColor(170, 180, 195));
+    EXPECT_FLOAT_EQ(metal.specular(), 0.5f);
+    EXPECT_FLOAT_EQ(metal.transmission(), 0.0f);
+    EXPECT_FLOAT_EQ(metal.ior(), 1.45f);
+    EXPECT_EQ(plastic.baseColor(), QColor(210, 220, 235));
+    EXPECT_FLOAT_EQ(plastic.specular(), 0.5f);
+    EXPECT_FLOAT_EQ(plastic.transmission(), 0.0f);
+    EXPECT_FLOAT_EQ(plastic.ior(), 1.46f);
+    EXPECT_EQ(glass.baseColor(), QColor(225, 240, 255));
+    EXPECT_FLOAT_EQ(glass.specular(), 0.5f);
+    EXPECT_FLOAT_EQ(glass.ior(), 1.5f);
+}
+
+TEST(MaterialContractTest, LegacyFactoriesPreserveColorAndEmissionInputs)
+{
+    const QColor metalColor(90, 120, 170);
+    const QColor plasticColor(220, 140, 60);
+    const QColor glassColor(180, 225, 245);
+    const QColor emissionColor(255, 80, 20);
+    const Material metal = Material::makeMetal(metalColor);
+    const Material plastic = Material::makePlastic(plasticColor);
+    const Material glass = Material::makeGlass(glassColor);
+    const Material emissive = Material::makeEmissive(emissionColor, 3.5f);
+
+    EXPECT_EQ(metal.baseColor(), metalColor);
+    EXPECT_FLOAT_EQ(metal.metallic(), 1.0f);
+    EXPECT_FLOAT_EQ(metal.roughness(), 0.2f);
+    EXPECT_EQ(plastic.baseColor(), plasticColor);
+    EXPECT_FLOAT_EQ(plastic.metallic(), 0.0f);
+    EXPECT_FLOAT_EQ(plastic.roughness(), 0.4f);
+    EXPECT_EQ(glass.baseColor(), glassColor);
+    EXPECT_FLOAT_EQ(glass.metallic(), 0.0f);
+    EXPECT_FLOAT_EQ(glass.roughness(), 0.0f);
+    EXPECT_FLOAT_EQ(glass.opacity(), 0.2f);
+    EXPECT_EQ(emissive.baseColor(), QColor(0, 0, 0));
+    EXPECT_EQ(emissive.emissionColor(), emissionColor);
+    EXPECT_FLOAT_EQ(emissive.emissionStrength(), 3.5f);
+    EXPECT_FLOAT_EQ(emissive.roughness(), 1.0f);
 }
 
 TEST(MaterialContractTest, PbrScalarsClampOutOfRangeAndNonFiniteInputs)
