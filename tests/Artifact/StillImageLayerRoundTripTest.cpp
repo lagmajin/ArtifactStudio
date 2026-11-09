@@ -3172,6 +3172,53 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString imagePath = dir.filePath(QStringLiteral("rgb-depth.exr"));
+    OIIO::ImageSpec spec(1, 1, 4, OIIO::TypeDesc::FLOAT);
+    spec.channelnames = {"R", "G", "B", "Depth"};
+    OIIO::ImageBuf source(spec);
+    const std::array<float, 4> pixel{0.25f, 0.5f, 0.75f, 0.0f};
+    ASSERT_TRUE(source.set_pixels(OIIO::ROI::All(), OIIO::TypeDesc::FLOAT,
+                                  pixel.data()));
+    ASSERT_TRUE(source.write(imagePath.toUtf8().constData()));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(1, 1)));
+
+    const float* rgba = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(rgba, nullptr);
+    EXPECT_NEAR(rgba[0], 0.25f, 1e-6f);
+    EXPECT_NEAR(rgba[1], 0.5f, 1e-6f);
+    EXPECT_NEAR(rgba[2], 0.75f, 1e-6f);
+    EXPECT_FLOAT_EQ(rgba[3], 1.0f);
+
+    const QJsonObject metadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("channelCount")).toInt(), 4);
+    EXPECT_EQ(metadata.value(QStringLiteral("alphaChannel")).toInt(), -1);
+
+    const auto events = ArtifactCore::FallbackTracker::instance()
+                            ->getEventsByCategory(
+                                ArtifactCore::FallbackCategory::Image);
+    bool foundAmbiguousSemantics = false;
+    for (const auto& event : events) {
+        if (event.originalId == imagePath &&
+            event.resolvedId == QStringLiteral("ambiguous-channel-semantics")) {
+            foundAmbiguousSemantics = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundAmbiguousSemantics)
+        << "A four-channel image without declared alpha must record ambiguous semantics";
+}
+
+TEST(StillImageLayerRoundTripTest,
      EmbeddedIccProfileWithoutConversionRecordsFallback)
 {
     QTemporaryDir dir;

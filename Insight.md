@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 未知4ch EXRのopaque fallbackと診断
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics`、静止画受入表IMG-10、制作準備文書のOIIO alpha channel semantics契約。
+- **確認できた事実:** 契約はOIIO alpha metadataがない4ch素材の第4chをalphaと見なさずopaque alphaを補完し、`ambiguous-channel-semantics`を記録するとしている。CMYKのK channelは標準CMYK変換、未知の4ch構成は診断付きfallbackで扱う。
+- **追加した確認:** R/G/B/Depth channel名のfloat EXRで4ch目を0にし、RGB値保持、alpha=1、alpha未宣言metadata、Image categoryのfallback eventを検査する。
+- **価値または懸念:** RGB+AOV等をRGBAと誤認してDepth/ID値を透明度へ流用する回帰を検出する。イベント登録のruntime動作はテスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: 標準CMYKのK channelとopaque alpha
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha`、静止画受入表IMG-10、制作準備文書のStandard CMYK decode契約。
 - **確認できた事実:** 契約はC/M/Y/K channel名を標準CMYKとして検出しRGB変換した後にopaque alphaを設定するが、受入表の実素材decodeは未実行であり、現在のLayer testsにもCMYK fixtureがない。
