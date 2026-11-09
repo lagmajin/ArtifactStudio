@@ -8127,6 +8127,37 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                         geometricCoatNormalPixels[1][0]), 0.01f)
         << "full clearcoat-normal strength should perturb the geometric normal";
 
+    QImage greenPerturbedClearcoatNormal = moderateNormalImage;
+    for (int y = 0; y < greenPerturbedClearcoatNormal.height(); ++y) {
+        auto* row = greenPerturbedClearcoatNormal.scanLine(y);
+        for (int x = greenPerturbedClearcoatNormal.width() / 2;
+             x < greenPerturbedClearcoatNormal.width(); ++x) {
+            row[x * 4 + 1] = 204;
+        }
+    }
+    const auto greenPerturbedClearcoatNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(
+            QStringLiteral("clearcoat-normal-green-perturbed.png"))
+            .toStdString());
+    ASSERT_TRUE(greenPerturbedClearcoatNormal.save(
+        QString::fromStdString(greenPerturbedClearcoatNormalPath.string()),
+        "PNG"));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(greenPerturbedClearcoatNormalPath.string()));
+    const auto greenPerturbedClearcoatPixels =
+        captureClearcoatNormalStrength(1.0f);
+    const auto& greenPerturbedClearcoatRight =
+        greenPerturbedClearcoatPixels[1];
+    const float clearcoatNormalGreenResponse = std::max(
+        std::fabs(greenPerturbedClearcoatRight[0] - clearcoatNormalUv0Right[0]),
+        std::max(
+            std::fabs(greenPerturbedClearcoatRight[1] - clearcoatNormalUv0Right[1]),
+            std::fabs(greenPerturbedClearcoatRight[2] - clearcoatNormalUv0Right[2])));
+    EXPECT_GT(clearcoatNormalGreenResponse, 0.001f)
+        << "clearcoat-normal green should contribute to coat tangent-space shading";
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+
     const auto zeroClearcoatNormalStrength =
         captureClearcoatNormalStrength(0.0f);
     const auto halfClearcoatNormalStrength =
