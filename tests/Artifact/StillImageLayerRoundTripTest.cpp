@@ -1280,7 +1280,6 @@ TEST(StillImageLayerRoundTripTest,
 
     const QSize frameSize(2048, 2048);
     const QColor oldFirstColor(25, 65, 105, 255);
-    const QColor oldLateColor(205, 45, 75, 255);
     const QColor newFirstColor(45, 155, 85, 255);
     const QColor newTargetColor(225, 195, 35, 255);
     const QString oldFirstPath = dir.filePath(QStringLiteral("old-0001.png"));
@@ -1291,8 +1290,19 @@ TEST(StillImageLayerRoundTripTest,
     QImage frame(frameSize, QImage::Format_RGBA8888);
     frame.fill(oldFirstColor);
     ASSERT_TRUE(frame.save(oldFirstPath, "PNG"));
-    frame.fill(oldLateColor);
-    ASSERT_TRUE(frame.save(oldLatePath, "PNG"));
+    QImage oldLateFrame(frameSize, QImage::Format_RGBA8888);
+    for (int y = 0; y < oldLateFrame.height(); ++y) {
+        uchar* row = oldLateFrame.scanLine(y);
+        for (int x = 0; x < oldLateFrame.width(); ++x) {
+            const auto value = static_cast<uchar>(
+                (x * 73u + y * 151u + (x * y) % 251u) & 0xffu);
+            row[x * 4 + 0] = value;
+            row[x * 4 + 1] = static_cast<uchar>(value ^ 0x5au);
+            row[x * 4 + 2] = static_cast<uchar>(value ^ 0xa5u);
+            row[x * 4 + 3] = 255;
+        }
+    }
+    ASSERT_TRUE(oldLateFrame.save(oldLatePath, "PNG"));
     frame.fill(newFirstColor);
     ASSERT_TRUE(frame.save(newFirstPath, "PNG"));
     frame.fill(newTargetColor);
@@ -1303,11 +1313,13 @@ TEST(StillImageLayerRoundTripTest,
         QStringList{oldFirstPath, oldLatePath}, 0.0));
     EXPECT_EQ(waitForSequenceFrame(layer, 0).pixelColor(31, 47), oldFirstColor);
 
-    // Request a large frame from the old sequence, then replace its source
-    // list before that asynchronous request is guaranteed to have completed.
+    // Request a high-entropy frame from the old sequence and verify that it is
+    // still pending before replacing the source list.
     layer.goToFrame(1);
     QCoreApplication::processEvents();
     QThread::msleep(1);
+    ASSERT_NE(layer.sequenceCachedFrameIndex(), 1)
+        << "the old frame decode must still be pending at the replacement point";
     ASSERT_TRUE(layer.setImageSequence(
         QStringList{newFirstPath, newTargetPath}, 0.0));
     layer.goToFrame(1);

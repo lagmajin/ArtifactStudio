@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 連番差替えテストでstale decode競合を確認
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion`、連番再生受入。
+- **確認できた事実:** 既存ケースは大きい旧フレームを要求してから1ms待ってsequenceを差し替えるが、差し替え時点で旧decodeが未完了だったことをassertしていなかった。
+- **追加した確認:** 旧対象フレームを高エントロピー画像にし、差し替え直前のcached frame indexが対象になっていないことをassertしたうえで、新sequenceの同じindexへ到着する遅延completionが画素を上書きしないことを既存settle確認で検査する。
+- **価値または懸念:** testが意図するstale async completionの競合条件を実際に通ったことを証明する。fixtureは2048x2048 RGBAでcold test上のdecode負荷が増える。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion` を実行し、差替え時にpending assertionと最終pixel assertionが成立することを確認する。
+
 ## 2026-11-09: 既存ImageLayerへのJSON復元時のsource切替
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity`、静止画保存復元契約。
 - **確認できた事実:** source identityのJSON復元テストは新しいImageLayerへの復元を確認するが、source Aを読込済みの既存instanceへsource BのJSONを適用し、Aの参照を解放してBだけを維持するケースはなかった。制作準備文書は復元時に旧sourceを再decodeしないとする。
