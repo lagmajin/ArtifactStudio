@@ -4617,6 +4617,27 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
         ArtifactCore::UniString("box-object"), nonFiniteMaterial));
     EXPECT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), boxPbrMaterial));
+
+    std::array<ArtifactCore::RTSceneLight, 9> ambientLights{};
+    for (auto& light : ambientLights) {
+        light.positionType[3] =
+            static_cast<float>(ArtifactCore::LightType::Ambient);
+        light.directionIntensity[3] = 0.05f;
+        light.colorAttenuationConstant[1] = 1.0f;
+        light.colorAttenuationConstant[3] = 1.0f;
+    }
+    manager_->setSceneLights(context_.RawPtr(), ambientLights.data(),
+                             static_cast<Uint32>(ambientLights.size()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto cappedSceneLightsImage = readOutputPixels();
+    manager_->setSceneLights(context_.RawPtr(), ambientLights.data(), 8);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_LE(maximumGreenDifference(cappedSceneLightsImage), 1.0e-5f)
+        << "ray tracing should use only the first eight scene lights";
 }
 
 TEST_F(RayTracingAcceptanceTest,
