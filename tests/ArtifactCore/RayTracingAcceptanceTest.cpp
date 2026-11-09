@@ -2322,6 +2322,9 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
     constexpr std::array<float, 16> frontUvs{
         0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 16> mirroredFrontUvs1{
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
     constexpr std::array<float, 12> backVertices{
         -0.9f, -0.9f, -0.4f, 0.9f, -0.9f, -0.4f,
          0.9f,  0.9f, -0.4f, -0.9f, 0.9f, -0.4f};
@@ -2348,7 +2351,8 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("masked-opacity-material-slots"),
         frontVertices.data(), 8, frontIndices.data(), 12, nullptr,
-        materialIndices.data(), frontUvs.data()));
+        materialIndices.data(), frontUvs.data(), nullptr,
+        mirroredFrontUvs1.data()));
     addGeometry("masked-opacity-slot-background", backVertexBuffer.RawPtr(), 4,
                 backIndexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
                 backVertices.data(), backIndices.data());
@@ -2361,6 +2365,8 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
         QStringLiteral("opaque.png"));
     const auto halfAlphaPath = opacityDirectory.filePath(
         QStringLiteral("half-alpha.png"));
+    const auto uvSetRampPath = opacityDirectory.filePath(
+        QStringLiteral("uv-set-ramp.png"));
     QImage transparentImage(2, 2, QImage::Format_RGBA8888);
     QImage opaqueImage(2, 2, QImage::Format_RGBA8888);
     QImage halfAlphaImage(2, 2, QImage::Format_RGBA8888);
@@ -2373,6 +2379,17 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
     ASSERT_TRUE(transparentImage.save(transparentPath, "PNG"));
     ASSERT_TRUE(opaqueImage.save(opaquePath, "PNG"));
     ASSERT_TRUE(halfAlphaImage.save(halfAlphaPath, "PNG"));
+    QImage uvSetRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(uvSetRamp.isNull());
+    for (int y = 0; y < uvSetRamp.height(); ++y) {
+        auto* row = uvSetRamp.scanLine(y);
+        for (int x = 0; x < uvSetRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            pixel[3] = x < 4 ? 255 : 0;
+        }
+    }
+    ASSERT_TRUE(uvSetRamp.save(uvSetRampPath, "PNG"));
 
     ArtifactCore::RTPbrMaterial leftMaterial;
     leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
@@ -2408,6 +2425,27 @@ TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
     const auto rightOpaquePixel = pixelAt(24, 16);
     EXPECT_GT(leftCutoutPixel[2], leftCutoutPixel[0] + 0.5f);
     EXPECT_GT(rightOpaquePixel[1], rightOpaquePixel[2] + 0.5f);
+
+    leftMaterial.opacityTexture = ArtifactCore::UniString(uvSetRampPath);
+    rightMaterial.opacityTexture = ArtifactCore::UniString(uvSetRampPath);
+    leftMaterial.opacityTextureUvSet = 0;
+    rightMaterial.opacityTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv0SlotPixel = pixelAt(8, 16);
+    const auto uv1SlotPixel = pixelAt(24, 16);
+    EXPECT_GT(uv0SlotPixel[0], uv0SlotPixel[2] + 0.5f)
+        << "the left slot should sample its opaque UV0 half";
+    EXPECT_GT(uv1SlotPixel[1], uv1SlotPixel[2] + 0.5f)
+        << "the right slot should independently sample its mirrored UV1 half";
 
     leftMaterial.opacityTexture = ArtifactCore::UniString(opaquePath);
     rightMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
