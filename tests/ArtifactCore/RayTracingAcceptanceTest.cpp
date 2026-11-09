@@ -1697,6 +1697,79 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     EXPECT_GT(rightSubsurfaceResponse, 0.001f)
         << "slot 1 subsurface should change its diffuse response";
 
+    ArtifactCore::RTSceneLight slotDiffuseRoughnessLight;
+    slotDiffuseRoughnessLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    slotDiffuseRoughnessLight.directionIntensity[0] = 0.6f;
+    slotDiffuseRoughnessLight.directionIntensity[2] = -0.8f;
+    slotDiffuseRoughnessLight.directionIntensity[3] = 4.0f;
+    slotDiffuseRoughnessLight.colorAttenuationConstant[0] = 1.0f;
+    slotDiffuseRoughnessLight.colorAttenuationConstant[1] = 1.0f;
+    slotDiffuseRoughnessLight.colorAttenuationConstant[2] = 1.0f;
+    slotDiffuseRoughnessLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &slotDiffuseRoughnessLight, 1);
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.metallic = rightMaterial.metallic = 0.0f;
+    leftMaterial.specular = rightMaterial.specular = 0.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 0.5f;
+    leftMaterial.subsurface = rightMaterial.subsurface = 0.0f;
+    leftMaterial.diffuseRoughness = rightMaterial.diffuseRoughness = 0.0f;
+    leftMaterial.transmission = rightMaterial.transmission = 0.0f;
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = rightMaterial.sheen = 0.0f;
+    leftMaterial.emissionStrength = rightMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicTexture = ArtifactCore::UniString{};
+    leftMaterial.roughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.normalTexture = ArtifactCore::UniString{};
+    leftMaterial.occlusionTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.emissionTexture = ArtifactCore::UniString{};
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> smoothDiffuseRoughnessSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(smoothDiffuseRoughnessSlotPixels));
+    leftMaterial.diffuseRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughLeftDiffuseSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughLeftDiffuseSlotPixels));
+    float leftDiffuseRoughnessSlotResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftDiffuseRoughnessSlotResponse = std::max(
+            leftDiffuseRoughnessSlotResponse,
+            std::fabs(roughLeftDiffuseSlotPixels[0][channel] -
+                      smoothDiffuseRoughnessSlotPixels[0][channel]));
+        EXPECT_NEAR(roughLeftDiffuseSlotPixels[1][channel],
+                    smoothDiffuseRoughnessSlotPixels[1][channel], 0.01f)
+            << "changing slot 0 diffuse roughness should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftDiffuseRoughnessSlotResponse, 0.001f)
+        << "slot 0 diffuse roughness should change its direct diffuse response";
+    leftMaterial.diffuseRoughness = 0.0f;
+    rightMaterial.diffuseRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughRightDiffuseSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughRightDiffuseSlotPixels));
+    float rightDiffuseRoughnessSlotResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughRightDiffuseSlotPixels[0][channel],
+                    smoothDiffuseRoughnessSlotPixels[0][channel], 0.01f)
+            << "changing slot 1 diffuse roughness should preserve slot 0, channel "
+            << channel;
+        rightDiffuseRoughnessSlotResponse = std::max(
+            rightDiffuseRoughnessSlotResponse,
+            std::fabs(roughRightDiffuseSlotPixels[1][channel] -
+                      smoothDiffuseRoughnessSlotPixels[1][channel]));
+    }
+    EXPECT_GT(rightDiffuseRoughnessSlotResponse, 0.001f)
+        << "slot 1 diffuse roughness should change its direct diffuse response";
+    manager_->setSceneLights(context_.RawPtr(), &subsurfaceLight, 1);
+
     leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
         leftMaterial.baseColor[2] = 1.0f;
     leftMaterial.baseColorTexture = ArtifactCore::UniString{};
