@@ -5358,6 +5358,63 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
                 << tintChannel << ", output channel " << channel;
         }
     }
+
+    QTemporaryDir normalMapDirectory;
+    ASSERT_TRUE(normalMapDirectory.isValid());
+    const auto tiltedNormalPath = normalMapDirectory.filePath(
+        QStringLiteral("anisotropy-tilted-normal.png"));
+    QImage tiltedNormal(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(tiltedNormal.isNull());
+    tiltedNormal.fill(QColor(204, 128, 230, 255));
+    ASSERT_TRUE(tiltedNormal.save(tiltedNormalPath, "PNG"));
+
+    material.metallic = 1.0f;
+    material.roughness = 0.3f;
+    material.anisotropy = 0.75f;
+    material.anisotropyRotationDegrees = 0.0f;
+    material.specularTint[0] = 1.0f;
+    material.specularTint[1] = 1.0f;
+    material.specularTint[2] = 1.0f;
+    material.normalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    material.normalStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tiltedNormalHorizontalPixel = pixelAt(16, 16);
+
+    material.anisotropyRotationDegrees = 90.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tiltedNormalVerticalPixel = pixelAt(16, 16);
+    const float normalMappedAnisotropyRotationDifference = std::max(
+        std::fabs(tiltedNormalHorizontalPixel[0] - tiltedNormalVerticalPixel[0]),
+        std::max(std::fabs(tiltedNormalHorizontalPixel[1] - tiltedNormalVerticalPixel[1]),
+                 std::fabs(tiltedNormalHorizontalPixel[2] - tiltedNormalVerticalPixel[2])));
+    EXPECT_GT(normalMappedAnisotropyRotationDifference, 0.001f)
+        << "anisotropy rotation should remain effective with a normal map";
+
+    material.normalStrength = 0.0f;
+    material.anisotropyRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto disabledNormalMapPixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(disabledNormalMapPixel[channel], positiveAnisotropyPixel[channel],
+                    0.01f)
+            << "zero normal strength should preserve scalar anisotropy shading, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
