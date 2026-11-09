@@ -800,6 +800,85 @@ TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
     }
 }
 
+TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-roughness-uv-set", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), vertices.data(), 4,
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString roughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-roughness.png"));
+    QImage roughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(roughnessMap.isNull());
+    for (int y = 0; y < roughnessMap.height(); ++y) {
+        auto* row = roughnessMap.scanLine(y);
+        for (int x = 0; x < roughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(roughnessMap.save(roughnessMapPath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.metallic = 0.0f;
+    material.roughness = 1.0f;
+    material.roughnessTexture = ArtifactCore::UniString(roughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv0Left = pixelAt(8, 16);
+    const auto uv0Right = pixelAt(24, 16);
+    const float uv0Difference = std::max(
+        std::fabs(uv0Left[0] - uv0Right[0]),
+        std::max(std::fabs(uv0Left[1] - uv0Right[1]),
+                 std::fabs(uv0Left[2] - uv0Right[2])));
+    EXPECT_GT(uv0Difference, 0.02f)
+        << "the roughness map's red channel should distinguish the two UV0 halves";
+
+    material.roughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1Left = pixelAt(8, 16);
+    const auto uv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(uv1Left[channel], uv0Right[channel], 0.035f)
+            << "roughness UV1 should mirror the left sample, channel " << channel;
+        EXPECT_NEAR(uv1Right[channel], uv0Left[channel], 0.035f)
+            << "roughness UV1 should mirror the right sample, channel " << channel;
+    }
+}
+
 TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
     constexpr std::array<float, 12> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
