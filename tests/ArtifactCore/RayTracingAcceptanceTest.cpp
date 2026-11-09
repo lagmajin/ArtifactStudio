@@ -8228,6 +8228,28 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
             << "clearcoat-normal U offset should wrap the flat texels right, channel "
             << channel;
     }
+
+    material.clearcoatNormalUvOffsetU = 0.0f;
+    material.clearcoatNormalUvScale = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledClearcoatNormalLeft = pixelAt(8, 16);
+    const auto scaledClearcoatNormalRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledClearcoatNormalLeft[channel],
+                    clearcoatNormalUv0Left[channel], 0.035f)
+            << "clearcoat-normal scale should keep the left sample on the flat "
+            << "half, channel " << channel;
+        EXPECT_NEAR(scaledClearcoatNormalRight[channel],
+                    clearcoatNormalUv0Left[channel], 0.035f)
+            << "clearcoat-normal scale should repeat the flat half on the right, "
+            << "channel " << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
