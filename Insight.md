@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: device再初期化をまたぐstatic layer GPU cache parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization`、静止画受入表OP-10。
+- **確認できた事実:** 既存のdevice recovery testはheadless device managerのdestroy／再初期化を3回確認し、static layer GPU cache testはLOD・effect revisionのhit／missとbypass parityを確認するが、cache保持中のrenderer device再初期化後に同じlayerを描く統合ケースはなかった。
+- **追加した確認:** glow付き静止画のstatic GPU cacheを構築した後、rendererをdestroy／再初期化し、画素一致、bypass parity、再利用後の一致を確認するheadless testを追加した。
+- **価値または懸念:** device-bound surfaceのstale handleや再初期化後のblank描画を回帰検出する。テスト未実行で、device reset時の実backend挙動はruntime未確認。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization` をD3D12／Vulkan headless環境で実行し、対象backendの復旧結果を確認する。
+
 ## 2026-11-09: file source version更新後のGPU surface cache parity
 - **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FileSourceVersionInvalidationRebuildsSurfaceCache`、静止画受入表OP-08。
 - **確認できた事実:** ImageLayerの同path overwrite testはdecoded pixel／metadataを、layer surface cache testはメモリ上の画像再設定を別々に確認するが、AssetManager version invalidationから非同期decode、GPU surface cache更新までを繋いだケースはなかった。

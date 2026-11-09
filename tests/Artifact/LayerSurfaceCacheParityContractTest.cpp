@@ -645,6 +645,89 @@ TEST(LayerSurfaceCacheParityContractTest,
 }
 
 TEST(LayerSurfaceCacheParityContractTest,
+     StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization)
+{
+    constexpr int width = 96;
+    constexpr int height = 96;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    struct StaticCacheReset final {
+        ~StaticCacheReset() { Artifact::clearStaticLayerGpuCache(); }
+    } resetStaticCache;
+    Artifact::clearStaticLayerGpuCache();
+
+    const auto configureRenderer = [&renderer] {
+        renderer.setCanvasSize(static_cast<float>(width),
+                               static_cast<float>(height));
+        renderer.setViewportRect(static_cast<float>(width),
+                                 static_cast<float>(height));
+        renderer.setPan(0.0f, 0.0f);
+        renderer.setZoom(1.0f);
+        renderer.setClearColor(
+            ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    };
+    configureRenderer();
+
+    QImage source(48, 48, QImage::Format_RGBA8888);
+    source.fill(Qt::transparent);
+    for (int y = 12; y < 36; ++y) {
+        for (int x = 12; x < 36; ++x) {
+            source.setPixelColor(x, y, QColor(245, 155, 45, 255));
+        }
+    }
+
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(layer);
+    layer->setFromQImage(source);
+    ASSERT_TRUE(layer->hasCurrentFrameBuffer());
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Enabled);
+    auto glow = ArtifactCore::makeShared<Artifact::GlowEffect>();
+    ASSERT_TRUE(glow);
+    glow->setBaseSigma(4.0f);
+    glow->setGlowGain(1.0f);
+    layer->addEffect(glow);
+    ASSERT_TRUE(Artifact::layerUsesStaticLayerGpuCacheForCompositionView(
+        layer.get()));
+
+    const auto draw = [&renderer, &layer] {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            layer.get(), &renderer, 1.0f, nullptr, nullptr, nullptr,
+            0, false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage beforeReset = draw();
+    ASSERT_FALSE(beforeReset.isNull());
+    const auto beforeResetDiagnostics =
+        Artifact::staticLayerGpuCacheDiagnostics();
+    ASSERT_GT(beforeResetDiagnostics.entryCount, 0);
+
+    renderer.destroy();
+    ASSERT_TRUE(renderer.initialize(width, height));
+    configureRenderer();
+
+    const QImage afterReset = draw();
+    ASSERT_FALSE(afterReset.isNull());
+    EXPECT_TRUE(imagesMatchExactly(afterReset, beforeReset))
+        << "a retained static surface must recover on the new device";
+
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    const QImage afterResetBypass = draw();
+    ASSERT_FALSE(afterResetBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(afterReset, afterResetBypass))
+        << "post-reset cached rendering must match direct rendering";
+
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Enabled);
+    const QImage afterResetReuse = draw();
+    EXPECT_TRUE(imagesMatchExactly(afterResetReuse, afterReset));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
      LargeImageRasterizerGlowMatchesCachedAndBypassOutput)
 {
     constexpr int width = 1280;
