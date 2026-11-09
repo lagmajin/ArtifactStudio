@@ -4084,6 +4084,82 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
     }
 
     material.baseColorUvOffsetU = 0.0f;
+    const auto verticalBaseColorPath = surfaceMapDirectory.filePath(
+        QStringLiteral("base-color-v-ramp.png"));
+    QImage verticalBaseColorImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalBaseColorImage.isNull());
+    for (int y = 0; y < verticalBaseColorImage.height(); ++y) {
+        auto* row = verticalBaseColorImage.scanLine(y);
+        for (int x = 0; x < verticalBaseColorImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = y < 4 ? 255 : 0;
+            pixel[1] = 0;
+            pixel[2] = y < 4 ? 0 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalBaseColorImage.save(verticalBaseColorPath, "PNG"));
+    material.baseColorTexture = ArtifactCore::UniString(verticalBaseColorPath);
+    material.baseColorUvOffsetV = 0.0f;
+    material.baseColorUvScale = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorV0Top = pixelAt(12, 8);
+    const auto baseColorV0Bottom = pixelAt(12, 24);
+    const float baseColorV0Difference = std::max(
+        std::fabs(baseColorV0Top[0] - baseColorV0Bottom[0]),
+        std::max(std::fabs(baseColorV0Top[1] - baseColorV0Bottom[1]),
+                 std::fabs(baseColorV0Top[2] - baseColorV0Bottom[2])));
+    EXPECT_GT(baseColorV0Difference, 0.1f)
+        << "vertical base-color map should produce distinct top and bottom samples";
+
+    material.baseColorUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorVOffsetTop = pixelAt(12, 8);
+    const auto baseColorVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(baseColorVOffsetTop[channel], baseColorV0Bottom[channel],
+                    0.04f)
+            << "base-color V offset should mirror the top sample, channel "
+            << channel;
+        EXPECT_NEAR(baseColorVOffsetBottom[channel], baseColorV0Top[channel],
+                    0.04f)
+            << "base-color V offset should mirror the bottom sample, channel "
+            << channel;
+    }
+
+    material.baseColorUvOffsetV = 0.0f;
+    material.baseColorUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorVScaleTop = pixelAt(12, 8);
+    const auto baseColorVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(baseColorVScaleTop[channel], baseColorV0Bottom[channel],
+                    0.04f)
+            << "base-color V scale should repeat the bottom sample on top, channel "
+            << channel;
+        EXPECT_NEAR(baseColorVScaleBottom[channel], baseColorV0Top[channel],
+                    0.04f)
+            << "base-color V scale should repeat the top sample on bottom, channel "
+            << channel;
+    }
+
+    material.baseColorUvScale = 1.0f;
+    material.baseColorUvOffsetV = 0.0f;
     material.baseColorTexture = ArtifactCore::UniString{};
     material.metallicRoughnessTexture = ArtifactCore::UniString(
         QString::fromStdString(metallicMapPath.string()));
