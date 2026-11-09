@@ -6013,6 +6013,36 @@ TEST_F(RayTracingAcceptanceTest,
         << "slot 0's higher alpha cutoff should pass 0.45 opacity";
     EXPECT_NEAR(rightLowCutoffBlocked, rightSlotBlocked, 0.02f)
         << "slot 1's lower alpha cutoff should retain 0.45 opacity";
+
+    slot0Material.alphaCutoff = 0.45f;
+    slot1Material.alphaCutoff = 0.4501f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftEqualCutoffBlocked = traceReceiverGreen(-1.0f);
+    const float rightAboveCutoffOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftEqualCutoffBlocked, leftSlotBlocked, 0.02f)
+        << "alpha equal to slot 0 cutoff should retain the shadow blocker";
+    EXPECT_GT(rightAboveCutoffOpen, rightSlotBlocked + 0.02f)
+        << "slot 1 cutoff just above alpha should pass the shadow ray";
+
+    slot0Material.alphaCutoff = 0.4501f;
+    slot1Material.alphaCutoff = 0.45f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftAboveCutoffOpen = traceReceiverGreen(-1.0f);
+    const float rightEqualCutoffBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftAboveCutoffOpen, leftSlotBlocked + 0.02f)
+        << "slot 0 cutoff just above alpha should pass the shadow ray";
+    EXPECT_NEAR(rightEqualCutoffBlocked, rightSlotBlocked, 0.02f)
+        << "alpha equal to slot 1 cutoff should retain the shadow blocker";
 }
 
 TEST_F(RayTracingAcceptanceTest,
