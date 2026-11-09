@@ -3128,6 +3128,50 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString imagePath = dir.filePath(QStringLiteral("cmyk-float.exr"));
+    OIIO::ImageSpec spec(2, 1, 4, OIIO::TypeDesc::FLOAT);
+    spec.channelnames = {"C", "M", "Y", "K"};
+    OIIO::ImageBuf source(spec);
+    const std::array<float, 8> pixels{
+        0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    ASSERT_TRUE(source.set_pixels(OIIO::ROI::All(), OIIO::TypeDesc::FLOAT,
+                                  pixels.data()));
+    ASSERT_TRUE(source.write(imagePath.toUtf8().constData()));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 1)));
+
+    const float* rgba = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(rgba, nullptr);
+    for (int channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rgba[channel], 1.0f, 1e-6f);
+        EXPECT_NEAR(rgba[4 + channel], 0.0f, 1e-6f);
+    }
+    EXPECT_FLOAT_EQ(rgba[3], 1.0f);
+    EXPECT_FLOAT_EQ(rgba[7], 1.0f);
+
+    const QJsonObject metadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("channelCount")).toInt(), 4);
+    EXPECT_EQ(metadata.value(QStringLiteral("alphaChannel")).toInt(), -1);
+    const QJsonArray channelNames =
+        metadata.value(QStringLiteral("channelNames")).toArray();
+    ASSERT_EQ(channelNames.size(), 4);
+    EXPECT_EQ(channelNames.at(0).toString(), QStringLiteral("C"));
+    EXPECT_EQ(channelNames.at(1).toString(), QStringLiteral("M"));
+    EXPECT_EQ(channelNames.at(2).toString(), QStringLiteral("Y"));
+    EXPECT_EQ(channelNames.at(3).toString(), QStringLiteral("K"));
+}
+
+TEST(StillImageLayerRoundTripTest,
      EmbeddedIccProfileWithoutConversionRecordsFallback)
 {
     QTemporaryDir dir;

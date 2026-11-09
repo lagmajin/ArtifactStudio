@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: 標準CMYKのK channelとopaque alpha
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha`、静止画受入表IMG-10、制作準備文書のStandard CMYK decode契約。
+- **確認できた事実:** 契約はC/M/Y/K channel名を標準CMYKとして検出しRGB変換した後にopaque alphaを設定するが、受入表の実素材decodeは未実行であり、現在のLayer testsにもCMYK fixtureがない。
+- **追加した確認:** OpenImageIOでC/M/Y/K名付きfloat EXRを生成し、ゼロCMYのK=0/K=1をwhite/black端点へ変換し、両pixelのRGBA alphaが1で、metadataのalphaChannelは未宣言かつchannel名を保持することを検査する。
+- **価値または懸念:** Kが第4ch alphaとして誤用される回帰と、channel metadata／pixel conversionの解離を検出する。ICC色管理付きCMYKの精密変換は別契約。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: 巨大画像拒否時のactive layer state保持
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::OversizedImageFailuresPreserveActiveSourceAndLayerState`、静止画受入表IMG-12／IMG-13。
 - **確認できた事実:** 辺長上限と総画素数上限の既存テストは初期状態のlayerに入力し、placeholderとdiagnosticを確認する。既存file sourceがある状態で失敗した候補sourceを拒否し、現在source stateを保つ遷移は確認していなかった。
