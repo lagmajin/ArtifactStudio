@@ -4496,6 +4496,17 @@ TEST_F(RayTracingAcceptanceTest,
         1.5f, {0.6427876f, 0.0f, 0.2339556f});
     const auto glassInternalView = traceInternalView(
         1.5f, {0.6819984f, 0.0f, 0.2686463f});
+    for (const auto& sample :
+         std::array{airReference, subcriticalGlassView, glassInternalView}) {
+        for (std::size_t channel = 0; channel < sample.size(); ++channel) {
+            EXPECT_TRUE(std::isfinite(sample[channel]))
+                << "internal transmission sample channel " << channel
+                << " should remain finite";
+            EXPECT_GE(sample[channel], 0.0f)
+                << "internal transmission sample channel " << channel
+                << " should be non-negative radiance/alpha";
+        }
+    }
     const float airReferenceEnergy = airReference[0] + airReference[1] +
                                      airReference[2];
     const float subcriticalGlassEnergy = subcriticalGlassView[0] +
