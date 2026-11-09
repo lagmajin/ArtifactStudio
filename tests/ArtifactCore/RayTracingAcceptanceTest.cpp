@@ -2532,6 +2532,33 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
     EXPECT_GT(thinWallDifference, 0.001f)
         << "thin-wall transmission should apply its adjusted dielectric Fresnel";
 
+    const auto traceGrazingThinWall = [&](const float thinWall) {
+        material.ior = 1.5f;
+        material.thinWall = thinWall;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera grazingCamera;
+        grazingCamera.origin[0] = 2.0f;
+        grazingCamera.origin[2] = -1.0f;
+        grazingCamera.target[2] = 0.0f;
+        grazingCamera.verticalFovDegrees = 60.0f;
+        EXPECT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize, grazingCamera));
+        return pixelAt(kRayTraceTestImageSize / 2,
+                       kRayTraceTestImageSize / 2);
+    };
+    const auto grazingThick = traceGrazingThinWall(0.0f);
+    const auto grazingThin = traceGrazingThinWall(1.0f);
+    const float grazingThinWallDifference = std::max(
+        std::fabs(grazingThin[0] - grazingThick[0]),
+        std::max(std::fabs(grazingThin[1] - grazingThick[1]),
+                 std::fabs(grazingThin[2] - grazingThick[2])));
+    EXPECT_GT(grazingThinWallDifference, 0.001f)
+        << "thin-wall transmission should adjust Fresnel at grazing view angles";
+
     const auto traceTransmission = [&](const float transmission) {
         material.ior = 1.5f;
         material.thinWall = 0.0f;
