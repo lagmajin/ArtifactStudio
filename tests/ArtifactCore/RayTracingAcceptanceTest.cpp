@@ -2776,6 +2776,38 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
             << channel;
     }
 
+    blockerMaterial.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(transparentMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentBaseColorAlphaPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(transparentBaseColorAlphaPixel[channel],
+                    transparentBlockerPixel[channel], 0.02f)
+            << "zero base-color texture alpha should pass the masked shadow ray, "
+               "channel " << channel;
+    }
+
+    blockerMaterial.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(whiteMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto opaqueBaseColorAlphaPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(opaqueBaseColorAlphaPixel[channel], opaqueBlockerPixel[channel],
+                    0.02f)
+            << "full base-color texture alpha should block the masked shadow ray, "
+               "channel " << channel;
+    }
+
 }
 
 TEST_F(RayTracingAcceptanceTest,
