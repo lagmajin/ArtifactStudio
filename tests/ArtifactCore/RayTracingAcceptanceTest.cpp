@@ -2801,6 +2801,8 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
     }
     ASSERT_TRUE(greenRoughnessMap.save(greenRoughnessMapPath, "PNG"));
     material.baseColorTexture = ArtifactCore::UniString{};
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
     material.metallic = 0.0f;
     material.roughness = 1.0f;
     material.metallicRoughnessUvOffsetU = 0.0f;
@@ -2823,6 +2825,8 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
         << "packed metallic-roughness green should vary roughness while red "
            "and blue remain constant";
 
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 1.0f;
     material.metallic = 1.0f;
     material.roughness = 0.6f;
     material.metallicRoughnessUvOffsetU = 0.0f;
