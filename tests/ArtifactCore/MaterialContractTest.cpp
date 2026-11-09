@@ -77,6 +77,24 @@ TEST(MaterialContractTest, AlphaAndTransmissionControlsRemainIndependent)
     EXPECT_FLOAT_EQ(material.thinFilmIOR(), 1.8f);
 }
 
+TEST(MaterialContractTest, ThinFilmParametersClampAndUseStableFallbacks)
+{
+    Material material;
+
+    material.setThinFilm(-20.0f, 0.5f);
+    EXPECT_FLOAT_EQ(material.thinFilmThickness(), 0.0f);
+    EXPECT_FLOAT_EQ(material.thinFilmIOR(), 1.0f);
+
+    material.setThinFilm(1200.0f, 3.0f);
+    EXPECT_FLOAT_EQ(material.thinFilmThickness(), 1000.0f);
+    EXPECT_FLOAT_EQ(material.thinFilmIOR(), 2.5f);
+
+    material.setThinFilm(std::numeric_limits<float>::infinity(),
+                         std::numeric_limits<float>::quiet_NaN());
+    EXPECT_FLOAT_EQ(material.thinFilmThickness(), 0.0f);
+    EXPECT_FLOAT_EQ(material.thinFilmIOR(), 1.33f);
+}
+
 TEST(MaterialContractTest, PrincipledShadingControlsClampAndFallback)
 {
     Material material;
