@@ -4411,6 +4411,24 @@ TEST_F(RayTracingAcceptanceTest,
         << "subsurface anisotropy above 0.9 should clamp to 0.9";
 
     material.subsurfaceAnisotropy = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        material.subsurfaceRadius[channel] = 0.0f;
+        const auto minimumSubsurfaceRadius = traceSubsurface(1.0f);
+        material.subsurfaceRadius[channel] = -1.0f;
+        const auto belowMinimumSubsurfaceRadius = traceSubsurface(1.0f);
+        material.subsurfaceRadius[channel] =
+            std::numeric_limits<float>::quiet_NaN();
+        const auto nonFiniteSubsurfaceRadius = traceSubsurface(1.0f);
+        EXPECT_NEAR(belowMinimumSubsurfaceRadius[channel],
+                    minimumSubsurfaceRadius[channel], 1.0e-5f)
+            << "subsurface radius below zero should clamp, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteSubsurfaceRadius[channel],
+                    subsurfaceDiffusePixel[channel], 1.0e-5f)
+            << "non-finite subsurface radius should use its channel default, channel "
+            << channel;
+        material.subsurfaceRadius[channel] = defaultSubsurfaceRadius[channel];
+    }
     material.subsurfaceRadius[0] = 10.0f;
     const auto maximumSubsurfaceRadius = traceSubsurface(1.0f);
     material.subsurfaceRadius[0] = 20.0f;
