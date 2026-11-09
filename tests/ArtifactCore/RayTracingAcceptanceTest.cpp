@@ -4723,8 +4723,21 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
                                         kRayTraceTestImageSize,
                                         kRayTraceTestImageSize));
-    EXPECT_LT(pixelAt(24, 16)[1], pointInsideConePixel[1] - 0.01f)
+    const float outsideConeGreen = pixelAt(24, 16)[1];
+    EXPECT_LT(outsideConeGreen, pointInsideConePixel[1] - 0.01f)
         << "a spot sample outside the outer cone should be attenuated";
+
+    innerConeLight.attenuationSpot[2] = 0.9f;
+    innerConeLight.attenuationSpot[3] = 0.8f;
+    manager_->setSceneLights(context_.RawPtr(), &innerConeLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const float transitionConeGreen = pixelAt(24, 16)[1];
+    EXPECT_GT(transitionConeGreen, outsideConeGreen + 0.01f)
+        << "a spot sample in the cone transition band should regain intensity";
+    EXPECT_LT(transitionConeGreen, pointInsideConePixel[1] - 0.01f)
+        << "a spot sample in the cone transition band should remain below full intensity";
 }
 
 TEST_F(RayTracingAcceptanceTest,
