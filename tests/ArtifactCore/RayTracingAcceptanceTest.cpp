@@ -8688,15 +8688,36 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     material.clearcoatNormalUvOffsetV = 0.0f;
     material.clearcoatNormalUvSet = 0;
     const auto geometricCoatNormalPixels = captureClearcoatNormalStrength(1.0f);
+    const std::array<float, 3> savedBaseColor{
+        material.baseColor[0], material.baseColor[1], material.baseColor[2]};
+    const float savedMetallic = material.metallic;
+    const float savedSpecular = material.specular;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.0f;
     material.normalTexture = ArtifactCore::UniString(
         QString::fromStdString(moderateNormalPath.string()));
-    material.normalStrength = 1.0f;
     material.normalUvRotationDegrees = 0.0f;
     material.normalUvScale = 1.0f;
     material.normalUvOffsetU = 0.0f;
     material.normalUvOffsetV = 0.0f;
+    material.normalStrength = 0.0f;
+    const auto zeroBaseNormalStrengthFallbackPixels =
+        captureClearcoatNormalStrength(1.0f);
+    material.normalStrength = 1.0f;
     const auto baseNormalFallbackCoatPixels =
         captureClearcoatNormalStrength(1.0f);
+    for (std::size_t sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(zeroBaseNormalStrengthFallbackPixels[sampleIndex][channel],
+                        baseNormalFallbackCoatPixels[sampleIndex][channel],
+                        0.01f)
+                << "clearcoat-normal fallback should use coat strength "
+                   "independently of base normal strength, sample "
+                << sampleIndex << ", channel " << channel;
+        }
+    }
     material.clearcoatNormalTexture = ArtifactCore::UniString(
         QString::fromStdString(moderateNormalPath.string()));
     const auto explicitCoatNormalWithBaseMapPixels =
@@ -8711,6 +8732,11 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                 << sampleIndex << ", channel " << channel;
         }
     }
+    material.baseColor[0] = savedBaseColor[0];
+    material.baseColor[1] = savedBaseColor[1];
+    material.baseColor[2] = savedBaseColor[2];
+    material.metallic = savedMetallic;
+    material.specular = savedSpecular;
     material.normalTexture = ArtifactCore::UniString();
     material.normalStrength = 0.0f;
     const auto clearcoatNormalUv0Pixels = captureClearcoatNormalStrength(1.0f);
