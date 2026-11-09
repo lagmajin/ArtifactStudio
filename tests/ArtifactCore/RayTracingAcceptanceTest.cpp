@@ -1172,6 +1172,22 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     tiltedNormal.fill(QColor(204, 128, 230, 255));
     ASSERT_TRUE(flatNormal.save(flatNormalPath, "PNG"));
     ASSERT_TRUE(tiltedNormal.save(tiltedNormalPath, "PNG"));
+    const auto slotNormalUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-normal-uv-ramp.png"));
+    QImage slotNormalUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotNormalUvRamp.isNull());
+    for (int y = 0; y < slotNormalUvRamp.height(); ++y) {
+        auto* row = slotNormalUvRamp.scanLine(y);
+        for (int x = 0; x < slotNormalUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool tilted = x >= 4;
+            pixel[0] = tilted ? 204 : 128;
+            pixel[1] = 128;
+            pixel[2] = tilted ? 230 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotNormalUvRamp.save(slotNormalUvRampPath, "PNG"));
 
     leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
     leftMaterial.metallic = rightMaterial.metallic = 0.0f;
@@ -1297,6 +1313,44 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
             << channel;
     }
 
+    leftMaterial.normalTexture = ArtifactCore::UniString(slotNormalUvRampPath);
+    leftMaterial.normalUvRotationDegrees = 0.0f;
+    leftMaterial.normalUvOffsetU = 0.0f;
+    leftMaterial.normalUvScale = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalOffset0Left = pixelAt(8, 16);
+    const auto slotNormalOffset0Right = pixelAt(24, 16);
+
+    rightMaterial.normalUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotNormalOffsetLeft = pixelAt(8, 16);
+    const float slotNormalOffsetDifference = std::max(
+        std::fabs(slotNormalOffsetRight[0] - slotNormalOffset0Right[0]),
+        std::max(std::fabs(slotNormalOffsetRight[1] - slotNormalOffset0Right[1]),
+                 std::fabs(slotNormalOffsetRight[2] - slotNormalOffset0Right[2])));
+    EXPECT_GT(slotNormalOffsetDifference, 0.001f)
+        << "slot 1 normal UV offset should shift its sampled texels";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotNormalOffsetLeft[channel],
+                    slotNormalOffset0Left[channel], 0.01f)
+            << "slot 1 normal UV offset should preserve slot 0, channel "
+            << channel;
+    }
+
     leftMaterial.normalTexture = ArtifactCore::UniString();
     leftMaterial.clearcoat = 1.0f;
     leftMaterial.clearcoatRoughness = 0.2f;
@@ -1419,6 +1473,47 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
         EXPECT_NEAR(unchangedSlotCoatNormalRotationLeft[channel],
                     slotCoatNormalRotation0Left[channel], 0.01f)
             << "slot 1 clearcoat-normal UV rotation should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoatNormalTexture =
+        ArtifactCore::UniString(slotNormalUvRampPath);
+    leftMaterial.clearcoatNormalUvRotationDegrees = 0.0f;
+    leftMaterial.clearcoatNormalUvOffsetU = 0.0f;
+    leftMaterial.clearcoatNormalUvScale = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalOffset0Left = pixelAt(8, 16);
+    const auto slotCoatNormalOffset0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatNormalUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotCoatNormalOffsetLeft = pixelAt(8, 16);
+    const float slotCoatNormalOffsetDifference = std::max(
+        std::fabs(slotCoatNormalOffsetRight[0] - slotCoatNormalOffset0Right[0]),
+        std::max(std::fabs(slotCoatNormalOffsetRight[1] -
+                           slotCoatNormalOffset0Right[1]),
+                 std::fabs(slotCoatNormalOffsetRight[2] -
+                           slotCoatNormalOffset0Right[2])));
+    EXPECT_GT(slotCoatNormalOffsetDifference, 0.001f)
+        << "slot 1 clearcoat-normal UV offset should shift its sampled texels";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotCoatNormalOffsetLeft[channel],
+                    slotCoatNormalOffset0Left[channel], 0.01f)
+            << "slot 1 clearcoat-normal UV offset should preserve slot 0, channel "
             << channel;
     }
 
