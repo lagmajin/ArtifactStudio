@@ -1544,7 +1544,8 @@ TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
         << "rotating scalar anisotropy should rotate the tangent-space highlight";
 }
 
-TEST_F(RayTracingAcceptanceTest, UsesIorForDielectricFresnelReflectance) {
+TEST_F(RayTracingAcceptanceTest,
+       UsesIorAndThinFilmForDielectricFresnelReflectance) {
     constexpr std::array<float, 9> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
     constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
@@ -1602,6 +1603,22 @@ TEST_F(RayTracingAcceptanceTest, UsesIorForDielectricFresnelReflectance) {
         << "dielectric Fresnel reflectance should increase above IOR one";
     EXPECT_GT(highIor[0], glassIor[0] + 0.001f)
         << "higher dielectric IOR should increase normal-incidence reflectance";
+
+    material.ior = 1.5f;
+    material.thinFilmIOR = 1.33f;
+    material.thinFilmThickness = 400.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-ior-fresnel"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto thinFilmPixel = pixelAt(16, 16);
+    EXPECT_GT(thinFilmPixel[1], thinFilmPixel[0] + 0.001f)
+        << "thin-film interference should tint the dielectric reflection green";
+    EXPECT_GT(thinFilmPixel[1], thinFilmPixel[2] + 0.001f)
+        << "thin-film interference should separate wavelength-dependent reflectance";
 }
 
 TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
