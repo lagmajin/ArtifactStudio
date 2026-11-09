@@ -7509,9 +7509,10 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     const QVector3D neutralSubsurfaceRadius(1.0f, 1.0f, 1.0f);
     const auto captureRasterSubsurface = [&](float weight, const QColor& color,
                                              const QVector3D& radius,
-                                             float ior = 1.4f) {
+                                             float ior = 1.4f,
+                                             float anisotropy = 0.0f) {
         renderer.setSubsurfaceFactors(weight, color, radius,
-                                      ior, 0.0f);
+                                      ior, anisotropy);
         return renderCenterPixel();
     };
     const QColor whiteSubsurfaceColor(255, 255, 255);
@@ -7627,6 +7628,43 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         << "Raster subsurface IOR should change direct diffuse response";
     EXPECT_GT(maximumIorEffect, 0.001f)
         << "Raster subsurface IOR should respond through its supported range";
+    const auto neutralAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, 0.0f);
+    const auto backwardAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, -0.8f);
+    const auto forwardAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, 0.8f);
+    const auto minimumAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, -0.9f);
+    const auto belowMinimumAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, -2.0f);
+    const auto maximumAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, 0.9f);
+    const auto aboveMaximumAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, 2.0f);
+    const auto nonFiniteAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f,
+        std::numeric_limits<float>::quiet_NaN());
+    float anisotropyEffect = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumAnisotropyResponse[channel],
+                    minimumAnisotropyResponse[channel], 1.0e-5f)
+            << "Raster subsurface anisotropy below -0.9 should clamp, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumAnisotropyResponse[channel],
+                    maximumAnisotropyResponse[channel], 1.0e-5f)
+            << "Raster subsurface anisotropy above 0.9 should clamp, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteAnisotropyResponse[channel],
+                    neutralAnisotropyResponse[channel], 1.0e-5f)
+            << "non-finite Raster subsurface anisotropy should use zero, channel "
+            << channel;
+        anisotropyEffect = std::max(anisotropyEffect,
+            std::fabs(backwardAnisotropyResponse[channel] -
+                      forwardAnisotropyResponse[channel]));
+    }
+    EXPECT_GT(anisotropyEffect, 0.001f)
+        << "Raster subsurface anisotropy should change direct scatter response";
 }
 
 TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
