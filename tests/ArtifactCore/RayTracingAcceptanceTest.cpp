@@ -2892,6 +2892,54 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
                "sample, channel " << channel;
     }
 
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.roughness = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMetallicBChannelLeft = pixelAt(8, 16);
+    const auto packedMetallicBChannelRight = pixelAt(24, 16);
+
+    QImage packedMetallicOtherChannelsChanged = metallicImage;
+    for (int y = 0; y < packedMetallicOtherChannelsChanged.height(); ++y) {
+        auto* row = packedMetallicOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < packedMetallicOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 0;
+            pixel[1] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const auto packedMetallicOtherChannelsPath = surfaceMapDirectory.filePath(
+        QStringLiteral("packed-metallic-other-channels.png"));
+    ASSERT_TRUE(packedMetallicOtherChannelsChanged.save(
+        packedMetallicOtherChannelsPath, "PNG"));
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(packedMetallicOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMetallicOtherChannelsLeft = pixelAt(8, 16);
+    const auto packedMetallicOtherChannelsRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedMetallicOtherChannelsLeft[channel],
+                    packedMetallicBChannelLeft[channel], 0.02f)
+            << "packed metallic should read blue independently, left channel "
+            << channel;
+        EXPECT_NEAR(packedMetallicOtherChannelsRight[channel],
+                    packedMetallicBChannelRight[channel], 0.02f)
+            << "packed metallic should read blue independently, right channel "
+            << channel;
+    }
+
     const auto greenRoughnessMapPath = surfaceMapDirectory.filePath(
         QStringLiteral("green-roughness.png"));
     QImage greenRoughnessMap(8, 2, QImage::Format_RGBA8888);
