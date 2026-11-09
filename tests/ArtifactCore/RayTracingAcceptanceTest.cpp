@@ -664,6 +664,21 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
             << " should match its sRGB-encoded PNG reference";
     }
 
+    material.baseColorTexture = ArtifactCore::UniString{};
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto clearedBaseColorMapPixel = pixelAt(16, 16);
+    const float removedMapDifference = std::max(
+        std::fabs(clearedBaseColorMapPixel[0] - linearExrPixel[0]),
+        std::max(std::fabs(clearedBaseColorMapPixel[1] - linearExrPixel[1]),
+                 std::fabs(clearedBaseColorMapPixel[2] - linearExrPixel[2])));
+    EXPECT_GT(removedMapDifference, 0.02f)
+        << "clearing the base-color map should restore the scalar material color";
+
     std::error_code ignored;
     std::filesystem::remove(baseColorPath, ignored);
     std::filesystem::remove(metallicMapPath, ignored);
