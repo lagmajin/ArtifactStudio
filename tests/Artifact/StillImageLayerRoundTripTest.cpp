@@ -3329,6 +3329,13 @@ TEST(StillImageLayerRoundTripTest,
     ASSERT_TRUE(layer.loadFromPath(imagePath));
     ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 1)));
 
+    const QImage convertedBufferImage = layer.toQImage();
+    ASSERT_EQ(convertedBufferImage.size(), QSize(2, 1));
+    const QImage thumbnail = layer.getThumbnail(2, 1);
+    EXPECT_EQ(thumbnail, convertedBufferImage);
+    EXPECT_EQ(thumbnail.pixelColor(0, 0).alpha(), 255);
+    EXPECT_EQ(thumbnail.pixelColor(1, 0).alpha(), 255);
+
     const auto events = ArtifactCore::FallbackTracker::instance()
                             ->getEventsByCategory(
                                 ArtifactCore::FallbackCategory::Image);

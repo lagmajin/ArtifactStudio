@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-09
 
+## 2026-11-09: ICC fallback後のQImage／thumbnail画素一致
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::EmbeddedIccProfileWithoutConversionRecordsFallback`、静止画受入マトリクスのThumbnail／Qt境界。
+- **確認できた事実:** 既存ICC testはfallback diagnosticを確認するが、working-space済み`currentFrameBuffer()`から`toQImage()`とthumbnailへ渡る色／alpha境界を比較していない。
+- **追加した確認:** ICC付き2x1 sourceで同一サイズの`getThumbnail()`と`toQImage()`をpixel単位で比較し、両pixelがopaqueであることを確認する。
+- **価値または懸念:** Thumbnail経路が別raw cacheを使う、またはalphaが失われる回帰を検出する。縮小補間やICC変換の正確性は別runtime受入の対象。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.EmbeddedIccProfileWithoutConversionRecordsFallback` をテスト実行が許可された際に実行する。
+
 ## 2026-11-09: EXIF orientationのImageLayer統合
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ExifOrientationSixReorientsLayerPixelsAndBounds`、静止画受入表IMG-07。
 - **確認できた事実:** Core importer contractはEXIF orientation 1〜8の画素座標変換と寸法を検査するが、ImageLayer testにはorientation fixtureからdecoded buffer、QImage、boundsまでをつなぐケースがない。
