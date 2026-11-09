@@ -10903,6 +10903,62 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
             << "clearcoat-normal scale should repeat the flat half on the right, "
             << "channel " << channel;
     }
+
+    QImage verticalCoatNormalImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalCoatNormalImage.isNull());
+    for (int y = 0; y < verticalCoatNormalImage.height(); ++y) {
+        auto* row = verticalCoatNormalImage.scanLine(y);
+        for (int x = 0; x < verticalCoatNormalImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool tilted = y >= verticalCoatNormalImage.height() / 2;
+            pixel[0] = tilted ? 255 : 128;
+            pixel[1] = 128;
+            pixel[2] = tilted ? 128 : 255;
+            pixel[3] = 255;
+        }
+    }
+    const QString verticalCoatNormalPath = normalMapDirectory.filePath(
+        QStringLiteral("clearcoat-normal-v-ramp.png"));
+    ASSERT_TRUE(verticalCoatNormalImage.save(verticalCoatNormalPath, "PNG"));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        verticalCoatNormalPath.toStdString());
+    material.clearcoatNormalUvScale = 1.0f;
+    material.clearcoatNormalUvOffsetU = 0.0f;
+    material.clearcoatNormalUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto coatNormalV0Top = pixelAt(12, 8);
+    const auto coatNormalV0Bottom = pixelAt(12, 24);
+    const float coatNormalV0Difference = std::max(
+        std::fabs(coatNormalV0Top[0] - coatNormalV0Bottom[0]),
+        std::max(std::fabs(coatNormalV0Top[1] - coatNormalV0Bottom[1]),
+                 std::fabs(coatNormalV0Top[2] - coatNormalV0Bottom[2])));
+    EXPECT_GT(coatNormalV0Difference, 0.01f)
+        << "clearcoat-normal should distinguish flat and tilted V samples";
+
+    material.clearcoatNormalUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto coatNormalVOffsetTop = pixelAt(12, 8);
+    const auto coatNormalVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(coatNormalVOffsetTop[channel], coatNormalV0Bottom[channel],
+                    0.04f)
+            << "clearcoat-normal V offset should swap the top sample, channel "
+            << channel;
+        EXPECT_NEAR(coatNormalVOffsetBottom[channel], coatNormalV0Top[channel],
+                    0.04f)
+            << "clearcoat-normal V offset should swap the bottom sample, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
