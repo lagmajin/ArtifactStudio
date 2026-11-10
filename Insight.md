@@ -12707,11 +12707,29 @@
 - **追加した比較:** Depth Anything V2 Small int8 ONNXの固定revisionを使うoptional CPU depth-estimation toolをGlowLabへ追加し、人物plateでhand-authored depth proxyより滑らかな人物/背景relative depthを得た。strength4.8, progress .24で人物flash deltaはflat .00239、model depth .00542。3枚のCC0 walkway sampled frameでも背景/橋/近景順を目視確認した。
 - **次に確認すべきこと:** 60-frame CC0 shotを通してrelative depthのshot-internal stabilityを計測し、光のfrontへ適用した際のflow-warp後のちらつき・遮蔽漏れを評価する。
 
-## 2026-11-10: Light Leak UI validation needs a scene-specific fixture
-- **関連:** `experiments/GlowLab/captures/light-leak-app-ja-rd.png`、`tools/capture_ui_test.py`、`Artifact/src/AppMain.cpp` のUiTest fixtures。
-- **確認できた事実:** MSVC 14.52 / Ninjaで現在のArtifactUiTestはフルビルドでき、日本語の既定起動画面をcaptureできた。一方、既存fixtureにStill Light Leak適用済み画像はなく、英語の通常起動captureは灰色一色で失敗した。独立Pythonキャプチャとシェーダーcompileは効果面の参照確認であり、アプリruntime parityの代替にはならない。
-- **価値または懸念:** 画面起動の成功だけでエフェクトの描画経路まで確認済みと誤認するのを防ぐ。実際のアプリ効果画素を評価するには、素材/alpha/Look/Strengthを固定した隔離fixtureと、ロケール別captureが必要。
-- **次に確認すべきこと:** Light LeakのCPU/GPU経路を評価する専用UiTest fixtureを既存のAppMain setup patternに合わせて作り、ja/enで出力captureを取得し、独立Python基準との差とCPU/GPU parityを比較する。
+## 2026-11-10: Light Leak GPU fixture separates composition output from final readback
+- **関連:** `experiments/GlowLab/captures/light-leak-ready-gpu-edge-wash-gpu.*`、`tools/capture_ui_test.py`、`Artifact/src/AppMain.cpp` のUiTest fixture、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`。
+- **確認できた事実:** cold-start待機後、Edge Wash / Streak / Organicすべてのframe-debugで `path=gpu-blend`、`gpuBlendReady=1`、`gpuBlendInitAttempts=1`、`dispatch=2`、`failed=0`、`directFallback=0` を確認。各lookのAccum RTは入力に対し異なる出力で、広い周辺色、斜め帯、下側の色広がりが見える。`requestCurrentFrameImageAsync` はfixtureの20秒待機で完了せず、final readback画像とstate markerは出力されない。起動時pipeline未準備が初回captureの原因だったことは確認できたが、Vulkan device生成ERRORとの関連は未検証。
+- **未検証の仮説:** 最終readbackの未完了は描画完了同期、texture source、またはcallback配送のいずれかに関わる可能性がある。原因は未特定。
+- **価値または懸念:** 中間RTはGPU blend経路とlook別出力差の有力な可視化証拠だが、encoded PNG同士の差だけではGPU Light Leak shader parityを証明しない。UI canvas grabも空のため、GPU最終表示の合格扱いは保留する。
+- **次に確認すべきこと:** RT画像と経路状態を非同期final readbackより先にfixture markerへ保存し、effect後layerFloatとAccum RTを入力・CPU参照と同じ座標／色空間で比較する。別途 `requestCurrentFrameImageAsync` が完了しない境界を追う。
+
+## 2026-11-10: Still Light Leak GPU coordinates must follow the source image
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` のGPU raster effect plan、`Artifact/src/Effects/Glow/GlowEffect.cpp` のresident Light Leak HLSL、`experiments/GlowLab/captures/light-leak-cpu-gpu-parity-v2.png`。
+- **確認できた事実:** GPU shaderがfull viewportの正規化UVでlookを評価すると、レターボックス配置された画像内の座標がCPU参照のsource-local座標と一致しなかった。特にStreak位置が入力画像上で上へずれていた。同じ960x540入力に対するencoded RGB MAEは、座標修正前 .02694 / .06347 / .02470（Edge Wash / Streak / Organic）、修正後 .009416 / .011437 / .006495。
+- **修正:** 2D画像レイヤーではviewport→canvas→inverse global transform→source-size正規化のアフィン写像をplan parameterでGPU shaderへ渡す。透視写像を表現できない3DレイヤーはCPU effect経路へ戻す。MSVC `ArtifactUiTest` buildと3 lookのGPU captureが成功した。
+- **価値または懸念:** effect固有のsource-space mappingによりGPUとCPUの見た目の位置が揃った。キャプチャはfinal presentではなくdiagnostic Accum RT cropで、差分には合成・クロップ・色経路の差が残る。3D fallback、zoom/pan/rotation、nested transform、aspect ratio、alpha edgeでの一般性は未検証。
+- **次に確認すべきこと:** 変換別のキャプチャを追加し、CPU/GPUのlayer-local出力が揃うか確認する。final-present readback待ちが止まる境界も別途調べる。
+
+## 2026-11-10: Light Leak parity should separate effect delta from render resampling
+- **関連:** `tools/capture_ui_test.py --light-leak-input`、`Artifact/src/AppMain.cpp` のLight Leak fixture、`experiments/GlowLab/captures/light-leak-realplate-cpu-gpu-metrics.json`。
+- **確認できた事実:** 360×640のCC0雪景色フレームをCPU/GPUで同一入力キャプチャし、GPU diagnostic Layer RT（効果前）はCPU入力とencoded RGB MAE .02622だった。最終Accum RT cropとCPU効果出力の直接MAE .0166–.0200だけではshader差を表せない。一方、`Accum RT - Layer RT` と `CPU result - input` の近似比較はMAE .0067–.0076で、同じ幾何・resize/色経路由来の差が直接値を支配している。
+- **修正・価値:** Fixtureに任意のstill inputを渡し、素材のnative dimensionsをcompositionにも使う経路を追加した。既存合成plateに加えて別aspectのCC0実写で3 lookを撮影し、source UV mappingがportrait plateでも視覚上揃うことを確認した。強度.55ではEdge WashとOrganicが雪/空の広域へ色を載せるため、強度は素材別に見る必要がある。
+- **未検証:** 効果差分はPNG crop/resize後のencoded RGBから計算した近似であり、線形scene-referredな内部値の差ではない。3D・変換・alpha込みのpixel parityも未検証。
+- **追加で確認したこと:** CC0雪景色と低照度ポートレートでstrength .20/.35/.55を独立比較。両素材とも新規クリップ画素は0%。この2素材では.20–.35が色かぶりを抑えやすく、.55はEdge Wash/Organicが画面の広い範囲へ色を載せた。ポートレートの街灯位置(.74,.19)をStreak源に合わせ、角度-8°・強度.30の独立Python/アプリCPU/GPU画像を撮影した。
+- **価値または懸念:** app fixtureに任意still入力を渡しnative dimensionsのcompositionでcaptureする経路ができた。実素材でもCPU/GPUの視覚的なビーム位置が揃う。encoded pixel差はGPU Layer RTの効果前resampling差に影響されるため、shader一致の直接証明として使わない。
+- **次に確認すべきこと:** 追加の実写プレートでStreak sourceと角度の手動設定が有効か評価する。変換・alpha条件のGPU parityとComposition Viewer最終表示も別途確認する。
+
 ## 2026-11-08: Pointwise Fusion shared DAG output selection
 - **Related:** `tests/ArtifactCore/PointwiseFusionGraphContractTest.cpp::PreservesSharedOperandsAndExplicitEarlierOutputInCombinedGraph`.
 - **Confirmed:** Existing Pointwise Fusion contract tests cover typed emission and explicit output separately, but do not combine shared operands, dependent operations, and an output selected before the graph's final insertion.
