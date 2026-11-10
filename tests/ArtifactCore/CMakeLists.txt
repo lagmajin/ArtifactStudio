@@ -1,6 +1,17 @@
 # ArtifactCore Tests
 
 if(ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactCoreMaterialContractTest
+        SOURCES
+            MaterialContractTest.cpp
+        LIBS
+            ArtifactCore
+    )
+    set_tests_properties(ArtifactCoreMaterialContractTest PROPERTIES
+        LABELS "core;material;pbr;cpu;contract;standalone"
+        TIMEOUT 30
+    )
+
     add_subdirectory(MeshShaderLodStandalone)
 endif()
 
@@ -678,6 +689,16 @@ artifact_add_test(ArtifactCoreDeepImageBufferContractTest
 )
 set_tests_properties(ArtifactCoreDeepImageBufferContractTest PROPERTIES
     LABELS "image;deep;compositing;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreCryptomatteContractTest
+    SOURCES
+        CryptomatteContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreCryptomatteContractTest PROPERTIES
+    LABELS "image;cryptomatte;id;coverage;cpu;contract"
 )
 
 artifact_add_test(ArtifactCoreGPUThreadPoolContractTest

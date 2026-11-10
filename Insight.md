@@ -1,141 +1,160 @@
-**最終更新:** 2026-11-06
+**最終更新:** 2026-11-10
 
-## 2026-11-05: 2.5D blur frame delta must use the composition frame
-- **関連:** `Artifact/src/Layer/ArtifactLayerTransformSupport.cpp::buildTwoPointFiveDRenderPasses`.
-- **確認できた事実:** `ArtifactAbstractLayer::goToFrame()` stores `globalFrame - inPoint + startTime` in `currentFrame()`, while `getGlobalTransformAt(frame)` accepts a timeline/composition frame. The 2.5D blur helper previously passed `currentFrame()` directly, producing a wrong previous/current delta when a layer had a nonzero in-point or start time. The helper now calls the same module-local `currentTimelineFrame(layer)` utility used elsewhere in `Artifact.Layer.Abstract`, without importing the Composition module into its implementation unit.
-- **価値または懸念:** Offline and MFR motion blur should evaluate the same keyed transform interval as the composition cursor. Runtime parity remains unverified.
-- **次に確認すべきこと:** render a 2.5D blurred layer with nonzero in-point and start time in preview, sequential queue output, selected-frame output, and MFR, then compare sample frames.
+## 2026-11-10: Cryptomatte multi-ID native pass は仕様準拠のID変換と multi-ID 取り込みAPIを要する
+- **関連:** `ArtifactCore/src/Image/Cryptomatte/CryptoPixel.cpp`、`ArtifactCore/src/Image/Cryptomatte/CryptoImage.cpp`、`ArtifactCore/src/Image/Cryptomatte/CryptoExrWriter.cpp`、`tools/CryptoMatteLab/`。
+- **確認できた事実:** `CryptoSample::nameToFloat` は MurmurHash3 x86 32-bit の結果を 24bit へ切り詰め `static_cast<float>` している。一方 Cryptomatte 仕様 1.2.0 は指数部（0/255）を補正した 32bit hash を float32 の **bit 再解釈**（`uint32_to_float32`）で ID とする。参照実装の公式テストベクタ（`hello`/`cube`/`sphere`/`plane`）は後者の値を示す。`CryptoImage` の公開取り込みAPIは `fromIdBuffer`/`fromIdCoverageBuffers` とも 1 ID/px 固定のため `maxRank()` は常に 1 で rank 1 以降は恒久的に空。一方 `CryptoPixel` は 16 サンプルを保持し rank 取得も 2 サンプルずつ返すため、ストレージモデルは multi-ID 対応済みで制約は取り込みAPI側にある。`CryptoExrWriter` は必須属性 `conversion` を出力せず、manifest は `{hash: name}` で仕様 `{name: id_hex}` と逆向き/channel は `CryptoObject00.R` 形式。
+- **追加した検査:** `tools/CryptoMatteLab/` に製品コードを一切変更しない独立ラボを追加した。`crypto_spec_reference.*` に仕様準拠リファレンス（MurmurHash3＋指数部補正＋`uint32_to_float32`）を実装し、まず公式テストベクタで自己検証してから、出荷 `CryptoSample`/`CryptoImage`/`CryptoPixel`/`CryptoManifest`/`CryptoExrWriter` と突き合わせる。14種のprobeでID encoding・manifest・rank深度・coverage和・16サンプル上限・EXR属性/チャネル命名をJSON報告する。EXR属性とチャネル命名は `CryptoExrWriter` で実際に書き出し、**OIIO `ImageInput` でヘッダを読み戻して**判定する（コード読解ではなく実データ）。ルートCMakeには `ARTIFACT_BUILD_CRYPTOMATTE_LAB`（既定OFF）として登録し、ラボの `add_subdirectory` は `ArtifactCore` 登録後に置いた（`ArtifactCore` ターゲット未定義でconfigureが失敗するのを回避）。
+- **価値または懸念:** 現在のCryptomatte出力はNuke等の仕様準拠リーダで名前解決できない可能性が高い。multi-ID native pass を実装する前提として、①ID変換の仕様準拠化 ②1 ID/px の取り込みAPI拡張 ③`conversion` 属性とチャネル命名の仕様適合 ④manifest向きの是正 の4点が要先決だと分かる。**ラボは未ビルド・未実行のため、findingsのseverityは未検証。**
+- **次に確認すべきこと:** ①`ArtifactCryptoMatteLab` をビルド・実行し、`spec-vectors` が4/4一致することを確認したうえで各probeのseverityを確定する ②EXRヘッダをOIIO `ImageInput` で実読取し、`conversion` 属性の欠落と `.R`/`.red` 命名差異を機械的に照合する ③仕様準拠IDへの変更は既存 `CryptoManifest`/`CryptoExrWriter` とCryptomatte契約テストへの波及が広いので、既存データの後方互換方針をユーザーと合意してから着手する。
+## 2026-11-10: RT shadow any-hit scalar opacity coverage
+- **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `kAnyHitShaderSource`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の `SelectsMaskedShadowOpacityTexturePerMaterialSlot`。
+- **確認できた事実:** RTMaterial packing は `material.opacity` を `material.alpha.x` に格納し、`material.baseColorAlpha` は `material.baseColor.a` に格納する。shadow any-hit の alpha 積は `baseColor.a`、`alpha.x`（scalar opacity）、vertex alpha、baseColor texture alpha、opacity texture alphaを乗算しているため、scalar opacity の影レイ経路は実装済みだった。既存 shadow slot test は opacity texture のslot選択を確認するが、scalar opacity の slot 独立性は未確認。
+- **追加した確認:** slot shadow fixtureへ scalar opacity の低値／高値、および `baseColorAlpha * opacity` が cutoff をまたぐ組み合わせを両slotで反転する検証を追加した。単一shadow fixtureにも half-alpha base-color texture と scalar opacity の積が cutoff 直上／直下になる検証を追加した。
+- **追加した確認:** primary rayで既存のOPAQUE/MASK切替を確認済みだったため、shadow rayにも同じ透明opacity textureを使い、OPAQUEは遮蔽しMASKは透過する差を追加した。
+- **追加した確認:** primary rayとshadow rayの両方でBLEND modeがMASKのbinary cutoffとして扱われないことをcharacterizeした。BLENDの連続透過／影の積分規約は別途仕様確認が必要なため、これらのケースはblend qualityの合否を主張しない。
+- **価値または懸念:** RT shadow shader の経路は実装上 primary mask と同じ scalar opacity を評価する。合成alpha、base-color texture、material slot選択の影響を影テストで回帰検出できる。
+- **次に確認すべきこと:** `MaskedOpacityTexturePassesShadowRay` と `SelectsMaskedShadowOpacityTexturePerMaterialSlot` を実行して追加したshadow応答を確認する。
 
-## 2026-11-05: Physical blur shader is current-frame velocity-guided reconstruction
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp`, embedded `MotionBlurCS` shader, Render Queue and Composition preview callers.
-- **確認できた事実:** The compute shader reads one center velocity and samples the current color/depth image along that vector for the configured shutter positions. It does not render or accumulate scene samples at shutter sub-times. Render Queue's velocity redraw covers 3D meshes only; 2D layer-local 2.5D blur remains separate.
-- **価値または懸念:** This can provide a useful GPU blur but cannot recover disoccluded content or per-sample motion/coverage changes like true temporal rendering. Alpha edges, changing velocity fields, and intersections need visual acceptance before claiming physically accurate exposure.
-- **次に確認すべきこと:** Compare static/object/camera motion, high velocity gradients, moving occlusion edges, alpha silhouettes, and combined camera+timeline blur on the same shot; then decide whether a shutter-time scene accumulation path is required.
+## 2026-11-09: RT solid transmission の TIR 到達条件
+- **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `directTransmissionDirection`／`transmissionIsTir`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の透過受け入れ。
+- **確認できた事実:** shader は `worldNormal` を `WorldRayDirection()` と同じ半球へ向け直し、`viewDirection = -WorldRayDirection()` を使う。solid transmission の屈折方向には `refract(-viewDirection, worldNormal, rcp(max(IOR, 1.0f)))` を渡すため、eta は常に 1 以下に制限される。
+- **未検証の仮説:** 通常の外側カメラからのレイではこの eta／法線向きの組み合わせにより TIR 条件（屈折方向の長さがほぼゼロ）へ到達できず、`transmissionIsTir` 分岐が実質的に休眠している可能性がある。内部視点や負スケール等を含む例外経路は未確認。
+- **価値または懸念:** 内部から外へ向かうレイを将来扱う場合、入射側／出射側 IOR を識別しないと TIR と transmission Fresnel が正しく評価されない可能性がある。今回の受け入れ変更では shader を変更しない。
+- **次に確認すること:** 屈折方向を反転した内部視点 fixture を独立 RT acceptance に構成できるか検討し、TIR で transmission energy が消え反射側へ移ることを確認する。その前に `worldNormal` の front/backface 契約と既存 closed-volume fixture を監査する。
+- **進捗 (2026-11-10):** 内部視点を模した half-space 境界で、IOR=1.5の理論臨界角41.81°を40°／43°で挟み、transmitted-sky energy を比較する `StopsTransmissionSkyForInternalViewAboveCriticalAngle` を追加した。テストは未実行。現行 source では eta が `1 / IOR` に固定されるため、超過角glass側のenergy低下期待は失敗する可能性が高い。
 
-## 2026-11-05: USD material-slot instances need previous layer transforms
-- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cpp::draw` multi-material instance construction and `ArtifactCore/src/Graphics/MeshRenderer.cpp` velocity shading mode.
-- **確認できた事実:** The single-mesh path passes `previousModelMatrix` to `drawMesh`, but the multi-mesh/material-slot path populated each `InstanceData::previousTransform` from its current `transform`. The instance vertex shader uses that matrix for previous clip position, so layer animation produced zero velocity for these USD mesh instances.
-- **対応:** Each material-slot instance now combines the sampled previous layer transform with the same static mesh-local transform; the single-material-slot case uses the previous layer transform directly.
-- **価値または懸念:** Physical blur and Velocity AOV now receive temporal motion for animated multi-mesh model transforms. This does not add per-prim USD animation sampling; runtime velocity and blur remain unverified. The existing vector-backed instance construction is unchanged by this patch.
-- **次に確認すべきこと:** Use an animated USD stage with multiple material slots; compare raw velocity AOV and blurred output against the equivalent single-mesh animated cube.
+## 2026-11-09: float EXR上書き後のHDR surface cache更新
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues`、静止画受入表IMG-04／OP-08。
+- **確認できた事実:** float EXRの負値／1超過値はImageLayer単体とProject round-tripで確認され、source version invalidation後のGPU surface cache再構築はPNGで確認されている。HDR値を持つEXRの同path overwriteをGPU cacheまで通したケースはなかった。
+- **追加した確認:** float EXRの同一pathへHDR画素を書き、GPU surface cacheを構築する。上書き後にsource identityをinvalidateし、decoded float値とversion、cache signature、描画変化、bypass parity、新surface reuseを検査するheadless testを追加する。
+- **価値または懸念:** EXR float decode、AssetManager version、GPU surface cache invalidationの連結回帰を検出する。GPU readbackはdisplay rangeに制限されるため、HDR値の保持はCPU float bufferでも独立してassertする。headless deviceがない環境はskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues` を実行し、HDR bufferとsource更新後のcache parityを確認する。
 
-## 2026-11-05: A single motion-blur sample still has shutter-phase meaning
-- **関連:** embedded `MotionBlurCS` in `Artifact/src/Render/ArtifactMotionBlurPass.cpp` and `MotionBlurSettings::shutterPhase`.
-- **確認できた事実:** The shader places sample `i` at `((i + 0.5) / count * 2 - 1) * shutter/2 + phase`. With `count == 1`, that sample is at `phase`, but an earlier unconditional count-one early-out copied the current frame and ignored nonzero phase.
-- **対応:** Count-one now only early-outs at zero phase; a nonzero phase traces one velocity-directed sample. Zero shutter angle plus zero phase returns the current color without reading velocity or looping.
-- **価値または懸念:** This aligns the lowest sample count with the documented frame-fraction phase contract and avoids useless work for a point exposure at the current frame. Runtime shader behavior is unverified.
-- **次に確認すべきこと:** Compare count=1 at phase 0, +0.5, and -0.5 against the expected neighboring-frame sample; also check zero-angle/zero-phase exact pass-through.
+## 2026-11-09: shared／localized source更新とGPU surface cache分離
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink`、静止画受入表OP-07／OP-08。
+- **確認できた事実:** 既存テストはsource version更新後の単一layer GPU cache再構築と、localize後のCPU画素隔離を別々に確認するが、同一sourceを参照する二layerのGPU cacheを並行して保持し、shared update／relinkを通した比較はなかった。
+- **追加した確認:** 同じfile／source identityの2 layerを作り、一方をlocalizeしてから双方のGPU surface cacheを構築する。shared source更新後にshared側だけがcache signature／画素を更新し、localized側は旧画素とcache signatureを保つこと、sharedへrelinkした後は更新画素でcacheを再構築することをbypass parityとともに検査する。
+- **価値または懸念:** AssetManagerのsource identity／versionとGPU surface cacheの相互作用における誤共有・stale surfaceを検出する。Diligent headless deviceがない環境は既存suiteと同じくskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink` を実行し、共有更新・localized保持・relink後のpixel／signature／bypass parityを確認する。
 
-## 2026-11-05: Motion-blur visual fixture prepaints velocity outside object coverage
-- **関連:** `tests/Artifact/PostProcessPassContractTest.cpp::MotionBlurPreservesStaticLayerAndBlursMultipleMovingLayerRegions`, `MotionBlurCS`.
-- **確認できた事実:** The test manually assigns the moving object's velocity to adjacent pixels that contain only background-colored input. This makes the gather shader's current tests detect trails because output pixels outside the object are given nonzero motion vectors by construction. A normal mesh velocity-only pass emits neutral velocity where no moving mesh covers the pixel.
-- **価値または懸念:** The fixture establishes vector-guided color sampling for a supplied velocity field, but does not establish that a rendered object expands into a trail outside its current coverage. Current per-pixel gather also gates color taps by center depth, which can suppress coverage expansion.
-- **今回の軽微な改善:** `MotionBlurCS` now loads center depth once per pixel and reuses it across the sample loop instead of repeating the same texture load up to 32 times.
-- **次に確認すべきこと:** Add/execute an end-to-end moving mesh fixture where velocity is rasterized only over actual mesh coverage; measure both interior smear and trail pixels beyond the current silhouette before accepting the spatial resolve.
+## 2026-11-09: rasterizer effect変更後のGPU surface cache再構築
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity`、静止画受入表OP-05。
+- **確認できた事実:** 既存GPU parity testは同じGlow設定でcache build／reuseとbypassの一致を確認するが、surface cache保持中にeffect parameterを変更した後のsignature更新や描画差分を確認していなかった。
+- **追加した確認:** cacheを構築してからGlow sigmaとgainを変更し、cache signature更新、pixel output変化、bypassとの完全一致、新設定でのcache reuseを検査するheadless testを追加する。
+- **価値または懸念:** effect revisionがcache keyへ伝わらず旧surfaceを再利用する回帰を検出する。Diligent headless deviceがない環境は既存suiteと同じくskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity` を実行し、設定変更時のsignature／画素変化とbypass parityを検証する。
 
-## 2026-11-05: 3D velocity target already carries raster coverage, but blur drops that signal
-- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cpp` velocity shading mode, `Artifact/src/Render/ArtifactRenderQueueService.cpp` velocity-only redraw, `Artifact/src/Render/ArtifactMotionBlurPass.cpp`.
-- **確認できた事実:** Render Queue clears the velocity target to encoded zero-motion `(0.5, 0.5)` with alpha `0`, redraws visible active 3D layers into that target using the live scene depth buffer, and the velocity shader writes encoded XY plus alpha `1` for surviving fragments. Opaque and alpha-masked material ranges use the non-blended PSO with depth test/write; alpha masking clips fragments in the pixel shader. Blended ranges use a PSO with blending enabled and depth writes disabled, while the velocity shader's output alpha is still `1`. `MotionBlurPass::apply` binds the target as `Texture2D<float2>`, discarding alpha; its depth rejection compares each candidate tap to the output pixel's center depth. The target uses the pipeline's floating-point color format.
-- **価値または懸念:** For opaque/masked geometry the alpha marker identifies raster coverage after depth testing. For blended geometry it only marks that a blended fragment was drawn: transparent surfaces do not update the shared depth buffer, overlapping transparent surfaces can overwrite vector data in draw order, and alpha is forced to one. It is therefore not a physically meaningful coverage/opacity measure for transparency. Any dilation also must carry the selected vector's source depth and define newly exposed background contribution; simply loosening the symmetric center-depth threshold violates the existing depth-edge contract.
-- **次に確認すべきこと:** Design and validate opaque/masked coverage dilation with real overlapping meshes first. Treat blended materials as a separately defined limitation or representation problem; do not infer their opacity from this velocity alpha. Preserve the current no-cross-depth contract for ordinary gathers.
+## 2026-11-09: 連番切替後のcrop出力とthumbnail整合性
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail`、静止画受入表OP-03／IMG-02。
+- **確認できた事実:** 既存テストは連番の要求フレーム表示、cropのsource pixel選択、thumbnail境界をそれぞれ確認するが、非同期フレーム切替後にcrop出力とthumbnailの両方が新フレームへ更新されるケースはなかった。
+- **追加した確認:** 半透明を含む異なる画素の2フレームを連番として読み込み、中央2 pixel cropを適用する。各フレーム切替後、透明な外側、crop内のRGBA、同サイズthumbnailを検査する。
+- **価値または懸念:** sequence decode完了後のcrop cache／thumbnailが旧フレーム由来のまま残る回帰を検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail` をテスト実行が許可された際に実行し、両フレームのcrop／thumbnail一致を確認する。
 
-## 2026-11-05: Legacy tile-max motion-blur shaders do not match the current velocity contract
-- **関連:** `Artifact/shaders/motionblur_tileMaxVelocity_horizontalCS.hlsl`, `motionblur_tileMaxVelocity_verticalCS.hlsl`, `motionblur_neighborhoodMaxVelocityCS.hlsl`, `Artifact/src/Render/ArtifactMotionBlurPass.cpp`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::RenderPipeline::createTextures`.
-- **確認できた事実:** Legacy tile-max shaders read `texture_velocity` as signed `float2`, aggregate only max/min vector magnitudes, and emit only `float2`; they do not carry coverage alpha or the depth of the vector's source surface. Current Render Queue velocity is encoded into `[0,1]` with neutral `(0.5,0.5)`, and coverage is in alpha. RenderPipeline texture bundles are created in initialize/createTextures and recreated on resize, so that is the cold-path lifetime for any workspace.
-- **価値または懸念:** Reusing the old reduction directly would treat encoded neutral velocity as nonzero, and even a decode fix would lose source depth and coverage before resolve. A current-path workspace needs an explicit source record (signed velocity, source depth, valid coverage) and bounded dimensions, with allocation tied to RenderPipeline initialize/resize rather than frame apply. The selection policy for competing foreground/background candidates remains a design requirement, not an implementation fact.
-- **次に確認すべきこと:** Specify tile footprint and maximum trail reach from the actual shutter/velocity limits, then prove source-depth pairing survives reduction. Add a real opaque/masked raster coverage fixture before integrating the resolve; leave transparent geometry's policy explicit.
+## 2026-11-09: survivor matte の全設定を削除・保存往復で検査
+- **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp::RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip`、matte参照の整合性。
+- **確認できた事実:** 既存ケースはdangling参照の削除とsurvivorのID・source layer・opacity・invertを確認するが、source asset path、enabled、type、per-reference blend mode、fit modeの保持は確認していなかった。
+- **追加した確認:** dangling参照削除直後とProject save/reload後の双方で、survivorの全設定値を比較する。InverseLuma／Difference／Originalを組み合わせ、default値だけで通るassertを避ける。
+- **価値または懸念:** matte source削除時の参照再構築やJSON往復で設定が初期化・欠落する回帰を検出する。これはメタデータ永続化の検査であり、実際のレンダリング結果は検査しない。テスト未実行。
+- **次に確認すること:** `ArtifactProjectRoundTripTest.RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip` を実行し、削除後／再読込後の値を確認する。
 
-## 2026-11-05: Current motion-blur reach has no explicit velocity bound
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp::MotionBlurPass::apply` and `MotionBlurCS`, `Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cpp` shutter controls.
-- **確認できた事実:** Timeline shutter angle UI accepts 0–720 degrees and phase accepts -360–360 degrees; the pass normalizes phase to frame fractions and uses `t = phase + shutterPosition * shutterAngle/720`. Thus configured sample time can reach up to 2 frame intervals from the current frame. `velocityScale` is only checked for finiteness in the pass, not clamped, and projected mesh velocity is not visibly clamped before multiplication by frame dimensions. Sampling later clamps sample coordinates to the image bounds.
-- **価値または懸念:** A dilation workspace cannot derive a small local search radius from shutter settings alone while velocity magnitude is unbounded. For bounded work, the implementation needs an explicit maximum pixel displacement (and a defined saturation behavior) shared by velocity preparation, tile extent, and color resolve; otherwise a fast-motion case can require frame-wide candidate search or silently lose trails.
-- **次に確認すべきこと:** Decide and document a screen-space displacement cap consistent with the existing edge-clamped gather, then size tile/workgroup expansion from that cap and verify that capped vectors produce stable trails at all supported shutter angles/phases.
-- **追記:** The output image itself gives a correctness bound: no output trail pixel can lie outside the frame, so a source candidate is at most the frame diagonal away from an in-frame destination. This avoids inventing a new velocity clamp solely to bound correctness, but the bound is too broad for a naive per-pixel scan. A hierarchical/tiled candidate index is needed for practical work; any smaller fixed cap would be a deliberate quality limit, not a consequence of current shutter settings.
-- **設計仮説（未検証）:** A jump-flood propagation over an R32_UINT source-pixel index map could keep candidate storage to two 32-bit index textures (ping/pong), while each candidate's signed velocity, coverage, and source depth are fetched from the original AOV at its source coordinate. Each propagation step compares the candidate's shutter trajectory distance to the destination pixel; the final resolve rejects candidates whose trajectory does not reach that pixel and applies source-depth-aware color taps. This gives logarithmic full-frame passes instead of a frame-diagonal per-pixel scan, but custom segment-distance propagation may have holes and repeated full-resolution dispatches plus per-MFR-worker scratch memory may be too expensive. Prototype and profile before selecting it.
+## 2026-11-09: 既存ImageLayerへのsourceなしJSON clear
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState`、制作準備文書「sourceなしJSONの再読込状態修正」。
+- **確認できた事実:** `loadFromPath("")`は旧sourceをclearし、空layerへのsourceなしJSON復元も確認されているが、file-backedな既存instanceへsourceなしJSONを適用した後のidentity解放・旧画像非復活は未確認だった。
+- **追加した確認:** sourceなしlayerのJSONを既存file-backed layerへ適用し、path／identity／sequence／bufferのclear、placeholder状態、旧sourceのuse count解放を検査する。旧fileのoverwrite／invalidate後もclear状態が維持されることを確認する。
+- **価値または懸念:** JSON復元中の旧source prefetchや参照が残って画像を再表示する回帰を検出する。100msのevent settleを含むが、test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState` を実行し、source-less restore後のstale state非復活を検証する。
 
-## 2026-11-05: Previous clip positions behind the camera produced unbounded mesh velocity
-- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cpp` velocity shading mode 7.
-- **確認できた事実:** The velocity pixel shader divided previous clip XY by `max(previousW, 1e-5)`. If a current visible fragment's previous position had negative W (behind the camera) or W near zero, this manufactured an arbitrarily large NDC delta rather than representing an invalid previous projection.
-- **対応:** Velocity shading now emits neutral encoded velocity `(0.5,0.5)` with coverage alpha `1` when previous W is not positive above epsilon or when the resulting velocity is non-finite. Valid previous clip positions retain the existing signed NDC-delta encoding.
-- **価値または懸念:** This prevents a camera-plane crossing from creating whole-frame streaks from an invalid projection and preserves the fragment's coverage marker. The behavior at actual near-plane crossings and on D3D12/Vulkan is not runtime-verified; zero velocity is a deliberate fallback because no valid previous screen correspondence exists.
-- **次に確認すべきこと:** Render a mesh crossing the camera plane and verify no NaN/Inf AOV, full-frame streak, or coverage hole in the adjacent frames; compare a mesh remaining in front to ensure ordinary velocity is unchanged.
+## 2026-11-09: HDR EXR画素のProject save/reload保持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FloatExrHdrPixelsSurviveProjectSaveAndReload`、静止画受入表IMG-04／OP-09。
+- **確認できた事実:** 既存float EXR testは単独ImageLayerのdecode後に負値・1超過値を確認し、Project round-trip testは8-bit画像を扱うが、float HDR値とsource identityを同一Project往復で検査するテストはなかった。
+- **追加した確認:** 負値、fractional値、1超過値を含む3x1 float EXRをProject内ImageLayerへ読み込み、save/reload後もRGBA全成分、source path／asset ID、32-bit／channel metadataが保持されることを検査する。
+- **価値または懸念:** project serializationが高精度sourceを8-bit化・差替え・誤復元する回帰を検出する。test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FloatExrHdrPixelsSurviveProjectSaveAndReload` を実行し、OIIO EXR decodeとProject reloadの値一致を確認する。
 
-## 2026-11-05: Coverage trails need a separate foreground contribution, not a relaxed gather depth test
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp::MotionBlurCS`, `tests/Artifact/PostProcessPassContractTest.cpp::MotionBlurRejectsSamplesAcrossDepthEdges`, velocity coverage in `ArtifactCore/src/Graphics/MeshRenderer.cpp`.
-- **確認できた事実:** The current gather uses the output pixel's center depth and normalizes only accepted taps. Its depth-edge contract rejects a foreground tap for a background output pixel. A propagated foreground velocity plus source depth makes it possible to identify a legitimate trail candidate, but allowing all samples in front of the destination depth would still make the existing synthetic fixture leak because it assigns velocity to background pixels too.
-- **設計仮説（未検証）:** Keep the current per-pixel gather unchanged for covered pixels. For uncovered pixels only, use a valid propagated source candidate (coverage + source pixel + signed velocity + source depth), gather only color taps matching that source surface depth, and composite their shutter-weighted contribution over the destination's current beauty color. Normalize trail contribution by the complete shutter weight, not only accepted foreground taps, so uncovered exposure time remains background instead of becoming an opaque streak. Reject a candidate if the destination is occluded by a nearer surface. This preserves the synthetic depth-edge contract for pixels without provenance while permitting real foreground trails.
-- **価値または懸念:** Provenance-gated compositing separates valid motion trails from fabricated background vectors and prevents the current normalization from turning a sparse foreground sample into a solid opaque ribbon. Perspective depth variation, colored/transparent backgrounds, alpha output, and overlapping moving objects still need explicit treatment; a source-depth tolerance alone may not track a perspective surface.
-- **次に確認すべきこと:** Prototype on an opaque/masked moving mesh over a contrasting static background, then place a nearer static occluder across its trajectory. Check trail opacity against sample-count coverage and verify the existing synthetic depth-edge case remains unchanged.
+## 2026-11-09: 連番差替えテストでstale decode競合を確認
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion`、連番再生受入。
+- **確認できた事実:** 既存ケースは大きい旧フレームを要求してから1ms待ってsequenceを差し替えるが、差し替え時点で旧decodeが未完了だったことをassertしていなかった。
+- **追加した確認:** 旧対象フレームを高エントロピー画像にし、差し替え直前のcached frame indexが対象になっていないことをassertする。さらに新旧sequenceでcrop／thumbnailを有効にし、置換直後と遅延completion排出後に新sourceの画素、crop外透明、thumbnailを確認する。
+- **価値または懸念:** pending decodeの世代競合がsource bufferだけでなくcrop cache／thumbnailにも古い画素を再投入する回帰を検出する。fixtureは2048x2048 RGBAでcold test上のdecode負荷が増える。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion` を実行し、差替え時のpending assertionと置換後／settle後のcrop・thumbnail assertionが成立することを確認する。
 
-## 2026-11-05: Motion-blur scratch has an existing resize-time allocation seam
-- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` preview `AuxiliaryTargetRequest`, `Artifact/src/Render/ArtifactRenderQueueService.cpp` worker-local `revealPipeline`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::RenderPipeline::initialize/createTextures/resize/destroy`.
-- **対応:** Added `AuxiliaryTargetRequest::motionBlurScratch`; preview requests it for Timeline/Camera physical blur, Render Queue requests it for non-deep beauty blur, and `RenderPipeline::createTextures` allocates two tiled `RGBA32_UINT` SRV/UAV maps at ceil(width/8) by ceil(height/8). Each tile stores up to four source IDs, one per velocity-direction quadrant. `ready()`, `destroy()`, resize/reinitialize, and indexed SRV/UAV accessors include the pair. Raw Velocity AOV export does not request these maps. `MotionBlurPass::applyWithCandidates()` seeds the tile candidates, jump-floods them, and consumes the final map in exterior resolve.
-- **価値または懸念:** Candidate scratch is isolated per Render Queue worker and avoids full-resolution index storage. The seed keeps only the largest-motion source in each quadrant per tile, so two objects with similar direction in one tile can lose a candidate. Runtime holes, MFR memory multiplication, and GPU time remain unknown; the path is implemented but not accepted.
-- **次に確認すべきこと:** Render real opaque/masked moving geometry over a contrasting background, with a nearer occluder crossing the path and multiple motions in one tile. Inspect candidate holes and depth leaks, then measure GPU time and per-worker VRAM at representative export sizes.
+## 2026-11-09: 既存ImageLayerへのJSON復元時のsource切替
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity`、静止画保存復元契約。
+- **確認できた事実:** source identityのJSON復元テストは新しいImageLayerへの復元を確認するが、source Aを読込済みの既存instanceへsource BのJSONを適用し、Aの参照を解放してBだけを維持するケースはなかった。制作準備文書は復元時に旧sourceを再decodeしないとする。
+- **追加した確認:** 既存layerへBのserialized stateを適用し、Bのpath／identity／pixel、旧source use countが0になることを確認する。その後Aのファイルを変更・invalidateしてもlayerのB identity／version／pixelsが変わらないことを検査する。
+- **価値または懸念:** JSON復元で旧source参照が残る、または旧source invalidationが新しいlayer状態へ漏れる回帰を検出する。test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity` を実行し、旧source releaseとJSON restore後の切替をruntimeで検証する。
 
-## 2026-11-05: Motion blur candidate propagation and exterior compositing are connected but unverified
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp` (`MotionBlurCandidateSeedCS`, `MotionBlurCandidateFloodCS`, `MotionBlurCS` candidate branch), `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp` motion blur index maps, preview and Render Queue call sites.
-- **対応:** Added a seed compute pass that retains one moving covered source pixel per screen-space velocity quadrant in each 8x8 tile, logarithmic tile-grid jump-flood passes that propagate candidates by shutter-trajectory distance (frontmost source depth breaks equal-distance ties), and a resolve branch for uncovered destination pixels. That branch verifies exact pixel-to-trajectory distance, rejects candidates behind the destination surface, gathers source-depth-matched colors, and uses the destination's current beauty color for the remaining shutter weights. The legacy `apply()` path remains available and bypasses candidate propagation.
-- **価値または懸念:** Provenance now separates legitimate foreground trails from fabricated background vectors without changing the normal gather's symmetric depth test. Tiling cuts candidate-map memory and flood dispatch work, but one source per direction quadrant per tile can miss nearby independent objects; depth tolerance may also miss perspective-varying surfaces. Shader compilation, rendered output, alpha behavior, and performance remain unverified because build/test execution is prohibited by the repository instructions.
-- **次に確認すべきこと:** Use actual opaque and alpha-masked 3D geometry with multiple motions inside a tile, a static background, and an intersecting nearer occluder. Check uncovered-pixel trail weight against sample count, candidate continuity across tile boundaries, normal depth-edge regression, and 1080p/4K MFR time and memory.
+## 2026-11-09: Project reload後のlocalized/shared source分離
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink`、静止画受入表OP-07／OP-09。
+- **確認できた事実:** 既存localize testは同一Project session中の共有ID分離・source更新隔離・shared relinkを確認し、既存Project round-trip testsはsource path／pixel復元を確認するが、localized identityを保存・再読込した後に共有sourceの更新を受ける側だけが更新される統合ケースはなかった。
+- **追加した確認:** 同じsourceを使う2 layerのうち1つをlocalizeしてProject保存・再読込し、identityの保持、shared側だけのversion／pixel更新、localized側の保持、relink後の更新画素取得を検査する。
+- **価値または懸念:** serializationがshared/localized ownershipを混同し、再読込後に誤ったsource invalidationを受ける回帰を検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink` を実行し、Project lifecycleをまたいだsource identity contractを確認する。
 
-## 2026-11-05: Motion-blur candidate fallback binding must match the shader view type
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp` (`InputCandidate`, legacy `apply()` fallback binding).
-- **確認できた事実:** The resolve shader declares `InputCandidate` as `Texture2D<uint4>` and binds it even when `hasCandidateMap == 0`; the legacy `apply()` path supplies a 1x1 dummy SRV because candidate lookup is skipped at runtime. The dummy resource was `R32_UINT`, which did not match the shader's four-component unsigned-integer view declaration.
-- **対応:** Changed the dummy texture format to `RGBA32_UINT` so the legacy bind has the same component type and count as the shader declaration.
-- **価値または懸念:** This removes a static resource-view mismatch from the no-candidate path. Diligent validation and execution on each graphics backend remain unverified.
-- **次に確認すべきこと:** Run a GPU frame with candidate propagation disabled and another with it enabled under Diligent validation; confirm both resource bindings and outputs.
+## 2026-11-09: device再初期化をまたぐstatic layer GPU cache parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization`、静止画受入表OP-10。
+- **確認できた事実:** 既存のdevice recovery testはheadless device managerのdestroy／再初期化を3回確認し、static layer GPU cache testはLOD・effect revisionのhit／missとbypass parityを確認するが、cache保持中のrenderer device再初期化後に同じlayerを描く統合ケースはなかった。
+- **追加した確認:** glow付き静止画のstatic GPU cacheを構築した後、rendererをdestroy／再初期化し、画素一致、bypass parity、再利用後の一致を確認するheadless testを追加した。
+- **価値または懸念:** device-bound surfaceのstale handleや再初期化後のblank描画を回帰検出する。テスト未実行で、device reset時の実backend挙動はruntime未確認。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization` をD3D12／Vulkan headless環境で実行し、対象backendの復旧結果を確認する。
 
-## 2026-11-05: True shutter-time accumulation has only a partial RationalTime transform path
-- **関連:** `ArtifactCore/include/Frame/FramePosition.ixx`, `Artifact/include/Composition/ArtifactAbstractComposition.ixx`, `Artifact/src/Composition/ArtifactAbstractComposition.cpp`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`, `Artifact/src/Render/ArtifactRenderQueueService.cpp`.
-- **確認できた事実:** `FramePosition` stores integer frame numbers and `fromRationalTime()` rounds to an integer. Composition and Layer `goToFrame()` also accept integer frames. There is a partial explicit-time path: `getGlobalTransform4x4At(RationalTime)` evaluates the 3D transform hierarchy at rational time, but its 2D branch converts time to an integer frame before calling `getLocalTransformAt()`. It also does not by itself evaluate the entire scene, arbitrary effects, or component/physics state at that instant. Composition seek evaluates layers and can restore/replay physics state; Render Queue evaluates layer-component simulation per frame. Preview's N-1 history pre-roll is not a shutter-sample accumulator.
-- **価値または懸念:** The 3D transform method is a useful seed for subframe motion, but routing full-scene accumulation through it would omit/quantize 2D animated content and leave simulation/effect state inconsistent. Calling the existing full-frame render repeatedly at rounded frame indices would duplicate or omit temporal positions; reusing `goToFrame()` can mutate simulation/history and may not be deterministic for arbitrary sample order.
-- **次に確認すべきこと:** Trace the 3D render submission's per-layer transforms, property/keyframe evaluators, layer-local time conversion, component and physics snapshot/restore, and renderer output retention. Define a side-effect-bounded sample context that covers the intended layer types before wiring shutter-time accumulation into preview and Render Queue.
+## 2026-11-09: file source version更新後のGPU surface cache parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FileSourceVersionInvalidationRebuildsSurfaceCache`、静止画受入表OP-08。
+- **確認できた事実:** ImageLayerの同path overwrite testはdecoded pixel／metadataを、layer surface cache testはメモリ上の画像再設定を別々に確認するが、AssetManager version invalidationから非同期decode、GPU surface cache更新までを繋いだケースはなかった。
+- **追加した確認:** 同じpathのPNGを別画素で上書きしsource versionをinvalidate、decode済みpixelが置き換わるまで待機した後、surface signature変更、更新後bypassとの完全一致、cache reuseを確認するheadless GPU testを追加した。
+- **価値または懸念:** decode結果が新しくてもGPU surfaceが旧versionを保持する不整合を検出する。headless deviceなしではskipし、test実行は未許可のため未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.FileSourceVersionInvalidationRebuildsSurfaceCache` を実行し、AssetManager invalidate後の非同期 decode とGPU cache parityをruntimeで確認する。
 
-## 2026-11-05: Depth-edge test rejects a blanket foreground-to-background allowance
-- **関連:** `tests/Artifact/PostProcessPassContractTest.cpp::MotionBlurRejectsSamplesAcrossDepthEdges`, embedded `MotionBlurCS` in `Artifact/src/Render/ArtifactMotionBlurPass.cpp`.
-- **確認できた事実:** The depth-edge fixture sets velocity on the background output pixel as well as the foreground sample and explicitly expects no foreground color or alpha to cross the depth discontinuity. A blanket `sampleDepth <= centerDepth + tolerance` rule would violate that contract by allowing a closer foreground sample to contribute to a farther center pixel.
-- **対応:** A trial directional depth comparison was reverted. The production absolute depth rejection remains unchanged until reconstruction can associate propagated velocity with its source surface and preserve the established edge contract.
-- **価値または懸念:** Trail expansion cannot be implemented by changing only the depth inequality; the candidate source velocity, source depth, and source coverage must travel together through bounded dilation/reconstruction.
-- **次に確認すべきこと:** Design the tile workspace to carry source velocity plus depth/coverage provenance, then test both foreground-to-background smear and background-to-foreground rejection with real target data.
+## 2026-11-09: 画像再設定後のlayer surface cache無効化
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity`、静止画受入表OP-08。
+- **確認できた事実:** 既存テストはfile-backed sourceのversion invalidation後にdecoded pixel／metadataが更新されること、surface cacheのeffect revision invalidationを別々に確認するが、同じlayerへ異なる画像bufferを再設定した際のsurface cache更新とbypass parityは直接確認していなかった。
+- **追加した確認:** cacheを構築した同じlayerへ異なる色の画像を設定し、signature更新、旧画素の不再利用、更新後のcache reuse、cache bypassとの完全一致を確認するGPU contract testを追加した。
+- **価値または懸念:** source pixels更新時にlayer surface cacheが古い画像を保持する回帰を検出する。headless Diligent deviceがない環境ではskipする。file watcher経由の非同期decode race自体は未検証。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity` をテスト実行が許可された際に実行する。
 
-## 2026-11-05: Trail reconstruction needs a bounded coverage-aware velocity expansion
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp::MotionBlurCS`, `Artifact/src/Render/ArtifactRenderQueueService.cpp` velocity-only redraw, and legacy `Artifact/shaders/motionblur_tileMaxVelocity_*CS.hlsl` / `motionblur_neighborhoodMaxVelocityCS.hlsl`.
-- **確認できた事実:** The active Diligent blur consumes the raw mesh velocity target. Pixels outside rasterized mesh coverage retain neutral velocity and return the center color; the shader also accepts color taps only when absolute center/sample depth differs by less than 0.02. Thus it cannot reconstruct a trail beyond the current silhouette from a real velocity target. Existing legacy tile-max shaders are not connected to `MotionBlurPass` and require tile textures/statistics and multiple dispatches.
-- **価値または懸念:** A local arbitrary-radius search or simple neighbor copy can spread vectors across unrelated silhouettes and produce incorrect depth behavior. A robust pass needs fixed-capacity intermediate resources, bounded tile/neighborhood velocity propagation with coverage/depth preference, and a directional depth rule that permits foreground motion over background while rejecting background leakage onto foreground.
-- **次に確認すべきこと:** Design a RenderPipeline-owned, resize-time allocated tile-max/dilation workspace for Diligent; define its radius bound from shutter and maximum velocity policy; then validate real mesh coverage edges, intersecting depths, alpha silhouettes, and static foreground/background.
+## 2026-11-09: Input Interpretation別layer surface cache keyとbypass parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity`、静止画受入表OP-06。
+- **確認できた事実:** 制作準備文書はlayer surface cacheへsource versionと入力色解釈を反映するとする。既存layer surface parity testsはLOD、effect revision、cached/bypass pixel parityを確認するが、input color space／transfer変更は扱っていなかった。
+- **追加した確認:** 同じRGBA layerでcolor spaceだけ、次にtransfer functionだけ変え、cache signatureが各変更で分かれること、同設定のcache reuseが安定すること、各設定のGPU outputがcache bypassと完全一致することを検査する。
+- **価値または懸念:** 異なる色解釈結果のsurface cache誤共有と、key分離後のcached rendering差を同じ境界で検出する。headless Diligent deviceがない環境では既存テスト方式に合わせskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity` をテスト実行が許可された際に実行する。
 
-## 2026-11-05: Render Queue shutter controls need job snapshot semantics
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cpp::FrameRenderSnapshot` and `renderSingleFrameNoLock`.
-- **確認できた事実:** RenderQueue previously looked up Timeline Motion Blur enable and shutter values from the application settings singleton inside each GPU frame render. The queue already copies `FrameRenderSnapshot` once for all frames and MFR workers. It now copies the Timeline blur struct into the base snapshot at job setup, so frame execution reads only the job's values.
-- **価値または懸念:** This keeps a video/image sequence's shutter behavior stable if the UI settings change while a job is running. Runtime MFR consistency has not been exercised.
-- **次に確認すべきこと:** Start a multi-frame Render Queue job, change Preview shutter controls during execution, and verify all frames use the original job snapshot; repeat with MFR.
+## 2026-11-09: 16-bit RGBA layerへの異解像度fractional mask適用
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer`、静止画受入表OP-04／IMG-03。
+- **確認できた事実:** 既存Layer testsは8-bit alphaへのmask opacity適用、またはopaque sourceへの異解像度mask補間を別ケースで確認する。16-bit source alphaにfractional maskを異解像度から補間し、RGBとalpha積算をfloat bufferで併せて検査するケースはなかった。
+- **追加した確認:** 16-bit RGBA PNG 3x1に対して2x1の0.25/0.75 maskをopacity 0.4で適用し、0.25/0.5/0.75の補間値、RGB不変、元alphaとの合成値、QImage／thumbnail一致を確認する。
+- **価値または懸念:** decode精度、mask resampling、straight RGB保持、source alphaの累積が連なる境界をfloat精度で検査する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer` をテスト実行が許可された際に実行する。
 
-## 2026-11-05: Timeline と Camera の blur pass が同一 velocity を連続積分する
-- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` の post-process 実行部、`Artifact/src/Render/ArtifactMotionBlurPass.cpp`。
-- **確認できた事実:** Timeline Motion Blur の pass が成功すると `accumSRV` を swap した後、active camera の motion blur 条件が成立すれば、その同じ velocity SRV と depth SRV を使い、更新後の `accumSRV` をもう一度 `MotionBlurPass::apply()` へ渡す。両方の設定が有効なフレームでは同じベクトル場を二度サンプルする。
-- **価値または懸念:** 二回の box/profile 積分は単一 shutter の積分とは異なる露光カーネルになり得る。これは意図的な camera/global 合成か、重複適用かは未検証であり、片方を無効にする変更は仕様判断なしに行わない。
-- **既存テストとの照合:** `tests/Artifact/Model3DLightCompositionIntegrationTest.cpp::MotionBlurComposes2D25DAnd3DLayersWithStaticShapeAndText` は Timeline Blur、Camera Blur、2.5D layer blur をそれぞれ単独で実レンダー比較している。同時有効の比較だけは含まれない。
-- **次に確認すべきこと:** 同じ fixture に Timeline と Camera の両方を有効にするケースを加え、各単独出力と同時出力を比較する。比較結果と製品仕様に基づいて effective shutter の優先順位または合成契約を決めてから pass を統合する。
+## 2026-11-09: ICC fallback後のQImage／thumbnail画素一致
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::EmbeddedIccProfileWithoutConversionRecordsFallback`、静止画受入マトリクスのThumbnail／Qt境界。
+- **確認できた事実:** 既存ICC testはfallback diagnosticを確認するが、working-space済み`currentFrameBuffer()`から`toQImage()`とthumbnailへ渡る色／alpha境界を比較していない。
+- **追加した確認:** ICC付き2x1 sourceで同一サイズの`getThumbnail()`と`toQImage()`をpixel単位で比較し、両pixelがopaqueであることを確認する。
+- **価値または懸念:** Thumbnail経路が別raw cacheを使う、またはalphaが失われる回帰を検出する。縮小補間やICC変換の正確性は別runtime受入の対象。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.EmbeddedIccProfileWithoutConversionRecordsFallback` をテスト実行が許可された際に実行する。
 
-## 2026-11-05: Render Queue camera motion vectors use temporal camera matrices
-- **Related:** `Artifact/src/Render/ArtifactRenderQueueService.cpp::renderSingleFrameNoLock`, `Artifact/src/Render/ArtifactIRenderer.cpp::set3DCameraMatrices` / `setPrevious3DCameraMatrices`.
-- **Confirmed:** the GPU frame path now calculates current and previous active-camera view/projection matrices using the same frame-time and shake sampling pattern as Composition View. It wraps composition-view helper draws with the camera matrices, and the velocity-only redraw uses the same current/previous pair. Stereo cameras use the left-eye view, matching the existing Composition View render path.
-- **Risk:** this is static wiring only; camera motion vectors and rendering after the temporary previous-frame seek have not been runtime-verified. The legacy one-shot GPU function is a separate path and was not changed.
-- **Next:** verify moving-camera beauty and velocity AOVs for sequential, selected-frame, MFR, and stereo output.
+## 2026-11-09: EXIF orientationのImageLayer統合
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ExifOrientationSixReorientsLayerPixelsAndBounds`、静止画受入表IMG-07。
+- **確認できた事実:** Core importer contractはEXIF orientation 1〜8の画素座標変換と寸法を検査するが、ImageLayer testにはorientation fixtureからdecoded buffer、QImage、boundsまでをつなぐケースがない。
+- **追加した確認:** EXIF orientation 6付き64x32 4象限JPEGを読み、32x64への寸法交換、色の回転先、localBounds、metadataを検査する。補正後の左上象限だけをcropし、青い画素が残りcrop外は透明になること、crop解除で完全な画像へ戻ることも確認する。同pathをEXIFなしJPEGで上書きし、version invalidation後に64x32へ戻ること、新画素と非6 orientation metadataへの更新を確認する。
+- **価値または懸念:** orientation座標変換とsource cropの順序不整合に加え、source versionをまたぐgeometry／metadata stale stateを検出する。JPEG圧縮のため色値比較はCore testと同程度の許容幅を使う。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ExifOrientationSixReorientsLayerPixelsAndBounds` をテスト実行が許可された際に実行し、orientation補正後cropとsource更新の両境界を確認する。
 
-## 2026-11-05: Existing per-layer 2.5D blur is separate from physical velocity AOV
-- **Related:** `Artifact/src/Layer/ArtifactLayerTransformSupport.cpp::buildTwoPointFiveDRenderPasses`, `Artifact/src/Layer/ArtifactImageLayer.cpp`, `Artifact/src/Layer/ArtifactTextLayer.cpp`, `Artifact/src/Layer/ArtifactShapeLayer.cpp`.
-- **Confirmed:** image, text, and shape GPU draw paths call `twoPointFiveDRenderPasses()`. When the layer's 2.5D motion blur is enabled, it duplicates transformed draws using the previous-frame global transform delta and configured sample weights. The Render Queue's new physical `VelocityX/Y` texture is still generated by the 3D mesh velocity-only pass and does not contain 2D / 2.5D vectors.
-- **Value or concern:** Render Queue can retain the existing layer-local 2.5D approximation while the physical Timeline / Camera post pass cannot blur those layers from the velocity AOV. Tests must distinguish existing per-layer blur from the physical post pass.
-- **Next:** add temporal-motion coverage to the 2D draw packet path or another coverage-preserving GPU path; test layer-local 2.5D blur and physical Timeline blur independently and together.
+## 2026-11-09: 正常sourceからcorrupt replacementへの失敗遷移
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits`、静止画受入表IMG-13、制作準備文書のfull decode failure契約。
+- **確認できた事実:** 既存corrupt payload testは初期状態のlayerで要求path保持とplaceholder生成を確認する。計画文書はdecode failure時に旧source identity/cacheを破棄して要求source pathへplaceholderを対応させるとする。
+- **追加した確認:** file-backed画像表示中にcorrupt PNGをloadし、旧Asset IDとpixelが残らずcorrupt path／placeholderへ遷移する一方、opacityとpositionは維持されるか検査する。
+- **価値または懸念:** failure後に前sourceの実画素やidentityが誤表示・誤保存される回帰を検出する。診断eventのstage詳細は本テストの対象外。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits` をテスト実行が許可された際に実行する。
 
-## 2026-11-05: 2D physical velocity must preserve draw-packet coverage
-- **Related:** `Artifact/include/Render/RenderCommandBuffer.ixx`, `Artifact/src/Render/PrimitiveRenderer2D.cpp`, `Artifact/src/Render/DiligentImmediateSubmitter.cpp`.
-- **Confirmed:** transformed sprites, atlas sprites, and textured triangles have separate packet variants but use the transformed-sprite PSO in the submitter. Solid rectangles, gradients, glyph text, and cloner grid draws use separate packet and/or submit paths. The layer API dispatches through these operations, so one layer-level `is2D()` switch cannot create alpha- and shape-correct velocity coverage.
-- **Value or concern:** a physical 2D vector pass must carry previous/current transform data through every relevant draw packet and preserve each packet's sampled alpha/geometry. A center-point or bounding-box velocity fill would leak across transparent pixels and occlusions.
-- **Next:** map packet variants to their GPU pipelines and decide whether a shared per-draw velocity output or a dedicated coverage-preserving replay is the smaller complete implementation. Keep cloner instances and glyph offset transforms in the acceptance scope.
-**最終更新:** 2026-11-09
+## 2026-11-09: 未知4ch EXRのopaque fallbackと診断
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics`、静止画受入表IMG-10、制作準備文書のOIIO alpha channel semantics契約。
+- **確認できた事実:** 契約はOIIO alpha metadataがない4ch素材の第4chをalphaと見なさずopaque alphaを補完し、`ambiguous-channel-semantics`を記録するとしている。CMYKのK channelは標準CMYK変換、未知の4ch構成は診断付きfallbackで扱う。
+- **追加した確認:** R/G/B/Depth channel名のfloat EXRで4ch目を0にし、RGB値保持、alpha=1、alpha未宣言metadata、Image categoryのfallback eventを検査する。
+- **価値または懸念:** RGB+AOV等をRGBAと誤認してDepth/ID値を透明度へ流用する回帰を検出する。イベント登録のruntime動作はテスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics` をテスト実行が許可された際に実行する。
 
 ## 2026-11-09: 標準CMYKのK channelとopaque alpha
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha`、静止画受入表IMG-10、制作準備文書のStandard CMYK decode契約。
@@ -154,7 +173,7 @@
 ## 2026-11-09: Source上書き時のpixelとmetadata snapshot同期
 - **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion`、静止画受入表OP-08、制作準備文書の「Source version更新時のmetadata同期」。
 - **確認できた事実:** 既存同一path上書きテストは同じ寸法・RGBA layoutの色差とsource versionのみを確認し、header layoutが変わる上書き時のsource metadata更新を確認していなかった。実装契約はpixel bufferと同じversion由来のmetadata snapshotを採用する。
-- **追加した確認:** 2x1 RGB888から3x1 16-bit RGBAへ同一path上書きし、AssetManager version invalidation後にdimensions、float pixels、alpha semantics、bit depth、channel namesが新sourceと一致することを検査する。
+- **追加した確認:** sRGB ICC付き2x1 RGB888からprofileなし3x1 16-bit RGBAへ同一path上書きし、AssetManager version invalidation後にdimensions、float pixels、alpha semantics、bit depth、channel namesとICC byte metadataが新sourceと一致することを検査する。
 - **価値または懸念:** 古いheader metadataと新pixel payloadの混在、古いdecoded shapeの再利用を検出する。非同期scheduleの競合順序やGPU cache反映はruntime受入で別途確認が必要。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion` をテスト実行が許可された際に実行する。
 
@@ -6581,18 +6600,6 @@
 - **関連:** `tests/ArtifactCore/PixelChannelOrderStandaloneTest.cpp`、Float32/Float16 image backing、GPU upload descriptor。
 - **確認できた事実:** surface conversion tests already cover RGBA/BGRA conversion and alpha cases, but a direct invariant test should independently inspect raw canonical backing and logical pixel access across Float32, Float16, and GPU upload.
 - **変更:** Added a separately launchable `ArtifactCorePixelChannelOrderStandaloneTest` executable, linked only to ArtifactCore and the standard test harness. Its test uses exact binary fractions and distinct R/G/B/A to check raw BGRA float values, logical RGBA getters, exact IEEE-754 binary16 channel bits, Float16 round-trip, descriptor setter invariance, and BGRA zero-copy GPU upload/rejection of an RGBA target.
-
-## 2026-11-05: GPU particle textures keep the registry on the GUI thread
-- **関連:** `ArtifactCore/include/Graphics/ParticleData.ixx`、`ArtifactCore/src/Graphics/ParticleRenderer.cpp`、`Artifact/include/Render/RenderCommandBuffer.ixx`、`Artifact/src/Render/ArtifactIRenderer.cpp`、`Artifact/src/Layer/ArtifactParticleLayer.cpp`。
-- **確認できた事実:** `ParticlePkt` may be recorded and submitted on the deferred worker thread, while texture registration is a GUI-thread operation on a `std::map` registry. Resolving the SRV inside `submitParticles` would touch that map off-thread. The packet instead retains its own `RefCntAutoPtr<ITextureView>` resolved on the GUI thread, and `ParticleRenderer::setCurrentTexture()` only stores a raw pointer that `prepare()` binds into a DYNAMIC SRV variable.
-- **価値または懸念:** Deferred submission stays free of registry locking, and a released or unknown id degrades to the procedural shader path instead of sampling an unbound or white texture. The registry is `std::map` because ids are sparse process-unique atomics and lookups are cold-path; the per-frame path only reads a raw pointer. Known Phase 1 limitation: a layer destroyed without a renderer pointer cannot call `releaseParticleTexture()`, so its atlas stays in the renderer registry until the device is recreated; path changes are released correctly.
-- **次に確認すべきこと:** Run the headless particle contract tests on D3D12 and Vulkan, then confirm the deferred packet path (16+ packets) still samples the atlas after the originating layer releases it. Decide whether layer teardown needs an explicit renderer notification to drop its atlas early.
-
-## 2026-11-05: GPU particle atlas is one-per-layer, 2D-only in Phase 1
-- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cpp::requiresCpuFlipbookPath` / `resolveParticleTextureId`、`ArtifactCore/src/Graphics/ParticleRenderer.cpp` embedded `ParticleVSSource` / `ParticlePSSource`。
-- **確認できた事実:** The particle pixel shader samples exactly one `Texture2D` plus one sampler. A layer with a sequence directory or with two or more distinct single-image atlases therefore still uses the existing CPU flipbook path. The 3D camera path also keeps procedural shapes: it was procedural before this change, and its view-space billboard would need a UV.y flip. `ParticleVertex::pad0` (position.w) now carries a per-particle texture flag so procedural emitters sharing the layer keep the analytic falloff.
-- **価値または懸念:** Single-image 2D emitters now sample the atlas on the GPU with per-cell half-texel inset, while multi-atlas and sequence sources keep their previous behavior. The per-particle flag means a layer mixing textured and procedural emitters does not force every particle through the texture path.
-- **次に確認すべきこと:** Decide whether Phase 2 should add a per-particle atlas index (array binding or texture array) so multi-atlas layers can leave the CPU path, and whether the 3D billboard should flip UV.y for textured particles.
 - **価値／懸念:** Raw order regressions and API semantic regressions fail at separate assertions with the failing channel index. The standalone executable has not been configured, built, or run under the repository rule.
 - **次に確認:** Execute ArtifactCorePixelChannelOrderStandaloneTest when build/test execution is explicitly allowed; then add renderer GPU readback coverage using the same non-symmetric fixture and compare D3D12/Vulkan where available.
 
@@ -11328,27 +11335,6 @@
 - **価値または懸念:** 仮想入力テストは送信イベント数だけでなく、意図したボタンが実際に受信したこと、コンポーネントが有効になったこと、設定面が表示されたことまで検証できる。Physics / Script / Layout / Cloner / Fluid の5種類を ja / en / zh / zh-TW で全20ケース実行し成功した。
 - **次に確認すべきこと:** 画面外で他の dock/widget を仮想イベント操作する統合テストを追加する場合も、画面外配置後にレイアウトを確定し、実際の receiver を結果条件に含める。
 
-## 2026-11-05: Text animator layer coverage lived only in the app-side env-flag runner
-- **Related:** `Artifact/src/Test.cpp` (`runTextLayerAnimatorTestsImpl`, env `ARTIFACT_RUN_TEXT_LAYER_ANIMATOR_TESTS`), root `CMakeLists.txt` (`ArtifactTextLayerAnimatorIntegrationTest`), new `tests/Artifact/TextAnimatorLayerContractTest.cpp`.
-- **Confirmed:** before this change no gtest under `tests/` referenced `text.animators`, `textAnimatorStackSnapshot`, or `restoreTextAnimatorStack`; the only layer-level animator coverage was an app-binary self-test selected by an environment variable. The engine contract suite (`tests/ArtifactCore/TextAnimatorContractTest.cpp`, 62 cases) bypasses `ArtifactTextLayer` entirely.
-- **Value/risk:** property-path parsing, value clamping, snapshot/project-JSON round-trip and `SetTextAnimatorStackCommand` undo were untested at the layer boundary, so a wiring regression would only show up when someone ran the app with the env flag. The new gtest covers those paths but has not been compiled or run yet.
-- **Next:** build `ArtifactTextAnimatorLayerContractTest`, the extended `ArtifactCoreTextShapingTest` and `ArtifactTextGlyphRenderContractTest`; generate `tests/Artifact/baselines/text-animator/*.png` with `ARTIFACT_TEXT_ANIMATOR_UPDATE_BASELINES=1` before relying on baseline comparison (the GPU tests skip while the PNGs are absent).
-## 2026-11-05: Retraction - the product text render path does honor every animator channel
-- **Related:** `Artifact/src/Render/ArtifactIRenderer.cpp:7254`, `Artifact/src/Render/PrimitiveRenderer2D.cpp:2501-2714`, `Artifact/src/Render/DiligentImmediateSubmitter.cpp:2858/2880/3058/3080`, `Artifact/src/Render/ArtifactTextGlyphSubmitter.cpp:149-169`.
-- **Correction:** I previously reported that the GPU path drops `offsetScaleX/Y`, `offsetSkew`, `offsetBlur`, `offsetStrokeWidth`, fill/stroke overrides and `offsetZ`. That was read off `DiligentImmediateSubmitter::submitGlyphText*` and the test-only `ArtifactTextGlyphSubmitter`. The product path for `ArtifactTextLayer::draw()` is `ArtifactIRenderer::drawGlyphsTransformed` -> `PrimitiveRenderer2D::drawGlyphsTransformed`, which reads all of those fields (`offsetScaleX/Y` :2600-2604, `offsetSkew` :2621-2625, `offsetZ` sort :2544 and depth :2703, overrides :2676-2685, `offsetStrokeWidth` :2687, `offsetBlur` :2714). No GPU wiring is missing for the animator channels.
-- **Why the mistake happened:** there are two glyph submit paths and only one is the text-layer path; the test-only submitter's five-field vertex struct looked like the renderer's contract.
-- **Next:** verify at runtime; when touching text render paths, confirm which consumer a function feeds before calling it the "GPU path".
-## 2026-11-05: 2.5D motion blur properties bypass the property cache
-- **Related:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cpp:1273-1284` (`setLayerPropertyValue` writes impl fields and returns), `ArtifactAbstractLayerPropertyGroups.cpp:279-289` (registers `layer.2_5d.motionBlur*`), `Artifact/src/Undo/UndoManager.cpp:3451` (`applyLayerPropertyValue` compares the cached property value).
-- **Confirmed:** the `layer.2_5d.*` setters do not call `persistentLayerProperty`, so the cached `AbstractProperty` keeps its previous value. `SetLayerPropertyValueCommand` compares against that cache; when a caller pushes without rebuilding the property groups, undo's "current already equals the requested target" fast path can skip the write entirely and the layer state is never restored. The new `MotionBlurLayerPersistenceContractTest` rebuilds the groups after each step (the same refresh the Inspector performs) to exercise the real path.
-- **Not a fix:** production code was left unchanged. Whether the 2.5D setters should sync the cache, or whether `layer.2_5d.*` should join `routedPropertyMetaTable`, is a design decision.
-- **Next:** verify in app; if a property-editor-driven undo of 2.5D motion blur fails to restore, add the cache sync in the 2.5D setter branch.
-
-## 2026-11-05: 3D model shutter samples must not mutate the shared skinned mesh
-- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cpp::Artifact3DLayer::draw` / `evaluateSkinAnimation`, `ArtifactCore::AnimatableTransform3D::snapshotAt`, `ArtifactIRenderer::drawMesh`.
-- **確認できた事実:** `Artifact3DLayer::draw()` builds current and previous model matrices from `currentFrame()` as integer `RationalTime`s, then submits those matrices through `drawMesh()`. Before matrix construction, `evaluateSkinAnimation()` calls `setAnimationTime()`. Skin-only assets use `IModelAnimationImporter::updateSkinPose(..., impl_->mesh_)` to mutate the layer's shared mesh; node-only or blend-shape assets import a whole evaluated mesh and assign it to `impl_->mesh_`. The cached animation key is integer `currentFrame()`. By contrast, `getGlobalTransform4x4At(RationalTime)` can evaluate a 3D transform at rational time without changing the cursor, but the production mesh draw does not call it.
-- **価値または懸念:** A fractional shutter implementation that repeatedly calls `setAnimationTime()` on one layer would mutate shared mesh/importer state and can make sample order affect geometry, velocity, later UI draws, or MFR workers. A transform-only override can cover rigid 3D motion but will not produce fractional skeletal deformation.
-- **次に確認すべきこと:** Determine whether the USD/skin evaluator can emit into caller-owned pose buffers and whether node/blend-shape evaluation can return immutable sample meshes without replacing layer state. Define separate rigid-transform and deforming-mesh sample contracts before connecting repeated scene draws.
 ## 2026-11-07: TrimPaths の10分割弧長近似が非対称カーブの境界をずらす
 - **関連:** `ArtifactCore/include/Shape/TrimPaths.ixx::segmentLength` / `trimSegments`、`tests/ArtifactCore/TrimPathsContractTest.cpp::AsymmetricCubicHalfTrimUsesTheArcLengthMidpoint`。
 - **確認できた事実:** `segmentLength()` は各 cubic を10個の直線で近似し、`trimSegments()` はその近似長から得た比率をBezierのパラメータ t として使用する。既存の50% cubic test は対称曲線のため t=0.5 と弧長中点が一致し、この近似誤差を見分けられない。非対称 cubic (0,0),(0,160),(15,-20),(100,0) を独立な高精度数値積分で照合すると、真の半弧長点はおよそ (22.789982,45.251455) / t=0.55027。一方、現行の10分割法では半分 trim の境界を t=0.5 付近に置く見込み。テスト未実行。
@@ -12667,6 +12653,65 @@
 - **Value or concern:** Exercises animation metadata and decoded subframe mapping together. Pillow inspection confirmed the fixture's frame count, delays, and colors; Qt test behavior is unverified because tests are not run.
 - **Next:** Run `ImageSequenceSourceContractTest.AnimatedGifUsesAverageFrameDelayAndExposesEverySubframe` on a Qt installation with the GIF plugin when test execution is authorized.
 
+## 2026-11-08: Cryptomatte 公開APIに契約テストが不在だった
+- **関連:** `ArtifactCore/src/Image/Cryptomatte/CryptoPixel.cpp`、`ArtifactCore/src/Image/Cryptomatte/CryptoImage.cpp`、`tests/ArtifactCore/CryptomatteContractTest.cpp`。
+- **確認できた事実:** `CryptoSample` / `CryptoPixel` / `CryptoManifest` / `CryptoImage` / `CryptoLayer` は公開されているが、これらを直接扱う既存テストは見つからなかった。実装を精読し、名前ハッシュの24bit決定性、coverage降順、同一IDの合算、非有限値の拒否、サンプル上限16での最弱置換、manifestの重複排除、resizeの不正寸法拒否、バッファ不足時の読み飛ばし、rank層の第2識別子への出力という契約を整理した。
+- **追加した検査:** `tests/ArtifactCore/CryptomatteContractTest.cpp` を `ArtifactCoreCryptomatteContractTest` として登録し、上記契約をcharacterizationとして固定した。純粋CPU・`ArtifactCore`リンクのみでGPUや外部ファイルに依存しない。
+- **価値または懸念:** Cryptomatteはゼロカバレッジで、rank生成とcoverage順位の回帰を検出できる状態がなかった。`CryptoExrWriter` はOIIO依存のため対象外とした。テスト未実行。
+- **次に確認すべきこと:** 許可された時点で `ArtifactCoreCryptomatteContractTest` を実行し、期待値と実装のずれを確認する。
+
+## 2026-11-08: CryptoPixel の重複ID合算時にサンプル順が再ソートされない（修正済み）
+- **関連:** `ArtifactCore/src/Image/Cryptomatte/CryptoPixel.cpp::CryptoPixel::addSample`、`tests/ArtifactCore/CryptomatteContractTest.cpp::AccumulatedCoverageKeepsTheSamplePairInDescendingOrder`。
+- **確認できた事実:** `addSample` は同一IDを見つけた時点で coverage を合算して `return` するため、`sort()` に到達しない。サンプル配列は coverage 降順で管理される前提だが、合算により順序が崩れる。`getSamplesForRank` は配列順を前提に rank 内の2本を返すため、rank の並びが実装の期待と食い違う可能性がある。
+- **追加した検査:** 弱いサンプルの coverage を合算した後に rank 取得し、どのIDが先頭へ出るかを確認するテストを追加した。
+- **価値または懸念:** ユーザー指示に基づき `ArtifactCore`（子リポジトリ）を修正済み。合算後に `sort()` を呼ぶようになり、降順が維持される。テスト期待値も当初の characterization（実装順）から正仕様（降順維持）へ更新した。修正後実装を再現したシミュレーションで期待値の一致を確認済みだが、コンパイルと実行による検証は未実施。
+- **次に確認すべきこと:** ビルドが許可された時点で `ArtifactCoreCryptomatteContractTest.AccumulatedCoverageKeepsTheSamplePairInDescendingOrder` を実行し、rank の並びが降順であることを実測で確認する。
+
+## 2026-11-08: CryptoImage::fromIdBuffer のバッファ長判定に符号付き乗算がある（修正済み）
+- **関連:** `ArtifactCore/src/Image/Cryptomatte/CryptoImage.cpp::CryptoImage::fromIdBuffer/fromIdCoverageBuffers`。
+- **確認できた事実:** `fromIdBuffer` は `static_cast<std::size_t>(width) * height` と計算しており、`height` のみが符号付きのまま乗算される。`fromIdCoverageBuffers` は両方を `size_t` に cast してから同じ計算するため、この1箇所だけが不整合。`height` が負のとき符号付きオーバーフローで判定が未定義動作となる。
+- **追加した検査:** 負寸法でバッファを渡した場合に、画像が0×0へクリアされサンプルが作られない安全側の挙動を固定した。
+- **価値または懸念:** ユーザー指示に基づき `ArtifactCore`（子リポジトリ）を修正済み。`resize` を先に呼んで寸法検証を済ませ、その後で両オペランドを `size_t` にしてピクセル数を計算する形へ変更し、`fromIdCoverageBuffers` も同一構造に揃えた。有効な寸法での観測可能な挙動は変更前と同一（バッファ不足時も `resize` が先に走る）で、変わるのは負寸法時の未定義動作が除去された点のみ。コンパイルと実行による検証は未実施。
+- **次に確認すべきこと:** ビルドが許可された時点で `ArtifactCoreCryptomatteContractTest` を実行し、安全側挙動が変わっていないことを確認する。
+
+## 2026-11-10: Light Leak の見た目は素材明度で強度候補を分ける必要があるかもしれない
+- **関連:** `experiments/GlowLab/light_leak_lab.py`、`ArtifactCore/include/ImageProcessing/OpenCV/Glow.ixx` の `LightLeakParameters`、`Artifact/include/Effects/Glow/GlowEffect.ixx` の `StillLightLeakEffect`。
+- **確認できた事実:** 同じ解析 Organic field をstrength .30/.55/.80で合成した独立ネオンキャプチャでは、暗い面全体へ色が回り、.30のほうが黒い余白を多く残した。CC0冬景色の.55キャプチャでは雪面に暖色が広く乗る。これはPython参照の観察で、アプリ出力では未確認。
+- **仮説:** Light Leak は素材の平均明度や明部分布に応じた少数のプリセット、またはstrengthを調整しやすい選択UIを用意すると、暗所での画面全体の色かぶりを避けながら高キー素材の存在感を保てる可能性がある。未検証。自動明度適応は明滅やショット間の一貫性を生む懸念がある。
+- **追加した機能:** Streak source位置を [0,1] の正規化X/Yで調整できるようにした。位置を雪景色の橋上、ネオン中央・右側に移した独立captureで、固定左上配置より被写体に光を沿わせやすいことを確認し、そのfieldをCore CPU APIとArtifact CPU/resident GPU parametersへ反映した。D3D12/Vulkan向けshader compileとMSVC effect-target compileは通過したが、画素parityとアプリruntimeは未検証。
+- **価値または懸念:** Organic screen amountはlook内部固定のまま。strengthごとの素材差も依然あり、暗部・人物・肌・グラデーションへの係数適性とフルruntime parityを確認する必要がある。自動明度適応は明滅やショット間の一貫性を生む懸念がある。
+- **次に確認すべきこと:** アプリビルド障害が解消した後にInspectorからsource X/Yを変えたCPU/GPU captureを同じ素材・座標で比較し、その後Organic strength/defaultや選択UIを判断する。
+
+## 2026-11-10: Streak角度は位置と独立した実用的なart-direction control
+- **関連:** `experiments/GlowLab/light_leak_lab.py`、`ArtifactCore/include/ImageProcessing/OpenCV/Glow.ixx`、`Artifact/src/Effects/Glow/GlowEffect.cpp`。
+- **確認できた事実:** CC0冬景色とネオンplateでsource座標・strengthを固定し、-12/0/2.578/+12度を比較captureした。+12度は橋・遠景へ沿う筋とネオン上の斜めフレアを作り、冬景色のcenter leak deltaは既定角2.578度の0.03800から0.03853へ小さく変わった。Python既定画像は変更前captureとbyte-identicalだった。CoreとArtifactにStreak Angle degree controlを接続し、CPU targetとresident shader sourceをcompileした。
+- **価値または懸念:** 角度は光条の方向を素材へ合わせる追加制御となる。captureはSDR Python referenceだけであり、Inspector表示やGPU実行、画素parityを確認していない。高角度では画面上の光源中心と細いbeamが離れて見える条件がある。
+- **次に確認すること:** 実アプリが再ビルドできる環境で同じ冬景色・ネオン素材をCPU/GPU両経路からcaptureし、-12/0/+12度とalpha policyの結果を比較する。高角度の扱いはその後決める。
+
+## 2026-11-10: Glow multiscale Coreとresident spatial nodeの境界
+- **関連:** `ArtifactCore/src/ImageProcessing/OpenCV/Glow.cpp`、`Artifact/src/Effects/Glow/GlowEffect.cpp`、`Artifact/src/Render/ArtifactRenderLayerPipeline.cpp`。
+- **確認できた事実:** resident Glow shaderは各層のsigmaから `ceil(sigma * 2.5)` の正方kernel半径を作り、全pixelで2D近傍ループを行う。既定4層sigmaではソース上のtexture sample回数はpixelあたり729 + 1225 + 2025 + 2809 = 6788。現在のspatial node経路はfull-resolutionの入力・出力textureを使う一段の汎用filterで、Coreのdownsample pyramidを直接表現しない。
+- **価値または懸念:** Core multi-scale Glowをresident GPUへ移す場合、巨大な一段kernelに置き換えるだけでは不十分で、resize時に作る再利用pyramid targetsと複数passを調整する必要がある。フレーム毎のtexture再確保/readbackを避け、実機profileで品質と時間を比較する設計確認が先になる。
+- **次に確認すること:** 実アプリcaptureとGPU dispatchが可能になった後、現行GlowとCore pyramidのquality/latency baselineを取り、既存render pathのresource lifetimeを確認してから小さいmulti-pass案を提案する。
+## 2026-11-10: Flash video saturation metrics should report source-to-output growth
+- **関連:** `experiments/GlowLab/flash_video_lab.py`、`experiments/GlowLab/captures/final-fill-video-native-rd1/`。
+- **確認できた事実:** 動画metricsの`clipped_channel_fraction`はeffect画像で1.0以上のRGBチャンネル割合を集計し、入力画像との差分ではない。CC0 walkway通常露出のhold候補では終端48.9%だったが、入力にも雪面や空の飽和が含まれるため、この値を新規クリップ量として読めない。
+- **価値または懸念:** 入力の既存クリップを除いた新規飽和率と、クリップ前からハイライト肩で圧縮された画素の割合を分ければ、強い光量設定の素材依存リスクを正しく比較しやすい。
+- **追加した計測:** `flash_video_lab.py`が`source_clipped_channel_fraction`と`newly_clipped_channel_fraction`を同じ線形RGB thresholdで出力するようにした。CC0 walkway holdで低key strength 4.8は終端の新規飽和1.18%、通常露出strength 4.8は48.42%、通常露出strength .8は9.74%だった。
+- **次に確認すべきこと:** 別のCC0素材と実素材でも新規飽和率を比較し、HDRやロールオフを考慮する前のSDR指標として妥当か確認する。
+
+## 2026-11-10: Depth-aware flash-front travel must delay distant regions
+- **関連:** `experiments/GlowLab/flash_fill_lab.py::flash_fill`。
+- **確認できた事実:** white=near mapをfar-positiveへ反転した後に`distance - depth_front * strength`を使うと、遠距離ほど前線へ早く到達する。READMEとコードコメントは遠距離ほど遅いという契約だった。
+- **修正・価値:** 符号を加算へ変更し、同じscreen-space距離の近/遠対称点でflat時の差約0からdepth-aware時のnear-brighter差0.00396を確認した。空間上の半径だけで伝播するwipeより、提供された粗いdepthに沿った順序を保ちやすい。
+- **追加した比較:** Depth Anything V2 Small int8 ONNXの固定revisionを使うoptional CPU depth-estimation toolをGlowLabへ追加し、人物plateでhand-authored depth proxyより滑らかな人物/背景relative depthを得た。strength4.8, progress .24で人物flash deltaはflat .00239、model depth .00542。3枚のCC0 walkway sampled frameでも背景/橋/近景順を目視確認した。
+- **次に確認すべきこと:** 60-frame CC0 shotを通してrelative depthのshot-internal stabilityを計測し、光のfrontへ適用した際のflow-warp後のちらつき・遮蔽漏れを評価する。
+
+## 2026-11-10: Light Leak UI validation needs a scene-specific fixture
+- **関連:** `experiments/GlowLab/captures/light-leak-app-ja-rd.png`、`tools/capture_ui_test.py`、`Artifact/src/AppMain.cpp` のUiTest fixtures。
+- **確認できた事実:** MSVC 14.52 / Ninjaで現在のArtifactUiTestはフルビルドでき、日本語の既定起動画面をcaptureできた。一方、既存fixtureにStill Light Leak適用済み画像はなく、英語の通常起動captureは灰色一色で失敗した。独立Pythonキャプチャとシェーダーcompileは効果面の参照確認であり、アプリruntime parityの代替にはならない。
+- **価値または懸念:** 画面起動の成功だけでエフェクトの描画経路まで確認済みと誤認するのを防ぐ。実際のアプリ効果画素を評価するには、素材/alpha/Look/Strengthを固定した隔離fixtureと、ロケール別captureが必要。
+- **次に確認すべきこと:** Light LeakのCPU/GPU経路を評価する専用UiTest fixtureを既存のAppMain setup patternに合わせて作り、ja/enで出力captureを取得し、独立Python基準との差とCPU/GPU parityを比較する。
 ## 2026-11-08: Pointwise Fusion shared DAG output selection
 - **Related:** `tests/ArtifactCore/PointwiseFusionGraphContractTest.cpp::PreservesSharedOperandsAndExplicitEarlierOutputInCombinedGraph`.
 - **Confirmed:** Existing Pointwise Fusion contract tests cover typed emission and explicit output separately, but do not combine shared operands, dependent operations, and an output selected before the graph's final insertion.

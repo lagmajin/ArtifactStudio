@@ -1,7 +1,7 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-11-03 23:37
-> Total documents: 1483
+> Generated: 2026-11-08 23:10
+> Total documents: 1484
 
 ---
 
@@ -171,7 +171,7 @@
 | 44 | `ArtifactCore/docs/REFERENCE_UTILITY_PATTERNS_WICKED_ENGINE.md` | Utility Patterns Reference (from Wicked Engine) | --- | --- | --- | 6.7 KB | REFERENCE, UTILITY, PATTERNS, WICKED, ENGINE |
 | 45 | `ArtifactCore/docs/TimelineClock_Architecture.md` | Timeline Clock �A�[�L�e�N�`�� | --- | --- | --- | 7.3 KB | TimelineClock, Architecture |
 
-## analysis (101 files)
+## analysis (102 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -244,38 +244,39 @@
 | 67 | `docs/analysis/REPORT_AUDIO_LAYER_PROJECT_RELOAD_INTEGRATION_TEST_2026-11-02.md` | Audio Layer Project Reload Integration Test | 2026-11-02 | --- | 2026-11-02 | 5.1 KB | AUDIO, LAYER, PROJECT, RELOAD, INTEGRATION |
 | 68 | `docs/analysis/REPORT_CE_RENDER_ROI_2026-06-16.md` | CompositionEditor / 低レベル Render / ROI 適合調査 — 2026-06-16 | 2026-06-16 | --- | 2026-06-20 | 10.5 KB | RENDER, ROI |
 | 69 | `docs/analysis/REPORT_CROSS_APP_FEATURE_OPPORTUNITIES_2026-07-04.md` | 他アプリ横断 Artifact 機能機会レポート — 2026-07-04 | 2026-07-04 | --- | 2026-07-24 | 19.6 KB | CROSS, APP, FEATURE, OPPORTUNITIES |
-| 70 | `docs/analysis/REPORT_DCC_GAP_3D_TEXT_2026-08-18.md` | DCC ギャップ分析：3D レイヤー & テキスト機能 — 2026-08-18 | 2026-08-18 | --- | 2026-08-21 | 13.6 KB | DCC, GAP, TEXT |
-| 71 | `docs/analysis/REPORT_DCC_GAP_UPDATE_2026-08-15.md` | AE・他 DCC 機能差ギャップ最新レポート — 2026-08-15 | 2026-08-15 | --- | 2026-08-18 | 10.8 KB | DCC, GAP, UPDATE |
-| 72 | `docs/analysis/REPORT_INPUT_BINDING_TEST_GAP_2026-10-29.md` | InputBinding Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.3 KB | INPUT, BINDING, TEST, GAP |
-| 73 | `docs/analysis/REPORT_INPUT_SURFACE_MANAGER_TEST_GAP_2026-10-29.md` | InputSurfaceManager Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.2 KB | INPUT, SURFACE, MANAGER, TEST, GAP |
-| 74 | `docs/analysis/REPORT_JS_ANIMATION_EXPORT_2026-06-16.md` | JS アニメーション出力 実現可能性レポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 15.0 KB | ANIMATION, EXPORT |
-| 75 | `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` | Late-Stage & DCC Gap レポート — 2026-06-16 | 2026-06-16 | --- | 2026-07-07 | 16.0 KB | LATE, STAGE, AND, DCC, GAP |
-| 76 | `docs/analysis/REPORT_PLAYBACK_CLOCK_CONTRACT_TEST_2026-11-03.md` | PlaybackClock 契約テスト静的監査 | 2026-11-03 | --- | --- | 5.5 KB | PLAYBACK, CLOCK, CONTRACT, TEST |
-| 77 | `docs/analysis/REPORT_PREVIEW_RENDER_PERF_FIXES_2026-07-30.md` | 🔴 プレビューレンダリング パフォーマンス要修正レポート | 2026-07-30 | --- | 2026-08-03 | 8.9 KB | PREVIEW, RENDER, PERF, FIXES |
-| 78 | `docs/analysis/REPORT_QADS_AE_FOCUS_FRAME_IMPLEMENTATION_2026-08-09.md` | QADSにおけるAEスタイルフォーカスフレームの実装監査レポート | 2026-08-09 | --- | 2026-08-10 | 6.4 KB | QADS, FOCUS, FRAME, IMPLEMENTATION |
-| 79 | `docs/analysis/REPORT_SELECTION_MANAGER_TEST_GAP_2026-10-29.md` | SelectionManager Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.8 KB | SELECTION, MANAGER, TEST, GAP |
-| 80 | `docs/analysis/REPORT_SHAPE_ANIMATION_PERSISTENCE_TEST_2026-10-29.md` | Shape Layer Animation Persistence Test | 2026-10-29 | --- | 2026-10-29 | 1.3 KB | SHAPE, ANIMATION, PERSISTENCE, TEST |
-| 81 | `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md` | Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細） | 2026-09-10 | --- | 2026-09-26 | 13.9 KB | SHAPE, GAP, UPDATE |
-| 82 | `docs/analysis/REPORT_SHAPE_LAYER_PROJECT_INTEGRATION_TEST_2026-11-02.md` | Shape Layer Project Integration Test | 2026-11-02 | --- | 2026-11-02 | 1.7 KB | SHAPE, LAYER, PROJECT, INTEGRATION, TEST |
-| 83 | `docs/analysis/REPORT_SHORTCUT_BINDINGS_TEST_GAP_2026-10-29.md` | ShortcutBindings Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | SHORTCUT, BINDINGS, TEST, GAP |
-| 84 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
-| 85 | `docs/analysis/REPORT_TIME_CODE_RANGE_TEST_GAP_2026-10-29.md` | TimeCodeRange Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.4 KB | TIME, CODE, RANGE, TEST, GAP |
-| 86 | `docs/analysis/REPORT_TRANSFORM_HELPER_TEST_GAP_2026-10-29.md` | Transform Helper Test Coverage Gap | 2026-11-01 | --- | 2026-11-01 | 2.7 KB | TRANSFORM, HELPER, TEST, GAP |
-| 87 | `docs/analysis/REPORT_UI_LAYOUT_STATE_TEST_GAP_2026-10-29.md` | UiLayoutState Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.1 KB | LAYOUT, STATE, TEST, GAP |
-| 88 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
-| 89 | `docs/analysis/REPORT_VIEWPORT_TRANSFORMER_TEST_GAP_2026-10-29.md` | ViewportTransformer Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.6 KB | VIEWPORT, TRANSFORMER, TEST, GAP |
-| 90 | `docs/analysis/REPORT_ZOOM_SCALE_TEST_GAP_2026-10-29.md` | ZoomScale2D Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.7 KB | ZOOM, SCALE, TEST, GAP |
-| 91 | `docs/analysis/REVIEW_ARTIFACT_FIXES_2026-09-09.md` | `review-artifact-fixes` 精査台帳 | 2026-09-09 | --- | 2026-09-09 | 8.4 KB | REVIEW, ARTIFACT, FIXES |
-| 92 | `docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md` | Sequence Group 設計メモ (2026-07-26) | 2026-07-26 | --- | 2026-07-26 | 10.8 KB | SEQUENCE, GROUP, DESIGN, NOTE |
-| 93 | `docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md` | Shared Device Lease / Image Cache Audit | 2026-08-11 | --- | 2026-08-13 | 2.1 KB | SHARED, DEVICE, AND, IMAGE, CACHE |
-| 94 | `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` | 静止画レイヤー制作受入マトリクス | 2026-09-19 | --- | 2026-09-21 | 11.5 KB | STILL, IMAGE, LAYER, ACCEPTANCE, MATRIX |
-| 95 | `docs/analysis/TECH_ADOPTION_CANDIDATES_2026-07-27.md` | 採用候補技術調査 — アプリ改良のための技術選定メモ | 2026-07-27 | --- | 2026-07-28 | 11.7 KB | TECH, ADOPTION, CANDIDATES |
-| 96 | `docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md` | 3Dレイヤー AE/Element3D/C4D 劣位点と改善メモ | 2026-09-11 | --- | 2026-09-11 | 4.3 KB | THREED, E3D, C4D, GAP |
-| 97 | `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md` | 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08) | 2026-08-08 | ** 分析完了 | 2026-08-10 | 9.7 KB | THREED, LAYER, FEATURE, GAP, DCC |
-| 98 | `docs/analysis/VIDEO_LAYER_PREVIEW_LATENCY_2026-08-06.md` | 動画レイヤー プレビュー再生遅延 原因調査メモ | 2026-08-06 | --- | 2026-08-06 | 4.7 KB | VIDEO, LAYER, PREVIEW, LATENCY |
-| 99 | `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` | ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStu | 2026-09-26 | --- | 2026-09-26 | 28.6 KB | VIEWPORT, DCC, PARITY, C4D, HOUDINI |
-| 100 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.1 KB | WIDGET, GAP, ANALYSIS |
-| 101 | `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` | Workflow Gap Deep Dive — 2026-06-16 | 2026-06-16 | --- | 2026-09-08 | 21.1 KB | WORKFLOW, GAP, DEEP, DIVE |
+| 70 | `docs/analysis/REPORT_CRYPTOMATTE_TEST_GAP_2026-11-08.md` | Cryptomatte Test Coverage Gap | 2026-11-08 | --- | --- | 6.0 KB | CRYPTOMATTE, TEST, GAP |
+| 71 | `docs/analysis/REPORT_DCC_GAP_3D_TEXT_2026-08-18.md` | DCC ギャップ分析：3D レイヤー & テキスト機能 — 2026-08-18 | 2026-08-18 | --- | 2026-08-21 | 13.6 KB | DCC, GAP, TEXT |
+| 72 | `docs/analysis/REPORT_DCC_GAP_UPDATE_2026-08-15.md` | AE・他 DCC 機能差ギャップ最新レポート — 2026-08-15 | 2026-08-15 | --- | 2026-08-18 | 10.8 KB | DCC, GAP, UPDATE |
+| 73 | `docs/analysis/REPORT_INPUT_BINDING_TEST_GAP_2026-10-29.md` | InputBinding Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.3 KB | INPUT, BINDING, TEST, GAP |
+| 74 | `docs/analysis/REPORT_INPUT_SURFACE_MANAGER_TEST_GAP_2026-10-29.md` | InputSurfaceManager Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.2 KB | INPUT, SURFACE, MANAGER, TEST, GAP |
+| 75 | `docs/analysis/REPORT_JS_ANIMATION_EXPORT_2026-06-16.md` | JS アニメーション出力 実現可能性レポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 15.0 KB | ANIMATION, EXPORT |
+| 76 | `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` | Late-Stage & DCC Gap レポート — 2026-06-16 | 2026-06-16 | --- | 2026-07-07 | 16.0 KB | LATE, STAGE, AND, DCC, GAP |
+| 77 | `docs/analysis/REPORT_PLAYBACK_CLOCK_CONTRACT_TEST_2026-11-03.md` | PlaybackClock 契約テスト静的監査 | 2026-11-03 | --- | 2026-11-04 | 5.5 KB | PLAYBACK, CLOCK, CONTRACT, TEST |
+| 78 | `docs/analysis/REPORT_PREVIEW_RENDER_PERF_FIXES_2026-07-30.md` | 🔴 プレビューレンダリング パフォーマンス要修正レポート | 2026-07-30 | --- | 2026-08-03 | 8.9 KB | PREVIEW, RENDER, PERF, FIXES |
+| 79 | `docs/analysis/REPORT_QADS_AE_FOCUS_FRAME_IMPLEMENTATION_2026-08-09.md` | QADSにおけるAEスタイルフォーカスフレームの実装監査レポート | 2026-08-09 | --- | 2026-08-10 | 6.4 KB | QADS, FOCUS, FRAME, IMPLEMENTATION |
+| 80 | `docs/analysis/REPORT_SELECTION_MANAGER_TEST_GAP_2026-10-29.md` | SelectionManager Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.8 KB | SELECTION, MANAGER, TEST, GAP |
+| 81 | `docs/analysis/REPORT_SHAPE_ANIMATION_PERSISTENCE_TEST_2026-10-29.md` | Shape Layer Animation Persistence Test | 2026-10-29 | --- | 2026-10-29 | 1.3 KB | SHAPE, ANIMATION, PERSISTENCE, TEST |
+| 82 | `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md` | Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細） | 2026-09-10 | --- | 2026-09-26 | 13.9 KB | SHAPE, GAP, UPDATE |
+| 83 | `docs/analysis/REPORT_SHAPE_LAYER_PROJECT_INTEGRATION_TEST_2026-11-02.md` | Shape Layer Project Integration Test | 2026-11-02 | --- | 2026-11-02 | 1.7 KB | SHAPE, LAYER, PROJECT, INTEGRATION, TEST |
+| 84 | `docs/analysis/REPORT_SHORTCUT_BINDINGS_TEST_GAP_2026-10-29.md` | ShortcutBindings Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.8 KB | SHORTCUT, BINDINGS, TEST, GAP |
+| 85 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
+| 86 | `docs/analysis/REPORT_TIME_CODE_RANGE_TEST_GAP_2026-10-29.md` | TimeCodeRange Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.4 KB | TIME, CODE, RANGE, TEST, GAP |
+| 87 | `docs/analysis/REPORT_TRANSFORM_HELPER_TEST_GAP_2026-10-29.md` | Transform Helper Test Coverage Gap | 2026-11-01 | --- | 2026-11-01 | 2.7 KB | TRANSFORM, HELPER, TEST, GAP |
+| 88 | `docs/analysis/REPORT_UI_LAYOUT_STATE_TEST_GAP_2026-10-29.md` | UiLayoutState Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.1 KB | LAYOUT, STATE, TEST, GAP |
+| 89 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
+| 90 | `docs/analysis/REPORT_VIEWPORT_TRANSFORMER_TEST_GAP_2026-10-29.md` | ViewportTransformer Test Coverage Gap | 2026-10-31 | --- | 2026-11-01 | 1.6 KB | VIEWPORT, TRANSFORMER, TEST, GAP |
+| 91 | `docs/analysis/REPORT_ZOOM_SCALE_TEST_GAP_2026-10-29.md` | ZoomScale2D Test Coverage Gap | 2026-10-29 | --- | 2026-10-29 | 0.7 KB | ZOOM, SCALE, TEST, GAP |
+| 92 | `docs/analysis/REVIEW_ARTIFACT_FIXES_2026-09-09.md` | `review-artifact-fixes` 精査台帳 | 2026-09-09 | --- | 2026-09-09 | 8.4 KB | REVIEW, ARTIFACT, FIXES |
+| 93 | `docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md` | Sequence Group 設計メモ (2026-07-26) | 2026-07-26 | --- | 2026-07-26 | 10.8 KB | SEQUENCE, GROUP, DESIGN, NOTE |
+| 94 | `docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md` | Shared Device Lease / Image Cache Audit | 2026-08-11 | --- | 2026-08-13 | 2.1 KB | SHARED, DEVICE, AND, IMAGE, CACHE |
+| 95 | `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` | 静止画レイヤー制作受入マトリクス | 2026-09-19 | --- | 2026-09-21 | 11.5 KB | STILL, IMAGE, LAYER, ACCEPTANCE, MATRIX |
+| 96 | `docs/analysis/TECH_ADOPTION_CANDIDATES_2026-07-27.md` | 採用候補技術調査 — アプリ改良のための技術選定メモ | 2026-07-27 | --- | 2026-07-28 | 11.7 KB | TECH, ADOPTION, CANDIDATES |
+| 97 | `docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md` | 3Dレイヤー AE/Element3D/C4D 劣位点と改善メモ | 2026-09-11 | --- | 2026-09-11 | 4.3 KB | THREED, E3D, C4D, GAP |
+| 98 | `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md` | 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08) | 2026-08-08 | ** 分析完了 | 2026-08-10 | 9.7 KB | THREED, LAYER, FEATURE, GAP, DCC |
+| 99 | `docs/analysis/VIDEO_LAYER_PREVIEW_LATENCY_2026-08-06.md` | 動画レイヤー プレビュー再生遅延 原因調査メモ | 2026-08-06 | --- | 2026-08-06 | 4.7 KB | VIDEO, LAYER, PREVIEW, LATENCY |
+| 100 | `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` | ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStu | 2026-09-26 | --- | 2026-09-26 | 28.6 KB | VIEWPORT, DCC, PARITY, C4D, HOUDINI |
+| 101 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.1 KB | WIDGET, GAP, ANALYSIS |
+| 102 | `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` | Workflow Gap Deep Dive — 2026-06-16 | 2026-06-16 | --- | 2026-09-08 | 21.1 KB | WORKFLOW, GAP, DEEP, DIVE |
 
 ## arch (3 files)
 
@@ -988,7 +989,7 @@
 | 373 | `docs/planned/MILESTONE_IMPLEMENTATION_PRIORITY_DEEP_AUDIT_2026-04-08.md` | 実装優先順位 ディープオーディットレポート | 2026-04-08 | 優先順位の基準を整理済み（実装完了を示すマイルストーンではない） | 2026-08-16 | 7.0 KB | IMPLEMENTATION, PRIORITY, DEEP, AUDIT |
 | 374 | `docs/planned/MILESTONE_IN_APP_LLM_INTEGRATION_2026-04-08.md` | MILESTONE: アプリ内 LLM 統合フェーズ1 | 2026-08-04 | 提案中 | 2026-08-06 | 3.6 KB | APP, LLM, INTEGRATION |
 | 375 | `docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md` | 独自ドッキングウィジェットマネージャ移行マイルストーン | 2026-10-16 | Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、外部再利用境界を整備中。runtime verification pending。floating lifecycle と backend switch pending | 2026-10-16 | 13.7 KB | INDEPENDENT, DOCK, MANAGER |
-| 376 | `docs/planned/MILESTONE_INDEPENDENT_FUNCTION_TESTS_2026-10-16.md` | 独立機能テスト拡充マイルストーン | 2026-11-03 | In Progress | 2026-11-01 | 105.7 KB | INDEPENDENT, FUNCTION, TESTS |
+| 376 | `docs/planned/MILESTONE_INDEPENDENT_FUNCTION_TESTS_2026-10-16.md` | 独立機能テスト拡充マイルストーン | 2026-11-03 | In Progress | 2026-11-04 | 105.7 KB | INDEPENDENT, FUNCTION, TESTS |
 | 377 | `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` | Inline Interaction Surfaces Milestone (2026-03-31) | 2026-03-31 | --- | 2026-08-16 | 6.6 KB | INLINE, INTERACTION, SURFACES |
 | 378 | `docs/planned/MILESTONE_INSPECTOR_PROPERTY_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Inspector / PropertyEditor 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-08-16 | 8.2 KB | INSPECTOR, PROPERTY, EDITOR, DESIGN, AUDIT |
 | 379 | `docs/planned/MILESTONE_INTEGRATED_RENDERING_ENGINE_2026-03-28.md` | マイルストーン: Integrated Rendering Engine | 2026-08-04 | --- | 2026-08-06 | 3.9 KB | INTEGRATED, RENDERING, ENGINE |
@@ -1056,7 +1057,7 @@
 | 441 | `docs/planned/MILESTONE_MATH_VEC_FOUNDATION_2026-08-22.md` | MILESTONE: 公式数学型基盤 Math.Vec（glm ラップ）— QVector 排除 Phase 0/1 | 2026-08-22 | --- | 2026-08-24 | 3.6 KB | MATH, VEC, FOUNDATION |
 | 442 | `docs/planned/MILESTONE_MATTE_MASK_TIME_REMAP_SPLIT_ROUTE_2026-04-24.md` | Matte / Mask / Time Remap Split Route | 2026-08-15 | --- | 2026-08-16 | 6.2 KB | MATTE, MASK, TIME, REMAP, SPLIT |
 | 443 | `docs/planned/MILESTONE_MAYA_VIEWPORT_OPERATIONS_2026-03-25.md` | Milestone: Maya-Like Viewport Operations for AE-Style App (2026-03-25) | 2026-03-25 | --- | 2026-08-16 | 13.7 KB | MAYA, VIEWPORT, OPERATIONS |
-| 444 | `docs/planned/MILESTONE_MCP_AI_DEBUG_SYSTEM_2026-08-02.md` | MCP AI デバッグシステム 統合マイルストーン | 2026-10-02 | Protocol and tool surface substantial / live integration acceptance pending | 2026-10-02 | 23.9 KB | MCP, DEBUG, SYSTEM |
+| 444 | `docs/planned/MILESTONE_MCP_AI_DEBUG_SYSTEM_2026-08-02.md` | MCP AI デバッグシステム 統合マイルストーン | 2026-11-03 | Protocol and tool surface substantial / live integration acceptance pending | 2026-11-04 | 25.9 KB | MCP, DEBUG, SYSTEM |
 | 445 | `docs/planned/MILESTONE_MEDIA_ENGINE_PRODUCTION_HARDENING.md` | MILESTONE: Media Engine Production Hardening | 2026-08-15 | --- | 2026-08-16 | 30.2 KB | MEDIA, ENGINE, PRODUCTION, HARDENING |
 | 446 | `docs/planned/MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md` | Menu to App Integration Milestone | 2026-08-15 | --- | 2026-08-16 | 8.8 KB | MENU, APP, INTEGRATION |
 | 447 | `docs/planned/MILESTONE_MENU_SYSTEM_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: メニューシステム 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-08-16 | 3.6 KB | MENU, SYSTEM, DESIGN, AUDIT |
@@ -1259,7 +1260,7 @@
 | 644 | `docs/planned/MILESTONE_TEST_QA_INFRASTRUCTURE_2026-03-28.md` | テスト・QA 基盤 Milestone | 2026-03-28 | Phase 1 実装済み | 2026-04-08 | 8.1 KB | TEST, INFRASTRUCTURE |
 | 645 | `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` | M-TXT-ANIM-1: Text Animator の追加ワークフロー仕上げ（AE 風個別追加・Timeline 露出） | 2026-10-06 | In Progress（P1 の個別プロパティ追加と P2 の Timeline 左ペイン露出は 2026-09-26 に実装・静的確認済み。ビルド・実機は未確認） | 2026-10-06 | 12.5 KB | TEXT, ANIMATOR, ADD, WORKFLOW |
 | 646 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLETION.md` | MILESTONE: Text Animator Completion & Inline Editing | 2026-08-04 | ** 2026-08-08 ソース実装完了、runtime確認待ち。`RangeSelector::order` を正規状態として追加し、通常評価と source-aware 評価、selector preview、JSON 保存復元、Inspector の `Order` プロパティへ接続した。既存データは `Natural` を既定値として互換維持する。 | 2026-08-16 | 24.5 KB | TEXT, ANIMATOR, COMPLETION |
-| 647 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-08-04 | --- | 2026-10-02 | 18.8 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
+| 647 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-08-04 | --- | 2026-11-05 | 21.2 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
 | 648 | `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md` | MILESTONE: 次世代テキストアニメーター | 2026-08-04 | --- | 2026-08-06 | 5.5 KB | TEXT, ANIMATOR, NEXT, GEN |
 | 649 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SEMANTIC_PIPELINE_2026-07-04.md` | MILESTONE: Text Animator Semantic Pipeline | 2026-08-04 | In Progress | 2026-08-06 | 12.9 KB | TEXT, ANIMATOR, SEMANTIC, PIPELINE |
 | 650 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md` | Milestone: AE風 Text Animator システム (2026-03-25) | 2026-03-25 | --- | 2026-09-08 | 17.4 KB | TEXT, ANIMATOR, SYSTEM |
@@ -1431,7 +1432,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-11-02 | --- | 2026-11-02 | 316.0 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-11-05 | --- | 2026-11-05 | 316.2 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1648,7 +1649,7 @@
 | Artifact/bugs | 1 |
 | Artifact/planned | 3 |
 | ArtifactCore | 45 |
-| analysis | 101 |
+| analysis | 102 |
 | arch | 3 |
 | archived | 1 |
 | bugs | 91 |
@@ -1672,4 +1673,4 @@
 | trash | 1 |
 | verification | 1 |
 | worklog | 28 |
-| **Total** | **1483** |
+| **Total** | **1484** |

@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <utility>
 
+#include <QBuffer>
 #include <QByteArray>
 #include <QColor>
 #include <QColorSpace>
@@ -182,6 +184,51 @@ bool writeBase64Fixture(const QString& path, const QByteArray& base64)
     QFile file(path);
     return bytes.size() == 70 && file.open(QIODevice::WriteOnly) &&
            file.write(bytes) == bytes.size();
+}
+
+QByteArray jpegWithExifOrientation(const QImage& image, int orientation)
+{
+    QByteArray jpeg;
+    QBuffer buffer(&jpeg);
+    if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "JPEG", 100)) {
+        return {};
+    }
+
+    QByteArray exif("Exif\0\0", 6);
+    exif.append("II", 2);
+    exif.append(static_cast<char>(0x2a));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(8));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(1));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0x12));
+    exif.append(static_cast<char>(0x01));
+    exif.append(static_cast<char>(3));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(1));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(orientation));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+    exif.append(static_cast<char>(0));
+
+    const int app1Length = exif.size() + 2;
+    QByteArray app1;
+    app1.append(static_cast<char>(0xff));
+    app1.append(static_cast<char>(0xe1));
+    app1.append(static_cast<char>((app1Length >> 8) & 0xff));
+    app1.append(static_cast<char>(app1Length & 0xff));
+    app1.append(exif);
+    return jpeg.left(2) + app1 + jpeg.mid(2);
 }
 
 void expectDimensionFallbackRecorded(const QString& imagePath)
@@ -564,6 +611,8 @@ TEST(StillImageLayerRoundTripTest,
     QImage rgbSource(2, 1, QImage::Format_RGB888);
     rgbSource.setPixelColor(0, 0, QColor(20, 60, 100));
     rgbSource.setPixelColor(1, 0, QColor(140, 180, 220));
+    rgbSource.setColorSpace(QColorSpace(QColorSpace::SRgb));
+    ASSERT_FALSE(rgbSource.colorSpace().iccProfile().isEmpty());
     ASSERT_TRUE(rgbSource.save(imagePath, "PNG"));
 
     Artifact::ArtifactImageLayer layer;
@@ -578,6 +627,7 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(firstMetadata.value(QStringLiteral("channelCount")).toInt(), 4);
     EXPECT_EQ(firstMetadata.value(QStringLiteral("alphaChannel")).toInt(), -1);
     EXPECT_EQ(firstMetadata.value(QStringLiteral("bitsPerChannel")).toInt(), 8);
+    EXPECT_GT(firstMetadata.value(QStringLiteral("iccProfileBytes")).toInt(), 0);
     EXPECT_EQ(firstMetadata.value(QStringLiteral("channelNames")).toArray().size(), 3);
 
     QImage rgbaSource(3, 1, QImage::Format_RGBA64);
@@ -615,6 +665,7 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(secondMetadata.value(QStringLiteral("channelCount")).toInt(), 4);
     EXPECT_EQ(secondMetadata.value(QStringLiteral("alphaChannel")).toInt(), 3);
     EXPECT_EQ(secondMetadata.value(QStringLiteral("bitsPerChannel")).toInt(), 16);
+    EXPECT_EQ(secondMetadata.value(QStringLiteral("iccProfileBytes")).toInt(), 0);
     const QJsonArray channelNames =
         secondMetadata.value(QStringLiteral("channelNames")).toArray();
     ASSERT_EQ(channelNames.size(), 4);
@@ -668,6 +719,128 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(pathFallback.sourcePath(), fallbackPath);
     EXPECT_EQ(waitForImage(pathFallback, QSize(1, 1)).pixelColor(0, 0),
               fallbackColor);
+}
+
+TEST(StillImageLayerRoundTripTest,
+     ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor previousColor(35, 95, 155, 255);
+    const QColor restoredColor(195, 135, 75, 255);
+    const QColor laterPreviousFileColor(70, 180, 95, 255);
+    const QString previousPath =
+        dir.filePath(QStringLiteral("previous-source.png"));
+    const QString restoredPath =
+        dir.filePath(QStringLiteral("restored-source.png"));
+    const auto waitForColor = [](Artifact::ArtifactImageLayer& target,
+                                 const QColor& expectedColor) {
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            const QImage decoded = target.toQImage();
+            if (decoded.size() == QSize(2, 2) &&
+                decoded.pixelColor(0, 0) == expectedColor) {
+                return decoded;
+            }
+            QThread::msleep(1);
+        }
+        return target.toQImage();
+    };
+    QImage image(2, 2, QImage::Format_RGBA8888);
+    image.fill(previousColor);
+    ASSERT_TRUE(image.save(previousPath, "PNG"));
+    image.fill(restoredColor);
+    ASSERT_TRUE(image.save(restoredPath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(previousPath));
+    ASSERT_EQ(waitForColor(layer, previousColor).pixelColor(0, 0),
+              previousColor);
+    const auto previousSourceId = layer.sourceAssetId();
+    ASSERT_FALSE(previousSourceId.isNull());
+
+    Artifact::ArtifactImageLayer serializedSource;
+    ASSERT_TRUE(serializedSource.loadFromPath(restoredPath));
+    ASSERT_EQ(waitForColor(serializedSource, restoredColor).pixelColor(0, 0),
+              restoredColor);
+    const auto restoredSourceId = serializedSource.sourceAssetId();
+    ASSERT_FALSE(restoredSourceId.isNull());
+    ASSERT_NE(restoredSourceId, previousSourceId);
+    const QJsonObject restoredState = serializedSource.toJson();
+
+    layer.fromJsonProperties(restoredState);
+    ASSERT_EQ(layer.sourcePath(), restoredPath);
+    ASSERT_EQ(layer.sourceAssetId(), restoredSourceId);
+    ASSERT_EQ(waitForColor(layer, restoredColor).pixelColor(0, 0),
+              restoredColor);
+    const std::uint64_t restoredVersion = layer.sourceVersion();
+    ASSERT_GT(restoredVersion, 0u);
+    EXPECT_EQ(ArtifactCore::AssetManager::instance().useCount(previousSourceId),
+              0);
+
+    image.fill(laterPreviousFileColor);
+    ASSERT_TRUE(image.save(previousPath, "PNG"));
+    (void)ArtifactCore::AssetManager::instance().invalidateSource(previousSourceId);
+    EXPECT_EQ(layer.sourcePath(), restoredPath);
+    EXPECT_EQ(layer.sourceAssetId(), restoredSourceId);
+    EXPECT_EQ(layer.sourceVersion(), restoredVersion);
+    EXPECT_EQ(waitForColor(layer, restoredColor).pixelColor(0, 0),
+              restoredColor);
+}
+
+TEST(StillImageLayerRoundTripTest,
+     ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor originalColor(45, 115, 185, 255);
+    const QColor overwrittenColor(195, 75, 35, 255);
+    const QString imagePath = dir.filePath(QStringLiteral("source-to-clear.png"));
+    QImage sourceImage(3, 2, QImage::Format_RGBA8888);
+    sourceImage.fill(originalColor);
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, sourceImage.size()));
+    ASSERT_EQ(waitForImage(layer, sourceImage.size()).pixelColor(0, 0),
+              originalColor);
+    const auto previousSourceId = layer.sourceAssetId();
+    ASSERT_FALSE(previousSourceId.isNull());
+
+    Artifact::ArtifactImageLayer sourceLessState;
+    ASSERT_TRUE(sourceLessState.loadFromPath(QString()));
+    const QJsonObject state = sourceLessState.toJson();
+    EXPECT_TRUE(state.value(QStringLiteral("image.sourcePath")).toString().isEmpty());
+    layer.fromJsonProperties(state);
+
+    EXPECT_TRUE(layer.sourcePath().isEmpty());
+    EXPECT_TRUE(layer.sourceAssetId().isNull());
+    EXPECT_FALSE(layer.isImageSequence());
+    EXPECT_FALSE(layer.hasCurrentFrameBuffer());
+    EXPECT_EQ(layer.toQImage().size(), QSize(256, 256));
+    EXPECT_EQ(ArtifactCore::AssetManager::instance().useCount(previousSourceId),
+              0);
+
+    sourceImage.fill(overwrittenColor);
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+    (void)ArtifactCore::AssetManager::instance().invalidateSource(previousSourceId);
+    QElapsedTimer settleTimer;
+    settleTimer.start();
+    while (settleTimer.elapsed() < 100) {
+        QCoreApplication::processEvents();
+        QThread::msleep(1);
+    }
+    EXPECT_TRUE(layer.sourcePath().isEmpty());
+    EXPECT_TRUE(layer.sourceAssetId().isNull());
+    EXPECT_FALSE(layer.hasCurrentFrameBuffer());
+    EXPECT_EQ(layer.toQImage().size(), QSize(256, 256));
 }
 
 TEST(StillImageLayerRoundTripTest,
@@ -1150,6 +1323,64 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor firstFrameColors[] = {
+        QColor(10, 20, 30, 255), QColor(20, 80, 140, 128),
+        QColor(40, 100, 160, 255), QColor(50, 60, 70, 255)};
+    const QColor secondFrameColors[] = {
+        QColor(110, 120, 130, 255), QColor(180, 40, 70, 96),
+        QColor(70, 190, 50, 200), QColor(150, 160, 170, 255)};
+    const QString firstPath = dir.filePath(QStringLiteral("crop-sequence-1.png"));
+    const QString secondPath = dir.filePath(QStringLiteral("crop-sequence-2.png"));
+    for (const auto& [path, colors] : {
+             std::pair{firstPath, firstFrameColors},
+             std::pair{secondPath, secondFrameColors}}) {
+        QImage frame(4, 1, QImage::Format_RGBA8888);
+        for (int x = 0; x < frame.width(); ++x) {
+            frame.setPixelColor(x, 0, colors[x]);
+        }
+        ASSERT_TRUE(frame.save(path, "PNG"));
+    }
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.setImageSequence(QStringList{firstPath, secondPath}, 0.0));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropWidth"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropHeight"), QVariant(1.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(true)));
+
+    const auto expectCroppedFrame = [&](qint64 frameIndex,
+                                        const QColor* expectedColors) {
+        layer.goToFrame(frameIndex);
+        const QImage cropped = waitForSequenceFrame(layer, frameIndex);
+        ASSERT_EQ(cropped.size(), QSize(4, 1));
+        const QImage thumbnail = layer.getThumbnail(4, 1);
+        ASSERT_EQ(thumbnail.size(), QSize(4, 1));
+        for (int x = 0; x < cropped.width(); ++x) {
+            const QColor expected = x >= 1 && x <= 2
+                ? expectedColors[x]
+                : QColor(0, 0, 0, 0);
+            EXPECT_EQ(cropped.pixelColor(x, 0), expected) << "x=" << x;
+            EXPECT_EQ(thumbnail.pixelColor(x, 0), expected) << "x=" << x;
+        }
+    };
+
+    expectCroppedFrame(0, firstFrameColors);
+    expectCroppedFrame(1, secondFrameColors);
+}
+
+TEST(StillImageLayerRoundTripTest,
      ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion)
 {
     QTemporaryDir dir;
@@ -1158,7 +1389,6 @@ TEST(StillImageLayerRoundTripTest,
 
     const QSize frameSize(2048, 2048);
     const QColor oldFirstColor(25, 65, 105, 255);
-    const QColor oldLateColor(205, 45, 75, 255);
     const QColor newFirstColor(45, 155, 85, 255);
     const QColor newTargetColor(225, 195, 35, 255);
     const QString oldFirstPath = dir.filePath(QStringLiteral("old-0001.png"));
@@ -1169,8 +1399,19 @@ TEST(StillImageLayerRoundTripTest,
     QImage frame(frameSize, QImage::Format_RGBA8888);
     frame.fill(oldFirstColor);
     ASSERT_TRUE(frame.save(oldFirstPath, "PNG"));
-    frame.fill(oldLateColor);
-    ASSERT_TRUE(frame.save(oldLatePath, "PNG"));
+    QImage oldLateFrame(frameSize, QImage::Format_RGBA8888);
+    for (int y = 0; y < oldLateFrame.height(); ++y) {
+        uchar* row = oldLateFrame.scanLine(y);
+        for (int x = 0; x < oldLateFrame.width(); ++x) {
+            const auto value = static_cast<uchar>(
+                (x * 73u + y * 151u + (x * y) % 251u) & 0xffu);
+            row[x * 4 + 0] = value;
+            row[x * 4 + 1] = static_cast<uchar>(value ^ 0x5au);
+            row[x * 4 + 2] = static_cast<uchar>(value ^ 0xa5u);
+            row[x * 4 + 3] = 255;
+        }
+    }
+    ASSERT_TRUE(oldLateFrame.save(oldLatePath, "PNG"));
     frame.fill(newFirstColor);
     ASSERT_TRUE(frame.save(newFirstPath, "PNG"));
     frame.fill(newTargetColor);
@@ -1179,18 +1420,37 @@ TEST(StillImageLayerRoundTripTest,
     Artifact::ArtifactImageLayer layer;
     ASSERT_TRUE(layer.setImageSequence(
         QStringList{oldFirstPath, oldLatePath}, 0.0));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropWidth"), QVariant(256.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropHeight"), QVariant(256.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(true)));
     EXPECT_EQ(waitForSequenceFrame(layer, 0).pixelColor(31, 47), oldFirstColor);
 
-    // Request a large frame from the old sequence, then replace its source
-    // list before that asynchronous request is guaranteed to have completed.
+    // Request a high-entropy frame from the old sequence and verify that it is
+    // still pending before replacing the source list.
     layer.goToFrame(1);
     QCoreApplication::processEvents();
     QThread::msleep(1);
+    ASSERT_NE(layer.sequenceCachedFrameIndex(), 1)
+        << "the old frame decode must still be pending at the replacement point";
     ASSERT_TRUE(layer.setImageSequence(
         QStringList{newFirstPath, newTargetPath}, 0.0));
     layer.goToFrame(1);
 
-    EXPECT_EQ(waitForSequenceFrame(layer, 1).pixelColor(31, 47), newTargetColor);
+    const QImage replacementFrame = waitForSequenceFrame(layer, 1);
+    EXPECT_EQ(replacementFrame.pixelColor(31, 47), newTargetColor);
+    EXPECT_EQ(replacementFrame.pixelColor(128, 128), newTargetColor);
+    EXPECT_EQ(replacementFrame.pixelColor(512, 512), QColor(0, 0, 0, 0));
+    const QImage replacementThumbnail = layer.getThumbnail(64, 64);
+    ASSERT_EQ(replacementThumbnail.size(), QSize(64, 64));
+    EXPECT_EQ(replacementThumbnail.pixelColor(1, 1), newTargetColor);
+    EXPECT_EQ(replacementThumbnail.pixelColor(32, 32), QColor(0, 0, 0, 0));
 
     // Drain delayed callbacks after the new frame has appeared: an old decode
     // must not overwrite the same frame index in the replacement sequence.
@@ -1201,7 +1461,12 @@ TEST(StillImageLayerRoundTripTest,
         QThread::msleep(2);
     }
     EXPECT_EQ(layer.sequenceCachedFrameIndex(), 1);
-    EXPECT_EQ(layer.toQImage().pixelColor(31, 47), newTargetColor);
+    const QImage settledFrame = layer.toQImage();
+    EXPECT_EQ(settledFrame.pixelColor(31, 47), newTargetColor);
+    EXPECT_EQ(settledFrame.pixelColor(512, 512), QColor(0, 0, 0, 0));
+    const QImage settledThumbnail = layer.getThumbnail(64, 64);
+    EXPECT_EQ(settledThumbnail.pixelColor(1, 1), newTargetColor);
+    EXPECT_EQ(settledThumbnail.pixelColor(32, 32), QColor(0, 0, 0, 0));
 }
 
 TEST(StillImageLayerRoundTripTest,
@@ -2019,6 +2284,47 @@ TEST(StillImageLayerRoundTripTest, CorruptPayloadRetainsPathAndProvidesPlacehold
     EXPECT_EQ(placeholder.size(), QSize(256, 256));
 }
 
+TEST(StillImageLayerRoundTripTest,
+     CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString validPath = dir.filePath(QStringLiteral("active-valid.png"));
+    const QString corruptPath = dir.filePath(QStringLiteral("replacement-corrupt.png"));
+    QImage validImage(2, 1, QImage::Format_RGBA8888);
+    validImage.fill(QColor(45, 115, 185, 255));
+    ASSERT_TRUE(validImage.save(validPath, "PNG"));
+    QFile corruptFile(corruptPath);
+    ASSERT_TRUE(corruptFile.open(QIODevice::WriteOnly));
+    ASSERT_EQ(corruptFile.write(QByteArrayLiteral("not a PNG payload")),
+              qsizetype(17));
+    corruptFile.close();
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(validPath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 1)));
+    const QUuid previousSourceId = layer.sourceAssetId();
+    ASSERT_FALSE(previousSourceId.isNull());
+    layer.setOpacity(0.4f);
+    layer.transform2D().setPosition(-13.0f, 22.0f);
+
+    EXPECT_FALSE(layer.loadFromPath(corruptPath));
+    EXPECT_EQ(layer.sourcePath(), corruptPath);
+    EXPECT_NE(layer.sourceAssetId(), previousSourceId);
+    ASSERT_TRUE(layer.hasCurrentFrameBuffer());
+    const QImage placeholder = layer.toQImage();
+    EXPECT_EQ(placeholder.size(), QSize(256, 256));
+    EXPECT_NE(placeholder.pixelColor(0, 0), QColor(45, 115, 185, 255));
+    EXPECT_NEAR(layer.opacity(), 0.4f, 1e-6f);
+    float x = 0.0f;
+    float y = 0.0f;
+    layer.transform2D().position(x, y);
+    EXPECT_NEAR(x, -13.0f, 1e-6f);
+    EXPECT_NEAR(y, 22.0f, 1e-6f);
+}
+
 TEST(StillImageLayerRoundTripTest, ActiveCropLeavesPixelsOutsideCropTransparent)
 {
     QTemporaryDir dir;
@@ -2421,6 +2727,106 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_FALSE(secondLayer.isSourceIdentityLocalized());
     EXPECT_EQ(secondLayer.sourceAssetId(), sharedSourceId);
     EXPECT_EQ(waitForImage(firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              updatedColor);
+}
+
+TEST(StillImageLayerRoundTripTest,
+     ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QColor originalColor(55, 145, 215, 255);
+    const QColor updatedColor(215, 105, 45, 255);
+    QImage sourceImage(2, 2, QImage::Format_RGBA8888);
+    sourceImage.fill(originalColor);
+    const QString imagePath = dir.filePath(QStringLiteral("localized-roundtrip.png"));
+    const QString projectPath = dir.filePath(QStringLiteral("localized-roundtrip.artifact"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("LocalizedSourceRoundTrip"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(makeCompositionParams());
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams firstParams(
+        QStringLiteral("LocalizedImage"), Artifact::LayerType::Image);
+    Artifact::ArtifactLayerInitParams secondParams(
+        QStringLiteral("SharedImage"), Artifact::LayerType::Image);
+    const auto firstAdded =
+        projects.addLayerToComposition(composition.id, firstParams);
+    const auto secondAdded =
+        projects.addLayerToComposition(composition.id, secondParams);
+    ASSERT_TRUE(firstAdded.success);
+    ASSERT_TRUE(secondAdded.success);
+    auto* firstLayer =
+        dynamic_cast<Artifact::ArtifactImageLayer*>(firstAdded.layer.get());
+    auto* secondLayer =
+        dynamic_cast<Artifact::ArtifactImageLayer*>(secondAdded.layer.get());
+    ASSERT_NE(firstLayer, nullptr);
+    ASSERT_NE(secondLayer, nullptr);
+    const auto firstLayerId = firstLayer->id();
+    const auto secondLayerId = secondLayer->id();
+    ASSERT_TRUE(firstLayer->loadFromPath(imagePath));
+    ASSERT_TRUE(secondLayer->loadFromPath(imagePath));
+    ASSERT_EQ(waitForImage(*firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+    ASSERT_EQ(waitForImage(*secondLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+
+    const auto sharedSourceId = firstLayer->sourceAssetId();
+    ASSERT_FALSE(sharedSourceId.isNull());
+    ASSERT_EQ(secondLayer->sourceAssetId(), sharedSourceId);
+    const std::uint64_t originalSharedVersion = secondLayer->sourceVersion();
+    ASSERT_GT(originalSharedVersion, 0u);
+    ASSERT_TRUE(firstLayer->localizeSourceIdentity());
+    const auto localizedSourceId = firstLayer->sourceAssetId();
+    ASSERT_NE(localizedSourceId, sharedSourceId);
+    const std::uint64_t localizedVersion = firstLayer->sourceVersion();
+    ASSERT_GT(localizedVersion, 0u);
+
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto restoredComposition =
+        projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(restoredComposition);
+    firstLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        restoredComposition->layerById(firstLayerId).get());
+    secondLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        restoredComposition->layerById(secondLayerId).get());
+    ASSERT_NE(firstLayer, nullptr);
+    ASSERT_NE(secondLayer, nullptr);
+    EXPECT_TRUE(firstLayer->isSourceIdentityLocalized());
+    EXPECT_EQ(firstLayer->sourceAssetId(), localizedSourceId);
+    EXPECT_FALSE(secondLayer->isSourceIdentityLocalized());
+    EXPECT_EQ(secondLayer->sourceAssetId(), sharedSourceId);
+    ASSERT_EQ(waitForImage(*firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+    ASSERT_EQ(waitForImage(*secondLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+
+    sourceImage.fill(updatedColor);
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+    const std::uint64_t updatedSharedVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sharedSourceId);
+    ASSERT_GT(updatedSharedVersion, originalSharedVersion);
+    ASSERT_EQ(waitForImage(*secondLayer, QSize(2, 2)).pixelColor(0, 0),
+              updatedColor);
+    EXPECT_EQ(secondLayer->sourceVersion(), updatedSharedVersion);
+    EXPECT_EQ(firstLayer->sourceVersion(), localizedVersion);
+    ASSERT_EQ(waitForImage(*firstLayer, QSize(2, 2)).pixelColor(0, 0),
+              originalColor);
+
+    ASSERT_TRUE(firstLayer->relinkSourceIdentityToShared());
+    EXPECT_FALSE(firstLayer->isSourceIdentityLocalized());
+    EXPECT_EQ(firstLayer->sourceAssetId(), sharedSourceId);
+    EXPECT_EQ(waitForImage(*firstLayer, QSize(2, 2)).pixelColor(0, 0),
               updatedColor);
 }
 
@@ -3128,6 +3534,79 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     FloatExrHdrPixelsSurviveProjectSaveAndReload)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString imagePath = dir.filePath(QStringLiteral("project-hdr.exr"));
+    const QString projectPath =
+        dir.filePath(QStringLiteral("project-hdr.artifact"));
+    const OIIO::ImageSpec spec(3, 1, 4, OIIO::TypeDesc::FLOAT);
+    OIIO::ImageBuf source(spec);
+    const std::array<float, 12> expectedPixels{
+        -0.25f, 0.125f, 0.5f, 1.0f,
+        0.25f, 1.5f, 3.0f, 0.75f,
+        4.0f, 2.0f, -1.0f, 0.5f};
+    ASSERT_TRUE(source.set_pixels(OIIO::ROI::All(), OIIO::TypeDesc::FLOAT,
+                                  expectedPixels.data()));
+    ASSERT_TRUE(source.write(imagePath.toUtf8().constData()));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("FloatExrProjectRoundTrip"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(makeCompositionParams());
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactLayerInitParams layerParams(
+        QStringLiteral("HdrImage"), Artifact::LayerType::Image);
+    const auto added = projects.addLayerToComposition(composition.id, layerParams);
+    ASSERT_TRUE(added.success);
+    auto* imageLayer =
+        dynamic_cast<Artifact::ArtifactImageLayer*>(added.layer.get());
+    ASSERT_NE(imageLayer, nullptr);
+    const auto layerId = imageLayer->id();
+    ASSERT_TRUE(imageLayer->loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(*imageLayer, QSize(3, 1)));
+    const auto sourceId = imageLayer->sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const float* loadedPixels = imageLayer->currentFrameBuffer().rgba32fData();
+    ASSERT_NE(loadedPixels, nullptr);
+    for (std::size_t index = 0; index < expectedPixels.size(); ++index) {
+        EXPECT_FLOAT_EQ(loadedPixels[index], expectedPixels[index])
+            << "source decode component " << index;
+    }
+
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto restoredComposition =
+        projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(restoredComposition);
+    auto* restoredLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        restoredComposition->layerById(layerId).get());
+    ASSERT_NE(restoredLayer, nullptr);
+    ASSERT_TRUE(waitForImageBuffer(*restoredLayer, QSize(3, 1)));
+    EXPECT_EQ(restoredLayer->sourcePath(), imagePath);
+    EXPECT_EQ(restoredLayer->sourceAssetId(), sourceId);
+
+    const float* restoredPixels =
+        restoredLayer->currentFrameBuffer().rgba32fData();
+    ASSERT_NE(restoredPixels, nullptr);
+    for (std::size_t index = 0; index < expectedPixels.size(); ++index) {
+        EXPECT_FLOAT_EQ(restoredPixels[index], expectedPixels[index])
+            << "restored component " << index;
+    }
+    const QJsonObject metadata = restoredLayer->toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("bitsPerChannel")).toInt(), 32);
+    EXPECT_EQ(metadata.value(QStringLiteral("channelCount")).toInt(), 4);
+}
+
+TEST(StillImageLayerRoundTripTest,
      StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha)
 {
     QTemporaryDir dir;
@@ -3172,6 +3651,53 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    const QString imagePath = dir.filePath(QStringLiteral("rgb-depth.exr"));
+    OIIO::ImageSpec spec(1, 1, 4, OIIO::TypeDesc::FLOAT);
+    spec.channelnames = {"R", "G", "B", "Depth"};
+    OIIO::ImageBuf source(spec);
+    const std::array<float, 4> pixel{0.25f, 0.5f, 0.75f, 0.0f};
+    ASSERT_TRUE(source.set_pixels(OIIO::ROI::All(), OIIO::TypeDesc::FLOAT,
+                                  pixel.data()));
+    ASSERT_TRUE(source.write(imagePath.toUtf8().constData()));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(1, 1)));
+
+    const float* rgba = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(rgba, nullptr);
+    EXPECT_NEAR(rgba[0], 0.25f, 1e-6f);
+    EXPECT_NEAR(rgba[1], 0.5f, 1e-6f);
+    EXPECT_NEAR(rgba[2], 0.75f, 1e-6f);
+    EXPECT_FLOAT_EQ(rgba[3], 1.0f);
+
+    const QJsonObject metadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("channelCount")).toInt(), 4);
+    EXPECT_EQ(metadata.value(QStringLiteral("alphaChannel")).toInt(), -1);
+
+    const auto events = ArtifactCore::FallbackTracker::instance()
+                            ->getEventsByCategory(
+                                ArtifactCore::FallbackCategory::Image);
+    bool foundAmbiguousSemantics = false;
+    for (const auto& event : events) {
+        if (event.originalId == imagePath &&
+            event.resolvedId == QStringLiteral("ambiguous-channel-semantics")) {
+            foundAmbiguousSemantics = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundAmbiguousSemantics)
+        << "A four-channel image without declared alpha must record ambiguous semantics";
+}
+
+TEST(StillImageLayerRoundTripTest,
      EmbeddedIccProfileWithoutConversionRecordsFallback)
 {
     QTemporaryDir dir;
@@ -3190,6 +3716,13 @@ TEST(StillImageLayerRoundTripTest,
     ASSERT_TRUE(layer.loadFromPath(imagePath));
     ASSERT_TRUE(waitForImageBuffer(layer, QSize(2, 1)));
 
+    const QImage convertedBufferImage = layer.toQImage();
+    ASSERT_EQ(convertedBufferImage.size(), QSize(2, 1));
+    const QImage thumbnail = layer.getThumbnail(2, 1);
+    EXPECT_EQ(thumbnail, convertedBufferImage);
+    EXPECT_EQ(thumbnail.pixelColor(0, 0).alpha(), 255);
+    EXPECT_EQ(thumbnail.pixelColor(1, 0).alpha(), 255);
+
     const auto events = ArtifactCore::FallbackTracker::instance()
                             ->getEventsByCategory(
                                 ArtifactCore::FallbackCategory::Image);
@@ -3206,6 +3739,108 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_TRUE(foundIccDiagnostic)
         << "An embedded ICC profile that is not converted should be "
            "classified in image fallback diagnostics";
+}
+
+TEST(StillImageLayerRoundTripTest,
+     ExifOrientationSixReorientsLayerPixelsAndBounds)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    QImage source(64, 32, QImage::Format_RGB32);
+    const std::array<QColor, 4> colors{
+        QColor(240, 20, 20), QColor(20, 240, 20),
+        QColor(20, 20, 240), QColor(240, 240, 20)};
+    for (int y = 0; y < source.height(); ++y) {
+        for (int x = 0; x < source.width(); ++x) {
+            const std::size_t quadrant =
+                static_cast<std::size_t>((y >= source.height() / 2 ? 2 : 0) +
+                                         (x >= source.width() / 2 ? 1 : 0));
+            source.setPixelColor(x, y, colors[quadrant]);
+        }
+    }
+
+    const QString imagePath = dir.filePath(QStringLiteral("orientation-6.jpg"));
+    const QByteArray jpeg = jpegWithExifOrientation(source, 6);
+    ASSERT_FALSE(jpeg.isEmpty());
+    QFile imageFile(imagePath);
+    ASSERT_TRUE(imageFile.open(QIODevice::WriteOnly));
+    ASSERT_EQ(imageFile.write(jpeg), jpeg.size());
+    imageFile.close();
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(32, 64)));
+
+    const QImage decoded = waitForImage(layer, QSize(32, 64));
+    ASSERT_EQ(decoded.size(), QSize(32, 64));
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 32.0, 64.0));
+    const std::array<QPoint, 4> sourceCenters{
+        QPoint(16, 8), QPoint(48, 8), QPoint(16, 24), QPoint(48, 24)};
+    for (std::size_t quadrant = 0; quadrant < sourceCenters.size(); ++quadrant) {
+        const QPoint sourcePoint = sourceCenters[quadrant];
+        const QPoint destinationPoint(source.height() - 1 - sourcePoint.y(),
+                                      sourcePoint.x());
+        const QColor actual = decoded.pixelColor(destinationPoint);
+        const QColor expected = colors[quadrant];
+        EXPECT_NEAR(actual.red(), expected.red(), 45) << "quadrant=" << quadrant;
+        EXPECT_NEAR(actual.green(), expected.green(), 45) << "quadrant=" << quadrant;
+        EXPECT_NEAR(actual.blue(), expected.blue(), 45) << "quadrant=" << quadrant;
+        EXPECT_EQ(actual.alpha(), 255) << "quadrant=" << quadrant;
+    }
+
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropWidth"), QVariant(16.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropHeight"), QVariant(32.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(true)));
+    const QImage cropped = layer.toQImage();
+    ASSERT_EQ(cropped.size(), QSize(32, 64));
+    const QColor croppedBlue = cropped.pixelColor(8, 16);
+    EXPECT_NEAR(croppedBlue.red(), colors[2].red(), 45);
+    EXPECT_NEAR(croppedBlue.green(), colors[2].green(), 45);
+    EXPECT_NEAR(croppedBlue.blue(), colors[2].blue(), 45);
+    EXPECT_EQ(croppedBlue.alpha(), 255);
+    EXPECT_EQ(cropped.pixelColor(24, 16).alpha(), 0)
+        << "the crop rectangle is expressed in orientation-corrected pixels";
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 32.0, 64.0));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.enabled"), QVariant(false)));
+    EXPECT_EQ(layer.toQImage(), decoded)
+        << "disabling crop should restore the complete orientation-corrected image";
+
+    const QJsonObject metadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_EQ(metadata.value(QStringLiteral("orientation")).toInt(), 6);
+
+    const QUuid sourceId = layer.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const std::uint64_t orientedVersion = layer.sourceVersion();
+    ASSERT_GT(orientedVersion, 0u);
+    const QColor replacementColor(35, 145, 205);
+    QImage replacement(64, 32, QImage::Format_RGB32);
+    replacement.fill(replacementColor);
+    ASSERT_TRUE(replacement.save(imagePath, "JPEG", 100));
+
+    const std::uint64_t replacementVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sourceId);
+    ASSERT_GT(replacementVersion, orientedVersion);
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(64, 32)));
+    EXPECT_EQ(layer.sourceVersion(), replacementVersion);
+    EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 64.0, 32.0));
+    const QJsonObject replacementMetadata = layer.toJson()
+        .value(QStringLiteral("image.sourceMetadata")).toObject();
+    EXPECT_NE(replacementMetadata.value(QStringLiteral("orientation")).toInt(), 6);
+    const QColor refreshed = waitForImage(layer, QSize(64, 32)).pixelColor(32, 16);
+    EXPECT_NEAR(refreshed.red(), replacementColor.red(), 45);
+    EXPECT_NEAR(refreshed.green(), replacementColor.green(), 45);
+    EXPECT_NEAR(refreshed.blue(), replacementColor.blue(), 45);
 }
 
 TEST(StillImageLayerRoundTripTest, TwoChannelGrayAlphaPngExpandsAndPreservesAlpha)
@@ -4085,6 +4720,59 @@ TEST(StillImageLayerRoundTripTest, SegmentationMaskInterpolatesAlphaAndKeepsRgb)
     }
     EXPECT_NEAR(after.pixelColor(0, 0).alpha(), 100, 1);
     EXPECT_EQ(after.pixelColor(1, 0).alpha(), 200);
+}
+
+TEST(StillImageLayerRoundTripTest,
+     FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    QImage sourceImage(3, 1, QImage::Format_RGBA64);
+    sourceImage.setPixelColor(
+        0, 0, QColor::fromRgba64(0x1234, 0x5678, 0x9ABC, 0x4000));
+    sourceImage.setPixelColor(
+        1, 0, QColor::fromRgba64(0x2345, 0x6789, 0xABCD, 0x8000));
+    sourceImage.setPixelColor(
+        2, 0, QColor::fromRgba64(0x3456, 0x789A, 0xBCDE, 0xC000));
+    const QString imagePath = dir.filePath(QStringLiteral("mask-alpha16.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(3, 1)));
+    std::array<float, 12> originalPixels{};
+    const float* original = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(original, nullptr);
+    for (std::size_t index = 0; index < originalPixels.size(); ++index) {
+        originalPixels[index] = original[index];
+    }
+
+    ArtifactCore::DepthMap mask;
+    mask.resize(2, 1);
+    mask.setValue(0, 0, 0.25f);
+    mask.setValue(1, 0, 0.75f);
+    constexpr float maskOpacity = 0.4f;
+    ASSERT_TRUE(layer.applySegmentationMask(mask, maskOpacity));
+
+    const float* result = layer.currentFrameBuffer().rgba32fData();
+    ASSERT_NE(result, nullptr);
+    const std::array<float, 3> resampledMask{0.25f, 0.5f, 0.75f};
+    for (std::size_t pixel = 0; pixel < resampledMask.size(); ++pixel) {
+        const std::size_t offset = pixel * 4u;
+        EXPECT_FLOAT_EQ(result[offset], originalPixels[offset]);
+        EXPECT_FLOAT_EQ(result[offset + 1u], originalPixels[offset + 1u]);
+        EXPECT_FLOAT_EQ(result[offset + 2u], originalPixels[offset + 2u]);
+        const float alphaMultiplier =
+            (1.0f - maskOpacity) + maskOpacity * resampledMask[pixel];
+        EXPECT_NEAR(result[offset + 3u],
+                    originalPixels[offset + 3u] * alphaMultiplier, 1e-6f);
+    }
+
+    const QImage converted = layer.toQImage();
+    ASSERT_EQ(converted.size(), QSize(3, 1));
+    EXPECT_EQ(layer.getThumbnail(3, 1), converted);
 }
 
 TEST(StillImageLayerRoundTripTest,

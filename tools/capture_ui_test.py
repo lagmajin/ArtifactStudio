@@ -155,6 +155,19 @@ def parse_args() -> argparse.Namespace:
         help="exercise a shear-free two-Plain modifier chain on Grid placement",
     )
     parser.add_argument(
+        "--light-leak",
+        action="store_true",
+        help="capture Edge Wash, Streak, and Organic Still Light Leak renders",
+    )
+    parser.add_argument("--light-leak-compute", choices=("cpu", "gpu"), default="cpu")
+    parser.add_argument("--light-leak-strength", type=float, default=0.55)
+    parser.add_argument("--light-leak-angle", type=float, default=12.0)
+    parser.add_argument("--light-leak-source", type=float, nargs=2,
+                        default=(0.5, 0.25), metavar=("X", "Y"))
+    parser.add_argument("--light-leak-look",
+                        choices=("edge-wash", "streak", "organic"),
+                        default=None, help=argparse.SUPPRESS)
+    parser.add_argument(
         "--app-arg",
         action="append",
         default=[],
@@ -231,7 +244,7 @@ def main() -> int:
     isolated_fixtures = sum((
         bool(args.timeline or args.curve_editor), args.render_manager,
         args.cloner, args.components, args.tracker,
-        args.contents_viewer is not None,
+        args.contents_viewer is not None, args.light_leak,
     ))
     if isolated_fixtures > 1:
         print("capture_ui_test: choose only one isolated fixture", file=sys.stderr)
@@ -250,6 +263,68 @@ def main() -> int:
     if args.render_manager and (args.timeline or args.curve_editor or args.cloner or args.tracker):
         print("capture_ui_test: --render-manager cannot be combined with other fixtures", file=sys.stderr)
         return 2
+    if args.light_leak:
+        if not math.isfinite(args.light_leak_strength) or args.light_leak_strength <= 0:
+            print("capture_ui_test: --light-leak-strength must be finite and positive", file=sys.stderr)
+            return 2
+        if not math.isfinite(args.light_leak_angle) or not -45.0 <= args.light_leak_angle <= 45.0:
+            print("capture_ui_test: --light-leak-angle must be between -45 and +45", file=sys.stderr)
+            return 2
+        if len(args.light_leak_source) != 2 or any(
+            not math.isfinite(value) or not 0.0 <= value <= 1.0
+            for value in args.light_leak_source
+        ):
+            print("capture_ui_test: --light-leak-source coordinates must be within [0, 1]", file=sys.stderr)
+            return 2
+        if args.light_leak_look is None:
+            for look in ("edge-wash", "streak", "organic"):
+                command = [
+                    sys.executable, str(Path(__file__).resolve()),
+                    "--exe", str(args.exe.expanduser().resolve()),
+                    "--output", str(args.output.expanduser().resolve()),
+                    "--language", args.language,
+                    "--timeout-seconds", str(args.timeout_seconds),
+                    "--light-leak", "--light-leak-look", look,
+                    "--light-leak-compute", args.light_leak_compute,
+                    "--light-leak-strength", str(args.light_leak_strength),
+                    "--light-leak-angle", str(args.light_leak_angle),
+                    "--light-leak-source", str(args.light_leak_source[0]),
+                    str(args.light_leak_source[1]),
+                ]
+                for app_arg in args.app_arg:
+                    command.extend(("--app-arg", app_arg))
+                result = subprocess.run(command, check=False)
+                if result.returncode != 0:
+                    return result.returncode
+            output_path = args.output.expanduser().resolve()
+            capture_paths = {
+                name: output_path.with_name(
+                    f"{output_path.stem}-{name}-{args.light_leak_compute}{output_path.suffix}"
+                )
+                for name in ("edge-wash", "streak", "organic")
+            }
+            try:
+                import cv2
+                import numpy as np
+                images = {}
+                for name, path in capture_paths.items():
+                    images[name] = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+                    if images[name] is None:
+                        raise RuntimeError(f"missing or unreadable {name} image: {path}")
+                if len({image.shape for image in images.values()}) != 1:
+                    raise RuntimeError("look captures have inconsistent dimensions")
+                for left, right in (("edge-wash", "streak"),
+                                    ("edge-wash", "organic"),
+                                    ("streak", "organic")):
+                    if np.array_equal(images[left], images[right]):
+                        raise RuntimeError(f"{left} and {right} renders are identical")
+            except Exception as error:
+                print(f"capture_ui_test: Light Leak output validation failed: {error}", file=sys.stderr)
+                return 1
+            print("Light Leak effect captures:")
+            for name, path in capture_paths.items():
+                print(f"{name}: {path}")
+            return 0
     if args.cloner and (args.timeline or args.curve_editor):
         print("capture_ui_test: --cloner cannot be combined with Timeline fixtures", file=sys.stderr)
         return 2
@@ -395,6 +470,15 @@ def main() -> int:
         cloner_fixture_path.unlink(missing_ok=True)
     tracker_result_path = output_path.with_suffix(".result.txt")
     components_result_path = output_path.with_suffix(".components-result.txt")
+    light_leak_paths = {
+        name: output_path.with_name(
+            f"{output_path.stem}-{name}-{args.light_leak_compute}{output_path.suffix}"
+        )
+        for name in ((args.light_leak_look,) if args.light_leak_look else
+                     ("edge-wash", "streak", "organic"))
+    } if args.light_leak else {}
+    for path in light_leak_paths.values():
+        path.unlink(missing_ok=True)
     if args.components:
         components_result_path.unlink(missing_ok=True)
     if args.tracker:
@@ -414,6 +498,14 @@ def main() -> int:
         "ARTIFACT_UI_TEST_COMPONENTS_RESULT_PATH",
         "ARTIFACT_UI_TEST_COMPONENTS_NO_WINDOW",
         "ARTIFACT_UI_TEST_TRACKER",
+        "ARTIFACT_UI_TEST_LIGHT_LEAK",
+        "ARTIFACT_UI_TEST_LIGHT_LEAK_OUTPUT_PATTERN",
+        "ARTIFACT_UI_TEST_LIGHT_LEAK_COMPUTE",
+        "ARTIFACT_UI_TEST_LIGHT_LEAK_LOOK",
+        "ARTIFACT_UI_TEST_LIGHT_LEAK_STRENGTH",
+        "ARTIFACT_UI_TEST_LIGHT_LEAK_SOURCE_X",
+        "ARTIFACT_UI_TEST_LIGHT_LEAK_SOURCE_Y",
+        "ARTIFACT_UI_TEST_LIGHT_LEAK_ANGLE",
         "ARTIFACT_UI_TEST_PROJECT_ROOT",
         "ARTIFACT_UI_TEST_CLONER_RENDER_OUTPUT",
         "ARTIFACT_UI_TEST_CLONER_DISTRIBUTION",
@@ -440,12 +532,12 @@ def main() -> int:
     console_log_file = None
     console_log_path = (
         Path(f"{output_path}.console.log")
-        if args.contents_viewer is not None or args.components else None
+        if args.contents_viewer is not None or args.components or args.light_leak else None
     )
     if console_log_path is not None:
         console_log_path.parent.mkdir(parents=True, exist_ok=True)
         console_log_file = console_log_path.open("wb")
-    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.components or args.tracker or args.contents_viewer:
+    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.components or args.tracker or args.contents_viewer or args.light_leak:
         fixture_root = Path(tempfile.mkdtemp(
             prefix="artifact_ui_test_", dir=output_path.parent
         )).resolve()
@@ -469,6 +561,22 @@ def main() -> int:
         environment["ARTIFACT_UI_TEST_CONTENTS_VIEWER_PATH"] = str(args.contents_viewer)
         environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = "contentsViewerUiFixtureWidget"
         environment["ARTIFACT_STARTUP_SCREENSHOT_NATIVE_WINDOW"] = "1"
+    if args.light_leak:
+        environment["ARTIFACT_UI_TEST_LIGHT_LEAK"] = "1"
+        environment["ARTIFACT_UI_TEST_LIGHT_LEAK_LOOK"] = str(
+            ("edge-wash", "streak", "organic").index(args.light_leak_look)
+            if args.light_leak_look else 0
+        )
+        environment["ARTIFACT_UI_TEST_LIGHT_LEAK_COMPUTE"] = args.light_leak_compute
+        environment["ARTIFACT_UI_TEST_LIGHT_LEAK_STRENGTH"] = str(args.light_leak_strength)
+        environment["ARTIFACT_UI_TEST_LIGHT_LEAK_SOURCE_X"] = str(args.light_leak_source[0])
+        environment["ARTIFACT_UI_TEST_LIGHT_LEAK_SOURCE_Y"] = str(args.light_leak_source[1])
+        environment["ARTIFACT_UI_TEST_LIGHT_LEAK_ANGLE"] = str(args.light_leak_angle)
+        environment["ARTIFACT_UI_TEST_LIGHT_LEAK_OUTPUT_PATTERN"] = str(
+            output_path.with_name(
+                f"{output_path.stem}-%1-{args.light_leak_compute}{output_path.suffix}"
+            ).resolve()
+        )
     if args.curve_editor:
         environment["ARTIFACT_UI_TEST_CURVE_EDITOR"] = "1"
     if args.cloner:
@@ -867,7 +975,36 @@ def main() -> int:
                             if args.components:
                                 print(f"{output_path} ({component_result})")
                                 return 0
+                            if args.light_leak:
+                                import cv2
+                                import numpy as np
+                                missing_light_leak = [
+                                    path for path in light_leak_paths.values()
+                                    if not path.is_file() or path.stat().st_size <= 0
+                                ]
+                                if missing_light_leak:
+                                    time.sleep(0.1)
+                                    continue
+                                images = {}
+                                for name, path in light_leak_paths.items():
+                                    images[name] = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+                                    if images[name] is None:
+                                        print(f"capture_ui_test: unable to decode Light Leak {name}: {path}", file=sys.stderr)
+                                        return 1
+                                shapes = {image.shape for image in images.values()}
+                                if len(shapes) != 1:
+                                    print("capture_ui_test: Light Leak captures have inconsistent sizes", file=sys.stderr)
+                                    return 1
+                                pairs = (("edge-wash", "streak"),
+                                         ("edge-wash", "organic"),
+                                         ("streak", "organic"))
+                                for left, right in pairs:
+                                    if np.array_equal(images[left], images[right]):
+                                        print(f"capture_ui_test: {left} and {right} renders are identical", file=sys.stderr)
+                                        return 1
                             print(output_path)
+                            for path in light_leak_paths.values():
+                                print(path)
                             if renderer_output_path is not None:
                                 print(renderer_output_path)
                             if cloner_route_path is not None:

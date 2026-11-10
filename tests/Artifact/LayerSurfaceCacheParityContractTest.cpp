@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +17,9 @@
 #include <QTemporaryDir>
 #include <QThread>
 
+#include <OpenImageIO/imagebuf.h>
+#include <OpenImageIO/imageio.h>
+
 #include "DiligentHeadlessRenderer.hpp"
 
 import Artifact.Effect.Glow;
@@ -27,6 +31,7 @@ import Artifact.Layer.Shape;
 import Artifact.Render.CompositionViewDrawing;
 import Artifact.Render.Context;
 import Artifact.Render.IRenderer;
+import Asset.Manager;
 import Color.Float;
 import Memory.SharedPtr;
 import Composition3D;
@@ -227,6 +232,576 @@ TEST(LayerSurfaceCacheParityContractTest,
 }
 
 TEST(LayerSurfaceCacheParityContractTest,
+     ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity)
+{
+    constexpr int width = 96;
+    constexpr int height = 96;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QImage source(48, 48, QImage::Format_RGBA8888);
+    source.fill(Qt::transparent);
+    for (int y = 14; y < 34; ++y) {
+        for (int x = 14; x < 34; ++x) {
+            source.setPixelColor(x, y, QColor(255, 205, 90, 255));
+        }
+    }
+
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(layer);
+    layer->setLayerName(QStringLiteral("Effect Revision Cache"));
+    layer->setFromQImage(source);
+    ASSERT_TRUE(layer->hasCurrentFrameBuffer());
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    auto glow = ArtifactCore::makeShared<Artifact::GlowEffect>();
+    glow->setBaseSigma(3.0f);
+    glow->setGlowGain(1.0f);
+    layer->addEffect(glow);
+
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> cache;
+    const QString cacheOwnerId = layer->id().toString();
+    const auto draw = [&](QHash<QString, Artifact::LayerSurfaceCacheEntry>* entries) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            layer.get(), &renderer, 1.0f, nullptr, entries, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage initialCached = draw(&cache);
+    ASSERT_FALSE(initialCached.isNull());
+    ASSERT_TRUE(cache.contains(cacheOwnerId));
+    const QString initialSignature = cache.value(cacheOwnerId).cacheSignature;
+    ASSERT_FALSE(initialSignature.isEmpty());
+    const QImage initialBypass = draw(nullptr);
+    ASSERT_FALSE(initialBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(initialCached, initialBypass));
+
+    glow->setBaseSigma(9.0f);
+    glow->setGlowGain(3.0f);
+    const QImage changedCached = draw(&cache);
+    ASSERT_FALSE(changedCached.isNull());
+    const QString changedSignature = cache.value(cacheOwnerId).cacheSignature;
+    EXPECT_NE(changedSignature, initialSignature)
+        << "changing rasterizer effect parameters must invalidate the cached surface";
+    EXPECT_FALSE(imagesMatchExactly(changedCached, initialCached))
+        << "the changed Glow parameters must affect the rendered pixels";
+
+    const QImage changedBypass = draw(nullptr);
+    ASSERT_FALSE(changedBypass.isNull());
+    EXPECT_FALSE(imagesMatchExactly(changedBypass, initialBypass));
+    EXPECT_TRUE(imagesMatchExactly(changedCached, changedBypass));
+
+    const QImage changedReuse = draw(&cache);
+    EXPECT_EQ(cache.value(cacheOwnerId).cacheSignature, changedSignature);
+    EXPECT_TRUE(imagesMatchExactly(changedReuse, changedBypass));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
+     InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QImage source(24, 16, QImage::Format_RGBA8888);
+    for (int y = 0; y < source.height(); ++y) {
+        for (int x = 0; x < source.width(); ++x) {
+            source.setPixelColor(
+                x, y, QColor(30 + x * 7, 40 + y * 9,
+                             210 - x * 5, 80 + ((x + y) % 3) * 70));
+        }
+    }
+
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(layer);
+    layer->setFromQImage(source);
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    const QString ownerId = layer->id().toString();
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> cache;
+
+    const auto draw = [&](QHash<QString, Artifact::LayerSurfaceCacheEntry>* entries) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            layer.get(), &renderer, 1.0f, nullptr, entries, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage initialCached = draw(&cache);
+    ASSERT_FALSE(initialCached.isNull());
+    ASSERT_TRUE(cache.contains(ownerId));
+    const QString initialSignature = cache.value(ownerId).cacheSignature;
+    ASSERT_FALSE(initialSignature.isEmpty());
+    EXPECT_TRUE(imagesMatchExactly(initialCached, draw(nullptr)));
+
+    layer->setInputInterpretation(QStringLiteral("ACEScg"), QString());
+    const QImage colorSpaceBuild = draw(&cache);
+    ASSERT_FALSE(colorSpaceBuild.isNull());
+    const QString colorSpaceSignature = cache.value(ownerId).cacheSignature;
+    EXPECT_NE(colorSpaceSignature, initialSignature)
+        << "input color space must participate in the layer surface cache identity";
+    EXPECT_TRUE(imagesMatchExactly(colorSpaceBuild, draw(nullptr)));
+    const QImage colorSpaceReuse = draw(&cache);
+    EXPECT_EQ(cache.value(ownerId).cacheSignature, colorSpaceSignature);
+    EXPECT_TRUE(imagesMatchExactly(colorSpaceReuse, colorSpaceBuild));
+
+    layer->setInputInterpretation(QStringLiteral("ACEScg"),
+                                  QStringLiteral("linear"));
+    const QImage transferBuild = draw(&cache);
+    ASSERT_FALSE(transferBuild.isNull());
+    const QString transferSignature = cache.value(ownerId).cacheSignature;
+    EXPECT_NE(transferSignature, colorSpaceSignature)
+        << "input transfer function must participate in the layer surface cache identity";
+    EXPECT_TRUE(imagesMatchExactly(transferBuild, draw(nullptr)));
+    const QImage transferReuse = draw(&cache);
+    EXPECT_EQ(cache.value(ownerId).cacheSignature, transferSignature);
+    EXPECT_TRUE(imagesMatchExactly(transferReuse, transferBuild));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
+     ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QImage original(24, 16, QImage::Format_RGBA8888);
+    original.fill(QColor(230, 45, 35, 255));
+    QImage replacement(24, 16, QImage::Format_RGBA8888);
+    replacement.fill(QColor(25, 170, 235, 255));
+
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(layer);
+    layer->setFromQImage(original);
+    ASSERT_TRUE(layer->hasCurrentFrameBuffer());
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    const QString ownerId = layer->id().toString();
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> cache;
+
+    const auto draw = [&](QHash<QString, Artifact::LayerSurfaceCacheEntry>* entries) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            layer.get(), &renderer, 1.0f, nullptr, entries, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage originalCached = draw(&cache);
+    ASSERT_FALSE(originalCached.isNull());
+    ASSERT_TRUE(cache.contains(ownerId));
+    const QString originalSignature = cache.value(ownerId).cacheSignature;
+    ASSERT_FALSE(originalSignature.isEmpty());
+    const QImage originalBypass = draw(nullptr);
+    ASSERT_FALSE(originalBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(originalCached, originalBypass));
+
+    layer->setFromQImage(replacement);
+    ASSERT_TRUE(layer->hasCurrentFrameBuffer());
+    const QImage replacementCached = draw(&cache);
+    ASSERT_FALSE(replacementCached.isNull());
+    const QString replacementSignature = cache.value(ownerId).cacheSignature;
+    EXPECT_NE(replacementSignature, originalSignature)
+        << "replacing source pixels must invalidate the cached layer surface";
+    EXPECT_FALSE(imagesMatchExactly(replacementCached, originalCached))
+        << "the cached surface must not keep the previous source pixels";
+    const QImage replacementBypass = draw(nullptr);
+    ASSERT_FALSE(replacementBypass.isNull());
+    EXPECT_FALSE(imagesMatchExactly(replacementBypass, originalBypass))
+        << "the replacement source should produce different output pixels";
+    EXPECT_TRUE(imagesMatchExactly(replacementCached, replacementBypass));
+
+    const QImage replacementReuse = draw(&cache);
+    EXPECT_EQ(cache.value(ownerId).cacheSignature, replacementSignature);
+    EXPECT_TRUE(imagesMatchExactly(replacementReuse, replacementCached));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
+     FileSourceVersionInvalidationRebuildsSurfaceCache)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString imagePath = directory.filePath(QStringLiteral("source.png"));
+    QImage original(24, 16, QImage::Format_RGBA8888);
+    original.fill(QColor(225, 40, 30, 255));
+    ASSERT_TRUE(original.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    const auto waitForSize = [&layer](const QSize expectedSize) {
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            (void)layer.toQImage();
+            const auto& buffer = layer.currentFrameBuffer();
+            if (!buffer.isEmpty() &&
+                buffer.width() == expectedSize.width() &&
+                buffer.height() == expectedSize.height()) {
+                return true;
+            }
+            QThread::msleep(1);
+        }
+        return false;
+    };
+    ASSERT_TRUE(waitForSize(original.size()));
+    const auto sourceId = layer.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const std::uint64_t originalVersion = layer.sourceVersion();
+    ASSERT_GT(originalVersion, 0u);
+    layer.setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    const QString ownerId = layer.id().toString();
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> cache;
+
+    const auto draw = [&renderer, &layer](
+                          QHash<QString, Artifact::LayerSurfaceCacheEntry>* entries) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            &layer, &renderer, 1.0f, nullptr, entries, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage originalCached = draw(&cache);
+    ASSERT_FALSE(originalCached.isNull());
+    ASSERT_TRUE(cache.contains(ownerId));
+    const QString originalSignature = cache.value(ownerId).cacheSignature;
+    ASSERT_FALSE(originalSignature.isEmpty());
+    const QImage originalBypass = draw(nullptr);
+    ASSERT_FALSE(originalBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(originalCached, originalBypass));
+
+    QImage replacement(24, 16, QImage::Format_RGBA8888);
+    replacement.fill(QColor(20, 165, 235, 255));
+    ASSERT_TRUE(replacement.save(imagePath, "PNG"));
+    const std::uint64_t replacementVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sourceId);
+    ASSERT_GT(replacementVersion, originalVersion);
+    QElapsedTimer replacementTimeout;
+    replacementTimeout.start();
+    bool replacementPixelsReady = false;
+    while (replacementTimeout.elapsed() < 5000) {
+        QCoreApplication::processEvents();
+        const QImage decoded = layer.toQImage();
+        if (decoded.size() == replacement.size() &&
+            decoded.pixelColor(0, 0) == replacement.pixelColor(0, 0)) {
+            replacementPixelsReady = true;
+            break;
+        }
+        QThread::msleep(1);
+    }
+    ASSERT_TRUE(replacementPixelsReady)
+        << "the updated file pixels should replace the previously decoded image";
+    ASSERT_EQ(layer.sourceVersion(), replacementVersion);
+
+    const QImage replacementCached = draw(&cache);
+    ASSERT_FALSE(replacementCached.isNull());
+    const QString replacementSignature = cache.value(ownerId).cacheSignature;
+    EXPECT_NE(replacementSignature, originalSignature)
+        << "source version must participate in the layer surface cache identity";
+    const QImage replacementBypass = draw(nullptr);
+    ASSERT_FALSE(replacementBypass.isNull());
+    EXPECT_FALSE(imagesMatchExactly(replacementBypass, originalBypass))
+        << "the updated source should produce different output pixels";
+    EXPECT_TRUE(imagesMatchExactly(replacementCached, replacementBypass));
+
+    const QImage replacementReuse = draw(&cache);
+    EXPECT_EQ(cache.value(ownerId).cacheSignature, replacementSignature);
+    EXPECT_TRUE(imagesMatchExactly(replacementReuse, replacementCached));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
+     FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    constexpr int imageWidth = 24;
+    constexpr int imageHeight = 16;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString imagePath = directory.filePath(QStringLiteral("hdr.exr"));
+    const std::array<float, 4> originalPixel{0.25f, 0.5f, 1.5f, 1.0f};
+    const std::array<float, 4> replacementPixel{0.75f, 0.25f, 0.25f, 1.0f};
+    const auto writeExr = [&](const std::array<float, 4>& color) {
+        OIIO::ImageSpec spec(imageWidth, imageHeight, 4, OIIO::TypeDesc::FLOAT);
+        OIIO::ImageBuf source(spec);
+        std::array<float, imageWidth * imageHeight * 4> pixels{};
+        for (std::size_t index = 0; index < pixels.size(); index += 4) {
+            pixels[index + 0] = color[0];
+            pixels[index + 1] = color[1];
+            pixels[index + 2] = color[2];
+            pixels[index + 3] = color[3];
+        }
+        return source.set_pixels(OIIO::ROI::All(), OIIO::TypeDesc::FLOAT,
+                                 pixels.data()) &&
+               source.write(imagePath.toUtf8().constData());
+    };
+    ASSERT_TRUE(writeExr(originalPixel));
+
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    const auto waitForPixel = [&layer](const std::array<float, 4>& expected) {
+        QElapsedTimer timeout;
+        timeout.start();
+        while (timeout.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            (void)layer.toQImage();
+            const auto& buffer = layer.currentFrameBuffer();
+            const float* pixels = buffer.rgba32fData();
+            if (buffer.width() == imageWidth && buffer.height() == imageHeight &&
+                pixels && std::equal(expected.begin(), expected.end(), pixels)) {
+                return true;
+            }
+            QThread::msleep(1);
+        }
+        return false;
+    };
+    ASSERT_TRUE(waitForPixel(originalPixel));
+    const auto sourceId = layer.sourceAssetId();
+    ASSERT_FALSE(sourceId.isNull());
+    const std::uint64_t originalVersion = layer.sourceVersion();
+    ASSERT_GT(originalVersion, 0u);
+    layer.setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    const QString ownerId = layer.id().toString();
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> cache;
+    const auto draw = [&](QHash<QString, Artifact::LayerSurfaceCacheEntry>* entries) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            &layer, &renderer, 1.0f, nullptr, entries, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage originalCached = draw(&cache);
+    ASSERT_FALSE(originalCached.isNull());
+    ASSERT_TRUE(cache.contains(ownerId));
+    const QString originalSignature = cache.value(ownerId).cacheSignature;
+    ASSERT_FALSE(originalSignature.isEmpty());
+    const QImage originalBypass = draw(nullptr);
+    ASSERT_FALSE(originalBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(originalCached, originalBypass));
+
+    ASSERT_TRUE(writeExr(replacementPixel));
+    const std::uint64_t replacementVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sourceId);
+    ASSERT_GT(replacementVersion, originalVersion);
+    ASSERT_TRUE(waitForPixel(replacementPixel));
+    EXPECT_EQ(layer.sourceVersion(), replacementVersion);
+
+    const QImage replacementCached = draw(&cache);
+    ASSERT_FALSE(replacementCached.isNull());
+    const QString replacementSignature = cache.value(ownerId).cacheSignature;
+    EXPECT_NE(replacementSignature, originalSignature)
+        << "the EXR source version must invalidate its cached surface";
+    EXPECT_FALSE(imagesMatchExactly(replacementCached, originalCached));
+    const QImage replacementBypass = draw(nullptr);
+    ASSERT_FALSE(replacementBypass.isNull());
+    EXPECT_FALSE(imagesMatchExactly(replacementBypass, originalBypass));
+    EXPECT_TRUE(imagesMatchExactly(replacementCached, replacementBypass));
+    EXPECT_TRUE(imagesMatchExactly(draw(&cache), replacementBypass));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
+     LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink)
+{
+    constexpr int width = 64;
+    constexpr int height = 64;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString imagePath = directory.filePath(QStringLiteral("shared.png"));
+    const QColor originalColor(225, 40, 30, 255);
+    const QColor updatedColor(20, 165, 235, 255);
+    QImage source(24, 16, QImage::Format_RGBA8888);
+    source.fill(originalColor);
+    ASSERT_TRUE(source.save(imagePath, "PNG"));
+
+    Artifact::ArtifactImageLayer localizedLayer;
+    Artifact::ArtifactImageLayer sharedLayer;
+    ASSERT_TRUE(localizedLayer.loadFromPath(imagePath));
+    ASSERT_TRUE(sharedLayer.loadFromPath(imagePath));
+    const auto waitForPixel = [](Artifact::ArtifactImageLayer& layer,
+                                 const QColor expected) {
+        QElapsedTimer timeout;
+        timeout.start();
+        while (timeout.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            const QImage image = layer.toQImage();
+            if (image.size() == QSize(24, 16) &&
+                image.pixelColor(0, 0) == expected) {
+                return true;
+            }
+            QThread::msleep(1);
+        }
+        return false;
+    };
+    ASSERT_TRUE(waitForPixel(localizedLayer, originalColor));
+    ASSERT_TRUE(waitForPixel(sharedLayer, originalColor));
+
+    const auto sharedSourceId = localizedLayer.sourceAssetId();
+    ASSERT_FALSE(sharedSourceId.isNull());
+    ASSERT_EQ(sharedLayer.sourceAssetId(), sharedSourceId);
+    const std::uint64_t originalSharedVersion = sharedLayer.sourceVersion();
+    ASSERT_GT(originalSharedVersion, 0u);
+    ASSERT_TRUE(localizedLayer.localizeSourceIdentity());
+    const auto localizedSourceId = localizedLayer.sourceAssetId();
+    ASSERT_NE(localizedSourceId, sharedSourceId);
+    const std::uint64_t localizedVersion = localizedLayer.sourceVersion();
+    localizedLayer.setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    sharedLayer.setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+
+    const QString localizedOwnerId = localizedLayer.id().toString();
+    const QString sharedOwnerId = sharedLayer.id().toString();
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> localizedCache;
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> sharedCache;
+    const auto draw = [&renderer](
+                          Artifact::ArtifactImageLayer& layer,
+                          QHash<QString, Artifact::LayerSurfaceCacheEntry>* cache) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            &layer, &renderer, 1.0f, nullptr, cache, nullptr, 0,
+            false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage localizedInitial = draw(localizedLayer, &localizedCache);
+    const QImage sharedInitial = draw(sharedLayer, &sharedCache);
+    ASSERT_FALSE(localizedInitial.isNull());
+    ASSERT_FALSE(sharedInitial.isNull());
+    ASSERT_TRUE(localizedCache.contains(localizedOwnerId));
+    ASSERT_TRUE(sharedCache.contains(sharedOwnerId));
+    const QString localizedInitialSignature =
+        localizedCache.value(localizedOwnerId).cacheSignature;
+    const QString sharedInitialSignature =
+        sharedCache.value(sharedOwnerId).cacheSignature;
+    ASSERT_FALSE(localizedInitialSignature.isEmpty());
+    ASSERT_FALSE(sharedInitialSignature.isEmpty());
+    EXPECT_TRUE(imagesMatchExactly(localizedInitial,
+                                   draw(localizedLayer, nullptr)));
+    EXPECT_TRUE(imagesMatchExactly(sharedInitial, draw(sharedLayer, nullptr)));
+
+    source.fill(updatedColor);
+    ASSERT_TRUE(source.save(imagePath, "PNG"));
+    const std::uint64_t updatedSharedVersion =
+        ArtifactCore::AssetManager::instance().invalidateSource(sharedSourceId);
+    ASSERT_GT(updatedSharedVersion, originalSharedVersion);
+    ASSERT_TRUE(waitForPixel(sharedLayer, updatedColor));
+    EXPECT_EQ(sharedLayer.sourceVersion(), updatedSharedVersion);
+    EXPECT_EQ(localizedLayer.sourceVersion(), localizedVersion);
+    ASSERT_TRUE(waitForPixel(localizedLayer, originalColor));
+
+    const QImage sharedUpdated = draw(sharedLayer, &sharedCache);
+    ASSERT_FALSE(sharedUpdated.isNull());
+    const QString sharedUpdatedSignature =
+        sharedCache.value(sharedOwnerId).cacheSignature;
+    EXPECT_NE(sharedUpdatedSignature, sharedInitialSignature)
+        << "the shared layer cache must track the invalidated source version";
+    EXPECT_FALSE(imagesMatchExactly(sharedUpdated, sharedInitial));
+    EXPECT_TRUE(imagesMatchExactly(sharedUpdated, draw(sharedLayer, nullptr)));
+
+    const QImage localizedAfterSharedUpdate =
+        draw(localizedLayer, &localizedCache);
+    EXPECT_EQ(localizedCache.value(localizedOwnerId).cacheSignature,
+              localizedInitialSignature);
+    EXPECT_TRUE(imagesMatchExactly(localizedAfterSharedUpdate,
+                                   localizedInitial));
+    EXPECT_TRUE(imagesMatchExactly(localizedAfterSharedUpdate,
+                                   draw(localizedLayer, nullptr)));
+
+    ASSERT_TRUE(localizedLayer.relinkSourceIdentityToShared());
+    EXPECT_EQ(localizedLayer.sourceAssetId(), sharedSourceId);
+    ASSERT_TRUE(waitForPixel(localizedLayer, updatedColor));
+    EXPECT_EQ(localizedLayer.sourceVersion(), updatedSharedVersion);
+
+    const QImage relinkedCached = draw(localizedLayer, &localizedCache);
+    const QString relinkedSignature =
+        localizedCache.value(localizedOwnerId).cacheSignature;
+    EXPECT_NE(relinkedSignature, localizedInitialSignature)
+        << "relinking to the updated shared identity must rebuild its cached surface";
+    EXPECT_FALSE(imagesMatchExactly(relinkedCached, localizedInitial));
+    EXPECT_TRUE(imagesMatchExactly(relinkedCached, draw(localizedLayer, nullptr)));
+    EXPECT_TRUE(imagesMatchExactly(relinkedCached, sharedUpdated));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
      StaticGpuSurfaceCacheSeparatesResolutionLODsAndReusesCurrentLevel)
 {
     constexpr int width = 96;
@@ -388,6 +963,89 @@ TEST(LayerSurfaceCacheParityContractTest,
     ASSERT_FALSE(highCacheBypass.isNull());
     EXPECT_TRUE(imagesMatchExactly(highAfterEffectChange, highCacheBypass))
         << "the rebuilt cached High surface should match the uncached result";
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
+     StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization)
+{
+    constexpr int width = 96;
+    constexpr int height = 96;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    struct StaticCacheReset final {
+        ~StaticCacheReset() { Artifact::clearStaticLayerGpuCache(); }
+    } resetStaticCache;
+    Artifact::clearStaticLayerGpuCache();
+
+    const auto configureRenderer = [&renderer] {
+        renderer.setCanvasSize(static_cast<float>(width),
+                               static_cast<float>(height));
+        renderer.setViewportRect(static_cast<float>(width),
+                                 static_cast<float>(height));
+        renderer.setPan(0.0f, 0.0f);
+        renderer.setZoom(1.0f);
+        renderer.setClearColor(
+            ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    };
+    configureRenderer();
+
+    QImage source(48, 48, QImage::Format_RGBA8888);
+    source.fill(Qt::transparent);
+    for (int y = 12; y < 36; ++y) {
+        for (int x = 12; x < 36; ++x) {
+            source.setPixelColor(x, y, QColor(245, 155, 45, 255));
+        }
+    }
+
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(layer);
+    layer->setFromQImage(source);
+    ASSERT_TRUE(layer->hasCurrentFrameBuffer());
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Enabled);
+    auto glow = ArtifactCore::makeShared<Artifact::GlowEffect>();
+    ASSERT_TRUE(glow);
+    glow->setBaseSigma(4.0f);
+    glow->setGlowGain(1.0f);
+    layer->addEffect(glow);
+    ASSERT_TRUE(Artifact::layerUsesStaticLayerGpuCacheForCompositionView(
+        layer.get()));
+
+    const auto draw = [&renderer, &layer] {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            layer.get(), &renderer, 1.0f, nullptr, nullptr, nullptr,
+            0, false, Artifact::DetailLevel::High);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    const QImage beforeReset = draw();
+    ASSERT_FALSE(beforeReset.isNull());
+    const auto beforeResetDiagnostics =
+        Artifact::staticLayerGpuCacheDiagnostics();
+    ASSERT_GT(beforeResetDiagnostics.entryCount, 0);
+
+    renderer.destroy();
+    ASSERT_TRUE(renderer.initialize(width, height));
+    configureRenderer();
+
+    const QImage afterReset = draw();
+    ASSERT_FALSE(afterReset.isNull());
+    EXPECT_TRUE(imagesMatchExactly(afterReset, beforeReset))
+        << "a retained static surface must recover on the new device";
+
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    const QImage afterResetBypass = draw();
+    ASSERT_FALSE(afterResetBypass.isNull());
+    EXPECT_TRUE(imagesMatchExactly(afterReset, afterResetBypass))
+        << "post-reset cached rendering must match direct rendering";
+
+    layer->setLayerCachePolicy(Artifact::LayerCachePolicy::Enabled);
+    const QImage afterResetReuse = draw();
+    EXPECT_TRUE(imagesMatchExactly(afterResetReuse, afterReset));
 }
 
 TEST(LayerSurfaceCacheParityContractTest,
