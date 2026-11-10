@@ -3,10 +3,13 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QHash>
+#include <QSet>
 #include <QString>
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 import Text.ShapingBackend;
@@ -680,4 +683,364 @@ TEST(TextShapingBackendTest, VerticalWritingIsLeftToTheQtPath)
   auto request = makeRequest(japanese());
   request.writingMode = TextWritingMode::Vertical;
   EXPECT_EQ(hb.shape(request).logicalToVisual, qt.shape(request).logicalToVisual);
+}
+
+// --- 5. complex script x animator ---------------------------------------
+
+namespace {
+
+QHash<int, int> clusterGlyphCounts(const TextShapingResult& shaped)
+{
+  QHash<int, int> counts;
+  for (const auto& glyph : shaped.glyphs) {
+    if (glyph.clusterIndex >= 0) {
+      counts[glyph.clusterIndex] += 1;
+    }
+  }
+  return counts;
+}
+
+// First-appearance tag index, mirroring TextAnimatorEngine's tag domain.
+int tagIndexForGlyph(const TextShapingResult& shaped, const int glyphIndex)
+{
+  QHash<QString, int> order;
+  int resolved = -1;
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    const QString& tag = shaped.glyphs[index].selectorTag;
+    const QString key =
+        tag.isEmpty() ? QStringLiteral("untagged") : tag;
+    const auto it = order.constFind(key);
+    int tagIndex = 0;
+    if (it == order.cend()) {
+      tagIndex = static_cast<int>(order.size());
+      order.insert(key, tagIndex);
+    } else {
+      tagIndex = it.value();
+    }
+    if (static_cast<int>(index) == glyphIndex) {
+      resolved = tagIndex;
+    }
+  }
+  return resolved;
+}
+
+RangeSelector squareSelector(const SelectorUnits units, const float index)
+{
+  RangeSelector selector;
+  selector.units = units;
+  selector.start = index;
+  selector.end = index;
+  selector.shape = SelectorShape::Square;
+  return selector;
+}
+
+} // namespace
+
+TEST(TextShapingComplexAnimatorTest, DevanagariClusterSelectorIsAtomicPerAkshara)
+{
+  QtShapingBackend backend;
+  const QString text = devanagari();
+  const auto shaped = backend.shape(makeRequest(text));
+  ASSERT_FALSE(shaped.glyphs.empty());
+
+  const QHash<int, int> counts = clusterGlyphCounts(shaped);
+  int multiGlyphCluster = -1;
+  for (auto it = counts.cbegin(); it != counts.cend(); ++it) {
+    if (it.value() > 1) {
+      multiGlyphCluster = it.key();
+      break;
+    }
+  }
+  if (multiGlyphCluster < 0) {
+    GTEST_SKIP() << "host font produced no multi-glyph Devanagari cluster";
+  }
+
+  const SelectorEvaluationContext context{
+      text, shaped.glyphs, TextSelectorOrder::Logical};
+  const RangeSelector selector =
+      squareSelector(SelectorUnits::Cluster,
+                     static_cast<float>(multiGlyphCluster));
+  const auto result = TextAnimatorEngine::evaluateSelector(context, selector);
+
+  ASSERT_EQ(result.weights.size(), shaped.glyphs.size());
+  int selected = 0;
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    const bool inCluster =
+        shaped.glyphs[index].clusterIndex == multiGlyphCluster;
+    EXPECT_FLOAT_EQ(result.weights[static_cast<qsizetype>(index)],
+                    inCluster ? 1.0f : 0.0f)
+        << "glyph=" << index
+        << " cluster=" << shaped.glyphs[index].clusterIndex;
+    selected += inCluster ? 1 : 0;
+  }
+  EXPECT_EQ(selected, counts.value(multiGlyphCluster));
+  EXPECT_GE(selected, 2);
+
+  AnimatorSelectorSet animator;
+  animator.range = selector;
+  animator.properties.position = QPointF(5.0, -3.0);
+  const std::vector<AnimatorSelectorSet> animators{animator};
+  auto animatedGlyphs = shaped.glyphs;
+  TextAnimatorEngine::applyAnimatorSets(animatedGlyphs, animators, 0.0f, text);
+  ASSERT_EQ(animatedGlyphs.size(), shaped.glyphs.size());
+  for (size_t index = 0; index < animatedGlyphs.size(); ++index) {
+    const bool inCluster =
+        animatedGlyphs[index].clusterIndex == multiGlyphCluster;
+    EXPECT_EQ(animatedGlyphs[index].offsetPosition,
+              inCluster ? QPointF(5.0, -3.0) : QPointF(0.0, 0.0));
+  }
+}
+
+TEST(TextShapingComplexAnimatorTest, ThaiTagSelectorIsolatesThaiRunFromLatin)
+{
+  QtShapingBackend backend;
+  // Thai "kan" between two Latin glyphs, so two script tags share one line.
+  const QString thaiText =
+      QString::fromUtf8("\xE0\xB8\x81\xE0\xB8\xB2\xE0\xB8\xA3");
+  const QString text = QStringLiteral("A") + thaiText + QStringLiteral("B");
+  const auto shaped = backend.shape(makeRequest(text));
+  ASSERT_FALSE(shaped.glyphs.empty());
+  ASSERT_FALSE(shaped.glyphs.front().selectorTag.isEmpty());
+
+  const QString latinTag = shaped.glyphs.front().selectorTag;
+  int thaiGlyph = -1;
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    if (shaped.glyphs[index].selectorTag != latinTag) {
+      thaiGlyph = static_cast<int>(index);
+      break;
+    }
+  }
+  if (thaiGlyph < 0) {
+    GTEST_SKIP() << "host shaping did not report a second script tag";
+  }
+  const int tagIndex = tagIndexForGlyph(shaped, thaiGlyph);
+  ASSERT_GE(tagIndex, 0);
+  const QString thaiTag = shaped.glyphs[static_cast<size_t>(thaiGlyph)].selectorTag;
+
+  const SelectorEvaluationContext context{
+      text, shaped.glyphs, TextSelectorOrder::Logical};
+  const auto result = TextAnimatorEngine::evaluateSelector(
+      context, squareSelector(SelectorUnits::Tag, static_cast<float>(tagIndex)));
+
+  ASSERT_EQ(result.weights.size(), shaped.glyphs.size());
+  int selected = 0;
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    const bool isThai = shaped.glyphs[index].selectorTag == thaiTag;
+    EXPECT_FLOAT_EQ(result.weights[static_cast<qsizetype>(index)],
+                    isThai ? 1.0f : 0.0f)
+        << "glyph=" << index
+        << " tag=" << shaped.glyphs[index].selectorTag.toStdString();
+    selected += isThai ? 1 : 0;
+  }
+  EXPECT_GT(selected, 0);
+  EXPECT_LT(selected, static_cast<int>(shaped.glyphs.size()));
+}
+
+TEST(TextShapingComplexAnimatorTest, ArabicRampFollowsLogicalGlyphOrder)
+{
+  QtShapingBackend backend;
+  const QString text = arabic();
+  const auto shaped = backend.shape(makeRequest(text));
+  ASSERT_GE(shaped.glyphs.size(), 3u);
+
+  const SelectorEvaluationContext context{
+      text, shaped.glyphs, TextSelectorOrder::Logical};
+  RangeSelector selector;
+  selector.units = SelectorUnits::Index;
+  selector.shape = SelectorShape::RampUp;
+  selector.start = 0.0f;
+  selector.end = static_cast<float>(shaped.glyphs.size() - 1);
+
+  const auto result = TextAnimatorEngine::evaluateSelector(context, selector);
+  ASSERT_EQ(result.weights.size(), shaped.glyphs.size());
+
+  std::vector<std::pair<int, float>> logicalWeights;
+  logicalWeights.reserve(shaped.glyphs.size());
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    logicalWeights.emplace_back(
+        shaped.glyphs[index].index,
+        result.weights[static_cast<qsizetype>(index)]);
+  }
+  std::stable_sort(logicalWeights.begin(), logicalWeights.end(),
+                   [](const auto& lhs, const auto& rhs) {
+                     return lhs.first < rhs.first;
+                   });
+
+  EXPECT_FLOAT_EQ(logicalWeights.front().second, 0.0f);
+  EXPECT_FLOAT_EQ(logicalWeights.back().second, 1.0f);
+  for (size_t index = 1; index < logicalWeights.size(); ++index) {
+    EXPECT_LE(logicalWeights[index - 1].second, logicalWeights[index].second + 1e-6f)
+        << "logical index " << logicalWeights[index].first;
+  }
+}
+
+TEST(TextShapingComplexAnimatorTest, ArabicLigatureClusterSharesOneSelectionWeight)
+{
+  QtShapingBackend backend;
+  // lam + alef, which forms the lam-alef ligature under Arabic shaping.
+  const QString text = QString::fromUtf8("\xD9\x84\xD8\xA7");
+  const auto shaped = backend.shape(makeRequest(text));
+  ASSERT_FALSE(shaped.glyphs.empty());
+
+  const QHash<int, int> counts = clusterGlyphCounts(shaped);
+  ASSERT_FALSE(counts.isEmpty());
+
+  const SelectorEvaluationContext context{
+      text, shaped.glyphs, TextSelectorOrder::Logical};
+  for (auto it = counts.cbegin(); it != counts.cend(); ++it) {
+    const auto result = TextAnimatorEngine::evaluateSelector(
+        context, squareSelector(SelectorUnits::Cluster,
+                                static_cast<float>(it.key())));
+    ASSERT_EQ(result.weights.size(), shaped.glyphs.size());
+    float clusterWeight = -1.0f;
+    for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+      const float weight = result.weights[static_cast<qsizetype>(index)];
+      if (shaped.glyphs[index].clusterIndex != it.key()) {
+        EXPECT_FLOAT_EQ(weight, 0.0f);
+        continue;
+      }
+      EXPECT_FLOAT_EQ(weight, 1.0f);
+      if (clusterWeight < 0.0f) {
+        clusterWeight = weight;
+      } else {
+        EXPECT_FLOAT_EQ(weight, clusterWeight);
+      }
+    }
+    EXPECT_GE(clusterWeight, 0.0f);
+  }
+}
+
+TEST(TextShapingComplexAnimatorTest, EmojiZwjSelectionStaysInsideTheSequence)
+{
+  QtShapingBackend backend;
+  // man + ZWJ + woman + ZWJ + girl + ZWJ + boy
+  const QString family = QString::fromUtf8(
+      "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+      "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6");
+  const QString text = QStringLiteral("A") + family + QStringLiteral("B");
+  const auto shaped = backend.shape(makeRequest(text));
+  ASSERT_FALSE(shaped.glyphs.empty());
+
+  int emojiGlyph = -1;
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    if (shaped.glyphs[index].isEmojiSequence) {
+      emojiGlyph = static_cast<int>(index);
+      break;
+    }
+  }
+  if (emojiGlyph < 0) {
+    GTEST_SKIP() << "host shaping did not report an emoji sequence";
+  }
+
+  const int tagIndex = tagIndexForGlyph(shaped, emojiGlyph);
+  ASSERT_GE(tagIndex, 0);
+  const QString emojiTag =
+      shaped.glyphs[static_cast<size_t>(emojiGlyph)].selectorTag;
+
+  const SelectorEvaluationContext context{
+      text, shaped.glyphs, TextSelectorOrder::Logical};
+  const auto result = TextAnimatorEngine::evaluateSelector(
+      context, squareSelector(SelectorUnits::Tag, static_cast<float>(tagIndex)));
+
+  ASSERT_EQ(result.weights.size(), shaped.glyphs.size());
+  int selected = 0;
+  int expected = 0;
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    const bool isEmoji = shaped.glyphs[index].selectorTag == emojiTag;
+    expected += isEmoji ? 1 : 0;
+    selected +=
+        result.weights[static_cast<qsizetype>(index)] > 0.5f ? 1 : 0;
+    EXPECT_FLOAT_EQ(result.weights[static_cast<qsizetype>(index)],
+                    isEmoji ? 1.0f : 0.0f)
+        << "glyph=" << index;
+  }
+  EXPECT_EQ(selected, expected);
+  EXPECT_LT(expected, static_cast<int>(shaped.glyphs.size()));
+}
+
+TEST(TextShapingComplexAnimatorTest, StackedSelectorsApplyOnlyToTheirArabicClusters)
+{
+  QtShapingBackend backend;
+  const QString text = arabic();
+  const auto shaped = backend.shape(makeRequest(text));
+  ASSERT_GE(shaped.glyphs.size(), 3u);
+
+  int maxIndex = -1;
+  for (const auto& glyph : shaped.glyphs) {
+    maxIndex = std::max(maxIndex, glyph.index);
+  }
+  ASSERT_GE(maxIndex, 1);
+
+  AnimatorSelectorSet clusterSet;
+  clusterSet.range = squareSelector(SelectorUnits::Cluster, 0.0f);
+  clusterSet.properties.position = QPointF(4.0, 2.0);
+
+  AnimatorSelectorSet tailSet;
+  tailSet.range.units = SelectorUnits::Index;
+  tailSet.range.start = static_cast<float>(maxIndex);
+  tailSet.range.end = static_cast<float>(maxIndex);
+  tailSet.range.shape = SelectorShape::Square;
+  tailSet.properties.opacity = 0.25f;
+
+  const std::vector<AnimatorSelectorSet> sets{clusterSet, tailSet};
+  auto animated = shaped.glyphs;
+  TextAnimatorEngine::applyAnimatorSets(animated, sets, 0.0f, text);
+  ASSERT_EQ(animated.size(), shaped.glyphs.size());
+
+  int clusterGlyphs = 0;
+  int tailGlyphs = 0;
+  for (size_t index = 0; index < animated.size(); ++index) {
+    const bool inCluster = shaped.glyphs[index].clusterIndex == 0;
+    const bool isTail = shaped.glyphs[index].index == maxIndex;
+    clusterGlyphs += inCluster ? 1 : 0;
+    tailGlyphs += isTail ? 1 : 0;
+    if (inCluster) {
+      EXPECT_EQ(animated[index].offsetPosition, QPointF(4.0, 2.0))
+          << "glyph=" << index;
+    } else {
+      EXPECT_EQ(animated[index].offsetPosition, QPointF(0.0, 0.0))
+          << "glyph=" << index;
+    }
+    EXPECT_FLOAT_EQ(animated[index].offsetOpacity, isTail ? 0.25f : 1.0f)
+        << "glyph=" << index << " index=" << shaped.glyphs[index].index;
+  }
+  EXPECT_GT(clusterGlyphs, 0);
+  EXPECT_GT(tailGlyphs, 0);
+}
+
+TEST(TextShapingComplexAnimatorTest, WrappedThaiLineSelectorTargetsOneShapedLine)
+{
+  QtShapingBackend backend;
+  const QString thaiText =
+      QString::fromUtf8("\xE0\xB8\x81\xE0\xB8\xB2\xE0\xB8\xA3");
+  const QString text = thaiText + QStringLiteral(" ") + thaiText +
+                       QStringLiteral(" ") + thaiText;
+  ParagraphStyle paragraph;
+  paragraph.boxWidth = 140.0f;
+  const auto shaped = backend.shape(makeRequest(text, paragraph));
+  ASSERT_FALSE(shaped.glyphs.empty());
+
+  QSet<int> lines;
+  for (const auto& glyph : shaped.glyphs) {
+    if (glyph.lineIndex >= 0) {
+      lines.insert(glyph.lineIndex);
+    }
+  }
+  if (lines.size() < 2) {
+    GTEST_SKIP() << "paragraph box width did not wrap the Thai sample";
+  }
+
+  const SelectorEvaluationContext context{
+      text, shaped.glyphs, TextSelectorOrder::Logical};
+  const auto result = TextAnimatorEngine::evaluateSelector(
+      context, squareSelector(SelectorUnits::Line, 0.0f));
+
+  ASSERT_EQ(result.weights.size(), shaped.glyphs.size());
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    const bool onFirstLine = shaped.glyphs[index].lineIndex == 0;
+    EXPECT_FLOAT_EQ(result.weights[static_cast<qsizetype>(index)],
+                    onFirstLine ? 1.0f : 0.0f)
+        << "glyph=" << index
+        << " line=" << shaped.glyphs[index].lineIndex;
+  }
 }

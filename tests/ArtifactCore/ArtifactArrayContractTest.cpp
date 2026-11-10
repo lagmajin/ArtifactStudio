@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -47,6 +48,47 @@ struct ConditionallyThrowingValue {
     ConditionallyThrowingValue& operator=(const ConditionallyThrowingValue&) = default;
     ConditionallyThrowingValue& operator=(
         ConditionallyThrowingValue&&) noexcept = default;
+
+    int value;
+};
+
+struct alignas(64) OverAlignedValue {
+    std::uint64_t value = 0;
+};
+
+struct NonDefaultConstructibleValue {
+    NonDefaultConstructibleValue() = delete;
+};
+
+struct ThrowingCopyValue {
+    static inline int liveCount = 0;
+    static inline int copiesBeforeThrow = -1;
+
+    int value = 0;
+
+    explicit ThrowingCopyValue(int input) : value(input) { ++liveCount; }
+    ThrowingCopyValue(const ThrowingCopyValue& other) : value(other.value) {
+        if (copiesBeforeThrow == 0) throw std::runtime_error("copy failure");
+        if (copiesBeforeThrow > 0) --copiesBeforeThrow;
+        ++liveCount;
+    }
+    ThrowingCopyValue(ThrowingCopyValue&& other) noexcept(false) : value(other.value) { ++liveCount; }
+    ~ThrowingCopyValue() { --liveCount; }
+};
+
+struct MoveOnlyThrowingValue {
+    static inline int movesBeforeThrow = -1;
+
+    explicit MoveOnlyThrowingValue(int input) : value(input) {}
+    MoveOnlyThrowingValue(const MoveOnlyThrowingValue&) = delete;
+    MoveOnlyThrowingValue& operator=(const MoveOnlyThrowingValue&) = delete;
+    MoveOnlyThrowingValue(MoveOnlyThrowingValue&& other) noexcept(false)
+        : value(other.value)
+    {
+        if (movesBeforeThrow == 0) throw std::runtime_error("move failure");
+        if (movesBeforeThrow > 0) --movesBeforeThrow;
+        other.value = -1;
+    }
 
     int value;
 };
@@ -319,6 +361,19 @@ TEST(ArtifactArrayContractTest, StaticArraySupportsConstexprAccessAndFill)
     EXPECT_EQ(values.end() - values.begin(), 3);
 }
 
+TEST(ArtifactArrayContractTest, ZeroLengthStaticArrayIsEmptyAndNeedsNoElementConstruction)
+{
+    constexpr StaticArray<int, 0> empty{};
+    static_assert(empty.size() == 0);
+    static_assert(empty.isEmpty());
+    static_assert(empty.begin() == empty.end());
+
+    StaticArray<NonDefaultConstructibleValue, 0> noElements{};
+    EXPECT_EQ(noElements.size(), 0u);
+    EXPECT_TRUE(noElements.isEmpty());
+    EXPECT_EQ(noElements.begin(), noElements.end());
+}
+
 TEST(ArtifactArrayContractTest, NonTrivialElementsRemainLiveExactlyOnceAcrossMutations)
 {
     const int baseline = TrackedValue::liveCount;
@@ -502,6 +557,131 @@ TEST(ArtifactArrayContractTest, ReserveDoesNotChangeSizeOrElements)
     EXPECT_EQ(values.capacity(), reservedCapacity);
 }
 
+TEST(ArtifactArrayContractTest, FailedReservePreservesElementsAndReleasesPartialCopies)
+{
+    const int baseline = ThrowingCopyValue::liveCount;
+    {
+        Array<ThrowingCopyValue> values;
+        values.append(ThrowingCopyValue{3});
+        values.append(ThrowingCopyValue{7});
+        const auto originalCapacity = values.capacity();
+        ThrowingCopyValue::copiesBeforeThrow = 1;
+
+        EXPECT_THROW(values.reserve(originalCapacity + 8), std::runtime_error);
+
+        ThrowingCopyValue::copiesBeforeThrow = -1;
+        ASSERT_EQ(values.size(), 2u);
+        EXPECT_EQ(values.capacity(), originalCapacity);
+        EXPECT_EQ(values[0].value, 3);
+        EXPECT_EQ(values[1].value, 7);
+        EXPECT_EQ(ThrowingCopyValue::liveCount, baseline + 2);
+    }
+    EXPECT_EQ(ThrowingCopyValue::liveCount, baseline);
+}
+
+TEST(ArtifactArrayContractTest, FailedInsertPreservesElementsStorageAndLifetimes)
+{
+    const int baseline = ThrowingCopyValue::liveCount;
+    {
+        Array<ThrowingCopyValue> values;
+        values.reserve(8);
+        values.append(ThrowingCopyValue{3});
+        values.append(ThrowingCopyValue{7});
+        values.append(ThrowingCopyValue{11});
+        const auto* const originalData = values.data();
+        const auto originalCapacity = values.capacity();
+        const ThrowingCopyValue candidate{5};
+
+        ThrowingCopyValue::copiesBeforeThrow = 2;
+        EXPECT_THROW(values.insert(1, candidate), std::runtime_error);
+        ThrowingCopyValue::copiesBeforeThrow = -1;
+
+        ASSERT_EQ(values.size(), 3u);
+        EXPECT_EQ(values.data(), originalData);
+        EXPECT_EQ(values.capacity(), originalCapacity);
+        EXPECT_EQ(values[0].value, 3);
+        EXPECT_EQ(values[1].value, 7);
+        EXPECT_EQ(values[2].value, 11);
+        EXPECT_EQ(ThrowingCopyValue::liveCount, baseline + 4);
+    }
+    EXPECT_EQ(ThrowingCopyValue::liveCount, baseline);
+}
+
+TEST(ArtifactArrayContractTest, FailedReplacePreservesElementsStorageAndLifetimes)
+{
+    const int baseline = ThrowingCopyValue::liveCount;
+    {
+        Array<ThrowingCopyValue> values;
+        values.reserve(8);
+        values.append(ThrowingCopyValue{3});
+        values.append(ThrowingCopyValue{7});
+        values.append(ThrowingCopyValue{11});
+        const auto* const originalData = values.data();
+        const auto originalCapacity = values.capacity();
+        const ThrowingCopyValue candidate{5};
+
+        ThrowingCopyValue::copiesBeforeThrow = 2;
+        EXPECT_THROW(values.replace(1, candidate), std::runtime_error);
+        ThrowingCopyValue::copiesBeforeThrow = -1;
+
+        ASSERT_EQ(values.size(), 3u);
+        EXPECT_EQ(values.data(), originalData);
+        EXPECT_EQ(values.capacity(), originalCapacity);
+        EXPECT_EQ(values[0].value, 3);
+        EXPECT_EQ(values[1].value, 7);
+        EXPECT_EQ(values[2].value, 11);
+        EXPECT_EQ(ThrowingCopyValue::liveCount, baseline + 4);
+    }
+    EXPECT_EQ(ThrowingCopyValue::liveCount, baseline);
+}
+
+TEST(ArtifactArrayContractTest, FailedRemovePreservesElementsStorageAndLifetimes)
+{
+    const int baseline = ThrowingCopyValue::liveCount;
+    {
+        Array<ThrowingCopyValue> values;
+        values.reserve(8);
+        values.append(ThrowingCopyValue{3});
+        values.append(ThrowingCopyValue{7});
+        values.append(ThrowingCopyValue{11});
+        const auto* const originalData = values.data();
+        const auto originalCapacity = values.capacity();
+
+        ThrowingCopyValue::copiesBeforeThrow = 1;
+        EXPECT_THROW(values.removeAt(1), std::runtime_error);
+        ThrowingCopyValue::copiesBeforeThrow = -1;
+
+        ASSERT_EQ(values.size(), 3u);
+        EXPECT_EQ(values.data(), originalData);
+        EXPECT_EQ(values.capacity(), originalCapacity);
+        EXPECT_EQ(values[0].value, 3);
+        EXPECT_EQ(values[1].value, 7);
+        EXPECT_EQ(values[2].value, 11);
+        EXPECT_EQ(ThrowingCopyValue::liveCount, baseline + 3);
+    }
+    EXPECT_EQ(ThrowingCopyValue::liveCount, baseline);
+}
+
+TEST(ArtifactArrayContractTest,
+     MoveOnlyThrowingElementsKeepArrayValidWhenInsertRelocationFails)
+{
+    Array<MoveOnlyThrowingValue> values;
+    values.reserve(8);
+    values.append(MoveOnlyThrowingValue{3});
+    values.append(MoveOnlyThrowingValue{7});
+    values.append(MoveOnlyThrowingValue{11});
+    MoveOnlyThrowingValue candidate{5};
+
+    MoveOnlyThrowingValue::movesBeforeThrow = 1;
+    EXPECT_THROW(values.insert(1, std::move(candidate)), std::runtime_error);
+    MoveOnlyThrowingValue::movesBeforeThrow = -1;
+
+    ASSERT_EQ(values.size(), 3u);
+    EXPECT_EQ(values[0].value, 3);
+    EXPECT_EQ(values[1].value, 7);
+    EXPECT_EQ(values[2].value, 11);
+}
+
 TEST(ArtifactArrayContractTest, RemoveAllRetainsCapacityForSubsequentAppends)
 {
     Array<int> values{4, 5, 6};
@@ -547,6 +727,23 @@ TEST(ArtifactArrayContractTest, SqueezeReleasesCapacityOfEmptyArray)
     EXPECT_TRUE(values.isEmpty());
     EXPECT_EQ(values.capacity(), 0u);
     EXPECT_EQ(values.data(), nullptr);
+}
+
+TEST(ArtifactArrayContractTest, StorageRespectsOverAlignedElementRequirements)
+{
+    Array<OverAlignedValue> values;
+    values.append(OverAlignedValue{42});
+    values.reserve(12);
+
+    EXPECT_EQ(reinterpret_cast<std::uintptr_t>(values.data()) % alignof(OverAlignedValue), 0u);
+    EXPECT_EQ(values[0].value, 42u);
+
+    Array<OverAlignedValue> copied(values);
+    ASSERT_EQ(copied.size(), 1u);
+    EXPECT_EQ(reinterpret_cast<std::uintptr_t>(copied.data()) % alignof(OverAlignedValue), 0u);
+
+    values.squeeze();
+    EXPECT_EQ(reinterpret_cast<std::uintptr_t>(values.data()) % alignof(OverAlignedValue), 0u);
 }
 
 TEST(ArtifactArrayContractTest, FindReturnsMutableReferenceToStoredElement)
