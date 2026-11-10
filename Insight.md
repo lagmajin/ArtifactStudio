@@ -1,4 +1,16 @@
-**最終更新:** 2026-11-06
+**最終更新:** 2026-11-10
+
+## 2026-11-09: Light streak GPU parity needs a runtime comparison, not a static assumption
+- **関連:** `Artifact/include/Effects/DirectionalGlowEffect.ixx`, `Artifact/src/Effects/DirectionalGlowEffect.cpp`, `Artifact/src/Effects/Glow/GlowEffect.cpp` (`GlintStarFilterEffect`), `Artifact/src/Effect/ArtifactCreativeEffects.cpp` (`ArtifactCinematicLensFlareEffect`).
+- **確認できた事実:** The new resident HLSL for Glint approximates the CPU `warpAffine` + anisotropic gaussian with bounded directional sampling, and Lens Flare's resident path only covers manual position because auto highlight detection scans the full image. Directional Glow's Half Sampling halves the tap step rather than using a true half-resolution intermediate, so its result is close to but not identical with full sampling.
+- **価値または懸念:** All three paths now declare `supportsGPU()` and expose resident nodes, but none has been compared against the CPU reference on real frames. The Glint tap budget trades thickness fidelity for stable cost; large ray lengths and narrow widths may show visible differences. Half Sampling changes the tail weighting slightly, so the effect must not be described as visually identical.
+- **次に確認すべきこと:** Compare CPU and GPU captures for threshold edges, Star/Star6 patterns, custom angles (CPU-only), large lengths, half sampling on/off, and Lens Flare auto/manual mode. If exact Glint parity is required, evaluate a two-pass separable gaussian instead of increasing the per-pixel tap count.
+
+## 2026-11-09: SmallVector mutation diagnostics should stay allocation-free
+- **関連:** `ArtifactCore/include/Container/SmallVector.ixx::recordMutation` / `pushMutation`.
+- **確認できた事実:** The bounded eight-record mutation history used `Array<ContainerMutationRecord>`. Its first mutation could allocate, while `recordMutation()` and `pushMutation()` are `noexcept`; allocation failure could therefore terminate the process. The history now uses an inline `StaticArray` plus an explicit count. `debugSnapshot()` also builds sample vectors and can allocate, so SmallVector's snapshot method no longer promises `noexcept`.
+- **価値または懸念:** This removes the cold-start mutation-history allocation and its allocation-failure termination path from ordinary mutations. The history update shifts at most seven small records per mutation after the buffer fills; its cost is bounded. The SmallVector suite's eight-entry ring and copy/move coverage passed on MSVC 19.51.
+- **次に確認すべきこと:** Check the bounded shift cost only if profiling shows mutation-history updates are significant; assess diagnostic history overhead before extending this pattern to other containers.
 
 ## 2026-11-05: 2.5D blur frame delta must use the composition frame
 - **関連:** `Artifact/src/Layer/ArtifactLayerTransformSupport.cpp::buildTwoPointFiveDRenderPasses`.
@@ -13164,9 +13176,58 @@
 - **Value or concern:** Detects fit rounding and center-offset regressions that even-dimension geometry cannot expose. Test not run.
 - **Next:** Run `ArtifactPrContractTest.AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide` when test execution is authorized.
 
+## 2026-11-09: Cache LRU needs a sequence independent of clock precision
+- **Related:** `ArtifactCore/include/Data/DataCache.ixx` and `ArtifactCore/include/Container/NameMap.ixx`.
+- **Confirmed:** DataCache ranked LRU entries using millisecond timestamps. A read immediately after insertion can share the same timestamp, making eviction depend on hash iteration order; `ShrinkingCapacityEvictsMultipleLeastRecentlyUsedEntriesOnNextPut` reproduced this.
+- **Change:** Cache access now advances a monotonic sequence under its existing mutex, while wall/steady-clock milliseconds remain available for TTL bookkeeping.
+- **Value or concern:** LRU ordering is deterministic for accesses within the same millisecond. Sequence wraparound is theoretically possible after 2^64 accesses and has not been specially handled.
+- **Next:** Keep the LRU contract test in the cache standalone suite; consider a broader sequence/overflow policy only if the cache lifetime and access rate make it relevant.
+
+## 2026-11-09: DataTable column index can use the named map without changing copy behavior
+- **Related:** `ArtifactCore/include/Data/DataTable.ixx` and `ArtifactCore/include/Container/NameMap.ixx`.
+- **Confirmed:** DataTable's column index is private, lookup-only metadata. Existing duplicate-header behavior maps a repeated name to the last column, and DataTable's implicit copy duplicates the index.
+- **Change:** The index now uses `NameMap<std::string, int>`; the 41-case standalone suite covers duplicate headers and independent copies.
+- **Value or concern:** Extends the custom map migration to a narrow, non-hot-path index while preserving observable semantics. Numeric parsing tests also exposed and fixed acceptance of numeric prefixes with trailing text.
+- **Next:** Inspect remaining internal lookup maps by ownership, ordering, threading, and copy contract before choosing the next migration; avoid broad mechanical replacement.
+
+## 2026-11-09: Empty registry factories should fail as a normal lookup miss
+- **Related:** `ArtifactCore/include/Data/DataSource.ixx::DataSourceRegistry`.
+- **Confirmed:** A registered `std::function` may be empty; invoking it throws `std::bad_function_call`, although registry `open()` otherwise reports unsupported formats as a null source.
+- **Change:** Registry lookup now uses `NameMap::findValue` and checks the factory before invocation. The standalone suite covers this case and passed.
+- **Value or concern:** Keeps unsupported/invalid factory state on the registry's existing null-result path instead of exposing an incidental exception.
+- **Next:** Apply the same empty-callable review to other callable registries only when their contracts and tests support a consistent policy.
+
+## 2026-11-09: Active plugin enumeration can be stable without a sorting pass
+- **Related:** `ArtifactCore/include/Plugin/PluginRegistry.ixx::active_` and `ArtifactCore/src/Plugin/PluginRegistry.cpp::activePlugins`.
+- **Confirmed:** `ArtifactSet` preserves insertion order, while `std::unordered_set` does not guarantee the order used to construct the public active-plugin vector.
+- **Change:** Plugin active membership now uses `ArtifactSet`; the registry lock still covers iteration and membership changes, and the existing lifecycle suite passes.
+- **Value or concern:** Active enumeration is repeatable in activation order, which can simplify diagnostics and callers that display the vector. This is an observable strengthening of previously unspecified order.
+- **Next:** If consumers require a different display order, define it at that consumer boundary instead of sorting registry state on each query.
+
+## 2026-11-09: Map replacement depends on the custom map's full iterator and capacity contract
+- **Related:** `ArtifactCore/src/Core/ArtifactHashMap.cppm` and `ArtifactCore/include/Container/IdMap.ixx`.
+- **Confirmed:** HashMap contract coverage exposed that const iteration returned mutable entries, collision-chain iteration skipped nodes, and duplicate variadic `tryEmplace` created/destroyed a temporary mapped value. IdMap also requires capacity reservation, squeeze, iterator erase, and independent copies.
+- **Change:** HashMap gained a distinct const iterator, chain-aware increments, iterator erase, reserve/rehash, moved-from reuse, and direct in-node `tryEmplace` construction. IdMap now uses HashMap and explicitly retains its previous deep-copy semantics.
+- **Value or concern:** Wrapper migration uncovers missing capabilities at the abstraction boundary; moving storage before these contracts are verified can silently lose entries or break APIs.
+- **Next:** Before migrating another unordered container, compare its iterator, capacity, copy, and compatibility requirements against ArtifactHashMap's tested contract.
+
+## 2026-11-09: Qt key hashing needs an explicit bridge for custom hash maps
+- **Related:** `ArtifactCore/include/Render/ProgressAggregator.ixx`, `ArtifactCore/src/Core/ArtifactHashMap.cppm`, and `ArtifactCore/CMakeLists.txt`.
+- **Confirmed:** `QString` lookups in the existing `std::unordered_map` relied on Qt's hash support; ArtifactHashMap defaults to `std::hash<K>`, and the ProgressAggregator implementation's explicit MSVC IFC references are maintained in a source-specific CMake block.
+- **Change:** ProgressAggregator now supplies a private hasher delegating to `qHash(QString)` and explicitly references the ArtifactHashMap IFC in its implementation compile rule.
+- **Value or concern:** This keeps QString equality/hash behavior while avoiding a public generic container API expansion. The currently configured full target is blocked earlier by an unrelated ScopeComputer C2511 mismatch, so this migration still needs a clean targeted build after CMake regeneration.
+- **Next:** Rebuild the ProgressAggregator contract target after the unrelated compile blocker is resolved, and consider a narrowly scoped Qt hash adapter only if more QString-keyed maps are migrated.
+
 ## 2026-11-09: ClipEffects transparent hidden-RGB blur edge
 - **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels`.
 - **Confirmed:** `applyClipEffects` premultiplies before blur and unpremultiplies afterward, but the ArtifactPr contract tests do not directly verify hidden RGB isolation at a transparency edge.
 - **Added check:** Blur an opaque red pixel adjacent to fully transparent pixels carrying green RGB; assert the partially visible edge stays red and the transparent tail remains zero-alpha/zero-RGB.
 - **Value or concern:** Detects colored halos caused by filtering straight RGB without respecting alpha association. Test not run.
 - **Next:** Run `ArtifactPrContractTest.GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels` when test execution is authorized.
+
+## 2026-11-10: Validation maps can reserve from their owning document
+- **Related:** `ArtifactCore/src/Export/Lottie/LottieExporter.cpp::LottieExporter::validate` and `ArtifactCore/src/Core/ArtifactHashMap.cppm`.
+- **Confirmed:** Validation knows document layer, asset, and precomposition layer counts before filling its temporary indexes. ArtifactHashMap exposes `reserve()` and `tryEmplace()`; the old maps did not reserve from those known sizes.
+- **Change:** Migrated the local indexes and reserved their expected entry counts before insertion. Parent-cycle maps remain proportional to traversed ancestry because the exact unique ancestor count is not known in advance; root layers skip constructing these maps because they need no traversal.
+- **Value or concern:** This avoids repeated bucket growth for large exports while keeping the indexes local to validation. No allocation or runtime benchmark has been collected, so the performance benefit is inferred from capacity behavior, not measured.
+- **Next:** Run the Lottie validation contract suite and profile large documents before claiming a performance improvement.

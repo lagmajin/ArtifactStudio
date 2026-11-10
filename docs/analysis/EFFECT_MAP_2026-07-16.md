@@ -1,6 +1,6 @@
 # ArtifactStudio Effect Map
 
-**最終更新:** 2026-09-22
+**最終更新:** 2026-11-09
 **Status:** Living analysis
 
 ## Purpose
@@ -103,7 +103,9 @@ Composition `ArtifactEffectService` catalog. The bridge is incomplete.
 | Color Wheels (LGG / OGG) | `Artifact/src/Effects/ColorCorrection/ColorWheelsEffect.cppm` | CPU fallback for Three-way / Levels |
 | Lift / Gamma / Gain | `Artifact/src/Effects/LiftGammaGainEffect.cppm` | CPU reference implementation |
 | Radial Shadow | `Artifact/src/Effects/RadialShadow/RadialShadowEffect.cppm` | CPU reference implementation |
-| Directional Glow (built-in patterns) | `Artifact/src/Effects/DirectionalGlowEffect.cppm` | CPU fallback for Custom angles |
+| Directional Glow (built-in patterns) | `Artifact/src/Effects/DirectionalGlowEffect.cpp` | Resident + legacy HLSL cover Horizontal/Cross/Star/Star6 with 3 stages and Half Sampling; Custom angles stay CPU-only; parity pending |
+| Glint / Star Filter | `Artifact/src/Effects/Glow/GlowEffect.cpp` | Generic resident HLSL approximates the CPU warpAffine + anisotropic Gaussian rays; parity pending |
+| Cinematic Lens Flare | `Artifact/src/Effect/ArtifactCreativeEffects.cpp` | Generic resident HLSL for manual position; auto highlight detection stays CPU |
 
 `supportsGPU()` alone is not proof of a real shader path. The map must record
 the implementation and later runtime evidence separately.
@@ -111,7 +113,10 @@ the implementation and later runtime evidence separately.
 Directional Glow and Radial Shadow currently have source-level Compute paths,
 but their OpenCV CPU compositing and GPU shader compositing are not yet proven
 pixel-identical. They remain `HLSL implemented / parity pending` until a
-runtime CPU-vs-GPU comparison is performed.
+runtime CPU-vs-GPU comparison is performed. Glint / Star Filter and Cinematic
+Lens Flare are in the same `HLSL implemented / parity pending` state: Glint uses
+bounded directional sampling instead of `warpAffine`, and Lens Flare only takes
+the resident path when auto highlight detection is disabled.
 
 The 2026-07 source audit found 47 effects advertising `supportsGPU() == true`.
 Several legacy declarations still need classification because their current

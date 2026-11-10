@@ -388,3 +388,17 @@ TEST(DataTableStandaloneTest, DuplicateHeaderLookupResolvesToLastOccurrence)
     EXPECT_EQ(table.columnIndexByName(String("value")), 1);
     EXPECT_EQ(table.getString(0, String("value")), "second");
 }
+
+TEST(DataTableStandaloneTest, CopyPreservesColumnLookupAndOwnsIndependentSchema)
+{
+    const DataTable source(parse("name,value\nalpha,7"));
+    DataTable copy = source;
+
+    copy.addColumn(String("extra"));
+
+    EXPECT_EQ(copy.columnIndexByName(String("value")), 1);
+    EXPECT_EQ(copy.columnIndexByName(String("extra")), 2);
+    EXPECT_EQ(source.columnIndexByName(String("value")), 1);
+    EXPECT_EQ(source.columnIndexByName(String("extra")), -1);
+    EXPECT_EQ(source.getInt(0, String("value")), 7);
+}

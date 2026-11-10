@@ -209,6 +209,25 @@ TEST(ArtifactHashMapContractTest, EraseReturnsZeroForMissingAndOneForExistingKey
     EXPECT_EQ(map.size(), 0u);
 }
 
+TEST(ArtifactHashMapContractTest, EraseByIteratorReturnsNextCollisionEntry)
+{
+    ArtifactHashMap<int, int, ConstantHash> map;
+    map.tryEmplace(1, 10);
+    map.tryEmplace(2, 20);
+    map.tryEmplace(3, 30);
+
+    auto next = map.erase(map.begin());
+    ASSERT_NE(next, map.end());
+    EXPECT_EQ(next->first, 2);
+    next = map.erase(next);
+    ASSERT_NE(next, map.end());
+    EXPECT_EQ(next->first, 1);
+    next = map.erase(next);
+
+    EXPECT_EQ(next, map.end());
+    EXPECT_TRUE(map.empty());
+}
+
 TEST(ArtifactHashMapContractTest, RehashPreservesAllEntriesAndUpdates)
 {
     ArtifactHashMap<int, int> map;
@@ -422,6 +441,21 @@ TEST(ArtifactHashMapContractTest, MoveConstructionTransfersEntries)
     EXPECT_EQ(destination.find(8)->second, "eight");
 }
 
+TEST(ArtifactHashMapContractTest, MovedFromMapCanBeReused)
+{
+    ArtifactHashMap<int, int> source;
+    source.tryEmplace(1, 10);
+    ArtifactHashMap<int, int> moved(std::move(source));
+
+    EXPECT_TRUE(source.empty());
+    EXPECT_EQ(source.find(1), source.end());
+    EXPECT_TRUE(source.tryEmplace(2, 20).second);
+    ASSERT_NE(source.findValue(2), nullptr);
+    ASSERT_NE(moved.findValue(1), nullptr);
+    EXPECT_EQ(*source.findValue(2), 20);
+    EXPECT_EQ(*moved.findValue(1), 10);
+}
+
 TEST(ArtifactHashMapContractTest, MoveAssignmentReplacesDestinationAndTransfersEntries)
 {
     ArtifactHashMap<int, std::string> destination;
@@ -464,6 +498,23 @@ TEST(ArtifactHashMapContractTest, MappedValuePointerRemainsStableAcrossRehash)
     for (int key = 100; key < 300; ++key) map.tryEmplace(key, key * 10);
     EXPECT_EQ(map.findValue(7), originalValue);
     EXPECT_EQ(*originalValue, 70);
+}
+
+TEST(ArtifactHashMapContractTest, ReserveAndRehashRespectMinimumCapacityAndPreserveValues)
+{
+    ArtifactHashMap<int, int> map;
+    map.tryEmplace(1, 10);
+    map.tryEmplace(2, 20);
+
+    map.reserve(64);
+    EXPECT_GE(map.bucket_count(), 64u);
+    map.rehash(0);
+
+    EXPECT_GE(map.bucket_count(), 3u);
+    ASSERT_NE(map.findValue(1), nullptr);
+    ASSERT_NE(map.findValue(2), nullptr);
+    EXPECT_EQ(*map.findValue(1), 10);
+    EXPECT_EQ(*map.findValue(2), 20);
 }
 
 TEST(ArtifactHashMapContractTest, IteratorPostIncrementReturnsPreviousEntry)
