@@ -151,3 +151,34 @@ TEST(PixelChannelOrderStandaloneTest, GpuBgraReadbackHonorsPaddedRows)
     EXPECT_FLOAT_EQ(image.getPixel(0, 1).g(), 0.5f);
     EXPECT_FLOAT_EQ(image.getPixel(0, 1).b(), 0.6f);
 }
+
+TEST(PixelChannelOrderStandaloneTest,
+     GpuBgraReadbackHandlesMultiplePixelsAndPaddedRows)
+{
+    constexpr std::array<float, 20> paddedBgra = {
+        0.2f, 0.1f, 1.0f, 0.3f, 0.6f, 0.5f, 0.4f, 0.7f, -9.0f, -9.0f,
+        0.25f, 0.15f, 0.85f, 0.95f, 0.45f, 0.35f, 0.65f, 0.75f, -8.0f, -8.0f};
+    constexpr auto paddedStride = 10u * sizeof(float);
+    ImageF32x4_RGBA image;
+
+    ASSERT_TRUE(image.setFromGpuBGRA32F(
+        paddedBgra.data(), 2, 2, paddedStride,
+        SurfaceColorDescriptor::unknownBgra32Float()));
+    ASSERT_EQ(image.width(), 2);
+    ASSERT_EQ(image.height(), 2);
+    ASSERT_EQ(image.colorDescriptor().channelOrder, SurfaceChannelOrder::BGRA);
+
+    constexpr std::array<float, 16> expectedBgra = {
+        0.2f, 0.1f, 1.0f, 0.3f, 0.6f, 0.5f, 0.4f, 0.7f,
+        0.25f, 0.15f, 0.85f, 0.95f, 0.45f, 0.35f, 0.65f, 0.75f};
+    for (std::size_t index = 0; index < expectedBgra.size(); ++index) {
+        EXPECT_FLOAT_EQ(image.rgba32fData()[index], expectedBgra[index])
+            << "Canonical BGRA float index " << index;
+    }
+    EXPECT_FLOAT_EQ(image.getPixel(1, 0).r(), 0.4f);
+    EXPECT_FLOAT_EQ(image.getPixel(1, 0).g(), 0.5f);
+    EXPECT_FLOAT_EQ(image.getPixel(1, 0).b(), 0.6f);
+    EXPECT_FLOAT_EQ(image.getPixel(0, 1).r(), 0.85f);
+    EXPECT_FLOAT_EQ(image.getPixel(1, 1).r(), 0.65f);
+    EXPECT_FLOAT_EQ(image.getPixel(1, 1).a(), 0.75f);
+}

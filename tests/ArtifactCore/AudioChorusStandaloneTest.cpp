@@ -105,6 +105,60 @@ TEST(AudioChorusStandaloneTest, LfoPhaseRemainsContinuousAcrossSegmentBoundaries
     EXPECT_EQ(segmentedOutput, wholeBlock.channelData[0]);
 }
 
+TEST(AudioChorusStandaloneTest, StereoLfoAndDelayHistorySurviveIrregularBlockBoundaries)
+{
+    AudioChorus wholeBlockChorus;
+    AudioChorus segmentedChorus;
+    for (auto* chorus : {&wholeBlockChorus, &segmentedChorus}) {
+        chorus->setDelayMs(1.25f);
+        chorus->setRate(9.0f);
+        chorus->setDepth(0.85f);
+        chorus->setFeedback(0.65f);
+    }
+
+    QVector<float> leftInput;
+    QVector<float> rightInput;
+    leftInput.reserve(127);
+    rightInput.reserve(127);
+    for (int frame = 0; frame < 127; ++frame) {
+        leftInput.push_back(frame == 0 ? 1.0f :
+            std::sin(2.0f * 3.14159265f * 5.0f * frame / 1000.0f));
+        rightInput.push_back(frame == 3 ? -0.75f :
+            0.5f * std::cos(2.0f * 3.14159265f * 11.0f * frame / 1000.0f));
+    }
+
+    AudioSegment wholeBlock;
+    wholeBlock.sampleRate = 1000;
+    wholeBlock.layout = AudioChannelLayout::Stereo;
+    wholeBlock.channelData.push_back(leftInput);
+    wholeBlock.channelData.push_back(rightInput);
+    wholeBlockChorus.process(wholeBlock);
+
+    AudioSegment segmented;
+    segmented.sampleRate = 1000;
+    segmented.layout = AudioChannelLayout::Stereo;
+    segmented.channelData.push_back(QVector<float>{});
+    segmented.channelData.push_back(QVector<float>{});
+    constexpr int boundaries[] = {0, 1, 7, 19, 20, 63, 88, 127};
+    for (int block = 1; block < 8; ++block) {
+        const int start = boundaries[block - 1];
+        const int length = boundaries[block] - start;
+        AudioSegment segment;
+        segment.sampleRate = 1000;
+        segment.layout = AudioChannelLayout::Stereo;
+        segment.channelData.push_back(leftInput.mid(start, length));
+        segment.channelData.push_back(rightInput.mid(start, length));
+        segmentedChorus.process(segment);
+        segmented.channelData[0] += segment.channelData[0];
+        segmented.channelData[1] += segment.channelData[1];
+    }
+
+    ASSERT_EQ(wholeBlock.channelData.size(), 2u);
+    ASSERT_EQ(segmented.channelData.size(), 2u);
+    EXPECT_EQ(segmented.channelData[0], wholeBlock.channelData[0]);
+    EXPECT_EQ(segmented.channelData[1], wholeBlock.channelData[1]);
+}
+
 TEST(AudioChorusStandaloneTest, StereoChannelsKeepIndependentDelayHistory)
 {
     AudioChorus chorus;

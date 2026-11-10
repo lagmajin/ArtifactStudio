@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstdint>
 #include <limits>
 
@@ -263,4 +264,51 @@ TEST(ArtifactChronoContractTest, StartStopCyclesKeepAccumulatedElapsedMonotonic)
 
     EXPECT_GE(stopwatch.elapsed(), firstCycle);
     EXPECT_FALSE(stopwatch.isRunning());
+}
+
+TEST(ArtifactChronoContractTest, MixedStopwatchTransitionsPreserveStateInvariants)
+{
+    enum class Operation { Start, Stop, Reset, Restart };
+    constexpr std::array operations{
+        Operation::Stop, Operation::Start, Operation::Start, Operation::Stop,
+        Operation::Stop, Operation::Start, Operation::Restart, Operation::Stop,
+        Operation::Reset, Operation::Stop, Operation::Start, Operation::Restart,
+        Operation::Start, Operation::Reset, Operation::Restart, Operation::Stop,
+        Operation::Start, Operation::Stop, Operation::Reset, Operation::Start,
+        Operation::Restart, Operation::Restart, Operation::Stop, Operation::Reset,
+    };
+
+    Stopwatch stopwatch;
+    bool expectedRunning = false;
+    for (std::size_t step = 0; step < operations.size(); ++step) {
+        const Duration before = stopwatch.elapsed();
+        switch (operations[step]) {
+        case Operation::Start:
+            stopwatch.start();
+            expectedRunning = true;
+            if (before.nanos() > 0) EXPECT_GE(stopwatch.elapsed(), before) << "step=" << step;
+            break;
+        case Operation::Stop:
+            stopwatch.stop();
+            expectedRunning = false;
+            {
+                const Duration stopped = stopwatch.elapsed();
+                stopwatch.stop();
+                EXPECT_EQ(stopwatch.elapsed(), stopped) << "step=" << step;
+            }
+            break;
+        case Operation::Reset:
+            stopwatch.reset();
+            expectedRunning = false;
+            EXPECT_EQ(stopwatch.elapsed(), Duration{}) << "step=" << step;
+            break;
+        case Operation::Restart:
+            stopwatch.restart();
+            expectedRunning = true;
+            break;
+        }
+
+        EXPECT_EQ(stopwatch.isRunning(), expectedRunning) << "step=" << step;
+        EXPECT_GE(stopwatch.elapsed(), Duration{}) << "step=" << step;
+    }
 }

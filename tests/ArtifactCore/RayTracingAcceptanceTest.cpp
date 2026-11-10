@@ -3,8 +3,11 @@
 #include <DeviceContext.h>
 #include <EngineFactoryVk.h>
 #include <QColor>
+#include <QFile>
+#include <QFileInfo>
 #include <QImage>
 #include <QString>
+#include <QTemporaryDir>
 #include <QVector3D>
 #include <RefCntAutoPtr.hpp>
 #include <Texture.h>
@@ -29,6 +32,7 @@ import Graphics.RayTracingManager;
 import Graphics.GPUcomputeContext;
 import Graphics.MeshRenderer;
 import Core.Light;
+import Image.OpenEXR;
 import IO.ImageImporter;
 import Mesh;
 import Utils.String.UniString;
@@ -345,6 +349,383 @@ TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
         std::max(std::fabs(coatedPixel[1] - basePixel[1]),
                  std::fabs(coatedPixel[2] - basePixel[2])));
     EXPECT_GT(maximumChannelDifference, 0.001f);
+
+    coatedMaterial.clearcoatRoughness = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughCoatedPixel = pixelAt(16, 16);
+    const float clearcoatRoughnessDifference = std::max(
+        std::fabs(roughCoatedPixel[0] - coatedPixel[0]),
+        std::max(std::fabs(roughCoatedPixel[1] - coatedPixel[1]),
+                 std::fabs(roughCoatedPixel[2] - coatedPixel[2])));
+    EXPECT_GT(clearcoatRoughnessDifference, 0.001f)
+        << "clearcoat roughness should change the direct-light reflection response";
+    coatedMaterial.clearcoatRoughness = 0.2f;
+
+    QTemporaryDir coatNormalDirectory;
+    ASSERT_TRUE(coatNormalDirectory.isValid());
+    const QString coatNormalPath = coatNormalDirectory.filePath(
+        QStringLiteral("coat-normal.png"));
+    QImage coatNormalImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(coatNormalImage.isNull());
+    coatNormalImage.fill(QColor(204, 128, 230, 255));
+    ASSERT_TRUE(coatNormalImage.save(coatNormalPath, "PNG"));
+    coatedMaterial.clearcoatNormalTexture =
+        ArtifactCore::UniString(coatNormalPath);
+    coatedMaterial.clearcoatNormalStrength = 1.0f;
+    coatedMaterial.clearcoatNormalUvRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unrotatedCoatNormalPixel = pixelAt(16, 16);
+
+    coatedMaterial.clearcoatNormalUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedCoatNormalPixel = pixelAt(16, 16);
+    const float coatNormalRotationDifference = std::max(
+        std::fabs(unrotatedCoatNormalPixel[0] - rotatedCoatNormalPixel[0]),
+        std::max(std::fabs(unrotatedCoatNormalPixel[1] - rotatedCoatNormalPixel[1]),
+                 std::fabs(unrotatedCoatNormalPixel[2] - rotatedCoatNormalPixel[2])));
+    EXPECT_GT(coatNormalRotationDifference, 0.001f)
+        << "clearcoat normal UV rotation should change the coat reflection "
+           "direction";
+
+    const auto captureClearcoatRoughness = [this, &coatedMaterial](
+                                               float clearcoatRoughness) {
+        coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+        coatedMaterial.clearcoatRoughness = clearcoatRoughness;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumClearcoatRoughnessPixel =
+        captureClearcoatRoughness(0.0f);
+    const auto belowMinimumClearcoatRoughnessPixel =
+        captureClearcoatRoughness(-0.5f);
+    const auto maximumClearcoatRoughnessPixel =
+        captureClearcoatRoughness(1.0f);
+    const auto aboveMaximumClearcoatRoughnessPixel =
+        captureClearcoatRoughness(1.5f);
+    const float clearcoatRoughnessResponse = std::max(
+        std::fabs(maximumClearcoatRoughnessPixel[0] -
+                  minimumClearcoatRoughnessPixel[0]),
+        std::max(std::fabs(maximumClearcoatRoughnessPixel[1] -
+                           minimumClearcoatRoughnessPixel[1]),
+                 std::fabs(maximumClearcoatRoughnessPixel[2] -
+                           minimumClearcoatRoughnessPixel[2])));
+    EXPECT_GT(clearcoatRoughnessResponse, 0.001f)
+        << "the fixture should distinguish minimum and maximum clearcoat roughness";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumClearcoatRoughnessPixel[channel],
+                    minimumClearcoatRoughnessPixel[channel], 1.0e-5f)
+            << "clearcoat roughness below zero should clamp to zero";
+        EXPECT_NEAR(aboveMaximumClearcoatRoughnessPixel[channel],
+                    maximumClearcoatRoughnessPixel[channel], 1.0e-5f)
+            << "clearcoat roughness above one should clamp to one";
+    }
+
+    auto captureClearcoatIor = [this, &coatedMaterial](float clearcoatIOR) {
+        coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+        coatedMaterial.clearcoatNormalStrength = 1.0f;
+        coatedMaterial.clearcoatIOR = clearcoatIOR;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumClearcoatIorPixel = captureClearcoatIor(1.0f);
+    const auto belowMinimumClearcoatIorPixel = captureClearcoatIor(0.5f);
+    const auto maximumClearcoatIorPixel = captureClearcoatIor(2.0f);
+    const auto aboveMaximumClearcoatIorPixel = captureClearcoatIor(3.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumClearcoatIorPixel[channel],
+                    minimumClearcoatIorPixel[channel], 1.0e-5f)
+            << "clearcoat IOR below 1.0 should clamp to the lower bound";
+        EXPECT_NEAR(aboveMaximumClearcoatIorPixel[channel],
+                    maximumClearcoatIorPixel[channel], 1.0e-5f)
+            << "clearcoat IOR above 2.0 should clamp to the upper bound";
+    }
+
+    const auto captureClearcoatTint = [this, &coatedMaterial](
+                                          std::size_t tintChannel, float tint) {
+        coatedMaterial.clearcoat = 1.0f;
+        coatedMaterial.sheen = 0.0f;
+        coatedMaterial.clearcoatTint[0] = 1.0f;
+        coatedMaterial.clearcoatTint[1] = 1.0f;
+        coatedMaterial.clearcoatTint[2] = 1.0f;
+        coatedMaterial.clearcoatTint[tintChannel] = tint;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        const auto minimumClearcoatTintPixel =
+            captureClearcoatTint(tintChannel, 0.0f);
+        const auto belowMinimumClearcoatTintPixel =
+            captureClearcoatTint(tintChannel, -0.5f);
+        const auto maximumClearcoatTintPixel =
+            captureClearcoatTint(tintChannel, 1.0f);
+        const auto aboveMaximumClearcoatTintPixel =
+            captureClearcoatTint(tintChannel, 1.5f);
+        EXPECT_GT(std::fabs(maximumClearcoatTintPixel[tintChannel] -
+                            minimumClearcoatTintPixel[tintChannel]),
+                  0.001f)
+            << "clearcoat tint should affect its matching output channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(maximumClearcoatTintPixel[channel],
+                            minimumClearcoatTintPixel[channel], 1.0e-5f)
+                    << "clearcoat tint channel " << tintChannel
+                    << " should not alter output channel " << channel;
+            }
+            EXPECT_NEAR(belowMinimumClearcoatTintPixel[channel],
+                        minimumClearcoatTintPixel[channel], 1.0e-5f)
+                << "clearcoat tint below zero should clamp to zero, tint channel "
+                << tintChannel << ", output channel " << channel;
+            EXPECT_NEAR(aboveMaximumClearcoatTintPixel[channel],
+                        maximumClearcoatTintPixel[channel], 1.0e-5f)
+                << "clearcoat tint above one should clamp to one, tint channel "
+                << tintChannel << ", output channel " << channel;
+        }
+    }
+
+    const auto captureSheenRoughness = [this, &coatedMaterial](
+                                          float sheenRoughness) {
+        coatedMaterial.clearcoat = 0.0f;
+        coatedMaterial.sheen = 1.0f;
+        coatedMaterial.sheenRoughness = sheenRoughness;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumSheenRoughnessPixel = captureSheenRoughness(0.0f);
+    const auto belowMinimumSheenRoughnessPixel = captureSheenRoughness(-0.5f);
+    const auto maximumSheenRoughnessPixel = captureSheenRoughness(1.0f);
+    const auto aboveMaximumSheenRoughnessPixel = captureSheenRoughness(1.5f);
+    const float sheenRoughnessResponse = std::max(
+        std::fabs(maximumSheenRoughnessPixel[0] -
+                  minimumSheenRoughnessPixel[0]),
+        std::max(std::fabs(maximumSheenRoughnessPixel[1] -
+                           minimumSheenRoughnessPixel[1]),
+                 std::fabs(maximumSheenRoughnessPixel[2] -
+                           minimumSheenRoughnessPixel[2])));
+    EXPECT_GT(sheenRoughnessResponse, 0.001f)
+        << "the fixture should distinguish minimum and maximum sheen roughness";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumSheenRoughnessPixel[channel],
+                    minimumSheenRoughnessPixel[channel], 1.0e-5f)
+            << "sheen roughness below zero should clamp to zero";
+        EXPECT_NEAR(aboveMaximumSheenRoughnessPixel[channel],
+                    maximumSheenRoughnessPixel[channel], 1.0e-5f)
+            << "sheen roughness above one should clamp to one";
+    }
+
+    const auto captureSheenTint = [this, &coatedMaterial](
+                                      std::size_t tintChannel, float tint) {
+        coatedMaterial.sheenTint[0] = 1.0f;
+        coatedMaterial.sheenTint[1] = 1.0f;
+        coatedMaterial.sheenTint[2] = 1.0f;
+        coatedMaterial.sheenTint[tintChannel] = tint;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        const auto minimumSheenTintPixel = captureSheenTint(tintChannel, 0.0f);
+        const auto belowMinimumSheenTintPixel =
+            captureSheenTint(tintChannel, -0.5f);
+        const auto maximumSheenTintPixel = captureSheenTint(tintChannel, 1.0f);
+        const auto aboveMaximumSheenTintPixel =
+            captureSheenTint(tintChannel, 1.5f);
+        EXPECT_GT(std::fabs(maximumSheenTintPixel[tintChannel] -
+                            minimumSheenTintPixel[tintChannel]),
+                  0.001f)
+            << "sheen tint should affect its matching output channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(maximumSheenTintPixel[channel],
+                            minimumSheenTintPixel[channel], 1.0e-5f)
+                    << "sheen tint channel " << tintChannel
+                    << " should not alter output channel " << channel;
+            }
+            EXPECT_NEAR(belowMinimumSheenTintPixel[channel],
+                        minimumSheenTintPixel[channel], 1.0e-5f)
+                << "sheen tint below zero should clamp to zero, tint channel "
+                << tintChannel << ", output channel " << channel;
+            EXPECT_NEAR(aboveMaximumSheenTintPixel[channel],
+                        maximumSheenTintPixel[channel], 1.0e-5f)
+                << "sheen tint above one should clamp to one, tint channel "
+                << tintChannel << ", output channel " << channel;
+        }
+    }
+
+    const auto captureSpecular = [&](float specular) {
+        coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+        coatedMaterial.clearcoat = 0.0f;
+        coatedMaterial.sheen = 0.0f;
+        coatedMaterial.metallic = 0.0f;
+        coatedMaterial.ior = 1.5f;
+        coatedMaterial.specular = specular;
+        coatedMaterial.specularTint[0] = coatedMaterial.specularTint[1] =
+            coatedMaterial.specularTint[2] = 1.0f;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumSpecular = captureSpecular(0.0f);
+    const auto belowMinimumSpecular = captureSpecular(-0.5f);
+    const auto defaultSpecular = captureSpecular(0.5f);
+    const auto nonFiniteSpecular = captureSpecular(
+        std::numeric_limits<float>::quiet_NaN());
+    const auto maximumSpecular = captureSpecular(1.0f);
+    const auto aboveMaximumSpecular = captureSpecular(1.5f);
+    float specularResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumSpecular[channel], minimumSpecular[channel],
+                    1.0e-5f)
+            << "specular below zero should clamp to zero, channel " << channel;
+        EXPECT_NEAR(nonFiniteSpecular[channel], defaultSpecular[channel],
+                    1.0e-5f)
+            << "non-finite specular should use its 0.5 fallback, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumSpecular[channel], maximumSpecular[channel],
+                    1.0e-5f)
+            << "specular above one should clamp to one, channel " << channel;
+        specularResponse = std::max(
+            specularResponse,
+            std::fabs(maximumSpecular[channel] - minimumSpecular[channel]));
+    }
+    EXPECT_GT(specularResponse, 0.001f)
+        << "the specular factor should measurably scale dielectric reflection";
+
+    const auto captureLobeAmounts = [&](float clearcoat, float sheen) {
+        coatedMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+        coatedMaterial.clearcoatRoughness = 0.2f;
+        coatedMaterial.clearcoatIOR = 1.5f;
+        coatedMaterial.clearcoat = clearcoat;
+        coatedMaterial.sheenRoughness = 0.25f;
+        coatedMaterial.sheen = sheen;
+        coatedMaterial.clearcoatTint[0] = coatedMaterial.clearcoatTint[1] =
+            coatedMaterial.clearcoatTint[2] = 1.0f;
+        coatedMaterial.sheenTint[0] = coatedMaterial.sheenTint[1] =
+            coatedMaterial.sheenTint[2] = 1.0f;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("clearcoat-isolation"), coatedMaterial);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto noPrincipledLobes = captureLobeAmounts(0.0f, 0.0f);
+    const auto invalidClearcoat = captureLobeAmounts(
+        std::numeric_limits<float>::quiet_NaN(), 0.0f);
+    const auto invalidSheen = captureLobeAmounts(
+        0.0f, std::numeric_limits<float>::quiet_NaN());
+    const auto enabledClearcoat = captureLobeAmounts(1.0f, 0.0f);
+    const auto enabledSheen = captureLobeAmounts(0.0f, 1.0f);
+    const auto enabledClearcoatAndSheen = captureLobeAmounts(1.0f, 1.0f);
+    float clearcoatResponse = 0.0f;
+    float sheenResponse = 0.0f;
+    float combinedLobeResponse = 0.0f;
+    float combinedVsClearcoatResponse = 0.0f;
+    float combinedVsSheenResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(invalidClearcoat[channel], noPrincipledLobes[channel],
+                    1.0e-5f)
+            << "non-finite clearcoat should use its zero fallback, channel "
+            << channel;
+        EXPECT_NEAR(invalidSheen[channel], noPrincipledLobes[channel],
+                    1.0e-5f)
+            << "non-finite sheen should use its zero fallback, channel "
+            << channel;
+        clearcoatResponse = std::max(
+            clearcoatResponse,
+            std::fabs(enabledClearcoat[channel] - noPrincipledLobes[channel]));
+        sheenResponse = std::max(
+            sheenResponse,
+            std::fabs(enabledSheen[channel] - noPrincipledLobes[channel]));
+        combinedLobeResponse = std::max(
+            combinedLobeResponse,
+            std::fabs(enabledClearcoatAndSheen[channel] -
+                      noPrincipledLobes[channel]));
+        combinedVsClearcoatResponse = std::max(
+            combinedVsClearcoatResponse,
+            std::fabs(enabledClearcoatAndSheen[channel] -
+                      enabledClearcoat[channel]));
+        combinedVsSheenResponse = std::max(
+            combinedVsSheenResponse,
+            std::fabs(enabledClearcoatAndSheen[channel] -
+                      enabledSheen[channel]));
+        EXPECT_TRUE(std::isfinite(enabledClearcoatAndSheen[channel]))
+            << "combined clearcoat and sheen output should remain finite, "
+            << "channel " << channel;
+        EXPECT_GE(enabledClearcoatAndSheen[channel], 0.0f)
+            << "combined clearcoat and sheen radiance should be non-negative, "
+            << "channel " << channel;
+        const float isolatedLobeEnergyEnvelope =
+            noPrincipledLobes[channel] +
+            std::fabs(enabledClearcoat[channel] - noPrincipledLobes[channel]) +
+            std::fabs(enabledSheen[channel] - noPrincipledLobes[channel]);
+        EXPECT_LE(enabledClearcoatAndSheen[channel],
+                  isolatedLobeEnergyEnvelope + 0.01f)
+            << "combined clearcoat and sheen should stay within the additive "
+            << "isolated-lobe energy envelope, channel " << channel;
+    }
+    EXPECT_GT(clearcoatResponse, 0.001f)
+        << "the fixture should respond to a finite clearcoat amount";
+    EXPECT_GT(sheenResponse, 0.001f)
+        << "the fixture should respond to a finite sheen amount";
+    EXPECT_GT(combinedLobeResponse, 0.001f)
+        << "the fixture should respond when clearcoat and sheen are both enabled";
+    EXPECT_GT(combinedVsClearcoatResponse, 0.001f)
+        << "sheen should contribute alongside clearcoat";
+    EXPECT_GT(combinedVsSheenResponse, 0.001f)
+        << "clearcoat should contribute alongside sheen";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
@@ -353,6 +734,12 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
          0.0f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.45f, 0.9f, 0.0f};
     constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 3, 4, 5};
     constexpr std::array<std::uint32_t, 2> materialIndices{0, 1};
+    constexpr std::array<float, 12> slotUvs{
+        0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f,
+        0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f};
+    constexpr std::array<float, 12> mirroredSlotUvs{
+        1.0f, 0.0f, 0.0f, 0.0f, 0.5f, 1.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.5f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -366,7 +753,8 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("material-slot-selection"), vertices.data(), 6,
-        indices.data(), 6, nullptr, materialIndices.data()));
+        indices.data(), 6, nullptr, materialIndices.data(), slotUvs.data(),
+        nullptr, mirroredSlotUvs.data()));
 
     ArtifactCore::RTPbrMaterial leftMaterial;
     leftMaterial.baseColor[0] = 0.0f;
@@ -376,9 +764,23 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     leftMaterial.emissionStrength = 1.0f;
     ArtifactCore::RTPbrMaterial rightMaterial = leftMaterial;
     rightMaterial.emissionColor[0] = 0.0f;
-    rightMaterial.emissionColor[2] = 1.0f;
+    rightMaterial.specular = 0.0f;
+    rightMaterial.ior = 1.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto initialRightPixel = pixelAt(24, 16);
+    EXPECT_LT(std::max(initialRightPixel[0],
+                       std::max(initialRightPixel[1], initialRightPixel[2])),
+              0.05f)
+        << "the initial second material slot should produce no emission";
+
+    rightMaterial.emissionColor[2] = 1.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -391,6 +793,3022 @@ TEST_F(RayTracingAcceptanceTest, SelectsPbrMaterialPerTriangleSlot) {
     const auto rightPixel = pixelAt(24, 16);
     EXPECT_GT(leftPixel[0], leftPixel[2] + 0.5f);
     EXPECT_GT(rightPixel[2], rightPixel[0] + 0.5f);
+
+    QTemporaryDir slotTextureDirectory;
+    ASSERT_TRUE(slotTextureDirectory.isValid());
+    const auto redTexturePath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-red.png"));
+    const auto blueTexturePath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-blue.png"));
+    QImage redTexture(2, 2, QImage::Format_RGBA8888);
+    QImage blueTexture(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(redTexture.isNull());
+    ASSERT_FALSE(blueTexture.isNull());
+    redTexture.fill(QColor(255, 0, 0, 255));
+    blueTexture.fill(QColor(0, 0, 255, 255));
+    ASSERT_TRUE(redTexture.save(redTexturePath, "PNG"));
+    ASSERT_TRUE(blueTexture.save(blueTexturePath, "PNG"));
+    const auto anisotropyUvMapPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-anisotropy-uv.png"));
+    QImage anisotropyUvMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(anisotropyUvMap.isNull());
+    for (int y = 0; y < anisotropyUvMap.height(); ++y) {
+        auto* row = anisotropyUvMap.scanLine(y);
+        for (int x = 0; x < anisotropyUvMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < anisotropyUvMap.width() / 2 ? 255 : 128;
+            pixel[1] = x < anisotropyUvMap.width() / 2 ? 128 : 255;
+            pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(anisotropyUvMap.save(anisotropyUvMapPath, "PNG"));
+
+    leftMaterial.emissionColor[0] = leftMaterial.emissionColor[1] =
+        leftMaterial.emissionColor[2] = 1.0f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString(redTexturePath);
+    rightMaterial.emissionColor[0] = rightMaterial.emissionColor[1] =
+        rightMaterial.emissionColor[2] = 1.0f;
+    rightMaterial.emissionTexture = ArtifactCore::UniString(blueTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftRedTexturePixel = pixelAt(8, 16);
+    const auto rightBlueTexturePixel = pixelAt(24, 16);
+    EXPECT_GT(leftRedTexturePixel[0], leftRedTexturePixel[2] + 0.5f);
+    EXPECT_GT(rightBlueTexturePixel[2], rightBlueTexturePixel[0] + 0.5f);
+
+    leftMaterial.emissionTexture = ArtifactCore::UniString(blueTexturePath);
+    rightMaterial.emissionTexture = ArtifactCore::UniString(redTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftBlueTexturePixel = pixelAt(8, 16);
+    const auto rightRedTexturePixel = pixelAt(24, 16);
+    EXPECT_GT(leftBlueTexturePixel[2], leftBlueTexturePixel[0] + 0.5f);
+    EXPECT_GT(rightRedTexturePixel[0], rightRedTexturePixel[2] + 0.5f);
+
+    const auto slotEmissionUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-emission-uv-ramp.png"));
+    QImage slotEmissionUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotEmissionUvRamp.isNull());
+    for (int y = 0; y < slotEmissionUvRamp.height(); ++y) {
+        auto* row = slotEmissionUvRamp.scanLine(y);
+        for (int x = 0; x < slotEmissionUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 255 : 0;
+            pixel[1] = 0;
+            pixel[2] = x < 4 ? 0 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotEmissionUvRamp.save(slotEmissionUvRampPath, "PNG"));
+    leftMaterial.emissionTexture = ArtifactCore::UniString(slotEmissionUvRampPath);
+    leftMaterial.emissionTextureUvSet = 0;
+    leftMaterial.emissionTextureUvOffsetU = 0.0f;
+    leftMaterial.emissionTextureUvScale = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionUv0Left = pixelAt(8, 16);
+    const auto slotEmissionUv0Right = pixelAt(24, 16);
+    EXPECT_GT(slotEmissionUv0Left[0], slotEmissionUv0Left[2] + 0.5f)
+        << "slot 0 emission map should sample its red UV0 half";
+    EXPECT_GT(slotEmissionUv0Right[2], slotEmissionUv0Right[0] + 0.5f)
+        << "slot 1 emission map should sample its blue UV0 half";
+
+    rightMaterial.emissionTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotEmissionUv1Left = pixelAt(8, 16);
+    EXPECT_GT(slotEmissionUv1Right[0], slotEmissionUv1Right[2] + 0.5f)
+        << "slot 1 emission UV set should mirror its sample into the red texels";
+    EXPECT_GT(unchangedSlotEmissionUv1Left[0],
+              unchangedSlotEmissionUv1Left[2] + 0.5f)
+        << "slot 1 emission UV set should preserve slot 0";
+
+    rightMaterial.emissionTextureUvSet = 0;
+    rightMaterial.emissionTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotEmissionOffsetLeft = pixelAt(8, 16);
+    EXPECT_GT(slotEmissionOffsetRight[0], slotEmissionOffsetRight[2] + 0.5f)
+        << "slot 1 emission U offset should move its sample into red texels";
+    EXPECT_GT(unchangedSlotEmissionOffsetLeft[0],
+              unchangedSlotEmissionOffsetLeft[2] + 0.5f)
+        << "slot 1 emission U offset should preserve slot 0";
+
+    rightMaterial.emissionTextureUvOffsetU = 0.0f;
+    rightMaterial.emissionTextureUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionScaleRight = pixelAt(24, 16);
+    const auto unchangedSlotEmissionScaleLeft = pixelAt(8, 16);
+    EXPECT_GT(slotEmissionScaleRight[0], slotEmissionScaleRight[2] + 0.5f)
+        << "slot 1 emission UV scale should move its sample into red texels";
+    EXPECT_GT(unchangedSlotEmissionScaleLeft[0],
+              unchangedSlotEmissionScaleLeft[2] + 0.5f)
+        << "slot 1 emission UV scale should preserve slot 0";
+    rightMaterial.emissionTextureUvScale = 1.0f;
+
+    rightMaterial.emissionTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotEmissionRotationRight = pixelAt(24, 16);
+    const auto unchangedSlotEmissionRotationLeft = pixelAt(8, 16);
+    EXPECT_GT(slotEmissionRotationRight[0], slotEmissionRotationRight[2] + 0.5f)
+        << "slot 1 emission UV rotation should move its sample into red texels";
+    EXPECT_GT(unchangedSlotEmissionRotationLeft[0],
+              unchangedSlotEmissionRotationLeft[2] + 0.5f)
+        << "slot 1 emission UV rotation should preserve slot 0";
+    rightMaterial.emissionTextureUvRotationDegrees = 0.0f;
+
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    rightMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    rightMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    rightMaterial.baseColor[0] = rightMaterial.baseColor[1] =
+        rightMaterial.baseColor[2] = 1.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 1.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString(redTexturePath);
+    rightMaterial.baseColorTexture = ArtifactCore::UniString(blueTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftRedBaseColorPixel = pixelAt(8, 16);
+    const auto rightBlueBaseColorPixel = pixelAt(24, 16);
+    EXPECT_GT(leftRedBaseColorPixel[0], leftRedBaseColorPixel[2] + 0.01f);
+    EXPECT_GT(rightBlueBaseColorPixel[2], rightBlueBaseColorPixel[0] + 0.01f);
+
+    leftMaterial.baseColorTexture = ArtifactCore::UniString(blueTexturePath);
+    rightMaterial.baseColorTexture = ArtifactCore::UniString(redTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftBlueBaseColorPixel = pixelAt(8, 16);
+    const auto rightRedBaseColorPixel = pixelAt(24, 16);
+    EXPECT_GT(leftBlueBaseColorPixel[2], leftBlueBaseColorPixel[0] + 0.01f);
+    EXPECT_GT(rightRedBaseColorPixel[0], rightRedBaseColorPixel[2] + 0.01f);
+
+    const auto dielectricMapPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-dielectric.png"));
+    const auto metallicMapPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-metallic.png"));
+    QImage dielectricMap(2, 2, QImage::Format_RGBA8888);
+    QImage metallicMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(dielectricMap.isNull());
+    ASSERT_FALSE(metallicMap.isNull());
+    dielectricMap.fill(QColor(255, 255, 0, 255));
+    metallicMap.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(dielectricMap.save(dielectricMapPath, "PNG"));
+    ASSERT_TRUE(metallicMap.save(metallicMapPath, "PNG"));
+
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.metallic = 1.0f;
+    leftMaterial.roughness = 0.6f;
+    leftMaterial.metallicRoughnessTexture =
+        ArtifactCore::UniString(dielectricMapPath);
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto dielectricLeftPixel = pixelAt(8, 16);
+    const auto dielectricRightPixel = pixelAt(24, 16);
+
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString(metallicMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto metallicLeftPixel = pixelAt(8, 16);
+    const auto unchangedRightPixel = pixelAt(24, 16);
+    const float leftSlotMetallicDifference = std::max(
+        std::fabs(metallicLeftPixel[0] - dielectricLeftPixel[0]),
+        std::max(std::fabs(metallicLeftPixel[1] - dielectricLeftPixel[1]),
+                 std::fabs(metallicLeftPixel[2] - dielectricLeftPixel[2])));
+    EXPECT_GT(leftSlotMetallicDifference, 0.01f)
+        << "changing slot 0 metallic data should change its shading";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRightPixel[channel], dielectricRightPixel[channel],
+                    0.01f)
+            << "changing slot 0 metallic data should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString(dielectricMapPath);
+    rightMaterial.metallicRoughnessTexture = ArtifactCore::UniString(metallicMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedLeftPixel = pixelAt(8, 16);
+    const auto metallicRightPixel = pixelAt(24, 16);
+    const float rightSlotMetallicDifference = std::max(
+        std::fabs(metallicRightPixel[0] - dielectricRightPixel[0]),
+        std::max(std::fabs(metallicRightPixel[1] - dielectricRightPixel[1]),
+                 std::fabs(metallicRightPixel[2] - dielectricRightPixel[2])));
+    EXPECT_GT(rightSlotMetallicDifference, 0.01f)
+        << "changing slot 1 metallic data should change its shading";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedLeftPixel[channel], dielectricLeftPixel[channel],
+                    0.01f)
+            << "changing slot 1 metallic data should preserve slot 0, channel "
+            << channel;
+    }
+
+    const auto slotSurfaceUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-surface-uv-ramp.png"));
+    QImage slotSurfaceUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotSurfaceUvRamp.isNull());
+    for (int y = 0; y < slotSurfaceUvRamp.height(); ++y) {
+        auto* row = slotSurfaceUvRamp.scanLine(y);
+        for (int x = 0; x < slotSurfaceUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotSurfaceUvRamp.save(slotSurfaceUvRampPath, "PNG"));
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    rightMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = rightMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    rightMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    rightMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallicTexture = rightMaterial.metallicTexture =
+        ArtifactCore::UniString(slotSurfaceUvRampPath);
+    leftMaterial.roughnessTexture = rightMaterial.roughnessTexture =
+        ArtifactCore::UniString(slotSurfaceUvRampPath);
+    leftMaterial.metallic = rightMaterial.metallic = 1.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 1.0f;
+    leftMaterial.metallicTextureUvSet = rightMaterial.metallicTextureUvSet = 0;
+    leftMaterial.roughnessTextureUvSet = rightMaterial.roughnessTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotMetallicRoughnessUv0Left = pixelAt(8, 16);
+    const auto slotMetallicRoughnessUv0Right = pixelAt(24, 16);
+
+    rightMaterial.metallicTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightMetallicUv1Pixel = pixelAt(24, 16);
+    const auto unchangedMetallicUv0Left = pixelAt(8, 16);
+    const float rightMetallicUvRoutingDifference = std::max(
+        std::fabs(rightMetallicUv1Pixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightMetallicUv1Pixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightMetallicUv1Pixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightMetallicUvRoutingDifference, 0.001f)
+        << "slot 1 metallic UV set should affect only its material response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedMetallicUv0Left[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 metallic UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.metallicTextureUvSet = 0;
+    rightMaterial.roughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightRoughnessUv1Pixel = pixelAt(24, 16);
+    const auto unchangedRoughnessUv0Left = pixelAt(8, 16);
+    const float rightRoughnessUvRoutingDifference = std::max(
+        std::fabs(rightRoughnessUv1Pixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightRoughnessUv1Pixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightRoughnessUv1Pixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightRoughnessUvRoutingDifference, 0.001f)
+        << "slot 1 roughness UV set should affect only its material response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughnessUv0Left[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 roughness UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.roughnessTextureUvSet = 0;
+    rightMaterial.metallicTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightMetallicOffsetPixel = pixelAt(24, 16);
+    const auto unchangedMetallicOffsetLeft = pixelAt(8, 16);
+    const float rightMetallicOffsetDifference = std::max(
+        std::fabs(rightMetallicOffsetPixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightMetallicOffsetPixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightMetallicOffsetPixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightMetallicOffsetDifference, 0.001f)
+        << "slot 1 metallic U offset should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedMetallicOffsetLeft[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 metallic U offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.metallicTextureUvOffsetU = 0.0f;
+    rightMaterial.roughnessTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightRoughnessOffsetPixel = pixelAt(24, 16);
+    const auto unchangedRoughnessOffsetLeft = pixelAt(8, 16);
+    const float rightRoughnessOffsetDifference = std::max(
+        std::fabs(rightRoughnessOffsetPixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightRoughnessOffsetPixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightRoughnessOffsetPixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightRoughnessOffsetDifference, 0.001f)
+        << "slot 1 roughness U offset should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughnessOffsetLeft[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 roughness U offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.roughnessTextureUvOffsetU = 0.0f;
+    rightMaterial.metallicTextureUvScaleU = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightMetallicScalePixel = pixelAt(24, 16);
+    const auto unchangedMetallicScaleLeft = pixelAt(8, 16);
+    const float rightMetallicScaleDifference = std::max(
+        std::fabs(rightMetallicScalePixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightMetallicScalePixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightMetallicScalePixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightMetallicScaleDifference, 0.001f)
+        << "slot 1 metallic U scale should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedMetallicScaleLeft[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 metallic U scale should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.metallicTextureUvScaleU = 1.0f;
+    rightMaterial.roughnessTextureUvScaleU = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightRoughnessScalePixel = pixelAt(24, 16);
+    const auto unchangedRoughnessScaleLeft = pixelAt(8, 16);
+    const float rightRoughnessScaleDifference = std::max(
+        std::fabs(rightRoughnessScalePixel[0] - slotMetallicRoughnessUv0Right[0]),
+        std::max(std::fabs(rightRoughnessScalePixel[1] -
+                           slotMetallicRoughnessUv0Right[1]),
+                 std::fabs(rightRoughnessScalePixel[2] -
+                           slotMetallicRoughnessUv0Right[2])));
+    EXPECT_GT(rightRoughnessScaleDifference, 0.001f)
+        << "slot 1 roughness U scale should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughnessScaleLeft[channel],
+                    slotMetallicRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 roughness U scale should preserve slot 0, channel "
+            << channel;
+    }
+    rightMaterial.metallicTextureUvScaleU = 1.0f;
+    rightMaterial.roughnessTextureUvScaleU = 1.0f;
+
+    const auto slotSurfaceVTexturePath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-surface-v-ramp.png"));
+    QImage slotSurfaceVTexture(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotSurfaceVTexture.isNull());
+    for (int y = 0; y < slotSurfaceVTexture.height(); ++y) {
+        auto* row = slotSurfaceVTexture.scanLine(y);
+        for (int x = 0; x < slotSurfaceVTexture.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = y < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotSurfaceVTexture.save(slotSurfaceVTexturePath, "PNG"));
+    leftMaterial.metallicTexture = rightMaterial.metallicTexture =
+        ArtifactCore::UniString(slotSurfaceVTexturePath);
+    leftMaterial.roughnessTexture = rightMaterial.roughnessTexture =
+        ArtifactCore::UniString(slotSurfaceVTexturePath);
+    rightMaterial.metallicTextureUvOffsetV = 0.0f;
+    rightMaterial.roughnessTextureUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotMetallicRoughnessV0Left = pixelAt(8, 16);
+    const auto slotMetallicRoughnessV0Right = pixelAt(24, 16);
+
+    rightMaterial.metallicTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightMetallicVOffsetPixel = pixelAt(24, 16);
+    const auto unchangedMetallicVOffsetLeft = pixelAt(8, 16);
+    const float rightMetallicVOffsetDifference = std::max(
+        std::fabs(rightMetallicVOffsetPixel[0] - slotMetallicRoughnessV0Right[0]),
+        std::max(std::fabs(rightMetallicVOffsetPixel[1] -
+                           slotMetallicRoughnessV0Right[1]),
+                 std::fabs(rightMetallicVOffsetPixel[2] -
+                           slotMetallicRoughnessV0Right[2])));
+    EXPECT_GT(rightMetallicVOffsetDifference, 0.001f)
+        << "slot 1 metallic V offset should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedMetallicVOffsetLeft[channel],
+                    slotMetallicRoughnessV0Left[channel], 0.01f)
+            << "slot 1 metallic V offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.metallicTextureUvOffsetV = 0.0f;
+    rightMaterial.roughnessTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightRoughnessVOffsetPixel = pixelAt(24, 16);
+    const auto unchangedRoughnessVOffsetLeft = pixelAt(8, 16);
+    const float rightRoughnessVOffsetDifference = std::max(
+        std::fabs(rightRoughnessVOffsetPixel[0] - slotMetallicRoughnessV0Right[0]),
+        std::max(std::fabs(rightRoughnessVOffsetPixel[1] -
+                           slotMetallicRoughnessV0Right[1]),
+                 std::fabs(rightRoughnessVOffsetPixel[2] -
+                           slotMetallicRoughnessV0Right[2])));
+    EXPECT_GT(rightRoughnessVOffsetDifference, 0.001f)
+        << "slot 1 roughness V offset should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughnessVOffsetLeft[channel],
+                    slotMetallicRoughnessV0Left[channel], 0.01f)
+            << "slot 1 roughness V offset should preserve slot 0, channel "
+            << channel;
+    }
+    rightMaterial.roughnessTextureUvOffsetV = 0.0f;
+
+    rightMaterial.metallicTextureUvScaleV = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightMetallicVScalePixel = pixelAt(24, 16);
+    const auto unchangedMetallicVScaleLeft = pixelAt(8, 16);
+    const float rightMetallicVScaleDifference = std::max(
+        std::fabs(rightMetallicVScalePixel[0] - slotMetallicRoughnessV0Right[0]),
+        std::max(std::fabs(rightMetallicVScalePixel[1] -
+                           slotMetallicRoughnessV0Right[1]),
+                 std::fabs(rightMetallicVScalePixel[2] -
+                           slotMetallicRoughnessV0Right[2])));
+    EXPECT_GT(rightMetallicVScaleDifference, 0.001f)
+        << "slot 1 metallic V scale should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedMetallicVScaleLeft[channel],
+                    slotMetallicRoughnessV0Left[channel], 0.01f)
+            << "slot 1 metallic V scale should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.metallicTextureUvScaleV = 1.0f;
+    rightMaterial.roughnessTextureUvScaleV = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rightRoughnessVScalePixel = pixelAt(24, 16);
+    const auto unchangedRoughnessVScaleLeft = pixelAt(8, 16);
+    const float rightRoughnessVScaleDifference = std::max(
+        std::fabs(rightRoughnessVScalePixel[0] - slotMetallicRoughnessV0Right[0]),
+        std::max(std::fabs(rightRoughnessVScalePixel[1] -
+                           slotMetallicRoughnessV0Right[1]),
+                 std::fabs(rightRoughnessVScalePixel[2] -
+                           slotMetallicRoughnessV0Right[2])));
+    EXPECT_GT(rightRoughnessVScaleDifference, 0.001f)
+        << "slot 1 roughness V scale should change its map sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughnessVScaleLeft[channel],
+                    slotMetallicRoughnessV0Left[channel], 0.01f)
+            << "slot 1 roughness V scale should preserve slot 0, channel "
+            << channel;
+    }
+    rightMaterial.roughnessTextureUvScaleV = 1.0f;
+
+    const auto smoothRoughnessPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-roughness-smooth.png"));
+    const auto roughRoughnessPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-roughness-rough.png"));
+    QImage smoothRoughnessMap(2, 2, QImage::Format_RGBA8888);
+    QImage roughRoughnessMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(smoothRoughnessMap.isNull());
+    ASSERT_FALSE(roughRoughnessMap.isNull());
+    smoothRoughnessMap.fill(QColor(51, 51, 51, 255));
+    roughRoughnessMap.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(smoothRoughnessMap.save(smoothRoughnessPath, "PNG"));
+    ASSERT_TRUE(roughRoughnessMap.save(roughRoughnessPath, "PNG"));
+
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallicTexture = ArtifactCore::UniString();
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 1.0f;
+    leftMaterial.roughnessTexture = ArtifactCore::UniString(smoothRoughnessPath);
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString();
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    rightMaterial = leftMaterial;
+    rightMaterial.roughnessTexture = ArtifactCore::UniString(roughRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothRoughnessLeftPixel = pixelAt(8, 16);
+    const auto roughRoughnessRightPixel = pixelAt(24, 16);
+
+    leftMaterial.roughnessTexture = ArtifactCore::UniString(roughRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughRoughnessLeftPixel = pixelAt(8, 16);
+    const auto unchangedRoughRoughnessRightPixel = pixelAt(24, 16);
+    const float leftRoughnessMapDifference = std::max(
+        std::fabs(roughRoughnessLeftPixel[0] - smoothRoughnessLeftPixel[0]),
+        std::max(std::fabs(roughRoughnessLeftPixel[1] -
+                           smoothRoughnessLeftPixel[1]),
+                 std::fabs(roughRoughnessLeftPixel[2] -
+                           smoothRoughnessLeftPixel[2])));
+    EXPECT_GT(leftRoughnessMapDifference, 0.001f)
+        << "slot 0 roughness map should change its specular response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughRoughnessRightPixel[channel],
+                    roughRoughnessRightPixel[channel], 0.01f)
+            << "changing slot 0 roughness map should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.roughnessTexture = ArtifactCore::UniString(smoothRoughnessPath);
+    rightMaterial.roughnessTexture = ArtifactCore::UniString(smoothRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedSmoothRoughnessLeftPixel = pixelAt(8, 16);
+    const auto smoothRoughnessRightPixel = pixelAt(24, 16);
+    const float rightRoughnessMapDifference = std::max(
+        std::fabs(smoothRoughnessRightPixel[0] - roughRoughnessRightPixel[0]),
+        std::max(std::fabs(smoothRoughnessRightPixel[1] -
+                           roughRoughnessRightPixel[1]),
+                 std::fabs(smoothRoughnessRightPixel[2] -
+                           roughRoughnessRightPixel[2])));
+    EXPECT_GT(rightRoughnessMapDifference, 0.001f)
+        << "slot 1 roughness map should change its specular response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSmoothRoughnessLeftPixel[channel],
+                    smoothRoughnessLeftPixel[channel], 0.01f)
+            << "changing slot 1 roughness map should preserve slot 0, channel "
+            << channel;
+    }
+    leftMaterial.roughnessTexture = ArtifactCore::UniString();
+    rightMaterial.roughnessTexture = ArtifactCore::UniString();
+
+    const auto flatNormalPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-normal-flat.png"));
+    const auto tiltedNormalPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-normal-tilted.png"));
+    QImage flatNormal(2, 2, QImage::Format_RGBA8888);
+    QImage tiltedNormal(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(flatNormal.isNull());
+    ASSERT_FALSE(tiltedNormal.isNull());
+    flatNormal.fill(QColor(128, 128, 255, 255));
+    tiltedNormal.fill(QColor(204, 128, 230, 255));
+    ASSERT_TRUE(flatNormal.save(flatNormalPath, "PNG"));
+    ASSERT_TRUE(tiltedNormal.save(tiltedNormalPath, "PNG"));
+    const auto slotNormalUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-normal-uv-ramp.png"));
+    QImage slotNormalUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotNormalUvRamp.isNull());
+    for (int y = 0; y < slotNormalUvRamp.height(); ++y) {
+        auto* row = slotNormalUvRamp.scanLine(y);
+        for (int x = 0; x < slotNormalUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool tilted = x >= 4;
+            pixel[0] = tilted ? 204 : 128;
+            pixel[1] = 128;
+            pixel[2] = tilted ? 230 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotNormalUvRamp.save(slotNormalUvRampPath, "PNG"));
+
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallic = rightMaterial.metallic = 0.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 0.5f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.normalTexture = ArtifactCore::UniString(flatNormalPath);
+    leftMaterial.normalStrength = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto flatLeftPixel = pixelAt(8, 16);
+    const auto flatRightPixel = pixelAt(24, 16);
+
+    leftMaterial.normalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tiltedLeftPixel = pixelAt(8, 16);
+    const auto unchangedFlatRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(tiltedLeftPixel[0] - flatLeftPixel[0]), 0.01f)
+        << "slot 0 normal map should change its shading";
+    EXPECT_NEAR(unchangedFlatRightPixel[0], flatRightPixel[0], 0.01f)
+        << "changing slot 0 normal map should preserve slot 1 shading";
+
+    leftMaterial.normalTexture = ArtifactCore::UniString(flatNormalPath);
+    rightMaterial.normalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedFlatLeftPixel = pixelAt(8, 16);
+    const auto tiltedRightPixel = pixelAt(24, 16);
+    EXPECT_NEAR(unchangedFlatLeftPixel[0], flatLeftPixel[0], 0.01f)
+        << "changing slot 1 normal map should preserve slot 0 shading";
+    EXPECT_GT(std::fabs(tiltedRightPixel[0] - flatRightPixel[0]), 0.01f)
+        << "slot 1 normal map should change its shading";
+
+    leftMaterial.normalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    leftMaterial.normalUvSet = 0;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalUv0Left = pixelAt(8, 16);
+    const auto slotNormalUv0Right = pixelAt(24, 16);
+
+    rightMaterial.normalUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotNormalLeft = pixelAt(8, 16);
+    const float slotNormalUvRoutingDifference = std::max(
+        std::fabs(slotNormalUv1Right[0] - slotNormalUv0Right[0]),
+        std::max(std::fabs(slotNormalUv1Right[1] - slotNormalUv0Right[1]),
+                 std::fabs(slotNormalUv1Right[2] - slotNormalUv0Right[2])));
+    EXPECT_GT(slotNormalUvRoutingDifference, 0.001f)
+        << "slot 1 normal UV set should change its tangent-space shading";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotNormalLeft[channel], slotNormalUv0Left[channel],
+                    0.01f)
+            << "slot 1 normal UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.normalUvRotationDegrees = 0.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalRotation0Left = pixelAt(8, 16);
+    const auto slotNormalRotation0Right = pixelAt(24, 16);
+
+    rightMaterial.normalUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalRotation180Right = pixelAt(24, 16);
+    const auto unchangedSlotNormalRotationLeft = pixelAt(8, 16);
+    const float slotNormalRotationDifference = std::max(
+        std::fabs(slotNormalRotation180Right[0] - slotNormalRotation0Right[0]),
+        std::max(std::fabs(slotNormalRotation180Right[1] -
+                           slotNormalRotation0Right[1]),
+                 std::fabs(slotNormalRotation180Right[2] -
+                           slotNormalRotation0Right[2])));
+    EXPECT_GT(slotNormalRotationDifference, 0.001f)
+        << "slot 1 normal UV rotation should rotate its tangent-space response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotNormalRotationLeft[channel],
+                    slotNormalRotation0Left[channel], 0.01f)
+            << "slot 1 normal UV rotation should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.normalTexture = ArtifactCore::UniString(slotNormalUvRampPath);
+    leftMaterial.normalUvRotationDegrees = 0.0f;
+    leftMaterial.normalUvOffsetU = 0.0f;
+    leftMaterial.normalUvScale = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalOffset0Left = pixelAt(8, 16);
+    const auto slotNormalOffset0Right = pixelAt(24, 16);
+
+    rightMaterial.normalUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotNormalOffsetLeft = pixelAt(8, 16);
+    const float slotNormalOffsetDifference = std::max(
+        std::fabs(slotNormalOffsetRight[0] - slotNormalOffset0Right[0]),
+        std::max(std::fabs(slotNormalOffsetRight[1] - slotNormalOffset0Right[1]),
+                 std::fabs(slotNormalOffsetRight[2] - slotNormalOffset0Right[2])));
+    EXPECT_GT(slotNormalOffsetDifference, 0.001f)
+        << "slot 1 normal UV offset should shift its sampled texels";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotNormalOffsetLeft[channel],
+                    slotNormalOffset0Left[channel], 0.01f)
+            << "slot 1 normal UV offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.normalUvOffsetU = 0.0f;
+    rightMaterial.normalUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotNormalScaleRight = pixelAt(24, 16);
+    const auto unchangedSlotNormalScaleLeft = pixelAt(8, 16);
+    const float slotNormalScaleDifference = std::max(
+        std::fabs(slotNormalScaleRight[0] - slotNormalOffset0Right[0]),
+        std::max(std::fabs(slotNormalScaleRight[1] - slotNormalOffset0Right[1]),
+                 std::fabs(slotNormalScaleRight[2] - slotNormalOffset0Right[2])));
+    EXPECT_GT(slotNormalScaleDifference, 0.001f)
+        << "slot 1 normal UV scale should change its sampled texels";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotNormalScaleLeft[channel], slotNormalOffset0Left[channel],
+                    0.01f)
+            << "slot 1 normal UV scale should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatNormalStrength = 1.0f;
+    leftMaterial.clearcoatNormalUvSet = 0;
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString(flatNormalPath);
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto flatCoatLeftPixel = pixelAt(8, 16);
+    const auto flatCoatRightPixel = pixelAt(24, 16);
+
+    leftMaterial.clearcoatNormalTexture =
+        ArtifactCore::UniString(tiltedNormalPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tiltedCoatLeftPixel = pixelAt(8, 16);
+    const auto unchangedCoatRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(tiltedCoatLeftPixel[0] - flatCoatLeftPixel[0]), 0.01f)
+        << "slot 0 clearcoat-normal map should change its coated lobe";
+    EXPECT_NEAR(unchangedCoatRightPixel[0], flatCoatRightPixel[0], 0.01f)
+        << "changing slot 0 clearcoat-normal map should preserve slot 1";
+
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString(flatNormalPath);
+    rightMaterial.clearcoatNormalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedCoatLeftPixel = pixelAt(8, 16);
+    const auto tiltedCoatRightPixel = pixelAt(24, 16);
+    EXPECT_NEAR(unchangedCoatLeftPixel[0], flatCoatLeftPixel[0], 0.01f)
+        << "changing slot 1 clearcoat-normal map should preserve slot 0";
+    EXPECT_GT(std::fabs(tiltedCoatRightPixel[0] - flatCoatRightPixel[0]), 0.01f)
+        << "slot 1 clearcoat-normal map should change its coated lobe";
+
+    leftMaterial.clearcoatNormalTexture =
+        ArtifactCore::UniString(tiltedNormalPath);
+    leftMaterial.clearcoatNormalUvSet = 0;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalUv0Left = pixelAt(8, 16);
+    const auto slotCoatNormalUv0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatNormalUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotCoatNormalLeft = pixelAt(8, 16);
+    const float slotCoatNormalUvRoutingDifference = std::max(
+        std::fabs(slotCoatNormalUv1Right[0] - slotCoatNormalUv0Right[0]),
+        std::max(std::fabs(slotCoatNormalUv1Right[1] - slotCoatNormalUv0Right[1]),
+                 std::fabs(slotCoatNormalUv1Right[2] - slotCoatNormalUv0Right[2])));
+    EXPECT_GT(slotCoatNormalUvRoutingDifference, 0.001f)
+        << "slot 1 clearcoat-normal UV set should change its coated tangent frame";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotCoatNormalLeft[channel],
+                    slotCoatNormalUv0Left[channel], 0.01f)
+            << "slot 1 clearcoat-normal UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoatNormalUvRotationDegrees = 0.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalRotation0Left = pixelAt(8, 16);
+    const auto slotCoatNormalRotation0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatNormalUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalRotation180Right = pixelAt(24, 16);
+    const auto unchangedSlotCoatNormalRotationLeft = pixelAt(8, 16);
+    const float slotCoatNormalRotationDifference = std::max(
+        std::fabs(slotCoatNormalRotation180Right[0] -
+                  slotCoatNormalRotation0Right[0]),
+        std::max(std::fabs(slotCoatNormalRotation180Right[1] -
+                           slotCoatNormalRotation0Right[1]),
+                 std::fabs(slotCoatNormalRotation180Right[2] -
+                           slotCoatNormalRotation0Right[2])));
+    EXPECT_GT(slotCoatNormalRotationDifference, 0.001f)
+        << "slot 1 clearcoat-normal UV rotation should rotate its tangent-space response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotCoatNormalRotationLeft[channel],
+                    slotCoatNormalRotation0Left[channel], 0.01f)
+            << "slot 1 clearcoat-normal UV rotation should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoatNormalTexture =
+        ArtifactCore::UniString(slotNormalUvRampPath);
+    leftMaterial.clearcoatNormalUvRotationDegrees = 0.0f;
+    leftMaterial.clearcoatNormalUvOffsetU = 0.0f;
+    leftMaterial.clearcoatNormalUvScale = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalOffset0Left = pixelAt(8, 16);
+    const auto slotCoatNormalOffset0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatNormalUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotCoatNormalOffsetLeft = pixelAt(8, 16);
+    const float slotCoatNormalOffsetDifference = std::max(
+        std::fabs(slotCoatNormalOffsetRight[0] - slotCoatNormalOffset0Right[0]),
+        std::max(std::fabs(slotCoatNormalOffsetRight[1] -
+                           slotCoatNormalOffset0Right[1]),
+                 std::fabs(slotCoatNormalOffsetRight[2] -
+                           slotCoatNormalOffset0Right[2])));
+    EXPECT_GT(slotCoatNormalOffsetDifference, 0.001f)
+        << "slot 1 clearcoat-normal UV offset should shift its sampled texels";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotCoatNormalOffsetLeft[channel],
+                    slotCoatNormalOffset0Left[channel], 0.01f)
+            << "slot 1 clearcoat-normal UV offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.clearcoatNormalUvOffsetU = 0.0f;
+    rightMaterial.clearcoatNormalUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotCoatNormalScaleRight = pixelAt(24, 16);
+    const auto unchangedSlotCoatNormalScaleLeft = pixelAt(8, 16);
+    const float slotCoatNormalScaleDifference = std::max(
+        std::fabs(slotCoatNormalScaleRight[0] - slotCoatNormalOffset0Right[0]),
+        std::max(std::fabs(slotCoatNormalScaleRight[1] -
+                           slotCoatNormalOffset0Right[1]),
+                 std::fabs(slotCoatNormalScaleRight[2] -
+                           slotCoatNormalOffset0Right[2])));
+    EXPECT_GT(slotCoatNormalScaleDifference, 0.001f)
+        << "slot 1 clearcoat-normal UV scale should change its sampled texels";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotCoatNormalScaleLeft[channel],
+                    slotCoatNormalOffset0Left[channel], 0.01f)
+            << "slot 1 clearcoat-normal UV scale should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 1.0f;
+    leftMaterial.sheenRoughness = 0.4f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString(redTexturePath);
+    rightMaterial = leftMaterial;
+    rightMaterial.sheenColorTexture = ArtifactCore::UniString(blueTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto redSheenLeftPixel = pixelAt(8, 16);
+    const auto blueSheenRightPixel = pixelAt(24, 16);
+
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString(blueTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto blueSheenLeftPixel = pixelAt(8, 16);
+    const auto unchangedBlueSheenRightPixel = pixelAt(24, 16);
+    const float leftSheenMapDifference = std::max(
+        std::fabs(blueSheenLeftPixel[0] - redSheenLeftPixel[0]),
+        std::max(std::fabs(blueSheenLeftPixel[1] - redSheenLeftPixel[1]),
+                 std::fabs(blueSheenLeftPixel[2] - redSheenLeftPixel[2])));
+    EXPECT_GT(leftSheenMapDifference, 0.001f)
+        << "slot 0 sheen-color map should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedBlueSheenRightPixel[channel],
+                    blueSheenRightPixel[channel], 0.01f)
+            << "changing slot 0 sheen-color map should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString(redTexturePath);
+    rightMaterial.sheenColorTexture = ArtifactCore::UniString(redTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedRedSheenLeftPixel = pixelAt(8, 16);
+    const auto redSheenRightPixel = pixelAt(24, 16);
+    const float rightSheenMapDifference = std::max(
+        std::fabs(redSheenRightPixel[0] - blueSheenRightPixel[0]),
+        std::max(std::fabs(redSheenRightPixel[1] - blueSheenRightPixel[1]),
+                 std::fabs(redSheenRightPixel[2] - blueSheenRightPixel[2])));
+    EXPECT_GT(rightSheenMapDifference, 0.001f)
+        << "slot 1 sheen-color map should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRedSheenLeftPixel[channel],
+                    redSheenLeftPixel[channel], 0.01f)
+            << "changing slot 1 sheen-color map should preserve slot 0, channel "
+            << channel;
+    }
+
+    const auto slotSheenUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-sheen-uv-ramp.png"));
+    QImage slotSheenUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotSheenUvRamp.isNull());
+    for (int y = 0; y < slotSheenUvRamp.height(); ++y) {
+        auto* row = slotSheenUvRamp.scanLine(y);
+        for (int x = 0; x < slotSheenUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 255 : 0;
+            pixel[1] = 0;
+            pixel[2] = x < 4 ? 0 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotSheenUvRamp.save(slotSheenUvRampPath, "PNG"));
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 0.5f;
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 1.0f;
+    leftMaterial.sheenRoughness = 0.4f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString(slotSheenUvRampPath);
+    leftMaterial.sheenColorTextureUvSet = 0;
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenUv0Left = pixelAt(8, 16);
+    const auto slotSheenUv0Right = pixelAt(24, 16);
+
+    rightMaterial.sheenColorTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotSheenLeft = pixelAt(8, 16);
+    const float slotSheenUvRoutingDifference = std::max(
+        std::fabs(slotSheenUv1Right[0] - slotSheenUv0Right[0]),
+        std::max(std::fabs(slotSheenUv1Right[1] - slotSheenUv0Right[1]),
+                 std::fabs(slotSheenUv1Right[2] - slotSheenUv0Right[2])));
+    EXPECT_GT(slotSheenUvRoutingDifference, 0.001f)
+        << "slot 1 sheen-color UV set should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotSheenLeft[channel], slotSheenUv0Left[channel],
+                    0.01f)
+            << "slot 1 sheen-color UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.sheenColorTextureUvSet = 0;
+    rightMaterial.sheenColorTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotSheenOffsetLeft = pixelAt(8, 16);
+    const float slotSheenOffsetDifference = std::max(
+        std::fabs(slotSheenOffsetRight[0] - slotSheenUv0Right[0]),
+        std::max(std::fabs(slotSheenOffsetRight[1] - slotSheenUv0Right[1]),
+                 std::fabs(slotSheenOffsetRight[2] - slotSheenUv0Right[2])));
+    EXPECT_GT(slotSheenOffsetDifference, 0.001f)
+        << "slot 1 sheen-color UV offset should change its sampled texel";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(slotSheenOffsetRight[channel], slotSheenUv0Left[channel],
+                    0.035f)
+            << "slot 1 sheen-color UV offset should move its sample to red, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(unchangedSlotSheenOffsetLeft[channel],
+                    slotSheenUv0Left[channel], 0.01f)
+            << "slot 1 sheen-color UV offset should preserve slot 0, channel "
+            << channel;
+    }
+    rightMaterial.sheenColorTextureUvOffsetU = 0.0f;
+
+    const auto smoothSheenRoughnessPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-sheen-roughness-smooth.png"));
+    const auto roughSheenRoughnessPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-sheen-roughness-rough.png"));
+    QImage smoothSheenRoughnessMap(2, 2, QImage::Format_RGBA8888);
+    QImage roughSheenRoughnessMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(smoothSheenRoughnessMap.isNull());
+    ASSERT_FALSE(roughSheenRoughnessMap.isNull());
+    smoothSheenRoughnessMap.fill(QColor(0, 0, 0, 255));
+    roughSheenRoughnessMap.fill(QColor(0, 255, 0, 255));
+    ASSERT_TRUE(smoothSheenRoughnessMap.save(smoothSheenRoughnessPath, "PNG"));
+    ASSERT_TRUE(roughSheenRoughnessMap.save(roughSheenRoughnessPath, "PNG"));
+
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 1.0f;
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 1.0f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString();
+    leftMaterial.sheenRoughness = 1.0f;
+    leftMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(smoothSheenRoughnessPath);
+    rightMaterial = leftMaterial;
+    rightMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(roughSheenRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothSheenLeftPixel = pixelAt(8, 16);
+    const auto roughSheenRightPixel = pixelAt(24, 16);
+
+    leftMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(roughSheenRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughSheenLeftPixel = pixelAt(8, 16);
+    const auto unchangedRoughSheenRightPixel = pixelAt(24, 16);
+    const float leftSheenRoughnessDifference = std::max(
+        std::fabs(roughSheenLeftPixel[0] - smoothSheenLeftPixel[0]),
+        std::max(std::fabs(roughSheenLeftPixel[1] - smoothSheenLeftPixel[1]),
+                 std::fabs(roughSheenLeftPixel[2] - smoothSheenLeftPixel[2])));
+    EXPECT_GT(leftSheenRoughnessDifference, 0.001f)
+        << "slot 0 sheen roughness map should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRoughSheenRightPixel[channel],
+                    roughSheenRightPixel[channel], 0.01f)
+            << "changing slot 0 sheen roughness map should preserve slot 1, "
+               "channel "
+            << channel;
+    }
+
+    leftMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(smoothSheenRoughnessPath);
+    rightMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(smoothSheenRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedSmoothSheenLeftPixel = pixelAt(8, 16);
+    const auto smoothSheenRightPixel = pixelAt(24, 16);
+    const float rightSheenRoughnessDifference = std::max(
+        std::fabs(smoothSheenRightPixel[0] - roughSheenRightPixel[0]),
+        std::max(std::fabs(smoothSheenRightPixel[1] - roughSheenRightPixel[1]),
+                 std::fabs(smoothSheenRightPixel[2] - roughSheenRightPixel[2])));
+    EXPECT_GT(rightSheenRoughnessDifference, 0.001f)
+        << "slot 1 sheen roughness map should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSmoothSheenLeftPixel[channel],
+                    smoothSheenLeftPixel[channel], 0.01f)
+            << "changing slot 1 sheen roughness map should preserve slot 0, "
+               "channel "
+            << channel;
+    }
+
+    const auto slotSheenRoughnessUvRampPath =
+        slotTextureDirectory.filePath(
+            QStringLiteral("slot-sheen-roughness-uv-ramp.png"));
+    QImage slotSheenRoughnessUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotSheenRoughnessUvRamp.isNull());
+    for (int y = 0; y < slotSheenRoughnessUvRamp.height(); ++y) {
+        auto* row = slotSheenRoughnessUvRamp.scanLine(y);
+        for (int x = 0; x < slotSheenRoughnessUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            pixel[3] = x < 4 ? 0 : 255;
+        }
+    }
+    ASSERT_TRUE(slotSheenRoughnessUvRamp.save(
+        slotSheenRoughnessUvRampPath, "PNG"));
+    leftMaterial.sheenRoughnessTexture =
+        ArtifactCore::UniString(slotSheenRoughnessUvRampPath);
+    leftMaterial.sheenRoughnessTextureUvSet = 0;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenRoughnessUv0Left = pixelAt(8, 16);
+    const auto slotSheenRoughnessUv0Right = pixelAt(24, 16);
+
+    rightMaterial.sheenRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenRoughnessUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotSheenRoughnessLeft = pixelAt(8, 16);
+    const float slotSheenRoughnessUvRoutingDifference = std::max(
+        std::fabs(slotSheenRoughnessUv1Right[0] -
+                  slotSheenRoughnessUv0Right[0]),
+        std::max(std::fabs(slotSheenRoughnessUv1Right[1] -
+                           slotSheenRoughnessUv0Right[1]),
+                 std::fabs(slotSheenRoughnessUv1Right[2] -
+                           slotSheenRoughnessUv0Right[2])));
+    EXPECT_GT(slotSheenRoughnessUvRoutingDifference, 0.001f)
+        << "slot 1 sheen-roughness UV set should change its sheen response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotSheenRoughnessLeft[channel],
+                    slotSheenRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 sheen-roughness UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.sheenRoughnessTextureUvSet = 0;
+    rightMaterial.sheenRoughnessTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotSheenRoughnessOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotSheenRoughnessOffsetLeft = pixelAt(8, 16);
+    const float slotSheenRoughnessOffsetDifference = std::max(
+        std::fabs(slotSheenRoughnessOffsetRight[0] -
+                  slotSheenRoughnessUv0Right[0]),
+        std::max(std::fabs(slotSheenRoughnessOffsetRight[1] -
+                           slotSheenRoughnessUv0Right[1]),
+                 std::fabs(slotSheenRoughnessOffsetRight[2] -
+                           slotSheenRoughnessUv0Right[2])));
+    EXPECT_GT(slotSheenRoughnessOffsetDifference, 0.001f)
+        << "slot 1 sheen-roughness UV offset should change its response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(slotSheenRoughnessOffsetRight[channel],
+                    slotSheenRoughnessUv0Left[channel], 0.035f)
+            << "slot 1 sheen-roughness UV offset should sample the smooth half, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(unchangedSlotSheenRoughnessOffsetLeft[channel],
+                    slotSheenRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 sheen-roughness UV offset should preserve slot 0, "
+               "channel "
+            << channel;
+    }
+
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatIOR = 1.0f;
+    rightMaterial = leftMaterial;
+    rightMaterial.clearcoatIOR = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto lowIorLeftPixel = pixelAt(8, 16);
+    const auto highIorRightPixel = pixelAt(24, 16);
+
+    leftMaterial.clearcoatIOR = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto highIorLeftPixel = pixelAt(8, 16);
+    const auto unchangedHighIorRightPixel = pixelAt(24, 16);
+    const float leftClearcoatIorDifference = std::max(
+        std::fabs(highIorLeftPixel[0] - lowIorLeftPixel[0]),
+        std::max(std::fabs(highIorLeftPixel[1] - lowIorLeftPixel[1]),
+                 std::fabs(highIorLeftPixel[2] - lowIorLeftPixel[2])));
+    EXPECT_GT(leftClearcoatIorDifference, 0.001f)
+        << "slot 0 clearcoat IOR should change its reflection response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedHighIorRightPixel[channel],
+                    highIorRightPixel[channel], 0.01f)
+            << "changing slot 0 clearcoat IOR should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoatIOR = 1.0f;
+    rightMaterial.clearcoatIOR = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedLowIorLeftPixel = pixelAt(8, 16);
+    const auto lowIorRightPixel = pixelAt(24, 16);
+    const float rightClearcoatIorDifference = std::max(
+        std::fabs(lowIorRightPixel[0] - highIorRightPixel[0]),
+        std::max(std::fabs(lowIorRightPixel[1] - highIorRightPixel[1]),
+                 std::fabs(lowIorRightPixel[2] - highIorRightPixel[2])));
+    EXPECT_GT(rightClearcoatIorDifference, 0.001f)
+        << "slot 1 clearcoat IOR should change its reflection response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedLowIorLeftPixel[channel], lowIorLeftPixel[channel],
+                    0.01f)
+            << "changing slot 1 clearcoat IOR should preserve slot 0, channel "
+            << channel;
+    }
+
+    const auto noClearcoatPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-clearcoat-none.png"));
+    const auto fullClearcoatPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-clearcoat-full.png"));
+    QImage noClearcoatMap(2, 2, QImage::Format_RGBA8888);
+    QImage fullClearcoatMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(noClearcoatMap.isNull());
+    ASSERT_FALSE(fullClearcoatMap.isNull());
+    noClearcoatMap.fill(QColor(0, 0, 0, 255));
+    fullClearcoatMap.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(noClearcoatMap.save(noClearcoatPath, "PNG"));
+    ASSERT_TRUE(fullClearcoatMap.save(fullClearcoatPath, "PNG"));
+
+    leftMaterial.clearcoatIOR = 1.5f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString(noClearcoatPath);
+    rightMaterial = leftMaterial;
+    rightMaterial.clearcoatTexture = ArtifactCore::UniString(fullClearcoatPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto noClearcoatLeftPixel = pixelAt(8, 16);
+    const auto fullClearcoatRightPixel = pixelAt(24, 16);
+
+    leftMaterial.clearcoatTexture =
+        ArtifactCore::UniString(fullClearcoatPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto fullClearcoatLeftPixel = pixelAt(8, 16);
+    const auto unchangedFullClearcoatRightPixel = pixelAt(24, 16);
+    const float leftClearcoatMapDifference = std::max(
+        std::fabs(fullClearcoatLeftPixel[0] - noClearcoatLeftPixel[0]),
+        std::max(std::fabs(fullClearcoatLeftPixel[1] - noClearcoatLeftPixel[1]),
+                 std::fabs(fullClearcoatLeftPixel[2] - noClearcoatLeftPixel[2])));
+    EXPECT_GT(leftClearcoatMapDifference, 0.001f)
+        << "slot 0 clearcoat map should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedFullClearcoatRightPixel[channel],
+                    fullClearcoatRightPixel[channel], 0.01f)
+            << "changing slot 0 clearcoat map should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString(noClearcoatPath);
+    rightMaterial.clearcoatTexture = ArtifactCore::UniString(noClearcoatPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedNoClearcoatLeftPixel = pixelAt(8, 16);
+    const auto noClearcoatRightPixel = pixelAt(24, 16);
+    const float rightClearcoatMapDifference = std::max(
+        std::fabs(noClearcoatRightPixel[0] - fullClearcoatRightPixel[0]),
+        std::max(std::fabs(noClearcoatRightPixel[1] - fullClearcoatRightPixel[1]),
+                 std::fabs(noClearcoatRightPixel[2] - fullClearcoatRightPixel[2])));
+    EXPECT_GT(rightClearcoatMapDifference, 0.001f)
+        << "slot 1 clearcoat map should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedNoClearcoatLeftPixel[channel],
+                    noClearcoatLeftPixel[channel], 0.01f)
+            << "changing slot 1 clearcoat map should preserve slot 0, channel "
+            << channel;
+    }
+
+    const auto slotClearcoatUvRampPath = slotTextureDirectory.filePath(
+        QStringLiteral("slot-clearcoat-uv-ramp.png"));
+    QImage slotClearcoatUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotClearcoatUvRamp.isNull());
+    for (int y = 0; y < slotClearcoatUvRamp.height(); ++y) {
+        auto* row = slotClearcoatUvRamp.scanLine(y);
+        for (int x = 0; x < slotClearcoatUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const uchar value = x < 4 ? 0 : 255;
+            pixel[0] = pixel[1] = pixel[2] = value;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotClearcoatUvRamp.save(slotClearcoatUvRampPath, "PNG"));
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 0.5f;
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatIOR = 1.5f;
+    leftMaterial.clearcoatTexture =
+        ArtifactCore::UniString(slotClearcoatUvRampPath);
+    leftMaterial.clearcoatTextureUvSet = 0;
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString();
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatUv0Left = pixelAt(8, 16);
+    const auto slotClearcoatUv0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotClearcoatLeft = pixelAt(8, 16);
+    const float slotClearcoatUvRoutingDifference = std::max(
+        std::fabs(slotClearcoatUv1Right[0] - slotClearcoatUv0Right[0]),
+        std::max(std::fabs(slotClearcoatUv1Right[1] - slotClearcoatUv0Right[1]),
+                 std::fabs(slotClearcoatUv1Right[2] - slotClearcoatUv0Right[2])));
+    EXPECT_GT(slotClearcoatUvRoutingDifference, 0.001f)
+        << "slot 1 clearcoat UV set should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotClearcoatLeft[channel], slotClearcoatUv0Left[channel],
+                    0.01f)
+            << "slot 1 clearcoat UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.clearcoatTextureUvSet = 0;
+    rightMaterial.clearcoatTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotClearcoatOffsetLeft = pixelAt(8, 16);
+    const float slotClearcoatOffsetDifference = std::max(
+        std::fabs(slotClearcoatOffsetRight[0] - slotClearcoatUv0Right[0]),
+        std::max(
+            std::fabs(slotClearcoatOffsetRight[1] - slotClearcoatUv0Right[1]),
+            std::fabs(slotClearcoatOffsetRight[2] - slotClearcoatUv0Right[2])));
+    EXPECT_GT(slotClearcoatOffsetDifference, 0.001f)
+        << "slot 1 clearcoat UV offset should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(slotClearcoatOffsetRight[channel],
+                    slotClearcoatUv0Left[channel], 0.035f)
+            << "slot 1 clearcoat UV offset should move to the zero-factor half, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(unchangedSlotClearcoatOffsetLeft[channel],
+                    slotClearcoatUv0Left[channel], 0.01f)
+            << "slot 1 clearcoat UV offset should preserve slot 0, channel "
+            << channel;
+    }
+
+    const auto slotClearcoatRoughnessUvRampPath =
+        slotTextureDirectory.filePath(
+            QStringLiteral("slot-clearcoat-roughness-uv-ramp.png"));
+    QImage slotClearcoatRoughnessUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(slotClearcoatRoughnessUvRamp.isNull());
+    for (int y = 0; y < slotClearcoatRoughnessUvRamp.height(); ++y) {
+        auto* row = slotClearcoatRoughnessUvRamp.scanLine(y);
+        for (int x = 0; x < slotClearcoatRoughnessUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = x < 4 ? 0 : 255;
+            pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(slotClearcoatRoughnessUvRamp.save(
+        slotClearcoatRoughnessUvRampPath, "PNG"));
+    leftMaterial.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(slotClearcoatRoughnessUvRampPath);
+    leftMaterial.clearcoatRoughnessTextureUvSet = 0;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatRoughnessUv0Left = pixelAt(8, 16);
+    const auto slotClearcoatRoughnessUv0Right = pixelAt(24, 16);
+
+    rightMaterial.clearcoatRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatRoughnessUv1Right = pixelAt(24, 16);
+    const auto unchangedSlotClearcoatRoughnessLeft = pixelAt(8, 16);
+    const float slotClearcoatRoughnessUvRoutingDifference = std::max(
+        std::fabs(slotClearcoatRoughnessUv1Right[0] -
+                  slotClearcoatRoughnessUv0Right[0]),
+        std::max(std::fabs(slotClearcoatRoughnessUv1Right[1] -
+                           slotClearcoatRoughnessUv0Right[1]),
+                 std::fabs(slotClearcoatRoughnessUv1Right[2] -
+                           slotClearcoatRoughnessUv0Right[2])));
+    EXPECT_GT(slotClearcoatRoughnessUvRoutingDifference, 0.001f)
+        << "slot 1 clearcoat-roughness UV set should change its coated response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSlotClearcoatRoughnessLeft[channel],
+                    slotClearcoatRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 clearcoat-roughness UV set should preserve slot 0, channel "
+            << channel;
+    }
+
+    rightMaterial.clearcoatRoughnessTextureUvSet = 0;
+    rightMaterial.clearcoatRoughnessTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto slotClearcoatRoughnessOffsetRight = pixelAt(24, 16);
+    const auto unchangedSlotClearcoatRoughnessOffsetLeft = pixelAt(8, 16);
+    const float slotClearcoatRoughnessOffsetDifference = std::max(
+        std::fabs(slotClearcoatRoughnessOffsetRight[0] -
+                  slotClearcoatRoughnessUv0Right[0]),
+        std::max(
+            std::fabs(slotClearcoatRoughnessOffsetRight[1] -
+                      slotClearcoatRoughnessUv0Right[1]),
+            std::fabs(slotClearcoatRoughnessOffsetRight[2] -
+                      slotClearcoatRoughnessUv0Right[2])));
+    EXPECT_GT(slotClearcoatRoughnessOffsetDifference, 0.001f)
+        << "slot 1 clearcoat-roughness UV offset should change its response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(slotClearcoatRoughnessOffsetRight[channel],
+                    slotClearcoatRoughnessUv0Left[channel], 0.035f)
+            << "slot 1 clearcoat-roughness UV offset should sample the smooth "
+               "half, channel "
+            << channel;
+        EXPECT_NEAR(unchangedSlotClearcoatRoughnessOffsetLeft[channel],
+                    slotClearcoatRoughnessUv0Left[channel], 0.01f)
+            << "slot 1 clearcoat-roughness UV offset should preserve slot 0, "
+               "channel "
+            << channel;
+    }
+
+    leftMaterial.emissionTexture = ArtifactCore::UniString();
+    rightMaterial.emissionTexture = ArtifactCore::UniString();
+    leftMaterial.emissionStrength = rightMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString();
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallicTexture = ArtifactCore::UniString();
+    leftMaterial.roughnessTexture = ArtifactCore::UniString();
+    leftMaterial.metallic = rightMaterial.metallic = 0.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 0.5f;
+    leftMaterial.normalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.clearcoatRoughnessTextureUvSet = 0;
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString();
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString();
+    leftMaterial.sheen = rightMaterial.sheen = 0.0f;
+    leftMaterial.specular = rightMaterial.specular = 0.5f;
+    leftMaterial.ior = rightMaterial.ior = 1.5f;
+    leftMaterial.specularTint[0] = leftMaterial.specularTint[1] =
+        leftMaterial.specularTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto whiteSpecularLeftPixel = pixelAt(8, 16);
+    const auto whiteSpecularRightPixel = pixelAt(24, 16);
+
+    leftMaterial.specularTint[0] = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tintedSpecularLeftPixel = pixelAt(8, 16);
+    const auto unchangedSpecularRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(tintedSpecularLeftPixel[0] - whiteSpecularLeftPixel[0]),
+              0.001f)
+        << "slot 0 specular tint should change its reflection response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedSpecularRightPixel[channel],
+                    whiteSpecularRightPixel[channel], 0.01f)
+            << "changing slot 0 specular tint should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.specularTint[0] = 1.0f;
+    rightMaterial.specularTint[0] = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-slot-selection"), rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedWhiteSpecularLeftPixel = pixelAt(8, 16);
+    const auto tintedSpecularRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(tintedSpecularRightPixel[0] - whiteSpecularRightPixel[0]),
+              0.001f)
+        << "slot 1 specular tint should change its reflection response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedWhiteSpecularLeftPixel[channel],
+                    whiteSpecularLeftPixel[channel], 0.01f)
+            << "changing slot 1 specular tint should preserve slot 0, channel "
+            << channel;
+    }
+
+    const auto captureMaterialSlotPixels = [&](auto& pixels) {
+        if (!manager_->setInstancePbrMaterial(
+                ArtifactCore::UniString("material-slot-selection"),
+                leftMaterial, 0) ||
+            !manager_->setInstancePbrMaterial(
+                ArtifactCore::UniString("material-slot-selection"),
+                rightMaterial, 1) ||
+            !manager_->buildTLAS(context_.RawPtr()) ||
+            !manager_->ensurePipelineAndSBT(context_.RawPtr()) ||
+            !manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                     kRayTraceTestImageSize)) {
+            return false;
+        }
+        pixels[0] = pixelAt(8, 16);
+        pixels[1] = pixelAt(24, 16);
+        return true;
+    };
+
+    leftMaterial.specularTint[0] = rightMaterial.specularTint[0] = 1.0f;
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = rightMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatTint[0] = leftMaterial.clearcoatTint[1] =
+        leftMaterial.clearcoatTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> whiteClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(whiteClearcoatPixels));
+    leftMaterial.clearcoatTint[0] = 0.0f;
+    std::array<std::array<float, 4>, 2> tintedClearcoatLeftPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(tintedClearcoatLeftPixels));
+    EXPECT_GT(std::fabs(tintedClearcoatLeftPixels[0][0] -
+                        whiteClearcoatPixels[0][0]), 0.001f)
+        << "slot 0 clearcoat tint should change its reflection response";
+    EXPECT_NEAR(tintedClearcoatLeftPixels[1][0], whiteClearcoatPixels[1][0],
+                0.01f)
+        << "changing slot 0 clearcoat tint should preserve slot 1";
+    leftMaterial.clearcoatTint[0] = 1.0f;
+    rightMaterial.clearcoatTint[0] = 0.0f;
+    std::array<std::array<float, 4>, 2> tintedClearcoatRightPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(tintedClearcoatRightPixels));
+    EXPECT_NEAR(tintedClearcoatRightPixels[0][0], whiteClearcoatPixels[0][0],
+                0.01f)
+        << "changing slot 1 clearcoat tint should preserve slot 0";
+    EXPECT_GT(std::fabs(tintedClearcoatRightPixels[1][0] -
+                        whiteClearcoatPixels[1][0]), 0.001f)
+        << "slot 1 clearcoat tint should change its reflection response";
+
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = rightMaterial.sheen = 1.0f;
+    leftMaterial.sheenRoughness = rightMaterial.sheenRoughness = 0.4f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> whiteSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(whiteSheenPixels));
+    leftMaterial.sheenTint[0] = 0.0f;
+    std::array<std::array<float, 4>, 2> tintedSheenLeftPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(tintedSheenLeftPixels));
+    EXPECT_GT(std::fabs(tintedSheenLeftPixels[0][0] - whiteSheenPixels[0][0]),
+              0.001f)
+        << "slot 0 sheen tint should change its reflection response";
+    EXPECT_NEAR(tintedSheenLeftPixels[1][0], whiteSheenPixels[1][0], 0.01f)
+        << "changing slot 0 sheen tint should preserve slot 1";
+    leftMaterial.sheenTint[0] = 1.0f;
+    rightMaterial.sheenTint[0] = 0.0f;
+    std::array<std::array<float, 4>, 2> tintedSheenRightPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(tintedSheenRightPixels));
+    EXPECT_NEAR(tintedSheenRightPixels[0][0], whiteSheenPixels[0][0], 0.01f)
+        << "changing slot 1 sheen tint should preserve slot 0";
+    EXPECT_GT(std::fabs(tintedSheenRightPixels[1][0] - whiteSheenPixels[1][0]),
+              0.001f)
+        << "slot 1 sheen tint should change its reflection response";
+
+    ArtifactCore::RTSceneLight subsurfaceLight;
+    subsurfaceLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    subsurfaceLight.directionIntensity[2] = -1.0f;
+    subsurfaceLight.directionIntensity[3] = 4.0f;
+    subsurfaceLight.colorAttenuationConstant[0] = 1.0f;
+    subsurfaceLight.colorAttenuationConstant[1] = 1.0f;
+    subsurfaceLight.colorAttenuationConstant[2] = 1.0f;
+    subsurfaceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &subsurfaceLight, 1);
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.specular = 0.0f;
+    leftMaterial.emissionColor[0] = leftMaterial.emissionColor[1] =
+        leftMaterial.emissionColor[2] = 0.0f;
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.subsurfaceColor[0] = leftMaterial.subsurfaceColor[1] =
+        leftMaterial.subsurfaceColor[2] = 1.0f;
+    leftMaterial.subsurfaceRadius[0] = leftMaterial.subsurfaceRadius[1] =
+        leftMaterial.subsurfaceRadius[2] = 1.0f;
+    leftMaterial.subsurface = 0.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noSubsurfacePixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noSubsurfacePixels));
+    leftMaterial.subsurface = 1.0f;
+    std::array<std::array<float, 4>, 2> leftSubsurfacePixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftSubsurfacePixels));
+    float leftSubsurfaceResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSubsurfaceResponse = std::max(leftSubsurfaceResponse,
+            std::fabs(leftSubsurfacePixels[0][channel] -
+                      noSubsurfacePixels[0][channel]));
+        EXPECT_NEAR(leftSubsurfacePixels[1][channel],
+                    noSubsurfacePixels[1][channel], 0.01f)
+            << "changing slot 0 subsurface should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSubsurfaceResponse, 0.001f)
+        << "slot 0 subsurface should change its diffuse response";
+
+    leftMaterial.subsurface = 0.0f;
+    rightMaterial.subsurface = 1.0f;
+    std::array<std::array<float, 4>, 2> rightSubsurfacePixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightSubsurfacePixels));
+    float rightSubsurfaceResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightSubsurfacePixels[0][channel],
+                    noSubsurfacePixels[0][channel], 0.01f)
+            << "changing slot 1 subsurface should preserve slot 0, channel "
+            << channel;
+        rightSubsurfaceResponse = std::max(rightSubsurfaceResponse,
+            std::fabs(rightSubsurfacePixels[1][channel] -
+                      noSubsurfacePixels[1][channel]));
+    }
+    EXPECT_GT(rightSubsurfaceResponse, 0.001f)
+        << "slot 1 subsurface should change its diffuse response";
+
+    leftMaterial.subsurface = rightMaterial.subsurface = 1.0f;
+    leftMaterial.subsurfaceAnisotropy = rightMaterial.subsurfaceAnisotropy = 0.0f;
+    std::array<std::array<float, 4>, 2> isotropicSubsurfaceSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(isotropicSubsurfaceSlotPixels));
+    leftMaterial.subsurfaceAnisotropy = -0.8f;
+    std::array<std::array<float, 4>, 2> backwardLeftSubsurfaceSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(backwardLeftSubsurfaceSlotPixels));
+    float leftSubsurfaceAnisotropyResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSubsurfaceAnisotropyResponse = std::max(
+            leftSubsurfaceAnisotropyResponse,
+            std::fabs(backwardLeftSubsurfaceSlotPixels[0][channel] -
+                      isotropicSubsurfaceSlotPixels[0][channel]));
+        EXPECT_NEAR(backwardLeftSubsurfaceSlotPixels[1][channel],
+                    isotropicSubsurfaceSlotPixels[1][channel], 0.01f)
+            << "changing slot 0 subsurface anisotropy should preserve slot 1, "
+               "channel "
+            << channel;
+    }
+    EXPECT_GT(leftSubsurfaceAnisotropyResponse, 0.001f)
+        << "slot 0 subsurface anisotropy should change its diffuse response";
+    leftMaterial.subsurfaceAnisotropy = 0.0f;
+    rightMaterial.subsurfaceAnisotropy = 0.8f;
+    std::array<std::array<float, 4>, 2> forwardRightSubsurfaceSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(forwardRightSubsurfaceSlotPixels));
+    float rightSubsurfaceAnisotropyResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(forwardRightSubsurfaceSlotPixels[0][channel],
+                    isotropicSubsurfaceSlotPixels[0][channel], 0.01f)
+            << "changing slot 1 subsurface anisotropy should preserve slot 0, "
+               "channel "
+            << channel;
+        rightSubsurfaceAnisotropyResponse = std::max(
+            rightSubsurfaceAnisotropyResponse,
+            std::fabs(forwardRightSubsurfaceSlotPixels[1][channel] -
+                      isotropicSubsurfaceSlotPixels[1][channel]));
+    }
+    EXPECT_GT(rightSubsurfaceAnisotropyResponse, 0.001f)
+        << "slot 1 subsurface anisotropy should change its diffuse response";
+
+    ArtifactCore::RTSceneLight slotDiffuseRoughnessLight;
+    slotDiffuseRoughnessLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    slotDiffuseRoughnessLight.directionIntensity[0] = 0.6f;
+    slotDiffuseRoughnessLight.directionIntensity[2] = -0.8f;
+    slotDiffuseRoughnessLight.directionIntensity[3] = 4.0f;
+    slotDiffuseRoughnessLight.colorAttenuationConstant[0] = 1.0f;
+    slotDiffuseRoughnessLight.colorAttenuationConstant[1] = 1.0f;
+    slotDiffuseRoughnessLight.colorAttenuationConstant[2] = 1.0f;
+    slotDiffuseRoughnessLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &slotDiffuseRoughnessLight, 1);
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.7f;
+    leftMaterial.metallic = rightMaterial.metallic = 0.0f;
+    leftMaterial.specular = rightMaterial.specular = 0.0f;
+    leftMaterial.roughness = rightMaterial.roughness = 0.5f;
+    leftMaterial.subsurface = rightMaterial.subsurface = 0.0f;
+    leftMaterial.diffuseRoughness = rightMaterial.diffuseRoughness = 0.0f;
+    leftMaterial.transmission = rightMaterial.transmission = 0.0f;
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = rightMaterial.sheen = 0.0f;
+    leftMaterial.emissionStrength = rightMaterial.emissionStrength = 0.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicTexture = ArtifactCore::UniString{};
+    leftMaterial.roughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.normalTexture = ArtifactCore::UniString{};
+    leftMaterial.occlusionTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.emissionTexture = ArtifactCore::UniString{};
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> smoothDiffuseRoughnessSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(smoothDiffuseRoughnessSlotPixels));
+    leftMaterial.diffuseRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughLeftDiffuseSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughLeftDiffuseSlotPixels));
+    float leftDiffuseRoughnessSlotResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftDiffuseRoughnessSlotResponse = std::max(
+            leftDiffuseRoughnessSlotResponse,
+            std::fabs(roughLeftDiffuseSlotPixels[0][channel] -
+                      smoothDiffuseRoughnessSlotPixels[0][channel]));
+        EXPECT_NEAR(roughLeftDiffuseSlotPixels[1][channel],
+                    smoothDiffuseRoughnessSlotPixels[1][channel], 0.01f)
+            << "changing slot 0 diffuse roughness should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftDiffuseRoughnessSlotResponse, 0.001f)
+        << "slot 0 diffuse roughness should change its direct diffuse response";
+    leftMaterial.diffuseRoughness = 0.0f;
+    rightMaterial.diffuseRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughRightDiffuseSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughRightDiffuseSlotPixels));
+    float rightDiffuseRoughnessSlotResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughRightDiffuseSlotPixels[0][channel],
+                    smoothDiffuseRoughnessSlotPixels[0][channel], 0.01f)
+            << "changing slot 1 diffuse roughness should preserve slot 0, channel "
+            << channel;
+        rightDiffuseRoughnessSlotResponse = std::max(
+            rightDiffuseRoughnessSlotResponse,
+            std::fabs(roughRightDiffuseSlotPixels[1][channel] -
+                      smoothDiffuseRoughnessSlotPixels[1][channel]));
+    }
+    EXPECT_GT(rightDiffuseRoughnessSlotResponse, 0.001f)
+        << "slot 1 diffuse roughness should change its direct diffuse response";
+
+    leftMaterial.diffuseRoughness = rightMaterial.diffuseRoughness = 0.0f;
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = rightMaterial.sheen = 0.0f;
+    leftMaterial.clearcoatRoughness = rightMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.sheenRoughness = rightMaterial.sheenRoughness = 0.25f;
+    leftMaterial.clearcoatTint[0] = leftMaterial.clearcoatTint[1] =
+        leftMaterial.clearcoatTint[2] = 1.0f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noLayeredLobesSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noLayeredLobesSlotPixels));
+    leftMaterial.clearcoat = 1.0f;
+    leftMaterial.sheen = 1.0f;
+    std::array<std::array<float, 4>, 2> leftLayeredLobesSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftLayeredLobesSlotPixels));
+    float leftLayeredLobesResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftLayeredLobesResponse = std::max(
+            leftLayeredLobesResponse,
+            std::fabs(leftLayeredLobesSlotPixels[0][channel] -
+                      noLayeredLobesSlotPixels[0][channel]));
+        EXPECT_NEAR(leftLayeredLobesSlotPixels[1][channel],
+                    noLayeredLobesSlotPixels[1][channel], 0.01f)
+            << "enabling clearcoat and sheen on slot 0 should preserve slot 1, "
+               "channel "
+            << channel;
+    }
+    EXPECT_GT(leftLayeredLobesResponse, 0.001f)
+        << "slot 0 clearcoat/sheen combination should change its response";
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = 0.0f;
+    rightMaterial.clearcoat = 1.0f;
+    rightMaterial.sheen = 1.0f;
+    std::array<std::array<float, 4>, 2> rightLayeredLobesSlotPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightLayeredLobesSlotPixels));
+    float rightLayeredLobesResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightLayeredLobesSlotPixels[0][channel],
+                    noLayeredLobesSlotPixels[0][channel], 0.01f)
+            << "enabling clearcoat and sheen on slot 1 should preserve slot 0, "
+               "channel "
+            << channel;
+        rightLayeredLobesResponse = std::max(
+            rightLayeredLobesResponse,
+            std::fabs(rightLayeredLobesSlotPixels[1][channel] -
+                      noLayeredLobesSlotPixels[1][channel]));
+    }
+    EXPECT_GT(rightLayeredLobesResponse, 0.001f)
+        << "slot 1 clearcoat/sheen combination should change its response";
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = rightMaterial.sheen = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &subsurfaceLight, 1);
+
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    leftMaterial.baseColorTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicTexture = ArtifactCore::UniString{};
+    leftMaterial.roughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.normalTexture = ArtifactCore::UniString{};
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.specular = 0.0f;
+    leftMaterial.roughness = 1.0f;
+    leftMaterial.anisotropy = 0.0f;
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    leftMaterial.transmission = 0.0f;
+    leftMaterial.subsurface = 0.0f;
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString{};
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> whiteBaseColorPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(whiteBaseColorPixels));
+    leftMaterial.baseColor[1] = leftMaterial.baseColor[2] = 0.0f;
+    std::array<std::array<float, 4>, 2> redLeftBaseColorPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(redLeftBaseColorPixels));
+    float leftBaseColorResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftBaseColorResponse = std::max(leftBaseColorResponse,
+            std::fabs(redLeftBaseColorPixels[0][channel] -
+                      whiteBaseColorPixels[0][channel]));
+        EXPECT_NEAR(redLeftBaseColorPixels[1][channel],
+                    whiteBaseColorPixels[1][channel], 0.01f)
+            << "changing slot 0 base color should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftBaseColorResponse, 0.001f)
+        << "slot 0 base color should change its diffuse response";
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    rightMaterial.baseColor[0] = rightMaterial.baseColor[1] = 0.0f;
+    std::array<std::array<float, 4>, 2> blueRightBaseColorPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(blueRightBaseColorPixels));
+    float rightBaseColorResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(blueRightBaseColorPixels[0][channel],
+                    whiteBaseColorPixels[0][channel], 0.01f)
+            << "changing slot 1 base color should preserve slot 0, channel "
+            << channel;
+        rightBaseColorResponse = std::max(rightBaseColorResponse,
+            std::fabs(blueRightBaseColorPixels[1][channel] -
+                      whiteBaseColorPixels[1][channel]));
+    }
+    EXPECT_GT(rightBaseColorResponse, 0.001f)
+        << "slot 1 base color should change its diffuse response";
+
+    leftMaterial.subsurface = 0.0f;
+    leftMaterial.specular = 0.0f;
+    leftMaterial.specularTint[0] = leftMaterial.specularTint[1] =
+        leftMaterial.specularTint[2] = 1.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.roughness = 0.35f;
+    leftMaterial.ior = 1.5f;
+    leftMaterial.transmission = 0.0f;
+    leftMaterial.emissionStrength = 0.0f;
+    leftMaterial.emissionTexture = ArtifactCore::UniString{};
+    leftMaterial.baseColorTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.metallicTexture = ArtifactCore::UniString{};
+    leftMaterial.roughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.normalTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.anisotropy = 0.0f;
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noSlotSpecularPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noSlotSpecularPixels));
+    leftMaterial.specular = 1.0f;
+    std::array<std::array<float, 4>, 2> leftSlotSpecularPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftSlotSpecularPixels));
+    float leftSlotSpecularResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotSpecularResponse = std::max(leftSlotSpecularResponse,
+            std::fabs(leftSlotSpecularPixels[0][channel] -
+                      noSlotSpecularPixels[0][channel]));
+        EXPECT_NEAR(leftSlotSpecularPixels[1][channel],
+                    noSlotSpecularPixels[1][channel], 0.01f)
+            << "changing slot 0 specular should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotSpecularResponse, 0.001f)
+        << "slot 0 specular should change its dielectric reflection";
+    leftMaterial.specular = 0.0f;
+    rightMaterial.specular = 1.0f;
+    std::array<std::array<float, 4>, 2> rightSlotSpecularPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightSlotSpecularPixels));
+    float rightSlotSpecularResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightSlotSpecularPixels[0][channel],
+                    noSlotSpecularPixels[0][channel], 0.01f)
+            << "changing slot 1 specular should preserve slot 0, channel "
+            << channel;
+        rightSlotSpecularResponse = std::max(rightSlotSpecularResponse,
+            std::fabs(rightSlotSpecularPixels[1][channel] -
+                      noSlotSpecularPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotSpecularResponse, 0.001f)
+        << "slot 1 specular should change its dielectric reflection";
+
+    leftMaterial.subsurface = 0.0f;
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatRoughness = 0.2f;
+    leftMaterial.clearcoatTint[0] = leftMaterial.clearcoatTint[1] =
+        leftMaterial.clearcoatTint[2] = 1.0f;
+    leftMaterial.specular = 0.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noSlotClearcoatPixels));
+    leftMaterial.clearcoat = 1.0f;
+    std::array<std::array<float, 4>, 2> leftSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftSlotClearcoatPixels));
+    float leftSlotClearcoatResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotClearcoatResponse = std::max(leftSlotClearcoatResponse,
+            std::fabs(leftSlotClearcoatPixels[0][channel] -
+                      noSlotClearcoatPixels[0][channel]));
+        EXPECT_NEAR(leftSlotClearcoatPixels[1][channel],
+                    noSlotClearcoatPixels[1][channel], 0.01f)
+            << "changing slot 0 clearcoat should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotClearcoatResponse, 0.001f)
+        << "slot 0 clearcoat should change its reflection response";
+    leftMaterial.clearcoat = 0.0f;
+    rightMaterial.clearcoat = 1.0f;
+    std::array<std::array<float, 4>, 2> rightSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightSlotClearcoatPixels));
+    float rightSlotClearcoatResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightSlotClearcoatPixels[0][channel],
+                    noSlotClearcoatPixels[0][channel], 0.01f)
+            << "changing slot 1 clearcoat should preserve slot 0, channel "
+            << channel;
+        rightSlotClearcoatResponse = std::max(rightSlotClearcoatResponse,
+            std::fabs(rightSlotClearcoatPixels[1][channel] -
+                      noSlotClearcoatPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotClearcoatResponse, 0.001f)
+        << "slot 1 clearcoat should change its reflection response";
+
+    leftMaterial.clearcoat = rightMaterial.clearcoat = 1.0f;
+    leftMaterial.clearcoatRoughness = rightMaterial.clearcoatRoughness = 0.2f;
+    std::array<std::array<float, 4>, 2> smoothSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(smoothSlotClearcoatPixels));
+    leftMaterial.clearcoatRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughLeftSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughLeftSlotClearcoatPixels));
+    float leftSlotClearcoatRoughnessResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotClearcoatRoughnessResponse = std::max(
+            leftSlotClearcoatRoughnessResponse,
+            std::fabs(roughLeftSlotClearcoatPixels[0][channel] -
+                      smoothSlotClearcoatPixels[0][channel]));
+        EXPECT_NEAR(roughLeftSlotClearcoatPixels[1][channel],
+                    smoothSlotClearcoatPixels[1][channel], 0.01f)
+            << "changing slot 0 clearcoat roughness should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotClearcoatRoughnessResponse, 0.001f)
+        << "slot 0 clearcoat roughness should change its reflection response";
+    leftMaterial.clearcoatRoughness = 0.2f;
+    rightMaterial.clearcoatRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughRightSlotClearcoatPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughRightSlotClearcoatPixels));
+    float rightSlotClearcoatRoughnessResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughRightSlotClearcoatPixels[0][channel],
+                    smoothSlotClearcoatPixels[0][channel], 0.01f)
+            << "changing slot 1 clearcoat roughness should preserve slot 0, channel "
+            << channel;
+        rightSlotClearcoatRoughnessResponse = std::max(
+            rightSlotClearcoatRoughnessResponse,
+            std::fabs(roughRightSlotClearcoatPixels[1][channel] -
+                      smoothSlotClearcoatPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotClearcoatRoughnessResponse, 0.001f)
+        << "slot 1 clearcoat roughness should change its reflection response";
+
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughness = 0.4f;
+    leftMaterial.sheenTint[0] = leftMaterial.sheenTint[1] =
+        leftMaterial.sheenTint[2] = 1.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> noSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(noSlotSheenPixels));
+    leftMaterial.sheen = 1.0f;
+    std::array<std::array<float, 4>, 2> leftSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftSlotSheenPixels));
+    float leftSlotSheenResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotSheenResponse = std::max(leftSlotSheenResponse,
+            std::fabs(leftSlotSheenPixels[0][channel] -
+                      noSlotSheenPixels[0][channel]));
+        EXPECT_NEAR(leftSlotSheenPixels[1][channel],
+                    noSlotSheenPixels[1][channel], 0.01f)
+            << "changing slot 0 sheen should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotSheenResponse, 0.001f)
+        << "slot 0 sheen should change its reflection response";
+    leftMaterial.sheen = 0.0f;
+    rightMaterial.sheen = 1.0f;
+    std::array<std::array<float, 4>, 2> rightSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightSlotSheenPixels));
+    float rightSlotSheenResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightSlotSheenPixels[0][channel],
+                    noSlotSheenPixels[0][channel], 0.01f)
+            << "changing slot 1 sheen should preserve slot 0, channel "
+            << channel;
+        rightSlotSheenResponse = std::max(rightSlotSheenResponse,
+            std::fabs(rightSlotSheenPixels[1][channel] -
+                      noSlotSheenPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotSheenResponse, 0.001f)
+        << "slot 1 sheen should change its reflection response";
+
+    leftMaterial.sheen = rightMaterial.sheen = 1.0f;
+    leftMaterial.sheenRoughness = rightMaterial.sheenRoughness = 0.2f;
+    std::array<std::array<float, 4>, 2> smoothSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(smoothSlotSheenPixels));
+    leftMaterial.sheenRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughLeftSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughLeftSlotSheenPixels));
+    float leftSlotSheenRoughnessResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftSlotSheenRoughnessResponse = std::max(
+            leftSlotSheenRoughnessResponse,
+            std::fabs(roughLeftSlotSheenPixels[0][channel] -
+                      smoothSlotSheenPixels[0][channel]));
+        EXPECT_NEAR(roughLeftSlotSheenPixels[1][channel],
+                    smoothSlotSheenPixels[1][channel], 0.01f)
+            << "changing slot 0 sheen roughness should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftSlotSheenRoughnessResponse, 0.001f)
+        << "slot 0 sheen roughness should change its reflection response";
+    leftMaterial.sheenRoughness = 0.2f;
+    rightMaterial.sheenRoughness = 1.0f;
+    std::array<std::array<float, 4>, 2> roughRightSlotSheenPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(roughRightSlotSheenPixels));
+    float rightSlotSheenRoughnessResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughRightSlotSheenPixels[0][channel],
+                    smoothSlotSheenPixels[0][channel], 0.01f)
+            << "changing slot 1 sheen roughness should preserve slot 0, channel "
+            << channel;
+        rightSlotSheenRoughnessResponse = std::max(
+            rightSlotSheenRoughnessResponse,
+            std::fabs(roughRightSlotSheenPixels[1][channel] -
+                      smoothSlotSheenPixels[1][channel]));
+    }
+    EXPECT_GT(rightSlotSheenRoughnessResponse, 0.001f)
+        << "slot 1 sheen roughness should change its reflection response";
+
+    leftMaterial.subsurface = 0.0f;
+    leftMaterial.clearcoat = 0.0f;
+    leftMaterial.clearcoatTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.clearcoatNormalTexture = ArtifactCore::UniString{};
+    leftMaterial.sheen = 0.0f;
+    leftMaterial.sheenColorTexture = ArtifactCore::UniString{};
+    leftMaterial.sheenRoughnessTexture = ArtifactCore::UniString{};
+    leftMaterial.specular = 0.5f;
+    leftMaterial.roughness = 0.35f;
+    leftMaterial.ior = 1.5f;
+    leftMaterial.anisotropy = 0.0f;
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    leftMaterial.anisotropyRotationDegrees = 0.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> isotropicPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(isotropicPixels));
+    leftMaterial.anisotropy = 1.0f;
+    std::array<std::array<float, 4>, 2> leftAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftAnisotropyPixels));
+    float leftAnisotropyResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftAnisotropyResponse = std::max(leftAnisotropyResponse,
+            std::fabs(leftAnisotropyPixels[0][channel] -
+                      isotropicPixels[0][channel]));
+        EXPECT_NEAR(leftAnisotropyPixels[1][channel],
+                    isotropicPixels[1][channel], 0.01f)
+            << "changing slot 0 anisotropy should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftAnisotropyResponse, 0.001f)
+        << "slot 0 anisotropy should change its specular response";
+
+    leftMaterial.anisotropy = 0.0f;
+    rightMaterial.anisotropy = 1.0f;
+    std::array<std::array<float, 4>, 2> rightAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightAnisotropyPixels));
+    float rightAnisotropyResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightAnisotropyPixels[0][channel],
+                    isotropicPixels[0][channel], 0.01f)
+            << "changing slot 1 anisotropy should preserve slot 0, channel "
+            << channel;
+        rightAnisotropyResponse = std::max(rightAnisotropyResponse,
+            std::fabs(rightAnisotropyPixels[1][channel] -
+                      isotropicPixels[1][channel]));
+    }
+    EXPECT_GT(rightAnisotropyResponse, 0.001f)
+        << "slot 1 anisotropy should change its specular response";
+
+    leftMaterial.anisotropy = 1.0f;
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> untexturedAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(untexturedAnisotropyPixels));
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString(blueTexturePath);
+    std::array<std::array<float, 4>, 2> leftAnisotropyTexturePixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftAnisotropyTexturePixels));
+    float leftAnisotropyTextureResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftAnisotropyTextureResponse = std::max(
+            leftAnisotropyTextureResponse,
+            std::fabs(leftAnisotropyTexturePixels[0][channel] -
+                      untexturedAnisotropyPixels[0][channel]));
+        EXPECT_NEAR(leftAnisotropyTexturePixels[1][channel],
+                    untexturedAnisotropyPixels[1][channel], 0.01f)
+            << "changing slot 0 anisotropy texture should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftAnisotropyTextureResponse, 0.001f)
+        << "slot 0 anisotropy texture should change its specular response";
+
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    rightMaterial.anisotropyTexture = ArtifactCore::UniString(blueTexturePath);
+    std::array<std::array<float, 4>, 2> rightAnisotropyTexturePixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightAnisotropyTexturePixels));
+    float rightAnisotropyTextureResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightAnisotropyTexturePixels[0][channel],
+                    untexturedAnisotropyPixels[0][channel], 0.01f)
+            << "changing slot 1 anisotropy texture should preserve slot 0, channel "
+            << channel;
+        rightAnisotropyTextureResponse = std::max(
+            rightAnisotropyTextureResponse,
+            std::fabs(rightAnisotropyTexturePixels[1][channel] -
+                      untexturedAnisotropyPixels[1][channel]));
+    }
+    EXPECT_GT(rightAnisotropyTextureResponse, 0.001f)
+        << "slot 1 anisotropy texture should change its specular response";
+
+    leftMaterial.anisotropyTexture = ArtifactCore::UniString{};
+    leftMaterial.anisotropy = 1.0f;
+    leftMaterial.anisotropyRotationDegrees = 0.0f;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> unrotatedAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(unrotatedAnisotropyPixels));
+    leftMaterial.anisotropyRotationDegrees = 90.0f;
+    std::array<std::array<float, 4>, 2> leftRotatedAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(leftRotatedAnisotropyPixels));
+    float leftAnisotropyRotationResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        leftAnisotropyRotationResponse = std::max(
+            leftAnisotropyRotationResponse,
+            std::fabs(leftRotatedAnisotropyPixels[0][channel] -
+                      unrotatedAnisotropyPixels[0][channel]));
+        EXPECT_NEAR(leftRotatedAnisotropyPixels[1][channel],
+                    unrotatedAnisotropyPixels[1][channel], 0.01f)
+            << "rotating slot 0 anisotropy should preserve slot 1, channel "
+            << channel;
+    }
+    EXPECT_GT(leftAnisotropyRotationResponse, 0.001f)
+        << "slot 0 anisotropy rotation should change its specular response";
+
+    leftMaterial.anisotropyRotationDegrees = 0.0f;
+    rightMaterial.anisotropyRotationDegrees = 90.0f;
+    std::array<std::array<float, 4>, 2> rightRotatedAnisotropyPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(rightRotatedAnisotropyPixels));
+    float rightAnisotropyRotationResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rightRotatedAnisotropyPixels[0][channel],
+                    unrotatedAnisotropyPixels[0][channel], 0.01f)
+            << "rotating slot 1 anisotropy should preserve slot 0, channel "
+            << channel;
+        rightAnisotropyRotationResponse = std::max(
+            rightAnisotropyRotationResponse,
+            std::fabs(rightRotatedAnisotropyPixels[1][channel] -
+                      unrotatedAnisotropyPixels[1][channel]));
+    }
+    EXPECT_GT(rightAnisotropyRotationResponse, 0.001f)
+        << "slot 1 anisotropy rotation should change its specular response";
+
+    leftMaterial.anisotropyTexture =
+        ArtifactCore::UniString(anisotropyUvMapPath);
+    leftMaterial.anisotropyTextureUvSet = 0;
+    rightMaterial = leftMaterial;
+    std::array<std::array<float, 4>, 2> slotUv0Pixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(slotUv0Pixels));
+    const float slotUv0Difference = std::max(
+        std::fabs(slotUv0Pixels[0][0] - slotUv0Pixels[1][0]),
+        std::max(std::fabs(slotUv0Pixels[0][1] - slotUv0Pixels[1][1]),
+                 std::fabs(slotUv0Pixels[0][2] - slotUv0Pixels[1][2])));
+    EXPECT_GT(slotUv0Difference, 0.02f)
+        << "anisotropy UV0 map should distinguish material slots";
+
+    rightMaterial.anisotropyTextureUvSet = 1;
+    std::array<std::array<float, 4>, 2> mixedSlotUvPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(mixedSlotUvPixels));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(mixedSlotUvPixels[0][channel], slotUv0Pixels[0][channel],
+                    0.04f)
+            << "slot 1 UV selection should preserve slot 0, channel " << channel;
+        EXPECT_NEAR(mixedSlotUvPixels[1][channel], slotUv0Pixels[0][channel],
+                    0.04f)
+            << "slot 1 UV1 should mirror slot 0 UV0, channel " << channel;
+    }
+
+    leftMaterial.anisotropyTextureUvSet = 1;
+    rightMaterial.anisotropyTextureUvSet = 0;
+    std::array<std::array<float, 4>, 2> reversedSlotUvPixels{};
+    ASSERT_TRUE(captureMaterialSlotPixels(reversedSlotUvPixels));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(reversedSlotUvPixels[0][channel], slotUv0Pixels[1][channel],
+                    0.04f)
+            << "slot 0 UV1 should mirror slot 1 UV0, channel " << channel;
+        EXPECT_NEAR(reversedSlotUvPixels[1][channel], slotUv0Pixels[0][channel],
+                    0.04f)
+            << "slot 0 UV selection should preserve slot 1, channel " << channel;
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest, SelectsMaskedOpacityTexturePerMaterialSlot) {
+    constexpr std::array<float, 24> frontVertices{
+        -0.9f, -0.9f, 0.4f, 0.0f, -0.9f, 0.4f,
+         0.0f,  0.9f, 0.4f, -0.9f,  0.9f, 0.4f,
+         0.0f, -0.9f, 0.4f, 0.9f, -0.9f, 0.4f,
+         0.9f,  0.9f, 0.4f, 0.0f,  0.9f, 0.4f};
+    constexpr std::array<std::uint32_t, 12> frontIndices{
+        0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7};
+    constexpr std::array<std::uint32_t, 4> materialIndices{0, 0, 1, 1};
+    constexpr std::array<float, 16> frontUvs{
+        0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 16> mirroredFrontUvs1{
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
+    constexpr std::array<float, 12> backVertices{
+        -0.9f, -0.9f, -0.4f, 0.9f, -0.9f, -0.4f,
+         0.9f,  0.9f, -0.4f, -0.9f, 0.9f, -0.4f};
+    constexpr std::array<std::uint32_t, 6> backIndices{0, 1, 2, 0, 2, 3};
+    auto frontVertexBuffer = makeBuffer(
+        frontVertices.data(), sizeof(frontVertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto frontIndexBuffer = makeBuffer(
+        frontIndices.data(), sizeof(frontIndices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto backVertexBuffer = makeBuffer(
+        backVertices.data(), sizeof(backVertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto backIndexBuffer = makeBuffer(
+        backIndices.data(), sizeof(backIndices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(frontVertexBuffer, nullptr);
+    ASSERT_NE(frontIndexBuffer, nullptr);
+    ASSERT_NE(backVertexBuffer, nullptr);
+    ASSERT_NE(backIndexBuffer, nullptr);
+    addGeometry("masked-opacity-material-slots", frontVertexBuffer.RawPtr(), 8,
+                frontIndexBuffer.RawPtr(), 12, float4x4::Identity(), 1, 1,
+                frontVertices.data(), frontIndices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        frontVertices.data(), 8, frontIndices.data(), 12, nullptr,
+        materialIndices.data(), frontUvs.data(), nullptr,
+        mirroredFrontUvs1.data()));
+    addGeometry("masked-opacity-slot-background", backVertexBuffer.RawPtr(), 4,
+                backIndexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                backVertices.data(), backIndices.data());
+
+    QTemporaryDir opacityDirectory;
+    ASSERT_TRUE(opacityDirectory.isValid());
+    const auto transparentPath = opacityDirectory.filePath(
+        QStringLiteral("transparent.png"));
+    const auto opaquePath = opacityDirectory.filePath(
+        QStringLiteral("opaque.png"));
+    const auto halfAlphaPath = opacityDirectory.filePath(
+        QStringLiteral("half-alpha.png"));
+    const auto uvSetRampPath = opacityDirectory.filePath(
+        QStringLiteral("uv-set-ramp.png"));
+    QImage transparentImage(2, 2, QImage::Format_RGBA8888);
+    QImage opaqueImage(2, 2, QImage::Format_RGBA8888);
+    QImage halfAlphaImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(transparentImage.isNull());
+    ASSERT_FALSE(opaqueImage.isNull());
+    ASSERT_FALSE(halfAlphaImage.isNull());
+    transparentImage.fill(QColor(255, 255, 255, 0));
+    opaqueImage.fill(QColor(255, 255, 255, 255));
+    halfAlphaImage.fill(QColor(255, 255, 255, 128));
+    ASSERT_TRUE(transparentImage.save(transparentPath, "PNG"));
+    ASSERT_TRUE(opaqueImage.save(opaquePath, "PNG"));
+    ASSERT_TRUE(halfAlphaImage.save(halfAlphaPath, "PNG"));
+    QImage uvSetRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(uvSetRamp.isNull());
+    for (int y = 0; y < uvSetRamp.height(); ++y) {
+        auto* row = uvSetRamp.scanLine(y);
+        for (int x = 0; x < uvSetRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            pixel[3] = x < 4 ? 255 : 0;
+        }
+    }
+    ASSERT_TRUE(uvSetRamp.save(uvSetRampPath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial leftMaterial;
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 0.0f;
+    leftMaterial.emissionColor[0] = 1.0f;
+    leftMaterial.emissionStrength = 1.0f;
+    leftMaterial.alphaMode = 1;
+    leftMaterial.alphaCutoff = 0.5f;
+    leftMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
+    ArtifactCore::RTPbrMaterial rightMaterial = leftMaterial;
+    rightMaterial.emissionColor[0] = 0.0f;
+    rightMaterial.emissionColor[1] = 1.0f;
+    rightMaterial.opacityTexture = ArtifactCore::UniString(opaquePath);
+    ArtifactCore::RTPbrMaterial backgroundMaterial;
+    backgroundMaterial.baseColor[0] = backgroundMaterial.baseColor[1] =
+        backgroundMaterial.baseColor[2] = 0.0f;
+    backgroundMaterial.emissionColor[2] = 1.0f;
+    backgroundMaterial.emissionStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-slot-background"),
+        backgroundMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftCutoutPixel = pixelAt(8, 16);
+    const auto rightOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(leftCutoutPixel[2], leftCutoutPixel[0] + 0.5f);
+    EXPECT_GT(rightOpaquePixel[1], rightOpaquePixel[2] + 0.5f);
+
+    leftMaterial.opacityTexture = ArtifactCore::UniString(uvSetRampPath);
+    rightMaterial.opacityTexture = ArtifactCore::UniString(uvSetRampPath);
+    leftMaterial.opacityTextureUvSet = 0;
+    rightMaterial.opacityTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv0SlotOpaquePixel = pixelAt(8, 16);
+    const auto uv0SlotCutoutPixel = pixelAt(24, 16);
+    EXPECT_GT(uv0SlotOpaquePixel[0], uv0SlotOpaquePixel[2] + 0.5f)
+        << "the left slot should sample its opaque UV0 half";
+    EXPECT_GT(uv0SlotCutoutPixel[2], uv0SlotCutoutPixel[1] + 0.5f)
+        << "the right slot should cut out its transparent UV0 half";
+
+    rightMaterial.opacityTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1SlotOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(uv1SlotOpaquePixel[1], uv1SlotOpaquePixel[2] + 0.5f)
+        << "the right slot should independently sample its mirrored UV1 half";
+
+    rightMaterial.opacityTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetUv1SlotCutoutPixel = pixelAt(24, 16);
+    const auto unchangedUv0SlotOpaquePixel = pixelAt(8, 16);
+    EXPECT_GT(offsetUv1SlotCutoutPixel[2], offsetUv1SlotCutoutPixel[1] + 0.5f)
+        << "right-slot opacity U offset should move its sample into the cutout";
+    EXPECT_GT(unchangedUv0SlotOpaquePixel[0],
+              unchangedUv0SlotOpaquePixel[2] + 0.5f)
+        << "right-slot opacity U offset should preserve the left slot";
+
+    rightMaterial.opacityTextureUvOffsetU = 0.0f;
+    rightMaterial.opacityTextureUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledUv1SlotCutoutPixel = pixelAt(24, 16);
+    const auto unchangedScaledUv0SlotOpaquePixel = pixelAt(8, 16);
+    EXPECT_GT(scaledUv1SlotCutoutPixel[2], scaledUv1SlotCutoutPixel[1] + 0.5f)
+        << "right-slot opacity UV scale should move its sample into the cutout";
+    EXPECT_GT(unchangedScaledUv0SlotOpaquePixel[0],
+              unchangedScaledUv0SlotOpaquePixel[2] + 0.5f)
+        << "right-slot opacity UV scale should preserve the left slot";
+    rightMaterial.opacityTextureUvScale = 1.0f;
+
+    const auto verticalOpacityPath = opacityDirectory.filePath(
+        QStringLiteral("vertical-alpha-ramp.png"));
+    QImage verticalOpacityImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalOpacityImage.isNull());
+    for (int y = 0; y < verticalOpacityImage.height(); ++y) {
+        auto* row = verticalOpacityImage.scanLine(y);
+        for (int x = 0; x < verticalOpacityImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            pixel[3] = y < 4 ? 0 : 255;
+        }
+    }
+    ASSERT_TRUE(verticalOpacityImage.save(verticalOpacityPath, "PNG"));
+    leftMaterial.opacityTexture = ArtifactCore::UniString(verticalOpacityPath);
+    rightMaterial.opacityTexture = ArtifactCore::UniString(verticalOpacityPath);
+    leftMaterial.opacityTextureUvSet = 0;
+    rightMaterial.opacityTextureUvSet = 0;
+    rightMaterial.opacityTextureUvScale = 1.0f;
+    rightMaterial.opacityTextureUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto verticalOpacityLeftTop = pixelAt(8, 8);
+    const auto verticalOpacityLeftBottom = pixelAt(8, 24);
+    const auto verticalOpacityRightTop = pixelAt(24, 8);
+    const auto verticalOpacityRightBottom = pixelAt(24, 24);
+    EXPECT_GT(std::fabs(verticalOpacityRightTop[1] -
+                        verticalOpacityRightBottom[1]), 0.5f)
+        << "the vertical alpha ramp should cut out only one right-slot half";
+
+    rightMaterial.opacityTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(pixelAt(24, 8)[channel], verticalOpacityRightBottom[channel],
+                    0.025f)
+            << "right-slot opacity V offset should swap the top sample, channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(24, 24)[channel], verticalOpacityRightTop[channel],
+                    0.025f)
+            << "right-slot opacity V offset should swap the bottom sample, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(8, 8)[channel], verticalOpacityLeftTop[channel],
+                    0.025f)
+            << "right-slot opacity V offset should preserve left-slot top, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(8, 24)[channel], verticalOpacityLeftBottom[channel],
+                    0.025f)
+            << "right-slot opacity V offset should preserve left-slot bottom, "
+               "channel "
+            << channel;
+    }
+
+    rightMaterial.opacityTextureUvOffsetV = 0.0f;
+    rightMaterial.opacityTextureUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(pixelAt(24, 8)[channel], verticalOpacityRightBottom[channel],
+                    0.025f)
+            << "right-slot opacity V scale should repeat the bottom sample "
+               "on top, channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(24, 24)[channel], verticalOpacityRightTop[channel],
+                    0.025f)
+            << "right-slot opacity V scale should repeat the top sample on "
+               "bottom, channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(8, 8)[channel], verticalOpacityLeftTop[channel],
+                    0.025f)
+            << "right-slot opacity V scale should preserve left-slot top, "
+            << "channel " << channel;
+        EXPECT_NEAR(pixelAt(8, 24)[channel], verticalOpacityLeftBottom[channel],
+                    0.025f)
+            << "right-slot opacity V scale should preserve left-slot bottom, "
+            << "channel " << channel;
+    }
+    rightMaterial.opacityTextureUvScale = 1.0f;
+    rightMaterial.opacityTextureUvOffsetV = 0.0f;
+
+    leftMaterial.opacityTexture = ArtifactCore::UniString(opaquePath);
+    rightMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftOpaquePixel = pixelAt(8, 16);
+    const auto rightCutoutPixel = pixelAt(24, 16);
+    EXPECT_GT(leftOpaquePixel[0], leftOpaquePixel[2] + 0.5f);
+    EXPECT_GT(rightCutoutPixel[2], rightCutoutPixel[1] + 0.5f);
+
+    leftMaterial.opacityTexture = ArtifactCore::UniString(halfAlphaPath);
+    leftMaterial.alphaCutoff = 0.4f;
+    rightMaterial.opacityTexture = ArtifactCore::UniString(halfAlphaPath);
+    rightMaterial.alphaCutoff = 0.6f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftBelowCutoffPixel = pixelAt(8, 16);
+    const auto rightAboveCutoffPixel = pixelAt(24, 16);
+    EXPECT_GT(leftBelowCutoffPixel[0], leftBelowCutoffPixel[2] + 0.5f)
+        << "the left slot's lower cutoff should retain a half-alpha texel";
+    EXPECT_GT(rightAboveCutoffPixel[2], rightAboveCutoffPixel[1] + 0.5f)
+        << "the right slot's higher cutoff should cut out that same texel";
+
+    leftMaterial.alphaCutoff = 0.6f;
+    rightMaterial.alphaCutoff = 0.4f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftAboveCutoffPixel = pixelAt(8, 16);
+    const auto rightBelowCutoffPixel = pixelAt(24, 16);
+    EXPECT_GT(leftAboveCutoffPixel[2], leftAboveCutoffPixel[0] + 0.5f)
+        << "the left slot's higher cutoff should cut out the half-alpha texel";
+    EXPECT_GT(rightBelowCutoffPixel[1], rightBelowCutoffPixel[2] + 0.5f)
+        << "the right slot's lower cutoff should retain that same texel";
+
+    leftMaterial.alphaCutoff = rightMaterial.alphaCutoff = 0.5f;
+    leftMaterial.opacityTexture = ArtifactCore::UniString();
+    rightMaterial.opacityTexture = ArtifactCore::UniString();
+    leftMaterial.opacity = 0.4f;
+    rightMaterial.opacity = 0.6f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftScalarCutoutPixel = pixelAt(8, 16);
+    const auto rightScalarOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(leftScalarCutoutPixel[2], leftScalarCutoutPixel[0] + 0.5f)
+        << "the left slot's lower scalar opacity should cut out its surface";
+    EXPECT_GT(rightScalarOpaquePixel[1], rightScalarOpaquePixel[2] + 0.5f)
+        << "the right slot's higher scalar opacity should retain its surface";
+
+    leftMaterial.opacity = 0.6f;
+    rightMaterial.opacity = 0.4f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftScalarOpaquePixel = pixelAt(8, 16);
+    const auto rightScalarCutoutPixel = pixelAt(24, 16);
+    EXPECT_GT(leftScalarOpaquePixel[0], leftScalarOpaquePixel[2] + 0.5f)
+        << "the left slot's higher scalar opacity should retain its surface";
+    EXPECT_GT(rightScalarCutoutPixel[2], rightScalarCutoutPixel[1] + 0.5f)
+        << "the right slot's lower scalar opacity should cut out its surface";
+
+    leftMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
+    rightMaterial.opacityTexture = ArtifactCore::UniString(transparentPath);
+    leftMaterial.opacity = rightMaterial.opacity = 1.0f;
+    leftMaterial.alphaMode = 0;
+    rightMaterial.alphaMode = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftOpaqueModePixel = pixelAt(8, 16);
+    const auto rightMaskedModePixel = pixelAt(24, 16);
+    EXPECT_GT(leftOpaqueModePixel[0], leftOpaqueModePixel[2] + 0.5f)
+        << "opaque mode on slot 0 should retain its transparent-textured surface";
+    EXPECT_GT(rightMaskedModePixel[2], rightMaskedModePixel[1] + 0.5f)
+        << "masked mode on slot 1 should cut out its transparent texture";
+
+    leftMaterial.alphaMode = 1;
+    rightMaterial.alphaMode = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        leftMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-opacity-material-slots"),
+        rightMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftMaskedModePixel = pixelAt(8, 16);
+    const auto rightOpaqueModePixel = pixelAt(24, 16);
+    EXPECT_GT(leftMaskedModePixel[2], leftMaskedModePixel[0] + 0.5f)
+        << "masked mode on slot 0 should cut out its transparent texture";
+    EXPECT_GT(rightOpaqueModePixel[1], rightOpaqueModePixel[2] + 0.5f)
+        << "opaque mode on slot 1 should retain its transparent-textured surface";
 }
 
 TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs) {
@@ -400,6 +3818,8 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
     constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
     constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
                                        1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -413,23 +3833,32 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("ao-uv-sampling"), vertices.data(), 4,
-        indices.data(), 6, nullptr, nullptr, uvs.data()));
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
 
-    const auto texturePath = std::filesystem::temp_directory_path() /
-                             "artifact-rt-ao-uv-test.png";
-    QImage aoImage(8, 2, QImage::Format_Grayscale8);
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+    const auto texturePath =
+        temporaryDirectory.filePath(QStringLiteral("ao-uv-test.png"));
+    QImage aoImage(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(aoImage.isNull());
     for (int y = 0; y < aoImage.height(); ++y) {
         auto* row = aoImage.scanLine(y);
-        std::fill(row, row + 4, static_cast<uchar>(0));
-        std::fill(row + 4, row + 8, static_cast<uchar>(255));
+        for (int x = 0; x < aoImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const uchar red = x < 4 ? 0 : 255;
+            const uchar inverse = x < 4 ? 255 : 0;
+            pixel[0] = red;
+            pixel[1] = inverse;
+            pixel[2] = inverse;
+            pixel[3] = 255;
+        }
     }
-    ASSERT_TRUE(aoImage.save(QString::fromStdString(texturePath.string()), "PNG"));
+    ASSERT_TRUE(aoImage.save(texturePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
-    material.occlusionTexture = ArtifactCore::UniString(
-        QString::fromStdString(texturePath.string()));
+    material.occlusionTexture = ArtifactCore::UniString(texturePath);
     material.occlusionStrength = 1.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("ao-uv-sampling"), material));
@@ -442,8 +3871,239 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
     const auto occludedPixel = pixelAt(8, 16);
     const auto openPixel = pixelAt(24, 16);
     EXPECT_GT(openPixel[0], occludedPixel[0] + 0.05f);
-    std::error_code ignored;
-    std::filesystem::remove(texturePath, ignored);
+
+    material.occlusionTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1LeftPixel = pixelAt(8, 16);
+    const auto uv1RightPixel = pixelAt(24, 16);
+    EXPECT_NEAR(uv1LeftPixel[0], openPixel[0], 0.025f)
+        << "occlusion UV1 mirroring should select the open texels on the left";
+    EXPECT_NEAR(uv1RightPixel[0], occludedPixel[0], 0.025f)
+        << "occlusion UV1 mirroring should select the occluded texels on the right";
+
+    material.occlusionTextureUvSet = 0;
+    const auto verticalAoPath = temporaryDirectory.filePath(
+        QStringLiteral("ao-v-ramp.png"));
+    QImage verticalAoImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalAoImage.isNull());
+    for (int y = 0; y < verticalAoImage.height(); ++y) {
+        auto* row = verticalAoImage.scanLine(y);
+        for (int x = 0; x < verticalAoImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = y < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalAoImage.save(verticalAoPath, "PNG"));
+    material.occlusionTexture = ArtifactCore::UniString(verticalAoPath);
+    material.occlusionTextureUvOffsetU = 0.0f;
+    material.occlusionTextureUvOffsetV = 0.0f;
+    material.occlusionTextureUvScale = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto aoV0Top = pixelAt(8, 8);
+    const auto aoV0Bottom = pixelAt(8, 24);
+    EXPECT_GT(std::fabs(aoV0Top[0] - aoV0Bottom[0]), 0.05f)
+        << "occlusion red channel should vary between vertical UV samples";
+
+    material.occlusionTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_NEAR(pixelAt(8, 8)[0], aoV0Bottom[0], 0.025f)
+        << "occlusion V offset should mirror the top sample";
+    EXPECT_NEAR(pixelAt(8, 24)[0], aoV0Top[0], 0.025f)
+        << "occlusion V offset should mirror the bottom sample";
+
+    material.occlusionTextureUvOffsetV = 0.0f;
+    material.occlusionTextureUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_NEAR(pixelAt(8, 8)[0], aoV0Bottom[0], 0.025f)
+        << "occlusion V scale should repeat the bottom sample on top";
+    EXPECT_NEAR(pixelAt(8, 24)[0], aoV0Top[0], 0.025f)
+        << "occlusion V scale should repeat the top sample on bottom";
+
+    material.occlusionTexture = ArtifactCore::UniString(texturePath);
+    material.occlusionTextureUvScale = 1.0f;
+    material.occlusionTextureUvOffsetV = 0.0f;
+    material.occlusionTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_NEAR(pixelAt(8, 16)[0], openPixel[0], 0.025f)
+        << "occlusion 180-degree UV rotation should mirror the left sample";
+    EXPECT_NEAR(pixelAt(24, 16)[0], occludedPixel[0], 0.025f)
+        << "occlusion 180-degree UV rotation should mirror the right sample";
+    material.occlusionTextureUvRotationDegrees = 0.0f;
+    material.occlusionStrength = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroStrengthPixel = pixelAt(8, 16);
+
+    material.occlusionStrength = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfStrengthPixel = pixelAt(8, 16);
+    EXPECT_GT(zeroStrengthPixel[0], halfStrengthPixel[0] + 0.005f)
+        << "zero occlusion strength should restore the unoccluded response";
+    EXPECT_GT(halfStrengthPixel[0], occludedPixel[0] + 0.005f)
+        << "half occlusion strength should retain more response than full strength";
+
+    const auto halfOcclusionMapPath = temporaryDirectory.filePath(
+        QStringLiteral("ao-half-occlusion.png"));
+    QImage halfOcclusionMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(halfOcclusionMap.isNull());
+    halfOcclusionMap.fill(QColor(128, 128, 128, 255));
+    ASSERT_TRUE(halfOcclusionMap.save(halfOcclusionMapPath, "PNG"));
+    material.occlusionTexture = ArtifactCore::UniString(halfOcclusionMapPath);
+    material.occlusionStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfMapPixel = pixelAt(8, 16);
+    EXPECT_NEAR(halfMapPixel[0], halfStrengthPixel[0], 0.015f)
+        << "occlusion strength should linearly mix the red channel with white";
+
+    const auto occludedSlotPath = temporaryDirectory.filePath(
+        QStringLiteral("ao-slot-occluded.png"));
+    const auto openSlotPath = temporaryDirectory.filePath(
+        QStringLiteral("ao-slot-open.png"));
+    QImage occludedSlotMap(2, 2, QImage::Format_RGBA8888);
+    QImage openSlotMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(occludedSlotMap.isNull());
+    ASSERT_FALSE(openSlotMap.isNull());
+    occludedSlotMap.fill(QColor(0, 0, 0, 255));
+    openSlotMap.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(occludedSlotMap.save(occludedSlotPath, "PNG"));
+    ASSERT_TRUE(openSlotMap.save(openSlotPath, "PNG"));
+
+    constexpr std::array<std::uint32_t, 2> materialIndices{0, 1};
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("ao-uv-sampling"), vertices.data(), 4,
+        indices.data(), 6, nullptr, materialIndices.data(), uvs.data(), nullptr,
+        mirroredUvs1.data()));
+    ArtifactCore::RTPbrMaterial occludedSlotMaterial;
+    occludedSlotMaterial.baseColor[0] = occludedSlotMaterial.baseColor[1] =
+        occludedSlotMaterial.baseColor[2] = 0.7f;
+    occludedSlotMaterial.occlusionTexture =
+        ArtifactCore::UniString(occludedSlotPath);
+    occludedSlotMaterial.occlusionStrength = 1.0f;
+    ArtifactCore::RTPbrMaterial openSlotMaterial = occludedSlotMaterial;
+    openSlotMaterial.occlusionTexture = ArtifactCore::UniString(openSlotPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), occludedSlotMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), openSlotMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto openLeftSlotPixel = pixelAt(8, 16);
+    const auto occludedRightSlotPixel = pixelAt(24, 16);
+
+    occludedSlotMaterial.occlusionTexture = ArtifactCore::UniString(openSlotPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), occludedSlotMaterial, 0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedOpenLeftSlotPixel = pixelAt(8, 16);
+    const auto openRightSlotPixel = pixelAt(24, 16);
+    EXPECT_GT(openRightSlotPixel[0], occludedRightSlotPixel[0] + 0.005f)
+        << "slot 0 occlusion map should change its shading response";
+    EXPECT_NEAR(unchangedOpenLeftSlotPixel[0], openLeftSlotPixel[0], 0.025f)
+        << "changing slot 0 occlusion map should preserve slot 1";
+
+    occludedSlotMaterial.occlusionTexture =
+        ArtifactCore::UniString(occludedSlotPath);
+    openSlotMaterial.occlusionTexture =
+        ArtifactCore::UniString(occludedSlotPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), occludedSlotMaterial, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("ao-uv-sampling"), openSlotMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto occludedLeftSlotPixel = pixelAt(8, 16);
+    const auto unchangedOpenRightSlotPixel = pixelAt(24, 16);
+    EXPECT_GT(openLeftSlotPixel[0], occludedLeftSlotPixel[0] + 0.005f)
+        << "slot 1 occlusion map should change its shading response";
+    EXPECT_NEAR(unchangedOpenRightSlotPixel[0], openRightSlotPixel[0], 0.025f)
+        << "changing slot 1 occlusion map should preserve slot 0";
+}
+
+TEST_F(RayTracingAcceptanceTest, InterpolatesSrgbVertexColorsAcrossTriangles) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 16> vertexColors{
+        1.0f, 0.05f, 0.05f, 1.0f, 0.05f, 1.0f, 0.05f, 1.0f,
+        0.05f, 1.0f, 0.05f, 1.0f, 1.0f, 0.05f, 0.05f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-srgb-vertex-colors", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-srgb-vertex-colors"), vertices.data(), 4,
+        indices.data(), 6, nullptr, nullptr, nullptr, vertexColors.data()));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.8f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-srgb-vertex-colors"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+
+    const auto leftPixel = pixelAt(8, 16);
+    const auto rightPixel = pixelAt(24, 16);
+    EXPECT_GT(leftPixel[0], leftPixel[1] + 0.01f)
+        << "the interpolated left-side vertex color should remain red-dominant";
+    EXPECT_GT(rightPixel[1], rightPixel[0] + 0.01f)
+        << "the interpolated right-side vertex color should remain green-dominant";
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -470,11 +4130,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-occlusion-minified-checker.png";
+        tempDirectory.filePath(QStringLiteral("occlusion-checker.png"));
     const auto averagePath =
-        tempDirectory / "artifact-rt-occlusion-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("occlusion-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_Grayscale8);
     QImage average(textureSize, textureSize, QImage::Format_Grayscale8);
     ASSERT_FALSE(checker.isNull());
@@ -487,14 +4148,13 @@ TEST_F(RayTracingAcceptanceTest,
             averageRow[x] = 127;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.occlusionStrength = 1.0f;
-    material.occlusionTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.occlusionTexture = ArtifactCore::UniString(checkerPath);
     const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
                                     const int x) {
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
@@ -512,18 +4172,13 @@ TEST_F(RayTracingAcceptanceTest,
             traceAndSample(material, 14 + index);
     }
 
-    material.occlusionTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.occlusionTexture = ArtifactCore::UniString(averagePath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)],
                     traceAndSample(material, 14 + index), 0.025f)
             << "minified occlusion sample " << index
             << " should match its linear mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
@@ -548,10 +4203,17 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
         ArtifactCore::UniString("pbr-color-surface-maps"), vertices.data(), 4,
         indices.data(), 6, nullptr, nullptr, uvs.data()));
 
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto baseColorPath = tempDirectory / "artifact-rt-basecolor-map.png";
-    const auto metallicMapPath = tempDirectory / "artifact-rt-metallic-map.png";
-    const auto dielectricMapPath = tempDirectory / "artifact-rt-dielectric-map.png";
+    QTemporaryDir surfaceMapDirectory;
+    ASSERT_TRUE(surfaceMapDirectory.isValid());
+    const auto baseColorPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(QStringLiteral("base-color.png"))
+            .toStdString());
+    const auto metallicMapPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(QStringLiteral("metallic.png"))
+            .toStdString());
+    const auto dielectricMapPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(QStringLiteral("dielectric.png"))
+            .toStdString());
     QImage baseColorImage(8, 2, QImage::Format_RGBA8888);
     QImage metallicImage(8, 2, QImage::Format_RGBA8888);
     QImage dielectricImage(8, 2, QImage::Format_RGBA8888);
@@ -613,19 +4275,1358 @@ TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
     ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
     ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
                                         kRayTraceTestImageSize));
+    const auto baseColorUv0Left = pixelAt(8, 16);
+    const auto baseColorUv0Right = pixelAt(24, 16);
+    EXPECT_GT(baseColorUv0Left[0], baseColorUv0Left[2] + 0.1f);
+    EXPECT_GT(baseColorUv0Right[2], baseColorUv0Right[0] + 0.1f);
+
+    QImage transparentBaseColorImage = baseColorImage;
+    for (int y = 0; y < transparentBaseColorImage.height(); ++y) {
+        auto* row = transparentBaseColorImage.scanLine(y);
+        for (int x = 0; x < transparentBaseColorImage.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const auto transparentBaseColorPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(
+            QStringLiteral("base-color-zero-alpha.png")).toStdString());
+    ASSERT_TRUE(transparentBaseColorImage.save(
+        QString::fromStdString(transparentBaseColorPath.string()), "PNG"));
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(transparentBaseColorPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroAlphaBaseColorLeft = pixelAt(8, 16);
+    const auto zeroAlphaBaseColorRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(zeroAlphaBaseColorLeft[channel], baseColorUv0Left[channel],
+                    0.02f)
+            << "opaque base-color shading should ignore texture alpha, left "
+            << "channel " << channel;
+        EXPECT_NEAR(zeroAlphaBaseColorRight[channel], baseColorUv0Right[channel],
+                    0.02f)
+            << "opaque base-color shading should ignore texture alpha, right "
+            << "channel " << channel;
+    }
+
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(baseColorPath.string()));
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfFactorBaseColorLeft = pixelAt(8, 16);
+    const auto halfFactorBaseColorRight = pixelAt(24, 16);
+
+    QImage halfLinearBaseColorImage = baseColorImage;
+    for (int y = 0; y < halfLinearBaseColorImage.height(); ++y) {
+        auto* row = halfLinearBaseColorImage.scanLine(y);
+        for (int x = 0; x < halfLinearBaseColorImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool right = x >= halfLinearBaseColorImage.width() / 2;
+            pixel[0] = right ? 0 : 188;
+            pixel[2] = right ? 188 : 0;
+        }
+    }
+    const auto halfLinearBaseColorPath = std::filesystem::path(
+        surfaceMapDirectory.filePath(
+            QStringLiteral("base-color-half-linear.png")).toStdString());
+    ASSERT_TRUE(halfLinearBaseColorImage.save(
+        QString::fromStdString(halfLinearBaseColorPath.string()), "PNG"));
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 1.0f;
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(halfLinearBaseColorPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfLinearTextureLeft = pixelAt(8, 16);
+    const auto halfLinearTextureRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfLinearTextureLeft[channel],
+                    halfFactorBaseColorLeft[channel], 0.025f)
+            << "base-color factor should multiply the decoded texture, left "
+            << "channel " << channel;
+        EXPECT_NEAR(halfLinearTextureRight[channel],
+                    halfFactorBaseColorRight[channel], 0.025f)
+            << "base-color factor should multiply the decoded texture, right "
+            << "channel " << channel;
+    }
+
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(baseColorPath.string()));
+    material.baseColorUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorOffsetLeft = pixelAt(8, 16);
+    const auto baseColorOffsetRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(baseColorOffsetLeft[channel], baseColorUv0Right[channel],
+                    0.035f)
+            << "base-color U offset should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(baseColorOffsetRight[channel], baseColorUv0Left[channel],
+                    0.035f)
+            << "base-color U offset should mirror the right sample, channel "
+            << channel;
+    }
+
+    material.baseColorUvOffsetU = 0.0f;
+    material.baseColorUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorRotationLeft = pixelAt(8, 16);
+    const auto baseColorRotationRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(baseColorRotationLeft[channel], baseColorUv0Right[channel],
+                    0.035f)
+            << "base-color 180-degree UV rotation should mirror the left "
+               "sample, channel "
+            << channel;
+        EXPECT_NEAR(baseColorRotationRight[channel], baseColorUv0Left[channel],
+                    0.035f)
+            << "base-color 180-degree UV rotation should mirror the right "
+               "sample, channel "
+            << channel;
+    }
+    material.baseColorUvRotationDegrees = 0.0f;
+    const auto verticalBaseColorPath = surfaceMapDirectory.filePath(
+        QStringLiteral("base-color-v-ramp.png"));
+    QImage verticalBaseColorImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalBaseColorImage.isNull());
+    for (int y = 0; y < verticalBaseColorImage.height(); ++y) {
+        auto* row = verticalBaseColorImage.scanLine(y);
+        for (int x = 0; x < verticalBaseColorImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = y < 4 ? 255 : 0;
+            pixel[1] = 0;
+            pixel[2] = y < 4 ? 0 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalBaseColorImage.save(verticalBaseColorPath, "PNG"));
+    material.baseColorTexture = ArtifactCore::UniString(verticalBaseColorPath);
+    material.baseColorUvOffsetV = 0.0f;
+    material.baseColorUvScale = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorV0Top = pixelAt(12, 8);
+    const auto baseColorV0Bottom = pixelAt(12, 24);
+    const float baseColorV0Difference = std::max(
+        std::fabs(baseColorV0Top[0] - baseColorV0Bottom[0]),
+        std::max(std::fabs(baseColorV0Top[1] - baseColorV0Bottom[1]),
+                 std::fabs(baseColorV0Top[2] - baseColorV0Bottom[2])));
+    EXPECT_GT(baseColorV0Difference, 0.1f)
+        << "vertical base-color map should produce distinct top and bottom samples";
+
+    material.baseColorUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorVOffsetTop = pixelAt(12, 8);
+    const auto baseColorVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(baseColorVOffsetTop[channel], baseColorV0Bottom[channel],
+                    0.04f)
+            << "base-color V offset should mirror the top sample, channel "
+            << channel;
+        EXPECT_NEAR(baseColorVOffsetBottom[channel], baseColorV0Top[channel],
+                    0.04f)
+            << "base-color V offset should mirror the bottom sample, channel "
+            << channel;
+    }
+
+    material.baseColorUvOffsetV = 0.0f;
+    material.baseColorUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorVScaleTop = pixelAt(12, 8);
+    const auto baseColorVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(baseColorVScaleTop[channel], baseColorV0Bottom[channel],
+                    0.04f)
+            << "base-color V scale should repeat the bottom sample on top, channel "
+            << channel;
+        EXPECT_NEAR(baseColorVScaleBottom[channel], baseColorV0Top[channel],
+                    0.04f)
+            << "base-color V scale should repeat the top sample on bottom, channel "
+            << channel;
+    }
+
+    material.baseColorUvScale = 1.0f;
+    material.baseColorUvOffsetV = 0.0f;
+    material.baseColorTexture = ArtifactCore::UniString{};
+    material.metallicRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(metallicMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMapUv0Left = pixelAt(8, 16);
+    const auto packedMapUv0Right = pixelAt(24, 16);
+    EXPECT_GT(packedMapUv0Left[0], packedMapUv0Left[2] + 0.1f);
+    EXPECT_GT(packedMapUv0Right[2], packedMapUv0Right[0] + 0.1f);
+
+    material.metallicRoughnessUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMapOffsetLeft = pixelAt(8, 16);
+    const auto packedMapOffsetRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedMapOffsetLeft[channel], packedMapUv0Right[channel],
+                    0.035f)
+            << "packed metallic-roughness U offset should mirror the left "
+               "sample, channel " << channel;
+        EXPECT_NEAR(packedMapOffsetRight[channel], packedMapUv0Left[channel],
+                    0.035f)
+            << "packed metallic-roughness U offset should mirror the right "
+               "sample, channel " << channel;
+    }
+
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.metallicRoughnessUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMapRotatedLeft = pixelAt(8, 16);
+    const auto packedMapRotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedMapRotatedLeft[channel], packedMapUv0Right[channel],
+                    0.035f)
+            << "packed metallic-roughness UV rotation should mirror the left "
+               "sample, channel "
+            << channel;
+        EXPECT_NEAR(packedMapRotatedRight[channel], packedMapUv0Left[channel],
+                    0.035f)
+            << "packed metallic-roughness UV rotation should mirror the right "
+               "sample, channel "
+            << channel;
+    }
+    material.metallicRoughnessUvRotationDegrees = 0.0f;
+
+    const auto verticalPackedMapPath = surfaceMapDirectory.filePath(
+        QStringLiteral("packed-metallic-roughness-v-ramp.png"));
+    QImage verticalPackedMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalPackedMap.isNull());
+    for (int y = 0; y < verticalPackedMap.height(); ++y) {
+        auto* row = verticalPackedMap.scanLine(y);
+        for (int x = 0; x < verticalPackedMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = y < 4 ? 0 : 255;
+            pixel[2] = 128;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalPackedMap.save(verticalPackedMapPath, "PNG"));
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.baseColorTexture = ArtifactCore::UniString{};
+    material.metallic = 0.0f;
+    material.roughness = 1.0f;
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(verticalPackedMapPath);
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.metallicRoughnessUvOffsetV = 0.0f;
+    material.metallicRoughnessUvScale = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedV0Top = pixelAt(12, 8);
+    const auto packedV0Bottom = pixelAt(12, 24);
+    const float packedV0Difference = std::max(
+        std::fabs(packedV0Top[0] - packedV0Bottom[0]),
+        std::max(std::fabs(packedV0Top[1] - packedV0Bottom[1]),
+                 std::fabs(packedV0Top[2] - packedV0Bottom[2])));
+    EXPECT_GT(packedV0Difference, 0.02f)
+        << "packed G roughness should vary between vertical UV samples";
+
+    material.metallicRoughnessUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedVOffsetTop = pixelAt(12, 8);
+    const auto packedVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedVOffsetTop[channel], packedV0Bottom[channel], 0.04f)
+            << "packed metallic-roughness V offset should mirror the top "
+               "sample, channel "
+            << channel;
+        EXPECT_NEAR(packedVOffsetBottom[channel], packedV0Top[channel], 0.04f)
+            << "packed metallic-roughness V offset should mirror the bottom "
+               "sample, channel "
+            << channel;
+    }
+
+    material.metallicRoughnessUvOffsetV = 0.0f;
+    material.metallicRoughnessUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedVScaleTop = pixelAt(12, 8);
+    const auto packedVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedVScaleTop[channel], packedV0Bottom[channel], 0.04f)
+            << "packed metallic-roughness V scale should repeat the bottom "
+               "sample on top, channel "
+            << channel;
+        EXPECT_NEAR(packedVScaleBottom[channel], packedV0Top[channel], 0.04f)
+            << "packed metallic-roughness V scale should repeat the top "
+               "sample on bottom, channel "
+            << channel;
+    }
+
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.metallicRoughnessUvOffsetV = 0.0f;
+    material.metallicRoughnessUvScale = 1.0f;
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(metallicMapPath.string());
+    material.metallic = 1.0f;
+    material.roughness = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMetallicBChannelLeft = pixelAt(8, 16);
+    const auto packedMetallicBChannelRight = pixelAt(24, 16);
+
+    QImage packedMetallicOtherChannelsChanged = metallicImage;
+    for (int y = 0; y < packedMetallicOtherChannelsChanged.height(); ++y) {
+        auto* row = packedMetallicOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < packedMetallicOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 0;
+            pixel[1] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const auto packedMetallicOtherChannelsPath = surfaceMapDirectory.filePath(
+        QStringLiteral("packed-metallic-other-channels.png"));
+    ASSERT_TRUE(packedMetallicOtherChannelsChanged.save(
+        packedMetallicOtherChannelsPath, "PNG"));
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(packedMetallicOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedMetallicOtherChannelsLeft = pixelAt(8, 16);
+    const auto packedMetallicOtherChannelsRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedMetallicOtherChannelsLeft[channel],
+                    packedMetallicBChannelLeft[channel], 0.02f)
+            << "packed metallic should read blue independently, left channel "
+            << channel;
+        EXPECT_NEAR(packedMetallicOtherChannelsRight[channel],
+                    packedMetallicBChannelRight[channel], 0.02f)
+            << "packed metallic should read blue independently, right channel "
+            << channel;
+    }
+
+    const auto greenRoughnessMapPath = surfaceMapDirectory.filePath(
+        QStringLiteral("green-roughness.png"));
+    QImage greenRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(greenRoughnessMap.isNull());
+    for (int y = 0; y < greenRoughnessMap.height(); ++y) {
+        auto* row = greenRoughnessMap.scanLine(y);
+        for (int x = 0; x < greenRoughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = x < greenRoughnessMap.width() / 2 ? 0 : 255;
+            pixel[2] = 0;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(greenRoughnessMap.save(greenRoughnessMapPath, "PNG"));
+    material.baseColorTexture = ArtifactCore::UniString{};
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.metallic = 0.0f;
+    material.roughness = 1.0f;
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(greenRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedRoughnessLeft = pixelAt(8, 16);
+    const auto packedRoughnessRight = pixelAt(24, 16);
+    const float packedRoughnessDifference = std::max(
+        std::fabs(packedRoughnessLeft[0] - packedRoughnessRight[0]),
+        std::max(std::fabs(packedRoughnessLeft[1] - packedRoughnessRight[1]),
+                 std::fabs(packedRoughnessLeft[2] - packedRoughnessRight[2])));
+    EXPECT_GT(packedRoughnessDifference, 0.02f)
+        << "packed metallic-roughness green should vary roughness while red "
+           "and blue remain constant";
+
+    QImage packedRoughnessOtherChannelsChanged = greenRoughnessMap;
+    for (int y = 0; y < packedRoughnessOtherChannelsChanged.height(); ++y) {
+        auto* row = packedRoughnessOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < packedRoughnessOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 0;
+            pixel[2] = 255;
+        }
+    }
+    const auto packedRoughnessOtherChannelsPath =
+        surfaceMapDirectory.filePath(
+            QStringLiteral("packed-roughness-other-channels.png"));
+    ASSERT_TRUE(packedRoughnessOtherChannelsChanged.save(
+        packedRoughnessOtherChannelsPath, "PNG"));
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(packedRoughnessOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto packedOtherChannelsLeft = pixelAt(8, 16);
+    const auto packedOtherChannelsRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(packedOtherChannelsLeft[channel], packedRoughnessLeft[channel],
+                    0.02f)
+            << "packed roughness should read green independently, left channel "
+            << channel;
+        EXPECT_NEAR(packedOtherChannelsRight[channel],
+                    packedRoughnessRight[channel], 0.02f)
+            << "packed roughness should read green independently, right channel "
+            << channel;
+    }
+
+    QImage transparentPackedMap = greenRoughnessMap;
+    for (int y = 0; y < transparentPackedMap.height(); ++y) {
+        auto* row = transparentPackedMap.scanLine(y);
+        for (int x = 0; x < transparentPackedMap.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const auto transparentPackedMapPath = surfaceMapDirectory.filePath(
+        QStringLiteral("transparent-packed-map.png"));
+    ASSERT_TRUE(transparentPackedMap.save(
+        transparentPackedMapPath, "PNG"));
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(transparentPackedMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentPackedLeft = pixelAt(8, 16);
+    const auto transparentPackedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(transparentPackedLeft[channel], packedRoughnessLeft[channel],
+                    0.01f)
+            << "packed metallic-roughness alpha should not change RGB input, "
+               "left channel " << channel;
+        EXPECT_NEAR(transparentPackedRight[channel],
+                    packedRoughnessRight[channel], 0.01f)
+            << "packed metallic-roughness alpha should not change RGB input, "
+               "right channel " << channel;
+    }
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(greenRoughnessMapPath);
+
+    material.roughness = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfFactorPackedRoughness = pixelAt(24, 16);
+
+    QImage halfGreenRoughnessMap = greenRoughnessMap;
+    for (int y = 0; y < halfGreenRoughnessMap.height(); ++y) {
+        auto* row = halfGreenRoughnessMap.scanLine(y);
+        for (int x = halfGreenRoughnessMap.width() / 2;
+             x < halfGreenRoughnessMap.width(); ++x) {
+            row[x * 4 + 1] = 128;
+        }
+    }
+    const auto halfGreenRoughnessMapPath = surfaceMapDirectory.filePath(
+        QStringLiteral("half-green-roughness.png"));
+    ASSERT_TRUE(halfGreenRoughnessMap.save(
+        halfGreenRoughnessMapPath, "PNG"));
+    material.roughness = 1.0f;
+    material.metallicRoughnessTexture =
+        ArtifactCore::UniString(halfGreenRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfTexelPackedRoughness = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfTexelPackedRoughness[channel],
+                    halfFactorPackedRoughness[channel], 0.035f)
+            << "packed G roughness factor should multiply sampled roughness, "
+               "channel " << channel;
+    }
+
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 1.0f;
+    material.metallic = 1.0f;
+    material.roughness = 0.6f;
+    material.metallicRoughnessUvOffsetU = 0.0f;
+    material.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(baseColorPath.string()));
+    material.metallicRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(dielectricMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
     const auto dielectricRight = pixelAt(24, 16);
     const float rightMapDifference = std::max(
         std::fabs(dielectricRight[0] - mappedMetallicRight[0]),
         std::max(std::fabs(dielectricRight[1] - mappedMetallicRight[1]),
                  std::fabs(dielectricRight[2] - mappedMetallicRight[2])));
     EXPECT_GT(rightMapDifference, 0.01f);
-    std::error_code ignored;
-    std::filesystem::remove(baseColorPath, ignored);
-    std::filesystem::remove(metallicMapPath, ignored);
-    std::filesystem::remove(dielectricMapPath, ignored);
+
+    QTemporaryDir linearColorDirectory;
+    ASSERT_TRUE(linearColorDirectory.isValid());
+    const QString linearExrPath = linearColorDirectory.filePath(
+        QStringLiteral("linear-base-color.exr"));
+    const QString srgbReferencePath = linearColorDirectory.filePath(
+        QStringLiteral("srgb-base-color.png"));
+    constexpr std::array<float, 16> linearBaseColorPixels{
+        0.25f, 0.5f, 0.75f, 1.0f,
+        0.25f, 0.5f, 0.75f, 1.0f,
+        0.25f, 0.5f, 0.75f, 1.0f,
+        0.25f, 0.5f, 0.75f, 1.0f};
+    ArtifactCore::OpenExr exr;
+    ASSERT_TRUE(exr.writeRGBA32F(linearExrPath, linearBaseColorPixels.data(),
+                                 2, 2));
+    QImage srgbReference(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(srgbReference.isNull());
+    srgbReference.fill(QColor(137, 188, 225, 255));
+    ASSERT_TRUE(srgbReference.save(srgbReferencePath, "PNG"));
+
+    material.baseColorTexture = ArtifactCore::UniString(srgbReferencePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto srgbReferencePixel = pixelAt(16, 16);
+
+    material.baseColorTexture = ArtifactCore::UniString(linearExrPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto linearExrPixel = pixelAt(16, 16);
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(linearExrPixel[channel], srgbReferencePixel[channel], 0.02f)
+            << "linear float base-color channel " << channel
+            << " should match its sRGB-encoded PNG reference";
+    }
+
+    material.baseColorTexture = ArtifactCore::UniString{};
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto clearedBaseColorMapPixel = pixelAt(16, 16);
+    const float removedMapDifference = std::max(
+        std::fabs(clearedBaseColorMapPixel[0] - linearExrPixel[0]),
+        std::max(std::fabs(clearedBaseColorMapPixel[1] - linearExrPixel[1]),
+                 std::fabs(clearedBaseColorMapPixel[2] - linearExrPixel[2])));
+    EXPECT_GT(removedMapDifference, 0.02f)
+        << "clearing the base-color map should restore the scalar material color";
+
+    QTemporaryDir missingTextureDirectory;
+    ASSERT_TRUE(missingTextureDirectory.isValid());
+    material.baseColorTexture = ArtifactCore::UniString(
+        missingTextureDirectory.filePath(QStringLiteral("missing-base.png")));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingBaseColorPixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(missingBaseColorPixel[channel],
+                    clearedBaseColorMapPixel[channel], 0.01f)
+            << "a missing base-color map should preserve scalar color, channel "
+            << channel;
+    }
+
+    material.baseColorTexture = ArtifactCore::UniString();
+    material.metallicRoughnessTexture = ArtifactCore::UniString();
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scalarSurfacePixel = pixelAt(16, 16);
+
+    material.metallicRoughnessTexture = ArtifactCore::UniString(
+        missingTextureDirectory.filePath(
+            QStringLiteral("missing-metallic-roughness.png")));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-color-surface-maps"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingSurfacePixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(missingSurfacePixel[channel], scalarSurfacePixel[channel],
+                    0.01f)
+            << "a missing metallic-roughness map should preserve scalar "
+               "factors, channel " << channel;
+    }
+
 }
 
-TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
+TEST_F(RayTracingAcceptanceTest, SelectsMetallicAndRoughnessTextureUvSetsTogether) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-metallic-roughness-uv-sets", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-metallic-roughness-uv-sets"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data(),
+        nullptr, mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString metallicMapPath = textureDirectory.filePath(
+        QStringLiteral("combined-metallic.png"));
+    const QString roughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("combined-roughness.png"));
+    auto makeHorizontalRamp = [](const QString& path) {
+        QImage map(8, 2, QImage::Format_RGBA8888);
+        if (map.isNull()) {
+            return false;
+        }
+        for (int y = 0; y < map.height(); ++y) {
+            auto* row = map.scanLine(y);
+            for (int x = 0; x < map.width(); ++x) {
+                auto* pixel = row + x * 4;
+                pixel[0] = x < 4 ? 0 : 255;
+                pixel[1] = pixel[2] = pixel[3] = 255;
+            }
+        }
+        return map.save(path, "PNG");
+    };
+    ASSERT_TRUE(makeHorizontalRamp(metallicMapPath));
+    ASSERT_TRUE(makeHorizontalRamp(roughnessMapPath));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.metallic = 1.0f;
+    material.roughness = 1.0f;
+    material.metallicTexture = ArtifactCore::UniString(metallicMapPath);
+    material.roughnessTexture = ArtifactCore::UniString(roughnessMapPath);
+    const ArtifactCore::UniString geometryName(
+        "pbr-metallic-roughness-uv-sets");
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(geometryName, material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto bothUv0Left = pixelAt(8, 16);
+    const auto bothUv0Right = pixelAt(24, 16);
+    EXPECT_GT(std::max(std::fabs(bothUv0Left[0] - bothUv0Right[0]),
+                       std::max(std::fabs(bothUv0Left[1] - bothUv0Right[1]),
+                                std::fabs(bothUv0Left[2] - bothUv0Right[2]))),
+              0.02f)
+        << "both independent maps should contribute while using UV0";
+
+    material.metallicTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(geometryName, material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto metallicUv1Left = pixelAt(8, 16);
+    const auto metallicUv1Right = pixelAt(24, 16);
+    float metallicRoutingDifference = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        metallicRoutingDifference = std::max(
+            metallicRoutingDifference,
+            std::fabs(metallicUv1Left[channel] - bothUv0Left[channel]));
+        metallicRoutingDifference = std::max(
+            metallicRoutingDifference,
+            std::fabs(metallicUv1Right[channel] - bothUv0Right[channel]));
+    }
+    EXPECT_GT(metallicRoutingDifference, 0.02f)
+        << "switching metallic to UV1 should affect output with roughness still on UV0";
+
+    material.metallicTextureUvSet = 0;
+    material.roughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(geometryName, material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv1Left = pixelAt(8, 16);
+    const auto roughnessUv1Right = pixelAt(24, 16);
+    float roughnessRoutingDifference = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        roughnessRoutingDifference = std::max(
+            roughnessRoutingDifference,
+            std::fabs(roughnessUv1Left[channel] - bothUv0Left[channel]));
+        roughnessRoutingDifference = std::max(
+            roughnessRoutingDifference,
+            std::fabs(roughnessUv1Right[channel] - bothUv0Right[channel]));
+    }
+    EXPECT_GT(roughnessRoutingDifference, 0.02f)
+        << "switching roughness to UV1 should affect output with metallic still on UV0";
+}
+
+TEST_F(RayTracingAcceptanceTest, SelectsIndependentMetallicTextureUvSet) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-metallic-uv-set", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), vertices.data(), 4,
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString metallicMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-metallic.png"));
+    QImage metallicMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(metallicMap.isNull());
+    for (int y = 0; y < metallicMap.height(); ++y) {
+        auto* row = metallicMap.scanLine(y);
+        for (int x = 0; x < metallicMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(metallicMap.save(metallicMapPath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.metallic = 1.0f;
+    material.roughness = 0.4f;
+    material.metallicTexture = ArtifactCore::UniString(metallicMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv0Left = pixelAt(8, 16);
+    const auto uv0Right = pixelAt(24, 16);
+    const float uv0Difference = std::max(
+        std::fabs(uv0Left[0] - uv0Right[0]),
+        std::max(std::fabs(uv0Left[1] - uv0Right[1]),
+                 std::fabs(uv0Left[2] - uv0Right[2])));
+    EXPECT_GT(uv0Difference, 0.02f)
+        << "the metallic map's red channel should distinguish the two UV0 halves";
+
+    QImage metallicOtherChannelsChanged = metallicMap;
+    for (int y = 0; y < metallicOtherChannelsChanged.height(); ++y) {
+        auto* row = metallicOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < metallicOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[1] = 0;
+            pixel[2] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const QString metallicOtherChannelsPath = textureDirectory.filePath(
+        QStringLiteral("independent-metallic-other-channels.png"));
+    ASSERT_TRUE(metallicOtherChannelsChanged.save(
+        metallicOtherChannelsPath, "PNG"));
+    material.metallicTexture =
+        ArtifactCore::UniString(metallicOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto otherChannelsChangedLeft = pixelAt(8, 16);
+    const auto otherChannelsChangedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(otherChannelsChangedLeft[channel], uv0Left[channel], 0.02f)
+            << "independent metallic should read red only, left channel "
+            << channel;
+        EXPECT_NEAR(otherChannelsChangedRight[channel], uv0Right[channel],
+                    0.02f)
+            << "independent metallic should read red only, right channel "
+            << channel;
+    }
+    material.metallicTexture = ArtifactCore::UniString(metallicMapPath);
+
+    const QString halfMetallicMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-metallic-half.png"));
+    QImage halfMetallicMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(halfMetallicMap.isNull());
+    for (int y = 0; y < halfMetallicMap.height(); ++y) {
+        auto* row = halfMetallicMap.scanLine(y);
+        for (int x = 0; x < halfMetallicMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 128;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(halfMetallicMap.save(halfMetallicMapPath, "PNG"));
+
+    constexpr float halfMetallicFactor = 128.0f / 255.0f;
+    material.metallic = halfMetallicFactor;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto factorScaledLeft = pixelAt(8, 16);
+    const auto factorScaledRight = pixelAt(24, 16);
+
+    material.metallic = 1.0f;
+    material.metallicTexture = ArtifactCore::UniString(halfMetallicMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto mapScaledLeft = pixelAt(8, 16);
+    const auto mapScaledRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(factorScaledLeft[channel], mapScaledLeft[channel], 0.035f)
+            << "metallic scalar should multiply the sampled red channel, left "
+               "output channel " << channel;
+        EXPECT_NEAR(factorScaledRight[channel], mapScaledRight[channel], 0.035f)
+            << "metallic scalar and a half-valued map should produce the same "
+               "effective factor, output channel " << channel;
+    }
+
+    material.metallicTexture = ArtifactCore::UniString(metallicMapPath);
+    material.metallic = 1.0f;
+    material.metallicTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1Left = pixelAt(8, 16);
+    const auto uv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(uv1Left[channel], uv0Right[channel], 0.035f)
+            << "metallic UV1 should mirror the left sample, channel " << channel;
+        EXPECT_NEAR(uv1Right[channel], uv0Left[channel], 0.035f)
+            << "metallic UV1 should mirror the right sample, channel " << channel;
+    }
+
+    material.metallicTextureUvSet = 0;
+    material.metallicTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetLeft = pixelAt(8, 16);
+    const auto offsetRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetLeft[channel], uv0Right[channel], 0.035f)
+            << "metallic-map U offset should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(offsetRight[channel], uv0Left[channel], 0.035f)
+            << "metallic-map U offset should mirror the right sample, channel "
+            << channel;
+    }
+
+    material.metallicTextureUvOffsetU = 0.0f;
+    material.metallicTextureUvScaleU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledLeft = pixelAt(8, 16);
+    const auto scaledRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledLeft[channel], uv0Left[channel], 0.035f)
+            << "metallic-map U scale should keep the left texel on the dark half";
+        EXPECT_NEAR(scaledRight[channel], uv0Left[channel], 0.035f)
+            << "metallic-map U scale should repeat the dark half on the right";
+    }
+
+    material.metallicTextureUvScaleU = 1.0f;
+    material.metallicTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedLeft = pixelAt(8, 16);
+    const auto rotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedLeft[channel], uv0Right[channel], 0.035f)
+            << "metallic-map 180-degree rotation should mirror the left sample";
+        EXPECT_NEAR(rotatedRight[channel], uv0Left[channel], 0.035f)
+            << "metallic-map 180-degree rotation should mirror the right sample";
+    }
+
+    const QString verticalMetallicMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-metallic-vertical.png"));
+    QImage verticalMetallicMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalMetallicMap.isNull());
+    for (int y = 0; y < verticalMetallicMap.height(); ++y) {
+        auto* row = verticalMetallicMap.scanLine(y);
+        const uchar red = y < 4 ? 0 : 255;
+        for (int x = 0; x < verticalMetallicMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = red;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalMetallicMap.save(verticalMetallicMapPath, "PNG"));
+    material.metallicTexture = ArtifactCore::UniString(verticalMetallicMapPath);
+    material.metallicTextureUvRotationDegrees = 0.0f;
+    material.metallicTextureUvScaleV = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uvVTop = pixelAt(16, 8);
+    const auto uvVBottom = pixelAt(16, 24);
+    EXPECT_GT(std::fabs(uvVTop[0] - uvVBottom[0]), 0.02f)
+        << "the vertical metallic map should distinguish its V samples";
+
+    material.metallicTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetVTop = pixelAt(16, 8);
+    const auto offsetVBottom = pixelAt(16, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetVTop[channel], uvVBottom[channel], 0.035f)
+            << "metallic-map V offset should mirror the top sample";
+        EXPECT_NEAR(offsetVBottom[channel], uvVTop[channel], 0.035f)
+            << "metallic-map V offset should mirror the bottom sample";
+    }
+
+    material.metallicTextureUvOffsetV = 0.0f;
+    material.metallicTextureUvScaleV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-metallic-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledVTop = pixelAt(16, 8);
+    const auto scaledVBottom = pixelAt(16, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledVTop[channel], scaledVBottom[channel], 0.035f)
+            << "metallic-map V scale should compress samples into one half";
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest, SelectsIndependentRoughnessTextureUvSet) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-roughness-uv-set", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), vertices.data(), 4,
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString roughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-roughness.png"));
+    QImage roughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(roughnessMap.isNull());
+    for (int y = 0; y < roughnessMap.height(); ++y) {
+        auto* row = roughnessMap.scanLine(y);
+        for (int x = 0; x < roughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 255;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(roughnessMap.save(roughnessMapPath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.metallic = 0.0f;
+    material.roughness = 1.0f;
+    material.roughnessTexture = ArtifactCore::UniString(roughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv0Left = pixelAt(8, 16);
+    const auto uv0Right = pixelAt(24, 16);
+    const float uv0Difference = std::max(
+        std::fabs(uv0Left[0] - uv0Right[0]),
+        std::max(std::fabs(uv0Left[1] - uv0Right[1]),
+                 std::fabs(uv0Left[2] - uv0Right[2])));
+    EXPECT_GT(uv0Difference, 0.02f)
+        << "the roughness map's red channel should distinguish the two UV0 halves";
+
+    QImage roughnessOtherChannelsChanged = roughnessMap;
+    for (int y = 0; y < roughnessOtherChannelsChanged.height(); ++y) {
+        auto* row = roughnessOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < roughnessOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[1] = 0;
+            pixel[2] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const QString roughnessOtherChannelsPath = textureDirectory.filePath(
+        QStringLiteral("independent-roughness-other-channels.png"));
+    ASSERT_TRUE(roughnessOtherChannelsChanged.save(
+        roughnessOtherChannelsPath, "PNG"));
+    material.roughnessTexture =
+        ArtifactCore::UniString(roughnessOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto otherChannelsChangedLeft = pixelAt(8, 16);
+    const auto otherChannelsChangedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(otherChannelsChangedLeft[channel], uv0Left[channel], 0.02f)
+            << "roughness should read red independently, left channel "
+            << channel;
+        EXPECT_NEAR(otherChannelsChangedRight[channel], uv0Right[channel], 0.02f)
+            << "roughness should read red independently, right channel "
+            << channel;
+    }
+    material.roughnessTexture = ArtifactCore::UniString(roughnessMapPath);
+
+    const QString halfRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-roughness-half.png"));
+    QImage halfRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(halfRoughnessMap.isNull());
+    for (int y = 0; y < halfRoughnessMap.height(); ++y) {
+        auto* row = halfRoughnessMap.scanLine(y);
+        for (int x = 0; x < halfRoughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 128;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(halfRoughnessMap.save(halfRoughnessMapPath, "PNG"));
+
+    constexpr float halfRoughnessFactor = 128.0f / 255.0f;
+    material.roughness = halfRoughnessFactor;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto factorScaledLeft = pixelAt(8, 16);
+    const auto factorScaledRight = pixelAt(24, 16);
+
+    material.roughness = 1.0f;
+    material.roughnessTexture = ArtifactCore::UniString(halfRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto mapScaledLeft = pixelAt(8, 16);
+    const auto mapScaledRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(factorScaledLeft[channel], mapScaledLeft[channel], 0.035f)
+            << "roughness scalar should multiply the sampled red channel, left "
+               "output channel " << channel;
+        EXPECT_NEAR(factorScaledRight[channel], mapScaledRight[channel], 0.035f)
+            << "roughness scalar and a half-valued map should produce the same "
+               "effective factor, output channel " << channel;
+    }
+
+    material.roughnessTexture = ArtifactCore::UniString(roughnessMapPath);
+    material.roughness = 1.0f;
+
+    material.roughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1Left = pixelAt(8, 16);
+    const auto uv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(uv1Left[channel], uv0Right[channel], 0.035f)
+            << "roughness UV1 should mirror the left sample, channel " << channel;
+        EXPECT_NEAR(uv1Right[channel], uv0Left[channel], 0.035f)
+            << "roughness UV1 should mirror the right sample, channel " << channel;
+    }
+
+    material.roughnessTextureUvSet = 0;
+    material.roughnessTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetLeft = pixelAt(8, 16);
+    const auto offsetRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetLeft[channel], uv0Right[channel], 0.035f)
+            << "roughness-map U offset should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(offsetRight[channel], uv0Left[channel], 0.035f)
+            << "roughness-map U offset should mirror the right sample, channel "
+            << channel;
+    }
+
+    material.roughnessTextureUvOffsetU = 0.0f;
+    material.roughnessTextureUvScaleU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledLeft = pixelAt(8, 16);
+    const auto scaledRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledLeft[channel], uv0Left[channel], 0.035f)
+            << "roughness-map U scale should keep the left texel on the dark half";
+        EXPECT_NEAR(scaledRight[channel], uv0Left[channel], 0.035f)
+            << "roughness-map U scale should repeat the dark half on the right";
+    }
+
+    material.roughnessTextureUvScaleU = 1.0f;
+    material.roughnessTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedLeft = pixelAt(8, 16);
+    const auto rotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedLeft[channel], uv0Right[channel], 0.035f)
+            << "roughness-map 180-degree rotation should mirror the left sample";
+        EXPECT_NEAR(rotatedRight[channel], uv0Left[channel], 0.035f)
+            << "roughness-map 180-degree rotation should mirror the right sample";
+    }
+
+    const QString verticalRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("independent-roughness-vertical.png"));
+    QImage verticalRoughnessMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalRoughnessMap.isNull());
+    for (int y = 0; y < verticalRoughnessMap.height(); ++y) {
+        auto* row = verticalRoughnessMap.scanLine(y);
+        const uchar red = y < 4 ? 0 : 255;
+        for (int x = 0; x < verticalRoughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = red;
+            pixel[1] = pixel[2] = pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalRoughnessMap.save(verticalRoughnessMapPath, "PNG"));
+    material.roughnessTexture = ArtifactCore::UniString(verticalRoughnessMapPath);
+    material.roughnessTextureUvRotationDegrees = 0.0f;
+    material.roughnessTextureUvScaleV = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uvVTop = pixelAt(16, 8);
+    const auto uvVBottom = pixelAt(16, 24);
+    EXPECT_GT(std::fabs(uvVTop[0] - uvVBottom[0]), 0.02f)
+        << "the vertical roughness map should distinguish its V samples";
+
+    material.roughnessTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetVTop = pixelAt(16, 8);
+    const auto offsetVBottom = pixelAt(16, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetVTop[channel], uvVBottom[channel], 0.035f)
+            << "roughness-map V offset should mirror the top sample";
+        EXPECT_NEAR(offsetVBottom[channel], uvVTop[channel], 0.035f)
+            << "roughness-map V offset should mirror the bottom sample";
+    }
+
+    material.roughnessTextureUvOffsetV = 0.0f;
+    material.roughnessTextureUvScaleV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-roughness-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledVTop = pixelAt(16, 8);
+    const auto scaledVBottom = pixelAt(16, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledVTop[channel], scaledVBottom[channel], 0.035f)
+            << "roughness-map V scale should compress samples into one half";
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest, SamplesSrgbAndHdrEmissionTextures) {
     constexpr std::array<float, 12> vertices{
         -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
          0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
@@ -647,8 +5648,10 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
         ArtifactCore::UniString("pbr-emission-texture"), vertices.data(), 4,
         indices.data(), 6, nullptr, nullptr, uvs.data()));
 
-    const auto texturePath = std::filesystem::temp_directory_path() /
-                             "artifact-rt-emission-texture.png";
+    QTemporaryDir temporaryDirectory;
+    ASSERT_TRUE(temporaryDirectory.isValid());
+    const QString texturePath = temporaryDirectory.filePath(
+        QStringLiteral("emission-srgb.png"));
     QImage emissionImage(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(emissionImage.isNull());
     for (int y = 0; y < emissionImage.height(); ++y) {
@@ -661,8 +5664,7 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
             pixel[3] = 255;
         }
     }
-    ASSERT_TRUE(emissionImage.save(
-        QString::fromStdString(texturePath.string()), "PNG"));
+    ASSERT_TRUE(emissionImage.save(texturePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
@@ -671,8 +5673,7 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
     material.emissionColor[0] = material.emissionColor[1] =
         material.emissionColor[2] = 1.0f;
     material.emissionStrength = 1.0f;
-    material.emissionTexture = ArtifactCore::UniString(
-        QString::fromStdString(texturePath.string()));
+    material.emissionTexture = ArtifactCore::UniString(texturePath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-emission-texture"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -684,8 +5685,1176 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
     const auto rightEmission = pixelAt(24, 16);
     EXPECT_GT(leftEmission[0], leftEmission[1] + 0.2f);
     EXPECT_GT(rightEmission[1], rightEmission[0] + 0.2f);
-    std::error_code ignored;
-    std::filesystem::remove(texturePath, ignored);
+
+    QImage emissionWithTransparentTexels = emissionImage;
+    for (int y = 0; y < emissionWithTransparentTexels.height(); ++y) {
+        auto* row = emissionWithTransparentTexels.scanLine(y);
+        for (int x = 0; x < emissionWithTransparentTexels.width() / 2; ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const QString transparentEmissionPath = temporaryDirectory.filePath(
+        QStringLiteral("emission-transparent-texels.png"));
+    ASSERT_TRUE(emissionWithTransparentTexels.save(
+        transparentEmissionPath, "PNG"));
+    material.emissionTexture = ArtifactCore::UniString(transparentEmissionPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentTexelEmission = pixelAt(8, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(transparentTexelEmission[channel], leftEmission[channel],
+                    0.01f)
+            << "emission texture alpha should not modulate RGB, channel "
+            << channel;
+    }
+
+    constexpr std::array<float, 8 * 2 * 4> hdrPixels = [] {
+        std::array<float, 8 * 2 * 4> pixels{};
+        for (int y = 0; y < 2; ++y) {
+            for (int x = 0; x < 8; ++x) {
+                const size_t offset = static_cast<size_t>(y * 8 + x) * 4;
+                pixels[offset + 0] = x < 4 ? 4.0f : 0.0f;
+                pixels[offset + 1] = x < 4 ? 0.0f : 2.0f;
+                pixels[offset + 2] = x < 4 ? 0.25f : 0.0f;
+                pixels[offset + 3] = 1.0f;
+            }
+        }
+        return pixels;
+    }();
+    const QString hdrTexturePath = temporaryDirectory.filePath(
+        QStringLiteral("emission-hdr.exr"));
+    ArtifactCore::OpenExr exr;
+    ASSERT_TRUE(exr.writeRGBA32F(hdrTexturePath, hdrPixels.data(), 8, 2));
+    material.emissionTexture = ArtifactCore::UniString(hdrTexturePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    ASSERT_TRUE(saveOutputFrame("26-pbr-hdr-emission-texture.exr-source.png"));
+    const auto leftHdrEmission = pixelAt(8, 16);
+    const auto rightHdrEmission = pixelAt(24, 16);
+    EXPECT_GT(leftHdrEmission[0], 3.5f);
+    EXPECT_LT(leftHdrEmission[1], 0.1f);
+    EXPECT_NEAR(leftHdrEmission[2], 0.25f, 0.02f);
+    EXPECT_GT(rightHdrEmission[1], 1.5f);
+    EXPECT_LT(rightHdrEmission[0], 0.1f);
+    EXPECT_LT(rightHdrEmission[2], 0.02f)
+        << "zero-valued HDR texture channels should suppress scalar emission";
+
+    material.emissionColor[0] = 0.5f;
+    material.emissionColor[1] = 0.25f;
+    material.emissionColor[2] = 0.75f;
+    material.emissionStrength = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto modulatedHdrEmission = pixelAt(8, 16);
+    EXPECT_NEAR(modulatedHdrEmission[0], 4.0f * 0.214041f * 2.0f, 0.03f)
+        << "HDR emission red should multiply the sRGB-decoded scalar color and strength";
+    EXPECT_LT(modulatedHdrEmission[1], 0.02f);
+    EXPECT_NEAR(modulatedHdrEmission[2], 0.25f * 0.522522f * 2.0f, 0.03f)
+        << "HDR emission blue should modulate its independent scalar channel";
+
+    constexpr std::array<float, 8 * 2 * 4> sanitizedHdrPixels = [] {
+        std::array<float, 8 * 2 * 4> pixels{};
+        for (int y = 0; y < 2; ++y) {
+            for (int x = 0; x < 8; ++x) {
+                const size_t offset = static_cast<size_t>(y * 8 + x) * 4;
+                pixels[offset + 0] = x < 4
+                    ? std::numeric_limits<float>::quiet_NaN() : -1.0f;
+                pixels[offset + 1] = 0.5f;
+                pixels[offset + 2] = 0.25f;
+                pixels[offset + 3] = 1.0f;
+            }
+        }
+        return pixels;
+    }();
+    const QString sanitizedHdrTexturePath = temporaryDirectory.filePath(
+        QStringLiteral("emission-sanitized.exr"));
+    ASSERT_TRUE(exr.writeRGBA32F(sanitizedHdrTexturePath,
+                                 sanitizedHdrPixels.data(), 8, 2));
+    material.emissionTexture = ArtifactCore::UniString(sanitizedHdrTexturePath);
+    material.emissionColor[0] = material.emissionColor[1] =
+        material.emissionColor[2] = 1.0f;
+    material.emissionStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto nonFiniteHdrEmission = pixelAt(8, 16);
+    const auto negativeHdrEmission = pixelAt(24, 16);
+    EXPECT_NEAR(nonFiniteHdrEmission[0], 0.0f, 1.0e-5f)
+        << "non-finite HDR emission texture red should sanitize to zero";
+    EXPECT_NEAR(negativeHdrEmission[0], 0.0f, 1.0e-5f)
+        << "negative HDR emission texture red should sanitize to zero";
+    EXPECT_NEAR(nonFiniteHdrEmission[1], 0.5f, 0.02f);
+    EXPECT_NEAR(nonFiniteHdrEmission[2], 0.25f, 0.02f);
+    EXPECT_NEAR(negativeHdrEmission[1], 0.5f, 0.02f);
+    EXPECT_NEAR(negativeHdrEmission[2], 0.25f, 0.02f);
+
+    material.emissionColor[0] = material.emissionColor[1] =
+        material.emissionColor[2] = 1.0f;
+    material.emissionStrength = 1.0f;
+    material.emissionTexture = ArtifactCore::UniString();
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scalarEmission = pixelAt(16, 16);
+
+    material.emissionTexture = ArtifactCore::UniString(
+        temporaryDirectory.filePath(QStringLiteral("missing-emission.png")));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingTextureEmission = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(missingTextureEmission[channel], scalarEmission[channel],
+                    0.01f)
+            << "a missing emission texture should preserve scalar emission, "
+               "channel " << channel;
+    }
+
+    material.emissionTexture = ArtifactCore::UniString();
+    material.emissionColor[0] = 0.5f;
+    material.emissionColor[1] = 0.25f;
+    material.emissionColor[2] = 0.0f;
+    material.emissionStrength = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scalarColorEmission = pixelAt(16, 16);
+    EXPECT_NEAR(scalarColorEmission[0], 0.42808f, 0.01f)
+        << "scalar emission red should convert sRGB 0.5 to linear and scale by strength";
+    EXPECT_NEAR(scalarColorEmission[1], 0.10175f, 0.01f)
+        << "scalar emission green should convert sRGB 0.25 to linear and scale by strength";
+    EXPECT_NEAR(scalarColorEmission[2], 0.0f, 0.01f);
+
+    material.emissionStrength = -1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto negativeEmissionStrength = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(negativeEmissionStrength[channel], 0.0f, 1.0e-5f)
+            << "negative emission strength should clamp to zero, channel "
+            << channel;
+    }
+
+    material.emissionStrength = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroEmissionStrength = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(zeroEmissionStrength[channel], 0.0f, 1.0e-5f)
+            << "zero emission strength should suppress scalar emission, channel "
+            << channel;
+    }
+
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.2f;
+    material.sheen = 1.0f;
+    material.sheenRoughness = 0.25f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto layeredWithoutEmission = pixelAt(16, 16);
+
+    material.emissionStrength = 2.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-emission-texture"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto layeredWithEmission = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        const float layeredEmissionContribution =
+            layeredWithEmission[channel] - layeredWithoutEmission[channel];
+        EXPECT_TRUE(std::isfinite(layeredEmissionContribution))
+            << "layered emission contribution should remain finite, channel "
+            << channel;
+        EXPECT_GE(layeredEmissionContribution, 0.0f)
+            << "layered emission contribution should be non-negative, channel "
+            << channel;
+        EXPECT_LE(layeredEmissionContribution, scalarColorEmission[channel] +
+                                                  0.01f)
+            << "coat and sheen should not amplify emission beyond its bare "
+            << "response, channel " << channel;
+    }
+    EXPECT_LT(layeredWithEmission[0] - layeredWithoutEmission[0],
+              scalarColorEmission[0] - 0.001f)
+        << "clearcoat and sheen should attenuate emitted red energy";
+    EXPECT_LT(layeredWithEmission[1] - layeredWithoutEmission[1],
+              scalarColorEmission[1] - 0.001f)
+        << "clearcoat and sheen should attenuate emitted green energy";
+}
+
+TEST_F(RayTracingAcceptanceTest, SelectsSheenTextureUvSets) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-sheen-texture-uv-set", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), vertices.data(), 4,
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString sheenColorMapPath = textureDirectory.filePath(
+        QStringLiteral("sheen-color.png"));
+    const QString sheenRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("sheen-roughness-alpha.png"));
+    QImage sheenColorMap(8, 2, QImage::Format_RGBA8888);
+    QImage sheenRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(sheenColorMap.isNull());
+    ASSERT_FALSE(sheenRoughnessMap.isNull());
+    for (int y = 0; y < sheenColorMap.height(); ++y) {
+        auto* row = sheenColorMap.scanLine(y);
+        auto* roughnessRow = sheenRoughnessMap.scanLine(y);
+        for (int x = 0; x < sheenColorMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const uchar value = x < 4 ? 0 : 255;
+            pixel[0] = pixel[1] = pixel[2] = value;
+            pixel[3] = 255;
+
+            auto* roughnessPixel = roughnessRow + x * 4;
+            roughnessPixel[0] = 255;
+            roughnessPixel[1] = 0;
+            roughnessPixel[2] = 255;
+            roughnessPixel[3] = value;
+        }
+    }
+    ASSERT_TRUE(sheenColorMap.save(sheenColorMapPath, "PNG"));
+    ASSERT_TRUE(sheenRoughnessMap.save(sheenRoughnessMapPath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.sheen = 1.0f;
+    material.sheenRoughness = 0.5f;
+    material.sheenColorTexture = ArtifactCore::UniString(sheenColorMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv0Left = pixelAt(8, 16);
+    const auto uv0Right = pixelAt(24, 16);
+    const float uv0Difference = std::max(
+        std::fabs(uv0Left[0] - uv0Right[0]),
+        std::max(std::fabs(uv0Left[1] - uv0Right[1]),
+                 std::fabs(uv0Left[2] - uv0Right[2])));
+    EXPECT_GT(uv0Difference, 0.02f)
+        << "the sheen color map should distinguish the two UV0 halves";
+
+    material.sheenColorTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedColorLeft = pixelAt(8, 16);
+    const auto rotatedColorRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedColorLeft[channel], uv0Right[channel], 0.035f)
+            << "sheen color UV rotation should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(rotatedColorRight[channel], uv0Left[channel], 0.035f)
+            << "sheen color UV rotation should mirror the right sample, channel "
+            << channel;
+    }
+    material.sheenColorTextureUvRotationDegrees = 0.0f;
+
+    material.sheenColorTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1Left = pixelAt(8, 16);
+    const auto uv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(uv1Left[channel], uv0Right[channel], 0.035f)
+            << "sheen color UV1 should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(uv1Right[channel], uv0Left[channel], 0.035f)
+            << "sheen color UV1 should mirror the right sample, channel "
+            << channel;
+    }
+
+    material.sheenColorTexture = ArtifactCore::UniString();
+    material.sheenRoughness = 1.0f;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenRoughnessMapPath);
+    material.sheenRoughnessTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv0Left = pixelAt(8, 16);
+    const auto roughnessUv0Right = pixelAt(24, 16);
+    const float roughnessUv0Difference = std::max(
+        std::fabs(roughnessUv0Left[0] - roughnessUv0Right[0]),
+        std::max(std::fabs(roughnessUv0Left[1] - roughnessUv0Right[1]),
+                 std::fabs(roughnessUv0Left[2] - roughnessUv0Right[2])));
+    EXPECT_GT(roughnessUv0Difference, 0.02f)
+        << "the sheen roughness map should distinguish the two UV0 halves";
+
+    QImage sheenRoughnessOtherChannelsChanged = sheenRoughnessMap;
+    for (int y = 0; y < sheenRoughnessOtherChannelsChanged.height(); ++y) {
+        auto* row = sheenRoughnessOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < sheenRoughnessOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 0;
+            pixel[1] = 255;
+            pixel[2] = 0;
+        }
+    }
+    const QString sheenRoughnessOtherChannelsPath = textureDirectory.filePath(
+        QStringLiteral("sheen-roughness-other-channels.png"));
+    ASSERT_TRUE(sheenRoughnessOtherChannelsChanged.save(
+        sheenRoughnessOtherChannelsPath, "PNG"));
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenRoughnessOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto otherChannelsChangedLeft = pixelAt(8, 16);
+    const auto otherChannelsChangedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(otherChannelsChangedLeft[channel], roughnessUv0Left[channel],
+                    0.02f)
+            << "sheen roughness should read alpha independently, left channel "
+            << channel;
+        EXPECT_NEAR(otherChannelsChangedRight[channel],
+                    roughnessUv0Right[channel], 0.02f)
+            << "sheen roughness should read alpha independently, right channel "
+            << channel;
+    }
+
+    material.sheenRoughnessTextureUvSet = 1;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv1Left = pixelAt(8, 16);
+    const auto roughnessUv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughnessUv1Left[channel], roughnessUv0Right[channel],
+                    0.035f)
+            << "sheen roughness UV1 should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(roughnessUv1Right[channel], roughnessUv0Left[channel],
+                    0.035f)
+            << "sheen roughness UV1 should mirror the right sample, channel "
+            << channel;
+    }
+
+    const QString verticalSheenRoughnessPath = textureDirectory.filePath(
+        QStringLiteral("sheen-roughness-v-ramp.png"));
+    QImage verticalSheenRoughnessMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalSheenRoughnessMap.isNull());
+    for (int y = 0; y < verticalSheenRoughnessMap.height(); ++y) {
+        auto* row = verticalSheenRoughnessMap.scanLine(y);
+        for (int x = 0; x < verticalSheenRoughnessMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = 0;
+            pixel[2] = 255;
+            pixel[3] = y < 4 ? 0 : 255;
+        }
+    }
+    ASSERT_TRUE(verticalSheenRoughnessMap.save(
+        verticalSheenRoughnessPath, "PNG"));
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(verticalSheenRoughnessPath);
+    material.sheenRoughnessTextureUvSet = 0;
+    material.sheenRoughnessTextureUvScaleU = 1.0f;
+    material.sheenRoughnessTextureUvScaleV = 1.0f;
+    material.sheenRoughnessTextureUvOffsetU = 0.0f;
+    material.sheenRoughnessTextureUvOffsetV = 0.0f;
+    material.sheenRoughnessTextureUvRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto sheenRoughnessV0Top = pixelAt(12, 8);
+    const auto sheenRoughnessV0Bottom = pixelAt(12, 24);
+    const float sheenRoughnessV0Difference = std::max(
+        std::fabs(sheenRoughnessV0Top[0] - sheenRoughnessV0Bottom[0]),
+        std::max(std::fabs(sheenRoughnessV0Top[1] - sheenRoughnessV0Bottom[1]),
+                 std::fabs(sheenRoughnessV0Top[2] - sheenRoughnessV0Bottom[2])));
+    EXPECT_GT(sheenRoughnessV0Difference, 0.02f)
+        << "sheen roughness alpha should vary across the vertical UV ramp";
+
+    material.sheenRoughnessTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto sheenRoughnessVOffsetTop = pixelAt(12, 8);
+    const auto sheenRoughnessVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(sheenRoughnessVOffsetTop[channel],
+                    sheenRoughnessV0Bottom[channel], 0.04f)
+            << "sheen roughness V offset should mirror the top sample, channel "
+            << channel;
+        EXPECT_NEAR(sheenRoughnessVOffsetBottom[channel],
+                    sheenRoughnessV0Top[channel], 0.04f)
+            << "sheen roughness V offset should mirror the bottom sample, "
+               "channel "
+            << channel;
+    }
+
+    material.sheenRoughnessTextureUvOffsetV = 0.0f;
+    material.sheenRoughnessTextureUvScaleV = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto sheenRoughnessVScaleTop = pixelAt(12, 8);
+    const auto sheenRoughnessVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(sheenRoughnessVScaleTop[channel],
+                    sheenRoughnessV0Bottom[channel], 0.04f)
+            << "sheen roughness V scale should repeat the bottom sample on top, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(sheenRoughnessVScaleBottom[channel],
+                    sheenRoughnessV0Top[channel], 0.04f)
+            << "sheen roughness V scale should repeat the top sample on bottom, "
+               "channel "
+            << channel;
+    }
+
+    material.sheenRoughnessTextureUvSet = 0;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenRoughnessMapPath);
+    material.sheenRoughnessTextureUvScaleV = 1.0f;
+    material.sheenRoughnessTextureUvOffsetV = 0.0f;
+    material.sheenRoughness = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfScalarFullAlpha = pixelAt(24, 16);
+
+    QImage halfAlphaSheenRoughnessMap = sheenRoughnessMap;
+    for (int y = 0; y < halfAlphaSheenRoughnessMap.height(); ++y) {
+        auto* row = halfAlphaSheenRoughnessMap.scanLine(y);
+        for (int x = halfAlphaSheenRoughnessMap.width() / 2;
+             x < halfAlphaSheenRoughnessMap.width(); ++x) {
+            row[x * 4 + 3] = 128;
+        }
+    }
+    const QString halfAlphaSheenRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("sheen-roughness-half-alpha.png"));
+    ASSERT_TRUE(halfAlphaSheenRoughnessMap.save(
+        halfAlphaSheenRoughnessMapPath, "PNG"));
+    material.sheenRoughness = 1.0f;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(halfAlphaSheenRoughnessMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfAlphaFullScalar = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfAlphaFullScalar[channel], halfScalarFullAlpha[channel],
+                    0.035f)
+            << "sheen roughness scalar should multiply texture alpha, channel "
+            << channel;
+    }
+
+    const QString whiteSheenColorPath = textureDirectory.filePath(
+        QStringLiteral("sheen-color-white.png"));
+    const QString halfLinearSheenColorPath = textureDirectory.filePath(
+        QStringLiteral("sheen-color-half-linear.png"));
+    QImage whiteSheenColor(2, 2, QImage::Format_RGBA8888);
+    QImage halfLinearSheenColor(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(whiteSheenColor.isNull());
+    ASSERT_FALSE(halfLinearSheenColor.isNull());
+    whiteSheenColor.fill(QColor(255, 255, 255, 255));
+    halfLinearSheenColor.fill(QColor(188, 188, 188, 255));
+    ASSERT_TRUE(whiteSheenColor.save(whiteSheenColorPath, "PNG"));
+    ASSERT_TRUE(halfLinearSheenColor.save(halfLinearSheenColorPath, "PNG"));
+    material.sheenRoughnessTexture = ArtifactCore::UniString();
+    material.sheenRoughness = 0.5f;
+    material.sheenColorTexture = ArtifactCore::UniString(whiteSheenColorPath);
+    material.sheenTint[0] = material.sheenTint[1] =
+        material.sheenTint[2] = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfTintWhiteTexture = pixelAt(16, 16);
+
+    material.sheenColorTexture =
+        ArtifactCore::UniString(halfLinearSheenColorPath);
+    material.sheenTint[0] = material.sheenTint[1] =
+        material.sheenTint[2] = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfLinearTextureWhiteTint = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfLinearTextureWhiteTint[channel],
+                    halfTintWhiteTexture[channel], 0.025f)
+            << "sheen tint should multiply the linearized color texture, channel "
+            << channel;
+    }
+
+    QImage transparentSheenColor = halfLinearSheenColor;
+    for (int y = 0; y < transparentSheenColor.height(); ++y) {
+        auto* row = transparentSheenColor.scanLine(y);
+        for (int x = 0; x < transparentSheenColor.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const QString transparentSheenColorPath = textureDirectory.filePath(
+        QStringLiteral("sheen-color-transparent.png"));
+    ASSERT_TRUE(transparentSheenColor.save(transparentSheenColorPath, "PNG"));
+    material.sheenColorTexture = ArtifactCore::UniString(transparentSheenColorPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentMapPixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(transparentMapPixel[channel],
+                    halfLinearTextureWhiteTint[channel], 0.02f)
+            << "sheen color alpha should not affect its RGB response, channel "
+            << channel;
+    }
+
+    material.sheen = 1.0f;
+    material.sheenTint[0] = material.sheenTint[1] =
+        material.sheenTint[2] = 1.0f;
+    material.sheenColorTexture = ArtifactCore::UniString(whiteSheenColorPath);
+    material.sheenColorTextureUvSet = 0;
+    material.sheenRoughness = 0.0f;
+    material.sheenRoughnessTexture = ArtifactCore::UniString();
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothSheenReference = pixelAt(24, 16);
+
+    material.sheen = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto noSheenReferenceLeft = pixelAt(8, 16);
+
+    material.sheen = 1.0f;
+    material.sheenRoughness = 1.0f;
+    material.sheenColorTexture = ArtifactCore::UniString(sheenColorMapPath);
+    material.sheenColorTextureUvSet = 0;
+    material.sheenRoughnessTexture =
+        ArtifactCore::UniString(sheenRoughnessMapPath);
+    material.sheenRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto splitUvLeft = pixelAt(8, 16);
+    const auto splitUvRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(splitUvLeft[channel], noSheenReferenceLeft[channel], 0.035f)
+            << "black UV0 sheen color should suppress sheen even when roughness "
+               "uses UV1, channel "
+            << channel;
+        EXPECT_NEAR(splitUvRight[channel], smoothSheenReference[channel],
+                    0.035f)
+            << "white UV0 sheen color and mirrored UV1 alpha should select the "
+               "smooth sheen sample, channel "
+            << channel;
+    }
+
+    material.sheenRoughnessTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto sameUvSetRight = pixelAt(24, 16);
+    const float roughnessUvSelectorResponse = std::max(
+        std::fabs(sameUvSetRight[0] - splitUvRight[0]),
+        std::max(std::fabs(sameUvSetRight[1] - splitUvRight[1]),
+                 std::fabs(sameUvSetRight[2] - splitUvRight[2])));
+    EXPECT_GT(roughnessUvSelectorResponse, 0.001f)
+        << "changing only the sheen roughness UV set should alter its "
+           "combined-map shading";
+
+    material.sheenRoughnessTextureUvSet = 1;
+    material.sheenColorTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-sheen-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto mirroredColorLeft = pixelAt(8, 16);
+    const auto mirroredColorRight = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(mirroredColorLeft[0] - splitUvLeft[0]), 0.001f)
+        << "changing only the sheen color UV set should alter the left sample";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(mirroredColorRight[channel], noSheenReferenceLeft[channel],
+                    0.035f)
+            << "black mirrored sheen color should suppress sheen independently "
+               "of its UV1 roughness map, channel "
+            << channel;
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest, SelectsClearcoatTextureUvSets) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-clearcoat-texture-uv-set", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data(),
+        nullptr, mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString clearcoatMapPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-ramp.png"));
+    const QString clearcoatRoughnessMapPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-roughness-ramp.png"));
+    QImage clearcoatMap(8, 2, QImage::Format_RGBA8888);
+    QImage clearcoatRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(clearcoatMap.isNull());
+    ASSERT_FALSE(clearcoatRoughnessMap.isNull());
+    for (int y = 0; y < clearcoatMap.height(); ++y) {
+        auto* row = clearcoatMap.scanLine(y);
+        auto* roughnessRow = clearcoatRoughnessMap.scanLine(y);
+        for (int x = 0; x < clearcoatMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = x < 4 ? 0 : 255;
+            pixel[1] = 0;
+            pixel[2] = 255;
+            pixel[3] = 255;
+
+            auto* roughnessPixel = roughnessRow + x * 4;
+            roughnessPixel[0] = 0;
+            roughnessPixel[1] = x < 4 ? 0 : 255;
+            roughnessPixel[2] = 255;
+            roughnessPixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(clearcoatMap.save(clearcoatMapPath, "PNG"));
+    ASSERT_TRUE(clearcoatRoughnessMap.save(clearcoatRoughnessMapPath, "PNG"));
+    const QString smoothRoughnessPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-roughness-smooth.png"));
+    const QString roughRoughnessPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-roughness-rough.png"));
+    QImage smoothRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    QImage roughRoughnessMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(smoothRoughnessMap.isNull());
+    ASSERT_FALSE(roughRoughnessMap.isNull());
+    smoothRoughnessMap.fill(QColor(128, 0, 255, 255));
+    roughRoughnessMap.fill(QColor(128, 255, 255, 255));
+    ASSERT_TRUE(smoothRoughnessMap.save(smoothRoughnessPath, "PNG"));
+    ASSERT_TRUE(roughRoughnessMap.save(roughRoughnessPath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.roughness = 0.4f;
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.2f;
+    material.clearcoatTexture = ArtifactCore::UniString(clearcoatMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto amountUv0Left = pixelAt(8, 16);
+    const auto amountUv0Right = pixelAt(24, 16);
+    const float amountUv0Difference = std::max(
+        std::fabs(amountUv0Left[0] - amountUv0Right[0]),
+        std::max(std::fabs(amountUv0Left[1] - amountUv0Right[1]),
+                 std::fabs(amountUv0Left[2] - amountUv0Right[2])));
+    EXPECT_GT(amountUv0Difference, 0.02f)
+        << "the clearcoat map should distinguish the two UV0 halves";
+
+    QImage clearcoatOtherChannelsChanged = clearcoatMap;
+    for (int y = 0; y < clearcoatOtherChannelsChanged.height(); ++y) {
+        auto* row = clearcoatOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < clearcoatOtherChannelsChanged.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[1] = 255;
+            pixel[2] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const QString clearcoatOtherChannelsChangedPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-other-channels-changed.png"));
+    ASSERT_TRUE(clearcoatOtherChannelsChanged.save(
+        clearcoatOtherChannelsChangedPath, "PNG"));
+    material.clearcoatTexture =
+        ArtifactCore::UniString(clearcoatOtherChannelsChangedPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto changedOtherChannelsLeft = pixelAt(8, 16);
+    const auto changedOtherChannelsRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(changedOtherChannelsLeft[channel], amountUv0Left[channel],
+                    0.02f)
+            << "clearcoat factor should read red independently, left channel "
+            << channel;
+        EXPECT_NEAR(changedOtherChannelsRight[channel], amountUv0Right[channel],
+                    0.02f)
+            << "clearcoat factor should read red independently, right channel "
+            << channel;
+    }
+
+    material.clearcoatTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto amountUv1Left = pixelAt(8, 16);
+    const auto amountUv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(amountUv1Left[channel], amountUv0Right[channel], 0.035f)
+            << "clearcoat UV1 should mirror the left sample, channel " << channel;
+        EXPECT_NEAR(amountUv1Right[channel], amountUv0Left[channel], 0.035f)
+            << "clearcoat UV1 should mirror the right sample, channel " << channel;
+    }
+
+    material.clearcoatTexture = ArtifactCore::UniString(clearcoatMapPath);
+    material.clearcoatTextureUvSet = 0;
+    material.clearcoatTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto amountRotatedLeft = pixelAt(8, 16);
+    const auto amountRotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(amountRotatedLeft[channel], amountUv0Right[channel], 0.035f)
+            << "clearcoat amount UV rotation should mirror the left sample, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(amountRotatedRight[channel], amountUv0Left[channel], 0.035f)
+            << "clearcoat amount UV rotation should mirror the right sample, "
+               "channel "
+            << channel;
+    }
+    material.clearcoatTextureUvRotationDegrees = 0.0f;
+
+    material.clearcoatTextureUvSet = 0;
+    material.clearcoat = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto disabledMapLeft = pixelAt(8, 16);
+    const auto disabledMapRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(disabledMapLeft[channel], disabledMapRight[channel], 0.035f)
+            << "zero clearcoat factor should disable the amount map, channel "
+            << channel;
+    }
+
+    material.clearcoat = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfFactorLeft = pixelAt(8, 16);
+    const auto halfFactorRight = pixelAt(24, 16);
+    const float halfFactorDifference = std::max(
+        std::fabs(halfFactorLeft[0] - halfFactorRight[0]),
+        std::max(std::fabs(halfFactorLeft[1] - halfFactorRight[1]),
+                 std::fabs(halfFactorLeft[2] - halfFactorRight[2])));
+    EXPECT_GT(halfFactorDifference, 0.005f)
+        << "a partial clearcoat factor should retain a map response";
+    EXPECT_LT(halfFactorDifference, amountUv0Difference)
+        << "a partial clearcoat factor should reduce the full-factor map response";
+
+    QImage halfRedClearcoatMap = clearcoatMap;
+    for (int y = 0; y < halfRedClearcoatMap.height(); ++y) {
+        auto* row = halfRedClearcoatMap.scanLine(y);
+        for (int x = halfRedClearcoatMap.width() / 2;
+             x < halfRedClearcoatMap.width(); ++x) {
+            row[x * 4] = 128;
+        }
+    }
+    const QString halfRedClearcoatMapPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-half-red.png"));
+    ASSERT_TRUE(halfRedClearcoatMap.save(halfRedClearcoatMapPath, "PNG"));
+    material.clearcoat = 1.0f;
+    material.clearcoatTexture = ArtifactCore::UniString(halfRedClearcoatMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfMapRedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfMapRedRight[channel], halfFactorRight[channel], 0.035f)
+            << "clearcoat factor should multiply texture red, channel "
+            << channel;
+    }
+
+    material.clearcoatTexture = ArtifactCore::UniString();
+    material.clearcoatRoughness = 1.0f;
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(clearcoatRoughnessMapPath);
+    material.clearcoatRoughnessTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv0Left = pixelAt(8, 16);
+    const auto roughnessUv0Right = pixelAt(24, 16);
+    const float roughnessUv0Difference = std::max(
+        std::fabs(roughnessUv0Left[0] - roughnessUv0Right[0]),
+        std::max(std::fabs(roughnessUv0Left[1] - roughnessUv0Right[1]),
+                 std::fabs(roughnessUv0Left[2] - roughnessUv0Right[2])));
+    EXPECT_GT(roughnessUv0Difference, 0.02f)
+        << "the clearcoat roughness map should distinguish the UV0 halves";
+
+    QImage clearcoatRoughnessOtherChannelsChanged = clearcoatRoughnessMap;
+    for (int y = 0; y < clearcoatRoughnessOtherChannelsChanged.height(); ++y) {
+        auto* row = clearcoatRoughnessOtherChannelsChanged.scanLine(y);
+        for (int x = 0; x < clearcoatRoughnessOtherChannelsChanged.width();
+             ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[2] = 0;
+            pixel[3] = 0;
+        }
+    }
+    const QString clearcoatRoughnessOtherChannelsPath =
+        textureDirectory.filePath(
+            QStringLiteral("clearcoat-roughness-other-channels.png"));
+    ASSERT_TRUE(clearcoatRoughnessOtherChannelsChanged.save(
+        clearcoatRoughnessOtherChannelsPath, "PNG"));
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(clearcoatRoughnessOtherChannelsPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto changedRoughnessOtherChannelsLeft = pixelAt(8, 16);
+    const auto changedRoughnessOtherChannelsRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(changedRoughnessOtherChannelsLeft[channel],
+                    roughnessUv0Left[channel], 0.02f)
+            << "clearcoat roughness should read green independently, left "
+            << "channel " << channel;
+        EXPECT_NEAR(changedRoughnessOtherChannelsRight[channel],
+                    roughnessUv0Right[channel], 0.02f)
+            << "clearcoat roughness should read green independently, right "
+            << "channel " << channel;
+    }
+
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(smoothRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothRoughnessLeft = pixelAt(8, 16);
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(roughRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughRoughnessRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughnessUv0Left[channel], smoothRoughnessLeft[channel],
+                    0.035f)
+            << "clearcoat roughness should sample the G=0 reference, channel "
+            << channel;
+        EXPECT_NEAR(roughnessUv0Right[channel], roughRoughnessRight[channel],
+                    0.035f)
+            << "clearcoat roughness should sample the G=1 reference, channel "
+            << channel;
+    }
+
+    material.clearcoatRoughness = 0.5f;
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(roughRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfScalarFullGreen = pixelAt(24, 16);
+
+    QImage halfGreenClearcoatRoughnessMap = roughRoughnessMap;
+    for (int y = 0; y < halfGreenClearcoatRoughnessMap.height(); ++y) {
+        auto* row = halfGreenClearcoatRoughnessMap.scanLine(y);
+        for (int x = halfGreenClearcoatRoughnessMap.width() / 2;
+             x < halfGreenClearcoatRoughnessMap.width(); ++x) {
+            row[x * 4 + 1] = 128;
+        }
+    }
+    const QString halfGreenClearcoatRoughnessPath = textureDirectory.filePath(
+        QStringLiteral("clearcoat-roughness-half-green.png"));
+    ASSERT_TRUE(halfGreenClearcoatRoughnessMap.save(
+        halfGreenClearcoatRoughnessPath, "PNG"));
+    material.clearcoatRoughness = 1.0f;
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(halfGreenClearcoatRoughnessPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfGreenFullScalar = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfGreenFullScalar[channel], halfScalarFullGreen[channel],
+                    0.035f)
+            << "clearcoat roughness scalar should multiply texture green, "
+            << "channel " << channel;
+    }
+
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(clearcoatRoughnessMapPath);
+    material.clearcoatRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessUv1Left = pixelAt(8, 16);
+    const auto roughnessUv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughnessUv1Left[channel], roughnessUv0Right[channel],
+                    0.035f)
+            << "clearcoat roughness UV1 should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(roughnessUv1Right[channel], roughnessUv0Left[channel],
+                    0.035f)
+            << "clearcoat roughness UV1 should mirror the right sample, channel "
+            << channel;
+    }
+
+    material.clearcoatRoughnessTextureUvSet = 0;
+    material.clearcoatRoughnessTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughnessRotatedLeft = pixelAt(8, 16);
+    const auto roughnessRotatedRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(roughnessRotatedLeft[channel], roughnessUv0Right[channel],
+                    0.035f)
+            << "clearcoat roughness UV rotation should mirror the left sample, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(roughnessRotatedRight[channel], roughnessUv0Left[channel],
+                    0.035f)
+            << "clearcoat roughness UV rotation should mirror the right sample, "
+               "channel "
+            << channel;
+    }
+    material.clearcoatRoughnessTextureUvRotationDegrees = 0.0f;
+
+    material.clearcoatTexture = ArtifactCore::UniString();
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString();
+    material.clearcoatRoughness = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothClearcoatReference = pixelAt(24, 16);
+
+    material.clearcoatRoughness = 1.0f;
+    material.clearcoatTexture = ArtifactCore::UniString(clearcoatMapPath);
+    material.clearcoatTextureUvSet = 0;
+    material.clearcoatRoughnessTexture =
+        ArtifactCore::UniString(clearcoatRoughnessMapPath);
+    material.clearcoatRoughnessTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto splitUvLeft = pixelAt(8, 16);
+    const auto splitUvRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(splitUvLeft[channel], disabledMapLeft[channel], 0.035f)
+            << "zero clearcoat factor-map red should disable the coat even when "
+               "roughness uses UV1, channel "
+            << channel;
+        EXPECT_NEAR(splitUvRight[channel], smoothClearcoatReference[channel],
+                    0.035f)
+            << "UV0 clearcoat factor and mirrored UV1 roughness should select "
+               "the smooth coat sample, channel "
+            << channel;
+    }
+
+    material.clearcoatRoughnessTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-clearcoat-texture-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto sameUvSetRight = pixelAt(24, 16);
+    const float roughnessUvSelectorResponse = std::max(
+        std::fabs(sameUvSetRight[0] - splitUvRight[0]),
+        std::max(std::fabs(sameUvSetRight[1] - splitUvRight[1]),
+                 std::fabs(sameUvSetRight[2] - splitUvRight[2])));
+    EXPECT_GT(roughnessUvSelectorResponse, 0.001f)
+        << "changing only the clearcoat roughness UV set should alter its "
+           "combined-map shading";
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -712,13 +6881,14 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-sheen-minified-checker.png";
+        tempDirectory.filePath(QStringLiteral("sheen-checker.png"));
     const auto colorAveragePath =
-        tempDirectory / "artifact-rt-sheen-color-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("sheen-color-average.png"));
     const auto roughnessAveragePath =
-        tempDirectory / "artifact-rt-sheen-roughness-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("sheen-roughness-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage colorAverage(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage roughnessAverage(textureSize, textureSize, QImage::Format_RGBA8888);
@@ -740,18 +6910,15 @@ TEST_F(RayTracingAcceptanceTest,
             checkerPixel[3] = colorPixel[3] = roughnessPixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(colorAverage.save(
-        QString::fromStdString(colorAveragePath.string()), "PNG"));
-    ASSERT_TRUE(roughnessAverage.save(
-        QString::fromStdString(roughnessAveragePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(colorAverage.save(colorAveragePath, "PNG"));
+    ASSERT_TRUE(roughnessAverage.save(roughnessAveragePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.sheen = 1.0f;
     material.sheenRoughness = 0.5f;
-    material.sheenColorTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.sheenColorTexture = ArtifactCore::UniString(checkerPath);
     const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
                                     const int x) {
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
@@ -769,8 +6936,7 @@ TEST_F(RayTracingAcceptanceTest,
             traceAndSample(material, 14 + index);
     }
 
-    material.sheenColorTexture = ArtifactCore::UniString(
-        QString::fromStdString(colorAveragePath.string()));
+    material.sheenColorTexture = ArtifactCore::UniString(colorAveragePath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)],
                     traceAndSample(material, 14 + index), 0.035f)
@@ -779,25 +6945,18 @@ TEST_F(RayTracingAcceptanceTest,
     }
 
     material.sheenColorTexture = ArtifactCore::UniString();
-    material.sheenRoughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.sheenRoughnessTexture = ArtifactCore::UniString(checkerPath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         checkerSamples[static_cast<std::size_t>(index)] =
             traceAndSample(material, 14 + index);
     }
-    material.sheenRoughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(roughnessAveragePath.string()));
+    material.sheenRoughnessTexture = ArtifactCore::UniString(roughnessAveragePath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)],
                     traceAndSample(material, 14 + index), 0.035f)
             << "minified sheen-roughness sample " << index
             << " should match its linear scalar mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(colorAveragePath, ignored);
-    std::filesystem::remove(roughnessAveragePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -824,11 +6983,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-anisotropy-minified-checker.png";
+        tempDirectory.filePath(QStringLiteral("anisotropy-checker.png"));
     const auto averagePath =
-        tempDirectory / "artifact-rt-anisotropy-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("anisotropy-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -846,8 +7006,8 @@ TEST_F(RayTracingAcceptanceTest,
             checkerPixel[3] = averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = 0.8f;
@@ -856,8 +7016,7 @@ TEST_F(RayTracingAcceptanceTest,
     material.metallic = 1.0f;
     material.roughness = 0.24f;
     material.anisotropy = 1.0f;
-    material.anisotropyTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.anisotropyTexture = ArtifactCore::UniString(checkerPath);
     const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
                                     const int x) {
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
@@ -875,18 +7034,1775 @@ TEST_F(RayTracingAcceptanceTest,
             traceAndSample(material, 14 + index);
     }
 
-    material.anisotropyTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.anisotropyTexture = ArtifactCore::UniString(averagePath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)],
                     traceAndSample(material, 14 + index), 0.04f)
             << "minified anisotropy sample " << index
             << " should match its linear mip average";
     }
+}
 
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
+TEST_F(RayTracingAcceptanceTest, SelectsAnisotropyTextureUvSet) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-anisotropy-uv-set", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), vertices.data(), 4,
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
+
+    QTemporaryDir textureDirectory;
+    ASSERT_TRUE(textureDirectory.isValid());
+    const QString anisotropyMapPath = textureDirectory.filePath(
+        QStringLiteral("anisotropy.png"));
+    QImage anisotropyMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(anisotropyMap.isNull());
+    for (int y = 0; y < anisotropyMap.height(); ++y) {
+        auto* row = anisotropyMap.scanLine(y);
+        for (int x = 0; x < anisotropyMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = 255;
+            pixel[1] = 128;
+            pixel[2] = x < 4 ? 0 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(anisotropyMap.save(anisotropyMapPath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = 0.8f;
+    material.baseColor[1] = 0.5f;
+    material.baseColor[2] = 0.2f;
+    material.metallic = 1.0f;
+    material.roughness = 0.24f;
+    material.anisotropy = 1.0f;
+    material.anisotropyTexture = ArtifactCore::UniString(anisotropyMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv0Left = pixelAt(8, 16);
+    const auto uv0Right = pixelAt(24, 16);
+    const float uv0Difference = std::max(
+        std::fabs(uv0Left[0] - uv0Right[0]),
+        std::max(std::fabs(uv0Left[1] - uv0Right[1]),
+                 std::fabs(uv0Left[2] - uv0Right[2])));
+    EXPECT_GT(uv0Difference, 0.02f)
+        << "the anisotropy map's blue channel should distinguish the UV0 halves";
+
+    material.anisotropyTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1Left = pixelAt(8, 16);
+    const auto uv1Right = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(uv1Left[channel], uv0Right[channel], 0.04f)
+            << "anisotropy UV1 should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(uv1Right[channel], uv0Left[channel], 0.04f)
+            << "anisotropy UV1 should mirror the right sample, channel "
+            << channel;
+    }
+
+    const QString anisotropyDirectionMapPath = textureDirectory.filePath(
+        QStringLiteral("anisotropy-direction.png"));
+    QImage anisotropyDirectionMap(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(anisotropyDirectionMap.isNull());
+    for (int y = 0; y < anisotropyDirectionMap.height(); ++y) {
+        auto* row = anisotropyDirectionMap.scanLine(y);
+        for (int x = 0; x < anisotropyDirectionMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool vertical = x >= anisotropyDirectionMap.width() / 2;
+            pixel[0] = vertical ? 128 : 255;
+            pixel[1] = vertical ? 255 : 128;
+            pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(anisotropyDirectionMap.save(anisotropyDirectionMapPath, "PNG"));
+    material.anisotropyTexture = ArtifactCore::UniString(
+        anisotropyDirectionMapPath);
+    material.anisotropyTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto horizontalDirectionPixel = pixelAt(8, 16);
+    const auto verticalDirectionPixel = pixelAt(24, 16);
+    const float anisotropyDirectionDifference = std::max(
+        std::fabs(horizontalDirectionPixel[0] - verticalDirectionPixel[0]),
+        std::max(std::fabs(horizontalDirectionPixel[1] - verticalDirectionPixel[1]),
+                 std::fabs(horizontalDirectionPixel[2] - verticalDirectionPixel[2])));
+    EXPECT_GT(anisotropyDirectionDifference, 0.001f)
+        << "anisotropy texture red/green direction channels should rotate the "
+           "specular lobe while blue strength stays constant";
+
+    material.anisotropyTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedMapLeft = pixelAt(8, 16);
+    const auto rotatedMapRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedMapLeft[channel], verticalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture UV rotation should swap sampled texels while "
+            << "preserving the shading tangent frame, left channel " << channel;
+        EXPECT_NEAR(rotatedMapRight[channel], horizontalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture UV rotation should swap sampled texels while "
+            << "preserving the shading tangent frame, right channel " << channel;
+    }
+
+    material.anisotropyTextureUvRotationDegrees = 0.0f;
+    material.anisotropyTextureUvScaleU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledMapLeft = pixelAt(8, 16);
+    const auto scaledMapRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledMapLeft[channel], horizontalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture U scale should repeat the first texel half, "
+            << "left channel " << channel;
+        EXPECT_NEAR(scaledMapRight[channel], horizontalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture U scale should repeat the first texel half, "
+            << "right channel " << channel;
+    }
+
+    material.anisotropyTextureUvScaleU = 1.0f;
+    material.anisotropyTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto offsetMapLeft = pixelAt(8, 16);
+    const auto offsetMapRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(offsetMapLeft[channel], verticalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture U offset should swap the left direction "
+            << "sample, channel " << channel;
+        EXPECT_NEAR(offsetMapRight[channel], horizontalDirectionPixel[channel],
+                    0.04f)
+            << "anisotropy texture U offset should swap the right direction "
+            << "sample, channel " << channel;
+    }
+
+    const QString verticalAnisotropyDirectionPath =
+        textureDirectory.filePath(
+            QStringLiteral("anisotropy-direction-v-ramp.png"));
+    QImage verticalAnisotropyDirectionMap(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalAnisotropyDirectionMap.isNull());
+    for (int y = 0; y < verticalAnisotropyDirectionMap.height(); ++y) {
+        auto* row = verticalAnisotropyDirectionMap.scanLine(y);
+        for (int x = 0; x < verticalAnisotropyDirectionMap.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool vertical =
+                y >= verticalAnisotropyDirectionMap.height() / 2;
+            pixel[0] = vertical ? 128 : 255;
+            pixel[1] = vertical ? 255 : 128;
+            pixel[2] = 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalAnisotropyDirectionMap.save(
+        verticalAnisotropyDirectionPath, "PNG"));
+    material.anisotropyTexture = ArtifactCore::UniString(
+        verticalAnisotropyDirectionPath);
+    material.anisotropyTextureUvRotationDegrees = 0.0f;
+    material.anisotropyTextureUvScaleU = 1.0f;
+    material.anisotropyTextureUvScaleV = 1.0f;
+    material.anisotropyTextureUvOffsetU = 0.0f;
+    material.anisotropyTextureUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto directionV0Top = pixelAt(12, 8);
+    const auto directionV0Bottom = pixelAt(12, 24);
+    const float directionV0Difference = std::max(
+        std::fabs(directionV0Top[0] - directionV0Bottom[0]),
+        std::max(std::fabs(directionV0Top[1] - directionV0Bottom[1]),
+                 std::fabs(directionV0Top[2] - directionV0Bottom[2])));
+    EXPECT_GT(directionV0Difference, 0.001f)
+        << "anisotropy direction channels should vary over the V axis";
+
+    material.anisotropyTextureUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto directionVOffsetTop = pixelAt(12, 8);
+    const auto directionVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(directionVOffsetTop[channel], directionV0Bottom[channel],
+                    0.04f)
+            << "anisotropy V offset should mirror the top sample, channel "
+            << channel;
+        EXPECT_NEAR(directionVOffsetBottom[channel], directionV0Top[channel],
+                    0.04f)
+            << "anisotropy V offset should mirror the bottom sample, channel "
+            << channel;
+    }
+
+    material.anisotropyTextureUvOffsetV = 0.0f;
+    material.anisotropyTextureUvScaleV = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto directionVScaleTop = pixelAt(12, 8);
+    const auto directionVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(directionVScaleTop[channel], directionV0Bottom[channel],
+                    0.04f)
+            << "anisotropy V scale should repeat the bottom sample on top, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(directionVScaleBottom[channel], directionV0Top[channel],
+                    0.04f)
+            << "anisotropy V scale should repeat the top sample on bottom, "
+               "channel "
+            << channel;
+    }
+
+    material.anisotropy = 0.5f;
+    material.anisotropyTexture = ArtifactCore::UniString(anisotropyMapPath);
+    material.anisotropyTextureUvRotationDegrees = 0.0f;
+    material.anisotropyTextureUvScaleU = 1.0f;
+    material.anisotropyTextureUvScaleV = 1.0f;
+    material.anisotropyTextureUvOffsetU = 0.0f;
+    material.anisotropyTextureUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfScalarFullTexture = pixelAt(24, 16);
+
+    QImage halfBlueAnisotropyMap = anisotropyMap;
+    for (int y = 0; y < halfBlueAnisotropyMap.height(); ++y) {
+        auto* row = halfBlueAnisotropyMap.scanLine(y);
+        for (int x = halfBlueAnisotropyMap.width() / 2;
+             x < halfBlueAnisotropyMap.width(); ++x) {
+            row[x * 4 + 2] = 128;
+        }
+    }
+    const QString halfBlueAnisotropyMapPath = textureDirectory.filePath(
+        QStringLiteral("anisotropy-half-strength.png"));
+    ASSERT_TRUE(halfBlueAnisotropyMap.save(
+        halfBlueAnisotropyMapPath, "PNG"));
+    material.anisotropy = 1.0f;
+    material.anisotropyTexture =
+        ArtifactCore::UniString(halfBlueAnisotropyMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfTextureBlue = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(halfTextureBlue[channel],
+                    halfScalarFullTexture[channel], 0.035f)
+            << "anisotropy factor should multiply the texture blue strength, "
+               "channel " << channel;
+    }
+
+    QImage alphaChangedAnisotropyMap = halfBlueAnisotropyMap;
+    for (int y = 0; y < alphaChangedAnisotropyMap.height(); ++y) {
+        auto* row = alphaChangedAnisotropyMap.scanLine(y);
+        for (int x = 0; x < alphaChangedAnisotropyMap.width(); ++x) {
+            row[x * 4 + 3] = x < alphaChangedAnisotropyMap.width() / 2
+                ? 0
+                : 96;
+        }
+    }
+    const QString alphaChangedAnisotropyMapPath = textureDirectory.filePath(
+        QStringLiteral("anisotropy-alpha-changed.png"));
+    ASSERT_TRUE(alphaChangedAnisotropyMap.save(
+        alphaChangedAnisotropyMapPath, "PNG"));
+    material.anisotropyTexture =
+        ArtifactCore::UniString(alphaChangedAnisotropyMapPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-anisotropy-uv-set"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto alphaChangedPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(alphaChangedPixel[channel], halfTextureBlue[channel], 0.02f)
+            << "anisotropy alpha should not affect shading, channel "
+            << channel;
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest, RotatesScalarAnisotropyInTangentSpace) {
+    constexpr std::array<float, 12> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f,
+         0.9f,  0.9f, 0.0f, -0.9f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-scalar-anisotropy-rotation", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = 0.8f;
+    material.baseColor[1] = 0.45f;
+    material.baseColor[2] = 0.2f;
+    material.metallic = 1.0f;
+    material.roughness = 0.3f;
+    material.anisotropy = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto isotropicPixel = pixelAt(16, 16);
+    material.anisotropyRotationDegrees = 90.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedIsotropicPixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rotatedIsotropicPixel[channel], isotropicPixel[channel], 1.0e-5f)
+            << "anisotropy rotation should not affect an isotropic material, channel "
+            << channel;
+    }
+
+    material.anisotropy = 1.0f;
+    material.anisotropyRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto horizontalAnisotropyPixel = pixelAt(16, 16);
+
+    material.anisotropyRotationDegrees = 90.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto verticalAnisotropyPixel = pixelAt(16, 16);
+    const float anisotropyRotationDifference = std::max(
+        std::fabs(horizontalAnisotropyPixel[0] - verticalAnisotropyPixel[0]),
+        std::max(std::fabs(horizontalAnisotropyPixel[1] - verticalAnisotropyPixel[1]),
+                 std::fabs(horizontalAnisotropyPixel[2] - verticalAnisotropyPixel[2])));
+    EXPECT_GT(anisotropyRotationDifference, 0.001f)
+        << "rotating scalar anisotropy should rotate the tangent-space highlight";
+
+    const auto captureAnisotropy = [&](float anisotropy) {
+        material.anisotropy = anisotropy;
+        material.anisotropyRotationDegrees = 0.0f;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto minimumAnisotropyPixel = captureAnisotropy(-1.0f);
+    const auto belowMinimumAnisotropyPixel = captureAnisotropy(-2.0f);
+    const auto negativeAnisotropyPixel = captureAnisotropy(-0.75f);
+    const auto zeroAnisotropyPixel = captureAnisotropy(0.0f);
+    const auto positiveAnisotropyPixel = captureAnisotropy(0.75f);
+    const auto maximumAnisotropyPixel = captureAnisotropy(1.0f);
+    const auto aboveMaximumAnisotropyPixel = captureAnisotropy(2.0f);
+    const auto nonFiniteAnisotropyPixel = captureAnisotropy(
+        std::numeric_limits<float>::quiet_NaN());
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(zeroAnisotropyPixel[channel], isotropicPixel[channel],
+                    1.0e-5f)
+            << "zero anisotropy should match the isotropic baseline, channel "
+            << channel;
+        EXPECT_NEAR(belowMinimumAnisotropyPixel[channel],
+                    minimumAnisotropyPixel[channel], 1.0e-5f)
+            << "anisotropy below -1 should clamp to -1";
+        EXPECT_NEAR(aboveMaximumAnisotropyPixel[channel],
+                    maximumAnisotropyPixel[channel], 1.0e-5f)
+            << "anisotropy above 1 should clamp to 1";
+        EXPECT_NEAR(nonFiniteAnisotropyPixel[channel],
+                    isotropicPixel[channel], 1.0e-5f)
+            << "non-finite anisotropy should use its zero fallback";
+    }
+    const float anisotropySignDifference = std::max(
+        std::fabs(negativeAnisotropyPixel[0] - positiveAnisotropyPixel[0]),
+        std::max(std::fabs(negativeAnisotropyPixel[1] - positiveAnisotropyPixel[1]),
+                 std::fabs(negativeAnisotropyPixel[2] - positiveAnisotropyPixel[2])));
+    EXPECT_GT(anisotropySignDifference, 0.001f)
+        << "positive and negative anisotropy should produce distinct tangent "
+           "lobe responses";
+
+    const auto captureSpecularTint = [&](std::size_t tintChannel, float tint) {
+        material.anisotropy = 0.0f;
+        material.metallic = 0.0f;
+        material.ior = 1.5f;
+        material.specularTint[0] = 1.0f;
+        material.specularTint[1] = 1.0f;
+        material.specularTint[2] = 1.0f;
+        material.specularTint[tintChannel] = tint;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        const auto minimumSpecularTintPixel =
+            captureSpecularTint(tintChannel, 0.0f);
+        const auto belowMinimumSpecularTintPixel =
+            captureSpecularTint(tintChannel, -0.5f);
+        const auto maximumSpecularTintPixel =
+            captureSpecularTint(tintChannel, 1.0f);
+        const auto aboveMaximumSpecularTintPixel =
+            captureSpecularTint(tintChannel, 1.5f);
+        EXPECT_GT(std::fabs(maximumSpecularTintPixel[tintChannel] -
+                            minimumSpecularTintPixel[tintChannel]),
+                  0.001f)
+            << "specular tint should affect its matching output channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(maximumSpecularTintPixel[channel],
+                            minimumSpecularTintPixel[channel], 1.0e-5f)
+                    << "specular tint channel " << tintChannel
+                    << " should not alter output channel " << channel;
+            }
+            EXPECT_NEAR(belowMinimumSpecularTintPixel[channel],
+                        minimumSpecularTintPixel[channel], 1.0e-5f)
+                << "specular tint below zero should clamp to zero, tint channel "
+                << tintChannel << ", output channel " << channel;
+            EXPECT_NEAR(aboveMaximumSpecularTintPixel[channel],
+                        maximumSpecularTintPixel[channel], 1.0e-5f)
+                << "specular tint above one should clamp to one, tint channel "
+                << tintChannel << ", output channel " << channel;
+        }
+    }
+
+    QTemporaryDir normalMapDirectory;
+    ASSERT_TRUE(normalMapDirectory.isValid());
+    const auto tiltedNormalPath = normalMapDirectory.filePath(
+        QStringLiteral("anisotropy-tilted-normal.png"));
+    QImage tiltedNormal(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(tiltedNormal.isNull());
+    tiltedNormal.fill(QColor(204, 128, 230, 255));
+    ASSERT_TRUE(tiltedNormal.save(tiltedNormalPath, "PNG"));
+
+    material.metallic = 1.0f;
+    material.roughness = 0.3f;
+    material.anisotropy = 0.75f;
+    material.anisotropyRotationDegrees = 0.0f;
+    material.specularTint[0] = 1.0f;
+    material.specularTint[1] = 1.0f;
+    material.specularTint[2] = 1.0f;
+    material.normalTexture = ArtifactCore::UniString(tiltedNormalPath);
+    material.normalStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tiltedNormalHorizontalPixel = pixelAt(16, 16);
+
+    material.anisotropyRotationDegrees = 90.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto tiltedNormalVerticalPixel = pixelAt(16, 16);
+    const float normalMappedAnisotropyRotationDifference = std::max(
+        std::fabs(tiltedNormalHorizontalPixel[0] - tiltedNormalVerticalPixel[0]),
+        std::max(std::fabs(tiltedNormalHorizontalPixel[1] - tiltedNormalVerticalPixel[1]),
+                 std::fabs(tiltedNormalHorizontalPixel[2] - tiltedNormalVerticalPixel[2])));
+    EXPECT_GT(normalMappedAnisotropyRotationDifference, 0.001f)
+        << "anisotropy rotation should remain effective with a normal map";
+
+    material.normalStrength = 0.0f;
+    material.anisotropyRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-scalar-anisotropy-rotation"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto disabledNormalMapPixel = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(disabledNormalMapPixel[channel], positiveAnisotropyPixel[channel],
+                    0.01f)
+            << "zero normal strength should preserve scalar anisotropy shading, channel "
+            << channel;
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       UsesIorAndThinFilmForDielectricFresnelReflectance) {
+    constexpr std::array<float, 9> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-ior-fresnel", vertexBuffer.RawPtr(), 3,
+                indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+
+    ArtifactCore::RTSceneLight normalIncidenceLight;
+    normalIncidenceLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    normalIncidenceLight.directionIntensity[2] = 1.0f;
+    normalIncidenceLight.directionIntensity[3] = 4.0f;
+    normalIncidenceLight.colorAttenuationConstant[0] = 1.0f;
+    normalIncidenceLight.colorAttenuationConstant[1] = 1.0f;
+    normalIncidenceLight.colorAttenuationConstant[2] = 1.0f;
+    normalIncidenceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &normalIncidenceLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.5f;
+    material.roughness = 0.35f;
+    const auto traceIor = [&](const float ior) {
+        material.ior = ior;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+
+    const auto belowUnityIor = traceIor(0.5f);
+    const auto unityIor = traceIor(1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowUnityIor[channel], unityIor[channel], 1.0e-5f)
+            << "IOR values below one should clamp to one, channel " << channel;
+    }
+    const auto glassIor = traceIor(1.5f);
+    const auto highIor = traceIor(3.0f);
+    EXPECT_GT(glassIor[0], unityIor[0] + 0.001f)
+        << "dielectric Fresnel reflectance should increase above IOR one";
+    EXPECT_GT(highIor[0], glassIor[0] + 0.001f)
+        << "higher dielectric IOR should increase normal-incidence reflectance";
+
+    const auto traceGrazingIor = [&](const float ior) {
+        material.ior = ior;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera grazingCamera;
+        grazingCamera.origin[0] = 2.0f;
+        grazingCamera.origin[2] = -1.0f;
+        grazingCamera.target[2] = 0.0f;
+        grazingCamera.verticalFovDegrees = 60.0f;
+        EXPECT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize, grazingCamera));
+        return pixelAt(kRayTraceTestImageSize / 2,
+                       kRayTraceTestImageSize / 2);
+    };
+    const auto grazingUnityIor = traceGrazingIor(1.0f);
+    const auto grazingGlassIor = traceGrazingIor(1.5f);
+    const auto grazingHighIor = traceGrazingIor(3.0f);
+    EXPECT_GT(grazingGlassIor[0], grazingUnityIor[0] + 0.001f)
+        << "dielectric Fresnel should respond to IOR at grazing view angles";
+    EXPECT_GT(grazingHighIor[0], grazingGlassIor[0] + 0.001f)
+        << "grazing-view reflectance should rise with dielectric IOR";
+
+    const auto traceThinFilm = [&](const float thicknessNm, const float filmIor) {
+        material.ior = 1.5f;
+        material.thinFilmThickness = thicknessNm;
+        material.thinFilmIOR = filmIor;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto thinFilmPixel = traceThinFilm(400.0f, 1.33f);
+    EXPECT_GT(thinFilmPixel[1], thinFilmPixel[0] + 0.001f)
+        << "thin-film interference should tint the dielectric reflection green";
+    EXPECT_GT(thinFilmPixel[1], thinFilmPixel[2] + 0.001f)
+        << "thin-film interference should separate wavelength-dependent reflectance";
+
+    const auto expectSameRgb = [](const auto& lhs, const auto& rhs,
+                                  const char* reason) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(lhs[channel], rhs[channel], 1.0e-5f)
+                << reason << ", channel " << channel;
+        }
+    };
+    expectSameRgb(traceThinFilm(0.0f, 1.33f), glassIor,
+                  "zero film thickness should preserve dielectric Fresnel");
+    expectSameRgb(traceThinFilm(0.0f, 1.33f),
+                 traceThinFilm(-10.0f, 1.33f),
+                 "negative film thickness should clamp to zero");
+    expectSameRgb(traceThinFilm(1000.0f, 1.33f),
+                 traceThinFilm(1200.0f, 1.33f),
+                 "film thickness above 1000 nm should clamp to 1000 nm");
+    expectSameRgb(traceThinFilm(400.0f, 1.0f),
+                 traceThinFilm(400.0f, 0.5f),
+                 "film IOR below one should clamp to one");
+    expectSameRgb(traceThinFilm(400.0f, 2.5f),
+                 traceThinFilm(400.0f, 3.0f),
+                 "film IOR above 2.5 should clamp to 2.5");
+
+    const auto traceTransmissiveThinFilm = [&](const float thicknessNm) {
+        material.baseColor[0] = material.baseColor[1] =
+            material.baseColor[2] = 1.0f;
+        material.metallic = 0.0f;
+        material.roughness = 0.2f;
+        material.ior = 1.5f;
+        material.transmission = 1.0f;
+        material.thinFilmThickness = thicknessNm;
+        material.thinFilmIOR = 1.33f;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto noFilmTransmissionPixel = traceTransmissiveThinFilm(0.0f);
+    const auto thinFilmTransmissionPixel = traceTransmissiveThinFilm(400.0f);
+    float thinFilmTransmissionResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        thinFilmTransmissionResponse = std::max(
+            thinFilmTransmissionResponse,
+            std::fabs(thinFilmTransmissionPixel[channel] -
+                      noFilmTransmissionPixel[channel]));
+    }
+    EXPECT_GT(thinFilmTransmissionResponse, 0.001f)
+        << "thin-film Fresnel should affect the transmitted environment energy";
+
+    const auto traceGrazingThinFilm = [&](const float thicknessNm) {
+        material.ior = 1.5f;
+        material.thinFilmThickness = thicknessNm;
+        material.thinFilmIOR = 1.33f;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-ior-fresnel"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera grazingCamera;
+        grazingCamera.origin[0] = 2.0f;
+        grazingCamera.origin[2] = -1.0f;
+        grazingCamera.target[2] = 0.0f;
+        grazingCamera.verticalFovDegrees = 60.0f;
+        EXPECT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize, grazingCamera));
+        return pixelAt(kRayTraceTestImageSize / 2,
+                       kRayTraceTestImageSize / 2);
+    };
+    const auto grazingNoFilmPixel = traceGrazingThinFilm(0.0f);
+    const auto grazingThinFilmPixel = traceGrazingThinFilm(400.0f);
+    float grazingThinFilmResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        grazingThinFilmResponse = std::max(
+            grazingThinFilmResponse,
+            std::fabs(grazingThinFilmPixel[channel] -
+                      grazingNoFilmPixel[channel]));
+    }
+    EXPECT_GT(grazingThinFilmResponse, 0.001f)
+        << "thin-film interference should affect dielectric reflection at a "
+           "grazing view angle";
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       StopsTransmissionSkyForInternalViewAboveCriticalAngle) {
+    constexpr std::array<float, 12> vertices{
+        -4.0f, -4.0f, 0.0f, 4.0f, -4.0f, 0.0f,
+         4.0f,  4.0f, 0.0f, -4.0f,  4.0f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 2, 1, 0, 3, 2};
+    constexpr std::array<float, 12> outwardNormals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-internal-critical-angle", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), outwardNormals.data());
+
+    ArtifactCore::RTSceneLight zeroAmbientLight;
+    zeroAmbientLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Ambient);
+    manager_->setSceneLights(context_.RawPtr(), &zeroAmbientLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 1.0f;
+    material.metallic = 0.0f;
+    material.roughness = 0.04f;
+    material.transmission = 1.0f;
+    material.thinWall = 0.0f;
+    const auto traceInternalView = [&](
+        const float ior, const std::array<float, 3>& target) {
+        material.ior = ior;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-internal-critical-angle"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera camera;
+        camera.origin[0] = 0.0f;
+        camera.origin[1] = 0.0f;
+        camera.origin[2] = 1.0f;
+        camera.target[0] = target[0];
+        camera.target[1] = target[1];
+        camera.target[2] = target[2];
+        camera.verticalFovDegrees = 0.1f;
+        EXPECT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize, kRayTraceTestImageSize,
+            camera));
+        return pixelAt(16, 16);
+    };
+
+    // For IOR 1.5 the glass-to-air critical angle is about 41.81 degrees.
+    // Bracket it with internal incidence at 40 and 43 degrees.
+    const auto airReference = traceInternalView(
+        1.0f, {0.6819984f, 0.0f, 0.2686463f});
+    const auto subcriticalGlassView = traceInternalView(
+        1.5f, {0.6427876f, 0.0f, 0.2339556f});
+    const auto lowerIorInternalView = traceInternalView(
+        1.33f, {0.6819984f, 0.0f, 0.2686463f});
+    const auto glassInternalView = traceInternalView(
+        1.5f, {0.6819984f, 0.0f, 0.2686463f});
+    for (const auto& sample :
+         std::array{airReference, subcriticalGlassView, lowerIorInternalView,
+                    glassInternalView}) {
+        for (std::size_t channel = 0; channel < sample.size(); ++channel) {
+            EXPECT_TRUE(std::isfinite(sample[channel]))
+                << "internal transmission sample channel " << channel
+                << " should remain finite";
+            EXPECT_GE(sample[channel], 0.0f)
+                << "internal transmission sample channel " << channel
+                << " should be non-negative radiance/alpha";
+        }
+    }
+    const float airReferenceEnergy = airReference[0] + airReference[1] +
+                                     airReference[2];
+    const float subcriticalGlassEnergy = subcriticalGlassView[0] +
+                                         subcriticalGlassView[1] +
+                                         subcriticalGlassView[2];
+    const float lowerIorInternalEnergy = lowerIorInternalView[0] +
+                                         lowerIorInternalView[1] +
+                                         lowerIorInternalView[2];
+    const float glassInternalEnergy = glassInternalView[0] +
+                                      glassInternalView[1] +
+                                      glassInternalView[2];
+    EXPECT_GT(airReferenceEnergy, 0.05f)
+        << "the unity-IOR reference should transmit the fallback sky";
+    EXPECT_GT(subcriticalGlassEnergy, 0.05f)
+        << "an internal view below the critical angle should transmit the sky";
+    EXPECT_GT(lowerIorInternalEnergy, 0.05f)
+        << "43 degrees should remain below the critical angle for IOR 1.33";
+    EXPECT_LT(glassInternalEnergy, subcriticalGlassEnergy * 0.1f)
+        << "an above-critical internal view should not transmit the exterior sky";
+    EXPECT_LT(glassInternalEnergy, lowerIorInternalEnergy * 0.1f)
+        << "the same internal angle should become totally reflecting as IOR "
+           "increases above its critical-angle threshold";
+}
+
+TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
+    constexpr std::array<float, 9> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-thin-wall-transmission", vertexBuffer.RawPtr(), 3,
+                indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+
+    ArtifactCore::RTSceneLight zeroAmbientLight;
+    zeroAmbientLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Ambient);
+    manager_->setSceneLights(context_.RawPtr(), &zeroAmbientLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 1.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.5f;
+    material.roughness = 0.2f;
+    material.transmission = 1.0f;
+    const auto traceThinWall = [&](const float ior, const float thinWall) {
+        material.ior = ior;
+        material.thinWall = thinWall;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+
+    const auto unityIorThick = traceThinWall(1.0f, 0.0f);
+    const auto unityIorThin = traceThinWall(1.0f, 1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unityIorThin[channel], unityIorThick[channel], 1.0e-5f)
+            << "thin-wall mode should match the solid path at IOR one, channel "
+            << channel;
+    }
+
+    const auto glassIorThick = traceThinWall(1.5f, 0.0f);
+    const auto glassIorThin = traceThinWall(1.5f, 1.0f);
+    const float thinWallDifference = std::max(
+        std::fabs(glassIorThin[0] - glassIorThick[0]),
+        std::max(std::fabs(glassIorThin[1] - glassIorThick[1]),
+                 std::fabs(glassIorThin[2] - glassIorThick[2])));
+    EXPECT_GT(thinWallDifference, 0.001f)
+        << "thin-wall transmission should apply its adjusted dielectric Fresnel";
+    const auto rgbEnergy = [](const std::array<float, 4>& pixel) {
+        return pixel[0] + pixel[1] + pixel[2];
+    };
+    EXPECT_GT(rgbEnergy(glassIorThick), rgbEnergy(glassIorThin) + 0.001f)
+        << "thin-wall Fresnel should reduce transmitted energy at normal view";
+
+    const auto traceGrazingThinWall = [&](const float thinWall) {
+        material.ior = 1.5f;
+        material.thinWall = thinWall;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera grazingCamera;
+        grazingCamera.origin[0] = 2.0f;
+        grazingCamera.origin[2] = -1.0f;
+        grazingCamera.target[2] = 0.0f;
+        grazingCamera.verticalFovDegrees = 60.0f;
+        EXPECT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize, grazingCamera));
+        return pixelAt(kRayTraceTestImageSize / 2,
+                       kRayTraceTestImageSize / 2);
+    };
+    const auto grazingThick = traceGrazingThinWall(0.0f);
+    const auto grazingThin = traceGrazingThinWall(1.0f);
+    const float grazingThinWallDifference = std::max(
+        std::fabs(grazingThin[0] - grazingThick[0]),
+        std::max(std::fabs(grazingThin[1] - grazingThick[1]),
+                 std::fabs(grazingThin[2] - grazingThick[2])));
+    EXPECT_GT(grazingThinWallDifference, 0.001f)
+        << "thin-wall transmission should adjust Fresnel at grazing view angles";
+    EXPECT_GT(rgbEnergy(grazingThick), rgbEnergy(grazingThin) + 0.001f)
+        << "thin-wall Fresnel should reduce transmitted energy at grazing view";
+
+    const auto belowMinimumThinWall = traceThinWall(1.5f, -0.5f);
+    const auto nonFiniteThinWall = traceThinWall(
+        1.5f, std::numeric_limits<float>::quiet_NaN());
+    const auto aboveMaximumThinWall = traceThinWall(1.5f, 1.5f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumThinWall[channel], glassIorThick[channel],
+                    1.0e-5f)
+            << "thin-wall amount below zero should clamp to the solid path, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteThinWall[channel], glassIorThick[channel],
+                    1.0e-5f)
+            << "non-finite thin-wall amount should use the zero fallback, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumThinWall[channel], glassIorThin[channel],
+                    1.0e-5f)
+            << "thin-wall amount above one should clamp to the thin path, channel "
+            << channel;
+    }
+
+    const auto traceTransmission = [&](const float transmission) {
+        material.ior = 1.5f;
+        material.thinWall = 0.0f;
+        material.transmission = transmission;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-thin-wall-transmission"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto zeroTransmission = traceTransmission(0.0f);
+    const auto negativeTransmission = traceTransmission(-0.5f);
+    const auto fullTransmission = traceTransmission(1.0f);
+    const auto excessTransmission = traceTransmission(1.5f);
+    const auto nonFiniteTransmission = traceTransmission(
+        std::numeric_limits<float>::quiet_NaN());
+    const auto infiniteTransmission = traceTransmission(
+        std::numeric_limits<float>::infinity());
+    const float transmissionResponse = std::max(
+        std::fabs(fullTransmission[0] - zeroTransmission[0]),
+        std::max(std::fabs(fullTransmission[1] - zeroTransmission[1]),
+                 std::fabs(fullTransmission[2] - zeroTransmission[2])));
+    EXPECT_GT(transmissionResponse, 0.001f)
+        << "the fixture should distinguish zero from full transmission";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(negativeTransmission[channel], zeroTransmission[channel],
+                    1.0e-5f)
+            << "negative transmission should clamp to zero, channel " << channel;
+        EXPECT_NEAR(excessTransmission[channel], fullTransmission[channel],
+                    1.0e-5f)
+            << "transmission above one should clamp to one, channel " << channel;
+        EXPECT_NEAR(nonFiniteTransmission[channel], zeroTransmission[channel],
+                    1.0e-5f)
+            << "non-finite transmission should use its zero fallback, channel "
+            << channel;
+        EXPECT_NEAR(infiniteTransmission[channel], zeroTransmission[channel],
+                    1.0e-5f)
+            << "infinite transmission should use its zero fallback, channel "
+            << channel;
+    }
+
+    constexpr std::array<float, 9> reversedNormals{
+        0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f};
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-thin-wall-transmission"), vertices.data(),
+        3, indices.data(), 3, reversedNormals.data()));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto reversedNormalTransmission = pixelAt(16, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(reversedNormalTransmission[channel], fullTransmission[channel],
+                    1.0e-5f)
+            << "face-forward shading should preserve transmission for reversed "
+               "vertex normals, channel " << channel;
+    }
+
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-thin-wall-transmission"),
+        vertices.data(), 3, indices.data(), 3, normals.data()));
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.2f;
+    material.sheen = 1.0f;
+    material.sheenRoughness = 0.25f;
+    material.transmission = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto layeredFullTransmission = pixelAt(16, 16);
+
+    material.transmission = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto layeredZeroTransmission = pixelAt(16, 16);
+    float layeredTransmissionResponse = 0.0f;
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_TRUE(std::isfinite(layeredFullTransmission[channel]))
+            << "layered transmission should remain finite, channel " << channel;
+        EXPECT_GE(layeredFullTransmission[channel], 0.0f)
+            << "layered transmission should remain non-negative, channel "
+            << channel;
+        layeredTransmissionResponse = std::max(
+            layeredTransmissionResponse,
+            std::fabs(layeredFullTransmission[channel] -
+                      layeredZeroTransmission[channel]));
+    }
+    EXPECT_GT(layeredTransmissionResponse, 0.001f)
+        << "transmission should contribute alongside clearcoat and sheen";
+
+    ArtifactCore::RTSceneLight greenAreaBacklight;
+    greenAreaBacklight.positionType[2] = 1.0f;
+    greenAreaBacklight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Area);
+    greenAreaBacklight.directionIntensity[2] = -1.0f;
+    greenAreaBacklight.directionIntensity[3] = 32.0f;
+    greenAreaBacklight.colorAttenuationConstant[1] = 1.0f;
+    greenAreaBacklight.colorAttenuationConstant[3] = 1.0f;
+    greenAreaBacklight.shadowParams[0] = -1.0f;
+    greenAreaBacklight.shadowParams[1] = 0.8f;
+    greenAreaBacklight.shadowParams[2] = 0.8f;
+    greenAreaBacklight.shadowParams[3] = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &greenAreaBacklight, 1);
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 1.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.0f;
+    material.clearcoat = 0.0f;
+    material.sheen = 0.0f;
+    material.thinWall = 1.0f;
+    const auto traceAreaLightTransmission = [&](const float transmission) {
+        material.transmission = transmission;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-thin-wall-transmission"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto opaqueAreaBacklightPixel = traceAreaLightTransmission(0.0f);
+    const auto transmittedAreaBacklightPixel = traceAreaLightTransmission(1.0f);
+    EXPECT_GT(transmittedAreaBacklightPixel[1],
+              opaqueAreaBacklightPixel[1] + 0.001f)
+        << "a green area backlight should contribute through a transmissive "
+           "thin-wall material";
+
+    constexpr std::array<float, 12> areaShadowBlockerVertices{
+        0.08f, -0.06f, 0.5f, 0.12f, -0.06f, 0.5f,
+        0.12f,  0.06f, 0.5f, 0.08f,  0.06f, 0.5f};
+    constexpr std::array<std::uint32_t, 6> areaShadowBlockerIndices{
+        0, 1, 2, 0, 2, 3};
+    auto areaShadowBlockerVertexBuffer = makeBuffer(
+        areaShadowBlockerVertices.data(), sizeof(areaShadowBlockerVertices),
+        3u * sizeof(float), BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE,
+        BUFFER_MODE_STRUCTURED);
+    auto areaShadowBlockerIndexBuffer = makeBuffer(
+        areaShadowBlockerIndices.data(), sizeof(areaShadowBlockerIndices),
+        sizeof(std::uint32_t), BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE,
+        BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(areaShadowBlockerVertexBuffer, nullptr);
+    ASSERT_NE(areaShadowBlockerIndexBuffer, nullptr);
+    addGeometry("pbr-transmission-area-shadow-blocker",
+                areaShadowBlockerVertexBuffer.RawPtr(), 4,
+                areaShadowBlockerIndexBuffer.RawPtr(), 6,
+                float4x4::Identity(), 1, 1,
+                areaShadowBlockerVertices.data(),
+                areaShadowBlockerIndices.data());
+    ArtifactCore::RTPbrMaterial areaShadowBlockerMaterial;
+    areaShadowBlockerMaterial.baseColor[0] =
+        areaShadowBlockerMaterial.baseColor[1] =
+            areaShadowBlockerMaterial.baseColor[2] = 0.0f;
+    areaShadowBlockerMaterial.metallic = 0.0f;
+    areaShadowBlockerMaterial.specular = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-transmission-area-shadow-blocker"),
+        areaShadowBlockerMaterial));
+
+    greenAreaBacklight.positionType[0] = 0.2f;
+    greenAreaBacklight.shadowParams[1] = 0.1f;
+    greenAreaBacklight.shadowParams[2] = 0.1f;
+    const auto traceAreaBacklightShadow = [&](const float shadowSamples) {
+        greenAreaBacklight.shadowParams[0] = shadowSamples;
+        manager_->setSceneLights(context_.RawPtr(), &greenAreaBacklight, 1);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+    const auto unshadowedAreaBacklightPixel = traceAreaBacklightShadow(-1.0f);
+    const auto partiallyShadowedAreaBacklightPixel =
+        traceAreaBacklightShadow(0.0f);
+    const auto filteredAreaBacklightShadowPixel =
+        traceAreaBacklightShadow(2.0f);
+    EXPECT_GT(unshadowedAreaBacklightPixel[1],
+              partiallyShadowedAreaBacklightPixel[1] + 0.001f)
+        << "an opaque blocker should reduce area-light transmission while the "
+           "straight-through camera ray misses it";
+    EXPECT_GT(std::fabs(filteredAreaBacklightShadowPixel[1] -
+                        partiallyShadowedAreaBacklightPixel[1]),
+              0.001f)
+        << "area-light transmission should respond to its shadow sampling "
+           "setting";
+
+    QTemporaryDir transmissionShadowOpacityDirectory;
+    ASSERT_TRUE(transmissionShadowOpacityDirectory.isValid());
+    const auto transparentShadowPath =
+        transmissionShadowOpacityDirectory.filePath(
+            QStringLiteral("transparent-area-shadow.png"));
+    const auto opaqueShadowPath =
+        transmissionShadowOpacityDirectory.filePath(
+            QStringLiteral("opaque-area-shadow.png"));
+    QImage transparentShadowImage(2, 2, QImage::Format_RGBA8888);
+    QImage opaqueShadowImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(transparentShadowImage.isNull());
+    ASSERT_FALSE(opaqueShadowImage.isNull());
+    transparentShadowImage.fill(QColor(255, 255, 255, 0));
+    opaqueShadowImage.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(transparentShadowImage.save(transparentShadowPath, "PNG"));
+    ASSERT_TRUE(opaqueShadowImage.save(opaqueShadowPath, "PNG"));
+
+    areaShadowBlockerMaterial.alphaMode = 1;
+    areaShadowBlockerMaterial.alphaCutoff = 0.5f;
+    areaShadowBlockerMaterial.opacityTexture =
+        ArtifactCore::UniString(transparentShadowPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-transmission-area-shadow-blocker"),
+        areaShadowBlockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    const auto maskedAreaShadowPassPixel = traceAreaBacklightShadow(0.0f);
+    EXPECT_NEAR(maskedAreaShadowPassPixel[1],
+                unshadowedAreaBacklightPixel[1], 0.02f)
+        << "a cutout blocker should pass area-light transmission shadow rays";
+
+    areaShadowBlockerMaterial.opacityTexture =
+        ArtifactCore::UniString(opaqueShadowPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-transmission-area-shadow-blocker"),
+        areaShadowBlockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    const auto maskedAreaShadowBlockPixel = traceAreaBacklightShadow(0.0f);
+    EXPECT_NEAR(maskedAreaShadowBlockPixel[1],
+                partiallyShadowedAreaBacklightPixel[1], 0.02f)
+        << "an opaque masked blocker should preserve its area-light shadow";
+}
+
+TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
+    constexpr std::array<float, 18> vertices{
+        -0.9f, -0.9f, 0.0f, 0.0f, -0.9f, 0.0f, -0.45f, 0.9f, 0.0f,
+         0.0f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.45f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 3, 4, 5};
+    constexpr std::array<std::uint32_t, 2> materialIndices{0, 1};
+    constexpr std::array<float, 18> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("transmission-material-slots", vertexBuffer.RawPtr(), 6,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("transmission-material-slots"), vertices.data(),
+        6, indices.data(), 6, normals.data(), materialIndices.data()));
+
+    ArtifactCore::RTSceneLight zeroAmbientLight;
+    zeroAmbientLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Ambient);
+    manager_->setSceneLights(context_.RawPtr(), &zeroAmbientLight, 1);
+
+    ArtifactCore::RTPbrMaterial leftMaterial;
+    leftMaterial.baseColor[0] = leftMaterial.baseColor[1] =
+        leftMaterial.baseColor[2] = 1.0f;
+    leftMaterial.metallic = 0.0f;
+    leftMaterial.specular = 0.5f;
+    leftMaterial.roughness = 0.2f;
+    leftMaterial.ior = 1.5f;
+    leftMaterial.transmission = 0.0f;
+    ArtifactCore::RTPbrMaterial rightMaterial = leftMaterial;
+    rightMaterial.transmission = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroTransmissionLeftPixel = pixelAt(8, 16);
+    const auto fullTransmissionRightPixel = pixelAt(24, 16);
+
+    leftMaterial.transmission = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto fullTransmissionLeftPixel = pixelAt(8, 16);
+    const auto unchangedFullTransmissionRightPixel = pixelAt(24, 16);
+    const float leftTransmissionDifference = std::max(
+        std::fabs(fullTransmissionLeftPixel[0] - zeroTransmissionLeftPixel[0]),
+        std::max(std::fabs(fullTransmissionLeftPixel[1] -
+                           zeroTransmissionLeftPixel[1]),
+                 std::fabs(fullTransmissionLeftPixel[2] -
+                           zeroTransmissionLeftPixel[2])));
+    EXPECT_GT(leftTransmissionDifference, 0.001f)
+        << "slot 0 transmission should change its shading response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedFullTransmissionRightPixel[channel],
+                    fullTransmissionRightPixel[channel], 0.01f)
+            << "changing slot 0 transmission should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.transmission = 0.0f;
+    rightMaterial.transmission = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedZeroTransmissionLeftPixel = pixelAt(8, 16);
+    const auto zeroTransmissionRightPixel = pixelAt(24, 16);
+    const float rightTransmissionDifference = std::max(
+        std::fabs(zeroTransmissionRightPixel[0] -
+                  fullTransmissionRightPixel[0]),
+        std::max(std::fabs(zeroTransmissionRightPixel[1] -
+                           fullTransmissionRightPixel[1]),
+                 std::fabs(zeroTransmissionRightPixel[2] -
+                           fullTransmissionRightPixel[2])));
+    EXPECT_GT(rightTransmissionDifference, 0.001f)
+        << "slot 1 transmission should change its shading response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedZeroTransmissionLeftPixel[channel],
+                    zeroTransmissionLeftPixel[channel], 0.01f)
+            << "changing slot 1 transmission should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.transmission = rightMaterial.transmission = 1.0f;
+    leftMaterial.ior = rightMaterial.ior = 1.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baselineLeftIorPixel = pixelAt(8, 16);
+    const auto baselineRightIorPixel = pixelAt(24, 16);
+
+    leftMaterial.ior = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unityIorLeftPixel = pixelAt(8, 16);
+    const auto unchangedRightIorPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(unityIorLeftPixel[0] - baselineLeftIorPixel[0]),
+              0.001f)
+        << "slot 0 IOR should change its dielectric Fresnel response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedRightIorPixel[channel],
+                    baselineRightIorPixel[channel], 0.01f)
+            << "changing slot 0 IOR should preserve slot 1, channel "
+            << channel;
+    }
+
+    leftMaterial.ior = 1.5f;
+    rightMaterial.ior = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unchangedLeftIorPixel = pixelAt(8, 16);
+    const auto highIorRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(highIorRightPixel[0] - baselineRightIorPixel[0]),
+              0.001f)
+        << "slot 1 IOR should change its dielectric Fresnel response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(unchangedLeftIorPixel[channel], baselineLeftIorPixel[channel],
+                    0.01f)
+            << "changing slot 1 IOR should preserve slot 0, channel "
+            << channel;
+    }
+
+    leftMaterial.ior = 1.0f;
+    leftMaterial.transmission = 1.0f;
+    rightMaterial.ior = 3.0f;
+    rightMaterial.transmission = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto mixedLeftPixel = pixelAt(8, 16);
+    const auto mixedRightPixel = pixelAt(24, 16);
+
+    leftMaterial.ior = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), leftMaterial,
+        0));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto highFresnelLeftPixel = pixelAt(8, 16);
+    const auto preservedOpaqueRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(highFresnelLeftPixel[0] - mixedLeftPixel[0]), 0.001f)
+        << "slot 0 IOR should affect the transmissive slot's Fresnel response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(preservedOpaqueRightPixel[channel], mixedRightPixel[channel],
+                    0.01f)
+            << "changing slot 0 IOR should preserve opaque slot 1, channel "
+            << channel;
+    }
+
+    rightMaterial.transmission = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("transmission-material-slots"), rightMaterial,
+        1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto leftAfterRightTransmission = pixelAt(8, 16);
+    const auto highIorTransmissionRightPixel = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(highIorTransmissionRightPixel[0] - mixedRightPixel[0]),
+              0.001f)
+        << "transmission should activate through slot 1's high-IOR Fresnel";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(leftAfterRightTransmission[channel], highFresnelLeftPixel[channel],
+                    0.01f)
+            << "changing slot 1 transmission should preserve slot 0, channel "
+            << channel;
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       AppliesDiffuseRoughnessToBurleyDiffuseLighting) {
+    constexpr std::array<float, 9> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-diffuse-roughness", vertexBuffer.RawPtr(), 3,
+                indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+
+    ArtifactCore::RTSceneLight obliqueLight;
+    obliqueLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    obliqueLight.directionIntensity[0] = 0.6f;
+    obliqueLight.directionIntensity[2] = 0.8f;
+    obliqueLight.directionIntensity[3] = 4.0f;
+    obliqueLight.colorAttenuationConstant[0] = 1.0f;
+    obliqueLight.colorAttenuationConstant[1] = 1.0f;
+    obliqueLight.colorAttenuationConstant[2] = 1.0f;
+    obliqueLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &obliqueLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.7f;
+    material.metallic = 0.0f;
+    material.specular = 0.0f;
+    material.ior = 1.0f;
+    const auto traceDiffuseRoughness = [&](float diffuseRoughness) {
+        material.diffuseRoughness = diffuseRoughness;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-diffuse-roughness"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+
+    const auto smoothDiffusePixel = traceDiffuseRoughness(0.0f);
+    const auto roughDiffusePixel = traceDiffuseRoughness(1.0f);
+    const float diffuseRoughnessResponse = std::max(
+        std::fabs(roughDiffusePixel[0] - smoothDiffusePixel[0]),
+        std::max(std::fabs(roughDiffusePixel[1] - smoothDiffusePixel[1]),
+                 std::fabs(roughDiffusePixel[2] - smoothDiffusePixel[2])));
+    EXPECT_GT(diffuseRoughnessResponse, 0.001f)
+        << "diffuse roughness should change the direct Oren-Nayar response";
+
+    const auto belowMinimumDiffuseRoughness = traceDiffuseRoughness(-0.5f);
+    const auto aboveMaximumDiffuseRoughness = traceDiffuseRoughness(1.5f);
+    const auto nonFiniteDiffuseRoughness = traceDiffuseRoughness(
+        std::numeric_limits<float>::quiet_NaN());
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumDiffuseRoughness[channel],
+                    smoothDiffusePixel[channel], 1.0e-5f)
+            << "diffuse roughness below zero should clamp to zero, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumDiffuseRoughness[channel],
+                    roughDiffusePixel[channel], 1.0e-5f)
+            << "diffuse roughness above one should clamp to one, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteDiffuseRoughness[channel],
+                    smoothDiffusePixel[channel], 1.0e-5f)
+            << "non-finite diffuse roughness should use its zero fallback, channel "
+            << channel;
+    }
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       AppliesSubsurfaceAmountAndRgbRadiusToDiffuseLighting) {
+    constexpr std::array<float, 9> vertices{
+        -0.9f, -0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.0f, 0.9f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-subsurface-diffuse", vertexBuffer.RawPtr(), 3,
+                indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data(), normals.data());
+
+    ArtifactCore::RTSceneLight normalIncidenceLight;
+    normalIncidenceLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Directional);
+    normalIncidenceLight.directionIntensity[2] = 1.0f;
+    normalIncidenceLight.directionIntensity[3] = 4.0f;
+    normalIncidenceLight.colorAttenuationConstant[0] = 1.0f;
+    normalIncidenceLight.colorAttenuationConstant[1] = 1.0f;
+    normalIncidenceLight.colorAttenuationConstant[2] = 1.0f;
+    normalIncidenceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &normalIncidenceLight, 1);
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 1.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.0f;
+    material.roughness = 0.5f;
+    const auto traceSubsurface = [&](const float amount) {
+        material.subsurface = amount;
+        manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-subsurface-diffuse"), material);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16);
+    };
+
+    const auto burleyDiffusePixel = traceSubsurface(0.0f);
+    const auto mixedDiffusePixel = traceSubsurface(0.5f);
+    const auto subsurfaceDiffusePixel = traceSubsurface(1.0f);
+    const auto aboveMaximumSubsurfacePixel = traceSubsurface(1.5f);
+    const auto negativeSubsurfacePixel = traceSubsurface(-0.5f);
+    const auto nonFiniteSubsurfacePixel = traceSubsurface(
+        std::numeric_limits<float>::quiet_NaN());
+    EXPECT_GT(subsurfaceDiffusePixel[0], subsurfaceDiffusePixel[1] + 0.01f)
+        << "the red subsurface radius should exceed the green radius response";
+    EXPECT_GT(subsurfaceDiffusePixel[1], subsurfaceDiffusePixel[2] + 0.01f)
+        << "the green subsurface radius should exceed the blue radius response";
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(aboveMaximumSubsurfacePixel[channel],
+                    subsurfaceDiffusePixel[channel], 1.0e-5f)
+            << "subsurface amount above one should clamp to one, channel "
+            << channel;
+        EXPECT_NEAR(negativeSubsurfacePixel[channel],
+                    burleyDiffusePixel[channel], 1.0e-5f)
+            << "negative subsurface amount should clamp to zero, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteSubsurfacePixel[channel],
+                    burleyDiffusePixel[channel], 1.0e-5f)
+            << "non-finite subsurface amount should use the zero fallback, channel "
+            << channel;
+        EXPECT_GT(mixedDiffusePixel[channel],
+                  subsurfaceDiffusePixel[channel] + 0.001f)
+            << "a partial subsurface amount should blend from Burley diffuse, channel "
+            << channel;
+        EXPECT_LT(mixedDiffusePixel[channel], burleyDiffusePixel[channel] - 0.001f)
+            << "a partial subsurface amount should remain below Burley diffuse, channel "
+            << channel;
+    }
+
+    constexpr std::array<float, 3> defaultSubsurfaceRadius{1.0f, 0.2f, 0.1f};
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        material.subsurfaceRadius[channel] = 1.0f;
+        material.subsurfaceColor[channel] = 1.0f;
+    }
+    const auto neutralSubsurfaceColorPixel = traceSubsurface(1.0f);
+    std::array<std::array<float, 4>, 3> zeroSubsurfaceColorPixels{};
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        material.subsurfaceColor[0] = 1.0f;
+        material.subsurfaceColor[1] = 1.0f;
+        material.subsurfaceColor[2] = 1.0f;
+        material.subsurfaceColor[tintChannel] = 0.0f;
+        const auto tintedSubsurfacePixel = traceSubsurface(1.0f);
+        zeroSubsurfaceColorPixels[tintChannel] = tintedSubsurfacePixel;
+        EXPECT_LT(tintedSubsurfacePixel[tintChannel],
+                  neutralSubsurfaceColorPixel[tintChannel] - 0.001f)
+            << "subsurface color should reduce its matching output channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(tintedSubsurfacePixel[channel],
+                            neutralSubsurfaceColorPixel[channel], 1.0e-5f)
+                    << "subsurface color channel " << tintChannel
+                    << " should not alter output channel " << channel;
+            }
+        }
+    }
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        material.subsurfaceColor[0] = 1.0f;
+        material.subsurfaceColor[1] = 1.0f;
+        material.subsurfaceColor[2] = 1.0f;
+        material.subsurfaceColor[tintChannel] = -0.5f;
+        const auto belowMinimumSubsurfaceColorPixel = traceSubsurface(1.0f);
+        material.subsurfaceColor[tintChannel] = 1.5f;
+        const auto aboveMaximumSubsurfaceColorPixel = traceSubsurface(1.0f);
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(belowMinimumSubsurfaceColorPixel[channel],
+                        zeroSubsurfaceColorPixels[tintChannel][channel],
+                        1.0e-5f)
+                << "subsurface color channel " << tintChannel
+                << " below zero should clamp, output channel " << channel;
+            EXPECT_NEAR(aboveMaximumSubsurfaceColorPixel[channel],
+                        neutralSubsurfaceColorPixel[channel], 1.0e-5f)
+                << "subsurface color channel " << tintChannel
+                << " above one should clamp, output channel " << channel;
+        }
+    }
+    for (std::size_t invalidChannel = 0; invalidChannel < 3; ++invalidChannel) {
+        material.subsurfaceColor[0] = 1.0f;
+        material.subsurfaceColor[1] = 1.0f;
+        material.subsurfaceColor[2] = 1.0f;
+        material.subsurfaceColor[invalidChannel] =
+            std::numeric_limits<float>::quiet_NaN();
+        const auto nonFiniteSubsurfaceColorPixel = traceSubsurface(1.0f);
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(nonFiniteSubsurfaceColorPixel[channel],
+                        neutralSubsurfaceColorPixel[channel], 1.0e-5f)
+                << "non-finite subsurface color channel " << invalidChannel
+                << " should use its white fallback without changing channel "
+                << channel;
+        }
+    }
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        material.subsurfaceColor[channel] = 1.0f;
+        material.subsurfaceRadius[channel] = defaultSubsurfaceRadius[channel];
+    }
+
+    material.subsurfaceAnisotropy = -0.8f;
+    const auto backwardScatterPixel = traceSubsurface(1.0f);
+    material.subsurfaceAnisotropy = 0.8f;
+    const auto forwardScatterPixel = traceSubsurface(1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_GT(backwardScatterPixel[channel],
+                  subsurfaceDiffusePixel[channel])
+            << "negative subsurface anisotropy should strengthen backscatter, channel "
+            << channel;
+        EXPECT_GT(subsurfaceDiffusePixel[channel],
+                  forwardScatterPixel[channel])
+            << "positive subsurface anisotropy should suppress backscatter, channel "
+            << channel;
+    }
+
+    material.subsurfaceAnisotropy = 0.0f;
+    material.subsurfaceIOR = 0.5f;
+    const auto belowMinimumSubsurfaceIor = traceSubsurface(1.0f);
+    material.subsurfaceIOR = 1.0f;
+    const auto minimumSubsurfaceIor = traceSubsurface(1.0f);
+    EXPECT_NEAR(belowMinimumSubsurfaceIor[0], minimumSubsurfaceIor[0], 1.0e-5f)
+        << "subsurface IOR below one should clamp to one";
+    material.subsurfaceIOR = 2.0f;
+    const auto maximumSubsurfaceIor = traceSubsurface(1.0f);
+    const float subsurfaceIorResponse = std::max(
+        std::fabs(maximumSubsurfaceIor[0] - minimumSubsurfaceIor[0]),
+        std::max(std::fabs(maximumSubsurfaceIor[1] - minimumSubsurfaceIor[1]),
+                 std::fabs(maximumSubsurfaceIor[2] - minimumSubsurfaceIor[2])));
+    EXPECT_GT(subsurfaceIorResponse, 0.001f)
+        << "subsurface IOR should change the diffuse Fresnel response";
+    material.subsurfaceIOR = 2.5f;
+    const auto aboveMaximumSubsurfaceIor = traceSubsurface(1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(aboveMaximumSubsurfaceIor[channel],
+                    maximumSubsurfaceIor[channel], 1.0e-5f)
+            << "subsurface IOR above two should clamp to two, channel "
+            << channel;
+    }
+    material.subsurfaceIOR = std::numeric_limits<float>::quiet_NaN();
+    const auto nonFiniteSubsurfaceIor = traceSubsurface(1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(nonFiniteSubsurfaceIor[channel],
+                    subsurfaceDiffusePixel[channel], 1.0e-5f)
+            << "non-finite subsurface IOR should use 1.4, channel "
+            << channel;
+    }
+
+    material.subsurfaceIOR = 1.4f;
+    material.subsurfaceAnisotropy = -0.9f;
+    const auto minimumNegativeSubsurfaceAnisotropy = traceSubsurface(1.0f);
+    material.subsurfaceAnisotropy = -2.0f;
+    const auto belowMinimumSubsurfaceAnisotropy = traceSubsurface(1.0f);
+    material.subsurfaceAnisotropy = std::numeric_limits<float>::quiet_NaN();
+    const auto nonFiniteSubsurfaceAnisotropy = traceSubsurface(1.0f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumSubsurfaceAnisotropy[channel],
+                    minimumNegativeSubsurfaceAnisotropy[channel], 1.0e-5f)
+            << "subsurface anisotropy below -0.9 should clamp, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteSubsurfaceAnisotropy[channel],
+                    subsurfaceDiffusePixel[channel], 1.0e-5f)
+            << "non-finite subsurface anisotropy should use zero, channel "
+            << channel;
+    }
+    material.subsurfaceAnisotropy = 0.9f;
+    const auto maximumSubsurfaceAnisotropy = traceSubsurface(1.0f);
+    material.subsurfaceAnisotropy = 2.0f;
+    const auto overMaximumSubsurfaceAnisotropy = traceSubsurface(1.0f);
+    EXPECT_NEAR(overMaximumSubsurfaceAnisotropy[0],
+                maximumSubsurfaceAnisotropy[0], 1.0e-5f)
+        << "subsurface anisotropy above 0.9 should clamp to 0.9";
+
+    material.subsurfaceAnisotropy = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        material.subsurfaceRadius[channel] = 0.0f;
+        const auto minimumSubsurfaceRadius = traceSubsurface(1.0f);
+        material.subsurfaceRadius[channel] = -1.0f;
+        const auto belowMinimumSubsurfaceRadius = traceSubsurface(1.0f);
+        material.subsurfaceRadius[channel] =
+            std::numeric_limits<float>::quiet_NaN();
+        const auto nonFiniteSubsurfaceRadius = traceSubsurface(1.0f);
+        EXPECT_NEAR(belowMinimumSubsurfaceRadius[channel],
+                    minimumSubsurfaceRadius[channel], 1.0e-5f)
+            << "subsurface radius below zero should clamp, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteSubsurfaceRadius[channel],
+                    subsurfaceDiffusePixel[channel], 1.0e-5f)
+            << "non-finite subsurface radius should use its channel default, channel "
+            << channel;
+        material.subsurfaceRadius[channel] = defaultSubsurfaceRadius[channel];
+    }
+    material.subsurfaceRadius[0] = 10.0f;
+    const auto maximumSubsurfaceRadius = traceSubsurface(1.0f);
+    material.subsurfaceRadius[0] = 20.0f;
+    const auto overMaximumSubsurfaceRadius = traceSubsurface(1.0f);
+    EXPECT_NEAR(overMaximumSubsurfaceRadius[0],
+                maximumSubsurfaceRadius[0], 1.0e-5f)
+        << "subsurface radius above ten should clamp to ten";
 }
 
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) {
@@ -901,6 +8817,9 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     constexpr std::array<float, 16> uvs{
         0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 16> mirroredUvs1{
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -914,10 +8833,14 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("masked-alpha-surfaces"), vertices.data(), 8,
-        indices.data(), 12, nullptr, materialIndices.data(), uvs.data()));
+        indices.data(), 12, nullptr, materialIndices.data(), uvs.data(),
+        nullptr, mirroredUvs1.data()));
 
-    const auto texturePath = std::filesystem::temp_directory_path() /
-                             "artifact-rt-masked-opacity.png";
+    QTemporaryDir maskedOpacityDirectory;
+    ASSERT_TRUE(maskedOpacityDirectory.isValid());
+    const auto texturePath = std::filesystem::path(
+        maskedOpacityDirectory.filePath(QStringLiteral("masked-opacity.png"))
+            .toStdString());
     QImage opacityImage(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(opacityImage.isNull());
     for (int y = 0; y < opacityImage.height(); ++y) {
@@ -925,8 +8848,8 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
         for (int x = 0; x < opacityImage.width(); ++x) {
             auto* pixel = row + x * 4;
             const uchar value = x < 4 ? 0 : 255;
-            pixel[0] = pixel[1] = pixel[2] = value;
-            pixel[3] = 255;
+            pixel[0] = pixel[1] = pixel[2] = 255 - value;
+            pixel[3] = value;
         }
     }
     ASSERT_TRUE(opacityImage.save(
@@ -964,6 +8887,71 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     EXPECT_GT(cutoutPixel[2], cutoutPixel[0] + 0.5f);
     EXPECT_GT(opaquePixel[0], opaquePixel[2] + 0.5f);
 
+    frontMaterial.alphaMode = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto opaqueModePixel = pixelAt(8, 16);
+    EXPECT_GT(opaqueModePixel[0], opaqueModePixel[2] + 0.5f)
+        << "opaque alpha mode should keep the masked front surface";
+
+    frontMaterial.alphaMode = 2;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto blendedModePixel = pixelAt(8, 16);
+    EXPECT_GT(blendedModePixel[0], blendedModePixel[2] + 0.5f)
+        << "blended alpha mode should not use binary masked ray cutout";
+
+    frontMaterial.alphaMode = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto restoredCutoutPixel = pixelAt(8, 16);
+    EXPECT_GT(restoredCutoutPixel[2], restoredCutoutPixel[0] + 0.5f)
+        << "restoring mask mode should rebuild BLAS alpha-test flags";
+
+    frontMaterial.opacityTextureUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedCutoutPixel = pixelAt(8, 16);
+    const auto rotatedOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(rotatedCutoutPixel[0], rotatedCutoutPixel[2] + 0.5f)
+        << "rotating the opacity map should move its opaque half onto the left side";
+    EXPECT_GT(rotatedOpaquePixel[2], rotatedOpaquePixel[0] + 0.5f)
+        << "rotating the opacity map should move its cutout half onto the right side";
+
+    frontMaterial.opacityTextureUvRotationDegrees = 0.0f;
+    frontMaterial.opacityTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1OpaquePixel = pixelAt(8, 16);
+    const auto uv1CutoutPixel = pixelAt(24, 16);
+    EXPECT_GT(uv1OpaquePixel[0], uv1OpaquePixel[2] + 0.5f)
+        << "opacity UV1 mirroring should move the opaque texels to the left";
+    EXPECT_GT(uv1CutoutPixel[2], uv1CutoutPixel[0] + 0.5f)
+        << "opacity UV1 mirroring should move the cutout texels to the right";
+
+    frontMaterial.opacityTextureUvSet = 0;
     frontMaterial.baseColorAlpha = 0.7f;
     frontMaterial.opacity = 0.7f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
@@ -976,8 +8964,50 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) 
     const auto factorCutoutPixel = pixelAt(24, 16);
     EXPECT_GT(factorCutoutPixel[2], factorCutoutPixel[0] + 0.5f)
         << "base color alpha * scalar opacity must be below alpha cutoff";
-    std::error_code ignored;
-    std::filesystem::remove(texturePath, ignored);
+
+    frontMaterial.baseColorAlpha = 0.8f;
+    frontMaterial.opacity = 0.625f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto cutoffBoundaryPixel = pixelAt(24, 16);
+    EXPECT_GT(cutoffBoundaryPixel[0], cutoffBoundaryPixel[2] + 0.5f)
+        << "alpha equal to the cutoff should keep the front surface";
+
+    frontMaterial.opacity = 0.6375f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto aboveCutoffPixel = pixelAt(24, 16);
+    EXPECT_GT(aboveCutoffPixel[0], aboveCutoffPixel[2] + 0.5f)
+        << "alpha just above the cutoff should keep the front surface";
+
+    frontMaterial.opacityTexture = ArtifactCore::UniString{};
+    frontMaterial.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(texturePath.string()));
+    frontMaterial.baseColorAlpha = 1.0f;
+    frontMaterial.opacity = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-alpha-surfaces"), frontMaterial, 1));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto baseColorTextureCutoutPixel = pixelAt(8, 16);
+    const auto baseColorTextureOpaquePixel = pixelAt(24, 16);
+    EXPECT_GT(baseColorTextureCutoutPixel[2],
+              baseColorTextureCutoutPixel[0] + 0.5f)
+        << "zero base-color texture alpha should continue the ray to the rear";
+    EXPECT_GT(baseColorTextureOpaquePixel[0],
+              baseColorTextureOpaquePixel[2] + 0.5f)
+        << "full base-color texture alpha should keep the masked front surface";
 }
 
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
@@ -993,6 +9023,15 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
         0, 1, 2, 0, 2, 3};
     constexpr std::array<float, 8> blockerUvs{
         0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 16> opaqueBlockerVertexColors{
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    constexpr std::array<float, 16> transparentBlockerVertexColors{
+        1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f};
+    constexpr std::array<float, 16> partialBlockerVertexColors{
+        1.0f, 1.0f, 1.0f, 0.6f, 1.0f, 1.0f, 1.0f, 0.6f,
+        1.0f, 1.0f, 1.0f, 0.6f, 1.0f, 1.0f, 1.0f, 0.6f};
 
     auto receiverVertexBuffer = makeBuffer(
         receiverVertices.data(), sizeof(receiverVertices), 3u * sizeof(float),
@@ -1019,7 +9058,8 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
                 blockerVertices.data(), blockerIndices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("masked-shadow-blocker"), blockerVertices.data(),
-        4, blockerIndices.data(), 6, nullptr, nullptr, blockerUvs.data()));
+        4, blockerIndices.data(), 6, nullptr, nullptr, blockerUvs.data(),
+        opaqueBlockerVertexColors.data()));
 
     ArtifactCore::RTPbrMaterial receiverMaterial;
     receiverMaterial.baseColor[0] = receiverMaterial.baseColor[1] =
@@ -1028,12 +9068,42 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-shadow-receiver"), receiverMaterial));
 
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto whiteMapPath = tempDirectory / "artifact-rt-shadow-opacity-white.png";
-    const auto blackMapPath = tempDirectory / "artifact-rt-shadow-opacity-black.png";
-    for (const auto& item : std::array<std::pair<std::filesystem::path, QColor>, 2>{
+    QTemporaryDir shadowOpacityDirectory;
+    ASSERT_TRUE(shadowOpacityDirectory.isValid());
+    const auto whiteMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(QStringLiteral("opaque.png"))
+            .toStdString());
+    const auto transparentMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(QStringLiteral("transparent.png"))
+            .toStdString());
+    const auto cutoffEqualMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(QStringLiteral("cutoff-equal.png"))
+            .toStdString());
+    const auto belowCutoffMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(QStringLiteral("below-cutoff.png"))
+            .toStdString());
+    const auto transparentBaseColorMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(
+            QStringLiteral("base-color-transparent-alpha.png"))
+            .toStdString());
+    const auto opaqueBaseColorMapPath = std::filesystem::path(
+        shadowOpacityDirectory.filePath(
+            QStringLiteral("base-color-opaque-alpha.png"))
+            .toStdString());
+    for (const auto& item : std::array<std::pair<std::filesystem::path, QColor>, 4>{
              std::pair{whiteMapPath, QColor(255, 255, 255, 255)},
-             std::pair{blackMapPath, QColor(0, 0, 0, 255)}}) {
+             std::pair{transparentMapPath, QColor(0, 0, 0, 0)},
+             std::pair{cutoffEqualMapPath, QColor(255, 255, 255, 128)},
+             std::pair{belowCutoffMapPath, QColor(255, 255, 255, 127)}}) {
+        QImage image(2, 2, QImage::Format_RGBA8888);
+        ASSERT_FALSE(image.isNull());
+        image.fill(item.second);
+        ASSERT_TRUE(image.save(QString::fromStdString(item.first.string()), "PNG"));
+    }
+    for (const auto& item :
+         std::array<std::pair<std::filesystem::path, QColor>, 2>{
+             std::pair{transparentBaseColorMapPath, QColor(255, 255, 255, 0)},
+             std::pair{opaqueBaseColorMapPath, QColor(0, 0, 0, 255)}}) {
         QImage image(2, 2, QImage::Format_RGBA8888);
         ASSERT_FALSE(image.isNull());
         image.fill(item.second);
@@ -1066,7 +9136,7 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     const auto opaqueBlockerPixel = pixelAt(24, 16);
 
     blockerMaterial.opacityTexture = ArtifactCore::UniString(
-        QString::fromStdString(blackMapPath.string()));
+        QString::fromStdString(transparentMapPath.string()));
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -1078,9 +9148,584 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     EXPECT_GT(transparentBlockerPixel[1], opaqueBlockerPixel[1] + 0.02f)
         << "a cutout blocker should not terminate the receiver's shadow ray";
 
-    std::error_code ignored;
-    std::filesystem::remove(whiteMapPath, ignored);
-    std::filesystem::remove(blackMapPath, ignored);
+    blockerMaterial.alphaMode = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto opaqueModeBlockerPixel = pixelAt(24, 16);
+    EXPECT_NEAR(opaqueModeBlockerPixel[1], opaqueBlockerPixel[1], 0.02f)
+        << "opaque alpha mode should ignore transparent opacity texture in shadows";
+
+    blockerMaterial.alphaMode = 2;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto blendedModeBlockerPixel = pixelAt(24, 16);
+    EXPECT_NEAR(blendedModeBlockerPixel[1], opaqueBlockerPixel[1], 0.02f)
+        << "blended alpha mode should not use binary masked shadow cutout";
+
+    blockerMaterial.alphaMode = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+
+    blockerMaterial.alphaCutoff = 128.0f / 255.0f;
+    blockerMaterial.opacityTexture = ArtifactCore::UniString(
+        QString::fromStdString(cutoffEqualMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto cutoffEqualPixel = pixelAt(24, 16);
+    EXPECT_NEAR(cutoffEqualPixel[1], opaqueBlockerPixel[1], 0.02f)
+        << "alpha equal to the cutoff should block the shadow ray";
+
+    blockerMaterial.opacityTexture = ArtifactCore::UniString(
+        QString::fromStdString(belowCutoffMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto belowCutoffPixel = pixelAt(24, 16);
+    EXPECT_NEAR(belowCutoffPixel[1], transparentBlockerPixel[1], 0.02f)
+        << "alpha below the cutoff should pass the shadow ray";
+
+    QTemporaryDir missingOpacityDirectory;
+    ASSERT_TRUE(missingOpacityDirectory.isValid());
+    blockerMaterial.opacityTexture = ArtifactCore::UniString(
+        missingOpacityDirectory.filePath(QStringLiteral("missing-opacity.png")));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingOpacityPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(missingOpacityPixel[channel], opaqueBlockerPixel[channel],
+                    0.02f)
+            << "a missing opacity map should fall back to scalar opacity, "
+               "channel " << channel;
+    }
+
+    blockerMaterial.opacityTexture = ArtifactCore::UniString();
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerVertices.data(),
+        4, blockerIndices.data(), 6, nullptr, nullptr, blockerUvs.data(),
+        transparentBlockerVertexColors.data()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentVertexAlphaPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(transparentVertexAlphaPixel[channel],
+                    transparentBlockerPixel[channel], 0.02f)
+            << "zero vertex alpha should pass the masked shadow ray, channel "
+            << channel;
+    }
+
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerVertices.data(),
+        4, blockerIndices.data(), 6, nullptr, nullptr, blockerUvs.data(),
+        opaqueBlockerVertexColors.data()));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto opaqueVertexAlphaPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(opaqueVertexAlphaPixel[channel], opaqueBlockerPixel[channel],
+                    0.02f)
+            << "full vertex alpha should block the masked shadow ray, channel "
+            << channel;
+    }
+
+    blockerMaterial.baseColorAlpha = 0.9f;
+    blockerMaterial.opacity = 0.9f;
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerVertices.data(),
+        4, blockerIndices.data(), 6, nullptr, nullptr, blockerUvs.data(),
+        partialBlockerVertexColors.data()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto combinedVertexMaterialAlphaOpen = pixelAt(24, 16);
+    EXPECT_NEAR(combinedVertexMaterialAlphaOpen[1],
+                transparentBlockerPixel[1], 0.02f)
+        << "0.9 base alpha * 0.9 opacity * 0.6 vertex alpha should pass below cutoff";
+
+    blockerMaterial.opacity = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto combinedVertexMaterialAlphaBlocked = pixelAt(24, 16);
+    EXPECT_NEAR(combinedVertexMaterialAlphaBlocked[1],
+                opaqueBlockerPixel[1], 0.02f)
+        << "0.9 base alpha * full opacity * 0.6 vertex alpha should block above cutoff";
+
+    blockerMaterial.baseColorAlpha = 1.0f;
+    blockerMaterial.opacity = 1.0f;
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerVertices.data(),
+        4, blockerIndices.data(), 6, nullptr, nullptr, blockerUvs.data(),
+        opaqueBlockerVertexColors.data()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+
+    blockerMaterial.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(transparentBaseColorMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto transparentBaseColorAlphaPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(transparentBaseColorAlphaPixel[channel],
+                    transparentBlockerPixel[channel], 0.02f)
+            << "zero base-color texture alpha should pass the masked shadow ray, "
+               "channel " << channel;
+    }
+
+    blockerMaterial.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(opaqueBaseColorMapPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto opaqueBaseColorAlphaPixel = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(opaqueBaseColorAlphaPixel[channel], opaqueBlockerPixel[channel],
+                    0.02f)
+            << "full base-color texture alpha should block the masked shadow ray, "
+               "channel " << channel;
+    }
+
+    blockerMaterial.baseColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(cutoffEqualMapPath.string()));
+    blockerMaterial.opacity = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto combinedAlphaAtCutoffPixel = pixelAt(24, 16);
+    EXPECT_NEAR(combinedAlphaAtCutoffPixel[1], opaqueBlockerPixel[1], 0.02f)
+        << "half-alpha base-color texture times full opacity should block";
+
+    blockerMaterial.opacity = 0.99f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("masked-shadow-blocker"), blockerMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto combinedAlphaBelowCutoffPixel = pixelAt(24, 16);
+    EXPECT_NEAR(combinedAlphaBelowCutoffPixel[1], transparentBlockerPixel[1],
+                0.02f)
+        << "half-alpha base-color texture times scalar opacity should pass below cutoff";
+
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsMaskedShadowOpacityTexturePerMaterialSlot) {
+    constexpr std::array<float, 12> receiverVertices{
+        -1.2f, -1.0f, 0.4f, 1.2f, -1.0f, 0.4f,
+         1.2f,  1.0f, 0.4f, -1.2f, 1.0f, 0.4f};
+    constexpr std::array<std::uint32_t, 6> receiverIndices{
+        0, 2, 1, 0, 3, 2};
+    constexpr std::array<float, 24> blockerVertices{
+        -0.35f, -0.3f, 0.0f, -0.22f, -0.3f, 0.0f,
+        -0.22f,  0.3f, 0.0f, -0.35f,  0.3f, 0.0f,
+         0.22f, -0.3f, 0.0f,  0.35f, -0.3f, 0.0f,
+         0.35f,  0.3f, 0.0f,  0.22f,  0.3f, 0.0f};
+    constexpr std::array<std::uint32_t, 12> blockerIndices{
+        0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7};
+    constexpr std::array<std::uint32_t, 4> blockerMaterialIndices{0, 0, 1, 1};
+    constexpr std::array<float, 16> blockerUvs{
+        0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
+    auto receiverVertexBuffer = makeBuffer(
+        receiverVertices.data(), sizeof(receiverVertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto receiverIndexBuffer = makeBuffer(
+        receiverIndices.data(), sizeof(receiverIndices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto blockerVertexBuffer = makeBuffer(
+        blockerVertices.data(), sizeof(blockerVertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto blockerIndexBuffer = makeBuffer(
+        blockerIndices.data(), sizeof(blockerIndices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(receiverVertexBuffer, nullptr);
+    ASSERT_NE(receiverIndexBuffer, nullptr);
+    ASSERT_NE(blockerVertexBuffer, nullptr);
+    ASSERT_NE(blockerIndexBuffer, nullptr);
+    addGeometry("multi-slot-shadow-receiver", receiverVertexBuffer.RawPtr(), 4,
+                receiverIndexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                receiverVertices.data(), receiverIndices.data());
+    addGeometry("multi-slot-shadow-blockers", blockerVertexBuffer.RawPtr(), 8,
+                blockerIndexBuffer.RawPtr(), 12, float4x4::Identity(), 1, 1,
+                blockerVertices.data(), blockerIndices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        blockerVertices.data(), 8, blockerIndices.data(), 12, nullptr,
+        blockerMaterialIndices.data(), blockerUvs.data()));
+
+    QTemporaryDir opacityDirectory;
+    ASSERT_TRUE(opacityDirectory.isValid());
+    const auto transparentPath = opacityDirectory.filePath(
+        QStringLiteral("transparent-shadow.png"));
+    const auto opaquePath = opacityDirectory.filePath(
+        QStringLiteral("opaque-shadow.png"));
+    QImage transparentImage(2, 2, QImage::Format_RGBA8888);
+    QImage opaqueImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(transparentImage.isNull());
+    ASSERT_FALSE(opaqueImage.isNull());
+    transparentImage.fill(QColor(255, 255, 255, 0));
+    opaqueImage.fill(QColor(255, 255, 255, 255));
+    ASSERT_TRUE(transparentImage.save(transparentPath, "PNG"));
+    ASSERT_TRUE(opaqueImage.save(opaquePath, "PNG"));
+
+    ArtifactCore::RTPbrMaterial receiverMaterial;
+    receiverMaterial.baseColor[0] = receiverMaterial.baseColor[1] =
+        receiverMaterial.baseColor[2] = 0.8f;
+    receiverMaterial.roughness = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-receiver"),
+        receiverMaterial));
+    ArtifactCore::RTPbrMaterial slot0Material;
+    slot0Material.alphaMode = 1;
+    slot0Material.alphaCutoff = 0.5f;
+    slot0Material.opacityTexture = ArtifactCore::UniString(opaquePath);
+    ArtifactCore::RTPbrMaterial slot1Material = slot0Material;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+
+    const auto traceReceiverGreen = [&](const float lightX) {
+        ArtifactCore::RTSceneLight pointLight;
+        pointLight.positionType[0] = lightX;
+        pointLight.positionType[2] = -1.0f;
+        pointLight.positionType[3] =
+            static_cast<float>(ArtifactCore::LightType::Point);
+        pointLight.directionIntensity[3] = 24.0f;
+        pointLight.colorAttenuationConstant[1] = 1.0f;
+        pointLight.colorAttenuationConstant[3] = 1.0f;
+        pointLight.shadowParams[0] = 0.0f;
+        manager_->setSceneLights(context_.RawPtr(), &pointLight, 1);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(16, 16)[1];
+    };
+
+    slot0Material.opacityTexture = ArtifactCore::UniString(transparentPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    const float leftSlotOpen = traceReceiverGreen(-1.0f);
+    slot0Material.opacityTexture = ArtifactCore::UniString(opaquePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    const float leftSlotBlocked = traceReceiverGreen(-1.0f);
+    EXPECT_GT(leftSlotOpen, leftSlotBlocked + 0.02f)
+        << "slot 0 opacity should control the left blocker shadow";
+
+    slot1Material.opacityTexture = ArtifactCore::UniString(transparentPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float rightSlotOpen = traceReceiverGreen(1.0f);
+    slot1Material.opacityTexture = ArtifactCore::UniString(opaquePath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float rightSlotBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(rightSlotOpen, rightSlotBlocked + 0.02f)
+        << "slot 1 opacity should control the right blocker shadow";
+
+    slot0Material.opacityTexture = ArtifactCore::UniString();
+    slot1Material.opacityTexture = ArtifactCore::UniString();
+    slot0Material.opacity = 0.0f;
+    slot1Material.opacity = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftScalarOpen = traceReceiverGreen(-1.0f);
+    const float rightScalarBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftScalarOpen, leftSlotBlocked + 0.02f)
+        << "zero scalar opacity on slot 0 should pass its shadow ray";
+    EXPECT_NEAR(rightScalarBlocked, rightSlotBlocked, 0.02f)
+        << "full scalar opacity on slot 1 should preserve its blocker shadow";
+
+    slot0Material.opacity = 1.0f;
+    slot1Material.opacity = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftScalarBlocked = traceReceiverGreen(-1.0f);
+    const float rightScalarOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftScalarBlocked, leftSlotBlocked, 0.02f)
+        << "full scalar opacity on slot 0 should preserve its blocker shadow";
+    EXPECT_GT(rightScalarOpen, rightSlotBlocked + 0.02f)
+        << "zero scalar opacity on slot 1 should pass its shadow ray";
+
+    slot0Material.opacity = 0.7f;
+    slot0Material.baseColorAlpha = 0.7f;
+    slot1Material.opacity = 0.8f;
+    slot1Material.baseColorAlpha = 0.8f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftCombinedAlphaOpen = traceReceiverGreen(-1.0f);
+    const float rightCombinedAlphaBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftCombinedAlphaOpen, leftSlotBlocked + 0.02f)
+        << "slot 0 base-color alpha times scalar opacity is below cutoff";
+    EXPECT_NEAR(rightCombinedAlphaBlocked, rightSlotBlocked, 0.02f)
+        << "slot 1 base-color alpha times scalar opacity is above cutoff";
+
+    slot0Material.opacity = 0.8f;
+    slot0Material.baseColorAlpha = 0.8f;
+    slot1Material.opacity = 0.7f;
+    slot1Material.baseColorAlpha = 0.7f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftCombinedAlphaBlocked = traceReceiverGreen(-1.0f);
+    const float rightCombinedAlphaOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftCombinedAlphaBlocked, leftSlotBlocked, 0.02f)
+        << "slot 0 base-color alpha times scalar opacity is above cutoff";
+    EXPECT_GT(rightCombinedAlphaOpen, rightSlotBlocked + 0.02f)
+        << "slot 1 base-color alpha times scalar opacity is below cutoff";
+
+    slot0Material.alphaMode = 0;
+    slot1Material.alphaMode = 1;
+    slot0Material.opacityTexture = ArtifactCore::UniString(transparentPath);
+    slot1Material.opacityTexture = ArtifactCore::UniString(transparentPath);
+    slot0Material.opacity = slot1Material.opacity = 1.0f;
+    slot0Material.baseColorAlpha = slot1Material.baseColorAlpha = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftOpaqueModeBlocked = traceReceiverGreen(-1.0f);
+    const float rightMaskedModeOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftOpaqueModeBlocked, leftSlotBlocked, 0.02f)
+        << "opaque mode on slot 0 should ignore transparent shadow alpha";
+    EXPECT_GT(rightMaskedModeOpen, rightSlotBlocked + 0.02f)
+        << "masked mode on slot 1 should pass its transparent shadow";
+
+    slot0Material.alphaMode = 1;
+    slot1Material.alphaMode = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftMaskedModeOpen = traceReceiverGreen(-1.0f);
+    const float rightOpaqueModeBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftMaskedModeOpen, leftSlotBlocked + 0.02f)
+        << "masked mode on slot 0 should pass its transparent shadow";
+    EXPECT_NEAR(rightOpaqueModeBlocked, rightSlotBlocked, 0.02f)
+        << "opaque mode on slot 1 should ignore transparent shadow alpha";
+
+    slot0Material.alphaMode = slot1Material.alphaMode = 1;
+    slot0Material.opacityTexture = ArtifactCore::UniString();
+    slot1Material.opacityTexture = ArtifactCore::UniString();
+    slot0Material.baseColorAlpha = slot1Material.baseColorAlpha = 1.0f;
+    slot0Material.opacity = slot1Material.opacity = 0.45f;
+    slot0Material.alphaCutoff = 0.4f;
+    slot1Material.alphaCutoff = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftLowCutoffBlocked = traceReceiverGreen(-1.0f);
+    const float rightHighCutoffOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftLowCutoffBlocked, leftSlotBlocked, 0.02f)
+        << "slot 0's lower alpha cutoff should retain 0.45 opacity";
+    EXPECT_GT(rightHighCutoffOpen, rightSlotBlocked + 0.02f)
+        << "slot 1's higher alpha cutoff should pass 0.45 opacity";
+
+    slot0Material.alphaCutoff = 0.5f;
+    slot1Material.alphaCutoff = 0.4f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftHighCutoffOpen = traceReceiverGreen(-1.0f);
+    const float rightLowCutoffBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftHighCutoffOpen, leftSlotBlocked + 0.02f)
+        << "slot 0's higher alpha cutoff should pass 0.45 opacity";
+    EXPECT_NEAR(rightLowCutoffBlocked, rightSlotBlocked, 0.02f)
+        << "slot 1's lower alpha cutoff should retain 0.45 opacity";
+
+    slot0Material.alphaCutoff = 0.45f;
+    slot1Material.alphaCutoff = 0.4501f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftEqualCutoffBlocked = traceReceiverGreen(-1.0f);
+    const float rightAboveCutoffOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftEqualCutoffBlocked, leftSlotBlocked, 0.02f)
+        << "alpha equal to slot 0 cutoff should retain the shadow blocker";
+    EXPECT_GT(rightAboveCutoffOpen, rightSlotBlocked + 0.02f)
+        << "slot 1 cutoff just above alpha should pass the shadow ray";
+
+    slot0Material.alphaCutoff = 0.4501f;
+    slot1Material.alphaCutoff = 0.45f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float leftAboveCutoffOpen = traceReceiverGreen(-1.0f);
+    const float rightEqualCutoffBlocked = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftAboveCutoffOpen, leftSlotBlocked + 0.02f)
+        << "slot 0 cutoff just above alpha should pass the shadow ray";
+    EXPECT_NEAR(rightEqualCutoffBlocked, rightSlotBlocked, 0.02f)
+        << "alpha equal to slot 1 cutoff should retain the shadow blocker";
+
+    const auto alphaUvRampPath = opacityDirectory.filePath(
+        QStringLiteral("slot-shadow-alpha-uv-ramp.png"));
+    QImage alphaUvRamp(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(alphaUvRamp.isNull());
+    for (int y = 0; y < alphaUvRamp.height(); ++y) {
+        auto* row = alphaUvRamp.scanLine(y);
+        for (int x = 0; x < alphaUvRamp.width(); ++x) {
+            auto* pixel = row + x * 4;
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            pixel[3] = x < alphaUvRamp.width() / 2 ? 0 : 255;
+        }
+    }
+    ASSERT_TRUE(alphaUvRamp.save(alphaUvRampPath, "PNG"));
+
+    constexpr std::array<float, 16> constantShadowUvs{
+        0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f,
+        0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f};
+    constexpr std::array<float, 16> opaqueShadowUvs{
+        0.75f, 0.5f, 0.75f, 0.5f, 0.75f, 0.5f, 0.75f, 0.5f,
+        0.75f, 0.5f, 0.75f, 0.5f, 0.75f, 0.5f, 0.75f, 0.5f};
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        blockerVertices.data(), 8, blockerIndices.data(), 12, nullptr,
+        blockerMaterialIndices.data(), constantShadowUvs.data(), nullptr,
+        opaqueShadowUvs.data()));
+    for (int slotIndex = 0; slotIndex < 2; ++slotIndex) {
+        auto& slotMaterial = slotIndex == 0 ? slot0Material : slot1Material;
+        slotMaterial.alphaMode = 1;
+        slotMaterial.alphaCutoff = 0.5f;
+        slotMaterial.opacity = 1.0f;
+        slotMaterial.baseColorAlpha = 1.0f;
+        slotMaterial.opacityTexture = ArtifactCore::UniString(alphaUvRampPath);
+        slotMaterial.opacityTextureUvSet = 0;
+        slotMaterial.opacityTextureUvOffsetU = 0.0f;
+        ASSERT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("multi-slot-shadow-blockers"),
+            slotMaterial, slotIndex));
+    }
+    const float leftUvRampOpen = traceReceiverGreen(-1.0f);
+    const float rightUvRampOpen = traceReceiverGreen(1.0f);
+    EXPECT_GT(leftUvRampOpen, leftSlotBlocked + 0.02f)
+        << "transparent opacity texels should pass the slot 0 shadow ray";
+    EXPECT_GT(rightUvRampOpen, rightSlotBlocked + 0.02f)
+        << "transparent opacity texels should pass the slot 1 shadow ray";
+
+    slot1Material.opacityTextureUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float unchangedLeftUvSetOpen = traceReceiverGreen(-1.0f);
+    const float rightUvSetBlocked = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(unchangedLeftUvSetOpen, leftUvRampOpen, 0.02f)
+        << "slot 1 opacity UV set should preserve slot 0 shadow transmission";
+    EXPECT_NEAR(rightUvSetBlocked, rightSlotBlocked, 0.02f)
+        << "slot 1 opacity UV set should sample opaque texels in its shadow ray";
+
+    slot1Material.opacityTextureUvSet = 0;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+
+    slot0Material.opacityTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    const float leftUvRampOffsetBlocked = traceReceiverGreen(-1.0f);
+    const float unchangedRightUvRampOpen = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(leftUvRampOffsetBlocked, leftSlotBlocked, 0.02f)
+        << "slot 0 opacity UV offset should move its shadow sample to opaque texels";
+    EXPECT_NEAR(unchangedRightUvRampOpen, rightUvRampOpen, 0.02f)
+        << "slot 0 opacity UV offset should preserve slot 1 shadow transmission";
+
+    slot0Material.opacityTextureUvOffsetU = 0.0f;
+    slot1Material.opacityTextureUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot0Material, 0));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("multi-slot-shadow-blockers"),
+        slot1Material, 1));
+    const float unchangedLeftUvRampOpen = traceReceiverGreen(-1.0f);
+    const float rightUvRampOffsetBlocked = traceReceiverGreen(1.0f);
+    EXPECT_NEAR(unchangedLeftUvRampOpen, leftUvRampOpen, 0.02f)
+        << "slot 1 opacity UV offset should preserve slot 0 shadow transmission";
+    EXPECT_NEAR(rightUvRampOffsetBlocked, rightSlotBlocked, 0.02f)
+        << "slot 1 opacity UV offset should move its shadow sample to opaque texels";
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -1107,11 +9752,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-metallic-roughness-minified-checker.png";
+        tempDirectory.filePath(QStringLiteral("metallic-roughness-checker.png"));
     const auto averagePath =
-        tempDirectory / "artifact-rt-metallic-roughness-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("metallic-roughness-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -1129,15 +9775,14 @@ TEST_F(RayTracingAcceptanceTest,
             checkerPixel[3] = averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.metallic = 1.0f;
     material.roughness = 0.8f;
-    material.metallicRoughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.metallicRoughnessTexture = ArtifactCore::UniString(checkerPath);
     const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
                                     const int x) {
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
@@ -1155,8 +9800,7 @@ TEST_F(RayTracingAcceptanceTest,
             traceAndSample(material, 14 + index);
     }
 
-    material.metallicRoughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.metallicRoughnessTexture = ArtifactCore::UniString(averagePath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         const float reference = traceAndSample(material, 14 + index);
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
@@ -1164,10 +9808,6 @@ TEST_F(RayTracingAcceptanceTest,
             << "minified packed metallic-roughness sample " << index
             << " should match the linear mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -1194,11 +9834,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-roughness-minified-checker.png";
+        tempDirectory.filePath(QStringLiteral("roughness-checker.png"));
     const auto averagePath =
-        tempDirectory / "artifact-rt-roughness-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("roughness-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -1216,14 +9857,13 @@ TEST_F(RayTracingAcceptanceTest,
             checkerPixel[3] = averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.roughness = 1.0f;
-    material.roughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.roughnessTexture = ArtifactCore::UniString(checkerPath);
     const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
                                     const int x) {
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
@@ -1241,8 +9881,7 @@ TEST_F(RayTracingAcceptanceTest,
             traceAndSample(material, 14 + index);
     }
 
-    material.roughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.roughnessTexture = ArtifactCore::UniString(averagePath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         const float reference = traceAndSample(material, 14 + index);
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
@@ -1250,10 +9889,6 @@ TEST_F(RayTracingAcceptanceTest,
             << "minified independent roughness sample " << index
             << " should match its linear mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -1280,11 +9915,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-metallic-minified-checker.png";
+        tempDirectory.filePath(QStringLiteral("metallic-checker.png"));
     const auto averagePath =
-        tempDirectory / "artifact-rt-metallic-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("metallic-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -1302,15 +9938,14 @@ TEST_F(RayTracingAcceptanceTest,
             checkerPixel[3] = averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.metallic = 1.0f;
     material.roughness = 0.5f;
-    material.metallicTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.metallicTexture = ArtifactCore::UniString(checkerPath);
     const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
                                     const int x) {
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
@@ -1328,8 +9963,7 @@ TEST_F(RayTracingAcceptanceTest,
             traceAndSample(material, 14 + index);
     }
 
-    material.metallicTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.metallicTexture = ArtifactCore::UniString(averagePath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         const float reference = traceAndSample(material, 14 + index);
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
@@ -1337,10 +9971,6 @@ TEST_F(RayTracingAcceptanceTest,
             << "minified independent metallic sample " << index
             << " should match its linear mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -1368,9 +9998,12 @@ TEST_F(RayTracingAcceptanceTest,
 
     constexpr int textureWidth = 127;
     constexpr int textureHeight = 95;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto checkerPath = tempDirectory / "artifact-rt-pbr-minified-checker.png";
-    const auto averagePath = tempDirectory / "artifact-rt-pbr-minified-average.png";
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
+    const auto checkerPath =
+        tempDirectory.filePath(QStringLiteral("pbr-checker.png"));
+    const auto averagePath =
+        tempDirectory.filePath(QStringLiteral("pbr-average.png"));
     QImage checker(textureWidth, textureHeight, QImage::Format_RGBA8888);
     QImage average(textureWidth, textureHeight, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -1392,13 +10025,12 @@ TEST_F(RayTracingAcceptanceTest,
             averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 1.0f;
-    material.baseColorTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.baseColorTexture = ArtifactCore::UniString(checkerPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-mip-selection"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -1411,8 +10043,7 @@ TEST_F(RayTracingAcceptanceTest,
         checkerSamples[i] = pixelAt(14 + i, 16)[0];
     }
 
-    material.baseColorTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.baseColorTexture = ArtifactCore::UniString(averagePath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-mip-selection"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -1425,9 +10056,6 @@ TEST_F(RayTracingAcceptanceTest,
             << "minified checker sample " << i
             << " should match its linear-light mip average";
     }
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -1457,11 +10085,12 @@ TEST_F(RayTracingAcceptanceTest,
         nullptr, highDensityUvs1.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-emission-minified-checker.png";
+        tempDirectory.filePath(QStringLiteral("emission-checker.png"));
     const auto averagePath =
-        tempDirectory / "artifact-rt-emission-minified-average.png";
+        tempDirectory.filePath(QStringLiteral("emission-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -1483,8 +10112,8 @@ TEST_F(RayTracingAcceptanceTest,
             averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
@@ -1494,8 +10123,7 @@ TEST_F(RayTracingAcceptanceTest,
         material.emissionColor[2] = 1.0f;
     material.emissionStrength = 1.0f;
     for (const float uvScale : {0.5f, 1.0f, 4.0f}) {
-        material.emissionTexture = ArtifactCore::UniString(
-            QString::fromStdString(checkerPath.string()));
+        material.emissionTexture = ArtifactCore::UniString(checkerPath);
         material.emissionTextureUvScale = uvScale;
         ASSERT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
@@ -1507,8 +10135,7 @@ TEST_F(RayTracingAcceptanceTest,
             pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
             pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
 
-        material.emissionTexture = ArtifactCore::UniString(
-            QString::fromStdString(averagePath.string()));
+        material.emissionTexture = ArtifactCore::UniString(averagePath);
         ASSERT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
         ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -1525,8 +10152,7 @@ TEST_F(RayTracingAcceptanceTest,
 
     material.emissionTextureUvSet = 1;
     material.emissionTextureUvScale = 1.0f;
-    material.emissionTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.emissionTexture = ArtifactCore::UniString(checkerPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -1536,8 +10162,7 @@ TEST_F(RayTracingAcceptanceTest,
     const std::array<float, 5> uv1CheckerSamples{
         pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
         pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
-    material.emissionTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.emissionTexture = ArtifactCore::UniString(averagePath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -1550,10 +10175,6 @@ TEST_F(RayTracingAcceptanceTest,
             << "high-density UV1 emission sample " << index
             << " should select the linear-light mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -1580,11 +10201,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto checkerPath = tempDirectory /
-        "artifact-rt-clearcoat-roughness-minified-checker.png";
-    const auto averagePath = tempDirectory /
-        "artifact-rt-clearcoat-roughness-minified-average.png";
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
+    const auto checkerPath =
+        tempDirectory.filePath(QStringLiteral("clearcoat-checker.png"));
+    const auto averagePath =
+        tempDirectory.filePath(QStringLiteral("clearcoat-average.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -1605,18 +10227,16 @@ TEST_F(RayTracingAcceptanceTest,
             averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(average.save(averagePath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.roughness = 0.8f;
     material.clearcoat = 1.0f;
     material.clearcoatRoughness = 0.5f;
-    material.clearcoatTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
-    material.clearcoatRoughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.clearcoatTexture = ArtifactCore::UniString(checkerPath);
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString(checkerPath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-clearcoat-roughness-mip"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -1627,10 +10247,8 @@ TEST_F(RayTracingAcceptanceTest,
         pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
         pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
 
-    material.clearcoatTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
-    material.clearcoatRoughnessTexture = ArtifactCore::UniString(
-        QString::fromStdString(averagePath.string()));
+    material.clearcoatTexture = ArtifactCore::UniString(averagePath);
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString(averagePath);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-minified-clearcoat-roughness-mip"), material));
     ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -1642,10 +10260,6 @@ TEST_F(RayTracingAcceptanceTest,
             << "minified clearcoat-roughness sample " << index
             << " should match its linear mip average";
     }
-
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -1672,11 +10286,12 @@ TEST_F(RayTracingAcceptanceTest,
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
+    QTemporaryDir tempDirectory;
+    ASSERT_TRUE(tempDirectory.isValid());
     const auto checkerPath =
-        tempDirectory / "artifact-rt-normal-minified-direction-checker.png";
+        tempDirectory.filePath(QStringLiteral("normal-checker.png"));
     const auto averageDirectionPath =
-        tempDirectory / "artifact-rt-normal-minified-average-direction.png";
+        tempDirectory.filePath(QStringLiteral("normal-average-direction.png"));
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage averageDirection(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -1699,16 +10314,14 @@ TEST_F(RayTracingAcceptanceTest,
             averagePixel[3] = 255;
         }
     }
-    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
-    ASSERT_TRUE(averageDirection.save(
-        QString::fromStdString(averageDirectionPath.string()), "PNG"));
+    ASSERT_TRUE(checker.save(checkerPath, "PNG"));
+    ASSERT_TRUE(averageDirection.save(averageDirectionPath, "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
     material.roughness = 0.5f;
     material.normalStrength = 1.0f;
-    material.normalTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.normalTexture = ArtifactCore::UniString(checkerPath);
     const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
                                     const int x) {
         EXPECT_TRUE(manager_->setInstancePbrMaterial(
@@ -1735,8 +10348,7 @@ TEST_F(RayTracingAcceptanceTest,
     const float filteredRoughness = std::sqrt(std::sqrt(
         baseAlpha * baseAlpha + std::min(2.0f * normalVariance, 0.2f)));
     material.roughness = filteredRoughness;
-    material.normalTexture = ArtifactCore::UniString(
-        QString::fromStdString(averageDirectionPath.string()));
+    material.normalTexture = ArtifactCore::UniString(averageDirectionPath);
     for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
         const float reference = traceAndSample(material, 14 + index);
         EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
@@ -1750,16 +10362,14 @@ TEST_F(RayTracingAcceptanceTest,
     material.clearcoat = 1.0f;
     material.clearcoatRoughness = 0.5f;
     material.clearcoatNormalStrength = 1.0f;
-    material.clearcoatNormalTexture = ArtifactCore::UniString(
-        QString::fromStdString(checkerPath.string()));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(checkerPath);
     std::array<float, 5> coatCheckerSamples{};
     for (int index = 0; index < static_cast<int>(coatCheckerSamples.size()); ++index) {
         coatCheckerSamples[static_cast<std::size_t>(index)] =
             traceAndSample(material, 14 + index);
     }
     material.clearcoatRoughness = filteredRoughness;
-    material.clearcoatNormalTexture = ArtifactCore::UniString(
-        QString::fromStdString(averageDirectionPath.string()));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(averageDirectionPath);
     for (int index = 0; index < static_cast<int>(coatCheckerSamples.size()); ++index) {
         EXPECT_NEAR(coatCheckerSamples[static_cast<std::size_t>(index)],
                     traceAndSample(material, 14 + index), 0.04f)
@@ -1767,9 +10377,21 @@ TEST_F(RayTracingAcceptanceTest,
             << " should match its normalized direction and variance-filtered roughness";
     }
 
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averageDirectionPath, ignored);
+    material.clearcoatNormalTexture = ArtifactCore::UniString();
+    std::array<float, 5> coatScalarSamples{};
+    for (int index = 0; index < static_cast<int>(coatScalarSamples.size()); ++index) {
+        coatScalarSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+    const auto missingCoatNormalPath = checkerPath + QStringLiteral(".missing.png");
+    ASSERT_FALSE(QFileInfo::exists(missingCoatNormalPath));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(missingCoatNormalPath);
+    for (int index = 0; index < static_cast<int>(coatScalarSamples.size()); ++index) {
+        EXPECT_NEAR(coatScalarSamples[static_cast<std::size_t>(index)],
+                    traceAndSample(material, 14 + index), 0.01f)
+            << "a missing clearcoat-normal map should preserve scalar coat shading, sample "
+            << index;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedOpacityTextures) {
@@ -1795,11 +10417,12 @@ TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedOpacityTextures) {
         vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
     constexpr int textureSize = 128;
-    const auto tempDirectory = std::filesystem::temp_directory_path();
-    const auto checkerPath =
-        tempDirectory / "artifact-rt-opacity-minified-checker.png";
-    const auto averagePath =
-        tempDirectory / "artifact-rt-opacity-minified-average.png";
+    QTemporaryDir opacityMipDirectory;
+    ASSERT_TRUE(opacityMipDirectory.isValid());
+    const auto checkerPath = std::filesystem::path(
+        opacityMipDirectory.filePath(QStringLiteral("checker.png")).toStdString());
+    const auto averagePath = std::filesystem::path(
+        opacityMipDirectory.filePath(QStringLiteral("average.png")).toStdString());
     QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
     QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
@@ -1855,9 +10478,29 @@ TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedOpacityTextures) {
             << "minified opacity checker sample " << i
             << " should match its average-alpha mip";
     }
-    std::error_code ignored;
-    std::filesystem::remove(checkerPath, ignored);
-    std::filesystem::remove(averagePath, ignored);
+
+    const auto traceObliqueMipSample = [&](const std::filesystem::path& path) {
+        material.opacityTexture = ArtifactCore::UniString(
+            QString::fromStdString(path.string()));
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("opacity-minified-mip-selection"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ArtifactCore::RTRayCamera camera;
+        camera.origin[0] = 1.5f;
+        camera.origin[2] = -1.0f;
+        camera.target[2] = 0.0f;
+        camera.verticalFovDegrees = 60.0f;
+        EXPECT_TRUE(manager_->traceCamera(context_.RawPtr(),
+                                          kRayTraceTestImageSize,
+                                          kRayTraceTestImageSize, camera));
+        return pixelAt(16, 16)[0];
+    };
+    const float obliqueCheckerSample = traceObliqueMipSample(checkerPath);
+    const float obliqueAverageSample = traceObliqueMipSample(averagePath);
+    EXPECT_NEAR(obliqueCheckerSample, obliqueAverageSample, 0.025f)
+        << "an oblique camera should resolve the minified checker to its "
+           "average-alpha mip";
 }
 
 TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) {
@@ -1867,6 +10510,8 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
     constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
                                        1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> mirroredUvs1{1.0f, 0.0f, 0.0f, 0.0f,
+                                                0.0f, 1.0f, 1.0f, 1.0f};
     auto vertexBuffer = makeBuffer(
         vertices.data(), sizeof(vertices), 3u * sizeof(float),
         BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
@@ -1880,10 +10525,14 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                 vertices.data(), indices.data());
     ASSERT_TRUE(manager_->updateShadingGeometry(
         ArtifactCore::UniString("pbr-normal-map"), vertices.data(), 4,
-        indices.data(), 6, nullptr, nullptr, uvs.data()));
+        indices.data(), 6, nullptr, nullptr, uvs.data(), nullptr,
+        mirroredUvs1.data()));
 
-    const auto normalPath = std::filesystem::temp_directory_path() /
-                            "artifact-rt-normal-map.png";
+    QTemporaryDir normalMapDirectory;
+    ASSERT_TRUE(normalMapDirectory.isValid());
+    const auto normalPath = std::filesystem::path(
+        normalMapDirectory.filePath(QStringLiteral("normal-map.png"))
+            .toStdString());
     QImage normalImage(8, 2, QImage::Format_RGBA8888);
     ASSERT_FALSE(normalImage.isNull());
     for (int y = 0; y < normalImage.height(); ++y) {
@@ -1898,6 +10547,25 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
         }
     }
     ASSERT_TRUE(normalImage.save(QString::fromStdString(normalPath.string()), "PNG"));
+
+    const auto moderateNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(QStringLiteral("normal-map-moderate.png"))
+            .toStdString());
+    QImage moderateNormalImage(8, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(moderateNormalImage.isNull());
+    for (int y = 0; y < moderateNormalImage.height(); ++y) {
+        auto* row = moderateNormalImage.scanLine(y);
+        for (int x = 0; x < moderateNormalImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool tilted = x >= 4;
+            pixel[0] = tilted ? 204 : 128;
+            pixel[1] = 128;
+            pixel[2] = tilted ? 230 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(moderateNormalImage.save(
+        QString::fromStdString(moderateNormalPath.string()), "PNG"));
 
     ArtifactCore::RTPbrMaterial material;
     material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
@@ -1926,6 +10594,38 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     EXPECT_NEAR(mappedLeft[0], flatLeft[0], 0.03f);
     EXPECT_LT(mappedRight[0], flatRight[0] - 0.05f);
 
+    QImage transparentNormalImage = normalImage;
+    for (int y = 0; y < transparentNormalImage.height(); ++y) {
+        auto* row = transparentNormalImage.scanLine(y);
+        for (int x = 0; x < transparentNormalImage.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const auto transparentNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(QStringLiteral("normal-map-alpha-zero.png"))
+            .toStdString());
+    ASSERT_TRUE(transparentNormalImage.save(
+        QString::fromStdString(transparentNormalPath.string()), "PNG"));
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(transparentNormalPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(pixelAt(8, 16)[channel], mappedLeft[channel], 0.01f)
+            << "normal-map alpha should not change the RGB normal, left channel "
+            << channel;
+        EXPECT_NEAR(pixelAt(24, 16)[channel], mappedRight[channel], 0.01f)
+            << "normal-map alpha should not change the RGB normal, right channel "
+            << channel;
+    }
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(normalPath.string()));
+
     material.normalStrength = 0.0f;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("pbr-normal-map"), material));
@@ -1935,8 +10635,602 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
                                         kRayTraceTestImageSize));
     const auto disabledRight = pixelAt(24, 16);
     EXPECT_NEAR(disabledRight[0], flatRight[0], 0.01f);
-    std::error_code ignored;
-    std::filesystem::remove(normalPath, ignored);
+
+    material.normalStrength = 1.0f;
+    material.normalUvSet = 1;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto uv1Left = pixelAt(8, 16);
+    const auto uv1Right = pixelAt(24, 16);
+    EXPECT_GT(std::fabs(uv1Left[0] - flatLeft[0]), 0.05f)
+        << "UV1 mirroring should select the tilted normal texels on the left";
+    EXPECT_NEAR(uv1Right[0], flatRight[0], 0.03f)
+        << "UV1 mirroring should select the flat normal texels on the right";
+
+    material.normalUvSet = 0;
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    material.normalStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto fullStrengthRight = pixelAt(24, 16);
+
+    QImage greenPerturbedNormalImage = moderateNormalImage;
+    for (int y = 0; y < greenPerturbedNormalImage.height(); ++y) {
+        auto* row = greenPerturbedNormalImage.scanLine(y);
+        for (int x = greenPerturbedNormalImage.width() / 2;
+             x < greenPerturbedNormalImage.width(); ++x) {
+            row[x * 4 + 1] = 204;
+        }
+    }
+    const auto greenPerturbedNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(
+            QStringLiteral("normal-map-green-perturbed.png")).toStdString());
+    ASSERT_TRUE(greenPerturbedNormalImage.save(
+        QString::fromStdString(greenPerturbedNormalPath.string()), "PNG"));
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(greenPerturbedNormalPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto greenPerturbedRight = pixelAt(24, 16);
+    const float greenChannelResponse = std::max(
+        std::fabs(greenPerturbedRight[0] - fullStrengthRight[0]),
+        std::max(std::fabs(greenPerturbedRight[1] - fullStrengthRight[1]),
+                 std::fabs(greenPerturbedRight[2] - fullStrengthRight[2])));
+    EXPECT_GT(greenChannelResponse, 0.001f)
+        << "normal-map green should contribute to tangent-space shading";
+
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+
+    material.normalStrength = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto halfStrengthRight = pixelAt(24, 16);
+
+    material.normalStrength = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroStrengthRight = pixelAt(24, 16);
+    const float fullStrengthDrop = flatRight[0] - fullStrengthRight[0];
+    const float halfStrengthDrop = flatRight[0] - halfStrengthRight[0];
+    EXPECT_GT(fullStrengthDrop, 0.02f);
+    EXPECT_GT(halfStrengthDrop, 0.005f);
+    EXPECT_LT(halfStrengthDrop, fullStrengthDrop - 0.005f);
+    EXPECT_NEAR(zeroStrengthRight[0], flatRight[0], 0.01f);
+
+    material.normalStrength = -0.5f;
+    manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material);
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto negativeStrengthRight = pixelAt(24, 16);
+    EXPECT_NEAR(negativeStrengthRight[0], zeroStrengthRight[0], 0.01f)
+        << "negative normal strength should clamp to zero";
+
+    material.normalStrength = std::numeric_limits<float>::quiet_NaN();
+    manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material);
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto nonFiniteStrengthRight = pixelAt(24, 16);
+    EXPECT_NEAR(nonFiniteStrengthRight[0], fullStrengthRight[0], 0.01f)
+        << "non-finite normal strength should use its full-strength fallback";
+
+    const auto rotatedNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(QStringLiteral("normal-map-uniform.png"))
+            .toStdString());
+    QImage rotatedNormalImage(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(rotatedNormalImage.isNull());
+    rotatedNormalImage.fill(QColor(204, 128, 230, 255));
+    ASSERT_TRUE(rotatedNormalImage.save(
+        QString::fromStdString(rotatedNormalPath.string()), "PNG"));
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(rotatedNormalPath.string()));
+    material.normalStrength = 1.0f;
+    material.normalUvRotationDegrees = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unrotatedNormal = pixelAt(24, 16);
+
+    material.normalUvRotationDegrees = 180.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rotatedNormal = pixelAt(24, 16);
+    const float rotationResponse = std::max(
+        std::fabs(unrotatedNormal[0] - rotatedNormal[0]),
+        std::max(std::fabs(unrotatedNormal[1] - rotatedNormal[1]),
+                 std::fabs(unrotatedNormal[2] - rotatedNormal[2])));
+    EXPECT_GT(rotationResponse, 0.02f)
+        << "rotating the normal UV frame should rotate the sampled tangent-space direction";
+
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(normalPath.string()));
+    material.normalUvRotationDegrees = 0.0f;
+    material.normalUvOffsetU = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto unshiftedNormalLeft = pixelAt(8, 16);
+    const auto unshiftedNormalRight = pixelAt(24, 16);
+
+    material.normalUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto shiftedNormalLeft = pixelAt(8, 16);
+    const auto shiftedNormalRight = pixelAt(24, 16);
+    EXPECT_NEAR(shiftedNormalLeft[0], unshiftedNormalRight[0], 0.03f)
+        << "normal-map U offset should move the tilted texels to the left";
+    EXPECT_NEAR(shiftedNormalRight[0], unshiftedNormalLeft[0], 0.03f)
+        << "normal-map U offset should wrap the flat texels onto the right";
+
+    const auto verticalNormalPath = normalMapDirectory.filePath(
+        QStringLiteral("normal-map-v-ramp.png"));
+    QImage verticalNormalImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalNormalImage.isNull());
+    for (int y = 0; y < verticalNormalImage.height(); ++y) {
+        auto* row = verticalNormalImage.scanLine(y);
+        for (int x = 0; x < verticalNormalImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool tilted = y >= verticalNormalImage.height() / 2;
+            pixel[0] = tilted ? 255 : 128;
+            pixel[1] = 128;
+            pixel[2] = tilted ? 128 : 255;
+            pixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(verticalNormalImage.save(
+        QString::fromStdString(verticalNormalPath.string()), "PNG"));
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(verticalNormalPath.string()));
+    material.normalUvRotationDegrees = 0.0f;
+    material.normalUvScale = 1.0f;
+    material.normalUvOffsetU = 0.0f;
+    material.normalUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto normalV0Top = pixelAt(12, 8);
+    const auto normalV0Bottom = pixelAt(12, 24);
+    const float normalV0Difference = std::max(
+        std::fabs(normalV0Top[0] - normalV0Bottom[0]),
+        std::max(std::fabs(normalV0Top[1] - normalV0Bottom[1]),
+                 std::fabs(normalV0Top[2] - normalV0Bottom[2])));
+    EXPECT_GT(normalV0Difference, 0.02f)
+        << "normal texture should distinguish flat and tilted V samples";
+
+    material.normalUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto normalVOffsetTop = pixelAt(12, 8);
+    const auto normalVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(normalVOffsetTop[channel], normalV0Bottom[channel], 0.04f)
+            << "normal-map V offset should mirror the top sample, channel "
+            << channel;
+        EXPECT_NEAR(normalVOffsetBottom[channel], normalV0Top[channel], 0.04f)
+            << "normal-map V offset should mirror the bottom sample, channel "
+            << channel;
+    }
+
+    material.normalUvOffsetV = 0.0f;
+    material.normalUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto normalVScaleTop = pixelAt(12, 8);
+    const auto normalVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(normalVScaleTop[channel], normalV0Bottom[channel], 0.04f)
+            << "normal-map V scale should repeat the bottom sample on top, "
+               "channel "
+            << channel;
+        EXPECT_NEAR(normalVScaleBottom[channel], normalV0Top[channel], 0.04f)
+            << "normal-map V scale should repeat the top sample on bottom, "
+               "channel "
+            << channel;
+    }
+
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(normalMapDirectory.filePath(
+            QStringLiteral("missing-normal.png")).toStdString()));
+    material.normalUvRotationDegrees = 0.0f;
+    material.normalUvScale = 1.0f;
+    material.normalUvOffsetU = 0.0f;
+    material.normalUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto missingNormalRight = pixelAt(24, 16);
+    EXPECT_NEAR(missingNormalRight[0], flatRight[0], 0.01f)
+        << "a missing normal map should fall back to the geometric normal";
+
+    material.normalTexture = ArtifactCore::UniString();
+    material.normalStrength = 0.0f;
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.2f;
+    material.clearcoatNormalStrength = 1.0f;
+    const auto captureClearcoatNormalStrength = [this, &material](
+                                                    float strength) {
+        material.clearcoatNormalStrength = strength;
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-normal-map"), material));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return std::array<std::array<float, 4>, 2>{
+            pixelAt(8, 16), pixelAt(24, 16)};
+    };
+    material.clearcoatNormalTexture = ArtifactCore::UniString();
+    material.clearcoatNormalUvRotationDegrees = 0.0f;
+    material.clearcoatNormalUvScale = 1.0f;
+    material.clearcoatNormalUvOffsetU = 0.0f;
+    material.clearcoatNormalUvOffsetV = 0.0f;
+    material.clearcoatNormalUvSet = 0;
+    const auto geometricCoatNormalPixels = captureClearcoatNormalStrength(1.0f);
+    const std::array<float, 3> savedBaseColor{
+        material.baseColor[0], material.baseColor[1], material.baseColor[2]};
+    const float savedMetallic = material.metallic;
+    const float savedSpecular = material.specular;
+    material.baseColor[0] = material.baseColor[1] =
+        material.baseColor[2] = 0.0f;
+    material.metallic = 0.0f;
+    material.specular = 0.0f;
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    material.normalUvRotationDegrees = 0.0f;
+    material.normalUvScale = 1.0f;
+    material.normalUvOffsetU = 0.0f;
+    material.normalUvOffsetV = 0.0f;
+    material.normalStrength = 0.0f;
+    const auto zeroBaseNormalStrengthFallbackPixels =
+        captureClearcoatNormalStrength(1.0f);
+    material.normalStrength = 1.0f;
+    const auto baseNormalFallbackCoatPixels =
+        captureClearcoatNormalStrength(1.0f);
+    for (std::size_t sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(zeroBaseNormalStrengthFallbackPixels[sampleIndex][channel],
+                        baseNormalFallbackCoatPixels[sampleIndex][channel],
+                        0.01f)
+                << "clearcoat-normal fallback should use coat strength "
+                   "independently of base normal strength, sample "
+                << sampleIndex << ", channel " << channel;
+        }
+    }
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    const auto explicitCoatNormalWithBaseMapPixels =
+        captureClearcoatNormalStrength(1.0f);
+    for (std::size_t sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(baseNormalFallbackCoatPixels[sampleIndex][channel],
+                        explicitCoatNormalWithBaseMapPixels[sampleIndex][channel],
+                        0.01f)
+                << "the base normal fallback should match the same explicit "
+                   "coat-normal map, sample "
+                << sampleIndex << ", channel " << channel;
+        }
+    }
+    material.baseColor[0] = savedBaseColor[0];
+    material.baseColor[1] = savedBaseColor[1];
+    material.baseColor[2] = savedBaseColor[2];
+    material.metallic = savedMetallic;
+    material.specular = savedSpecular;
+    material.normalTexture = ArtifactCore::UniString();
+    material.normalStrength = 0.0f;
+    const auto clearcoatNormalUv0Pixels = captureClearcoatNormalStrength(1.0f);
+    const auto& clearcoatNormalUv0Left = clearcoatNormalUv0Pixels[0];
+    const auto& clearcoatNormalUv0Right = clearcoatNormalUv0Pixels[1];
+    EXPECT_GT(std::fabs(clearcoatNormalUv0Left[0] -
+                        clearcoatNormalUv0Right[0]), 0.02f)
+        << "the clearcoat-normal map should distinguish the UV0 halves";
+    EXPECT_GT(std::fabs(clearcoatNormalUv0Right[0] -
+                        geometricCoatNormalPixels[1][0]), 0.01f)
+        << "full clearcoat-normal strength should perturb the geometric normal";
+
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+    material.normalStrength = 1.0f;
+    const auto clearcoatWithBaseNormalPixels =
+        captureClearcoatNormalStrength(1.0f);
+    for (std::size_t sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(clearcoatWithBaseNormalPixels[sampleIndex][channel],
+                        clearcoatNormalUv0Pixels[sampleIndex][channel], 0.01f)
+                << "changing the base normal map should preserve independent "
+                   "clearcoat shading, sample "
+                << sampleIndex << ", channel " << channel;
+        }
+    }
+    material.normalTexture = ArtifactCore::UniString();
+    material.normalStrength = 0.0f;
+
+    QImage greenPerturbedClearcoatNormal = moderateNormalImage;
+    for (int y = 0; y < greenPerturbedClearcoatNormal.height(); ++y) {
+        auto* row = greenPerturbedClearcoatNormal.scanLine(y);
+        for (int x = greenPerturbedClearcoatNormal.width() / 2;
+             x < greenPerturbedClearcoatNormal.width(); ++x) {
+            row[x * 4 + 1] = 204;
+        }
+    }
+    const auto greenPerturbedClearcoatNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(
+            QStringLiteral("clearcoat-normal-green-perturbed.png"))
+            .toStdString());
+    ASSERT_TRUE(greenPerturbedClearcoatNormal.save(
+        QString::fromStdString(greenPerturbedClearcoatNormalPath.string()),
+        "PNG"));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(greenPerturbedClearcoatNormalPath.string()));
+    const auto greenPerturbedClearcoatPixels =
+        captureClearcoatNormalStrength(1.0f);
+    const auto& greenPerturbedClearcoatRight =
+        greenPerturbedClearcoatPixels[1];
+    const float clearcoatNormalGreenResponse = std::max(
+        std::fabs(greenPerturbedClearcoatRight[0] - clearcoatNormalUv0Right[0]),
+        std::max(
+            std::fabs(greenPerturbedClearcoatRight[1] - clearcoatNormalUv0Right[1]),
+            std::fabs(greenPerturbedClearcoatRight[2] - clearcoatNormalUv0Right[2])));
+    EXPECT_GT(clearcoatNormalGreenResponse, 0.001f)
+        << "clearcoat-normal green should contribute to coat tangent-space shading";
+
+    QImage transparentClearcoatNormal = moderateNormalImage;
+    for (int y = 0; y < transparentClearcoatNormal.height(); ++y) {
+        auto* row = transparentClearcoatNormal.scanLine(y);
+        for (int x = 0; x < transparentClearcoatNormal.width(); ++x) {
+            row[x * 4 + 3] = 0;
+        }
+    }
+    const auto transparentClearcoatNormalPath = std::filesystem::path(
+        normalMapDirectory.filePath(
+            QStringLiteral("clearcoat-normal-alpha-zero.png"))
+            .toStdString());
+    ASSERT_TRUE(transparentClearcoatNormal.save(
+        QString::fromStdString(transparentClearcoatNormalPath.string()), "PNG"));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(transparentClearcoatNormalPath.string()));
+    const auto transparentClearcoatNormalPixels =
+        captureClearcoatNormalStrength(1.0f);
+    for (std::size_t sampleIndex = 0; sampleIndex < 2; ++sampleIndex) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            EXPECT_NEAR(transparentClearcoatNormalPixels[sampleIndex][channel],
+                        clearcoatNormalUv0Pixels[sampleIndex][channel], 0.01f)
+                << "clearcoat-normal alpha should not change RGB shading, sample "
+                << sampleIndex << ", channel " << channel;
+        }
+    }
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(moderateNormalPath.string()));
+
+    const auto zeroClearcoatNormalStrength =
+        captureClearcoatNormalStrength(0.0f);
+    const auto halfClearcoatNormalStrength =
+        captureClearcoatNormalStrength(0.5f);
+    const auto aboveMaximumClearcoatNormalStrength =
+        captureClearcoatNormalStrength(1.5f);
+    const auto negativeClearcoatNormalStrength =
+        captureClearcoatNormalStrength(-0.5f);
+    const auto nonFiniteClearcoatNormalStrength =
+        captureClearcoatNormalStrength(
+            std::numeric_limits<float>::quiet_NaN());
+    const float fullStrengthResponse = std::fabs(
+        clearcoatNormalUv0Right[0] - geometricCoatNormalPixels[1][0]);
+    const float halfStrengthResponse = std::fabs(
+        halfClearcoatNormalStrength[1][0] - geometricCoatNormalPixels[1][0]);
+    EXPECT_GT(halfStrengthResponse, 0.005f);
+    EXPECT_LT(halfStrengthResponse, fullStrengthResponse - 0.005f);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(zeroClearcoatNormalStrength[0][channel],
+                    geometricCoatNormalPixels[0][channel], 0.01f)
+            << "zero clearcoat-normal strength should restore the geometric normal";
+        EXPECT_NEAR(zeroClearcoatNormalStrength[1][channel],
+                    geometricCoatNormalPixels[1][channel], 0.01f)
+            << "zero clearcoat-normal strength should restore the geometric normal";
+        EXPECT_NEAR(negativeClearcoatNormalStrength[1][channel],
+                    zeroClearcoatNormalStrength[1][channel], 0.01f)
+            << "negative clearcoat-normal strength should clamp to zero";
+        EXPECT_NEAR(aboveMaximumClearcoatNormalStrength[1][channel],
+                    clearcoatNormalUv0Right[channel], 0.01f)
+            << "clearcoat-normal strength above one should clamp to one";
+        EXPECT_NEAR(nonFiniteClearcoatNormalStrength[1][channel],
+                    clearcoatNormalUv0Right[channel], 0.01f)
+            << "non-finite clearcoat-normal strength should use its full-strength fallback";
+    }
+
+    material.clearcoatNormalUvSet = 1;
+    const auto clearcoatNormalUv1Pixels = captureClearcoatNormalStrength(1.0f);
+    const auto& clearcoatNormalUv1Left = clearcoatNormalUv1Pixels[0];
+    const auto& clearcoatNormalUv1Right = clearcoatNormalUv1Pixels[1];
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(clearcoatNormalUv1Left[channel],
+                    clearcoatNormalUv0Right[channel], 0.035f)
+            << "clearcoat-normal UV1 should mirror the left sample, channel "
+            << channel;
+        EXPECT_NEAR(clearcoatNormalUv1Right[channel],
+                    clearcoatNormalUv0Left[channel], 0.035f)
+            << "clearcoat-normal UV1 should mirror the right sample, channel "
+            << channel;
+    }
+
+    material.clearcoatNormalUvSet = 0;
+    material.clearcoatNormalUvOffsetU = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto shiftedClearcoatNormalLeft = pixelAt(8, 16);
+    const auto shiftedClearcoatNormalRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(shiftedClearcoatNormalLeft[channel],
+                    clearcoatNormalUv0Right[channel], 0.035f)
+            << "clearcoat-normal U offset should move the tilted texels left, channel "
+            << channel;
+        EXPECT_NEAR(shiftedClearcoatNormalRight[channel],
+                    clearcoatNormalUv0Left[channel], 0.035f)
+            << "clearcoat-normal U offset should wrap the flat texels right, channel "
+            << channel;
+    }
+
+    material.clearcoatNormalUvOffsetU = 0.0f;
+    material.clearcoatNormalUvScale = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto scaledClearcoatNormalLeft = pixelAt(8, 16);
+    const auto scaledClearcoatNormalRight = pixelAt(24, 16);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(scaledClearcoatNormalLeft[channel],
+                    clearcoatNormalUv0Left[channel], 0.035f)
+            << "clearcoat-normal scale should keep the left sample on the flat "
+            << "half, channel " << channel;
+        EXPECT_NEAR(scaledClearcoatNormalRight[channel],
+                    clearcoatNormalUv0Left[channel], 0.035f)
+            << "clearcoat-normal scale should repeat the flat half on the right, "
+            << "channel " << channel;
+    }
+
+    QImage verticalCoatNormalImage(2, 8, QImage::Format_RGBA8888);
+    ASSERT_FALSE(verticalCoatNormalImage.isNull());
+    for (int y = 0; y < verticalCoatNormalImage.height(); ++y) {
+        auto* row = verticalCoatNormalImage.scanLine(y);
+        for (int x = 0; x < verticalCoatNormalImage.width(); ++x) {
+            auto* pixel = row + x * 4;
+            const bool tilted = y >= verticalCoatNormalImage.height() / 2;
+            pixel[0] = tilted ? 255 : 128;
+            pixel[1] = 128;
+            pixel[2] = tilted ? 128 : 255;
+            pixel[3] = 255;
+        }
+    }
+    const QString verticalCoatNormalPath = normalMapDirectory.filePath(
+        QStringLiteral("clearcoat-normal-v-ramp.png"));
+    ASSERT_TRUE(verticalCoatNormalImage.save(verticalCoatNormalPath, "PNG"));
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        verticalCoatNormalPath.toStdString());
+    material.clearcoatNormalUvScale = 1.0f;
+    material.clearcoatNormalUvOffsetU = 0.0f;
+    material.clearcoatNormalUvOffsetV = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto coatNormalV0Top = pixelAt(12, 8);
+    const auto coatNormalV0Bottom = pixelAt(12, 24);
+    const float coatNormalV0Difference = std::max(
+        std::fabs(coatNormalV0Top[0] - coatNormalV0Bottom[0]),
+        std::max(std::fabs(coatNormalV0Top[1] - coatNormalV0Bottom[1]),
+                 std::fabs(coatNormalV0Top[2] - coatNormalV0Bottom[2])));
+    EXPECT_GT(coatNormalV0Difference, 0.01f)
+        << "clearcoat-normal should distinguish flat and tilted V samples";
+
+    material.clearcoatNormalUvOffsetV = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto coatNormalVOffsetTop = pixelAt(12, 8);
+    const auto coatNormalVOffsetBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(coatNormalVOffsetTop[channel], coatNormalV0Bottom[channel],
+                    0.04f)
+            << "clearcoat-normal V offset should swap the top sample, channel "
+            << channel;
+        EXPECT_NEAR(coatNormalVOffsetBottom[channel], coatNormalV0Top[channel],
+                    0.04f)
+            << "clearcoat-normal V offset should swap the bottom sample, channel "
+            << channel;
+    }
+
+    material.clearcoatNormalUvOffsetV = 0.0f;
+    material.clearcoatNormalUvScale = 3.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-normal-map"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto coatNormalVScaleTop = pixelAt(12, 8);
+    const auto coatNormalVScaleBottom = pixelAt(12, 24);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(coatNormalVScaleTop[channel], coatNormalV0Bottom[channel],
+                    0.04f)
+            << "clearcoat-normal V scale should swap the top sample, channel "
+            << channel;
+        EXPECT_NEAR(coatNormalVScaleBottom[channel], coatNormalV0Top[channel],
+                    0.04f)
+            << "clearcoat-normal V scale should swap the bottom sample, channel "
+            << channel;
+    }
 }
 
 TEST_F(RayTracingAcceptanceTest,
@@ -2272,8 +11566,8 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     EXPECT_NEAR(specularPixel[1], 0.135f, 0.004f);
     EXPECT_NEAR(specularPixel[2], 0.0675f, 0.004f);
 
-    const auto aoOutputDir = std::filesystem::current_path() / "ray-tracing-frames";
-    std::filesystem::create_directories(aoOutputDir);
+    QTemporaryDir aoInputDirectory;
+    ASSERT_TRUE(aoInputDirectory.isValid());
     constexpr std::array<float, 4> aoTestRoughnesses{0.04f, 0.2f, 0.5f, 0.9f};
     constexpr std::array<int, 5> aoTestValues{0, 64, 128, 192, 255};
     std::array<std::array<float, aoTestValues.size()>,
@@ -2295,12 +11589,10 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
             const int aoValue = aoTestValues[aoIndex];
             QImage aoImage(1, 1, QImage::Format_Grayscale8);
             aoImage.fill(aoValue);
-            const auto aoTexturePath = aoOutputDir /
-                ("mesh-renderer-ao-" + std::to_string(aoValue) + ".png");
-            ASSERT_TRUE(aoImage.save(
-                QString::fromStdString(aoTexturePath.string()), "PNG"));
-            renderer.setOcclusionTexture(
-                QString::fromStdString(aoTexturePath.string()));
+            const auto aoTexturePath = aoInputDirectory.filePath(
+                QStringLiteral("mesh-renderer-ao-%1.png").arg(aoValue));
+            ASSERT_TRUE(aoImage.save(aoTexturePath, "PNG"));
+            renderer.setOcclusionTexture(aoTexturePath);
             const auto occludedPixel = renderCenterPixel();
             const float retention = occludedPixel[0] /
                 std::max(unoccludedPixel[0], 1.0e-5f);
@@ -2340,14 +11632,13 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     constexpr std::array<std::uint8_t, 4> spatialAoValues{32, 96, 160, 224};
     std::memcpy(spatialAoImage.scanLine(0), spatialAoValues.data(),
                 spatialAoValues.size());
-    const auto spatialAoTexturePath = aoOutputDir / "mesh-renderer-spatial-ao.png";
-    ASSERT_TRUE(spatialAoImage.save(
-        QString::fromStdString(spatialAoTexturePath.string()), "PNG"));
+    const auto spatialAoTexturePath = aoInputDirectory.filePath(
+        QStringLiteral("mesh-renderer-spatial-ao.png"));
+    ASSERT_TRUE(spatialAoImage.save(spatialAoTexturePath, "PNG"));
     renderer.setPbrFactors(0.0f, 0.2f, 1.0f, 1.0f);
     const auto leftUnoccluded = renderPixelAt(20, height / 2);
     const auto rightUnoccluded = renderPixelAt(44, height / 2);
-    renderer.setOcclusionTexture(
-        QString::fromStdString(spatialAoTexturePath.string()));
+    renderer.setOcclusionTexture(spatialAoTexturePath);
     const auto leftSpatiallyOccluded = renderPixelAt(20, height / 2);
     const auto rightSpatiallyOccluded = renderPixelAt(44, height / 2);
     const float leftSpatialRetention = leftSpatiallyOccluded[0] /
@@ -2360,8 +11651,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     renderer.setUvTransform(0.5f, 0.0f, 1.0f, 1.0f, 0.0f);
     const auto shiftedLeftUnoccluded = renderPixelAt(20, height / 2);
     const auto shiftedRightUnoccluded = renderPixelAt(44, height / 2);
-    renderer.setOcclusionTexture(
-        QString::fromStdString(spatialAoTexturePath.string()));
+    renderer.setOcclusionTexture(spatialAoTexturePath);
     const auto shiftedLeftOccluded = renderPixelAt(20, height / 2);
     const auto shiftedRightOccluded = renderPixelAt(44, height / 2);
     const float shiftedLeftRetention = shiftedLeftOccluded[0] /
@@ -2387,31 +11677,33 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     const auto transmittedPixel = renderCenterPixel();
     EXPECT_NEAR(transmittedPixel[0], 0.24f, 0.008f);
 
-    const char* configuredOutputDir = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
-    const auto outputDir = configuredOutputDir && configuredOutputDir[0] != '\0'
-        ? std::filesystem::path(configuredOutputDir)
-        : std::filesystem::current_path() / "ray-tracing-frames";
-    std::filesystem::create_directories(outputDir);
-    const auto hdrPath = outputDir / "mesh-renderer-hdr-source.hdr";
-    std::ofstream hdrFile(hdrPath, std::ios::binary);
-    ASSERT_TRUE(hdrFile.is_open());
-    hdrFile << "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 4 +X 8\n";
+    const auto hdrPath = aoInputDirectory.filePath(
+        QStringLiteral("mesh-renderer-hdr-source.hdr"));
+    QFile hdrFile(hdrPath);
+    ASSERT_TRUE(hdrFile.open(QIODevice::WriteOnly));
+    constexpr char hdrHeader[] =
+        "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 4 +X 8\n";
+    ASSERT_EQ(hdrFile.write(hdrHeader, sizeof(hdrHeader) - 1),
+              static_cast<qint64>(sizeof(hdrHeader) - 1));
     constexpr std::array<std::uint8_t, 4> rgbePixel{128, 32, 8, 131};
     for (int y = 0; y < 4; ++y) {
         constexpr std::array<std::uint8_t, 4> scanlineHeader{2, 2, 0, 8};
-        hdrFile.write(reinterpret_cast<const char*>(scanlineHeader.data()),
-                       static_cast<std::streamsize>(scanlineHeader.size()));
+        ASSERT_EQ(hdrFile.write(
+                      reinterpret_cast<const char*>(scanlineHeader.data()),
+                      static_cast<qint64>(scanlineHeader.size())),
+                  static_cast<qint64>(scanlineHeader.size()));
         for (std::uint8_t channel : rgbePixel) {
             const std::array<std::uint8_t, 2> run{136, channel};
-            hdrFile.write(reinterpret_cast<const char*>(run.data()),
-                           static_cast<std::streamsize>(run.size()));
+            ASSERT_EQ(hdrFile.write(reinterpret_cast<const char*>(run.data()),
+                                    static_cast<qint64>(run.size())),
+                      static_cast<qint64>(run.size()));
         }
     }
+    ASSERT_TRUE(hdrFile.flush());
     hdrFile.close();
-    ASSERT_TRUE(hdrFile.good());
 
     ArtifactCore::ImageImporter hdrImporter;
-    ASSERT_TRUE(hdrImporter.open(QString::fromStdString(hdrPath.string())));
+    ASSERT_TRUE(hdrImporter.open(hdrPath));
     const auto hdrImage = hdrImporter.readImage();
     ASSERT_TRUE(hdrImage.isValid());
     EXPECT_TRUE(hdrImage.isHDR);
@@ -2423,8 +11715,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     EXPECT_NEAR(decodedHdrPixel[1], 1.0f, 0.01f);
     EXPECT_NEAR(decodedHdrPixel[2], 0.25f, 0.01f);
 
-    const auto hdrPathString = QString::fromStdString(hdrPath.string());
-    ASSERT_TRUE(renderer.setEnvironmentMap(hdrPathString, 1.0f));
+    ASSERT_TRUE(renderer.setEnvironmentMap(hdrPath, 1.0f));
     ASSERT_TRUE(renderer.hasEnvironmentMap());
     instance.color[0] = 1.0f;
     instance.color[1] = 0.0f;
@@ -2433,7 +11724,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     renderer.setPbrFactors(1.0f, 0.04f, 1.0f, 1.0f);
     renderer.setPrincipledFactors(0.5f, 1.5f, 0.0f, 0.0f, 0.04f);
     const auto hdrLitPixel = renderCenterPixel();
-    ASSERT_TRUE(renderer.setEnvironmentMap(hdrPathString, 0.25f));
+    ASSERT_TRUE(renderer.setEnvironmentMap(hdrPath, 0.25f));
     const auto quarterIntensityPixel = renderCenterPixel();
     EXPECT_GT(hdrLitPixel[0], 2.0f);
     EXPECT_NEAR(hdrLitPixel[0] - 0.24f,
@@ -2867,8 +12158,15 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         std::array<float, 3> sheenTint{1.0f, 1.0f, 1.0f};
         float clearcoat = 0.0f;
         float clearcoatRoughness = 0.2f;
+        int aoValue = -1;
+        std::array<float, 3> clearcoatTint{1.0f, 1.0f, 1.0f};
+        std::array<float, 3> specularTint{1.0f, 1.0f, 1.0f};
+        float thinFilmThickness = 0.0f;
+        float thinFilmIOR = 1.33f;
+        float normalStrength = 1.0f;
+        float clearcoatNormalStrength = 1.0f;
     };
-    constexpr std::array<MaterialProbe, 9> materialProbes{{
+    constexpr std::array<MaterialProbe, 26> materialProbes{{
         {0.0f, 0.04f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.85f, 1.5f, {0.7f, 0.4f, 0.2f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
@@ -2881,9 +12179,66 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.8f, 0.15f,
          {0.02f, 0.1f, 1.0f}},
         {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
-         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f}}};
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.8f, 0.15f,
+         {1.0f, 0.07f, 0.02f}, 0.0f, 0.2f, 255},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.8f, 0.15f,
+         {1.0f, 0.07f, 0.02f}, 0.0f, 0.2f, 64},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.05f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.85f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f, -1,
+         {0.02f, 0.1f, 1.0f}},
+        {0.0f, -0.5f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {0.0f, 1.0f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {-0.5f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {1.5f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {0.0f, 1.0f, 1.0f}},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 400.0f, 1.33f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 400.0f, 2.0f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 0.0f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 0.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 1.0f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 1.0f, 0.0f},
+        {0.0f, 0.35f, 1.5f, {0.7f, 0.4f, 0.2f}, 0.0f, 0.5f,
+         {1.0f, 1.0f, 1.0f}, 1.0f, 0.2f, -1, {1.0f, 1.0f, 1.0f},
+         {1.0f, 1.0f, 1.0f}, 0.0f, 1.33f, 1.0f, 1.0f}}};
     std::array<std::array<float, 4>, materialProbes.size()> rasterProbePixels{};
     std::array<std::array<float, 4>, materialProbes.size()> rtProbePixels{};
+    QTemporaryDir normalMapDirectory;
+    ASSERT_TRUE(normalMapDirectory.isValid());
+    const QString parityNormalMapPath = normalMapDirectory.filePath(
+        QStringLiteral("parity-normal.png"));
+    QImage parityNormalMap(2, 2, QImage::Format_RGBA8888);
+    ASSERT_FALSE(parityNormalMap.isNull());
+    parityNormalMap.fill(QColor(153, 128, 242, 255));
+    ASSERT_TRUE(parityNormalMap.save(parityNormalMapPath, "PNG"));
+    const QString aoWhitePath = normalMapDirectory.filePath(
+        QStringLiteral("parity-ao-white.png"));
+    const QString aoDarkPath = normalMapDirectory.filePath(
+        QStringLiteral("parity-ao-dark.png"));
+    QImage aoWhiteImage(1, 1, QImage::Format_Grayscale8);
+    QImage aoDarkImage(1, 1, QImage::Format_Grayscale8);
+    ASSERT_FALSE(aoWhiteImage.isNull());
+    ASSERT_FALSE(aoDarkImage.isNull());
+    aoWhiteImage.fill(255);
+    aoDarkImage.fill(64);
+    ASSERT_TRUE(aoWhiteImage.save(aoWhitePath, "PNG"));
+    ASSERT_TRUE(aoDarkImage.save(aoDarkPath, "PNG"));
     for (size_t probeIndex = 0; probeIndex < materialProbes.size();
          ++probeIndex) {
         const auto& probe = materialProbes[probeIndex];
@@ -2891,7 +12246,12 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         instance.color[1] = probe.baseColor[1];
         instance.color[2] = probe.baseColor[2];
         renderer.updateInstanceData(&instance, 1);
-        renderer.setPbrFactors(probe.metallic, probe.roughness, 1.0f, 1.0f);
+        renderer.setPbrFactors(probe.metallic, probe.roughness,
+                               probe.normalStrength, 1.0f);
+        renderer.setSpecularTint(
+            QColor::fromRgbF(probe.specularTint[0], probe.specularTint[1],
+                             probe.specularTint[2]));
+        renderer.setThinFilm(probe.thinFilmThickness, probe.thinFilmIOR);
         renderer.setPrincipledFactors(0.5f, probe.ior, 0.0f,
                                       probe.clearcoat,
                                       probe.clearcoatRoughness, probe.sheen);
@@ -2899,6 +12259,23 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                                  QColor::fromRgbF(probe.sheenTint[0],
                                                   probe.sheenTint[1],
                                                   probe.sheenTint[2]));
+        renderer.setClearcoatTint(
+            QColor::fromRgbF(probe.clearcoatTint[0],
+                             probe.clearcoatTint[1],
+                             probe.clearcoatTint[2]),
+            probe.clearcoatNormalStrength);
+        if (probeIndex == 8 || (probeIndex >= 22 && probeIndex <= 23))
+            renderer.setNormalTexture(parityNormalMapPath);
+        else if (probeIndex >= 9)
+            renderer.setNormalTexture(QString{});
+        renderer.setClearcoatNormalTexture(
+            probeIndex >= 24 ? parityNormalMapPath : QString{});
+        if (probe.aoValue == 255)
+            renderer.setOcclusionTexture(aoWhitePath);
+        else if (probe.aoValue >= 0)
+            renderer.setOcclusionTexture(aoDarkPath);
+        else
+            renderer.setOcclusionTexture(QString{});
         rasterProbePixels[probeIndex] = renderCenterPixel();
 
         ArtifactCore::RTPbrMaterial rtMaterial;
@@ -2907,14 +12284,33 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
         rtMaterial.baseColor[2] = probe.baseColor[2];
         rtMaterial.metallic = probe.metallic;
         rtMaterial.roughness = probe.roughness;
+        rtMaterial.normalStrength = probe.normalStrength;
         rtMaterial.specular = 0.5f;
+        std::copy(probe.specularTint.begin(), probe.specularTint.end(),
+                  rtMaterial.specularTint);
+        rtMaterial.thinFilmThickness = probe.thinFilmThickness;
+        rtMaterial.thinFilmIOR = probe.thinFilmIOR;
         rtMaterial.ior = probe.ior;
         rtMaterial.sheen = probe.sheen;
         rtMaterial.clearcoat = probe.clearcoat;
         rtMaterial.clearcoatRoughness = probe.clearcoatRoughness;
+        std::copy(probe.clearcoatTint.begin(), probe.clearcoatTint.end(),
+                  rtMaterial.clearcoatTint);
         rtMaterial.sheenRoughness = probe.sheenRoughness;
         std::copy(probe.sheenTint.begin(), probe.sheenTint.end(),
                   rtMaterial.sheenTint);
+        if (probeIndex == 8 || (probeIndex >= 22 && probeIndex <= 23))
+            rtMaterial.normalTexture = ArtifactCore::UniString(
+                parityNormalMapPath);
+        rtMaterial.clearcoatNormalStrength = probe.clearcoatNormalStrength;
+        if (probeIndex >= 24)
+            rtMaterial.clearcoatNormalTexture = ArtifactCore::UniString(
+                parityNormalMapPath);
+        if (probe.aoValue >= 0) {
+            rtMaterial.occlusionTexture = ArtifactCore::UniString(
+                probe.aoValue == 255 ? aoWhitePath : aoDarkPath);
+            rtMaterial.occlusionStrength = 1.0f;
+        }
         ASSERT_TRUE(manager_->setInstancePbrMaterial(
             ArtifactCore::UniString(kHdrParityGeometryId), rtMaterial));
         ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
@@ -2939,7 +12335,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                     sizeof(rtProbePixels[probeIndex]));
         context_->UnmapTextureSubresource(traceStagingTexture, 0, 0);
         for (size_t channel = 0; channel < 3; ++channel) {
-            const float parityTolerance = probeIndex >= 5 && probeIndex < 8
+            const float parityTolerance = probeIndex >= 5
                 ? 0.05f
                 : std::max(0.015f,
                            std::fabs(rasterProbePixels[probeIndex][channel]) *
@@ -2951,6 +12347,7 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                 << channel;
         }
     }
+    renderer.setOcclusionTexture(QString{});
     const auto probeLuminance = [](const std::array<float, 4>& pixel) {
         return pixel[0] * 0.2126f + pixel[1] * 0.7152f +
                pixel[2] * 0.0722f;
@@ -2968,11 +12365,123 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
     EXPECT_GT(std::fabs(probeLuminance(rasterProbePixels[5]) -
                         probeLuminance(rasterProbePixels[6])), 0.002f);
     float sheenTintDifference = 0.0f;
+    float rtSheenTintDifference = 0.0f;
     for (size_t channel = 0; channel < 3; ++channel) {
         sheenTintDifference += std::fabs(
             rasterProbePixels[5][channel] - rasterProbePixels[7][channel]);
+        rtSheenTintDifference += std::fabs(
+            rtProbePixels[5][channel] - rtProbePixels[7][channel]);
     }
     EXPECT_GT(sheenTintDifference, 0.005f);
+    EXPECT_GT(rtSheenTintDifference, 0.005f)
+        << "RT sheen response should vary with sheen tint";
+    float rasterThinFilmDifference = 0.0f;
+    float rtThinFilmDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterThinFilmDifference += std::fabs(
+            rasterProbePixels[20][channel] - rasterProbePixels[19][channel]);
+        rtThinFilmDifference += std::fabs(
+            rtProbePixels[20][channel] - rtProbePixels[19][channel]);
+    }
+    EXPECT_GT(rasterThinFilmDifference, 0.001f)
+        << "Raster specular response should vary with thin-film thickness";
+    EXPECT_GT(rtThinFilmDifference, 0.001f)
+        << "RT specular response should vary with thin-film thickness";
+    float rasterThinFilmIorDifference = 0.0f;
+    float rtThinFilmIorDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterThinFilmIorDifference += std::fabs(
+            rasterProbePixels[21][channel] - rasterProbePixels[20][channel]);
+        rtThinFilmIorDifference += std::fabs(
+            rtProbePixels[21][channel] - rtProbePixels[20][channel]);
+    }
+    EXPECT_GT(rasterThinFilmIorDifference, 0.001f)
+        << "Raster specular response should vary with thin-film IOR";
+    EXPECT_GT(rtThinFilmIorDifference, 0.001f)
+        << "RT specular response should vary with thin-film IOR";
+    float rasterNormalStrengthDifference = 0.0f;
+    float rtNormalStrengthDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterNormalStrengthDifference += std::fabs(
+            rasterProbePixels[23][channel] - rasterProbePixels[22][channel]);
+        rtNormalStrengthDifference += std::fabs(
+            rtProbePixels[23][channel] - rtProbePixels[22][channel]);
+    }
+    EXPECT_GT(rasterNormalStrengthDifference, 0.001f)
+        << "Raster normal mapping should respond to normal strength";
+    EXPECT_GT(rtNormalStrengthDifference, 0.001f)
+        << "RT normal mapping should respond to normal strength";
+    float rasterClearcoatNormalStrengthDifference = 0.0f;
+    float rtClearcoatNormalStrengthDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterClearcoatNormalStrengthDifference += std::fabs(
+            rasterProbePixels[25][channel] - rasterProbePixels[24][channel]);
+        rtClearcoatNormalStrengthDifference += std::fabs(
+            rtProbePixels[25][channel] - rtProbePixels[24][channel]);
+    }
+    EXPECT_GT(rasterClearcoatNormalStrengthDifference, 0.001f)
+        << "Raster clearcoat normal mapping should respond to its strength";
+    EXPECT_GT(rtClearcoatNormalStrengthDifference, 0.001f)
+        << "RT clearcoat normal mapping should respond to its strength";
+    EXPECT_GT(probeLuminance(rasterProbePixels[9]),
+              probeLuminance(rasterProbePixels[10]) + 0.001f)
+        << "lower AO should reduce the Raster sheen IBL response";
+    EXPECT_GT(probeLuminance(rtProbePixels[9]),
+              probeLuminance(rtProbePixels[10]) + 0.001f)
+        << "lower AO should reduce the RT sheen IBL response";
+    EXPECT_GT(std::fabs(probeLuminance(rasterProbePixels[11]) -
+                        probeLuminance(rasterProbePixels[12])),
+              0.002f)
+        << "Raster clearcoat response should vary with clearcoat roughness";
+    EXPECT_GT(std::fabs(probeLuminance(rtProbePixels[11]) -
+                        probeLuminance(rtProbePixels[12])),
+              0.002f)
+        << "RT clearcoat response should vary with clearcoat roughness";
+    float rasterClearcoatTintDifference = 0.0f;
+    float rtClearcoatTintDifference = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterClearcoatTintDifference += std::fabs(
+            rasterProbePixels[8][channel] - rasterProbePixels[13][channel]);
+        rtClearcoatTintDifference += std::fabs(
+            rtProbePixels[8][channel] - rtProbePixels[13][channel]);
+    }
+    EXPECT_GT(rasterClearcoatTintDifference, 0.005f)
+        << "Raster clearcoat response should vary with clearcoat tint";
+    EXPECT_GT(rtClearcoatTintDifference, 0.005f)
+        << "RT clearcoat response should vary with clearcoat tint";
+    EXPECT_GT(std::fabs(rasterProbePixels[18][0] - rasterProbePixels[19][0]),
+              0.001f)
+        << "Raster specular response should vary with specular tint";
+    EXPECT_GT(std::fabs(rtProbePixels[18][0] - rtProbePixels[19][0]), 0.001f)
+        << "RT specular response should vary with specular tint";
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rasterProbePixels[14][channel],
+                    rasterProbePixels[0][channel], 1.0e-5f)
+            << "negative Raster base roughness should clamp to the 0.04 "
+               "shader floor, channel " << channel;
+        EXPECT_NEAR(rtProbePixels[14][channel], rtProbePixels[0][channel],
+                    1.0e-5f)
+            << "negative RT base roughness should clamp to the 0.04 shader "
+               "floor, channel " << channel;
+    }
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(rasterProbePixels[16][channel],
+                    rasterProbePixels[2][channel], 1.0e-5f)
+            << "negative Raster metallic should clamp to zero, channel "
+            << channel;
+        EXPECT_NEAR(rtProbePixels[16][channel], rtProbePixels[2][channel],
+                    1.0e-5f)
+            << "negative RT metallic should clamp to zero, channel "
+            << channel;
+        EXPECT_NEAR(rasterProbePixels[17][channel],
+                    rasterProbePixels[4][channel], 1.0e-5f)
+            << "Raster metallic above one should clamp to one, channel "
+            << channel;
+        EXPECT_NEAR(rtProbePixels[17][channel], rtProbePixels[4][channel],
+                    1.0e-5f)
+            << "RT metallic above one should clamp to one, channel "
+            << channel;
+    }
 
     auto nonUniformTransform = float4x4::Identity();
     nonUniformTransform.m00 = 2.0f;
@@ -3073,6 +12582,253 @@ TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy
                     0.01f)
             << "Directional cubemap raster/RT channel " << channel;
     }
+
+    ArtifactCore::Light diffuseLight(ArtifactCore::LightType::Directional);
+    diffuseLight.setDirection({0.0f, 0.0f, 1.0f});
+    diffuseLight.setColor({1.0f, 1.0f, 1.0f});
+    diffuseLight.setIntensity(4.0f);
+    diffuseLight.setCastsShadows(false);
+    renderer.setSceneLights(std::vector<ArtifactCore::Light>{diffuseLight});
+    instance.color[0] = instance.color[1] = instance.color[2] = 0.7f;
+    renderer.updateInstanceData(&instance, 1);
+    renderer.setPbrFactors(0.0f, 1.0f, 1.0f, 1.0f);
+    renderer.setPrincipledFactors(0.0f, 1.5f, 0.0f, 0.0f, 0.04f);
+    const auto captureRasterDiffuseRoughness = [&](float diffuseRoughness) {
+        renderer.setDiffuseRoughness(diffuseRoughness);
+        return renderCenterPixel();
+    };
+    const auto smoothRasterDiffuse = captureRasterDiffuseRoughness(0.0f);
+    const auto roughRasterDiffuse = captureRasterDiffuseRoughness(1.0f);
+    float rasterDiffuseRoughnessResponse = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterDiffuseRoughnessResponse = std::max(
+            rasterDiffuseRoughnessResponse,
+            std::fabs(roughRasterDiffuse[channel] - smoothRasterDiffuse[channel]));
+    }
+    EXPECT_GT(rasterDiffuseRoughnessResponse, 0.001f)
+        << "Raster diffuse roughness should change direct diffuse response";
+    const auto belowRangeRasterDiffuse = captureRasterDiffuseRoughness(-0.5f);
+    const auto aboveRangeRasterDiffuse = captureRasterDiffuseRoughness(1.5f);
+    const auto nonFiniteRasterDiffuse = captureRasterDiffuseRoughness(
+        std::numeric_limits<float>::quiet_NaN());
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowRangeRasterDiffuse[channel],
+                    smoothRasterDiffuse[channel], 1.0e-5f)
+            << "Raster diffuse roughness below zero should clamp to zero";
+        EXPECT_NEAR(aboveRangeRasterDiffuse[channel],
+                    roughRasterDiffuse[channel], 1.0e-5f)
+            << "Raster diffuse roughness above one should clamp to one";
+        EXPECT_NEAR(nonFiniteRasterDiffuse[channel],
+                    smoothRasterDiffuse[channel], 1.0e-5f)
+            << "non-finite Raster diffuse roughness should use its zero fallback";
+    }
+
+    renderer.setPrincipledFactors(0.5f, 1.5f, 0.0f, 0.0f, 0.04f);
+    const auto captureRasterThinFilm = [&](float thicknessNm, float filmIor) {
+        renderer.setThinFilm(thicknessNm, filmIor);
+        return renderCenterPixel();
+    };
+    const auto noRasterThinFilm = captureRasterThinFilm(0.0f, 1.33f);
+    const auto enabledRasterThinFilm = captureRasterThinFilm(400.0f, 1.33f);
+    float rasterThinFilmResponse = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterThinFilmResponse = std::max(
+            rasterThinFilmResponse,
+            std::fabs(enabledRasterThinFilm[channel] - noRasterThinFilm[channel]));
+    }
+    EXPECT_GT(rasterThinFilmResponse, 0.001f)
+        << "Raster specular response should vary with finite film thickness";
+    const auto belowRasterFilmThickness = captureRasterThinFilm(-10.0f, 1.33f);
+    const auto maximumRasterFilmThickness = captureRasterThinFilm(1000.0f, 1.33f);
+    const auto aboveRasterFilmThickness = captureRasterThinFilm(1200.0f, 1.33f);
+    const auto nonFiniteRasterFilmThickness = captureRasterThinFilm(
+        std::numeric_limits<float>::quiet_NaN(), 1.33f);
+    const auto minimumRasterFilmIor = captureRasterThinFilm(400.0f, 1.0f);
+    const auto belowRasterFilmIor = captureRasterThinFilm(400.0f, 0.5f);
+    const auto maximumRasterFilmIor = captureRasterThinFilm(400.0f, 2.5f);
+    const auto aboveRasterFilmIor = captureRasterThinFilm(400.0f, 3.0f);
+    const auto nonFiniteRasterFilmIor = captureRasterThinFilm(
+        400.0f, std::numeric_limits<float>::quiet_NaN());
+    for (size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowRasterFilmThickness[channel],
+                    noRasterThinFilm[channel], 1.0e-5f)
+            << "Raster film thickness below zero should clamp to zero";
+        EXPECT_NEAR(maximumRasterFilmThickness[channel],
+                    aboveRasterFilmThickness[channel], 1.0e-5f)
+            << "Raster film thickness above 1000 nm should clamp to 1000 nm";
+        EXPECT_NEAR(nonFiniteRasterFilmThickness[channel],
+                    noRasterThinFilm[channel], 1.0e-5f)
+            << "non-finite Raster film thickness should use its zero fallback";
+        EXPECT_NEAR(minimumRasterFilmIor[channel],
+                    belowRasterFilmIor[channel], 1.0e-5f)
+            << "Raster film IOR below one should clamp to one";
+        EXPECT_NEAR(maximumRasterFilmIor[channel],
+                    aboveRasterFilmIor[channel], 1.0e-5f)
+            << "Raster film IOR above 2.5 should clamp to 2.5";
+        EXPECT_NEAR(enabledRasterThinFilm[channel],
+                    nonFiniteRasterFilmIor[channel], 1.0e-5f)
+            << "non-finite Raster film IOR should use its 1.33 fallback";
+    }
+
+    const QVector3D neutralSubsurfaceRadius(1.0f, 1.0f, 1.0f);
+    const auto captureRasterSubsurface = [&](float weight, const QColor& color,
+                                             const QVector3D& radius,
+                                             float ior = 1.4f,
+                                             float anisotropy = 0.0f) {
+        renderer.setSubsurfaceFactors(weight, color, radius,
+                                      ior, anisotropy);
+        return renderCenterPixel();
+    };
+    const QColor whiteSubsurfaceColor(255, 255, 255);
+    const auto burleyDiffuse = captureRasterSubsurface(
+        0.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius);
+    const auto fullRasterSubsurface = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius);
+    float rasterSubsurfaceResponse = 0.0f;
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterSubsurfaceResponse = std::max(
+            rasterSubsurfaceResponse,
+            std::fabs(fullRasterSubsurface[channel] - burleyDiffuse[channel]));
+    }
+    EXPECT_GT(rasterSubsurfaceResponse, 0.001f)
+        << "Raster subsurface weight should change direct diffuse response";
+    for (std::size_t tintChannel = 0; tintChannel < 3; ++tintChannel) {
+        std::array<float, 3> tint{1.0f, 1.0f, 1.0f};
+        tint[tintChannel] = 0.0f;
+        const auto zeroTintChannel = captureRasterSubsurface(
+            1.0f, QColor::fromRgbF(tint[0], tint[1], tint[2]),
+            neutralSubsurfaceRadius);
+        EXPECT_LT(zeroTintChannel[tintChannel],
+                  fullRasterSubsurface[tintChannel] - 0.001f)
+            << "Raster subsurface tint should reduce its channel "
+            << tintChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != tintChannel) {
+                EXPECT_NEAR(zeroTintChannel[channel],
+                            fullRasterSubsurface[channel], 1.0e-5f)
+                    << "Raster subsurface tint channel " << tintChannel
+                    << " should preserve output channel " << channel;
+            }
+        }
+    }
+    for (std::size_t radiusChannel = 0; radiusChannel < 3; ++radiusChannel) {
+        std::array<float, 3> radius{1.0f, 1.0f, 1.0f};
+        radius[radiusChannel] = 0.0f;
+        const auto zeroRadiusChannel = captureRasterSubsurface(
+            1.0f, whiteSubsurfaceColor,
+            QVector3D(radius[0], radius[1], radius[2]));
+        EXPECT_LT(zeroRadiusChannel[radiusChannel],
+                  fullRasterSubsurface[radiusChannel] - 0.001f)
+            << "Raster subsurface radius should reduce its channel "
+            << radiusChannel;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            if (channel != radiusChannel) {
+                EXPECT_NEAR(zeroRadiusChannel[channel],
+                            fullRasterSubsurface[channel], 1.0e-5f)
+                    << "Raster subsurface radius channel " << radiusChannel
+                    << " should preserve output channel " << channel;
+            }
+        }
+    }
+    const QVector3D maximumSubsurfaceRadius(10.0f, 10.0f, 10.0f);
+    const auto maximumRadiusResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, maximumSubsurfaceRadius);
+    const QVector3D overMaximumSubsurfaceRadius(20.0f, 20.0f, 20.0f);
+    const auto overMaximumRadiusResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, overMaximumSubsurfaceRadius);
+    const QVector3D infiniteSubsurfaceRadius(
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::infinity());
+    const QVector3D defaultSubsurfaceRadius(1.0f, 0.2f, 0.1f);
+    const auto nonFiniteRadiusResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, infiniteSubsurfaceRadius);
+    const auto defaultRadiusResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, defaultSubsurfaceRadius);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(overMaximumRadiusResponse[channel],
+                    maximumRadiusResponse[channel], 1.0e-5f)
+            << "Raster subsurface radius above ten should clamp to ten, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteRadiusResponse[channel],
+                    defaultRadiusResponse[channel], 1.0e-5f)
+            << "non-finite Raster subsurface radius should use its channel "
+            << "default, channel " << channel;
+    }
+    const auto minimumIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.0f);
+    const auto belowMinimumIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 0.5f);
+    const auto maximumIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 2.0f);
+    const auto aboveMaximumIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 3.0f);
+    const auto nonFiniteIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius,
+        std::numeric_limits<float>::quiet_NaN());
+    const auto defaultIorResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f);
+    float minimumIorEffect = 0.0f;
+    float maximumIorEffect = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumIorResponse[channel],
+                    minimumIorResponse[channel], 1.0e-5f)
+            << "Raster subsurface IOR below one should clamp to one, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumIorResponse[channel],
+                    maximumIorResponse[channel], 1.0e-5f)
+            << "Raster subsurface IOR above two should clamp to two, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteIorResponse[channel],
+                    defaultIorResponse[channel], 1.0e-5f)
+            << "non-finite Raster subsurface IOR should use 1.4, channel "
+            << channel;
+        minimumIorEffect = std::max(minimumIorEffect,
+            std::fabs(minimumIorResponse[channel] - maximumIorResponse[channel]));
+        maximumIorEffect = std::max(maximumIorEffect,
+            std::fabs(maximumIorResponse[channel] - defaultIorResponse[channel]));
+    }
+    EXPECT_GT(minimumIorEffect, 0.001f)
+        << "Raster subsurface IOR should change direct diffuse response";
+    EXPECT_GT(maximumIorEffect, 0.001f)
+        << "Raster subsurface IOR should respond through its supported range";
+    const auto neutralAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, 0.0f);
+    const auto backwardAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, -0.8f);
+    const auto forwardAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, 0.8f);
+    const auto minimumAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, -0.9f);
+    const auto belowMinimumAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, -2.0f);
+    const auto maximumAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, 0.9f);
+    const auto aboveMaximumAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f, 2.0f);
+    const auto nonFiniteAnisotropyResponse = captureRasterSubsurface(
+        1.0f, whiteSubsurfaceColor, neutralSubsurfaceRadius, 1.4f,
+        std::numeric_limits<float>::quiet_NaN());
+    float anisotropyEffect = 0.0f;
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_NEAR(belowMinimumAnisotropyResponse[channel],
+                    minimumAnisotropyResponse[channel], 1.0e-5f)
+            << "Raster subsurface anisotropy below -0.9 should clamp, channel "
+            << channel;
+        EXPECT_NEAR(aboveMaximumAnisotropyResponse[channel],
+                    maximumAnisotropyResponse[channel], 1.0e-5f)
+            << "Raster subsurface anisotropy above 0.9 should clamp, channel "
+            << channel;
+        EXPECT_NEAR(nonFiniteAnisotropyResponse[channel],
+                    neutralAnisotropyResponse[channel], 1.0e-5f)
+            << "non-finite Raster subsurface anisotropy should use zero, channel "
+            << channel;
+        anisotropyEffect = std::max(anisotropyEffect,
+            std::fabs(backwardAnisotropyResponse[channel] -
+                      forwardAnisotropyResponse[channel]));
+    }
+    EXPECT_GT(anisotropyEffect, 0.001f)
+        << "Raster subsurface anisotropy should change direct scatter response";
 }
 
 TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
@@ -3664,6 +13420,24 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     ASSERT_TRUE(saveOutputFrame("11-transmission-environment.png"));
     const auto environmentTransmissionPixel = pixelAt(8, 16);
     EXPECT_GT(environmentTransmissionPixel[0], neutralTransmissionPixel[0] + 0.10f);
+    glassPbrMaterial.transmission = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("box-object"), glassPbrMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto zeroTransmissionEnvironmentPixel = pixelAt(8, 16);
+    const float environmentTransmissionResponse = std::max(
+        std::fabs(environmentTransmissionPixel[0] -
+                  zeroTransmissionEnvironmentPixel[0]),
+        std::max(std::fabs(environmentTransmissionPixel[1] -
+                           zeroTransmissionEnvironmentPixel[1]),
+                 std::fabs(environmentTransmissionPixel[2] -
+                           zeroTransmissionEnvironmentPixel[2])));
+    EXPECT_GT(environmentTransmissionResponse, 0.01f)
+        << "environment transmission should respond to the material amount";
     manager_->setEnvironmentLighting(context_.RawPtr(), nullptr, nullptr,
                                      nullptr, false, 1.0f, 0.0f);
     ASSERT_TRUE(manager_->setInstancePbrMaterial(ArtifactCore::UniString("box-object"),
@@ -3676,6 +13450,26 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     invalidCamera.up[2] = 1.0f;
     EXPECT_FALSE(manager_->traceCamera(context_.RawPtr(), kRayTraceTestImageSize,
                                        kRayTraceTestImageSize, invalidCamera));
+    const auto dispatchCountBeforeInvalidCameras =
+        manager_->capabilities().traceDispatchCount;
+    invalidCamera = ArtifactCore::RTRayCamera{};
+    invalidCamera.target[0] = invalidCamera.origin[0];
+    invalidCamera.target[1] = invalidCamera.origin[1];
+    invalidCamera.target[2] = invalidCamera.origin[2];
+    EXPECT_FALSE(manager_->traceCamera(context_.RawPtr(), kRayTraceTestImageSize,
+                                       kRayTraceTestImageSize, invalidCamera));
+    invalidCamera = ArtifactCore::RTRayCamera{};
+    invalidCamera.origin[0] = std::numeric_limits<float>::infinity();
+    EXPECT_FALSE(manager_->traceCamera(context_.RawPtr(), kRayTraceTestImageSize,
+                                       kRayTraceTestImageSize, invalidCamera));
+    invalidCamera = ArtifactCore::RTRayCamera{};
+    invalidCamera.verticalFovDegrees =
+        std::numeric_limits<float>::quiet_NaN();
+    EXPECT_FALSE(manager_->traceCamera(context_.RawPtr(), kRayTraceTestImageSize,
+                                       kRayTraceTestImageSize, invalidCamera));
+    EXPECT_EQ(manager_->capabilities().traceDispatchCount,
+              dispatchCountBeforeInvalidCameras)
+        << "invalid camera inputs should be rejected before ray dispatch";
     ArtifactCore::RTRayCamera offsetCamera;
     offsetCamera.origin[0] = 4.0f;
     offsetCamera.target[0] = 4.0f;
@@ -3769,6 +13563,10 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     ArtifactCore::RTPbrMaterial defaultMaterial;
     ASSERT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), defaultMaterial));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto defaultMaterialImage = readOutputPixels();
     ArtifactCore::RTPbrMaterial nonFiniteMaterial;
     const float nan = std::numeric_limits<float>::quiet_NaN();
     const float infinity = std::numeric_limits<float>::infinity();
@@ -3777,11 +13575,371 @@ TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {
     nonFiniteMaterial.roughness = nan;
     nonFiniteMaterial.ior = nan;
     nonFiniteMaterial.emissionStrength = infinity;
+    nonFiniteMaterial.normalUvRotationDegrees = infinity;
+    nonFiniteMaterial.normalUvOffsetU = nan;
+    nonFiniteMaterial.metallicTextureUvScaleU = infinity;
+    nonFiniteMaterial.roughnessTextureUvOffsetV = nan;
+    nonFiniteMaterial.clearcoatNormalUvScale = nan;
+    nonFiniteMaterial.sheenColorTextureUvScaleU = infinity;
+    nonFiniteMaterial.anisotropyTextureUvOffsetU = nan;
     EXPECT_FALSE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), nonFiniteMaterial));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto imageAfterRejectedMaterial = readOutputPixels();
+    ASSERT_EQ(imageAfterRejectedMaterial.size(), defaultMaterialImage.size());
+    float maximumRejectedUpdateDifference = 0.0f;
+    for (size_t pixel = 0; pixel < defaultMaterialImage.size(); ++pixel) {
+        for (size_t channel = 0; channel < defaultMaterialImage[pixel].size();
+             ++channel) {
+            maximumRejectedUpdateDifference = std::max(
+                maximumRejectedUpdateDifference,
+                std::fabs(imageAfterRejectedMaterial[pixel][channel] -
+                          defaultMaterialImage[pixel][channel]));
+        }
+    }
+    EXPECT_LE(maximumRejectedUpdateDifference, 1.0e-5f);
+
+    using Material = ArtifactCore::RTPbrMaterial;
+    const std::array nonFiniteScalars{
+        std::pair{"baseColorAlpha", &Material::baseColorAlpha},
+        std::pair{"diffuseRoughness", &Material::diffuseRoughness},
+        std::pair{"specular", &Material::specular},
+        std::pair{"thinFilmThickness", &Material::thinFilmThickness},
+        std::pair{"thinFilmIOR", &Material::thinFilmIOR},
+        std::pair{"transmission", &Material::transmission},
+        std::pair{"clearcoat", &Material::clearcoat},
+        std::pair{"clearcoatRoughness", &Material::clearcoatRoughness},
+        std::pair{"clearcoatIOR", &Material::clearcoatIOR},
+        std::pair{"clearcoatNormalStrength", &Material::clearcoatNormalStrength},
+        std::pair{"sheen", &Material::sheen},
+        std::pair{"sheenRoughness", &Material::sheenRoughness},
+        std::pair{"subsurface", &Material::subsurface},
+        std::pair{"subsurfaceIOR", &Material::subsurfaceIOR},
+        std::pair{"subsurfaceAnisotropy", &Material::subsurfaceAnisotropy},
+        std::pair{"anisotropy", &Material::anisotropy},
+        std::pair{"anisotropyRotationDegrees", &Material::anisotropyRotationDegrees},
+        std::pair{"emissionStrength", &Material::emissionStrength},
+        std::pair{"opacity", &Material::opacity},
+        std::pair{"alphaCutoff", &Material::alphaCutoff},
+        std::pair{"thinWall", &Material::thinWall},
+        std::pair{"normalStrength", &Material::normalStrength},
+        std::pair{"occlusionStrength", &Material::occlusionStrength},
+        std::pair{"baseColorUvScale", &Material::baseColorUvScale},
+        std::pair{"baseColorUvRotationDegrees", &Material::baseColorUvRotationDegrees},
+        std::pair{"baseColorUvOffsetU", &Material::baseColorUvOffsetU},
+        std::pair{"baseColorUvOffsetV", &Material::baseColorUvOffsetV},
+        std::pair{"metallicRoughnessUvScale", &Material::metallicRoughnessUvScale},
+        std::pair{"metallicRoughnessUvOffsetU", &Material::metallicRoughnessUvOffsetU},
+        std::pair{"metallicRoughnessUvOffsetV", &Material::metallicRoughnessUvOffsetV},
+        std::pair{"metallicRoughnessUvRotationDegrees",
+                  &Material::metallicRoughnessUvRotationDegrees},
+        std::pair{"clearcoatTextureUvScale", &Material::clearcoatTextureUvScale},
+        std::pair{"clearcoatTextureUvOffsetU", &Material::clearcoatTextureUvOffsetU},
+        std::pair{"clearcoatTextureUvOffsetV", &Material::clearcoatTextureUvOffsetV},
+        std::pair{"clearcoatTextureUvRotationDegrees",
+                  &Material::clearcoatTextureUvRotationDegrees},
+        std::pair{"clearcoatRoughnessTextureUvScale",
+                  &Material::clearcoatRoughnessTextureUvScale},
+        std::pair{"clearcoatRoughnessTextureUvOffsetU",
+                  &Material::clearcoatRoughnessTextureUvOffsetU},
+        std::pair{"clearcoatRoughnessTextureUvOffsetV",
+                  &Material::clearcoatRoughnessTextureUvOffsetV},
+        std::pair{"clearcoatRoughnessTextureUvRotationDegrees",
+                  &Material::clearcoatRoughnessTextureUvRotationDegrees},
+        std::pair{"clearcoatNormalUvRotationDegrees",
+                  &Material::clearcoatNormalUvRotationDegrees},
+        std::pair{"clearcoatNormalUvScale", &Material::clearcoatNormalUvScale},
+        std::pair{"clearcoatNormalUvOffsetU", &Material::clearcoatNormalUvOffsetU},
+        std::pair{"clearcoatNormalUvOffsetV", &Material::clearcoatNormalUvOffsetV},
+        std::pair{"sheenColorTextureUvScaleU",
+                  &Material::sheenColorTextureUvScaleU},
+        std::pair{"sheenColorTextureUvScaleV",
+                  &Material::sheenColorTextureUvScaleV},
+        std::pair{"sheenColorTextureUvRotationDegrees",
+                  &Material::sheenColorTextureUvRotationDegrees},
+        std::pair{"sheenColorTextureUvOffsetU",
+                  &Material::sheenColorTextureUvOffsetU},
+        std::pair{"sheenColorTextureUvOffsetV",
+                  &Material::sheenColorTextureUvOffsetV},
+        std::pair{"sheenRoughnessTextureUvScaleU",
+                  &Material::sheenRoughnessTextureUvScaleU},
+        std::pair{"sheenRoughnessTextureUvScaleV",
+                  &Material::sheenRoughnessTextureUvScaleV},
+        std::pair{"sheenRoughnessTextureUvRotationDegrees",
+                  &Material::sheenRoughnessTextureUvRotationDegrees},
+        std::pair{"sheenRoughnessTextureUvOffsetU",
+                  &Material::sheenRoughnessTextureUvOffsetU},
+        std::pair{"sheenRoughnessTextureUvOffsetV",
+                  &Material::sheenRoughnessTextureUvOffsetV},
+        std::pair{"anisotropyTextureUvScaleU",
+                  &Material::anisotropyTextureUvScaleU},
+        std::pair{"anisotropyTextureUvScaleV",
+                  &Material::anisotropyTextureUvScaleV},
+        std::pair{"anisotropyTextureUvRotationDegrees",
+                  &Material::anisotropyTextureUvRotationDegrees},
+        std::pair{"anisotropyTextureUvOffsetU",
+                  &Material::anisotropyTextureUvOffsetU},
+        std::pair{"anisotropyTextureUvOffsetV",
+                  &Material::anisotropyTextureUvOffsetV},
+        std::pair{"metallicTextureUvScaleU", &Material::metallicTextureUvScaleU},
+        std::pair{"metallicTextureUvScaleV", &Material::metallicTextureUvScaleV},
+        std::pair{"metallicTextureUvRotationDegrees",
+                  &Material::metallicTextureUvRotationDegrees},
+        std::pair{"metallicTextureUvOffsetU", &Material::metallicTextureUvOffsetU},
+        std::pair{"metallicTextureUvOffsetV", &Material::metallicTextureUvOffsetV},
+        std::pair{"roughnessTextureUvScaleU", &Material::roughnessTextureUvScaleU},
+        std::pair{"roughnessTextureUvScaleV", &Material::roughnessTextureUvScaleV},
+        std::pair{"roughnessTextureUvRotationDegrees",
+                  &Material::roughnessTextureUvRotationDegrees},
+        std::pair{"roughnessTextureUvOffsetU", &Material::roughnessTextureUvOffsetU},
+        std::pair{"roughnessTextureUvOffsetV", &Material::roughnessTextureUvOffsetV},
+        std::pair{"normalUvRotationDegrees", &Material::normalUvRotationDegrees},
+        std::pair{"normalUvScale", &Material::normalUvScale},
+        std::pair{"normalUvOffsetU", &Material::normalUvOffsetU},
+        std::pair{"normalUvOffsetV", &Material::normalUvOffsetV},
+        std::pair{"occlusionTextureUvScale", &Material::occlusionTextureUvScale},
+        std::pair{"occlusionTextureUvOffsetU", &Material::occlusionTextureUvOffsetU},
+        std::pair{"occlusionTextureUvOffsetV", &Material::occlusionTextureUvOffsetV},
+        std::pair{"occlusionTextureUvRotationDegrees",
+                  &Material::occlusionTextureUvRotationDegrees},
+        std::pair{"uvOffsetU", &Material::uvOffsetU},
+        std::pair{"uvOffsetV", &Material::uvOffsetV},
+        std::pair{"uvScaleU", &Material::uvScaleU},
+        std::pair{"uvScaleV", &Material::uvScaleV},
+        std::pair{"uvRotationDegrees", &Material::uvRotationDegrees},
+        std::pair{"emissionTextureUvScale", &Material::emissionTextureUvScale},
+        std::pair{"emissionTextureUvOffsetU", &Material::emissionTextureUvOffsetU},
+        std::pair{"emissionTextureUvOffsetV", &Material::emissionTextureUvOffsetV},
+        std::pair{"emissionTextureUvRotationDegrees",
+                  &Material::emissionTextureUvRotationDegrees},
+        std::pair{"opacityTextureUvScale", &Material::opacityTextureUvScale},
+        std::pair{"opacityTextureUvOffsetU", &Material::opacityTextureUvOffsetU},
+        std::pair{"opacityTextureUvOffsetV", &Material::opacityTextureUvOffsetV},
+        std::pair{"opacityTextureUvRotationDegrees",
+                  &Material::opacityTextureUvRotationDegrees},
+    };
+    for (const auto& [fieldName, member] : nonFiniteScalars) {
+        Material candidate = defaultMaterial;
+        candidate.*member = nan;
+        EXPECT_FALSE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("box-object"), candidate))
+            << "non-finite " << fieldName << " should sanitize to the default";
+    }
+
+    const std::array nonFiniteColorArrays{
+        std::pair{"baseColor", &Material::baseColor},
+        std::pair{"specularTint", &Material::specularTint},
+        std::pair{"clearcoatTint", &Material::clearcoatTint},
+        std::pair{"sheenTint", &Material::sheenTint},
+        std::pair{"subsurfaceRadius", &Material::subsurfaceRadius},
+        std::pair{"subsurfaceColor", &Material::subsurfaceColor},
+        std::pair{"emissionColor", &Material::emissionColor},
+    };
+    for (const auto& [fieldName, member] : nonFiniteColorArrays) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            Material candidate = defaultMaterial;
+            (candidate.*member)[channel] = nan;
+            EXPECT_FALSE(manager_->setInstancePbrMaterial(
+                ArtifactCore::UniString("box-object"), candidate))
+                << "non-finite " << fieldName << " channel " << channel
+                << " should sanitize to the default";
+        }
+    }
     EXPECT_TRUE(manager_->setInstancePbrMaterial(
         ArtifactCore::UniString("box-object"), boxPbrMaterial));
+
+    std::array<ArtifactCore::RTSceneLight, 9> ambientLights{};
+    for (auto& light : ambientLights) {
+        light.positionType[3] =
+            static_cast<float>(ArtifactCore::LightType::Ambient);
+        light.directionIntensity[3] = 0.05f;
+        light.colorAttenuationConstant[1] = 1.0f;
+        light.colorAttenuationConstant[3] = 1.0f;
+    }
+    manager_->setSceneLights(context_.RawPtr(), ambientLights.data(),
+                             static_cast<Uint32>(ambientLights.size()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto cappedSceneLightsImage = readOutputPixels();
+    manager_->setSceneLights(context_.RawPtr(), ambientLights.data(), 8);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_LE(maximumGreenDifference(cappedSceneLightsImage), 1.0e-5f)
+        << "ray tracing should use only the first eight scene lights";
+
+    auto negativeIntensityLight = ambientLights[0];
+    negativeIntensityLight.directionIntensity[3] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &negativeIntensityLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto negativeIntensityImage = readOutputPixels();
+    negativeIntensityLight.directionIntensity[3] = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &negativeIntensityLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_LE(maximumGreenDifference(negativeIntensityImage), 1.0e-5f)
+        << "negative scene-light intensity should clamp to zero";
+
+    auto pointReferenceLight = greenPointLight;
+    pointReferenceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &pointReferenceLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto pointLightImage = readOutputPixels();
+    auto attenuatedPointLight = pointReferenceLight;
+    attenuatedPointLight.attenuationSpot[0] = 2.0f;
+    manager_->setSceneLights(context_.RawPtr(), &attenuatedPointLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_GT(maximumGreenDifference(pointLightImage), 0.01f)
+        << "linear point-light attenuation should reduce illumination with distance";
+    auto zeroSizedAreaLight = greenAreaLight;
+    zeroSizedAreaLight.shadowParams[0] = -1.0f;
+    zeroSizedAreaLight.shadowParams[1] = 0.0f;
+    zeroSizedAreaLight.shadowParams[2] = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &zeroSizedAreaLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_LE(maximumGreenDifference(pointLightImage), 1.0e-5f)
+        << "an area light with zero dimensions should use the point-light path";
+
+    auto rectangularAreaLight = greenAreaLight;
+    rectangularAreaLight.shadowParams[0] = -1.0f;
+    rectangularAreaLight.shadowParams[3] = 0.0f;
+    manager_->setSceneLights(context_.RawPtr(), &rectangularAreaLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto rectangularAreaImage = readOutputPixels();
+    auto diskAreaLight = rectangularAreaLight;
+    diskAreaLight.shadowParams[3] = 1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &diskAreaLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_GT(maximumGreenDifference(rectangularAreaImage), 0.001f)
+        << "disk and rectangular area-light sampling should produce distinct illumination";
+
+    auto coneReferenceLight = greenPointLight;
+    coneReferenceLight.shadowParams[0] = -1.0f;
+    manager_->setSceneLights(context_.RawPtr(), &coneReferenceLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto pointInsideConePixel = pixelAt(24, 16);
+    auto innerConeLight = coneReferenceLight;
+    innerConeLight.positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Spot);
+    innerConeLight.directionIntensity[2] = 1.0f;
+    innerConeLight.attenuationSpot[2] = 0.8f;
+    innerConeLight.attenuationSpot[3] = 0.7f;
+    manager_->setSceneLights(context_.RawPtr(), &innerConeLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    EXPECT_NEAR(pixelAt(24, 16)[1], pointInsideConePixel[1], 0.01f)
+        << "a spot sample inside the inner cone should retain full point-light intensity";
+
+    innerConeLight.attenuationSpot[2] = 0.95f;
+    innerConeLight.attenuationSpot[3] = 0.9f;
+    manager_->setSceneLights(context_.RawPtr(), &innerConeLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const float outsideConeGreen = pixelAt(24, 16)[1];
+    EXPECT_LT(outsideConeGreen, pointInsideConePixel[1] - 0.01f)
+        << "a spot sample outside the outer cone should be attenuated";
+
+    innerConeLight.attenuationSpot[2] = 0.9f;
+    innerConeLight.attenuationSpot[3] = 0.8f;
+    manager_->setSceneLights(context_.RawPtr(), &innerConeLight, 1);
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                        kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const float transitionConeGreen = pixelAt(24, 16)[1];
+    EXPECT_GT(transitionConeGreen, outsideConeGreen + 0.01f)
+        << "a spot sample in the cone transition band should regain intensity";
+    EXPECT_LT(transitionConeGreen, pointInsideConePixel[1] - 0.01f)
+        << "a spot sample in the cone transition band should remain below full intensity";
 }
+
+TEST_F(RayTracingAcceptanceTest,
+       ClampsCameraVerticalFieldOfViewToSupportedRange) {
+    constexpr std::array<float, 12> vertices{
+        -1.0f, -1.0f, 0.0f, 1.0f, -1.0f, 0.0f,
+         1.0f,  1.0f, 0.0f, -1.0f, 1.0f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("camera-fov-clamp", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
+    material.emissionColor[0] = material.emissionColor[1] =
+        material.emissionColor[2] = 1.0f;
+    material.emissionStrength = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("camera-fov-clamp"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+
+    const auto traceFov = [&](const float verticalFovDegrees) {
+        ArtifactCore::RTRayCamera camera;
+        camera.verticalFovDegrees = verticalFovDegrees;
+        EXPECT_TRUE(manager_->traceCamera(context_.RawPtr(),
+                                          kRayTraceTestImageSize,
+                                          kRayTraceTestImageSize, camera));
+        return readOutputPixels();
+    };
+    const auto belowMinimum = traceFov(0.5f);
+    const auto atMinimum = traceFov(1.0f);
+    const auto atMaximum = traceFov(179.0f);
+    const auto aboveMaximum = traceFov(240.0f);
+    const auto expectedPixelCount = static_cast<size_t>(
+        kRayTraceTestImageSize * kRayTraceTestImageSize);
+    ASSERT_EQ(belowMinimum.size(), expectedPixelCount);
+    ASSERT_EQ(atMinimum.size(), expectedPixelCount);
+    ASSERT_EQ(atMaximum.size(), expectedPixelCount);
+    ASSERT_EQ(aboveMaximum.size(), expectedPixelCount);
+
+    const auto maximumImageDifference = [](
+        const std::vector<std::array<float, 4>>& lhs,
+        const std::vector<std::array<float, 4>>& rhs) {
+        EXPECT_EQ(lhs.size(), rhs.size());
+        const auto count = std::min(lhs.size(), rhs.size());
+        float maximumDifference = 0.0f;
+        for (size_t pixel = 0; pixel < count; ++pixel) {
+            for (size_t channel = 0; channel < 4; ++channel) {
+                maximumDifference = std::max(
+                    maximumDifference,
+                    std::fabs(lhs[pixel][channel] - rhs[pixel][channel]));
+            }
+        }
+        return maximumDifference;
+    };
+    EXPECT_LE(maximumImageDifference(belowMinimum, atMinimum), 1.0e-5f)
+        << "FOV values below 1 degree should match the 1 degree lower bound";
+    EXPECT_LE(maximumImageDifference(atMaximum, aboveMaximum), 1.0e-5f)
+        << "FOV values above 179 degrees should match the 179 degree upper bound";
+}
+
 TEST_F(RayTracingAcceptanceTest, TracesUnindexedTriangleAndRejectsMalformedGeometry) {
     constexpr std::array<float, 9> triangleVertices{-0.8f, -0.8f, 0.0f, 0.8f, -0.8f,
                                                     0.0f,  0.0f,  0.8f, 0.0f};

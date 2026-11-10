@@ -61,3 +61,30 @@ TEST(AbstractPropertyModulationTest, RoundsModulatedIntegerToNearestValue) {
         RationalTime(0, 30), nullptr, std::nullopt, &router, "effect.blur.samples");
     EXPECT_EQ(value.toInt(), 4);
 }
+
+TEST(AbstractPropertyModulationTest, RoundsNegativeModulationAndClampsIntegerBounds) {
+    const auto evaluateInteger = [](double base, double depth) {
+        AbstractProperty property;
+        property.setType(PropertyType::Integer);
+        property.setValue(base);
+        property.setMinValue(-4.0);
+        property.setMaxValue(4.0);
+
+        ModulationRouter router;
+        router.setSmoothingTime(0.0f);
+        const auto sourceId = router.addSource(
+            std::make_unique<FixedTestModulatorSource>(1.0f));
+        EXPECT_TRUE(router.addAssignment(ModulationAssignment::forPropertyPath(
+            sourceId, "effect.blur.samples", static_cast<float>(depth))));
+        router.process(64);
+
+        const QVariant value = property.evaluateValue(
+            RationalTime(0, 30), nullptr, std::nullopt, &router,
+            "effect.blur.samples");
+        return value.toInt();
+    };
+
+    EXPECT_EQ(evaluateInteger(0.0, -1.6), -2);
+    EXPECT_EQ(evaluateInteger(2.0, -10.0), -4);
+    EXPECT_EQ(evaluateInteger(-2.0, 10.0), 4);
+}

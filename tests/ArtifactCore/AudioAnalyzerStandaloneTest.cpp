@@ -237,6 +237,27 @@ TEST(AudioAnalyzerStandaloneTest, MaximumFiniteInputKeepsAnalysisMetricsFinite)
         EXPECT_TRUE(std::isfinite(bin));
 }
 
+TEST(AudioAnalyzerStandaloneTest, OppositeMaximumFiniteStereoSamplesKeepMetricsFinite)
+{
+    AudioAnalyzer analyzer(8);
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Stereo;
+    const float maximum = std::numeric_limits<float>::max();
+    segment.channelData.push_back(QVector<float>{maximum, -maximum});
+    segment.channelData.push_back(QVector<float>{-maximum, maximum});
+
+    const auto result = analyzer.analyze(segment);
+
+    EXPECT_TRUE(std::isfinite(result.rms));
+    EXPECT_FLOAT_EQ(result.rms, maximum);
+    EXPECT_TRUE(std::isfinite(result.peak));
+    EXPECT_FLOAT_EQ(result.peak, maximum);
+    ASSERT_EQ(result.spectrum.size(), 5u);
+    for (const float bin : result.spectrum)
+        EXPECT_TRUE(std::isfinite(bin));
+}
+
 TEST(AudioAnalyzerStandaloneTest, InvalidSampleRateKeepsBandIntensitiesAtZero)
 {
     AudioAnalyzer analyzer(8);

@@ -4,6 +4,8 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -146,6 +148,53 @@ TEST(AudioDeEsserStandaloneTest, KeepsFilterAndDetectorStateIndependentPerChanne
 
     EXPECT_EQ(stereoTwo.channelData[0], leftTwo.channelData[0]);
     EXPECT_EQ(stereoTwo.channelData[1], rightTwo.channelData[0]);
+}
+
+TEST(AudioDeEsserStandaloneTest,
+     DetectorAndFilterStateMatchAcrossIrregularBlockBoundaries)
+{
+    constexpr int sampleRate = 48000;
+    constexpr int frameCount = 4097;
+    QVector<float> input(frameCount);
+    for (int frame = 0; frame < frameCount; ++frame) {
+        const float highFrequencyLevel = (frame / 173) % 2 == 0
+            ? 0.15f : 0.9f;
+        const float low = 0.2f * std::sin(
+            2.0f * 3.14159265f * 1000.0f * frame / sampleRate);
+        const float high = highFrequencyLevel * std::sin(
+            2.0f * 3.14159265f * 8000.0f * frame / sampleRate);
+        input[frame] = low + high;
+    }
+
+    AudioDeEsser wholeProcessor;
+    wholeProcessor.setFrequency(6500.0f);
+    wholeProcessor.setThresholdDb(-30.0f);
+    wholeProcessor.setReduction(0.85f);
+    auto wholeBlock = makeMono(sampleRate, input);
+    wholeProcessor.process(wholeBlock);
+
+    AudioDeEsser segmentedProcessor;
+    segmentedProcessor.setFrequency(6500.0f);
+    segmentedProcessor.setThresholdDb(-30.0f);
+    segmentedProcessor.setReduction(0.85f);
+    constexpr std::array<int, 6> blockSizes{1, 31, 257, 7, 509, 64};
+    QVector<float> segmentedOutput;
+    segmentedOutput.reserve(input.size());
+    int start = 0;
+    std::size_t blockIndex = 0;
+    while (start < frameCount) {
+        const int count = std::min(blockSizes[blockIndex % blockSizes.size()],
+                                   frameCount - start);
+        auto block = makeMono(sampleRate, input.mid(start, count));
+        block.startFrame = start;
+        segmentedProcessor.process(block);
+        segmentedOutput += block.channelData[0];
+        start += count;
+        ++blockIndex;
+    }
+
+    ASSERT_EQ(segmentedOutput.size(), wholeBlock.channelData[0].size());
+    EXPECT_EQ(segmentedOutput, wholeBlock.channelData[0]);
 }
 
 TEST(AudioDeEsserStandaloneTest, BypassPreservesInputSamples)

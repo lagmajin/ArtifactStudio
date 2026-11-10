@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -52,6 +53,16 @@ struct DestructionTrackedMapped {
     ~DestructionTrackedMapped() { ++*destructionCount; }
 
     int* destructionCount;
+};
+
+struct ConditionallyThrowingMapped {
+    static inline bool shouldThrow = false;
+
+    explicit ConditionallyThrowingMapped(int input) : value(input) {
+        if (shouldThrow) throw std::runtime_error("mapped construction failed");
+    }
+
+    int value;
 };
 
 } // namespace
@@ -231,6 +242,37 @@ TEST(ArtifactHashMapContractTest, CustomInitialBucketCountRehashesAtLoadFactorBo
     for (int key = 0; key < 4; ++key) {
         ASSERT_TRUE(map.contains(key));
         EXPECT_EQ(map.at(key).value(), key * 10);
+    }
+}
+
+TEST(ArtifactHashMapContractTest,
+     ThrowingMappedConstructionDuringGrowthKeepsMapUsable)
+{
+    ArtifactHashMap<int, ConditionallyThrowingMapped> map(4);
+    for (int key = 0; key < 3; ++key) {
+        ASSERT_TRUE(map.tryEmplace(key, key * 10).second);
+    }
+    ASSERT_EQ(map.bucket_count(), 4u);
+    ASSERT_EQ(map.size(), 3u);
+
+    ConditionallyThrowingMapped::shouldThrow = true;
+    EXPECT_THROW(map.tryEmplace(3, 30), std::runtime_error);
+    ConditionallyThrowingMapped::shouldThrow = false;
+
+    ASSERT_EQ(map.size(), 3u);
+    for (int key = 0; key < 3; ++key) {
+        ASSERT_TRUE(map.contains(key));
+        ASSERT_TRUE(map.at(key).has_value());
+        EXPECT_EQ(map.at(key)->value, key * 10);
+    }
+    EXPECT_FALSE(map.contains(3));
+
+    ASSERT_TRUE(map.tryEmplace(3, 30).second);
+    ASSERT_EQ(map.size(), 4u);
+    EXPECT_GT(map.bucket_count(), 4u);
+    for (int key = 0; key < 4; ++key) {
+        ASSERT_TRUE(map.at(key).has_value());
+        EXPECT_EQ(map.at(key)->value, key * 10);
     }
 }
 

@@ -65,6 +65,46 @@ TEST(ResultContractTest, TransformMapsSuccessAndPreservesFailure)
     EXPECT_EQ(failure.error(), ErrorCode::Cancelled);
 }
 
+TEST(ResultContractTest,
+     TransformAndThenShortCircuitFailuresWithoutLosingDiagnosticContext)
+{
+    ErrorContext context;
+    context.code = ErrorCode::InvalidArgument;
+    context.message = "invalid frame header";
+    context.operation = "decodeFrame";
+    context.objectId = "frame-19";
+    context.location = sourceLocation("decoder.cpp", "decodeFrame", 87);
+    context.traceId = 0xCAFEu;
+    const auto failure = Result<int>::fail(context);
+    int callbackCalls = 0;
+
+    const auto transformed = failure.transform([&](int value) {
+        ++callbackCalls;
+        return value + 1;
+    });
+    const auto chained = failure.andThen([&](int value) {
+        ++callbackCalls;
+        return Result<std::string>::ok(std::to_string(value));
+    });
+
+    const auto expectOriginalContext = [](const auto& result) {
+        EXPECT_FALSE(result.hasValue());
+        const auto& actual = result.errorContext();
+        EXPECT_EQ(actual.code, ErrorCode::InvalidArgument);
+        EXPECT_EQ(actual.message, "invalid frame header");
+        EXPECT_EQ(actual.operation, "decodeFrame");
+        EXPECT_EQ(actual.objectId, "frame-19");
+        ASSERT_TRUE(actual.location.hasValue());
+        EXPECT_STREQ(actual.location.file, "decoder.cpp");
+        EXPECT_STREQ(actual.location.function, "decodeFrame");
+        EXPECT_EQ(actual.location.line, 87);
+        EXPECT_EQ(actual.traceId, 0xCAFEu);
+    };
+    expectOriginalContext(transformed);
+    expectOriginalContext(chained);
+    EXPECT_EQ(callbackCalls, 0);
+}
+
 TEST(ResultContractTest, AndThenShortCircuitsFailureAndChainsSuccess)
 {
     int calls = 0;

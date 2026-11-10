@@ -336,6 +336,29 @@ TEST(SequenceGroupContractTest, NonFiniteAdvanceDoesNotCorruptPlaybackProgress)
     }
 }
 
+TEST(SequenceGroupContractTest,
+     FiniteAdvanceWhosePlaybackScaledDeltaOverflowsAtBothPlaybackBoundaries)
+{
+    const auto definition = staggeredDefinition();
+    const double duration = definition.durationForElementCount(2);
+
+    SequencePlayer forward(&definition);
+    forward.setElementCount(2);
+    forward.play();
+    forward.advance(std::numeric_limits<double>::max());
+    EXPECT_DOUBLE_EQ(forward.time(), duration);
+    EXPECT_TRUE(std::isfinite(forward.time()));
+    EXPECT_EQ(forward.playback().state, SequencePlaybackState::Completed);
+
+    SequencePlayer reverse(&definition);
+    reverse.setElementCount(2);
+    reverse.play(true);
+    reverse.advance(std::numeric_limits<double>::max());
+    EXPECT_DOUBLE_EQ(reverse.time(), 0.0);
+    EXPECT_TRUE(std::isfinite(reverse.time()));
+    EXPECT_EQ(reverse.playback().state, SequencePlaybackState::Completed);
+}
+
 TEST(SequenceGroupContractTest, PlayerPauseStopAndResetControlTransportState)
 {
     const auto definition = staggeredDefinition();

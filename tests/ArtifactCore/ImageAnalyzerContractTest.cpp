@@ -459,6 +459,37 @@ TEST(ImageAnalyzerContractTest, SpatialFrequencyKeepsNormalizedDcForOddWidthRows
     EXPECT_NEAR(magnitudes[2], 0.0f, 1e-6f);
 }
 
+TEST(ImageAnalyzerContractTest,
+     SpatialFrequencySeparatesConjugateBinsForKnownIntermediateFrequency)
+{
+    constexpr std::array<float, 4> redByColumn{0.75f, 0.5f, 0.25f, 0.5f};
+    std::array<float, 4 * 4 * 4> pixels{};
+    for (std::size_t y = 0; y < 4; ++y) {
+        for (std::size_t x = 0; x < redByColumn.size(); ++x) {
+            const std::size_t pixel = (y * redByColumn.size() + x) * 4;
+            pixels[pixel] = redByColumn[x];
+            pixels[pixel + 3] = 1.0f;
+        }
+    }
+
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    const ImageSurfaceView image{pixels.data(), 4, 4, 16u * sizeof(float),
+                                 SurfacePrecision::Float32, descriptor};
+    std::array<float, 16> magnitudes{};
+    std::size_t count = 0;
+
+    ASSERT_TRUE(ImageAnalyzer::analyzeSpatialFrequency(
+        image, ImageSpectrumChannel::Red, magnitudes.data(), magnitudes.size(), count));
+    ASSERT_EQ(count, magnitudes.size());
+    EXPECT_NEAR(magnitudes[0], 0.5f, 1e-6f);
+    EXPECT_NEAR(magnitudes[1], 0.125f, 1e-6f);
+    EXPECT_NEAR(magnitudes[3], 0.125f, 1e-6f);
+    for (std::size_t bin = 0; bin < magnitudes.size(); ++bin) {
+        if (bin == 0u || bin == 1u || bin == 3u) continue;
+        EXPECT_NEAR(magnitudes[bin], 0.0f, 1e-6f) << "bin=" << bin;
+    }
+}
+
 TEST(ImageAnalyzerContractTest, SpatialFrequencyReportsTwoDimensionalCheckerboardPeak)
 {
     const std::array<float, 16> pixels = {

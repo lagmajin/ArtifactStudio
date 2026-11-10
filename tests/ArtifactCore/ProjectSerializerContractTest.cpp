@@ -252,7 +252,7 @@ TEST(ProjectSerializerContractTest,
 }
 
 TEST(ProjectSerializerContractTest,
-     SplitFacadeDetectsStoreAndPreservesCallerOutputsWhenChildIsMissing)
+     SplitFacadePreservesCallerOutputsForCorruptOrMissingChild)
 {
     QTemporaryDir temporaryDirectory;
     ASSERT_TRUE(temporaryDirectory.isValid());
@@ -285,10 +285,9 @@ TEST(ProjectSerializerContractTest,
               QStringLiteral("split-facade"));
     EXPECT_EQ(loadedDocuments, originalDocuments);
 
-    const QString missingChildPath = QDir(storePath).filePath(
+    const QString childPath = QDir(storePath).filePath(
         QStringLiteral("documents/timeline.json"));
-    ASSERT_TRUE(QFile::exists(missingChildPath));
-    ASSERT_TRUE(QFile::remove(missingChildPath));
+    ASSERT_TRUE(QFile::exists(childPath));
 
     QJsonObject callerManifest{{QStringLiteral("caller"), QStringLiteral("keep")}};
     const QJsonObject originalCallerManifest = callerManifest;
@@ -297,6 +296,17 @@ TEST(ProjectSerializerContractTest,
          QJsonObject{{QStringLiteral("sentinel"), 7}}},
     };
     const QMap<QString, QJsonObject> originalCallerDocuments = callerDocuments;
+
+    QFile corruptChild(childPath);
+    ASSERT_TRUE(corruptChild.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    ASSERT_EQ(corruptChild.write(QByteArrayLiteral("{")), 1);
+    corruptChild.close();
+    EXPECT_FALSE(ProjectSerializer::loadSplit(
+        storePath, callerManifest, callerDocuments));
+    EXPECT_EQ(callerManifest, originalCallerManifest);
+    EXPECT_EQ(callerDocuments, originalCallerDocuments);
+
+    ASSERT_TRUE(QFile::remove(childPath));
     EXPECT_FALSE(ProjectSerializer::loadSplit(
         storePath, callerManifest, callerDocuments));
     EXPECT_EQ(callerManifest, originalCallerManifest);

@@ -251,6 +251,40 @@ TEST(SchemaMigrationContractTest,
     EXPECT_EQ(data.value(QStringLiteral("completedThrough")).toInt(), 1);
 }
 
+TEST(SchemaMigrationContractTest,
+     EqualLengthPathsRemainDeterministicWhenLowerVersionIsRegisteredFirst)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName =
+        QStringLiteral("SchemaMigrationContractTest.EqualLengthReverseRegistration");
+    registry.registerMigration(typeName, 0, 1, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("route"), QStringLiteral("via-1"));
+        return output;
+    });
+    registry.registerMigration(typeName, 1, 5, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("completedThrough"), 1);
+        return output;
+    });
+    registry.registerMigration(typeName, 0, 2, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("route"), QStringLiteral("via-2"));
+        return output;
+    });
+    registry.registerMigration(typeName, 2, 5, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("completedThrough"), 2);
+        return output;
+    });
+
+    QJsonObject data;
+    ASSERT_TRUE(registry.hasMigrationPath(typeName, 0, 5));
+    ASSERT_TRUE(registry.migrate(typeName, 0, 5, data));
+    EXPECT_EQ(data.value(QStringLiteral("route")).toString(),
+              QStringLiteral("via-1"));
+    EXPECT_EQ(data.value(QStringLiteral("completedThrough")).toInt(), 1);
+}
 TEST(SchemaMigrationContractTest, AvailableVersionsAreSortedAndDeduplicated)
 {
     auto& registry = SchemaMigrationRegistry::instance();

@@ -247,6 +247,61 @@ TEST(AudioExpanderStandaloneTest, ProcessingInBlocksPreservesEnvelopeContinuity)
     EXPECT_EQ(outputIndex, input.size());
 }
 
+TEST(AudioExpanderStandaloneTest, StereoChannelsRemainIndependentAcrossIrregularBlocks)
+{
+    QVector<float> leftInput;
+    QVector<float> rightInput;
+    leftInput.reserve(73);
+    rightInput.reserve(73);
+    for (int frame = 0; frame < 73; ++frame) {
+        leftInput.push_back(frame < 9 ? 0.6f : (frame % 5 == 0 ? 0.001f : 0.004f));
+        rightInput.push_back(frame < 17 ? 0.002f : (frame % 7 == 0 ? 0.5f : 0.003f));
+    }
+
+    const auto configure = [](AudioExpander& expander) {
+        expander.setThresholdDb(-40.0f);
+        expander.setRatio(5.0f);
+        expander.setAttackMs(0.1f);
+        expander.setReleaseMs(80.0f);
+    };
+
+    AudioExpander continuous;
+    configure(continuous);
+    auto continuousStereo = makeStereo(1000, leftInput, rightInput);
+    continuous.process(continuousStereo);
+
+    AudioExpander segmented;
+    configure(segmented);
+    QVector<float> segmentedLeft;
+    QVector<float> segmentedRight;
+    segmentedLeft.reserve(leftInput.size());
+    segmentedRight.reserve(rightInput.size());
+    constexpr int boundaries[] = {0, 1, 8, 9, 24, 41, 42, 73};
+    for (int block = 1; block < 8; ++block) {
+        const int start = boundaries[block - 1];
+        const int length = boundaries[block] - start;
+        auto stereo = makeStereo(1000, leftInput.mid(start, length),
+                                 rightInput.mid(start, length));
+        segmented.process(stereo);
+        segmentedLeft += stereo.channelData[0];
+        segmentedRight += stereo.channelData[1];
+    }
+
+    AudioExpander leftReference;
+    AudioExpander rightReference;
+    configure(leftReference);
+    configure(rightReference);
+    auto leftMono = makeMono(1000, leftInput);
+    auto rightMono = makeMono(1000, rightInput);
+    leftReference.process(leftMono);
+    rightReference.process(rightMono);
+
+    EXPECT_EQ(segmentedLeft, continuousStereo.channelData[0]);
+    EXPECT_EQ(segmentedRight, continuousStereo.channelData[1]);
+    EXPECT_EQ(continuousStereo.channelData[0], leftMono.channelData[0]);
+    EXPECT_EQ(continuousStereo.channelData[1], rightMono.channelData[0]);
+}
+
 TEST(AudioExpanderStandaloneTest, KeepsEnvelopeStateIndependentBetweenStereoChannels)
 {
     AudioExpander expander;

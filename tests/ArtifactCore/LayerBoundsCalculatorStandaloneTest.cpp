@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <array>
+
 #include <limits>
 
 #include <QPointF>
@@ -100,6 +103,38 @@ TEST(LayerBoundsCalculatorStandaloneTest, AabbIsIndependentOfCornerOrder)
     EXPECT_DOUBLE_EQ(bounds.top(), -5.0);
     EXPECT_DOUBLE_EQ(bounds.right(), 10.0);
     EXPECT_DOUBLE_EQ(bounds.bottom(), 20.0);
+}
+
+TEST(LayerBoundsCalculatorStandaloneTest,
+     CombinedAnchorRotationAndMirroredScaleProduceCornerDerivedAabb)
+{
+    const auto corners = LayerBoundsCalculator2D::calculate(
+        {13.0, -7.0}, {2.0, 3.0}, 11.0f, 7.0f, 37.0f, -1.5f, 0.4f);
+    const std::array<QPointF, 4> points{
+        corners.topLeft, corners.topRight, corners.bottomLeft, corners.bottomRight};
+
+    double minX = points[0].x();
+    double maxX = points[0].x();
+    double minY = points[0].y();
+    double maxY = points[0].y();
+    for (const QPointF& point : points) {
+        minX = std::min(minX, point.x());
+        maxX = std::max(maxX, point.x());
+        minY = std::min(minY, point.y());
+        maxY = std::max(maxY, point.y());
+    }
+
+    const QRectF bounds = LayerBoundsCalculator2D::calculateAABB(corners);
+    EXPECT_NEAR(bounds.left(), minX, 1e-9);
+    EXPECT_NEAR(bounds.right(), maxX, 1e-9);
+    EXPECT_NEAR(bounds.top(), minY, 1e-9);
+    EXPECT_NEAR(bounds.bottom(), maxY, 1e-9);
+    for (const QPointF& point : points) {
+        EXPECT_GE(point.x(), bounds.left() - 1e-9);
+        EXPECT_LE(point.x(), bounds.right() + 1e-9);
+        EXPECT_GE(point.y(), bounds.top() - 1e-9);
+        EXPECT_LE(point.y(), bounds.bottom() + 1e-9);
+    }
 }
 
 TEST(LayerBoundsCalculatorStandaloneTest, ContainsRecognizesInteriorAndRejectsExteriorPoints)

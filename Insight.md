@@ -6,6 +6,316 @@
 - **追加した検査:** `tools/CryptoMatteLab/` に製品コードを一切変更しない独立ラボを追加した。`crypto_spec_reference.*` に仕様準拠リファレンス（MurmurHash3＋指数部補正＋`uint32_to_float32`）を実装し、まず公式テストベクタで自己検証してから、出荷 `CryptoSample`/`CryptoImage`/`CryptoPixel`/`CryptoManifest`/`CryptoExrWriter` と突き合わせる。14種のprobeでID encoding・manifest・rank深度・coverage和・16サンプル上限・EXR属性/チャネル命名をJSON報告する。EXR属性とチャネル命名は `CryptoExrWriter` で実際に書き出し、**OIIO `ImageInput` でヘッダを読み戻して**判定する（コード読解ではなく実データ）。ルートCMakeには `ARTIFACT_BUILD_CRYPTOMATTE_LAB`（既定OFF）として登録し、ラボの `add_subdirectory` は `ArtifactCore` 登録後に置いた（`ArtifactCore` ターゲット未定義でconfigureが失敗するのを回避）。
 - **価値または懸念:** 現在のCryptomatte出力はNuke等の仕様準拠リーダで名前解決できない可能性が高い。multi-ID native pass を実装する前提として、①ID変換の仕様準拠化 ②1 ID/px の取り込みAPI拡張 ③`conversion` 属性とチャネル命名の仕様適合 ④manifest向きの是正 の4点が要先決だと分かる。**ラボは未ビルド・未実行のため、findingsのseverityは未検証。**
 - **次に確認すべきこと:** ①`ArtifactCryptoMatteLab` をビルド・実行し、`spec-vectors` が4/4一致することを確認したうえで各probeのseverityを確定する ②EXRヘッダをOIIO `ImageInput` で実読取し、`conversion` 属性の欠落と `.R`/`.red` 命名差異を機械的に照合する ③仕様準拠IDへの変更は既存 `CryptoManifest`/`CryptoExrWriter` とCryptomatte契約テストへの波及が広いので、既存データの後方互換方針をユーザーと合意してから着手する。
+## 2026-11-10: RT shadow any-hit scalar opacity coverage
+- **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `kAnyHitShaderSource`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の `SelectsMaskedShadowOpacityTexturePerMaterialSlot`。
+- **確認できた事実:** RTMaterial packing は `material.opacity` を `material.alpha.x` に格納し、`material.baseColorAlpha` は `material.baseColor.a` に格納する。shadow any-hit の alpha 積は `baseColor.a`、`alpha.x`（scalar opacity）、vertex alpha、baseColor texture alpha、opacity texture alphaを乗算しているため、scalar opacity の影レイ経路は実装済みだった。既存 shadow slot test は opacity texture のslot選択を確認するが、scalar opacity の slot 独立性は未確認。
+- **追加した確認:** slot shadow fixtureへ scalar opacity の低値／高値、および `baseColorAlpha * opacity` が cutoff をまたぐ組み合わせを両slotで反転する検証を追加した。単一shadow fixtureにも half-alpha base-color texture と scalar opacity の積が cutoff 直上／直下になる検証を追加した。
+- **追加した確認:** primary rayで既存のOPAQUE/MASK切替を確認済みだったため、shadow rayにも同じ透明opacity textureを使い、OPAQUEは遮蔽しMASKは透過する差を追加した。
+- **追加した確認:** primary rayとshadow rayの両方でBLEND modeがMASKのbinary cutoffとして扱われないことをcharacterizeした。BLENDの連続透過／影の積分規約は別途仕様確認が必要なため、これらのケースはblend qualityの合否を主張しない。
+- **価値または懸念:** RT shadow shader の経路は実装上 primary mask と同じ scalar opacity を評価する。合成alpha、base-color texture、material slot選択の影響を影テストで回帰検出できる。
+- **次に確認すべきこと:** `MaskedOpacityTexturePassesShadowRay` と `SelectsMaskedShadowOpacityTexturePerMaterialSlot` を実行して追加したshadow応答を確認する。
+
+## 2026-11-09: RT solid transmission の TIR 到達条件
+- **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `directTransmissionDirection`／`transmissionIsTir`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の透過受け入れ。
+- **確認できた事実:** shader は `worldNormal` を `WorldRayDirection()` と同じ半球へ向け直し、`viewDirection = -WorldRayDirection()` を使う。solid transmission の屈折方向には `refract(-viewDirection, worldNormal, rcp(max(IOR, 1.0f)))` を渡すため、eta は常に 1 以下に制限される。
+- **未検証の仮説:** 通常の外側カメラからのレイではこの eta／法線向きの組み合わせにより TIR 条件（屈折方向の長さがほぼゼロ）へ到達できず、`transmissionIsTir` 分岐が実質的に休眠している可能性がある。内部視点や負スケール等を含む例外経路は未確認。
+- **価値または懸念:** 内部から外へ向かうレイを将来扱う場合、入射側／出射側 IOR を識別しないと TIR と transmission Fresnel が正しく評価されない可能性がある。今回の受け入れ変更では shader を変更しない。
+- **次に確認すること:** 屈折方向を反転した内部視点 fixture を独立 RT acceptance に構成できるか検討し、TIR で transmission energy が消え反射側へ移ることを確認する。その前に `worldNormal` の front/backface 契約と既存 closed-volume fixture を監査する。
+- **進捗 (2026-11-10):** 内部視点を模した half-space 境界で、IOR=1.5の理論臨界角41.81°を40°／43°で挟み、transmitted-sky energy を比較する `StopsTransmissionSkyForInternalViewAboveCriticalAngle` を追加した。テストは未実行。現行 source では eta が `1 / IOR` に固定されるため、超過角glass側のenergy低下期待は失敗する可能性が高い。
+
+## 2026-11-09: float EXR上書き後のHDR surface cache更新
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues`、静止画受入表IMG-04／OP-08。
+- **確認できた事実:** float EXRの負値／1超過値はImageLayer単体とProject round-tripで確認され、source version invalidation後のGPU surface cache再構築はPNGで確認されている。HDR値を持つEXRの同path overwriteをGPU cacheまで通したケースはなかった。
+- **追加した確認:** float EXRの同一pathへHDR画素を書き、GPU surface cacheを構築する。上書き後にsource identityをinvalidateし、decoded float値とversion、cache signature、描画変化、bypass parity、新surface reuseを検査するheadless testを追加する。
+- **価値または懸念:** EXR float decode、AssetManager version、GPU surface cache invalidationの連結回帰を検出する。GPU readbackはdisplay rangeに制限されるため、HDR値の保持はCPU float bufferでも独立してassertする。headless deviceがない環境はskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.FloatExrOverwriteInvalidatesGpuSurfaceCacheWithoutLosingHdrValues` を実行し、HDR bufferとsource更新後のcache parityを確認する。
+
+## 2026-11-09: shared／localized source更新とGPU surface cache分離
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink`、静止画受入表OP-07／OP-08。
+- **確認できた事実:** 既存テストはsource version更新後の単一layer GPU cache再構築と、localize後のCPU画素隔離を別々に確認するが、同一sourceを参照する二layerのGPU cacheを並行して保持し、shared update／relinkを通した比較はなかった。
+- **追加した確認:** 同じfile／source identityの2 layerを作り、一方をlocalizeしてから双方のGPU surface cacheを構築する。shared source更新後にshared側だけがcache signature／画素を更新し、localized側は旧画素とcache signatureを保つこと、sharedへrelinkした後は更新画素でcacheを再構築することをbypass parityとともに検査する。
+- **価値または懸念:** AssetManagerのsource identity／versionとGPU surface cacheの相互作用における誤共有・stale surfaceを検出する。Diligent headless deviceがない環境は既存suiteと同じくskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.LocalizedSharedSourcesKeepGpuSurfaceCachesIsolatedAcrossUpdateAndRelink` を実行し、共有更新・localized保持・relink後のpixel／signature／bypass parityを確認する。
+
+## 2026-11-09: rasterizer effect変更後のGPU surface cache再構築
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity`、静止画受入表OP-05。
+- **確認できた事実:** 既存GPU parity testは同じGlow設定でcache build／reuseとbypassの一致を確認するが、surface cache保持中にeffect parameterを変更した後のsignature更新や描画差分を確認していなかった。
+- **追加した確認:** cacheを構築してからGlow sigmaとgainを変更し、cache signature更新、pixel output変化、bypassとの完全一致、新設定でのcache reuseを検査するheadless testを追加する。
+- **価値または懸念:** effect revisionがcache keyへ伝わらず旧surfaceを再利用する回帰を検出する。Diligent headless deviceがない環境は既存suiteと同じくskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.ChangingRasterizerEffectRebuildsCachedSurfaceAndKeepsBypassParity` を実行し、設定変更時のsignature／画素変化とbypass parityを検証する。
+
+## 2026-11-09: 連番切替後のcrop出力とthumbnail整合性
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail`、静止画受入表OP-03／IMG-02。
+- **確認できた事実:** 既存テストは連番の要求フレーム表示、cropのsource pixel選択、thumbnail境界をそれぞれ確認するが、非同期フレーム切替後にcrop出力とthumbnailの両方が新フレームへ更新されるケースはなかった。
+- **追加した確認:** 半透明を含む異なる画素の2フレームを連番として読み込み、中央2 pixel cropを適用する。各フレーム切替後、透明な外側、crop内のRGBA、同サイズthumbnailを検査する。
+- **価値または懸念:** sequence decode完了後のcrop cache／thumbnailが旧フレーム由来のまま残る回帰を検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ImageSequenceFrameChangesInvalidateCroppedOutputAndThumbnail` をテスト実行が許可された際に実行し、両フレームのcrop／thumbnail一致を確認する。
+
+## 2026-11-09: survivor matte の全設定を削除・保存往復で検査
+- **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp::RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip`、matte参照の整合性。
+- **確認できた事実:** 既存ケースはdangling参照の削除とsurvivorのID・source layer・opacity・invertを確認するが、source asset path、enabled、type、per-reference blend mode、fit modeの保持は確認していなかった。
+- **追加した確認:** dangling参照削除直後とProject save/reload後の双方で、survivorの全設定値を比較する。InverseLuma／Difference／Originalを組み合わせ、default値だけで通るassertを避ける。
+- **価値または懸念:** matte source削除時の参照再構築やJSON往復で設定が初期化・欠落する回帰を検出する。これはメタデータ永続化の検査であり、実際のレンダリング結果は検査しない。テスト未実行。
+- **次に確認すること:** `ArtifactProjectRoundTripTest.RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip` を実行し、削除後／再読込後の値を確認する。
+
+## 2026-11-09: 既存ImageLayerへのsourceなしJSON clear
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState`、制作準備文書「sourceなしJSONの再読込状態修正」。
+- **確認できた事実:** `loadFromPath("")`は旧sourceをclearし、空layerへのsourceなしJSON復元も確認されているが、file-backedな既存instanceへsourceなしJSONを適用した後のidentity解放・旧画像非復活は未確認だった。
+- **追加した確認:** sourceなしlayerのJSONを既存file-backed layerへ適用し、path／identity／sequence／bufferのclear、placeholder状態、旧sourceのuse count解放を検査する。旧fileのoverwrite／invalidate後もclear状態が維持されることを確認する。
+- **価値または懸念:** JSON復元中の旧source prefetchや参照が残って画像を再表示する回帰を検出する。100msのevent settleを含むが、test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ApplyingSourceLessJsonToExistingLayerClearsPreviousImageState` を実行し、source-less restore後のstale state非復活を検証する。
+
+## 2026-11-09: HDR EXR画素のProject save/reload保持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FloatExrHdrPixelsSurviveProjectSaveAndReload`、静止画受入表IMG-04／OP-09。
+- **確認できた事実:** 既存float EXR testは単独ImageLayerのdecode後に負値・1超過値を確認し、Project round-trip testは8-bit画像を扱うが、float HDR値とsource identityを同一Project往復で検査するテストはなかった。
+- **追加した確認:** 負値、fractional値、1超過値を含む3x1 float EXRをProject内ImageLayerへ読み込み、save/reload後もRGBA全成分、source path／asset ID、32-bit／channel metadataが保持されることを検査する。
+- **価値または懸念:** project serializationが高精度sourceを8-bit化・差替え・誤復元する回帰を検出する。test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FloatExrHdrPixelsSurviveProjectSaveAndReload` を実行し、OIIO EXR decodeとProject reloadの値一致を確認する。
+
+## 2026-11-09: 連番差替えテストでstale decode競合を確認
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion`、連番再生受入。
+- **確認できた事実:** 既存ケースは大きい旧フレームを要求してから1ms待ってsequenceを差し替えるが、差し替え時点で旧decodeが未完了だったことをassertしていなかった。
+- **追加した確認:** 旧対象フレームを高エントロピー画像にし、差し替え直前のcached frame indexが対象になっていないことをassertする。さらに新旧sequenceでcrop／thumbnailを有効にし、置換直後と遅延completion排出後に新sourceの画素、crop外透明、thumbnailを確認する。
+- **価値または懸念:** pending decodeの世代競合がsource bufferだけでなくcrop cache／thumbnailにも古い画素を再投入する回帰を検出する。fixtureは2048x2048 RGBAでcold test上のdecode負荷が増える。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion` を実行し、差替え時のpending assertionと置換後／settle後のcrop・thumbnail assertionが成立することを確認する。
+
+## 2026-11-09: 既存ImageLayerへのJSON復元時のsource切替
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity`、静止画保存復元契約。
+- **確認できた事実:** source identityのJSON復元テストは新しいImageLayerへの復元を確認するが、source Aを読込済みの既存instanceへsource BのJSONを適用し、Aの参照を解放してBだけを維持するケースはなかった。制作準備文書は復元時に旧sourceを再decodeしないとする。
+- **追加した確認:** 既存layerへBのserialized stateを適用し、Bのpath／identity／pixel、旧source use countが0になることを確認する。その後Aのファイルを変更・invalidateしてもlayerのB identity／version／pixelsが変わらないことを検査する。
+- **価値または懸念:** JSON復元で旧source参照が残る、または旧source invalidationが新しいlayer状態へ漏れる回帰を検出する。test実行は未許可のため未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ApplyingJsonToExistingLayerReplacesSourceAndReleasesPreviousIdentity` を実行し、旧source releaseとJSON restore後の切替をruntimeで検証する。
+
+## 2026-11-09: Project reload後のlocalized/shared source分離
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink`、静止画受入表OP-07／OP-09。
+- **確認できた事実:** 既存localize testは同一Project session中の共有ID分離・source更新隔離・shared relinkを確認し、既存Project round-trip testsはsource path／pixel復元を確認するが、localized identityを保存・再読込した後に共有sourceの更新を受ける側だけが更新される統合ケースはなかった。
+- **追加した確認:** 同じsourceを使う2 layerのうち1つをlocalizeしてProject保存・再読込し、identityの保持、shared側だけのversion／pixel更新、localized側の保持、relink後の更新画素取得を検査する。
+- **価値または懸念:** serializationがshared/localized ownershipを混同し、再読込後に誤ったsource invalidationを受ける回帰を検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ProjectReloadPreservesLocalizedSourceIsolationAndSharedRelink` を実行し、Project lifecycleをまたいだsource identity contractを確認する。
+
+## 2026-11-09: device再初期化をまたぐstatic layer GPU cache parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization`、静止画受入表OP-10。
+- **確認できた事実:** 既存のdevice recovery testはheadless device managerのdestroy／再初期化を3回確認し、static layer GPU cache testはLOD・effect revisionのhit／missとbypass parityを確認するが、cache保持中のrenderer device再初期化後に同じlayerを描く統合ケースはなかった。
+- **追加した確認:** glow付き静止画のstatic GPU cacheを構築した後、rendererをdestroy／再初期化し、画素一致、bypass parity、再利用後の一致を確認するheadless testを追加した。
+- **価値または懸念:** device-bound surfaceのstale handleや再初期化後のblank描画を回帰検出する。テスト未実行で、device reset時の実backend挙動はruntime未確認。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.StaticSurfaceCacheRecoversAfterRendererDeviceReinitialization` をD3D12／Vulkan headless環境で実行し、対象backendの復旧結果を確認する。
+
+## 2026-11-09: file source version更新後のGPU surface cache parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::FileSourceVersionInvalidationRebuildsSurfaceCache`、静止画受入表OP-08。
+- **確認できた事実:** ImageLayerの同path overwrite testはdecoded pixel／metadataを、layer surface cache testはメモリ上の画像再設定を別々に確認するが、AssetManager version invalidationから非同期decode、GPU surface cache更新までを繋いだケースはなかった。
+- **追加した確認:** 同じpathのPNGを別画素で上書きしsource versionをinvalidate、decode済みpixelが置き換わるまで待機した後、surface signature変更、更新後bypassとの完全一致、cache reuseを確認するheadless GPU testを追加した。
+- **価値または懸念:** decode結果が新しくてもGPU surfaceが旧versionを保持する不整合を検出する。headless deviceなしではskipし、test実行は未許可のため未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.FileSourceVersionInvalidationRebuildsSurfaceCache` を実行し、AssetManager invalidate後の非同期 decode とGPU cache parityをruntimeで確認する。
+
+## 2026-11-09: 画像再設定後のlayer surface cache無効化
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity`、静止画受入表OP-08。
+- **確認できた事実:** 既存テストはfile-backed sourceのversion invalidation後にdecoded pixel／metadataが更新されること、surface cacheのeffect revision invalidationを別々に確認するが、同じlayerへ異なる画像bufferを再設定した際のsurface cache更新とbypass parityは直接確認していなかった。
+- **追加した確認:** cacheを構築した同じlayerへ異なる色の画像を設定し、signature更新、旧画素の不再利用、更新後のcache reuse、cache bypassとの完全一致を確認するGPU contract testを追加した。
+- **価値または懸念:** source pixels更新時にlayer surface cacheが古い画像を保持する回帰を検出する。headless Diligent deviceがない環境ではskipする。file watcher経由の非同期decode race自体は未検証。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.ReplacedImagePixelsInvalidateSurfaceCacheAndKeepBypassParity` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Input Interpretation別layer surface cache keyとbypass parity
+- **関連:** `tests/Artifact/LayerSurfaceCacheParityContractTest.cpp::InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity`、静止画受入表OP-06。
+- **確認できた事実:** 制作準備文書はlayer surface cacheへsource versionと入力色解釈を反映するとする。既存layer surface parity testsはLOD、effect revision、cached/bypass pixel parityを確認するが、input color space／transfer変更は扱っていなかった。
+- **追加した確認:** 同じRGBA layerでcolor spaceだけ、次にtransfer functionだけ変え、cache signatureが各変更で分かれること、同設定のcache reuseが安定すること、各設定のGPU outputがcache bypassと完全一致することを検査する。
+- **価値または懸念:** 異なる色解釈結果のsurface cache誤共有と、key分離後のcached rendering差を同じ境界で検出する。headless Diligent deviceがない環境では既存テスト方式に合わせskipする。テスト未実行。
+- **次に確認すること:** `LayerSurfaceCacheParityContractTest.InputInterpretationChangesSurfaceCacheIdentityAndKeepsBypassParity` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 16-bit RGBA layerへの異解像度fractional mask適用
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer`、静止画受入表OP-04／IMG-03。
+- **確認できた事実:** 既存Layer testsは8-bit alphaへのmask opacity適用、またはopaque sourceへの異解像度mask補間を別ケースで確認する。16-bit source alphaにfractional maskを異解像度から補間し、RGBとalpha積算をfloat bufferで併せて検査するケースはなかった。
+- **追加した確認:** 16-bit RGBA PNG 3x1に対して2x1の0.25/0.75 maskをopacity 0.4で適用し、0.25/0.5/0.75の補間値、RGB不変、元alphaとの合成値、QImage／thumbnail一致を確認する。
+- **価値または懸念:** decode精度、mask resampling、straight RGB保持、source alphaの累積が連なる境界をfloat精度で検査する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FractionalMaskResamplingMultipliesSixteenBitSourceAlphaInFloatBuffer` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: ICC fallback後のQImage／thumbnail画素一致
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::EmbeddedIccProfileWithoutConversionRecordsFallback`、静止画受入マトリクスのThumbnail／Qt境界。
+- **確認できた事実:** 既存ICC testはfallback diagnosticを確認するが、working-space済み`currentFrameBuffer()`から`toQImage()`とthumbnailへ渡る色／alpha境界を比較していない。
+- **追加した確認:** ICC付き2x1 sourceで同一サイズの`getThumbnail()`と`toQImage()`をpixel単位で比較し、両pixelがopaqueであることを確認する。
+- **価値または懸念:** Thumbnail経路が別raw cacheを使う、またはalphaが失われる回帰を検出する。縮小補間やICC変換の正確性は別runtime受入の対象。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.EmbeddedIccProfileWithoutConversionRecordsFallback` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: EXIF orientationのImageLayer統合
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::ExifOrientationSixReorientsLayerPixelsAndBounds`、静止画受入表IMG-07。
+- **確認できた事実:** Core importer contractはEXIF orientation 1〜8の画素座標変換と寸法を検査するが、ImageLayer testにはorientation fixtureからdecoded buffer、QImage、boundsまでをつなぐケースがない。
+- **追加した確認:** EXIF orientation 6付き64x32 4象限JPEGを読み、32x64への寸法交換、色の回転先、localBounds、metadataを検査する。補正後の左上象限だけをcropし、青い画素が残りcrop外は透明になること、crop解除で完全な画像へ戻ることも確認する。同pathをEXIFなしJPEGで上書きし、version invalidation後に64x32へ戻ること、新画素と非6 orientation metadataへの更新を確認する。
+- **価値または懸念:** orientation座標変換とsource cropの順序不整合に加え、source versionをまたぐgeometry／metadata stale stateを検出する。JPEG圧縮のため色値比較はCore testと同程度の許容幅を使う。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ExifOrientationSixReorientsLayerPixelsAndBounds` をテスト実行が許可された際に実行し、orientation補正後cropとsource更新の両境界を確認する。
+
+## 2026-11-09: 正常sourceからcorrupt replacementへの失敗遷移
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits`、静止画受入表IMG-13、制作準備文書のfull decode failure契約。
+- **確認できた事実:** 既存corrupt payload testは初期状態のlayerで要求path保持とplaceholder生成を確認する。計画文書はdecode failure時に旧source identity/cacheを破棄して要求source pathへplaceholderを対応させるとする。
+- **追加した確認:** file-backed画像表示中にcorrupt PNGをloadし、旧Asset IDとpixelが残らずcorrupt path／placeholderへ遷移する一方、opacityとpositionは維持されるか検査する。
+- **価値または懸念:** failure後に前sourceの実画素やidentityが誤表示・誤保存される回帰を検出する。診断eventのstage詳細は本テストの対象外。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.CorruptReplacementDropsOldSourceIdentityAndKeepsLayerEdits` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 未知4ch EXRのopaque fallbackと診断
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics`、静止画受入表IMG-10、制作準備文書のOIIO alpha channel semantics契約。
+- **確認できた事実:** 契約はOIIO alpha metadataがない4ch素材の第4chをalphaと見なさずopaque alphaを補完し、`ambiguous-channel-semantics`を記録するとしている。CMYKのK channelは標準CMYK変換、未知の4ch構成は診断付きfallbackで扱う。
+- **追加した確認:** R/G/B/Depth channel名のfloat EXRで4ch目を0にし、RGB値保持、alpha=1、alpha未宣言metadata、Image categoryのfallback eventを検査する。
+- **価値または懸念:** RGB+AOV等をRGBAと誤認してDepth/ID値を透明度へ流用する回帰を検出する。イベント登録のruntime動作はテスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.UnknownFourChannelExrUsesOpaqueAlphaAndRecordsAmbiguousSemantics` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 標準CMYKのK channelとopaque alpha
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha`、静止画受入表IMG-10、制作準備文書のStandard CMYK decode契約。
+- **確認できた事実:** 契約はC/M/Y/K channel名を標準CMYKとして検出しRGB変換した後にopaque alphaを設定するが、受入表の実素材decodeは未実行であり、現在のLayer testsにもCMYK fixtureがない。
+- **追加した確認:** OpenImageIOでC/M/Y/K名付きfloat EXRを生成し、ゼロCMYのK=0/K=1をwhite/black端点へ変換し、両pixelのRGBA alphaが1で、metadataのalphaChannelは未宣言かつchannel名を保持することを検査する。
+- **価値または懸念:** Kが第4ch alphaとして誤用される回帰と、channel metadata／pixel conversionの解離を検出する。ICC色管理付きCMYKの精密変換は別契約。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.StandardCmykExrConvertsBlackChannelWithoutTreatingItAsAlpha` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 巨大画像拒否時のactive layer state保持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::OversizedImageFailuresPreserveActiveSourceAndLayerState`、静止画受入表IMG-12／IMG-13。
+- **確認できた事実:** 辺長上限と総画素数上限の既存テストは初期状態のlayerに入力し、placeholderとdiagnosticを確認する。既存file sourceがある状態で失敗した候補sourceを拒否し、現在source stateを保つ遷移は確認していなかった。
+- **追加した確認:** 正常sourceをload後、辺長超過と64M画素超過を順に適用し、source path／ID／version、全RGBA buffer値、source metadata、表示pixel、opacity、positionが維持されるか検査する。
+- **価値または懸念:** header preflight拒否時に正常な編集対象がplaceholderや新pathへ部分置換される回帰を検出する。runtime未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.OversizedImageFailuresPreserveActiveSourceAndLayerState` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Source上書き時のpixelとmetadata snapshot同期
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion`、静止画受入表OP-08、制作準備文書の「Source version更新時のmetadata同期」。
+- **確認できた事実:** 既存同一path上書きテストは同じ寸法・RGBA layoutの色差とsource versionのみを確認し、header layoutが変わる上書き時のsource metadata更新を確認していなかった。実装契約はpixel bufferと同じversion由来のmetadata snapshotを採用する。
+- **追加した確認:** sRGB ICC付き2x1 RGB888からprofileなし3x1 16-bit RGBAへ同一path上書きし、AssetManager version invalidation後にdimensions、float pixels、alpha semantics、bit depth、channel namesとICC byte metadataが新sourceと一致することを検査する。
+- **価値または懸念:** 古いheader metadataと新pixel payloadの混在、古いdecoded shapeの再利用を検出する。非同期scheduleの競合順序やGPU cache反映はruntime受入で別途確認が必要。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SourceOverwriteRefreshesPixelsAndMetadataAsOneVersion` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Pixel aspect表示boundsとcrop／fit復元
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::PixelAspectChangesDisplayWidthUnlessFitToLayer`、静止画受入表IMG-08／OP-03。
+- **確認できた事実:** 既存テストはpixel aspectによる表示幅とfit時の幅を確認するが、bounds全体、crop適用時のsource pixel rectとbounds維持、JSON復元後のcrop／fit結果を組み合わせて検証していなかった。制作準備文書ではboundsをComposition View、Render Controller、hit-test等で共有するとしている。
+- **追加した確認:** 1.5 pixel aspectの4x2 sourceについて非fit boundsを6x2、crop後も同bounds、fit時は4x2と照合し、crop rectとfit設定のJSON往復も確認する。
+- **価値または懸念:** 表示rectとcrop座標系の混同、およびproject復元後のfit/aspect不整合を検出する。実素材のpreview／Render Queue pixel parityはruntime未確認。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.PixelAspectChangesDisplayWidthUnlessFitToLayer` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: SourceCrop aspect-fit変換の非対称境界
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SourceCropAspectTransformMapsOffCenterCropAndInverts`、静止画受入表OP-03。
+- **確認できた事実:** 既存テストはcropのaspect-fit中心配置とsource crop boundsを個別に確認するが、off-center crop領域の四隅・中心が同じ変換で期待座標に写るか、および逆変換の往復を一つの数値oracleで検証していなかった。
+- **追加した確認:** 3:4の非対称cropを12:6 outputへaspect保持でfitし、左右余白を含む四隅と内部点の座標、および逆写像を検査する。
+- **価値または懸念:** crop中心、aspect fit時のoffset、x/y scaleのずれを固定する。layerのrotation/pan/zoom合成と実レンダリングは別途runtime確認が必要。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SourceCropAspectTransformMapsOffCenterCropAndInverts` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Float EXRのHDR値をImageLayerへ接続
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::FloatExrPreservesHdrAndNegativeValuesInLayerBuffer`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のIMG-04。
+- **確認できた事実:** 静止画受入表IMG-04ではhalf/float EXRの負値・1超過値とlayer decode精度が未実行。既存ケースはCore側のEXR出力契約またはImageLayerの整数画像decodeを個別に確認していた。
+- **追加した確認:** OpenImageIOでfloat RGBA EXRを生成し、ArtifactImageLayerのRGBA32F bufferで負値・HDR値・alphaと32-bit source metadataを照合する。
+- **価値または懸念:** EXR importerからlayer working bufferへ値が届く統合境界を検査する。ICC/working-space変換との相互作用は本テストの対象外。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.FloatExrPreservesHdrAndNegativeValuesInLayerBuffer` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: ImageSequence のプロジェクト移動後の参照維持
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 既存の連番プロジェクト再読込テストは欠落フレームのslot維持を確認していたが、保存済みプロジェクトと画像を別ルートへ移して旧画像を削除する遷移は扱っていなかった。
+- **追加した確認:** 移動先ルートからプロジェクトを開き、両フレームの参照先・frame rate・デコード画素を検査し、再保存と再読込後も参照先と画素が維持されるテストを追加した。
+- **価値または懸念:** 古い絶対パスが残っていても同じマシン上で偶然読み込める状態を避け、プロジェクト移動後の再保存まで含む参照復旧を記録する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingProjectRelocatesSequenceSourcesAndKeepsNewPathsAfterResave` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 移動後のImageSequenceで欠落slotを再リンクして保存
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingProjectKeepsMissingSequenceSlotForRelinkAndResave`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** Source Relocation契約はsequence候補をslotごとに解決し、相対候補が無い欠落slotでは元pathを維持する。既存の移動テストは全フレームの相対復元、欠番テストは同じproject rootで欠番slot復元を別々に検査していた。
+- **追加した確認:** 先頭・末尾だけが移動先で存在し、中間slotの元pathだけ欠落する状態でprojectを開く。slot順とrateを確認し、中間slotを別名pathへ置き換えて再生、保存、再読込後も全slotと画素が保たれるか検査する。
+- **価値または懸念:** 混在する相対復元とabsolute fallback、sequence index保持、再リンク後の永続化を同じproject lifecycleで固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingProjectKeepsMissingSequenceSlotForRelinkAndResave` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 保存Asset IDとsource path候補の優先順位
+- **関連:** `ArtifactImageLayer::fromJsonProperties()`、`tests/Artifact/StillImageLayerRoundTripTest.cpp::SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 契約書は既存ファイルへ解決できる保存Asset IDがimporter設定pathより優先され、ID先が使えない場合は相対path等の候補を使うとしている。既存テストはsource IDによるversion invalidationを同一path上で検査するが、異なる既存path同士の選択は検査していない。
+- **追加した確認:** JSONのsource pathを別画像へ向けても登録済Asset IDの画像が選ばれることと、ID先ファイル削除後はJSON path候補へfallbackすることを画素・source path・identityで照合する。
+- **価値または懸念:** 移動復元時のcandidate priorityを画像の実体選択として検査する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SavedAssetIdentityOutranksConflictingPathAndFallsBackWhenMissing` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Shared source identityのlocalizeは対象レイヤーに限定
+- **関連:** `ArtifactImageLayer::localizeSourceIdentity()/relinkSourceIdentityToShared()`、`tests/Artifact/StillImageLayerRoundTripTest.cpp::LocalizingOneLayerLeavesOtherSharedSourceIdentityUnchanged`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のOP-07。
+- **確認できた事実:** 既存テストは単一レイヤー内のlocalize/relink結果だけを確認し、同じsource identityを参照する複数レイヤー間の分離は扱っていなかった。受入マトリクスOP-07は複数layerを使ったShared／Localizedを未実行としている。
+- **追加した確認:** 同一ファイルを読む2レイヤーが同じIDで開始し、一方をlocalizeするとそのIDだけが分岐する。shared IDをinvalidateすると共有側だけが新画素／versionへ進み、localized側は保持され、relink後にlocalized側も新しいshared画素へ追いつくことを検査する。
+- **価値または懸念:** local identity操作の影響範囲とdecoded payload/version invalidationの分離を複数利用者境界で固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.LocalizingOneLayerLeavesOtherSharedSourceIdentityUnchanged` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 移転した静止画のICC metadataとInput Interpretation保存
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MovingStillImageProjectPreservesSourceMetadataAndInterpretationAfterResave`、`docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` のIMG-09、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`。
+- **確認できた事実:** 静止画受入表はICC／色空間metadataの保存・再読込とworking-space結果を未実行とし、移転契約はsource metadataの保存・再読込保持を求める。既存ImageLayerテストはInput Interpretation文字列の直接JSON往復までで、project移転後の復元は確認していない。
+- **追加した確認:** ICC付きsource imageとprojectを新しいrootへ移して旧画像を削除し、相対pathで復旧後にICC metadata・色空間名・transfer名が保持されること、再保存／再読込後もpath・metadata・設定・画素が同じであることを検査する。
+- **価値または懸念:** source identity fallbackとICC／色解釈値の永続化を同じproject lifecycleで固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MovingStillImageProjectPreservesSourceMetadataAndInterpretationAfterResave` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Missing静止画の別path relink後round-trip
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::MissingSourceCanBeRelinkedToNewPathAfterProjectReloadAndResaved`、静止画受入表IMG-14／OP-09。
+- **確認できた事実:** 既存テストはproject reload後にmissingだった元pathへ画像を戻して復旧するが、別pathへrelinkした後の保存・再読込を検査していなかった。
+- **追加した確認:** 新しいpathへ画像をrelinkし、pathとAsset IDを得た後にprojectを再保存・再読込する。旧pathが欠落したまま、新path、identity、pixel、opacity、transformが維持されることを確認する。
+- **価値または懸念:** missing recovery後に古い参照が復活する回帰と、relink結果がserializationで失われる回帰を合わせて検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.MissingSourceCanBeRelinkedToNewPathAfterProjectReloadAndResaved` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: source clearでsequence identityとcacheも破棄
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::EmptySourceClearsImageState`、`docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md` の「空source pathの正式clear操作」。
+- **確認できた事実:** 既存clearテストは`setFromQImage()`で作ったbufferを空pathで消すのみで、file-backed source identity、sequence frame list、sequence decoded cacheは通していなかった。
+- **追加した確認:** file sourceをsequenceへ切り替えて第2frameをdecodeした後、空pathでsource ID・sequence状態・frame list・bufferが消えること、JSONからも空状態が戻ること、clearの再適用で空状態が維持されることを検査する。
+- **価値または懸念:** source clear後にAsset IDやsequence cacheが残って再decode・古い画素を復活させる回帰を、一つの遷移で検出する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.EmptySourceClearsImageState` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: 16-bit RGBA Importer結果のImageLayer接続
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp::SixteenBitRgbaPngKeepsFloatPrecisionChannelsAndAlpha`、`tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::PreservesTrueSixteenBitPngChannelValues`、静止画受入表IMG-03。
+- **確認できた事実:** Core Importer suiteには16-bit RGBA PNGのchannel value厳密検査がある一方、ImageLayer suiteの16-bit精度ケースはgrayscaleのみで、RGBA channel order・alpha・metadataのlayer接続を確認していなかった。
+- **追加した確認:** 16-bit RGBA PNGの隣接16-bit色値を含む3画素をArtifactImageLayerへ読み、float bufferで値の差・channel order・alphaを、source metadataで4-channel／alpha位置／16-bit depthを検査する。
+- **価値または懸念:** OIIO importerの精度がLayerのworking bufferまで8-bitへ量子化されず届く境界を固定する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.SixteenBitRgbaPngKeepsFloatPrecisionChannelsAndAlpha` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: ClipEffects 複合色調補正のalpha保持と評価順
+- **関連:** `ArtifactPr/src/ClipEffects.cpp::applyClipEffects`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast`。
+- **確認できた事実:** 色調補正は brightness/contrast → hue/saturation → color wheels → posterize の固定順でRGBを更新し、alphaには書き込まない。既存の直接テストはブラーのalpha境界のみを確認していた。
+- **追加した確認:** alphaが0、半透明、1.0の4画素に全色調補正を同時適用し、alphaが画素ごとに維持されること、RGB各成分が最終posterize段階の5レベル値に揃うことを検証する。
+- **価値または懸念:** 個別effectでは見逃す処理順の入れ替えや、不透明度を色調補正が誤変更する回帰を捕捉できる。テスト未実行。
+- **次に確認すること:** `ArtifactPrContractTest.CombinedColorCorrectionsPreserveAlphaAndApplyPosterizeLast` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: RenderPlan 派生入力の編集後スナップショット
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cpp::EditorEngine::createRenderPlan`、`tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RenderPlanDerivedMediaInputsStayFrozenAcrossLiveSequenceEdits`。
+- **確認できた事実:** RenderPlanはNLE snapshotのほかにtransition、clip effects、audio clip mix情報を個別配列・mapへ展開して返す。既存snapshot isolationテストはNLE JSONとframe rangeを確認し、別テストはaudioフィルタやeffect収集を確認するが、生成済み派生入力の後続編集に対する不変性をまとめて検証していない。
+- **追加した確認:** plan作成後にlive sequenceのtransition削除、映像glow変更、audio track mute・volume・EQ変更を行い、古いplanの全派生入力が維持され、新しいplanだけが編集後状態を反映することを確認する。
+- **価値または懸念:** Export開始後の編集がすでに構築されたrender/audio jobへ漏れる回帰を、NLE snapshot一致だけではなく実消費入力で検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrEditorEngineTest.RenderPlanDerivedMediaInputsStayFrozenAcrossLiveSequenceEdits` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: SequenceCompositor 半透明背景の積層alpha oracle
+- **関連:** `ArtifactPr/src/SequenceCompositor.cpp::composeSequenceLayers`、`tests/ArtifactPr/ArtifactPrContractTest.cpp::StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle`。
+- **確認できた事実:** 既存の積層source-over oracleはopaque背景を使い、RGBの累積を検証するが、最終alphaが常に1のため背景と複数レイヤーのalpha合成を検証しない。
+- **追加した確認:** 半透明背景にsource alphaとlayer opacityの異なる3レイヤーを重ね、premultiplied accumulationから導くRGB・alphaをcompositorの結果と比較する。1x1入力でfit resizeの影響を排除する。
+- **価値または懸念:** 透過背景のalpha合成、layer opacityの適用、下層から上層への合成順を1つの厳密な数値oracleで確認できる。テスト未実行。
+- **次に確認すること:** `ArtifactPrSequenceCompositorTest.StackedLayersOverTranslucentBackgroundMatchPremultipliedOracle` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Timeline mute/solo同期のNLE履歴保護
+- **関連:** `ArtifactPr/src/TimelinePanel.cpp::updateTimelineGeometry`、`tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp::ProgrammaticMuteSoloRefreshDoesNotWriteBackIntoNleHistory`。
+- **確認できた事実:** Timeline panelはsequenceChanged時にtrack mute/soloボタンのcheck状態をモデルから更新し、toggledの逆流を防ぐため`QSignalBlocker`を使う。既存panelテストは表示とclip追加・削除を確認するが、この逆流防止やNLE undo履歴への影響は検査していない。
+- **追加した確認:** modelのaudio trackをmute/solo状態にしてpanelをrefreshし、両ボタン表示が同期する一方、NLE snapshotとundo件数が変化しないことを確認する。
+- **価値または懸念:** model→UI反映が意図しないUI→model編集を起こし、履歴・永続状態を汚染する回帰を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrTimelinePanelTest.ProgrammaticMuteSoloRefreshDoesNotWriteBackIntoNleHistory` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Timeline zoom refreshのwidget identity保持
+- **関連:** `ArtifactPr/src/TimelinePanel.cpp::refreshTimeline` / `updateTimelineGeometry`、`tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp::ZoomRefreshKeepsClipWidgetIdentityAndUpdatesItsWidth`。
+- **確認できた事実:** Timeline panelは構造signatureが同じズーム変更でwidget treeを再構築せず、clip widgetのminimum/maximum widthを更新する。既存UIテストはzoom labelの倍率のみを確認しており、widget identity、幅、選択状態の維持は確認していない。
+- **追加した確認:** frame幅を既知値に初期化した上でclipを選択し、1x→2x→1xのzoom refresh中に同一widgetが維持され、幅が比例更新され、選択clipが変わらないことを確認する。
+- **価値または懸念:** zoom操作でrowを再生成する回帰やclipの表示状態・選択状態が失われる回帰を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrTimelinePanelTest.ZoomRefreshKeepsClipWidgetIdentityAndUpdatesItsWidth` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: NLE moveのsource/timeline範囲分離と履歴
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cpp::EditorEngine::moveClip`、`tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleMovePreservesSourceRangeAndUndoRedoRestoresTimelinePlacement`。
+- **確認できた事実:** NLE clipにはsource rangeとtimeline rangeが別々に保存され、`moveClip`はtimeline位置をLinkingService経由で変更し、前後snapshotをundo commandへ渡す。既存NLEテストにはsplit時の両範囲検査があるが、通常moveのsource範囲保持とundo/redoはない。
+- **追加した確認:** source range [23,63) のclipをtimeline frame 0から100へ移動し、duration/source範囲保持を確認した後、snapshotと表示範囲がundo/redoで元位置・移動位置へ戻ることを確認する。
+- **価値または懸念:** 移動がsource trimを誤って変更する回帰や、NLE snapshot・legacy表示・undo履歴間の不整合を検出する。テスト未実行。
+- **次に確認すること:** `ArtifactPrEditorEngineTest.NleMovePreservesSourceRangeAndUndoRedoRestoresTimelinePlacement` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Audio project reloadの全channel PCM parity
+- **関連:** `tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp::MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload`。
+- **確認できた事実:** この統合テストは複数Audio Layerのsource、volume、pan、muteを保存・再読込し、channel数は比較するが、sample parityをchannel 0だけで比較していた。
+- **追加した確認:** 保存前後の各channelごとにframe数を確認し、すべてのPCM sampleを比較する。
+- **価値または懸念:** mono入力がpanで複数出力channelへ展開される場合など、片channelのみの欠落・ずれをreload後の統合経路で捕捉できる。テスト未実行。
+- **次に確認すること:** `AudioLayerRenderIntegrationTest.MultipleAudioLayersKeepMuteMixAndRenderedSamplesAfterProjectReload` をテスト実行が許可された際に実行する。
+
+## 2026-11-09: Image Sequence source replacement中のstale decode拒否
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` のsequence prefetch generation、`tests/Artifact/StillImageLayerRoundTripTest.cpp::ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion`。
+- **確認できた事実:** sequenceフレームの個別decode完了は非同期で、sequence切替時にgenerationを進めて旧結果の反映を避ける設計である。既存テストはmissing frame、同一パス差し替え、corrupt frameを確認するが、旧sequenceのdecodeを保留したまま別sequenceへ切り替えるケースはない。
+- **追加した確認:** 旧sequenceの大きな次frameを要求した直後に別path群へsequenceを置換し、新sequenceの同じindexをdecodeする。遅延イベントを処理した後も新sequenceのpixelとcached indexが維持されることを確認する。
+- **価値または懸念:** source generationをまたぐ旧worker完了が新sequenceの同一index cacheを上書きする競合を検出する。タイミング依存のためruntimeで繰り返し検証が必要。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ReplacingSequenceWhileFrameDecodeIsPendingRejectsStaleCompletion` をテスト実行が許可された際に実行し、異なるworker負荷でも安定性を確認する。
+
+## 2026-11-09: Image Sequence project reload後のgap slot復帰
+- **関連:** `Artifact/src/Project/ArtifactProjectExporter.cpp` / importerのsequence relative path、`tests/Artifact/StillImageLayerRoundTripTest.cpp::ImageSequenceProjectReloadPreservesGapAndRestoresItsFrameSlot`。
+- **確認できた事実:** sequence単体では欠番、frame decode、保存JSONの正規化がテストされ、still imageではProject Manager経由の保存・再読込・missing recoveryがテストされているが、連番のslot関係を含めた一連のProject Manager往復はない。source relocation計画もsequence slotと再読込後relinkの受入を残課題としている。
+- **追加した確認:** middle frameだけ欠けた3-slot sequenceをProject Managerで保存・再読込し、順序・frame rate・両端frameを確認した後、欠けた元pathへ画像を戻し、同じslotをdecodeできることを確認する。
+- **価値または懸念:** path正規化・欠番保持・再読込・sequence reader再生成の横断不整合を捕捉する。テスト未実行。
+- **次に確認すること:** `StillImageLayerRoundTripTest.ImageSequenceProjectReloadPreservesGapAndRestoresItsFrameSlot` をテスト実行が許可された際に実行する。
 
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
@@ -12402,3 +12712,506 @@
 - **確認できた事実:** MSVC 14.52 / Ninjaで現在のArtifactUiTestはフルビルドでき、日本語の既定起動画面をcaptureできた。一方、既存fixtureにStill Light Leak適用済み画像はなく、英語の通常起動captureは灰色一色で失敗した。独立Pythonキャプチャとシェーダーcompileは効果面の参照確認であり、アプリruntime parityの代替にはならない。
 - **価値または懸念:** 画面起動の成功だけでエフェクトの描画経路まで確認済みと誤認するのを防ぐ。実際のアプリ効果画素を評価するには、素材/alpha/Look/Strengthを固定した隔離fixtureと、ロケール別captureが必要。
 - **次に確認すべきこと:** Light LeakのCPU/GPU経路を評価する専用UiTest fixtureを既存のAppMain setup patternに合わせて作り、ja/enで出力captureを取得し、独立Python基準との差とCPU/GPU parityを比較する。
+## 2026-11-08: Pointwise Fusion shared DAG output selection
+- **Related:** `tests/ArtifactCore/PointwiseFusionGraphContractTest.cpp::PreservesSharedOperandsAndExplicitEarlierOutputInCombinedGraph`.
+- **Confirmed:** Existing Pointwise Fusion contract tests cover typed emission and explicit output separately, but do not combine shared operands, dependent operations, and an output selected before the graph's final insertion.
+- **Added check:** Build a Lerp-based fan-out DAG, append a later operation, select the earlier Lerp result, and assert operation count, validity, HLSL reference order, and function return target.
+- **Value or concern:** Covers graph reuse and explicit output selection in one compact contract case. Test not run.
+- **Next:** Run `ArtifactCorePointwiseFusionGraphContractTest` when test execution is authorized.
+
+## 2026-11-08: Cyclic schema migration path coverage
+- **Related:** `tests/ArtifactCore/SerializationEnvelopeContractTest.cpp::MigrationPathSearchHandlesCyclesWithoutRepeatingTransforms`.
+- **Confirmed:** Existing migration tests cover unreachable paths, shortest-path selection, and reentrant registration, but not a reachable target in a graph that also contains a cycle.
+- **Added check:** Query and execute a 0→1→2 migration while the graph also contains 1→0; verify path discovery is side-effect free and execution applies each selected transform exactly once.
+- **Value or concern:** Guards migration graph traversal against revisiting versions while retaining a valid route. Test not run.
+- **Next:** Run `SerializationEnvelopeContractTest.MigrationPathSearchHandlesCyclesWithoutRepeatingTransforms` when test execution is authorized.
+
+## 2026-11-08: Local socket partial payload recovery
+- **Related:** `tests/ArtifactCore/SharedMemoryRingBufferContractTest.cpp::LocalSocketRetainsPartialPayloadAndFollowingFrameAcrossReceiveTimeout`.
+- **Confirmed:** Existing local socket tests exercise a fragmented length prefix, coalesced frames, and oversized-frame discard, but not timeout and continuation after a complete prefix with only part of its payload available.
+- **Added check:** Send a complete length prefix and partial payload, require a timeout with no delivery, then send the remainder plus another full frame and verify both messages and an empty pending buffer.
+- **Value or concern:** Covers stream framing state across receive calls and verifies the next frame remains aligned. Test not run.
+- **Next:** Run `IPCChannelContractTest.LocalSocketRetainsPartialPayloadAndFollowingFrameAcrossReceiveTimeout` when test execution is authorized.
+
+## 2026-11-08: Split store late-failure atomicity in both formats
+- **Related:** `tests/ArtifactCore/SplitDocumentStoreContractTest.cpp::FailedLateUnsafeChildDoesNotPartiallyReplaceExistingStore`.
+- **Confirmed:** The late unsafe-child rollback case previously exercised JSON only, while split-store save/load has separate JSON and CBOR manifests and child files.
+- **Added check:** Run the same valid-store → late unsafe child rejection → reload-last-good assertions for JSON and CBOR with independent store paths.
+- **Value or concern:** Extends the atomic replacement invariant across both serialization encodings. Test not run.
+- **Next:** Run `SplitDocumentStoreContractTest.FailedLateUnsafeChildDoesNotPartiallyReplaceExistingStore` when test execution is authorized.
+
+## 2026-11-08: Fractional image sequence frame-rate mapping
+- **Related:** `tests/ArtifactCore/ImageAssetMetadataContractTest.cpp::ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting`.
+- **Confirmed:** Existing source/timeline conversion coverage uses integer frame rates; it does not cover the common 24000/1001 to 30000/1001 rate conversion over consecutive frame boundaries.
+- **Added check:** Map timeline frames 0 through 12 at 30000/1001 FPS into a ten-frame 24000/1001 sequence and assert each expected prior-frame index and verify the decoded frame has the matching unique pixel color.
+- **Value or concern:** Detects rounding drift and off-by-one transitions across both index calculation and decoded frame selection. Test not run.
+- **Next:** Run `ImageSequenceSourceContractTest.ConvertsFractionalVideoRatesAcrossBoundariesWithoutDrifting` when test execution is authorized.
+
+## 2026-11-08: Sequence playback scaled-delta overflow
+- **Related:** `tests/ArtifactCore/SequenceGroupContractTest.cpp::FiniteAdvanceWhosePlaybackScaledDeltaOverflowsAtBothPlaybackBoundaries`.
+- **Confirmed:** SequencePlayer tests cover non-finite deltas and duration derivation overflow, but not a finite maximum delta whose multiplication by playback rate overflows during active playback.
+- **Added check:** Advance forward and reverse players by `double::max()` at the configured 2x rate; require finite positions clamped to their respective completion boundaries.
+- **Value or concern:** Protects playback state from derived non-finite arithmetic at both ends of the timeline. Test not run.
+- **Next:** Run `SequenceGroupContractTest.FiniteAdvanceWhosePlaybackScaledDeltaOverflowsAtBothPlaybackBoundaries` when test execution is authorized.
+
+## 2026-11-08: Concurrent weak-lock lifetime boundary
+- **Related:** `tests/ArtifactCore/SharedPtrContractTest.cpp::ConcurrentWeakLocksRemainValidUntilLastOwnerAndThenExpire`.
+- **Confirmed:** Existing SharedPtr tests cover weak lock and expiration sequentially, but not simultaneous locks while the final strong owner is released.
+- **Added check:** Four workers repeatedly lock one weak pointer while the owner is reset; require all observed values to remain valid, the custom deleter to run exactly once, and the weak pointer to expire afterward.
+- **Value or concern:** Exercises control-block synchronization and lifetime transition under contention. The initial successful lock wait is bounded; test not run.
+- **Next:** Run `SharedPtrContractTest.ConcurrentWeakLocksRemainValidUntilLastOwnerAndThenExpire` when test execution is authorized.
+
+## 2026-11-08: Property link snapshot under callback clear
+- **Related:** `tests/ArtifactCore/PropertyLinkManagerContractTest.cpp::FanOutUsesStableLinkSnapshotWhenMapperClearsTheManager`.
+- **Confirmed:** Existing fan-out coverage verifies that adding a link from a mapper affects only the next update pass. It does not cover clearing all registrations from inside a mapper.
+- **Added check:** Clear the manager during the first custom mapping; require remaining links in the current snapshot to update, the registration list to become empty, and subsequent passes to leave prior targets unchanged.
+- **Value or concern:** Exercises reentrant structural mutation and update-pass snapshot consistency. Test not run.
+- **Next:** Run `PropertyLinkManagerContractTest.FanOutUsesStableLinkSnapshotWhenMapperClearsTheManager` when test execution is authorized.
+
+## 2026-11-08: Concurrent diagnostic recording with bounded history
+- **Related:** `tests/ArtifactCore/DiagnosticRecorderStandaloneTest.cpp::ConcurrentProducersKeepTheBoundedHistoryAsAContiguousSequenceWindow`.
+- **Confirmed:** Existing recorder tests cover bounded eviction and event sequence ordering separately, but not concurrent producers crossing the retention limit.
+- **Added check:** Four synchronized producers record 2,000 events into a 128-event history; verify the newest retained sequence window is contiguous and every retained event has producer metadata.
+- **Value or concern:** Checks sequence allocation, concurrent insertion, and eviction consistency as one invariant. Test not run.
+- **Next:** Run `DiagnosticRecorderStandaloneTest.ConcurrentProducersKeepTheBoundedHistoryAsAContiguousSequenceWindow` when test execution is authorized.
+
+## 2026-11-08: Asset database symlink aliases during JSON restore
+- **Related:** `tests/ArtifactCore/AssetDatabaseContractTest.cpp::JsonLoadMergesSymlinkParentAndCanonicalPathAliasesByFirstIdentity`.
+- **Confirmed:** JSON restoration tests cover lexical canonical aliases, while symlink canonicalization is covered separately during relink. The combined restore path is not covered.
+- **Added check:** Restore two records whose paths differ only through a directory symlink; require the first UUID to own the canonical record, both paths to resolve to it, and the duplicate UUID to remain absent.
+- **Value or concern:** Exercises canonical path deduplication and identity index consistency during deserialization. Skips where directory symlinks are unavailable; test not run.
+- **Next:** Run `AssetDatabaseContractTest.JsonLoadMergesSymlinkParentAndCanonicalPathAliasesByFirstIdentity` on a platform with directory symlink support when test execution is authorized.
+
+## 2026-11-08: Diagnostic drain under concurrent recording
+- **Related:** `tests/ArtifactCore/DiagnosticRecorderStandaloneTest.cpp::ConcurrentDrainAndRecordingDeliverEveryEventExactlyOnce`.
+- **Confirmed:** Recorder coverage now checks producer concurrency with bounded eviction, and drain behavior in isolation, but not the concurrent destructive-read boundary.
+- **Added check:** Four producers record 1,600 events while the test thread repeatedly drains batches; require all sequence numbers to be contiguous, all events to be recovered exactly once, and the recorder to end empty.
+- **Value or concern:** Exercises synchronization between concurrent append and drain without relying on timing-specific batch sizes. Test not run.
+- **Next:** Run `DiagnosticRecorderStandaloneTest.ConcurrentDrainAndRecordingDeliverEveryEventExactlyOnce` when test execution is authorized.
+
+## 2026-11-08: Session ledger recovery filtering after persistence
+- **Related:** `tests/ArtifactCore/SessionLedgerStandaloneTest.cpp::RecoverableEntriesRetainTheirFilteringAndOrderAfterFileRoundTrip`.
+- **Confirmed:** SessionLedger tests cover recoverable filtering and file round-trip separately; the round-trip case does not query the filtered recovery view afterward.
+- **Added check:** Persist mixed project-open, crash, render-failure, recoverable recovery-entry, and recovery-point records; after reload require only the recoverable entry kinds in insertion order and preserve checkpoint metadata.
+- **Value or concern:** Checks derived recovery behavior across serialization, including exclusion of nonrecoverable events. Test not run.
+- **Next:** Run `SessionLedgerStandaloneTest.RecoverableEntriesRetainTheirFilteringAndOrderAfterFileRoundTrip` when test execution is authorized.
+
+## 2026-11-08: Result failure diagnostic context propagation
+- **Related:** `tests/ArtifactCore/ResultContractTest.cpp::TransformAndThenShortCircuitFailuresWithoutLosingDiagnosticContext`.
+- **Confirmed:** Existing transform and andThen failure tests assert that the error code survives, while context-field preservation is covered only during direct failure construction.
+- **Added check:** Send one contextual failure through both combinators; assert the mapper callbacks remain uncalled and code, message, operation, object ID, source location, and trace ID are unchanged.
+- **Value or concern:** Protects diagnostic fidelity through compositional error paths. Test not run.
+- **Next:** Run `ResultContractTest.TransformAndThenShortCircuitFailuresWithoutLosingDiagnosticContext` when test execution is authorized.
+
+## 2026-11-08: ArtifactArray mixed mutation model sequence
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::MixedDeterministicMutationsMatchIndependentVectorModel`.
+- **Confirmed:** Array coverage has targeted mutation, aliasing, capacity, and lifetime tests, but no single deterministic sequence cross-checking interactions among these state changes against an independent model.
+- **Added check:** Apply 1,600 seeded append/prepend/insert/remove/take/replace/removeOne/reserve/squeeze operations and compare size and full contents with `std::vector` after every step.
+- **Value or concern:** Detects cumulative ordering or storage-state regressions that isolated examples can miss. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.MixedDeterministicMutationsMatchIndependentVectorModel` when test execution is authorized.
+
+## 2026-11-08: ArtifactArray aliased insert during reallocation
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap`.
+- **Confirmed:** Existing aliased insert coverage reserves spare capacity before shifting; append aliasing is covered across reallocation, but insert does not combine both conditions.
+- **Added check:** Insert a reference to the final element into a full array at an earlier index; verify the original value is captured correctly through both growth and element shifting.
+- **Value or concern:** Covers a lifetime and aliasing boundary that isolated append/insert cases do not exercise. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.InsertCanReadAliasedElementWhileCapacityGrowthAndShiftingOverlap` when test execution is authorized.
+
+## 2026-11-08: ArtifactSet collision-chain growth and reuse cycles
+- **Related:** `tests/ArtifactCore/ArtifactSetContractTest.cpp::CollisionChainsSurviveRepeatedGrowthRemovalAndReuse`.
+- **Confirmed:** Existing tests cover a fixed collision chain and a separate deterministic operation sequence with ordinary hashing; they do not repeatedly combine a constant-hash chain, growth, selective removal, complete clearing, and reuse against a membership model.
+- **Added check:** Across 24 cycles, add 96 values under one hash, remove alternating values, compare lookups and size with `std::unordered_set`, and periodically remove the remainder before reuse.
+- **Value or concern:** Exercises repeated chain unlinking and rebuilding through the same heavily colliding buckets. Test not run.
+- **Next:** Run `ArtifactSetContractTest.CollisionChainsSurviveRepeatedGrowthRemovalAndReuse` when test execution is authorized.
+
+## 2026-11-08: ArtifactString mixed byte mutation model sequence
+- **Related:** `tests/ArtifactCore/ArtifactStringContractTest.cpp::DeterministicMixedMutationsMatchByteStringModel`.
+- **Confirmed:** String tests cover explicit embedded-NUL behavior and individual append, replace, clear, and copy cases, but no deterministic sequence cross-checks their cumulative interactions against a byte-string model.
+- **Added check:** Apply 2,400 seeded append/replace/clear/copy operations using short payloads that include embedded NUL bytes; compare length, full bytes, and trailing terminator after each operation.
+- **Value or concern:** Exercises byte length and null termination while repeated changes cross the inline/heap storage boundary. Test not run.
+- **Next:** Run `ArtifactStringContractTest.DeterministicMixedMutationsMatchByteStringModel` when test execution is authorized.
+
+## 2026-11-08: ActionManager reentrant execution ordering
+- **Related:** `tests/ArtifactCore/ActionManagerContractTest.cpp::CallbackCanReenterExecutionAndEventsRemainPostOrder`.
+- **Confirmed:** Existing ActionManager coverage checks parameter overrides, confirmation rejection, and unregister during an executed-event callback; it does not cover a callback synchronously executing the same action again.
+- **Added check:** Trigger a guarded nested execution and verify confirmation and callback invocation for both parameter sets, plus post-order publication of the nested and outer executed events.
+- **Value or concern:** Covers synchronous reentrancy across confirmation, user callback, and EventBus publication. Test not run.
+- **Next:** Run `ActionManagerContractTest.CallbackCanReenterExecutionAndEventsRemainPostOrder` when test execution is authorized.
+
+## 2026-11-08: KeyMap dual-index rebind transaction sequence
+- **Related:** `tests/ArtifactCore/KeyMapContractTest.cpp::RebindConflictsKeepBothIndexesConsistentAcrossJsonRoundTrip`.
+- **Confirmed:** Existing tests isolate chord conflict rejection, same-action rebind, and JSON restoration; they do not exercise those operations as a sequence while checking both chord and action lookup indexes.
+- **Added check:** Create a conflict, successfully rebind an action to free its former chord, claim that chord with another action, reject a second conflicting rebind, and round-trip the resulting map through JSON while checking both lookup indexes.
+- **Value or concern:** Protects the coupled index state against partial updates through successful and rejected mutations and serialization. Test not run.
+- **Next:** Run `KeyMapContractTest.RebindConflictsKeepBothIndexesConsistentAcrossJsonRoundTrip` when test execution is authorized.
+
+## 2026-11-08: AudioCompressor sidechain block partition invariance
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::SidechainProcessingInIrregularBlocksMatchesContinuousRun`.
+- **Confirmed:** Compressor tests compare continuous processing with irregular blocks for the program detector, and separately test sidechain detector behavior, but do not combine sidechain detection with block-partition equivalence.
+- **Added check:** Process the same 16-frame program and sidechain signals continuously and across irregular block boundaries; compare every output sample and final gain reduction.
+- **Value or concern:** Detects sidechain envelope or alignment state that changes at process-call boundaries. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.SidechainProcessingInIrregularBlocksMatchesContinuousRun` when test execution is authorized.
+
+## 2026-11-08: AudioChorus stereo irregular block invariance
+- **Related:** `tests/ArtifactCore/AudioChorusStandaloneTest.cpp::StereoLfoAndDelayHistorySurviveIrregularBlockBoundaries`.
+- **Confirmed:** Existing Chorus tests cover LFO continuity across fixed-width mono blocks and independent stereo histories separately, but not their interaction across irregular boundaries with feedback enabled.
+- **Added check:** Compare both channels from one 127-frame stereo processing call against seven irregular blocks using identical LFO, delay, depth, and feedback settings.
+- **Value or concern:** Exercises phase and per-channel delay/feedback state across varying block boundaries. Test not run.
+- **Next:** Run `AudioChorusStandaloneTest.StereoLfoAndDelayHistorySurviveIrregularBlockBoundaries` when test execution is authorized.
+
+## 2026-11-08: Cascaded audio filter block partition invariance
+- **Related:** `tests/ArtifactCore/AudioHighLowPassStandaloneTest.cpp::CascadedFiltersMatchAcrossIrregularBlockBoundaries`.
+- **Confirmed:** Existing tests check low-pass state across blocks and verify high-pass then low-pass composition in a single segment; they do not compare the cascade's two internal histories across irregular blocks.
+- **Added check:** Compare a 97-sample impulse/tone/transient signal processed continuously and in irregular blocks with both filters enabled; assert every output sample matches.
+- **Value or concern:** Covers state continuity at both stages of the cascade and at boundaries adjacent to transients. Test not run.
+- **Next:** Run `AudioHighLowPassStandaloneTest.CascadedFiltersMatchAcrossIrregularBlockBoundaries` when test execution is authorized.
+
+## 2026-11-08: AudioExpander stereo block and channel state interaction
+- **Related:** `tests/ArtifactCore/AudioExpanderStandaloneTest.cpp::StereoChannelsRemainIndependentAcrossIrregularBlocks`.
+- **Confirmed:** Existing tests verify mono envelope continuity across blocks and stereo channel independence in separate cases; they do not combine irregular block boundaries with independent per-channel reference runs.
+- **Added check:** Process distinct 73-frame stereo envelopes continuously and across seven irregular blocks, then compare each channel both ways and against an independently processed mono reference.
+- **Value or concern:** Detects block-boundary state resets and cross-channel envelope coupling in the same run. Test not run.
+- **Next:** Run `AudioExpanderStandaloneTest.StereoChannelsRemainIndependentAcrossIrregularBlocks` when test execution is authorized.
+
+## 2026-11-08: SimpleWav multichannel frame truncation
+- **Related:** `tests/ArtifactCore/AudioSimpleWavStandaloneTest.cpp::MaxFramesTruncatesSixChannelPcmOnlyAtFrameBoundaries`.
+- **Confirmed:** Max-frame truncation is tested with interleaved stereo PCM, but not with a channel count above two where a partial-frame cutoff would discard or misalign more samples.
+- **Added check:** Load three frames of six-channel 16-bit PCM with a two-frame limit; verify all twelve retained samples preserve interleaved order and normalization.
+- **Value or concern:** Covers frame-size arithmetic and multichannel sample alignment at the truncation boundary. Test not run.
+- **Next:** Run `AudioSimpleWavStandaloneTest.MaxFramesTruncatesSixChannelPcmOnlyAtFrameBoundaries` when test execution is authorized.
+
+## 2026-11-08: Condition wakeOne waiter cardinality
+- **Related:** `tests/ArtifactCore/ArtifactThreadContractTest.cpp::WakeOneReleasesOnlyOneWaiterBeforeWakeAll`.
+- **Confirmed:** Condition coverage verifies a stored notification consumed by a later waiter, predicate rechecking, and wakeAll release, but does not assert how many of several predicate waiters one wakeOne releases.
+- **Added check:** Gate three threads on one mutex-protected permit, issue wakeOne and assert exactly one has returned, then set shutdown and use wakeAll to release and join the remainder.
+- **Value or concern:** Checks waiter cardinality and cleanup under a synchronized multi-threaded condition-variable transition. Test not run.
+- **Next:** Run `ArtifactThreadContractTest.WakeOneReleasesOnlyOneWaiterBeforeWakeAll` when test execution is authorized.
+
+## 2026-11-08: AudioCache capacity shrink trim and accounting
+- **Related:** `tests/ArtifactCore/AudioCacheStandaloneTest.cpp::ShrinkingCapacityKeepsMostRecentlyUsedFramesAndMemoryCount`.
+- **Confirmed:** Existing cache tests cover capacity during insertion and LRU victim selection, but do not reduce the configured capacity after the cache is already populated.
+- **Added check:** Establish a known access order across four entries, shrink capacity to two, and assert the two most-recent frames remain with memory usage matching their payloads.
+- **Value or concern:** Covers capacity reconfiguration, LRU cleanup, and byte accounting in one state transition. Test not run.
+- **Next:** Run `AudioCacheStandaloneTest.ShrinkingCapacityKeepsMostRecentlyUsedFramesAndMemoryCount` when test execution is authorized.
+
+## 2026-11-08: AssetDatabase dual-index mutation and reload sequence
+- **Related:** `tests/ArtifactCore/AssetDatabaseContractTest.cpp::RelinkUnregisterAndReloadKeepBothIndexesCoherent`.
+- **Confirmed:** AssetDatabase tests cover relink collision atomicity, JSON round-trip, and unregister/path reuse separately; they do not combine these transitions while checking both lookup directions.
+- **Added check:** Start from an isolated database, reject a colliding relink, move an asset, round-trip the database through JSON, unregister a second asset, then reuse a new path and verify UUID lookups, path lookups, types, names, and final count.
+- **Value or concern:** Checks stale path-index cleanup and identity metadata consistency across successful, rejected, and restored state changes. Test not run.
+- **Next:** Run `AssetDatabaseContractTest.RelinkUnregisterAndReloadKeepBothIndexesCoherent` when test execution is authorized.
+
+## 2026-11-08: Stopwatch mixed transition invariant sequence
+- **Related:** `tests/ArtifactCore/ArtifactChronoContractTest.cpp::MixedStopwatchTransitionsPreserveStateInvariants`.
+- **Confirmed:** Stopwatch tests cover start, stop, reset, and restart independently plus two start/stop cycles, but do not compose repeated mixed transitions in one state sequence.
+- **Added check:** Apply a fixed 24-operation start/stop/reset/restart sequence and verify expected running state, nonnegative elapsed duration, start monotonicity, and exact elapsed freeze on stop after every operation.
+- **Value or concern:** Detects accumulated-state leakage or transition-order regressions across repeated lifecycle changes. Test not run.
+- **Next:** Run `ArtifactChronoContractTest.MixedStopwatchTransitionsPreserveStateInvariants` when test execution is authorized.
+
+## 2026-11-08: ArtifactFunctionRef convertible return and borrowed state
+- **Related:** `tests/ArtifactCore/ArtifactFunctionRefTest.cpp::ConvertsReturnValueFromBorrowedCallableAndKeepsItsState`.
+- **Confirmed:** ArtifactFunctionRef coverage previously contained one same-signature borrowed call; the planned test inventory also identified callable return conversion as unverified.
+- **Added check:** Borrow a stateful callable returning `int` through an `ArtifactFunctionRef<double()>`, verify converted successive results and that invocation updates the original callable's captured state.
+- **Value or concern:** Covers callable result convertibility together with non-owning state forwarding. Test not run.
+- **Next:** Run `ArtifactFunctionRefTest.ConvertsReturnValueFromBorrowedCallableAndKeepsItsState` when test execution is authorized.
+
+## 2026-11-09: DataTable maximum finite numeric text
+- **Related:** `tests/ArtifactCore/DataTableStandaloneTest.cpp::FloatGetterAcceptsLargestFiniteNumericText`.
+- **Confirmed:** Float getter tests cover ordinary exponent notation and overflow text fallback, but do not pin conversion at the largest finite `double` boundary.
+- **Added check:** Parse the standard decimal representation of `std::numeric_limits<double>::max()` through CSV and verify `getFloat()` returns that exact finite value.
+- **Value or concern:** Distinguishes valid upper-bound conversion from range-error fallback and infinity. Test not run.
+- **Next:** Run `DataTableStandaloneTest.FloatGetterAcceptsLargestFiniteNumericText` when test execution is authorized.
+
+## 2026-11-09: AudioAnalyzer opposite maximum stereo samples
+- **Related:** `tests/ArtifactCore/AudioAnalyzerStandaloneTest.cpp::OppositeMaximumFiniteStereoSamplesKeepMetricsFinite`.
+- **Confirmed:** Analyzer coverage exercises maximum finite samples in mono and ordinary multi-channel inputs, but does not combine opposite maximum values across stereo channels.
+- **Added check:** Analyze two stereo frames whose channels contain opposite maximum finite float values; assert RMS and peak stay at the maximum and every FFT magnitude remains finite.
+- **Value or concern:** Stresses accumulation across frames/channels and FFT cancellation at the finite-input limit. Test not run.
+- **Next:** Run `AudioAnalyzerStandaloneTest.OppositeMaximumFiniteStereoSamplesKeepMetricsFinite` when test execution is authorized.
+
+## 2026-11-09: AudioSpectrum short-term metric at int64 frame boundary
+- **Related:** `tests/ArtifactCore/AudioSpectrumStandaloneTest.cpp::IntegratedWindowContinuesAcrossInt64FrameBoundary`.
+- **Confirmed:** The existing regression feeds contiguous segments across `qint64` maximum and asserts the integrated loudness, while the separate short-term window metric is not checked at that boundary.
+- **Added check:** Assert short-term loudness equals the independently computed mean-square level after the same cross-boundary segment sequence.
+- **Value or concern:** Extends overflow/continuity coverage to the second window accumulator without adding time-dependent behavior. Test not run.
+- **Next:** Run `AudioSpectrumStandaloneTest.IntegratedWindowContinuesAcrossInt64FrameBoundary` when test execution is authorized.
+
+## 2026-11-09: SmallVector mixed move-only mutations
+- **Related:** `tests/ArtifactCore/SmallVectorStandaloneTest.cpp::MoveOnlyElementsSurviveMixedGrowthInsertRemovalAndTakeAt`.
+- **Confirmed:** SmallVector tests exercise move-only elements through growth, insert, and takeAt, and separately test adjacent removeIf matches with copyable integers; they do not combine compaction with move-only ownership.
+- **Added check:** Grow a move-only vector, insert an interior value, remove adjacent matches by predicate, then grow/insert again and take an interior element while checking exact surviving ownership and order.
+- **Value or concern:** Exercises move assignment and destruction across reallocation and compaction transitions. Test not run.
+- **Next:** Run `SmallVectorStandaloneTest.MoveOnlyElementsSurviveMixedGrowthInsertRemovalAndTakeAt` when test execution is authorized.
+
+## 2026-11-09: Integer property modulation negative rounding and bounds
+- **Related:** `tests/ArtifactCore/AbstractPropertyModulationTest.cpp::RoundsNegativeModulationAndClampsIntegerBounds`.
+- **Confirmed:** Integer modulation coverage checks one positive fractional result; it does not exercise negative rounding or integer min/max clipping after modulation.
+- **Added check:** Evaluate negative fractional modulation plus values beyond both configured bounds through the same router/property path, and assert rounded and clamped integer outputs.
+- **Value or concern:** Covers sign-sensitive rounding and post-modulation range enforcement at the integer conversion boundary. Test not run.
+- **Next:** Run `AbstractPropertyModulationTest.RoundsNegativeModulationAndClampsIntegerBounds` when test execution is authorized.
+
+## 2026-11-09: ImageYUV420 non-contiguous plane strides
+- **Related:** `tests/ArtifactCore/ImageYUV420ContractTest.cpp::FromPlanesRespectsNonContiguousInputRowStrides`.
+- **Confirmed:** Plane conversion checks odd-sized chroma geometry and normalized float conversion using contiguous matrices, but does not exercise OpenCV ROI planes whose row step exceeds their visible width.
+- **Added check:** Convert 3x3 luma and 2x2 chroma ROI views backed by wider matrices, with distinct values at each row and column; verify output dimensions and samples spanning all rows.
+- **Value or concern:** Detects accidental flat-buffer assumptions that skip OpenCV row stride or read neighboring padding. Test not run.
+- **Next:** Run `ImageYUV420ContractTest.FromPlanesRespectsNonContiguousInputRowStrides` when test execution is authorized.
+
+## 2026-11-09: BGRA readback with multi-pixel padded rows
+- **Related:** `tests/ArtifactCore/PixelChannelOrderStandaloneTest.cpp::GpuBgraReadbackHandlesMultiplePixelsAndPaddedRows`.
+- **Confirmed:** BGRA readback coverage uses one pixel per row with padding; the multi-pixel padded-row case exists only for RGBA input.
+- **Added check:** Read a 2x2 BGRA buffer with two padding floats after each row, then verify all canonical backing values and selected logical pixel channels from both rows.
+- **Value or concern:** Exercises horizontal pixel stepping, row stride, and BGRA-to-logical-RGBA access together. Test not run.
+- **Next:** Run `PixelChannelOrderStandaloneTest.GpuBgraReadbackHandlesMultiplePixelsAndPaddedRows` when test execution is authorized.
+
+## 2026-11-09: ColorCurves multi-pixel alpha and ordering
+- **Related:** `tests/ArtifactCore/ColorCurvesContractTest.cpp::MultiPixelApplyPreservesAlphaAndPixelOrder`.
+- **Confirmed:** ColorCurves verifies alpha preservation and channel modes for one pixel, but does not check that a multi-pixel image keeps pixel positions and distinct alpha values while applying a channel curve.
+- **Added check:** Apply an inverted red curve to a 2x2 RGBA image with different RGB/alpha values, including fully transparent and fully opaque pixels, and assert every resulting pixel.
+- **Value or concern:** Covers per-pixel traversal, selected-channel transformation, alpha invariance, and transparent-pixel handling together. Test not run.
+- **Next:** Run `ColorCurvesContractTest.MultiPixelApplyPreservesAlphaAndPixelOrder` when test execution is authorized.
+
+## 2026-11-09: OpenEXR invalid overwrite preservation
+- **Related:** `tests/ArtifactCore/OpenExrStandalone/OpenExrRoundTripTest.cpp::InvalidOverwritePreservesExistingImage`.
+- **Confirmed:** OpenEXR tests reject null, invalid-dimension, and non-finite writes, and separately cover a valid round trip; they do not check whether a rejected write leaves an existing destination intact.
+- **Added check:** Write a valid two-pixel image, attempt to overwrite the same path with an infinite sample, then reload and compare the original dimensions and all pixel components.
+- **Value or concern:** Verifies data preservation across validation failure at a persistent-file boundary. Test not run; overwrite atomicity is being asserted as a safety contract.
+- **Next:** Run `OpenExrRoundTripTest.InvalidOverwritePreservesExistingImage` when test execution is authorized.
+
+## 2026-11-09: Surround 7.1 to mono downmix
+- **Related:** `tests/ArtifactCore/AudioDownMixerStandaloneTest.cpp::Surround71ToMonoAveragesEveryChannel`.
+- **Confirmed:** Mono downmix coverage verifies stereo and 5.1 inputs, but does not assert that 7.1 rear channels contribute to the mono result.
+- **Added check:** Downmix two frames with distinct, increasing values in all eight 7.1 channels; verify the all-channel average and preservation of sample rate and start frame.
+- **Value or concern:** Detects omitted or misordered rear channels in the wider surround-to-mono path. Test not run.
+- **Next:** Run `AudioDownMixerStandaloneTest.Surround71ToMonoAveragesEveryChannel` when test execution is authorized.
+
+## 2026-11-09: AudioCompressor stereo sidechain channel detection
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::StereoSidechainUsesLoudestChannelForDetection`.
+- **Confirmed:** External sidechain tests use mono sidechain data; stereo program linking is covered separately, but sidechain channel aggregation is not.
+- **Added check:** Put the loud detector signal only in the second channel of a stereo sidechain and compare program output and gain reduction with an equivalent mono loud-sidechain run.
+- **Value or concern:** Detects ignoring non-first sidechain channels or applying different detector gain based on sidechain layout. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.StereoSidechainUsesLoudestChannelForDetection` when test execution is authorized.
+
+## 2026-11-09: AudioCompressor stereo sidechain block continuity
+- **Related:** `tests/ArtifactCore/AudioCompressorStandaloneTest.cpp::StereoSidechainInIrregularBlocksMatchesContinuousMonoReference`.
+- **Confirmed:** Irregular-block continuity is tested with a mono external sidechain, while stereo sidechain aggregation is checked only for a single sample.
+- **Added check:** Keep the detector signal exclusively in stereo sidechain channel two, split program and sidechain into irregular blocks including one-frame blocks, and compare every output sample and final gain reduction with one continuous mono-sidechain reference.
+- **Value or concern:** Combines channel aggregation with envelope continuity across block boundaries. Test not run.
+- **Next:** Run `AudioCompressorStandaloneTest.StereoSidechainInIrregularBlocksMatchesContinuousMonoReference` when test execution is authorized.
+
+## 2026-11-09: AudioDownMixer ragged 7.1 to mono input
+- **Related:** `tests/ArtifactCore/AudioDownMixerStandaloneTest.cpp::Surround71ToMonoUsesOnlyFramesPresentInEveryChannel`.
+- **Confirmed:** Ragged channel lengths are covered for same-layout stereo normalization, and 7.1-to-mono averaging is covered with equal channel lengths; their interaction during layout conversion is not tested.
+- **Added check:** Make only the eighth 7.1 channel shorter, convert to mono, and assert the output contains only the shared frame with the average of all eight channels and preserved timing metadata.
+- **Value or concern:** Covers multi-channel frame-bound selection and channel aggregation together, guarding against out-of-range reads or partial-frame output. Test not run.
+- **Next:** Run `AudioDownMixerStandaloneTest.Surround71ToMonoUsesOnlyFramesPresentInEveryChannel` when test execution is authorized.
+
+## 2026-11-09: PathTube zero-radius taper endpoint
+- **Related:** `tests/ArtifactCore/PathTubeTrimTest.cpp::ZeroTaperEndpointCollapsesWithoutNonFiniteVertices`.
+- **Confirmed:** PathTube tests verify nonzero taper radii, trim ring mapping, topology, and ranges, but do not exercise a taper beginning at zero radius.
+- **Added check:** Generate a full-range tube with taper start 0 and end 1; verify the first ring collapses to one centerline point, the next ring has positive radius, and every position and normal component is finite.
+- **Value or concern:** Covers degenerate surface geometry at a taper endpoint while checking neighboring ring integrity. Test not run.
+- **Next:** Run `PathTubeTrimTest.ZeroTaperEndpointCollapsesWithoutNonFiniteVertices` when test execution is authorized.
+
+## 2026-11-09: CpuFrameView undersized stride and final pixel storage
+- **Related:** `tests/ArtifactCore/CpuFrameViewContractTest.cpp::RejectsStrideAndStorageThatCannotAddressLastPixel`.
+- **Confirmed:** CPU frame tests verify padded row reads and reject missing storage, but do not cover a stride shorter than one packed RGBA row or storage ending before the final pixel.
+- **Added check:** Assert invalidity for a 2x2 RGBA frame with a 7-byte stride and for padded rows whose storage stops one byte before the final pixel's end.
+- **Value or concern:** Guards against row overlap and out-of-bounds scanline/pixel access at the frame validity boundary. Test not run.
+- **Next:** Run `CpuFrameViewContractTest.RejectsStrideAndStorageThatCannotAddressLastPixel` when test execution is authorized.
+
+## 2026-11-09: AssetImportSettings field-local JSON fallback
+- **Related:** `tests/ArtifactCore/AssetImportSettingsTest.cpp::InvalidFieldFallsBackWithoutDiscardingValidSettings`.
+- **Confirmed:** Settings tests cover all-malformed JSON fallback and partial valid JSON defaults, but not mixed input where one field has a wrong type and the remaining fields are valid.
+- **Added check:** Supply a string for proxy width alongside valid height, JPEG quality, boolean options, and color space; assert only width falls back while every valid field is retained.
+- **Value or concern:** Detects whole-object fallback behavior that could silently discard otherwise recoverable user settings. Test not run.
+- **Next:** Run `AssetImportSettingsTest.InvalidFieldFallsBackWithoutDiscardingValidSettings` when test execution is authorized.
+
+## 2026-11-09: ResolutionRemap degenerate bounds
+- **Related:** `tests/ArtifactCore/ResolutionRemapStandaloneTest.cpp::DegenerateBoundsRemainDegenerateAfterRemapping`.
+- **Confirmed:** Bounds remapping checks positive and signed extents against transform mapping, but zero-width, zero-height, and point bounds are not covered.
+- **Added check:** Exercise those three degenerate shapes under all five remap policies, compare against the policy transform, and assert zero extents remain zero.
+- **Value or concern:** Guards against normalization or scaling introducing artificial area for line and point geometry. Test not run.
+- **Next:** Run `ArtifactCoreResolutionRemapStandaloneTest.DegenerateBoundsRemainDegenerateAfterRemapping` when test execution is authorized.
+
+## 2026-11-09: SchemaMigration equal-length path alternate registration order
+- **Related:** `tests/ArtifactCore/SchemaMigrationContractTest.cpp::EqualLengthPathsRemainDeterministicWhenLowerVersionIsRegisteredFirst`.
+- **Confirmed:** A tie-break test verifies the lower next-version path, but its registration sequence inserts that path after the higher next-version edge; the opposite registration order is not independently tested.
+- **Added check:** Register the full equal-length graph with the lower-version path first, reversing the existing fixture order, then assert migration selects it and preserves the expected terminal marker.
+- **Value or concern:** Detects iteration-order dependent tie resolution that a single graph construction order could miss. Test not run.
+- **Next:** Run `ArtifactCoreSchemaMigrationContractTest.EqualLengthPathsRemainDeterministicWhenLowerVersionIsRegisteredFirst` when test execution is authorized.
+
+## 2026-11-09: ArtifactHashMap throwing insertion at growth threshold
+- **Related:** `tests/ArtifactCore/ArtifactHashMapContractTest.cpp::ThrowingMappedConstructionDuringGrowthKeepsMapUsable`.
+- **Confirmed:** Rehash boundary and move-only mapped values are tested separately, but an exception from mapped-value construction during the insertion that crosses the load threshold is not covered.
+- **Added check:** Fill a four-bucket map to its 75% boundary, force the fourth mapped construction to throw, verify all prior entries and size remain intact, then retry successfully and verify all values after growth.
+- **Value or concern:** Exercises exception cleanup together with bucket growth and collision-independent lookup integrity. Test not run.
+- **Next:** Run `ArtifactHashMapContractTest.ThrowingMappedConstructionDuringGrowthKeepsMapUsable` when test execution is authorized.
+
+## 2026-11-09: ArtifactArray throwing append at capacity boundary
+- **Related:** `tests/ArtifactCore/ArtifactArrayContractTest.cpp::ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry`.
+- **Confirmed:** Array tests cover aliased insertion across growth, non-trivial lifetimes, and deterministic mixed mutations, but not failed element construction while append crosses capacity.
+- **Added check:** Fill to the observed capacity, throw from copying the next value during append, verify size and every prior value remain intact, then retry and verify growth and ordering.
+- **Value or concern:** Checks array recovery after a constructor exception at a reallocation boundary. Test not run.
+- **Next:** Run `ArtifactArrayContractTest.ThrowingAppendAtCapacityBoundaryPreservesElementsAndAllowsRetry` when test execution is authorized.
+
+## 2026-11-09: CSV auto-detection with quoted CRLF and trailing empty cell
+- **Related:** `tests/ArtifactCore/CsvParserStandaloneTest.cpp::AutoDetectionHandlesQuotedCrlfAndEmptyTrailingCellInHeaderlessRows`.
+- **Confirmed:** Auto-detection, quoted separators/CRLF, headerless parsing, and trailing empty cells each have coverage, but their combined interaction across multiple records is not covered.
+- **Added check:** Parse semicolon-delimited headerless input with a separator inside a quoted cell, embedded CRLF, a blank physical record, and a trailing empty field; verify both complete rows and the three-column shape.
+- **Value or concern:** Detects delimiter-counting or record-boundary state leaking across quoted line breaks and empty terminal cells. Test not run.
+- **Next:** Run `CsvParserStandaloneTest.AutoDetectionHandlesQuotedCrlfAndEmptyTrailingCellInHeaderlessRows` when test execution is authorized.
+
+## 2026-11-09: GI temporal history backward frame seek
+- **Related:** `tests/ArtifactCore/RenderPipelineContractTest.cpp::GITemporalHistoryResetsWhenFrameMovesBackward`.
+- **Confirmed:** Temporal history tests cover sequential frames, a forward frame gap, and an explicit camera cut, but not a backward timeline seek.
+- **Added check:** Commit history across consecutive frames, then begin an earlier frame and assert history is invalidated and the generation advances once.
+- **Value or concern:** Guards against reusing future-frame accumulation after a timeline seek to an earlier frame. Test not run.
+- **Next:** Run `RenderPipelineContractTest.GITemporalHistoryResetsWhenFrameMovesBackward` when test execution is authorized.
+
+## 2026-11-09: CSV source reload replaces delimiter and schema together
+- **Related:** `tests/ArtifactCore/CsvDataSourceStandaloneTest.cpp::ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange`.
+- **Confirmed:** Reload tests cover new rows under the existing one-column schema and clear state on failure, but not a successful transition that changes both delimiter and column count.
+- **Added check:** Reload a two-column comma file as a three-column semicolon file and verify new headers, values, typed getters, removal of the old lookup, row/column metadata, and file size.
+- **Value or concern:** Detects stale header indexes or metadata surviving a successful source replacement. Test not run.
+- **Next:** Run `CsvDataSourceStandaloneTest.ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange` when test execution is authorized.
+
+## 2026-11-09: Split project corrupt child atomicity
+- **Related:** `tests/ArtifactCore/ProjectSerializerContractTest.cpp::SplitFacadePreservesCallerOutputsForCorruptOrMissingChild`.
+- **Confirmed:** Split load tests verify caller outputs remain untouched when a child document is missing, but not when a present child fails to decode.
+- **Added check:** Corrupt one child JSON after a successful split-store round-trip, assert both caller outputs remain unchanged, then repeat after removing that child.
+- **Value or concern:** Covers parse failure and missing-file failure at the same multi-document transaction boundary. Test not run.
+- **Next:** Run `ProjectSerializerContractTest.SplitFacadePreservesCallerOutputsForCorruptOrMissingChild` when test execution is authorized.
+
+## 2026-11-09: TimeCodeRange mixed-rate interval algebra
+- **Related:** `tests/ArtifactCore/TimeCodeRangeContractTest.cpp::IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates`.
+- **Confirmed:** Interval intersection/union tests use equal frame rates; cross-rate membership is tested separately, so endpoint conversion and interval algebra are not exercised together.
+- **Added check:** Intersect and union overlapping 24fps and 30fps intervals, verify durations and half-open boundaries using timecodes in both rates, and compare operand-reversed results.
+- **Value or concern:** Detects comparing raw frame indices instead of elapsed time and catches operand-order-dependent results. Test not run.
+- **Next:** Run `TimeCodeRangeContractTest.IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates` when test execution is authorized.
+
+## 2026-11-09: TimeCodeRange mixed-rate interval algebra
+- **Related:** `tests/ArtifactCore/TimeCodeRangeContractTest.cpp::IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates`.
+- **Confirmed:** Interval intersection/union tests use equal frame rates; cross-rate membership is tested separately, so endpoint conversion and interval algebra are not exercised together.
+- **Added check:** Intersect and union overlapping 24fps and 30fps intervals, verify durations and half-open boundaries using timecodes in both rates, and compare operand-reversed results.
+- **Value or concern:** Detects comparing raw frame indices instead of elapsed time and catches operand-order-dependent results. Test not run.
+- **Next:** Run `TimeCodeRangeContractTest.IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates` when test execution is authorized.
+
+## 2026-11-09: AudioReverb irregular block continuity
+- **Related:** `tests/ArtifactCore/AudioReverbStandaloneTest.cpp::IrregularBlocksPreserveReverbHistoryAcrossImpulseBoundaries`.
+- **Confirmed:** Reverb output is compared across fixed 300-frame blocks, but not across uneven blocks or impulses placed at block boundaries.
+- **Added check:** Compare a whole 1800-frame render against repeating block sizes 1/127/11/257/3/64, with impulses immediately before and after a boundary and a later tail impulse; assert every sample matches.
+- **Value or concern:** Detects delay/history advancement errors caused by irregular callback sizes or block-edge input handling. Test not run.
+- **Next:** Run `AudioReverbStandaloneTest.IrregularBlocksPreserveReverbHistoryAcrossImpulseBoundaries` when test execution is authorized.
+
+## 2026-11-09: WAV odd-sized data chunk before format chunk
+- **Related:** `tests/ArtifactCore/AudioSimpleWavStandaloneTest.cpp::LoadsOddSizedDataChunkBeforeFormatAndHonorsPadding`.
+- **Confirmed:** The WAV suite separately covers data-before-format ordering and padding after an odd-sized unknown chunk, but not an odd-sized data chunk whose padding must be skipped before finding the format chunk.
+- **Added check:** Construct a RIFF file with three unsigned 8-bit mono samples, the required alignment byte, and a following `fmt ` chunk; verify metadata and all normalized samples.
+- **Value or concern:** Detects chunk scanning that treats payload bytes as the next chunk header or forgets data-chunk word alignment. Test not run.
+- **Next:** Run `AudioSimpleWavStandaloneTest.LoadsOddSizedDataChunkBeforeFormatAndHonorsPadding` when test execution is authorized.
+
+## 2026-11-09: ImageAnalyzer intermediate spatial frequency bins
+- **Related:** `tests/ArtifactCore/ImageAnalyzerContractTest.cpp::SpatialFrequencySeparatesConjugateBinsForKnownIntermediateFrequency`.
+- **Confirmed:** Spatial-frequency coverage checks normalized DC, odd-width DC, and a two-dimensional Nyquist checkerboard, but not an intermediate sinusoidal frequency and its conjugate bin pair.
+- **Added check:** Analyze a repeated 4-column cosine sample, assert its normalized DC and two expected conjugate-bin magnitudes, and verify all other 2D bins are zero.
+- **Value or concern:** Detects frequency-axis ordering, normalization, and conjugate-bin errors that DC-only and Nyquist-only patterns can miss. Test not run.
+- **Next:** Run `ImageAnalyzerContractTest.SpatialFrequencySeparatesConjugateBinsForKnownIntermediateFrequency` when test execution is authorized.
+
+## 2026-11-09: Layer bounds combined transform AABB oracle
+- **Related:** `tests/ArtifactCore/LayerBoundsCalculatorStandaloneTest.cpp::CombinedAnchorRotationAndMirroredScaleProduceCornerDerivedAabb`.
+- **Confirmed:** Bounds tests cover anchor, rotation, nonuniform scale, mirrored scale, and AABB independently, but do not derive an AABB from corners produced by all those transform components together.
+- **Added check:** Calculate corners from translated/anchored, rotated, nonuniform mirrored geometry; derive min/max directly from those four points, compare all AABB edges, and verify every corner is contained.
+- **Value or concern:** Detects composition-order or sign errors between transform calculation and AABB aggregation. Test not run.
+- **Next:** Run `LayerBoundsCalculatorStandaloneTest.CombinedAnchorRotationAndMirroredScaleProduceCornerDerivedAabb` when test execution is authorized.
+
+## 2026-11-09: AudioDeEsser irregular detector continuity
+- **Related:** `tests/ArtifactCore/AudioDeEsserStandaloneTest.cpp::DetectorAndFilterStateMatchAcrossIrregularBlockBoundaries`.
+- **Confirmed:** DeEsser tests cover frequency behavior and per-channel state isolation, but not whether detector/filter state produces identical output when one signal is split at uneven callback boundaries.
+- **Added check:** Compare one 4097-frame render with block sizes 1/31/257/7/509/64 while high-frequency amplitude alternates across detector threshold regions over a low-frequency bed.
+- **Value or concern:** Detects block-boundary resets or state advancement errors in both detector and filter paths. Test not run.
+- **Next:** Run `AudioDeEsserStandaloneTest.DetectorAndFilterStateMatchAcrossIrregularBlockBoundaries` when test execution is authorized.
+
+## 2026-11-09: Renderer sequence frame content progression
+- **Related:** `tests/ArtifactRendererCli/test_cli.py::test_diagnostic_render_writes_png_sequence_and_completion_events`.
+- **Confirmed:** The diagnostic sequence test checks sequence filenames, dimensions, and pixels from the first frame, while the renderer draws a frame-dependent card position and labels each frame.
+- **Added check:** Decode the first and third PNGs in a three-frame sequence and require their pixel arrays to differ, proving frame-position-dependent content is rendered even when a one-pixel-wide movement would otherwise be truncated by integer division.
+- **Value or concern:** Detects an output loop that repeats one cached/stale frame despite generating correctly numbered files. Test not run.
+- **Next:** Run `ArtifactRendererCliContractTest` when test execution is authorized.
+
+## 2026-11-09: ArtifactPr stacked alpha and opacity oracle
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::StackedSourceAlphaAndLayerOpacityMatchSourceOverOracle`.
+- **Confirmed:** Sequence compositor coverage checks layer opacity, transparent pixels, and opaque top-layer order separately, but not the accumulated result of multiple partially transparent layers with independent layer opacity.
+- **Added check:** Stack three solid layers with distinct source alpha and layer opacity over an opaque non-black background; compare all output RGBA channels against independently accumulated source-over expectations.
+- **Value or concern:** Detects alpha/opacity multiplication, compositing order, and channel accumulation errors that single-layer and opaque-layer cases can miss. Test not run.
+- **Next:** Run `ArtifactPrContractTest` when test execution is authorized.
+
+## 2026-11-09: EditorEngine extended snap precedence and threshold
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::ExtendedSnappingPrioritizesTransitionsThenHonorsSecondThreshold`.
+- **Confirmed:** Existing tests cover legacy playhead/clip/marker snapping, but the extended API's transition-edge precedence, previous/next second boundaries, caller threshold edge, and disabled path were untested.
+- **Added check:** Place a transition start equidistant from a one-second boundary, then assert transition priority, both second-boundary directions, inclusive/exclusive custom threshold behavior, legacy playhead priority, and snap-disabled bypass.
+- **Value or concern:** Guards ordering and boundary behavior across the extended snap candidate set. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.ExtendedSnappingPrioritizesTransitionsThenHonorsSecondThreshold` when test execution is authorized.
+
+## 2026-11-09: EditorEngine complex project round-trip projection
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::ProjectSaveLoadRoundTripPreservesMultipleTrimmedClipsAndMarkers`.
+- **Confirmed:** The existing save/load case creates a legacy clip but verifies only the NLE JSON snapshot after reload; it does not assert that clips and marker data are reconstructed into the active legacy sequence.
+- **Added check:** Create two NLE-backed clips with distinct source trims and playback speeds (including reverse playback), add a Unicode-named marker, save/reload, and assert both the exact NLE snapshot and the reconstructed active sequence fields.
+- **Value or concern:** Detects persistence gaps between the serialized NLE store and the legacy sequence projection used by UI consumers. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.ProjectSaveLoadRoundTripPreservesMultipleTrimmedClipsAndMarkers` when test execution is authorized.
+
+## 2026-11-09: EditorEngine failed-load state preservation
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RejectedProjectFilesLeaveTheOpenProjectAndPlayheadUntouched`.
+- **Confirmed:** Project persistence coverage exercises successful save/load, but not whether parse errors and a non-object JSON root leave the currently open project intact.
+- **Added check:** Save a nontrivial open project, then try malformed JSON and an array root; after each rejection compare the NLE snapshot, project/sequence identity, playhead, marker, and active save path with their pre-attempt state.
+- **Value or concern:** Detects partial mutation or path retargeting on invalid-file failure paths. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.RejectedProjectFilesLeaveTheOpenProjectAndPlayheadUntouched` when test execution is authorized.
+
+## 2026-11-09: EditorEngine mixed NLE undo/redo branch
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleEditsUndoRedoAcrossSnapshotsAndDiscardTheAbandonedRedoBranch`.
+- **Confirmed:** EditorEngine tests cover NLE snapshot restoration directly but do not exercise the undo stack across clip insertion, marker addition, and clip property changes.
+- **Added check:** Capture exact snapshots across three edits, undo and redo through the full sequence, then create a new marker after undo and verify redo cannot reapply the abandoned branch.
+- **Value or concern:** Detects cross-command history ordering, projection restoration, and stale redo-branch retention. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.NleEditsUndoRedoAcrossSnapshotsAndDiscardTheAbandonedRedoBranch` when test execution is authorized.
+
+## 2026-11-09: EditorEngine render-plan snapshot isolation
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::RenderPlanSnapshotStaysFrozenWhileTheLiveProjectContinuesEditing`.
+- **Confirmed:** `createRenderPlan` copies the NLE snapshot for export, but tests do not verify that a plan remains unchanged after later edits to the live editor state.
+- **Added check:** Create a plan, change clip reverse state and add a marker, then compare the unchanged plan snapshot with the updated live snapshot and a newly created plan; also verify the captured frame range stays fixed.
+- **Value or concern:** Detects render/export jobs accidentally observing mutable editor state after dispatch. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.RenderPlanSnapshotStaysFrozenWhileTheLiveProjectContinuesEditing` when test execution is authorized.
+
+## 2026-11-09: EditorEngine NLE split source-range partition
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::NleSplitPartitionsNonzeroSourceRangeAndUndoRestoresTheWholeClip`.
+- **Confirmed:** EditorEngine tests have no NLE-backed split coverage for nonzero source offsets or for treating left-trim plus right-clip creation as one undoable edit.
+- **Added check:** Split a selected 40-frame clip with source range [17,57) at its 17-frame timeline boundary; assert contiguous left/right source and timeline ranges, then compare full snapshots after undo and redo.
+- **Value or concern:** Detects off-by-offset errors, gaps/overlaps at the split, or partial undo of the two-step operation. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.NleSplitPartitionsNonzeroSourceRangeAndUndoRestoresTheWholeClip` when test execution is authorized.
+
+## 2026-11-09: EditorEngine transition overlap atomicity
+- **Related:** `tests/ArtifactPr/ArtifactPrEditorEngineTest.cpp::TransitionOverlapGuardIsAtomicAndTheAcceptedEditIsUndoable`.
+- **Confirmed:** Transition creation has a same-pair interval-overlap guard, but no EditorEngine test verifies duplicate/partial-overlap rejection or its interaction with undo history.
+- **Added check:** Add a crossfade over a cut between two adjacent NLE clips, reject exact and partial duplicates without snapshot changes, then undo/redo the accepted transition.
+- **Value or concern:** Detects duplicate transitions entering project state or rejected edits polluting the undo stack. Test not run.
+- **Next:** Run `ArtifactPrEditorEngineTest.TransitionOverlapGuardIsAtomicAndTheAcceptedEditIsUndoable` when test execution is authorized.
+
+## 2026-11-09: ClipEqualizer decoder-segment continuity
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries`.
+- **Confirmed:** ClipEqualizer response tests process whole signals in one call, while SequenceAudioRenderer depends on filter delay state persisting between decoder segments.
+- **Added check:** Process a three-band composite signal continuously and in a repeating uneven block pattern using separately configured equalizers; compare every output sample exactly.
+- **Value or concern:** Detects filter-state resets or off-by-one state advancement at decoder boundaries. Test not run.
+- **Next:** Run `ArtifactPrContractTest.EqualizerStateMatchesAcrossIrregularDecoderSegmentBoundaries` when test execution is authorized.
+
+## 2026-11-09: Sequence compositor fractional fit and odd padding
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide`.
+- **Confirmed:** Aspect-fit coverage checks an exactly scaled frame with even padding, but not fractional destination rounding or odd leftover padding.
+- **Added check:** Fit a solid 3x1 frame into 7x7; assert the 1px scaled height rounds to 2px and the five padding rows divide as two before and three after.
+- **Value or concern:** Detects fit rounding and center-offset regressions that even-dimension geometry cannot expose. Test not run.
+- **Next:** Run `ArtifactPrContractTest.AspectFitRoundsFractionalExtentAndKeepsOddPaddingOnTheFarSide` when test execution is authorized.
+
+## 2026-11-09: ClipEffects transparent hidden-RGB blur edge
+- **Related:** `tests/ArtifactPr/ArtifactPrContractTest.cpp::GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels`.
+- **Confirmed:** `applyClipEffects` premultiplies before blur and unpremultiplies afterward, but the ArtifactPr contract tests do not directly verify hidden RGB isolation at a transparency edge.
+- **Added check:** Blur an opaque red pixel adjacent to fully transparent pixels carrying green RGB; assert the partially visible edge stays red and the transparent tail remains zero-alpha/zero-RGB.
+- **Value or concern:** Detects colored halos caused by filtering straight RGB without respecting alpha association. Test not run.
+- **Next:** Run `ArtifactPrContractTest.GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels` when test execution is authorized.

@@ -1212,6 +1212,52 @@ TEST(IPCChannelContractTest,
 }
 
 TEST(IPCChannelContractTest,
+     LocalSocketRetainsPartialPayloadAndFollowingFrameAcrossReceiveTimeout)
+{
+    const QString serverName = uniqueBufferName();
+    QLocalServer server;
+    ASSERT_TRUE(server.listen(serverName)) << server.errorString().toStdString();
+
+    IPCChannelConfig config;
+    config.transport = IPCTransport::LocalSocket;
+    config.name = serverName;
+    config.bufferSize = 128;
+    config.timeoutMs = 1000;
+    auto channel = IPCChannel::create(config);
+    ASSERT_NE(channel, nullptr);
+    ASSERT_TRUE(channel->isConnected());
+    ASSERT_TRUE(server.waitForNewConnection(1000));
+    QLocalSocket* peer = server.nextPendingConnection();
+    ASSERT_NE(peer, nullptr);
+
+    const auto frameMessage = [](const QByteArray& message) {
+        QByteArray frame;
+        QDataStream stream(&frame, QIODevice::WriteOnly);
+        stream << static_cast<quint32>(message.size());
+        frame.append(message);
+        return frame;
+    };
+    const QByteArray firstPayload("payload split after complete header");
+    const QByteArray secondPayload("next intact frame");
+    const QByteArray firstFrame = frameMessage(firstPayload);
+    const QByteArray secondFrame = frameMessage(secondPayload);
+    constexpr qsizetype partialPayloadBytes = 7;
+
+    const QByteArray initialFragment = firstFrame.left(4 + partialPayloadBytes);
+    ASSERT_EQ(peer->write(initialFragment), initialFragment.size());
+    ASSERT_TRUE(peer->waitForBytesWritten(1000));
+    EXPECT_TRUE(channel->receiveBlocking(100).isEmpty())
+        << "a complete length prefix with a partial payload is not a message";
+
+    const QByteArray remainder = firstFrame.mid(initialFragment.size()) + secondFrame;
+    ASSERT_EQ(peer->write(remainder), remainder.size());
+    ASSERT_TRUE(peer->waitForBytesWritten(1000));
+    EXPECT_EQ(channel->receiveBlocking(1000), firstPayload);
+    EXPECT_EQ(channel->receiveBlocking(0), secondPayload);
+    EXPECT_EQ(channel->pendingBytes(), 0u);
+}
+
+TEST(IPCChannelContractTest,
      EmptyLocalSocketFrameDoesNotConsumeFollowingMessageBoundary)
 {
     const QString serverName = uniqueBufferName();

@@ -93,3 +93,23 @@ TEST(AssetImportSettingsTest, MismatchedJsonTypesFallBackToDefaults)
     EXPECT_TRUE(restored.normalizeColorSpace);
     EXPECT_EQ(restored.workingColorSpace, QStringLiteral("Linear"));
 }
+
+TEST(AssetImportSettingsTest, InvalidFieldFallsBackWithoutDiscardingValidSettings)
+{
+    const QJsonObject mixed{
+        {QStringLiteral("proxyWidth"), QStringLiteral("wide")},
+        {QStringLiteral("proxyHeight"), 720},
+        {QStringLiteral("jpegQuality"), 93},
+        {QStringLiteral("generateProxyOnImport"), true},
+        {QStringLiteral("normalizeColorSpace"), false},
+        {QStringLiteral("workingColorSpace"), QStringLiteral("ACEScg")},
+    };
+
+    const AssetImportSettings restored = AssetImportSettings::fromJson(mixed);
+
+    EXPECT_EQ(restored.proxyResolution, QSize(1920, 720));
+    EXPECT_EQ(restored.jpegQuality, 93);
+    EXPECT_TRUE(restored.generateProxyOnImport);
+    EXPECT_FALSE(restored.normalizeColorSpace);
+    EXPECT_EQ(restored.workingColorSpace, QStringLiteral("ACEScg"));
+}

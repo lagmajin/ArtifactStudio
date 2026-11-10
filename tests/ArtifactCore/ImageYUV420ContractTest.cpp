@@ -95,6 +95,53 @@ TEST(ImageYUV420ContractTest, FromPlanesKeepsFullResolutionLumaAndCeilingSubsamp
     EXPECT_EQ(actualV.at<std::uint8_t>(1, 1), 191);
 }
 
+TEST(ImageYUV420ContractTest, FromPlanesRespectsNonContiguousInputRowStrides)
+{
+    cv::Mat yStorage(3, 5, CV_32FC1, cv::Scalar(-1.0f));
+    cv::Mat uStorage(2, 4, CV_32FC1, cv::Scalar(-1.0f));
+    cv::Mat vStorage(2, 4, CV_32FC1, cv::Scalar(-1.0f));
+    cv::Mat y = yStorage(cv::Rect(1, 0, 3, 3));
+    cv::Mat u = uStorage(cv::Rect(1, 0, 2, 2));
+    cv::Mat v = vStorage(cv::Rect(1, 0, 2, 2));
+
+    ASSERT_FALSE(y.isContinuous());
+    ASSERT_FALSE(u.isContinuous());
+    ASSERT_FALSE(v.isContinuous());
+    for (int row = 0; row < y.rows; ++row) {
+        for (int column = 0; column < y.cols; ++column) {
+            y.at<float>(row, column) =
+                static_cast<float>(row * y.cols + column + 1) / 10.0f;
+        }
+    }
+    u.at<float>(0, 0) = 0.1f;
+    u.at<float>(0, 1) = 0.2f;
+    u.at<float>(1, 0) = 0.3f;
+    u.at<float>(1, 1) = 0.4f;
+    v.at<float>(0, 0) = 0.6f;
+    v.at<float>(0, 1) = 0.7f;
+    v.at<float>(1, 0) = 0.8f;
+    v.at<float>(1, 1) = 0.9f;
+
+    const ImageYUV420 converted = ImageYUV420::fromPlanes(y, u, v);
+    const cv::Mat actualY = converted.yPlane();
+    const cv::Mat actualU = converted.uPlane();
+    const cv::Mat actualV = converted.vPlane();
+
+    ASSERT_EQ(actualY.rows, 3);
+    ASSERT_EQ(actualY.cols, 3);
+    ASSERT_EQ(actualU.rows, 2);
+    ASSERT_EQ(actualU.cols, 2);
+    ASSERT_EQ(actualV.rows, 2);
+    ASSERT_EQ(actualV.cols, 2);
+    EXPECT_EQ(actualY.at<std::uint8_t>(0, 2), 76);
+    EXPECT_EQ(actualY.at<std::uint8_t>(2, 0), 178);
+    EXPECT_EQ(actualY.at<std::uint8_t>(2, 2), 229);
+    EXPECT_EQ(actualU.at<std::uint8_t>(1, 0), 76);
+    EXPECT_EQ(actualU.at<std::uint8_t>(1, 1), 102);
+    EXPECT_EQ(actualV.at<std::uint8_t>(1, 0), 204);
+    EXPECT_EQ(actualV.at<std::uint8_t>(1, 1), 229);
+}
+
 TEST(ImageYUV420ContractTest, FloatImageIngressRespectsRgbaAndBgraDescriptors)
 {
     ImageF32x4_RGBA rgba;

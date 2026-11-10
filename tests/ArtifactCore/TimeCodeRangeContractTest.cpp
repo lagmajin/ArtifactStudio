@@ -117,6 +117,77 @@ TEST(TimeCodeRangeContractTest, IntersectionAndUnionHandleOverlapAdjacencyAndDis
     EXPECT_EQ(unionRange.fps(), 30.0);
 }
 
+TEST(TimeCodeRangeContractTest,
+     IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates)
+{
+    TimeCodeRange at24Fps;
+    at24Fps.setByFrameRange(24, 60, 24.0); // [1.0s, 2.5s)
+    TimeCodeRange at30Fps;
+    at30Fps.setByFrameRange(45, 90, 30.0); // [1.5s, 3.0s)
+
+    const auto intersection = at24Fps.intersection(at30Fps);
+    ASSERT_TRUE(intersection.isValid());
+    EXPECT_DOUBLE_EQ(intersection.durationSeconds(), 1.0);
+    EXPECT_TRUE(intersection.contains(TimeCode(45, 30.0)));
+    EXPECT_TRUE(intersection.contains(TimeCode(74, 30.0)));
+    EXPECT_FALSE(intersection.contains(TimeCode(75, 30.0)));
+
+    const auto reverseIntersection = at30Fps.intersection(at24Fps);
+    ASSERT_TRUE(reverseIntersection.isValid());
+    EXPECT_DOUBLE_EQ(reverseIntersection.durationSeconds(),
+                     intersection.durationSeconds());
+    EXPECT_TRUE(reverseIntersection.contains(TimeCode(45, 30.0)));
+    EXPECT_FALSE(reverseIntersection.contains(TimeCode(75, 30.0)));
+
+    const auto united = at24Fps.united(at30Fps);
+    ASSERT_TRUE(united.isValid());
+    EXPECT_DOUBLE_EQ(united.durationSeconds(), 2.0);
+    EXPECT_TRUE(united.contains(TimeCode(24, 24.0)));
+    EXPECT_TRUE(united.contains(TimeCode(89, 30.0)));
+    EXPECT_FALSE(united.contains(TimeCode(90, 30.0)));
+
+    const auto reverseUnion = at30Fps.united(at24Fps);
+    ASSERT_TRUE(reverseUnion.isValid());
+    EXPECT_DOUBLE_EQ(reverseUnion.durationSeconds(), united.durationSeconds());
+    EXPECT_TRUE(reverseUnion.contains(TimeCode(24, 24.0)));
+    EXPECT_FALSE(reverseUnion.contains(TimeCode(90, 30.0)));
+}
+
+TEST(TimeCodeRangeContractTest,
+     IntersectionAndUnionCompareIntervalsAcrossDifferentFrameRates)
+{
+    TimeCodeRange at24Fps;
+    at24Fps.setByFrameRange(24, 60, 24.0); // [1.0s, 2.5s)
+    TimeCodeRange at30Fps;
+    at30Fps.setByFrameRange(45, 90, 30.0); // [1.5s, 3.0s)
+
+    const auto intersection = at24Fps.intersection(at30Fps);
+    ASSERT_TRUE(intersection.isValid());
+    EXPECT_DOUBLE_EQ(intersection.durationSeconds(), 1.0);
+    EXPECT_TRUE(intersection.contains(TimeCode(45, 30.0)));
+    EXPECT_TRUE(intersection.contains(TimeCode(74, 30.0)));
+    EXPECT_FALSE(intersection.contains(TimeCode(75, 30.0)));
+
+    const auto reverseIntersection = at30Fps.intersection(at24Fps);
+    ASSERT_TRUE(reverseIntersection.isValid());
+    EXPECT_DOUBLE_EQ(reverseIntersection.durationSeconds(),
+                     intersection.durationSeconds());
+    EXPECT_TRUE(reverseIntersection.contains(TimeCode(45, 30.0)));
+    EXPECT_FALSE(reverseIntersection.contains(TimeCode(75, 30.0)));
+
+    const auto united = at24Fps.united(at30Fps);
+    ASSERT_TRUE(united.isValid());
+    EXPECT_DOUBLE_EQ(united.durationSeconds(), 2.0);
+    EXPECT_TRUE(united.contains(TimeCode(24, 24.0)));
+    EXPECT_TRUE(united.contains(TimeCode(89, 30.0)));
+    EXPECT_FALSE(united.contains(TimeCode(90, 30.0)));
+
+    const auto reverseUnion = at30Fps.united(at24Fps);
+    ASSERT_TRUE(reverseUnion.isValid());
+    EXPECT_DOUBLE_EQ(reverseUnion.durationSeconds(), united.durationSeconds());
+    EXPECT_TRUE(reverseUnion.contains(TimeCode(24, 24.0)));
+    EXPECT_FALSE(reverseUnion.contains(TimeCode(90, 30.0)));
+}
 TEST(TimeCodeRangeContractTest, EmptyAndInvalidRangesDoNotOverlapValidRanges)
 {
     TimeCodeRange valid;

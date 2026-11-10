@@ -118,3 +118,27 @@ TEST(ColorCurvesContractTest, MasterOnlyAndPerChannelModesPreserveAlpha)
     const QImage perChannel = curves.apply(input);
     EXPECT_EQ(perChannel.pixelColor(0, 0), QColor(10, 175, 55, 77));
 }
+
+TEST(ColorCurvesContractTest, MultiPixelApplyPreservesAlphaAndPixelOrder)
+{
+    ColorCurves curves;
+    curves.red().setPoints({
+        CurvePoint{.input = 0.0f, .output = 1.0f},
+        CurvePoint{.input = 1.0f, .output = 0.0f},
+    });
+    curves.setMasterOnly(false);
+
+    QImage input(2, 2, QImage::Format_RGBA8888);
+    input.setPixelColor(0, 0, QColor(10, 20, 30, 0));
+    input.setPixelColor(1, 0, QColor(40, 50, 60, 85));
+    input.setPixelColor(0, 1, QColor(70, 80, 90, 170));
+    input.setPixelColor(1, 1, QColor(100, 110, 120, 255));
+
+    const QImage output = curves.apply(input);
+
+    EXPECT_EQ(output.size(), input.size());
+    EXPECT_EQ(output.pixelColor(0, 0), QColor(245, 20, 30, 0));
+    EXPECT_EQ(output.pixelColor(1, 0), QColor(215, 50, 60, 85));
+    EXPECT_EQ(output.pixelColor(0, 1), QColor(185, 80, 90, 170));
+    EXPECT_EQ(output.pixelColor(1, 1), QColor(155, 110, 120, 255));
+}

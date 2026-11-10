@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <array>
+#include <atomic>
+#include <chrono>
 #include <memory>
+#include <thread>
 
 import Memory.SharedPtr;
 
@@ -270,4 +274,59 @@ TEST(SharedPtrContractTest, SwapExchangesOwnedObjects)
     first.swap(second);
     EXPECT_EQ(*first, 2);
     EXPECT_EQ(*second, 1);
+}
+
+TEST(SharedPtrContractTest,
+     ConcurrentWeakLocksRemainValidUntilLastOwnerAndThenExpire)
+{
+    constexpr int workerCount = 4;
+    std::atomic<int> deleteCount{0};
+    std::atomic<int> successfulLocks{0};
+    std::atomic<int> invalidValues{0};
+    std::atomic<int> readyWorkers{0};
+    std::atomic<bool> start{false};
+    std::atomic<bool> stop{false};
+
+    SharedPtr<int> owner = makeShared(new int(113), [&deleteCount](int* value) {
+        deleteCount.fetch_add(1, std::memory_order_relaxed);
+        delete value;
+    });
+    WeakPtr<int> weak = owner;
+    std::array<std::thread, workerCount> workers;
+    for (auto& worker : workers) {
+        worker = std::thread([&] {
+            readyWorkers.fetch_add(1, std::memory_order_release);
+            while (!start.load(std::memory_order_acquire))
+                std::this_thread::yield();
+            while (!stop.load(std::memory_order_acquire)) {
+                auto locked = weak.lock();
+                if (!locked) continue;
+                if (*locked != 113)
+                    invalidValues.fetch_add(1, std::memory_order_relaxed);
+                successfulLocks.fetch_add(1, std::memory_order_relaxed);
+            }
+        });
+    }
+
+    while (readyWorkers.load(std::memory_order_acquire) != workerCount)
+        std::this_thread::yield();
+    start.store(true, std::memory_order_release);
+    const auto lockDeadline = std::chrono::steady_clock::now() +
+                              std::chrono::seconds(5);
+    while (successfulLocks.load(std::memory_order_relaxed) == 0 &&
+           std::chrono::steady_clock::now() < lockDeadline) {
+        std::this_thread::yield();
+    }
+    const bool observedSuccessfulLock =
+        successfulLocks.load(std::memory_order_relaxed) > 0;
+
+    owner.reset();
+    stop.store(true, std::memory_order_release);
+    for (auto& worker : workers) worker.join();
+
+    EXPECT_EQ(invalidValues.load(std::memory_order_relaxed), 0);
+    EXPECT_TRUE(observedSuccessfulLock);
+    EXPECT_EQ(deleteCount.load(std::memory_order_relaxed), 1);
+    EXPECT_TRUE(weak.expired());
+    EXPECT_FALSE(weak.lock());
 }

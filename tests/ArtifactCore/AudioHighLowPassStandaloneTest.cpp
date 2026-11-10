@@ -164,6 +164,45 @@ TEST(AudioHighLowPassStandaloneTest, EnabledHighPassAndLowPassComposeInSequence)
     }
 }
 
+TEST(AudioHighLowPassStandaloneTest, CascadedFiltersMatchAcrossIrregularBlockBoundaries)
+{
+    constexpr int sampleRate = 8000;
+    QVector<float> input;
+    input.reserve(97);
+    for (int frame = 0; frame < 97; ++frame) {
+        const float impulse = frame == 0 ? 1.0f : 0.0f;
+        const float tone = 0.35f * std::sin(
+            2.0f * 3.14159265f * 430.0f * frame / sampleRate);
+        input.push_back(impulse + tone + (frame % 13 == 0 ? -0.2f : 0.0f));
+    }
+
+    AudioHighLowPass continuous;
+    continuous.setHighPassFreq(180.0f);
+    continuous.setLowPassFreq(1400.0f);
+    auto continuousSegment = makeMono(sampleRate, input);
+    continuous.process(continuousSegment);
+
+    AudioHighLowPass segmented;
+    segmented.setHighPassFreq(180.0f);
+    segmented.setLowPassFreq(1400.0f);
+    QVector<float> segmentedOutput;
+    segmentedOutput.reserve(input.size());
+    constexpr int boundaries[] = {0, 1, 8, 9, 31, 64, 65, 97};
+    for (int block = 1; block < 8; ++block) {
+        const int start = boundaries[block - 1];
+        const int length = boundaries[block] - start;
+        auto segment = makeMono(sampleRate, input.mid(start, length));
+        segmented.process(segment);
+        segmentedOutput += segment.channelData[0];
+    }
+
+    ASSERT_EQ(segmentedOutput.size(), continuousSegment.channelData[0].size());
+    for (qsizetype frame = 0; frame < segmentedOutput.size(); ++frame) {
+        EXPECT_NEAR(segmentedOutput[frame], continuousSegment.channelData[0][frame], 1e-6f)
+            << "frame=" << frame;
+    }
+}
+
 TEST(AudioHighLowPassStandaloneTest, BypassPreservesInputSamples)
 {
     AudioHighLowPass filter;

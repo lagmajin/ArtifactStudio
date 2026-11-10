@@ -183,6 +183,12 @@ TEST(DataTableStandaloneTest, FloatGetterUsesFallbackForOutOfRangeNumericText)
     EXPECT_DOUBLE_EQ(table.getFloat(0, 0, 2.75), 2.75);
 }
 
+TEST(DataTableStandaloneTest, FloatGetterAcceptsLargestFiniteNumericText)
+{
+    const DataTable table(parse("value\n1.7976931348623157e308"));
+    EXPECT_DOUBLE_EQ(table.getFloat(0, 0), std::numeric_limits<double>::max());
+}
+
 TEST(DataTableStandaloneTest, NumericGettersRejectNumericPrefixesFollowedByText)
 {
     const DataTable table(parse("integer,float\n42widgets,1.5gain"));

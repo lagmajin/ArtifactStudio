@@ -209,6 +209,49 @@ TEST(SessionLedgerStandaloneTest, SaveAndLoadRoundTripPreservesAllPersistedField
     EXPECT_TRUE(restored.recoveryPoints()[0].isAutosave);
 }
 
+TEST(SessionLedgerStandaloneTest,
+     RecoverableEntriesRetainTheirFilteringAndOrderAfterFileRoundTrip)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("recoverable.json"));
+
+    SessionLedger source;
+    source.recordProjectOpened(QStringLiteral("project"), QStringLiteral("Project"));
+    source.recordCrash(QStringLiteral("unexpected exit"));
+    source.recordRenderFailed(12, QStringLiteral("device lost"));
+    SessionLedgerEntry recoveryEntry;
+    recoveryEntry.kind = SessionEntryKind::RecoveryPoint;
+    recoveryEntry.projectId = QStringLiteral("project");
+    recoveryEntry.detail = QStringLiteral("checkpoint saved");
+    recoveryEntry.isRecoverable = true;
+    source.addEntry(recoveryEntry);
+
+    RecoveryPoint point;
+    point.id = QStringLiteral("checkpoint-12");
+    point.projectId = QStringLiteral("project");
+    point.snapshotPath = QStringLiteral("checkpoint.snapshot");
+    point.timestampMs = 123456;
+    source.addRecoveryPoint(point);
+
+    ASSERT_TRUE(source.saveToFile(path));
+    SessionLedger restored;
+    ASSERT_TRUE(restored.loadFromFile(path));
+
+    const auto recoverable = restored.recoverableEntries();
+    ASSERT_EQ(recoverable.size(), 2u);
+    EXPECT_EQ(recoverable[0].kind, SessionEntryKind::RenderFailed);
+    EXPECT_EQ(recoverable[0].jobIndex, 12);
+    EXPECT_EQ(recoverable[1].kind, SessionEntryKind::RecoveryPoint);
+    EXPECT_EQ(recoverable[1].projectId, QStringLiteral("project"));
+    EXPECT_EQ(recoverable[1].detail, QStringLiteral("checkpoint saved"));
+    ASSERT_EQ(restored.recoveryPoints().size(), 1u);
+    EXPECT_EQ(restored.recoveryPoints()[0].id, QStringLiteral("checkpoint-12"));
+    EXPECT_EQ(restored.recoveryPoints()[0].snapshotPath,
+              QStringLiteral("checkpoint.snapshot"));
+    EXPECT_EQ(restored.recoveryPoints()[0].timestampMs, 123456);
+}
+
 TEST(SessionLedgerStandaloneTest, EmptyOrUnwritableSavePathReturnsFalse)
 {
     QTemporaryDir directory;

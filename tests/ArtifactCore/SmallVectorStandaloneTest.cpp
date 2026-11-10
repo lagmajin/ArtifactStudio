@@ -377,3 +377,30 @@ TEST(SmallVectorStandaloneTest, MoveOnlyElementsSurviveGrowthInsertAndTakeAt)
   EXPECT_EQ(*values[1], 3);
 }
 
+TEST(SmallVectorStandaloneTest, MoveOnlyElementsSurviveMixedGrowthInsertRemovalAndTakeAt)
+{
+  SmallVector<std::unique_ptr<int>, 2> values(ContainerName{"move-only-mixed"});
+  values.add(std::make_unique<int>(1));
+  values.add(std::make_unique<int>(2));
+  values.insert(1, std::make_unique<int>(3));
+
+  EXPECT_EQ(values.removeIf([](const std::unique_ptr<int>& value) {
+              return *value % 2 != 0;
+            }), 2u);
+  ASSERT_EQ(values.size(), 1u);
+  ASSERT_TRUE(values[0]);
+  EXPECT_EQ(*values[0], 2);
+
+  values.add(std::make_unique<int>(4));
+  values.insert(0, std::make_unique<int>(5));
+  auto taken = values.takeAt(1);
+
+  ASSERT_TRUE(taken);
+  EXPECT_EQ(*taken, 2);
+  ASSERT_EQ(values.size(), 2u);
+  ASSERT_TRUE(values[0]);
+  ASSERT_TRUE(values[1]);
+  EXPECT_EQ(*values[0], 5);
+  EXPECT_EQ(*values[1], 4);
+}
+

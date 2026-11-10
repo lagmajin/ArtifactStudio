@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <limits>
+#include <random>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -609,4 +610,53 @@ TEST(ArtifactStringContractTest, PrefixAndSuffixViewsCompareExplicitBytesAcrossN
     EXPECT_TRUE(value.endsWith(suffix));
     EXPECT_FALSE(value.startsWith(StringView(bytes + 1, 2)));
     EXPECT_FALSE(value.endsWith(std::string_view(bytes, 2)));
+}
+
+TEST(ArtifactStringContractTest, DeterministicMixedMutationsMatchByteStringModel)
+{
+    String actual;
+    std::string expected;
+    std::mt19937 generator(0x57A1BEEFu);
+    std::uniform_int_distribution<int> operationDistribution(0, 3);
+    std::uniform_int_distribution<int> payloadLengthDistribution(0, 24);
+    std::uniform_int_distribution<int> byteDistribution(0, 5);
+
+    for (int step = 0; step < 2400; ++step) {
+        const int operation = operationDistribution(generator);
+        if (operation == 0 || operation == 1) {
+            std::string payload;
+            const int payloadLength = payloadLengthDistribution(generator);
+            payload.reserve(static_cast<std::size_t>(payloadLength));
+            for (int index = 0; index < payloadLength; ++index) {
+                const int byte = byteDistribution(generator);
+                payload.push_back(byte == 0 ? '\0' : static_cast<char>('a' + byte - 1));
+            }
+
+            if (operation == 0) {
+                actual.append(payload.data(), payload.size());
+                expected.append(payload);
+            } else {
+                std::uniform_int_distribution<std::size_t> positionDistribution(
+                    0, expected.size() + 2);
+                std::uniform_int_distribution<std::size_t> countDistribution(0, 32);
+                const std::size_t position = positionDistribution(generator);
+                const std::size_t count = countDistribution(generator);
+                actual.replace(position, count, std::string_view(payload.data(), payload.size()));
+                if (position <= expected.size()) {
+                    expected.replace(position, count, payload);
+                }
+            }
+        } else if (operation == 2) {
+            actual.clear();
+            expected.clear();
+        } else {
+            String copy(actual);
+            actual = copy;
+        }
+
+        EXPECT_EQ(actual.length(), expected.size()) << "step=" << step;
+        EXPECT_EQ(toStdString(actual), expected) << "step=" << step;
+        ASSERT_NE(actual.data(), nullptr);
+        EXPECT_EQ(actual.data()[actual.length()], '\0') << "step=" << step;
+    }
 }
