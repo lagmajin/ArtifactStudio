@@ -2,7 +2,7 @@
 
 **最終更新:** 2026-11-10
 
-独立したPython/OpenCV R&D環境。画像を光が満たしていくフラッシュ、Glow、ライトリークなどを試作し、生成fixture・CC0実写・数値計測で見た目と時間応答を比較する。調査結果と限界は [RESEARCH_NOTES.md](RESEARCH_NOTES.md) に記録する。Still Light LeakはArtifactCore APIとArtifact effectへ接続済みで、Streak source位置と角度を調整できる。MSVC `ArtifactCore` / `ArtifactEffectsGlow` ターゲット、resident HLSLのDXIL/Vulkan SPIR-V compile、MSVC 14.52によるフル `ArtifactUiTest` buildが成功した。日本語UI起動captureは取得済み。専用Light Leakシーンfixtureがないためアプリ内の効果画素、実GPU dispatch、CPU/GPU pixel parityは未検証。英語UI captureは空の灰色画像となり、起動captureとして不成立。
+独立したPython/OpenCV R&D環境。Glow、静止画Light Leak、画像を光が満たしていくFlashを、生成fixture・CC0実写・数値計測で比較する。調査結果と限界は [RESEARCH_NOTES.md](RESEARCH_NOTES.md) に記録する。Still Light LeakはArtifactCore APIとArtifact effectへ接続済みで、Streak source位置と角度を調整できる。MSVC `ArtifactCore` / `ArtifactEffectsGlow`、resident HLSLのDXIL/Vulkan SPIR-V compile、MSVC 14.52によるフル `ArtifactUiTest` buildが成功した。GPU fixtureはcold-start後に `gpuBlendReady=1`、dispatch成功を記録し、Accum RTから出力を切り出してCPU参照と比較できる。初回比較でビューポートUVと画像ソースUVの不一致を見つけ、2D画像レイヤーにソース座標変換を追加した。合成plate比較ではGPU/CPUのencoded RGB MAEがEdge Wash .009416、Streak .011437、Organic .006495。さらにCC0雪景色フレーム（360×640）をアプリfixture入力にできるようにし、3 lookのCPU/GPU画像も取得した。直接出力比較MAEは約.017–.020だが、効果前のLayer RT差を差し引く近似比較は約.0067–.0076。雪景色と低照度ポートレートで独立strength sweep（.20/.35/.55）を撮り、広い色かぶりを抑えた比較候補として.20–.35を記録した。測定と比較画像は `captures/light-leak-realplate-cpu-gpu.png`、`captures/light-leak-winter-strength-rd1.png`、`captures/light-leak-portrait-strength-rd1.png`、`captures/light-leak-cpu-gpu-parity-v2.png`。GPU画像は診断Accum RTから切り出した中間結果で、最終表示・readback経路と3D透視レイヤーは未検証。
 
 ## 実行
 
@@ -54,6 +54,13 @@ python experiments/GlowLab/light_leak_lab.py --input experiments/GlowLab/capture
 python experiments/GlowLab/light_leak_lab.py --input tests/ArtifactCore/fixtures/walkway-orbit-cc0.mp4 --frame-index 20 --strength 0.55 --streak-position 0.50 0.24 --streak-angle 12 --streak-angle-sweep -12 0 2.578 12 --output experiments/GlowLab/captures/light-leak-angle-snow-rd
 python experiments/GlowLab/light_leak_lab.py --input experiments/GlowLab/captures/light-leak-neon-source.png --strength 0.55 --streak-position 0.50 0.25 --streak-angle-sweep -12 0 2.578 12 --output experiments/GlowLab/captures/light-leak-angle-neon-rd
 python tools/capture_ui_test.py --exe out/build/x64-Debug-Agent/bin/Debug/ArtifactUiTest.exe --output experiments/GlowLab/captures/light-leak-app-ja-rd.png --language ja
+$env:ARTIFACT_COMPOSITION_GPU_BLEND_NORMAL='1'
+$env:ARTIFACT_ENABLE_CONTINUOUS_RENDER_DIAGNOSTICS='1'
+python tools/capture_ui_test.py --exe out/build/x64-Debug-Agent/bin/Debug/ArtifactUiTest.exe --output experiments/GlowLab/captures/light-leak-gpu-edge-wash.png --language ja --light-leak --light-leak-look edge-wash --light-leak-compute gpu
+python tools/capture_ui_test.py --exe out/build/x64-Debug-Agent/bin/Debug/ArtifactUiTest.exe --output experiments/GlowLab/captures/light-leak-gpu-streak.png --language ja --light-leak --light-leak-look streak --light-leak-compute gpu
+python tools/capture_ui_test.py --exe out/build/x64-Debug-Agent/bin/Debug/ArtifactUiTest.exe --output experiments/GlowLab/captures/light-leak-gpu-organic.png --language ja --light-leak --light-leak-look organic --light-leak-compute gpu
+python tools/capture_ui_test.py --exe out/build/x64-Debug-Agent/bin/Debug/ArtifactUiTest.exe --output experiments/GlowLab/captures/light-leak-realplate-gpu.png --language ja --light-leak --light-leak-compute gpu --light-leak-input experiments/GlowLab/captures/light-leak-cc0-frame20-soft/light-leak-fixture.png
+python tools/capture_ui_test.py --exe out/build/x64-Debug-Agent/bin/Debug/ArtifactUiTest.exe --output experiments/GlowLab/captures/light-leak-portrait-streak-app-gpu.png --language ja --light-leak --light-leak-look streak --light-leak-compute gpu --light-leak-input experiments/GlowLab/assets/flash-photo-plate.png --light-leak-strength 0.30 --light-leak-source 0.74 0.19 --light-leak-angle -8
 python experiments/GlowLab/light_leak_alpha_lab.py --output experiments/GlowLab/captures/light-leak-still-effect-alpha-reference
 python experiments/GlowLab/light_leak_alpha_lab.py --look organic --output experiments/GlowLab/captures/light-leak-organic-alpha-rd
 ```
