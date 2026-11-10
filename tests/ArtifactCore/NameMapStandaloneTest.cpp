@@ -1,12 +1,14 @@
-import Container.NameMap;
-
 #include <gtest/gtest.h>
 
 #include <map>
 #include <memory>
 #include <vector>
 
+import Container.NameMap;
+
 using ArtifactCore::ContainerName;
+using ArtifactCore::ContainerWatchHit;
+using ArtifactCore::ContainerWatchRule;
 using ArtifactCore::NameMap;
 
 namespace {
@@ -150,6 +152,24 @@ TEST(NameMapStandaloneTest, AtReturnsNullForMissingKey)
 {
   NameMap<int, int> values;
   EXPECT_EQ(values.at(99), nullptr);
+}
+
+TEST(NameMapStandaloneTest, FindValueReadsWithoutRecordingMissingAccessAsFailure)
+{
+  NameMap<int, int> values;
+  values.insert(3, 30);
+  const auto versionBefore = values.counters().version;
+
+  EXPECT_EQ(values.findValue(3), values.at(3));
+  EXPECT_EQ(values.findValue(99), nullptr);
+  const NameMap<int, int>& constValues = values;
+  const int* const constValue = constValues.findValue(3);
+  ASSERT_NE(constValue, nullptr);
+  EXPECT_EQ(*constValue, 30);
+
+  EXPECT_EQ(values.counters().readCount, 4u);
+  EXPECT_EQ(values.counters().failedAccessCount, 0u);
+  EXPECT_EQ(values.counters().version, versionBefore);
 }
 
 TEST(NameMapStandaloneTest, ContainsHitsAndMissesCountReadsWithoutFailedAccess)

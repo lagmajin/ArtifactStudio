@@ -69,6 +69,27 @@ struct TrackedValueEqual {
     }
 };
 
+struct MoveOnlyKey {
+    explicit MoveOnlyKey(int input) : value(input) {}
+    MoveOnlyKey(const MoveOnlyKey&) = delete;
+    MoveOnlyKey& operator=(const MoveOnlyKey&) = delete;
+    MoveOnlyKey(MoveOnlyKey&& other) noexcept : value(other.value) { other.value = -1; }
+
+    int value;
+};
+
+struct MoveOnlyKeyHash {
+    std::size_t operator()(const MoveOnlyKey& key) const noexcept {
+        return static_cast<std::size_t>(key.value);
+    }
+};
+
+struct MoveOnlyKeyEqual {
+    bool operator()(const MoveOnlyKey& left, const MoveOnlyKey& right) const noexcept {
+        return left.value == right.value;
+    }
+};
+
 template <typename T, typename Hasher, typename KeyEqual>
 Array<T> toArray(const HashSet<T, Hasher, KeyEqual>& values)
 {
@@ -98,6 +119,30 @@ TEST(ArtifactSetContractTest, AddAndInsertRejectDuplicatesWithoutChangingSize)
     EXPECT_TRUE(values.insert(8));
     EXPECT_FALSE(values.add(8));
     EXPECT_EQ(values.size(), 2u);
+}
+
+TEST(ArtifactSetContractTest, RvalueInsertionSupportsMoveOnlyKeysAndPreservesDuplicates)
+{
+    HashSet<MoveOnlyKey, MoveOnlyKeyHash, MoveOnlyKeyEqual> values;
+    MoveOnlyKey first{10};
+    ASSERT_TRUE(values.insert(std::move(first)));
+    EXPECT_EQ(first.value, -1);
+
+    MoveOnlyKey duplicate{10};
+    EXPECT_FALSE(values.add(std::move(duplicate)));
+    EXPECT_EQ(duplicate.value, 10)
+        << "duplicate detection must happen before the set consumes the value";
+
+    MoveOnlyKey second{20};
+    ASSERT_TRUE(values.add(std::move(second)));
+    MoveOnlyKey query{10};
+    const auto found = values.find(query);
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found.value().value, 10);
+
+    Array<int> iterationOrder;
+    for (const auto& value : values) iterationOrder.append(value.value);
+    EXPECT_EQ(iterationOrder, (Array<int>{20, 10}));
 }
 
 TEST(ArtifactSetContractTest, DuplicateInsertionPreservesOriginalValueOrder)
@@ -536,13 +581,11 @@ TEST(ArtifactSetContractTest, CollisionChainsSurviveRepeatedGrowthRemovalAndReus
         }
 
         if (cycle % 3 == 2) {
-            for (int offset = 0; offset < 96; offset += 2) {
-                const int value = base + offset;
-                EXPECT_TRUE(actual.remove(value)) << "cycle=" << cycle << " offset=" << offset;
-                expected.erase(value);
+            for (const int value : expected) {
+                EXPECT_TRUE(actual.remove(value)) << "cycle=" << cycle << " value=" << value;
             }
-            EXPECT_TRUE(actual.isEmpty()) << "cycle=" << cycle;
             expected.clear();
+            EXPECT_TRUE(actual.isEmpty()) << "cycle=" << cycle;
         }
 
         EXPECT_EQ(actual.size(), expected.size()) << "cycle=" << cycle;
