@@ -1,0 +1,86 @@
+{
+  "intent": "Controlled refractive-ridge energy sweep on the CC0 neon city. Preserve the altered liquid/caustic geometry and shared Glow foundation from the structural signature trial; vary only both specialist Intensity properties together.",
+  "input": "assets/cc0-neon-streets-1536.jpg",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.05,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "refractive-ridge-intensity-0.1": [
+      {
+        "effect_id": "liquid_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Radius": 10.0,
+          "Intensity": 0.1,
+          "Flow Scale": 15.0,
+          "Distortion": 2.5,
+          "Phase": 0.0
+        }
+      },
+      {
+        "effect_id": "luminescence_caustics",
+        "properties": {
+          "Threshold": 0.45,
+          "Edge Weight": 0.8,
+          "Scale": 12.0,
+          "Intensity": 0.1,
+          "Evolution": 0.0,
+          "Color Shift": 0.35
+        }
+      }
+    ],
+    "refractive-ridge-intensity-0.125": [
+      {
+        "effect_id": "liquid_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Radius": 10.0,
+          "Intensity": 0.125,
+          "Flow Scale": 15.0,
+          "Distortion": 2.5,
+          "Phase": 0.0
+        }
+      },
+      {
+        "effect_id": "luminescence_caustics",
+        "properties": {
+          "Threshold": 0.45,
+          "Edge Weight": 0.8,
+          "Scale": 12.0,
+          "Intensity": 0.125,
+          "Evolution": 0.0,
+          "Color Shift": 0.35
+        }
+      }
+    ],
+    "refractive-ridge-intensity-0.15": [
+      {
+        "effect_id": "liquid_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Radius": 10.0,
+          "Intensity": 0.15,
+          "Flow Scale": 15.0,
+          "Distortion": 2.5,
+          "Phase": 0.0
+        }
+      },
+      {
+        "effect_id": "luminescence_caustics",
+        "properties": {
+          "Threshold": 0.45,
+          "Edge Weight": 0.8,
+          "Scale": 12.0,
+          "Intensity": 0.15,
+          "Evolution": 0.0,
+          "Color Shift": 0.35
+        }
+      }
+    ]
+  }
+}

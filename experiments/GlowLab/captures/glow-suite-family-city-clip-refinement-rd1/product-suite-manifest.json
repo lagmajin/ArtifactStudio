@@ -1,0 +1,91 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect product output",
+  "not_final_viewer_output": true,
+  "profile": "experiments\\GlowLab\\glow_suite_family_city_clip_refinement_rd1.json",
+  "profile_sha256": "d5c53f640dcdce6d4ca82d33bf0a9c0c8cb6e54b7db9c5a2f9fa3d397032a1c3",
+  "input": "experiments\\GlowLab\\assets\\cc0-neon-streets-1536.jpg",
+  "input_sha256": "8791bd593b699be76dcfb181d72dd8655caaae2e88c235b89ed5d9097aa319d4",
+  "exe": "out\\build\\x64-Debug-Agent\\bin\\Debug\\ArtifactUiTest.exe",
+  "exe_sha256": "180f9c4a363f9771a7372d321bdc5d4b19da0dca3fdee25cbf63b58e07d2c490",
+  "language": "ja",
+  "requested_compute": "cpu",
+  "generated_utc": "2026-11-11T00:55:19.194364+00:00",
+  "entries": [
+    {
+      "profile_key": "edge-contour-restrained",
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.8,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.2,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      },
+      "requested_compute": "cpu",
+      "product_output": "refined-edge-contour-restrained-edge_bloom-cpu.png",
+      "source_capture": "refined-edge-contour-restrained-edge_bloom-cpu-fixture-input.png",
+      "source_capture_sha256": "04484ab83bde22b7114206be4edd6f45ef3e3117f3b958799232cd30f488ad65",
+      "product_output_sha256": "adccfdb0563d0f8bc55e75731f8e8c5cb78f379a7c7bc6080072ea0809891236",
+      "state_sidecar": "refined-edge-contour-restrained-edge_bloom-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "chromatic-fringe-restrained",
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.8,
+        "Radius": 8.0,
+        "Intensity": 0.35,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      },
+      "requested_compute": "cpu",
+      "product_output": "refined-chromatic-fringe-restrained-chromatic_glow-cpu.png",
+      "source_capture": "refined-chromatic-fringe-restrained-chromatic_glow-cpu-fixture-input.png",
+      "source_capture_sha256": "04484ab83bde22b7114206be4edd6f45ef3e3117f3b958799232cd30f488ad65",
+      "product_output_sha256": "549ae07a636c91d921dbca0c047a75990dd77f1f900eacecae90e23b5b3664fc",
+      "state_sidecar": "refined-chromatic-fringe-restrained-chromatic_glow-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "directional-streak-restrained",
+      "effect_id": "directional_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Intensity": 0.15,
+        "Length 1 (Inner)": 18.0,
+        "Length 2 (Outer)": 60.0,
+        "Weight 1": 0.7,
+        "Weight 2": 0.25,
+        "Pattern": 0,
+        "Angle Offset": 0.0
+      },
+      "requested_compute": "cpu",
+      "product_output": "refined-directional-streak-restrained-directional_glow-cpu.png",
+      "source_capture": "refined-directional-streak-restrained-directional_glow-cpu-fixture-input.png",
+      "source_capture_sha256": "04484ab83bde22b7114206be4edd6f45ef3e3117f3b958799232cd30f488ad65",
+      "product_output_sha256": "8c359b38e83287b46fe9860854e393865726a3200378341abbfb5d5b994176a5",
+      "state_sidecar": "refined-directional-streak-restrained-directional_glow-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "four-ray-glint-restrained",
+      "effect_id": "builtin.glint_star_filter",
+      "properties": {
+        "threshold": 0.45,
+        "intensity": 0.25,
+        "length": 50.0,
+        "width": 1.0,
+        "rays": 4,
+        "rotation": 45.0,
+        "chromatic": 0.3,
+        "softness": 0.55
+      },
+      "requested_compute": "cpu",
+      "product_output": "refined-four-ray-glint-restrained-builtin.glint_star_filter-cpu.png",
+      "source_capture": "refined-four-ray-glint-restrained-builtin.glint_star_filter-cpu-fixture-input.png",
+      "source_capture_sha256": "04484ab83bde22b7114206be4edd6f45ef3e3117f3b958799232cd30f488ad65",
+      "product_output_sha256": "62bb9e1909df013ccb9c768de3dfcb59ee306923e0baa1f1c153bafc6b91cbf9",
+      "state_sidecar": "refined-four-ray-glint-restrained-builtin.glint_star_filter-cpu.png.state.txt"
+    }
+  ]
+}

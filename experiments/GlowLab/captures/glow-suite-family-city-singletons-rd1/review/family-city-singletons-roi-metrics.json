@@ -1,0 +1,346 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect product output",
+  "input_sha256": "8791bd593b699be76dcfb181d72dd8655caaae2e88c235b89ed5d9097aa319d4",
+  "rois": {
+    "intersection-practicals": [
+      0.36,
+      0.34,
+      0.58,
+      0.59
+    ],
+    "upper-road-lights": [
+      0.64,
+      0.08,
+      0.84,
+      0.34
+    ],
+    "lower-signage": [
+      0.29,
+      0.56,
+      0.48,
+      0.78
+    ]
+  },
+  "records": [
+    {
+      "profile_key": "edge-contour",
+      "effect_id": "edge_bloom",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.031895870267615256,
+      "rgb_mae_8bit": 4.935390908602522,
+      "changed_channel_fraction_over_1_code": 0.7334476857074882,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "reactive-spectrum-base",
+      "effect_id": "reactive_glow",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.022310224944166877,
+      "rgb_mae_8bit": 3.751014973253824,
+      "changed_channel_fraction_over_1_code": 0.5197200285497202,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "chromatic-fringe",
+      "effect_id": "chromatic_glow",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.03862654356518469,
+      "rgb_mae_8bit": 4.401127406963983,
+      "changed_channel_fraction_over_1_code": 0.38810351575990604,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "directional-streak",
+      "effect_id": "directional_glow",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.046523764572253046,
+      "rgb_mae_8bit": 5.311921043139241,
+      "changed_channel_fraction_over_1_code": 0.4533380916200431,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "physical-halation",
+      "effect_id": "physical_halation",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.009198075196279326,
+      "rgb_mae_8bit": 2.3675431123799875,
+      "changed_channel_fraction_over_1_code": 0.2770665929899692,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "caustic-ridge",
+      "effect_id": "luminescence_caustics",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.016446787772738086,
+      "rgb_mae_8bit": 3.2014021596481936,
+      "changed_channel_fraction_over_1_code": 0.28383180223946464,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "four-ray-glint",
+      "effect_id": "builtin.glint_star_filter",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.05345397892539467,
+      "rgb_mae_8bit": 8.348636597364523,
+      "changed_channel_fraction_over_1_code": 0.6867589160315889,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "edge-contour",
+      "effect_id": "edge_bloom",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.006624868359824643,
+      "rgb_mae_8bit": 3.4879258406602824,
+      "changed_channel_fraction_over_1_code": 0.7208166997297805,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "reactive-spectrum-base",
+      "effect_id": "reactive_glow",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.0035838782624313227,
+      "rgb_mae_8bit": 1.8058827851387427,
+      "changed_channel_fraction_over_1_code": 0.45820985688978144,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "chromatic-fringe",
+      "effect_id": "chromatic_glow",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.006551394773578898,
+      "rgb_mae_8bit": 1.8961124309144195,
+      "changed_channel_fraction_over_1_code": 0.3344436008588246,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "directional-streak",
+      "effect_id": "directional_glow",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.009678104054925588,
+      "rgb_mae_8bit": 2.6689810846334074,
+      "changed_channel_fraction_over_1_code": 0.3884752598107647,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "physical-halation",
+      "effect_id": "physical_halation",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.0009755659507073873,
+      "rgb_mae_8bit": 1.105610116496453,
+      "changed_channel_fraction_over_1_code": 0.2599781211987624,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "caustic-ridge",
+      "effect_id": "luminescence_caustics",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.00539214485725715,
+      "rgb_mae_8bit": 2.777558717641008,
+      "changed_channel_fraction_over_1_code": 0.2634558709477276,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "four-ray-glint",
+      "effect_id": "builtin.glint_star_filter",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.008878058338027479,
+      "rgb_mae_8bit": 4.583274146277747,
+      "changed_channel_fraction_over_1_code": 0.6670054615365776,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "edge-contour",
+      "effect_id": "edge_bloom",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.023452337657089747,
+      "rgb_mae_8bit": 3.8252010344688245,
+      "changed_channel_fraction_over_1_code": 0.6117660726552714,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "reactive-spectrum-base",
+      "effect_id": "reactive_glow",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.017239463369297287,
+      "rgb_mae_8bit": 3.006904877358872,
+      "changed_channel_fraction_over_1_code": 0.47718915424091807,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "chromatic-fringe",
+      "effect_id": "chromatic_glow",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.028402432618095122,
+      "rgb_mae_8bit": 3.2228350911221564,
+      "changed_channel_fraction_over_1_code": 0.31819513476380973,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "directional-streak",
+      "effect_id": "directional_glow",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.03313027841758597,
+      "rgb_mae_8bit": 4.519158887946014,
+      "changed_channel_fraction_over_1_code": 0.41350971834969896,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "physical-halation",
+      "effect_id": "physical_halation",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.008187861154887462,
+      "rgb_mae_8bit": 1.79474279710672,
+      "changed_channel_fraction_over_1_code": 0.22329474279710673,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "caustic-ridge",
+      "effect_id": "luminescence_caustics",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.013405665333171697,
+      "rgb_mae_8bit": 2.8771315715036168,
+      "changed_channel_fraction_over_1_code": 0.26461288236958014,
+      "alpha_mae": 0.0
+    },
+    {
+      "profile_key": "four-ray-glint",
+      "effect_id": "builtin.glint_star_filter",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.036160948801874974,
+      "rgb_mae_8bit": 7.070700488948155,
+      "changed_channel_fraction_over_1_code": 0.6134076857800945,
+      "alpha_mae": 0.0
+    }
+  ],
+  "limitations": [
+    "single CC0 city photo",
+    "installed CPU output capture, not final Viewer or GPU",
+    "manual normalized ROIs; no aesthetic acceptance"
+  ]
+}

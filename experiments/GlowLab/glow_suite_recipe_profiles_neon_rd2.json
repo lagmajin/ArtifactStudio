@@ -1,0 +1,87 @@
+{
+  "intent": "Extend the shared Glow foundation branches with source-response, directional, film-optical, point-ray, and star-glint roles. Static CPU chained PNG proxy; Residual Glow is excluded because a single still cannot exercise history.",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 1.0,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "reactive-tint": {
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Radius": 10.0,
+        "Intensity": 0.25,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.6,
+        "Tint Mix": 0.18
+      }
+    },
+    "directional-streak": {
+      "effect_id": "directional_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Intensity": 0.45,
+        "Length 1 (Inner)": 18.0,
+        "Length 2 (Outer)": 60.0,
+        "Weight 1": 0.7,
+        "Weight 2": 0.25,
+        "Pattern": 0,
+        "Angle Offset": 0.0
+      }
+    },
+    "film-halation": {
+      "effect_id": "physical_halation",
+      "properties": {
+        "Threshold": 0.65,
+        "Spread": 18.0,
+        "Intensity": 0.5,
+        "Red Diffusion": 2.0,
+        "Softness": 0.5
+      }
+    },
+    "optical-layer": {
+      "effect_id": "builtin.optical_glow",
+      "properties": {
+        "threshold": 0.5,
+        "softKnee": 0.3,
+        "radius": 8.0,
+        "intensity": 0.45,
+        "afterglowRadius": 20.0,
+        "afterglowIntensity": 0.1,
+        "streakStrength": 0.1,
+        "atmosphere": 0.05,
+        "warmth": 0.1
+      }
+    },
+    "volumetric-rays": {
+      "effect_id": "builtin.volumetric_shine",
+      "properties": {
+        "sourceX": 0.27,
+        "sourceY": 0.38,
+        "rayLength": 0.45,
+        "intensity": 0.45,
+        "decay": 0.8,
+        "samples": 32,
+        "threshold": 0.35,
+        "warmth": 0.1
+      }
+    },
+    "four-ray-glint": {
+      "effect_id": "builtin.glint_star_filter",
+      "properties": {
+        "threshold": 0.6,
+        "intensity": 0.7,
+        "length": 24.0,
+        "width": 0.8,
+        "rays": 4,
+        "rotation": 45.0,
+        "chromatic": 0.15,
+        "softness": 0.7
+      }
+    }
+  }
+}

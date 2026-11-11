@@ -1,0 +1,60 @@
+{
+  "intent": "Extend the registered Chromatic Glow CPU dispersion sweep on the fixed 960x540 synthetic neon plate; exploratory values only, not accepted defaults.",
+  "profiles": {
+    "chromatic-dispersion-0p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 0.0,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    },
+    "chromatic-dispersion-1p5": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 1.5,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    },
+    "chromatic-dispersion-1p75": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 1.75,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    },
+    "chromatic-dispersion-2p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 2.0,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    },
+    "chromatic-dispersion-2p5": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 2.5,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    }
+  }
+}

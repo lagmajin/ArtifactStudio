@@ -1,0 +1,212 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect product output",
+  "input_sha256": "8791bd593b699be76dcfb181d72dd8655caaae2e88c235b89ed5d9097aa319d4",
+  "profile_sha256": "d5c53f640dcdce6d4ca82d33bf0a9c0c8cb6e54b7db9c5a2f9fa3d397032a1c3",
+  "rois": {
+    "intersection-practicals": [
+      0.36,
+      0.34,
+      0.58,
+      0.59
+    ],
+    "upper-road-lights": [
+      0.64,
+      0.08,
+      0.84,
+      0.34
+    ],
+    "lower-signage": [
+      0.29,
+      0.56,
+      0.48,
+      0.78
+    ]
+  },
+  "records": [
+    {
+      "effect_id": "edge_bloom",
+      "profile_key": "edge-contour-restrained",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.026657917558845425,
+      "rgb_mae_8bit": 4.000679207054544,
+      "changed_channel_fraction_over_1_code": 0.6369197000744442,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "chromatic_glow",
+      "profile_key": "chromatic-fringe-restrained",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.0294092817289465,
+      "rgb_mae_8bit": 3.190573220055411,
+      "changed_channel_fraction_over_1_code": 0.3541623496726759,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "directional_glow",
+      "profile_key": "directional-streak-restrained",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.030460709598692237,
+      "rgb_mae_8bit": 3.3469174744242087,
+      "changed_channel_fraction_over_1_code": 0.39364845470801774,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "builtin.glint_star_filter",
+      "profile_key": "four-ray-glint-restrained",
+      "roi": "intersection-practicals",
+      "bounds_normalized": [
+        0.36,
+        0.34,
+        0.58,
+        0.59
+      ],
+      "new_clipped_channel_fraction": 0.028472973698953945,
+      "rgb_mae_8bit": 4.391323033945003,
+      "changed_channel_fraction_over_1_code": 0.5548776276103423,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "edge_bloom",
+      "profile_key": "edge-contour-restrained",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.005657466140922339,
+      "rgb_mae_8bit": 2.7939229180442964,
+      "changed_channel_fraction_over_1_code": 0.6493595552398913,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "chromatic_glow",
+      "profile_key": "chromatic-fringe-restrained",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.00527377074608345,
+      "rgb_mae_8bit": 1.3295657711052877,
+      "changed_channel_fraction_over_1_code": 0.27846489187137224,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "directional_glow",
+      "profile_key": "directional-streak-restrained",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.006755488068705967,
+      "rgb_mae_8bit": 1.6063979166156432,
+      "changed_channel_fraction_over_1_code": 0.31281379344125787,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "builtin.glint_star_filter",
+      "profile_key": "four-ray-glint-restrained",
+      "roi": "upper-road-lights",
+      "bounds_normalized": [
+        0.64,
+        0.08,
+        0.84,
+        0.34
+      ],
+      "new_clipped_channel_fraction": 0.005473782175307976,
+      "rgb_mae_8bit": 2.299702840162295,
+      "changed_channel_fraction_over_1_code": 0.5238911611275746,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "edge_bloom",
+      "profile_key": "edge-contour-restrained",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.02052268961894371,
+      "rgb_mae_8bit": 3.111518567907221,
+      "changed_channel_fraction_over_1_code": 0.5276447650220228,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "chromatic_glow",
+      "profile_key": "chromatic-fringe-restrained",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.022795692407160464,
+      "rgb_mae_8bit": 2.3371519780175376,
+      "changed_channel_fraction_over_1_code": 0.28260496221764253,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "directional_glow",
+      "profile_key": "directional-streak-restrained",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.023315957489796743,
+      "rgb_mae_8bit": 2.817760738675395,
+      "changed_channel_fraction_over_1_code": 0.3621044975148503,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "builtin.glint_star_filter",
+      "profile_key": "four-ray-glint-restrained",
+      "roi": "lower-signage",
+      "bounds_normalized": [
+        0.29,
+        0.56,
+        0.48,
+        0.78
+      ],
+      "new_clipped_channel_fraction": 0.02144199296884471,
+      "rgb_mae_8bit": 3.6628884309209195,
+      "changed_channel_fraction_over_1_code": 0.49462561118519416,
+      "alpha_mae": 0.0
+    }
+  ],
+  "limitations": [
+    "single CC0 city photograph",
+    "installed CPU 8-bit PNG capture, not final Viewer or GPU",
+    "manual ROIs; not aesthetic acceptance"
+  ]
+}

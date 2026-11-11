@@ -1,0 +1,132 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect CPU reference output",
+  "not_final_viewer_or_GPU_output": true,
+  "records": [
+    {
+      "effect_id": "edge_bloom",
+      "source": "app-family-edge-contour-edge_bloom-cpu-fixture-input.png",
+      "output": "app-family-edge-contour-edge_bloom-cpu.png",
+      "dimensions": [
+        576,
+        1280
+      ],
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "a23f82fc52daf30ade668b095cd15cdbc0ea810839f40d6df26d7a4be8f39707",
+      "encoded_rgb_mae": 0.0014696078142151237,
+      "linear_luma_delta_mean": 0.0007242648862302303,
+      "linear_luma_delta_p95": 0.0022758617997169495,
+      "linear_luma_delta_max": 0.16853338479995728,
+      "changed_channel_fraction_gt_1_255": 0.05325927734375,
+      "newly_clipped_channel_fraction": 0.0008287217881944444,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "reactive_glow",
+      "source": "app-family-reactive-spectrum-base-reactive_glow-cpu-fixture-input.png",
+      "output": "app-family-reactive-spectrum-base-reactive_glow-cpu.png",
+      "dimensions": [
+        576,
+        1280
+      ],
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "95b3111423047e060f9a8d4ee33fa45a34a556d5a97d38d21cd98cd4632fe084",
+      "encoded_rgb_mae": 0.0009137738379649818,
+      "linear_luma_delta_mean": 0.0004334821423981339,
+      "linear_luma_delta_p95": 0.0016094299498945475,
+      "linear_luma_delta_max": 0.12168407440185547,
+      "changed_channel_fraction_gt_1_255": 0.04178557219328704,
+      "newly_clipped_channel_fraction": 0.0006212022569444444,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "chromatic_glow",
+      "source": "app-family-chromatic-fringe-chromatic_glow-cpu-fixture-input.png",
+      "output": "app-family-chromatic-fringe-chromatic_glow-cpu.png",
+      "dimensions": [
+        576,
+        1280
+      ],
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "e643576f22fb90ed7dd4abe8d83f0b2d44047121b7965b9a4372c7878aba14ee",
+      "encoded_rgb_mae": 0.0005462898989208043,
+      "linear_luma_delta_mean": 0.0005126818432472646,
+      "linear_luma_delta_p95": 0.0,
+      "linear_luma_delta_max": 0.25210040807724,
+      "changed_channel_fraction_gt_1_255": 0.02074969256365741,
+      "newly_clipped_channel_fraction": 0.000926830150462963,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "directional_glow",
+      "source": "app-family-directional-streak-directional_glow-cpu-fixture-input.png",
+      "output": "app-family-directional-streak-directional_glow-cpu.png",
+      "dimensions": [
+        576,
+        1280
+      ],
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "cdc237ff92933fab8e01b05cdaeafec8cc7ea6419718b09316c82f64dbec0bed",
+      "encoded_rgb_mae": 0.00034626832348294556,
+      "linear_luma_delta_mean": 0.0003552908601704985,
+      "linear_luma_delta_p95": 0.0,
+      "linear_luma_delta_max": 0.1732824444770813,
+      "changed_channel_fraction_gt_1_255": 0.016236255787037038,
+      "newly_clipped_channel_fraction": 0.0008766456886574074,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "physical_halation",
+      "source": "app-family-physical-halation-physical_halation-cpu-fixture-input.png",
+      "output": "app-family-physical-halation-physical_halation-cpu.png",
+      "dimensions": [
+        576,
+        1280
+      ],
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "22448461e6dadb7bb2e22069cd3b85035b57de745da37a2d593ca6ded09072a8",
+      "encoded_rgb_mae": 0.0004523640382103622,
+      "linear_luma_delta_mean": 0.0001933945168275386,
+      "linear_luma_delta_p95": 0.0007793307304382324,
+      "linear_luma_delta_max": 0.026033222675323486,
+      "changed_channel_fraction_gt_1_255": 0.01980296947337963,
+      "newly_clipped_channel_fraction": 0.00010262948495370371,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "luminescence_caustics",
+      "source": "app-family-caustic-ridge-luminescence_caustics-cpu-fixture-input.png",
+      "output": "app-family-caustic-ridge-luminescence_caustics-cpu.png",
+      "dimensions": [
+        576,
+        1280
+      ],
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "70d00baadf8e5e3a1413c6ba1733a4574eff88be61ba8752a35691ea85062805",
+      "encoded_rgb_mae": 0.0020725447684526443,
+      "linear_luma_delta_mean": 0.0009980767499655485,
+      "linear_luma_delta_p95": 0.0034921374171972275,
+      "linear_luma_delta_max": 0.4991943836212158,
+      "changed_channel_fraction_gt_1_255": 0.07595169632523148,
+      "newly_clipped_channel_fraction": 0.0005610713252314815,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "builtin.glint_star_filter",
+      "source": "app-family-four-ray-glint-builtin.glint_star_filter-cpu-fixture-input.png",
+      "output": "app-family-four-ray-glint-builtin.glint_star_filter-cpu.png",
+      "dimensions": [
+        576,
+        1280
+      ],
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "1d0759af29fb63ade7ed4ead4fd39203b19b3fdfdb9854935b6662f934c21324",
+      "encoded_rgb_mae": 0.0006820920389145613,
+      "linear_luma_delta_mean": 0.00039765879046171904,
+      "linear_luma_delta_p95": 0.0012584920041263103,
+      "linear_luma_delta_max": 0.1477668285369873,
+      "changed_channel_fraction_gt_1_255": 0.03210584852430556,
+      "newly_clipped_channel_fraction": 0.0007432725694444444,
+      "alpha_mae": 0.0
+    }
+  ]
+}

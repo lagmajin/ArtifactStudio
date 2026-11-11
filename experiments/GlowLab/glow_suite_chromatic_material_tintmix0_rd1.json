@@ -1,0 +1,38 @@
+{
+  "intent": "Controlled Chromatic Glow family-role sweep on textured emissive material; vary Dispersion with fixed Tint Mix, then compare the separate Tint Mix 0 and .25 runs. Exploratory, not a preset.",
+  "profiles": {
+    "dispersion-0-tintmix-0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.8,
+        "Radius": 8.0,
+        "Intensity": 0.65,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    },
+    "dispersion-1-tintmix-0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.8,
+        "Radius": 8.0,
+        "Intensity": 0.65,
+        "Dispersion": 1.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    },
+    "dispersion-2-tintmix-0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.8,
+        "Radius": 8.0,
+        "Intensity": 0.65,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    }
+  }
+}

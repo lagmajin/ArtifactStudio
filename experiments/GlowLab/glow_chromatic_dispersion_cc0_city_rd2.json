@@ -1,0 +1,38 @@
+{
+  "intent": "Higher spectral separation Chromatic Glow follow-up on the same CC0 night photo; exploratory, not an accepted preset.",
+  "profiles": {
+    "chromatic-dispersion-0p0-strong": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 8.0,
+        "Intensity": 1.0,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "chromatic-dispersion-1p0-strong": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 8.0,
+        "Intensity": 1.0,
+        "Dispersion": 1.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "chromatic-dispersion-2p0-strong": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 8.0,
+        "Intensity": 1.0,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    }
+  }
+}

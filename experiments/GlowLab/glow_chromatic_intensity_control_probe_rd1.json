@@ -1,0 +1,27 @@
+{
+  "intent": "Capture-path control for Chromatic Glow: fixed Dispersion and Tint Mix with zero versus high Intensity; not a visual preset.",
+  "profiles": {
+    "probe-intensity-0p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.0,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "probe-intensity-4p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 4.0,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    }
+  }
+}

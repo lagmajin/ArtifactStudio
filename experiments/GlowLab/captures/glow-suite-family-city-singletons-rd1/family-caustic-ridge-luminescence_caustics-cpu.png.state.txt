@@ -1,0 +1,4 @@
+compositionMatch=1 layers=1 sourceSize=1536x1025 visible=1 active=1 imageBuffer=1 effects=1 effectRevision=4 rasterizer=1 stage=4 frame=5 outputSize=1536x1025 corner=0,0,0,255 center=201,190,196,255
+compute=0 supportsGPU=1 domain=2 genericKey=968506920 gpuNodes=1 gpuNodeCount=1 cacheDiagnostics={"enabled":true,"entries":[{"builds":1,"hits":0,"invalidations":0,"layerId":"9fc35ca7-7a8f-4757-8472-a31c3f388e64","misses":1,"slot":"draft"},{"builds":1,"hits":3,"invalidations":0,"layerId":"9fc35ca7-7a8f-4757-8472-a31c3f388e64","misses":1,"slot":"full"}]}
+look=luminescence_caustics layerRtSaved=0 accumRtSaved=0 gpuBlendEnabled=1 captureSource=Installed CPU reference
+effectId=luminescence_caustics propertyOverrides={"Color Shift":0.25,"Edge Weight":0.8,"Evolution":0,"Intensity":0.3,"Scale":22,"Threshold":0.45}

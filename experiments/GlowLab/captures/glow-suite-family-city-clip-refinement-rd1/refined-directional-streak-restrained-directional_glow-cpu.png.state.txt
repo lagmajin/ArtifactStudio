@@ -1,0 +1,4 @@
+compositionMatch=1 layers=1 sourceSize=1536x1025 visible=1 active=1 imageBuffer=1 effects=1 effectRevision=4 rasterizer=1 stage=4 frame=5 outputSize=1536x1025 corner=0,0,0,255 center=216,205,211,255
+compute=0 supportsGPU=1 domain=2 genericKey=2900342409 gpuNodes=1 gpuNodeCount=1 cacheDiagnostics={"enabled":true,"entries":[{"builds":1,"hits":0,"invalidations":0,"layerId":"655a6d36-1a8c-482c-afb7-5cc3b112570b","misses":1,"slot":"draft"},{"builds":1,"hits":3,"invalidations":0,"layerId":"655a6d36-1a8c-482c-afb7-5cc3b112570b","misses":1,"slot":"full"}]}
+look=directional_glow layerRtSaved=0 accumRtSaved=0 gpuBlendEnabled=1 captureSource=Installed CPU reference
+effectId=directional_glow propertyOverrides={"Angle Offset":0,"Intensity":0.15,"Length 1 (Inner)":18,"Length 2 (Outer)":60,"Pattern":0,"Threshold":0.45,"Weight 1":0.7,"Weight 2":0.25}

@@ -1,0 +1,144 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect product output",
+  "not_final_viewer_output": true,
+  "profile": "experiments\\GlowLab\\glow_suite_family_streetlight_singletons_rd1.json",
+  "profile_sha256": "4ebc22934c1cb10c0c8e5288b751c081238633066d2840f0722c66c5242f163b",
+  "input": "experiments\\GlowLab\\assets\\cc0-street-light-night.jpg",
+  "input_sha256": "b01e663da4cada43f95b936d88ed377244680b56c41929d2d621d087d7224eb8",
+  "exe": "out\\build\\x64-Debug-Agent\\bin\\Debug\\ArtifactUiTest.exe",
+  "exe_sha256": "180f9c4a363f9771a7372d321bdc5d4b19da0dca3fdee25cbf63b58e07d2c490",
+  "language": "ja",
+  "requested_compute": "cpu",
+  "generated_utc": "2026-11-11T01:12:54.080732+00:00",
+  "entries": [
+    {
+      "profile_key": "edge-contour",
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.8,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.2,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      },
+      "requested_compute": "cpu",
+      "product_output": "app-family-edge-contour-edge_bloom-cpu.png",
+      "source_capture": "app-family-edge-contour-edge_bloom-cpu-fixture-input.png",
+      "source_capture_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "product_output_sha256": "a23f82fc52daf30ade668b095cd15cdbc0ea810839f40d6df26d7a4be8f39707",
+      "state_sidecar": "app-family-edge-contour-edge_bloom-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "reactive-spectrum-base",
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Radius": 10.0,
+        "Intensity": 0.25,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.6,
+        "Tint Mix": 0.18
+      },
+      "requested_compute": "cpu",
+      "product_output": "app-family-reactive-spectrum-base-reactive_glow-cpu.png",
+      "source_capture": "app-family-reactive-spectrum-base-reactive_glow-cpu-fixture-input.png",
+      "source_capture_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "product_output_sha256": "95b3111423047e060f9a8d4ee33fa45a34a556d5a97d38d21cd98cd4632fe084",
+      "state_sidecar": "app-family-reactive-spectrum-base-reactive_glow-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "chromatic-fringe",
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.8,
+        "Radius": 8.0,
+        "Intensity": 0.35,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      },
+      "requested_compute": "cpu",
+      "product_output": "app-family-chromatic-fringe-chromatic_glow-cpu.png",
+      "source_capture": "app-family-chromatic-fringe-chromatic_glow-cpu-fixture-input.png",
+      "source_capture_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "product_output_sha256": "e643576f22fb90ed7dd4abe8d83f0b2d44047121b7965b9a4372c7878aba14ee",
+      "state_sidecar": "app-family-chromatic-fringe-chromatic_glow-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "directional-streak",
+      "effect_id": "directional_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Intensity": 0.14,
+        "Length 1 (Inner)": 18.0,
+        "Length 2 (Outer)": 60.0,
+        "Weight 1": 0.7,
+        "Weight 2": 0.25,
+        "Pattern": 0,
+        "Angle Offset": 0.0
+      },
+      "requested_compute": "cpu",
+      "product_output": "app-family-directional-streak-directional_glow-cpu.png",
+      "source_capture": "app-family-directional-streak-directional_glow-cpu-fixture-input.png",
+      "source_capture_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "product_output_sha256": "cdc237ff92933fab8e01b05cdaeafec8cc7ea6419718b09316c82f64dbec0bed",
+      "state_sidecar": "app-family-directional-streak-directional_glow-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "physical-halation",
+      "effect_id": "physical_halation",
+      "properties": {
+        "Threshold": 0.65,
+        "Spread": 18.0,
+        "Intensity": 0.25,
+        "Red Diffusion": 2.0,
+        "Softness": 0.5
+      },
+      "requested_compute": "cpu",
+      "product_output": "app-family-physical-halation-physical_halation-cpu.png",
+      "source_capture": "app-family-physical-halation-physical_halation-cpu-fixture-input.png",
+      "source_capture_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "product_output_sha256": "22448461e6dadb7bb2e22069cd3b85035b57de745da37a2d593ca6ded09072a8",
+      "state_sidecar": "app-family-physical-halation-physical_halation-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "caustic-ridge",
+      "effect_id": "luminescence_caustics",
+      "properties": {
+        "Threshold": 0.45,
+        "Edge Weight": 0.8,
+        "Scale": 22.0,
+        "Intensity": 0.3,
+        "Evolution": 0.0,
+        "Color Shift": 0.25
+      },
+      "requested_compute": "cpu",
+      "product_output": "app-family-caustic-ridge-luminescence_caustics-cpu.png",
+      "source_capture": "app-family-caustic-ridge-luminescence_caustics-cpu-fixture-input.png",
+      "source_capture_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "product_output_sha256": "70d00baadf8e5e3a1413c6ba1733a4574eff88be61ba8752a35691ea85062805",
+      "state_sidecar": "app-family-caustic-ridge-luminescence_caustics-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "four-ray-glint",
+      "effect_id": "builtin.glint_star_filter",
+      "properties": {
+        "threshold": 0.45,
+        "intensity": 0.25,
+        "length": 50.0,
+        "width": 1.0,
+        "rays": 4,
+        "rotation": 45.0,
+        "chromatic": 0.3,
+        "softness": 0.55
+      },
+      "requested_compute": "cpu",
+      "product_output": "app-family-four-ray-glint-builtin.glint_star_filter-cpu.png",
+      "source_capture": "app-family-four-ray-glint-builtin.glint_star_filter-cpu-fixture-input.png",
+      "source_capture_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "product_output_sha256": "1d0759af29fb63ade7ed4ead4fd39203b19b3fdfdb9854935b6662f934c21324",
+      "state_sidecar": "app-family-four-ray-glint-builtin.glint_star_filter-cpu.png.state.txt"
+    }
+  ]
+}

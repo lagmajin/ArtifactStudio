@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import json
 import math
 import os
 from pathlib import Path
@@ -175,6 +176,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--glow-input", type=Path,
                         help="optional still image used as the Glow source plate")
     parser.add_argument(
+        "--effect-suite-id",
+        choices=("glow", "edge_bloom", "reactive_glow", "chromatic_glow",
+                 "liquid_glow", "residual_glow", "directional_glow",
+                 "physical_halation", "luminescence_caustics",
+                 "builtin.optical_glow", "builtin.volumetric_shine",
+                 "builtin.glint_star_filter"),
+        help="capture one registered Glow-family effect through the app fixture",
+    )
+    parser.add_argument("--effect-suite-compute", choices=("cpu", "gpu"), default="cpu")
+    parser.add_argument("--effect-suite-input", type=Path,
+                        help="optional still image used as the effect-suite source plate")
+    parser.add_argument("--effect-suite-properties", default="{}",
+                        help="JSON object of numeric effect property overrides")
+    parser.add_argument(
         "--app-arg",
         action="append",
         default=[],
@@ -252,6 +267,7 @@ def main() -> int:
         bool(args.timeline or args.curve_editor), args.render_manager,
         args.cloner, args.components, args.tracker,
         args.contents_viewer is not None, args.light_leak, args.glow,
+        args.effect_suite_id is not None,
     ))
     if isolated_fixtures > 1:
         print("capture_ui_test: choose only one isolated fixture", file=sys.stderr)
@@ -293,57 +309,76 @@ def main() -> int:
         if not args.glow_input.is_file():
             print(f"capture_ui_test: Glow input image not found: {args.glow_input}", file=sys.stderr)
             return 2
-        if args.light_leak_look is None:
-            for look in ("edge-wash", "streak", "organic"):
-                command = [
-                    sys.executable, str(Path(__file__).resolve()),
-                    "--exe", str(args.exe.expanduser().resolve()),
-                    "--output", str(args.output.expanduser().resolve()),
-                    "--language", args.language,
-                    "--timeout-seconds", str(args.timeout_seconds),
-                    "--light-leak", "--light-leak-look", look,
-                    "--light-leak-compute", args.light_leak_compute,
-                    "--light-leak-strength", str(args.light_leak_strength),
-                    "--light-leak-angle", str(args.light_leak_angle),
-                    "--light-leak-source", str(args.light_leak_source[0]),
-                    str(args.light_leak_source[1]),
-                ]
-                if args.light_leak_input is not None:
-                    command.extend(("--light-leak-input", str(args.light_leak_input)))
-                for app_arg in args.app_arg:
-                    command.extend(("--app-arg", app_arg))
-                result = subprocess.run(command, check=False)
-                if result.returncode != 0:
-                    return result.returncode
-            output_path = args.output.expanduser().resolve()
-            capture_paths = {
-                name: output_path.with_name(
-                    f"{output_path.stem}-{name}-{args.light_leak_compute}{output_path.suffix}"
-                )
-                for name in ("edge-wash", "streak", "organic")
-            }
-            try:
-                import cv2
-                import numpy as np
-                images = {}
-                for name, path in capture_paths.items():
-                    images[name] = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
-                    if images[name] is None:
-                        raise RuntimeError(f"missing or unreadable {name} image: {path}")
-                if len({image.shape for image in images.values()}) != 1:
-                    raise RuntimeError("look captures have inconsistent dimensions")
-                for left, right in (("edge-wash", "streak"),
-                                    ("edge-wash", "organic"),
-                                    ("streak", "organic")):
-                    if np.array_equal(images[left], images[right]):
-                        raise RuntimeError(f"{left} and {right} renders are identical")
-            except Exception as error:
-                print(f"capture_ui_test: Light Leak output validation failed: {error}", file=sys.stderr)
-                return 1
-            print("Light Leak effect captures:")
+    if args.effect_suite_id is not None:
+        if args.effect_suite_input is not None:
+            args.effect_suite_input = args.effect_suite_input.expanduser().resolve()
+            if not args.effect_suite_input.is_file():
+                print(f"capture_ui_test: effect-suite input image not found: {args.effect_suite_input}", file=sys.stderr)
+                return 2
+        try:
+            properties = json.loads(args.effect_suite_properties)
+            if not isinstance(properties, dict) or any(
+                not isinstance(name, str) or isinstance(value, bool) or
+                not isinstance(value, (int, float)) or not math.isfinite(value)
+                for name, value in properties.items()
+            ):
+                raise ValueError("properties must be a JSON object of finite numeric values")
+        except (json.JSONDecodeError, ValueError) as error:
+            print(f"capture_ui_test: invalid --effect-suite-properties: {error}", file=sys.stderr)
+            return 2
+    if args.light_leak and args.light_leak_look is None:
+        if args.light_leak_input is not None:
+            args.light_leak_input = args.light_leak_input.expanduser().resolve()
+        for look in ("edge-wash", "streak", "organic"):
+            command = [
+                sys.executable, str(Path(__file__).resolve()),
+                "--exe", str(args.exe.expanduser().resolve()),
+                "--output", str(args.output.expanduser().resolve()),
+                "--language", args.language,
+                "--timeout-seconds", str(args.timeout_seconds),
+                "--light-leak", "--light-leak-look", look,
+                "--light-leak-compute", args.light_leak_compute,
+                "--light-leak-strength", str(args.light_leak_strength),
+                "--light-leak-angle", str(args.light_leak_angle),
+                "--light-leak-source", str(args.light_leak_source[0]),
+                str(args.light_leak_source[1]),
+            ]
+            if args.light_leak_input is not None:
+                command.extend(("--light-leak-input", str(args.light_leak_input)))
+            for app_arg in args.app_arg:
+                command.extend(("--app-arg", app_arg))
+            result = subprocess.run(command, check=False)
+            if result.returncode != 0:
+                return result.returncode
+        output_path = args.output.expanduser().resolve()
+        capture_paths = {
+            name: output_path.with_name(
+                f"{output_path.stem}-{name}-{args.light_leak_compute}{output_path.suffix}"
+            )
+            for name in ("edge-wash", "streak", "organic")
+        }
+        try:
+            import cv2
+            import numpy as np
+            images = {}
             for name, path in capture_paths.items():
-                print(f"{name}: {path}")
-            return 0
+                images[name] = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+                if images[name] is None:
+                    raise RuntimeError(f"missing or unreadable {name} image: {path}")
+            if len({image.shape for image in images.values()}) != 1:
+                raise RuntimeError("look captures have inconsistent dimensions")
+            for left, right in (("edge-wash", "streak"),
+                                ("edge-wash", "organic"),
+                                ("streak", "organic")):
+                if np.array_equal(images[left], images[right]):
+                    raise RuntimeError(f"{left} and {right} renders are identical")
+        except Exception as error:
+            print(f"capture_ui_test: Light Leak output validation failed: {error}", file=sys.stderr)
+            return 1
+        print("Light Leak effect captures:")
+        for name, path in capture_paths.items():
+            print(f"{name}: {path}")
+        return 0
     if args.cloner and (args.timeline or args.curve_editor):
         print("capture_ui_test: --cloner cannot be combined with Timeline fixtures", file=sys.stderr)
         return 2
@@ -499,10 +534,15 @@ def main() -> int:
     glow_capture_path = output_path.with_name(
         f"{output_path.stem}-glow-{args.glow_compute}{output_path.suffix}"
     ) if args.glow else None
+    effect_suite_capture_path = output_path.with_name(
+        f"{output_path.stem}-{args.effect_suite_id}-{args.effect_suite_compute}{output_path.suffix}"
+    ) if args.effect_suite_id is not None else None
     for path in light_leak_paths.values():
         path.unlink(missing_ok=True)
     if glow_capture_path is not None:
         glow_capture_path.unlink(missing_ok=True)
+    if effect_suite_capture_path is not None:
+        effect_suite_capture_path.unlink(missing_ok=True)
     if args.components:
         components_result_path.unlink(missing_ok=True)
     if args.tracker:
@@ -534,6 +574,11 @@ def main() -> int:
         "ARTIFACT_UI_TEST_GLOW_INPUT",
         "ARTIFACT_UI_TEST_GLOW_COMPUTE",
         "ARTIFACT_UI_TEST_GLOW_OUTPUT_PATTERN",
+        "ARTIFACT_UI_TEST_EFFECT_SUITE_ID",
+        "ARTIFACT_UI_TEST_EFFECT_SUITE_COMPUTE",
+        "ARTIFACT_UI_TEST_EFFECT_SUITE_INPUT",
+        "ARTIFACT_UI_TEST_EFFECT_SUITE_PROPERTIES",
+        "ARTIFACT_UI_TEST_EFFECT_SUITE_OUTPUT",
         "ARTIFACT_UI_TEST_PROJECT_ROOT",
         "ARTIFACT_UI_TEST_CLONER_RENDER_OUTPUT",
         "ARTIFACT_UI_TEST_CLONER_DISTRIBUTION",
@@ -560,12 +605,13 @@ def main() -> int:
     console_log_file = None
     console_log_path = (
         Path(f"{output_path}.console.log")
-        if args.contents_viewer is not None or args.components or args.light_leak or args.glow else None
+        if args.contents_viewer is not None or args.components or args.light_leak or
+        args.glow or args.effect_suite_id is not None else None
     )
     if console_log_path is not None:
         console_log_path.parent.mkdir(parents=True, exist_ok=True)
         console_log_file = console_log_path.open("wb")
-    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.components or args.tracker or args.contents_viewer or args.light_leak:
+    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.components or args.tracker or args.contents_viewer or args.light_leak or args.effect_suite_id is not None:
         fixture_root = Path(tempfile.mkdtemp(
             prefix="artifact_ui_test_", dir=output_path.parent
         )).resolve()
@@ -615,6 +661,21 @@ def main() -> int:
         environment["ARTIFACT_UI_TEST_GLOW_OUTPUT_PATTERN"] = str(
             glow_capture_path.resolve()
         )
+    if args.effect_suite_id is not None:
+        environment["ARTIFACT_UI_TEST_EFFECT_SUITE_ID"] = args.effect_suite_id
+        environment["ARTIFACT_UI_TEST_EFFECT_SUITE_COMPUTE"] = args.effect_suite_compute
+        environment["ARTIFACT_UI_TEST_EFFECT_SUITE_PROPERTIES"] = json.dumps(
+            json.loads(args.effect_suite_properties), separators=(",", ":")
+        )
+        if args.effect_suite_input is not None:
+            environment["ARTIFACT_UI_TEST_EFFECT_SUITE_INPUT"] = str(args.effect_suite_input)
+        environment["ARTIFACT_UI_TEST_EFFECT_SUITE_OUTPUT"] = str(
+            effect_suite_capture_path.resolve()
+        )
+        if args.effect_suite_compute == "gpu":
+            # A plain Normal-blend fixture otherwise stays on the direct 2D
+            # path, which creates no Layer/Accum RT for the GPU capture.
+            environment["ARTIFACT_COMPOSITION_GPU_BLEND_NORMAL"] = "1"
     if args.curve_editor:
         environment["ARTIFACT_UI_TEST_CURVE_EDITOR"] = "1"
     if args.cloner:
@@ -1047,7 +1108,7 @@ def main() -> int:
                                 image = None
                                 previous_size = -1
                                 stable_size_observations = 0
-                                for _ in range(50):
+                                for _ in range(max(50, int(args.timeout_seconds * 10))):
                                     path = glow_capture_path
                                     if path.is_file() and path.stat().st_size > 0:
                                         current_size = path.stat().st_size
@@ -1064,11 +1125,45 @@ def main() -> int:
                                 if image is None or not image.size or not image.any():
                                     print(f"capture_ui_test: invalid or black Glow render: {glow_capture_path}", file=sys.stderr)
                                     return 1
+                            if effect_suite_capture_path is not None:
+                                import cv2
+                                image = None
+                                previous_size = -1
+                                stable_size_observations = 0
+                                for _ in range(max(50, int(args.timeout_seconds * 10))):
+                                    path = effect_suite_capture_path
+                                    if path.is_file() and path.stat().st_size > 0:
+                                        current_size = path.stat().st_size
+                                        if current_size == previous_size:
+                                            stable_size_observations += 1
+                                        else:
+                                            stable_size_observations = 0
+                                        previous_size = current_size
+                                        if stable_size_observations >= 2:
+                                            image = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+                                            if image is not None and image.size and image.any():
+                                                break
+                                    time.sleep(0.1)
+                                if image is None or not image.size or not image.any():
+                                    print(f"capture_ui_test: invalid or black effect-suite render: {effect_suite_capture_path}", file=sys.stderr)
+                                    return 1
+                                source_capture_path = effect_suite_capture_path.with_name(
+                                    f"{effect_suite_capture_path.stem}-fixture-input{effect_suite_capture_path.suffix}"
+                                )
+                                source_capture = cv2.imread(
+                                    str(source_capture_path), cv2.IMREAD_UNCHANGED
+                                )
+                                if source_capture is None or source_capture.shape[:2] != image.shape[:2]:
+                                    print(f"capture_ui_test: missing or mismatched effect-suite input capture: {source_capture_path}", file=sys.stderr)
+                                    return 1
                             print(output_path)
                             for path in light_leak_paths.values():
                                 print(path)
                             if glow_capture_path is not None:
                                 print(glow_capture_path)
+                            if effect_suite_capture_path is not None:
+                                print(effect_suite_capture_path)
+                                print(source_capture_path)
                             if renderer_output_path is not None:
                                 print(renderer_output_path)
                             if cloner_route_path is not None:

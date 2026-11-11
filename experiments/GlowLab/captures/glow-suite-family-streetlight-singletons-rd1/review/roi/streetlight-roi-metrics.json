@@ -1,0 +1,299 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect CPU product output",
+  "input_plate": "CC0 street light night, provenance in assets/SOURCES.md",
+  "roi_order": [
+    "input",
+    "output",
+    "5x signed RGB difference on 128 gray"
+  ],
+  "not_final_viewer_or_GPU_output": true,
+  "records": [
+    {
+      "effect_id": "luminescence_caustics",
+      "profile_key": "caustic-ridge",
+      "source": "app-family-caustic-ridge-luminescence_caustics-cpu-fixture-input.png",
+      "output": "app-family-caustic-ridge-luminescence_caustics-cpu.png",
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "70d00baadf8e5e3a1413c6ba1733a4574eff88be61ba8752a35691ea85062805",
+      "alpha_mae": 0.0,
+      "left-practical": {
+        "bounds_normalized": [
+          0.195,
+          0.325,
+          0.315,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.405421363392378,
+        "per_channel_mean_signed_delta_rgb": [
+          2.4940418679549112,
+          2.2925925925925927,
+          2.4296296296296296
+        ],
+        "newly_clipped_channel_fraction": 0.02463768115942029
+      },
+      "right-practical": {
+        "bounds_normalized": [
+          0.585,
+          0.325,
+          0.705,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 0.6953837895866881,
+        "per_channel_mean_signed_delta_rgb": [
+          0.7429951690821256,
+          0.6607085346215781,
+          0.6824476650563607
+        ],
+        "newly_clipped_channel_fraction": 0.01057434245840043
+      }
+    },
+    {
+      "effect_id": "chromatic_glow",
+      "profile_key": "chromatic-fringe",
+      "source": "app-family-chromatic-fringe-chromatic_glow-cpu-fixture-input.png",
+      "output": "app-family-chromatic-fringe-chromatic_glow-cpu.png",
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "e643576f22fb90ed7dd4abe8d83f0b2d44047121b7965b9a4372c7878aba14ee",
+      "alpha_mae": 0.0,
+      "left-practical": {
+        "bounds_normalized": [
+          0.195,
+          0.325,
+          0.315,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 3.9010198604401505,
+        "per_channel_mean_signed_delta_rgb": [
+          3.729951690821256,
+          3.709339774557166,
+          4.263768115942029
+        ],
+        "newly_clipped_channel_fraction": 0.04374664519592056
+      },
+      "right-practical": {
+        "bounds_normalized": [
+          0.585,
+          0.325,
+          0.705,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 3.589210950080515,
+        "per_channel_mean_signed_delta_rgb": [
+          3.475684380032206,
+          3.4426731078904993,
+          3.8492753623188407
+        ],
+        "newly_clipped_channel_fraction": 0.038808373590982284
+      }
+    },
+    {
+      "effect_id": "directional_glow",
+      "profile_key": "directional-streak",
+      "source": "app-family-directional-streak-directional_glow-cpu-fixture-input.png",
+      "output": "app-family-directional-streak-directional_glow-cpu.png",
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "cdc237ff92933fab8e01b05cdaeafec8cc7ea6419718b09316c82f64dbec0bed",
+      "alpha_mae": 0.0,
+      "left-practical": {
+        "bounds_normalized": [
+          0.195,
+          0.325,
+          0.315,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.1123993558776166,
+        "per_channel_mean_signed_delta_rgb": [
+          1.9876006441223832,
+          2.0254428341384862,
+          2.3241545893719806
+        ],
+        "newly_clipped_channel_fraction": 0.03698336017176597
+      },
+      "right-practical": {
+        "bounds_normalized": [
+          0.585,
+          0.325,
+          0.705,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 1.789855072463768,
+        "per_channel_mean_signed_delta_rgb": [
+          1.685024154589372,
+          1.7355877616747182,
+          1.9489533011272142
+        ],
+        "newly_clipped_channel_fraction": 0.0333870101986044
+      }
+    },
+    {
+      "effect_id": "edge_bloom",
+      "profile_key": "edge-contour",
+      "source": "app-family-edge-contour-edge_bloom-cpu-fixture-input.png",
+      "output": "app-family-edge-contour-edge_bloom-cpu.png",
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "a23f82fc52daf30ade668b095cd15cdbc0ea810839f40d6df26d7a4be8f39707",
+      "alpha_mae": 0.0,
+      "left-practical": {
+        "bounds_normalized": [
+          0.195,
+          0.325,
+          0.315,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.4717659688674183,
+        "per_channel_mean_signed_delta_rgb": [
+          2.2884057971014493,
+          2.3764895330112723,
+          2.750402576489533
+        ],
+        "newly_clipped_channel_fraction": 0.03612453032742888
+      },
+      "right-practical": {
+        "bounds_normalized": [
+          0.585,
+          0.325,
+          0.705,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.2515834675254967,
+        "per_channel_mean_signed_delta_rgb": [
+          2.112721417069243,
+          2.1958132045088568,
+          2.4462157809983895
+        ],
+        "newly_clipped_channel_fraction": 0.03247450348899624
+      }
+    },
+    {
+      "effect_id": "builtin.glint_star_filter",
+      "profile_key": "four-ray-glint",
+      "source": "app-family-four-ray-glint-builtin.glint_star_filter-cpu-fixture-input.png",
+      "output": "app-family-four-ray-glint-builtin.glint_star_filter-cpu.png",
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "1d0759af29fb63ade7ed4ead4fd39203b19b3fdfdb9854935b6662f934c21324",
+      "alpha_mae": 0.0,
+      "left-practical": {
+        "bounds_normalized": [
+          0.195,
+          0.325,
+          0.315,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 3.266881374127751,
+        "per_channel_mean_signed_delta_rgb": [
+          3.053462157809984,
+          3.1718196457326893,
+          3.57536231884058
+        ],
+        "newly_clipped_channel_fraction": 0.03413848631239936
+      },
+      "right-practical": {
+        "bounds_normalized": [
+          0.585,
+          0.325,
+          0.705,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.875040257648953,
+        "per_channel_mean_signed_delta_rgb": [
+          2.684057971014493,
+          2.8027375201288245,
+          3.1383252818035428
+        ],
+        "newly_clipped_channel_fraction": 0.030971551261406334
+      }
+    },
+    {
+      "effect_id": "physical_halation",
+      "profile_key": "physical-halation",
+      "source": "app-family-physical-halation-physical_halation-cpu-fixture-input.png",
+      "output": "app-family-physical-halation-physical_halation-cpu.png",
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "22448461e6dadb7bb2e22069cd3b85035b57de745da37a2d593ca6ded09072a8",
+      "alpha_mae": 0.0,
+      "left-practical": {
+        "bounds_normalized": [
+          0.195,
+          0.325,
+          0.315,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.290767579173376,
+        "per_channel_mean_signed_delta_rgb": [
+          6.830595813204509,
+          0.04170692431561997,
+          0.0
+        ],
+        "newly_clipped_channel_fraction": 0.004133118625872249
+      },
+      "right-practical": {
+        "bounds_normalized": [
+          0.585,
+          0.325,
+          0.705,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.102415458937198,
+        "per_channel_mean_signed_delta_rgb": [
+          6.278260869565218,
+          0.028985507246376812,
+          0.0
+        ],
+        "newly_clipped_channel_fraction": 0.0047235641438539986
+      }
+    },
+    {
+      "effect_id": "reactive_glow",
+      "profile_key": "reactive-spectrum-base",
+      "source": "app-family-reactive-spectrum-base-reactive_glow-cpu-fixture-input.png",
+      "output": "app-family-reactive-spectrum-base-reactive_glow-cpu.png",
+      "source_sha256": "ee16e0660c6069b283aa2ee57952a650f54d50026ed2511398232ac1d1653bd2",
+      "output_sha256": "95b3111423047e060f9a8d4ee33fa45a34a556d5a97d38d21cd98cd4632fe084",
+      "alpha_mae": 0.0,
+      "left-practical": {
+        "bounds_normalized": [
+          0.195,
+          0.325,
+          0.315,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.561621041331186,
+        "per_channel_mean_signed_delta_rgb": [
+          2.4578099838969405,
+          2.482125603864734,
+          2.6885668276972625
+        ],
+        "newly_clipped_channel_fraction": 0.031239935587761676
+      },
+      "right-practical": {
+        "bounds_normalized": [
+          0.585,
+          0.325,
+          0.705,
+          0.395
+        ],
+        "pixels": 6210,
+        "rgb_mae_8bit": 2.1729468599033814,
+        "per_channel_mean_signed_delta_rgb": [
+          2.098389694041868,
+          2.1288244766505637,
+          2.2916264090177134
+        ],
+        "newly_clipped_channel_fraction": 0.028395061728395062
+      }
+    }
+  ]
+}

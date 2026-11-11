@@ -1,0 +1,78 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect CPU reference output",
+  "not_final_viewer_or_GPU_output": true,
+  "records": [
+    {
+      "effect_id": "edge_bloom",
+      "source": "refined-edge-contour-restrained-edge_bloom-cpu-fixture-input.png",
+      "output": "refined-edge-contour-restrained-edge_bloom-cpu.png",
+      "dimensions": [
+        1536,
+        1025
+      ],
+      "source_sha256": "04484ab83bde22b7114206be4edd6f45ef3e3117f3b958799232cd30f488ad65",
+      "output_sha256": "adccfdb0563d0f8bc55e75731f8e8c5cb78f379a7c7bc6080072ea0809891236",
+      "encoded_rgb_mae": 0.0065419296734035015,
+      "linear_luma_delta_mean": 0.00554485060274601,
+      "linear_luma_delta_p95": 0.02856135368347168,
+      "linear_luma_delta_max": 0.25319164991378784,
+      "changed_channel_fraction_gt_1_255": 0.30390032181571813,
+      "newly_clipped_channel_fraction": 0.005706935975609756,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "chromatic_glow",
+      "source": "refined-chromatic-fringe-restrained-chromatic_glow-cpu-fixture-input.png",
+      "output": "refined-chromatic-fringe-restrained-chromatic_glow-cpu.png",
+      "dimensions": [
+        1536,
+        1025
+      ],
+      "source_sha256": "04484ab83bde22b7114206be4edd6f45ef3e3117f3b958799232cd30f488ad65",
+      "output_sha256": "549ae07a636c91d921dbca0c047a75990dd77f1f900eacecae90e23b5b3664fc",
+      "encoded_rgb_mae": 0.0035077182110399008,
+      "linear_luma_delta_mean": 0.004230089485645294,
+      "linear_luma_delta_p95": 0.023088769987225533,
+      "linear_luma_delta_max": 0.36209505796432495,
+      "changed_channel_fraction_gt_1_255": 0.12751037432249324,
+      "newly_clipped_channel_fraction": 0.0060103319783197835,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "directional_glow",
+      "source": "refined-directional-streak-restrained-directional_glow-cpu-fixture-input.png",
+      "output": "refined-directional-streak-restrained-directional_glow-cpu.png",
+      "dimensions": [
+        1536,
+        1025
+      ],
+      "source_sha256": "04484ab83bde22b7114206be4edd6f45ef3e3117f3b958799232cd30f488ad65",
+      "output_sha256": "8c359b38e83287b46fe9860854e393865726a3200378341abbfb5d5b994176a5",
+      "encoded_rgb_mae": 0.004525577183812857,
+      "linear_luma_delta_mean": 0.005863398313522339,
+      "linear_luma_delta_p95": 0.0389593280851841,
+      "linear_luma_delta_max": 0.24435955286026,
+      "changed_channel_fraction_gt_1_255": 0.16423441734417343,
+      "newly_clipped_channel_fraction": 0.006723196138211382,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "builtin.glint_star_filter",
+      "source": "refined-four-ray-glint-restrained-builtin.glint_star_filter-cpu-fixture-input.png",
+      "output": "refined-four-ray-glint-restrained-builtin.glint_star_filter-cpu.png",
+      "dimensions": [
+        1536,
+        1025
+      ],
+      "source_sha256": "04484ab83bde22b7114206be4edd6f45ef3e3117f3b958799232cd30f488ad65",
+      "output_sha256": "62bb9e1909df013ccb9c768de3dfcb59ee306923e0baa1f1c153bafc6b91cbf9",
+      "encoded_rgb_mae": 0.006743230391293764,
+      "linear_luma_delta_mean": 0.006705400533974171,
+      "linear_luma_delta_p95": 0.04361334815621376,
+      "linear_luma_delta_max": 0.21260565519332886,
+      "changed_channel_fraction_gt_1_255": 0.28455686822493226,
+      "newly_clipped_channel_fraction": 0.00588647527100271,
+      "alpha_mae": 0.0
+    }
+  ]
+}

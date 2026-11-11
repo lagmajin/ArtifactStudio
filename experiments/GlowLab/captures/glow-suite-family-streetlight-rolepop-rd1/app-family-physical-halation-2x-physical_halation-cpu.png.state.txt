@@ -1,0 +1,4 @@
+compositionMatch=1 layers=1 sourceSize=576x1280 visible=1 active=1 imageBuffer=1 effects=1 effectRevision=4 rasterizer=1 stage=4 frame=5 outputSize=576x1280 corner=11,8,17,255 center=46,38,53,255
+compute=0 supportsGPU=0 domain=0 genericKey=0 gpuNodes=0 gpuNodeCount=0 cacheDiagnostics={"enabled":true,"entries":[{"builds":1,"hits":0,"invalidations":0,"layerId":"b293d14e-ca47-4241-a34a-49a736fe7894","misses":1,"slot":"draft"},{"builds":1,"hits":3,"invalidations":0,"layerId":"b293d14e-ca47-4241-a34a-49a736fe7894","misses":1,"slot":"full"}]}
+look=physical_halation layerRtSaved=0 accumRtSaved=0 gpuBlendEnabled=1 captureSource=Installed CPU reference
+effectId=physical_halation propertyOverrides={"Intensity":0.5,"Red Diffusion":2,"Softness":0.5,"Spread":18,"Threshold":0.65}

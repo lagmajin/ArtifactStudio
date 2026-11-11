@@ -1,0 +1,131 @@
+{
+  "intent": "Compare ten distinct registered Glow-family roles as branches from one portrait-tuned Glow foundation on the same low-light 1536x1024 portrait plate. Exploratory chained PNG proxy, not an accepted multi-effect stack or preset. Residual Glow is excluded because one still does not exercise temporal history.",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 2.5,
+      "layerCount": 4,
+      "baseSigma": 10.0
+    }
+  },
+  "recipes": {
+    "edge-contour": {
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.8,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.25,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      }
+    },
+    "reactive-tint": {
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Radius": 10.0,
+        "Intensity": 0.25,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.6,
+        "Tint Mix": 0.18
+      }
+    },
+    "chromatic-fringe": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.6,
+        "Radius": 7.0,
+        "Intensity": 0.65,
+        "Dispersion": 1.5,
+        "Angle": 0.0,
+        "Tint Mix": 0.25
+      }
+    },
+    "liquid-wave": {
+      "effect_id": "liquid_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Radius": 10.0,
+        "Intensity": 0.6,
+        "Flow Scale": 30.0,
+        "Distortion": 3.0,
+        "Phase": 0.0
+      }
+    },
+    "directional-streak": {
+      "effect_id": "directional_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Intensity": 0.25,
+        "Length 1 (Inner)": 18.0,
+        "Length 2 (Outer)": 60.0,
+        "Weight 1": 0.7,
+        "Weight 2": 0.25,
+        "Pattern": 0,
+        "Angle Offset": 0.0
+      }
+    },
+    "film-halation": {
+      "effect_id": "physical_halation",
+      "properties": {
+        "Threshold": 0.65,
+        "Spread": 18.0,
+        "Intensity": 0.25,
+        "Red Diffusion": 2.0,
+        "Softness": 0.5
+      }
+    },
+    "caustic-ridge": {
+      "effect_id": "luminescence_caustics",
+      "properties": {
+        "Threshold": 0.45,
+        "Edge Weight": 0.8,
+        "Scale": 22.0,
+        "Intensity": 0.3,
+        "Evolution": 0.0,
+        "Color Shift": 0.25
+      }
+    },
+    "optical-layer": {
+      "effect_id": "builtin.optical_glow",
+      "properties": {
+        "threshold": 0.5,
+        "softKnee": 0.3,
+        "radius": 8.0,
+        "intensity": 0.35,
+        "afterglowRadius": 20.0,
+        "afterglowIntensity": 0.08,
+        "streakStrength": 0.05,
+        "atmosphere": 0.02,
+        "warmth": 0.1
+      }
+    },
+    "streetlamp-rays": {
+      "effect_id": "builtin.volumetric_shine",
+      "properties": {
+        "sourceX": 0.74,
+        "sourceY": 0.19,
+        "rayLength": 0.45,
+        "intensity": 0.45,
+        "decay": 0.8,
+        "samples": 32,
+        "threshold": 0.35,
+        "warmth": 0.1
+      }
+    },
+    "four-ray-glint": {
+      "effect_id": "builtin.glint_star_filter",
+      "properties": {
+        "threshold": 0.45,
+        "intensity": 0.5,
+        "length": 50.0,
+        "width": 1.0,
+        "rays": 4,
+        "rotation": 45.0,
+        "chromatic": 0.3,
+        "softness": 0.55
+      }
+    }
+  }
+}

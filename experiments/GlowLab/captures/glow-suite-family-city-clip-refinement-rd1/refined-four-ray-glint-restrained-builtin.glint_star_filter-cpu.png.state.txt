@@ -1,0 +1,4 @@
+compositionMatch=1 layers=1 sourceSize=1536x1025 visible=1 active=1 imageBuffer=1 effects=1 effectRevision=4 rasterizer=1 stage=4 frame=5 outputSize=1536x1025 corner=0,0,0,255 center=217,207,214,255
+compute=0 supportsGPU=0 domain=0 genericKey=0 gpuNodes=0 gpuNodeCount=0 cacheDiagnostics={"enabled":true,"entries":[{"builds":1,"hits":3,"invalidations":0,"layerId":"c1ad31a3-67e5-42a7-a3fb-86a23b28e185","misses":1,"slot":"full"},{"builds":1,"hits":0,"invalidations":0,"layerId":"c1ad31a3-67e5-42a7-a3fb-86a23b28e185","misses":1,"slot":"draft"}]}
+look=builtin.glint_star_filter layerRtSaved=0 accumRtSaved=0 gpuBlendEnabled=1 captureSource=Installed CPU reference
+effectId=builtin.glint_star_filter propertyOverrides={"chromatic":0.3,"intensity":0.25,"length":50,"rays":4,"rotation":45,"softness":0.55,"threshold":0.45,"width":1}
