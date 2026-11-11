@@ -2,6 +2,16 @@
 
 **最終更新:** 2026-11-11
 
+## 2026-11-11 — Edge Bloom contour response and Reactive Glow saturation response
+
+**方法:** Installed-effect CPU captures used the same 960×540 synthetic neon plate and matched Threshold (.65), Radius (8), amount/intensity (.35), and independent source pixels. Edge Bloom varied only Edge Boost (.15/.8); Reactive Glow varied only Saturation Weight (.1/.8), with Reaction .8 and Tint Mix .18 fixed. Four outputs, property readback, common-source hashes, and an aspect-preserving contact sheet are in `captures/glow-edge-reactive-role-probe-neon-cpu-rd3/`; profile: `glow_edge_reactive_role_probe_rd3.json`.
+
+**結果:** Raising Edge Boost from .15 to .8 increased full-frame mean linear-luma change from .00106 to .00218 and newly clipped channels from .152% to .494%. Raising Reactive Saturation Weight from .1 to .8 increased the corresponding mean change from .000275 to .00155 and clipping from .025% to .451%. Alpha remained identical in all captures. At the contact-sheet's amplified difference scale, Edge Bloom reads as a more neutral contour/edge lift, while Reactive Glow adds more source-colored halo around the saturated ring, text, and tube. This is a role-separation signal on this fixture, not proof of aesthetic quality or transfer to photos.
+
+**判断・制約:** The paired controls provide independent ways to tune contour response and saturation-driven color response, but the stronger settings also raise local clipping and no candidate is accepted. The captures use the installed CPU reference on an SDR synthetic plate, not the final Viewer/GPU path; HDR, photographic transfer, temporal behavior, and performance remain unverified. No production defaults changed.
+
+**再現:** Run `glow_capture_product_suite.py` with `glow_edge_reactive_role_probe_rd3.json` and the profile's `captures/light-leak-neon-source.png` input, then generate the review with `glow_product_capture_review.py --capture-prefix edge-reactive-rd3-`.
+
 ## Scope and status
 
 This note records the independent image captures and code-path findings for Glow and still-image Light Leak. Python/OpenCV studies remain SDR references and do not establish production GPU performance. ArtifactCore has analytic CPU still-image Light Leak fields for edge wash, anamorphic streak, and organic lobes, and Artifact has a corresponding resident-filter effect with normalized streak source X/Y and angle controls. The resident HLSL compiled as D3D12 DXIL and Vulkan 1.1 SPIR-V. The full `ArtifactUiTest` target builds in `out/build/x64-Debug-Agent`; D3D12 is disabled and Vulkan enabled in that configuration. Japanese GPU fixture captures now show successful blend dispatch and close pixel agreement with the installed-effect CPU reference after fixing the UV coordinate domain. The saved GPU image is cropped from diagnostic Accum RT; it is not the final Composition Viewer presentation. Final frame readback and visible Viewer output remain unresolved.

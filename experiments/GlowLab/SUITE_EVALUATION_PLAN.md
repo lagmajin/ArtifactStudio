@@ -40,8 +40,8 @@ The city figures are incremental relative to the same `Glow` foundation in the 8
 | Effect | Intended visual role | Current R&D state |
 |---|---|---|
 | `glow` | Soft near halo with broad multi-scale falloff | Baseline and role candidate CPU captures on portrait and neon; parameter-specific GPU and Viewer review pending |
-| `edge_bloom` | Keep emissive contours and thin bright lines legible | Role candidate is prominent on neon; portrait haze and neon clipping need restraint review |
-| `reactive_glow` | Tie halo tint and strength to luminance / saturation | Role candidate distinguishes from base halo on neon; clipping and tint response need a bounded sweep |
+| `edge_bloom` | Keep emissive contours and thin bright lines legible | Matched neon probe shows Edge Boost changes contour lift; stronger candidate raises full-frame clipping to .494%; photo transfer and aesthetic review remain open |
+| `reactive_glow` | Tie halo tint and strength to luminance / saturation | Matched neon probe shows Saturation Weight changes source-colored halo; stronger candidate raises full-frame clipping to .451%; photo transfer and aesthetic review remain open |
 | `chromatic_glow` | Add controlled color separation at bright edges | Dispersion is attenuated by Tint Mix; photo CPU captures with Tint Mix 0 show measurable but subtle red/blue edge response through Dispersion 2 |
 | `liquid_glow` | Add local refractive waviness around emissive sources | Role candidate visible on neon; phase variation / temporal stability not evaluated |
 | `residual_glow` | Carry a softened light trace over time | Static baseline and role candidate only; temporal role is not exercised by a single-image fixture |
@@ -54,6 +54,8 @@ The city figures are incremental relative to the same `Glow` foundation in the 8
 | Companion: `still_light_leak` | Add scene-wide edge wash, anamorphic streak, or organic leak | CPU/GPU and placement research exists; keep its look choice and acceptance separate from Glow-family effects |
 
 ## Shared evaluation material and conditions
+
+- A matched single-effect probe now compares Edge Bloom Edge Boost (.15/.8) with Reactive Glow Saturation Weight (.1/.8) on the same synthetic neon plate. It suggests distinct neutral contour lift versus source-colored halo responses, but the stronger settings raise clipping and remain exploratory. See `glow_edge_reactive_role_probe_rd3.json` and `captures/glow-edge-reactive-role-probe-neon-cpu-rd3/`.
 
 - Synthetic neon fixture: controlled thin lines, saturated colors, text, and compact highlights.
 - CC0 walkway video frame 20: real-image context with foliage, sky, and bright details; license/source is recorded in `tests/ArtifactCore/fixtures/README.md`.

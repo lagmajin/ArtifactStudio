@@ -1,0 +1,4 @@
+compositionMatch=1 layers=1 sourceSize=960x540 visible=1 active=1 imageBuffer=1 effects=1 effectRevision=4 rasterizer=1 stage=4 frame=4 outputSize=960x540 corner=3,2,5,255 center=5,4,8,255
+compute=0 supportsGPU=1 domain=2 genericKey=3702587416 gpuNodes=1 gpuNodeCount=1 cacheDiagnostics={"enabled":true,"entries":[{"builds":1,"hits":0,"invalidations":0,"layerId":"970ca72c-8845-4814-a34b-e6565f631b29","misses":1,"slot":"draft"},{"builds":1,"hits":2,"invalidations":0,"layerId":"970ca72c-8845-4814-a34b-e6565f631b29","misses":1,"slot":"full"}]}
+look=edge_bloom layerRtSaved=0 accumRtSaved=0 gpuBlendEnabled=1 captureSource=Installed CPU reference
+effectId=edge_bloom propertyOverrides={"Amount":0.35,"Edge Boost":0.15,"Radius":8,"Threshold":0.65,"Threshold Softness":0.15,"Tint Mix":0.2}

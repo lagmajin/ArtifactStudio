@@ -1,0 +1,78 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect CPU reference output",
+  "not_final_viewer_or_GPU_output": true,
+  "records": [
+    {
+      "effect_id": "edge_bloom",
+      "source": "edge-reactive-rd3-edge-contour-high-edge_bloom-cpu-fixture-input.png",
+      "output": "edge-reactive-rd3-edge-contour-high-edge_bloom-cpu.png",
+      "dimensions": [
+        960,
+        540
+      ],
+      "source_sha256": "46d827e95a48eb33dde84177e6c0bf9648c8840877104f695959c02c49c868d7",
+      "output_sha256": "de52253624408c943d6799d5663f8c09f6f566c605810df7482af145aa9727be",
+      "encoded_rgb_mae": 0.004562983755022287,
+      "linear_luma_delta_mean": 0.0021817798260599375,
+      "linear_luma_delta_p95": 0.0030999556183815002,
+      "linear_luma_delta_max": 0.1622009575366974,
+      "changed_channel_fraction_gt_1_255": 0.12875385802469136,
+      "newly_clipped_channel_fraction": 0.00493505658436214,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "edge_bloom",
+      "source": "edge-reactive-rd3-edge-contour-low-edge_bloom-cpu-fixture-input.png",
+      "output": "edge-reactive-rd3-edge-contour-low-edge_bloom-cpu.png",
+      "dimensions": [
+        960,
+        540
+      ],
+      "source_sha256": "46d827e95a48eb33dde84177e6c0bf9648c8840877104f695959c02c49c868d7",
+      "output_sha256": "44d17aeff069eaa83ee928a8d911632cfefdbb0fd3e236b1438dd7ca3c993725",
+      "encoded_rgb_mae": 0.0019446888472884893,
+      "linear_luma_delta_mean": 0.0010631480254232883,
+      "linear_luma_delta_p95": 0.0009105811477638781,
+      "linear_luma_delta_max": 0.13784515857696533,
+      "changed_channel_fraction_gt_1_255": 0.08903935185185186,
+      "newly_clipped_channel_fraction": 0.0015194187242798354,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "reactive_glow",
+      "source": "edge-reactive-rd3-reactive-saturation-high-reactive_glow-cpu-fixture-input.png",
+      "output": "edge-reactive-rd3-reactive-saturation-high-reactive_glow-cpu.png",
+      "dimensions": [
+        960,
+        540
+      ],
+      "source_sha256": "46d827e95a48eb33dde84177e6c0bf9648c8840877104f695959c02c49c868d7",
+      "output_sha256": "d6ab1e5ad8c3ae5c14fcc66a86d0e7056123388d343846231aa5ca66a0018097",
+      "encoded_rgb_mae": 0.0024583712220191956,
+      "linear_luma_delta_mean": 0.0015512047102674842,
+      "linear_luma_delta_p95": 0.0017197111155837774,
+      "linear_luma_delta_max": 0.12469214200973511,
+      "changed_channel_fraction_gt_1_255": 0.08434477880658436,
+      "newly_clipped_channel_fraction": 0.004505529835390947,
+      "alpha_mae": 0.0
+    },
+    {
+      "effect_id": "reactive_glow",
+      "source": "edge-reactive-rd3-reactive-saturation-low-reactive_glow-cpu-fixture-input.png",
+      "output": "edge-reactive-rd3-reactive-saturation-low-reactive_glow-cpu.png",
+      "dimensions": [
+        960,
+        540
+      ],
+      "source_sha256": "46d827e95a48eb33dde84177e6c0bf9648c8840877104f695959c02c49c868d7",
+      "output_sha256": "9a22bf210cd651f5e19fe700da42d2b26386ff926e1adac4c52be9395af0d5ff",
+      "encoded_rgb_mae": 0.0004920670762658119,
+      "linear_luma_delta_mean": 0.0002747155085671693,
+      "linear_luma_delta_p95": 8.644448826089501e-05,
+      "linear_luma_delta_max": 0.09343165159225464,
+      "changed_channel_fraction_gt_1_255": 0.018487654320987656,
+      "newly_clipped_channel_fraction": 0.0002539866255144033,
+      "alpha_mae": 0.0
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "capture_class": "ArtifactUiTest installed-effect product output",
+  "not_final_viewer_output": true,
+  "profile": "experiments\\GlowLab\\glow_edge_reactive_role_probe_rd3.json",
+  "profile_sha256": "2259cea78d59564845f8a40d270746f306b6122ccd74e07745d872f7d9090a98",
+  "input": "experiments\\GlowLab\\captures\\light-leak-neon-source.png",
+  "input_sha256": "4ae106500230f20284689130711dbe54cd4627ff09d159cc1dd0e84e7db96771",
+  "exe": "out\\build\\x64-Debug-Agent\\bin\\Debug\\ArtifactUiTest.exe",
+  "exe_sha256": "180f9c4a363f9771a7372d321bdc5d4b19da0dca3fdee25cbf63b58e07d2c490",
+  "language": "ja",
+  "requested_compute": "cpu",
+  "generated_utc": "2026-11-11T01:42:21.920435+00:00",
+  "entries": [
+    {
+      "profile_key": "edge-contour-low",
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.65,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.35,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      },
+      "requested_compute": "cpu",
+      "product_output": "edge-reactive-rd3-edge-contour-low-edge_bloom-cpu.png",
+      "source_capture": "edge-reactive-rd3-edge-contour-low-edge_bloom-cpu-fixture-input.png",
+      "source_capture_sha256": "46d827e95a48eb33dde84177e6c0bf9648c8840877104f695959c02c49c868d7",
+      "product_output_sha256": "44d17aeff069eaa83ee928a8d911632cfefdbb0fd3e236b1438dd7ca3c993725",
+      "state_sidecar": "edge-reactive-rd3-edge-contour-low-edge_bloom-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "edge-contour-high",
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.65,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.35,
+        "Edge Boost": 0.8,
+        "Tint Mix": 0.2
+      },
+      "requested_compute": "cpu",
+      "product_output": "edge-reactive-rd3-edge-contour-high-edge_bloom-cpu.png",
+      "source_capture": "edge-reactive-rd3-edge-contour-high-edge_bloom-cpu-fixture-input.png",
+      "source_capture_sha256": "46d827e95a48eb33dde84177e6c0bf9648c8840877104f695959c02c49c868d7",
+      "product_output_sha256": "de52253624408c943d6799d5663f8c09f6f566c605810df7482af145aa9727be",
+      "state_sidecar": "edge-reactive-rd3-edge-contour-high-edge_bloom-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "reactive-saturation-low",
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.65,
+        "Radius": 8.0,
+        "Intensity": 0.35,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.1,
+        "Tint Mix": 0.18
+      },
+      "requested_compute": "cpu",
+      "product_output": "edge-reactive-rd3-reactive-saturation-low-reactive_glow-cpu.png",
+      "source_capture": "edge-reactive-rd3-reactive-saturation-low-reactive_glow-cpu-fixture-input.png",
+      "source_capture_sha256": "46d827e95a48eb33dde84177e6c0bf9648c8840877104f695959c02c49c868d7",
+      "product_output_sha256": "9a22bf210cd651f5e19fe700da42d2b26386ff926e1adac4c52be9395af0d5ff",
+      "state_sidecar": "edge-reactive-rd3-reactive-saturation-low-reactive_glow-cpu.png.state.txt"
+    },
+    {
+      "profile_key": "reactive-saturation-high",
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.65,
+        "Radius": 8.0,
+        "Intensity": 0.35,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.8,
+        "Tint Mix": 0.18
+      },
+      "requested_compute": "cpu",
+      "product_output": "edge-reactive-rd3-reactive-saturation-high-reactive_glow-cpu.png",
+      "source_capture": "edge-reactive-rd3-reactive-saturation-high-reactive_glow-cpu-fixture-input.png",
+      "source_capture_sha256": "46d827e95a48eb33dde84177e6c0bf9648c8840877104f695959c02c49c868d7",
+      "product_output_sha256": "d6ab1e5ad8c3ae5c14fcc66a86d0e7056123388d343846231aa5ca66a0018097",
+      "state_sidecar": "edge-reactive-rd3-reactive-saturation-high-reactive_glow-cpu.png.state.txt"
+    }
+  ]
+}
