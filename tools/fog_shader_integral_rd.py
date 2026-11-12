@@ -72,7 +72,7 @@ def exact_cutoff_integral(origin_y: float, direction_y: float, distance: float, 
 def main() -> None:
     cases = []
     worst_profile = {"relative_error": 0.0}
-    worst_start = {"relative_error": 0.0}
+    worst_start = {"absolute_optical_depth_difference": 0.0}
     for origin_y in ORIGINS:
         for pitch in PITCH_DEGREES:
             direction_y = math.sin(math.radians(pitch))
@@ -92,19 +92,21 @@ def main() -> None:
                 start_cases = []
                 for start in START_DISTANCES:
                     shader_tau = FOG_DENSITY * start_fade(distance, start) * source_integral
+                    exact_faded_tau = FOG_DENSITY * start_fade(distance, start) * reference_integral
                     hard_tau = FOG_DENSITY * exact_cutoff_integral(origin_y, direction_y, distance, start)
-                    discrepancy = abs(shader_tau - hard_tau)
+                    discrepancy = abs(exact_faded_tau - hard_tau)
                     case = {
                         "start_distance": start,
                         "source_start_fade": start_fade(distance, start),
                         "source_optical_depth": shader_tau,
+                        "exact_height_integral_with_source_fade_optical_depth": exact_faded_tau,
                         "hard_cutoff_optical_depth": hard_tau,
-                        "absolute_optical_depth_difference": discrepancy,
+                        "exact_fade_vs_hard_cutoff_absolute_optical_depth_difference": discrepancy,
                     }
                     start_cases.append(case)
-                    if discrepancy > worst_start["relative_error"]:
+                    if discrepancy > worst_start["absolute_optical_depth_difference"]:
                         worst_start = {
-                            "relative_error": discrepancy,
+                            "absolute_optical_depth_difference": discrepancy,
                             "origin_y": origin_y,
                             "pitch_degrees": pitch,
                             "distance": distance,
@@ -140,11 +142,11 @@ def main() -> None:
         },
         "summary": {
             "worst_source_height_integral_relative_error_vs_quadrature": worst_profile,
-            "largest_source_start_fade_vs_hard_cutoff_optical_depth_difference": worst_start,
+            "largest_exact_source_fade_vs_hard_cutoff_optical_depth_difference": worst_start,
         },
         "limitations": [
             "CPU equation mirror only; HLSL was not compiled or dispatched.",
-            "Hard cutoff is an explicit comparison policy, not a claim that fogHF's start fade is a source bug.",
+            "Hard cutoff is an explicit comparison policy; the exact-fade comparison isolates policy from height-integral approximation and does not claim the source fade is a bug.",
             "No shader color selection, atmospheric LUT, host binding, or GPU performance is represented.",
         ],
         "cases": cases,
