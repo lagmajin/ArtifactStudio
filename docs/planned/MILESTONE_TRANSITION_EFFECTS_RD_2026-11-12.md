@@ -3,7 +3,7 @@
 **最終更新:** 2026-11-12
 **ステータス:** In Progress
 
-**進捗:** 2026-11-12 — 既存 `TransitionRenderContractTest` が入力A/Bの原寸PNGも保存するよう変更し、`tools/analyze_transition_capture.py` で全kindのprogress 0/1を入力画像と画素単位比較、隣接progress間の変更画素数をPNGから再計算してreport値と照合する仕組みを追加。全capture frameのalphaも不透明入力契約（alpha=255）と照合する。期待する16 kind、progress列、端点source、画素数、全PNGの存在・形式・寸法・読込可否を確認し、画像とcapture reportのSHA-256を `verification_report.json` に記録する。さらに `review.html` を生成し、入力、全kind grid、kind別progress stripと各フレームをブラウザで一覧できるようにした。解析器・C++ testは未実行。既存capture reportにはraw timingが含まれない。
+**進捗:** 2026-11-12 — 既存 `TransitionRenderContractTest` が入力A/Bの原寸PNGも保存するよう変更し、`tools/analyze_transition_capture.py` で全kindのprogress 0/1を入力画像と画素単位比較、隣接progress間の変更画素数をPNGから再計算してreport値と照合する仕組みを追加。全capture frameのalphaを不透明入力契約（alpha=255）と照合するほか、既存の alpha=77 contract と同じ半透明入力fixtureで全kind・全progressのPNG、strip、原寸入力をcaptureし、alpha保持と端点完全一致も検証する。期待する16 kind、progress列、画素数、全PNGの存在・形式・寸法・読込可否を確認し、画像とcapture reportのSHA-256を `verification_report.json` に記録する。さらに `review.html` を生成し、入力、全kind grid、kind別progress stripと各フレームを一覧できる。kind別の目視判定とメモをブラウザ内に保存し、capture report hash付きJSONとしてexportできる。captureには各kind／progressごとのwarm-up後CPU adapter render raw timingsを7回保存し、解析器がmin/median/maxを算出する。`tools/run_transition_capture.py` は既存test exe実行、source revision／dirty状態、exe hash、OS／CPU、build configをrun manifestへ記録し、解析まで連続実行する。空のcapture directoryのみ受け付けて既存データを保護する。`--baseline` は入力・条件一致とPNGのchanged/added/removedを検査し、差分を目視できる。合成fixtureでopaqueとalpha=77の16 kind・203 PNG、timing／provenance、レビュー出力、1画像だけ変更したbaseline比較がPASS。初回実行で隣接画像比較の前フレーム保持漏れを発見して修正後、各段階を再実行してPASSした。runner、実トランジションcapture、ブラウザでの実操作、C++ testは未実施。旧capture reportにはtimingがない。
 
 ## 目的
 
@@ -54,6 +54,7 @@
 - 実行経路とbackend。未確認・未計測は明示し、CPU結果からGPU動作を推定しない
 - warm-up回数、測定反復数、反復ごとのraw milliseconds。統計量はraw sampleから算出
 - 出力画像path/hash、入力A/Bとの画像差分指標、生成時エラーや未対応理由
+- runner経由の場合はworking tree clean/dirtyとstatus hash、test executable SHA-256、build config、host OS／CPU情報、実行開始・終了時刻、test exit code。verification reportにはanalyzer自身のSHA-256も記録する。
 
 実装上の引数が分からない場合にmanifest上で架空のpropertyを作らず、まずソース監査台帳に「未確認」と記載する。画像変換や色／alpha正規化を追加する場合は元データを保持し、変換条件と実装adapterを記録する。
 
@@ -69,19 +70,24 @@
 ### Phase 2 — Capture基盤とfixture
 
 - 既存の人工A/B診断fixtureとcapture reportを最初のfixtureとして利用し、追加fixtureは後続に回す。
-- 既存の受け入れテストtargetは `ArtifactCoreTransitionRenderContractTest`（`tests/ArtifactCore/CMakeLists.txt` 登録）。実行時に `ARTIFACT_TRANSITION_CAPTURE_DIR` で指定した出力先へPNG/reportを保存し、そのdirectoryを `python tools/analyze_transition_capture.py <capture-directory>` で検証する。既定出力先はOS temp配下の `artifact-transitions`。
+- 既存の受け入れテストtargetは `ArtifactCoreTransitionRenderContractTest`（`tests/ArtifactCore/CMakeLists.txt` 登録）。`tools/run_transition_capture.py` は既存test exeを起動し、`ARTIFACT_TRANSITION_CAPTURE_DIR` で指定した出力先へPNG/reportを保存させ、provenance manifest作成と解析を続けて行う。
 - 実行手順（対象buildがすでに存在し、ユーザーがテスト実行を指示した後）:
   ```powershell
-  $env:ARTIFACT_TRANSITION_CAPTURE_DIR = "$PWD\transition-capture"
-  & "<build>\bin\<config>\ArtifactCoreTransitionRenderContractTest.exe"
-  python tools/analyze_transition_capture.py $env:ARTIFACT_TRANSITION_CAPTURE_DIR
+  python tools/run_transition_capture.py `
+    --test-executable "<build>\bin\<config>\ArtifactCoreTransitionRenderContractTest.exe" `
+    --capture-directory "$PWD\transition-capture" `
+    --build-config <config>
   ```
+- vcpkg runtime DLLがtest executableの隣にない環境では、`--runtime-path "<vcpkg>\installed\<triplet>\bin"` と `--runtime-path "<vcpkg>\installed\<triplet>\debug\bin"` を追加する。
+- runnerは新規または空の出力directoryだけ使い、Git revision／dirty status、実行ファイルhash、OS／CPU、build config、test exit code、tool identityを `run_manifest.json` に保存する。analyzerはmanifestが無い既存／直接実行captureを受け入れるが、provenance不足をwarningに出す。
 - capture testはcontact sheetに加え `input_A.png` / `input_B.png` を原寸で保存する。解析器は `verification_report.json` を作り、期待16 kind、progress列、端点のLeft→Right、開始／終了画像の完全一致、隣接画像間の実変更画素数とreport値の一致、不透明入力に対するalpha保持、各stepの分類pixel count、全PNGの存在・RGBA形式・寸法・decode可否を検査する。出力画像と元reportのSHA-256を保存し、差し替えや再生成を追跡できる。
-- 同時に `review.html` を出力し、入力A/B、progress別全kind grid、各kindのprogress stripと個別フレームをブラウザで見比べられるようにする。HTMLはローカル画像を参照し、外部リソースに依存しない。
+- さらに既存 `NonOpaqueAlphaPreserved` 契約に合わせ、全入力pixel alpha=77のA/B pairでも全kindを5 progressでcaptureする。解析器はalpha=77保持、両端の完全pixel一致、alpha laneの隣接画像差分も検査する。runner経由でalpha laneが欠けるcaptureは古いtest executableと見なし、failにする。
+- 同時に `review.html` を出力し、入力A/B、progress別全kind grid、各kindのprogress stripと個別フレームをブラウザで見比べられるようにする。kind別の目視判定（未確認／問題なし／要確認）とメモはcapture report hash単位でブラウザへ保存し、JSON exportできる。HTMLはローカル画像を参照し、外部リソースに依存しない。
+- 任意の `--baseline <capture-directory-or-verification_report.json>` で既存captureと比較できる。寸法／fps／progress／kind集合／fixture hash／execution pathの条件一致、変更・追加・削除PNGのhash一覧を `capture_delta.json` に出し、HTMLから基準のreview sheetへ移動できる。画像差分は自動failにはせず、意図した更新か人が確認する。
 - 自動検査PASSはcapture bundleとreport上の基本的な挙動が整合する意味に限る。画像を開いてcontact sheetと各progressを目視し、方向・境界・破綻を別途確認する。
 - 共通progress列は0、0.125、0.25、0.5、0.75、0.875、1を使い、動きの速い／確率的な系統は連続フレーム追加を検討する。
 - 全具象kindの小規模coverage captureと、選定代表kindの詳細captureを分ける。
-- CPU timingは画像生成・初期化とtransition処理を分離できる場合に分けて記録する。分離不能はtotalのみ記録する。
+- 新captureのCPU timingは各kind／progressで2回warm-up後に7 raw samplesを保存する。対象はCPU `ArtifactTestTransitionBridge::render` 呼び出し（factory、frame adapter、process、返却画像の破棄を含む）、fixture構築とPNG出力は除外。これは少数sampleの診断値であり合否閾値に使わず、性能比較ではbuild/host条件の記録を追加する。
 
 ### Phase 3 — 視覚・時間解析
 
@@ -93,6 +99,7 @@
 ### Phase 4 — 比較・報告
 
 - kindごとに入力、全条件、progress strip、解析値、raw timing、未対応条件をひとまとめにした結果bundleを出す。
+- 2回目以降のcaptureでは `--baseline <previous-capture-directory>` を使い、条件とfixtureが同じ比較かを確認してから画像hash差分と目視レビューを行う。CPU timing比較は同host/build/measurement contractの時だけ同条件として扱う。
 - build、host、実行経路が一致する比較と、異なる環境の参考比較を分離する。
 - 次の作業候補（不具合、未実装、統合、最適化）は根拠付きで提示し、別途承認された依頼なしに製品範囲へ拡張しない。
 
@@ -107,7 +114,7 @@
 ## 制約・検証状態
 
 - これはR&D準備計画であり、アルゴリズム実装・統合作業を自動的に承認するものではない。
-- C++ contract testとMCP self-checkの起動、captureの実行、解析器の実行、性能測定は未実施。既存capture JSONはraw timing、source revision、binary hash、build config、host/CPU情報を出さないため、同一環境の性能・backend parity比較に不足する。capture metadata拡張は次段階。
+- C++ contract testとMCP self-checkの起動、実captureの生成、実データの解析、ブラウザでの目視判定は未実施。合成fixture smokeは解析器の配線確認だけで、rendererを通さない。新captureはraw CPU timingを含むが、source revision、binary hash、build config、host/CPU情報はまだ付与しないため、性能比較とbackend parityには不足する。
 - 解析器はPillowを必要とする。これは既存の `tools/ui_visual_compare.py` と同じ画像依存である。
 - ビルド、テスト、CMake configureは明示指示を得てから行う。
 - 子リポジトリ／サブモジュールは変更しない。

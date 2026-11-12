@@ -84,6 +84,20 @@ def rayleigh_phase(cos_theta: float) -> float:
     return 3.0 * (1.0 + cos_theta * cos_theta) / (16.0 * math.pi)
 
 
+def cpu_atmosphere_fog_source_phase(cos_theta: float) -> float:
+    """Mirror AtmosphereFogRenderer::phaseRayleigh from the current C++ source."""
+    return 0.75 * (1.0 + cos_theta * cos_theta) * (3.0 / (16.0 * math.pi))
+
+
+def integrate_phase_sphere(phase_function, samples: int = 262144) -> float:
+    step = 2.0 / samples
+    total = 0.0
+    for index in range(samples):
+        cosine = -1.0 + (index + 0.5) * step
+        total += phase_function(cosine) * step
+    return 2.0 * math.pi * total
+
+
 def hg_phase(g: float, cos_theta: float) -> float:
     denominator = max(1e-12, 1.0 + g * g - 2.0 * g * cos_theta)
     return (1.0 - g * g) / (4.0 * math.pi * denominator ** 1.5)
@@ -132,6 +146,13 @@ def render_markdown(cos_theta: float, step_counts: list[int]) -> str:
             "",
             f"Phase samples: Rayleigh={rayleigh_phase(cos_theta):.9g}, "
             f"HG(g=0.6)={hg_phase(0.6, cos_theta):.9g} sr^-1.",
+            "",
+            "AtmosphereFogRenderer source phase audit (equation mirror; not a C++ runtime call):",
+            f"- Standard Rayleigh sphere integral: {integrate_phase_sphere(rayleigh_phase):.12g}.",
+            f"- C++ phaseRayleigh sphere integral: {integrate_phase_sphere(cpu_atmosphere_fog_source_phase):.12g}.",
+            f"- Source/normalized phase ratio at cosTheta={cos_theta:g}: "
+            f"{cpu_atmosphere_fog_source_phase(cos_theta) / rayleigh_phase(cos_theta):.9g}.",
+            "- evaluateFog source uses constant sunIntensity and contains no sun-path transmittance evaluation.",
             "",
         ]
     )

@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -70,6 +71,8 @@ constexpr int kHeight = 64;
 constexpr int kFrameIndex = 0;
 constexpr double kFps = 30.0;
 constexpr std::array<double, 5> kSteps{0.0, 0.25, 0.5, 0.75, 1.0};
+constexpr int kTimingWarmupCount = 2;
+constexpr int kTimingSampleCount = 7;
 
 Image inputA(const int width = kWidth, const int height = kHeight)
 {
@@ -138,6 +141,14 @@ QString progressStem(const double progress)
     return QString::number(percent).rightJustified(3, QChar('0'));
 }
 
+Image withUniformAlpha(Image image, const std::uint8_t alpha)
+{
+    for (std::size_t index = 3; index < image.pixels.size(); index += 4) {
+        image.pixels[index] = alpha;
+    }
+    return image;
+}
+
 // ---------------------------------------------------------------------------
 // behaviour report
 // ---------------------------------------------------------------------------
@@ -167,12 +178,17 @@ QJsonObject writeKindArtifacts(const TransitionKind kind, const QString& directo
 {
     const Image a = inputA();
     const Image b = inputB();
+    const Image alphaA = withUniformAlpha(inputA(), 77u);
+    const Image alphaB = withUniformAlpha(inputB(), 77u);
     const QString name = kindLabel(kind);
 
     std::vector<Image> frames;
+    std::vector<Image> alphaFrames;
     std::vector<FrameStats> statistics;
     QJsonArray steps;
+    QJsonArray alphaSteps;
     Image previous;
+    Image previousAlpha;
     for (const double progress : kSteps) {
         const RenderResult result = renderAt(kind, progress);
         const FrameStats stats =
@@ -182,15 +198,52 @@ QJsonObject writeKindArtifacts(const TransitionKind kind, const QString& directo
                 ? 0
                 : ArtifactTestTransitionRenderer::difference(previous, result.image)
                       .changedPixels;
+        for (int warmup = 0; warmup < kTimingWarmupCount; ++warmup) {
+            (void)ArtifactTestTransitionBridge::render(
+                kind, a, b, optionsAt(progress));
+        }
+        QJsonArray timingSamplesMs;
+        for (int sample = 0; sample < kTimingSampleCount; ++sample) {
+            const auto start = std::chrono::steady_clock::now();
+            {
+                const RenderResult timedResult = ArtifactTestTransitionBridge::render(
+                    kind, a, b, optionsAt(progress));
+                (void)timedResult;
+            }
+            const auto elapsed = std::chrono::steady_clock::now() - start;
+            timingSamplesMs.append(
+                std::chrono::duration<double, std::milli>(elapsed).count());
+        }
+
         steps.append(QJsonObject{{QStringLiteral("progress"), progress},
                                  {QStringLiteral("stats"), statsToJson(stats)},
                                  {QStringLiteral("changedFromPrevious"),
-                                  changedFromPrevious}});
+                                  changedFromPrevious},
+                                 {QStringLiteral("timingMs"), timingSamplesMs}});
         if (!directory.isEmpty()) {
             writePng(result.image, directory + QStringLiteral("/transition_") +
                                        name + QStringLiteral("_p") +
                                        progressStem(progress) + QStringLiteral(".png"));
         }
+
+        const RenderResult alphaResult = ArtifactTestTransitionBridge::render(
+            kind, alphaA, alphaB, optionsAt(progress));
+        const int alphaChangedFromPrevious =
+            previousAlpha.empty()
+                ? 0
+                : ArtifactTestTransitionRenderer::difference(previousAlpha,
+                                                               alphaResult.image)
+                      .changedPixels;
+        const QString alphaFrameName = QStringLiteral("transition_alpha_") + name +
+            QStringLiteral("_p") + progressStem(progress) + QStringLiteral(".png");
+        if (!directory.isEmpty()) {
+            writePng(alphaResult.image, directory + QStringLiteral("/") + alphaFrameName);
+        }
+        alphaSteps.append(QJsonObject{{QStringLiteral("progress"), progress},
+                                      {QStringLiteral("changedFromPrevious"),
+                                       alphaChangedFromPrevious}});
+        alphaFrames.push_back(alphaResult.image);
+        previousAlpha = alphaResult.image;
         frames.push_back(result.image);
         statistics.push_back(stats);
         previous = result.image;
@@ -205,6 +258,10 @@ QJsonObject writeKindArtifacts(const TransitionKind kind, const QString& directo
         writePng(ArtifactTestTransitionRenderer::makeContactSheet(
                      frames, static_cast<int>(kSteps.size()), 2),
                  directory + QStringLiteral("/transition_") + name +
+                     QStringLiteral("_sheet.png"));
+        writePng(ArtifactTestTransitionRenderer::makeContactSheet(
+                     alphaFrames, static_cast<int>(kSteps.size()), 2),
+                 directory + QStringLiteral("/transition_alpha_") + name +
                      QStringLiteral("_sheet.png"));
     }
 
@@ -225,7 +282,10 @@ QJsonObject writeKindArtifacts(const TransitionKind kind, const QString& directo
          QString::fromUtf8(ArtifactTestTransitionRenderer::sourceName(lastSource))},
         {QStringLiteral("direction"),
          QString::fromUtf8(directionName(firstSource, lastSource))},
-        {QStringLiteral("steps"), steps}};
+        {QStringLiteral("steps"), steps},
+        {QStringLiteral("alphaProbe"),
+         QJsonObject{{QStringLiteral("alphaValue"), 77},
+                     {QStringLiteral("steps"), alphaSteps}}}};
 }
 
 QJsonObject writeArtifacts(const QString& directory)
@@ -235,8 +295,16 @@ QJsonObject writeArtifacts(const QString& directory)
 
     writePng(inputA(), directory + QStringLiteral("/input_A.png"));
     writePng(inputB(), directory + QStringLiteral("/input_B.png"));
+    writePng(withUniformAlpha(inputA(), 77u),
+             directory + QStringLiteral("/alpha_input_A.png"));
+    writePng(withUniformAlpha(inputB(), 77u),
+             directory + QStringLiteral("/alpha_input_B.png"));
     writePng(ArtifactTestTransitionRenderer::makeContactSheet({inputA(), inputB()}, 2, 2),
              directory + QStringLiteral("/inputs.png"));
+    writePng(ArtifactTestTransitionRenderer::makeContactSheet(
+                 {withUniformAlpha(inputA(), 77u), withUniformAlpha(inputB(), 77u)},
+                 2, 2),
+             directory + QStringLiteral("/alpha_inputs.png"));
 
     QJsonArray transitions;
     for (const TransitionKind kind : ArtifactTestTransitionBridge::concreteKinds()) {
@@ -261,6 +329,12 @@ QJsonObject writeArtifacts(const QString& directory)
         {QStringLiteral("height"), kHeight},
         {QStringLiteral("frameIndex"), kFrameIndex},
         {QStringLiteral("fps"), kFps},
+        {QStringLiteral("timing"),
+         QJsonObject{{QStringLiteral("clock"), QStringLiteral("steady_clock")},
+                     {QStringLiteral("warmupCount"), kTimingWarmupCount},
+                     {QStringLiteral("sampleCount"), kTimingSampleCount},
+                     {QStringLiteral("scope"),
+                      QStringLiteral("CPU transition bridge render call; excludes fixture generation and PNG output")}}},
         {QStringLiteral("steps"),
          QJsonArray{kSteps[0], kSteps[1], kSteps[2], kSteps[3], kSteps[4]}},
         {QStringLiteral("transitions"), transitions}};
@@ -743,6 +817,9 @@ TEST(TransitionRenderContractTest, WritesFrameStripsContactSheetsAndBehaviourRep
 
     EXPECT_GT(QFileInfo(directory + QStringLiteral("/input_A.png")).size(), 0);
     EXPECT_GT(QFileInfo(directory + QStringLiteral("/input_B.png")).size(), 0);
+    EXPECT_GT(QFileInfo(directory + QStringLiteral("/alpha_input_A.png")).size(), 0);
+    EXPECT_GT(QFileInfo(directory + QStringLiteral("/alpha_input_B.png")).size(), 0);
+    EXPECT_GT(QFileInfo(directory + QStringLiteral("/alpha_inputs.png")).size(), 0);
 
     EXPECT_EQ(report.value(QStringLiteral("transitions")).toArray().size(),
               static_cast<qsizetype>(
@@ -759,6 +836,15 @@ TEST(TransitionRenderContractTest, WritesFrameStripsContactSheetsAndBehaviourRep
         const QString sheetPath = directory + QStringLiteral("/transition_") + name +
                                   QStringLiteral("_sheet.png");
         EXPECT_GT(QFileInfo(sheetPath).size(), 0) << qPrintable(sheetPath);
+        const QString alphaSheetPath = directory + QStringLiteral("/transition_alpha_") +
+                                       name + QStringLiteral("_sheet.png");
+        EXPECT_GT(QFileInfo(alphaSheetPath).size(), 0) << qPrintable(alphaSheetPath);
+        for (const double progress : kSteps) {
+            const QString alphaFramePath = directory + QStringLiteral("/transition_alpha_") +
+                name + QStringLiteral("_p") + progressStem(progress) +
+                QStringLiteral(".png");
+            EXPECT_GT(QFileInfo(alphaFramePath).size(), 0) << qPrintable(alphaFramePath);
+        }
     }
 
     for (const double progress : kSteps) {

@@ -93,6 +93,8 @@ F4〜F6は順に進める探索項目であり、すべてを本番機能へ導�
 
 最大誤差はgroundから上向くrayで発生し、全区間が指数密度の水平rayでは閉形式とmidpoint値が一致する。これは同じrayの中で密度曲率が変わる領域とstep数の関係を示すだけであり、GPU性能や許容画質を示さない。R&D capture前の初期値選定に使い、3D GPU shaderの最終step数・品質基準へ直接転用しない。
 
+同じスクリプトに、`ArtifactCore/src/Render/AtmosphereFog.cpp::phaseRayleigh()`の式mirrorと位相関数の球面積分diagnosticを加えた。標準Rayleigh位相`3(1+cos²θ)/(16π)`の積分は`1.0`、C++ source式`0.75(1+cos²θ) * 3/(16π)`は`0.75`となり、cosθ全域でsource式は標準式の0.75倍である。したがって他の設定を固定した単純比較では`evaluateFog()`のsingle-scattering項も同率で小さくなる。これはソース上の式差であり、見た目較正や既存出力の意図を確認せず変更を推奨するものではない。また`evaluateFog()`は`sunIntensity`を定数として乗じるが、sampleから太陽までの大気透過率評価はない。CPU numeric oracleは太陽経路消散を意図的に省いているため、CPU runtime parityでなくこの既知の簡略モデルを基準にし、散乱品質の採用判定では太陽透過を含む別参照と比較する。
+
 ## 決定論的Fog画像fixture（2026-11-12）
 
 `tools/fog_height_image_fixture_rd.py` は、傾斜した近景／遠景チャート、地面checker、有限距離の空、HDR markerを持つ256×144の合成シーンを生成する。camera位置とFOVからrayを作り、各画素のopaque source colorとnormalized linear ray distanceを別々に出力する。depthはGPU hardware depthではなく`distance / 120`であり、alphaはopaqueとして省略している。
@@ -108,6 +110,12 @@ F4〜F6は順に進める探索項目であり、すべてを本番機能へ導�
 camera height 4固定でdensity `0.002 / 0.008 / 0.02`、falloff `0.02 / 0.08 / 0.2`を掃引したshader式mirror対height-resolved参照のRGB RMSEは、density `0.002`で`0.01061–0.01136`、`0.008`で`0.03513–0.03814`、`0.02`で`0.07059–0.07794`だった。低密度ではfalloff差よりdistanceFactor項の影響が強く、高密度ほどsource式とworld-height積分の差が大きい。この掃引も同じscene depth/colorを固定した式比較であり、density/falloffの品質推奨値やGPU performanceを確定するものではない。
 
 既存`AtmosphereFogRenderer::applyToPixel()`式も同じ入力・出力条件の別pairで確認した。ソース式をPythonで写したRGB8 depth/color mirrorと、同じdensity/falloff authoring値から作るBeer–Lambert height referenceを比較するとRGB RMSE `0.055996`、36,864画素中36,863画素で最大channel差が`1e-3`を超えた。source mirrorは`density * heightFalloff`を全rayで一定に使う一方、height referenceは`density * exp(-heightFalloff * max(height-ground,0))`を積分するため、この差はモデル式の差を示す。両者は同じRGB8入力・出力制約とfog設定を使い、source mirrorのmaxDistanceはfar planeに合わせて120とした。height referenceはBeer–Lambert消散のみで、`evaluateFog()`の方向性散乱は含めない。これはC++コードのruntime実行や散乱parityではなく、ソース式の独立Python mirrorである。元fixtureのHDR画像では524画素がRGB8 inputによりclipされ、ImageBufferにalpha channelはない。これらの制約も同じmanifestに記録した。
+
+カメラ高とworld-space object heightを実際に変えるsynthetic scene fixtureとして`tools/fog_height_camera_scene_rd.py`を作成した。160×90 perspective viewのslanted near/far chart、checker ground、skyを、camera y=2／8／20 mごとに同じworld targetへ向け直して再描画する。piecewise analytic world-height Beer–Lambert referenceに対し、camera heightだけで密度を評価して線形距離積分する候補の全画面RGB RMSEは`0.01829 / 0.01677 / 0.03420`、`heightFogCS.hlsl` source equationそのままのmirrorは`0.03217 / 0.03800 / 0.04788`だった。y=20 mではground領域のRMSEがそれぞれ`0.04162`と`0.05766`に上がる。高い視点から地面を見るrayでは視線途中の密度変化をcamera-height定数で代表しにくい結果となった。camera-height linear候補はshaderの`distanceFactor * distance`項を除いた診断なので、source shader mirrorよりreferenceに近い。fixtureは実sceneのworld unitsやcamera host契約を再現せず、GPU shaderを実行していない。
+
+同じsceneをdensity `0.002 / 0.008 / 0.02`、falloff `0.02 / 0.08 / 0.2`で独立sweepした。camera y=2 mでは全9条件のRMSE rangeがlinear camera-height候補`0.00292–0.03860`、source equation mirror`0.00866–0.06686`、y=8 mでは`0.00214–0.04665`と`0.00877–0.08760`、y=20 mでは`0.00479–0.06814`と`0.00788–0.11514`だった。camera y=20 m、density `0.02`、falloff `0.08`でground領域だけを見るとRMSEはlinear候補`0.08271`、source equation mirror`0.10087`。parameter応答は視点とsurface coverageに依存し、密度・falloffだけから採用境界を単一閾値にできない。manifestには27組のcamera×density×falloffについて全画面・near/far/ground/sky別のRMSE・最大channel誤差を保存した。全てsynthetic CPU mirrorであり、値はproduction設定推奨やGPU performance値ではない。
+
+太陽経路透過の単独寄与を測る`tools/fog_sun_transmittance_rd.py`では、水平／上向き／groundwardの3 ray×camera y=2／8／20 m×太陽高度2／5／15／45／80°を評価した。view sampleごとの太陽経路はground crossingを区分した指数密度の閉形式積分で求め、view方向散乱は256-step midpointで積分する。正規化Rayleigh位相で太陽透過を入れたradiance対同じ式で太陽透過を無効にしたradianceの比は、水平ray・太陽高度2°でcamera y=2／8／20 mそれぞれ`0.1811 / 0.3475 / 0.6675`、80°では`0.9413 / 0.9632 / 0.9858`。camera y=2 mのgroundward rayでは2°時`0.1569`まで低下した。CPU `evaluateFog()`のsource phase係数・離散view attenuation・sun-path omissionをまとめたscattering-term equation mirrorは、正規化phase＋analytic sun-transmittance参照に対し45条件で`0.755–4.780`倍のradianceとなった。camera y=2 mのgroundward/2°では`4.780`倍、camera y=2 m horizontal/80°では`0.797`倍である。phase係数の0.75倍とsun-path attenuation欠如は別々の誤差方向を持ち、条件によって相殺も増幅もする。比較は散乱項だけで、C++ `evaluateFog()`最後の経験的horizon/fog blendは含めず、direction入力も共通化した式mirrorであってruntime parityではない。view積分stepを16〜1024で掃引し、4096-step midpointを参照にした45組のray/camera/sun条件では、256-stepの最大relative RGB L2誤差は`3.89e-5`、最大はcamera y=2 mの上向きray・太陽高度80°で生じた。同じrayの8192-step値に対しても256-stepの差は`3.90e-5`、4096-stepの差は`1.14e-7`で、参照刻み自体の収束も確認した。この誤差上限は解析的sun pathと平面指数媒質のCPU fixtureに限られ、shadow boundary、局所密度、GPU精度の保証ではない。平面媒質・固定fog tint/sun radianceのCPU参照であり、惑星曲率・地形shadow・GPU performanceやアプリruntime parityは含まない。
 
 alpha合成契約の感度確認用に`tools/fog_alpha_compositing_rd.py`を追加し、straight RGBA入力をpremultipliedへ変換した決定論的21ケースを評価した。coverage alphaを保ちfogを被覆領域内へ限定する方式と、媒質の寄与をalphaにも含める方式は別のlayer semanticsで、同じ画像結果を意味しない。後者はalpha=0でもfog寄与を持つため、空の透明pixelを維持する処理には適さない。さらに、premultiplied RGBへfogを加えながら元alphaを保つnaive式では、transmittance 0.1時にalpha=0 pixelへ最大RGB `0.648`が残り、premultiplied合成時に透明pixelからfog色が漏れる。straight-alpha inputならRGB blend＋alpha保持を後段で正しくpremultiplyする経路が成立し得るため、GPU shaderのfloat4 input/outputだけではalpha conventionを断定できない。CPU `ImageBuffer`はRGB8でalphaなし、GPU shaderのhost bindingも確認できておらず、runtimeの正規契約や採用policyは未決定である。case表とblack/white/magenta背景へのpremultiplied composite値は`docs/worklog/artifacts/fog-alpha-compositing-rd-2026-11-12/manifest.json`に保存した。
 
@@ -147,7 +155,7 @@ Captureとmanifestは `docs/worklog/artifacts/planetary-atmosphere-rd-2026-11-12
 
 ### Phase 1 — CPU numeric oracleとfixture（数値積分の原型あり）
 
-`tools/fog_height_integral_rd.py` で地面交差を含む5 rayと閉形式透過率のCPU数値比較を実施済み。`tools/fog_height_image_fixture_rd.py` でF0〜F4のlinear float fixture、GPU height fog shader式mirror＋camera height sweep、`cpu_applytopixel_source_mirror`と`cpu_settings_height_analytic_rgb8`のRGB8式比較を生成済み。`tools/fog_alpha_compositing_rd.py`ではalpha semanticsの数式比較を行った。次は実際のscene/camera transformを伴うheight/depth fixture、density、近景／遠景、alpha-bearing runtime境界を独立評価する。既存`AtmosphereFogRenderer`とのコード実行比較はCPU moduleの入力境界（RGB8、alphaなし、normalized depth）と画像fixtureの契約を踏まえて別途行う。`applyToPixel()`のdepth-only approximationをheight-aware oracleとして扱わない。
+`tools/fog_height_integral_rd.py`で地面交差を含む5 rayと閉形式透過率のCPU数値比較およびCPU source phase正規化audit、`tools/fog_sun_transmittance_rd.py`で太陽高度・camera height別の解析的sun-path transmittanceを加えたlocal single-scattering比較、`tools/fog_height_image_fixture_rd.py`でF0〜F4のlinear float fixture・GPU式mirror・RGB8 CPU式mirror、`tools/fog_height_camera_scene_rd.py`でcamera y=2／8／20 mのscene再描画とdensity/falloff 3×3 sweepを実施済み。`tools/fog_alpha_compositing_rd.py`ではalpha semanticsの数式比較を行った。次は実際の製品camera/depth transform、alpha-bearing runtime境界、GPU capture経路を独立評価する。既存`AtmosphereFogRenderer`とのコード実行比較はCPU moduleの入力境界（RGB8、alphaなし、normalized depth）と画像fixtureの契約を踏まえて別途行う。`applyToPixel()`のdepth-only approximationをheight-aware oracleとして扱わない。
 
 ### Phase 2 — GPU height fog比較（source-only）
 
@@ -172,6 +180,8 @@ F4ではsingle scatteringと位相関数を追加し、影なし／単純なshad
 - `ArtifactCore/include/Render/AtmosphereFog.ixx` / `ArtifactCore/src/Render/AtmosphereFog.cpp` — CPU参照実装。
 - `Artifact/shaders/heightFogCS.hlsl` / `Artifact/shaders/fogHF.hlsli` / `Artifact/shaders/volumetricCloud_renderCS.hlsl` — GPU shader候補とcloud/light内の既存fog利用。
 - `tools/fog_height_integral_rd.py` / `tools/fog_height_image_fixture_rd.py` — CPU height-fog数値・画像比較。
+- `tools/fog_height_camera_scene_rd.py` — camera heightとworld-space object heightを再投影するheight-fog比較。
+- `tools/fog_sun_transmittance_rd.py` — local single scatteringへのanalytic sun-path transmittance寄与比較。
 - `tools/fog_alpha_compositing_rd.py` — coverage-preserving / medium-alpha fog合成のRGBA semantics fixture。
 - `tools/planetary_atmosphere_scattering_rd.py` — 球状惑星Rayleigh/Mie single-scattering比較、sun elevation sweep。
 - `docs/worklog/artifacts/fog-atmosphere-rd-2026-11-12/manifest.json` / `docs/worklog/artifacts/planetary-atmosphere-rd-2026-11-12/manifest.json` — capture契約、hash、誤差／輝度summary。
@@ -180,4 +190,4 @@ F4ではsingle scatteringと位相関数を追加し、影なし／単純なshad
 
 - この作業ではサブモジュールを編集せず、ビルド、CMake、テスト、GPU captureを実行しない。
 - CPU fixtureの生成・解析は独立Python toolで継続する。製品host dispatchやGPU captureに必要なビルド／テスト／CMake実行は、AGENTS.mdの実行制限に従って別途明示指示を受けてから行う。
-- **現状態:** Phase 0のsource audit、Phase 1のCPU積分・Fog画像fixtureと既存CPU/GPU式mirror、Phase 3の球状大気single-scattering参照・太陽高度／惑星カメラ高度sweepを実施。式mirrorでGPU試作の距離依存とcamera-height近似を確認した。製品host接続、GPU runtime／performance、multiple scattering／LUT品質、実sceneのheight/depth・density sweep、透過alpha境界、実素材での視覚評価は未検証。
+- **現状態:** Phase 0のsource audit、Phase 1のCPU積分・Fog画像fixture・カメラ高別scene proxy・alpha数式fixtureと既存CPU/GPU式mirror、Phase 3の球状大気single-scattering参照・太陽高度／惑星カメラ高度sweepを実施。製品host接続、GPU runtime／performance、multiple scattering／LUT品質、実sceneのdepth契約、alpha convention、実素材での視覚評価は未検証。
