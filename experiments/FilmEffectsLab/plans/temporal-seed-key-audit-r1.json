@@ -1,0 +1,82 @@
+{
+  "plan_version": 1,
+  "plan_id": "temporal-seed-key-audit-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Describe the temporal random-key schedules encoded by registered Film Grunge and Film Damage CPU source equations, and identify update holds or skips under explicitly labeled sample schedules.",
+  "scope": {
+    "effects": [
+      "ArtifactFilmGrungeEffect: compositionFrame enters frameSeed = uint32(seed * 1664525 + frame * 1013904223).",
+      "FilmDamageCPUImpl: frameKey = floor(evolution * 24); rng seed = uint32(seed) XOR uint32(frameKey * 0x9e3779b9)."
+    ],
+    "method": "Static-source equation audit and integer schedule model. No effect is executed and no candidate image is compared.",
+    "excluded": [
+      "std::mt19937 output sequence or random-distribution behavior",
+      "perceptual flicker, image difference, motion compensation, and scene motion",
+      "perceptual response of rendered frames to a keyframed Evolution slope",
+      "render preview/final/GPU/backend parity",
+      "color, alpha, resolution, image quality, runtime, memory, and performance acceptance",
+      "changes to product implementation or default values"
+    ]
+  },
+  "comparison": {
+    "baseline": "The seed key held at a sampled output frame; this is an arithmetic reference only, not an image baseline.",
+    "schedules": [
+      "120 sequential integer Composition frames for Film Grunge.",
+      "120 evolution samples at increments 1/24, 1/30, and 1/60, each starting at zero for Film Damage.",
+      "A 1/48 evolution increment to expose holds and a 1/12 increment to expose skipped integer keys relative to the source's 24-key-per-unit mapping."
+    ],
+    "ground_truth": "None. Source expression is the sole authority for the modeled integer mapping; image behavior is outside this plan."
+  },
+  "materials": {
+    "kind": "Source code only; no pixel materials.",
+    "source_files": [
+      "Artifact/src/Effect/ArtifactCreativeEffects.cpp",
+      "Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp",
+      "Artifact/src/Effects/ArtifactAbstractEffect.cpp"
+    ],
+    "identity": "SHA-256 hashes of exact source bytes recorded in the output report."
+  },
+  "conditions": {
+    "seed": "1977 for schedule examples; integer-key properties are also described algebraically.",
+    "time": "Composition keyframe time is RationalTime(compositionFrame, frameRate). Evolution is an animatable Float value evaluated at that time; schedules state the assumed value slope in units per timeline second. Its value unit is not otherwise specified.",
+    "metrics": "Adjacent identical-key pairs, changed-key pairs, unique 32-bit seed count, key delta distribution, and skipped integer keys.",
+    "display": "No display output; this is a numeric source audit."
+  },
+  "evaluation": {
+    "effect_correctness": {
+      "status": "planned",
+      "method": "Verify source markers and reproduce their integer casts, floor, multiply, XOR, and uint32 wrap semantics.",
+      "acceptance_criteria": "Exact agreement with source equations and deterministic report generation; no image-level claim.",
+      "major_defects": ["source hash mismatch", "incorrect signed/floor or uint32 semantics", "unlabeled schedule assumptions"]
+    },
+    "image_quality_and_detail": {"status": "not_applicable", "reason": "No image was rendered or compared."},
+    "color_and_alpha": {"status": "not_applicable", "reason": "No pixel path was executed."},
+    "temporal_stability": {
+      "status": "partial_static_analysis_only",
+      "method": "Measure seed-key holds, changes, and skips in declared sample schedules.",
+      "acceptance_criteria": "Report key scheduling only; no perceptual or output-stability verdict.",
+      "unverified": "Rendered frame differences, exact keyframed values in user projects, motion interaction, out-of-order seek/reverse, and perceptual response."
+    },
+    "render_paths_and_resolution": {"status": "unverified", "reason": "No renderer or resolution-dependent image output was exercised."},
+    "performance": {"status": "unverified", "reason": "No runtime or allocation measurement."}
+  },
+  "execution": {
+    "backend": "None; Python integer schedule model.",
+    "images": "None.",
+    "thresholds": "No perceptual threshold; all observations are descriptive arithmetic counts.",
+    "reproducibility": "Record source hashes, script hash, Python version, exact schedules, and report hash."
+  },
+  "amendments": [
+    {
+      "reason": "The initial 1/48 schedule demonstrates holds but cannot skip integer keys; the plan text incorrectly said it exposed skips.",
+      "change": "Keep 1/48 as a hold case and add 1/12 as a skip case. Rerun the complete arithmetic schedule report against this amended plan before drawing conclusions.",
+      "scope_effect": "No output-image comparison or acceptance condition changed."
+    },
+    {
+      "reason": "Static call-path review found Film Damage Evolution is a Float effect property and ArtifactAbstractEffect marks Float properties animatable, evaluates keyframes at RationalTime(compositionFrame, frameRate), then calls setPropertyValue before rendering.",
+      "change": "Clarify that Evolution is an arbitrary keyframed scalar, not inherently seconds or frames. Label the 1/24, 1/30, and 1/60 sample steps as a linear ramp of 1 value unit per timeline second at 24/30/60 fps; label 1/48 and 1/12 at 24fps as slopes .5 and 2 units per second. Rerun the full schedule report.",
+      "scope_effect": "The arithmetic samples are unchanged; their timeline interpretation is now explicit. Rendered appearance remains unmeasured."
+    }
+  ]
+}

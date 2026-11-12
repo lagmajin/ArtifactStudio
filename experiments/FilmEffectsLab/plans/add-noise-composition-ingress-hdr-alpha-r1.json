@@ -1,0 +1,76 @@
+{
+  "plan_version": 1,
+  "plan_id": "add-noise-composition-ingress-hdr-alpha-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Quantify how the eligible Add Noise CPU-premultiplied and Composition-resident-GPU-straight routes respond to the same premultiplied layer pixels after the GPU LayerToFloat unpremultiply-and-saturate ingress, with low alpha and HDR source values.",
+  "scope": {
+    "effect": "Registered Add Noise color, monochrome, and luminance equations; focus is composition ingress representation and downstream source-over response.",
+    "method": "Offline NumPy source-equation model of a premultiplied BGRA patch grid, CPU effect on stored premultiplied RGB, and GPU LayerToFloat followed by the resident shader on straight clamped RGB. No C++/HLSL execution, app, or GPU capture.",
+    "route_assumption": "This is a conditional route model based on static source tracing. It does not prove that a particular project, backend, or frame selects either route.",
+    "excluded": [
+      "compiled C++/HLSL or actual CPU/GPU output parity",
+      "runtime route selection or fallback frequency",
+      "Viewer color transform or transfer-function validation",
+      "photographic ground truth or aesthetic approval",
+      "GPU/backend parity, preview/final output, temporal behavior",
+      "performance/allocation profiling",
+      "source changes"
+    ]
+  },
+  "comparison": {
+    "baseline": "For each premultiplied input patch, compute a bypassed CPU source-over baseline and a GPU LayerToFloat ingress source-over baseline. Report effect deltas from each route-specific baseline as well as paired route output differences.",
+    "candidates": [
+      "alpha 0, .01, .05, .1, .25, .5, .75, and 1",
+      "neutral straight source level .01, .05, .18, .5, .95, 1, 1.5, and 4, premultiplied by alpha into storage",
+      "amount 0, .2, and .4; seed 73; size 1.5; color, monochrome, and luminance-only modes",
+      "source-over composites on black, 18% gray, and white backgrounds"
+    ],
+    "ground_truth": "None. The synthetic numeric patch grid is a diagnostic input; route deltas reveal representation sensitivity, not which route is visually correct.",
+    "acceptance": "Descriptive conditional analysis only. Verify exact source markers, numeric-seed match between CPU and resident equations, GPU unpremultiply/saturate ingress, alpha identity, finite outputs, and premultiplied input construction. Report per alpha/tone/mode amount row: ingress clamp loss, stored-RGB delta, premultiplied-bound violations, route-specific effect delta, and composited route gap. No image-quality threshold or product defect declaration."
+  },
+  "materials": {
+    "fixture": "A 512x512 opaque-alpha-grid arrangement of 64x64 patches covering all alpha and neutral-tone combinations. Stored source RGB is straight tone multiplied by alpha, with tone up to 4.0; alpha is held constant per patch. Noise is evaluated at global pixel coordinates with fixed seed 73.",
+    "rights": "Generated locally.",
+    "identity": "Record plan, runner, Add Noise source, LayerToFloat shader, Composition controller source hashes, generated inputs, and all output hashes.",
+    "regions": {
+      "per_patch": "Each 64x64 alpha/tone pair",
+      "transparent": "alpha=0 patch",
+      "low_alpha": "alpha=.01,.05,.1 patches",
+      "mid_alpha": "alpha=.25,.5,.75 patches",
+      "opaque": "alpha=1 patch",
+      "hdr_tone": "straight tone 1.5 and 4 patches"
+    }
+  },
+  "conditions": {
+    "storage": "Logical BGRA Float32 premultiplied source; raw stored RGB = neutral straight tone * alpha; alpha is constant within each patch.",
+    "gpu_ingress": "LayerToFloat model: alpha=saturate(src.a); straight=(alpha>1e-6)?src.rgb/alpha:0; RGB=saturate(straight); alpha retained.",
+    "cpu_route": "Apply CPU Add Noise directly to premultiplied stored RGB; RGB clamps per source equation; alpha remains unchanged.",
+    "gpu_route": "Apply resident numeric-seed Add Noise after GPU ingress; RGB is straight and clamped by the effect; compositor multiplies RGB by alpha.",
+    "parameters": {"seed":73,"size":1.5,"amounts":[0,0.2,0.4],"modes":["color","monochrome","luminance"],"backgrounds":{"black":[0,0,0],"gray":[0.18,0.18,0.18],"white":[1,1,1]}},
+    "metrics": [
+      "per-patch route-off and active-output values",
+      "GPU ingress unpremultiplied RGB clamp delta and clipped-channel fraction",
+      "CPU/resident effect delta from each route's own bypassed baseline",
+      "stored RGB route difference and premultiplied RGB<=alpha violation fraction",
+      "composited CPU-premul versus GPU-straight MAE/RMSE/p99/max by alpha/tone/mode/amount/background",
+      "transparent-pixel stored RGB change and composited visibility",
+      "alpha identity, nonfinite values, and channel range"
+    ],
+    "display": "Shared clipped preview contact sheets for amount .4 color mode over black and white; raw Float32 route and delta metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status":"source_model_only","method":"Verify the CPU/resident Add Noise and LayerToFloat equations against source markers.","acceptance_criteria":"All markers true; CPU and resident use the same numeric seed hash and size coordinates; alpha remains exact; output finite."},
+    "image_quality_and_detail": {"status":"descriptive_patch_grid_only","method":"Inspect low-alpha and HDR tone/contact regions over two backgrounds.","acceptance_criteria":"No aesthetic or route preference gate."},
+    "color_and_alpha": {"status":"conditional_route_model","unverified":"Actual layer descriptor, compiled path, Viewer transfer function, and product compositor output."},
+    "temporal_stability": {"status":"not_applicable_single_frame","reason":"Fixed seed with no frame input."},
+    "render_paths_and_resolution": {"status":"source_trace_conditioned","unverified":"Whether CPU and resident GPU routes execute for the same composition/project/backend."},
+    "performance": {"status":"not_measured","reason":"Equation model only."},
+    "decision":"No product defect classification, route preference, visual acceptance, or implementation approval."
+  },
+  "execution": {
+    "backend":"Python NumPy source-equation model; no Windows UI, application, C++ execution, build, CMake, or tests.",
+    "threshold_policy":"No quality pass/fail thresholds.",
+    "reproducibility":"Fixed patch layout, alpha/tone levels, effect controls, backgrounds, hash seed and source hashes."
+  }
+}

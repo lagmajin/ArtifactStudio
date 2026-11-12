@@ -1,0 +1,46 @@
+{
+  "plan_version": 1,
+  "plan_id": "film-damage-gate-weave-alpha-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Characterize the Film Damage Gate Weave RGB resampling and source-alpha restoration at a synthetic transparent edge, including direction/amount of fixed subpixel and integer shifts, composited edge leakage, detail response, and resolution scaling.",
+  "scope": {
+    "effect": "FilmDamageCPUImpl::cv::warpAffine branch only, with grain/dust/scratches/flicker/filmBurn neutralized.",
+    "method": "Offline OpenCV model using fixed displacement vectors chosen independently of std::mt19937. The model reproduces the source affine matrix, INTER_LINEAR and BORDER_REFLECT101 behavior, then restores the original alpha plane as the source loop does.",
+    "excluded": ["C++ execution", "std::mt19937 draw parity", "Evolution frame schedule/perceptual flicker", "other Film Damage controls", "compiled/runtime app output", "GPU/backend parity", "Viewer transform", "aesthetic approval", "performance/allocation", "source changes"]
+  },
+  "comparison": {
+    "baseline": "Same alpha/color fixture with no displacement and matching alpha association; no weave is the arithmetic baseline, not a quality target.",
+    "candidates": ["Fixed displacement vectors in pixel units: (0,0), (1.5,0), (-1.5,0), (0,.675), (0,-.675), (1.5,.675), (-1.5,-.675), (3,1.35), (-3,-1.35).", "straight-alpha input/output composited with the straight equation.", "premultiplied-alpha input/output composited with the premultiplied equation."],
+    "ground_truth": "No external ground truth. Effect-off paired fixture separates model response; it does not define acceptable weave.",
+    "acceptance": "Descriptive response only, no visual threshold or defect declaration. Report differences by direction, alpha region, association assumption, and resolution."
+  },
+  "materials": {
+    "fixture": "Synthetic 512x256 and 1024x512 translucent ellipse with saturated interior patches, smooth alpha boundary, high-contrast lines/checker and transparent zero RGB exterior. Premultiplied variant multiplies logical RGB by alpha.",
+    "rights": "Generated locally by the study script.",
+    "regions": {"transparent": "alpha==0", "low_alpha": "0<alpha<=.1", "edge": ".1<alpha<.9", "near_opaque": ".9<=alpha<1", "opaque": "alpha==1", "all": "whole fixture"},
+    "identity": "Record hashes of source, plan, script, fixture arrays, metrics, and generated PNGs."
+  },
+  "conditions": {
+    "format": "Float32 BGRA storage, logical RGB values in [0,1], direct numeric domain with no transfer conversion. Alpha edge itself is float32.",
+    "warp": "OpenCV INTER_LINEAR, BORDER_REFLECT101; source matrix [[1,0,dx],[0,1,dy]]; output RGB(A) warp is followed by replacing alpha with the source alpha plane, matching the source loop's alpha write.",
+    "displacements": "Fixed signed pixel offsets listed in comparison; default Gate Weave is 1.5. Offsets are diagnostic test inputs, not recovered random draws.",
+    "association": "Straight source-over = RGB*alpha+bg*(1-alpha); premultiplied source-over = storedRGB+bg*(1-alpha). Each branch preserves the corresponding input representation when constructing the fixture.",
+    "metrics": ["alpha identity", "per-region RGB paired MAE/RMSE/p95/max after compositing over black/gray/white", "transparent RGB leakage and premultiplied RGB>alpha bounds", "edge-band displacement/changed-pixel coverage", "fine-line/checker contrast retention", "same normalized displacement relation across resolutions"],
+    "display": "Diagnostic direct-clipped RGB8 PNGs and same-scale contact sheets; raw float arrays/statistics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_and_model_only", "method": "Verify source markers for affine shift, interpolation/border mode, working RGBA warp and restoration of original source alpha; test zero-shift identity and finite results.", "acceptance_criteria": "Zero shift matches bounded input within OpenCV float tolerance; alpha remains exact; no compiled parity claim."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect alpha-edge and detail ROIs at 1:1 and enlarged view over multiple backgrounds; report edge color/coverage and interpolation softness.", "judge": "Research author", "acceptance_criteria": "No aesthetic pass/fail; document locations and pixel metrics."},
+    "color_and_alpha": {"status": "conditional_association_model", "method": "Track original alpha separately from warped RGB under straight and premultiplied source-over assumptions.", "unverified": "Actual layer descriptor at each product entry point, exact OpenCV version/compiler path and rendered output."},
+    "temporal_stability": {"status": "fixed_displacement_only", "reason": "This study isolates the spatial response for given offsets; frameKey/seed scheduling is separately modeled, but random frame sequence is not rendered."},
+    "render_paths_and_resolution": {"status": "CPU_equation_and_resolution_model_only", "method": "Run the CPU warp equation at two dimensions with the same pixel offsets and a doubled offset normalized-size pair.", "unverified": "Application path, preview/final, GPU route, and actual frame-size/LOD mapping."},
+    "performance": {"status": "unverified", "reason": "No product timing or memory profiling."}
+  },
+  "execution": {
+    "backend": "Python 3, NumPy, OpenCV, Pillow; local synthetic fixtures only.",
+    "artifacts": "experiments/FilmEffectsLab/captures/film-damage-gate-weave-alpha-response-r1/",
+    "threshold_policy": "Descriptive only; no tolerance for perceptual acceptance is invented.",
+    "reproducibility": "Fixed patch colors, alpha formula, displacement vectors and library versions; store plan/source/script/PNG/metrics hashes and checksum."
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "plan_version": 1,
+  "plan_id": "film-suite-alpha-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Compare per-pixel alpha association response of registered Film Grunge grain and Film Damage scratch/dust overlay source equations on a shared synthetic translucent edge.",
+  "scope": {
+    "effects": [
+      "Film Grunge: controlled grain-only source equation, grainAmount .075, grainSize 1.4, seed 1977, frame 0; all other controls neutral.",
+      "Film Damage: controlled scratch/dust overlay-only pixel equation using fixed diagnostic overlay colors/alpha; grain, weave, flicker, and burn are zero. Overlay locations are fixture-defined, not source RNG parity."
+    ],
+    "method": "Independent NumPy/OpenCV equation model. Compare each same source with effect-off baseline under straight and premultiplied input conventions and black, gray, white backgrounds.",
+    "excluded": ["compiled effect output", "C++ random placement or compiler signed-overflow behavior", "actual alpha descriptor selected by renderer", "product Viewer/display transform", "GPU/preview/final parity", "temporal behavior", "performance", "physical-film or aesthetic approval"]
+  },
+  "comparison": {
+    "baseline": "Same alpha/color plate, effect contribution zero, then composite with matching straight or premultiplied equation.",
+    "candidates": ["Film Grunge additive RGB grain residual.", "Film Damage source*(1-damageAlpha)+damageRGB*damageAlpha overlay residual."],
+    "backgrounds": ["black [0,0,0]", "gray [0.18,0.18,0.18]", "white [1,1,1]"],
+    "ground_truth": "None; paired effect-off source only separates model response, not quality.",
+    "acceptance": "Report model response and alpha/association invariants descriptively. No product defect declaration or effect ranking."
+  },
+  "materials": {
+    "id": "synthetic-film-alpha-edge-r1",
+    "source": "Generated 256x128 smooth ellipse alpha edge with fixed foreground color; fixed line/circle damage overlay authored by the script.",
+    "rights": "Synthetic diagnostic.",
+    "storage": "Logical RGB color is explicitly stored as physical BGRA; scalar backgrounds are channel symmetric.",
+    "regions": {"transparent": "alpha==0", "low": "0<alpha<=.1", "edge": ".1<alpha<.9", "near_opaque": ".9<=alpha<1", "opaque": "alpha==1"}
+  },
+  "conditions": {
+    "size": "256x128; no resolution comparison.",
+    "numeric_domain": "Float32 normalized direct values; no transfer conversion or HDR transform.",
+    "alpha": "Each branch keeps source alpha. Straight composite = rgb*alpha+background*(1-alpha). Premultiplied composite = rgb+background*(1-alpha).",
+    "metrics": "Stored RGB effect residual and composite MAE/RMS/max per alpha region; alpha identity; premultiplied RGB bound violations in this bounded [0,1] fixture; fixed display contact sheets.",
+    "display": "Diagnostic RGB8 clips [0,1] and directly quantizes; raw float metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "planned_model_only", "method": "Check source markers, deterministic fixed fixture, exact per-pixel formula, alpha passthrough, and paired baseline composite equations.", "acceptance_criteria": "Formula model within float32 tolerance; no image-quality gate."},
+    "image_quality_and_detail": {"status": "planned_descriptive", "regions": ["transparent exterior", "low alpha", "transition edge", "opaque interior", "damage scratch and dust marks"], "judge": "Research author inspects same-scale contact sheets.", "acceptance_criteria": "No aesthetic pass/fail; this study only compares alpha response."},
+    "color_and_alpha": {"status": "partial_model_only", "method": "Compare association-correct source-over composites over three backgrounds and bounded premultiplication constraints.", "unverified": "Actual descriptor/value association and downstream compositing path."},
+    "temporal_stability": {"status": "not_applicable", "reason": "Single frame; separately planned."},
+    "render_paths_and_resolution": {"status": "unverified", "reason": "No registered effect invocation or resolution sweep."},
+    "performance": {"status": "unverified", "reason": "No product runtime measurement."}
+  },
+  "execution": {
+    "backend": "None; Python CPU model.",
+    "thresholds": "No perceptual thresholds. Require alpha identity, finite outputs, repeatability, and formula agreement within float32 tolerance.",
+    "reproducibility": "Record plan/source/script/helper hashes, package versions, condition data, report and checksum."
+  }
+}

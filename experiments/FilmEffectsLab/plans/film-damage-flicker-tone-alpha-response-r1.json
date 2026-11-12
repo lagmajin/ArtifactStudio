@@ -1,0 +1,47 @@
+{
+  "plan_version": 1,
+  "plan_id": "film-damage-flicker-tone-alpha-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Characterize the isolated Film Damage global flicker gain across control strength and selected normal variates, measuring tone/HDR-range, sign inversion, hue response and alpha-edge compositing under straight and premultiplied storage assumptions.",
+  "scope": {
+    "effect": "FilmDamageCPUImpl per-pixel sourceRGB * flickerGain term only; grain, dust, scratches, gate weave and film burn are neutralized.",
+    "method": "Offline deterministic float32 equation model with fixed standard-normal z labels {-3,-2,-1,0,1,2,3}; these are diagnostic variates and do not reproduce std::normal_distribution or frame draws.",
+    "excluded": ["C++ or application execution", "std::mt19937 / std::normal_distribution parity", "actual frame-to-frame flicker sequence or temporal perception", "compiled/runtime effect output", "GPU/backend and preview/final parity", "Viewer color transform", "performance/allocation", "source changes", "aesthetic approval"]
+  },
+  "comparison": {
+    "baseline": "Same source fixture at gain=1 (flicker=0 or z=0); arithmetic response reference only, not a look target.",
+    "candidates": ["flicker controls 0, .08, .25, .5, 1", "fixed z values -3,-2,-1,0,1,2,3", "straight and correctly premultiplied representations of one translucent tone/color chart"],
+    "ground_truth": "No external ground truth. The paired gain=1 input isolates equation response, not acceptable exposure behavior.",
+    "acceptance": "Descriptive only; report gain sign/range, tone and region response. Do not infer event frequency from z labels or call a control value visually good/bad."
+  },
+  "materials": {
+    "fixture": "Locally generated 512x256 synthetic alpha ellipse containing black/shadow/midtone/highlight and saturated RGB/CMY patches, near-white, high-contrast lines and a checker detail; RGB is zero outside alpha.",
+    "rights": "Generated locally by the study script.",
+    "identity": "Record hashes for source, plan, runner, fixture, metrics and previews.",
+    "regions": {"all": "whole fixture", "transparent": "alpha==0", "low_alpha": "0<alpha<=.1", "edge": ".1<alpha<.9", "near_opaque": ".9<=alpha<1", "opaque": "alpha==1", "shadow": "source luminance<=.1", "midtone": ".1<source luminance<.8", "highlight": "source luminance>=.8", "patches": "fixed named chart rectangles"}
+  },
+  "conditions": {
+    "resolution_wh": [512, 256],
+    "numeric_domain": "Float32 BGRA storage; logical RGB direct numeric values in [0,1], no transfer conversion. Source RGB is multiplied by gain without output clamp; source alpha is copied unchanged.",
+    "equation": "flickerGain=1+z*flicker; outputRGB=sourceRGB*flickerGain; outputAlpha=sourceAlpha.",
+    "alpha": "For premultiplied branch, multiply fixture RGB by alpha before applying gain. Straight composite=storedRGB*alpha+background*(1-alpha); premultiplied composite=storedRGB+background*(1-alpha). Use black, numeric gray .18, white backgrounds.",
+    "controls": "flicker={0,.08,.25,.5,1}; z={-3,-2,-1,0,1,2,3}; all other Film Damage controls zero; seed=1977/evolution=0 are labels only since no RNG is executed.",
+    "metrics": ["computed gain and negative/zero/positive sign class", "RGB min/max and below-zero/above-one/nonfinite channel rates", "per patch and alpha-region RGB/composite delta MAE/RMSE/p95/max vs gain=1", "luma and RGB opponent-difference response", "alpha identity", "transparent RGB and compositing response", "fixture/source/runner/output hashes"],
+    "display": "Contact sheets label flicker and z, rendered over gray18 with common direct [0,1] clip; raw float metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_equation_model_only", "method": "Verify gain formula, exact RGB scaling, alpha passthrough, z=0 and flicker=0 identity, finite output, and selected sign-boundary cases.", "acceptance_criteria": "z=0 or flicker=0 gives identity within float tolerance; outputs otherwise match the fixed equation. No compiled parity claim."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect full chart/contact sheet and named tone/detail crops at 1:1; report negative-gain and range crossings without aesthetic judgment.", "judge": "Research author", "acceptance_criteria": "No aesthetic pass/fail; fixed z values are response probes, not perceptual acceptance samples."},
+    "color_and_alpha": {"status": "conditional_association_model", "method": "Measure correctly represented straight/premultiplied inputs and source-over composites over black/gray/white; alpha must be exact.", "unverified": "Actual layer descriptor, random z sequence, downstream clamp and product compositor response."},
+    "temporal_stability": {"status": "not_measured", "reason": "No sequence of actual random draws or rendered frames; this isolates per-sample response only."},
+    "render_paths_and_resolution": {"status": "CPU_equation_model_only", "unverified": "Actual app route, preview/final size mapping, GPU parity and display transform."},
+    "performance": {"status": "unverified", "reason": "No product timing or memory measurement."}
+  },
+  "execution": {
+    "backend": "Python 3 and NumPy; offline synthetic fixture only.",
+    "artifacts": "experiments/FilmEffectsLab/captures/film-damage-flicker-tone-alpha-response-r1/",
+    "threshold_policy": "Descriptive only; no perceptual thresholds are invented.",
+    "reproducibility": "Fixed fixture, z grid and control grid; record package versions and source/plan/runner/fixture/preview hashes."
+  }
+}

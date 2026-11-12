@@ -1,0 +1,108 @@
+{
+  "plan_version": 1,
+  "plan_id": "film-damage-grunge-amount-quantization-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Map how Film Grunge and Film Damage scratch/dust controls quantize into mark counts across practical render sizes, and compare how much mark count changes for 0.01 control adjustments.",
+  "scope": {
+    "effects": "Only the C++ source count expressions for Film Grunge scratchAmount/dustAmount and Film Damage scratches/dust. Use their actual documented/default control ranges and defaults. No random placement or mark rendering.",
+    "method": "Offline Python Float32 arithmetic model of source count formulas, scanning controls 0..1 at 0.01 increments and calculating source-derived counts at 512x256, 1024x512, 1920x1080 and 3840x2160. Derive ideal control step intervals from the integer count scale and compare to Float32 scan.",
+    "excluded": [
+      "random engine draw/placement parity",
+      "mark geometry, opacity, masks or rendered pixels",
+      "C++ or app execution",
+      "alpha / compositing",
+      "temporal behavior",
+      "aesthetic quality or matched-strength ranking",
+      "GPU/preview/final route",
+      "performance/allocation",
+      "source changes"
+    ]
+  },
+  "comparison": {
+    "baseline": "Count at control=0 and source default control; count formula itself is the measured quantity, not a pixel baseline.",
+    "candidates": [
+      "Film Grunge scratch/dust controls, each independently",
+      "Film Damage scratch/dust controls, each independently",
+      "four fixed image sizes and 101 slider values [0,.01,...,1]"
+    ],
+    "ground_truth": "No visual target. Source code count expression is the only expected reference.",
+    "acceptance": "Descriptive count mapping only. Require exact source marker agreement, control=0 -> count=0, nondecreasing counts, and agreement of scanned transition counts with declared arithmetic. Do not infer visual density, perceived strength, or equivalence."
+  },
+  "materials": {
+    "fixture": "No image pixels. Analytic dimensions from 512x256 to 3840x2160; normalized area and width are derived from exact integer sizes.",
+    "rights": "Not applicable.",
+    "identity": "Hash exact source files, plan, runner; record formulas, dimensions, controls and all count outputs.",
+    "regions": {
+      "slider": "all 101 discrete controls",
+      "resolution": "each dimension pair"
+    }
+  },
+  "conditions": {
+    "dimensions_wh": [
+      [
+        512,
+        256
+      ],
+      [
+        1024,
+        512
+      ],
+      [
+        1920,
+        1080
+      ],
+      [
+        3840,
+        2160
+      ]
+    ],
+    "numeric_domain": "Controls converted to Float32; positive counts truncate toward zero as in static_cast<int>. For Film Grunge, width/18 and width*height/900 are integer divisions before multiplication. For Film Damage, dust multiplies Float32 in source expression order then divides by 180.0f.",
+    "equation": "Grunge scratches=int(f*max(1,width//18)); Grunge dust=int(f*max(1,(width*height)//900)); Damage scratches=int(f*18); Damage dust=int(f*width*height/180.0f), with each multiply/divide rounded to Float32 in source order. f ranges [0,1].",
+    "regions_and_rois": "No pixel masks. Every control/resolution/component tuple is a distinct analytic condition.",
+    "metrics": [
+      "count at source defaults",
+      "count at every .01 control step",
+      "number/fraction of slider steps with zero count change",
+      "per-step count delta min/median/max",
+      "ideal control interval between count thresholds",
+      "count per megapixel for dust",
+      "scratch count per 1000 horizontal pixels",
+      "count threshold alignment against float32 scanner"
+    ],
+    "display": "Labeled control-response plots show mark counts and changes per .01; they visualize formulas, not rendered marks."
+  },
+  "evaluation": {
+    "effect_correctness": {
+      "status": "source_equation_model_only",
+      "method": "Source markers, exact arithmetic expression order, zero and monotonic invariants, count grid output.",
+      "acceptance_criteria": "All counts match the declared Float32/integer equations; no output-image claim."
+    },
+    "image_quality_and_detail": {
+      "status": "not_evaluated",
+      "reason": "No image marks are placed or rendered. Morphology work remains separate."
+    },
+    "color_and_alpha": {
+      "status": "not_applicable",
+      "reason": "Count-only model has no pixel/color/alpha values."
+    },
+    "temporal_stability": {
+      "status": "not_applicable_to_static_count_mapping",
+      "reason": "No RNG or frame keys are evaluated."
+    },
+    "render_paths_and_resolution": {
+      "status": "static_resolution_formula_only",
+      "unverified": "Actual runtime counts/placement and preview/final dimensions."
+    },
+    "performance": {
+      "status": "not_measured",
+      "reason": "Arithmetic count analysis only."
+    },
+    "decision": "No parameter recommendation, visual-strength equivalence or implementation approval."
+  },
+  "execution": {
+    "backend": "Python NumPy Float32 calculations and Pillow chart output; no C++, app or GUI.",
+    "threshold_policy": "No perceptual thresholds; count transitions are exact source-equation results.",
+    "reproducibility": "Fixed source files, size grid, Float32 control grid and hashes."
+  }
+}

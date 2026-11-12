@@ -1,0 +1,44 @@
+{
+  "plan_version": 1,
+  "plan_id": "add-noise-chroma-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Characterize Add Noise color, monochrome, and luminance-only mode responses on matched neutral, saturated, and near-boundary color patches, focusing on luminance drift, chroma/saturation change, hue rotation, and clipping.",
+  "scope": {
+    "effect": "Artifact::AddNoiseEffect CPU equation and numerically equivalent resident generic equation, modeled from the CPU source formulas.",
+    "method": "NumPy equation mirror on local synthetic opaque color patches at two resolutions, with four fixed seeds.",
+    "excluded": ["dedicated GPU wrapper seed bitcast", "compiled shader/GPU precision", "actual Composition dispatch", "color transfer/display transform", "alpha edges", "aesthetic acceptance", "temporal sequence behavior", "performance/allocation", "implementation changes"]
+  },
+  "comparison": {
+    "baseline": "Amount=0 on the same float32 patch chart. No input is a quality ground truth.",
+    "candidates": ["Modes color/mono/luma", "amount .1/.4", "size 1.5/3 pixels", "seeds 0/73/1977/4099", "512x256 and 1024x512 matched patch layouts"],
+    "ground_truth": "None. Source equation determines the model; colorimetric metrics are descriptive in direct linear numeric RGB only.",
+    "acceptance": "No aesthetic or perceptual pass/fail threshold. State mode-specific luminance/chroma response and bounded-domain clipping, without claiming display color accuracy."
+  },
+  "materials": {
+    "fixture": "Synthetic opaque 4x3 patch chart: five neutral grays, RGB and CMY saturated patches, and selected near-gamut boundary colors; fixed local geometry and 4px gutters.",
+    "rights": "Generated locally by this study.",
+    "regions": "Each named flat color patch; only patch interiors are measured, excluding gutters.",
+    "identity": "Record SHA-256 of source, interface, plan, script, metrics, and emitted previews."
+  },
+  "conditions": {
+    "format": "Float32 BGRA storage, logical RGB values in [0,1], alpha=1; no transfer conversion, exposure, or display transform.",
+    "mode_parameters": "Rec.601 luma weights match source code (.299R + .587G + .114B). Opponent chroma uses Cb=B-Y and Cr=R-Y; saturation proxy is max(R,G,B)-min(R,G,B). Hue rotation is circular delta of atan2(Cr,Cb), calculated only for source chroma magnitude >=.05.",
+    "metrics": ["per-patch RGB mean/std and exact/near-bound clipping fractions", "signed/absolute/RMSE/p95 luma delta", "chroma-magnitude and saturation-proxy change", "circular hue-rotation mean-absolute and p95", "luma-mode intermediate clamp fractions", "input-baseline exactness and alpha identity"],
+    "display": "Direct clipped RGB8 previews and same-scale contact sheet; raw float metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_model_only", "method": "Check mode precedence, numeric seed, hash salts, luma weights, RGB clamp and alpha pass-through source markers.", "acceptance_criteria": "Deterministic formula model; no compiled parity claim."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect patch contact sheet plus fixed saturated/boundary crops at 1:1 and enlarged display.", "judge": "Research author", "acceptance_criteria": "Report hue/chroma shifts and color clipping; no quality ranking or aesthetic approval."},
+    "color_and_alpha": {"status": "partial_bounded_domain", "method": "Evaluate direct RGB and Rec.601 luma/chroma proxies on opaque bounded patches.", "unverified": "Actual transfer function, viewer transform, HDR/negative domain, alpha association and rendered output."},
+    "temporal_stability": {"status": "source_equation_invariant_only", "method": "Hash has no frame/time coordinate under stable seed/controls.", "unverified": "Actual playback sequence and parameter automation."},
+    "render_paths_and_resolution": {"status": "equation_and_dimension_model_only", "method": "Run same patch layout and parameters at 512x256 and 1024x512.", "unverified": "Actual LOD scaling, preview/final, CPU/GPU/backend dispatch."},
+    "performance": {"status": "unverified", "reason": "No product timing or memory measurement."}
+  },
+  "execution": {
+    "backend": "Python 3, NumPy, OpenCV, Pillow; local synthetic assets only.",
+    "artifacts": "experiments/FilmEffectsLab/captures/add-noise-chroma-response-r1/",
+    "threshold_policy": "Descriptive only; no acceptance threshold.",
+    "reproducibility": "Fixed 4 seeds, modes, amounts, sizes and resolutions; record versions, hashes, parameters, metric checksum and preview checksums."
+  }
+}

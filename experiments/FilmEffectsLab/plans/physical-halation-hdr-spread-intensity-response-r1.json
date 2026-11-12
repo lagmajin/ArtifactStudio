@@ -1,0 +1,95 @@
+{
+  "plan_version": 1,
+  "plan_id": "physical-halation-hdr-spread-intensity-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Characterize how Physical Halation spread and intensity alter thresholded highlight response, spatial footprint, and HDR/headroom behavior over a synthetic linear-light scene.",
+  "scope": {
+    "effect": "PhysicalHalation source equation: Rec.601 highlight extraction with softness=.5 and threshold=.8; dual box diffusion; additive RGB composite; original alpha restoration.",
+    "method": "Offline Float32 Python/Numpy equation model based on ArtifactCore/include/ImageProcessing/Halation.ixx and wrapper parameter bounds. Use one locally generated 512x256 scene containing neutral luminance patches from .25 to 4.0, a smooth ramp and isolated point lights. No app, C++, GPU, or Windows UI interaction.",
+    "excluded": [
+      "compiled C++ or app parity",
+      "GPU/preview/final route",
+      "transfer-function or display transform",
+      "aesthetic acceptance",
+      "temporal response",
+      "real-scene representation",
+      "performance or allocation measurement",
+      "source changes"
+    ]
+  },
+  "comparison": {
+    "baseline": "Same Float32 source with intensity zero; source equation reference only, not an approved visual target.",
+    "candidates": [
+      "spread 0, 4, 15, 50 at intensities .5 and 1.5",
+      "spread 15 at intensities 0, .5, 1.5, 5",
+      "threshold .8, softness .5, redDiffusion 2 held fixed",
+      "patch levels .25, .6, .8, .9, 1, 1.5, 4"
+    ],
+    "ground_truth": "None; locally generated ramps and patches isolate source-equation response, not physical film scattering.",
+    "acceptance": "Descriptive only. Verify intensity-zero identity, alpha identity, finite values, monotonic scalar response where expected, channel/headroom ranges, spatial support and profile width. No quality pass or product recommendation from model data alone."
+  },
+  "materials": {
+    "fixture": "Generate independent 256x256 uniform neutral plates at levels .25,.6,.8,.9,1,1.5,4 and one 256x256 black plate with a single bright neutral point (peak 4), all opaque Float32 BGRA. Uniform plates isolate threshold response without cross-band diffusion; the point plate measures spatial profile.",
+    "rights": "Generated locally by runner.",
+    "identity": "Record source file markers, plan/runner/input/output hashes and every condition.",
+    "regions": {
+      "all": "entire fixture",
+      "patches": "interior of each fixed luminance band excluding 60px from edges",
+      "points": "fixed 81x81 crop around each point source",
+      "background": "opaque non-highlight ramp"
+    }
+  },
+  "conditions": {
+    "dimensions_wh": [
+      256,
+      256
+    ],
+    "numeric_domain": "Float32 direct numeric linear-like values, no transfer conversion and no 0..1 output clamp; opaque alpha=1.",
+    "parameters": "threshold=.8, softness=.5, redDiffusion=2; spreads 0, 4, and 50 each at intensities .5 and 1.5; spread 15 at intensities 0, .5, 1.5, and 5.0. Ten unique settings. This separates spread comparisons from the high-intensity stress probe.",
+    "equation": "Use the inspected implementation exactly: lum=B*.114+G*.587+R*.299; soft-knee contribution; contribution=max(lum-threshold, softContribution); bounded highlight weight; red radius=int(spread*redDiffusion), GB radius=int(spread); clamped-edge separable box diffusion; additive RGB and source alpha restoration.",
+    "regions_and_rois": "Uniform plate means all pixels; point profile uses central horizontal/vertical line through impulse and whole-image diffusion support. Point coordinate (128,128), with alpha=1 throughout.",
+    "metrics": [
+      "per-patch mean BGR/luma delta, max and channel clipping fractions",
+      "full-image RGB min/max, >1 and nonfinite rates",
+      "response-vs-intensity ratios against intensity=.5 for shared spread",
+      "per-channel diffusion support above 1e-6 and 1e-4",
+      "point-profile FWHM in pixels and normalized coordinates",
+      "alpha exactness, zero-intensity exact identity",
+      "raw linear Float32 metrics and direct-clipped previews",
+      "Report preregistered settings only; no post-hoc parameter expansion."
+    ],
+    "display": "Contact sheet of condition previews with fixed exposure clipping only for display; retain un-clamped Float32 arrays as metric source."
+  },
+  "evaluation": {
+    "effect_correctness": {
+      "status": "source_equation_model_only",
+      "method": "Check equation markers, intensity-zero exact identity, alpha identity, finite output and expected linear intensity scaling absent source-dependent clipping.",
+      "acceptance_criteria": "Pass only model consistency checks; does not validate product effect."
+    },
+    "image_quality_detail": {
+      "status": "descriptive_model_only",
+      "method": "Review whole scene and point-source crop at 1:1 and 4x nearest neighbor; report profile/patch measures.",
+      "acceptance_criteria": "No aesthetic acceptability gate; describe halos and preserve extreme-value evidence."
+    },
+    "color_alpha": {
+      "status": "limited",
+      "method": "Measure BGR/luma response and >1 fractions; alpha is opaque and exact.",
+      "acceptance_criteria": "Document channel bias and numeric range; straight/premultiplied behavior not covered."
+    },
+    "temporal": {
+      "status": "not_applicable_to_static_equation",
+      "reason": "No frame-varying input or time parameter in the inspected equation; motion/temporal application remains unverified."
+    },
+    "route_resolution": {
+      "status": "not_verified",
+      "reason": "Only a fixed-resolution offline equation model; no preview/final or backend capture."
+    },
+    "performance": {
+      "status": "not_measured",
+      "reason": "No compiled/runtime execution; algorithmic observations are not performance measurements."
+    },
+    "decision": "No product-quality acceptance, parameter recommendation or implementation approval. Record response and unresolved runtime evidence."
+  },
+  "plan_amendment": "Before retaining or interpreting any result, the first runner draft was checked against the preregistered matrix and found to have added intensity=5 at spreads 0,4,50. That run is exploratory and excluded; runner is restricted to the preregistered ten settings and outputs are regenerated."
+}

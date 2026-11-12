@@ -1,0 +1,67 @@
+{
+  "plan_version": 1,
+  "plan_id": "film-suite-grunge-damage-stack-order-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Characterize whether the registered Film Grunge and Film Damage pixel equations commute when stacked, and describe their combined color/detail and alpha-association response on the same fixed translucent fixture.",
+  "scope": {
+    "effects": ["ArtifactFilmGrungeEffect additive damageField equation", "FilmDamageCPUImpl RGBA overlay equation"],
+    "method": "Offline NumPy model of the exact isolated per-pixel equations using authored fixed diagnostic scratch/dust fields; compare disabled, individual effects and both orders.",
+    "excluded": ["C++ or app execution", "std::mt19937 placement parity", "randomized actual effect fields", "gate weave/grain/flicker/vignette/stain/burn", "product display transform", "GPU/preview/final parity", "performance/allocation", "source changes", "aesthetic approval"]
+  },
+  "comparison": {
+    "baseline": "Same fixture with both effects disabled and matching alpha association; arithmetic baseline only, not a desired look.",
+    "candidates": ["Film Grunge only", "Film Damage only", "Film Grunge then Film Damage", "Film Damage then Film Grunge"],
+    "ground_truth": "No external or approved target. Fixed synthetic overlay fields isolate equation order; they are not captured product placements or aesthetic references.",
+    "acceptance": "Descriptive only. Compute exact model order commutator and alpha/composite response. Do not infer quality, product output or defect severity from nonzero order difference."
+  },
+  "materials": {
+    "fixture": "Generated smooth translucent ellipse with zero RGB outside alpha, warm/cool flat patches, checker/line detail and a near-white patch. Fixed diagnostic Grunge scalar damageField and Film Damage RGBA damage overlay use separate labeled scratch/dust masks.",
+    "rights": "Generated locally by the study script.",
+    "identity": "Fixture and per-field hashes are stored in metrics; plan, sources, runner, previews and metrics are SHA-256 recorded.",
+    "regions": {"transparent": "alpha==0", "low_alpha": "0<alpha<=.1", "edge": ".1<alpha<.9", "near_opaque": ".9<=alpha<1", "opaque": "alpha==1", "grunge_marks": "fixed Grunge damageField nonzero", "damage_marks": "fixed Film Damage overlay alpha nonzero", "overlap": "both diagnostic fields nonzero", "overlap_crop": "64x64 pixels centered at normalized (.61,.50), clipped to image bounds", "alpha_edge_crop": "64x64 pixels centered at normalized (.89,.50), clipped to image bounds"}
+  },
+  "conditions": {
+    "sizes_wh": [[512, 256], [1024, 512]],
+    "numeric_domain": "Float32 BGRA storage, logical RGB direct numeric [0,1], no transfer conversion, exposure or display transform. No output clamp in either modeled equation.",
+    "alpha": "Generate straight fixture, then premultiply RGB for the matched premultiplied branch. Each effect preserves source alpha. Straight source-over=storedRGB*alpha+background*(1-alpha); premultiplied source-over=storedRGB+background*(1-alpha). Test black, numeric linear gray .18 and white.",
+    "effect_controls": "Film Grunge: grainAmount=0, scratch/dust controls bypassed in favor of authored damageField, flicker=0, gateWeave=0, vignette=0, stain=0. Film Damage: grain=0, dust/scratches generators bypassed in favor of authored RGBA overlay, gateWeave=0, flicker=0, filmBurn=0.",
+    "fixed_fields": "Grunge signed scalar field is added to each RGB channel. Film Damage field uses its own fixed RGB and alpha, then source*(1-overlayAlpha)+overlayRGB*overlayAlpha. Both fields are held identical between single/stack/order conditions and across alpha associations. Mark centers follow normalized positions while stroke widths and dust radii stay fixed in pixels, matching source scale behavior. One-pixel Film Damage scratches cross Grunge scratches at normalized x=.61 (opaque-interior order ROI) and x=.89 (alpha-transition order ROI).",
+    "metrics": ["alpha identity and finite values", "stored RGB min/max and below-zero/above-one channel rate", "per-region order-paired RGB/composite MAE/RMSE/p95/max over three backgrounds", "per-effect and combined residual", "order commutator G(D(S))-D(G(S)) by region", "Grunge/Damage/overlap coverage", "premultiplied RGB>alpha channel fraction", "fixture and mask hashes"],
+    "display": "Direct-clipped RGB8 full/contact and detail crops; raw float outputs and metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_equation_model_only", "method": "Verify the additive Grunge RGB equation, Damage overlay equation, source-alpha preservation, same fixed fields across candidates, and zero-field identity.", "acceptance_criteria": "Disabled controls reproduce the source exactly within float tolerance; fixed fields and fixture match across stack/order conditions. No compiled parity claim."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect the same-scale full contact sheet and 64x64 pixel crops centered at normalized (.61,.50) over the intersecting scratches and (.89,.50) at the ellipse alpha transition; enlarge crops with nearest-neighbor to 256x256. Report residual placement and contrast change by order.", "judge": "Research author", "acceptance_criteria": "No aesthetic pass/fail; order difference alone is not a defect."},
+    "color_and_alpha": {"status": "conditional_association_model", "method": "Compare alpha-preserving outputs under correctly constructed straight and premultiplied fixtures and composite over black/gray/white.", "unverified": "Actual input descriptor, downstream handling of Grunge Unknown alpha, and product compositing output."},
+    "temporal_stability": {"status": "not_measured", "reason": "Fields are fixed for this spatial order study; randomized per-frame marks and temporal output are excluded."},
+    "render_paths_and_resolution": {"status": "equation_and_resolution_model_only", "method": "Use two dimensions with same normalized fixture layout and scale diagnostic mark coordinates/widths with resolution.", "unverified": "Actual route, preview/final mapping, compiled implementation and Viewer output."},
+    "performance": {"status": "unverified", "reason": "No product timing, allocation or memory profiling."}
+  },
+  "execution": {
+    "backend": "Python 3 and NumPy/Pillow, offline synthetic model only.",
+    "artifacts": "experiments/FilmEffectsLab/captures/film-suite-grunge-damage-stack-order-r1/",
+    "threshold_policy": "Descriptive only; no unsupported perceptual threshold or preferred order is invented.",
+    "reproducibility": "Fixed procedural fixture and diagnostic fields, recorded package versions and source/plan/runner/artifact hashes."
+  },
+  "amendments": [
+    {
+      "date": "2026-11-12",
+      "reason": "The initial exploratory model placed the fixed Film Damage scratch away from Grunge marks, leaving the registered overlap ROI empty and the order commutator trivially zero.",
+      "change": "Move one fixed Film Damage scratch to normalized x=.61 so it crosses a fixed Grunge scratch; preserve pixel stroke widths and all fixtures, controls, regions and metrics. Re-run the complete comparison. Preserve the initial metrics as exploratory evidence.",
+      "impact": "Initial disjoint-field metrics are not final order-interaction evidence. Final metrics use the amended fixed field and still do not represent randomized product placements."
+    },
+    {
+      "date": "2026-11-12",
+      "reason": "The full contact sheet and first completed order metrics show that the order response is localized around intersecting marks; the preregistered visual method names fixed crops but had not specified their coordinates or display enlargement.",
+      "change": "Freeze two 64x64 pixel crops at normalized centers (.61,.50) for the intersecting scratches and (.89,.50) for the alpha transition, displayed enlarged 4x with nearest-neighbor. Keep all candidates, conditions and acceptance criteria unchanged.",
+      "impact": "Adds reproducible detail evidence only; no thresholds or quality decisions change."
+    },
+    {
+      "date": "2026-11-12",
+      "reason": "The .89 alpha-edge crop had no overlapping fixed marks, so the order commutator there was zero by construction and could not describe edge order response.",
+      "change": "Add a paired Grunge/Damage one-pixel scratch at normalized x=.89 spanning normalized y=.12-.88, while retaining the .61 opaque-interior crossing. Preserve all controls, candidate orders, ROIs, metrics and acceptance criteria; rerun every condition.",
+      "impact": "The amended model now exercises order interaction in both opaque and alpha-transition regions. The prior interior-only metrics remain preserved as exploratory evidence."
+    }
+  ]
+}

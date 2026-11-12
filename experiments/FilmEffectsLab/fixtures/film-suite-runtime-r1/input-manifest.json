@@ -1,0 +1,136 @@
+{
+  "plan_id": "film-suite-composition-runtime-capture-r1",
+  "plan_sha256": "7fb9a4182e748543872be373111fb233ae8b919a2f8b2c90d53ec5eaea256e38",
+  "generator_sha256": "4f6f9add69f514be0a6c7c656e6ef2324fa1012f3726037331bcb20c598b7833",
+  "python": "3.14.2",
+  "numpy": "2.4.3",
+  "pillow": "12.2.0",
+  "assets": [
+    {
+      "id": "alpha-edge-512",
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\film-alpha-edge-512.png",
+      "sha256": "1ba2c437d35101915b800a25f7198fbcd7ec2d835f9b3fbb934af9af6baa3fa4",
+      "size": [
+        512,
+        256
+      ],
+      "mode": "RGBA8 straight-alpha PNG",
+      "alpha_min": 0.0,
+      "alpha_max": 1.0
+    },
+    {
+      "id": "alpha-edge-1024",
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\film-alpha-edge-1024.png",
+      "sha256": "19733daf4a9a0da62cbc96073ead0e047886a26af64dc39aa35b8dca73af3362",
+      "size": [
+        1024,
+        512
+      ],
+      "mode": "RGBA8 straight-alpha PNG",
+      "alpha_min": 0.0,
+      "alpha_max": 1.0
+    },
+    {
+      "id": "detail-512",
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\film-detail-512.png",
+      "sha256": "2e21758675d02dbf0e4239d6ff0ff5aab9791d8bb4171a0c87a9f47a4071a725",
+      "size": [
+        512,
+        256
+      ],
+      "mode": "RGBA8 opaque diagnostic PNG"
+    }
+  ],
+  "display_previews": [
+    {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\preview-alpha-edge-512-on-gray.png",
+      "sha256": "2279d1489c35d38696a78ddcb31e4c4d8c875d91e3e1d3a4f4ad34ddc3f5552d",
+      "display_only": true
+    }
+  ],
+  "roi_masks": {
+    "whole-512": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-whole-512.png",
+      "sha256": "a5b37e420909bb359a44d6726ddfd0da8789b88d5f51bff2f61c8c7983dfb5ba",
+      "pixel_count": 131072
+    },
+    "transparent-512": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-transparent-512.png",
+      "sha256": "c1bc44628418f6bdc2ea119cb503709a31409868ceddb20a1979dc72ff85e489",
+      "pixel_count": 81855
+    },
+    "low-512": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-low-512.png",
+      "sha256": "41f8c5960ff649f63eea82c0db3545dfe8dcb6951eb255c1d9fc4da416643004",
+      "pixel_count": 816
+    },
+    "edge-512": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-edge-512.png",
+      "sha256": "358bca99cf5310a05944b5f53a94836a809fbeb023c2a774f2f8f6ea4cb37f47",
+      "pixel_count": 6284
+    },
+    "near_opaque-512": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-near_opaque-512.png",
+      "sha256": "16e69d9d3e745f3a4ac488337c77be1f3d075bdcb5469e77ade77da3797589b4",
+      "pixel_count": 718
+    },
+    "opaque-512": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-opaque-512.png",
+      "sha256": "b3fa53c9b6f06b8798cf9f27a8a2ddddf65bf5c62964dd94a6dd8fc880f492d5",
+      "pixel_count": 41399
+    },
+    "fine_detail-512": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-fine_detail-512.png",
+      "sha256": "2dd654486e3a18e52ae108a6bf3d3f2e6c67f2ecc4f06046ce03ec5eb02ed7fe",
+      "pixel_count": 10153
+    },
+    "flat_opaque-512": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-flat_opaque-512.png",
+      "sha256": "df961ed1cbc4c9603345432c287483e03cc7bfd19aefad5de6315ba5f099386d",
+      "pixel_count": 31246
+    },
+    "whole-1024": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-whole-1024.png",
+      "sha256": "5723ae885b969ee8465c85cd56f96efb6c9b1f35d7e91a7c15db4cfc54f7c195",
+      "pixel_count": 524288
+    },
+    "transparent-1024": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-transparent-1024.png",
+      "sha256": "c6c35864539c68645db21b183da6afd08160b23dd4cd1112727a21b3a0b78497",
+      "pixel_count": 327425
+    },
+    "low-1024": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-low-1024.png",
+      "sha256": "2ddaf8e0c696cc02dc191cfbd6111c55c0006293c07261d2fb59d56c8023eb74",
+      "pixel_count": 3236
+    },
+    "edge-1024": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-edge-1024.png",
+      "sha256": "e3f338ea62b8fe3e5e5a9d0d3d2b73c91f918311b69fc919d97d6a64c83cef2f",
+      "pixel_count": 25142
+    },
+    "near_opaque-1024": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-near_opaque-1024.png",
+      "sha256": "c81ed378de39ddb04db071b657b63a7d71471cf86e6cfef91a92cb68c7fd141d",
+      "pixel_count": 2932
+    },
+    "opaque-1024": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-opaque-1024.png",
+      "sha256": "14c9cc4abbc41f1434dba511baea0244fa079b526d78889be34e7f1a6ebf7310",
+      "pixel_count": 165553
+    },
+    "fine_detail-1024": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-fine_detail-1024.png",
+      "sha256": "8ddc06ce2bb80f86668b6d54f9b13c7cae33ee3b239bfde66aa2563f2496a6a9",
+      "pixel_count": 41041
+    },
+    "flat_opaque-1024": {
+      "path": "experiments\\FilmEffectsLab\\fixtures\\film-suite-runtime-r1\\roi-flat_opaque-1024.png",
+      "sha256": "7c933d05034170d5524ce7eef1d8fe6af56bb06e7e84c57310dbabd39585e760",
+      "pixel_count": 124512
+    }
+  },
+  "alpha_edge_definition": "Normalized ellipse with analytic smooth alpha transition; opaque center line/grid details; transparent exterior retains saturated hidden RGB in straight PNG data.",
+  "capture_status": "inputs_prepared_application_capture_not_started",
+  "capture_directory": "experiments\\FilmEffectsLab\\captures\\film-suite-composition-runtime-capture-r1"
+}

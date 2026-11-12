@@ -27,3 +27,5 @@ tests/shape_visual/*.md text eol=lf
 *.ps1     text eol=lf
 *.sh      text eol=lf
 *.md      text eol=lf
+experiments/OutlineLab/.gitignore text eol=lf
+experiments/OutlineLab/requirements.txt text eol=lf

@@ -1,0 +1,78 @@
+{
+  "plan_version": 1,
+  "plan_id": "physical-halation-highlight-cluster-edge-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Determine how Physical Halation edge-clamp diffusion responds to finite, soft HDR highlight clusters compared with the previously measured point impulse, at the frame center and when the cluster touches an edge or corner.",
+  "scope": {
+    "effect": "PhysicalHalation source-equation highlight extraction, red/green/blue dual-layer box diffusion and additive response; focus is finite source geometry near frame boundaries.",
+    "method": "Offline Float32 source-equation model on square opaque-black frames. Each source is a neutral Gaussian HDR spot truncated at 2 sigma, or a single-pixel impulse when sigma=0. At the tangent boundary this yields positive highlight extraction under threshold=.8/softness=.5. The full spot remains inside the frame and is placed at center, tangent to one edge, or tangent to a corner.",
+    "excluded": [
+      "compiled C++ or running app output",
+      "transparent or colored source material",
+      "display transform, transfer conversion, or output clamp",
+      "photographic ground truth, physical-film equivalence, or aesthetic acceptance",
+      "GPU/preview/final parity",
+      "runtime performance or allocation measurement",
+      "source modifications"
+    ]
+  },
+  "comparison": {
+    "baseline": "Same frame dimensions, Spread, sigma, highlight shape, and HDR peak with the cluster centered. Also report the input highlight mass before diffusion so energy changes are not confused with source clipping.",
+    "candidates": [
+      "square dimensions 128, 256, 512, and 1024 pixels",
+      "Spread 15, 50, and 100 with redDiffusion=2",
+      "Gaussian sigma 0, 1, 4, and 12; nonzero fields truncated at 2 sigma",
+      "cluster centered; tangent to each of four edges; tangent to each of four corners while remaining fully in frame"
+    ],
+    "ground_truth": "None. The center field and unbounded input-highlight mass are descriptive equation references, not an approved visual target.",
+    "acceptance": "No quality pass/fail. Verify all source markers, source support remains inside the frame, alpha identity, finite/nonnegative diffusion, and reflected energy/centroid invariants. Report input highlight mass, output layer energy, edge/center and unbounded-input gain, peak, centroid displacement, support/footprint and clipping/range counts. Do not interpret higher edge energy as a product defect without runtime and visual evidence."
+  },
+  "materials": {
+    "fixture": "Generated Float32 BGRA opaque black frame with neutral Gaussian HDR intensity peak 4.0 and alpha 1. The full truncated spot is positioned within bounds; no source material is clipped by the frame.",
+    "rights": "Generated locally.",
+    "identity": "Record plan, runner, core source and wrapper hashes, source image parameters, source highlight masks, and output metrics.",
+    "regions": {
+      "whole_frame": "all pixels",
+      "highlight_region": "pixels with positive source highlight extraction",
+      "diffusion_support": "diffusion channel values greater than 1e-6",
+      "edge_roi": "full affected band around each touching frame edge"
+    }
+  },
+  "conditions": {
+    "dimensions_wh": [[128,128],[256,256],[512,512],[1024,1024]],
+    "spreads": [15,50,100],
+    "cluster_sigma_px": [0,1,4,12],
+    "settings": {"threshold":0.8,"softness":0.5,"red_diffusion":2.0,"intensity":0.5,"peak_rgb":4.0},
+    "positions": "For each dimension/spread/sigma: center; left/right/top/bottom edge tangencies; and all four corner tangencies. Nonzero sigma centers are offset from each edge by support radius ceil(2*sigma); sigma zero uses the exact boundary pixel.",
+    "numeric_domain": "Float32 source and intermediate planes. Accumulated box sums use Float64 prefix sums for numerically stable equation modeling, then are stored as Float32 between horizontal and vertical passes. No display transform or output clamp; opaque alpha 1.",
+    "equation": "Mirror source Rec.601 luma, clamped softness and threshold weight, highlight B*.1/G*.2/R, one horizontal and one vertical edge-clamped box pass, channel multipliers, additive intensity, and original-alpha restoration. Use source integer radius casts int(spread*redDiffusion) and int(spread).",
+    "metrics": [
+      "input highlight mass and highlight support count per channel",
+      "diffused red/green/blue energy and energy gain over unbounded input highlight mass",
+      "edge/corner versus center energy ratio for each identical source cluster",
+      "peak, peak-to-energy, centroid displacement and diffusion support bbox",
+      "source-cluster retention, frame support fraction and kernel-to-frame ratio",
+      "alpha identity, nonfinite values, negative values and output range",
+      "reflected edge/corner energy and centroid invariants"
+    ],
+    "display": "Common global square-root mapping of red-diffusion delta for sigma 0/1/4/12 at 256x256 and Spread50, center/edge/corner positions; numeric Float32 metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status":"source_equation_model_only","method":"Check source markers and exact declared filter geometry; check input mask remains fully in bounds and highlight extraction is positive on at least one frame-border pixel for every tangent placement.","acceptance_criteria":"All source markers true; source retention fraction 1; positive highlight reaches the frame border for tangent placements; exact opaque alpha identity; no nonfinite or negative diffusion values."},
+    "image_quality_and_detail": {"status":"spatial_response_description_only","method":"Inspect common-gain contact sheet and report cluster/halo footprints and centroids.","acceptance_criteria":"No aesthetic acceptance or artifact classification."},
+    "color_and_alpha": {"status":"partial_neutral_opaque","unverified":"Colored sources, transparent alpha boundaries and background composites."},
+    "temporal_stability": {"status":"not_applicable_to_static_sources","reason":"No frame index or time-varying control."},
+    "render_paths_and_resolution": {"status":"multi_dimension_source_model","unverified":"Compiled runtime and GPU/preview/final paths."},
+    "performance": {"status":"not_measured","reason":"Offline source-equation analysis, not production execution."},
+    "decision":"No product defect classification, visual quality acceptance, or implementation approval."
+  },
+  "execution": {
+    "backend":"Python NumPy offline source-equation model only; no Windows UI, app, build, CMake, or tests.",
+    "threshold_policy":"Descriptive; no common quality threshold inferred.",
+    "reproducibility":"Fixed Float32 spot definition, settings, frame sizes, positions, equations and SHA-256 input/output manifests."
+  },
+  "amendments": [
+    {"recorded_on":"2026-11-12","reason":"The initial exploratory fixture used a 3-sigma radial support, whose boundary luminance (4*exp(-4.5)=0.044) was below the highlight extraction threshold and therefore did not place active highlight pixels on the edge. Before final comparison, support was changed to 2 sigma, whose boundary luminance is 4*exp(-2)=0.541 and produces positive extraction at the tangent edge. Positions were expanded to all four edges and corners for reflected-invariant checks. The first diagnostic sheet clipped most broad halos under its linear gain, so it was changed to a single global square-root display mapping.","effect":"Ensures active highlight boundaries are compared, all positions are mirrored, and the shared display curve exposes spatial shape; numerical metrics are unchanged."}
+  ]
+}

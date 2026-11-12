@@ -1,0 +1,106 @@
+{
+  "plan_version": 1,
+  "plan_id": "physical-halation-frame-edge-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Measure how Physical Halation edge-replicated box diffusion changes halo peak, footprint, and spatial distribution when highlights approach or touch the image frame boundary.",
+  "scope": {
+    "effect": "PhysicalHalation source-equation highlight extraction and dual-layer box diffusion; focus is frame-edge boundary sampling.",
+    "method": "Offline Float32 equation model on 256x256 opaque-black plates with one neutral HDR highlight pixel at center, frame edges, corners, and controlled pixel distances from each edge. Evaluate spread 15 and 50 (red radii 30/100px, GB radii 15/50px), default threshold .8, softness .5, redDiffusion2, intensity.5.",
+    "excluded": [
+      "C++ or app output",
+      "alpha transparency edge (source alpha remains opaque)",
+      "transfer/display transform or clamp",
+      "physical-film equivalence/aesthetic acceptance",
+      "temporal behavior",
+      "GPU/preview/final parity",
+      "performance/allocation",
+      "source modifications"
+    ]
+  },
+  "comparison": {
+    "baseline": "Same source point with effect disabled; zero delta reference.",
+    "candidates": [
+      "center point at least red radius from boundary",
+      "source point at distance 0,1,radius-1,radius,radius+1 from one frame edge",
+      "points on opposite edge and corners for symmetry",
+      "spread 15 and 50"
+    ],
+    "ground_truth": "None. The source equation and equal-energy translated point field are descriptive mathematical references, not an approved visual target.",
+    "acceptance": "No quality pass/fail. Verify source markers, zero response outside support, alpha identity, finite field and nonnegative diffusion. Report energy, peak, centroid, footprint and border-band fractions. Do not infer product defect or optical-film realism."
+  },
+  "materials": {
+    "fixture": "Synthetic opaque black Float32 BGRA frame; one neutral source pixel with B=G=R=4 and alpha=1. Other pixels are zero RGB and alpha=1.",
+    "rights": "Generated locally.",
+    "identity": "Record source/plan/runner hashes, each source coordinate and output arrays/metrics.",
+    "regions": {
+      "all": "whole frame",
+      "border_bands": "1, 5, 15, 30, 50 and 100px from nearest frame edge",
+      "halo_support": "any channel diffusion greater than 1e-6",
+      "center_profile": "horizontal and vertical lines through source coordinate"
+    }
+  },
+  "conditions": {
+    "dimensions_wh": [
+      256,
+      256
+    ],
+    "spreads": [
+      15,
+      50
+    ],
+    "source_positions": "For each spread: centered impulse (128,128); horizontal and vertical single-edge impulses at distances 0,1,r-1,r,r+1,2r+1 where r=spread; opposite-edge symmetric cases; and four corners. Coordinates are clipped to valid frame bounds; duplicate positions are emitted once.",
+    "numeric_domain": "Float32 direct numeric values, no output clamp or transfer conversion. Alpha is opaque 1 everywhere.",
+    "equation": "Rec.601 source luma and soft-knee highlight weight from Halation. Build highlight channels (B*.1,G*.2,R); apply one horizontal and one vertical edge-replicated box pass (not two passes on the same axis) at radius=int(spread*2) to red and int(spread) to green/blue; preserve source alpha. Analyze pre-intensity diffusion fields and intensity=.5 additive delta separately.",
+    "regions_and_rois": "Whole-frame channel fields; frame-border bands at fixed pixel widths; horizontal/vertical center profiles and impulse-centered crop.",
+    "metrics": [
+      "per-layer sum/energy and interior-relative conservation ratio",
+      "peak and peak-to-energy ratio",
+      "centroid offset from source in pixels",
+      "bbox/support and per-axis extent",
+      "border-band energy fractions",
+      "profile first 1/e widths and FWHM",
+      "alpha identity and nonfinite/range counts",
+      "position symmetry between opposing frame edges"
+    ],
+    "display": "Common-gain amplified diffusion contact sheets at 1:1 and enlarged crops; raw Float32 metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {
+      "status": "source_equation_model_only",
+      "method": "Verify edge-clamp box passes, red/GB radii, zero source and alpha invariants.",
+      "acceptance_criteria": "Model matches declared equations; no compiled parity claim."
+    },
+    "image_quality_and_detail": {
+      "status": "spatial_response_description_only",
+      "method": "Inspect center, edge and corner impulse profiles and contact sheets.",
+      "acceptance_criteria": "No aesthetic or physical realism judgment."
+    },
+    "color_and_alpha": {
+      "status": "partial_opaque_neutral",
+      "method": "Analyze channel response for neutral HDR impulse and exact opaque alpha.",
+      "unverified": "Transparent alpha boundaries, colored sources and downstream compositing."
+    },
+    "temporal_stability": {
+      "status": "not_applicable_to_static_impulse",
+      "reason": "No time-dependent control is varied."
+    },
+    "render_paths_and_resolution": {
+      "status": "single_resolution_source_model",
+      "unverified": "Other dimensions and compiled/runtime paths."
+    },
+    "performance": {
+      "status": "not_measured",
+      "reason": "Offline numerical model only."
+    },
+    "decision": "No defect classification, quality acceptance or implementation approval."
+  },
+  "execution": {
+    "backend": "Python NumPy offline source-equation model; no UI, app, build or test execution.",
+    "threshold_policy": "Descriptive only; no perceptual thresholds.",
+    "reproducibility": "Fixed frame, point coordinates, sizes, source equations and hashes."
+  },
+  "amendments": [
+    {"recorded_on":"2026-11-12","reason":"Initial exploratory runner applied two sequential box passes within each 1D profile, while the source applies one horizontal and one vertical pass. The runner was corrected to use a single 1D pass per axis; all result metrics and contact sheets were regenerated before interpretation.","effect":"Corrected source-equation model; no scope or acceptance change."}
+  ]
+}

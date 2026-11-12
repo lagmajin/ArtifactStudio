@@ -1,0 +1,75 @@
+{
+  "plan_version": 1,
+  "plan_id": "physical-halation-frame-size-scaling-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Quantify how Physical Halation's edge-replicated box diffusion changes with frame dimensions and spread, separating absolute frame-edge amplification from the radius-to-frame-size ratio.",
+  "scope": {
+    "effect": "PhysicalHalation source-equation highlight extraction and dual-layer box diffusion; focus is frame dimension and boundary response.",
+    "method": "Offline Float32 separable source-equation model, using the production clamp sampling and integer radii, with one neutral HDR point on opaque black frames.",
+    "excluded": [
+      "compiled C++ or app output",
+      "transparent edges, colored inputs, photographic scenes",
+      "display transform, transfer conversion, or output clamp",
+      "physical film equivalence or aesthetic acceptance",
+      "GPU/preview/final parity",
+      "runtime performance or allocation measurement",
+      "source modifications"
+    ]
+  },
+  "comparison": {
+    "baseline": "Same frame dimensions and spread with the point source at the geometric center; also report an unbounded translated-kernel reference when radius fits inside the frame.",
+    "candidates": [
+      "square frame dimensions 128, 256, 512, and 1024 pixels",
+      "spread values 5, 15, 50, and 100, within the declared property range",
+      "point at frame center, midpoint of each edge, and each corner"
+    ],
+    "ground_truth": "None. This is an equation-response characterization; equal-energy unbounded kernel is an explanatory reference only.",
+    "acceptance": "No visual-quality pass/fail. Verify source markers, alpha identity, finite nonnegative fields, mirror symmetry, and expected scaling from separable 1D responses. Report total layer energy and edge/center ratio, peak, centroid displacement, support, radius/frame ratio, and frame coverage. Do not infer a defect from amplification alone."
+  },
+  "materials": {
+    "fixture": "Locally generated Float32 BGRA opaque black frame with a single neutral source pixel B=G=R=4 and alpha=1.",
+    "rights": "Generated locally.",
+    "identity": "Record plan, runner, core source and wrapper source hashes, dimensions, settings, source positions and all metrics.",
+    "regions": {
+      "frame": "whole frame",
+      "edge_profile": "1D horizontal and vertical response through source coordinate",
+      "source_support": "all samples greater than 1e-6"
+    }
+  },
+  "conditions": {
+    "dimensions_wh": [[128,128],[256,256],[512,512],[1024,1024]],
+    "spreads": [5,15,50,100],
+    "settings": {"threshold":0.8,"softness":0.5,"red_diffusion":2.0,"intensity":0.5},
+    "source_positions": "For every dimension/spread: center, midpoint of left/right/top/bottom edges, and four corners.",
+    "numeric_domain": "Float32 direct numeric values; no display transform or clamp; opaque alpha 1.",
+    "equation": "Apply source Rec.601 luma and soft-knee highlight weight, producing B*.1, G*.2, R. Apply one horizontal and one vertical edge-clamped box pass at integer radii int(spread*red_diffusion) for red and int(spread) for green/blue. Compute 2D field statistics from one-pass separable 1D impulse responses.",
+    "metrics": [
+      "red and green/blue layer sum and center-relative amplification ratio",
+      "unbounded-kernel energy reference when support fits",
+      "peak, centroid and source-relative displacement",
+      "support width and fraction of frame touched",
+      "red-radius/frame-width and GB-radius/frame-width",
+      "edge and corner mirror RMSE",
+      "alpha identity, finite values and output range"
+    ],
+    "display": "Locally generated heatmap of red energy amplification versus radius/frame ratio and a profile plot; metrics remain authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status":"source_equation_model_only","method":"Check source and wrapper markers and compare the separable model against clamp-box equations.","acceptance_criteria":"All fields finite/nonnegative; exact opaque alpha preservation; mirror RMSE <= 1e-6."},
+    "image_quality_and_detail": {"status":"spatial_response_description_only","method":"Inspect amplification heatmap and selected normalized profiles.","acceptance_criteria":"No aesthetic or physical realism judgment."},
+    "color_and_alpha": {"status":"partial_opaque_neutral","unverified":"Colored/transparent materials and compositing over multiple backgrounds."},
+    "temporal_stability": {"status":"not_applicable_to_static_impulse","reason":"No time-varying parameter or random field."},
+    "render_paths_and_resolution": {"status":"multi_dimension_source_model","unverified":"Compiled/runtime and GPU/preview/final behavior."},
+    "performance": {"status":"not_measured","reason":"Offline equation model, not production execution."},
+    "decision":"No defect classification, product quality acceptance, or implementation approval."
+  },
+  "execution": {
+    "backend":"Python NumPy offline equation model; no Windows UI, app, build, CMake, or test execution.",
+    "threshold_policy":"Descriptive only; no perceptual thresholds.",
+    "reproducibility":"Fixed settings, dimensions, point positions, source equations, output metrics and SHA-256 hashes."
+  },
+  "amendments": [
+    {"recorded_on":"2026-11-12","reason":"The first exploratory execution reused a 1D helper that applied two sequential box passes on the same axis. The production source performs one horizontal and one vertical pass. The helper was corrected to one pass per axis; corrected comparisons replace the exploratory output before any interpretation.","effect":"Corrected source-equation model; scope and acceptance criteria unchanged."}
+  ]
+}

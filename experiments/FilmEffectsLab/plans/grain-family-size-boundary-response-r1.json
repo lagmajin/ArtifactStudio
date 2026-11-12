@@ -1,0 +1,100 @@
+{
+  "plan_version": 1,
+  "plan_id": "grain-family-size-boundary-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Compare the nominal Size control semantics and spatial grain field response of Film Grunge grain and Add Noise monochrome mode near half-integer size boundaries, where the former rounds size to an integer block and the latter floors source coordinates divided by size.",
+  "scope": {
+    "effects": [
+      "Film Grunge grain-only source equation, amount=.075, seed=1977, composition frame=0.",
+      "Add Noise CPU monochrome source equation, amount=.075, seed=1977."
+    ],
+    "method": "Offline Float32 source-equation models over a common 28x28 flat mid-gray opaque plate, with nominal size requests [1,1.49,1.5,1.51,2,2.49,2.5,2.51,3]. This size is bounded to avoid the known Film Grunge signed-coordinate multiplication overflow in its hash. Compare spatial field statistics and paired field differences; enlarge residual views only for inspection.",
+    "excluded": [
+      "compiled C++ or application output",
+      "GPU/resident Add Noise and route parity",
+      "Film Damage or Match Grain",
+      "higher-resolution Film Grunge field due to signed overflow risk",
+      "color/alpha/transfer/display acceptance",
+      "temporal variation beyond fixed frame 0",
+      "aesthetic ranking or matched-strength claim",
+      "performance/allocation",
+      "source changes"
+    ]
+  },
+  "comparison": {
+    "baseline": "Same .5-gray plate with each effect disabled; zero residual reference.",
+    "candidates": [
+      "Film Grunge Grain Size and Add Noise Size at identical nominal values",
+      "values immediately below/at/above 1.5 and 2.5",
+      "same amount and seed label; algorithms retain their own source hash equations"
+    ],
+    "ground_truth": "None. These are deterministic source-equation fields, not film stock scans or compiled output.",
+    "acceptance": "Descriptive only. Verify source markers, zero-amount identity, alpha identity, finite residual, declared effective block size, and no out-of-domain Film Grunge coordinates. Do not declare equal size or amount visually equivalent."
+  },
+  "materials": {
+    "fixture": "Synthetic 28x28 neutral gray .5 RGB, alpha=1. The plate isolates additive grain from image texture and keeps Film Grunge coordinate multiplications within signed int range.",
+    "rights": "Locally generated.",
+    "identity": "Record plan/source/runner/fixture/output hashes; fixed seed/frame and all settings.",
+    "regions": {
+      "all": "entire 28x28 plate",
+      "x_neighbors": "horizontally adjacent residual pairs",
+      "y_neighbors": "vertically adjacent residual pairs"
+    }
+  },
+  "conditions": {
+    "dimensions_wh": [
+      28,
+      28
+    ],
+    "numeric_domain": "Float32 RGB [0,1], source .5. Add Noise uses monochrome mode and bounded saturate; no clipping is expected at amount .075. Film Grunge retains channel multipliers .92/1/1.05. Alpha=1.",
+    "equation": "Grunge block=max(1,round_half_away_from_zero(size)); grain scalar=((uint32_hash(seed/frame/xblock/yblock)&0xffff)/32767.5-1)*amount, with channel multipliers .92/1/1.05. Add Noise uses sample=floor(coord/size), channel salt 1 in mono mode, the CPU 32-bit hash low 24 bits mapped to [-1,1], then adds amount*noise to each RGB channel with clamp.",
+    "regions_and_rois": "Whole 28x28 field; adjacent-pair correlation and horizontal/vertical run lengths are measured across the field.",
+    "metrics": [
+      "effective block size per source",
+      "unique residual values and field mean/stddev",
+      "horizontal/vertical lag-1 correlation",
+      "horizontal/vertical identical-neighbor fraction",
+      "run-length distribution by row/column",
+      "RMSE and correlation between same-effect fields around size boundaries",
+      "cross-effect same-size field correlation/RMSE",
+      "source/output alpha, clipping, finite values"
+    ],
+    "display": "Contact sheet shows four-times amplified deviation from .5 with common mapping; metrics use unamplified Float32 residuals."
+  },
+  "evaluation": {
+    "effect_correctness": {
+      "status": "source_equation_model_only",
+      "method": "Verify equation markers, hash constants, seed/frame key, size mapping, zero amount, alpha and coordinate safety.",
+      "acceptance_criteria": "Pass model-invariant checks only; no runtime parity."
+    },
+    "image_quality_and_detail": {
+      "status": "synthetic_texture_description_only",
+      "method": "Inspect enlarged 28x28 residual fields and report autocorrelation/run lengths.",
+      "acceptance_criteria": "No aesthetic or film-realism judgment; tiny safe-domain crop is illustrative only."
+    },
+    "color_and_alpha": {
+      "status": "partial_bounded_gray",
+      "method": "Measure channel residuals, clipping and alpha identity on opaque mid-gray.",
+      "unverified": "colored source, alpha edges, transfer function and non-gray tone response."
+    },
+    "temporal_stability": {
+      "status": "fixed_key_only",
+      "reason": "One seed/frame only; sequence and seek remain unmeasured."
+    },
+    "render_paths_and_resolution": {
+      "status": "source_equation_only",
+      "unverified": "C++ output, high-resolution Film Grunge hash behavior and Add Noise GPU paths."
+    },
+    "performance": {
+      "status": "not_measured",
+      "reason": "Offline numeric model only."
+    },
+    "decision": "No effect selection, default change, or quality acceptance."
+  },
+  "execution": {
+    "backend": "Python NumPy Float32 offline model; no UI/app/build/test.",
+    "threshold_policy": "No perceptual thresholds.",
+    "reproducibility": "Fixed 28x28 fixture, seed/frame, size list, source and output hashes."
+  }
+}

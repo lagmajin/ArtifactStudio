@@ -1,0 +1,47 @@
+{
+  "plan_version": 1,
+  "plan_id": "film-damage-film-burn-alpha-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Characterize the Film Damage Film Burn ring geometry and additive warm RGB response over control value, side, aspect ratio, resolution and alpha association, including transparent-edge compositing and HDR range.",
+  "scope": {
+    "effect": "FilmDamageCPUImpl per-pixel Film Burn equation only; grain, dust, scratches, gate weave and flicker are neutralized.",
+    "method": "Offline deterministic NumPy equation model with fixed diagnostic center choices. It does not reproduce std::mt19937 center selection or execute C++.",
+    "excluded": ["C++ execution", "actual RNG draw parity", "frame-to-frame center behavior", "compiled/runtime app output", "GPU/backend parity", "Viewer transform", "aesthetic approval", "performance/allocation", "source changes"]
+  },
+  "comparison": {
+    "baseline": "No burn at value 0 on the same synthetic fixture; arithmetic baseline only, not a quality target.",
+    "candidates": ["filmBurn values 0, .12, .25, .5, .75, 1", "fixed left/right centers x=-.08/1.08 and y=.5", "512x512, 512x256 and 1024x512", "straight and premultiplied alpha storage assumptions"],
+    "ground_truth": "No external ground truth. The zero-burn fixture isolates equation response but does not define acceptable film appearance.",
+    "acceptance": "Descriptive response only. No aesthetic pass/fail or assumed perceptual threshold. Report channel range, ring footprint and alpha/composite behavior by region and condition."
+  },
+  "materials": {
+    "fixture": "Locally generated synthetic translucent ellipse with warm/cool patches, fine checker and white lines, smooth antialiased-style alpha edge and zero RGB outside coverage.",
+    "rights": "Generated locally by the study script.",
+    "regions": {"transparent": "alpha==0", "low_alpha": "0<alpha<=.1", "edge": ".1<alpha<.9", "near_opaque": ".9<=alpha<1", "opaque": "alpha==1", "all": "whole fixture", "burn_ring": "source-equation burn>0"},
+    "identity": "Record SHA-256 hashes for source, plan, runner, fixture arrays, metrics and PNG outputs."
+  },
+  "conditions": {
+    "format": "Float32 BGRA, logical RGB in [0,1], direct numeric domain without transfer conversion. Burn is added to RGB without clamp; alpha is copied from source.",
+    "equation": "nx=x/max(width-1,1), ny=y/max(height-1,1), d=sqrt((nx-cx)^2+(ny-cy)^2), radius=.18+filmBurn*.8, burn=filmBurn*clamp(1-abs(d-radius)/.12,0,1). BGRA additions are B+=.08*burn, G+=.48*burn, R+=1.35*burn.",
+    "centers": "Diagnostic fixed center y=.5 and x=-.08 or 1.08. These expose both source branches without claiming actual random draws.",
+    "association": "Straight source-over = storedRGB*alpha+background*(1-alpha); premultiplied source-over = storedRGB+background*(1-alpha). Output alpha equals fixture alpha.",
+    "backgrounds": "Black, linear numeric gray .18 and white.",
+    "metrics": ["alpha identity", "burn coverage and thresholded area", "peak/mean burn", "channel minimum/maximum, >1 channel fraction and nonfinite count", "per-region paired compositing MAE/RMSE/p95/max over black/gray/white", "transparent RGB leakage", "premultiplied RGB>alpha channel fraction", "normalized ring centroid/radius and distance-field support", "resolution-scaled ring response"],
+    "display": "Direct-clipped RGB8 previews and contact sheets; float32 arrays/statistics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_and_model_only", "method": "Check equation constants, zero-value identity, monotonic peak response and exact alpha preservation.", "acceptance_criteria": "Zero burn leaves RGB unchanged; alpha is exact; positive-value outputs match the stated equation within float tolerance."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect full frame and ring/alpha-edge ROIs at 1:1 and enlarged scale on contact sheets; report ring width and overlap with synthetic detail.", "judge": "Research author", "acceptance_criteria": "No aesthetic pass/fail; record observable locations and numeric response."},
+    "color_and_alpha": {"status": "conditional_association_model", "method": "Measure warm channel additions and composite deltas across alpha regions and three backgrounds under both association assumptions.", "unverified": "Actual descriptor at product entry point and whether downstream stages clamp, sanitize or reinterpret transparent RGB."},
+    "temporal_stability": {"status": "unverified", "reason": "Study fixes diagnostic centers; runtime random center draws and Evolution/frame behavior are not rendered."},
+    "render_paths_and_resolution": {"status": "equation_and_resolution_model_only", "method": "Repeat normalized-coordinate equation at square and 2:1 aspect ratios and two 2:1 resolutions.", "unverified": "Application route, preview/final scaling, actual backend and app output."},
+    "performance": {"status": "unverified", "reason": "No product timing or memory profiling."}
+  },
+  "execution": {
+    "backend": "Python 3 and NumPy; local synthetic fixtures only; no app operation.",
+    "artifacts": "experiments/FilmEffectsLab/captures/film-damage-film-burn-alpha-response-r1/",
+    "threshold_policy": "Descriptive only; no unsupported perceptual tolerance is invented.",
+    "reproducibility": "Fixed equation parameters, fixture construction and center choices; record dependency versions and artifact checksums."
+  }
+}
