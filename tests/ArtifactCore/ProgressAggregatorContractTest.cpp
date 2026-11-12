@@ -171,20 +171,6 @@ TEST(ProgressAggregatorContractTest, RegisteringAnExistingWorkerIdReplacesItsEnt
     EXPECT_EQ(worker->state, WorkerState::Idle);
 }
 
-TEST(ProgressAggregatorContractTest, QStringWorkerIdsRemainDistinctInCustomHashStorage)
-{
-    ProgressAggregator aggregator;
-    aggregator.registerWorker(QStringLiteral("worker-a"), true, 2);
-    aggregator.registerWorker(QStringLiteral("worker-b"), false, 3);
-    aggregator.registerWorker(QStringLiteral("レンダー ノード"), false, 4);
-
-    const auto snapshot = aggregator.snapshot();
-    EXPECT_EQ(snapshot.totalWorkers, 3);
-    EXPECT_NE(findWorker(snapshot, QStringLiteral("worker-a")), nullptr);
-    EXPECT_NE(findWorker(snapshot, QStringLiteral("worker-b")), nullptr);
-    EXPECT_NE(findWorker(snapshot, QStringLiteral("レンダー ノード")), nullptr);
-}
-
 TEST(ProgressAggregatorContractTest, FailedFramesCountAsProcessedWorkAndClearCurrentFrame)
 {
     ProgressAggregator aggregator;

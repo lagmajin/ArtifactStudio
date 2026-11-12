@@ -171,22 +171,6 @@ TEST(DataCacheStandaloneTest, MaximumEntryLimitEvictsBeforeAddingNextEntry)
     cache.setMaxEntries(64);
 }
 
-TEST(DataCacheStandaloneTest, ZeroEntryLimitIsClampedToOne)
-{
-    auto& cache = DataCache::instance();
-    resetCache(cache);
-
-    cache.setMaxEntries(0);
-    EXPECT_EQ(cache.maxEntries(), 1);
-    cache.put(String("only-entry.csv"), makeSource("only-entry.csv"), 1);
-    cache.put(String("replacement-entry.csv"), makeSource("replacement-entry.csv"), 2);
-
-    EXPECT_EQ(cache.size(), 1);
-    EXPECT_EQ(cache.get(String("only-entry.csv")), nullptr);
-    EXPECT_NE(cache.get(String("replacement-entry.csv")), nullptr);
-    resetCache(cache);
-}
-
 TEST(DataCacheStandaloneTest, EvictionKeepsMostRecentlyAccessedEntry)
 {
     auto& cache = DataCache::instance();

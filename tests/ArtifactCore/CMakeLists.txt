@@ -31,6 +31,16 @@ if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
             ArtifactCore
             ${_artifact_rt_test_backend}
     )
+    if(EXISTS "${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/separate-pbr.fbx")
+        target_compile_definitions(ArtifactCoreRayTracingAcceptanceTest PRIVATE
+            ARTIFACT_TEST_FBX_PBR_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/separate-pbr.fbx"
+        )
+    endif()
+    if(EXISTS "${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/multi-material-pbr.fbx")
+        target_compile_definitions(ArtifactCoreRayTracingAcceptanceTest PRIVATE
+            ARTIFACT_TEST_FBX_MULTI_MATERIAL_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/multi-material-pbr.fbx"
+        )
+    endif()
     if(PLATFORM_WIN32)
         copy_shader_compiler_dlls(ArtifactCoreRayTracingAcceptanceTest
             DXCOMPILER_FOR_SPIRV YES)
@@ -103,6 +113,8 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST)
         LABELS "keying;video;cpu;core"
         TIMEOUT 60
         RUN_SERIAL TRUE
+        ENVIRONMENT
+            "ARTIFACT_KEYING_CORE_REAL_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/../Artifact/fixtures/keying/voa-green-screen-frame-2s.jpg"
     )
 endif()
 

@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QMatrix4x4>
 #include <QString>
 #include <QTemporaryDir>
 #include <QVector3D>
@@ -25,6 +26,7 @@
 #include <gtest/gtest.h>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,6 +37,7 @@ import Core.Light;
 import Image.OpenEXR;
 import IO.ImageImporter;
 import Mesh;
+import MeshImporter;
 import Utils.String.UniString;
 namespace {
 using namespace Diligent;
@@ -90,7 +93,8 @@ class RayTracingAcceptanceTest : public testing::Test {
                      Uint64 geometryRevision = 1, Uint64 topologyRevision = 1,
                      const float* shadingVertices = nullptr,
                      const Uint32* shadingIndices = nullptr,
-                     const float* shadingNormals = nullptr) {
+                     const float* shadingNormals = nullptr,
+                     const float* shadingUvs = nullptr) {
         ArtifactCore::RTGeometryData geometry;
         geometry.pVertexBuffer = vertices;
         geometry.vertexCount = vertexCount;
@@ -104,7 +108,8 @@ class RayTracingAcceptanceTest : public testing::Test {
             ASSERT_TRUE(manager_->updateShadingGeometry(ArtifactCore::UniString(id),
                                                         shadingVertices, vertexCount,
                                                         shadingIndices, indexCount,
-                                                        shadingNormals));
+                                                        shadingNormals, nullptr,
+                                                        shadingUvs));
         }
     }
     bool updateBuffer(IBuffer* buffer, const void* data, Uint64 size) {
@@ -223,45 +228,16 @@ class RayTracingAcceptanceTest : public testing::Test {
         }
         return maximumDifference;
     }
-    bool saveOutputFrame(const char* fileName) {
+    bool saveOutputFrame(const char* fileName,
+                         const std::vector<std::array<float, 4>>& pixels) {
         constexpr Uint32 width = kRayTraceTestImageSize;
         constexpr Uint32 height = kRayTraceTestImageSize;
-        auto* outputView = manager_->traceOutputSRV();
-        EXPECT_NE(outputView, nullptr);
-        if (!outputView) return false;
-        auto* output = outputView->GetTexture();
-        EXPECT_NE(output, nullptr);
-        if (!output) return false;
-        TextureDesc stagingDesc;
-        stagingDesc.Name = "RayTracingFrameExport";
-        stagingDesc.Type = RESOURCE_DIM_TEX_2D;
-        stagingDesc.Width = width;
-        stagingDesc.Height = height;
-        stagingDesc.MipLevels = 1;
-        stagingDesc.Format = TEX_FORMAT_RGBA32_FLOAT;
-        stagingDesc.Usage = USAGE_STAGING;
-        stagingDesc.CPUAccessFlags = CPU_ACCESS_READ;
-        RefCntAutoPtr<ITexture> staging;
-        device_->CreateTexture(stagingDesc, nullptr, &staging);
-        EXPECT_NE(staging, nullptr);
-        if (!staging) return false;
-        CopyTextureAttribs copy(output, RESOURCE_STATE_TRANSITION_MODE_TRANSITION, staging,
-                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        context_->CopyTexture(copy);
-        context_->Flush();
-        context_->WaitForIdle();
-        MappedTextureSubresource mapped{};
-        context_->MapTextureSubresource(staging, 0, 0, MAP_READ, MAP_FLAG_NONE, nullptr, mapped);
-        EXPECT_NE(mapped.pData, nullptr);
-        if (!mapped.pData) return false;
+        if (pixels.size() != static_cast<size_t>(width) * height) return false;
         QImage image(width, height, QImage::Format_RGBA8888);
         for (Uint32 y = 0; y < height; ++y) {
-            const auto* sourceRow =
-                static_cast<const std::uint8_t*>(mapped.pData) + y * mapped.Stride;
             auto* destinationRow = image.scanLine(static_cast<int>(y));
             for (Uint32 x = 0; x < width; ++x) {
-                const auto* source =
-                    reinterpret_cast<const float*>(sourceRow + x * sizeof(float) * 4);
+                const auto& source = pixels[static_cast<size_t>(y) * width + x];
                 auto* destination = destinationRow + x * 4;
                 for (Uint32 channel = 0; channel < 4; ++channel) {
                     float value = std::clamp(source[channel], 0.0f, 1.0f);
@@ -274,7 +250,6 @@ class RayTracingAcceptanceTest : public testing::Test {
                 }
             }
         }
-        context_->UnmapTextureSubresource(staging, 0, 0);
         const char* configuredOutputDir = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
         const auto outputDir = configuredOutputDir && configuredOutputDir[0] != '\0'
                                    ? std::filesystem::path(configuredOutputDir)
@@ -284,6 +259,32 @@ class RayTracingAcceptanceTest : public testing::Test {
         EXPECT_TRUE(image.save(QString::fromStdString(outputPath.string()), "PNG"))
             << "Could not save ray tracing frame: " << outputPath.string();
         return true;
+    }
+    bool saveOutputFrame(const char* fileName) {
+        return saveOutputFrame(fileName, readOutputPixels());
+    }
+    bool saveOutputFloatPfm(const char* fileName,
+                            const std::vector<std::array<float, 4>>& pixels) {
+        constexpr Uint32 width = kRayTraceTestImageSize;
+        constexpr Uint32 height = kRayTraceTestImageSize;
+        if (pixels.size() != static_cast<size_t>(width) * height) return false;
+        const char* configuredOutputDir = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
+        const auto outputDir = configuredOutputDir && configuredOutputDir[0] != '\0'
+                                   ? std::filesystem::path(configuredOutputDir)
+                                   : std::filesystem::current_path() / "ray-tracing-frames";
+        std::filesystem::create_directories(outputDir);
+        std::ofstream output(outputDir / fileName, std::ios::binary);
+        if (!output) return false;
+        output << "PF\n" << width << ' ' << height << "\n-1.0\n";
+        for (Uint32 y = height; y > 0; --y) {
+            const Uint32 row = y - 1;
+            for (Uint32 x = 0; x < width; ++x) {
+                const auto& pixel = pixels[static_cast<size_t>(row) * width + x];
+                output.write(reinterpret_cast<const char*>(pixel.data()),
+                             sizeof(float) * 3);
+            }
+        }
+        return output.good();
     }
     std::array<float, 4> expectHit(Uint32 x, Uint32 y = 16) {
         const auto pixel = pixelAt(x, y);
@@ -303,6 +304,1273 @@ class RayTracingAcceptanceTest : public testing::Test {
     RefCntAutoPtr<IDeviceContext> context_;
     std::unique_ptr<ArtifactCore::IRayTracingManager> manager_;
 };
+
+TEST_F(RayTracingAcceptanceTest, CapturesMaterialAovsAsFloatBuffers) {
+    constexpr std::array<float, 9> vertices{
+        -0.8f, -0.8f, 0.0f, 0.8f, -0.8f, 0.0f, 0.0f, 0.8f, 0.0f};
+    constexpr std::array<std::uint32_t, 3> indices{0, 1, 2};
+    constexpr std::array<float, 9> normals{
+        0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 6> uvs{0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f};
+    auto vertexBuffer = makeBuffer(vertices.data(), sizeof(vertices),
+        3u * sizeof(float), BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE,
+        BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(indices.data(), sizeof(indices),
+        sizeof(std::uint32_t), BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE,
+        BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("material-aov-triangle", vertexBuffer.RawPtr(), 3,
+        indexBuffer.RawPtr(), 3, float4x4::Identity(), 1, 1,
+        vertices.data(), indices.data(), normals.data(), uvs.data());
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = 0.85f;
+    material.baseColor[1] = 0.25f;
+    material.baseColor[2] = 0.05f;
+    material.metallic = 0.75f;
+    material.roughness = 0.35f;
+    material.emissionColor[0] = 1.0f;
+    material.emissionStrength = 0.8f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("material-aov-triangle"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+
+    struct CaptureCase {
+        ArtifactCore::RTRayOutputMode mode;
+        const char* stem;
+    };
+    constexpr std::array captures{
+        CaptureCase{ArtifactCore::RTRayOutputMode::Beauty, "32-aov-beauty"},
+        CaptureCase{ArtifactCore::RTRayOutputMode::BaseColor, "33-aov-base-color"},
+        CaptureCase{ArtifactCore::RTRayOutputMode::WorldNormal, "34-aov-world-normal"},
+        CaptureCase{ArtifactCore::RTRayOutputMode::BaseUv, "35-aov-base-uv"},
+        CaptureCase{ArtifactCore::RTRayOutputMode::MetallicRoughness, "36-aov-metallic-roughness"},
+        CaptureCase{ArtifactCore::RTRayOutputMode::Emission, "37-aov-emission"},
+        CaptureCase{ArtifactCore::RTRayOutputMode::HitDistance, "38-aov-hit-distance"},
+        CaptureCase{ArtifactCore::RTRayOutputMode::PrimaryVisibility,
+                    "39-aov-primary-visibility"}};
+
+    ArtifactCore::RTRayCamera camera;
+    std::vector<std::array<float, 4>> beautyPixels;
+    for (const auto& capture : captures) {
+        camera.outputMode = capture.mode;
+        ASSERT_TRUE(manager_->traceCamera(context_.RawPtr(),
+            kRayTraceTestImageSize, kRayTraceTestImageSize, camera));
+        context_->Flush();
+        context_->WaitForIdle();
+        auto pixels = readOutputPixels();
+        ASSERT_EQ(pixels.size(),
+            static_cast<size_t>(kRayTraceTestImageSize) *
+                kRayTraceTestImageSize);
+        size_t coveredPixels = 0;
+        for (const auto& pixel : pixels) {
+            for (float channel : pixel) EXPECT_TRUE(std::isfinite(channel));
+            coveredPixels += pixel[3] > 0.5f ? 1u : 0u;
+        }
+        EXPECT_GT(coveredPixels, 0u) << capture.stem;
+        const std::string pngName = std::string(capture.stem) + ".png";
+        const std::string pfmName = std::string(capture.stem) + ".pfm";
+        ASSERT_TRUE(saveOutputFrame(pngName.c_str(), pixels));
+        ASSERT_TRUE(saveOutputFloatPfm(pfmName.c_str(), pixels));
+
+        const auto center = pixels[static_cast<size_t>(kRayTraceTestImageSize / 2) *
+                                    kRayTraceTestImageSize +
+                                    kRayTraceTestImageSize / 2];
+        if (capture.mode == ArtifactCore::RTRayOutputMode::Beauty) {
+            beautyPixels = std::move(pixels);
+        } else if (capture.mode == ArtifactCore::RTRayOutputMode::BaseColor) {
+            EXPECT_GT(center[0], center[1]);
+            EXPECT_GT(center[1], center[2]);
+        } else if (capture.mode == ArtifactCore::RTRayOutputMode::WorldNormal) {
+            EXPECT_NEAR(center[0], 0.5f, 0.05f);
+            EXPECT_NEAR(center[1], 0.5f, 0.05f);
+            EXPECT_LT(center[2], 0.1f);
+        } else if (capture.mode == ArtifactCore::RTRayOutputMode::BaseUv) {
+            EXPECT_NEAR(center[0], 0.5f, 0.08f);
+            EXPECT_NEAR(center[1], 0.5f, 0.08f);
+        } else if (capture.mode == ArtifactCore::RTRayOutputMode::MetallicRoughness) {
+            EXPECT_NEAR(center[0], 0.75f, 0.05f);
+            EXPECT_NEAR(center[1], 0.35f, 0.05f);
+            EXPECT_NEAR(center[2], 1.0f, 0.05f);
+        } else if (capture.mode == ArtifactCore::RTRayOutputMode::Emission) {
+            EXPECT_GT(center[0], 0.1f);
+            EXPECT_LT(center[1], 1.0e-4f);
+        } else if (capture.mode == ArtifactCore::RTRayOutputMode::HitDistance) {
+            EXPECT_NEAR(center[0], 2.0f, 0.05f);
+        } else if (capture.mode == ArtifactCore::RTRayOutputMode::PrimaryVisibility) {
+            EXPECT_NEAR(center[0], 1.0f, 1.0e-5f);
+            EXPECT_NEAR(center[3], 1.0f, 1.0e-5f);
+        }
+    }
+    ASSERT_FALSE(beautyPixels.empty());
+}
+
+TEST_F(RayTracingAcceptanceTest, CapturesSeparateFbxPbrMapsInRayTracingAov) {
+#ifndef ARTIFACT_TEST_FBX_PBR_PATH
+    GTEST_SKIP() << "FBX PBR fixture path is not configured";
+#else
+    const QString fixturePath = QString::fromUtf8(ARTIFACT_TEST_FBX_PBR_PATH);
+    ArtifactCore::MeshImporter importer;
+    const auto mesh = importer.importMeshFromFile(
+        ArtifactCore::UniString(fixturePath));
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    ASSERT_EQ(importer.lastBackend(),
+              ArtifactCore::MeshImporter::Backend::Ufbx);
+    ASSERT_EQ(importer.importedPbrMaterials().size(), 1u);
+    const auto& importedMaterial = importer.importedPbrMaterials().front();
+    ASSERT_FALSE(importedMaterial.metallicTexture.toQString().isEmpty());
+    ASSERT_FALSE(importedMaterial.roughnessTexture.toQString().isEmpty());
+
+    const auto renderData = mesh->generateRenderData();
+    ASSERT_GE(renderData.positions.size(), 3);
+    ASSERT_EQ(renderData.positions.size(), renderData.indices.size());
+    ASSERT_EQ(renderData.normals.size(), renderData.positions.size());
+    ASSERT_EQ(renderData.uvs.size(), renderData.positions.size());
+
+    std::vector<float> positions;
+    std::vector<float> normals;
+    std::vector<float> uvs;
+    std::vector<float> uvs1;
+    positions.reserve(static_cast<size_t>(renderData.positions.size()) * 3u);
+    normals.reserve(static_cast<size_t>(renderData.normals.size()) * 3u);
+    uvs.reserve(static_cast<size_t>(renderData.uvs.size()) * 2u);
+    for (const auto& position : renderData.positions) {
+        positions.insert(positions.end(),
+                         {position.x(), position.y(), position.z()});
+    }
+    for (const auto& normal : renderData.normals) {
+        normals.insert(normals.end(), {normal.x(), normal.y(), normal.z()});
+    }
+    for (const auto& uv : renderData.uvs) {
+        uvs.insert(uvs.end(), {uv.x(), uv.y()});
+    }
+    if (renderData.uvs1.size() == renderData.positions.size()) {
+        uvs1.reserve(static_cast<size_t>(renderData.uvs1.size()) * 2u);
+        for (const auto& uv : renderData.uvs1) {
+            uvs1.insert(uvs1.end(), {uv.x(), uv.y()});
+        }
+    }
+
+    const Uint32 vertexCount = static_cast<Uint32>(renderData.positions.size());
+    const Uint32 indexCount = static_cast<Uint32>(renderData.indices.size());
+    auto vertexBuffer = makeBuffer(positions.data(),
+        positions.size() * sizeof(float), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(renderData.indices.constData(),
+        static_cast<Uint64>(renderData.indices.size()) * sizeof(unsigned int),
+        sizeof(unsigned int), BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE,
+        BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    ArtifactCore::RTGeometryData geometry;
+    geometry.pVertexBuffer = vertexBuffer;
+    geometry.vertexCount = vertexCount;
+    geometry.pIndexBuffer = indexBuffer;
+    geometry.indexCount = indexCount;
+    geometry.geometryRevision = 1;
+    geometry.topologyRevision = 1;
+    ASSERT_TRUE(manager_->createOrUpdateBLAS(
+        ArtifactCore::UniString("fbx-separate-pbr"), geometry));
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("fbx-separate-pbr"), positions.data(),
+        vertexCount, renderData.indices.constData(), indexCount,
+        normals.data(), nullptr, uvs.data(), nullptr,
+        uvs1.empty() ? nullptr : uvs1.data()));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = importedMaterial.baseColor[0];
+    material.baseColor[1] = importedMaterial.baseColor[1];
+    material.baseColor[2] = importedMaterial.baseColor[2];
+    material.metallic = importedMaterial.metallic;
+    material.roughness = importedMaterial.roughness;
+    material.metallicTexture = importedMaterial.metallicTexture;
+    material.roughnessTexture = importedMaterial.roughnessTexture;
+    material.metallicTextureUvScaleU = importedMaterial.metallicUv.scaleU;
+    material.metallicTextureUvScaleV = importedMaterial.metallicUv.scaleV;
+    material.metallicTextureUvRotationDegrees =
+        importedMaterial.metallicUv.rotationDegrees;
+    material.metallicTextureUvOffsetU = importedMaterial.metallicUv.offsetU;
+    material.metallicTextureUvOffsetV = importedMaterial.metallicUv.offsetV;
+    material.metallicTextureUvSet = importedMaterial.metallicUv.uvSet;
+    material.roughnessTextureUvScaleU = importedMaterial.roughnessUv.scaleU;
+    material.roughnessTextureUvScaleV = importedMaterial.roughnessUv.scaleV;
+    material.roughnessTextureUvRotationDegrees =
+        importedMaterial.roughnessUv.rotationDegrees;
+    material.roughnessTextureUvOffsetU = importedMaterial.roughnessUv.offsetU;
+    material.roughnessTextureUvOffsetV = importedMaterial.roughnessUv.offsetV;
+    material.roughnessTextureUvSet = importedMaterial.roughnessUv.uvSet;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("fbx-separate-pbr"), material));
+    ASSERT_TRUE(manager_->buildBLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+
+    const QVector3D boundsMin = mesh->boundingBoxMin();
+    const QVector3D boundsMax = mesh->boundingBoxMax();
+    const QVector3D center = (boundsMin + boundsMax) * 0.5f;
+    const QVector3D extent = boundsMax - boundsMin;
+    const float halfExtent = std::max({extent.x(), extent.y(), extent.z()}) * 0.5f;
+    ASSERT_GT(halfExtent, 1.0e-5f);
+    ArtifactCore::RTRayCamera camera;
+    camera.target[0] = center.x();
+    camera.target[1] = center.y();
+    camera.target[2] = center.z();
+    const float cameraDistance = halfExtent * 2.5f;
+    camera.origin[0] = center.x();
+    camera.origin[1] = center.y();
+    camera.origin[2] = center.z() - cameraDistance;
+    camera.verticalFovDegrees = 45.0f;
+    struct FbxAovCapture {
+        ArtifactCore::RTRayOutputMode mode;
+        const char* name;
+    };
+    constexpr std::array<FbxAovCapture, 8> captures{{
+        {ArtifactCore::RTRayOutputMode::Beauty, "40-fbx-beauty"},
+        {ArtifactCore::RTRayOutputMode::BaseColor, "41-fbx-base-color"},
+        {ArtifactCore::RTRayOutputMode::WorldNormal, "42-fbx-world-normal"},
+        {ArtifactCore::RTRayOutputMode::BaseUv, "43-fbx-base-uv"},
+        {ArtifactCore::RTRayOutputMode::MetallicRoughness,
+         "44-fbx-metallic-roughness"},
+        {ArtifactCore::RTRayOutputMode::Emission, "45-fbx-emission"},
+        {ArtifactCore::RTRayOutputMode::HitDistance, "46-fbx-hit-distance"},
+        {ArtifactCore::RTRayOutputMode::PrimaryVisibility,
+         "47-fbx-primary-visibility"}}};
+    std::vector<std::array<float, 4>> texturePixels;
+    std::vector<std::array<float, 4>> rayBeautyPixels;
+    size_t referenceCoverage = 0;
+    for (const auto& capture : captures) {
+        camera.outputMode = capture.mode;
+        ASSERT_TRUE(manager_->traceCamera(context_.RawPtr(),
+            kRayTraceTestImageSize, kRayTraceTestImageSize, camera))
+            << "FBX AOV dispatch failed: " << capture.name;
+        context_->Flush();
+        context_->WaitForIdle();
+        auto pixels = readOutputPixels();
+        ASSERT_EQ(pixels.size(), static_cast<size_t>(kRayTraceTestImageSize) *
+                                     kRayTraceTestImageSize);
+        size_t coveredPixels = 0;
+        std::array<std::vector<float>, 4> channelValues;
+        float minimumMetallic = std::numeric_limits<float>::max();
+        float maximumMetallic = std::numeric_limits<float>::lowest();
+        float minimumRoughness = std::numeric_limits<float>::max();
+        float maximumRoughness = std::numeric_limits<float>::lowest();
+        for (const auto& pixel : pixels) {
+            for (size_t channel = 0; channel < pixel.size(); ++channel) {
+                ASSERT_TRUE(std::isfinite(pixel[channel]))
+                    << capture.name << " has a non-finite sample";
+                channelValues[channel].push_back(pixel[channel]);
+            }
+            const bool hit = pixel[3] > 0.5f;
+            coveredPixels += hit ? 1u : 0u;
+            if (hit && capture.mode ==
+                           ArtifactCore::RTRayOutputMode::MetallicRoughness) {
+                minimumMetallic = std::min(minimumMetallic, pixel[0]);
+                maximumMetallic = std::max(maximumMetallic, pixel[0]);
+                minimumRoughness = std::min(minimumRoughness, pixel[1]);
+                maximumRoughness = std::max(maximumRoughness, pixel[1]);
+            }
+        }
+        ASSERT_GT(coveredPixels, 0u) << capture.name;
+        if (capture.mode == ArtifactCore::RTRayOutputMode::Beauty) {
+            referenceCoverage = coveredPixels;
+        } else {
+            EXPECT_EQ(coveredPixels, referenceCoverage)
+                << "AOV hit coverage changed for " << capture.name;
+        }
+        const std::string pngName = std::string(capture.name) + ".png";
+        const std::string pfmName = std::string(capture.name) + ".pfm";
+        ASSERT_TRUE(saveOutputFrame(pngName.c_str(), pixels));
+        ASSERT_TRUE(saveOutputFloatPfm(pfmName.c_str(), pixels));
+
+        const auto outputDir = [] {
+            const char* configured =
+                std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
+            return configured && configured[0] != '\0'
+                ? std::filesystem::path(configured)
+                : std::filesystem::current_path() / "ray-tracing-frames";
+        }();
+        std::ofstream stats(outputDir / (std::string(capture.name) + ".json"),
+                            std::ios::binary);
+        ASSERT_TRUE(stats) << "Could not save stats for " << capture.name;
+        stats << "{\n  \"mode\": \"" << capture.name
+              << "\",\n  \"width\": " << kRayTraceTestImageSize
+              << ",\n  \"height\": " << kRayTraceTestImageSize
+              << ",\n  \"format\": \"RGBA32F\",\n  \"coveredPixels\": "
+              << coveredPixels << ",\n  \"coverageFraction\": "
+              << static_cast<double>(coveredPixels) /
+                     (kRayTraceTestImageSize * kRayTraceTestImageSize)
+              << ",\n  \"channels\": [\n";
+        for (size_t channel = 0; channel < channelValues.size(); ++channel) {
+            auto& values = channelValues[channel];
+            std::sort(values.begin(), values.end());
+            const auto quantile = [&values](double fraction) {
+                const size_t index = static_cast<size_t>(std::floor(
+                    fraction * static_cast<double>(values.size() - 1u)));
+                return values[index];
+            };
+            const float sum = std::accumulate(values.begin(), values.end(), 0.0f);
+            const auto [minimum, maximum] = std::minmax_element(
+                values.begin(), values.end());
+            stats << "    {\"channel\": " << channel
+                  << ", \"finiteSamples\": " << values.size()
+                  << ", \"min\": " << *minimum
+                  << ", \"mean\": " << sum / values.size()
+                  << ", \"p50\": " << quantile(0.50)
+                  << ", \"p95\": " << quantile(0.95)
+                  << ", \"p99\": " << quantile(0.99)
+                  << ", \"max\": " << *maximum << "}"
+                  << (channel + 1u == channelValues.size() ? "\n" : ",\n");
+        }
+        stats << "  ]\n}\n";
+        ASSERT_TRUE(stats.good()) << "Could not finish stats for " << capture.name;
+        if (capture.mode == ArtifactCore::RTRayOutputMode::MetallicRoughness) {
+            EXPECT_NEAR(minimumMetallic, 0.2f, 0.03f);
+            EXPECT_NEAR(maximumMetallic, 0.2f, 0.03f);
+            EXPECT_NEAR(minimumRoughness, 0.8f, 0.03f);
+            EXPECT_NEAR(maximumRoughness, 0.8f, 0.03f);
+            texturePixels = std::move(pixels);
+        } else if (capture.mode == ArtifactCore::RTRayOutputMode::Beauty) {
+            rayBeautyPixels = std::move(pixels);
+        }
+    }
+    ASSERT_FALSE(texturePixels.empty());
+    ASSERT_FALSE(rayBeautyPixels.empty());
+
+    auto scalarOnlyMaterial = material;
+    scalarOnlyMaterial.metallicTexture = ArtifactCore::UniString();
+    scalarOnlyMaterial.roughnessTexture = ArtifactCore::UniString();
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("fbx-separate-pbr"), scalarOnlyMaterial));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    camera.outputMode = ArtifactCore::RTRayOutputMode::MetallicRoughness;
+    ASSERT_TRUE(manager_->traceCamera(context_.RawPtr(),
+        kRayTraceTestImageSize, kRayTraceTestImageSize, camera));
+    context_->Flush();
+    context_->WaitForIdle();
+    const auto scalarOnlyPixels = readOutputPixels();
+    const auto centerPixel = static_cast<size_t>(kRayTraceTestImageSize / 2) *
+                                 kRayTraceTestImageSize +
+                             kRayTraceTestImageSize / 2;
+    ASSERT_EQ(scalarOnlyPixels.size(), texturePixels.size());
+    EXPECT_NEAR(scalarOnlyPixels[centerPixel][0], importedMaterial.metallic,
+                0.03f);
+    EXPECT_NEAR(scalarOnlyPixels[centerPixel][1], importedMaterial.roughness,
+                0.03f);
+
+    constexpr Uint32 rasterWidth = kRayTraceTestImageSize;
+    constexpr Uint32 rasterHeight = kRayTraceTestImageSize;
+    ArtifactCore::GpuContext gpuContext(device_.RawPtr(), context_.RawPtr());
+    ArtifactCore::MeshRenderer rasterRenderer(gpuContext);
+    rasterRenderer.setRenderTargetFormat(TEX_FORMAT_RGBA32_FLOAT);
+    rasterRenderer.initialize(1, renderData.positions.size(),
+                              renderData.indices.size());
+    rasterRenderer.updateMeshGeometry(
+        positions.data(), normals.data(), uvs.data(),
+        renderData.indices.constData(), nullptr,
+        uvs1.empty() ? nullptr : uvs1.data());
+    QMatrix4x4 rasterView;
+    rasterView.lookAt(QVector3D(camera.origin[0], camera.origin[1],
+                                camera.origin[2]),
+                      QVector3D(camera.target[0], camera.target[1],
+                                camera.target[2]),
+                      QVector3D(camera.up[0], camera.up[1], camera.up[2]));
+    QMatrix4x4 rasterProjection;
+    rasterProjection.perspective(camera.verticalFovDegrees, 1.0f, 0.01f,
+                                 std::max(1000.0f, cameraDistance * 100.0f));
+    rasterRenderer.setViewMatrix(rasterView.constData());
+    rasterRenderer.setProjectionMatrix(rasterProjection.constData());
+    const std::array<float, 16> identity{
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    ArtifactCore::InstanceData rasterInstance{};
+    std::copy(identity.begin(), identity.end(), rasterInstance.transform);
+    std::copy(identity.begin(), identity.end(), rasterInstance.previousTransform);
+    for (size_t channel = 0; channel < 3; ++channel) {
+        rasterInstance.color[channel] = importedMaterial.baseColor[channel];
+    }
+    rasterInstance.color[3] = importedMaterial.baseColor[3];
+    rasterInstance.weight = 1.0f;
+    rasterRenderer.updateInstanceData(&rasterInstance, 1);
+    rasterRenderer.setPbrFactors(importedMaterial.metallic,
+                                 importedMaterial.roughness, 1.0f, 1.0f);
+    rasterRenderer.setMetallicTexture(
+        importedMaterial.metallicTexture.toQString());
+    rasterRenderer.setMetallicTextureUvTransform(
+        importedMaterial.metallicUv.scaleU,
+        importedMaterial.metallicUv.scaleV,
+        importedMaterial.metallicUv.rotationDegrees,
+        importedMaterial.metallicUv.offsetU,
+        importedMaterial.metallicUv.offsetV,
+        importedMaterial.metallicUv.uvSet);
+    rasterRenderer.setRoughnessTexture(
+        importedMaterial.roughnessTexture.toQString());
+    rasterRenderer.setRoughnessTextureUvTransform(
+        importedMaterial.roughnessUv.scaleU,
+        importedMaterial.roughnessUv.scaleV,
+        importedMaterial.roughnessUv.rotationDegrees,
+        importedMaterial.roughnessUv.offsetU,
+        importedMaterial.roughnessUv.offsetV,
+        importedMaterial.roughnessUv.uvSet);
+    ArtifactCore::Light rasterLight(ArtifactCore::LightType::Directional);
+    rasterLight.setDirection({0.0f, 0.0f, 1.0f});
+    rasterLight.setIntensity(4.0f);
+    rasterLight.setCastsShadows(false);
+    rasterRenderer.setSceneLights(
+        std::vector<ArtifactCore::Light>{rasterLight});
+
+    TextureDesc rasterColorDesc;
+    rasterColorDesc.Name = "FbxRasterBeautyCapture";
+    rasterColorDesc.Type = RESOURCE_DIM_TEX_2D;
+    rasterColorDesc.Width = rasterWidth;
+    rasterColorDesc.Height = rasterHeight;
+    rasterColorDesc.MipLevels = 1;
+    rasterColorDesc.Format = TEX_FORMAT_RGBA32_FLOAT;
+    rasterColorDesc.Usage = USAGE_DEFAULT;
+    rasterColorDesc.BindFlags = BIND_RENDER_TARGET;
+    RefCntAutoPtr<ITexture> rasterColorTexture;
+    device_->CreateTexture(rasterColorDesc, nullptr, &rasterColorTexture);
+    ASSERT_NE(rasterColorTexture, nullptr);
+    auto rasterColorView = rasterColorTexture->GetDefaultView(
+        TEXTURE_VIEW_RENDER_TARGET);
+    ASSERT_NE(rasterColorView, nullptr);
+    TextureDesc rasterDepthDesc;
+    rasterDepthDesc.Name = "FbxRasterBeautyDepth";
+    rasterDepthDesc.Type = RESOURCE_DIM_TEX_2D;
+    rasterDepthDesc.Width = rasterWidth;
+    rasterDepthDesc.Height = rasterHeight;
+    rasterDepthDesc.MipLevels = 1;
+    rasterDepthDesc.Format = TEX_FORMAT_D32_FLOAT;
+    rasterDepthDesc.Usage = USAGE_DEFAULT;
+    rasterDepthDesc.BindFlags = BIND_DEPTH_STENCIL;
+    RefCntAutoPtr<ITexture> rasterDepthTexture;
+    device_->CreateTexture(rasterDepthDesc, nullptr, &rasterDepthTexture);
+    ASSERT_NE(rasterDepthTexture, nullptr);
+    auto rasterDepthView = rasterDepthTexture->GetDefaultView(
+        TEXTURE_VIEW_DEPTH_STENCIL);
+    ASSERT_NE(rasterDepthView, nullptr);
+    const float clearColor[4]{};
+    context_->SetRenderTargets(1, &rasterColorView, rasterDepthView,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->ClearRenderTarget(rasterColorView, clearColor,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->ClearDepthStencil(rasterDepthView, CLEAR_DEPTH_FLAG, 1.0f, 0,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    const Viewport rasterViewport{0.0f, 0.0f,
+        static_cast<float>(rasterWidth), static_cast<float>(rasterHeight),
+        0.0f, 1.0f};
+    context_->SetViewports(1, &rasterViewport, rasterWidth, rasterHeight);
+    rasterRenderer.prepare(context_.RawPtr());
+    rasterRenderer.draw(context_.RawPtr(), 1);
+    context_->SetRenderTargets(0, nullptr, nullptr,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->Flush();
+    context_->WaitForIdle();
+
+    TextureDesc rasterStagingDesc;
+    rasterStagingDesc.Name = "FbxRasterBeautyReadback";
+    rasterStagingDesc.Type = RESOURCE_DIM_TEX_2D;
+    rasterStagingDesc.Width = rasterWidth;
+    rasterStagingDesc.Height = rasterHeight;
+    rasterStagingDesc.MipLevels = 1;
+    rasterStagingDesc.Format = TEX_FORMAT_RGBA32_FLOAT;
+    rasterStagingDesc.Usage = USAGE_STAGING;
+    rasterStagingDesc.CPUAccessFlags = CPU_ACCESS_READ;
+    RefCntAutoPtr<ITexture> rasterStaging;
+    device_->CreateTexture(rasterStagingDesc, nullptr, &rasterStaging);
+    ASSERT_NE(rasterStaging, nullptr);
+    CopyTextureAttribs rasterCopy(
+        rasterColorTexture, RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+        rasterStaging, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->CopyTexture(rasterCopy);
+    context_->Flush();
+    context_->WaitForIdle();
+    MappedTextureSubresource rasterMapped{};
+    context_->MapTextureSubresource(rasterStaging, 0, 0, MAP_READ,
+        MAP_FLAG_NONE, nullptr, rasterMapped);
+    ASSERT_NE(rasterMapped.pData, nullptr);
+    std::vector<std::array<float, 4>> rasterBeautyPixels(
+        static_cast<size_t>(rasterWidth) * rasterHeight);
+    for (Uint32 y = 0; y < rasterHeight; ++y) {
+        const auto* row = static_cast<const std::uint8_t*>(rasterMapped.pData) +
+                          y * rasterMapped.Stride;
+        std::memcpy(rasterBeautyPixels.data() +
+                        static_cast<size_t>(y) * rasterWidth,
+                    row, static_cast<size_t>(rasterWidth) *
+                             sizeof(std::array<float, 4>));
+    }
+    context_->UnmapTextureSubresource(rasterStaging, 0, 0);
+    size_t rasterCoveredPixels = 0;
+    double beautySquaredError = 0.0;
+    double beautyAbsoluteError = 0.0;
+    double beautyMaximumError = 0.0;
+    size_t beautyComparedChannels = 0;
+    for (size_t pixel = 0; pixel < rasterBeautyPixels.size(); ++pixel) {
+        const auto& raster = rasterBeautyPixels[pixel];
+        const auto& ray = rayBeautyPixels[pixel];
+        for (size_t channel = 0; channel < raster.size(); ++channel) {
+            ASSERT_TRUE(std::isfinite(raster[channel]))
+                << "Raster beauty contains non-finite values";
+        }
+        rasterCoveredPixels += raster[3] > 0.5f ? 1u : 0u;
+        if (raster[3] <= 0.5f || ray[3] <= 0.5f) continue;
+        for (size_t channel = 0; channel < 3; ++channel) {
+            const double difference = std::fabs(
+                static_cast<double>(raster[channel]) - ray[channel]);
+            beautyAbsoluteError += difference;
+            beautySquaredError += difference * difference;
+            beautyMaximumError = std::max(beautyMaximumError, difference);
+            ++beautyComparedChannels;
+        }
+    }
+    ASSERT_GT(rasterCoveredPixels, 0u);
+    ASSERT_GT(beautyComparedChannels, 0u);
+    const double beautyMae = beautyAbsoluteError / beautyComparedChannels;
+    const double beautyRmse = std::sqrt(
+        beautySquaredError / beautyComparedChannels);
+    std::vector<std::array<float, 4>> beautyDifferencePixels(
+        rayBeautyPixels.size());
+    for (size_t pixel = 0; pixel < beautyDifferencePixels.size(); ++pixel) {
+        for (size_t channel = 0; channel < 3; ++channel) {
+            beautyDifferencePixels[pixel][channel] = std::fabs(
+                rasterBeautyPixels[pixel][channel] -
+                rayBeautyPixels[pixel][channel]);
+        }
+        beautyDifferencePixels[pixel][3] = 1.0f;
+    }
+    const auto captureRoot = [] {
+        const char* configured = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
+        return configured && configured[0] != '\0'
+            ? std::filesystem::path(configured)
+            : std::filesystem::current_path() / "ray-tracing-frames";
+    }();
+    const std::string rasterPng = "48-fbx-raster-beauty.png";
+    const std::string rasterPfm = "48-fbx-raster-beauty.pfm";
+    ASSERT_TRUE(saveOutputFrame(rasterPng.c_str(), rasterBeautyPixels));
+    ASSERT_TRUE(saveOutputFloatPfm(rasterPfm.c_str(), rasterBeautyPixels));
+    const std::string beautyDifferencePng =
+        "52-fbx-raster-rt-beauty-absolute-difference.png";
+    const std::string beautyDifferencePfm =
+        "52-fbx-raster-rt-beauty-absolute-difference.pfm";
+    ASSERT_TRUE(saveOutputFrame(beautyDifferencePng.c_str(),
+                                beautyDifferencePixels));
+    ASSERT_TRUE(saveOutputFloatPfm(beautyDifferencePfm.c_str(),
+                                   beautyDifferencePixels));
+
+    rasterRenderer.setMetallicTexture(QString());
+    rasterRenderer.setRoughnessTexture(QString());
+    context_->SetRenderTargets(1, &rasterColorView, rasterDepthView,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->ClearRenderTarget(rasterColorView, clearColor,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->ClearDepthStencil(rasterDepthView, CLEAR_DEPTH_FLAG, 1.0f, 0,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->SetViewports(1, &rasterViewport, rasterWidth, rasterHeight);
+    rasterRenderer.prepare(context_.RawPtr());
+    rasterRenderer.draw(context_.RawPtr(), 1);
+    context_->SetRenderTargets(0, nullptr, nullptr,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->Flush();
+    context_->WaitForIdle();
+    CopyTextureAttribs scalarOnlyRasterCopy(
+        rasterColorTexture, RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+        rasterStaging, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->CopyTexture(scalarOnlyRasterCopy);
+    context_->Flush();
+    context_->WaitForIdle();
+    MappedTextureSubresource scalarOnlyRasterMapped{};
+    context_->MapTextureSubresource(rasterStaging, 0, 0, MAP_READ,
+        MAP_FLAG_NONE, nullptr, scalarOnlyRasterMapped);
+    ASSERT_NE(scalarOnlyRasterMapped.pData, nullptr);
+    std::vector<std::array<float, 4>> scalarOnlyRasterPixels(
+        static_cast<size_t>(rasterWidth) * rasterHeight);
+    for (Uint32 y = 0; y < rasterHeight; ++y) {
+        const auto* row = static_cast<const std::uint8_t*>(
+                              scalarOnlyRasterMapped.pData) +
+                          y * scalarOnlyRasterMapped.Stride;
+        std::memcpy(scalarOnlyRasterPixels.data() +
+                        static_cast<size_t>(y) * rasterWidth,
+                    row, static_cast<size_t>(rasterWidth) *
+                             sizeof(std::array<float, 4>));
+    }
+    context_->UnmapTextureSubresource(rasterStaging, 0, 0);
+    double rasterTextureError = 0.0;
+    double rasterTextureSquaredError = 0.0;
+    double rasterTextureMaximumError = 0.0;
+    size_t rasterTextureComparedChannels = 0;
+    for (size_t pixel = 0; pixel < rasterBeautyPixels.size(); ++pixel) {
+        if (rasterBeautyPixels[pixel][3] <= 0.5f ||
+            scalarOnlyRasterPixels[pixel][3] <= 0.5f) continue;
+        for (size_t channel = 0; channel < 3; ++channel) {
+            const double difference = std::fabs(
+                static_cast<double>(rasterBeautyPixels[pixel][channel]) -
+                scalarOnlyRasterPixels[pixel][channel]);
+            rasterTextureError += difference;
+            rasterTextureSquaredError += difference * difference;
+            rasterTextureMaximumError = std::max(
+                rasterTextureMaximumError, difference);
+            ++rasterTextureComparedChannels;
+        }
+    }
+    ASSERT_GT(rasterTextureComparedChannels, 0u);
+    const double rasterTextureMae =
+        rasterTextureError / rasterTextureComparedChannels;
+    const double rasterTextureRmse = std::sqrt(
+        rasterTextureSquaredError / rasterTextureComparedChannels);
+    EXPECT_GT(rasterTextureMae, 0.001)
+        << "Raster output did not respond to imported separate PBR maps";
+    const std::string scalarRasterPng = "50-fbx-raster-scalar-only.png";
+    const std::string scalarRasterPfm = "50-fbx-raster-scalar-only.pfm";
+    ASSERT_TRUE(saveOutputFrame(scalarRasterPng.c_str(),
+                                scalarOnlyRasterPixels));
+    ASSERT_TRUE(saveOutputFloatPfm(scalarRasterPfm.c_str(),
+                                   scalarOnlyRasterPixels));
+    std::ofstream rasterTextureStats(
+        captureRoot / "51-fbx-raster-texture-scalar-diff.json",
+        std::ios::binary);
+    ASSERT_TRUE(rasterTextureStats);
+    rasterTextureStats
+        << "{\n  \"comparison\": \"Raster imported maps vs scalar-only\",\n"
+        << "  \"width\": " << rasterWidth
+        << ",\n  \"height\": " << rasterHeight
+        << ",\n  \"format\": \"RGBA32F\",\n"
+        << "  \"comparedRgbSamples\": " << rasterTextureComparedChannels
+        << ",\n  \"mae\": " << rasterTextureMae
+        << ",\n  \"rmse\": " << rasterTextureRmse
+        << ",\n  \"maximumAbsoluteError\": "
+        << rasterTextureMaximumError << "\n}\n";
+    ASSERT_TRUE(rasterTextureStats.good());
+    std::ofstream parity(captureRoot / "49-fbx-raster-rt-beauty-diff.json",
+                         std::ios::binary);
+    ASSERT_TRUE(parity);
+    parity << "{\n  \"comparison\": \"Raster PBR beauty vs RT beauty\",\n"
+           << "  \"width\": " << rasterWidth
+           << ",\n  \"height\": " << rasterHeight
+           << ",\n  \"format\": \"RGBA32F\",\n"
+           << "  \"rasterCoveragePixels\": " << rasterCoveredPixels
+           << ",\n  \"rayCoveragePixels\": " << referenceCoverage
+           << ",\n  \"comparedRgbSamples\": " << beautyComparedChannels
+           << ",\n  \"mae\": " << beautyMae
+           << ",\n  \"rmse\": " << beautyRmse
+           << ",\n  \"maximumAbsoluteError\": " << beautyMaximumError
+           << ",\n  \"interpretation\": \"measurement only; Raster and RT use different shader/light models\"\n}\n";
+    ASSERT_TRUE(parity.good());
+#endif
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       CapturesMultiMaterialFbxSlotBoundariesInRayTracingAovs) {
+#ifndef ARTIFACT_TEST_FBX_MULTI_MATERIAL_PATH
+    GTEST_SKIP() << "Multi-material FBX fixture path is not configured";
+#else
+    ArtifactCore::MeshImporter importer;
+    const auto mesh = importer.importMeshFromFile(ArtifactCore::UniString(
+        QString::fromUtf8(ARTIFACT_TEST_FBX_MULTI_MATERIAL_PATH)));
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    ASSERT_EQ(importer.importedPbrMaterials().size(), 2u);
+    ASSERT_EQ(mesh->materialSlotCount(), 2);
+    const auto renderData = mesh->generateRenderData();
+    ASSERT_EQ(renderData.triangleMaterialIndices.size(), 12);
+    size_t importedSlotTriangleCounts[2]{};
+    for (const auto materialIndex : renderData.triangleMaterialIndices) {
+        ASSERT_LT(materialIndex, 2u);
+        ++importedSlotTriangleCounts[materialIndex];
+    }
+    ASSERT_GT(importedSlotTriangleCounts[0], 0u);
+    ASSERT_GT(importedSlotTriangleCounts[1], 0u)
+        << "FBX import/RenderData dropped material slot 1";
+
+    std::vector<float> positions;
+    std::vector<float> normals;
+    std::vector<float> uvs;
+    positions.reserve(static_cast<size_t>(renderData.positions.size()) * 3u);
+    normals.reserve(static_cast<size_t>(renderData.positions.size()) * 3u);
+    uvs.reserve(static_cast<size_t>(renderData.positions.size()) * 2u);
+    for (const auto& value : renderData.positions) {
+        positions.insert(positions.end(), {value.x(), value.y(), value.z()});
+    }
+    for (const auto& value : renderData.normals) {
+        normals.insert(normals.end(), {value.x(), value.y(), value.z()});
+    }
+    for (const auto& value : renderData.uvs) {
+        uvs.insert(uvs.end(), {value.x(), value.y()});
+    }
+    std::vector<Uint32> indices;
+    indices.reserve(static_cast<size_t>(renderData.indices.size()));
+    for (const auto index : renderData.indices) indices.push_back(index);
+    auto vertexBuffer = makeBuffer(
+        positions.data(), positions.size() * sizeof(float), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), indices.size() * sizeof(Uint32), sizeof(Uint32),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    const ArtifactCore::UniString geometryId("fbx-multi-material-aov");
+    ArtifactCore::RTGeometryData geometry;
+    geometry.pVertexBuffer = vertexBuffer;
+    geometry.vertexCount = static_cast<Uint32>(renderData.positions.size());
+    geometry.pIndexBuffer = indexBuffer;
+    geometry.indexCount = static_cast<Uint32>(indices.size());
+    geometry.geometryRevision = 1;
+    geometry.topologyRevision = 1;
+    ASSERT_TRUE(manager_->createOrUpdateBLAS(geometryId, geometry));
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        geometryId, positions.data(), geometry.vertexCount, indices.data(),
+        geometry.indexCount, normals.data(),
+        renderData.triangleMaterialIndices.constData(), uvs.data()));
+
+    const auto& importedMaterials = importer.importedPbrMaterials();
+    for (Uint32 materialIndex = 0; materialIndex < importedMaterials.size();
+         ++materialIndex) {
+        const auto& source = importedMaterials[materialIndex];
+        ArtifactCore::RTPbrMaterial material;
+        std::copy(source.baseColor, source.baseColor + 4, material.baseColor);
+        material.metallic = source.metallic;
+        material.roughness = source.roughness;
+        ASSERT_TRUE(manager_->setInstancePbrMaterial(
+            geometryId, material, materialIndex));
+    }
+    ASSERT_TRUE(manager_->buildBLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+
+    const QVector3D center = (mesh->boundingBoxMin() + mesh->boundingBoxMax()) * 0.5f;
+    const float distance = (mesh->boundingBoxMax() - mesh->boundingBoxMin()).length() * 1.8f;
+    ArtifactCore::RTRayCamera camera;
+    const float diagonalOffset = distance * 0.57735026919f;
+    camera.origin[0] = center.x() + diagonalOffset;
+    camera.origin[1] = center.y() + diagonalOffset;
+    camera.origin[2] = center.z() + diagonalOffset;
+    camera.target[0] = center.x();
+    camera.target[1] = center.y();
+    camera.target[2] = center.z();
+    camera.verticalFovDegrees = 45.0f;
+
+    const std::filesystem::path outputDir = [] {
+        const char* configured = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
+        return configured && configured[0] != '\0'
+            ? std::filesystem::path(configured)
+            : std::filesystem::current_path() / "ray-tracing-frames";
+    }();
+    struct SlotAovCapture {
+        ArtifactCore::RTRayOutputMode mode;
+        const char* stem;
+    };
+    constexpr std::array<SlotAovCapture, 2> captures{{
+        {ArtifactCore::RTRayOutputMode::BaseColor,
+         "53-fbx-multi-material-base-color"},
+        {ArtifactCore::RTRayOutputMode::MetallicRoughness,
+         "54-fbx-multi-material-metallic-roughness"}}};
+    std::vector<std::array<float, 4>> rtBaseColorPixels;
+    std::vector<std::array<float, 4>> rtMetallicRoughnessPixels;
+    for (const auto& capture : captures) {
+        camera.outputMode = capture.mode;
+        ASSERT_TRUE(manager_->traceCamera(
+            context_.RawPtr(), kRayTraceTestImageSize,
+            kRayTraceTestImageSize, camera));
+        context_->Flush();
+        context_->WaitForIdle();
+        auto pixels = readOutputPixels();
+        ASSERT_EQ(pixels.size(), static_cast<size_t>(kRayTraceTestImageSize) *
+                                     kRayTraceTestImageSize);
+        if (capture.mode == ArtifactCore::RTRayOutputMode::BaseColor) {
+            rtBaseColorPixels = pixels;
+        } else if (capture.mode ==
+                   ArtifactCore::RTRayOutputMode::MetallicRoughness) {
+            rtMetallicRoughnessPixels = pixels;
+        }
+        size_t slotZeroPixels = 0;
+        size_t slotOnePixels = 0;
+        for (const auto& pixel : pixels) {
+            ASSERT_TRUE(std::isfinite(pixel[0]) && std::isfinite(pixel[1]) &&
+                        std::isfinite(pixel[2]) && std::isfinite(pixel[3]));
+            if (pixel[3] <= 0.5f) continue;
+            if (capture.mode == ArtifactCore::RTRayOutputMode::BaseColor) {
+                if (pixel[2] < pixel[0] * 0.5f) ++slotZeroPixels;
+                if (pixel[0] < pixel[2] * 0.5f) ++slotOnePixels;
+            } else {
+                if (pixel[0] < 0.1f && pixel[1] > 0.35f && pixel[1] < 0.65f)
+                    ++slotZeroPixels;
+                if (pixel[0] > 0.8f && pixel[1] > 0.8f)
+                    ++slotOnePixels;
+            }
+        }
+        EXPECT_GT(slotZeroPixels, 0u) << capture.stem;
+        EXPECT_GT(slotOnePixels, 0u) << capture.stem;
+        const std::string pngName = std::string(capture.stem) + ".png";
+        const std::string pfmName = std::string(capture.stem) + ".pfm";
+        ASSERT_TRUE(saveOutputFrame(pngName.c_str(), pixels));
+        ASSERT_TRUE(saveOutputFloatPfm(pfmName.c_str(), pixels));
+        constexpr Uint32 cropX = 64;
+        constexpr Uint32 cropY = 64;
+        constexpr Uint32 cropWidth = 128;
+        constexpr Uint32 cropHeight = 128;
+        QImage cropImage(cropWidth, cropHeight, QImage::Format_RGBA8888);
+        size_t cropSlotZeroPixels = 0;
+        size_t cropSlotOnePixels = 0;
+        for (Uint32 y = 0; y < cropHeight; ++y) {
+            auto* destinationRow = cropImage.scanLine(static_cast<int>(y));
+            for (Uint32 x = 0; x < cropWidth; ++x) {
+                const auto& source = pixels[
+                    static_cast<size_t>(cropY + y) * kRayTraceTestImageSize +
+                    cropX + x];
+                if (source[3] > 0.5f) {
+                    const bool isSlotZero = capture.mode ==
+                            ArtifactCore::RTRayOutputMode::BaseColor
+                        ? source[2] < source[0] * 0.5f
+                        : source[0] < 0.1f;
+                    if (isSlotZero) ++cropSlotZeroPixels;
+                    else ++cropSlotOnePixels;
+                }
+                auto* destination = destinationRow + x * 4;
+                for (Uint32 channel = 0; channel < 4; ++channel) {
+                    float value = std::clamp(source[channel], 0.0f, 1.0f);
+                    if (channel < 3) {
+                        value = value <= 0.0031308f
+                            ? 12.92f * value
+                            : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f;
+                    }
+                    destination[channel] = static_cast<std::uint8_t>(
+                        std::lround(value * 255.0f));
+                }
+            }
+        }
+        EXPECT_GT(cropSlotZeroPixels, 0u) << capture.stem;
+        EXPECT_GT(cropSlotOnePixels, 0u) << capture.stem;
+        const std::string cropPngName = std::string(capture.stem) +
+                                        "-boundary-crop.png";
+        ASSERT_TRUE(cropImage.save(QString::fromStdString(
+            (outputDir / cropPngName).string()), "PNG"));
+        const std::string cropPfmName = std::string(capture.stem) +
+                                        "-boundary-crop.pfm";
+        std::ofstream cropPfm(outputDir / cropPfmName, std::ios::binary);
+        ASSERT_TRUE(cropPfm);
+        cropPfm << "PF\n" << cropWidth << ' ' << cropHeight << "\n-1.0\n";
+        for (Uint32 row = cropHeight; row > 0; --row) {
+            for (Uint32 x = 0; x < cropWidth; ++x) {
+                const auto& pixel = pixels[
+                    static_cast<size_t>(cropY + row - 1) *
+                        kRayTraceTestImageSize + cropX + x];
+                cropPfm.write(reinterpret_cast<const char*>(pixel.data()),
+                              sizeof(float) * 3);
+            }
+        }
+        ASSERT_TRUE(cropPfm.good());
+        std::ofstream stats(outputDir / (std::string(capture.stem) + ".json"),
+                            std::ios::binary);
+        ASSERT_TRUE(stats);
+        stats << "{\n  \"mode\": \"" << capture.stem
+              << "\",\n  \"slot0Pixels\": " << slotZeroPixels
+              << ",\n  \"slot1Pixels\": " << slotOnePixels
+              << ",\n  \"width\": " << kRayTraceTestImageSize
+              << ",\n  \"height\": " << kRayTraceTestImageSize
+              << ",\n  \"fixedBoundaryCrop\": {\"x\": " << cropX
+              << ", \"y\": " << cropY << ", \"width\": " << cropWidth
+              << ", \"height\": " << cropHeight
+              << ", \"slot0Pixels\": " << cropSlotZeroPixels
+              << ", \"slot1Pixels\": " << cropSlotOnePixels << "}"
+              << "\n}\n";
+        ASSERT_TRUE(stats.good());
+    }
+
+    // Drive the same imported mesh through Raster MeshRenderer's material
+    // range path. Route only the material base-color value through emission so
+    // the float buffer can be compared against the RT Base Color AOV without
+    // conflating lighting or tone mapping.
+    ArtifactCore::GpuContext gpuContext(device_.RawPtr(), context_.RawPtr());
+    ArtifactCore::MeshRenderer rasterRenderer(gpuContext);
+    rasterRenderer.setRenderTargetFormat(TEX_FORMAT_RGBA32_FLOAT);
+    rasterRenderer.initialize(1, renderData.positions.size(),
+                              renderData.indices.size());
+    rasterRenderer.updateMeshGeometry(
+        positions.data(), normals.data(), uvs.data(),
+        renderData.indices.constData(), nullptr);
+    QMatrix4x4 rasterView;
+    rasterView.lookAt(QVector3D(camera.origin[0], camera.origin[1],
+                                camera.origin[2]),
+                      QVector3D(camera.target[0], camera.target[1],
+                                camera.target[2]),
+                      QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 rasterProjection;
+    rasterProjection.perspective(camera.verticalFovDegrees, 1.0f, 0.01f,
+                                 std::max(1000.0f, distance * 100.0f));
+    rasterRenderer.setViewMatrix(rasterView.constData());
+    rasterRenderer.setProjectionMatrix(rasterProjection.constData());
+    constexpr std::array<float, 16> identity{
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    ArtifactCore::InstanceData rasterInstance{};
+    std::copy(identity.begin(), identity.end(), rasterInstance.transform);
+    std::copy(identity.begin(), identity.end(),
+              rasterInstance.previousTransform);
+    rasterInstance.color[0] = 1.0f;
+    rasterInstance.color[1] = 1.0f;
+    rasterInstance.color[2] = 1.0f;
+    rasterInstance.color[3] = 1.0f;
+    rasterInstance.weight = 1.0f;
+    rasterRenderer.updateInstanceData(&rasterInstance, 1);
+    std::array<ArtifactCore::MeshRenderer::MaterialRange, 2> rasterRanges{};
+    for (size_t index = 0; index < rasterRanges.size(); ++index) {
+        const auto& slot = mesh->materialSlots()[static_cast<int>(index)];
+        const auto& source = importedMaterials[static_cast<qsizetype>(index)];
+        auto& range = rasterRanges[index];
+        range.firstIndex = static_cast<Uint32>(slot.firstIndex);
+        range.indexCount = static_cast<Uint32>(slot.indexCount);
+        range.materialIndex = static_cast<Uint32>(slot.materialIndex);
+        range.material.baseColorFactor = {0.0f, 0.0f, 0.0f, 1.0f};
+        // Suppress the dielectric environment Fresnel term from the zeroed
+        // base-color channel so this diagnostic pass contains emission only.
+        range.material.pbrFactors = {1.0f, source.roughness, 1.0f, 1.0f};
+        range.material.emissionColorStrength = {
+            source.baseColor[0], source.baseColor[1], source.baseColor[2], 1.0f};
+    }
+    rasterRenderer.setMaterialRanges(rasterRanges.data(), rasterRanges.size());
+    ArtifactCore::Light rasterDiagnosticLight(
+        ArtifactCore::LightType::Directional);
+    rasterDiagnosticLight.setDirection({0.0f, 0.0f, 1.0f});
+    rasterDiagnosticLight.setIntensity(1.0f);
+    rasterDiagnosticLight.setCastsShadows(false);
+    rasterRenderer.setSceneLights(
+        std::vector<ArtifactCore::Light>{rasterDiagnosticLight});
+    constexpr Uint32 rasterWidth = kRayTraceTestImageSize;
+    constexpr Uint32 rasterHeight = kRayTraceTestImageSize;
+    TextureDesc rasterColorDesc;
+    rasterColorDesc.Name = "FbxMultiMaterialRasterColor";
+    rasterColorDesc.Type = RESOURCE_DIM_TEX_2D;
+    rasterColorDesc.Width = rasterWidth;
+    rasterColorDesc.Height = rasterHeight;
+    rasterColorDesc.MipLevels = 1;
+    rasterColorDesc.Format = TEX_FORMAT_RGBA32_FLOAT;
+    rasterColorDesc.Usage = USAGE_DEFAULT;
+    rasterColorDesc.BindFlags = BIND_RENDER_TARGET;
+    RefCntAutoPtr<ITexture> rasterColorTexture;
+    device_->CreateTexture(rasterColorDesc, nullptr, &rasterColorTexture);
+    ASSERT_NE(rasterColorTexture, nullptr);
+    auto rasterColorView = rasterColorTexture->GetDefaultView(
+        TEXTURE_VIEW_RENDER_TARGET);
+    ASSERT_NE(rasterColorView, nullptr);
+    TextureDesc rasterDepthDesc = rasterColorDesc;
+    rasterDepthDesc.Name = "FbxMultiMaterialRasterDepth";
+    rasterDepthDesc.Format = TEX_FORMAT_D32_FLOAT;
+    rasterDepthDesc.BindFlags = BIND_DEPTH_STENCIL;
+    RefCntAutoPtr<ITexture> rasterDepthTexture;
+    device_->CreateTexture(rasterDepthDesc, nullptr, &rasterDepthTexture);
+    ASSERT_NE(rasterDepthTexture, nullptr);
+    auto rasterDepthView = rasterDepthTexture->GetDefaultView(
+        TEXTURE_VIEW_DEPTH_STENCIL);
+    ASSERT_NE(rasterDepthView, nullptr);
+    const float clearColor[4]{};
+    context_->SetRenderTargets(1, &rasterColorView, rasterDepthView,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->ClearRenderTarget(rasterColorView, clearColor,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->ClearDepthStencil(rasterDepthView, CLEAR_DEPTH_FLAG, 1.0f, 0,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    const Viewport rasterViewport{0.0f, 0.0f,
+        static_cast<float>(rasterWidth), static_cast<float>(rasterHeight),
+        0.0f, 1.0f};
+    context_->SetViewports(1, &rasterViewport, rasterWidth, rasterHeight);
+    rasterRenderer.prepare(context_.RawPtr());
+    rasterRenderer.drawMaterialSlots(context_.RawPtr(), 1);
+    context_->SetRenderTargets(0, nullptr, nullptr,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->Flush();
+    context_->WaitForIdle();
+    TextureDesc rasterStagingDesc = rasterColorDesc;
+    rasterStagingDesc.Name = "FbxMultiMaterialRasterReadback";
+    rasterStagingDesc.Usage = USAGE_STAGING;
+    rasterStagingDesc.BindFlags = BIND_NONE;
+    rasterStagingDesc.CPUAccessFlags = CPU_ACCESS_READ;
+    RefCntAutoPtr<ITexture> rasterStaging;
+    device_->CreateTexture(rasterStagingDesc, nullptr, &rasterStaging);
+    ASSERT_NE(rasterStaging, nullptr);
+    CopyTextureAttribs rasterCopy(
+        rasterColorTexture, RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+        rasterStaging, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->CopyTexture(rasterCopy);
+    context_->Flush();
+    context_->WaitForIdle();
+    MappedTextureSubresource rasterMapped{};
+    context_->MapTextureSubresource(rasterStaging, 0, 0, MAP_READ,
+        MAP_FLAG_NONE, nullptr, rasterMapped);
+    ASSERT_NE(rasterMapped.pData, nullptr);
+    std::vector<std::array<float, 4>> rasterPixels(
+        static_cast<size_t>(rasterWidth) * rasterHeight);
+    for (Uint32 y = 0; y < rasterHeight; ++y) {
+        const auto* row = static_cast<const std::uint8_t*>(rasterMapped.pData) +
+                          y * rasterMapped.Stride;
+        std::memcpy(rasterPixels.data() + static_cast<size_t>(y) * rasterWidth,
+                    row, static_cast<size_t>(rasterWidth) *
+                             sizeof(std::array<float, 4>));
+    }
+    context_->UnmapTextureSubresource(rasterStaging, 0, 0);
+    size_t rasterRedPixels = 0;
+    size_t rasterBluePixels = 0;
+    for (const auto& pixel : rasterPixels) {
+        ASSERT_TRUE(std::isfinite(pixel[0]) && std::isfinite(pixel[1]) &&
+                    std::isfinite(pixel[2]) && std::isfinite(pixel[3]));
+        if (pixel[3] <= 0.5f) continue;
+        if (pixel[0] > pixel[2] * 1.5f) ++rasterRedPixels;
+        if (pixel[2] > pixel[0] * 1.5f) ++rasterBluePixels;
+    }
+    EXPECT_GT(rasterRedPixels, 0u)
+        << "Raster material range zero did not produce a red surface";
+    EXPECT_GT(rasterBluePixels, 0u)
+        << "Raster material range one did not produce a blue surface";
+    ASSERT_EQ(rtBaseColorPixels.size(), rasterPixels.size());
+    size_t rasterCoverage = 0;
+    size_t rtCoverage = 0;
+    double baseColorAbsoluteError = 0.0;
+    double baseColorSquaredError = 0.0;
+    double baseColorMaximumError = 0.0;
+    size_t baseColorComparedSamples = 0;
+    std::vector<std::array<float, 4>> baseColorDifference(rasterPixels.size());
+    for (Uint32 y = 0; y < rasterHeight; ++y) {
+        for (Uint32 x = 0; x < rasterWidth; ++x) {
+            const size_t rtIndex = static_cast<size_t>(y) * rasterWidth + x;
+            const size_t rasterIndex = static_cast<size_t>(y) * rasterWidth +
+                                       (rasterWidth - 1u - x);
+            const auto& raster = rasterPixels[rasterIndex];
+            const auto& ray = rtBaseColorPixels[rtIndex];
+            const bool rasterHit = raster[3] > 0.5f;
+            const bool rtHit = ray[3] > 0.5f;
+            rasterCoverage += rasterHit ? 1u : 0u;
+            rtCoverage += rtHit ? 1u : 0u;
+            if (rasterHit != rtHit) continue;
+            if (!rasterHit) continue;
+            for (size_t channel = 0; channel < 3; ++channel) {
+                const double difference = std::fabs(
+                    static_cast<double>(raster[channel]) - ray[channel]);
+                baseColorAbsoluteError += difference;
+                baseColorSquaredError += difference * difference;
+                baseColorMaximumError = std::max(baseColorMaximumError,
+                                                  difference);
+                baseColorDifference[rtIndex][channel] =
+                    static_cast<float>(difference);
+                ++baseColorComparedSamples;
+            }
+            baseColorDifference[rtIndex][3] = 1.0f;
+        }
+    }
+    ASSERT_EQ(rasterCoverage, rtCoverage)
+        << "Raster and RT material AOV coverage differ after horizontal alignment";
+    ASSERT_GT(baseColorComparedSamples, 0u);
+    const double baseColorMae =
+        baseColorAbsoluteError / baseColorComparedSamples;
+    const double baseColorRmse = std::sqrt(
+        baseColorSquaredError / baseColorComparedSamples);
+    EXPECT_LT(baseColorMae, 0.001)
+        << "Raster material-only base-color output differs from RT AOV; MAE="
+        << baseColorMae << ", RMSE=" << baseColorRmse
+        << ", max=" << baseColorMaximumError;
+    EXPECT_LT(baseColorMaximumError, 0.01)
+        << "Raster material-only base-color maximum error is too high; MAE="
+        << baseColorMae << ", max=" << baseColorMaximumError;
+    ASSERT_TRUE(saveOutputFrame("55-fbx-multi-material-raster.png",
+                                rasterPixels));
+    ASSERT_TRUE(saveOutputFloatPfm("55-fbx-multi-material-raster.pfm",
+                                   rasterPixels));
+    ASSERT_TRUE(saveOutputFloatPfm(
+        "56-fbx-multi-material-base-color-difference.pfm",
+        baseColorDifference));
+    ASSERT_TRUE(saveOutputFrame(
+        "56-fbx-multi-material-base-color-difference.png",
+        baseColorDifference));
+    constexpr Uint32 rasterCropX = 64;
+    constexpr Uint32 rasterCropY = 64;
+    constexpr Uint32 rasterCropWidth = 128;
+    constexpr Uint32 rasterCropHeight = 128;
+    QImage rasterCrop(rasterCropWidth, rasterCropHeight,
+                      QImage::Format_RGBA8888);
+    size_t cropRedPixels = 0;
+    size_t cropBluePixels = 0;
+    for (Uint32 y = 0; y < rasterCropHeight; ++y) {
+        auto* destination = rasterCrop.scanLine(static_cast<int>(y));
+        for (Uint32 x = 0; x < rasterCropWidth; ++x) {
+            const auto& pixel = rasterPixels[
+                static_cast<size_t>(rasterCropY + y) * rasterWidth +
+                rasterCropX + x];
+            if (pixel[3] > 0.5f) {
+                if (pixel[0] > pixel[2] * 1.5f) ++cropRedPixels;
+                if (pixel[2] > pixel[0] * 1.5f) ++cropBluePixels;
+            }
+            for (Uint32 channel = 0; channel < 4; ++channel) {
+                float value = std::clamp(pixel[channel], 0.0f, 1.0f);
+                if (channel < 3) {
+                    value = value <= 0.0031308f
+                        ? 12.92f * value
+                        : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f;
+                }
+                destination[x * 4 + channel] = static_cast<std::uint8_t>(
+                    std::lround(value * 255.0f));
+            }
+        }
+    }
+    EXPECT_GT(cropRedPixels, 0u);
+    EXPECT_GT(cropBluePixels, 0u);
+    ASSERT_TRUE(rasterCrop.save(QString::fromStdString(
+        (outputDir / "55-fbx-multi-material-raster-boundary-crop.png")
+            .string()), "PNG"));
+    std::ofstream rasterStats(
+        outputDir / "55-fbx-multi-material-raster.json", std::ios::binary);
+    ASSERT_TRUE(rasterStats);
+    rasterStats << "{\n  \"backend\": \"Vulkan\",\n"
+                << "  \"format\": \"RGBA32F\",\n"
+                << "  \"width\": " << rasterWidth
+                << ",\n  \"height\": " << rasterHeight
+                << ",\n  \"slot0RedPixels\": " << rasterRedPixels
+                << ",\n  \"slot1BluePixels\": " << rasterBluePixels
+                << ",\n  \"horizontalAlignment\": \"rasterXReversed\""
+                << ",\n  \"baseColorComparedRgbSamples\": "
+                << baseColorComparedSamples
+                << ",\n  \"baseColorMae\": " << baseColorMae
+                << ",\n  \"baseColorRmse\": " << baseColorRmse
+                << ",\n  \"baseColorMaximumAbsoluteError\": "
+                << baseColorMaximumError
+                << ",\n  \"boundaryCrop\": {\"x\": " << rasterCropX
+                << ", \"y\": " << rasterCropY
+                << ", \"width\": " << rasterCropWidth
+                << ", \"height\": " << rasterCropHeight
+                << ", \"slot0RedPixels\": " << cropRedPixels
+                << ", \"slot1BluePixels\": " << cropBluePixels << "}"
+                << ",\n  \"interpretation\": \"Base color comparison uses an emission-only Raster diagnostic and horizontal coordinate alignment; thresholds are MAE < 0.001 and max < 0.01.\"\n}\n";
+    ASSERT_TRUE(rasterStats.good());
+
+    // Pack metallic / roughness / AO into the emission-only Raster pass. The
+    // scalar encoding is converted to sRGB before upload because the Raster
+    // emission input is decoded to linear by its shader.
+    const auto linearToSrgb = [](float value) {
+        value = std::clamp(value, 0.0f, 1.0f);
+        return value <= 0.0031308f
+            ? 12.92f * value
+            : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f;
+    };
+    for (size_t index = 0; index < rasterRanges.size(); ++index) {
+        const auto& source = importedMaterials[static_cast<qsizetype>(index)];
+        rasterRanges[index].material.emissionColorStrength = {
+            linearToSrgb(source.metallic),
+            linearToSrgb(source.roughness),
+            linearToSrgb(source.occlusionStrength), 1.0f};
+    }
+    rasterRenderer.setMaterialRanges(rasterRanges.data(), rasterRanges.size());
+    context_->SetRenderTargets(1, &rasterColorView, rasterDepthView,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->ClearRenderTarget(rasterColorView, clearColor,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->ClearDepthStencil(rasterDepthView, CLEAR_DEPTH_FLAG, 1.0f, 0,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->SetViewports(1, &rasterViewport, rasterWidth, rasterHeight);
+    rasterRenderer.prepare(context_.RawPtr());
+    rasterRenderer.drawMaterialSlots(context_.RawPtr(), 1);
+    context_->SetRenderTargets(0, nullptr, nullptr,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->Flush();
+    context_->WaitForIdle();
+    CopyTextureAttribs rasterScalarCopy(
+        rasterColorTexture, RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+        rasterStaging, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context_->CopyTexture(rasterScalarCopy);
+    context_->Flush();
+    context_->WaitForIdle();
+    MappedTextureSubresource rasterScalarMapped{};
+    context_->MapTextureSubresource(rasterStaging, 0, 0, MAP_READ,
+        MAP_FLAG_NONE, nullptr, rasterScalarMapped);
+    ASSERT_NE(rasterScalarMapped.pData, nullptr);
+    std::vector<std::array<float, 4>> rasterMetallicRoughnessPixels(
+        static_cast<size_t>(rasterWidth) * rasterHeight);
+    for (Uint32 y = 0; y < rasterHeight; ++y) {
+        const auto* row = static_cast<const std::uint8_t*>(
+                              rasterScalarMapped.pData) +
+                          y * rasterScalarMapped.Stride;
+        std::memcpy(rasterMetallicRoughnessPixels.data() +
+                        static_cast<size_t>(y) * rasterWidth,
+                    row, static_cast<size_t>(rasterWidth) *
+                             sizeof(std::array<float, 4>));
+    }
+    context_->UnmapTextureSubresource(rasterStaging, 0, 0);
+    ASSERT_EQ(rtMetallicRoughnessPixels.size(),
+              rasterMetallicRoughnessPixels.size());
+    size_t scalarComparedSamples = 0;
+    size_t scalarCoverage = 0;
+    size_t scalarRtCoverage = 0;
+    double scalarAbsoluteError = 0.0;
+    double scalarSquaredError = 0.0;
+    double scalarMaximumError = 0.0;
+    std::vector<std::array<float, 4>> scalarDifference(
+        rasterMetallicRoughnessPixels.size());
+    for (Uint32 y = 0; y < rasterHeight; ++y) {
+        for (Uint32 x = 0; x < rasterWidth; ++x) {
+            const size_t rtIndex = static_cast<size_t>(y) * rasterWidth + x;
+            const size_t rasterIndex = static_cast<size_t>(y) * rasterWidth +
+                                       (rasterWidth - 1u - x);
+            const auto& raster = rasterMetallicRoughnessPixels[rasterIndex];
+            const auto& ray = rtMetallicRoughnessPixels[rtIndex];
+            const bool rasterHit = raster[3] > 0.5f;
+            const bool rtHit = ray[3] > 0.5f;
+            scalarCoverage += rasterHit ? 1u : 0u;
+            scalarRtCoverage += rtHit ? 1u : 0u;
+            if (rasterHit != rtHit || !rasterHit) continue;
+            for (size_t channel = 0; channel < 3; ++channel) {
+                const double difference = std::fabs(
+                    static_cast<double>(raster[channel]) - ray[channel]);
+                scalarAbsoluteError += difference;
+                scalarSquaredError += difference * difference;
+                scalarMaximumError = std::max(scalarMaximumError, difference);
+                scalarDifference[rtIndex][channel] =
+                    static_cast<float>(difference);
+                ++scalarComparedSamples;
+            }
+            scalarDifference[rtIndex][3] = 1.0f;
+        }
+    }
+    ASSERT_EQ(scalarCoverage, scalarRtCoverage)
+        << "Metallic/Roughness coverage differs after horizontal alignment";
+    ASSERT_GT(scalarComparedSamples, 0u);
+    const double scalarMae = scalarAbsoluteError / scalarComparedSamples;
+    const double scalarRmse = std::sqrt(
+        scalarSquaredError / scalarComparedSamples);
+    EXPECT_LT(scalarMae, 0.001)
+        << "Raster material-only Metallic/Roughness/AO differs from RT AOV; MAE="
+        << scalarMae << ", RMSE=" << scalarRmse
+        << ", max=" << scalarMaximumError;
+    EXPECT_LT(scalarMaximumError, 0.01)
+        << "Raster scalar AOV maximum error is too high; max="
+        << scalarMaximumError;
+    ASSERT_TRUE(saveOutputFrame(
+        "57-fbx-multi-material-raster-metallic-roughness-ao.png",
+        rasterMetallicRoughnessPixels));
+    ASSERT_TRUE(saveOutputFloatPfm(
+        "57-fbx-multi-material-raster-metallic-roughness-ao.pfm",
+        rasterMetallicRoughnessPixels));
+    ASSERT_TRUE(saveOutputFrame(
+        "58-fbx-multi-material-metallic-roughness-ao-difference.png",
+        scalarDifference));
+    ASSERT_TRUE(saveOutputFloatPfm(
+        "58-fbx-multi-material-metallic-roughness-ao-difference.pfm",
+        scalarDifference));
+    std::ofstream scalarStats(
+        outputDir / "57-fbx-multi-material-raster-metallic-roughness-ao.json",
+        std::ios::binary);
+    ASSERT_TRUE(scalarStats);
+    scalarStats << "{\n  \"backend\": \"Vulkan\",\n"
+                << "  \"format\": \"RGBA32F\",\n"
+                << "  \"horizontalAlignment\": \"rasterXReversed\",\n"
+                << "  \"comparedRgbSamples\": " << scalarComparedSamples
+                << ",\n  \"mae\": " << scalarMae
+                << ",\n  \"rmse\": " << scalarRmse
+                << ",\n  \"maximumAbsoluteError\": "
+                << scalarMaximumError
+                << ",\n  \"interpretation\": \"Raster material scalar values are packed into emission after inverse sRGB encoding and compared with RT Metallic/Roughness/AO.\"\n}\n";
+    ASSERT_TRUE(scalarStats.good());
+#endif
+}
 
 TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
     constexpr std::array<float, 9> triangleVertices{
@@ -10824,9 +12092,9 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
         }
     }
     ASSERT_TRUE(verticalNormalImage.save(
-        QString::fromStdString(verticalNormalPath.string()), "PNG"));
+        verticalNormalPath, "PNG"));
     material.normalTexture = ArtifactCore::UniString(
-        QString::fromStdString(verticalNormalPath.string()));
+        verticalNormalPath);
     material.normalUvRotationDegrees = 0.0f;
     material.normalUvScale = 1.0f;
     material.normalUvOffsetU = 0.0f;

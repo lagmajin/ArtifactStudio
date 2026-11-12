@@ -21,8 +21,6 @@ artifact_add_standalone_module_interface(ArtifactCoreStandaloneFoundationModules
         "${ARTIFACT_CORE_ROOT}/include/Core/ArtifactArray.ixx"
         "${ARTIFACT_CORE_ROOT}/include/Core/ArtifactString.ixx"
         "${ARTIFACT_CORE_ROOT}/include/Container/NamedVector.ixx"
-        "${ARTIFACT_CORE_ROOT}/include/Container/NameMap.ixx"
-        "${ARTIFACT_CORE_ROOT}/src/Core/ArtifactHashMap.cppm"
         "${ARTIFACT_CORE_ROOT}/src/Memory/SharedPtr.cppm"
     INCLUDE_DIRS "${ARTIFACT_CORE_INCLUDE}"
 )

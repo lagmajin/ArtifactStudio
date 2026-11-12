@@ -29,6 +29,174 @@ SharedPtr<Mesh> makeQuad() {
 
 } // namespace
 
+TEST(MeshGeometryTest, TopologyQuadUsesOriginalSharedEdges) {
+    auto mesh = makeQuad();
+    const auto s = mesh->analyzeTopology();
+    EXPECT_TRUE(s.positionAnalysisAvailable);
+    EXPECT_EQ(s.boundaryEdgeCount, 4);
+    EXPECT_EQ(s.edgeCount, 5);
+    EXPECT_EQ(s.validPolygonCount, 2);
+    EXPECT_EQ(s.nonManifoldEdgeCount, 0);
+    EXPECT_EQ(s.inconsistentWindingEdgeCount, 0);
+    EXPECT_EQ(s.connectedComponentCount, 1);
+    EXPECT_EQ(s.eulerCharacteristic, 1);
+    EXPECT_EQ(s.degenerateTriangleCount, 0);
+}
+
+TEST(MeshGeometryTest, TopologyReportsDefectsAndIsolatedVertices) {
+    Mesh mesh;
+    mesh.setVertexCount(7);
+    auto p = mesh.vertexAttributes().add<QVector3D>("position");
+    (*p)[0] = QVector3D(0, 0, 0);
+    (*p)[1] = QVector3D(1, 0, 0);
+    (*p)[2] = QVector3D(0, 1, 0);
+    (*p)[3] = QVector3D(0, -1, 0);
+    (*p)[4] = QVector3D(2, 0, 0);
+    mesh.addPolygon({0, 1, 2});
+    mesh.addPolygon({0, 1, 3}); // same direction along 0-1
+    mesh.addPolygon({0, 1, 4}); // third incident face, collinear
+    mesh.addPolygon({2, 1, 0}); // reverse duplicate
+    mesh.addPolygon({0, 0, 5}); // malformed
+    mesh.addPolygon({0, 1, 99}); // out of range
+    const auto s = mesh.analyzeTopology();
+    EXPECT_EQ(s.invalidPolygonCount, 2);
+    EXPECT_EQ(s.nonManifoldEdgeCount, 1);
+    EXPECT_EQ(s.duplicateFaceCount, 1);
+    EXPECT_EQ(s.degenerateTriangleCount, 2);
+    EXPECT_EQ(s.isolatedVertexCount, 2);
+    EXPECT_EQ(s.connectedComponentCount, 3);
+}
+
+TEST(MeshGeometryTest, TopologyDistinguishesWindingAndUnavailablePositions) {
+    Mesh mesh;
+    mesh.setVertexCount(4);
+    mesh.addPolygon({0, 1, 2});
+    mesh.addPolygon({0, 1, 3});
+    auto s = mesh.analyzeTopology();
+    EXPECT_FALSE(s.positionAnalysisAvailable);
+    EXPECT_EQ(s.inconsistentWindingEdgeCount, 1);
+    EXPECT_EQ(s.inconsistentWindingFaceCount, 2);
+    auto p = mesh.vertexAttributes().add<QVector3D>("position");
+    (*p)[0] = QVector3D(std::numeric_limits<float>::quiet_NaN(), 0, 0);
+    s = mesh.analyzeTopology();
+    EXPECT_TRUE(s.positionAnalysisAvailable);
+    EXPECT_EQ(s.nonFinitePositionTriangleCount, 2);
+    EXPECT_EQ(s.degenerateTriangleCount, 0);
+}
+
+TEST(MeshGeometryTest, TopologyClosedTetrahedronAndFaceCanonicalization) {
+    Mesh mesh;
+    mesh.setVertexCount(4);
+    mesh.addPolygon({0, 2, 1});
+    mesh.addPolygon({0, 1, 3});
+    mesh.addPolygon({1, 2, 3});
+    mesh.addPolygon({2, 0, 3});
+    auto s = mesh.analyzeTopology();
+    EXPECT_EQ(s.boundaryEdgeCount, 0);
+    EXPECT_EQ(s.inconsistentWindingEdgeCount, 0);
+    EXPECT_EQ(s.inconsistentWindingFaceCount, 0);
+    EXPECT_EQ(s.eulerCharacteristic, 2);
+    mesh.addPolygon({2, 1, 0});
+    s = mesh.analyzeTopology();
+    EXPECT_EQ(s.duplicateFaceCount, 1);
+}
+
+TEST(MeshGeometryTest, TopologyCanWeldSplitPositionsWithoutChangingMesh) {
+    Mesh mesh;
+    mesh.setVertexCount(6);
+    auto p = mesh.vertexAttributes().add<QVector3D>("position");
+    (*p)[0] = QVector3D(0, 0, 0); (*p)[1] = QVector3D(1, 0, 0); (*p)[2] = QVector3D(0, 1, 0);
+    (*p)[3] = QVector3D(1, 0, 0); (*p)[4] = QVector3D(1, 1, 0); (*p)[5] = QVector3D(0, 1, 0);
+    mesh.addPolygon({0, 1, 2});
+    mesh.addPolygon({3, 4, 5});
+    const auto original = mesh.analyzeTopology();
+    const auto welded = mesh.analyzeTopology(0.0, true);
+    EXPECT_EQ(original.topologyVertexCount, 6);
+    EXPECT_EQ(original.boundaryEdgeCount, 6);
+    EXPECT_EQ(original.connectedComponentCount, 2);
+    EXPECT_TRUE(welded.topologyAnalysisAvailable);
+    EXPECT_EQ(welded.topologyVertexCount, 4);
+    EXPECT_EQ(welded.boundaryEdgeCount, 4);
+    EXPECT_EQ(welded.connectedComponentCount, 1);
+    EXPECT_EQ(welded.eulerCharacteristic, 1);
+    EXPECT_EQ(mesh.vertexCount(), 6);
+}
+
+TEST(MeshGeometryTest, TopologyWeldingRequiresFinitePositions) {
+    Mesh mesh;
+    mesh.setVertexCount(3);
+    mesh.addPolygon({0, 1, 2});
+    EXPECT_FALSE(mesh.analyzeTopology(0.0, true).topologyAnalysisAvailable);
+    auto p = mesh.vertexAttributes().add<QVector3D>("position");
+    (*p)[1] = QVector3D(std::numeric_limits<float>::infinity(), 0, 0);
+    EXPECT_FALSE(mesh.analyzeTopology(0.0, true).topologyAnalysisAvailable);
+    EXPECT_TRUE(mesh.analyzeTopology().topologyAnalysisAvailable);
+}
+
+TEST(MeshGeometryTest, TopologyUsesFanAreaAndCallerTolerance) {
+    Mesh mesh;
+    mesh.setVertexCount(4);
+    auto p = mesh.vertexAttributes().add<QVector3D>("position");
+    (*p)[0] = QVector3D(0, 0, 0); (*p)[1] = QVector3D(2, 0, 0);
+    (*p)[2] = QVector3D(2, 0.01f, 0); (*p)[3] = QVector3D(0, 1, 0);
+    mesh.addPolygon({0, 1, 2, 3});
+    const auto exact = mesh.analyzeTopology();
+    const auto tolerant = mesh.analyzeTopology(0.02);
+    EXPECT_EQ(exact.degenerateTriangleCount, 0);
+    EXPECT_EQ(tolerant.degenerateTriangleCount, 1);
+    EXPECT_EQ(tolerant.boundaryEdgeCount, 4);
+    EXPECT_EQ(tolerant.eulerCharacteristic, 1);
+}
+
+TEST(MeshGeometryTest, SelfIntersectionFindsCrossingAndCoplanarOverlap) {
+    Mesh mesh;
+    mesh.setVertexCount(9);
+    auto p = mesh.vertexAttributes().add<QVector3D>("position");
+    (*p)[0] = QVector3D(0, 0, 0); (*p)[1] = QVector3D(2, 0, 0); (*p)[2] = QVector3D(0, 2, 0);
+    (*p)[3] = QVector3D(0.5f, 0.5f, -1); (*p)[4] = QVector3D(0.5f, 0.5f, 1); (*p)[5] = QVector3D(1, 0.5f, 0);
+    (*p)[6] = QVector3D(0.25f, 0.25f, 0); (*p)[7] = QVector3D(0.5f, 0.25f, 0); (*p)[8] = QVector3D(0.25f, 0.5f, 0);
+    mesh.addPolygon({0, 1, 2});
+    mesh.addPolygon({3, 4, 5});
+    mesh.addPolygon({6, 7, 8});
+    const auto s = mesh.analyzeSelfIntersections();
+    EXPECT_TRUE(s.positionAnalysisAvailable);
+    EXPECT_EQ(s.skippedTriangleCount, 0);
+    EXPECT_EQ(s.intersectingPairCount, 2);
+}
+
+TEST(MeshGeometryTest, SelfIntersectionExcludesAdjacentAndSeparatedPairs) {
+    Mesh mesh;
+    mesh.setVertexCount(7);
+    auto p = mesh.vertexAttributes().add<QVector3D>("position");
+    (*p)[0] = QVector3D(0, 0, 0); (*p)[1] = QVector3D(1, 0, 0); (*p)[2] = QVector3D(0, 1, 0);
+    (*p)[3] = QVector3D(1, 1, 0); (*p)[4] = QVector3D(3, 0, 0); (*p)[5] = QVector3D(4, 0, 0); (*p)[6] = QVector3D(3, 1, 0);
+    mesh.addPolygon({0, 1, 2});
+    mesh.addPolygon({1, 3, 2});
+    mesh.addPolygon({4, 5, 6});
+    const auto s = mesh.analyzeSelfIntersections();
+    EXPECT_EQ(s.adjacentPairCount, 1);
+    EXPECT_EQ(s.intersectingPairCount, 0);
+}
+
+TEST(MeshGeometryTest, SelfIntersectionReportsSplitVertexAndFanExclusions) {
+    Mesh mesh;
+    mesh.setVertexCount(7);
+    auto p = mesh.vertexAttributes().add<QVector3D>("position");
+    (*p)[0] = QVector3D(0, 0, 0); (*p)[1] = QVector3D(1, 0, 0);
+    (*p)[2] = QVector3D(1, 1, 0); (*p)[3] = QVector3D(0, 1, 0);
+    (*p)[4] = QVector3D(1, 0, 0); (*p)[5] = QVector3D(2, 0, 0);
+    (*p)[6] = QVector3D(1, 1, 0);
+    mesh.addPolygon({0, 1, 2, 3});
+    mesh.addPolygon({4, 5, 6});
+    const auto original = mesh.analyzeSelfIntersections();
+    const auto welded = mesh.analyzeSelfIntersections(0.0, true);
+    EXPECT_EQ(original.samePolygonPairCount, 1);
+    EXPECT_EQ(original.intersectingPairCount, 2);
+    EXPECT_EQ(welded.samePolygonPairCount, 1);
+    EXPECT_EQ(welded.adjacentPairCount, 2);
+    EXPECT_EQ(welded.intersectingPairCount, 0);
+}
+
 TEST(MeshGeometryTest, QuadNormalsPointUp) {
     auto mesh = makeQuad();
     mesh->computeVertexNormals();

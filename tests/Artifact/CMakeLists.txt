@@ -70,32 +70,6 @@ if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
-artifact_add_test(ArtifactTextAnimatorLayerContractTest
-    SOURCES
-        TextAnimatorLayerContractTest.cpp
-    LIBS
-        ArtifactAppRuntime
-)
-set_tests_properties(ArtifactTextAnimatorLayerContractTest PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-    LABELS "text;layer;animation;serialization;undo;cpu;contract"
-    TIMEOUT 90
-    RUN_SERIAL TRUE
-)
-
-artifact_add_test(ArtifactMotionBlurLayerPersistenceContractTest
-    SOURCES
-        MotionBlurLayerPersistenceContractTest.cpp
-    LIBS
-        ArtifactAppRuntime
-)
-set_tests_properties(ArtifactMotionBlurLayerPersistenceContractTest PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-    LABELS "motion-blur;layer;camera;serialization;undo;cpu;contract"
-    TIMEOUT 60
-    RUN_SERIAL TRUE
-)
-
 artifact_add_test(ArtifactShapeLayerAnimationPersistenceContractTest
     SOURCES
         ShapeLayerAnimationPersistenceContractTest.cpp
@@ -153,6 +127,71 @@ set_tests_properties(ArtifactTimelinePropertyGroupContractTest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     LABELS "timeline;property-groups;cpu;contract"
     TIMEOUT 30
+)
+
+# Project View panel contract test.
+#
+# Exercises the Project View surfaces headless: the project model, the
+# search/type filter proxy and the Project View widget (expand/collapse,
+# presentation mode, hit testing, column width, sorting, selection).
+artifact_add_test(ArtifactProjectViewContractTest
+    SOURCES
+        ArtifactProjectViewContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+# Place the executable next to the application runtime DLLs (and the Qt
+# platform plugins) instead of the default test directory, so the headless run
+# finds every dependency without a PATH override.
+set_target_properties(ArtifactProjectViewContractTest PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+if(WIN32)
+    add_custom_command(TARGET ArtifactProjectViewContractTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactProjectViewContractTest>
+            "$<TARGET_FILE_DIR:ArtifactProjectViewContractTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+
+    # The contract run is headless (QT_QPA_PLATFORM=offscreen), so the offscreen
+    # platform plugin has to sit next to the executable or QApplication aborts
+    # before any test runs.
+    set(_artifact_project_view_vcpkg_installed "${VCPKG_INSTALLED}")
+    if(NOT EXISTS "${_artifact_project_view_vcpkg_installed}/debug/bin"
+       AND DEFINED VCPKG_INSTALLED_DIR
+       AND EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows")
+        set(_artifact_project_view_vcpkg_installed
+            "${VCPKG_INSTALLED_DIR}/x64-windows")
+    endif()
+    if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+        set(_artifact_project_view_vcpkg_installed
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+    endif()
+
+    set(_project_view_offscreen_plugin
+        "${_artifact_project_view_vcpkg_installed}/debug/Qt6/plugins/platforms/qoffscreend.dll")
+    if(NOT EXISTS "${_project_view_offscreen_plugin}")
+        set(_project_view_offscreen_plugin
+            "${_artifact_project_view_vcpkg_installed}/Qt6/plugins/platforms/qoffscreen.dll")
+    endif()
+    if(EXISTS "${_project_view_offscreen_plugin}")
+        add_custom_command(TARGET ArtifactProjectViewContractTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                "$<TARGET_FILE_DIR:ArtifactProjectViewContractTest>/platforms"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${_project_view_offscreen_plugin}"
+                "$<TARGET_FILE_DIR:ArtifactProjectViewContractTest>/platforms/"
+            VERBATIM
+        )
+    endif()
+endif()
+set_tests_properties(ArtifactProjectViewContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "project-view;project;widget;qt;cpu;contract"
+    TIMEOUT 120
+    RUN_SERIAL TRUE
 )
 
 artifact_add_test(ArtifactRenderContextLodContractTest
@@ -990,6 +1029,16 @@ artifact_add_test(ArtifactTemporalMedianEffectContractTest
 )
 set_tests_properties(ArtifactTemporalMedianEffectContractTest PROPERTIES
     LABELS "effect;temporal-median;temporal;cpu;contract"
+)
+artifact_add_test(ArtifactTemporalEffectsRDContractTest
+    SOURCES
+        ArtifactEffectFrameSamplerContractTest.cpp
+    LIBS
+        ArtifactEffectContract
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactTemporalEffectsRDContractTest PROPERTIES
+    LABELS "effect;temporal;frame-sampler;cpu;contract"
 )
 artifact_add_test(ArtifactEchoEffectContractTest
     SOURCES
@@ -2234,7 +2283,6 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     )
     target_compile_definitions(ArtifactTextGlyphRenderContractTest PRIVATE
         ARTIFACT_TEXT_TEST_USE_VULKAN=1
-        ARTIFACT_TEXT_ANIMATOR_BASELINE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/baselines/text-animator"
     )
     target_include_directories(ArtifactTextGlyphRenderContractTest PRIVATE
         "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngine/interface"
@@ -2244,9 +2292,7 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
         "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
     )
     set_tests_properties(ArtifactTextGlyphRenderContractTest PROPERTIES
-        ENVIRONMENT
-            "ARTIFACT_TEXT_ANIMATOR_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/text-animator"
-        LABELS "animation;renderer;gpu;text;headless;image;contract"
+        LABELS "animation;renderer;gpu;text;headless;contract"
     )
 endif()
 

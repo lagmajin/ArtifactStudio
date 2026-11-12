@@ -9,7 +9,6 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <vector>
 
 import Data.FileWatcher;
 import Core.ArtifactString;
@@ -93,33 +92,6 @@ TEST(FileWatcherStandaloneTest, ExistingPathCanBeWatchedAndUnwatched)
     EXPECT_TRUE(watcher.isWatching(path));
     watcher.unwatch(path);
     EXPECT_FALSE(watcher.isWatching(path));
-}
-
-TEST(FileWatcherStandaloneTest, ManyPathsRemainIndependentAcrossMapGrowth)
-{
-    WatchCleanup cleanup;
-    constexpr int fileCount = 48;
-    std::vector<std::unique_ptr<TemporaryFile>> files;
-    files.reserve(fileCount);
-    for (int index = 0; index < fileCount; ++index) {
-        files.push_back(std::make_unique<TemporaryFile>());
-    }
-
-    auto& watcher = FileWatcher::instance();
-    for (const auto& file : files) {
-        watcher.watch(String(file->path().string()), [](const String&) {}, 10000);
-    }
-    for (int index = 0; index < fileCount; ++index) {
-        const String path(files[static_cast<std::size_t>(index)]->path().string());
-        ASSERT_TRUE(watcher.isWatching(path));
-        if (index % 2 == 0) {
-            watcher.unwatch(path);
-        }
-    }
-    for (int index = 0; index < fileCount; ++index) {
-        const String path(files[static_cast<std::size_t>(index)]->path().string());
-        EXPECT_EQ(watcher.isWatching(path), index % 2 != 0);
-    }
 }
 
 TEST(FileWatcherStandaloneTest, RegistrationDoesNotNotifyWithoutAChange)

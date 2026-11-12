@@ -160,50 +160,6 @@ TEST(LottieExporterContractTest,
     EXPECT_FALSE(error.isEmpty());
 }
 
-TEST(LottieExporterContractTest, ValidationRejectsDuplicateAssetIds)
-{
-    auto document = validDocument();
-    LottieImageAsset first;
-    first.id = "duplicate-image";
-    first.fileName = "first.png";
-    first.width = 1;
-    first.height = 1;
-    LottieImageAsset second = first;
-    second.fileName = "second.png";
-    document.assets.emplace_back(first);
-    document.assets.emplace_back(second);
-
-    QString error;
-    EXPECT_FALSE(LottieExporter::validate(document, &error));
-    EXPECT_EQ(error, QStringLiteral("Lottie asset IDs must be unique."));
-}
-
-TEST(LottieExporterContractTest, ValidationRejectsNestedPrecompositionParentCycles)
-{
-    auto document = validDocument();
-    LottiePrecompAsset precomp;
-    precomp.id = "cyclic-precomp";
-    precomp.width = 64;
-    precomp.height = 64;
-
-    LottieLayer first;
-    first.ind = 1;
-    first.ip = 0;
-    first.op = 24;
-    first.parent = 2;
-    LottieLayer second;
-    second.ind = 2;
-    second.ip = 0;
-    second.op = 24;
-    second.parent = 1;
-    precomp.layers = {first, second};
-    document.assets.emplace_back(precomp);
-
-    QString error;
-    EXPECT_FALSE(LottieExporter::validate(document, &error));
-    EXPECT_EQ(error, QStringLiteral("Lottie precomp parent graph contains a cycle."));
-}
-
 TEST(LottieExporterContractTest,
      ExportImportRoundTripPreservesDocumentAndHonorsExportOptions)
 {

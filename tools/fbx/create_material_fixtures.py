@@ -157,6 +157,22 @@ def generate(output):
         "camera-light.fbx": cube(phong, "", "", camera_and_light_objects,
                                  camera_and_light_links),
     }
+    blue_material = (pbr.replace("METAL", "1").replace("ROUGH", "1")
+                    .replace('0.6,0.2,0.05', '0.05,0.2,0.6'))
+    blue_object = f'''Material: 1003, "Material::Blue", "" {{
+        Version: 102
+        {blue_material}
+    }}'''
+    multi_material = cube(
+        pbr.replace("METAL", "0").replace("ROUGH", "0.5"), "", "",
+        blue_object, 'C: "OO",1003,1001')
+    multi_material = multi_material.replace(
+        'MappingInformationType: "AllSame"',
+        'MappingInformationType: "ByPolygon"')
+    multi_material = multi_material.replace(
+        'Materials: *1 { a: 0 }',
+        'Materials: *6 { a: 0,0,0,1,1,1 }')
+    files["multi-material-pbr.fbx"] = multi_material
     for name, data in files.items():
         (output / name).write_text(data, encoding="utf-8", newline="\n")
     external_data = cube(phong,
