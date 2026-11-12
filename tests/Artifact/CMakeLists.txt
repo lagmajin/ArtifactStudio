@@ -991,6 +991,16 @@ artifact_add_test(ArtifactTemporalMedianEffectContractTest
 set_tests_properties(ArtifactTemporalMedianEffectContractTest PROPERTIES
     LABELS "effect;temporal-median;temporal;cpu;contract"
 )
+artifact_add_test(ArtifactTemporalEffectsRDContractTest
+    SOURCES
+        ArtifactEffectFrameSamplerContractTest.cpp
+    LIBS
+        ArtifactEffectContract
+        ArtifactEffectsRasterizer
+)
+set_tests_properties(ArtifactTemporalEffectsRDContractTest PROPERTIES
+    LABELS "effect;temporal;frame-sampler;cpu;contract"
+)
 artifact_add_test(ArtifactEchoEffectContractTest
     SOURCES
         EchoEffectContractTest.cpp
