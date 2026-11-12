@@ -1,0 +1,30 @@
+{
+  "file": "directional-strand-control.png",
+  "sha256": "7b43194a7c04f42c1794d3ff79d77c0d6498afa0562ae49404117553ee4b295a",
+  "dimensions": "1024x1024 RGB PNG",
+  "generation": "Deterministic dark gray background (RGB 40); three 256x256 high-contrast periodic line fields, 2px line width, period 12px for vertical/horizontal and 17px for diagonal. No random component.",
+  "rois": {
+    "primary": {
+      "x": 320,
+      "y": 320,
+      "width": 256,
+      "height": 256,
+      "known_direction": "vertical strands; horizontal frequency normal"
+    },
+    "upper-left": {
+      "x": 64,
+      "y": 64,
+      "width": 256,
+      "height": 256,
+      "known_direction": "horizontal strands; vertical frequency normal"
+    },
+    "lower-right": {
+      "x": 704,
+      "y": 704,
+      "width": 256,
+      "height": 256,
+      "known_direction": "diagonal strands at +45 degrees"
+    }
+  },
+  "license_or_permission": "AI-generated deterministic synthetic fixture; no external source."
+}
