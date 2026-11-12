@@ -103,6 +103,8 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST)
         LABELS "keying;video;cpu;core"
         TIMEOUT 60
         RUN_SERIAL TRUE
+        ENVIRONMENT
+            "ARTIFACT_KEYING_CORE_REAL_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/../Artifact/fixtures/keying/voa-green-screen-frame-2s.jpg"
     )
 endif()
 
