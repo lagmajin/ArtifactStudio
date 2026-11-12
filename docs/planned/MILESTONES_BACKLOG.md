@@ -1,6 +1,18 @@
 # Milestones Backlog
 
-**最終更新:** 2026-10-11
+**最終更新:** 2026-11-12
+
+### Fog / Atmospheric Scattering R&D
+- **M-FOG-RD-1** Fog・大気散乱の方式比較（In Progress: source audit・CPU積分／画像fixture・GPU式mirror診断・球状大気single-scattering参照）
+  - 既存CPU AtmosphereFog、GPU height fog試作、cloud shader内fogを区別し、linear HDR/depth契約を固定した決定論的fixtureでuniform／analytic height／raymarch height／single scattering／froxel／大気LUTを段階評価する
+  - 画質・数値誤差・GPU時間・memoryを比較して用途別の採用方式を提案する。runtime統合、UI、既定値変更はこのR&Dの対象外
+  - 詳細: `docs/planned/MILESTONE_FOG_ATMOSPHERIC_SCATTERING_RD_2026-11-12.md`
+
+### Professional Depth of Field Effect R&D
+- **M-DOF-RND-1** プロ向け被写界深度エフェクトの R&D（In Progress）
+  - 既存 GPU camera DoF、2.5D layer 近似、Deep CPU DoF を別経路として評価し、再現 scene pack で focus fidelity、occlusion／halo、bokeh、alpha/HDR、temporal stability、performance、backend parity を検証する
+  - R0 baseline → R1 画質ベンチマーク → R2 アルゴリズム候補比較 → R3 実装計画・受入契約の順に進め、調査結果なしに production renderer を広く変更しない
+  - 詳細: `docs/planned/MILESTONE_DOF_PROFESSIONAL_EFFECT_RND_2026-11-10.md`
 
 ### MPM 2D Granular Sand
 - **M-MPM-SAND-1** MPM顆粒砂シミュレーション（In Progress）

@@ -1,6 +1,14 @@
 # AGENTS
 
-**最終更新:** 2026-10-01
+**最終更新:** 2026-11-12
+
+### Windows UI 操作の既定禁止
+
+Windows のデスクトップ／GUI 操作は原則行わない。Computer Use 等による Windows アプリの起動・操作、マウス／キーボード入力、ダイアログ操作、画面キャプチャ、Windows 設定変更を含む。必要な場合は、対象アプリと操作範囲をユーザーが明示的に依頼した場合に限り、その範囲内で行う。既存のビルド・テスト実行に関する個別制限や、アプリ／外部サービス上で別途確認が必要な操作も引き続き適用する。
+
+### 画像エフェクト R&D の評価（必須）
+
+画像エフェクトの R&D は [`docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md`](docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md) に従い、開始前に画像評価計画を定める。進行中の案件も不足を未実施として記録し、完了判定までに評価する。
 
 ### Composition Viewport 採用モックの参照範囲（2026-09-08・必須）
 
@@ -19,6 +27,7 @@ When working on a date-stamped development branch (for example, `codex/YYYY-MM-D
 **Before any commit/push operation**, read and follow: [`.github/GIT_WORKFLOW_PARENT_CHILD.md`](.github/GIT_WORKFLOW_PARENT_CHILD.md)
 
 ### Golden Rules (MUST FOLLOW)
+0. **`main` への force push は親・子を問わず禁止**。`main` は fast-forward push のみ許可し、force push が必要と表示された場合は実行せず停止して原因を確認する。この禁止は `main` のみに適用し、他ブランチには適用しない。
 1. **Always commit child repos first**, then push
 2. **NEVER push parent without updating child gitlinks** with `git add Artifact ArtifactCore ArtifactWidgets`
 3. **Child push → Parent gitlink update → Parent push** (this order is mandatory)

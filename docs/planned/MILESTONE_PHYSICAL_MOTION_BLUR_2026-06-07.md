@@ -1,52 +1,6 @@
 # Physical Motion Blur Milestone
 
-**最終更新:** 2026-11-06
-
-## 現行状態の再判定 (2026-11-05)
-
-- GPU `MotionBlurPass` は velocity/depth 参照、シャッター位相、rectangular / triangle / trapezoid の重み付けを行う。Composition preview と GPU Render Queue beauty の両方から呼び出される。
-- shader は各出力 pixel の中心 velocity に沿って現在フレームの color/depth を再サンプルする。これは velocity-guided spatial reconstruction であり、シーンを shutter 内の複数時刻で再描画する temporal accumulation ではない。オクルージョン・alpha 境界や速度勾配の品質は画像受入が必要。
-- `tests/Artifact/PostProcessPassContractTest.cpp` の小画像visual fixtureは、移動色pixelだけでなく隣接pixelにも速度を手動設定して軌跡を模擬する。これは実scene velocity passの背景（neutral velocity）を再現しないため、実物体coverage外のtrail生成やalpha境界拡張を証明する受入結果として扱わない。
-- 実物体coverage外trail用に、8x8 tileあたり速度方向quadrant別のsource-pixel indexをseedし、tile-grid jump-flood candidate propagationと背景合成branchを実装した。通常gatherのdepth edge判定は維持する。tile内で同quadrantの複数trajectoryが競合する場合やcandidate pathの穴、遮蔽、画像品質、dispatchコストはruntime未確認で、受入済みとは扱わない。
-- 通常のpixel gatherの深度判定と既存depth-edge contractは維持する。coverage外trailは、coverage・source pixel・signed velocity・source depthが揃った候補に限定した別の前景寄与として背景へ重ねる必要がある。全tapのweightで正規化し、背景側の露光時間を保持しないと、少数の前景sampleが不透明な帯になる。近い遮蔽物は候補を拒否する。
-- custom shutter curve、velocity/coverage に基づく adaptive sample count、preview/final 固有の品質ポリシーは未実装。
-- Render Queue の physical velocity pass は 3D mesh に限定される。2D image/text/shape の layer-local 2.5D copy blur は独立機能で、Velocity AOV と physical post blur の入力にはならない。
-- camera blur と timeline blur は別設定だが、同時有効時は同一 velocity/depth で順に二回積分する。意図した合成露光か重複かは仕様・視覚比較待ち。
-- GPU shader compile、preview / Render Queue parity、連続・選択範囲・MFR・stereo・encoded video、性能計測は未検証。リポジトリ指示により、この作業ではビルド・テストを実行していない。
-- Motion blur用candidate ping/pong scratchは`AuxiliaryTargetRequest`経由でpreview/Render Queueに要求され、RenderPipeline initialize/resizeで確保・destroyで解放される。Raw Velocity AOVだけの要求では確保しない。形式はtileあたり速度quadrant別4候補を持つ`RGBA32_UINT`、寸法はceil(width/8)×ceil(height/8)。seed・jump-flood・coverage外resolveへの接続は実装済みだが、shader compile、画像品質、GPU時間、MFR時の複製メモリは未検証。
-
-## 2026-11-05 実装追記
-
-2.5D レイヤーモーションブラーの前フレーム差分評価を composition の絶対フレーム基準に統一した。
-Render Queue の `goToFrame()` はレイヤー相対フレームを保持するため、相対値を
-`getGlobalTransformAt()` に渡すと in-point / start-time があるレイヤーで誤った速度になる。
-現在の composition frame を取得し、前フレームと現フレームの global transform を比較する。
-コード静的確認のみで、オフライン出力・MFR・プレビューの実描画は未検証。
-
-Render Queue の Timeline Motion Blur 設定（有効、angle、phase、sample count、shape、
-trapezoid plateau）は job 開始時に `FrameRenderSnapshot` へ値コピーし、全フレームと
-MFR worker が同じ設定を使うよう固定した。これはフレーム途中の設定変更で一つの出力動画に
-異なるシャッター設定が混ざることを防ぐ。静的な配線確認のみで、連続/MFR出力は未検証。
-
-Mesh velocity shader は previous clip W が epsilon 以下、または投影後velocityが非有限なら、
-coverage alphaを1に保ったまま中立速度を出すようにした。前フレーム位置がカメラ背面／投影面上に
-あるとき、正のepsilonで割って巨大速度を作る挙動を避ける。camera-plane crossingの画像結果と
-通常移動の回帰は未検証。
-
-`Artifact3DLayer` の複数material-slot instanceが前フレームtransformに現在値を複製していた
-ため、アニメーションしている multi-mesh/USD layer の velocity がゼロになるケースを修正した。
-各instanceの previous transform に、layer の previous transform と同じ mesh-local transform
-を合成して渡す。速度AOV・motion blur出力のruntime確認は未実施。
-
-MotionBlur shader の `sampleCount == 1` を無条件 pass-through にしていた分岐を修正した。
-phase が非ゼロなら、1サンプルは露光位置 `t = phase` のサンプルを意味するため、velocity に沿った
-単一時刻サンプルを行う。phase=0 の1サンプルと angle=0/phase=0 は exact copy として早期終了する。
-GPU契約テストの実行は未実施。
-
-深度ウェイトの対称差分判定をD3D depth (near=0, far=1) に沿う片方向判定へ変更した。
-中心pixelより遠いサンプルは拒否し、同深度または前景サンプルだけ許可することで、背景色が
-前景輪郭へ逆流するのを避ける。coverage外trailはvelocity dilation未接続のため未解決。
-shader/runtimeでの遮蔽テストは未実施。
+**最終更新:** 2026-08-15
 
 > 2026-06-07 作成
 
@@ -263,7 +217,7 @@ shader/runtimeでの遮蔽テストは未実施。
 
 `MotionBlurPass` は色・速度・深度・出力を入力契約とし、速度に沿ったサブサンプルを深度差で重み付けして GPU compute で積分する。成功時だけ `RenderPipeline::swapAccumAndTemp()` を行うため、パス失敗時は従来の resolve にフォールバックする。
 
-この時点で未完了: shutter shape（triangle / trapezoid / custom）、adaptive sampling、preview/final の品質差、実機での shader compile / runtime 検証。
+未完了: shutter shape（triangle / trapezoid / custom）、adaptive sampling、preview/final の品質差、実機での shader compile / runtime 検証。
 
 ビルド・実行確認はリポジトリ方針により未実施。
 
@@ -277,13 +231,7 @@ shader/runtimeでの遮蔽テストは未実施。
 
 ## Next Step
 
-真のshutter-time accumulationへ進む前提として、時間評価の入口を設計する。`FramePosition`とComposition / Layer `goToFrame()`は整数フレームだが、`getGlobalTransform4x4At(RationalTime)`には限定的な明示時刻経路がある。ただし3D transform向けで、2D branchは整数frameへ変換し、シーン全体・component/physics stateを評価するものではない。`Artifact3DLayer::draw()`もinteger `currentFrame()`でtransformを構築し、skin animationは共有meshを`setAnimationTime()`で更新しているため、各サンプルで同じlayerを再評価する方式は順序依存・共有状態汚染の恐れがある。Composition seekはphysics / component simulationにも触れる。PreviewのN-1 pre-rollは履歴効果用の整数フレーム描画で、サブフレームsample蓄積ではない。現行フレーム描画を丸めた時刻で複数回呼ぶだけでは要件を満たさない。property/keyframe evaluator、layer-local time conversion、skin pose出力、simulation snapshot/restore、rendererの中間出力保持を調査し、副作用を隔離したfractional-time sample contextをpreviewとRender Queueで共有できる境界を決める。
-
-Render Queue の 3D velocity target は clear alpha 0、通過したmesh fragment alpha 1で書く。Opaque / alpha-masked range はblend無効・depth write有効で、mask holeはpixel shaderでclipされる。Blended rangeはblend有効・depth write無効、velocity shaderの出力alphaは1固定なので、このalphaを透明度や厳密な被覆率には使えない。`MotionBlurPass` はvelocityをfloat4で読み、coverage alphaをcandidate seed時に利用する。
-
-legacy tile-max shadersはsigned `float2`の最大／最小速度のみを集約し、現行AOVの`[0,1]` encoding、coverage alpha、発生元depthと契約が異なるため、そのまま再利用できない。Timelineのshutter angleは0–720度、phaseは±360度で、passの時刻式では最大2 frame離れる。投影速度に明示上限はないが、出力先は画面内に限られるため候補source探索の正しさ上限は画面対角、単純な全画素探索は実用的でない。
-
-candidate seedは各8x8 tile内のcoverage付きvelocityを走査し、方向quadrant別に最大移動量のsourceを一つ保持する。ceil(width/8)×ceil(height/8) gridのjump-floodは各tileで9近傍×4方向候補を検査する。同quadrantに複数物体が入る場合は候補を落とし得る。次の受入では実mesh coverage、moving foreground over background、近い遮蔽物、alpha mask、tile境界をまたぐ交差軌跡を含む短い動画を出力し、候補の穴・誤伝播を確認する。エンコード経路の差とblur差を分けるため、同じ範囲を連番画像でも出力して比較する。続けて先頭・中間・末尾、連続出力と選択範囲、serialとMFR、previewとRender Queueを比較し、フレーム欠落・重複、ちらつき、輪郭漏れ、フレーム境界の速度誤りがないことを確認する。RGBA32_UINT scratchのGPU時間・VRAM量を1080p/4KとMFR worker数別に計測する。Blended materialは別途仕様化する。
+`MotionBlurPass` の入力契約と compute 実行境界を実装し、その後に preview / final の sample policy を接続する。
 
 ## 2026-07-25 実装監査
 
@@ -296,38 +244,3 @@ candidate seedは各8x8 tile内のcoverage付きvelocityを走査し、方向qua
 - したがって、現状は後続実装の前提となる velocity 基盤と簡易 blur 基盤まで。次の実装単位は、まず motion sample のデータ契約と shutter profile の定義。
 
 ビルド・実行確認はリポジトリ方針により未実施。
-
-## 2026-11-05 Velocity / shutter phase contract correction
-
-静的なコード照合で、Composition の Velocity AOV は画面 UV/frame 差分を `[0, 1]` に符号化して保存していることを確認した。`ArtifactMotionBlurPass` はこれを符号付き UV/frame 差分へ復号し、dispatch の幅・高さで pixel/frame に変換してサンプル位置を求める。静止速度の AOV 中立値は `(0.5, 0.5)`。
-
-Preview 設定の shutter phase は度数で保持されるため、Composition renderer から pass へ渡す際に `degrees / 360` へ正規化するよう接続した。GPU pass 契約 fixture も production AOV と同じ速度符号化を使い、静止・水平・垂直・回転ベクトルを検査するよう拡張した。
-
-さらに pass の公開設定値に NaN / Inf が渡された場合、GPU 定数へ伝播させず shutter angle は 180 度、phase は 0、velocity scale は 1 へ戻す。GPU 契約テストにこの有限値フォールバックの比較ケースを追加した（実行は未確認）。
-
-矩形を既定値として維持したまま、三角形と台形の shutter profile を pass に追加した。三角形は露光中央を最大、両端をゼロとし、台形は `trapezoidPlateau` で中央の一定重み区間を指定する。GPU 契約テストには矩形より三角形の中央寄与が強く、台形がその中間となる比較を追加した（実行は未確認）。custom curve と adaptive sampling は未実装。
-
-Preview Settings に shape 選択と trapezoid plateau を追加し、`ArtifactAppSettings` へ保存する。Composition controller は同設定を Timeline Blur と Camera Blur の pass に渡す。UI / 保存 / GPU 実行は未検証。
-
-Render Queue 統合監査では、GPU の通常 beauty path に Timeline / active Camera の `MotionBlurPass` を接続した。velocity target は既存 `RenderPipeline` から確保し、beauty 描画後に 3D mesh の velocity-only pass を実行する。MFR worker は pass を個別所有する。AOV-only 要求では blur を有効化せず、multi-channel の beauty だけを blur し、velocity AOV は raw 値を維持する。deep export は blur をスキップする。
-
-Image / Text / Shape の GPU draw は既存 `twoPointFiveDRenderPasses()` を使い、レイヤー設定に応じた前フレーム変換 delta の複製 blur を行う。これは物理 velocity AOV による post blur とは別の近似であり、Render Queue の `VelocityX/Y` には 2D / 2.5D motion vector を含まない。両方の blur を使う出力は別ケースとして視覚比較が必要。
-
-Render Queue は current / previous active-camera view・projection matrix を GPU frame path の beauty 描画と velocity-only redraw の両方へ渡す。shake 時刻は Composition View と同じフレーム基準で評価し、stereo は左 eye view を使う。shader compile / GPU 実行および選択フレーム、MFR、stereo の結果は未確認。
-
-### Render Queue / video acceptance matrix (pending runtime verification)
-
-| Case | Setup | Expected result |
-| --- | --- | --- |
-| Static hold | Static 3D and 2D layers; blur enabled | No visible trail or frame-to-frame flicker. |
-| Object motion | Translate and rotate a 3D mesh at constant speed | Trail follows the measured screen-space velocity; length scales with shutter angle. |
-| Camera motion | Move, rotate, and shake the active camera while a 3D mesh is static | Beauty framing and velocity direction follow the same camera matrices; no first-frame streak. |
-| Occlusion / alpha | Overlapping meshes, masked material, transparent edges | Foreground depth rejects background color; alpha boundaries do not leave solid rectangular trails. |
-| 2.5D layer blur | Enable the layer-local 2.5D blur, then compare Timeline blur on/off | Existing transform-copy blur remains distinct; Timeline post blur must not be mistaken for it. |
-| Frame dispatch | Render sequential frames, a selected range starting mid-shot, and MFR | Same requested frame is stable across dispatch modes; no worker-start history artifact or cross-frame contamination. |
-| Multi-channel EXR | Request Beauty plus VelocityX/Y and Depth | Beauty is blurred; Velocity and Depth retain raw channel semantics and match the unblurred render. |
-| Deep EXR | Enable deep output with blur settings active | Deep samples and beauty stay mutually consistent; current policy skips physical blur. |
-| Encoded video | Compare an image-sequence render with extracted frames from the encoded video | Frame count, ordering, duration, and motion-blur timing agree; account for codec loss separately from render differences. |
-| Stereo | Render a moving camera in stereo mode | Left-eye path is stable and matches the configured output contract; verify whether right-eye export is required. |
-
-Capture the same frame numbers from the unblurred reference, GPU Render Queue, and encoded video. Record backend, adapter, resolution, frame rate, shutter angle/phase/shape, sample count, frame-range mode, and MFR worker count with each result. Run every output case in both `ja` and `en` only when the tested artifact includes UI capture; image/video render comparisons themselves are locale independent.

@@ -1,4 +1,290 @@
-**最終更新:** 2026-11-10
+**最終更新:** 2026-11-12
+
+## 2026-11-12: FBX RT PBR needs explicit multi-buffer evidence before Composition integration
+- **関連:** `tests/Artifact/Model3DLightCompositionIntegrationTest.cpp::CompositionControllerDisplaysLitFbxAndRegistersRayTracingGeometry`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp`、`ArtifactCore/include/Graphics/RayTracingManager.ixx`、`Artifact/src/Render/ArtifactIRenderer.cpp`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`。
+- **確認できた事実:** Composition integration test confirms FBX raster display and RT BLAS/TLAS registration, but diagnostics explicitly expect only a 1x1 warmup dispatch. Product Composition camera dispatch/output merge was not found in the inspected production path. Core Vulkan acceptance executes eight diagnostic AOVs and imported FBX single-/multi-material cases on NVIDIA RTX 4070 Ti. The multi-material capture contains both source slot indices and visibly different per-slot Base Color and Metallic/Roughness values.
+- **変更:** Added a per-dispatch ray output selector for Beauty, Base Color, World Normal, Base UV, Metallic/Roughness/AO, Emission, Hit Distance, and Primary Visibility. Added Core acceptance PNG/PFM capture and value checks, including Importer geometry/material/map wiring into RT and texture-on versus scalar-only comparison. Added a two-material FBX fixture, per-triangle slot propagation in `Mesh::RenderData`, production renderer use of that identity, and RT AOV capture. Added Composition FBX integration source that dispatches AOVs from an explicit Composition camera and saves PNG/float/statistics. Beauty remains the default; no persistent runtime flag or UI switch was added.
+- **価値または懸念:** A beauty PNG alone cannot distinguish importer slot/UV loss, RT descriptor mismatch, shading error, or Composition merge error. Carrying triangle material indices in flattened render data provides a shared identity contract between the importer and RT registration; the production Artifact renderer call site still needs runtime integration verification. Capture boundaries must span imported data, raster inputs/output, RT inputs/output, and final composition, while keeping diagnostic readback out of hot paths.
+- **実行結果:** Single-material AOV tests pass on Vulkan and verify maps. Multi-material FBX RT AOV test also passes: both slots cover visible pixels in Base Color and Metallic/Roughness captures (full-frame counts 5,721 / 11,443 at 256×256; fixed 128×128 boundary crop counts 4,836 / 10,126). 全RGBA sampleはfinite。さらに同fixtureをRaster `MeshRenderer::setMaterialRanges` / `drawMaterialSlots`経由でRGBA32F captureし、RTと同じslot count・crop countを確認。Rasterは左右基底が反対なのでX反転で座標を合わせ、material rangeごとのbaseColorをemission-onlyで出した診断バッファとRT Base Color AOVを比較。coverage 17,164 pixel、51,492 RGB sampleでMAE/RMSE/最大差が0となり、テスト通過。Raster boundary cropも目視済み。これはmaterial factor/range契約の一致であり、Beauty/照明やProduction Compositionの一致ではない。Single-material raster map-on/map-off comparison responds to maps; Raster/RT Beauty MAE remains 0.222653 without an approved tolerance or lighting-model decomposition. `ArtifactIRenderer.cpp` object compiled with triangle-index forwarding.
+- **未検証:** D3D12、Metallic/Roughness/AO Raster diagnostic parity (source added; not compiled or run because another `ArtifactUiTest` build repeatedly occupies the shared Ninja tree), UV seam/normal detail, Composition production frame merge, performance, animation stability, Composition integration capture runtime。新規multi-material RT acceptanceはImporter→RenderData→RT material tableを通すが、production Artifact rendererによるtriangle index forwardingはruntime未確認。Artifact full target build stops at existing `PluginRegistry.cpp` missing IFC imports (`Container.NameMap`, `Core.ArtifactSet`). `ArtifactCoreMeshImporterFbxTest`の追加契約ケースもFBX importer test optionが無効で未実行。Coreには別fixtureの既存spot cone assertion failureがある。
+- **次に確認すべきこと:** Metallic/Roughness/AO Raster diagnosticとRT AOVのfloat buffer比較を完了する。続けてUV1 seam、normal detail、emission/alpha fixtureを加える。その後、Compositionの自動RT frame dispatch/output mergeを実装・実行検証し、D3D12 parityと性能を別実行条件で記録する。
+
+## 2026-11-12: General Blur resident Gaussian node is distinct from Gaussian Blur effect
+- **関連:** `Artifact/include/Effects/Blur/BlurEffect.ixx::appendGpuSpatialNodes` / `gpuRasterEffectDomain`、`Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::GaussianBlurCS`、`Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurGPUImpl`。
+- **確認できた事実:** stable ID `blur` (general Blur) appends `SeparableGaussianBlur` nodes and executes resident `GaussianBlurCS` under its eligibility rules. stable ID `effect.blur.gaussian` uses `GauusianBlur.cpp` CPU and standalone GPU implementations; no resident node registration for this effect was found. Its standalone shader multiplies RGB by alpha and unpremultiplies, while general Blur's resident shader expects internal linear-premultiplied input and filters all RGBA channels directly.
+- **価値または懸念:** Similar Gaussian tap equations do not establish the same effect route or alpha contract. Treating `GaussianBlurCS` as a resident backend for `effect.blur.gaussian` would inflate coverage and misattribute alpha evidence.
+- **未検証:** The dedicated Gaussian standalone wrapper's actual dispatch and production reachability; runtime pixels for either effect; backend parity.
+- **次に確認すべきこと:** Keep the resident equation mirror labeled as general Blur only. Capture the dedicated Gaussian effect through CPU surface, then standalone wrapper if specifically needed; capture general Blur's eligible resident path separately.
+
+## 2026-11-12: Gaussian Blur wrapper and general Blur resident node equations differ at border impulses
+- **関連:** `Artifact/src/Effects/Blur/GauusianBlur.cpp`、`experiments/blur-rd/gaussian_cpu_source_mirror.py`、`experiments/blur-rd/results/gaussian_cpu_source_mirror_2026-11-12.json`
+- **確認できた事実:** opaque float32 impulseのCPU OpenCV出力と専用Gaussian Blur stable effect (`effect.blur.gaussian`) のstandalone HLSL tap式を比較。中央PSFの最大差は全sigmaで1.2e-7以下。左端impulseの有限画像内energyはCPU/HLSL mirrorそれぞれσ=0.5で0.8933/1.0003、σ=3で0.5666/1.7464、σ=16で0.5125/6.8444となった。CPUはOpenCV既定境界、HLSL式はsample座標clampであり、sigma=16のenergy比は約13.36。resident shaderの追加比較はstable ID `blur` の一般Blur nodeの数式mirrorであり、Gaussian Blur effect経路ではない。
+- **価値または懸念:** 中央画素だけのparityは端の境界応答差を隠す。比較suiteでは中心と端のimpulseを別に測る必要がある。
+- **未検証:** 実GPU dispatch、D3D12/Vulkanの実差、実Artifactのrender route、ユーザー可視欠陥・許容境界仕様。値はCPUとshader式のmirrorでありruntime画像比較ではない。
+- **次に確認すべきこと:** 専用Gaussian Blur effectのopaque fixtureをCPU surfaceとstandalone wrapperで個別captureする。一般Blurのresident pathは別effect suite rowで測定する。視覚cropと背景合成を合わせて境界応答を判断する。
+
+## 2026-11-12: Gaussian CPU effectのalpha associationはsource descriptorと要確認
+- **関連:** `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cpp::applyRasterizerEffectsAndMasksToSurfaceImpl`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` のCPU layer-effect surface builder、`experiments/blur-rd/gaussian_cpu_source_mirror.py`
+- **確認できた事実:** Gaussian CPU式とstandalone GPU wrapper shaderはdescriptorのalphaModeを読まず、RGBへalphaを掛けてblur後にunpremultiplyし、source descriptorを出力に保持する。CompositionViewDrawingのQImage経路は`Format_ARGB32_Premultiplied`をそのまま保持し、Premultiplied descriptorで画像化してからCPU effect stackへ渡す。別のComposition CPU builderはdescriptorなし`setFromCVMat(mat)`でalphaMode Unknownのままeffect stackへ進む。source mirrorのsigma=3半透明点ではstraight入力の可視energyはdescriptor-aware referenceと一致したが、premultiplied入力を同じ式で処理する条件ではpremultiplied出力の可視energyが約337倍になった。同じモデルのsigma 0.5/1/1.5/3/8/16では参照比が21/45/109/337/1941/5521。
+- **価値または懸念:** 少なくとも静的に到達可能なCompositionViewDrawing経路にはpremultiplied値をCPU Gaussianへ渡せる経路がある。source-mirrorでsigmaが大きくなると参照比も上昇する。これらの比はalpha > 1e-5となる影響pixel数を含むsource-mirrorの積算値で、GPU／CPU実出力やユーザー可視症状を証明しない。
+- **未検証:** 実際のcallerでのQImage形式頻度、全producerのalpha値規約、GPU resident／fallback間のassociation、実Artifact出力、QImage/export時の見え方。
+- **次に確認すべきこと:** 実際の`Format_ARGB32_Premultiplied` surfaceをGaussian CPU effectとstandalone GPU wrapperの両方へ通し、直前／直後のraw BGRA値とdescriptor、透明背景合成後cropをcaptureする。resident compositor経路とdescriptorなし経路は別に追跡し、画像R&D評価後に対処を決める。
+
+## 2026-11-12: Gaussian CPU blurの境界energyはsource mirrorでsigma依存に低下する
+- **関連:** `experiments/blur-rd/gaussian_cpu_source_mirror.py`、`experiments/blur-rd/results/gaussian_cpu_source_mirror_2026-11-12.json`、`Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`
+- **確認できた事実:** OpenCV 4.13.0／NumPy 2.4.3のsource-mirror計測では、opaque 513×513中央impulseの実効sigmaが指定0.5/1/1.5/3/8/16 pxに対して0.4637/0.9980/1.4978/2.9755/7.9098/15.8029 px。デフォルト境界処理の横端impulseの有限画像内energyは同じ順で0.8933/0.6995/0.6330/0.5666/0.5250/0.5125。
+- **価値または懸念:** nominal sigmaからの小さなPSF差に加え、端部では有限画像内に残るenergyが変わる。source mirrorでありArtifactの実出力や視覚品質の欠陥を証明しない。境界契約を製品captureで確認する候補になる。
+- **未検証:** Artifact実行経路での画素値、alpha/hidden-RGB、descriptor変換、透明背景への合成後の見た目、GPU parity、runtime性能。
+- **次に確認すべきこと:** 同じsigma・寸法・opaque/transparent条件をArtifact CPU captureへ通して差分を比較し、端部の出力energyと背景合成cropを目視評価する。source mirrorだけでコード変更や合否を決めない。
+
+## 2026-11-12: Blur R&D の外部bundleとcapture入口が作業状態に残っていない
+- **確認できた事実:** 計画書はfixture・比較CLI一式をCodex visualizations作業領域に置いたとしているが、今回確認した当該ディレクトリは空で、リポジトリ内にも `blur-rd-fixtures` のファイルはない。Gaussian blur contract test sourceは `tests/ImageEffects/CMakeLists.txt` の `ArtifactGaussianBlurEffectContractTest` targetから登録されている（初回の記録で `tests/Artifact/CMakeLists.txt` のみ確認してtarget未登録としたのは誤り）。Artifact効果出力をfloat32でcaptureする既存入口は未確認。
+- **価値または懸念:** 外部作業領域にだけ置いた測定条件・解析器・fixtureは後続セッションで再現できず、計画書の「準備済み」を現行状態の証拠として扱えない。CPU画像品質R&Dはcapture入口と再現可能な入力一式が揃うまで開始済みと見なさない。
+- **未検証:** ファイルが別の未確認作業領域に複製されている可能性、登録済みtest targetを含むfocused harnessのconfigure/build/run結果。
+- **次に確認すべきこと:** fixture bundleを再取得または再生成し、Artifactのdescriptor-aware CPU capture adapterを用意する。test target自体は登録済みだが、configure/build/test結果は未確認であり、実行には明示許可が必要。製品コード変更は画像比較の根拠が揃ってから判断する。
+
+## 2026-11-11: Retro suiteのgrain前endpointはpalette stageに由来する
+- **関連:** `experiments/RetroImageLab/tools/full_suite_photo_stage_endpoint_provenance_study.py`、`retro_lab.py::ordered_quantize` / `apply_retro`、実験120。
+- **確認できた事実:** provenance照合済み5写真×4 preset×512/1024/2048のgrain-off 60条件でRGB8再現一致。quantization+dither後にfloat RGB endpointが現れ、512で全条件median 1.654%; palette mathは`1/(colors-1)`間隔で0と1を含む。scanlineありpresetでは暗行で白endpointの一部が解除された。
+- **価値または懸念:** RGB8 0/255 occupancyはclip失敗率と同義ではなく、意図したpalette valueも含む。grainのheadroom検討ではstage endpoint・clamp excursion・grain-off paired endpoint transitionを分けて扱う必要がある。
+- **未検証:** endpointが各写真/lookに視覚上適切か、他画像・人手・Core/GPU経路で再現するかは未評価。製品変更の根拠ではない。
+- **次に確認すべきこと:** palette levelsとBayer dither strength別にendpoint生成/解除を因子分解し、元のtone region別分布とdetail cropsを並べる。Core変更なし。
+
+## 2026-11-11: Grain RGB8端点率だけではpre-clamp clippingを帰属できない
+- **関連:** `experiments/RetroImageLab/tools/full_suite_photo_grain_preclamp_attribution_study.py`、実験119。
+- **確認できた事実:** 5枚×4 preset×2解像度×2 holdout seedsで、current monoのnative RGB8 endpoint channel率medianは3.70–4.00%だが、grainによる新規pre-clamp range crossingは0.0135–0.0148%だった。grain-offとのpaired endpoint transitionを追加すると、grain-onで新規endpointに移る率と既存endpointから外れる率が別々に観測できた。chroma-luma-calibrated variantでは新規endpoint率8.52–9.50%、pre-clamp crossing率8.35–9.35%だった。
+- **価値または懸念:** final RGB8で0/255になった割合は既存stageの端点、grain、quantizationが混在するため、clipの根拠に単独利用できない。grain前後float tapとgrain-off paired controlを残すと帰属を改善できる。
+- **未検証:** 2 fixed holdout seeds、Python encoded-sRGB replayに限る。表示上の欠陥、人の好み、GPU/Core path、alpha/HDRは未確認。Core実装変更を正当化する証拠ではない。
+- **次に確認すべきこと:** もし色grainを製品候補として再検討するなら、承認look/表示倍率と人によるclipping/texture reviewを定め、source別headroomを評価する。現行mono保持。
+
+## 2026-11-11: Retro preset のtone差はsmooth ROIとdetail ROIで大きく変わる
+- **関連:** `experiments/RetroImageLab/tools/full_suite_photo_tone_study.py`、`eval-inputs/real-tone/provenance.json`、実験102。
+- **確認できた事実:** ICCをsRGBへ正規化し長辺1024pxへ揃えた5 photoのsuite測定で、Milky Way handheldはwhole linear RGB RMSE .0355、smooth ROI .0174に対しdetail ROI .0950だった。高ISO B&W portrait handheldはwhole .0631、smooth .0253、detail .1067。backlit cloud handheldはwhole .1044で、highlight ROIのchannel clipping率はrecipeにより.0604–.2289。これらは同一source baselineとの差で、品質誤差ではない。
+- **価値または懸念:** whole-frame平均やpreset設定だけでtonal fidelityを説明せず、shadow/mid/highlight・smooth/detail領域を分ける必要がある。grain後段によりquantizer color countも最終unique color数を予測しない。対象写真4枚・1解像度の限定結果で、approved visual targetは未設定。
+- **権利/次:** 2 portraitはCC0 provenanceだがUnsplash import review-needed、もう一方はpersonality-rights warningがありmodel/publicity status不明のため内部R&D専用。製品/demoに用いない。複数skin toneとlightingのsource rights確認、承認look/display条件を加えてからappearance judgementを行う。Core変更なし。
+
+## 2026-11-11: Retro suite の最終RGB色数はpalette budgetを表さない
+- **関連:** `experiments/RetroImageLab/tools/full_suite_tonal_response_study.py`、`retro_lab.py::apply_retro`、実験101。
+- **確認できた事実:** 10点のhash検証済みCC0素材とsynthetic rampを4 presetへ適用。ramp上のquantizer-only色数はhandheld/arcade/print/VHSで56/35/28/54だが、後段stageを含むfull suiteでは3,876/8,598/2,425/3,948色になった。alphaは44 case全てで完全保持。smooth/detail/alpha-edge別入力差は素材種で大きく異なる。
+- **価値または懸念:** quantizer color countは量子化段の設定であり、grain・scanline・channel offset後の最終色数やsmooth-tone fidelityの指標にはできない。色数やRMSEからlookの優劣を決めない。
+- **次に確認すべきこと:** 写真の許諾・ICCが明確な素材と承認表示条件を追加し、自然なskin/sky/low-light gradientでdither×grain相互作用を評価する。今回は実写真、人手承認target、製品経路、Core性能が未検証で、Core変更は行っていない。
+
+## 2026-11-11: Retro research runner はrecipe別CPU時間とPython配列peakを併記できる
+- **関連:** `experiments/RetroImageLab/tools/full_suite_cpu_cost_study.py`、`retro_lab.py::apply_retro`、実験100。
+- **確認できた事実:** 独立Python runnerで4 preset×4解像度を計測。1024px medianはprint 76.34msからVHS 141.33ms、tracemalloc peakはprint 40.04MiB、他3 preset 76.01MiB。aberration無効化counterfactualはhandheld/arcade/VHSで約31–62%時間差を示したが、差はstage単体時間ではなくpipeline再実行との差。
+- **価値または懸念:** 研究runner自身の処理コストを記録でき、重い条件を見積もる助けになる。一方、1台・1 processのPython wall timeとtracemallocからArtifact/Core/GPU性能やprocess RSSを推論できない。stage間の配列・cache相互作用もあり、counterfactual差は加算できない。
+- **次に確認すべきこと:** 同一runnerの再現性や入力サイズ別測定を続ける場合も、Python研究用途に限定する。製品最適化の根拠には実caller・allocator・CPU/GPU profilingが必要だが、現時点では計画外でありCore変更なし。
+
+## 2026-11-11: Grain scale is a separate look contract from grain amount
+- **Related:** `experiments/RetroImageLab/tools/grain_resolution_scale_study.py`, experiment 090, `apply_retro` grain stage.
+- **Confirmed in the lab model:** At fixed input sigma .035, pixel-fixed white noise median spectral radius in cycles/image doubled with output resolution (256: 102.8, 512: 204.1, 1024: 408.3). Grain fields with a 2%-of-width cell stayed near 16.4 cycles/image across all sizes and had high adjacent correlation (.942–.995).
+- **Strength-matched follow-up:** After matching source-over linear-light Rec.709 luma RMS to .015, required code-value sigma was roughly stable across resolution within each crop/mode, but varied by asset and grain scale (observed .0139–.0220). Spatial spectrum differences remained because amplitude normalization does not change frequency distribution.
+- **Value or concern:** A preset's grain amount does not define its spatial scale. If export resolutions vary, fixed-pixel and image-relative grain make different textures even when input sigma matches. A reusable effect contract may need both amount and spatial scale.
+- **Limits:** Three CC0 still-image crops, synthetic mono noise, one sigma and no perceptual threshold. Relative scale is not inherently better; next compare intended display-size behavior before changing any default.
+
+## 2026-11-11: LayerToFloat alpha division belongs to the premultiplied layer intermediate
+- **Related:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::prepareGpuLayerForBlend`, `ArtifactCore/src/Graphics/LayerBlendPipeline.cpp::convertLayerToFloat`, `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`, and experiment 074 in `experiments/RetroImageLab/RESEARCH_NOTES.md`.
+- **Confirmed from source order:** Composition preparation converts the rendered `layerSRV` to straight working values before running eligible deferred GPU raster passes. The shader divides by alpha and clears RGB near zero alpha; its input is the layer render target, not a direct `ImageF32x4_RGBA` effect buffer carrying that buffer's descriptor.
+- **Confirmed in the equation model:** On five SHA-verified CC0 cutouts, a straight-alpha producer composited into a transparent premultiplied target then converted back matched direct straight compositing exactly. Premultiplied OldTV HLSL output has small partial-alpha differences after conversion saturation, while most full-edge differences were invalid alpha-zero RGB removed by the conversion guard.
+- **Unverified:** The runtime mode/blend convention for the OldTV generic-compute path and whether its premultiplied parameterization occurs in the product. No product defect is established.
+- **Value or concern:** Trace pixel conventions at render-target boundaries rather than infer consumers from effect output descriptors alone.
+- **Next:** If runtime evidence becomes necessary, capture the rendered layer target and post-conversion values for one transparent OldTV fixture; no Core change is justified by the current model.
+
+## 2026-11-11: Retro color domain needs a per-stage look contract
+- **Related:** `experiments/RetroImageLab/retro_lab.py::apply_retro`, `experiments/RetroImageLab/tools/full_suite_color_domain_study.py`, and experiment 075 in `experiments/RetroImageLab/RESEARCH_NOTES.md`.
+- **Confirmed in the lab model:** Across all four presets, toggling quantization into linear light changed 13–87% of pixels on three SHA-verified CC0 assets. Moving the same numeric grain sigma to linear light often produced larger RMSE than the quantizer toggle. Disabled preset stages produced exactly zero difference.
+- **Value or concern:** A single "linearize the retro pipeline" switch would conflate palette placement with noise amplitude. Each stage needs its own intended look/domain, and coefficients may need separate matching criteria before comparing domains.
+- **Limitations:** Two clover cutouts from one source pack and one opaque hair/fur texture; same numeric coefficients are deliberately unnormalized between domains. Delta metrics do not rank visual quality.
+- **Next:** Add photographic gradients and additional palette/material families, then compare domain variants at matched perceived grain strength before proposing any suite default change.
+
+## 2026-11-11: Palette utilization needs occupancy and spatial transition context
+- **Related:** `experiments/RetroImageLab/tools/palette_occupancy_transition_study.py`, `retro_lab.py::nearest_palette`, and experiments 076–078 in `experiments/RetroImageLab/RESEARCH_NOTES.md`.
+- **Confirmed across three SHA-verified CC0 asset families:** The same nominal palette color count can hide different distributions. Clover CGA/linear/no-dither used 3 colors but assigned 99.99% of visible pixels to one. On the silver feather, PICO-8/sRGB Bayer strength 0→1 raised edge transition rate 16.7%→65.3% and linear-RGB edge RMSE .0651→.1171, while CGA/sRGB's RMSE decreased slightly as transitions rose.
+- **Additional photo evidence:** On one internally used VOA studio frame, PICO-8/no-dither used 14 colors in sRGB distance and all 16 in linear distance; strength 1 raised PICO-8/sRGB transition rate 20.5%→76.2% and linear RGB RMSE .1801→.2057.
+- **Value or concern:** Fixed-palette look comparisons benefit from reporting dominant/effective occupancy, neighbor transition rate, and alpha-composited source error together. Higher transition rate is a Bayer pattern descriptor, not a quality score, and its relationship to RMSE is not monotonic.
+- **Limitations:** One clover, one feather illustration, one pixel-art atlas, and one VOA frame with a Wikimedia license-review caveat, used internally only. The feather's gAMA/chromaticity metadata and the clover's embedded ICC profile are recorded but not color-managed. No temporal evaluation or human-approved appearance target.
+- **Next:** Repeat with license-cleared photographic color gradients before changing palette defaults or adding this measurement to product-facing APIs.
+- **追加確認 (2026-11-11):** partial-alpha ROIをlinear-light合成後にsRGB表示するモデルでは、同一alphaでも黒/灰/白背景により表示sRGB code RMSEが変わった。PICO-8/linear/no-ditherのcloverは.08170/.06576/.05023、silver featherは.05204/.04894/.04551、pixel hairは.11493/.01955/.00820。一方sRGB code値で直接合成するモデルの誤差は各背景でほぼ不変。
+- **含意と制限:** 背景合成後の比較には合成domainと背景を明記する。これはPython counterfactualであり、ArtifactStudioのpreview/exportがどちらの合成を採るかを確認した結果ではない。
+
+## 2026-11-11: 適応palette学習のalpha重みは素材依存
+- **関連:** `experiments/RetroImageLab/tools/adaptive_palette_weighting_study.py` と実験079。
+- **確認できた事実:** deterministic median-cutを4/8/16色、visible-pixel頻度/alpha coverage重み、sRGB/linearで3 CC0 RGBA素材に比較した。silver featherの4色ではalpha weightがpartial-alpha表示RMSEを.0360から.0266へ下げる一方、cloverの16色linearでは.0234から.0269へ上げた。partial alphaが少ないpixel-art hairでは重み方式差が小さい。
+- **価値または懸念:** 画像固有palette生成にalpha-aware weightingを使う場合、普遍的に優位な単一方式を仮定しない。適応paletteはPICO-8のようなartist-authored lookを置き換えるものではない。
+- **未検証:** 知覚的品質、色管理後のdomain差、実動画と製品ランタイムでの挙動。
+- **追加確認 (実験080):** 重複pan cropの同一world pixelで、frameごとの8色palette再学習は、1 code値を超えるchanged-pixel比がclover 60.82%、silver feather 31.08%、pixel hair atlas 37.26%。source全体で学習したpaletteを共有するpoint mappingは0%。これは静止画ベースのmodel値であり、実動画flickerや知覚品質の測定ではない。
+- **含意:** 適応paletteを時間メディアへ使う場合、palette固定期間・shot単位palette・時間正則化などの一貫性仕様が必要になり得る。どの手法が望ましいか、製品仕様やGPU実装への適合は未検証なのでCoreへはまだ反映しない。
+- **追加確認 (実験081):** palette slotを最小総距離で対応付けてEMA .25を適用すると、silver featherの同一pixel changed比は31.08%から.91%に低下したが、hair atlasは37.26%から53.48%へ上がった。Cloverは変化率をほぼ保ちつつedge RGB8 RMSEが6.446から2.559 codeへ低下。時間平滑化は素材ごとに異なる応答。
+- **追加確認 (実験082):** linear EMAはhair atlasのchanged比を.5348→.5147へ僅かに下げた一方、silverはsRGB EMAと同値、cloverでは.6083→.6225へ上がった。sRGB間隔で再測定したworld-locked Bayerはhairでchanged比をさらに上げ、銀羽根では変化率をほぼ保ちながらsource display RMSEを上げた。
+- **含意:** interpolation domainとditherの効果は素材に依存し、今回の候補値をCore既定として採用する根拠はない。全行列とsource errorは実験082に記録。
+- **追加確認 (実験083):** sRGB domainでpalette-spacingの.25/.5/1倍Bayer sweepを再実行。Hair atlasのEMA no-dither changed ratio .5348に対しstrength1/world .6858、screen .8070。strength1/screen source display RMSEは.0273から.0489。Silver featherはphase原点が全cropで同じmod4のためphase比較が同値で、dither振幅増加とともにsource errorだけが増えた。
+- **次に検証すること:** alpha resize association（straight/premultiplied）がphase-cycling時のRGB/alpha境界安定性を変えるか比較する。Bayer perturbationモデルは製品式そのものではないため、Coreへの仕様反映は保留。
+- **追加確認 (実験084):** BOX縮小のoriginをscale周期に固定するとshot-shared paletteのsame-world-pixel変化は全3素材・両scaleで0。source crop phaseを巡回させるとhair atlas/.5で同じ変化率がshared .6865、EMA .7910、per-frame .9401となり、palette smoothingだけではresampling phaseの変化を抑えられない。
+- **含意:** 時間安定性の設計ではpalette/historyに加えて縮小sampling gridの座標系も契約化が必要になり得る。今回はstraight-resizeのPython modelで、実アプリ経路やGPU一致は未確認。
+- **追加確認 (実験085):** 3 CC0 RGBA素材でstraight／premultiplied BOX縮小を比較。Premultipliedはhair atlas/.5のphase-cycling shot-shared changed ratioを.6865→.6355、EMAを.7910→.7129へ下げたが、silver feather/.75はshared .2206→.2220とほぼ同値、素材・scale依存だった。最初のcropのshot-shared edge RGB差はhairで73–83 code、mid-gray合成edge RMSE .048–.067、feather/cloverでもそれぞれ約22–25 codeのraw edge差が残った。
+- **価値または懸念:** RGB/alpha associationは透明境界の見た目と位相巡回時の時間差へ影響するが、premultiplyが常に安定性を上げるとは言えない。今回のalpha重みpalette学習が差を増幅する可能性がある。
+- **制限・次:** Pillow BOX前にpremultiplied RGBをuint8化するPython modelで、実レンダラーのfilter precision/alpha conventionは未確認。nextは適応paletteを外した単純resizeだけでassociation差を分離し、黒/灰/白背景のedge cropを確認する。Artifact/Coreへ反映する仕様根拠はまだない。
+- **追加確認 (実験086):** palette/effectを外したBOX→nearestで再比較。phase-lockedでは全3素材×2 scaleのsame-world RGB changed ratioが0。phase-cyclingではpremultipliedが全6素材/scaleでchanged ratioを低下（例: silver/.75 .5434→.4922、hair/.5 .8420→.7898）。一方alphaを縮小復元すると、mid-gray edge RMSEはcloverで改善、hairではstraight .1030→.1062（.5）、premultiplied .0769→.0941へ悪化。素材ごとにalpha復元方式の結果が異なる。
+- **価値または懸念:** alpha associationとoutput-alpha policyは別の判断軸。phase由来RGB変化が減ることだけでは、alphaの忠実度や知覚品質を保証しない。
+- **制限・次:** 指標はstatic panのsource errorであり、見た目の好みを判定しない。透明境界を持つsynthetic edge chart（色を制御）でfilter footprintsとhidden RGB感度を定量化する。Core変更はまだ不要。
+- **追加確認 (実験087):** 色制御したsynthetic chart（alpha-zero RGB=(9,240,17)）のresize-only sweepでは、scale .5/mid-gray alpha-edge RMSEがstraight/source-alpha .0332、premultiplied/source-alpha .0077。hidden RGBがfilter footprintへ混入する条件ではpremultiplyが色誤差を抑えた。縮小alphaを出力へ使うとこのchartではstraight .0543、premultiplied .0503へ悪化。scale .25–.75もsource alpha保持×premultipliedがedge metricで最低だった。
+- **価値または懸念:** synthetic controlは実素材で交絡していたalpha-zero RGB漏れのmechanismを支持する一方、source alpha保持とcoverage再標本化の差も分けて示す。premultiplied/source-alphaを普遍的な正解と結論づけず、入力alpha契約・目的・実filterを要確認。
+- **制限・次:** 4x supersampled幾何fixture、Pillow uint8 filterの数値。次はCore/Image resize contractでalpha保持か再標本化かを読み、実際のfilter実装との対応を取る。実行禁止のbuild/runtimeは行わず、source evidenceのみでAPI採用を判断しない。
+- **Source follow-up (実験088–089):** Core `ImageF32x4_RGBA::resize`は補間指定なしのOpenCV `cv::resize`で全channelを独立補間し、descriptorを保持する。Parametric SourceLayer resolverは`QImage::scaled(SmoothTransformation)`後no-descriptor `setFromRGBA8`で再生成しalphaMode/transferをUnknownへ戻す。Python cv2 4.13 float32 modelではhidden-RGB pairによるstraight resized mid-gray composite difference RMSE .0063–.0125、premultipliedは0 across scale/domain sweep。
+- **追加ソース確認:** `ImageF32x4_RGBA::toQImage()`は `Rgba8SrgbStraight` target conversionを明示。Parametric SourceLayerはそのQImageを任意scale後、既知のsRGB straight契約を戻さずUnknown descriptorのRGBA32Fへ再取り込みする。`ArtifactImageLayer::toFrameBuffer(QImage)`はARGB32_Premultipliedへ変換した後、sRGB/Premultiplied descriptorを明示。一方OIIO float decode・derived cache decodeはno-descriptor `setFromRGBA32F/BGRA32F`でUnknownとなる。同じimage layer内でも経路差がある。ArtifactImageLayerはSourceImageMetadataでalphaAssociatedを別途保持し、色解釈変換前後のunpremultiply/premultiplyを行う条件がある。Core `ImageImporter::loadRawImageViaOIIO`はUnassociatedAlpha=1を明示してRawImageをunassociatedのまま読む。
+- **追加確認:** `SurfacePixelConversion`のRgba8SrgbStraight pathはalpha<=1e-6のRGBを0にするため、resolver QImage scale直前に完全透明pixelの任意hidden RGBは残らない。実験089のhidden-pair差をこの製品経路へ直結はできず、partial-alpha scalingは未検証。
+- **意味と制限:** resolver/import boundaryのalpha metadataは一様でないが、SourceLayer QImage bridgeはalpha-zero RGBをsanitizeする。visible rendering defectは未確認。Python OpenCV版はCore bundled versionとの一致を証明しない。次はOIIO metadataとfloat decode transfer/alpha semanticsの関係を調べ、Unknown設定が意図的か記録不足かをsource factsで確かめる。製品コード変更なし。
+**最終更新:** 2026-11-12
+
+## 2026-11-12: Fog系資産は名前が近くても入力契約が異なる
+- **関連:** `ArtifactCore/src/Render/AtmosphereFog.cpp`、`Artifact/shaders/heightFogCS.hlsl`、`Artifact/shaders/fogHF.hlsli`、`docs/planned/MILESTONE_FOG_ATMOSPHERIC_SCATTERING_RD_2026-11-12.md`
+- **確認できた事実:** CPU `AtmosphereFogRenderer::evaluateFog()` はray上の高さ密度をsample積分する一方、`applyToPixel()` は深度だけから一定の高さ係数を計算する。GPU `heightFogCS.hlsl` はworld positionを再構成せずcamera heightを使う。`fogHF.hlsli` はweather/frameと大気・cloud shader環境へ依存する。
+- **仮説:** 「height fog」という名前だけでCPU/GPU/volume-light経路の見た目や共通APIを同等と判断すると、カメラ高度・深度・色/alpha規約の不一致が隠れる可能性がある。未検証。
+- **価値または懸念:** 数学モデルとhost統合契約を分けて比較し、shader helperの存在を一般render pass接続済みと誤認するのを防げる。
+- **次に確認すること:** runtime capture前に各hostのdepth encoding、inverse view-projection、HDR/alpha契約と実dispatch先を記録し、同じfixtureでcamera-height近似とworld-position積分を比較する。
+
+## 2026-11-12: Blur R&D timing needs raw repetitions
+- **関連:** `blur-rd-fixtures/compare_outputs.py::validate_timings`、Blur Effects R&D fixture bundle。
+- **確認できた事実:** 解析器は `measurement_repetitions` と `timing_statistic` を持ちながら、従来は各 timing field の単一 scalar を受け入れ、反復数との対応を確認していなかった。
+- **変更:** timing JSON を反復ごとの samples 配列にし、steady-state と total wall の各反復を必須化。解析器が選択統計量を算出し、raw samples を JSON に保持する仕様へ変更した。
+- **価値または懸念:** raw samples があれば外れ値や分布を後から確認でき、単一値を反復測定結果として誤記するのを防げる。解析器の実行は未許可のため、この変更自体は未検証。
+- **次に確認すること:** 明示的に実行許可された後、代表 timing JSON を使って summary 算出、入力検証、CSV/JSON 出力を確認する。
+
+## 2026-11-12: Blur sweeps should isolate one numeric control at a time
+- **関連:** `blur-rd-fixtures/spatial_sweep_plan.json`、Radial / Anisotropic Flow / Aperture Shape / Reaction Diffusion blur。
+- **確認できた事実:** 初期 Radial sweep は amount と quality を同時に変えていたため、画質・時間差を片方の設定へ帰属できなかった。effect source の公開 property には独立した quality、tensor scales、aperture rotation/highlight controls がある。
+- **変更:** Sweep を一因子ごとに切り分け、Reaction Diffusion を stylized として追加し、通常blurの parity順位と分離した。
+- **価値または懸念:** 次のアルゴリズム投資を選ぶ際、設定交絡で結論を誤る可能性を下げる。Captureは未実施で、各軸が見た目に与える実効果は未検証。
+- **次に確認すること:** 実出力を取得したら出力hash、fixture・settings、raw timing samplesとともに各一因子差を比較し、非単調な軸は追加密度を決める。
+
+## 2026-11-12: Blur capture color contract must match the analyzer and public properties
+- **関連:** `blur-rd-fixtures/compare_outputs.py`、`spatial_sweep_plan.json`、`Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlur::getProperties`。
+- **確認できた事実:** Fixtures are little-endian float32 RGBA, linear and unclamped; alpha-edge fixtures intentionally store straight RGB under fractional/zero alpha. Gaussian Blur exposes its sigma control through the property name `Strength`. The timing analyzer's raw-array keys differed from its CSV summary columns.
+- **変更:** Capture metadata now requires the exact fixture color contract, float32 is enforced, CSV uses summary column names, and Gaussian sweep settings use the public property name.
+- **価値または懸念:** Prevents parity comparisons across incompatible alpha conventions and makes sweep settings replayable through the effect property interface. Analyzer execution remains unverified.
+- **次に確認すること:** Authorized offline analyzer run should confirm raw sample summaries, CSV field schema, float32 rejection, and same-contract parity labeling.
+
+## 2026-11-12: Blur capture scope should reflect available GPU execution paths
+- **関連:** `blur-rd-fixtures/spatial_sweep_plan.json::capture_schedule`、Blur effect CPU/GPU implementations。
+- **確認できた事実:** 現在の6 spatial effect suites のうち Gaussian と general Blur にGPU implementationがあり、Radial、Anisotropic Flow、Reaction DiffusionはCPU実装のみ、ApertureのGPU経路は未確認。general BlurのEdge Preserving GPU requestはCPU実装へfallbackする。
+- **変更:** 全設定256px impulse、代表設定の品質診断、選択設定1024px scalingの順に分け、予定captureをCPU 88件とGPU候補30件に明示した。GPU dispatch実確認とfallback経路の記録をcapture条件に加えた。
+- **価値または懸念:** 支持されないbackend parityを計画上だけで主張せず、設定交絡と過剰な全面captureを避ける。件数はcapture候補で、実測値ではない。
+- **次に確認すること:** 実行可能なcapture exporterからmanifestを進め、各runの実際のdispatch/fallback、settings、出力hashを記録する。
+
+## 2026-11-12: Blur output capture must normalize descriptor and alpha semantics
+- **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cpp::setFromRGBA32F/toCanonicalRGBA32FC4`、`docs/technical/IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md`、blur R&D capture manifest。
+- **確認できた事実:** `ImageF32x4_RGBA` の物理backingはBGRA。`setFromRGBA32F` はRGBAをBGRAへ並べ替える一方、descriptorなしではtransfer/alpha metadataはunknownのまま。`toCanonicalRGBA32FC4()` はchannel orderだけ変換し、alpha associationやtransferを変換しない。Artifactのeffect CPU fallback / render経路は全体移行・runtime一致が未完了。
+- **変更:** R&D capture contractへprimaries/rangeを追加し、出力正規化では完全なsource descriptorとdescriptor-aware変換を要求。unknown descriptorを推測で straight/linear と扱わない手順を記載した。
+- **価値または懸念:** raw pixel差をalpha/order/transfer変換差と取り違えるのを防ぐ。capture adapterとruntimeのdescriptor伝播は未実装・未検証。
+- **次に確認すること:** 独立capture adapterから `ImageF32x4_RGBA::colorDescriptor()` を取得し、各effect CPU/GPU pathのalpha mode・transferが実際に指定されているか確認する。unknownならsource contractをeffectごとに確定してから出力変換する。
+
+## 2026-11-12: Existing render export routes do not yet prove numeric blur captures
+- **関連:** `Artifact/src/Application/ArtifactCommandLine.cpp`、`Artifact/src/Render/ArtifactRenderQueueService.cpp`、blur R&D capture protocol。
+- **確認できた事実:** CLI `render --format` validation allows PNG/JPEG and video formats, not EXR. Render Queue's multi-channel route requires GPU; its 32-bit bit-depth option maps to OIIO FLOAT, and `readbackToMultiChannelImage()` swizzles Beauty BGRA into separate logical R/G/B/A channels. Preflight states the AOV boundary precedes composition final-image effects. Alpha association still lacks runtime confirmation.
+- **価値または懸念:** A display PNG cannot replace unclamped float RGBA evidence. Render Queue EXR may avoid a new product capture API, but assuming its channel semantics would reintroduce the color-contract risk.
+- **次に確認すること:** On an authorized GPU render session, export one alpha-edge and one HDR fixture as 32-bit EXR, inspect channel list/bit depth/attributes, confirm whether a layer blur is present at the AOV boundary, and convert only after the descriptor contract is known. No effect capture has been made.
+
+## 2026-11-12: EXR normalization can be separated from renderer capture
+- **関連:** External Blur R&D fixture bundle `normalize_exr_capture.py`, `capture_manifest.json`.
+- **確認できた事実:** GPU candidate rows can identify raw EXR and normalized NPY paths independently. The local OpenCV build reports OpenEXR support, but no actual Artifact EXR or alpha metadata has been validated.
+- **変更:** Added an offline normalizer that accepts only manifest GPU rows and requires a sidecar asserting channel order, linear transfer, primaries, scene range, alpha association, float32, and unclamped data. It stores source/output hashes and the asserted conversion contract without marking capture complete.
+- **価値または懸念:** EXR decoding can be a replaceable boundary while capture remains tied to a verified render route. The sidecar is an operator assertion and cannot prove the renderer used that contract; BGRA interpretation and alpha semantics remain unverified against a real file.
+- **次に確認すること:** Inspect an authorized GPU EXR's channel names, precision, transfer/primaries attributes, and alpha behavior before authoring its sidecar; reject the route if the output contract cannot be established.
+
+## 2026-11-12: Impulse covariance distinguishes blur kernel shape
+- **関連:** External Blur R&D fixture bundle `compare_outputs.py::impulse_kernel_metrics`.
+- **確認できた事実:** Existing impulse reports included total positive energy and a radial 95% radius; those values do not distinguish horizontal/vertical spread, a rotated anisotropic kernel, or centroid shift.
+- **変更:** Added energy centroid and 2D covariance-derived major/minor spread, anisotropy ratio, and major-axis angle for the single-impulse fixture only.
+- **価値または懸念:** Gives a reproducible descriptive PSF summary for isotropic and directional blur families without treating unlike effects as the same blur amount. It is not a perceptual score, and values from multimodal inputs are not exported as impulse-kernel metrics.
+- **次に確認すること:** After capture and authorized analyzer execution, compare Gaussian rotational symmetry and direction-field axis/centroid behavior against the visual profiles; check near-zero spread handling and metric stability at both fixture sizes.
+
+## 2026-11-12: Slanted-edge response must be measured normal to the edge
+- **関連:** External Blur R&D fixture bundle `generate_fixtures.py::spatial_suite` and `compare_outputs.py::slanted_edge_metrics`.
+- **確認できた事実:** The authored edge follows `x = 0.33*y + 61*scale_x`; the previous analyzer extracted only the horizontal center row, which mixed edge orientation with horizontal sampling and did not report a spread width.
+- **変更:** Analyzer now projects pixels onto the authored edge normal, bins a normalized edge-spread profile, and estimates 10–90% width and 50% position for both fixture resolutions.
+- **価値または懸念:** Makes edge softening and positional drift comparable in physical pixels across resolutions. Near thresholds, ringing/non-monotonic response can yield multiple crossings; the current rule chooses the crossing nearest the geometric edge, so output still requires runtime review.
+- **次に確認すること:** Compare Gaussian and edge-preserving Blur captures at known radii, inspect the full profile for ringing, and confirm 256/1024 resolution scaling behavior before interpreting widths as quality rankings.
+
+## 2026-11-12: Vector Blur GPU wrapper does not consume motion vectors
+- **関連:** `Artifact/src/Effects/Rasterizer/VectorBlurEffect.cpp::VectorBlurGPUImpl::applyGPU` and its embedded HLSL; Blur Effects R&D suite.
+- **確認できた事実:** CPU `VectorBlur` obtains the previous frame through the effect sampler, estimates displacement, and samples along that vector. Its output clamps all RGBA channels to [0,1]. In the GPU wrapper, `VelTex` is declared in the resource layout but is not bound or read by the shader; HLSL initializes velocity to `(0,0)` and resamples the current texture. The GPU apply path also has no temporal sampler lookup.
+- **価値または懸念:** A GPU dispatch may appear successful while producing no motion trail (default exposure) and cannot be treated as CPU/GPU parity. HDR fixtures will also expose CPU range loss. This is source-level evidence; runtime output is unverified.
+- **次に確認すること:** Keep Vector GPU out of parity candidate counts until a captured GPU result proves motion-dependent displacement. Compare CPU outputs on the shared moving-patch sequence at several shutter/sample settings, then use HDR and alpha-edge controls; investigate a GPU implementation correction only when separately authorized.
+
+## 2026-11-12: Blur GPU candidate count must follow resident-path eligibility
+- **関連:** `Artifact/include/Effects/Blur/BlurEffect.ixx::gpuRasterEffectDomain/appendGpuSpatialNodes`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::buildGpuRasterEffectPlan`, external `build_capture_manifest.py`.
+- **確認できた事実:** Composition rendering sends eligible blur nodes through the resident spatial pipeline, not `BlurEffectGPUImpl::applyGPU`; the latter is explicitly unreachable and contains blocking readback. Resident general Blur requires premultiplied alpha, strength >= 0.999, sigma < 3, and iteration/mode passes within the eight-node capacity. The previous manifest generator assigned GPU candidates to all Gaussian and general Blur settings regardless of eligibility.
+- **変更:** Manifest generation now applies those source conditions and labels only resident compositor GPU candidates. The schedule reconciles to 88 CPU references and 14 eligible resident GPU cases (13 Gaussian, one general Blur).
+- **価値または懸念:** Prevents planned parity rows that would silently run CPU and avoids benchmarking the unreachable readback wrapper as a hot render path. Effect isolation and runtime dispatch still need confirmation.
+- **次に確認すること:** Capture the isolated effect through the composition path and verify actual resident node dispatch/fallback for every GPU row before counting it as GPU evidence.
+- **分類訂正:** Current source shows resident `SeparableGaussianBlur` is appended by general Blur stable ID `blur`; dedicated Gaussian Blur `effect.blur.gaussian` has no resident-node registration found. The historical “13 Gaussian, one general Blur” candidate count came from a missing external bundle and cannot now be mapped to stable effect IDs or treated as validated resident eligibility. Rebuild the manifest only after restoring its inputs and checking each effect ID against source.
+
+## 2026-11-12: Blur sweep settings need executable property contracts
+- **関連:** External Blur R&D fixture bundle `build_capture_manifest.py` and `spatial_sweep_plan.json`.
+- **確認できた事実:** The capture matrix uses effect-specific property names and one custom-PSF hash that is metadata rather than an effect property. Several setters clamp values, and a property typo could otherwise be silently ignored while still generating a stable manifest hash.
+- **変更:** Manifest generation now validates each effect's required property keys, value types, numeric bounds/enums, optional Aperture Shape PSF path/hash, and the plan's effect-ID set against a source-audited schema before expanding captures.
+- **価値または懸念:** Rejects malformed experiments before they become capture rows. The schema duplicates public source contracts and must be updated when effect property APIs change; it does not replace runtime confirmation that a property took effect.
+- **次に確認すること:** Compare schema and source setters whenever this sweep matrix or an effect property API changes; after an authorized capture, record the actual read-back property values if the host can expose them.
+
+## 2026-11-12: Visible blur energy must use premultiplied RGB
+- **関連:** External Blur R&D fixture bundle `compare_outputs.py`, `compare_hidden_rgb.py`, `alpha_edge` and `alpha_edge_alt_hidden_rgb`.
+- **確認できた事実:** The fixtures use straight alpha and intentionally differ in RGB where alpha is zero. The prior raw positive-RGB energy and centroid included those invisible pixels, while the “alpha weighted” branch already computed positive premultiplied energy. There was no tool that compared both hidden-RGB variants' processed outputs.
+- **変更:** Main reports now label unassociated RGB energy as a diagnostic and use visible premultiplied positive energy/radius with a visible-energy source centroid. Alpha-edge bleed compares premultiplied output to premultiplied input. Added a separate report tool that checks source fixture equivalence and measures output visible RGB/alpha invariance across the hidden-RGB pair.
+- **価値または懸念:** Prevents invisible RGB from biasing blur energy/radius and enables a direct halo/invariance comparison. It does not establish visual quality until actual captures are supplied; both output metadata values are a shared operator assertion.
+- **次に確認すること:** Run both fixtures through each selected alpha-sensitive effect using identical settings and path, inspect output images alongside the numeric visible-delta/leakage report, and verify results at both 256² and 1024².
+
+## 2026-11-12: Raw RGBA parity can overstate visible differences
+- **関連:** External Blur R&D fixture bundle `compare_outputs.py::metrics`, `pairwise_parity`, `slanted_edge_metrics`, and `impulse_kernel_metrics`.
+- **確認できた事実:** Main output-vs-input and pairwise error previously treated straight RGB under alpha zero as image error. The edge profile read unassociated RGB, and impulse covariance measured unassociated energy. With transparent-edge fixtures these can differ while the displayed premultiplied image is identical.
+- **変更:** Added separate visible premultiplied RGB and alpha errors while retaining raw RGBA error as a diagnostic. Pairwise reports carry both sets; edge profiles and impulse PSF metrics now use visible energy/luminance.
+- **価値または懸念:** Makes parity and quality reports reflect visible output while preserving raw data issues for diagnosing hidden-color differences. Alpha is clamped only when forming visible RGB; raw alpha error remains explicit.
+- **次に確認すること:** Once output captures exist, compare a pair whose hidden RGB differs but visible premultiplied pixels match; visible error should remain at noise tolerance while raw RGB error reveals the invisible difference. Check HDR and negative RGB behavior as well.
+
+## 2026-11-12: ブラー群を比較可能な R&D suite に統合
+- **関連:** `Artifact/src/Effects/Blur/`、`Artifact/src/Effects/Rasterizer/`、`docs/planned/MILESTONE_BLUR_EFFECTS_RD_2026-11-12.md`
+- **確認できた事実:** 空間 Gaussian／Blur、Radial、Anisotropic Flow、Aperture Shape、Reaction Diffusion、Optical Flow／Vector／Time Blur が別々の実装領域に存在する。Temporal Effects R&D は別途進行中で、sampler契約・履歴制限・seekを対象にしている。
+- **仮説:** impulse、透明境界、細線、HDR点光源、決定論的な移動パッチを共有 fixture 化すれば、品質軸を保ちながら各実装を比較できる。未検証。
+- **価値または懸念:** alpha／HDR／境界品質とCPU・GPU実コストに基づいて投資先を選べる。単一の総合スコアにすると各ブラーの目的差を隠す懸念がある。
+- **次に確認すること:** 現行 effect の alpha／境界契約、実HLSL経路、登録状態を台帳化し、Temporal Effects R&D の決定論的画像列を共有できるか確認する。
+
+## 2026-11-12: Temporal effect future-frame availability is render-order dependent
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` の rasterizer history publish と preview pre-roll、`Artifact/src/Effects/ArtifactEffectFrameSampler.cpp`。
+- **確認できた事実:** rasterizer result は effect stack の完了後にCPU samplerへ格納される。preview の discontinuity pre-roll は `N-1` を1フレームだけ先に描画してから `N` を評価する。GPU空間effectの履歴lookupも `lastRenderedFrame == currentFrame - 1` のみ有効とし、現在フレームのeffect処理後に記録する。sampler のabsolute／relative lookupは指定frameが格納済みの場合のみ成功する。
+- **未検証の仮説:** CPU経路で `N+1` を使う効果は、そのframeを別経路で先に格納しない限りpreviewで利用できない可能性が高い。render queue等の別評価順や先読み経路は個別確認が必要。
+- **価値または懸念:** 「前後フレーム対応」をAPIのoffset表現だけで判断すると、実際には過去フレーム専用のhost挙動を未来参照可能と誤認する恐れがある。Temporal Effects R&Dでは過去／未来の取得可能性をhost別に記録する。
+- **次に確認すること:** composition preview、RAM preview、offline render／render queueで、N-1/N+1の履歴生成順・warm-up・missing-frame fallbackを比較する。
+
+## 2026-11-12: CPU temporal frame lookup deep-copies the full image
+- **関連:** `Artifact/src/Effects/ArtifactEffectFrameSampler.cpp::copyFrame`、`ArtifactCore/src/Image/ImageF32x4_With_Cache.cpp::SetCpuImage`、`docs/planned/MILESTONE_TEMPORAL_EFFECTS_RD_2026-11-12.md`。
+- **確認できた事実:** `copyFrame()` は `out.SetCpuImage()` を呼び、`SetCpuImage()` は格納画像の `DeepCopy()` を行う。lookbackを複数要求するeffectは要求frame数と画像サイズに応じてCPU画像複製が増える。
+- **価値または懸念:** 正しい画素結果だけではtemporal effectのpreviewコストを評価できない。複製bytes／評価時間を記録し、CPU samplerとGPU固定slot経路を別々に評価する必要がある。
+- **次に確認すること:** allocation計測またはprofilerでFrame Blend、Echo、centered Time Blurのframe size／sample count sweepを取り、GPU pathのreadback有無も別記する。
+
+## 2026-11-12: GPU temporal history pool failure handling needs caller verification
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` の temporal GPU pass dispatch／record、`Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::recordLayerFrame`。
+- **確認できた事実:** GPU pool満杯時、`recordLayerFrame()` は `false` を返す。Composition View callsiteはその返値を分岐に使わず、CPU sampler fallbackとするコメントだけが近接している。
+- **未検証の仮説:** 失敗時は次frameのGPU history lookupがinvalidになり、CPU samplerによる置換を経ずshaderのhistoryなし動作に落ちる可能性がある。別のfallbackが関数外にあるかは未確認。
+- **価値または懸念:** 固定GPU履歴slotが上限に達した場合の品質低下／欠落が隠れ、CPU fallbackが発生していると誤認する恐れがある。
+- **次に確認すること:** pool exhaustionを作るhost fixtureでCPU sampler呼び出しの有無と結果画素を追い、必要ならcontractにbackpressure動作を明記する。
+
+## 2026-11-12: Time Warp allocates frame-sized workspace per evaluation
+- **関連:** `Artifact/src/Effects/Rasterizer/TimeWarpEffect.cpp::TimeWarpCPUImpl::applyCPU`、`docs/planned/MILESTONE_TEMPORAL_EFFECTS_RD_2026-11-12.md`。
+- **確認できた事実:** 各effect評価で`W * H`件のframe offset用`std::vector`を作り、sampled frame用`std::unordered_map`も作る。mapのreserveは最大256件だがoffset種類数がそれを越えると拡張し得る。
+- **未検証の仮説:** 解像度と一意offset数が増えると、割当・map rehash・各frame sampleのDeepCopyがpreview hot pathで目立つ可能性がある。
+- **価値または懸念:** outputの正しさだけのテストでは高解像度の時間warpコストやallocation pressureを捉えられない。今回のR&Dでは性能を測り、既存runtime経路の構造変更は別判断とする。
+- **次に確認すること:** 解像度／offset種類数を変えたallocation計測とprofileを取り、workspace再利用またはbounded sample tableが必要か判断する。
+
+## 2026-11-09: Light streak GPU parity needs a runtime comparison, not a static assumption
+- **関連:** `Artifact/include/Effects/DirectionalGlowEffect.ixx`, `Artifact/src/Effects/DirectionalGlowEffect.cpp`, `Artifact/src/Effects/Glow/GlowEffect.cpp` (`GlintStarFilterEffect`), `Artifact/src/Effect/ArtifactCreativeEffects.cpp` (`ArtifactCinematicLensFlareEffect`).
+- **確認できた事実:** The new resident HLSL for Glint approximates the CPU `warpAffine` + anisotropic gaussian with bounded directional sampling, and Lens Flare's resident path only covers manual position because auto highlight detection scans the full image. Directional Glow's Half Sampling halves the tap step rather than using a true half-resolution intermediate, so its result is close to but not identical with full sampling.
+- **価値または懸念:** All three paths now declare `supportsGPU()` and expose resident nodes, but none has been compared against the CPU reference on real frames. The Glint tap budget trades thickness fidelity for stable cost; large ray lengths and narrow widths may show visible differences. Half Sampling changes the tail weighting slightly, so the effect must not be described as visually identical.
+- **次に確認すべきこと:** Compare CPU and GPU captures for threshold edges, Star/Star6 patterns, custom angles (CPU-only), large lengths, half sampling on/off, and Lens Flare auto/manual mode. If exact Glint parity is required, evaluate a two-pass separable gaussian instead of increasing the per-pixel tap count.
+
+## 2026-11-09: SmallVector mutation diagnostics should stay allocation-free
+- **関連:** `ArtifactCore/include/Container/SmallVector.ixx::recordMutation` / `pushMutation`.
+- **確認できた事実:** The bounded eight-record mutation history used `Array<ContainerMutationRecord>`. Its first mutation could allocate, while `recordMutation()` and `pushMutation()` are `noexcept`; allocation failure could therefore terminate the process. The history now uses an inline `StaticArray` plus an explicit count. `debugSnapshot()` also builds sample vectors and can allocate, so SmallVector's snapshot method no longer promises `noexcept`.
+- **価値または懸念:** This removes the cold-start mutation-history allocation and its allocation-failure termination path from ordinary mutations. The history update shifts at most seven small records per mutation after the buffer fills; its cost is bounded. The SmallVector suite's eight-entry ring and copy/move coverage passed on MSVC 19.51.
+- **次に確認すべきこと:** Check the bounded shift cost only if profiling shows mutation-history updates are significant; assess diagnostic history overhead before extending this pattern to other containers.
 
 ## 2026-11-10: Cryptomatte multi-ID native pass は仕様準拠のID変換と multi-ID 取り込みAPIを要する
 - **関連:** `ArtifactCore/src/Image/Cryptomatte/CryptoPixel.cpp`、`ArtifactCore/src/Image/Cryptomatte/CryptoImage.cpp`、`ArtifactCore/src/Image/Cryptomatte/CryptoExrWriter.cpp`、`tools/CryptoMatteLab/`。
@@ -15,12 +301,6 @@
 - **価値または懸念:** RT shadow shader の経路は実装上 primary mask と同じ scalar opacity を評価する。合成alpha、base-color texture、material slot選択の影響を影テストで回帰検出できる。
 - **次に確認すべきこと:** `MaskedOpacityTexturePassesShadowRay` と `SelectsMaskedShadowOpacityTexturePerMaterialSlot` を実行して追加したshadow応答を確認する。
 
-## 2026-11-10: Validation maps can reserve from their owning document
-- **Related:** `ArtifactCore/src/Export/Lottie/LottieExporter.cpp::LottieExporter::validate` and `ArtifactCore/src/Core/ArtifactHashMap.cppm`.
-- **Confirmed:** Validation knows document layer, asset, and precomposition layer counts before filling its temporary indexes. ArtifactHashMap exposes `reserve()` and `tryEmplace()`; the old maps did not reserve from those known sizes.
-- **Change:** Migrated the local indexes and reserved their expected entry counts before insertion. Parent-cycle maps remain proportional to traversed ancestry because the exact unique ancestor count is not known in advance; root layers skip constructing these maps because they need no traversal.
-- **Value or concern:** This avoids repeated bucket growth for large exports while keeping the indexes local to validation. No allocation or runtime benchmark has been collected, so the performance benefit is inferred from capacity behavior, not measured.
-- **Next:** Run the Lottie validation contract suite and profile large documents before claiming a performance improvement.
 ## 2026-11-09: RT solid transmission の TIR 到達条件
 - **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cpp` の `directTransmissionDirection`／`transmissionIsTir`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` の透過受け入れ。
 - **確認できた事実:** shader は `worldNormal` を `WorldRayDirection()` と同じ半球へ向け直し、`viewDirection = -WorldRayDirection()` を使う。solid transmission の屈折方向には `refract(-viewDirection, worldNormal, rcp(max(IOR, 1.0f)))` を渡すため、eta は常に 1 以下に制限される。
@@ -322,60 +602,6 @@
 - **追加した確認:** middle frameだけ欠けた3-slot sequenceをProject Managerで保存・再読込し、順序・frame rate・両端frameを確認した後、欠けた元pathへ画像を戻し、同じslotをdecodeできることを確認する。
 - **価値または懸念:** path正規化・欠番保持・再読込・sequence reader再生成の横断不整合を捕捉する。テスト未実行。
 - **次に確認すること:** `StillImageLayerRoundTripTest.ImageSequenceProjectReloadPreservesGapAndRestoresItsFrameSlot` をテスト実行が許可された際に実行する。
-
-## 2026-11-09: Light streak GPU parity needs a runtime comparison, not a static assumption
-- **関連:** `Artifact/include/Effects/DirectionalGlowEffect.ixx`, `Artifact/src/Effects/DirectionalGlowEffect.cpp`, `Artifact/src/Effects/Glow/GlowEffect.cpp` (`GlintStarFilterEffect`), `Artifact/src/Effect/ArtifactCreativeEffects.cpp` (`ArtifactCinematicLensFlareEffect`).
-- **確認できた事実:** The new resident HLSL for Glint approximates the CPU `warpAffine` + anisotropic gaussian with bounded directional sampling, and Lens Flare's resident path only covers manual position because auto highlight detection scans the full image. Directional Glow's Half Sampling halves the tap step rather than using a true half-resolution intermediate, so its result is close to but not identical with full sampling.
-- **価値または懸念:** All three paths now declare `supportsGPU()` and expose resident nodes, but none has been compared against the CPU reference on real frames. The Glint tap budget trades thickness fidelity for stable cost; large ray lengths and narrow widths may show visible differences. Half Sampling changes the tail weighting slightly, so the effect must not be described as visually identical.
-- **次に確認すべきこと:** Compare CPU and GPU captures for threshold edges, Star/Star6 patterns, custom angles (CPU-only), large lengths, half sampling on/off, and Lens Flare auto/manual mode. If exact Glint parity is required, evaluate a two-pass separable gaussian instead of increasing the per-pixel tap count.
-
-## 2026-11-09: SmallVector mutation diagnostics should stay allocation-free
-- **関連:** `ArtifactCore/include/Container/SmallVector.ixx::recordMutation` / `pushMutation`.
-- **確認できた事実:** The bounded eight-record mutation history used `Array<ContainerMutationRecord>`. Its first mutation could allocate, while `recordMutation()` and `pushMutation()` are `noexcept`; allocation failure could therefore terminate the process. The history now uses an inline `StaticArray` plus an explicit count. `debugSnapshot()` also builds sample vectors and can allocate, so SmallVector's snapshot method no longer promises `noexcept`.
-- **価値または懸念:** This removes the cold-start mutation-history allocation and its allocation-failure termination path from ordinary mutations. The history update shifts at most seven small records per mutation after the buffer fills; its cost is bounded. The SmallVector suite's eight-entry ring and copy/move coverage passed on MSVC 19.51.
-- **次に確認すべきこと:** Check the bounded shift cost only if profiling shows mutation-history updates are significant; assess diagnostic history overhead before extending this pattern to other containers.
-
-## 2026-11-09: Cache LRU needs a sequence independent of clock precision
-- **Related:** `ArtifactCore/include/Data/DataCache.ixx` and `ArtifactCore/include/Container/NameMap.ixx`.
-- **Confirmed:** DataCache ranked LRU entries using millisecond timestamps. A read immediately after insertion can share the same timestamp, making eviction depend on hash iteration order; `ShrinkingCapacityEvictsMultipleLeastRecentlyUsedEntriesOnNextPut` reproduced this.
-- **Change:** Cache access now advances a monotonic sequence under its existing mutex, while wall/steady-clock milliseconds remain available for TTL bookkeeping.
-- **Value or concern:** LRU ordering is deterministic for accesses within the same millisecond. Sequence wraparound is theoretically possible after 2^64 accesses and has not been specially handled.
-- **Next:** Keep the LRU contract test in the cache standalone suite; consider a broader sequence/overflow policy only if the cache lifetime and access rate make it relevant.
-
-## 2026-11-09: DataTable column index can use the named map without changing copy behavior
-- **Related:** `ArtifactCore/include/Data/DataTable.ixx` and `ArtifactCore/include/Container/NameMap.ixx`.
-- **Confirmed:** DataTable's column index is private, lookup-only metadata. Existing duplicate-header behavior maps a repeated name to the last column, and DataTable's implicit copy duplicates the index.
-- **Change:** The index now uses `NameMap<std::string, int>`; the 41-case standalone suite covers duplicate headers and independent copies.
-- **Value or concern:** Extends the custom map migration to a narrow, non-hot-path index while preserving observable semantics. Numeric parsing tests also exposed and fixed acceptance of numeric prefixes with trailing text.
-- **Next:** Inspect remaining internal lookup maps by ownership, ordering, threading, and copy contract before choosing the next migration; avoid broad mechanical replacement.
-
-## 2026-11-09: Empty registry factories should fail as a normal lookup miss
-- **Related:** `ArtifactCore/include/Data/DataSource.ixx::DataSourceRegistry`.
-- **Confirmed:** A registered `std::function` may be empty; invoking it throws `std::bad_function_call`, although registry `open()` otherwise reports unsupported formats as a null source.
-- **Change:** Registry lookup now uses `NameMap::findValue` and checks the factory before invocation. The standalone suite covers this case and passed.
-- **Value or concern:** Keeps unsupported/invalid factory state on the registry's existing null-result path instead of exposing an incidental exception.
-- **Next:** Apply the same empty-callable review to other callable registries only when their contracts and tests support a consistent policy.
-
-## 2026-11-09: Active plugin enumeration can be stable without a sorting pass
-- **Related:** `ArtifactCore/include/Plugin/PluginRegistry.ixx::active_` and `ArtifactCore/src/Plugin/PluginRegistry.cpp::activePlugins`.
-- **Confirmed:** `ArtifactSet` preserves insertion order, while `std::unordered_set` does not guarantee the order used to construct the public active-plugin vector.
-- **Change:** Plugin active membership now uses `ArtifactSet`; the registry lock still covers iteration and membership changes, and the existing lifecycle suite passes.
-- **Value or concern:** Active enumeration is repeatable in activation order, which can simplify diagnostics and callers that display the vector. This is an observable strengthening of previously unspecified order.
-- **Next:** If consumers require a different display order, define it at that consumer boundary instead of sorting registry state on each query.
-
-## 2026-11-09: Map replacement depends on the custom map's full iterator and capacity contract
-- **Related:** `ArtifactCore/src/Core/ArtifactHashMap.cppm` and `ArtifactCore/include/Container/IdMap.ixx`.
-- **Confirmed:** HashMap contract coverage exposed that const iteration returned mutable entries, collision-chain iteration skipped nodes, and duplicate variadic `tryEmplace` created/destroyed a temporary mapped value. IdMap also requires capacity reservation, squeeze, iterator erase, and independent copies.
-- **Change:** HashMap gained a distinct const iterator, chain-aware increments, iterator erase, reserve/rehash, moved-from reuse, and direct in-node `tryEmplace` construction. IdMap now uses HashMap and explicitly retains its previous deep-copy semantics.
-- **Value or concern:** Wrapper migration uncovers missing capabilities at the abstraction boundary; moving storage before these contracts are verified can silently lose entries or break APIs.
-- **Next:** Before migrating another unordered container, compare its iterator, capacity, copy, and compatibility requirements against ArtifactHashMap's tested contract.
-
-## 2026-11-09: Qt key hashing needs an explicit bridge for custom hash maps
-- **Related:** `ArtifactCore/include/Render/ProgressAggregator.ixx`, `ArtifactCore/src/Core/ArtifactHashMap.cppm`, and `ArtifactCore/CMakeLists.txt`.
-- **Confirmed:** `QString` lookups in the existing `std::unordered_map` relied on Qt's hash support; ArtifactHashMap defaults to `std::hash<K>`, and the ProgressAggregator implementation's explicit MSVC IFC references are maintained in a source-specific CMake block.
-- **Change:** ProgressAggregator now supplies a private hasher delegating to `qHash(QString)` and explicitly references the ArtifactHashMap IFC in its implementation compile rule.
-- **Value or concern:** This keeps QString equality/hash behavior while avoiding a public generic container API expansion. The currently configured full target is blocked earlier by an unrelated ScopeComputer C2511 mismatch, so this migration still needs a clean targeted build after CMake regeneration.
-- **Next:** Rebuild the ProgressAggregator contract target after the unrelated compile blocker is resolved, and consider a narrowly scoped Qt hash adapter only if more QString-keyed maps are migrated.
 
 ## 2026-11-08: SequencePlayer reverse override selects the matching start boundary
 - **関連:** `ArtifactCore/include/Sequence/SequenceGroup.ixx::SequencePlayer::play`、`tests/ArtifactCore/SequenceGroupContractTest.cpp::ReverseOverrideControlsPlaybackDirectionAndInitialBoundary`。
@@ -1230,179 +1456,6 @@
 - **価値または懸念:** 動画全体の差分だけでは一部の段落が静止／消失しても他行の動きで合格するため、複数行テキストでは行ごとの時間変化を独立して検査する。CPU backend のアニメーション欠落は現在の観測であり、原因は未特定。rich-text selector summary の0件も診断・観測上のギャップで、selector の実評価失敗とはまだ断定できない。以前の54フレームはテスト設定が `resolutionPreset=Composition` を残し、960×540描画を640×360 rawvideo入力として渡した寸法不一致だった。リッチテキストfixtureでは明示的な `<p>` 段落を使う。
 - **次に確認すべきこと:** pipe encoder の GPU 受入は確認済み。CPU backend の動画静止をレンダー経路とフレーム時刻適用に分けて調査する。native encoder はこの環境で H.264 encoder 初期化に失敗したため未検証。画素ベース検査は文字内容の正確性をOCRで保証するものではない。
 
-## 2026-11-05: 2.5D blur frame delta must use the composition frame
-- **関連:** `Artifact/src/Layer/ArtifactLayerTransformSupport.cpp::buildTwoPointFiveDRenderPasses`.
-- **確認できた事実:** `ArtifactAbstractLayer::goToFrame()` stores `globalFrame - inPoint + startTime` in `currentFrame()`, while `getGlobalTransformAt(frame)` accepts a timeline/composition frame. The 2.5D blur helper previously passed `currentFrame()` directly, producing a wrong previous/current delta when a layer had a nonzero in-point or start time. The helper now calls the same module-local `currentTimelineFrame(layer)` utility used elsewhere in `Artifact.Layer.Abstract`, without importing the Composition module into its implementation unit.
-- **価値または懸念:** Offline and MFR motion blur should evaluate the same keyed transform interval as the composition cursor. Runtime parity remains unverified.
-- **次に確認すべきこと:** render a 2.5D blurred layer with nonzero in-point and start time in preview, sequential queue output, selected-frame output, and MFR, then compare sample frames.
-
-## 2026-11-05: Physical blur shader is current-frame velocity-guided reconstruction
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp`, embedded `MotionBlurCS` shader, Render Queue and Composition preview callers.
-- **確認できた事実:** The compute shader reads one center velocity and samples the current color/depth image along that vector for the configured shutter positions. It does not render or accumulate scene samples at shutter sub-times. Render Queue's velocity redraw covers 3D meshes only; 2D layer-local 2.5D blur remains separate.
-- **価値または懸念:** This can provide a useful GPU blur but cannot recover disoccluded content or per-sample motion/coverage changes like true temporal rendering. Alpha edges, changing velocity fields, and intersections need visual acceptance before claiming physically accurate exposure.
-- **次に確認すべきこと:** Compare static/object/camera motion, high velocity gradients, moving occlusion edges, alpha silhouettes, and combined camera+timeline blur on the same shot; then decide whether a shutter-time scene accumulation path is required.
-
-## 2026-11-05: USD material-slot instances need previous layer transforms
-- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cpp::draw` multi-material instance construction and `ArtifactCore/src/Graphics/MeshRenderer.cpp` velocity shading mode.
-- **確認できた事実:** The single-mesh path passes `previousModelMatrix` to `drawMesh`, but the multi-mesh/material-slot path populated each `InstanceData::previousTransform` from its current `transform`. The instance vertex shader uses that matrix for previous clip position, so layer animation produced zero velocity for these USD mesh instances.
-- **対応:** Each material-slot instance now combines the sampled previous layer transform with the same static mesh-local transform; the single-material-slot case uses the previous layer transform directly.
-- **価値または懸念:** Physical blur and Velocity AOV now receive temporal motion for animated multi-mesh model transforms. This does not add per-prim USD animation sampling; runtime velocity and blur remain unverified. The existing vector-backed instance construction is unchanged by this patch.
-- **次に確認すべきこと:** Use an animated USD stage with multiple material slots; compare raw velocity AOV and blurred output against the equivalent single-mesh animated cube.
-
-## 2026-11-05: A single motion-blur sample still has shutter-phase meaning
-- **関連:** embedded `MotionBlurCS` in `Artifact/src/Render/ArtifactMotionBlurPass.cpp` and `MotionBlurSettings::shutterPhase`.
-- **確認できた事実:** The shader places sample `i` at `((i + 0.5) / count * 2 - 1) * shutter/2 + phase`. With `count == 1`, that sample is at `phase`, but an earlier unconditional count-one early-out copied the current frame and ignored nonzero phase.
-- **対応:** Count-one now only early-outs at zero phase; a nonzero phase traces one velocity-directed sample. Zero shutter angle plus zero phase returns the current color without reading velocity or looping.
-- **価値または懸念:** This aligns the lowest sample count with the documented frame-fraction phase contract and avoids useless work for a point exposure at the current frame. Runtime shader behavior is unverified.
-- **次に確認すべきこと:** Compare count=1 at phase 0, +0.5, and -0.5 against the expected neighboring-frame sample; also check zero-angle/zero-phase exact pass-through.
-
-## 2026-11-05: Motion-blur visual fixture prepaints velocity outside object coverage
-- **関連:** `tests/Artifact/PostProcessPassContractTest.cpp::MotionBlurPreservesStaticLayerAndBlursMultipleMovingLayerRegions`, `MotionBlurCS`.
-- **確認できた事実:** The test manually assigns the moving object's velocity to adjacent pixels that contain only background-colored input. This makes the gather shader's current tests detect trails because output pixels outside the object are given nonzero motion vectors by construction. A normal mesh velocity-only pass emits neutral velocity where no moving mesh covers the pixel.
-- **価値または懸念:** The fixture establishes vector-guided color sampling for a supplied velocity field, but does not establish that a rendered object expands into a trail outside its current coverage. Current per-pixel gather also gates color taps by center depth, which can suppress coverage expansion.
-- **今回の軽微な改善:** `MotionBlurCS` now loads center depth once per pixel and reuses it across the sample loop instead of repeating the same texture load up to 32 times.
-- **次に確認すべきこと:** Add/execute an end-to-end moving mesh fixture where velocity is rasterized only over actual mesh coverage; measure both interior smear and trail pixels beyond the current silhouette before accepting the spatial resolve.
-
-## 2026-11-05: 3D velocity target already carries raster coverage, but blur drops that signal
-- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cpp` velocity shading mode, `Artifact/src/Render/ArtifactRenderQueueService.cpp` velocity-only redraw, `Artifact/src/Render/ArtifactMotionBlurPass.cpp`.
-- **確認できた事実:** Render Queue clears the velocity target to encoded zero-motion `(0.5, 0.5)` with alpha `0`, redraws visible active 3D layers into that target using the live scene depth buffer, and the velocity shader writes encoded XY plus alpha `1` for surviving fragments. Opaque and alpha-masked material ranges use the non-blended PSO with depth test/write; alpha masking clips fragments in the pixel shader. Blended ranges use a PSO with blending enabled and depth writes disabled, while the velocity shader's output alpha is still `1`. `MotionBlurPass::apply` binds the target as `Texture2D<float2>`, discarding alpha; its depth rejection compares each candidate tap to the output pixel's center depth. The target uses the pipeline's floating-point color format.
-- **価値または懸念:** For opaque/masked geometry the alpha marker identifies raster coverage after depth testing. For blended geometry it only marks that a blended fragment was drawn: transparent surfaces do not update the shared depth buffer, overlapping transparent surfaces can overwrite vector data in draw order, and alpha is forced to one. It is therefore not a physically meaningful coverage/opacity measure for transparency. Any dilation also must carry the selected vector's source depth and define newly exposed background contribution; simply loosening the symmetric center-depth threshold violates the existing depth-edge contract.
-- **次に確認すべきこと:** Design and validate opaque/masked coverage dilation with real overlapping meshes first. Treat blended materials as a separately defined limitation or representation problem; do not infer their opacity from this velocity alpha. Preserve the current no-cross-depth contract for ordinary gathers.
-
-## 2026-11-05: Legacy tile-max motion-blur shaders do not match the current velocity contract
-- **関連:** `Artifact/shaders/motionblur_tileMaxVelocity_horizontalCS.hlsl`, `motionblur_tileMaxVelocity_verticalCS.hlsl`, `motionblur_neighborhoodMaxVelocityCS.hlsl`, `Artifact/src/Render/ArtifactMotionBlurPass.cpp`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::RenderPipeline::createTextures`.
-- **確認できた事実:** Legacy tile-max shaders read `texture_velocity` as signed `float2`, aggregate only max/min vector magnitudes, and emit only `float2`; they do not carry coverage alpha or the depth of the vector's source surface. Current Render Queue velocity is encoded into `[0,1]` with neutral `(0.5,0.5)`, and coverage is in alpha. RenderPipeline texture bundles are created in initialize/createTextures and recreated on resize, so that is the cold-path lifetime for any workspace.
-- **価値または懸念:** Reusing the old reduction directly would treat encoded neutral velocity as nonzero, and even a decode fix would lose source depth and coverage before resolve. A current-path workspace needs an explicit source record (signed velocity, source depth, valid coverage) and bounded dimensions, with allocation tied to RenderPipeline initialize/resize rather than frame apply. The selection policy for competing foreground/background candidates remains a design requirement, not an implementation fact.
-- **次に確認すべきこと:** Specify tile footprint and maximum trail reach from the actual shutter/velocity limits, then prove source-depth pairing survives reduction. Add a real opaque/masked raster coverage fixture before integrating the resolve; leave transparent geometry's policy explicit.
-
-## 2026-11-05: Current motion-blur reach has no explicit velocity bound
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp::MotionBlurPass::apply` and `MotionBlurCS`, `Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cpp` shutter controls.
-- **確認できた事実:** Timeline shutter angle UI accepts 0–720 degrees and phase accepts -360–360 degrees; the pass normalizes phase to frame fractions and uses `t = phase + shutterPosition * shutterAngle/720`. Thus configured sample time can reach up to 2 frame intervals from the current frame. `velocityScale` is only checked for finiteness in the pass, not clamped, and projected mesh velocity is not visibly clamped before multiplication by frame dimensions. Sampling later clamps sample coordinates to the image bounds.
-- **価値または懸念:** A dilation workspace cannot derive a small local search radius from shutter settings alone while velocity magnitude is unbounded. For bounded work, the implementation needs an explicit maximum pixel displacement (and a defined saturation behavior) shared by velocity preparation, tile extent, and color resolve; otherwise a fast-motion case can require frame-wide candidate search or silently lose trails.
-- **次に確認すべきこと:** Decide and document a screen-space displacement cap consistent with the existing edge-clamped gather, then size tile/workgroup expansion from that cap and verify that capped vectors produce stable trails at all supported shutter angles/phases.
-- **追記:** The output image itself gives a correctness bound: no output trail pixel can lie outside the frame, so a source candidate is at most the frame diagonal away from an in-frame destination. This avoids inventing a new velocity clamp solely to bound correctness, but the bound is too broad for a naive per-pixel scan. A hierarchical/tiled candidate index is needed for practical work; any smaller fixed cap would be a deliberate quality limit, not a consequence of current shutter settings.
-- **設計仮説（未検証）:** A jump-flood propagation over an R32_UINT source-pixel index map could keep candidate storage to two 32-bit index textures (ping/pong), while each candidate's signed velocity, coverage, and source depth are fetched from the original AOV at its source coordinate. Each propagation step compares the candidate's shutter trajectory distance to the destination pixel; the final resolve rejects candidates whose trajectory does not reach that pixel and applies source-depth-aware color taps. This gives logarithmic full-frame passes instead of a frame-diagonal per-pixel scan, but custom segment-distance propagation may have holes and repeated full-resolution dispatches plus per-MFR-worker scratch memory may be too expensive. Prototype and profile before selecting it.
-
-## 2026-11-05: Previous clip positions behind the camera produced unbounded mesh velocity
-- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cpp` velocity shading mode 7.
-- **確認できた事実:** The velocity pixel shader divided previous clip XY by `max(previousW, 1e-5)`. If a current visible fragment's previous position had negative W (behind the camera) or W near zero, this manufactured an arbitrarily large NDC delta rather than representing an invalid previous projection.
-- **対応:** Velocity shading now emits neutral encoded velocity `(0.5,0.5)` with coverage alpha `1` when previous W is not positive above epsilon or when the resulting velocity is non-finite. Valid previous clip positions retain the existing signed NDC-delta encoding.
-- **価値または懸念:** This prevents a camera-plane crossing from creating whole-frame streaks from an invalid projection and preserves the fragment's coverage marker. The behavior at actual near-plane crossings and on D3D12/Vulkan is not runtime-verified; zero velocity is a deliberate fallback because no valid previous screen correspondence exists.
-- **次に確認すべきこと:** Render a mesh crossing the camera plane and verify no NaN/Inf AOV, full-frame streak, or coverage hole in the adjacent frames; compare a mesh remaining in front to ensure ordinary velocity is unchanged.
-
-## 2026-11-05: Coverage trails need a separate foreground contribution, not a relaxed gather depth test
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp::MotionBlurCS`, `tests/Artifact/PostProcessPassContractTest.cpp::MotionBlurRejectsSamplesAcrossDepthEdges`, velocity coverage in `ArtifactCore/src/Graphics/MeshRenderer.cpp`.
-- **確認できた事実:** The current gather uses the output pixel's center depth and normalizes only accepted taps. Its depth-edge contract rejects a foreground tap for a background output pixel. A propagated foreground velocity plus source depth makes it possible to identify a legitimate trail candidate, but allowing all samples in front of the destination depth would still make the existing synthetic fixture leak because it assigns velocity to background pixels too.
-- **設計仮説（未検証）:** Keep the current per-pixel gather unchanged for covered pixels. For uncovered pixels only, use a valid propagated source candidate (coverage + source pixel + signed velocity + source depth), gather only color taps matching that source surface depth, and composite their shutter-weighted contribution over the destination's current beauty color. Normalize trail contribution by the complete shutter weight, not only accepted foreground taps, so uncovered exposure time remains background instead of becoming an opaque streak. Reject a candidate if the destination is occluded by a nearer surface. This preserves the synthetic depth-edge contract for pixels without provenance while permitting real foreground trails.
-- **価値または懸念:** Provenance-gated compositing separates valid motion trails from fabricated background vectors and prevents the current normalization from turning a sparse foreground sample into a solid opaque ribbon. Perspective depth variation, colored/transparent backgrounds, alpha output, and overlapping moving objects still need explicit treatment; a source-depth tolerance alone may not track a perspective surface.
-- **次に確認すべきこと:** Prototype on an opaque/masked moving mesh over a contrasting static background, then place a nearer static occluder across its trajectory. Check trail opacity against sample-count coverage and verify the existing synthetic depth-edge case remains unchanged.
-
-## 2026-11-05: Motion-blur scratch has an existing resize-time allocation seam
-- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` preview `AuxiliaryTargetRequest`, `Artifact/src/Render/ArtifactRenderQueueService.cpp` worker-local `revealPipeline`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::RenderPipeline::initialize/createTextures/resize/destroy`.
-- **対応:** Added `AuxiliaryTargetRequest::motionBlurScratch`; preview requests it for Timeline/Camera physical blur, Render Queue requests it for non-deep beauty blur, and `RenderPipeline::createTextures` allocates two tiled `RGBA32_UINT` SRV/UAV maps at ceil(width/8) by ceil(height/8). Each tile stores up to four source IDs, one per velocity-direction quadrant. `ready()`, `destroy()`, resize/reinitialize, and indexed SRV/UAV accessors include the pair. Raw Velocity AOV export does not request these maps. `MotionBlurPass::applyWithCandidates()` seeds the tile candidates, jump-floods them, and consumes the final map in exterior resolve.
-- **価値または懸念:** Candidate scratch is isolated per Render Queue worker and avoids full-resolution index storage. The seed keeps only the largest-motion source in each quadrant per tile, so two objects with similar direction in one tile can lose a candidate. Runtime holes, MFR memory multiplication, and GPU time remain unknown; the path is implemented but not accepted.
-- **次に確認すべきこと:** Render real opaque/masked moving geometry over a contrasting background, with a nearer occluder crossing the path and multiple motions in one tile. Inspect candidate holes and depth leaks, then measure GPU time and per-worker VRAM at representative export sizes.
-
-## 2026-11-05: Motion blur candidate propagation and exterior compositing are connected but unverified
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp` (`MotionBlurCandidateSeedCS`, `MotionBlurCandidateFloodCS`, `MotionBlurCS` candidate branch), `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp` motion blur index maps, preview and Render Queue call sites.
-- **対応:** Added a seed compute pass that retains one moving covered source pixel per screen-space velocity quadrant in each 8x8 tile, logarithmic tile-grid jump-flood passes that propagate candidates by shutter-trajectory distance (frontmost source depth breaks equal-distance ties), and a resolve branch for uncovered destination pixels. That branch verifies exact pixel-to-trajectory distance, rejects candidates behind the destination surface, gathers source-depth-matched colors, and uses the destination's current beauty color for the remaining shutter weights. The legacy `apply()` path remains available and bypasses candidate propagation.
-- **価値または懸念:** Provenance now separates legitimate foreground trails from fabricated background vectors without changing the normal gather's symmetric depth test. Tiling cuts candidate-map memory and flood dispatch work, but one source per direction quadrant per tile can miss nearby independent objects; depth tolerance may also miss perspective-varying surfaces. Shader compilation, rendered output, alpha behavior, and performance remain unverified because build/test execution is prohibited by the repository instructions.
-- **次に確認すべきこと:** Use actual opaque and alpha-masked 3D geometry with multiple motions inside a tile, a static background, and an intersecting nearer occluder. Check uncovered-pixel trail weight against sample count, candidate continuity across tile boundaries, normal depth-edge regression, and 1080p/4K MFR time and memory.
-
-## 2026-11-05: Motion-blur candidate fallback binding must match the shader view type
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp` (`InputCandidate`, legacy `apply()` fallback binding).
-- **確認できた事実:** The resolve shader declares `InputCandidate` as `Texture2D<uint4>` and binds it even when `hasCandidateMap == 0`; the legacy `apply()` path supplies a 1x1 dummy SRV because candidate lookup is skipped at runtime. The dummy resource was `R32_UINT`, which did not match the shader's four-component unsigned-integer view declaration.
-- **対応:** Changed the dummy texture format to `RGBA32_UINT` so the legacy bind has the same component type and count as the shader declaration.
-- **価値または懸念:** This removes a static resource-view mismatch from the no-candidate path. Diligent validation and execution on each graphics backend remain unverified.
-- **次に確認すべきこと:** Run a GPU frame with candidate propagation disabled and another with it enabled under Diligent validation; confirm both resource bindings and outputs.
-
-## 2026-11-05: True shutter-time accumulation has only a partial RationalTime transform path
-- **関連:** `ArtifactCore/include/Frame/FramePosition.ixx`, `Artifact/include/Composition/ArtifactAbstractComposition.ixx`, `Artifact/src/Composition/ArtifactAbstractComposition.cpp`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`, `Artifact/src/Render/ArtifactRenderQueueService.cpp`.
-- **確認できた事実:** `FramePosition` stores integer frame numbers and `fromRationalTime()` rounds to an integer. Composition and Layer `goToFrame()` also accept integer frames. There is a partial explicit-time path: `getGlobalTransform4x4At(RationalTime)` evaluates the 3D transform hierarchy at rational time, but its 2D branch converts time to an integer frame before calling `getLocalTransformAt()`. It also does not by itself evaluate the entire scene, arbitrary effects, or component/physics state at that instant. Composition seek evaluates layers and can restore/replay physics state; Render Queue evaluates layer-component simulation per frame. Preview's N-1 history pre-roll is not a shutter-sample accumulator.
-- **価値または懸念:** The 3D transform method is a useful seed for subframe motion, but routing full-scene accumulation through it would omit/quantize 2D animated content and leave simulation/effect state inconsistent. Calling the existing full-frame render repeatedly at rounded frame indices would duplicate or omit temporal positions; reusing `goToFrame()` can mutate simulation/history and may not be deterministic for arbitrary sample order.
-- **次に確認すべきこと:** Trace the 3D render submission's per-layer transforms, property/keyframe evaluators, layer-local time conversion, component and physics snapshot/restore, and renderer output retention. Define a side-effect-bounded sample context that covers the intended layer types before wiring shutter-time accumulation into preview and Render Queue.
-
-## 2026-11-05: Depth-edge test rejects a blanket foreground-to-background allowance
-- **関連:** `tests/Artifact/PostProcessPassContractTest.cpp::MotionBlurRejectsSamplesAcrossDepthEdges`, embedded `MotionBlurCS` in `Artifact/src/Render/ArtifactMotionBlurPass.cpp`.
-- **確認できた事実:** The depth-edge fixture sets velocity on the background output pixel as well as the foreground sample and explicitly expects no foreground color or alpha to cross the depth discontinuity. A blanket `sampleDepth <= centerDepth + tolerance` rule would violate that contract by allowing a closer foreground sample to contribute to a farther center pixel.
-- **対応:** A trial directional depth comparison was reverted. The production absolute depth rejection remains unchanged until reconstruction can associate propagated velocity with its source surface and preserve the established edge contract.
-- **価値または懸念:** Trail expansion cannot be implemented by changing only the depth inequality; the candidate source velocity, source depth, and source coverage must travel together through bounded dilation/reconstruction.
-- **次に確認すべきこと:** Design the tile workspace to carry source velocity plus depth/coverage provenance, then test both foreground-to-background smear and background-to-foreground rejection with real target data.
-
-## 2026-11-05: Trail reconstruction needs a bounded coverage-aware velocity expansion
-- **関連:** `Artifact/src/Render/ArtifactMotionBlurPass.cpp::MotionBlurCS`, `Artifact/src/Render/ArtifactRenderQueueService.cpp` velocity-only redraw, and legacy `Artifact/shaders/motionblur_tileMaxVelocity_*CS.hlsl` / `motionblur_neighborhoodMaxVelocityCS.hlsl`.
-- **確認できた事実:** The active Diligent blur consumes the raw mesh velocity target. Pixels outside rasterized mesh coverage retain neutral velocity and return the center color; the shader also accepts color taps only when absolute center/sample depth differs by less than 0.02. Thus it cannot reconstruct a trail beyond the current silhouette from a real velocity target. Existing legacy tile-max shaders are not connected to `MotionBlurPass` and require tile textures/statistics and multiple dispatches.
-- **価値または懸念:** A local arbitrary-radius search or simple neighbor copy can spread vectors across unrelated silhouettes and produce incorrect depth behavior. A robust pass needs fixed-capacity intermediate resources, bounded tile/neighborhood velocity propagation with coverage/depth preference, and a directional depth rule that permits foreground motion over background while rejecting background leakage onto foreground.
-- **次に確認すべきこと:** Design a RenderPipeline-owned, resize-time allocated tile-max/dilation workspace for Diligent; define its radius bound from shutter and maximum velocity policy; then validate real mesh coverage edges, intersecting depths, alpha silhouettes, and static foreground/background.
-
-## 2026-11-05: Render Queue shutter controls need job snapshot semantics
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cpp::FrameRenderSnapshot` and `renderSingleFrameNoLock`.
-- **確認できた事実:** RenderQueue previously looked up Timeline Motion Blur enable and shutter values from the application settings singleton inside each GPU frame render. The queue already copies `FrameRenderSnapshot` once for all frames and MFR workers. It now copies the Timeline blur struct into the base snapshot at job setup, so frame execution reads only the job's values.
-- **価値または懸念:** This keeps a video/image sequence's shutter behavior stable if the UI settings change while a job is running. Runtime MFR consistency has not been exercised.
-- **次に確認すべきこと:** Start a multi-frame Render Queue job, change Preview shutter controls during execution, and verify all frames use the original job snapshot; repeat with MFR.
-
-## 2026-11-05: Timeline と Camera の blur pass が同一 velocity を連続積分する
-- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` の post-process 実行部、`Artifact/src/Render/ArtifactMotionBlurPass.cpp`。
-- **確認できた事実:** Timeline Motion Blur の pass が成功すると `accumSRV` を swap した後、active camera の motion blur 条件が成立すれば、その同じ velocity SRV と depth SRV を使い、更新後の `accumSRV` をもう一度 `MotionBlurPass::apply()` へ渡す。両方の設定が有効なフレームでは同じベクトル場を二度サンプルする。
-- **価値または懸念:** 二回の box/profile 積分は単一 shutter の積分とは異なる露光カーネルになり得る。これは意図的な camera/global 合成か、重複適用かは未検証であり、片方を無効にする変更は仕様判断なしに行わない。
-- **既存テストとの照合:** `tests/Artifact/Model3DLightCompositionIntegrationTest.cpp::MotionBlurComposes2D25DAnd3DLayersWithStaticShapeAndText` は Timeline Blur、Camera Blur、2.5D layer blur をそれぞれ単独で実レンダー比較している。同時有効の比較だけは含まれない。
-- **次に確認すべきこと:** 同じ fixture に Timeline と Camera の両方を有効にするケースを加え、各単独出力と同時出力を比較する。比較結果と製品仕様に基づいて effective shutter の優先順位または合成契約を決めてから pass を統合する。
-
-## 2026-11-05: Render Queue camera motion vectors use temporal camera matrices
-- **Related:** `Artifact/src/Render/ArtifactRenderQueueService.cpp::renderSingleFrameNoLock`, `Artifact/src/Render/ArtifactIRenderer.cpp::set3DCameraMatrices` / `setPrevious3DCameraMatrices`.
-- **Confirmed:** the GPU frame path now calculates current and previous active-camera view/projection matrices using the same frame-time and shake sampling pattern as Composition View. It wraps composition-view helper draws with the camera matrices, and the velocity-only redraw uses the same current/previous pair. Stereo cameras use the left-eye view, matching the existing Composition View render path.
-- **Risk:** this is static wiring only; camera motion vectors and rendering after the temporary previous-frame seek have not been runtime-verified. The legacy one-shot GPU function is a separate path and was not changed.
-- **Next:** verify moving-camera beauty and velocity AOVs for sequential, selected-frame, MFR, and stereo output.
-
-## 2026-11-05: Existing per-layer 2.5D blur is separate from physical velocity AOV
-- **Related:** `Artifact/src/Layer/ArtifactLayerTransformSupport.cpp::buildTwoPointFiveDRenderPasses`, `Artifact/src/Layer/ArtifactImageLayer.cpp`, `Artifact/src/Layer/ArtifactTextLayer.cpp`, `Artifact/src/Layer/ArtifactShapeLayer.cpp`.
-- **Confirmed:** image, text, and shape GPU draw paths call `twoPointFiveDRenderPasses()`. When the layer's 2.5D motion blur is enabled, it duplicates transformed draws using the previous-frame global transform delta and configured sample weights. The Render Queue's new physical `VelocityX/Y` texture is still generated by the 3D mesh velocity-only pass and does not contain 2D / 2.5D vectors.
-- **Value or concern:** Render Queue can retain the existing layer-local 2.5D approximation while the physical Timeline / Camera post pass cannot blur those layers from the velocity AOV. Tests must distinguish existing per-layer blur from the physical post pass.
-- **Next:** add temporal-motion coverage to the 2D draw packet path or another coverage-preserving GPU path; test layer-local 2.5D blur and physical Timeline blur independently and together.
-
-## 2026-11-05: 2D physical velocity must preserve draw-packet coverage
-- **Related:** `Artifact/include/Render/RenderCommandBuffer.ixx`, `Artifact/src/Render/PrimitiveRenderer2D.cpp`, `Artifact/src/Render/DiligentImmediateSubmitter.cpp`.
-- **Confirmed:** transformed sprites, atlas sprites, and textured triangles have separate packet variants but use the transformed-sprite PSO in the submitter. Solid rectangles, gradients, glyph text, and cloner grid draws use separate packet and/or submit paths. The layer API dispatches through these operations, so one layer-level `is2D()` switch cannot create alpha- and shape-correct velocity coverage.
-- **Value or concern:** a physical 2D vector pass must carry previous/current transform data through every relevant draw packet and preserve each packet's sampled alpha/geometry. A center-point or bounding-box velocity fill would leak across transparent pixels and occlusions.
-- **Next:** map packet variants to their GPU pipelines and decide whether a shared per-draw velocity output or a dedicated coverage-preserving replay is the smaller complete implementation. Keep cloner instances and glyph offset transforms in the acceptance scope.
-**最終更新:** 2026-11-09
-
-## 2026-11-05: GPU particle textures keep the registry on the GUI thread
-- **関連:** `ArtifactCore/include/Graphics/ParticleData.ixx`、`ArtifactCore/src/Graphics/ParticleRenderer.cpp`、`Artifact/include/Render/RenderCommandBuffer.ixx`、`Artifact/src/Render/ArtifactIRenderer.cpp`、`Artifact/src/Layer/ArtifactParticleLayer.cpp`。
-- **確認できた事実:** `ParticlePkt` may be recorded and submitted on the deferred worker thread, while texture registration is a GUI-thread operation on a `std::map` registry. Resolving the SRV inside `submitParticles` would touch that map off-thread. The packet instead retains its own `RefCntAutoPtr<ITextureView>` resolved on the GUI thread, and `ParticleRenderer::setCurrentTexture()` only stores a raw pointer that `prepare()` binds into a DYNAMIC SRV variable.
-- **価値または懸念:** Deferred submission stays free of registry locking, and a released or unknown id degrades to the procedural shader path instead of sampling an unbound or white texture. The registry is `std::map` because ids are sparse process-unique atomics and lookups are cold-path; the per-frame path only reads a raw pointer. Known Phase 1 limitation: a layer destroyed without a renderer pointer cannot call `releaseParticleTexture()`, so its atlas stays in the renderer registry until the device is recreated; path changes are released correctly.
-- **次に確認すべきこと:** Run the headless particle contract tests on D3D12 and Vulkan, then confirm the deferred packet path (16+ packets) still samples the atlas after the originating layer releases it. Decide whether layer teardown needs an explicit renderer notification to drop its atlas early.
-
-## 2026-11-05: GPU particle atlas is one-per-layer, 2D-only in Phase 1
-- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cpp::requiresCpuFlipbookPath` / `resolveParticleTextureId`、`ArtifactCore/src/Graphics/ParticleRenderer.cpp` embedded `ParticleVSSource` / `ParticlePSSource`。
-- **確認できた事実:** The particle pixel shader samples exactly one `Texture2D` plus one sampler. A layer with a sequence directory or with two or more distinct single-image atlases therefore still uses the existing CPU flipbook path. The 3D camera path also keeps procedural shapes: it was procedural before this change, and its view-space billboard would need a UV.y flip. `ParticleVertex::pad0` (position.w) now carries a per-particle texture flag so procedural emitters sharing the layer keep the analytic falloff.
-- **価値または懸念:** Single-image 2D emitters now sample the atlas on the GPU with per-cell half-texel inset, while multi-atlas and sequence sources keep their previous behavior. The per-particle flag means a layer mixing textured and procedural emitters does not force every particle through the texture path.
-- **次に確認すべきこと:** Decide whether Phase 2 should add a per-particle atlas index (array binding or texture array) so multi-atlas layers can leave the CPU path, and whether the 3D billboard should flip UV.y for textured particles.
-- **価値／懸念:** Raw order regressions and API semantic regressions fail at separate assertions with the failing channel index. The standalone executable has not been configured, built, or run under the repository rule.
-- **次に確認:** Execute ArtifactCorePixelChannelOrderStandaloneTest when build/test execution is explicitly allowed; then add renderer GPU readback coverage using the same non-symmetric fixture and compare D3D12/Vulkan where available.
-
-
-## 2026-11-05: Text animator layer coverage lived only in the app-side env-flag runner
-- **Related:** `Artifact/src/Test.cpp` (`runTextLayerAnimatorTestsImpl`, env `ARTIFACT_RUN_TEXT_LAYER_ANIMATOR_TESTS`), root `CMakeLists.txt` (`ArtifactTextLayerAnimatorIntegrationTest`), new `tests/Artifact/TextAnimatorLayerContractTest.cpp`.
-- **Confirmed:** before this change no gtest under `tests/` referenced `text.animators`, `textAnimatorStackSnapshot`, or `restoreTextAnimatorStack`; the only layer-level animator coverage was an app-binary self-test selected by an environment variable. The engine contract suite (`tests/ArtifactCore/TextAnimatorContractTest.cpp`, 62 cases) bypasses `ArtifactTextLayer` entirely.
-- **Value/risk:** property-path parsing, value clamping, snapshot/project-JSON round-trip and `SetTextAnimatorStackCommand` undo were untested at the layer boundary, so a wiring regression would only show up when someone ran the app with the env flag. The new gtest covers those paths but has not been compiled or run yet.
-- **Next:** build `ArtifactTextAnimatorLayerContractTest`, the extended `ArtifactCoreTextShapingTest` and `ArtifactTextGlyphRenderContractTest`; generate `tests/Artifact/baselines/text-animator/*.png` with `ARTIFACT_TEXT_ANIMATOR_UPDATE_BASELINES=1` before relying on baseline comparison (the GPU tests skip while the PNGs are absent).
-## 2026-11-05: Retraction - the product text render path does honor every animator channel
-- **Related:** `Artifact/src/Render/ArtifactIRenderer.cpp:7254`, `Artifact/src/Render/PrimitiveRenderer2D.cpp:2501-2714`, `Artifact/src/Render/DiligentImmediateSubmitter.cpp:2858/2880/3058/3080`, `Artifact/src/Render/ArtifactTextGlyphSubmitter.cpp:149-169`.
-- **Correction:** I previously reported that the GPU path drops `offsetScaleX/Y`, `offsetSkew`, `offsetBlur`, `offsetStrokeWidth`, fill/stroke overrides and `offsetZ`. That was read off `DiligentImmediateSubmitter::submitGlyphText*` and the test-only `ArtifactTextGlyphSubmitter`. The product path for `ArtifactTextLayer::draw()` is `ArtifactIRenderer::drawGlyphsTransformed` -> `PrimitiveRenderer2D::drawGlyphsTransformed`, which reads all of those fields (`offsetScaleX/Y` :2600-2604, `offsetSkew` :2621-2625, `offsetZ` sort :2544 and depth :2703, overrides :2676-2685, `offsetStrokeWidth` :2687, `offsetBlur` :2714). No GPU wiring is missing for the animator channels.
-- **Why the mistake happened:** there are two glyph submit paths and only one is the text-layer path; the test-only submitter's five-field vertex struct looked like the renderer's contract.
-- **Next:** verify at runtime; when touching text render paths, confirm which consumer a function feeds before calling it the "GPU path".
-## 2026-11-05: 2.5D motion blur properties bypass the property cache
-- **Related:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cpp:1273-1284` (`setLayerPropertyValue` writes impl fields and returns), `ArtifactAbstractLayerPropertyGroups.cpp:279-289` (registers `layer.2_5d.motionBlur*`), `Artifact/src/Undo/UndoManager.cpp:3451` (`applyLayerPropertyValue` compares the cached property value).
-- **Confirmed:** the `layer.2_5d.*` setters do not call `persistentLayerProperty`, so the cached `AbstractProperty` keeps its previous value. `SetLayerPropertyValueCommand` compares against that cache; when a caller pushes without rebuilding the property groups, undo's "current already equals the requested target" fast path can skip the write entirely and the layer state is never restored. The new `MotionBlurLayerPersistenceContractTest` rebuilds the groups after each step (the same refresh the Inspector performs) to exercise the real path.
-- **Not a fix:** production code was left unchanged. Whether the 2.5D setters should sync the cache, or whether `layer.2_5d.*` should join `routedPropertyMetaTable`, is a design decision.
-- **Next:** verify in app; if a property-editor-driven undo of 2.5D motion blur fails to restore, add the cache sync in the 2.5D setter branch.
-
-## 2026-11-05: 3D model shutter samples must not mutate the shared skinned mesh
-- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cpp::Artifact3DLayer::draw` / `evaluateSkinAnimation`, `ArtifactCore::AnimatableTransform3D::snapshotAt`, `ArtifactIRenderer::drawMesh`.
-- **確認できた事実:** `Artifact3DLayer::draw()` builds current and previous model matrices from `currentFrame()` as integer `RationalTime`s, then submits those matrices through `drawMesh()`. Before matrix construction, `evaluateSkinAnimation()` calls `setAnimationTime()`. Skin-only assets use `IModelAnimationImporter::updateSkinPose(..., impl_->mesh_)` to mutate the layer's shared mesh; node-only or blend-shape assets import a whole evaluated mesh and assign it to `impl_->mesh_`. The cached animation key is integer `currentFrame()`. By contrast, `getGlobalTransform4x4At(RationalTime)` can evaluate a 3D transform at rational time without changing the cursor, but the production mesh draw does not call it.
-- **価値または懸念:** A fractional shutter implementation that repeatedly calls `setAnimationTime()` on one layer would mutate shared mesh/importer state and can make sample order affect geometry, velocity, later UI draws, or MFR workers. A transform-only override can cover rigid 3D motion but will not produce fractional skeletal deformation.
-- **次に確認すべきこと:** Determine whether the USD/skin evaluator can emit into caller-owned pose buffers and whether node/blend-shape evaluation can return immutable sample meshes without replacing layer state. Define separate rigid-transform and deforming-mesh sample contracts before connecting repeated scene draws.
 ## 2026-11-04: モーションブラーGPU出力の視覚受入チェック
 - **関連:** `tests/Artifact/PostProcessPassContractTest.cpp`、`tests/motion_blur_visual/`、`artifacts/motion-blur-quality/`。
 - **確認できた事実:** headless Vulkan 上で既存の複数レイヤー MotionBlur GPU ケースを実行し、PPM 入出力を保存した。Python のルールベース画像認識は静止マーク保持、水平／垂直残像の両端と中心、隣接行／列への漏れなし、入力に残像なしをすべて検出した。ArtifactPostProcessPassContractTest の対象ケースは PASS。
@@ -13320,6 +13373,13 @@
 - **Value or concern:** Guards against reusing future-frame accumulation after a timeline seek to an earlier frame. Test not run.
 - **Next:** Run `RenderPipelineContractTest.GITemporalHistoryResetsWhenFrameMovesBackward` when test execution is authorized.
 
+## 2026-11-12: Composition replacement and temporal effect history
+- **Related:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::setComposition` and `ArtifactEffectFrameSampler`.
+- **Confirmed:** The inspected composition replacement paths clear surface/GPU caches, but no `ArtifactEffectFrameSampler::invalidateAll()` call was found. The temporal discontinuity check compares frame numbers; no composition identity was observed in that check.
+- **Hypothesis (unverified):** If a replacement composition reuses a Layer ID and begins on a frame considered continuous, stale CPU history could be returned to a temporal effect. Layer ID lifetime or another invalidation path may prevent this, so this is not yet a confirmed defect.
+- **Value or concern:** Composition switches need a host-level history isolation check, in addition to sampler unit tests, to prevent cross-composition trails.
+- **Next:** Add a host fixture that switches between compositions reusing Layer IDs and asserts fresh-history behavior; confirm whether replacement must explicitly invalidate the sampler and reset temporal continuity state.
+
 ## 2026-11-09: CSV source reload replaces delimiter and schema together
 - **Related:** `tests/ArtifactCore/CsvDataSourceStandaloneTest.cpp::ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange`.
 - **Confirmed:** Reload tests cover new rows under the existing one-column schema and clear state on failure, but not a successful transition that changes both delimiter and column count.
@@ -13466,3 +13526,774 @@
 - **Added check:** Blur an opaque red pixel adjacent to fully transparent pixels carrying green RGB; assert the partially visible edge stays red and the transparent tail remains zero-alpha/zero-RGB.
 - **Value or concern:** Detects colored halos caused by filtering straight RGB without respecting alpha association. Test not run.
 - **Next:** Run `ArtifactPrContractTest.GaussianBlurDoesNotPullHiddenRgbFromFullyTransparentPixels` when test execution is authorized.
+## 2026-11-11: Grain coordinate policy can be isolated with exact scene motion
+- **Related:** `experiments/RetroImageLab/tools/grain_motion_coordinate_study.py`, experiment 092 in `experiments/RetroImageLab/RESEARCH_NOTES.md`.
+- **Confirmed in the Python control:** With exact camera/sprite transforms and known occlusion, screen-fixed grain stayed stable in screen coordinates (adjacent residual MAE `1.97e-7`) while changing on matched world/background and object samples (`~.028`). World-and-object-fixed grain showed the inverse (`~7.13e-7` background, `.000055` clover and `.000177` feather material-coordinate MAE), while frame-varying grain was about `.028` across all coordinate measurements.
+- **Value or concern:** Grain coordinate space is an independent behavior choice alongside amount and spatial scale. The scene removes optical-flow estimation error but does not establish a universally preferred look; feather samples have low support in some occlusion pairs, and this is not Core/runtime evidence.
+- **Next:** If a production decision is needed, define whether the intended grain represents display/sensor noise or texture attached to image content, then assess that choice against approved visual references before considering a Core change.
+## 2026-11-11: Grain temporal correlation is separate from grain amount and coordinate lock
+- **Related:** `experiments/RetroImageLab/tools/grain_temporal_correlation_study.py`, experiment 093 in `experiments/RetroImageLab/RESEARCH_NOTES.md`.
+- **Confirmed in a static synthetic sequence:** At matched field variance, AR(1) rho=.95/.75/.50 produced lag-1 field correlations .950/.749/.499; correlations decayed with lag. Holding each field for eight frames kept within-block lag-1 MAE at .133, then refresh-boundary MAE rose to about 1.129. The AR(1) .95 sequence's correlation with frame 0 fell to about .190 by frame 32 and .001 by frame 119.
+- **Value or concern:** Temporal smoothing of adjacent frames and long-term grain persistence are distinct behaviors. A temporal correlation control could be useful alongside amount, spatial scale, and coordinate space, but no coefficient or refresh cadence is established as visually desirable.
+- **Next:** Evaluate continuous playback on moving footage with predeclared visual criteria and check the actual Core path before choosing or integrating a policy. Current evidence is a deterministic Python model only.
+## 2026-11-11: Grain stage order controls palette adherence and residual texture
+- **Related:** `experiments/RetroImageLab/tools/grain_quantizer_interaction_study.py`, experiment 094 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, and `retro_lab.py::apply_retro`.
+- **Confirmed:** The suite applies ordered quantization before grain. In a same-field source model, this ordering left visible output about .018–.020 average scalar channel distance from palette levels on the three CC0 assets; applying grain before quantization kept channel values on the scalar palette grid while changing which bins were selected. At print levels (12), order MAE ranged .00092–.00448 by asset and phase (0,0); lower-level stress conditions increased the mean order difference.
+- **Value or concern:** Palette adherence and visible grain are coupled by stage order, alongside level count and Bayer phase. This is a suite recipe behavior and does not prove either order is visually preferable.
+- **Next:** Before proposing any Core recipe change, define a target look and review full-resolution crops across material/alpha roles; then verify the actual Core route and runtime separately.
+## 2026-11-11: Grain placement interacts with pixelation and alpha-edge RGB
+- **Related:** `experiments/RetroImageLab/tools/grain_pixelation_alpha_interaction_study.py`, experiment 095 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, `retro_lab.py::apply_retro`.
+- **Confirmed in the model:** The actual suite adds grain after resize/quantize/scanline and restores source alpha. Moving the same noise before BOX resize changes effective residual and background-composited edge values differently by asset/preset; alpha itself remained identical. For example, feather/handheld mid-gray alpha-edge MAE was .00857 in suite order vs .00368 with pre-resize grain, while clover/handheld was .00328 vs .00188.
+- **Value or concern:** Grain amount alone does not determine apparent scale or edge behavior. Pre-resize noise also enters hidden RGB under transparent pixels and can mix through BOX resize, so this counterfactual combines noise filtering and hidden-RGB edge mixing.
+- **Next:** Separate those causes with alpha-zero RGB controls and preserve/replace hidden RGB before resize; then review full-resolution edge crops against an approved target before considering Core changes.
+## 2026-11-11: Hidden RGB sensitivity mostly follows resize support, not output grain
+- **Related:** `experiments/RetroImageLab/tools/grain_hidden_rgb_interaction_study.py`, experiment 096, and experiment 095 in `experiments/RetroImageLab/RESEARCH_NOTES.md`.
+- **Confirmed in paired synthetic controls:** Visible RGB and alpha stayed identical while only alpha-zero RGB changed black↔magenta/green. At scale 1.0, pairwise background-composited edge difference was zero. At .5/.75, clover had larger hidden-color sensitivity than the feather; for clover handheld black↔magenta, mid-gray edge MAE was .009479 grain-off, .009514 with suite post-resize grain, and .009328 with pre-resize grain.
+- **Value or concern:** The earlier pre-resize experiment combines grain transport with transparent-pixel RGB entering BOX resize. Output-stage grain alone changed hidden-color sensitivity only slightly in these controls. Artificial fills do not establish actual decoder output or a canonical hidden-RGB policy.
+- **Next:** If this affects a Core decision, capture alpha-zero RGB through the real source decode path for each alpha descriptor before considering normalization or edge handling.
+## 2026-11-11: Grain lowers Bayer's relative residual share without removing its coherent amplitude
+- **Related:** `experiments/RetroImageLab/tools/grain_bayer_masking_study.py`, experiment 097 in `experiments/RetroImageLab/RESEARCH_NOTES.md`.
+- **Confirmed in a Bayer-template decomposition:** With 12-level/.7 dither, increasing sigma from 0 to .035 lowered the Bayer-coherent residual energy share from 1.0 to .772 on flat mid-gray, .534 on a smooth ramp, .547 on clover, and .538 on silver feather. The projection beta remained approximately 1.0, so the template amplitude was retained while independent grain increased total residual energy.
+- **Value or concern:** Grain can lower the relative energy share of a periodic dither component; this does not establish that a viewer perceives the pattern as masked. The result depends on the selected dither-minus-no-dither template and source.
+- **Next:** If visual masking matters to a preset, use a declared display scale and observer criteria; do not tune Core dither/grain from this numerical proxy alone.
+## 2026-11-11: Fixed suite parameters do not preserve normalized look across output sizes
+- **Related:** `experiments/RetroImageLab/tools/full_suite_resolution_sensitivity_study.py`, experiment 098 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, `retro_lab.py::apply_retro` / `chromatic_shift`.
+- **Confirmed in Python at 128/256/512/1024 outputs:** After normalizing all results to 256 display pixels, full-suite output remained different from the 256 reference (linear RGB MAE commonly .03–.06 across four sources and presets). At the same display size, output grain RMS fell by roughly 3.6–4× from 128 to 1024 because pixel-fixed grain is filtered during downsampling. Pixel-valued chromatic displacement also occupies a smaller normalized-frame distance at higher output resolution; fixed two-row scanlines change normalized pitch.
+- **Value or concern:** These presets encode output-pixel behavior, not resolution-invariant normalized appearance. Source Lanczos resampling also contributes to measured differences, so they are not effect-only errors or quality scores.
+- **Next:** If resolution consistency becomes a product requirement, define target viewing/export scale first and compare a normalized-parameter counterfactual against approved references before changing preset/Core behavior.
+
+## 2026-11-11: Light Leak CPU fixture state sidecars omit the requested parameter values
+- **Related:** `Artifact/src/AppMain.cpp` Light Leak UiTest fixture, `tools/capture_ui_test.py`, and `experiments/GlowLab/light_leak_exposure_transfer_review.py`.
+- **Confirmed fact:** The fixture sets Look, Strength, Streak Source X/Y, Streak Angle, and Alpha Policy from startup arguments/environment, but its output `.state.txt` reports `effectId=still_light_leak propertyOverrides={}`. Therefore the image run can be checked as installed CPU output, while its exact parameter values must currently be recovered from the command or external profile rather than the sidecar.
+- **Value or concern:** Captures copied or reviewed without their originating command may lose important effect settings, weakening reproducibility across the three Light Leak looks and photo plates.
+- **Next:** If more Light Leak capture campaigns continue, consider writing the fixture's validated requested parameters and resolved effect id into the capture state sidecar, then keep the capture hash and input hash alongside them. This is a tooling improvement idea only; no fixture or app source was changed for this research round.
+
+## 2026-11-11: Chromatic Glow Tint Mix can cancel Dispersion's shifted channels
+- **Related:** `Artifact/include/Effects/Glow/ChromaticGlowEffect.ixx`, `Artifact/src/Effects/Glow/ChromaticGlowEffect.cpp`, and `experiments/GlowLab/glow_chromatic_dispersion_capture_review.py`.
+- **Confirmed fact:** In the current RGB reconstruction, `Tint Mix=1` blends both shifted red/blue bloom samples fully back to the unshifted green bloom. Installed CPU captures on two CC0 photos and a synthetic probe had byte-identical Dispersion 0/1/2 outputs at Tint Mix 1. Setting Tint Mix 0 retained shifted samples and produced measurable but subtle photo ROI changes at Dispersion 2; the registered intensity control changed the image strongly.
+- **Value or concern:** Treating Dispersion and Tint Mix as independent knobs can make a valid Dispersion sweep appear inert, and the UI label does not explain that Tint Mix 1 suppresses spectral separation.
+- **Next:** If the Chromatic Glow role remains in the suite, review whether Tint Mix should be renamed or inverted so high values mean stronger spectral color, then recapture identical CPU/GPU profiles and seek aesthetic acceptance before changing defaults. This behavior note is not a product change proposal by itself.
+
+## 2026-11-11: Retro suite pixel parameters leave resolution-dependent texture after display normalization
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_resolution_study.py`, experiment 103 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, `experiments/RetroImageLab/retro_lab.py::apply_retro`.
+- **Confirmed in the standalone Python runner:** Across five hash-verified photos and four presets, resizing suite outputs from 1024/2048px to a common 512px display still produced median whole-image linear RGB RMSE around .049/.050 versus the 512px suite result. Input Lanczos-resampling alone was around .0015/.0012. Median Python CPU times were 17.5/76.6/330.4ms for 512/1024/2048. These observations include suite-stage interactions and common display resampling; they do not identify a responsible stage or establish appearance quality.
+- **Value or concern:** Presets with pixel-valued texture and offsets may not preserve normalized appearance across source/export resolutions. A future resolution-aware control could scale selected parameters, but neither the relevant stages nor desired viewing scale is established by this study.
+- **Next:** Run stage-isolation counterfactuals at matched display size and compare fixed-pixel versus display-scale parameter hypotheses on approved references before proposing changes. Product/Core/GPU behavior remains unverified.
+
+## 2026-11-11: Resolution drift sensitivity follows active retro stages and preset recipe
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_stage_isolation_study.py`, experiment 104 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, `retro_lab.py::apply_retro`.
+- **Confirmed in five photos at 2048px, common 512px display:** Turning off scanlines changed the signed resolution-drift field by median linear RGB RMSE .0579 in arcade and .0362 in handheld; VHS responded more to grain (.0321) and scanlines (.0309); print responded to grain (.0298) and quantization+dither (.0259). Disabled stages already absent from a recipe produced zero response. Ablations also alter later-stage interactions, so these are not additive causal stage costs or quality scores.
+- **Value or concern:** A uniform resolution-scaling policy may miss which recipe parameter actually controls the normalized look; small same-resolution grain differences can still alter cross-resolution response after resampling.
+- **Next:** Compare fixed pixel settings with display-scale counterfactuals for active scanline/grain/chroma stages on the same approved viewing conditions before proposing a Core-side change. Desired look and acceptance threshold remain undefined.
+
+## 2026-11-11: Display-space mapping reduced fixed-size photo-suite drift in a parity-gated model
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_display_scale_hypothesis_study.py`, experiment 105 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, `retro_lab.py::apply_retro`.
+- **Confirmed in the standalone Python hypothesis:** Pixelation, Bayer coordinates, channel displacement, scanline row phase, and seeded grain field were mapped to a 512px display coordinate. Every variant exactly matched current `apply_retro` RGB8 at 512px. At 2048px, the combined mapping reduced median RGB drift from .05039 to .01978 across five photos and four presets; all 20 cases moved closer to their own 512px suite output.
+- **Value or concern:** This is evidence that output-pixel coordinates can drive resolution-dependent response in the lab equation. The combined grain mapping also aligns one seeded field across resolutions; 512px reference similarity is not visual quality, an approved target, or proof of actual Core/GPU behavior.
+- **Next:** Separate grain cell size from seed/coordinate alignment and amplitude, then test with approved display conditions before considering a Core architecture change. No Core code was changed from this study.
+
+## 2026-11-11: Grain size and field alignment matter more than simple sigma compensation in the photo model
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_factor_study.py`, experiment 106 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, experiment 105 display-coordinate model.
+- **Confirmed in the 512px-parity-gated Python model:** At 2048px, nominal native-pixel grain residual luma RMS fell to .00546 from .02249 at 512px. Mapping a nominal-sigma 512-coordinate field kept residual RMS at .01721 and lowered 512-reference drift versus native-pixel grain in all 20 photo/preset cases. With equal cell size and amplitude, a seed field aligned across resolutions had lower reference drift than independently seeded fields in all 20 cases, despite nearly equal grain RMS (.01721/.01720).
+- **Value or concern:** Reusing normalized random fields improves numerical output consistency but may impose visible cross-resolution texture correlation; this study says nothing about desirable animation or perceived quality. Multiplying sigma by the input scale restored grain residual but increased drift, and the cell-field version pushed output endpoint occupancy higher.
+- **Next:** Separate noise residual behavior in smooth/detail and shadow/highlight regions, then test clipping and quantization interactions. Core/GPU and temporal behavior remain unverified.
+
+## 2026-11-11: Post-quantization grain frequently changes the preset-grid bin proxy
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_roi_interaction_study.py`, experiment 107 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, `retro_lab.py::apply_retro`.
+- **Confirmed in a parity-checked equation model:** At 2048px with nominal grain, median component changes in the nearest uniform preset-level grid were 8.7% handheld, 20.6% arcade, 18.5% print, and 79.1% VHS. The diagnostic compares pre/post grain rounded bins after channel offset and scanlines; it is not a palette violation or perceptual defect rate. Source-shadow low excursions and highlight high excursions also varied strongly by preset.
+- **Value or concern:** The final output's tone-grid behavior cannot be inferred from the quantizer's configured level count alone because grain follows quantization. ROI clamp/bin metrics are sensitive to source and stage order and do not establish desired output quality.
+- **Next:** Measure multi-seed variance and isolate paired grain-on/off residuals by source ROI before drawing preset-level conclusions. No Core code was changed.
+
+## 2026-11-11: Current white-noise grain seed spread falls after high-resolution output is reduced
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_seed_variance_study.py`, experiment 108 in `experiments/RetroImageLab/RESEARCH_NOTES.md`, `retro_lab.py::apply_retro`.
+- **Confirmed on 16 deterministic seeds and five photos:** At a common 512px display, whole-image seed-ensemble luma std RMS at 2048px input was 22.3–23.0% of the 512px-input spread across all four presets. Example: handheld .01858→.00421 and VHS .03010→.00671. This measures still-output variability caused by seed changes after RGB8 conversion and Lanczos normalization; it is not temporal flicker or preference.
+- **Value or concern:** A fixed sigma does not preserve seed-dependent texture amplitude after output downsampling. The finite consecutive seed set does not establish the population variance or an accepted display-scale policy.
+- **Next:** Inspect paired grain-on/off residual images per ROI and then decide whether motion-sequence temporal noise merits a separate model. Core/product display behavior remains unverified.
+
+## 2026-11-11: Radial light-ray strength is diluted by sample averaging
+- **Related:** `ArtifactCore/include/ImageProcessing/VolumetricShine.ixx::VolumetricShine::process`, `Artifact/src/Effects/Glow/GlowEffect.cpp::VolumetricShineEffect`, and `experiments/GlowLab/captures/glow-suite-point-rays-probe-rd2/`.
+- **Confirmed from source and a clean synthetic point-light capture:** CPU Volumetric Shine sums each ray sample with `intensity`, then divides the accumulated color by `samples`. On a tiny isolated emitter, a higher sample count can dilute the result; increasing intensity while reducing samples made radial streaks visibly legible in the probe while clipping stayed low.
+- **Value or concern:** The named intensity does not map intuitively to output strength across sample counts. This may be a product tuning concern, but the synthetic CPU PNG-chain result alone does not establish a defect or justify changing the shared algorithm.
+- **Next:** Compare the response on photographic practical lights, verify CPU/GPU and final Viewer behavior, then profile the full-frame scratch allocation before proposing any product/API change.
+
+## 2026-11-11: Point-rays strength depends on practical composition
+- **Related:** `experiments/GlowLab/glow_suite_point_rays_streetlight_transfer_rd2.json`, `experiments/GlowLab/glow_suite_point_rays_streetlight_intensity_sweep_rd1.json`, and their capture review folders.
+- **Confirmed in installed CPU captures:** On one CC0 street-light image with baked-in beams, lowering Volumetric Shine from intensity 4 to 0.5–2 cut new clipping substantially but also made the specialist role hard to distinguish from the source's existing beams. Intensity 4 made the rays obvious yet visually dominant. All candidates preserved alpha.
+- **Value or concern:** Per-effect thresholds can pass while the suite's local optical balance still fails visually. Point-rays needs practical-specific strength and source-placement review rather than one suite-wide numeric value.
+- **Limitations / next:** One composition with pre-existing flares, CPU reference, 8-bit PNG handoff. Compare a practical with weak/no baked beams and varied framing, then verify GPU/final Viewer and performance before any library/app promotion.
+
+## 2026-11-11: Point-rays clipping can be localized to the practical ROI
+- **Related:** `experiments/GlowLab/glow_suite_point_rays_clean_portrait_{sweep,strong,intermediate,intermediate2}_rd1.json` and the matching capture reviews.
+- **Confirmed in installed CPU captures:** On the low-flare portrait, the long-ray Volumetric intensity 2.4 candidate clipped 3.261% of channels in the streetlamp ROI; reducing only intensity to 2.0 yielded 2.992%. Face and dark-coat ROIs remained at 0% new clipping throughout. The full-frame rates were below .1%, so full-frame averages alone would hide the practical hotspot.
+- **Value or concern:** A suite recipe can satisfy its full-frame headroom while one source ROI crosses its local limit. Keep per-practical ROI gates attached to role candidates and avoid reading a passing clip metric as visual approval.
+- **Limitations / next:** The 2.0 long-ray look still needs clearer visual role acceptance, a second composition, exact GPU/final Viewer evidence, and performance review. No product/API change is justified by this single CPU PNG-chain capture.
+
+## 2026-11-11: Suite roles can occupy separate ROIs even when thumbnails look alike
+- **Related:** `experiments/GlowLab/glow_suite_five_recipes_clean_portrait_rd1.json` and `captures/glow-suite-five-recipes-clean-portrait-rd1/review/ordered-stack-suite-metrics.json`.
+- **Confirmed in one shared-foundation capture:** Five two-specialist Glow recipes all preserved alpha and stayed within the local clip gate. Shopfront ROI luma response was .00787–.00976 for four different recipes, while Point Rays concentrated on the lamp (.07534) with nearly zero face / dark-coat response.
+- **Value or concern:** A full-frame thumbnail can hide the practical-specific response that separates suite members. Review each role at matching ROI scale alongside the full image; aggregate response or clip metrics alone cannot establish that the looks are distinct or beautiful.
+- **Limits / next:** One AI-generated low-light portrait, CPU installed effects, and 8-bit PNG handoff. Transfer the whole recipe matrix to another practical composition and validate GPU/final Viewer, HDR, temporal behavior, and performance before any library/app promotion.
+
+## 2026-11-11: Shared practicals can dominate suite recipe similarity
+- **Related:** `experiments/GlowLab/glow_suite_recipe_overlap_review.py` and the portrait / city `review/overlap/glow-suite-recipe-overlap.json` files.
+- **Confirmed in two same-source ordered recipe sets:** Broad linear-luma delta cosine between different Glow pairs reached .912–.998 on the portrait practical ROIs and .902–.993 on city practical/road/block ROIs. The red-practical ROI had a wider .776–.949 range. Fine-luma and chroma bands varied separately, and Point Rays retained a much larger local response near its lamp ROI.
+- **Value or concern:** Similar broad response around the same bright source is expected and does not prove recipe redundancy. Comparing only whole-image or broad-halo strength can hide more distinctive fine/chromatic signatures; suite review needs region and band context.
+- **Limitations / next:** Two static CPU PNG-chain captures and exploratory settings. Confirm at 1:1 on more practical compositions; do not use cosine as a visual acceptance or product redundancy rule.
+
+
+## 2026-11-11: Paired grain residual changes with display downsampling and source ROI
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_paired_residual_study.py`, experiment 109, `retro_lab.py::apply_retro`.
+- **Confirmed in the standalone photo suite:** Comparing 160 grain-on renders against same-preset/size grain-off controls, median whole-image luma residual RMS at common 512px display fell from 512-input to 2048-input cases: handheld .01858→.00472, arcade .01069→.00266, print .02793→.00652, VHS .03014→.00678. At 512 input, detail ROI residual exceeded smooth ROI for all presets in the reported medians; highlight signed means were negative for handheld/print but small ROIs and clipping can influence that statistic.
+- **Value or concern:** Grain amount alone does not describe display-space response; downsampling and tone/detail distribution matter. These are RGB8/Lanczos model observations over five photos and four selected seeds, not perceptual quality or a Core implementation requirement.
+- **Next:** Review at declared display scale and conduct a controlled visual comparison; evaluate temporal coherence separately if animated use is in scope. No Core code was changed.
+
+
+## 2026-11-11: Grain display response depends on both reduction scale and resampling kernel
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_resample_filter_study.py`, experiment 110, `retro_lab.py::apply_retro`.
+- **Confirmed on 5 provenance-verified photos, 4 presets, and four deterministic seeds:** Paired median luma residual RMS at 512 display after Lanczos was .01012 for 1024 input and .00541 for 2048. At fixed 2048 scale, BOX/BILINEAR/BICUBIC/LANCZOS yielded .00595/.00432/.00497/.00541; BOX exceeded BILINEAR in all 80 matched photo/preset/seed cases.
+- **Value or concern:** Scale reduction had the larger overall attenuation while resampling kernel still changed the grain residual. Measurements include nonlinear clamp/RGB8 and encoded-value filter interactions; they do not define a best filter or quality target.
+- **Next:** Compare measured response with a controlled linear-light noise plane to separate kernel averaging from suite-stage interactions. Product display behavior remains unverified; no Core change was made.
+
+
+## 2026-11-11: RGB8 quantization can dominate reduced white-grain response
+- **Related:** `experiments/RetroImageLab/tools/grain_controlled_plane_resample_study.py`, experiment 111; full-suite filter study 110.
+- **Confirmed in a controlled static plane:** Linear-float white noise followed by 2048→512 Pillow filtering produced output/input sigma ratios .2500 BOX, .1643 BILINEAR, .2036 BICUBIC, .2234 LANCZOS. At base .50 and sigma .01, adding sRGB RGB8 quantization raised the BILINEAR ratio from .1644 (sRGB float) to .4002. With sigma .05 it rose only .1674→.1883.
+- **Value or concern:** Small amplitude after strong reduction can be dominated or reshaped by code quantization; dark base .18 with sigma .05 also showed a larger sRGB transfer/clamp response than midtone. This is a Pillow synthetic-plane counterfactual, not evidence of ArtifactCore's exact render path or a request to change it.
+- **Next:** Compare RGB8 and float-sRGB counterfactuals on existing suite photos/ROIs; retain product path and perceived quality as unverified. No Core code changed.
+
+
+## 2026-11-11: Final RGB8 grain response is preset-, scale-, and ROI-dependent
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_quantization_counterfactual_study.py`, experiments 109–112, `retro_lab.py::apply_retro`.
+- **Confirmed with exact parity to current `apply_retro` RGB8:** A float replay matched all tested grain-on/off byte outputs before a same-filter output-resize comparison. At 2048 input and 512 display, median RGB8/float paired luma RMS ratios under BILINEAR were handheld 1.152, arcade 1.160, print 1.039, VHS 1.018; under LANCZOS they were 1.075/1.086/1.020/1.008. Highlight ROI ratios were elevated (1.083 aggregate BILINEAR) but had fewer non-empty samples.
+- **Value or concern:** A final byte conversion can reshape small grain response after strong reduction, especially for some preset/ROI combinations, but it does not uniformly amplify it. The float route is only a counterfactual; neither these ratios nor RGB8 parity alone establish product GPU behavior or a perceptual defect.
+- **Next:** Verify actual Core/GPU precision and display path only if a product change is proposed; use a declared target and human review before selecting a policy. No Core code changed.
+
+
+## 2026-11-11: City Glow recipe structure alone did not ensure visible role separation
+- **Related:** `experiments/GlowLab/glow_suite_structural_signature_cc0_neon_rd1.json`, `glow_suite_recipe_overlap_review.py`, and the ordered refractive intensity sweep.
+- **Confirmed:** Five CPU ordered recipes stayed within the existing clipping gates and retained alpha after changing specialist geometry/color settings. City red-practical final crops still showed weak separation. Refractive ridge at .125 passed the 3% local clip gate (2.845%) but its detail was clearer in x5 delta views than normal final output; .15 exceeded the ROI gate (3.424%).
+- **Value or concern:** Numerical headroom and a distinct amplified delta do not guarantee a legible role at normal viewing scale. Further amplitude increases could use up local highlight budget before the role reads clearly.
+- **Next:** Test the refractive pair on a composition with visible surface detail and an independent practical layout; keep .125 as comparison-only. These are installed CPU 8-bit PNG-chain captures; GPU, final Viewer, HDR, float stack, and performance remain unverified.
+
+
+## 2026-11-11: Grain sigma response is nearly linear at native display scale but compresses after strong reduction
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_amount_resolution_study.py`, studies 111–113, `retro_lab.py::apply_retro`.
+- **Confirmed in a 240-group full-suite factor sweep with 960 seed cases:** At 512 display, sigma factor .5/1/1.5/2 produced close to proportional residual RMS (e.g. handheld .00931/.01858/.02794/.03742). At 2048 input reduced to 512, handheld ratios to nominal were .577/1/1.452/1.906 and arcade .647/1/1.403/1.823; small-signal response was compressed. At 2048/Lanczos, RGB8/float residual ratio fell from 1.153 at factor .5 to 1.009 at factor 2, while absolute quantization-interaction RMS stayed near .00141 across factors.
+- **Value or concern:** Grain amplitude is not a complete display-response control under strong downsampling; small-signal RGB8 response has a relatively larger floor. This is a Python/Pillow static-photo counterfactual and does not establish an application policy or perceptual target.
+- **Next:** Evaluate fixed-coordinate grain on a short motion sequence to separate spatial amount behavior from temporal consistency. No Core code changed.
+
+
+## 2026-11-11: Glow suite recipes need source-aware calibration to stay distinct
+- **Related:** `experiments/GlowLab/glow_suite_ordered_stack_review.py`, synthetic neon ordered recipe captures, and `glow_suite_point_rays_synthetic_neon_intensity_rd1.json`.
+- **Confirmed:** City-calibrated recipe values transferred to the controlled synthetic neon fixture without alpha change or clip gate failure, but four recipe roles remained weak at normal view. The Point Rays source coordinate missed the synthetic fixture's actual emitter. Moving it to (.271,.38) exposed rays/star at intensity 2.0, while radial streaks also crossed unrelated luminous text and points; ring and text ROI clipping approached 2.7–2.8%. Intensity .5 / 1.0 made a quieter response but kept the star subdued.
+- **Value or concern:** A Glow suite should select distinct specialists and calibrate their source-dependent controls per plate; layering weak specialists over one broad Glow foundation does not by itself create five clearly readable looks. Stronger settings can increase spill without making the role selectively clearer.
+- **Next:** Refine each specialist on its characteristic feature, then compare with/without the shared foundation at the same display scale. Treat current CPU PNG-chain synthetic results as exploratory only; photo transfer, GPU, final Viewer, HDR, temporal response, float stack, and performance remain open.
+
+
+## 2026-11-11: Fixed-seed grain stability depends on its coordinate frame
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_motion_policy_study.py`, experiment 114, `retro_lab.py::apply_retro`.
+- **Confirmed on three SHA-verified photos, four presets, and 24-frame integer pans:** Median adjacent grain-residual luma delta RMS was .00300 with correlation .9965 for screen-fixed grain in screen alignment, but .05168 / .0018 when aligned to source coordinates. A source-locked field showed the reverse: .000352 / .9998 source-aligned and .05201 / .0044 screen-aligned. Per-frame seed updates were near .0519 RMS / .002 correlation in both alignments.
+- **Value or concern:** “Fixed seed is stable” is incomplete unless the coordinate frame is named. A policy attached to the viewport and one attached to image content answer different motion behaviors; aggregate residual metrics also include content/clamp/pipeline interactions and do not rank visual preference.
+- **Limitations / next:** Integer pans of static photos only; source-lock is a Python counterfactual after non-grain stages. Define intended motion semantics and evaluate camera pans, moving objects, and approved appearance targets before considering any Core/GPU design. No product code changed.
+
+
+## 2026-11-11: Grain placement changes coverage at moving alpha edges
+- **Related:** `experiments/RetroImageLab/tools/grain_motion_alpha_edge_study.py`, experiment 115, and prior studies 092/095/096/114.
+- **Confirmed on 3 SHA-verified RGBA assets, 2 backgrounds, 4 presets, and 20-frame integer moves:** Across 456 object-aligned pairs per policy, median residual-change RMS/correlation was .03416/−.0181 for screen-fixed, .03346/.00076 for frame-varying, and .000286/.99980 for fixed layer-material grain. Partial-alpha residual RMS medians were .02275/.02291/.01028. Scene-space policies also changed pixels outside the object; layer-material residual was zero there by construction. Alpha exact gates passed 48/48.
+- **Value or concern:** Grain placement relative to alpha compositing changes both temporal correspondence and which pixels receive grain. A material-attached field is stable while moving with the layer in this integer model, and edge amplitude is attenuated by coverage; scene grain affects the background too.
+- **Limitations / next:** This compares different operation orders with encoded-sRGB Pillow compositing and no approved look. Inspect alpha mode and intended semantics (composition grain vs material texture), then review continuous motion at native size before considering any Core or product change. No product code changed.
+
+
+## 2026-11-11: Grain channel covariance changes reduced luma/chroma response
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_color_covariance_study.py`, experiment 116, and `retro_lab.py::apply_retro`.
+- **Confirmed with 160 exact current-mono RGB8 parity checks:** Across five provenance-verified photos, four presets, two input sizes, and four seeds, median pre-clamp per-channel noise RMS was matched (.02992 mono, .03000 independent RGB, .03002 luma-null chroma). At 2048→512 output, median whole-image linear luma/chroma RMS was .00541/.00212 for mono, .00422/.00704 for independent RGB, and .00148/.00768 for code-domain luma-null chroma.
+- **Value or concern:** Grain amount and spatial scale do not determine the color direction of the residual. Equal per-channel input power can yield substantially different luma/chroma after transfer, clamp, RGB8 truncation, and downsampling; output response is not matched merely by input variance.
+- **Limitations / next:** The chroma field is luma-null only in additive sRGB code-value space. No perceptually matched output, observer comparison, approved appearance target, HDR, product/GPU path, or performance study. Do not add a Core/preset control until need and visual acceptance criteria are established.
+
+
+## 2026-11-11: Matching output luma does not match grain appearance
+- **Related:** `experiments/RetroImageLab/tools/full_suite_photo_grain_equal_luma_calibration_study.py`, experiment 117, and `full_suite_photo_grain_chroma_headroom_study.py`, experiment 118.
+- **Confirmed on held-out seeds across five photos, four presets, and two input sizes:** Independent RGB grain was calibrated to current mono whole-image output-luma RMS with a median sigma factor of 1.322; held-out luma ratios were .995–1.001 by resolution, while chroma-axis RMS remained about 4x the mono median. Chroma-only grain needed larger factors; at the tested 8x bound, 34/40 fit groups bracketed the luma target. Matched candidates reached held-out median luma ratio .969 overall but had about 23x mono chroma-axis RMS, with 512-display endpoint-channel ratio .1267 versus .0370 for mono.
+- **Value or concern:** An output luma RMS match is a useful calibration statistic, not perceptual equivalence. Chroma/headroom costs can grow while luma statistics approach the same target; pre-clamp RGB code-domain variance alone did not predict it.
+- **Limitations / next:** No approved target, observer study, native pre-clamp clipping attribution, HDR/alpha, or product/GPU verification. Keep experimental variants out of Core until visual intent and acceptance criteria exist.
+
+
+## 2026-11-11: Glow CPU gain zero is not a neutral baseline
+- **Related:** `Artifact/src/Effects/Glow/GlowEffect.cpp::GlowEffectCPUImpl::applyCPU`, `experiments/GlowLab/glow_suite_ordered_stack_capture.py`.
+- **Confirmed:** The installed CPU path scales its luminance mask only inside `if (glowGain_ > 0.0f)`. A capture sidecar reports `glowGain=0`, yet its RGB output differs from the source (encoded MAE .002438) with alpha unchanged. Source at line-level implementation confirms that zero skips the multiplier; it does not scale the mask to zero. GPU behavior has not been compared.
+- **Value or concern:** A zero-gain profile is an invalid identity control and would contaminate A/B evidence. The suite harness now supports `foundation: null`, which starts specialist branches from the source pixels.
+- **Next:** Review the intended zero-gain contract separately before any product fix; compare CPU/GPU behavior and preserve current R&D scope until then. No production source was changed.
+
+
+## 2026-11-11: Material texture separates Glow-family spill from emissive-source response
+- **Related:** `experiments/GlowLab/glow_suite_material_fixture.py` and `glow_suite_specialist_forward_material_rd1.json`.
+- **Confirmed on the deterministic synthetic material plate:** The five source-aware specialist recipes preserve alpha and pass the current clipping review gate. Point Rays adds a much larger wet-road response (linear-luma mean delta .001301) than contour, reactive, film-optical, or refractive (.000010–.000066). The refractive pair makes contour ridges in amplified differences, but they remain weak in the normal final view. Text ROI clip is near 2.8% across recipes.
+- **Value or concern:** Background material reveals whether a family is responding only around emitters or spilling into surrounding texture. A bright-source-only fixture can miss this distinction; texture alone also does not prove an attractive refractive result.
+- **Next:** Tune effect-specific colour/edge response while protecting fine emissive text, then transfer selected candidates to an attributed photographic plate. This is CPU PNG-chain synthetic evidence; product visual acceptance remains open.
+
+
+## 2026-11-11: Glow suite membership is clearer when each specialist is shown alone
+- **Related:** `glow_suite_standalone_families_material_rd1.json`, `glow_suite_ordered_stack_capture.py`, `glow_suite_ordered_stack_review.py`.
+- **Confirmed:** Eleven registered non-temporal families can be compared from identical source pixels on a textured emissive plate. The strongest role candidates split into different responses (contour bloom, directional streak, caustic edge detail, point rays/glints), while several current values are too weak at normal scale and four exceed local clip gates. Residual Glow requires multi-frame evaluation.
+- **Value or concern:** A one-effect gallery tests whether suite members have their own look before pairwise combinations add ambiguity. One common amount or a common pair structure does not represent the distinct families' controls.
+- **Next:** Restrain clip-failing candidates, strengthen visually weak signatures only on suitable source materials, then rerun those individually and in selected pairs. Keep all present profiles exploratory; no product defaults changed.
+
+## 2026-11-11: Edge Bloom edge boost trades local halo strength for material spill
+- **Related:** `experiments/GlowLab/glow_suite_edgebloom_material_edgeboost_rd1.json`, textured material fixture.
+- **Confirmed:** With other Edge Bloom controls fixed, Edge Boost `.30` preserved a recognizable localized ring/tube halo and passed current clip gates (full `.147%`, max ROI `2.787%`); `.75` increased brick-wall response and exceeded the tube ROI gate (`5.646%`). Alpha MAE was zero in all captures.
+- **Value or concern:** Edge Boost affects how widely the edge response reaches surrounding texture, so a single strength value may not transfer across materials. The text edge at `.30` still appears somewhat soft.
+- **Next:** Transfer `.30` to a provenance-tracked photo with fine emissive text and textured dark regions. This remains synthetic CPU PNG-chain evidence; product acceptance and GPU/Viewer parity are unverified.
+
+## 2026-11-11: Chromatic Glow's Tint Mix trades spectral separation for bloom tint
+- **Related:** `experiments/GlowLab/glow_chromatic_dispersion_capture_review.py`, material Dispersion/Tint Mix captures.
+- **Confirmed:** On the textured emissive plate, Dispersion 2 / Tint Mix 0 had a stronger mean red-blue response in the text ROI (.801 8-bit code) than Tint Mix .25 (.601) at otherwise matched settings. Reducing Intensity to .50 lowered local text clipping below the current 3% review bound (2.774%) and retained .619 code of matched-baseline red-blue response. Alpha remained unchanged.
+- **Value or concern:** Tint Mix affects how much unshifted channel energy is blended back into the displaced samples, so the current label may be read as color tint rather than fringe blending. This is a confirmed code-path interpretation, not a usability finding.
+- **Next:** Check the candidate on an attributed practical-light photograph and inspect at native display scale. Review whether documentation or label clarification is warranted before any product UI change. The capture is synthetic CPU PNG evidence; visual acceptance and GPU/Viewer parity remain open.
+
+## 2026-11-11: Glow suite quality is clearest in same-source standalone lineups
+- **Related:** `experiments/GlowLab/glow_suite_family_city_singletons_rd1.json`, `glow_product_capture_review.py`, CC0 city native ROI sheets.
+- **Confirmed:** Seven registered families captured from the same photographic input produced distinct spatial/color difference structures. Shrunk full-frame thumbnails understate those differences; native practical-light crops reveal them. Four candidates exceed the current local clip review bound on the central intersection, and two exceed the full-frame bound.
+- **Value or concern:** Pairwise recipes are useful only after standalone specialist roles are visible; otherwise a shared foundation and multiple effects make it hard to tell which family contributes the look. A same-source independent lineup is a stronger core suite artifact.
+- **Next:** Restrain Edge / Chromatic / Directional / Glint around practicals, preserve each role's visual signature, then transfer the refined standalone lineup to a second photo. Residual Glow still needs multi-frame evidence.
+
+## 2026-11-11: Glow-family strength transfer must account for small practical headroom
+- **Related:** `experiments/GlowLab/glow_suite_family_streetlight_singletons_rd1.json`, `glow_suite_family_streetlight_rolepop_rd1.json`, and the paired left/right practical ROI reports.
+- **Confirmed:** On the CC0 street-light plate, the restrained city profile kept full-frame new clipping below 0.10%, while the small lamp ROIs clipped 3.1–4.4% for most families. Doubling amplitudes raised several families to 4.0–6.2% local clipping, despite whole-frame rates staying below 0.14%. Physical Halation remained below 0.72%, with a distinct red response.
+- **Value or concern:** Whole-frame means hide a small practical's clipping; city-tuned strengths do not transfer directly to another exposure/material. Local clip percentages are descriptive measurements for these ROIs, not universal pass criteria.
+- **Next:** Measure each family's threshold/exposure response against native-scale signature visibility and practical-local headroom before selecting a transferable candidate. Final Viewer/GPU, HDR and temporal acceptance remain unverified.
+
+## 2026-11-11: Edge Bloom and Reactive Glow separate through different source cues
+- **Related:** `experiments/GlowLab/glow_edge_reactive_role_probe_rd3.json` and its installed CPU capture set.
+- **Confirmed:** On one synthetic neon plate with matched threshold, radius, and nominal amount, increasing Edge Boost raised a neutral contour response while increasing Reactive Saturation Weight raised source-colored halos. The higher settings increased full-frame new clipping to .494% and .451%, respectively; these are per-plate measurements.
+- **Value or concern:** These controls can give similar halo families different roles without changing the effect architecture. The stronger visual separation also costs local highlight headroom, and the current evidence does not establish an attractive photo look.
+- **Next:** Transfer the restrained role candidates to a provenance-tracked textured photo and inspect native-scale crops. Keep the product defaults unchanged until visual acceptance and GPU/Viewer evidence exist.
+
+## 2026-11-12: Dedicated Gaussian wrapper and general Blur resident kernel equations coincide for opaque impulses
+- **Related:** General Blur `blur` stable effect `appendGpuSpatialNodes`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::GaussianBlurCS`, dedicated Gaussian `Artifact/src/Effects/Blur/GauusianBlur.cpp::kGaussianBlurHlsl`, `experiments/blur-rd/gaussian_cpu_source_mirror.py`.
+- **Confirmed in source-equation mirrors:** At σ=.5/1/1.5/3/8/16, general Blur resident-node and dedicated Gaussian standalone GPU border profiles differed by at most about `8.4e-8` per sample. This is numerical equation similarity between two distinct stable effects, not backend parity for one effect. Both mirror clamp coordinates; CPU OpenCV uses Reflect101. Central CPU/kernel equation differences stayed below `1.2e-7`.
+- **Value or concern:** Identical taps for opaque fixtures can hide different effect IDs, eligibility, input surfaces, and alpha contracts. Counting the resident node as a `effect.blur.gaussian` route would be false coverage.
+- **Unverified:** Runtime pixels, production route, GPU dispatch, and alpha behavior for either stable effect.
+- **Next:** Capture dedicated Gaussian CPU and wrapper routes separately; capture resident node only under general Blur `blur`. No product code changed.
+
+## 2026-11-12: Gaussian alpha mismatch model changes by background but can hide in whole-frame RMSE
+- **Related:** `experiments/blur-rd/gaussian_cpu_source_mirror.py::alpha_composite_study`, `experiments/blur-rd/results/gaussian_cpu_source_mirror_2026-11-12.json`.
+- **Confirmed in CPU equation model:** A sigma=3 half-alpha point over transparent pixels composites identically to an alpha-aware reference for Straight descriptor over black, white, and green backgrounds. Under the Premultiplied descriptor condition, all three composites have RGB RMSE .00856 and max absolute error about .4000. Changing RGB only beneath zero-alpha pixels from magenta to cyan leaves visible premultiplied output unchanged in this model.
+- **Value or concern:** Sparse blur footprints can produce a large localized edge error while whole-frame RMSE remains small, so region crops and max/percentile error matter. Multiple backgrounds expose alpha association more clearly than an isolated transparent output.
+- **Limitations / next:** This is a CPU source-equation model, not a production capture or screen-space appearance review. Capture the caller's raw input/output plus descriptor, then compare native and magnified alpha-edge crops over the same backgrounds. No product source changed.
+
+## 2026-11-12: Gaussian CPU contract target is registered in the focused image-effects harness
+- **Related:** `tests/ImageEffects/CMakeLists.txt::artifact_image_effect_test(ArtifactGaussianBlurEffectContractTest ...)`, `tests/Artifact/GaussianBlurEffectContractTest.cpp`.
+- **Confirmed:** The focused harness maps the target to `tests/Artifact/GaussianBlurEffectContractTest.cpp`. Its source assertions cover opaque impulse spread/coverage, sigma-zero identity, fully transparent hidden-RGB suppression, and sigma/non-finite property handling. It does not cover descriptor alpha mode, multiple backgrounds, edge profile metrics, or GPU/resident parity.
+- **Value or concern:** The earlier note that the source lacked a CMake target was false because only `tests/Artifact/CMakeLists.txt` had been searched. The focused image-effects harness is the existing execution entry point, although it has not been configured, built, or run in this work.
+- **Next:** If the user authorizes build/test execution, run only this focused Gaussian contract target, then use the separate capture plan for visual parity and descriptor cases. Until then, retain this as static coverage evidence only.
+
+## 2026-11-12: Broad half-alpha edge makes the premultiplied source-mirror mismatch visible over backgrounds
+- **Related:** `experiments/blur-rd/gaussian_cpu_source_mirror.py::alpha_edge_composite_study`, `experiments/blur-rd/results/gaussian_cpu_source_mirror_2026-11-12.json`, `experiments/blur-rd/results/previews/gaussian_alpha_edge_sigma3_premultiplied.png`.
+- **Confirmed in the CPU equation model:** A 257×65 vertical half-alpha foreground edge was composited over black, white, and green. For the Premultiplied descriptor condition, edge ROI RMSE at sigma .5/3/16 was .10750/.13533/.14912 and max RGB error stayed near .4; full-frame RMSE was .02012/.04048/.09348. Straight descriptor matched its alpha-aware reference. A 5× nearest display preview shows the model's darkened foreground and edge-band difference against the reference on all three backgrounds.
+- **Value or concern:** A broader edge fixture makes association errors easier to inspect than a sparse point, and ROI metrics retain the localized defect that a full-frame average can dilute. Sigma widens the affected area in this fixture.
+- **Limitations / next:** All outputs are CPU source-equation models, with linear source-over and display-only sRGB preview; they are not Artifact captures, color-managed Viewer output, or proof of a production defect. Capture the actual caller's input/output and descriptor, then repeat this exact edge fixture through the registered Gaussian CPU test/effect path and inspect the crops. No product code changed.
+
+## 2026-11-12: Premultiplied Gaussian source-mirror output violates RGB<=alpha over a broad edge
+- **Related:** `experiments/blur-rd/gaussian_cpu_source_mirror.py::alpha_edge_composite_study`, `experiments/blur-rd/results/gaussian_cpu_source_mirror_2026-11-12.json`.
+- **Confirmed in the non-HDR source-equation fixture:** For sigma .5/3/16, the CPU wrapper model interpreted as retaining Premultiplied descriptor had 130/780/3,965 pixels with any RGB channel greater than alpha by more than 1e-6. Its maximum RGB-alpha excess was about .3993-.3999. The alpha-aware premultiplied reference had zero such pixels and zero maximum excess.
+- **Value or concern:** This invariant check exposes a descriptor/output-association disagreement directly, independent of choosing a black, white, or colored background. Larger sigma increases the number of affected pixels in this specific edge fixture.
+- **Limitations / next:** It is a conditional CPU equation model for bounded positive colors, not captured production output, and RGB<=alpha is not generally valid for HDR or negative values. Confirm the actual input descriptor and output through the CompositionViewDrawing CPU path before treating this as a defect. No product code changed.
+
+## 2026-11-12: Linear composite error is background-invariant when the compared alphas match
+- **Related:** `experiments/blur-rd/gaussian_cpu_source_mirror.py::alpha_edge_composite_study`, `alpha_edge_display_preview`.
+- **Confirmed analytically and in the model:** If output alpha matches, premultiplied source-over is `Cout = Cforeground + Cbackground*(1-alpha)`, so subtracting two outputs cancels the common background term. The linear RGB difference therefore remains equal over black, white, and green backgrounds. After linear [0,1] clamp and sRGB transfer, the sigma=3 edge ROI RMSE differs: black .2160, white .01235, green .1926 (normalized display code).
+- **Value or concern:** Identical linear error magnitudes do not imply identical displayed contrast because the transfer curve depends on background-composited luminance. Both linear scene-referred and explicitly defined display-domain metrics are useful, but serve different purposes.
+- **Limitations / next:** Display values omit tone mapping, quantization, display calibration, and perceptual weighting; they do not predict user visibility. Repeat with the actual Viewer color pipeline after production captures are available.
+
+## 2026-11-12: Gaussian CPU alpha cutoff can remove broad low-alpha tails in the source model
+- **Related:** `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`, `experiments/blur-rd/gaussian_cpu_source_mirror.py::alpha_unpremultiply_cutoff_study`.
+- **Confirmed in source-equation model:** The CPU implementation unpremultiplies only when output alpha is greater than `1e-5`, otherwise RGB is zeroed. For one straight-alpha point on transparent black at 257²/513², this zeroing removed about 2.76% of reference visible RGB energy at sigma16 and 49.87%/50.95% at sigma64. At 65², no output alpha fell below threshold in the tested cases due to finite-image reflected boundaries.
+- **Value or concern:** The threshold's aggregate effect depends on image dimensions relative to sigma, and large sigma can lose meaningful integrated tail energy in the modeled fixture even when per-pixel values are small.
+- **Limitations / next:** This is an unclamped float32 OpenCV equation mirror with a single point and default Reflect101; sigma64 is the property-range upper end, not a recommendation. No Artifact capture or visual-threshold review exists. Capture the actual CPU path at multiple sizes before assessing whether the cutoff needs separate treatment or is an expected insignificance bound.
+- **Follow-up:** Added kernel-support-inside-image and energy conservation fields to distinguish the 513²/sigma64 case: its 385px support fits fully and total visible energy is conserved to about 3.4e-9, while thresholded tails account for about 50.95% of that energy. The 257²/sigma64 condition has support larger than the image and includes border effects; 65² large-sigma results are likewise boundary-dominated.
+
+## 2026-11-12: Gaussian CPU kernel width quantizes very-small sigma response (corrected)
+- **Related:** `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`, `experiments/blur-rd/gaussian_cpu_source_mirror.py::small_sigma_quantization_study`.
+- **Correction:** `int(6*sigma+1)` with float32 arithmetic and even-to-odd adjustment is modeled directly. The first actual switch is from width 1 at sigma `0.166666641831398` to width 3 at `0.1666666567325592`; nominal .5 switches from width 3 to width 5 exactly at .5. OpenCV receives the binary32 sigma value promoted exactly to double in this Python mirror.
+- **Confirmed in source-equation model:** At applied sigma .5 the width-5 effective spread is about .4637. At the property’s .1 step, requested sigma .1 is identity; .2 has effective spread .00273; .3/.4/.5 have effective spread about .0876/.2842/.4637. A 2px-period line fixture retains Michelson contrast 1.0/.999985/.98465/.83845/.57420 at .1/.2/.3/.4/.5. A step edge has measured 10–90% widths .80/.80/.80/.81/.87/1.13 px at sigma 0/.1/.2/.3/.4/.5; the .80px zero-blur value is pixel sampling baseline and was not subtracted. Full, medium, and low contrast normalized edge profiles agree within 1e-6px in this linear float32 kernel model.
+- **Value or concern:** The Strength parameter's low-end response is quantized by support width, so requested sigma alone does not fully describe modeled blur spread.
+- **Limitations / next:** Python OpenCV kernel-statistics mirror only; no Artifact output, UI interaction, perceived-quality threshold, or runtime measurement. Interactive CPU processing additionally scales sigma by `resolutionScale`, while the standalone GPU wrapper uses a different radius rule; runtime capture must record those conditions. The known executable predates the current source. No product code changed.
+- **Follow-up:** The source mirror sweeps requested sigma .0–.5 at interactive resolution scales 1/.5/.125. Requested .5 maps to applied sigma .5/.25/.0625 and kernel widths 5/3/1; requested .3 at scale .5 maps to .15 and width 1. These are processed-pixel kernel measurements only; display-space mapping and host context selection remain unverified.
+- **Border follow-up:** A finite 1D edge-impulse sweep across 65/257/513/1025px compared OpenCV Reflect101 to the standalone HLSL clamp equation. At sigma64 the CPU support width is 385 while shader radius is capped at64 (129 taps); results therefore combine boundary and support mismatch. No device, wrapper dispatch, or Artifact capture was involved.
+- **Alpha-cutoff placement follow-up:** A straight-alpha .5 point (visible red .4) was placed at center, edge, and corner across 65²/257²/513² and sigma 3/16/64. At 257²/sigma64, Reflect101 shifts pre-cutoff energy from input .4 to about .4/.2/.1 (center/edge/corner), while alpha threshold zeroing independently removes 49.9%/50.2%/50.6% of each respective reference output energy. The two losses are separately recorded in the source mirror; production visibility remains unknown.
+- **Threshold sensitivity follow-up:** At 257²/sigma64, varying only the modeled alpha cutoff 1e-7/1e-6/1e-5/1e-4/1e-3 removed 0/0/49.87/100/100% of centered point reference energy; edge and corner were similarly sensitive (at 1e-6: 2.33% and 4.58%). This is a synthetic source-mirror sensitivity diagnostic, not a proposed threshold change; actual alpha tails may be below display visibility.
+- **Input alpha follow-up:** Holding the current 1e-5 cutoff, 513²/sigma16 centered points with input alpha .01/.1/.5/1 lost about 100%/15.50%/2.76%/1.15% modeled visible RGB energy even though the 97px kernel fits inside the image. At alpha .01, the entire modeled response stays below threshold. At 257²/sigma64, both finite support/border and alpha threshold contribute. Descriptor and display behavior are not established by this mirror.
+- **Localized error follow-up:** For the 513²/sigma16 case, the alpha .01 result's 100% integrated tail-energy loss corresponds to tail max absolute premultiplied RGB error about 5e-6 and full-image MAE about 3e-8; alpha .5 loses 2.76% energy with max error about 8e-6. Metrics are unclamped linear float values. The high energy percentage therefore cannot establish perceptual visibility.
+- **Spatial extent follow-up:** For 513²/sigma16/alpha.5 centered point, thresholding reduced visible-energy R95 from 38.59 to 35.90px. Zeroed tail begins at radius42px and reaches 67.88px although the axial kernel radius is48px, because the separable support is square. Tail loss spans the 1–3σ band and diagonal corners beyond 3σ; it is not a circular cutoff.
+
+## 2026-11-12: Gaussian CPU source mirror preserves linear HDR and negative impulse energy
+- **Related:** `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`, `experiments/blur-rd/gaussian_cpu_source_mirror.py::hdr_linear_response_study`.
+- **Confirmed in source-equation model:** On a 513² opaque center impulse with logical RGB values [1.5, -0.4, 8], sigma .5/3/16/64 stayed finite, preserved channel sums to float32 error, and matched a normalized Gaussian outer-product reference within max error 1.9e-7. Negative values remained negative and the >1 channel was not clamped; at sigma .5 its peak was 4.9495.
+- **Value or concern:** This path's unclamped linear response differs from effects that intentionally clamp or transform RGB. HDR/negative behavior needs its own source/display contract instead of ordinary [0,1] image metrics.
+- **Limitations / next:** Opaque synthetic source-equation study only; no Artifact capture, GPU parity, output color descriptor test, tone mapping, or display review. Repeat through actual CPU path and separately document the Viewer display transform before judging appearance. No product code changed.
+- **Display follow-up:** A deliberately illustrative EV -2/0/+2 + [0,1] clamp + sRGB bracket clips 1/1/6 channel samples at sigma .5 and none at sigma >=3. Static search found no call site for CPU `ArtifactOCIOManager::applyViewTransformToImage`; its comment warns against double application because Viewport uses the baked LUT in FinalPostProcess. The bracket is not the product display transform; capture must use the active LUT/config.
+
+## 2026-11-12: Outline Lab の alpha 境界線は straight / premultiplied で一致し、整数半径が幅を量子化する
+- **Related:** `experiments/OutlineLab/outline_reference.py`, `experiments/OutlineLab/run_outline_experiment.py`, `experiments/OutlineLab/captures/outline-rd1/outline-report.json`.
+- **Confirmed（実行結果）:** 512² の合成 fixture で、alpha のみから作る境界線は straight と premultiplied で `line_sha256` が一致した（coverage 0.082）。alpha 全不透明 + depth 不連続の fixture では coverage 0.033 で矩形境界だけが検出された。0.15 振幅の緩やかな depth ランプは全面輪郭にならず、絶対勾配しきい値が有効だった。`softness` 0→1 で line mean は 0.0878→0.1225 だが line の最小値は常に 0。
+- **Value or concern:** alpha association が alpha 由来の線に影響しないこと、および softness をフレーム全体のマットとして実装しないことが、比較可能な最小契約として確認できた。一方 `ceil(width/2)` の整数半径のため 1px と 2px が同じ結果になり、線幅の実測がないまま幅を語れない。
+- **Limitations / next:** 参照モデルは Python の CPU 画像処理のみで、Artifact の effect 契約、AOV encoding、色記述子、GPU、preview / final とは未接続。alpha=1 同士が重なる内部境界は検出できない。次は距離変換ベースの幅実測か、Depth / Normal AOV の実データ確認のどちらを先にするか判断が必要。
+- **Note:** 当初 `generate_fixtures.py` が alpha fixture にも depth を保存し、runner が index を見ずに depth を拾っていたため、alpha ケースに depth 矩形が混入した。`has_depth` を index に持たせて runner が尊重する形に修正済み。再生成時に古い `.depth.npy` が残る点は未対処（index 基準で無視される）。
+
+## 2026-11-12: Outline Lab に線幅実測を追加し、要求幅2pxの実測が5.75〜7.0pxになった
+- **Related:** `experiments/OutlineLab/outline_metrics.py`, `experiments/OutlineLab/captures/outline-rd1/outline-report.json`, `captures/outline-rd1-threshold-only/outline-report.json`.
+- **Confirmed（実行結果）:** 境界法線方向のサンプリングで `width=2` の実測は alpha-shapes 7.00px / depth-planes 5.75px（p50, softness 0.75, 0.25px刻み）。`width` 1 と 2 は同値、4 で増加。測定は中心を含む連続区間のみを数え、`alpha_gradient_weight` 0/4 の2条件を比較した。
+- **Value or concern:** 要求幅と実測幅が一致しないことを数値で示せた。原因は検出応答が境界の両側へ2〜3px広がること、max filterが外側へ1px膨らむこと、整数半径による量子化。要求幅をそのまま品質指标にすると過小評価になる。
+- **Limitation / next:** 幅の校正（検出帯・膨張分の差し引き）は未実装で、値は参照モデル固有。truthリングの法線は局所共分散で求めており、角や交差では不安定になり得る。次は実効幅の校正か、silhouette定義の分離かを決める必要がある。
+- **Note（実装上の罠）:** 1px境界リングでは距離変換の勾配がリング上でゼロになるため、法線推定に距離場の勾配を使うと全サンプルが一直線方向に潰れる。局所共分散の接ベクトルから法線を作る方式へ変更した。
+
+## 2026-11-12: alpha gradient項は0.5を跨がない半透明の重なりに不要線を出す
+- **Related:** `experiments/OutlineLab/outline_reference.py::alpha_boundary`, `run_outline_experiment.py --alpha-gradient-weight`, `captures/outline-rd1*-/outline-comparison.json`.
+- **Confirmed（実行結果）:** 同じfixtureで `alpha_gradient_weight` 4.0 と 0.0 を比較。alpha-shapes の coverage は 0.0820 → 0.0336、`unwanted_line_rate` は 0.201 → 0.000、`line_to_truth` p90 は 50.75px → 2.83px。gradient=4 では alpha が 1.0→0.7→1.0 と変化するだけで0.5を跨がない領域（円と半透明線の重なり）に矩形状の不要線が出る。
+- **Value or concern:** silhouette（被覆境界）とalpha微細変化は別の情報であり、1つの検出器で両方を扱うと内部に線が出る。既存 StrokeEffect が alpha 境界のみを見る理由の傍証になるが、製品側の実装意図は未確認。
+- **Limitation / next:** これは合成fixture上の条件であり、実画像の半透明やマットとの比較ではない。用途ごとにどちらを正とするか（silhouette優先か、alpha変化も拾うか）は未決定。Phase 2でnormal / depthと併用する際の優先順位として整理する。
+
+## 2026-11-12: Film Grunge と Film Damage の傷密度則が解像度で異なる
+- **Related:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactFilmGrungeEffect::apply`, `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp`, `experiments/FilmEffectsLab/film_damage_morphology_resolution_study.py`.
+- **Confirmed (source model):** At source defaults, Grunge scratch coverage stays near 3.52% from 512² to 1024² because scratch count grows with width while width stays 3px. Its dust object count scales with area (51→204) while radius remains 0.6–4.4px. Film Damage's `.10` scratch count truncates to one; coverage halves (0.086%→0.043%) at doubled linear resolution. Its dust object count likewise scales by area (113→449), with fixed 1–4px radius. Grunge is scalar-additive and produces out-of-range RGB; Damage blends an RGBA damage layer and preserved alpha on the opaque model plates.
+- **Hypothesis / value:** A shared `amount` interpretation or resolution-independent visual promise across these controls would be misleading unless density and mark size are normalized explicitly. This may inform a future film-effect suite contract, but does not itself justify product changes.
+- **Limitations / next:** Independent Python/OpenCV models with PCG64 placements, not C++/`std::mt19937` parity, actual product output, temporal behavior, GPU path, alpha-edge behavior, performance, or aesthetic acceptance. See `experiments/FilmEffectsLab/RESEARCH_NOTES.md`; next evidence would be a preregistered paired runtime capture through installed effect paths.
+
+## 2026-11-12: Film Grain の実行経路は既存研究から独立して確認が必要
+- **Related:** `ArtifactCore/src/ImageProcessing/OpenCV/Noise.cpp`, `ArtifactCore/include/ImageProcessing/OpenCV/Noise.ixx`, `Artifact/include/Effect/ArtifactFilmEffects.ixx`, `experiments/FilmEffectsLab/SUITE_RESEARCH_MAP.md`.
+- **Confirmed facts:** Core `NoiseType::FilmGrain` performs seeded Gaussian RGB perturbation with a luminance-dependent envelope; an omitted/negative seed derives entropy from steady-clock time. `FilmGrainEffect` is parameter/preset data carried by `FilmEffectPreset`. Static search found no `addNoise` or `generateNoiseTexture` caller outside their own implementation (the texture helper calls `addNoise`). Separately, `ArtifactEffectService` constructs and lists both `builtin.film_grunge` and `film_damage`.
+- **Hypothesis (unverified):** Core grain and film preset data may not be consumed by a connected image-processing path; existing Core grain measurements cannot be generalized to the registered Composition effects.
+- **Value / next:** Check whether any host/serialization layer consumes preset values, then capture the registered Grunge and Damage effects through their actual CPU routes. The suite map tracks these boundaries; no product code was changed.
+
+## 2026-11-12: Film Damage のEvolutionはkeyframe可能な値を24段階/単位で量子化する
+- **Related:** `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp::FilmDamageCPUImpl::applyCPU`, `Artifact/src/Effects/ArtifactAbstractEffect.cpp::ArtifactAbstractEffect::setContext`, `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactFilmGrungeEffect::apply`, `experiments/FilmEffectsLab/temporal_seed_key_audit.py`.
+- **Confirmed (static arithmetic model):** Grunge's composition-frame formula gave 120 unique 32-bit seeds across 120 consecutive integer frames. Damage uses `floor(evolution*24)` before mixing its seed: over 120 samples, increments 1/30 and 1/60 repeated keys 24 and 72 times respectively; 1/12 skipped one intervening key on all 119 transitions. 1/48 yielded 60 repeated-key pairs. The schedule report was rerun after amending a mistaken plan description.
+- **Confirmed host behavior:** `Evolution` is a Float effect property. `ArtifactAbstractEffect` supports Float property animation, evaluates it at `RationalTime(compositionFrame, frameRate)`, then calls the effect setter each frame. The value is an animatable scalar, not intrinsically seconds or frames.
+- **Interpretation / next:** The measured 30/60fps schedules assume a linear ramp of 1 Evolution unit per timeline second; 1/48 and 1/12 at 24fps correspond to .5 and 2 units/second. Actual project curves and rendered frame differences remain unverified; capture a keyframed sequence with documented values, motionless/moving inputs, and forward/reverse seeks.
+
+## 2026-11-12: Legacy FilmEffectProcessor の実装は部分的で、active C++ callsite が見つからない
+- **Related:** `Artifact/include/Effect/ArtifactFilmEffects.ixx::FilmEffectProcessor`, `Artifact/src/Effect/ArtifactFilmEffects.cpp::FilmEffectProcessor::process` / `applyGrain` / `applyFlicker`.
+- **Confirmed facts:** Search of active `Artifact` / `ArtifactCore` / `ArtifactWidgets` C++ trees found no construction or callsite. If invoked, the order is ColorFade→Vignette→Flicker→Grain. Grain does not read `size` or `threshold` and changes RGB only; Flicker processes all four float components. Preset Scratches/Dust/LightLeak/Jitter data are not used by `process()`, and preset JSON saves/restores grain fields only. Grain seed time key is `round(time * speed * 1000)`.
+- **Value or concern:** The declared film preset set does not match this processor's implementation scope; grain and flicker also have different alpha contracts. The code is not confirmed as reachable from the normal Composition route, so these findings should not be presented as product-render behavior.
+- **Unverified:** Consumers outside the searched C++ trees, caller-provided RGB order, compiled output, image quality, and performance.
+- **Next:** Trace an external integration only if a callsite is found; otherwise prioritize runtime captures of registered Composition effects. Register a separate image evaluation plan before comparing this processor's pixels.
+
+## 2026-11-12: Add Noise と Match Grain は別系統の現行grain候補
+- **Related:** `Artifact/src/Effects/AddNoise/AddNoiseEffect.cpp`, `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactMatchGrainEffect`, `Artifact/src/Service/ArtifactEffectService.cpp`.
+- **Confirmed facts:** Effect service creates/lists `add_noise` and `builtin.match_grain`. Add Noise has CPU, dedicated GPU wrapper, and resident generic shader routes; its CPU equation seeds hash noise into blocks using `floor(coord/size)`, clamps RGB to [0,1], and preserves alpha. Dedicated GPU wrapper uses texture upload, dispatch, staging readback, and idle wait; actual selection is unknown. Match Grain samples a named reference at the composition frame, subtracts its Gaussian low-frequency component, optionally shifts the residual via frame hash, adds luma/chroma residuals to source RGB, and copies source alpha and descriptor. Missing reference returns source unchanged. A preregistered 128-frame equation comparison matched initial green residual stddev across Add Noise CPU color, isolated Film Grunge grain, and Match Grain; pixelwise temporal autocorrelation lag1/lag4 was .713/.022 for Grunge, near 0 for Match Grain, while Add Noise was frame-static.
+- **Value or concern:** Add Noise is synthetic block/pixel noise; Match Grain transfers a sampled residual texture; Film Grunge uses its own hash and scale. Matching one initial RMS value does not equate their spectrum, channel correlation or temporal response. Existing AddNoise contract test source is present but was not run.
+- **Unverified:** Runtime dispatch/parity, Match Grain auxiliary-input wiring/descriptor, image quality, temporal perception, playback cadence and performance.
+- **Next:** Compare source models with production output only through a supported offline capture path. The user prefers no normal Windows UI operation.
+
+## 2026-11-12: Match Grain のhash jitterはsource modelでstatic image上のgrain残差を大幅に移動させる
+- **Related:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactMatchGrainEffect::apply`, `creativeHash`, `experiments/FilmEffectsLab/match_grain_reference_transfer_study.py`.
+- **Confirmed source-model result:** Preregistered synthetic BGRA studies at 512x256/1024x512 measured default transfer RGB delta RMSE .01558/.01553 at grainSize .5, .03380/.03370 at 1.15, .03700/.03689 at 3, and .03772/.03759 at 8. A follow-up 240-frame model measured jitter1 adjacent displacement median 190px at 512x256 (about 33% of frame diagonal), p95 418px (73%), with near-zero median unaligned residual correlation; jitter0 was identical across frames. Known-offset reverse alignment RMSE was zero. Alpha stayed exact in the equation model; output RGB can exceed [0,1] because the source adds residual without a clamp.
+- **Value or concern:** The temporalJitter control scales per-frame hashed cyclic offsets, so even a static source can have substantially relocated reference texture each frame in this model. This is a temporal-stability question to inspect in actual rendered sequences, not a confirmed flicker defect.
+- **Unverified:** Production named-input mapping, compiled output, actual descriptor/transfer path, playback cadence/seek, perception, moving-source interaction, resolution behavior, and performance. Results are deterministic Python/OpenCV mirrors only.
+- **Next:** Compare through a supported offline Artifact capture with an explicit reference plate and frame sequence; do not use normal Windows UI operation. Record auxiliary-input resize and color/alpha descriptor behavior.
+
+## 2026-11-12: Film Grunge の低16bit hash field は粒径plateauと方向相関を持つモデルになる
+- **Related:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactFilmGrungeEffect::apply`, `experiments/FilmEffectsLab/grunge_grain_spatial_scale_study.py`.
+- **Confirmed (intended modulo model):** Positive `std::round` makes `grainSize` discrete: 1.00–1.49 uses 1px blocks, 1.50–2.49 uses 2px, 2.50–3.49 uses 3px. At requested size 1 the model's lag-1 correlation is ~0.738 horizontally and ~-0.131 vertically; at size 8 it is ~0.967 / ~0.861. Hash-derived residual stays inside each block, while its standard deviation remains near .04331 at `grainAmount=.075`.
+- **Source caveat:** C++ multiplies x/y indices by signed integer constants before casting to `uint32_t`; tested coordinates can overflow `int`, which is undefined behavior. The Python result models expected modulo-2^32 wrap only and is not C++ parity.
+- **Value / next:** This suggests the grain-size control changes structured pixel correlation in plateaus, not just apparent particle diameter. Confirm actual output and supported compiler behavior before proposing any implementation change. No product code was modified.
+
+## 2026-11-12: Film Grunge の透明画素grainはalpha association次第で合成結果へ出る
+- **Related:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactFilmGrungeEffect::apply`, `ArtifactCore/include/Image/ImageF32x4_RGBA.ixx`, `experiments/FilmEffectsLab/grunge_grain_alpha_association_study.py`.
+- **Confirmed source facts:** Film Grunge adds channel grain to RGB backing, copies the alpha from its shifted input, and preserves the color descriptor. `ImageF32x4_RGBA` stores Float32 pixels in physical BGRA order. Zero weave makes the modeled alpha plane unchanged.
+- **Confirmed conditional model:** Straight-alpha composition attenuates grain residual by alpha and hides it where alpha=0. Premultiplied source-over adds the RGB residual without alpha attenuation; on the synthetic bounded fixture this made 65.57% of pixels violate `0 <= RGB <= alpha`, including nonzero residual on fully transparent pixels. Black/gray/white backgrounds yielded the same paired delta because source-over residual is algebraically independent of background when alpha is held fixed.
+- **Unverified / next:** Actual route descriptor, alpha association at effect entry, color transfer, and Viewer output. This is not a confirmed product defect. Trace the CPU Composition descriptor then capture the paired edge fixture before deciding any code change.
+- **Static route follow-up:** The Solid2D rasterizer path constructs `QImage::Format_ARGB32_Premultiplied`; `compositionQImageToCvMat()` passes its BGRA storage bytes through; `setFromCVMat(mat)` sets Float32 BGRA storage with alpha mode Unknown; the CPU effect stack then invokes Film Grunge, which preserves that descriptor. This establishes one concrete premultiplied-valued/Unknown-metadata input route, while downstream compositing interpretation remains unverified.
+- **Suite comparison:** A shared alpha-edge source-equation model found Film Grunge writes grain residual across all transparent pixels, whereas Film Damage writes residual only where the controlled scratch/dust overlay exists. Under straight-alpha compositing both disappear at alpha=0; under premultiplied compositing each can remain visible, with magnitude/coverage determined by the effect equation. This is not runtime proof; actual registered effect captures remain necessary.
+
+## 2026-11-12: Physical Halation の入力経路でalpha metadataが失われうる
+- **Related:** `Artifact/src/Layer/ArtifactImageLayer.cpp::toFrameBuffer`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::buildRasterizedSurfaceBuffer`, `Artifact/src/Preview/ArtifactPreviewLayerEffects.cpp::applyPreviewRasterizerEffects`, `Artifact/src/Effects/Glow/PhysicalHalationEffect.cpp`.
+- **Confirmed facts:** Image layer ingestion records an sRGB/Premultiplied BGRA descriptor. `ImageF32x4_RGBA::toQImage()` explicitly converts to straight sRGB RGBA8. Some rasterizer QImage-to-float paths use descriptor-less `setFromCVMat`, which marks alpha mode Unknown; Physical Halation itself thresholds RGB and restores alpha without consulting descriptor.
+- **Hypothesis (unverified):** Different draw routes may therefore present straight or premultiplied RGB values, or unknown metadata with either value convention, to the same RGB-only halation equation. Runtime path selection and exact pre-effect samples remain unknown.
+- **Value or concern:** Alpha identity alone cannot show visible halo equivalence at translucent edges; the input surface representation is part of the effect's observable behavior.
+- **Next:** Add runtime-only diagnostics to a preregistered paired alpha-edge capture, record QImage format / float descriptor / representative BGRA samples at effect entry, and compare output composites on black, gray, and white. No product code or UI behavior was changed.
+
+## 2026-11-12: Gaussian Blur は共有resident spatial nodeへ静的に接続されている
+- **Related:** `Artifact/include/Effects/GauusianBlur.ixx::GaussianBlur::appendGpuSpatialNodes`, `Artifact/include/Effects/Blur/BlurEffect.ixx::BlurEffect::appendGpuSpatialNodes`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::buildGpuRasterEffectPlan`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::applySpatialEffect`, `experiments/blur-rd/gaussian_cpu_source_mirror.py`.
+- **Confirmed facts:** 両stable effect interfaceは `SeparableGaussianBlur` nodeをappendする。通常layerのGPU raster planは適格条件下でnodeを収集し、`applySpatialEffect` が `GaussianBlurCS` を呼ぶ。Adjustment Layerには別のより厳しい条件付き経路がある。resident shaderはlinear-premultiplied surfaceをRGBへalphaを掛け直さずfilterする。別途、Gaussian standalone wrapperにはalpha乗算・unpremultiplyとstaging readbackがある。
+- **Correction:** 先行R&D台帳にあった「Gaussian Blurのresident経路未確認／nodeは一般Blur専用」という説明は誤りだったため、計画とsource-mirrorの分類を修正した。CPU/standalone wrapperのalpha findingsをresident routeへ外挿しない。
+- **Value / next:** CPU、eligible resident composition、standalone wrapperの式・alpha契約を分けてcaptureする。低sigma source-equation studyにもresident node mirrorを追加した。
+- **Limitations:** これは静的source routeと式mirrorであり、実行時dispatch、特定frameのtexture format/values、GPU parityや品質を確認していない。captureとruntime evidenceが次の段階。
+
+## 2026-11-12: Gaussian合成fixtureはkernel・wrapper・transfer条件を比較できる
+- **Related:** `experiments/blur-rd/build_gaussian_fixture_bundle.py`, `experiments/blur-rd/analyze_gaussian_fixture_bundle.py`, `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cpp::saveRendererMultiChannelImage`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::buildGpuRasterEffectPlan`.
+- **Confirmed facts:** 6枚の513×513 float32 BGRA synthetic inputsにfixture hash/contract manifestを付け、CPU OpenCV kernel、条件付きCPU wrapper、standalone HLSL wrapper式、resident separable Gaussian shader equationの比較JSONを再生成できる。透明/半透明edgeのalpha表現ごとの比較とlinear対sRGB量子化edgeのdiagnosticも追加した。直接multi-channel export helperはcomposition controllerのraster-effect planを通らず、active color view/rendererへの各layer `draw(renderer)`で画像を作る。よってそのhelperをGaussian resident production captureとみなす根拠はない。
+- **Hypothesis / concern:** Effect stage適用とdescriptor-aware float32 exportを同一経路で保証するcapture入口には、Composition draw path内の観測または専用capture adapterが別途必要。
+- **Value / next:** synthetic fixturesでalpha-edge、hidden RGB、HDR、detail、transfer-space条件を固定し、背景合成previewとfull-image/ROI metricsを比較する。次に現行GUIのeligible normal-layer routeとAdjustment Layer routeでeffect後float surfaceを取り、descriptorとdispatch証跡を同時に記録する。
+- **Limitations:** wrapper source-equation modelはOpenCV/NumPyで、Artifact objectやdescriptor conversionを実行しない。GPU shaderもdevice executionをしない。synthetic metricsと簡易previewは画質合否を示さず、runtime route・backend/解像度差・performance acceptanceは未検証。
+
+## 2026-11-12: Gaussian wrapperのalpha前提は出力表現と分けて測る
+- **Related:** `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`, standalone `kGaussianBlurHlsl`, `experiments/blur-rd/analyze_gaussian_fixture_bundle.py`.
+- **Confirmed facts:** CPU wrapperは入力RGBへalphaを掛けてからGaussianBlurし、出力alphaが1e-5を超える時にRGBをunpremultiplyする。standalone HLSL wrapperも各sampleのRGBへalphaを掛け、各passの結果をunpremultiplyする。resident `GaussianBlurCS`はRGBAを直接filterするためinternal premultiplied surfaceを前提とする。合成式mirrorで、premultiplied edgeをunassociateしてからCPU wrapperへ渡す条件ではresidentとのvisible RMSEは約2.4e-8（σ=3）；同じpremult値をstraight入力として再解釈する条件ではRMSE約.0885だった。
+- **Hypothesis / concern:** CPU/standalone wrapperが参照するsource color descriptorはalpha associationを切り替えるために使われていないように見える。実 caller の入力surface表現が未確認なので、descriptorとの不整合は未確定。
+- **Value / next:** 正常premult/straight/hidden RGB入力を同じ画素でpaired runtime captureし、effect-entry descriptor、raw samples、出力descriptor、背景合成を記録する。sigma=3の表示previewは黒/灰/白/緑背景で正条件と誤解釈条件を比較する。
+- **Limitations:** MetricsとpreviewはOpenCV/NumPy source-equation mirrors。GPU dispatch、production callerのalpha association、view transform、acceptance threshold、性能を証明しない。
+
+## 2026-11-12: Gaussian CPU fallbackのalpha metadataはQImage経路間で異なる
+- **Related:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cpp::buildRasterizedSurfaceBuffer(QImage)`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::buildRasterizedSurfaceBuffer(QImage)`, `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`.
+- **Confirmed facts:** CompositionViewDrawingのQImage経路は`qImageCvMatSurfaceDescriptor()`を使い、ARGB32_PremultipliedをPremultiplied descriptorにする。CompositionRenderControllerのQImage builderはBGRA CV_32FC4にして`setFromCVMat(mat)`を呼び、descriptorなしUnknown alpha modeにする。Gaussian CPU wrapperは入力descriptorを読まずRGBへalphaを掛け、unpremultiply後もsource alphaModeを出力descriptorへ保持する。
+- **Hypothesis / concern:** Premultiplied pixel値がwrapperへ届く経路ではRGBの二重alpha乗算が起き、出力値と保持alpha descriptorが食い違う可能性がある。ControllerのUnknown descriptor経路ではalpha associationをmetadataから判定できない。callerによる実データ変換がないかはさらに追跡が必要。
+- **Value / next:** R&D modelは正しいunassociation入力とpremult値をstraightとして読む入力を別条件にし、sigma=.5/3でvisible RMSEを比較した。次のruntime captureでは両QImage/CPU surface経路のeffect入口と出力について、QImage format、CV/float descriptor、BGRAサンプル、alpha association、複数背景合成を記録する。
+- **Limitations:** Source call graphはruntime route選択・実サンプル・画面出力を証明しない。今回のRMSEはOpenCV equation mirrorで、ユーザー許容差や品質合否は未設定。
+
+## 2026-11-12: Outline の要求幅は ceil(width/2) に量子化され、要求0.5/1/2が同一実測になる
+- **Related:** `experiments/OutlineLab/sweep_line_width.py`, `experiments/OutlineLab/captures/width-sweep/width-sweep.md`, `outline_reference.py::soft_line`.
+- **Confirmed（実行結果）:** alpha detail 無効、seed 20261112 で width を 0.5 / 1 / 2 / 3 / 4 / 6、softness を 0 / 0.75 で振った。core radius が `ceil(width/2)` のため要求 0.5・1・2 は同一の実測（alpha width_50 4.25px、softness 0.75 で 6.50px）、要求 3・4 も同一（7.00 / 11.75px）。要求値と実測値は比例せず、段階的に増える。
+- **Value or concern:** UI で 1px / 2px を選び分けても見た目が変わらない可能性があり、幅スライダーの刻みや表示単位を要求値ベースで設計すると期待を裏切る。製品側で線幅を扱う場合は、量子化前の連続値か、実測対応表を経由した校正が必要。
+- **Limitation / next:** 値は参照モデルと合成 fixture 固有で、アンチエイリアスや解像度、GPU ラスタライザでの挙動は未検証。校正係数（要求→実測の予測式）は未定義で、スイープ表は観測記録に留まる。
+
+## 2026-11-12: Outline の unwanted_line_rate は要求幅に連動するため小さい幅で過大に出る
+- **Related:** `experiments/OutlineLab/outline_metrics.py::position_error`, `captures/width-sweep/width-sweep.md`.
+- **Confirmed（実行結果）:** 許容距離は `width_px + 2`。要求幅 0.5 / softness 0.75 では alpha fixture の unwanted_line_rate が 0.106、要求幅 2 では 0.000 になる。線の本数や位置は同じで、許容距離だけが違う。
+- **Value or concern:** 幅条件をまたいで unwanted_line_rate を比較すると「細い線ほど不要線が多い」と誤読する。しきい値や許容距離を固定して比較するか、条件内比較に限定する必要がある。
+- **Limitation / next:** 現状の指標定義は意図的に要求幅連動で、製品側の許容値は未定義。幅校正と同じ枠組みで、許容距離を絶対pxにするか相対にするかを決める必要がある。
+
+## 2026-11-12: Gaussian CPU QImage経路とresident経路でtransfer-spaceモデルが異なる
+- **Related:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cpp::qImageCvMatSurfaceDescriptor`, `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::GaussianBlurCS`, `experiments/blur-rd/analyze_gaussian_fixture_bundle.py`.
+- **Confirmed facts:** QImage boundary helperはARGB32 formatsにsRGB descriptorを付けるが、Gaussian CPU wrapperはpixel値にtransfer conversionせずOpenCV blurし、source descriptorを出力へ保持する。resident shader equationはcomposition internal linear-premultiplied surfaceを直接filterする。8-bit-quantized synthetic sRGB edgeをblur後linear decodeし、linear inputをblurした式mirrorと比較すると、σ=3の全画面 visible BGR RMSEは約.0135、edge ROI RMSEは約.0629。
+- **Hypothesis / concern:** 同じasset contentがCPU QImage pathでsRGB code valuesのまま処理され、resident routeではlinear値になるなら、route間でedge色・混合応答に差が出る可能性がある。callerの実際のdecoded surface valuesと、compositionでの色変換時点は未確定。
+- **Value / next:** backend parity captureでinput BGRA float samples、transfer descriptor、effect stage前後値、active view transformを併記する。scene-linear synthetic edgeに加え、8-bit sRGB edgeをsource fixtureとして保持した。
+- **Limitations:** Metricは単純OpenCV equation model。QImage bytes・active OCIO/view transform・resident render outputをcaptureしておらず、product-level mismatchやquality verdictではない。
+
+## 2026-11-12: Gaussian alpha cutoffのenergy比は8bit SDR差を大きく見積もり得る
+- **Related:** `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`, `experiments/blur-rd/gaussian_cpu_source_mirror.py::alpha_cutoff_display_composite_study`, `experiments/blur-rd/results/previews/gaussian_alpha_cutoff_sigma64_alpha05.png`.
+- **Confirmed (synthetic source model):** 513²の単一赤点、alpha=.01/.1/.5/1、sigma16/64、center/edge-centerを4背景へ合成。sigma64/alpha=.5/centerではcutoff=1e-5でpremultiplied red energyの約50.95%が落ちた一方、linear clamp+sRGB OETFの最大8bit code-normalized差は約0.000104で1/255未満。全64背景条件で1/255超のpixelは0で、8bit previewはthreshold/no-cutoff両画像を同値に量子化した。
+- **Value / concern:** tail energy比だけでは表示上の重大度を示さない。一方でHDR/view transform、後段gain、密な素材、浮動小数出力ではこの推論を使えない。
+- **Next:** 同じalpha-tailを実capture/active view transformで評価する。threshold差分のfloat EXR/NumpyとSDR previewを別保存し、素材密度と後段処理を追加する。
+- **Limitations:** OpenCV source-equation, single impulse, linear black/gray/white/green composites, clamp+sRGB OETFのsynthetic model。Artifact出力、実view transform、知覚判定、性能への根拠ではない。
+
+## 2026-11-12: Gaussian alpha cutoffの視認差は密度・HDR振幅・背景で変わる
+- **Related:** `experiments/blur-rd/gaussian_cpu_source_mirror.py::alpha_cutoff_density_hdr_study`, `experiments/blur-rd/results/previews/gaussian_alpha_cutoff_dense_hdr_bracket.png`.
+- **Confirmed (synthetic equation model):** alpha=.5, sigma64, straight red=64ではisolated impulseのcutoff energy lossは50.95%。128² dense patchではloss fractionは約4.94e-6だが、tailはblack-background sRGB OETF modelでmax .00826、1/255を超えるRGB componentが3,800個あった。gray backgroundではmax .000763で1/255超過なし、whiteではmax 4.41e-6。画面全体p95誤差は影響が疎なため0。
+- **Value / concern:** integrated energy、full-frame percentile、背景別display codeを別々に見る必要がある。energy ratioは広いtail総量、p95は疎なピーク、背景は表示上のcode差に回答している。EV+4 bracketでは局所tail差が強調されるが実view transformではない。
+- **Next:** production runtime captureが可能になったらlinear EXR/float surfaceとactive display transformの両方を保存し、real assets/clustered detailでsame-position cutoff/no-cutoff compareを行う。threshold変更や製品判断はbaselineとvisual acceptance前に行わない。
+- **Limitations:** 513² synthetic patterns、OpenCV CPU equation, straight-alpha premultiplied reference, red amplitude64, four simple backgrounds, clamp+sRGB code preview. Artifact route, perception, export precision, and performance remain unverified.
+
+## 2026-11-12: Gaussian alpha cutoffは空間配置とalpha/RGB相関で効き方が変わる
+- **Related:** `experiments/blur-rd/results/gaussian_alpha_cutoff_cluster_boundary_2026-11-12.json`, `experiments/blur-rd/results/gaussian_alpha_cutoff_halfplane_hdr_2026-11-12.json`, `experiments/blur-rd/results/gaussian_alpha_cutoff_rgb_boundary_2026-11-12.json`.
+- **Confirmed (synthetic CPU equation model):** sigma64/alpha=.5/straight red64のisolated pointはenergy loss 50.95%、black sRGB-model max差 .008268。4/16/64-point clusterではlossが12.34%/2.69%/.376%へ減る一方、局所max差は約.00826を保つ。alphaをthreshold近傍で動かす単一点ではpremult RGBも同率で小さくなり表示max差は3.6e-7未満。half-planeの有限Gaussian supportにはthreshold以下のalpha pixelが存在しない条件があった。
+- **Value / concern:** cutoff到達の有無、切られる積分量、局所表示差は独立した特性であり、入力の空間配置とalpha/color相関を揃えずに一般化できない。前回のdense patchとも異なるため、単一fixtureの結果でcutoff影響を代表させない。
+- **Next:** active production routeでfloat output/descriptor/view transform付きの同位置cutoff比較を取得し、real sparse detail・clustered particles・broad edgesを評価する。視覚合否と性能測定は未実施。
+- **Limitations:** 513² synthetic patterns、CPU OpenCV equation mirror、sigma64、simple clamped sRGB OETF。Artifact wrapper/dispatch/view transform/知覚評価/performanceの証拠ではない。
+
+
+## 2026-11-12: Gaussian cutoff tailのbboxは疎な領域を過大評価する
+- **Related:** `experiments/blur-rd/results/gaussian_alpha_cutoff_contour_profile_2026-11-12.json`.
+- **Confirmed (synthetic CPU equation model):** sigma64/alpha=.5/red64でtail pixel数はisolated point 131000、4/16/64点cluster 96856/61932/31876、dense 128² patch 10932。dense patch tailは4隅に分離し、bboxはほぼ全画面を覆う一方、実maskは10932 pixelのみ。threshold境界から2pxのROIは2891〜7439 pixelで、black背景max display errorは各patternで約.00826。
+- **Value / concern:** sparse/disconnected errorのbbox統計は無関係な画素を混ぜる。ROI mask pixel集計と境界ray profileを保存する。
+- **Next:** production captureで同じmask/ROIをeffect outputへ適用し、view transformと実素材でvisual acceptanceを設定する。
+- **Limitations:** OpenCV CPU mirror、513²合成fixture、clamped sRGB OETF。実アプリ経路・知覚・性能は未検証。
+
+
+## 2026-11-12: Gaussian alpha cutoffの解像度比較ではsigmaと素材配置の正規化が要る
+- **Related:** `experiments/blur-rd/results/gaussian_alpha_cutoff_resolution_sweep_2026-11-12.json`, `experiments/blur-rd/results/gaussian_alpha_cutoff_scale_normalized_2026-11-12.json`.
+- **Confirmed (synthetic CPU equation model):** sigmaをpixel固定しsupportが収まる点入力では、absolute tail countとlocal max display errorは解像度間で同じだが、全画面比は513²の49.78%から1024²の12.49%へ変化。sigmaと入力patch幅を画像幅比で同時に拡縮したdense 25%-width patchは、sigma/N=.0625でtail area比が128²〜1024²間およそ.88〜1.05%。supportが画像外へ出る条件ではborder効果が混ざる。
+- **Value / concern:** preview縮小評価でblur sigmaだけでなく素材の正規化配置も維持する。pixel固定clusterは別の内容スケール評価として扱う。
+- **Next:** 実previewとfinal routeで同じassetを描画し、実際のdownsample/upsample、descriptor、view transformを記録して比較する。
+- **Limitations:** OpenCV source mirrorのみ。実resampling、Artifact route、知覚合否、performanceは未測定。
+
+
+## 2026-11-12: Gaussianの低sigmaでは処理解像度上の実効spreadがnominal値を大きく下回る
+- **Related:** `Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlurCPUImpl::applyCPU`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::effectResolutionScale`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::GaussianBlurCS`, `experiments/blur-rd/results/gaussian_resolution_scale_route_model_2026-11-12.json`.
+- **Confirmed facts:** CPU interactive wrapperはrequested sigmaへresolutionScaleを乗算してOpenCV kernel widthを作る。resident raster planはspatial nodeのsigmaへ`.25/.5/1`を乗算し、shader側でsigmaを`.1..64`へclamp、radiusを`ceil(3*sigma)`にする。
+- **Confirmed (equation mirror):** requested sigma=.5、scale=.5の513px impulseでCPU/resident双方のprocessed effective sigmaは約.02589px。direct coordinate scalingを仮定したfull-resolution equivalentは約.05179px。requested .3、scale .5ではCPU width1はidentity、resident floor .1のprofileはeffective sigma約2.1e-5px。実画像品質の判定ではない。
+- **Value / concern:** nominal sigmaと処理pixel上の実効spreadを分け、preview scale間の比較では実surface寸法と再構成filterも記録する。
+- **Next:** current-source runtime captureでCPU fallback/resident outputとactual backing sizeを取得し、screen-space impulse covarianceを測る。
+- **Limitations:** static source tracing + CPU/equation model only; dispatch eligibility、GPU実行、preview resampling、visual acceptance、performance未確認。
+
+
+## 2026-11-12: Gaussian resolution-scale modelの適用範囲をsourceに合わせて訂正
+- **Related:** `experiments/blur-rd/results/gaussian_resolution_scale_route_model_2026-11-12.json`, `Artifact/src/Effects/Blur/GauusianBlur.cpp`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp`.
+- **Correction:** 先行表でresident GPUへscale=.125を適用し、処理sigmaを単純にscaleで割ってscreen-equivalentとした値はsource contractで保証されず誤り。resident planのeffectResolutionScaleは.25/.5/1。CPU interactive wrapperの下限.125とは別。actual surface dimensionsと再構成filterは未確認。
+- **Confirmed equation model:** same post-scale sigmaで513px center impulseのCPU OpenCV profileとresident shader-weight equationは近似一致。requested sigma=.5/scale=.5のeffective spreadは双方約.02589 processed px。これはruntime dispatch/parity証拠ではない。
+- **Next:** backing-surface dimensions、route eligibility、preview reconstructionを含むsource-matched runtime captureが必要。
+
+
+## 2026-11-12: Gaussian CPU wrapperのdescriptor passthroughとalpha cutoffを一緒に測る
+- **Related:** `Artifact/src/Effects/Blur/GauusianBlur.cpp::applyGaussianBlurCPUFallback`, `experiments/blur-rd/results/gaussian_cpu_wrapper_alpha_descriptor_sweep_2026-11-12.json`.
+- **Confirmed facts:** wrapperはdescriptor alpha modeを分岐に使わずnumeric RGBをalpha倍してblurし、alpha>1e-5のみunpremultiplyし、descriptorはsource値を引き継ぎchannel orderをBGRAへ更新する。
+- **Confirmed (synthetic model):** alpha=.5/red64でsigma16はtail 3888 pixelをzeroし、premultiplied再合成後energy ratioは約.9724。sigma3では約.99978。
+- **Value / concern:** raw unassociated RGB sumは可視energyを表さない。descriptorの正しさはactual input contractとconsumer未確認のため結論しない。
+- **Next:** same-route captureにinput/output descriptor、float samples、複数背景compositeを含める。
+- **Limitations:** CPU equation model、OpenCV、synthetic point only; runtime caller, product visual quality, backend parity, performance未検証。
+
+
+## 2026-11-12: broad alpha edgeではcutoffが発火せずsigma64でkernel supportも分岐する
+- **Related:** `experiments/blur-rd/compare_gaussian_cutoff_routes.py`, `experiments/blur-rd/results/gaussian_alpha_edge_cpu_resident_cutoff_2026-11-12.json`, `experiments/blur-rd/results/previews/gaussian_alpha_edge_cpu_resident_sigma16_64.png`.
+- **Confirmed (source-equation model):** existing broad alpha-edge fixtureはsigma .5〜16でcutoff tail 0 pixel。derived sparse HDR point (alpha .5, straight R1.6/G-.08/B.35) はsigma .5/1/3/16でtail 4/4/24/3888。sigma16ではCPU/resident radius48が一致し、border-excluded premultiplied RGB max error約3e-7。sigma64ではCPU radius192、resident shader cap64、CPU tail131000 / resident tail0。
+- **Value / concern:** broad edgeはcutoffのnegative controlとして使い、cutoff評価では疎な半透明/HDR素材を含める。sigma64 route差を単純なGPU数値誤差として扱わない。
+- **Next:** current binary/source runtimeで実際のpath eligibility、出力surface、shader dispatchを記録し、support差が製品条件に現れるか確認する。
+- **Limitations:** OpenCV CPU equation + resident shader weight equation、derived synthetic stroke、clamped sRGB preview。実dispatch、visual acceptance、performance未検証。
+
+
+## 2026-11-12: resident Gaussianはsigma約21.33px以上でradius capにより実効spreadが縮む
+- **Related:** `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::GaussianBlurCS`, `experiments/blur-rd/results/gaussian_sigma64_resident_support_sweep_2026-11-12.json`.
+- **Confirmed facts:** shader radiusは`min(64,ceil(3*sigma))`。radius capはsigma≈21.333px以上で効く。CPU source kernel widthはsigma64でradius192。
+- **Confirmed (equation model):** center impulse sigma64のCPU effective sigma≈63.159px、resident equation≈34.764px (requestedの54.3%)、resident R95=60px。sigma32はCPU≈31.588px、resident≈28.251px。
+- **Value / concern:** 大sigma領域のnominal設定からblur品質を推測せず、実経路適格性と受入仕様をruntime captureで調べる。
+- **Next:** GPU raster planでsigma>21.33が実行されるcomposition条件を選び、出力surfaceをcaptureしてeffective PSFを測る。
+- **Limitations:** 513px 1D synthetic source-equation mirror only; device dispatch, product intent, visual acceptance, performance未確認。
+
+
+## 2026-11-12: resident radius capはstep edgeと細部の広がりにも差を生む
+- **Related:** `experiments/blur-rd/compare_gaussian_support_shapes.py`, `experiments/blur-rd/results/gaussian_support_shape_comparison_2026-11-12.json`, `experiments/blur-rd/results/previews/gaussian_support_shape_comparison.png`.
+- **Confirmed (synthetic equation model):** vertical HDR edgeの10–90% widthはsigma16/21.333でCPU-resident一致（約40.83/54.44px）。sigma32/48/64ではCPU=81.65/122.46/163.27px、resident=76.00/90.99/96.52px。opaque three-pixel detailのsigma64 effective sigmaはCPU≈63.16、resident≈34.77px。
+- **Value / concern:** support capによる差はpoint impulseだけでなくstep-edgeとsmall-detailでも現れる。両fixtureはalpha opaqueなのでalpha cutoffとは別要因。
+- **Next:** current-source runtimeで対象 sigmaがresident pathへ流れるかcaptureし、preview/final reconstructionも含めて受入差を決める。
+- **Limitations:** hash-verified synthetic inputs、CPU/OpenCVとresident equation mirror。vertical edgeのみ、知覚合否・GPU dispatch・performance未確認。detail previewは+8EV display-only。
+
+## 2026-11-12: Outline の要求幅→実測幅は膨張半径の線形式で最大0.5pxまで予測できる
+- **Related:** `experiments/OutlineLab/calibrate_width.py`, `captures/width-sweep/width-calibration.md`, `sweep_line_width.py::effective_radius`.
+- **Confirmed（実行結果）:** `width_50 ≒ slope × effective_radius + intercept`（effective_radius は softness < 0.5 なら core radius、以上なら fringe radius）。depth-planes は slope 2.000 / intercept 2.25（hard）・1.75（soft）でほぼ完全一致。alpha-shapes は slope 2.650 / 2.575。スイープ24行の残差は最大0.08px、スイープ外の hold-out 8行は最大0.52px。
+- **Value or concern:** 「要求2pxが実測6.5px」のような乖離を、経験則ではなく再現可能な式と残差で扱えるようになった。一方で到達可能な実測幅は11種類しかなく、要求値を連続に動かしても実測は階段状にしか変わらない。UI で1px刻みの幅を出すと見た目が変わらない段ができる。
+- **Limitation / next:** 係数は参照モデルと合成 fixture 固有で、他ラスタライザへ流用できない。`softness` 0.5 はクラス境界の段差があり、0.4 / 0.6 で±0.5px の誤差が出た。次は目標実測幅から要求幅を逆引きする段で、段差を許容するか連続半径へ変更するかを決める必要がある。
+
+
+## 2026-11-12: radius-capの見え方はalpha合成背景と露出で変わる
+- **Related:** `experiments/blur-rd/compare_gaussian_support_shapes.py`, `experiments/blur-rd/results/gaussian_support_shape_comparison_2026-11-12.json`.
+- **Confirmed (synthetic equation model):** opaque HDR edge/three-pixel fixed fixtureと、premultiplied RGB/alphaをともに.5倍したderived variantで、black/gray/white/green BGRA背景と0/+2/+4EVのsimple clamped sRGB composite差を記録。sigma64 edge alpha=.5 +4EV ROI maxはblack .535、gray .179、white 0（両出力clamp saturation）。three-pixel alpha=.5 black .00561、gray/white 0。
+- **Value / concern:** display code差はbackground/EV条件に依存し、clip後のzero errorはparity根拠にならない。
+- **Next:** active app view transformと同位置runtime captureを使い、baseline後にvisual toleranceを定める。
+- **Limitations:** synthetic source-equation model; alpha variantは一様alphaでedge fixtureではない。perceptual acceptance、runtime path、performanceは未確認。
+
+
+## 2026-11-12: Gaussian radius-cap評価はordinary layerとAdjustment Layerを分ける
+- **Related:** `experiments/blur-rd/audit_gaussian_route_eligibility.py`, `experiments/blur-rd/results/gaussian_route_eligibility_audit_2026-11-12.json`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`.
+- **Confirmed static facts:** Gaussian Blur defaults ComputeMode::GPU, spatial node, sigma hard max64。ordinary non-adjustment GPU raster planにsigma<3 gateなし。scaled node sigmaのcap到達はrequested sigma>21.33 (scale1)、>42.67 (scale.5)。scale.25ではhard max64でもapplied16のため未到達。
+- **Confirmed static facts:** Adjustment resident routeはhigh/full-res、非interacting、identity transform、opacity1、Normal blend、mask/region/overscanなしに加えprimary sigma<3とCPU/resident support一致を要求する。default .1-step sample上のradius-match candidateは.1/.2/.3/1/2。
+- **Value / concern:** 高sigmaのsupport mismatchは主にordinary layer resident routeでcaptureすべきで、Adjustment Layerへ一括外挿しない。scale値だけでは実surface dimensionsやdisplay sigmaを断定しない。
+- **Next:** Gaussianのみ有効な通常image layerでhigh sigma64→medium scale64→low/interacting64の順に、path plan・dispatch・raw float outputをcaptureする。Adjustmentは別のfallback/eligibility studyとする。
+- **Limitations:** source hash anchored static audit; live frame route, GPU dispatch, visual acceptance, performance未確認。
+
+
+## 2026-11-12: Adjustment Gaussian support-match gateは低sigmaの離散値だけを通す
+- **Related:** `experiments/blur-rd/audit_gaussian_route_eligibility.py`, `experiments/blur-rd/results/gaussian_route_eligibility_audit_2026-11-12.json`, `experiments/blur-rd/results/previews/gaussian_adjustment_radius_match.svg`.
+- **Confirmed (float32 formula mirror):** sigma (0,3)の.0001 grid 29,999点中radius一致3,335 (11.12%)。default .1 UI-step sampleは29点中.1/.2/.3/1/2の5点のみ一致。nominal k/3 breakpointのfloat32値と隣接ULPも結果が切替わるため、gridは厳密な区間証明ではない。
+- **Value / concern:** Adjustment pathは多数のsigmaでresident rejection/fallbackとなる。品質/性能問題とは断定せず、capture前にroute eligibilityとして扱う。
+- **Next:** sigma sweepでAdjustmentのGPU spatialApplied/fallback count、resolved execution path、出力surfaceを取得し、UI sample値と境界ULPを別々に選ぶ。
+- **Limitations:** CPU radius and shader radius formula mirror only; no frame capture, route counters, GPU result, quality or timing evidence.
+
+## 2026-11-12: Adjustment resident radius gateはBlur由来の式をspatial node共通で使う
+- **Related:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::trySpatialAdjustment`, `Artifact/include/Effects/Blur/BlurEffect.ixx`, `Artifact/include/Effects/GauusianBlur.ixx`.
+- **Confirmed facts:** adjustment preflight filters by `GpuRasterEffectDomain::Spatial` and `SeparableGaussianBlur` node kind; its CPU radius expression matches `BlurEffect`'s documented CPU kernel convention. `GaussianBlur` also emits that node kind but its CPU kernel-size expression differs. On preflight failure, the adjustment renderer draws the unmodified accumulated backdrop rather than invoking that effect's CPU implementation.
+- **Value / concern:** If GaussianBlur is attachable to adjustment layers, a shared kind-based check can unnecessarily reject some otherwise supported route values or admit values that do not match Gaussian's own CPU formula. Since this branch does not use CPU Gaussian on rejection, assess this as route coverage/fallback behavior, not an established visual parity defect.
+- **Next:** confirm adjustment effect availability, then capture Gaussian-only adjustment samples around radius breakpoints and log applied/fallback counters before considering a gate change.
+- **Limitations:** source inspection only; effect availability, runtime route, pixel result, and performance unverified.
+
+## 2026-11-12: Adjustment Gaussianのradius gateはUI離散値でGaussian式と13値ずれる
+- **Related:** `experiments/blur-rd/audit_gaussian_route_eligibility.py`, `experiments/blur-rd/results/gaussian_route_eligibility_audit_2026-11-12.json`.
+- **Confirmed (float32 formula mirror + source):** at sigma `.1` through `2.9` in `.1` steps, the shared gate rejects 13 values where Gaussian CPU and resident support radii match; `.1` is accepted although Gaussian CPU radius0 differs from resident radius1. Generic `addEffectToLayer` has no adjustment-layer guard, Gaussian is factory registered, and both blur effects emit the same node kind.
+- **Value / concern:** effect-kind-only radius eligibility can alter which adjustment settings use the resident pass. A failed preflight draws the pre-effect accumulation, so this is a coverage/fallback discontinuity candidate, not a demonstrated CPU/GPU parity error.
+- **Next:** in-app capture the Adjustment output at `.2/.3/.4/.5/1/1.2/2/2.2/2.9`, recording whether the effect was applied and the resulting image; establish expected Adjustment semantics before changing route eligibility.
+- **Limitations:** static source/formula audit only; no widget visibility, live attachment, runtime route counter, image, acceptance judgment, or performance evidence.
+
+## 2026-11-12: Adjustment Gaussianのgate拒否はno-effect基準と同じだが自己合成を伴う
+- **Related:** `experiments/blur-rd/model_adjustment_gaussian_gate_output.py`, `experiments/blur-rd/results/gaussian_adjustment_gate_output_model_2026-11-12.json`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`, `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`.
+- **Confirmed source facts:** rejected preflight presents the unmodified accumulator; `ArtifactAdjustableLayer::draw` is a no-op, so CPU Gaussian is not run. The outer layer loop still performs common Normal blend. Presentation unpremultiplies and clamps RGB; sprite uses SRC_ALPHA blending; Normal blend composites the resulting premultiplied source over destination.
+- **Confirmed (source-equation model):** under opacity1/Normal/no masks/identity, a rejected sigma `.5` matches the no-effect Adjustment baseline exactly. But that baseline differs from incoming input on the HDR-edge fixture (RGB RMSE `.088797`, alpha RMSE `.176949`, black/gray18/white/green composites `.088797/.070253/.131051/.120684`) and opaque HDR impulse (RMSE `.001486`) due to copy/self-over and clamp. At accepted sigma1, Gaussian-vs-no-effect baseline RGB/alpha RMSE are `.00758/.01473` on HDR edge and `.00166/0` on opaque impulse.
+- **Value / concern:** incoming accumulation is the wrong baseline for isolating Adjustment Gaussian response; compare to a matched no-effect Adjustment. The self-over/clamp operation is an additional renderer behavior worth reviewing separately.
+- **Next:** capture matched no-effect Adjustment and Gaussian Adjustment cases with pre/post-composite float surfaces and route status, then compare gate-transition values.
+- **Limitations:** source-equation model only; successful conversion, opacity1/Normal blend, no masks/transform; no live GPU/app output, display transform, performance, visual threshold, or pipeline quantization.
+
+## 2026-11-12: Adjustment Gaussianのモデル出力はgate境界で非連続
+- **Related:** `experiments/blur-rd/model_adjustment_gaussian_gate_output.py`, `experiments/blur-rd/results/gaussian_adjustment_gate_output_model_2026-11-12.json`.
+- **Confirmed (source + synthetic equation model):** on the premultiplied HDR edge fixture, sigma `.4→.5` is rejected at both ends; modeled outputs are identical although resident-equation outputs differ (RMSE `.00110`). Sigma `.9→1.0` switches rejected→accepted; modeled output pair RMSE is `.00505`, compared with `.000487` between resident-equation results.
+- **Value / concern:** prioritize those gate boundaries in live captures because the modeled adjustment output can change more than the underlying resident blur response as sigma advances.
+- **Next:** capture `.3/.4/.5/.9/1.0/1.1/1.2` under identical Adjustment conditions, including route counter and raw output; inspect full frame and alpha-edge crops before setting a pass/fail tolerance.
+- **Limitations:** effect-equation model, not app output; no display transform, texture quantization, route observation, performance data, or visual threshold.
+
+
+## 2026-11-12: Add Noise GPU wrapperのseed解釈はCPU/residentと異なる
+- **Related:** `Artifact/src/Effects/AddNoise/AddNoiseEffect.cpp`, `experiments/FilmEffectsLab/add_noise_route_equation_audit.py`, `experiments/FilmEffectsLab/captures/add-noise-route-equation-audit-r1/metrics.json`.
+- **Confirmed (source + equation model):** CPUとresident shaderはseedをnumeric uintとして扱い、専用GPU wrapper HLSLはfloat seedを`asuint`でbitcastする。式モデルではseed 0は一致する一方、seed 73のRGB RMSEはsize1.5 / amount.4で512×256 .2291、1024×512 .2334。モデル上のCPU/residentは一致。
+- **Confirmed (source + equation model):** 3 routeともRGBを[0,1]へclampしalphaを保持する式。amount=0のHDR ROIでRGB RMSE約.331となり、HDR identityにならない。
+- **Value / concern:** GPU wrapperが実際に選ばれる構成では、非ゼロseedの見た目とHDR neutralityに差が出る可能性がある。現状の数値はソース式ミラーのみであり、route選択・compiled shader・GPU parityの証拠ではない。
+- **Next:** ユーザー要望に沿ったローカル限定のオフラインキャプチャ方法が成立した後、source modelとactual outputを対照する。
+- **Limitations:** 合成fixture、Python/NumPy式モデル、no app/GPU/compiler; temporal automation, performance, perceptual acceptanceは未評価。
+
+
+## 2026-11-12: Add Noise alpha edge response depends on the stored-alpha contract
+- **Related:** `Artifact/src/Effects/AddNoise/AddNoiseEffect.cpp`, `experiments/FilmEffectsLab/add_noise_alpha_compositing_study.py`, `experiments/FilmEffectsLab/captures/add-noise-alpha-compositing-r1/metrics.json`.
+- **Confirmed (source):** CPU writes/clamps RGB channels and begins from `dst = src`; alpha is not edited by this branch. Noise amplitude is not multiplied by alpha.
+- **Confirmed (conditional synthetic model):** For a bounded alpha-edge fixture, amount .4 yields transparent-pixel RGB mean absolute delta .177. Straight-alpha source-over hides it at alpha zero; premultiplied interpretation leaves composite RMSE .1629 in transparent pixels. In the premultiplied-input branch, 33.36% of output RGB channels exceed alpha.
+- **Value / concern:** The same RGB equation produces materially different edge behavior depending on alpha association. Source trace below narrows which model applies to the eligible GPU Composition and CPU rasterizer paths, but does not establish which runs for a given live project.
+- **Next:** Compare paired offline GPU Composition and CPU rasterizer captures if an app-local capture path becomes recoverable.
+- **Limitations:** Synthetic equation model plus static path trace; no app execution, actual route selection, Viewer transform, compiled output, performance, or aesthetic acceptance.
+
+
+## 2026-11-12: Composition resident Add Noise receives straight RGB after layer conversion
+- **Related:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`, `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp`, `Artifact/src/Effects/AddNoise/AddNoiseEffect.cpp`.
+- **Confirmed source path:** `buildGpuRasterEffectPlan` accepts eligible non-adjustment GPU rasterizer effects; Add Noise registers a Spatial Generic node; the plan is applied after `prepareGpuLayerForBlend` converts `layerSRV` to `layerFloatSRV`. The `convertLayerToFloat` shader divides premultiplied RGB by alpha (or returns zero at alpha≈0), saturates the result to [0,1], and preserves alpha. The blend shader then treats source RGB as straight and premultiplies it with `srcA`.
+- **Value / concern:** The straight-alpha branch in the new Add Noise alpha model is the closest match for this eligible Composition GPU route. Its transparent RGB noise is ignored by source-over at alpha=0; at alpha edges its visible contribution is scaled by alpha. The conversion also means HDR input may already be clipped before the resident Add Noise equation.
+- **Additional confirmed source path:** The CPU CompositionView rasterizer path maps `QImage::Format_ARGB32_Premultiplied` to a Premultiplied descriptor, stores that descriptor on the float surface, and calls `applyToCpuSurface`. Add Noise's CPU equations alter RGB without alpha scaling. This makes the premultiplied model relevant to that CPU route, while the eligible GPU Composition route uses the straight branch.
+- **Confirmed conditional route-pair model:** With matched content, effect-off CPU/GPU baseline composites are identical. At amount .2/.4, whole-image CPU-premultiplied vs resident-GPU-straight RGB RMSE is .06697/.13336; transparent ROI RMSE is .08146/.16292; opaque ROI is 0. Values are identical on black, gray and white backgrounds because alpha is held fixed and the background term cancels.
+- **Value / concern:** The source paths imply a material CPU/GPU alpha-edge response difference for nonzero noise. This is a source-path-informed model prediction, not a runtime parity failure.
+- **Next:** Capture eligible local Composition GPU and CPU outputs with the same synthetic alpha fixture only if a recoverable offline capture path becomes available; check the app-selected route and inspect raw effect output.
+- **Limitations:** Static source trace only. Runtime dispatch, actual backend, visual output, and effect-specific path selection remain unverified. `ArtifactRenderLayerPipeline.cpp` contains a contradictory comment describing layerFloat as premultiplied; conversion and blend equations were used as the data-flow evidence, not the comment.
+- **Confirmed conditional ingress/HDR model:** A preregistered 576-case grid (alpha 0–1, neutral tone .01–4, amounts 0/.2/.4, three modes) models CPU Add Noise on premultiplied storage against LayerToFloat unpremultiply/saturate followed by resident Add Noise. At alpha0/tone.18/amount.4/color, the premul-source-over output has RGB RMSE .1651 against the GPU-straight path; at alpha1/tone<=1, all 18 amount.4 mode/tone cases match. GPU ingress clamps HDR tone>1: at amount0, tone4 gaps are .3 and .5 for alpha .1 and .5; at alpha1/tone4/amount.4 active outputs differ by RMSE .1653, while route-specific effect deltas differ by 2.9008 because CPU's effect equation clamps 4 to 1.
+- **Concern / limitation:** This predicts the consequence only if the traced CPU-premultiplied and GPU-straight branches apply to the same content. No actual route dispatch or rendered output is proven. Transparent CPU-stored noise can violate RGB<=alpha and appear under the modeled premultiplied compositor; GPU straight output is hidden at alpha0. The measurement remains synthetic and is not a product defect finding.
+
+
+## 2026-11-12: Add Noise Size below one pixel changes the hash sample, not the grain's spatial scale
+- **Related:** `Artifact/src/Effects/AddNoise/AddNoiseEffect.cpp`, `experiments/FilmEffectsLab/add_noise_grain_field_characterization_study.py`, `experiments/FilmEffectsLab/captures/add-noise-grain-field-characterization-r1/metrics.json`.
+- **Confirmed (source model):** Sizes .5 and 1.0 both produce uncorrelated adjacent pixel samples; their spectral summaries are effectively the same, while same-seed fields have near-zero cross-size correlation. At size1.5/3/8 the 1px lag correlation is about .33/.67/.88 and low-frequency power rises as high-frequency power falls. Same pixel coordinates reproduce the exact same field across 512x256 and 1024x512 in the model.
+- **Confirmed tone response (synthetic):** At amount .4, color mode places about 37% of channels at a bound for .10/.90 gray and 47% for .02/.98 gray. Luma-only .98 samples approach the upper bound within 1e-6 even where float rounding leaves output just below exact 1.
+- **Value / concern:** The lower Size range can change the random realization without making grain spatially finer than one pixel. Strong Amount settings can remove shadow/highlight variation through clamping. These findings describe the equation and synthetic values, not whether the product controls are visually well tuned.
+- **Next:** Check real preview/final scaling and typical photographic plates when a local offline capture is recoverable; define any perceptual threshold before using these metrics for acceptance.
+- **Limitations:** CPU equation mirror on synthetic opaque charts, no GPU dispatch/LOD, alpha edges, Viewer transform, aesthetic approval, temporal output, or performance.
+
+
+## 2026-11-12: Add Noise mode names encode distinct luma/chroma behavior
+- **Related:** `Artifact/src/Effects/AddNoise/AddNoiseEffect.cpp`, `experiments/FilmEffectsLab/add_noise_chroma_response_study.py`, `experiments/FilmEffectsLab/captures/add-noise-chroma-response-r1/metrics.json`.
+- **Confirmed source:** Color mode salts independent channel noise; mono reuses one noise offset across RGB; luma mode adds one hash offset to Rec.601 luminance, then applies that common delta to all RGB channels. Luma mode is not a luminance-preserving mode.
+- **Confirmed synthetic model:** Across saturated patches, amount .4 / size 1.5 or 3 produces mean absolute hue rotation about 16.1 degrees in color mode, versus 0 in mono/luma opponent-hue metric. At amount .1 the color-mode rotation is about 4.3 degrees. Luma delta RMSE at amount .4 is ~.118 color and ~.167 mono/luma. About 35% of saturated-patch RGB channels land within 1e-6 of a bound at amount .4.
+- **Value / concern:** A user's mode choice changes whether texture also produces chromatic variation or a shared RGB offset. High amount values can clip saturated and near-boundary colors. The model supplies a mode-behavior description, not a quality rank or recommended setting.
+- **Next:** Validate on local representative photos and the product display transform when offline app capture is recoverable; agree on perceptual goals before thresholds or defaults are proposed.
+- **Limitations:** Opaque synthetic patches, direct numeric RGB, equation mirror; no transfer/display transform, real footage, GPU, alpha, temporal playback, or performance evidence.
+
+
+## 2026-11-12: Film Damage warps RGB then restores the unwarped alpha plane
+- **Related:** `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp`, `experiments/FilmEffectsLab/film_damage_gate_weave_alpha_response_study.py`, `experiments/FilmEffectsLab/captures/film-damage-gate-weave-alpha-response-r1/metrics.json`.
+- **Confirmed source:** `cv::warpAffine` resamples input RGBA using the Gate Weave translation and `INTER_LINEAR` / `BORDER_REFLECT101`. The per-pixel output later copies alpha from the original source row, not from the warped working image. The source descriptor is retained.
+- **Confirmed fixed-shift model:** With a premultiplied synthetic edge at dx=1.5, dy=.675 on 512x256, about 1.37% of output RGB channels exceed alpha; transparent-area black composite RMSE is .00434 and edge RMSE .1027. At dx=3, dy=1.35 those become 1.80%, .01144, and .1655. Straight-alpha branch hides RGB changes at alpha=0 but still shifts edge colors.
+- **Value / concern:** RGB content moves while the coverage silhouette stays fixed. Under premultiplied storage this can create color/alpha bound violations and transparent leaks; under straight storage leaks stay hidden at fully transparent samples but edge colors can move.
+- **Next:** A local runtime capture should compare raw input/output float surfaces with descriptors before relying on this conditional model; keep shift sequence labels separate from actual Evolution/random values.
+- **Limitations:** Synthetic alpha edge and fixed displacements; OpenCV model only, no C++ invocation, std::mt19937 match, app route capture, aesthetic acceptance or performance.
+
+
+## 2026-11-12: Film Burn couples intensity to ring radius
+- **Related:** `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp`, `experiments/FilmEffectsLab/film_damage_film_burn_alpha_response_study.py`, `experiments/FilmEffectsLab/captures/film-damage-film-burn-alpha-response-r1/metrics.json`.
+- **Confirmed source:** `filmBurn` scales the warm RGB addition and also expands ring radius from `.18` to `.98`; the output copies source alpha unchanged.
+- **Confirmed synthetic model:** At the default `.12`, max RGB reaches about `1.137` on the fixture and the ring affects about `16.85%` of 512×256 pixels. At `1`, max RGB reaches about `2.209`, about `3.97%` of RGB channels exceed 1, and premultiplied interpretation produces transparent-region compositing RMSE about `.319`.
+- **Value / concern:** The control changes spatial footprint and intensity together, so a stronger burn is not a simple brightness adjustment. Unclamped additive RGB can exceed SDR range; if a downstream path interprets it as premultiplied, alpha-zero RGB can leak into composites.
+- **Next:** If an offline application capture becomes available, inspect raw output values, descriptor/association and downstream clamp around the burn ring at default and maximum settings.
+- **Limitations:** Fixed diagnostic centers and synthetic RGB/alpha chart; no RNG parity, actual app output, runtime route, display transform, aesthetic acceptance, or performance evidence.
+
+
+## 2026-11-12: Film Damage dust density is coupled to later random choices
+- **Related:** `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp`, `experiments/FilmEffectsLab/film_damage_control_rng_coupling_study.py`, `experiments/FilmEffectsLab/captures/film-damage-control-rng-coupling-r1/metrics.json`.
+- **Confirmed source:** Every Dust mark requests five values from the shared uniform distribution; Scratch count is `int(scratches * 18)` and each Scratch requests five uniform and one normal variate. Flicker and the Burn center are drawn afterward. Dust count is proportional to image area. Grain uses a separate per-row engine.
+- **Confirmed call-ledger model:** At Dust=.08, 512² requests 116 Dust marks / 580 uniform variates, while 1024² requests 466 / 2330. Scratch count stays 1 at .10; it jumps from 0 at .05 to 1 just above 1/18, and reaches 18 at 1.
+- **Value / concern:** A shared seed and Evolution do not imply a resolution-independent Dust/Scratch/Flicker/Burn random layout: the Dust loop advances the shared sequence before later choices. This is a source-level coupling; actual positions and visible temporal differences remain unverified.
+- **Next:** If a local offline capture path is available, capture identical seed/Evolution settings at two resolutions while exporting raw intermediates or isolated overlay channels, then compare mark coordinates and later Flicker/Burn responses.
+- **Limitations:** Static source call schedule with float32 count modeling; no MSVC distribution engine draws, C++ invocation, random placement output, rendered images, app route, or performance measurements.
+
+
+## 2026-11-12: Film Grunge addition and Film Damage overlay are order-sensitive
+- **Related:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactFilmGrungeEffect::apply`, `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp`, `Artifact/src/Engine/DAG/LayerGraphBuilder.cpp`, `experiments/FilmEffectsLab/film_suite_grunge_damage_stack_order_study.py`.
+- **Confirmed source:** Grunge adds a signed scalar field to RGB. Damage interpolates source RGB toward its RGBA overlay using overlay alpha and preserves source alpha. Both are Rasterizer stage, and LayerGraphBuilder retains input order inside each stage.
+- **Confirmed fixed-field model:** For Grunge field `g` and Damage overlay alpha `a`, the order difference is proportional to `a*g` and is localized to overlapping marks. In the 512x256 overlap ROI, direct order-pair composite RMSE is .02353 under straight alpha and .03336 under premultiplied alpha. Under straight alpha, the order candidates' RMSE against effect-off are .07491 and .09067; under premultiplied alpha they are .11647 and .14395. These are descriptive model deltas, not quality scores. At transparent pixels straight-alpha compositing hides the difference, while the premultiplied model can expose RGB changes.
+- **Value / concern:** Stack order changes pixel values even with identical controls/marks. A caller-provided order may matter for both marks and alpha association, so individual-effect characterization is not enough to claim stack behavior.
+- **Next:** Validate the actual Composition effect order with an offline local capture and representative fixed marks if a non-GUI path is available; record the layer descriptor and compare raw float output.
+- **Limitations:** Authored fixed fields and equation model; no runtime C++ output, randomized marks, verified scene order, aesthetic acceptance, display transform, or performance measurement.
+
+
+## 2026-11-12: Film Damage Flicker permits a signed RGB gain at high settings
+- **Related:** `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp`, `experiments/FilmEffectsLab/film_damage_flicker_tone_alpha_response_study.py`, `experiments/FilmEffectsLab/captures/film-damage-flicker-tone-alpha-response-r1/metrics.json`.
+- **Confirmed source:** Flicker gain is `1 + normal(rng) * flicker`; it multiplies source RGB and is not clamped in the per-pixel equation. Flicker property range is 0..1 and output alpha is copied from source.
+- **Confirmed fixed-z model:** At flicker=.5, z=-2 produces zero gain and z=-3 produces -.5. At flicker=1, z=-1 gives zero, z=-2 gives -1 and z=+3 gives 4; that last case reaches RGB 4.0 with about 19.50% of channels above 1 in the synthetic plate. The default .08 at z=±3 gives .76..1.24.
+- **Value / concern:** High settings allow blackout/negative RGB/inversion responses for sufficiently negative normal samples and HDR-like values for positive samples. Fixed probes establish possible responses, not their real occurrence rate or visual acceptability.
+- **Next:** If an offline local capture route is available, capture several actual Film Damage frames with isolated Flicker over a fixed high/low tone chart, preserve raw float output and alpha descriptor, and report sampled gain distribution separately from model probes.
+- **Limitations:** Fixed z equation model only; no standard-library normal draws, temporal image sequence, actual composition route, working color-space interpretation, downstream clamp, aesthetic acceptance, or performance measurement.
+
+
+## 2026-11-12: Film Grunge's hash grain is temporally structured and has a long exact cycle
+- **Related:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactFilmGrungeEffect::apply`, `experiments/FilmEffectsLab/grunge_grain_temporal_field_correlation_study.py`, `experiments/FilmEffectsLab/captures/grunge-grain-temporal-field-correlation-r1/metrics.json`.
+- **Confirmed source model:** The low 16 bits of `frameSeed` advance by 62303 modulo 65536 each Composition frame. Since this increment is coprime to 65536 and each pixel XORs a fixed spatial salt, each pixel traverses every 16-bit grain level once per 65536 frames; repeated frame indices reproduce the same field. The three RGB components use scale factors .92/1/1.05 on the same grain field.
+- **Confirmed bounded-domain measurements:** In a 28x28 coordinate-safe fixture, all pixels change each adjacent frame. Lag-1 correlation is about .719, lag-12 about -.449, and lag-60 about .769; changing grainBlock from 1 to 8 has negligible effect on these temporal correlations. Per-channel residual RMS at default grain amount is about .03984/.04330/.04547, with near-perfect co-channel correlation because channels share one scalar pattern.
+- **Value / concern:** Frame-to-frame changes are deterministic yet strongly correlated at selected intervals, so the seed schedule alone cannot imply independent-looking grain. The channel offsets change amplitude slightly but do not create independent chromatic texture.
+- **Next:** If an offline capture path is available, record raw Film Grunge outputs across a short sequence and repeated seeks, first at a small safe dimension and then at product dimensions while separately investigating the signed-int overflow risk in the coordinate hash.
+- **Limitations:** Python source-equation model only on a 28x28 signed-safe domain; no C++ output, product-size hash behavior, actual Viewer shimmer, motion interaction, GPU path, alpha or performance evidence.
+
+## 2026-11-12: Outline の実測線幅は約4.25pxが下限で、1〜2pxの輪郭はこの構成では作れない
+- **Related:** `experiments/OutlineLab/resolve_line_width.py`, `captures/width-sweep/width-resolve.md`, `outline_reference.py::soft_line`, `outline_metrics.py::position_error`.
+- **Confirmed（実行結果）:** 校正モデルの逆引きで目標 1 / 2 / 4 / 8px を許容±0.5pxで試した。要求幅を0.25まで下げても実測の下限は alpha 4.25px / depth 4.25px。softness 0.75 では下限が6.50px / 5.75pxへ上がる。hard クラスの段差は alpha 約2.65px、depth 約2.00px。8px は alpha hard で 7.00px（未達）、depth hard と alpha soft 0.5 で 8.25px（達成）。
+- **Value or concern:** 「線幅1px」のような要件は、検出応答の帯＋`ceil(width/2)`の整数膨張という構成では原理的に満たせない。既存 StrokeEffect 等が1px相当の細線をどう出しているか（ラスタライズ方式が違うのか）を確認しないまま、同じ幅パラメータ体系を流用すると期待と実測がずれる。
+- **Limitation / next:** 対象は alpha / depth fixture のみで、シェイプのベクタ情報や距離場を持たない経路の値。細線を要件にするなら距離場からの線ラスタライズなど別構成の比較が必要。Phase 2 以降の設計課題で、本ラボでは未実装。
+
+## 2026-11-12: softness ちょうど0.5は50%帯の境界と一致し、モデル誤差が1px超になる
+- **Related:** `experiments/OutlineLab/resolve_line_width.py`, `sweep_line_width.py::effective_radius`, `outline_reference.py::soft_line`.
+- **Confirmed（実行結果）:** softness 0.5 は `soft_line` がフリンジを不透明度0.5で加えるため、その値がちょうど50%幅の判定境界になる。alpha では予測6.52pxに対し実測5.25px、depth では予測5.75pxに対し実測5.25pxとなり、他の softness 条件（誤差0.1px以下）より大きい。
+- **Value or concern:** 校正モデルや幅UIでsoftness 0.5を特別扱いせずに済ませると、この1点だけ見た目がずれる。値の刻みや既定値を決める際は避けるか、境界を`> 0.5`に寄せて判定を安定させる必要がある。
+- **Limitation / next:** 合成fixtureでの結果で、実画像の半透明境界では境界の定義自体が揺れる可能性がある。0.5近傍を許容するか、フリンジ不透明度を連続的に評価する方式へ変えるかは未決定。
+
+
+## 2026-11-12: Halation は alpha を復元しても透明RGBを拡散領域へ残す
+- **関連:** `ArtifactCore/include/ImageProcessing/Halation.ixx`, `Artifact/src/Effects/Glow/PhysicalHalationEffect.cpp`, `experiments/FilmEffectsLab/physical_halation_alpha_edge_response_study.py`.
+- **確認できた事実:** コア式モデル16条件で出力alphaは入力と一致した一方、alpha=0領域にRGB拡散が残り、支持領域は最大4,372pxだった。straight fixtureの合成差は0、premultiplied fixtureでは最大RMSE 0.00467を観測。
+- **価値 / 懸念:** alpha復元だけでは透明RGBの状態を保証しない。素材のalpha associationと後段での再premultiply次第で縁に差が出る可能性がある。
+- **次に確認すること:** 実C++/GPU結果、入力経路のassociation、後続合成での影響を、許可されたオフラインキャプチャで照合する。
+- **未検証:** 今回はソース式のPythonモデルと合成fixtureのみ。実アプリ・GPU・実素材の結論ではない。
+
+
+## 2026-11-12: Halation spread は面積の輝度応答より点光源の矩形幅を支配する
+- **関連:** `ArtifactCore/include/ImageProcessing/Halation.ixx`, `experiments/FilmEffectsLab/physical_halation_hdr_spread_intensity_response_study.py`.
+- **確認できた事実:** 式モデルでは一様plateの出力応答はspreadに依存せず、点光源profileのFWHMはspread50で赤201px、GB101pxまで広がった。intensity5ではlevel .6 plateのうち入力<=1から出力>1へ超えるchannelが33.3%。
+- **価値 / 懸念:** spreadとintensityは別の品質軸（空間的な広がりと数値ヘッドルーム）を持つ。1種類の素材や明るさだけで設定を評価すると、広いbox形状やハイライト超過を見落とす可能性がある。
+- **次に確認すること:** 適切な既存オフライン経路があれば、同じ照度fixtureで実C++出力を式モデルと照合し、実データの色空間とalpha associationも確かめる。
+- **未検証:** 実レンダー、表示変換、実写素材、時間安定性、性能は対象外。
+
+
+## 2026-11-12: Film Damage Flicker 既定値は負ゲインより明部のheadroom超過に先に現れうる
+- **関連:** `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp`, `experiments/FilmEffectsLab/film_damage_flicker_gain_probability_study.py`.
+- **確認できた事実:** 標準正規の式モデルではflicker=.08の負ゲイン確率は約3.73e-36だが、source tone .9/.98の値が1を超える確率はそれぞれ約8.24%/39.93%。
+- **価値 / 懸念:** 設定のリスクを単一の「強さ」で表すと、負値と明部headroom超過の別々の事象が混同される。後段clampの有無で見た目は変わるため、式上の超過確率のみで画質判定はできない。
+- **次に確認すること:** 公式オフライン出力が利用可能になったら、同じtone platesでruntime出力と下流clampを照合し、実際のflicker sequenceも記録する。
+- **未検証:** 標準ライブラリの実draw列、時間相関、表示変換、画質評価は未検証。
+
+
+## 2026-11-12: Film Damage のScratch量はUI値を変えても82%の0.01刻みで本数が変わらない
+- **関連:** `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cpp`, `Artifact/src/Effect/ArtifactCreativeEffects.cpp`, `experiments/FilmEffectsLab/film_damage_grunge_amount_quantization_study.py`.
+- **確認できた事実:** Damage Scratchは`int(f*18)`で、0.01ごとの101点走査中、countの変化しない隣接区間は全4解像度で82%。Grunge Scratchは幅依存のcount scaleなので、512幅では72%、3840幅では0%だった。
+- **価値 / 懸念:** 視覚変化の連続性は画像幅とcount formulaに左右され、同じstep値でも一貫しない可能性がある。ただし実UIの数値刻みとmark描画後の知覚は別途確認が必要。
+- **次に確認すること:** 公式オフライン出力が使えるようになったら、slider境界の前後で固定seedの実画像差分とmark countを測る。
+- **未検証:** RNG配置、実描画、画像の見え方、UI step幅、runtimeは未検証。
+
+
+## 2026-11-12: Grain Size の同じ数値は効果間で同じfield境界を意味しない
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::ArtifactFilmGrungeEffect::apply`, `Artifact/src/Effects/AddNoise/AddNoiseEffect.cpp::AddNoiseEffectCPUImpl`, `experiments/FilmEffectsLab/grain_family_size_boundary_response_study.py`.
+- **確認できた事実:** GrungeはSizeを整数blockへ丸め、Add Noiseは座標ごとの除算floorでsample位置を作る。安全な28×28モデルでGrungeは1.49→1.50時にfieldが切り替わり、Add Noiseは1.49と1.50で同じfieldになった。
+- **価値 / 懸念:** size数値やseedが一致しても、局所的な粒の配置や変化の仕方は効果ごとに異なる。プリセットを横断共有する場合、数字の一致を意味の一致と見なせない可能性がある。
+- **次に確認すること:** 実アプリのoffline出力経路が用意できたら、同じ値・素材・seedで境界の前後を比較する。
+- **未検証:** 28×28モデルのみ。高解像度Grungeのsigned overflow領域、GPU path、画質評価は未確認。
+
+## 2026-11-12: 同じgrain RMSでもGrungeとAdd Noiseの空間・tone応答は異なる
+- **関連:** `experiments/FilmEffectsLab/plans/grain-family-matched-strength-spectrum-r1.json`, `grain_family_matched_strength_spectrum_study.py`, `captures/grain-family-matched-strength-spectrum-r1/metrics.json`.
+- **確認できた事実:** 28×28、128 seedのsource-equation modelで各SizeのAdd Noise mono/color AmountをFilm Grunge default .075のgreen residual standard deviationに合わせた（最大差1.73e-9）。Size1.5の低/中/高周波power fractionはGrunge .386/.307/.307、Add Noise mono .128/.280/.592、color .126/.283/.591。lag-1 x/yはGrunge .817/.485、mono .332/.333、color .330/.337。Color modeのR/G相関は約.012、Grunge/monoは約1。
+- **価値または懸念:** 粒の強さを1つのRMS値で揃えても、空間配置・方向性・色相関は等価にならない。さらにGrunge式はRGB clampなし、Add Noiseは[0,1]へclampするため、暗部/明部の応答も違う。制御値の数値移植に直接使えない。
+- **次に確認すべきこと:** 対応する正式offline runtime capture routeが利用できる場合に同じplateでsource modelとの差を評価する。通常のWindows UI操作は避け、offline captureに限定する。
+- **未検証:** 独立NumPyモデル、安全な28×28座標域、opaque grayのみ。実C++/GPU、製品解像度、alpha/colored scene、時間、表示・知覚評価、性能は未確認。Core FilmGrainとlegacy preset処理は現行callerを確認できず対象外。
+
+
+
+## 2026-11-12: Match Grain のgrainSizeはリサイズ後の出力pixel空間で作用する
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cpp::prepareAuxiliaryImage`, `ArtifactMatchGrainEffect::apply`, `experiments/FilmEffectsLab/match_grain_reference_resolution_scale_study.py`.
+- **確認できた事実:** 参照画像はtarget frame寸法へINTER_LINEAR resizeされた後、grainSize sigmaでGaussian high-passを取る。合成モデルではnative 512×256 referenceを1024×512 targetへ拡大した時、sigma1.15のresidual標準偏差は512 target時の約35%まで下がった。
+- **価値 / 懸念:** reference素材を異なる出力解像度で再利用すると、grain振幅と相関幅が同じ数値に保たれない可能性がある。
+- **次に確認すること:** オフラインruntime capture経路が使える場合、同一参照素材の解像度だけを変えてC++ outputの残差スペクトルを計測する。
+- **未検証:** 単一synthetic textureのsource modelのみ。実sampler/import、color metadata、実アプリ、GPU、alpha、性能は未確認。
+## 2026-11-12: Physical Halation の端 clamp が境界上の点光源energyを増幅する（source model）
+- **関連:** `ArtifactCore/include/ImageProcessing/Halation.ixx`, `Artifact/src/Effects/Glow/PhysicalHalationEffect.cpp`, `experiments/FilmEffectsLab/physical_halation_frame_edge_response_study.py`。
+- **確認できた事実:** 256×256 opaque neutral HDR pointのcorrected Float32式モデルでspread15/50を比較。red diffusion sumは中央4/4、辺32.5246/102.5075、角264.4622/2626.9448。144条件frame-size studyでは角のgainがSpread5/15で9.878×/66.116×、Spread50は656.736×、Spread100は128pxで1926.356×・256px以上で2562.985×。432条件の有限クラスターstudyでは256px/Spread50時、sigma1/4/12のedge/corner総energyがcenter比0.611/0.364、0.548/0.301、0.623/0.388。sigma1のpeakはcenter比でedge/cornerとも増加した。
+- **価値 / 懸念:** frame-edge haloを点光源と有限光源に分けて調べる再現可能なfixtureとなる。点光源ではclampによるenergy gain、有限クラスターではedge/cornerのenergy lossとpeak上昇が併存し、形状と測定量で応答が異なる。この式モデルだけで実レンダリングの不具合や画質を断定できない。初版helperは同じ軸にbox passを2回適用していたため、横1回＋縦1回へ修正してstudiesを再生成。対向する境界比較の最大誤差は数値丸め範囲。
+- **次に確認すること:** Film Grunge / Add Noise のCPU・GPU route差を、Composition ingress変換も含めた登録済みsource modelで掘り下げる。実アプリは通常GUIで操作せず、オフラインcapture pathがあれば使う。
+- **未検証:** C++ runtime/app出力、透明・色付き素材、GPU/preview/export parity、表示変換、性能。有限cluster接触sheetはglobal square-root表示の診断画像。
+
+## 2026-11-12: Shadow width誤差の全画面統計はedge bandの応答を薄める（screen-space proxy）
+- **関連:** `tools/fog_shadow_width_signed_image_rd.py`, `docs/worklog/artifacts/fog-shadow-width-signed-image-rd-2026-11-12/manifest.json`.
+- **確認できた事実:** 96×54 opaque fixtureのcore width ±2%でwhole-image relative RGB L2は約`7.4e-5`、projected edge bandは約`1.55e-4`で、edge band側が約67倍高かった。差分previewは楕円shadow境界に主に局在し、minus/plus residual-vector cosineはwhole image`-0.99890`、edge band`-0.99987`だった。
+- **価値 / 懸念:** 局所境界が主対象のscreen-space効果では全画面集計だけで感度を代表できない。region maskと差分画像を併用する価値がある。符号反転はこのproxyで誤差量より方向を反転させる。一方、この値はscreen-space ellipseとCPU式モデルの結果で、製品shadow-mapや知覚的許容度の証拠ではない。
+- **次に確認すること:** 実shadow-mapを使うruntime captureが利用可能になった場合、同じ境界regionをscene geometryへ投影して比較し、frame間の同位置／reprojected temporal residualも分けて測る。
+- **未検証:** 実ジオメトリ、alpha、時間安定性、GPU/backend、preview/final、性能、ユーザーの視覚的許容度。
+
+## 2026-11-12: 等体積AABBでもcamera-space shadow supportは一致しない（single-view proxy）
+- **関連:** `tools/fog_shadow_box_aspect_image_rd.py`, `docs/worklog/artifacts/fog-shadow-box-aspect-image-rd-2026-11-12/manifest.json`.
+- **確認できた事実:** 体積33の3 AABBを同一scene/cameraの96×54 raysで交差させると、shadowed pixel数は896、1,344、700となった。scene-linear shape-reference画像のbaseline比relative RGB L2は`1.326e-3`と`1.482e-3`で、128-step quadrature差は約`1.195e-6`だった。7-frame translationではshadow pixel数がbaseline 418–440、X長/Z薄564–588、X短/Z厚299–322で推移し、same-screen quadrature residual-delta RMSEは約`2.2e-8`、reference image motion RMSEは約`0.158`だった。
+- **価値 / 懸念:** 体積一定という条件だけでは画面上の遮蔽supportや散乱画像を揃えられず、全体image metricとsilhouette-local metricの両方が要る。通常のscene motionとnumerical residualは別指標として測る必要がある。ただしこれは単一camera path、single-scene CPU proxyで、形状の知覚評価や一般sceneへの外挿ではない。
+- **次に確認すること:** 別sceneと複数camera orientationでsupport差を確認し、可能ならworld-point再投影とproduction GPU outputを別々に比較する。
+- **未検証:** 複数scene、複数camera、temporal image stability、alpha、実shadow map、GPU/backend、runtime。
