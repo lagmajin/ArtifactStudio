@@ -233,6 +233,8 @@ QJsonObject writeArtifacts(const QString& directory)
     QDir().mkpath(directory);
     std::printf("Transition render artifacts: %s\n", qPrintable(directory));
 
+    writePng(inputA(), directory + QStringLiteral("/input_A.png"));
+    writePng(inputB(), directory + QStringLiteral("/input_B.png"));
     writePng(ArtifactTestTransitionRenderer::makeContactSheet({inputA(), inputB()}, 2, 2),
              directory + QStringLiteral("/inputs.png"));
 
@@ -738,6 +740,9 @@ TEST(TransitionRenderContractTest, WritesFrameStripsContactSheetsAndBehaviourRep
 {
     const QString directory = captureDirectory();
     const QJsonObject report = writeArtifacts(directory);
+
+    EXPECT_GT(QFileInfo(directory + QStringLiteral("/input_A.png")).size(), 0);
+    EXPECT_GT(QFileInfo(directory + QStringLiteral("/input_B.png")).size(), 0);
 
     EXPECT_EQ(report.value(QStringLiteral("transitions")).toArray().size(),
               static_cast<qsizetype>(

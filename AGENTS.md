@@ -19,6 +19,7 @@ When working on a date-stamped development branch (for example, `codex/YYYY-MM-D
 **Before any commit/push operation**, read and follow: [`.github/GIT_WORKFLOW_PARENT_CHILD.md`](.github/GIT_WORKFLOW_PARENT_CHILD.md)
 
 ### Golden Rules (MUST FOLLOW)
+0. **`main` への force push は親・子を問わず禁止**。`main` は fast-forward push のみ許可し、force push が必要と表示された場合は実行せず停止して原因を確認する。この禁止は `main` のみに適用し、他ブランチには適用しない。
 1. **Always commit child repos first**, then push
 2. **NEVER push parent without updating child gitlinks** with `git add Artifact ArtifactCore ArtifactWidgets`
 3. **Child push → Parent gitlink update → Parent push** (this order is mandatory)

@@ -1,4 +1,141 @@
-**最終更新:** 2026-11-10
+**最終更新:** 2026-11-12
+
+## 2026-11-12: Fog系資産は名前が近くても入力契約が異なる
+- **関連:** `ArtifactCore/src/Render/AtmosphereFog.cpp`、`Artifact/shaders/heightFogCS.hlsl`、`Artifact/shaders/fogHF.hlsli`、`docs/planned/MILESTONE_FOG_ATMOSPHERIC_SCATTERING_RD_2026-11-12.md`
+- **確認できた事実:** CPU `AtmosphereFogRenderer::evaluateFog()` はray上の高さ密度をsample積分する一方、`applyToPixel()` は深度だけから一定の高さ係数を計算する。GPU `heightFogCS.hlsl` はworld positionを再構成せずcamera heightを使う。`fogHF.hlsli` はweather/frameと大気・cloud shader環境へ依存する。
+- **仮説:** 「height fog」という名前だけでCPU/GPU/volume-light経路の見た目や共通APIを同等と判断すると、カメラ高度・深度・色/alpha規約の不一致が隠れる可能性がある。未検証。
+- **価値または懸念:** 数学モデルとhost統合契約を分けて比較し、shader helperの存在を一般render pass接続済みと誤認するのを防げる。
+- **次に確認すること:** runtime capture前に各hostのdepth encoding、inverse view-projection、HDR/alpha契約と実dispatch先を記録し、同じfixtureでcamera-height近似とworld-position積分を比較する。
+
+## 2026-11-12: Blur R&D timing needs raw repetitions
+- **関連:** `blur-rd-fixtures/compare_outputs.py::validate_timings`、Blur Effects R&D fixture bundle。
+- **確認できた事実:** 解析器は `measurement_repetitions` と `timing_statistic` を持ちながら、従来は各 timing field の単一 scalar を受け入れ、反復数との対応を確認していなかった。
+- **変更:** timing JSON を反復ごとの samples 配列にし、steady-state と total wall の各反復を必須化。解析器が選択統計量を算出し、raw samples を JSON に保持する仕様へ変更した。
+- **価値または懸念:** raw samples があれば外れ値や分布を後から確認でき、単一値を反復測定結果として誤記するのを防げる。解析器の実行は未許可のため、この変更自体は未検証。
+- **次に確認すること:** 明示的に実行許可された後、代表 timing JSON を使って summary 算出、入力検証、CSV/JSON 出力を確認する。
+
+## 2026-11-12: Blur sweeps should isolate one numeric control at a time
+- **関連:** `blur-rd-fixtures/spatial_sweep_plan.json`、Radial / Anisotropic Flow / Aperture Shape / Reaction Diffusion blur。
+- **確認できた事実:** 初期 Radial sweep は amount と quality を同時に変えていたため、画質・時間差を片方の設定へ帰属できなかった。effect source の公開 property には独立した quality、tensor scales、aperture rotation/highlight controls がある。
+- **変更:** Sweep を一因子ごとに切り分け、Reaction Diffusion を stylized として追加し、通常blurの parity順位と分離した。
+- **価値または懸念:** 次のアルゴリズム投資を選ぶ際、設定交絡で結論を誤る可能性を下げる。Captureは未実施で、各軸が見た目に与える実効果は未検証。
+- **次に確認すること:** 実出力を取得したら出力hash、fixture・settings、raw timing samplesとともに各一因子差を比較し、非単調な軸は追加密度を決める。
+
+## 2026-11-12: Blur capture color contract must match the analyzer and public properties
+- **関連:** `blur-rd-fixtures/compare_outputs.py`、`spatial_sweep_plan.json`、`Artifact/src/Effects/Blur/GauusianBlur.cpp::GaussianBlur::getProperties`。
+- **確認できた事実:** Fixtures are little-endian float32 RGBA, linear and unclamped; alpha-edge fixtures intentionally store straight RGB under fractional/zero alpha. Gaussian Blur exposes its sigma control through the property name `Strength`. The timing analyzer's raw-array keys differed from its CSV summary columns.
+- **変更:** Capture metadata now requires the exact fixture color contract, float32 is enforced, CSV uses summary column names, and Gaussian sweep settings use the public property name.
+- **価値または懸念:** Prevents parity comparisons across incompatible alpha conventions and makes sweep settings replayable through the effect property interface. Analyzer execution remains unverified.
+- **次に確認すること:** Authorized offline analyzer run should confirm raw sample summaries, CSV field schema, float32 rejection, and same-contract parity labeling.
+
+## 2026-11-12: Blur capture scope should reflect available GPU execution paths
+- **関連:** `blur-rd-fixtures/spatial_sweep_plan.json::capture_schedule`、Blur effect CPU/GPU implementations。
+- **確認できた事実:** 現在の6 spatial effect suites のうち Gaussian と general Blur にGPU implementationがあり、Radial、Anisotropic Flow、Reaction DiffusionはCPU実装のみ、ApertureのGPU経路は未確認。general BlurのEdge Preserving GPU requestはCPU実装へfallbackする。
+- **変更:** 全設定256px impulse、代表設定の品質診断、選択設定1024px scalingの順に分け、予定captureをCPU 88件とGPU候補30件に明示した。GPU dispatch実確認とfallback経路の記録をcapture条件に加えた。
+- **価値または懸念:** 支持されないbackend parityを計画上だけで主張せず、設定交絡と過剰な全面captureを避ける。件数はcapture候補で、実測値ではない。
+- **次に確認すること:** 実行可能なcapture exporterからmanifestを進め、各runの実際のdispatch/fallback、settings、出力hashを記録する。
+
+## 2026-11-12: Blur output capture must normalize descriptor and alpha semantics
+- **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cpp::setFromRGBA32F/toCanonicalRGBA32FC4`、`docs/technical/IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md`、blur R&D capture manifest。
+- **確認できた事実:** `ImageF32x4_RGBA` の物理backingはBGRA。`setFromRGBA32F` はRGBAをBGRAへ並べ替える一方、descriptorなしではtransfer/alpha metadataはunknownのまま。`toCanonicalRGBA32FC4()` はchannel orderだけ変換し、alpha associationやtransferを変換しない。Artifactのeffect CPU fallback / render経路は全体移行・runtime一致が未完了。
+- **変更:** R&D capture contractへprimaries/rangeを追加し、出力正規化では完全なsource descriptorとdescriptor-aware変換を要求。unknown descriptorを推測で straight/linear と扱わない手順を記載した。
+- **価値または懸念:** raw pixel差をalpha/order/transfer変換差と取り違えるのを防ぐ。capture adapterとruntimeのdescriptor伝播は未実装・未検証。
+- **次に確認すること:** 独立capture adapterから `ImageF32x4_RGBA::colorDescriptor()` を取得し、各effect CPU/GPU pathのalpha mode・transferが実際に指定されているか確認する。unknownならsource contractをeffectごとに確定してから出力変換する。
+
+## 2026-11-12: Existing render export routes do not yet prove numeric blur captures
+- **関連:** `Artifact/src/Application/ArtifactCommandLine.cpp`、`Artifact/src/Render/ArtifactRenderQueueService.cpp`、blur R&D capture protocol。
+- **確認できた事実:** CLI `render --format` validation allows PNG/JPEG and video formats, not EXR. Render Queue's multi-channel route requires GPU; its 32-bit bit-depth option maps to OIIO FLOAT, and `readbackToMultiChannelImage()` swizzles Beauty BGRA into separate logical R/G/B/A channels. Preflight states the AOV boundary precedes composition final-image effects. Alpha association still lacks runtime confirmation.
+- **価値または懸念:** A display PNG cannot replace unclamped float RGBA evidence. Render Queue EXR may avoid a new product capture API, but assuming its channel semantics would reintroduce the color-contract risk.
+- **次に確認すること:** On an authorized GPU render session, export one alpha-edge and one HDR fixture as 32-bit EXR, inspect channel list/bit depth/attributes, confirm whether a layer blur is present at the AOV boundary, and convert only after the descriptor contract is known. No effect capture has been made.
+
+## 2026-11-12: EXR normalization can be separated from renderer capture
+- **関連:** External Blur R&D fixture bundle `normalize_exr_capture.py`, `capture_manifest.json`.
+- **確認できた事実:** GPU candidate rows can identify raw EXR and normalized NPY paths independently. The local OpenCV build reports OpenEXR support, but no actual Artifact EXR or alpha metadata has been validated.
+- **変更:** Added an offline normalizer that accepts only manifest GPU rows and requires a sidecar asserting channel order, linear transfer, primaries, scene range, alpha association, float32, and unclamped data. It stores source/output hashes and the asserted conversion contract without marking capture complete.
+- **価値または懸念:** EXR decoding can be a replaceable boundary while capture remains tied to a verified render route. The sidecar is an operator assertion and cannot prove the renderer used that contract; BGRA interpretation and alpha semantics remain unverified against a real file.
+- **次に確認すること:** Inspect an authorized GPU EXR's channel names, precision, transfer/primaries attributes, and alpha behavior before authoring its sidecar; reject the route if the output contract cannot be established.
+
+## 2026-11-12: Impulse covariance distinguishes blur kernel shape
+- **関連:** External Blur R&D fixture bundle `compare_outputs.py::impulse_kernel_metrics`.
+- **確認できた事実:** Existing impulse reports included total positive energy and a radial 95% radius; those values do not distinguish horizontal/vertical spread, a rotated anisotropic kernel, or centroid shift.
+- **変更:** Added energy centroid and 2D covariance-derived major/minor spread, anisotropy ratio, and major-axis angle for the single-impulse fixture only.
+- **価値または懸念:** Gives a reproducible descriptive PSF summary for isotropic and directional blur families without treating unlike effects as the same blur amount. It is not a perceptual score, and values from multimodal inputs are not exported as impulse-kernel metrics.
+- **次に確認すること:** After capture and authorized analyzer execution, compare Gaussian rotational symmetry and direction-field axis/centroid behavior against the visual profiles; check near-zero spread handling and metric stability at both fixture sizes.
+
+## 2026-11-12: Slanted-edge response must be measured normal to the edge
+- **関連:** External Blur R&D fixture bundle `generate_fixtures.py::spatial_suite` and `compare_outputs.py::slanted_edge_metrics`.
+- **確認できた事実:** The authored edge follows `x = 0.33*y + 61*scale_x`; the previous analyzer extracted only the horizontal center row, which mixed edge orientation with horizontal sampling and did not report a spread width.
+- **変更:** Analyzer now projects pixels onto the authored edge normal, bins a normalized edge-spread profile, and estimates 10–90% width and 50% position for both fixture resolutions.
+- **価値または懸念:** Makes edge softening and positional drift comparable in physical pixels across resolutions. Near thresholds, ringing/non-monotonic response can yield multiple crossings; the current rule chooses the crossing nearest the geometric edge, so output still requires runtime review.
+- **次に確認すること:** Compare Gaussian and edge-preserving Blur captures at known radii, inspect the full profile for ringing, and confirm 256/1024 resolution scaling behavior before interpreting widths as quality rankings.
+
+## 2026-11-12: Vector Blur GPU wrapper does not consume motion vectors
+- **関連:** `Artifact/src/Effects/Rasterizer/VectorBlurEffect.cpp::VectorBlurGPUImpl::applyGPU` and its embedded HLSL; Blur Effects R&D suite.
+- **確認できた事実:** CPU `VectorBlur` obtains the previous frame through the effect sampler, estimates displacement, and samples along that vector. Its output clamps all RGBA channels to [0,1]. In the GPU wrapper, `VelTex` is declared in the resource layout but is not bound or read by the shader; HLSL initializes velocity to `(0,0)` and resamples the current texture. The GPU apply path also has no temporal sampler lookup.
+- **価値または懸念:** A GPU dispatch may appear successful while producing no motion trail (default exposure) and cannot be treated as CPU/GPU parity. HDR fixtures will also expose CPU range loss. This is source-level evidence; runtime output is unverified.
+- **次に確認すること:** Keep Vector GPU out of parity candidate counts until a captured GPU result proves motion-dependent displacement. Compare CPU outputs on the shared moving-patch sequence at several shutter/sample settings, then use HDR and alpha-edge controls; investigate a GPU implementation correction only when separately authorized.
+
+## 2026-11-12: Blur GPU candidate count must follow resident-path eligibility
+- **関連:** `Artifact/include/Effects/Blur/BlurEffect.ixx::gpuRasterEffectDomain/appendGpuSpatialNodes`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::buildGpuRasterEffectPlan`, external `build_capture_manifest.py`.
+- **確認できた事実:** Composition rendering sends eligible blur nodes through the resident spatial pipeline, not `BlurEffectGPUImpl::applyGPU`; the latter is explicitly unreachable and contains blocking readback. Resident general Blur requires premultiplied alpha, strength >= 0.999, sigma < 3, and iteration/mode passes within the eight-node capacity. The previous manifest generator assigned GPU candidates to all Gaussian and general Blur settings regardless of eligibility.
+- **変更:** Manifest generation now applies those source conditions and labels only resident compositor GPU candidates. The schedule reconciles to 88 CPU references and 14 eligible resident GPU cases (13 Gaussian, one general Blur).
+- **価値または懸念:** Prevents planned parity rows that would silently run CPU and avoids benchmarking the unreachable readback wrapper as a hot render path. Effect isolation and runtime dispatch still need confirmation.
+- **次に確認すること:** Capture the isolated effect through the composition path and verify actual resident node dispatch/fallback for every GPU row before counting it as GPU evidence.
+
+## 2026-11-12: Blur sweep settings need executable property contracts
+- **関連:** External Blur R&D fixture bundle `build_capture_manifest.py` and `spatial_sweep_plan.json`.
+- **確認できた事実:** The capture matrix uses effect-specific property names and one custom-PSF hash that is metadata rather than an effect property. Several setters clamp values, and a property typo could otherwise be silently ignored while still generating a stable manifest hash.
+- **変更:** Manifest generation now validates each effect's required property keys, value types, numeric bounds/enums, optional Aperture Shape PSF path/hash, and the plan's effect-ID set against a source-audited schema before expanding captures.
+- **価値または懸念:** Rejects malformed experiments before they become capture rows. The schema duplicates public source contracts and must be updated when effect property APIs change; it does not replace runtime confirmation that a property took effect.
+- **次に確認すること:** Compare schema and source setters whenever this sweep matrix or an effect property API changes; after an authorized capture, record the actual read-back property values if the host can expose them.
+
+## 2026-11-12: Visible blur energy must use premultiplied RGB
+- **関連:** External Blur R&D fixture bundle `compare_outputs.py`, `compare_hidden_rgb.py`, `alpha_edge` and `alpha_edge_alt_hidden_rgb`.
+- **確認できた事実:** The fixtures use straight alpha and intentionally differ in RGB where alpha is zero. The prior raw positive-RGB energy and centroid included those invisible pixels, while the “alpha weighted” branch already computed positive premultiplied energy. There was no tool that compared both hidden-RGB variants' processed outputs.
+- **変更:** Main reports now label unassociated RGB energy as a diagnostic and use visible premultiplied positive energy/radius with a visible-energy source centroid. Alpha-edge bleed compares premultiplied output to premultiplied input. Added a separate report tool that checks source fixture equivalence and measures output visible RGB/alpha invariance across the hidden-RGB pair.
+- **価値または懸念:** Prevents invisible RGB from biasing blur energy/radius and enables a direct halo/invariance comparison. It does not establish visual quality until actual captures are supplied; both output metadata values are a shared operator assertion.
+- **次に確認すること:** Run both fixtures through each selected alpha-sensitive effect using identical settings and path, inspect output images alongside the numeric visible-delta/leakage report, and verify results at both 256² and 1024².
+
+## 2026-11-12: Raw RGBA parity can overstate visible differences
+- **関連:** External Blur R&D fixture bundle `compare_outputs.py::metrics`, `pairwise_parity`, `slanted_edge_metrics`, and `impulse_kernel_metrics`.
+- **確認できた事実:** Main output-vs-input and pairwise error previously treated straight RGB under alpha zero as image error. The edge profile read unassociated RGB, and impulse covariance measured unassociated energy. With transparent-edge fixtures these can differ while the displayed premultiplied image is identical.
+- **変更:** Added separate visible premultiplied RGB and alpha errors while retaining raw RGBA error as a diagnostic. Pairwise reports carry both sets; edge profiles and impulse PSF metrics now use visible energy/luminance.
+- **価値または懸念:** Makes parity and quality reports reflect visible output while preserving raw data issues for diagnosing hidden-color differences. Alpha is clamped only when forming visible RGB; raw alpha error remains explicit.
+- **次に確認すること:** Once output captures exist, compare a pair whose hidden RGB differs but visible premultiplied pixels match; visible error should remain at noise tolerance while raw RGB error reveals the invisible difference. Check HDR and negative RGB behavior as well.
+
+## 2026-11-12: ブラー群を比較可能な R&D suite に統合
+- **関連:** `Artifact/src/Effects/Blur/`、`Artifact/src/Effects/Rasterizer/`、`docs/planned/MILESTONE_BLUR_EFFECTS_RD_2026-11-12.md`
+- **確認できた事実:** 空間 Gaussian／Blur、Radial、Anisotropic Flow、Aperture Shape、Reaction Diffusion、Optical Flow／Vector／Time Blur が別々の実装領域に存在する。Temporal Effects R&D は別途進行中で、sampler契約・履歴制限・seekを対象にしている。
+- **仮説:** impulse、透明境界、細線、HDR点光源、決定論的な移動パッチを共有 fixture 化すれば、品質軸を保ちながら各実装を比較できる。未検証。
+- **価値または懸念:** alpha／HDR／境界品質とCPU・GPU実コストに基づいて投資先を選べる。単一の総合スコアにすると各ブラーの目的差を隠す懸念がある。
+- **次に確認すること:** 現行 effect の alpha／境界契約、実HLSL経路、登録状態を台帳化し、Temporal Effects R&D の決定論的画像列を共有できるか確認する。
+
+## 2026-11-12: Temporal effect future-frame availability is render-order dependent
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` の rasterizer history publish と preview pre-roll、`Artifact/src/Effects/ArtifactEffectFrameSampler.cpp`。
+- **確認できた事実:** rasterizer result は effect stack の完了後にCPU samplerへ格納される。preview の discontinuity pre-roll は `N-1` を1フレームだけ先に描画してから `N` を評価する。GPU空間effectの履歴lookupも `lastRenderedFrame == currentFrame - 1` のみ有効とし、現在フレームのeffect処理後に記録する。sampler のabsolute／relative lookupは指定frameが格納済みの場合のみ成功する。
+- **未検証の仮説:** CPU経路で `N+1` を使う効果は、そのframeを別経路で先に格納しない限りpreviewで利用できない可能性が高い。render queue等の別評価順や先読み経路は個別確認が必要。
+- **価値または懸念:** 「前後フレーム対応」をAPIのoffset表現だけで判断すると、実際には過去フレーム専用のhost挙動を未来参照可能と誤認する恐れがある。Temporal Effects R&Dでは過去／未来の取得可能性をhost別に記録する。
+- **次に確認すること:** composition preview、RAM preview、offline render／render queueで、N-1/N+1の履歴生成順・warm-up・missing-frame fallbackを比較する。
+
+## 2026-11-12: CPU temporal frame lookup deep-copies the full image
+- **関連:** `Artifact/src/Effects/ArtifactEffectFrameSampler.cpp::copyFrame`、`ArtifactCore/src/Image/ImageF32x4_With_Cache.cpp::SetCpuImage`、`docs/planned/MILESTONE_TEMPORAL_EFFECTS_RD_2026-11-12.md`。
+- **確認できた事実:** `copyFrame()` は `out.SetCpuImage()` を呼び、`SetCpuImage()` は格納画像の `DeepCopy()` を行う。lookbackを複数要求するeffectは要求frame数と画像サイズに応じてCPU画像複製が増える。
+- **価値または懸念:** 正しい画素結果だけではtemporal effectのpreviewコストを評価できない。複製bytes／評価時間を記録し、CPU samplerとGPU固定slot経路を別々に評価する必要がある。
+- **次に確認すること:** allocation計測またはprofilerでFrame Blend、Echo、centered Time Blurのframe size／sample count sweepを取り、GPU pathのreadback有無も別記する。
+
+## 2026-11-12: GPU temporal history pool failure handling needs caller verification
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` の temporal GPU pass dispatch／record、`Artifact/src/Render/ArtifactRenderLayerPipeline.cpp::recordLayerFrame`。
+- **確認できた事実:** GPU pool満杯時、`recordLayerFrame()` は `false` を返す。Composition View callsiteはその返値を分岐に使わず、CPU sampler fallbackとするコメントだけが近接している。
+- **未検証の仮説:** 失敗時は次frameのGPU history lookupがinvalidになり、CPU samplerによる置換を経ずshaderのhistoryなし動作に落ちる可能性がある。別のfallbackが関数外にあるかは未確認。
+- **価値または懸念:** 固定GPU履歴slotが上限に達した場合の品質低下／欠落が隠れ、CPU fallbackが発生していると誤認する恐れがある。
+- **次に確認すること:** pool exhaustionを作るhost fixtureでCPU sampler呼び出しの有無と結果画素を追い、必要ならcontractにbackpressure動作を明記する。
+
+## 2026-11-12: Time Warp allocates frame-sized workspace per evaluation
+- **関連:** `Artifact/src/Effects/Rasterizer/TimeWarpEffect.cpp::TimeWarpCPUImpl::applyCPU`、`docs/planned/MILESTONE_TEMPORAL_EFFECTS_RD_2026-11-12.md`。
+- **確認できた事実:** 各effect評価で`W * H`件のframe offset用`std::vector`を作り、sampled frame用`std::unordered_map`も作る。mapのreserveは最大256件だがoffset種類数がそれを越えると拡張し得る。
+- **未検証の仮説:** 解像度と一意offset数が増えると、割当・map rehash・各frame sampleのDeepCopyがpreview hot pathで目立つ可能性がある。
+- **価値または懸念:** outputの正しさだけのテストでは高解像度の時間warpコストやallocation pressureを捉えられない。今回のR&Dでは性能を測り、既存runtime経路の構造変更は別判断とする。
+- **次に確認すること:** 解像度／offset種類数を変えたallocation計測とprofileを取り、workspace再利用またはbounded sample tableが必要か判断する。
 
 ## 2026-11-09: Light streak GPU parity needs a runtime comparison, not a static assumption
 - **関連:** `Artifact/include/Effects/DirectionalGlowEffect.ixx`, `Artifact/src/Effects/DirectionalGlowEffect.cpp`, `Artifact/src/Effects/Glow/GlowEffect.cpp` (`GlintStarFilterEffect`), `Artifact/src/Effect/ArtifactCreativeEffects.cpp` (`ArtifactCinematicLensFlareEffect`).
@@ -13080,6 +13217,13 @@
 - **Added check:** Commit history across consecutive frames, then begin an earlier frame and assert history is invalidated and the generation advances once.
 - **Value or concern:** Guards against reusing future-frame accumulation after a timeline seek to an earlier frame. Test not run.
 - **Next:** Run `RenderPipelineContractTest.GITemporalHistoryResetsWhenFrameMovesBackward` when test execution is authorized.
+
+## 2026-11-12: Composition replacement and temporal effect history
+- **Related:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::setComposition` and `ArtifactEffectFrameSampler`.
+- **Confirmed:** The inspected composition replacement paths clear surface/GPU caches, but no `ArtifactEffectFrameSampler::invalidateAll()` call was found. The temporal discontinuity check compares frame numbers; no composition identity was observed in that check.
+- **Hypothesis (unverified):** If a replacement composition reuses a Layer ID and begins on a frame considered continuous, stale CPU history could be returned to a temporal effect. Layer ID lifetime or another invalidation path may prevent this, so this is not yet a confirmed defect.
+- **Value or concern:** Composition switches need a host-level history isolation check, in addition to sampler unit tests, to prevent cross-composition trails.
+- **Next:** Add a host fixture that switches between compositions reusing Layer IDs and asserts fresh-history behavior; confirm whether replacement must explicitly invalidate the sampler and reset temporal continuity state.
 
 ## 2026-11-09: CSV source reload replaces delimiter and schema together
 - **Related:** `tests/ArtifactCore/CsvDataSourceStandaloneTest.cpp::ReloadRebuildsSchemaWhenDelimiterAndColumnCountChange`.

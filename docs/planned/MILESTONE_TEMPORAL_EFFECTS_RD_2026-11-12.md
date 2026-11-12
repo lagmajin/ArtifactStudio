@@ -44,6 +44,8 @@ Phase 1 のテストソースと登録を追加済み。ビルド・実行は未
 
 小さな線形 float RGBA画像に、透明背景上をframeごとに移動する白いパッチを置いた12フレームの合成列を用意する。各フレームの基準画素値をテスト側で生成し、外部メディアやデコーダの揺れを排除する。現行focused testは12画素幅・1画素高であり、alpha境界、静止領域、移動領域を含む。
 
+このsampler契約テスト用の小画像列と、Blur Effects R&Dの画質用256×256列は別fixtureである。画質bundleでは同じ移動位置を持つopaque-backgroundの飽和色patch列と、transparent-black背景のalpha patch列を用意し、motion推定のコントラスト条件とalpha leakageを分けて評価する。Centered Time Blur用に未来frameを全て事前格納するケースは制御されたrandom-access sampler条件であり、通常render hostが未来frameを供給する根拠にはしない。
+
 ### 検証ケース
 
 1. **隣接フレーム参照:** frame N から N-1 と N+1 を絶対指定で取り、各々の識別色・移動位置を確認する。
@@ -84,6 +86,8 @@ Phase 1 のテストソースと登録を追加済み。ビルド・実行は未
 ### Phase 2 — temporal effect R&D fixture
 
 12画素幅の透明背景上を移動する決定論的パッチをframe 0〜11に置き、Frame Blend、複数lookback Echo、centered Time Blurを実sampler経由で評価するfocused smokeケースを追加済み。Frame Blendはframe Nを処理した完成画像をstoreし、N+1の評価で読む逐次評価も通す。別の5画素 fixture で、Time Warpが1画像内のdark pixelから過去、bright pixelから未来を同時に取得するケースも追加した。未来frame未格納時のTime Blur欠落処理と、lookback2に対して1 frameだけ履歴があるEchoの再正規化も検査する。複数effect stack、Composition切替時のhistory invalidation、順不同のhost評価、seek後warm-up、preview／RAM preview／offline render間の同一性は未実装・未確認。レンダーhostの制御が必要なケースはeffect単体契約とhost統合契約を分ける。
+
+画質R&D用には外部fixture bundleの `temporal_capture_manifest.json` に、Time Blur／Optical Flow Blur／Vector BlurのCPU capture候補44件を別途展開した。256×256 opaque/transparentのmoving列と、frame 6を全frameで反復するzero-motion controlを使い、Vector GPUはzero-velocity shaderのため除外。frame 6の全frame preloadは制御実験、frame 11のfuture-missingは別条件としている。これはテストtargetへの追加ではなく、実sampler host adapterもまだ無いため、全候補pending・出力未取得である。
 
 ### Phase 3 — 実行時・性能評価
 
