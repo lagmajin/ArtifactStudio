@@ -3,7 +3,7 @@
 **最終更新:** 2026-11-12
 **ステータス:** In Progress
 
-**進捗:** 2026-11-12 — 既存 `TransitionRenderContractTest` が入力A/Bの原寸PNGも保存するよう変更し、`tools/analyze_transition_capture.py` で全kindのprogress 0/1を入力画像と画素単位比較、隣接progress間の変更画素数をPNGから再計算してreport値と照合する仕組みを追加。期待する16 kind、progress列、端点source、画素数、全PNGの存在・形式・寸法・読込可否を確認し、画像とcapture reportのSHA-256を `verification_report.json` に記録する。さらに `review.html` を生成し、入力、全kind grid、kind別progress stripと各フレームをブラウザで一覧できるようにした。解析器・C++ testは未実行。既存capture reportにはraw timingが含まれない。
+**進捗:** 2026-11-12 — 既存 `TransitionRenderContractTest` が入力A/Bの原寸PNGも保存するよう変更し、`tools/analyze_transition_capture.py` で全kindのprogress 0/1を入力画像と画素単位比較、隣接progress間の変更画素数をPNGから再計算してreport値と照合する仕組みを追加。全capture frameのalphaも不透明入力契約（alpha=255）と照合する。期待する16 kind、progress列、端点source、画素数、全PNGの存在・形式・寸法・読込可否を確認し、画像とcapture reportのSHA-256を `verification_report.json` に記録する。さらに `review.html` を生成し、入力、全kind grid、kind別progress stripと各フレームをブラウザで一覧できるようにした。解析器・C++ testは未実行。既存capture reportにはraw timingが含まれない。
 
 ## 目的
 
@@ -76,7 +76,7 @@
   & "<build>\bin\<config>\ArtifactCoreTransitionRenderContractTest.exe"
   python tools/analyze_transition_capture.py $env:ARTIFACT_TRANSITION_CAPTURE_DIR
   ```
-- capture testはcontact sheetに加え `input_A.png` / `input_B.png` を原寸で保存する。解析器は `verification_report.json` を作り、期待16 kind、progress列、端点のLeft→Right、開始／終了画像の完全一致、隣接画像間の実変更画素数とreport値の一致、各stepの分類pixel count、全PNGの存在・RGBA形式・寸法・decode可否を検査する。出力画像と元reportのSHA-256を保存し、差し替えや再生成を追跡できる。
+- capture testはcontact sheetに加え `input_A.png` / `input_B.png` を原寸で保存する。解析器は `verification_report.json` を作り、期待16 kind、progress列、端点のLeft→Right、開始／終了画像の完全一致、隣接画像間の実変更画素数とreport値の一致、不透明入力に対するalpha保持、各stepの分類pixel count、全PNGの存在・RGBA形式・寸法・decode可否を検査する。出力画像と元reportのSHA-256を保存し、差し替えや再生成を追跡できる。
 - 同時に `review.html` を出力し、入力A/B、progress別全kind grid、各kindのprogress stripと個別フレームをブラウザで見比べられるようにする。HTMLはローカル画像を参照し、外部リソースに依存しない。
 - 自動検査PASSはcapture bundleとreport上の基本的な挙動が整合する意味に限る。画像を開いてcontact sheetと各progressを目視し、方向・境界・破綻を別途確認する。
 - 共通progress列は0、0.125、0.25、0.5、0.75、0.875、1を使い、動きの速い／確率的な系統は連続フレーム追加を検討する。

@@ -216,6 +216,7 @@ def check_capture(directory: Path) -> dict[str, Any]:
 
         changed_steps: list[int] = []
         actual_changed_pixels: list[int | None] = []
+        nonopaque_pixels: list[int | None] = []
         previous_pixels: bytes | None = None
         for index, item in enumerate(kind_steps):
             stats = item.get("stats", {})
@@ -228,6 +229,13 @@ def check_capture(directory: Path) -> dict[str, Any]:
             frame_path = f"transition_{name}_p{stem}.png"
             inspect_image(frame_path, input_size, keep_pixels=True)
             frame_pixels = pixel_data.get(frame_path)
+            alpha_errors = (sum(1 for value in frame_pixels[3::4] if value != 255)
+                            if frame_pixels is not None else None)
+            nonopaque_pixels.append(alpha_errors)
+            if alpha_errors not in (None, 0):
+                kind_failures.append(
+                    f"step {index} has {alpha_errors} pixels with alpha other than 255"
+                )
             changed = (changed_pixel_count(previous_pixels, frame_pixels, input_size)
                        if previous_pixels is not None and frame_pixels is not None else None)
             actual_changed_pixels.append(changed)
@@ -262,6 +270,7 @@ def check_capture(directory: Path) -> dict[str, Any]:
                              "direction": entry.get("direction"),
                              "changed_progress_indices": changed_steps,
                              "measured_changed_pixels": actual_changed_pixels,
+                             "nonopaque_pixel_count": nonopaque_pixels,
                              "checks_passed": not kind_failures,
                              "failures": kind_failures})
 
