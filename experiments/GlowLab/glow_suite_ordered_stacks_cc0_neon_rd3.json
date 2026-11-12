@@ -1,0 +1,142 @@
+{
+  "intent": "Intensity-restraint follow-up for the four ordered city recipes that exceeded the 3% intersection clip review gate in rd2. Keep foundation and effect order fixed; reduce each contributing specialist amount/intensity while preserving its structural parameters. Exploratory CPU PNG-handoff candidates.",
+  "input": "assets/cc0-neon-streets-1536.jpg",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.05,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "contour-streak": [
+      {
+        "effect_id": "edge_bloom",
+        "properties": {
+          "Threshold": 0.8,
+          "Threshold Softness": 0.15,
+          "Radius": 8.0,
+          "Amount": 0.1,
+          "Edge Boost": 0.1,
+          "Tint Mix": 0.15
+        }
+      },
+      {
+        "effect_id": "directional_glow",
+        "properties": {
+          "Threshold": 0.65,
+          "Intensity": 0.07,
+          "Length 1 (Inner)": 18.0,
+          "Length 2 (Outer)": 40.0,
+          "Weight 1": 0.7,
+          "Weight 2": 0.25,
+          "Pattern": 0,
+          "Angle Offset": 0.0
+        }
+      }
+    ],
+    "reactive-spectrum": [
+      {
+        "effect_id": "reactive_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Radius": 10.0,
+          "Intensity": 0.1,
+          "Reaction": 0.8,
+          "Saturation Weight": 0.6,
+          "Tint Mix": 0.12
+        }
+      },
+      {
+        "effect_id": "chromatic_glow",
+        "properties": {
+          "Threshold": 0.6,
+          "Radius": 7.0,
+          "Intensity": 0.1,
+          "Dispersion": 0.75,
+          "Angle": 0.0,
+          "Tint Mix": 0.2
+        }
+      }
+    ],
+    "film-optical": [
+      {
+        "effect_id": "physical_halation",
+        "properties": {
+          "Threshold": 0.65,
+          "Spread": 18.0,
+          "Intensity": 0.1,
+          "Red Diffusion": 1.5,
+          "Softness": 0.5
+        }
+      },
+      {
+        "effect_id": "builtin.optical_glow",
+        "properties": {
+          "threshold": 0.5,
+          "softKnee": 0.3,
+          "radius": 8.0,
+          "intensity": 0.1,
+          "afterglowRadius": 20.0,
+          "afterglowIntensity": 0.025,
+          "streakStrength": 0.025,
+          "atmosphere": 0.01,
+          "warmth": 0.05
+        }
+      }
+    ],
+    "refractive-ridge": [
+      {
+        "effect_id": "liquid_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Radius": 10.0,
+          "Intensity": 0.1,
+          "Flow Scale": 30.0,
+          "Distortion": 1.0,
+          "Phase": 0.0
+        }
+      },
+      {
+        "effect_id": "luminescence_caustics",
+        "properties": {
+          "Threshold": 0.45,
+          "Edge Weight": 0.8,
+          "Scale": 22.0,
+          "Intensity": 0.1,
+          "Evolution": 0.0,
+          "Color Shift": 0.2
+        }
+      }
+    ],
+    "point-rays": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.52,
+          "sourceY": 0.58,
+          "rayLength": 0.32,
+          "intensity": 0.2,
+          "decay": 0.8,
+          "samples": 32,
+          "threshold": 0.5,
+          "warmth": 0.05
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.25,
+          "length": 24.0,
+          "width": 0.8,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.7
+        }
+      }
+    ]
+  }
+}

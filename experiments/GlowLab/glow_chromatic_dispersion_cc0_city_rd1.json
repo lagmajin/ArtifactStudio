@@ -1,0 +1,60 @@
+{
+  "intent": "Exploratory registered Chromatic Glow dispersion sweep on a CC0 night photograph; not an accepted preset.",
+  "profiles": {
+    "chromatic-dispersion-0p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 8.0,
+        "Intensity": 0.4,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.65
+      }
+    },
+    "chromatic-dispersion-0p5": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 8.0,
+        "Intensity": 0.4,
+        "Dispersion": 0.5,
+        "Angle": 0.0,
+        "Tint Mix": 0.65
+      }
+    },
+    "chromatic-dispersion-1p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 8.0,
+        "Intensity": 0.4,
+        "Dispersion": 1.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.65
+      }
+    },
+    "chromatic-dispersion-1p5": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 8.0,
+        "Intensity": 0.4,
+        "Dispersion": 1.5,
+        "Angle": 0.0,
+        "Tint Mix": 0.65
+      }
+    },
+    "chromatic-dispersion-2p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 8.0,
+        "Intensity": 0.4,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.65
+      }
+    }
+  }
+}

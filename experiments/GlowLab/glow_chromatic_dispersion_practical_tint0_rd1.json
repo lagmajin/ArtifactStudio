@@ -1,0 +1,38 @@
+{
+  "intent": "Chromatic Glow photo transfer with shifted red/blue samples fully retained (Tint Mix 0); same profile across two CC0 practical-light plates, exploratory only.",
+  "profiles": {
+    "chromatic-dispersion-0p0-tint0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    },
+    "chromatic-dispersion-1p0-tint0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 1.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    },
+    "chromatic-dispersion-2p0-tint0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    }
+  }
+}

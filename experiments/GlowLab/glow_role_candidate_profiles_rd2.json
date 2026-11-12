@@ -1,0 +1,25 @@
+{
+  "intent": "Refined Volumetric Shine source alignment and four-ray Glint shape; exploratory only, not accepted defaults.",
+  "profiles": {
+    "builtin.volumetric_shine": {
+      "sourceX": 0.27,
+      "sourceY": 0.38,
+      "rayLength": 0.65,
+      "intensity": 1.2,
+      "decay": 0.76,
+      "samples": 48,
+      "threshold": 0.3,
+      "warmth": 0.12
+    },
+    "builtin.glint_star_filter": {
+      "threshold": 0.45,
+      "intensity": 1.5,
+      "length": 50.0,
+      "width": 1.0,
+      "rays": 4,
+      "rotation": 45.0,
+      "chromatic": 0.3,
+      "softness": 0.55
+    }
+  }
+}

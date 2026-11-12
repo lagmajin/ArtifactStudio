@@ -1,0 +1,70 @@
+{
+  "intent": "Controlled source-aligned Volumetric Shine intensity sweep on the GlowLab synthetic neon plate. Hold source position, ray length, decay, threshold, samples, and Glint fixed; compare intensity 0.5 and 1.0 to the existing intensity 2.0 capture.",
+  "input": "captures/glow-suite-multirole-synthetic-plate-rd1/source.png",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.05,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "point-rays-aligned-i0p5": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.271,
+          "sourceY": 0.38,
+          "rayLength": 0.85,
+          "intensity": 0.5,
+          "decay": 0.94,
+          "samples": 32,
+          "threshold": 0.22,
+          "warmth": 0.05
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.5,
+          "length": 40.0,
+          "width": 1.0,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.55
+        }
+      }
+    ],
+    "point-rays-aligned-i1p0": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.271,
+          "sourceY": 0.38,
+          "rayLength": 0.85,
+          "intensity": 1.0,
+          "decay": 0.94,
+          "samples": 32,
+          "threshold": 0.22,
+          "warmth": 0.05
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.5,
+          "length": 40.0,
+          "width": 1.0,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.55
+        }
+      }
+    ]
+  }
+}

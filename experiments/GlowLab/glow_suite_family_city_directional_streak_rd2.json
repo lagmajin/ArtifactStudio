@@ -1,0 +1,18 @@
+{
+  "intent": "One-step intensity trim to bring the directional-streak practical ROI under the existing clip review bound while keeping both lengths, weights, and angle fixed. Exploratory only.",
+  "profiles": {
+    "directional-streak-intensity-0p14": {
+      "effect_id": "directional_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Intensity": 0.14,
+        "Length 1 (Inner)": 18.0,
+        "Length 2 (Outer)": 60.0,
+        "Weight 1": 0.7,
+        "Weight 2": 0.25,
+        "Pattern": 0,
+        "Angle Offset": 0.0
+      }
+    }
+  }
+}
