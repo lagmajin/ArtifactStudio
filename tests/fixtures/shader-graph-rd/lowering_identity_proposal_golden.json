@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-lowering-identity-proposal-golden",
+  "status": "cpu-projection-model-only-not-core-or-renderer-evidence",
+  "baselineKeys": {
+    "canonicalDocumentBytesHash": "C780691AECE79AFAAD8E9741B4E543BE7FE2AA77AB4D2C48DF2F6D6F7A622A4E",
+    "documentSemanticHash": "328D994B72A5117CA74F3517758E86A19F5ED0815C9635938B95C3DCCB8DBEDC",
+    "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+    "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+    "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+    "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+    "pipelineKey": "40843C8A4E81B813FE988AC18EB4A4B2A34A2E4E85A89CD162707A3EE869E7CF",
+    "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+  },
+  "keyNames": [
+    "canonicalDocumentBytesHash",
+    "documentSemanticHash",
+    "typedIrSemanticHash",
+    "emittedSourceHash",
+    "shaderCompileKey",
+    "resourceBindingKey",
+    "pipelineKey",
+    "provenanceHash"
+  ],
+  "scenarios": [
+    {
+      "id": "storage-order-permutation",
+      "purpose": "node/link storage order does not change canonical identities",
+      "expectedChangedKeys": [],
+      "actualChangedKeys": [],
+      "keys": {
+        "canonicalDocumentBytesHash": "C780691AECE79AFAAD8E9741B4E543BE7FE2AA77AB4D2C48DF2F6D6F7A622A4E",
+        "documentSemanticHash": "328D994B72A5117CA74F3517758E86A19F5ED0815C9635938B95C3DCCB8DBEDC",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "40843C8A4E81B813FE988AC18EB4A4B2A34A2E4E85A89CD162707A3EE869E7CF",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    },
+    {
+      "id": "layout-only-change",
+      "purpose": "layout persists in canonical document bytes but does not invalidate semantic shader keys",
+      "expectedChangedKeys": [
+        "canonicalDocumentBytesHash"
+      ],
+      "actualChangedKeys": [
+        "canonicalDocumentBytesHash"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "6F3BAC65B939E9083CA057786BEFB930BC4C168ACEAEA211E221B3405FC9D597",
+        "documentSemanticHash": "328D994B72A5117CA74F3517758E86A19F5ED0815C9635938B95C3DCCB8DBEDC",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "40843C8A4E81B813FE988AC18EB4A4B2A34A2E4E85A89CD162707A3EE869E7CF",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    },
+    {
+      "id": "opaque-extension-only-change",
+      "purpose": "opaque unregistered payload round-trips but does not alter shader semantic identity",
+      "expectedChangedKeys": [
+        "canonicalDocumentBytesHash"
+      ],
+      "actualChangedKeys": [
+        "canonicalDocumentBytesHash"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "080A58B22424A89ECC3012445A3CB6C3AA3B0185902343F2832910831A3F8394",
+        "documentSemanticHash": "328D994B72A5117CA74F3517758E86A19F5ED0815C9635938B95C3DCCB8DBEDC",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "40843C8A4E81B813FE988AC18EB4A4B2A34A2E4E85A89CD162707A3EE869E7CF",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    },
+    {
+      "id": "provenance-only-change",
+      "purpose": "debug source mapping changes without changing semantic or generated identities",
+      "expectedChangedKeys": [
+        "provenanceHash"
+      ],
+      "actualChangedKeys": [
+        "provenanceHash"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "C780691AECE79AFAAD8E9741B4E543BE7FE2AA77AB4D2C48DF2F6D6F7A622A4E",
+        "documentSemanticHash": "328D994B72A5117CA74F3517758E86A19F5ED0815C9635938B95C3DCCB8DBEDC",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "40843C8A4E81B813FE988AC18EB4A4B2A34A2E4E85A89CD162707A3EE869E7CF",
+        "provenanceHash": "EF2E1DD3520CD820866D2BC1A8E1C81B9A57573BAE51F83F21791144B62B95B0"
+      }
+    },
+    {
+      "id": "resource-revision-change",
+      "purpose": "runtime asset revision invalidates binding identity only when no compile specialization is used",
+      "expectedChangedKeys": [
+        "resourceBindingKey"
+      ],
+      "actualChangedKeys": [
+        "resourceBindingKey"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "C780691AECE79AFAAD8E9741B4E543BE7FE2AA77AB4D2C48DF2F6D6F7A622A4E",
+        "documentSemanticHash": "328D994B72A5117CA74F3517758E86A19F5ED0815C9635938B95C3DCCB8DBEDC",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+        "resourceBindingKey": "C2E455E8DB29C9CF676BD5AB95D07E81FC48897F4155C00D0A43F7892A206683",
+        "pipelineKey": "40843C8A4E81B813FE988AC18EB4A4B2A34A2E4E85A89CD162707A3EE869E7CF",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    },
+    {
+      "id": "compile-specialization-change",
+      "purpose": "compile-time constant changes graph/source/compile/pipeline identity but not runtime resource binding",
+      "expectedChangedKeys": [
+        "canonicalDocumentBytesHash",
+        "documentSemanticHash",
+        "emittedSourceHash",
+        "pipelineKey",
+        "shaderCompileKey",
+        "typedIrSemanticHash"
+      ],
+      "actualChangedKeys": [
+        "canonicalDocumentBytesHash",
+        "documentSemanticHash",
+        "emittedSourceHash",
+        "pipelineKey",
+        "shaderCompileKey",
+        "typedIrSemanticHash"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "4A0FCA56A4946FC3D2AF9C6F29CDD255D38CC83EFB7C218DCCBBD8758D9E2829",
+        "documentSemanticHash": "0FD298E8A4FD3C49C972033D7026736B65FE0FA250B35432572587C488777487",
+        "typedIrSemanticHash": "34B5DDA37F2159318B9F7FF76CE8DC914F88F05EBBADAB5ABFE1FAC106F6BD24",
+        "emittedSourceHash": "B82B2AC31A5B43D28567FEC6A1697C997AAE022669219DD1872A531E5B452C48",
+        "shaderCompileKey": "1235915F60679296CE050409A0251BC9051CE17961175E00963963BFE9CFDF78",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "AC7FF31B5E7C40DFE5D30BE529FA1DC34A3D8E38DC4D785A1BC15AF10850A602",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    },
+    {
+      "id": "backend-compiler-change",
+      "purpose": "backend/compiler change leaves graph/source/resource binding identities stable",
+      "expectedChangedKeys": [
+        "pipelineKey",
+        "shaderCompileKey"
+      ],
+      "actualChangedKeys": [
+        "pipelineKey",
+        "shaderCompileKey"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "C780691AECE79AFAAD8E9741B4E543BE7FE2AA77AB4D2C48DF2F6D6F7A622A4E",
+        "documentSemanticHash": "328D994B72A5117CA74F3517758E86A19F5ED0815C9635938B95C3DCCB8DBEDC",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "7183888B3C6439ACFB5EADD41FD2F0DC2705FD2EE788AA3F790638EB4A81A126",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "CA299D7627E814BC76551BDC67154AFCBEC78357C8E8FE3558432BD899DC1C8A",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    },
+    {
+      "id": "pipeline-format-change",
+      "purpose": "render-target format changes PSO identity only",
+      "expectedChangedKeys": [
+        "pipelineKey"
+      ],
+      "actualChangedKeys": [
+        "pipelineKey"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "C780691AECE79AFAAD8E9741B4E543BE7FE2AA77AB4D2C48DF2F6D6F7A622A4E",
+        "documentSemanticHash": "328D994B72A5117CA74F3517758E86A19F5ED0815C9635938B95C3DCCB8DBEDC",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "A37AEF7DD97CEEB9EA3417F4D858281D4FA222AB7143EAE2FFE65823A91F9125",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    },
+    {
+      "id": "stable-node-id-change",
+      "purpose": "stable node identity participates in document/IR identity while canonical ordinal source symbols remain unchanged",
+      "expectedChangedKeys": [
+        "canonicalDocumentBytesHash",
+        "documentSemanticHash",
+        "pipelineKey",
+        "provenanceHash",
+        "shaderCompileKey",
+        "typedIrSemanticHash"
+      ],
+      "actualChangedKeys": [
+        "canonicalDocumentBytesHash",
+        "documentSemanticHash",
+        "pipelineKey",
+        "provenanceHash",
+        "shaderCompileKey",
+        "typedIrSemanticHash"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "A23F28B11702CD04AF20291E4C18FC2810A3A8AD478F858AFDA1D636248A64FB",
+        "documentSemanticHash": "3213591131AD09CBF46B9EAFCF39955D3BB2A3BADF6FC87F64C9ABE22DE6F4FA",
+        "typedIrSemanticHash": "DD143C52EB244DDBDFC44EDAD549B859FF8CC4B75C8AA226CB029807B0CA63C5",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "C001FE071390DF45E3664614AEC2C05DEFA9FF9560B0B4C7AB9393781AE5E7AB",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "FFBD08623C0EC760431E93427696F02FDE92C16B1810CC69F01C93746F56F38A",
+        "provenanceHash": "31A1E47C584C537BBE89F7FF3849BE2E373820B0B7A924D01EE65BE502345154"
+      }
+    },
+    {
+      "id": "unreachable-node-parameter-change",
+      "purpose": "unreachable editable node remains in Document identity but not active IR/source/compile identity",
+      "expectedChangedKeys": [
+        "canonicalDocumentBytesHash",
+        "documentSemanticHash"
+      ],
+      "actualChangedKeys": [
+        "canonicalDocumentBytesHash",
+        "documentSemanticHash"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "0969FAF8E5A5C815CFF77AEFCAA548796FE4E3313BB03DA2178A27CE2118067A",
+        "documentSemanticHash": "86CC9C550DDE2D10C2E67E326278E478DA3D3E27060B2D9E407FC70E78DD742E",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "40843C8A4E81B813FE988AC18EB4A4B2A34A2E4E85A89CD162707A3EE869E7CF",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    },
+    {
+      "id": "unused-input-link-retarget",
+      "purpose": "link to unary Math B remains in Document but is outside the operation's consumed-input projection",
+      "expectedChangedKeys": [
+        "canonicalDocumentBytesHash",
+        "documentSemanticHash"
+      ],
+      "actualChangedKeys": [
+        "canonicalDocumentBytesHash",
+        "documentSemanticHash"
+      ],
+      "keys": {
+        "canonicalDocumentBytesHash": "856B3B21AC3D2E0676BF19871EF547E0EC93A30EC72ABD645C0D2CEE761564C7",
+        "documentSemanticHash": "540CA0209C933897CDA5F1B85D7FA421227569BA47921287A4E9584DE06C7389",
+        "typedIrSemanticHash": "75EA8F50F822A0B04A870C7357421F63AC2FC1D08D6FEE00C774A5512699197C",
+        "emittedSourceHash": "322EABE2D958F95BCE2E6F22957BF38C587733FD5547887BEED4881D21658C0D",
+        "shaderCompileKey": "DB7878906BC620F98F9F6E3151D3EE8BFC3F846129F2AAC41B13E2C8966AB26B",
+        "resourceBindingKey": "73463A2E887E0B1F655D7A96C534DC6915833B1A36CA7EAD0B0483B142EEC125",
+        "pipelineKey": "40843C8A4E81B813FE988AC18EB4A4B2A34A2E4E85A89CD162707A3EE869E7CF",
+        "provenanceHash": "F95179C88C57498107DF76E7302AA4FBD8752CB1B744290DE0F05F660A6343E6"
+      }
+    }
+  ],
+  "limitations": [
+    "sample projections are a proposal oracle, not implemented ArtifactCore hashes",
+    "generated source is a tiny CPU model, not current HLSL",
+    "no runtime resource, compiler, PSO, or GPU measurements are included"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "value", "type": "Value", "params": {}},
+    {"id": "color", "type": "RGB", "params": {}},
+    {"id": "math", "type": "Math", "params": {}},
+    {"id": "mix", "type": "MixRGB", "params": {}},
+    {"id": "ramp", "type": "ColorRamp", "params": {}},
+    {"id": "texture", "type": "ImageTexture", "params": {}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

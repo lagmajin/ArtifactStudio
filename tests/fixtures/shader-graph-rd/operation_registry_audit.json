@@ -1,0 +1,3652 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-operation-registry-audit",
+  "status": "manifest-derived-proposal-audit-no-core-registry",
+  "manifest": "tests/fixtures/shader-graph-rd/evaluation_manifest.json",
+  "manifestSha256": "441428B36E0718FD914B053F8F04E50E89C6F56F73A83B95E2FCDD7CE8C2F830",
+  "operationCount": 24,
+  "uniqueRegistryKeyCount": 24,
+  "duplicateRegistryKeys": [],
+  "operations": [
+    {
+      "operationId": "artifact.color.mix_rgb.overlay",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.color.mix_rgb.overlay",
+        1
+      ],
+      "inputIds": [
+        "color1",
+        "color2",
+        "factor"
+      ],
+      "outputIds": [
+        "color"
+      ],
+      "parameterIds": [
+        "clamp_factor",
+        "clamp_result"
+      ],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "parameters",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "B5B9DCCD346B82FA5666F2C57F926629C7C903E2FF26F654479D94DBEF562267"
+    },
+    {
+      "operationId": "artifact.color.ramp.linear_constant_ease",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.color.ramp.linear_constant_ease",
+        1
+      ],
+      "inputIds": [
+        "factor"
+      ],
+      "outputIds": [
+        "color",
+        "alpha"
+      ],
+      "parameterIds": [
+        "interpolation",
+        "stops"
+      ],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "parameters",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "F7B231C633A7E6FAC694DA6503DDC3D5C061B9684BC4D725457E5D4E3F62D006"
+    },
+    {
+      "operationId": "artifact.constant.color4.float32",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.constant.color4.float32",
+        1
+      ],
+      "inputIds": [],
+      "outputIds": [
+        "color"
+      ],
+      "parameterIds": [
+        "rgba"
+      ],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "parameters"
+      ],
+      "evidenceStatus": "source-audited-runtime-unverified",
+      "sourceRecordSha256": "F5D5AA41880CA16C46C477E9F8ED8084A9F3796CD5E857A82BAA03F9C3DB845C"
+    },
+    {
+      "operationId": "artifact.constant.scalar.float32",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.constant.scalar.float32",
+        1
+      ],
+      "inputIds": [],
+      "outputIds": [
+        "value"
+      ],
+      "parameterIds": [
+        "value"
+      ],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "parameters"
+      ],
+      "evidenceStatus": "source-audited-runtime-unverified",
+      "sourceRecordSha256": "C76283361D3CCA4A1645015C8ECFF4CBD18BEB343BA79A979F908DB3B3397FEE"
+    },
+    {
+      "operationId": "artifact.constant.vector4.float32",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.constant.vector4.float32",
+        1
+      ],
+      "inputIds": [],
+      "outputIds": [
+        "value"
+      ],
+      "parameterIds": [
+        "value"
+      ],
+      "familyCoverageReference": false,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "parameters"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "203D0E3BD5AC3DA313B6896804BE8D9EC4CBFDB7FA9284CB780BBA2610D8138C"
+    },
+    {
+      "operationId": "artifact.context.texture_coordinates.uv",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.context.texture_coordinates.uv",
+        1
+      ],
+      "inputIds": [],
+      "outputIds": [
+        "uv"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion"
+      ],
+      "evidenceStatus": "source-audited-runtime-unverified",
+      "sourceRecordSha256": "6360FCFFF6EEDA821AC75FFFA54DA26F3F2D8DC809EF89F8E64503CC65061F38"
+    },
+    {
+      "operationId": "artifact.convert.scalar.replicate.2",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.scalar.replicate.2",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "51332D9D91B4273E5D213FFBA62590083201F942D1611254BCD0E0F5473D5EEE"
+    },
+    {
+      "operationId": "artifact.convert.scalar.replicate.3",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.scalar.replicate.3",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "D5D8CD1FE46F8A2EFBFBF6AAAA0D747681E36048FEBD7429ABDA9C8750A2141D"
+    },
+    {
+      "operationId": "artifact.convert.scalar.replicate.rgb_alpha_one",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.scalar.replicate.rgb_alpha_one",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "D0B65C523475998E036D6D3BBED2131A4D7E58A654C45CF9CA4827C96F8A5702"
+    },
+    {
+      "operationId": "artifact.convert.vector2.append_z_zero",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector2.append_z_zero",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "8018A16555EE2E8067E9F817AE035387AE0687D58846DD4C1461E4E04A0A2268"
+    },
+    {
+      "operationId": "artifact.convert.vector2.append_z_zero_alpha_one",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector2.append_z_zero_alpha_one",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "4B91C39DEDAB206DBA0A868507CCB6DE527F6C503E88D0277312B93A53DEBD74"
+    },
+    {
+      "operationId": "artifact.convert.vector2.extract_x",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector2.extract_x",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "value"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "BB664F85F472437FE636CB4DF6B00219BCA688F512EFACF71023C9579410E7CE"
+    },
+    {
+      "operationId": "artifact.convert.vector3.append_alpha_one",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector3.append_alpha_one",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "09B519244C0B43E6A9E0E2532C33CDAD34BC044911B926F35F36A636318F732D"
+    },
+    {
+      "operationId": "artifact.convert.vector3.extract_x",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector3.extract_x",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "value"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "A0D2A9F59D6C65C8E60C89E14C88D9D95500BEF78FA94ADDD4BCFA9E99BB5040"
+    },
+    {
+      "operationId": "artifact.convert.vector3.truncate_xy",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector3.truncate_xy",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "8A4706540B33D8360B5E8316A4FEEAE99306A7F50369B628E6FE6A991461CE7A"
+    },
+    {
+      "operationId": "artifact.convert.vector4.extract_x",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector4.extract_x",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "value"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "BF88019ECB9F7C8857CC83B4B14DC6C075BB78687507C0C02295877F2B2DA3E2"
+    },
+    {
+      "operationId": "artifact.convert.vector4.truncate_xy",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector4.truncate_xy",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "0DF8735231C004E4418B206C9C30F339BE5A5DC4AC4F1145296A2B7BB1454547"
+    },
+    {
+      "operationId": "artifact.convert.vector4.truncate_xyz",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.convert.vector4.truncate_xyz",
+        1
+      ],
+      "inputIds": [
+        "value"
+      ],
+      "outputIds": [
+        "vector"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": false,
+      "explicitConversionReference": true,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "C6D020DC5260E75BD2FA62BD84954966DC210A2F0BAEAF64C3D12F4C23A8CF24"
+    },
+    {
+      "operationId": "artifact.math.add.vector4",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.math.add.vector4",
+        1
+      ],
+      "inputIds": [
+        "a",
+        "b"
+      ],
+      "outputIds": [
+        "value"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "parameters",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "63D1E40C98A60749CCF6632BA8F53C823334DBF8367E1316E1C89304C06591A6"
+    },
+    {
+      "operationId": "artifact.math.clamp.sorted_bounds",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.math.clamp.sorted_bounds",
+        1
+      ],
+      "inputIds": [
+        "value",
+        "min",
+        "max"
+      ],
+      "outputIds": [
+        "result"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges",
+        "resolved defaults when unconnected"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "035420F9F642B3ADB89CD4A9B5DCD9BBF45549EF50061FDED626A596515484A3"
+    },
+    {
+      "operationId": "artifact.surface.principled.fields",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.surface.principled.fields",
+        1
+      ],
+      "inputIds": [
+        "base_color",
+        "metallic",
+        "roughness",
+        "emission_color",
+        "emission_strength",
+        "alpha",
+        "normal",
+        "occlusion"
+      ],
+      "outputIds": [
+        "surface"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-runtime-unverified",
+      "sourceRecordSha256": "56DF7C05358A914FAB7E9FC66D6CFEBD4C8FD626E11FB53DD7FFFAAE2A7233D6"
+    },
+    {
+      "operationId": "artifact.texture.material_slot_sample.color4",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.texture.material_slot_sample.color4",
+        1
+      ],
+      "inputIds": [
+        "uv"
+      ],
+      "outputIds": [
+        "color",
+        "alpha"
+      ],
+      "parameterIds": [
+        "material_slot"
+      ],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 1,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "parameters",
+        "typed input edges"
+      ],
+      "evidenceStatus": "source-audited-runtime-unverified",
+      "sourceRecordSha256": "D9333A16AB2BB7606F744FCE6C77F5A0253ECDB06C91FB9200B7A3E9376149C3"
+    },
+    {
+      "operationId": "artifact.vector4.invert.linear_factor",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.vector4.invert.linear_factor",
+        1
+      ],
+      "inputIds": [
+        "color",
+        "factor"
+      ],
+      "outputIds": [
+        "color"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges",
+        "resolved defaults when unconnected"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "5DA827017E58E47695631B6E884D4C10A6B2140892D803A05CDF21B3A5230FF9"
+    },
+    {
+      "operationId": "artifact.vector4.weighted_luminance.legacy_v1",
+      "semanticVersion": 1,
+      "registryKey": [
+        "artifact.vector4.weighted_luminance.legacy_v1",
+        1
+      ],
+      "inputIds": [
+        "color"
+      ],
+      "outputIds": [
+        "val"
+      ],
+      "parameterIds": [],
+      "familyCoverageReference": true,
+      "explicitConversionReference": false,
+      "resourceDependencyCount": 0,
+      "semanticHashFields": [
+        "operationId",
+        "semanticVersion",
+        "typed input edges",
+        "resolved default when unconnected"
+      ],
+      "evidenceStatus": "source-audited-cpu-formula-candidate",
+      "sourceRecordSha256": "92290C3D55CF78F48302F85B657BF85C9ED4DF3252AB91754081FC859634CD64"
+    }
+  ],
+  "coverage": {
+    "legacyNodeFamilies": {
+      "Value": [
+        "artifact.constant.scalar.float32"
+      ],
+      "RGB": [
+        "artifact.constant.color4.float32"
+      ],
+      "TexCoord": [
+        "artifact.context.texture_coordinates.uv"
+      ],
+      "Noise": [],
+      "Voronoi": [],
+      "ColorRamp": [
+        "artifact.color.ramp.linear_constant_ease"
+      ],
+      "ImageTexture": [
+        "artifact.texture.material_slot_sample.color4"
+      ],
+      "Math": [
+        "artifact.math.add.vector4"
+      ],
+      "MixRGB": [
+        "artifact.color.mix_rgb.overlay"
+      ],
+      "Principled": [
+        "artifact.surface.principled.fields"
+      ],
+      "MaterialOutput": [],
+      "Color": [],
+      "Output": [],
+      "Add": [],
+      "Geometry": [],
+      "Fresnel": [],
+      "LayerWeight": [],
+      "Blackbody": [],
+      "MixShader": [],
+      "NormalMap": [],
+      "Bump": [],
+      "Invert": [
+        "artifact.vector4.invert.linear_factor"
+      ],
+      "Gamma": [],
+      "HueSatVal": [],
+      "Luminance": [
+        "artifact.vector4.weighted_luminance.legacy_v1"
+      ],
+      "MapRange": [],
+      "Clamp": [
+        "artifact.math.clamp.sorted_bounds"
+      ]
+    },
+    "explicitConversions": [
+      "artifact.convert.scalar.replicate.2",
+      "artifact.convert.scalar.replicate.3",
+      "artifact.convert.scalar.replicate.rgb_alpha_one",
+      "artifact.convert.vector2.append_z_zero",
+      "artifact.convert.vector2.append_z_zero_alpha_one",
+      "artifact.convert.vector2.extract_x",
+      "artifact.convert.vector3.append_alpha_one",
+      "artifact.convert.vector3.extract_x",
+      "artifact.convert.vector3.truncate_xy",
+      "artifact.convert.vector4.extract_x",
+      "artifact.convert.vector4.truncate_xy",
+      "artifact.convert.vector4.truncate_xyz"
+    ],
+    "recordsOutsideLegacyFamilyCoverage": [
+      "artifact.constant.vector4.float32",
+      "artifact.convert.scalar.replicate.2",
+      "artifact.convert.scalar.replicate.3",
+      "artifact.convert.scalar.replicate.rgb_alpha_one",
+      "artifact.convert.vector2.append_z_zero",
+      "artifact.convert.vector2.append_z_zero_alpha_one",
+      "artifact.convert.vector2.extract_x",
+      "artifact.convert.vector3.append_alpha_one",
+      "artifact.convert.vector3.extract_x",
+      "artifact.convert.vector3.truncate_xy",
+      "artifact.convert.vector4.extract_x",
+      "artifact.convert.vector4.truncate_xy",
+      "artifact.convert.vector4.truncate_xyz"
+    ]
+  },
+  "promotionWaves": [
+    {
+      "wave": 0,
+      "name": "DocumentAndGraphValidation",
+      "operationIds": [],
+      "exitEvidence": [
+        "legacy-import compatibility policy selected",
+        "document round-trip and atomic validation runtime corpus",
+        "stable IDs and canonical bytes reviewed"
+      ],
+      "status": "not-started-blocked-by-runtime-compatibility-and-design-review"
+    },
+    {
+      "wave": 1,
+      "name": "ScalarAndColorConstants",
+      "operationIds": [
+        "artifact.constant.scalar.float32",
+        "artifact.constant.color4.float32",
+        "artifact.constant.vector4.float32"
+      ],
+      "exitEvidence": [
+        "finite binary32 and signed-zero executable goldens",
+        "default/unknown parameter compatibility tests",
+        "Color4 interpretation and alpha association decision"
+      ],
+      "status": "candidate-source-audited-runtime-unverified"
+    },
+    {
+      "wave": 2,
+      "name": "VectorMathAndExplicitConversions",
+      "operationIds": [
+        "artifact.math.add.vector4",
+        "artifact.convert.scalar.replicate.2",
+        "artifact.convert.scalar.replicate.3",
+        "artifact.convert.scalar.replicate.rgb_alpha_one",
+        "artifact.convert.vector2.extract_x",
+        "artifact.convert.vector2.append_z_zero",
+        "artifact.convert.vector2.append_z_zero_alpha_one",
+        "artifact.convert.vector3.extract_x",
+        "artifact.convert.vector3.truncate_xy",
+        "artifact.convert.vector3.append_alpha_one",
+        "artifact.convert.vector4.extract_x",
+        "artifact.convert.vector4.truncate_xy",
+        "artifact.convert.vector4.truncate_xyz"
+      ],
+      "exitEvidence": [
+        "operation-specific arity/default/domain executable corpus",
+        "conversion source mismatch and direct API policy agreement",
+        "binary32 boundary goldens and shader runtime parity"
+      ],
+      "status": "candidate-source-audited-runtime-unverified"
+    },
+    {
+      "wave": 3,
+      "name": "UVAndMaterialResources",
+      "operationIds": [
+        "artifact.context.texture_coordinates.uv",
+        "artifact.texture.material_slot_sample.color4"
+      ],
+      "exitEvidence": [
+        "UV set/transform ownership decided",
+        "resource identity/revision and missing-binding policy",
+        "sampler/color/alpha interpretation and per-slot GPU captures"
+      ],
+      "status": "blocked-by-unresolved-resource-and-coordinate-contracts"
+    },
+    {
+      "wave": 4,
+      "name": "ProceduralColorAndSurfaceOperations",
+      "operationIds": [
+        "artifact.color.mix_rgb.overlay",
+        "artifact.color.ramp.linear_constant_ease",
+        "artifact.surface.principled.fields",
+        "artifact.vector4.weighted_luminance.legacy_v1",
+        "artifact.math.clamp.sorted_bounds",
+        "artifact.vector4.invert.linear_factor"
+      ],
+      "exitEvidence": [
+        "all blend/ramp/domain semantics reviewed",
+        "surface field and alpha integration contract",
+        "normal space and renderer adapter evidence",
+        "D3D12/Vulkan image parity"
+      ],
+      "status": "blocked-by-operation-coverage-and-renderer-boundary-evidence"
+    }
+  ],
+  "waveCoverage": [
+    {
+      "wave": 0,
+      "name": "DocumentAndGraphValidation",
+      "operationIds": [],
+      "unknownOperationIds": [],
+      "status": "not-started-blocked-by-runtime-compatibility-and-design-review"
+    },
+    {
+      "wave": 1,
+      "name": "ScalarAndColorConstants",
+      "operationIds": [
+        "artifact.constant.scalar.float32",
+        "artifact.constant.color4.float32",
+        "artifact.constant.vector4.float32"
+      ],
+      "unknownOperationIds": [],
+      "status": "candidate-source-audited-runtime-unverified"
+    },
+    {
+      "wave": 2,
+      "name": "VectorMathAndExplicitConversions",
+      "operationIds": [
+        "artifact.math.add.vector4",
+        "artifact.convert.scalar.replicate.2",
+        "artifact.convert.scalar.replicate.3",
+        "artifact.convert.scalar.replicate.rgb_alpha_one",
+        "artifact.convert.vector2.extract_x",
+        "artifact.convert.vector2.append_z_zero",
+        "artifact.convert.vector2.append_z_zero_alpha_one",
+        "artifact.convert.vector3.extract_x",
+        "artifact.convert.vector3.truncate_xy",
+        "artifact.convert.vector3.append_alpha_one",
+        "artifact.convert.vector4.extract_x",
+        "artifact.convert.vector4.truncate_xy",
+        "artifact.convert.vector4.truncate_xyz"
+      ],
+      "unknownOperationIds": [],
+      "status": "candidate-source-audited-runtime-unverified"
+    },
+    {
+      "wave": 3,
+      "name": "UVAndMaterialResources",
+      "operationIds": [
+        "artifact.context.texture_coordinates.uv",
+        "artifact.texture.material_slot_sample.color4"
+      ],
+      "unknownOperationIds": [],
+      "status": "blocked-by-unresolved-resource-and-coordinate-contracts"
+    },
+    {
+      "wave": 4,
+      "name": "ProceduralColorAndSurfaceOperations",
+      "operationIds": [
+        "artifact.color.mix_rgb.overlay",
+        "artifact.color.ramp.linear_constant_ease",
+        "artifact.surface.principled.fields",
+        "artifact.vector4.weighted_luminance.legacy_v1",
+        "artifact.math.clamp.sorted_bounds",
+        "artifact.vector4.invert.linear_factor"
+      ],
+      "unknownOperationIds": [],
+      "status": "blocked-by-operation-coverage-and-renderer-boundary-evidence"
+    }
+  ],
+  "legacyPinContractAudit": {
+    "status": "manifest-cross-check-only-no-runtime-registry",
+    "families": [
+      {
+        "legacyNodeKind": "Value",
+        "coverage": "representative-record",
+        "inputPins": [],
+        "outputPins": [
+          {
+            "label": "Value",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "value.out.value",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [],
+          "outputs": [
+            {
+              "label": "Value",
+              "valueType": "Float"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "RGB",
+        "coverage": "representative-record",
+        "inputPins": [],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "color.out.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "TexCoord",
+        "coverage": "representative-record",
+        "inputPins": [],
+        "outputPins": [
+          {
+            "label": "UV",
+            "direction": "output",
+            "declaredType": "Vector2",
+            "legacyObservedType": "Vector2",
+            "sourceObservedType": "Vector2",
+            "stableSocketId": "coordinates.out.uv",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [],
+          "outputs": [
+            {
+              "label": "UV",
+              "valueType": "Vector2"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Noise",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Scale",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "noise.in.scale",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Vector",
+            "direction": "input",
+            "declaredType": "Vector2",
+            "legacyObservedType": "Vector2",
+            "sourceObservedType": "Vector2",
+            "stableSocketId": "noise.in.vector",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "noise.out.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Fac",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "noise.out.factor",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Vector",
+              "valueType": "Vector2"
+            },
+            {
+              "label": "Scale",
+              "valueType": "Float"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Fac",
+              "valueType": "Float"
+            },
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Voronoi",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Scale",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "voronoi.in.scale",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Vector",
+            "direction": "input",
+            "declaredType": "Vector2",
+            "legacyObservedType": "Vector2",
+            "sourceObservedType": "Vector2",
+            "stableSocketId": "voronoi.in.vector",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "voronoi.out.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Distance",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "voronoi.out.distance",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Vector",
+              "valueType": "Vector2"
+            },
+            {
+              "label": "Scale",
+              "valueType": "Float"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Distance",
+              "valueType": "Float"
+            },
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "ColorRamp",
+        "coverage": "representative-record",
+        "inputPins": [
+          {
+            "label": "Fac",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "ramp.in.factor",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Alpha",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "ramp.out.alpha",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "ramp.out.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Fac",
+              "valueType": "Float"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            },
+            {
+              "label": "Alpha",
+              "valueType": "Float"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "ImageTexture",
+        "coverage": "representative-record",
+        "inputPins": [
+          {
+            "label": "UV",
+            "direction": "input",
+            "declaredType": "Vector2",
+            "legacyObservedType": "Vector2",
+            "sourceObservedType": "Vector2",
+            "stableSocketId": "image_texture.in.uv",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Alpha",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "image_texture.out.alpha",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "image_texture.out.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "UV",
+              "valueType": "Vector2"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            },
+            {
+              "label": "Alpha",
+              "valueType": "Float"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Math",
+        "coverage": "partial-record",
+        "inputPins": [
+          {
+            "label": "A",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "math.in.a",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "B",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "math.in.b",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Fac",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "math.in.factor",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Value",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "math.out.value",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "A",
+              "valueType": "Vector4"
+            },
+            {
+              "label": "B",
+              "valueType": "Vector4"
+            },
+            {
+              "label": "Fac",
+              "valueType": "Float"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Value",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "MixRGB",
+        "coverage": "partial-record",
+        "inputPins": [
+          {
+            "label": "Color1",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "mix_rgb.in.color_1",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Color2",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "mix_rgb.in.color_2",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Fac",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "mix_rgb.in.factor",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "mix_rgb.out.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Fac",
+              "valueType": "Float"
+            },
+            {
+              "label": "Color1",
+              "valueType": "Vector4"
+            },
+            {
+              "label": "Color2",
+              "valueType": "Vector4"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Principled",
+        "coverage": "representative-record",
+        "inputPins": [
+          {
+            "label": "Alpha",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "surface.in.alpha",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "BaseColor",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "surface.in.base_color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "EmissionColor",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "surface.in.emission_color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "EmissionStrength",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "surface.in.emission_strength",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Metallic",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "surface.in.metallic",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Normal",
+            "direction": "input",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "surface.in.normal",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Occlusion",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "surface.in.occlusion",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Roughness",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "surface.in.roughness",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "BSDF",
+            "direction": "output",
+            "declaredType": "Shader",
+            "legacyObservedType": "Shader",
+            "sourceObservedType": "Shader",
+            "stableSocketId": "surface.out.bsdf",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "BaseColor",
+              "valueType": "Vector4"
+            },
+            {
+              "label": "Metallic",
+              "valueType": "Float"
+            },
+            {
+              "label": "Roughness",
+              "valueType": "Float"
+            },
+            {
+              "label": "EmissionColor",
+              "valueType": "Vector4"
+            },
+            {
+              "label": "EmissionStrength",
+              "valueType": "Float"
+            },
+            {
+              "label": "Alpha",
+              "valueType": "Float"
+            },
+            {
+              "label": "Normal",
+              "valueType": "Vector3"
+            },
+            {
+              "label": "Occlusion",
+              "valueType": "Float"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "BSDF",
+              "valueType": "Shader"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "MaterialOutput",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Displacement",
+            "direction": "input",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "output.in.world_normal_override",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Surface",
+            "direction": "input",
+            "declaredType": "Shader",
+            "legacyObservedType": "Shader",
+            "sourceObservedType": "Shader",
+            "stableSocketId": "output.in.surface",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Surface",
+              "valueType": "Shader"
+            },
+            {
+              "label": "Displacement",
+              "valueType": "Vector3"
+            }
+          ],
+          "outputs": []
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Color",
+        "coverage": "no-record-yet",
+        "inputPins": [],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "legacy_color.out.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Output",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Surface",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "legacy_output.in.surface",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Surface",
+              "valueType": "Vector4"
+            }
+          ],
+          "outputs": []
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Add",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "A",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "legacy_add.in.a",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "B",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "legacy_add.in.b",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Result",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "legacy_add.out.result",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "A",
+              "valueType": "Vector4"
+            },
+            {
+              "label": "B",
+              "valueType": "Vector4"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Result",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Geometry",
+        "coverage": "no-record-yet",
+        "inputPins": [],
+        "outputPins": [
+          {
+            "label": "Incoming",
+            "direction": "output",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "geometry.out.incoming",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Normal",
+            "direction": "output",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "geometry.out.normal",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Position",
+            "direction": "output",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "geometry.out.position",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [],
+          "outputs": [
+            {
+              "label": "Position",
+              "valueType": "Vector3"
+            },
+            {
+              "label": "Normal",
+              "valueType": "Vector3"
+            },
+            {
+              "label": "Incoming",
+              "valueType": "Vector3"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Fresnel",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "IOR",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "fresnel.in.ior",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Normal",
+            "direction": "input",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "fresnel.in.normal",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Fac",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "fresnel.out.factor",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "IOR",
+              "valueType": "Float"
+            },
+            {
+              "label": "Normal",
+              "valueType": "Vector3"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Fac",
+              "valueType": "Float"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "LayerWeight",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Blend",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "layer_weight.in.blend",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Normal",
+            "direction": "input",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "layer_weight.in.normal",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Facing",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "layer_weight.out.facing",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Fresnel",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "layer_weight.out.fresnel",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Blend",
+              "valueType": "Float"
+            },
+            {
+              "label": "Normal",
+              "valueType": "Vector3"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Fresnel",
+              "valueType": "Float"
+            },
+            {
+              "label": "Facing",
+              "valueType": "Float"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Blackbody",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Temperature",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "blackbody.in.temperature",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "blackbody.out.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Temperature",
+              "valueType": "Float"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "MixShader",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "A",
+            "direction": "input",
+            "declaredType": "Shader",
+            "legacyObservedType": "Shader",
+            "sourceObservedType": "Shader",
+            "stableSocketId": "mix_shader.in.a",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "B",
+            "direction": "input",
+            "declaredType": "Shader",
+            "legacyObservedType": "Shader",
+            "sourceObservedType": "Shader",
+            "stableSocketId": "mix_shader.in.b",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Fac",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "mix_shader.in.factor",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Shader",
+            "direction": "output",
+            "declaredType": "Shader",
+            "legacyObservedType": "Shader",
+            "sourceObservedType": "Shader",
+            "stableSocketId": "mix_shader.out.shader",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Fac",
+              "valueType": "Float"
+            },
+            {
+              "label": "A",
+              "valueType": "Shader"
+            },
+            {
+              "label": "B",
+              "valueType": "Shader"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Shader",
+              "valueType": "Shader"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "NormalMap",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Color",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "normal_map.in.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Strength",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "normal_map.in.strength",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Normal",
+            "direction": "output",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "normal_map.out.normal",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Strength",
+              "valueType": "Float"
+            },
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Normal",
+              "valueType": "Vector3"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Bump",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Distance",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "bump.in.distance",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Height",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "bump.in.height",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Normal",
+            "direction": "input",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "bump.in.normal",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Strength",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "bump.in.strength",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Normal",
+            "direction": "output",
+            "declaredType": "Vector3",
+            "legacyObservedType": "Vector3",
+            "sourceObservedType": "Vector3",
+            "stableSocketId": "bump.in.normal",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Strength",
+              "valueType": "Float"
+            },
+            {
+              "label": "Distance",
+              "valueType": "Float"
+            },
+            {
+              "label": "Height",
+              "valueType": "Float"
+            },
+            {
+              "label": "Normal",
+              "valueType": "Vector3"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Normal",
+              "valueType": "Vector3"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Invert",
+        "coverage": "representative-record",
+        "inputPins": [
+          {
+            "label": "Color",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "invert.in.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Fac",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "invert.in.factor",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "invert.in.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Fac",
+              "valueType": "Float"
+            },
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Gamma",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Color",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "gamma.in.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Gamma",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "gamma.in.gamma",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "gamma.in.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Gamma",
+              "valueType": "Float"
+            },
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "HueSatVal",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "Color",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "hue_sat_val.in.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Fac",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "hue_sat_val.in.factor",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Hue",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "hue_sat_val.in.hue",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Saturation",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "hue_sat_val.in.saturation",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Value",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "hue_sat_val.in.value",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Color",
+            "direction": "output",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "hue_sat_val.in.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Hue",
+              "valueType": "Float"
+            },
+            {
+              "label": "Saturation",
+              "valueType": "Float"
+            },
+            {
+              "label": "Value",
+              "valueType": "Float"
+            },
+            {
+              "label": "Fac",
+              "valueType": "Float"
+            },
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Luminance",
+        "coverage": "representative-record",
+        "inputPins": [
+          {
+            "label": "Color",
+            "direction": "input",
+            "declaredType": "Vector4",
+            "legacyObservedType": "Vector4",
+            "sourceObservedType": "Vector4",
+            "stableSocketId": "luminance.in.color",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Val",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "luminance.out.val",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Color",
+              "valueType": "Vector4"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Val",
+              "valueType": "Float"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "MapRange",
+        "coverage": "no-record-yet",
+        "inputPins": [
+          {
+            "label": "FromMax",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "map_range.in.from_max",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "FromMin",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "map_range.in.from_min",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Steps",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "map_range.in.steps",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "ToMax",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "map_range.in.to_max",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "ToMin",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "map_range.in.to_min",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Value",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "map_range.in.value",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Result",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "map_range.out.result",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Value",
+              "valueType": "Float"
+            },
+            {
+              "label": "FromMin",
+              "valueType": "Float"
+            },
+            {
+              "label": "FromMax",
+              "valueType": "Float"
+            },
+            {
+              "label": "ToMin",
+              "valueType": "Float"
+            },
+            {
+              "label": "ToMax",
+              "valueType": "Float"
+            },
+            {
+              "label": "Steps",
+              "valueType": "Float"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Result",
+              "valueType": "Float"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Clamp",
+        "coverage": "representative-record",
+        "inputPins": [
+          {
+            "label": "Max",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "clamp.in.max",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Min",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "clamp.in.min",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          },
+          {
+            "label": "Value",
+            "direction": "input",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "clamp.in.value",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "outputPins": [
+          {
+            "label": "Result",
+            "direction": "output",
+            "declaredType": "Float",
+            "legacyObservedType": "Float",
+            "sourceObservedType": "Float",
+            "stableSocketId": "clamp.out.result",
+            "typeMatches": true,
+            "sourceMatches": true,
+            "stableIdPresent": true
+          }
+        ],
+        "sourcePins": {
+          "inputs": [
+            {
+              "label": "Value",
+              "valueType": "Float"
+            },
+            {
+              "label": "Min",
+              "valueType": "Float"
+            },
+            {
+              "label": "Max",
+              "valueType": "Float"
+            }
+          ],
+          "outputs": [
+            {
+              "label": "Result",
+              "valueType": "Float"
+            }
+          ]
+        },
+        "uncharacterizedSourcePins": [],
+        "completeDeclaredPinCoverage": true,
+        "runtimeSupportClaim": false
+      }
+    ],
+    "operationSocketBindings": [
+      {
+        "legacyNodeKind": "Value",
+        "operationId": "artifact.constant.scalar.float32",
+        "bindings": [
+          {
+            "direction": "output",
+            "operationSocketId": "value",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Value",
+            "legacyValueType": "Float",
+            "stableSocketId": "value.out.value",
+            "adapter": "identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "RGB",
+        "operationId": "artifact.constant.color4.float32",
+        "bindings": [
+          {
+            "direction": "output",
+            "operationSocketId": "color",
+            "operationValueType": "Color4",
+            "legacySocketLabel": "Color",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "color.out.color",
+            "adapter": "Vector4-to-Color4-component-identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "TexCoord",
+        "operationId": "artifact.context.texture_coordinates.uv",
+        "bindings": [
+          {
+            "direction": "output",
+            "operationSocketId": "uv",
+            "operationValueType": "Vector2",
+            "legacySocketLabel": "UV",
+            "legacyValueType": "Vector2",
+            "stableSocketId": "coordinates.out.uv",
+            "adapter": "identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "ColorRamp",
+        "operationId": "artifact.color.ramp.linear_constant_ease",
+        "bindings": [
+          {
+            "direction": "input",
+            "operationSocketId": "factor",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Fac",
+            "legacyValueType": "Float",
+            "stableSocketId": "ramp.in.factor",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "color",
+            "operationValueType": "Color4",
+            "legacySocketLabel": "Color",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "ramp.out.color",
+            "adapter": "Vector4-to-Color4-component-identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "alpha",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Alpha",
+            "legacyValueType": "Float",
+            "stableSocketId": "ramp.out.alpha",
+            "adapter": "identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "ImageTexture",
+        "operationId": "artifact.texture.material_slot_sample.color4",
+        "bindings": [
+          {
+            "direction": "input",
+            "operationSocketId": "uv",
+            "operationValueType": "Vector2",
+            "legacySocketLabel": "UV",
+            "legacyValueType": "Vector2",
+            "stableSocketId": "image_texture.in.uv",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "color",
+            "operationValueType": "Color4",
+            "legacySocketLabel": "Color",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "image_texture.out.color",
+            "adapter": "Vector4-to-Color4-component-identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "alpha",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Alpha",
+            "legacyValueType": "Float",
+            "stableSocketId": "image_texture.out.alpha",
+            "adapter": "identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Math",
+        "operationId": "artifact.math.add.vector4",
+        "bindings": [
+          {
+            "direction": "input",
+            "operationSocketId": "a",
+            "operationValueType": "Vector4",
+            "legacySocketLabel": "A",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "math.in.a",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "b",
+            "operationValueType": "Vector4",
+            "legacySocketLabel": "B",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "math.in.b",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "value",
+            "operationValueType": "Vector4",
+            "legacySocketLabel": "Value",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "math.out.value",
+            "adapter": "identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "MixRGB",
+        "operationId": "artifact.color.mix_rgb.overlay",
+        "bindings": [
+          {
+            "direction": "input",
+            "operationSocketId": "color1",
+            "operationValueType": "Color4",
+            "legacySocketLabel": "Color1",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "mix_rgb.in.color_1",
+            "adapter": "Vector4-to-Color4-component-identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "color2",
+            "operationValueType": "Color4",
+            "legacySocketLabel": "Color2",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "mix_rgb.in.color_2",
+            "adapter": "Vector4-to-Color4-component-identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "factor",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Fac",
+            "legacyValueType": "Float",
+            "stableSocketId": "mix_rgb.in.factor",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "color",
+            "operationValueType": "Color4",
+            "legacySocketLabel": "Color",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "mix_rgb.out.color",
+            "adapter": "Vector4-to-Color4-component-identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Principled",
+        "operationId": "artifact.surface.principled.fields",
+        "bindings": [
+          {
+            "direction": "input",
+            "operationSocketId": "base_color",
+            "operationValueType": "Color4",
+            "legacySocketLabel": "BaseColor",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "surface.in.base_color",
+            "adapter": "Vector4-to-Color4-component-identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "metallic",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Metallic",
+            "legacyValueType": "Float",
+            "stableSocketId": "surface.in.metallic",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "roughness",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Roughness",
+            "legacyValueType": "Float",
+            "stableSocketId": "surface.in.roughness",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "emission_color",
+            "operationValueType": "Color4",
+            "legacySocketLabel": "EmissionColor",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "surface.in.emission_color",
+            "adapter": "Vector4-to-Color4-component-identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "emission_strength",
+            "operationValueType": "Float",
+            "legacySocketLabel": "EmissionStrength",
+            "legacyValueType": "Float",
+            "stableSocketId": "surface.in.emission_strength",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "alpha",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Alpha",
+            "legacyValueType": "Float",
+            "stableSocketId": "surface.in.alpha",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "normal",
+            "operationValueType": "Vector3",
+            "legacySocketLabel": "Normal",
+            "legacyValueType": "Vector3",
+            "stableSocketId": "surface.in.normal",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "occlusion",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Occlusion",
+            "legacyValueType": "Float",
+            "stableSocketId": "surface.in.occlusion",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "surface",
+            "operationValueType": "SurfaceFields",
+            "legacySocketLabel": "BSDF",
+            "legacyValueType": "Shader",
+            "stableSocketId": "surface.out.bsdf",
+            "adapter": "Shader-to-SurfaceFields-renderer-adapter-unverified",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Invert",
+        "operationId": "artifact.vector4.invert.linear_factor",
+        "bindings": [
+          {
+            "direction": "input",
+            "operationSocketId": "color",
+            "operationValueType": "Vector4",
+            "legacySocketLabel": "Color",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "invert.in.color",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "factor",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Fac",
+            "legacyValueType": "Float",
+            "stableSocketId": "invert.in.factor",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "color",
+            "operationValueType": "Vector4",
+            "legacySocketLabel": "Color",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "invert.in.color",
+            "adapter": "identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Luminance",
+        "operationId": "artifact.vector4.weighted_luminance.legacy_v1",
+        "bindings": [
+          {
+            "direction": "input",
+            "operationSocketId": "color",
+            "operationValueType": "Vector4",
+            "legacySocketLabel": "Color",
+            "legacyValueType": "Vector4",
+            "stableSocketId": "luminance.in.color",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "val",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Val",
+            "legacyValueType": "Float",
+            "stableSocketId": "luminance.out.val",
+            "adapter": "identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      },
+      {
+        "legacyNodeKind": "Clamp",
+        "operationId": "artifact.math.clamp.sorted_bounds",
+        "bindings": [
+          {
+            "direction": "input",
+            "operationSocketId": "value",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Value",
+            "legacyValueType": "Float",
+            "stableSocketId": "clamp.in.value",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "min",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Min",
+            "legacyValueType": "Float",
+            "stableSocketId": "clamp.in.min",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "input",
+            "operationSocketId": "max",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Max",
+            "legacyValueType": "Float",
+            "stableSocketId": "clamp.in.max",
+            "adapter": "identity",
+            "valid": true
+          },
+          {
+            "direction": "output",
+            "operationSocketId": "result",
+            "operationValueType": "Float",
+            "legacySocketLabel": "Result",
+            "legacyValueType": "Float",
+            "stableSocketId": "clamp.out.result",
+            "adapter": "identity",
+            "valid": true
+          }
+        ],
+        "runtimeSupportClaim": false
+      }
+    ],
+    "operationSocketBindingErrors": [],
+    "sourceFamilyInventory": [
+      "Add",
+      "Blackbody",
+      "Bump",
+      "Clamp",
+      "Color",
+      "ColorRamp",
+      "Fresnel",
+      "Gamma",
+      "Geometry",
+      "HueSatVal",
+      "ImageTexture",
+      "Invert",
+      "LayerWeight",
+      "Luminance",
+      "MapRange",
+      "MaterialOutput",
+      "Math",
+      "MixRGB",
+      "MixShader",
+      "Noise",
+      "NormalMap",
+      "Output",
+      "Principled",
+      "RGB",
+      "TexCoord",
+      "Value",
+      "Voronoi"
+    ],
+    "allSourcePinsByFamily": {
+      "Color": {
+        "inputs": [],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "Output": {
+        "inputs": [
+          {
+            "label": "Surface",
+            "valueType": "Vector4"
+          }
+        ],
+        "outputs": []
+      },
+      "Add": {
+        "inputs": [
+          {
+            "label": "A",
+            "valueType": "Vector4"
+          },
+          {
+            "label": "B",
+            "valueType": "Vector4"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Result",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "Value": {
+        "inputs": [],
+        "outputs": [
+          {
+            "label": "Value",
+            "valueType": "Float"
+          }
+        ]
+      },
+      "RGB": {
+        "inputs": [],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "TexCoord": {
+        "inputs": [],
+        "outputs": [
+          {
+            "label": "UV",
+            "valueType": "Vector2"
+          }
+        ]
+      },
+      "Geometry": {
+        "inputs": [],
+        "outputs": [
+          {
+            "label": "Position",
+            "valueType": "Vector3"
+          },
+          {
+            "label": "Normal",
+            "valueType": "Vector3"
+          },
+          {
+            "label": "Incoming",
+            "valueType": "Vector3"
+          }
+        ]
+      },
+      "Fresnel": {
+        "inputs": [
+          {
+            "label": "IOR",
+            "valueType": "Float"
+          },
+          {
+            "label": "Normal",
+            "valueType": "Vector3"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Fac",
+            "valueType": "Float"
+          }
+        ]
+      },
+      "LayerWeight": {
+        "inputs": [
+          {
+            "label": "Blend",
+            "valueType": "Float"
+          },
+          {
+            "label": "Normal",
+            "valueType": "Vector3"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Fresnel",
+            "valueType": "Float"
+          },
+          {
+            "label": "Facing",
+            "valueType": "Float"
+          }
+        ]
+      },
+      "Blackbody": {
+        "inputs": [
+          {
+            "label": "Temperature",
+            "valueType": "Float"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "ImageTexture": {
+        "inputs": [
+          {
+            "label": "UV",
+            "valueType": "Vector2"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          },
+          {
+            "label": "Alpha",
+            "valueType": "Float"
+          }
+        ]
+      },
+      "Noise": {
+        "inputs": [
+          {
+            "label": "Vector",
+            "valueType": "Vector2"
+          },
+          {
+            "label": "Scale",
+            "valueType": "Float"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Fac",
+            "valueType": "Float"
+          },
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "Voronoi": {
+        "inputs": [
+          {
+            "label": "Vector",
+            "valueType": "Vector2"
+          },
+          {
+            "label": "Scale",
+            "valueType": "Float"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Distance",
+            "valueType": "Float"
+          },
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "MixRGB": {
+        "inputs": [
+          {
+            "label": "Fac",
+            "valueType": "Float"
+          },
+          {
+            "label": "Color1",
+            "valueType": "Vector4"
+          },
+          {
+            "label": "Color2",
+            "valueType": "Vector4"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "ColorRamp": {
+        "inputs": [
+          {
+            "label": "Fac",
+            "valueType": "Float"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          },
+          {
+            "label": "Alpha",
+            "valueType": "Float"
+          }
+        ]
+      },
+      "Math": {
+        "inputs": [
+          {
+            "label": "A",
+            "valueType": "Vector4"
+          },
+          {
+            "label": "B",
+            "valueType": "Vector4"
+          },
+          {
+            "label": "Fac",
+            "valueType": "Float"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Value",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "Principled": {
+        "inputs": [
+          {
+            "label": "BaseColor",
+            "valueType": "Vector4"
+          },
+          {
+            "label": "Metallic",
+            "valueType": "Float"
+          },
+          {
+            "label": "Roughness",
+            "valueType": "Float"
+          },
+          {
+            "label": "EmissionColor",
+            "valueType": "Vector4"
+          },
+          {
+            "label": "EmissionStrength",
+            "valueType": "Float"
+          },
+          {
+            "label": "Alpha",
+            "valueType": "Float"
+          },
+          {
+            "label": "Normal",
+            "valueType": "Vector3"
+          },
+          {
+            "label": "Occlusion",
+            "valueType": "Float"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "BSDF",
+            "valueType": "Shader"
+          }
+        ]
+      },
+      "MixShader": {
+        "inputs": [
+          {
+            "label": "Fac",
+            "valueType": "Float"
+          },
+          {
+            "label": "A",
+            "valueType": "Shader"
+          },
+          {
+            "label": "B",
+            "valueType": "Shader"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Shader",
+            "valueType": "Shader"
+          }
+        ]
+      },
+      "MaterialOutput": {
+        "inputs": [
+          {
+            "label": "Surface",
+            "valueType": "Shader"
+          },
+          {
+            "label": "Displacement",
+            "valueType": "Vector3"
+          }
+        ],
+        "outputs": []
+      },
+      "NormalMap": {
+        "inputs": [
+          {
+            "label": "Strength",
+            "valueType": "Float"
+          },
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Normal",
+            "valueType": "Vector3"
+          }
+        ]
+      },
+      "Bump": {
+        "inputs": [
+          {
+            "label": "Strength",
+            "valueType": "Float"
+          },
+          {
+            "label": "Distance",
+            "valueType": "Float"
+          },
+          {
+            "label": "Height",
+            "valueType": "Float"
+          },
+          {
+            "label": "Normal",
+            "valueType": "Vector3"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Normal",
+            "valueType": "Vector3"
+          }
+        ]
+      },
+      "Invert": {
+        "inputs": [
+          {
+            "label": "Fac",
+            "valueType": "Float"
+          },
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "Gamma": {
+        "inputs": [
+          {
+            "label": "Gamma",
+            "valueType": "Float"
+          },
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "HueSatVal": {
+        "inputs": [
+          {
+            "label": "Hue",
+            "valueType": "Float"
+          },
+          {
+            "label": "Saturation",
+            "valueType": "Float"
+          },
+          {
+            "label": "Value",
+            "valueType": "Float"
+          },
+          {
+            "label": "Fac",
+            "valueType": "Float"
+          },
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ]
+      },
+      "Luminance": {
+        "inputs": [
+          {
+            "label": "Color",
+            "valueType": "Vector4"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Val",
+            "valueType": "Float"
+          }
+        ]
+      },
+      "MapRange": {
+        "inputs": [
+          {
+            "label": "Value",
+            "valueType": "Float"
+          },
+          {
+            "label": "FromMin",
+            "valueType": "Float"
+          },
+          {
+            "label": "FromMax",
+            "valueType": "Float"
+          },
+          {
+            "label": "ToMin",
+            "valueType": "Float"
+          },
+          {
+            "label": "ToMax",
+            "valueType": "Float"
+          },
+          {
+            "label": "Steps",
+            "valueType": "Float"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Result",
+            "valueType": "Float"
+          }
+        ]
+      },
+      "Clamp": {
+        "inputs": [
+          {
+            "label": "Value",
+            "valueType": "Float"
+          },
+          {
+            "label": "Min",
+            "valueType": "Float"
+          },
+          {
+            "label": "Max",
+            "valueType": "Float"
+          }
+        ],
+        "outputs": [
+          {
+            "label": "Result",
+            "valueType": "Float"
+          }
+        ]
+      }
+    },
+    "sourceFamiliesMissingCoverageRows": [],
+    "familiesWithDeclaredPins": 27,
+    "familiesWithSourcePins": 27,
+    "pinCount": 90,
+    "mismatchedOrUnidentifiedPins": [],
+    "sourcePath": "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp",
+    "sourceSha256": "5A177E2BED0634AE4329D0679FCA2055CEC6283613E6E3E35FF415837E297C45",
+    "sourceAuditScope": "constructor addInput/addOutput declarations for manifest-characterized families only"
+  },
+  "limitations": [
+    "records are proposal metadata and do not prove a runtime registry or lowering implementation",
+    "sourceRecordSha256 is an audit digest, not a Core semantic hash",
+    "resource dependencies describe symbolic requirements and do not resolve assets or backend bindings",
+    "evidenceStatus does not include executed CPU contract tests, shader compilation, GPU output, or backend parity"
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-ramp-formula-golden",
+  "status": "candidate-core-math-only-not-runtime-evidence",
+  "arithmetic": "IEEE-754 binary32 round-to-nearest at each declared arithmetic operation; no fused multiply-add",
+  "factorDomain": "clamp to the minimum and maximum finite stop positions after stable sorting",
+  "interpolation": "linear",
+  "stopOrdering": "stable ascending (position, authored array index)",
+  "exactTieRule": "first authored stop at the exact tied position; interpolate adjacent distinct-position intervals on either side",
+  "cases": [
+    {
+      "fixture": "ramp_duplicate_stops_forward.json",
+      "fixtureSha256": "2CE79B82F30340411D8189632191344BE672FA733B38D3C9B21B079DAD23362A",
+      "samples": [
+        {
+          "factor": 0.0,
+          "linearRgbaBinary32": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "factor": 0.4999,
+          "linearRgbaBinary32": [
+            0.9998000264167786,
+            0.0,
+            0.0,
+            0.2501499652862549
+          ]
+        },
+        {
+          "factor": 0.5,
+          "linearRgbaBinary32": [
+            1.0,
+            0.0,
+            0.0,
+            0.25
+          ]
+        },
+        {
+          "factor": 0.5001,
+          "linearRgbaBinary32": [
+            0.00020003318786621094,
+            0.00020003318786621094,
+            1.0,
+            0.7500500082969666
+          ]
+        },
+        {
+          "factor": 1.0,
+          "linearRgbaBinary32": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "ramp_duplicate_stops_reversed.json",
+      "fixtureSha256": "6FFF6666D47BF682C0D5101860BFA1B2127616AEFE378E1BB94B7273A68E18F3",
+      "samples": [
+        {
+          "factor": 0.0,
+          "linearRgbaBinary32": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "factor": 0.4999,
+          "linearRgbaBinary32": [
+            0.0,
+            0.0,
+            0.9998000264167786,
+            0.7500500082969666
+          ]
+        },
+        {
+          "factor": 0.5,
+          "linearRgbaBinary32": [
+            0.0,
+            0.0,
+            1.0,
+            0.75
+          ]
+        },
+        {
+          "factor": 0.5001,
+          "linearRgbaBinary32": [
+            1.0,
+            0.00020003318786621094,
+            0.00020003318786621094,
+            0.25015002489089966
+          ]
+        },
+        {
+          "factor": 1.0,
+          "linearRgbaBinary32": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    }
+  ]
+}

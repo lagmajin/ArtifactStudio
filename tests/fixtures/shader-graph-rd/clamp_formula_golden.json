@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-clamp-formula-golden",
+  "status": "source-derived-cpu-formula-candidate-no-renderer-runtime",
+  "operationId": "artifact.math.clamp.sorted_bounds",
+  "legacyInputType": "Float",
+  "legacyOutputType": "Float",
+  "formula": "clamp(value, min(minimum, maximum), max(minimum, maximum))",
+  "cases": [
+    {
+      "caseId": "inside-range",
+      "value": 0.5,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "expectedFloat32": 0.5
+    },
+    {
+      "caseId": "below-range",
+      "value": -0.5,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "expectedFloat32": 0.0
+    },
+    {
+      "caseId": "above-range",
+      "value": 1.5,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "expectedFloat32": 1.0
+    },
+    {
+      "caseId": "reversed-bounds-low",
+      "value": 0.1,
+      "minimum": 0.8,
+      "maximum": 0.2,
+      "expectedFloat32": 0.20000000298023224
+    },
+    {
+      "caseId": "reversed-bounds-high",
+      "value": 0.9,
+      "minimum": 0.8,
+      "maximum": 0.2,
+      "expectedFloat32": 0.800000011920929
+    },
+    {
+      "caseId": "equal-bounds",
+      "value": 0.2,
+      "minimum": 0.5,
+      "maximum": 0.5,
+      "expectedFloat32": 0.5
+    },
+    {
+      "caseId": "negative-domain",
+      "value": -2.0,
+      "minimum": -1.0,
+      "maximum": 1.0,
+      "expectedFloat32": -1.0
+    }
+  ],
+  "limitations": [
+    "candidate formula is pinned to current Artifact source; Blender parity is not claimed",
+    "only finite binary32 inputs are modeled; non-finite handling belongs to document validation",
+    "CPU binary32 evaluation does not establish HLSL compiler contraction, GPU precision, or backend parity",
+    "no Core operation registry or lowering is implemented"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "kind": "unrelated-document",
+  "nodes": [
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": []
+}

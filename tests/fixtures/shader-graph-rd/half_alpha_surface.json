@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "base_color", "type": "RGB", "params": {"r": 0.8, "g": 0.2, "b": 0.1, "a": 1.0}},
+    {"id": "half_opacity", "type": "Value", "params": {"value": 0.5}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "base_color", "out": "Color", "to": "surface", "in": "BaseColor"},
+    {"from": "half_opacity", "out": "Value", "to": "surface", "in": "Alpha"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

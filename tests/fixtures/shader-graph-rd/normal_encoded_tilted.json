@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "normal_value", "type": "RGB", "params": {"r": 0.78, "g": 0.56, "b": 0.92, "a": 1.0}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "normal_value", "out": "Color", "to": "surface", "in": "Normal"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "surface", "type": "Principled", "params": {}, "extension": {"vendor": "example", "opaque": [1, 2, 3]}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface", "extension": {"futureFlag": true}}
+  ],
+  "documentExtension": {"preserveExactly": "forward-compatible metadata"}
+}

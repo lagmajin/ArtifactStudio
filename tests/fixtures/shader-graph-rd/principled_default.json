@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "principled", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "principled", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

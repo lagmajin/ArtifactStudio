@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-mixrgb-formula-golden",
+  "status": "candidate-cpu-formula-only-not-hlsl-runtime-or-backend-evidence",
+  "sourcePath": "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp",
+  "sourceSha256": "5A177E2BED0634AE4329D0679FCA2055CEC6283613E6E3E35FF415837E297C45",
+  "arithmetic": "candidate IEEE-754 binary32 with explicit round points; HLSL lerp/intrinsic lowering and fast-math may differ",
+  "alphaRule": "candidate linear interpolation independent of RGB blend; clampResult does not clamp alpha",
+  "cases": [
+    {
+      "mode": "mix",
+      "fixture": "mixrgb_mix.json",
+      "fixtureSha256": "FA12CFEF7668408AC43EA00D83AC3A1C0101977A873466D6C8A26BD1C2CD1172",
+      "inputs": {
+        "Color1": [
+          0.25,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.75,
+          0.25,
+          0.5,
+          0.75
+        ],
+        "Fac": 0.4,
+        "clampFactor": false,
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.44999998807907104,
+        0.550000011920929,
+        0.5,
+        0.44999998807907104
+      ]
+    },
+    {
+      "mode": "add",
+      "fixture": "mixrgb_add.json",
+      "fixtureSha256": "47DD9E21F4B8CF3BD85C8FFFA6B4222B45AF8C9598755939770EDBF2D546AA47",
+      "inputs": {
+        "Color1": [
+          0.25,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.75,
+          0.25,
+          0.5,
+          0.75
+        ],
+        "Fac": 0.4,
+        "clampFactor": false,
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.550000011920929,
+        0.8500000238418579,
+        0.699999988079071,
+        0.44999998807907104
+      ]
+    },
+    {
+      "mode": "multiply",
+      "fixture": "mixrgb_multiply.json",
+      "fixtureSha256": "BB5DFB54AB1F6CF3A36CEC504B352D1E05BBCBC3747C58647179491FCB976787",
+      "inputs": {
+        "Color1": [
+          0.25,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.75,
+          0.25,
+          0.5,
+          0.75
+        ],
+        "Fac": 0.4,
+        "clampFactor": false,
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.22499999403953552,
+        0.5249999761581421,
+        0.4000000059604645,
+        0.44999998807907104
+      ]
+    },
+    {
+      "mode": "screen",
+      "fixture": "mixrgb_screen.json",
+      "fixtureSha256": "C8E3DE31A858A137187A3B8DF2593B900639EAF9C45FE44CD08C50CBF72D7F5F",
+      "inputs": {
+        "Color1": [
+          0.25,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.75,
+          0.25,
+          0.5,
+          0.75
+        ],
+        "Fac": 0.4,
+        "clampFactor": false,
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.4750000238418579,
+        0.7749999761581421,
+        0.6000000238418579,
+        0.44999998807907104
+      ]
+    },
+    {
+      "mode": "overlay",
+      "fixture": "mixrgb_overlay.json",
+      "fixtureSha256": "9B580ECB815435AB999C40AE9E45DDC5C4E100ACC12BADD64D43112AF4AFBFB5",
+      "inputs": {
+        "Color1": [
+          0.25,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.75,
+          0.25,
+          0.5,
+          0.75
+        ],
+        "Fac": 0.4,
+        "clampFactor": false,
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.30000001192092896,
+        0.699999988079071,
+        0.5,
+        0.44999998807907104
+      ]
+    },
+    {
+      "mode": "darken",
+      "fixture": "mixrgb_darken.json",
+      "fixtureSha256": "5DB196849C036C83BF430D007DA1E260D701CC793703AA388EA7600238C91FC8",
+      "inputs": {
+        "Color1": [
+          0.25,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.75,
+          0.25,
+          0.5,
+          0.75
+        ],
+        "Fac": 0.4,
+        "clampFactor": false,
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.25,
+        0.550000011920929,
+        0.5,
+        0.44999998807907104
+      ]
+    },
+    {
+      "mode": "lighten",
+      "fixture": "mixrgb_lighten.json",
+      "fixtureSha256": "FFD5B446DD1750B873ED8653618D70CAF068F765D261449A8B9F216AED798181",
+      "inputs": {
+        "Color1": [
+          0.25,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.75,
+          0.25,
+          0.5,
+          0.75
+        ],
+        "Fac": 0.4,
+        "clampFactor": false,
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.44999998807907104,
+        0.75,
+        0.5,
+        0.44999998807907104
+      ]
+    },
+    {
+      "mode": "difference",
+      "fixture": "mixrgb_difference.json",
+      "fixtureSha256": "68798F9A495CB682F07F0E9B8F73906EE5076C0590D85D22F45369BDC43F9001",
+      "inputs": {
+        "Color1": [
+          0.25,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.75,
+          0.25,
+          0.5,
+          0.75
+        ],
+        "Fac": 0.4,
+        "clampFactor": false,
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.3499999940395355,
+        0.6499999761581421,
+        0.30000001192092896,
+        0.44999998807907104
+      ]
+    }
+  ],
+  "clampBoundaryCases": [
+    {
+      "id": "factor-unclamped-negative",
+      "mode": "add",
+      "factor": -0.25,
+      "clampFactor": false,
+      "inputs": {
+        "Color1": [
+          0.8,
+          0.2,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.8,
+          0.2,
+          0.5,
+          1.5
+        ],
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.6000000238418579,
+        0.15000000596046448,
+        0.375,
+        -0.0625
+      ]
+    },
+    {
+      "id": "factor-clamped-negative",
+      "mode": "add",
+      "factor": -0.25,
+      "clampFactor": true,
+      "inputs": {
+        "Color1": [
+          0.8,
+          0.2,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.8,
+          0.2,
+          0.5,
+          1.5
+        ],
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        0.800000011920929,
+        0.20000000298023224,
+        0.5,
+        0.25
+      ]
+    },
+    {
+      "id": "factor-unclamped-above-one",
+      "mode": "add",
+      "factor": 1.25,
+      "clampFactor": false,
+      "inputs": {
+        "Color1": [
+          0.8,
+          0.2,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.8,
+          0.2,
+          0.5,
+          1.5
+        ],
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        1.7999999523162842,
+        0.44999998807907104,
+        1.125,
+        1.8125
+      ]
+    },
+    {
+      "id": "factor-clamped-above-one",
+      "mode": "add",
+      "factor": 1.25,
+      "clampFactor": true,
+      "inputs": {
+        "Color1": [
+          0.8,
+          0.2,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.8,
+          0.2,
+          0.5,
+          1.5
+        ],
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        1.600000023841858,
+        0.4000000059604645,
+        1.0,
+        1.5
+      ]
+    },
+    {
+      "id": "result-rgb-only-clamp-false",
+      "mode": "add",
+      "factor": 1.0,
+      "clampFactor": false,
+      "inputs": {
+        "Color1": [
+          0.8,
+          0.2,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.8,
+          0.2,
+          0.5,
+          1.5
+        ],
+        "clampResult": false
+      },
+      "candidateRgbaBinary32": [
+        1.600000023841858,
+        0.4000000059604645,
+        1.0,
+        1.5
+      ]
+    },
+    {
+      "id": "result-rgb-only-clamp-true",
+      "mode": "add",
+      "factor": 1.0,
+      "clampFactor": false,
+      "inputs": {
+        "Color1": [
+          0.8,
+          0.2,
+          0.5,
+          0.25
+        ],
+        "Color2": [
+          0.8,
+          0.2,
+          0.5,
+          1.5
+        ],
+        "clampResult": true
+      },
+      "candidateRgbaBinary32": [
+        1.0,
+        0.4000000059604645,
+        1.0,
+        1.5
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "uv", "type": "TexCoord", "params": {}},
+    {"id": "noise", "type": "Noise", "params": {}},
+    {"id": "ramp", "type": "ColorRamp", "params": {"interp": 0, "stops": [
+      {"pos": 0.0, "r": 0.04, "g": 0.12, "b": 0.3, "a": 1.0},
+      {"pos": 1.0, "r": 0.95, "g": 0.62, "b": 0.18, "a": 1.0}
+    ]}},
+    {"id": "principled", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "uv", "out": "UV", "to": "noise", "in": "Vector"},
+    {"from": "noise", "out": "Fac", "to": "ramp", "in": "Fac"},
+    {"from": "ramp", "out": "Color", "to": "principled", "in": "BaseColor"},
+    {"from": "principled", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

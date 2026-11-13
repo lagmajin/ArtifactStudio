@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "uv", "type": "TexCoord", "params": {}},
+    {"id": "voronoi", "type": "Voronoi", "params": {}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "uv", "out": "UV", "to": "voronoi", "in": "Vector"},
+    {"from": "voronoi", "out": "Color", "to": "surface", "in": "BaseColor"},
+    {"from": "voronoi", "out": "Distance", "to": "surface", "in": "Roughness"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

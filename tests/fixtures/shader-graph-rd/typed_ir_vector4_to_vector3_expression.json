@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-typed-operation-expression-fixture",
+  "caseId": "explicit-vector4-to-vector3-truncate-xyz",
+  "description": "A raw Vector4 constant passes through an explicit Vector4-to-Vector3 conversion; the fourth component is discarded by the declared xyz truncation.",
+  "operations": [
+    {
+      "nodeId": "vector",
+      "operationId": "artifact.constant.vector4.float32",
+      "semanticVersion": 1,
+      "parameters": [
+        {
+          "parameterId": "value",
+          "value": [0.25, -0.5, 0.75, 0.375]
+        }
+      ],
+      "inputs": []
+    },
+    {
+      "nodeId": "explicit_convert",
+      "operationId": "artifact.convert.vector4.truncate_xyz",
+      "semanticVersion": 1,
+      "parameters": [],
+      "inputs": [
+        {
+          "inputId": "value",
+          "sourceNodeId": "vector",
+          "sourceOutputId": "value",
+          "valueType": "Vector4"
+        }
+      ]
+    }
+  ],
+  "root": {
+    "nodeId": "explicit_convert",
+    "outputId": "vector",
+    "valueType": "Vector3"
+  },
+  "expectedOutput": [0.25, -0.5, 0.75]
+}

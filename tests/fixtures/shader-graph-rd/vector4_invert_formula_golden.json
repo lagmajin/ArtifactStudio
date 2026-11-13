@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-vector4-invert-golden",
+  "status": "source-derived-cpu-formula-candidate-no-renderer-runtime",
+  "operationId": "artifact.vector4.invert.linear_factor",
+  "legacyInputType": "Vector4",
+  "legacyOutputType": "Vector4",
+  "formula": "lerp(color, 1-color, saturate(factor)); apply to all four components, with no color-space conversion or result clamp",
+  "cases": [
+    {
+      "caseId": "factor-zero",
+      "color": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "factor": 0.0,
+      "expectedVector4": [
+        0.20000000298023224,
+        0.4000000059604645,
+        0.6000000238418579,
+        0.800000011920929
+      ],
+      "factorSaturated": 0.0
+    },
+    {
+      "caseId": "factor-half",
+      "color": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "factor": 0.5,
+      "expectedVector4": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "factorSaturated": 0.5
+    },
+    {
+      "caseId": "factor-one",
+      "color": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "factor": 1.0,
+      "expectedVector4": [
+        0.800000011920929,
+        0.6000000238418579,
+        0.3999999761581421,
+        0.19999998807907104
+      ],
+      "factorSaturated": 1.0
+    },
+    {
+      "caseId": "factor-below-zero-saturates",
+      "color": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "factor": -1.0,
+      "expectedVector4": [
+        0.20000000298023224,
+        0.4000000059604645,
+        0.6000000238418579,
+        0.800000011920929
+      ],
+      "factorSaturated": 0.0
+    },
+    {
+      "caseId": "factor-above-one-saturates",
+      "color": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "factor": 2.0,
+      "expectedVector4": [
+        0.800000011920929,
+        0.6000000238418579,
+        0.3999999761581421,
+        0.19999998807907104
+      ],
+      "factorSaturated": 1.0
+    },
+    {
+      "caseId": "raw-vector-components-outside-unit-range",
+      "color": [
+        -0.5,
+        1.5,
+        2.0,
+        -1.0
+      ],
+      "factor": 1.0,
+      "expectedVector4": [
+        1.5,
+        -0.5,
+        -1.0,
+        2.0
+      ],
+      "factorSaturated": 1.0
+    },
+    {
+      "caseId": "legacy-unconnected-color-default",
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "factor": 1.0,
+      "expectedVector4": [
+        1.0,
+        1.0,
+        1.0,
+        0.0
+      ],
+      "factorSaturated": 1.0
+    }
+  ],
+  "limitations": [
+    "Vector4 is treated as a raw numeric tuple; this operation does not claim Color4 transfer or alpha-association semantics",
+    "CPU binary32 candidate does not establish HLSL compiler contraction, GPU precision, or backend parity",
+    "source-derived Artifact behavior is not Blender parity",
+    "no Core operation registry or lowering is implemented"
+  ]
+}

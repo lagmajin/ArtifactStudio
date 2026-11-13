@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {
+      "id": "emission_color",
+      "type": "RGB",
+      "params": {
+        "r": 0.25,
+        "g": 0.5,
+        "b": 1.0,
+        "a": 1.0
+      }
+    },
+    {
+      "id": "parameter_value",
+      "type": "Value",
+      "params": {
+        "value": 1.25
+      }
+    },
+    {
+      "id": "surface",
+      "type": "Principled",
+      "params": {}
+    },
+    {
+      "id": "output",
+      "type": "MaterialOutput",
+      "params": {}
+    }
+  ],
+  "links": [
+    {
+      "from": "emission_color",
+      "out": "Color",
+      "to": "surface",
+      "in": "EmissionColor"
+    },
+    {
+      "from": "parameter_value",
+      "out": "Value",
+      "to": "surface",
+      "in": "EmissionStrength"
+    },
+    {
+      "from": "surface",
+      "out": "BSDF",
+      "to": "output",
+      "in": "Surface"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "red", "type": "RGB", "params": {"r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0}},
+    {"id": "blue", "type": "RGB", "params": {"r": 0.0, "g": 0.0, "b": 1.0, "a": 1.0}},
+    {"id": "principled", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "red", "out": "Color", "to": "principled", "in": "BaseColor"},
+    {"from": "blue", "out": "Color", "to": "principled", "in": "BaseColor"},
+    {"from": "principled", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "math", "type": "Math", "params": {"op": 17, "clamp": false}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "math", "out": "Value", "to": "surface", "in": "BaseColor"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

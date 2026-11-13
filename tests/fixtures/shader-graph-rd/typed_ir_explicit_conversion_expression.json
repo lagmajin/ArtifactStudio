@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-typed-operation-expression-fixture",
+  "caseId": "explicit-float-to-vector4-before-basecolor",
+  "sourceLegacyFixture": "skipped_type_mismatch_link_negative.json",
+  "description": "An explicit candidate conversion operation makes a Float-to-Vector4 connection legal; the original legacy graph still remains rejected without this op.",
+  "operations": [
+    {
+      "nodeId": "scalar",
+      "operationId": "artifact.constant.scalar.float32",
+      "semanticVersion": 1,
+      "parameters": [
+        {
+          "parameterId": "value",
+          "value": 0.25
+        }
+      ],
+      "inputs": []
+    },
+    {
+      "nodeId": "explicit_convert",
+      "operationId": "artifact.convert.scalar.replicate.rgb_alpha_one",
+      "semanticVersion": 1,
+      "parameters": [],
+      "inputs": [
+        {
+          "inputId": "value",
+          "sourceNodeId": "scalar",
+          "sourceOutputId": "value",
+          "valueType": "Float"
+        }
+      ]
+    }
+  ],
+  "root": {
+    "nodeId": "explicit_convert",
+    "outputId": "vector",
+    "valueType": "Vector4"
+  },
+  "expectedOutput": [
+    0.25,
+    0.25,
+    0.25,
+    1.0
+  ]
+}

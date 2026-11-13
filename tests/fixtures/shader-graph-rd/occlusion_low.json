@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "occlusion_value", "type": "Value", "params": {"value": 0.1}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "occlusion_value", "out": "Value", "to": "surface", "in": "Occlusion"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

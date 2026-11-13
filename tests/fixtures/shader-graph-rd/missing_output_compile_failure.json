@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "orphan_color", "type": "RGB", "params": {"r": 0.2, "g": 0.8, "b": 0.4, "a": 1.0}}
+  ],
+  "links": []
+}

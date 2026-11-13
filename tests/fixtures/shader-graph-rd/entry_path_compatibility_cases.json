@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-entry-path-compatibility-cases",
+  "status": "source-derived-observations-no-runtime-execution",
+  "cases": [
+    {
+      "caseId": "invalid-graph-stored-before-compile-result",
+      "sourceFixture": "cycle_negative.json",
+      "layerMutation": {
+        "controllerReturn": true,
+        "storesJsonBeforeRendererCompile": true,
+        "marksLayerDirty": true
+      },
+      "uiFeedback": "widget compiles its local graph after controller stores the JSON; reports compile error and says magenta fallback applies next frame",
+      "rendererBehavior": {
+        "compileFailure": "compileMaterialGraph returns ok=false with a magenta fallback block",
+        "setMaterialGraphJsonReturn": true,
+        "storesJson": true,
+        "replacesCurrentGraphAndRebuildsPipeline": true
+      },
+      "compatibilityRisk": "document acceptance, shader source fallback, and backend PSO success are not one atomic apply result"
+    },
+    {
+      "caseId": "single-writer-duplicate-input",
+      "sourceFixture": "duplicate_input_negative.json",
+      "jsonImport": {
+        "acceptsDocument": true,
+        "linkCountAfterLoad": 3,
+        "linkOrderPreserved": true,
+        "warning": "none for duplicate incoming links",
+        "loweringSelection": "first matching link in stored link order",
+        "expectedSelectedSourceByCurrentSource": "red"
+      },
+      "directApi": {
+        "exposesLinkStoragePublicly": true,
+        "compileValidationRejectsMultipleWriters": false,
+        "loweringSelection": "first matching link in stored link order"
+      },
+      "compatibilityRisk": "link order changes selected BaseColor even when the same two links exist"
+    },
+    {
+      "caseId": "numeric-type-mismatch",
+      "sourceFixture": "skipped_type_mismatch_link_negative.json",
+      "jsonImport": {
+        "acceptsDocument": true,
+        "linkCountAfterLoad": 1,
+        "linkOrderPreserved": true,
+        "warning": "one mismatched link is skipped",
+        "expectedBaseColorBinding": "unconnected fallback float4(0.8,0.8,0.8,1.0)"
+      },
+      "directApi": {
+        "canStoreMismatchedLink": true,
+        "compileConversion": "Float to Vector4 replicates scalar into RGB and appends alpha 1",
+        "expectedBaseColorExpression": "float4(scalar_Value,scalar_Value,scalar_Value,1.0f)"
+      },
+      "compatibilityRisk": "same serialized graph changes from default BaseColor to converted scalar depending on entry path"
+    }
+  ],
+  "promotionRequirement": "adapter must choose and test one explicit policy for each case; source-derived observation is not an approved product policy"
+}

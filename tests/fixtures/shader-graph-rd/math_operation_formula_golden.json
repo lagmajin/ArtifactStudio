@@ -1,0 +1,403 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-math-formula-golden",
+  "status": "candidate-core-math-only-not-runtime-or-cross-backend-evidence",
+  "sourcePath": "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp",
+  "sourceSha256": "5A177E2BED0634AE4329D0679FCA2055CEC6283613E6E3E35FF415837E297C45",
+  "arithmetic": "binary32 round-to-nearest after each declared operation; no fused multiply-add; compiler fast-math behavior not characterized",
+  "clampResult": false,
+  "cases": [
+    {
+      "operation": "add",
+      "fixture": "math_add.json",
+      "fixtureSha256": "2A042993C72AAE85CABE63F450D242307873BCC700D2502F7048172222E73DE6",
+      "inputs": {
+        "A": [
+          0.25,
+          -2.0,
+          3.0,
+          0.5
+        ],
+        "B": [
+          0.5,
+          1.0,
+          -4.0,
+          0.25
+        ]
+      },
+      "expectedBinary32": [
+        0.75,
+        -1.0,
+        -1.0,
+        0.75
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "subtract",
+      "fixture": "math_subtract.json",
+      "fixtureSha256": "5875A5D8A5E6AB087402470E7E23F0C881C23A9DC9C2919E941EAEA336476634",
+      "inputs": {
+        "A": [
+          0.25,
+          -2.0,
+          3.0,
+          0.5
+        ],
+        "B": [
+          0.5,
+          1.0,
+          -4.0,
+          0.25
+        ]
+      },
+      "expectedBinary32": [
+        -0.25,
+        -3.0,
+        7.0,
+        0.25
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "multiply",
+      "fixture": "math_multiply.json",
+      "fixtureSha256": "2E2586415CA66EADEC6B7A0ECD2CC1D41BFCB7498AC8297D75E9D9A38EE486FB",
+      "inputs": {
+        "A": [
+          0.25,
+          -2.0,
+          3.0,
+          0.5
+        ],
+        "B": [
+          0.5,
+          1.0,
+          -4.0,
+          0.25
+        ]
+      },
+      "expectedBinary32": [
+        0.125,
+        -2.0,
+        -12.0,
+        0.125
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "divide",
+      "fixture": "math_divide.json",
+      "fixtureSha256": "B6ECE1F0C7AB17C4E7E922CB1AF2BF332E9FDE37EF9CC2DC45BEB36162058814",
+      "inputs": {
+        "A": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "B": [
+          0.0,
+          -2e-05,
+          2e-05,
+          -2.0
+        ]
+      },
+      "expectedBinary32": [
+        100000.0,
+        100000.0,
+        50000.0,
+        100000.0
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "mix",
+      "fixture": "math_mix.json",
+      "fixtureSha256": "9A682EF5EB92FE17ED025D70E8A64EA3BF254E23AD687ACB39BDD7AE4E17466D",
+      "inputs": {
+        "A": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "B": [
+          1.0,
+          2.0,
+          -1.0,
+          0.5
+        ],
+        "Fac": 0.75
+      },
+      "expectedBinary32": null,
+      "oracleStatus": "source-expression-pinned-no-cross-libm-or-lerp-rounding-golden"
+    },
+    {
+      "operation": "sine",
+      "fixture": "math_sine.json",
+      "fixtureSha256": "910761F342B86A5A92635A52D95E6ECA366CDFD46B559D6013FCD255C490B0BF",
+      "inputs": {
+        "A": [
+          0.0,
+          0.5,
+          -1.0,
+          3.1415927
+        ]
+      },
+      "expectedBinary32": null,
+      "oracleStatus": "source-expression-pinned-no-cross-libm-or-lerp-rounding-golden"
+    },
+    {
+      "operation": "cosine",
+      "fixture": "math_cosine.json",
+      "fixtureSha256": "E6DA433E30A90561B061160D3BC4A1F37F328A7B4C6AA98C6739CDC887184269",
+      "inputs": {
+        "A": [
+          0.0,
+          0.5,
+          -1.0,
+          3.1415927
+        ]
+      },
+      "expectedBinary32": null,
+      "oracleStatus": "source-expression-pinned-no-cross-libm-or-lerp-rounding-golden"
+    },
+    {
+      "operation": "power",
+      "fixture": "math_power.json",
+      "fixtureSha256": "4EF61FA80D7C92CB80993314D109C19AA48F987A9EB3CB69A2B032868280672A",
+      "inputs": {
+        "A": [
+          -2.0,
+          -0.0,
+          0.5,
+          2.0
+        ],
+        "B": [
+          3.0,
+          0.5,
+          -1.0,
+          3.0
+        ]
+      },
+      "expectedBinary32": [
+        0.0,
+        0.0,
+        2.0,
+        8.0
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "minimum",
+      "fixture": "math_minimum.json",
+      "fixtureSha256": "6143C27EB3C6662E345794365B3EAC3E97ABD47C345846BF565FA128E6F2CA61",
+      "inputs": {
+        "A": [
+          0.25,
+          -2.0,
+          3.0,
+          0.5
+        ],
+        "B": [
+          0.5,
+          1.0,
+          -4.0,
+          0.25
+        ]
+      },
+      "expectedBinary32": [
+        0.25,
+        -2.0,
+        -4.0,
+        0.25
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "maximum",
+      "fixture": "math_maximum.json",
+      "fixtureSha256": "E597CE86439227E4E8968FFFE36DA3E3E607C3C5E377D478F2E9B0B4B5AB7519",
+      "inputs": {
+        "A": [
+          0.25,
+          -2.0,
+          3.0,
+          0.5
+        ],
+        "B": [
+          0.5,
+          1.0,
+          -4.0,
+          0.25
+        ]
+      },
+      "expectedBinary32": [
+        0.5,
+        1.0,
+        3.0,
+        0.5
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "less_than",
+      "fixture": "math_less_than.json",
+      "fixtureSha256": "DA3A7B3721BE3B719422909D29C425E3CA8DD892BA405F971EB281356B0EC9E3",
+      "inputs": {
+        "A": [
+          0.25,
+          2.0,
+          3.0,
+          0.5
+        ],
+        "B": [
+          0.5,
+          1.0,
+          3.0,
+          0.25
+        ]
+      },
+      "expectedBinary32": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "greater_than",
+      "fixture": "math_greater_than.json",
+      "fixtureSha256": "A17FAEAD237AED68EE0544723E7E35E98A1A59A0E78A0DED2CAA5A9784BAE0F3",
+      "inputs": {
+        "A": [
+          0.25,
+          2.0,
+          3.0,
+          0.5
+        ],
+        "B": [
+          0.5,
+          1.0,
+          3.0,
+          0.25
+        ]
+      },
+      "expectedBinary32": [
+        0.0,
+        1.0,
+        0.0,
+        1.0
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "modulo",
+      "fixture": "math_modulo.json",
+      "fixtureSha256": "E1DBFCB36E5CBC192B630EC100251E1D931D99E053C63DF434FB163AFCD0B298",
+      "inputs": {
+        "A": [
+          -5.5,
+          5.5,
+          2.0,
+          -2.0
+        ],
+        "B": [
+          2.0,
+          2.0,
+          0.0,
+          -3.0
+        ]
+      },
+      "expectedBinary32": [
+        0.5,
+        1.5,
+        0.0,
+        0.0
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "absolute",
+      "fixture": "math_absolute.json",
+      "fixtureSha256": "3EADD4D0647B06678EE58D55E9DC84B83E7CFEBEF0ED029AC426D5D71F52593B",
+      "inputs": {
+        "A": [
+          -0.0,
+          -2.5,
+          0.0,
+          3.0
+        ]
+      },
+      "expectedBinary32": [
+        0.0,
+        2.5,
+        0.0,
+        3.0
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "floor",
+      "fixture": "math_floor.json",
+      "fixtureSha256": "B2D323AB7641592BEE61BE2692881CF09B4E638A82AD00948251C599390B05A7",
+      "inputs": {
+        "A": [
+          -1.2,
+          -0.0,
+          0.0,
+          1.8
+        ]
+      },
+      "expectedBinary32": [
+        -2.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "ceil",
+      "fixture": "math_ceil.json",
+      "fixtureSha256": "CDC2E4AB62E1DD9F7CB4B22EA9A8BBA83C6011E583D39E0B763011F3244C8269",
+      "inputs": {
+        "A": [
+          -1.2,
+          -0.0,
+          0.0,
+          1.8
+        ]
+      },
+      "expectedBinary32": [
+        -1.0,
+        0.0,
+        0.0,
+        2.0
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    },
+    {
+      "operation": "fract",
+      "fixture": "math_fract.json",
+      "fixtureSha256": "0178B85C60A2A86F8B5C70CE249732ACD1462E48DCAAC6970C964CFF90D0EEB3",
+      "inputs": {
+        "A": [
+          -1.2,
+          -0.0,
+          0.0,
+          1.8
+        ]
+      },
+      "expectedBinary32": [
+        -0.7999999523162842,
+        -0.0,
+        0.0,
+        0.7999999523162842
+      ],
+      "oracleStatus": "cpu-binary32-formula"
+    }
+  ]
+}
