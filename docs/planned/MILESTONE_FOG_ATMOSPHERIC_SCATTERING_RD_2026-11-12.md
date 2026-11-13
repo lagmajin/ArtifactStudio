@@ -1,7 +1,7 @@
 # Fog and Atmospheric Scattering R&D
 
-**最終更新:** 2026-11-12
-**ステータス:** In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施）
+**最終更新:** 2026-11-13
+**ステータス:** In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施）
 
 ## 目的
 
@@ -629,6 +629,12 @@ camera height 4固定でdensity `0.002 / 0.008 / 0.02`、falloff `0.02 / 0.08 / 
 
 太陽経路透過の単独寄与を測る`tools/fog_sun_transmittance_rd.py`では、水平／上向き／groundwardの3 ray×camera y=2／8／20 m×太陽高度2／5／15／45／80°を評価した。view sampleごとの太陽経路はground crossingを区分した指数密度の閉形式積分で求め、view方向散乱は256-step midpointで積分する。正規化Rayleigh位相で太陽透過を入れたradiance対同じ式で太陽透過を無効にしたradianceの比は、水平ray・太陽高度2°でcamera y=2／8／20 mそれぞれ`0.1811 / 0.3475 / 0.6675`、80°では`0.9413 / 0.9632 / 0.9858`。camera y=2 mのgroundward rayでは2°時`0.1569`まで低下した。CPU `evaluateFog()`のsource phase係数・離散view attenuation・sun-path omissionをまとめたscattering-term equation mirrorは、正規化phase＋analytic sun-transmittance参照に対し45条件で`0.755–4.780`倍のradianceとなった。camera y=2 mのgroundward/2°では`4.780`倍、camera y=2 m horizontal/80°では`0.797`倍である。phase係数の0.75倍とsun-path attenuation欠如は別々の誤差方向を持ち、条件によって相殺も増幅もする。比較は散乱項だけで、C++ `evaluateFog()`最後の経験的horizon/fog blendは含めず、direction入力も共通化した式mirrorであってruntime parityではない。view積分stepを16〜1024で掃引し、4096-step midpointを参照にした45組のray/camera/sun条件では、256-stepの最大relative RGB L2誤差は`3.89e-5`、最大はcamera y=2 mの上向きray・太陽高度80°で生じた。同じrayの8192-step値に対しても256-stepの差は`3.90e-5`、4096-stepの差は`1.14e-7`で、参照刻み自体の収束も確認した。この誤差上限は解析的sun pathと平面指数媒質のCPU fixtureに限られ、shadow boundary、局所密度、GPU精度の保証ではない。平面媒質・固定fog tint/sun radianceのCPU参照であり、惑星曲率・地形shadow・GPU performanceやアプリruntime parityは含まない。
 
+## cloud/light fog shader積分のCPU式監査（2026-11-13）
+
+`tools/fog_shader_integral_rd.py`で`Artifact/shaders/fogHF.hlsli::GetFogAmount()`のheight integralをsource equation mirror化し、独立midpoint quadrature 65,536 stepと175条件で比較した。height start/end 10/40 m、origin y −20〜60 m、ray pitch −89〜89°、距離1〜1000 mの範囲でsource式の最大relative errorは`10.68%`。最大はorigin y=10 mの水平ray・1000 mで、source式の積分値893.22 m相当に対し、独立積分は1000 m相当だった。真に水平な場合にも`effectiveZ=max(abs(V.y),0.001)`が指数積分の指数・分母に使われ、密度がrayに沿ってわずかに減る扱いになることが差の原因である。診断用に真の水平極限と`expm1`を用いる解析候補式を同じ175条件で比較すると、quadratureに対する最大relative errorは`5.14e-7`まで下がった。この候補は数学的fixtureに限られ、GPU/HLSL動作や見た目の評価ではなく、production修正の推奨でもない。
+
+開始距離のsource式は`startDistanceFalloff=saturate((distance-fog.start)/fog.start)`として全線積分へ係数を掛ける。fog.startより手前の区間を除くhard-cutoffとは別policyであり、exact height integralへsource fadeを適用した値とhard-cutoffの最大optical-depth差は`0.72`（origin y=−20 m、pitch=20°、distance=1000 m、start=60 m）だった。開始距離の意図された見た目・既存互換性は未確認であり、この差を単独で不具合とは判断しない。結果は`docs/worklog/artifacts/fog-shader-integral-rd-2026-11-12/manifest.json`に保存した。shaderは未コンパイル・未dispatchで、GPU性能、atmosphere LUT結合、host bindingの評価を含まない。
+
 alpha合成契約の感度確認用に`tools/fog_alpha_compositing_rd.py`を追加し、straight RGBA入力をpremultipliedへ変換した決定論的21ケースを評価した。coverage alphaを保ちfogを被覆領域内へ限定する方式と、媒質の寄与をalphaにも含める方式は別のlayer semanticsで、同じ画像結果を意味しない。後者はalpha=0でもfog寄与を持つため、空の透明pixelを維持する処理には適さない。さらに、premultiplied RGBへfogを加えながら元alphaを保つnaive式では、transmittance 0.1時にalpha=0 pixelへ最大RGB `0.648`が残り、premultiplied合成時に透明pixelからfog色が漏れる。straight-alpha inputならRGB blend＋alpha保持を後段で正しくpremultiplyする経路が成立し得るため、GPU shaderのfloat4 input/outputだけではalpha conventionを断定できない。CPU `ImageBuffer`はRGB8でalphaなし、GPU shaderのhost bindingも確認できておらず、runtimeの正規契約や採用policyは未決定である。case表とblack/white/magenta背景へのpremultiplied composite値は`docs/worklog/artifacts/fog-alpha-compositing-rd-2026-11-12/manifest.json`に保存した。
 
 ## 球状大気 single-scattering CPU参照（2026-11-12）
@@ -694,6 +700,7 @@ F4ではsingle scatteringと位相関数を追加し、影なし／単純なshad
 - `tools/fog_height_integral_rd.py` / `tools/fog_height_image_fixture_rd.py` — CPU height-fog数値・画像比較。
 - `tools/fog_height_camera_scene_rd.py` — camera heightとworld-space object heightを再投影するheight-fog比較。
 - `tools/fog_sun_transmittance_rd.py` — local single scatteringへのanalytic sun-path transmittance寄与比較。
+- `tools/fog_shader_integral_rd.py` — cloud/light fog shaderのheight integralを独立quadrature・start-distance policyと比較。
 - `tools/fog_alpha_compositing_rd.py` — coverage-preserving / medium-alpha fog合成のRGBA semantics fixture。
 - `tools/fog_depth_encoding_rd.py` / `docs/worklog/artifacts/fog-depth-encoding-rd-2026-11-12/manifest.json` — depth encodingの仮定別に距離・透過率decode感度を測るCPU diagnostic。
 - `tools/fog_height_convergence_sweep_rd.py` / `docs/worklog/artifacts/fog-height-convergence-rd-2026-11-12/manifest.json` / `raw_cases.csv` — exponential height integrationのground-crossing条件・密度・falloff別収束sweep。

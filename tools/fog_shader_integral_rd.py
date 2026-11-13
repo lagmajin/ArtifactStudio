@@ -46,6 +46,26 @@ def source_line_integral(origin_y: float, direction_y: float, distance: float) -
     return base_distance + exponential_integral
 
 
+def stable_limit_line_integral(origin_y: float, direction_y: float, distance: float) -> float:
+    """Diagnostic analytic candidate using the true horizontal limit and expm1."""
+    fog_falloff = 6.907755 / max(0.01, HEIGHT_END - HEIGHT_START)
+    abs_z = abs(direction_y)
+    if abs_z < 1e-12:
+        return distance * density_profile(origin_y)
+    end_height = origin_y + distance * direction_y
+    min_height = min(origin_y, end_height)
+    height_line_falloff = max(min_height - HEIGHT_START, 0.0)
+    base_distance = min(max((HEIGHT_START - min_height) / abs_z, 0.0), distance)
+    exponential_distance = distance - base_distance
+    exponent = exponential_distance * abs_z * fog_falloff
+    exponential_integral = (
+        math.exp(-height_line_falloff * fog_falloff)
+        * (-math.expm1(-exponent))
+        / (abs_z * fog_falloff)
+    )
+    return base_distance + exponential_integral
+
+
 def quadrature_line_integral(origin_y: float, direction_y: float, distance: float) -> float:
     """Independent midpoint quadrature of the height profile along the ray."""
     step = distance / REFERENCE_STEPS
@@ -72,14 +92,17 @@ def exact_cutoff_integral(origin_y: float, direction_y: float, distance: float, 
 def main() -> None:
     cases = []
     worst_profile = {"relative_error": 0.0}
+    worst_stable_candidate = {"relative_error": 0.0}
     worst_start = {"absolute_optical_depth_difference": 0.0}
     for origin_y in ORIGINS:
         for pitch in PITCH_DEGREES:
             direction_y = math.sin(math.radians(pitch))
             for distance in DISTANCES:
                 source_integral = source_line_integral(origin_y, direction_y, distance)
+                stable_integral = stable_limit_line_integral(origin_y, direction_y, distance)
                 reference_integral = quadrature_line_integral(origin_y, direction_y, distance)
                 profile_rel = abs(source_integral - reference_integral) / max(reference_integral, 1e-12)
+                stable_rel = abs(stable_integral - reference_integral) / max(reference_integral, 1e-12)
                 if profile_rel > worst_profile["relative_error"]:
                     worst_profile = {
                         "relative_error": profile_rel,
@@ -87,6 +110,15 @@ def main() -> None:
                         "pitch_degrees": pitch,
                         "distance": distance,
                         "source_integral": source_integral,
+                        "quadrature_integral": reference_integral,
+                    }
+                if stable_rel > worst_stable_candidate["relative_error"]:
+                    worst_stable_candidate = {
+                        "relative_error": stable_rel,
+                        "origin_y": origin_y,
+                        "pitch_degrees": pitch,
+                        "distance": distance,
+                        "candidate_integral": stable_integral,
                         "quadrature_integral": reference_integral,
                     }
                 start_cases = []
@@ -118,8 +150,10 @@ def main() -> None:
                     "direction_y": direction_y,
                     "distance": distance,
                     "source_height_integral": source_integral,
+                    "stable_limit_candidate_height_integral": stable_integral,
                     "quadrature_height_integral": reference_integral,
                     "relative_height_integral_error": profile_rel,
+                    "stable_candidate_relative_height_integral_error": stable_rel,
                     "start_distance_comparisons": start_cases,
                 })
 
@@ -142,6 +176,7 @@ def main() -> None:
         },
         "summary": {
             "worst_source_height_integral_relative_error_vs_quadrature": worst_profile,
+            "worst_stable_limit_candidate_relative_error_vs_quadrature": worst_stable_candidate,
             "largest_exact_source_fade_vs_hard_cutoff_optical_depth_difference": worst_start,
         },
         "limitations": [
@@ -155,6 +190,7 @@ def main() -> None:
     OUTPUT.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote {OUTPUT} ({len(cases)} height-profile cases)")
     print("worst profile integral relative error:", worst_profile)
+    print("worst stable-limit candidate relative error:", worst_stable_candidate)
     print("largest start-fade vs hard-cutoff optical-depth difference:", worst_start)
 
 
