@@ -106,13 +106,13 @@ def main()->None:
               "capture_status":"inputs_prepared_application_capture_not_started",
               "capture_directory":str(CAPTURE.relative_to(ROOT))}
     (OUT/"input-manifest.json").write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+"\n",encoding="utf-8",newline="\n")
-    capture_template={"plan_id":plan["plan_id"],"capture_status":"pending_user_authorization",
+    capture_template={"plan_id":plan["plan_id"],"capture_status":"pending_capture",
       "application_version":None,"project_frame_rate":None,"project_saved":False,
       "input_manifest":"experiments/FilmEffectsLab/fixtures/film-suite-runtime-r1/input-manifest.json",
       "parameter_records":[],"exports":[],"viewer_screenshots":[],
       "export_filename_pattern":"{effect}-{state}-{background}-{resolution}.png",
-      "required_states":["baseline-disabled","grunge-neutral","grunge-grain-only","damage-neutral","damage-overlay-only"],
-      "transparent_exports":["grunge-grain-only","damage-overlay-only"],
+      "required_states":["baseline-disabled","grunge-neutral","grunge-grain-only","add-noise-neutral","add-noise-grain-only"],
+      "transparent_exports":["grunge-grain-only","add-noise-grain-only"],
       "backgrounds":["black","gray-0.18","white"],"notes":[]}
     (CAPTURE/"capture-manifest.template.json").write_text(json.dumps(capture_template,indent=2,ensure_ascii=False)+"\n",encoding="utf-8",newline="\n")
     print(f"Prepared {len(assets)} image assets and {len(roi_summary)} alpha ROIs at {OUT}")

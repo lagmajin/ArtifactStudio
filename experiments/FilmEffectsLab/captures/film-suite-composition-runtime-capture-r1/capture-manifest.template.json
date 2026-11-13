@@ -1,0 +1,32 @@
+{
+  "plan_id": "film-suite-composition-runtime-capture-r1",
+  "capture_status": "pending_capture_blocked_by_composition_selection",
+  "application_version": null,
+  "project_frame_rate": null,
+  "project_saved": false,
+  "input_manifest": "experiments/FilmEffectsLab/fixtures/film-suite-runtime-r1/input-manifest.json",
+  "parameter_records": [],
+  "exports": [],
+  "viewer_screenshots": [],
+  "export_filename_pattern": "{effect}-{state}-{background}-{resolution}.png",
+  "required_states": [
+    "baseline-disabled",
+    "grunge-neutral",
+    "grunge-grain-only",
+    "add-noise-neutral",
+    "add-noise-grain-only"
+  ],
+  "transparent_exports": [
+    "grunge-grain-only",
+    "add-noise-grain-only"
+  ],
+  "backgrounds": [
+    "black",
+    "gray-0.18",
+    "white"
+  ],
+  "notes": [
+    "2026-11-13: Existing Artifact 0.9.0 was launched and an unsaved 512x256 Comp1 was created. Composition Viewer and Project View showed Comp1, but Effects displayed “No composition selected” and “Target: Composition unavailable”. No fixture import, effect configuration, CPU route confirmation, or candidate export occurred.",
+    "2026-11-13 follow-up: Ctrl+I opened Artifact Media Import Picker. CUA reported “failed to activate captured window” when sending input to the modal screenshot. The picker remains open; no fixture selection/import or effect export occurred."
+  ]
+}

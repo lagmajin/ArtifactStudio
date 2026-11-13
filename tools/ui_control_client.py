@@ -223,6 +223,18 @@ def _build_parser() -> argparse.ArgumentParser:
     shot.add_argument("--native", action="store_true", help="capture what is on screen")
     shot.add_argument("--delay", type=float, default=0.0, help="seconds to wait before capturing")
 
+    composition_shot = commands.add_parser(
+        "composition-capture",
+        help="capture the last completed GPU Composition Viewer frame",
+    )
+    composition_shot.add_argument("--output", required=True, help="PNG path to write")
+    composition_shot.add_argument(
+        "--delay", type=float, default=0.0,
+        help="seconds to wait before reading the completed frame",
+    )
+
+    commands.add_parser("quit", help="request clean application shutdown")
+
     call = commands.add_parser("call", help="call a tool directly")
     call.add_argument("tool")
     call.add_argument("--arguments", default="{}")
@@ -328,6 +340,15 @@ def main(argv: Optional[list[str]] = None) -> int:
             if result.get("isError"):
                 return _print_result(result)
             return _write_screenshot(result.get("structuredContent", {}), args.output)
+        if args.command == "composition-capture":
+            if args.delay > 0:
+                time.sleep(args.delay)
+            result = client.call("ui.compositionCapture")
+            if result.get("isError"):
+                return _print_result(result)
+            return _write_screenshot(result.get("structuredContent", {}), args.output)
+        if args.command == "quit":
+            return _print_result(client.call("ui.quit"))
         if args.command == "call":
             return _print_result(
                 client.call(args.tool, json.loads(args.arguments))

@@ -12,6 +12,7 @@
 #include <QColor>
 #include <QColorSpace>
 #include <QCoreApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
@@ -19,6 +20,7 @@
 #include <QImage>
 #include <QIODevice>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QRect>
 #include <QSize>
@@ -39,6 +41,7 @@
 
 import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
+import Composition3D;
 import Artifact.Effect.Abstract;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.Image;
@@ -46,6 +49,7 @@ import Artifact.Layer.InitParams;
 import Artifact.Layer.SourceCrop;
 import Artifact.Mask.LayerMask;
 import Artifact.Project.Manager;
+import Artifact.Widgets.CompositionRenderController;
 import Animation.Transform2D;
 import Asset.Manager;
 import BrightnessEffect;
@@ -60,6 +64,7 @@ import FloatRGBA;
 using namespace ArtifactCore;
 import Memory.SharedPtr;
 import Mesh;
+import Utils.Id;
 import Utils.String.UniString;
 
 namespace {
@@ -280,13 +285,13 @@ TEST(StillImageLayerRoundTripTest, PixelAspectChangesDisplayWidthUnlessFitToLaye
     EXPECT_EQ(layer.localBounds(), QRectF(0.0, 0.0, 6.0, 2.0));
 
     ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropWidth"), QVariant(2.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropHeight"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.enabled"), QVariant(true)));
     const auto croppedPixelAspectLayout = layer.sourceCropDrawLayout();
@@ -2333,15 +2338,18 @@ TEST(StillImageLayerRoundTripTest, ActiveCropLeavesPixelsOutsideCropTransparent)
 
     QImage sourceImage(3, 2, QImage::Format_RGBA8888);
     sourceImage.fill(QColor(35, 125, 205, 255));
+    const QString imagePath = dir.filePath(QStringLiteral("crop-transparent.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
     Artifact::ArtifactImageLayer layer;
-    layer.setFromQImage(sourceImage);
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_EQ(waitForImage(layer, sourceImage.size()).size(), sourceImage.size());
 
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropWidth"), QVariant(1.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropHeight"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.enabled"), QVariant(true)));
 
@@ -2369,6 +2377,10 @@ TEST(StillImageLayerRoundTripTest, SourceCropZoomAndPanDefineEffectiveSourceRect
 
 TEST(StillImageLayerRoundTripTest, ActiveCropSelectsTheRequestedSourcePixels)
 {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
     QImage sourceImage(4, 2, QImage::Format_RGBA8888);
     const QColor sourceColors[2][4] = {
         {QColor(10, 20, 30), QColor(40, 50, 60), QColor(70, 80, 90),
@@ -2381,16 +2393,19 @@ TEST(StillImageLayerRoundTripTest, ActiveCropSelectsTheRequestedSourcePixels)
         }
     }
 
+    const QString imagePath = dir.filePath(QStringLiteral("crop-pixels.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
     Artifact::ArtifactImageLayer layer;
-    layer.setFromQImage(sourceImage);
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_EQ(waitForImage(layer, sourceImage.size()).size(), sourceImage.size());
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropWidth"), QVariant(2.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropHeight"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.enabled"), QVariant(true)));
 
@@ -2407,6 +2422,10 @@ TEST(StillImageLayerRoundTripTest, ActiveCropSelectsTheRequestedSourcePixels)
 TEST(StillImageLayerRoundTripTest,
      ActiveCropPanAndZoomSelectExpectedPixelsInCpuOutput)
 {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
     QImage sourceImage(8, 8, QImage::Format_RGBA8888);
     for (int y = 0; y < sourceImage.height(); ++y) {
         for (int x = 0; x < sourceImage.width(); ++x) {
@@ -2415,16 +2434,19 @@ TEST(StillImageLayerRoundTripTest,
         }
     }
 
+    const QString imagePath = dir.filePath(QStringLiteral("crop-pan-zoom.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
     Artifact::ArtifactImageLayer layer;
-    layer.setFromQImage(sourceImage);
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropX"), QVariant(2.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropY"), QVariant(2.0)));
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_EQ(waitForImage(layer, sourceImage.size()).size(), sourceImage.size());
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropWidth"), QVariant(4.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropHeight"), QVariant(4.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(2.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.zoom"), QVariant(2.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
@@ -2450,6 +2472,111 @@ TEST(StillImageLayerRoundTripTest,
 }
 
 TEST(StillImageLayerRoundTripTest,
+     SourceCropNumericFixtureScenariosMatchSourcePixels)
+{
+    QString fixtureDirectory;
+    QString searchDirectory = QCoreApplication::applicationDirPath();
+    for (int depth = 0; depth < 8; ++depth) {
+        const QString candidate = QDir(searchDirectory).filePath(
+            QStringLiteral("tests/fixtures/source_crop"));
+        if (QFileInfo::exists(QDir(candidate).filePath(
+                QStringLiteral("source_crop_coordinate_grid.png")))) {
+            fixtureDirectory = candidate;
+            break;
+        }
+        QDir parent(searchDirectory);
+        if (!parent.cdUp() || parent.absolutePath() == searchDirectory) {
+            break;
+        }
+        searchDirectory = parent.absolutePath();
+    }
+    ASSERT_FALSE(fixtureDirectory.isEmpty());
+
+    QImage sourceImage(QDir(fixtureDirectory).filePath(
+        QStringLiteral("source_crop_coordinate_grid.png")));
+    ASSERT_EQ(sourceImage.size(), QSize(512, 384));
+    QFile manifestFile(QDir(fixtureDirectory).filePath(
+        QStringLiteral("source_crop_coordinate_grid.expected.json")));
+    ASSERT_TRUE(manifestFile.open(QIODevice::ReadOnly));
+    const QJsonObject manifest =
+        QJsonDocument::fromJson(manifestFile.readAll()).object();
+    ASSERT_EQ(manifest.value(QStringLiteral("fixture")).toString(),
+              QStringLiteral("source_crop_coordinate_grid"));
+    const QJsonArray scenarios =
+        manifest.value(QStringLiteral("scenarios")).toArray();
+    ASSERT_EQ(scenarios.size(), 5);
+
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+    const QString imagePath = dir.filePath(QStringLiteral("coordinate-grid.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+    Artifact::ArtifactImageLayer layer;
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, sourceImage.size()));
+
+    for (const QJsonValue& scenarioValue : scenarios) {
+        const QJsonObject scenario = scenarioValue.toObject();
+        const QString scenarioId = scenario.value(QStringLiteral("id")).toString();
+        const QJsonArray crop = scenario.value(QStringLiteral("cropRect")).toArray();
+        const QJsonArray pan = scenario.value(QStringLiteral("pan")).toArray();
+        const QJsonArray expected =
+            scenario.value(QStringLiteral("expected_effectiveRect")).toArray();
+        ASSERT_EQ(crop.size(), 4) << scenarioId.toStdString();
+        ASSERT_EQ(pan.size(), 2) << scenarioId.toStdString();
+        ASSERT_EQ(expected.size(), 4) << scenarioId.toStdString();
+        const QRect expectedRect(expected.at(0).toInt(), expected.at(1).toInt(),
+                                 expected.at(2).toInt(), expected.at(3).toInt());
+
+        ASSERT_TRUE(layer.setLayerPropertyValue(
+            QStringLiteral("sourceCrop.cropWidth"),
+            QVariant(crop.at(2).toDouble()))) << scenarioId.toStdString();
+        ASSERT_TRUE(layer.setLayerPropertyValue(
+            QStringLiteral("sourceCrop.cropHeight"),
+            QVariant(crop.at(3).toDouble()))) << scenarioId.toStdString();
+        ASSERT_TRUE(layer.setLayerPropertyValue(
+            QStringLiteral("sourceCrop.cropX"),
+            QVariant(crop.at(0).toDouble()))) << scenarioId.toStdString();
+        ASSERT_TRUE(layer.setLayerPropertyValue(
+            QStringLiteral("sourceCrop.cropY"),
+            QVariant(crop.at(1).toDouble()))) << scenarioId.toStdString();
+        ASSERT_TRUE(layer.setLayerPropertyValue(
+            QStringLiteral("sourceCrop.zoom"),
+            QVariant(scenario.value(QStringLiteral("zoom")).toDouble())))
+            << scenarioId.toStdString();
+        ASSERT_TRUE(layer.setLayerPropertyValue(
+            QStringLiteral("sourceCrop.panX"), QVariant(pan.at(0).toDouble())))
+            << scenarioId.toStdString();
+        ASSERT_TRUE(layer.setLayerPropertyValue(
+            QStringLiteral("sourceCrop.panY"), QVariant(pan.at(1).toDouble())))
+            << scenarioId.toStdString();
+        ASSERT_TRUE(layer.setLayerPropertyValue(
+            QStringLiteral("sourceCrop.enabled"), QVariant(true)))
+            << scenarioId.toStdString();
+
+        EXPECT_EQ(layer.sourceCropDrawLayout().sourcePixelRect, expectedRect)
+            << scenarioId.toStdString();
+        const QImage output = layer.toQImage();
+        ASSERT_EQ(output.size(), sourceImage.size()) << scenarioId.toStdString();
+        for (int y = 0; y < output.height(); ++y) {
+            for (int x = 0; x < output.width(); ++x) {
+                const QColor actual = output.pixelColor(x, y);
+                if (expectedRect.contains(x, y)) {
+                    EXPECT_EQ(actual, sourceImage.pixelColor(x, y))
+                        << scenarioId.toStdString() << " source pixel mismatch at ("
+                        << x << ", " << y << ")";
+                } else {
+                    EXPECT_EQ(actual.alpha(), 0)
+                        << scenarioId.toStdString()
+                        << " pixel outside crop is not transparent at (" << x
+                        << ", " << y << ")";
+                }
+            }
+        }
+    }
+}
+
+TEST(StillImageLayerRoundTripTest,
      ActiveCropAndPanZoomDoNotChangeLocalBounds)
 {
     QImage sourceImage(4, 2, QImage::Format_RGBA8888);
@@ -2459,13 +2586,13 @@ TEST(StillImageLayerRoundTripTest,
     const QRectF originalBounds = layer.localBounds();
 
     ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropWidth"), QVariant(2.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropHeight"), QVariant(2.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropY"), QVariant(0.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.panX"), QVariant(0.5)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
@@ -2484,6 +2611,10 @@ TEST(StillImageLayerRoundTripTest,
 
 TEST(StillImageLayerRoundTripTest, CropOutputCacheTracksCropEditsAndDisable)
 {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
     QImage sourceImage(4, 1, QImage::Format_RGBA8888);
     const QColor colors[] = {
         QColor(20, 40, 60, 255), QColor(70, 90, 110, 255),
@@ -2492,8 +2623,11 @@ TEST(StillImageLayerRoundTripTest, CropOutputCacheTracksCropEditsAndDisable)
         sourceImage.setPixelColor(x, 0, colors[x]);
     }
 
+    const QString imagePath = dir.filePath(QStringLiteral("crop-cache.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
     Artifact::ArtifactImageLayer layer;
-    layer.setFromQImage(sourceImage);
+    ASSERT_TRUE(layer.loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, sourceImage.size()));
     ASSERT_TRUE(layer.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropWidth"), QVariant(1.0)));
     ASSERT_TRUE(layer.setLayerPropertyValue(
@@ -2537,11 +2671,11 @@ TEST(StillImageLayerRoundTripTest,
     ASSERT_TRUE(source.loadFromPath(imagePath));
     ASSERT_TRUE(waitForImageBuffer(source, QSize(4, 1)));
     ASSERT_TRUE(source.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
-    ASSERT_TRUE(source.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropWidth"), QVariant(2.0)));
     ASSERT_TRUE(source.setLayerPropertyValue(
         QStringLiteral("sourceCrop.cropHeight"), QVariant(1.0)));
+    ASSERT_TRUE(source.setLayerPropertyValue(
+        QStringLiteral("sourceCrop.cropX"), QVariant(1.0)));
     ASSERT_TRUE(source.setLayerPropertyValue(
         QStringLiteral("sourceCrop.enabled"), QVariant(true)));
 
@@ -2925,25 +3059,43 @@ TEST(StillImageLayerRoundTripTest,
 
 TEST(StillImageLayerRoundTripTest, CropRectangleClampsToSourceEdges)
 {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
     QImage sourceImage(4, 3, QImage::Format_RGBA8888);
     sourceImage.fill(QColor(105, 65, 25, 255));
-    Artifact::ArtifactImageLayer layer;
-    layer.setFromQImage(sourceImage);
+    const QString imagePath = dir.filePath(QStringLiteral("crop-edges.png"));
+    ASSERT_TRUE(sourceImage.save(imagePath, "PNG"));
+    auto layer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(layer->loadFromPath(imagePath));
+    ASSERT_TRUE(waitForImageBuffer(*layer, sourceImage.size()));
 
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropX"), QVariant(3.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropY"), QVariant(2.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropWidth"), QVariant(2.0)));
-    ASSERT_TRUE(layer.setLayerPropertyValue(
-        QStringLiteral("sourceCrop.cropHeight"), QVariant(2.0)));
+    Artifact::ArtifactCompositionInitParams params = makeCompositionParams();
+    auto composition = ArtifactCore::makeShared<Artifact::ArtifactComposition3D>(
+        ArtifactCore::CompositionID(QStringLiteral("crop-edge-controller")),
+        params);
+    ASSERT_TRUE(composition);
+    ASSERT_TRUE(composition->appendLayerTop(layer).success);
 
-    const QRectF rect = layer.sourceCrop().cropRect();
+    Artifact::CompositionRenderController controller;
+    controller.setComposition(composition);
+    controller.setSelectedLayerId(layer->id());
+    ASSERT_TRUE(controller.setSelectedCropRect(QRectF(3.0, 2.0, 2.0, 2.0)));
+
+    const QRectF rect = layer->sourceCrop().cropRect();
     EXPECT_DOUBLE_EQ(rect.x(), 2.0);
     EXPECT_DOUBLE_EQ(rect.y(), 1.0);
     EXPECT_DOUBLE_EQ(rect.width(), 2.0);
     EXPECT_DOUBLE_EQ(rect.height(), 2.0);
+
+    const auto layout = layer->sourceCropDrawLayout();
+    EXPECT_EQ(layout.sourcePixelRect, QRect(2, 1, 2, 2));
+    const QImage cropped = layer->toQImage();
+    EXPECT_EQ(cropped.pixelColor(2, 1), QColor(105, 65, 25, 255));
+    EXPECT_EQ(cropped.pixelColor(3, 2), QColor(105, 65, 25, 255));
+    EXPECT_EQ(cropped.pixelColor(1, 1).alpha(), 0);
+    EXPECT_EQ(cropped.pixelColor(2, 0).alpha(), 0);
 }
 
 TEST(StillImageLayerRoundTripTest, RestoreSourceCropSnapshotRestoresAllFields)

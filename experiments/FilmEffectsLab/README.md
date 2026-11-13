@@ -1,5 +1,7 @@
 # Film Effects Lab
 
+**最終更新:** 2026-11-13
+
 This folder contains exploratory studies of image effects associated with film looks, including grain, scratches, dust, halation and related image response. Each study has its own preregistered evaluation plan and records whether it models source equations or captures the running application.
 
 Current damage morphology study:
@@ -195,7 +197,7 @@ Current Physical Halation finite highlight-cluster edge model:
 - Results: `captures/physical-halation-highlight-cluster-edge-response-r1/metrics.json`, checksums, and the fixed-global-curve contact sheet
 - Limitation: Synthetic opaque neutral Gaussian spots only; distinguishes finite-cluster response from point-impulse amplification without establishing app parity or visual acceptance.
 
-Prepared Composition runtime capture (user-authorized, offline-only; application export not started because the Artifact window could not be activated):
+Prepared Composition runtime capture (user-authorized, offline-only; capture remains pending because the Effects panel did not bind to the active temporary composition):
 
 - Plan: `plans/film-suite-composition-runtime-capture-r1.json`
 - Fixture generator: `prepare_film_runtime_capture.py`

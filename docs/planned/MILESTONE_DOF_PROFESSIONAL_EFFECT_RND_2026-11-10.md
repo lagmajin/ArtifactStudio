@@ -1,6 +1,6 @@
 # Professional Depth of Field Effect R&D
 
-**最終更新:** 2026-11-10
+**最終更新:** 2026-11-13
 **ステータス:** In Progress
 
 ## 目的
@@ -125,6 +125,17 @@ R0 で機材・GPU 構成を記録した上で、最低限、同じ scene／came
 
 数値の閾値は機材・色管理・scene pack を確定する前に推測で固定しない。R0 で計測方法を決め、R1 で基準値と許容差を提案する。
 
+## 画像評価計画（2026-11-13）
+
+- **目的・対象:** 現行の3D Camera DoF production passについて、焦点面の保持、焦点前後の応答、深度境界の前景／背景漏れ、bokeh、alpha/HDR、時間安定性、プレビュー／最終出力および GPU backend 間の一貫性を評価する。R1 baseline 取得前にアルゴリズム候補や production code は変更しない。
+- **比較対象:** DoF 無効時の同一 scene/frame を画像同一性の baseline、現行 Camera DoF pass の出力を評価対象とする。決定論的 synthetic chart の既知焦点距離・既知 depth は focus/CoC の契約参照に使うが、複雑な実写の物理的正解とは扱わない。外部写真は出所・利用条件・撮影条件を記録し、視覚参考に限る。
+- **評価素材:** 外部素材を使わない deterministic 3D scene pack を基本とし、near/focus/far の傾斜 edge と細線、深度不連続をまたぐ細い前景遮蔽物、形状の異なる HDR point light、opaque/transparent surface を含める。短い固定 frame sequence には camera/subject motion と focus pull を分けて含める。generator/source revision、入力・出力 hash、scene/camera/frame 条件を保存する。
+- **画像条件:** scene、camera transform/projection、near/far clip、focus/aperture/focal length、解像度、frame、GPU/backend、preview/final 経路、色変換、出力形式を capture manifest に固定する。scene-linear float 出力を優先し、alpha association と表示変換は R0 の経路確認後に確定する。preview と final の解像度が異なる場合は別条件として記録する。
+- **評価・合否:** 全体画像と事前定義 ROI の等倍/cropを保存する。焦点 chart contrast と CoC 応答、silhouette 境界帯の色/alpha漏れ、bokeh の形・面積・energy、HDR clipping、複数背景合成後の alpha fringe、位置合わせ済み sequence の差分、backend/解像度間差を測る。分布・高分位点・最大値・差分画像を併用し、目視レビューを補助指標だけで置き換えない。baseline capture 後かつ候補比較前に、scene pack と測定ノイズから数値許容差を決め、重大欠陥分類を固定する。独立した2名のレビューを行い、判定者IDとメモを記録する。
+- **実行条件:** 現行 production path が実行可能な GPU/backend のみ測定し、D3D12/Vulkan、preview/final、処理解像度、GPU時間、追加 memory をそれぞれ記録する。利用不能な backend/path は未検証とする。R1 の build/test/runtime capture は明示許可後にのみ実行する。
+
+**開始時の未確定事項:** R0 で実際の depth SRV view format/sample count、preview/final と Render Queue の適用経路、alpha/color contract、実行可能 backend/device を確認してから capture 条件を確定する。閾値・最終 scene 解像度は baseline より前に決め、候補結果を見てから遡及調整しない。
+
 ## R0 静的調査結果（2026-11-10）
 
 - Camera DoF pass は `ArtifactCompositionRenderController` の 3D camera post-process block に接続され、current camera の focus distance、near/far clip、focal length、aperture、blur amount を渡す。pass 適用後は accumulation／temporary target を swap する。
@@ -133,7 +144,17 @@ R0 で機材・GPU 構成を記録した上で、最低限、同じ scene／came
 - `CameraDOFParameters::maxCoc` は `aperture × blurScale` から導出されるが、controller は `DepthOfFieldSettings::maxCocRadius` に固定 16 px を渡す。最終半径はこの上限と物理式／CoC scale に clamp される。property の `maxCoc` が描画上どう使われるかは追加追跡が必要。
 - R0 は source trace のみ。build、test、shader compile、runtime capture、GPU timing は未実施。
 
-**R0 未完了項目:** camera post-depth SRV の texture format／sample count／resolution lifecycle、Render Queue／offline render／software fallback 適用範囲、alpha/HDR format contract、backend 差、Property の aperture 表示単位と初期値を現行ソースで追跡する。
+**R0 未完了項目:** default SRV の runtime view format、depth clear／transparent／MSAA resolve 契約、software fallback、実 alpha/HDR 保持、D3D12 と Vulkan の差、aperture control の製品上の意味を現行ソース・実行条件で追跡する。Render Queue で camera DoF が適用されない source-level gap は確認済み。texture 作成コード上の sample count は Diligent の既定値 1 と確認したが、runtime resource を直接照会したわけではない。
+
+### R0 追加ソース追跡（2026-11-13）
+
+- camera preview の depth target は `createOffscreenDepthTexture()` が作成する 2D `D32_FLOAT`、1 mip、`BIND_DEPTH_STENCIL | BIND_SHADER_RESOURCE`。sample count は個別指定せず、Diligent `TextureDesc` の既定値 1 を使う。controller は preview 解像度が変わると target を再作成し、同 texture の default SRV view を DoF に渡す。
+- `DepthOfFieldPass::apply()` の直接呼び出しは現行 `Artifact/src` 内では Composition Render Controller の camera post-process block だけで確認。Render Queue service は独自の `ArtifactIRenderer` GPU/CPU frame path を持ち、GPU path では active camera の view/projection と camera motion blur を扱うが、DoF pass または camera DoF parameters を参照しない。したがって Render Queue service の出力には camera DoF が適用されないことを source-level で確認した。final export の実画像では未検証。
+- composition intermediate は `RGBA16_FLOAT` で初期化を試し、失敗時は `RGBA32_FLOAT` に fallback する。`RenderConfig::PipelineColor` は canonical linear premultiplied を示す。DoF shader は重み付きで float4 全成分を平均し、明示的な unpremultiply／repremultiply 処理はない。今回の fixture は不透明な合成 chart のため、透明端の RGB／alpha と HDR 値の保持は未検証。
+- DoF API のコメントと compute shader は `D32_FLOAT` SRV の非線形 window depth `[0,1]` を前提にし、near/far clip から view depth に再構成する。実 scene の depth clear、透明物、MSAA resolve と DoF target の同期・transition は未確認。
+- `DepthOfFieldPass` は `ComputeExecutor::dispatch()` の既定 `RESOURCE_STATE_TRANSITION_MODE_TRANSITION` を使う。これは CommitShaderResources 時の state transition 指定を確認したものだが、production depth target の backend ごとの実遷移や resolve correctness までは runtime 確認していない。
+- Camera property は aperture 初期値 `4.0`、tooltip `Aperture / f-stop`、property unit 未設定、hard range `0–1000`。Create Camera dialog の候補は `f/1.4` から `f/22`。一方、shader は aperture 値を式の分子に使い、大きい値ほど blur を増やす。数値・ラベル・一般的な f-number の意味が一致するか、制作上の意図は未確定。
+- `tests/Artifact` で見つかった DoF 専用 GPU cases は `PostProcessPassGpuContractTest` の7件で、いずれも pass の数値・動作契約を検査する。camera preview と Render Queue の出力一致を確認する DoF integration test は見つからない。
 
 ## R1 初回 scene capture（2026-11-10）
 
@@ -155,6 +176,36 @@ R0 で機材・GPU 構成を記録した上で、最低限、同じ scene／came
 
 **R1 判定:** GPU pass を通した独立画像と再現可能な focus-plane 比較を取得した。Camera DoF の scene-level 画質受入には、3D mesh／point-light を含む production integration capture が別途必要。
 
+## R1 独立 GPU pass 再検証（2026-11-13）
+
+- `cmake --build build --config Debug --target ArtifactPostProcessPassContractTest` は終了コード 0。古い CMake 生成 stamp を検出して自動再生成した後、指定 test target をビルドした。
+- `ctest --test-dir build -C Debug -R ArtifactDepthOfFieldPassContractTest --output-on-failure` は 1/1 registered test passed。binary に対して同じ DoF filter を直接実行し、`DepthOfField*` の7/7 Google Test cases passed。対象は off-focus impulse、layered visual capture、thin-lens aperture response、CoC/sample clamp、negative radius clamp、focus/clip normalization、in-focus impulse。
+- いずれも NVIDIA GeForce RTX 4070 Ti の headless Vulkan 経路。Render Queue camera integration はこの test filter に含まれない。
+- `tests/depth_of_field_visual/check_depth_of_field_image.py` で GPU image capture と3項目の画像検査を再実行し、すべて passed。focus plane の chart contrast retention は 1.0000、near plane は 0.1189、far plane は 0.0216。変更 pixel 数は 10,240。
+- 出力: `experiments/DepthOfFieldLab/captures/gpu-dof-r2-rebuilt-2026-11-13/dof-gpu-comparison.png` と `dof-gpu-metrics.json`。比較画像を確認し、合成チャートの focus 帯が保持され、near／far 帯がぼけることを目視した。
+- この再検証も既存の 160×96 flat-depth fixture による pass-level 診断である。PPM readback は display range に clamp されるため HDR headroom は評価しない。production camera scene、silhouette halo、aperture-shaped bokeh、透明／HDR、temporal stability、D3D12 parity、GPU timing は未検証。
+
+**R1 判定:** 現在のソースで Vulkan GPU pass と focus-plane 応答を再現し、contract test と画像検査を確認した。production renderer の統合画質・性能受入は引き続き未完了。
+
+### R1 production GUI 比較の試行（2026-11-13）
+
+- GUI capture の個別許可後、作業ツリーの `out/build/x64-Debug-Agent/bin/Debug/Artifact.exe` を起動した。対象インスタンスは空の composition 状態で、ユーザープロジェクトは開いていなかった。
+- 現行ソースに合わせて `Artifact` target を Debug で再ビルドし、Render Queue GPU path の `activeCamera` を非 const pointer にする最小修正を `Artifact/src/Render/ArtifactRenderQueueService.cpp` に加えた。`advanceShake()` 呼び出しの const qualifier 不整合が原因で、コンパイルはこの箇所を通過した。Render Queue オブジェクト単体は Ninja でビルド済み。
+- 全体ビルドは別のコンパイルエラーで停止した。`ArtifactCompositionRenderController.cpp` の camera motion blur 設定で `appSettings` が未定義だったため、その lambda 内で設定 singleton を取得する修正を加えた。その後も `ArtifactCompositionEditor.cpp` の X-Ray opacity menu にある lambda 型 (`auto *`) と `QAction::setDefaultWidget` の誤り、および `Artifact/src/AppMain.cpp` の未コミット変更領域に複数の構文／名前解決エラーが残り、Artifact.exe は再リンクされていない。`AppMain.cpp` の既存変更はこの作業では編集していない。
+- 既存 GUI binary の更新日時は 2026-11-11 01:15、DoF pass source は 2026-10-24、Render Queue source は 2026-11-11 13:54。binary を現行 source と同一の検証対象とはみなさない。
+- GUI 上で一時 composition `Comp1`（960×1080、30 fps、frame 0）を作成して Composition Viewer で開けた。timeline は 0 layers、composition viewer は空で、Camera tool を選択した状態まで観測した。camera layer／mesh は追加しておらず、Render Queue も実行していない。
+- 初回は別アプリのウィンドウが前面に重なり、作成ボタンは geometry unavailable で操作できなかった。Artifact を前面化した後、空の composition を作成できたが、その後 Computer Use は物理 Escape で複数回停止された。後続起動では未保存の composition は残らず、今回の状態確認後に `Artifact.exe` process が存在しないことを確認した。
+- 既存 binary は 2026-11-11 01:15 のものを起動したが、Computer Use が対象ウィンドウの activation に 2 回失敗したため UI 操作を停止した。production preview／Render Queue 比較画像は未取得であり、古い binary の結果を現行 source の証拠として扱わない。
+
+**R1 判定:** production integration capture は未完了。Render Queue の const qualifier blocker と Composition Render Controller の設定取得 blocker は修正したが、他のコンパイルエラーが残り、現在のソースから GUI binary を作れていない。ビルド阻害が解消し、評価対象アプリの window activation が可能な状態で、固定 scene/frame/resolution の preview／Render Queue 比較を再試行する。
+
+### R1 統合経路の優先調査項目（2026-11-13）
+
+- **優先度:** High。Composition preview で有効な camera DoF が Render Queue の最終画像に反映されない経路差がある。
+- **再現条件:** DoF と blur amount が有効な 3D active camera を持つ composition を、同一 frame／resolution で preview と Render Queue GPU 出力に通す。
+- **根拠:** `ArtifactCompositionRenderController.cpp` の camera post-process block は DoF を適用する。一方 `ArtifactRenderQueueService.cpp` は active camera の view/projection と motion blur を使うが DoF pass / parameters を参照しない。tests には pass contract はあるが preview／Render Queue DoF parity を確かめる integration case はない。
+- **証拠の範囲:** 現時点の根拠は source trace のみ。preview と export の比較画像は未取得なので、見た目の差分量・欠陥 crop は未測定。Render Queue camera integration capture を次の R1 gate とする。
+
 ## 既存確認項目との対応
 
 - GPU pass 数値契約: `tests/Artifact/PostProcessPassContractTest.cpp`、CMake test `ArtifactDepthOfFieldPassContractTest`
@@ -167,7 +218,7 @@ R0 で機材・GPU 構成を記録した上で、最低限、同じ scene／came
 
 ## 未確認・リスク
 
-- この turn ではソースとテストを読んだだけであり、テスト・shader compile・runtime capture は行っていない。
+- 2026-11-10 の R0 静的調査は source audit のみ。2026-11-13 に headless Vulkan pass capture を実施したが、production scene の runtime capture ではない。
 - 既存 DoF test は contract test であり、画質ベンチマークとしての期待画像や現行 baseline は確認できていない。
 - 物理式の unit／sensor model の意味、透過物・multi-layer depth の規約、preview と offline render の最終適用条件は、R0 で現行経路をさらに追跡する。
 - 強い bokeh、深度 discontinuity の改善は gather 半径とサンプル数を増やすだけでは不十分な場合があり、性能・halo・occlusion を一緒に評価する。
@@ -176,6 +227,6 @@ R0 で機材・GPU 構成を記録した上で、最低限、同じ scene／came
 ## 次の作業
 
 1. R0: `DepthOfFieldPass` の入力／出力 format、camera depth SRV の生成、preview と Render Queue の適用先を現行コードで追跡する。
-2. scene pack の合法な素材／ground truth を選定し、静止画と sequence の baseline 条件を記録する。
-3. 現行 D3D12／Vulkan capture と GPU timestamp を取得できる環境で R1 を実施する。ビルド・テスト・capture 実行はユーザーの明示指示後に行う。
+2. 3D mesh／point-light と既知の depth ground truth を含む scene pack を用意し、production camera path の静止画と sequence の baseline 条件を記録する。
+3. D3D12／Vulkan production capture、alpha/HDR 条件、GPU timestamp を取得し、backend parity と時間安定性を評価する。
 4. R1 の結果を受けて R2 の候補と数値 gate を確定する。

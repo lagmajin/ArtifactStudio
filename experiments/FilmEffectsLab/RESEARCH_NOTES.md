@@ -1,3 +1,5 @@
+**最終更新:** 2026-11-13
+
 ## 2026-11-12: Match Grain の参照解像度と出力grain scale
 - **Related:** `plans/match-grain-reference-resolution-scale-r1.json`, `match_grain_reference_resolution_scale_study.py`, `captures/match-grain-reference-resolution-scale-r1/metrics.json` と native-reference / residual contact sheets; `Artifact/src/Effect/ArtifactCreativeEffects.cpp::prepareAuxiliaryImage`, `ArtifactMatchGrainEffect::apply`.
 - **Confirmed（source-equation model）:** 同一1024×512 seed textureからarea-resizedしたreference 256×128 / 512×256 / 1024×512を、512×256 / 1024×512 targetへsourceのINTER_LINEAR規則で準備し、Gaussian high-pass sigma1.15 / 3を比較。512×256 native referenceをtarget1024×512へ拡大したsigma1.15 residual stddevは.01706で、同じreferenceをtarget512×256で使う.04818の約35.4%。sigma3では.02923対.05247（約55.7%）。256×128 referenceはtarget1024でsigma1.15 .00394、512 targetで.00851。1024 native referenceのsigma1.15 residualはtarget1024で.09647、512 targetで.04818。alphaは全12条件で一致。
@@ -276,3 +278,11 @@
 - **frame-size interaction:** 128px/Spread100/sigma12ではred energy gainがunbounded highlight mass比で全位置約0.102、edge/center比は1.004、corner/center比1.007。blur radiusがframe寸法を大きく上回る条件では位置差が小さくなり、全体として大きなenergy truncationを示す。
 - **Visual review:** 256px/Spread50 contact sheetは固定のglobal square-root mappingで表示。点光源と有限スポットの大きさ・境界時の形状差を見せる診断画像であり、実レンダーの見た目や品質合格を示さない。
 - **Limitations / next:** NumPy equation modelのみ。Float64 prefix sumを使うため厳密なC++ Float32 accumulation parityではない。colored/transparent source、background composite、display transform、C++/app/GPU経路、performanceは未検証。次はグレイン/ノイズ系のCPU・GPU route gapをオフラインsource modelで優先する。
+
+
+## 2026-11-13: Film Grunge / Add Noise Composition CPU runtime capture attempt
+- **Related:** `plans/film-suite-composition-runtime-capture-r1.json`, `captures/film-suite-composition-runtime-capture-r1/capture-manifest.template.json`, `fixtures/film-suite-runtime-r1/`.
+- **事前登録:** 比較前に既存計画をAdd Noiseとの比較へ改訂。512×256/1024×512 synthetic alpha/detail素材、黒/灰/白合成、無効/neutral/candidate、frame 0、ROI指標を固定した。Amount .075は数値一致のみで、知覚強度一致を意味しない。
+- **実行状況:** 既存Artifact 0.9.0を起動し、未保存の512×256 Comp1を作成。Composition Viewer・Project ViewにComp1は見えたが、Effectsは「No composition selected」/「Target: Composition unavailable」のままで、effect stackを合成へ適用できなかった。Ctrl+IでMedia Import Pickerは開いたが、CUAはmodalを入力対象としてactivateできず（“failed to activate captured window”）。素材選択/import、効果設定、CPU経路確認、exportは未実施。
+- **結論:** アプリ起動・空の合成作成は効果出力の実測ではない。runtime比較結果なし。成功・失敗・品質評価の主張はしない。plan statusはpending captureで、UI bind問題を記録した。
+- **制約:** ビルド、CMake、テスト、製品ソース変更なし。

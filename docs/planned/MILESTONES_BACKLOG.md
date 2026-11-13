@@ -2,6 +2,21 @@
 
 **最終更新:** 2026-11-13
 
+### Offline UI 操作・キャプチャ
+- **M-UI-OFFLINE-1** オフライン・不可視 UI 操作／キャプチャ基盤（In Progress: hidden launcher、widget / GPU frame capture入口。runtime未検証）
+  - Windows desktop window に依存せず、Artifact の実 widget tree をローカル action から操作し、widget / renderer capture・状態・ログを保存する
+  - Qt widget capture と Diligent GPU viewport capture を別 lane として段階導入し、各 lane の制約と再現条件を manifest 化する
+  - 詳細: `docs/planned/MILESTONE_OFFLINE_UI_AUTOMATION_2026-11-13.md`
+
+### Shader Graph R&D / Core Promotion
+- **M-SHADER-GRAPH-RD-1** Blender-style 3D material shader graph の評価と段階的 Core 昇格（In Progress: 既存試作の棚卸し・評価計画策定）
+  - 既存 `ArtifactCore::ShaderNode::NodeGraph`、`ArtifactShaderGraphWidget`、`Material::materialGraphJson`、3D Raster shader 接続を基準実装として扱い、独立再実装しない
+  - R0: graph schema／pin type／cycle・型検証／HLSL lowering／Material Output・fallback／保存互換性を静的監査。R1: deterministic fixtureと画像評価を追加し、既定Principled parity、ノード別応答、エラーfallback、保存往復を比較。R2: D3D12／Vulkan runtime・shader compile・GPU費用を測定。R3: 安定した値型 graph IR／validator／backend-neutral lowering APIをCore候補として抽出し、UI・Qt・GPU device所有をCoreから分離する
+  - **画像評価計画:** baselineは現行固定Principled Raster出力と既存graph無効時出力。素材はUV checker＋球／平面、base color・metallic・roughness・normal・opacityの境界、HDR emission、透明背景を含む決定論fixture（出所・hash・seedを記録）。linear HDR float／同一露出・表示変換／同一alpha association／固定解像度で記録する。全体と境界・ハイライト・透明縁cropを目視し、分布（RGB/alpha、非有限・clip率）、baseline差分（MAE/RMSE/p99/max、閾値超過率）、ノード応答曲線、境界漏れを測る。Principled既定値はbaselineと許容差をR1比較前に確定し、任意グラフは期待応答を明記。時間安定性は静的グラフでは対象外（アニメーション値・動的入力導入時に追加）。Preview/final、D3D12/Vulkanを評価し、GPU時間・CPU compile時間・PSO/cache churn・VRAMをbaseline比較する。環境未使用は未検証。
+  - 合格ゲート: deterministic serialization/hash、cycle・不正pin拒否、unknown node/versionの安全なfallback、Principled baseline parity、save/reload、RHI両backend shader compileと画像応答、steady-state resource churnなし、compile/cache性能予算が証跡付きで成立してからCore API昇格を提案する。未達は未検証として残し、製品採用と表現しない
+  - Core昇格時は独自コンテナを優先し、現在の`std::vector`／`unique_ptr`・Qt JSON依存をそのまま移植しない。初期R&Dでは本番Renderer、既定材質、RT、UIを変更しない。製品統合はゲート通過後の別段階
+  - 詳細: `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md`
+
 ### Fog / Atmospheric Scattering R&D
 - **M-FOG-RD-1** Fog・大気散乱の方式比較（In Progress: source audit・CPU積分／画像fixture・GPU式mirror診断・cloud/light fog積分監査・局所fog froxel CPU proxy・light count・depth slice・camera temporal・XY tile・Gaussian/fine/hard-boundary volume・subsample injection・grid/integration convergence・interval oracle・single/multi-box coverage/transmittance probes・球状大気single-scattering参照）
   - 既存CPU AtmosphereFog、GPU height fog試作、cloud shader内fogを区別し、linear HDR/depth契約を固定した決定論的fixtureでuniform／analytic height／raymarch height／single scattering／froxel／大気LUTを段階評価する

@@ -1,6 +1,6 @@
 # Milestone: FBX Raster / Ray Tracing Buffer Evaluation
 
-**最終更新:** 2026-11-12
+**最終更新:** 2026-11-13
 **ステータス:** In Progress
 
 ## 目的と対象
@@ -85,3 +85,41 @@ FBXから読み込んだ実メッシュ、UV、複数材質、画像テクスチ
 - 追加された本番Artifact renderer側triangle material index伝搬は`ArtifactIRenderer.cpp` objectとしてコンパイル済みだが、runtimeでは未確認。Artifact全体target buildは既存`PluginRegistry.cpp`の`Container.NameMap` / `Core.ArtifactSet` IFC不足で停止した。個別`MeshImporterFbxTest`契約テストもFBX import test optionが無効なため今回未実行。新規RT acceptanceはImporter→Mesh RenderData→RT managerまでを直接検証している。
 - Raster Beauty map-on/map-off差はcoverage一致の196,608 RGB samplesに対してMAE=0.226304、RMSE=0.274845、最大差=0.445396。Raster/RT Beautyのcoverageも両方65,536 pixelだが、同条件pixel差はMAE=0.222653、RMSE=0.277033、最大差=0.451101。絶対差PFM/PNGを保存した。この差をただちに不具合とも合格とも判定しない。両系統のlighting/shaderモデル差に分解できておらず、比較用の承認基準値も未決定。Base Color material diagnosticだけはRaster/RT比較を通過。Metallic/Roughness/AO parity、UV seam、normal detail cropは未評価。Vulkanだけの結果であり、D3D12、性能、alpha/transparency、animation temporal stabilityも未検証。
 - したがって現段階は**single- / multi-material FBXからRTへのslot/material値接続は合格、Raster/RT画像品質および製品Composition統合は未達**。R&D全体を完了とはしない。
+
+
+## 2026-11-13 シネマティックな静止画評価
+
+### 事前評価計画
+
+- **問い:** 既存FBX sofa RT beautyに対する背景色統一／暖色チャコールcove変更が、映画的なムードと主役の分離を改善するか。
+- **比較対象:** 同一の960×720 Vulkan RT scene・camera・model・material・shadow設定を持つ`124-sofa-hero-plate-unified-neutral`と`131-sofa-hero-plate-warm-charcoal-cove`。linear PFMと固定ACES-fit→sRGB PNGを確認し、JSONの全画面輝度統計を補助証拠とする。
+- **固定条件／制約:** この2候補間で変更されたのはfloor/backdrop base color。geometry、camera、material response、light placement/intensityは固定。元のモデルとtextureは外部配布物で、このworktree内に再現可能なsource assetは見つからない。Captureは既存build tree由来で、現行sourceからの再生成はしていない。
+- **判定基準:** 主役の輪郭・床への接地・明部の階調・素材の読みやすさを目視比較する。全画面平均輝度だけで画質を判定せず、見た目の改善がなければ候補を採用しない。
+- **結果の限界:** single viewのlook-dev比較であり、animation、別model/material、D3D12、production Compositionの色管理・表示は評価対象外。
+
+### 比較結果
+
+- 両PNGを並べて目視した結果、暖色charcoal候補は背景と床の継ぎ目を消すが、モデルの輪郭・床との接地・布の立体感の差はほぼなく、背景を暗くした分だけ画面全体が沈む。映画的な光の方向性や色の対比を生む証拠にはならず、現時点では採用しない。
+- JSONではneutral候補の`luminanceMean/P50/P95`が`0.09046/0.04153/0.23145`、warm-charcoal候補は`0.08040/0.02313/0.23145`。上位明部は変わらず、主に背景・床の暗部が低下したことと整合する。
+- 以前の`78`/`79`比較もJSON上はkey area scale、key intensity、HDRI intensity、camera、material値が同一で、luminance mean差は`0.000008`。このpairは意図したwide-fill照明差を表しておらず、照明候補の有効なA/Bとしては無効。
+- 生画像では背面と座面に布模様と強い波状ハイライトが残る。supersamplingだけでは直らないという過去captureの所見とも整合するが、texture/normal map、roughness mip、幾何法線のどれが主因かは未分離。`Sofa_01_roughness_1k`等のsource assetはworktreeに存在せず、現行sourceからのcapture testも確認できないため原因断定はしない。
+- **事前に定めた画像評価計画:** 自作布FBXと同梱textureを使い、Vulkanの同一camera・lightingでmap寄与と光の寄与を個別captureする。実行時は960×720、全map有効 / normal off / roughness off / area shadows off / key-only、Base Color / World Normal / Metallic-Roughness AOVを追加し、linear RGBA32F PFM、ACES-fit→sRGB PNG、中央224² crop、settingsと輝度統計JSONを保存した。結果と限界は「自作布fixtureによるVulkan capture」に記録する。
+
+以前の作業記録に記載されたエディトリアル図版は現行worktreeに存在しない。今回の評価ではプレゼンテーション画像を証拠に使わず、RT beauty/PFM/AOVを評価対象とする。
+
+### 自作布fixtureによるVulkan capture（2026-11-13）
+
+- `tools/fbx/create_material_fixtures.py` は6パーツ（plinth、左右seat cushion、single back、左右arms）のソファ形状と512² base-color / roughness / tangent-normal PNGを生成する。FBXはsmooth polygon-vertex normalsを含む。source model/imageのdownloadはなく、`tests/fixtures/fbx-materials/fabric-pillow/manifest.json`に各SHA-256を記録する。folder名は初回pillow試作時のlegacy名として残っている。
+- `RayTracingAcceptanceTest.CapturesTextileFbxLookdevAblations` はRT managerへFBX mesh/material/mapsを接続し、暗い青の連続studio cove、別materialの木脚、暖色area key、cool fill、背後からのblue rim light、fabric sheenで960×720 beautyをcaptureする。同条件でfull maps、normal off、roughness off、area-light shadows off、key-onlyを保存し、Base Color / World Normal / Metallic-Roughness AOVも取得する。各captureはRGBA32F PFM、ACES-fit→sRGB PNG、中央224² crop、JSON settings/linear luminanceを保存する。Test: RTX 4070 Ti / Vulkan、2026-11-13 pass。
+- linear RGB PFMのfull maps基準との差（RGB sample MAE / p95 / max）は、normal offで全画面`0.001053 / 0.006816 / 0.11336`、固定crop`0.004578 / 0.012558 / 0.05591`。roughness offで全画面`0.000268 / 0.001799 / 0.01623`、crop`0.001301 / 0.003259 / 0.00572`。これらは単一off/on差の計測値で、品質閾値やground truthがないため合格根拠ではない。目視ではnormalの影響はcropでわずかに現れ、roughness差は小さい。
+- 2026-11-13 追試: key intensity`56`、warm color`(1.0,0.58,0.32)`、fill`4`、rear blue area`18`にし、coveへ床勾配・家具の接地影・青い輪郭光が現れた。normalStrength`1.0`ではrim-lit armに格子状specular aliasingが見え、normal map無効画像では消えたためnormalStrengthを`0.22`、さらに`0.08`へ下げた。`0.22`→`0.08`のsame-mesh linear RGB differenceは全画面MAE/p95/max`0.000122 / 0.000452 / 0.107511`、fixed sofa ROI`0.000386 / 0.001127 / 0.107511`。目視では0.08でaliasingが減るが、織りの見えも弱くなる。
+- normalStrength follow-up: 同じsingle-back/single-seat FBX hashとlightingで`0.22`（`220-fabric-sofa-full-maps`）対`0.08`（別出力folder`sofa-strength-008/220-fabric-sofa-full-maps`）をVulkanで取得し、両test pass。fixed sofa ROIは`(220,170,520,420)`、218,400 pixels。linear RGB absolute difference（MAE / p95 / max）は全画面`0.000122 / 0.000452 / 0.107511`、ROI`0.000386 / 0.001127 / 0.107511`。目視では0.08でrim-lit右armの格子状反射がかなり弱まる一方、素材の微細な織りも弱くなる。full-view PNGと固定ROI cropをstrength別folderに保存した。これは見た目の正解やprofessional-qualityの合格基準ではない。
+- geometry follow-up: strength`0.08`でseat/back両方をsplitした画像はback中央の隙間が強く、two chairsにも読めた。そこでbackをsingle cushionに戻し、split seat + continuous backを`sofa-split-seat-single-back/220-fabric-sofa-full-maps.png`へcapture。同Vulkan test pass。single-seat/back版に対するlinear RGB differenceは全画面MAE/p95/max`0.000549 / 0 / 0.141314`、fixed sofa ROI`0.001737 / 0.006455 / 0.141314`。目視比較では連続backとseat中央のseamが2-seater sofaとして最も読みやすく、以後のfixture候補とする。これはsynthetic geometry同士のlook-dev判断で、実家具のground truthやprofessional-quality証明ではない。
+- Seat-gap follow-up: 計画どおりcenters`±0.415` / radius`0.43`のsplit-seat, single-back版を`sofa-closed-seat-gap/220-fabric-sofa-full-maps.png`に出力し、Vulkan test pass。元のcenters`±0.43` / radius`0.42`版とのlinear RGB differenceは全画面MAE/p95/max`0.000178 / 0 / 0.193301`、fixed sofa ROI`0.000563 / 0.001602 / 0.193301`。ROI crop`220-fabric-sofa-roi.png`も保存した。目視では中央の暗い開口が狭まり、座面が連続したloveseatに読みやすくなった。現段階ではseat-gapを閉じたこのfixtureをlook-dev baselineとして選ぶが、プロ品質採用画像とは扱わない。
+- Test harness review: ablation helperはmapをoffにする時だけmaterialを設定し、後続のshadows-off/key-only captureがroughness-off stateを継承していた。従って以前の`146/147`および一部`226/227` shadow/key-only差分値は同条件比較ではなく**撤回**する。helperを各capture前にcomplete materialを毎回送る形へ修正した。managerの`setInstancePbrMaterial`は変更なし時に`false`を返すので、testではこのreturn値を「更新成功」と誤認せず、variant適用呼び出しを行う。新しいsingle-seat/back, gap-closed fixtureのclean capture folderは`sofa-final-lookdev/`。
+- Corrected ablations (`sofa-final-lookdev`, strength`0.08`): full map baselineに対するlinear RGB absolute difference（MAE/p95/max）はnormal off全画面`0.000069 / 0.000257 / 0.062025`、ROI`0.000219 / 0.000631 / 0.062025`。roughness off全画面`0.000525 / 0.002522 / 0.391275`、ROI`0.001661 / 0.004727 / 0.391275`。area shadows off全画面`0.004895 / 0.017574 / 0.771441`、ROI`0.010009 / 0.053971 / 0.771441`。key-only全画面`0.002991 / 0.020132 / 0.033273`、ROI`0.008515 / 0.025598 / 0.033273`。ROIは`(220,170,520,420)`の218,400 RGB pixels。full imageのluminance mean/p50/p95/maxは`0.040381 / 0.011173 / 0.178751 / 0.602843`。PNG/PFMはsame conditionsのfull imageとsofa ROIで保存。max値は狭いsample差を拾うため、統計だけで品質を判定しない。
+- Composition A/B: gap-closed six-part sofa、全材質・光・露出・display transformを固定し、camera origin/targetをともに`-0.30 * extent` X移動したhero frame`240`を`sofa-final-lookdev/240-fabric-sofa-offset-hero.png`へcaptureし、same test pass。座標変更のみのlinear RGB differenceは全画面MAE/p95/max`0.026564 / 0.159884 / 1.269898`、ROI`0.054899 / 0.182909 / 0.796817`。視覚上、sofaを右側に寄せて左にnegative spaceを作る案は中央配置よりeditorialなhero plateとして意図が読み取りやすい。ただし stillはsynthetic test assetの外観を残し、プロ品質の採用画像には達していない。
+- Camera distance A/B: centered full-map baselineに対しcamera origin/targetを同時に`-0.30 * extent` X移動したframe`240`と、そのframingを維持してoriginをtarget方向へ`0.15 * extent`動かしたcloser frame`250`を、同一test内でVulkan captureした。両者ともpass。baselineとの差（linear RGB MAE/p95/max）はframe240全画面`0.026564 / 0.159884 / 1.269898`、hero ROI`0.050094 / 0.176454 / 1.269898`。frame250全画面`0.029521 / 0.165065 / 1.345612`、hero ROI`0.057677 / 0.177825 / 1.345612`。ROI差は同じ座標域での未整列pixel差なので品質の合否には使わない。目視ではcloser frameは約半分のframe widthを占めながらsofa全体と負の空間、脚、長い接地影を保つ。right marginは狭いが切れておらず、現時点で`250`をhero framing候補として選ぶ。`-sofa-roi.png`とJSONのROI luminanceを同時保存するcapture helperも追加した。
+- **次の画像評価計画:** camera`250`、six-part mesh、fixture/maps/hash、key/fill/rim、normalStrength`0.08`、exposure/display transformを固定し、test-only wooden leg base colorのみを現行ほぼ黒の`(0.028,0.017,0.012)`からwarm walnut`(0.075,0.028,0.012)`へ変えるA/Bを取得する。full viewと脚を含むhero ROIで木脚の色/可読性、床接地影、sofaから脚への視線の流れを目視確認する。linear RGB差分・ROI luminanceは診断値にとどめ、合否は画面全体の見えで判断する。色が周囲から浮く場合は現行色を維持する。
+- 最新のcaptureは背・二分割座・アーム・脚・接地影・青いrim、左側negative spaceを持つが、synthetic look-dev fixtureの外観が残り、まだプロ品質のcinematic stillとして採用していない。Beauty品質、Raster/RT比較、Composition表示、D3D12、temporal stability、performanceは未達または未検証。特にperformanceはcapture testがGPU時間を計測しないため未検証。時間変化は静止シーンのため今回対象外、透明/alphaはopaque materialのため対象外。
+- **継続条件:** planned camera-distance variantを評価し、normal map由来の細かなhighlight artifact、主役/背景の分離、中央seamと接地影を引き続き確認する。採用画像の確認前にR&Dを完了扱いしない。

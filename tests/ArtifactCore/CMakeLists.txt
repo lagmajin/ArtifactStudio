@@ -41,6 +41,11 @@ if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
             ARTIFACT_TEST_FBX_MULTI_MATERIAL_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/multi-material-pbr.fbx"
         )
     endif()
+    if(EXISTS "${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/fabric-pillow/fabric-pillow.fbx")
+        target_compile_definitions(ArtifactCoreRayTracingAcceptanceTest PRIVATE
+            ARTIFACT_TEST_FBX_FABRIC_PILLOW_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/fabric-pillow/fabric-pillow.fbx"
+        )
+    endif()
     if(PLATFORM_WIN32)
         copy_shader_compiler_dlls(ArtifactCoreRayTracingAcceptanceTest
             DXCOMPILER_FOR_SPIRV YES)

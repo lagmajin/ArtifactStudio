@@ -3,42 +3,94 @@
   "plan_id": "film-suite-composition-runtime-capture-r1",
   "registered_on": "2026-11-12",
   "candidate_capture_started": false,
-  "objective": "Verify the registered Film Grunge and Film Damage CPU Composition output and visible alpha-edge response using prepared synthetic RGBA fixtures and paired effect-off baselines.",
+  "objective": "Verify Film Grunge and Add Noise CPU Composition output and visible alpha-edge response using prepared synthetic RGBA fixtures and paired effect-off baselines.",
   "scope": {
     "render_path": "Composition CPU rasterizer surface path through ArtifactAbstractEffect::applyToCpuSurface; raw frame PNG exports from the running application, not a source-equation model.",
     "effects": [
-      {"name": "Film Grunge", "id": "builtin.film_grunge", "neutral": "grainAmount=0, scratchAmount=0, dustAmount=0, flicker=0, gateWeave=0, vignette=0, stain=0", "candidate": "grainAmount=.075, grainSize=1.4, seed=1977, frame 0; other controls zero."},
-      {"name": "Film Damage", "id": "film_damage", "neutral": "all values zero except seed=1977/evolution=0", "candidate": "grain=0, gateWeave=0, flicker=0, filmBurn=0, dust=.08, scratches=.10, seed=1977, evolution=0."}
+      {
+        "name": "Film Grunge",
+        "id": "builtin.film_grunge",
+        "neutral": "grainAmount=0, scratchAmount=0, dustAmount=0, flicker=0, gateWeave=0, vignette=0, stain=0",
+        "candidate": "grainAmount=.075, grainSize=1.4, seed=1977, frame 0; other controls zero."
+      },
+      {
+        "name": "Add Noise",
+        "id": "add_noise",
+        "neutral": "Amount=0, Size=1.4, Color Noise=false, Monochrome=true, Seed=1977",
+        "candidate": "Amount=.075, Size=1.4, Color Noise=false, Monochrome=true, Seed=1977."
+      }
     ],
-    "excluded": ["product source changes/instrumentation", "GPU-native route", "temporal sequence and seek/reverse", "performance/allocation budget", "HDR/wide-gamut input", "physical-film equivalence or aesthetic approval", "preset integration decisions"]
+    "excluded": [
+      "product source changes/instrumentation",
+      "GPU-native route",
+      "temporal sequence and seek/reverse",
+      "performance/allocation budget",
+      "HDR/wide-gamut input",
+      "physical-film equivalence or aesthetic approval",
+      "preset integration decisions"
+    ]
   },
   "comparison": {
     "baseline": "Same layer, project, frame, and background with both effects disabled; plus each effect enabled at neutral values to check neutral response.",
-    "candidates": ["Film Grunge grain-only", "Film Damage dust+scratch overlay-only"],
-    "backgrounds": ["black", "middle gray RGB .18", "white"],
+    "candidates": [
+      "Film Grunge grain-only",
+      "Add Noise monochrome grain-only"
+    ],
+    "backgrounds": [
+      "black",
+      "middle gray RGB .18",
+      "white"
+    ],
     "ground_truth": "No approved look target. Paired disabled output is the visual/pixel baseline only.",
     "acceptance": "No visual pass/fail threshold is set. Report alpha-region differences, source/effect output alpha, rendered RGB differences, and qualitative visible exterior/edge changes. Do not label an alpha anomaly a defect until the actual descriptor and blend contract are known."
   },
   "materials": {
     "generated_by": "prepare_film_runtime_capture.py; synthetic assets at 512x256 and 1024x512, SHA-256 recorded in its manifest.",
-    "fixtures": ["film-alpha-edge-512.png", "film-detail-512.png", "film-alpha-edge-1024.png"],
+    "fixtures": [
+      "film-alpha-edge-512.png",
+      "film-detail-512.png",
+      "film-alpha-edge-1024.png"
+    ],
     "rights": "Synthetic diagnostic assets; no external image rights.",
     "regions": "ROI masks are generated from the exact quantized alpha-edge source fixture at 512x256 and 1024x512: whole frame, transparent exterior, low alpha, edge transition, near opaque, opaque interior, central fine-line/detail region, and flat opaque foreground patch."
   },
   "conditions": {
-    "frame": "Composition frame 0; Film Damage Evolution 0; record project frame rate.",
+    "frame": "Composition frame 0; fixed seed 1977; record project frame rate.",
     "resolution": "512x256 base alpha fixture. 1024x512 alpha fixture is a secondary still-resolution check, not expected to have identical pixel grain scale.",
     "color_and_alpha": "PNG assets carry straight RGBA8 per PNG convention. Record import/image-layer metadata if visible. Export flattened PNGs over each of three backgrounds, preserving exact dimensions and no view transform or resize if the application permits; record any unavoidable export transform.",
     "display": "Capture Composition Viewer at 100% and 200% for visual edge review. Pixel metrics use exported PNG code values, with no cross-space claim.",
     "parameters": "Save exact displayed values, seed/evolution, active effect ID, layer transform/opacity, background values, export dimensions, and application build/version in capture manifest."
   },
   "evaluation": {
-    "effect_correctness": {"status": "planned", "method": "Compare disabled, neutral enabled, and candidate exports for repeatability and expected effect-local changes; log all settings.", "acceptance_criteria": "Neutral enabled image should match disabled within RGB8 export quantization if all neutral controls are honored; candidate response is descriptive only."},
-    "image_quality_and_detail": {"status": "planned_descriptive", "method": "Inspect whole images and 1:1 / 2:1 alpha-edge, flat, and line crops with equal display conditions.", "judge": "Research author", "acceptance_criteria": "No aesthetic acceptance gate; report exterior speckle, edge fringe, clipping, and detail changes."},
-    "color_and_alpha": {"status": "planned_partial", "method": "Export transparent candidate layer PNG where supported, inspect exported alpha/RGB, and compare flattened outputs over black/gray/white with RGB metrics per fixture alpha region.", "unverified": "Raw effect-entry/output float descriptor and whether PNG export changes association are not exposed by the planned UI capture; use static source path evidence and label this limit."},
-    "temporal_stability": {"status": "unverified", "reason": "Single frame 0 only."},
-    "render_paths_and_resolution": {"status": "planned_partial", "method": "Composition CPU path at two still resolutions.", "unverified": "Preview versus final/export, GPU, other backends, and multi-frame behavior."},
-    "performance": {"status": "unverified", "reason": "No controlled warm-up, timing or memory instrumentation in this plan."}
+    "effect_correctness": {
+      "status": "planned",
+      "method": "Compare disabled, neutral enabled, and candidate exports for repeatability and expected effect-local changes; log all settings.",
+      "acceptance_criteria": "Neutral enabled image should match disabled within RGB8 export quantization if all neutral controls are honored; candidate response is descriptive only. Same numeric amount is not treated as matched perceived strength."
+    },
+    "image_quality_and_detail": {
+      "status": "planned_descriptive",
+      "method": "Inspect whole images and 1:1 / 2:1 alpha-edge, flat, and line crops with equal display conditions.",
+      "judge": "Research author",
+      "acceptance_criteria": "No aesthetic acceptance gate; report exterior speckle, edge fringe, clipping, and detail changes."
+    },
+    "color_and_alpha": {
+      "status": "planned_partial",
+      "method": "Export transparent candidate layer PNG where supported, inspect exported alpha/RGB, and compare flattened outputs over black/gray/white with RGB metrics per fixture alpha region.",
+      "unverified": "Raw effect-entry/output float descriptor and whether PNG export changes association are not exposed by the planned UI capture; use static source path evidence and label this limit."
+    },
+    "temporal_stability": {
+      "status": "unverified",
+      "reason": "Single frame 0 only."
+    },
+    "render_paths_and_resolution": {
+      "status": "planned_partial",
+      "method": "Composition CPU path at two still resolutions.",
+      "unverified": "Preview versus final/export, GPU, other backends, and multi-frame behavior."
+    },
+    "performance": {
+      "status": "unverified",
+      "reason": "No controlled warm-up, timing or memory instrumentation in this plan."
+    }
   },
   "amendments": [
     {
@@ -52,10 +104,28 @@
       "reason": "The user requested offline capture for any real-app operation.",
       "change": "Capture is restricted to local synthetic fixtures, unsaved project state, local PNG exports, and local analysis. No downloads, cloud features, login, or external service are part of the procedure.",
       "scope_effect": "The host OS/network isolation state is not verified; the plan claims local-only workflow, not a physically disconnected machine."
+    },
+    {
+      "date": "2026-11-13",
+      "reason": "The user selected runtime comparison of Film Grunge and Add Noise; no candidate capture had started.",
+      "change": "Replace Film Damage with Add Noise monochrome grain at amount .075, size 1.4, seed 1977. Keep frame 0, the same synthetic fixtures, disabled/neutral baselines, RGB8 metrics by existing alpha ROIs, transparent candidate exports, and no aesthetic threshold. This numeric match is descriptive and does not claim matched perceptual strength.",
+      "scope_effect": "Temporal stability, GPU/native route, performance, and HDR remain excluded. No source changes, build, CMake, or tests are authorized."
+    },
+    {
+      "date": "2026-11-13",
+      "reason": "Document the attempted runtime capture and its UI state before any candidate export.",
+      "change": "Launched the existing Artifact app and created an unsaved 512x256 Comp1, but the Effects panel did not bind to the active composition. Fixture import, effect setup, CPU route confirmation, and exports were not completed. Capture remains pending; no result is inferred.",
+      "scope_effect": "No comparison data, source changes, build, CMake, or tests."
+    },
+    {
+      "date": "2026-11-13",
+      "reason": "Record an additional attempt using the in-app media picker after confirming that Effects does not bind to the active composition.",
+      "change": "Ctrl+I opened Artifact Media Import Picker. Its modal is visible, but CUA could not activate the captured modal window for coordinate input. No fixture selection/import or output capture occurred.",
+      "scope_effect": "No effect output evidence; plan remains pending."
     }
   ],
   "execution": {
-    "requires_user_authorization": "Granted by the user on 2026-11-12 for launching the existing Artifact app, using an unsaved temporary project with prepared fixtures, exporting Film Grunge/Film Damage PNGs, and analyzing them. No build, CMake, C++ test executable, or source edits are authorized or planned.",
+    "requires_user_authorization": "Granted by the user on 2026-11-12 for launching the existing Artifact app, using an unsaved temporary project, importing prepared fixtures, exporting Film Grunge PNGs, and analyzing them. The user selected Add Noise instead of Film Damage on 2026-11-13. No build, CMake, C++ test executable, or product source edits are authorized or planned.",
     "backend": "Running desktop application, Composition CPU rasterizer route; exact build identifier to be recorded.",
     "artifacts": "Raw transparent-layer and flattened PNG exports, Viewer screenshots, ROI masks, filled manifest, image metrics, and contact sheets under captures/film-suite-composition-runtime-capture-r1/.",
     "threshold_policy": "No post-hoc aesthetic thresholds. Neutral identity tolerance is export quantization only and must be declared before reviewing candidate exports.",
@@ -64,10 +134,12 @@
       "baseline-disabled-{background}-{resolution}.png",
       "grunge-neutral-{background}-{resolution}.png",
       "grunge-grain-only-{background}-{resolution}.png",
-      "damage-neutral-{background}-{resolution}.png",
-      "damage-overlay-only-{background}-{resolution}.png",
+      "add-noise-neutral-{background}-{resolution}.png",
+      "add-noise-grain-only-{background}-{resolution}.png",
       "grunge-grain-only-transparent-{resolution}.png",
-      "damage-overlay-only-transparent-{resolution}.png"
-    ]
+      "add-noise-grain-only-transparent-{resolution}.png"
+    ],
+    "capture_status": "pending_capture_blocked_by_composition_selection",
+    "blocker": "Artifact Media Import Picker opened via Ctrl+I, but its modal window is not exposed as an independently addressable window in CUA inventory; coordinate input to the modal screenshot fails with “failed to activate captured window”. No fixture was imported. Existing Effects panel still reports no composition selected. No effect output or CPU route evidence exists."
   }
 }

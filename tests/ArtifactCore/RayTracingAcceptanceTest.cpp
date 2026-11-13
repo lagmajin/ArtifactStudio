@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QImage>
 #include <QMatrix4x4>
+#include <QRect>
 #include <QString>
 #include <QTemporaryDir>
 #include <QVector3D>
@@ -962,6 +963,493 @@ TEST_F(RayTracingAcceptanceTest, CapturesSeparateFbxPbrMapsInRayTracingAov) {
 #endif
 }
 
+TEST_F(RayTracingAcceptanceTest, CapturesTextileFbxLookdevAblations) {
+#ifndef ARTIFACT_TEST_FBX_FABRIC_PILLOW_PATH
+    GTEST_SKIP() << "Fabric pillow FBX fixture path is not configured";
+#else
+    constexpr Uint32 width = 960;
+    constexpr Uint32 height = 720;
+    ArtifactCore::MeshImporter importer;
+    const auto mesh = importer.importMeshFromFile(ArtifactCore::UniString(
+        QString::fromUtf8(ARTIFACT_TEST_FBX_FABRIC_PILLOW_PATH)));
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    ASSERT_EQ(importer.lastBackend(), ArtifactCore::MeshImporter::Backend::Ufbx);
+    ASSERT_EQ(importer.importedPbrMaterials().size(), 1u);
+    const auto& source = importer.importedPbrMaterials().front();
+    ASSERT_FALSE(source.baseColorTexture.toQString().isEmpty());
+    ASSERT_FALSE(source.roughnessTexture.toQString().isEmpty());
+    ASSERT_FALSE(source.normalTexture.toQString().isEmpty());
+
+    const auto renderData = mesh->generateRenderData();
+    ASSERT_GE(renderData.positions.size(), 3);
+    ASSERT_EQ(renderData.positions.size(), renderData.normals.size());
+    ASSERT_EQ(renderData.positions.size(), renderData.uvs.size());
+    std::vector<float> positions, normals, uvs;
+    positions.reserve(static_cast<size_t>(renderData.positions.size()) * 3u);
+    normals.reserve(static_cast<size_t>(renderData.normals.size()) * 3u);
+    uvs.reserve(static_cast<size_t>(renderData.uvs.size()) * 2u);
+    for (const auto& value : renderData.positions)
+        positions.insert(positions.end(), {value.x(), value.y(), value.z()});
+    for (const auto& value : renderData.normals)
+        normals.insert(normals.end(), {value.x(), value.y(), value.z()});
+    for (const auto& value : renderData.uvs)
+        uvs.insert(uvs.end(), {value.x(), value.y()});
+    std::vector<Uint32> indices;
+    indices.reserve(static_cast<size_t>(renderData.indices.size()));
+    for (const auto index : renderData.indices) indices.push_back(index);
+    auto vertexBuffer = makeBuffer(positions.data(),
+        positions.size() * sizeof(float), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(indices.data(),
+        indices.size() * sizeof(Uint32), sizeof(Uint32),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    const ArtifactCore::UniString geometryId("fabric-sofa-lookdev");
+    ArtifactCore::RTGeometryData geometry;
+    geometry.pVertexBuffer = vertexBuffer;
+    geometry.vertexCount = static_cast<Uint32>(renderData.positions.size());
+    geometry.pIndexBuffer = indexBuffer;
+    geometry.indexCount = static_cast<Uint32>(indices.size());
+    geometry.geometryRevision = 1;
+    geometry.topologyRevision = 1;
+    ASSERT_TRUE(manager_->createOrUpdateBLAS(geometryId, geometry));
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        geometryId, positions.data(), geometry.vertexCount, indices.data(),
+        geometry.indexCount, normals.data(), nullptr, uvs.data()));
+
+    ArtifactCore::RTPbrMaterial material;
+    std::copy(source.baseColor, source.baseColor + 4, material.baseColor);
+    material.metallic = source.metallic;
+    material.roughness = source.roughness;
+    material.baseColorTexture = source.baseColorTexture;
+    material.roughnessTexture = source.roughnessTexture;
+    material.normalTexture = source.normalTexture;
+    material.normalStrength = 0.08f;
+    material.sheen = 0.42f;
+    material.sheenRoughness = 0.72f;
+    material.sheenTint[0] = 1.0f;
+    material.sheenTint[1] = 0.86f;
+    material.sheenTint[2] = 0.70f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(geometryId, material));
+
+    const auto center = (mesh->boundingBoxMin() + mesh->boundingBoxMax()) * 0.5f;
+    const float extent = (mesh->boundingBoxMax() - mesh->boundingBoxMin()).length();
+    ASSERT_GT(extent, 1.0e-5f);
+
+    // Place the set floor at the model's actual lowest point to avoid the
+    // floating-object gap that made the previous pillow study read as a swatch.
+    const float legHeight = extent * 0.07f;
+    const float floorY = mesh->boundingBoxMin().y() - legHeight;
+    struct CovePoint { float z, y, normalZ, normalY; };
+    const float coveRadius = extent * 0.72f;
+    const float coveWallZ = center.z() + extent * 2.2f;
+    const float coveStartZ = coveWallZ - coveRadius;
+    const float coveHalfWidth = extent * 4.0f;
+    std::vector<CovePoint> coveProfile{
+        {center.z() - extent * 3.0f, floorY, 0.0f, 1.0f},
+        {coveStartZ, floorY, 0.0f, 1.0f}};
+    constexpr Uint32 coveSegments = 16;
+    for (Uint32 segment = 1; segment <= coveSegments; ++segment) {
+        const float angle = 0.5f * 3.14159265f *
+            static_cast<float>(segment) / static_cast<float>(coveSegments);
+        coveProfile.push_back({
+            coveStartZ + coveRadius * (1.0f - std::cos(angle)),
+            floorY + coveRadius * std::sin(angle),
+            -std::cos(angle), std::sin(angle)});
+    }
+    coveProfile.push_back({coveWallZ, center.y() + extent * 8.0f, -1.0f, 0.0f});
+    std::vector<float> covePositions, coveNormals, coveUvs;
+    std::vector<Uint32> coveIndices;
+    covePositions.reserve(coveProfile.size() * 6);
+    coveNormals.reserve(coveProfile.size() * 6);
+    coveUvs.reserve(coveProfile.size() * 4);
+    for (Uint32 row = 0; row < coveProfile.size(); ++row) {
+        const auto& point = coveProfile[row];
+        covePositions.insert(covePositions.end(), {
+            center.x() - coveHalfWidth, point.y, point.z,
+            center.x() + coveHalfWidth, point.y, point.z});
+        coveNormals.insert(coveNormals.end(), {
+            0.0f, point.normalY, point.normalZ,
+            0.0f, point.normalY, point.normalZ});
+        const float v = static_cast<float>(row) /
+            static_cast<float>(coveProfile.size() - 1);
+        coveUvs.insert(coveUvs.end(), {0.0f, v, 1.0f, v});
+        if (row == 0) continue;
+        const Uint32 previous = (row - 1) * 2;
+        const Uint32 current = row * 2;
+        coveIndices.insert(coveIndices.end(), {
+            previous, current + 1, previous + 1,
+            previous, current, current + 1});
+    }
+    auto coveVertexBuffer = makeBuffer(covePositions.data(),
+        covePositions.size() * sizeof(float), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto coveIndexBuffer = makeBuffer(coveIndices.data(),
+        coveIndices.size() * sizeof(Uint32), sizeof(Uint32),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(coveVertexBuffer, nullptr);
+    ASSERT_NE(coveIndexBuffer, nullptr);
+    const ArtifactCore::UniString coveId("fabric-sofa-studio-cove");
+    addGeometry("fabric-sofa-studio-cove", coveVertexBuffer.RawPtr(),
+        static_cast<Uint32>(covePositions.size() / 3),
+        coveIndexBuffer.RawPtr(), static_cast<Uint32>(coveIndices.size()),
+        float4x4::Identity(), 1, 1, covePositions.data(), coveIndices.data(),
+        coveNormals.data(), coveUvs.data());
+    ArtifactCore::RTPbrMaterial coveMaterial;
+    coveMaterial.baseColor[0] = 0.095f;
+    coveMaterial.baseColor[1] = 0.13f;
+    coveMaterial.baseColor[2] = 0.19f;
+    coveMaterial.roughness = 1.0f;
+    coveMaterial.specular = 0.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(coveId, coveMaterial));
+
+    std::vector<float> legPositions, legNormals, legUvs;
+    std::vector<Uint32> legIndices;
+    const std::array<std::array<Uint32, 4>, 6> legFaces{{
+        {{0, 1, 5, 4}}, {{1, 2, 6, 5}}, {{2, 3, 7, 6}},
+        {{3, 0, 4, 7}}, {{0, 3, 2, 1}}, {{4, 5, 6, 7}}}};
+    const std::array<std::array<float, 3>, 6> faceNormals{{
+        {{0, 0, -1}}, {{1, 0, 0}}, {{0, 0, 1}},
+        {{-1, 0, 0}}, {{0, -1, 0}}, {{0, 1, 0}}}};
+    for (const float xSign : {-1.0f, 1.0f}) {
+        for (const float zSign : {-1.0f, 1.0f}) {
+            const float legX = center.x() + xSign * extent * 0.30f;
+            const float legZ = center.z() + zSign * extent * 0.16f;
+            const float bottomHalf = extent * 0.027f;
+            const float topHalf = extent * 0.040f;
+            const std::array<std::array<float, 3>, 8> corners{{
+                {{legX - bottomHalf, floorY, legZ - bottomHalf}},
+                {{legX + bottomHalf, floorY, legZ - bottomHalf}},
+                {{legX + bottomHalf, floorY, legZ + bottomHalf}},
+                {{legX - bottomHalf, floorY, legZ + bottomHalf}},
+                {{legX - topHalf, floorY + legHeight, legZ - topHalf}},
+                {{legX + topHalf, floorY + legHeight, legZ - topHalf}},
+                {{legX + topHalf, floorY + legHeight, legZ + topHalf}},
+                {{legX - topHalf, floorY + legHeight, legZ + topHalf}}}};
+            for (Uint32 face = 0; face < legFaces.size(); ++face) {
+                const auto& quad = legFaces[face];
+                const auto& normal = faceNormals[face];
+                const auto& p0 = corners[quad[0]];
+                const auto& p1 = corners[quad[1]];
+                const auto& p2 = corners[quad[2]];
+                const float ax = p1[0] - p0[0], ay = p1[1] - p0[1];
+                const float az = p1[2] - p0[2], bx = p2[0] - p0[0];
+                const float by = p2[1] - p0[1], bz = p2[2] - p0[2];
+                const bool reverse = (ay * bz - az * by) * normal[0] +
+                    (az * bx - ax * bz) * normal[1] +
+                    (ax * by - ay * bx) * normal[2] < 0.0f;
+                const Uint32 base = static_cast<Uint32>(legPositions.size() / 3);
+                const std::array<Uint32, 4> order = reverse
+                    ? std::array<Uint32, 4>{quad[0], quad[3], quad[2], quad[1]}
+                    : quad;
+                for (const auto corner : order) {
+                    legPositions.insert(legPositions.end(), corners[corner].begin(),
+                                        corners[corner].end());
+                    legNormals.insert(legNormals.end(), normal.begin(), normal.end());
+                }
+                legUvs.insert(legUvs.end(), {0, 0, 1, 0, 1, 1, 0, 1});
+                legIndices.insert(legIndices.end(), {base, base + 1, base + 2,
+                                                      base, base + 2, base + 3});
+            }
+        }
+    }
+    auto legVertexBuffer = makeBuffer(legPositions.data(),
+        legPositions.size() * sizeof(float), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto legIndexBuffer = makeBuffer(legIndices.data(),
+        legIndices.size() * sizeof(Uint32), sizeof(Uint32),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(legVertexBuffer, nullptr);
+    ASSERT_NE(legIndexBuffer, nullptr);
+    const ArtifactCore::UniString legsId("fabric-sofa-studio-legs");
+    addGeometry("fabric-sofa-studio-legs", legVertexBuffer.RawPtr(),
+        static_cast<Uint32>(legPositions.size() / 3), legIndexBuffer.RawPtr(),
+        static_cast<Uint32>(legIndices.size()), float4x4::Identity(), 1, 1,
+        legPositions.data(), legIndices.data(), legNormals.data(), legUvs.data());
+    ArtifactCore::RTPbrMaterial legsMaterial;
+    legsMaterial.baseColor[0] = 0.028f;
+    legsMaterial.baseColor[1] = 0.017f;
+    legsMaterial.baseColor[2] = 0.012f;
+    legsMaterial.roughness = 0.46f;
+    legsMaterial.specular = 0.30f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(legsId, legsMaterial));
+    ASSERT_TRUE(manager_->buildBLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+
+    ArtifactCore::RTRayCamera camera;
+    camera.origin[0] = center.x() + extent * 0.68f;
+    camera.origin[1] = center.y() + extent * 0.42f;
+    camera.origin[2] = center.z() - extent * 2.35f;
+    camera.target[0] = center.x();
+    camera.target[1] = center.y() - extent * 0.05f;
+    camera.target[2] = center.z();
+    camera.verticalFovDegrees = 28.0f;
+
+    std::array<ArtifactCore::RTSceneLight, 4> lights{};
+    lights[0].positionType[0] = center.x() - extent * 0.9f;
+    lights[0].positionType[1] = center.y() + extent * 0.9f;
+    lights[0].positionType[2] = camera.origin[2] + extent * 0.6f;
+    lights[0].positionType[3] = static_cast<float>(ArtifactCore::LightType::Area);
+    lights[0].directionIntensity[0] = 0.45f;
+    lights[0].directionIntensity[1] = -0.55f;
+    lights[0].directionIntensity[2] = 0.70f;
+    lights[0].directionIntensity[3] = 56.0f;
+    lights[0].colorAttenuationConstant[0] = 1.0f;
+    lights[0].colorAttenuationConstant[1] = 0.58f;
+    lights[0].colorAttenuationConstant[2] = 0.32f;
+    lights[0].colorAttenuationConstant[3] = 1.0f;
+    lights[0].shadowParams[0] = 0.0f;
+    lights[0].shadowParams[1] = extent * 0.28f;
+    lights[0].shadowParams[2] = extent * 0.32f;
+    lights[1].positionType[0] = center.x() + extent * 0.8f;
+    lights[1].positionType[1] = center.y() + extent * 0.15f;
+    lights[1].positionType[2] = camera.origin[2] + extent * 0.4f;
+    lights[1].positionType[3] = static_cast<float>(ArtifactCore::LightType::Area);
+    lights[1].directionIntensity[0] = -0.50f;
+    lights[1].directionIntensity[1] = -0.10f;
+    lights[1].directionIntensity[2] = 0.60f;
+    lights[1].directionIntensity[3] = 4.0f;
+    lights[1].colorAttenuationConstant[0] = 0.42f;
+    lights[1].colorAttenuationConstant[1] = 0.62f;
+    lights[1].colorAttenuationConstant[2] = 1.0f;
+    lights[1].colorAttenuationConstant[3] = 1.0f;
+    lights[1].shadowParams[0] = 0.0f;
+    lights[1].shadowParams[1] = extent * 0.55f;
+    lights[1].shadowParams[2] = extent * 0.8f;
+    lights[2].positionType[3] =
+        static_cast<float>(ArtifactCore::LightType::Ambient);
+    lights[2].directionIntensity[3] = 0.07f;
+    lights[2].colorAttenuationConstant[0] = 0.24f;
+    lights[2].colorAttenuationConstant[1] = 0.34f;
+    lights[2].colorAttenuationConstant[2] = 0.56f;
+    lights[2].colorAttenuationConstant[3] = 1.0f;
+    lights[3].positionType[0] = center.x() + extent * 0.20f;
+    lights[3].positionType[1] = center.y() + extent * 0.60f;
+    lights[3].positionType[2] = center.z() + extent * 1.2f;
+    lights[3].positionType[3] = static_cast<float>(ArtifactCore::LightType::Area);
+    lights[3].directionIntensity[2] = -1.0f;
+    lights[3].directionIntensity[3] = 18.0f;
+    lights[3].colorAttenuationConstant[0] = 0.34f;
+    lights[3].colorAttenuationConstant[1] = 0.48f;
+    lights[3].colorAttenuationConstant[2] = 0.82f;
+    lights[3].colorAttenuationConstant[3] = 1.0f;
+    lights[3].shadowParams[0] = 0.0f;
+    lights[3].shadowParams[1] = extent * 0.8f;
+    lights[3].shadowParams[2] = extent * 1.0f;
+    manager_->setSceneLights(context_.RawPtr(), lights.data(),
+                             static_cast<Uint32>(lights.size()));
+
+    const char* configuredOutput = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
+    const auto outputDir = configuredOutput && configuredOutput[0] != '\0'
+        ? std::filesystem::path(configuredOutput)
+        : std::filesystem::current_path() / "ray-tracing-frames";
+    std::filesystem::create_directories(outputDir);
+    const auto saveFabricCapture = [&](const char* stem,
+            const std::vector<std::array<float, 4>>& pixels,
+            bool useNormal, bool useRoughness) {
+        if (pixels.size() != static_cast<size_t>(width) * height) return false;
+        const int sofaRoiX = camera.target[0] < center.x() ? 390 : 210;
+        constexpr int sofaRoiY = 160;
+        constexpr int sofaRoiWidth = 550;
+        constexpr int sofaRoiHeight = 470;
+        const QRect sofaRoi(sofaRoiX, sofaRoiY,
+                            sofaRoiWidth, sofaRoiHeight);
+        QImage image(width, height, QImage::Format_RGBA8888);
+        std::vector<float> luminance;
+        std::vector<float> sofaRoiLuminance;
+        luminance.reserve(pixels.size());
+        sofaRoiLuminance.reserve(
+            static_cast<size_t>(sofaRoiWidth) * sofaRoiHeight);
+        double luminanceSum = 0.0;
+        const auto acesFit = [](float value) {
+            const float x = std::max(value, 0.0f);
+            return std::clamp((x * (2.51f * x + 0.03f)) /
+                (x * (2.43f * x + 0.59f) + 0.14f), 0.0f, 1.0f);
+        };
+        for (Uint32 y = 0; y < height; ++y) {
+            auto* row = image.scanLine(static_cast<int>(y));
+            for (Uint32 x = 0; x < width; ++x) {
+                const auto& pixel = pixels[static_cast<size_t>(y) * width + x];
+                const float Y = std::max(0.0f, 0.2126f * pixel[0] +
+                    0.7152f * pixel[1] + 0.0722f * pixel[2]);
+                luminance.push_back(Y);
+                luminanceSum += Y;
+                if (x >= static_cast<Uint32>(sofaRoiX) &&
+                    x < static_cast<Uint32>(sofaRoiX + sofaRoiWidth) &&
+                    y >= static_cast<Uint32>(sofaRoiY) &&
+                    y < static_cast<Uint32>(sofaRoiY + sofaRoiHeight))
+                    sofaRoiLuminance.push_back(Y);
+                auto* destination = row + x * 4;
+                for (Uint32 channel = 0; channel < 3; ++channel) {
+                    const float mapped = acesFit(pixel[channel]);
+                    const float srgb = mapped <= 0.0031308f
+                        ? mapped * 12.92f
+                        : 1.055f * std::pow(mapped, 1.0f / 2.4f) - 0.055f;
+                    destination[channel] = static_cast<std::uint8_t>(
+                        std::lround(std::clamp(srgb, 0.0f, 1.0f) * 255.0f));
+                }
+                destination[3] = 255;
+            }
+        }
+        const std::string pngName = std::string(stem) + ".png";
+        if (!image.save(QString::fromStdString(
+                (outputDir / pngName).string()), "PNG")) return false;
+        std::ofstream pfm(outputDir / (std::string(stem) + ".pfm"),
+                          std::ios::binary);
+        if (!pfm) return false;
+        pfm << "PF\n" << width << ' ' << height << "\n-1.0\n";
+        for (Uint32 y = height; y > 0; --y) {
+            for (Uint32 x = 0; x < width; ++x) {
+                const auto& pixel = pixels[static_cast<size_t>(y - 1) * width + x];
+                pfm.write(reinterpret_cast<const char*>(pixel.data()),
+                          sizeof(float) * 3);
+            }
+        }
+        if (!pfm.good()) return false;
+        const int cropX = static_cast<int>(width / 2 - 112);
+        const int cropY = static_cast<int>(height / 2 - 112);
+        const QRect cropRect(cropX, cropY, 224, 224);
+        const auto cropPath = outputDir /
+            (std::string(stem) + "-textile-crop.png");
+        if (!image.copy(cropRect).save(
+                QString::fromStdString(cropPath.string()), "PNG")) return false;
+        const auto sofaRoiPath = outputDir /
+            (std::string(stem) + "-sofa-roi.png");
+        if (!image.copy(sofaRoi).save(
+                QString::fromStdString(sofaRoiPath.string()), "PNG"))
+            return false;
+        std::sort(luminance.begin(), luminance.end());
+        std::sort(sofaRoiLuminance.begin(), sofaRoiLuminance.end());
+        const auto percentile = [&](double p) {
+            const size_t index = static_cast<size_t>(
+                p * static_cast<double>(luminance.size() - 1));
+            return luminance[index];
+        };
+        const auto sofaRoiPercentile = [&](double p) {
+            const size_t index = static_cast<size_t>(
+                p * static_cast<double>(sofaRoiLuminance.size() - 1));
+            return sofaRoiLuminance[index];
+        };
+        std::ofstream metadata(outputDir / (std::string(stem) + ".json"),
+                               std::ios::binary);
+        if (!metadata) return false;
+        metadata << "{\n  \"width\": " << width
+                 << ",\n  \"height\": " << height
+                 << ",\n  \"backend\": \"Vulkan\",\n"
+                 << "  \"outputMode\": "
+                 << static_cast<Uint32>(camera.outputMode)
+                 << ",\n  \"camera\": {\"origin\": ["
+                 << camera.origin[0] << ',' << camera.origin[1] << ','
+                 << camera.origin[2] << "], \"target\": ["
+                 << camera.target[0] << ',' << camera.target[1] << ','
+                 << camera.target[2] << "], \"verticalFovDegrees\": "
+                 << camera.verticalFovDegrees << "},\n"
+                 << "  \"studio\": {\"warmAreaKeyIntensity\": "
+                 << lights[0].directionIntensity[3]
+                 << ", \"coolAreaFillIntensity\": "
+                 << lights[1].directionIntensity[3]
+                 << ", \"blueBackdropAreaIntensity\": "
+                 << lights[3].directionIntensity[3]
+                 << ", \"areaLightShadows\": "
+                 << (lights[0].shadowParams[0] >= 0.0f ? "true" : "false")
+                 << ", \"fabricSheen\": " << material.sheen
+                 << ", \"fabricNormalStrength\": "
+                 << material.normalStrength << "},\n"
+                 << "  \"hitPixels\": "
+                 << std::count_if(pixels.begin(), pixels.end(),
+                     [](const auto& pixel) { return pixel[3] > 0.5f; })
+                 << ",\n  \"normalMap\": " << (useNormal ? "true" : "false")
+                 << ",\n  \"roughnessMap\": "
+                 << (useRoughness ? "true" : "false")
+                 << ",\n  \"displayTransform\": \"ACES-fit then sRGB\",\n"
+                 << "  \"linearLuminance\": {\"mean\": "
+                 << luminanceSum / luminance.size()
+                 << ", \"p50\": " << percentile(0.50)
+                 << ", \"p95\": " << percentile(0.95)
+                 << ", \"max\": " << luminance.back() << "},\n"
+                 << "  \"sofaRoi\": [" << sofaRoiX << ',' << sofaRoiY
+                 << ',' << sofaRoiWidth << ',' << sofaRoiHeight << "],\n"
+                 << "  \"sofaRoiLinearLuminance\": {\"mean\": "
+                 << std::accumulate(sofaRoiLuminance.begin(),
+                                    sofaRoiLuminance.end(), 0.0) /
+                        sofaRoiLuminance.size()
+                 << ", \"p50\": " << sofaRoiPercentile(0.50)
+                 << ", \"p95\": " << sofaRoiPercentile(0.95)
+                 << ", \"max\": " << sofaRoiLuminance.back() << "},\n"
+                 << "  \"crop\": [" << cropX << ',' << cropY
+                 << ",224,224]\n}\n";
+        return metadata.good();
+    };
+    const auto render = [&](const char* stem, bool useNormal,
+                            bool useRoughness, bool shadows) {
+        const float shadowToggle = shadows ? 0.0f : -1.0f;
+        lights[0].shadowParams[0] = shadowToggle;
+        lights[1].shadowParams[0] = shadowToggle;
+        lights[3].shadowParams[0] = shadowToggle;
+        manager_->setSceneLights(context_.RawPtr(), lights.data(),
+                                 static_cast<Uint32>(lights.size()));
+        auto candidate = material;
+        if (!useNormal) candidate.normalTexture = ArtifactCore::UniString();
+        if (!useRoughness) candidate.roughnessTexture = ArtifactCore::UniString();
+        // Always submit the complete variant so it cannot inherit maps from
+        // the previous capture. False is the manager's unchanged-value result.
+        (void)manager_->setInstancePbrMaterial(geometryId, candidate);
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        camera.outputMode = ArtifactCore::RTRayOutputMode::Beauty;
+        EXPECT_TRUE(manager_->traceCamera(context_.RawPtr(), width, height, camera));
+        context_->Flush();
+        context_->WaitForIdle();
+        auto pixels = readOutputPixels();
+        EXPECT_EQ(pixels.size(), static_cast<size_t>(width) * height);
+        size_t hitPixels = 0;
+        for (const auto& pixel : pixels) {
+            for (float channel : pixel) EXPECT_TRUE(std::isfinite(channel));
+            hitPixels += pixel[3] > 0.5f ? 1u : 0u;
+        }
+        EXPECT_GT(hitPixels, 0u);
+        EXPECT_TRUE(saveFabricCapture(stem, pixels, useNormal, useRoughness));
+    };
+    render("220-fabric-sofa-full-maps", true, true, true);
+    const auto captureAov = [&](const char* stem,
+            ArtifactCore::RTRayOutputMode mode) {
+        camera.outputMode = mode;
+        ASSERT_TRUE(manager_->traceCamera(context_.RawPtr(), width, height, camera));
+        context_->Flush();
+        context_->WaitForIdle();
+        const auto pixels = readOutputPixels();
+        ASSERT_EQ(pixels.size(), static_cast<size_t>(width) * height);
+        ASSERT_TRUE(saveFabricCapture(stem, pixels, true, true));
+    };
+    captureAov("223-fabric-sofa-base-color-aov",
+               ArtifactCore::RTRayOutputMode::BaseColor);
+    captureAov("224-fabric-sofa-world-normal-aov",
+               ArtifactCore::RTRayOutputMode::WorldNormal);
+    captureAov("225-fabric-sofa-metalrough-aov",
+               ArtifactCore::RTRayOutputMode::MetallicRoughness);
+    render("221-fabric-sofa-no-normal", false, true, true);
+    render("222-fabric-sofa-no-roughness", true, false, true);
+    render("226-fabric-sofa-shadows-off", true, true, false);
+    lights[1].directionIntensity[3] = 0.0f;
+    render("227-fabric-sofa-key-only", true, true, true);
+    lights[1].directionIntensity[3] = 4.0f;
+    camera.origin[0] -= extent * 0.30f;
+    camera.target[0] -= extent * 0.30f;
+    render("240-fabric-sofa-offset-hero", true, true, true);
+    const float viewDx = camera.target[0] - camera.origin[0];
+    const float viewDy = camera.target[1] - camera.origin[1];
+    const float viewDz = camera.target[2] - camera.origin[2];
+    const float viewLength = std::sqrt(
+        viewDx * viewDx + viewDy * viewDy + viewDz * viewDz);
+    camera.origin[0] += viewDx / viewLength * extent * 0.15f;
+    camera.origin[1] += viewDy / viewLength * extent * 0.15f;
+    camera.origin[2] += viewDz / viewLength * extent * 0.15f;
+    render("250-fabric-sofa-closer-hero", true, true, true);
+#endif
+}
+
 TEST_F(RayTracingAcceptanceTest,
        CapturesMultiMaterialFbxSlotBoundariesInRayTracingAovs) {
 #ifndef ARTIFACT_TEST_FBX_MULTI_MATERIAL_PATH
@@ -1457,7 +1945,7 @@ TEST_F(RayTracingAcceptanceTest,
         rasterRanges[index].material.emissionColorStrength = {
             linearToSrgb(source.metallic),
             linearToSrgb(source.roughness),
-            linearToSrgb(source.occlusionStrength), 1.0f};
+            linearToSrgb(1.0f), 1.0f};
     }
     rasterRenderer.setMaterialRanges(rasterRanges.data(), rasterRanges.size());
     context_->SetRenderTargets(1, &rasterColorView, rasterDepthView,
@@ -14110,8 +14598,12 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
 
     std::vector<float> positions;
     std::vector<float> normals;
+    std::vector<float> uvs;
+    std::vector<float> tangents;
     positions.reserve((sphereStacks + 1) * (sphereSlices + 1) * 3);
     normals.reserve((sphereStacks + 1) * (sphereSlices + 1) * 3);
+    uvs.reserve((sphereStacks + 1) * (sphereSlices + 1) * 2);
+    tangents.reserve((sphereStacks + 1) * (sphereSlices + 1) * 4);
     for (Uint32 stack = 0; stack <= sphereStacks; ++stack) {
         const float theta = pi * static_cast<float>(stack) / sphereStacks;
         const float sinTheta = std::sin(theta);
@@ -14125,6 +14617,11 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
                 sphereRadius * nx, sphereRadius * ny,
                 sphereCenterZ + sphereRadius * nz});
             normals.insert(normals.end(), {nx, ny, nz});
+            uvs.insert(uvs.end(), {
+                static_cast<float>(slice) / sphereSlices,
+                static_cast<float>(stack) / sphereStacks});
+            tangents.insert(tangents.end(), {
+                -std::sin(phi), 0.0f, std::cos(phi), 1.0f});
         }
     }
     std::vector<std::uint32_t> indices;
@@ -14136,6 +14633,12 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
             indices.insert(indices.end(), {a, a + 1, b, a + 1, b + 1, b});
         }
     }
+    const auto sphereVertexCount =
+        static_cast<size_t>(sphereStacks + 1) * (sphereSlices + 1);
+    ASSERT_EQ(positions.size(), sphereVertexCount * 3u);
+    ASSERT_EQ(normals.size(), sphereVertexCount * 3u);
+    ASSERT_EQ(uvs.size(), sphereVertexCount * 2u);
+    ASSERT_EQ(tangents.size(), sphereVertexCount * 4u);
 
     const auto projectRoot = std::filesystem::path(__FILE__)
                                  .parent_path().parent_path().parent_path();
@@ -14149,8 +14652,9 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
     ArtifactCore::MeshRenderer renderer(gpuContext);
     renderer.setRenderTargetFormat(TEX_FORMAT_RGBA32_FLOAT);
     renderer.initialize(1, positions.size() / 3, indices.size());
-    renderer.updateMeshGeometry(positions.data(), normals.data(), nullptr,
-                                indices.data());
+    renderer.updateMeshGeometry(positions.data(), normals.data(), uvs.data(),
+                                indices.data(), nullptr, uvs.data(),
+                                tangents.data());
     constexpr float cameraZ = -1.5f;
     constexpr float verticalFovDegrees = 48.0f;
     constexpr float environmentRotationDegrees = 31.0f;
@@ -14174,6 +14678,7 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
     ASSERT_TRUE(renderer.setEnvironmentMap(studioHdrPathString, 1.0f));
     renderer.setEnvironmentRotation(environmentRotationDegrees);
     std::array<float, 4> lastSavedCenterPixel{};
+    std::vector<std::array<float, 4>> lastSavedFloatPixels;
 
     ArtifactCore::InstanceData instance{};
     std::copy(identity.begin(), identity.end(), instance.transform);
@@ -14216,7 +14721,8 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
     ASSERT_NE(depthView, nullptr);
 
     const auto saveLinearFrame = [&](ITexture* source,
-                                     const std::string& fileName) {
+                                     const std::string& fileName,
+                                     bool saveFloatPfm = false) {
         TextureDesc stagingDesc;
         stagingDesc.Name = "PbrSphereVisualReviewReadback";
         stagingDesc.Type = RESOURCE_DIM_TEX_2D;
@@ -14246,6 +14752,10 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
         std::memcpy(lastSavedCenterPixel.data(),
             centerRow + (width / 2) * sizeof(lastSavedCenterPixel),
             sizeof(lastSavedCenterPixel));
+        std::vector<std::array<float, 4>> floatPixels;
+        if (saveFloatPfm) {
+            floatPixels.resize(static_cast<size_t>(width) * height);
+        }
 
         const auto acesToneMap = [](float value) {
             const float x = std::max(value, 0.0f);
@@ -14260,6 +14770,10 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
             for (Uint32 x = 0; x < width; ++x) {
                 const auto* sourcePixel = reinterpret_cast<const float*>(
                     sourceRow + x * sizeof(float) * 4);
+                if (saveFloatPfm) {
+                    std::copy_n(sourcePixel, 4,
+                        floatPixels[static_cast<size_t>(y) * width + x].begin());
+                }
                 auto* destinationPixel = destinationRow + x * 4;
                 for (Uint32 channel = 0; channel < 3; ++channel) {
                     const float mappedValue = acesToneMap(sourcePixel[channel]);
@@ -14269,7 +14783,8 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
                     destinationPixel[channel] = static_cast<std::uint8_t>(
                         std::lround(std::clamp(srgb, 0.0f, 1.0f) * 255.0f));
                 }
-                destinationPixel[3] = 255;
+                destinationPixel[3] = static_cast<std::uint8_t>(
+                    std::lround(std::clamp(sourcePixel[3], 0.0f, 1.0f) * 255.0f));
             }
         }
         context_->UnmapTextureSubresource(stagingTexture, 0, 0);
@@ -14282,13 +14797,29 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
         const auto outputPath = outputDir / fileName;
         EXPECT_TRUE(image.save(QString::fromStdString(outputPath.string()), "PNG"))
             << "Could not save PBR visual-review frame: " << outputPath.string();
+        if (saveFloatPfm) {
+            auto floatPath = std::filesystem::path(fileName);
+            floatPath.replace_extension(".pfm");
+            EXPECT_TRUE(saveOutputFloatPfm(
+                floatPath.filename().string().c_str(), floatPixels))
+                << "Could not save linear RGBA32F capture: "
+                << floatPath.filename().string();
+            lastSavedFloatPixels = std::move(floatPixels);
+        }
         return true;
     };
-    const auto renderRaster = [&](const std::string& fileName) {
-        const float clearColor[4]{0.018f, 0.022f, 0.030f, 1.0f};
+    const auto renderRaster = [&](const std::string& fileName,
+                                  bool saveFloatPfm = false,
+                                  bool transparentClear = false) {
+        const std::array<float, 4> opaqueClearColor{
+            0.018f, 0.022f, 0.030f, 1.0f};
+        const std::array<float, 4> transparentClearColor{
+            0.0f, 0.0f, 0.0f, 0.0f};
+        const auto& clearColor = transparentClear
+            ? transparentClearColor : opaqueClearColor;
         context_->SetRenderTargets(1, &colorView, depthView,
             RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        context_->ClearRenderTarget(colorView, clearColor,
+        context_->ClearRenderTarget(colorView, clearColor.data(),
             RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         context_->ClearDepthStencil(depthView, CLEAR_DEPTH_FLAG, 1.0f, 0,
             RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
@@ -14299,7 +14830,40 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
         renderer.draw(context_.RawPtr(), 1);
         context_->SetRenderTargets(0, nullptr, nullptr,
             RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        return saveLinearFrame(colorTexture, fileName);
+        return saveLinearFrame(colorTexture, fileName, saveFloatPfm);
+    };
+    const auto applyGraphFixture = [&](const std::string& fixtureName) {
+        const auto fixturePath = projectRoot / "tests" / "fixtures" /
+            "shader-graph-rd" / fixtureName;
+        QFile fixtureFile(QString::fromStdString(fixturePath.string()));
+        if (!fixtureFile.open(QIODevice::ReadOnly)) {
+            ADD_FAILURE() << "Could not open shader graph fixture: "
+                          << fixturePath.string();
+            return false;
+        }
+        const QByteArray bytes = fixtureFile.readAll();
+        const std::string graphJson(
+            bytes.constData(), static_cast<size_t>(bytes.size()));
+        return renderer.setMaterialGraphJson(graphJson);
+    };
+    const auto maximumRgbFrameDifference = [](
+        const std::vector<std::array<float, 4>>& left,
+        const std::vector<std::array<float, 4>>& right) {
+        if (left.size() != right.size() || left.empty()) {
+            return std::numeric_limits<float>::infinity();
+        }
+        float maximum = 0.0f;
+        for (size_t pixel = 0; pixel < left.size(); ++pixel) {
+            for (size_t channel = 0; channel < 3; ++channel) {
+                if (!std::isfinite(left[pixel][channel]) ||
+                    !std::isfinite(right[pixel][channel])) {
+                    return std::numeric_limits<float>::infinity();
+                }
+                maximum = std::max(maximum,
+                    std::fabs(left[pixel][channel] - right[pixel][channel]));
+            }
+        }
+        return maximum;
     };
 
     auto vertexBuffer = makeBuffer(positions.data(),
@@ -14417,6 +14981,200 @@ TEST_F(RayTracingAcceptanceTest, CapturesPbrSphereSweepUnderStinsonHdr) {
     }
     EXPECT_GT(maximumWorldBackgroundRotationDelta, 0.02f)
         << "The HDR world background should respond to environment rotation";
+
+    ASSERT_TRUE(renderRaster(
+        "shader-graph-raster-baseline.png", true));
+    const auto graphBaselinePixel = lastSavedCenterPixel;
+    const auto graphPath = projectRoot / "tests" / "fixtures" /
+                           "shader-graph-rd" / "chartreuse_emission.json";
+    QFile graphFile(QString::fromStdString(graphPath.string()));
+    ASSERT_TRUE(graphFile.open(QIODevice::ReadOnly)) << graphPath.string();
+    const QByteArray graphBytes = graphFile.readAll();
+    const std::string chartreuseMaterialGraph(
+        graphBytes.constData(), static_cast<size_t>(graphBytes.size()));
+    ASSERT_TRUE(renderer.setMaterialGraphJson(chartreuseMaterialGraph));
+    ASSERT_TRUE(renderer.hasMaterialGraph());
+    ASSERT_TRUE(renderRaster("shader-graph-raster-chartreuse.png", true));
+    EXPECT_GT(lastSavedCenterPixel[1], graphBaselinePixel[1] + 0.05f)
+        << "Graph emission should increase the linear green response; baseline="
+        << graphBaselinePixel[1] << ", graph=" << lastSavedCenterPixel[1];
+    EXPECT_GT(lastSavedCenterPixel[1], lastSavedCenterPixel[0] * 1.25f)
+        << "The graph output should be green-dominant in linear float; RGBA="
+        << lastSavedCenterPixel[0] << ',' << lastSavedCenterPixel[1] << ','
+        << lastSavedCenterPixel[2] << ',' << lastSavedCenterPixel[3];
+    EXPECT_GT(lastSavedCenterPixel[1], lastSavedCenterPixel[2] * 1.25f)
+        << "The graph output should be green-dominant in linear float; RGBA="
+        << lastSavedCenterPixel[0] << ',' << lastSavedCenterPixel[1] << ','
+        << lastSavedCenterPixel[2] << ',' << lastSavedCenterPixel[3];
+    const auto chartreuseCenterPixel = lastSavedCenterPixel;
+
+    EXPECT_FALSE(renderer.setMaterialGraphJson("{"));
+    EXPECT_TRUE(renderer.hasMaterialGraph());
+    ASSERT_TRUE(renderRaster("shader-graph-raster-malformed-preserved.png", true));
+    for (size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(lastSavedCenterPixel[channel],
+                    chartreuseCenterPixel[channel], 1.0e-5f)
+            << "Malformed JSON should preserve the previous effective shader, channel "
+            << channel;
+    }
+
+    const auto compileFailurePath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "missing_output_compile_failure.json";
+    QFile compileFailureFile(QString::fromStdString(compileFailurePath.string()));
+    ASSERT_TRUE(compileFailureFile.open(QIODevice::ReadOnly))
+        << compileFailurePath.string();
+    const QByteArray compileFailureBytes = compileFailureFile.readAll();
+    const std::string compileFailureGraph(
+        compileFailureBytes.constData(),
+        static_cast<size_t>(compileFailureBytes.size()));
+    ASSERT_TRUE(renderer.setMaterialGraphJson(compileFailureGraph));
+    ASSERT_TRUE(renderer.hasMaterialGraph());
+    ASSERT_TRUE(renderRaster("shader-graph-raster-compile-fallback.png", true));
+    const auto compileFailurePixel = lastSavedCenterPixel;
+
+    const auto backendFailurePath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "identifier_collision_compile_failure.json";
+    QFile backendFailureFile(QString::fromStdString(backendFailurePath.string()));
+    ASSERT_TRUE(backendFailureFile.open(QIODevice::ReadOnly))
+        << backendFailurePath.string();
+    const QByteArray backendFailureBytes = backendFailureFile.readAll();
+    const std::string backendFailureGraph(
+        backendFailureBytes.constData(),
+        static_cast<size_t>(backendFailureBytes.size()));
+    ASSERT_TRUE(renderer.setMaterialGraphJson(backendFailureGraph));
+    ASSERT_TRUE(renderer.hasMaterialGraph());
+    ASSERT_TRUE(renderRaster("shader-graph-raster-backend-failure.png", true));
+    constexpr std::array<float, 4> expectedClearPixel{
+        0.018f, 0.022f, 0.030f, 1.0f};
+    for (size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(lastSavedCenterPixel[channel], expectedClearPixel[channel],
+                    1.0e-5f)
+            << "A pixel-shader/opaque-PSO failure currently leaves no active draw pipeline, channel "
+            << channel;
+    }
+
+    ASSERT_TRUE(renderer.setMaterialGraphJson(chartreuseMaterialGraph));
+    ASSERT_TRUE(renderRaster("shader-graph-raster-recovered.png", true));
+    for (size_t channel = 0; channel < 4; ++channel) {
+        EXPECT_NEAR(lastSavedCenterPixel[channel],
+                    chartreuseCenterPixel[channel], 1.0e-5f)
+            << "A valid graph should restore its prior effective output, channel "
+            << channel;
+    }
+    EXPECT_TRUE(std::isfinite(compileFailurePixel[0]));
+    EXPECT_TRUE(std::isfinite(compileFailurePixel[1]));
+    EXPECT_TRUE(std::isfinite(compileFailurePixel[2]));
+    EXPECT_TRUE(std::isfinite(compileFailurePixel[3]));
+
+    renderer.clearMaterialGraph();
+    instance.color[0] = 0.10f;
+    instance.color[1] = 0.10f;
+    instance.color[2] = 0.10f;
+    renderer.updateInstanceData(&instance, 1);
+    renderer.setPbrFactors(0.0f, 0.5f, 1.0f, 1.0f);
+    const auto probeTexturePath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "textures" / "channel_probe_4x4_rgba.png";
+    renderer.setBaseColorTexture(
+        QString::fromStdString(probeTexturePath.string()));
+    ASSERT_TRUE(renderRaster("shader-graph-raster-texture-baseline.png", true));
+    const auto textureBaselinePixel = lastSavedCenterPixel;
+
+    const auto textureGraphPath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "channel_probe_basecolor.json";
+    QFile textureGraphFile(QString::fromStdString(textureGraphPath.string()));
+    ASSERT_TRUE(textureGraphFile.open(QIODevice::ReadOnly))
+        << textureGraphPath.string();
+    const QByteArray textureGraphBytes = textureGraphFile.readAll();
+    const std::string textureMaterialGraph(
+        textureGraphBytes.constData(),
+        static_cast<size_t>(textureGraphBytes.size()));
+    ASSERT_TRUE(renderer.setMaterialGraphJson(textureMaterialGraph));
+    ASSERT_TRUE(renderer.hasMaterialGraph());
+    ASSERT_TRUE(renderRaster("shader-graph-raster-channel-probe.png", true));
+    EXPECT_GT(lastSavedCenterPixel[1], textureBaselinePixel[1] + 0.02f)
+        << "ImageTexture graph should override the dark instance tint with the BaseColor slot sample; baseline green="
+        << textureBaselinePixel[1] << ", graph green=" << lastSavedCenterPixel[1];
+
+    const auto halfAlphaGraphPath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "half_alpha_surface.json";
+    QFile halfAlphaGraphFile(QString::fromStdString(halfAlphaGraphPath.string()));
+    ASSERT_TRUE(halfAlphaGraphFile.open(QIODevice::ReadOnly))
+        << halfAlphaGraphPath.string();
+    const QByteArray halfAlphaGraphBytes = halfAlphaGraphFile.readAll();
+    const std::string halfAlphaGraph(
+        halfAlphaGraphBytes.constData(),
+        static_cast<size_t>(halfAlphaGraphBytes.size()));
+    renderer.setBaseColorTexture(QString{});
+    renderer.clearMaterialGraph();
+    renderer.setTransparentPass(true);
+    ASSERT_TRUE(renderRaster(
+        "shader-graph-raster-alpha-baseline.png", true, true));
+    const auto opaqueMaterialAlpha = lastSavedCenterPixel[3];
+    ASSERT_TRUE(renderer.setMaterialGraphJson(halfAlphaGraph));
+    ASSERT_TRUE(renderRaster(
+        "shader-graph-raster-half-alpha.png", true, true));
+    EXPECT_NEAR(opaqueMaterialAlpha, 1.0f, 0.02f)
+        << "Fixed-PBR alpha baseline should be opaque at the sphere center";
+    EXPECT_NEAR(lastSavedCenterPixel[3], 0.5f, 0.02f)
+        << "Principled Alpha should survive transparent-pass rendering; observed alpha="
+        << lastSavedCenterPixel[3];
+    EXPECT_NEAR(opaqueMaterialAlpha - lastSavedCenterPixel[3], 0.5f, 0.03f)
+        << "Graph alpha response should reduce stored center alpha by 0.5";
+    renderer.setTransparentPass(false);
+
+    instance.color[0] = 0.72f;
+    instance.color[1] = 0.30f;
+    instance.color[2] = 0.08f;
+    instance.color[3] = 1.0f;
+    renderer.updateInstanceData(&instance, 1);
+    renderer.setPbrFactors(0.0f, 0.5f, 1.0f, 1.0f);
+    renderer.setPrincipledFactors(0.5f, 1.5f, 0.0f, 0.0f, 0.04f);
+    renderer.setNormalUvOffset(0.0f, 0.0f, 0);
+    renderer.setNormalTexture(QString{});
+    renderer.setOcclusionTexture(QString{});
+    // Characterize the current adapter's slot-gating behavior. Core promotion
+    // must separately require connected surface fields to work without images.
+    ASSERT_TRUE(applyGraphFixture("normal_encoded_neutral.json"));
+    ASSERT_TRUE(renderRaster("shader-graph-normal-no-slot-neutral.png", true));
+    const auto normalNoSlotReference = lastSavedFloatPixels;
+    ASSERT_TRUE(applyGraphFixture("normal_encoded_tilted.json"));
+    ASSERT_TRUE(renderRaster("shader-graph-normal-no-slot-tilted.png", true));
+    EXPECT_LE(maximumRgbFrameDifference(
+                  normalNoSlotReference, lastSavedFloatPixels), 1.0e-6f)
+        << "Graph Normal should be gated off while the Normal Texture slot is disabled";
+
+    renderer.setNormalTexture(
+        QString::fromStdString(probeTexturePath.string()));
+    ASSERT_TRUE(applyGraphFixture("normal_encoded_neutral.json"));
+    ASSERT_TRUE(renderRaster("shader-graph-normal-slot-neutral.png", true));
+    const auto normalSlotReference = lastSavedFloatPixels;
+    ASSERT_TRUE(applyGraphFixture("normal_encoded_tilted.json"));
+    ASSERT_TRUE(renderRaster("shader-graph-normal-slot-tilted.png", true));
+    EXPECT_GT(maximumRgbFrameDifference(
+                  normalSlotReference, lastSavedFloatPixels), 1.0e-5f)
+        << "Graph Normal should affect the normal-mapped response when its slot is enabled";
+    renderer.setNormalTexture(QString{});
+
+    ASSERT_TRUE(applyGraphFixture("occlusion_neutral.json"));
+    ASSERT_TRUE(renderRaster("shader-graph-occlusion-no-slot-neutral.png", true));
+    const auto occlusionNoSlotReference = lastSavedFloatPixels;
+    ASSERT_TRUE(applyGraphFixture("occlusion_low.json"));
+    ASSERT_TRUE(renderRaster("shader-graph-occlusion-no-slot-low.png", true));
+    EXPECT_LE(maximumRgbFrameDifference(
+                  occlusionNoSlotReference, lastSavedFloatPixels), 1.0e-6f)
+        << "Graph Occlusion should be gated off while the Occlusion Texture slot is disabled";
+
+    renderer.setOcclusionTexture(
+        QString::fromStdString(probeTexturePath.string()));
+    ASSERT_TRUE(applyGraphFixture("occlusion_neutral.json"));
+    ASSERT_TRUE(renderRaster("shader-graph-occlusion-slot-neutral.png", true));
+    const auto occlusionSlotReference = lastSavedFloatPixels;
+    ASSERT_TRUE(applyGraphFixture("occlusion_low.json"));
+    ASSERT_TRUE(renderRaster("shader-graph-occlusion-slot-low.png", true));
+    EXPECT_GT(maximumRgbFrameDifference(
+                  occlusionSlotReference, lastSavedFloatPixels), 1.0e-5f)
+        << "Graph Occlusion should affect the AO response when its slot is enabled";
+    renderer.setOcclusionTexture(QString{});
 }
 
 TEST_F(RayTracingAcceptanceTest, TracesPlaneAndThreeDimensionalMeshGeometry) {

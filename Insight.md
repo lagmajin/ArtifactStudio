@@ -1,4 +1,12 @@
-**最終更新:** 2026-11-13
+**最終更新:** 2026-11-14
+
+## 2026-11-13: Invisible UI automation should separate widget capture from GPU viewport capture
+- **関連:** `tools/capture_ui_test.py`、`Artifact/src/AppMain.cpp` の `ARTIFACT_UI_TEST_COMPONENTS_NO_WINDOW`、`Artifact/src/Widgets/ArtifactStartupScreenshot.cpp`。
+- **確認できた事実:** 既存 `ArtifactUiControlMcpServer` と `ArtifactVirtualInput` を再利用し、`--ui-headless`、不可視 top-level widget flag、headless時のnative screenshot拒否、`ui.quit` を追加した。`tools/run_ui_offline.py` はCREATE_NO_WINDOW・localhost endpoint・isolated app data/logを設定し、startup screenshot既定値を明示的に無効化する。既存 `tools/ui_control_client.py` から構造照会、仮想入力、PNG captureを利用できる。Composition controllerにはdesktop fallbackを持たない`readbackPresentedFrameImage()`があり、明示診断用`ui.compositionCapture`から呼ぶよう接続した。`ui.state`にはreadbackなしでrenderer/frame診断値も含めた。
+- **価値または懸念:** Qt widget操作は既存入力経路でOS入力注入から分離できる。GPU viewportはDiligent swapchain/offscreen targetの別条件を持つため、widget PNGが得られてもGPU描画captureを保証しない。
+- **追加根拠:** Qt公式仕様は内部Show eventが可視化直前に届くこと、`QWidget::grab()`がwidgetと子widgetをpixmapへ描画することを定義する。これは設計/API契約を支えるが、Windows QPA上の実画面非表示、GPU子widget captureを証明しない。
+- **未検証:** Windows上でmain window・dialogs・menusが一切desktop表示されないこと、不可視widgetの`QWidget::grab()`画像と入力反映、endpoint shutdown、不可視起動時に completed Diligent viewport frame/readback が有効か。実ビルド・runtime確認は未実施。
+- **次に確認すべきこと:** 許可後にDebug Artifactでhidden launchし、widget列挙・virtual click・text/key・PNG capture・modal dialog・clean quitを確認する。GPU viewportは後続の別laneとしてswapchain-free surfaceを調べる。
 
 ## 2026-11-13: 局所fogの全画像誤差は細いvolumeの消失を隠し得る
 - **関連:** `tools/fog_local_froxel_spatial_resolution_rd.py`、`tools/fog_local_froxel_hard_boundary_rd.py`、F5 froxel CPU proxy。
@@ -14331,3 +14339,289 @@
 - **価値 / 懸念:** 不透明度 API 追加は係数差し替えだけで済む低コスト変更。ただし 3D の depth 共有条件 `opacity >= 0.9999f` は減衰係数 <1 で外れるため、不透明度化しても係数既定 0.35 維持なら挙動変化は起きない（現行と同一）。複数選択時の挙動と Blender 型「全体半透明」の対応は未決。
 - **次に確認すること:** P1-1（Isolate 状態復元）/ P1-2（Ghosted）と一緒に X-Ray の選択基準・複数選択仕様を設計する。
 - **未検証:** 減衰が RAM preview キャッシュ・depth 共有経路へ与える現行の実際の影響範囲、スライダ UI の使い勝手。
+## 2026-11-13: Shader Graphを段階評価してCoreへ昇格
+- **関連:** `ArtifactCore/include/ShaderNode/ArtifactShaderNode.ixx`、`ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`、`Artifact/src/Widgets/ArtifactShaderGraphWidget.cpp`、`ArtifactCore/include/Material/Material.ixx`、`docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md`
+- **確認できた事実:** 既にtyped node graph、HLSL lowering、graph JSON、Qt UI、3D material保存、Raster Renderer受け渡しの経路が存在する。Core graph実装は`std::vector`/`unique_ptr`を使い、JSON codecはQt JSON型に依存する。R&D計画時点ではRaster/RT parity、D3D12/Vulkan runtime、性能証跡が未確認。
+- **仮説:** Graph document/validation/canonical serialization/backend-neutral loweringを明確に分ければ、Qt UI・Diligent backendを持ち込まず段階的にCore化できる可能性がある。Core移行前に所有権・独自コンテナ・ABI/module境界を設計し直す必要がある。
+- **価値または懸念:** 既存試作を重複実装せず、画像品質・fallback・cache/runtime性能を測ってから抽出対象を選べる。shader compileやPSO生成がframe pathへ漏れるとhot path制約に抵触する。
+- **未検証:** compile cacheの依存、failure fallback、save/reload互換、両backend parity、性能、RT意味論。
+- **次に確認すべきこと:** R0静的監査を完了し、決定論fixtureとbaseline capture入口を確認する。画像比較・GPU runtimeの実行は個別に許可された作業で行う。
+- **追加で確認できた事実:** `NodeGraph::toJson()`は`nodes`と`links`を内部vector順で配列へ書き出す。新しいR&D contract-test sourceは同じID/values/linksを逆のnode/link挿入順で構築してJSON bytes一致を要求する。現実装は異なる配列順を出すため、canonicalization gapを直接検出する想定。test sourceは未登録・未実行。
+- **価値または懸念:** project save、undo snapshot、graph content hashが編集履歴上の挿入順に依存すると、論理的に同一のgraphでもdiff・cache identityが揺れる。canonical serializationはsemantic IR hashとは別に定義し、UI layoutが含まれる場合はsemantic hashから除外する必要がある。
+- **追加した検査source:** layout位置を変えるとpersisted JSONは変わる一方、同一graphの`compileMaterialGraph().hashHex`は一致し、layoutはloadで復元されるというcontract testを追加した。これは現在のHLSL source hashがlayoutを含まないことを契約にするsource assertionで、未登録・未実行。
+- **追加で確認できた事実:** `compileMaterialGraph()`は複数Material Outputがあっても`outputs.front()`を選び、warning付きで`ok=true`を返す。duplicate node IDと空IDはloader sourceが拒否するが、既存失敗保持testのcorpusには含まれていなかった。contract-test sourceへ複数Outputのambiguous reject、duplicate/empty ID load failureを追加した。前者は現実装に対して失敗する想定で、未登録・未実行。
+- **追加で確認できた事実:** ColorRamp loweringはdistinct stop positionsをsortする一方、equal position tieは単なる`std::sort` comparator同値であり、zero-width spanを`1e-5`へ拡張している。異なるstop配列順が同じshaderを出すdistinct-position contract sourceを追加した。equal-positionの正確なboundary semanticsと標準ライブラリ間決定性は未確認で、Core promotion前に明示goldenが必要。
+- **追加で確認できた事実:** `NodeGraph::link()`は同じinputへ複数リンクを追加でき、JSON loaderもduplicate incoming linksを検知せずstaged graphをcommitして`ok=true`を返す。Core test sourceにJSON重複linkのatomic reject/既存graph保持とdirect API single-writer検査を追加した。現実装では両者とも失敗する想定、未登録・未実行。
+- **追加で確認できた事実:** numeric `matConvert()`は12方向のimplicit scalar/vector conversion式を持つが、JSON loaderはtype mismatchをskipする一方、direct `NodeGraph::link()`はそのlinkを保持する。同じ型違いでも入口によってlowering到達性が変わる。代表変換式のcontract testsを追加し、Core境界ではexact type link + explicit versioned conversion opとする案を記録した。実装互換値をBlender parityと混同しない。
+
+## 2026-11-14 — Shader graph resource-bound stress case
+
+- **関連:** `tests/ArtifactCore/ShaderGraphContractTest.cpp`, `tests/fixtures/shader-graph-rd/evaluation_manifest.json`, `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md`
+- **確認できた事実:** 現行graph APIにnode/link数上限はなく、material loweringは再帰DFSでOutput到達ノードを処理する。2048個のMath nodeを連結したsource-level stress caseを追加し、runtime未実施をmanifestへ明記した。
+- **価値 / 懸念:** 深い文書がprocess stackやメモリを圧迫しないかを、将来の許可済みCPU testで測る入口ができる。ただし1点のstress caseは安全性や製品上限を証明しない。
+- **次に確認すること:** 許可されたtest実行時にpeak allocation、parse/traversal時間、stack使用量を計測する。結果からJSON bytes/node/link/depth上限を決め、limit−1/limit/limit+1と深いcycleを追加評価する。
+- **未検証の仮説:** 2048-deep chainが現行recursive compileでstack failureまたは著しい遅延を起こすか。
+
+## 2026-11-14 — Shader graph image evaluation matrix gaps
+
+- **関連:** `docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md`, `tests/fixtures/shader-graph-rd/evaluation_manifest.json`, `tests/fixtures/shader-graph-rd/README.md`
+- **確認できた事実:** 既存capture sourceはVulkan RGBA32Fの単一sceneとproduction PNG smokeが中心で、black/white alpha composites、semantic crop export、Preview/final比較、resolution pair、D3D12は取得しない。現graph contractにはtime inputがない。
+- **価値 / 懸念:** 必須の画像評価項目をmanifestで別々に追跡できるようにし、source-only captureを実績と誤認しないようにする。時間安定性は現範囲では対象外だが、time-dependent nodeやanimated parameterを追加したら再評価が必要。
+- **次に確認すること:** capture adapterを拡張できる許可済み作業で、背景別alpha composite、意味crop、preview/final、256²/1024²、D3D12/Vulkan結果を保存し、実行者・環境・欠陥ログをmanifestへ記録する。
+- **未検証の仮説:** 現production renderer経路でPreviewとfinalを独立して固定・取得できるか、alpha associationを保持したraw captureから複数背景合成が可能か。
+
+## 2026-11-14 — Capture evidence record schema
+
+- **関連:** `tests/fixtures/shader-graph-rd/evaluation_manifest.json`, `tools/shader_graph_rd/validate_shader_graph_manifest.py`
+- **確認できた事実:** Manifestにcapture routesと測定計画はあるが、実行時に環境・revision・input/output hash・reviewer・performance値をまとめる実績record欄と必須field検査はなかった。
+- **価値 / 懸念:** 実capture後の証跡を1 run単位で再現可能にし、計画値を実測として誤記するのを防げる。source validatorは値の真偽やoutput file内容までは証明しない。
+- **次に確認すること:** 最初の許可済みcapture run後、recordのpath/hashが実在ファイルと一致し、解析JSON・画像・環境情報の再現性を手動レビューする。
+
+## 2026-11-14 — Shader graph promotion has existing consumers
+
+- **関連:** `ArtifactCore/include/ShaderNode/ArtifactShaderNode.ixx`, `ArtifactCore/src/Diagnostic/DiagnosticRegistry.cppm`, `ArtifactCore/src/Graphics/MeshRenderer.cpp`, `Artifact/src/Widgets/ArtifactShaderGraphWidget.cpp`, Shader Graph R&D Core境界案
+- **確認できた事実:** 現public `Artifact.ShaderNode.Core`は編集可能なunique_ptr/Pin graph、debug state、HLSL splice結果を公開する。`DiagnosticRegistry`も`NodeDebugInfo`をsnapshot保存する。`MeshRenderer`はJSONを読みGraph loweringを呼び、WidgetはNodeGraphとlayoutを編集する。
+- **価値 / 懸念:** Core昇格は新しい純粋Document/Validator/IRだけでは完了せず、既存Widget、project JSON/clipboard、診断、renderer adapterのconsumer移行順を守る必要がある。consumerを忘れたmodule分割は破壊的link/build変更になる。
+- **次に確認すること:** Core API実装を提案する段階で全consumerのmodule dependency、ownership、serialization compatibility、diagnostic snapshot lifetimeを再走査し、adapter併存期間を設計する。
+- **未検証の仮説:** graph telemetryが長時間保持されるdebug snapshotにeditor-node internalsを必要としているか、generic value recordで置換できるか。
+
+## 2026-11-14 — Project and clipboard share graph document payload
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cpp`, `Artifact/src/Widgets/ArtifactShaderGraphWidget.cpp`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`
+- **確認できた事実:** 3D layerは非empty graph JSONを`material.graph`へverbatim保存し、load時はgraph validationせず保持する。Widget clipboardもnode/link/parameterとlayoutを含む同じJSONを使う。Controller applyのboolはlayerへの代入とrender invalidationを示すだけで、shader/backend成功を示さない。
+- **価値 / 懸念:** Schema migrationやCore化でsemantic graphとeditor layoutを同時に変えると、project、clipboard、undoを一緒に壊す恐れがある。また無効payloadを保存時に落とすと修復可能性がなくなる。
+- **次に確認すること:** 明示許可されたruntime検証でsave/reload、layoutを含むcopy/paste、invalid clipboard atomicity、legacy no-layout migration、undo/redoのlayer identityとeffective shader stateを確認する。
+- **未検証の仮説:** clipboard invalid pasteは`fromJson()` staging semanticsで既存editor graphを保持するはずだが、UI item rebuildやselectionの副作用まで含む実機確認はない。
+
+## 2026-11-14 — Current shader graph hash covers emitted source only
+
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`, `tests/ArtifactCore/ShaderGraphContractTest.cpp`
+- **確認できた事実:** `compileMaterialGraph()`は`helperHlsl`をhashし、その後`blockHlsl`を64-bit FNV-1aへ流す。Layout JSON bytes、resource identity/revision、backend/deviceはこのhash入力ではない。layout不変性に加え、source-affecting parameterとhelper-sourceの検査ケースを追加した。
+- **価値 / 懸念:** source hashをdocument identityやresource invalidation keyとして誤用するのを防ぐ。FNV-1aはcache collision耐性やcross-version semantic identityを自動保証しない。
+- **次に確認すること:** 実行許可後にcontract casesを走らせ、backend cacheが必要とするschema/compiler/backend/device generationを別key fieldにする契約を検討する。
+
+## 2026-11-14 — PSO names are not shader graph cache keys
+
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cpp`, `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md`
+- **確認できた事実:** `makeMeshPipelineCacheName()`はPSO生成ごとにatomic serialを付ける。graph lowering hashはこのname関数へ渡されない。MeshRenderer内cacheはrender-target formatでPipelineSetを持ち、graph splice変更時に全消去される。Diligent `IPipelineStateCache`の実identityは未確認。
+- **価値 / 懸念:** semantic IR hash、shader compile key、resource binding revision、PSO descriptor keyを分離し、texture変更とshader compile invalidationを混同しない契約が必要。serial名だけからcache hitを結論できない。
+- **次に確認すること:** 許可済みruntime計測で同一graph反復、layout-only edit、texture revision、render-target format、backend/compiler option変更のcache hit/missとresource churnを観測する。
+- **未検証の仮説:** Diligentのpersistent pipeline cacheが名前以外のshader bytecode/descriptor情報から実効的な再利用を行う可能性。
+
+## 2026-11-14 — PNG review metrics for ROI and alpha backgrounds
+
+- **関連:** `tools/shader_graph_rd/analyze_shader_graph_png.py`, shader graph image evaluation manifest
+- **確認できた事実:** 既存PNG analyzerは全画像のdisplay-referred RGB/alpha統計と差分を出すが、指定領域の差分や背景別composite比較は出さなかった。
+- **価値 / 懸念:** named ROI別の統計とstored RGB/alpha差分、明示alpha associationによるblack/white等へのencoded-domain composite差分を取れる。PNG RGBは量子化済みdisplay値なのでlinear-light品質評価には使えず、associationの指定自体も真実性を証明しない。
+- **次に確認すること:** 実captureが得られたらROIと背景を固定して出力JSONを保存し、別途linear RGBA32Fまたはraw alpha保持経路でlinear-light合成・目視を評価する。
+
+## 2026-11-14 — Contract test inventory had undeclared source cases
+
+- **関連:** `tests/ArtifactCore/ShaderGraphContractTest.cpp`, `tests/fixtures/shader-graph-rd/evaluation_manifest.json`, `tools/shader_graph_rd/validate_shader_graph_manifest.py`
+- **確認できた事実:** 27件の`TEST(ShaderGraphContractTest, ...)`宣言のうち、従来manifestには12件だけが載っていた。残り15件を追加し、validatorはsource宣言とmanifest listの完全一致を検査する。
+- **価値 / 懸念:** contract suiteの範囲と未登録状態を正確に追跡できる。宣言の一致はテストがCMake targetへ登録済み、compile可能、または実行済みである証拠ではない。
+- **次に確認すること:** 明示的なbuild/test許可がある段階でtarget登録と実行を行い、現在source expectationで現行挙動が落ちる箇所を実証し、Core implementation taskへ分類する。
+
+## 2026-11-14 — Shader graph CPU contract target registration path
+
+- **関連:** `tests/ArtifactCore/CMakeLists.txt`, `tests/CMakeLists.txt`, `tests/ArtifactCore/ShaderGraphContractTest.cpp`
+- **確認できた事実:** 既存`ArtifactCoreMaterialContractTest`と共通`artifact_add_test()`が、ArtifactCore linkとGTest/Qt test executable/CTest登録の形を示す。shader graph contract sourceは`Artifact.ShaderNode.Core` moduleをimportするがCMake target登録されていない。
+- **価値 / 懸念:** 最小登録target案をR&D計画とmanifestに固定し、将来の明示許可後に差分範囲を絞れる。module artifactの解決は実buildを通すまで未確認であり、source listingだけでは実行証拠にならない。
+- **次に確認すること:** 明示許可後に`ArtifactCoreShaderGraphContractTest`を既存CMake test blockへ追加し、configure/build/CTestを順に実行してmodule importとGoogleTest case discoveryを確認する。
+
+## 2026-11-14 — Principled numeric fields need isolated coverage
+
+- **関連:** `tests/fixtures/shader-graph-rd/surface_numeric_semantics.json`, `tests/ArtifactCore/ShaderGraphContractTest.cpp`, `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`, `ArtifactCore/src/Graphics/MeshRenderer.cpp`
+- **確認できた事実:** 既存runtime graph capturesはchartreuse/emission中心で、Metallic/Roughness/EmissionStrengthを個別に分けたsurface semantic fixtureはなかった。現 loweringはMetallic/Roughnessを`saturate`し、Emission RGBへ`max(strength,0)`を乗じる。Raster epilogueはRoughnessを0.04..1へclampしEmissionをsampleへ置換する。
+- **価値 / 懸念:** 新fixtureとcontract sourceがnode loweringとrenderer境界の値契約を区別して固定する。source testはfinal lighting、roughness response、HDR/clipping、shader parityの証拠にならない。
+- **次に確認すること:** 明示許可後のGPU captureでMetallic 0/0.75/1、Roughness 0/0.25/1、EmissionStrength 0/1/2.5のresponse sweepを同一sceneで取得し、roughnessの0.04 floorとemission HDR pathを測る。
+
+## 2026-11-14 — Pin lowering differs from final Raster application
+
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`, `ArtifactCore/src/Graphics/MeshRenderer.cpp`, shader graph R&D source contracts
+- **確認できた事実:** Metallic/RoughnessはPrincipled node loweringとRaster epilogueの両方でclampされる。EmissionStrengthはlowering時にnonnegative化され、Renderer側ではgraph emissionをsample変数へ代入しtint/strengthを1へ設定する。
+- **価値 / 懸念:** fixtureのsocket lowering式だけでは最終適用意味を証明できない。manifest source contractが両境界の代表式を機械的に追うようにしたが、source fragmentが存在することはcompile/runtime responseの証拠ではない。
+- **次に確認すること:** GPU response sweepでclamp境界、metallic response、roughness 0.04 floor、emission HDRが実際のshader/pipelineでどう出るか測る。
+
+## 2026-11-14 — HLSL order determinism is separate from JSON canonicalization
+
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`, `tests/ArtifactCore/ShaderGraphContractTest.cpp`
+- **確認できた事実:** `compileMaterialGraph()`は単一選択したMaterial OutputからDFSし、各nodeのinput pin宣言順で上流を訪問する。serializerはnodes/links vector orderでJSONを出すため、document byte canonicalizationとは異なる性質になる。
+- **価値 / 懸念:** 現在のorder-independent HLSL/helper/hashを独立に検証するsource caseを追加した。複数Output、duplicate writers、dangling/foreign linksがあるinvalid graphまで決定性を主張するものではない。
+- **次に確認すること:** 明示許可後のCPU testで正当なsingle-writer graphの順序variantを実行し、helper/block/hashが一致するか確認する。将来IR canonicalizationでは同じ意味をstable operation orderingへ固定する。
+
+## 2026-11-14 — Malformed graph determinism is not valid-graph determinism
+
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`, `tests/fixtures/shader-graph-rd/evaluation_manifest.json`
+- **確認できた事実:** duplicate incoming linkはlink storage順で最初のsourceを採用し、multiple Material Outputはnode storage順で最初を採用する。JSON loaderはinvalid linkをskipしてwarning付き`ok=true`にし、unreachable nodes/cyclesはoutput-rooted loweringで無視される。direct `link()`はforeign Pin ownerを検査しない。
+- **価値 / 懸念:** valid single-writer graphのlowering deterministic caseと、invalid/permissive inputのorder sensitivityを分離して評価できる。現APIでinvalid payloadをcompileしても安定したmaterial意味がない。
+- **次に確認すること:** Core validatorでunsafe links・ambiguous outputsをlowering前に拒否し、unused node保持時のdiagnostic policyを決める。runtimeより先にCPU contract testsでatomic rejectionを実証する。
+
+## 2026-11-14 — Principled numeric fixture is source coverage, not an isolated image sweep
+- **関連:** `tests/fixtures/shader-graph-rd/surface_numeric_semantics.json`, `tests/fixtures/shader-graph-rd/evaluation_manifest.json`, `ArtifactCore/src/Graphics/MeshRenderer.cpp`。
+- **確認できた事実:** numeric fixtureはMetallic=0.75、Roughness=0.25、Emission RGB=(0.25,0.5,1.0)、Strength=2.5を同時に接続する。既存float routeは別のgraph fixtureを使う。現Raster epilogueはMetallicを[0,1]へsaturate、Roughnessを[0.04,1]へclampし、graph emission RGBを既存sampleへ代入した後tint/strengthを1にする。
+- **価値 / 懸念:** combined graphのbaseline差だけでは3パラメータの個別応答を分離できず、8-bit review imageだけではHDR emission値域の評価にもならない。manifestにsource boundaryと未接続状態を記し、将来評価では固定条件のfloat baselineと各1変数 sweep、highlight/metallic/emission ROI、明示display transformを求める。
+- **次に確認すること:** fixtureを実capture adapterへ接続する許可後、値を一項目ずつ変えるcapture対を準備し、baseline noiseの反復測定後に許容差を定める。
+- **未検証:** GPU上のlighting応答、roughness floorの視覚影響、HDR headroom、計測時間・性能は未確認。
+## 2026-11-13: Shader Graph link/load/compileの失敗契約
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::NodeGraph::link/fromJson/compileMaterialGraph`、`ArtifactCore/src/Graphics/MeshRenderer.cpp::MeshRenderer::setMaterialGraphJson`、`tests/ArtifactCore/ShaderGraphContractTest.cpp`
+- **確認できた事実:** `link()`はgraph ownership・型・single-inputを検証しない。JSON loaderは不正linkをskipして`ok=true`、compile loweringはoutput到達範囲のみ処理。JSON parse/load失敗はMeshRendererの以前のcompiled graphを維持する一方、compile `ok=false`のmagenta fallbackは適用される。失敗JSONは保存済み文字列へ反映されず再解析される。Widget ApplyはControllerのlayer mutation true後にUI側compile probeし、Renderer setterはload成功後compile `ok`を無視してmagenta blockも保存・適用する。Renderer boolは`ArtifactIRenderer.cpp`で未使用。PSO creationの有効性はこのAPI結果で報告されない。
+- **価値または懸念:** UIへ診断を出す前にgraph validatorとcompile/apply/fallback状態を一貫させる必要がある。controller storage success、graph lowering、backend build、active pipelineを個別resultにしないとユーザー表示と実効shaderがずれる。保存順とhashの意味も区別する。同期PSO再生成の頻度・安全性はruntime未検証。
+- **未検証:** ShaderNode compile/JSONの契約test sourceはあるがCMake target未登録、compile/run未実施。GPU shader compile failure後のresource rollbackも未検証。
+- **次に確認すべきこと:** 許可された作業でCMake target登録後、CPU contract testsを実行する。続いてD3D12/Vulkanでcompile failure注入と既存material fallback、PSO cache churnを計測する。
+
+## 2026-11-13: Shader Graphの数値画像評価はlinear floatと表示clip測定を分ける
+- **関連:** `tools/shader_graph_rd/analyze_shader_graph_pfm.py`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp`、`tests/fixtures/shader-graph-rd/evaluation_manifest.json`
+- **確認できた事実:** Shader GraphのCore captureはlinear RGBA32FからRGB PFMと表示用PNGを別々に保存する設計。PFM解析はHDR値をclampせず分布・差分を算出し、PFMにalphaは含まれない。PFM analyzerへROI/channel共通range histogramを追加し、別PNG analyzer sourceは8-bit RGB/RGBA histogram・alpha統計/差分・encoded 0/255 endpoint率を出力する。
+- **価値または懸念:** PFM統計へPNGのclip-rateを混在させると表示変換に依存する値をlinear測定と誤認しうる。PNG endpoint率はscene-linear clip率ではなく、alphaを保存しないRGB PNGはalpha比較できない。Histogramは分布形状を示す補助値で、品質判定の代替にはならない。
+- **追加で確認できた事実:** capture sourceにはRGB PFMだけでなくsource alphaを保持するRGBA PNGも生成する経路がある。これを利用し、同じ透明pass/zero-alpha clearで固定PBR alpha baseline（期待1.0）とPrincipled Alpha=0.5 graph（期待0.5）をRGBA32F targetへ描く対照caseを追加した。PNG analyzerはこの同条件pairのalpha MAE/max error/changed-pixel rateを出力できる。
+- **追加で確認できた事実:** Core lowering sourceはPrincipled `Alpha`入力を`surface_alpha = saturate(input)`としてsurface bundleへ出し、Material Outputで`graphAlpha`へ渡す。inline JSONを使ったCPU contract-test sourceを加え、0.5定数・surface clamp・output fieldの3段階を直接確認する形にした。Renderer側はさらにBaseColor alphaとの積をmaterial alphaにするため、今回のfixtureはBaseColor alpha=1に固定してPrincipled Alphaだけを分離している。
+- **価値または懸念:** 半透明の単一背景captureはalpha値とblend結果の回帰を検知できるが、straight/premultiplied associationや複数背景でのfringeを単独では証明できない。PFM RGBにcomposited colorを保存しても、元alpha情報は別PNG由来となるため測定契約は分ける。
+- **次に確認すべきこと:** 実capture取得後、PNG形式の対応条件、ROI座標とorientation、alpha差分、差分PFMの向き、non-finite値とhistogram bin境界を標本で検証する。alpha probeは透明/不透明の複数背景とpremultiplication判別fixtureへ拡張する。
+- **未検証:** analyzerは構文確認のみで、capture sampleへの実行、C++/GPU経路は未確認。
+
+## 2026-11-13: Shader GraphのBaseColor alphaは透明blend前にrange clampされない
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::compileMaterialGraph`、`ArtifactCore/src/Graphics/MeshRenderer.cpp` material graph epilogue / transparent PSO、`tests/fixtures/shader-graph-rd/basecolor_alpha_overflow_negative.json`。
+- **確認できた事実:** Principled `Alpha`はloweringで`saturate`される。一方、RGB/BaseColor nodeのalpha literalは有限値のみで[0,1]範囲制限を受けず、Renderer epilogueは`materialAlpha = graphBaseColor.a * graphAlpha`を計算し、その後transparent blendへ出力する。出力alpha全体へのclampは該当経路に見当たらない。
+- **価値または懸念:** BaseColor alpha=1.5かつgraphAlpha=1ではmaterial output alphaが1.5になり、transparent PSOのsource-alpha blend factorが標準範囲外へ出る可能性がある。画像やalpha parameterが通常値という前提だけでなく、document/lowering時のrange validationが必要。
+- **次に確認すべきこと:** alpha=1.5 negative fixtureをCore contract testへ加え、rejectまたはdiagnostic付きclamp policyを決める。runtimeが許可されたら0,1境界・範囲外値でRGBA32Fとtransparent compositionを測る。
+- **未検証:** Diligent backendのblend factorが1を超えた場合の具体動作、NaN/Inf以外のrange policy、C++ contract testとGPU captureは未実行。
+
+## 2026-11-14: Shader Graph Principled NormalはNormal Textureフラグに条件依存する
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::compileMaterialGraph`、`ArtifactCore/src/Graphics/MeshRenderer.cpp::computeNormalMapped` / `MeshRenderer::setNormalTexture`。
+- **確認できた事実:** Graph epilogueはgraph接続があればsampled `normalSample`を`graphNormalSample`で置換する。実際の`computeNormalMapped()`は`PbrTextureFlags.y`が0.5未満ならgeometric normalを返すだけでGraph Normal入力を使わない。このflagはNormal Textureを設定した時にtrueになる。flag有効時はgraph valueを`sample * 2 - 1`でtangent normalへdecodeし、normal strengthを適用する。つまり接続中のNormal Texture画像はgraph値に置換され、そのbindingは現在normal map branchのenable条件として残る。Material OutputのBump/Displacementは別のworld-normal override経路を持つ。
+- **追加で確認できた事実:** Core float capture用sphereは以前`updateMeshGeometry(..., uvs=nullptr, ...)`だった。`computeNormalMapped()`はpositionと選択UVのscreen derivativesからT/Bを導出し、UV determinantがほぼ0ならgeometric normalへ戻る。Normal slot有効差を測るcaptureではlat-long UV0/UV1を渡すsourceを追加した。Authored tangentは別のshading-frame処理に使われるためこちらも初期化した。UV1/Tangent bufferはnull updateでは未初期化のままなので明示入力とsize assertionで閉じた。neutral/tilted Normal pairをslot無/有で比較するcapture/test sourceを用意した。
+- **追加で確認できた事実:** Normal/Occlusion pair captureは、それ以前に実行したPBR sweepの最後のmaterial stateを引き継いでいた。pair開始前にinstance tint、metallic/roughness/normal strength/AO strength、Principled specular/IOR/coatを明示固定し、fixture差以外の残留条件を減らした。
+- **追加で確認できた事実:** manifest validatorはcapture case名・出力名の存在までは確認するが、Normal評価に必要なUV選択や固定状態のsource setupは保証していなかった。Core float routeにrequired source fragmentsを宣言し、checkerがUV0、material state、tangent入力、frame-difference assertionを確認するよう拡張した。
+- **価値または懸念:** capture名だけが残り条件設定が削除されても静的provenance checkが通る状態を避けられる。fragment検査はsource spellingに結びつくため、capture setupを関数化・改名する際はmanifestも意図的に更新する必要がある。runtimeの正しさを証明するものではない。
+- **設計提案（未検証）:** current-adapter captureの「texture slotなしではsurface responseがない」をCoreの仕様として誤認しないよう、昇格gateをslot-independentなgraph Normal/Occlusion responseに分けた。画像resourceの有無は明示ImageTexture sampleの依存として扱い、接続済みsurface fieldの実行条件にはしない案。これはR&Dの望ましい意味論で、製品設計レビューとruntime capture前に確定した仕様ではない。
+- **価値または懸念:** UI上でPrincipled Normalを接続してもNormal Texture slot未設定では視覚的に無効となる可能性がある。また型はVector3でも、経路の実値はencoded tangent sampleとして消費されるため、backend-neutral IRのnormalized direction型と同一視できない。Core昇格ではsample encoding・tangent space・slot enable条件・Bump overrideを別semanticsにする必要がある。
+- **次に確認すべきこと:** 新しいslot無/有pair captureを実行し、source assertionsとpixel差を照合する。texture有ケースでasset sampleをgraph valueが置換することを確認したうえ、UI/IR契約を明示する。
+- **未検証:** capture/test source未実行。`PbrTextureFlags.y`が全renderer routeで同じ意味を持つか、UV/tangent seam、D3D12/Vulkan parityも未確認。
+
+## 2026-11-14: Shader Graph Principled Occlusionもslot enable flagに条件依存する
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::compileMaterialGraph`、`ArtifactCore/src/Graphics/MeshRenderer.cpp` graph epilogue/AO calculation、`MeshRenderer::setOcclusionTexture`。
+- **確認できた事実:** graph `Occlusion`値はsampled `occlusionSample`を置換し、Principled loweringで`saturate`される。しかしRaster AOは`lerp(1.0, lerp(1.0, occlusionSample, saturate(PbrFactors.w)), PbrTextureFlags.z)`で計算され、`PbrTextureFlags.z`はOcclusion Texture slotを設定した時だけtrueになる。graph接続時はslot画像の値が後段でgraph値に置換され、slot bindingはAO branch enable条件として残る。
+- **価値または懸念:** graphへOcclusionを接続してもTexture slot未設定ならAOは1.0のまま変化せず、slot有効時も既存Occlusion strengthと乗算的に制限される。Graph surface fieldとmaterial resource enable/factorが分離されておらず、UIの接続が無効に見える可能性、Core IRをrenderer flagsへ直結できない境界を作る。
+- **次に確認すべきこと:** 新しいneutral/low pair captureの結果を照合し、slot gatingが意図した製品挙動か決める。その後strength 0/0.5/1をsweepし、backend-neutral surface outputとrenderer resource/factor policyを分離して表現する。
+- **未検証:** capture/test source未実行。Material slot未設定時の初期flag、他render routeの同一条件、D3D12/Vulkan parityも未確認。
+
+## 2026-11-13: Shader Graphの保存成功とshader適用成功は別状態
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::setMaterialGraphJsonOnSelectedLayer`、`ArtifactCore/src/Graphics/MeshRenderer.cpp::setMaterialGraphJson`、`Artifact/src/Widgets/ArtifactShaderGraphWidget.cpp::applyGraph`、Shader Graph R&D promotion gate。
+- **確認できた事実:** ControllerはlayerへJSONを保存してrender dirtyを立てた後にtrueを返す。MeshRendererはJSON load成功後にcompile resultの`ok`を確認せず、fallback HLSLを含む文字列を設定する。Widgetはlayer setter後に独立compileし、失敗ならmagenta fallback適用をstatus表示する。
+- **価値または懸念:** 呼び出し側boolだけではdocument保存・graph validation・shader compile・effective materialの状態を判定できず、UIとrendererが別々の結果解釈を持つ。無効JSONが保存済みprojectへ残り、fallback shaderになる挙動はlast-known-good維持とは異なる。
+- **次に確認すべきこと:** compile/apply resultを段階別に区別するCore候補契約を、malformed/version/node/link/cycle/HLSL compiler failureと修正・clearのケースで検証する。policyとして明示magenta previewを残す場合も、production apply状態を混同しない。
+- **未検証:** compile failureの実shader compiler結果、PSO失敗、GPU上のmaterial残存、project reload後の挙動は未確認。
+
+## 2026-11-13: Shader Graphの同一JSON比較前にrender setupで文字列コピーが発生する
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cpp` のMeshRenderer material setup、`ArtifactCore/include/Material/Material.ixx::materialGraphJson`、`ArtifactCore/src/Utils/UniString.cpp`、`ArtifactCore/src/Graphics/MeshRenderer.cpp::setMaterialGraphJson`。
+- **確認できた事実:** renderer setupは`static_cast<std::string>(material.materialGraphJson())`を呼ぶ。getterは`UniString`値返却、コピーctorは`new Impl(other)`、std::string変換はQStringのUTF-8化とstd::string構築を行う。MeshRendererの等値JSON比較はその後に実行されるため、compile/lowerをskipしても上流の取得・変換コストは避けない。
+- **価値または懸念:** 保存JSONを含む3D materialでは、render setupが反復されるたびに少なくともPImpl copy allocationが発生し、UTF-8/std::string変換も追加allocationになる可能性が高い。Shader compile cacheの早期returnはsteady-state allocation-freeを意味しない。
+- **次に確認すべきこと:** 明示許可されたArtifact/ArtifactCore変更で参照/viewまたはrevision境界に変え、same-graph steady-stateをallocator計測しallocation-freeを確認する。graph変更時のJSON parse/HLSL lowering/PSO生成はcold pathとして別計測する。
+- **未検証:** draw/render setupの正確な呼出頻度、release buildでのallocator回数とframe-time影響は実測していない。
+
+## 2026-11-13: 多くのShader Graph入力既定値はJSONではなくlowering sourceが所有する
+- **関連:** `ArtifactCore/include/ShaderNode/ArtifactShaderNode.ixx::Pin`、`ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::matWriteParams/matReadParams/compileMaterialGraph`、`tests/ArtifactCore/ShaderGraphContractTest.cpp`。
+- **確認できた事実:** `Pin`はname/type/owner/directionのみを保持し、per-pin default valueを保存しない。JSONのnode-owned parameterはValue、RGB/LegacyColor、Math、MixRGB、ColorRamp、ImageTexture、MapRangeだけで、Fresnel IOR、Noise Scale、Blackbody Temperature、NormalMap strength等の未接続値はHLSL lowering内の定数である。Widgetはpin名/typeを描画するが、編集dialogはnode-owned fieldのみで、socketごとのdefault値編集UIは見つからなかった。R&D source testに既存node-owned fieldsのround-tripとNoise Scale fallbackのcaseを追加した。
+- **価値または懸念:** 既定値の変更は既存JSONの見た目を変え、socket値としてUI編集・保存できない。Core schema昇格ではper-socket defaultを文書値として持たせるか、compiler contract versionを明示して既存projectの再現性を守る必要がある。
+- **次に確認すべきこと:** 有効な全node typeと全editable fieldのround-trip、各unconnected input defaultのgolden HLSL/parameter responseを実行可能testにし、old-version migrationとの組合せを検証する。
+- **未検証:** 追加したC++ testsは未登録・未コンパイル・未実行。UIが未接続pinの値を別途保持する隠れた経路も未確認。
+
+## 2026-11-13: Color Ramp stopsの空配列・上限超過はload時に黙って変形する
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::matReadParams`、`tests/fixtures/shader-graph-rd/empty_ramp_stops_negative.json`、`oversized_ramp_stops_negative.json`、`tests/ArtifactCore/ShaderGraphContractTest.cpp`。
+- **確認できた事実:** 空stops配列は`if (!stops.isEmpty())`内の更新を通らずconstructor既定値2点が残る。65点以上は64点でloopをbreakし、loader warningを付けない。serializer側はpublic stop collectionの全要素を出すため、こうした入力は静かな保存データ変形を起こす。
+- **価値または懸念:** JSON load成功だけではColor Rampのround-trip成功を証明しない。R&D fixtureとexplicit diagnosticを要求するsource testsを追加したが、現行実装では期待を満たさない想定。
+- **次に確認すべきこと:** child変更が許可された段階で、空はrejectまたは診断付きnormalize、上限超過もrejectまたは診断付きtruncateのどちらかを契約化し、canonical round-tripで確認する。
+- **未検証:** C++ test source未登録・未実行。丸め・stop順序・重複positionの視覚的影響は未評価。
+
+## 2026-11-13: Shader Graph link APIは別graphのPinをraw pointerで保持しうる
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::NodeGraph::link/compileMaterialGraph/toJson`、`ArtifactCore/include/ShaderNode/ArtifactShaderNode.ixx::NodeGraph`、`tests/ArtifactCore/ShaderGraphContractTest.cpp`。
+- **確認できた事実:** `link()`はnullとinput/output方向のみ検査し、Pin ownerのgraph membershipやtype compatibilityを検証せずraw Pin pointerを保存する。compile/serializeはlinkからownerを参照する。foreign graphが破棄された後にdestination graphをcompile/serializeすればdangling pointerをたどりうる。node/link countにも上限がなく、compile loweringは再帰DFSを使う。
+- **価値または懸念:** UIのsocket validationを迂回するAPI caller、将来追加のloader/runtime code、極端に深いproject JSONがmemory safety/stack exhaustionとquiet wrong outputにつながりうる。direct foreign-pin/type mismatch rejection source testsを追加したが、現行link()実装では通らない想定。
+- **次に確認すべきこと:** Core APIにowner/type/single-writer validationとdiagnostic付きlink結果を持たせる。JSON byte/node/link/depth limitsを割当て前に適用し、deep graph traversalをstack-safeにする。runtime許可後に境界stressを実行する。
+- **未検証:** dangling pointer再現、stack限界、上限値と性能予算、C++ contract testは未実行。
+
+## 2026-11-13: Shader Graph node IDのHLSLサニタイズが衝突する
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::sanitizeShaderId/compileMaterialGraph`、`tests/ArtifactCore/ShaderGraphContractTest.cpp::SanitizedNodeIdentifiersDoNotCollide`。
+- **確認できた事実:** IDのサニタイズは非ASCII英数字とunderscore以外を`_`に置換する。JSONの重複検査は元文字列同士で行うため、`base-color`と`base_color`は両方受理されるが、生成HLSLの識別子prefixは同じになる。
+- **価値または懸念:** 異なるgraph nodeが同名のローカルshader変数を出し、shader compile失敗または誤ったsymbol参照を招く可能性がある。衝突を検出する契約test sourceを追加した。
+- **次に確認すべきこと:** Core変更を許可された段階で、sanitized IDの一意性検証か、元IDから決定的かつ可逆性を考慮した識別子符号化を契約化し、実際のshader compilerでも確認する。
+- **未検証:** 外部shader compilerが重複宣言をどう報告するか、すべてのlowering経路が同じsanitizerを使うか、C++ testは未登録・未実行。
+
+## 2026-11-13: Shader GraphをCoreへ移すにはHLSL文字列境界を分ける必要がある
+- **関連:** `ArtifactCore/include/ShaderNode/ArtifactShaderNode.ixx::NodeGraph/MaterialGraphResult`、`ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`、`ArtifactCore/include/Container/NamedVector.ixx`、Shader Graph R&D milestoneのCore境界案。
+- **確認できた事実:** 既存public moduleは`std::vector` ownershipとraw `Pin*` linksを公開し、material compile resultにHLSL splice stringsを含む。JSON codec実装はQt JSON typesを使い、`.cpp`実装は`Container.NamedVector`もimportしている。現Material Outputの`Displacement`はgeometry displacementでなくworld-normal override flagへlowerされる。ImageTextureは選択slotのtexture viewを使うが、graph loweringはraw input UV/default `In.UV`と共有`g_BaseColorSampler`を使い、通常PBR pathのslot別UV transformを反映しない。またnode出力は各slotのraw RGBAで、固定PBR側はBaseColor RGBA、Opacity A、Emission RGB、MetallicRoughness B/G、Normal RGBA、Occlusion Rを使う。現node inventoryにSeparate Color/XYZはなく、Vector4→Floatは`.x`へ変換される。
+- **価値または懸念:** moduleがArtifactCoreに置かれているだけではUI/backend-neutralなCore契約ではない。document、pure validation、typed lowering IR、Artifact renderer adapterを分ける必要がある。IR proposalでは既存field semantics、Phase-1 opcode families、resource requirements、canonical float encoding、node familyごとのpromotion matrixを明記した。Noise等はtyped opに変換可能でもalgorithm/backend parity証拠が別途必要。ImageTextureのresource identityだけでなくraw swizzle、sampler・UV transform・color-space contract、fallback stateをexplicitにしないとfixed material pathとの予期せぬ差が残る。SeparateColor/XYZと明示Swizzleはpacked mapを実用的に編集するための候補ノードとなる。planned fixtureにMetallicRoughness B→Metallic、G→Roughnessの将来契約を記録したが、現在のnode schemaはSeparateColor未対応。`NamedVector`は候補だがstable handle/hash indexやbounded growthを保証しないため、単純な型置換は参照安定性・instrumentation・ABIを悪化させる可能性がある。
+- **次に確認すべきこと:** child変更が明示許可された段階で、ID参照document/validator/IRを独立contractとして設計し、module dependency graphと独自コンテナ候補の容量・move/copy・計測コストを比較する。legacy facadeを介したJSON/project互換も定義する。R&D milestoneにdocument、link/type、identifier/output、bounds、backend lowering、image、apply/failure、hot-path、module境界ごとの観測可能な昇格gateを整理した。
+- **未検証:** 抽出API、migration、module dependency/cycle、container benchmark、backend-neutral IRでのD3D12/Vulkan compile/parityは未実施。今回のR&Dではchild moduleとCMakeを変更していない。
+
+## 2026-11-13: ShaderNode実装moduleに未使用らしいNamedVector importがある
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`、`ArtifactCore/include/ShaderNode/ArtifactShaderNode.ixx`、Core昇格のmodule境界。
+- **確認できた事実:** ShaderNode実装cppmは`import Container.NamedVector;`を持つが、両ShaderNode source内の`NamedVector`文字列はimport行以外に現れず、公開宣言・実装の所有コレクションは`std::vector`/`std::unique_ptr`である。
+- **価値または懸念:** 実際に未使用なら、Core module dependencyとdyndep graphを不要に広げている可能性がある。一方、文字列検索だけではmacro/ADL/間接利用を排除できないため断定しない。Core昇格時にはNodeGraph ownershipを自作containerへ機械置換せず、stable handle・bounded growth・copy/move・ABI条件を比較する必要がある。
+- **次に確認すべきこと:** child repo変更が明示許可された段階で、名前解決・依存スキャンを含む狭いbuild確認のうえimport削除可否を判定する。NodeGraph public APIは新しいbackend-neutral documentへ分離し、既存graphは互換facadeとして段階移行する案を維持する。
+- **未検証:** MSVC module scannerがこのimportをどの依存として扱うか、削除によるbuild graph/compile time差、Container.NamedVectorの間接的な必要性。
+
+## 2026-11-13: Shader Graph Applyは保存後にcompile probeし、明示UndoCommandが見当たらない
+- **関連:** `Artifact/src/Widgets/ArtifactShaderGraphWidget.cpp::applyGraph`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::setMaterialGraphJsonOnSelectedLayer/clearMaterialGraphOnSelectedLayer`、`Artifact/src/Layer/Artifact3DModelLayer.cpp::toJsonProperties/fromJsonProperties`。
+- **確認できた事実:** Applyはgraph JSON/layoutをlayerへ設定した後にcompile probeする。probe failureでもdocument stringはすでに変更済み。layer serializationはnonempty stringを`material.graph`へ保存し、load時はvalidationせず保持する。controller apply/clearはlayer mutation notification、composite invalidation、render dirtyを行うが、調査した関数内にUndoManager/UndoCommand作成はない。
+- **価値または懸念:** invalid graphを保存したままmagenta fallbackを適用する可能性があり、Applyの「保存」と「有効shader適用」が分離する。document/layoutが一つのJSON payloadなので、undoが実装される場合はどちらをsnapshotするか明示が必要。changed notificationだけではundo履歴を証明しない。
+- **次に確認すべきこと:** 既存自動history hookをruntimeで追跡し、graph A→B、invalid apply、clear、save/reload、duplicate、layer selection変更後のundo/redoでpayload、effective shader、selection、dirty/cache状態を確認する。history commandがなければlayer ID付きbefore/after graph snapshot commandを設計レビューする。
+- **未検証:** 自動history integrationの有無、ユーザー向けUndo label、redo/undo後のrenderer recompile/PSO rollback、duplicateとclipboard経由のasset/resource identityは未確認。`Artifact` childは変更していない。
+
+## 2026-11-13: Shader GraphのPBR適用とPSOキャッシュは別の意味境界
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cpp::createPSO/setMaterialGraph/setMaterialGraphJson`、Shader Graph R&D promotion gate。
+- **確認できた事実:** Graph spliceは固定pixel shaderのmaterial localsへBaseColor、Metallic(saturate)、Roughness(0.04..1 clamp)、Alpha(baseColor.a * graphAlpha)、Emission(RGB, strength=1)、world-normal override、Occlusionを反映する。pixel `CompileShader`結果は呼び出し元で検査されず、その後PSO作成へ進む。opaque PSOが空ならwarning後にreturnし、transparent PSO失敗はopaque fallbackで続行する。成功時のpipelineSetsはrender-target formatで保持され、Graph変更はcache全消去後にcreatePSOを呼ぶ。
+- **価値または懸念:** NodeGraphのlowering出力が正しくてもPBR固定境界のclamp・alpha・emission規約で見た目が変わる。API setterのtrueはpixel shader compileやPSO成功を保証せず、PSO失敗後の有効pipeline保持もsource上明らかでない。PSO family nameやformat-keyed mapだけではbackend cache keyの完全性・shader content再利用を証明できない。
+- **次に確認すべきこと:** runtime failure injectionでCompileShader/opaque PSO/transparent PSO失敗を分けてeffective PSOと次frame outputを記録する。graph変更・format切替・device/backend切替時のcache hit/missとPSO generation、既存pipelineの寿命を計測し、PBR field clamp/alpha/emissionをfixtureのgoldenへ固定する。
+- **未検証:** `IPipelineStateCache` のcontent-key・backend invalidation、CompileShaderのfailure return/log semantics、failed graph PSO後にdrawがどうなるか、GPU output/PSO countsは未確認。
+
+## 2026-11-13: Shader Graph JSON loaderはenvelopeと部分link loadを厳密検証しない
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::NodeGraph::fromJson`、`tests/fixtures/shader-graph-rd/*negative.json`、`tests/ArtifactCore/ShaderGraphContractTest.cpp`。
+- **確認できた事実:** `fromJson()`はroot `version`を検査するが`kind`は読まない。missing `nodes`/`links`は`QJsonValue::toArray()`で空配列になり、loadが成功する経路がある。unknown nodeは全体rejectする一方、missing node/pin/type mismatch linkはskip後にgraphをcommitし、warning文字列を設定しながら`ok=true`を返す。これらのケースをwrong-kind/missing-arrays/skipped-type-mismatch負例fixtureとcontract test sourceに追加した。
+- **価値または懸念:** `ok`だけを見るcallerは別種documentや不完全graphを正常loadと扱う可能性があり、persist済みgraphを置換し得る。warning文字列はstable diagnostic code/pathではない。staged graphはハードなload error時の保持を支えるが、現在はskip warningがerror扱いにならない。
+- **次に確認すべきこと:** Core許可後にroot kind/required array/schema shapeを検証し、link違反をstructured diagnosticとしてrejectする契約を実装する。全negative corpusでprevious graphが不変であることをC++ runtime testで確かめる。
+- **未検証:** C++ contract testsは未登録・未コンパイル・未実行。negative fixtureのloader acceptanceはsource inspectionに基づく予測であり、実行結果ではない。
+
+## 2026-11-13: Shader Graph JSONのfinite doubleをfloat cast前に範囲検証していない
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::matFiniteDouble/matReadParams`、`tests/fixtures/shader-graph-rd/float_overflow_negative.json`、`tests/ArtifactCore/ShaderGraphContractTest.cpp`。
+- **確認できた事実:** `matFiniteDouble()`はJSON numberをdoubleとしてfiniteか確認するが、Value/RGB/ColorRamp値の保存先はfloatであり、binary32の有限範囲を確認せずcastする。finite double `1e100`はbinary32で表現可能な有限値を大きく超える。fixtureとreject-or-normalize-with-diagnostic contract sourceを追加した。
+- **価値または懸念:** NaN/InfのJSON tokenを排除してもnumeric safetyは成立せず、large finite literalがshader codeへ非finite値として伝播する可能性がある。JSON parser、C++ conversion、shader formatting、backend compilerの全境界でfinite/range policyを統一する必要がある。
+- **次に確認すべきこと:** binary32範囲超過値・subnormal・-0・境界値のload/serialize/lowering policyを決め、strict rejectか明示normalizeをstructured diagnostic付きで実装する。runtime compiler診断とfinite shader constantsを確認する。
+- **未検証:** MSVCでのdouble-to-float overflow result、HLSL formatterが生成する文字列、D3D12/Vulkan compilerの応答、contract test実行は未確認。
+
+## 2026-11-13: Shader Graphの未知enum値は有効値へ無警告clampされる
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::matReadParams`、`tests/fixtures/shader-graph-rd/out_of_range_enum_negative.json`、`tests/ArtifactCore/ShaderGraphContractTest.cpp`。
+- **確認できた事実:** Math op、MixRGB blend、ColorRamp interpolation、ImageTexture slot、MapRange interpolationのJSON enum integerは各有効範囲へ`std::clamp`される。Math op=17は16へsilent clampされる。out-of-range fixtureとreject-or-explicit-normalization diagnostic source caseを追加した。
+- **価値または懸念:** 壊れた値や新しいschema producerのenumが別の有効操作へ変わって保存/表示されると、graphの意味を保てず互換性問題が隠れる。明示的移行が意図ならversioned migration diagnosticが必要。
+- **次に確認すべきこと:** strict schema validationとlegacy migrationの方針を分け、unknown enumをrejectするかstable migration diagnostic付きで変換するか決める。round-trip後にnode enumが保存前と一致するboundary testを実行する。
+- **未検証:** C++ loaderのruntime結果、enum fieldごとのround-trip、将来version migration policy、contract testは未確認。
+
+## 2026-11-13: Shader Graph BaseColorは固定material tintをreplacementする
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cpp` Pixel Shader `baseColor` assembly / `__ARTIFACT_MATERIAL_GRAPH_OVERRIDE__`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp::CapturesPbrSphereSweepUnderStinsonHdr`。
+- **確認できた事実:** fixed pathはsRGB decodeした`In.Color`、`In.VertexColor`、`MaterialBaseColorFactor`をsample済みbase RGBへ乗算する。Graph epilogueはその後`baseColor = graphBaseColor`を代入するため、Graph BaseColor出力はfixed pathのこれらRGB factorを上書きする。Core float probe capture sourceは暗いinstance tintをbaselineへ設定し、このpath differenceを測定対象にした。
+- **価値または懸念:** node graphのBaseColor値をmaterial tintと合成するのか完全置換するのかで、既存PBR編集値とtexture previewの期待が変わる。backend-neutral IRでもこの優先順位が曖昧だと、Graph適用後にlayer tint/vertex tintが消える互換性差を再現できない。
+- **次に確認すべきこと:** product contractとしてreplace/multiplyを決め、同一textureのneutral/dark layer tint/vertex colorを使うfloat goldensで固定PBRとの差を測る。Graph enable/clear時の視覚的遷移もcaptureする。
+- **未検証:** 実frameでこの差が見えるか、vertex color factorの実fixture、ユーザー向け期待、D3D12/Vulkan parityは未確認。今回のcapture sourceは未実行。
+
+## 2026-11-13: Shader Graphのbackend失敗時はlast-good PSOを保持しない経路
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cpp::setMaterialGraph/createPSO/prepare/draw`、`tests/fixtures/shader-graph-rd/identifier_collision_compile_failure.json`、Shader Graph R&D milestone。
+- **確認できた事実:** `setMaterialGraph()` はhelper/blockを置換後に`prepared_`をfalseにし、pipeline set全体をclearしてからPSOを作る。`createPSO()`は対象opaque PSO/SRBも先にreleaseし、opaque PSOが得られなければSRB/pipelineSets登録前にreturnする。`prepare()`は有効PSO/SRBがなければ終了し、`draw()`はpreparedでない場合にskipする。source上、失敗前の有効pipelineへrollbackする処理は確認できなかった。
+- **価値または懸念:** shader graphのcompile failureが一時的でも、last-known-good shaderではなく描画欠落へつながる可能性がある。またsetterはbackend build成否を返さないため、document適用と画面反映の不一致を呼び出し側で判別しにくい。
+- **次に確認すべきこと:** `base-color` / `base_color` の識別子サニタイズ衝突fixtureでbackend compiler failureを誘発し、ログ・PSO結果・clear-only frame・次のvalid graphでの回復をGPU captureする。失敗が確実なら、Core昇格前にbuild resultとlast-good保持/fallback方針を明示する。
+- **未検証:** 衝突HLSLを実backend compilerが拒否するか、CreateGraphicsPipelineStateの失敗表現、例外有無、capture pixelがclear colorになるか、回復可否はいずれも未実行の仮説。
+
+## 2026-11-13: Render Queue camera shake 更新が const 制約と不整合
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cpp:7100`、`Artifact/include/Layer/ArtifactCameraLayer.ixx:160`、DoF production GUI capture。
+- **確認できた事実:** Debug `Artifact` target のビルドで C2662 が発生。GPU Render Queue path の `activeCamera` は snapshot composition の mutable `allLayerRef()` から取得した camera を指し、同じ path が評価 frame の shake state を進めている。`activeCamera` の pointer qualification を非 const にし、該当 Render Queue object はビルドできた。
+- **価値または懸念:** snapshot 内の camera を更新する設計は意図的に見えるが、frame evaluation の反復時に shake state が再現可能かは別途確認が必要。非 const pointer はこの既存更新をコンパイル可能にする最小修正であり、`const_cast` は使っていない。
+- **追加で確認できた事実:** 全体 Debug build は後続して Composition Render Controller の未定義 `appSettings` と、未コミットの AppMain 変更内の構文／名前解決エラー、および Composition Editor の X-Ray opacity menu の型・API エラーで停止した。既存 GUI binary の起動後、Computer Use window activation は 2 回失敗し、production capture は未取得。
+- **未検証:** Render Queue shake 更新の deterministic contract、他 backend／build configuration への影響、修正後の production DoF comparison。
+- **次に確認すべきこと:** 上記の残コンパイルエラーを最小修正し、現行 Artifact binary を再リンクした後、同一 DoF scene／frame／resolution の preview と Render Queue を比較する。
+
+## 2026-11-13: Crop position property updates depend on edit order at source bounds
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cpp::setLayerPropertyValue` の `sourceCrop.cropX/Y/Width/Height`、`Artifact/src/Layer/ArtifactSourceCrop.cpp::clampRectToSource`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp::setSelectedCropRect`。
+- **確認できた事実:** 4×3 sourceのfull rectで位置を寸法より先に設定すると、各property update後の境界clampが入力位置を変えてしまう。`CompositionRenderController::setSelectedCropRect()`も同じ順で値を適用していた。controllerの適用・rollbackを寸法→位置順へ変更。回帰テストで要求rect=(3,2,2,2)が有効rect=(2,1,2,2)となり、画素境界を含めPASS。
+- **価値または懸念:** 個別Inspector値の編集順は別経路なので、同じ問題が残る可能性がある。controllerの選択crop操作は修正済み。
+- **未検証:** Inspectorの個別数値編集順、実GPU Previewの境界位置。
+- **次に確認すべきこと:** Inspector経路とComposition GPU Preview captureを照合する。

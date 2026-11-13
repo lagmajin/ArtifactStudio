@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CAPTURE = ROOT / "experiments/FilmEffectsLab/captures/film-suite-composition-runtime-capture-r1"
 FIXTURES = ROOT / "experiments/FilmEffectsLab/fixtures/film-suite-runtime-r1"
 EXPECTED_EFFECTS = {"grunge": ("grunge-neutral", "grunge-grain-only"),
-                    "damage": ("damage-neutral", "damage-overlay-only")}
+                    "add_noise": ("add-noise-neutral", "add-noise-grain-only")}
 BACKGROUNDS = ("black", "gray-0.18", "white")
 RESOLUTIONS = {"512": (512, 256), "1024": (1024, 512)}
 REGIONS = ("whole", "transparent", "low", "edge", "near_opaque", "opaque", "fine_detail", "flat_opaque")
@@ -52,7 +52,7 @@ def main() -> None:
             required.append(f"baseline-disabled-{bg}-{res}.png")
             for neutral,candidate in EXPECTED_EFFECTS.values():
                 required.extend((f"{neutral}-{bg}-{res}.png",f"{candidate}-{bg}-{res}.png"))
-        required.extend((f"grunge-grain-only-transparent-{res}.png",f"damage-overlay-only-transparent-{res}.png"))
+        required.extend((f"grunge-grain-only-transparent-{res}.png",f"add-noise-grain-only-transparent-{res}.png"))
     missing=[name for name in required if not (CAPTURE/name).exists()]
     if missing:
         raise FileNotFoundError("Missing runtime exports:\n"+"\n".join(missing))
@@ -93,7 +93,7 @@ def main() -> None:
                 candidate_img=load_rgb(CAPTURE/f"{candidate}-{bg}-{res}.png")
                 results[res]["flattened"][effect]["candidate_minus_neutral"][bg]= {
                     region:stats(candidate_img-neutral_img,mask) for region,mask in masks.items()}
-        for state in ("grunge-grain-only","damage-overlay-only"):
+        for state in ("grunge-grain-only","add-noise-grain-only"):
             path=CAPTURE/f"{state}-transparent-{res}.png"
             image=load_rgba(path)
             if image.shape[:2]!=(height,width): raise ValueError(f"Transparent export dimensions mismatch: {state}/{res}")
